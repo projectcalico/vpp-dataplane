@@ -17,3 +17,6 @@ Calico binaries are licensed under the [Apache v2.0 license](LICENSE), with the 
 
 Calico imports packages with a number of apache-compatible licenses. For more information, see [filesystem/licenses](./filesystem/licenses). In addition, the base container image contains
 pre-packaged software with a variety of licenses.
+
+
+[contrib]: https://github.com/projectcalico/calico/blob/master/CONTRIBUTING_CODE.md
