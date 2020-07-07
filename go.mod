@@ -4,7 +4,6 @@ go 1.12
 
 require (
 	git.fd.io/govpp.git v0.3.4
-	github.com/lunixbochs/struc v0.0.0-20190916212049-a5c72983bc42
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/containernetworking/plugins v0.8.2
 	github.com/coreos/etcd v3.3.17+incompatible // indirect
@@ -15,6 +14,7 @@ require (
 	github.com/gophercloud/gophercloud v0.6.0 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
+	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/osrg/gobgp v2.0.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/libcalico-go v1.7.3
@@ -35,5 +35,3 @@ require (
 replace github.com/projectcalico/libcalico-go v1.7.3 => github.com/projectcalico/libcalico-go v1.7.2-0.20191112223013-362a04d5e109
 
 replace github.com/osrg/gobgp v2.0.0+incompatible => github.com/osrg/gobgp v0.0.0-20191101114856-a42a1a5f6bf0
-
-replace github.com/lunixbochs/struc => github.com/sknat/struc v0.0.0-20200617164704-98063b5c2257
