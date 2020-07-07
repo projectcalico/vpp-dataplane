@@ -8,4 +8,4 @@ package proto
 // abstraction allows to use Calico's policy engine with a non-kernel
 // dataplane
 
-// Use go-generate to regenerate the go file.
+// Use go generate to regenerate the go file.

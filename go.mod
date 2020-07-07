@@ -17,21 +17,18 @@ require (
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/osrg/gobgp v2.0.0+incompatible
 	github.com/pkg/errors v0.9.1
-	github.com/projectcalico/libcalico-go v1.7.3
+	github.com/projectcalico/libcalico-go v1.7.2-0.20200616235705-7bb88b19faec
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/viper v1.5.0 // indirect
 	github.com/vishvananda/netlink v1.0.1-0.20191217171528-ed8931371a80
-	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
-	golang.org/x/sys v0.0.0-20190826190057-c7b8b68b1456
+	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
+	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/grpc v1.24.0
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
-	k8s.io/api v0.0.0-20191114100040-7a2cb0978c84
-	k8s.io/apimachinery v0.0.0-20191114135336-bcf004c497a4
-	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/utils v0.0.0-20191114181534-f635c9d740df // indirect
+	k8s.io/api v0.17.2
+	k8s.io/apimachinery v0.17.2
+	k8s.io/client-go v0.17.2
 )
-
-replace github.com/projectcalico/libcalico-go v1.7.3 => github.com/projectcalico/libcalico-go v1.7.2-0.20191112223013-362a04d5e109
 
 replace github.com/osrg/gobgp v2.0.0+incompatible => github.com/osrg/gobgp v0.0.0-20191101114856-a42a1a5f6bf0

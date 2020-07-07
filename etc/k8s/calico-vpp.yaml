@@ -36,7 +36,7 @@ data:
               "kubeconfig": "__KUBECONFIG_FILEPATH__"
           },
           "dataplane_options": {
-            "type": "external",
+            "type": "grpc",
             "socket": "unix:///var/run/calico/cni-server.sock"
           }
         },
@@ -546,7 +546,7 @@ spec:
         # This container installs the CNI binaries
         # and CNI network config file on each node.
         - name: install-cni
-          image: calicovpp/cni:latest
+          image: calico/cni:v3.15.0
           imagePullPolicy: IfNotPresent
           command: ["/install-cni.sh"]
           env:
@@ -581,7 +581,7 @@ spec:
         # Adds a Flex Volume Driver that creates a per-pod Unix Domain Socket to allow Dikastes
         # to communicate with Felix over the Policy Sync API.
         - name: flexvol-driver
-          image: calico/pod2daemon-flexvol:v3.9.1
+          image: calico/pod2daemon-flexvol:v3.15.0
           imagePullPolicy: IfNotPresent
           volumeMounts:
           - name: flexvol-driver-host
@@ -845,7 +845,7 @@ spec:
       priorityClassName: system-cluster-critical
       containers:
         - name: calico-kube-controllers
-          image: calico/kube-controllers:v3.9.1
+          image: calico/kube-controllers:v3.15.0
           imagePullPolicy: IfNotPresent
           env:
             # Choose which controllers to run.
