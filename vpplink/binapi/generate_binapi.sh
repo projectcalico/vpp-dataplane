@@ -107,7 +107,7 @@ function update_version_number ()
 
 	if [[ x$RESP = xyes ]]; then
 		find . -path ./binapi -prune -o -name '*.go' \
-			-exec sed -i 's@github.com/calico-vpp/vpplink/binapi/[.~0-9a-z_-]*/'"@github.com/calico-vpp/vpplink/binapi/$VPP_VERSION/@g" {} \;
+			-exec sed -i 's@github.com/projectcalico/vpp-dataplane/vpplink/binapi/[.~0-9a-z_-]*/'"@github.com/projectcalico/vpp-dataplane/vpplink/binapi/$VPP_VERSION/@g" {} \;
 	fi
 }
 
