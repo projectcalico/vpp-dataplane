@@ -25,13 +25,11 @@ import (
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
 func getNetworkRoute(network string) (route *netlink.Route, err error) {
-	var gw net.IP
 	log.Infof("Added ip pool %s", network)
 	_, cidr, err := net.ParseCIDR(network)
 	if err != nil {
@@ -43,16 +41,9 @@ func getNetworkRoute(network string) (route *netlink.Route, err error) {
 		return nil, errors.Wrapf(err, "cannot find interface named %s", HostIfName)
 	}
 
-	if vpplink.IsIP4(cidr.IP) {
-		gw = params.vppTapIP4
-	} else {
-		gw = params.vppTapIP6
-	}
-
 	return &netlink.Route{
 		Dst:       cidr,
 		LinkIndex: link.Attrs().Index,
-		Gw:        gw,
 	}, nil
 }
 

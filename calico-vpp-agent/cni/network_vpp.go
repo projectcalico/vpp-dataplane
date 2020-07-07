@@ -21,32 +21,44 @@ import (
 	"io"
 	"net"
 	"os"
-	"time"
 
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 
-	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
 
-type interfaceConfig struct {
-	address net.IPNet
+type InterfaceAddress struct {
+	IPNet   *net.IPNet
 	gateway net.IP
+}
+
+func (r *InterfaceAddress) String() string {
+	return fmt.Sprintf("%s (gw %s)", r.IPNet.String(), r.gateway.String())
+}
+
+type InterfaceConf struct {
+	addresses         []InterfaceAddress
+	routes            []*net.IPNet
+	Hasv6             bool
+	Hasv4             bool
+	NeedSnat          bool
+	AllowIpForwarding bool
 }
 
 func ifNameToSwIfIdx(name string) (uint32, error) {
 	var ret uint32
-	_, err := fmt.Sscanf(name, "vpp-tap-%u", &ret)
+	_, err := fmt.Sscanf(name, "vpp-tun-%u", &ret)
 	return ret, err
 }
 
 func swIfIdxToIfName(idx uint32) string {
-	return fmt.Sprintf("vpp-tap-%d", idx)
+	return fmt.Sprintf("vpp-tun-%d", idx)
 }
 
 // writeProcSys takes the sysctl path and a string value to set i.e. "0" or "1" and sets the sysctl.
@@ -91,23 +103,13 @@ func (s *Server) configureContainerSysctls(allowIPForwarding, hasIPv4, hasIPv6 b
 }
 
 // SetupRoutes sets up the routes for the host side of the veth pair.
-func (s *Server) SetupVppRoutes(swIfIndex uint32, ifConfigs []interfaceConfig) error {
+func (s *Server) SetupVppRoutes(swIfIndex uint32, conf *InterfaceConf) error {
 	// Go through all the IPs and add routes for each IP in the result.
-	for _, conf := range ifConfigs {
-		ip := &net.IPNet{
-			IP: conf.address.IP,
-		}
-		isIPv4 := ip.IP.To4() != nil
-		if isIPv4 {
-			ip.Mask = net.CIDRMask(32, 32)
-		} else {
-			ip.Mask = net.CIDRMask(128, 128)
-		}
+	for _, address := range conf.addresses {
 		route := types.Route{
-			Dst: ip,
+			Dst: address.IPNet,
 			Paths: []types.RoutePath{{
 				SwIfIndex: swIfIndex,
-				Gw:        ip.IP,
 			}},
 		}
 		s.log.Infof("Adding vpp route %s", route.String())
@@ -115,238 +117,90 @@ func (s *Server) SetupVppRoutes(swIfIndex uint32, ifConfigs []interfaceConfig) e
 		if err != nil {
 			return errors.Wrapf(err, "Cannot add route in VPP")
 		}
-
-		hardwareAddr, err := net.ParseMAC(config.ContainerSideMacAddressString)
-		if err != nil {
-			return errors.Wrapf(err, "Unable to parse mac: %s", config.ContainerSideMacAddressString)
-		}
-		err = s.vpp.AddNeighbor(&types.Neighbor{
-			SwIfIndex:    swIfIndex,
-			IP:           ip.IP,
-			HardwareAddr: hardwareAddr,
-			Flags:        types.IPNeighborStatic,
-		})
-		if err != nil {
-			return errors.Wrapf(err, "Cannot add neighbor in VPP")
-		}
 	}
 	return nil
 }
 
-func getPodv4IPNet(swIfIndex uint32) *net.IPNet {
-	return &net.IPNet{
-		IP:   net.IPv4(byte(169), byte(254), byte(swIfIndex>>8), byte(swIfIndex)),
-		Mask: net.CIDRMask(32, 32),
-	}
-}
-
-func getPodv6IPNet(swIfIndex uint32) *net.IPNet {
-	return &net.IPNet{
-		IP:   net.IP{0xfc, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(swIfIndex >> 24), byte(swIfIndex >> 16), byte(swIfIndex >> 8), byte(swIfIndex)},
-		Mask: net.CIDRMask(128, 128),
-	}
-}
-
-func (s *Server) tapErrorCleanup(contTapName string, netns string, err error, msg string, args ...interface{}) error {
-	s.log.Errorf("Error creating or configuring tap: %s %v", contTapName, err)
+func (s *Server) tunErrorCleanup(contTunName string, netns string, err error, msg string, args ...interface{}) error {
+	s.log.Errorf("Error creating or configuring tun: %s", err)
 	delErr := s.DelVppInterface(&pb.DelRequest{
-		InterfaceName: contTapName,
+		InterfaceName: contTunName,
 		Netns:         netns,
 	})
 	if delErr != nil {
-		s.log.Errorf("Error deleting tap on error %s %v", contTapName, delErr)
+		s.log.Errorf("Error deleting tun on error %s %v", contTunName, delErr)
 	}
 	return errors.Wrapf(err, msg, args...)
 }
 
-func (s *Server) getNamespaceSideGw(isv6 bool, swIfIndex uint32) (gwIp net.IP, err error) {
+func getMaxCIDRLen(isv6 bool) int {
 	if isv6 {
-		// Retry several times as the LL can take a several micro/miliseconds to initialize and we may be too fast
-		// after these sysctls
-		for i := 0; i < 10; i++ {
-			// No need to add a dummy next hop route as the host veth device will already have an IPv6
-			// link local address that can be used as a next hop.
-			// Just fetch the address of the host end of the veth and use it as the next hop.
-			addresses, err := s.vpp.AddrList(swIfIndex, isv6)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Error listing v6 addresses for the vpp side of the TAP")
-			}
-			for _, address := range addresses {
-				return address.IPNet.IP, nil
-			}
-			s.log.Infof("No IPv6 set on interface, retrying..")
-			time.Sleep(500 * time.Millisecond)
-		}
-		s.log.Errorf("No Ipv6 found for interface after 10 tries")
-		return getPodv6IPNet(swIfIndex).IP, nil
+		return 128
 	} else {
-		return getPodv4IPNet(swIfIndex).IP, nil
+		return 32
 	}
+}
+
+func getMaxCIDRMask(addr net.IP) net.IPMask {
+	maxCIDRLen := getMaxCIDRLen(vpplink.IsIP6(addr))
+	return net.CIDRMask(maxCIDRLen, maxCIDRLen)
 }
 
 func (s *Server) announceLocalAddress(addr *net.IPNet, isWithdrawal bool) {
 	s.routingServer.AnnounceLocalAddress(addr, isWithdrawal)
 }
 
-func (s *Server) configureNamespaceSideTap(
-	args *pb.AddRequest,
-	ifConfigs []interfaceConfig,
-	routes []net.IPNet,
-	swIfIndex uint32,
-	contTapName string,
-	contTapMac *string,
-	doHostSideConf bool,
-	hasv4 bool,
-	hasv6 bool,
-) func(hostNS ns.NetNS) error {
+func (s *Server) configureNamespaceSideTun(conf *InterfaceConf, swIfIndex uint32, contTunName string) func(hostNS ns.NetNS) error {
 	return func(hostNS ns.NetNS) error {
-		contTap, err := netlink.LinkByName(contTapName)
+		contTun, err := netlink.LinkByName(contTunName)
 		if err != nil {
-			return errors.Wrapf(err, "failed to lookup %q: %v", contTapName, err)
-		}
-
-		// Fetch the MAC from the container tap. This is needed by Calico.
-		*contTapMac = contTap.Attrs().HardwareAddr.String()
-		s.log.Infof("tap[%d] has mac %s", swIfIndex, *contTapMac)
-
-		/* We need to update dummy IPs in routes too
-		   TODO: delete when switching to TUN */
-		if !doHostSideConf && hasv4 {
-			routes, err := netlink.RouteList(contTap, netlink.FAMILY_V4)
-			if err != nil {
-				s.log.Errorf("SR:Error getting v4 routes %v", err)
-			}
-			for _, r := range routes {
-				err := netlink.RouteDel(&r)
-				if err != nil {
-					s.log.Errorf("SR:Error deleting v4 route %v : %v", r, err)
-				}
-			}
-		}
-		if !doHostSideConf && hasv6 {
-			routes, err := netlink.RouteList(contTap, netlink.FAMILY_V6)
-			if err != nil {
-				s.log.Errorf("SR:Error getting v6 routes %v", err)
-			}
-			for _, r := range routes {
-				err := netlink.RouteDel(&r)
-				if err != nil {
-					s.log.Errorf("SR:Error deleting v6 route %v : %v", r, err)
-				}
-			}
+			return errors.Wrapf(err, "failed to lookup %q: %v", contTunName, err)
 		}
 
 		// Do the per-IP version set-up.  Add gateway routes etc.
-		if hasv4 {
-			// Add static neighbor entry for the VPP side of the tap
-			hardwareAddr, err := net.ParseMAC(config.VppSideMacAddressString)
-			if err != nil {
-				return errors.Wrapf(err, "Unable to parse mac: %s", config.VppSideMacAddressString)
+		if conf.Hasv6 {
+			s.log.Infof("tun %d in NS has v6", swIfIndex)
+			// Make sure ipv6 is enabled in the container/pod network namespace.
+			if err = writeProcSys("/proc/sys/net/ipv6/conf/all/disable_ipv6", "0"); err != nil {
+				return fmt.Errorf("failed to set net.ipv6.conf.all.disable_ipv6=0: %s", err)
 			}
-			vppIPNet := getPodv4IPNet(swIfIndex)
-			err = netlink.NeighAdd(&netlink.Neigh{
-				LinkIndex:    contTap.Attrs().Index,
-				Family:       netlink.FAMILY_V4,
-				State:        netlink.NUD_PERMANENT,
-				IP:           vppIPNet.IP,
-				HardwareAddr: hardwareAddr,
-			})
-			if err != nil {
-				return errors.Wrapf(err, "failed to add static neighbor entry in the container: %v", err)
+			if err = writeProcSys("/proc/sys/net/ipv6/conf/default/disable_ipv6", "0"); err != nil {
+				return fmt.Errorf("failed to set net.ipv6.conf.default.disable_ipv6=0: %s", err)
 			}
-
-			s.log.Infof("Add tap[%d] linux%d route to %s", swIfIndex, contTap.Attrs().Index, vppIPNet.String())
-			// Add a connected route to a dummy next hop so that a default route can be set
-			err = netlink.RouteAdd(&netlink.Route{
-				LinkIndex: contTap.Attrs().Index,
-				Scope:     netlink.SCOPE_LINK,
-				Dst:       vppIPNet,
-			})
-			if err != nil {
-				return errors.Wrapf(err, "failed to add route inside the container: %v", err)
+			if err = writeProcSys("/proc/sys/net/ipv6/conf/lo/disable_ipv6", "0"); err != nil {
+				return fmt.Errorf("failed to set net.ipv6.conf.lo.disable_ipv6=0: %s", err)
 			}
 		}
 
-		if hasv6 {
-			if doHostSideConf {
-				// Make sure ipv6 is enabled in the container/pod network namespace.
-				// Without these sysctls enabled, interfaces will come up but they won't get a link local IPv6 address
-				// which is required to add the default IPv6 route.
-				if err = writeProcSys("/proc/sys/net/ipv6/conf/all/disable_ipv6", "0"); err != nil {
-					return fmt.Errorf("failed to set net.ipv6.conf.all.disable_ipv6=0: %s", err)
-				}
-
-				if err = writeProcSys("/proc/sys/net/ipv6/conf/default/disable_ipv6", "0"); err != nil {
-					return fmt.Errorf("failed to set net.ipv6.conf.default.disable_ipv6=0: %s", err)
-				}
-
-				if err = writeProcSys("/proc/sys/net/ipv6/conf/lo/disable_ipv6", "0"); err != nil {
-					return fmt.Errorf("failed to set net.ipv6.conf.lo.disable_ipv6=0: %s", err)
-				}
-			}
-			// FIXME : This isn't necessary if vpp can list link local ips
-			// Add static neighbor entry for the VPP side of the tap
-			hardwareAddr, err := net.ParseMAC(config.VppSideMacAddressString)
-			if err != nil {
-				return errors.Wrapf(err, "Unable to parse mac: %s", config.VppSideMacAddressString)
-			}
-			vppIPNet := getPodv6IPNet(swIfIndex)
-			err = netlink.NeighAdd(&netlink.Neigh{
-				LinkIndex:    contTap.Attrs().Index,
-				Family:       netlink.FAMILY_V6,
-				State:        netlink.NUD_PERMANENT,
-				IP:           vppIPNet.IP,
-				HardwareAddr: hardwareAddr,
-			})
-			if err != nil {
-				return errors.Wrapf(err, "failed to add static neighbor entry in the container: %v", err)
-			}
-
-			s.log.Infof("Add tap[%d] linux%d route to %s", swIfIndex, contTap.Attrs().Index, vppIPNet.String())
-			// Add a connected route to a dummy next hop so that a default route can be set
-			err = netlink.RouteAdd(&netlink.Route{
-				LinkIndex: contTap.Attrs().Index,
-				Scope:     netlink.SCOPE_LINK,
-				Dst:       vppIPNet,
-			})
-			if err != nil {
-				return errors.Wrapf(err, "failed to add route inside the container: %v", err)
-			}
-		}
-
-		for _, route := range routes {
-			isv6 := route.IP.To4() == nil
-			if (isv6 && !hasv6) || (!isv6 && !hasv4) {
-				s.log.Infof("Skipping tap[%d] route %s", swIfIndex, route.String())
+		for _, route := range conf.routes {
+			isV6 := route.IP.To4() == nil
+			if (isV6 && !conf.Hasv6) || (!isV6 && !conf.Hasv4) {
+				s.log.Infof("Skipping tun[%d] route for %s", swIfIndex, route.String())
 				continue
 			}
-			gw, err := s.getNamespaceSideGw(isv6, swIfIndex)
-			if err != nil {
-				return errors.Wrapf(err, "failed to get Next hop for route")
-			}
-			s.log.Infof("Add tap[%d] linux%d route %s -> %s", swIfIndex, contTap.Attrs().Index, route.IP.String(), gw.String())
-			err = ip.AddRoute(&route, gw, contTap)
+			s.log.Infof("Add tun[%d] linux%d route for %s", swIfIndex, contTun.Attrs().Index, route.String())
+			err = netlink.RouteAdd(&netlink.Route{
+				LinkIndex: contTun.Attrs().Index,
+				Scope:     netlink.SCOPE_UNIVERSE,
+				Dst:       route,
+			})
 			if err != nil {
 				// TODO : in ipv6 '::' already exists
-				s.log.Errorf("failed to add route %s -> %s : %v", route.IP.String(), gw.String(), err)
+				s.log.Errorf("Error adding tun[%d] route for %s", swIfIndex, route.String())
 			}
 		}
 
-		if !doHostSideConf {
-			return nil
-		}
-
-		// Now add the IPs to the container side of the tap.
-		for _, conf := range ifConfigs {
-			s.log.Infof("Add tap[%d] linux%d ip %s", swIfIndex, contTap.Attrs().Index, conf.address.String())
-			err = netlink.AddrAdd(contTap, &netlink.Addr{IPNet: &conf.address})
+		// Now add the IPs to the container side of the tun.
+		for _, address := range conf.addresses {
+			s.log.Infof("Add tun[%d] linux%d ip %s", swIfIndex, contTun.Attrs().Index, address.String())
+			err = netlink.AddrAdd(contTun, &netlink.Addr{IPNet: address.IPNet})
 			if err != nil {
-				return errors.Wrapf(err, "failed to add IP addr to %q: %v", contTap, err)
+				return errors.Wrapf(err, "failed to add IP addr to %s: %v", contTun.Attrs().Name, err)
 			}
-			s.announceLocalAddress(&conf.address, false /* isWithdrawal */)
+			s.announceLocalAddress(address.IPNet, false /* isWithdrawal */)
 		}
 
-		if err = s.configureContainerSysctls(args.GetSettings().GetAllowIpForwarding(), hasv4, hasv6); err != nil {
+		if err = s.configureContainerSysctls(conf.AllowIpForwarding, conf.Hasv4, conf.Hasv6); err != nil {
 			return errors.Wrapf(err, "error configuring sysctls for the container netns, error: %s", err)
 		}
 
@@ -354,156 +208,135 @@ func (s *Server) configureNamespaceSideTap(
 	}
 }
 
+func (s *Server) ParseInterfaceAddRequest(args *pb.AddRequest) (conf *InterfaceConf, err error) {
+	conf = &InterfaceConf{}
+	conf.Hasv4 = false
+	conf.Hasv6 = false
+	conf.NeedSnat = false
+	conf.routes = make([]*net.IPNet, 0)
+	conf.addresses = make([]InterfaceAddress, 0)
+	conf.AllowIpForwarding = args.GetSettings().GetAllowIpForwarding()
+	for _, containerIP := range args.GetContainerIps() {
+		address, _, err := net.ParseCIDR(containerIP.GetAddress())
+		if err != nil {
+			return nil, fmt.Errorf("Cannot parse address: %s", containerIP.GetAddress())
+		}
+		if address.To4() == nil {
+			conf.Hasv6 = true
+		} else {
+			conf.Hasv4 = true
+		}
+		// We ignore the prefix len set on the address,
+		// for a tun it doesn't make sense
+		network := &net.IPNet{
+			IP:   address,
+			Mask: getMaxCIDRMask(address),
+		}
+		gw := net.ParseIP(containerIP.GetGateway())
+		if gw == nil {
+			s.log.Infof("Cannot parse gateway: %s, ignoring anyway...", containerIP.GetGateway())
+		}
+		conf.addresses = append(conf.addresses, InterfaceAddress{IPNet: network, gateway: gw})
+		conf.NeedSnat = conf.NeedSnat || s.IPNetNeedsSNAT(network)
+	}
+	for _, route := range args.GetContainerRoutes() {
+		_, route, err := net.ParseCIDR(route)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Cannot parse container route %s", route.String())
+		}
+		conf.routes = append(conf.routes, route)
+	}
+	return conf, nil
+}
+
 // DoVppNetworking performs the networking for the given config and IPAM result
-func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifName, contTapMac string, err error) {
+func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifName, contTunMac string, err error) {
 	// Select the first 11 characters of the containerID for the host veth.
-	contTapName := args.GetInterfaceName()
+	contTunName := args.GetInterfaceName()
 	netns := args.GetNetns()
-	tapTag := netns + "-" + contTapName
+	tunTag := netns + "-" + contTunName
 
 	if args.GetDesiredHostInterfaceName() != "" {
 		s.log.Warn("Desired host side interface name passed, this is not supported with VPP, ignoring it")
 	}
 
 	// Type conversion & validation
-	var hasv4, hasv6 bool
-	var ifConfigs []interfaceConfig
-	needSnat := false
-	for _, addr := range args.GetContainerIps() {
-		address, network, err := net.ParseCIDR(addr.GetAddress())
-		if err != nil {
-			return "", "", fmt.Errorf("Cannot parse address: %s", addr.GetAddress())
-		}
-		if address.To4() == nil {
-			hasv6 = true
-		} else {
-			hasv4 = true
-		}
-		network.IP = address
-		gw := net.ParseIP(addr.GetGateway())
-		if gw == nil {
-			s.log.Infof("Cannot parse gateway: %s, ignoring anyway...", addr.GetGateway())
-		}
-		ifConfigs = append(ifConfigs, interfaceConfig{address: *network, gateway: gw})
-		needSnat = needSnat || s.IPNetNeedsSNAT(network)
-	}
-
-	var routes []net.IPNet
-	for _, route := range args.GetContainerRoutes() {
-		_, route, err := net.ParseCIDR(route)
-		if err != nil {
-			return "", "", errors.Wrapf(err, "Cannot parse container route %s", route.String())
-		}
-		routes = append(routes, *route)
-	}
-
-	vppSideMacAddress, err := net.ParseMAC(config.VppSideMacAddressString)
+	interfaceConfig, err := s.ParseInterfaceAddRequest(args)
 	if err != nil {
-		return "", "", errors.Wrapf(err, "Unable to parse mac: %s", config.VppSideMacAddressString)
-	}
-	containerSideMacAddress, err := net.ParseMAC(config.ContainerSideMacAddressString)
-	if err != nil {
-		return "", "", errors.Wrapf(err, "Unable to parse mac: %s", config.ContainerSideMacAddressString)
+		return "", "", errors.Wrapf(err, "Error parsing Interface Add request")
 	}
 
-	// TODO: Clean up old tap if one is found with this tag
-	tap := &types.TapV2{
-		HostNamespace:  netns,
-		HostIfName:     contTapName,
-		Tag:            tapTag,
-		MacAddress:     vppSideMacAddress,
-		HostMacAddress: containerSideMacAddress,
-		RxQueues:       config.TapRXQueues,
-		RxRingSize:     config.TapRxRingSize,
-		TxRingSize:     config.TapTxRingSize,
+	s.log.Infof("Creating container interface using VPP networking")
+	s.log.Infof("Setting tun tag to %s", tunTag)
+
+	// TODO: Clean up old tun if one is found with this tag
+	tun := &types.TapV2{
+		HostNamespace: netns,
+		HostIfName:    contTunName,
+		Tag:           tunTag,
+		RxQueues:      config.TapRXQueues,
+		RxRingSize:    config.TapRxRingSize,
+		TxRingSize:    config.TapTxRingSize,
+		Flags:         types.TapFlagTun,
 	}
 	if config.TapGSOEnabled {
-		tap.Flags |= types.TapFlagGSO | types.TapGROCoalesce
+		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce
 	}
-	swIfIndex, err := s.vpp.CreateOrAttachTapV2(tap)
+	swIfIndex, err := s.vpp.CreateOrAttachTapV2(tun)
 	if err != nil {
-		return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error creating Tap")
+		return "", "", s.tunErrorCleanup(contTunName, netns, err, "Error creating tun")
 	}
-	s.log.Infof("created tap[%d]", swIfIndex)
-
-	err = s.vpp.InterfaceAdminUp(swIfIndex)
-	if err != nil {
-		return "", "", s.tapErrorCleanup(contTapName, netns, err, "error setting new tap up")
-	}
+	s.log.Infof("created tun[%d]", swIfIndex)
 
 	err = s.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, config.TapRxMode)
 	if err != nil {
-		return "", "", s.tapErrorCleanup(contTapName, netns, err, "error SetInterfaceRxMode on data interface")
+		return "", "", s.tunErrorCleanup(contTunName, netns, err, "error SetInterfaceRxMode on tun interface")
 	}
 
-	// configure vpp side TAP
-	if hasv4 {
-		s.log.Infof("Add vpp tap[%d] addr %s", swIfIndex, getPodv4IPNet(swIfIndex).String())
-		err = s.vpp.AddInterfaceAddress(swIfIndex, getPodv4IPNet(swIfIndex))
-		if err != nil {
-			return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error adding ip4 tap address")
-		}
-		if needSnat {
-			s.log.Infof("Enable tap[%d] SNAT v4", swIfIndex)
-			err = s.vpp.EnableSNATArc(swIfIndex, false)
-			if err != nil {
-				return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error enabling ip4 snat")
-			}
-		}
-	}
-	if hasv6 {
-		s.log.Infof("enable tap[%d] ipv6", swIfIndex)
-		err = s.vpp.EnableInterfaceIP6(swIfIndex)
-		if err != nil {
-			return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error enabling ip6")
-		}
-
-		err = s.vpp.DisableIP6RouterAdvertisements(swIfIndex)
-		if err != nil {
-			return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error disabling ip6 RA on container tap")
-		}
-
-		s.log.Infof("Add vpp tap[%d] addr %s", swIfIndex, getPodv6IPNet(swIfIndex).String())
-		err = s.vpp.AddInterfaceAddress(swIfIndex, getPodv6IPNet(swIfIndex))
-		if err != nil {
-			return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error adding ip6 tap address")
-		}
-		if needSnat {
-			s.log.Infof("Enable tap[%d] SNAT v6", swIfIndex)
-			err = s.vpp.EnableSNATArc(swIfIndex, true)
-			if err != nil {
-				return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error enabling ip6 snat")
-			}
-		}
-	}
-
-	err = ns.WithNetNSPath(netns, s.configureNamespaceSideTap(args, ifConfigs, routes, swIfIndex, contTapName, &contTapMac, doHostSideConf, hasv4, hasv6))
+	// configure vpp side tun
+	err = s.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
-		return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error creating or configuring tap")
+		return "", "", s.tunErrorCleanup(contTunName, netns, err, "error setting vpp tun %d unnumbered", swIfIndex)
+	}
+	if interfaceConfig.Hasv4 && interfaceConfig.NeedSnat {
+		s.log.Infof("Enable tun[%d] SNAT v4", swIfIndex)
+		err = s.vpp.EnableSNATArc(swIfIndex, false)
+		if err != nil {
+			return "", "", s.tunErrorCleanup(contTunName, netns, err, "Error enabling ip4 snat")
+		}
+	}
+	if interfaceConfig.Hasv6 && interfaceConfig.NeedSnat {
+		s.log.Infof("Enable tun[%d] SNAT v6", swIfIndex)
+		err = s.vpp.EnableSNATArc(swIfIndex, true)
+		if err != nil {
+			return "", "", s.tunErrorCleanup(contTunName, netns, err, "Error enabling ip6 snat")
+		}
+	}
+
+	if doHostSideConf {
+		err = ns.WithNetNSPath(netns, s.configureNamespaceSideTun(interfaceConfig, swIfIndex, contTunName))
+		if err != nil {
+			return "", "", s.tunErrorCleanup(contTunName, netns, err, "Error enabling ip6")
+		}
+	}
+
+	err = s.vpp.InterfaceAdminUp(swIfIndex)
+	if err != nil {
+		return "", "", s.tunErrorCleanup(contTunName, netns, err, "error setting new tun up")
 	}
 
 	// Now that the host side of the veth is moved, state set to UP, and configured with sysctls, we can add the routes to it in the host namespace.
-	err = s.SetupVppRoutes(swIfIndex, ifConfigs)
+	err = s.SetupVppRoutes(swIfIndex, interfaceConfig)
 	if err != nil {
-		return "", "", s.tapErrorCleanup(contTapName, netns, err, "error adding vpp side routes for interface: %s", tapTag)
+		return "", "", s.tunErrorCleanup(contTunName, netns, err, "error adding vpp side routes for interface: %s", tunTag)
 	}
 
-	return swIfIdxToIfName(swIfIndex), contTapMac, err
+	s.log.Infof("Setup tun[%d] complete", swIfIndex)
+	// XXX: container MAC doesn't make sense anymore, we just pass back a constant one. How does calico / k8s use it?
+	return swIfIdxToIfName(swIfIndex), "02:00:00:00:00:00", err
 }
 
 func (s *Server) delVppInterfaceHandleRoutes(swIfIndex uint32, isIPv6 bool) error {
-	// Delete neighbor entries. Is it really necessary?
-	err, neighbors := s.vpp.GetInterfaceNeighbors(swIfIndex, isIPv6)
-	if err != nil {
-		return errors.Wrap(err, "GetInterfaceNeighbors errored")
-	}
-	for _, neighbor := range neighbors {
-		err = s.vpp.DelNeighbor(&neighbor)
-		if err != nil {
-			s.log.Warnf("vpp del neighbor %v err: %v", neighbor, err)
-		}
-	}
-
 	// Delete connected routes
 	// TODO: Make TableID configurable?
 	routes, err := s.vpp.GetRoutes(0, isIPv6)
@@ -582,7 +415,6 @@ func (s *Server) DelVppInterface(args *pb.DelRequest) error {
 			s.log.Warnf("error withdrawing interface addresses: %v", devErr)
 			return errors.Wrap(devErr, "error withdrawing interface addresses")
 		}
-
 	}
 
 	tag := netns + "-" + contIfName
@@ -592,7 +424,7 @@ func (s *Server) DelVppInterface(args *pb.DelRequest) error {
 		return errors.Wrapf(err, "error searching interface with tag %s", tag)
 	}
 
-	s.log.Infof("found matching VPP tap[%d]", swIfIndex)
+	s.log.Infof("found matching VPP tun[%d]", swIfIndex)
 	err = s.vpp.InterfaceAdminDown(swIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "InterfaceAdminDown errored")
@@ -607,12 +439,12 @@ func (s *Server) DelVppInterface(args *pb.DelRequest) error {
 		return errors.Wrap(err, "Error deleting ip4 routes")
 	}
 
-	// Delete tap
+	// Delete tun
 	err = s.vpp.DelTap(swIfIndex)
 	if err != nil {
-		return errors.Wrap(err, "tap deletion failed")
+		return errors.Wrap(err, "tun deletion failed")
 	}
-	s.log.Infof("deleted tap[%d]", swIfIndex)
+	s.log.Infof("deleted tun[%d]", swIfIndex)
 
 	return nil
 }
