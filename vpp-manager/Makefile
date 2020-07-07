@@ -1,6 +1,6 @@
-.PHONY: all build image
+.PHONY: all build image imageonly vpp
 
-VPPLINK_DIR=$(shell go list -f '{{.Dir}}' -m github.com/calico-vpp/vpplink)
+VPPLINK_DIR="../vpplink"
 IMAGE_DIR=images/ubuntu/
 
 all: image
