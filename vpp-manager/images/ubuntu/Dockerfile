@@ -3,7 +3,9 @@ FROM ubuntu:18.04
 LABEL maintainer="nskrzypc@cisco.com"
 
 RUN apt-get update \
- && apt-get install -y openssl libapr1 libnuma1 libmbedcrypto1 libmbedtls10 libmbedx509-0 \
+ && apt-get install -y openssl libapr1 libnuma1 \
+	libmbedcrypto1 libmbedtls10 libmbedx509-0 \
+	iproute2 \
  && rm -rf /var/lib/apt/lists/*
 
 # set work directory
