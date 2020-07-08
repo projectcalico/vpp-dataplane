@@ -1,7 +1,7 @@
 # Calico VPP dataplane
 <img src="http://docs.projectcalico.org/images/felix.png" width="100" height="100">
 
-This repository contains the source for Calico's VPP dataplane integration.
+This repository contains the source for Calico's VPP dataplane integration. The integration is in incubation status, with significant development in progress.
 
 ## Get Started Using Calico
 
