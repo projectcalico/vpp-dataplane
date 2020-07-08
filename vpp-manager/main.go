@@ -29,12 +29,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/pkg/errors"
 	calicoapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -961,40 +961,45 @@ func clearVppManagerFiles() error {
 	return writeFile("-1", VppManagerTapIdxFile)
 }
 
-func setCorePattern() {
+func setCorePattern() error {
 	if params.corePattern == "" {
-		return
+		return nil
 	}
 	log.Infof("Setting corePattern to : %s", params.corePattern)
 	err := writeFile(params.corePattern, "/proc/sys/kernel/core_pattern")
 	if err != nil {
-		log.Errorf("Error writing corePattern: %+v", err)
+		return errors.Wrap(err, "Error writing corePattern")
 	}
+	return nil
 }
 
 func main() {
 	vppDeadChan = make(chan bool, 1)
 	vppAlive = false
 
-	/* Run this first in case this is a script
-	 * that's responsible for creating a VF */
-	err := generateVppConfigExecFile()
+	err := parseEnvVariables()
 	if err != nil {
-		log.Errorf("Error generating VPP config Exec: %s", err)
+		log.Errorf("Error parsing env varibales: %+v", err)
 		return
 	}
-
 	err = clearVppManagerFiles()
 	if err != nil {
 		log.Errorf("Error clearing config files: %+v", err)
 		return
 	}
-	err = parseEnvVariables()
+	/* Run this before getLinuxConfig() in case this is a script
+	 * that's responsible for creating the interface */
+	err = generateVppConfigExecFile()
 	if err != nil {
-		log.Errorf("Error parsing env varibales: %+v", err)
+		log.Errorf("Error generating VPP config Exec: %s", err)
 		return
 	}
-	setCorePattern()
+
+	err = setCorePattern()
+	if err != nil {
+		log.Errorf("Error setting core pattern: %s", err)
+		return
+	}
 
 	err = configureContainer()
 	if err != nil {
