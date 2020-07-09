@@ -20,8 +20,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -47,6 +47,8 @@ const (
 	TapRxModeEnvVar           = "CALICOVPP_TAP_RX_MODE"
 	BgpLogLevelEnvVar         = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
+
+	defaultRxMode = types.Adaptative
 )
 
 var (
@@ -57,7 +59,7 @@ var (
 	IpsecAddressCount = 1
 	CrossIpsecTunnels = false
 	IPSecIkev2Psk     = ""
-	TapRxMode         = types.DefaultRxMode
+	TapRxMode         = defaultRxMode
 	BgpLogLevel       = logrus.InfoLevel
 	LogLevel          = logrus.InfoLevel
 	NodeName          = ""
@@ -147,7 +149,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	case "adaptive":
 		TapRxMode = types.Adaptative
 	default:
-		TapRxMode = types.DefaultRxMode
+		TapRxMode = defaultRxMode
 	}
 
 	log.Infof("Config:TapRXQueues       %d", TapRXQueues)
