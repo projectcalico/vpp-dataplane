@@ -70,6 +70,7 @@ const (
 	vppTapIP4String               = "169.254.254.253"
 	vppFakeNextHopIP6String       = "fc00:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
 	vppTapIP6String               = "fc00:ffff:ffff:ffff:ffff:ffff:ffff:fffe"
+	defaultRxMode                 = types.Adaptative
 )
 
 var (
@@ -125,7 +126,7 @@ func getRxMode(envVar string) types.RxMode {
 	case "adaptive":
 		return types.Adaptative
 	default:
-		return types.DefaultRxMode
+		return defaultRxMode
 	}
 }
 
