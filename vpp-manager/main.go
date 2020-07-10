@@ -58,6 +58,7 @@ const (
 	VppStartupSleepEnvVar         = "CALICOVPP_VPP_STARTUP_SLEEP"
 	ExtraAddrCountEnvVar          = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	CorePatternEnvVar             = "CALICOVPP_CORE_PATTERN"
+	AfPacketEnvVar                = "CALICOVPP_USE_AF_PACKET"
 	ServicePrefixEnvVar           = "SERVICE_PREFIX"
 	HostIfName                    = "vpptap0"
 	HostIfTag                     = "hosttap"
@@ -86,11 +87,12 @@ var (
 )
 
 type interfaceConfig struct {
-	pciId     string
-	driver    string
-	isUp      bool
-	addresses []netlink.Addr
-	routes    []netlink.Route
+	pciId        string
+	driver       string
+	isUp         bool
+	addresses    []netlink.Addr
+	routes       []netlink.Route
+	hardwareAddr net.HardwareAddr
 }
 
 type vppManagerParams struct {
@@ -115,6 +117,7 @@ type vppManagerParams struct {
 	vppTapIP4               net.IP
 	vppFakeNextHopIP6       net.IP
 	vppTapIP6               net.IP
+	useAfPacket             bool
 }
 
 func getRxMode(envVar string) types.RxMode {
@@ -180,6 +183,15 @@ func parseEnvVariables() (err error) {
 		} else {
 			params.extraAddrCount = int(extraAddrCount)
 		}
+	}
+
+	params.useAfPacket = false
+	if conf := os.Getenv(AfPacketEnvVar); conf != "" {
+		useAfPacket, err := strconv.ParseBool(conf)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", AfPacketEnvVar, conf, useAfPacket, err)
+		}
+		params.useAfPacket = useAfPacket
 	}
 
 	params.rxMode = getRxMode(RxModeEnvVar)
@@ -293,6 +305,7 @@ func getLinuxConfig() error {
 			return errors.Wrapf(err, "cannot list %s routes", params.mainInterface)
 		}
 	}
+	initialConfig.hardwareAddr = link.Attrs().HardwareAddr
 	params.nodeIP4 = getNodeAddress(false)
 	params.nodeIP6 = getNodeAddress(true)
 	params.hasv4 = (params.nodeIP4 != "")
@@ -860,6 +873,12 @@ func pingCalicoVpp() error {
 	return nil
 }
 
+func CreateAfPacket() error {
+	swIfIndex, err := vpp.CreateAfPacket(params.mainInterface, &initialConfig.hardwareAddr)
+	log.Infof("Created AF_PACKET %d", int(swIfIndex))
+	return err
+}
+
 // Returns VPP exit code
 func runVpp() (err error) {
 	if initialConfig.isUp {
@@ -897,6 +916,16 @@ func runVpp() (err error) {
 		restoreConfiguration()
 		vpp.Close()
 		return fmt.Errorf("cannot connect to VPP after 10 tries")
+	}
+
+	if params.useAfPacket {
+		err = vpp.Retry(2*time.Second, 10, CreateAfPacket)
+		if err != nil {
+			terminateVpp("Error creating af_packet (SIGINT %d): %v", vppProcess.Pid, err)
+			restoreConfiguration()
+			vpp.Close()
+			return errors.Wrap(err, "error creating af_packet")
+		}
 	}
 
 	// Data interface configuration
