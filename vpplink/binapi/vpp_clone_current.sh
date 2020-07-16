@@ -1,5 +1,5 @@
 #!/bin/bash
-VPP_COMMIT=fbb846cfa
+VPP_COMMIT=49338494
 
 if [ ! -d $1 ]; then
 	git clone "https://gerrit.fd.io/r/vpp" $1
