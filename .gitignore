@@ -6,6 +6,7 @@ vpp-manager/vpp_build/
 *.deb
 
 test/vagrant/local-config.env
+test/vagrant/.vagrant
 
 # Test outputs
 *.out

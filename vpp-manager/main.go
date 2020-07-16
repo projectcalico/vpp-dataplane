@@ -460,7 +460,7 @@ func generateVppConfigExecFile() error {
 	err := errors.Wrapf(
 		ioutil.WriteFile(VppConfigExecFile, []byte(template+"\n"), 0744),
 		"error writing VPP Exec configuration to %s",
-		VppConfigFile,
+		VppConfigExecFile,
 	)
 	if err != nil {
 		return err
@@ -819,41 +819,61 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 }
 
 func updateCalicoNode() (err error) {
-	var node *calicoapi.Node
-	client, err := calicocli.NewFromEnv()
-	if err != nil {
-		return errors.Wrap(err, "error creating calico client")
-	}
+	var node, updated *calicoapi.Node
+	var client calicocli.Interface
 	// TODO create if doesn't exist? need to be careful to do it atomically... and everyone else must as well.
 	for i := 0; i < 10; i++ {
-		node, err = client.Nodes().Get(context.Background(), params.nodeName, calicoopts.GetOptions{})
-		if err == nil {
-			break
+		client, err = calicocli.NewFromEnv()
+		if err != nil {
+			return errors.Wrap(err, "error creating calico client")
 		}
-		log.Warnf("Try [%d] cannot get current node from Calico %+v", i, err)
-		time.Sleep(1 * time.Second)
+		log.Infof("Getting current node from calico API")
+		ctx, cancel1 := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel1()
+		node, err = client.Nodes().Get(ctx, params.nodeName, calicoopts.GetOptions{})
+		if err != nil {
+			log.Warnf("Try [%d] cannot get current node from Calico %+v", i, err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		// Update node with address
+		needUpdate := false
+		if node.Spec.BGP == nil {
+			node.Spec.BGP = &calicoapi.NodeBGPSpec{}
+		}
+		if params.hasv4 {
+			log.Infof("Setting BGP V4 conf %s", params.nodeIP4)
+			if node.Spec.BGP.IPv4Address != params.nodeIP4 {
+				node.Spec.BGP.IPv4Address = params.nodeIP4
+				needUpdate = true
+			}
+		}
+		if params.hasv6 {
+			log.Infof("Setting BGP V6 conf %s", params.nodeIP6)
+			if node.Spec.BGP.IPv6Address != params.nodeIP6 {
+				node.Spec.BGP.IPv6Address = params.nodeIP6
+				needUpdate = true
+			}
+		}
+		if needUpdate {
+			log.Infof("Updating node, version = %s, metaversion = %s", node.ResourceVersion, node.ObjectMeta.ResourceVersion)
+			log.Debugf("updating node with: %+v", node)
+			ctx, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel2()
+			updated, err = client.Nodes().Update(ctx, node, calicoopts.SetOptions{})
+			if err != nil {
+				log.Warnf("Try [%d] cannot update current node: %+v", i, err)
+				time.Sleep(1 * time.Second)
+				continue
+			}
+			log.Debugf("updated node: %+v", updated)
+			return nil
+		} else {
+			log.Infof("node doesn't need updating :)")
+			return nil
+		}
 	}
-	if err != nil {
-		return errors.Wrap(err, "cannot get current node from Calico")
-	}
-
-	// Update node with address
-	if node.Spec.BGP == nil {
-		node.Spec.BGP = &calicoapi.NodeBGPSpec{}
-	}
-	if params.hasv4 {
-		log.Infof("Setting BGP V4 conf %s", params.nodeIP4)
-		node.Spec.BGP.IPv4Address = params.nodeIP4
-	}
-	if params.hasv6 {
-		log.Infof("Setting BGP V6 conf %s", params.nodeIP6)
-		node.Spec.BGP.IPv6Address = params.nodeIP6
-	}
-	log.Debugf("updating node with: %+v", node)
-	updated, err := client.Nodes().Update(context.Background(), node, calicoopts.SetOptions{})
-	// TODO handle update error / retry if object changed in the meantime
-	log.Debugf("updated node: %+v", updated)
-	return errors.Wrapf(err, "error updating node %s", params.nodeName)
+	return errors.Wrap(err, "error updating node")
 }
 
 func pingCalicoVpp() error {
@@ -919,6 +939,8 @@ func runVpp() (err error) {
 	}
 
 	if params.useAfPacket {
+		initialConfig.pciId = ""
+		initialConfig.driver = ""
 		err = vpp.Retry(2*time.Second, 10, CreateAfPacket)
 		if err != nil {
 			terminateVpp("Error creating af_packet (SIGINT %d): %v", vppProcess.Pid, err)
@@ -1012,11 +1034,13 @@ func main() {
 		log.Errorf("Error parsing env varibales: %+v", err)
 		return
 	}
+
 	err = clearVppManagerFiles()
 	if err != nil {
 		log.Errorf("Error clearing config files: %+v", err)
 		return
 	}
+
 	/* Run this before getLinuxConfig() in case this is a script
 	 * that's responsible for creating the interface */
 	err = generateVppConfigExecFile()
@@ -1052,6 +1076,7 @@ func main() {
 		log.Errorf("Error generating VPP config: %s", err)
 		return
 	}
+
 	err = runVpp()
 	if err != nil {
 		log.Errorf("Error running VPP: %v", err)

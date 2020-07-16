@@ -752,6 +752,8 @@ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 h1:ObdrDkeb4kJdCP557AjRjq
 golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
 golang.org/x/crypto v0.0.0-20200204104054-c9f3fb736b72 h1:+ELyKg6m8UBf0nPFSqD0mi7zUfwPyXo23HNjMnXPz7w=
 golang.org/x/crypto v0.0.0-20200204104054-c9f3fb736b72/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975 h1:/Tl7pH94bvbAAHBdZJT947M/+gp0+CqQXDtMRC0fseo=
+golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20190125153040-c74c464bbbf2/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20190306152737-a1d7652674e8/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
@@ -1027,6 +1029,8 @@ k8s.io/api v0.0.0-20191114100040-7a2cb0978c84 h1:xOXzObZpwrH/U30UZqNgMyoEft5eM0c
 k8s.io/api v0.0.0-20191114100040-7a2cb0978c84/go.mod h1:MjrNYBNnG/Ssm58C6/dkiDlR3IKGALnvHdPe7FUSCZs=
 k8s.io/api v0.17.2 h1:NF1UFXcKN7/OOv1uxdRz3qfra8AHsPav5M93hlV9+Dc=
 k8s.io/api v0.17.2/go.mod h1:BS9fjjLc4CMuqfSO8vgbHPKMt5+SF0ET6u/RVDihTo4=
+k8s.io/api v0.17.9 h1:BA/U8qtSNzx7BbmQy3lODbCxVMKGNUpBJ2fjsKt6OOY=
+k8s.io/api v0.17.9/go.mod h1:avJJAA1fSV6tnbCGW2K+S+ilDFW7WpNr5BScoiZ1M1U=
 k8s.io/apiextensions-apiserver v0.0.0-20191028232651-e8ac74ee17da/go.mod h1:6Sn5lRQEKjXMxKXOxuL1ehm0XrKUJxc+dMsZ/0YDkGQ=
 k8s.io/apimachinery v0.0.0-20180621070125-103fd098999d/go.mod h1:ccL7Eh7zubPUSh9A3USN90/OzHNSVN6zxzde07TDCL0=
 k8s.io/apimachinery v0.0.0-20190612205821-1799e75a0719/go.mod h1:I4A+glKBHiTgiEjQiCCQfCAIcIMFGt291SmsvcrFzJA=
@@ -1036,11 +1040,15 @@ k8s.io/apimachinery v0.0.0-20191114135336-bcf004c497a4 h1:cp8LTg5qPFsnu8vucWt1k/
 k8s.io/apimachinery v0.0.0-20191114135336-bcf004c497a4/go.mod h1:+6CX7hP4aLfX2sb91JYDMIp0VqDSog2kZu0BHe+lP+s=
 k8s.io/apimachinery v0.17.2 h1:hwDQQFbdRlpnnsR64Asdi55GyCaIP/3WQpMmbNBeWr4=
 k8s.io/apimachinery v0.17.2/go.mod h1:b9qmWdKlLuU9EBh+06BtLcSf/Mu89rWL33naRxs1uZg=
+k8s.io/apimachinery v0.17.9 h1:knQxNgMu57Oxlm12J6DS375kmGMeuWV0VNzRRUBB2Yk=
+k8s.io/apimachinery v0.17.9/go.mod h1:Lg8zZ5iC/O8UjCqW6DNhcQG2m4TdjF9kwG3891OWbbA=
 k8s.io/apiserver v0.0.0-20191028231438-e776086e909d/go.mod h1:FMfDOacpAcA1hINSxHmMQ2GDwj6S66L9oqkbLmLoDqA=
 k8s.io/cli-runtime v0.0.0-20191004123735-6bff60de4370/go.mod h1:cmvr2HA8aRdxpbRtfP3kxIiK+nrsE1JDnR8KeFvblBE=
 k8s.io/client-go v0.0.0-20191016111102-bec269661e48/go.mod h1:hrwktSwYGI4JK+TJA3dMaFyyvHVi/aLarVHpbs8bgCU=
 k8s.io/client-go v0.17.2 h1:ndIfkfXEGrNhLIgkr0+qhRguSD3u6DCmonepn1O6NYc=
 k8s.io/client-go v0.17.2/go.mod h1:QAzRgsa0C2xl4/eVpeVAZMvikCn8Nm81yqVx3Kk9XYI=
+k8s.io/client-go v0.17.9 h1:qUPhohX4bUBx0L7pfye02aPnu3PQ0t+B8dqHfGvt++k=
+k8s.io/client-go v0.17.9/go.mod h1:3cM92qAd1XknA5IRkRfpJhl9OQjkYy97ZEUio70wVnI=
 k8s.io/client-go v8.0.0+incompatible/go.mod h1:7vJpHMYJwNQCWgzmNV+VYUl1zCObLyodBc8nIyt8L5s=
 k8s.io/client-go v11.0.0+incompatible h1:LBbX2+lOwY9flffWlJM7f1Ct8V2SRNiMRDFeiwnJo9o=
 k8s.io/client-go v11.0.0+incompatible/go.mod h1:7vJpHMYJwNQCWgzmNV+VYUl1zCObLyodBc8nIyt8L5s=
@@ -1075,6 +1083,7 @@ k8s.io/kube-openapi v0.0.0-20190228160746-b3a7cee44a30/go.mod h1:BXM9ceUBTj2QnfH
 k8s.io/kube-openapi v0.0.0-20190709113604-33be087ad058/go.mod h1:nfDlWeOsu3pUf4yWGL+ERqohP4YsZcBJXWMK+gkzOA4=
 k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf/go.mod h1:1TqjTSzOxsLGIKfj0lK8EeCP7K1iUG65v09OM0/WG5E=
 k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a/go.mod h1:1TqjTSzOxsLGIKfj0lK8EeCP7K1iUG65v09OM0/WG5E=
+k8s.io/kube-openapi v0.0.0-20200410145947-bcb3869e6f29/go.mod h1:F+5wygcW0wmRTnM3cOgIqGivxkwSWIWT5YdsDbeAOaU=
 k8s.io/kube-proxy v0.0.0-20191004124112-c4ee2f9e1e0a/go.mod h1:f9/YeP83LO6b9iJ+4ois7WOSG+ul+r3A5/yBeexdRWA=
 k8s.io/kube-scheduler v0.0.0-20191004124444-89f3bbd82341/go.mod h1:pvgFRWtLDJZOjLLKkg1mmb2iHSNd92D/mXoxSZF7MgM=
 k8s.io/kubectl v0.0.0-20191004125858-14647fd13a8b/go.mod h1:AuXBzQkjuIixhArqkutO92PWYEma7aDVAxAWCxX9dmM=
@@ -1085,6 +1094,7 @@ k8s.io/legacy-cloud-providers v0.0.0-20191028234549-1e7163c45446/go.mod h1:1PxNH
 k8s.io/metrics v0.0.0-20191004123543-798934cf5e10/go.mod h1:ui7Lg0m5Dbrsr8+qf1SvbSYusC0vUN8GjGT1NW/BMdE=
 k8s.io/repo-infra v0.0.0-20181204233714-00fe14e3d1a3/go.mod h1:+G1xBfZDfVFsm1Tj/HNCvg4QqWx8rJ2Fxpqr1rqp/gQ=
 k8s.io/sample-apiserver v0.0.0-20191028231949-ceef03da3009/go.mod h1:b6UAWo5ctQk+oXxep2BKzgMbdD0KmPk+C2+aDnVVuxs=
+k8s.io/utils v0.0.0-20190221042446-c2654d5206da h1:ElyM7RPonbKnQqOcw7dG2IK5uvQQn3b/WPHqD5mBvP4=
 k8s.io/utils v0.0.0-20190221042446-c2654d5206da/go.mod h1:8k8uAuAQ0rXslZKaEWd0c3oVhZz7sSzSiPnVZayjIX0=
 k8s.io/utils v0.0.0-20190801114015-581e00157fb1/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
 k8s.io/utils v0.0.0-20191114181534-f635c9d740df h1:g80A+8DgkFVehcouFvbvMAKOqii84zifOZ0HcI4i3dw=
@@ -1101,6 +1111,7 @@ rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8
 sigs.k8s.io/kustomize v2.0.3+incompatible/go.mod h1:MkjgH3RdOWrievjo6c9T245dYlB5QeXV4WCbnt/PEpU=
 sigs.k8s.io/structured-merge-diff v0.0.0-20190525122527-15d366b2352e/go.mod h1:wWxsB5ozmmv/SG7nM11ayaAW51xMvak/t1r0CSlcokI=
 sigs.k8s.io/structured-merge-diff v0.0.0-20190817042607-6149e4549fca/go.mod h1:IIgPezJWb76P0hotTxzDbWsMYB8APh18qZnxkomBpxA=
+sigs.k8s.io/structured-merge-diff/v2 v2.0.1/go.mod h1:Wb7vfKAodbKgf6tn1Kl0VvGj7mRH6DGaRcixXEJXTsE=
 sigs.k8s.io/yaml v1.1.0 h1:4A07+ZFc2wgJwo8YNlQpr1rVlgUDlxXHhPJciaPY5gs=
 sigs.k8s.io/yaml v1.1.0/go.mod h1:UJmg0vDUVViEyp3mgSv9WPwZCDxu4rQW1olrI1uml+o=
 vbom.ml/util v0.0.0-20160121211510-db5cfe13f5cc/go.mod h1:so/NYdZXCz+E3ZpW0uAoCj6uzU2+8OWDFv/HxUSs7kI=

@@ -399,7 +399,7 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		network.IP = address
 		gw := net.ParseIP(addr.GetGateway())
 		if gw == nil {
-			return "", "", fmt.Errorf("Cannot parse gateway: %s", addr.GetGateway())
+			s.log.Infof("Cannot parse gateway: %s, ignoring anyway...", addr.GetGateway())
 		}
 		ifConfigs = append(ifConfigs, interfaceConfig{address: *network, gateway: gw})
 	}

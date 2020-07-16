@@ -26,9 +26,9 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/grpc v1.24.0
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
-	k8s.io/api v0.17.2
-	k8s.io/apimachinery v0.17.2
-	k8s.io/client-go v0.17.2
+	k8s.io/api v0.17.9
+	k8s.io/apimachinery v0.17.9
+	k8s.io/client-go v0.17.9
 )
 
 replace github.com/osrg/gobgp v2.0.0+incompatible => github.com/osrg/gobgp v0.0.0-20191101114856-a42a1a5f6bf0
