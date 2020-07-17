@@ -62,6 +62,7 @@ data:
       nodaemon
       full-coredump
       cli-listen /var/run/vpp/cli.sock
+      exec /etc/vpp/startup.exec
     }
     api-trace { on }
     cpu {
@@ -71,16 +72,14 @@ data:
     socksvr {
         socket-name /var/run/vpp/vpp-api.sock
     }
-    dpdk {
-      dev 0000:00:06.0 { num-rx-queues 1  num-tx-queues 1 }
-    }
     plugins {
         plugin default { enable }
         plugin calico_plugin.so { enable }
+        plugin dpdk_plugin.so { disable }
     }
   
-#   vpp_config_exec_template: |-
-
+  vpp_config_exec_template: |-
+    create int virtio __PCI_DEVICE_ID__
 ---
 
 # VPP version of the calico node daemon
@@ -299,11 +298,13 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: vpp_config_template
-            # - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
-            #   valueFrom:
-            #     configMapKeyRef:
-            #       name: calico-config
-            #       key: vpp_config_exec_template
+            - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: vpp_config_exec_template
+            - name: CALICOVPP_SWAP_DRIVER
+              value: vfio-pci
             - name: SERVICE_PREFIX
               valueFrom:
                 configMapKeyRef:

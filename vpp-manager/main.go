@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"github.com/yookoala/realpath"
 )
 
 const (
@@ -55,10 +57,12 @@ const (
 	InterfaceEnvVar               = "CALICOVPP_INTERFACE"
 	ConfigTemplateEnvVar          = "CALICOVPP_CONFIG_TEMPLATE"
 	ConfigExecTemplateEnvVar      = "CALICOVPP_CONFIG_EXEC_TEMPLATE"
+	InitScriptTemplateEnvVar      = "CALICOVPP_INIT_SCRIPT_TEMPLATE"
 	VppStartupSleepEnvVar         = "CALICOVPP_VPP_STARTUP_SLEEP"
 	ExtraAddrCountEnvVar          = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	CorePatternEnvVar             = "CALICOVPP_CORE_PATTERN"
 	AfPacketEnvVar                = "CALICOVPP_USE_AF_PACKET"
+	SwapDriverEnvVar              = "CALICOVPP_SWAP_DRIVER"
 	ServicePrefixEnvVar           = "SERVICE_PREFIX"
 	HostIfName                    = "vpptap0"
 	HostIfTag                     = "hosttap"
@@ -104,6 +108,7 @@ type vppManagerParams struct {
 	mainInterface           string
 	configExecTemplate      string
 	configTemplate          string
+	initScriptTemplate      string
 	nodeName                string
 	corePattern             string
 	rxMode                  types.RxMode
@@ -118,6 +123,7 @@ type vppManagerParams struct {
 	vppFakeNextHopIP6       net.IP
 	vppTapIP6               net.IP
 	useAfPacket             bool
+	swapDriver              string
 }
 
 func getRxMode(envVar string) types.RxMode {
@@ -151,6 +157,7 @@ func parseEnvVariables() (err error) {
 	}
 
 	params.configExecTemplate = os.Getenv(ConfigExecTemplateEnvVar)
+	params.initScriptTemplate = os.Getenv(InitScriptTemplateEnvVar)
 
 	params.configTemplate = os.Getenv(ConfigTemplateEnvVar)
 	if params.configTemplate == "" {
@@ -193,6 +200,8 @@ func parseEnvVariables() (err error) {
 		}
 		params.useAfPacket = useAfPacket
 	}
+
+	params.swapDriver = os.Getenv(SwapDriverEnvVar)
 
 	params.rxMode = getRxMode(RxModeEnvVar)
 	params.tapRxMode = getRxMode(TapRxModeEnvVar)
@@ -316,22 +325,31 @@ func getLinuxConfig() error {
 	log.Infof("Node IP4 %s , Node IP6 %s", params.nodeIP4, params.nodeIP6)
 
 	// We allow PCI not to be found e.g for AF_PACKET
-	// Grab PCI id
+	// Grab PCI id - last PCI id in the real path to /sys/class/net/<device name>
 	deviceLinkPath := fmt.Sprintf("/sys/class/net/%s/device", params.mainInterface)
-	devicePath, err := os.Readlink(deviceLinkPath)
+	devicePath, err := realpath.Realpath(deviceLinkPath)
 	if err != nil {
-		log.Warnf("cannot find pci device for %s : %s", params.mainInterface, err)
+		log.Warnf("cannot resolve pci device path for %s : %s", params.mainInterface, err)
 		return nil
 	}
-	initialConfig.pciId = strings.TrimLeft(devicePath, "./")
-	// Grab Driver id
-	driverLinkPath := fmt.Sprintf("/sys/class/net/%s/device/driver", params.mainInterface)
-	driverPath, err := os.Readlink(driverLinkPath)
-	if err != nil {
-		log.Warnf("cannot find driver for %s : %s", params.mainInterface, err)
-		return nil
+	pciID := regexp.MustCompile("[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}.[0-9a-f]")
+	matches := pciID.FindAllString(devicePath, -1)
+	if matches == nil {
+		log.Warnf("Could not find pci device for %s: path is %s", params.mainInterface, devicePath)
+	} else {
+		initialConfig.pciId = matches[len(matches)-1]
+		log.Infof("Found pci device: %s", initialConfig.pciId)
+		// Grab Driver id for the pci device
+		driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver", initialConfig.pciId)
+		driverPath, err := os.Readlink(driverLinkPath)
+		if err != nil {
+			log.Warnf("cannot find driver for %s : %s", initialConfig.pciId, err)
+			return nil
+		}
+		initialConfig.driver = driverPath[strings.LastIndex(driverPath, "/")+1:]
+		log.Infof("Found driver: %s", initialConfig.driver)
 	}
-	initialConfig.driver = driverPath[strings.LastIndex(driverPath, "/")+1:]
+
 	log.Infof("Initial device config: %+v", initialConfig)
 	return nil
 }
@@ -362,14 +380,32 @@ func checkDrivers() {
 	}
 }
 
-func swapDriver(pciDevice, newDriver string) error {
-	unbindPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver/unbind", pciDevice)
-	err := ioutil.WriteFile(unbindPath, []byte(pciDevice), 0200)
+func swapDriver(pciDevice, newDriver string, addId bool) error {
+	deviceRoot := fmt.Sprintf("/sys/bus/pci/devices/%s", pciDevice)
+	driverRoot := fmt.Sprintf("/sys/bus/pci/drivers/%s", newDriver)
+	if addId {
+		// Grab device vendor and id
+		vendor, err := ioutil.ReadFile(deviceRoot + "/vendor")
+		if err != nil {
+			return errors.Wrapf(err, "error reading device %s vendor", pciDevice)
+		}
+		device, err := ioutil.ReadFile(deviceRoot + "/device")
+		if err != nil {
+			return errors.Wrapf(err, "error reading device %s id", pciDevice)
+		}
+		// Add it to driver before unbinding to prevent spontaneous binds
+		identifier := fmt.Sprintf("%s %s", string(vendor[2:6]), string(device[2:6]))
+		log.Infof("Adding id '%s' to driver %s", identifier, newDriver)
+		err = ioutil.WriteFile(driverRoot+"/new_id", []byte(identifier), 0200)
+		if err != nil {
+			log.Warnf("Could not add id %s to driver %s: %v", identifier, newDriver, err)
+		}
+	}
+	err := ioutil.WriteFile(deviceRoot+"/driver/unbind", []byte(pciDevice), 0200)
 	if err != nil {
 		return errors.Wrapf(err, "error unbinding %s", pciDevice)
 	}
-	bindPath := fmt.Sprintf("/sys/bus/pci/drivers/%s/bind", newDriver)
-	err = ioutil.WriteFile(bindPath, []byte(pciDevice), 0200)
+	err = ioutil.WriteFile(driverRoot+"/bind", []byte(pciDevice), 0200)
 	if err != nil {
 		return errors.Wrapf(err, "error binding %s to %s", pciDevice, newDriver)
 	}
@@ -388,7 +424,7 @@ func restoreLinuxConfig() (err error) {
 	// No need to delete the tap we created with VPP since it should disappear with all its configuration
 	// when VPP dies
 	if initialConfig.pciId != "" && initialConfig.driver != "" {
-		err := swapDriver(initialConfig.pciId, initialConfig.driver)
+		err := swapDriver(initialConfig.pciId, initialConfig.driver, false)
 		if err != nil {
 			return errors.Wrapf(err, "error swapping back driver to %s for %s", initialConfig.driver, initialConfig.pciId)
 		}
@@ -451,26 +487,30 @@ func restoreLinuxConfig() (err error) {
 	return nil
 }
 
+func runInitScript() error {
+	if params.initScriptTemplate == "" {
+		return nil
+	}
+	// Trivial rendering for the moment...
+	template := strings.ReplaceAll(params.initScriptTemplate, "__VPP_DATAPLANE_IF__", params.mainInterface)
+	cmd := exec.Command("/bin/bash", "-c", template)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 func generateVppConfigExecFile() error {
 	if params.configExecTemplate == "" {
 		return nil
 	}
 	// Trivial rendering for the moment...
-	template := strings.ReplaceAll(params.configExecTemplate, "__VPP_DATAPLANE_IF__", params.mainInterface)
+	template := strings.ReplaceAll(params.configExecTemplate, "__PCI_DEVICE_ID__", initialConfig.pciId)
+	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.mainInterface)
 	err := errors.Wrapf(
 		ioutil.WriteFile(VppConfigExecFile, []byte(template+"\n"), 0744),
 		"error writing VPP Exec configuration to %s",
 		VppConfigExecFile,
 	)
-	if err != nil {
-		return err
-	}
-	if strings.HasPrefix(params.configExecTemplate, "#!/bin/bash") {
-		cmd := exec.Command("/bin/bash", VppConfigExecFile)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		err = cmd.Start()
-	}
 	return err
 }
 
@@ -902,7 +942,7 @@ func CreateAfPacket() error {
 // Returns VPP exit code
 func runVpp() (err error) {
 	if initialConfig.isUp {
-		// Set interface down if it is up, bind it to a VPP-friendly driver
+		// Set interface down if it is up
 		link, err := netlink.LinkByName(params.mainInterface)
 		if err != nil {
 			return errors.Wrapf(err, "error finding link %s", params.mainInterface)
@@ -915,6 +955,18 @@ func runVpp() (err error) {
 		}
 	}
 	// From this point it is very important that every exit path calls restoreLinuxConfig after vpp exits
+	// Bind the interface to a suitable drivr for VPP. DPDK does it automatically, this is useful otherwise
+	if params.swapDriver != "" && params.swapDriver != initialConfig.driver {
+		if initialConfig.pciId == "" {
+			log.Warnf("PCI ID not found, not swapping drivers")
+		} else {
+			err = swapDriver(initialConfig.pciId, params.swapDriver, true)
+			if err != nil {
+				log.Warnf("Failed to swap driver to %s: %v", params.swapDriver, err)
+			}
+		}
+	}
+
 	vppCmd = exec.Command(VppPath, "-c", VppConfigFile)
 	vppCmd.Stdout = os.Stdout
 	vppCmd.Stderr = os.Stderr
@@ -1043,11 +1095,6 @@ func main() {
 
 	/* Run this before getLinuxConfig() in case this is a script
 	 * that's responsible for creating the interface */
-	err = generateVppConfigExecFile()
-	if err != nil {
-		log.Errorf("Error generating VPP config Exec: %s", err)
-		return
-	}
 
 	err = setCorePattern()
 	if err != nil {
@@ -1065,9 +1112,21 @@ func main() {
 	runningCond = sync.NewCond(&sync.Mutex{})
 	go handleSignals()
 
+	err = runInitScript()
+	if err != nil {
+		log.Errorf("Error running init script: %s", err)
+		return
+	}
+
 	err = getLinuxConfig()
 	if err != nil {
 		log.Errorf("Error getting initial interface configuration: %s", err)
+		return
+	}
+
+	err = generateVppConfigExecFile()
+	if err != nil {
+		log.Errorf("Error generating VPP config Exec: %s", err)
 		return
 	}
 
