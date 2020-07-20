@@ -13,6 +13,6 @@ fi
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/10/25810/34 && git cherry-pick FETCH_HEAD # GRO (coalesce)
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/62/27162/15 && git cherry-pick FETCH_HEAD # calico_plugin
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/04/27104/8 && git cherry-pick -n FETCH_HEAD # TAP GRO
-grep -v -e'^<<<<<<<' -e '^>>>>>>>' -e'=======' src/vnet/devices/virtio/device.c > src/vnet/devices/virtio/device.c~
+grep -v -e'^<<<<<<<' -e '^>>>>>>>' -e'=======' -e '|||||||' src/vnet/devices/virtio/device.c > src/vnet/devices/virtio/device.c~
 mv src/vnet/devices/virtio/device.c~ src/vnet/devices/virtio/device.c
 git add src/vnet/devices/virtio/device.c

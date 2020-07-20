@@ -1,6 +1,6 @@
-.PHONY: all build image imageonly vpp
+.PHONY: all build image imageonly vpp vpp-build-env
 
-VPPLINK_DIR="../vpplink"
+VPPLINK_DIR=../vpplink
 IMAGE_DIR=images/ubuntu/
 
 all: image
@@ -18,17 +18,17 @@ imageonly: build
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:latest $(IMAGE_DIR)
 
-vpp:
+vpp: vpp-build-env
 	bash $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ./vpp_build
-	cd vpp_build;                                          \
-	make install-dep;                                      \
-	git apply ../vpp-build.patch;                          \
-	make rebuild-release;                                  \
-	rm -f ./build-root/*.deb;                              \
-	make pkg-deb;                                          \
-	git apply -R ../vpp-build.patch;                       \
-	rm -f ../$(IMAGE_DIR)*.deb;                              \
-    cp ./build-root/vpp_*.deb ../$(IMAGE_DIR) ;               \
-    cp ./build-root/vpp-plugin-core_*.deb ../$(IMAGE_DIR) ;   \
-    cp ./build-root/vpp-plugin-dpdk_*.deb ../$(IMAGE_DIR) ;   \
-    cp ./build-root/libvppinfra_*.deb ../$(IMAGE_DIR)
+	docker run --rm \
+		-v $(CURDIR):/root/vpp-manager \
+		calicovpp/vpp-build:latest
+	rm -f $(IMAGE_DIR)*.deb
+	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra ; do \
+		cp vpp_build/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
+	done
+
+vpp-build-env:
+	docker build \
+		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+		-t calicovpp/vpp-build:latest images/ubuntu-build
