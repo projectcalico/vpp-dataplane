@@ -1,0 +1,19 @@
+# Binaries
+calico-vpp-agent/cmd/calico-vpp-agent
+calico-vpp-agent/dep/gobgp
+vpp-manager/images/*/vpp-manager
+vpp-manager/vpp_build/
+*.deb
+
+test/vagrant/local-config.env
+test/vagrant/.vagrant
+
+# Test outputs
+*.out
+*.test
+
+# IDE files
+.vscode
+
+# macOS
+.DS_Store

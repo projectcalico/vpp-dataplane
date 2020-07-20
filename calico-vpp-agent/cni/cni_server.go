@@ -43,29 +43,11 @@ type Server struct {
 	podInterfaceMap map[string]*pb.AddRequest
 }
 
-func formatIP(ip *pb.IP) string {
-	if ip == nil {
-		return "*"
-	} else {
-		i := net.IP(ip.Ip)
-		return i.String()
-	}
-
-}
-
-func formatIPNet(ipNet *pb.IPNet) string {
-	if ipNet == nil {
-		return "*"
-	} else {
-		return fmt.Sprintf("%s/%d", formatIP(ipNet.Ip), ipNet.PrefixLen)
-	}
-}
-
 func formatAddRequest(in *pb.AddRequest) string {
 	lst := in.GetContainerIps()
 	strLst := make([]string, 0, len(lst))
 	for _, e := range lst {
-		strLst = append(strLst, fmt.Sprintf("%s -> %s", formatIPNet(e.Ip), formatIP(e.Gateway)))
+		strLst = append(strLst, fmt.Sprintf("%s -> %s", e.GetAddress(), e.GetGateway()))
 	}
 	return fmt.Sprintf("%s: %s", addKey(in), strings.Join(strLst, ", "))
 }
@@ -75,9 +57,9 @@ func (s *Server) Add(ctx context.Context, in *pb.AddRequest) (*pb.AddReply, erro
 	s.BarrierSync()
 	ifName, contMac, err := s.AddVppInterface(in, true)
 	out := &pb.AddReply{
-		Successful:    true,
-		InterfaceName: ifName,
-		ContainerMac:  contMac,
+		Successful:        true,
+		HostInterfaceName: ifName,
+		ContainerMac:      contMac,
 	}
 	if err != nil {
 		s.log.Errorf("Interface add failed %s : %v", formatAddRequest(in), err)

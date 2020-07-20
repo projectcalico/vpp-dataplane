@@ -1,0 +1,17 @@
+# Node ID if it is a node.
+NODE = ENV['NODE'].to_i || 1
+
+# Load the type specific variables (e.g., master, node) (0 is equal to not a node)
+if NODE == 0
+    $vagrantfilepath = "../Vagrantfile_master"
+else
+    $vagrantfilepath = "../Vagrantfile_node"
+end
+
+# Load the Vagrantfile_common file
+$vagrantfilecommon = File.expand_path('../Vagrantfile_common', __FILE__)
+load $vagrantfilecommon
+
+# Load the common Vagrantfile_TYPE file
+$vagrantfilepath = File.expand_path($vagrantfilepath, __FILE__)
+load $vagrantfilepath

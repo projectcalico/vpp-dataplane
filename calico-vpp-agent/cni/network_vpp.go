@@ -26,14 +26,19 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 
-	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
+	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
+
+type interfaceConfig struct {
+	address net.IPNet
+	gateway net.IP
+}
 
 func ifNameToSwIfIdx(name string) (uint32, error) {
 	var ret uint32
@@ -87,19 +92,20 @@ func (s *Server) configureContainerSysctls(allowIPForwarding, hasIPv4, hasIPv6 b
 }
 
 // SetupRoutes sets up the routes for the host side of the veth pair.
-func (s *Server) SetupVppRoutes(swIfIndex uint32, ipConfigs []*pb.IPConfig) error {
+func (s *Server) SetupVppRoutes(swIfIndex uint32, ifConfigs []interfaceConfig) error {
 	// Go through all the IPs and add routes for each IP in the result.
-	for _, ipAddr := range ipConfigs {
-		ip := net.IPNet{}
-		isIPv4 := !ipAddr.GetIp().GetIp().GetIsIpv6()
-		ip.IP = ipAddr.GetIp().GetIp().GetIp()
+	for _, conf := range ifConfigs {
+		ip := &net.IPNet{
+			IP: conf.address.IP,
+		}
+		isIPv4 := ip.IP.To4() != nil
 		if isIPv4 {
 			ip.Mask = net.CIDRMask(32, 32)
 		} else {
 			ip.Mask = net.CIDRMask(128, 128)
 		}
 		route := types.Route{
-			Dst: &ip,
+			Dst: ip,
 			Paths: []types.RoutePath{{
 				SwIfIndex: swIfIndex,
 				Gw:        ip.IP,
@@ -196,7 +202,15 @@ func (s *Server) announceLocalAddress(addr *net.IPNet, isWithdrawal bool) {
 	s.routingServer.AnnounceLocalAddress(addr, isWithdrawal)
 }
 
-func (s *Server) configureNamespaceSideTap(args *pb.AddRequest, swIfIndex uint32, contTapName string, contTapMac *string, doHostSideConf bool) func(hostNS ns.NetNS) error {
+func (s *Server) configureNamespaceSideTap(
+	args *pb.AddRequest,
+	ifConfigs []interfaceConfig,
+	routes []net.IPNet,
+	swIfIndex uint32,
+	contTapName string,
+	contTapMac *string,
+	doHostSideConf bool,
+) func(hostNS ns.NetNS) error {
 	return func(hostNS ns.NetNS) error {
 		contTap, err := netlink.LinkByName(contTapName)
 		if err != nil {
@@ -309,23 +323,19 @@ func (s *Server) configureNamespaceSideTap(args *pb.AddRequest, swIfIndex uint32
 				Dst:       vppIPNet,
 			})
 			if err != nil {
-				return errors.Wrapf(err, "failed to add route inside the co:ntainer: %v", err)
+				return errors.Wrapf(err, "failed to add route inside the container: %v", err)
 			}
 		}
 
-		for _, r := range args.GetContainerRoutes() {
-			isv6 := r.GetIp().GetIsIpv6()
+		for _, route := range routes {
+			isv6 := route.IP.To4() == nil
 			if (isv6 && !hasv6) || (!isv6 && !hasv4) {
-				s.log.Infof("Skipping tap[%d] route %s", swIfIndex, formatIPNet(r))
+				s.log.Infof("Skipping tap[%d] route %s", swIfIndex, route.String())
 				continue
 			}
 			gw, err := s.getNamespaceSideGw(isv6, swIfIndex)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get Next hop for route")
-			}
-			route := net.IPNet{
-				IP:   r.GetIp().GetIp(),
-				Mask: net.CIDRMask(int(r.GetPrefixLen()), getMaxCIDRLen(isv6)),
 			}
 			s.log.Infof("Add tap[%d] linux%d route %s -> %s", swIfIndex, contTap.Attrs().Index, route.IP.String(), gw.String())
 			err = ip.AddRoute(&route, gw, contTap)
@@ -340,17 +350,13 @@ func (s *Server) configureNamespaceSideTap(args *pb.AddRequest, swIfIndex uint32
 		}
 
 		// Now add the IPs to the container side of the tap.
-		for _, addr := range args.GetContainerIps() {
-			addr := &net.IPNet{
-				IP:   addr.GetIp().GetIp().GetIp(),
-				Mask: net.CIDRMask(int(addr.GetIp().GetPrefixLen()), getMaxCIDRLen(addr.GetIp().GetIp().GetIsIpv6())),
-			}
-			s.log.Infof("Add tap[%d] linux%d ip %s", swIfIndex, contTap.Attrs().Index, addr.String())
-			err = netlink.AddrAdd(contTap, &netlink.Addr{IPNet: addr})
+		for _, conf := range ifConfigs {
+			s.log.Infof("Add tap[%d] linux%d ip %s", swIfIndex, contTap.Attrs().Index, conf.address.String())
+			err = netlink.AddrAdd(contTap, &netlink.Addr{IPNet: &conf.address})
 			if err != nil {
 				return errors.Wrapf(err, "failed to add IP addr to %q: %v", contTap, err)
 			}
-			s.announceLocalAddress(addr, false /* isWithdrawal */)
+			s.announceLocalAddress(&conf.address, false /* isWithdrawal */)
 		}
 
 		if err = s.configureContainerSysctls(args.GetSettings().GetAllowIpForwarding(), hasv4, hasv6); err != nil {
@@ -363,7 +369,7 @@ func (s *Server) configureNamespaceSideTap(args *pb.AddRequest, swIfIndex uint32
 
 func getIpFamilies(args *pb.AddRequest) (hasv4 bool, hasv6 bool) {
 	for _, addr := range args.GetContainerIps() {
-		if addr.GetIp().GetIp().GetIsIpv6() {
+		if net.ParseIP(addr.GetAddress()).To4() == nil {
 			hasv6 = true
 		} else {
 			hasv4 = true
@@ -381,6 +387,30 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 
 	if args.GetDesiredHostInterfaceName() != "" {
 		s.log.Warn("Desired host side interface name passed, this is not supported with VPP, ignoring it")
+	}
+
+	// Type conversion & validation
+	var ifConfigs []interfaceConfig
+	for _, addr := range args.GetContainerIps() {
+		address, network, err := net.ParseCIDR(addr.GetAddress())
+		if err != nil {
+			return "", "", fmt.Errorf("Cannot parse address: %s", addr.GetAddress())
+		}
+		network.IP = address
+		gw := net.ParseIP(addr.GetGateway())
+		if gw == nil {
+			s.log.Infof("Cannot parse gateway: %s, ignoring anyway...", addr.GetGateway())
+		}
+		ifConfigs = append(ifConfigs, interfaceConfig{address: *network, gateway: gw})
+	}
+
+	var routes []net.IPNet
+	for _, route := range args.GetContainerRoutes() {
+		_, route, err := net.ParseCIDR(route)
+		if err != nil {
+			return "", "", errors.Wrapf(err, "Cannot parse container route %s", route.String())
+		}
+		routes = append(routes, *route)
 	}
 
 	hasv4, hasv6 := getIpFamilies(args)
@@ -442,13 +472,13 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		}
 	}
 
-	err = ns.WithNetNSPath(netns, s.configureNamespaceSideTap(args, swIfIndex, contTapName, &contTapMac, doHostSideConf))
+	err = ns.WithNetNSPath(netns, s.configureNamespaceSideTap(args, ifConfigs, routes, swIfIndex, contTapName, &contTapMac, doHostSideConf))
 	if err != nil {
 		return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error creating or configuring tap")
 	}
 
 	// Now that the host side of the veth is moved, state set to UP, and configured with sysctls, we can add the routes to it in the host namespace.
-	err = s.SetupVppRoutes(swIfIndex, args.GetContainerIps())
+	err = s.SetupVppRoutes(swIfIndex, ifConfigs)
 	if err != nil {
 		return "", "", s.tapErrorCleanup(contTapName, netns, err, "error adding vpp side routes for interface: %s", tapTag)
 	}
