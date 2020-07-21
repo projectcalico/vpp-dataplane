@@ -12,7 +12,7 @@ image:
 
 install-test-deps:
 	sudo apt-get update
-	sudo apt-get install -y nfs-kernel-server qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils qemu ebtables dnsmasq-base libxslt-dev libxml2-dev libvirt-dev zlib1g-dev ruby-dev build-essential
+	sudo apt-get install -y jq nfs-kernel-server qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils qemu ebtables dnsmasq-base libxslt-dev libxml2-dev libvirt-dev zlib1g-dev ruby-dev build-essential
 	sudo adduser `id -un` libvirt
 	sudo adduser `id -un` kvm
 	wget https://releases.hashicorp.com/vagrant/2.2.9/vagrant_2.2.9_x86_64.deb
