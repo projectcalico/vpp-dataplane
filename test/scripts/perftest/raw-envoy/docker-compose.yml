@@ -1,0 +1,31 @@
+version: '2'
+services:
+
+  iperfclient:
+    build:
+      context: .
+      dockerfile: client.Dockerfile
+    container_name: ipc
+    cgroup_parent: nat-docker-node1
+    volumes:
+      - ./client-envoy.yaml:/etc/envoy.yaml
+    networks:
+      - envoymesh
+    expose:
+      - 1234
+
+  iperfserver:
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    container_name: ips
+    cgroup_parent: nat-docker-node1
+    volumes:
+      - ./server-envoy.yaml:/etc/envoy.yaml
+    networks:
+      - envoymesh
+    expose:
+      - 1234
+
+networks:
+  envoymesh: {}

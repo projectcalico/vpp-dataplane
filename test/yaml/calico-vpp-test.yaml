@@ -304,7 +304,7 @@ spec:
                   name: calico-config
                   key: vpp_config_exec_template
             - name: CALICOVPP_SWAP_DRIVER
-              value: vfio-pci
+              value: uio_pci_generic
             - name: SERVICE_PREFIX
               valueFrom:
                 configMapKeyRef:

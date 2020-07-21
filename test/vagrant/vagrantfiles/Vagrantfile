@@ -1,5 +1,5 @@
 # Node ID if it is a node.
-NODE = ENV['NODE'].to_i || 1
+NODE = ENV['NODE'].to_i || 0
 
 # Load the type specific variables (e.g., master, node) (0 is equal to not a node)
 if NODE == 0

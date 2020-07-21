@@ -1,0 +1,52 @@
+static_resources:
+  listeners:
+  - address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 5201
+    filter_chains:
+      filters:
+      - name: envoy.tcp_proxy
+        config:
+          stat_prefix: client_tcp
+          cluster: iperfserver
+          access_log:
+            - name: envoy.file_access_log
+              config:
+                path: /dev/stdout
+
+  clusters:
+  - name: iperfserver
+    connect_timeout: 0.25s
+    type: strict_dns
+    lb_policy: round_robin
+    http2_protocol_options: {}
+    load_assignment:
+      cluster_name: iperfserver
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                # address: 10.60.16.39
+                address: iperfserver
+                port_value: 1234
+    tls_context:
+      common_tls_context:
+        tls_certificates:
+          certificate_chain: { "filename": "/etc/certs/clientcert.pem" }
+          private_key: { "filename": "/etc/certs/clientkey.pem" }
+        validation_context:
+          trusted_ca: { "filename": "/etc/certs/cacert.pem" }
+        tls_params:
+          tls_minimum_protocol_version: TLSv1_3
+          tls_maximum_protocol_version: TLSv1_3
+          cipher_suites:
+            - AES256-GCM-SHA384
+            # - AES128-GCM-SHA256
+admin:
+  access_log_path: "/dev/null"
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8001
