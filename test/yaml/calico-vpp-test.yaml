@@ -80,6 +80,10 @@ data:
   
   vpp_config_exec_template: |-
     create int virtio __PCI_DEVICE_ID__
+
+  vpp_init_script: |-
+    echo Y > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+
 ---
 
 # VPP version of the calico node daemon
@@ -303,8 +307,17 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: vpp_config_exec_template
+            - name: CALICOVPP_INIT_SCRIPT_TEMPLATE
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: vpp_init_script
             - name: CALICOVPP_SWAP_DRIVER
-              value: uio_pci_generic
+              value: vfio-pci
+            - name: CALICOVPP_RX_MODE
+              value: interrupt
+            - name: CALICOVPP_TAP_RX_MODE
+              value: interrupt
             - name: SERVICE_PREFIX
               valueFrom:
                 configMapKeyRef:
