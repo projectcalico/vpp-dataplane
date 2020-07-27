@@ -1,7 +1,8 @@
-.PHONY: all build image imageonly vpp vpp-build-env
+.PHONY: all build image push imageonly vpp vpp-build-env
 
 VPPLINK_DIR=../vpplink
 IMAGE_DIR=images/ubuntu/
+TAG ?= latest
 
 all: image
 
@@ -11,12 +12,15 @@ build:
 image: build vpp
 	docker build --pull \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
-		-t calicovpp/vpp:latest $(IMAGE_DIR)
+		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
+
+push: image
+	docker push calicovpp/vpp:$(TAG)
 
 imageonly: build
 	docker build --pull \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
-		-t calicovpp/vpp:latest $(IMAGE_DIR)
+		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 
 vpp: vpp-build-env
 	bash $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ./vpp_build
