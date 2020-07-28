@@ -25,7 +25,7 @@ imageonly: build
 vpp: vpp-build-env
 	bash $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ./vpp_build
 	docker run --rm \
-		-v $(CURDIR):/root/vpp-manager \
+		-v $(CURDIR):/root/vpp-manager:delegated \
 		calicovpp/vpp-build:latest
 	rm -f $(IMAGE_DIR)*.deb
 	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra ; do \

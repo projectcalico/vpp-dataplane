@@ -59,10 +59,9 @@ run-tests:
 # TAG must be set to something like v0.6.0-calicov3.9.1
 release: check-TAG push
 	@[ -z "$(shell git status --porcelain)" ] || echo "Repo is not clean! Aborting." && exit 1
-	# Create release branch
-	git checkout -b release/$(TAG)
 	# Generate yaml file for this release
 	kubectl kustomize yaml/base | sed "s|:latest|:$(TAG)|g" > yaml/generated/calico-base-latest.yaml
+	git checkout -b release/$(TAG)
 	git commit -asm "Release $(TAG)"	
 	# Tag release and push it
 	git push --set-upstream origin release/$(TAG)
