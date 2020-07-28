@@ -17,5 +17,5 @@ image: build gobgp
 	docker build --pull -t calicovpp/node:$(TAG) .
 
 push: image
-	docker push calicovpp/vpp:$(TAG)
+	docker push calicovpp/node:$(TAG)
 
