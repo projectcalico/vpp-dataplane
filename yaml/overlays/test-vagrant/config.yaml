@@ -1,0 +1,59 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-config
+  namespace: kube-system
+data:  # Configuration template for VPP.
+  vpp_config_template: |-
+    unix {
+      nodaemon
+      full-coredump
+      cli-listen /var/run/vpp/cli.sock
+      exec /etc/vpp/startup.exec
+    }
+    api-trace { on }
+    cpu {
+        main-core 1
+        workers 0
+    }
+    socksvr {
+        socket-name /var/run/vpp/vpp-api.sock
+    }
+    plugins {
+        plugin default { enable }
+        plugin calico_plugin.so { enable }
+        plugin dpdk_plugin.so { disable }
+    }
+  
+  vpp_config_exec_template: |-
+    create int virtio __PCI_DEVICE_ID__
+
+  vpp_init_script: |-
+    echo Y > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+
+---
+
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: vpp
+          env:
+            - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: vpp_config_exec_template
+            - name: CALICOVPP_INIT_SCRIPT_TEMPLATE
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: vpp_init_script
+            - name: CALICOVPP_SWAP_DRIVER
+              value: vfio-pci
+

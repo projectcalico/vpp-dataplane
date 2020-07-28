@@ -62,7 +62,6 @@ data:
       nodaemon
       full-coredump
       cli-listen /var/run/vpp/cli.sock
-      exec /etc/vpp/startup.exec
     }
     api-trace { on }
     cpu {
@@ -72,20 +71,15 @@ data:
     socksvr {
         socket-name /var/run/vpp/vpp-api.sock
     }
+    dpdk {
+      dev __PCI_DEVICE_ID__ { num-rx-queues 1  num-tx-queues 1 }
+    }
     plugins {
         plugin default { enable }
         plugin calico_plugin.so { enable }
-        plugin dpdk_plugin.so { disable }
     }
-  
-  vpp_config_exec_template: |-
-    create int virtio __PCI_DEVICE_ID__
-
-  vpp_init_script: |-
-    echo Y > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
 
 ---
-
 # VPP version of the calico node daemon
 kind: DaemonSet
 apiVersion: apps/v1
@@ -136,7 +130,7 @@ spec:
         # This container installs the CNI binaries
         # and CNI network config file on each node.
         - name: install-cni
-          image: calico/cni:v3.15.0
+          image: calico/cni:v3.15.1
           imagePullPolicy: IfNotPresent
           command: ["/install-cni.sh"]
           env:
@@ -171,7 +165,7 @@ spec:
         # Adds a Flex Volume Driver that creates a per-pod Unix Domain Socket to allow Dikastes
         # to communicate with Felix over the Policy Sync API.
         - name: flexvol-driver
-          image: calico/pod2daemon-flexvol:v3.15.0
+          image: calico/pod2daemon-flexvol:v3.15.1
           imagePullPolicy: IfNotPresent
           volumeMounts:
           - name: flexvol-driver-host
@@ -184,8 +178,6 @@ spec:
           image: calicovpp/node:latest
           imagePullPolicy: IfNotPresent
           env:
-            - name: CALICOVPP_IPSEC_ENABLED
-              value: "false"
             # Use Kubernetes API as the backing datastore.
             - name: DATASTORE_TYPE
               value: "kubernetes"
@@ -279,16 +271,11 @@ spec:
               mountPath: /var/run/nodeagent
             - name: vpp-rundir
               mountPath: /var/run/vpp
-            - name: vpp-agent-binary
-              mountPath: /bin/calico-vpp-agent
-              readOnly: true
         - name: vpp
           image: calicovpp/vpp:latest
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
-            capabilities:
-              add: [ CAP_SYS_ADMIN, CAP_NET_ADMIN ]
           env:
             - name: CALICOVPP_IP_CONFIG
               value: linux
@@ -302,22 +289,6 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: vpp_config_template
-            - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: vpp_config_exec_template
-            - name: CALICOVPP_INIT_SCRIPT_TEMPLATE
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: vpp_init_script
-            - name: CALICOVPP_SWAP_DRIVER
-              value: vfio-pci
-            - name: CALICOVPP_RX_MODE
-              value: interrupt
-            - name: CALICOVPP_TAP_RX_MODE
-              value: interrupt
             - name: SERVICE_PREFIX
               valueFrom:
                 configMapKeyRef:
@@ -336,11 +307,11 @@ spec:
                   fieldPath: spec.nodeName
           resources:
             requests:
-              cpu: 1
-              memory: 2Gi
+              cpu: 500m
+              memory: 128Mi
             limits:
-              memory: 4Gi
-              hugepages-2Mi: 2Gi
+              memory: 512Mi
+              hugepages-2Mi: 256Mi
           volumeMounts:
             - name: vpp-rundir
               mountPath: /var/run/vpp
@@ -350,15 +321,6 @@ spec:
               mountPath: /dev
             - name: hostsys
               mountPath: /sys
-            - name: vpp-manager-binary
-              mountPath: /usr/bin/vpp-manager
-              readOnly: true
-            - name: vpp-binary
-              mountPath: /usr/bin/vpp
-              readOnly: true
-            - name: vpp-libs
-              mountPath: /usr/lib/x86_64-linux-gnu/vpp_plugins
-              readOnly: true
       volumes:
         - name: vpp-rundir
           hostPath:
@@ -393,6 +355,12 @@ spec:
         - name: cni-net-dir
           hostPath:
             path: /etc/cni/net.d
+        # Mount in the directory for host-local IPAM allocations. This is
+        # used when upgrading from host-local to calico-ipam, and can be removed
+        # if not using the upgrade-ipam init container.
+        - name: host-local-net-dir
+          hostPath:
+            path: /var/lib/cni/networks
         # Used to create per-pod Unix Domain Sockets
         - name: policysync
           hostPath:
@@ -403,75 +371,4 @@ spec:
           hostPath:
             type: DirectoryOrCreate
             path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/nodeagent~uds
-        # Used to put the latest binaries in the containers without rebuildinb images in testing
-        - name: vpp-manager-binary
-          hostPath:
-            type: File
-            path: /host-repo/vpp-manager/images/ubuntu/vpp-manager
-        - name: vpp-agent-binary
-          hostPath:
-            type: File
-            path: /host-repo/calico-vpp-agent/cmd/calico-vpp-agent
-        - name: vpp-binary
-          hostPath:
-            type: File
-            path: /host-repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/bin/vpp
-        - name: vpp-libs
-          hostPath:
-            type: Directory
-            path: /host-repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/lib/vpp_plugins
-
----
-# Source: calico/templates/calico-kube-controllers.yaml
-
-# See https://github.com/projectcalico/kube-controllers
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: calico-kube-controllers
-  namespace: kube-system
-  labels:
-    k8s-app: calico-kube-controllers
-spec:
-  # The controllers can only have a single active instance.
-  replicas: 1
-  selector:
-    matchLabels:
-      k8s-app: calico-kube-controllers
-  strategy:
-    type: Recreate
-  template:
-    metadata:
-      name: calico-kube-controllers
-      namespace: kube-system
-      labels:
-        k8s-app: calico-kube-controllers
-      annotations:
-        scheduler.alpha.kubernetes.io/critical-pod: ''
-    spec:
-      nodeSelector:
-        beta.kubernetes.io/os: linux
-      tolerations:
-        # Mark the pod as a critical add-on for rescheduling.
-        - key: CriticalAddonsOnly
-          operator: Exists
-        - key: node-role.kubernetes.io/master
-          effect: NoSchedule
-      serviceAccountName: calico-kube-controllers
-      priorityClassName: system-cluster-critical
-      containers:
-        - name: calico-kube-controllers
-          image: calico/kube-controllers:v3.15.0
-          imagePullPolicy: IfNotPresent
-          env:
-            # Choose which controllers to run.
-            - name: ENABLED_CONTROLLERS
-              value: node
-            - name: DATASTORE_TYPE
-              value: kubernetes
-          readinessProbe:
-            exec:
-              command:
-              - /usr/bin/check-status
-              - -r
 

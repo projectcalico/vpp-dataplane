@@ -1,0 +1,3 @@
+resources:
+- calico-definitions.yaml
+- calico-vpp.yaml

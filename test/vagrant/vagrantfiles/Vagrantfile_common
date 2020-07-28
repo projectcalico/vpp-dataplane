@@ -89,7 +89,7 @@ net.ipv6.conf.all.accept_dad = 0
 net.ipv6.conf.default.accept_dad = 0
 net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.conf.all.rp_filter = 0
-vm.nr_hugepages = 1024
+vm.nr_hugepages = 128
 EOF
 sysctl -p /etc/sysctl.conf
 
