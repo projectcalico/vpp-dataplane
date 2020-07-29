@@ -210,6 +210,8 @@ func (s *Server) configureNamespaceSideTap(
 	contTapName string,
 	contTapMac *string,
 	doHostSideConf bool,
+	hasv4 bool,
+	hasv6 bool,
 ) func(hostNS ns.NetNS) error {
 	return func(hostNS ns.NetNS) error {
 		contTap, err := netlink.LinkByName(contTapName)
@@ -220,7 +222,6 @@ func (s *Server) configureNamespaceSideTap(
 		// Fetch the MAC from the container tap. This is needed by Calico.
 		*contTapMac = contTap.Attrs().HardwareAddr.String()
 		s.log.Infof("tap[%d] has mac %s", swIfIndex, *contTapMac)
-		hasv4, hasv6 := getIpFamilies(args)
 
 		/* We need to update dummy IPs in routes too
 		   TODO: delete when switching to TUN */
@@ -367,17 +368,6 @@ func (s *Server) configureNamespaceSideTap(
 	}
 }
 
-func getIpFamilies(args *pb.AddRequest) (hasv4 bool, hasv6 bool) {
-	for _, addr := range args.GetContainerIps() {
-		if net.ParseIP(addr.GetAddress()).To4() == nil {
-			hasv6 = true
-		} else {
-			hasv4 = true
-		}
-	}
-	return hasv4, hasv6
-}
-
 // DoVppNetworking performs the networking for the given config and IPAM result
 func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifName, contTapMac string, err error) {
 	// Select the first 11 characters of the containerID for the host veth.
@@ -390,11 +380,17 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 	}
 
 	// Type conversion & validation
+	var hasv4, hasv6 bool
 	var ifConfigs []interfaceConfig
 	for _, addr := range args.GetContainerIps() {
 		address, network, err := net.ParseCIDR(addr.GetAddress())
 		if err != nil {
 			return "", "", fmt.Errorf("Cannot parse address: %s", addr.GetAddress())
+		}
+		if address.To4() == nil {
+			hasv6 = true
+		} else {
+			hasv4 = true
 		}
 		network.IP = address
 		gw := net.ParseIP(addr.GetGateway())
@@ -413,7 +409,6 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		routes = append(routes, *route)
 	}
 
-	hasv4, hasv6 := getIpFamilies(args)
 	vppSideMacAddress, err := net.ParseMAC(config.VppSideMacAddressString)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "Unable to parse mac: %s", config.VppSideMacAddressString)
@@ -472,7 +467,7 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		}
 	}
 
-	err = ns.WithNetNSPath(netns, s.configureNamespaceSideTap(args, ifConfigs, routes, swIfIndex, contTapName, &contTapMac, doHostSideConf))
+	err = ns.WithNetNSPath(netns, s.configureNamespaceSideTap(args, ifConfigs, routes, swIfIndex, contTapName, &contTapMac, doHostSideConf, hasv4, hasv6))
 	if err != nil {
 		return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error creating or configuring tap")
 	}

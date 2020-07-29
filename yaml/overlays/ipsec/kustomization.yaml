@@ -1,0 +1,4 @@
+bases:
+- ../../base
+patchesStrategicMerge:
+- ipsec-env.yaml

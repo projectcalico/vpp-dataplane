@@ -1,5 +1,7 @@
 $box_image = ENV['BOX_IMAGE'] || 'generic/ubuntu2004'.freeze
 
+CLUSTER_NAME = ENV['CLUSTER_NAME']
+
 # Disk setup
 DISK_SIZE_GB = ENV['DISK_SIZE_GB'].to_i || 32
 
@@ -47,14 +49,14 @@ alias lh="ls -alh"
 alias d="docker"
 alias dl="docker logs"
 alias dlf="docker logs -f"
-alias dlv='docker logs -f $(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \$1}")'
+alias dlv='docker logs -f \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}")'
 alias dp="docker ps"
 alias dpa="docker ps -a"
 alias dpv="docker ps -a |grep vpp"
-alias vc='docker exec -it $(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \$1}") vppctl'
-alias nodelogs='docker exec -it $(docker ps |grep k8s_calico-node_calico-vpp-node | awk "{print \$1}") tail -10000f /var/log/calico/calico-vpp-agent/current'
+alias vc='docker exec -it \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}") vppctl'
+alias nodelogs='docker exec -it \$(docker ps |grep k8s_calico-node_calico-vpp-node | awk "{print \\\\\$1}") tail -10000f /var/log/calico/calico-vpp-agent/current'
 alias idu="ip link set eth1 down; ip link set eth1 up"
-alias ifr="ip link set vppatp0 down; echo '0000:00:06.0' > /sys/bus/pci/drivers/vfio-pci/unbind; sleep 0.2; echo '0000:00:06.0' > /sys/bus/pci/drivers/virtio-pci/bind; sleep 0.5; ip link set eth1 up"
+alias ifr="ip link set vppatp0 down; echo '0000:00:06.0' > /sys/bus/pci/devices/0000\:00\:06.0/driver/unbind; sleep 0.2; echo '0000:00:06.0' > /sys/bus/pci/drivers/virtio-pci/bind; sleep 0.5; ip link set eth1 up"
 }
 
 # Common scripts
@@ -79,7 +81,6 @@ systemd-resolve --status
 swapoff -a
 sed -i '/swap/s/^/#/g' /etc/fstab
 
-modprobe br_netfilter
 cat << EOF > /etc/sysctl.conf
 net.ipv6.conf.all.disable_ipv6 = 0
 net.ipv6.conf.default.disable_ipv6 = 0
@@ -88,7 +89,7 @@ net.ipv6.conf.all.accept_dad = 0
 net.ipv6.conf.default.accept_dad = 0
 net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.conf.all.rp_filter = 0
-vm.nr_hugepages = 1024
+vm.nr_hugepages = 128
 EOF
 sysctl -p /etc/sysctl.conf
 
@@ -104,6 +105,7 @@ nf_conntrack_ipv4
 nf_conntrack_ipv6
 uio_pci_generic
 EOF
+sudo systemctl restart systemd-modules-load.service
 
 # Set mtu of eth0 and eth1 devices to 1300, otherwise there may be issues when using a VPN on the host system.
 cat <<EOF > /etc/systemd/system/ip-set-mtu.service
@@ -132,7 +134,7 @@ Acquire {
 EOF
 
 KUBELET_EXTRA_ARGS_FILE=/etc/default/kubelet
-echo 'KUBELET_EXTRA_ARGS=--node-ip=#{MASTER_IP} --cni-bin-dir=/opt/cni/bin,/usr/libexec/cni' > "${KUBELET_EXTRA_ARGS_FILE}"
+echo 'KUBELET_EXTRA_ARGS=--node-ip=#{NODE > 0 ? NODE_IP : MASTER_IP} --cni-bin-dir=/opt/cni/bin,/usr/libexec/cni' > "${KUBELET_EXTRA_ARGS_FILE}"
 
 mkdir /etc/docker
 cat <<EOF > /etc/docker/daemon.json

@@ -1,4 +1,6 @@
-.PHONY: all build gobgp image
+.PHONY: all build gobgp image push
+
+TAG ?= latest
 
 all: build gobgp image
 
@@ -12,4 +14,8 @@ gobgp:
 	go build -o ./dep/gobgp $(GOBGP_DIR)/cmd/gobgp/
 
 image: build gobgp
-	docker build --pull -t calicovpp/node:latest .
+	docker build --pull -t calicovpp/node:$(TAG) .
+
+push: image
+	docker push calicovpp/node:$(TAG)
+

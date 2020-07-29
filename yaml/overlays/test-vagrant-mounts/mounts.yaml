@@ -1,0 +1,43 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: calico-node
+          volumeMounts:
+            - name: vpp-agent-binary
+              mountPath: /bin/calico-vpp-agent
+              readOnly: true
+        - name: vpp
+          volumeMounts:
+            - name: vpp-manager-binary
+              mountPath: /usr/bin/vpp-manager
+              readOnly: true
+            - name: vpp-binary
+              mountPath: /usr/bin/vpp
+              readOnly: true
+            - name: vpp-libs
+              mountPath: /usr/lib/x86_64-linux-gnu/vpp_plugins
+              readOnly: true
+      volumes:
+        # Used to put the latest binaries in the containers without rebuilding images in testing
+        - name: vpp-manager-binary
+          hostPath:
+            type: File
+            path: /host-repo/vpp-manager/images/ubuntu/vpp-manager
+        - name: vpp-agent-binary
+          hostPath:
+            type: File
+            path: /host-repo/calico-vpp-agent/cmd/calico-vpp-agent
+        - name: vpp-binary
+          hostPath:
+            type: File
+            path: /host-repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/bin/vpp
+        - name: vpp-libs
+          hostPath:
+            type: Directory
+            path: /host-repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/lib/vpp_plugins

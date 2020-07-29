@@ -394,7 +394,7 @@ func swapDriver(pciDevice, newDriver string, addId bool) error {
 			return errors.Wrapf(err, "error reading device %s id", pciDevice)
 		}
 		// Add it to driver before unbinding to prevent spontaneous binds
-		identifier := fmt.Sprintf("%s %s", string(vendor[2:6]), string(device[2:6]))
+		identifier := fmt.Sprintf("%s %s\n", string(vendor[2:6]), string(device[2:6]))
 		log.Infof("Adding id '%s' to driver %s", identifier, newDriver)
 		err = ioutil.WriteFile(driverRoot+"/new_id", []byte(identifier), 0200)
 		if err != nil {
@@ -403,13 +403,11 @@ func swapDriver(pciDevice, newDriver string, addId bool) error {
 	}
 	err := ioutil.WriteFile(deviceRoot+"/driver/unbind", []byte(pciDevice), 0200)
 	if err != nil {
-		return errors.Wrapf(err, "error unbinding %s", pciDevice)
+		// Error on unbind is not critical, device might beind successfully afterwards if it is not currently bound
+		log.Warnf("error unbinding %s: %v", pciDevice, err)
 	}
 	err = ioutil.WriteFile(driverRoot+"/bind", []byte(pciDevice), 0200)
-	if err != nil {
-		return errors.Wrapf(err, "error binding %s to %s", pciDevice, newDriver)
-	}
-	return nil
+	return errors.Wrapf(err, "error binding %s to %s", pciDevice, newDriver)
 }
 
 func writeFile(state string, path string) error {
@@ -426,7 +424,7 @@ func restoreLinuxConfig() (err error) {
 	if initialConfig.pciId != "" && initialConfig.driver != "" {
 		err := swapDriver(initialConfig.pciId, initialConfig.driver, false)
 		if err != nil {
-			return errors.Wrapf(err, "error swapping back driver to %s for %s", initialConfig.driver, initialConfig.pciId)
+			log.Warnf("error swapping back driver to %s for %s: %v", initialConfig.driver, initialConfig.pciId, err)
 		}
 	}
 	if initialConfig.isUp {

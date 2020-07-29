@@ -1,0 +1,64 @@
+# Force usage of mtls
+# apiVersion: authentication.istio.io/v1alpha1
+# kind: Policy
+# metadata:
+#   name: default
+#   namespace: tls-iperf
+# spec:
+#   peers:
+#   - mtls:
+#     mode: STRICT
+
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  namespace: iperf3
+  name: iperf3-server-repl
+  labels:
+    app: iperf3-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: iperf3-server
+  template:
+    metadata:
+      labels:
+        app: iperf3-server
+    spec:
+      containers:
+      - name: iperf3-server
+        image: sknat/iperf3
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5201
+      nodeName: vppquic1
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: iperf3
+  name: iperf3-service
+spec:
+  selector:
+    app: iperf3-server
+  ports:
+    - protocol: TCP
+      port: 5201
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iperf3-client
+  namespace: iperf3
+spec:
+  containers:
+  - name: iperf3-client
+    image: sknat/iperf3
+    imagePullPolicy: IfNotPresent
+    ports:
+    - containerPort: 5201
+  nodeName: vppquic2

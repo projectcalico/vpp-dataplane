@@ -1,4 +1,4 @@
-FROM calico/node:v3.15.0
+FROM calico/node:v3.15.1
 
 ADD dep/gobgp /bin/gobgp
 ADD cmd/calico-vpp-agent /bin/calico-vpp-agent
