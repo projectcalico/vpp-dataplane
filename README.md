@@ -3,7 +3,7 @@
 
 This repository contains the source for Calico's VPP dataplane integration. The integration is in incubation status, with significant development in progress.
 
-Please see the [Wiki](https://github.com/calico-vpp/calico-vpp/wiki) for more detailed information about this project, and the [Setup Instructions](https://github.com/calico-vpp/calico-vpp/wiki/Setup-instructions) if you would like to try it.
+Please see the [Wiki](https://github.com/projectcalico/vpp-dataplane/wiki) for more detailed information about this project, and the [Setup Instructions](https://github.com/projectcalico/vpp-dataplane/wiki/Setup-instructions) if you would like to try it.
 
 ## Get Started Using Calico
 
