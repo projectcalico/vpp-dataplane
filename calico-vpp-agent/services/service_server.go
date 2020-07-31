@@ -20,12 +20,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/pkg/errors"
 	calicocliv3 "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	v1 "k8s.io/api/core/v1"
@@ -174,7 +174,48 @@ func (s *Server) AddDelService(service *v1.Service, ep *v1.Endpoints, isWithdraw
 	}
 }
 
+func (s *Server) ConfigureSnat() (err error) {
+	// Grab addresses from data interface
+	var v4, v6 net.IP
+	v4s, err := s.vpp.AddrList(config.DataInterfaceSwIfIndex, false)
+	if err != nil {
+		return errors.Wrap(err, "cannot list ipv4 on data itf")
+	}
+	if len(v4s) > 0 {
+		v4 = v4s[0].IPNet.IP
+	}
+	if len(v4s) > 1 {
+		s.log.Warnf("More than one v4 found on data interface: %v", v4s)
+	}
+
+	v6s, err := s.vpp.AddrList(config.DataInterfaceSwIfIndex, true)
+	if err != nil {
+		return errors.Wrap(err, "cannot list ipv6 on data itf")
+	}
+	v6set := false
+	for _, a := range v6s {
+		if a.IPNet.IP.IsLinkLocalUnicast() {
+			continue
+		}
+		if v6set {
+			s.log.Warnf("More than one non-link-local v6 address found on data itf: %v", v6s)
+			continue
+		}
+		v6 = a.IPNet.IP
+		v6set = true
+	}
+	err = s.vpp.CalicoSetSnatAddresses(v4, v6)
+	return errors.Wrapf(err, "Failed to configure SNAT addresses")
+}
+
 func (s *Server) OnVppRestart() {
+	/* SNAT-outgoing config */
+	err := s.ConfigureSnat()
+	if err != nil {
+		s.log.Errorf("Failed to reconfigure SNAT: %v", err)
+	}
+
+	/* Services NAT config */
 	s.serviceProvider.OnVppRestart()
 }
 
@@ -242,6 +283,11 @@ func (s *Server) Serve() {
 			s.log.Fatal(err)
 		}
 	}
+	err := s.ConfigureSnat()
+	if err != nil {
+		s.log.Errorf("Failed to configure SNAT: %v", err)
+	}
+
 	s.t.Go(func() error { s.serviceInformer.Run(s.t.Dying()); return nil })
 	s.t.Go(func() error { s.endpointInformer.Run(s.t.Dying()); return nil })
 	<-s.t.Dying()

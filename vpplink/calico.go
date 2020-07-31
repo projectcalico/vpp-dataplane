@@ -17,10 +17,11 @@ package vpplink
 
 import (
 	"fmt"
+	"net"
 
+	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/calico"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/pkg/errors"
 )
 
 const InvalidID = ^uint32(0)
@@ -69,6 +70,37 @@ func (v *VppLink) CalicoTranslateDel(id uint32) (err error) {
 		return errors.Wrap(err, "Deleting CalicoTranslate failed")
 	} else if response.Retval != 0 {
 		return fmt.Errorf("Deleting CalicoTranslate failed with retval: %d", response.Retval)
+	}
+	return nil
+}
+
+// Make sure you really call this with an IPv4 address...
+func ToVppIp4Address(addr net.IP) calico.IP4Address {
+	ip := [4]uint8{}
+	copy(ip[:], addr.To4())
+	return ip
+}
+
+func ToVppIp6Address(addr net.IP) calico.IP6Address {
+	ip := [16]uint8{}
+	copy(ip[:], addr)
+	return ip
+}
+
+func (v *VppLink) CalicoSetSnatAddresses(v4, v6 net.IP) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	request := &calico.CalicoSetSnatAddresses{
+		SnatIP4: ToVppIp4Address(v4),
+		SnatIP6: ToVppIp6Address(v6),
+	}
+	response := &calico.CalicoSetSnatAddressesReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrap(err, "Setting SNAT addresses failed")
+	} else if response.Retval != 0 {
+		return fmt.Errorf("Setting SNAT addresses failed with retval: %d", response.Retval)
 	}
 	return nil
 }

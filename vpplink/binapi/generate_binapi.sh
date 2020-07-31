@@ -64,6 +64,7 @@ function generate_govpp_apis ()
 	generate_govpp_api nat
 	generate_govpp_api calico
 	generate_govpp_api af_packet
+	generate_govpp_api feature
 
 	cleanup_govpp_apis
 	fixup_govpp_apis
