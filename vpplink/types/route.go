@@ -20,7 +20,7 @@ import (
 	"net"
 	"strings"
 
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~187-gf9d9cd97b/ip"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/ip"
 )
 
 type RoutePath struct {
