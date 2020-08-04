@@ -2,6 +2,7 @@
 
 VPPLINK_DIR=../vpplink
 IMAGE_DIR=images/ubuntu/
+DEV_IMAGE_DIR=images/dev/
 TAG ?= latest
 
 all: image
@@ -36,3 +37,8 @@ vpp-build-env:
 	docker build \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp-build:latest images/ubuntu-build
+
+dev: build
+	docker build --pull \
+	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)

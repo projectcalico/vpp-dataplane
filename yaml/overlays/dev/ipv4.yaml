@@ -1,0 +1,302 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: kube-system
+  labels:
+    k8s-app: calico-vpp-node
+spec:
+  selector:
+    matchLabels:
+      k8s-app: calico-vpp-node
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    spec:
+      initContainers:
+        - name: install-cni
+          image: ${CALICO_CNI_IMAGE}
+          imagePullPolicy: IfNotPresent
+        - name: flexvol-driver
+          image: calico/pod2daemon-flexvol:${CALICO_VERSION_TAG}
+      containers:
+        - name: calico-node
+          image: ${CALICO_NODE_IMAGE}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          env:
+            - name: CALICOVPP_TAP_RX_QUEUES
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_TAP_RX_QUEUES
+            - name: CALICOVPP_TAP_GSO_ENABLED
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_TAP_GSO_ENABLED
+            - name: CALICOVPP_RX_MODE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_RX_MODE
+            - name: CALICOVPP_TAP_RX_MODE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_TAP_RX_MODE
+            - name: CALICOVPP_IPSEC_ENABLED
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_IPSEC_ENABLED
+            - name: CALICOVPP_NAT_ENABLED
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_NAT_ENABLED
+            - name: CALICOVPP_IPSEC_IKEV2_PSK
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_IPSEC_IKEV2_PSK
+            - name: CALICOVPP_IPSEC_CROSS_TUNNELS
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_IPSEC_CROSS_TUNNELS
+            - name: CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_CONFIGURE_EXTRA_ADDRESSES
+            - name: DATASTORE_TYPE
+              value: "kubernetes"
+            - name: WAIT_FOR_DATASTORE
+              value: "true"
+            - name: NODENAME
+              value: ""
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CALICO_NETWORKING_BACKEND
+              value: vpp
+            - name: CALICO_BGP_LOGSEVERITYSCREEN
+              value: info
+            - name: CLUSTER_TYPE
+              value: "k8s,bgp"
+            - name: CALICO_ROUTER_ID
+              value: "hash"
+            - name: CALICO_IPV4POOL_CIDR
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: POD_CIDR
+            - name: CALICO_IPV4POOL_IPIP
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICO_IPV4POOL_IPIP
+            - name: IP
+              value: "autodetect"
+            - name: IP6
+              value: "none"
+            - name: FELIX_IPINIPMTU
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: veth_mtu
+            - name: CALICO_DISABLE_FILE_LOGGING
+              value: "true"
+            - name: FELIX_DEFAULTENDPOINTTOHOSTACTION
+              value: "ACCEPT"
+            - name: FELIX_IPV6SUPPORT
+              value: "false"
+            - name: FELIX_LOGSEVERITYSCREEN
+              value: "info"
+            - name: FELIX_HEALTHENABLED
+              value: "true"
+          volumeMounts:
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: true
+            - mountPath: /run/xtables.lock
+              name: xtables-lock
+              readOnly: false
+            - mountPath: /var/run/calico
+              name: var-run-calico
+              readOnly: false
+            - mountPath: /var/lib/calico
+              name: var-lib-calico
+              readOnly: false
+            - name: policysync
+              mountPath: /var/run/nodeagent
+            - name: vpp-rundir
+              mountPath: /var/run/vpp
+        - name: vpp
+          image: ${CALICO_VPP_IMAGE}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          env:
+            - name: CALICOVPP_IP_CONFIG
+              value: linux
+            - name: CALICOVPP_INTERFACE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_INTERFACE
+            - name: CALICOVPP_CONFIGURE_EXTRA_ADDRESSES
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_CONFIGURE_EXTRA_ADDRESSES
+            - name: CALICOVPP_CORE_PATTERN
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_CORE_PATTERN
+            - name: CALICOVPP_RX_MODE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_RX_MODE
+            - name: CALICOVPP_USE_AF_PACKET
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_USE_AF_PACKET
+            - name: CALICOVPP_TAP_RX_MODE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_TAP_RX_MODE
+            - name: CALICOVPP_VPP_STARTUP_SLEEP
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_VPP_STARTUP_SLEEP
+            - name: CALICOVPP_CONFIG_TEMPLATE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_CONFIG_TEMPLATE
+            - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_CONFIG_EXEC_TEMPLATE
+            - name: CALICOVPP_SWAP_DRIVER
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_SWAP_DRIVER
+            - name: CALICOVPP_INIT_SCRIPT_TEMPLATE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_INIT_SCRIPT_TEMPLATE
+            - name: SERVICE_PREFIX
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: SERVICE_PREFIX
+            - name: DATASTORE_TYPE
+              value: "kubernetes"
+            - name: WAIT_FOR_DATASTORE
+              value: "true"
+            - name: NODENAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: LD_LIBRARY_PATH
+              value: "/home/hostuser/vpp/build-root/install-vpp-native/vpp/"
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+            limits:
+              memory: 4Gi
+              hugepages-2Mi: 2Gi
+          volumeMounts:
+            - name: vpp-rundir
+              mountPath: /var/run/vpp
+            - name: vpp-config
+              mountPath: /etc/vpp
+            - name: devices
+              mountPath: /dev
+            - name: hostsys
+              mountPath: /sys
+            # Add your home to the container we can launch rebulid vpp
+            # without the whole container
+            - name: userhome
+              mountPath: /home/hostuser
+      volumes:
+        - name: vpp-rundir
+          hostPath:
+            path: /var/run/vpp
+        - name: vpp-config
+          hostPath:
+            path: /etc/vpp
+        - name: devices
+          hostPath:
+            path: /dev
+        - name: userhome
+          hostPath:
+            path: ${USERHOME}
+        - name: hostsys
+          hostPath:
+            path: /sys
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+        - name: var-run-calico
+          hostPath:
+            path: /var/run/calico
+        - name: var-lib-calico
+          hostPath:
+            path: /var/lib/calico
+        - name: xtables-lock
+          hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate
+        - name: cni-bin-dir
+          hostPath:
+            path: /opt/cni/bin
+        - name: cni-net-dir
+          hostPath:
+            path: /etc/cni/net.d
+        - name: host-local-net-dir
+          hostPath:
+            path: /var/lib/cni/networks
+        - name: policysync
+          hostPath:
+            type: DirectoryOrCreate
+            path: /var/run/nodeagent
+        - name: flexvol-driver-host
+          hostPath:
+            type: DirectoryOrCreate
+            path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/nodeagent~uds
