@@ -23,6 +23,16 @@ function is_ip6 () {
   fi
 }
 
+function green ()
+{
+  printf "\e[0;32m$1\e[0m\n"
+}
+
+function red ()
+{
+  printf "\e[0;31m$1\e[0m\n"
+}
+
 function 6safe () {
   if [[ $(is_ip6 $1) = true ]]; then
 	echo "[$1]"
@@ -89,8 +99,6 @@ function raw_create_cluster_conf ()
 
 function raw_create_master_k8 ()
 {
-	echo "MASTER_NODE_IP : $MASTER_NODE_IP"
-	echo "NODE_IP        : $NODE_IP"
 	calico_if_linux_setup master
 	raw_create_cluster_conf $SCRIPTDIR/kubeadm/ClusterNewConfiguration.template.yaml
 	if [ x$VERBOSE = xyes ]; then
@@ -107,8 +115,6 @@ function raw_create_master_k8 ()
 
 function raw_join_master_k8 ()
 {
-	echo "MASTER_NODE_IP : $MASTER_NODE_IP"
-	echo "NODE_IP        : $NODE_IP"
 	calico_if_linux_setup slave
 	raw_create_cluster_conf $SCRIPTDIR/kubeadm/ClusterJoinConfiguration.template.yaml
 	if [ x$VERBOSE = xyes ]; then
@@ -120,7 +126,7 @@ function raw_join_master_k8 ()
 
 function provision_cli ()
 {
-	NODE_NAME=$(hostname)
+	NODE_NAME=node
 	POD_CIDR=10.0.0.0/16
 	SERVICE_CIDR=10.96.0.0/16
 	DNS_TYPE=CoreDNS
@@ -140,6 +146,19 @@ function provision_cli ()
 	VPP_DATAPLANE_IF=$IF
 	if [[ x$VPP_DATAPLANE_IF = x ]] && [[ x$ACTION = up ]]; then
 		print_usage_and_exit
+	fi
+
+
+	if [[ $ACTION = up ]]; then
+	  IS_IP6=$(is_ip6 $POD_CIDR)
+	  green "Creating cluster"
+	  green "master ip    : $MASTER_NODE_IP"
+	  green "node ip      : $NODE_IP"
+	  green "pod cidr     : $POD_CIDR"
+	  green "service cidr : $SERVICE_CIDR"
+	  green "is ip6       : $IS_IP6"
+	else
+	  green "Teardown cluster"
 	fi
 
 	if [[ $ACTION = up ]] && [[ x$MASTER_NODE_IP = x ]]; then

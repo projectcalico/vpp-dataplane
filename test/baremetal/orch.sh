@@ -17,15 +17,19 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 function provision ()
 {
-  echo "$SCRIPTDIR/provision.sh $1 IF=$IF NODE_IP=$2 MASTER_NODE_IP=$3 POD_CIDR=$POD_CIDR SERVICE_CIDR=$SERVICE_CIDR DNS_TYPE=$DNS_TYPE AVF=$AVF VERBOSE=$VERBOSE"
+  echo "$SCRIPTDIR/provision.sh $1 IF=$IF NODE_IP=$2 MASTER_NODE_IP=$3 POD_CIDR=$POD_CIDR SERVICE_CIDR=$SERVICE_CIDR DNS_TYPE=$DNS_TYPE AVF=$AVF VERBOSE=$VERBOSE NODE_NAME=$NODE_NAME"
 }
 
 function create_k8_cluster () {
+	N=1
+	NODE_NAME=node$N
 	eval $(provision up $MASTER "")
 	for i in $(echo $SLAVES | sed 's/,/ /g' ) ; do
 		ip=${i%%/*}
 		NODE_IP=${i%%@*}
 		SSH_NAME=${i##*@}
+		N=$((N+1))
+		NODE_NAME=node$N
 		ssh $SSH_NAME -t $(provision up $NODE_IP ${MASTER%%/*})
 	done
 }

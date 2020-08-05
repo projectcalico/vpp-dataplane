@@ -15,6 +15,24 @@
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
+function is_ip6 () {
+  if [[ $1 =~ .*:.* ]]; then
+	echo "true"
+  else
+	echo "false"
+  fi
+}
+
+function green ()
+{
+  printf "\e[0;32m$1\e[0m\n"
+}
+
+function red ()
+{
+  printf "\e[0;31m$1\e[0m\n"
+}
+
 function get_cluster_service_cidr ()
 {
   kubectl cluster-info dump | grep -m 1 service-cluster-ip-range | cut -d '=' -f 2 | cut -d '"' -f 1
@@ -34,7 +52,7 @@ function get_vpp_conf ()
 		log /var/run/vpp/vpp.log
 		cli-listen /var/run/vpp/cli.sock
 	  }
-	  cpu { main-core 12 workers ${WRK} }
+	  cpu { main-core ${MAINCORE} workers ${WRK} }
 	  socksvr {
     	  socket-name /var/run/vpp/vpp-api.sock
 	  }
@@ -54,52 +72,91 @@ function get_vpp_conf ()
 	"
 }
 
+function get_cni_network_config_ipam ()
+{
+	if [[ $IS_IP6 == false ]]; then
+	  echo "{
+        \"type\": \"calico-ipam\",
+		\"assign_ipv4\": \"true\",
+    	\"assign_ipv6\": \"false\"
+	  }"
+	else
+	  echo "{
+        \"type\": \"calico-ipam\",
+		\"assign_ipv4\": \"false\",
+    	\"assign_ipv6\": \"true\",
+		\"ipv6_pools\": [\"${CALICO_IPV6POOL_CIDR}\", \"default-ipv6-ippool\"]
+	  }"
+	fi
+}
+
 function get_cni_network_config ()
 {
-	echo '{
-      "name": "k8s-pod-network",
-      "cniVersion": "0.3.1",
-      "plugins": [
+	echo "{
+      \"name\": \"k8s-pod-network\",
+      \"cniVersion\": \"0.3.1\",
+      \"plugins\": [
         {
-          "type": "calico",
-          "log_level": "debug",
-          "datastore_type": "kubernetes",
-          "nodename": "__KUBERNETES_NODE_NAME__",
-          "mtu": __CNI_MTU__,
-          "ipam": {
-              "type": "calico-ipam",
-              "assign_ipv4": "${IP4}",
-              "assign_ipv6": "${IP6}"
+          \"type\": \"calico\",
+          \"log_level\": \"debug\",
+          \"datastore_type\": \"kubernetes\",
+          \"nodename\": \"__KUBERNETES_NODE_NAME__\",
+          \"mtu\": __CNI_MTU__,
+          \"ipam\": $(get_cni_network_config_ipam),
+          \"policy\": {
+              \"type\": \"k8s\"
           },
-          "policy": {
-              "type": "k8s"
+          \"kubernetes\": {
+              \"kubeconfig\": \"__KUBECONFIG_FILEPATH__\"
           },
-          "kubernetes": {
-              "kubeconfig": "__KUBECONFIG_FILEPATH__"
-          },
-          "dataplane_options": {
-            "type": "grpc",
-            "socket": "unix:///var/run/calico/cni-server.sock"
+          \"dataplane_options\": {
+            \"type\": \"grpc\",
+            \"socket\": \"unix:///var/run/calico/cni-server.sock\"
           }
         },
         {
-          "type": "portmap",
-          "snat": true,
-          "capabilities": {"portMappings": true}
+          \"type\": \"portmap\",
+          \"snat\": true,
+          \"capabilities\": {\"portMappings\": true}
         }
       ]
-    }'
+    }"
+}
+
+function is_v4_then ()
+{
+	if [[ $IS_IP6 == false ]]; then
+		echo $1
+	else
+		echo $2
+  	fi
 }
 
 calico_create_template ()
 {
+  POD_CIDR=$(get_cluster_pod_cidr)
+  SERVICE_CIDR=$(get_cluster_service_cidr)
+  IS_IP6=$(is_ip6 $POD_CIDR)
+  green "Installing CNI for"
+  green "pod cidr     : $POD_CIDR"
+  green "service cidr : $SERVICE_CIDR"
+  green "is ip6       : $IS_IP6"
+  if [[ x$POD_CIDR = x ]]; then
+  	red "empty pod cidr, exiting"
+  	exit 1
+  fi
+
   RXQ=${RXQ:=4}
   WRK=${WRK:=0}
+  MAINCORE=${MAINCORE:=12}
   DPDK=${DPDK:=true}
-  IP4=${IP4:=true}
-  IP6=${IP6:=false}
-  export POD_CIDR=$(get_cluster_pod_cidr)
-  export SERVICE_PREFIX=$(get_cluster_service_cidr)
+  export CALICO_IPV4POOL_CIDR=$(is_v4_then $POD_CIDR "")
+  export CALICO_IPV6POOL_CIDR=$(is_v4_then "" $POD_CIDR)
+  export FELIX_IPV6SUPPORT=$(is_v4_then false true)
+  export CALICO_IP=$(is_v4_then autodetect none)
+  export CALICO_IP6=$(is_v4_then none autodetect)
+
+  export SERVICE_PREFIX=$SERVICE_CIDR
   export cni_network_config=$(get_cni_network_config)
   export CALICOVPP_CONFIG_TEMPLATE=${CALICOVPP_CONFIG_TEMPLATE:=$(get_vpp_conf)}
   export CALICOVPP_CONFIG_EXEC_TEMPLATE=${VPP_CONFIG_EXEC_TEMPLATE:=#}
@@ -131,7 +188,6 @@ calico_create_template ()
 
 function calico_up_cni ()
 {
-  echo "Installing CALICO CNI..."
   calico_create_template
   if [ x$DISABLE_KUBE_PROXY = xyes ]; then
     kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico": "true"}}}}}'

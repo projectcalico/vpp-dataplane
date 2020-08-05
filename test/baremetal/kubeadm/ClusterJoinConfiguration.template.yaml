@@ -33,7 +33,7 @@ clusterName: kubernetes
 controllerManager:
   extraArgs:
     # master: "__6SAFE_NODE_IP__"
-    cluster-cidr: "__SERVICE_CIDR__"
+    cluster-cidr: "__POD_CIDR__"
     allocate-node-cidrs: "false"
 dns:
   type: __DNS_TYPE__

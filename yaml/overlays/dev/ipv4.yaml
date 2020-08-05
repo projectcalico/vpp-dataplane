@@ -102,7 +102,13 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: calico-config
-                  key: POD_CIDR
+                  key: CALICO_IPV4POOL_CIDR
+            - name: CALICO_IPV6POOL_CIDR
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICO_IPV6POOL_CIDR
             - name: CALICO_IPV4POOL_IPIP
               value: ""
               valueFrom:
@@ -110,9 +116,17 @@ spec:
                   name: calico-config
                   key: CALICO_IPV4POOL_IPIP
             - name: IP
-              value: "autodetect"
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICO_IP
             - name: IP6
-              value: "none"
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICO_IP6
             - name: FELIX_IPINIPMTU
               value: ""
               valueFrom:
@@ -124,7 +138,11 @@ spec:
             - name: FELIX_DEFAULTENDPOINTTOHOSTACTION
               value: "ACCEPT"
             - name: FELIX_IPV6SUPPORT
-              value: "false"
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: FELIX_IPV6SUPPORT
             - name: FELIX_LOGSEVERITYSCREEN
               value: "info"
             - name: FELIX_HEALTHENABLED
