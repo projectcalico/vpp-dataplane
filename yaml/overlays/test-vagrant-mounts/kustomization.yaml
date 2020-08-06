@@ -2,3 +2,4 @@ bases:
 - ../test-vagrant
 patchesStrategicMerge:
 - mounts.yaml
+- update.yaml

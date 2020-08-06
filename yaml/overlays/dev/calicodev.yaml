@@ -103,6 +103,12 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICO_IPV4POOL_CIDR
+            - name: CALICO_IPV4POOL_NAT_OUTGOING
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICO_IPV4POOL_NAT_OUTGOING
             - name: CALICO_IPV6POOL_CIDR
               value: ""
               valueFrom:

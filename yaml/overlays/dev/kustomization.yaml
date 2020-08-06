@@ -7,4 +7,4 @@ configMapGenerator:
     behavior: merge
 
 patchesStrategicMerge:
-  - ipv4.yaml
+  - calicodev.yaml

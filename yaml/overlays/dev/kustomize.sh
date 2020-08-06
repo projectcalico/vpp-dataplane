@@ -181,6 +181,7 @@ calico_create_template ()
   export CALICOVPP_TAP_RX_MODE=${CALICOVPP_TAP_RX_MODE:=adaptive}
   export CALICOVPP_USE_AF_PACKET=${CALICOVPP_USE_AF_PACKET:=false}
   export CALICOVPP_SWAP_DRIVER=${CALICOVPP_SWAP_DRIVER:=}
+  export CALICO_IPV4POOL_NAT_OUTGOING=${CALICO_IPV4POOL_NAT_OUTGOING:=true}
   export USERHOME=${HOME}
   cd $SCRIPTDIR
   kubectl kustomize . | envsubst > /tmp/calico-vpp.yaml
