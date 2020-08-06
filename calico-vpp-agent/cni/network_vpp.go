@@ -382,6 +382,7 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 	// Type conversion & validation
 	var hasv4, hasv6 bool
 	var ifConfigs []interfaceConfig
+	needSnat := false
 	for _, addr := range args.GetContainerIps() {
 		address, network, err := net.ParseCIDR(addr.GetAddress())
 		if err != nil {
@@ -398,6 +399,7 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 			s.log.Infof("Cannot parse gateway: %s, ignoring anyway...", addr.GetGateway())
 		}
 		ifConfigs = append(ifConfigs, interfaceConfig{address: *network, gateway: gw})
+		needSnat = needSnat || s.IPNetNeedsSNAT(network)
 	}
 
 	var routes []net.IPNet
@@ -446,9 +448,6 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		return "", "", s.tapErrorCleanup(contTapName, netns, err, "error SetInterfaceRxMode on data interface")
 	}
 
-	// TODO: check if ip pool has snat enabled
-	needSnat := true
-
 	// configure vpp side TAP
 	if hasv4 {
 		s.log.Infof("Add vpp tap[%d] addr %s", swIfIndex, getPodv4IPNet(swIfIndex).String())
@@ -458,7 +457,7 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		}
 		if needSnat {
 			s.log.Infof("Enable tap[%d] SNAT v4", swIfIndex)
-			err = s.vpp.EnableSNAT(swIfIndex, false)
+			err = s.vpp.EnableSNATArc(swIfIndex, false)
 			if err != nil {
 				return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error enabling ip4 snat")
 			}
@@ -477,7 +476,7 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		}
 		if needSnat {
 			s.log.Infof("Enable tap[%d] SNAT v6", swIfIndex)
-			err = s.vpp.EnableSNAT(swIfIndex, true)
+			err = s.vpp.EnableSNATArc(swIfIndex, true)
 			if err != nil {
 				return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error enabling ip6 snat")
 			}

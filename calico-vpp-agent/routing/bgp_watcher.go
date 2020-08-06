@@ -96,7 +96,7 @@ func (s *Server) getNodeIPNet(isv6 bool) *net.IPNet {
 }
 
 func (s *Server) needIpipTunnel(cn *connectivity.NodeConnectivity) (ipip bool, err error) {
-	ipPool := s.ipam.match(cn.Dst)
+	ipPool := s.ipam.GetPrefixIPPool(&cn.Dst)
 	if ipPool == nil {
 		return false, nil
 	}

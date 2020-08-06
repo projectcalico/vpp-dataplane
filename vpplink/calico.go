@@ -74,26 +74,13 @@ func (v *VppLink) CalicoTranslateDel(id uint32) (err error) {
 	return nil
 }
 
-// Make sure you really call this with an IPv4 address...
-func ToVppIp4Address(addr net.IP) calico.IP4Address {
-	ip := [4]uint8{}
-	copy(ip[:], addr.To4())
-	return ip
-}
-
-func ToVppIp6Address(addr net.IP) calico.IP6Address {
-	ip := [16]uint8{}
-	copy(ip[:], addr)
-	return ip
-}
-
 func (v *VppLink) CalicoSetSnatAddresses(v4, v6 net.IP) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	request := &calico.CalicoSetSnatAddresses{
-		SnatIP4: ToVppIp4Address(v4),
-		SnatIP6: ToVppIp6Address(v6),
+		SnatIP4: types.ToVppCalicoIp4Address(v4),
+		SnatIP6: types.ToVppCalicoIp6Address(v6),
 	}
 	response := &calico.CalicoSetSnatAddressesReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -104,3 +91,30 @@ func (v *VppLink) CalicoSetSnatAddresses(v4, v6 net.IP) (err error) {
 	}
 	return nil
 }
+
+func (v *VppLink) CalicoAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	request := &calico.CalicoAddDelSnatPrefix{
+	  IsAdd: BoolToU8(isAdd),
+	  Prefix: types.ToVppCalicoPrefix(prefix),
+	}
+	response := &calico.CalicoSetSnatAddressesReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrap(err, "Add/Del SNAT prefix failed")
+	} else if response.Retval != 0 {
+		return fmt.Errorf("Add/Del SNAT prefix failed with retval: %d", response.Retval)
+	}
+	return nil
+}
+
+func (v *VppLink) CalicoAddSnatPrefix(prefix *net.IPNet) error {
+	return v.CalicoAddDelSnatPrefix(prefix, true)
+}
+
+func (v *VppLink) CalicoDelSnatPrefix(prefix *net.IPNet) error {
+	return v.CalicoAddDelSnatPrefix(prefix, false)
+}
+

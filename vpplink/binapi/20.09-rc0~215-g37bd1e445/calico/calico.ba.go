@@ -8,8 +8,8 @@ It consists of:
 	  5 aliases
 	 13 types
 	  1 union
-	 12 messages
-	  6 services
+	 14 messages
+	  7 services
 */
 package calico
 
@@ -29,7 +29,7 @@ const (
 	// APIVersion is the API version of this module.
 	APIVersion = "0.1.0"
 	// VersionCrc is the CRC of this module.
-	VersionCrc = 0xd5fea47b
+	VersionCrc = 0x7d63aa49
 )
 
 // AddressFamily represents VPP binary API enum 'address_family'.
@@ -534,6 +534,29 @@ func (u *AddressUnion) GetIP6() (a IP6Address) {
 	return
 }
 
+// CalicoAddDelSnatPrefix represents VPP binary API message 'calico_add_del_snat_prefix'.
+type CalicoAddDelSnatPrefix struct {
+	IsAdd  uint8
+	Prefix Prefix
+}
+
+func (m *CalicoAddDelSnatPrefix) Reset()                        { *m = CalicoAddDelSnatPrefix{} }
+func (*CalicoAddDelSnatPrefix) GetMessageName() string          { return "calico_add_del_snat_prefix" }
+func (*CalicoAddDelSnatPrefix) GetCrcString() string            { return "a82c1216" }
+func (*CalicoAddDelSnatPrefix) GetMessageType() api.MessageType { return api.RequestMessage }
+
+// CalicoAddDelSnatPrefixReply represents VPP binary API message 'calico_add_del_snat_prefix_reply'.
+type CalicoAddDelSnatPrefixReply struct {
+	Retval int32
+}
+
+func (m *CalicoAddDelSnatPrefixReply) Reset() { *m = CalicoAddDelSnatPrefixReply{} }
+func (*CalicoAddDelSnatPrefixReply) GetMessageName() string {
+	return "calico_add_del_snat_prefix_reply"
+}
+func (*CalicoAddDelSnatPrefixReply) GetCrcString() string            { return "e8d4e804" }
+func (*CalicoAddDelSnatPrefixReply) GetMessageType() api.MessageType { return api.ReplyMessage }
+
 // CalicoSessionDetails represents VPP binary API message 'calico_session_details'.
 type CalicoSessionDetails struct {
 	Session CalicoSession
@@ -653,6 +676,8 @@ func (*CalicoTranslationUpdateReply) GetCrcString() string            { return "
 func (*CalicoTranslationUpdateReply) GetMessageType() api.MessageType { return api.ReplyMessage }
 
 func init() {
+	api.RegisterMessage((*CalicoAddDelSnatPrefix)(nil), "calico.CalicoAddDelSnatPrefix")
+	api.RegisterMessage((*CalicoAddDelSnatPrefixReply)(nil), "calico.CalicoAddDelSnatPrefixReply")
 	api.RegisterMessage((*CalicoSessionDetails)(nil), "calico.CalicoSessionDetails")
 	api.RegisterMessage((*CalicoSessionDump)(nil), "calico.CalicoSessionDump")
 	api.RegisterMessage((*CalicoSessionPurge)(nil), "calico.CalicoSessionPurge")
@@ -670,6 +695,8 @@ func init() {
 // Messages returns list of all messages in this module.
 func AllMessages() []api.Message {
 	return []api.Message{
+		(*CalicoAddDelSnatPrefix)(nil),
+		(*CalicoAddDelSnatPrefixReply)(nil),
 		(*CalicoSessionDetails)(nil),
 		(*CalicoSessionDump)(nil),
 		(*CalicoSessionPurge)(nil),
@@ -689,6 +716,7 @@ func AllMessages() []api.Message {
 type RPCService interface {
 	DumpCalicoSession(ctx context.Context, in *CalicoSessionDump) (RPCService_DumpCalicoSessionClient, error)
 	DumpCalicoTranslation(ctx context.Context, in *CalicoTranslationDump) (RPCService_DumpCalicoTranslationClient, error)
+	CalicoAddDelSnatPrefix(ctx context.Context, in *CalicoAddDelSnatPrefix) (*CalicoAddDelSnatPrefixReply, error)
 	CalicoSessionPurge(ctx context.Context, in *CalicoSessionPurge) (*CalicoSessionPurgeReply, error)
 	CalicoSetSnatAddresses(ctx context.Context, in *CalicoSetSnatAddresses) (*CalicoSetSnatAddressesReply, error)
 	CalicoTranslationDel(ctx context.Context, in *CalicoTranslationDel) (*CalicoTranslationDelReply, error)
@@ -753,6 +781,15 @@ func (c *serviceClient_DumpCalicoTranslationClient) Recv() (*CalicoTranslationDe
 		return nil, io.EOF
 	}
 	return m, nil
+}
+
+func (c *serviceClient) CalicoAddDelSnatPrefix(ctx context.Context, in *CalicoAddDelSnatPrefix) (*CalicoAddDelSnatPrefixReply, error) {
+	out := new(CalicoAddDelSnatPrefixReply)
+	err := c.ch.SendRequest(in).ReceiveReply(out)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *serviceClient) CalicoSessionPurge(ctx context.Context, in *CalicoSessionPurge) (*CalicoSessionPurgeReply, error) {

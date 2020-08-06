@@ -72,6 +72,10 @@ func (s *Server) Add(ctx context.Context, in *pb.AddRequest) (*pb.AddReply, erro
 	return out, nil
 }
 
+func (p *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
+	return p.routingServer.IPNetNeedsSNAT(prefix)
+}
+
 func (p *Server) OnVppRestart() {
 	for name, in := range p.podInterfaceMap {
 		_, _, err := p.AddVppInterface(in, false)

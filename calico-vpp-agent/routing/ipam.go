@@ -31,7 +31,7 @@ import (
 )
 
 // contains returns true if the IPPool contains 'prefix'
-func contains(pool *calicov3.IPPool, prefix net.IPNet) (bool, error) {
+func contains(pool *calicov3.IPPool, prefix*net.IPNet) (bool, error) {
 	_, poolCIDR, _ := net.ParseCIDR(pool.Spec.CIDR) // this field is validated so this should never error
 	poolCIDRLen, poolCIDRBits := poolCIDR.Mask.Size()
 	prefixLen, prefixBits := prefix.Mask.Size()
@@ -52,19 +52,26 @@ func equalPools(a *calicov3.IPPool, b *calicov3.IPPool) bool {
 	return true
 }
 
+type IpamCache interface {
+	GetPrefixIPPool(*net.IPNet) *calicov3.IPPool
+	SyncIPAM() error
+	OnVppRestart() error
+	IPNetNeedsSNAT(prefix *net.IPNet) bool
+}
+
 type ipamCache struct {
-	mu            sync.RWMutex
-	m             map[string]*calicov3.IPPool
+	lock          sync.RWMutex
+	ippoolmap     map[string]*calicov3.IPPool
 	client        calicocliv3.Interface
 	updateHandler func(*calicov3.IPPool, *calicov3.IPPool) error
 	ready         bool
 	readyCond     *sync.Cond
-	l             *logrus.Entry
+	log            *logrus.Entry
 }
 
 // match checks whether we have an IP pool which contains the given prefix.
 // If we have, it returns the pool.
-func (c *ipamCache) match(prefix net.IPNet) *calicov3.IPPool {
+func (c *ipamCache) GetPrefixIPPool(prefix *net.IPNet) *calicov3.IPPool {
 	if !c.ready {
 		c.readyCond.L.Lock()
 		for !c.ready {
@@ -72,50 +79,57 @@ func (c *ipamCache) match(prefix net.IPNet) *calicov3.IPPool {
 		}
 		c.readyCond.L.Unlock()
 	}
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	for _, p := range c.m {
-		in, err := contains(p, prefix)
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	for _, pool := range c.ippoolmap {
+		in, err := contains(pool, prefix)
 		if err != nil {
-			c.l.Warnf("contains errored: %v", err)
+			c.log.Warnf("contains errored: %v", err)
 			continue
 		}
 		if in {
-			return p
+			return pool
 		}
 	}
 	return nil
+}
+
+func (c *ipamCache) IPNetNeedsSNAT(prefix *net.IPNet) bool {
+	pool := c.GetPrefixIPPool(prefix)
+	if pool == nil {
+		return false
+	} else {
+		return pool.Spec.NATOutgoing
+	}
+
 }
 
 // update updates the internal map with IPAM updates when the update
 // is new addtion to the map or changes the existing item, it calls
 // updateHandler
-func (c *ipamCache) update(pool calicov3.IPPool, del bool) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.l.Debugf("update ipam cache: %+v, %t", pool.Spec, del)
+func (c *ipamCache) handleIPPoolUpdate(pool calicov3.IPPool, del bool) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.log.Debugf("update ipam cache: %+v, %t", pool.Spec, del)
 	key := pool.Spec.CIDR
 
-	existing := c.m[key]
+	existing := c.ippoolmap[key]
 	if del {
-		delete(c.m, key) // Should we cal updateHandler here (and modify it to handle deletions)?
-		return nil
+		delete(c.ippoolmap, key)
+		return c.updateHandler(nil, existing)
 	} else if existing != nil && equalPools(&pool, existing) {
 		return nil
 	}
 
-	c.m[key] = &pool
+	c.ippoolmap[key] = &pool
 
-	if c.updateHandler != nil {
-		return c.updateHandler(&pool, existing)
-	}
-	return nil
+	return c.updateHandler(&pool, existing)
 }
 
 // sync synchronizes the IP pools stored under /calico/v1/ipam
-func (c *ipamCache) sync() error {
+func (c *ipamCache) SyncIPAM() error {
 	for {
-		c.l.Info("Reconciliating pools...")
+		c.log.Info("Reconciliating pools...")
 		poolsList, err := c.client.IPPools().List(context.Background(), options.ListOptions{})
 		if err != nil {
 			return errors.Wrap(err, "error listing pools")
@@ -123,16 +137,16 @@ func (c *ipamCache) sync() error {
 		sweepMap := make(map[string]bool)
 		for _, pool := range poolsList.Items {
 			sweepMap[pool.Spec.CIDR] = true
-			err := c.update(pool, false)
+			err := c.handleIPPoolUpdate(pool, false)
 			if err != nil {
 				return errors.Wrap(err, "error processing startup pool update")
 			}
 		}
 		// Sweep phase
-		for key, pool := range c.m {
+		for key, pool := range c.ippoolmap {
 			found := sweepMap[key]
 			if !found {
-				c.update(*pool, true)
+				c.handleIPPoolUpdate(*pool, true)
 			}
 		}
 
@@ -165,22 +179,31 @@ func (c *ipamCache) sync() error {
 				pool = update.Previous
 			case watch.Added, watch.Modified:
 			}
-			if err = c.update(*pool.(*calicov3.IPPool), del); err != nil {
+			if err = c.handleIPPoolUpdate(*pool.(*calicov3.IPPool), del); err != nil {
 				return errors.Wrap(err, "error processing pool update")
 			}
 		}
 	}
 	return nil
 }
+func (c *ipamCache) OnVppRestart() error {
+	for _, pool := range c.ippoolmap {
+		err := c.updateHandler(pool, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // create new IPAM cache
-func newIPAMCache(l *logrus.Entry, client calicocliv3.Interface, updateHandler func(*calicov3.IPPool, *calicov3.IPPool) error) *ipamCache {
+func newIPAMCache(log *logrus.Entry, client calicocliv3.Interface, updateHandler func(*calicov3.IPPool, *calicov3.IPPool) error) *ipamCache {
 	cond := sync.NewCond(&sync.Mutex{})
 	return &ipamCache{
-		m:             make(map[string]*calicov3.IPPool),
+		ippoolmap:     make(map[string]*calicov3.IPPool),
 		updateHandler: updateHandler,
 		client:        client,
 		readyCond:     cond,
-		l:             l,
+		log:           log,
 	}
 }

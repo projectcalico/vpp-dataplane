@@ -41,16 +41,17 @@ func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName,
 	return nil
 }
 
-func (v *VppLink) EnableSNAT(swIfIndex uint32, isIp6 bool) (err error) {
+func (v *VppLink) enableDisableSNAT(swIfIndex uint32, isEnable bool, isIp6 bool) (err error) {
 	if isIp6 {
-		return v.featureEnableDisable(swIfIndex, true, "ip6-unicast", "calico-snat")
+		return v.featureEnableDisable(swIfIndex, isEnable, "ip6-unicast", "ip6-calico-snat")
 	}
-	return v.featureEnableDisable(swIfIndex, true, "ip4-unicast", "calico-snat")
+	return v.featureEnableDisable(swIfIndex, isEnable, "ip4-unicast", "ip4-calico-snat")
 }
 
-func (v *VppLink) DisableSNAT(swIfIndex uint32, isIp6 bool) (err error) {
-	if isIp6 {
-		return v.featureEnableDisable(swIfIndex, false, "ip6-unicast", "calico-snat")
-	}
-	return v.featureEnableDisable(swIfIndex, false, "ip4-unicast", "calico-snat")
+func (v *VppLink) EnableSNATArc(swIfIndex uint32, isIp6 bool) (err error) {
+	return v.enableDisableSNAT(swIfIndex, true, isIp6)
+}
+
+func (v *VppLink) DisableSNATArc(swIfIndex uint32, isIp6 bool) (err error) {
+	return v.enableDisableSNAT(swIfIndex, false, isIp6)
 }
