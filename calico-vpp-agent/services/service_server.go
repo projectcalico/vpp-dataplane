@@ -59,6 +59,7 @@ type Server struct {
 	lock             sync.Mutex
 	vppTapSwIfindex  uint32
 	serviceProvider  ServiceProvider
+	serviceCIDR      *net.IPNet
 }
 
 func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
@@ -90,6 +91,10 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 	if err != nil {
 		log.Infof("Node ipv6 parsing error %v", err)
 	}
+	_, serviceCIDR, err := net.ParseCIDR(config.ServicePrefix)
+	if err != nil {
+		log.Infof("Error parsing service CIDR %v", err)
+	}
 	server := Server{
 		clientv3:        calicoCliV3,
 		vpp:             vpp,
@@ -97,6 +102,7 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		vppTapSwIfindex: swIfIndex,
 		ipv4:            ipv4,
 		ipv6:            ipv6,
+		serviceCIDR:     serviceCIDR,
 	}
 	serviceListWatch := cache.NewListWatchFromClient(client.CoreV1().RESTClient(),
 		"services", "", fields.Everything())
@@ -175,37 +181,15 @@ func (s *Server) AddDelService(service *v1.Service, ep *v1.Endpoints, isWithdraw
 }
 
 func (s *Server) ConfigureSnat() (err error) {
-	// Grab addresses from data interface
-	var v4, v6 net.IP
-	v4s, err := s.vpp.AddrList(config.DataInterfaceSwIfIndex, false)
+	err = s.vpp.CalicoSetSnatAddresses(s.ipv4, s.ipv6)
 	if err != nil {
-		return errors.Wrap(err, "cannot list ipv4 on data itf")
+		s.log.Errorf("Failed to configure SNAT addresses %v", err)
 	}
-	if len(v4s) > 0 {
-		v4 = v4s[0].IPNet.IP
-	}
-	if len(v4s) > 1 {
-		s.log.Warnf("More than one v4 found on data interface: %v", v4s)
-	}
-
-	v6s, err := s.vpp.AddrList(config.DataInterfaceSwIfIndex, true)
+	err = s.vpp.CalicoAddSnatPrefix(s.serviceCIDR)
 	if err != nil {
-		return errors.Wrap(err, "cannot list ipv6 on data itf")
+		s.log.Errorf("Failed to Add Service CIDR %v", err)
 	}
-	v6set := false
-	for _, a := range v6s {
-		if a.IPNet.IP.IsLinkLocalUnicast() {
-			continue
-		}
-		if v6set {
-			s.log.Warnf("More than one non-link-local v6 address found on data itf: %v", v6s)
-			continue
-		}
-		v6 = a.IPNet.IP
-		v6set = true
-	}
-	err = s.vpp.CalicoSetSnatAddresses(v4, v6)
-	return errors.Wrapf(err, "Failed to configure SNAT addresses")
+	return nil
 }
 
 func (s *Server) OnVppRestart() {

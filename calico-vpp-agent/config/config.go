@@ -47,6 +47,7 @@ const (
 	TapRxModeEnvVar           = "CALICOVPP_TAP_RX_MODE"
 	BgpLogLevelEnvVar         = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
+	ServicePrefixEnvVar       = "SERVICE_PREFIX"
 
 	defaultRxMode = types.Adaptative
 )
@@ -59,6 +60,7 @@ var (
 	IpsecAddressCount = 1
 	CrossIpsecTunnels = false
 	IPSecIkev2Psk     = ""
+	ServicePrefix     = ""
 	TapRxMode         = defaultRxMode
 	BgpLogLevel       = logrus.InfoLevel
 	LogLevel          = logrus.InfoLevel
@@ -140,6 +142,8 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		return errors.New("IKEv2 PSK not configured: nothing found in CALICOVPP_IPSEC_IKEV2_PSK environment variable")
 	}
 	IPSecIkev2Psk = psk
+
+	ServicePrefix = os.Getenv(ServicePrefixEnvVar)
 
 	switch os.Getenv(TapRxModeEnvVar) {
 	case "interrupt":

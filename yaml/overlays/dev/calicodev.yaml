@@ -80,6 +80,12 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICOVPP_CONFIGURE_EXTRA_ADDRESSES
+            - name: SERVICE_PREFIX
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: SERVICE_PREFIX
             - name: DATASTORE_TYPE
               value: "kubernetes"
             - name: WAIT_FOR_DATASTORE
