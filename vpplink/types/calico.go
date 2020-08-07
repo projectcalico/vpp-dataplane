@@ -20,7 +20,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~187-gf9d9cd97b/calico"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/calico"
 )
 
 type CalicoEndpoint struct {
@@ -128,4 +128,42 @@ func ToCalicoEndpoint(ep CalicoEndpoint) calico.CalicoEndpoint {
 		a.Addr.Un = calico.AddressUnionIP4(ip)
 	}
 	return a
+}
+
+func ToVppCalicoAddress(addr net.IP) calico.Address {
+	a := calico.Address{}
+	if addr.To4() == nil {
+		a.Af = calico.ADDRESS_IP6
+		ip := [16]uint8{}
+		copy(ip[:], addr)
+		a.Un = calico.AddressUnionIP6(ip)
+	} else {
+		a.Af = calico.ADDRESS_IP4
+		ip := [4]uint8{}
+		copy(ip[:], addr.To4())
+		a.Un = calico.AddressUnionIP4(ip)
+	}
+	return a
+}
+
+func ToVppCalicoPrefix(prefix *net.IPNet) calico.Prefix {
+	len, _ := prefix.Mask.Size()
+	r := calico.Prefix{
+		Address: ToVppCalicoAddress(prefix.IP),
+		Len:     uint8(len),
+	}
+	return r
+}
+
+// Make sure you really call this with an IPv4 address...
+func ToVppCalicoIp4Address(addr net.IP) calico.IP4Address {
+	ip := [4]uint8{}
+	copy(ip[:], addr.To4())
+	return ip
+}
+
+func ToVppCalicoIp6Address(addr net.IP) calico.IP6Address {
+	ip := [16]uint8{}
+	copy(ip[:], addr)
+	return ip
 }

@@ -6,10 +6,10 @@ Package ikev2 is a generated VPP binary API for 'ikev2' module.
 It consists of:
 	 10 enums
 	  6 aliases
-	  6 types
+	 12 types
 	  1 union
-	 36 messages
-	 18 services
+	 38 messages
+	 19 services
 */
 package ikev2
 
@@ -29,7 +29,7 @@ const (
 	// APIVersion is the API version of this module.
 	APIVersion = "1.0.1"
 	// VersionCrc is the CRC of this module.
-	VersionCrc = 0x2ebaa2d8
+	VersionCrc = 0x2cd5820b
 )
 
 // AddressFamily represents VPP binary API enum 'address_family'.
@@ -462,6 +462,78 @@ type Address struct {
 
 func (*Address) GetTypeName() string { return "address" }
 
+// Ikev2Auth represents VPP binary API type 'ikev2_auth'.
+type Ikev2Auth struct {
+	Method  uint8
+	Hex     uint8
+	DataLen uint32 `struc:"sizeof=Data"`
+	Data    []byte
+}
+
+func (*Ikev2Auth) GetTypeName() string { return "ikev2_auth" }
+
+// Ikev2ID represents VPP binary API type 'ikev2_id'.
+type Ikev2ID struct {
+	Type    uint8
+	DataLen uint8
+	Data    string `struc:"[64]byte"`
+}
+
+func (*Ikev2ID) GetTypeName() string { return "ikev2_id" }
+
+// Ikev2Profile represents VPP binary API type 'ikev2_profile'.
+type Ikev2Profile struct {
+	Name             string `struc:"[64]byte"`
+	LocID            Ikev2ID
+	RemID            Ikev2ID
+	LocTs            Ikev2Ts
+	RemTs            Ikev2Ts
+	Responder        Ikev2Responder
+	IkeTs            Ikev2TransformsSet
+	EspTs            Ikev2TransformsSet
+	Lifetime         uint64
+	LifetimeMaxdata  uint64
+	LifetimeJitter   uint32
+	Handover         uint32
+	IpsecOverUDPPort uint16
+	TunItf           uint32
+	UDPEncap         uint8
+	Auth             Ikev2Auth
+}
+
+func (*Ikev2Profile) GetTypeName() string { return "ikev2_profile" }
+
+// Ikev2Responder represents VPP binary API type 'ikev2_responder'.
+type Ikev2Responder struct {
+	SwIfIndex uint32
+	IP4       IP4Address
+}
+
+func (*Ikev2Responder) GetTypeName() string { return "ikev2_responder" }
+
+// Ikev2TransformsSet represents VPP binary API type 'ikev2_transforms_set'.
+type Ikev2TransformsSet struct {
+	CryptoAlg     uint8
+	IntegAlg      uint8
+	DhType        uint8
+	CryptoKeySize uint32
+}
+
+func (*Ikev2TransformsSet) GetTypeName() string { return "ikev2_transforms_set" }
+
+// Ikev2Ts represents VPP binary API type 'ikev2_ts'.
+type Ikev2Ts struct {
+	TsType      uint8
+	ProtocolID  uint8
+	SelectorLen uint16
+	StartPort   uint16
+	EndPort     uint16
+	StartAddr   IP4Address
+	EndAddr     IP4Address
+}
+
+func (*Ikev2Ts) GetTypeName() string { return "ikev2_ts" }
+
 // IP4Prefix represents VPP binary API type 'ip4_prefix'.
 type IP4Prefix struct {
 	Address IP4Address
@@ -668,6 +740,24 @@ func (m *Ikev2ProfileAddDelReply) Reset()                        { *m = Ikev2Pro
 func (*Ikev2ProfileAddDelReply) GetMessageName() string          { return "ikev2_profile_add_del_reply" }
 func (*Ikev2ProfileAddDelReply) GetCrcString() string            { return "e8d4e804" }
 func (*Ikev2ProfileAddDelReply) GetMessageType() api.MessageType { return api.ReplyMessage }
+
+// Ikev2ProfileDetails represents VPP binary API message 'ikev2_profile_details'.
+type Ikev2ProfileDetails struct {
+	Profile Ikev2Profile
+}
+
+func (m *Ikev2ProfileDetails) Reset()                        { *m = Ikev2ProfileDetails{} }
+func (*Ikev2ProfileDetails) GetMessageName() string          { return "ikev2_profile_details" }
+func (*Ikev2ProfileDetails) GetCrcString() string            { return "223b87fc" }
+func (*Ikev2ProfileDetails) GetMessageType() api.MessageType { return api.ReplyMessage }
+
+// Ikev2ProfileDump represents VPP binary API message 'ikev2_profile_dump'.
+type Ikev2ProfileDump struct{}
+
+func (m *Ikev2ProfileDump) Reset()                        { *m = Ikev2ProfileDump{} }
+func (*Ikev2ProfileDump) GetMessageName() string          { return "ikev2_profile_dump" }
+func (*Ikev2ProfileDump) GetCrcString() string            { return "51077d14" }
+func (*Ikev2ProfileDump) GetMessageType() api.MessageType { return api.RequestMessage }
 
 // Ikev2ProfileSetAuth represents VPP binary API message 'ikev2_profile_set_auth'.
 type Ikev2ProfileSetAuth struct {
@@ -964,6 +1054,8 @@ func init() {
 	api.RegisterMessage((*Ikev2PluginGetVersionReply)(nil), "ikev2.Ikev2PluginGetVersionReply")
 	api.RegisterMessage((*Ikev2ProfileAddDel)(nil), "ikev2.Ikev2ProfileAddDel")
 	api.RegisterMessage((*Ikev2ProfileAddDelReply)(nil), "ikev2.Ikev2ProfileAddDelReply")
+	api.RegisterMessage((*Ikev2ProfileDetails)(nil), "ikev2.Ikev2ProfileDetails")
+	api.RegisterMessage((*Ikev2ProfileDump)(nil), "ikev2.Ikev2ProfileDump")
 	api.RegisterMessage((*Ikev2ProfileSetAuth)(nil), "ikev2.Ikev2ProfileSetAuth")
 	api.RegisterMessage((*Ikev2ProfileSetAuthReply)(nil), "ikev2.Ikev2ProfileSetAuthReply")
 	api.RegisterMessage((*Ikev2ProfileSetID)(nil), "ikev2.Ikev2ProfileSetID")
@@ -1005,6 +1097,8 @@ func AllMessages() []api.Message {
 		(*Ikev2PluginGetVersionReply)(nil),
 		(*Ikev2ProfileAddDel)(nil),
 		(*Ikev2ProfileAddDelReply)(nil),
+		(*Ikev2ProfileDetails)(nil),
+		(*Ikev2ProfileDump)(nil),
 		(*Ikev2ProfileSetAuth)(nil),
 		(*Ikev2ProfileSetAuthReply)(nil),
 		(*Ikev2ProfileSetID)(nil),
@@ -1034,6 +1128,7 @@ func AllMessages() []api.Message {
 
 // RPCService represents RPC service API for ikev2 module.
 type RPCService interface {
+	DumpIkev2Profile(ctx context.Context, in *Ikev2ProfileDump) (RPCService_DumpIkev2ProfileClient, error)
 	Ikev2InitiateDelChildSa(ctx context.Context, in *Ikev2InitiateDelChildSa) (*Ikev2InitiateDelChildSaReply, error)
 	Ikev2InitiateDelIkeSa(ctx context.Context, in *Ikev2InitiateDelIkeSa) (*Ikev2InitiateDelIkeSaReply, error)
 	Ikev2InitiateRekeyChildSa(ctx context.Context, in *Ikev2InitiateRekeyChildSa) (*Ikev2InitiateRekeyChildSaReply, error)
@@ -1060,6 +1155,32 @@ type serviceClient struct {
 
 func NewServiceClient(ch api.Channel) RPCService {
 	return &serviceClient{ch}
+}
+
+func (c *serviceClient) DumpIkev2Profile(ctx context.Context, in *Ikev2ProfileDump) (RPCService_DumpIkev2ProfileClient, error) {
+	stream := c.ch.SendMultiRequest(in)
+	x := &serviceClient_DumpIkev2ProfileClient{stream}
+	return x, nil
+}
+
+type RPCService_DumpIkev2ProfileClient interface {
+	Recv() (*Ikev2ProfileDetails, error)
+}
+
+type serviceClient_DumpIkev2ProfileClient struct {
+	api.MultiRequestCtx
+}
+
+func (c *serviceClient_DumpIkev2ProfileClient) Recv() (*Ikev2ProfileDetails, error) {
+	m := new(Ikev2ProfileDetails)
+	stop, err := c.MultiRequestCtx.ReceiveReply(m)
+	if err != nil {
+		return nil, err
+	}
+	if stop {
+		return nil, io.EOF
+	}
+	return m, nil
 }
 
 func (c *serviceClient) Ikev2InitiateDelChildSa(ctx context.Context, in *Ikev2InitiateDelChildSa) (*Ikev2InitiateDelChildSaReply, error) {

@@ -6,7 +6,8 @@ build:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
 
-.PHONY: image
+.PHONY: image images
+images: image
 image:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@

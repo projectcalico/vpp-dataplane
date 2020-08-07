@@ -20,12 +20,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/pkg/errors"
 	calicocliv3 "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	v1 "k8s.io/api/core/v1"
@@ -56,9 +56,12 @@ type Server struct {
 	clientv3         calicocliv3.Interface
 	ipv4             net.IP
 	ipv6             net.IP
+	hasv4            bool
+	hasv6            bool
 	lock             sync.Mutex
 	vppTapSwIfindex  uint32
 	serviceProvider  ServiceProvider
+	serviceCIDR      *net.IPNet
 }
 
 func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
@@ -83,12 +86,20 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		panic(err.Error())
 	}
 	ipv4, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
+	hasv4 := true
 	if err != nil {
 		log.Infof("Node ipv4 parsing error %v", err)
+		hasv4 = false
 	}
 	ipv6, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
+	hasv6 := true
 	if err != nil {
 		log.Infof("Node ipv6 parsing error %v", err)
+		hasv6 = false
+	}
+	_, serviceCIDR, err := net.ParseCIDR(config.ServicePrefix)
+	if err != nil {
+		log.Infof("Error parsing service CIDR %v", err)
 	}
 	server := Server{
 		clientv3:        calicoCliV3,
@@ -96,7 +107,10 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		log:             log,
 		vppTapSwIfindex: swIfIndex,
 		ipv4:            ipv4,
+		hasv4:           hasv4,
 		ipv6:            ipv6,
+		hasv6:           hasv6,
+		serviceCIDR:     serviceCIDR,
 	}
 	serviceListWatch := cache.NewListWatchFromClient(client.CoreV1().RESTClient(),
 		"services", "", fields.Everything())
@@ -174,7 +188,38 @@ func (s *Server) AddDelService(service *v1.Service, ep *v1.Endpoints, isWithdraw
 	}
 }
 
+func (s *Server) ConfigureSnat() (err error) {
+	err = s.vpp.CalicoSetSnatAddresses(s.ipv4, s.ipv6)
+	if err != nil {
+		s.log.Errorf("Failed to configure SNAT addresses %v", err)
+	}
+	if s.hasv6 {
+		err = s.vpp.CalicoAddSnatPrefix(common.FullyQualified(s.ipv6))
+		if err != nil {
+			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.ipv6), err)
+		}
+	}
+	if s.hasv4 {
+		err = s.vpp.CalicoAddSnatPrefix(common.FullyQualified(s.ipv4))
+		if err != nil {
+			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.ipv4), err)
+		}
+	}
+	err = s.vpp.CalicoAddSnatPrefix(s.serviceCIDR)
+	if err != nil {
+		s.log.Errorf("Failed to Add Service CIDR %v", err)
+	}
+	return nil
+}
+
 func (s *Server) OnVppRestart() {
+	/* SNAT-outgoing config */
+	err := s.ConfigureSnat()
+	if err != nil {
+		s.log.Errorf("Failed to reconfigure SNAT: %v", err)
+	}
+
+	/* Services NAT config */
 	s.serviceProvider.OnVppRestart()
 }
 
@@ -242,6 +287,11 @@ func (s *Server) Serve() {
 			s.log.Fatal(err)
 		}
 	}
+	err := s.ConfigureSnat()
+	if err != nil {
+		s.log.Errorf("Failed to configure SNAT: %v", err)
+	}
+
 	s.t.Go(func() error { s.serviceInformer.Run(s.t.Dying()); return nil })
 	s.t.Go(func() error { s.endpointInformer.Run(s.t.Dying()); return nil })
 	<-s.t.Dying()

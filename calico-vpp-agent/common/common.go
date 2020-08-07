@@ -17,6 +17,7 @@ package common
 
 import (
 	"io/ioutil"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -25,9 +26,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -109,4 +110,24 @@ func FormatSlice(lst []Stringable) string {
 		strLst = append(strLst, e.String())
 	}
 	return strings.Join(strLst, ", ")
+}
+
+func getMaxCIDRLen(isv6 bool) int {
+	if isv6 {
+		return 128
+	} else {
+		return 32
+	}
+}
+
+func getMaxCIDRMask(addr net.IP) net.IPMask {
+	maxCIDRLen := getMaxCIDRLen(vpplink.IsIP6(addr))
+	return net.CIDRMask(maxCIDRLen, maxCIDRLen)
+}
+
+func FullyQualified(addr net.IP) *net.IPNet {
+	return &net.IPNet{
+		IP:   addr,
+		Mask: getMaxCIDRMask(addr),
+	}
 }

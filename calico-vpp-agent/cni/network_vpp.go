@@ -23,7 +23,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 
 	"github.com/containernetworking/plugins/pkg/ip"
@@ -158,19 +157,6 @@ func (s *Server) tapErrorCleanup(contTapName string, netns string, err error, ms
 		s.log.Errorf("Error deleting tap on error %s %v", contTapName, delErr)
 	}
 	return errors.Wrapf(err, msg, args...)
-}
-
-func getMaxCIDRLen(isv6 bool) int {
-	if isv6 {
-		return 128
-	} else {
-		return 32
-	}
-}
-
-func getMaxCIDRMask(addr net.IP) net.IPMask {
-	maxCIDRLen := getMaxCIDRLen(vpplink.IsIP6(addr))
-	return net.CIDRMask(maxCIDRLen, maxCIDRLen)
 }
 
 func (s *Server) getNamespaceSideGw(isv6 bool, swIfIndex uint32) (gwIp net.IP, err error) {
@@ -382,6 +368,7 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 	// Type conversion & validation
 	var hasv4, hasv6 bool
 	var ifConfigs []interfaceConfig
+	needSnat := false
 	for _, addr := range args.GetContainerIps() {
 		address, network, err := net.ParseCIDR(addr.GetAddress())
 		if err != nil {
@@ -398,6 +385,7 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 			s.log.Infof("Cannot parse gateway: %s, ignoring anyway...", addr.GetGateway())
 		}
 		ifConfigs = append(ifConfigs, interfaceConfig{address: *network, gateway: gw})
+		needSnat = needSnat || s.IPNetNeedsSNAT(network)
 	}
 
 	var routes []net.IPNet
@@ -453,6 +441,13 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		if err != nil {
 			return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error adding ip4 tap address")
 		}
+		if needSnat {
+			s.log.Infof("Enable tap[%d] SNAT v4", swIfIndex)
+			err = s.vpp.EnableSNATArc(swIfIndex, false)
+			if err != nil {
+				return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error enabling ip4 snat")
+			}
+		}
 	}
 	if hasv6 {
 		s.log.Infof("enable tap[%d] ipv6", swIfIndex)
@@ -464,6 +459,13 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		err = s.vpp.AddInterfaceAddress(swIfIndex, getPodv6IPNet(swIfIndex))
 		if err != nil {
 			return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error adding ip6 tap address")
+		}
+		if needSnat {
+			s.log.Infof("Enable tap[%d] SNAT v6", swIfIndex)
+			err = s.vpp.EnableSNATArc(swIfIndex, true)
+			if err != nil {
+				return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error enabling ip6 snat")
+			}
 		}
 	}
 

@@ -291,7 +291,9 @@ func handleSignals() {
 func getNodeAddress(isV6 bool) string {
 	for _, addr := range initialConfig.addresses {
 		if vpplink.IsIP6(addr.IP) == isV6 {
-			return addr.IPNet.String()
+			if !isV6 || !addr.IP.IsLinkLocalUnicast() {
+				return addr.IPNet.String()
+			}
 		}
 	}
 	return ""

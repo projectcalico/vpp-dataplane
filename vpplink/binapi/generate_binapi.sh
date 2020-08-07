@@ -16,45 +16,13 @@ function read_config ()
 	fi
 
 	pushd $VPP_DIR > /dev/null
-	VPP_REMOTE_NAME=$(echo `git remote`)
-	if [[ x$(git remote | wc -l) != x1 ]]; then
-		echo "Input VPP's remote (or just hit enter) [ $VPP_REMOTE_NAME ] : "
-		read VPP_REMOTE_NAME
-	fi
+	VPP_REMOTE_NAME=""
 
-	if [[ x$VPP_REMOTE_NAME != x ]]; then
-		VPP_REMOTE_URL=$(git config --get remote.$VPP_REMOTE_NAME.url)
-		echo "Using remote : $VPP_REMOTE_URL"
-	fi
 	VPP_VERSION=$(./build-root/scripts/version)
 	VPP_COMMIT=$(git rev-parse --short HEAD)
 	echo "Using commit : $VPP_COMMIT"
 	popd > /dev/null
 }
-
-function write_template_clone_sh ()
-{
-	if [[ x$VPP_REMOTE_NAME = x ]]; then
-		return
-	fi
-	echo "#!/bin/bash
-
-	VPP_COMMIT=$VPP_COMMIT
-
-	if [ ! -d \$1 ]; then
-		git clone $VPP_REMOTE_URL \$1
-		cd \$1
-		git reset --hard \${VPP_COMMIT}
-	else
-		cd \$1
-		git fetch $VPP_REMOTE_URL && git reset --hard \${VPP_COMMIT}
-	fi
-
-	# git fetch $VPP_REMOTE_URL refs/changes/00/00000/0 && git cherry-pick FETCH_HEAD # Example patch
-	" > $SCRIPTDIR/vpp_clone_current.sh
-	chmod +x $SCRIPTDIR/vpp_clone_current.sh
-}
-
 
 function generate_govpp_api ()
 {
@@ -96,6 +64,7 @@ function generate_govpp_apis ()
 	generate_govpp_api nat
 	generate_govpp_api calico
 	generate_govpp_api af_packet
+	generate_govpp_api feature
 
 	cleanup_govpp_apis
 	fixup_govpp_apis
@@ -116,5 +85,4 @@ read_config
 generate_vpp_apis
 generate_govpp_apis
 update_version_number
-write_template_clone_sh
 

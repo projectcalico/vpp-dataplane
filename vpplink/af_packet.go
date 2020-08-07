@@ -16,10 +16,11 @@
 package vpplink
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~187-gf9d9cd97b/af_packet"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/af_packet"
 )
 
 func ToVppMacAddress(hardwareAddr *net.HardwareAddr) af_packet.MacAddress {
@@ -43,6 +44,8 @@ func (v *VppLink) CreateAfPacket(ifName string, hardwareAddr *net.HardwareAddr) 
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "AfPacketCreate failed: req %+v reply %+v", request, response)
+	} else if response.Retval != 0 {
+		return INVALID_SW_IF_INDEX, fmt.Errorf("AfPacketCreate failed: req %+v reply %+v", request, response)
 	}
 	return uint32(response.SwIfIndex), nil
 }
@@ -57,6 +60,8 @@ func (v *VppLink) DeleteAfPacket(ifName string) error {
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "AfPacketDelete failed: req %+v reply %+v", request, response)
+	} else if response.Retval != 0 {
+		return fmt.Errorf("AfPacketDelete failed: req %+v reply %+v", request, response)
 	}
 	return nil
 }

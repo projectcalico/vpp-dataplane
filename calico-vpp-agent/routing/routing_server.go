@@ -62,12 +62,6 @@ var (
 	ServerRunning        = make(chan int, 1)
 )
 
-type IpamCache interface {
-	match(net.IPNet) *calicov3.IPPool
-	update(calicov3.IPPool, bool) error
-	sync() error
-}
-
 type Server struct {
 	*common.CalicoVppServerData
 	log             *logrus.Entry
@@ -202,7 +196,7 @@ func (s *Server) serveOne() error {
 
 	s.ipam = newIPAMCache(s.log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}), s.clientv3, s.ipamUpdateHandler)
 	// sync IPAM and call ipamUpdateHandler
-	s.t.Go(func() error { return fmt.Errorf("syncIPAM: %s", s.ipam.sync()) })
+	s.t.Go(func() error { return fmt.Errorf("SyncIPAM: %s", s.ipam.SyncIPAM()) })
 	// watch prefix assigned and announce to other BGP peers
 	s.t.Go(func() error { return fmt.Errorf("watchPrefix: %s", s.watchPrefix()) })
 	// watch BGP peers
@@ -235,11 +229,32 @@ func (s *Server) serveOne() error {
 	return nil
 }
 
+func (s *Server) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err error) {
+	if !pool.Spec.NATOutgoing {
+		return nil
+	}
+	_, ipNet, err := net.ParseCIDR(pool.Spec.CIDR)
+	if err != nil {
+		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Spec.CIDR)
+	}
+	return s.vpp.CalicoAddDelSnatPrefix(ipNet, isAdd)
+}
+
 func (s *Server) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) error {
-	s.log.Debugf("Pool %s updated, handler called", pool.Spec.CIDR)
 	// TODO check if we need to change any routes based on VXLAN / IPIPMode config changes
-	if prevPool != nil {
-		return fmt.Errorf("IPPool updates not supported at this time: old: %+v new: %+v", prevPool, pool)
+	if prevPool == nil {
+		/* Add */
+		s.log.Debugf("Pool %s Added, handler called")
+		s.addDelSnatPrefix(pool, true)
+	} else if pool == nil {
+		/* Deletion */
+		s.log.Debugf("Pool %s deleted, handler called", pool.Spec.CIDR)
+		s.addDelSnatPrefix(prevPool, false)
+	} else {
+		s.addDelSnatPrefix(pool, true)
+		s.addDelSnatPrefix(prevPool, false)
+		/* Update */
+		s.log.Errorf("Parts of IPPool updates are not supported at this time: old: %+v new: %+v", prevPool, pool)
 	}
 	return nil
 }
@@ -447,6 +462,10 @@ func (s *Server) AnnounceLocalAddress(addr *net.IPNet, isWithdrawal bool) {
 	}
 }
 
+func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
+	return s.ipam.IPNetNeedsSNAT(prefix)
+}
+
 func (s *Server) Serve() {
 	for !s.ShouldStop {
 		err := s.serveOne()
@@ -469,5 +488,9 @@ func (s *Server) OnVppRestart() {
 		if err != nil {
 			s.log.Errorf("Error re-injecting connectivity %s : %v", cn.String(), err)
 		}
+	}
+	err := s.ipam.OnVppRestart()
+	if err != nil {
+		s.log.Errorf("Error re-injecting ipam %v", err)
 	}
 }

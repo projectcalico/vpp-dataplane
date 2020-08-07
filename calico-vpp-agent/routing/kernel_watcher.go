@@ -44,7 +44,7 @@ func (s *Server) watchKernelRoute() error {
 			(update.Protocol == syscall.RTPROT_KERNEL || update.Protocol == syscall.RTPROT_BOOT) {
 			// TODO: handle ipPool deletion. RTM_DELROUTE message
 			// can belong to previously valid ipPool.
-			if s.ipam.match(*update.Dst) == nil {
+			if s.ipam.GetPrefixIPPool(update.Dst) == nil {
 				continue
 			}
 			isWithdrawal := false
@@ -95,7 +95,7 @@ func (s *Server) loadKernelRoute() error {
 		if route.Dst == nil {
 			continue
 		}
-		if s.ipam.match(*route.Dst) == nil {
+		if s.ipam.GetPrefixIPPool(route.Dst) == nil {
 			continue
 		}
 		if route.Protocol == syscall.RTPROT_KERNEL || route.Protocol == syscall.RTPROT_BOOT {

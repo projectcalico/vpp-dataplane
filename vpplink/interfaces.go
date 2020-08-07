@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~187-gf9d9cd97b/gso"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~187-gf9d9cd97b/interfaces"
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~187-gf9d9cd97b/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~187-gf9d9cd97b/ip_neighbor"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~187-gf9d9cd97b/tapv2"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/gso"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/interfaces"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/tapv2"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/pkg/errors"
 )

@@ -17,10 +17,11 @@ package vpplink
 
 import (
 	"fmt"
+	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~187-gf9d9cd97b/calico"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/calico"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 const InvalidID = ^uint32(0)
@@ -71,4 +72,48 @@ func (v *VppLink) CalicoTranslateDel(id uint32) (err error) {
 		return fmt.Errorf("Deleting CalicoTranslate failed with retval: %d", response.Retval)
 	}
 	return nil
+}
+
+func (v *VppLink) CalicoSetSnatAddresses(v4, v6 net.IP) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	request := &calico.CalicoSetSnatAddresses{
+		SnatIP4: types.ToVppCalicoIp4Address(v4),
+		SnatIP6: types.ToVppCalicoIp6Address(v6),
+	}
+	response := &calico.CalicoSetSnatAddressesReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrap(err, "Setting SNAT addresses failed")
+	} else if response.Retval != 0 {
+		return fmt.Errorf("Setting SNAT addresses failed with retval: %d", response.Retval)
+	}
+	return nil
+}
+
+func (v *VppLink) CalicoAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	request := &calico.CalicoAddDelSnatPrefix{
+		IsAdd:  BoolToU8(isAdd),
+		Prefix: types.ToVppCalicoPrefix(prefix),
+	}
+	response := &calico.CalicoAddDelSnatPrefixReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrap(err, "Add/Del SNAT prefix failed")
+	} else if response.Retval != 0 {
+		return fmt.Errorf("Add/Del SNAT prefix failed with retval: %d", response.Retval)
+	}
+	return nil
+}
+
+func (v *VppLink) CalicoAddSnatPrefix(prefix *net.IPNet) error {
+	return v.CalicoAddDelSnatPrefix(prefix, true)
+}
+
+func (v *VppLink) CalicoDelSnatPrefix(prefix *net.IPNet) error {
+	return v.CalicoAddDelSnatPrefix(prefix, false)
 }
