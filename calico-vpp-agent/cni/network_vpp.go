@@ -23,7 +23,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 
 	"github.com/containernetworking/plugins/pkg/ip"
@@ -158,19 +157,6 @@ func (s *Server) tapErrorCleanup(contTapName string, netns string, err error, ms
 		s.log.Errorf("Error deleting tap on error %s %v", contTapName, delErr)
 	}
 	return errors.Wrapf(err, msg, args...)
-}
-
-func getMaxCIDRLen(isv6 bool) int {
-	if isv6 {
-		return 128
-	} else {
-		return 32
-	}
-}
-
-func getMaxCIDRMask(addr net.IP) net.IPMask {
-	maxCIDRLen := getMaxCIDRLen(vpplink.IsIP6(addr))
-	return net.CIDRMask(maxCIDRLen, maxCIDRLen)
 }
 
 func (s *Server) getNamespaceSideGw(isv6 bool, swIfIndex uint32) (gwIp net.IP, err error) {

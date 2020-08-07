@@ -97,8 +97,8 @@ func (v *VppLink) CalicoAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err err
 	defer v.lock.Unlock()
 
 	request := &calico.CalicoAddDelSnatPrefix{
-	  IsAdd: BoolToU8(isAdd),
-	  Prefix: types.ToVppCalicoPrefix(prefix),
+		IsAdd:  BoolToU8(isAdd),
+		Prefix: types.ToVppCalicoPrefix(prefix),
 	}
 	response := &calico.CalicoAddDelSnatPrefixReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -117,4 +117,3 @@ func (v *VppLink) CalicoAddSnatPrefix(prefix *net.IPNet) error {
 func (v *VppLink) CalicoDelSnatPrefix(prefix *net.IPNet) error {
 	return v.CalicoAddDelSnatPrefix(prefix, false)
 }
-
