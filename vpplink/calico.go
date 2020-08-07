@@ -100,7 +100,7 @@ func (v *VppLink) CalicoAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err err
 	  IsAdd: BoolToU8(isAdd),
 	  Prefix: types.ToVppCalicoPrefix(prefix),
 	}
-	response := &calico.CalicoSetSnatAddressesReply{}
+	response := &calico.CalicoAddDelSnatPrefixReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrap(err, "Add/Del SNAT prefix failed")
