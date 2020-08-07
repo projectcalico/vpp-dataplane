@@ -16,8 +16,9 @@
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $SCRIPTDIR/cases_util.sh
 
-function run_ip4_iperf_tests ()
+function ipv4 ()
 {
+	start_test
 	NS=iperf
 	POD=iperf-client
 	echo "--Cross node TCP tests--"
@@ -50,8 +51,9 @@ function run_ip4_iperf_tests ()
 	assert_test_output_contains_not WARNING
 }
 
-function run_ip6_iperf_tests ()
+function ipv6 ()
 {
+	start_test
 	NS=iperf
 	POD=iperf-client
 	echo "--Cross node TCP tests--"
@@ -84,58 +86,10 @@ function run_ip6_iperf_tests ()
 	assert_test_output_contains_not WARNING
 }
 
-
-function raw_ip4 () {
-	create_cluster calicovpp/v4_flat_dpdk_0w.sh
-	start_calico calicovpp/v4_flat_dpdk_0w.sh
-	start_test
-
-	echo "============ RAW ipv4 ============"
-	run_ip4_iperf_tests
-	teardown_cluster
-}
-
-function ipip_ip4 () {
-	create_cluster calicovpp/v4_ipip_dpdk_0w.sh
-	start_calico calicovpp/v4_ipip_dpdk_0w.sh
-	start_test
-
-	echo "============ IPIP ipv4 ============"
-	run_ip4_iperf_tests
-	teardown_cluster
-}
-
-function ipsec_ip4 () {
-	create_cluster calicovpp/v4_ipsec_dpdk_0w.sh
-	start_calico calicovpp/v4_ipsec_dpdk_0w.sh
-	start_test
-
-	echo "============ IPsec ipv4 ============"
-	run_ip4_iperf_tests
-	teardown_cluster
-}
-
-function raw_ip6 () {
-	create_cluster calicovpp/v6_flat_dpdk_0w.sh
-	start_calico calicovpp/v6_flat_dpdk_0w.sh
-	start_test
-
-	echo "============ RAW ipv6 ============"
-	run_ip6_iperf_tests
-	teardown_cluster
-}
-
-function full () {
-	raw_ip4
-	raw_ip6
-	ipip_ip4
-	ipsec_ip4
-}
-
 if [ $# = 0 ]; then
 	echo "Usage"
-	echo "cases full       - run all tests"
-	echo "cases [casename] - run one test"
+	echo "cases ipv4       - run ip4 tests"
+	echo "cases ipv6       - run ip6 tests"
 else
 	"$1"
 fi

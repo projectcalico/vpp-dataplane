@@ -19,7 +19,6 @@ source $SCRIPTDIR/shared.sh
 LOGFILE=testrun.log
 LAST_TEST_LOGFILE=testrun.log~
 
-
 function k () {
 	kubectl -n $NS $@
 }
@@ -88,22 +87,6 @@ function wait_for_calico_test () {
 	done
 }
 
-function create_cluster () {
-	echo "Starting cluster... at $(date)"
-	$SCRIPTDIR/orch.sh up $1 > orchup.log 2>&1
-}
-
-function teardown_cluster () {
-	echo "Stopping cluster... at $(date)"
-	$SCRIPTDIR/orch.sh dn > orchdn.log 2>&1
-}
-
-function start_calico () {
-	echo "Starting calico... at $(date)"
-	$SCRIPTDIR/calico.sh up $1 > calicoup.log 2>&1
-	wait_for_calico_vpp
-}
-
 function wait_for_calico_vpp () {
 	NVPPS=0
 	while [ x$NVPPS != x2 ]; do
@@ -122,21 +105,11 @@ function wait_for_coredns () {
 	done
 }
 
-function stop_calico () {
-	echo "Stopping calico...  at $(date)"
-	$SCRIPTDIR/calico.sh down > calicoup.log 2>&1
-}
-
 function start_test () {
 	echo "Starting test clients... at $(date)"
 	$SCRIPTDIR/test.sh up iperf > iperfup.log 2>&1
 	wait_for_coredns
 	SVC=iperf wait_for_calico_test
-}
-
-function stop_test () {
-	echo "Stopping test clients... at $(date)"
-	$SCRIPTDIR/test.sh down iperf > iperfup.log 2>&1
 }
 
 
