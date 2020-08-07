@@ -1,0 +1,10 @@
+bases:
+  - ../../base
+
+configMapGenerator:
+  - name: calico-config
+    env: config.properties
+    behavior: merge
+
+patchesStrategicMerge:
+  - calicodev.yaml

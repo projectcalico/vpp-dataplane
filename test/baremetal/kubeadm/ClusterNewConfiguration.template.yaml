@@ -1,0 +1,72 @@
+apiVersion: kubeadm.k8s.io/v1beta2
+bootstrapTokens:
+- groups:
+  - system:bootstrappers:kubeadm:default-node-token
+  token: "abcdef.0123456789abcdef"
+  ttl: 0s
+  usages:
+  - signing
+  - authentication
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: "__NODE_IP__"
+  bindPort: 6443
+nodeRegistration:
+  taints: null
+  kubeletExtraArgs:
+    node-ip: "__NODE_IP__"
+  criSocket: /var/run/dockershim.sock
+  name: "__NODE_NAME__"
+  ignorePreflightErrors:
+  - SystemVerification
+  - FileContent--proc-sys-net-ipv6-conf-default-forwarding
+  - DirAvailable--var-lib-etcd
+---
+# https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+apiServer:
+  timeoutForControlPlane: 4m0s
+  extraArgs:
+    authorization-mode: Node,RBAC
+    advertise-address: "__NODE_IP__"
+    bind-address: "__NODE_IP__"
+    service-cluster-ip-range: "__SERVICE_CIDR__"
+apiVersion: kubeadm.k8s.io/v1beta2
+certificatesDir: /etc/kubernetes/pki
+clusterName: kubernetes
+# https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
+controllerManager:
+  extraArgs:
+    # master: "__6SAFE_NODE_IP__"
+    cluster-cidr: "__POD_CIDR__"
+    allocate-node-cidrs: "false"
+dns:
+  type: __DNS_TYPE__
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+imageRepository: k8s.gcr.io
+kind: ClusterConfiguration
+kubernetesVersion: v1.17.4
+networking:
+  dnsDomain: cluster.local
+  podSubnet: "__POD_CIDR__"
+  serviceSubnet: "__SERVICE_CIDR__"
+controlPlaneEndpoint: "__6SAFE_NODE_IP__:6443"
+# https://kubernetes.io/docs/reference/command-line-tools-reference/kube-scheduler/
+scheduler:
+  extraArgs:
+      bind-address: "__NODE_IP__"
+      # v: "100"
+      # master: "__6SAFE_NODE_IP__"
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+conntrack:
+  maxPerCore: 0
+kind: KubeProxyConfiguration
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+address: "__LISTEN_ADDR__"
+featureGates:
+  LocalStorageCapacityIsolation: false
+

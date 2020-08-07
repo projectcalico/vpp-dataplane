@@ -1,41 +1,21 @@
-  #!/bin/bash
+#!/bin/bash
+
+# Copyright (c) 2020 Cisco and/or its affiliates.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 set -e
-DISABLE_KUBE_PROXY=
 
 if [[ "$X" != "" ]]; then set -x ; fi
-
-function check ()
-{
-	if [ -z "$1" ]; then
-		echo "required variable is blank"
-		exit 1
-	fi
-}
-
-function icheck ()
-{
-	if [[ ! $1 =~ ^-?[0-9]+$ ]]; then
-		echo "required input is not an int"
-		exit 1
-	fi
-}
-
-function lcheck ()
-{
-	while (( "$#" )) ; do
-		check $1
-    	shift
-	done
-}
-
-function licheck ()
-{
-	while (( "$#" )) ; do
-		icheck $1
-    	shift
-	done
-}
 
 function green ()
 {
@@ -45,12 +25,6 @@ function green ()
 function red ()
 {
   printf "\e[0;31m$1\e[0m\n"
-}
-
-function name_from_pci ()
-{
-	check $1
-	echo $(ls /sys/bus/pci/devices/$1/net/ | sed s./..g)
 }
 
 find_node_pod () # NODE, POD

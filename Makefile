@@ -16,6 +16,11 @@ push:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
 
+.PHONY: dev
+dev:
+	$(MAKE) -C calico-vpp-agent $@
+	$(MAKE) -C vpp-manager $@
+
 .PHONY: install-test-deps
 install-test-deps:
 	sudo apt-get update
