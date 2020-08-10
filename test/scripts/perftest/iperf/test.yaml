@@ -57,6 +57,7 @@ metadata:
   namespace: iperf
   name: iperf-service
 spec:
+  ipFamily: IPv4
   selector:
     app: iperf-server
   ports:
@@ -66,6 +67,77 @@ spec:
     - protocol: UDP
       port: 5003
       name: iperf-udp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: iperf
+  name: iperf-service-v4
+spec:
+  ipFamily: IPv4
+  selector:
+    app: iperf-server
+  ports:
+    - protocol: TCP
+      port: 5001
+      name: iperf-tcp
+    - protocol: UDP
+      port: 5003
+      name: iperf-udp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: iperf
+  name: iperf-service-v6
+spec:
+  ipFamily: IPv6
+  selector:
+    app: iperf-server
+  ports:
+    - protocol: TCP
+      port: 5001
+      name: iperf-tcp
+    - protocol: UDP
+      port: 5003
+      name: iperf-udp
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: iperf
+  name: iperf-service-nodeport-v6
+spec:
+  ipFamily: IPv6
+  selector:
+    app: iperf-nodeport
+  ports:
+    - protocol: TCP
+      port: 5001
+      name: iperf-tcp
+    - protocol: UDP
+      port: 5003
+      name: iperf-udp
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: iperf
+  name: iperf-service-nodeport-v4
+spec:
+  ipFamily: IPv4
+  selector:
+    app: iperf-nodeport
+  ports:
+    - protocol: TCP
+      port: 5001
+      name: iperf-tcp
+    - protocol: UDP
+      port: 5003
+      name: iperf-udp
+  type: NodePort
 ---
 apiVersion: v1
 kind: Service

@@ -17,8 +17,10 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -60,11 +62,11 @@ var (
 	IpsecAddressCount = 1
 	CrossIpsecTunnels = false
 	IPSecIkev2Psk     = ""
-	ServicePrefix     = ""
 	TapRxMode         = defaultRxMode
 	BgpLogLevel       = logrus.InfoLevel
 	LogLevel          = logrus.InfoLevel
 	NodeName          = ""
+	ServiceCIDRs      []*net.IPNet
 )
 
 // LoadConfig loads the calico-vpp-agent configuration from the environment
@@ -143,7 +145,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	}
 	IPSecIkev2Psk = psk
 
-	ServicePrefix = os.Getenv(ServicePrefixEnvVar)
+	servicePrefixStr := os.Getenv(ServicePrefixEnvVar)
+	for _, prefixStr := range strings.Split(servicePrefixStr, ",") {
+		_, serviceCIDR, err := net.ParseCIDR(prefixStr)
+		if err != nil {
+			return errors.Errorf("invalid service prefix configuration: %s %s", prefixStr, err)
+		}
+		ServiceCIDRs = append(ServiceCIDRs, serviceCIDR)
+	}
 
 	switch os.Getenv(TapRxModeEnvVar) {
 	case "interrupt":

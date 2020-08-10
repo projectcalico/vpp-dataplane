@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
 	"github.com/golang/protobuf/ptypes"
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
 	"golang.org/x/net/context"
 
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -198,26 +198,39 @@ func (s *Server) watchBGPPath() error {
 	return nil
 }
 
+func (s *Server) createEmptyPrefixSet(name string) error {
+	ps := &bgpapi.DefinedSet{
+		DefinedType: bgpapi.DefinedType_PREFIX,
+		Name:        name,
+	}
+	err := s.bgpServer.AddDefinedSet(
+		context.Background(),
+		&bgpapi.AddDefinedSetRequest{DefinedSet: ps},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "error creating prefix set %s", name)
+	}
+	return nil
+}
+
 // initialPolicySetting initialize BGP export policy.
 // this creates two prefix-sets named 'aggregated' and 'host'.
 // A route is allowed to be exported when it matches with 'aggregated' set,
 // and not allowed when it matches with 'host' set.
-func (s *Server) initialPolicySetting() error {
-	createEmptyPrefixSet := func(name string) error {
-		ps := &bgpapi.DefinedSet{
-			DefinedType: bgpapi.DefinedType_PREFIX,
-			Name:        name,
-		}
-		return s.bgpServer.AddDefinedSet(context.Background(), &bgpapi.AddDefinedSetRequest{DefinedSet: ps})
+func (s *Server) initialPolicySetting(isv6 bool) error {
+	aggregatedPrefixSetName := GetAggPrefixSetName(isv6)
+	hostPrefixSetName := GetHostPrefixSetName(isv6)
+	err := s.createEmptyPrefixSet(aggregatedPrefixSetName)
+	if err != nil {
+		return err
 	}
-	for _, name := range []string{aggregatedPrefixSetName, hostPrefixSetName} {
-		if err := createEmptyPrefixSet(name); err != nil {
-			return errors.Wrapf(err, "error creating prefix set %s", name)
-		}
+	err = s.createEmptyPrefixSet(hostPrefixSetName)
+	if err != nil {
+		return err
 	}
 	// intended to work as same as 'calico_pools' export filter of BIRD configuration
 	definition := &bgpapi.Policy{
-		Name: "calico_aggr",
+		Name: GetPolicyName(isv6),
 		Statements: []*bgpapi.Statement{
 			&bgpapi.Statement{
 				Conditions: &bgpapi.Conditions{
@@ -244,21 +257,28 @@ func (s *Server) initialPolicySetting() error {
 		},
 	}
 
-	if err := s.bgpServer.AddPolicy(context.Background(), &bgpapi.AddPolicyRequest{
-		Policy:                  definition,
-		ReferExistingStatements: false},
-	); err != nil {
+	err = s.bgpServer.AddPolicy(
+		context.Background(),
+		&bgpapi.AddPolicyRequest{
+			Policy:                  definition,
+			ReferExistingStatements: false,
+		},
+	)
+	if err != nil {
 		return errors.Wrap(err, "error adding policy")
 	}
-	err := s.bgpServer.AddPolicyAssignment(context.Background(), &bgpapi.AddPolicyAssignmentRequest{
-		Assignment: &bgpapi.PolicyAssignment{
-			Name:      "global",
-			Direction: bgpapi.PolicyDirection_EXPORT,
-			Policies: []*bgpapi.Policy{
-				definition,
+	err = s.bgpServer.AddPolicyAssignment(
+		context.Background(),
+		&bgpapi.AddPolicyAssignmentRequest{
+			Assignment: &bgpapi.PolicyAssignment{
+				Name:          "global",
+				Direction:     bgpapi.PolicyDirection_EXPORT,
+				Policies:      []*bgpapi.Policy{definition},
+				DefaultAction: bgpapi.RouteAction_ACCEPT,
 			},
-			DefaultAction: bgpapi.RouteAction_ACCEPT,
-		},
-	})
-	return errors.Wrap(err, "cannot add policy assignment")
+		})
+	if err != nil {
+		return errors.Wrap(err, "cannot add policy assignment")
+	}
+	return nil
 }

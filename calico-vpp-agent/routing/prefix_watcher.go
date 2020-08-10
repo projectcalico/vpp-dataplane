@@ -21,11 +21,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/golang/protobuf/ptypes"
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"golang.org/x/net/context"
 )
 
@@ -145,23 +145,21 @@ func (s *Server) updateBGPPaths(paths []*bgpapi.Path) error {
 //      add "192.168.1.0/26..32" to 'host'       set
 //
 func (s *Server) updateOneBGPPath(path *bgpapi.Path) error {
-	s.log.Infof("Updating local prefix set with %+v", path)
 	ipAddrPrefixNlri := &bgpapi.IPAddressPrefix{}
-	var prefixAddr string = ""
-	var prefixLen uint32 = 0xffff
-	var err error = nil
-	if err := ptypes.UnmarshalAny(path.Nlri, ipAddrPrefixNlri); err == nil {
-		prefixAddr = ipAddrPrefixNlri.Prefix
-		prefixLen = ipAddrPrefixNlri.PrefixLen
-	} else {
+	err := ptypes.UnmarshalAny(path.Nlri, ipAddrPrefixNlri)
+	if err != nil {
 		return fmt.Errorf("Cannot handle Nlri: %+v", path.Nlri)
 	}
+	prefixLen := ipAddrPrefixNlri.PrefixLen
+	prefixAddr := ipAddrPrefixNlri.Prefix
+	isv6 := strings.Contains(prefixAddr, ":")
 	del := path.IsWithdraw
 	prefix := prefixAddr + "/" + strconv.FormatUint(uint64(prefixLen), 10)
+	s.log.Infof("Updating local prefix set with %s", prefix)
 	// Add path to aggregated prefix set, allowing to export it
 	ps := &bgpapi.DefinedSet{
 		DefinedType: bgpapi.DefinedType_PREFIX,
-		Name:        aggregatedPrefixSetName,
+		Name:        GetAggPrefixSetName(isv6),
 		Prefixes: []*bgpapi.Prefix{
 			&bgpapi.Prefix{
 				IpPrefix:      prefix,
@@ -186,13 +184,13 @@ func (s *Server) updateOneBGPPath(path *bgpapi.Path) error {
 	}
 	// Add all contained prefixes to host prefix set, forbidding the export of containers /32s or /128s
 	max := uint32(32)
-	if strings.Contains(prefixAddr, ":") {
+	if isv6 {
 		s.log.Debugf("Address %s detected as v6", prefixAddr)
 		max = 128
 	}
 	ps = &bgpapi.DefinedSet{
 		DefinedType: bgpapi.DefinedType_PREFIX,
-		Name:        hostPrefixSetName,
+		Name:        GetHostPrefixSetName(isv6),
 		Prefixes: []*bgpapi.Prefix{
 			&bgpapi.Prefix{
 				IpPrefix:      prefix,
