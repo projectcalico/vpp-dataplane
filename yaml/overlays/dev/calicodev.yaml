@@ -50,6 +50,12 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICOVPP_TAP_RX_MODE
+            - name: CALICOVPP_TAP_RING_SIZE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_TAP_RING_SIZE
             - name: CALICOVPP_IPSEC_ENABLED
               value: ""
               valueFrom:
@@ -224,6 +230,12 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICOVPP_TAP_RX_MODE
+            - name: CALICOVPP_TAP_RING_SIZE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_TAP_RING_SIZE
             - name: CALICOVPP_VPP_STARTUP_SLEEP
               value: ""
               valueFrom:

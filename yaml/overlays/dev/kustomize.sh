@@ -210,6 +210,7 @@ calico_create_template ()
   export CALICOVPP_SWAP_DRIVER=${CALICOVPP_SWAP_DRIVER:=}
   export CALICO_IPV4POOL_NAT_OUTGOING=${CALICO_IPV4POOL_NAT_OUTGOING:=true}
   export CALICO_IPV6POOL_NAT_OUTGOING=${CALICO_IPV6POOL_NAT_OUTGOING:=true}
+  export CALICOVPP_TAP_RING_SIZE=${CALICOVPP_TAP_RING_SIZE}
   export USERHOME=${HOME}
   cd $SCRIPTDIR
   kubectl kustomize . | envsubst > /tmp/calico-vpp.yaml

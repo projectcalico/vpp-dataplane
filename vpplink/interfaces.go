@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/gso"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/interfaces"
 	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/ip"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/tapv2"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -54,9 +54,8 @@ func (v *VppLink) SetInterfaceRxMode(swIfIndex uint32, queueID uint32, mode type
 
 func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 	response := &tapv2.TapCreateV2Reply{}
+	// TODO set MTU?
 	request := &tapv2.TapCreateV2{
-		// TODO check namespace len < 64?
-		// TODO set MTU?
 		ID:          ^uint32(0),
 		Tag:         tap.Tag,
 		MacAddress:  tap.GetVppMacAddress(),
@@ -65,9 +64,21 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 		TxRingSz:    1024,
 		RxRingSz:    1024,
 	}
+	if tap.TxRingSize > 0 {
+		request.TxRingSz = uint16(tap.TxRingSize)
+	}
+	if tap.RxRingSize > 0 {
+		request.RxRingSz = uint16(tap.RxRingSize)
+	}
+	if len(tap.HostNamespace) > 64 {
+		return INVALID_SW_IF_INDEX, fmt.Errorf("HostNamespace should be less than 64 characters")
+	}
 	if tap.HostNamespace != "" {
 		request.HostNamespaceSet = true
 		request.HostNamespace = tap.HostNamespace
+	}
+	if len(tap.HostIfName) > 64 {
+		return INVALID_SW_IF_INDEX, fmt.Errorf("HostIfName should be less than 64 characters")
 	}
 	if tap.HostIfName != "" {
 		request.HostIfName = tap.HostIfName
