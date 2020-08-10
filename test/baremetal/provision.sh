@@ -41,11 +41,38 @@ function 6safe () {
   fi
 }
 
-function get_listen_addr () {
-  if [[ $(is_ip6 $1) = true ]]; then
-  	echo "::"
+function parse_variables ()
+{
+  FIRST_POD_CIDR=""
+  for cidr in $(echo $POD_CIDR | sed 's/,/ /g' ) ; do
+  	if [[ x$FIRST_POD_CIDR == x ]]; then
+  		FIRST_POD_CIDR=$cidr
+  	fi
+	if [[ $(is_ip6 $cidr) == true ]]; then
+		CLUSTER_POD_CIDR6=$cidr
+	else
+		CLUSTER_POD_CIDR4=$cidr
+	fi
+  done
+
+  FIRST_SERVICE_CIDR=""
+  for cidr in $(echo $SERVICE_CIDR | sed 's/,/ /g' ) ; do
+  	if [[ x$FIRST_SERVICE_CIDR == x ]]; then
+  		FIRST_SERVICE_CIDR=$cidr
+  	fi
+  done
+
+  FIRST_NODE_IP=""
+  for cidr in $(echo $NODE_IP | sed 's/,/ /g' ) ; do
+  	if [[ x$FIRST_NODE_IP == x ]]; then
+  		FIRST_NODE_IP=${cidr%%/*}
+  	fi
+  done
+
+  if [[ x$CLUSTER_POD_CIDR4 != x ]] && [[ x$CLUSTER_POD_CIDR6 != x ]]; then
+	IS_DUAL=true
   else
-  	echo "0.0.0.0"
+	IS_DUAL=false
   fi
 }
 
@@ -58,7 +85,9 @@ function calico_if_linux_setup ()
   sudo ip link set $VPP_DATAPLANE_IF down
   sudo ip link set $VPP_DATAPLANE_IF up
   sudo ip addr flush dev $VPP_DATAPLANE_IF
-  sudo ip addr add $NODE_IP dev $VPP_DATAPLANE_IF
+  for cidr in $(echo $NODE_IP | sed 's/,/ /g' ) ; do
+	sudo ip addr add $cidr dev $VPP_DATAPLANE_IF
+  done
 
   if [ x$AVF = xyes ]; then
   	calico_avf_setup $VPP_DATAPLANE_IF 1 $@
@@ -85,16 +114,35 @@ function calico_avf_setup ()
 
 function raw_create_cluster_conf ()
 {
-    cat $1 | tee /tmp/ClusterConf.yaml > /dev/null 2>&1
-	sed -i "s^__MASTER_NODE_IP__^$MASTER_NODE_IP^g" /tmp/ClusterConf.yaml
-	sed -i "s^__6SAFE_MASTER_NODE_IP__^$(6safe $MASTER_NODE_IP)^g" /tmp/ClusterConf.yaml
-	sed -i "s^__NODE_IP__^${NODE_IP%%/*}^g" /tmp/ClusterConf.yaml
-	sed -i "s^__6SAFE_NODE_IP__^$(6safe ${NODE_IP%%/*})^g" /tmp/ClusterConf.yaml
-	sed -i "s^__POD_CIDR__^$POD_CIDR^g" /tmp/ClusterConf.yaml
-	sed -i "s^__SERVICE_CIDR__^$SERVICE_CIDR^g" /tmp/ClusterConf.yaml
-	sed -i "s^__NODE_NAME__^$NODE_NAME^g" /tmp/ClusterConf.yaml
-	sed -i "s^__DNS_TYPE__^$DNS_TYPE^g" /tmp/ClusterConf.yaml
-	sed -i "s^__LISTEN_ADDR__^$(get_listen_addr ${NODE_IP%%/*})^g" /tmp/ClusterConf.yaml
+	# node ip
+	export MAIN_NODE_IP=$MAIN_NODE_IP
+	export SAFE6_MAIN_NODE_IP="$(6safe $MAIN_NODE_IP)"
+	# node ip
+	export FIRST_NODE_IP=$FIRST_NODE_IP
+	export SAFE6_FIRST_NODE_IP="$(6safe $FIRST_NODE_IP)"
+
+	if [[ x$IS_DUAL == xtrue ]]; then
+		export NODE_CIDR_MASK_SIZE4=24
+		export NODE_CIDR_MASK_SIZE6=120
+		export NODE_CIDR_MASK_SIZE=0
+	else
+		export NODE_CIDR_MASK_SIZE4=0
+		export NODE_CIDR_MASK_SIZE6=0
+		export NODE_CIDR_MASK_SIZE=16
+	fi
+	# pod cidr
+	export POD_CIDR=$POD_CIDR
+	export FIRST_POD_CIDR=$FIRST_POD_CIDR
+	#
+	export SERVICE_CIDR=$SERVICE_CIDR
+	export FIRST_SERVICE_CIDR=$FIRST_SERVICE_CIDR
+	export NODE_NAME=$NODE_NAME
+	export DNS_TYPE=$DNS_TYPE
+	export IS_DUAL=$IS_DUAL
+	# export LISTEN_ADDR="$(get_listen_addr ${NODE_IP%%/*})"
+	# export DUAL_SERVICE_CIDR=$DUAL_SERVICE_CIDR
+	# export DUAL_POD_CIDR=$DUAL_POD_CIDR
+    cat $1 | envsubst > /tmp/ClusterConf.yaml
 }
 
 function raw_create_master_k8 ()
@@ -118,9 +166,9 @@ function raw_join_master_k8 ()
 	calico_if_linux_setup slave
 	raw_create_cluster_conf $SCRIPTDIR/kubeadm/ClusterJoinConfiguration.template.yaml
 	if [ x$VERBOSE = xyes ]; then
-		sudo kubeadm join -v 100 $MASTER_NODE_IP:6443 --config /tmp/ClusterConf.yaml $@
+		sudo kubeadm join -v 100 $MAIN_NODE_IP:6443 --config /tmp/ClusterConf.yaml $@
 	else
-		sudo kubeadm join $MASTER_NODE_IP:6443 --config /tmp/ClusterConf.yaml $@
+		sudo kubeadm join $MAIN_NODE_IP:6443 --config /tmp/ClusterConf.yaml $@
 	fi
 }
 
@@ -150,18 +198,17 @@ function provision_cli ()
 
 
 	if [[ $ACTION = up ]]; then
-	  IS_IP6=$(is_ip6 $POD_CIDR)
 	  green "Creating cluster"
-	  green "master ip    : $MASTER_NODE_IP"
+	  green "master ip    : $MAIN_NODE_IP"
 	  green "node ip      : $NODE_IP"
 	  green "pod cidr     : $POD_CIDR"
 	  green "service cidr : $SERVICE_CIDR"
-	  green "is ip6       : $IS_IP6"
 	else
 	  green "Teardown cluster"
 	fi
 
-	if [[ $ACTION = up ]] && [[ x$MASTER_NODE_IP = x ]]; then
+	parse_variables
+	if [[ $ACTION = up ]] && [[ x$MAIN_NODE_IP = x ]]; then
 		raw_create_master_k8
 	elif [[ $ACTION = up ]]; then
 		raw_join_master_k8
@@ -178,14 +225,14 @@ function print_usage_and_exit ()
 	echo "provision.sh [up|dn] [OPTIONS]"
 	echo
 	echo "On the first node - provision.sh up IF=eth0 NODE_IP=10.0.0.1/24"
-	echo "On the second     - provision.sh up IF=eth0 NODE_IP=10.0.0.2/24 MASTER_NODE_IP=10.0.0.1             - start master node <IP>"
+	echo "On the second     - provision.sh up IF=eth0 NODE_IP=10.0.0.2/24 MAIN_NODE_IP=10.0.0.1             - start master node <IP>"
 	echo
 	echo "To drain          - provision.sh dn"
 	echo
 	echo "Options are :"
 	echo "IF             - linux if name to use"
 	echo "NODE_IP        - ip of this node"
-	echo "MASTER_NODE_IP - ip of the master node to join (if any)"
+	echo "MAIN_NODE_IP - ip of the master node to join (if any)"
 	echo "POD_CIDR       - CIDR for pods (defaults to 10.0.0.0/16)"
 	echo "SERVICE_CIDR   - CIDR for services (defaults to 10.96.0.0/16)"
 	echo "DNS_TYPE       - CoreDNS or kube-dns"

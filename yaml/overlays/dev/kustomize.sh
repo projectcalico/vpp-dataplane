@@ -38,9 +38,23 @@ function get_cluster_service_cidr ()
   kubectl cluster-info dump | grep -m 1 service-cluster-ip-range | cut -d '=' -f 2 | cut -d '"' -f 1
 }
 
-function get_cluster_pod_cidr ()
+function kustomize_parse_variables ()
 {
-  kubectl cluster-info dump | grep -m 1 cluster-cidr | cut -d '=' -f 2 | cut -d '"' -f 1
+  for ip in $(kubectl get nodes node1 -o go-template --template='{{range .spec.podCIDRs}}{{printf "%s\n" .}}{{end}}') ; do
+	if [[ $(is_ip6 $ip) == true ]]; then
+		CLUSTER_POD_CIDR6=$ip
+	else
+		CLUSTER_POD_CIDR4=$ip
+	fi
+  done
+  IP_VERSION=""
+  if [[ x$CLUSTER_POD_CIDR4 != x ]]; then
+  	IP_VERSION=4
+  fi
+  if [[ x$CLUSTER_POD_CIDR6 != x ]]; then
+  	IP_VERSION=${IP_VERSION}6
+  fi
+  CLUSTER_POD_CIDR="${CLUSTER_POD_CIDR4},${CLUSTER_POD_CIDR6}"
 }
 
 function get_vpp_conf ()
@@ -74,18 +88,26 @@ function get_vpp_conf ()
 
 function get_cni_network_config_ipam ()
 {
-	if [[ $IS_IP6 == false ]]; then
+	if [[ $IP_VERSION == 4 ]]; then
 	  echo "{
         \"type\": \"calico-ipam\",
 		\"assign_ipv4\": \"true\",
     	\"assign_ipv6\": \"false\"
 	  }"
-	else
+	elif [[ $IP_VERSION == 6 ]]; then
 	  echo "{
         \"type\": \"calico-ipam\",
 		\"assign_ipv4\": \"false\",
     	\"assign_ipv6\": \"true\",
 		\"ipv6_pools\": [\"${CALICO_IPV6POOL_CIDR}\", \"default-ipv6-ippool\"]
+	  }"
+	else
+	  echo "{
+    	\"type\": \"calico-ipam\",
+		\"assign_ipv4\": \"true\",
+    	\"assign_ipv6\": \"true\",
+		\"ipv4_pools\": [\"${CALICO_IPV4POOL_CIDR}\"],
+		\"ipv6_pools\": [\"${CALICO_IPV6POOL_CIDR}\"]
 	  }"
 	fi
 }
@@ -123,26 +145,31 @@ function get_cni_network_config ()
     }"
 }
 
-function is_v4_then ()
+function is_v4_v46_v6 ()
 {
-	if [[ $IS_IP6 == false ]]; then
+	if [[ x$IP_VERSION == x4 ]]; then
 		echo $1
-	else
+	elif [[ x$IP_VERSION == x46 ]]; then
 		echo $2
+	else
+		echo $3
   	fi
 }
 
 calico_create_template ()
 {
-  POD_CIDR=$(get_cluster_pod_cidr)
+  kustomize_parse_variables
   SERVICE_CIDR=$(get_cluster_service_cidr)
-  IS_IP6=$(is_ip6 $POD_CIDR)
   green "Installing CNI for"
-  green "pod cidr     : $POD_CIDR"
+  green "pod cidr     : $CLUSTER_POD_CIDR"
   green "service cidr : $SERVICE_CIDR"
-  green "is ip6       : $IS_IP6"
-  if [[ x$POD_CIDR = x ]]; then
+  green "is ip6       : $(is_v4_v46_v6 v4 v46 v6)"
+  if [[ x${CLUSTER_POD_CIDR4}${CLUSTER_POD_CIDR6} = x ]]; then
   	red "empty pod cidr, exiting"
+  	exit 1
+  fi
+  if [[ x$SERVICE_CIDR = x ]]; then
+  	red "empty service cidr, exiting"
   	exit 1
   fi
 
@@ -150,11 +177,11 @@ calico_create_template ()
   WRK=${WRK:=0}
   MAINCORE=${MAINCORE:=12}
   DPDK=${DPDK:=true}
-  export CALICO_IPV4POOL_CIDR=$(is_v4_then $POD_CIDR "")
-  export CALICO_IPV6POOL_CIDR=$(is_v4_then "" $POD_CIDR)
-  export FELIX_IPV6SUPPORT=$(is_v4_then false true)
-  export CALICO_IP=$(is_v4_then autodetect none)
-  export CALICO_IP6=$(is_v4_then none autodetect)
+  export CALICO_IPV4POOL_CIDR=$CLUSTER_POD_CIDR4 # 11.0.0.0/16 # $POD_CIDR # $(is_v4_then $POD_CIDR "")
+  export CALICO_IPV6POOL_CIDR=$CLUSTER_POD_CIDR6 # $(is_v4_then "" $POD_CIDR)
+  export FELIX_IPV6SUPPORT=$(is_v4_v46_v6 false true true)
+  export CALICO_IP=$(is_v4_v46_v6 autodetect autodetect none)
+  export CALICO_IP6=$(is_v4_v46_v6 none autodetect autodetect)
 
   export SERVICE_PREFIX=$SERVICE_CIDR
   export cni_network_config=$(get_cni_network_config)

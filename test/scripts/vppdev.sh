@@ -42,6 +42,13 @@ vppdev_coredns_apiserver_test() {
 	sudo nsenter -t $COREDNS_PID -n curl -k 'https://[fd10::1]:443'
 }
 
+vppdev_validate_v46 () {
+	green ".spec.podCIDRs"
+	kubectl get nodes node1 -o go-template --template='{{range .spec.podCIDRs}}{{printf "%s\n" .}}{{end}}'
+	green ".status.addresses"
+	kubectl get nodes node1 -o go-template --template='{{range .status.addresses}}{{printf "%s: %s \n" .type .address}}{{end}}'
+}
+
 vppdev_cli ()
 {
   if [[ "$1" = "up" ]]; then
@@ -63,6 +70,8 @@ vppdev_cli ()
     vppdev_run_vppctl ${@:2}
   elif [[ "$1" = "gdb" ]]; then
     vppdev_attach_vpp_gdb
+  elif [[ "$1" = "validate" ]]; then
+  	vppdev_validate_v46
   elif [[ "$1" = "coredns" ]]; then
   	shift
     vppdev_coredns_apiserver_test $@

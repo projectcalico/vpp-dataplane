@@ -17,26 +17,34 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 function provision ()
 {
-  echo "$SCRIPTDIR/provision.sh $1 IF=$IF NODE_IP=$2 MASTER_NODE_IP=$3 POD_CIDR=$POD_CIDR SERVICE_CIDR=$SERVICE_CIDR DNS_TYPE=$DNS_TYPE AVF=$AVF VERBOSE=$VERBOSE NODE_NAME=$NODE_NAME"
+  echo "$SCRIPTDIR/provision.sh $1 IF=$IF \
+	NODE_IP=$2 \
+	MAIN_NODE_IP=$3 \
+	POD_CIDR=$POD_CIDR \
+	SERVICE_CIDR=$SERVICE_CIDR \
+	DNS_TYPE=$DNS_TYPE \
+	AVF=$AVF \
+	VERBOSE=$VERBOSE \
+	NODE_NAME=$NODE_NAME"
 }
 
 function create_k8_cluster () {
 	N=1
 	NODE_NAME=node$N
-	eval $(provision up $MASTER "")
-	for i in $(echo $SLAVES | sed 's/,/ /g' ) ; do
+	eval $(provision up $MAIN "")
+	for i in $(echo $OTHERS | sed 's/;/ /g' ) ; do
 		ip=${i%%/*}
 		NODE_IP=${i%%@*}
 		SSH_NAME=${i##*@}
 		N=$((N+1))
 		NODE_NAME=node$N
-		ssh $SSH_NAME -t $(provision up $NODE_IP ${MASTER%%/*})
+		ssh $SSH_NAME -t $(provision up $NODE_IP ${MAIN%%/*})
 	done
 }
 
 function destroy_k8_cluster ()
 {
-	for i in $(echo $SLAVES | sed 's/,/ /g' ) ; do
+	for i in $(echo $OTHERS | sed 's/;/ /g' ) ; do
 		SSH_NAME=${i##*@}
 		ssh $SSH_NAME -t $(provision dn)
 	done
@@ -49,6 +57,7 @@ function orch_provision_cli ()
 	POD_CIDR=10.0.0.0/16
 	SERVICE_CIDR=10.96.0.0/16
 	DNS_TYPE=CoreDNS
+	IS_DUAL=false
 	if [[ $1 = up ]]; then
 		ACTION=up
 	elif [[ $1 = dn ]]; then
@@ -80,7 +89,7 @@ function print_usage_and_exit ()
 	echo "Usage :"
 	echo "orch.sh [up|dn] [OPTIONS]"
 	echo
-	echo "orch.sh up IF=eth0 MASTER=20.0.0.1/24 SLAVES=20.0.0.2/24@vq2"
+	echo "orch.sh up IF=eth0 MAIN=20.0.0.1/24 OTHERS=20.0.0.2/24@vq2"
 	echo
 	echo "Options are the same as for provision.sh"
 	echo "IF             - linux if name to use"
