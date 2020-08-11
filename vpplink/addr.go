@@ -16,32 +16,14 @@
 package vpplink
 
 import (
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"net"
-
-	"golang.org/x/sys/unix"
 )
-
-const (
-	// Family type definitions
-	FAMILY_ALL = unix.AF_UNSPEC
-	FAMILY_V4  = unix.AF_INET
-	FAMILY_V6  = unix.AF_INET6
-)
-
-func GetIPFamily(ip net.IP) int {
-	if len(ip) <= net.IPv4len {
-		return FAMILY_V4
-	}
-	if ip.To4() != nil {
-		return FAMILY_V4
-	}
-	return FAMILY_V6
-}
 
 func IsIP4(ip net.IP) bool {
-	return GetIPFamily(ip) == FAMILY_V4
+	return types.IsIP4(ip)
 }
 
 func IsIP6(ip net.IP) bool {
-	return GetIPFamily(ip) == FAMILY_V6
+	return types.IsIP6(ip)
 }

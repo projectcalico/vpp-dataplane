@@ -423,6 +423,29 @@ func writeFile(state string, path string) error {
 	return nil
 }
 
+func routeIsIP6(r *netlink.Route) bool {
+	if r.Dst != nil {
+		return vpplink.IsIP6(r.Dst.IP)
+	}
+	if r.Gw != nil {
+		return vpplink.IsIP6(r.Gw)
+	}
+	if r.Src != nil {
+		return vpplink.IsIP6(r.Src)
+	}
+	return false
+}
+
+func routeIsLinkLocalUnicast(r *netlink.Route) bool {
+	if r.Dst == nil {
+		return false
+	}
+	if !vpplink.IsIP6(r.Dst.IP) {
+		return false
+	}
+	return r.Dst.IP.IsLinkLocalUnicast()
+}
+
 func restoreLinuxConfig() (err error) {
 	// No need to delete the tap we created with VPP since it should disappear with all its configuration
 	// when VPP dies
@@ -470,7 +493,7 @@ func restoreLinuxConfig() (err error) {
 			}
 		}
 		for _, route := range initialConfig.routes {
-			if route.Dst != nil && vpplink.IsIP6(route.Dst.IP) && route.Dst.IP.IsLinkLocalUnicast() {
+			if routeIsLinkLocalUnicast(&route) {
 				log.Infof("Skipping linklocal route %s", route.String())
 				continue
 			}
@@ -677,7 +700,7 @@ func configureVppTap(link netlink.Link, tapSwIfIndex uint32, tapAddr net.IP, nxt
 
 	// All routes that were on this interface now go through VPP
 	for _, route := range initialConfig.routes {
-		if route.Dst == nil || vpplink.IsIP4(route.Dst.IP) != vpplink.IsIP4(tapAddr) {
+		if routeIsIP6(&route) != vpplink.IsIP6(tapAddr) {
 			continue
 		}
 		newRoute := netlink.Route{
@@ -766,7 +789,8 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 	}
 	for _, route := range initialConfig.routes {
 		// Only add routes with a next hop, assume the others come from interface addresses
-		if route.Gw == nil || route.Dst == nil {
+		if routeIsLinkLocalUnicast(&route) {
+			log.Infof("Skipping linklocal route %s", route.String())
 			continue
 		}
 		err = vpp.RouteAdd(&types.Route{

@@ -16,6 +16,7 @@
 package types
 
 import (
+	"golang.org/x/sys/unix"
 	"net"
 
 	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/ip"
@@ -30,6 +31,13 @@ const (
 	TCP     IPProto = 3
 	ICMP    IPProto = 4
 	ICMP6   IPProto = 5
+)
+
+const (
+	// Family type definitions
+	FAMILY_ALL = unix.AF_UNSPEC
+	FAMILY_V4  = unix.AF_INET
+	FAMILY_V6  = unix.AF_INET6
 )
 
 type IfAddress struct {
@@ -52,6 +60,24 @@ func ToVppIPProto(proto IPProto) uint8 {
 	default:
 		return ^uint8(0)
 	}
+}
+
+func GetIPFamily(ip net.IP) int {
+	if len(ip) <= net.IPv4len {
+		return FAMILY_V4
+	}
+	if ip.To4() != nil {
+		return FAMILY_V4
+	}
+	return FAMILY_V6
+}
+
+func IsIP4(ip net.IP) bool {
+	return GetIPFamily(ip) == FAMILY_V4
+}
+
+func IsIP6(ip net.IP) bool {
+	return GetIPFamily(ip) == FAMILY_V6
 }
 
 func formatProto(proto IPProto) string {
