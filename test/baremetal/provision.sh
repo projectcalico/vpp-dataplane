@@ -121,10 +121,14 @@ function raw_create_cluster_conf ()
 	export FIRST_NODE_IP=$FIRST_NODE_IP
 	export SAFE6_FIRST_NODE_IP="$(6safe $FIRST_NODE_IP)"
 
-	if [[ x$IS_DUAL == xtrue ]]; then
+	if [[ $IS_DUAL == true ]]; then
 		export NODE_CIDR_MASK_SIZE4=24
 		export NODE_CIDR_MASK_SIZE6=120
 		export NODE_CIDR_MASK_SIZE=0
+	elif [[ x$CLUSTER_POD_CIDR6 != x ]]; then
+		export NODE_CIDR_MASK_SIZE4=0
+		export NODE_CIDR_MASK_SIZE6=0
+		export NODE_CIDR_MASK_SIZE=120
 	else
 		export NODE_CIDR_MASK_SIZE4=0
 		export NODE_CIDR_MASK_SIZE6=0
@@ -139,9 +143,6 @@ function raw_create_cluster_conf ()
 	export NODE_NAME=$NODE_NAME
 	export DNS_TYPE=$DNS_TYPE
 	export IS_DUAL=$IS_DUAL
-	# export LISTEN_ADDR="$(get_listen_addr ${NODE_IP%%/*})"
-	# export DUAL_SERVICE_CIDR=$DUAL_SERVICE_CIDR
-	# export DUAL_POD_CIDR=$DUAL_POD_CIDR
     cat $1 | envsubst > /tmp/ClusterConf.yaml
 }
 
