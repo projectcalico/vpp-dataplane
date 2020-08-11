@@ -113,7 +113,7 @@ type vppManagerParams struct {
 	corePattern             string
 	rxMode                  types.RxMode
 	tapRxMode               types.RxMode
-	serviceNet              *net.IPNet
+	serviceCIDRs            []*net.IPNet
 	vppIpConfSource         string
 	extraAddrCount          int
 	vppSideMacAddress       net.HardwareAddr
@@ -170,9 +170,12 @@ func parseEnvVariables() (err error) {
 	}
 
 	servicePrefixStr := os.Getenv(ServicePrefixEnvVar)
-	_, params.serviceNet, err = net.ParseCIDR(servicePrefixStr)
-	if err != nil {
-		return errors.Errorf("invalid service prefix configuration: %s %s", servicePrefixStr, err)
+	for _, prefixStr := range strings.Split(servicePrefixStr, ",") {
+		_, serviceCIDR, err := net.ParseCIDR(prefixStr)
+		if err != nil {
+			return errors.Errorf("invalid service prefix configuration: %s %s", prefixStr, err)
+		}
+		params.serviceCIDRs = append(params.serviceCIDRs, serviceCIDR)
 	}
 
 	params.vppIpConfSource = os.Getenv(IpConfigEnvVar)
@@ -657,16 +660,18 @@ func configureVppTap(link netlink.Link, tapSwIfIndex uint32, tapAddr net.IP, nxt
 	if err != nil {
 		return errors.Wrap(err, "cannot add neighbor to tap")
 	}
-	if vpplink.IsIP4(params.serviceNet.IP) == vpplink.IsIP4(tapAddr) {
-		// Add a route for the service prefix through VPP
-		log.Infof("adding route to service prefix %s through VPP", params.serviceNet.String())
-		err = netlink.RouteAdd(&netlink.Route{
-			Dst:       params.serviceNet,
-			LinkIndex: link.Attrs().Index,
-			Gw:        tapAddr,
-		})
-		if err != nil {
-			return errors.Wrap(err, "cannot add service route to tap")
+	for _, serviceCIDR := range params.serviceCIDRs {
+		if vpplink.IsIP4(serviceCIDR.IP) == vpplink.IsIP4(tapAddr) {
+			// Add a route for the service prefix through VPP
+			log.Infof("adding route to service prefix %s through VPP", serviceCIDR.String())
+			err = netlink.RouteAdd(&netlink.Route{
+				Dst:       serviceCIDR,
+				LinkIndex: link.Attrs().Index,
+				Gw:        tapAddr,
+			})
+			if err != nil {
+				return errors.Wrap(err, "cannot add service route to tap")
+			}
 		}
 	}
 
@@ -1083,7 +1088,7 @@ func main() {
 
 	err := parseEnvVariables()
 	if err != nil {
-		log.Errorf("Error parsing env varibales: %+v", err)
+		log.Errorf("Error parsing env variables: %+v", err)
 		return
 	}
 

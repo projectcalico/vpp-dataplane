@@ -61,7 +61,6 @@ type Server struct {
 	lock             sync.Mutex
 	vppTapSwIfindex  uint32
 	serviceProvider  ServiceProvider
-	serviceCIDR      *net.IPNet
 }
 
 func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
@@ -97,10 +96,6 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		log.Infof("Node ipv6 parsing error %v", err)
 		hasv6 = false
 	}
-	_, serviceCIDR, err := net.ParseCIDR(config.ServicePrefix)
-	if err != nil {
-		log.Infof("Error parsing service CIDR %v", err)
-	}
 	server := Server{
 		clientv3:        calicoCliV3,
 		vpp:             vpp,
@@ -110,7 +105,6 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		hasv4:           hasv4,
 		ipv6:            ipv6,
 		hasv6:           hasv6,
-		serviceCIDR:     serviceCIDR,
 	}
 	serviceListWatch := cache.NewListWatchFromClient(client.CoreV1().RESTClient(),
 		"services", "", fields.Everything())
@@ -205,9 +199,11 @@ func (s *Server) ConfigureSnat() (err error) {
 			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.ipv4), err)
 		}
 	}
-	err = s.vpp.CalicoAddSnatPrefix(s.serviceCIDR)
-	if err != nil {
-		s.log.Errorf("Failed to Add Service CIDR %v", err)
+	for _, serviceCIDR := range config.ServiceCIDRs {
+		err = s.vpp.CalicoAddSnatPrefix(serviceCIDR)
+		if err != nil {
+			s.log.Errorf("Failed to Add Service CIDR %s %v", serviceCIDR, err)
+		}
 	}
 	return nil
 }

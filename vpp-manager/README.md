@@ -7,7 +7,7 @@ It is responsible for:
 - Cleanup: When VPP exits, it properly restores the configuration to what it was before launch, so that Linux gets connectivity back if there is only one interface. This program then exits with VPP's exit code.
 
 
-## Environement varibales
+## Environement variables
 
 - `CALICOVPP_INTERFACE` : name of the vpp interface to get the connectivity configuration from.
 

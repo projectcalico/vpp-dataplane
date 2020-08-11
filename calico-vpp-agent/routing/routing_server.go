@@ -21,10 +21,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	bgpapi "github.com/osrg/gobgp/api"
@@ -36,6 +32,10 @@ import (
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/net/context"
@@ -47,8 +47,9 @@ import (
 )
 
 const (
-	aggregatedPrefixSetName = "aggregated"
-	hostPrefixSetName       = "host"
+	aggregatedPrefixSetBaseName = "aggregated"
+	hostPrefixSetBaseName       = "host"
+	policyBaseName              = "calico_aggr"
 
 	RTPROT_GOBGP = 0x11
 
@@ -88,6 +89,26 @@ type Server struct {
 	flat  *connectivity.FlatL3Provider
 	ipip  *connectivity.IpipProvider
 	ipsec *connectivity.IpsecProvider
+}
+
+func v46ify(s string, isv6 bool) string {
+	if isv6 {
+		return s + "-v6"
+	} else {
+		return s + "-v4"
+	}
+}
+
+func GetPolicyName(isv6 bool) string {
+	return v46ify(policyBaseName, isv6)
+}
+
+func GetAggPrefixSetName(isv6 bool) string {
+	return v46ify(aggregatedPrefixSetBaseName, isv6)
+}
+
+func GetHostPrefixSetName(isv6 bool) string {
+	return v46ify(hostPrefixSetBaseName, isv6)
 }
 
 func NewServer(vpp *vpplink.VppLink, ss *services.Server, l *logrus.Entry) (*Server, error) {
@@ -184,9 +205,17 @@ func (s *Server) serveOne() error {
 		return errors.Wrap(err, "failed to start BGP server")
 	}
 
-	err = s.initialPolicySetting()
-	if err != nil {
-		return errors.Wrap(err, "error configuring initial policies")
+	if s.hasV4 {
+		err = s.initialPolicySetting(false /* isv6 */)
+		if err != nil {
+			return errors.Wrap(err, "error configuring initial policies")
+		}
+	}
+	if s.hasV6 {
+		err = s.initialPolicySetting(true /* isv6 */)
+		if err != nil {
+			return errors.Wrap(err, "error configuring initial policies")
+		}
 	}
 	/* Restore the previous config in case we restarted */
 	s.RestoreLocalAddresses()
