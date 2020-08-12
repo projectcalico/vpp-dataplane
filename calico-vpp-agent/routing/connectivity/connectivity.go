@@ -36,6 +36,7 @@ func (cn *NodeConnectivity) String() string {
 type ConnectivityProvider interface {
 	AddConnectivity(cn *NodeConnectivity) error
 	DelConnectivity(cn *NodeConnectivity) error
+	OnVppRestart()
 }
 
 type ConnectivityProviderData struct {

@@ -16,10 +16,10 @@
 package connectivity
 
 import (
+	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/pkg/errors"
 )
 
 type IpipProvider struct {
@@ -29,6 +29,10 @@ type IpipProvider struct {
 
 func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
 	return &IpipProvider{d, make(map[string]uint32)}
+}
+
+func (p *IpipProvider) OnVppRestart() {
+	p.ipipIfs = make(map[string]uint32)
 }
 
 func (p IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
