@@ -15,6 +15,7 @@
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $SCRIPTDIR/ci_util.sh
+source $SCRIPTDIR/cases_util.sh
 
 # This file contains full integration tests. It provisions a cluster,
 # deploys calico-vpp CNI to it, applies the test framework yaml and
@@ -98,6 +99,48 @@ function ipsec_ip6 () {
 	teardown_cluster
 }
 
+function nodeport_snat_ip4 () {
+	N=0 create_cluster
+	start_calico
+	start_test
+	start_iperf4
+
+	echo "============ Nodeport ipv4 ============"
+	$CASES snat_ip4
+	stop_iperf
+	assert_test_output_contains "connected with 20.0.0.1"
+
+	echo "============ Nodeport ipv4 ============"
+	NS=iperf
+	SVC=iperf-service-nodeport-v4
+	PROTO=TCP
+	sshtest "Nodeport v4" iperf -c $(getNodeIP node1) -p $(getServiceNodePort) -t 1 -P1 -i1
+	assert_test_output_contains_not "connect failed"
+
+	teardown_cluster
+}
+
+function nodeport_snat_ip6 () {
+	V=6 N=0 create_cluster
+	start_calico
+	start_test
+	start_iperf6
+
+	echo "============ Nodeport ipv6 ============"
+	$CASES snat_ip6
+	stop_iperf
+	assert_test_output_contains "connected with fd11::1"
+
+	echo "============ Nodeport ipv6 ============"
+	NS=iperf
+	SVC=iperf-service-nodeport-v6
+	PROTO=TCP
+	sshtest "Nodeport v6" iperf -V -c $(getNodeIP node1) -p $(getServiceNodePort) -t 1 -P1 -i1
+	assert_test_output_contains_not "connect failed"
+
+	teardown_cluster
+}
+
 if [ $# = 0 ]; then
 	echo "Usage"
 	echo "ci raw_ip4"
@@ -106,6 +149,8 @@ if [ $# = 0 ]; then
 	echo "ci raw_ip6"
 	echo "ci ipip_ip6"
 	echo "ci ipsec_ip6"
+	echo "ci nodeport_snat_ip4"
+	echo "ci nodeport_snat_ip6"
 else
 	load_parameters
 	"$1"

@@ -15,6 +15,16 @@
 
 if [[ "$X" != "" ]]; then set -x ; fi
 
+ORCH=$SCRIPTDIR/../baremetal/orch.sh
+CASES=$SCRIPTDIR/../scripts/cases.sh
+KUST=$SCRIPTDIR/../../yaml/overlays/dev/kustomize.sh
+
+LOG_DIR=/tmp/calicovppci
+ORCHUP_LOG=$LOG_DIR/orchup.log
+CALICOUP_LOG=$LOG_DIR/calicoup.log
+LOGFILE=$LOG_DIR/testrun.log
+LAST_TEST_LOGFILE=$LOG_DIR/testrun.log~
+
 function green ()
 {
   printf "\e[0;32m$1\e[0m\n"
