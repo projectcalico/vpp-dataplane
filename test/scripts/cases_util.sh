@@ -47,6 +47,17 @@ function onePodIP () {
 	fi
 }
 
+function getVppPid () {
+	ps aux | grep -v grep | grep "vpp -c" | tail -n 1 | awk '{print $2}'
+}
+
+function kill_local_vpp () {
+	vpp_pid=$(getVppPid)
+	blue "Kill vpp [${vpp_pid}], waiting 5 seconds for restart..."
+	sudo kill $vpp_pid
+	sleep 5
+}
+
 function test () {
 	echo "-----------TESTCASE $1-----------" > $LAST_TEST_LOGFILE
 	kex ${@:2} >> $LAST_TEST_LOGFILE
@@ -76,40 +87,4 @@ function assert_test_output_contains () {
 	  green "Assert OK (contains $1)"
 	fi
 }
-
-function wait_for_calico_test () {
-	NPODS=0
-	sleep 1
-	while [ x$NPODS != x1 ]; do
-	  NPODS=$(kubectl -n $SVC get pods | grep -v Running | wc -l)
-	  echo "test not yet ready..."
-	  sleep 1
-	done
-}
-
-function wait_for_calico_vpp () {
-	NVPPS=0
-	while [ x$NVPPS != x2 ]; do
-	  NVPPS=$(kubectl -n kube-system get pods | grep calico-vpp | grep '2/2' | wc -l)
-	  echo "calico not yet ready"
-	  sleep 2
-	done
-}
-
-function wait_for_coredns () {
-	NVPPS=0
-	while [ x$NVPPS != x2 ]; do
-	  NVPPS=$(kubectl -n kube-system get pods | grep coredns | grep '1/1' | wc -l)
-	  echo "coredns not yet ready..."
-	  sleep 2
-	done
-}
-
-function start_test () {
-	echo "Starting test clients... at $(date)"
-	$SCRIPTDIR/test.sh up iperf > iperfup.log 2>&1
-	wait_for_coredns
-	SVC=iperf wait_for_calico_test
-}
-
 

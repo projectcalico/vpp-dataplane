@@ -16,9 +16,28 @@
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $SCRIPTDIR/cases_util.sh
 
+# This file contains integration test scenarios. They take the form
+# of kubectl commands to be run on a running cluster with CNI and
+# test framework installed
+
+function vpp_restart_v4 ()
+{
+	NS=iperf
+	POD=iperf-client
+	kill_local_vpp
+	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1
+}
+
+function vpp_restart_v6 ()
+{
+	NS=iperf
+	POD=iperf-client
+	kill_local_vpp
+	test "iperf ServiceName -P4" iperf -V -c iperf-service                              -t 1 -P4 -i1
+}
+
 function ipv4 ()
 {
-	start_test
 	NS=iperf
 	POD=iperf-client
 	echo "--Cross node TCP tests--"
@@ -53,7 +72,6 @@ function ipv4 ()
 
 function ipv6 ()
 {
-	start_test
 	NS=iperf
 	POD=iperf-client
 	echo "--Cross node TCP tests--"
