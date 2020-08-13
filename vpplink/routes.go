@@ -18,10 +18,10 @@ package vpplink
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/ip"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~215-g37bd1e445/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -119,13 +119,15 @@ func (v *VppLink) RouteDel(route *types.Route) error {
 func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	prefixLen, _ := route.Dst.Mask.Size()
 
-	proto := vppip.FIB_API_PATH_NH_PROTO_IP4
-	if IsIP6(route.Dst.IP) {
-		proto = vppip.FIB_API_PATH_NH_PROTO_IP6
+	prefix := vppip.Prefix{}
+	if route.Dst != nil {
+		prefixLen, _ := route.Dst.Mask.Size()
+		prefix.Len = uint8(prefixLen)
+		prefix.Address = route.GetVppDstAddress()
 	}
 
+	proto := route.GetProto()
 	paths := make([]vppip.FibPath, 0, len(route.Paths))
 	for _, routePath := range route.Paths {
 		path := vppip.FibPath{
@@ -146,11 +148,8 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 
 	vppRoute := vppip.IPRoute{
 		TableID: uint32(route.Table),
-		Prefix: vppip.Prefix{
-			Len:     uint8(prefixLen),
-			Address: route.GetVppDstAddress(),
-		},
-		Paths: paths,
+		Prefix:  prefix,
+		Paths:   paths,
 	}
 
 	request := &vppip.IPRouteAddDel{

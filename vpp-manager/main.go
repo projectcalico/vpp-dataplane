@@ -98,6 +98,7 @@ type interfaceConfig struct {
 	addresses    []netlink.Addr
 	routes       []netlink.Route
 	hardwareAddr net.HardwareAddr
+	doSwapDriver bool
 }
 
 type vppManagerParams struct {
@@ -124,9 +125,9 @@ type vppManagerParams struct {
 	vppFakeNextHopIP6       net.IP
 	vppTapIP6               net.IP
 	useAfPacket             bool
-	swapDriver              string
 	TapRxRingSize           int
 	TapTxRingSize           int
+	newDriverName           string
 }
 
 func getRxMode(envVar string) types.RxMode {
@@ -207,7 +208,7 @@ func parseEnvVariables() (err error) {
 		params.useAfPacket = useAfPacket
 	}
 
-	params.swapDriver = os.Getenv(SwapDriverEnvVar)
+	params.newDriverName = os.Getenv(SwapDriverEnvVar)
 
 	params.rxMode = getRxMode(RxModeEnvVar)
 	params.tapRxMode = getRxMode(TapRxModeEnvVar)
@@ -367,6 +368,7 @@ func getLinuxConfig() error {
 		return nil
 	}
 	pciID := regexp.MustCompile("[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}.[0-9a-f]")
+	initialConfig.doSwapDriver = false
 	matches := pciID.FindAllString(devicePath, -1)
 	if matches == nil {
 		log.Warnf("Could not find pci device for %s: path is %s", params.mainInterface, devicePath)
@@ -382,6 +384,9 @@ func getLinuxConfig() error {
 		}
 		initialConfig.driver = driverPath[strings.LastIndex(driverPath, "/")+1:]
 		log.Infof("Found driver: %s", initialConfig.driver)
+		if params.newDriverName != "" && params.newDriverName != initialConfig.driver {
+			initialConfig.doSwapDriver = true
+		}
 	}
 
 	log.Infof("Initial device config: %+v", initialConfig)
@@ -452,10 +457,33 @@ func writeFile(state string, path string) error {
 	return nil
 }
 
+func routeIsIP6(r *netlink.Route) bool {
+	if r.Dst != nil {
+		return vpplink.IsIP6(r.Dst.IP)
+	}
+	if r.Gw != nil {
+		return vpplink.IsIP6(r.Gw)
+	}
+	if r.Src != nil {
+		return vpplink.IsIP6(r.Src)
+	}
+	return false
+}
+
+func routeIsLinkLocalUnicast(r *netlink.Route) bool {
+	if r.Dst == nil {
+		return false
+	}
+	if !vpplink.IsIP6(r.Dst.IP) {
+		return false
+	}
+	return r.Dst.IP.IsLinkLocalUnicast()
+}
+
 func restoreLinuxConfig() (err error) {
 	// No need to delete the tap we created with VPP since it should disappear with all its configuration
 	// when VPP dies
-	if initialConfig.pciId != "" && initialConfig.driver != "" {
+	if initialConfig.doSwapDriver {
 		err := swapDriver(initialConfig.pciId, initialConfig.driver, false)
 		if err != nil {
 			log.Warnf("error swapping back driver to %s for %s: %v", initialConfig.driver, initialConfig.pciId, err)
@@ -499,7 +527,7 @@ func restoreLinuxConfig() (err error) {
 			}
 		}
 		for _, route := range initialConfig.routes {
-			if route.Dst != nil && vpplink.IsIP6(route.Dst.IP) && route.Dst.IP.IsLinkLocalUnicast() {
+			if routeIsLinkLocalUnicast(&route) {
 				log.Infof("Skipping linklocal route %s", route.String())
 				continue
 			}
@@ -706,7 +734,7 @@ func configureVppTap(link netlink.Link, tapSwIfIndex uint32, tapAddr net.IP, nxt
 
 	// All routes that were on this interface now go through VPP
 	for _, route := range initialConfig.routes {
-		if route.Dst == nil || vpplink.IsIP4(route.Dst.IP) != vpplink.IsIP4(tapAddr) {
+		if routeIsIP6(&route) != vpplink.IsIP6(tapAddr) {
 			continue
 		}
 		newRoute := netlink.Route{
@@ -795,7 +823,8 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 	}
 	for _, route := range initialConfig.routes {
 		// Only add routes with a next hop, assume the others come from interface addresses
-		if route.Gw == nil || route.Dst == nil {
+		if routeIsLinkLocalUnicast(&route) {
+			log.Infof("Skipping linklocal route %s", route.String())
 			continue
 		}
 		err = vpp.RouteAdd(&types.Route{
@@ -990,19 +1019,19 @@ func runVpp() (err error) {
 			return errors.Wrapf(err, "error setting link %s down", params.mainInterface)
 		}
 	}
-	// From this point it is very important that every exit path calls restoreLinuxConfig after vpp exits
-	// Bind the interface to a suitable drivr for VPP. DPDK does it automatically, this is useful otherwise
-	if params.swapDriver != "" && params.swapDriver != initialConfig.driver {
+	if initialConfig.doSwapDriver {
 		if initialConfig.pciId == "" {
 			log.Warnf("PCI ID not found, not swapping drivers")
 		} else {
-			err = swapDriver(initialConfig.pciId, params.swapDriver, true)
+			err = swapDriver(initialConfig.pciId, params.newDriverName, true)
 			if err != nil {
-				log.Warnf("Failed to swap driver to %s: %v", params.swapDriver, err)
+				log.Warnf("Failed to swap driver to %s: %v", params.newDriverName, err)
 			}
 		}
 	}
 
+	// From this point it is very important that every exit path calls restoreLinuxConfig after vpp exits
+	// Bind the interface to a suitable drivr for VPP. DPDK does it automatically, this is useful otherwise
 	vppCmd = exec.Command(VppPath, "-c", VppConfigFile)
 	vppCmd.Stdout = os.Stdout
 	vppCmd.Stderr = os.Stderr

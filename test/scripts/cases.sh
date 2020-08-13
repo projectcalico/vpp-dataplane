@@ -16,16 +16,52 @@
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $SCRIPTDIR/cases_util.sh
 
+# This file contains integration test scenarios. They take the form
+# of kubectl commands to be run on a running cluster with CNI and
+# test framework installed
+
+function vpp_restart_v4 ()
+{
+	NS=iperf
+	POD=iperf-client
+	kill_local_vpp
+	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1
+}
+
+function vpp_restart_v6 ()
+{
+	NS=iperf
+	POD=iperf-client
+	kill_local_vpp
+	test "iperf ServiceName -P4" iperf -V -c iperf-service                           -t 1 -P4 -i1
+}
+
+function snat_ip4 ()
+{
+	NS=iperf
+	POD=iperf-client-samehost
+	test "iperf 20.0.0.2 -P4" iperf -c 20.0.0.2                                      -t 1 -P1 -i1
+}
+
+function snat_ip6 ()
+{
+	NS=iperf
+	POD=iperf-client-samehost
+	test "iperf fd11::2 -P4" iperf -V -c fd11::2                                     -t 1 -P1 -i1
+}
+
 function ipv4 ()
 {
-	start_test
 	NS=iperf
 	POD=iperf-client
 	echo "--Cross node TCP tests--"
 	test "DNS lookup" nslookup kubernetes.default
 	test "iperf PodIP"           iperf -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1
+	assert_test_output_contains_not "connect failed"
 	test "iperf ServiceIP"       iperf -c $(NS=iperf SVC=iperf-service getClusterIP) -t 1 -P1 -i1
+	assert_test_output_contains_not "connect failed"
 	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1
+	assert_test_output_contains_not "connect failed"
 
 	echo "--Cross node UDP tests--"
 	test "iperf PodIP"           iperf -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1 -u -l1450 -p5003
@@ -39,8 +75,11 @@ function ipv4 ()
 	echo "--Same host TCP tests--"
 	test "DNS lookup" nslookup kubernetes.default
 	test "iperf PodIP"           iperf -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1
+	assert_test_output_contains_not "connect failed"
 	test "iperf ServiceIP"       iperf -c $(NS=iperf SVC=iperf-service getClusterIP) -t 1 -P1 -i1
+	assert_test_output_contains_not "connect failed"
 	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1
+	assert_test_output_contains_not "connect failed"
 
 	echo "--Same host UDP tests--"
 	test "iperf PodIP"           iperf -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1 -u -l1450 -p5003
@@ -53,7 +92,6 @@ function ipv4 ()
 
 function ipv6 ()
 {
-	start_test
 	NS=iperf
 	POD=iperf-client
 	echo "--Cross node TCP tests--"

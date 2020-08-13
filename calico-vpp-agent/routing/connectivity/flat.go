@@ -18,9 +18,9 @@ package connectivity
 import (
 	"net"
 
+	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/pkg/errors"
 )
 
 type FlatL3Provider struct {
@@ -33,6 +33,10 @@ func getRoutePaths(addr net.IP) []types.RoutePath {
 		SwIfIndex: vpplink.AnyInterface,
 		Table:     0,
 	}}
+}
+
+func (p *FlatL3Provider) OnVppRestart() {
+	/* Nothing to do */
 }
 
 func NewFlatL3Provider(d *ConnectivityProviderData) *FlatL3Provider {

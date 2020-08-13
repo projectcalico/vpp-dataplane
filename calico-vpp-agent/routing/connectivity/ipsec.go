@@ -21,15 +21,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/pkg/errors"
 )
 
 type IpsecProvider struct {
 	*ConnectivityProviderData
-	ipipIfs map[string][]uint32
+	ipsecIfs map[string][]uint32
+}
+
+func (p *IpsecProvider) OnVppRestart() {
+	p.ipsecIfs = make(map[string][]uint32)
 }
 
 func NewIPsecProvider(d *ConnectivityProviderData) *IpsecProvider {
@@ -54,7 +58,7 @@ func (p IpsecProvider) setupTunnelWithIds(i int, j int, destNodeAddr net.IP, nod
 	if err != nil {
 		return errors.Wrapf(err, "error configuring ipsec tunnel from %s to %s", src.String(), dst.String())
 	}
-	p.ipipIfs[destNodeAddr.String()] = append(p.ipipIfs[destNodeAddr.String()], swIfIndex)
+	p.ipsecIfs[destNodeAddr.String()] = append(p.ipsecIfs[destNodeAddr.String()], swIfIndex)
 	return nil
 }
 
@@ -186,39 +190,37 @@ func getIPSecRoutePaths(swIfIndices []uint32) []types.RoutePath {
 }
 
 func (p IpsecProvider) AddConnectivity(cn *NodeConnectivity) (err error) {
-	if _, found := p.ipipIfs[cn.NextHop.String()]; !found {
+	if _, found := p.ipsecIfs[cn.NextHop.String()]; !found {
 		err = p.setupTunnels(cn.NextHop)
 		if err != nil {
-			return errors.Wrap(err, "Error configuring IPsec tunnels")
+			return errors.Wrapf(err, "Error configuring IPSEC tunnels to %s", cn.NextHop)
 		}
 	}
-	swIfIndices := p.ipipIfs[cn.NextHop.String()]
+	swIfIndices := p.ipsecIfs[cn.NextHop.String()]
 	p.log.Infof("IPSEC: ADD %s via %s [%v]", cn.Dst.String(), cn.NextHop.String(), swIfIndices)
-	e := p.vpp.RouteAdd(&types.Route{
+	err = p.vpp.RouteAdd(&types.Route{
 		Dst:   &cn.Dst,
 		Paths: getIPSecRoutePaths(swIfIndices),
 	})
-	if e != nil {
-		err = e
-		p.log.Errorf("Error setting route in VPP: %v", err)
+	if err != nil {
+		return errors.Wrapf(err, "Error adding IPSEC routes to  %s via %s [%v]", cn.Dst.String(), cn.NextHop.String(), swIfIndices)
 	}
-	return errors.Wrap(err, "Error configuring routes")
+	return nil
 }
 
 func (p IpsecProvider) DelConnectivity(cn *NodeConnectivity) (err error) {
-	swIfIndices, found := p.ipipIfs[cn.NextHop.String()]
+	// TODO remove ike profile and teardown tunnel if there are no more routes?
+	swIfIndices, found := p.ipsecIfs[cn.NextHop.String()]
 	if !found {
 		return errors.Errorf("Deleting unknown ipip tunnel %s", cn.NextHop.String())
 	}
 	p.log.Infof("IPSEC: DEL %s via %s [%v]", cn.Dst.String(), cn.NextHop.String(), swIfIndices)
-	e := p.vpp.RouteDel(&types.Route{
+	err = p.vpp.RouteDel(&types.Route{
 		Dst:   &cn.Dst,
 		Paths: getIPSecRoutePaths(swIfIndices),
 	})
-	if e != nil {
-		err = e
-		p.log.Errorf("Error deleting route ipip tunnel %v: %v", swIfIndices, err)
+	if err != nil {
+		return errors.Wrapf(err, "Error deleting route ipip tunnel %v: %v", swIfIndices)
 	}
-	return errors.Wrapf(err, "Error deleting ipip tunnel route")
-	// TODO remove ike profile and teardown tunnel if there are no more routes?
+	return nil
 }
