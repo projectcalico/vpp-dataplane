@@ -63,6 +63,24 @@ func (r *Route) GetVppDstAddress() vppip.Address {
 	return ToVppIpAddress(r.Dst.IP)
 }
 
+func isV6toProto(addr net.IP) vppip.FibPathNhProto {
+	if IsIP6(addr) {
+		return vppip.FIB_API_PATH_NH_PROTO_IP6
+	} else {
+		return vppip.FIB_API_PATH_NH_PROTO_IP4
+	}
+}
+
+func (r *Route) GetProto() vppip.FibPathNhProto {
+	if r.Dst != nil {
+		return isV6toProto(r.Dst.IP)
+	}
+	for _, path := range r.Paths {
+		return isV6toProto(path.Gw)
+	}
+	return vppip.FIB_API_PATH_NH_PROTO_IP4
+}
+
 func (r *Route) pathsString() string {
 	pathsStr := make([]string, 0, len(r.Paths))
 	for _, path := range r.Paths {
@@ -89,4 +107,14 @@ func (r *Route) dstString() string {
 
 func (r *Route) String() string {
 	return fmt.Sprintf("%s%s -> %s", r.tableString(), r.dstString(), r.pathsString())
+}
+
+func (r *Route) IsLinkLocal() bool {
+	if r.Dst == nil {
+		return false
+	}
+	if !IsIP6(r.Dst.IP) {
+		return false
+	}
+	return r.Dst.IP.IsLinkLocalUnicast()
 }
