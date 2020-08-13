@@ -61,6 +61,7 @@ const (
 	VppStartupSleepEnvVar         = "CALICOVPP_VPP_STARTUP_SLEEP"
 	ExtraAddrCountEnvVar          = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	CorePatternEnvVar             = "CALICOVPP_CORE_PATTERN"
+	TapRingSizeEnvVar             = "CALICOVPP_TAP_RING_SIZE"
 	AfPacketEnvVar                = "CALICOVPP_USE_AF_PACKET"
 	SwapDriverEnvVar              = "CALICOVPP_SWAP_DRIVER"
 	ServicePrefixEnvVar           = "SERVICE_PREFIX"
@@ -124,6 +125,8 @@ type vppManagerParams struct {
 	vppFakeNextHopIP6       net.IP
 	vppTapIP6               net.IP
 	useAfPacket             bool
+	TapRxRingSize           int
+	TapTxRingSize           int
 	newDriverName           string
 }
 
@@ -233,6 +236,32 @@ func parseEnvVariables() (err error) {
 	params.vppTapIP6 = net.ParseIP(vppTapIP6String)
 	if params.vppTapIP6 == nil {
 		return errors.Errorf("Unable to parse IP: %s", vppTapIP6String)
+	}
+	params.TapRxRingSize = 0
+	params.TapTxRingSize = 0
+	if conf := os.Getenv(TapRingSizeEnvVar); conf != "" {
+		sizes := strings.Split(conf, ",")
+		if len(sizes) == 1 {
+			sz, err := strconv.ParseInt(sizes[0], 10, 32)
+			if err != nil {
+				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+			}
+			params.TapRxRingSize = int(sz)
+			params.TapTxRingSize = int(sz)
+		} else if len(sizes) == 2 {
+			sz, err := strconv.ParseInt(sizes[0], 10, 32)
+			if err != nil {
+				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+			}
+			params.TapRxRingSize = int(sz)
+			sz, err = strconv.ParseInt(sizes[1], 10, 32)
+			if err != nil {
+				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+			}
+			params.TapTxRingSize = int(sz)
+		} else {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sizes, err)
+		}
 	}
 	return nil
 }
@@ -837,6 +866,8 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 		Tag:            HostIfTag,
 		MacAddress:     params.vppSideMacAddress,
 		HostMacAddress: params.containerSideMacAddress,
+		RxRingSize:     params.TapRxRingSize,
+		TxRingSize:     params.TapTxRingSize,
 	})
 	if err != nil {
 		return errors.Wrap(err, "error creating tap")

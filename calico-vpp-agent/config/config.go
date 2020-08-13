@@ -47,6 +47,7 @@ const (
 	IPSecExtraAddressesEnvVar = "CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES"
 	IPSecIkev2PskEnvVar       = "CALICOVPP_IPSEC_IKEV2_PSK"
 	TapRxModeEnvVar           = "CALICOVPP_TAP_RX_MODE"
+	TapRingSizeEnvVar         = "CALICOVPP_TAP_RING_SIZE"
 	BgpLogLevelEnvVar         = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar       = "SERVICE_PREFIX"
@@ -67,6 +68,8 @@ var (
 	LogLevel          = logrus.InfoLevel
 	NodeName          = ""
 	ServiceCIDRs      []*net.IPNet
+	TapRxRingSize     int = 0
+	TapTxRingSize     int = 0
 )
 
 // LoadConfig loads the calico-vpp-agent configuration from the environment
@@ -137,6 +140,31 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", IPSecExtraAddressesEnvVar, conf, extraAddressCount, err)
 		}
 		IpsecAddressCount = int(extraAddressCount) + 1
+	}
+
+	if conf := os.Getenv(TapRingSizeEnvVar); conf != "" {
+		sizes := strings.Split(conf, ",")
+		if len(sizes) == 1 {
+			sz, err := strconv.ParseInt(sizes[0], 10, 32)
+			if err != nil {
+				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+			}
+			TapRxRingSize = int(sz)
+			TapTxRingSize = int(sz)
+		} else if len(sizes) == 2 {
+			sz, err := strconv.ParseInt(sizes[0], 10, 32)
+			if err != nil {
+				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+			}
+			TapRxRingSize = int(sz)
+			sz, err = strconv.ParseInt(sizes[1], 10, 32)
+			if err != nil {
+				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+			}
+			TapTxRingSize = int(sz)
+		} else {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sizes, err)
+		}
 	}
 
 	psk := os.Getenv(IPSecIkev2PskEnvVar)

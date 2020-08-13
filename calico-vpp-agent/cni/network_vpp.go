@@ -414,6 +414,8 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		MacAddress:     vppSideMacAddress,
 		HostMacAddress: containerSideMacAddress,
 		RxQueues:       config.TapRXQueues,
+		RxRingSize:     config.TapRxRingSize,
+		TxRingSize:     config.TapTxRingSize,
 	}
 	if config.TapGSOEnabled {
 		tap.Flags |= types.TapFlagGSO | types.TapGROCoalesce
