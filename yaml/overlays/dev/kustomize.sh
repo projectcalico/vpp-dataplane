@@ -177,8 +177,8 @@ calico_create_template ()
   WRK=${WRK:=0}
   MAINCORE=${MAINCORE:=12}
   DPDK=${DPDK:=true}
-  export CALICO_IPV4POOL_CIDR=$CLUSTER_POD_CIDR4 # 11.0.0.0/16 # $POD_CIDR # $(is_v4_then $POD_CIDR "")
-  export CALICO_IPV6POOL_CIDR=$CLUSTER_POD_CIDR6 # $(is_v4_then "" $POD_CIDR)
+  export CALICO_IPV4POOL_CIDR=$CLUSTER_POD_CIDR4
+  export CALICO_IPV6POOL_CIDR=$CLUSTER_POD_CIDR6
   export FELIX_IPV6SUPPORT=$(is_v4_v46_v6 false true true)
   export CALICO_IP=$(is_v4_v46_v6 autodetect autodetect none)
   export CALICO_IP6=$(is_v4_v46_v6 none autodetect autodetect)
@@ -209,6 +209,7 @@ calico_create_template ()
   export CALICOVPP_USE_AF_PACKET=${CALICOVPP_USE_AF_PACKET:=false}
   export CALICOVPP_SWAP_DRIVER=${CALICOVPP_SWAP_DRIVER:=}
   export CALICO_IPV4POOL_NAT_OUTGOING=${CALICO_IPV4POOL_NAT_OUTGOING:=true}
+  export CALICO_IPV6POOL_NAT_OUTGOING=${CALICO_IPV6POOL_NAT_OUTGOING:=true}
   export USERHOME=${HOME}
   cd $SCRIPTDIR
   kubectl kustomize . | envsubst > /tmp/calico-vpp.yaml
