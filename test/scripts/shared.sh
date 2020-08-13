@@ -13,9 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
-
 if [[ "$X" != "" ]]; then set -x ; fi
+
+ORCH=$SCRIPTDIR/../baremetal/orch.sh
+CASES=$SCRIPTDIR/../scripts/cases.sh
+KUST=$SCRIPTDIR/../../yaml/overlays/dev/kustomize.sh
+
+LOG_DIR=/tmp/calicovppci
+ORCHUP_LOG=$LOG_DIR/orchup.log
+CALICOUP_LOG=$LOG_DIR/calicoup.log
+LOGFILE=$LOG_DIR/testrun.log
+LAST_TEST_LOGFILE=$LOG_DIR/testrun.log~
 
 function green ()
 {
@@ -25,6 +33,16 @@ function green ()
 function red ()
 {
   printf "\e[0;31m$1\e[0m\n"
+}
+
+function blue ()
+{
+  printf "\e[0;34m$1\e[0m\n"
+}
+
+function grey ()
+{
+  printf "\e[0;37m$1\e[0m\n"
 }
 
 find_node_pod () # NODE, POD

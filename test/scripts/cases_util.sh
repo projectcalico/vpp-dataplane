@@ -16,9 +16,6 @@
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $SCRIPTDIR/shared.sh
 
-LOGFILE=testrun.log
-LAST_TEST_LOGFILE=testrun.log~
-
 function k () {
 	kubectl -n $NS $@
 }
@@ -40,11 +37,34 @@ function getPodIP () {
 	getPodIPs | grep $POD | cut -d ' ' -f 1
 }
 
+function getNodeIP () {
+	kubectl get nodes $1 -o go-template --template='{{range .status.addresses}}{{printf "%s\n" .address}}{{end}}' | head -1
+}
+
+function getServiceIP () {
+	kubectl -n $NS get service $SVC -o go-template --template='{{printf "%s\n" .spec.clusterIP}}'
+}
+
+function getServiceNodePort () {
+	kubectl -n $NS get service $SVC -o go-template --template='{{range .spec.ports}}{{printf "%d %s\n" .nodePort .protocol}}{{end}}' | grep $PROTO | awk '{print $1}'
+}
+
 function onePodIP () {
 	N=$(getPodIP | wc -l)
 	if [ x$N != x0 ]; then
 	  getPodIP | head -n $((1 + RANDOM % $N)) | tail -n 1
 	fi
+}
+
+function getVppPid () {
+	ps aux | grep -v grep | grep "vpp -c" | tail -n 1 | awk '{print $2}'
+}
+
+function kill_local_vpp () {
+	vpp_pid=$(getVppPid)
+	blue "Kill vpp [${vpp_pid}], waiting 5 seconds for restart..."
+	sudo kill $vpp_pid
+	sleep 5
 }
 
 function test () {
@@ -60,56 +80,20 @@ function test () {
 }
 
 function assert_test_output_contains_not () {
-	PRESENT=$( cat $LAST_TEST_LOGFILE | grep ${1} | wc -l)
+	PRESENT=$( cat $LAST_TEST_LOGFILE | grep "${1}" | wc -l)
 	if [ x$PRESENT = x0 ]; then
-	  green "Assert OK (doesn't contain $1)"
+	  green "Assert OK (doesn't contain '$1')"
 	else
-	  red "Assert FAILED (contains $1)"
+	  red "Assert FAILED (contains '$1')"
 	fi
 }
 
 function assert_test_output_contains () {
-	PRESENT=$(cat $LAST_TEST_LOGFILE | grep ${1} | wc -l)
+	PRESENT=$(cat $LAST_TEST_LOGFILE | grep "${1}" | wc -l)
 	if [ x$PRESENT = x0 ]; then
-	  red "Assert FAILED (doesn't contain $1)"
+	  red "Assert FAILED (doesn't contain '$1')"
 	else
-	  green "Assert OK (contains $1)"
+	  green "Assert OK (contains '$1')"
 	fi
 }
-
-function wait_for_calico_test () {
-	NPODS=0
-	sleep 1
-	while [ x$NPODS != x1 ]; do
-	  NPODS=$(kubectl -n $SVC get pods | grep -v Running | wc -l)
-	  echo "test not yet ready..."
-	  sleep 1
-	done
-}
-
-function wait_for_calico_vpp () {
-	NVPPS=0
-	while [ x$NVPPS != x2 ]; do
-	  NVPPS=$(kubectl -n kube-system get pods | grep calico-vpp | grep '2/2' | wc -l)
-	  echo "calico not yet ready"
-	  sleep 2
-	done
-}
-
-function wait_for_coredns () {
-	NVPPS=0
-	while [ x$NVPPS != x2 ]; do
-	  NVPPS=$(kubectl -n kube-system get pods | grep coredns | grep '1/1' | wc -l)
-	  echo "coredns not yet ready..."
-	  sleep 2
-	done
-}
-
-function start_test () {
-	echo "Starting test clients... at $(date)"
-	$SCRIPTDIR/test.sh up iperf > iperfup.log 2>&1
-	wait_for_coredns
-	SVC=iperf wait_for_calico_test
-}
-
 

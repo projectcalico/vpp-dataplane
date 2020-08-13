@@ -19,6 +19,7 @@ package routing
 import (
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -85,6 +86,8 @@ type Server struct {
 	connectivityMap map[string]*connectivity.NodeConnectivity
 	localAddressMap map[string]*net.IPNet
 	ShouldStop      bool
+	// Is bgpServer running (s.bgpServer == nil)
+	bgpServerRunningCond *sync.Cond
 	// Connectivity providers
 	flat  *connectivity.FlatL3Provider
 	ipip  *connectivity.IpipProvider
@@ -124,15 +127,16 @@ func NewServer(vpp *vpplink.VppLink, ss *services.Server, l *logrus.Entry) (*Ser
 	}
 
 	server := Server{
-		client:          calicoCli,
-		clientv3:        calicoCliV3,
-		reloadCh:        make(chan string),
-		prefixReady:     make(chan int),
-		vpp:             vpp,
-		log:             l,
-		servicesServer:  ss,
-		connectivityMap: make(map[string]*connectivity.NodeConnectivity),
-		localAddressMap: make(map[string]*net.IPNet),
+		client:               calicoCli,
+		clientv3:             calicoCliV3,
+		reloadCh:             make(chan string),
+		prefixReady:          make(chan int),
+		vpp:                  vpp,
+		log:                  l,
+		servicesServer:       ss,
+		connectivityMap:      make(map[string]*connectivity.NodeConnectivity),
+		localAddressMap:      make(map[string]*net.IPNet),
+		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
 	}
 	providerData := connectivity.NewConnectivityProviderData(
 		server.vpp, server.log, &server.ipv6, &server.ipv4,
@@ -180,10 +184,13 @@ func (s *Server) createAndStartBGP() error {
 		grpc.MaxRecvMsgSize(maxSize),
 		grpc.MaxSendMsgSize(maxSize),
 	}
+	s.bgpServerRunningCond.L.Lock()
 	s.bgpServer = bgpserver.NewBgpServer(
 		bgpserver.GrpcListenAddress("localhost:50051"),
 		bgpserver.GrpcOption(grpcOpts),
 	)
+	s.bgpServerRunningCond.L.Unlock()
+	s.bgpServerRunningCond.Broadcast()
 
 	s.t.Go(func() error { s.bgpServer.Serve(); return fmt.Errorf("bgpServer Serve returned") })
 
@@ -255,6 +262,12 @@ func (s *Server) serveOne() error {
 		s.log.Errorf("failed to stop BGP server:", err)
 	}
 	s.log.Infof("Routing server stopped")
+	// This frees the listeners, otherwise NewBgpServer might fail in
+	// case of a restart
+	s.bgpServerRunningCond.L.Lock()
+	s.bgpServer = nil
+	s.bgpServerRunningCond.L.Unlock()
+	s.bgpServerRunningCond.Broadcast()
 	return nil
 }
 
@@ -448,6 +461,15 @@ func (s *Server) announceLocalAddress(addr *net.IPNet) error {
 	if err != nil {
 		return errors.Wrap(err, "error making path to announce")
 	}
+	// bgpServer might be nil if in the process of restarting
+	s.bgpServerRunningCond.L.Lock()
+	defer s.bgpServerRunningCond.L.Unlock()
+	for s.bgpServer == nil || s.ShouldStop {
+		s.bgpServerRunningCond.Wait()
+	}
+	if s.ShouldStop {
+		return nil
+	}
 	s.localAddressMap[addr.String()] = addr
 	_, err = s.bgpServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
 		TableType: bgpapi.TableType_GLOBAL,
@@ -462,8 +484,17 @@ func (s *Server) withdrawLocalAddress(addr *net.IPNet) error {
 	if err != nil {
 		return errors.Wrap(err, "error making path to withdraw")
 	}
+	// bgpServer might be nil if in the process of restarting
+	s.bgpServerRunningCond.L.Lock()
+	defer s.bgpServerRunningCond.L.Unlock()
+	for s.bgpServer == nil || s.ShouldStop {
+		s.bgpServerRunningCond.Wait()
+	}
+	if s.ShouldStop {
+		return nil
+	}
 	delete(s.localAddressMap, addr.String())
-	_, err = s.bgpServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
+	err = s.bgpServer.DeletePath(context.Background(), &bgpapi.DeletePathRequest{
 		TableType: bgpapi.TableType_GLOBAL,
 		Path:      path,
 	})
@@ -506,11 +537,16 @@ func (s *Server) Serve() {
 
 func (s *Server) Stop() {
 	s.ShouldStop = true
+	s.bgpServerRunningCond.Broadcast()
 	s.t.Kill(errors.Errorf("GracefulStop"))
 }
 
 func (s *Server) OnVppRestart() {
 	s.log.Infof("Restarting ROUTING")
+	// Those should happen first, in case we need to cleanup state
+	s.flat.OnVppRestart()
+	s.ipip.OnVppRestart()
+	s.ipsec.OnVppRestart()
 	for _, cn := range s.connectivityMap {
 		s.log.Infof("Adding routing : %s", cn.String())
 		err := s.updateIPConnectivity(cn, false)
