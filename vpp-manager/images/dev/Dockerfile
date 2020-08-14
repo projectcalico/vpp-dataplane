@@ -11,8 +11,10 @@ RUN apt-get update \
 	  netcat-openbsd ethtool gdb \
  && rm -rf /var/lib/apt/lists/*
 
-ADD entrypoint /usr/bin/
+ADD entrypoint.sh /usr/bin/entrypoint
+ADD vpp.sh /usr/bin/vpp
+ADD vppctl.sh /usr/bin/vppctl
 
-RUN chmod +x /usr/bin/entrypoint
+RUN chmod +x /usr/bin/entrypoint /usr/bin/vppctl /usr/bin/vpp
 
 ENTRYPOINT ["/usr/bin/entrypoint"]

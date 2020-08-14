@@ -483,7 +483,8 @@ func routeIsLinkLocalUnicast(r *netlink.Route) bool {
 func restoreLinuxConfig() (err error) {
 	// No need to delete the tap we created with VPP since it should disappear with all its configuration
 	// when VPP dies
-	if initialConfig.doSwapDriver {
+
+	if initialConfig.pciId != "" && initialConfig.driver != "" {
 		err := swapDriver(initialConfig.pciId, initialConfig.driver, false)
 		if err != nil {
 			log.Warnf("error swapping back driver to %s for %s: %v", initialConfig.driver, initialConfig.pciId, err)
@@ -1050,8 +1051,9 @@ func runVpp() (err error) {
 	vpp, err = createVppLink()
 	if err != nil {
 		terminateVpp("Error connecting to VPP (SIGINT %d): %v", vppProcess.Pid, err)
-		restoreConfiguration()
 		vpp.Close()
+		<-vppDeadChan
+		restoreConfiguration()
 		return fmt.Errorf("cannot connect to VPP after 10 tries")
 	}
 
@@ -1061,8 +1063,9 @@ func runVpp() (err error) {
 		err = vpp.Retry(2*time.Second, 10, CreateAfPacket)
 		if err != nil {
 			terminateVpp("Error creating af_packet (SIGINT %d): %v", vppProcess.Pid, err)
-			restoreConfiguration()
 			vpp.Close()
+			<-vppDeadChan
+			restoreConfiguration()
 			return errors.Wrap(err, "error creating af_packet")
 		}
 	}
@@ -1071,14 +1074,16 @@ func runVpp() (err error) {
 	err = vpp.Retry(2*time.Second, 10, vpp.InterfaceAdminUp, DataInterfaceSwIfIndex)
 	if err != nil {
 		terminateVpp("Error setting main interface up (SIGINT %d): %v", vppProcess.Pid, err)
-		restoreConfiguration()
 		vpp.Close()
+		<-vppDeadChan
+		restoreConfiguration()
 		return errors.Wrap(err, "error setting data interface up")
 	}
 
 	// Configure VPP
 	err = configureVpp(vpp)
 	if err != nil {
+		<-vppDeadChan
 		terminateVpp("Error configuring VPP (SIGINT %d): %v", vppProcess.Pid, err)
 	}
 
@@ -1086,6 +1091,10 @@ func runVpp() (err error) {
 	err = updateCalicoNode()
 	if err != nil {
 		terminateVpp("Error updating Calico node (SIGINT %d): %v", vppProcess.Pid, err)
+		vpp.Close()
+		<-vppDeadChan
+		restoreConfiguration()
+		return errors.Wrap(err, "Error updating Calico node")
 	}
 
 	go syncPools()
