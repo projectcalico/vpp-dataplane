@@ -2,14 +2,6 @@
 
 VPP_MANAGER=/home/hostuser/vpp-dataplane/vpp-manager/images/ubuntu/vpp-manager
 
-link_vpp_bin ()
-{
-  echo "#!/bin/bash
-LD_LIBRARY_PATH=$VPP/lib/ $VPP/bin/$1 \$@" > /usr/bin/$1
-  chmod +x /usr/bin/$1
-
-}
-
 _trap() {
   echo "Caught $1 signal!"
   kill -$1 "$child" 2>/dev/null
@@ -35,9 +27,6 @@ if [[ -f /home/hostuser/vpp/isrelease ]]; then
 else
   VPP="/home/hostuser/vpp/build-root/install-vpp_debug-native/vpp/"
 fi
-
-link_vpp_bin vpp
-link_vpp_bin vppctl
 
 if [[ -f /home/hostuser/vpp/istailnull ]]; then
   tail -f /dev/null
