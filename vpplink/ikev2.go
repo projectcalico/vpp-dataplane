@@ -16,12 +16,12 @@
 package vpplink
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~214-g61309b2f8/ikev2"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-g7aeaa83db/ikev2"
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-g7aeaa83db/ikev2"
 )
 
 type IKEv2IDType uint8
@@ -214,13 +214,15 @@ func (v *VppLink) SetIKEv2TrafficSelector(
 		return errors.New("IPv6 unsupported in IKEv2 at this time")
 	}
 	request := &ikev2.Ikev2ProfileSetTs{
-		Name:      profile,
-		IsLocal:   isLocal,
-		Proto:     proto,
-		StartPort: startPort,
-		EndPort:   endPort,
-		StartAddr: binary.BigEndian.Uint32(startAddr.To4()),
-		EndAddr:   binary.BigEndian.Uint32(endAddr.To4()),
+		Name: profile,
+		Ts: ikev2.Ikev2Ts{
+			IsLocal:    isLocal,
+			ProtocolID: proto,
+			StartPort:  startPort,
+			EndPort:    endPort,
+			StartAddr:  toIKEv2IP4(startAddr),
+			EndAddr:    toIKEv2IP4(endAddr),
+		},
 	}
 	response := &ikev2.Ikev2ProfileSetTsReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -246,7 +248,6 @@ func (v *VppLink) SetIKEv2ESPTransforms(
 	cryptoAlg IKEv2EncryptionAlgorithm,
 	cryptoKeySize uint32,
 	integAlg IKEv2IntegrityAlgorithm,
-	dhGroup IKEv2DHGroup,
 ) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
@@ -255,11 +256,12 @@ func (v *VppLink) SetIKEv2ESPTransforms(
 		return errors.New("IKEv2 profile name too long (max 64)")
 	}
 	request := &ikev2.Ikev2SetEspTransforms{
-		Name:          profile,
-		CryptoAlg:     uint32(cryptoAlg),
-		CryptoKeySize: cryptoKeySize,
-		IntegAlg:      uint32(integAlg),
-		DhGroup:       uint32(dhGroup),
+		Name: profile,
+		Tr: ikev2.Ikev2EspTransforms{
+			CryptoAlg:     uint8(cryptoAlg),
+			CryptoKeySize: cryptoKeySize,
+			IntegAlg:      uint8(integAlg),
+		},
 	}
 	response := &ikev2.Ikev2SetEspTransformsReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -286,11 +288,13 @@ func (v *VppLink) SetIKEv2IKETransforms(
 		return errors.New("IKEv2 profile name too long (max 64)")
 	}
 	request := &ikev2.Ikev2SetIkeTransforms{
-		Name:          profile,
-		CryptoAlg:     uint32(cryptoAlg),
-		CryptoKeySize: cryptoKeySize,
-		IntegAlg:      uint32(integAlg),
-		DhGroup:       uint32(dhGroup),
+		Name: profile,
+		Tr: ikev2.Ikev2IkeTransforms{
+			CryptoAlg:     uint8(cryptoAlg),
+			CryptoKeySize: cryptoKeySize,
+			IntegAlg:      uint8(integAlg),
+			DhGroup:       uint8(dhGroup),
+		},
 	}
 	response := &ikev2.Ikev2SetIkeTransformsReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -319,7 +323,6 @@ func (v *VppLink) SetIKEv2DefaultTransforms(profile string) (err error) {
 		IKEv2EncryptionAlgorithmAES_GCM_16,
 		256,
 		IKEv2IntegrityAlgorithmNone,
-		IKEv2DHGroupMODP_2048_256,
 	)
 }
 
@@ -335,9 +338,11 @@ func (v *VppLink) SetIKEv2Responder(profile string, swIfIndex uint32, address ne
 	}
 	vppAddr := toIKEv2IP4(address)
 	request := &ikev2.Ikev2SetResponder{
-		Name:      profile,
-		SwIfIndex: ikev2.InterfaceIndex(swIfIndex),
-		Address:   vppAddr,
+		Name: profile,
+		Responder: ikev2.Ikev2Responder{
+			SwIfIndex: ikev2.InterfaceIndex(swIfIndex),
+			IP4:       vppAddr,
+		},
 	}
 	response := &ikev2.Ikev2SetResponderReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
