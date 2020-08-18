@@ -62,9 +62,9 @@ function getVppPid () {
 
 function kill_local_vpp () {
 	vpp_pid=$(getVppPid)
-	blue "Kill vpp [${vpp_pid}], waiting 5 seconds for restart..."
+	blue "Kill vpp [${vpp_pid}], waiting 30 seconds for restart..."
 	sudo kill $vpp_pid
-	sleep 5
+	sleep 30
 }
 
 function test () {

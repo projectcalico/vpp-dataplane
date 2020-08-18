@@ -100,12 +100,12 @@ function ipsec_ip6 () {
 }
 
 function nodeport_snat_ip4 () {
-	N=0 create_cluster
-	start_calico
-	start_test
+	N=1 create_cluster
+	N=1 start_calico
+	N=1 start_test
 	start_iperf4
 
-	echo "============ Nodeport ipv4 ============"
+	echo "============ Natoutgoing ipv4 ============"
 	$CASES snat_ip4
 	stop_iperf
 	assert_test_output_contains "connected with 20.0.0.1"
@@ -121,12 +121,12 @@ function nodeport_snat_ip4 () {
 }
 
 function nodeport_snat_ip6 () {
-	V=6 N=0 create_cluster
-	start_calico
-	start_test
+	V=6 N=1 create_cluster
+	N=1 start_calico
+	N=1 start_test
 	start_iperf6
 
-	echo "============ Nodeport ipv6 ============"
+	echo "============ Natoutgoing ipv6 ============"
 	$CASES snat_ip6
 	stop_iperf
 	assert_test_output_contains "connected with fd11::1"

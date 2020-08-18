@@ -17,6 +17,7 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $SCRIPTDIR/shared.sh
 
 CI_CONFIG_FILE=~/.config/calicovppci.sh
+PCI_BIND_NIC_TO_KERNEL=~/vpp-manager/vpp_build/extras/scripts/pci-nic-bind-to-kernel
 
 function load_parameters () {
 	if [ -f $CI_CONFIG_FILE ]; then
@@ -35,6 +36,21 @@ function load_parameters () {
 }
 
 # ------------ CLUSTER ------------
+
+function wait_for_cluster () {
+	TMP=$(kubectl cluster-info dump | grep -m 1 service-cluster-ip-range)
+	while [[ x$TMP == x ]]; do
+	  TMP=$(kubectl cluster-info dump | grep -m 1 service-cluster-ip-range)
+	  echo "cluster not yet ready..."
+	  sleep 5
+	done
+	TMP=$(kubectl get nodes node1 -o go-template --template='{{range .spec.podCIDRs}}{{printf "%s\n" .}}{{end}}')
+	while [[ x$TMP == x ]]; do
+	  TMP=$(kubectl get nodes node1 -o go-template --template='{{range .spec.podCIDRs}}{{printf "%s\n" .}}{{end}}')
+	  echo "cluster not yet ready..."
+	  sleep 5
+	done
+}
 
 function cluster_provisionning () {
   ACTION=$1
@@ -55,7 +71,7 @@ function cluster_provisionning () {
     MAIN=20.0.0.1/24
     OTHERS=20.0.0.2/24@${NODESSH}
   fi
-  if [[ $N = 0 ]]; then
+  if [[ $N = 1 ]]; then
   	OLD_OTHERS=$OTHERS
     OTHERS=
   fi
@@ -72,6 +88,7 @@ function create_cluster () {
   blue "Starting cluster... at $(date)"
   mkdir -p $LOG_DIR
   cluster_provisionning up
+  wait_for_cluster
 }
 
 function teardown_cluster () {
@@ -83,7 +100,8 @@ function teardown_cluster () {
 
 function wait_for_calico_vpp () {
 	NVPPS=0
-	while [ x$NVPPS != x2 ]; do
+	N=${N:=2}
+	while [ x$NVPPS != x$N ]; do
 	  NVPPS=$(kubectl -n kube-system get pods | grep calico-vpp | grep '2/2' | wc -l)
 	  grey "calico not yet ready"
 	  sleep 5
@@ -133,9 +151,14 @@ function wait_for_coredns () {
 
 function wait_for_calico_test () {
 	NPODS=0
+	N=${N:=2}
 	sleep 1
 	while [ x$NPODS != x1 ]; do
-	  NPODS=$(kubectl -n $SVC get pods | grep -v Running | wc -l)
+	  if [[ $N == 1 ]]; then
+		NPODS=$(kubectl -n $SVC get pods | grep -v node2 | grep -v Running | wc -l)
+	  else
+		NPODS=$(kubectl -n $SVC get pods | grep -v Running | wc -l)
+	  fi
 	  echo "test not yet ready..."
 	  sleep 1
 	done
@@ -149,12 +172,14 @@ function start_test () {
 }
 
 function start_iperf4 () {
+	ssh $NODESSH -t "$PCI_BIND_NIC_TO_KERNEL"
 	ssh $NODESSH -t "sudo ip link set $IF up" > /dev/null 2>&1
 	ssh $NODESSH -t "sudo ip addr add 20.0.0.2/24 dev $IF" > /dev/null 2>&1 || true
 	ssh $NODESSH -t "nohup bash -c 'iperf -s -B 20.0.0.2 > /tmp/iperf.log 2>&1 &'" > /dev/null 2>&1
 }
 
 function start_iperf6 () {
+	ssh $NODESSH -t "$PCI_BIND_NIC_TO_KERNEL"
 	ssh $NODESSH -t "sudo ip link set $IF up" > /dev/null 2>&1
 	ssh $NODESSH -t "sudo ip addr add fd11::2/120 dev $IF" > /dev/null 2>&1 || true
 	ssh $NODESSH -t "nohup bash -c 'iperf -s -V -B fd11::2 > /tmp/iperf.log 2>&1 &'" > /dev/null 2>&1
