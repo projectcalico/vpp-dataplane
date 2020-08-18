@@ -39,7 +39,7 @@ setup () {
   echo ${vf} > ~/vpp/vfpci
 }
 
-if [ x"$@" = "" ]; then
+if [[ x$@ == "" ]]; then
 	echo "Usage"
 	echo "avf.sh <PCI> <MAC>"
 	echo
