@@ -57,7 +57,6 @@ func NewVppLink(socket string, logger *logrus.Entry) (*VppLink, error) {
 }
 
 func (v *VppLink) Reconnect() (err error) {
-	v.Close()
 	v.conn, err = govpp.Connect(v.socket)
 	if err != nil {
 		return errors.Wrapf(err, "cannot re-connect to VPP on socket %s", v.socket)

@@ -8,8 +8,10 @@ VPPLINKDIR="$( dirname $SCRIPTDIR )"
 
 function read_config ()
 {
-	echo "Input VPP full path : "
-	read VPP_DIR
+	if [[ x$VPP_DIR == x ]]; then
+		echo "Input VPP full path : "
+		read VPP_DIR
+	fi
 
 	if [[ ! -d $VPP_DIR ]]; then
 		echo "Couldnt find anything at <$VPP_DIR>"
@@ -48,7 +50,7 @@ function fixup_govpp_apis ()
 
 function cleanup_govpp_apis ()
 {
-	find $VPPLINKDIR -path $SCRIPTDIR/$VPP_VERSION -prune -o -name '*.go' \
+	find $SCRIPTDIR/$VPP_VERSION/ -prune -o -name '*.go' \
 			-exec sed -i '/\/\/ source:/d' {} \;
 }
 
