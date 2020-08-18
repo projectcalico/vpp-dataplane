@@ -888,6 +888,11 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 		return errors.Wrap(err, "error enabling ip6 on vpptap0")
 	}
 
+	err = vpp.DisableIP6RouterAdvertisements(tapSwIfIndex)
+	if err != nil {
+		return errors.Wrap(err, "error disabling ip6 RA on vpptap0")
+	}
+
 	err = vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, params.tapRxMode)
 	if err != nil {
 		log.Errorf("error SetInterfaceRxMode on vpptap0 %v", err)

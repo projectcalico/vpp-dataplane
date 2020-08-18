@@ -457,6 +457,12 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		if err != nil {
 			return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error enabling ip6")
 		}
+
+		err = s.vpp.DisableIP6RouterAdvertisements(swIfIndex)
+		if err != nil {
+			return "", "", s.tapErrorCleanup(contTapName, netns, err, "Error disabling ip6 RA on container tap")
+		}
+
 		s.log.Infof("Add vpp tap[%d] addr %s", swIfIndex, getPodv6IPNet(swIfIndex).String())
 		err = s.vpp.AddInterfaceAddress(swIfIndex, getPodv6IPNet(swIfIndex))
 		if err != nil {

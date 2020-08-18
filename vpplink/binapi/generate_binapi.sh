@@ -4,6 +4,7 @@ set -e
 
 SOURCE="${BASH_SOURCE[0]}"
 SCRIPTDIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+VPPLINKDIR="$( dirname $SCRIPTDIR )"
 
 function read_config ()
 {
@@ -47,7 +48,7 @@ function fixup_govpp_apis ()
 
 function cleanup_govpp_apis ()
 {
-	find . -path $SCRIPTDIR/$VPP_VERSION -prune -o -name '*.go' \
+	find $VPPLINKDIR -path $SCRIPTDIR/$VPP_VERSION -prune -o -name '*.go' \
 			-exec sed -i '/\/\/ source:/d' {} \;
 }
 
@@ -65,6 +66,7 @@ function generate_govpp_apis ()
 	generate_govpp_api calico
 	generate_govpp_api af_packet
 	generate_govpp_api feature
+	generate_govpp_api ip6_nd
 
 	cleanup_govpp_apis
 	fixup_govpp_apis
@@ -76,7 +78,7 @@ function update_version_number ()
 	read RESP
 
 	if [[ x$RESP = xyes ]]; then
-		find . -path ./binapi -prune -o -name '*.go' \
+		find $VPPLINKDIR -path ./binapi -prune -o -name '*.go' \
 			-exec sed -i 's@github.com/projectcalico/vpp-dataplane/vpplink/binapi/[.~0-9a-z_-]*/'"@github.com/projectcalico/vpp-dataplane/vpplink/binapi/$VPP_VERSION/@g" {} \;
 	fi
 }
