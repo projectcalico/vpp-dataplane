@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
 if [[ "$X" != "" ]]; then set -x ; fi
 
 ORCH=$SCRIPTDIR/../baremetal/orch.sh
@@ -24,6 +26,9 @@ ORCHUP_LOG=$LOG_DIR/orchup.log
 CALICOUP_LOG=$LOG_DIR/calicoup.log
 LOGFILE=$LOG_DIR/testrun.log
 LAST_TEST_LOGFILE=$LOG_DIR/testrun.log~
+
+CI_CONFIG_FILE=~/.config/calicovppci.sh
+PCI_BIND_NIC_TO_KERNEL=$SCRIPTDIR/../baremetal/utils/pci-nic-bind-to-kernel
 
 function green ()
 {
@@ -63,3 +68,43 @@ log_node () # C, POD, NODE
 function 6safe () { if [[ "$USE_IP6" = "yes" ]]; then echo "[$1]" ; else echo "$1" ; fi }
 function get_listen_addr () { if [[ "$USE_IP6" = "yes" ]]; then echo "::" ; else echo "0.0.0.0" ; fi }
 
+function check_no_running_kubelet ()
+{
+	if [[ $(systemctl is-active --quiet kubelet || echo "dead") != dead ]]; then
+		red "Kubelet seems to be already started"
+		exit 1
+	fi
+}
+
+function load_parameters () {
+	if [ -f $CI_CONFIG_FILE ]; then
+		source $CI_CONFIG_FILE
+	else
+		echo "Please create $CI_CONFIG_FILE"
+		echo "with:"
+		echo "IF=eth0"
+		echo "NODESSH=hostname"
+		exit 1
+	fi
+	IF=${IF:=eth0}
+	if [[ $V = 6 ]]; then
+    	POD_CIDR=fd20::0/112
+    	SERVICE_CIDR=fd10::0/120
+    	MAIN=fd11::1/124
+    	OTHERS=fd11::2/124@${NODESSH}
+	elif [[ $V = 46 ]]; then
+    	POD_CIDR=10.0.0.0/16,fd20::0/112
+    	SERVICE_CIDR=10.96.0.0/16,fd10::0/120
+    	MAIN=20.0.0.1/24,fd11::1/124
+    	OTHERS=20.0.0.2/24,fd11::2/124@${NODESSH}
+	else
+    	POD_CIDR=10.0.0.0/16
+    	SERVICE_CIDR=10.96.0.0/16
+    	MAIN=20.0.0.1/24
+    	OTHERS=20.0.0.2/24@${NODESSH}
+	fi
+	if [[ $N = 1 ]]; then
+    	OLD_OTHERS=$OTHERS
+    	OTHERS=
+	fi
+}

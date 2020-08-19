@@ -33,7 +33,6 @@ function create_k8_cluster () {
 	NODE_NAME=node$N
 	eval $(provision up $MAIN "")
 	for i in $(echo $OTHERS | sed 's/;/ /g' ) ; do
-		ip=${i%%/*}
 		NODE_IP=${i%%@*}
 		SSH_NAME=${i##*@}
 		N=$((N+1))

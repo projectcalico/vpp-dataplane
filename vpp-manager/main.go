@@ -102,6 +102,22 @@ type interfaceConfig struct {
 	doSwapDriver bool
 }
 
+func (c *interfaceConfig) AddressString() string {
+	var str []string
+	for _, addr := range c.addresses {
+		str = append(str, addr.String())
+	}
+	return strings.Join(str, ",")
+}
+
+func (c *interfaceConfig) RouteString() string {
+	var str []string
+	for _, route := range c.routes {
+		str = append(str, route.String())
+	}
+	return strings.Join(str, ",")
+}
+
 type vppManagerParams struct {
 	vppStartupSleepSeconds  int
 	hasv4                   bool
@@ -239,13 +255,14 @@ func parseEnvVariables() (err error) {
 	if params.vppTapIP6 == nil {
 		return errors.Errorf("Unable to parse IP: %s", vppTapIP6String)
 	}
-	conf := os.Getenv(DefaultGWEnvVar)
-	for _, defaultGWStr := range strings.Split(conf, ",") {
-		defaultGW := net.ParseIP(defaultGWStr)
-		if defaultGW == nil {
-			return errors.Errorf("Unable to parse IP: %s", conf)
+	if conf := os.Getenv(DefaultGWEnvVar); conf != "" {
+		for _, defaultGWStr := range strings.Split(conf, ",") {
+			defaultGW := net.ParseIP(defaultGWStr)
+			if defaultGW == nil {
+				return errors.Errorf("Unable to parse IP: %s", conf)
+			}
+			params.defaultGWs = append(params.defaultGWs, defaultGW)
 		}
-		params.defaultGWs = append(params.defaultGWs, defaultGW)
 	}
 	params.TapRxRingSize = 0
 	params.TapTxRingSize = 0
@@ -398,8 +415,13 @@ func getLinuxConfig() error {
 			initialConfig.doSwapDriver = true
 		}
 	}
-
-	log.Infof("Initial device config: %+v", initialConfig)
+	log.Infof("PciId: %s", initialConfig.pciId)
+	log.Infof("Driver: %s", initialConfig.driver)
+	log.Infof("IsUp: %t", initialConfig.isUp)
+	log.Infof("DoSwapDriver: %t", initialConfig.doSwapDriver)
+	log.Infof("Mac: %s", initialConfig.hardwareAddr.String())
+	log.Infof("Addresses: [%s]", initialConfig.AddressString())
+	log.Infof("Routes: [%s]", initialConfig.RouteString())
 	return nil
 }
 
