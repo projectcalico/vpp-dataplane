@@ -691,7 +691,7 @@ func getMaxCIDRMask(addr net.IP) net.IPMask {
 
 func safeAddInterfaceAddress(swIfIndex uint32, addr *net.IPNet) (err error) {
 	maskSize, _ := addr.Mask.Size()
-	if vpplink.IsIP6(addr.IP) && maskSize != 128 {
+	if vpplink.IsIP6(addr.IP) && maskSize != 128 && addr.IP.IsLinkLocalUnicast() {
 		err = vpp.AddInterfaceAddress(swIfIndex, &net.IPNet{
 			IP:   addr.IP,
 			Mask: getMaxCIDRMask(addr.IP),
