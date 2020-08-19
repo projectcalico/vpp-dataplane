@@ -111,7 +111,23 @@ func (s *Server) needIpipTunnel(cn *connectivity.NodeConnectivity) (ipip bool, e
 	return true, nil
 }
 
-func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithdraw bool) error {
+func (s *Server) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
+	/* If only IP6 (e.g. ipsec) is supported, find nodeip4 out of nodeip6 */
+	if !vpplink.IsIP6(addr) {
+		return addr, nil
+	}
+	otherNode := s.GetNodeByIp(addr)
+	if otherNode == nil {
+		return nil, fmt.Errorf("Didnt find an ip4 for ip %s", addr.String())
+	}
+	nodeIP, _, err := net.ParseCIDR(otherNode.BGP.IPv4Address)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Didnt find an ip4 for ip %s", addr.String())
+	}
+	return nodeIP, nil
+}
+
+func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithdraw bool) (err error) {
 	var provider connectivity.ConnectivityProvider = s.flat
 
 	ipip, err := s.needIpipTunnel(cn)
@@ -120,6 +136,10 @@ func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithd
 	}
 	if ipip && config.EnableIPSec {
 		provider = s.ipsec
+		cn.NextHop, err = s.forceOtherNodeIp4(cn.NextHop)
+		if err != nil {
+			return errors.Wrap(err, "Ipsec v6 config failed")
+		}
 	} else if ipip {
 		provider = s.ipip
 	}

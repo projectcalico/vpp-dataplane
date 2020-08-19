@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -63,7 +62,8 @@ func (p IpsecProvider) setupTunnelWithIds(i int, j int, destNodeAddr net.IP, nod
 }
 
 func (p IpsecProvider) setupTunnels(destNodeAddr net.IP) (err error) {
-	nodeIP := p.getNodeIP(vpplink.IsIP6(destNodeAddr))
+	/* IP6 is not yet supported by ikev2 */
+	nodeIP := p.getNodeIP(false /* isv6 */)
 	for i := 0; i < config.IpsecAddressCount; i++ {
 		if config.CrossIpsecTunnels {
 			for j := 0; j < config.IpsecAddressCount; j++ {
