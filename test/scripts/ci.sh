@@ -21,7 +21,7 @@ source $SCRIPTDIR/cases_util.sh
 # deploys calico-vpp CNI to it, applies the test framework yaml and
 # run the test scenarios contained in cases.sh
 
-function raw_ip4 () {
+function test_raw_ip4 () {
 	create_cluster
 	start_calico
 	start_test
@@ -34,7 +34,7 @@ function raw_ip4 () {
 	teardown_cluster
 }
 
-function ipip_ip4 () {
+function test_ipip_ip4 () {
 	create_cluster
 	start_calico_ipip
 	start_test
@@ -47,7 +47,7 @@ function ipip_ip4 () {
 	teardown_cluster
 }
 
-function ipsec_ip4 () {
+function test_ipsec_ip4 () {
 	create_cluster
 	start_calico_ipsec
 	start_test
@@ -60,7 +60,7 @@ function ipsec_ip4 () {
 	teardown_cluster
 }
 
-function raw_ip6 () {
+function test_raw_ip6 () {
 	V=6 create_cluster
 	start_calico
 	start_test
@@ -73,7 +73,7 @@ function raw_ip6 () {
 	teardown_cluster
 }
 
-function ipip_ip6 () {
+function test_ipip_ip6 () {
 	V=6 create_cluster
 	start_calico_ipip
 	start_test
@@ -86,7 +86,7 @@ function ipip_ip6 () {
 	teardown_cluster
 }
 
-function ipsec_ip6 () {
+function test_ipsec_ip6 () {
 	create_cluster
 	start_calico_ipsec
 	start_test
@@ -99,59 +99,43 @@ function ipsec_ip6 () {
 	teardown_cluster
 }
 
-function nodeport_snat_ip4 () {
+function test_nodeport_snat_ip4 () {
 	N=1 create_cluster
 	N=1 start_calico
 	N=1 start_test
-	start_iperf4
 
 	echo "============ Natoutgoing ipv4 ============"
 	$CASES snat_ip4
-	stop_iperf
-	assert_test_output_contains "connected with 20.0.0.1"
 
 	echo "============ Nodeport ipv4 ============"
-	NS=iperf
-	SVC=iperf-service-nodeport-v4
-	PROTO=TCP
-	sshtest "Nodeport v4" iperf -c $(getNodeIP node1) -p $(getServiceNodePort) -t 1 -P1 -i1
-	assert_test_output_contains_not "connect failed"
+	$CASES nodeport_ip4
 
 	teardown_cluster
 }
 
-function nodeport_snat_ip6 () {
+function test_nodeport_snat_ip6 () {
 	V=6 N=1 create_cluster
 	N=1 start_calico
 	N=1 start_test
-	start_iperf6
 
 	echo "============ Natoutgoing ipv6 ============"
 	$CASES snat_ip6
-	stop_iperf
-	assert_test_output_contains "connected with fd11::1"
 
 	echo "============ Nodeport ipv6 ============"
-	NS=iperf
-	SVC=iperf-service-nodeport-v6
-	PROTO=TCP
-	sshtest "Nodeport v6" iperf -V -c $(getNodeIP node1) -p $(getServiceNodePort) -t 1 -P1 -i1
-	assert_test_output_contains_not "connect failed"
+	$CASES nodeport_ip6
 
 	teardown_cluster
 }
 
 if [ $# = 0 ]; then
 	echo "Usage"
-	echo "ci raw_ip4"
-	echo "ci ipip_ip4"
-	echo "ci ipsec_ip4"
-	echo "ci raw_ip6"
-	echo "ci ipip_ip6"
-	echo "ci ipsec_ip6"
-	echo "ci nodeport_snat_ip4"
-	echo "ci nodeport_snat_ip6"
+	for f in $(declare -F); do
+		if [[ x$(echo $f | grep -e "^test_" ) != x ]]; then
+			echo "ci $(echo $f | sed s/test_//g)"
+		fi
+	done
 else
+	check_no_running_kubelet
 	load_parameters
-	"$1"
+	"test_$1"
 fi

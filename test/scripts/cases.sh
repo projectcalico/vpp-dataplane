@@ -20,7 +20,7 @@ source $SCRIPTDIR/cases_util.sh
 # of kubectl commands to be run on a running cluster with CNI and
 # test framework installed
 
-function vpp_restart_v4 ()
+function test_vpp_restart_v4 ()
 {
 	NS=iperf
 	POD=iperf-client
@@ -28,7 +28,7 @@ function vpp_restart_v4 ()
 	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1
 }
 
-function vpp_restart_v6 ()
+function test_vpp_restart_v6 ()
 {
 	NS=iperf
 	POD=iperf-client
@@ -36,21 +36,49 @@ function vpp_restart_v6 ()
 	test "iperf ServiceName -P4" iperf -V -c iperf-service                           -t 1 -P4 -i1
 }
 
-function snat_ip4 ()
+function test_snat_ip4 ()
 {
 	NS=iperf
 	POD=iperf-client-samehost
+	configure_nodessh_ip4
+	start_iperf4
 	test "iperf 20.0.0.2 -P4" iperf -c 20.0.0.2                                      -t 1 -P1 -i1
+	stop_iperf
+	assert_test_output_contains "connected with 20.0.0.1"
 }
 
-function snat_ip6 ()
+function test_snat_ip6 ()
 {
 	NS=iperf
 	POD=iperf-client-samehost
+	configure_nodessh_ip6
+	start_iperf6
 	test "iperf fd11::2 -P4" iperf -V -c fd11::2                                     -t 1 -P1 -i1
+	stop_iperf
+	assert_test_output_contains "connected with fd11::1"
 }
 
-function ipv4 ()
+function test_nodeport_ip4 ()
+{
+	NS=iperf
+	SVC=iperf-service-nodeport-v4
+	PROTO=TCP
+	configure_nodessh_ip4
+	sshtest "Nodeport v4" iperf -c $(getNodeIP node1) -p $(getServiceNodePort) -t 1 -P1 -i1
+	assert_test_output_contains_not "connect failed"
+}
+
+function test_nodeport_ip6 ()
+{
+	NS=iperf
+	SVC=iperf-service-nodeport-v6
+	PROTO=TCP
+	configure_nodessh_ip6
+	sshtest "Nodeport v6" iperf -V -c $(getNodeIP node1) -p $(getServiceNodePort) -t 1 -P1 -i1
+	assert_test_output_contains_not "connect failed"
+}
+
+function test_ipv4 ()
 {
 	NS=iperf
 	POD=iperf-client
@@ -90,7 +118,7 @@ function ipv4 ()
 	assert_test_output_contains_not WARNING
 }
 
-function ipv6 ()
+function test_ipv6 ()
 {
 	NS=iperf
 	POD=iperf-client
@@ -126,8 +154,12 @@ function ipv6 ()
 
 if [ $# = 0 ]; then
 	echo "Usage"
-	echo "cases ipv4       - run ip4 tests"
-	echo "cases ipv6       - run ip6 tests"
+	for f in $(declare -F); do
+		if [[ x$(echo $f | grep -e "^test_" ) != x ]]; then
+			echo "cases $(echo $f | sed s/test_//g)"
+		fi
+	done
 else
-	"$1"
+	load_parameters
+	"test_$1"
 fi
