@@ -266,6 +266,12 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICOVPP_INIT_SCRIPT_TEMPLATE
+            - name: CALICOVPP_DEFAULT_GW
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_DEFAULT_GW
             - name: SERVICE_PREFIX
               value: ""
               valueFrom:

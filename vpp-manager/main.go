@@ -64,6 +64,7 @@ const (
 	TapRingSizeEnvVar             = "CALICOVPP_TAP_RING_SIZE"
 	AfPacketEnvVar                = "CALICOVPP_USE_AF_PACKET"
 	SwapDriverEnvVar              = "CALICOVPP_SWAP_DRIVER"
+	DefaultGWEnvVar               = "CALICOVPP_DEFAULT_GW"
 	ServicePrefixEnvVar           = "SERVICE_PREFIX"
 	HostIfName                    = "vpptap0"
 	HostIfTag                     = "hosttap"
@@ -128,6 +129,7 @@ type vppManagerParams struct {
 	TapRxRingSize           int
 	TapTxRingSize           int
 	newDriverName           string
+	defaultGWs              []net.IP
 }
 
 func getRxMode(envVar string) types.RxMode {
@@ -236,6 +238,14 @@ func parseEnvVariables() (err error) {
 	params.vppTapIP6 = net.ParseIP(vppTapIP6String)
 	if params.vppTapIP6 == nil {
 		return errors.Errorf("Unable to parse IP: %s", vppTapIP6String)
+	}
+	conf := os.Getenv(DefaultGWEnvVar)
+	for _, defaultGWStr := range strings.Split(conf, ",") {
+		defaultGW := net.ParseIP(defaultGWStr)
+		if defaultGW == nil {
+			return errors.Errorf("Unable to parse IP: %s", conf)
+		}
+		params.defaultGWs = append(params.defaultGWs, defaultGW)
 	}
 	params.TapRxRingSize = 0
 	params.TapTxRingSize = 0
@@ -837,6 +847,17 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 		})
 		if err != nil {
 			log.Errorf("cannot add route in vpp: %v", err)
+		}
+	}
+	for _, defaultGW := range params.defaultGWs {
+		err = vpp.RouteAdd(&types.Route{
+			Paths: []types.RoutePath{{
+				Gw:        defaultGW,
+				SwIfIndex: DataInterfaceSwIfIndex,
+			}},
+		})
+		if err != nil {
+			log.Errorf("cannot add default route via %s in vpp: %v", defaultGW, err)
 		}
 	}
 	err = addExtraAddresses(initialConfig.addresses)
