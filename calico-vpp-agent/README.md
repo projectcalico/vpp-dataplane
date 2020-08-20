@@ -1,5 +1,7 @@
-# Calico VPP dataplane
+# calico-vpp-agent
 
-This repo contains an integration between Calico and VPP. This is a work in progress.
-
-Please see the [Wiki](https://github.com/calico-vpp/calico-vpp/wiki) for more information and [Setup Instructions](https://github.com/calico-vpp/calico-vpp/wiki/Setup-instructions).
+This directory contains the agent that configures VPP for:
+- CNI implementation
+- Services load balancing
+- Traffic encapsulation / encryption
+- NodePorts implementation

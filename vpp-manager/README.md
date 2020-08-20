@@ -13,10 +13,11 @@ It is responsible for:
 
 ## Configuration files
 
-- `CALICOVPP_CONFIG_EXEC_TEMPLATE` : template for startup script written to `/etc/vpp/startup.exec`. If this is a bash script (starting with the `#!/bin/bash` shebang) it will be executed before vpp starts.
+- `CALICOVPP_INIT_SCRIPT_TEMPLATE` : template for a bash script to run in the VPP container before VPP starts
+- `CALICOVPP_CONFIG_EXEC_TEMPLATE` : template for startup script written to `/etc/vpp/startup.exec`
 - `CALICOVPP_CONFIG_TEMPLATE` : vpp config file written to `/etc/vpp/startup.conf`
 
 The following substitutions will be done :
 
 - `__VPP_DATAPLANE_IF__` will be the value of `CALICOVPP_INTERFACE`
-- `__PCI_DEVICE_ID__` will be the PCI linux gives for the interface `CALICOVPP_INTERFACE` (this doesn't happen for `startup.exec` as it might be its job to create this NIC)
+- `__PCI_DEVICE_ID__` will be the PCI ID (for instance `0000:00:06.0`) of the interface `CALICOVPP_INTERFACE`. This substitution is not done for `CALICOVPP_INIT_SCRIPT_TEMPLATE` as this script is run before the Linux configuration is gathered. In particular, it is possible to create the target device in this script (for instance with a virtual function)
