@@ -3,7 +3,6 @@
 set -o errexit
 
 cd /root/vpp-manager/vpp_build
-make install-dep
 
 git apply ../vpp-build.patch
 make build-release

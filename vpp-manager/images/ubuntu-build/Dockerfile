@@ -2,7 +2,8 @@ FROM ubuntu:20.04
 
 LABEL maintainer="aloaugus@cisco.com"
 
-# DEB_DEPENDS from VPP's Makefile, added here to be cached and accelerate VPP's install-dep
+# DEB_DEPENDS from VPP's Makefile, added here to be cached
+# This must be updated when the list of VPP dependencies change
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-virtualenv libssl-dev dh-python \
