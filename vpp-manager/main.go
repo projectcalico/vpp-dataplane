@@ -857,7 +857,6 @@ func addExtraAddresses(addrList []netlink.Addr) (err error) {
 }
 
 func configureVpp(vpp *vpplink.VppLink) (err error) {
-	defer vpp.Close()
 	// Always enable GSO feature on data interface, only a tiny negative effect on perf if GSO is not
 	// enabled on the taps or already done before an encap
 	err = vpp.EnableGSOFeature(DataInterfaceSwIfIndex)
@@ -1158,6 +1157,7 @@ func runVpp() (err error) {
 
 	// Configure VPP
 	err = configureVpp(vpp)
+	vpp.Close()
 	if err != nil {
 		<-vppDeadChan
 		terminateVpp("Error configuring VPP (SIGINT %d): %v", vppProcess.Pid, err)
@@ -1167,7 +1167,6 @@ func runVpp() (err error) {
 	err = updateCalicoNode()
 	if err != nil {
 		terminateVpp("Error updating Calico node (SIGINT %d): %v", vppProcess.Pid, err)
-		vpp.Close()
 		<-vppDeadChan
 		restoreConfiguration()
 		return errors.Wrap(err, "Error updating Calico node")
