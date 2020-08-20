@@ -19,20 +19,20 @@ import (
 	"context"
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/pkg/errors"
 	calicoapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
 func getNetworkRoute(network string) (route *netlink.Route, err error) {
 	var gw net.IP
-	log.Infof("ip pool %s added", network)
+	log.Infof("Added ip pool %s", network)
 	_, cidr, err := net.ParseCIDR(network)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error parsing %s", network)
@@ -86,7 +86,7 @@ func syncPools() {
 		return
 	}
 
-	log.Info("starting pools watcher...")
+	log.Info("Starting pools watcher...")
 	for {
 		poolsList, err := client.IPPools().List(context.Background(), options.ListOptions{})
 		if err != nil {

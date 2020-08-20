@@ -21,13 +21,14 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
 
 var (
@@ -62,6 +63,27 @@ func nodeSpecCopy(s *calicov3.NodeSpec) *calicov3.NodeSpec {
 		}
 	}
 	return r
+}
+
+func (s *Server) GetNodeByIp(addr net.IP) *calicov3.NodeSpec {
+	for _, node := range state {
+		if vpplink.IsIP6(addr) {
+			nodeIP, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
+			if err == nil {
+				if addr.Equal(nodeIP) {
+					return node.Spec
+				}
+			}
+		} else {
+			nodeIP, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
+			if err == nil {
+				if addr.Equal(nodeIP) {
+					return node.Spec
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (s *Server) watchNodes(initialResourceVersion string) error {

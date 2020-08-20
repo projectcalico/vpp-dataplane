@@ -28,7 +28,6 @@ func (v *VppLink) Retry(sleepBtwRetries time.Duration, retries int, f interface{
 	var vargs []reflect.Value
 	for _, a := range args {
 		vargs = append(vargs, reflect.ValueOf(a))
-		log.Warnf("appending %d", a)
 	}
 	for i := 0; i < retries; i++ {
 		ret := reflect.ValueOf(f).Call(vargs)[0]
