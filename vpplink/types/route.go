@@ -63,22 +63,28 @@ func (r *Route) GetVppDstAddress() vppip.Address {
 	return ToVppIpAddress(r.Dst.IP)
 }
 
-func isV6toProto(addr net.IP) vppip.FibPathNhProto {
-	if IsIP6(addr) {
-		return vppip.FIB_API_PATH_NH_PROTO_IP6
-	} else {
-		return vppip.FIB_API_PATH_NH_PROTO_IP4
+func IsV6toAf(isv6 bool) vppip.AddressFamily {
+	if isv6 {
+		return vppip.ADDRESS_IP6
 	}
+	return vppip.ADDRESS_IP4
 }
 
-func (r *Route) GetProto() vppip.FibPathNhProto {
-	if r.Dst != nil {
-		return isV6toProto(r.Dst.IP)
-	}
-	for _, path := range r.Paths {
-		return isV6toProto(path.Gw)
+func IsV6toFibProto(isv6 bool) vppip.FibPathNhProto {
+	if isv6 {
+		return vppip.FIB_API_PATH_NH_PROTO_IP6
 	}
 	return vppip.FIB_API_PATH_NH_PROTO_IP4
+}
+
+func (r *Route) IsIP6() bool {
+	if r.Dst != nil {
+		return IsIP6(r.Dst.IP)
+	}
+	for _, path := range r.Paths {
+		return IsIP6(path.Gw)
+	}
+	return false
 }
 
 func (r *Route) pathsString() string {

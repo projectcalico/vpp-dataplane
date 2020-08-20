@@ -120,14 +120,18 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
+	isIP6 := route.IsIP6()
 	prefix := vppip.Prefix{}
 	if route.Dst != nil {
 		prefixLen, _ := route.Dst.Mask.Size()
 		prefix.Len = uint8(prefixLen)
 		prefix.Address = route.GetVppDstAddress()
+	} else {
+		prefix.Address = vppip.Address{
+			Af: types.IsV6toAf(isIP6),
+		}
 	}
 
-	proto := route.GetProto()
 	paths := make([]vppip.FibPath, 0, len(route.Paths))
 	for _, routePath := range route.Paths {
 		path := vppip.FibPath{
@@ -138,7 +142,7 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 			Preference: 0,
 			Type:       vppip.FIB_API_PATH_TYPE_NORMAL,
 			Flags:      vppip.FIB_API_PATH_FLAG_NONE,
-			Proto:      proto,
+			Proto:      types.IsV6toFibProto(isIP6),
 		}
 		if routePath.Gw != nil {
 			path.Nh.Address = routePath.GetVppGwAddress().Un
@@ -156,6 +160,7 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 		IsAdd: isAdd,
 		Route: vppRoute,
 	}
+
 	response := &vppip.IPRouteAddDelReply{}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {

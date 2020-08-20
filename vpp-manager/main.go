@@ -118,6 +118,14 @@ func (c *interfaceConfig) RouteString() string {
 	return strings.Join(str, ",")
 }
 
+func ServiceCIDRsString() string {
+	var str []string
+	for _, cidr := range params.serviceCIDRs {
+		str = append(str, cidr.String())
+	}
+	return strings.Join(str, ",")
+}
+
 type vppManagerParams struct {
 	vppStartupSleepSeconds  int
 	hasv4                   bool
@@ -158,6 +166,19 @@ func getRxMode(envVar string) types.RxMode {
 		return types.Adaptative
 	default:
 		return defaultRxMode
+	}
+}
+
+func formatRxMode(rxMode types.RxMode) string {
+	switch rxMode {
+	case types.Interrupt:
+		return "interrupt"
+	case types.Polling:
+		return "polling"
+	case types.Adaptative:
+		return "adaptive"
+	default:
+		return "default"
 	}
 }
 
@@ -384,7 +405,6 @@ func getLinuxConfig() error {
 	if !params.hasv4 && !params.hasv6 {
 		return errors.Errorf("no address found for node")
 	}
-	log.Infof("Node IP4 %s , Node IP6 %s", params.nodeIP4, params.nodeIP6)
 
 	// We allow PCI not to be found e.g for AF_PACKET
 	// Grab PCI id - last PCI id in the real path to /sys/class/net/<device name>
@@ -401,7 +421,6 @@ func getLinuxConfig() error {
 		log.Warnf("Could not find pci device for %s: path is %s", params.mainInterface, devicePath)
 	} else {
 		initialConfig.pciId = matches[len(matches)-1]
-		log.Infof("Found pci device: %s", initialConfig.pciId)
 		// Grab Driver id for the pci device
 		driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver", initialConfig.pciId)
 		driverPath, err := os.Readlink(driverLinkPath)
@@ -410,18 +429,26 @@ func getLinuxConfig() error {
 			return nil
 		}
 		initialConfig.driver = driverPath[strings.LastIndex(driverPath, "/")+1:]
-		log.Infof("Found driver: %s", initialConfig.driver)
 		if params.newDriverName != "" && params.newDriverName != initialConfig.driver {
 			initialConfig.doSwapDriver = true
 		}
 	}
-	log.Infof("PciId: %s", initialConfig.pciId)
-	log.Infof("Driver: %s", initialConfig.driver)
-	log.Infof("IsUp: %t", initialConfig.isUp)
-	log.Infof("DoSwapDriver: %t", initialConfig.doSwapDriver)
-	log.Infof("Mac: %s", initialConfig.hardwareAddr.String())
-	log.Infof("Addresses: [%s]", initialConfig.AddressString())
-	log.Infof("Routes: [%s]", initialConfig.RouteString())
+	log.Infof("CorePattern:    %s", params.corePattern)
+	log.Infof("RxMode:         %s", formatRxMode(params.rxMode))
+	log.Infof("TapRxMode:      %s", formatRxMode(params.tapRxMode))
+	log.Infof("Node IP4:       %s", params.nodeIP4)
+	log.Infof("Node IP6:       %s", params.nodeIP6)
+	log.Infof("ExtraAddrCount: %d", params.extraAddrCount)
+	log.Infof("PciId:          %s", initialConfig.pciId)
+	log.Infof("Driver:         %s", initialConfig.driver)
+	log.Infof("Linux if is up: %t", initialConfig.isUp)
+	log.Infof("DoSwapDriver:   %t", initialConfig.doSwapDriver)
+	log.Infof("Use AF_PACKET:  %t", params.useAfPacket)
+	log.Infof("Tap Ring Size:  rx:%d tx:%d", params.TapRxRingSize, params.TapTxRingSize)
+	log.Infof("Mac:            %s", initialConfig.hardwareAddr.String())
+	log.Infof("Addresses:      [%s]", initialConfig.AddressString())
+	log.Infof("Routes:         [%s]", initialConfig.RouteString())
+	log.Infof("Service CIDRs:  [%s]", ServiceCIDRsString())
 	return nil
 }
 
@@ -439,11 +466,11 @@ func isDriverLoaded(driver string) (bool, error) {
 func checkDrivers() {
 	vfioLoaded, err := isDriverLoaded("vfio-pci")
 	if err != nil {
-		log.Warnf("error determining whether vfio-pci is loaded")
+		log.Warnf("Error determining whether vfio-pci is loaded")
 	}
 	uioLoaded, err := isDriverLoaded("uio_pci_generic")
 	if err != nil {
-		log.Warnf("error determining whether vfio-pci is loaded")
+		log.Warnf("Error determining whether vfio-pci is loaded")
 	}
 	if !vfioLoaded && !uioLoaded {
 		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
@@ -458,11 +485,11 @@ func swapDriver(pciDevice, newDriver string, addId bool) error {
 		// Grab device vendor and id
 		vendor, err := ioutil.ReadFile(deviceRoot + "/vendor")
 		if err != nil {
-			return errors.Wrapf(err, "error reading device %s vendor", pciDevice)
+			return errors.Wrapf(err, "Error reading device %s vendor", pciDevice)
 		}
 		device, err := ioutil.ReadFile(deviceRoot + "/device")
 		if err != nil {
-			return errors.Wrapf(err, "error reading device %s id", pciDevice)
+			return errors.Wrapf(err, "Error reading device %s id", pciDevice)
 		}
 		// Add it to driver before unbinding to prevent spontaneous binds
 		identifier := fmt.Sprintf("%s %s\n", string(vendor[2:6]), string(device[2:6]))
@@ -475,10 +502,10 @@ func swapDriver(pciDevice, newDriver string, addId bool) error {
 	err := ioutil.WriteFile(deviceRoot+"/driver/unbind", []byte(pciDevice), 0200)
 	if err != nil {
 		// Error on unbind is not critical, device might beind successfully afterwards if it is not currently bound
-		log.Warnf("error unbinding %s: %v", pciDevice, err)
+		log.Warnf("Error unbinding %s: %v", pciDevice, err)
 	}
 	err = ioutil.WriteFile(driverRoot+"/bind", []byte(pciDevice), 0200)
-	return errors.Wrapf(err, "error binding %s to %s", pciDevice, newDriver)
+	return errors.Wrapf(err, "Error binding %s to %s", pciDevice, newDriver)
 }
 
 func writeFile(state string, path string) error {
@@ -519,7 +546,7 @@ func restoreLinuxConfig() (err error) {
 	if initialConfig.pciId != "" && initialConfig.driver != "" {
 		err := swapDriver(initialConfig.pciId, initialConfig.driver, false)
 		if err != nil {
-			log.Warnf("error swapping back driver to %s for %s: %v", initialConfig.driver, initialConfig.pciId, err)
+			log.Warnf("Error swapping back driver to %s for %s: %v", initialConfig.driver, initialConfig.pciId, err)
 		}
 	}
 	if initialConfig.isUp {
@@ -532,7 +559,7 @@ func restoreLinuxConfig() (err error) {
 			if err != nil {
 				retries += 1
 				if retries >= 10 {
-					return errors.Wrapf(err, "error finding link %s after %d tries", params.mainInterface, retries)
+					return errors.Wrapf(err, "Error finding link %s after %d tries", params.mainInterface, retries)
 				}
 				time.Sleep(500 * time.Millisecond)
 			} else {
@@ -542,7 +569,7 @@ func restoreLinuxConfig() (err error) {
 		}
 		err = netlink.LinkSetUp(link)
 		if err != nil {
-			return errors.Wrapf(err, "error setting link %s back up", params.mainInterface)
+			return errors.Wrapf(err, "Error setting link %s back up", params.mainInterface)
 		}
 		// Re-add all adresses and routes
 		failed := false
@@ -601,7 +628,7 @@ func generateVppConfigExecFile() error {
 	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.mainInterface)
 	err := errors.Wrapf(
 		ioutil.WriteFile(VppConfigExecFile, []byte(template+"\n"), 0744),
-		"error writing VPP Exec configuration to %s",
+		"Error writing VPP Exec configuration to %s",
 		VppConfigExecFile,
 	)
 	return err
@@ -613,7 +640,7 @@ func generateVppConfigFile() error {
 	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.mainInterface)
 	return errors.Wrapf(
 		ioutil.WriteFile(VppConfigFile, []byte(template+"\n"), 0644),
-		"error writing VPP configuration to %s",
+		"Error writing VPP configuration to %s",
 		VppConfigFile,
 	)
 }
@@ -630,21 +657,19 @@ func removeInitialRoutes(link netlink.Link) {
 	for _, addr := range initialConfig.addresses {
 		err := netlink.AddrDel(link, &addr)
 		if err != nil {
-			log.Errorf("error adding address %s to tap interface : %+v", addr, err)
+			log.Errorf("Error adding address %s to tap interface : %+v", addr, err)
 		}
 	}
 }
 
 func configurePunt(tapSwIfIndex uint32) (err error) {
 	if params.hasv4 {
-		log.Infof("Configuring ip4 punt")
 		err := vpp.PuntRedirect(vpplink.INVALID_SW_IF_INDEX, tapSwIfIndex, params.vppFakeNextHopIP4)
 		if err != nil {
 			return errors.Wrapf(err, "Error configuring ipv4 punt")
 		}
 	}
 	if params.hasv6 {
-		log.Infof("Configuring ip6 punt")
 		err := vpp.PuntRedirect(vpplink.INVALID_SW_IF_INDEX, tapSwIfIndex, params.vppFakeNextHopIP6)
 		if err != nil {
 			return errors.Wrapf(err, "Error configuring ipv6 punt")
@@ -656,7 +681,7 @@ func configurePunt(tapSwIfIndex uint32) (err error) {
 func configureLinuxTap(link netlink.Link) (err error) {
 	err = netlink.LinkSetUp(link)
 	if err != nil {
-		return errors.Wrapf(err, "error setting tap %s up", HostIfName)
+		return errors.Wrapf(err, "Error setting tap %s up", HostIfName)
 	}
 	// Add /32 or /128 for each address configured on VPP side
 	for _, addr := range initialConfig.addresses {
@@ -670,7 +695,7 @@ func configureLinuxTap(link netlink.Link) (err error) {
 		log.Infof("Adding address %+v to tap interface", singleAddr)
 		err = netlink.AddrAdd(link, &singleAddr)
 		if err != nil {
-			return errors.Wrapf(err, "error adding address %s to tap interface", singleAddr)
+			return errors.Wrapf(err, "Error adding address %s to tap interface", singleAddr)
 		}
 	}
 	return nil
@@ -718,7 +743,7 @@ func configureVppTap(link netlink.Link, tapSwIfIndex uint32, tapAddr net.IP, nxt
 	}
 	err = safeAddInterfaceAddress(tapSwIfIndex, addr)
 	if err != nil {
-		return errors.Wrap(err, "error adding address to tap")
+		return errors.Wrap(err, "Error adding address to tap")
 	}
 	err = vpp.AddNeighbor(&types.Neighbor{
 		SwIfIndex:    tapSwIfIndex,
@@ -726,7 +751,7 @@ func configureVppTap(link netlink.Link, tapSwIfIndex uint32, tapAddr net.IP, nxt
 		HardwareAddr: params.containerSideMacAddress,
 	})
 	if err != nil {
-		return errors.Wrap(err, "error adding neighbor to tap")
+		return errors.Wrap(err, "Error adding neighbor to tap")
 	}
 
 	// "dummy" next-hop directly connected on the tap interface (route + neighbor)
@@ -753,7 +778,7 @@ func configureVppTap(link netlink.Link, tapSwIfIndex uint32, tapAddr net.IP, nxt
 	for _, serviceCIDR := range params.serviceCIDRs {
 		if vpplink.IsIP4(serviceCIDR.IP) == vpplink.IsIP4(tapAddr) {
 			// Add a route for the service prefix through VPP
-			log.Infof("adding route to service prefix %s through VPP", serviceCIDR.String())
+			log.Infof("Adding route to service prefix %s through VPP", serviceCIDR.String())
 			err = netlink.RouteAdd(&netlink.Route{
 				Dst:       serviceCIDR,
 				LinkIndex: link.Attrs().Index,
@@ -775,7 +800,7 @@ func configureVppTap(link netlink.Link, tapSwIfIndex uint32, tapAddr net.IP, nxt
 			LinkIndex: link.Attrs().Index,
 			Gw:        tapAddr,
 		}
-		log.Infof("Adding route %+v via VPP", newRoute)
+		log.Infof("Adding route %s via VPP", newRoute)
 		err = netlink.RouteAdd(&newRoute)
 		if err == syscall.EEXIST {
 			log.Warnf("cannot add route %+v via vpp, %+v", newRoute, err)
@@ -791,7 +816,7 @@ func createVppLink() (vpp *vpplink.VppLink, err error) {
 	for i := 0; i < 10; i++ {
 		vpp, err = vpplink.NewVppLink(VppApiSocket, log.WithFields(log.Fields{"component": "vpp-api"}))
 		if err != nil {
-			log.Warnf("Cannot connect to VPP on socket %s try %d/10: %v", VppApiSocket, i, err)
+			log.Warnf("Try [%d/10] %v", i, err)
 			err = nil
 			time.Sleep(2 * time.Second)
 		} else {
@@ -802,6 +827,9 @@ func createVppLink() (vpp *vpplink.VppLink, err error) {
 }
 
 func addExtraAddresses(addrList []netlink.Addr) (err error) {
+	if params.extraAddrCount == 0 {
+		return nil
+	}
 	log.Infof("Adding %d extra addresses", params.extraAddrCount)
 	v4Count := 0
 	var addr net.IPNet
@@ -822,7 +850,7 @@ func addExtraAddresses(addrList []netlink.Addr) (err error) {
 		a.IP[2] += byte(i)
 		err = safeAddInterfaceAddress(DataInterfaceSwIfIndex, a)
 		if err != nil {
-			log.Errorf("error adding address to data interface: %v", err)
+			log.Errorf("Error adding address to data interface: %v", err)
 		}
 	}
 	return nil
@@ -834,24 +862,24 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 	// enabled on the taps or already done before an encap
 	err = vpp.EnableGSOFeature(DataInterfaceSwIfIndex)
 	if err != nil {
-		return errors.Wrap(err, "error enabling GSO on data interface")
+		return errors.Wrap(err, "Error enabling GSO on data interface")
 	}
 
 	err = vpp.SetInterfaceRxMode(DataInterfaceSwIfIndex, types.AllQueues, params.rxMode)
 	if err != nil {
-		log.Errorf("error SetInterfaceRxMode on data interface %v", err)
+		log.Warnf("%v", err)
 	}
 
 	err = vpp.EnableInterfaceIP6(DataInterfaceSwIfIndex)
 	if err != nil {
-		return errors.Wrap(err, "error enabling ip6 on if")
+		return errors.Wrap(err, "Error enabling ip6 on if")
 	}
 
 	for _, addr := range initialConfig.addresses {
 		log.Infof("Adding address %s to data interface", addr.String())
 		err = safeAddInterfaceAddress(DataInterfaceSwIfIndex, addr.IPNet)
 		if err != nil {
-			log.Errorf("error adding address to data interface: %v", err)
+			log.Errorf("Error adding address to data interface: %v", err)
 		}
 	}
 	for _, route := range initialConfig.routes {
@@ -872,6 +900,7 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 		}
 	}
 	for _, defaultGW := range params.defaultGWs {
+		log.Infof("Adding default route to %s", defaultGW.String())
 		err = vpp.RouteAdd(&types.Route{
 			Paths: []types.RoutePath{{
 				Gw:        defaultGW,
@@ -914,36 +943,36 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 		TxRingSize:     params.TapTxRingSize,
 	})
 	if err != nil {
-		return errors.Wrap(err, "error creating tap")
+		return errors.Wrap(err, "Error creating tap")
 	}
 	err = writeFile(strconv.FormatInt(int64(tapSwIfIndex), 10), VppManagerTapIdxFile)
 	if err != nil {
-		return errors.Wrap(err, "error writing tap idx")
+		return errors.Wrap(err, "Error writing tap idx")
 	}
 
 	err = vpp.InterfaceAdminUp(tapSwIfIndex)
 	if err != nil {
-		return errors.Wrap(err, "error setting tap up")
+		return errors.Wrap(err, "Error setting tap up")
 	}
 
 	err = vpp.EnableInterfaceIP6(tapSwIfIndex)
 	if err != nil {
-		return errors.Wrap(err, "error enabling ip6 on vpptap0")
+		return errors.Wrap(err, "Error enabling ip6 on vpptap0")
 	}
 
 	err = vpp.DisableIP6RouterAdvertisements(tapSwIfIndex)
 	if err != nil {
-		return errors.Wrap(err, "error disabling ip6 RA on vpptap0")
+		return errors.Wrap(err, "Error disabling ip6 RA on vpptap0")
 	}
 
 	err = vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, params.tapRxMode)
 	if err != nil {
-		log.Errorf("error SetInterfaceRxMode on vpptap0 %v", err)
+		log.Errorf("Error SetInterfaceRxMode on vpptap0 %v", err)
 	}
 
 	err = configurePunt(tapSwIfIndex)
 	if err != nil {
-		return errors.Wrap(err, "error adding redirect to tap")
+		return errors.Wrap(err, "Error adding redirect to tap")
 	}
 
 	// Linux side tap setup
@@ -954,17 +983,17 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 
 	err = configureLinuxTap(link)
 	if err != nil {
-		return errors.Wrap(err, "error configure tap linux side")
+		return errors.Wrap(err, "Error configure tap linux side")
 	}
 
 	err = configureVppTap(link, tapSwIfIndex, params.vppTapIP4, params.vppFakeNextHopIP4, VppTapIP4PrefixLen)
 	if err != nil {
-		return errors.Wrap(err, "error configuring vpp side ipv4 tap")
+		return errors.Wrap(err, "Error configuring vpp side ipv4 tap")
 	}
 
 	err = configureVppTap(link, tapSwIfIndex, params.vppTapIP6, params.vppFakeNextHopIP6, VppTapIP6PrefixLen)
 	if err != nil {
-		return errors.Wrap(err, "error configuring vpp side ipv6 tap")
+		return errors.Wrap(err, "Error configuring vpp side ipv6 tap")
 	}
 
 	// TODO should watch for service prefix and ip pools to always route them through VPP
@@ -979,14 +1008,13 @@ func updateCalicoNode() (err error) {
 	for i := 0; i < 10; i++ {
 		client, err = calicocli.NewFromEnv()
 		if err != nil {
-			return errors.Wrap(err, "error creating calico client")
+			return errors.Wrap(err, "Error creating calico client")
 		}
-		log.Infof("Getting current node from calico API")
 		ctx, cancel1 := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel1()
 		node, err = client.Nodes().Get(ctx, params.nodeName, calicoopts.GetOptions{})
 		if err != nil {
-			log.Warnf("Try [%d] cannot get current node from Calico %+v", i, err)
+			log.Warnf("Try [%d/10] cannot get current node from Calico %+v", i, err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -996,14 +1024,14 @@ func updateCalicoNode() (err error) {
 			node.Spec.BGP = &calicoapi.NodeBGPSpec{}
 		}
 		if params.hasv4 {
-			log.Infof("Setting BGP V4 conf %s", params.nodeIP4)
+			log.Infof("Setting BGP nodeIP %s", params.nodeIP4)
 			if node.Spec.BGP.IPv4Address != params.nodeIP4 {
 				node.Spec.BGP.IPv4Address = params.nodeIP4
 				needUpdate = true
 			}
 		}
 		if params.hasv6 {
-			log.Infof("Setting BGP V6 conf %s", params.nodeIP6)
+			log.Infof("Setting BGP nodeIP %s", params.nodeIP6)
 			if node.Spec.BGP.IPv6Address != params.nodeIP6 {
 				node.Spec.BGP.IPv6Address = params.nodeIP6
 				needUpdate = true
@@ -1016,18 +1044,18 @@ func updateCalicoNode() (err error) {
 			defer cancel2()
 			updated, err = client.Nodes().Update(ctx, node, calicoopts.SetOptions{})
 			if err != nil {
-				log.Warnf("Try [%d] cannot update current node: %+v", i, err)
+				log.Warnf("Try [%d/10] cannot update current node: %+v", i, err)
 				time.Sleep(1 * time.Second)
 				continue
 			}
-			log.Debugf("updated node: %+v", updated)
+			log.Debugf("Updated node: %+v", updated)
 			return nil
 		} else {
-			log.Infof("node doesn't need updating :)")
+			log.Infof("Node doesn't need updating :)")
 			return nil
 		}
 	}
-	return errors.Wrap(err, "error updating node")
+	return errors.Wrap(err, "Error updating node")
 }
 
 func pingCalicoVpp() error {
@@ -1059,13 +1087,13 @@ func runVpp() (err error) {
 		// Set interface down if it is up
 		link, err := netlink.LinkByName(params.mainInterface)
 		if err != nil {
-			return errors.Wrapf(err, "error finding link %s", params.mainInterface)
+			return errors.Wrapf(err, "Error finding link %s", params.mainInterface)
 		}
 		err = netlink.LinkSetDown(link)
 		if err != nil {
 			// In case it still succeeded
 			netlink.LinkSetUp(link)
-			return errors.Wrapf(err, "error setting link %s down", params.mainInterface)
+			return errors.Wrapf(err, "Error setting link %s down", params.mainInterface)
 		}
 	}
 	if initialConfig.doSwapDriver {
@@ -1087,10 +1115,10 @@ func runVpp() (err error) {
 	err = vppCmd.Start()
 	if err != nil {
 		restoreConfiguration()
-		return errors.Wrap(err, "error starting vpp process")
+		return errors.Wrap(err, "Error starting vpp process")
 	}
 	vppProcess = vppCmd.Process
-	log.Infof("VPP started. PID: %d", vppProcess.Pid)
+	log.Infof("VPP started [PID %d]", vppProcess.Pid)
 	runningCond.Broadcast()
 
 	// If needed, wait some time that vpp boots up
@@ -1114,7 +1142,7 @@ func runVpp() (err error) {
 			vpp.Close()
 			<-vppDeadChan
 			restoreConfiguration()
-			return errors.Wrap(err, "error creating af_packet")
+			return errors.Wrap(err, "Error creating af_packet")
 		}
 	}
 
@@ -1125,7 +1153,7 @@ func runVpp() (err error) {
 		vpp.Close()
 		<-vppDeadChan
 		restoreConfiguration()
-		return errors.Wrap(err, "error setting data interface up")
+		return errors.Wrap(err, "Error setting data interface up")
 	}
 
 	// Configure VPP
@@ -1191,7 +1219,6 @@ func setCorePattern() error {
 	if params.corePattern == "" {
 		return nil
 	}
-	log.Infof("Setting corePattern to : %s", params.corePattern)
 	err := writeFile(params.corePattern, "/proc/sys/kernel/core_pattern")
 	if err != nil {
 		return errors.Wrap(err, "Error writing corePattern")
