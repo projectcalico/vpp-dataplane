@@ -1,0 +1,48 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-config
+  namespace: kube-system
+data:  # Configuration template for VPP in EKS
+  service_prefix: 10.100.0.0/16
+  vpp_dataplane_interface: eth0
+  veth_mtu: "1410"
+  default_ipv4_pool_cidr: 192.168.0.0/16
+  vpp_config_template: |-
+    unix {
+      nodaemon
+      full-coredump
+      cli-listen /var/run/vpp/cli.sock
+    }
+    api-trace { on }
+    cpu {
+        main-core 1
+        workers 0
+    }
+    socksvr {
+        socket-name /var/run/vpp/vpp-api.sock
+    }
+    plugins {
+        plugin default { enable }
+        plugin calico_plugin.so { enable }
+        plugin dpdk_plugin.so { disable }
+    }
+
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: vpp
+          env:
+            - name: CALICOVPP_USE_AF_PACKET
+              value: "true"
+          resources:
+            limits:
+              hugepages-2Mi: 0
+
