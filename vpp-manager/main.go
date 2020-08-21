@@ -113,7 +113,11 @@ func (c *interfaceConfig) AddressString() string {
 func (c *interfaceConfig) RouteString() string {
 	var str []string
 	for _, route := range c.routes {
-		str = append(str, route.String())
+		if route.Dst == nil {
+			str = append(str, "<nil Dst>")
+		} else {
+			str = append(str, route.String())
+		}
 	}
 	return strings.Join(str, ",")
 }
