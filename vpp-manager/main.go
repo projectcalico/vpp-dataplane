@@ -672,11 +672,19 @@ func configurePunt(tapSwIfIndex uint32) (err error) {
 		if err != nil {
 			return errors.Wrapf(err, "Error configuring ipv4 punt")
 		}
+		err = vpp.PuntAllL4(false)
+		if err != nil {
+			return errors.Wrapf(err, "Error configuring ipv4 L4 punt")
+		}
 	}
 	if params.hasv6 {
 		err := vpp.PuntRedirect(vpplink.INVALID_SW_IF_INDEX, tapSwIfIndex, params.vppFakeNextHopIP6)
 		if err != nil {
 			return errors.Wrapf(err, "Error configuring ipv6 punt")
+		}
+		err = vpp.PuntAllL4(true)
+		if err != nil {
+			return errors.Wrapf(err, "Error configuring ipv6 L4 punt")
 		}
 	}
 	return nil
