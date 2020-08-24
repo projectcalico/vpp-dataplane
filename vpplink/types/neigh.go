@@ -18,8 +18,8 @@ package types
 import (
 	"net"
 
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-g7aeaa83db/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-g7aeaa83db/ip_neighbor"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/ip_neighbor"
 )
 
 type IPNeighborFlags uint32

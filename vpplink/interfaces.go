@@ -21,11 +21,12 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-g7aeaa83db/gso"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-g7aeaa83db/interfaces"
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-g7aeaa83db/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-g7aeaa83db/ip_neighbor"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-g7aeaa83db/tapv2"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/gso"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/interfaces"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/punt"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/tapv2"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -423,6 +424,45 @@ func (v *VppLink) PuntRedirect(sourceSwIfIndex, destSwIfIndex uint32, nh net.IP)
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
+	}
+	return nil
+}
+
+// PuntL4 configures L4 punt for a given address family and protocol. port = ~0 means all ports
+func (v *VppLink) PuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	af := punt.ADDRESS_IP4
+	if isIPv6 {
+		af = punt.ADDRESS_IP6
+	}
+	request := &punt.SetPunt{
+		Punt: punt.Punt{
+			Type: punt.PUNT_API_TYPE_L4,
+			Punt: punt.PuntUnionL4(punt.PuntL4{
+				Af:       af,
+				Protocol: punt.IPProto(types.ToVppIPProto(proto)),
+				Port:     port,
+			}),
+		},
+		IsAdd: true,
+	}
+	response := &punt.SetPuntReply{}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
+	}
+	return nil
+}
+
+func (v *VppLink) PuntAllL4(isIPv6 bool) (err error) {
+	err = v.PuntL4(types.TCP, 0xffff, isIPv6)
+	if err != nil {
+		return err
+	}
+	err = v.PuntL4(types.UDP, 0xffff, isIPv6)
+	if err != nil {
+		return err
 	}
 	return nil
 }

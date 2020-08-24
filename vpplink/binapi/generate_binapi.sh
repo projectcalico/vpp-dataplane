@@ -69,6 +69,7 @@ function generate_govpp_apis ()
 	generate_govpp_api af_packet
 	generate_govpp_api feature
 	generate_govpp_api ip6_nd
+	generate_govpp_api punt
 
 	cleanup_govpp_apis
 	fixup_govpp_apis
