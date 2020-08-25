@@ -23,7 +23,7 @@ spec:
         ports:
         - containerPort: 5001
         - containerPort: 5003
-      nodeName: node1
+      nodeName: _NODE_1_
 ---
 apiVersion: apps/v1
 kind: ReplicaSet
@@ -49,7 +49,7 @@ spec:
         ports:
         - containerPort: 5001
         - containerPort: 5003
-      nodeName: node1
+      nodeName: _NODE_1_
 ---
 apiVersion: v1
 kind: Service
@@ -169,7 +169,7 @@ spec:
     ports:
     - containerPort: 5001
     - containerPort: 5003
-  nodeName: node2
+  nodeName: _NODE_2_
 ---
 apiVersion: v1
 kind: Pod
@@ -184,4 +184,4 @@ spec:
     ports:
     - containerPort: 5001
     - containerPort: 5003
-  nodeName: node1
+  nodeName: _NODE_1_

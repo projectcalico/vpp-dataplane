@@ -57,6 +57,16 @@ calico_build_nptest ()
   make docker DOCKERREPO=calicovpp/nptest
 }
 
+get_nodes ()
+{
+  NODES=($(kubectl get nodes -o jsonpath="{.items[*].metadata.name}"))
+  if [ ${#NODES[@]} -lt 2 ]; then
+    echo "Less than 2 nodes found in the cluster, cannot run test"
+    exit 1
+  fi
+  echo "Using nodes: ${NODES[0]} ${NODES[1]}"
+}
+
 test_apply ()
 {
   if [ ! -d $SCRIPTDIR/perftest/$1 ]; then
@@ -64,8 +74,9 @@ test_apply ()
   	echo "Please specify a config yaml in $(ls -d */)"
   	exit 1
   fi
+  get_nodes
   k_create_namespace $1
-  kubectl apply -f $SCRIPTDIR/perftest/$1/test.yaml
+  sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $SCRIPTDIR/perftest/$1/test.yaml | kubectl apply -f -
 }
 
 test_delete ()
