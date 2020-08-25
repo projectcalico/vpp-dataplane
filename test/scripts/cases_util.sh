@@ -52,7 +52,7 @@ function getServiceNodePort () {
 function onePodIP () {
 	N=$(getPodIP | wc -l)
 	if [ x$N != x0 ]; then
-	  getPodIP | head -n $((1 + RANDOM % $N)) | tail -n 1
+	  getPodIP | head -n $((1 + $RANDOM % $N)) | tail -n 1
 	fi
 }
 
