@@ -60,9 +60,12 @@ calico_build_nptest ()
 get_nodes ()
 {
   NODES=($(kubectl get nodes -o jsonpath="{.items[*].metadata.name}"))
-  if [ ${#NODES[@]} -lt 2 ]; then
-    echo "Less than 2 nodes found in the cluster, cannot run test"
+  if [ ${#NODES[@]} -lt 1 ]; then
+    echo "No nodes found in the cluster, cannot run test"
     exit 1
+  elif [ ${#NODES[@]} -lt 2 ]; then
+    echo "Warning: only 1 node found, remote tests will be meaningless"
+    NODES[1]=${NODES[0]}
   fi
   echo "Using nodes: ${NODES[0]} ${NODES[1]}"
 }

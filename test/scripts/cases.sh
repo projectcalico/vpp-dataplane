@@ -22,6 +22,7 @@ source $SCRIPTDIR/cases_util.sh
 
 function test_vpp_restart_v4 ()
 {
+	load_parameters
 	NS=iperf
 	POD=iperf-client
 	kill_local_vpp
@@ -30,6 +31,7 @@ function test_vpp_restart_v4 ()
 
 function test_vpp_restart_v6 ()
 {
+	load_parameters
 	NS=iperf
 	POD=iperf-client
 	kill_local_vpp
@@ -38,6 +40,7 @@ function test_vpp_restart_v6 ()
 
 function test_snat_ip4 ()
 {
+	load_parameters
 	NS=iperf
 	POD=iperf-client-samehost
 	configure_nodessh_ip4
@@ -49,6 +52,7 @@ function test_snat_ip4 ()
 
 function test_snat_ip6 ()
 {
+	load_parameters
 	NS=iperf
 	POD=iperf-client-samehost
 	configure_nodessh_ip6
@@ -60,6 +64,7 @@ function test_snat_ip6 ()
 
 function test_nodeport_ip4 ()
 {
+	load_parameters
 	NS=iperf
 	SVC=iperf-service-nodeport-v4
 	PROTO=TCP
@@ -70,6 +75,7 @@ function test_nodeport_ip4 ()
 
 function test_nodeport_ip6 ()
 {
+	load_parameters
 	NS=iperf
 	SVC=iperf-service-nodeport-v6
 	PROTO=TCP
@@ -160,6 +166,6 @@ if [ $# = 0 ]; then
 		fi
 	done
 else
-	load_parameters
+	mkdir -p $LOG_DIR
 	"test_$1"
 fi

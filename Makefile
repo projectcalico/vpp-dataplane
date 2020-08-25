@@ -58,7 +58,7 @@ test-install-calicovpp-dev:
 run-tests:
 	test/scripts/test.sh up iperf
 	kubectl -n iperf wait pod/iperf-client --for=condition=Ready --timeout=15s
-	test/scripts/cases.sh run_ip4_iperf_tests
+	test/scripts/cases.sh ipv4
 	test/scripts/test.sh down iperf
 
 .PHONY: release
