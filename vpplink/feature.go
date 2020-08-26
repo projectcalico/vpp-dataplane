@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/feature"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/feature"
 )
 
 func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName, featureName string) (err error) {
@@ -43,9 +43,9 @@ func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName,
 
 func (v *VppLink) enableDisableSNAT(swIfIndex uint32, isEnable bool, isIp6 bool) (err error) {
 	if isIp6 {
-		return v.featureEnableDisable(swIfIndex, isEnable, "ip6-unicast", "ip6-calico-snat")
+		return v.featureEnableDisable(swIfIndex, isEnable, "ip6-unicast", "ip6-cnat-snat")
 	}
-	return v.featureEnableDisable(swIfIndex, isEnable, "ip4-unicast", "ip4-calico-snat")
+	return v.featureEnableDisable(swIfIndex, isEnable, "ip4-unicast", "ip4-cnat-snat")
 }
 
 func (v *VppLink) EnableSNATArc(swIfIndex uint32, isIp6 bool) (err error) {

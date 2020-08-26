@@ -61,6 +61,13 @@ run-tests:
 	test/scripts/cases.sh ipv4
 	test/scripts/test.sh down iperf
 
+.PHONY: restart-calicovpp
+restart-calicovpp:
+	kubectl rollout restart ds/calico-vpp-node
+	kubectl rollout status ds/calico-vpp-node
+	kubectl rollout restart deployment/coredns
+	kubectl rollout status deployment/coredns
+
 .PHONY: release
 # TAG must be set to something like v0.6.0-calicov3.9.1
 release: check-TAG push

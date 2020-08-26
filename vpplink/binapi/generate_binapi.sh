@@ -65,6 +65,7 @@ function generate_govpp_apis ()
 	generate_govpp_api ip_neighbor
 	generate_govpp_api tapv2
 	generate_govpp_api nat
+	generate_govpp_api cnat
 	generate_govpp_api calico
 	generate_govpp_api af_packet
 	generate_govpp_api feature
