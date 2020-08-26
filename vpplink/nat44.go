@@ -20,7 +20,7 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/nat"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/nat"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 

@@ -20,42 +20,42 @@ import (
 	"net"
 	"strings"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/calico"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/cnat"
 )
 
-type CalicoEndpoint struct {
+type CnatEndpoint struct {
 	IP   net.IP
 	Port uint16
 }
 
-func (e *CalicoEndpoint) String() string {
+func (e *CnatEndpoint) String() string {
 	return fmt.Sprintf("%s;%d",
 		e.IP.String(),
 		e.Port,
 	)
 }
 
-type CalicoEndpointTuple struct {
-	SrcEndpoint CalicoEndpoint
-	DstEndpoint CalicoEndpoint
+type CnatEndpointTuple struct {
+	SrcEndpoint CnatEndpoint
+	DstEndpoint CnatEndpoint
 }
 
-func (t *CalicoEndpointTuple) String() string {
+func (t *CnatEndpointTuple) String() string {
 	return fmt.Sprintf("%s -> %s",
 		t.SrcEndpoint.String(),
 		t.DstEndpoint.String(),
 	)
 }
 
-type CalicoTranslateEntry struct {
-	Endpoint CalicoEndpoint
-	Backends []CalicoEndpointTuple
+type CnatTranslateEntry struct {
+	Endpoint CnatEndpoint
+	Backends []CnatEndpointTuple
 	Proto    IPProto
 	IsRealIP bool
 	ID       uint32
 }
 
-func (n *CalicoTranslateEntry) String() string {
+func (n *CnatTranslateEntry) String() string {
 	strLst := make([]string, 0, len(n.Backends))
 	for _, e := range n.Backends {
 		strLst = append(strLst, e.String())
@@ -67,7 +67,7 @@ func (n *CalicoTranslateEntry) String() string {
 	)
 }
 
-func (n *CalicoTranslateEntry) Equal(o *CalicoTranslateEntry) bool {
+func (n *CnatTranslateEntry) Equal(o *CnatTranslateEntry) bool {
 	if n == nil || o == nil {
 		return false
 	}
@@ -95,74 +95,74 @@ func (n *CalicoTranslateEntry) Equal(o *CalicoTranslateEntry) bool {
 	return true
 }
 
-func ToCalicoProto(proto IPProto) calico.IPProto {
+func ToCnatProto(proto IPProto) cnat.IPProto {
 	switch proto {
 	case UDP:
-		return calico.IP_API_PROTO_UDP
+		return cnat.IP_API_PROTO_UDP
 	case TCP:
-		return calico.IP_API_PROTO_TCP
+		return cnat.IP_API_PROTO_TCP
 	case SCTP:
-		return calico.IP_API_PROTO_SCTP
+		return cnat.IP_API_PROTO_SCTP
 	case ICMP:
-		return calico.IP_API_PROTO_ICMP
+		return cnat.IP_API_PROTO_ICMP
 	case ICMP6:
-		return calico.IP_API_PROTO_ICMP6
+		return cnat.IP_API_PROTO_ICMP6
 	default:
-		return calico.IP_API_PROTO_RESERVED
+		return cnat.IP_API_PROTO_RESERVED
 	}
 }
 
-func ToCalicoEndpoint(ep CalicoEndpoint) calico.CalicoEndpoint {
-	a := calico.CalicoEndpoint{
+func ToCnatEndpoint(ep CnatEndpoint) cnat.CnatEndpoint {
+	a := cnat.CnatEndpoint{
 		Port: ep.Port,
 	}
 	if ep.IP.To4() == nil {
-		a.Addr.Af = calico.ADDRESS_IP6
+		a.Addr.Af = cnat.ADDRESS_IP6
 		ip := [16]uint8{}
 		copy(ip[:], ep.IP)
-		a.Addr.Un = calico.AddressUnionIP6(ip)
+		a.Addr.Un = cnat.AddressUnionIP6(ip)
 	} else {
-		a.Addr.Af = calico.ADDRESS_IP4
+		a.Addr.Af = cnat.ADDRESS_IP4
 		ip := [4]uint8{}
 		copy(ip[:], ep.IP.To4())
-		a.Addr.Un = calico.AddressUnionIP4(ip)
+		a.Addr.Un = cnat.AddressUnionIP4(ip)
 	}
 	return a
 }
 
-func ToVppCalicoAddress(addr net.IP) calico.Address {
-	a := calico.Address{}
+func ToVppCnatAddress(addr net.IP) cnat.Address {
+	a := cnat.Address{}
 	if addr.To4() == nil {
-		a.Af = calico.ADDRESS_IP6
+		a.Af = cnat.ADDRESS_IP6
 		ip := [16]uint8{}
 		copy(ip[:], addr)
-		a.Un = calico.AddressUnionIP6(ip)
+		a.Un = cnat.AddressUnionIP6(ip)
 	} else {
-		a.Af = calico.ADDRESS_IP4
+		a.Af = cnat.ADDRESS_IP4
 		ip := [4]uint8{}
 		copy(ip[:], addr.To4())
-		a.Un = calico.AddressUnionIP4(ip)
+		a.Un = cnat.AddressUnionIP4(ip)
 	}
 	return a
 }
 
-func ToVppCalicoPrefix(prefix *net.IPNet) calico.Prefix {
+func ToVppCnatPrefix(prefix *net.IPNet) cnat.Prefix {
 	len, _ := prefix.Mask.Size()
-	r := calico.Prefix{
-		Address: ToVppCalicoAddress(prefix.IP),
+	r := cnat.Prefix{
+		Address: ToVppCnatAddress(prefix.IP),
 		Len:     uint8(len),
 	}
 	return r
 }
 
 // Make sure you really call this with an IPv4 address...
-func ToVppCalicoIp4Address(addr net.IP) calico.IP4Address {
+func ToVppCnatIp4Address(addr net.IP) cnat.IP4Address {
 	ip := [4]uint8{}
 	copy(ip[:], addr.To4())
 	return ip
 }
 
-func ToVppCalicoIp6Address(addr net.IP) calico.IP6Address {
+func ToVppCnatIp6Address(addr net.IP) cnat.IP6Address {
 	ip := [16]uint8{}
 	copy(ip[:], addr)
 	return ip

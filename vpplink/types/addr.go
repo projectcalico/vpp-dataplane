@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 	"net"
 
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/ip"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/ip"
 )
 
 type IPProto uint32

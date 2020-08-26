@@ -10,4 +10,4 @@ else
 	git fetch "https://gerrit.fd.io/r/vpp" && git reset --hard ${VPP_COMMIT}
 fi
 
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/62/27162/19 && git cherry-pick FETCH_HEAD # calico_plugin
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/62/27162/25 && git cherry-pick FETCH_HEAD # calico_plugin

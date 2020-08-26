@@ -20,69 +20,69 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-gbb2ddb6a6/calico"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/cnat"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 const InvalidID = ^uint32(0)
 
-func (v *VppLink) CalicoTranslateAdd(tr *types.CalicoTranslateEntry) (id uint32, err error) {
+func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	if len(tr.Backends) == 0 {
 		return InvalidID, nil
 	}
 
-	paths := make([]calico.CalicoEndpointTuple, 0, len(tr.Backends))
+	paths := make([]cnat.CnatEndpointTuple, 0, len(tr.Backends))
 	for _, backend := range tr.Backends {
-		paths = append(paths, calico.CalicoEndpointTuple{
-			SrcEp: types.ToCalicoEndpoint(backend.SrcEndpoint),
-			DstEp: types.ToCalicoEndpoint(backend.DstEndpoint),
+		paths = append(paths, cnat.CnatEndpointTuple{
+			SrcEp: types.ToCnatEndpoint(backend.SrcEndpoint),
+			DstEp: types.ToCnatEndpoint(backend.DstEndpoint),
 		})
 	}
 
-	response := &calico.CalicoTranslationUpdateReply{}
-	request := &calico.CalicoTranslationUpdate{
-		Translation: calico.CalicoTranslation{
-			Vip:      types.ToCalicoEndpoint(tr.Endpoint),
-			IPProto:  types.ToCalicoProto(tr.Proto),
+	response := &cnat.CnatTranslationUpdateReply{}
+	request := &cnat.CnatTranslationUpdate{
+		Translation: cnat.CnatTranslation{
+			Vip:      types.ToCnatEndpoint(tr.Endpoint),
+			IPProto:  types.ToCnatProto(tr.Proto),
 			Paths:    paths,
 			IsRealIP: BoolToU8(tr.IsRealIP),
 		},
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return InvalidID, errors.Wrap(err, "Add/Upd CalicoTranslate failed")
+		return InvalidID, errors.Wrap(err, "Add/Upd CnatTranslate failed")
 	} else if response.Retval != 0 {
-		return InvalidID, fmt.Errorf("Add/Upd CalicoTranslate failed with retval: %d", response.Retval)
+		return InvalidID, fmt.Errorf("Add/Upd CnatTranslate failed with retval: %d", response.Retval)
 	}
 	return response.ID, nil
 }
 
-func (v *VppLink) CalicoTranslateDel(id uint32) (err error) {
+func (v *VppLink) CnatTranslateDel(id uint32) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	response := &calico.CalicoTranslationDelReply{}
-	request := &calico.CalicoTranslationDel{ID: id}
+	response := &cnat.CnatTranslationDelReply{}
+	request := &cnat.CnatTranslationDel{ID: id}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return errors.Wrap(err, "Deleting CalicoTranslate failed")
+		return errors.Wrap(err, "Deleting CnatTranslate failed")
 	} else if response.Retval != 0 {
-		return fmt.Errorf("Deleting CalicoTranslate failed with retval: %d", response.Retval)
+		return fmt.Errorf("Deleting CnatTranslate failed with retval: %d", response.Retval)
 	}
 	return nil
 }
 
-func (v *VppLink) CalicoSetSnatAddresses(v4, v6 net.IP) (err error) {
+func (v *VppLink) CnatSetSnatAddresses(v4, v6 net.IP) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	request := &calico.CalicoSetSnatAddresses{
-		SnatIP4: types.ToVppCalicoIp4Address(v4),
-		SnatIP6: types.ToVppCalicoIp6Address(v6),
+	request := &cnat.CnatSetSnatAddresses{
+		SnatIP4: types.ToVppCnatIp4Address(v4),
+		SnatIP6: types.ToVppCnatIp6Address(v6),
 	}
-	response := &calico.CalicoSetSnatAddressesReply{}
+	response := &cnat.CnatSetSnatAddressesReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrap(err, "Setting SNAT addresses failed")
@@ -92,15 +92,15 @@ func (v *VppLink) CalicoSetSnatAddresses(v4, v6 net.IP) (err error) {
 	return nil
 }
 
-func (v *VppLink) CalicoAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err error) {
+func (v *VppLink) CnatAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	request := &calico.CalicoAddDelSnatPrefix{
+	request := &cnat.CnatAddDelSnatPrefix{
 		IsAdd:  BoolToU8(isAdd),
-		Prefix: types.ToVppCalicoPrefix(prefix),
+		Prefix: types.ToVppCnatPrefix(prefix),
 	}
-	response := &calico.CalicoAddDelSnatPrefixReply{}
+	response := &cnat.CnatAddDelSnatPrefixReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrap(err, "Add/Del SNAT prefix failed")
@@ -110,10 +110,10 @@ func (v *VppLink) CalicoAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err err
 	return nil
 }
 
-func (v *VppLink) CalicoAddSnatPrefix(prefix *net.IPNet) error {
-	return v.CalicoAddDelSnatPrefix(prefix, true)
+func (v *VppLink) CnatAddSnatPrefix(prefix *net.IPNet) error {
+	return v.CnatAddDelSnatPrefix(prefix, true)
 }
 
-func (v *VppLink) CalicoDelSnatPrefix(prefix *net.IPNet) error {
-	return v.CalicoAddDelSnatPrefix(prefix, false)
+func (v *VppLink) CnatDelSnatPrefix(prefix *net.IPNet) error {
+	return v.CnatAddDelSnatPrefix(prefix, false)
 }
