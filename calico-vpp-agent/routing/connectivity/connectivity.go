@@ -20,8 +20,16 @@ import (
 	"fmt"
 	"net"
 
+	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	FLAT  = "flat"
+	IPSEC = "ipsec"
+	VXLAN = "vxlan"
+	IPIP  = "ipip"
 )
 
 type NodeConnectivity struct {
@@ -37,21 +45,24 @@ type ConnectivityProvider interface {
 	AddConnectivity(cn *NodeConnectivity) error
 	DelConnectivity(cn *NodeConnectivity) error
 	OnVppRestart()
+	Init()
 }
 
 type ConnectivityProviderData struct {
-	vpp  *vpplink.VppLink
-	log  *logrus.Entry
-	ipv6 *net.IP
-	ipv4 *net.IP
+	vpp       *vpplink.VppLink
+	log       *logrus.Entry
+	ipv6      *net.IP
+	ipv4      *net.IP
+	felixConf *calicov3.FelixConfigurationSpec
 }
 
-func NewConnectivityProviderData(vpp *vpplink.VppLink, log *logrus.Entry, ipv6 *net.IP, ipv4 *net.IP) *ConnectivityProviderData {
+func NewConnectivityProviderData(vpp *vpplink.VppLink, log *logrus.Entry, ipv6 *net.IP, ipv4 *net.IP, conf *calicov3.FelixConfigurationSpec) *ConnectivityProviderData {
 	return &ConnectivityProviderData{
-		vpp:  vpp,
-		log:  log,
-		ipv6: ipv6,
-		ipv4: ipv4,
+		vpp:       vpp,
+		log:       log,
+		ipv6:      ipv6,
+		ipv4:      ipv4,
+		felixConf: conf,
 	}
 }
 

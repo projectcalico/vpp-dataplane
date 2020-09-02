@@ -20,7 +20,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/cnat"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/cnat"
 )
 
 type CnatEndpoint struct {

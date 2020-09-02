@@ -1,0 +1,8 @@
+VPP Version                 : 20.09-rc0~363-g6224a9dea
+Binapi-generator version    : govpp v0.4.0-dev
+VPP Base commit             : 9f1dbd20b build: Fix 'make build VPP_EXTRA_CMAKE_ARGS=-DVPP_ENABLE_SANITIZE_ADDR=ON' error on Centos 7
+------------------ Cherry picked commits --------------------
+6224a9dea vlib: vlib_get_node_by_name fails via API
+d6896d0f8 vpp: Fix node APIs
+65643cc33 calico: Add SNAT simultaneously to VIP DNAT
+-------------------------------------------------------------

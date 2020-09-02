@@ -95,22 +95,6 @@ func (s *Server) getNodeIPNet(isv6 bool) *net.IPNet {
 	}
 }
 
-func (s *Server) needIpipTunnel(cn *connectivity.NodeConnectivity) (ipip bool, err error) {
-	ipPool := s.ipam.GetPrefixIPPool(&cn.Dst)
-	if ipPool == nil {
-		return false, nil
-	}
-	if ipPool.Spec.IPIPMode == calicov3.IPIPModeNever {
-		return false, nil
-	}
-	ipNet := s.getNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
-	if ipPool.Spec.IPIPMode == calicov3.IPIPModeCrossSubnet && !isCrossSubnet(cn.NextHop, *ipNet) {
-		return false, nil
-	}
-
-	return true, nil
-}
-
 func (s *Server) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
 	/* If only IP6 (e.g. ipsec) is supported, find nodeip4 out of nodeip6 */
 	if !vpplink.IsIP6(addr) {
@@ -127,28 +111,49 @@ func (s *Server) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
 	return nodeIP, nil
 }
 
-func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithdraw bool) (err error) {
-	var provider connectivity.ConnectivityProvider = s.flat
-
-	ipip, err := s.needIpipTunnel(cn)
-	if err != nil {
-		return errors.Wrapf(err, "error checking for ipip tunnel")
+func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
+	ipPool := s.ipam.GetPrefixIPPool(&cn.Dst)
+	if ipPool == nil {
+		return connectivity.FLAT
 	}
-	if ipip && config.EnableIPSec {
-		provider = s.ipsec
+	if ipPool.Spec.IPIPMode == calicov3.IPIPModeAlways {
+		if config.EnableIPSec {
+			return connectivity.IPSEC
+		}
+		return connectivity.IPIP
+	}
+	ipNet := s.getNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
+	if ipPool.Spec.IPIPMode == calicov3.IPIPModeCrossSubnet && !isCrossSubnet(cn.NextHop, *ipNet) {
+		if config.EnableIPSec {
+			return connectivity.IPSEC
+		}
+		return connectivity.IPIP
+	}
+	if ipPool.Spec.VXLANMode == calicov3.VXLANModeAlways {
+		return connectivity.VXLAN
+	}
+	if ipPool.Spec.VXLANMode == calicov3.VXLANModeCrossSubnet && !isCrossSubnet(cn.NextHop, *ipNet) {
+		return connectivity.VXLAN
+	}
+	return connectivity.FLAT
+}
+
+func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithdraw bool) (err error) {
+	providerType := s.getProviderType(cn)
+	provider := s.providers[providerType]
+
+	if providerType == connectivity.IPSEC {
 		cn.NextHop, err = s.forceOtherNodeIp4(cn.NextHop)
 		if err != nil {
 			return errors.Wrap(err, "Ipsec v6 config failed")
 		}
-	} else if ipip {
-		provider = s.ipip
 	}
 
 	if IsWithdraw {
-		s.log.Infof("Deleting path %s", cn.String())
+		s.log.Infof("Deleting path (%s) %s", providerType, cn.String())
 		return provider.DelConnectivity(cn)
 	} else {
-		s.log.Infof("Added path %s", cn.String())
+		s.log.Infof("Added path (%s) %s", providerType, cn.String())
 		return provider.AddConnectivity(cn)
 	}
 }

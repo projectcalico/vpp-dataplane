@@ -35,6 +35,9 @@ func (p *IpsecProvider) OnVppRestart() {
 	p.ipsecIfs = make(map[string][]uint32)
 }
 
+func (p *IpsecProvider) Init() {
+}
+
 func NewIPsecProvider(d *ConnectivityProviderData) *IpsecProvider {
 	return &IpsecProvider{d, make(map[string][]uint32)}
 }
