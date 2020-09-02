@@ -35,9 +35,6 @@ const (
 	VppManagerTapIdxFile   = "/var/run/vpp/vppmanagertap0"
 	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
 
-	VppSideMacAddressString       = "02:00:00:00:00:02"
-	ContainerSideMacAddressString = "02:00:00:00:00:01"
-
 	NodeNameEnvVar            = "NODENAME"
 	TapRXQueuesEnvVar         = "CALICOVPP_TAP_RX_QUEUES"
 	TapGSOEnvVar              = "CALICOVPP_TAP_GSO_ENABLED"
