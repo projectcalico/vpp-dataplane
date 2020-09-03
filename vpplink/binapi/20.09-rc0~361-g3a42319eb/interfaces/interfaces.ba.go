@@ -7,7 +7,7 @@ Package interfaces is a generated VPP binary API for 'interface' module.
 It consists of:
 	 10 enums
 	  7 aliases
-	  6 types
+	  8 types
 	  1 union
 	 57 messages
 	 28 services
@@ -30,7 +30,7 @@ const (
 	// APIVersion is the API version of this module.
 	APIVersion = "3.2.2"
 	// VersionCrc is the CRC of this module.
-	VersionCrc = 0x58d4cf5a
+	VersionCrc = 0x7020ed51
 )
 
 // AddressFamily represents VPP binary API enum 'address_family'.
@@ -466,6 +466,14 @@ type Address struct {
 
 func (*Address) GetTypeName() string { return "address" }
 
+// IP4AddressAndMask represents VPP binary API type 'ip4_address_and_mask'.
+type IP4AddressAndMask struct {
+	Addr IP4Address
+	Mask IP4Address
+}
+
+func (*IP4AddressAndMask) GetTypeName() string { return "ip4_address_and_mask" }
+
 // IP4Prefix represents VPP binary API type 'ip4_prefix'.
 type IP4Prefix struct {
 	Address IP4Address
@@ -473,6 +481,14 @@ type IP4Prefix struct {
 }
 
 func (*IP4Prefix) GetTypeName() string { return "ip4_prefix" }
+
+// IP6AddressAndMask represents VPP binary API type 'ip6_address_and_mask'.
+type IP6AddressAndMask struct {
+	Addr IP6Address
+	Mask IP6Address
+}
+
+func (*IP6AddressAndMask) GetTypeName() string { return "ip6_address_and_mask" }
 
 // IP6Prefix represents VPP binary API type 'ip6_prefix'.
 type IP6Prefix struct {

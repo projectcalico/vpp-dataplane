@@ -28,7 +28,7 @@ const (
 	// APIVersion is the API version of this module.
 	APIVersion = "1.0.2"
 	// VersionCrc is the CRC of this module.
-	VersionCrc = 0x8dd9f8ab
+	VersionCrc = 0xd8824c00
 )
 
 // IfStatusFlags represents VPP binary API enum 'if_status_flags'.

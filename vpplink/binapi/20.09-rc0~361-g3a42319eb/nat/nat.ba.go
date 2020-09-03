@@ -7,10 +7,10 @@ Package nat is a generated VPP binary API for 'nat' module.
 It consists of:
 	 12 enums
 	  6 aliases
-	  7 types
+	  9 types
 	  1 union
-	103 messages
-	 51 services
+	105 messages
+	 52 services
 */
 package nat
 
@@ -30,7 +30,7 @@ const (
 	// APIVersion is the API version of this module.
 	APIVersion = "5.2.0"
 	// VersionCrc is the CRC of this module.
-	VersionCrc = 0xa5aff476
+	VersionCrc = 0xbbd82fe8
 )
 
 // AddressFamily represents VPP binary API enum 'address_family'.
@@ -548,6 +548,14 @@ type Address struct {
 
 func (*Address) GetTypeName() string { return "address" }
 
+// IP4AddressAndMask represents VPP binary API type 'ip4_address_and_mask'.
+type IP4AddressAndMask struct {
+	Addr IP4Address
+	Mask IP4Address
+}
+
+func (*IP4AddressAndMask) GetTypeName() string { return "ip4_address_and_mask" }
+
 // IP4Prefix represents VPP binary API type 'ip4_prefix'.
 type IP4Prefix struct {
 	Address IP4Address
@@ -555,6 +563,14 @@ type IP4Prefix struct {
 }
 
 func (*IP4Prefix) GetTypeName() string { return "ip4_prefix" }
+
+// IP6AddressAndMask represents VPP binary API type 'ip6_address_and_mask'.
+type IP6AddressAndMask struct {
+	Addr IP6Address
+	Mask IP6Address
+}
+
+func (*IP6AddressAndMask) GetTypeName() string { return "ip6_address_and_mask" }
 
 // IP6Prefix represents VPP binary API type 'ip6_prefix'.
 type IP6Prefix struct {
@@ -1800,6 +1816,43 @@ func (*NatShowConfig) GetMessageName() string          { return "nat_show_config
 func (*NatShowConfig) GetCrcString() string            { return "51077d14" }
 func (*NatShowConfig) GetMessageType() api.MessageType { return api.RequestMessage }
 
+// NatShowConfig2 represents VPP binary API message 'nat_show_config_2'.
+type NatShowConfig2 struct{}
+
+func (m *NatShowConfig2) Reset()                        { *m = NatShowConfig2{} }
+func (*NatShowConfig2) GetMessageName() string          { return "nat_show_config_2" }
+func (*NatShowConfig2) GetCrcString() string            { return "51077d14" }
+func (*NatShowConfig2) GetMessageType() api.MessageType { return api.RequestMessage }
+
+// NatShowConfig2Reply represents VPP binary API message 'nat_show_config_2_reply'.
+type NatShowConfig2Reply struct {
+	Retval                          int32
+	StaticMappingOnly               bool
+	StaticMappingConnectionTracking bool
+	Deterministic                   bool
+	EndpointDependent               bool
+	Out2inDpo                       bool
+	DsliteCe                        bool
+	TranslationBuckets              uint32
+	TranslationMemorySize           uint64
+	UserBuckets                     uint32
+	UserMemorySize                  uint64
+	MaxTranslationsPerUser          uint32
+	OutsideVrfID                    uint32
+	InsideVrfID                     uint32
+	Nat64BibBuckets                 uint32
+	Nat64BibMemorySize              uint64
+	Nat64StBuckets                  uint32
+	Nat64StMemorySize               uint64
+	MaxTranslationsPerThread        uint32
+	MaxUsersPerThread               uint32
+}
+
+func (m *NatShowConfig2Reply) Reset()                        { *m = NatShowConfig2Reply{} }
+func (*NatShowConfig2Reply) GetMessageName() string          { return "nat_show_config_2_reply" }
+func (*NatShowConfig2Reply) GetCrcString() string            { return "0404a5b4" }
+func (*NatShowConfig2Reply) GetMessageType() api.MessageType { return api.ReplyMessage }
+
 // NatShowConfigReply represents VPP binary API message 'nat_show_config_reply'.
 type NatShowConfigReply struct {
 	Retval                          int32
@@ -1948,6 +2001,8 @@ func init() {
 	api.RegisterMessage((*NatSetWorkers)(nil), "nat.NatSetWorkers")
 	api.RegisterMessage((*NatSetWorkersReply)(nil), "nat.NatSetWorkersReply")
 	api.RegisterMessage((*NatShowConfig)(nil), "nat.NatShowConfig")
+	api.RegisterMessage((*NatShowConfig2)(nil), "nat.NatShowConfig2")
+	api.RegisterMessage((*NatShowConfig2Reply)(nil), "nat.NatShowConfig2Reply")
 	api.RegisterMessage((*NatShowConfigReply)(nil), "nat.NatShowConfigReply")
 	api.RegisterMessage((*NatWorkerDetails)(nil), "nat.NatWorkerDetails")
 	api.RegisterMessage((*NatWorkerDump)(nil), "nat.NatWorkerDump")
@@ -2056,6 +2111,8 @@ func AllMessages() []api.Message {
 		(*NatSetWorkers)(nil),
 		(*NatSetWorkersReply)(nil),
 		(*NatShowConfig)(nil),
+		(*NatShowConfig2)(nil),
+		(*NatShowConfig2Reply)(nil),
 		(*NatShowConfigReply)(nil),
 		(*NatWorkerDetails)(nil),
 		(*NatWorkerDump)(nil),
@@ -2115,6 +2172,7 @@ type RPCService interface {
 	NatSetTimeouts(ctx context.Context, in *NatSetTimeouts) (*NatSetTimeoutsReply, error)
 	NatSetWorkers(ctx context.Context, in *NatSetWorkers) (*NatSetWorkersReply, error)
 	NatShowConfig(ctx context.Context, in *NatShowConfig) (*NatShowConfigReply, error)
+	NatShowConfig2(ctx context.Context, in *NatShowConfig2) (*NatShowConfig2Reply, error)
 }
 
 type serviceClient struct {
@@ -2832,6 +2890,15 @@ func (c *serviceClient) NatSetWorkers(ctx context.Context, in *NatSetWorkers) (*
 
 func (c *serviceClient) NatShowConfig(ctx context.Context, in *NatShowConfig) (*NatShowConfigReply, error) {
 	out := new(NatShowConfigReply)
+	err := c.ch.SendRequest(in).ReceiveReply(out)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) NatShowConfig2(ctx context.Context, in *NatShowConfig2) (*NatShowConfig2Reply, error) {
+	out := new(NatShowConfig2Reply)
 	err := c.ch.SendRequest(in).ReceiveReply(out)
 	if err != nil {
 		return nil, err

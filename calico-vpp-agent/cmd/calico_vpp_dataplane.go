@@ -25,7 +25,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 )
 
@@ -47,15 +46,16 @@ func main() {
 		return
 	}
 
+	vpp, err := common.CreateVppLink(config.VppAPISocket, log.WithFields(logrus.Fields{"component": "vpp-api"}))
+	if err != nil {
+		log.Errorf("Cannot create VPP client: %v", err)
+		return
+	}
+	// Once we have the api connection, we know vpp & vpp-manager are running and the
+	// state is accurately reported. Wait for vpp-manager to finish the config.
 	err = common.WaitForVppManager()
 	if err != nil {
 		log.Errorf("Vpp Manager not started: %v", err)
-		return
-	}
-
-	vpp, err := vpplink.NewVppLink(config.VppAPISocket, log.WithFields(logrus.Fields{"component": "vpp-api"}))
-	if err != nil {
-		log.Errorf("Cannot create VPP client: %v", err)
 		return
 	}
 

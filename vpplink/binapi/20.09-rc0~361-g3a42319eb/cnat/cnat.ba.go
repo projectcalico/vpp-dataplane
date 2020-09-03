@@ -7,7 +7,7 @@ Package cnat is a generated VPP binary API for 'cnat' module.
 It consists of:
 	  8 enums
 	  5 aliases
-	 13 types
+	 15 types
 	  1 union
 	 14 messages
 	  7 services
@@ -30,7 +30,7 @@ const (
 	// APIVersion is the API version of this module.
 	APIVersion = "0.1.0"
 	// VersionCrc is the CRC of this module.
-	VersionCrc = 0x351f668a
+	VersionCrc = 0x4a4dd93f
 )
 
 // AddressFamily represents VPP binary API enum 'address_family'.
@@ -476,6 +476,14 @@ type FibPathNh struct {
 
 func (*FibPathNh) GetTypeName() string { return "fib_path_nh" }
 
+// IP4AddressAndMask represents VPP binary API type 'ip4_address_and_mask'.
+type IP4AddressAndMask struct {
+	Addr IP4Address
+	Mask IP4Address
+}
+
+func (*IP4AddressAndMask) GetTypeName() string { return "ip4_address_and_mask" }
+
 // IP4Prefix represents VPP binary API type 'ip4_prefix'.
 type IP4Prefix struct {
 	Address IP4Address
@@ -483,6 +491,14 @@ type IP4Prefix struct {
 }
 
 func (*IP4Prefix) GetTypeName() string { return "ip4_prefix" }
+
+// IP6AddressAndMask represents VPP binary API type 'ip6_address_and_mask'.
+type IP6AddressAndMask struct {
+	Addr IP6Address
+	Mask IP6Address
+}
+
+func (*IP6AddressAndMask) GetTypeName() string { return "ip6_address_and_mask" }
 
 // IP6Prefix represents VPP binary API type 'ip6_prefix'.
 type IP6Prefix struct {

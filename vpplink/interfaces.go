@@ -21,12 +21,12 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/gso"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/interfaces"
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/ip_neighbor"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/punt"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/tapv2"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/gso"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/interfaces"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/punt"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/tapv2"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 

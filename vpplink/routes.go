@@ -19,8 +19,8 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/ip_neighbor"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 

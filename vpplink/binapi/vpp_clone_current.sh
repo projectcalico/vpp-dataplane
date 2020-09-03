@@ -1,5 +1,5 @@
 #!/bin/bash
-VPP_COMMIT=42b29ba3d
+VPP_COMMIT=9f1dbd20
 
 if [ ! -d $1 ]; then
 	git clone "https://gerrit.fd.io/r/vpp" $1
@@ -10,4 +10,4 @@ else
 	git fetch "https://gerrit.fd.io/r/vpp" && git reset --hard ${VPP_COMMIT}
 fi
 
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/62/27162/25 && git cherry-pick FETCH_HEAD # calico_plugin
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/11 && git cherry-pick FETCH_HEAD # calico plugin

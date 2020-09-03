@@ -14,7 +14,7 @@ RUN apt-get update \
     python3-all python3-setuptools check \
     libboost-all-dev libffi-dev python3-ply libmbedtls-dev \
     cmake ninja-build uuid-dev python3-jsonschema python3-yaml \
-    python3-venv python3-dev
+    python3-venv python3-dev libelf-dev
 
 WORKDIR /root/
 
@@ -22,7 +22,7 @@ WORKDIR /root/
 # This issue only happens on the dpdk tarball, and the -m flag causes
 # nasm to try to rebuild things that fail, hence the if
 RUN cd /usr/bin; mv tar tar.orig && \
-    echo '#!/bin/bash\nif [[ "$*" == *dpdk* ]] ; then ARGS="-m" ; fi\n/usr/bin/tar.orig $ARGS --no-same-owner "$@"' > tar && \
+    echo '#!/bin/bash\nif [[ "$*" == *dpdk* || "$*" == *rdma* ]] ; then ARGS="-m" ; fi\n/usr/bin/tar.orig $ARGS --no-same-owner "$@"' > tar && \
     chmod a+x tar
 
 ADD build_script.sh /root/

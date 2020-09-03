@@ -7,7 +7,7 @@ Package ikev2 is a generated VPP binary API for 'ikev2' module.
 It consists of:
 	 10 enums
 	  6 aliases
-	 17 types
+	 19 types
 	  1 union
 	 46 messages
 	 23 services
@@ -30,7 +30,7 @@ const (
 	// APIVersion is the API version of this module.
 	APIVersion = "1.0.1"
 	// VersionCrc is the CRC of this module.
-	VersionCrc = 0xb1769256
+	VersionCrc = 0xdfe9fa5f
 )
 
 // AddressFamily represents VPP binary API enum 'address_family'.
@@ -610,6 +610,14 @@ type Ikev2Ts struct {
 
 func (*Ikev2Ts) GetTypeName() string { return "ikev2_ts" }
 
+// IP4AddressAndMask represents VPP binary API type 'ip4_address_and_mask'.
+type IP4AddressAndMask struct {
+	Addr IP4Address
+	Mask IP4Address
+}
+
+func (*IP4AddressAndMask) GetTypeName() string { return "ip4_address_and_mask" }
+
 // IP4Prefix represents VPP binary API type 'ip4_prefix'.
 type IP4Prefix struct {
 	Address IP4Address
@@ -617,6 +625,14 @@ type IP4Prefix struct {
 }
 
 func (*IP4Prefix) GetTypeName() string { return "ip4_prefix" }
+
+// IP6AddressAndMask represents VPP binary API type 'ip6_address_and_mask'.
+type IP6AddressAndMask struct {
+	Addr IP6Address
+	Mask IP6Address
+}
+
+func (*IP6AddressAndMask) GetTypeName() string { return "ip6_address_and_mask" }
 
 // IP6Prefix represents VPP binary API type 'ip6_prefix'.
 type IP6Prefix struct {

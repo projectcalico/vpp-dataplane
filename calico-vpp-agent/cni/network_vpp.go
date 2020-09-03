@@ -300,14 +300,14 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 	}
 	if interfaceConfig.Hasv4 && interfaceConfig.NeedSnat {
 		s.log.Infof("Enable tun[%d] SNAT v4", swIfIndex)
-		err = s.vpp.EnableSNATArc(swIfIndex, false)
+		err = s.vpp.EnableCalicoSNAT(swIfIndex, false)
 		if err != nil {
 			return "", "", s.tunErrorCleanup(contTunName, netns, err, "Error enabling ip4 snat")
 		}
 	}
 	if interfaceConfig.Hasv6 && interfaceConfig.NeedSnat {
 		s.log.Infof("Enable tun[%d] SNAT v6", swIfIndex)
-		err = s.vpp.EnableSNATArc(swIfIndex, true)
+		err = s.vpp.EnableCalicoSNAT(swIfIndex, true)
 		if err != nil {
 			return "", "", s.tunErrorCleanup(contTunName, netns, err, "Error enabling ip6 snat")
 		}

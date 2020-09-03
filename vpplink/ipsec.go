@@ -17,7 +17,7 @@ package vpplink
 
 import (
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~303-geb732a915/ipsec"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ipsec"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 

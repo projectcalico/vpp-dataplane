@@ -7,7 +7,7 @@ Package ipsec is a generated VPP binary API for 'ipsec' module.
 It consists of:
 	 17 enums
 	  6 aliases
-	 11 types
+	 13 types
 	  1 union
 	 36 messages
 	 18 services
@@ -28,9 +28,9 @@ const (
 	// ModuleName is the name of this module.
 	ModuleName = "ipsec"
 	// APIVersion is the API version of this module.
-	APIVersion = "3.0.2"
+	APIVersion = "4.0.0"
 	// VersionCrc is the CRC of this module.
-	VersionCrc = 0xbc81784e
+	VersionCrc = 0xbc44ccb1
 )
 
 // AddressFamily represents VPP binary API enum 'address_family'.
@@ -723,6 +723,14 @@ type Address struct {
 
 func (*Address) GetTypeName() string { return "address" }
 
+// IP4AddressAndMask represents VPP binary API type 'ip4_address_and_mask'.
+type IP4AddressAndMask struct {
+	Addr IP4Address
+	Mask IP4Address
+}
+
+func (*IP4AddressAndMask) GetTypeName() string { return "ip4_address_and_mask" }
+
 // IP4Prefix represents VPP binary API type 'ip4_prefix'.
 type IP4Prefix struct {
 	Address IP4Address
@@ -730,6 +738,14 @@ type IP4Prefix struct {
 }
 
 func (*IP4Prefix) GetTypeName() string { return "ip4_prefix" }
+
+// IP6AddressAndMask represents VPP binary API type 'ip6_address_and_mask'.
+type IP6AddressAndMask struct {
+	Addr IP6Address
+	Mask IP6Address
+}
+
+func (*IP6AddressAndMask) GetTypeName() string { return "ip6_address_and_mask" }
 
 // IP6Prefix represents VPP binary API type 'ip6_prefix'.
 type IP6Prefix struct {
