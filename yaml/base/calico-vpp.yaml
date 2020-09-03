@@ -315,7 +315,6 @@ spec:
               cpu: 500m
               memory: 128Mi
             limits:
-              memory: 512Mi
               hugepages-2Mi: 256Mi
           volumeMounts:
             - name: vpp-rundir

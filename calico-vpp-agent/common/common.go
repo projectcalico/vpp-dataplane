@@ -56,6 +56,21 @@ func (*CalicoVppServerData) BarrierSync() {
 	barrierCond.L.Unlock()
 }
 
+func CreateVppLink(socket string, log *logrus.Entry) (vpp *vpplink.VppLink, err error) {
+	// Get an API connection, with a few retries to accomodate VPP startup time
+	for i := 0; i < 10; i++ {
+		vpp, err = vpplink.NewVppLink(socket, log)
+		if err != nil {
+			log.Warnf("Try [%d/10] %v", i, err)
+			err = nil
+			time.Sleep(2 * time.Second)
+		} else {
+			return vpp, nil
+		}
+	}
+	return nil, errors.Errorf("Cannot connect to VPP after 10 tries")
+}
+
 func WaitForVppManager() error {
 	for i := 0; i < 20; i++ {
 		dat, err := ioutil.ReadFile(config.VppManagerStatusFile)
@@ -78,13 +93,18 @@ func HandleVppManagerRestart(log *logrus.Logger, vpp *vpplink.VppLink, servers .
 	signal.Notify(signals, syscall.SIGUSR1)
 	for {
 		<-signals
-		WaitForVppManager()
 		log.Infof("SR:Vpp restarted")
 		barrier = true
 		vpp.Close()
-		err := vpp.Retry(time.Second, 10, vpp.Reconnect)
+		// Start by reconnecting to VPP to ensure vpp (and so vpp-manager) are running
+		err := vpp.Retry(time.Second, 20, vpp.Reconnect)
 		if err != nil {
-			log.Errorf("Reconnection failed after 10 tries %v", err)
+			log.Errorf("Reconnection failed after 20 tries %v", err)
+		}
+		err = WaitForVppManager()
+		if err != nil {
+			log.Fatalf("Timed out waiting for vpp-manager: %v", err)
+			os.Exit(1)
 		}
 		for i, srv := range servers {
 			srv.OnVppRestart()

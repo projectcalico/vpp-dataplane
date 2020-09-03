@@ -183,24 +183,24 @@ func (s *Server) AddDelService(service *v1.Service, ep *v1.Endpoints, isWithdraw
 }
 
 func (s *Server) ConfigureSnat() (err error) {
-	err = s.vpp.CalicoSetSnatAddresses(s.ipv4, s.ipv6)
+	err = s.vpp.CnatSetSnatAddresses(s.ipv4, s.ipv6)
 	if err != nil {
 		s.log.Errorf("Failed to configure SNAT addresses %v", err)
 	}
 	if s.hasv6 {
-		err = s.vpp.CalicoAddSnatPrefix(common.FullyQualified(s.ipv6))
+		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(s.ipv6))
 		if err != nil {
 			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.ipv6), err)
 		}
 	}
 	if s.hasv4 {
-		err = s.vpp.CalicoAddSnatPrefix(common.FullyQualified(s.ipv4))
+		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(s.ipv4))
 		if err != nil {
 			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.ipv4), err)
 		}
 	}
 	for _, serviceCIDR := range config.ServiceCIDRs {
-		err = s.vpp.CalicoAddSnatPrefix(serviceCIDR)
+		err = s.vpp.CnatAddSnatPrefix(serviceCIDR)
 		if err != nil {
 			s.log.Errorf("Failed to Add Service CIDR %s %v", serviceCIDR, err)
 		}

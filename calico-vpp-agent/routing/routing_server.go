@@ -279,7 +279,7 @@ func (s *Server) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err error)
 	if err != nil {
 		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Spec.CIDR)
 	}
-	return s.vpp.CalicoAddDelSnatPrefix(ipNet, isAdd)
+	return s.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
 }
 
 func (s *Server) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) error {
