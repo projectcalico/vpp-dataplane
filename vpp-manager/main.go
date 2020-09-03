@@ -618,9 +618,6 @@ func safeAddInterfaceAddress(swIfIndex uint32, addr *net.IPNet) (err error) {
 func configureLinuxTapRoutes(link netlink.Link) (err error) {
 	// All routes that were on this interface now go through VPP
 	for _, route := range initialConfig.Routes {
-		if route.Dst == nil {
-			continue
-		}
 		newRoute := netlink.Route{
 			Dst:       route.Dst,
 			LinkIndex: link.Attrs().Index,
