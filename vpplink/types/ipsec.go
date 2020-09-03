@@ -17,9 +17,6 @@ package types
 
 import (
 	"net"
-
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ipsec"
 )
 
 type IPsecTunnelProtection struct {
@@ -27,8 +24,4 @@ type IPsecTunnelProtection struct {
 	NextHop     net.IP
 	OutSAIndex  uint32
 	InSAIndices []uint32
-}
-
-func FromVppIPsecAddress(vppAddr ipsec.Address) net.IP {
-	return FromVppIpAddressUnion(vppip.AddressUnion(vppAddr.Un), vppAddr.Af == ipsec.ADDRESS_IP6)
 }

@@ -19,25 +19,25 @@ import (
 	"fmt"
 	"net"
 
-	vppnat "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/nat"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/nat_types"
 )
 
 type NatFlags uint8
 
 const (
-	NatNone         NatFlags = NatFlags(vppnat.NAT_IS_NONE)
-	NatTwice        NatFlags = NatFlags(vppnat.NAT_IS_TWICE_NAT)
-	NatSelfTwice    NatFlags = NatFlags(vppnat.NAT_IS_SELF_TWICE_NAT)
-	NatOut2In       NatFlags = NatFlags(vppnat.NAT_IS_OUT2IN_ONLY)
-	NatAddrOnly     NatFlags = NatFlags(vppnat.NAT_IS_ADDR_ONLY)
-	NatOutside      NatFlags = NatFlags(vppnat.NAT_IS_OUTSIDE)
-	NatInside       NatFlags = NatFlags(vppnat.NAT_IS_INSIDE)
-	NatStatic       NatFlags = NatFlags(vppnat.NAT_IS_STATIC)
-	NatExtHostValid NatFlags = NatFlags(vppnat.NAT_IS_EXT_HOST_VALID)
+	NatNone         NatFlags = NatFlags(nat_types.NAT_IS_NONE)
+	NatTwice        NatFlags = NatFlags(nat_types.NAT_IS_TWICE_NAT)
+	NatSelfTwice    NatFlags = NatFlags(nat_types.NAT_IS_SELF_TWICE_NAT)
+	NatOut2In       NatFlags = NatFlags(nat_types.NAT_IS_OUT2IN_ONLY)
+	NatAddrOnly     NatFlags = NatFlags(nat_types.NAT_IS_ADDR_ONLY)
+	NatOutside      NatFlags = NatFlags(nat_types.NAT_IS_OUTSIDE)
+	NatInside       NatFlags = NatFlags(nat_types.NAT_IS_INSIDE)
+	NatStatic       NatFlags = NatFlags(nat_types.NAT_IS_STATIC)
+	NatExtHostValid NatFlags = NatFlags(nat_types.NAT_IS_EXT_HOST_VALID)
 )
 
-func ToVppNatConfigFlags(flags NatFlags) vppnat.NatConfigFlags {
-	return vppnat.NatConfigFlags(flags)
+func ToVppNatConfigFlags(flags NatFlags) nat_types.NatConfigFlags {
+	return nat_types.NatConfigFlags(flags)
 }
 
 type Nat44Entry struct {

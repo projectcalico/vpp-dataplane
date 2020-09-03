@@ -20,29 +20,10 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ipip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ipip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
-
-func ipipAddressFromNetIP(addr net.IP) ipip.Address {
-	var ip ipip.AddressUnion = ipip.AddressUnion{}
-	if IsIP4(addr) {
-		var ip4 ipip.IP4Address
-		copy(ip4[:], addr.To4()[0:4])
-		ip.SetIP4(ip4)
-		return ipip.Address{
-			Af: ipip.ADDRESS_IP4,
-			Un: ip,
-		}
-	} else {
-		var ip6 ipip.IP6Address
-		copy(ip6[:], addr.To16())
-		ip.SetIP6(ip6)
-		return ipip.Address{
-			Af: ipip.ADDRESS_IP6,
-			Un: ip,
-		}
-	}
-}
 
 func (v *VppLink) AddIpipTunnel(src net.IP, dst net.IP, tableID uint32) (SwIfIndex uint32, err error) {
 	v.lock.Lock()
@@ -52,8 +33,8 @@ func (v *VppLink) AddIpipTunnel(src net.IP, dst net.IP, tableID uint32) (SwIfInd
 	request := &ipip.IpipAddTunnel{
 		Tunnel: ipip.IpipTunnel{
 			Instance: ^uint32(0),
-			Src:      ipipAddressFromNetIP(src),
-			Dst:      ipipAddressFromNetIP(dst),
+			Src:      types.ToVppAddress(src),
+			Dst:      types.ToVppAddress(dst),
 			TableID:  0,
 		},
 	}
@@ -72,7 +53,7 @@ func (v *VppLink) DelIpipTunnel(swIfIndex uint32) (err error) {
 
 	response := &ipip.IpipDelTunnelReply{}
 	request := &ipip.IpipDelTunnel{
-		SwIfIndex: ipip.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {

@@ -19,7 +19,8 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip6_nd"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip6_nd"
 )
 
 func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) (err error) {
@@ -28,7 +29,7 @@ func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) (err error) {
 
 	response := &ip6_nd.SwInterfaceIP6ndRaConfigReply{}
 	request := &ip6_nd.SwInterfaceIP6ndRaConfig{
-		SwIfIndex: ip6_nd.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		Suppress:  1,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)

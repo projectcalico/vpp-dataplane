@@ -20,7 +20,7 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/cnat"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/cnat"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -45,7 +45,7 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err
 	request := &cnat.CnatTranslationUpdate{
 		Translation: cnat.CnatTranslation{
 			Vip:      types.ToCnatEndpoint(tr.Endpoint),
-			IPProto:  types.ToCnatProto(tr.Proto),
+			IPProto:  types.ToVppIPProto(tr.Proto),
 			Paths:    paths,
 			IsRealIP: BoolToU8(tr.IsRealIP),
 		},
@@ -79,8 +79,8 @@ func (v *VppLink) CnatSetSnatAddresses(v4, v6 net.IP) (err error) {
 	defer v.lock.Unlock()
 
 	request := &cnat.CnatSetSnatAddresses{
-		SnatIP4: types.ToVppCnatIp4Address(v4),
-		SnatIP6: types.ToVppCnatIp6Address(v6),
+		SnatIP4: types.ToVppIP4Address(v4),
+		SnatIP6: types.ToVppIP6Address(v6),
 	}
 	response := &cnat.CnatSetSnatAddressesReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -98,7 +98,7 @@ func (v *VppLink) CnatAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err error
 
 	request := &cnat.CnatAddDelSnatPrefix{
 		IsAdd:  BoolToU8(isAdd),
-		Prefix: types.ToVppCnatPrefix(prefix),
+		Prefix: types.ToVppPrefix(prefix),
 	}
 	response := &cnat.CnatAddDelSnatPrefixReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)

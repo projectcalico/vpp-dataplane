@@ -68,6 +68,10 @@ restart-calicovpp:
 	kubectl rollout restart deployment/coredns
 	kubectl rollout status deployment/coredns
 
+.PHONY: goapi
+goapi:
+	@./vpplink/binapi/generate_binapi.sh
+
 .PHONY: release
 # TAG must be set to something like v0.6.0-calicov3.9.1
 release: check-TAG push

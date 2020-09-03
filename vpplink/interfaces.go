@@ -21,12 +21,14 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/gso"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/interfaces"
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip_neighbor"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/punt"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/tapv2"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/gso"
+	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/punt"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/tapv2"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -41,10 +43,10 @@ func (v *VppLink) SetInterfaceRxMode(swIfIndex uint32, queueID uint32, mode type
 	defer v.lock.Unlock()
 	response := &interfaces.SwInterfaceSetRxModeReply{}
 	request := &interfaces.SwInterfaceSetRxMode{
-		SwIfIndex:    interfaces.InterfaceIndex(swIfIndex),
+		SwIfIndex:    interface_types.InterfaceIndex(swIfIndex),
 		QueueIDValid: queueID != types.AllQueues,
 		QueueID:      queueID,
-		Mode:         interfaces.RxMode(mode),
+		Mode:         interface_types.RxMode(mode),
 	}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
@@ -59,7 +61,7 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 	request := &tapv2.TapCreateV2{
 		ID:          ^uint32(0),
 		Tag:         tap.Tag,
-		MacAddress:  tap.GetVppMacAddress(),
+		MacAddress:  types.ToVppMacAddress(&tap.MacAddress),
 		TapFlags:    tapv2.TapFlags(tap.Flags),
 		NumRxQueues: uint8(tap.RxQueues),
 		TxRingSz:    1024,
@@ -86,7 +88,7 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 		request.HostIfNameSet = true
 	}
 	if tap.HostMacAddress != nil {
-		request.HostMacAddr = tap.GetVppHostMacAddress()
+		request.HostMacAddr = types.ToVppMacAddress(&tap.HostMacAddress)
 		request.HostMacAddrSet = true
 	}
 	v.lock.Lock()
@@ -132,17 +134,10 @@ func (v *VppLink) CreateOrAttachTapV2(tap *types.TapV2) (swIfIndex uint32, err e
 func (v *VppLink) addDelInterfaceAddress(swIfIndex uint32, addr *net.IPNet, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	p := types.ToVppIpPrefix(addr)
 	request := &interfaces.SwInterfaceAddDelAddress{
-		SwIfIndex: interfaces.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		IsAdd:     isAdd,
-		Prefix: interfaces.AddressWithPrefix{
-			Address: interfaces.Address{
-				Un: interfaces.AddressUnion(p.Address.Un),
-				Af: interfaces.AddressFamily(p.Address.Af),
-			},
-			Len: p.Len,
-		},
+		Prefix:    types.ToVppAddressWithPrefix(addr),
 	}
 	response := &interfaces.SwInterfaceAddDelAddressReply{}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
@@ -165,7 +160,7 @@ func (v *VppLink) enableDisableInterfaceIP6(swIfIndex uint32, enable bool) error
 	defer v.lock.Unlock()
 
 	request := &vppip.SwInterfaceIP6EnableDisable{
-		SwIfIndex: vppip.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		Enable:    enable,
 	}
 	response := &vppip.SwInterfaceIP6EnableDisableReply{}
@@ -216,7 +211,7 @@ func (v *VppLink) SearchInterfaceWithName(name string) (err error, swIfIndex uin
 
 	swIfIndex = INVALID_SW_IF_INDEX
 	request := &interfaces.SwInterfaceDump{
-		SwIfIndex: interfaces.InterfaceIndex(INVALID_SW_IF_INDEX),
+		SwIfIndex: interface_types.InterfaceIndex(INVALID_SW_IF_INDEX),
 		// TODO: filter by name with NameFilter
 	}
 	reqCtx := v.ch.SendMultiRequest(request)
@@ -249,7 +244,7 @@ func (v *VppLink) GetInterfaceDetails(swIfIndex uint32) (i *types.VppInterfaceDe
 	defer v.lock.Unlock()
 
 	request := &interfaces.SwInterfaceDump{
-		SwIfIndex: interfaces.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
 	stream := v.ch.SendMultiRequest(request)
 	for {
@@ -269,7 +264,7 @@ func (v *VppLink) GetInterfaceDetails(swIfIndex uint32) (i *types.VppInterfaceDe
 		v.log.Debugf("found interface %d", response.SwIfIndex)
 		i = &types.VppInterfaceDetails{
 			SwIfIndex: uint32(response.SwIfIndex),
-			IsUp:      response.Flags&interfaces.IF_STATUS_API_FLAG_ADMIN_UP > 0,
+			IsUp:      response.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP > 0,
 			Name:      response.InterfaceName,
 			Tag:       response.Tag,
 			Type:      response.InterfaceDevType,
@@ -285,13 +280,13 @@ func (v *VppLink) interfaceAdminUpDown(swIfIndex uint32, up bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	var f interfaces.IfStatusFlags = 0
+	var f interface_types.IfStatusFlags = 0
 	if up {
-		f |= interfaces.IF_STATUS_API_FLAG_ADMIN_UP
+		f |= interface_types.IF_STATUS_API_FLAG_ADMIN_UP
 	}
 	// Set interface down
 	request := &interfaces.SwInterfaceSetFlags{
-		SwIfIndex: interfaces.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		Flags:     f,
 	}
 	response := &interfaces.SwInterfaceSetFlagsReply{}
@@ -315,11 +310,11 @@ func (v *VppLink) GetInterfaceNeighbors(swIfIndex uint32, isIPv6 bool) (err erro
 	defer v.lock.Unlock()
 
 	request := &ip_neighbor.IPNeighborDump{
-		SwIfIndex: ip_neighbor.InterfaceIndex(swIfIndex),
-		Af:        ip_neighbor.ADDRESS_IP4,
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+		Af:        ip_types.ADDRESS_IP4,
 	}
 	if isIPv6 {
-		request.Af = ip_neighbor.ADDRESS_IP6
+		request.Af = ip_types.ADDRESS_IP6
 	}
 	response := &ip_neighbor.IPNeighborDetails{}
 	stream := v.ch.SendMultiRequest(request)
@@ -336,8 +331,8 @@ func (v *VppLink) GetInterfaceNeighbors(swIfIndex uint32, isIPv6 bool) (err erro
 		neighbors = append(neighbors, types.Neighbor{
 			SwIfIndex:    uint32(vppNeighbor.SwIfIndex),
 			Flags:        types.FromVppNeighborFlags(vppNeighbor.Flags),
-			IP:           types.FromVppNeighborAddress(vppNeighbor.IPAddress),
-			HardwareAddr: types.FromVppNeighborMacAddress(vppNeighbor.MacAddress),
+			IP:           types.FromVppAddress(vppNeighbor.IPAddress),
+			HardwareAddr: types.FromVppMacAddress(vppNeighbor.MacAddress),
 		})
 	}
 }
@@ -347,7 +342,7 @@ func (v *VppLink) DelTap(swIfIndex uint32) error {
 	defer v.lock.Unlock()
 
 	request := &tapv2.TapDeleteV2{
-		SwIfIndex: tapv2.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
 	response := &tapv2.TapDeleteV2Reply{}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
@@ -362,8 +357,8 @@ func (v *VppLink) interfaceSetUnnumbered(unnumberedSwIfIndex uint32, swIfIndex u
 	defer v.lock.Unlock()
 
 	request := &interfaces.SwInterfaceSetUnnumbered{
-		SwIfIndex:           interfaces.InterfaceIndex(swIfIndex),
-		UnnumberedSwIfIndex: interfaces.InterfaceIndex(unnumberedSwIfIndex),
+		SwIfIndex:           interface_types.InterfaceIndex(swIfIndex),
+		UnnumberedSwIfIndex: interface_types.InterfaceIndex(unnumberedSwIfIndex),
 		IsAdd:               isAdd,
 	}
 	response := &interfaces.SwInterfaceSetUnnumberedReply{}
@@ -379,7 +374,7 @@ func (v *VppLink) AddrList(swIfIndex uint32, isv6 bool) (addresses []types.IfAdd
 	defer v.lock.Unlock()
 
 	request := &vppip.IPAddressDump{
-		SwIfIndex: vppip.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		IsIPv6:    isv6,
 	}
 	stream := v.ch.SendMultiRequest(request)
@@ -394,7 +389,7 @@ func (v *VppLink) AddrList(swIfIndex uint32, isv6 bool) (addresses []types.IfAdd
 		}
 		address := types.IfAddress{
 			SwIfIndex: uint32(response.SwIfIndex),
-			IPNet:     *types.FromVppIpPrefix(vppip.Prefix(response.Prefix)),
+			IPNet:     *types.FromVppAddressWithPrefix(response.Prefix),
 		}
 		addresses = append(addresses, address)
 	}
@@ -414,9 +409,9 @@ func (v *VppLink) PuntRedirect(sourceSwIfIndex, destSwIfIndex uint32, nh net.IP)
 	defer v.lock.Unlock()
 	request := &vppip.IPPuntRedirect{
 		Punt: vppip.PuntRedirect{
-			RxSwIfIndex: vppip.InterfaceIndex(sourceSwIfIndex),
-			TxSwIfIndex: vppip.InterfaceIndex(destSwIfIndex),
-			Nh:          types.ToVppIpAddress(nh),
+			RxSwIfIndex: interface_types.InterfaceIndex(sourceSwIfIndex),
+			TxSwIfIndex: interface_types.InterfaceIndex(destSwIfIndex),
+			Nh:          types.ToVppAddress(nh),
 		},
 		IsAdd: true,
 	}
@@ -432,16 +427,12 @@ func (v *VppLink) PuntRedirect(sourceSwIfIndex, destSwIfIndex uint32, nh net.IP)
 func (v *VppLink) PuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	af := punt.ADDRESS_IP4
-	if isIPv6 {
-		af = punt.ADDRESS_IP6
-	}
 	request := &punt.SetPunt{
 		Punt: punt.Punt{
 			Type: punt.PUNT_API_TYPE_L4,
 			Punt: punt.PuntUnionL4(punt.PuntL4{
-				Af:       af,
-				Protocol: punt.IPProto(types.ToVppIPProto(proto)),
+				Af:       types.ToVppAddressFamily(isIPv6),
+				Protocol: types.ToVppIPProto(proto),
 				Port:     port,
 			}),
 		},
@@ -471,7 +462,7 @@ func (v *VppLink) enableDisableGso(swIfIndex uint32, enable bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	request := &gso.FeatureGsoEnableDisable{
-		SwIfIndex:     gso.InterfaceIndex(swIfIndex),
+		SwIfIndex:     interface_types.InterfaceIndex(swIfIndex),
 		EnableDisable: enable,
 	}
 	response := &gso.FeatureGsoEnableDisableReply{}
@@ -495,7 +486,7 @@ func (v *VppLink) SetInterfaceRxPlacement(swIfIndex, queue, worker uint32, main 
 	defer v.lock.Unlock()
 
 	request := &interfaces.SwInterfaceSetRxPlacement{
-		SwIfIndex: interfaces.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		QueueID:   queue,
 		WorkerID:  worker,
 		IsMain:    main,

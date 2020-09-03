@@ -20,7 +20,7 @@ import (
 	"net"
 	"strings"
 
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/fib_types"
 )
 
 type RoutePath struct {
@@ -51,30 +51,15 @@ func (p *RoutePath) swIfIndexString() string {
 	}
 }
 
-func (p *RoutePath) GetVppGwAddress() vppip.Address {
-	return ToVppIpAddress(p.Gw)
-}
-
 func (p *RoutePath) String() string {
 	return fmt.Sprintf("%s%s%s", p.tableString(), p.Gw.String(), p.swIfIndexString())
 }
 
-func (r *Route) GetVppDstAddress() vppip.Address {
-	return ToVppIpAddress(r.Dst.IP)
-}
-
-func IsV6toAf(isv6 bool) vppip.AddressFamily {
+func IsV6toFibProto(isv6 bool) fib_types.FibPathNhProto {
 	if isv6 {
-		return vppip.ADDRESS_IP6
+		return fib_types.FIB_API_PATH_NH_PROTO_IP6
 	}
-	return vppip.ADDRESS_IP4
-}
-
-func IsV6toFibProto(isv6 bool) vppip.FibPathNhProto {
-	if isv6 {
-		return vppip.FIB_API_PATH_NH_PROTO_IP6
-	}
-	return vppip.FIB_API_PATH_NH_PROTO_IP4
+	return fib_types.FIB_API_PATH_NH_PROTO_IP4
 }
 
 func (r *Route) IsIP6() bool {

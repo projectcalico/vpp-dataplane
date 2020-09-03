@@ -20,7 +20,10 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ikev2"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ikev2"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ikev2_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 type IKEv2IDType uint8
@@ -214,13 +217,13 @@ func (v *VppLink) SetIKEv2TrafficSelector(
 	}
 	request := &ikev2.Ikev2ProfileSetTs{
 		Name: profile,
-		Ts: ikev2.Ikev2Ts{
+		Ts: ikev2_types.Ikev2Ts{
 			IsLocal:    isLocal,
 			ProtocolID: proto,
 			StartPort:  startPort,
 			EndPort:    endPort,
-			StartAddr:  toIKEv2IP4(startAddr),
-			EndAddr:    toIKEv2IP4(endAddr),
+			StartAddr:  types.ToVppIP4Address(startAddr),
+			EndAddr:    types.ToVppIP4Address(endAddr),
 		},
 	}
 	response := &ikev2.Ikev2ProfileSetTsReply{}
@@ -256,7 +259,7 @@ func (v *VppLink) SetIKEv2ESPTransforms(
 	}
 	request := &ikev2.Ikev2SetEspTransforms{
 		Name: profile,
-		Tr: ikev2.Ikev2EspTransforms{
+		Tr: ikev2_types.Ikev2EspTransforms{
 			CryptoAlg:     uint8(cryptoAlg),
 			CryptoKeySize: cryptoKeySize,
 			IntegAlg:      uint8(integAlg),
@@ -288,7 +291,7 @@ func (v *VppLink) SetIKEv2IKETransforms(
 	}
 	request := &ikev2.Ikev2SetIkeTransforms{
 		Name: profile,
-		Tr: ikev2.Ikev2IkeTransforms{
+		Tr: ikev2_types.Ikev2IkeTransforms{
 			CryptoAlg:     uint8(cryptoAlg),
 			CryptoKeySize: cryptoKeySize,
 			IntegAlg:      uint8(integAlg),
@@ -335,11 +338,11 @@ func (v *VppLink) SetIKEv2Responder(profile string, swIfIndex uint32, address ne
 	if address.To4() == nil {
 		return errors.New("IPv6 unsupported in IKEv2 at this time")
 	}
-	vppAddr := toIKEv2IP4(address)
+	vppAddr := types.ToVppIP4Address(address)
 	request := &ikev2.Ikev2SetResponder{
 		Name: profile,
-		Responder: ikev2.Ikev2Responder{
-			SwIfIndex: ikev2.InterfaceIndex(swIfIndex),
+		Responder: ikev2_types.Ikev2Responder{
+			SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 			IP4:       vppAddr,
 		},
 	}
@@ -363,7 +366,7 @@ func (v *VppLink) SetIKEv2TunnelInterface(profile string, swIfIndex uint32) (err
 	}
 	request := &ikev2.Ikev2SetTunnelInterface{
 		Name:      profile,
-		SwIfIndex: ikev2.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
 	response := &ikev2.Ikev2SetTunnelInterfaceReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -395,9 +398,4 @@ func (v *VppLink) IKEv2Initiate(profile string) (err error) {
 	}
 	v.log.Debugf("initiated IKE for profile %s", profile)
 	return nil
-}
-
-func toIKEv2IP4(addr net.IP) ikev2.IP4Address {
-	addr = addr.To4()
-	return ikev2.IP4Address{addr[0], addr[1], addr[2], addr[3]}
 }

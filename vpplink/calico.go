@@ -19,7 +19,8 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/calico"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/calico"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
 )
 
 func (v *VppLink) calicoEnableDisableSNAT(swIfIndex uint32, isEnable bool, isIP6 bool) (err error) {
@@ -27,7 +28,7 @@ func (v *VppLink) calicoEnableDisableSNAT(swIfIndex uint32, isEnable bool, isIP6
 	defer v.lock.Unlock()
 	response := &calico.CalicoEnableDisableInterfaceSnatReply{}
 	request := &calico.CalicoEnableDisableInterfaceSnat{
-		SwIfIndex: calico.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		IsIP6:     isIP6,
 		IsEnable:  isEnable,
 	}

@@ -20,7 +20,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/cnat"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/cnat"
 )
 
 type CnatEndpoint struct {
@@ -95,75 +95,10 @@ func (n *CnatTranslateEntry) Equal(o *CnatTranslateEntry) bool {
 	return true
 }
 
-func ToCnatProto(proto IPProto) cnat.IPProto {
-	switch proto {
-	case UDP:
-		return cnat.IP_API_PROTO_UDP
-	case TCP:
-		return cnat.IP_API_PROTO_TCP
-	case SCTP:
-		return cnat.IP_API_PROTO_SCTP
-	case ICMP:
-		return cnat.IP_API_PROTO_ICMP
-	case ICMP6:
-		return cnat.IP_API_PROTO_ICMP6
-	default:
-		return cnat.IP_API_PROTO_RESERVED
-	}
-}
-
 func ToCnatEndpoint(ep CnatEndpoint) cnat.CnatEndpoint {
-	a := cnat.CnatEndpoint{
+	return cnat.CnatEndpoint{
 		Port: ep.Port,
+		Addr: ToVppAddress(ep.IP),
 	}
-	if ep.IP.To4() == nil {
-		a.Addr.Af = cnat.ADDRESS_IP6
-		ip := [16]uint8{}
-		copy(ip[:], ep.IP)
-		a.Addr.Un = cnat.AddressUnionIP6(ip)
-	} else {
-		a.Addr.Af = cnat.ADDRESS_IP4
-		ip := [4]uint8{}
-		copy(ip[:], ep.IP.To4())
-		a.Addr.Un = cnat.AddressUnionIP4(ip)
-	}
-	return a
-}
 
-func ToVppCnatAddress(addr net.IP) cnat.Address {
-	a := cnat.Address{}
-	if addr.To4() == nil {
-		a.Af = cnat.ADDRESS_IP6
-		ip := [16]uint8{}
-		copy(ip[:], addr)
-		a.Un = cnat.AddressUnionIP6(ip)
-	} else {
-		a.Af = cnat.ADDRESS_IP4
-		ip := [4]uint8{}
-		copy(ip[:], addr.To4())
-		a.Un = cnat.AddressUnionIP4(ip)
-	}
-	return a
-}
-
-func ToVppCnatPrefix(prefix *net.IPNet) cnat.Prefix {
-	len, _ := prefix.Mask.Size()
-	r := cnat.Prefix{
-		Address: ToVppCnatAddress(prefix.IP),
-		Len:     uint8(len),
-	}
-	return r
-}
-
-// Make sure you really call this with an IPv4 address...
-func ToVppCnatIp4Address(addr net.IP) cnat.IP4Address {
-	ip := [4]uint8{}
-	copy(ip[:], addr.To4())
-	return ip
-}
-
-func ToVppCnatIp6Address(addr net.IP) cnat.IP6Address {
-	ip := [16]uint8{}
-	copy(ip[:], addr)
-	return ip
 }
