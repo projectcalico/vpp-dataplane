@@ -74,9 +74,9 @@ func getInterfaceConfig() (err error) {
 	} else {
 		// Loading config failed, try loading from save file
 		log.Warnf("Could not load config from linux, trying file...")
-		conf, err := loadInterfaceConfigFromFile()
-		if err != nil {
-			log.Warnf("Could not load saved config: %v", err)
+		conf, err2 := loadInterfaceConfigFromFile()
+		if err2 != nil {
+			log.Warnf("Could not load saved config: %v", err2)
 			// Return original error
 			return err
 		}
@@ -104,6 +104,21 @@ func loadInterfaceConfigFromLinux() (*interfaceConfig, error) {
 		conf.Routes, err = netlink.RouteList(link, netlink.FAMILY_ALL)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot list %s routes", params.mainInterface)
+		}
+		for i, route := range conf.Routes {
+			if route.Dst == nil {
+				if routeIsIP6(&route) {
+					conf.Routes[i].Dst = &net.IPNet{
+						IP:   net.IPv6zero,
+						Mask: net.CIDRMask(0, 128),
+					}
+				} else {
+					conf.Routes[i].Dst = &net.IPNet{
+						IP:   net.IPv4zero,
+						Mask: net.CIDRMask(0, 32),
+					}
+				}
+			}
 		}
 	}
 	conf.HardwareAddr = link.Attrs().HardwareAddr

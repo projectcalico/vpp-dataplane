@@ -16,8 +16,9 @@
 package vpplink
 
 import (
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"net"
+
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func IsIP4(ip net.IP) bool {

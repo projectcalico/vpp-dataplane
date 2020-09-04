@@ -48,6 +48,7 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err
 			IPProto:  types.ToVppIPProto(tr.Proto),
 			Paths:    paths,
 			IsRealIP: BoolToU8(tr.IsRealIP),
+			Flags:    uint8(cnat.CNAT_TRANSLATION_ALLOC_PORT),
 		},
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
