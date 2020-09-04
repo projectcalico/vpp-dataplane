@@ -66,32 +66,31 @@ var (
 
 type Server struct {
 	*common.CalicoVppServerData
-	log             *logrus.Entry
-	vpp             *vpplink.VppLink
-	t               tomb.Tomb
-	bgpServer       *bgpserver.BgpServer
-	client          *calicocli.Client
-	clientv3        calicocliv3.Interface
-	defaultBGPConf  *calicov3.BGPConfigurationSpec
-	ipv4            net.IP
-	ipv6            net.IP
-	ipv4Net         *net.IPNet
-	ipv6Net         *net.IPNet
-	hasV4           bool
-	hasV6           bool
-	ipam            IpamCache
-	reloadCh        chan string
-	prefixReady     chan int
-	servicesServer  *services.Server
-	connectivityMap map[string]*connectivity.NodeConnectivity
-	localAddressMap map[string]*net.IPNet
-	ShouldStop      bool
+	log              *logrus.Entry
+	vpp              *vpplink.VppLink
+	t                tomb.Tomb
+	bgpServer        *bgpserver.BgpServer
+	client           *calicocli.Client
+	clientv3         calicocliv3.Interface
+	defaultBGPConf   *calicov3.BGPConfigurationSpec
+	defaultFelixConf *calicov3.FelixConfigurationSpec
+	ipv4             net.IP
+	ipv6             net.IP
+	ipv4Net          *net.IPNet
+	ipv6Net          *net.IPNet
+	hasV4            bool
+	hasV6            bool
+	ipam             IpamCache
+	reloadCh         chan string
+	prefixReady      chan int
+	servicesServer   *services.Server
+	connectivityMap  map[string]*connectivity.NodeConnectivity
+	localAddressMap  map[string]*net.IPNet
+	ShouldStop       bool
 	// Is bgpServer running (s.bgpServer == nil)
 	bgpServerRunningCond *sync.Cond
 	// Connectivity providers
-	flat  *connectivity.FlatL3Provider
-	ipip  *connectivity.IpipProvider
-	ipsec *connectivity.IpsecProvider
+	providers map[string]connectivity.ConnectivityProvider
 }
 
 func v46ify(s string, isv6 bool) string {
@@ -138,18 +137,32 @@ func NewServer(vpp *vpplink.VppLink, ss *services.Server, l *logrus.Entry) (*Ser
 		localAddressMap:      make(map[string]*net.IPNet),
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
 	}
-	providerData := connectivity.NewConnectivityProviderData(
-		server.vpp, server.log, &server.ipv6, &server.ipv4,
-	)
-	server.flat = connectivity.NewFlatL3Provider(providerData)
-	server.ipip = connectivity.NewIPIPProvider(providerData)
-	server.ipsec = connectivity.NewIPsecProvider(providerData)
 
 	BGPConf, err := server.getDefaultBGPConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting default BGP configuration")
 	}
 	server.defaultBGPConf = BGPConf
+	felixConf, err := server.getDefaultFelixConfig()
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting default BGP configuration")
+	}
+	server.defaultFelixConf = felixConf
+
+	providerData := connectivity.NewConnectivityProviderData(
+		server.vpp, server.log, &server.ipv6, &server.ipv4, felixConf,
+	)
+
+	server.providers = make(map[string]connectivity.ConnectivityProvider)
+	server.providers[connectivity.FLAT] = connectivity.NewFlatL3Provider(providerData)
+	server.providers[connectivity.IPIP] = connectivity.NewIPIPProvider(providerData)
+	server.providers[connectivity.IPSEC] = connectivity.NewIPsecProvider(providerData)
+	server.providers[connectivity.VXLAN] = connectivity.NewVXLanProvider(providerData)
+
+	for _, provider := range server.providers {
+		provider.Init()
+	}
+
 	return &server, nil
 }
 
@@ -290,7 +303,7 @@ func (s *Server) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPP
 		s.addDelSnatPrefix(pool, true)
 	} else if pool == nil {
 		/* Deletion */
-		s.log.Debugf("Pool %s deleted, handler called", pool.Spec.CIDR)
+		s.log.Debugf("Pool %s deleted, handler called", prevPool.Spec.CIDR)
 		s.addDelSnatPrefix(prevPool, false)
 	} else {
 		s.addDelSnatPrefix(pool, true)
@@ -299,6 +312,14 @@ func (s *Server) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPP
 		s.log.Errorf("Parts of IPPool updates are not supported at this time: old: %+v new: %+v", prevPool, pool)
 	}
 	return nil
+}
+
+func (s *Server) getDefaultFelixConfig() (*calicov3.FelixConfigurationSpec, error) {
+	conf, err := s.clientv3.FelixConfigurations().Get(context.Background(), "default", options.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting default felix config")
+	}
+	return &conf.Spec, nil
 }
 
 func (s *Server) getDefaultBGPConfig() (*calicov3.BGPConfigurationSpec, error) {
@@ -544,9 +565,9 @@ func (s *Server) Stop() {
 func (s *Server) OnVppRestart() {
 	s.log.Infof("Restarting ROUTING")
 	// Those should happen first, in case we need to cleanup state
-	s.flat.OnVppRestart()
-	s.ipip.OnVppRestart()
-	s.ipsec.OnVppRestart()
+	for _, provider := range s.providers {
+		provider.OnVppRestart()
+	}
 	for _, cn := range s.connectivityMap {
 		s.log.Infof("Adding routing : %s", cn.String())
 		err := s.updateIPConnectivity(cn, false)

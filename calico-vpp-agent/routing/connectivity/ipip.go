@@ -35,6 +35,9 @@ func (p *IpipProvider) OnVppRestart() {
 	p.ipipIfs = make(map[string]uint32)
 }
 
+func (p *IpipProvider) Init() {
+}
+
 func (p IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
 	p.log.Debugf("Adding ipip Tunnel to VPP")
 	if _, found := p.ipipIfs[cn.NextHop.String()]; !found {

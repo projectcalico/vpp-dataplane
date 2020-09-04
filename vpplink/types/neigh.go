@@ -18,8 +18,8 @@ package types
 import (
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ethernet_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ethernet_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_neighbor"
 )
 
 type IPNeighborFlags uint32

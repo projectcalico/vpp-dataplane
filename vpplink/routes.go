@@ -19,11 +19,11 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/fib_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip_neighbor"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 

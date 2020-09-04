@@ -19,8 +19,8 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip6_nd"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip6_nd"
 )
 
 func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) (err error) {

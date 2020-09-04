@@ -48,6 +48,7 @@ const (
 	BgpLogLevelEnvVar         = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar       = "SERVICE_PREFIX"
+	DefaultVXLANVni           = 4096
 
 	defaultRxMode = types.Adaptative
 )

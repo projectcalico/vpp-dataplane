@@ -9,6 +9,9 @@ GOVPP_DIR=$(go list -f '{{.Dir}}' -m git.fd.io/govpp.git)
 BINAPI_GENERATOR=$SCRIPTDIR/bin/binapi-generator
 VPPLINK_DIR=$SCRIPTDIR/..
 
+VPP_GOAPI_DIR=$SCRIPTDIR/vppapi
+VPP_API_IMPORT_PREFIX=github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi
+
 function make_binapi_generator ()
 {
   mkdir -p $SCRIPTDIR/bin
@@ -18,7 +21,6 @@ function make_binapi_generator ()
 
 function read_config ()
 {
-	echo "Using BINAPI_GENERATOR $($BINAPI_GENERATOR --version)"
 
 	if [[ x$VPP_DIR == x ]]; then
 		echo "Input VPP full path : "
@@ -32,11 +34,18 @@ function read_config ()
 	VPP_API_DIR=$VPP_DIR/build-root/install-vpp-native/vpp/share/vpp/api/
 
 	pushd $VPP_DIR > /dev/null
-	VPP_REMOTE_NAME=""
-
+	rm -rf $VPP_GOAPI_DIR
+	git fetch origin
 	VPP_VERSION=$(./build-root/scripts/version)
-	VPP_COMMIT=$(git rev-parse --short HEAD)
-	echo "Using commit : $VPP_COMMIT"
+	VPP_BASE_COMMIT=$(git log $(git log origin/master..HEAD --oneline | tail -1 | awk '{print $1}')^ --oneline -1)
+	mkdir $VPP_GOAPI_DIR
+	echo "VPP Version                 : $VPP_VERSION"                     > $VPP_GOAPI_DIR/generate.log
+	echo "Binapi-generator version    : $($BINAPI_GENERATOR --version)"  >> $VPP_GOAPI_DIR/generate.log
+	echo "VPP Base commit             : $VPP_BASE_COMMIT"                >> $VPP_GOAPI_DIR/generate.log
+	echo "------------------ Cherry picked commits --------------------" >> $VPP_GOAPI_DIR/generate.log
+	git log origin/master..HEAD --oneline                                >> $VPP_GOAPI_DIR/generate.log
+	echo "-------------------------------------------------------------" >> $VPP_GOAPI_DIR/generate.log
+	cat $VPP_GOAPI_DIR/generate.log
 	popd > /dev/null
 }
 
@@ -51,9 +60,10 @@ function generate_govpp_apis ()
 {
 	$BINAPI_GENERATOR \
 	  --input-dir=$VPP_API_DIR \
-	  --output-dir=$SCRIPTDIR/$VPP_VERSION \
+	  --output-dir=$VPP_GOAPI_DIR \
+	  --import-prefix=$VPP_API_IMPORT_PREFIX \
 	  --no-source-path-info \
-	  --debug \
+	  --no-version-info \
 	  ikev2 \
 	  gso \
 	  interface \
@@ -69,23 +79,12 @@ function generate_govpp_apis ()
 	  feature \
 	  ip6_nd \
 	  punt \
+	  vxlan \
 	  vpe
-}
-
-function update_version_number ()
-{
-	echo "Update version number with $VPP_VERSION ? [yes/no] "
-	read RESP
-
-	if [[ x$RESP = xyes ]]; then
-		find $VPPLINK_DIR -name '*.go' \
-			-exec sed -i 's@github.com/projectcalico/vpp-dataplane/vpplink/binapi/[.~0-9a-z_-]*/'"@github.com/projectcalico/vpp-dataplane/vpplink/binapi/$VPP_VERSION/@g" {} \;
-	fi
 }
 
 make_binapi_generator
 read_config
 generate_vpp_apis
 generate_govpp_apis
-update_version_number
 
