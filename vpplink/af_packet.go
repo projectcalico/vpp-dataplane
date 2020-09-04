@@ -20,14 +20,9 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/af_packet"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/af_packet"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
-
-func ToVppMacAddress(hardwareAddr *net.HardwareAddr) af_packet.MacAddress {
-	hwAddr := [6]uint8{}
-	copy(hwAddr[:], *hardwareAddr)
-	return af_packet.MacAddress(hwAddr)
-}
 
 func (v *VppLink) CreateAfPacket(ifName string, hardwareAddr *net.HardwareAddr) (swIfIndex uint32, err error) {
 	v.lock.Lock()
@@ -39,7 +34,7 @@ func (v *VppLink) CreateAfPacket(ifName string, hardwareAddr *net.HardwareAddr) 
 	}
 	if hardwareAddr != nil {
 		request.UseRandomHwAddr = false
-		request.HwAddr = ToVppMacAddress(hardwareAddr)
+		request.HwAddr = types.ToVppMacAddress(hardwareAddr)
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {

@@ -17,8 +17,6 @@ package types
 
 import (
 	"net"
-
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/tapv2"
 )
 
 type TapFlags uint32
@@ -42,12 +40,4 @@ type TapV2 struct {
 	Flags          TapFlags
 	TxRingSize     int
 	RxRingSize     int
-}
-
-func (t *TapV2) GetVppHostMacAddress() tapv2.MacAddress {
-	return tapv2.MacAddress(ToVppMacAddress(t.HostMacAddress))
-}
-
-func (t *TapV2) GetVppMacAddress() tapv2.MacAddress {
-	return tapv2.MacAddress(ToVppMacAddress(t.MacAddress))
 }

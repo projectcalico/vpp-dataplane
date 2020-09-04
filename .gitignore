@@ -4,6 +4,7 @@ calico-vpp-agent/dep/gobgp
 vpp-manager/images/*/vpp-manager
 vpp-manager/vpp_build/
 *.deb
+vpplink/binapi/bin/
 
 test/vagrant/local-config.env
 test/vagrant/.vagrant

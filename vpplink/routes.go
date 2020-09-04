@@ -19,8 +19,11 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/fib_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -53,14 +56,17 @@ func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) (routes []types.Route, 
 		routePaths := make([]types.RoutePath, 0, vppRoute.NPaths)
 		for _, vppPath := range vppRoute.Paths {
 			routePaths = append(routePaths, types.RoutePath{
-				Gw:        types.FromVppIpAddressUnion(vppPath.Nh.Address, vppRoute.Prefix.Address.Af == vppip.ADDRESS_IP6),
+				Gw: types.FromVppIpAddressUnion(
+					vppPath.Nh.Address,
+					vppRoute.Prefix.Address.Af == ip_types.ADDRESS_IP6,
+				),
 				Table:     int(vppPath.TableID),
 				SwIfIndex: vppPath.SwIfIndex,
 			})
 		}
 
 		route := types.Route{
-			Dst:   types.FromVppIpPrefix(vppRoute.Prefix),
+			Dst:   types.FromVppPrefix(vppRoute.Prefix),
 			Table: int(vppRoute.TableID),
 			Paths: routePaths,
 		}
@@ -91,10 +97,10 @@ func (v *VppLink) addDelNeighbor(neighbor *types.Neighbor, isAdd bool) error {
 	request := &ip_neighbor.IPNeighborAddDel{
 		IsAdd: isAdd,
 		Neighbor: ip_neighbor.IPNeighbor{
-			SwIfIndex:  ip_neighbor.InterfaceIndex(neighbor.SwIfIndex),
-			Flags:      neighbor.GetVppNeighborFlags(),
-			MacAddress: ip_neighbor.MacAddress(neighbor.GetVppMacAddress()),
-			IPAddress:  neighbor.GetVppNeighborAddress(),
+			SwIfIndex:  interface_types.InterfaceIndex(neighbor.SwIfIndex),
+			Flags:      types.ToVppNeighborFlags(neighbor.Flags),
+			MacAddress: types.ToVppMacAddress(&neighbor.HardwareAddr),
+			IPAddress:  types.ToVppAddress(neighbor.IP),
 		},
 	}
 	response := &ip_neighbor.IPNeighborAddDelReply{}
@@ -121,31 +127,29 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	defer v.lock.Unlock()
 
 	isIP6 := route.IsIP6()
-	prefix := vppip.Prefix{}
+	prefix := ip_types.Prefix{}
 	if route.Dst != nil {
-		prefixLen, _ := route.Dst.Mask.Size()
-		prefix.Len = uint8(prefixLen)
-		prefix.Address = route.GetVppDstAddress()
+		prefix = types.ToVppPrefix(route.Dst)
 	} else {
-		prefix.Address = vppip.Address{
-			Af: types.IsV6toAf(isIP6),
+		prefix.Address = ip_types.Address{
+			Af: types.ToVppAddressFamily(isIP6),
 		}
 	}
 
-	paths := make([]vppip.FibPath, 0, len(route.Paths))
+	paths := make([]fib_types.FibPath, 0, len(route.Paths))
 	for _, routePath := range route.Paths {
-		path := vppip.FibPath{
+		path := fib_types.FibPath{
 			SwIfIndex:  uint32(routePath.SwIfIndex),
 			TableID:    uint32(routePath.Table),
 			RpfID:      0,
 			Weight:     1,
 			Preference: 0,
-			Type:       vppip.FIB_API_PATH_TYPE_NORMAL,
-			Flags:      vppip.FIB_API_PATH_FLAG_NONE,
+			Type:       fib_types.FIB_API_PATH_TYPE_NORMAL,
+			Flags:      fib_types.FIB_API_PATH_FLAG_NONE,
 			Proto:      types.IsV6toFibProto(isIP6),
 		}
 		if routePath.Gw != nil {
-			path.Nh.Address = routePath.GetVppGwAddress().Un
+			path.Nh.Address = types.ToVppAddress(routePath.Gw).Un
 		}
 		paths = append(paths, path)
 	}

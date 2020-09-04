@@ -17,7 +17,8 @@ package vpplink
 
 import (
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/ipsec"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/ipsec"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -26,7 +27,7 @@ func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) (protections 
 	defer v.lock.Unlock()
 
 	request := &ipsec.IpsecTunnelProtectDump{
-		SwIfIndex: ipsec.InterfaceIndex(tunnelInterface),
+		SwIfIndex: interface_types.InterfaceIndex(tunnelInterface),
 	}
 	response := &ipsec.IpsecTunnelProtectDetails{}
 	stream := v.ch.SendMultiRequest(request)
@@ -41,7 +42,7 @@ func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) (protections 
 		p := response.Tun
 		protections = append(protections, types.IPsecTunnelProtection{
 			SwIfIndex:   uint32(p.SwIfIndex),
-			NextHop:     types.FromVppIPsecAddress(p.Nh),
+			NextHop:     types.FromVppAddress(p.Nh),
 			OutSAIndex:  p.SaOut,
 			InSAIndices: p.SaIn,
 		})

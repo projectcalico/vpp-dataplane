@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  namespace: siperf
+  name: iperf-server-repl
+  labels:
+    app: iperf-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iperf-server
+  template:
+    metadata:
+      labels:
+        app: iperf-server
+    spec:
+      containers:
+      - name: iperf-server
+        image: sknat/iperf
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5001
+        - containerPort: 5003
+      nodeName: _NODE_1_
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: siperf
+  name: iperf-service
+spec:
+  ipFamily: IPv4
+  selector:
+    app: iperf-server
+  ports:
+    - protocol: TCP
+      port: 5001
+      name: iperf-tcp
+    - protocol: UDP
+      port: 5003
+      name: iperf-udp
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iperf-client
+  namespace: siperf
+spec:
+  containers:
+  - name: iperf-client
+    image: sknat/iperf
+    imagePullPolicy: IfNotPresent
+    ports:
+    - containerPort: 5001
+    - containerPort: 5003
+  nodeName: _NODE_2_

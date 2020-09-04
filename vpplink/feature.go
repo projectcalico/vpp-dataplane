@@ -19,7 +19,8 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/feature"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/feature"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
 )
 
 func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName, featureName string) (err error) {
@@ -27,7 +28,7 @@ func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName,
 	defer v.lock.Unlock()
 	response := &feature.FeatureEnableDisableReply{}
 	request := &feature.FeatureEnableDisable{
-		SwIfIndex:   feature.InterfaceIndex(swIfIndex),
+		SwIfIndex:   interface_types.InterfaceIndex(swIfIndex),
 		Enable:      isEnable,
 		ArcName:     arcName,
 		FeatureName: featureName,

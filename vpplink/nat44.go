@@ -20,15 +20,11 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-g3a42319eb/nat"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/nat"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/20.09-rc0~361-gab9444728/nat_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
-
-func parseIP4Address(address net.IP) nat.IP4Address {
-	var ip nat.IP4Address
-	copy(ip[:], address.To4()[0:4])
-	return ip
-}
 
 func (v *VppLink) EnableNatForwarding() (err error) {
 	v.lock.Lock()
@@ -54,11 +50,11 @@ func (v *VppLink) addDelNat44Address(isAdd bool, address net.IP) (err error) {
 
 	response := &nat.Nat44AddDelAddressRangeReply{}
 	request := &nat.Nat44AddDelAddressRange{
-		FirstIPAddress: parseIP4Address(address),
-		LastIPAddress:  parseIP4Address(address),
+		FirstIPAddress: types.ToVppIP4Address(address),
+		LastIPAddress:  types.ToVppIP4Address(address),
 		VrfID:          0,
 		IsAdd:          isAdd,
-		Flags:          nat.NAT_IS_NONE,
+		Flags:          nat_types.NAT_IS_NONE,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
@@ -84,7 +80,7 @@ func (v *VppLink) addDelNat44InterfaceAddress(isAdd bool, swIfIndex uint32, flag
 	response := &nat.Nat44AddDelInterfaceAddrReply{}
 	request := &nat.Nat44AddDelInterfaceAddr{
 		IsAdd:     isAdd,
-		SwIfIndex: nat.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		Flags:     types.ToVppNatConfigFlags(flags),
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -112,7 +108,7 @@ func (v *VppLink) addDelNat44Interface(isAdd bool, flags types.NatFlags, swIfInd
 	request := &nat.Nat44InterfaceAddDelFeature{
 		IsAdd:     isAdd,
 		Flags:     types.ToVppNatConfigFlags(flags),
-		SwIfIndex: nat.InterfaceIndex(swIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
@@ -143,7 +139,7 @@ func (v *VppLink) getLBLocals(entry *types.Nat44Entry) (locals []nat.Nat44LbAddr
 	for _, ip := range entry.BackendIPs {
 		v.log.Debugf("Adding local %s:%d", ip, entry.BackendPort)
 		locals = append(locals, nat.Nat44LbAddrPort{
-			Addr:        parseIP4Address(ip),
+			Addr:        types.ToVppIP4Address(ip),
 			Port:        uint16(entry.BackendPort),
 			Probability: uint8(10),
 		})
@@ -159,10 +155,10 @@ func (v *VppLink) addDelNat44LBStaticMapping(isAdd bool, entry *types.Nat44Entry
 	response := &nat.Nat44AddDelLbStaticMappingReply{}
 	request := &nat.Nat44AddDelLbStaticMapping{
 		IsAdd:        isAdd,
-		Flags:        nat.NAT_IS_SELF_TWICE_NAT | nat.NAT_IS_OUT2IN_ONLY,
-		ExternalAddr: parseIP4Address(entry.ServiceIP),
+		Flags:        nat_types.NAT_IS_SELF_TWICE_NAT | nat_types.NAT_IS_OUT2IN_ONLY,
+		ExternalAddr: types.ToVppIP4Address(entry.ServiceIP),
 		ExternalPort: uint16(entry.ServicePort),
-		Protocol:     types.ToVppIPProto(entry.Protocol),
+		Protocol:     uint8(types.ToVppIPProto(entry.Protocol)),
 		Locals:       locals,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -189,10 +185,10 @@ func (v *VppLink) addDelNat44StaticMapping(isAdd bool, entry *types.Nat44Entry) 
 	response := &nat.Nat44AddDelStaticMappingReply{}
 	request := &nat.Nat44AddDelStaticMapping{
 		IsAdd:             isAdd,
-		Flags:             nat.NAT_IS_SELF_TWICE_NAT | nat.NAT_IS_OUT2IN_ONLY,
-		LocalIPAddress:    parseIP4Address(entry.BackendIPs[0]),
-		ExternalIPAddress: parseIP4Address(entry.ServiceIP),
-		Protocol:          types.ToVppIPProto(entry.Protocol),
+		Flags:             nat_types.NAT_IS_SELF_TWICE_NAT | nat_types.NAT_IS_OUT2IN_ONLY,
+		LocalIPAddress:    types.ToVppIP4Address(entry.BackendIPs[0]),
+		ExternalIPAddress: types.ToVppIP4Address(entry.ServiceIP),
+		Protocol:          uint8(types.ToVppIPProto(entry.Protocol)),
 		LocalPort:         uint16(entry.BackendPort),
 		ExternalPort:      uint16(entry.ServicePort),
 		ExternalSwIfIndex: 0xffffffff,

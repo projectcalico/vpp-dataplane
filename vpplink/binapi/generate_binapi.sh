@@ -4,10 +4,22 @@ set -e
 
 SOURCE="${BASH_SOURCE[0]}"
 SCRIPTDIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
-VPPLINKDIR="$( dirname $SCRIPTDIR )"
+
+GOVPP_DIR=$(go list -f '{{.Dir}}' -m git.fd.io/govpp.git)
+BINAPI_GENERATOR=$SCRIPTDIR/bin/binapi-generator
+VPPLINK_DIR=$SCRIPTDIR/..
+
+function make_binapi_generator ()
+{
+  mkdir -p $SCRIPTDIR/bin
+  cd $GOVPP_DIR
+  go build -o $SCRIPTDIR/bin ./cmd/binapi-generator
+}
 
 function read_config ()
 {
+	echo "Using BINAPI_GENERATOR $($BINAPI_GENERATOR --version)"
+
 	if [[ x$VPP_DIR == x ]]; then
 		echo "Input VPP full path : "
 		read VPP_DIR
@@ -17,6 +29,7 @@ function read_config ()
 		echo "Couldnt find anything at <$VPP_DIR>"
 		exit 1
 	fi
+	VPP_API_DIR=$VPP_DIR/build-root/install-vpp-native/vpp/share/vpp/api/
 
 	pushd $VPP_DIR > /dev/null
 	VPP_REMOTE_NAME=""
@@ -27,14 +40,6 @@ function read_config ()
 	popd > /dev/null
 }
 
-function generate_govpp_api ()
-{
-	NAME="$1.api.json"
-	echo "Generating API $NAME"
-	find $VPP_DIR/build-root/install-vpp-native/vpp/share/vpp/api/ -name "$NAME" \
-		-exec binapi-generator --input-file={} --output-dir=$SCRIPTDIR/$VPP_VERSION \;
-}
-
 function generate_vpp_apis ()
 {
 	pushd $VPP_DIR > /dev/null
@@ -42,38 +47,29 @@ function generate_vpp_apis ()
 	popd > /dev/null
 }
 
-function fixup_govpp_apis ()
-{
-	sed -i 's/LabelStack \[\]FibMplsLabel/LabelStack \[16\]FibMplsLabel/g' \
-	  $SCRIPTDIR/$VPP_VERSION/ip/ip.ba.go
-}
-
-function cleanup_govpp_apis ()
-{
-	find $SCRIPTDIR/$VPP_VERSION/ -prune -o -name '*.go' \
-			-exec sed -i '/\/\/ source:/d' {} \;
-}
-
 function generate_govpp_apis ()
 {
-	generate_govpp_api ikev2
-	generate_govpp_api gso
-	generate_govpp_api interface
-	generate_govpp_api ip
-	generate_govpp_api ipip
-	generate_govpp_api ipsec
-	generate_govpp_api ip_neighbor
-	generate_govpp_api tapv2
-	generate_govpp_api nat
-	generate_govpp_api cnat
-	generate_govpp_api calico
-	generate_govpp_api af_packet
-	generate_govpp_api feature
-	generate_govpp_api ip6_nd
-	generate_govpp_api punt
-
-	cleanup_govpp_apis
-	fixup_govpp_apis
+	$BINAPI_GENERATOR \
+	  --input-dir=$VPP_API_DIR \
+	  --output-dir=$SCRIPTDIR/$VPP_VERSION \
+	  --no-source-path-info \
+	  --debug \
+	  ikev2 \
+	  gso \
+	  interface \
+	  ip \
+	  ipip \
+	  ipsec \
+	  ip_neighbor \
+	  tapv2 \
+	  nat \
+	  cnat \
+	  calico \
+	  af_packet \
+	  feature \
+	  ip6_nd \
+	  punt \
+	  vpe
 }
 
 function update_version_number ()
@@ -82,11 +78,12 @@ function update_version_number ()
 	read RESP
 
 	if [[ x$RESP = xyes ]]; then
-		find $VPPLINKDIR -path ./binapi -prune -o -name '*.go' \
+		find $VPPLINK_DIR -name '*.go' \
 			-exec sed -i 's@github.com/projectcalico/vpp-dataplane/vpplink/binapi/[.~0-9a-z_-]*/'"@github.com/projectcalico/vpp-dataplane/vpplink/binapi/$VPP_VERSION/@g" {} \;
 	fi
 }
 
+make_binapi_generator
 read_config
 generate_vpp_apis
 generate_govpp_apis
