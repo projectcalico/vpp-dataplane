@@ -30,6 +30,7 @@ install-test-deps:
 		libxml2-dev libvirt-dev zlib1g-dev ruby-dev build-essential
 	sudo adduser `id -un` libvirt
 	sudo adduser `id -un` kvm
+	newgrp libvirt
 	wget https://releases.hashicorp.com/vagrant/2.2.9/vagrant_2.2.9_x86_64.deb
 	sudo dpkg -i vagrant_2.2.9_x86_64.deb
 	rm vagrant_2.2.9_x86_64.deb
@@ -57,7 +58,7 @@ test-install-calicovpp-dev:
 .PHONY: run-tests
 run-tests:
 	test/scripts/test.sh up iperf
-	kubectl -n iperf wait pod/iperf-client --for=condition=Ready --timeout=15s
+	kubectl -n iperf wait pod/iperf-client --for=condition=Ready --timeout=30s
 	test/scripts/cases.sh ipv4
 	test/scripts/test.sh down iperf
 

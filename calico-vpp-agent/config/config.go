@@ -37,6 +37,7 @@ const (
 	CniServerStateTempFile    = "/var/run/vpp/calico_vpp_pod_state~"
 	CniServerStateFile        = "/var/run/vpp/calico_vpp_pod_state"
 	CniServerStateFileVersion = 1 // Used to ensure compatibility wen we reload data
+	FelixDataplaneSocket      = "/var/run/vpp/felix-dataplane.sock"
 
 	NodeNameEnvVar            = "NODENAME"
 	TapNumRxQueuesEnvVar      = "CALICOVPP_TAP_RX_QUEUES"

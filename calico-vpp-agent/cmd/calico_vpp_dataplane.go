@@ -23,6 +23,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/sirupsen/logrus"
@@ -88,14 +89,20 @@ func main() {
 		log.Errorf("Failed to create CNI server")
 		log.Fatal(err)
 	}
+	policyServer, err := policy.NewServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
+	if err != nil {
+		log.Errorf("Failed to create policy server")
+		log.Fatal(err)
+	}
 
 	go routingServer.Serve()
 	<-routing.ServerRunning
 
 	go serviceServer.Serve()
 	go cniServer.Serve()
+	go policyServer.Serve()
 
-	go common.HandleVppManagerRestart(log, vpp, routingServer, cniServer, serviceServer)
+	go common.HandleVppManagerRestart(log, vpp, routingServer, cniServer, serviceServer, policyServer)
 
 	<-signalChannel
 	log.Infof("SIGINT received, exiting")
