@@ -9,6 +9,7 @@ GOBGP_DIR=$(shell go list -f '{{.Dir}}' -m github.com/osrg/gobgp)
 
 build:
 	go build -o ./cmd/calico-vpp-agent ./cmd
+	go build -o ./cmd/felix-api-proxy ./cmd/api-proxy
 
 gobgp:
 	go build -o ./dep/gobgp $(GOBGP_DIR)/cmd/gobgp/

@@ -559,6 +559,8 @@ github.com/pquerna/ffjson v0.0.0-20180717144149-af8b230fcd20/go.mod h1:YARuvh7BU
 github.com/pquerna/ffjson v0.0.0-20190813045741-dac163c6c0a9/go.mod h1:YARuvh7BUWHNhzDq2OM5tzR2RiCcN2D7sapiKyCel/M=
 github.com/projectcalico/cni-plugin v3.8.4+incompatible h1:DXCMrj71Za5GIZCuDfDJ/KwPwiQMv51cTPsZDJKldVY=
 github.com/projectcalico/cni-plugin v3.8.4+incompatible/go.mod h1:GJHiFblJkEo/m+7GVejLqG0qclVkSeeXLRgkY/TtvY4=
+github.com/projectcalico/felix v3.8.9+incompatible h1:hvw0CuS1lXwNqmU+Wb3sM5aGTAwPzL3fsdIs3fQMlpo=
+github.com/projectcalico/felix v3.8.9+incompatible/go.mod h1:sXkI80qPUY4Nyon/P0JUD7ziCjHTg6HI6rxczHG3AY8=
 github.com/projectcalico/go-json v0.0.0-20161128004156-6219dc7339ba h1:aaF2byUCZhzszHsfPEr2M3qcU4ibtD/yk/il2R7T1PU=
 github.com/projectcalico/go-json v0.0.0-20161128004156-6219dc7339ba/go.mod h1:q8EdCgBdMQzgiX/uk4GXLWLk+gIHd1a7mWUAamJKDb4=
 github.com/projectcalico/go-yaml v0.0.0-20161201183616-955bc3e451ef/go.mod h1:1Ra2BftSa7Go38Gbq1q0bfmBFSSgUv+Cdc3SY8IL/C0=

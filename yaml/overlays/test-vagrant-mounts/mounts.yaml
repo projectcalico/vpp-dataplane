@@ -12,6 +12,9 @@ spec:
             - name: vpp-agent-binary
               mountPath: /bin/calico-vpp-agent
               readOnly: true
+            - name: felix-proxy-binary
+              mountPath: /bin/felix-api-proxy
+              readOnly: true
         - name: vpp
           volumeMounts:
             - name: vpp-manager-binary
@@ -33,6 +36,10 @@ spec:
           hostPath:
             type: File
             path: /host-repo/calico-vpp-agent/cmd/calico-vpp-agent
+        - name: felix-proxy-binary
+          hostPath:
+            type: File
+            path: /host-repo/calico-vpp-agent/cmd/felix-api-proxy
         - name: vpp-binary
           hostPath:
             type: File

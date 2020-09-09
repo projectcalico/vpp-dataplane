@@ -240,6 +240,10 @@ spec:
               value: "info"
             - name: FELIX_HEALTHENABLED
               value: "true"
+            - name: FELIX_USEINTERNALDATAPLANEDRIVER
+              value: "false"
+            - name: FELIX_DATAPLANEDRIVER
+              value: "/bin/felix-api-proxy"
           securityContext:
             privileged: true
           resources:

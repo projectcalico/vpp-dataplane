@@ -14,6 +14,7 @@ import (
 // RPCService defines RPC service  cnat.
 type RPCService interface {
 	CnatAddDelSnatPrefix(ctx context.Context, in *CnatAddDelSnatPrefix) (*CnatAddDelSnatPrefixReply, error)
+	CnatGetSnatAddresses(ctx context.Context, in *CnatGetSnatAddresses) (*CnatGetSnatAddressesReply, error)
 	CnatSessionDump(ctx context.Context, in *CnatSessionDump) (RPCService_CnatSessionDumpClient, error)
 	CnatSessionPurge(ctx context.Context, in *CnatSessionPurge) (*CnatSessionPurgeReply, error)
 	CnatSetSnatAddresses(ctx context.Context, in *CnatSetSnatAddresses) (*CnatSetSnatAddressesReply, error)
@@ -32,6 +33,15 @@ func NewServiceClient(conn api.Connection) RPCService {
 
 func (c *serviceClient) CnatAddDelSnatPrefix(ctx context.Context, in *CnatAddDelSnatPrefix) (*CnatAddDelSnatPrefixReply, error) {
 	out := new(CnatAddDelSnatPrefixReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) CnatGetSnatAddresses(ctx context.Context, in *CnatGetSnatAddresses) (*CnatGetSnatAddressesReply, error) {
+	out := new(CnatGetSnatAddressesReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err
