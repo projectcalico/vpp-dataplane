@@ -80,6 +80,7 @@ function generate_govpp_apis ()
 	  ip6_nd \
 	  punt \
 	  vxlan \
+	  af_xdp \
 	  vpe
 }
 

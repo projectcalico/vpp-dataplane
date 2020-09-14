@@ -5,7 +5,7 @@
 // Contents:
 //   1 enum
 //   1 struct
-// 105 messages
+// 107 messages
 //
 package nat
 
@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "nat"
 	APIVersion = "5.2.0"
-	VersionCrc = 0xbbd82fe8
+	VersionCrc = 0x10202b10
 )
 
 // NatLogLevel defines enum 'nat_log_level'.
@@ -558,6 +558,118 @@ func (m *Nat44AddDelStaticMappingReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *Nat44AddDelStaticMappingReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// Nat44AddDelStaticMappingV2 defines message 'nat44_add_del_static_mapping_v2'.
+type Nat44AddDelStaticMappingV2 struct {
+	IsAdd             bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
+	MatchPool         bool                           `binapi:"bool,name=match_pool" json:"match_pool,omitempty"`
+	Flags             nat_types.NatConfigFlags       `binapi:"nat_config_flags,name=flags" json:"flags,omitempty"`
+	PoolIPAddress     ip_types.IP4Address            `binapi:"ip4_address,name=pool_ip_address" json:"pool_ip_address,omitempty"`
+	LocalIPAddress    ip_types.IP4Address            `binapi:"ip4_address,name=local_ip_address" json:"local_ip_address,omitempty"`
+	ExternalIPAddress ip_types.IP4Address            `binapi:"ip4_address,name=external_ip_address" json:"external_ip_address,omitempty"`
+	Protocol          uint8                          `binapi:"u8,name=protocol" json:"protocol,omitempty"`
+	LocalPort         uint16                         `binapi:"u16,name=local_port" json:"local_port,omitempty"`
+	ExternalPort      uint16                         `binapi:"u16,name=external_port" json:"external_port,omitempty"`
+	ExternalSwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=external_sw_if_index" json:"external_sw_if_index,omitempty"`
+	VrfID             uint32                         `binapi:"u32,name=vrf_id" json:"vrf_id,omitempty"`
+	Tag               string                         `binapi:"string[64],name=tag" json:"tag,omitempty"`
+}
+
+func (m *Nat44AddDelStaticMappingV2) Reset()               { *m = Nat44AddDelStaticMappingV2{} }
+func (*Nat44AddDelStaticMappingV2) GetMessageName() string { return "nat44_add_del_static_mapping_v2" }
+func (*Nat44AddDelStaticMappingV2) GetCrcString() string   { return "5e205f1a" }
+func (*Nat44AddDelStaticMappingV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *Nat44AddDelStaticMappingV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1     // m.IsAdd
+	size += 1     // m.MatchPool
+	size += 1     // m.Flags
+	size += 1 * 4 // m.PoolIPAddress
+	size += 1 * 4 // m.LocalIPAddress
+	size += 1 * 4 // m.ExternalIPAddress
+	size += 1     // m.Protocol
+	size += 2     // m.LocalPort
+	size += 2     // m.ExternalPort
+	size += 4     // m.ExternalSwIfIndex
+	size += 4     // m.VrfID
+	size += 64    // m.Tag
+	return size
+}
+func (m *Nat44AddDelStaticMappingV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBool(m.IsAdd)
+	buf.EncodeBool(m.MatchPool)
+	buf.EncodeUint8(uint8(m.Flags))
+	buf.EncodeBytes(m.PoolIPAddress[:], 4)
+	buf.EncodeBytes(m.LocalIPAddress[:], 4)
+	buf.EncodeBytes(m.ExternalIPAddress[:], 4)
+	buf.EncodeUint8(m.Protocol)
+	buf.EncodeUint16(m.LocalPort)
+	buf.EncodeUint16(m.ExternalPort)
+	buf.EncodeUint32(uint32(m.ExternalSwIfIndex))
+	buf.EncodeUint32(m.VrfID)
+	buf.EncodeString(m.Tag, 64)
+	return buf.Bytes(), nil
+}
+func (m *Nat44AddDelStaticMappingV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.IsAdd = buf.DecodeBool()
+	m.MatchPool = buf.DecodeBool()
+	m.Flags = nat_types.NatConfigFlags(buf.DecodeUint8())
+	copy(m.PoolIPAddress[:], buf.DecodeBytes(4))
+	copy(m.LocalIPAddress[:], buf.DecodeBytes(4))
+	copy(m.ExternalIPAddress[:], buf.DecodeBytes(4))
+	m.Protocol = buf.DecodeUint8()
+	m.LocalPort = buf.DecodeUint16()
+	m.ExternalPort = buf.DecodeUint16()
+	m.ExternalSwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.VrfID = buf.DecodeUint32()
+	m.Tag = buf.DecodeString(64)
+	return nil
+}
+
+// Nat44AddDelStaticMappingV2Reply defines message 'nat44_add_del_static_mapping_v2_reply'.
+type Nat44AddDelStaticMappingV2Reply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *Nat44AddDelStaticMappingV2Reply) Reset() { *m = Nat44AddDelStaticMappingV2Reply{} }
+func (*Nat44AddDelStaticMappingV2Reply) GetMessageName() string {
+	return "nat44_add_del_static_mapping_v2_reply"
+}
+func (*Nat44AddDelStaticMappingV2Reply) GetCrcString() string { return "e8d4e804" }
+func (*Nat44AddDelStaticMappingV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *Nat44AddDelStaticMappingV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *Nat44AddDelStaticMappingV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *Nat44AddDelStaticMappingV2Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -4302,6 +4414,8 @@ func file_nat_binapi_init() {
 	api.RegisterMessage((*Nat44AddDelLbStaticMappingReply)(nil), "nat44_add_del_lb_static_mapping_reply_e8d4e804")
 	api.RegisterMessage((*Nat44AddDelStaticMapping)(nil), "nat44_add_del_static_mapping_e165e83b")
 	api.RegisterMessage((*Nat44AddDelStaticMappingReply)(nil), "nat44_add_del_static_mapping_reply_e8d4e804")
+	api.RegisterMessage((*Nat44AddDelStaticMappingV2)(nil), "nat44_add_del_static_mapping_v2_5e205f1a")
+	api.RegisterMessage((*Nat44AddDelStaticMappingV2Reply)(nil), "nat44_add_del_static_mapping_v2_reply_e8d4e804")
 	api.RegisterMessage((*Nat44AddressDetails)(nil), "nat44_address_details_45410ac4")
 	api.RegisterMessage((*Nat44AddressDump)(nil), "nat44_address_dump_51077d14")
 	api.RegisterMessage((*Nat44DelSession)(nil), "nat44_del_session_4c49c387")
@@ -4412,6 +4526,8 @@ func AllMessages() []api.Message {
 		(*Nat44AddDelLbStaticMappingReply)(nil),
 		(*Nat44AddDelStaticMapping)(nil),
 		(*Nat44AddDelStaticMappingReply)(nil),
+		(*Nat44AddDelStaticMappingV2)(nil),
+		(*Nat44AddDelStaticMappingV2Reply)(nil),
 		(*Nat44AddressDetails)(nil),
 		(*Nat44AddressDump)(nil),
 		(*Nat44DelSession)(nil),

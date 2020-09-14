@@ -51,6 +51,7 @@ const (
 	NodeNameEnvVar                = "NODENAME"
 	IpConfigEnvVar                = "CALICOVPP_IP_CONFIG"
 	RxModeEnvVar                  = "CALICOVPP_RX_MODE"
+	NumRxQueuesEnvVar             = "CALICOVPP_RX_QUEUES"
 	TapRxModeEnvVar               = "CALICOVPP_TAP_RX_MODE"
 	InterfaceEnvVar               = "CALICOVPP_INTERFACE"
 	ConfigTemplateEnvVar          = "CALICOVPP_CONFIG_TEMPLATE"
@@ -61,7 +62,8 @@ const (
 	ExtraAddrCountEnvVar          = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	CorePatternEnvVar             = "CALICOVPP_CORE_PATTERN"
 	TapRingSizeEnvVar             = "CALICOVPP_TAP_RING_SIZE"
-	AfPacketEnvVar                = "CALICOVPP_USE_AF_PACKET"
+	RingSizeEnvVar                = "CALICOVPP_RING_SIZE"
+	NativeDriverEnvVar            = "CALICOVPP_NATIVE_DRIVER"
 	SwapDriverEnvVar              = "CALICOVPP_SWAP_DRIVER"
 	DefaultGWEnvVar               = "CALICOVPP_DEFAULT_GW"
 	ServicePrefixEnvVar           = "SERVICE_PREFIX"
@@ -77,6 +79,12 @@ const (
 	vppFakeNextHopIP6String       = "fc00:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
 	vppTapIP6String               = "fc00:ffff:ffff:ffff:ffff:ffff:ffff:fffe"
 	defaultRxMode                 = types.Adaptative
+)
+
+const (
+	NATIVE_DRIVER_NONE      = "none"
+	NATIVE_DRIVER_AF_PACKET = "af_packet"
+	NATIVE_DRIVER_AF_XDP    = "af_xdp"
 )
 
 var (
@@ -118,9 +126,12 @@ type vppManagerParams struct {
 	vppTapIP4               net.IP
 	vppFakeNextHopIP6       net.IP
 	vppTapIP6               net.IP
-	useAfPacket             bool
-	TapRxRingSize           int
-	TapTxRingSize           int
+	nativeDriver            string
+	TapRxQueueSize          int
+	TapTxQueueSize          int
+	RxQueueSize             int
+	TxQueueSize             int
+	NumRxQueues             int
 	newDriverName           string
 	defaultGWs              []net.IP
 	ifConfigSavePath        string
@@ -210,13 +221,17 @@ func parseEnvVariables() (err error) {
 		}
 	}
 
-	params.useAfPacket = false
-	if conf := os.Getenv(AfPacketEnvVar); conf != "" {
-		useAfPacket, err := strconv.ParseBool(conf)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", AfPacketEnvVar, conf, useAfPacket, err)
+	params.nativeDriver = NATIVE_DRIVER_NONE
+	if conf := os.Getenv(NativeDriverEnvVar); conf != "" {
+		params.nativeDriver = conf
+	}
+
+	if conf := os.Getenv(NumRxQueuesEnvVar); conf != "" {
+		queues, err := strconv.ParseInt(conf, 10, 16)
+		if err != nil || queues <= 0 {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", NumRxQueuesEnvVar, conf, queues, err)
 		}
-		params.useAfPacket = useAfPacket
+		params.NumRxQueues = int(queues)
 	}
 
 	params.newDriverName = os.Getenv(SwapDriverEnvVar)
@@ -241,33 +256,45 @@ func parseEnvVariables() (err error) {
 			params.defaultGWs = append(params.defaultGWs, defaultGW)
 		}
 	}
-	params.TapRxRingSize = 0
-	params.TapTxRingSize = 0
-	if conf := os.Getenv(TapRingSizeEnvVar); conf != "" {
+	params.TapRxQueueSize, params.TapTxQueueSize, err = parseRingSize(TapRingSizeEnvVar)
+	if err != nil {
+		return err
+	}
+	params.RxQueueSize, params.TxQueueSize, err = parseRingSize(RingSizeEnvVar)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func parseRingSize(envVar string) (int, int, error) {
+	rxSize := 0
+	txSize := 0
+	if conf := os.Getenv(envVar); conf != "" {
 		sizes := strings.Split(conf, ",")
 		if len(sizes) == 1 {
 			sz, err := strconv.ParseInt(sizes[0], 10, 32)
 			if err != nil {
-				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+				return 0, 0, fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", envVar, conf, sz, err)
 			}
-			params.TapRxRingSize = int(sz)
-			params.TapTxRingSize = int(sz)
+			rxSize = int(sz)
+			txSize = int(sz)
 		} else if len(sizes) == 2 {
 			sz, err := strconv.ParseInt(sizes[0], 10, 32)
 			if err != nil {
-				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+				return 0, 0, fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", envVar, conf, sz, err)
 			}
-			params.TapRxRingSize = int(sz)
+			rxSize = int(sz)
 			sz, err = strconv.ParseInt(sizes[1], 10, 32)
 			if err != nil {
-				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+				return 0, 0, fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", envVar, conf, sz, err)
 			}
-			params.TapTxRingSize = int(sz)
+			txSize = int(sz)
 		} else {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sizes, err)
+			return 0, 0, fmt.Errorf("Invalid %s configuration: %s parses to %v", envVar, conf, sizes)
 		}
 	}
-	return nil
+	return rxSize, txSize, nil
 }
 
 func timeOutSigKill() {
@@ -772,8 +799,8 @@ func configureVpp(vpp *vpplink.VppLink) (err error) {
 		Tag:            HostIfTag,
 		MacAddress:     params.vppSideMacAddress,
 		HostMacAddress: params.containerSideMacAddress,
-		RxRingSize:     params.TapRxRingSize,
-		TxRingSize:     params.TapTxRingSize,
+		RxQueueSize:    params.TapRxQueueSize,
+		TxQueueSize:    params.TapTxQueueSize,
 		Flags:          types.TapFlagTun,
 	})
 	if err != nil {
@@ -899,15 +926,35 @@ func pingCalicoVpp() error {
 	return nil
 }
 
-func CreateAfPacket() error {
-	swIfIndex, err := vpp.CreateAfPacket(params.mainInterface, &initialConfig.HardwareAddr)
-	log.Infof("Created AF_PACKET %d", int(swIfIndex))
-	return err
+func CreateNativeMainInterface() error {
+	if params.nativeDriver == NATIVE_DRIVER_AF_PACKET {
+		swIfIndex, err := vpp.CreateAfPacket(params.mainInterface, &initialConfig.HardwareAddr)
+		log.Infof("Created AF_PACKET %d", int(swIfIndex))
+		return err
+	} else if params.nativeDriver == NATIVE_DRIVER_AF_XDP {
+		intf := types.VppXDPInterface{
+			HostInterfaceName: params.mainInterface,
+			RxQueueSize:       params.RxQueueSize,
+			TxQueueSize:       params.TxQueueSize,
+			NumRxQueues:       params.NumRxQueues,
+		}
+		err := vpp.CreateAfXDP(&intf)
+		log.Infof("Created AF_XDP %d", int(intf.SwIfIndex))
+		return err
+	}
+	return nil
 }
 
-// Returns VPP exit code
-func runVpp() (err error) {
-	if initialConfig.IsUp {
+func setInterfaceRxQueues(ifname string, queues int) error {
+	/* TODO: use go library */
+	cmd := exec.Command("ethtool", "-L", ifname, "combined", fmt.Sprintf("%d", queues))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func preConfigureLinuxMainInterface() (err error) {
+	if initialConfig.IsUp && params.nativeDriver != NATIVE_DRIVER_AF_XDP {
 		// Set interface down if it is up, bind it to a VPP-friendly driver
 		link, err := netlink.LinkByName(params.mainInterface)
 		if err != nil {
@@ -930,7 +977,25 @@ func runVpp() (err error) {
 			}
 		}
 	}
+	if params.nativeDriver == NATIVE_DRIVER_AF_XDP {
+		link, err := netlink.LinkByName(params.mainInterface)
+		if err != nil {
+			return errors.Wrapf(err, "Error finding link %s", params.mainInterface)
+		}
+		err = netlink.SetPromiscOn(link)
+		if err != nil {
+			return errors.Wrapf(err, "Error setting link %s promisc on", params.mainInterface)
+		}
+		err = setInterfaceRxQueues(params.mainInterface, params.NumRxQueues)
+		if err != nil {
+			return errors.Wrapf(err, "Error setting link %s NumQueues to %d", params.mainInterface, params.NumRxQueues)
+		}
+	}
+	return nil
+}
 
+// Returns VPP exit code
+func runVpp() (err error) {
 	// From this point it is very important that every exit path calls restoreLinuxConfig after vpp exits
 	// Bind the interface to a suitable drivr for VPP. DPDK does it automatically, this is useful otherwise
 	vppCmd = exec.Command(VppPath, "-c", VppConfigFile)
@@ -957,10 +1022,10 @@ func runVpp() (err error) {
 		return fmt.Errorf("cannot connect to VPP after 10 tries")
 	}
 
-	if params.useAfPacket {
+	if params.nativeDriver != NATIVE_DRIVER_NONE {
 		initialConfig.PciId = ""
 		initialConfig.Driver = ""
-		err = vpp.Retry(2*time.Second, 10, CreateAfPacket)
+		err = vpp.Retry(2*time.Second, 10, CreateNativeMainInterface)
 		if err != nil {
 			terminateVpp("Error creating af_packet (SIGINT %d): %v", vppProcess.Pid, err)
 			vpp.Close()
@@ -1053,8 +1118,8 @@ func setCorePattern() error {
 func printVppManagerConfig() {
 	log.Infof("CorePattern:    %s", params.corePattern)
 	log.Infof("ExtraAddrCount: %d", params.extraAddrCount)
-	log.Infof("Use AF_PACKET:  %t", params.useAfPacket)
-	log.Infof("Tap Ring Size:  rx:%d tx:%d", params.TapRxRingSize, params.TapTxRingSize)
+	log.Infof("Native driver:  %s", params.nativeDriver)
+	log.Infof("Tap Ring Size:  rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
 	log.Infof("RxMode:         %s", formatRxMode(params.rxMode))
 	log.Infof("TapRxMode:      %s", formatRxMode(params.tapRxMode))
 	log.Infof("Node IP4:       %s", initialConfig.NodeIP4)
@@ -1127,6 +1192,12 @@ func main() {
 	err = generateVppConfigFile()
 	if err != nil {
 		log.Errorf("Error generating VPP config: %s", err)
+		return
+	}
+
+	err = preConfigureLinuxMainInterface()
+	if err != nil {
+		log.Errorf("Error pre-configuring Linux main IF: %s", err)
 		return
 	}
 
