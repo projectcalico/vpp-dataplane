@@ -448,60 +448,81 @@ func restoreLinuxConfig() (err error) {
 			log.Warnf("Error swapping back driver to %s for %s: %v", initialConfig.Driver, initialConfig.PciId, err)
 		}
 	}
-	if initialConfig.IsUp {
-		// This assumes the link has kept the same name after the rebind.
-		// It should be always true on systemd based distros
-		retries := 0
-		var link netlink.Link
-		for {
-			link, err = netlink.LinkByName(params.mainInterface)
-			if err != nil {
-				retries += 1
-				if retries >= 10 {
-					return errors.Wrapf(err, "Error finding link %s after %d tries", params.mainInterface, retries)
-				}
-				time.Sleep(500 * time.Millisecond)
-			} else {
-				log.Infof("found links %s after %d tries", params.mainInterface, retries)
-				break
-			}
-		}
-		err = netlink.LinkSetUp(link)
+	if !initialConfig.IsUp {
+		return nil
+	}
+	// This assumes the link has kept the same name after the rebind.
+	// It should be always true on systemd based distros
+	retries := 0
+	failed := false
+	var link netlink.Link
+	for {
+		link, err = netlink.LinkByName(params.mainInterface)
 		if err != nil {
-			return errors.Wrapf(err, "Error setting link %s back up", params.mainInterface)
-		}
-		// Re-add all adresses and routes
-		failed := false
-		for _, addr := range initialConfig.Addresses {
-			if vpplink.IsIP6(addr.IP) && addr.IP.IsLinkLocalUnicast() {
-				log.Infof("Skipping linklocal address %s", addr.String())
-				continue
+			retries += 1
+			if retries >= 10 {
+				return errors.Wrapf(err, "Error finding link %s after %d tries", params.mainInterface, retries)
 			}
-			log.Infof("restoring address %s", addr.String())
-			err := netlink.AddrAdd(link, &addr)
+			time.Sleep(500 * time.Millisecond)
+		} else {
+			log.Infof("found links %s after %d tries", params.mainInterface, retries)
+			break
+		}
+	}
+	err = netlink.LinkSetUp(link)
+	if err != nil {
+		return errors.Wrapf(err, "Error setting link %s back up", params.mainInterface)
+	}
+	/* Restore XDP specific settings */
+	if params.nativeDriver == NATIVE_DRIVER_AF_XDP {
+		log.Infof("Removing AF XDP conf")
+		if !initialConfig.PromiscOn {
+			log.Infof("Setting promisc off")
+			err = netlink.SetPromiscOff(link)
 			if err != nil {
-				log.Errorf("cannot add address %+v back to %s : %+v", addr, link.Attrs().Name, err)
+				log.Errorf("Error setting link %s promisc off %v", params.mainInterface, err)
 				failed = true
-				// Keep going for the rest of the config
 			}
 		}
-		for _, route := range initialConfig.Routes {
-			if routeIsLinkLocalUnicast(&route) {
-				log.Infof("Skipping linklocal route %s", route.String())
-				continue
-			}
-			log.Infof("restoring route %s", route.String())
-			route.LinkIndex = link.Attrs().Index
-			err := netlink.RouteAdd(&route)
+		if initialConfig.NumRxQueues != params.NumRxQueues {
+			log.Infof("Setting back %d queues", initialConfig.NumRxQueues)
+			err = setInterfaceRxQueues(params.mainInterface, initialConfig.NumRxQueues)
 			if err != nil {
-				log.Errorf("cannot add route %+v back to %s : %+v", route, link.Attrs().Name, err)
+				log.Errorf("Error setting link %s NumQueues to %d %v", params.mainInterface, initialConfig.NumRxQueues, err)
 				failed = true
-				// Keep going for the rest of the config
 			}
 		}
-		if failed {
-			return fmt.Errorf("reconfiguration of some addresses or routes failed for %s", link.Attrs().Name)
+	}
+	// Re-add all adresses and routes
+	for _, addr := range initialConfig.Addresses {
+		if vpplink.IsIP6(addr.IP) && addr.IP.IsLinkLocalUnicast() {
+			log.Infof("Skipping linklocal address %s", addr.String())
+			continue
 		}
+		log.Infof("restoring address %s", addr.String())
+		err := netlink.AddrAdd(link, &addr)
+		if err != nil {
+			log.Errorf("cannot add address %+v back to %s : %+v", addr, link.Attrs().Name, err)
+			failed = true
+			// Keep going for the rest of the config
+		}
+	}
+	for _, route := range initialConfig.Routes {
+		if routeIsLinkLocalUnicast(&route) {
+			log.Infof("Skipping linklocal route %s", route.String())
+			continue
+		}
+		log.Infof("restoring route %s", route.String())
+		route.LinkIndex = link.Attrs().Index
+		err := netlink.RouteAdd(&route)
+		if err != nil {
+			log.Errorf("cannot add route %+v back to %s : %+v", route, link.Attrs().Name, err)
+			failed = true
+			// Keep going for the rest of the config
+		}
+	}
+	if failed {
+		return fmt.Errorf("reconfiguration of some addresses or routes failed for %s", link.Attrs().Name)
 	}
 	return nil
 }
@@ -1116,22 +1137,26 @@ func setCorePattern() error {
 }
 
 func printVppManagerConfig() {
-	log.Infof("CorePattern:    %s", params.corePattern)
-	log.Infof("ExtraAddrCount: %d", params.extraAddrCount)
-	log.Infof("Native driver:  %s", params.nativeDriver)
-	log.Infof("Tap Ring Size:  rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
-	log.Infof("RxMode:         %s", formatRxMode(params.rxMode))
-	log.Infof("TapRxMode:      %s", formatRxMode(params.tapRxMode))
-	log.Infof("Node IP4:       %s", initialConfig.NodeIP4)
-	log.Infof("Node IP6:       %s", initialConfig.NodeIP6)
-	log.Infof("PciId:          %s", initialConfig.PciId)
-	log.Infof("Driver:         %s", initialConfig.Driver)
-	log.Infof("Linux if is up: %t", initialConfig.IsUp)
-	log.Infof("DoSwapDriver:   %t", initialConfig.DoSwapDriver)
-	log.Infof("Mac:            %s", initialConfig.HardwareAddr.String())
-	log.Infof("Addresses:      [%s]", initialConfig.AddressString())
-	log.Infof("Routes:         [%s]", initialConfig.RouteString())
-	log.Infof("Service CIDRs:  [%s]", ServiceCIDRsString())
+	log.Infof("CorePattern:         %s", params.corePattern)
+	log.Infof("ExtraAddrCount:      %d", params.extraAddrCount)
+	log.Infof("Native driver:       %s", params.nativeDriver)
+	log.Infof("RxMode:              %s", formatRxMode(params.rxMode))
+	log.Infof("TapRxMode:           %s", formatRxMode(params.tapRxMode))
+	log.Infof("Node IP4:            %s", initialConfig.NodeIP4)
+	log.Infof("Node IP6:            %s", initialConfig.NodeIP6)
+	log.Infof("PciId:               %s", initialConfig.PciId)
+	log.Infof("Driver:              %s", initialConfig.Driver)
+	log.Infof("Linux if is up:      %t", initialConfig.IsUp)
+	log.Infof("Promisc was :        %t", initialConfig.PromiscOn)
+	log.Infof("DoSwapDriver:        %t", initialConfig.DoSwapDriver)
+	log.Infof("Mac:                 %s", initialConfig.HardwareAddr.String())
+	log.Infof("Addresses:           [%s]", initialConfig.AddressString())
+	log.Infof("Routes:              [%s]", initialConfig.RouteString())
+	log.Infof("Service CIDRs:       [%s]", ServiceCIDRsString())
+	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
+	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
+	log.Infof("PHY original #Queues rx:%d tx:%d", initialConfig.NumRxQueues, initialConfig.NumTxQueues)
+	log.Infof("PHY target #Queues   rx:%d", params.NumRxQueues)
 }
 
 func main() {

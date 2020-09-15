@@ -34,6 +34,7 @@ func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) (err error) {
 		RxqNum:  uint16(defaultIntTo(intf.NumRxQueues, 1)),
 		RxqSize: uint16(defaultIntTo(intf.RxQueueSize, 1024)),
 		TxqSize: uint16(defaultIntTo(intf.TxQueueSize, 1024)),
+		Mode:    af_xdp.AF_XDP_API_MODE_AUTO,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
