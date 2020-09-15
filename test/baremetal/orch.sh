@@ -25,6 +25,7 @@ function provision ()
 	DNS_TYPE=$DNS_TYPE \
 	AVF=$AVF \
 	VERBOSE=$VERBOSE \
+	K8_VERSION=$K8_VERSION \
 	NODE_NAME=$NODE_NAME"
 }
 

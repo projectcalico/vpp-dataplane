@@ -146,9 +146,17 @@ spec:
                   name: calico-config
                   key: CALICO_IPV4POOL_VXLAN
             - name: IP_AUTODETECTION_METHOD
-              value: interface=enp216.*
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: IP_AUTODETECTION_METHOD
             - name: IP6_AUTODETECTION_METHOD
-              value: interface=enp216.*
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: IP6_AUTODETECTION_METHOD
             - name: IP
               value: ""
               valueFrom:
