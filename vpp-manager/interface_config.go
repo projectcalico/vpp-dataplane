@@ -37,6 +37,9 @@ type interfaceConfig struct {
 	Addresses    []netlink.Addr
 	Routes       []netlink.Route
 	HardwareAddr net.HardwareAddr
+	PromiscOn    bool
+	NumTxQueues  int
+	NumRxQueues  int
 	DoSwapDriver bool
 	Hasv4        bool
 	Hasv6        bool
@@ -139,6 +142,9 @@ func loadInterfaceConfigFromLinux() (*interfaceConfig, error) {
 	}
 	pciID := regexp.MustCompile("[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}.[0-9a-f]")
 	conf.DoSwapDriver = false
+	conf.PromiscOn = link.Attrs().Promisc == 1
+	conf.NumTxQueues = link.Attrs().NumTxQueues
+	conf.NumRxQueues = link.Attrs().NumRxQueues
 	matches := pciID.FindAllString(devicePath, -1)
 	if matches == nil {
 		log.Warnf("Could not find pci device for %s: path is %s", params.mainInterface, devicePath)

@@ -1,8 +1,9 @@
-VPP Version                 : 20.09-rc0~363-g6224a9dea
+VPP Version                 : 21.01-rc0~18-gfc54d8389
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 9f1dbd20b build: Fix 'make build VPP_EXTRA_CMAKE_ARGS=-DVPP_ENABLE_SANITIZE_ADDR=ON' error on Centos 7
+VPP Base commit             : 8fb4d10dc nat: Fix next feature for ED with multiple workers
 ------------------ Cherry picked commits --------------------
-6224a9dea vlib: vlib_get_node_by_name fails via API
-d6896d0f8 vpp: Fix node APIs
-65643cc33 calico: Add SNAT simultaneously to VIP DNAT
+fc54d8389 calico: Add SNAT simultaneously to VIP DNAT
+f6541b073 cnat: Introduce parametric source policy
+e2f7f2516 cnat: Add support for SNat ICMP
+9d314a29f cnat: Ip ICMP error support
 -------------------------------------------------------------

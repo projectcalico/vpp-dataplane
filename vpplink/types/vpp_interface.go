@@ -34,3 +34,12 @@ type VppInterfaceDetails struct {
 	Tag       string
 	Type      string
 }
+
+type VppXDPInterface struct {
+	SwIfIndex         uint32
+	Name              string
+	HostInterfaceName string
+	RxQueueSize       int
+	TxQueueSize       int
+	NumRxQueues       int
+}

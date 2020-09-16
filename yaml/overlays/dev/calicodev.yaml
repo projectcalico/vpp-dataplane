@@ -26,6 +26,12 @@ spec:
           image: ${CALICO_NODE_IMAGE}
           imagePullPolicy: ${IMAGE_PULL_POLICY}
           env:
+            - name: FELIX_XDPENABLED
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: FELIX_XDPENABLED
             - name: CALICOVPP_TAP_RX_QUEUES
               value: ""
               valueFrom:
@@ -145,6 +151,18 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICO_IPV4POOL_VXLAN
+            - name: IP_AUTODETECTION_METHOD
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: IP_AUTODETECTION_METHOD
+            - name: IP6_AUTODETECTION_METHOD
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: IP6_AUTODETECTION_METHOD
             - name: IP
               value: ""
               valueFrom:
@@ -224,12 +242,24 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICOVPP_RX_MODE
-            - name: CALICOVPP_USE_AF_PACKET
+            - name: CALICOVPP_RX_QUEUES
               value: ""
               valueFrom:
                 configMapKeyRef:
                   name: calico-config
-                  key: CALICOVPP_USE_AF_PACKET
+                  key: CALICOVPP_RX_QUEUES
+            - name: CALICOVPP_RING_SIZE
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_RING_SIZE
+            - name: CALICOVPP_NATIVE_DRIVER
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_NATIVE_DRIVER
             - name: CALICOVPP_TAP_RX_MODE
               value: ""
               valueFrom:

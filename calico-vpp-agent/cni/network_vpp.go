@@ -274,9 +274,9 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 		HostNamespace: netns,
 		HostIfName:    contTunName,
 		Tag:           tunTag,
-		RxQueues:      config.TapRXQueues,
-		RxRingSize:    config.TapRxRingSize,
-		TxRingSize:    config.TapTxRingSize,
+		NumRxQueues:   config.TapNumRxQueues,
+		RxQueueSize:   config.TapRxQueueSize,
+		TxQueueSize:   config.TapTxQueueSize,
 		Flags:         types.TapFlagTun,
 	}
 	if config.TapGSOEnabled {

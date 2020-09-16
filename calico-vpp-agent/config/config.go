@@ -36,7 +36,7 @@ const (
 	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
 
 	NodeNameEnvVar            = "NODENAME"
-	TapRXQueuesEnvVar         = "CALICOVPP_TAP_RX_QUEUES"
+	TapNumRxQueuesEnvVar      = "CALICOVPP_TAP_RX_QUEUES"
 	TapGSOEnvVar              = "CALICOVPP_TAP_GSO_ENABLED"
 	EnableServicesEnvVar      = "CALICOVPP_NAT_ENABLED"
 	CrossIpsecTunnelsEnvVar   = "CALICOVPP_IPSEC_CROSS_TUNNELS"
@@ -44,7 +44,7 @@ const (
 	IPSecExtraAddressesEnvVar = "CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES"
 	IPSecIkev2PskEnvVar       = "CALICOVPP_IPSEC_IKEV2_PSK"
 	TapRxModeEnvVar           = "CALICOVPP_TAP_RX_MODE"
-	TapRingSizeEnvVar         = "CALICOVPP_TAP_RING_SIZE"
+	TapQueueSizeEnvVar        = "CALICOVPP_TAP_RING_SIZE"
 	BgpLogLevelEnvVar         = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar       = "SERVICE_PREFIX"
@@ -54,7 +54,7 @@ const (
 )
 
 var (
-	TapRXQueues       = 1
+	TapNumRxQueues    = 1
 	TapGSOEnabled     = false
 	EnableServices    = true
 	EnableIPSec       = false
@@ -66,8 +66,8 @@ var (
 	LogLevel          = logrus.InfoLevel
 	NodeName          = ""
 	ServiceCIDRs      []*net.IPNet
-	TapRxRingSize     int = 0
-	TapTxRingSize     int = 0
+	TapRxQueueSize    int = 0
+	TapTxQueueSize    int = 0
 )
 
 // LoadConfig loads the calico-vpp-agent configuration from the environment
@@ -92,12 +92,12 @@ func LoadConfig(log *logrus.Logger) (err error) {
 
 	NodeName = os.Getenv(NodeNameEnvVar)
 
-	if conf := os.Getenv(TapRXQueuesEnvVar); conf != "" {
+	if conf := os.Getenv(TapNumRxQueuesEnvVar); conf != "" {
 		queues, err := strconv.ParseInt(conf, 10, 16)
 		if err != nil || queues <= 0 {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", TapRXQueuesEnvVar, conf, queues, err)
+			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", TapNumRxQueuesEnvVar, conf, queues, err)
 		}
-		TapRXQueues = int(queues)
+		TapNumRxQueues = int(queues)
 	}
 
 	if conf := os.Getenv(TapGSOEnvVar); conf != "" {
@@ -140,28 +140,28 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		IpsecAddressCount = int(extraAddressCount) + 1
 	}
 
-	if conf := os.Getenv(TapRingSizeEnvVar); conf != "" {
+	if conf := os.Getenv(TapQueueSizeEnvVar); conf != "" {
 		sizes := strings.Split(conf, ",")
 		if len(sizes) == 1 {
 			sz, err := strconv.ParseInt(sizes[0], 10, 32)
 			if err != nil {
-				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapQueueSizeEnvVar, conf, sz, err)
 			}
-			TapRxRingSize = int(sz)
-			TapTxRingSize = int(sz)
+			TapRxQueueSize = int(sz)
+			TapTxQueueSize = int(sz)
 		} else if len(sizes) == 2 {
 			sz, err := strconv.ParseInt(sizes[0], 10, 32)
 			if err != nil {
-				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapQueueSizeEnvVar, conf, sz, err)
 			}
-			TapRxRingSize = int(sz)
+			TapRxQueueSize = int(sz)
 			sz, err = strconv.ParseInt(sizes[1], 10, 32)
 			if err != nil {
-				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sz, err)
+				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapQueueSizeEnvVar, conf, sz, err)
 			}
-			TapTxRingSize = int(sz)
+			TapTxQueueSize = int(sz)
 		} else {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapRingSizeEnvVar, conf, sizes, err)
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapQueueSizeEnvVar, conf, sizes, err)
 		}
 	}
 
@@ -191,7 +191,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		TapRxMode = defaultRxMode
 	}
 
-	log.Infof("Config:TapRXQueues       %d", TapRXQueues)
+	log.Infof("Config:TapNumRxQueues    %d", TapNumRxQueues)
 	log.Infof("Config:TapGSOEnabled     %t", TapGSOEnabled)
 	log.Infof("Config:EnableServices    %t", EnableServices)
 	log.Infof("Config:EnableIPSec       %t", EnableIPSec)

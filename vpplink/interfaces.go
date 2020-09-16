@@ -56,6 +56,14 @@ func (v *VppLink) SetInterfaceRxMode(swIfIndex uint32, queueID uint32, mode type
 	return nil
 }
 
+func defaultIntTo(value, defaultValue int) int {
+	if value == 0 {
+		return defaultValue
+	} else {
+		return value
+	}
+}
+
 func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 	response := &tapv2.TapCreateV2Reply{}
 	// TODO set MTU?
@@ -64,15 +72,15 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 		Tag:         tap.Tag,
 		MacAddress:  types.ToVppMacAddress(&tap.MacAddress),
 		TapFlags:    tapv2.TapFlags(tap.Flags),
-		NumRxQueues: uint8(tap.RxQueues),
-		TxRingSz:    1024,
-		RxRingSz:    1024,
+		NumRxQueues: uint8(defaultIntTo(tap.NumRxQueues, 1)),
+		TxRingSz:    uint16(defaultIntTo(tap.TxQueueSize, 1024)),
+		RxRingSz:    uint16(defaultIntTo(tap.RxQueueSize, 1024)),
 	}
-	if tap.TxRingSize > 0 {
-		request.TxRingSz = uint16(tap.TxRingSize)
+	if tap.TxQueueSize > 0 {
+		request.TxRingSz = uint16(tap.TxQueueSize)
 	}
-	if tap.RxRingSize > 0 {
-		request.RxRingSz = uint16(tap.RxRingSize)
+	if tap.RxQueueSize > 0 {
+		request.RxRingSz = uint16(tap.RxQueueSize)
 	}
 	if len(tap.HostNamespace) > 64 {
 		return INVALID_SW_IF_INDEX, fmt.Errorf("HostNamespace should be less than 64 characters")
@@ -104,11 +112,11 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 		return INVALID_SW_IF_INDEX, fmt.Errorf("Tap creation failed (retval %d). Request: %+v", response.Retval, request)
 	}
 
-	if tap.RxQueues > 1 {
+	if tap.NumRxQueues > 1 {
 		// This asumes the number of queues is equal to the number of workers
 		// otherwise this won't be optimal (queues < workers) or print errors (queues > workers)
-		for i := uint32(0); i < uint32(tap.RxQueues); i++ {
-			worker := uint32(tap.RxQueues) - 1
+		for i := uint32(0); i < uint32(tap.NumRxQueues); i++ {
+			worker := uint32(tap.NumRxQueues) - 1
 			if i > 0 {
 				worker = i - 1
 			}

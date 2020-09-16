@@ -5,7 +5,7 @@ LABEL maintainer="nskrzypc@cisco.com"
 RUN apt-get update \
  && apt-get install -y openssl libapr1 libnuma1 \
     libmbedcrypto3 libmbedtls12 libmbedx509-0 \
-    iproute2 ifupdown \
+    iproute2 ifupdown ethtool \
  && rm -rf /var/lib/apt/lists/*
 
 # set work directory
