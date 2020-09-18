@@ -1,0 +1,42 @@
+diff --git a/build/external/packages/dpdk.mk b/build/external/packages/dpdk.mk
+index beabf48e9..3c3b29f5b 100644
+--- a/build/external/packages/dpdk.mk
++++ b/build/external/packages/dpdk.mk
+@@ -184,21 +184,21 @@ $(B)/custom-config: $(B)/.dpdk-patch.ok Makefile
+ 	$(call set,RTE_MAX_LCORE,256)
+ 	$(call set,RTE_PKTMBUF_HEADROOM,$(DPDK_PKTMBUF_HEADROOM))
+ 	$(call set,RTE_CACHE_LINE_SIZE,$(DPDK_CACHE_LINE_SIZE))
+-	$(call set,RTE_BUILD_COMBINE_LIBS,y)
+-	$(call set,RTE_PCI_CONFIG,y)
++	$(call set,RTE_BUILD_COMBINE_LIBS,n)
++	$(call set,RTE_PCI_CONFIG,n)
+ 	$(call set,RTE_PCI_EXTENDED_TAG,"on")
+ 	$(call set,RTE_PCI_MAX_READ_REQUEST_SIZE,4096)
+ 	$(call set,RTE_LIBRTE_PMD_BOND,n)
+-	$(call set,RTE_LIBRTE_IP_FRAG,y)
+-	$(call set,RTE_LIBRTE_PMD_QAT,y)
+-	$(call set,RTE_LIBRTE_PMD_QAT_SYM,y)
++	$(call set,RTE_LIBRTE_IP_FRAG,n)
++	$(call set,RTE_LIBRTE_PMD_QAT,n)
++	$(call set,RTE_LIBRTE_PMD_QAT_SYM,n)
+ 	$(call set,RTE_LIBRTE_PMD_AESNI_MB,$(AESNI))
+ 	$(call set,RTE_LIBRTE_PMD_AESNI_GCM,$(AESNI))
+ 	$(call set,RTE_LIBRTE_MLX4_PMD,$(DPDK_MLX4_PMD))
+ 	$(call set,RTE_LIBRTE_MLX5_PMD,$(DPDK_MLX5_PMD))
+-	$(call set,RTE_LIBRTE_BNXT_PMD,y)
++	$(call set,RTE_LIBRTE_BNXT_PMD,n)
+ 	$(call set,RTE_LIBRTE_PMD_SOFTNIC,n)
+-	$(call set,RTE_IBVERBS_LINK_DLOPEN,y)
++	$(call set,RTE_IBVERBS_LINK_DLOPEN,n)
+ 	$(call set,RTE_LIBRTE_PMD_TAP,$(DPDK_TAP_PMD))
+ 	$(call set,RTE_LIBRTE_GSO,$(DPDK_TAP_PMD))
+ 	$(call set,RTE_LIBRTE_PMD_FAILSAFE,$(DPDK_FAILSAFE_PMD))
+@@ -235,7 +235,7 @@ $(B)/custom-config: $(B)/.dpdk-patch.ok Makefile
+ 	$(call set,RTE_LIBRTE_RIB,n)
+ 	$(call set,RTE_TEST_PMD,n)
+ 	$(call set,RTE_KNI_KMOD,n)
+-	$(call set,RTE_EAL_IGB_UIO,n)
++	$(call set,RTE_EAL_IGB_UIO,y)
+ 	@# currently broken in 18.02
+ 	$(call set,RTE_LIBRTE_DPAA_BUS,n)
+ 	$(call set,RTE_LIBRTE_DPAA_MEMPOOL,n)

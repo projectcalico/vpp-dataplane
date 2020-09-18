@@ -314,8 +314,6 @@ spec:
             requests:
               cpu: 500m
               memory: 128Mi
-            limits:
-              hugepages-2Mi: 256Mi
           volumeMounts:
             - name: vpp-rundir
               mountPath: /var/run/vpp

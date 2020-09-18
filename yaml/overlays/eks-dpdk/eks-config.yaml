@@ -1,0 +1,80 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-config
+  namespace: kube-system
+data:  # Configuration template for VPP in EKS
+  service_prefix: 10.100.0.0/16
+  vpp_dataplane_interface: eth0
+  veth_mtu: "1410"
+  default_ipv4_pool_cidr: 192.168.0.0/16
+  vpp_config_template: |-
+    unix {
+      nodaemon
+      full-coredump
+      cli-listen /var/run/vpp/cli.sock
+    }
+    api-trace { on }
+    cpu {
+        main-core 1
+        workers 0
+    }
+    dpdk {
+      uio-driver igb_uio
+      dev __PCI_DEVICE_ID__ { num-rx-queues 1  num-tx-queues 1 }
+    }
+    socksvr {
+        socket-name /var/run/vpp/vpp-api.sock
+    }
+    plugins {
+        plugin default { enable }
+        plugin calico_plugin.so { enable }
+        plugin dpdk_plugin.so { enable }
+    }
+
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: calicovpp-init-eks
+          imagePullPolicy: IfNotPresent
+          image: calicovpp/init-eks:prerelease
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: true
+            - mountPath: /host
+              name: host-root
+          env:
+            - name: NR_HUGEPAGES
+              value: "512"
+          resources:
+            requests:
+              cpu: 1
+            limits:
+              hugepages-2Mi: 0
+      containers:
+        - name: vpp
+          volumeMounts:
+            - mountPath: /hugepages
+              name: hugepage
+          resources:
+            requests:
+              cpu: 1
+            limits:
+              hugepages-2Mi: 512Mi
+      volumes:
+        - name: hugepage
+          emptyDir:
+            medium: HugePages
+        - name: host-root
+          hostPath:
+            path: /
