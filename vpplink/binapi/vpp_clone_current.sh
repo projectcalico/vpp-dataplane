@@ -14,3 +14,4 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/43/28743/2 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/88/28788/2 && git cherry-pick FETCH_HEAD # icmp echo
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/92/28792/1 && git cherry-pick FETCH_HEAD # source policy
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/16 && git cherry-pick FETCH_HEAD # calico plugin
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/28849/1 && git cherry-pick FETCH_HEAD # af xdp default MAX queues

@@ -484,7 +484,7 @@ func restoreLinuxConfig() (err error) {
 				failed = true
 			}
 		}
-		if initialConfig.NumRxQueues != params.NumRxQueues {
+		if initialConfig.NumRxQueues != params.NumRxQueues && params.NumRxQueues != 0 {
 			log.Infof("Setting back %d queues", initialConfig.NumRxQueues)
 			err = setInterfaceRxQueues(params.mainInterface, initialConfig.NumRxQueues)
 			if err != nil {
@@ -1007,9 +1007,11 @@ func preConfigureLinuxMainInterface() (err error) {
 		if err != nil {
 			return errors.Wrapf(err, "Error setting link %s promisc on", params.mainInterface)
 		}
-		err = setInterfaceRxQueues(params.mainInterface, params.NumRxQueues)
-		if err != nil {
-			return errors.Wrapf(err, "Error setting link %s NumQueues to %d", params.mainInterface, params.NumRxQueues)
+		if params.NumRxQueues != 0 {
+			err = setInterfaceRxQueues(params.mainInterface, params.NumRxQueues)
+			if err != nil {
+				return errors.Wrapf(err, "Error setting link %s NumQueues to %d", params.mainInterface, params.NumRxQueues)
+			}
 		}
 	}
 	return nil
