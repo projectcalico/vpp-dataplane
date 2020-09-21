@@ -1,7 +1,8 @@
-VPP Version                 : 21.01-rc0~18-gfc54d8389
+VPP Version                 : 21.01-rc0~19-gd096b6197
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 8fb4d10dc nat: Fix next feature for ED with multiple workers
 ------------------ Cherry picked commits --------------------
+d096b6197 vlib: force input node interrupts to be unique
 fc54d8389 calico: Add SNAT simultaneously to VIP DNAT
 f6541b073 cnat: Introduce parametric source policy
 e2f7f2516 cnat: Add support for SNat ICMP
