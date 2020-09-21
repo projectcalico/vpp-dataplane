@@ -217,7 +217,7 @@ calico_create_template ()
   export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=$CALICOVPP_INTERFACE}
   export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=$CALICOVPP_INTERFACE}
   cd $SCRIPTDIR
-  kubectl kustomize . | envsubst > /tmp/calico-vpp.yaml
+  kubectl kustomize . | envsubst | sude tee /tmp/calico-vpp.yaml
 }
 
 function calico_up_cni ()
