@@ -175,7 +175,7 @@ spec:
         # container programs network policy and routes on each
         # host.
         - name: calico-node
-          image: calicovpp/node:latest
+          image: calicovpp/node:v0.8.1-calicov3.15.1
           imagePullPolicy: IfNotPresent
           env:
             # Use Kubernetes API as the backing datastore.
@@ -277,7 +277,7 @@ spec:
             - name: vpp-rundir
               mountPath: /var/run/vpp
         - name: vpp
-          image: calicovpp/vpp:latest
+          image: calicovpp/vpp:v0.8.1-calicov3.15.1
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
