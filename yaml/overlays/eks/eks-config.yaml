@@ -40,8 +40,8 @@ spec:
       containers:
         - name: vpp
           env:
-            - name: CALICOVPP_USE_AF_PACKET
-              value: "true"
+            - name: CALICOVPP_NATIVE_DRIVER
+              value: "af_packet"
           resources:
             limits:
               hugepages-2Mi: 0

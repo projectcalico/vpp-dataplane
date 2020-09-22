@@ -1,7 +1,7 @@
 .PHONY: all build image push imageonly vpp vpp-build-env
 
 VPPLINK_DIR=../vpplink
-IMAGE_DIR=images/ubuntu/
+INIT_EKS_IMAGE_DIR=images/init-eks/
 DEV_IMAGE_DIR=images/dev/
 TAG ?= latest
 
@@ -9,6 +9,11 @@ all: image
 
 build:
 	GOOS=linux go build -o $(IMAGE_DIR)/vpp-manager
+
+eksimage:
+	docker build --pull \
+		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+		-t calicovpp/init-eks:$(TAG) $(INIT_EKS_IMAGE_DIR)
 
 image: build vpp
 	docker build --pull \
