@@ -144,7 +144,7 @@ function raw_create_cluster_conf ()
 	export DNS_TYPE=$DNS_TYPE
 	export IS_DUAL=$IS_DUAL
 	export K8_VERSION=${K8_VERSION:=v1.17.4}
-    cat $1 | envsubst | sudo tee /tmp/ClusterConf.yaml
+    cat $1 | envsubst | sudo tee /tmp/ClusterConf.yaml > /dev/null
 }
 
 function raw_create_master_k8 ()
