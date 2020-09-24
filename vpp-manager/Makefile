@@ -3,6 +3,7 @@
 VPPLINK_DIR=../vpplink
 INIT_EKS_IMAGE_DIR=images/init-eks/
 DEV_IMAGE_DIR=images/dev/
+IMAGE_DIR=images/ubuntu
 TAG ?= latest
 
 all: image
