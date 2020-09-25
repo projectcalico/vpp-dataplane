@@ -34,6 +34,8 @@ const (
 	VppManagerStatusFile   = "/var/run/vpp/vppmanagerstatus"
 	VppManagerTapIdxFile   = "/var/run/vpp/vppmanagertap0"
 	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
+	CniServerStateTempFile = "/var/run/vpp/calico_vpp_pod_state~"
+	CniServerStateFile     = "/var/run/vpp/calico_vpp_pod_state"
 
 	NodeNameEnvVar            = "NODENAME"
 	TapNumRxQueuesEnvVar      = "CALICOVPP_TAP_RX_QUEUES"

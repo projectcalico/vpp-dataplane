@@ -40,6 +40,7 @@ func main() {
 	}
 	log.SetLevel(config.LogLevel)
 
+	common.InitRestartHandler()
 	err = common.WritePidToFile()
 	if err != nil {
 		log.Errorf("Error writing pidfile: %v", err)

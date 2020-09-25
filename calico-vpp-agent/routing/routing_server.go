@@ -562,6 +562,12 @@ func (s *Server) Stop() {
 	s.t.Kill(errors.Errorf("GracefulStop"))
 }
 
+func (s *Server) RescanState() error {
+	/* We count on BGP auto-restarting might be good to
+	   persist some state if catching up is too slow */
+	return nil
+}
+
 func (s *Server) OnVppRestart() {
 	s.log.Infof("Restarting ROUTING")
 	// Those should happen first, in case we need to cleanup state

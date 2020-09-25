@@ -29,6 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -54,6 +55,7 @@ type Server struct {
 	serviceInformer  cache.Controller
 	endpointInformer cache.Controller
 	clientv3         calicocliv3.Interface
+	client           *kubernetes.Clientset
 	ipv4             net.IP
 	ipv6             net.IP
 	hasv4            bool
@@ -98,6 +100,7 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 	}
 	server := Server{
 		clientv3:        calicoCliV3,
+		client:          client,
 		vpp:             vpp,
 		log:             log,
 		vppTapSwIfindex: swIfIndex,
@@ -204,6 +207,19 @@ func (s *Server) ConfigureSnat() (err error) {
 		if err != nil {
 			s.log.Errorf("Failed to Add Service CIDR %s %v", serviceCIDR, err)
 		}
+	}
+	return nil
+}
+
+func (s *Server) RescanState() error {
+	serviceList, err := s.client.CoreV1().Services("").List(metav1.ListOptions{})
+	if err != nil {
+		s.log.Errorf("Error getting clients %v", err)
+		return err
+	}
+	for _, service := range serviceList.Items {
+		s.log.Infof("Rescanning service %s", service.Spec.ExternalName)
+		s.handleServiceEndpointEvent(&service, nil, false)
 	}
 	return nil
 }
