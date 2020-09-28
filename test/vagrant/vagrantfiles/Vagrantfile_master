@@ -27,7 +27,7 @@ Vagrant.configure('2') do |config|
         subconfig.vm.hostname = 'master'
         subconfig.vm.network :private_network, ip: MASTER_IP
         subconfig.vm.synced_folder "../..", '/host-repo', type: 'nfs',
-            create: true, readonly: true
+            create: true, readonly: true, linux__nfs_options: ['ro','no_subtree_check','all_squash','crossmnt']
         # Provision
         subconfig.vm.provision :shell, inline: $prepareScript
         subconfig.vm.provision :shell, inline: $baseInstallScript
