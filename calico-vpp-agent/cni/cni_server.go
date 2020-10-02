@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strings"
 	"syscall"
 
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
@@ -30,6 +29,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type Server struct {
@@ -37,75 +38,102 @@ type Server struct {
 	log             *logrus.Entry
 	vpp             *vpplink.VppLink
 	grpcServer      *grpc.Server
+	client          *kubernetes.Clientset
 	socketListener  net.Listener
 	routingServer   *routing.Server
 	servicesServer  *services.Server
-	podInterfaceMap map[string]*pb.AddRequest
+	podInterfaceMap map[string]*LocalPodSpec
 }
 
-func formatAddRequest(in *pb.AddRequest) string {
-	lst := in.GetContainerIps()
-	strLst := make([]string, 0, len(lst))
-	for _, e := range lst {
-		strLst = append(strLst, fmt.Sprintf("%s -> %s", e.GetAddress(), e.GetGateway()))
-	}
-	return fmt.Sprintf("%s: %s", addKey(in), strings.Join(strLst, ", "))
+func swIfIdxToIfName(idx uint32) string {
+	return fmt.Sprintf("vpp-tun-%d", idx)
 }
 
-func (s *Server) Add(ctx context.Context, in *pb.AddRequest) (*pb.AddReply, error) {
-	s.log.Infof("Add request %s", formatAddRequest(in))
-	s.BarrierSync()
-	ifName, contMac, err := s.AddVppInterface(in, true)
-	out := &pb.AddReply{
-		Successful:        true,
-		HostInterfaceName: ifName,
-		ContainerMac:      contMac,
+func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply, error) {
+	if request.GetDesiredHostInterfaceName() != "" {
+		s.log.Warn("Desired host side interface name passed, this is not supported with VPP, ignoring it")
 	}
+	podSpec, err := NewLocalPodSpecFromAdd(request)
 	if err != nil {
-		s.log.Errorf("Interface add failed %s : %v", formatAddRequest(in), err)
-		out.Successful = false
-		out.ErrorMessage = err.Error()
-	} else {
-		s.podInterfaceMap[addKey(in)] = in
-		s.log.Infof("Interface add successful: %s", formatAddRequest(in))
+		s.log.Errorf("Error parsing interface add request %v %v", request, err)
+		return &pb.AddReply{
+			Successful:   false,
+			ErrorMessage: err.Error(),
+		}, nil
 	}
-	return out, nil
+
+	s.log.Infof("Add request %s", podSpec.String())
+	s.BarrierSync()
+	swIfIndex, err := s.AddVppInterface(podSpec, true /* doHostSideConf */)
+	if err != nil {
+		s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
+		return &pb.AddReply{
+			Successful:   false,
+			ErrorMessage: err.Error(),
+		}, nil
+	}
+
+	s.podInterfaceMap[podSpec.Key()] = podSpec
+	err = s.persistCniServerState()
+	if err != nil {
+		s.log.Errorf("CNI state persist errored %v", err)
+	}
+	s.log.Infof("Interface add successful: %s", podSpec.String())
+	// XXX: container MAC doesn't make sense anymore, we just pass back a constant one.
+	// How does calico / k8s use it?
+	return &pb.AddReply{
+		Successful:        true,
+		HostInterfaceName: swIfIdxToIfName(swIfIndex),
+		ContainerMac:      "02:00:00:00:00:00",
+	}, nil
 }
 
 func (p *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 	return p.routingServer.IPNetNeedsSNAT(prefix)
 }
 
+func (s *Server) RescanState() error {
+	podSpecs, err := s.loadCniServerState()
+	if err != nil {
+		s.log.Errorf("Error getting pods %v", err)
+		return err
+	}
+	for _, podSpec := range podSpecs {
+		s.log.Infof("Rescanning pod %v", podSpec.String())
+		_, err := s.AddVppInterface(podSpec, false /* doHostSideConf */)
+		if err != nil {
+			s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
+		} else {
+			s.podInterfaceMap[podSpec.Key()] = podSpec
+		}
+	}
+	return nil
+}
+
 func (p *Server) OnVppRestart() {
-	for name, in := range p.podInterfaceMap {
-		_, _, err := p.AddVppInterface(in, false)
+	for name, podSpec := range p.podInterfaceMap {
+		_, err := p.AddVppInterface(podSpec, false /* doHostSideConf */)
 		if err != nil {
 			p.log.Errorf("Error re-injecting interface %s : %v", name, err)
 		}
 	}
 }
 
-func addKey(in *pb.AddRequest) string {
-	return fmt.Sprintf("%s--%s", in.GetNetns(), in.GetInterfaceName())
-}
+func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply, error) {
+	podSpec := NewLocalPodSpecFromDel(request)
 
-func delKey(in *pb.DelRequest) string {
-	return fmt.Sprintf("%s--%s", in.GetNetns(), in.GetInterfaceName())
-}
-
-func (s *Server) Del(ctx context.Context, in *pb.DelRequest) (*pb.DelReply, error) {
-	s.log.Infof("Del request %s", delKey(in))
+	s.log.Infof("Del request %s", podSpec.Key())
 	s.BarrierSync()
-	err := s.DelVppInterface(in)
+	err := s.DelVppInterface(podSpec)
 	if err != nil {
-		s.log.Warnf("Interface del failed %s : %v", delKey(in), err)
+		s.log.Warnf("Interface del failed %s : %v", podSpec.Key(), err)
 		return &pb.DelReply{
 			Successful:   false,
 			ErrorMessage: err.Error(),
 		}, nil
 	}
-	delete(s.podInterfaceMap, delKey(in))
-	s.log.Infof("Interface del successful %s", delKey(in))
+	delete(s.podInterfaceMap, podSpec.Key())
+	s.log.Infof("Interface del successful %s", podSpec.Key())
 	return &pb.DelReply{
 		Successful: true,
 	}, nil
@@ -118,6 +146,14 @@ func (s *Server) Stop() {
 
 // Serve runs the grpc server for the Calico CNI backend API
 func NewServer(v *vpplink.VppLink, rs *routing.Server, ss *services.Server, l *logrus.Entry) (*Server, error) {
+	clusterConfig, err := rest.InClusterConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+	client, err := kubernetes.NewForConfig(clusterConfig)
+	if err != nil {
+		panic(err.Error())
+	}
 	lis, err := net.Listen("unix", config.CNIServerSocket)
 	if err != nil {
 		l.Fatalf("failed to listen on %s: %v", config.CNIServerSocket, err)
@@ -129,8 +165,9 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ss *services.Server, l *l
 		routingServer:   rs,
 		servicesServer:  ss,
 		socketListener:  lis,
+		client:          client,
 		grpcServer:      grpc.NewServer(),
-		podInterfaceMap: make(map[string]*pb.AddRequest),
+		podInterfaceMap: make(map[string]*LocalPodSpec),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")

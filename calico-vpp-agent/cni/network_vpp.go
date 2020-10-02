@@ -26,40 +26,11 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
-	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
-
-type InterfaceAddress struct {
-	IPNet   *net.IPNet
-	gateway net.IP
-}
-
-func (r *InterfaceAddress) String() string {
-	return fmt.Sprintf("%s (gw %s)", r.IPNet.String(), r.gateway.String())
-}
-
-type InterfaceConf struct {
-	addresses         []InterfaceAddress
-	routes            []*net.IPNet
-	Hasv6             bool
-	Hasv4             bool
-	NeedSnat          bool
-	AllowIpForwarding bool
-}
-
-func ifNameToSwIfIdx(name string) (uint32, error) {
-	var ret uint32
-	_, err := fmt.Sscanf(name, "vpp-tun-%u", &ret)
-	return ret, err
-}
-
-func swIfIdxToIfName(idx uint32) string {
-	return fmt.Sprintf("vpp-tun-%d", idx)
-}
 
 // writeProcSys takes the sysctl path and a string value to set i.e. "0" or "1" and sets the sysctl.
 // This method was copied from cni-plugin/internal/pkg/utils/network_linux.go
@@ -80,20 +51,21 @@ func writeProcSys(path, value string) error {
 
 // configureContainerSysctls configures necessary sysctls required inside the container netns.
 // This method was adapted from cni-plugin/internal/pkg/utils/network_linux.go
-func (s *Server) configureContainerSysctls(allowIPForwarding, hasIPv4, hasIPv6 bool) error {
+func (s *Server) configureContainerSysctls(podSpec *LocalPodSpec) error {
+	hasv4, hasv6 := podSpec.Hasv46()
 	ipFwd := "0"
-	if allowIPForwarding {
+	if podSpec.AllowIpForwarding {
 		ipFwd = "1"
 	}
 	// If an IPv4 address is assigned, then configure IPv4 sysctls.
-	if hasIPv4 {
+	if hasv4 {
 		s.log.Info("Configuring IPv4 forwarding")
 		if err := writeProcSys("/proc/sys/net/ipv4/ip_forward", ipFwd); err != nil {
 			return err
 		}
 	}
 	// If an IPv6 address is assigned, then configure IPv6 sysctls.
-	if hasIPv6 {
+	if hasv6 {
 		s.log.Info("Configuring IPv6 forwarding")
 		if err := writeProcSys("/proc/sys/net/ipv6/conf/all/forwarding", ipFwd); err != nil {
 			return err
@@ -103,11 +75,11 @@ func (s *Server) configureContainerSysctls(allowIPForwarding, hasIPv4, hasIPv6 b
 }
 
 // SetupRoutes sets up the routes for the host side of the veth pair.
-func (s *Server) SetupVppRoutes(swIfIndex uint32, conf *InterfaceConf) error {
+func (s *Server) SetupVppRoutes(swIfIndex uint32, podSpec *LocalPodSpec) error {
 	// Go through all the IPs and add routes for each IP in the result.
-	for _, address := range conf.addresses {
+	for _, containerIP := range podSpec.GetContainerIps() {
 		route := types.Route{
-			Dst: address.IPNet,
+			Dst: containerIP,
 			Paths: []types.RoutePath{{
 				SwIfIndex: swIfIndex,
 			}},
@@ -121,14 +93,11 @@ func (s *Server) SetupVppRoutes(swIfIndex uint32, conf *InterfaceConf) error {
 	return nil
 }
 
-func (s *Server) tunErrorCleanup(contTunName string, netns string, err error, msg string, args ...interface{}) error {
+func (s *Server) tunErrorCleanup(podSpec *LocalPodSpec, err error, msg string, args ...interface{}) error {
 	s.log.Errorf("Error creating or configuring tun: %s", err)
-	delErr := s.DelVppInterface(&pb.DelRequest{
-		InterfaceName: contTunName,
-		Netns:         netns,
-	})
+	delErr := s.DelVppInterface(podSpec)
 	if delErr != nil {
-		s.log.Errorf("Error deleting tun on error %s %v", contTunName, delErr)
+		s.log.Errorf("Error deleting tun on error %s %v", podSpec.InterfaceName, delErr)
 	}
 	return errors.Wrapf(err, msg, args...)
 }
@@ -150,15 +119,16 @@ func (s *Server) announceLocalAddress(addr *net.IPNet, isWithdrawal bool) {
 	s.routingServer.AnnounceLocalAddress(addr, isWithdrawal)
 }
 
-func (s *Server) configureNamespaceSideTun(conf *InterfaceConf, swIfIndex uint32, contTunName string) func(hostNS ns.NetNS) error {
+func (s *Server) configureNamespaceSideTun(swIfIndex uint32, podSpec *LocalPodSpec) func(hostNS ns.NetNS) error {
 	return func(hostNS ns.NetNS) error {
-		contTun, err := netlink.LinkByName(contTunName)
+		contTun, err := netlink.LinkByName(podSpec.InterfaceName)
 		if err != nil {
-			return errors.Wrapf(err, "failed to lookup %q: %v", contTunName, err)
+			return errors.Wrapf(err, "failed to lookup %q: %v", podSpec.InterfaceName, err)
 		}
+		hasv4, hasv6 := podSpec.Hasv46()
 
 		// Do the per-IP version set-up.  Add gateway routes etc.
-		if conf.Hasv6 {
+		if hasv6 {
 			s.log.Infof("tun %d in NS has v6", swIfIndex)
 			// Make sure ipv6 is enabled in the container/pod network namespace.
 			if err = writeProcSys("/proc/sys/net/ipv6/conf/all/disable_ipv6", "0"); err != nil {
@@ -172,9 +142,9 @@ func (s *Server) configureNamespaceSideTun(conf *InterfaceConf, swIfIndex uint32
 			}
 		}
 
-		for _, route := range conf.routes {
+		for _, route := range podSpec.GetRoutes() {
 			isV6 := route.IP.To4() == nil
-			if (isV6 && !conf.Hasv6) || (!isV6 && !conf.Hasv4) {
+			if (isV6 && !hasv6) || (!isV6 && !hasv4) {
 				s.log.Infof("Skipping tun[%d] route for %s", swIfIndex, route.String())
 				continue
 			}
@@ -191,16 +161,16 @@ func (s *Server) configureNamespaceSideTun(conf *InterfaceConf, swIfIndex uint32
 		}
 
 		// Now add the IPs to the container side of the tun.
-		for _, address := range conf.addresses {
-			s.log.Infof("Add tun[%d] linux%d ip %s", swIfIndex, contTun.Attrs().Index, address.String())
-			err = netlink.AddrAdd(contTun, &netlink.Addr{IPNet: address.IPNet})
+		for _, containerIP := range podSpec.GetContainerIps() {
+			s.log.Infof("Add tun[%d] linux%d ip %s", swIfIndex, contTun.Attrs().Index, containerIP.String())
+			err = netlink.AddrAdd(contTun, &netlink.Addr{IPNet: containerIP})
 			if err != nil {
 				return errors.Wrapf(err, "failed to add IP addr to %s: %v", contTun.Attrs().Name, err)
 			}
-			s.announceLocalAddress(address.IPNet, false /* isWithdrawal */)
+			s.announceLocalAddress(containerIP, false /* isWithdrawal */)
 		}
 
-		if err = s.configureContainerSysctls(conf.AllowIpForwarding, conf.Hasv4, conf.Hasv6); err != nil {
+		if err = s.configureContainerSysctls(podSpec); err != nil {
 			return errors.Wrapf(err, "error configuring sysctls for the container netns, error: %s", err)
 		}
 
@@ -208,71 +178,26 @@ func (s *Server) configureNamespaceSideTun(conf *InterfaceConf, swIfIndex uint32
 	}
 }
 
-func (s *Server) ParseInterfaceAddRequest(args *pb.AddRequest) (conf *InterfaceConf, err error) {
-	conf = &InterfaceConf{}
-	conf.Hasv4 = false
-	conf.Hasv6 = false
-	conf.NeedSnat = false
-	conf.routes = make([]*net.IPNet, 0)
-	conf.addresses = make([]InterfaceAddress, 0)
-	conf.AllowIpForwarding = args.GetSettings().GetAllowIpForwarding()
-	for _, containerIP := range args.GetContainerIps() {
-		address, _, err := net.ParseCIDR(containerIP.GetAddress())
-		if err != nil {
-			return nil, fmt.Errorf("Cannot parse address: %s", containerIP.GetAddress())
-		}
-		if address.To4() == nil {
-			conf.Hasv6 = true
-		} else {
-			conf.Hasv4 = true
-		}
-		// We ignore the prefix len set on the address,
-		// for a tun it doesn't make sense
-		network := &net.IPNet{
-			IP:   address,
-			Mask: getMaxCIDRMask(address),
-		}
-		gw := net.ParseIP(containerIP.GetGateway())
-		if gw == nil {
-			s.log.Infof("Cannot parse gateway: %s, ignoring anyway...", containerIP.GetGateway())
-		}
-		conf.addresses = append(conf.addresses, InterfaceAddress{IPNet: network, gateway: gw})
-		conf.NeedSnat = conf.NeedSnat || s.IPNetNeedsSNAT(network)
-	}
-	for _, route := range args.GetContainerRoutes() {
-		_, route, err := net.ParseCIDR(route)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Cannot parse container route %s", route.String())
-		}
-		conf.routes = append(conf.routes, route)
-	}
-	return conf, nil
-}
-
 // DoVppNetworking performs the networking for the given config and IPAM result
-func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifName, contTunMac string, err error) {
+func (s *Server) AddVppInterface(podSpec *LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
 	// Select the first 11 characters of the containerID for the host veth.
-	contTunName := args.GetInterfaceName()
-	netns := args.GetNetns()
-	tunTag := netns + "-" + contTunName
-
-	if args.GetDesiredHostInterfaceName() != "" {
-		s.log.Warn("Desired host side interface name passed, this is not supported with VPP, ignoring it")
-	}
-
-	// Type conversion & validation
-	interfaceConfig, err := s.ParseInterfaceAddRequest(args)
-	if err != nil {
-		return "", "", errors.Wrapf(err, "Error parsing Interface Add request")
-	}
+	tunTag := podSpec.NetnsName + "-" + podSpec.InterfaceName
 
 	s.log.Infof("Creating container interface using VPP networking")
 	s.log.Infof("Setting tun tag to %s", tunTag)
 
-	// TODO: Clean up old tun if one is found with this tag
+	// Clean up old tun if one is found with this tag
+	err, swIfIndex = s.vpp.SearchInterfaceWithTag(tunTag)
+	if err != nil {
+		s.log.Errorf("Error while searching tun %s : %v", tunTag, err)
+	} else {
+		return swIfIndex, nil
+	}
+
+	// Create new tun
 	tun := &types.TapV2{
-		HostNamespace: netns,
-		HostIfName:    contTunName,
+		HostNamespace: podSpec.NetnsName,
+		HostIfName:    podSpec.InterfaceName,
 		Tag:           tunTag,
 		NumRxQueues:   config.TapNumRxQueues,
 		RxQueueSize:   config.TapRxQueueSize,
@@ -282,58 +207,59 @@ func (s *Server) AddVppInterface(args *pb.AddRequest, doHostSideConf bool) (ifNa
 	if config.TapGSOEnabled {
 		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce
 	}
-	swIfIndex, err := s.vpp.CreateOrAttachTapV2(tun)
+	swIfIndex, err = s.vpp.CreateOrAttachTapV2(tun)
 	if err != nil {
-		return "", "", s.tunErrorCleanup(contTunName, netns, err, "Error creating tun")
+		return 0, s.tunErrorCleanup(podSpec, err, "Error creating tun")
 	}
 	s.log.Infof("created tun[%d]", swIfIndex)
 
 	err = s.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, config.TapRxMode)
 	if err != nil {
-		return "", "", s.tunErrorCleanup(contTunName, netns, err, "error SetInterfaceRxMode on tun interface")
+		return 0, s.tunErrorCleanup(podSpec, err, "error SetInterfaceRxMode on tun interface")
 	}
 
 	// configure vpp side tun
 	err = s.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
-		return "", "", s.tunErrorCleanup(contTunName, netns, err, "error setting vpp tun %d unnumbered", swIfIndex)
+		return 0, s.tunErrorCleanup(podSpec, err, "error setting vpp tun %d unnumbered", swIfIndex)
 	}
-	if interfaceConfig.Hasv4 && interfaceConfig.NeedSnat {
+	hasv4, hasv6 := podSpec.Hasv46()
+	needsSnat := podSpec.NeedsSnat(s)
+	if hasv4 && needsSnat {
 		s.log.Infof("Enable tun[%d] SNAT v4", swIfIndex)
 		err = s.vpp.EnableCalicoSNAT(swIfIndex, false)
 		if err != nil {
-			return "", "", s.tunErrorCleanup(contTunName, netns, err, "Error enabling ip4 snat")
+			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip4 snat")
 		}
 	}
-	if interfaceConfig.Hasv6 && interfaceConfig.NeedSnat {
+	if hasv6 && needsSnat {
 		s.log.Infof("Enable tun[%d] SNAT v6", swIfIndex)
 		err = s.vpp.EnableCalicoSNAT(swIfIndex, true)
 		if err != nil {
-			return "", "", s.tunErrorCleanup(contTunName, netns, err, "Error enabling ip6 snat")
+			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip6 snat")
 		}
 	}
 
 	if doHostSideConf {
-		err = ns.WithNetNSPath(netns, s.configureNamespaceSideTun(interfaceConfig, swIfIndex, contTunName))
+		err = ns.WithNetNSPath(podSpec.NetnsName, s.configureNamespaceSideTun(swIfIndex, podSpec))
 		if err != nil {
-			return "", "", s.tunErrorCleanup(contTunName, netns, err, "Error enabling ip6")
+			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip6")
 		}
 	}
 
 	err = s.vpp.InterfaceAdminUp(swIfIndex)
 	if err != nil {
-		return "", "", s.tunErrorCleanup(contTunName, netns, err, "error setting new tun up")
+		return 0, s.tunErrorCleanup(podSpec, err, "error setting new tun up")
 	}
 
 	// Now that the host side of the veth is moved, state set to UP, and configured with sysctls, we can add the routes to it in the host namespace.
-	err = s.SetupVppRoutes(swIfIndex, interfaceConfig)
+	err = s.SetupVppRoutes(swIfIndex, podSpec)
 	if err != nil {
-		return "", "", s.tunErrorCleanup(contTunName, netns, err, "error adding vpp side routes for interface: %s", tunTag)
+		return 0, s.tunErrorCleanup(podSpec, err, "error adding vpp side routes for interface: %s", tunTag)
 	}
 
 	s.log.Infof("Setup tun[%d] complete", swIfIndex)
-	// XXX: container MAC doesn't make sense anymore, we just pass back a constant one. How does calico / k8s use it?
-	return swIfIdxToIfName(swIfIndex), "02:00:00:00:00:00", err
+	return swIfIndex, err
 }
 
 func (s *Server) delVppInterfaceHandleRoutes(swIfIndex uint32, isIPv6 bool) error {
@@ -379,17 +305,15 @@ func (s *Server) delVppInterfaceHandleRoutes(swIfIndex uint32, isIPv6 bool) erro
 }
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
-func (s *Server) DelVppInterface(args *pb.DelRequest) error {
-	contIfName := args.GetInterfaceName()
-	netns := args.GetNetns()
+func (s *Server) DelVppInterface(podSpec *LocalPodSpec) error {
 	// Only try to delete the device if a namespace was passed in.
-	if netns == "" {
+	if podSpec.NetnsName == "" {
 		s.log.Infof("no netns passed, skipping")
 		return nil
 	}
 
-	devErr := ns.WithNetNSPath(netns, func(_ ns.NetNS) error {
-		dev, err := netlink.LinkByName(contIfName)
+	devErr := ns.WithNetNSPath(podSpec.NetnsName, func(_ ns.NetNS) error {
+		dev, err := netlink.LinkByName(podSpec.InterfaceName)
 		if err != nil {
 			return err
 		}
@@ -417,7 +341,7 @@ func (s *Server) DelVppInterface(args *pb.DelRequest) error {
 		}
 	}
 
-	tag := netns + "-" + contIfName
+	tag := podSpec.NetnsName + "-" + podSpec.InterfaceName
 	s.log.Infof("looking for tag %s", tag)
 	err, swIfIndex := s.vpp.SearchInterfaceWithTag(tag)
 	if err != nil {
