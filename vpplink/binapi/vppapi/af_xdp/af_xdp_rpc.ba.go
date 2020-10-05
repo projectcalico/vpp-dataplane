@@ -8,7 +8,7 @@ import (
 	api "git.fd.io/govpp.git/api"
 )
 
-// RPCService defines RPC service  af_xdp.
+// RPCService defines RPC service af_xdp.
 type RPCService interface {
 	AfXdpCreate(ctx context.Context, in *AfXdpCreate) (*AfXdpCreateReply, error)
 	AfXdpDelete(ctx context.Context, in *AfXdpDelete) (*AfXdpDeleteReply, error)
@@ -28,7 +28,7 @@ func (c *serviceClient) AfXdpCreate(ctx context.Context, in *AfXdpCreate) (*AfXd
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) AfXdpDelete(ctx context.Context, in *AfXdpDelete) (*AfXdpDeleteReply, error) {
@@ -37,5 +37,5 @@ func (c *serviceClient) AfXdpDelete(ctx context.Context, in *AfXdpDelete) (*AfXd
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }

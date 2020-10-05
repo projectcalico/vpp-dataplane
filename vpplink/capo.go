@@ -89,6 +89,7 @@ func (v *VppLink) AddIpsetIPMembers(ipsetID uint32, members []net.IP) (err error
 func (v *VppLink) DelIpsetIPMembers(ipsetID uint32, members []net.IP) (err error) {
 	return v.addDelIpsetIPMembers(ipsetID, false, members)
 }
+
 func (v *VppLink) addDelIpsetNetMembers(ipsetID uint32, isAdd bool, members []*net.IPNet) (err error) {
 	unions := make([]capo.CapoIpsetMember, len(members))
 	for i, m := range members {
@@ -125,7 +126,7 @@ func (v *VppLink) DelIpsetIPPortMembers(ipsetID uint32, members []types.IPPort) 
 	return v.addDelIpsetIPPortMembers(ipsetID, false, members)
 }
 
-func (v *VppLink) RuleCreate(rule types.Rule) (ruleId uint32, err error) {
+func (v *VppLink) RuleCreate(rule *types.Rule) (ruleId uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &capo.CapoRuleCreateReply{}
@@ -141,7 +142,7 @@ func (v *VppLink) RuleCreate(rule types.Rule) (ruleId uint32, err error) {
 	return response.RuleID, nil
 }
 
-func (v *VppLink) RuleUpdate(ruleId uint32, rule types.Rule) (err error) {
+func (v *VppLink) RuleUpdate(ruleId uint32, rule *types.Rule) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &capo.CapoRuleUpdateReply{}
@@ -174,7 +175,7 @@ func (v *VppLink) RuleDelete(ruleId uint32) (err error) {
 	return nil
 }
 
-func (v *VppLink) PolicyCreate(policy types.Policy) (policyId uint32, err error) {
+func (v *VppLink) PolicyCreate(policy *types.Policy) (policyId uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &capo.CapoPolicyCreateReply{}
@@ -190,7 +191,7 @@ func (v *VppLink) PolicyCreate(policy types.Policy) (policyId uint32, err error)
 	return response.PolicyID, nil
 }
 
-func (v *VppLink) PolicyUpdate(policyId uint32, policy types.Policy) (err error) {
+func (v *VppLink) PolicyUpdate(policyId uint32, policy *types.Policy) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &capo.CapoPolicyUpdateReply{}

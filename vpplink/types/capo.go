@@ -56,7 +56,7 @@ type PortRange struct {
 	Last  uint16
 }
 
-func toCapoPortRange(pr *PortRange) capo.CapoPortRange {
+func toCapoPortRange(pr PortRange) capo.CapoPortRange {
 	return capo.CapoPortRange{
 		Start: pr.First,
 		End:   pr.Last,
@@ -86,37 +86,30 @@ func toCapoFilter(f *RuleFilter) capo.CapoRuleFilter {
 	}
 }
 
-type RuleEntry struct {
-	IsSrc     bool
-	IsNot     bool
-	Prefix    *net.IPNet
-	PortRange *PortRange
-	SetId     uint32
-}
-
-func toCapoEntry(e *RuleEntry) capo.CapoRuleEntry {
-	entry := capo.CapoRuleEntry{
-		IsSrc: e.IsSrc,
-		IsNot: e.IsNot,
-	}
-	if e.Prefix != nil {
-		entry.Data.SetCidr(ToVppPrefix(e.Prefix))
-		entry.Type = capo.CAPO_CIDR
-	} else if e.PortRange != nil {
-		entry.Data.SetPortRange(toCapoPortRange(e.PortRange))
-		entry.Type = capo.CAPO_PORT_RANGE
-	} else {
-		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: e.SetId})
-		entry.Type = capo.CAPO_IP_SET
-	}
-	return entry
-}
-
 type Rule struct {
 	Action        RuleAction
 	AddressFamily int
 	Filters       []RuleFilter
-	Entries       []RuleEntry
+
+	DstNet    []net.IPNet
+	DstNotNet []net.IPNet
+	SrcNet    []net.IPNet
+	SrcNotNet []net.IPNet
+
+	DstPortRange    []PortRange
+	DstNotPortRange []PortRange
+	SrcPortRange    []PortRange
+	SrcNotPortRange []PortRange
+
+	DstIPPortIPSet    []uint32
+	DstNotIPPortIPSet []uint32
+	SrcIPPortIPSet    []uint32
+	SrcNotIPPortIPSet []uint32
+
+	DstIPSet    []uint32
+	DstNotIPSet []uint32
+	SrcIPSet    []uint32
+	SrcNotIPSet []uint32
 }
 
 func boolToU8(v bool) uint8 {
@@ -126,41 +119,122 @@ func boolToU8(v bool) uint8 {
 	return uint8(0)
 }
 
-func ToCapoRule(r Rule) (cr capo.CapoRule) {
+func ToCapoRule(r *Rule) (cr capo.CapoRule) {
 	var filters [3]capo.CapoRuleFilter
-	entries := make([]capo.CapoRuleEntry, 0, len(r.Entries))
 	for i, f := range r.Filters {
 		if i == 3 {
 			break
 		}
 		filters[i] = toCapoFilter(&f)
 	}
-	for _, e := range r.Entries {
-		entries = append(entries, toCapoEntry(&e))
-	}
+
 	cr = capo.CapoRule{
-		Action:  capo.CapoRuleAction(r.Action),
-		Af:      ip_types.AddressFamily(r.AddressFamily),
+		Action: capo.CapoRuleAction(r.Action),
+		Af:     ip_types.AddressFamily(r.AddressFamily),
+
 		Filters: filters,
-		Matches: entries,
+	}
+
+	for _, n := range r.DstNet {
+		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_CIDR}
+		entry.Data.SetCidr(ToVppPrefix(&n))
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, n := range r.DstNotNet {
+		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: true, Type: capo.CAPO_CIDR}
+		entry.Data.SetCidr(ToVppPrefix(&n))
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, n := range r.SrcNet {
+		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: false, Type: capo.CAPO_CIDR}
+		entry.Data.SetCidr(ToVppPrefix(&n))
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, n := range r.SrcNotNet {
+		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: true, Type: capo.CAPO_CIDR}
+		entry.Data.SetCidr(ToVppPrefix(&n))
+		cr.Matches = append(cr.Matches, entry)
+	}
+
+	for _, pr := range r.DstPortRange {
+		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_PORT_RANGE}
+		entry.Data.SetPortRange(toCapoPortRange(pr))
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, pr := range r.DstNotPortRange {
+		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: true, Type: capo.CAPO_PORT_RANGE}
+		entry.Data.SetPortRange(toCapoPortRange(pr))
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, pr := range r.SrcPortRange {
+		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: false, Type: capo.CAPO_PORT_RANGE}
+		entry.Data.SetPortRange(toCapoPortRange(pr))
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, pr := range r.SrcNotPortRange {
+		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: true, Type: capo.CAPO_PORT_RANGE}
+		entry.Data.SetPortRange(toCapoPortRange(pr))
+		cr.Matches = append(cr.Matches, entry)
+	}
+
+	for _, id := range r.DstIPPortIPSet {
+		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_PORT_IP_SET}
+		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, id := range r.DstNotIPPortIPSet {
+		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: true, Type: capo.CAPO_PORT_IP_SET}
+		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, id := range r.SrcIPPortIPSet {
+		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: false, Type: capo.CAPO_PORT_IP_SET}
+		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, id := range r.SrcNotIPPortIPSet {
+		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: true, Type: capo.CAPO_PORT_IP_SET}
+		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		cr.Matches = append(cr.Matches, entry)
+	}
+
+	for _, id := range r.DstIPSet {
+		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_IP_SET}
+		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, id := range r.DstNotIPSet {
+		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: true, Type: capo.CAPO_IP_SET}
+		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, id := range r.SrcIPSet {
+		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: false, Type: capo.CAPO_IP_SET}
+		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, id := range r.SrcNotIPSet {
+		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: true, Type: capo.CAPO_IP_SET}
+		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		cr.Matches = append(cr.Matches, entry)
 	}
 	return cr
 }
 
 type Policy struct {
-	InboundRules  []uint32
-	OutboundRules []uint32
+	InboundRuleIDs  []uint32
+	OutboundRuleIDs []uint32
 }
 
-func ToCapoPolicy(p Policy) (items []capo.CapoPolicyItem) {
-	items = make([]capo.CapoPolicyItem, 0, len(p.InboundRules)+len(p.OutboundRules))
-	for _, rid := range p.InboundRules {
+func ToCapoPolicy(p *Policy) (items []capo.CapoPolicyItem) {
+	items = make([]capo.CapoPolicyItem, 0, len(p.InboundRuleIDs)+len(p.OutboundRuleIDs))
+	for _, rid := range p.InboundRuleIDs {
 		items = append(items, capo.CapoPolicyItem{
 			IsInbound: true,
 			RuleID:    rid,
 		})
 	}
-	for _, rid := range p.OutboundRules {
+	for _, rid := range p.OutboundRuleIDs {
 		items = append(items, capo.CapoPolicyItem{
 			IsInbound: false,
 			RuleID:    rid,

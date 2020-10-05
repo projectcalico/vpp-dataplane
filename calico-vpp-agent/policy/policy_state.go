@@ -22,10 +22,11 @@ type PolicyState struct {
 	WorkloadEndpoints map[WorkloadEndpointID]*WorkloadEndpoint
 }
 
-func NewPolicyState() (p PolicyState) {
-	p.IPSets = make(map[string]*IPSet)
-	p.Policies = make(map[PolicyID]*Policy)
-	p.Profiles = make(map[string]*Policy)
-	p.WorkloadEndpoints = make(map[WorkloadEndpointID]*WorkloadEndpoint)
-	return p
+func NewPolicyState() *PolicyState {
+	return &PolicyState{
+		IPSets:            make(map[string]*IPSet),
+		Policies:          make(map[PolicyID]*Policy),
+		Profiles:          make(map[string]*Policy),
+		WorkloadEndpoints: make(map[WorkloadEndpointID]*WorkloadEndpoint),
+	}
 }

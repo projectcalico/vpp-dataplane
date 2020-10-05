@@ -8,28 +8,45 @@ spec:
     spec:
       containers:
         - name: calico-node
+          # command:
+          #   - bash
+          #   - "-c"
+          #   - sleep infinity
           volumeMounts:
-            - name: vpp-agent-binary
-              mountPath: /bin/calico-vpp-agent
+            - name: repo-root
+              mountPath: /home/hostuser/vpp-dataplane
               readOnly: true
-            - name: felix-proxy-binary
+            - name: api-proxy-binary
               mountPath: /bin/felix-api-proxy
               readOnly: true
+            - name: agent-binary
+              mountPath: /bin/calico-vpp-agent
+              readOnly: true
         - name: vpp
+          env:
+            - name: CALICO_LOG_LEVEL
+              value: debug
           volumeMounts:
             - name: vpp-root
               mountPath: /home/hostuser/vpp
               readOnly: true
+            - name: repo-root
+              mountPath: /home/hostuser/vpp-dataplane
+              readOnly: true
       volumes:
-        # Used to put the latest binaries in the containers without rebuilding images in testing
-        - name: vpp-agent-binary
+        # Used to put the latest binaries in the containers (dev images) without rebuilding images in testing
+        - name: repo-root
           hostPath:
-            type: File
-            path: /host-repo/calico-vpp-agent/cmd/calico-vpp-agent
-        - name: felix-proxy-binary
+            type: Directory
+            path: /host-repo
+        - name: api-proxy-binary
           hostPath:
             type: File
             path: /host-repo/calico-vpp-agent/cmd/felix-api-proxy
+        - name: agent-binary
+          hostPath:
+            type: File
+            path: /host-repo/calico-vpp-agent/cmd/calico-vpp-agent
         - name: vpp-root
           hostPath:
             type: Directory

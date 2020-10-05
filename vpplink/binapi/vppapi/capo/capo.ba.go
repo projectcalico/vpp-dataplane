@@ -219,7 +219,7 @@ type CapoEntryDataUnion struct {
 	// - Cidr *ip_types.Prefix
 	// - PortRange *CapoPortRange
 	// - SetID *CapoEntrySetID
-	XXX_UnionData [4]byte
+	XXX_UnionData [18]byte
 }
 
 func CapoEntryDataUnionCidr(a ip_types.Prefix) (u CapoEntryDataUnion) {
@@ -276,7 +276,7 @@ type CapoIpsetMemberValUnion struct {
 	// - Address *ip_types.Address
 	// - Prefix *ip_types.Prefix
 	// - Tuple *CapoThreeTuple
-	XXX_UnionData [3]byte
+	XXX_UnionData [20]byte
 }
 
 func CapoIpsetMemberValUnionAddress(a ip_types.Address) (u CapoIpsetMemberValUnion) {
@@ -580,7 +580,7 @@ func (m *CapoIpsetAddDelMembers) Size() (size int) {
 		if j1 < len(m.Members) {
 			s1 = m.Members[j1]
 		}
-		size += 1 * 3 // s1.Val
+		size += 1 * 20 // s1.Val
 	}
 	return size
 }
@@ -597,7 +597,7 @@ func (m *CapoIpsetAddDelMembers) Marshal(b []byte) ([]byte, error) {
 		if j0 < len(m.Members) {
 			v0 = m.Members[j0]
 		}
-		buf.EncodeBytes(v0.Val.XXX_UnionData[:], 3)
+		buf.EncodeBytes(v0.Val.XXX_UnionData[:], 20)
 	}
 	return buf.Bytes(), nil
 }
@@ -608,7 +608,7 @@ func (m *CapoIpsetAddDelMembers) Unmarshal(b []byte) error {
 	m.Len = buf.DecodeUint32()
 	m.Members = make([]CapoIpsetMember, m.Len)
 	for j0 := 0; j0 < len(m.Members); j0++ {
-		copy(m.Members[j0].Val.XXX_UnionData[:], buf.DecodeBytes(3))
+		copy(m.Members[j0].Val.XXX_UnionData[:], buf.DecodeBytes(20))
 	}
 	return nil
 }
@@ -1066,10 +1066,10 @@ func (m *CapoRuleCreate) Size() (size int) {
 		if j2 < len(m.Rule.Matches) {
 			s2 = m.Rule.Matches[j2]
 		}
-		size += 1     // s2.IsSrc
-		size += 1     // s2.IsNot
-		size += 1     // s2.Type
-		size += 1 * 4 // s2.Data
+		size += 1      // s2.IsSrc
+		size += 1      // s2.IsNot
+		size += 1      // s2.Type
+		size += 1 * 18 // s2.Data
 	}
 	return size
 }
@@ -1094,7 +1094,7 @@ func (m *CapoRuleCreate) Marshal(b []byte) ([]byte, error) {
 		buf.EncodeBool(v1.IsSrc)
 		buf.EncodeBool(v1.IsNot)
 		buf.EncodeUint8(uint8(v1.Type))
-		buf.EncodeBytes(v1.Data.XXX_UnionData[:], 4)
+		buf.EncodeBytes(v1.Data.XXX_UnionData[:], 18)
 	}
 	return buf.Bytes(), nil
 }
@@ -1113,7 +1113,7 @@ func (m *CapoRuleCreate) Unmarshal(b []byte) error {
 		m.Rule.Matches[j1].IsSrc = buf.DecodeBool()
 		m.Rule.Matches[j1].IsNot = buf.DecodeBool()
 		m.Rule.Matches[j1].Type = CapoEntryType(buf.DecodeUint8())
-		copy(m.Rule.Matches[j1].Data.XXX_UnionData[:], buf.DecodeBytes(4))
+		copy(m.Rule.Matches[j1].Data.XXX_UnionData[:], buf.DecodeBytes(18))
 	}
 	return nil
 }
@@ -1253,10 +1253,10 @@ func (m *CapoRuleUpdate) Size() (size int) {
 		if j2 < len(m.Rule.Matches) {
 			s2 = m.Rule.Matches[j2]
 		}
-		size += 1     // s2.IsSrc
-		size += 1     // s2.IsNot
-		size += 1     // s2.Type
-		size += 1 * 4 // s2.Data
+		size += 1      // s2.IsSrc
+		size += 1      // s2.IsNot
+		size += 1      // s2.Type
+		size += 1 * 18 // s2.Data
 	}
 	return size
 }
@@ -1282,7 +1282,7 @@ func (m *CapoRuleUpdate) Marshal(b []byte) ([]byte, error) {
 		buf.EncodeBool(v1.IsSrc)
 		buf.EncodeBool(v1.IsNot)
 		buf.EncodeUint8(uint8(v1.Type))
-		buf.EncodeBytes(v1.Data.XXX_UnionData[:], 4)
+		buf.EncodeBytes(v1.Data.XXX_UnionData[:], 18)
 	}
 	return buf.Bytes(), nil
 }
@@ -1302,7 +1302,7 @@ func (m *CapoRuleUpdate) Unmarshal(b []byte) error {
 		m.Rule.Matches[j1].IsSrc = buf.DecodeBool()
 		m.Rule.Matches[j1].IsNot = buf.DecodeBool()
 		m.Rule.Matches[j1].Type = CapoEntryType(buf.DecodeUint8())
-		copy(m.Rule.Matches[j1].Data.XXX_UnionData[:], buf.DecodeBytes(4))
+		copy(m.Rule.Matches[j1].Data.XXX_UnionData[:], buf.DecodeBytes(18))
 	}
 	return nil
 }

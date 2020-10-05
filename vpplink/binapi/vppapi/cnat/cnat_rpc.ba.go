@@ -11,7 +11,7 @@ import (
 	vpe "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vpe"
 )
 
-// RPCService defines RPC service  cnat.
+// RPCService defines RPC service cnat.
 type RPCService interface {
 	CnatAddDelSnatPrefix(ctx context.Context, in *CnatAddDelSnatPrefix) (*CnatAddDelSnatPrefixReply, error)
 	CnatGetSnatAddresses(ctx context.Context, in *CnatGetSnatAddresses) (*CnatGetSnatAddressesReply, error)
@@ -37,7 +37,7 @@ func (c *serviceClient) CnatAddDelSnatPrefix(ctx context.Context, in *CnatAddDel
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CnatGetSnatAddresses(ctx context.Context, in *CnatGetSnatAddresses) (*CnatGetSnatAddressesReply, error) {
@@ -46,7 +46,7 @@ func (c *serviceClient) CnatGetSnatAddresses(ctx context.Context, in *CnatGetSna
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CnatSessionDump(ctx context.Context, in *CnatSessionDump) (RPCService_CnatSessionDumpClient, error) {
@@ -94,7 +94,7 @@ func (c *serviceClient) CnatSessionPurge(ctx context.Context, in *CnatSessionPur
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CnatSetSnatAddresses(ctx context.Context, in *CnatSetSnatAddresses) (*CnatSetSnatAddressesReply, error) {
@@ -103,7 +103,7 @@ func (c *serviceClient) CnatSetSnatAddresses(ctx context.Context, in *CnatSetSna
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CnatTranslationDel(ctx context.Context, in *CnatTranslationDel) (*CnatTranslationDelReply, error) {
@@ -112,7 +112,7 @@ func (c *serviceClient) CnatTranslationDel(ctx context.Context, in *CnatTranslat
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CnatTranslationDump(ctx context.Context, in *CnatTranslationDump) (RPCService_CnatTranslationDumpClient, error) {
@@ -160,5 +160,5 @@ func (c *serviceClient) CnatTranslationUpdate(ctx context.Context, in *CnatTrans
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }

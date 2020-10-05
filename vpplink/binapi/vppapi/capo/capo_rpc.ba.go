@@ -8,7 +8,7 @@ import (
 	api "git.fd.io/govpp.git/api"
 )
 
-// RPCService defines RPC service  capo.
+// RPCService defines RPC service capo.
 type RPCService interface {
 	CapoConfigurePolicies(ctx context.Context, in *CapoConfigurePolicies) (*CapoConfigurePoliciesReply, error)
 	CapoControlPing(ctx context.Context, in *CapoControlPing) (*CapoControlPingReply, error)
@@ -38,7 +38,7 @@ func (c *serviceClient) CapoConfigurePolicies(ctx context.Context, in *CapoConfi
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CapoControlPing(ctx context.Context, in *CapoControlPing) (*CapoControlPingReply, error) {
@@ -47,7 +47,7 @@ func (c *serviceClient) CapoControlPing(ctx context.Context, in *CapoControlPing
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CapoGetVersion(ctx context.Context, in *CapoGetVersion) (*CapoGetVersionReply, error) {
@@ -65,7 +65,7 @@ func (c *serviceClient) CapoIpsetAddDelMembers(ctx context.Context, in *CapoIpse
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CapoIpsetCreate(ctx context.Context, in *CapoIpsetCreate) (*CapoIpsetCreateReply, error) {
@@ -74,7 +74,7 @@ func (c *serviceClient) CapoIpsetCreate(ctx context.Context, in *CapoIpsetCreate
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CapoIpsetDelete(ctx context.Context, in *CapoIpsetDelete) (*CapoIpsetDeleteReply, error) {
@@ -83,7 +83,7 @@ func (c *serviceClient) CapoIpsetDelete(ctx context.Context, in *CapoIpsetDelete
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CapoPolicyCreate(ctx context.Context, in *CapoPolicyCreate) (*CapoPolicyCreateReply, error) {
@@ -92,7 +92,7 @@ func (c *serviceClient) CapoPolicyCreate(ctx context.Context, in *CapoPolicyCrea
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CapoPolicyDelete(ctx context.Context, in *CapoPolicyDelete) (*CapoPolicyDeleteReply, error) {
@@ -101,7 +101,7 @@ func (c *serviceClient) CapoPolicyDelete(ctx context.Context, in *CapoPolicyDele
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CapoPolicyUpdate(ctx context.Context, in *CapoPolicyUpdate) (*CapoPolicyUpdateReply, error) {
@@ -110,7 +110,7 @@ func (c *serviceClient) CapoPolicyUpdate(ctx context.Context, in *CapoPolicyUpda
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CapoRuleCreate(ctx context.Context, in *CapoRuleCreate) (*CapoRuleCreateReply, error) {
@@ -119,7 +119,7 @@ func (c *serviceClient) CapoRuleCreate(ctx context.Context, in *CapoRuleCreate) 
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CapoRuleDelete(ctx context.Context, in *CapoRuleDelete) (*CapoRuleDeleteReply, error) {
@@ -128,7 +128,7 @@ func (c *serviceClient) CapoRuleDelete(ctx context.Context, in *CapoRuleDelete) 
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) CapoRuleUpdate(ctx context.Context, in *CapoRuleUpdate) (*CapoRuleUpdateReply, error) {
@@ -137,5 +137,5 @@ func (c *serviceClient) CapoRuleUpdate(ctx context.Context, in *CapoRuleUpdate) 
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }

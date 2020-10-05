@@ -11,7 +11,7 @@ import (
 	vpe "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vpe"
 )
 
-// RPCService defines RPC service  ipsec.
+// RPCService defines RPC service ipsec.
 type RPCService interface {
 	IpsecBackendDump(ctx context.Context, in *IpsecBackendDump) (RPCService_IpsecBackendDumpClient, error)
 	IpsecInterfaceAddDelSpd(ctx context.Context, in *IpsecInterfaceAddDelSpd) (*IpsecInterfaceAddDelSpdReply, error)
@@ -87,7 +87,7 @@ func (c *serviceClient) IpsecInterfaceAddDelSpd(ctx context.Context, in *IpsecIn
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecItfCreate(ctx context.Context, in *IpsecItfCreate) (*IpsecItfCreateReply, error) {
@@ -96,7 +96,7 @@ func (c *serviceClient) IpsecItfCreate(ctx context.Context, in *IpsecItfCreate) 
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecItfDelete(ctx context.Context, in *IpsecItfDelete) (*IpsecItfDeleteReply, error) {
@@ -105,7 +105,7 @@ func (c *serviceClient) IpsecItfDelete(ctx context.Context, in *IpsecItfDelete) 
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecItfDump(ctx context.Context, in *IpsecItfDump) (RPCService_IpsecItfDumpClient, error) {
@@ -192,7 +192,7 @@ func (c *serviceClient) IpsecSadEntryAddDel(ctx context.Context, in *IpsecSadEnt
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecSelectBackend(ctx context.Context, in *IpsecSelectBackend) (*IpsecSelectBackendReply, error) {
@@ -201,7 +201,7 @@ func (c *serviceClient) IpsecSelectBackend(ctx context.Context, in *IpsecSelectB
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecSetAsyncMode(ctx context.Context, in *IpsecSetAsyncMode) (*IpsecSetAsyncModeReply, error) {
@@ -210,7 +210,7 @@ func (c *serviceClient) IpsecSetAsyncMode(ctx context.Context, in *IpsecSetAsync
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecSpdAddDel(ctx context.Context, in *IpsecSpdAddDel) (*IpsecSpdAddDelReply, error) {
@@ -219,7 +219,7 @@ func (c *serviceClient) IpsecSpdAddDel(ctx context.Context, in *IpsecSpdAddDel) 
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecSpdDump(ctx context.Context, in *IpsecSpdDump) (RPCService_IpsecSpdDumpClient, error) {
@@ -267,7 +267,7 @@ func (c *serviceClient) IpsecSpdEntryAddDel(ctx context.Context, in *IpsecSpdEnt
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecSpdInterfaceDump(ctx context.Context, in *IpsecSpdInterfaceDump) (RPCService_IpsecSpdInterfaceDumpClient, error) {
@@ -354,7 +354,7 @@ func (c *serviceClient) IpsecTunnelIfAddDel(ctx context.Context, in *IpsecTunnel
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecTunnelIfSetSa(ctx context.Context, in *IpsecTunnelIfSetSa) (*IpsecTunnelIfSetSaReply, error) {
@@ -363,7 +363,7 @@ func (c *serviceClient) IpsecTunnelIfSetSa(ctx context.Context, in *IpsecTunnelI
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecTunnelProtectDel(ctx context.Context, in *IpsecTunnelProtectDel) (*IpsecTunnelProtectDelReply, error) {
@@ -372,7 +372,7 @@ func (c *serviceClient) IpsecTunnelProtectDel(ctx context.Context, in *IpsecTunn
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecTunnelProtectDump(ctx context.Context, in *IpsecTunnelProtectDump) (RPCService_IpsecTunnelProtectDumpClient, error) {
@@ -420,5 +420,5 @@ func (c *serviceClient) IpsecTunnelProtectUpdate(ctx context.Context, in *IpsecT
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }

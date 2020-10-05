@@ -103,6 +103,7 @@ func parseNetArray(strs []string) (nets []*net.IPNet, err error) {
 }
 
 func fromIPSetUpdate(ips *proto.IPSetUpdate) (i *IPSet, err error) {
+	i = &IPSet{}
 	switch ips.GetType() {
 	case proto.IPSetUpdate_IP:
 		i.Type = types.IpsetTypeIP
