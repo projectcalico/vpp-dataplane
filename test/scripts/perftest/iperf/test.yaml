@@ -161,6 +161,8 @@ kind: Pod
 metadata:
   name: iperf-client
   namespace: iperf
+  labels:
+    app: iperf-client
 spec:
   containers:
   - name: iperf-client

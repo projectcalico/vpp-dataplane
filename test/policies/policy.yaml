@@ -1,0 +1,16 @@
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: allow-tcp-iperf
+  namespace: iperf
+spec:
+  selector: app == 'iperf-server'
+  ingress:
+  - action: Allow
+    protocol: TCP
+    source:
+      selector: app == 'iperf-client'
+    destination:
+      ports:
+        - 5001
+        - 5003

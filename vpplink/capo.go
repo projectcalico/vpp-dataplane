@@ -63,6 +63,7 @@ func (v *VppLink) addDelIpsetMembers(ipsetID uint32, isAdd bool, members []capo.
 	request := &capo.CapoIpsetAddDelMembers{
 		SetID:   ipsetID,
 		IsAdd:   isAdd,
+		Len:     uint32(len(members)),
 		Members: members,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)

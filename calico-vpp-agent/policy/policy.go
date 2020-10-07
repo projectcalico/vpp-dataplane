@@ -65,8 +65,26 @@ func fromProtoPolicy(p *proto.Policy) (policy *Policy, err error) {
 	return policy, nil
 }
 
-func fromProtoProfile(p *proto.Profile) (policy *Policy, err error) {
-	return policy, nil
+func fromProtoProfile(p *proto.Profile) (profile *Policy, err error) {
+	profile = &Policy{
+		Policy: &types.Policy{},
+		VppID:  types.InvalidID,
+	}
+	for _, r := range p.InboundRules {
+		rule, err := fromProtoRule(r)
+		if err != nil {
+			return nil, err
+		}
+		profile.InboundRules = append(profile.InboundRules, rule)
+	}
+	for _, r := range p.OutboundRules {
+		rule, err := fromProtoRule(r)
+		if err != nil {
+			return nil, err
+		}
+		profile.OutboundRules = append(profile.OutboundRules, rule)
+	}
+	return profile, nil
 }
 
 func (p *Policy) createRules(vpp *vpplink.VppLink, state *PolicyState) (err error) {

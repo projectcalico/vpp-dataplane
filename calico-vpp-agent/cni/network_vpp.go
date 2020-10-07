@@ -22,12 +22,12 @@ import (
 	"net"
 	"os"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -178,7 +178,7 @@ func (s *Server) configureNamespaceSideTun(swIfIndex uint32, podSpec *LocalPodSp
 	}
 }
 
-// DoVppNetworking performs the networking for the given config and IPAM result
+// AddVppInterface performs the networking for the given config and IPAM result
 func (s *Server) AddVppInterface(podSpec *LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
 	// Select the first 11 characters of the containerID for the host veth.
 	tunTag := podSpec.NetnsName + "-" + podSpec.InterfaceName
@@ -270,6 +270,13 @@ func (s *Server) AddVppInterface(podSpec *LocalPodSpec, doHostSideConf bool) (sw
 	}
 
 	s.log.Infof("Setup tun[%d] complete", swIfIndex)
+
+	s.policyServer.WorkloadAdded(&policy.WorkloadEndpointID{
+		OrchestratorID: podSpec.OrchestratorID,
+		WorkloadID:     podSpec.WorkloadID,
+		EndpointID:     podSpec.EndpointID,
+	}, swIfIndex)
+
 	return swIfIndex, err
 }
 

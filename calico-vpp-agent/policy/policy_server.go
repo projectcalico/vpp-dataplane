@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
@@ -49,6 +50,9 @@ type Server struct {
 	state         SyncState
 	nextSeqNumber uint64
 
+	endpointsLock       sync.Mutex
+	endpointsInterfaces map[WorkloadEndpointID]uint32
+
 	configuredState *PolicyState
 	pendingState    *PolicyState
 }
@@ -65,7 +69,10 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		state:         StateDisconnected,
 		nextSeqNumber: 0,
 
+		endpointsInterfaces: make(map[WorkloadEndpointID]uint32),
+
 		configuredState: NewPolicyState(),
+		pendingState:    NewPolicyState(),
 	}
 
 	// Cleanup potentially left over socket
@@ -80,6 +87,56 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 // OnVppRestart notifies the policy server that vpp restarted
 func (s *Server) OnVppRestart() {
 	s.vppRestarted <- true
+}
+
+func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32) (err error) {
+	// TODO: Send WorkloadEndpointStatusUpdate to felix
+	s.endpointsLock.Lock()
+	defer s.endpointsLock.Unlock()
+
+	intf, existing := s.endpointsInterfaces[*id]
+
+	if existing {
+		if swIfIndex != intf {
+			return fmt.Errorf("workload endpoint changed interfaces??? %v %d -> %d", id, intf, swIfIndex)
+		} else {
+			return nil
+		}
+	}
+	s.log.Infof("workload endpoint added: %v -> %d", id, swIfIndex)
+	s.endpointsInterfaces[*id] = swIfIndex
+
+	if s.state == StateInSync {
+		wep, ok := s.configuredState.WorkloadEndpoints[*id]
+		if !ok {
+			// Nothing to configure
+		} else {
+			err = wep.Create(s.vpp, swIfIndex, s.configuredState)
+		}
+	}
+	return err
+}
+
+func (s *Server) WorkloadRemoved(id *WorkloadEndpointID) (err error) {
+	// TODO: Send WorkloadEndpointStatusRemove to felix
+	s.endpointsLock.Lock()
+	defer s.endpointsLock.Unlock()
+
+	_, existing := s.endpointsInterfaces[*id]
+	if !existing {
+		return fmt.Errorf("nonexistent workload endpoint removed %v", id)
+	}
+
+	if s.state == StateInSync {
+		wep, ok := s.configuredState.WorkloadEndpoints[*id]
+		if !ok {
+			// Nothing to clean up
+		} else {
+			err = wep.Delete(s.vpp)
+		}
+	}
+	delete(s.endpointsInterfaces, *id)
+	return err
 }
 
 // Serve runs the policy server
@@ -104,7 +161,6 @@ func (s *Server) Serve() {
 			return
 		}
 		s.state = StateConnected
-		s.pendingState = NewPolicyState()
 
 		go s.SyncPolicy(conn)
 
@@ -112,7 +168,8 @@ func (s *Server) Serve() {
 		case <-s.vppRestarted:
 			// Close connection to restart felix, wipe all data and start over
 			s.configuredState = NewPolicyState()
-			err = conn.Close()
+			s.endpointsInterfaces = make(map[WorkloadEndpointID]uint32)
+			err = conn.Close() // This should stop the SyncPolicy goroutine
 			if err != nil {
 				s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
 			}
@@ -217,6 +274,7 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 			s.log.WithError(err).Error("Error processing update from felix, restarting")
 			conn.Close()
 			s.felixRestarted <- true
+			// TODO: Restart VPP as well? State is left over there...
 			return
 		}
 	}
@@ -242,6 +300,9 @@ func (s *Server) handleInSync(msg *proto.InSync) (err error) {
 	if s.state != StateSyncing {
 		return fmt.Errorf("Received InSync but state was not syncing")
 	}
+	s.endpointsLock.Lock()
+	defer s.endpointsLock.Unlock()
+
 	s.state = StateInSync
 	s.log.Infof("Policies now in sync")
 	return s.applyPendingState()
@@ -351,12 +412,46 @@ func (s *Server) handleActivePolicyRemove(msg *proto.ActivePolicyRemove, pending
 }
 
 func (s *Server) handleActiveProfileUpdate(msg *proto.ActiveProfileUpdate, pending bool) (err error) {
-	s.log.Infof("Ignoring ActiveProfileUpdate")
+	state := s.currentState(pending)
+	id := msg.Id.Name
+	p, err := fromProtoProfile(msg.Profile)
+	if err != nil {
+		return errors.Wrapf(err, "cannot process profile update")
+	}
+
+	existing, ok := state.Profiles[id]
+	if ok { // Policy with this ID already exists
+		if pending {
+			// Just replace policy in pending state
+			state.Profiles[id] = p
+		} else {
+			return errors.Wrap(existing.Update(s.vpp, p, state), "cannot update profile")
+		}
+	} else {
+		// Create it in state
+		state.Profiles[id] = p
+		if !pending {
+			return errors.Wrap(p.Create(s.vpp, state), "cannot create profile")
+		}
+	}
 	return nil
 }
 
 func (s *Server) handleActiveProfileRemove(msg *proto.ActiveProfileRemove, pending bool) (err error) {
-	s.log.Infof("Ignoring ActiveProfileRemove")
+	state := s.currentState(pending)
+	id := msg.Id.Name
+	existing, ok := state.Profiles[id]
+	if !ok {
+		s.log.Debugf("Received profile delete for Name %s that doesn't exists", id)
+		return nil
+	}
+	if !pending {
+		err = existing.Delete(s.vpp, state)
+		if err != nil {
+			return errors.Wrap(err, "error deleting profile")
+		}
+	}
+	delete(state.Profiles, id)
 	return nil
 }
 
@@ -371,20 +466,48 @@ func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending
 }
 
 func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate, pending bool) (err error) {
-	if pending {
+	s.endpointsLock.Lock()
+	defer s.endpointsLock.Unlock()
 
+	state := s.currentState(pending)
+	id := fromProtoEndpointID(msg.Id)
+	wep := fromProtoWorkload(msg.Endpoint)
+
+	existing, found := state.WorkloadEndpoints[*id]
+	intf, intfFound := s.endpointsInterfaces[*id]
+	if found {
+		if pending || !intfFound {
+			state.WorkloadEndpoints[*id] = wep
+		} else {
+			return errors.Wrap(existing.Update(s.vpp, wep, state), "cannot update workload endpoint")
+		}
 	} else {
-
+		state.WorkloadEndpoints[*id] = wep
+		if !pending && intfFound {
+			return errors.Wrap(wep.Create(s.vpp, intf, state), "cannot create workload endpoint")
+		}
 	}
 	return nil
 }
 
 func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove, pending bool) (err error) {
-	if pending {
+	s.endpointsLock.Lock()
+	defer s.endpointsLock.Unlock()
 
-	} else {
-
+	state := s.currentState(pending)
+	id := fromProtoEndpointID(msg.Id)
+	existing, ok := state.WorkloadEndpoints[*id]
+	if !ok {
+		s.log.Debugf("Received workload endpoint delete for %v that doesn't exists", id)
+		return nil
 	}
+	if !pending {
+		err = existing.Delete(s.vpp)
+		if err != nil {
+			return errors.Wrap(err, "error deleting profile")
+		}
+	}
+	delete(state.WorkloadEndpoints, *id)
 	return nil
 }
 
@@ -432,6 +555,12 @@ func (s *Server) handleNamespaceRemove(msg *proto.NamespaceRemove, pending bool)
 func (s *Server) applyPendingState() (err error) {
 	s.log.Infof("Reconciliating pending policy state with configured state")
 	// Stupid algorithm for now, delete all that is in configured state, and then recreate everything
+	for _, wep := range s.configuredState.WorkloadEndpoints {
+		err = wep.Delete(s.vpp)
+		if err != nil {
+			return errors.Wrap(err, "cannot cleanup workload endpoint")
+		}
+	}
 	for _, policy := range s.configuredState.Policies {
 		err = policy.Delete(s.vpp, s.configuredState)
 		if err != nil {
@@ -456,19 +585,28 @@ func (s *Server) applyPendingState() (err error) {
 	for _, ipset := range s.configuredState.IPSets {
 		err = ipset.Create(s.vpp)
 		if err != nil {
-			s.log.Warnf("error creating ipset: %v", err)
+			return errors.Wrap(err, "error creating ipset")
 		}
 	}
 	for _, profile := range s.configuredState.Profiles {
 		err = profile.Create(s.vpp, s.configuredState)
 		if err != nil {
-			s.log.Warnf("error creating profile: %v", err)
+			return errors.Wrap(err, "error creating profile")
 		}
 	}
 	for _, policy := range s.configuredState.Policies {
 		err = policy.Create(s.vpp, s.configuredState)
 		if err != nil {
-			s.log.Warnf("error creating policy: %v", err)
+			return errors.Wrap(err, "error creating policy")
+		}
+	}
+	for id, wep := range s.configuredState.WorkloadEndpoints {
+		intf, intfFound := s.endpointsInterfaces[id]
+		if intfFound {
+			err = wep.Create(s.vpp, intf, s.configuredState)
+			if err != nil {
+				return errors.Wrap(err, "cannot cleanup workload endpoint")
+			}
 		}
 	}
 

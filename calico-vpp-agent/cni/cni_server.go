@@ -24,6 +24,7 @@ import (
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
@@ -40,6 +41,7 @@ type Server struct {
 	client          *kubernetes.Clientset
 	socketListener  net.Listener
 	routingServer   *routing.Server
+	policyServer    *policy.Server
 	podInterfaceMap map[string]*LocalPodSpec
 	/* without main thread */
 	NumVPPWorkers uint32
@@ -141,6 +143,18 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 			ErrorMessage: err.Error(),
 		}, nil
 	}
+
+	initialSpec, ok := s.podInterfaceMap[podSpec.Key()]
+	if !ok {
+		s.log.Warnf("Deleting interface but initial spec not found")
+	} else {
+		s.policyServer.WorkloadRemoved(&policy.WorkloadEndpointID{
+			OrchestratorID: initialSpec.OrchestratorID,
+			WorkloadID:     initialSpec.WorkloadID,
+			EndpointID:     initialSpec.EndpointID,
+		})
+	}
+
 	delete(s.podInterfaceMap, podSpec.Key())
 	s.log.Infof("Interface del successful %s", podSpec.Key())
 	return &pb.DelReply{
@@ -154,7 +168,7 @@ func (s *Server) Stop() {
 }
 
 // Serve runs the grpc server for the Calico CNI backend API
-func NewServer(v *vpplink.VppLink, rs *routing.Server, l *logrus.Entry) (*Server, error) {
+func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *logrus.Entry) (*Server, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
@@ -172,6 +186,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, l *logrus.Entry) (*Server
 		vpp:             v,
 		log:             l,
 		routingServer:   rs,
+		policyServer:    ps,
 		socketListener:  lis,
 		client:          client,
 		grpcServer:      grpc.NewServer(),
