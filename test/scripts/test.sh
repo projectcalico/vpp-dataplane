@@ -106,6 +106,49 @@ test_delete ()
   k_delete_namespace $1
 }
 
+test_run_one ()
+{
+	mkdir -p $DIR
+	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	$SCRIPTDIR/vppdev.sh clear
+	$SCRIPTDIR/vppdev.sh export $DIR start
+	TEST_CMD="iperf -c iperf-service -P4 -t10 -i1"
+	echo "Running test : ${TEST_CMD}"
+	echo $TEST_CMD > $DIR/test_command.sh
+
+	start_time=$(date "+%s")
+	# Run actual test
+	kubectl exec -it iperf-client -n iperf -- $TEST_CMD > $DIR/test_output
+	end_time=$(date "+%s")
+
+	for node in $(kubectl get nodes -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}')
+	do
+		SVC=monit C=monit POD=monit NODE=$node exec_node /stats.sh ${start_time} ${end_time} > $DIR/cpu_mem_usage
+	done
+	echo "start=${start_time} end=${end_time}" > $DIR/timestamps
+
+	$SCRIPTDIR/vppdev.sh export $DIR end
+}
+
+test_run ()
+{
+	USER_DIR=$1
+	N_TESTS=${N_TESTS:=3}
+	if [ x$USER_DIR = x ]; then
+		echo "Please provide a directory"
+		exit 1
+	fi
+	if [ -d "$USER_DIR" ]; then
+		echo "directory $USER_DIR exists"
+		exit 1
+	fi
+
+	for i in $(seq $N_TESTS); do
+		echo "Test run #${i}"
+		DIR=$USER_DIR/test_${i} test_run_one
+	done
+}
+
 function print_usage_and_exit ()
 {
     echo "Usage:"
@@ -113,6 +156,7 @@ function print_usage_and_exit ()
     echo "test.sh down [perf|npperf|perf3|wrk|nginx]     - Delete test yaml"
     echo
     echo "test.sh build nptest"
+    echo "test.sh run [DIR]"
     echo
     exit 0
 }
@@ -127,11 +171,64 @@ kube_test_cli ()
     calico_build_nptest
   elif [[ "$1" = "up" ]]; then
 	shift ; test_apply $@
+  elif [[ "$1" = "run" ]]; then
+	shift ; test_run $@
+  elif [[ "$1" = "report" ]]; then
+	shift ; test_report $@
   elif [[ "$1" = "down" ]]; then
 	shift ; test_delete $@
   else
   	print_usage_and_exit
   fi
+}
+
+get_avg_cpu ()
+{
+	FILE=$1/cpu_mem_usage
+	tail -n +2 $FILE | awk '{M+=$6;U+=$1;N+=$2;S+=$3;I+=$4;T+=$5;}
+		END {
+			printf "%.2f;%.2f;%.2f;%.2f;%.2f;%d;%d",U/NR,N/NR,S/NR,I/NR,T/NR,M/NR,NR
+		}'
+}
+
+get_avg_iperf_bps ()
+{
+  FILE=$1/test_output
+  if [[ x$(cat $FILE | grep '\[SUM\]') = x ]]; then
+    spattern="sec"
+  else
+    spattern='\[SUM\]'
+  fi
+  cat $FILE | grep $spattern | \
+    egrep -o "[0-9\.]+ [MKG]bits/s" | \
+    sed "s@ Gbits/s@ 1000000000@g" | \
+    sed "s@ Mbits/s@ 1000000@g" | \
+    sed "s@ Kbits/s@ 1000@g" | \
+    awk '{BPS+=$1}
+    	END {
+    		printf "%.2f", BPS/NR
+    	}'
+}
+
+get_avg_report ()
+{
+  TEST_N=$2
+  DIR=$1/test_${TEST_N}
+  echo "$TEST_N;$(get_avg_iperf_bps $DIR);$(get_avg_cpu $DIR)"
+}
+
+test_report ()
+{
+	USER_DIR=$1
+	N_TESTS=${N_TESTS:=3}
+	if [ x$USER_DIR = x ]; then
+		echo "Please provide a directory"
+		exit 1
+	fi
+	echo "test;Gbps;cpu-user;cpu-nice;cpu-system;cpu-iowait;cpu-steal;memory-used;records-number";
+	for i in $(seq $N_TESTS); do
+		get_avg_report $USER_DIR $i
+	done
 }
 
 kube_test_cli $@

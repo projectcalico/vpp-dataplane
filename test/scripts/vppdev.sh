@@ -16,12 +16,6 @@
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $SCRIPTDIR/shared.sh
 
-vppdev_run_vppctl () # nodeID args
-{
-  NODE=$1 POD=calico-vpp-node C=vpp exec_node \
-	/usr/bin/vppctl -s /var/run/vpp/cli.sock ${@:2}
-}
-
 vppdev_attach_vpp_gdb ()
 {
   CONTAINER=$(docker ps | grep vpp_calico-vpp | cut -d ' ' -f 1)
@@ -49,6 +43,44 @@ vppdev_validate_v46 () {
 	kubectl get nodes node1 -o go-template --template='{{range .status.addresses}}{{printf "%s: %s \n" .type .address}}{{end}}'
 }
 
+vppdev_export ()
+{
+	if [ x$(kubectl -n kube-system get pods | grep calico-vpp | wc -l) = x0 ]; then
+		echo "No calico-vpp pod found"
+		exit 1
+	fi
+
+	DIR=$1
+	PREFIX=$2
+	DIR=${DIR:=./results}
+	mkdir -p $DIR
+	for node in $(kubectl get nodes -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}')
+	do
+		vppdev_run_vppctl $node show hardware-interfaces > ${DIR}/${PREFIX}${node}.hwi
+		vppdev_run_vppctl $node show run                 > ${DIR}/${PREFIX}${node}.run
+		vppdev_run_vppctl $node show err                 > ${DIR}/${PREFIX}${node}.err
+		vppdev_run_vppctl $node show log                 > ${DIR}/${PREFIX}${node}.log
+		vppdev_run_vppctl $node show buffers             > ${DIR}/${PREFIX}${node}.buf
+		vppdev_run_vppctl $node show int                 > ${DIR}/${PREFIX}${node}.int
+		vppdev_run_vppctl $node show int rx              > ${DIR}/${PREFIX}${node}.intrx
+		vppdev_run_vppctl $node show tun                 > ${DIR}/${PREFIX}${node}.tun
+	done
+
+}
+
+vppdev_clear ()
+{
+	if [ x$(kubectl -n kube-system get pods | grep calico-vpp | wc -l) = x0 ]; then
+		echo "No calico-vpp pod found"
+		exit 1
+	fi
+	for node in $(kubectl get nodes -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}')
+	do
+		vppdev_run_vppctl $node clear run
+		vppdev_run_vppctl $node clear err
+	done
+}
+
 vppdev_cli ()
 {
   if [[ "$1" = "up" ]]; then
@@ -66,6 +98,10 @@ vppdev_cli ()
   # ---------------------------------
   #               SHELLS
   # ---------------------------------
+  elif [[ "$1" = "export" ]]; then
+    vppdev_export ${@:2}
+  elif [[ "$1" = "clear" ]]; then
+    vppdev_clear ${@:2}
   elif [[ "$1" = "vppctl" ]]; then
     vppdev_run_vppctl ${@:2}
   elif [[ "$1" = "gdb" ]]; then
@@ -98,6 +134,9 @@ vppdev_cli ()
     echo "$(basename -- $0) sh [vpp|node] [NAME]              - Get a shell in vpp (dataplane) or calico-node (controlplane) container"
     echo "$(basename -- $0) log [vpp|node] [NAME]             - Get the logs of vpp (dataplane) or calico-node (controlplane) container"
     echo "$(basename -- $0) tail [vpp|node] [NAME]            - tail -f the logs of vpp (dataplane) or calico-node (controlplane) container"
+    echo
+    echo "$(basename -- $0) clear                             - Clear run"
+    echo "$(basename -- $0) export [DIR] [PREFIX]             - Export vpp logs to DIR"
   fi
 }
 
