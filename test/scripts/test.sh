@@ -72,6 +72,12 @@ get_nodes ()
 
 test_apply ()
 {
+  if [ -z "$2" ]; then
+    yaml_file="test.yaml"
+  else
+    yaml_file=$2
+  fi
+
   if [ ! -d $SCRIPTDIR/perftest/$1 ]; then
   	cd $SCRIPTDIR/perftest
   	echo "Please specify a config yaml in $(ls -d */)"
@@ -79,25 +85,32 @@ test_apply ()
   fi
   get_nodes
   k_create_namespace $1
-  sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $SCRIPTDIR/perftest/$1/test.yaml | kubectl apply -f -
+  sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $SCRIPTDIR/perftest/$1/$yaml_file | kubectl apply -f -
 }
 
 test_delete ()
 {
+  if [ -z "$2" ]; then
+    yaml_file="test.yaml"
+  else
+    yaml_file=$2
+  fi
+
   if [ ! -d $SCRIPTDIR/perftest/$1 ]; then
   	cd $SCRIPTDIR/perftest
   	echo "Please specify a config yaml in $(ls -d */)"
   	exit 1
   fi
-  kubectl delete -f $SCRIPTDIR/perftest/$1/test.yaml
+  kubectl delete -f $SCRIPTDIR/perftest/$1/$yaml_file
+  echo $yaml_file
   k_delete_namespace $1
 }
 
 function print_usage_and_exit ()
 {
     echo "Usage:"
-    echo "test.sh up   [perf|npperf|perf3]     - Create test yaml and apply it"
-    echo "test.sh down [perf|npperf|perf3]     - Delete test yaml"
+    echo "test.sh up   [perf|npperf|perf3|wrk|nginx]     - Create test yaml and apply it"
+    echo "test.sh down [perf|npperf|perf3|wrk|nginx]     - Delete test yaml"
     echo
     echo "test.sh build nptest"
     echo

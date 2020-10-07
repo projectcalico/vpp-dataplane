@@ -1,0 +1,77 @@
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  namespace: nginx
+  name: nginx-repl
+  labels:
+    app: nginx
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: mra/nginx
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+      nodeName: _NODE_1_
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: nginx
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  namespace: nginx
+  name: nginx-repl-2
+  labels:
+    app: nginx-2
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: nginx-2
+  template:
+    metadata:
+      labels:
+        app: nginx-2
+    spec:
+      containers:
+      - name: nginx-2
+        image: mra/nginx
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+      nodeName: _NODE_2_
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: nginx
+  name: nginx-service-2
+spec:
+  selector:
+    app: nginx-2
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---

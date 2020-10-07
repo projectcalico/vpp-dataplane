@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: wrk-client
+  namespace: wrk
+spec:
+  containers:
+  - name: wrk-client
+    image: mra/wrk
+    imagePullPolicy: IfNotPresent
+    securityContext:
+      privileged: true
+  nodeName: _NODE_2_
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: wrk-client-samehost
+  namespace: wrk
+spec:
+  containers:
+  - name: wrk-client
+    image: mra/wrk
+    imagePullPolicy: IfNotPresent
+    securityContext:
+      privileged: true
+  nodeName: _NODE_1_
+---
