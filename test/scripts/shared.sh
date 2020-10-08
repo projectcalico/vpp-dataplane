@@ -52,17 +52,26 @@ function grey ()
 
 find_node_pod () # NODE, POD
 {
-  echo $(kubectl get pods -n kube-system --field-selector="spec.nodeName=$NODE" | grep $POD | cut -d ' ' -f 1)
+  SVC=${SVC:=kube-system}
+  echo $(kubectl get pods -n $SVC --field-selector="spec.nodeName=$NODE" | grep $POD | cut -d ' ' -f 1)
 }
 
 exec_node () # C, POD, NODE
 {
-  kubectl exec -it -n kube-system $(find_node_pod) -c $C -- $@
+  SVC=${SVC:=kube-system}
+  kubectl exec -it -n $SVC $(find_node_pod) -c $C -- $@
 }
 
 log_node () # C, POD, NODE
 {
-  kubectl logs $FOLLOW -n kube-system $(find_node_pod) -c $C
+  SVC=${SVC:=kube-system}
+  kubectl logs $FOLLOW -n $SVC $(find_node_pod) -c $C
+}
+
+vppdev_run_vppctl () # nodeID args
+{
+  NODE=$1 POD=calico-vpp-node C=vpp exec_node \
+	/usr/bin/vppctl -s /var/run/vpp/cli.sock ${@:2}
 }
 
 function 6safe () { if [[ "$USE_IP6" = "yes" ]]; then echo "[$1]" ; else echo "$1" ; fi }

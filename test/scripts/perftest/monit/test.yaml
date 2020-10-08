@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: monit
+  namespace: monit
+  labels:
+    k8s-app: monit
+spec:
+  selector:
+    matchLabels:
+      k8s-app: monit
+  template:
+    metadata:
+      labels:
+        k8s-app: monit
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+      containers:
+      - name: monit
+        image: infrabuilder/bench-custom-monitor
+        imagePullPolicy: IfNotPresent
