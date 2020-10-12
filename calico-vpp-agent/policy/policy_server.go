@@ -26,6 +26,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -86,6 +87,7 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 
 // OnVppRestart notifies the policy server that vpp restarted
 func (s *Server) OnVppRestart() {
+	s.log.Warnf("Signaled VPP restart to Policy server")
 	s.vppRestarted <- true
 }
 
@@ -126,6 +128,7 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID) (err error) {
 	if !existing {
 		return fmt.Errorf("nonexistent workload endpoint removed %v", id)
 	}
+	s.log.Infof("workload endpoint removed: %v", id)
 
 	if s.state == StateInSync {
 		wep, ok := s.configuredState.WorkloadEndpoints[*id]
@@ -167,6 +170,7 @@ func (s *Server) Serve() {
 		select {
 		case <-s.vppRestarted:
 			// Close connection to restart felix, wipe all data and start over
+			s.log.Infof("VPP restarted, triggering Felix restart")
 			s.configuredState = NewPolicyState()
 			s.endpointsInterfaces = make(map[WorkloadEndpointID]uint32)
 			err = conn.Close() // This should stop the SyncPolicy goroutine
@@ -174,8 +178,10 @@ func (s *Server) Serve() {
 				s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
 			}
 		case <-s.felixRestarted:
+			s.log.Infof("Felix restarted, starting resync")
 			// Connection was closed. Just accept new one, state will be reconciled on startup.
 		case <-s.exiting:
+			s.log.Infof("Policy server exiting")
 			err = conn.Close()
 			if err != nil {
 				s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
@@ -209,7 +215,7 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 			s.felixRestarted <- true
 			return
 		}
-		s.log.Debugf("Got message from felix: %v", msg)
+		s.log.Infof("Got message from felix: %+v", msg)
 		switch m := msg.(type) {
 		case *proto.ConfigUpdate:
 			err = s.handleConfigUpdate(m)
@@ -222,7 +228,7 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 			} else if s.state == StateInSync {
 				pending = false
 			} else {
-				s.log.Errorf("Got message %#v but not in syncing or synced state", m)
+				s.log.Errorf("Got message %+v but not in syncing or synced state", m)
 				conn.Close()
 				s.felixRestarted <- true
 				return
@@ -475,6 +481,13 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 
 	existing, found := state.WorkloadEndpoints[*id]
 	intf, intfFound := s.endpointsInterfaces[*id]
+
+	s.log.Warnf("Updating endpoint %v: found %v, intf %d, intfFound %v", id, found, intf, intfFound)
+	if existing != nil {
+		s.log.Warnf("Existing: %+v", existing)
+	}
+	s.log.Warnf("New: %+v", wep)
+
 	if found {
 		if pending || !intfFound {
 			state.WorkloadEndpoints[*id] = wep
@@ -501,7 +514,7 @@ func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove,
 		s.log.Debugf("Received workload endpoint delete for %v that doesn't exists", id)
 		return nil
 	}
-	if !pending {
+	if !pending && existing.SwIfIndex != types.InvalidID {
 		err = existing.Delete(s.vpp)
 		if err != nil {
 			return errors.Wrap(err, "error deleting profile")
@@ -556,9 +569,11 @@ func (s *Server) applyPendingState() (err error) {
 	s.log.Infof("Reconciliating pending policy state with configured state")
 	// Stupid algorithm for now, delete all that is in configured state, and then recreate everything
 	for _, wep := range s.configuredState.WorkloadEndpoints {
-		err = wep.Delete(s.vpp)
-		if err != nil {
-			return errors.Wrap(err, "cannot cleanup workload endpoint")
+		if wep.SwIfIndex != types.InvalidID {
+			err = wep.Delete(s.vpp)
+			if err != nil {
+				return errors.Wrap(err, "cannot cleanup workload endpoint")
+			}
 		}
 	}
 	for _, policy := range s.configuredState.Policies {
@@ -605,10 +620,10 @@ func (s *Server) applyPendingState() (err error) {
 		if intfFound {
 			err = wep.Create(s.vpp, intf, s.configuredState)
 			if err != nil {
-				return errors.Wrap(err, "cannot cleanup workload endpoint")
+				return errors.Wrap(err, "cannot configure workload endpoint")
 			}
 		}
 	}
-
+	s.log.Infof("Reconciliation done")
 	return nil
 }

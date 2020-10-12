@@ -137,7 +137,7 @@ func (w *WorkloadEndpoint) Delete(vpp *vpplink.VppLink) (err error) {
 	if w.SwIfIndex == types.InvalidID {
 		return fmt.Errorf("deleting unconfigured wep")
 	}
-	err = vpp.ConfigurePolicies(w.SwIfIndex, 0, nil)
+	err = vpp.ConfigurePolicies(w.SwIfIndex, 0, make([]uint32, 0))
 	if err != nil {
 		return errors.Wrapf(err, "cannot configure policies on interface %d", w.SwIfIndex)
 	}

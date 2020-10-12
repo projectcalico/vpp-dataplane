@@ -25,6 +25,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/sirupsen/logrus"
 )
 
 type IPSet struct {
@@ -124,6 +125,7 @@ func (i *IPSet) Create(vpp *vpplink.VppLink) (err error) {
 		return err
 	}
 	i.VppID = id
+	logrus.Infof("Created ipset %d", i.VppID)
 	switch i.Type {
 	case types.IpsetTypeIP:
 		err = vpp.AddIpsetIPMembers(i.VppID, i.Addresses)

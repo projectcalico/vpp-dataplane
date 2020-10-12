@@ -149,7 +149,7 @@ func NewLocalPodSpecFromAdd(request *pb.AddRequest) (*LocalPodSpec, error) {
 		ContainerIps:      make([]LocalIP, 0),
 
 		OrchestratorID: request.Workload.Orchestrator,
-		WorkloadID:     request.Workload.Name,
+		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
 		EndpointID:     request.Workload.Endpoint,
 	}
 	for _, routeStr := range request.GetContainerRoutes() {

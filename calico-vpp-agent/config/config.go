@@ -213,6 +213,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	log.Infof("Config:IpsecAddressCount %d", IpsecAddressCount)
 	log.Infof("Config:RxMode            %d", TapRxMode)
 	log.Infof("Config:BgpLogLevel       %d", BgpLogLevel)
+	log.Infof("Config:LogLevel          %d", LogLevel)
 
 	return nil
 }
