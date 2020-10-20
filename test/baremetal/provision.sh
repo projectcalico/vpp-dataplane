@@ -81,7 +81,6 @@ function calico_if_linux_setup ()
   sudo modprobe vfio-pci
   echo Y | sudo tee /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
 
-  sudo $SCRIPTDIR/utils/pci-nic-bind-to-kernel
   sudo ip link set $VPP_DATAPLANE_IF down
   sudo ip link set $VPP_DATAPLANE_IF up
   sudo ip addr flush dev $VPP_DATAPLANE_IF

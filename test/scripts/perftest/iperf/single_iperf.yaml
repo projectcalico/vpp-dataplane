@@ -2,12 +2,12 @@
 apiVersion: apps/v1
 kind: ReplicaSet
 metadata:
-  namespace: single-iperf
+  namespace: iperf
   name: iperf-server-repl
   labels:
     app: iperf-server
 spec:
-  replicas: 1
+  replicas: 4
   selector:
     matchLabels:
       app: iperf-server
@@ -28,7 +28,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: single-iperf
+  namespace: iperf
   name: iperf-service
 spec:
   ipFamily: IPv4
@@ -46,7 +46,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: iperf-client
-  namespace: single-iperf
+  namespace: iperf
 spec:
   containers:
   - name: iperf-client
