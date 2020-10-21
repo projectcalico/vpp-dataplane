@@ -102,24 +102,24 @@ type Ikev2Profile struct {
 // Ikev2Responder defines type 'ikev2_responder'.
 type Ikev2Responder struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
-	IP4       ip_types.IP4Address            `binapi:"ip4_address,name=ip4" json:"ip4,omitempty"`
+	Addr      ip_types.Address               `binapi:"address,name=addr" json:"addr,omitempty"`
 }
 
 // Ikev2Sa defines type 'ikev2_sa'.
 type Ikev2Sa struct {
-	SaIndex      uint32              `binapi:"u32,name=sa_index" json:"sa_index,omitempty"`
-	ProfileIndex uint32              `binapi:"u32,name=profile_index" json:"profile_index,omitempty"`
-	Ispi         uint64              `binapi:"u64,name=ispi" json:"ispi,omitempty"`
-	Rspi         uint64              `binapi:"u64,name=rspi" json:"rspi,omitempty"`
-	Iaddr        ip_types.IP4Address `binapi:"ip4_address,name=iaddr" json:"iaddr,omitempty"`
-	Raddr        ip_types.IP4Address `binapi:"ip4_address,name=raddr" json:"raddr,omitempty"`
-	Keys         Ikev2Keys           `binapi:"ikev2_keys,name=keys" json:"keys,omitempty"`
-	IID          Ikev2ID             `binapi:"ikev2_id,name=i_id" json:"i_id,omitempty"`
-	RID          Ikev2ID             `binapi:"ikev2_id,name=r_id" json:"r_id,omitempty"`
-	Encryption   Ikev2SaTransform    `binapi:"ikev2_sa_transform,name=encryption" json:"encryption,omitempty"`
-	Integrity    Ikev2SaTransform    `binapi:"ikev2_sa_transform,name=integrity" json:"integrity,omitempty"`
-	Prf          Ikev2SaTransform    `binapi:"ikev2_sa_transform,name=prf" json:"prf,omitempty"`
-	Dh           Ikev2SaTransform    `binapi:"ikev2_sa_transform,name=dh" json:"dh,omitempty"`
+	SaIndex      uint32           `binapi:"u32,name=sa_index" json:"sa_index,omitempty"`
+	ProfileIndex uint32           `binapi:"u32,name=profile_index" json:"profile_index,omitempty"`
+	Ispi         uint64           `binapi:"u64,name=ispi" json:"ispi,omitempty"`
+	Rspi         uint64           `binapi:"u64,name=rspi" json:"rspi,omitempty"`
+	Iaddr        ip_types.Address `binapi:"address,name=iaddr" json:"iaddr,omitempty"`
+	Raddr        ip_types.Address `binapi:"address,name=raddr" json:"raddr,omitempty"`
+	Keys         Ikev2Keys        `binapi:"ikev2_keys,name=keys" json:"keys,omitempty"`
+	IID          Ikev2ID          `binapi:"ikev2_id,name=i_id" json:"i_id,omitempty"`
+	RID          Ikev2ID          `binapi:"ikev2_id,name=r_id" json:"r_id,omitempty"`
+	Encryption   Ikev2SaTransform `binapi:"ikev2_sa_transform,name=encryption" json:"encryption,omitempty"`
+	Integrity    Ikev2SaTransform `binapi:"ikev2_sa_transform,name=integrity" json:"integrity,omitempty"`
+	Prf          Ikev2SaTransform `binapi:"ikev2_sa_transform,name=prf" json:"prf,omitempty"`
+	Dh           Ikev2SaTransform `binapi:"ikev2_sa_transform,name=dh" json:"dh,omitempty"`
 }
 
 // Ikev2SaTransform defines type 'ikev2_sa_transform'.
@@ -134,12 +134,12 @@ type Ikev2SaTransform struct {
 
 // Ikev2Ts defines type 'ikev2_ts'.
 type Ikev2Ts struct {
-	SaIndex      uint32              `binapi:"u32,name=sa_index" json:"sa_index,omitempty"`
-	ChildSaIndex uint32              `binapi:"u32,name=child_sa_index" json:"child_sa_index,omitempty"`
-	IsLocal      bool                `binapi:"bool,name=is_local" json:"is_local,omitempty"`
-	ProtocolID   uint8               `binapi:"u8,name=protocol_id" json:"protocol_id,omitempty"`
-	StartPort    uint16              `binapi:"u16,name=start_port" json:"start_port,omitempty"`
-	EndPort      uint16              `binapi:"u16,name=end_port" json:"end_port,omitempty"`
-	StartAddr    ip_types.IP4Address `binapi:"ip4_address,name=start_addr" json:"start_addr,omitempty"`
-	EndAddr      ip_types.IP4Address `binapi:"ip4_address,name=end_addr" json:"end_addr,omitempty"`
+	SaIndex      uint32           `binapi:"u32,name=sa_index" json:"sa_index,omitempty"`
+	ChildSaIndex uint32           `binapi:"u32,name=child_sa_index" json:"child_sa_index,omitempty"`
+	IsLocal      bool             `binapi:"bool,name=is_local" json:"is_local,omitempty"`
+	ProtocolID   uint8            `binapi:"u8,name=protocol_id" json:"protocol_id,omitempty"`
+	StartPort    uint16           `binapi:"u16,name=start_port" json:"start_port,omitempty"`
+	EndPort      uint16           `binapi:"u16,name=end_port" json:"end_port,omitempty"`
+	StartAddr    ip_types.Address `binapi:"address,name=start_addr" json:"start_addr,omitempty"`
+	EndAddr      ip_types.Address `binapi:"address,name=end_addr" json:"end_addr,omitempty"`
 }

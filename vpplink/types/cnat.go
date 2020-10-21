@@ -97,8 +97,9 @@ func (n *CnatTranslateEntry) Equal(o *CnatTranslateEntry) bool {
 
 func ToCnatEndpoint(ep CnatEndpoint) cnat.CnatEndpoint {
 	return cnat.CnatEndpoint{
-		Port: ep.Port,
-		Addr: ToVppAddress(ep.IP),
+		Port:      ep.Port,
+		Addr:      ToVppAddress(ep.IP),
+		SwIfIndex: InvalidInterface,
 	}
 
 }

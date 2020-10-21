@@ -15,7 +15,13 @@
 
 package types
 
+import "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+
 type RxMode uint32
+
+const (
+	InvalidInterface = interface_types.InterfaceIndex(^uint32(0))
+)
 
 const (
 	UnknownRxMode RxMode = 0

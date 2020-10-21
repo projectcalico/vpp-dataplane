@@ -12,7 +12,7 @@ import (
 	codec "git.fd.io/govpp.git/codec"
 	ikev2_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ikev2_types"
 	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ikev2"
 	APIVersion = "1.0.1"
-	VersionCrc = 0xdfe9fa5f
+	VersionCrc = 0x314f10ac
 )
 
 // Ikev2ChildSaDetails defines message 'ikev2_child_sa_details'.
@@ -697,7 +697,7 @@ type Ikev2ProfileDetails struct {
 
 func (m *Ikev2ProfileDetails) Reset()               { *m = Ikev2ProfileDetails{} }
 func (*Ikev2ProfileDetails) GetMessageName() string { return "ikev2_profile_details" }
-func (*Ikev2ProfileDetails) GetCrcString() string   { return "daec69ef" }
+func (*Ikev2ProfileDetails) GetCrcString() string   { return "2e2dfd1c" }
 func (*Ikev2ProfileDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -719,18 +719,23 @@ func (m *Ikev2ProfileDetails) Size() (size int) {
 	size += 1                            // m.Profile.LocTs.ProtocolID
 	size += 2                            // m.Profile.LocTs.StartPort
 	size += 2                            // m.Profile.LocTs.EndPort
-	size += 1 * 4                        // m.Profile.LocTs.StartAddr
-	size += 1 * 4                        // m.Profile.LocTs.EndAddr
+	size += 1                            // m.Profile.LocTs.StartAddr.Af
+	size += 1 * 16                       // m.Profile.LocTs.StartAddr.Un
+	size += 1                            // m.Profile.LocTs.EndAddr.Af
+	size += 1 * 16                       // m.Profile.LocTs.EndAddr.Un
 	size += 4                            // m.Profile.RemTs.SaIndex
 	size += 4                            // m.Profile.RemTs.ChildSaIndex
 	size += 1                            // m.Profile.RemTs.IsLocal
 	size += 1                            // m.Profile.RemTs.ProtocolID
 	size += 2                            // m.Profile.RemTs.StartPort
 	size += 2                            // m.Profile.RemTs.EndPort
-	size += 1 * 4                        // m.Profile.RemTs.StartAddr
-	size += 1 * 4                        // m.Profile.RemTs.EndAddr
+	size += 1                            // m.Profile.RemTs.StartAddr.Af
+	size += 1 * 16                       // m.Profile.RemTs.StartAddr.Un
+	size += 1                            // m.Profile.RemTs.EndAddr.Af
+	size += 1 * 16                       // m.Profile.RemTs.EndAddr.Un
 	size += 4                            // m.Profile.Responder.SwIfIndex
-	size += 1 * 4                        // m.Profile.Responder.IP4
+	size += 1                            // m.Profile.Responder.Addr.Af
+	size += 1 * 16                       // m.Profile.Responder.Addr.Un
 	size += 1                            // m.Profile.IkeTs.CryptoAlg
 	size += 4                            // m.Profile.IkeTs.CryptoKeySize
 	size += 1                            // m.Profile.IkeTs.IntegAlg
@@ -769,18 +774,23 @@ func (m *Ikev2ProfileDetails) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint8(m.Profile.LocTs.ProtocolID)
 	buf.EncodeUint16(m.Profile.LocTs.StartPort)
 	buf.EncodeUint16(m.Profile.LocTs.EndPort)
-	buf.EncodeBytes(m.Profile.LocTs.StartAddr[:], 4)
-	buf.EncodeBytes(m.Profile.LocTs.EndAddr[:], 4)
+	buf.EncodeUint8(uint8(m.Profile.LocTs.StartAddr.Af))
+	buf.EncodeBytes(m.Profile.LocTs.StartAddr.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(uint8(m.Profile.LocTs.EndAddr.Af))
+	buf.EncodeBytes(m.Profile.LocTs.EndAddr.Un.XXX_UnionData[:], 16)
 	buf.EncodeUint32(m.Profile.RemTs.SaIndex)
 	buf.EncodeUint32(m.Profile.RemTs.ChildSaIndex)
 	buf.EncodeBool(m.Profile.RemTs.IsLocal)
 	buf.EncodeUint8(m.Profile.RemTs.ProtocolID)
 	buf.EncodeUint16(m.Profile.RemTs.StartPort)
 	buf.EncodeUint16(m.Profile.RemTs.EndPort)
-	buf.EncodeBytes(m.Profile.RemTs.StartAddr[:], 4)
-	buf.EncodeBytes(m.Profile.RemTs.EndAddr[:], 4)
+	buf.EncodeUint8(uint8(m.Profile.RemTs.StartAddr.Af))
+	buf.EncodeBytes(m.Profile.RemTs.StartAddr.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(uint8(m.Profile.RemTs.EndAddr.Af))
+	buf.EncodeBytes(m.Profile.RemTs.EndAddr.Un.XXX_UnionData[:], 16)
 	buf.EncodeUint32(uint32(m.Profile.Responder.SwIfIndex))
-	buf.EncodeBytes(m.Profile.Responder.IP4[:], 4)
+	buf.EncodeUint8(uint8(m.Profile.Responder.Addr.Af))
+	buf.EncodeBytes(m.Profile.Responder.Addr.Un.XXX_UnionData[:], 16)
 	buf.EncodeUint8(m.Profile.IkeTs.CryptoAlg)
 	buf.EncodeUint32(m.Profile.IkeTs.CryptoKeySize)
 	buf.EncodeUint8(m.Profile.IkeTs.IntegAlg)
@@ -816,18 +826,23 @@ func (m *Ikev2ProfileDetails) Unmarshal(b []byte) error {
 	m.Profile.LocTs.ProtocolID = buf.DecodeUint8()
 	m.Profile.LocTs.StartPort = buf.DecodeUint16()
 	m.Profile.LocTs.EndPort = buf.DecodeUint16()
-	copy(m.Profile.LocTs.StartAddr[:], buf.DecodeBytes(4))
-	copy(m.Profile.LocTs.EndAddr[:], buf.DecodeBytes(4))
+	m.Profile.LocTs.StartAddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Profile.LocTs.StartAddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Profile.LocTs.EndAddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Profile.LocTs.EndAddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
 	m.Profile.RemTs.SaIndex = buf.DecodeUint32()
 	m.Profile.RemTs.ChildSaIndex = buf.DecodeUint32()
 	m.Profile.RemTs.IsLocal = buf.DecodeBool()
 	m.Profile.RemTs.ProtocolID = buf.DecodeUint8()
 	m.Profile.RemTs.StartPort = buf.DecodeUint16()
 	m.Profile.RemTs.EndPort = buf.DecodeUint16()
-	copy(m.Profile.RemTs.StartAddr[:], buf.DecodeBytes(4))
-	copy(m.Profile.RemTs.EndAddr[:], buf.DecodeBytes(4))
+	m.Profile.RemTs.StartAddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Profile.RemTs.StartAddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Profile.RemTs.EndAddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Profile.RemTs.EndAddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
 	m.Profile.Responder.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	copy(m.Profile.Responder.IP4[:], buf.DecodeBytes(4))
+	m.Profile.Responder.Addr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Profile.Responder.Addr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
 	m.Profile.IkeTs.CryptoAlg = buf.DecodeUint8()
 	m.Profile.IkeTs.CryptoKeySize = buf.DecodeUint32()
 	m.Profile.IkeTs.IntegAlg = buf.DecodeUint8()
@@ -1201,7 +1216,7 @@ type Ikev2ProfileSetTs struct {
 
 func (m *Ikev2ProfileSetTs) Reset()               { *m = Ikev2ProfileSetTs{} }
 func (*Ikev2ProfileSetTs) GetMessageName() string { return "ikev2_profile_set_ts" }
-func (*Ikev2ProfileSetTs) GetCrcString() string   { return "4f178094" }
+func (*Ikev2ProfileSetTs) GetCrcString() string   { return "8eb8cfd1" }
 func (*Ikev2ProfileSetTs) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1210,15 +1225,17 @@ func (m *Ikev2ProfileSetTs) Size() (size int) {
 	if m == nil {
 		return 0
 	}
-	size += 64    // m.Name
-	size += 4     // m.Ts.SaIndex
-	size += 4     // m.Ts.ChildSaIndex
-	size += 1     // m.Ts.IsLocal
-	size += 1     // m.Ts.ProtocolID
-	size += 2     // m.Ts.StartPort
-	size += 2     // m.Ts.EndPort
-	size += 1 * 4 // m.Ts.StartAddr
-	size += 1 * 4 // m.Ts.EndAddr
+	size += 64     // m.Name
+	size += 4      // m.Ts.SaIndex
+	size += 4      // m.Ts.ChildSaIndex
+	size += 1      // m.Ts.IsLocal
+	size += 1      // m.Ts.ProtocolID
+	size += 2      // m.Ts.StartPort
+	size += 2      // m.Ts.EndPort
+	size += 1      // m.Ts.StartAddr.Af
+	size += 1 * 16 // m.Ts.StartAddr.Un
+	size += 1      // m.Ts.EndAddr.Af
+	size += 1 * 16 // m.Ts.EndAddr.Un
 	return size
 }
 func (m *Ikev2ProfileSetTs) Marshal(b []byte) ([]byte, error) {
@@ -1233,8 +1250,10 @@ func (m *Ikev2ProfileSetTs) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint8(m.Ts.ProtocolID)
 	buf.EncodeUint16(m.Ts.StartPort)
 	buf.EncodeUint16(m.Ts.EndPort)
-	buf.EncodeBytes(m.Ts.StartAddr[:], 4)
-	buf.EncodeBytes(m.Ts.EndAddr[:], 4)
+	buf.EncodeUint8(uint8(m.Ts.StartAddr.Af))
+	buf.EncodeBytes(m.Ts.StartAddr.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(uint8(m.Ts.EndAddr.Af))
+	buf.EncodeBytes(m.Ts.EndAddr.Un.XXX_UnionData[:], 16)
 	return buf.Bytes(), nil
 }
 func (m *Ikev2ProfileSetTs) Unmarshal(b []byte) error {
@@ -1246,8 +1265,10 @@ func (m *Ikev2ProfileSetTs) Unmarshal(b []byte) error {
 	m.Ts.ProtocolID = buf.DecodeUint8()
 	m.Ts.StartPort = buf.DecodeUint16()
 	m.Ts.EndPort = buf.DecodeUint16()
-	copy(m.Ts.StartAddr[:], buf.DecodeBytes(4))
-	copy(m.Ts.EndAddr[:], buf.DecodeBytes(4))
+	m.Ts.StartAddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Ts.StartAddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Ts.EndAddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Ts.EndAddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
 	return nil
 }
 
@@ -1360,7 +1381,7 @@ type Ikev2SaDetails struct {
 
 func (m *Ikev2SaDetails) Reset()               { *m = Ikev2SaDetails{} }
 func (*Ikev2SaDetails) GetMessageName() string { return "ikev2_sa_details" }
-func (*Ikev2SaDetails) GetCrcString() string   { return "1fbac05c" }
+func (*Ikev2SaDetails) GetCrcString() string   { return "8da8209f" }
 func (*Ikev2SaDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1374,8 +1395,10 @@ func (m *Ikev2SaDetails) Size() (size int) {
 	size += 4      // m.Sa.ProfileIndex
 	size += 8      // m.Sa.Ispi
 	size += 8      // m.Sa.Rspi
-	size += 1 * 4  // m.Sa.Iaddr
-	size += 1 * 4  // m.Sa.Raddr
+	size += 1      // m.Sa.Iaddr.Af
+	size += 1 * 16 // m.Sa.Iaddr.Un
+	size += 1      // m.Sa.Raddr.Af
+	size += 1 * 16 // m.Sa.Raddr.Un
 	size += 1 * 64 // m.Sa.Keys.SkD
 	size += 1      // m.Sa.Keys.SkDLen
 	size += 1 * 64 // m.Sa.Keys.SkAi
@@ -1432,8 +1455,10 @@ func (m *Ikev2SaDetails) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint32(m.Sa.ProfileIndex)
 	buf.EncodeUint64(m.Sa.Ispi)
 	buf.EncodeUint64(m.Sa.Rspi)
-	buf.EncodeBytes(m.Sa.Iaddr[:], 4)
-	buf.EncodeBytes(m.Sa.Raddr[:], 4)
+	buf.EncodeUint8(uint8(m.Sa.Iaddr.Af))
+	buf.EncodeBytes(m.Sa.Iaddr.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(uint8(m.Sa.Raddr.Af))
+	buf.EncodeBytes(m.Sa.Raddr.Un.XXX_UnionData[:], 16)
 	buf.EncodeBytes(m.Sa.Keys.SkD, 64)
 	buf.EncodeUint8(m.Sa.Keys.SkDLen)
 	buf.EncodeBytes(m.Sa.Keys.SkAi, 64)
@@ -1487,8 +1512,10 @@ func (m *Ikev2SaDetails) Unmarshal(b []byte) error {
 	m.Sa.ProfileIndex = buf.DecodeUint32()
 	m.Sa.Ispi = buf.DecodeUint64()
 	m.Sa.Rspi = buf.DecodeUint64()
-	copy(m.Sa.Iaddr[:], buf.DecodeBytes(4))
-	copy(m.Sa.Raddr[:], buf.DecodeBytes(4))
+	m.Sa.Iaddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Sa.Iaddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Sa.Raddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Sa.Raddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
 	m.Sa.Keys.SkD = make([]byte, 64)
 	copy(m.Sa.Keys.SkD, buf.DecodeBytes(len(m.Sa.Keys.SkD)))
 	m.Sa.Keys.SkDLen = buf.DecodeUint8()
@@ -1799,7 +1826,7 @@ type Ikev2SetResponder struct {
 
 func (m *Ikev2SetResponder) Reset()               { *m = Ikev2SetResponder{} }
 func (*Ikev2SetResponder) GetMessageName() string { return "ikev2_set_responder" }
-func (*Ikev2SetResponder) GetCrcString() string   { return "f14c91a3" }
+func (*Ikev2SetResponder) GetCrcString() string   { return "a2055df1" }
 func (*Ikev2SetResponder) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1808,9 +1835,10 @@ func (m *Ikev2SetResponder) Size() (size int) {
 	if m == nil {
 		return 0
 	}
-	size += 64    // m.Name
-	size += 4     // m.Responder.SwIfIndex
-	size += 1 * 4 // m.Responder.IP4
+	size += 64     // m.Name
+	size += 4      // m.Responder.SwIfIndex
+	size += 1      // m.Responder.Addr.Af
+	size += 1 * 16 // m.Responder.Addr.Un
 	return size
 }
 func (m *Ikev2SetResponder) Marshal(b []byte) ([]byte, error) {
@@ -1820,14 +1848,16 @@ func (m *Ikev2SetResponder) Marshal(b []byte) ([]byte, error) {
 	buf := codec.NewBuffer(b)
 	buf.EncodeString(m.Name, 64)
 	buf.EncodeUint32(uint32(m.Responder.SwIfIndex))
-	buf.EncodeBytes(m.Responder.IP4[:], 4)
+	buf.EncodeUint8(uint8(m.Responder.Addr.Af))
+	buf.EncodeBytes(m.Responder.Addr.Un.XXX_UnionData[:], 16)
 	return buf.Bytes(), nil
 }
 func (m *Ikev2SetResponder) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Name = buf.DecodeString(64)
 	m.Responder.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	copy(m.Responder.IP4[:], buf.DecodeBytes(4))
+	m.Responder.Addr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Responder.Addr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
 	return nil
 }
 
@@ -2026,7 +2056,7 @@ type Ikev2TrafficSelectorDetails struct {
 
 func (m *Ikev2TrafficSelectorDetails) Reset()               { *m = Ikev2TrafficSelectorDetails{} }
 func (*Ikev2TrafficSelectorDetails) GetMessageName() string { return "ikev2_traffic_selector_details" }
-func (*Ikev2TrafficSelectorDetails) GetCrcString() string   { return "43a05faa" }
+func (*Ikev2TrafficSelectorDetails) GetCrcString() string   { return "518cb06f" }
 func (*Ikev2TrafficSelectorDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -2035,15 +2065,17 @@ func (m *Ikev2TrafficSelectorDetails) Size() (size int) {
 	if m == nil {
 		return 0
 	}
-	size += 4     // m.Retval
-	size += 4     // m.Ts.SaIndex
-	size += 4     // m.Ts.ChildSaIndex
-	size += 1     // m.Ts.IsLocal
-	size += 1     // m.Ts.ProtocolID
-	size += 2     // m.Ts.StartPort
-	size += 2     // m.Ts.EndPort
-	size += 1 * 4 // m.Ts.StartAddr
-	size += 1 * 4 // m.Ts.EndAddr
+	size += 4      // m.Retval
+	size += 4      // m.Ts.SaIndex
+	size += 4      // m.Ts.ChildSaIndex
+	size += 1      // m.Ts.IsLocal
+	size += 1      // m.Ts.ProtocolID
+	size += 2      // m.Ts.StartPort
+	size += 2      // m.Ts.EndPort
+	size += 1      // m.Ts.StartAddr.Af
+	size += 1 * 16 // m.Ts.StartAddr.Un
+	size += 1      // m.Ts.EndAddr.Af
+	size += 1 * 16 // m.Ts.EndAddr.Un
 	return size
 }
 func (m *Ikev2TrafficSelectorDetails) Marshal(b []byte) ([]byte, error) {
@@ -2058,8 +2090,10 @@ func (m *Ikev2TrafficSelectorDetails) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint8(m.Ts.ProtocolID)
 	buf.EncodeUint16(m.Ts.StartPort)
 	buf.EncodeUint16(m.Ts.EndPort)
-	buf.EncodeBytes(m.Ts.StartAddr[:], 4)
-	buf.EncodeBytes(m.Ts.EndAddr[:], 4)
+	buf.EncodeUint8(uint8(m.Ts.StartAddr.Af))
+	buf.EncodeBytes(m.Ts.StartAddr.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(uint8(m.Ts.EndAddr.Af))
+	buf.EncodeBytes(m.Ts.EndAddr.Un.XXX_UnionData[:], 16)
 	return buf.Bytes(), nil
 }
 func (m *Ikev2TrafficSelectorDetails) Unmarshal(b []byte) error {
@@ -2071,8 +2105,10 @@ func (m *Ikev2TrafficSelectorDetails) Unmarshal(b []byte) error {
 	m.Ts.ProtocolID = buf.DecodeUint8()
 	m.Ts.StartPort = buf.DecodeUint16()
 	m.Ts.EndPort = buf.DecodeUint16()
-	copy(m.Ts.StartAddr[:], buf.DecodeBytes(4))
-	copy(m.Ts.EndAddr[:], buf.DecodeBytes(4))
+	m.Ts.StartAddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Ts.StartAddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Ts.EndAddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Ts.EndAddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
 	return nil
 }
 
@@ -2135,7 +2171,7 @@ func file_ikev2_binapi_init() {
 	api.RegisterMessage((*Ikev2PluginGetVersionReply)(nil), "ikev2_plugin_get_version_reply_9b32cf86")
 	api.RegisterMessage((*Ikev2ProfileAddDel)(nil), "ikev2_profile_add_del_2c925b55")
 	api.RegisterMessage((*Ikev2ProfileAddDelReply)(nil), "ikev2_profile_add_del_reply_e8d4e804")
-	api.RegisterMessage((*Ikev2ProfileDetails)(nil), "ikev2_profile_details_daec69ef")
+	api.RegisterMessage((*Ikev2ProfileDetails)(nil), "ikev2_profile_details_2e2dfd1c")
 	api.RegisterMessage((*Ikev2ProfileDump)(nil), "ikev2_profile_dump_51077d14")
 	api.RegisterMessage((*Ikev2ProfileSetAuth)(nil), "ikev2_profile_set_auth_642c97cd")
 	api.RegisterMessage((*Ikev2ProfileSetAuthReply)(nil), "ikev2_profile_set_auth_reply_e8d4e804")
@@ -2145,11 +2181,11 @@ func file_ikev2_binapi_init() {
 	api.RegisterMessage((*Ikev2ProfileSetIpsecUDPPortReply)(nil), "ikev2_profile_set_ipsec_udp_port_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2ProfileSetLiveness)(nil), "ikev2_profile_set_liveness_6bdf4d65")
 	api.RegisterMessage((*Ikev2ProfileSetLivenessReply)(nil), "ikev2_profile_set_liveness_reply_e8d4e804")
-	api.RegisterMessage((*Ikev2ProfileSetTs)(nil), "ikev2_profile_set_ts_4f178094")
+	api.RegisterMessage((*Ikev2ProfileSetTs)(nil), "ikev2_profile_set_ts_8eb8cfd1")
 	api.RegisterMessage((*Ikev2ProfileSetTsReply)(nil), "ikev2_profile_set_ts_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2ProfileSetUDPEncap)(nil), "ikev2_profile_set_udp_encap_ebf79a66")
 	api.RegisterMessage((*Ikev2ProfileSetUDPEncapReply)(nil), "ikev2_profile_set_udp_encap_reply_e8d4e804")
-	api.RegisterMessage((*Ikev2SaDetails)(nil), "ikev2_sa_details_1fbac05c")
+	api.RegisterMessage((*Ikev2SaDetails)(nil), "ikev2_sa_details_8da8209f")
 	api.RegisterMessage((*Ikev2SaDump)(nil), "ikev2_sa_dump_51077d14")
 	api.RegisterMessage((*Ikev2SetEspTransforms)(nil), "ikev2_set_esp_transforms_a63dc205")
 	api.RegisterMessage((*Ikev2SetEspTransformsReply)(nil), "ikev2_set_esp_transforms_reply_e8d4e804")
@@ -2157,13 +2193,13 @@ func file_ikev2_binapi_init() {
 	api.RegisterMessage((*Ikev2SetIkeTransformsReply)(nil), "ikev2_set_ike_transforms_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2SetLocalKey)(nil), "ikev2_set_local_key_799b69ec")
 	api.RegisterMessage((*Ikev2SetLocalKeyReply)(nil), "ikev2_set_local_key_reply_e8d4e804")
-	api.RegisterMessage((*Ikev2SetResponder)(nil), "ikev2_set_responder_f14c91a3")
+	api.RegisterMessage((*Ikev2SetResponder)(nil), "ikev2_set_responder_a2055df1")
 	api.RegisterMessage((*Ikev2SetResponderReply)(nil), "ikev2_set_responder_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2SetSaLifetime)(nil), "ikev2_set_sa_lifetime_7039feaa")
 	api.RegisterMessage((*Ikev2SetSaLifetimeReply)(nil), "ikev2_set_sa_lifetime_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2SetTunnelInterface)(nil), "ikev2_set_tunnel_interface_ca67182c")
 	api.RegisterMessage((*Ikev2SetTunnelInterfaceReply)(nil), "ikev2_set_tunnel_interface_reply_e8d4e804")
-	api.RegisterMessage((*Ikev2TrafficSelectorDetails)(nil), "ikev2_traffic_selector_details_43a05faa")
+	api.RegisterMessage((*Ikev2TrafficSelectorDetails)(nil), "ikev2_traffic_selector_details_518cb06f")
 	api.RegisterMessage((*Ikev2TrafficSelectorDump)(nil), "ikev2_traffic_selector_dump_a7385e33")
 }
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-VPP_COMMIT=8fb4d10dc
+VPP_COMMIT=2082835fe
 
 if [ ! -d $1 ]; then
 	git clone "https://gerrit.fd.io/r/vpp" $1
@@ -10,8 +10,23 @@ else
 	git fetch "https://gerrit.fd.io/r/vpp" && git reset --hard ${VPP_COMMIT}
 fi
 
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/43/28743/2 && git cherry-pick FETCH_HEAD # icmp errors
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/88/28788/2 && git cherry-pick FETCH_HEAD # icmp echo
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/92/28792/1 && git cherry-pick FETCH_HEAD # source policy
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/16 && git cherry-pick FETCH_HEAD # calico plugin
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/11/28711/3 && git cherry-pick FETCH_HEAD # vlib: force input node interrupts to be unique
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/11/28711/4 && git cherry-pick FETCH_HEAD # vlib: force input node interrupts to be unique
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/22 && git cherry-pick FETCH_HEAD # calico plugin
+
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/7 && git cherry-pick FETCH_HEAD # multi TX
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/78/29578/1 && git cherry-pick FETCH_HEAD # FIX tun API
+echo "diff --git a/src/vlib/unix/input.c b/src/vlib/unix/input.c
+index 7531dd197..94a2bfb12 100644
+--- a/src/vlib/unix/input.c
++++ b/src/vlib/unix/input.c
+@@ -245,7 +245,7 @@ linux_epoll_input_inline (vlib_main_t * vm, vlib_node_runtime_t * node,
+ 	      {
+ 		/* Sleep for 100us at a time */
+ 		ts.tv_sec = 0;
+-		ts.tv_nsec = 1000 * 100;
++		ts.tv_nsec = 1000 * 10;
+ 
+ 		while (nanosleep (&ts, &tsrem) < 0)
+ 		  ts = tsrem;
+" | git apply -- && git add -A &&  git commit --author "Anonymous <>" -m "Use 10us interrupt sleep"
+
