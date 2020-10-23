@@ -8,25 +8,6 @@ data:  # Configuration template for VPP in EKS
   vpp_dataplane_interface: eth0
   veth_mtu: "1410"
   default_ipv4_pool_cidr: 192.168.0.0/16
-  vpp_config_template: |-
-    unix {
-      nodaemon
-      full-coredump
-      cli-listen /var/run/vpp/cli.sock
-    }
-    api-trace { on }
-    cpu {
-        main-core 1
-        workers 0
-    }
-    socksvr {
-        socket-name /var/run/vpp/vpp-api.sock
-    }
-    plugins {
-        plugin default { enable }
-        plugin calico_plugin.so { enable }
-        plugin dpdk_plugin.so { disable }
-    }
 
 ---
 kind: DaemonSet

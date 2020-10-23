@@ -1,0 +1,32 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-config
+  namespace: kube-system
+data:
+  service_prefix: 10.96.0.0/12
+  vpp_dataplane_interface: eth1
+  veth_mtu: "1440"
+  default_ipv4_pool_cidr: 172.16.0.0/16
+  vpp_config_template: |-
+    unix {
+      nodaemon
+      full-coredump
+      cli-listen /var/run/vpp/cli.sock
+    }
+    api-trace { on }
+    cpu {
+        main-core 1
+        workers 0
+    }
+    socksvr {
+        socket-name /var/run/vpp/vpp-api.sock
+    }
+    dpdk {
+      dev __PCI_DEVICE_ID__ { num-rx-queues 1  num-tx-queues 1 }
+    }
+    plugins {
+        plugin default { enable }
+        plugin calico_plugin.so { enable }
+    }
+
