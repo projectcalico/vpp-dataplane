@@ -72,20 +72,18 @@ get_nodes ()
 
 test_apply ()
 {
-  if [ -z "$2" ]; then
-    yaml_file="test.yaml"
-  else
-    yaml_file=$2
-  fi
-
-  if [ ! -d $SCRIPTDIR/perftest/$1 ]; then
-  	cd $SCRIPTDIR/perftest
-  	echo "Please specify a config yaml in $(ls -d */)"
+  NAME=$1
+  YAML_FILE=${YAML_FILE:-test.yaml}
+  YAML_FILE=$SCRIPTDIR/perftest/$NAME/${YAML_FILE}
+  shift
+  if [ ! -f ${YAML_FILE} ]; then
+  	echo "${YAML_FILE} doesnt exist"
   	exit 1
   fi
+
   get_nodes
-  k_create_namespace $1
-  sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $SCRIPTDIR/perftest/$1/$yaml_file | kubectl apply -f -
+  k_create_namespace $NAME
+  sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $YAML_FILE | kubectl apply -f -
 }
 
 test_delete ()
@@ -106,59 +104,34 @@ test_delete ()
   k_delete_namespace $1
 }
 
-test_run_one ()
-{
-	mkdir -p $DIR
-	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
-	$SCRIPTDIR/vppdev.sh clear
-	$SCRIPTDIR/vppdev.sh export $DIR start
-	TEST_CMD="iperf -c iperf-service -P4 -t10 -i1"
-	echo "Running test : ${TEST_CMD}"
-	echo $TEST_CMD > $DIR/test_command.sh
-
-	start_time=$(date "+%s")
-	# Run actual test
-	kubectl exec -it iperf-client -n iperf -- $TEST_CMD > $DIR/test_output
-	end_time=$(date "+%s")
-
-	for node in $(kubectl get nodes -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}')
-	do
-		SVC=monit C=monit POD=monit NODE=$node exec_node /stats.sh ${start_time} ${end_time} > $DIR/cpu_mem_usage
-	done
-	echo "start=${start_time} end=${end_time}" > $DIR/timestamps
-
-	$SCRIPTDIR/vppdev.sh export $DIR end
-}
-
-test_run ()
-{
-	USER_DIR=$1
-	N_TESTS=${N_TESTS:=3}
-	if [ x$USER_DIR = x ]; then
-		echo "Please provide a directory"
-		exit 1
-	fi
-	if [ -d "$USER_DIR" ]; then
-		echo "directory $USER_DIR exists"
-		exit 1
-	fi
-
-	for i in $(seq $N_TESTS); do
-		echo "Test run #${i}"
-		DIR=$USER_DIR/test_${i} test_run_one
-	done
-}
-
 function print_usage_and_exit ()
 {
     echo "Usage:"
-    echo "test.sh up   [perf|npperf|perf3|wrk|nginx]     - Create test yaml and apply it"
-    echo "test.sh down [perf|npperf|perf3|wrk|nginx]     - Delete test yaml"
+    echo "test.sh up   [perf|npperf|perf3|wrk|nginx|monit|scalepods]     - Create test yaml and apply it"
+    echo "test.sh down [perf|npperf|perf3|wrk|nginx|monit|scalepods]     - Delete test yaml"
     echo
     echo "test.sh build nptest"
-    echo "test.sh run [DIR]"
+    echo "test.sh pin CPUS=27-35,39-47                                   - pin nginx/iperf/vhost to given CPUS"
+    echo "test.sh run [DIR] [N_TESTS=3] [TEST_SZ=4096|2MB] [CASE=WRK1|WRK2|IPERF]"
+    echo "            [N_FLOWS=4] [CPUS=27-35,39-47] [OTHERHOST=sshname]"
+    echo "test.sh report [DIR]"
     echo
     exit 0
+}
+
+function test_pin ()
+{
+	while (( "$#" )) ; do
+      eval $1
+      shift
+	done
+	if [ x$CPUS = x ]; then
+		echo "provide CPUS=27-35,39-47"
+		exit 1
+	fi
+	ps aux|grep -v awk|awk '/vhost/{print $2}'|while read p;do sudo taskset -pc ${CPUS} $p;done
+	ps aux|grep -v awk|awk '/iperf/{print $2}'|while read p;do sudo taskset -pc ${CPUS} $p;done
+	ps aux|grep -v awk|awk '/nginx/{print $2}'|while read p;do sudo taskset -pc ${CPUS} $p;done
 }
 
 kube_test_cli ()
@@ -173,6 +146,8 @@ kube_test_cli ()
 	shift ; test_apply $@
   elif [[ "$1" = "run" ]]; then
 	shift ; test_run $@
+  elif [[ "$1" = "pin" ]]; then
+	shift ; test_pin $@
   elif [[ "$1" = "report" ]]; then
 	shift ; test_report $@
   elif [[ "$1" = "down" ]]; then
@@ -182,13 +157,147 @@ kube_test_cli ()
   fi
 }
 
+setup_test_WRK1 ()
+{
+	if [ x$OTHERHOST = x ]; then
+		echo "Please provide OTHERHOST=sshname"
+		exit 1
+	fi
+
+	scp $OTHERHOST:/tmp/calico-vpp.yaml $DIR/cni.yaml
+	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-${TEST_N} -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	ssh $OTHERHOST "sudo conntrack -F"
+	while (( "$(netstat -tn4 | grep $CLUSTER_IP:80 | wc -l)" )); do
+		echo "Waiting for connection cleanup"
+		sleep 1
+	done
+}
+
+setup_test_WRK2 ()
+{
+	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	sudo conntrack -F
+
+	while (( "$( $SCRIPTDIR/vppdev.sh vppctl node2 sh cnat session | grep "active elements" | awk '{print $1}' )" > 50 )); do
+		echo "Waiting for connection cleanup"
+		sleep 1
+	done
+}
+
+setup_test_IPERF ()
+{
+	N_FLOWS=${N_FLOWS:=4}
+	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+}
+
+run_test_IPERF ()
+{
+	CLUSTER_IP=$( kubectl get svc -n iperf iperf-service -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	TEST_CMD="taskset -c ${CPUS} iperf -c ${CLUSTER_IP} -P${N_FLOWS} -t10 -i1"
+	echo "Running test : ${TEST_CMD}"
+	echo $TEST_CMD > $DIR/test_command.sh
+	kubectl exec -it iperf-client -n iperf -- $TEST_CMD > $DIR/test_output
+}
+
+run_test_WRK1 ()
+{
+	TEST_SZ=${TEST_SZ:=4096} # 4096 // 2MB
+	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-${TEST_N} -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	TEST_CMD="sudo prlimit --nofile=100000 numactl -m 1 -C ${CPUS} ./wrk.py -t10 -c1000 -d10s --latency http://${CLUSTER_IP}/${TEST_SZ}"
+	echo "Running test : ${TEST_CMD}"
+	echo $TEST_CMD > $DIR/test_command.sh
+	$TEST_CMD > $DIR/test_output
+}
+
+run_test_WRK2 ()
+{
+	TEST_SZ=${TEST_SZ:=4096} # 4096 // 2MB
+	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-${TEST_N} -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	TEST_CMD="/wrk/wrk.py -t10 -c1000 -d10s --latency http://${CLUSTER_IP}/${TEST_SZ}"
+	echo "Running test : ${TEST_CMD}"
+	echo $TEST_CMD > $DIR/test_command.sh
+	kubectl exec -it wrk-client -n wrk -- $TEST_CMD > $DIR/test_output
+}
+
+test_run_one ()
+{
+	mkdir -p $DIR
+	setup_test_$CASE
+	$SCRIPTDIR/vppdev.sh clear
+	$SCRIPTDIR/vppdev.sh export $DIR start
+	echo $CASE > $DIR/testcase
+
+	start_time=$(date "+%s")
+	# Run actual test
+	run_test_$CASE
+	end_time=$(date "+%s")
+
+	for node in $(kubectl get nodes -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}')
+	do
+		SVC=monit C=monit POD=monit NODE=$node exec_node /stats.sh ${start_time} ${end_time} > $DIR/cpu_mem_usage.${node}
+	done
+	echo "start=${start_time} end=${end_time}" > $DIR/timestamps
+
+	$SCRIPTDIR/vppdev.sh export $DIR end
+}
+
+test_run ()
+{
+	USER_DIR=$1
+	shift
+	while (( "$#" )) ; do
+      eval $1
+      shift
+	done
+	N_TESTS=${N_TESTS:=3}
+	CASE=${CASE:=IPERF}
+
+	if [ x$CPUS = x ]; then
+		echo "provide CPUS=27-35,39-47"
+		exit 1
+	fi
+
+	if [ x$CASE = xWRK1 ]; then
+		if [ x$OTHERHOST = x ]; then
+			echo "Please provide OTHERHOST=sshname"
+			exit 1
+		fi
+		mkdir -p ~/.kube && scp $OTHERHOST:~/.kube/config ~/.kube/config
+	fi
+	if [ x$USER_DIR = x ]; then
+		echo "Please provide a directory"
+		exit 1
+	fi
+	if [ -d "$USER_DIR" ]; then
+		echo "directory $USER_DIR exists"
+		exit 1
+	fi
+
+	for i in $(seq $N_TESTS); do
+		echo "Test run #${i}"
+		TEST_N=$i DIR=$USER_DIR/test_${i} test_run_one
+	done
+}
+
 get_avg_cpu ()
 {
-	FILE=$1/cpu_mem_usage
-	tail -n +2 $FILE | awk '{M+=$6;U+=$1;N+=$2;S+=$3;I+=$4;T+=$5;}
-		END {
-			printf "%.2f;%.2f;%.2f;%.2f;%.2f;%d;%d",U/NR,N/NR,S/NR,I/NR,T/NR,M/NR,NR
-		}'
+	# cpu-user;cpu-nice;cpu-system;cpu-iowait;cpu-steal;memory-used;records-number
+	NODE=$2
+	FILE=$1/cpu_mem_usage.${NODE}
+	if [ ! -f "${FILE}" ]; then
+		printf ";;;;;;"
+	else
+		tail -n +2 $FILE | awk '{M+=$6;U+=$1;N+=$2;S+=$3;I+=$4;T+=$5;}
+			END {
+				printf "%.2f;%.2f;%.2f;%.2f;%.2f;%d;%d",U/NR,N/NR,S/NR,I/NR,T/NR,M/NR,NR
+			}'
+	fi
+}
+
+get_wrk_csv_output ()
+{
+  FILE=$1/test_output
+  tail -1 $FILE | sed 's/[^[:print:]]//g'
 }
 
 get_avg_iperf_bps ()
@@ -214,18 +323,30 @@ get_avg_report ()
 {
   TEST_N=$2
   DIR=$1/test_${TEST_N}
-  echo "$TEST_N;$(get_avg_iperf_bps $DIR);$(get_avg_cpu $DIR)"
+  if [ ! -f $DIR/testcase ]; then
+  	echo "testcase undefined"
+  	exit 1
+  fi
+  CASE=$(cat $DIR/testcase)
+  if [ x$CASE = xIPERF ]; then
+	echo "$TEST_N;$(get_avg_iperf_bps $DIR);$(get_avg_cpu $DIR node1);$(get_avg_cpu $DIR node2)"
+  else
+	echo "$TEST_N;$(get_wrk_csv_output $DIR);$(get_avg_cpu $DIR node1);$(get_avg_cpu $DIR node2)"
+  fi
 }
 
 test_report ()
 {
 	USER_DIR=$1
-	N_TESTS=${N_TESTS:=3}
 	if [ x$USER_DIR = x ]; then
 		echo "Please provide a directory"
 		exit 1
 	fi
-	echo "test;Gbps;cpu-user;cpu-nice;cpu-system;cpu-iowait;cpu-steal;memory-used;records-number";
+	if [ ! -d $USER_DIR ]; then
+		echo "$USER_DIR doesn't exist"
+		exit 1
+	fi
+	N_TESTS=$(ls -d ./$USER_DIR/test_* | wc -l)
 	for i in $(seq $N_TESTS); do
 		get_avg_report $USER_DIR $i
 	done

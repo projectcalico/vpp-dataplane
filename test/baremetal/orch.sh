@@ -17,9 +17,15 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 function provision ()
 {
-  echo "$SCRIPTDIR/provision.sh $1 IF=$IF \
-	NODE_IP=$2 \
-	MAIN_NODE_IP=$3 \
+  provision_action=$1
+  tmp=$2
+  provision_node_ip=${tmp%%%*}
+  provision_if=${tmp##*%}
+  provision_main_node_ip=$3
+  echo "$SCRIPTDIR/provision.sh $provision_action \
+    IF=${provision_if} \
+	NODE_IP=${provision_node_ip} \
+	MAIN_NODE_IP=${provision_main_node_ip} \
 	POD_CIDR=$POD_CIDR \
 	SERVICE_CIDR=$SERVICE_CIDR \
 	DNS_TYPE=$DNS_TYPE \
@@ -38,6 +44,7 @@ function create_k8_cluster () {
 		SSH_NAME=${i##*@}
 		N=$((N+1))
 		NODE_NAME=node$N
+		echo "ssh $SSH_NAME -t $(provision up $NODE_IP ${MAIN%%/*})"
 		ssh $SSH_NAME -t $(provision up $NODE_IP ${MAIN%%/*})
 	done
 }
@@ -89,10 +96,9 @@ function print_usage_and_exit ()
 	echo "Usage :"
 	echo "orch.sh [up|dn] [OPTIONS]"
 	echo
-	echo "orch.sh up IF=eth0 MAIN=20.0.0.1/24 OTHERS=20.0.0.2/24@vq2"
+	echo "orch.sh up MAIN=20.0.0.1/24:eth0 OTHERS=20.0.0.2/24:eth0@vq2"
 	echo
 	echo "Options are the same as for provision.sh"
-	echo "IF             - linux if name to use"
 	echo "POD_CIDR       - CIDR for pods (defaults to 10.0.0.0/16)"
 	echo "SERVICE_CIDR   - CIDR for services (defaults to 10.96.0.0/16)"
 	echo "DNS_TYPE       - CoreDNS or kube-dns"

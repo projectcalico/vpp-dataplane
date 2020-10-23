@@ -15,13 +15,10 @@ RUN apt-get update && apt-get install -y \
 	build-essential \
 	curl
 
-RUN git clone https://github.com/noahgibbs/wrk.git
+RUN git clone https://github.com/MathiasRaoul/wrk.git
 WORKDIR wrk
-RUN git checkout 51efed8ec10e95c0cd04f6c84614941e70379924
 RUN make -j8
 RUN cp wrk /usr/bin/
+RUN apt-get install -y python3
 
-ADD entrypoint.sh /usr/bin/entrypoint
-RUN chmod +x /usr/bin/entrypoint
-
-ENTRYPOINT ["/usr/bin/entrypoint"]
+ENTRYPOINT ["tail", "-f", "/dev/null"]

@@ -15,6 +15,7 @@ nodeRegistration:
   taints: null
   kubeletExtraArgs:
     node-ip: "${FIRST_NODE_IP}"
+    max-pods: "100000"
   criSocket: /var/run/dockershim.sock
   name: "${NODE_NAME}"
   ignorePreflightErrors:
@@ -49,6 +50,11 @@ dns:
 etcd:
   local:
     dataDir: /var/lib/etcd
+    extraArgs:
+      # default is 16MB, use 10GB for tests
+      quota-backend-bytes: "10740000000"
+      auto-compaction-mode: "revision"
+      auto-compaction-retention: "10"
 imageRepository: k8s.gcr.io
 kubernetesVersion: ${K8_VERSION}
 networking:

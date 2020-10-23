@@ -1,0 +1,38 @@
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  namespace: scalepods
+  name: scalepods-repl
+  labels:
+    app: scalepods
+spec:
+  replicas: 1000
+  selector:
+    matchLabels:
+      app: scalepods
+  template:
+    metadata:
+      labels:
+        app: scalepods
+    spec:
+      containers:
+      - name: scalepods
+        image: sknat/scalepods
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+      nodeName: _NODE_1_
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: scalepods
+  name: scalepods-service-1
+spec:
+  selector:
+    app: scalepods
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
