@@ -68,13 +68,14 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 	response := &tapv2.TapCreateV2Reply{}
 	// TODO set MTU?
 	request := &tapv2.TapCreateV2{
-		ID:          ^uint32(0),
-		Tag:         tap.Tag,
-		MacAddress:  types.ToVppMacAddress(&tap.MacAddress),
-		TapFlags:    tapv2.TapFlags(tap.Flags),
-		NumRxQueues: uint8(defaultIntTo(tap.NumRxQueues, 1)),
-		TxRingSz:    uint16(defaultIntTo(tap.TxQueueSize, 1024)),
-		RxRingSz:    uint16(defaultIntTo(tap.RxQueueSize, 1024)),
+		ID:                   ^uint32(0),
+		Tag:                  tap.Tag,
+		MacAddress:           types.ToVppMacAddress(&tap.MacAddress),
+		TapFlags:             tapv2.TapFlags(tap.Flags),
+		NumRxQueues:          uint8(defaultIntTo(tap.NumRxQueues, 1)),
+		NumTxQueuesPerWorker: uint8(defaultIntTo(tap.NumTxQueues, 1)),
+		TxRingSz:             uint16(defaultIntTo(tap.TxQueueSize, 1024)),
+		RxRingSz:             uint16(defaultIntTo(tap.RxQueueSize, 1024)),
 	}
 	if tap.TxQueueSize > 0 {
 		request.TxRingSz = uint16(tap.TxQueueSize)
@@ -208,8 +209,7 @@ func (v *VppLink) SearchInterfaceWithTag(tag string) (err error, swIfIndex uint3
 		}
 	}
 	if swIfIndex == INVALID_SW_IF_INDEX {
-		v.log.Errorf("Interface with tag %s not found", tag)
-		return errors.New("Interface not found"), INVALID_SW_IF_INDEX
+		return nil, INVALID_SW_IF_INDEX
 	}
 	return nil, swIfIndex
 }

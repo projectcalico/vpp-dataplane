@@ -222,8 +222,8 @@ func (v *VppLink) SetIKEv2TrafficSelector(
 			ProtocolID: proto,
 			StartPort:  startPort,
 			EndPort:    endPort,
-			StartAddr:  types.ToVppIP4Address(startAddr),
-			EndAddr:    types.ToVppIP4Address(endAddr),
+			StartAddr:  types.ToVppAddress(startAddr),
+			EndAddr:    types.ToVppAddress(endAddr),
 		},
 	}
 	response := &ikev2.Ikev2ProfileSetTsReply{}
@@ -338,12 +338,12 @@ func (v *VppLink) SetIKEv2Responder(profile string, swIfIndex uint32, address ne
 	if address.To4() == nil {
 		return errors.New("IPv6 unsupported in IKEv2 at this time")
 	}
-	vppAddr := types.ToVppIP4Address(address)
+	vppAddr := types.ToVppAddress(address)
 	request := &ikev2.Ikev2SetResponder{
 		Name: profile,
 		Responder: ikev2_types.Ikev2Responder{
 			SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-			IP4:       vppAddr,
+			Addr:      vppAddr,
 		},
 	}
 	response := &ikev2.Ikev2SetResponderReply{}

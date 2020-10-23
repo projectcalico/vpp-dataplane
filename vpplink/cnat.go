@@ -80,8 +80,9 @@ func (v *VppLink) CnatSetSnatAddresses(v4, v6 net.IP) (err error) {
 	defer v.lock.Unlock()
 
 	request := &cnat.CnatSetSnatAddresses{
-		SnatIP4: types.ToVppIP4Address(v4),
-		SnatIP6: types.ToVppIP6Address(v6),
+		SnatIP4:   types.ToVppIP4Address(v4),
+		SnatIP6:   types.ToVppIP6Address(v6),
+		SwIfIndex: types.InvalidInterface,
 	}
 	response := &cnat.CnatSetSnatAddressesReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)

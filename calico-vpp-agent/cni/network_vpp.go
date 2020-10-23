@@ -190,7 +190,7 @@ func (s *Server) AddVppInterface(podSpec *LocalPodSpec, doHostSideConf bool) (sw
 	err, swIfIndex = s.vpp.SearchInterfaceWithTag(tunTag)
 	if err != nil {
 		s.log.Errorf("Error while searching tun %s : %v", tunTag, err)
-	} else {
+	} else if swIfIndex != vpplink.INVALID_SW_IF_INDEX {
 		return swIfIndex, nil
 	}
 
@@ -200,6 +200,7 @@ func (s *Server) AddVppInterface(podSpec *LocalPodSpec, doHostSideConf bool) (sw
 		HostIfName:    podSpec.InterfaceName,
 		Tag:           tunTag,
 		NumRxQueues:   config.TapNumRxQueues,
+		NumTxQueues:   config.TapNumTxQueues,
 		RxQueueSize:   config.TapRxQueueSize,
 		TxQueueSize:   config.TapTxQueueSize,
 		Flags:         types.TapFlagTun,
@@ -346,6 +347,8 @@ func (s *Server) DelVppInterface(podSpec *LocalPodSpec) error {
 	err, swIfIndex := s.vpp.SearchInterfaceWithTag(tag)
 	if err != nil {
 		return errors.Wrapf(err, "error searching interface with tag %s", tag)
+	} else if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
+		return errors.Wrapf(err, "No interface found with tag %s", tag)
 	}
 
 	s.log.Infof("found matching VPP tun[%d]", swIfIndex)

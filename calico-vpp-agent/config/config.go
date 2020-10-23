@@ -39,6 +39,7 @@ const (
 
 	NodeNameEnvVar            = "NODENAME"
 	TapNumRxQueuesEnvVar      = "CALICOVPP_TAP_RX_QUEUES"
+	TapNumTxQueuesEnvVar      = "CALICOVPP_TAP_TX_QUEUES"
 	TapGSOEnvVar              = "CALICOVPP_TAP_GSO_ENABLED"
 	EnableServicesEnvVar      = "CALICOVPP_NAT_ENABLED"
 	CrossIpsecTunnelsEnvVar   = "CALICOVPP_IPSEC_CROSS_TUNNELS"
@@ -57,6 +58,7 @@ const (
 
 var (
 	TapNumRxQueues    = 1
+	TapNumTxQueues    = 1
 	TapGSOEnabled     = false
 	EnableServices    = true
 	EnableIPSec       = false
@@ -100,6 +102,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", TapNumRxQueuesEnvVar, conf, queues, err)
 		}
 		TapNumRxQueues = int(queues)
+	}
+
+	if conf := os.Getenv(TapNumTxQueuesEnvVar); conf != "" {
+		queues, err := strconv.ParseInt(conf, 10, 16)
+		if err != nil || queues <= 0 {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", TapNumTxQueuesEnvVar, conf, queues, err)
+		}
+		TapNumTxQueues = int(queues)
 	}
 
 	if conf := os.Getenv(TapGSOEnvVar); conf != "" {

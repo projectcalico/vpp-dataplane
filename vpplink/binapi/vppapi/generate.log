@@ -1,10 +1,11 @@
-VPP Version                 : 21.01-rc0~19-gd096b6197
+VPP Version                 : 21.01-rc0~269-gb2d2ae8ba
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 8fb4d10dc nat: Fix next feature for ED with multiple workers
+VPP Base commit             : 2082835fe cnat: allow max_u16 translation backends
 ------------------ Cherry picked commits --------------------
-d096b6197 vlib: force input node interrupts to be unique
-fc54d8389 calico: Add SNAT simultaneously to VIP DNAT
-f6541b073 cnat: Introduce parametric source policy
-e2f7f2516 cnat: Add support for SNat ICMP
-9d314a29f cnat: Ip ICMP error support
+b2d2ae8ba vppinfra: missing __clib_export
+51fa89171 Use 10us interrupt sleep
+169bbf9a8 tap: fix the api for use of vec_len
+a274a3971 virtio: DRAFT: multi tx support
+fcbe539c0 calico: Add SNAT simultaneously to VIP DNAT
+fc45e1e8f vlib: force input node interrupts to be unique
 -------------------------------------------------------------

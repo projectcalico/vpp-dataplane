@@ -37,6 +37,7 @@ type TapV2 struct {
 	MacAddress     net.HardwareAddr
 	HostMacAddress net.HardwareAddr
 	NumRxQueues    int
+	NumTxQueues    int
 	Flags          TapFlags
 	TxQueueSize    int
 	RxQueueSize    int
