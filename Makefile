@@ -79,7 +79,9 @@ release: check-TAG push
 	# Generate yaml file for this release
 	sed -i.bak "s|:latest|:$(TAG)|g" yaml/base/calico-vpp.yaml
 	rm yaml/base/calico-vpp.yaml.bak
-	kubectl kustomize yaml/base > yaml/generated/calico-base-latest.yaml
+	kubectl kustomize yaml/overlays/af-packet > yaml/generated/calico-vpp-af-packet.yaml
+	kubectl kustomize yaml/overlays/af-xdp > yaml/generated/calico-vpp-af-xdp.yaml
+	kubectl kustomize yaml/overlays/dpdk > yaml/generated/calico-vpp-dpdk.yaml
 	git checkout -b release/$(TAG)
 	git add yaml
 	git commit -sm "Release $(TAG)"	
