@@ -1,11 +1,9 @@
-VPP Version                 : 21.01-rc0~269-gb2d2ae8ba
+VPP Version                 : 21.01-rc0~287-g20e411937
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 2082835fe cnat: allow max_u16 translation backends
+VPP Base commit             : 5f4f2081c nat: nat44 enable/disable dynamic config
 ------------------ Cherry picked commits --------------------
-b2d2ae8ba vppinfra: missing __clib_export
-51fa89171 Use 10us interrupt sleep
-169bbf9a8 tap: fix the api for use of vec_len
-a274a3971 virtio: DRAFT: multi tx support
-fcbe539c0 calico: Add SNAT simultaneously to VIP DNAT
-fc45e1e8f vlib: force input node interrupts to be unique
+20e411937 Use 10us interrupt sleep
+af592df36 virtio: DRAFT: multi tx support
+b6b00fc9c calico: Add SNAT simultaneously to VIP DNAT
+d548ac306 vlib: force input node interrupts to be unique
 -------------------------------------------------------------

@@ -30,7 +30,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip"
 	APIVersion = "3.0.1"
-	VersionCrc = 0x4c342e4a
+	VersionCrc = 0x78d167e7
 )
 
 // IPReassType defines enum 'ip_reass_type'.
@@ -62,12 +62,12 @@ func (x IPReassType) String() string {
 
 // IPMroute defines type 'ip_mroute'.
 type IPMroute struct {
-	TableID    uint32                `binapi:"u32,name=table_id" json:"table_id,omitempty"`
-	EntryFlags uint32                `binapi:"u32,name=entry_flags" json:"entry_flags,omitempty"`
-	RpfID      uint32                `binapi:"u32,name=rpf_id" json:"rpf_id,omitempty"`
-	Prefix     ip_types.Mprefix      `binapi:"mprefix,name=prefix" json:"prefix,omitempty"`
-	NPaths     uint8                 `binapi:"u8,name=n_paths" json:"-"`
-	Paths      []mfib_types.MfibPath `binapi:"mfib_path[n_paths],name=paths" json:"paths,omitempty"`
+	TableID    uint32                    `binapi:"u32,name=table_id" json:"table_id,omitempty"`
+	EntryFlags mfib_types.MfibEntryFlags `binapi:"mfib_entry_flags,name=entry_flags" json:"entry_flags,omitempty"`
+	RpfID      uint32                    `binapi:"u32,name=rpf_id" json:"rpf_id,omitempty"`
+	Prefix     ip_types.Mprefix          `binapi:"mprefix,name=prefix" json:"prefix,omitempty"`
+	NPaths     uint8                     `binapi:"u8,name=n_paths" json:"-"`
+	Paths      []mfib_types.MfibPath     `binapi:"mfib_path[n_paths],name=paths" json:"paths,omitempty"`
 }
 
 // IPRoute defines type 'ip_route'.
@@ -556,7 +556,7 @@ type IPMrouteAddDel struct {
 
 func (m *IPMrouteAddDel) Reset()               { *m = IPMrouteAddDel{} }
 func (*IPMrouteAddDel) GetMessageName() string { return "ip_mroute_add_del" }
-func (*IPMrouteAddDel) GetCrcString() string   { return "f6627d17" }
+func (*IPMrouteAddDel) GetCrcString() string   { return "0dd7e790" }
 func (*IPMrouteAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -612,7 +612,7 @@ func (m *IPMrouteAddDel) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeBool(m.IsAdd)
 	buf.EncodeBool(m.IsMultipath)
 	buf.EncodeUint32(m.Route.TableID)
-	buf.EncodeUint32(m.Route.EntryFlags)
+	buf.EncodeUint32(uint32(m.Route.EntryFlags))
 	buf.EncodeUint32(m.Route.RpfID)
 	buf.EncodeUint8(uint8(m.Route.Prefix.Af))
 	buf.EncodeUint16(m.Route.Prefix.GrpAddressLength)
@@ -652,7 +652,7 @@ func (m *IPMrouteAddDel) Unmarshal(b []byte) error {
 	m.IsAdd = buf.DecodeBool()
 	m.IsMultipath = buf.DecodeBool()
 	m.Route.TableID = buf.DecodeUint32()
-	m.Route.EntryFlags = buf.DecodeUint32()
+	m.Route.EntryFlags = mfib_types.MfibEntryFlags(buf.DecodeUint32())
 	m.Route.RpfID = buf.DecodeUint32()
 	m.Route.Prefix.Af = ip_types.AddressFamily(buf.DecodeUint8())
 	m.Route.Prefix.GrpAddressLength = buf.DecodeUint16()
@@ -729,7 +729,7 @@ type IPMrouteDetails struct {
 
 func (m *IPMrouteDetails) Reset()               { *m = IPMrouteDetails{} }
 func (*IPMrouteDetails) GetMessageName() string { return "ip_mroute_details" }
-func (*IPMrouteDetails) GetCrcString() string   { return "c1cb4b44" }
+func (*IPMrouteDetails) GetCrcString() string   { return "c5cb23fc" }
 func (*IPMrouteDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -781,7 +781,7 @@ func (m *IPMrouteDetails) Marshal(b []byte) ([]byte, error) {
 	}
 	buf := codec.NewBuffer(b)
 	buf.EncodeUint32(m.Route.TableID)
-	buf.EncodeUint32(m.Route.EntryFlags)
+	buf.EncodeUint32(uint32(m.Route.EntryFlags))
 	buf.EncodeUint32(m.Route.RpfID)
 	buf.EncodeUint8(uint8(m.Route.Prefix.Af))
 	buf.EncodeUint16(m.Route.Prefix.GrpAddressLength)
@@ -819,7 +819,7 @@ func (m *IPMrouteDetails) Marshal(b []byte) ([]byte, error) {
 func (m *IPMrouteDetails) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Route.TableID = buf.DecodeUint32()
-	m.Route.EntryFlags = buf.DecodeUint32()
+	m.Route.EntryFlags = mfib_types.MfibEntryFlags(buf.DecodeUint32())
 	m.Route.RpfID = buf.DecodeUint32()
 	m.Route.Prefix.Af = ip_types.AddressFamily(buf.DecodeUint8())
 	m.Route.Prefix.GrpAddressLength = buf.DecodeUint16()
@@ -2925,9 +2925,9 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IPContainerProxyDump)(nil), "ip_container_proxy_dump_51077d14")
 	api.RegisterMessage((*IPDetails)(nil), "ip_details_eb152d07")
 	api.RegisterMessage((*IPDump)(nil), "ip_dump_98d231ca")
-	api.RegisterMessage((*IPMrouteAddDel)(nil), "ip_mroute_add_del_f6627d17")
+	api.RegisterMessage((*IPMrouteAddDel)(nil), "ip_mroute_add_del_0dd7e790")
 	api.RegisterMessage((*IPMrouteAddDelReply)(nil), "ip_mroute_add_del_reply_1992deab")
-	api.RegisterMessage((*IPMrouteDetails)(nil), "ip_mroute_details_c1cb4b44")
+	api.RegisterMessage((*IPMrouteDetails)(nil), "ip_mroute_details_c5cb23fc")
 	api.RegisterMessage((*IPMrouteDump)(nil), "ip_mroute_dump_b9d2e09e")
 	api.RegisterMessage((*IPMtableDetails)(nil), "ip_mtable_details_b9d2e09e")
 	api.RegisterMessage((*IPMtableDump)(nil), "ip_mtable_dump_51077d14")
