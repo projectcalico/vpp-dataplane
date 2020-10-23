@@ -32,6 +32,7 @@ type RPCService interface {
 	Nat44InterfaceOutputFeatureDump(ctx context.Context, in *Nat44InterfaceOutputFeatureDump) (RPCService_Nat44InterfaceOutputFeatureDumpClient, error)
 	Nat44LbStaticMappingAddDelLocal(ctx context.Context, in *Nat44LbStaticMappingAddDelLocal) (*Nat44LbStaticMappingAddDelLocalReply, error)
 	Nat44LbStaticMappingDump(ctx context.Context, in *Nat44LbStaticMappingDump) (RPCService_Nat44LbStaticMappingDumpClient, error)
+	Nat44PluginEnableDisable(ctx context.Context, in *Nat44PluginEnableDisable) (*Nat44PluginEnableDisableReply, error)
 	Nat44SessionCleanup(ctx context.Context, in *Nat44SessionCleanup) (*Nat44SessionCleanupReply, error)
 	Nat44SetSessionLimit(ctx context.Context, in *Nat44SetSessionLimit) (*Nat44SetSessionLimitReply, error)
 	Nat44StaticMappingDump(ctx context.Context, in *Nat44StaticMappingDump) (RPCService_Nat44StaticMappingDumpClient, error)
@@ -415,6 +416,15 @@ func (c *serviceClient_Nat44LbStaticMappingDumpClient) Recv() (*Nat44LbStaticMap
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
+}
+
+func (c *serviceClient) Nat44PluginEnableDisable(ctx context.Context, in *Nat44PluginEnableDisable) (*Nat44PluginEnableDisableReply, error) {
+	out := new(Nat44PluginEnableDisableReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *serviceClient) Nat44SessionCleanup(ctx context.Context, in *Nat44SessionCleanup) (*Nat44SessionCleanupReply, error) {

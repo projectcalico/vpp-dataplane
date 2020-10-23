@@ -1,5 +1,5 @@
 #!/bin/bash
-VPP_COMMIT=2082835fe
+VPP_COMMIT=5f4f2081c
 
 if [ ! -d $1 ]; then
 	git clone "https://gerrit.fd.io/r/vpp" $1
@@ -14,7 +14,6 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/11/28711/4 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/22 && git cherry-pick FETCH_HEAD # calico plugin
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/7 && git cherry-pick FETCH_HEAD # multi TX
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/78/29578/1 && git cherry-pick FETCH_HEAD # FIX tun API
 echo "diff --git a/src/vlib/unix/input.c b/src/vlib/unix/input.c
 index 7531dd197..94a2bfb12 100644
 --- a/src/vlib/unix/input.c
