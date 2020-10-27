@@ -44,4 +44,4 @@ spec:
         - name: vpp
           resources:
             limits:
-              hugepages-2Mi: 128
+              hugepages-2Mi: 256Mi

@@ -4,6 +4,27 @@ metadata:
   name: calico-config
   namespace: kube-system
 data:  # Configuration template for VPP.
+  vpp_config_template: |-	
+    unix {	
+      nodaemon	
+      full-coredump	
+      cli-listen /var/run/vpp/cli.sock	
+      exec /etc/vpp/startup.exec	
+    }	
+    api-trace { on }	
+    cpu {	
+        main-core 1	
+        workers 0	
+    }	
+    socksvr {	
+        socket-name /var/run/vpp/vpp-api.sock	
+    }	
+    plugins {	
+        plugin default { enable }	
+        plugin calico_plugin.so { enable }	
+        plugin dpdk_plugin.so { disable }	
+    }
+
   vpp_config_exec_template: |-
     create int virtio __PCI_DEVICE_ID__
 
@@ -24,7 +45,7 @@ spec:
         - name: vpp
           resources:
             limits:
-              hugepages-2Mi: 128
+              hugepages-2Mi: 256Mi
           env:
             - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
               valueFrom:

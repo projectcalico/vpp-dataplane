@@ -1,6 +1,6 @@
 Vagrant.configure('2') do |config|
     config.vm.box = $box_image
-    config.vm.box_check_update = true
+    config.vm.box_check_update = false
 
     config.vm.boot_timeout = 900
 
