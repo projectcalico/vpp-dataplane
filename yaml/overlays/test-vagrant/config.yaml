@@ -22,6 +22,9 @@ spec:
     spec:
       containers:
         - name: vpp
+          resources:
+            limits:
+              hugepages-2Mi: 128
           env:
             - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
               valueFrom:
