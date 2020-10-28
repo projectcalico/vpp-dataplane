@@ -44,7 +44,6 @@ type Stringable interface {
 type CalicoVppServer interface {
 	BarrierSync()
 	OnVppRestart()
-	RescanState() error
 }
 
 type CalicoVppServerData struct{}
@@ -89,29 +88,23 @@ func WritePidToFile() error {
 }
 
 func InitRestartHandler() {
+	barrier = false
 	barrierCond = sync.NewCond(&sync.Mutex{})
 }
 
 func HandleVppManagerRestart(log *logrus.Logger, vpp *vpplink.VppLink, servers ...CalicoVppServer) {
-	barrier = true
 	barrierCond.L.Lock()
 	barrier = false
 	barrierCond.L.Unlock()
 	barrierCond.Broadcast()
 	signals := make(chan os.Signal, 2)
-	signal.Notify(signals, syscall.SIGUSR1, syscall.SIGUSR2)
+	signal.Notify(signals, syscall.SIGUSR1)
 	for {
-		s := <-signals
-		if s == syscall.SIGUSR2 {
-			log.Infof("SIGUSR2")
-			for i, srv := range servers {
-				srv.RescanState()
-				log.Infof("SR:server %d rescanned", i)
-			}
-			continue
-		}
+		<-signals
 		log.Infof("SR:Vpp restarted")
+		barrierCond.L.Lock()
 		barrier = true
+		barrierCond.L.Unlock()
 		vpp.Close()
 		// Start by reconnecting to VPP to ensure vpp (and so vpp-manager) are running
 		err := vpp.Retry(time.Second, 20, vpp.Reconnect)

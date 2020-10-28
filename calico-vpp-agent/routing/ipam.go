@@ -31,7 +31,7 @@ import (
 )
 
 // contains returns true if the IPPool contains 'prefix'
-func contains(pool *calicov3.IPPool, prefix*net.IPNet) (bool, error) {
+func contains(pool *calicov3.IPPool, prefix *net.IPNet) (bool, error) {
 	_, poolCIDR, _ := net.ParseCIDR(pool.Spec.CIDR) // this field is validated so this should never error
 	poolCIDRLen, poolCIDRBits := poolCIDR.Mask.Size()
 	prefixLen, prefixBits := prefix.Mask.Size()
@@ -55,6 +55,7 @@ func equalPools(a *calicov3.IPPool, b *calicov3.IPPool) bool {
 type IpamCache interface {
 	GetPrefixIPPool(*net.IPNet) *calicov3.IPPool
 	SyncIPAM() error
+	WaitReady()
 	OnVppRestart() error
 	IPNetNeedsSNAT(prefix *net.IPNet) bool
 }
@@ -66,7 +67,7 @@ type ipamCache struct {
 	updateHandler func(*calicov3.IPPool, *calicov3.IPPool) error
 	ready         bool
 	readyCond     *sync.Cond
-	log            *logrus.Entry
+	log           *logrus.Entry
 }
 
 // match checks whether we have an IP pool which contains the given prefix.
@@ -151,8 +152,10 @@ func (c *ipamCache) SyncIPAM() error {
 		}
 
 		if !c.ready {
+			c.readyCond.L.Lock()
 			c.ready = true
 			c.readyCond.Broadcast()
+			c.readyCond.L.Unlock()
 		}
 
 		poolsWatcher, err := c.client.IPPools().Watch(
@@ -186,6 +189,7 @@ func (c *ipamCache) SyncIPAM() error {
 	}
 	return nil
 }
+
 func (c *ipamCache) OnVppRestart() error {
 	for _, pool := range c.ippoolmap {
 		err := c.updateHandler(pool, nil)
@@ -194,6 +198,14 @@ func (c *ipamCache) OnVppRestart() error {
 		}
 	}
 	return nil
+}
+
+func (c *ipamCache) WaitReady() {
+	c.readyCond.L.Lock()
+	for !c.ready {
+		c.readyCond.Wait()
+	}
+	c.readyCond.L.Unlock()
 }
 
 // create new IPAM cache
@@ -205,5 +217,6 @@ func newIPAMCache(log *logrus.Entry, client calicocliv3.Interface, updateHandler
 		client:        client,
 		readyCond:     cond,
 		log:           log,
+		ready:         false,
 	}
 }

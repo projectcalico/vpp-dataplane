@@ -29,7 +29,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -207,19 +206,6 @@ func (s *Server) ConfigureSnat() (err error) {
 		if err != nil {
 			s.log.Errorf("Failed to Add Service CIDR %s %v", serviceCIDR, err)
 		}
-	}
-	return nil
-}
-
-func (s *Server) RescanState() error {
-	serviceList, err := s.client.CoreV1().Services("").List(metav1.ListOptions{})
-	if err != nil {
-		s.log.Errorf("Error getting clients %v", err)
-		return err
-	}
-	for _, service := range serviceList.Items {
-		s.log.Infof("Rescanning service %s", service.Spec.ExternalName)
-		s.handleServiceEndpointEvent(&service, nil, false)
 	}
 	return nil
 }

@@ -67,7 +67,7 @@ func main() {
 	}
 	routingServer, err := routing.NewServer(vpp, serviceServer, log.WithFields(logrus.Fields{"component": "routing"}))
 	if err != nil {
-		log.Errorf("Failed to create services server")
+		log.Errorf("Failed to create routing server")
 		log.Fatal(err)
 	}
 	cniServer, err := cni.NewServer(
@@ -77,11 +77,17 @@ func main() {
 		log.WithFields(logrus.Fields{"component": "cni"}),
 	)
 	if err != nil {
-		log.Errorf("Failed to create services server")
+		log.Errorf("Failed to create CNI server")
 		log.Fatal(err)
 	}
+
 	go routingServer.Serve()
 	<-routing.ServerRunning
+
+	err = cniServer.RescanState()
+	if err != nil {
+		log.Errorf("Error restoring container connectivity: %v", err)
+	}
 
 	go serviceServer.Serve()
 	go cniServer.Serve()

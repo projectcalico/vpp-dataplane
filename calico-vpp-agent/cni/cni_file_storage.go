@@ -29,12 +29,14 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 )
 
+// XXX: Increment CniServerStateFileVersion when changing this struct
 type LocalIPNet struct {
 	MaskSize int    `struc:"int8,sizeof=Mask"`
 	IP       net.IP `struc:"[16]byte"`
 	Mask     net.IPMask
 }
 
+// XXX: Increment CniServerStateFileVersion when changing this struct
 type LocalIP struct {
 	IP net.IP `struc:"[16]byte"`
 }
@@ -78,6 +80,7 @@ func (ps *LocalPodSpec) String() string {
 	return fmt.Sprintf("%s: %s", ps.Key(), strings.Join(strLst, ", "))
 }
 
+// XXX: Increment CniServerStateFileVersion when changing this struct
 type LocalPodSpec struct {
 	InterfaceNameSize int `struc:"int16,sizeof=InterfaceName"`
 	InterfaceName     string
@@ -171,14 +174,27 @@ func NewLocalPodSpecFromDel(request *pb.DelRequest) *LocalPodSpec {
 	}
 }
 
+type SavedState struct {
+	Version    int `struc:"int32"`
+	SpecsCount int `struc:"int32,sizeof=Specs"`
+	Specs      []LocalPodSpec
+}
+
 func (s *Server) persistCniServerState() (err error) {
 	var buf bytes.Buffer
-	for _, podSpec := range s.podInterfaceMap {
-		err := struc.Pack(&buf, podSpec)
-		if err != nil {
-			return errors.Wrap(err, "Error packing data")
-		}
+	state := &SavedState{
+		Version:    config.CniServerStateFileVersion,
+		SpecsCount: len(s.podInterfaceMap),
+		Specs:      make([]LocalPodSpec, 0, len(s.podInterfaceMap)),
 	}
+	for _, podSpec := range s.podInterfaceMap {
+		state.Specs = append(state.Specs, *podSpec)
+	}
+	err = struc.Pack(&buf, state)
+	if err != nil {
+		return errors.Wrap(err, "Error encoding pod data")
+	}
+
 	err = ioutil.WriteFile(config.CniServerStateTempFile, buf.Bytes(), 0200)
 	if err != nil {
 		return errors.Wrapf(err, "Error writing file %s", config.CniServerStateTempFile)
@@ -190,25 +206,25 @@ func (s *Server) persistCniServerState() (err error) {
 	return nil
 }
 
-func (s *Server) loadCniServerState() (podSpecs []*LocalPodSpec, err error) {
-	podSpecs = make([]*LocalPodSpec, 0)
+func (s *Server) loadCniServerState() ([]LocalPodSpec, error) {
+	var state SavedState
 	data, err := ioutil.ReadFile(config.CniServerStateFile)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error reading file %s", config.CniServerStateFile)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil // No state to load
+		} else {
+			return nil, errors.Wrapf(err, "Error reading file %s", config.CniServerStateFile)
+		}
 	}
 	buf := bytes.NewBuffer(data)
-	i := 0
-	for buf.Len() > 0 {
-		podSpec := &LocalPodSpec{}
-		err = struc.Unpack(buf, podSpec)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Error unpacking")
-		}
-		podSpecs = append(podSpecs, podSpec)
-		i++
-		if i > 20 {
-			return podSpecs, nil
-		}
+	err = struc.Unpack(buf, &state)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error unpacking")
 	}
-	return podSpecs, nil
+	if state.Version != config.CniServerStateFileVersion {
+		// When adding new versions, we need to keep loading old versions or some pods
+		// will remain disconnected forever after an upgrade
+		return nil, fmt.Errorf("Unsupported save file version: %d", state.Version)
+	}
+	return state.Specs, nil
 }
