@@ -85,6 +85,7 @@ const (
 	NATIVE_DRIVER_NONE      = "none"
 	NATIVE_DRIVER_AF_PACKET = "af_packet"
 	NATIVE_DRIVER_AF_XDP    = "af_xdp"
+	NATIVE_DRIVER_VIRTIO    = "virtio"
 )
 
 var (
@@ -947,21 +948,36 @@ func pingCalicoVpp() error {
 	return nil
 }
 
-func CreateNativeMainInterface() error {
+func CreateNativeMainInterface() (err error) {
+	swIfIndex := ^uint32(0)
 	if params.nativeDriver == NATIVE_DRIVER_AF_PACKET {
-		swIfIndex, err := vpp.CreateAfPacket(params.mainInterface, &initialConfig.HardwareAddr)
-		log.Infof("Created AF_PACKET %d", int(swIfIndex))
-		return err
+		initialConfig.PciId = ""
+		initialConfig.Driver = ""
+		swIfIndex, err = vpp.CreateAfPacket(params.mainInterface, &initialConfig.HardwareAddr)
 	} else if params.nativeDriver == NATIVE_DRIVER_AF_XDP {
+		initialConfig.PciId = ""
+		initialConfig.Driver = ""
 		intf := types.VppXDPInterface{
 			HostInterfaceName: params.mainInterface,
 			RxQueueSize:       params.RxQueueSize,
 			TxQueueSize:       params.TxQueueSize,
 			NumRxQueues:       params.NumRxQueues,
 		}
-		err := vpp.CreateAfXDP(&intf)
-		log.Infof("Created AF_XDP %d", int(intf.SwIfIndex))
-		return err
+		err = vpp.CreateAfXDP(&intf)
+		swIfIndex = intf.SwIfIndex
+	} else if params.nativeDriver == NATIVE_DRIVER_VIRTIO {
+		swIfIndex, err = vpp.CreateVirtio(initialConfig.PciId, &initialConfig.HardwareAddr)
+	} else {
+		return fmt.Errorf("Unkown native driver: %s", params.nativeDriver)
+	}
+
+	if err != nil {
+		return errors.Wrapf(err, "Error creating %s native interface", params.nativeDriver)
+	}
+	log.Infof("Created %s native interface %d", params.nativeDriver, swIfIndex)
+
+	if swIfIndex != DataInterfaceSwIfIndex {
+		return fmt.Errorf("Created %s interface has wrong swIfIndex %d!", params.nativeDriver, swIfIndex)
 	}
 	return nil
 }
@@ -1044,8 +1060,6 @@ func runVpp() (err error) {
 	}
 
 	if params.nativeDriver != NATIVE_DRIVER_NONE {
-		initialConfig.PciId = ""
-		initialConfig.Driver = ""
 		err = vpp.Retry(2*time.Second, 10, CreateNativeMainInterface)
 		if err != nil {
 			terminateVpp("Error creating af_packet (SIGINT %d): %v", vppProcess.Pid, err)
