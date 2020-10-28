@@ -4,9 +4,6 @@ metadata:
   name: calico-config
   namespace: kube-system
 data:  # Configuration template for VPP.
-  vpp_config_exec_template: |-
-    create int virtio __PCI_DEVICE_ID__
-
   vpp_init_script: |-
     echo Y > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
 
@@ -22,12 +19,12 @@ spec:
     spec:
       containers:
         - name: vpp
+          resources:
+            limits:
+              hugepages-2Mi: 256Mi
           env:
-            - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: vpp_config_exec_template
+            - name: CALICOVPP_NATIVE_DRIVER
+              value: "virtio"
             - name: CALICOVPP_INIT_SCRIPT_TEMPLATE
               valueFrom:
                 configMapKeyRef:

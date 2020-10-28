@@ -261,6 +261,7 @@ func (s *Server) serveOne() error {
 	// watch routes added by kernel and announce to other BGP peers
 	s.t.Go(func() error { return fmt.Errorf("watchKernelRoute: %s", s.watchKernelRoute()) })
 
+	s.ipam.WaitReady()
 	ServerRunning <- 1
 	<-s.t.Dying()
 	s.log.Warnf("routing tomb returned %v", s.t.Err())
@@ -560,12 +561,6 @@ func (s *Server) Stop() {
 	s.ShouldStop = true
 	s.bgpServerRunningCond.Broadcast()
 	s.t.Kill(errors.Errorf("GracefulStop"))
-}
-
-func (s *Server) RescanState() error {
-	/* We count on BGP auto-restarting might be good to
-	   persist some state if catching up is too slow */
-	return nil
 }
 
 func (s *Server) OnVppRestart() {

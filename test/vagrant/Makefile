@@ -102,7 +102,7 @@ versions: ## Print the "imporant" tools versions out for easier debugging.
 up: preflight ## Start Kubernetes Vagrant multi-node cluster. Creates, starts and bootsup the master and node VMs.
 	@$(MAKE) start
 
-start: preflight pull
+start: preflight
 	@$(MAKE) start-master start-nodes
 	@if $(KUBECTL_AUTO_CONF); then \
 		$(MAKE) kubectl; \

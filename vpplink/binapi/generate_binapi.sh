@@ -81,7 +81,8 @@ function generate_govpp_apis ()
 	  punt \
 	  vxlan \
 	  af_xdp \
-	  vpe
+	  vpe \
+	  virtio
 }
 
 make_binapi_generator

@@ -100,14 +100,17 @@ func (s *Server) RescanState() error {
 	}
 	for _, podSpec := range podSpecs {
 		s.log.Infof("Rescanning pod %v", podSpec.String())
-		_, err := s.AddVppInterface(podSpec, false /* doHostSideConf */)
-		if err != nil {
-			s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
+		_, err2 := s.AddVppInterface(&podSpec, false /* doHostSideConf */)
+		if err2 != nil {
+			// TODO: some errors are probably not critical, for instance if the interface
+			// can't be created because the netns disappeared (may happen when the host reboots)
+			s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err2)
+			err = err2
 		} else {
-			s.podInterfaceMap[podSpec.Key()] = podSpec
+			s.podInterfaceMap[podSpec.Key()] = &podSpec
 		}
 	}
-	return nil
+	return err
 }
 
 func (p *Server) OnVppRestart() {
