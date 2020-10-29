@@ -100,6 +100,7 @@ func (p IpipProvider) DelConnectivity(cn *NodeConnectivity) error {
 	if err != nil {
 		return errors.Wrapf(err, "Error deleting ipip tunnel route")
 	}
-	delete(p.ipipIfs, cn.NextHop.String())
+	// We don't delete the interface so keep it in the map
+	// delete(p.ipipIfs, cn.NextHop.String())
 	return nil
 }

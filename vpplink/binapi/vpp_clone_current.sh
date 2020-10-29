@@ -12,6 +12,7 @@ fi
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/11/28711/4 && git cherry-pick FETCH_HEAD # vlib: force input node interrupts to be unique
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/22 && git cherry-pick FETCH_HEAD # calico plugin
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/29649/2 && git cherry-pick FETCH_HEAD # tap fix
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/7 && git cherry-pick FETCH_HEAD # multi TX
 echo "diff --git a/src/vlib/unix/input.c b/src/vlib/unix/input.c
