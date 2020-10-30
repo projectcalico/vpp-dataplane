@@ -27,6 +27,7 @@ import (
 
 // watchKernelRoute receives netlink route update notification and announces
 // kernel/boot routes using BGP.
+// TODO: should we leverage this to update VPP routes as well?
 func (s *Server) watchKernelRoute() error {
 	err := s.loadKernelRoute()
 	if err != nil {
