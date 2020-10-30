@@ -1,6 +1,10 @@
 check-%:
 	@: $(if $(value $*),,$(error $* is undefined))
 
+.PHONY: generate
+generate:
+	$(MAKE) -C calico-vpp-agent/grpcsrv $@
+
 .PHONY: build
 build:
 	$(MAKE) -C calico-vpp-agent $@

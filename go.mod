@@ -10,7 +10,7 @@ require (
 	github.com/dgryski/go-farm v0.0.0-20191112170834-c2139c5d712b // indirect
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/gogo/protobuf v1.3.1
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/protobuf v1.4.3
 	github.com/gophercloud/gophercloud v0.6.0 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
@@ -22,10 +22,14 @@ require (
 	github.com/spf13/viper v1.5.0 // indirect
 	github.com/vishvananda/netlink v1.0.1-0.20191217171528-ed8931371a80
 	github.com/yookoala/realpath v1.0.0
-	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
-	golang.org/x/sys v0.0.0-20200610111108-226ff32320da
+	golang.org/x/net v0.0.0-20201029221708-28c70e62bb1d
+	golang.org/x/sys v0.0.0-20201029080932-201ba4db2418
+	golang.org/x/text v0.3.4 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
-	google.golang.org/grpc v1.24.0
+	google.golang.org/genproto v0.0.0-20201030142918-24207fddd1c3 // indirect
+	google.golang.org/grpc v1.33.1
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.0.1 // indirect
+	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	k8s.io/api v0.17.9
 	k8s.io/apimachinery v0.17.9

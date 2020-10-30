@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package grpcsrv;
+
+// Address structure describes a single instance of an address assigned to the pod
+message Address {
+    bytes addr = 1;
+    int32 mask_len = 2;
+    bool is_ipv6 = 3;
+}
+
+// PodInfo structure describes information returning by gRPC server with details 
+// about requested pod
+message PodInfo {
+    int32 table_id = 1;
+    string port_name = 2;
+    repeated Address pod_addr = 3; 
+ }
+
+// PodInfoReq structure describes information sent to gRPC server, it includes:
+// request id - to track requests, namespace - pod's actual namespace, 
+// and pod id - the actual pod's UUID.
+message PodInfoReq {
+    int32 req_id = 1;
+    string namespace = 2;
+    string pod_id = 3;
+  }
+
+// PodInfoRepl structure describes information returned by gRPC server to
+// the requesting process.
+// In case of a failure of getting requested pod's info, gRPC server returns
+// a number error code and well as details error desccription.
+message PodInfoRepl { 
+    PodInfo pod_info = 1;
+    int32 err = 2;
+    string err_detail = 3;
+ }
+
+service PodInfoSvc { rpc Get(PodInfoReq) returns(PodInfoRepl); }
