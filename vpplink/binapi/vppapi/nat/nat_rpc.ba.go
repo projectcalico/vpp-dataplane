@@ -424,7 +424,7 @@ func (c *serviceClient) Nat44PluginEnableDisable(ctx context.Context, in *Nat44P
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Nat44SessionCleanup(ctx context.Context, in *Nat44SessionCleanup) (*Nat44SessionCleanupReply, error) {
