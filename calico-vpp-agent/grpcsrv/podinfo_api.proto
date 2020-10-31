@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package grpcsrv;
+option go_package="grpcsrv";
 
 // Address structure describes a single instance of an address assigned to the pod
 message Address {

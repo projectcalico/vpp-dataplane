@@ -31,6 +31,7 @@ const (
 	DataInterfaceSwIfIndex    = uint32(1) // Assumption: the VPP config ensures this is true
 	CNIServerSocket           = "/var/run/calico/cni-server.sock"
 	VppAPISocket              = "/var/run/vpp/vpp-api.sock"
+	GRPCAPISocket             = "/var/run/calico/grpc-api.sock"
 	VppManagerStatusFile      = "/var/run/vpp/vppmanagerstatus"
 	VppManagerTapIdxFile      = "/var/run/vpp/vppmanagertap0"
 	CalicoVppPidFile          = "/var/run/vpp/calico_vpp.pid"
@@ -40,6 +41,7 @@ const (
 
 	NodeNameEnvVar            = "NODENAME"
 	TapNumRxQueuesEnvVar      = "CALICOVPP_TAP_RX_QUEUES"
+	GRPCAPIVar                = "CALICOVPP_GRPC_API_ENABLE"
 	TapNumTxQueuesEnvVar      = "CALICOVPP_TAP_TX_QUEUES"
 	TapGSOEnvVar              = "CALICOVPP_TAP_GSO_ENABLED"
 	EnableServicesEnvVar      = "CALICOVPP_NAT_ENABLED"
@@ -73,6 +75,7 @@ var (
 	ServiceCIDRs      []*net.IPNet
 	TapRxQueueSize    int = 0
 	TapTxQueueSize    int = 0
+	GRPCAPIEnable         = false
 )
 
 // LoadConfig loads the calico-vpp-agent configuration from the environment
@@ -202,6 +205,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		TapRxMode = types.Adaptative
 	default:
 		TapRxMode = defaultRxMode
+	}
+
+	if grpcapi := os.Getenv(GRPCAPIVar); grpcapi != "" {
+		grpcapiFlag, err := strconv.ParseBool(grpcapi)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", GRPCAPIVar, grpcapi, grpcapiFlag, err)
+		}
+		GRPCAPIEnable = grpcapiFlag
 	}
 
 	log.Infof("Config:TapNumRxQueues    %d", TapNumRxQueues)

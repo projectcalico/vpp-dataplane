@@ -24,6 +24,7 @@ import (
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/grpcsrv"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -43,6 +44,7 @@ type Server struct {
 	routingServer   *routing.Server
 	servicesServer  *services.Server
 	podInterfaceMap map[string]*LocalPodSpec
+	podInfoMgr      grpcsrv.Manager
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -81,6 +83,12 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	s.log.Infof("Interface add successful: %s", podSpec.String())
 	// XXX: container MAC doesn't make sense anymore, we just pass back a constant one.
 	// How does calico / k8s use it?
+	// Check if podInfo manager interface is initialized and update pod information store
+	if s.podInfoMgr != nil {
+		if err := s.podInfoMgr.AddPodInfo(podSpec.Key(), podSpec, request.Workload); err != nil {
+			s.log.Errorf("AddPodInfo errored %v", err)
+		}
+	}
 	return &pb.AddReply{
 		Successful:        true,
 		HostInterfaceName: swIfIdxToIfName(swIfIndex),

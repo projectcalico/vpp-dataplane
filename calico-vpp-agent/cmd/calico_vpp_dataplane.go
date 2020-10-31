@@ -46,7 +46,6 @@ func main() {
 		log.Errorf("Error writing pidfile: %v", err)
 		return
 	}
-
 	vpp, err := common.CreateVppLink(config.VppAPISocket, log.WithFields(logrus.Fields{"component": "vpp-api"}))
 	if err != nil {
 		log.Errorf("Cannot create VPP client: %v", err)
@@ -93,6 +92,11 @@ func main() {
 	go cniServer.Serve()
 
 	go common.HandleVppManagerRestart(log, vpp, routingServer, cniServer, serviceServer)
+
+	// If grpc API is enabled in the config, starting grpc server and start listening on requests
+	if config.GRPCAPIEnable {
+		// TODO (sbezverk) Plug gRPC API server code
+	}
 
 	<-signalChannel
 	log.Infof("SIGINT received, exiting")
