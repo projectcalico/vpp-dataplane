@@ -1,6 +1,6 @@
 //go:generate protoc -I=. --gogo_out=plugins=grpc:. ./podinfo_api.proto
 
-package grpcsrv
+package srv
 
 // The grpcsrv package defines an API between the CNI plugin's gRPC server
 // and a process requesting information about a specific pod. Proto file defines

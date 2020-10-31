@@ -24,7 +24,7 @@ import (
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/grpcsrv"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/infostore"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -44,7 +44,7 @@ type Server struct {
 	routingServer   *routing.Server
 	servicesServer  *services.Server
 	podInterfaceMap map[string]*LocalPodSpec
-	podInfoMgr      grpcsrv.Manager
+	infoStoreMgr    infostore.Manager
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -83,9 +83,22 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	s.log.Infof("Interface add successful: %s", podSpec.String())
 	// XXX: container MAC doesn't make sense anymore, we just pass back a constant one.
 	// How does calico / k8s use it?
-	// Check if podInfo manager interface is initialized and update pod information store
-	if s.podInfoMgr != nil {
-		if err := s.podInfoMgr.AddPodInfo(podSpec.Key(), podSpec, request.Workload); err != nil {
+	// Check if info Store manager interface is initialized and update pod information store
+	if s.infoStoreMgr != nil {
+		r := &infostore.Record{
+			Name:          request.Workload.Name,
+			Namespace:     request.Workload.Namespace,
+			InterfaceName: podSpec.InterfaceName,
+			IPs:           make([]net.IP, len(podSpec.ContainerIps)),
+			// If ever Calico VPP starts using a non default table id, TableID will carry its value
+			TableID: 0,
+		}
+		// Allocate and copy Pod's IPs into the information record
+		for i := 0; i < len(podSpec.ContainerIps); i++ {
+			r.IPs[i] = make([]byte, len(podSpec.ContainerIps[i].IP))
+			copy(r.IPs[i], podSpec.ContainerIps[i].IP)
+		}
+		if err := s.infoStoreMgr.AddPodInfo(r); err != nil {
 			s.log.Errorf("AddPodInfo errored %v", err)
 		}
 	}
@@ -143,6 +156,13 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 			ErrorMessage: err.Error(),
 		}, nil
 	}
+	// Check if info Store manager interface is initialized and update pod information store
+	if s.infoStoreMgr != nil {
+		if err := s.infoStoreMgr.RemovePodInfo(podSpec.InterfaceName); err != nil {
+			s.log.Errorf("RemovePodInfo errored %v", err)
+		}
+	}
+
 	delete(s.podInterfaceMap, podSpec.Key())
 	s.log.Infof("Interface del successful %s", podSpec.Key())
 	return &pb.DelReply{
