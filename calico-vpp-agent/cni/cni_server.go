@@ -25,6 +25,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/infostore"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/infostore/store"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -199,6 +200,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ss *services.Server, l *l
 		client:          client,
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]*LocalPodSpec),
+		infoStoreMgr:    store.NewInfoStore(),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")
