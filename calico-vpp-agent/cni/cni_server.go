@@ -84,6 +84,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	s.log.Infof("Interface add successful: %s", podSpec.String())
 	// XXX: container MAC doesn't make sense anymore, we just pass back a constant one.
 	// How does calico / k8s use it?
+
 	// Check if info Store manager interface is initialized and update pod information store
 	if s.infoStoreMgr != nil {
 		r := &infostore.Record{
@@ -176,6 +177,11 @@ func (s *Server) Stop() {
 	syscall.Unlink(config.CNIServerSocket)
 }
 
+// GetInfoStore returns an interface whcih can be used by other processes to access pod's information
+func (s *Server) GetInfoStore() infostore.Manager {
+	return s.infoStoreMgr
+}
+
 // Serve runs the grpc server for the Calico CNI backend API
 func NewServer(v *vpplink.VppLink, rs *routing.Server, ss *services.Server, l *logrus.Entry) (*Server, error) {
 	clusterConfig, err := rest.InClusterConfig()
@@ -200,7 +206,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ss *services.Server, l *l
 		client:          client,
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]*LocalPodSpec),
-		infoStoreMgr:    store.NewInfoStore(),
+		infoStoreMgr:    store.NewInfoStore(l),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")

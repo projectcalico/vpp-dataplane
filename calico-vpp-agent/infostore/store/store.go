@@ -58,9 +58,24 @@ func (i *info) RemovePodInfo(interfaceName string) error {
 	return nil
 }
 
+// GetPodInfo returns a Record of information for a specific pod
+func (i *info) GetPodInfo(n, ns string) (*infostore.Record, error) {
+	i.Lock()
+	defer i.Unlock()
+	key := ns + n
+	r, ok := i.store[key]
+	if !ok {
+		i.log.Errorf("pod with the key %s is not found in the store", key)
+		return nil, fmt.Errorf("pod with the key %s is not found in the store", key)
+	}
+
+	return r, nil
+}
+
 // NewInfoStore creates a new instance of the store
-func NewInfoStore() infostore.Manager {
+func NewInfoStore(l *logrus.Entry) infostore.Manager {
 	return &info{
 		store: make(map[string]*infostore.Record),
+		log:   l,
 	}
 }

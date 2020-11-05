@@ -96,6 +96,7 @@ func main() {
 	// If grpc API is enabled in the config, starting grpc server and start listening on requests
 	if config.GRPCAPIEnable {
 		// TODO (sbezverk) Plug gRPC API server code
+		log.Infof("Parameter gRPC API is %t", config.GRPCAPIEnable)
 	}
 
 	<-signalChannel
