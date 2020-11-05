@@ -36,6 +36,7 @@ func (p *IpipProvider) OnVppRestart() {
 }
 
 func (p *IpipProvider) RescanState() {
+	p.log.Infof("Rescanning existing tunnels")
 	p.ipipIfs = make(map[string]*types.IPIPTunnel)
 	tunnels, err := p.vpp.ListIPIPTunnels()
 	if err != nil {
@@ -46,6 +47,7 @@ func (p *IpipProvider) RescanState() {
 	nodeIP6 := p.getNodeIP(true)
 	for _, tunnel := range tunnels {
 		if tunnel.Src.Equal(nodeIP4) || tunnel.Src.Equal(nodeIP6) {
+			p.log.Infof("Found existing tunnel: %s", tunnel)
 			p.ipipIfs[tunnel.Dst.String()] = tunnel
 		}
 	}

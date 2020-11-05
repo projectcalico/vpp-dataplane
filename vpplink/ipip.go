@@ -29,7 +29,9 @@ func (v *VppLink) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {
 	defer v.lock.Unlock()
 
 	tunnels := make([]*types.IPIPTunnel, 0)
-	request := &ipip.IpipTunnelDump{}
+	request := &ipip.IpipTunnelDump{
+		SwIfIndex: types.InvalidInterface,
+	}
 	stream := v.ch.SendMultiRequest(request)
 	for {
 		response := &ipip.IpipTunnelDetails{}

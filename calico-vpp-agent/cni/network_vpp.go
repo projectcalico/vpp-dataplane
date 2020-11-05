@@ -306,10 +306,10 @@ func (s *Server) delVppInterfaceHandleRoutes(swIfIndex uint32, isIPv6 bool) erro
 			}
 		}
 
-		s.log.Warnf("vpp del route %s", route.String())
+		s.log.Infof("Delete VPP route %s", route.String())
 		err = s.vpp.RouteDel(&route)
 		if err != nil {
-			s.log.Warnf("vpp del route %s err: %v", route.String(), err)
+			s.log.Errorf("Delete VPP route %s errored: %v", route.String(), err)
 		}
 	}
 	return nil
