@@ -41,6 +41,8 @@ type Server struct {
 	socketListener  net.Listener
 	routingServer   *routing.Server
 	podInterfaceMap map[string]*LocalPodSpec
+	/* without main thread */
+	NumVPPWorkers uint32
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -91,6 +93,12 @@ func (p *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 }
 
 func (s *Server) rescanState() error {
+	numVPPWorkers, err := s.vpp.GetNumVPPWorkers()
+	s.NumVPPWorkers = numVPPWorkers
+	if err != nil {
+		s.log.Panicf("Error getting number of VPP workers: %v", err)
+	}
+
 	podSpecs, err := s.loadCniServerState()
 	if err != nil {
 		s.log.Errorf("Error getting pods %v", err)

@@ -113,21 +113,6 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 		return INVALID_SW_IF_INDEX, fmt.Errorf("Tap creation failed (retval %d). Request: %+v", response.Retval, request)
 	}
 
-	if tap.NumRxQueues > 1 {
-		// This asumes the number of queues is equal to the number of workers
-		// otherwise this won't be optimal (queues < workers) or print errors (queues > workers)
-		for i := uint32(0); i < uint32(tap.NumRxQueues); i++ {
-			worker := uint32(tap.NumRxQueues) - 1
-			if i > 0 {
-				worker = i - 1
-			}
-			err2 := v.SetInterfaceRxPlacement(uint32(response.SwIfIndex), i, worker, false)
-			if err2 != nil {
-				v.log.Warnf("failed to set tap placement: %v", err2)
-			}
-		}
-	}
-
 	return uint32(response.SwIfIndex), err
 }
 
