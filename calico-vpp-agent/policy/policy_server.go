@@ -91,7 +91,7 @@ func (s *Server) OnVppRestart() {
 	s.vppRestarted <- true
 }
 
-func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32) (err error) {
+func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32) {
 	// TODO: Send WorkloadEndpointStatusUpdate to felix
 	s.endpointsLock.Lock()
 	defer s.endpointsLock.Unlock()
@@ -100,11 +100,13 @@ func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32) (err er
 
 	if existing {
 		if swIfIndex != intf {
-			return fmt.Errorf("workload endpoint changed interfaces??? %v %d -> %d", id, intf, swIfIndex)
-		} else {
-			return nil
+			// VPP restarted and interfaces are being reconnected
+			s.log.Warnf("workload endpoint changed interfaces, did VPP restart? %v %d -> %d", id, intf, swIfIndex)
+			s.endpointsInterfaces[*id] = swIfIndex
 		}
+		return
 	}
+
 	s.log.Infof("workload endpoint added: %v -> %d", id, swIfIndex)
 	s.endpointsInterfaces[*id] = swIfIndex
 
@@ -113,20 +115,23 @@ func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32) (err er
 		if !ok {
 			// Nothing to configure
 		} else {
-			err = wep.Create(s.vpp, swIfIndex, s.configuredState)
+			err := wep.Create(s.vpp, swIfIndex, s.configuredState)
+			if err != nil {
+				s.log.Errorf("Error processing workload addition: %s", err)
+			}
 		}
 	}
-	return err
 }
 
-func (s *Server) WorkloadRemoved(id *WorkloadEndpointID) (err error) {
+func (s *Server) WorkloadRemoved(id *WorkloadEndpointID) {
 	// TODO: Send WorkloadEndpointStatusRemove to felix
 	s.endpointsLock.Lock()
 	defer s.endpointsLock.Unlock()
 
 	_, existing := s.endpointsInterfaces[*id]
 	if !existing {
-		return fmt.Errorf("nonexistent workload endpoint removed %v", id)
+		s.log.Errorf("nonexistent workload endpoint removed %v", id)
+		return
 	}
 	s.log.Infof("workload endpoint removed: %v", id)
 
@@ -135,11 +140,13 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID) (err error) {
 		if !ok {
 			// Nothing to clean up
 		} else {
-			err = wep.Delete(s.vpp)
+			err := wep.Delete(s.vpp)
+			if err != nil {
+				s.log.Errorf("Error processing workload removal: %s", err)
+			}
 		}
 	}
 	delete(s.endpointsInterfaces, *id)
-	return err
 }
 
 // Serve runs the policy server
@@ -177,6 +184,9 @@ func (s *Server) Serve() {
 			if err != nil {
 				s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
 			}
+			s.log.Infof("Waiting for SyncPolicy to stop...")
+			<-s.felixRestarted
+			s.log.Infof("SyncPolicy exited, reconnecting to felix")
 		case <-s.felixRestarted:
 			s.log.Infof("Felix restarted, starting resync")
 			// Connection was closed. Just accept new one, state will be reconciled on startup.
@@ -186,6 +196,8 @@ func (s *Server) Serve() {
 			if err != nil {
 				s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
 			}
+			s.log.Infof("Waiting for SyncPolicy to stop...")
+			<-s.felixRestarted
 			return
 		}
 	}
