@@ -23,6 +23,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	infoserver "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/infostore/server"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/sirupsen/logrus"
@@ -46,7 +47,6 @@ func main() {
 		log.Errorf("Error writing pidfile: %v", err)
 		return
 	}
-
 	vpp, err := common.CreateVppLink(config.VppAPISocket, log.WithFields(logrus.Fields{"component": "vpp-api"}))
 	if err != nil {
 		log.Errorf("Cannot create VPP client: %v", err)
@@ -94,8 +94,23 @@ func main() {
 
 	go common.HandleVppManagerRestart(log, vpp, routingServer, cniServer, serviceServer)
 
+	// If grpc API is enabled in the config, starting grpc server and start listening on requests
+	var infoSrv infoserver.Info
+	if config.InfoStoreEnable {
+		infoSrv, err = infoserver.NewInfoServer(cniServer.GetInfoStore(), config.CNIInfoStoreSocket, log.WithFields(logrus.Fields{"component": "infostore"}))
+		if err != nil {
+			log.Errorf("Failed to start CNI's InfoServer with error: %+v", err)
+		} else {
+			infoSrv.Start()
+		}
+	}
+
 	<-signalChannel
 	log.Infof("SIGINT received, exiting")
+	// Stopping InfoSrv only if it was previously instantiated
+	if infoSrv != nil {
+		infoSrv.Stop()
+	}
 	routingServer.Stop()
 	cniServer.Stop()
 	serviceServer.Stop()

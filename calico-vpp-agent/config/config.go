@@ -31,6 +31,7 @@ const (
 	DataInterfaceSwIfIndex    = uint32(1) // Assumption: the VPP config ensures this is true
 	CNIServerSocket           = "/var/run/calico/cni-server.sock"
 	VppAPISocket              = "/var/run/vpp/vpp-api.sock"
+	CNIInfoStoreSocket        = "/var/run/calico/cni-infostore.sock"
 	VppManagerStatusFile      = "/var/run/vpp/vppmanagerstatus"
 	VppManagerTapIdxFile      = "/var/run/vpp/vppmanagertap0"
 	CalicoVppPidFile          = "/var/run/vpp/calico_vpp.pid"
@@ -40,6 +41,7 @@ const (
 
 	NodeNameEnvVar            = "NODENAME"
 	TapNumRxQueuesEnvVar      = "CALICOVPP_TAP_RX_QUEUES"
+	InfoStoreVar              = "CALICOVPP_INFOSTORE_ENABLE"
 	TapNumTxQueuesEnvVar      = "CALICOVPP_TAP_TX_QUEUES"
 	TapGSOEnvVar              = "CALICOVPP_TAP_GSO_ENABLED"
 	EnableServicesEnvVar      = "CALICOVPP_NAT_ENABLED"
@@ -73,6 +75,7 @@ var (
 	ServiceCIDRs      []*net.IPNet
 	TapRxQueueSize    int = 0
 	TapTxQueueSize    int = 0
+	InfoStoreEnable       = true
 )
 
 // LoadConfig loads the calico-vpp-agent configuration from the environment
@@ -204,6 +207,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		TapRxMode = defaultRxMode
 	}
 
+	if infostore := os.Getenv(InfoStoreVar); infostore != "" {
+		infostoreFlag, err := strconv.ParseBool(infostore)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", InfoStoreVar, infostore, infostoreFlag, err)
+		}
+		InfoStoreEnable = infostoreFlag
+	}
+
 	log.Infof("Config:TapNumRxQueues    %d", TapNumRxQueues)
 	log.Infof("Config:TapGSOEnabled     %t", TapGSOEnabled)
 	log.Infof("Config:EnableServices    %t", EnableServices)
@@ -212,6 +223,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	log.Infof("Config:IpsecAddressCount %d", IpsecAddressCount)
 	log.Infof("Config:RxMode            %d", TapRxMode)
 	log.Infof("Config:BgpLogLevel       %d", BgpLogLevel)
+	log.Infof("Config:InfoStore         %t", InfoStoreEnable)
 
 	return nil
 }
