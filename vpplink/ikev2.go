@@ -109,7 +109,15 @@ const (
 	IKEv2DHGroupBRAINPOOL_512 IKEv2DHGroup = 30
 )
 
-func (v *VppLink) AddIKEv2Profile(name string) (err error) {
+func (v *VppLink) AddIKEv2Profile(name string) error {
+	return v.addDelIKEv2Profile(name, true)
+}
+
+func (v *VppLink) DelIKEv2Profile(name string) error {
+	return v.addDelIKEv2Profile(name, false)
+}
+
+func (v *VppLink) addDelIKEv2Profile(name string, isAdd bool) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
@@ -118,7 +126,7 @@ func (v *VppLink) AddIKEv2Profile(name string) (err error) {
 	}
 	request := &ikev2.Ikev2ProfileAddDel{
 		Name:  name,
-		IsAdd: true,
+		IsAdd: isAdd,
 	}
 	response := &ikev2.Ikev2ProfileAddDelReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -129,6 +137,27 @@ func (v *VppLink) AddIKEv2Profile(name string) (err error) {
 	}
 	v.log.Debugf("created ikev2 profile %s", name)
 	return nil
+}
+
+func (v *VppLink) ListIKEv2Profiles() ([]string, error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	profiles := make([]string, 0)
+	request := &ikev2.Ikev2ProfileDump{}
+	stream := v.ch.SendMultiRequest(request)
+	for {
+		response := &ikev2.Ikev2ProfileDetails{}
+		stop, err := stream.ReceiveReply(response)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error listing Ikev2 profiles")
+		}
+		if stop {
+			break
+		}
+		profiles = append(profiles, response.Profile.Name)
+	}
+	return profiles, nil
 }
 
 func (v *VppLink) setIKEv2Auth(profile string, authMethod IKEv2AuthMethod, authData []byte) (err error) {

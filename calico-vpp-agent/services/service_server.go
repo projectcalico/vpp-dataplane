@@ -163,7 +163,7 @@ func (s *Server) getNodeIP(isv6 bool) net.IP {
 	}
 }
 
-func (s *Server) AddDelService(service *v1.Service, ep *v1.Endpoints, isWithdrawal bool) error {
+func (s *Server) addDelService(service *v1.Service, ep *v1.Endpoints, isWithdrawal bool) error {
 	if s.serviceProvider == nil {
 		return nil
 	}
@@ -184,7 +184,7 @@ func (s *Server) AddDelService(service *v1.Service, ep *v1.Endpoints, isWithdraw
 	}
 }
 
-func (s *Server) ConfigureSnat() (err error) {
+func (s *Server) configureSnat() (err error) {
 	err = s.vpp.CnatSetSnatAddresses(s.ipv4, s.ipv6)
 	if err != nil {
 		s.log.Errorf("Failed to configure SNAT addresses %v", err)
@@ -212,7 +212,7 @@ func (s *Server) ConfigureSnat() (err error) {
 
 func (s *Server) OnVppRestart() {
 	/* SNAT-outgoing config */
-	err := s.ConfigureSnat()
+	err := s.configureSnat()
 	if err != nil {
 		s.log.Errorf("Failed to reconfigure SNAT: %v", err)
 	}
@@ -271,7 +271,7 @@ func (s *Server) handleServiceEndpointEvent(service *v1.Service, ep *v1.Endpoint
 		// Wait
 		return
 	}
-	err := s.AddDelService(service, ep, isWithdrawal)
+	err := s.addDelService(service, ep, isWithdrawal)
 	if err != nil {
 		s.log.Errorf("Service errored %v", err)
 	}
@@ -285,7 +285,7 @@ func (s *Server) Serve() {
 			s.log.Fatal(err)
 		}
 	}
-	err := s.ConfigureSnat()
+	err := s.configureSnat()
 	if err != nil {
 		s.log.Errorf("Failed to configure SNAT: %v", err)
 	}

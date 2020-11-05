@@ -28,6 +28,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+/*
+ * The Calico-VPP agent is responsible for programming VPP based on CNI
+ * instructions
+ *
+ * Server interactions are as follows :
+ *
+ * CNIServer -> RoutingServer (AnnounceLocalAddress, IPNetNeedsSNAT)
+ */
+
 func main() {
 	log := logrus.New()
 	signalChannel := make(chan os.Signal, 2)
@@ -65,7 +74,7 @@ func main() {
 		log.Errorf("Failed to create services server")
 		log.Fatal(err)
 	}
-	routingServer, err := routing.NewServer(vpp, serviceServer, log.WithFields(logrus.Fields{"component": "routing"}))
+	routingServer, err := routing.NewServer(vpp, log.WithFields(logrus.Fields{"component": "routing"}))
 	if err != nil {
 		log.Errorf("Failed to create routing server")
 		log.Fatal(err)
@@ -73,7 +82,6 @@ func main() {
 	cniServer, err := cni.NewServer(
 		vpp,
 		routingServer,
-		serviceServer,
 		log.WithFields(logrus.Fields{"component": "cni"}),
 	)
 	if err != nil {
@@ -83,11 +91,6 @@ func main() {
 
 	go routingServer.Serve()
 	<-routing.ServerRunning
-
-	err = cniServer.RescanState()
-	if err != nil {
-		log.Errorf("Error restoring container connectivity: %v", err)
-	}
 
 	go serviceServer.Serve()
 	go cniServer.Serve()

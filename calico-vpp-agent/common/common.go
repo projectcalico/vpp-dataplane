@@ -42,7 +42,13 @@ type Stringable interface {
 }
 
 type CalicoVppServer interface {
+	/* Run the server */
+	Serve()
+	/* Stop the server */
+	Stop()
+	/* Sync to ensure server pauses when OnVppRestart is called */
 	BarrierSync()
+	/* Called when VPP signals us that it has restarted */
 	OnVppRestart()
 }
 

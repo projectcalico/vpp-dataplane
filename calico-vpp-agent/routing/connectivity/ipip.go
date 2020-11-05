@@ -24,76 +24,102 @@ import (
 
 type IpipProvider struct {
 	*ConnectivityProviderData
-	ipipIfs map[string]uint32
+	ipipIfs map[string]*types.IPIPTunnel
 }
 
 func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
-	return &IpipProvider{d, make(map[string]uint32)}
+	return &IpipProvider{d, make(map[string]*types.IPIPTunnel)}
 }
 
 func (p *IpipProvider) OnVppRestart() {
-	p.ipipIfs = make(map[string]uint32)
+	p.ipipIfs = make(map[string]*types.IPIPTunnel)
 }
 
-func (p *IpipProvider) Init() {
+func (p *IpipProvider) RescanState() {
+	p.ipipIfs = make(map[string]*types.IPIPTunnel)
+	tunnels, err := p.vpp.ListIPIPTunnels()
+	if err != nil {
+		p.log.Errorf("Error listing ipip tunnels: %v", err)
+	}
+
+	nodeIP4 := p.getNodeIP(false)
+	nodeIP6 := p.getNodeIP(true)
+	for _, tunnel := range tunnels {
+		if tunnel.Src.Equal(nodeIP4) || tunnel.Src.Equal(nodeIP6) {
+			p.ipipIfs[tunnel.Dst.String()] = tunnel
+		}
+	}
+}
+
+func (p IpipProvider) errorCleanup(tunnel *types.IPIPTunnel) {
+	err := p.vpp.DelIPIPTunnel(tunnel)
+	if err != nil {
+		p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
+	}
 }
 
 func (p IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
 	p.log.Debugf("Adding ipip Tunnel to VPP")
-	if _, found := p.ipipIfs[cn.NextHop.String()]; !found {
-		nodeIP := p.getNodeIP(vpplink.IsIP6(cn.NextHop))
-		p.log.Infof("IPIP: Add %s->%s", nodeIP.String(), cn.Dst.IP.String())
+	tunnel, found := p.ipipIfs[cn.NextHop.String()]
+	if !found {
+		tunnel = &types.IPIPTunnel{
+			Src: p.getNodeIP(vpplink.IsIP6(cn.NextHop)),
+			Dst: cn.NextHop,
+		}
+		p.log.Infof("IPIP: Add %s", tunnel.String())
 
-		swIfIndex, err := p.vpp.AddIpipTunnel(nodeIP, cn.NextHop, 0)
+		swIfIndex, err := p.vpp.AddIPIPTunnel(tunnel)
 		if err != nil {
-			return errors.Wrapf(err, "Error adding ipip tunnel %s -> %s", nodeIP.String(), cn.NextHop.String())
+			return errors.Wrapf(err, "Error adding ipip tunnel %s", tunnel.String())
 		}
 		err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 		if err != nil {
-			// TODO : delete tunnel
+			p.errorCleanup(tunnel)
 			return errors.Wrapf(err, "Error seting ipip tunnel unnumbered")
 		}
 
 		// Always enable GSO feature on IPIP tunnel, only a tiny negative effect on perf if GSO is not enabled on the taps
 		err = p.vpp.EnableGSOFeature(swIfIndex)
 		if err != nil {
-			// TODO : delete tunnel
+			p.errorCleanup(tunnel)
 			return errors.Wrapf(err, "Error enabling gso for ipip interface")
 		}
 
 		err = p.vpp.InterfaceAdminUp(swIfIndex)
 		if err != nil {
-			// TODO : delete tunnel
+			p.errorCleanup(tunnel)
 			return errors.Wrapf(err, "Error setting ipip interface up")
 		}
 
-		p.ipipIfs[cn.NextHop.String()] = swIfIndex
-		p.log.Infof("IPIP: Added ?->%s %d", cn.Dst.IP.String(), swIfIndex)
+		p.ipipIfs[cn.NextHop.String()] = tunnel
 	}
-	swIfIndex := p.ipipIfs[cn.NextHop.String()]
-	p.log.Infof("IPIP: Added ?->%s %d", cn.Dst.IP.String(), swIfIndex)
+	p.log.Infof("IPIP: tunnnel %s ok", tunnel.String())
 
-	p.log.Debugf("Adding ipip tunnel route to %s via swIfIndex %d", cn.Dst.IP.String(), swIfIndex)
-	return p.vpp.RouteAdd(&types.Route{
+	p.log.Debugf("Adding ipip tunnel route to %s via swIfIndex %d", cn.Dst.IP.String(), tunnel.SwIfIndex)
+	err := p.vpp.RouteAdd(&types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
-			SwIfIndex: swIfIndex,
+			SwIfIndex: tunnel.SwIfIndex,
 			Gw:        nil,
 		}},
 	})
+	if err != nil {
+		return errors.Wrapf(err, "Error Adding route to ipip tunnel")
+	}
+	return nil
 }
 
 func (p IpipProvider) DelConnectivity(cn *NodeConnectivity) error {
-	swIfIndex, found := p.ipipIfs[cn.NextHop.String()]
+	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("IPIP: Del unknown %s", cn.NextHop.String())
 		return errors.Errorf("Deleting unknown ipip tunnel %s", cn.NextHop.String())
 	}
-	p.log.Infof("IPIP: Del ?->%s %d", cn.NextHop.String(), swIfIndex)
+	p.log.Infof("IPIP: Del ?->%s %d", cn.NextHop.String(), tunnel.SwIfIndex)
 	err := p.vpp.RouteDel(&types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
-			SwIfIndex: swIfIndex,
+			SwIfIndex: tunnel.SwIfIndex,
 			Gw:        nil,
 		}},
 	})

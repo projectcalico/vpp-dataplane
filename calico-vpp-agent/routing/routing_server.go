@@ -36,7 +36,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/net/context"
@@ -83,7 +82,6 @@ type Server struct {
 	ipam             IpamCache
 	reloadCh         chan string
 	prefixReady      chan int
-	servicesServer   *services.Server
 	connectivityMap  map[string]*connectivity.NodeConnectivity
 	localAddressMap  map[string]*net.IPNet
 	ShouldStop       bool
@@ -113,7 +111,7 @@ func GetHostPrefixSetName(isv6 bool) string {
 	return v46ify(hostPrefixSetBaseName, isv6)
 }
 
-func NewServer(vpp *vpplink.VppLink, ss *services.Server, l *logrus.Entry) (*Server, error) {
+func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	logrus.SetLevel(config.BgpLogLevel) // This sets the log level for the GoBGP server
 
 	calicoCli, err := calicocli.NewFromEnv()
@@ -132,7 +130,6 @@ func NewServer(vpp *vpplink.VppLink, ss *services.Server, l *logrus.Entry) (*Ser
 		prefixReady:          make(chan int),
 		vpp:                  vpp,
 		log:                  l,
-		servicesServer:       ss,
 		connectivityMap:      make(map[string]*connectivity.NodeConnectivity),
 		localAddressMap:      make(map[string]*net.IPNet),
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
@@ -158,10 +155,6 @@ func NewServer(vpp *vpplink.VppLink, ss *services.Server, l *logrus.Entry) (*Ser
 	server.providers[connectivity.IPIP] = connectivity.NewIPIPProvider(providerData)
 	server.providers[connectivity.IPSEC] = connectivity.NewIPsecProvider(providerData)
 	server.providers[connectivity.VXLAN] = connectivity.NewVXLanProvider(providerData)
-
-	for _, provider := range server.providers {
-		provider.Init()
-	}
 
 	return &server, nil
 }
@@ -549,6 +542,11 @@ func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 }
 
 func (s *Server) Serve() {
+	/* Initialization : rescan state */
+	for _, provider := range s.providers {
+		provider.RescanState()
+	}
+
 	for !s.ShouldStop {
 		err := s.serveOne()
 		if err != nil {

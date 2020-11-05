@@ -39,7 +39,8 @@ func (p *FlatL3Provider) OnVppRestart() {
 	/* Nothing to do */
 }
 
-func (p *FlatL3Provider) Init() {
+func (p *FlatL3Provider) RescanState() {
+	/* Nothing to do */
 }
 
 func NewFlatL3Provider(d *ConnectivityProviderData) *FlatL3Provider {
