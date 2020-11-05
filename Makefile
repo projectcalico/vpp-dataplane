@@ -58,7 +58,7 @@ test-install-calicovpp-dev:
 .PHONY: run-tests
 run-tests:
 	test/scripts/test.sh up iperf
-	kubectl -n iperf wait pod/iperf-client --for=condition=Ready --timeout=30s
+	kubectl -n iperf wait pod/iperf-client $$(kubectl -n iperf get pods -l 'app in (iperf-server,iperf-nodeport)' -o name) --for=condition=Ready --timeout=30s
 	test/scripts/cases.sh ipv4
 	test/scripts/test.sh down iperf
 
@@ -66,8 +66,6 @@ run-tests:
 restart-calicovpp:
 	kubectl rollout restart ds/calico-vpp-node
 	kubectl rollout status ds/calico-vpp-node
-	kubectl rollout restart deployment/coredns
-	kubectl rollout status deployment/coredns
 
 .PHONY: goapi
 goapi:
