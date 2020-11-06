@@ -4,6 +4,7 @@ VPPLINK_DIR=../vpplink
 INIT_EKS_IMAGE_DIR=images/init-eks/
 DEV_IMAGE_DIR=images/dev/
 IMAGE_DIR=images/ubuntu
+VPPDEV_FILE=../test/scripts/vppdev.sh
 TAG ?= latest
 
 all: image
@@ -17,6 +18,7 @@ eksimage:
 		-t calicovpp/init-eks:$(TAG) $(INIT_EKS_IMAGE_DIR)
 
 image: build vpp
+	cp $(VPPDEV_FILE) $(IMAGE_DIR)
 	docker build --pull \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
@@ -25,6 +27,7 @@ push: image
 	docker push calicovpp/vpp:$(TAG)
 
 imageonly: build
+	cp $(VPPDEV_FILE) $(IMAGE_DIR)
 	docker build --pull \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
@@ -45,6 +48,7 @@ vpp-build-env:
 		-t calicovpp/vpp-build:latest images/ubuntu-build
 
 dev: build
+	cp $(VPPDEV_FILE) $(DEV_IMAGE_DIR)
 	docker build --pull \
 	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)

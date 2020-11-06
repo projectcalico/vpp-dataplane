@@ -16,5 +16,6 @@ ADD vpp.sh /usr/bin/vpp
 ADD vppctl.sh /usr/bin/vppctl
 
 RUN chmod +x /usr/bin/entrypoint /usr/bin/vppctl /usr/bin/vpp
+ADD vppdev.sh /usr/bin/calivppctl
 
 ENTRYPOINT ["/usr/bin/entrypoint"]

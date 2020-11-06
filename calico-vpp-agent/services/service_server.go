@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocliv3 "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
@@ -55,13 +56,34 @@ type Server struct {
 	endpointInformer cache.Controller
 	clientv3         calicocliv3.Interface
 	client           *kubernetes.Clientset
-	ipv4             net.IP
-	ipv6             net.IP
-	hasv4            bool
-	hasv6            bool
+	nodeIP4          net.IP
+	nodeIP4Set       bool
+	nodeIP6          net.IP
+	nodeIP6Set       bool
 	lock             sync.Mutex
 	vppTapSwIfindex  uint32
 	serviceProvider  ServiceProvider
+}
+
+func (s *Server) setSpecAddresses(nodeSpec *calicov3.NodeSpec) {
+	if nodeSpec.BGP.IPv4Address != "" {
+		addr, _, err := net.ParseCIDR(nodeSpec.BGP.IPv4Address)
+		if err != nil {
+			s.log.Errorf("cannot parse node address %s: %v", nodeSpec.BGP.IPv4Address, err)
+		} else {
+			s.nodeIP4 = addr
+			s.nodeIP4Set = true
+		}
+	}
+	if nodeSpec.BGP.IPv6Address != "" {
+		addr, _, err := net.ParseCIDR(nodeSpec.BGP.IPv6Address)
+		if err != nil {
+			s.log.Errorf("cannot parse node address %s: %v", nodeSpec.BGP.IPv6Address, err)
+		} else {
+			s.nodeIP6 = addr
+			s.nodeIP6Set = true
+		}
+	}
 }
 
 func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
@@ -81,33 +103,18 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 	if err != nil {
 		panic(err.Error())
 	}
-	node, err := calicoCliV3.Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
-	if err != nil {
-		panic(err.Error())
-	}
-	ipv4, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
-	hasv4 := true
-	if err != nil {
-		log.Infof("Node ipv4 parsing error %v", err)
-		hasv4 = false
-	}
-	ipv6, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
-	hasv6 := true
-	if err != nil {
-		log.Infof("Node ipv6 parsing error %v", err)
-		hasv6 = false
-	}
 	server := Server{
 		clientv3:        calicoCliV3,
 		client:          client,
 		vpp:             vpp,
 		log:             log,
 		vppTapSwIfindex: swIfIndex,
-		ipv4:            ipv4,
-		hasv4:           hasv4,
-		ipv6:            ipv6,
-		hasv6:           hasv6,
 	}
+	node, err := calicoCliV3.Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+	server.setSpecAddresses(&node.Spec)
 	serviceListWatch := cache.NewListWatchFromClient(client.CoreV1().RESTClient(),
 		"services", "", fields.Everything())
 	serviceStore, serviceInformer := cache.NewInformer(
@@ -157,9 +164,9 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 
 func (s *Server) getNodeIP(isv6 bool) net.IP {
 	if isv6 {
-		return s.ipv6
+		return s.nodeIP6
 	} else {
-		return s.ipv4
+		return s.nodeIP4
 	}
 }
 
@@ -185,20 +192,20 @@ func (s *Server) addDelService(service *v1.Service, ep *v1.Endpoints, isWithdraw
 }
 
 func (s *Server) configureSnat() (err error) {
-	err = s.vpp.CnatSetSnatAddresses(s.ipv4, s.ipv6)
+	err = s.vpp.CnatSetSnatAddresses(s.nodeIP4, s.nodeIP6)
 	if err != nil {
 		s.log.Errorf("Failed to configure SNAT addresses %v", err)
 	}
-	if s.hasv6 {
-		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(s.ipv6))
+	if s.nodeIP6Set {
+		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(s.nodeIP6))
 		if err != nil {
-			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.ipv6), err)
+			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.nodeIP6), err)
 		}
 	}
-	if s.hasv4 {
-		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(s.ipv4))
+	if s.nodeIP4Set {
+		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(s.nodeIP4))
 		if err != nil {
-			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.ipv4), err)
+			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.nodeIP4), err)
 		}
 	}
 	for _, serviceCIDR := range config.ServiceCIDRs {
