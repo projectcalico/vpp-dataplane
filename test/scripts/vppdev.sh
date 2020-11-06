@@ -150,7 +150,6 @@ vppdev_cli_log ()
 	local container=""
 	local FOLLOW=""
 	local node_name=""
-	local cattail="cat"
 	while (( $# )); do
 		case "$1" in
 		-vpp)
@@ -163,7 +162,6 @@ vppdev_cli_log ()
 			;;
 		-f)
 			FOLLOW="-f"
-			cattail="tail -f"
 			shift
 			;;
 		*)
@@ -181,14 +179,12 @@ vppdev_cli_log ()
 	if [[ "$container" = "vpp" ]]; then
 	  NODE=$node_name POD=calico-vpp-node C=vpp FOLLOW=$FOLLOW log_node
 	elif [[ "$container" = "agent" ]]; then
-	  NODE=$node_name POD=calico-vpp-node C=calico-node exec_node \
-    	$cattail /var/log/calico/calico-vpp-agent/current
+	  NODE=$node_name POD=calico-vpp-node C=calico-node FOLLOW=$FOLLOW log_node
 	else
 	  blue "----- VPP Manager      -----"
 	  NODE=$node_name POD=calico-vpp-node C=vpp log_node
 	  blue "----- Calico-VPP agent -----"
-	  NODE=$node_name POD=calico-vpp-node C=calico-node exec_node \
-    	cat /var/log/calico/calico-vpp-agent/current
+	  NODE=$node_name POD=calico-vpp-node C=calico-node FOLLOW=$FOLLOW log_node
 	fi
 }
 
