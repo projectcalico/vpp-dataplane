@@ -44,8 +44,10 @@ func (cn *NodeConnectivity) String() string {
 type ConnectivityProvider interface {
 	AddConnectivity(cn *NodeConnectivity) error
 	DelConnectivity(cn *NodeConnectivity) error
+	/* Called when VPP signals us that it has restarted */
 	OnVppRestart()
-	Init()
+	/* Check current state in VPP and update local cache */
+	RescanState()
 }
 
 type ConnectivityProviderData struct {

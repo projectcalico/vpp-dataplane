@@ -1,9 +1,10 @@
-VPP Version                 : 21.01-rc0~287-gc1956bf39
+VPP Version                 : 21.01-rc0~288-g868fa61b4
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 5f4f2081c nat: nat44 enable/disable dynamic config
 ------------------ Cherry picked commits --------------------
-c1956bf39 Use 10us interrupt sleep
-a75795f41 virtio: DRAFT: multi tx support
-ae07bc48b calico: Add SNAT simultaneously to VIP DNAT
-35b979c50 vlib: force input node interrupts to be unique
+868fa61b4 Use 10us interrupt sleep
+f3bd04011 virtio: DRAFT: multi tx support
+dc289841a tap: fix the segv
+9e1489a6d calico: Add SNAT simultaneously to VIP DNAT
+dd9d4ac89 vlib: force input node interrupts to be unique
 -------------------------------------------------------------

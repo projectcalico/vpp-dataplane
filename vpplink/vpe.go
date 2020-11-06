@@ -56,3 +56,19 @@ func (v *VppLink) AddNodeNext(name, next string) (nodeIndex uint32, err error) {
 	}
 	return uint32(response.NextIndex), nil
 }
+
+/* Gets the number of workers WITHOUT the main thread */
+func (v *VppLink) GetNumVPPWorkers() (numVPPWorkers uint32, err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	response := &vpe.ShowThreadsReply{}
+	request := &vpe.ShowThreads{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return ^uint32(1), errors.Wrap(err, "GetNumVPPWorkers failed")
+	} else if response.Retval != 0 {
+		return ^uint32(1), fmt.Errorf("GetNumVPPWorkers failed with retval %d", response.Retval)
+	}
+	return uint32(response.Count - 1), nil
+}

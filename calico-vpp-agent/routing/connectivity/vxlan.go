@@ -33,7 +33,7 @@ func NewVXLanProvider(d *ConnectivityProviderData) *VXLanProvider {
 	return &VXLanProvider{d, make(map[string]uint32), 0, 0}
 }
 
-func (p *VXLanProvider) Init() {
+func (p *VXLanProvider) configureVXLANNodes() error {
 	var err error
 	p.ip4NodeIndex, err = p.vpp.AddNodeNext("vxlan4-input", "ip4-input")
 	if err != nil {
@@ -43,10 +43,18 @@ func (p *VXLanProvider) Init() {
 	if err != nil {
 		p.log.Fatal("Couldn't find node id for ip6-input : %v", err)
 	}
+	return nil
+}
+
+func (p *VXLanProvider) RescanState() {
+	p.configureVXLANNodes()
+	// TODO
+
 }
 
 func (p *VXLanProvider) OnVppRestart() {
 	p.vxlanIfs = make(map[string]uint32)
+	p.configureVXLANNodes()
 }
 
 func (p VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {

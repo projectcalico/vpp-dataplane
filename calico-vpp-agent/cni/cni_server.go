@@ -25,7 +25,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -41,8 +40,9 @@ type Server struct {
 	client          *kubernetes.Clientset
 	socketListener  net.Listener
 	routingServer   *routing.Server
-	servicesServer  *services.Server
 	podInterfaceMap map[string]*LocalPodSpec
+	/* without main thread */
+	NumVPPWorkers uint32
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -92,7 +92,13 @@ func (p *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 	return p.routingServer.IPNetNeedsSNAT(prefix)
 }
 
-func (s *Server) RescanState() error {
+func (s *Server) rescanState() error {
+	numVPPWorkers, err := s.vpp.GetNumVPPWorkers()
+	s.NumVPPWorkers = numVPPWorkers
+	if err != nil {
+		s.log.Panicf("Error getting number of VPP workers: %v", err)
+	}
+
 	podSpecs, err := s.loadCniServerState()
 	if err != nil {
 		s.log.Errorf("Error getting pods %v", err)
@@ -148,7 +154,7 @@ func (s *Server) Stop() {
 }
 
 // Serve runs the grpc server for the Calico CNI backend API
-func NewServer(v *vpplink.VppLink, rs *routing.Server, ss *services.Server, l *logrus.Entry) (*Server, error) {
+func NewServer(v *vpplink.VppLink, rs *routing.Server, l *logrus.Entry) (*Server, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
@@ -166,7 +172,6 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ss *services.Server, l *l
 		vpp:             v,
 		log:             l,
 		routingServer:   rs,
-		servicesServer:  ss,
 		socketListener:  lis,
 		client:          client,
 		grpcServer:      grpc.NewServer(),
@@ -178,6 +183,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ss *services.Server, l *l
 }
 
 func (s *Server) Serve() {
+	s.rescanState()
 	err := s.grpcServer.Serve(s.socketListener)
 	if err != nil {
 		s.log.Fatalf("Failed to serve: %v", err)
