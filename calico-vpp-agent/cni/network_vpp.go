@@ -216,7 +216,7 @@ func (s *Server) AddVppInterface(podSpec *LocalPodSpec, doHostSideConf bool) (sw
 
 	if tun.NumRxQueues > 1 {
 		for i := 0; i < tun.NumRxQueues; i++ {
-			worker := uint32(i) % s.NumVPPWorkers
+			worker := (swIfIndex * uint32(tun.NumRxQueues) + uint32(i)) % s.NumVPPWorkers
 			err = s.vpp.SetInterfaceRxPlacement(uint32(swIfIndex), uint32(i), uint32(worker), false)
 			if err != nil {
 				s.log.Warnf("failed to set tun[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, i, worker, s.NumVPPWorkers, err)
