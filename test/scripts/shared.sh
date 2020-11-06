@@ -30,25 +30,10 @@ LAST_TEST_LOGFILE=$LOG_DIR/testrun.log~
 CI_CONFIG_FILE=~/.config/calicovppci.sh
 PCI_BIND_NIC_TO_KERNEL=$SCRIPTDIR/../baremetal/utils/pci-nic-bind-to-kernel
 
-function green ()
-{
-  printf "\e[0;32m$1\e[0m\n"
-}
-
-function red ()
-{
-  printf "\e[0;31m$1\e[0m\n"
-}
-
-function blue ()
-{
-  printf "\e[0;34m$1\e[0m\n"
-}
-
-function grey ()
-{
-  printf "\e[0;37m$1\e[0m\n"
-}
+function green () { printf "\e[0;32m$1\e[0m\n" ; }
+function red   () { printf "\e[0;31m$1\e[0m\n" ; }
+function blue  () { printf "\e[0;34m$1\e[0m\n" ; }
+function grey  () { printf "\e[0;37m$1\e[0m\n" ; }
 
 find_node_pod () # NODE, POD
 {
@@ -59,13 +44,25 @@ find_node_pod () # NODE, POD
 exec_node () # C, POD, NODE
 {
   SVC=${SVC:=kube-system}
-  kubectl exec -it -n $SVC $(find_node_pod) -c $C -- $@
+  local pod_name=$(find_node_pod)
+  if [ x$pod_name == x ]; then
+    >&2 echo "pod '$POD' not found on node '$NODE'"
+  	exit 1
+  else
+	kubectl exec -it -n $SVC $pod_name -c $C -- $@
+  fi
 }
 
 log_node () # C, POD, NODE
 {
   SVC=${SVC:=kube-system}
-  kubectl logs $FOLLOW -n $SVC $(find_node_pod) -c $C
+  local pod_name=$(find_node_pod)
+  if [ x$pod_name == x ]; then
+    >&2 echo "pod '$POD' not found on node '$NODE'"
+  	exit 1
+  else
+	kubectl logs $FOLLOW -n $SVC $pod_name -c $C
+  fi
 }
 
 vppdev_run_vppctl () # nodeID args

@@ -65,6 +65,7 @@ function get_vpp_conf ()
 		full-coredump
 		log /var/run/vpp/vpp.log
 		cli-listen /var/run/vpp/cli.sock
+    	pidfile /run/vpp/vpp.pid
 	  }
 	  cpu { main-core ${MAINCORE} workers ${WRK} }
 	  socksvr {

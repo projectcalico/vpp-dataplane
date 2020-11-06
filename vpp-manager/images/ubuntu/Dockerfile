@@ -25,5 +25,6 @@ RUN dpkg -i /tmp/vpp/libvppinfra_*.deb && \
 
 RUN rm -rf /tmp/vpp
 ADD vpp-manager /usr/bin/
+ADD vppdev.sh /usr/bin/calivppctl
 
 ENTRYPOINT ["/usr/bin/vpp-manager"]

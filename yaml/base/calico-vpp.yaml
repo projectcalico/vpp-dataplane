@@ -62,6 +62,7 @@ data:
       nodaemon
       full-coredump
       cli-listen /var/run/vpp/cli.sock
+      pidfile /run/vpp/vpp.pid
     }
     api-trace { on }
     cpu {
