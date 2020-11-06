@@ -244,7 +244,7 @@ func (s *Server) getSpecAddresses(newSpec *calicov3.NodeSpec) (string, string) {
 			nodeIP4 = addr.String()
 		}
 	}
-	if nodeIP6 != "" {
+	if newSpec.BGP.IPv6Address != "" {
 		addr, _, err := net.ParseCIDR(newSpec.BGP.IPv6Address)
 		if err != nil {
 			s.log.Errorf("cannot parse node address %s: %v", newSpec.BGP.IPv6Address, err)

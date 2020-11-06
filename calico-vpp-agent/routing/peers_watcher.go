@@ -204,7 +204,7 @@ func (s *Server) addBGPPeer(ip string, asn uint32) error {
 	if err != nil {
 		return err
 	}
-	s.log.Infof("Adding BGP neighbor: %+v", peer)
+	s.log.Infof("Adding BGP neighbor: %s AS:%d", peer.Conf.NeighborAddress, peer.Conf.PeerAs)
 	err = s.bgpServer.AddPeer(context.Background(), &bgpapi.AddPeerRequest{Peer: peer})
 	return err
 }
@@ -214,7 +214,7 @@ func (s *Server) updateBGPPeer(ip string, asn uint32) error {
 	if err != nil {
 		return err
 	}
-	s.log.Infof("Updating BGP neighbor: %+v", peer)
+	s.log.Infof("Updating BGP neighbor: %s AS:%d", peer.Conf.NeighborAddress, peer.Conf.PeerAs)
 	_, err = s.bgpServer.UpdatePeer(context.Background(), &bgpapi.UpdatePeerRequest{Peer: peer})
 	return err
 }
