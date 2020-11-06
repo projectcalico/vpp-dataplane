@@ -8,7 +8,7 @@ import (
 	api "git.fd.io/govpp.git/api"
 )
 
-// RPCService defines RPC service  calico.
+// RPCService defines RPC service calico.
 type RPCService interface {
 	CalicoEnableDisableInterfaceSnat(ctx context.Context, in *CalicoEnableDisableInterfaceSnat) (*CalicoEnableDisableInterfaceSnatReply, error)
 }
@@ -27,5 +27,5 @@ func (c *serviceClient) CalicoEnableDisableInterfaceSnat(ctx context.Context, in
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }

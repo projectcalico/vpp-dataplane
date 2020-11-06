@@ -11,7 +11,7 @@ import (
 	vpe "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vpe"
 )
 
-// RPCService defines RPC service  ikev2.
+// RPCService defines RPC service ikev2.
 type RPCService interface {
 	Ikev2ChildSaDump(ctx context.Context, in *Ikev2ChildSaDump) (RPCService_Ikev2ChildSaDumpClient, error)
 	Ikev2InitiateDelChildSa(ctx context.Context, in *Ikev2InitiateDelChildSa) (*Ikev2InitiateDelChildSaReply, error)
@@ -91,7 +91,7 @@ func (c *serviceClient) Ikev2InitiateDelChildSa(ctx context.Context, in *Ikev2In
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2InitiateDelIkeSa(ctx context.Context, in *Ikev2InitiateDelIkeSa) (*Ikev2InitiateDelIkeSaReply, error) {
@@ -100,7 +100,7 @@ func (c *serviceClient) Ikev2InitiateDelIkeSa(ctx context.Context, in *Ikev2Init
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2InitiateRekeyChildSa(ctx context.Context, in *Ikev2InitiateRekeyChildSa) (*Ikev2InitiateRekeyChildSaReply, error) {
@@ -109,7 +109,7 @@ func (c *serviceClient) Ikev2InitiateRekeyChildSa(ctx context.Context, in *Ikev2
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2InitiateSaInit(ctx context.Context, in *Ikev2InitiateSaInit) (*Ikev2InitiateSaInitReply, error) {
@@ -118,7 +118,7 @@ func (c *serviceClient) Ikev2InitiateSaInit(ctx context.Context, in *Ikev2Initia
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2NonceGet(ctx context.Context, in *Ikev2NonceGet) (*Ikev2NonceGetReply, error) {
@@ -127,7 +127,7 @@ func (c *serviceClient) Ikev2NonceGet(ctx context.Context, in *Ikev2NonceGet) (*
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2PluginGetVersion(ctx context.Context, in *Ikev2PluginGetVersion) (*Ikev2PluginGetVersionReply, error) {
@@ -145,7 +145,7 @@ func (c *serviceClient) Ikev2ProfileAddDel(ctx context.Context, in *Ikev2Profile
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2ProfileDump(ctx context.Context, in *Ikev2ProfileDump) (RPCService_Ikev2ProfileDumpClient, error) {
@@ -193,7 +193,7 @@ func (c *serviceClient) Ikev2ProfileSetAuth(ctx context.Context, in *Ikev2Profil
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2ProfileSetID(ctx context.Context, in *Ikev2ProfileSetID) (*Ikev2ProfileSetIDReply, error) {
@@ -202,7 +202,7 @@ func (c *serviceClient) Ikev2ProfileSetID(ctx context.Context, in *Ikev2ProfileS
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2ProfileSetIpsecUDPPort(ctx context.Context, in *Ikev2ProfileSetIpsecUDPPort) (*Ikev2ProfileSetIpsecUDPPortReply, error) {
@@ -211,7 +211,7 @@ func (c *serviceClient) Ikev2ProfileSetIpsecUDPPort(ctx context.Context, in *Ike
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2ProfileSetLiveness(ctx context.Context, in *Ikev2ProfileSetLiveness) (*Ikev2ProfileSetLivenessReply, error) {
@@ -220,7 +220,7 @@ func (c *serviceClient) Ikev2ProfileSetLiveness(ctx context.Context, in *Ikev2Pr
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2ProfileSetTs(ctx context.Context, in *Ikev2ProfileSetTs) (*Ikev2ProfileSetTsReply, error) {
@@ -229,7 +229,7 @@ func (c *serviceClient) Ikev2ProfileSetTs(ctx context.Context, in *Ikev2ProfileS
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2ProfileSetUDPEncap(ctx context.Context, in *Ikev2ProfileSetUDPEncap) (*Ikev2ProfileSetUDPEncapReply, error) {
@@ -238,7 +238,7 @@ func (c *serviceClient) Ikev2ProfileSetUDPEncap(ctx context.Context, in *Ikev2Pr
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2SaDump(ctx context.Context, in *Ikev2SaDump) (RPCService_Ikev2SaDumpClient, error) {
@@ -286,7 +286,7 @@ func (c *serviceClient) Ikev2SetEspTransforms(ctx context.Context, in *Ikev2SetE
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2SetIkeTransforms(ctx context.Context, in *Ikev2SetIkeTransforms) (*Ikev2SetIkeTransformsReply, error) {
@@ -295,7 +295,7 @@ func (c *serviceClient) Ikev2SetIkeTransforms(ctx context.Context, in *Ikev2SetI
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2SetLocalKey(ctx context.Context, in *Ikev2SetLocalKey) (*Ikev2SetLocalKeyReply, error) {
@@ -304,7 +304,7 @@ func (c *serviceClient) Ikev2SetLocalKey(ctx context.Context, in *Ikev2SetLocalK
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2SetResponder(ctx context.Context, in *Ikev2SetResponder) (*Ikev2SetResponderReply, error) {
@@ -313,7 +313,7 @@ func (c *serviceClient) Ikev2SetResponder(ctx context.Context, in *Ikev2SetRespo
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2SetSaLifetime(ctx context.Context, in *Ikev2SetSaLifetime) (*Ikev2SetSaLifetimeReply, error) {
@@ -322,7 +322,7 @@ func (c *serviceClient) Ikev2SetSaLifetime(ctx context.Context, in *Ikev2SetSaLi
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2SetTunnelInterface(ctx context.Context, in *Ikev2SetTunnelInterface) (*Ikev2SetTunnelInterfaceReply, error) {
@@ -331,7 +331,7 @@ func (c *serviceClient) Ikev2SetTunnelInterface(ctx context.Context, in *Ikev2Se
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) Ikev2TrafficSelectorDump(ctx context.Context, in *Ikev2TrafficSelectorDump) (RPCService_Ikev2TrafficSelectorDumpClient, error) {

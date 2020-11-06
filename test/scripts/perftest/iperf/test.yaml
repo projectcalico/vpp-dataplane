@@ -23,6 +23,11 @@ spec:
         ports:
         - containerPort: 5001
         - containerPort: 5003
+        readinessProbe:
+          tcpSocket:
+            port: 5001
+          initialDelaySeconds: 3
+          periodSeconds: 2
       nodeName: _NODE_1_
 ---
 apiVersion: apps/v1
@@ -49,6 +54,11 @@ spec:
         ports:
         - containerPort: 5001
         - containerPort: 5003
+        readinessProbe:
+          tcpSocket:
+            port: 5001
+          initialDelaySeconds: 3
+          periodSeconds: 2
       nodeName: _NODE_1_
 ---
 apiVersion: v1
@@ -161,6 +171,8 @@ kind: Pod
 metadata:
   name: iperf-client
   namespace: iperf
+  labels:
+    app: iperf-client
 spec:
   containers:
   - name: iperf-client

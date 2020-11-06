@@ -23,15 +23,15 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 )
 
-type IPProto uint32
+type IPProto uint8
 
 const (
-	INVALID IPProto = 0
-	UDP     IPProto = 1
-	SCTP    IPProto = 2
-	TCP     IPProto = 3
-	ICMP    IPProto = 4
-	ICMP6   IPProto = 5
+	TCP     IPProto = IPProto(ip_types.IP_API_PROTO_TCP)
+	UDP     IPProto = IPProto(ip_types.IP_API_PROTO_UDP)
+	SCTP    IPProto = IPProto(ip_types.IP_API_PROTO_SCTP)
+	ICMP    IPProto = IPProto(ip_types.IP_API_PROTO_ICMP)
+	ICMP6   IPProto = IPProto(ip_types.IP_API_PROTO_ICMP6)
+	INVALID IPProto = IPProto(ip_types.IP_API_PROTO_RESERVED)
 )
 
 const (
@@ -82,20 +82,7 @@ func formatProto(proto IPProto) string {
 }
 
 func ToVppIPProto(proto IPProto) ip_types.IPProto {
-	switch proto {
-	case UDP:
-		return ip_types.IP_API_PROTO_UDP
-	case TCP:
-		return ip_types.IP_API_PROTO_TCP
-	case SCTP:
-		return ip_types.IP_API_PROTO_SCTP
-	case ICMP:
-		return ip_types.IP_API_PROTO_ICMP
-	case ICMP6:
-		return ip_types.IP_API_PROTO_ICMP6
-	default:
-		return ip_types.IP_API_PROTO_RESERVED
-	}
+	return ip_types.IPProto(proto)
 }
 
 // Make sure you really call this with an IPv4 address...

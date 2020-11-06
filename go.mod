@@ -3,7 +3,7 @@ module github.com/projectcalico/vpp-dataplane
 go 1.12
 
 require (
-	git.fd.io/govpp.git v0.3.6-0.20200903151113-c94a96227985
+	git.fd.io/govpp.git v0.3.6-0.20201002143632-c2456559a661
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/containernetworking/plugins v0.8.2
 	github.com/coreos/etcd v3.3.17+incompatible // indirect

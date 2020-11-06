@@ -37,6 +37,7 @@ const (
 	CniServerStateTempFile    = "/var/run/vpp/calico_vpp_pod_state~"
 	CniServerStateFile        = "/var/run/vpp/calico_vpp_pod_state"
 	CniServerStateFileVersion = 1 // Used to ensure compatibility wen we reload data
+	FelixDataplaneSocket      = "/var/run/vpp/felix-dataplane.sock"
 
 	NodeNameEnvVar            = "NODENAME"
 	TapNumRxQueuesEnvVar      = "CALICOVPP_TAP_RX_QUEUES"
@@ -212,6 +213,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	log.Infof("Config:IpsecAddressCount %d", IpsecAddressCount)
 	log.Infof("Config:RxMode            %d", TapRxMode)
 	log.Infof("Config:BgpLogLevel       %d", BgpLogLevel)
+	log.Infof("Config:LogLevel          %d", LogLevel)
 
 	return nil
 }

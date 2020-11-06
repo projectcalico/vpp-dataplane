@@ -8,36 +8,47 @@ spec:
     spec:
       containers:
         - name: calico-node
+          # command:
+          #   - bash
+          #   - "-c"
+          #   - sleep infinity
           volumeMounts:
-            - name: vpp-agent-binary
+            - name: repo-root
+              mountPath: /home/hostuser/vpp-dataplane
+              readOnly: true
+            - name: api-proxy-binary
+              mountPath: /bin/felix-api-proxy
+              readOnly: true
+            - name: agent-binary
               mountPath: /bin/calico-vpp-agent
               readOnly: true
         - name: vpp
+          env:
+            - name: CALICO_LOG_LEVEL
+              value: debug
           volumeMounts:
-            - name: vpp-manager-binary
-              mountPath: /usr/bin/vpp-manager
+            - name: vpp-root
+              mountPath: /home/hostuser/vpp
               readOnly: true
-            - name: vpp-binary
-              mountPath: /usr/bin/vpp
-              readOnly: true
-            - name: vpp-libs
-              mountPath: /usr/lib/x86_64-linux-gnu/vpp_plugins
+            - name: repo-root
+              mountPath: /home/hostuser/vpp-dataplane
               readOnly: true
       volumes:
-        # Used to put the latest binaries in the containers without rebuilding images in testing
-        - name: vpp-manager-binary
+        # Used to put the latest binaries in the containers (dev images) without rebuilding images in testing
+        - name: repo-root
+          hostPath:
+            type: Directory
+            path: /host-repo
+        - name: api-proxy-binary
           hostPath:
             type: File
-            path: /host-repo/vpp-manager/images/ubuntu/vpp-manager
-        - name: vpp-agent-binary
+            path: /host-repo/calico-vpp-agent/cmd/felix-api-proxy
+        - name: agent-binary
           hostPath:
             type: File
             path: /host-repo/calico-vpp-agent/cmd/calico-vpp-agent
-        - name: vpp-binary
-          hostPath:
-            type: File
-            path: /host-repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/bin/vpp
-        - name: vpp-libs
+        - name: vpp-root
           hostPath:
             type: Directory
-            path: /host-repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/lib/vpp_plugins
+            path: /host-repo/vpp-manager/vpp_build
+

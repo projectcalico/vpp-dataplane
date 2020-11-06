@@ -11,7 +11,7 @@ import (
 	vpe "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vpe"
 )
 
-// RPCService defines RPC service  virtio.
+// RPCService defines RPC service virtio.
 type RPCService interface {
 	SwInterfaceVirtioPciDump(ctx context.Context, in *SwInterfaceVirtioPciDump) (RPCService_SwInterfaceVirtioPciDumpClient, error)
 	VirtioPciCreate(ctx context.Context, in *VirtioPciCreate) (*VirtioPciCreateReply, error)
@@ -72,7 +72,7 @@ func (c *serviceClient) VirtioPciCreate(ctx context.Context, in *VirtioPciCreate
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) VirtioPciCreateV2(ctx context.Context, in *VirtioPciCreateV2) (*VirtioPciCreateV2Reply, error) {
@@ -81,7 +81,7 @@ func (c *serviceClient) VirtioPciCreateV2(ctx context.Context, in *VirtioPciCrea
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) VirtioPciDelete(ctx context.Context, in *VirtioPciDelete) (*VirtioPciDeleteReply, error) {
@@ -90,5 +90,5 @@ func (c *serviceClient) VirtioPciDelete(ctx context.Context, in *VirtioPciDelete
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, api.RetvalToVPPApiError(out.Retval)
 }

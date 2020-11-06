@@ -1,5 +1,6 @@
 # Binaries
 calico-vpp-agent/cmd/calico-vpp-agent
+calico-vpp-agent/cmd/felix-api-proxy
 calico-vpp-agent/dep/gobgp
 vpp-manager/images/*/vpp-manager
 vpp-manager/vpp_build/
