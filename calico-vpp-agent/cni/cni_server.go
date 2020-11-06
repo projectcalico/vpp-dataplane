@@ -88,7 +88,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	// Check if info Store manager interface is initialized and update pod information store
 	if s.infoStoreMgr != nil {
 		r := &infostore.Record{
-			Name:          request.Workload.Name,
+			Name:          request.Workload.Pod,
 			Namespace:     request.Workload.Namespace,
 			InterfaceName: podSpec.InterfaceName,
 			IPs:           make([]net.IP, len(podSpec.ContainerIps)),

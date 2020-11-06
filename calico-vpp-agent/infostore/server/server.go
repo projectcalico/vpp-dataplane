@@ -50,34 +50,25 @@ func (i *infoSrv) Get(ctx context.Context, req *proto.PodInfoReq) (*proto.PodInf
 		}, err
 	}
 	// Pod can carry multiple IPs for different address families, selecting ipv6 ip and if it does not exist, returning error
-	found := false
-	var addr net.IP
-	for _, a := range r.IPs {
-		if net.IP(a).To16() != nil {
-			copy(addr, a)
-			found = true
-			break
+	ips := make([]*pbapi.Address, len(r.IPs))
+	for i, ip := range r.IPs {
+		e := &pbapi.Address{}
+		e.Addr = make([]byte, len(ip))
+		copy(e.Addr, ip)
+		e.IsIpv6 = true
+		e.MaskLen = 128
+		if net.IP(e.Addr).To16() == nil {
+			e.IsIpv6 = false
+			e.MaskLen = 32
 		}
-	}
-	if !found {
-		return &proto.PodInfoRepl{
-			PodInfo:   nil,
-			Err:       -2,
-			ErrDetail: "pod does not have a valid ipv6 address",
-		}, err
+		ips[i] = e
 	}
 
 	return &proto.PodInfoRepl{
 		PodInfo: &pbapi.PodInfo{
 			TableId:  r.TableID,
 			PortName: r.InterfaceName,
-			PodAddr: []*pbapi.Address{
-				{
-					Addr:    addr,
-					MaskLen: 128,
-					IsIpv6:  true,
-				},
-			},
+			PodAddr:  ips,
 		},
 		Err:       0,
 		ErrDetail: "",

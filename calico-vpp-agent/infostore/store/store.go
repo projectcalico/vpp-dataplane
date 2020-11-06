@@ -24,11 +24,13 @@ func (i *info) AddPodInfo(r *infostore.Record) error {
 	if r == nil {
 		return fmt.Errorf("pod record is nil")
 	}
-	if _, ok := i.store[r.Namespace+r.Name]; ok {
+	key := makeKey(r.Name, r.Namespace)
+
+	if _, ok := i.store[key]; ok {
 		i.log.Warnf("pod %s/%s is already in the store", r.Namespace, r.Name)
 	}
-	i.store[r.Namespace+r.Name] = r
-	i.log.Infof("pod %s/%s is added to the store, total entries in the store: %d", r.Namespace, r.Name, len(i.store))
+	i.store[key] = r
+	i.log.Infof("pod %s/%s (key: %s) is added to the store, total entries in the store: %d", r.Namespace, r.Name, key, len(i.store))
 	return nil
 }
 
@@ -40,7 +42,7 @@ func (i *info) RemovePodInfo(interfaceName string) error {
 	for _, v := range i.store {
 		if strings.Compare(v.InterfaceName, interfaceName) == 0 {
 			found = true
-			key = v.Namespace + v.Name
+			key = makeKey(v.Name, v.Namespace)
 			break
 		}
 	}
@@ -62,7 +64,7 @@ func (i *info) RemovePodInfo(interfaceName string) error {
 func (i *info) GetPodInfo(n, ns string) (*infostore.Record, error) {
 	i.Lock()
 	defer i.Unlock()
-	key := ns + n
+	key := makeKey(n, ns)
 	r, ok := i.store[key]
 	if !ok {
 		i.log.Errorf("pod with the key %s is not found in the store", key)
@@ -78,4 +80,8 @@ func NewInfoStore(l *logrus.Entry) infostore.Manager {
 		store: make(map[string]*infostore.Record),
 		log:   l,
 	}
+}
+
+func makeKey(n, ns string) string {
+	return ns + "_" + n
 }
