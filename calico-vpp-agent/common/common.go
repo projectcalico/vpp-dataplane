@@ -37,10 +37,6 @@ var (
 	barrierCond *sync.Cond
 )
 
-type Stringable interface {
-	String() string
-}
-
 type CalicoVppServer interface {
 	/* Run the server */
 	Serve()
@@ -133,7 +129,7 @@ func HandleVppManagerRestart(log *logrus.Logger, vpp *vpplink.VppLink, servers .
 	}
 }
 
-func SafeFormat(e Stringable) string {
+func SafeFormat(e interface{ String() string }) string {
 	if e == nil {
 		return ""
 	} else {
@@ -141,7 +137,7 @@ func SafeFormat(e Stringable) string {
 	}
 }
 
-func FormatSlice(lst []Stringable) string {
+func FormatSlice(lst []interface{ String() string }) string {
 	strLst := make([]string, 0, len(lst))
 	for _, e := range lst {
 		strLst = append(strLst, e.String())

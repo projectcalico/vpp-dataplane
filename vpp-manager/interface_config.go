@@ -67,31 +67,30 @@ func (c *interfaceConfig) RouteString() string {
 	return strings.Join(str, ",")
 }
 
-func getInterfaceConfig() (err error) {
-	conf, err := loadInterfaceConfigFromLinux()
+func getInterfaceConfig(params *VppManagerParams) (conf *interfaceConfig, err error) {
+	conf, err = loadInterfaceConfigFromLinux(params)
 	if err == nil {
-		err = saveConfig(conf)
+		err = saveConfig(params, conf)
 		if err != nil {
 			log.Warnf("Could not save interface config: %v", err)
 		}
 	} else {
 		// Loading config failed, try loading from save file
 		log.Warnf("Could not load config from linux, trying file...")
-		conf, err2 := loadInterfaceConfigFromFile()
+		conf, err2 := loadInterfaceConfigFromFile(params)
 		if err2 != nil {
 			log.Warnf("Could not load saved config: %v", err2)
 			// Return original error
-			return err
+			return nil, err
 		}
 		log.Infof("Loaded config. Interface marked as down since loading config from linux failed.")
 		// This ensures we don't try to set the interface down in runVpp()
 		conf.IsUp = false
 	}
-	initialConfig = conf
-	return nil
+	return conf, nil
 }
 
-func loadInterfaceConfigFromLinux() (*interfaceConfig, error) {
+func loadInterfaceConfigFromLinux(params *VppManagerParams) (*interfaceConfig, error) {
 	conf := interfaceConfig{}
 	link, err := netlink.LinkByName(params.mainInterface)
 	if err != nil {
@@ -175,7 +174,7 @@ func getNodeAddress(conf *interfaceConfig, isV6 bool) string {
 	return ""
 }
 
-func clearSavedConfig() {
+func clearSavedConfig(params *VppManagerParams) {
 	if params.ifConfigSavePath == "" {
 		return
 	}
@@ -185,7 +184,7 @@ func clearSavedConfig() {
 	}
 }
 
-func saveConfig(conf *interfaceConfig) error {
+func saveConfig(params *VppManagerParams, conf *interfaceConfig) error {
 	if params.ifConfigSavePath == "" {
 		return nil
 	}
@@ -197,7 +196,7 @@ func saveConfig(conf *interfaceConfig) error {
 	err = enc.Encode(*conf)
 	if err != nil {
 		file.Close()
-		clearSavedConfig()
+		clearSavedConfig(params)
 		return errors.Wrap(err, "error encoding data")
 	}
 	err = file.Close()
@@ -207,7 +206,7 @@ func saveConfig(conf *interfaceConfig) error {
 	return nil
 }
 
-func loadInterfaceConfigFromFile() (*interfaceConfig, error) {
+func loadInterfaceConfigFromFile(params *VppManagerParams) (*interfaceConfig, error) {
 	conf := interfaceConfig{}
 	if params.ifConfigSavePath == "" {
 		return nil, fmt.Errorf("interface config save file not configured")
