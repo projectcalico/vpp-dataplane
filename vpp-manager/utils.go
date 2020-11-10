@@ -21,6 +21,8 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -177,3 +179,76 @@ func clearVppManagerFiles() error {
 	return writeFile("-1", VppManagerTapIdxFile)
 }
 
+type KernelVersion struct {
+	kernel int
+	major  int
+	minor  int
+	patch  int
+}
+
+func (ver *KernelVersion) IsAtLeast(other *KernelVersion) bool {
+	if ver.kernel < other.kernel {
+		return false
+	}
+	if ver.major < other.major {
+		return false
+	}
+	if ver.minor < other.minor {
+		return false
+	}
+	if ver.patch < other.patch {
+		return false
+	}
+	return true
+}
+
+func GetNrHugepages() (int, error) {
+	nrHugepagesStr, err := ioutil.ReadFile("/proc/sys/vm/nr_hugepages")
+	if err != nil {
+		return 0, errors.Wrapf(err, "Couldnt read /proc/sys/vm/nr_hugepages")
+	}
+	nrHugepages, err := strconv.ParseInt(string(nrHugepagesStr), 10, 32)
+	if err != nil {
+		return 0, errors.Wrapf(err, "Couldnt parse nrHugepages: %v", err)
+	}
+	return int(nrHugepages), nil
+}
+
+func ParseKernelVersion(versionStr string) (ver *KernelVersion, err error) {
+	re := regexp.MustCompile(`([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)`)
+	match := re.FindStringSubmatch(versionStr)
+	if len(match) != 4 {
+		return nil, errors.Wrapf(err, "Couldnt parse kernel version %s : %v", versionStr, match)
+	}
+	kernel, err := strconv.ParseInt(match[0], 10, 32)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Couldnt parse kernel version: %v", err)
+	}
+	major, err := strconv.ParseInt(match[1], 10, 32)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Couldnt parse major version: %v", err)
+	}
+	minor, err := strconv.ParseInt(match[2], 10, 32)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Couldnt parse minor version: %v", err)
+	}
+	patch, err := strconv.ParseInt(match[3], 10, 32)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Couldnt parse patch version: %v", err)
+	}
+	return &KernelVersion{
+		kernel: int(kernel),
+		major:  int(major),
+		minor:  int(minor),
+		patch:  int(patch),
+	}, nil
+}
+
+func GetOsKernelVersion() (ver *KernelVersion, err error) {
+	versionStr, err := ioutil.ReadFile("/proc/sys/kernel/osrelease")
+	if err != nil {
+		return nil, errors.Wrapf(err, "Couldnt read /proc/sys/kernel/osrelease")
+	}
+	ver, err = ParseKernelVersion(string(versionStr))
+	return ver, err
+}

@@ -27,22 +27,20 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-
-
 )
 
 const (
-	DataInterfaceSwIfIndex   = uint32(1) // Assumption: the VPP config ensures this is true
-	VppConfigFile            = "/etc/vpp/startup.conf"
-	VppConfigExecFile        = "/etc/vpp/startup.exec"
-	VppManagerStatusFile     = "/var/run/vpp/vppmanagerstatus"
-	VppManagerTapIdxFile     = "/var/run/vpp/vppmanagertap0"
-	VppApiSocket             = "/var/run/vpp/vpp-api.sock"
-	CalicoVppPidFile         = "/var/run/vpp/calico_vpp.pid"
-	VppPath                  = "/usr/bin/vpp"
-	HostIfName               = "vpptap0"
-	HostIfTag                = "hosttap"
-	VppSigKillTimeout        = 2
+	DataInterfaceSwIfIndex = uint32(1) // Assumption: the VPP config ensures this is true
+	VppConfigFile          = "/etc/vpp/startup.conf"
+	VppConfigExecFile      = "/etc/vpp/startup.exec"
+	VppManagerStatusFile   = "/var/run/vpp/vppmanagerstatus"
+	VppManagerTapIdxFile   = "/var/run/vpp/vppmanagertap0"
+	VppApiSocket           = "/var/run/vpp/vpp-api.sock"
+	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
+	VppPath                = "/usr/bin/vpp"
+	HostIfName             = "vpptap0"
+	HostIfTag              = "hosttap"
+	VppSigKillTimeout      = 2
 )
 
 const (
@@ -53,12 +51,12 @@ const (
 )
 
 var (
-	runningCond   *sync.Cond
-	vppCmd        *exec.Cmd
-	vppProcess    *os.Process
-	vppDeadChan   chan bool
-	vppAlive      bool
-	signals       chan os.Signal
+	runningCond *sync.Cond
+	vppCmd      *exec.Cmd
+	vppProcess  *os.Process
+	vppDeadChan chan bool
+	vppAlive    bool
+	signals     chan os.Signal
 )
 
 func timeOutSigKill() {
