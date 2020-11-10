@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package startup
 
 import (
 	"fmt"
@@ -24,6 +24,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -53,33 +55,33 @@ const (
 )
 
 type VppManagerParams struct {
-	vppStartupSleepSeconds  int
-	mainInterface           string
-	configExecTemplate      string
-	configTemplate          string
-	initScriptTemplate      string
-	nodeName                string
-	corePattern             string
-	rxMode                  types.RxMode
-	tapRxMode               types.RxMode
-	serviceCIDRs            []net.IPNet
-	vppIpConfSource         string
-	extraAddrCount          int
-	vppSideMacAddress       net.HardwareAddr
-	containerSideMacAddress net.HardwareAddr
-	nativeDriver            string
+	VppStartupSleepSeconds  int
+	MainInterface           string
+	ConfigExecTemplate      string
+	ConfigTemplate          string
+	InitScriptTemplate      string
+	NodeName                string
+	CorePattern             string
+	RxMode                  types.RxMode
+	TapRxMode               types.RxMode
+	ServiceCIDRs            []net.IPNet
+	VppIpConfSource         string
+	ExtraAddrCount          int
+	VppSideMacAddress       net.HardwareAddr
+	ContainerSideMacAddress net.HardwareAddr
+	NativeDriver            string
 	TapRxQueueSize          int
 	TapTxQueueSize          int
 	RxQueueSize             int
 	TxQueueSize             int
 	NumRxQueues             int
-	newDriverName           string
-	defaultGWs              []net.IP
-	ifConfigSavePath        string
+	NewDriverName           string
+	DefaultGWs              []net.IP
+	IfConfigSavePath        string
 	/* Capabilities */
-	areDriverLoaded     bool
-	kernelSupportsAfXDP bool
-	availableHugePages  int
+	AreDriverLoaded     bool
+	KernelSupportsAfXDP bool
+	AvailableHugePages  int
 }
 
 func getVppManagerParams() (params *VppManagerParams) {
@@ -94,70 +96,70 @@ func getVppManagerParams() (params *VppManagerParams) {
 
 func getSystemCapabilities(params *VppManagerParams) {
 	/* Drivers */
-	vfioLoaded, err := isDriverLoaded("vfio-pci")
+	vfioLoaded, err := utils.IsDriverLoaded("vfio-pci")
 	if err != nil {
 		log.Warnf("Error determining whether vfio-pci is loaded")
 	}
-	uioLoaded, err := isDriverLoaded("uio_pci_generic")
+	uioLoaded, err := utils.IsDriverLoaded("uio_pci_generic")
 	if err != nil {
 		log.Warnf("Error determining whether vfio-pci is loaded")
 	}
 	if !vfioLoaded && !uioLoaded {
-		params.areDriverLoaded = false
+		params.AreDriverLoaded = false
 	} else {
-		params.areDriverLoaded = true
+		params.AreDriverLoaded = true
 	}
 
 	/* AF XDP support */
-	kernel, err := GetOsKernelVersion()
+	kernel, err := utils.GetOsKernelVersion()
 	if err != nil {
 		log.Warnf("Error getting os kernel version %v", err)
-		params.kernelSupportsAfXDP = false
+		params.KernelSupportsAfXDP = false
 	} else {
-		minVersion, err := ParseKernelVersion(minAfXDPKernelVersion)
+		minVersion, err := utils.ParseKernelVersion(minAfXDPKernelVersion)
 		if err != nil {
 			log.Panicf("Error getting min kernel version %v", err)
 		}
-		params.kernelSupportsAfXDP = kernel.IsAtLeast(minVersion)
+		params.KernelSupportsAfXDP = kernel.IsAtLeast(minVersion)
 	}
 
 	/* Hugepages */
-	nrHugepages, err := GetNrHugepages()
+	nrHugepages, err := utils.GetNrHugepages()
 	if err != nil {
 		log.Warnf("Error getting nrHugepages %v", err)
 	}
-	params.availableHugePages = nrHugepages
+	params.AvailableHugePages = nrHugepages
 }
 
 func parseEnvVariables(params *VppManagerParams) (err error) {
 	vppStartupSleep := os.Getenv(VppStartupSleepEnvVar)
 	if vppStartupSleep == "" {
-		params.vppStartupSleepSeconds = 0
+		params.VppStartupSleepSeconds = 0
 	} else {
 		i, err := strconv.ParseInt(vppStartupSleep, 10, 32)
-		params.vppStartupSleepSeconds = int(i)
+		params.VppStartupSleepSeconds = int(i)
 		if err != nil {
 			return errors.Wrapf(err, "Error Parsing %s", VppStartupSleepEnvVar)
 		}
 	}
 
-	params.mainInterface = os.Getenv(InterfaceEnvVar)
-	if params.mainInterface == "" {
+	params.MainInterface = os.Getenv(InterfaceEnvVar)
+	if params.MainInterface == "" {
 		return errors.Errorf("No interface specified. Specify an interface through the %s environment variable", InterfaceEnvVar)
 	}
 
-	params.configExecTemplate = os.Getenv(ConfigExecTemplateEnvVar)
-	params.initScriptTemplate = os.Getenv(InitScriptTemplateEnvVar)
+	params.ConfigExecTemplate = os.Getenv(ConfigExecTemplateEnvVar)
+	params.InitScriptTemplate = os.Getenv(InitScriptTemplateEnvVar)
 
-	params.configTemplate = os.Getenv(ConfigTemplateEnvVar)
-	if params.configTemplate == "" {
+	params.ConfigTemplate = os.Getenv(ConfigTemplateEnvVar)
+	if params.ConfigTemplate == "" {
 		return fmt.Errorf("empty VPP configuration template, set a template in the %s environment variable", ConfigTemplateEnvVar)
 	}
 
-	params.ifConfigSavePath = os.Getenv(IfConfigPathEnvVar)
+	params.IfConfigSavePath = os.Getenv(IfConfigPathEnvVar)
 
-	params.nodeName = os.Getenv(NodeNameEnvVar)
-	if params.nodeName == "" {
+	params.NodeName = os.Getenv(NodeNameEnvVar)
+	if params.NodeName == "" {
 		return errors.Errorf("No node name specified. Specify the NODENAME environment variable")
 	}
 
@@ -167,29 +169,29 @@ func parseEnvVariables(params *VppManagerParams) (err error) {
 		if err != nil {
 			return errors.Errorf("invalid service prefix configuration: %s %s", prefixStr, err)
 		}
-		params.serviceCIDRs = append(params.serviceCIDRs, *serviceCIDR)
+		params.ServiceCIDRs = append(params.ServiceCIDRs, *serviceCIDR)
 	}
 
-	params.vppIpConfSource = os.Getenv(IpConfigEnvVar)
-	if params.vppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
+	params.VppIpConfSource = os.Getenv(IpConfigEnvVar)
+	if params.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
 		return errors.Errorf("No ip configuration source specified. Specify one of {linux,} through the %s environment variable", IpConfigEnvVar)
 	}
 
-	params.corePattern = os.Getenv(CorePatternEnvVar)
+	params.CorePattern = os.Getenv(CorePatternEnvVar)
 
-	params.extraAddrCount = 0
+	params.ExtraAddrCount = 0
 	if extraAddrConf := os.Getenv(ExtraAddrCountEnvVar); extraAddrConf != "" {
 		extraAddrCount, err := strconv.ParseInt(extraAddrConf, 10, 8)
 		if err != nil {
 			log.Errorf("Couldn't parse %s: %v", ExtraAddrCountEnvVar, err)
 		} else {
-			params.extraAddrCount = int(extraAddrCount)
+			params.ExtraAddrCount = int(extraAddrCount)
 		}
 	}
 
-	params.nativeDriver = NATIVE_DRIVER_NONE
+	params.NativeDriver = uplink.NATIVE_DRIVER_NONE
 	if conf := os.Getenv(NativeDriverEnvVar); conf != "" {
-		params.nativeDriver = conf
+		params.NativeDriver = conf
 	}
 
 	if conf := os.Getenv(NumRxQueuesEnvVar); conf != "" {
@@ -200,15 +202,15 @@ func parseEnvVariables(params *VppManagerParams) (err error) {
 		params.NumRxQueues = int(queues)
 	}
 
-	params.newDriverName = os.Getenv(SwapDriverEnvVar)
+	params.NewDriverName = os.Getenv(SwapDriverEnvVar)
 
-	params.rxMode = types.UnformatRxMode(os.Getenv(RxModeEnvVar))
-	if params.rxMode == types.UnknownRxMode {
-		params.rxMode = defaultRxMode
+	params.RxMode = types.UnformatRxMode(os.Getenv(RxModeEnvVar))
+	if params.RxMode == types.UnknownRxMode {
+		params.RxMode = defaultRxMode
 	}
-	params.tapRxMode = types.UnformatRxMode(os.Getenv(TapRxModeEnvVar))
-	if params.tapRxMode == types.UnknownRxMode {
-		params.tapRxMode = defaultRxMode
+	params.TapRxMode = types.UnformatRxMode(os.Getenv(TapRxModeEnvVar))
+	if params.TapRxMode == types.UnknownRxMode {
+		params.TapRxMode = defaultRxMode
 	}
 
 	if conf := os.Getenv(DefaultGWEnvVar); conf != "" {
@@ -217,7 +219,7 @@ func parseEnvVariables(params *VppManagerParams) (err error) {
 			if defaultGW == nil {
 				return errors.Errorf("Unable to parse IP: %s", conf)
 			}
-			params.defaultGWs = append(params.defaultGWs, defaultGW)
+			params.DefaultGWs = append(params.DefaultGWs, defaultGW)
 		}
 	}
 	params.TapRxQueueSize, params.TapTxQueueSize, err = parseRingSize(TapRingSizeEnvVar)
@@ -261,12 +263,12 @@ func parseRingSize(envVar string) (int, int, error) {
 	return rxSize, txSize, nil
 }
 
-func PrintVppManagerConfig(params *VppManagerParams, conf *interfaceConfig) {
-	log.Infof("CorePattern:         %s", params.corePattern)
-	log.Infof("ExtraAddrCount:      %d", params.extraAddrCount)
-	log.Infof("Native driver:       %s", params.nativeDriver)
-	log.Infof("RxMode:              %s", types.FormatRxMode(params.rxMode))
-	log.Infof("TapRxMode:           %s", types.FormatRxMode(params.tapRxMode))
+func PrintVppManagerConfig(params *VppManagerParams, conf *InterfaceConfig) {
+	log.Infof("CorePattern:         %s", params.CorePattern)
+	log.Infof("ExtraAddrCount:      %d", params.ExtraAddrCount)
+	log.Infof("Native driver:       %s", params.NativeDriver)
+	log.Infof("RxMode:              %s", types.FormatRxMode(params.RxMode))
+	log.Infof("TapRxMode:           %s", types.FormatRxMode(params.TapRxMode))
 	log.Infof("Node IP4:            %s", conf.NodeIP4)
 	log.Infof("Node IP6:            %s", conf.NodeIP6)
 	log.Infof("PciId:               %s", conf.PciId)
@@ -277,42 +279,42 @@ func PrintVppManagerConfig(params *VppManagerParams, conf *interfaceConfig) {
 	log.Infof("Mac:                 %s", conf.HardwareAddr.String())
 	log.Infof("Addresses:           [%s]", conf.AddressString())
 	log.Infof("Routes:              [%s]", conf.RouteString())
-	log.Infof("Service CIDRs:       [%s]", FormatIPNetSlice(params.serviceCIDRs))
+	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
 	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
 	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
 	log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
 	log.Infof("PHY target #Queues   rx:%d", params.NumRxQueues)
-	if !params.areDriverLoaded {
+	if !params.AreDriverLoaded {
 		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
 		log.Warnf("VPP may fail to grab its interface")
 	}
 }
 
 func runInitScript(params *VppManagerParams) error {
-	if params.initScriptTemplate == "" {
+	if params.InitScriptTemplate == "" {
 		return nil
 	}
 	// Trivial rendering for the moment...
-	template := strings.ReplaceAll(params.initScriptTemplate, "__VPP_DATAPLANE_IF__", params.mainInterface)
+	template := strings.ReplaceAll(params.InitScriptTemplate, "__VPP_DATAPLANE_IF__", params.MainInterface)
 	cmd := exec.Command("/bin/bash", "-c", template)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func PrepareConfiguration() (params *VppManagerParams, conf *interfaceConfig) {
+func PrepareConfiguration() (params *VppManagerParams, conf *InterfaceConfig) {
 	params = getVppManagerParams()
-	err := clearVppManagerFiles()
+	err := utils.ClearVppManagerFiles()
 	if err != nil {
 		log.Fatalf("Error clearing config files: %+v", err)
 	}
 
-	err = setCorePattern(params.corePattern)
+	err = utils.SetCorePattern(params.CorePattern)
 	if err != nil {
 		log.Fatalf("Error setting core pattern: %s", err)
 	}
 
-	err = setRLimitMemLock()
+	err = utils.SetRLimitMemLock()
 	if err != nil {
 		log.Errorf("Error raising memlock limit, VPP may fail to start: %v", err)
 	}

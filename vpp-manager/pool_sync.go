@@ -25,6 +25,7 @@ import (
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -36,9 +37,9 @@ func getNetworkRoute(network string) (route *netlink.Route, err error) {
 		return nil, errors.Wrapf(err, "error parsing %s", network)
 	}
 
-	link, err := netlink.LinkByName(HostIfName)
+	link, err := netlink.LinkByName(config.HostIfName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot find interface named %s", HostIfName)
+		return nil, errors.Wrapf(err, "cannot find interface named %s", config.HostIfName)
 	}
 
 	return &netlink.Route{

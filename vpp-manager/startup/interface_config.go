@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package startup
 
 import (
 	"encoding/gob"
@@ -24,13 +24,14 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/yookoala/realpath"
 )
 
-type interfaceConfig struct {
+type InterfaceConfig struct {
 	PciId        string
 	Driver       string
 	IsUp         bool
@@ -47,7 +48,7 @@ type interfaceConfig struct {
 	NodeIP6      string
 }
 
-func (c *interfaceConfig) AddressString() string {
+func (c *InterfaceConfig) AddressString() string {
 	var str []string
 	for _, addr := range c.Addresses {
 		str = append(str, addr.String())
@@ -55,7 +56,7 @@ func (c *interfaceConfig) AddressString() string {
 	return strings.Join(str, ",")
 }
 
-func (c *interfaceConfig) RouteString() string {
+func (c *InterfaceConfig) RouteString() string {
 	var str []string
 	for _, route := range c.Routes {
 		if route.Dst == nil {
@@ -67,7 +68,7 @@ func (c *interfaceConfig) RouteString() string {
 	return strings.Join(str, ",")
 }
 
-func getInterfaceConfig(params *VppManagerParams) (conf *interfaceConfig, err error) {
+func getInterfaceConfig(params *VppManagerParams) (conf *InterfaceConfig, err error) {
 	conf, err = loadInterfaceConfigFromLinux(params)
 	if err == nil {
 		err = saveConfig(params, conf)
@@ -90,26 +91,26 @@ func getInterfaceConfig(params *VppManagerParams) (conf *interfaceConfig, err er
 	return conf, nil
 }
 
-func loadInterfaceConfigFromLinux(params *VppManagerParams) (*interfaceConfig, error) {
-	conf := interfaceConfig{}
-	link, err := netlink.LinkByName(params.mainInterface)
+func loadInterfaceConfigFromLinux(params *VppManagerParams) (*InterfaceConfig, error) {
+	conf := InterfaceConfig{}
+	link, err := netlink.LinkByName(params.MainInterface)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot find interface named %s", params.mainInterface)
+		return nil, errors.Wrapf(err, "cannot find interface named %s", params.MainInterface)
 	}
 	conf.IsUp = (link.Attrs().Flags & net.FlagUp) != 0
 	if conf.IsUp {
 		// Grab addresses and routes
 		conf.Addresses, err = netlink.AddrList(link, netlink.FAMILY_ALL)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list %s addresses", params.mainInterface)
+			return nil, errors.Wrapf(err, "cannot list %s addresses", params.MainInterface)
 		}
 		conf.Routes, err = netlink.RouteList(link, netlink.FAMILY_ALL)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list %s routes", params.mainInterface)
+			return nil, errors.Wrapf(err, "cannot list %s routes", params.MainInterface)
 		}
 		for i, route := range conf.Routes {
 			if route.Dst == nil {
-				if routeIsIP6(&route) {
+				if utils.RouteIsIP6(&route) {
 					conf.Routes[i].Dst = &net.IPNet{
 						IP:   net.IPv6zero,
 						Mask: net.CIDRMask(0, 128),
@@ -134,10 +135,10 @@ func loadInterfaceConfigFromLinux(params *VppManagerParams) (*interfaceConfig, e
 
 	// We allow PCI not to be found e.g for AF_PACKET
 	// Grab PCI id - last PCI id in the real path to /sys/class/net/<device name>
-	deviceLinkPath := fmt.Sprintf("/sys/class/net/%s/device", params.mainInterface)
+	deviceLinkPath := fmt.Sprintf("/sys/class/net/%s/device", params.MainInterface)
 	devicePath, err := realpath.Realpath(deviceLinkPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot resolve pci device path for %s", params.mainInterface)
+		return nil, errors.Wrapf(err, "cannot resolve pci device path for %s", params.MainInterface)
 	}
 	pciID := regexp.MustCompile("[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}.[0-9a-f]")
 	conf.DoSwapDriver = false
@@ -146,7 +147,7 @@ func loadInterfaceConfigFromLinux(params *VppManagerParams) (*interfaceConfig, e
 	conf.NumRxQueues = link.Attrs().NumRxQueues
 	matches := pciID.FindAllString(devicePath, -1)
 	if matches == nil {
-		log.Warnf("Could not find pci device for %s: path is %s", params.mainInterface, devicePath)
+		log.Warnf("Could not find pci device for %s: path is %s", params.MainInterface, devicePath)
 	} else {
 		conf.PciId = matches[len(matches)-1]
 		// Grab Driver id for the pci device
@@ -156,14 +157,14 @@ func loadInterfaceConfigFromLinux(params *VppManagerParams) (*interfaceConfig, e
 			return nil, errors.Wrapf(err, "cannot find driver for %s", conf.PciId)
 		}
 		conf.Driver = driverPath[strings.LastIndex(driverPath, "/")+1:]
-		if params.newDriverName != "" && params.newDriverName != conf.Driver {
+		if params.NewDriverName != "" && params.NewDriverName != conf.Driver {
 			conf.DoSwapDriver = true
 		}
 	}
 	return &conf, nil
 }
 
-func getNodeAddress(conf *interfaceConfig, isV6 bool) string {
+func getNodeAddress(conf *InterfaceConfig, isV6 bool) string {
 	for _, addr := range conf.Addresses {
 		if vpplink.IsIP6(addr.IP) == isV6 {
 			if !isV6 || !addr.IP.IsLinkLocalUnicast() {
@@ -175,20 +176,20 @@ func getNodeAddress(conf *interfaceConfig, isV6 bool) string {
 }
 
 func clearSavedConfig(params *VppManagerParams) {
-	if params.ifConfigSavePath == "" {
+	if params.IfConfigSavePath == "" {
 		return
 	}
-	err := os.Remove(params.ifConfigSavePath)
+	err := os.Remove(params.IfConfigSavePath)
 	if err != nil {
 		log.Warnf("could not delete saved interface config: %v", err)
 	}
 }
 
-func saveConfig(params *VppManagerParams, conf *interfaceConfig) error {
-	if params.ifConfigSavePath == "" {
+func saveConfig(params *VppManagerParams, conf *InterfaceConfig) error {
+	if params.IfConfigSavePath == "" {
 		return nil
 	}
-	file, err := os.Create(params.ifConfigSavePath)
+	file, err := os.Create(params.IfConfigSavePath)
 	if err != nil {
 		return errors.Wrap(err, "error opening save file")
 	}
@@ -206,12 +207,12 @@ func saveConfig(params *VppManagerParams, conf *interfaceConfig) error {
 	return nil
 }
 
-func loadInterfaceConfigFromFile(params *VppManagerParams) (*interfaceConfig, error) {
-	conf := interfaceConfig{}
-	if params.ifConfigSavePath == "" {
+func loadInterfaceConfigFromFile(params *VppManagerParams) (*InterfaceConfig, error) {
+	conf := InterfaceConfig{}
+	if params.IfConfigSavePath == "" {
 		return nil, fmt.Errorf("interface config save file not configured")
 	}
-	file, err := os.Open(params.ifConfigSavePath)
+	file, err := os.Open(params.IfConfigSavePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "error opening save file")
 	}

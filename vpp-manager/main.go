@@ -26,28 +26,9 @@ import (
 
 	"time"
 
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	log "github.com/sirupsen/logrus"
-)
-
-const (
-	DataInterfaceSwIfIndex = uint32(1) // Assumption: the VPP config ensures this is true
-	VppConfigFile          = "/etc/vpp/startup.conf"
-	VppConfigExecFile      = "/etc/vpp/startup.exec"
-	VppManagerStatusFile   = "/var/run/vpp/vppmanagerstatus"
-	VppManagerTapIdxFile   = "/var/run/vpp/vppmanagertap0"
-	VppApiSocket           = "/var/run/vpp/vpp-api.sock"
-	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
-	VppPath                = "/usr/bin/vpp"
-	HostIfName             = "vpptap0"
-	HostIfTag              = "hosttap"
-	VppSigKillTimeout      = 2
-)
-
-const (
-	NATIVE_DRIVER_NONE      = "none"
-	NATIVE_DRIVER_AF_PACKET = "af_packet"
-	NATIVE_DRIVER_AF_XDP    = "af_xdp"
-	NATIVE_DRIVER_VIRTIO    = "virtio"
 )
 
 var (
@@ -60,7 +41,7 @@ var (
 )
 
 func timeOutSigKill() {
-	time.Sleep(VppSigKillTimeout * time.Second)
+	time.Sleep(config.VppSigKillTimeout * time.Second)
 	log.Infof("Timeout : SIGKILL vpp")
 	signals <- syscall.SIGKILL
 }
@@ -118,12 +99,12 @@ func main() {
 	vppDeadChan = make(chan bool, 1)
 	vppAlive = false
 
-	params, conf := PrepareConfiguration()
+	params, conf := startup.PrepareConfiguration()
 
 	runningCond = sync.NewCond(&sync.Mutex{})
 	go handleSignals()
 
-	PrintVppManagerConfig(params, conf)
+	startup.PrintVppManagerConfig(params, conf)
 
 	runner := NewVPPRunner(params, conf)
 	runner.Run()

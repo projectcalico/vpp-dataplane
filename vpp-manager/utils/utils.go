@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package utils
 
 import (
 	"fmt"
@@ -28,12 +28,13 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
-func isDriverLoaded(driver string) (bool, error) {
+func IsDriverLoaded(driver string) (bool, error) {
 	_, err := os.Stat("/sys/bus/pci/drivers/" + driver)
 	if err == nil {
 		return true, nil
@@ -44,7 +45,7 @@ func isDriverLoaded(driver string) (bool, error) {
 	return false, err
 }
 
-func getMaxCIDRLen(isv6 bool) int {
+func GetMaxCIDRLen(isv6 bool) int {
 	if isv6 {
 		return 128
 	} else {
@@ -52,12 +53,12 @@ func getMaxCIDRLen(isv6 bool) int {
 	}
 }
 
-func getMaxCIDRMask(addr net.IP) net.IPMask {
-	maxCIDRLen := getMaxCIDRLen(vpplink.IsIP6(addr))
+func GetMaxCIDRMask(addr net.IP) net.IPMask {
+	maxCIDRLen := GetMaxCIDRLen(vpplink.IsIP6(addr))
 	return net.CIDRMask(maxCIDRLen, maxCIDRLen)
 }
 
-func writeFile(state string, path string) error {
+func WriteFile(state string, path string) error {
 	err := ioutil.WriteFile(path, []byte(state+"\n"), 0400)
 	if err != nil {
 		return errors.Errorf("Failed to write state to %s", path)
@@ -65,7 +66,7 @@ func writeFile(state string, path string) error {
 	return nil
 }
 
-func routeIsIP6(r *netlink.Route) bool {
+func RouteIsIP6(r *netlink.Route) bool {
 	if r.Dst != nil {
 		return vpplink.IsIP6(r.Dst.IP)
 	}
@@ -78,7 +79,7 @@ func routeIsIP6(r *netlink.Route) bool {
 	return false
 }
 
-func routeIsLinkLocalUnicast(r *netlink.Route) bool {
+func RouteIsLinkLocalUnicast(r *netlink.Route) bool {
 	if r.Dst == nil {
 		return false
 	}
@@ -88,7 +89,7 @@ func routeIsLinkLocalUnicast(r *netlink.Route) bool {
 	return r.Dst.IP.IsLinkLocalUnicast()
 }
 
-func setInterfaceRxQueues(ifname string, queues int) error {
+func SetInterfaceRxQueues(ifname string, queues int) error {
 	/* TODO: use go library */
 	cmd := exec.Command("ethtool", "-L", ifname, "combined", fmt.Sprintf("%d", queues))
 	cmd.Stdout = os.Stdout
@@ -96,7 +97,7 @@ func setInterfaceRxQueues(ifname string, queues int) error {
 	return cmd.Run()
 }
 
-func swapDriver(pciDevice, newDriver string, addId bool) error {
+func SwapDriver(pciDevice, newDriver string, addId bool) error {
 	deviceRoot := fmt.Sprintf("/sys/bus/pci/devices/%s", pciDevice)
 	driverRoot := fmt.Sprintf("/sys/bus/pci/drivers/%s", newDriver)
 	if addId {
@@ -134,18 +135,18 @@ func FormatIPNetSlice(lst []net.IPNet) string {
 	return strings.Join(strLst, ", ")
 }
 
-func setCorePattern(corePattern string) error {
+func SetCorePattern(corePattern string) error {
 	if corePattern == "" {
 		return nil
 	}
-	err := writeFile(corePattern, "/proc/sys/kernel/core_pattern")
+	err := WriteFile(corePattern, "/proc/sys/kernel/core_pattern")
 	if err != nil {
 		return errors.Wrap(err, "Error writing corePattern")
 	}
 	return nil
 }
 
-func setRLimitMemLock() error {
+func SetRLimitMemLock() error {
 	err := syscall.Setrlimit(8, &syscall.Rlimit{
 		Cur: ^uint64(0),
 		Max: ^uint64(0),
@@ -156,10 +157,10 @@ func setRLimitMemLock() error {
 	return nil
 }
 
-func createVppLink() (vpp *vpplink.VppLink, err error) {
+func CreateVppLink() (vpp *vpplink.VppLink, err error) {
 	// Get an API connection, with a few retries to accomodate VPP startup time
 	for i := 0; i < 10; i++ {
-		vpp, err = vpplink.NewVppLink(VppApiSocket, log.WithFields(log.Fields{"component": "vpp-api"}))
+		vpp, err = vpplink.NewVppLink(config.VppApiSocket, log.WithFields(log.Fields{"component": "vpp-api"}))
 		if err != nil {
 			log.Warnf("Try [%d/10] %v", i, err)
 			err = nil
@@ -171,12 +172,12 @@ func createVppLink() (vpp *vpplink.VppLink, err error) {
 	return nil, errors.Errorf("Cannot connect to VPP after 10 tries")
 }
 
-func clearVppManagerFiles() error {
-	err := writeFile("0", VppManagerStatusFile)
+func ClearVppManagerFiles() error {
+	err := WriteFile("0", config.VppManagerStatusFile)
 	if err != nil {
 		return err
 	}
-	return writeFile("-1", VppManagerTapIdxFile)
+	return WriteFile("-1", config.VppManagerTapIdxFile)
 }
 
 type KernelVersion struct {
