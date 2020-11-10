@@ -253,3 +253,39 @@ func GetOsKernelVersion() (ver *KernelVersion, err error) {
 	ver, err = ParseKernelVersion(string(versionStr))
 	return ver, err
 }
+
+func SafeSetInterfaceDownByName(interfaceName string) error {
+	link, err := netlink.LinkByName(interfaceName)
+	if err != nil {
+		return errors.Wrapf(err, "Error finding link %s", interfaceName)
+	}
+	err = netlink.LinkSetDown(link)
+	if err != nil {
+		// In case it still succeeded
+		netlink.LinkSetUp(link)
+		return errors.Wrapf(err, "Error setting link %s down", interfaceName)
+	}
+	return nil
+}
+
+func SafeSetInterfaceUpByName(interfaceName string) (link netlink.Link, err error) {
+	retries := 0
+	for {
+		link, err = netlink.LinkByName(interfaceName)
+		if err != nil {
+			retries += 1
+			if retries >= 10 {
+				return nil, errors.Wrapf(err, "Error finding link %s after %d tries", interfaceName, retries)
+			}
+			time.Sleep(500 * time.Millisecond)
+		} else {
+			log.Infof("found links %s after %d tries", interfaceName, retries)
+			break
+		}
+	}
+	err = netlink.LinkSetUp(link)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error setting link %s back up", interfaceName)
+	}
+	return link, nil
+}

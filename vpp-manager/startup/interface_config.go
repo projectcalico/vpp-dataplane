@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
@@ -31,44 +32,7 @@ import (
 	"github.com/yookoala/realpath"
 )
 
-type InterfaceConfig struct {
-	PciId        string
-	Driver       string
-	IsUp         bool
-	Addresses    []netlink.Addr
-	Routes       []netlink.Route
-	HardwareAddr net.HardwareAddr
-	PromiscOn    bool
-	NumTxQueues  int
-	NumRxQueues  int
-	DoSwapDriver bool
-	Hasv4        bool
-	Hasv6        bool
-	NodeIP4      string
-	NodeIP6      string
-}
-
-func (c *InterfaceConfig) AddressString() string {
-	var str []string
-	for _, addr := range c.Addresses {
-		str = append(str, addr.String())
-	}
-	return strings.Join(str, ",")
-}
-
-func (c *InterfaceConfig) RouteString() string {
-	var str []string
-	for _, route := range c.Routes {
-		if route.Dst == nil {
-			str = append(str, "<nil Dst>")
-		} else {
-			str = append(str, route.String())
-		}
-	}
-	return strings.Join(str, ",")
-}
-
-func getInterfaceConfig(params *VppManagerParams) (conf *InterfaceConfig, err error) {
+func getInterfaceConfig(params *config.VppManagerParams) (conf *config.InterfaceConfig, err error) {
 	conf, err = loadInterfaceConfigFromLinux(params)
 	if err == nil {
 		err = saveConfig(params, conf)
@@ -91,8 +55,8 @@ func getInterfaceConfig(params *VppManagerParams) (conf *InterfaceConfig, err er
 	return conf, nil
 }
 
-func loadInterfaceConfigFromLinux(params *VppManagerParams) (*InterfaceConfig, error) {
-	conf := InterfaceConfig{}
+func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.InterfaceConfig, error) {
+	conf := config.InterfaceConfig{}
 	link, err := netlink.LinkByName(params.MainInterface)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot find interface named %s", params.MainInterface)
@@ -164,7 +128,7 @@ func loadInterfaceConfigFromLinux(params *VppManagerParams) (*InterfaceConfig, e
 	return &conf, nil
 }
 
-func getNodeAddress(conf *InterfaceConfig, isV6 bool) string {
+func getNodeAddress(conf *config.InterfaceConfig, isV6 bool) string {
 	for _, addr := range conf.Addresses {
 		if vpplink.IsIP6(addr.IP) == isV6 {
 			if !isV6 || !addr.IP.IsLinkLocalUnicast() {
@@ -175,7 +139,7 @@ func getNodeAddress(conf *InterfaceConfig, isV6 bool) string {
 	return ""
 }
 
-func clearSavedConfig(params *VppManagerParams) {
+func clearSavedConfig(params *config.VppManagerParams) {
 	if params.IfConfigSavePath == "" {
 		return
 	}
@@ -185,7 +149,7 @@ func clearSavedConfig(params *VppManagerParams) {
 	}
 }
 
-func saveConfig(params *VppManagerParams, conf *InterfaceConfig) error {
+func saveConfig(params *config.VppManagerParams, conf *config.InterfaceConfig) error {
 	if params.IfConfigSavePath == "" {
 		return nil
 	}
@@ -207,8 +171,8 @@ func saveConfig(params *VppManagerParams, conf *InterfaceConfig) error {
 	return nil
 }
 
-func loadInterfaceConfigFromFile(params *VppManagerParams) (*InterfaceConfig, error) {
-	conf := InterfaceConfig{}
+func loadInterfaceConfigFromFile(params *config.VppManagerParams) (*config.InterfaceConfig, error) {
+	conf := config.InterfaceConfig{}
 	if params.IfConfigSavePath == "" {
 		return nil, fmt.Errorf("interface config save file not configured")
 	}

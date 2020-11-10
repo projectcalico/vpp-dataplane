@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -54,38 +55,8 @@ const (
 	minAfXDPKernelVersion    = "5.4.0-0"
 )
 
-type VppManagerParams struct {
-	VppStartupSleepSeconds  int
-	MainInterface           string
-	ConfigExecTemplate      string
-	ConfigTemplate          string
-	InitScriptTemplate      string
-	NodeName                string
-	CorePattern             string
-	RxMode                  types.RxMode
-	TapRxMode               types.RxMode
-	ServiceCIDRs            []net.IPNet
-	VppIpConfSource         string
-	ExtraAddrCount          int
-	VppSideMacAddress       net.HardwareAddr
-	ContainerSideMacAddress net.HardwareAddr
-	NativeDriver            string
-	TapRxQueueSize          int
-	TapTxQueueSize          int
-	RxQueueSize             int
-	TxQueueSize             int
-	NumRxQueues             int
-	NewDriverName           string
-	DefaultGWs              []net.IP
-	IfConfigSavePath        string
-	/* Capabilities */
-	AreDriverLoaded     bool
-	KernelSupportsAfXDP bool
-	AvailableHugePages  int
-}
-
-func getVppManagerParams() (params *VppManagerParams) {
-	params = &VppManagerParams{}
+func getVppManagerParams() (params *config.VppManagerParams) {
+	params = &config.VppManagerParams{}
 	err := parseEnvVariables(params)
 	if err != nil {
 		log.Panicf("Parse error %v", err)
@@ -94,7 +65,7 @@ func getVppManagerParams() (params *VppManagerParams) {
 	return params
 }
 
-func getSystemCapabilities(params *VppManagerParams) {
+func getSystemCapabilities(params *config.VppManagerParams) {
 	/* Drivers */
 	vfioLoaded, err := utils.IsDriverLoaded("vfio-pci")
 	if err != nil {
@@ -131,7 +102,7 @@ func getSystemCapabilities(params *VppManagerParams) {
 	params.AvailableHugePages = nrHugepages
 }
 
-func parseEnvVariables(params *VppManagerParams) (err error) {
+func parseEnvVariables(params *config.VppManagerParams) (err error) {
 	vppStartupSleep := os.Getenv(VppStartupSleepEnvVar)
 	if vppStartupSleep == "" {
 		params.VppStartupSleepSeconds = 0
@@ -263,7 +234,7 @@ func parseRingSize(envVar string) (int, int, error) {
 	return rxSize, txSize, nil
 }
 
-func PrintVppManagerConfig(params *VppManagerParams, conf *InterfaceConfig) {
+func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.InterfaceConfig) {
 	log.Infof("CorePattern:         %s", params.CorePattern)
 	log.Infof("ExtraAddrCount:      %d", params.ExtraAddrCount)
 	log.Infof("Native driver:       %s", params.NativeDriver)
@@ -290,7 +261,7 @@ func PrintVppManagerConfig(params *VppManagerParams, conf *InterfaceConfig) {
 	}
 }
 
-func runInitScript(params *VppManagerParams) error {
+func runInitScript(params *config.VppManagerParams) error {
 	if params.InitScriptTemplate == "" {
 		return nil
 	}
@@ -302,7 +273,7 @@ func runInitScript(params *VppManagerParams) error {
 	return cmd.Run()
 }
 
-func PrepareConfiguration() (params *VppManagerParams, conf *InterfaceConfig) {
+func PrepareConfiguration() (params *config.VppManagerParams, conf *config.InterfaceConfig) {
 	params = getVppManagerParams()
 	err := utils.ClearVppManagerFiles()
 	if err != nil {
