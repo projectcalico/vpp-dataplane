@@ -52,7 +52,6 @@ const (
 	DefaultGWEnvVar          = "CALICOVPP_DEFAULT_GW"
 	ServicePrefixEnvVar      = "SERVICE_PREFIX"
 	defaultRxMode            = types.Adaptative
-	minAfXDPKernelVersion    = "5.4.0-0"
 )
 
 func getVppManagerParams() (params *config.VppManagerParams) {
@@ -67,31 +66,24 @@ func getVppManagerParams() (params *config.VppManagerParams) {
 
 func getSystemCapabilities(params *config.VppManagerParams) {
 	/* Drivers */
-	vfioLoaded, err := utils.IsDriverLoaded("vfio-pci")
+	params.LoadedDrivers = make(map[string]bool)
+	vfioLoaded, err := utils.IsDriverLoaded(config.DRIVER_VFIO_PCI)
 	if err != nil {
-		log.Warnf("Error determining whether vfio-pci is loaded")
+		log.Warnf("Error determining whether %s is loaded", config.DRIVER_VFIO_PCI)
 	}
-	uioLoaded, err := utils.IsDriverLoaded("uio_pci_generic")
+	params.LoadedDrivers[config.DRIVER_VFIO_PCI] = vfioLoaded
+	uioLoaded, err := utils.IsDriverLoaded(config.DRIVER_UIO_PCI_GENERIC)
 	if err != nil {
-		log.Warnf("Error determining whether vfio-pci is loaded")
+		log.Warnf("Error determining whether %s is loaded", config.DRIVER_UIO_PCI_GENERIC)
 	}
-	if !vfioLoaded && !uioLoaded {
-		params.AreDriverLoaded = false
-	} else {
-		params.AreDriverLoaded = true
-	}
+	params.LoadedDrivers[config.DRIVER_UIO_PCI_GENERIC] = uioLoaded
 
 	/* AF XDP support */
 	kernel, err := utils.GetOsKernelVersion()
 	if err != nil {
 		log.Warnf("Error getting os kernel version %v", err)
-		params.KernelSupportsAfXDP = false
 	} else {
-		minVersion, err := utils.ParseKernelVersion(minAfXDPKernelVersion)
-		if err != nil {
-			log.Panicf("Error getting min kernel version %v", err)
-		}
-		params.KernelSupportsAfXDP = kernel.IsAtLeast(minVersion)
+		params.KernelVersion = kernel
 	}
 
 	/* Hugepages */
@@ -255,10 +247,6 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
 	log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
 	log.Infof("PHY target #Queues   rx:%d", params.NumRxQueues)
-	if !params.AreDriverLoaded {
-		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
-		log.Warnf("VPP may fail to grab its interface")
-	}
 }
 
 func runInitScript(params *config.VppManagerParams) error {

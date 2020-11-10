@@ -16,12 +16,25 @@
 package uplink
 
 import (
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 )
 
 type DefaultDriver struct {
 	*UplinkDriverData
+}
+
+func (d *DefaultDriver) IsSupported(warn bool) bool {
+	if d.params.LoadedDrivers[config.DRIVER_VFIO_PCI] || d.params.LoadedDrivers[config.DRIVER_VFIO_PCI] {
+		return true
+	}
+	if warn {
+		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
+		log.Warnf("VPP may fail to grab its interface")
+	}
+	return false
 }
 
 func (d *DefaultDriver) PreconfigureLinux() (err error) {
@@ -67,7 +80,15 @@ func (d *DefaultDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DefaultDriver) CreateMainVppInterface() error {
+func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink) error {
 	/* Nothing to do VPP autocreates */
 	return nil
+}
+
+func NewDefaultDriver(params *config.VppManagerParams, conf *config.InterfaceConfig) *DefaultDriver {
+	d := &DefaultDriver{}
+	d.name = NATIVE_DRIVER_NONE
+	d.conf = conf
+	d.params = params
+	return d
 }

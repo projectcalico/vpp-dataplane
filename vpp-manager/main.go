@@ -28,16 +28,17 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	runningCond *sync.Cond
-	vppCmd      *exec.Cmd
-	vppProcess  *os.Process
-	vppDeadChan chan bool
-	vppAlive    bool
-	signals     chan os.Signal
+	runningCond  *sync.Cond
+	vppCmd       *exec.Cmd
+	vppProcess   *os.Process
+	vppDeadChan  chan bool
+	signals      chan os.Signal
+	externalKill bool
 )
 
 func timeOutSigKill() {
@@ -88,6 +89,7 @@ func handleSignals() {
 			vppProcess.Signal(s)
 			log.Infof("Signaled vpp (PID %d) %+v", vppProcess.Pid, s)
 			if s == syscall.SIGINT || s == syscall.SIGQUIT || s == syscall.SIGSTOP {
+				externalKill = true
 				go timeOutSigKill()
 			}
 		}
@@ -97,7 +99,6 @@ func handleSignals() {
 
 func main() {
 	vppDeadChan = make(chan bool, 1)
-	vppAlive = false
 
 	params, conf := startup.PrepareConfiguration()
 
@@ -107,7 +108,17 @@ func main() {
 	startup.PrintVppManagerConfig(params, conf)
 
 	runner := NewVPPRunner(params, conf)
-	runner.Run()
 
-	return
+	if params.NativeDriver == "" {
+		for _, driver := range uplink.SupportedUplinkDrivers(params, conf) {
+			runner.Run(driver)
+			if externalKill {
+				/* Don't restart VPP if we were asked to terminate */
+				break
+			}
+		}
+	} else {
+		driver := uplink.NewUplinkDriver(params.NativeDriver, params, conf)
+		runner.Run(driver)
+	}
 }

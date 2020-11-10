@@ -54,7 +54,10 @@ func NewVPPRunner(params *config.VppManagerParams, conf *config.InterfaceConfig)
 	}
 }
 
-func (v *VppRunner) Run() {
+func (v *VppRunner) Run(driver uplink.UplinkDriver) {
+	v.uplinkDriver = driver
+	log.Infof("Running with uplink %s", driver.GetName)
+
 	err := v.generateVppConfigExecFile()
 	if err != nil {
 		log.Fatalf("Error generating VPP config Exec: %s", err)
@@ -450,7 +453,7 @@ func (v *VppRunner) runVpp() (err error) {
 		return fmt.Errorf("cannot connect to VPP after 10 tries")
 	}
 
-	err = v.vpp.Retry(2*time.Second, 10, v.uplinkDriver.CreateMainVppInterface)
+	err = v.vpp.Retry(2*time.Second, 10, v.uplinkDriver.CreateMainVppInterface, vpp)
 	if err != nil {
 		terminateVpp("Error creating af_packet (SIGINT %d): %v", vppProcess.Pid, err)
 		v.vpp.Close()

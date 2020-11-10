@@ -28,18 +28,25 @@ const (
 	NATIVE_DRIVER_AF_PACKET = "af_packet"
 	NATIVE_DRIVER_AF_XDP    = "af_xdp"
 	NATIVE_DRIVER_VIRTIO    = "virtio"
+	NATIVE_DRIVER_AVF       = "avf"
 )
 
 type UplinkDriverData struct {
 	conf   *config.InterfaceConfig
 	params *config.VppManagerParams
-	vpp    *vpplink.VppLink
+	name   string
 }
 
 type UplinkDriver interface {
 	PreconfigureLinux() error
-	CreateMainVppInterface() error
+	CreateMainVppInterface(vpp *vpplink.VppLink) error
 	RestoreLinux()
+	IsSupported(warn bool) bool
+	GetName() string
+}
+
+func (d *UplinkDriverData) GetName() string {
+	return d.name
 }
 
 func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
@@ -71,11 +78,35 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 
 }
 
-func NewUplinkDriver(params *config.VppManagerParams, conf *config.InterfaceConfig, vpp *vpplink.VppLink) UplinkDriver {
-	d := &AFXDPDriver{}
-	// TODO
-	d.conf = conf
-	d.params = params
-	d.vpp = vpp
+func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.InterfaceConfig) []UplinkDriver {
+	lst := make([]UplinkDriver, 0)
+	if d := NewDefaultDriver(params, conf); d.IsSupported(false /* warn */) {
+		lst = append(lst, d)
+	}
+	if d := NewAFXDPDriver(params, conf); d.IsSupported(false /* warn */) {
+		lst = append(lst, d)
+	}
+	if d := NewAFPacketDriver(params, conf); d.IsSupported(false /* warn */) {
+		lst = append(lst, d)
+	}
+	return lst
+}
+
+func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.InterfaceConfig) (d UplinkDriver) {
+	switch name {
+	case NATIVE_DRIVER_AF_PACKET:
+		d = NewAFPacketDriver(params, conf)
+	case NATIVE_DRIVER_AF_XDP:
+		d = NewAFXDPDriver(params, conf)
+	case NATIVE_DRIVER_VIRTIO:
+		d = NewVirtioDriver(params, conf)
+	case NATIVE_DRIVER_AVF:
+		d = NewAVFDriver(params, conf)
+	case NATIVE_DRIVER_NONE:
+		fallthrough
+	default:
+		d = NewDefaultDriver(params, conf)
+	}
+	d.IsSupported(true /* warn */)
 	return d
 }

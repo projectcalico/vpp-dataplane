@@ -180,29 +180,6 @@ func ClearVppManagerFiles() error {
 	return WriteFile("-1", config.VppManagerTapIdxFile)
 }
 
-type KernelVersion struct {
-	kernel int
-	major  int
-	minor  int
-	patch  int
-}
-
-func (ver *KernelVersion) IsAtLeast(other *KernelVersion) bool {
-	if ver.kernel < other.kernel {
-		return false
-	}
-	if ver.major < other.major {
-		return false
-	}
-	if ver.minor < other.minor {
-		return false
-	}
-	if ver.patch < other.patch {
-		return false
-	}
-	return true
-}
-
 func GetNrHugepages() (int, error) {
 	nrHugepagesStr, err := ioutil.ReadFile("/proc/sys/vm/nr_hugepages")
 	if err != nil {
@@ -215,7 +192,7 @@ func GetNrHugepages() (int, error) {
 	return int(nrHugepages), nil
 }
 
-func ParseKernelVersion(versionStr string) (ver *KernelVersion, err error) {
+func ParseKernelVersion(versionStr string) (ver *config.KernelVersion, err error) {
 	re := regexp.MustCompile(`([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)`)
 	match := re.FindStringSubmatch(versionStr)
 	if len(match) != 4 {
@@ -237,15 +214,15 @@ func ParseKernelVersion(versionStr string) (ver *KernelVersion, err error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "Couldnt parse patch version: %v", err)
 	}
-	return &KernelVersion{
-		kernel: int(kernel),
-		major:  int(major),
-		minor:  int(minor),
-		patch:  int(patch),
+	return &config.KernelVersion{
+		Kernel: int(kernel),
+		Major:  int(major),
+		Minor:  int(minor),
+		Patch:  int(patch),
 	}, nil
 }
 
-func GetOsKernelVersion() (ver *KernelVersion, err error) {
+func GetOsKernelVersion() (ver *config.KernelVersion, err error) {
 	versionStr, err := ioutil.ReadFile("/proc/sys/kernel/osrelease")
 	if err != nil {
 		return nil, errors.Wrapf(err, "Couldnt read /proc/sys/kernel/osrelease")

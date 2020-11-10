@@ -16,12 +16,25 @@
 package uplink
 
 import (
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 )
 
 type AVFDriver struct {
 	*UplinkDriverData
+}
+
+func (d *AVFDriver) IsSupported(warn bool) bool {
+	if d.params.LoadedDrivers[config.DRIVER_VFIO_PCI] || d.params.LoadedDrivers[config.DRIVER_VFIO_PCI] {
+		return true
+	}
+	if warn {
+		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
+		log.Warnf("VPP may fail to grab its interface")
+	}
+	return false
 }
 
 func (d *AVFDriver) PreconfigureLinux() (err error) {
@@ -67,7 +80,15 @@ func (d *AVFDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AVFDriver) CreateMainVppInterface() error {
+func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink) error {
 	// TODO
 	return nil
+}
+
+func NewAVFDriver(params *config.VppManagerParams, conf *config.InterfaceConfig) *AVFDriver {
+	d := &AVFDriver{}
+	d.name = NATIVE_DRIVER_AVF
+	d.conf = conf
+	d.params = params
+	return d
 }

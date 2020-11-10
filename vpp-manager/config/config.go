@@ -16,6 +16,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/vishvananda/netlink"
 	"net"
@@ -34,6 +35,11 @@ const (
 	HostIfName             = "vpptap0"
 	HostIfTag              = "hosttap"
 	VppSigKillTimeout      = 2
+)
+
+const (
+	DRIVER_UIO_PCI_GENERIC = "uio_pci_generic"
+	DRIVER_VFIO_PCI        = "vfio-pci"
 )
 
 type VppManagerParams struct {
@@ -61,9 +67,9 @@ type VppManagerParams struct {
 	DefaultGWs              []net.IP
 	IfConfigSavePath        string
 	/* Capabilities */
-	AreDriverLoaded     bool
-	KernelSupportsAfXDP bool
-	AvailableHugePages  int
+	LoadedDrivers      map[string]bool
+	KernelVersion      *KernelVersion
+	AvailableHugePages int
 }
 
 type InterfaceConfig struct {
@@ -81,6 +87,33 @@ type InterfaceConfig struct {
 	Hasv6        bool
 	NodeIP4      string
 	NodeIP6      string
+}
+
+type KernelVersion struct {
+	Kernel int
+	Major  int
+	Minor  int
+	Patch  int
+}
+
+func (ver *KernelVersion) String() string {
+	return fmt.Sprintf("%d.%d.%d-%d", ver.Kernel, ver.Major, ver.Minor, ver.Patch)
+}
+
+func (ver *KernelVersion) IsAtLeast(other *KernelVersion) bool {
+	if ver.Kernel < other.Kernel {
+		return false
+	}
+	if ver.Major < other.Major {
+		return false
+	}
+	if ver.Minor < other.Minor {
+		return false
+	}
+	if ver.Patch < other.Patch {
+		return false
+	}
+	return true
 }
 
 func (c *InterfaceConfig) AddressString() string {

@@ -20,13 +20,38 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
+const (
+	minAfXDPKernelVersion = "5.4.0-0"
+)
+
 type AFXDPDriver struct {
 	*UplinkDriverData
+}
+
+func (d *AFXDPDriver) IsSupported(warn bool) bool {
+	minVersion, err := utils.ParseKernelVersion(minAfXDPKernelVersion)
+	if err != nil {
+		log.Panicf("Error getting min kernel version %v", err)
+	}
+	if d.params.KernelVersion == nil {
+		if warn {
+			log.Warnf("Unkown current kernel version")
+		}
+		return false
+	}
+	if d.params.KernelVersion.IsAtLeast(minVersion) {
+		return true
+	}
+	if warn {
+		log.Warnf("Kernel %s doesn't support AF_XDP", d.params.KernelVersion)
+	}
+	return false
 }
 
 func (d *AFXDPDriver) PreconfigureLinux() error {
@@ -77,14 +102,14 @@ func (d *AFXDPDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AFXDPDriver) CreateMainVppInterface() (err error) {
+func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
 	intf := types.VppXDPInterface{
 		HostInterfaceName: d.params.MainInterface,
 		RxQueueSize:       d.params.RxQueueSize,
 		TxQueueSize:       d.params.TxQueueSize,
 		NumRxQueues:       d.params.NumRxQueues,
 	}
-	err = d.vpp.CreateAfXDP(&intf)
+	err = vpp.CreateAfXDP(&intf)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating AF_XDP interface")
 	}
@@ -94,4 +119,12 @@ func (d *AFXDPDriver) CreateMainVppInterface() (err error) {
 		return fmt.Errorf("Created AF_XDP interface has wrong swIfIndex %d!", intf.SwIfIndex)
 	}
 	return nil
+}
+
+func NewAFXDPDriver(params *config.VppManagerParams, conf *config.InterfaceConfig) *AFXDPDriver {
+	d := &AFXDPDriver{}
+	d.name = NATIVE_DRIVER_AF_XDP
+	d.conf = conf
+	d.params = params
+	return d
 }

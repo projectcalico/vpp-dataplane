@@ -20,11 +20,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 )
 
 type VirtioDriver struct {
 	*UplinkDriverData
+}
+
+func (d *VirtioDriver) IsSupported(warn bool) bool {
+	return true
 }
 
 func (d *VirtioDriver) PreconfigureLinux() (err error) {
@@ -70,8 +75,8 @@ func (d *VirtioDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *VirtioDriver) CreateMainVppInterface() (err error) {
-	swIfIndex, err := d.vpp.CreateVirtio(d.conf.PciId, &d.conf.HardwareAddr)
+func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+	swIfIndex, err := vpp.CreateVirtio(d.conf.PciId, &d.conf.HardwareAddr)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating VIRTIO interface")
 	}
@@ -81,4 +86,12 @@ func (d *VirtioDriver) CreateMainVppInterface() (err error) {
 		return fmt.Errorf("Created VIRTIO interface has wrong swIfIndex %d!", swIfIndex)
 	}
 	return nil
+}
+
+func NewVirtioDriver(params *config.VppManagerParams, conf *config.InterfaceConfig) *VirtioDriver {
+	d := &VirtioDriver{}
+	d.name = NATIVE_DRIVER_VIRTIO
+	d.conf = conf
+	d.params = params
+	return d
 }
