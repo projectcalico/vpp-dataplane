@@ -16,15 +16,15 @@
 package main
 
 import (
+	"flag"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	log "github.com/sirupsen/logrus"
-	"flag"
 )
 
 func main() {
 	var fname string
 	flag.StringVar(&fname, "f", "/var/run/vpp/calico_vpp_pod_state", "Pod state path")
-    flag.Parse()
+	flag.Parse()
 
 	st, err := storage.LoadCniServerState(fname)
 	if err != nil {

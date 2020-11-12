@@ -95,12 +95,12 @@ func (ps *LocalPodSpec) FullString() string {
 		routesLst = append(routesLst, e.String())
 	}
 	return fmt.Sprintf("InterfaceName: %s\nNetnsName: %s\nAllowIpForwarding:%t\nRoutes: %s\nContainerIps: %s\nOrchestratorID: %s\nWorkloadID: %s\nEndpointID: %s",
-	  ps.InterfaceName, ps.NetnsName, ps.AllowIpForwarding,
-	  strings.Join(routesLst, ", "),
-	  strings.Join(containerIpsLst, ", "),
-	  ps.OrchestratorID,
-	  ps.WorkloadID,
-	  ps.EndpointID,
+		ps.InterfaceName, ps.NetnsName, ps.AllowIpForwarding,
+		strings.Join(routesLst, ", "),
+		strings.Join(containerIpsLst, ", "),
+		ps.OrchestratorID,
+		ps.WorkloadID,
+		ps.EndpointID,
 	)
 }
 

@@ -19,11 +19,12 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 	"syscall"
 
+	"github.com/pkg/errors"
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
@@ -47,6 +48,7 @@ type Server struct {
 	podInterfaceMap map[string]storage.LocalPodSpec
 	/* without main thread */
 	NumVPPWorkers uint32
+	lock          sync.Mutex
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -110,6 +112,8 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 
 	s.log.Infof("Add request %s", podSpec.String())
 	s.BarrierSync()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	swIfIndex, err := s.AddVppInterface(podSpec, true /* doHostSideConf */)
 	if err != nil {
 		s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
@@ -179,6 +183,8 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 
 	s.log.Infof("Del request %s", podSpec.Key())
 	s.BarrierSync()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	err := s.DelVppInterface(podSpec)
 	if err != nil {
 		s.log.Warnf("Interface del failed %s : %v", podSpec.Key(), err)

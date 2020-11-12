@@ -24,9 +24,9 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/vishvananda/netlink"
@@ -225,7 +225,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	if tun.NumRxQueues > 1 {
 		for i := 0; i < tun.NumRxQueues; i++ {
-			worker := (swIfIndex * uint32(tun.NumRxQueues) + uint32(i)) % s.NumVPPWorkers
+			worker := (swIfIndex*uint32(tun.NumRxQueues) + uint32(i)) % s.NumVPPWorkers
 			err = s.vpp.SetInterfaceRxPlacement(uint32(swIfIndex), uint32(i), uint32(worker), false)
 			if err != nil {
 				s.log.Warnf("failed to set tun[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, i, worker, s.NumVPPWorkers, err)
