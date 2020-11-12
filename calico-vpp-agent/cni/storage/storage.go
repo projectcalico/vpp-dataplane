@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cni
+package storage
 
 import (
 	"bytes"
@@ -25,8 +25,11 @@ import (
 
 	"github.com/lunixbochs/struc"
 	"github.com/pkg/errors"
-	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+)
+
+const (
+	CniServerStateFileVersion = 1 // Used to ensure compatibility wen we reload data
 )
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -80,6 +83,27 @@ func (ps *LocalPodSpec) String() string {
 	return fmt.Sprintf("%s: %s", ps.Key(), strings.Join(strLst, ", "))
 }
 
+func (ps *LocalPodSpec) FullString() string {
+	containerIps := ps.ContainerIps
+	containerIpsLst := make([]string, 0, len(containerIps))
+	for _, e := range containerIps {
+		containerIpsLst = append(containerIpsLst, e.String())
+	}
+	routes := ps.Routes
+	routesLst := make([]string, 0, len(routes))
+	for _, e := range routes {
+		routesLst = append(routesLst, e.String())
+	}
+	return fmt.Sprintf("InterfaceName: %s\nNetnsName: %s\nAllowIpForwarding:%t\nRoutes: %s\nContainerIps: %s\nOrchestratorID: %s\nWorkloadID: %s\nEndpointID: %s",
+	  ps.InterfaceName, ps.NetnsName, ps.AllowIpForwarding,
+	  strings.Join(routesLst, ", "),
+	  strings.Join(containerIpsLst, ", "),
+	  ps.OrchestratorID,
+	  ps.WorkloadID,
+	  ps.EndpointID,
+	)
+}
+
 // XXX: Increment CniServerStateFileVersion when changing this struct
 type LocalPodSpec struct {
 	InterfaceNameSize int `struc:"int16,sizeof=InterfaceName"`
@@ -113,7 +137,7 @@ func (ps *LocalPodSpec) GetContainerIps() (containerIps []*net.IPNet) {
 	for _, containerIp := range ps.ContainerIps {
 		containerIps = append(containerIps, &net.IPNet{
 			IP:   containerIp.IP,
-			Mask: getMaxCIDRMask(containerIp.IP),
+			Mask: common.GetMaxCIDRMask(containerIp.IP),
 		})
 	}
 	return containerIps
@@ -132,96 +156,47 @@ func (ps *LocalPodSpec) Hasv46() (hasv4 bool, hasv6 bool) {
 	return hasv4, hasv6
 }
 
-func (ps *LocalPodSpec) NeedsSnat(s *Server) (needsSnat bool) {
-	needsSnat = false
-	for _, containerIP := range ps.GetContainerIps() {
-		needsSnat = needsSnat || s.IPNetNeedsSNAT(containerIP)
-	}
-	return needsSnat
-}
-
-func NewLocalPodSpecFromAdd(request *pb.AddRequest) (*LocalPodSpec, error) {
-	podSpec := LocalPodSpec{
-		InterfaceName:     request.GetInterfaceName(),
-		NetnsName:         request.GetNetns(),
-		AllowIpForwarding: request.GetSettings().GetAllowIpForwarding(),
-		Routes:            make([]LocalIPNet, 0),
-		ContainerIps:      make([]LocalIP, 0),
-
-		OrchestratorID: request.Workload.Orchestrator,
-		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
-		EndpointID:     request.Workload.Endpoint,
-	}
-	for _, routeStr := range request.GetContainerRoutes() {
-		_, route, err := net.ParseCIDR(routeStr)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Cannot parse container route %s", routeStr)
-		}
-		podSpec.Routes = append(podSpec.Routes, LocalIPNet{
-			IP:   route.IP,
-			Mask: route.Mask,
-		})
-	}
-	for _, requestContainerIP := range request.GetContainerIps() {
-		containerIp, _, err := net.ParseCIDR(requestContainerIP.GetAddress())
-		if err != nil {
-			return nil, fmt.Errorf("Cannot parse address: %s", requestContainerIP.GetAddress())
-		}
-		// We ignore the prefix len set on the address,
-		// for a tun it doesn't make sense
-		podSpec.ContainerIps = append(podSpec.ContainerIps, LocalIP{IP: containerIp})
-	}
-
-	return &podSpec, nil
-}
-
-func NewLocalPodSpecFromDel(request *pb.DelRequest) *LocalPodSpec {
-	return &LocalPodSpec{
-		InterfaceName: request.GetInterfaceName(),
-		NetnsName:     request.GetNetns(),
-	}
-}
-
 type SavedState struct {
 	Version    int `struc:"int32"`
 	SpecsCount int `struc:"int32,sizeof=Specs"`
 	Specs      []LocalPodSpec
 }
 
-func (s *Server) persistCniServerState() (err error) {
+func PersistCniServerState(podInterfaceMap map[string]LocalPodSpec, fname string) (err error) {
 	var buf bytes.Buffer
+	tmpFile := fmt.Sprintf("%s~", fname)
 	state := &SavedState{
-		Version:    config.CniServerStateFileVersion,
-		SpecsCount: len(s.podInterfaceMap),
-		Specs:      make([]LocalPodSpec, 0, len(s.podInterfaceMap)),
+		Version:    CniServerStateFileVersion,
+		SpecsCount: len(podInterfaceMap),
+		Specs:      make([]LocalPodSpec, 0, len(podInterfaceMap)),
 	}
-	for _, podSpec := range s.podInterfaceMap {
-		state.Specs = append(state.Specs, *podSpec)
+	for _, podSpec := range podInterfaceMap {
+		state.Specs = append(state.Specs, podSpec)
 	}
 	err = struc.Pack(&buf, state)
 	if err != nil {
 		return errors.Wrap(err, "Error encoding pod data")
 	}
 
-	err = ioutil.WriteFile(config.CniServerStateTempFile, buf.Bytes(), 0200)
+	err = ioutil.WriteFile(tmpFile, buf.Bytes(), 0200)
 	if err != nil {
-		return errors.Wrapf(err, "Error writing file %s", config.CniServerStateTempFile)
+		return errors.Wrapf(err, "Error writing file %s", tmpFile)
 	}
-	err = os.Rename(config.CniServerStateTempFile, config.CniServerStateFile)
+	err = os.Rename(tmpFile, fname)
 	if err != nil {
-		return errors.Wrapf(err, "Error moving file %s", config.CniServerStateTempFile)
+		return errors.Wrapf(err, "Error moving file %s", tmpFile)
 	}
 	return nil
 }
 
-func (s *Server) loadCniServerState() ([]LocalPodSpec, error) {
+func LoadCniServerState(fname string) ([]LocalPodSpec, error) {
 	var state SavedState
-	data, err := ioutil.ReadFile(config.CniServerStateFile)
+	data, err := ioutil.ReadFile(fname)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil // No state to load
 		} else {
-			return nil, errors.Wrapf(err, "Error reading file %s", config.CniServerStateFile)
+			return nil, errors.Wrapf(err, "Error reading file %s", fname)
 		}
 	}
 	buf := bytes.NewBuffer(data)
@@ -229,7 +204,7 @@ func (s *Server) loadCniServerState() ([]LocalPodSpec, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error unpacking")
 	}
-	if state.Version != config.CniServerStateFileVersion {
+	if state.Version != CniServerStateFileVersion {
 		// When adding new versions, we need to keep loading old versions or some pods
 		// will remain disconnected forever after an upgrade
 		return nil, fmt.Errorf("Unsupported save file version: %d", state.Version)

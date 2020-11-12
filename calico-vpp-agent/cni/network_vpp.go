@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/vishvananda/netlink"
@@ -51,7 +52,7 @@ func writeProcSys(path, value string) error {
 
 // configureContainerSysctls configures necessary sysctls required inside the container netns.
 // This method was adapted from cni-plugin/internal/pkg/utils/network_linux.go
-func (s *Server) configureContainerSysctls(podSpec *LocalPodSpec) error {
+func (s *Server) configureContainerSysctls(podSpec *storage.LocalPodSpec) error {
 	hasv4, hasv6 := podSpec.Hasv46()
 	ipFwd := "0"
 	if podSpec.AllowIpForwarding {
@@ -75,7 +76,7 @@ func (s *Server) configureContainerSysctls(podSpec *LocalPodSpec) error {
 }
 
 // SetupRoutes sets up the routes for the host side of the veth pair.
-func (s *Server) SetupVppRoutes(swIfIndex uint32, podSpec *LocalPodSpec) error {
+func (s *Server) SetupVppRoutes(swIfIndex uint32, podSpec *storage.LocalPodSpec) error {
 	// Go through all the IPs and add routes for each IP in the result.
 	for _, containerIP := range podSpec.GetContainerIps() {
 		route := types.Route{
@@ -93,7 +94,7 @@ func (s *Server) SetupVppRoutes(swIfIndex uint32, podSpec *LocalPodSpec) error {
 	return nil
 }
 
-func (s *Server) tunErrorCleanup(podSpec *LocalPodSpec, err error, msg string, args ...interface{}) error {
+func (s *Server) tunErrorCleanup(podSpec *storage.LocalPodSpec, err error, msg string, args ...interface{}) error {
 	s.log.Errorf("Error creating or configuring tun: %s", err)
 	delErr := s.DelVppInterface(podSpec)
 	if delErr != nil {
@@ -119,7 +120,7 @@ func (s *Server) announceLocalAddress(addr *net.IPNet, isWithdrawal bool) {
 	s.routingServer.AnnounceLocalAddress(addr, isWithdrawal)
 }
 
-func (s *Server) configureNamespaceSideTun(swIfIndex uint32, podSpec *LocalPodSpec) func(hostNS ns.NetNS) error {
+func (s *Server) configureNamespaceSideTun(swIfIndex uint32, podSpec *storage.LocalPodSpec) func(hostNS ns.NetNS) error {
 	return func(hostNS ns.NetNS) error {
 		contTun, err := netlink.LinkByName(podSpec.InterfaceName)
 		if err != nil {
@@ -178,8 +179,16 @@ func (s *Server) configureNamespaceSideTun(swIfIndex uint32, podSpec *LocalPodSp
 	}
 }
 
+func (s *Server) PodSpecNeedsSnat(ps *storage.LocalPodSpec) (needsSnat bool) {
+	needsSnat = false
+	for _, containerIP := range ps.GetContainerIps() {
+		needsSnat = needsSnat || s.IPNetNeedsSNAT(containerIP)
+	}
+	return needsSnat
+}
+
 // AddVppInterface performs the networking for the given config and IPAM result
-func (s *Server) AddVppInterface(podSpec *LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
+func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
 	// Select the first 11 characters of the containerID for the host veth.
 	tunTag := podSpec.NetnsName + "-" + podSpec.InterfaceName
 
@@ -235,7 +244,7 @@ func (s *Server) AddVppInterface(podSpec *LocalPodSpec, doHostSideConf bool) (sw
 		return 0, s.tunErrorCleanup(podSpec, err, "error setting vpp tun %d unnumbered", swIfIndex)
 	}
 	hasv4, hasv6 := podSpec.Hasv46()
-	needsSnat := podSpec.NeedsSnat(s)
+	needsSnat := s.PodSpecNeedsSnat(podSpec)
 	if hasv4 && needsSnat {
 		s.log.Infof("Enable tun[%d] SNAT v4", swIfIndex)
 		err = s.vpp.EnableCalicoSNAT(swIfIndex, false)
@@ -323,7 +332,7 @@ func (s *Server) delVppInterfaceHandleRoutes(swIfIndex uint32, isIPv6 bool) erro
 }
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
-func (s *Server) DelVppInterface(podSpec *LocalPodSpec) error {
+func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) error {
 	// Only try to delete the device if a namespace was passed in.
 	if podSpec.NetnsName == "" {
 		s.log.Infof("no netns passed, skipping")

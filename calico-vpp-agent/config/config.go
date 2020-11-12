@@ -34,9 +34,7 @@ const (
 	VppManagerStatusFile      = "/var/run/vpp/vppmanagerstatus"
 	VppManagerTapIdxFile      = "/var/run/vpp/vppmanagertap0"
 	CalicoVppPidFile          = "/var/run/vpp/calico_vpp.pid"
-	CniServerStateTempFile    = "/var/run/vpp/calico_vpp_pod_state~"
 	CniServerStateFile        = "/var/run/vpp/calico_vpp_pod_state"
-	CniServerStateFileVersion = 1 // Used to ensure compatibility wen we reload data
 	FelixDataplaneSocket      = "/var/run/vpp/felix-dataplane.sock"
 
 	NodeNameEnvVar            = "NODENAME"

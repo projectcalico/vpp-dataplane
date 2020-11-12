@@ -195,7 +195,7 @@ vppdev_cli_sh ()
   elif [[ "$1" = "agent" ]]; then
 	NODE=$2 POD=calico-vpp-node C=calico-node exec_node bash
   else
-  	echo "Use $(basename -- $0) sh [vpp|node] [NODENAME]"
+	echo "Use $(basename -- $0) sh [vpp|agent] [NODENAME]"
   fi
 }
 
