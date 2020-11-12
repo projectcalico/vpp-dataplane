@@ -10,10 +10,16 @@ else
 	git fetch "https://gerrit.fd.io/r/vpp" && git reset --hard ${VPP_COMMIT}
 fi
 
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/11/28711/4 && git cherry-pick FETCH_HEAD # vlib: force input node interrupts to be unique
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/22 && git cherry-pick FETCH_HEAD # calico plugin
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/29649/2 && git cherry-pick FETCH_HEAD # tap fix
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/7 && git cherry-pick FETCH_HEAD # multi TX
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/11/28711/4 && git cherry-pick FETCH_HEAD # 28711: vlib: force input node interrupts to be unique | https://gerrit.fd.io/r/c/vpp/+/28711
+
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/35/29735/2 && git cherry-pick FETCH_HEAD # 29735: cnat: Fix invalid adj_index | https://gerrit.fd.io/r/c/vpp/+/29735
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/24/29724/3 && git cherry-pick FETCH_HEAD # 29724: cnat: reduce compile time | https://gerrit.fd.io/r/c/vpp/+/29724
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/04/29804/1 && git cherry-pick FETCH_HEAD # 29804: cnat: export src_policy fns | https://gerrit.fd.io/r/c/vpp/+/29804
+
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/23 && git cherry-pick FETCH_HEAD # 28587: calico: Add SNAT simultaneously to VIP DNAT | https://gerrit.fd.io/r/c/vpp/+/28587
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/29649/3 && git cherry-pick FETCH_HEAD # 29649: tap: fix the segv | https://gerrit.fd.io/r/c/vpp/+/29649
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/7 && git cherry-pick FETCH_HEAD # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
+
 # Policies
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/28083/12 && git cherry-pick FETCH_HEAD # ACL custom policies
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/11 && git cherry-pick FETCH_HEAD # Calico policies
