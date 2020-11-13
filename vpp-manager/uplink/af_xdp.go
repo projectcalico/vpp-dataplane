@@ -31,7 +31,7 @@ const (
 )
 
 type AFXDPDriver struct {
-	*UplinkDriverData
+	UplinkDriverData
 }
 
 func (d *AFXDPDriver) IsSupported(warn bool) bool {

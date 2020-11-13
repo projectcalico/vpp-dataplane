@@ -25,7 +25,7 @@ import (
 )
 
 type VirtioDriver struct {
-	*UplinkDriverData
+	UplinkDriverData
 }
 
 func (d *VirtioDriver) IsSupported(warn bool) bool {

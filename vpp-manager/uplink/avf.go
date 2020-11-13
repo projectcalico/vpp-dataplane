@@ -23,7 +23,7 @@ import (
 )
 
 type AVFDriver struct {
-	*UplinkDriverData
+	UplinkDriverData
 }
 
 func (d *AVFDriver) IsSupported(warn bool) bool {

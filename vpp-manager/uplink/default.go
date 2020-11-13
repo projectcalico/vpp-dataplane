@@ -23,7 +23,7 @@ import (
 )
 
 type DefaultDriver struct {
-	*UplinkDriverData
+	UplinkDriverData
 }
 
 func (d *DefaultDriver) IsSupported(warn bool) bool {

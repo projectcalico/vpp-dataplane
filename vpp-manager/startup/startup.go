@@ -227,26 +227,32 @@ func parseRingSize(envVar string) (int, int, error) {
 }
 
 func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.InterfaceConfig) {
+	log.Infof("-- Environment --")
 	log.Infof("CorePattern:         %s", params.CorePattern)
 	log.Infof("ExtraAddrCount:      %d", params.ExtraAddrCount)
 	log.Infof("Native driver:       %s", params.NativeDriver)
 	log.Infof("RxMode:              %s", types.FormatRxMode(params.RxMode))
 	log.Infof("TapRxMode:           %s", types.FormatRxMode(params.TapRxMode))
+	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
+	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
+	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
+	log.Infof("PHY target #Queues   rx:%d", params.NumRxQueues)
+	log.Infof("Hugepages            %d", params.AvailableHugePages)
+	log.Infof("KernelVersion        %s", params.KernelVersion)
+	log.Infof("Drivers              %s", params.LoadedDrivers)
+
+	log.Infof("-- Interface config --")
 	log.Infof("Node IP4:            %s", conf.NodeIP4)
 	log.Infof("Node IP6:            %s", conf.NodeIP6)
 	log.Infof("PciId:               %s", conf.PciId)
 	log.Infof("Driver:              %s", conf.Driver)
-	log.Infof("Linux if is up:      %t", conf.IsUp)
-	log.Infof("Promisc was :        %t", conf.PromiscOn)
+	log.Infof("Linux IF was up ?    %t", conf.IsUp)
+	log.Infof("Promisc was on ?     %t", conf.PromiscOn)
 	log.Infof("DoSwapDriver:        %t", conf.DoSwapDriver)
 	log.Infof("Mac:                 %s", conf.HardwareAddr.String())
 	log.Infof("Addresses:           [%s]", conf.AddressString())
 	log.Infof("Routes:              [%s]", conf.RouteString())
-	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
-	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
-	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
 	log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
-	log.Infof("PHY target #Queues   rx:%d", params.NumRxQueues)
 }
 
 func runInitScript(params *config.VppManagerParams) error {

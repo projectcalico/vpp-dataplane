@@ -185,7 +185,7 @@ func GetNrHugepages() (int, error) {
 	if err != nil {
 		return 0, errors.Wrapf(err, "Couldnt read /proc/sys/vm/nr_hugepages")
 	}
-	nrHugepages, err := strconv.ParseInt(string(nrHugepagesStr), 10, 32)
+	nrHugepages, err := strconv.ParseInt(strings.TrimSpace(string(nrHugepagesStr)), 10, 32)
 	if err != nil {
 		return 0, errors.Wrapf(err, "Couldnt parse nrHugepages: %v", err)
 	}
@@ -227,7 +227,7 @@ func GetOsKernelVersion() (ver *config.KernelVersion, err error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "Couldnt read /proc/sys/kernel/osrelease")
 	}
-	ver, err = ParseKernelVersion(string(versionStr))
+	ver, err = ParseKernelVersion(strings.TrimSpace(string(versionStr)))
 	return ver, err
 }
 

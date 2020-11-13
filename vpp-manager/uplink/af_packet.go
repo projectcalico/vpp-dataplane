@@ -25,7 +25,7 @@ import (
 )
 
 type AFPacketDriver struct {
-	*UplinkDriverData
+	UplinkDriverData
 }
 
 func (d *AFPacketDriver) IsSupported(warn bool) bool {
