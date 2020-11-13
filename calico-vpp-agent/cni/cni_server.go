@@ -19,9 +19,12 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 	"syscall"
 
+	"github.com/pkg/errors"
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
@@ -42,13 +45,56 @@ type Server struct {
 	socketListener  net.Listener
 	routingServer   *routing.Server
 	policyServer    *policy.Server
-	podInterfaceMap map[string]*LocalPodSpec
+	podInterfaceMap map[string]storage.LocalPodSpec
 	/* without main thread */
 	NumVPPWorkers uint32
+	lock          sync.Mutex
 }
 
 func swIfIdxToIfName(idx uint32) string {
 	return fmt.Sprintf("vpp-tun-%d", idx)
+}
+
+func NewLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, error) {
+	podSpec := storage.LocalPodSpec{
+		InterfaceName:     request.GetInterfaceName(),
+		NetnsName:         request.GetNetns(),
+		AllowIpForwarding: request.GetSettings().GetAllowIpForwarding(),
+		Routes:            make([]storage.LocalIPNet, 0),
+		ContainerIps:      make([]storage.LocalIP, 0),
+
+		OrchestratorID: request.Workload.Orchestrator,
+		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
+		EndpointID:     request.Workload.Endpoint,
+	}
+	for _, routeStr := range request.GetContainerRoutes() {
+		_, route, err := net.ParseCIDR(routeStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Cannot parse container route %s", routeStr)
+		}
+		podSpec.Routes = append(podSpec.Routes, storage.LocalIPNet{
+			IP:   route.IP,
+			Mask: route.Mask,
+		})
+	}
+	for _, requestContainerIP := range request.GetContainerIps() {
+		containerIp, _, err := net.ParseCIDR(requestContainerIP.GetAddress())
+		if err != nil {
+			return nil, fmt.Errorf("Cannot parse address: %s", requestContainerIP.GetAddress())
+		}
+		// We ignore the prefix len set on the address,
+		// for a tun it doesn't make sense
+		podSpec.ContainerIps = append(podSpec.ContainerIps, storage.LocalIP{IP: containerIp})
+	}
+
+	return &podSpec, nil
+}
+
+func NewLocalPodSpecFromDel(request *pb.DelRequest) *storage.LocalPodSpec {
+	return &storage.LocalPodSpec{
+		InterfaceName: request.GetInterfaceName(),
+		NetnsName:     request.GetNetns(),
+	}
 }
 
 func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply, error) {
@@ -66,6 +112,8 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 
 	s.log.Infof("Add request %s", podSpec.String())
 	s.BarrierSync()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	swIfIndex, err := s.AddVppInterface(podSpec, true /* doHostSideConf */)
 	if err != nil {
 		s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
@@ -75,8 +123,8 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 		}, nil
 	}
 
-	s.podInterfaceMap[podSpec.Key()] = podSpec
-	err = s.persistCniServerState()
+	s.podInterfaceMap[podSpec.Key()] = *podSpec
+	err = storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile)
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
@@ -101,7 +149,7 @@ func (s *Server) rescanState() error {
 		s.log.Panicf("Error getting number of VPP workers: %v", err)
 	}
 
-	podSpecs, err := s.loadCniServerState()
+	podSpecs, err := storage.LoadCniServerState(config.CniServerStateFile)
 	if err != nil {
 		s.log.Errorf("Error getting pods %v", err)
 		return err
@@ -115,7 +163,7 @@ func (s *Server) rescanState() error {
 			s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err2)
 			err = err2
 		} else {
-			s.podInterfaceMap[podSpec.Key()] = &podSpec
+			s.podInterfaceMap[podSpec.Key()] = podSpec
 		}
 	}
 	return err
@@ -123,7 +171,7 @@ func (s *Server) rescanState() error {
 
 func (p *Server) OnVppRestart() {
 	for name, podSpec := range p.podInterfaceMap {
-		_, err := p.AddVppInterface(podSpec, false /* doHostSideConf */)
+		_, err := p.AddVppInterface(&podSpec, false /* doHostSideConf */)
 		if err != nil {
 			p.log.Errorf("Error re-injecting interface %s : %v", name, err)
 		}
@@ -135,6 +183,8 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 
 	s.log.Infof("Del request %s", podSpec.Key())
 	s.BarrierSync()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	err := s.DelVppInterface(podSpec)
 	if err != nil {
 		s.log.Warnf("Interface del failed %s : %v", podSpec.Key(), err)
@@ -190,7 +240,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 		socketListener:  lis,
 		client:          client,
 		grpcServer:      grpc.NewServer(),
-		podInterfaceMap: make(map[string]*LocalPodSpec),
+		podInterfaceMap: make(map[string]storage.LocalPodSpec),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")

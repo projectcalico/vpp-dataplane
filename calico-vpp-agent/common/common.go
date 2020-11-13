@@ -157,7 +157,7 @@ func getMaxCIDRLen(isv6 bool) int {
 	}
 }
 
-func getMaxCIDRMask(addr net.IP) net.IPMask {
+func GetMaxCIDRMask(addr net.IP) net.IPMask {
 	maxCIDRLen := getMaxCIDRLen(vpplink.IsIP6(addr))
 	return net.CIDRMask(maxCIDRLen, maxCIDRLen)
 }
@@ -165,6 +165,6 @@ func getMaxCIDRMask(addr net.IP) net.IPMask {
 func FullyQualified(addr net.IP) *net.IPNet {
 	return &net.IPNet{
 		IP:   addr,
-		Mask: getMaxCIDRMask(addr),
+		Mask: GetMaxCIDRMask(addr),
 	}
 }

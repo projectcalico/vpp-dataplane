@@ -28,16 +28,14 @@ import (
 )
 
 const (
-	DataInterfaceSwIfIndex    = uint32(1) // Assumption: the VPP config ensures this is true
-	CNIServerSocket           = "/var/run/calico/cni-server.sock"
-	VppAPISocket              = "/var/run/vpp/vpp-api.sock"
-	VppManagerStatusFile      = "/var/run/vpp/vppmanagerstatus"
-	VppManagerTapIdxFile      = "/var/run/vpp/vppmanagertap0"
-	CalicoVppPidFile          = "/var/run/vpp/calico_vpp.pid"
-	CniServerStateTempFile    = "/var/run/vpp/calico_vpp_pod_state~"
-	CniServerStateFile        = "/var/run/vpp/calico_vpp_pod_state"
-	CniServerStateFileVersion = 1 // Used to ensure compatibility wen we reload data
-	FelixDataplaneSocket      = "/var/run/vpp/felix-dataplane.sock"
+	DataInterfaceSwIfIndex = uint32(1) // Assumption: the VPP config ensures this is true
+	CNIServerSocket        = "/var/run/calico/cni-server.sock"
+	VppAPISocket           = "/var/run/vpp/vpp-api.sock"
+	VppManagerStatusFile   = "/var/run/vpp/vppmanagerstatus"
+	VppManagerTapIdxFile   = "/var/run/vpp/vppmanagertap0"
+	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
+	CniServerStateFile     = "/var/run/vpp/calico_vpp_pod_state"
+	FelixDataplaneSocket   = "/var/run/vpp/felix-dataplane.sock"
 
 	NodeNameEnvVar            = "NODENAME"
 	TapNumRxQueuesEnvVar      = "CALICOVPP_TAP_RX_QUEUES"
