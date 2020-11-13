@@ -4,7 +4,7 @@ set -o errexit
 
 cd /root/vpp-manager/vpp_build
 
-make build-release
+make build
 rm -f ./build-root/*.deb ./build-root/*.changes ./build-root/*.buildinfo
-make pkg-deb
+make pkg-deb-debug
 

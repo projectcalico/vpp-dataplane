@@ -20,8 +20,8 @@ RUN dpkg -i /tmp/vpp/libvppinfra_*.deb && \
     rm -f /var/lib/dpkg/info/vpp.postinst && \
     dpkg --configure vpp && \
     dpkg -i /tmp/vpp/vpp-plugin-core_*.deb \
-    /tmp/vpp/vpp-plugin-dpdk_*.deb
-
+    /tmp/vpp/vpp-plugin-dpdk_*.deb \
+    /tmp/vpp/vpp-dbg_*.deb
 
 RUN rm -rf /tmp/vpp
 ADD vpp-manager /usr/bin/
