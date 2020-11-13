@@ -38,7 +38,7 @@ vpp: vpp-build-env
 		-v $(CURDIR):/root/vpp-manager:delegated \
 		calicovpp/vpp-build:latest
 	rm -f $(IMAGE_DIR)*.deb
-	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra ; do \
+	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra vpp-dbg ; do \
 		cp vpp_build/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
 	done
 
