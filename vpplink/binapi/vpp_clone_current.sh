@@ -30,3 +30,5 @@ index 7531dd197..94a2bfb12 100644
  		  ts = tsrem;
 " | git apply -- && git add -A &&  git commit --author "Anonymous <>" -m "Use 10us interrupt sleep"
 
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/35/29735/2 && git cherry-pick FETCH_HEAD # 29735: cnat: Fix invalid adj_index | https://gerrit.fd.io/r/c/vpp/+/29735
+
