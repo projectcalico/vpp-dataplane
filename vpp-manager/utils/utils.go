@@ -195,31 +195,33 @@ func GetNrHugepages() (int, error) {
 func ParseKernelVersion(versionStr string) (ver *config.KernelVersion, err error) {
 	re := regexp.MustCompile(`([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)`)
 	match := re.FindStringSubmatch(versionStr)
-	if len(match) != 4 {
-		return nil, errors.Wrapf(err, "Couldnt parse kernel version %s : %v", versionStr, match)
+	if len(match) != 5 {
+		return nil, errors.Errorf("Couldnt parse kernel version %s : %v", versionStr, match)
 	}
-	kernel, err := strconv.ParseInt(match[0], 10, 32)
+	/* match[0] is the whole string */
+	kernel, err := strconv.ParseInt(match[1], 10, 32)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Couldnt parse kernel version: %v", err)
 	}
-	major, err := strconv.ParseInt(match[1], 10, 32)
+	major, err := strconv.ParseInt(match[2], 10, 32)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Couldnt parse major version: %v", err)
 	}
-	minor, err := strconv.ParseInt(match[2], 10, 32)
+	minor, err := strconv.ParseInt(match[3], 10, 32)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Couldnt parse minor version: %v", err)
 	}
-	patch, err := strconv.ParseInt(match[3], 10, 32)
+	patch, err := strconv.ParseInt(match[4], 10, 32)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Couldnt parse patch version: %v", err)
 	}
-	return &config.KernelVersion{
+	ver = &config.KernelVersion{
 		Kernel: int(kernel),
 		Major:  int(major),
 		Minor:  int(minor),
 		Patch:  int(patch),
-	}, nil
+	}
+	return ver, nil
 }
 
 func GetOsKernelVersion() (ver *config.KernelVersion, err error) {

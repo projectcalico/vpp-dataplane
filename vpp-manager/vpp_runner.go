@@ -56,7 +56,7 @@ func NewVPPRunner(params *config.VppManagerParams, conf *config.InterfaceConfig)
 
 func (v *VppRunner) Run(driver uplink.UplinkDriver) {
 	v.uplinkDriver = driver
-	log.Infof("Running with uplink %s", driver.GetName)
+	log.Infof("Running with uplink %s", driver.GetName())
 
 	err := v.generateVppConfigExecFile()
 	if err != nil {

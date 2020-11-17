@@ -157,12 +157,14 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		params.NativeDriver = conf
 	}
 
+	params.NumRxQueues = 1
 	if conf := os.Getenv(NumRxQueuesEnvVar); conf != "" {
 		queues, err := strconv.ParseInt(conf, 10, 16)
 		if err != nil || queues <= 0 {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", NumRxQueuesEnvVar, conf, queues, err)
+			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumRxQueuesEnvVar, conf, queues, err)
+		} else {
+			params.NumRxQueues = int(queues)
 		}
-		params.NumRxQueues = int(queues)
 	}
 
 	params.NewDriverName = os.Getenv(SwapDriverEnvVar)
