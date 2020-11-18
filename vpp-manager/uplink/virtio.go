@@ -57,8 +57,8 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 	newDriverName := d.params.NewDriverName
 	doSwapDriver := d.conf.DoSwapDriver
 	if newDriverName == "" {
-	   newDriverName = config.DRIVER_VFIO_PCI
-	   doSwapDriver = config.DRIVER_VFIO_PCI != d.conf.Driver
+		newDriverName = config.DRIVER_VFIO_PCI
+		doSwapDriver = config.DRIVER_VFIO_PCI != d.conf.Driver
 	}
 
 	if !d.params.VfioUnsafeiommu {

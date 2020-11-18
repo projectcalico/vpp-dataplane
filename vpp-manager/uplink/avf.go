@@ -16,28 +16,53 @@
 package uplink
 
 import (
+	"fmt"
+	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
 type AVFDriver struct {
 	UplinkDriverData
+	pciId string
 }
 
-func (d *AVFDriver) IsSupported(warn bool) bool {
-	if d.params.LoadedDrivers[config.DRIVER_VFIO_PCI] || d.params.LoadedDrivers[config.DRIVER_VFIO_PCI] {
-		return true
-	}
-	if warn {
+func (d *AVFDriver) IsSupported(warn bool) (supported bool) {
+	var ret bool
+	supported = true
+	ret = d.params.LoadedDrivers[config.DRIVER_VFIO_PCI]
+	if !ret && warn {
 		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
 		log.Warnf("VPP may fail to grab its interface")
 	}
-	return false
+	supported = supported && ret
+
+	ret = d.conf.Driver == config.DRIVER_I40E
+	if !ret && warn {
+		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_I40E)
+	}
+	supported = supported && ret
+
+	return supported
 }
 
 func (d *AVFDriver) PreconfigureLinux() (err error) {
+	pciId, err := utils.CreateInterfaceVF(d.params.MainInterface)
+	if err != nil {
+		return errors.Wrapf(err, "Couldnt create Interface VF")
+	}
+	d.pciId = pciId
+
+	link, err := netlink.LinkByName(d.params.MainInterface)
+	if err != nil {
+		return errors.Wrapf(err, "Couldnt find Interface %s", d.params.MainInterface)
+	}
+	netlink.LinkSetVfHardwareAddr(link, 0 /* vf */, d.conf.HardwareAddr)
+
 	if d.conf.IsUp {
 		// Set interface down if it is up, bind it to a VPP-friendly driver
 		err := utils.SafeSetInterfaceDownByName(d.params.MainInterface)
@@ -45,26 +70,10 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 			return err
 		}
 	}
-	if d.conf.DoSwapDriver {
-		if d.conf.PciId == "" {
-			log.Warnf("PCI ID not found, not swapping drivers")
-		} else {
-			err = utils.SwapDriver(d.conf.PciId, d.params.NewDriverName, true)
-			if err != nil {
-				log.Warnf("Failed to swap driver to %s: %v", d.params.NewDriverName, err)
-			}
-		}
-	}
 	return nil
 }
 
 func (d *AVFDriver) RestoreLinux() {
-	if d.conf.PciId != "" && d.conf.Driver != "" {
-		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
-		if err != nil {
-			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
-		}
-	}
 	if !d.conf.IsUp {
 		return
 	}
@@ -81,7 +90,20 @@ func (d *AVFDriver) RestoreLinux() {
 }
 
 func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink) error {
-	// TODO
+	swIfIndex, err := vpp.CreateAVF(&types.AVFInterface{
+		NumRxQueues: d.params.NumRxQueues,
+		TxQueueSize: d.params.TxQueueSize,
+		RxQueueSize: d.params.RxQueueSize,
+		PciId:       d.pciId,
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Error creating AVF interface")
+	}
+	log.Infof("Created AVF interface %d", swIfIndex)
+
+	if swIfIndex != config.DataInterfaceSwIfIndex {
+		return fmt.Errorf("Created AVF interface has wrong swIfIndex %d!", swIfIndex)
+	}
 	return nil
 }
 

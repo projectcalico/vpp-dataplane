@@ -41,6 +41,7 @@ const (
 	DRIVER_UIO_PCI_GENERIC = "uio_pci_generic"
 	DRIVER_VFIO_PCI        = "vfio-pci"
 	DRIVER_VIRTIO_NET      = "virtio-net"
+	DRIVER_I40E            = "i40e"
 )
 
 type VppManagerParams struct {
