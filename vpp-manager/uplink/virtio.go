@@ -54,6 +54,13 @@ func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *VirtioDriver) PreconfigureLinux() (err error) {
+	newDriverName := d.params.NewDriverName
+	doSwapDriver := d.conf.DoSwapDriver
+	if newDriverName == "" {
+	   newDriverName = config.DRIVER_VFIO_PCI
+	   doSwapDriver = config.DRIVER_VFIO_PCI != d.conf.Driver
+	}
+
 	if !d.params.VfioUnsafeiommu {
 		err := utils.SetVfioUnsafeiommu(true)
 		if err != nil {
@@ -67,13 +74,13 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 			return err
 		}
 	}
-	if d.conf.DoSwapDriver {
+	if doSwapDriver {
 		if d.conf.PciId == "" {
 			log.Warnf("PCI ID not found, not swapping drivers")
 		} else {
-			err = utils.SwapDriver(d.conf.PciId, d.params.NewDriverName, true)
+			err = utils.SwapDriver(d.conf.PciId, newDriverName, true)
 			if err != nil {
-				log.Warnf("Failed to swap driver to %s: %v", d.params.NewDriverName, err)
+				log.Warnf("Failed to swap driver to %s: %v", newDriverName, err)
 			}
 		}
 	}
