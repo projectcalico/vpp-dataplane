@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"regexp"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
@@ -29,7 +27,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
-	"github.com/yookoala/realpath"
 )
 
 func getInterfaceConfig(params *config.VppManagerParams) (conf *config.InterfaceConfig, err error) {
@@ -41,7 +38,7 @@ func getInterfaceConfig(params *config.VppManagerParams) (conf *config.Interface
 		}
 	} else {
 		// Loading config failed, try loading from save file
-		log.Warnf("Could not load config from linux, trying file...")
+		log.Warnf("Could not load config from linux (%v), trying file...", err)
 		conf, err2 := loadInterfaceConfigFromFile(params)
 		if err2 != nil {
 			log.Warnf("Could not load saved config: %v", err2)
@@ -97,30 +94,24 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 		return nil, errors.Errorf("no address found for node")
 	}
 
-	// We allow PCI not to be found e.g for AF_PACKET
-	// Grab PCI id - last PCI id in the real path to /sys/class/net/<device name>
-	deviceLinkPath := fmt.Sprintf("/sys/class/net/%s/device", params.MainInterface)
-	devicePath, err := realpath.Realpath(deviceLinkPath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot resolve pci device path for %s", params.MainInterface)
-	}
-	pciID := regexp.MustCompile("[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}.[0-9a-f]")
 	conf.DoSwapDriver = false
 	conf.PromiscOn = link.Attrs().Promisc == 1
 	conf.NumTxQueues = link.Attrs().NumTxQueues
 	conf.NumRxQueues = link.Attrs().NumRxQueues
-	matches := pciID.FindAllString(devicePath, -1)
-	if matches == nil {
-		log.Warnf("Could not find pci device for %s: path is %s", params.MainInterface, devicePath)
+
+	pciId, err := utils.GetInterfacePciId(params.MainInterface)
+	if err != nil {
+		return nil, err
+	}
+	if pciId == "" {
+		log.Warnf("Could not find pci device for %s", params.MainInterface)
 	} else {
-		conf.PciId = matches[len(matches)-1]
-		// Grab Driver id for the pci device
-		driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver", conf.PciId)
-		driverPath, err := os.Readlink(driverLinkPath)
+		conf.PciId = pciId
+		driver, err := utils.GetDriverNameFromPci(pciId)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot find driver for %s", conf.PciId)
+			return nil, err
 		}
-		conf.Driver = driverPath[strings.LastIndex(driverPath, "/")+1:]
+		conf.Driver = driver
 		if params.NewDriverName != "" && params.NewDriverName != conf.Driver {
 			conf.DoSwapDriver = true
 		}

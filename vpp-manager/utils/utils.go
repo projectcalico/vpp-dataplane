@@ -32,6 +32,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"github.com/yookoala/realpath"
 )
 
 func IsDriverLoaded(driver string) (bool, error) {
@@ -178,6 +179,52 @@ func ClearVppManagerFiles() error {
 		return err
 	}
 	return WriteFile("-1", config.VppManagerTapIdxFile)
+}
+
+func SetVfioUnsafeiommu(iommu bool) error {
+	if iommu {
+		return WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+	} else {
+		return WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+	}
+}
+
+func IsVfioUnsafeiommu() (bool, error) {
+	iommuStr, err := ioutil.ReadFile("/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+	if err != nil {
+		return false, errors.Wrapf(err, "Couldnt read /sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+	}
+	iommu := "Y" == strings.TrimSpace(string(iommuStr))
+	return iommu, nil
+}
+
+func GetDriverNameFromPci(pciId string) (string, error) {
+	// Grab Driver id for the pci device
+	driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver", pciId)
+	driverPath, err := os.Readlink(driverLinkPath)
+	if err != nil {
+		return "", errors.Wrapf(err, "cannot find driver for %s", pciId)
+	}
+	driver := driverPath[strings.LastIndex(driverPath, "/")+1:]
+	return driver, nil
+}
+
+func GetInterfacePciId(interfaceName string) (string, error) {
+	// We allow PCI not to be found e.g for AF_PACKET
+	// Grab PCI id - last PCI id in the real path to /sys/class/net/<device name>
+	deviceLinkPath := fmt.Sprintf("/sys/class/net/%s/device", interfaceName)
+	devicePath, err := realpath.Realpath(deviceLinkPath)
+	if err != nil {
+		return "", errors.Wrapf(err, "cannot resolve pci device path for %s", interfaceName)
+	}
+	pciID := regexp.MustCompile("[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}.[0-9a-f]")
+	matches := pciID.FindAllString(devicePath, -1)
+	if matches == nil {
+		return "", nil
+	} else {
+		PciId := matches[len(matches)-1]
+		return PciId, nil
+	}
 }
 
 func GetNrHugepages() (int, error) {

@@ -28,11 +28,38 @@ type VirtioDriver struct {
 	UplinkDriverData
 }
 
-func (d *VirtioDriver) IsSupported(warn bool) bool {
-	return true
+func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
+	var ret bool
+	supported = true
+	ret = d.params.LoadedDrivers[config.DRIVER_VFIO_PCI]
+	if !ret && warn {
+		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
+		log.Warnf("VPP may fail to grab its interface")
+	}
+	supported = supported && ret
+
+	ret = d.params.AvailableHugePages > 0
+	if !ret && warn {
+		log.Warnf("No hugepages configured, driver won't work")
+	}
+	supported = supported && ret
+
+	ret = d.conf.Driver == config.DRIVER_VIRTIO_NET
+	if !ret && warn {
+		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_VIRTIO_NET)
+	}
+	supported = supported && ret
+
+	return supported
 }
 
 func (d *VirtioDriver) PreconfigureLinux() (err error) {
+	if !d.params.VfioUnsafeiommu {
+		err := utils.SetVfioUnsafeiommu(true)
+		if err != nil {
+			return errors.Wrapf(err, "Virtio preconfigure error")
+		}
+	}
 	if d.conf.IsUp {
 		// Set interface down if it is up, bind it to a VPP-friendly driver
 		err := utils.SafeSetInterfaceDownByName(d.params.MainInterface)
@@ -54,6 +81,12 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 }
 
 func (d *VirtioDriver) RestoreLinux() {
+	if !d.params.VfioUnsafeiommu {
+		err := utils.SetVfioUnsafeiommu(false)
+		if err != nil {
+			log.Warnf("Virtio restore error %v", err)
+		}
+	}
 	if d.conf.PciId != "" && d.conf.Driver != "" {
 		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
 		if err != nil {

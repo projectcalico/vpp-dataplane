@@ -17,13 +17,9 @@ package main
 
 import (
 	"os"
-	"os/exec"
-	"sync"
-
 	"os/signal"
-
+	"sync"
 	"syscall"
-
 	"time"
 
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
@@ -33,16 +29,25 @@ import (
 )
 
 var (
-	runningCond  *sync.Cond
-	vppCmd       *exec.Cmd
-	vppProcess   *os.Process
-	vppDeadChan  chan bool
-	signals      chan os.Signal
-	externalKill bool
+	runningCond *sync.Cond
+	vppProcess  *os.Process
+	vppDeadChan chan bool
+	signals     chan os.Signal
+	/* Was VPP terminated by us ? */
+	internalKill bool
+	/* Increasing index for timeout */
+	currentVPPIndex int
+	/* Allow to stop sigchld handling for given VPP */
+	VPPgotSigCHLD map[int]bool
+	/* Allow to stop timeouts for given VPP */
+	VPPgotTimeout map[int]bool
 )
 
-func timeOutSigKill() {
+func timeoutSigKill(vppIndex int) {
 	time.Sleep(config.VppSigKillTimeout * time.Second)
+	if VPPgotTimeout[vppIndex] {
+		return
+	}
 	log.Infof("Timeout : SIGKILL vpp")
 	signals <- syscall.SIGKILL
 }
@@ -50,6 +55,7 @@ func timeOutSigKill() {
 func terminateVpp(format string, args ...interface{}) {
 	log.Errorf(format, args...)
 	log.Infof("Terminating Vpp (SIGINT)")
+	internalKill = true
 	signals <- syscall.SIGINT
 }
 
@@ -64,21 +70,25 @@ func handleSignals() {
 			   There might still be a race condition if
 			   vpp sefaults right on startup */
 			continue
-		} else if vppProcess == nil {
-			runningCond.L.Lock()
-			for vppProcess == nil {
-				runningCond.Wait()
-			}
-			runningCond.L.Unlock()
+		}
+		runningCond.L.Lock()
+		for vppProcess == nil {
+			runningCond.Wait()
 		}
 		log.Infof("Received signal %+v", s)
 		if s == syscall.SIGCHLD {
-			processState, err := vppCmd.Process.Wait()
-			vppDeadChan <- true
-			if err != nil {
-				log.Errorf("processWait errored with %v", err)
+			/* Only allow one sigCHLD per VPP */
+			if !VPPgotSigCHLD[currentVPPIndex] {
+				VPPgotSigCHLD[currentVPPIndex] = true
+				processState, err := vppProcess.Wait()
+				vppDeadChan <- true
+				if err != nil {
+					log.Errorf("processWait errored with %v", err)
+				} else {
+					log.Infof("processWait returned %v", processState)
+				}
 			} else {
-				log.Infof("processWait returned %v", processState)
+				log.Infof("ignoring sigchld")
 			}
 		} else {
 			/* special case
@@ -89,16 +99,32 @@ func handleSignals() {
 			vppProcess.Signal(s)
 			log.Infof("Signaled vpp (PID %d) %+v", vppProcess.Pid, s)
 			if s == syscall.SIGINT || s == syscall.SIGQUIT || s == syscall.SIGSTOP {
-				externalKill = true
-				go timeOutSigKill()
+				go timeoutSigKill(currentVPPIndex)
 			}
 		}
 		log.Infof("Done with signal %+v", s)
+		runningCond.L.Unlock()
 	}
+}
+
+func makeNewVPPIndex() {
+	/* No more notifications for previous VPP */
+	runningCond.L.Lock()
+	VPPgotSigCHLD[currentVPPIndex] = true
+	VPPgotTimeout[currentVPPIndex] = true
+	vppProcess = nil
+	runningCond.L.Unlock()
+	runningCond.Broadcast()
+
+	currentVPPIndex += 1
+	VPPgotSigCHLD[currentVPPIndex] = false
+	VPPgotTimeout[currentVPPIndex] = false
 }
 
 func main() {
 	vppDeadChan = make(chan bool, 1)
+	VPPgotSigCHLD = make(map[int]bool)
+	VPPgotTimeout = make(map[int]bool)
 
 	params, conf := startup.PrepareConfiguration()
 
@@ -109,13 +135,17 @@ func main() {
 
 	runner := NewVPPRunner(params, conf)
 
+	makeNewVPPIndex()
 	if params.NativeDriver == "" {
 		for _, driver := range uplink.SupportedUplinkDrivers(params, conf) {
+			internalKill = false
 			runner.Run(driver)
-			if externalKill {
+			if !internalKill {
+				log.Infof("External Kill")
 				/* Don't restart VPP if we were asked to terminate */
 				break
 			}
+			makeNewVPPIndex()
 		}
 	} else {
 		driver := uplink.NewUplinkDriver(params.NativeDriver, params, conf)

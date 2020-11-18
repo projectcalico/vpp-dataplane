@@ -80,7 +80,8 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 
 func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.InterfaceConfig) []UplinkDriver {
 	lst := make([]UplinkDriver, 0)
-	if d := NewDefaultDriver(params, conf); d.IsSupported(false /* warn */) {
+
+	if d := NewVirtioDriver(params, conf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
 	if d := NewAFXDPDriver(params, conf); d.IsSupported(false /* warn */) {

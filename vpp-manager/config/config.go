@@ -40,6 +40,7 @@ const (
 const (
 	DRIVER_UIO_PCI_GENERIC = "uio_pci_generic"
 	DRIVER_VFIO_PCI        = "vfio-pci"
+	DRIVER_VIRTIO_NET      = "virtio-net"
 )
 
 type VppManagerParams struct {
@@ -70,6 +71,7 @@ type VppManagerParams struct {
 	LoadedDrivers      map[string]bool
 	KernelVersion      *KernelVersion
 	AvailableHugePages int
+	VfioUnsafeiommu    bool
 }
 
 type InterfaceConfig struct {

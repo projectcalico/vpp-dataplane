@@ -428,7 +428,7 @@ func (v *VppRunner) pingCalicoVpp() error {
 func (v *VppRunner) runVpp() (err error) {
 	// From this point it is very important that every exit path calls restoreLinuxConfig after vpp exits
 	// Bind the interface to a suitable drivr for VPP. DPDK does it automatically, this is useful otherwise
-	vppCmd = exec.Command(config.VppPath, "-c", config.VppConfigFile)
+	vppCmd := exec.Command(config.VppPath, "-c", config.VppConfigFile)
 	vppCmd.Stdout = os.Stdout
 	vppCmd.Stderr = os.Stderr
 	err = vppCmd.Start()
@@ -453,13 +453,13 @@ func (v *VppRunner) runVpp() (err error) {
 		return fmt.Errorf("cannot connect to VPP after 10 tries")
 	}
 
-	err = v.vpp.Retry(2*time.Second, 10, v.uplinkDriver.CreateMainVppInterface, vpp)
+	err = v.uplinkDriver.CreateMainVppInterface(vpp)
 	if err != nil {
-		terminateVpp("Error creating af_packet (SIGINT %d): %v", vppProcess.Pid, err)
+		terminateVpp("Error creating main interface (SIGINT %d): %v", vppProcess.Pid, err)
 		v.vpp.Close()
 		<-vppDeadChan
 		v.restoreConfiguration()
-		return errors.Wrap(err, "Error creating af_packet")
+		return errors.Wrap(err, "Error creating main interface")
 	}
 
 	// Data interface configuration

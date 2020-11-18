@@ -25,7 +25,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
+	// "github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
@@ -92,6 +92,14 @@ func getSystemCapabilities(params *config.VppManagerParams) {
 		log.Warnf("Error getting nrHugepages %v", err)
 	}
 	params.AvailableHugePages = nrHugepages
+
+	/* Iommu */
+	iommu, err := utils.IsVfioUnsafeiommu()
+	if err != nil {
+		log.Warnf("Error getting vfio iommu state %v", err)
+	}
+	params.VfioUnsafeiommu = iommu
+
 }
 
 func parseEnvVariables(params *config.VppManagerParams) (err error) {
@@ -152,7 +160,7 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.NativeDriver = uplink.NATIVE_DRIVER_NONE
+	params.NativeDriver = ""
 	if conf := os.Getenv(NativeDriverEnvVar); conf != "" {
 		params.NativeDriver = conf
 	}
@@ -242,6 +250,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("Hugepages            %d", params.AvailableHugePages)
 	log.Infof("KernelVersion        %s", params.KernelVersion)
 	log.Infof("Drivers              %s", params.LoadedDrivers)
+	log.Infof("vfio iommu:          %t", params.VfioUnsafeiommu)
 
 	log.Infof("-- Interface config --")
 	log.Infof("Node IP4:            %s", conf.NodeIP4)
