@@ -64,7 +64,8 @@ function test_ipsec_ip4 () {
 }
 
 function test_raw_ip6 () {
-	V=6 create_cluster
+	V=6 load_parameters
+	create_cluster
 	start_calico
 	start_test
 
@@ -78,7 +79,8 @@ function test_raw_ip6 () {
 }
 
 function test_ipip_ip6 () {
-	V=6 create_cluster
+	V=6 load_parameters
+	create_cluster
 	start_calico_ipip
 	start_test
 
@@ -121,7 +123,8 @@ function test_nodeport_snat_ip4 () {
 }
 
 function test_nodeport_snat_ip6 () {
-	V=6 N=1 create_cluster
+	V=6 load_parameters
+	N=1 create_cluster
 	N=1 start_calico
 	N=1 start_test
 
@@ -145,5 +148,6 @@ if [ $# = 0 ]; then
 else
 	check_no_running_kubelet
 	load_parameters
+	cleanup_calico_vpp_state
 	"test_$1"
 fi
