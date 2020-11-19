@@ -5,6 +5,7 @@ LABEL maintainer="aloaugus@cisco.com"
 ADD dep/gobgp /bin/gobgp
 ADD cmd/felix-api-proxy /bin/felix-api-proxy
 ADD cmd/calico-vpp-agent /bin/calico-vpp-agent
+ADD cmd/debug /bin/debug
 ADD etc/service/calico-vpp-agent /etc/service/available/calico-vpp-agent
 
 RUN sed -i.orig \
