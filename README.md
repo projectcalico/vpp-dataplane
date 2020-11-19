@@ -3,13 +3,14 @@
 
 This repository contains the source for Calico's VPP dataplane integration. The integration is in incubation status, with significant development in progress.
 
-Please see the [Wiki](https://github.com/projectcalico/vpp-dataplane/wiki) for more detailed information about this project, and the [Setup Instructions](https://github.com/projectcalico/vpp-dataplane/wiki/Setup-instructions) if you would like to try it.
+## Get Started Using Calico/VPP
 
-## Get Started Using Calico
+* Please [see the Wiki](https://github.com/projectcalico/vpp-dataplane/wiki) for more detailed information about this project
+* If you would like to try it, you can read the [Setup Instructions](https://github.com/projectcalico/vpp-dataplane/wiki/Getting-started)
+* If you want to learn more about Calico, see the documentation on [docs.projectcalico.org](https://docs.projectcalico.org).
+* If you have questions, feel free to drop us a line in the [Calico Slack room #vpp](https://slack.projectcalico.org/)
 
-For users who want to learn more about the project or get started with Calico, see the documentation on [docs.projectcalico.org](https://docs.projectcalico.org).
-
-## Get Started Developing Calico
+## Get Started Developing Calico/VPP
 
 Contributions to this code are welcome! Before starting, make sure you've read [the Calico contributor guide][contrib].
 
