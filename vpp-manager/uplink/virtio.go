@@ -45,9 +45,9 @@ func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
 	}
 	supported = supported && ret
 
-	ret = d.conf.Driver == config.DRIVER_VIRTIO_NET
+	ret = d.conf.Driver == config.DRIVER_VIRTIO_PCI
 	if !ret && warn {
-		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_VIRTIO_NET)
+		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_VIRTIO_PCI)
 	}
 	supported = supported && ret
 

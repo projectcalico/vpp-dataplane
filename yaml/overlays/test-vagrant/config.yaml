@@ -24,16 +24,9 @@ spec:
               hugepages-2Mi: 256Mi
           env:
             - name: CALICOVPP_NATIVE_DRIVER
-              value: "virtio"
+              value: ""
             - name: CALICOVPP_INIT_SCRIPT_TEMPLATE
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: vpp_init_script
-            - name: CALICOVPP_SWAP_DRIVER
-              value: vfio-pci
-            - name: CALICOVPP_VPP_STARTUP_SLEEP
-              value: "5"
+              value: ""
             - name: CALICOVPP_DEFAULT_GW
               value: "192.168.0.1"
         - name: calico-node
