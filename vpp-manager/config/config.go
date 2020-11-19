@@ -41,7 +41,7 @@ const (
 const (
 	DRIVER_UIO_PCI_GENERIC = "uio_pci_generic"
 	DRIVER_VFIO_PCI        = "vfio-pci"
-	DRIVER_VIRTIO_NET      = "virtio-net"
+	DRIVER_VIRTIO_PCI      = "virtio-pci"
 	DRIVER_I40E            = "i40e"
 )
 
