@@ -25,7 +25,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	// "github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
@@ -52,6 +51,12 @@ const (
 	DefaultGWEnvVar          = "CALICOVPP_DEFAULT_GW"
 	ServicePrefixEnvVar      = "SERVICE_PREFIX"
 	defaultRxMode            = types.Adaptative
+)
+
+const (
+	DefaultTapQueueSize = 1024
+	DefaultPhyQueueSize = 1024
+	DefaultNumRxQueues  = 1
 )
 
 func getVppManagerParams() (params *config.VppManagerParams) {
@@ -165,7 +170,7 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		params.NativeDriver = conf
 	}
 
-	params.NumRxQueues = 1
+	params.NumRxQueues = DefaultNumRxQueues
 	if conf := os.Getenv(NumRxQueuesEnvVar); conf != "" {
 		queues, err := strconv.ParseInt(conf, 10, 16)
 		if err != nil || queues <= 0 {
@@ -195,43 +200,54 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 			params.DefaultGWs = append(params.DefaultGWs, defaultGW)
 		}
 	}
-	params.TapRxQueueSize, params.TapTxQueueSize, err = parseRingSize(TapRingSizeEnvVar)
-	if err != nil {
-		return err
+
+	params.TapRxQueueSize = DefaultTapQueueSize
+	params.TapTxQueueSize = DefaultTapQueueSize
+	if conf := os.Getenv(TapRingSizeEnvVar); conf != "" {
+		params.TapRxQueueSize, params.TapTxQueueSize, err = parseRingSize(conf)
+		if err != nil {
+			return errors.Wrapf(err, "Error parsing %s", TapRingSizeEnvVar)
+		}
 	}
-	params.RxQueueSize, params.TxQueueSize, err = parseRingSize(RingSizeEnvVar)
-	if err != nil {
-		return err
+
+	params.RxQueueSize = DefaultTapQueueSize
+	params.TxQueueSize = DefaultTapQueueSize
+	if conf := os.Getenv(RingSizeEnvVar); conf != "" {
+		params.RxQueueSize, params.TxQueueSize, err = parseRingSize(conf)
+		if err != nil {
+			return errors.Wrapf(err, "Error parsing %s", RingSizeEnvVar)
+		}
 	}
 	return nil
 }
 
-func parseRingSize(envVar string) (int, int, error) {
+func parseRingSize(conf string) (int, int, error) {
 	rxSize := 0
 	txSize := 0
-	if conf := os.Getenv(envVar); conf != "" {
-		sizes := strings.Split(conf, ",")
-		if len(sizes) == 1 {
-			sz, err := strconv.ParseInt(sizes[0], 10, 32)
-			if err != nil {
-				return 0, 0, fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", envVar, conf, sz, err)
-			}
-			rxSize = int(sz)
-			txSize = int(sz)
-		} else if len(sizes) == 2 {
-			sz, err := strconv.ParseInt(sizes[0], 10, 32)
-			if err != nil {
-				return 0, 0, fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", envVar, conf, sz, err)
-			}
-			rxSize = int(sz)
-			sz, err = strconv.ParseInt(sizes[1], 10, 32)
-			if err != nil {
-				return 0, 0, fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", envVar, conf, sz, err)
-			}
-			txSize = int(sz)
-		} else {
-			return 0, 0, fmt.Errorf("Invalid %s configuration: %s parses to %v", envVar, conf, sizes)
+	if conf == "" {
+		return 0, 0, fmt.Errorf("Empty configuration")
+	}
+	sizes := strings.Split(conf, ",")
+	if len(sizes) == 1 {
+		sz, err := strconv.ParseInt(sizes[0], 10, 32)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Invalid conf: %s parses to %v err %v", conf, sz, err)
 		}
+		rxSize = int(sz)
+		txSize = int(sz)
+	} else if len(sizes) == 2 {
+		sz, err := strconv.ParseInt(sizes[0], 10, 32)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Invalid conf: %s parses to %v err %v", conf, sz, err)
+		}
+		rxSize = int(sz)
+		sz, err = strconv.ParseInt(sizes[1], 10, 32)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Invalid conf: %s parses to %v err %v", conf, sz, err)
+		}
+		txSize = int(sz)
+	} else {
+		return 0, 0, fmt.Errorf("Invalid conf: %s parses to %v", conf, sizes)
 	}
 	return rxSize, txSize, nil
 }

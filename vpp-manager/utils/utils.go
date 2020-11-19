@@ -198,6 +198,20 @@ func IsVfioUnsafeiommu() (bool, error) {
 	return iommu, nil
 }
 
+func DeleteInterfaceVF(interfaceName string) (err error) {
+	pciId, err := GetInterfacePciId(interfaceName)
+	if err != nil {
+		return errors.Wrapf(err, "cannot get interface %s pciID", interfaceName)
+	}
+
+	sriovNumvfsPath := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", pciId)
+	err = WriteFile("0", sriovNumvfsPath)
+	if err != nil {
+		return errors.Wrapf(err, "cannot disable VFs for %s", pciId)
+	}
+	return nil
+}
+
 func CreateInterfaceVF(interfaceName string) (vfPciId string, err error) {
 	pciId, err := GetInterfacePciId(interfaceName)
 	if err != nil {
@@ -370,4 +384,18 @@ func SafeSetInterfaceUpByName(interfaceName string) (link netlink.Link, err erro
 		return nil, errors.Wrapf(err, "Error setting link %s back up", interfaceName)
 	}
 	return link, nil
+}
+
+func CycleHardwareAddr(hwAddr net.HardwareAddr, n uint8) net.HardwareAddr {
+	/* Cycle the last n bits of hwaddr
+	 * Given n <= 8 */
+	hw := make([]byte, len(hwAddr))
+	copy(hw, hwAddr)
+	i := hw[len(hw)-1]
+	lmask := byte((1 << n) - 1)       /* last n bits mask */
+	tmask := byte(0xff & (0xff << n)) /* top n bits mask */
+	nmask := byte(1 << (n - 1))       /* nth bit mask */
+	i = (i & tmask) | (((i & lmask) << 1) & lmask) | (i & nmask)
+	hw[len(hw)-1] = i
+	return hw
 }

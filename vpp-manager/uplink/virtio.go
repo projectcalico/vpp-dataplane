@@ -17,6 +17,7 @@ package uplink
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"

@@ -17,6 +17,7 @@ package uplink
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
@@ -61,7 +62,13 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 	if err != nil {
 		return errors.Wrapf(err, "Couldnt find Interface %s", d.params.MainInterface)
 	}
-	netlink.LinkSetVfHardwareAddr(link, 0 /* vf */, d.conf.HardwareAddr)
+	hardwareAddr := utils.CycleHardwareAddr(d.conf.HardwareAddr, 7)
+	err = netlink.LinkSetVfHardwareAddr(link, 0 /* vf */, hardwareAddr)
+	if err != nil {
+		return errors.Wrapf(err, "Couldnt set VF 0 hwaddr %s", d.params.MainInterface)
+	}
+
+	log.Infof("Created VF pci:%s hw:%s for %s", d.pciId, hardwareAddr, d.params.MainInterface)
 
 	if d.conf.IsUp {
 		// Set interface down if it is up, bind it to a VPP-friendly driver
@@ -74,6 +81,11 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 }
 
 func (d *AVFDriver) RestoreLinux() {
+	err := utils.DeleteInterfaceVF(d.params.MainInterface)
+	if err != nil {
+		log.Warnf("Error deleting VF for %s: %v", d.params.MainInterface, err)
+	}
+
 	if !d.conf.IsUp {
 		return
 	}

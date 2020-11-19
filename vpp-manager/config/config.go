@@ -17,10 +17,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/vishvananda/netlink"
 	"net"
 	"strings"
+
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/vishvananda/netlink"
 )
 
 const (
