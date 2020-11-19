@@ -60,6 +60,13 @@ function getVppPid () {
 	ps aux | grep -v grep | grep "vpp -c" | tail -n 1 | awk '{print $2}'
 }
 
+function kill_local_agent () {
+	agent_docker_id=$(docker ps | grep node_calico | awk '{print $1}')
+	blue "Kill agent [${agent_docker_id}], waiting 30 seconds for restart..."
+	docker stop ${agent_docker_id}
+	sleep 30
+}
+
 function kill_local_vpp () {
 	vpp_pid=$(getVppPid)
 	blue "Kill vpp [${vpp_pid}], waiting 30 seconds for restart..."

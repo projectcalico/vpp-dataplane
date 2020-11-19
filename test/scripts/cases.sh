@@ -27,6 +27,8 @@ function test_vpp_restart_v4 ()
 	POD=iperf-client
 	kill_local_vpp
 	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1
+	kill_local_agent
+	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1
 }
 
 function test_vpp_restart_v6 ()
@@ -35,6 +37,8 @@ function test_vpp_restart_v6 ()
 	NS=iperf
 	POD=iperf-client
 	kill_local_vpp
+	test "iperf ServiceName -P4" iperf -V -c iperf-service                           -t 1 -P4 -i1
+	kill_local_agent
 	test "iperf ServiceName -P4" iperf -V -c iperf-service                           -t 1 -P4 -i1
 }
 
