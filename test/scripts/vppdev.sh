@@ -13,10 +13,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set +x
+
 function green () { printf "\e[0;32m$1\e[0m\n" ; }
 function red   () { printf "\e[0;31m$1\e[0m\n" ; }
 function blue  () { printf "\e[0;34m$1\e[0m\n" ; }
 function grey  () { printf "\e[0;37m$1\e[0m\n" ; }
+function greychr  () { printf "\e[0;37m$1\e[0m" ; }
+function greydot  () { printf "\e[0;37m.\e[0m" ; }
+
+get_available_node_names ()
+{
+  kubectl get nodes -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}'
+}
+
+validate_node_name ()
+{
+  local node_names=$(get_available_node_names)
+  local node_cnt=$(echo $node_names | wc -l)
+
+  if [ x$node_names = x ];
+  then
+  	red "No nodes found. Is cluster running ?"
+  	exit 1
+  fi
+
+  if [ x$node_cnt = x1 ] && [ x$NODE = x ]; then
+    NODE=$node_names
+    return
+  fi
+
+  for n in $node_names
+  do
+	if [ x$NODE = x$n ]; then
+      return
+	fi
+  done
+
+  >&2 red "Please specify a node name :"
+  for n in $node_names
+  do
+	>&2 echo "$n"
+  done
+  exit 1
+}
 
 find_node_pod () # NODE, POD
 {
@@ -26,6 +66,7 @@ find_node_pod () # NODE, POD
 
 exec_node () # C, POD, NODE
 {
+  validate_node_name
   SVC=${SVC:=kube-system}
   local pod_name=$(find_node_pod)
   if [ x$pod_name == x ]; then
@@ -38,6 +79,7 @@ exec_node () # C, POD, NODE
 
 log_node () # C, POD, NODE
 {
+  validate_node_name
   SVC=${SVC:=kube-system}
   local pod_name=$(find_node_pod)
   if [ x$pod_name == x ]; then
@@ -50,8 +92,8 @@ log_node () # C, POD, NODE
 
 vppctl () # nodeID args
 {
-  NODE=$1 POD=calico-vpp-node C=vpp exec_node \
-	/usr/bin/vppctl -s /var/run/vpp/cli.sock ${@:2}
+  NODE=$NODE POD=calico-vpp-node C=vpp exec_node \
+	/usr/bin/vppctl -s /var/run/vpp/cli.sock $@
 }
 
 #
@@ -87,34 +129,44 @@ vppdev_cli_export ()
 	PREFIX=$2
 	DIR=${DIR:=./export}
 	mkdir -p $DIR
+	green "Exporting to $DIR"
 
-	grey "Logging k8 internals..."
+	greychr "Logging k8 internals..."
 
-	kubectl version                                              > ${DIR}/${PREFIX}kubectl-version
-	sudo journalctl -u kubelet -r -n200                          > ${DIR}/${PREFIX}kubelet-journal 2>&1
-	kubectl -n kube-system get pods -o wide                      > ${DIR}/${PREFIX}get-pods
-	kubectl -n kube-system get services -o wide                  > ${DIR}/${PREFIX}get-services
-	kubectl -n kube-system get nodes -o wide                     > ${DIR}/${PREFIX}get-nodes
-	kubectl -n kube-system get configmap calico-config -o yaml   > ${DIR}/${PREFIX}calico-config.configmap.yaml
-	kubectl -n kube-system get daemonset calico-vpp-node -o yaml > ${DIR}/${PREFIX}calico-vpp-node.daemonset.yaml
+	kubectl version                                              > ${DIR}/${PREFIX}kubectl-version                 ; greydot
+	sudo journalctl -u kubelet -r -n200                          > ${DIR}/${PREFIX}kubelet-journal 2>&1            ; greydot
+	kubectl -n kube-system get pods -o wide                      > ${DIR}/${PREFIX}get-pods                        ; greydot
+	kubectl -n kube-system get services -o wide                  > ${DIR}/${PREFIX}get-services                    ; greydot
+	kubectl -n kube-system get nodes -o wide                     > ${DIR}/${PREFIX}get-nodes                       ; greydot
+	kubectl -n kube-system get configmap calico-config -o yaml   > ${DIR}/${PREFIX}calico-config.configmap.yaml    ; greydot
+	kubectl -n kube-system get daemonset calico-vpp-node -o yaml > ${DIR}/${PREFIX}calico-vpp-node.daemonset.yaml  ; greydot
+	printf '\n'
 
-	for node in $(kubectl get nodes -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}')
+	for node in $(get_available_node_names)
 	do
-		grey "Logging node $node..."
+		greychr "Dumping node '$node' stats..."
 		local calicovpp_pod_name=$(POD=calico-vpp-node NODE=$node find_node_pod)
-		vppctl $node show hardware-interfaces                    > ${DIR}/${PREFIX}${node}.hardware-interfaces
-		vppctl $node show run                                    > ${DIR}/${PREFIX}${node}.show-run
-		vppctl $node show err                                    > ${DIR}/${PREFIX}${node}.show-err
-		vppctl $node show log                                    > ${DIR}/${PREFIX}${node}.show-log
-		vppctl $node show buffers                                > ${DIR}/${PREFIX}${node}.show-buffers
-		vppctl $node show int                                    > ${DIR}/${PREFIX}${node}.show-int
-		vppctl $node show int rx                                 > ${DIR}/${PREFIX}${node}.show-int-rx
-		vppctl $node show tun                                    > ${DIR}/${PREFIX}${node}.show-tun
-		kubectl -n kube-system describe pod/$calicovpp_pod_name  > ${DIR}/${PREFIX}${node}.describe-vpp-pod
-		NODE=$node POD=calico-vpp-node C=vpp log_node            > ${DIR}/${PREFIX}${node}.vpp.log
-		NODE=$node POD=calico-vpp-node C=calico-node log_node    > ${DIR}/${PREFIX}${node}.calico.log
-		NODE=$node POD=calico-vpp-node C=calico-node exec_node \
-		  cat /var/log/calico/calico-vpp-agent/current           > ${DIR}/${PREFIX}${node}.agent.log
+		NODE=$node vppctl show hardware-interfaces                    > ${DIR}/${PREFIX}${node}.hardware-interfaces   ; greydot
+		NODE=$node vppctl show run                                    > ${DIR}/${PREFIX}${node}.show-run              ; greydot
+		NODE=$node vppctl show err                                    > ${DIR}/${PREFIX}${node}.show-err              ; greydot
+		NODE=$node vppctl show log                                    > ${DIR}/${PREFIX}${node}.show-log              ; greydot
+		NODE=$node vppctl show buffers                                > ${DIR}/${PREFIX}${node}.show-buffers          ; greydot
+		NODE=$node vppctl show int                                    > ${DIR}/${PREFIX}${node}.show-int              ; greydot
+		NODE=$node vppctl show int rx                                 > ${DIR}/${PREFIX}${node}.show-int-rx           ; greydot
+		NODE=$node vppctl show tun                                    > ${DIR}/${PREFIX}${node}.show-tun              ; greydot
+		printf '\n'
+		greychr "Dumping node '$node' logs..."
+		kubectl -n kube-system describe pod/$calicovpp_pod_name       > ${DIR}/${PREFIX}${node}.describe-vpp-pod      ; greydot
+		NODE=$node POD=calico-vpp-node C=vpp log_node                 > ${DIR}/${PREFIX}${node}.vpp.log               ; greydot
+		NODE=$node POD=calico-vpp-node C=calico-node log_node         > ${DIR}/${PREFIX}${node}.calico.log            ; greydot
+		printf '\n'
+		greychr "Dumping node '$node' state..."
+		NODE=$node vppctl show cnat client                            > ${DIR}/${PREFIX}${node}.show-cnat-client      ; greydot
+		NODE=$node vppctl show cnat translation                       > ${DIR}/${PREFIX}${node}.show-cnat-translation ; greydot
+		NODE=$node vppctl show cnat session verbose                   > ${DIR}/${PREFIX}${node}.show-cnat-session     ; greydot
+		NODE=$node vppctl show cnat timestamp                         > ${DIR}/${PREFIX}${node}.show-cnat-timestamp   ; greydot
+		NODE=$node vppctl show cnat snat                              > ${DIR}/${PREFIX}${node}.show-cnat-snat        ; greydot
+		printf '\n'
 	done
 	# By default, compress to archive
 	if [ x$DIR = x./export ]; then
@@ -133,31 +185,51 @@ vppdev_cli_clear ()
 		echo "No calico-vpp pod found"
 		exit 1
 	fi
-	for node in $(kubectl get nodes -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}')
+	for node in $(get_available_node_names)
 	do
-		vppctl $node clear run
-		vppctl $node clear err
+		NODE=$node vppctl clear run
+		NODE=$node vppctl clear err
 	done
 }
 
 vppdev_cli_vppctl ()
 {
-  vppctl $@
+  NODE=$1; shift
+  validate_node_name
+  NODE=$NODE vppctl $@
+}
+
+print_vpp_logs ()
+{
+  NODE=$NODE POD=calico-vpp-node C=vpp FOLLOW=$FOLLOW log_node
+}
+
+print_agent_logs ()
+{
+  NODE=$NODE POD=calico-vpp-node C=calico-node FOLLOW=$FOLLOW log_node | grep --color=Never -e '^time='
+}
+
+print_felix_logs ()
+{
+  NODE=$NODE POD=calico-vpp-node C=calico-node FOLLOW=$FOLLOW log_node | grep --color=Never -v -e '^time='
 }
 
 vppdev_cli_log ()
 {
-	local container=""
+	local log=""
 	local FOLLOW=""
-	local node_name=""
 	while (( $# )); do
 		case "$1" in
 		-vpp)
-			container=vpp
+			log=vpp
 			shift
 			;;
 		-agent)
-			container=agent
+			log=agent
+			shift
+			;;
+		-felix)
+			log=felix
 			shift
 			;;
 		-f)
@@ -165,34 +237,36 @@ vppdev_cli_log ()
 			shift
 			;;
 		*)
-        	node_name=$1
+        	NODE=$1
 			shift
 			;;
 		esac
 	done
 
-	if [ x$node_name = x ]; then
-		red "Please specify a node name"
-		exit 1
-	fi
+	validate_node_name
 
-	if [[ "$container" = "vpp" ]]; then
-	  NODE=$node_name POD=calico-vpp-node C=vpp FOLLOW=$FOLLOW log_node
-	elif [[ "$container" = "agent" ]]; then
-	  NODE=$node_name POD=calico-vpp-node C=calico-node FOLLOW=$FOLLOW log_node
-	else
+	if [ x$log = x ]; then
+	  FOLLOW=""
+	  blue "----- Felix -----"
+	  print_felix_logs
 	  blue "----- VPP Manager      -----"
-	  NODE=$node_name POD=calico-vpp-node C=vpp log_node
+	  print_vpp_logs
 	  blue "----- Calico-VPP agent -----"
-	  NODE=$node_name POD=calico-vpp-node C=calico-node FOLLOW=$FOLLOW log_node
+	  print_agent_logs
+	else
+	  print_${log}_logs
 	fi
 }
 
 vppdev_cli_sh ()
 {
   if [[ "$1" = "vpp" ]]; then
+	grey "This shell lives inside the vpp container"
+	grey "You will find vpp-manager & vpp running"
 	NODE=$2 POD=calico-vpp-node C=vpp exec_node bash
   elif [[ "$1" = "agent" ]]; then
+	grey "This shell lives inside the agent container"
+	grey "You will find calico-vpp-agent & felix running"
 	NODE=$2 POD=calico-vpp-node C=calico-node exec_node bash
   else
 	echo "Use $(basename -- $0) sh [vpp|agent] [NODENAME]"
