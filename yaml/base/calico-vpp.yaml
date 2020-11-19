@@ -243,6 +243,10 @@ spec:
               value: "false"
             - name: FELIX_DATAPLANEDRIVER
               value: "/bin/felix-api-proxy"
+            # Disable XDP in Felix. This only conflicts with VPP when using AF_XDP
+            # but we never benefit from it, so we're better off with it diasbled
+            - name: FELIX_XDPENABLED
+              value: "false"
           securityContext:
             privileged: true
           resources:
@@ -313,6 +317,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            # By default drop coredumps to /var/run/vpp which is mounted
+            # On the host
+            - name: CALICOVPP_CORE_PATTERN
+              value: "/var/run/vpp/vppcore.%e.%p"
           resources:
             requests:
               cpu: 500m

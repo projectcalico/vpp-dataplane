@@ -49,3 +49,29 @@ type VppXDPInterface struct {
 	TxQueueSize       int
 	NumRxQueues       int
 }
+
+func UnformatRxMode(str string) RxMode {
+	switch str {
+	case "interrupt":
+		return Interrupt
+	case "polling":
+		return Polling
+	case "adaptive":
+		return Adaptative
+	default:
+		return UnknownRxMode
+	}
+}
+
+func FormatRxMode(rxMode RxMode) string {
+	switch rxMode {
+	case Interrupt:
+		return "interrupt"
+	case Polling:
+		return "polling"
+	case Adaptative:
+		return "adaptive"
+	default:
+		return "default"
+	}
+}

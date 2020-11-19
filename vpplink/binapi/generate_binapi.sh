@@ -83,6 +83,7 @@ function generate_govpp_apis ()
 	  af_xdp \
 	  vpe \
 	  virtio \
+	  avf \
       capo
 }
 

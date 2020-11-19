@@ -15,6 +15,7 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/11/28711/4 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/35/29735/2 && git cherry-pick FETCH_HEAD # 29735: cnat: Fix invalid adj_index | https://gerrit.fd.io/r/c/vpp/+/29735
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/24/29724/3 && git cherry-pick FETCH_HEAD # 29724: cnat: reduce compile time | https://gerrit.fd.io/r/c/vpp/+/29724
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/04/29804/1 && git cherry-pick FETCH_HEAD # 29804: cnat: export src_policy fns | https://gerrit.fd.io/r/c/vpp/+/29804
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/55/29955/1 && git cherry-pick FETCH_HEAD # 29955: cnat: Fix throttle hash & cleanup | https://gerrit.fd.io/r/c/vpp/+/29955
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/23 && git cherry-pick FETCH_HEAD # 28587: calico: Add SNAT simultaneously to VIP DNAT | https://gerrit.fd.io/r/c/vpp/+/28587
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/29649/3 && git cherry-pick FETCH_HEAD # 29649: tap: fix the segv | https://gerrit.fd.io/r/c/vpp/+/29649

@@ -1,15 +1,16 @@
-VPP Version                 : 21.01-rc0~293-g55557f452
+VPP Version                 : 21.01-rc0~294-gc1b269881
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 5f4f2081c nat: nat44 enable/disable dynamic config
 ------------------ Cherry picked commits --------------------
-55557f452 Use 10us interrupt sleep
-37e412dc2 capo: Calico Policies plugin
-cc6f7efa7 acl: acl-plugin custom policies
-3c76196cc virtio: DRAFT: multi tx support
-74d5e5167 tap: fix the segv
-65d89ce10 calico: Add SNAT simultaneously to VIP DNAT
-6b287206a cnat: export src_policy fns
-0abc19c14 cnat: reduce compile time
-055c77858 cnat: Fix invalid adj_index
-55b0dfc92 vlib: force input node interrupts to be unique
+c1b269881 Use 10us interrupt sleep
+c0f47d9f1 capo: Calico Policies plugin
+f67ec11ef acl: acl-plugin custom policies
+93dee590d virtio: DRAFT: multi tx support
+5a651fee5 tap: fix the segv
+0979f52a2 calico: Add SNAT simultaneously to VIP DNAT
+9470c505f cnat: Fix throttle hash & cleanup
+8d0de0bbb cnat: export src_policy fns
+862e39b33 cnat: reduce compile time
+9d9225b0e cnat: Fix invalid adj_index
+646813b75 vlib: force input node interrupts to be unique
 -------------------------------------------------------------

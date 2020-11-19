@@ -17,12 +17,17 @@ package vpplink
 
 import (
 	"sync"
+	"time"
 
 	govpp "git.fd.io/govpp.git"
 	vppapi "git.fd.io/govpp.git/api"
 	vppcore "git.fd.io/govpp.git/core"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	DefaultReplyTimeout = 1 * time.Second
 )
 
 type VppLink struct {
