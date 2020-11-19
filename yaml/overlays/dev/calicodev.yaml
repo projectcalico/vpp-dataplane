@@ -80,6 +80,12 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICOVPP_NAT_ENABLED
+            - name: CALICOVPP_POLICIES_ENABLED
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_POLICIES_ENABLED
             - name: CALICOVPP_IPSEC_IKEV2_PSK
               value: ""
               valueFrom:
