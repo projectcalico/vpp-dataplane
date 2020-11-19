@@ -243,6 +243,10 @@ spec:
               value: "false"
             - name: FELIX_DATAPLANEDRIVER
               value: "/bin/felix-api-proxy"
+            # Disable XDP in Felix. This only conflicts with VPP when using AF_XDP
+            # but we never benefit from it, so we're better off with it diasbled
+            - name: FELIX_XDPENABLED
+              value: "false"
           securityContext:
             privileged: true
           resources:
