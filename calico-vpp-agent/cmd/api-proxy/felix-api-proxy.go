@@ -17,12 +17,13 @@ package main
 
 import (
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"time"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 )
 
@@ -33,7 +34,11 @@ const (
 
 func main() {
 	var socket net.Conn
+	var t tomb.Tomb
 	var err error
+
+	log := logrus.New()
+	config.LoadConfig(log)
 
 	inFile := os.NewFile(3, "pipe1")
 	outFile := os.NewFile(4, "pipe2")
@@ -41,28 +46,34 @@ func main() {
 		log.Fatalf("Cannot open pipe FDs")
 	}
 
-	for i := 1; i <= ConnRetries; i++ {
-		socket, err = net.Dial("unix", config.FelixDataplaneSocket)
-		if err == nil {
-			break
-		} else if i < ConnRetries {
-			log.WithError(err).Warnf("Try %d: Cannot open socket to agent (unix://%s)", i, config.FelixDataplaneSocket)
-			time.Sleep(ConnRetryDelay)
-		} else {
-			log.WithError(err).Fatal("Could not open socket to agent")
+	if config.EnablePolicies {
+		for i := 1; i <= ConnRetries; i++ {
+			socket, err = net.Dial("unix", config.FelixDataplaneSocket)
+			if err == nil {
+				break
+			} else if i < ConnRetries {
+				log.WithError(err).Warnf("Try %d: Cannot open socket to agent (unix://%s)", i, config.FelixDataplaneSocket)
+				time.Sleep(ConnRetryDelay)
+			} else {
+				log.WithError(err).Fatal("Could not open socket to agent")
+			}
 		}
+
+		t.Go(func() error {
+			_, err := io.Copy(socket, inFile)
+			return err
+		})
+		t.Go(func() error {
+			_, err := io.Copy(outFile, socket)
+			return err
+		})
+	} else {
+		t.Go(func() error {
+			// Discard all incoming messages
+			_, err := io.Copy(ioutil.Discard, inFile)
+			return err
+		})
 	}
-
-	var t tomb.Tomb
-
-	t.Go(func() error {
-		_, err := io.Copy(socket, inFile)
-		return err
-	})
-	t.Go(func() error {
-		_, err := io.Copy(outFile, socket)
-		return err
-	})
 
 	<-t.Dying()
 	log.Info("Felix proxy exited")
