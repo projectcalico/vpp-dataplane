@@ -152,6 +152,12 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID) {
 // Serve runs the policy server
 func (s *Server) Serve() {
 	s.log.Info("Starting policy server")
+
+	if !config.EnablePolicies {
+		s.log.Warn("Policies disabled, not running policy server")
+		return
+	}
+
 	listener, err := net.Listen("unix", config.FelixDataplaneSocket)
 	if err != nil {
 		s.log.WithError(err).Errorf("Could not bind to unix://%s", config.FelixDataplaneSocket)

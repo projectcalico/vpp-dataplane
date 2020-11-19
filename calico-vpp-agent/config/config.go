@@ -42,6 +42,7 @@ const (
 	TapNumTxQueuesEnvVar      = "CALICOVPP_TAP_TX_QUEUES"
 	TapGSOEnvVar              = "CALICOVPP_TAP_GSO_ENABLED"
 	EnableServicesEnvVar      = "CALICOVPP_NAT_ENABLED"
+	EnablePoliciesEnvVar      = "CALICOVPP_POLICIES_ENABLED"
 	CrossIpsecTunnelsEnvVar   = "CALICOVPP_IPSEC_CROSS_TUNNELS"
 	EnableIPSecEnvVar         = "CALICOVPP_IPSEC_ENABLED"
 	IPSecExtraAddressesEnvVar = "CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES"
@@ -61,6 +62,7 @@ var (
 	TapNumTxQueues    = 1
 	TapGSOEnabled     = false
 	EnableServices    = true
+	EnablePolicies    = false
 	EnableIPSec       = false
 	IpsecAddressCount = 1
 	CrossIpsecTunnels = false
@@ -142,6 +144,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableServicesEnvVar, conf, enableServices, err)
 		}
 		EnableServices = enableServices
+	}
+
+	if conf := os.Getenv(EnablePoliciesEnvVar); conf != "" {
+		enablePolicies, err := strconv.ParseBool(conf)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnablePoliciesEnvVar, conf, enablePolicies, err)
+		}
+		EnablePolicies = enablePolicies
 	}
 
 	if conf := os.Getenv(IPSecExtraAddressesEnvVar); conf != "" {
