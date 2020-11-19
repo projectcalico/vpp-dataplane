@@ -30,9 +30,9 @@ get_available_node_names ()
 validate_node_name ()
 {
   local node_names=$(get_available_node_names)
-  local node_cnt=$(echo $node_names | wc -l)
+  local node_cnt=$(get_available_node_names | wc -l)
 
-  if [ x$node_names = x ];
+  if [ "x$node_names" = x ];
   then
   	red "No nodes found. Is cluster running ?"
   	exit 1
