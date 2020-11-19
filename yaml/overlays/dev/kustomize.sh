@@ -74,15 +74,13 @@ function get_vpp_conf ()
 	  session {
     	  evt_qs_memfd_seg
 	  }
-	  dpdk {
-		dev __PCI_DEVICE_ID__ { num-rx-queues ${RXQ} }
-	  }
 	  buffers {
 		buffers-per-numa 65536
 	  }
 	  plugins {
     	  plugin default { enable }
     	  plugin calico_plugin.so { enable }
+    	  plugin dpdk_plugin.so { disable }
 	  }
 	"
 }
@@ -174,7 +172,6 @@ calico_create_template ()
   	exit 1
   fi
 
-  RXQ=${RXQ:=4}
   WRK=${WRK:=0}
   MAINCORE=${MAINCORE:=12}
   DPDK=${DPDK:=true}
@@ -189,7 +186,7 @@ calico_create_template ()
   export CALICOVPP_CONFIG_TEMPLATE=${CALICOVPP_CONFIG_TEMPLATE:=$(get_vpp_conf)}
   export CALICOVPP_CONFIG_EXEC_TEMPLATE=${CALICOVPP_CONFIG_EXEC_TEMPLATE}
   export CALICOVPP_INIT_SCRIPT_TEMPLATE=${CALICOVPP_INIT_SCRIPT_TEMPLATE}
-  export CALICO_NODE_IMAGE=${CALICO_NODE_IMAGE:=calicovpp/vpp:latest}
+  export CALICO_NODE_IMAGE=${CALICO_NODE_IMAGE:=calicovpp/node:latest}
   export CALICO_VPP_IMAGE=${CALICO_VPP_IMAGE:=calicovpp/vpp:latest}
   export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:=v3.15.1}
   export CALICO_CNI_IMAGE=${CALICO_CNI_IMAGE:=calico/cni:${CALICO_VERSION_TAG}}
@@ -200,7 +197,7 @@ calico_create_template ()
   export CALICOVPP_TAP_GSO_ENABLED=${CALICOVPP_TAP_GSO_ENABLED:=false}
   export CALICOVPP_IPSEC_ENABLED=${CALICOVPP_IPSEC_ENABLED:=false}
   export CALICOVPP_NAT_ENABLED=${CALICOVPP_NAT_ENABLED:=true}
-  export CALICOVPP_POLICIES_ENABLED=${CALICOVPP_POLICIES_ENABLED:=true}
+  export CALICOVPP_POLICIES_ENABLED=${CALICOVPP_POLICIES_ENABLED:=false}
   export CALICOVPP_IPSEC_IKEV2_PSK=${CALICOVPP_IPSEC_IKEV2_PSK:=keykeykey}
   export CALICO_IPV4POOL_IPIP=${CALICO_IPV4POOL_IPIP:=Never}
   export CALICO_IPV4POOL_VXLAN=${CALICO_IPV4POOL_VXLAN:=Never}

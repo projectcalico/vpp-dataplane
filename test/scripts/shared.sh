@@ -90,24 +90,26 @@ function load_parameters () {
 		echo "with:"
 		echo "IF=eth0"
 		echo "NODESSH=hostname"
+		echo "K8_VERSION=v1.18.8"
 		exit 1
 	fi
 	IF=${IF:=eth0}
+	K8_VERSION=${K8_VERSION:=v1.18.8}
 	if [[ $V = 6 ]]; then
     	POD_CIDR=fd20::0/112
     	SERVICE_CIDR=fd10::0/120
-    	MAIN=fd11::1/124
-    	OTHERS=fd11::2/124@${NODESSH}
+    	MAIN=fd11::1/124%${IF}
+    	OTHERS=fd11::2/124%${IF}@${NODESSH}
 	elif [[ $V = 46 ]]; then
     	POD_CIDR=10.0.0.0/16,fd20::0/112
     	SERVICE_CIDR=10.96.0.0/16,fd10::0/120
-    	MAIN=20.0.0.1/24,fd11::1/124
-    	OTHERS=20.0.0.2/24,fd11::2/124@${NODESSH}
+    	MAIN=20.0.0.1/24,fd11::1/124%${IF}
+    	OTHERS=20.0.0.2/24,fd11::2/124%${IF}@${NODESSH}
 	else
     	POD_CIDR=10.0.0.0/16
     	SERVICE_CIDR=10.96.0.0/16
-    	MAIN=20.0.0.1/24
-    	OTHERS=20.0.0.2/24@${NODESSH}
+    	MAIN=20.0.0.1/24%${IF}
+    	OTHERS=20.0.0.2/24%${IF}@${NODESSH}
 	fi
 	if [[ $N = 1 ]]; then
     	OLD_OTHERS=$OTHERS
