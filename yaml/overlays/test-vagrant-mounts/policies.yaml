@@ -1,0 +1,9 @@
+spec:
+  template:
+    spec:
+      containers:
+        - name: calico-node
+          env:
+            - name: CALICOVPP_POLICIES_ENABLED
+              value: "true"
+
