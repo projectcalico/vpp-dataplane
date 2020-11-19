@@ -42,6 +42,7 @@ function cluster_provisionning () {
     POD_CIDR=$POD_CIDR \
     SERVICE_CIDR=$SERVICE_CIDR \
     MAIN=$MAIN \
+    K8_VERSION=$K8_VERSION \
     OTHERS=$OTHERS > $ORCHUP_LOG 2>&1
 }
 
@@ -83,6 +84,11 @@ function start_calico () {
   $KUST up > $CALICOUP_LOG 2>&1
   wait_for_calico_vpp
 }
+
+function stop_calico () {
+  kubectl delete -f /tmp/calico-vpp.yaml
+}
+
 
 function start_calico_ipsec () {
   export CALICO_IPV4POOL_IPIP=Always

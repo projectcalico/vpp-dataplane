@@ -29,7 +29,6 @@ function provision ()
 	POD_CIDR=$POD_CIDR \
 	SERVICE_CIDR=$SERVICE_CIDR \
 	DNS_TYPE=$DNS_TYPE \
-	AVF=$AVF \
 	VERBOSE=$VERBOSE \
 	K8_VERSION=$K8_VERSION \
 	NODE_NAME=$NODE_NAME"
@@ -102,7 +101,6 @@ function print_usage_and_exit ()
 	echo "POD_CIDR       - CIDR for pods (defaults to 10.0.0.0/16)"
 	echo "SERVICE_CIDR   - CIDR for services (defaults to 10.96.0.0/16)"
 	echo "DNS_TYPE       - CoreDNS or kube-dns"
-	echo "AVF            - if 'yes' Create a VF for vpp's avf driver"
 	echo "VERBOSE        - verbose"
 	exit 1
 }

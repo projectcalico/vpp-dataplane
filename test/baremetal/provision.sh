@@ -87,28 +87,6 @@ function calico_if_linux_setup ()
   for cidr in $(echo $NODE_IP | sed 's/,/ /g' ) ; do
 	sudo ip addr add $cidr dev $VPP_DATAPLANE_IF
   done
-
-  if [ x$AVF = xyes ]; then
-  	calico_avf_setup $VPP_DATAPLANE_IF 1 $@
-  fi
-}
-
-function calico_avf_setup ()
-{
-  DEVNAME=$1
-  PCI=$(readlink /sys/class/net/$DEVNAME/device | cut -d '/' -f 4)
-  AVF_PCI=nope
-  if [ -f /home/nskrzypc/vpp/vfpci$2 ]; then
-  	AVF_PCI=$(cat /home/nskrzypc/vpp/vfpci$2)
-  fi
-  if [ ! -d /sys/bus/pci/devices/$AVF_PCI ]; then
-  	if [ x$3 = xmaster ]; then
-		sudo $SCRIPTDIR/utils/avf.sh $PCI 00:11:22:33:4$2:00
-	else
-		sudo $SCRIPTDIR/utils/avf.sh $PCI 00:11:22:33:4$2:01
-	fi
-	mv -f /home/nskrzypc/vpp/vfpci /home/nskrzypc/vpp/vfpci$2
-  fi
 }
 
 function raw_create_cluster_conf ()
@@ -237,7 +215,6 @@ function print_usage_and_exit ()
 	echo "POD_CIDR       - CIDR for pods (defaults to 10.0.0.0/16)"
 	echo "SERVICE_CIDR   - CIDR for services (defaults to 10.96.0.0/16)"
 	echo "DNS_TYPE       - CoreDNS or kube-dns"
-	echo "AVF            - if 'yes' Create a VF for vpp's avf driver"
 	echo "VERBOSE        - verbose"
 	exit 1
 }

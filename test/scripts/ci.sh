@@ -31,6 +31,7 @@ function test_raw_ip4 () {
 	echo "============ VPP restart ============"
 	$CASES vpp_restart_v4
 
+	stop_calico
 	teardown_cluster
 }
 
@@ -44,6 +45,7 @@ function test_ipip_ip4 () {
 	echo "============ VPP restart ============"
 	$CASES vpp_restart_v4
 
+	stop_calico
 	teardown_cluster
 }
 
@@ -57,6 +59,7 @@ function test_ipsec_ip4 () {
 	echo "============ VPP restart ============"
 	$CASES vpp_restart_v4
 
+	stop_calico
 	teardown_cluster
 }
 
@@ -70,6 +73,7 @@ function test_raw_ip6 () {
 	echo "============ VPP restart ============"
 	$CASES vpp_restart_v6
 
+	stop_calico
 	teardown_cluster
 }
 
@@ -83,6 +87,7 @@ function test_ipip_ip6 () {
 	echo "============ VPP restart ============"
 	$CASES vpp_restart_v6
 
+	stop_calico
 	teardown_cluster
 }
 
@@ -96,6 +101,7 @@ function test_ipsec_ip6 () {
 	echo "============ VPP restart ============"
 	$CASES vpp_restart_v6
 
+	stop_calico
 	teardown_cluster
 }
 
@@ -110,6 +116,7 @@ function test_nodeport_snat_ip4 () {
 	echo "============ Nodeport ipv4 ============"
 	$CASES nodeport_ip4
 
+	stop_calico
 	teardown_cluster
 }
 
@@ -124,6 +131,7 @@ function test_nodeport_snat_ip6 () {
 	echo "============ Nodeport ipv6 ============"
 	$CASES nodeport_ip6
 
+	stop_calico
 	teardown_cluster
 }
 
