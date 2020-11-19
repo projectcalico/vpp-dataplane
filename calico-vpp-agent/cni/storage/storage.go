@@ -115,10 +115,14 @@ type LocalPodSpec struct {
 	Routes            []LocalIPNet
 	ContainerIpsSize  int `struc:"int16,sizeof=ContainerIps"`
 	ContainerIps      []LocalIP
+
 	// Pod identifiers
-	OrchestratorID string
-	WorkloadID     string
-	EndpointID     string
+	OrchestratorIDSize int `struc:"int16,sizeof=OrchestratorID"`
+	OrchestratorID     string
+	WorkloadIDSize     int `struc:"int16,sizeof=WorkloadID"`
+	WorkloadID         string
+	EndpointIDSize     int `struc:"int16,sizeof=EndpointID"`
+	EndpointID         string
 }
 
 func (ps *LocalPodSpec) GetRoutes() (routes []*net.IPNet) {
