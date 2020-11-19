@@ -22,7 +22,7 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/7 && git cherry-pic
 
 # Policies
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/28083/13 && git cherry-pick FETCH_HEAD # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/12 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/13 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 
 echo "diff --git a/src/vlib/unix/input.c b/src/vlib/unix/input.c
 index 7531dd197..94a2bfb12 100644
