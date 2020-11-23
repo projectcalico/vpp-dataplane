@@ -60,7 +60,7 @@ const (
 var (
 	TapNumRxQueues    = 1
 	TapNumTxQueues    = 1
-	TapGSOEnabled     = false
+	TapGSOEnabled     = true
 	EnableServices    = true
 	EnablePolicies    = false
 	EnableIPSec       = false
