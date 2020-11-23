@@ -84,6 +84,7 @@ function generate_govpp_apis ()
 	  vpe \
 	  virtio \
 	  avf \
+	  wireguard \
       capo
 }
 

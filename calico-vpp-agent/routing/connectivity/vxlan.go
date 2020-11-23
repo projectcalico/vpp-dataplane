@@ -59,7 +59,7 @@ func (p *VXLanProvider) OnVppRestart() {
 
 func (p VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
 	p.log.Debugf("Adding vxlan Tunnel to VPP")
-	nodeIP := p.getNodeIP(vpplink.IsIP6(cn.NextHop))
+	nodeIP := p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop))
 	if _, found := p.vxlanIfs[cn.NextHop.String()]; !found {
 		p.log.Infof("VXLan: Add %s->%s", nodeIP.String(), cn.Dst.IP.String())
 
@@ -127,7 +127,7 @@ func (p VXLanProvider) DelConnectivity(cn *NodeConnectivity) error {
 		return errors.Errorf("Deleting unknown vxlan tunnel %s", cn.NextHop.String())
 	}
 	/* TODO: delete tunnel */
-	nodeIP := p.getNodeIP(vpplink.IsIP6(cn.NextHop))
+	nodeIP := p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop))
 	p.log.Infof("VXLan: Del ?->%s %d", cn.NextHop.String(), swIfIndex)
 	err := p.vpp.RouteDel(&types.Route{
 		Dst: &cn.Dst,

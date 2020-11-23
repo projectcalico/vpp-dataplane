@@ -28,17 +28,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
-
-var (
-	state = make(map[string]*node)
-)
-
-type node struct {
-	Spec      *calicov3.NodeSpec
-	SweepFlag bool
-}
 
 func (s *Server) isMeshMode() bool {
 	return *s.defaultBGPConf.NodeToNodeMeshEnabled
@@ -65,68 +55,104 @@ func nodeSpecCopy(s *calicov3.NodeSpec) *calicov3.NodeSpec {
 	return r
 }
 
+func (s *Server) GetNodeNameByIp(addr net.IP) string {
+	s.nodeStateLock.Lock()
+	defer s.nodeStateLock.Unlock()
+	nodename, found := s.nodeNamesByAddr[addr.String()]
+	if !found {
+		return ""
+	}
+	return nodename
+}
+
 func (s *Server) GetNodeByIp(addr net.IP) *calicov3.NodeSpec {
-	for _, node := range state {
-		if vpplink.IsIP6(addr) {
-			nodeIP, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
-			if err == nil {
-				if addr.Equal(nodeIP) {
-					return node.Spec
-				}
+	s.nodeStateLock.Lock()
+	defer s.nodeStateLock.Unlock()
+	nodename, found := s.nodeNamesByAddr[addr.String()]
+	if !found {
+		return nil
+	}
+	node, found := s.nodeStatesByName[nodename]
+	if !found {
+		return nil
+	}
+	return node.Spec
+}
+
+func (s *Server) addNodeState(state *NodeState) {
+	s.nodeStatesByName[state.Name] = *state
+	nodeIP, _, err := net.ParseCIDR(state.Spec.BGP.IPv6Address)
+	if err == nil {
+		s.nodeNamesByAddr[nodeIP.String()] = state.Name
+	}
+	nodeIP, _, err = net.ParseCIDR(state.Spec.BGP.IPv4Address)
+	if err == nil {
+		s.nodeNamesByAddr[nodeIP.String()] = state.Name
+	}
+}
+func (s *Server) delNodeState(nodename string) {
+	node, found := s.nodeStatesByName[nodename]
+	if found {
+		nodeIP, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
+		if err == nil {
+			delete(s.nodeNamesByAddr, nodeIP.String())
+		}
+		nodeIP, _, err = net.ParseCIDR(node.Spec.BGP.IPv4Address)
+		if err == nil {
+			delete(s.nodeNamesByAddr, nodeIP.String())
+		}
+	}
+	delete(s.nodeStatesByName, nodename)
+}
+
+func (s *Server) initialNodeSync() (string, error) {
+	s.nodeStateLock.Lock()
+	defer s.nodeStateLock.Unlock()
+	// TODO: Get and watch only ourselves if there is no mesh
+	s.log.Info("Syncing nodes...")
+	nodes, err := s.clientv3.Nodes().List(context.Background(), options.ListOptions{})
+	if err != nil {
+		return "", errors.Wrap(err, "error listing nodes")
+	}
+	for _, n := range s.nodeStatesByName {
+		n.SweepFlag = true
+	}
+	for _, node := range nodes.Items {
+		spec := nodeSpecCopy(&node.Spec)
+		shouldRestart, err := s.handleNodeUpdate(node.Name, spec, watch.Added)
+		if err != nil {
+			return "", errors.Wrap(err, "error handling node update")
+		}
+		if shouldRestart {
+			return "", fmt.Errorf("Current node configuration changed, restarting")
+		}
+	}
+	for name, node := range s.nodeStatesByName {
+		if node.SweepFlag {
+			shouldRestart, err := s.handleNodeUpdate(name, node.Spec, watch.Deleted)
+			if err != nil {
+				return "", errors.Wrap(err, "error handling node update")
 			}
-		} else {
-			nodeIP, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
-			if err == nil {
-				if addr.Equal(nodeIP) {
-					return node.Spec
-				}
+			if shouldRestart {
+				return "", fmt.Errorf("Current node configuration changed, restarting")
 			}
 		}
 	}
-	return nil
+	return nodes.ResourceVersion, nil
 }
 
 func (s *Server) watchNodes(initialResourceVersion string) error {
-	isMesh := s.isMeshMode()
 	var firstWatch = true
 	for {
-		// TODO: Get and watch only ourselves if there is no mesh
-		s.log.Info("Syncing nodes...")
-		nodes, err := s.clientv3.Nodes().List(context.Background(), options.ListOptions{})
+		resourceVersion, err := s.initialNodeSync()
 		if err != nil {
-			return errors.Wrap(err, "error listing nodes")
+			return err
 		}
-		for _, n := range state {
-			n.SweepFlag = true
-		}
-		for _, node := range nodes.Items {
-			spec := nodeSpecCopy(&node.Spec)
-			shouldRestart, err := s.handleNodeUpdate(state, node.Name, spec, watch.Added, isMesh)
-			if err != nil {
-				return errors.Wrap(err, "error handling node update")
-			}
-			if shouldRestart {
-				return fmt.Errorf("Current node configuration changed, restarting")
-			}
-		}
-		for name, node := range state {
-			if node.SweepFlag {
-				shouldRestart, err := s.handleNodeUpdate(state, name, node.Spec, watch.Deleted, isMesh)
-				if err != nil {
-					return errors.Wrap(err, "error handling node update")
-				}
-				if shouldRestart {
-					return fmt.Errorf("Current node configuration changed, restarting")
-				}
-			}
-		}
-
-		var resourceVersion string
+		/* if its the first time in the loop initialResourceVersion happened
+		 * before the list in initialNodeSync */
 		if firstWatch {
 			resourceVersion = initialResourceVersion
 			firstWatch = false
-		} else {
-			resourceVersion = nodes.ResourceVersion
 		}
 		watcher, err := s.clientv3.Nodes().Watch(
 			context.Background(),
@@ -153,7 +179,9 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 			}
 
 			spec := nodeSpecCopy(&node.Spec)
-			shouldRestart, err := s.handleNodeUpdate(state, node.Name, spec, update.Type, isMesh)
+			s.nodeStateLock.Lock()
+			shouldRestart, err := s.handleNodeUpdate(node.Name, spec, update.Type)
+			s.nodeStateLock.Unlock()
 			if err != nil {
 				return errors.Wrap(err, "error handling node update")
 			}
@@ -165,22 +193,21 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 	return nil
 }
 
+
 // Returns true if the config of the current node has changed and requires a restart
 // Sets node.SweepFlag to false if an existing node is added to allow mark and sweep
 func (s *Server) handleNodeUpdate(
-	state map[string]*node,
 	nodeName string,
 	newSpec *calicov3.NodeSpec,
 	eventType watch.EventType,
-	isMesh bool,
 ) (shouldRestart bool, err error) {
-	s.log.Debugf("Got node update: mesh:%t %s %s %+v %v", isMesh, eventType, nodeName, newSpec, state)
+	s.log.Debugf("Got node update: %s %s %+v", eventType, nodeName, newSpec)
 	if nodeName == config.NodeName {
 		// No need to manage ourselves, but if we change we need to restart and reconfigure
 		if eventType == watch.Deleted {
 			return true, nil
 		} else {
-			old, found := state[nodeName]
+			old, found := s.nodeStatesByName[nodeName]
 			if found {
 				// Check that there were no changes, restart if our BGP config changed
 				old.SweepFlag = false
@@ -188,17 +215,18 @@ func (s *Server) handleNodeUpdate(
 				return !reflect.DeepEqual(old.Spec.BGP, newSpec.BGP), nil
 			} else {
 				// First pass, create local node
-				state[nodeName] = &node{
+				s.addNodeState(&NodeState{
 					Spec:      newSpec,
 					SweepFlag: false,
-				}
+					Name: nodeName,
+				})
 				return false, nil
 			}
 		}
 	}
 
 	// If the mesh is disabled, discard all updates that aren't on the current node
-	if !isMesh || newSpec.BGP == nil { // No BGP config for this node
+	if !s.isMeshMode() || newSpec.BGP == nil { // No BGP config for this node
 		return false, nil
 	}
 	// This ensures that nodes that don't have a BGP Spec are never present in the state map
@@ -207,23 +235,24 @@ func (s *Server) handleNodeUpdate(
 	switch eventType {
 	case watch.Error: // Shouldn't happen
 	case watch.Added, watch.Modified:
-		old, found := state[nodeName]
+		old, found := s.nodeStatesByName[nodeName]
 		if found {
-			err = s.onNodeUpdated(old, newSpec)
+			err = s.onNodeUpdated(&old, newSpec)
 		} else {
 			// New node
-			state[nodeName] = &node{
+			s.addNodeState(&NodeState{
 				Spec:      newSpec,
 				SweepFlag: false,
-			}
+				Name: nodeName,
+			})
 			err = s.onNodeAdded(newSpec)
 		}
 	case watch.Deleted:
-		old, found := state[nodeName]
+		old, found := s.nodeStatesByName[nodeName]
 		// This assumes that the old spec and the new spec are identical.
 		if found {
-			err = s.onNodeDeleted(old)
-			delete(state, nodeName)
+			err = s.onNodeDeleted(&old)
+			s.delNodeState(nodeName)
 		} else {
 			return false, fmt.Errorf("Node to delete not found")
 		}
@@ -265,7 +294,7 @@ func (s *Server) getAsNumber(newSpec *calicov3.NodeSpec) uint32 {
 	}
 }
 
-func (s *Server) onNodeDeleted(old *node) error {
+func (s *Server) onNodeDeleted(old *NodeState) error {
 	v4IP, v6IP := s.getSpecAddresses(old.Spec)
 	if v4IP != "" {
 		err := s.deleteBGPPeer(v4IP)
@@ -282,7 +311,7 @@ func (s *Server) onNodeDeleted(old *node) error {
 	return nil
 }
 
-func (s *Server) onNodeUpdated(old *node, newSpec *calicov3.NodeSpec) (err error) {
+func (s *Server) onNodeUpdated(old *NodeState, newSpec *calicov3.NodeSpec) (err error) {
 	s.log.Debugf("node comparison: old:%+v new:%+v", old.Spec.BGP, newSpec.BGP)
 
 	asNumber := s.getAsNumber(newSpec)

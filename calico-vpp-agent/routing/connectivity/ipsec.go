@@ -50,8 +50,8 @@ func (p *IpsecProvider) RescanState() {
 	for _, profile := range profiles {
 		pmap[profile] = true
 	}
-	nodeIP4 := p.getNodeIP(false)
-	nodeIP6 := p.getNodeIP(true)
+	nodeIP4 := p.server.GetNodeIP(false)
+	nodeIP6 := p.server.GetNodeIP(true)
 	for _, tunnel := range tunnels {
 		if tunnel.Src.Equal(nodeIP4) || tunnel.Src.Equal(nodeIP6) {
 			_, found := pmap[profileName(tunnel)]
@@ -89,7 +89,7 @@ func (p IpsecProvider) errorCleanup(tunnel *types.IPIPTunnel, profile string) {
 
 func (p IpsecProvider) createIPSECTunnels(destNodeAddr net.IP) (err error) {
 	/* IP6 is not yet supported by ikev2 */
-	nodeIP := p.getNodeIP(false /* isv6 */)
+	nodeIP := p.server.GetNodeIP(false /* isv6 */)
 	for i := 0; i < config.IpsecAddressCount; i++ {
 		if config.CrossIpsecTunnels {
 			for j := 0; j < config.IpsecAddressCount; j++ {

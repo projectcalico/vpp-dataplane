@@ -39,3 +39,6 @@ index 7531dd197..94a2bfb12 100644
  		while (nanosleep (&ts, &tsrem) < 0)
  		  ts = tsrem;
 " | git apply -- && git add -A &&  git commit --author "Calico-vpp builder <>" -m "Use 10us interrupt sleep"
+
+
+# TODO VPP patch for adding public key to API

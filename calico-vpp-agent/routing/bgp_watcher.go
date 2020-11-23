@@ -87,14 +87,6 @@ func (s *Server) injectRoute(path *bgpapi.Path) error {
 	return err
 }
 
-func (s *Server) getNodeIPNet(isv6 bool) *net.IPNet {
-	if isv6 {
-		return s.ipv6Net
-	} else {
-		return s.ipv4Net
-	}
-}
-
 func (s *Server) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
 	/* If only IP6 (e.g. ipsec) is supported, find nodeip4 out of nodeip6 */
 	if !vpplink.IsIP6(addr) {
@@ -112,6 +104,7 @@ func (s *Server) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
 }
 
 func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
+	return connectivity.WIREGUARD // FIXME
 	ipPool := s.ipam.GetPrefixIPPool(&cn.Dst)
 	if ipPool == nil {
 		return connectivity.FLAT
@@ -122,7 +115,7 @@ func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
 		}
 		return connectivity.IPIP
 	}
-	ipNet := s.getNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
+	ipNet := s.GetNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
 	if ipPool.Spec.IPIPMode == calicov3.IPIPModeCrossSubnet && !isCrossSubnet(cn.NextHop, *ipNet) {
 		if config.EnableIPSec {
 			return connectivity.IPSEC

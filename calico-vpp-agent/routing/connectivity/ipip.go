@@ -43,8 +43,8 @@ func (p *IpipProvider) RescanState() {
 		p.log.Errorf("Error listing ipip tunnels: %v", err)
 	}
 
-	nodeIP4 := p.getNodeIP(false)
-	nodeIP6 := p.getNodeIP(true)
+	nodeIP4 := p.server.GetNodeIP(false)
+	nodeIP6 := p.server.GetNodeIP(true)
 	for _, tunnel := range tunnels {
 		if tunnel.Src.Equal(nodeIP4) || tunnel.Src.Equal(nodeIP6) {
 			p.log.Infof("Found existing tunnel: %s", tunnel)
@@ -65,7 +65,7 @@ func (p IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
 		tunnel = &types.IPIPTunnel{
-			Src: p.getNodeIP(vpplink.IsIP6(cn.NextHop)),
+			Src: p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop)),
 			Dst: cn.NextHop,
 		}
 		p.log.Infof("IPIP: Add %s", tunnel.String())
