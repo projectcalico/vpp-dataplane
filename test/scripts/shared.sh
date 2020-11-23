@@ -23,7 +23,9 @@ KUST=$SCRIPTDIR/../../yaml/overlays/dev/kustomize.sh
 
 LOG_DIR=/tmp/calicovppci
 ORCHUP_LOG=$LOG_DIR/orchup.log
+IPERFUP_LOG=$LOG_DIR/iperfup.log
 CALICOUP_LOG=$LOG_DIR/calicoup.log
+CALICODOWN_LOG=$LOG_DIR/calicodown.log
 LOGFILE=$LOG_DIR/testrun.log
 LAST_TEST_LOGFILE=$LOG_DIR/testrun.log~
 
@@ -73,6 +75,22 @@ vppdev_run_vppctl () # nodeID args
 
 function 6safe () { if [[ "$USE_IP6" = "yes" ]]; then echo "[$1]" ; else echo "$1" ; fi }
 function get_listen_addr () { if [[ "$USE_IP6" = "yes" ]]; then echo "::" ; else echo "0.0.0.0" ; fi }
+
+function cleanup_calico_vpp_state ()
+{
+	sudo rm -f /var/run/vpp/vppmanagerstatus
+	sudo rm -f /var/run/vpp/vppmanagertap0
+	sudo rm -f /var/run/vpp/calico_vpp.pid
+	sudo rm -f /var/run/vpp/calico_vpp_pod_state
+
+	if [ "$(ip route | grep blackhole)" != "" ]; then
+		red "There seem to be a blackhole route on this node"
+	fi
+
+	if [ "$(ssh $NODESSH -t "ip route| grep blackhole" 2>/dev/null)" != "" ]; then
+		red "There seem to be a blackhole route on node $NODESSH"
+	fi
+}
 
 function check_no_running_kubelet ()
 {

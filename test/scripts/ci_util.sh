@@ -86,7 +86,7 @@ function start_calico () {
 }
 
 function stop_calico () {
-  kubectl delete -f /tmp/calico-vpp.yaml
+  kubectl delete -f /tmp/calico-vpp.yaml > $CALICODOWN_LOG 2>&1
 }
 
 
@@ -133,7 +133,7 @@ function wait_for_calico_test () {
 
 function start_test () {
 	echo "Starting test clients... at $(date)"
-	$SCRIPTDIR/test.sh up iperf > iperfup.log 2>&1
+	$SCRIPTDIR/test.sh up iperf > $IPERFUP_LOG 2>&1
 	wait_for_coredns
 	SVC=iperf wait_for_calico_test
 }
