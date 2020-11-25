@@ -51,6 +51,6 @@ vpp-build-env:
 
 dev: build
 	cp $(VPPDEV_FILE) $(DEV_IMAGE_DIR)
-	docker build --pull \
+	docker build \
 	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)
