@@ -27,10 +27,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-const (
-	wireguardPort uint16 = 1234
-)
-
 type WireguardProvider struct {
 	*ConnectivityProviderData
 	wireguardTunnel *types.WireguardTunnel
@@ -39,6 +35,22 @@ type WireguardProvider struct {
 
 func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
 	return &WireguardProvider{d, nil, make(map[string]types.WireguardPeer)}
+}
+
+func (p *WireguardProvider) Enabled() bool {
+	felixConf := p.server.GetFelixConfig()
+	if felixConf.WireguardEnabled == nil {
+		return false
+	}
+	return *felixConf.WireguardEnabled
+}
+
+func (p *WireguardProvider) getWireguardPort() uint16 {
+	felixConf := p.server.GetFelixConfig()
+	if felixConf.WireguardListeningPort == nil {
+		return uint16(config.DefaultWireguardPort)
+	}
+	return uint16(*felixConf.WireguardListeningPort)
 }
 
 func (p *WireguardProvider) OnVppRestart() {
@@ -104,17 +116,20 @@ func (p *WireguardProvider) RescanState() {
 			break
 		}
 	}
-	if p.wireguardTunnel == nil {
-		p.log.Infof("Wireguard: Creating tunnel")
-		err = p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
-		if err != nil {
-			p.log.Errorf("Wireguard: Error creating tunnel: %s", err)
+	if p.Enabled() {
+		/* Create the listener if doesn't exist and enabled */
+		if p.wireguardTunnel == nil {
+			p.log.Infof("Wireguard: Creating tunnel")
+			err = p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
+			if err != nil {
+				p.log.Errorf("Wireguard: Error creating tunnel: %s", err)
+			}
 		}
-	}
-	key := base64.StdEncoding.EncodeToString(p.wireguardTunnel.PublicKey)
-	err = p.publishWireguardPublicKey(key)
-	if err != nil {
-		p.log.Errorf("Wireguard: publish PublicKey error: %s", err)
+		key := base64.StdEncoding.EncodeToString(p.wireguardTunnel.PublicKey)
+		err = p.publishWireguardPublicKey(key)
+		if err != nil {
+			p.log.Errorf("Wireguard: publish PublicKey error: %s", err)
+		}
 	}
 
 	p.log.Infof("Wireguard: Rescanning existing peers")
@@ -145,7 +160,7 @@ func (p WireguardProvider) createWireguardTunnel(isv6 bool) error {
 	p.log.Debugf("Adding wireguard Tunnel to VPP")
 	tunnel := &types.WireguardTunnel{
 		Addr: nodeIp,
-		Port: wireguardPort,
+		Port: p.getWireguardPort(),
 	}
 	swIfIndex, err := p.vpp.AddWireguardTunnel(tunnel)
 	if err != nil {
@@ -158,8 +173,6 @@ func (p WireguardProvider) createWireguardTunnel(isv6 bool) error {
 		return errors.Wrapf(err, "Error seting wireguard tunnel unnumbered")
 	}
 
-	// Always enable GSO feature on Wireguard tunnel, only a tiny
-	// negative effect on perf if GSO is not enabled on the taps
 	err = p.vpp.EnableGSOFeature(swIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel)
@@ -190,7 +203,7 @@ func (p WireguardProvider) AddConnectivity(cn *NodeConnectivity) error {
 	}
 	peer := &types.WireguardPeer{
 		PublicKey:  key,
-		Port:       wireguardPort,
+		Port:       p.getWireguardPort(),
 		Addr:       cn.NextHop,
 		SwIfIndex:  p.wireguardTunnel.SwIfIndex,
 		AllowedIps: []net.IPNet{cn.Dst},

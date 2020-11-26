@@ -27,9 +27,9 @@ import (
 	bgpapi "github.com/osrg/gobgp/api"
 	bgpserver "github.com/osrg/gobgp/pkg/server"
 	"github.com/pkg/errors"
-	calicov3api "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/client"
-	calicov3 "github.com/projectcalico/libcalico-go/lib/clientv3"
+	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
@@ -70,9 +70,8 @@ type Server struct {
 	t                tomb.Tomb
 	bgpServer        *bgpserver.BgpServer
 	client           *calicocli.Client
-	clientv3         calicov3.Interface
-	defaultBGPConf   *calicov3api.BGPConfigurationSpec
-	defaultFelixConf *calicov3api.FelixConfigurationSpec
+	clientv3         calicov3cli.Interface
+	defaultBGPConf   *calicov3.BGPConfigurationSpec
 	ipv4             net.IP
 	ipv6             net.IP
 	ipv4Net          *net.IPNet
@@ -88,16 +87,19 @@ type Server struct {
 	// Is bgpServer running (s.bgpServer == nil)
 	bgpServerRunningCond *sync.Cond
 	// Connectivity providers
-	providers        map[string]connectivity.ConnectivityProvider
-	nodeStatesByName map[string]NodeState
-	nodeNamesByAddr  map[string]string
-	nodeStateLock    sync.Mutex
+	providers         map[string]connectivity.ConnectivityProvider
+	providerTypeByDst map[string]string
+	nodeStatesByName  map[string]NodeState
+	nodeNamesByAddr   map[string]string
+	nodeStateLock     sync.Mutex
+	felixConfiguration *calicov3.FelixConfigurationSpec
 }
 
 type NodeState struct {
-	Spec      *calicov3api.NodeSpec
-	SweepFlag bool
 	Name      string
+	Spec      calicov3.NodeSpec
+	Status    calicov3.NodeStatus
+	SweepFlag bool
 }
 
 func v46ify(s string, isv6 bool) string {
@@ -124,7 +126,7 @@ func (s *Server) GetNodeIP(isv6 bool) net.IP {
 	}
 }
 
-func (s *Server) Clientv3() calicov3.Interface {
+func (s *Server) Clientv3() calicov3cli.Interface {
 	return s.clientv3
 }
 
@@ -147,7 +149,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create calico v1 api client")
 	}
-	calicoCliV3, err := calicov3.NewFromEnv()
+	calicoCliV3, err := calicov3cli.NewFromEnv()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create calico v3 api client")
 	}
@@ -164,6 +166,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
 		nodeStatesByName:     make(map[string]NodeState),
 		nodeNamesByAddr:      make(map[string]string),
+		providerTypeByDst:    make(map[string]string),
 	}
 
 	BGPConf, err := server.getDefaultBGPConfig()
@@ -171,14 +174,9 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 		return nil, errors.Wrap(err, "error getting default BGP configuration")
 	}
 	server.defaultBGPConf = BGPConf
-	felixConf, err := server.getDefaultFelixConfig()
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting default BGP configuration")
-	}
-	server.defaultFelixConf = felixConf
 
 	providerData := connectivity.NewConnectivityProviderData(
-		server.vpp, server.log, &server, felixConf,
+		server.vpp, server.log, &server,
 	)
 
 	server.providers = make(map[string]connectivity.ConnectivityProvider)
@@ -191,7 +189,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	return &server, nil
 }
 
-func (s *Server) fetchNodeIPs() (node *calicov3api.Node, err error) {
+func (s *Server) fetchNodeIPs() (node *calicov3.Node, err error) {
 	node, err = s.clientv3.Nodes().Get(
 		context.Background(),
 		config.NodeName,
@@ -244,6 +242,10 @@ func (s *Server) serveOne() error {
 	if err != nil {
 		return errors.Wrap(err, "cannot get node ips")
 	}
+	err = s.getFelixConfiguration()
+	if err != nil {
+		return errors.Wrap(err, "cannot get felix configuration")
+	}
 
 	err = s.createAndStartBGP()
 	if err != nil {
@@ -275,6 +277,8 @@ func (s *Server) serveOne() error {
 	s.t.Go(func() error { return fmt.Errorf("watchPrefix: %s", s.watchPrefix()) })
 	// watch BGP peers
 	s.t.Go(func() error { return fmt.Errorf("watchBGPPeers: %s", s.watchBGPPeers()) })
+	// watch Felix configuration
+	s.t.Go(func() error { return fmt.Errorf("watchFelixConfiguration: %s", s.watchFelixConfiguration()) })
 
 	// TODO need to watch BGP configurations and restart in case of changes
 	// Need to get initial BGP config here, pass it to the watchers that need it,
@@ -310,7 +314,7 @@ func (s *Server) serveOne() error {
 	return nil
 }
 
-func (s *Server) addDelSnatPrefix(pool *calicov3api.IPPool, isAdd bool) (err error) {
+func (s *Server) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err error) {
 	if !pool.Spec.NATOutgoing {
 		return nil
 	}
@@ -321,7 +325,7 @@ func (s *Server) addDelSnatPrefix(pool *calicov3api.IPPool, isAdd bool) (err err
 	return s.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
 }
 
-func (s *Server) ipamUpdateHandler(pool *calicov3api.IPPool, prevPool *calicov3api.IPPool) error {
+func (s *Server) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) error {
 	// TODO check if we need to change any routes based on VXLAN / IPIPMode config changes
 	if prevPool == nil {
 		/* Add */
@@ -340,15 +344,7 @@ func (s *Server) ipamUpdateHandler(pool *calicov3api.IPPool, prevPool *calicov3a
 	return nil
 }
 
-func (s *Server) getDefaultFelixConfig() (*calicov3api.FelixConfigurationSpec, error) {
-	conf, err := s.clientv3.FelixConfigurations().Get(context.Background(), "default", options.GetOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting default felix config")
-	}
-	return &conf.Spec, nil
-}
-
-func (s *Server) getDefaultBGPConfig() (*calicov3api.BGPConfigurationSpec, error) {
+func (s *Server) getDefaultBGPConfig() (*calicov3.BGPConfigurationSpec, error) {
 	b := true
 	conf, err := s.clientv3.BGPConfigurations().Get(context.Background(), "default", options.GetOptions{})
 	if err == nil {
@@ -368,7 +364,7 @@ func (s *Server) getDefaultBGPConfig() (*calicov3api.BGPConfigurationSpec, error
 	switch err.(type) {
 	case calicoerr.ErrorResourceDoesNotExist:
 		s.log.Debug("No default BGP config found, using default options")
-		ret := &calicov3api.BGPConfigurationSpec{
+		ret := &calicov3.BGPConfigurationSpec{
 			LogSeverityScreen:     "INFO",
 			NodeToNodeMeshEnabled: &b,
 		}

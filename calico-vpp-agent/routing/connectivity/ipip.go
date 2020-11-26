@@ -35,6 +35,10 @@ func (p *IpipProvider) OnVppRestart() {
 	p.ipipIfs = make(map[string]*types.IPIPTunnel)
 }
 
+func (p *IpipProvider) Enabled() bool {
+	return true
+}
+
 func (p *IpipProvider) RescanState() {
 	p.log.Infof("Rescanning existing tunnels")
 	p.ipipIfs = make(map[string]*types.IPIPTunnel)

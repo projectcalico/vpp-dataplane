@@ -34,25 +34,35 @@ func (s *Server) isMeshMode() bool {
 	return *s.defaultBGPConf.NodeToNodeMeshEnabled
 }
 
-func nodeSpecCopy(s *calicov3.NodeSpec) *calicov3.NodeSpec {
-	r := &calicov3.NodeSpec{
-		IPv4VXLANTunnelAddr: s.IPv4VXLANTunnelAddr,
-		VXLANTunnelMACAddr:  s.VXLANTunnelMACAddr,
-		OrchRefs:            append([]calicov3.OrchRef{}, s.OrchRefs...),
+func nodeSpecCopy(calicoNode *calicov3.Node) *NodeState {
+	calicoSpec := calicoNode.Spec
+	spec := calicov3.NodeSpec{
+		IPv4VXLANTunnelAddr: calicoSpec.IPv4VXLANTunnelAddr,
+		VXLANTunnelMACAddr:  calicoSpec.VXLANTunnelMACAddr,
+		OrchRefs:            append([]calicov3.OrchRef{}, calicoSpec.OrchRefs...),
 	}
-	if s.BGP != nil {
-		r.BGP = &calicov3.NodeBGPSpec{
-			IPv4Address:             s.BGP.IPv4Address,
-			IPv6Address:             s.BGP.IPv6Address,
-			IPv4IPIPTunnelAddr:      s.BGP.IPv4IPIPTunnelAddr,
-			RouteReflectorClusterID: s.BGP.RouteReflectorClusterID,
+	if calicoSpec.BGP != nil {
+		spec.BGP = &calicov3.NodeBGPSpec{
+			IPv4Address:             calicoSpec.BGP.IPv4Address,
+			IPv6Address:             calicoSpec.BGP.IPv6Address,
+			IPv4IPIPTunnelAddr:      calicoSpec.BGP.IPv4IPIPTunnelAddr,
+			RouteReflectorClusterID: calicoSpec.BGP.RouteReflectorClusterID,
 		}
-		if s.BGP.ASNumber != nil {
-			r.BGP.ASNumber = new(numorstring.ASNumber)
-			*r.BGP.ASNumber = *s.BGP.ASNumber
+		if calicoSpec.BGP.ASNumber != nil {
+			spec.BGP.ASNumber = new(numorstring.ASNumber)
+			*spec.BGP.ASNumber = *calicoSpec.BGP.ASNumber
 		}
 	}
-	return r
+	calicoStatus := calicoNode.Status
+	status := calicov3.NodeStatus{
+		WireguardPublicKey: calicoStatus.WireguardPublicKey,
+	}
+	return &NodeState{
+		Name: calicoNode.Name,
+		Spec: spec,
+		Status: status,
+		SweepFlag: false,
+	}
 }
 
 func (s *Server) GetNodeNameByIp(addr net.IP) string {
@@ -76,7 +86,7 @@ func (s *Server) GetNodeByIp(addr net.IP) *calicov3.NodeSpec {
 	if !found {
 		return nil
 	}
-	return node.Spec
+	return &node.Spec
 }
 
 func (s *Server) addNodeState(state *NodeState) {
@@ -117,9 +127,9 @@ func (s *Server) initialNodeSync() (string, error) {
 	for _, n := range s.nodeStatesByName {
 		n.SweepFlag = true
 	}
-	for _, node := range nodes.Items {
-		spec := nodeSpecCopy(&node.Spec)
-		shouldRestart, err := s.handleNodeUpdate(node.Name, spec, watch.Added)
+	for _, calicoNode := range nodes.Items {
+		node := nodeSpecCopy(&calicoNode)
+		shouldRestart, err := s.handleNodeUpdate(node, watch.Added)
 		if err != nil {
 			return "", errors.Wrap(err, "error handling node update")
 		}
@@ -127,9 +137,9 @@ func (s *Server) initialNodeSync() (string, error) {
 			return "", fmt.Errorf("Current node configuration changed, restarting")
 		}
 	}
-	for name, node := range s.nodeStatesByName {
+	for _, node := range s.nodeStatesByName {
 		if node.SweepFlag {
-			shouldRestart, err := s.handleNodeUpdate(name, node.Spec, watch.Deleted)
+			shouldRestart, err := s.handleNodeUpdate(&node, watch.Deleted)
 			if err != nil {
 				return "", errors.Wrap(err, "error handling node update")
 			}
@@ -163,7 +173,7 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 		}
 	watch:
 		for update := range watcher.ResultChan() {
-			var node *calicov3.Node
+			var calicoNode *calicov3.Node
 			switch update.Type {
 			case watch.Error:
 				switch update.Error.(type) {
@@ -173,14 +183,14 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 					return errors.Wrap(update.Error, "error while watching for Node updates")
 				}
 			case watch.Modified, watch.Added:
-				node = update.Object.(*calicov3.Node)
+				calicoNode = update.Object.(*calicov3.Node)
 			case watch.Deleted:
-				node = update.Previous.(*calicov3.Node)
+				calicoNode = update.Previous.(*calicov3.Node)
 			}
 
-			spec := nodeSpecCopy(&node.Spec)
+			node := nodeSpecCopy(calicoNode)
 			s.nodeStateLock.Lock()
-			shouldRestart, err := s.handleNodeUpdate(node.Name, spec, update.Type)
+			shouldRestart, err := s.handleNodeUpdate(node, update.Type)
 			s.nodeStateLock.Unlock()
 			if err != nil {
 				return errors.Wrap(err, "error handling node update")
@@ -195,37 +205,29 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 
 // Returns true if the config of the current node has changed and requires a restart
 // Sets node.SweepFlag to false if an existing node is added to allow mark and sweep
-func (s *Server) handleNodeUpdate(
-	nodeName string,
-	newSpec *calicov3.NodeSpec,
-	eventType watch.EventType,
-) (shouldRestart bool, err error) {
-	s.log.Debugf("Got node update: %s %s %+v", eventType, nodeName, newSpec)
-	if nodeName == config.NodeName {
+func (s *Server) handleNodeUpdate(node *NodeState, eventType watch.EventType) (shouldRestart bool, err error) {
+	s.log.Debugf("Got node update: %s %s %+v", eventType, node.Name, node)
+	if node.Name == config.NodeName {
 		// No need to manage ourselves, but if we change we need to restart and reconfigure
 		if eventType == watch.Deleted {
 			return true, nil
 		} else {
-			old, found := s.nodeStatesByName[nodeName]
+			old, found := s.nodeStatesByName[node.Name]
 			if found {
 				// Check that there were no changes, restart if our BGP config changed
 				old.SweepFlag = false
-				s.log.Tracef("node comparison: old:%+v new:%+v", old.Spec.BGP, newSpec.BGP)
-				return !reflect.DeepEqual(old.Spec.BGP, newSpec.BGP), nil
+				s.log.Tracef("node comparison: old:%+v new:%+v", old.Spec.BGP, node.Spec.BGP)
+				return !reflect.DeepEqual(old.Spec.BGP, node.Spec.BGP), nil
 			} else {
 				// First pass, create local node
-				s.addNodeState(&NodeState{
-					Spec:      newSpec,
-					SweepFlag: false,
-					Name:      nodeName,
-				})
+				s.addNodeState(node)
 				return false, nil
 			}
 		}
 	}
 
 	// If the mesh is disabled, discard all updates that aren't on the current node
-	if !s.isMeshMode() || newSpec.BGP == nil { // No BGP config for this node
+	if !s.isMeshMode() || node.Spec.BGP == nil { // No BGP config for this node
 		return false, nil
 	}
 	// This ensures that nodes that don't have a BGP Spec are never present in the state map
@@ -234,24 +236,20 @@ func (s *Server) handleNodeUpdate(
 	switch eventType {
 	case watch.Error: // Shouldn't happen
 	case watch.Added, watch.Modified:
-		old, found := s.nodeStatesByName[nodeName]
+		old, found := s.nodeStatesByName[node.Name]
 		if found {
-			err = s.onNodeUpdated(&old, newSpec)
+			err = s.onNodeUpdated(&old, node)
 		} else {
 			// New node
-			s.addNodeState(&NodeState{
-				Spec:      newSpec,
-				SweepFlag: false,
-				Name:      nodeName,
-			})
-			err = s.onNodeAdded(newSpec)
+			s.addNodeState(node)
+			err = s.onNodeAdded(node)
 		}
 	case watch.Deleted:
-		old, found := s.nodeStatesByName[nodeName]
+		old, found := s.nodeStatesByName[node.Name]
 		// This assumes that the old spec and the new spec are identical.
 		if found {
 			err = s.onNodeDeleted(&old)
-			s.delNodeState(nodeName)
+			s.delNodeState(node.Name)
 		} else {
 			return false, fmt.Errorf("Node to delete not found")
 		}
@@ -293,7 +291,7 @@ func (s *Server) getAsNumber(newSpec *calicov3.NodeSpec) uint32 {
 }
 
 func (s *Server) onNodeDeleted(old *NodeState) error {
-	v4IP, v6IP := s.getSpecAddresses(old.Spec)
+	v4IP, v6IP := s.getSpecAddresses(&old.Spec)
 	if v4IP != "" {
 		err := s.deleteBGPPeer(v4IP)
 		if err != nil {
@@ -309,18 +307,18 @@ func (s *Server) onNodeDeleted(old *NodeState) error {
 	return nil
 }
 
-func (s *Server) onNodeUpdated(old *NodeState, newSpec *calicov3.NodeSpec) (err error) {
-	s.log.Debugf("node comparison: old:%+v new:%+v", old.Spec.BGP, newSpec.BGP)
+func (s *Server) onNodeUpdated(old *NodeState, node *NodeState) (err error) {
+	s.log.Debugf("node comparison: old:%+v new:%+v", old.Spec.BGP, node.Spec.BGP)
 
-	asNumber := s.getAsNumber(newSpec)
-	oldASN := s.getAsNumber(old.Spec)
-	v4IP, v6IP := s.getSpecAddresses(newSpec)
-	oldV4IP, oldV6IP := s.getSpecAddresses(old.Spec)
+	asNumber := s.getAsNumber(&node.Spec)
+	oldASN := s.getAsNumber(&old.Spec)
+	v4IP, v6IP := s.getSpecAddresses(&node.Spec)
+	oldV4IP, oldV6IP := s.getSpecAddresses(&old.Spec)
 
 	// Compare IPs and ASN
 	if v4IP != "" {
 		if oldV4IP != "" {
-			if old.Spec.BGP.IPv4Address != newSpec.BGP.IPv4Address {
+			if old.Spec.BGP.IPv4Address != node.Spec.BGP.IPv4Address {
 				// IP change, delete and re-add neighbor
 				err = s.deleteBGPPeer(oldV4IP)
 				if err != nil {
@@ -358,7 +356,7 @@ func (s *Server) onNodeUpdated(old *NodeState, newSpec *calicov3.NodeSpec) (err 
 	}
 	if v6IP != "" {
 		if oldV6IP != "" {
-			if old.Spec.BGP.IPv6Address != newSpec.BGP.IPv6Address {
+			if old.Spec.BGP.IPv6Address != node.Spec.BGP.IPv6Address {
 				// IP change, delete and re-add neighbor
 				err = s.deleteBGPPeer(oldV6IP)
 				if err != nil {
@@ -395,13 +393,13 @@ func (s *Server) onNodeUpdated(old *NodeState, newSpec *calicov3.NodeSpec) (err 
 		} // Else nothing to do for v6
 	}
 	old.SweepFlag = false
-	old.Spec = newSpec
+	old.Spec = node.Spec
 	return nil
 }
 
-func (s *Server) onNodeAdded(newSpec *calicov3.NodeSpec) (err error) {
-	asNumber := s.getAsNumber(newSpec)
-	v4IP, v6IP := s.getSpecAddresses(newSpec)
+func (s *Server) onNodeAdded(node *NodeState) (err error) {
+	asNumber := s.getAsNumber(&node.Spec)
+	v4IP, v6IP := s.getSpecAddresses(&node.Spec)
 	if v4IP != "" {
 		err = s.addBGPPeer(v4IP, asNumber)
 		if err != nil {

@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
 
 type IpsecProvider struct {
@@ -34,6 +35,10 @@ type IpsecProvider struct {
 
 func (p *IpsecProvider) OnVppRestart() {
 	p.ipsecIfs = make(map[string][]*types.IPIPTunnel)
+}
+
+func (p *IpsecProvider) Enabled() bool {
+	return config.EnableIPSec
 }
 
 func (p *IpsecProvider) RescanState() {
@@ -74,7 +79,7 @@ func profileName(tunnel *types.IPIPTunnel) string {
 	return fmt.Sprintf("pr_%s_to_%s", ipToSafeString(tunnel.Src), ipToSafeString(tunnel.Dst))
 }
 
-func (p IpsecProvider) errorCleanup(tunnel *types.IPIPTunnel, profile string) {
+func (p *IpsecProvider) errorCleanup(tunnel *types.IPIPTunnel, profile string) {
 	err := p.vpp.DelIPIPTunnel(tunnel)
 	if err != nil {
 		p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
@@ -87,7 +92,7 @@ func (p IpsecProvider) errorCleanup(tunnel *types.IPIPTunnel, profile string) {
 	}
 }
 
-func (p IpsecProvider) createIPSECTunnels(destNodeAddr net.IP) (err error) {
+func (p *IpsecProvider) createIPSECTunnels(destNodeAddr net.IP) (err error) {
 	/* IP6 is not yet supported by ikev2 */
 	nodeIP := p.server.GetNodeIP(false /* isv6 */)
 	for i := 0; i < config.IpsecAddressCount; i++ {
@@ -109,7 +114,7 @@ func (p IpsecProvider) createIPSECTunnels(destNodeAddr net.IP) (err error) {
 	return nil
 }
 
-func (p IpsecProvider) createOneIndexedIPSECTunnel(i int, j int, destNodeAddr net.IP, nodeIP net.IP) (err error) {
+func (p *IpsecProvider) createOneIndexedIPSECTunnel(i int, j int, destNodeAddr net.IP, nodeIP net.IP) (err error) {
 	src := net.IP(append([]byte(nil), nodeIP.To4()...))
 	src[2] += byte(i)
 	dst := net.IP(append([]byte(nil), destNodeAddr.To4()...))
@@ -128,7 +133,7 @@ func (p IpsecProvider) createOneIndexedIPSECTunnel(i int, j int, destNodeAddr ne
 	return nil
 }
 
-func (p IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk string) error {
+func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk string) error {
 	swIfIndex, err := p.vpp.AddIPIPTunnel(tunnel)
 	if err != nil {
 		return errors.Wrapf(err, "Error adding ipip tunnel %s", tunnel.String())
@@ -243,7 +248,28 @@ func getIPSecRoutePaths(tunnels []*types.IPIPTunnel) []types.RoutePath {
 	return paths
 }
 
-func (p IpsecProvider) AddConnectivity(cn *NodeConnectivity) (err error) {
+func (p *IpsecProvider) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
+	/* If only IP6 (e.g. ipsec) is supported, find nodeip4 out of nodeip6 */
+	if !vpplink.IsIP6(addr) {
+		return addr, nil
+	}
+	otherNode := p.server.GetNodeByIp(addr)
+	if otherNode == nil {
+		return nil, fmt.Errorf("Didnt find an ip4 for ip %s", addr.String())
+	}
+	nodeIP, _, err := net.ParseCIDR(otherNode.BGP.IPv4Address)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Didnt find an ip4 for ip %s", addr.String())
+	}
+	return nodeIP, nil
+}
+
+func (p *IpsecProvider) AddConnectivity(cn *NodeConnectivity) (err error) {
+	cn.NextHop, err = p.forceOtherNodeIp4(cn.NextHop)
+	if err != nil {
+		return errors.Wrap(err, "Ipsec v6 config failed")
+	}
+
 	if _, found := p.ipsecIfs[cn.NextHop.String()]; !found {
 		err = p.createIPSECTunnels(cn.NextHop)
 		if err != nil {
@@ -262,7 +288,12 @@ func (p IpsecProvider) AddConnectivity(cn *NodeConnectivity) (err error) {
 	return nil
 }
 
-func (p IpsecProvider) DelConnectivity(cn *NodeConnectivity) (err error) {
+func (p *IpsecProvider) DelConnectivity(cn *NodeConnectivity) (err error) {
+	cn.NextHop, err = p.forceOtherNodeIp4(cn.NextHop)
+	if err != nil {
+		return errors.Wrap(err, "Ipsec v6 config failed")
+	}
+
 	// TODO remove ike profile and teardown tunnel if there are no more routes?
 	tunnels, found := p.ipsecIfs[cn.NextHop.String()]
 	if !found {

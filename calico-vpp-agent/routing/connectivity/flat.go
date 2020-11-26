@@ -43,6 +43,10 @@ func (p *FlatL3Provider) RescanState() {
 	/* Nothing to do */
 }
 
+func (p *FlatL3Provider) Enabled() bool {
+	return true
+}
+
 func NewFlatL3Provider(d *ConnectivityProviderData) *FlatL3Provider {
 	return &FlatL3Provider{d}
 }

@@ -342,6 +342,7 @@ spec:
               memory: 4Gi
             limits:
               memory: 80Gi
+              hugepages-2Mi: 4G
           volumeMounts:
             - name: vpp-rundir
               mountPath: /var/run/vpp

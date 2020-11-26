@@ -23,10 +23,8 @@ import (
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
 	"golang.org/x/net/context"
-
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
 
@@ -87,40 +85,29 @@ func (s *Server) injectRoute(path *bgpapi.Path) error {
 	return err
 }
 
-func (s *Server) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
-	/* If only IP6 (e.g. ipsec) is supported, find nodeip4 out of nodeip6 */
-	if !vpplink.IsIP6(addr) {
-		return addr, nil
-	}
-	otherNode := s.GetNodeByIp(addr)
-	if otherNode == nil {
-		return nil, fmt.Errorf("Didnt find an ip4 for ip %s", addr.String())
-	}
-	nodeIP, _, err := net.ParseCIDR(otherNode.BGP.IPv4Address)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Didnt find an ip4 for ip %s", addr.String())
-	}
-	return nodeIP, nil
-}
-
 func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
-	return connectivity.WIREGUARD // FIXME
 	ipPool := s.ipam.GetPrefixIPPool(&cn.Dst)
 	if ipPool == nil {
 		return connectivity.FLAT
 	}
 	if ipPool.Spec.IPIPMode == calicov3.IPIPModeAlways {
-		if config.EnableIPSec {
+		if s.providers[connectivity.IPSEC].Enabled() {
 			return connectivity.IPSEC
+		} else if s.providers[connectivity.WIREGUARD].Enabled() {
+			return connectivity.WIREGUARD
+		} else {
+			return connectivity.IPIP
 		}
-		return connectivity.IPIP
 	}
 	ipNet := s.GetNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
 	if ipPool.Spec.IPIPMode == calicov3.IPIPModeCrossSubnet && !isCrossSubnet(cn.NextHop, *ipNet) {
-		if config.EnableIPSec {
+		if s.providers[connectivity.IPSEC].Enabled() {
 			return connectivity.IPSEC
+		} else if s.providers[connectivity.WIREGUARD].Enabled() {
+			return connectivity.WIREGUARD
+		} else {
+			return connectivity.IPIP
 		}
-		return connectivity.IPIP
 	}
 	if ipPool.Spec.VXLANMode == calicov3.VXLANModeAlways {
 		return connectivity.VXLAN
@@ -132,22 +119,27 @@ func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
 }
 
 func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithdraw bool) (err error) {
-	providerType := s.getProviderType(cn)
-	provider := s.providers[providerType]
-
-	if providerType == connectivity.IPSEC {
-		cn.NextHop, err = s.forceOtherNodeIp4(cn.NextHop)
-		if err != nil {
-			return errors.Wrap(err, "Ipsec v6 config failed")
-		}
-	}
-
 	if IsWithdraw {
+		providerType, found := s.providerTypeByDst[cn.Dst.String()]
 		s.log.Infof("Deleting path (%s) %s", providerType, cn.String())
-		return provider.DelConnectivity(cn)
+		if !found {
+			providerType = s.getProviderType(cn)
+			s.log.Infof("Didnt find provider in map, trying :%s", providerType)
+		}
+		return s.providers[providerType].DelConnectivity(cn)
 	} else {
-		s.log.Infof("Added path (%s) %s", providerType, cn.String())
-		return provider.AddConnectivity(cn)
+		providerType := s.getProviderType(cn)
+		oldProviderType, found := s.providerTypeByDst[cn.Dst.String()]
+		if found {
+			err := s.providers[oldProviderType].DelConnectivity(cn)
+			if err != nil {
+				s.log.Errorf("Error del connectivity when changing provider %s->%s : %s", oldProviderType, providerType, err)
+			}
+		} else {
+			s.log.Infof("Added path (%s) %s", providerType, cn.String())
+		}
+		s.providerTypeByDst[cn.Dst.String()] = providerType
+		return s.providers[providerType].AddConnectivity(cn)
 	}
 }
 
