@@ -18,14 +18,15 @@ package routing
 import (
 	"fmt"
 	"net"
+	"sync"
 
 	"github.com/golang/protobuf/ptypes"
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
-	"golang.org/x/net/context"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"golang.org/x/net/context"
 )
 
 func isCrossSubnet(gw net.IP, subnet net.IPNet) bool {
@@ -118,28 +119,66 @@ func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
 	return connectivity.FLAT
 }
 
+var (
+	bgpLock sync.Mutex
+)
+
+type ProviderEntry struct {
+	providerType string
+	cn           connectivity.NodeConnectivity
+}
+
+func (s *Server) updateAllIPConnectivity() {
+	s.log.Infof("Felix config changed, re-updating connectivity")
+	s.log.Infof("WG enabled %t", *s.felixConfiguration.WireguardEnabled)
+	for _, providerEntry := range s.providerTypeByDst {
+		s.log.Infof("Felix config changed [%s] %s", providerEntry.providerType, providerEntry.cn)
+		err := s.updateIPConnectivity(&providerEntry.cn, false /* isWithdraw */)
+		if err != nil {
+			s.log.Errorf("Error while re-updating connectivity %s", err)
+		}
+	}
+}
+
 func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithdraw bool) (err error) {
+	bgpLock.Lock()
+	bgpLock.Unlock()
+	var providerType string
 	if IsWithdraw {
-		providerType, found := s.providerTypeByDst[cn.Dst.String()]
-		s.log.Infof("Deleting path (%s) %s", providerType, cn.String())
+		providerEntry, found := s.providerTypeByDst[cn.Dst.String()]
 		if !found {
 			providerType = s.getProviderType(cn)
 			s.log.Infof("Didnt find provider in map, trying :%s", providerType)
+		} else {
+			providerType = providerEntry.providerType
+			delete(s.providerTypeByDst, cn.Dst.String())
+			s.log.Infof("Deleting path (%s) %s", providerType, cn.String())
 		}
 		return s.providers[providerType].DelConnectivity(cn)
 	} else {
-		providerType := s.getProviderType(cn)
-		oldProviderType, found := s.providerTypeByDst[cn.Dst.String()]
+		providerType = s.getProviderType(cn)
+		oldProviderEntry, found := s.providerTypeByDst[cn.Dst.String()]
 		if found {
-			err := s.providers[oldProviderType].DelConnectivity(cn)
-			if err != nil {
-				s.log.Errorf("Error del connectivity when changing provider %s->%s : %s", oldProviderType, providerType, err)
+			oldProviderType := oldProviderEntry.providerType
+			if oldProviderType != providerType {
+				s.log.Infof("Path (%s) changed provider (%s->%s) %s", providerType, oldProviderType, providerType, cn.String())
+				err := s.providers[oldProviderType].DelConnectivity(cn)
+				if err != nil {
+					s.log.Errorf("Error del connectivity when changing provider %s->%s : %s", oldProviderType, providerType, err)
+				}
+				return s.providers[providerType].AddConnectivity(cn)
+			} else {
+				s.log.Infof("Added same path (%s) %s", providerType, cn.String())
+				return nil
 			}
 		} else {
 			s.log.Infof("Added path (%s) %s", providerType, cn.String())
+			s.providerTypeByDst[cn.Dst.String()] = ProviderEntry{
+				providerType: providerType,
+				cn:           *cn,
+			}
+			return s.providers[providerType].AddConnectivity(cn)
 		}
-		s.providerTypeByDst[cn.Dst.String()] = providerType
-		return s.providers[providerType].AddConnectivity(cn)
 	}
 }
 

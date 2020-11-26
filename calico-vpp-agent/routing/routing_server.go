@@ -65,33 +65,33 @@ var (
 
 type Server struct {
 	*common.CalicoVppServerData
-	log              *logrus.Entry
-	vpp              *vpplink.VppLink
-	t                tomb.Tomb
-	bgpServer        *bgpserver.BgpServer
-	client           *calicocli.Client
-	clientv3         calicov3cli.Interface
-	defaultBGPConf   *calicov3.BGPConfigurationSpec
-	ipv4             net.IP
-	ipv6             net.IP
-	ipv4Net          *net.IPNet
-	ipv6Net          *net.IPNet
-	hasV4            bool
-	hasV6            bool
-	ipam             IpamCache
-	reloadCh         chan string
-	prefixReady      chan int
-	connectivityMap  map[string]*connectivity.NodeConnectivity
-	localAddressMap  map[string]*net.IPNet
-	ShouldStop       bool
+	log             *logrus.Entry
+	vpp             *vpplink.VppLink
+	t               tomb.Tomb
+	bgpServer       *bgpserver.BgpServer
+	client          *calicocli.Client
+	clientv3        calicov3cli.Interface
+	defaultBGPConf  *calicov3.BGPConfigurationSpec
+	ipv4            net.IP
+	ipv6            net.IP
+	ipv4Net         *net.IPNet
+	ipv6Net         *net.IPNet
+	hasV4           bool
+	hasV6           bool
+	ipam            IpamCache
+	reloadCh        chan string
+	prefixReady     chan int
+	connectivityMap map[string]*connectivity.NodeConnectivity
+	localAddressMap map[string]*net.IPNet
+	ShouldStop      bool
 	// Is bgpServer running (s.bgpServer == nil)
 	bgpServerRunningCond *sync.Cond
 	// Connectivity providers
-	providers         map[string]connectivity.ConnectivityProvider
-	providerTypeByDst map[string]string
-	nodeStatesByName  map[string]NodeState
-	nodeNamesByAddr   map[string]string
-	nodeStateLock     sync.Mutex
+	providers          map[string]connectivity.ConnectivityProvider
+	providerTypeByDst  map[string]ProviderEntry
+	nodeStatesByName   map[string]NodeState
+	nodeNamesByAddr    map[string]string
+	nodeStateLock      sync.Mutex
 	felixConfiguration *calicov3.FelixConfigurationSpec
 }
 
@@ -166,7 +166,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
 		nodeStatesByName:     make(map[string]NodeState),
 		nodeNamesByAddr:      make(map[string]string),
-		providerTypeByDst:    make(map[string]string),
+		providerTypeByDst:    make(map[string]ProviderEntry),
 	}
 
 	BGPConf, err := server.getDefaultBGPConfig()
@@ -241,10 +241,6 @@ func (s *Server) serveOne() error {
 	node, err := s.fetchNodeIPs()
 	if err != nil {
 		return errors.Wrap(err, "cannot get node ips")
-	}
-	err = s.getFelixConfiguration()
-	if err != nil {
-		return errors.Wrap(err, "cannot get felix configuration")
 	}
 
 	err = s.createAndStartBGP()
@@ -570,8 +566,12 @@ func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 }
 
 func (s *Server) Serve() {
+	err := s.getFelixConfiguration()
+	if err != nil {
+		s.log.Fatalf("cannot get felix configuration %s", err)
+	}
 	/* Rescan state might need the nodeIPs set */
-	_, err := s.fetchNodeIPs()
+	_, err = s.fetchNodeIPs()
 	if err != nil {
 		s.log.Errorf("cannot get node ips %v", err)
 	}

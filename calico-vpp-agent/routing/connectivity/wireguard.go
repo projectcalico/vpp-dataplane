@@ -39,6 +39,9 @@ func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
 
 func (p *WireguardProvider) Enabled() bool {
 	felixConf := p.server.GetFelixConfig()
+	if felixConf == nil {
+		return false
+	}
 	if felixConf.WireguardEnabled == nil {
 		return false
 	}
@@ -47,6 +50,9 @@ func (p *WireguardProvider) Enabled() bool {
 
 func (p *WireguardProvider) getWireguardPort() uint16 {
 	felixConf := p.server.GetFelixConfig()
+	if felixConf == nil {
+		return uint16(config.DefaultWireguardPort)
+	}
 	if felixConf.WireguardListeningPort == nil {
 		return uint16(config.DefaultWireguardPort)
 	}
@@ -54,11 +60,18 @@ func (p *WireguardProvider) getWireguardPort() uint16 {
 }
 
 func (p *WireguardProvider) OnVppRestart() {
+	nodeIP4 := p.server.GetNodeIP(false)
 	p.wireguardPeers = make(map[string]types.WireguardPeer)
 	p.wireguardTunnel = nil
+	p.log.Infof("Wireguard: Creating tunnel")
+	err := p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
+	if err != nil {
+		p.log.Errorf("Wireguard: Error creating tunnel: %s", err)
+	}
+	p.log.Errorf("OnVppRestart Tunnel found %s", p.wireguardTunnel)
 }
 
-func (p WireguardProvider) getNodePublicKey(cn *NodeConnectivity) ([]byte, error) {
+func (p *WireguardProvider) getNodePublicKey(cn *NodeConnectivity) ([]byte, error) {
 	nodename := p.server.GetNodeNameByIp(cn.NextHop)
 	if nodename == "" {
 		return nil, errors.Errorf("Didnt find node with addr %s", cn.NextHop)
@@ -116,21 +129,17 @@ func (p *WireguardProvider) RescanState() {
 			break
 		}
 	}
-	if p.Enabled() {
-		/* Create the listener if doesn't exist and enabled */
-		if p.wireguardTunnel == nil {
-			p.log.Infof("Wireguard: Creating tunnel")
-			err = p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
-			if err != nil {
-				p.log.Errorf("Wireguard: Error creating tunnel: %s", err)
-			}
-		}
-		key := base64.StdEncoding.EncodeToString(p.wireguardTunnel.PublicKey)
-		err = p.publishWireguardPublicKey(key)
+	p.log.Errorf("RescanState Tunnel found %s", p.wireguardTunnel)
+
+	/* Create the listener if doesn't exist and enabled */
+	if p.wireguardTunnel == nil {
+		p.log.Infof("Wireguard: Creating tunnel")
+		err = p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
 		if err != nil {
-			p.log.Errorf("Wireguard: publish PublicKey error: %s", err)
+			p.log.Errorf("Wireguard: Error creating tunnel: %s", err)
 		}
 	}
+	p.log.Errorf("RescanState Tunnel created %s", p.wireguardTunnel)
 
 	p.log.Infof("Wireguard: Rescanning existing peers")
 	peers, err := p.vpp.ListWireguardPeers()
@@ -143,14 +152,14 @@ func (p *WireguardProvider) RescanState() {
 	}
 }
 
-func (p WireguardProvider) errorCleanup(tunnel *types.WireguardTunnel) {
+func (p *WireguardProvider) errorCleanup(tunnel *types.WireguardTunnel) {
 	err := p.vpp.DelWireguardTunnel(tunnel)
 	if err != nil {
 		p.log.Errorf("Error deleting wireguard tunnel %s after error: %v", tunnel.String(), err)
 	}
 }
 
-func (p WireguardProvider) createWireguardTunnel(isv6 bool) error {
+func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
 	nodeIp := p.server.GetNodeIP(isv6)
 	if nodeIp == nil {
 		p.log.Infof("Wireguard: didnt find nodeIP for v6=%t", isv6)
@@ -184,12 +193,18 @@ func (p WireguardProvider) createWireguardTunnel(isv6 bool) error {
 		p.errorCleanup(tunnel)
 		return errors.Wrapf(err, "Error setting wireguard interface up")
 	}
+
+	key := base64.StdEncoding.EncodeToString(tunnel.PublicKey)
+	err = p.publishWireguardPublicKey(key)
+	if err != nil {
+		return errors.Wrapf(err, "Wireguard: publish PublicKey error")
+	}
 	p.wireguardTunnel = tunnel
-	p.log.Infof("Wireguard: Added %s", tunnel)
+	p.log.Infof("Wireguard: Added %s", p.wireguardTunnel)
 	return nil
 }
 
-func (p WireguardProvider) AddConnectivity(cn *NodeConnectivity) error {
+func (p *WireguardProvider) AddConnectivity(cn *NodeConnectivity) error {
 	if p.wireguardTunnel == nil {
 		return errors.Errorf("No wireguard tunnel configured")
 	}
@@ -250,7 +265,7 @@ func (p WireguardProvider) AddConnectivity(cn *NodeConnectivity) error {
 	return nil
 }
 
-func (p WireguardProvider) DelConnectivity(cn *NodeConnectivity) error {
+func (p *WireguardProvider) DelConnectivity(cn *NodeConnectivity) error {
 	peer, found := p.wireguardPeers[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("Wireguard: Del unknown %s", cn.NextHop.String())

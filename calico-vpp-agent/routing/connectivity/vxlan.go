@@ -61,8 +61,11 @@ func (p *VXLanProvider) OnVppRestart() {
 	p.configureVXLANNodes()
 }
 
-func (p VXLanProvider) getVXLANVNI() uint32 {
+func (p *VXLanProvider) getVXLANVNI() uint32 {
 	felixConf := p.server.GetFelixConfig()
+	if felixConf == nil {
+		return uint32(config.DefaultVXLANVni)
+	}
 	if felixConf.VXLANVNI == nil {
 		return uint32(config.DefaultVXLANVni)
 	}
@@ -72,7 +75,7 @@ func (p VXLanProvider) getVXLANVNI() uint32 {
 	return uint32(*felixConf.VXLANVNI)
 }
 
-func (p VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
+func (p *VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
 	p.log.Debugf("Adding vxlan Tunnel to VPP")
 	nodeIP := p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop))
 	if _, found := p.vxlanIfs[cn.NextHop.String()]; !found {
@@ -127,7 +130,7 @@ func (p VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
 	})
 }
 
-func (p VXLanProvider) DelConnectivity(cn *NodeConnectivity) error {
+func (p *VXLanProvider) DelConnectivity(cn *NodeConnectivity) error {
 	swIfIndex, found := p.vxlanIfs[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("VXLan: Del unknown %s", cn.NextHop.String())

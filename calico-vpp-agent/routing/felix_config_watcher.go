@@ -16,7 +16,6 @@
 package routing
 
 import (
-
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
@@ -31,7 +30,7 @@ var (
 )
 
 func (s *Server) GetFelixConfig() *calicov3.FelixConfigurationSpec {
-	return server.felixConfiguration
+	return s.felixConfiguration
 }
 
 func (s *Server) getFelixConfiguration() error {
@@ -39,7 +38,7 @@ func (s *Server) getFelixConfiguration() error {
 	if err != nil {
 		return errors.Wrap(err, "error getting default felix config")
 	}
-	server.felixConfiguration = &conf.Spec
+	s.felixConfiguration = &conf.Spec
 	lastFelixConfigurationVersion = conf.ResourceVersion
 	return nil
 }
@@ -62,7 +61,8 @@ func (s *Server) watchFelixConfiguration() error {
 				}
 			case watch.Added, watch.Modified:
 				felix := update.Object.(*calicov3.FelixConfiguration)
-				server.felixConfiguration = &felix.Spec
+				s.felixConfiguration = &felix.Spec
+				s.updateAllIPConnectivity()
 			case watch.Deleted:
 				s.log.Infof("delete while watching FelixConfigurations")
 			}

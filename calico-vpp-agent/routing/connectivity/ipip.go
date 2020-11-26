@@ -57,14 +57,14 @@ func (p *IpipProvider) RescanState() {
 	}
 }
 
-func (p IpipProvider) errorCleanup(tunnel *types.IPIPTunnel) {
+func (p *IpipProvider) errorCleanup(tunnel *types.IPIPTunnel) {
 	err := p.vpp.DelIPIPTunnel(tunnel)
 	if err != nil {
 		p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
 	}
 }
 
-func (p IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
+func (p *IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
 	p.log.Debugf("Adding ipip Tunnel to VPP")
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
@@ -115,7 +115,7 @@ func (p IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
 	return nil
 }
 
-func (p IpipProvider) DelConnectivity(cn *NodeConnectivity) error {
+func (p *IpipProvider) DelConnectivity(cn *NodeConnectivity) error {
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("IPIP: Del unknown %s", cn.NextHop.String())
