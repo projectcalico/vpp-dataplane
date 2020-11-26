@@ -87,6 +87,10 @@ type Server struct {
 	ShouldStop       bool
 	// Is bgpServer running (s.bgpServer == nil)
 	bgpServerRunningCond *sync.Cond
+
+	// For the node watcher
+	nodeState map[string]*node
+
 	// Connectivity providers
 	providers map[string]connectivity.ConnectivityProvider
 }
@@ -133,6 +137,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 		connectivityMap:      make(map[string]*connectivity.NodeConnectivity),
 		localAddressMap:      make(map[string]*net.IPNet),
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
+		nodeState:            make(map[string]*node),
 	}
 
 	BGPConf, err := server.getDefaultBGPConfig()
@@ -206,11 +211,33 @@ func (s *Server) createAndStartBGP() error {
 	)
 }
 
+// Configure SNAT prefixes so that we don't snat traffic going from a local pod to the node
+func (s *Server) configureLocalNodeSnat() error {
+	if s.hasV4 {
+		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(s.ipv4), true)
+		if err != nil {
+			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", s.ipv4)
+		}
+	}
+	if s.hasV6 {
+		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(s.ipv6), true)
+		if err != nil {
+			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", s.ipv6)
+		}
+	}
+	return nil
+}
+
 func (s *Server) serveOne() error {
 	s.log.Infof("Routing server started")
 	node, err := s.fetchNodeIPs()
 	if err != nil {
 		return errors.Wrap(err, "cannot get node ips")
+	}
+
+	err = s.configureLocalNodeSnat()
+	if err != nil {
+		return errors.Wrap(err, "cannot configure node snat")
 	}
 
 	err = s.createAndStartBGP()
@@ -567,14 +594,21 @@ func (s *Server) OnVppRestart() {
 	for _, provider := range s.providers {
 		provider.OnVppRestart()
 	}
+	err := s.configureLocalNodeSnat()
+	if err != nil {
+		s.log.Errorf("error reconfiguring loical node snat: %v", err)
+	}
+	for _, node := range s.nodeState {
+		s.configureRemoteNodeSnat(node.Spec, true)
+	}
 	for _, cn := range s.connectivityMap {
 		s.log.Infof("Adding routing : %s", cn.String())
-		err := s.updateIPConnectivity(cn, false)
+		err = s.updateIPConnectivity(cn, false)
 		if err != nil {
 			s.log.Errorf("Error re-injecting connectivity %s : %v", cn.String(), err)
 		}
 	}
-	err := s.ipam.OnVppRestart()
+	err = s.ipam.OnVppRestart()
 	if err != nil {
 		s.log.Errorf("Error re-injecting ipam %v", err)
 	}

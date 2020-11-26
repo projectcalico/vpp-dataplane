@@ -158,6 +158,13 @@ func GetMaxCIDRMask(addr net.IP) net.IPMask {
 	return net.CIDRMask(maxCIDRLen, maxCIDRLen)
 }
 
+func ToMaxLenCIDR(addr net.IP) *net.IPNet {
+	return &net.IPNet{
+		IP:   addr,
+		Mask: GetMaxCIDRMask(addr),
+	}
+}
+
 func FullyQualified(addr net.IP) *net.IPNet {
 	return &net.IPNet{
 		IP:   addr,
