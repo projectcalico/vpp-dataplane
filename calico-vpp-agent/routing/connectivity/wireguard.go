@@ -17,7 +17,7 @@ package connectivity
 
 import (
 	"context"
-	"encoding/hex"
+	"encoding/base64"
 	"net"
 
 	"github.com/pkg/errors"
@@ -55,7 +55,8 @@ func (p WireguardProvider) getNodePublicKey(cn *NodeConnectivity) ([]byte, error
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error getting node status")
 	}
-	key, err := hex.DecodeString(node.Status.WireguardPublicKey)
+	p.log.Infof("Wireguard: pkey %s = %s", nodename, node.Status.WireguardPublicKey)
+	key, err := base64.StdEncoding.DecodeString(node.Status.WireguardPublicKey)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error decoding wireguard public key %s", node.Status.WireguardPublicKey)
 	}
@@ -68,6 +69,7 @@ func (p *WireguardProvider) publishWireguardPublicKey(pubKey string) error {
 	if err != nil {
 		return errors.Wrapf(err, "Error getting node config")
 	}
+	p.log.Infof("Wireguard: publishing pkey %s=%s", config.NodeName, pubKey)
 	node.Status.WireguardPublicKey = pubKey
 	_, err = p.server.Clientv3().Nodes().Update(context.Background(), node, options.SetOptions{})
 	if err != nil {
@@ -102,13 +104,18 @@ func (p *WireguardProvider) RescanState() {
 			break
 		}
 	}
-	p.log.Infof("Wireguard: Creating tunnel")
-	err = p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
-	if err != nil {
-		p.log.Errorf("Wireguard: Error creating tunnel: %s", err)
+	if p.wireguardTunnel == nil {
+		p.log.Infof("Wireguard: Creating tunnel")
+		err = p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
+		if err != nil {
+			p.log.Errorf("Wireguard: Error creating tunnel: %s", err)
+		}
 	}
-	key := hex.EncodeToString(p.wireguardTunnel.PublicKey)
-	p.publishWireguardPublicKey(key)
+	key := base64.StdEncoding.EncodeToString(p.wireguardTunnel.PublicKey)
+	err = p.publishWireguardPublicKey(key)
+	if err != nil {
+		p.log.Errorf("Wireguard: publish PublicKey error: %s", err)
+	}
 
 	p.log.Infof("Wireguard: Rescanning existing peers")
 	peers, err := p.vpp.ListWireguardPeers()
