@@ -23,10 +23,10 @@ import (
 )
 
 type WireguardTunnel struct {
-	Addr      net.IP
-	Port      uint16
-	SwIfIndex uint32
-	PublicKey []byte
+	Addr       net.IP
+	Port       uint16
+	SwIfIndex  uint32
+	PublicKey  []byte
 	PrivateKey []byte
 }
 

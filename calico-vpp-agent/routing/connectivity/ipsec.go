@@ -17,9 +17,9 @@ package connectivity
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"strings"
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"

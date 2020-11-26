@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"net"
 
-	calicov3 "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicov3api "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	calicov3 "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 )
@@ -79,6 +79,6 @@ func NewConnectivityProviderData(
 		vpp:       vpp,
 		log:       log,
 		felixConf: conf,
-		server: server,
+		server:    server,
 	}
 }

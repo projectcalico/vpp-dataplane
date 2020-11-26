@@ -193,7 +193,6 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 	return nil
 }
 
-
 // Returns true if the config of the current node has changed and requires a restart
 // Sets node.SweepFlag to false if an existing node is added to allow mark and sweep
 func (s *Server) handleNodeUpdate(
@@ -218,7 +217,7 @@ func (s *Server) handleNodeUpdate(
 				s.addNodeState(&NodeState{
 					Spec:      newSpec,
 					SweepFlag: false,
-					Name: nodeName,
+					Name:      nodeName,
 				})
 				return false, nil
 			}
@@ -243,7 +242,7 @@ func (s *Server) handleNodeUpdate(
 			s.addNodeState(&NodeState{
 				Spec:      newSpec,
 				SweepFlag: false,
-				Name: nodeName,
+				Name:      nodeName,
 			})
 			err = s.onNodeAdded(newSpec)
 		}
@@ -284,7 +283,6 @@ func (s *Server) getSpecAddresses(newSpec *calicov3.NodeSpec) (string, string) {
 	}
 	return nodeIP4, nodeIP6
 }
-
 
 func (s *Server) getAsNumber(newSpec *calicov3.NodeSpec) uint32 {
 	if newSpec.BGP.ASNumber == nil {
@@ -418,4 +416,3 @@ func (s *Server) onNodeAdded(newSpec *calicov3.NodeSpec) (err error) {
 	}
 	return nil
 }
-

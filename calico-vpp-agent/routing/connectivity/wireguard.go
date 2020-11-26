@@ -31,14 +31,10 @@ const (
 	wireguardPort uint16 = 1234
 )
 
-var (
-	publicKey string = "" // FIXME
-)
-
 type WireguardProvider struct {
 	*ConnectivityProviderData
 	wireguardTunnel *types.WireguardTunnel
-	wireguardPeers   map[string]types.WireguardPeer
+	wireguardPeers  map[string]types.WireguardPeer
 }
 
 func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
@@ -66,7 +62,7 @@ func (p WireguardProvider) getNodePublicKey(cn *NodeConnectivity) ([]byte, error
 	return key, nil
 }
 
-func (p *WireguardProvider) publishWireguardPublicKey (pubKey string) error {
+func (p *WireguardProvider) publishWireguardPublicKey(pubKey string) error {
 	// Ref: felix/daemon/daemon.go:1056
 	node, err := p.server.Clientv3().Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
 	if err != nil {
@@ -183,7 +179,7 @@ func (p WireguardProvider) AddConnectivity(cn *NodeConnectivity) error {
 
 	key, err := p.getNodePublicKey(cn)
 	if err != nil {
-		return errors.Wrapf(err, "Error Getting node %s publicKey", )
+		return errors.Wrapf(err, "Error Getting node %s publicKey", cn.NextHop)
 	}
 	peer := &types.WireguardPeer{
 		PublicKey:  key,

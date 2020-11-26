@@ -92,8 +92,6 @@ type Server struct {
 	nodeStatesByName map[string]NodeState
 	nodeNamesByAddr  map[string]string
 	nodeStateLock    sync.Mutex
-
-
 }
 
 type NodeState struct {
@@ -130,7 +128,6 @@ func (s *Server) Clientv3() calicov3.Interface {
 	return s.clientv3
 }
 
-
 func GetPolicyName(isv6 bool) string {
 	return v46ify(policyBaseName, isv6)
 }
@@ -165,8 +162,8 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 		connectivityMap:      make(map[string]*connectivity.NodeConnectivity),
 		localAddressMap:      make(map[string]*net.IPNet),
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
-		nodeStatesByName:           make(map[string]NodeState),
-		nodeNamesByAddr:           make(map[string]string),
+		nodeStatesByName:     make(map[string]NodeState),
+		nodeNamesByAddr:      make(map[string]string),
 	}
 
 	BGPConf, err := server.getDefaultBGPConfig()

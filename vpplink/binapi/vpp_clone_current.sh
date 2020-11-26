@@ -41,4 +41,4 @@ index 7531dd197..94a2bfb12 100644
 " | git apply -- && git add -A &&  git commit --author "Calico-vpp builder <>" -m "Use 10us interrupt sleep"
 
 
-# TODO VPP patch for adding public key to API
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/46/30146/1 && git cherry-pick FETCH_HEAD # 30146: wireguard: return public key in api | https://gerrit.fd.io/r/c/vpp/+/30146
