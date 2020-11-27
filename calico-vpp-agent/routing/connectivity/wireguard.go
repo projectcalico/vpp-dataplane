@@ -60,27 +60,13 @@ func (p *WireguardProvider) getWireguardPort() uint16 {
 }
 
 func (p *WireguardProvider) OnVppRestart() {
-	nodeIP4 := p.server.GetNodeIP(false)
 	p.wireguardPeers = make(map[string]types.WireguardPeer)
 	p.wireguardTunnel = nil
-	p.log.Infof("Wireguard: Creating tunnel")
-	err := p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
-	if err != nil {
-		p.log.Errorf("Wireguard: Error creating tunnel: %s", err)
-	}
-	p.log.Errorf("OnVppRestart Tunnel found %s", p.wireguardTunnel)
 }
 
 func (p *WireguardProvider) getNodePublicKey(cn *NodeConnectivity) ([]byte, error) {
-	nodename := p.server.GetNodeNameByIp(cn.NextHop)
-	if nodename == "" {
-		return nil, errors.Errorf("Didnt find node with addr %s", cn.NextHop)
-	}
-	node, err := p.server.Clientv3().Nodes().Get(context.Background(), nodename, options.GetOptions{})
-	if err != nil {
-		return nil, errors.Wrapf(err, "Error getting node status")
-	}
-	p.log.Infof("Wireguard: pkey %s = %s", nodename, node.Status.WireguardPublicKey)
+	node := p.server.GetNodeByIp(cn.NextHop)
+	p.log.Infof("Wireguard: pkey %s = %s", node.Name, node.Status.WireguardPublicKey)
 	key, err := base64.StdEncoding.DecodeString(node.Status.WireguardPublicKey)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error decoding wireguard public key %s", node.Status.WireguardPublicKey)
@@ -111,6 +97,9 @@ func (p *WireguardProvider) TunnelIsIP6() bool {
 }
 
 func (p *WireguardProvider) RescanState() {
+	nodeIP4 := p.server.GetNodeIP(false)
+	nodeIP6 := p.server.GetNodeIP(true)
+
 	p.wireguardPeers = make(map[string]types.WireguardPeer)
 	p.wireguardTunnel = nil
 
@@ -119,9 +108,6 @@ func (p *WireguardProvider) RescanState() {
 	if err != nil {
 		p.log.Errorf("Error listing wireguard tunnels: %v", err)
 	}
-
-	nodeIP4 := p.server.GetNodeIP(false)
-	nodeIP6 := p.server.GetNodeIP(true)
 	for _, tunnel := range tunnels {
 		if tunnel.Addr.Equal(nodeIP4) || tunnel.Addr.Equal(nodeIP6) {
 			p.log.Infof("Found existing tunnel: %s", tunnel)
@@ -129,17 +115,6 @@ func (p *WireguardProvider) RescanState() {
 			break
 		}
 	}
-	p.log.Errorf("RescanState Tunnel found %s", p.wireguardTunnel)
-
-	/* Create the listener if doesn't exist and enabled */
-	if p.wireguardTunnel == nil {
-		p.log.Infof("Wireguard: Creating tunnel")
-		err = p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
-		if err != nil {
-			p.log.Errorf("Wireguard: Error creating tunnel: %s", err)
-		}
-	}
-	p.log.Errorf("RescanState Tunnel created %s", p.wireguardTunnel)
 
 	p.log.Infof("Wireguard: Rescanning existing peers")
 	peers, err := p.vpp.ListWireguardPeers()
@@ -206,7 +181,15 @@ func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
 
 func (p *WireguardProvider) AddConnectivity(cn *NodeConnectivity) error {
 	if p.wireguardTunnel == nil {
-		return errors.Errorf("No wireguard tunnel configured")
+		p.log.Infof("Wireguard: Creating tunnel")
+		nodeIP4 := p.server.GetNodeIP(false)
+		if nodeIP4 == nil {
+			return errors.Errorf("Wireguard: no IP4 found for node")
+		}
+		err := p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
+		if err != nil {
+			return errors.Wrapf(err, "Wireguard: Error creating tunnel")
+		}
 	}
 	if p.TunnelIsIP6() != vpplink.IsIP6(cn.NextHop) {
 		return errors.Errorf("IP46 wireguard tunnelling not supported")
@@ -229,7 +212,7 @@ func (p *WireguardProvider) AddConnectivity(cn *NodeConnectivity) error {
 		peer.AllowedIps = existingPeer.AllowedIps
 		peer.AddAllowedIp(cn.Dst)
 		/* Only update if we need to */
-		if !existingPeer.Equals(peer) {
+		if !existingPeer.Equal(peer) {
 			p.log.Infof("Wireguard: Delete (update) peer [%s]", existingPeer.String())
 			err := p.vpp.DelWireguardPeer(&existingPeer)
 			if err != nil {

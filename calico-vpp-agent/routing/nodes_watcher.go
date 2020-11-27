@@ -27,15 +27,16 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	agentCommon "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 )
 
 func (s *Server) isMeshMode() bool {
 	return *s.defaultBGPConf.NodeToNodeMeshEnabled
 }
 
-func nodeSpecCopy(calicoNode *calicov3.Node) *NodeState {
+func nodeSpecCopy(calicoNode *calicov3.Node) *common.NodeState {
 	calicoSpec := calicoNode.Spec
 	spec := calicov3.NodeSpec{
 		IPv4VXLANTunnelAddr: calicoSpec.IPv4VXLANTunnelAddr,
@@ -58,7 +59,7 @@ func nodeSpecCopy(calicoNode *calicov3.Node) *NodeState {
 	status := calicov3.NodeStatus{
 		WireguardPublicKey: calicoStatus.WireguardPublicKey,
 	}
-	return &NodeState{
+	return &common.NodeState{
 		Name:      calicoNode.Name,
 		Spec:      spec,
 		Status:    status,
@@ -76,7 +77,7 @@ func (s *Server) GetNodeNameByIp(addr net.IP) string {
 	return nodename
 }
 
-func (s *Server) GetNodeByIp(addr net.IP) *calicov3.NodeSpec {
+func (s *Server) GetNodeByIp(addr net.IP) *common.NodeState {
 	s.nodeStateLock.Lock()
 	defer s.nodeStateLock.Unlock()
 	nodename, found := s.nodeNamesByAddr[addr.String()]
@@ -87,10 +88,10 @@ func (s *Server) GetNodeByIp(addr net.IP) *calicov3.NodeSpec {
 	if !found {
 		return nil
 	}
-	return &node.Spec
+	return &node
 }
 
-func (s *Server) addNodeState(state *NodeState) {
+func (s *Server) addNodeState(state *common.NodeState) {
 	s.nodeStatesByName[state.Name] = *state
 	nodeIP, _, err := net.ParseCIDR(state.Spec.BGP.IPv6Address)
 	if err == nil {
@@ -205,7 +206,7 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 
 // Returns true if the config of the current node has changed and requires a restart
 // Sets node.SweepFlag to false if an existing node is added to allow mark and sweep
-func (s *Server) handleNodeUpdate(node *NodeState, eventType watch.EventType) (shouldRestart bool, err error) {
+func (s *Server) handleNodeUpdate(node *common.NodeState, eventType watch.EventType) (shouldRestart bool, err error) {
 	s.log.Debugf("Got node update: %s %s %+v", eventType, node.Name, node)
 	if node.Name == config.NodeName {
 		// No need to manage ourselves, but if we change we need to restart
@@ -258,7 +259,7 @@ func (s *Server) handleNodeUpdate(node *NodeState, eventType watch.EventType) (s
 	return false, err
 }
 
-func (s *Server) getSpecAddresses(node *NodeState) (string, string) {
+func (s *Server) getSpecAddresses(node *common.NodeState) (string, string) {
 	nodeIP4 := ""
 	nodeIP6 := ""
 	if node.Spec.BGP.IPv4Address != "" {
@@ -282,13 +283,13 @@ func (s *Server) getSpecAddresses(node *NodeState) (string, string) {
 	return nodeIP4, nodeIP6
 }
 
-func (s *Server) configureRemoteNodeSnat(node *NodeState, isAdd bool) {
+func (s *Server) configureRemoteNodeSnat(node *common.NodeState, isAdd bool) {
 	if node.Spec.BGP.IPv4Address != "" {
 		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
 		if err != nil {
 			s.log.Errorf("cannot parse node address %s: %v", node.Spec.BGP.IPv4Address, err)
 		} else {
-			err = s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(addr), isAdd)
+			err = s.vpp.CnatAddDelSnatPrefix(agentCommon.ToMaxLenCIDR(addr), isAdd)
 			if err != nil {
 				s.log.Errorf("error configuring snat prefix for current node (%v): %v", addr, err)
 			}
@@ -299,7 +300,7 @@ func (s *Server) configureRemoteNodeSnat(node *NodeState, isAdd bool) {
 		if err != nil {
 			s.log.Errorf("cannot parse node address %s: %v", node.Spec.BGP.IPv6Address, err)
 		} else {
-			err = s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(addr), isAdd)
+			err = s.vpp.CnatAddDelSnatPrefix(agentCommon.ToMaxLenCIDR(addr), isAdd)
 			if err != nil {
 				s.log.Errorf("error configuring snat prefix for current node (%v): %v", addr, err)
 			}
@@ -307,7 +308,7 @@ func (s *Server) configureRemoteNodeSnat(node *NodeState, isAdd bool) {
 	}
 }
 
-func (s *Server) getAsNumber(node *NodeState) uint32 {
+func (s *Server) getAsNumber(node *common.NodeState) uint32 {
 	if node.Spec.BGP.ASNumber == nil {
 		return uint32(*s.defaultBGPConf.ASNumber)
 	} else {
@@ -315,7 +316,7 @@ func (s *Server) getAsNumber(node *NodeState) uint32 {
 	}
 }
 
-func (s *Server) onNodeDeleted(old *NodeState) error {
+func (s *Server) onNodeDeleted(old *common.NodeState) error {
 	s.configureRemoteNodeSnat(old, false /* isAdd */)
 	v4IP, v6IP := s.getSpecAddresses(old)
 	if v4IP != "" {
@@ -334,10 +335,11 @@ func (s *Server) onNodeDeleted(old *NodeState) error {
 }
 
 type ChangeType int
-const(
-	ChangeNone ChangeType = 0
-	ChangeSame ChangeType = 1
-	ChangeAdded ChangeType = 2
+
+const (
+	ChangeNone    ChangeType = 0
+	ChangeSame    ChangeType = 1
+	ChangeAdded   ChangeType = 2
 	ChangeDeleted ChangeType = 3
 	ChangeUpdated ChangeType = 4
 )
@@ -396,7 +398,7 @@ func (s *Server) onNodeUpdatedByAddrFamily(oldAddr string, addr string, oldASN u
 	return nil
 }
 
-func (s *Server) onNodeUpdated(old *NodeState, node *NodeState) (err error) {
+func (s *Server) onNodeUpdated(old *common.NodeState, node *common.NodeState) (err error) {
 	s.log.Debugf("node comparison: old:%+v new:%+v", old.Spec.BGP, node.Spec.BGP)
 
 	newASN := s.getAsNumber(node)
@@ -413,6 +415,13 @@ func (s *Server) onNodeUpdated(old *NodeState, node *NodeState) (err error) {
 		return errors.Wrapf(err, "error updating v6")
 	}
 
+	if getStringChangeType(old.Status.WireguardPublicKey, node.Status.WireguardPublicKey) > ChangeSame {
+		err := s.updatedWireguardPublicKey(node)
+		if err != nil {
+			return errors.Wrapf(err, "error updating v6")
+		}
+	}
+
 	if getStringChangeType(oldV4IP, newV4IP) > ChangeSame || getStringChangeType(oldV6IP, newV6IP) > ChangeSame {
 		s.configureRemoteNodeSnat(old, false /* isAdd */)
 		s.configureRemoteNodeSnat(node, true /* isAdd */)
@@ -422,7 +431,7 @@ func (s *Server) onNodeUpdated(old *NodeState, node *NodeState) (err error) {
 	return nil
 }
 
-func (s *Server) onNodeAdded(node *NodeState) (err error) {
+func (s *Server) onNodeAdded(node *common.NodeState) (err error) {
 	s.configureRemoteNodeSnat(node, true /* isAdd */)
 	asNumber := s.getAsNumber(node)
 	v4IP, v6IP := s.getSpecAddresses(node)

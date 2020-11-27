@@ -24,8 +24,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 type IpsecProvider struct {
@@ -257,7 +257,7 @@ func (p *IpsecProvider) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
 	if otherNode == nil {
 		return nil, fmt.Errorf("Didnt find an ip4 for ip %s", addr.String())
 	}
-	nodeIP, _, err := net.ParseCIDR(otherNode.BGP.IPv4Address)
+	nodeIP, _, err := net.ParseCIDR(otherNode.Spec.BGP.IPv4Address)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Didnt find an ip4 for ip %s", addr.String())
 	}

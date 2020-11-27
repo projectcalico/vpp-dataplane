@@ -24,6 +24,7 @@ import (
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"golang.org/x/net/context"
@@ -130,7 +131,6 @@ type ProviderEntry struct {
 
 func (s *Server) updateAllIPConnectivity() {
 	s.log.Infof("Felix config changed, re-updating connectivity")
-	s.log.Infof("WG enabled %t", *s.felixConfiguration.WireguardEnabled)
 	for _, providerEntry := range s.providerTypeByDst {
 		s.log.Infof("Felix config changed [%s] %s", providerEntry.providerType, providerEntry.cn)
 		err := s.updateIPConnectivity(&providerEntry.cn, false /* isWithdraw */)
@@ -138,6 +138,26 @@ func (s *Server) updateAllIPConnectivity() {
 			s.log.Errorf("Error while re-updating connectivity %s", err)
 		}
 	}
+}
+
+func (s *Server) updatedWireguardPublicKey(node *common.NodeState) (err error) {
+	s.log.Infof("Wireguard: got public key for node %s", node.Name)
+	for _, providerEntry := range s.providerTypeByDst {
+		if providerEntry.providerType != connectivity.WIREGUARD {
+			continue
+		}
+		s.log.Infof("Wireguard key update [%s] %s", providerEntry.providerType, providerEntry.cn)
+		v4IP, v6IP := s.getSpecAddresses(node)
+		addr := providerEntry.cn.NextHop.String()
+		if addr != v4IP && addr != v6IP {
+			continue
+		}
+		err := s.updateIPConnectivity(&providerEntry.cn, false /* isWithdraw */)
+		if err != nil {
+			s.log.Errorf("Error while re-updating connectivity %s", err)
+		}
+	}
+	return nil
 }
 
 func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithdraw bool) (err error) {

@@ -22,6 +22,7 @@ import (
 
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 )
@@ -55,7 +56,7 @@ type ConnectivityProvider interface {
 }
 
 type RoutingServerUtils interface {
-	GetNodeByIp(addr net.IP) *calicov3.NodeSpec
+	GetNodeByIp(addr net.IP) *common.NodeState
 	GetNodeNameByIp(addr net.IP) string
 	GetNodeIP(isv6 bool) net.IP
 	GetNodeIPNet(isv6 bool) *net.IPNet
@@ -78,8 +79,8 @@ func NewConnectivityProviderData(
 	server RoutingServerUtils,
 ) *ConnectivityProviderData {
 	return &ConnectivityProviderData{
-		vpp:       vpp,
-		log:       log,
-		server:    server,
+		vpp:    vpp,
+		log:    log,
+		server: server,
 	}
 }

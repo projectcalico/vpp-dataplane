@@ -33,8 +33,9 @@ import (
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -64,7 +65,7 @@ var (
 )
 
 type Server struct {
-	*common.CalicoVppServerData
+	*commonAgent.CalicoVppServerData
 	log             *logrus.Entry
 	vpp             *vpplink.VppLink
 	t               tomb.Tomb
@@ -88,7 +89,7 @@ type Server struct {
 	bgpServerRunningCond *sync.Cond
 
 	// For the node watcher
-	nodeStatesByName map[string]NodeState
+	nodeStatesByName map[string]common.NodeState
 	nodeNamesByAddr  map[string]string
 	nodeStateLock    sync.Mutex
 
@@ -96,13 +97,6 @@ type Server struct {
 	providers          map[string]connectivity.ConnectivityProvider
 	providerTypeByDst  map[string]ProviderEntry
 	felixConfiguration *calicov3.FelixConfigurationSpec
-}
-
-type NodeState struct {
-	Name      string
-	Spec      calicov3.NodeSpec
-	Status    calicov3.NodeStatus
-	SweepFlag bool
 }
 
 func v46ify(s string, isv6 bool) string {
@@ -167,7 +161,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 		connectivityMap:      make(map[string]*connectivity.NodeConnectivity),
 		localAddressMap:      make(map[string]*net.IPNet),
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
-		nodeStatesByName:     make(map[string]NodeState),
+		nodeStatesByName:     make(map[string]common.NodeState),
 		nodeNamesByAddr:      make(map[string]string),
 		providerTypeByDst:    make(map[string]ProviderEntry),
 	}
@@ -242,13 +236,13 @@ func (s *Server) createAndStartBGP() error {
 // Configure SNAT prefixes so that we don't snat traffic going from a local pod to the node
 func (s *Server) configureLocalNodeSnat() error {
 	if s.hasV4 {
-		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(s.ipv4), true)
+		err := s.vpp.CnatAddDelSnatPrefix(commonAgent.ToMaxLenCIDR(s.ipv4), true)
 		if err != nil {
 			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", s.ipv4)
 		}
 	}
 	if s.hasV6 {
-		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(s.ipv6), true)
+		err := s.vpp.CnatAddDelSnatPrefix(commonAgent.ToMaxLenCIDR(s.ipv6), true)
 		if err != nil {
 			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", s.ipv6)
 		}

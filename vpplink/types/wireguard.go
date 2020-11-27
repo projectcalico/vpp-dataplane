@@ -53,7 +53,7 @@ func (t *WireguardPeer) allowedIpsMap() map[string]bool {
 	return m
 }
 
-func (t *WireguardPeer) Equals(o *WireguardPeer) bool {
+func (t *WireguardPeer) Equal(o *WireguardPeer) bool {
 	if o == nil {
 		return false
 	}
