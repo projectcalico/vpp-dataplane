@@ -82,11 +82,12 @@ type Server struct {
 	ipam            IpamCache
 	reloadCh        chan string
 	prefixReady     chan int
-	connectivityMap map[string]*connectivity.NodeConnectivity
 	localAddressMap map[string]*net.IPNet
 	ShouldStop      bool
 	// Is bgpServer running (s.bgpServer == nil)
-	bgpServerRunningCond *sync.Cond
+	bgpServerRunningCond        *sync.Cond
+	updateIPConnectivityLock    sync.Mutex
+	updateAllIPConnectivityChan chan bool
 
 	// For the node watcher
 	nodeStatesByName map[string]common.NodeState
@@ -95,7 +96,7 @@ type Server struct {
 
 	// Connectivity providers
 	providers          map[string]connectivity.ConnectivityProvider
-	providerTypeByDst  map[string]ProviderEntry
+	connectivityMap    map[string]connectivity.NodeConnectivity
 	felixConfiguration *calicov3.FelixConfigurationSpec
 }
 
@@ -152,18 +153,18 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	}
 
 	server := Server{
-		client:               calicoCli,
-		clientv3:             calicoCliV3,
-		reloadCh:             make(chan string),
-		prefixReady:          make(chan int),
-		vpp:                  vpp,
-		log:                  l,
-		connectivityMap:      make(map[string]*connectivity.NodeConnectivity),
-		localAddressMap:      make(map[string]*net.IPNet),
-		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
-		nodeStatesByName:     make(map[string]common.NodeState),
-		nodeNamesByAddr:      make(map[string]string),
-		providerTypeByDst:    make(map[string]ProviderEntry),
+		client:                      calicoCli,
+		clientv3:                    calicoCliV3,
+		reloadCh:                    make(chan string),
+		prefixReady:                 make(chan int),
+		updateAllIPConnectivityChan: make(chan bool),
+		vpp:                         vpp,
+		log:                         l,
+		localAddressMap:             make(map[string]*net.IPNet),
+		bgpServerRunningCond:        sync.NewCond(&sync.Mutex{}),
+		nodeStatesByName:            make(map[string]common.NodeState),
+		nodeNamesByAddr:             make(map[string]string),
+		connectivityMap:             make(map[string]connectivity.NodeConnectivity),
 	}
 
 	BGPConf, err := server.getDefaultBGPConfig()
@@ -627,10 +628,10 @@ func (s *Server) OnVppRestart() {
 		s.configureRemoteNodeSnat(&node, true /* isAdd */)
 	}
 	for _, cn := range s.connectivityMap {
-		s.log.Infof("Adding routing : %s", cn.String())
-		err = s.updateIPConnectivity(cn, false)
+		s.log.Infof("Adding routing : %s", cn)
+		err = s.updateIPConnectivity(&cn, false)
 		if err != nil {
-			s.log.Errorf("Error re-injecting connectivity %s : %v", cn.String(), err)
+			s.log.Errorf("Error re-injecting connectivity %s : %v", cn, err)
 		}
 	}
 	err = s.ipam.OnVppRestart()

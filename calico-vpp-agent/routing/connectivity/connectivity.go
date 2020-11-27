@@ -36,8 +36,9 @@ const (
 )
 
 type NodeConnectivity struct {
-	Dst     net.IPNet
-	NextHop net.IP
+	Dst              net.IPNet
+	NextHop          net.IP
+	ResolvedProvider string
 }
 
 func (cn *NodeConnectivity) String() string {

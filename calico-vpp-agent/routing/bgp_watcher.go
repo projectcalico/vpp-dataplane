@@ -18,13 +18,11 @@ package routing
 import (
 	"fmt"
 	"net"
-	"sync"
 
 	"github.com/golang/protobuf/ptypes"
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"golang.org/x/net/context"
@@ -79,11 +77,6 @@ func (s *Server) injectRoute(path *bgpapi.Path) error {
 		NextHop: otherNodeIP,
 	}
 	err := s.updateIPConnectivity(cn, path.IsWithdraw)
-	if path.IsWithdraw {
-		delete(s.connectivityMap, cn.String())
-	} else {
-		s.connectivityMap[cn.String()] = cn
-	}
 	return err
 }
 
@@ -120,83 +113,62 @@ func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
 	return connectivity.FLAT
 }
 
-var (
-	bgpLock sync.Mutex
-)
-
-type ProviderEntry struct {
-	providerType string
-	cn           connectivity.NodeConnectivity
+func (s *Server) updateAllIPConnectivityMonitor() {
+	for {
+		<-s.updateAllIPConnectivityChan
+		s.log.Infof("Felix config changed, re-updating connectivity")
+		for _, cn := range s.connectivityMap {
+			s.log.Infof("Felix config changed %s", cn)
+			err := s.updateIPConnectivity(&cn, false /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while re-updating connectivity %s", err)
+			}
+		}
+	}
 }
 
 func (s *Server) updateAllIPConnectivity() {
-	s.log.Infof("Felix config changed, re-updating connectivity")
-	for _, providerEntry := range s.providerTypeByDst {
-		s.log.Infof("Felix config changed [%s] %s", providerEntry.providerType, providerEntry.cn)
-		err := s.updateIPConnectivity(&providerEntry.cn, false /* isWithdraw */)
-		if err != nil {
-			s.log.Errorf("Error while re-updating connectivity %s", err)
-		}
-	}
-}
-
-func (s *Server) updatedWireguardPublicKey(node *common.NodeState) (err error) {
-	s.log.Infof("Wireguard: got public key for node %s", node.Name)
-	for _, providerEntry := range s.providerTypeByDst {
-		if providerEntry.providerType != connectivity.WIREGUARD {
-			continue
-		}
-		s.log.Infof("Wireguard key update [%s] %s", providerEntry.providerType, providerEntry.cn)
-		v4IP, v6IP := s.getSpecAddresses(node)
-		addr := providerEntry.cn.NextHop.String()
-		if addr != v4IP && addr != v6IP {
-			continue
-		}
-		err := s.updateIPConnectivity(&providerEntry.cn, false /* isWithdraw */)
-		if err != nil {
-			s.log.Errorf("Error while re-updating connectivity %s", err)
-		}
-	}
-	return nil
+	/* ping the bgp watcher as caller might share lock */
+	s.updateAllIPConnectivityChan <- true
 }
 
 func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithdraw bool) (err error) {
-	bgpLock.Lock()
-	bgpLock.Unlock()
+	s.updateIPConnectivityLock.Lock()
+	defer s.updateIPConnectivityLock.Unlock()
 	var providerType string
 	if IsWithdraw {
-		providerEntry, found := s.providerTypeByDst[cn.Dst.String()]
+		oldCn, found := s.connectivityMap[cn.String()]
 		if !found {
 			providerType = s.getProviderType(cn)
 			s.log.Infof("Didnt find provider in map, trying :%s", providerType)
 		} else {
-			providerType = providerEntry.providerType
-			delete(s.providerTypeByDst, cn.Dst.String())
-			s.log.Infof("Deleting path (%s) %s", providerType, cn.String())
+			providerType = oldCn.ResolvedProvider
+			delete(s.connectivityMap, oldCn.String())
+			s.log.Infof("Deleting path (%s) %s", providerType, oldCn.String())
 		}
 		return s.providers[providerType].DelConnectivity(cn)
 	} else {
 		providerType = s.getProviderType(cn)
-		oldProviderEntry, found := s.providerTypeByDst[cn.Dst.String()]
+		oldCn, found := s.connectivityMap[cn.String()]
 		if found {
-			oldProviderType := oldProviderEntry.providerType
+			oldProviderType := oldCn.ResolvedProvider
 			if oldProviderType != providerType {
 				s.log.Infof("Path (%s) changed provider (%s->%s) %s", providerType, oldProviderType, providerType, cn.String())
 				err := s.providers[oldProviderType].DelConnectivity(cn)
 				if err != nil {
 					s.log.Errorf("Error del connectivity when changing provider %s->%s : %s", oldProviderType, providerType, err)
 				}
+				cn.ResolvedProvider = providerType
+				s.connectivityMap[cn.String()] = *cn
 				return s.providers[providerType].AddConnectivity(cn)
 			} else {
 				s.log.Infof("Added same path (%s) %s", providerType, cn.String())
-				return nil
+				return s.providers[providerType].AddConnectivity(cn)
 			}
 		} else {
 			s.log.Infof("Added path (%s) %s", providerType, cn.String())
-			s.providerTypeByDst[cn.Dst.String()] = ProviderEntry{
-				providerType: providerType,
-				cn:           *cn,
-			}
+			cn.ResolvedProvider = providerType
+			s.connectivityMap[cn.String()] = *cn
 			return s.providers[providerType].AddConnectivity(cn)
 		}
 	}
@@ -264,6 +236,7 @@ func (s *Server) watchBGPPath() error {
 			}
 		}
 	}
+	go s.updateAllIPConnectivityMonitor()
 	return nil
 }
 
