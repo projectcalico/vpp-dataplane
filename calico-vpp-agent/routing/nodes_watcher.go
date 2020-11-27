@@ -208,22 +208,23 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 func (s *Server) handleNodeUpdate(node *NodeState, eventType watch.EventType) (shouldRestart bool, err error) {
 	s.log.Debugf("Got node update: %s %s %+v", eventType, node.Name, node)
 	if node.Name == config.NodeName {
-		// No need to manage ourselves, but if we change we need to restart and reconfigure
+		// No need to manage ourselves, but if we change we need to restart
+		// and reconfigure
+		shouldRestart = false
 		if eventType == watch.Deleted {
-			return true, nil
+			shouldRestart = true
 		} else {
 			old, found := s.nodeStatesByName[node.Name]
 			if found {
 				// Check that there were no changes, restart if our BGP config changed
 				old.SweepFlag = false
 				s.log.Tracef("node comparison: old:%+v new:%+v", old.Spec.BGP, node.Spec.BGP)
-				return !reflect.DeepEqual(old.Spec.BGP, node.Spec.BGP), nil
-			} else {
-				// First pass, create local node
-				s.addNodeState(node)
-				return false, nil
+				shouldRestart = !reflect.DeepEqual(old.Spec.BGP, node.Spec.BGP)
 			}
 		}
+		// Always update node state
+		s.addNodeState(node)
+		return shouldRestart, nil
 	}
 
 	// If the mesh is disabled, discard all updates that aren't on the current node
@@ -233,19 +234,19 @@ func (s *Server) handleNodeUpdate(node *NodeState, eventType watch.EventType) (s
 	// This ensures that nodes that don't have a BGP Spec are never present in the state map
 
 	err = nil
+	old, found := s.nodeStatesByName[node.Name]
 	switch eventType {
-	case watch.Error: // Shouldn't happen
+	case watch.Error:
+		// Shouldn't happen
+		return false, fmt.Errorf("Node event error")
 	case watch.Added, watch.Modified:
-		old, found := s.nodeStatesByName[node.Name]
 		if found {
 			err = s.onNodeUpdated(&old, node)
 		} else {
-			// New node
-			s.addNodeState(node)
 			err = s.onNodeAdded(node)
 		}
+		s.addNodeState(node)
 	case watch.Deleted:
-		old, found := s.nodeStatesByName[node.Name]
 		// This assumes that the old spec and the new spec are identical.
 		if found {
 			err = s.onNodeDeleted(&old)
@@ -253,27 +254,26 @@ func (s *Server) handleNodeUpdate(node *NodeState, eventType watch.EventType) (s
 		} else {
 			return false, fmt.Errorf("Node to delete not found")
 		}
-
 	}
 	return false, err
 }
 
-func (s *Server) getSpecAddresses(newSpec *calicov3.NodeSpec) (string, string) {
+func (s *Server) getSpecAddresses(node *NodeState) (string, string) {
 	nodeIP4 := ""
 	nodeIP6 := ""
-	if newSpec.BGP.IPv4Address != "" {
-		addr, _, err := net.ParseCIDR(newSpec.BGP.IPv4Address)
+	if node.Spec.BGP.IPv4Address != "" {
+		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
 		if err != nil {
-			s.log.Errorf("cannot parse node address %s: %v", newSpec.BGP.IPv4Address, err)
+			s.log.Errorf("cannot parse node address %s: %v", node.Spec.BGP.IPv4Address, err)
 			nodeIP4 = ""
 		} else {
 			nodeIP4 = addr.String()
 		}
 	}
-	if newSpec.BGP.IPv6Address != "" {
-		addr, _, err := net.ParseCIDR(newSpec.BGP.IPv6Address)
+	if node.Spec.BGP.IPv6Address != "" {
+		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
 		if err != nil {
-			s.log.Errorf("cannot parse node address %s: %v", newSpec.BGP.IPv6Address, err)
+			s.log.Errorf("cannot parse node address %s: %v", node.Spec.BGP.IPv6Address, err)
 			nodeIP6 = ""
 		} else {
 			nodeIP6 = addr.String()
@@ -282,11 +282,11 @@ func (s *Server) getSpecAddresses(newSpec *calicov3.NodeSpec) (string, string) {
 	return nodeIP4, nodeIP6
 }
 
-func (s *Server) configureRemoteNodeSnat(node *calicov3.NodeSpec, isAdd bool) {
-	if node.BGP.IPv4Address != "" {
-		addr, _, err := net.ParseCIDR(node.BGP.IPv4Address)
+func (s *Server) configureRemoteNodeSnat(node *NodeState, isAdd bool) {
+	if node.Spec.BGP.IPv4Address != "" {
+		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
 		if err != nil {
-			s.log.Errorf("cannot parse node address %s: %v", node.BGP.IPv4Address, err)
+			s.log.Errorf("cannot parse node address %s: %v", node.Spec.BGP.IPv4Address, err)
 		} else {
 			err = s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(addr), isAdd)
 			if err != nil {
@@ -294,10 +294,10 @@ func (s *Server) configureRemoteNodeSnat(node *calicov3.NodeSpec, isAdd bool) {
 			}
 		}
 	}
-	if node.BGP.IPv6Address != "" {
-		addr, _, err := net.ParseCIDR(node.BGP.IPv6Address)
+	if node.Spec.BGP.IPv6Address != "" {
+		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
 		if err != nil {
-			s.log.Errorf("cannot parse node address %s: %v", node.BGP.IPv6Address, err)
+			s.log.Errorf("cannot parse node address %s: %v", node.Spec.BGP.IPv6Address, err)
 		} else {
 			err = s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(addr), isAdd)
 			if err != nil {
@@ -307,17 +307,17 @@ func (s *Server) configureRemoteNodeSnat(node *calicov3.NodeSpec, isAdd bool) {
 	}
 }
 
-func (s *Server) getAsNumber(newSpec *calicov3.NodeSpec) uint32 {
-	if newSpec.BGP.ASNumber == nil {
+func (s *Server) getAsNumber(node *NodeState) uint32 {
+	if node.Spec.BGP.ASNumber == nil {
 		return uint32(*s.defaultBGPConf.ASNumber)
 	} else {
-		return uint32(*newSpec.BGP.ASNumber)
+		return uint32(*node.Spec.BGP.ASNumber)
 	}
 }
 
 func (s *Server) onNodeDeleted(old *NodeState) error {
-	s.configureRemoteNodeSnat(&old.Spec, false)
-	v4IP, v6IP := s.getSpecAddresses(&old.Spec)
+	s.configureRemoteNodeSnat(old, false /* isAdd */)
+	v4IP, v6IP := s.getSpecAddresses(old)
 	if v4IP != "" {
 		err := s.deleteBGPPeer(v4IP)
 		if err != nil {
@@ -333,114 +333,99 @@ func (s *Server) onNodeDeleted(old *NodeState) error {
 	return nil
 }
 
+type ChangeType int
+const(
+	ChangeNone ChangeType = 0
+	ChangeSame ChangeType = 1
+	ChangeAdded ChangeType = 2
+	ChangeDeleted ChangeType = 3
+	ChangeUpdated ChangeType = 4
+)
+
+func getStringChangeType(old, new string) ChangeType {
+	if old == new && new == "" {
+		return ChangeNone
+	} else if old == new {
+		return ChangeSame
+	} else if old == "" {
+		return ChangeAdded
+	} else if new == "" {
+		return ChangeDeleted
+	} else {
+		return ChangeUpdated
+	}
+}
+
+func (s *Server) onNodeUpdatedByAddrFamily(oldAddr string, addr string, oldASN uint32, asNumber uint32) (err error) {
+	// Compare IPs and ASN
+	switch getStringChangeType(oldAddr, addr) {
+	case ChangeNone:
+		// Address family not configured
+	case ChangeSame:
+		// Check for ASN change
+		if oldASN != asNumber {
+			// Update peer
+			err = s.updateBGPPeer(addr, asNumber)
+			if err != nil {
+				return errors.Wrapf(err, "error adding peer %s", addr)
+			}
+		}
+		// Otherwise nothing to do for address family
+	case ChangeAdded:
+		err = s.addBGPPeer(addr, asNumber)
+		if err != nil {
+			return errors.Wrapf(err, "error adding peer %s", addr)
+		}
+	case ChangeDeleted:
+		// Delete old neighbor
+		err = s.deleteBGPPeer(oldAddr)
+		if err != nil {
+			return errors.Wrapf(err, "error deleting peer %s", oldAddr)
+		}
+	case ChangeUpdated:
+		// IP change, delete and re-add neighbor
+		err = s.deleteBGPPeer(oldAddr)
+		if err != nil {
+			return errors.Wrapf(err, "error deleting peer %s", oldAddr)
+		}
+		err = s.addBGPPeer(addr, asNumber)
+		if err != nil {
+			return errors.Wrapf(err, "error adding peer %s", addr)
+		}
+	}
+	return nil
+}
+
 func (s *Server) onNodeUpdated(old *NodeState, node *NodeState) (err error) {
 	s.log.Debugf("node comparison: old:%+v new:%+v", old.Spec.BGP, node.Spec.BGP)
 
-	asNumber := s.getAsNumber(&node.Spec)
-	oldASN := s.getAsNumber(&old.Spec)
-	v4IP, v6IP := s.getSpecAddresses(&node.Spec)
-	oldV4IP, oldV6IP := s.getSpecAddresses(&old.Spec)
+	newASN := s.getAsNumber(node)
+	oldASN := s.getAsNumber(old)
+	newV4IP, newV6IP := s.getSpecAddresses(node)
+	oldV4IP, oldV6IP := s.getSpecAddresses(old)
 
-	ipChange := false
-
-	// Compare IPs and ASN
-	if v4IP != "" {
-		if oldV4IP != "" {
-			if old.Spec.BGP.IPv4Address != node.Spec.BGP.IPv4Address {
-				ipChange = true
-				// IP change, delete and re-add neighbor
-				err = s.deleteBGPPeer(oldV4IP)
-				if err != nil {
-					return errors.Wrapf(err, "error deleting peer %s", oldV4IP)
-				}
-				err = s.addBGPPeer(v4IP, asNumber)
-				if err != nil {
-					return errors.Wrapf(err, "error adding peer %s", v4IP)
-				}
-			} else {
-				// Check for ASN change
-				if oldASN != asNumber {
-					// Update peer
-					err = s.updateBGPPeer(v4IP, asNumber)
-					if err != nil {
-						return errors.Wrapf(err, "error adding peer %s", v4IP)
-					}
-				} // Otherwise nothing to do for v4
-			}
-		} else {
-			ipChange = true
-			err = s.addBGPPeer(v4IP, asNumber)
-			if err != nil {
-				return errors.Wrapf(err, "error adding peer %s", v4IP)
-			}
-		}
-	} else {
-		// No v4 address on new node
-		if oldV4IP != "" {
-			ipChange = true
-			// Delete old neighbor
-			err = s.deleteBGPPeer(oldV4IP)
-			if err != nil {
-				return errors.Wrapf(err, "error deleting peer %s", oldV4IP)
-			}
-		} // Else nothing to do for v4
+	err = s.onNodeUpdatedByAddrFamily(oldV4IP, newV4IP, oldASN, newASN)
+	if err != nil {
+		return errors.Wrapf(err, "error updating v4")
 	}
-	if v6IP != "" {
-		if oldV6IP != "" {
-			if old.Spec.BGP.IPv6Address != node.Spec.BGP.IPv6Address {
-				ipChange = true
-				// IP change, delete and re-add neighbor
-				err = s.deleteBGPPeer(oldV6IP)
-				if err != nil {
-					return errors.Wrapf(err, "error deleting peer %s", oldV6IP)
-				}
-				err = s.addBGPPeer(v6IP, asNumber)
-				if err != nil {
-					return errors.Wrapf(err, "error adding peer %s", v6IP)
-				}
-			} else {
-				// Check for ASN change
-				if oldASN != asNumber {
-					// Update peer
-					err = s.updateBGPPeer(v6IP, asNumber)
-					if err != nil {
-						return errors.Wrapf(err, "error adding peer %s", v6IP)
-					}
-				} // Otherwise nothing to do for v6
-			}
-		} else {
-			ipChange = true
-			err = s.addBGPPeer(v6IP, asNumber)
-			if err != nil {
-				return errors.Wrapf(err, "error adding peer %s", v6IP)
-			}
-		}
-	} else {
-		// No v6 address on new node
-		if oldV6IP != "" {
-			ipChange = true
-			// Delete old neighbor
-			err = s.deleteBGPPeer(oldV6IP)
-			if err != nil {
-				return errors.Wrapf(err, "error deleting peer %s", oldV6IP)
-			}
-		} // Else nothing to do for v6
+	err = s.onNodeUpdatedByAddrFamily(oldV6IP, newV6IP, oldASN, newASN)
+	if err != nil {
+		return errors.Wrapf(err, "error updating v6")
 	}
 
-	if ipChange {
-		s.configureRemoteNodeSnat(&old.Spec, false)
-		s.configureRemoteNodeSnat(&node.Spec, true)
+	if getStringChangeType(oldV4IP, newV4IP) > ChangeSame || getStringChangeType(oldV6IP, newV6IP) > ChangeSame {
+		s.configureRemoteNodeSnat(old, false /* isAdd */)
+		s.configureRemoteNodeSnat(node, true /* isAdd */)
 	}
 
 	old.SweepFlag = false
-	old.Spec = node.Spec
 	return nil
 }
 
 func (s *Server) onNodeAdded(node *NodeState) (err error) {
-	s.configureRemoteNodeSnat(&node.Spec, true)
-	asNumber := s.getAsNumber(&node.Spec)
-	v4IP, v6IP := s.getSpecAddresses(&node.Spec)
+	s.configureRemoteNodeSnat(node, true /* isAdd */)
+	asNumber := s.getAsNumber(node)
+	v4IP, v6IP := s.getSpecAddresses(node)
 	if v4IP != "" {
 		err = s.addBGPPeer(v4IP, asNumber)
 		if err != nil {

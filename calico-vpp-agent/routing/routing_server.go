@@ -630,7 +630,7 @@ func (s *Server) OnVppRestart() {
 		s.log.Errorf("error reconfiguring loical node snat: %v", err)
 	}
 	for _, node := range s.nodeStatesByName {
-		s.configureRemoteNodeSnat(&node.Spec, true)
+		s.configureRemoteNodeSnat(&node, true /* isAdd */)
 	}
 	for _, cn := range s.connectivityMap {
 		s.log.Infof("Adding routing : %s", cn.String())
