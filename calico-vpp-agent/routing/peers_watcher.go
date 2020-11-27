@@ -18,13 +18,13 @@ package routing
 import (
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"golang.org/x/net/context"
 )
 
@@ -40,6 +40,8 @@ func (s *Server) shouldPeer(peer *calicov3.BGPPeer) bool {
 	return true
 }
 
+// This function watches BGP peers configured in Calico
+// These peers are configured in GoBGP in adcition to the other nodes in the cluster
 func (s *Server) watchBGPPeers() error {
 	state := make(map[string]*bgpPeer)
 
