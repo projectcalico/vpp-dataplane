@@ -103,7 +103,7 @@ func (p *WireguardProvider) RescanState() {
 	p.wireguardPeers = make(map[string]types.WireguardPeer)
 	p.wireguardTunnel = nil
 
-	p.log.Infof("Wireguard: Rescanning existing tunnels")
+	p.log.Debugf("Wireguard: Rescanning existing tunnels")
 	tunnels, err := p.vpp.ListWireguardTunnels()
 	if err != nil {
 		p.log.Errorf("Error listing wireguard tunnels: %v", err)
@@ -116,7 +116,7 @@ func (p *WireguardProvider) RescanState() {
 		}
 	}
 
-	p.log.Infof("Wireguard: Rescanning existing peers")
+	p.log.Debugf("Wireguard: Rescanning existing peers")
 	peers, err := p.vpp.ListWireguardPeers()
 	if err != nil {
 		p.log.Errorf("Error listing wireguard peers: %v", err)

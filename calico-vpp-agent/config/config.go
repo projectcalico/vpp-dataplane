@@ -53,7 +53,7 @@ const (
 	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar       = "SERVICE_PREFIX"
 	DefaultVXLANVni           = 4096
-	DefaultWireguardPort      = 1234
+	DefaultWireguardPort      = 51820
 
 	defaultRxMode = types.Adaptative
 )
