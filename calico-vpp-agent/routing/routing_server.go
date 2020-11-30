@@ -302,6 +302,9 @@ func (s *Server) serveOne() error {
 
 	// watch routes from other BGP peers and update FIB
 	s.t.Go(func() error { return fmt.Errorf("watchBGPPath: %s", s.watchBGPPath()) })
+	s.t.Go(func() error {
+		return fmt.Errorf("updateAllIPConnectivityMonitor: %s", s.updateAllIPConnectivityMonitor())
+	})
 
 	// watch routes added by kernel and announce to other BGP peers
 	s.t.Go(func() error { return fmt.Errorf("watchKernelRoute: %s", s.watchKernelRoute()) })

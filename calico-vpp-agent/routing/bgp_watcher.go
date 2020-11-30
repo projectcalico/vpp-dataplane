@@ -113,9 +113,9 @@ func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
 	return connectivity.FLAT
 }
 
-func (s *Server) updateAllIPConnectivityMonitor() {
+func (s *Server) updateAllIPConnectivityMonitor() error {
 	for {
-		<-s.updateAllIPConnectivityChan
+		_ = <-s.updateAllIPConnectivityChan
 		s.log.Infof("Felix config changed, re-updating connectivity")
 		for _, cn := range s.connectivityMap {
 			s.log.Infof("Felix config changed %s", cn)
@@ -125,6 +125,7 @@ func (s *Server) updateAllIPConnectivityMonitor() {
 			}
 		}
 	}
+	return nil
 }
 
 func (s *Server) updateAllIPConnectivity() {
@@ -236,7 +237,6 @@ func (s *Server) watchBGPPath() error {
 			}
 		}
 	}
-	go s.updateAllIPConnectivityMonitor()
 	return nil
 }
 

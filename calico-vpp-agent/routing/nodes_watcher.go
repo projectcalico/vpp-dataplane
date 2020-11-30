@@ -191,7 +191,9 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 			}
 
 			node := nodeSpecCopy(calicoNode)
+			s.nodeStateLock.Lock()
 			shouldRestart, err := s.handleNodeUpdate(node, update.Type)
+			s.nodeStateLock.Unlock()
 			if err != nil {
 				return errors.Wrap(err, "error handling node update")
 			}
@@ -205,8 +207,6 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 // Returns true if the config of the current node has changed and requires a restart
 // Sets node.SweepFlag to false if an existing node is added to allow mark and sweep
 func (s *Server) handleNodeUpdate(node *common.NodeState, eventType watch.EventType) (shouldRestart bool, err error) {
-	s.nodeStateLock.Lock()
-	defer s.nodeStateLock.Unlock()
 	s.log.Debugf("Got node update: %s %s %+v", eventType, node.Name, node)
 	if node.Name == config.NodeName {
 		// No need to manage ourselves, but if we change we need to restart
