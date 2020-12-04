@@ -23,11 +23,9 @@ import (
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
-	"golang.org/x/net/context"
-
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"golang.org/x/net/context"
 )
 
 func isCrossSubnet(gw net.IP, subnet net.IPNet) bool {
@@ -79,36 +77,7 @@ func (s *Server) injectRoute(path *bgpapi.Path) error {
 		NextHop: otherNodeIP,
 	}
 	err := s.updateIPConnectivity(cn, path.IsWithdraw)
-	if path.IsWithdraw {
-		delete(s.connectivityMap, cn.String())
-	} else {
-		s.connectivityMap[cn.String()] = cn
-	}
 	return err
-}
-
-func (s *Server) getNodeIPNet(isv6 bool) *net.IPNet {
-	if isv6 {
-		return s.ipv6Net
-	} else {
-		return s.ipv4Net
-	}
-}
-
-func (s *Server) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
-	/* If only IP6 (e.g. ipsec) is supported, find nodeip4 out of nodeip6 */
-	if !vpplink.IsIP6(addr) {
-		return addr, nil
-	}
-	otherNode := s.GetNodeByIp(addr)
-	if otherNode == nil {
-		return nil, fmt.Errorf("Didnt find an ip4 for ip %s", addr.String())
-	}
-	nodeIP, _, err := net.ParseCIDR(otherNode.BGP.IPv4Address)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Didnt find an ip4 for ip %s", addr.String())
-	}
-	return nodeIP, nil
 }
 
 func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
@@ -117,17 +86,23 @@ func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
 		return connectivity.FLAT
 	}
 	if ipPool.Spec.IPIPMode == calicov3.IPIPModeAlways {
-		if config.EnableIPSec {
+		if s.providers[connectivity.IPSEC].Enabled() {
 			return connectivity.IPSEC
+		} else if s.providers[connectivity.WIREGUARD].Enabled() {
+			return connectivity.WIREGUARD
+		} else {
+			return connectivity.IPIP
 		}
-		return connectivity.IPIP
 	}
-	ipNet := s.getNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
+	ipNet := s.GetNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
 	if ipPool.Spec.IPIPMode == calicov3.IPIPModeCrossSubnet && !isCrossSubnet(cn.NextHop, *ipNet) {
-		if config.EnableIPSec {
+		if s.providers[connectivity.IPSEC].Enabled() {
 			return connectivity.IPSEC
+		} else if s.providers[connectivity.WIREGUARD].Enabled() {
+			return connectivity.WIREGUARD
+		} else {
+			return connectivity.IPIP
 		}
-		return connectivity.IPIP
 	}
 	if ipPool.Spec.VXLANMode == calicov3.VXLANModeAlways {
 		return connectivity.VXLAN
@@ -138,23 +113,65 @@ func (s *Server) getProviderType(cn *connectivity.NodeConnectivity) string {
 	return connectivity.FLAT
 }
 
-func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithdraw bool) (err error) {
-	providerType := s.getProviderType(cn)
-	provider := s.providers[providerType]
-
-	if providerType == connectivity.IPSEC {
-		cn.NextHop, err = s.forceOtherNodeIp4(cn.NextHop)
-		if err != nil {
-			return errors.Wrap(err, "Ipsec v6 config failed")
+func (s *Server) updateAllIPConnectivityMonitor() error {
+	for {
+		_ = <-s.updateAllIPConnectivityChan
+		s.log.Infof("Felix config changed, re-updating connectivity")
+		for _, cn := range s.connectivityMap {
+			s.log.Infof("Felix config changed %s", cn)
+			err := s.updateIPConnectivity(&cn, false /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while re-updating connectivity %s", err)
+			}
 		}
 	}
+	return nil
+}
 
+func (s *Server) updateAllIPConnectivity() {
+	/* ping the bgp watcher as caller might share lock */
+	s.updateAllIPConnectivityChan <- true
+}
+
+func (s *Server) updateIPConnectivity(cn *connectivity.NodeConnectivity, IsWithdraw bool) (err error) {
+	s.updateIPConnectivityLock.Lock()
+	defer s.updateIPConnectivityLock.Unlock()
+	var providerType string
 	if IsWithdraw {
-		s.log.Infof("Deleting path (%s) %s", providerType, cn.String())
-		return provider.DelConnectivity(cn)
+		oldCn, found := s.connectivityMap[cn.String()]
+		if !found {
+			providerType = s.getProviderType(cn)
+			s.log.Infof("Didnt find provider in map, trying :%s", providerType)
+		} else {
+			providerType = oldCn.ResolvedProvider
+			delete(s.connectivityMap, oldCn.String())
+			s.log.Infof("Deleting path (%s) %s", providerType, oldCn.String())
+		}
+		return s.providers[providerType].DelConnectivity(cn)
 	} else {
-		s.log.Infof("Added path (%s) %s", providerType, cn.String())
-		return provider.AddConnectivity(cn)
+		providerType = s.getProviderType(cn)
+		oldCn, found := s.connectivityMap[cn.String()]
+		if found {
+			oldProviderType := oldCn.ResolvedProvider
+			if oldProviderType != providerType {
+				s.log.Infof("Path (%s) changed provider (%s->%s) %s", providerType, oldProviderType, providerType, cn.String())
+				err := s.providers[oldProviderType].DelConnectivity(cn)
+				if err != nil {
+					s.log.Errorf("Error del connectivity when changing provider %s->%s : %s", oldProviderType, providerType, err)
+				}
+				cn.ResolvedProvider = providerType
+				s.connectivityMap[cn.String()] = *cn
+				return s.providers[providerType].AddConnectivity(cn)
+			} else {
+				s.log.Infof("Added same path (%s) %s", providerType, cn.String())
+				return s.providers[providerType].AddConnectivity(cn)
+			}
+		} else {
+			s.log.Infof("Added path (%s) %s", providerType, cn.String())
+			cn.ResolvedProvider = providerType
+			s.connectivityMap[cn.String()] = *cn
+			return s.providers[providerType].AddConnectivity(cn)
+		}
 	}
 }
 

@@ -48,6 +48,7 @@ func main() {
 		log.Errorf("Error loading configuration: %v", err)
 		return
 	}
+	config.PrintAgentConfig(log)
 	log.SetLevel(config.LogLevel)
 
 	common.InitRestartHandler()

@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	AvfReplyTimeout = 5 * time.Second
+	AvfReplyTimeout = 15 * time.Second
 )
 
 func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err error) {

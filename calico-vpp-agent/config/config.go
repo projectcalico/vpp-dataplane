@@ -53,6 +53,7 @@ const (
 	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar       = "SERVICE_PREFIX"
 	DefaultVXLANVni           = 4096
+	DefaultWireguardPort      = 51820
 
 	defaultRxMode = types.Adaptative
 )
@@ -75,6 +76,19 @@ var (
 	TapRxQueueSize    int = 0
 	TapTxQueueSize    int = 0
 )
+
+func PrintAgentConfig(log *logrus.Logger) {
+	log.Infof("Config:TapNumRxQueues    %d", TapNumRxQueues)
+	log.Infof("Config:TapGSOEnabled     %t", TapGSOEnabled)
+	log.Infof("Config:EnableServices    %t", EnableServices)
+	log.Infof("Config:EnableIPSec       %t", EnableIPSec)
+	log.Infof("Config:CrossIpsecTunnels %t", CrossIpsecTunnels)
+	log.Infof("Config:EnablePolicies    %t", EnablePolicies)
+	log.Infof("Config:IpsecAddressCount %d", IpsecAddressCount)
+	log.Infof("Config:RxMode            %d", TapRxMode)
+	log.Infof("Config:BgpLogLevel       %d", BgpLogLevel)
+	log.Infof("Config:LogLevel          %d", LogLevel)
+}
 
 // LoadConfig loads the calico-vpp-agent configuration from the environment
 func LoadConfig(log *logrus.Logger) (err error) {
@@ -212,16 +226,6 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	default:
 		TapRxMode = defaultRxMode
 	}
-
-	log.Infof("Config:TapNumRxQueues    %d", TapNumRxQueues)
-	log.Infof("Config:TapGSOEnabled     %t", TapGSOEnabled)
-	log.Infof("Config:EnableServices    %t", EnableServices)
-	log.Infof("Config:EnableIPSec       %t", EnableIPSec)
-	log.Infof("Config:CrossIpsecTunnels %t", CrossIpsecTunnels)
-	log.Infof("Config:IpsecAddressCount %d", IpsecAddressCount)
-	log.Infof("Config:RxMode            %d", TapRxMode)
-	log.Infof("Config:BgpLogLevel       %d", BgpLogLevel)
-	log.Infof("Config:LogLevel          %d", LogLevel)
 
 	return nil
 }

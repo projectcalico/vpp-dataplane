@@ -29,12 +29,13 @@ import (
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/client"
-	calicocliv3 "github.com/projectcalico/libcalico-go/lib/clientv3"
+	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -64,35 +65,39 @@ var (
 )
 
 type Server struct {
-	*common.CalicoVppServerData
-	log              *logrus.Entry
-	vpp              *vpplink.VppLink
-	t                tomb.Tomb
-	bgpServer        *bgpserver.BgpServer
-	client           *calicocli.Client
-	clientv3         calicocliv3.Interface
-	defaultBGPConf   *calicov3.BGPConfigurationSpec
-	defaultFelixConf *calicov3.FelixConfigurationSpec
-	ipv4             net.IP
-	ipv6             net.IP
-	ipv4Net          *net.IPNet
-	ipv6Net          *net.IPNet
-	hasV4            bool
-	hasV6            bool
-	ipam             IpamCache
-	reloadCh         chan string
-	prefixReady      chan int
-	connectivityMap  map[string]*connectivity.NodeConnectivity
-	localAddressMap  map[string]*net.IPNet
-	ShouldStop       bool
+	*commonAgent.CalicoVppServerData
+	log             *logrus.Entry
+	vpp             *vpplink.VppLink
+	t               tomb.Tomb
+	bgpServer       *bgpserver.BgpServer
+	client          *calicocli.Client
+	clientv3        calicov3cli.Interface
+	defaultBGPConf  *calicov3.BGPConfigurationSpec
+	ipv4            net.IP
+	ipv6            net.IP
+	ipv4Net         *net.IPNet
+	ipv6Net         *net.IPNet
+	hasV4           bool
+	hasV6           bool
+	ipam            IpamCache
+	reloadCh        chan string
+	prefixReady     chan int
+	localAddressMap map[string]*net.IPNet
+	ShouldStop      bool
 	// Is bgpServer running (s.bgpServer == nil)
-	bgpServerRunningCond *sync.Cond
+	bgpServerRunningCond        *sync.Cond
+	updateIPConnectivityLock    sync.Mutex
+	updateAllIPConnectivityChan chan bool
 
 	// For the node watcher
-	nodeState map[string]*node
+	nodeStatesByName map[string]common.NodeState
+	nodeNamesByAddr  map[string]string
+	nodeStateLock    sync.Mutex
 
 	// Connectivity providers
-	providers map[string]connectivity.ConnectivityProvider
+	providers          map[string]connectivity.ConnectivityProvider
+	connectivityMap    map[string]connectivity.NodeConnectivity
+	felixConfiguration *calicov3.FelixConfigurationSpec
 }
 
 func v46ify(s string, isv6 bool) string {
@@ -101,6 +106,26 @@ func v46ify(s string, isv6 bool) string {
 	} else {
 		return s + "-v4"
 	}
+}
+
+func (s *Server) GetNodeIPNet(isv6 bool) *net.IPNet {
+	if isv6 {
+		return s.ipv6Net
+	} else {
+		return s.ipv4Net
+	}
+}
+
+func (s *Server) GetNodeIP(isv6 bool) net.IP {
+	if isv6 {
+		return s.ipv6
+	} else {
+		return s.ipv4
+	}
+}
+
+func (s *Server) Clientv3() calicov3cli.Interface {
+	return s.clientv3
 }
 
 func GetPolicyName(isv6 bool) string {
@@ -122,22 +147,24 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create calico v1 api client")
 	}
-	calicoCliV3, err := calicocliv3.NewFromEnv()
+	calicoCliV3, err := calicov3cli.NewFromEnv()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create calico v3 api client")
 	}
 
 	server := Server{
-		client:               calicoCli,
-		clientv3:             calicoCliV3,
-		reloadCh:             make(chan string),
-		prefixReady:          make(chan int),
-		vpp:                  vpp,
-		log:                  l,
-		connectivityMap:      make(map[string]*connectivity.NodeConnectivity),
-		localAddressMap:      make(map[string]*net.IPNet),
-		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
-		nodeState:            make(map[string]*node),
+		client:                      calicoCli,
+		clientv3:                    calicoCliV3,
+		reloadCh:                    make(chan string),
+		prefixReady:                 make(chan int),
+		updateAllIPConnectivityChan: make(chan bool),
+		vpp:                         vpp,
+		log:                         l,
+		localAddressMap:             make(map[string]*net.IPNet),
+		bgpServerRunningCond:        sync.NewCond(&sync.Mutex{}),
+		nodeStatesByName:            make(map[string]common.NodeState),
+		nodeNamesByAddr:             make(map[string]string),
+		connectivityMap:             make(map[string]connectivity.NodeConnectivity),
 	}
 
 	BGPConf, err := server.getDefaultBGPConfig()
@@ -145,14 +172,9 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 		return nil, errors.Wrap(err, "error getting default BGP configuration")
 	}
 	server.defaultBGPConf = BGPConf
-	felixConf, err := server.getDefaultFelixConfig()
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting default BGP configuration")
-	}
-	server.defaultFelixConf = felixConf
 
 	providerData := connectivity.NewConnectivityProviderData(
-		server.vpp, server.log, &server.ipv6, &server.ipv4, felixConf,
+		server.vpp, server.log, &server,
 	)
 
 	server.providers = make(map[string]connectivity.ConnectivityProvider)
@@ -160,6 +182,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server.providers[connectivity.IPIP] = connectivity.NewIPIPProvider(providerData)
 	server.providers[connectivity.IPSEC] = connectivity.NewIPsecProvider(providerData)
 	server.providers[connectivity.VXLAN] = connectivity.NewVXLanProvider(providerData)
+	server.providers[connectivity.WIREGUARD] = connectivity.NewWireguardProvider(providerData)
 
 	return &server, nil
 }
@@ -214,13 +237,13 @@ func (s *Server) createAndStartBGP() error {
 // Configure SNAT prefixes so that we don't snat traffic going from a local pod to the node
 func (s *Server) configureLocalNodeSnat() error {
 	if s.hasV4 {
-		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(s.ipv4), true)
+		err := s.vpp.CnatAddDelSnatPrefix(commonAgent.ToMaxLenCIDR(s.ipv4), true)
 		if err != nil {
 			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", s.ipv4)
 		}
 	}
 	if s.hasV6 {
-		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(s.ipv6), true)
+		err := s.vpp.CnatAddDelSnatPrefix(commonAgent.ToMaxLenCIDR(s.ipv6), true)
 		if err != nil {
 			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", s.ipv6)
 		}
@@ -260,7 +283,7 @@ func (s *Server) serveOne() error {
 	/* Restore the previous config in case we restarted */
 	s.RestoreLocalAddresses()
 
-	/* We should start watching from our getNodeIPs change call */
+	/* We should start watching from our GetNodeIPs change call */
 	s.t.Go(func() error { return fmt.Errorf("watchNodes: %s", s.watchNodes(node.ResourceVersion)) })
 
 	s.ipam = newIPAMCache(s.log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}), s.clientv3, s.ipamUpdateHandler)
@@ -270,6 +293,8 @@ func (s *Server) serveOne() error {
 	s.t.Go(func() error { return fmt.Errorf("watchPrefix: %s", s.watchPrefix()) })
 	// watch BGP peers
 	s.t.Go(func() error { return fmt.Errorf("watchBGPPeers: %s", s.watchBGPPeers()) })
+	// watch Felix configuration
+	s.t.Go(func() error { return fmt.Errorf("watchFelixConfiguration: %s", s.watchFelixConfiguration()) })
 
 	// TODO need to watch BGP configurations and restart in case of changes
 	// Need to get initial BGP config here, pass it to the watchers that need it,
@@ -277,6 +302,9 @@ func (s *Server) serveOne() error {
 
 	// watch routes from other BGP peers and update FIB
 	s.t.Go(func() error { return fmt.Errorf("watchBGPPath: %s", s.watchBGPPath()) })
+	s.t.Go(func() error {
+		return fmt.Errorf("updateAllIPConnectivityMonitor: %s", s.updateAllIPConnectivityMonitor())
+	})
 
 	// watch routes added by kernel and announce to other BGP peers
 	s.t.Go(func() error { return fmt.Errorf("watchKernelRoute: %s", s.watchKernelRoute()) })
@@ -333,14 +361,6 @@ func (s *Server) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPP
 		s.log.Errorf("Parts of IPPool updates are not supported at this time: old: %+v new: %+v", prevPool, pool)
 	}
 	return nil
-}
-
-func (s *Server) getDefaultFelixConfig() (*calicov3.FelixConfigurationSpec, error) {
-	conf, err := s.clientv3.FelixConfigurations().Get(context.Background(), "default", options.GetOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting default felix config")
-	}
-	return &conf.Spec, nil
 }
 
 func (s *Server) getDefaultBGPConfig() (*calicov3.BGPConfigurationSpec, error) {
@@ -569,6 +589,15 @@ func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 }
 
 func (s *Server) Serve() {
+	err := s.getFelixConfiguration()
+	if err != nil {
+		s.log.Fatalf("cannot get felix configuration %s", err)
+	}
+	/* Rescan state might need the nodeIPs set */
+	_, err = s.fetchNodeIPs()
+	if err != nil {
+		s.log.Errorf("cannot get node ips %v", err)
+	}
 	/* Initialization : rescan state */
 	for _, provider := range s.providers {
 		provider.RescanState()
@@ -598,14 +627,14 @@ func (s *Server) OnVppRestart() {
 	if err != nil {
 		s.log.Errorf("error reconfiguring loical node snat: %v", err)
 	}
-	for _, node := range s.nodeState {
-		s.configureRemoteNodeSnat(node.Spec, true)
+	for _, node := range s.nodeStatesByName {
+		s.configureRemoteNodeSnat(&node, true /* isAdd */)
 	}
 	for _, cn := range s.connectivityMap {
-		s.log.Infof("Adding routing : %s", cn.String())
-		err = s.updateIPConnectivity(cn, false)
+		s.log.Infof("Adding routing : %s", cn)
+		err = s.updateIPConnectivity(&cn, false)
 		if err != nil {
-			s.log.Errorf("Error re-injecting connectivity %s : %v", cn.String(), err)
+			s.log.Errorf("Error re-injecting connectivity %s : %v", cn, err)
 		}
 	}
 	err = s.ipam.OnVppRestart()

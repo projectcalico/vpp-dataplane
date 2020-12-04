@@ -35,6 +35,10 @@ func (p *IpipProvider) OnVppRestart() {
 	p.ipipIfs = make(map[string]*types.IPIPTunnel)
 }
 
+func (p *IpipProvider) Enabled() bool {
+	return true
+}
+
 func (p *IpipProvider) RescanState() {
 	p.log.Infof("Rescanning existing tunnels")
 	p.ipipIfs = make(map[string]*types.IPIPTunnel)
@@ -43,27 +47,29 @@ func (p *IpipProvider) RescanState() {
 		p.log.Errorf("Error listing ipip tunnels: %v", err)
 	}
 
-	nodeIP4 := p.getNodeIP(false)
-	nodeIP6 := p.getNodeIP(true)
+	nodeIP4 := p.server.GetNodeIP(false)
+	nodeIP6 := p.server.GetNodeIP(true)
 	for _, tunnel := range tunnels {
-		p.log.Infof("Found existing tunnel: %s", tunnel)
-		p.ipipIfs[tunnel.Dst.String()] = tunnel
+		if tunnel.Src.Equal(nodeIP4) || tunnel.Src.Equal(nodeIP6) {
+			p.log.Infof("Found existing tunnel: %s", tunnel)
+			p.ipipIfs[tunnel.Dst.String()] = tunnel
+		}
 	}
 }
 
-func (p IpipProvider) errorCleanup(tunnel *types.IPIPTunnel) {
+func (p *IpipProvider) errorCleanup(tunnel *types.IPIPTunnel) {
 	err := p.vpp.DelIPIPTunnel(tunnel)
 	if err != nil {
 		p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
 	}
 }
 
-func (p IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
+func (p *IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
 	p.log.Debugf("Adding ipip Tunnel to VPP")
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
 		tunnel = &types.IPIPTunnel{
-			Src: p.getNodeIP(vpplink.IsIP6(cn.NextHop)),
+			Src: p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop)),
 			Dst: cn.NextHop,
 		}
 		p.log.Infof("IPIP: Add %s", tunnel.String())
@@ -109,7 +115,7 @@ func (p IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
 	return nil
 }
 
-func (p IpipProvider) DelConnectivity(cn *NodeConnectivity) error {
+func (p *IpipProvider) DelConnectivity(cn *NodeConnectivity) error {
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("IPIP: Del unknown %s", cn.NextHop.String())

@@ -82,7 +82,7 @@ log_node () # C, POD, NODE
   validate_node_name
   SVC=${SVC:=kube-system}
   local pod_name=$(find_node_pod)
-  if [ x$pod_name == x ]; then
+  if [ x"$pod_name" == x ]; then
     >&2 red "pod '$POD' not found on node '$NODE'"
   	exit 1
   else

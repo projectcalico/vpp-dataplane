@@ -21,20 +21,24 @@ import (
 	"net"
 
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 )
 
 const (
-	FLAT  = "flat"
-	IPSEC = "ipsec"
-	VXLAN = "vxlan"
-	IPIP  = "ipip"
+	FLAT      = "flat"
+	IPSEC     = "ipsec"
+	VXLAN     = "vxlan"
+	IPIP      = "ipip"
+	WIREGUARD = "wireguard"
 )
 
 type NodeConnectivity struct {
-	Dst     net.IPNet
-	NextHop net.IP
+	Dst              net.IPNet
+	NextHop          net.IP
+	ResolvedProvider string
 }
 
 func (cn *NodeConnectivity) String() string {
@@ -48,6 +52,16 @@ type ConnectivityProvider interface {
 	OnVppRestart()
 	/* Check current state in VPP and update local cache */
 	RescanState()
+	/* is it enabled in the config ? */
+	Enabled() bool
+}
+
+type RoutingServerUtils interface {
+	GetNodeByIp(addr net.IP) *common.NodeState
+	GetNodeIP(isv6 bool) net.IP
+	GetNodeIPNet(isv6 bool) *net.IPNet
+	Clientv3() calicov3cli.Interface
+	GetFelixConfig() *calicov3.FelixConfigurationSpec
 }
 
 type ConnectivityProviderData struct {
@@ -56,22 +70,17 @@ type ConnectivityProviderData struct {
 	ipv6      *net.IP
 	ipv4      *net.IP
 	felixConf *calicov3.FelixConfigurationSpec
+	server    RoutingServerUtils
 }
 
-func NewConnectivityProviderData(vpp *vpplink.VppLink, log *logrus.Entry, ipv6 *net.IP, ipv4 *net.IP, conf *calicov3.FelixConfigurationSpec) *ConnectivityProviderData {
+func NewConnectivityProviderData(
+	vpp *vpplink.VppLink,
+	log *logrus.Entry,
+	server RoutingServerUtils,
+) *ConnectivityProviderData {
 	return &ConnectivityProviderData{
-		vpp:       vpp,
-		log:       log,
-		ipv6:      ipv6,
-		ipv4:      ipv4,
-		felixConf: conf,
-	}
-}
-
-func (s *ConnectivityProviderData) getNodeIP(isv6 bool) net.IP {
-	if isv6 {
-		return *s.ipv6
-	} else {
-		return *s.ipv4
+		vpp:    vpp,
+		log:    log,
+		server: server,
 	}
 }
