@@ -43,3 +43,4 @@ index 7531dd197..94a2bfb12 100644
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/46/30146/1 && git cherry-pick FETCH_HEAD # 30146: wireguard: return public key in api | https://gerrit.fd.io/r/c/vpp/+/30146
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/54/30154/1 && git cherry-pick FETCH_HEAD # 30154: wireguard: run feature after gso | https://gerrit.fd.io/r/c/vpp/+/30154
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/73/30273/1 && git cherry-pick FETCH_HEAD # 30273: cnat: Fix session with deleted tr | https://gerrit.fd.io/r/c/vpp/+/30273
