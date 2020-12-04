@@ -45,6 +45,7 @@ const (
 	ExtraAddrCountEnvVar     = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	CorePatternEnvVar        = "CALICOVPP_CORE_PATTERN"
 	TapRingSizeEnvVar        = "CALICOVPP_TAP_RING_SIZE"
+	TapMtuEnvVar             = "CALICOVPP_TAP_MTU"
 	RingSizeEnvVar           = "CALICOVPP_RING_SIZE"
 	NativeDriverEnvVar       = "CALICOVPP_NATIVE_DRIVER"
 	SwapDriverEnvVar         = "CALICOVPP_SWAP_DRIVER"
@@ -57,6 +58,7 @@ const (
 	DefaultTapQueueSize = 1024
 	DefaultPhyQueueSize = 1024
 	DefaultNumRxQueues  = 1
+	DefaultTapMtu       = 0
 )
 
 func getVppManagerParams() (params *config.VppManagerParams) {
@@ -201,6 +203,15 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
+	params.TapMtu = DefaultTapMtu
+	if conf := os.Getenv(TapMtuEnvVar); conf != "" {
+		tapMtu, err := strconv.ParseInt(conf, 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapMtuEnvVar, conf, tapMtu, err)
+		}
+		params.TapMtu = int(tapMtu)
+	}
+
 	params.TapRxQueueSize = DefaultTapQueueSize
 	params.TapTxQueueSize = DefaultTapQueueSize
 	if conf := os.Getenv(TapRingSizeEnvVar); conf != "" {
@@ -261,6 +272,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("TapRxMode:           %s", types.FormatRxMode(params.TapRxMode))
 	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
 	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
+	log.Infof("Tap MTU:             %d", params.TapMtu)
 	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
 	log.Infof("PHY target #Queues   rx:%d", params.NumRxQueues)
 	log.Infof("Hugepages            %d", params.AvailableHugePages)

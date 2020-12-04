@@ -305,6 +305,7 @@ func (v *VppRunner) configureVpp() (err error) {
 		RxQueueSize:    v.params.TapRxQueueSize,
 		TxQueueSize:    v.params.TapTxQueueSize,
 		Flags:          types.TapFlagTun,
+		Mtu:            v.params.TapMtu,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Error creating tap")

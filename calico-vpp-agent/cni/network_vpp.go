@@ -213,6 +213,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		RxQueueSize:   config.TapRxQueueSize,
 		TxQueueSize:   config.TapTxQueueSize,
 		Flags:         types.TapFlagTun,
+		Mtu:           config.TapMtu,
 	}
 	if config.TapGSOEnabled {
 		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce
