@@ -65,6 +65,7 @@ func (p *WireguardProvider) OnVppRestart() {
 }
 
 func (p *WireguardProvider) getNodePublicKey(cn *NodeConnectivity) ([]byte, error) {
+	p.log.Infof("Wireguard: pkey ?")
 	node := p.server.GetNodeByIp(cn.NextHop)
 	p.log.Infof("Wireguard: pkey %s = %s", node.Name, node.Status.WireguardPublicKey)
 	key, err := base64.StdEncoding.DecodeString(node.Status.WireguardPublicKey)

@@ -58,7 +58,6 @@ type ConnectivityProvider interface {
 
 type RoutingServerUtils interface {
 	GetNodeByIp(addr net.IP) *common.NodeState
-	GetNodeNameByIp(addr net.IP) string
 	GetNodeIP(isv6 bool) net.IP
 	GetNodeIPNet(isv6 bool) *net.IPNet
 	Clientv3() calicov3cli.Interface

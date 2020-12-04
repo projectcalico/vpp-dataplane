@@ -67,16 +67,6 @@ func nodeSpecCopy(calicoNode *calicov3.Node) *common.NodeState {
 	}
 }
 
-func (s *Server) GetNodeNameByIp(addr net.IP) string {
-	s.nodeStateLock.Lock()
-	defer s.nodeStateLock.Unlock()
-	nodename, found := s.nodeNamesByAddr[addr.String()]
-	if !found {
-		return ""
-	}
-	return nodename
-}
-
 func (s *Server) GetNodeByIp(addr net.IP) *common.NodeState {
 	s.nodeStateLock.Lock()
 	defer s.nodeStateLock.Unlock()

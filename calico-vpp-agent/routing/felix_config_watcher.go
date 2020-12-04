@@ -51,6 +51,7 @@ func (s *Server) handleFelixConfigurationUpdate(old, new *calicov3.FelixConfigur
 		return
 	}
 	if old.WireguardEnabled != new.WireguardEnabled {
+		s.log.Infof("WireguardEnabled CHANGED !")
 		s.updateAllIPConnectivity()
 	} else if old.WireguardListeningPort != new.WireguardListeningPort {
 		s.updateAllIPConnectivity()
