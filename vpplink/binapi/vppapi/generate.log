@@ -1,7 +1,10 @@
-VPP Version                 : 21.01-rc0~294-g7c35ebfa1
+VPP Version                 : 21.01-rc0~297-geed62250c
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 5f4f2081c nat: nat44 enable/disable dynamic config
 ------------------ Cherry picked commits --------------------
+eed62250c cnat: Fix session with deleted tr
+f1d1caed5 wireguard: run feature after gso
+af1b8a1f3 wireguard: return public key in api
 7c35ebfa1 Use 10us interrupt sleep
 a41954a5e capo: Calico Policies plugin
 6935e4232 acl: acl-plugin custom policies
