@@ -56,3 +56,11 @@ func (v *VppLink) EnableSNATArc(swIfIndex uint32, isIp6 bool) (err error) {
 func (v *VppLink) DisableSNATArc(swIfIndex uint32, isIp6 bool) (err error) {
 	return v.enableDisableSNAT(swIfIndex, false, isIp6)
 }
+
+func (v *VppLink) EnableFeature(swIfIndex uint32, arcName, featureName string) (err error) {
+	return v.featureEnableDisable(swIfIndex, true, arcName, featureName)
+}
+
+func (v *VppLink) DisableFeature(swIfIndex uint32, arcName, featureName string) (err error) {
+	return v.featureEnableDisable(swIfIndex, false, arcName, featureName)
+}

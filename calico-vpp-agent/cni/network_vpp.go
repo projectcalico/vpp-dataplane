@@ -261,6 +261,27 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	}
 
+	if hasv4 {
+		err = s.vpp.EnableFeature(swIfIndex, "ip4-unicast", "cnat-input-ip4")
+		if err != nil {
+			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip4 dnat in")
+		}
+		err = s.vpp.EnableFeature(swIfIndex, "ip4-output", "cnat-output-ip4")
+		if err != nil {
+			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip4 dnat out")
+		}
+	}
+	if hasv6 {
+		err = s.vpp.EnableFeature(swIfIndex, "ip6-unicast", "cnat-input-ip6")
+		if err != nil {
+			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip6 dnat in")
+		}
+		err = s.vpp.EnableFeature(swIfIndex, "ip6-output", "cnat-output-ip6")
+		if err != nil {
+			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip6 dnat out")
+		}
+	}
+
 	if doHostSideConf {
 		err = ns.WithNetNSPath(podSpec.NetnsName, s.configureNamespaceSideTun(swIfIndex, podSpec))
 		if err != nil {

@@ -23,7 +23,7 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/7 && git cherry-pic
 
 # Policies
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/28083/13 && git cherry-pick FETCH_HEAD # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/13 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/14 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 
 echo "diff --git a/src/vlib/unix/input.c b/src/vlib/unix/input.c
 index 7531dd197..94a2bfb12 100644
@@ -45,3 +45,4 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/46/30146/1 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/54/30154/1 && git cherry-pick FETCH_HEAD # 30154: wireguard: run feature after gso | https://gerrit.fd.io/r/c/vpp/+/30154
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/73/30273/1 && git cherry-pick FETCH_HEAD # 30273: cnat: Fix session with deleted tr | https://gerrit.fd.io/r/c/vpp/+/30273
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/97/30097/3 && git cherry-pick FETCH_HEAD # 30097: vlib: Fix sh int addr | https://gerrit.fd.io/r/c/vpp/+/30097
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/75/30275/4 && git cherry-pick FETCH_HEAD # 30275: cnat: add input feature node | https://gerrit.fd.io/r/c/vpp/+/30275

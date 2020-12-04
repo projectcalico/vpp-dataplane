@@ -1,20 +1,21 @@
-VPP Version                 : 21.01-rc0~298-g410b7b6b3
+VPP Version                 : 21.01-rc0~299-g9483cf33e
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 5f4f2081c nat: nat44 enable/disable dynamic config
 ------------------ Cherry picked commits --------------------
-410b7b6b3 vlib: Fix sh int addr
-8bbe8514a cnat: Fix session with deleted tr
-0bf19762e wireguard: run feature after gso
-4c850f5cd wireguard: return public key in api
-2963ae3f6 Use 10us interrupt sleep
-d7a7f086c capo: Calico Policies plugin
-479a6f8c1 acl: acl-plugin custom policies
-f0261247b virtio: DRAFT: multi tx support
-408577b6d tap: fix the segv
-cb4fb174c calico: Add SNAT simultaneously to VIP DNAT
-753c3f2f8 cnat: Fix throttle hash & cleanup
-dd4ef5ea0 cnat: export src_policy fns
-7b6aeab26 cnat: reduce compile time
-9fb65e5ba cnat: Fix invalid adj_index
-2cd0af713 vlib: force input node interrupts to be unique
+9483cf33e cnat: add input feature node
+117ecf38f vlib: Fix sh int addr
+467a19e88 cnat: Fix session with deleted tr
+1245db92e wireguard: run feature after gso
+0b1123e3d wireguard: return public key in api
+824d289e5 Use 10us interrupt sleep
+0d2159bcc capo: Calico Policies plugin
+dc29d686e acl: acl-plugin custom policies
+4b3a9572b virtio: DRAFT: multi tx support
+845a67b6e tap: fix the segv
+2e47e37b3 calico: Add SNAT simultaneously to VIP DNAT
+fd15594ea cnat: Fix throttle hash & cleanup
+629750846 cnat: export src_policy fns
+4d930c3c0 cnat: reduce compile time
+001ba18c5 cnat: Fix invalid adj_index
+40978ab44 vlib: force input node interrupts to be unique
 -------------------------------------------------------------
