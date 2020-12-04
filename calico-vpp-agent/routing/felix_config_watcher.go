@@ -36,16 +36,34 @@ func (s *Server) GetFelixConfig() *calicov3.FelixConfigurationSpec {
 func (s *Server) getFelixConfiguration() error {
 	conf, err := s.clientv3.FelixConfigurations().Get(context.Background(), "default", options.GetOptions{})
 	if err != nil {
+		lastFelixConfigurationVersion = ""
 		return errors.Wrap(err, "error getting default felix config")
 	}
+	s.handleFelixConfigurationUpdate(s.felixConfiguration, &conf.Spec)
 	s.felixConfiguration = &conf.Spec
 	lastFelixConfigurationVersion = conf.ResourceVersion
 	return nil
 }
 
+func (s *Server) handleFelixConfigurationUpdate(old, new *calicov3.FelixConfigurationSpec) {
+	if old == nil || new == nil {
+		/* First/last update, do nothing*/
+		return
+	}
+	if old.WireguardEnabled != new.WireguardEnabled {
+		s.updateAllIPConnectivity()
+	} else if old.WireguardListeningPort != new.WireguardListeningPort {
+		s.updateAllIPConnectivity()
+	}
+}
+
 func (s *Server) watchFelixConfiguration() error {
 	for {
-		watcher, err := s.clientv3.FelixConfigurations().Watch(context.Background(), options.ListOptions{ResourceVersion: lastFelixConfigurationVersion})
+		s.getFelixConfiguration()
+		watcher, err := s.clientv3.FelixConfigurations().Watch(
+			context.Background(),
+			options.ListOptions{ResourceVersion: lastFelixConfigurationVersion},
+		)
 		if err != nil {
 			return err
 		}
@@ -61,8 +79,8 @@ func (s *Server) watchFelixConfiguration() error {
 				}
 			case watch.Added, watch.Modified:
 				felix := update.Object.(*calicov3.FelixConfiguration)
+				s.handleFelixConfigurationUpdate(s.felixConfiguration, &felix.Spec)
 				s.felixConfiguration = &felix.Spec
-				s.updateAllIPConnectivity()
 			case watch.Deleted:
 				s.log.Infof("delete while watching FelixConfigurations")
 			}

@@ -337,11 +337,11 @@ func (s *Server) onNodeDeleted(old *common.NodeState) error {
 type ChangeType int
 
 const (
-	ChangeNone    ChangeType = 0
-	ChangeSame    ChangeType = 1
-	ChangeAdded   ChangeType = 2
-	ChangeDeleted ChangeType = 3
-	ChangeUpdated ChangeType = 4
+	ChangeNone    ChangeType = iota
+	ChangeSame    ChangeType = iota
+	ChangeAdded   ChangeType = iota
+	ChangeDeleted ChangeType = iota
+	ChangeUpdated ChangeType = iota
 )
 
 func getStringChangeType(old, new string) ChangeType {
