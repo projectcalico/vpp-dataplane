@@ -17,14 +17,13 @@ data:
     }
     api-trace { on }
     cpu {
-        main-core 1
         workers 0
     }
     socksvr {
         socket-name /var/run/vpp/vpp-api.sock
     }
     dpdk {
-      dev __PCI_DEVICE_ID__ { num-rx-queues 1  num-tx-queues 1 }
+      dev __PCI_DEVICE_ID__ { num-rx-queues 1 num-tx-queues 1 }
     }
     plugins {
         plugin default { enable }

@@ -77,7 +77,6 @@ data:
     }
     api-trace { on }
     cpu {
-        main-core 1
         workers 0
     }
     socksvr {
