@@ -58,7 +58,6 @@ const (
 	DefaultTapQueueSize = 1024
 	DefaultPhyQueueSize = 1024
 	DefaultNumRxQueues  = 1
-	DefaultTapMtu       = 0
 )
 
 func getVppManagerParams() (params *config.VppManagerParams) {
@@ -203,13 +202,14 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.TapMtu = DefaultTapMtu
 	if conf := os.Getenv(TapMtuEnvVar); conf != "" {
 		tapMtu, err := strconv.ParseInt(conf, 10, 32)
 		if err != nil {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapMtuEnvVar, conf, tapMtu, err)
 		}
 		params.TapMtu = int(tapMtu)
+	} else {
+		params.TapMtu = 0
 	}
 
 	params.TapRxQueueSize = DefaultTapQueueSize
@@ -272,7 +272,6 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("TapRxMode:           %s", types.FormatRxMode(params.TapRxMode))
 	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
 	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
-	log.Infof("Tap MTU:             %d", params.TapMtu)
 	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
 	log.Infof("PHY target #Queues   rx:%d", params.NumRxQueues)
 	log.Infof("Hugepages            %d", params.AvailableHugePages)
@@ -292,6 +291,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("Addresses:           [%s]", conf.AddressString())
 	log.Infof("Routes:              [%s]", conf.RouteString())
 	log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
+	log.Infof("MTU                  %d", conf.Mtu)
 }
 
 func runInitScript(params *config.VppManagerParams) error {

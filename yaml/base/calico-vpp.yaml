@@ -195,6 +195,8 @@ spec:
               value: debug
             - name: CALICOVPP_TAP_RX_QUEUES
               value: "1"
+            - name: CALICOVPP_TAP_MTU
+              value: veth_mtu
             - name: CALICOVPP_TAP_GSO_ENABLED
               value: "true"
             - name: SERVICE_PREFIX

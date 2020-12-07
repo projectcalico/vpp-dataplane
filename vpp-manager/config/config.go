@@ -92,6 +92,7 @@ type InterfaceConfig struct {
 	Hasv6        bool
 	NodeIP4      string
 	NodeIP6      string
+	Mtu          int
 }
 
 type KernelVersion struct {

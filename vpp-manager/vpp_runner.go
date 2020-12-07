@@ -297,6 +297,10 @@ func (v *VppRunner) configureVpp() (err error) {
 	}
 
 	log.Infof("Creating Linux side interface")
+	var tapMtu int = v.conf.Mtu - 60
+	if v.params.TapMtu != 0 {
+		tapMtu = v.params.TapMtu
+	}
 	tapSwIfIndex, err := v.vpp.CreateTapV2(&types.TapV2{
 		HostIfName:     config.HostIfName,
 		Tag:            config.HostIfTag,
@@ -305,7 +309,7 @@ func (v *VppRunner) configureVpp() (err error) {
 		RxQueueSize:    v.params.TapRxQueueSize,
 		TxQueueSize:    v.params.TapTxQueueSize,
 		Flags:          types.TapFlagTun,
-		Mtu:            v.params.TapMtu,
+		Mtu:            tapMtu,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Error creating tap")
