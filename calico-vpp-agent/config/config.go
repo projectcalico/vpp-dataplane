@@ -49,6 +49,7 @@ const (
 	IPSecIkev2PskEnvVar       = "CALICOVPP_IPSEC_IKEV2_PSK"
 	TapRxModeEnvVar           = "CALICOVPP_TAP_RX_MODE"
 	TapQueueSizeEnvVar        = "CALICOVPP_TAP_RING_SIZE"
+	TapMtuEnvVar              = "CALICOVPP_TAP_MTU"
 	BgpLogLevelEnvVar         = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar       = "SERVICE_PREFIX"
@@ -75,6 +76,7 @@ var (
 	ServiceCIDRs      []*net.IPNet
 	TapRxQueueSize    int = 0
 	TapTxQueueSize    int = 0
+	TapMtu            int = 1440
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
@@ -88,6 +90,7 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:RxMode            %d", TapRxMode)
 	log.Infof("Config:BgpLogLevel       %d", BgpLogLevel)
 	log.Infof("Config:LogLevel          %d", LogLevel)
+	log.Infof("Config:TapMtu            %d", TapMtu)
 }
 
 // LoadConfig loads the calico-vpp-agent configuration from the environment
@@ -174,6 +177,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", IPSecExtraAddressesEnvVar, conf, extraAddressCount, err)
 		}
 		IpsecAddressCount = int(extraAddressCount) + 1
+	}
+
+	if conf := os.Getenv(TapMtuEnvVar); conf != "" {
+		tapMtu, err := strconv.ParseInt(conf, 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapMtuEnvVar, conf, tapMtu, err)
+		}
+		TapMtu = int(tapMtu)
 	}
 
 	if conf := os.Getenv(TapQueueSizeEnvVar); conf != "" {

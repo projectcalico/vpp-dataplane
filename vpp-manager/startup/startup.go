@@ -45,6 +45,7 @@ const (
 	ExtraAddrCountEnvVar     = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	CorePatternEnvVar        = "CALICOVPP_CORE_PATTERN"
 	TapRingSizeEnvVar        = "CALICOVPP_TAP_RING_SIZE"
+	TapMtuEnvVar             = "CALICOVPP_TAP_MTU"
 	RingSizeEnvVar           = "CALICOVPP_RING_SIZE"
 	NativeDriverEnvVar       = "CALICOVPP_NATIVE_DRIVER"
 	SwapDriverEnvVar         = "CALICOVPP_SWAP_DRIVER"
@@ -201,6 +202,16 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
+	if conf := os.Getenv(TapMtuEnvVar); conf != "" {
+		tapMtu, err := strconv.ParseInt(conf, 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapMtuEnvVar, conf, tapMtu, err)
+		}
+		params.TapMtu = int(tapMtu)
+	} else {
+		params.TapMtu = 0
+	}
+
 	params.TapRxQueueSize = DefaultTapQueueSize
 	params.TapTxQueueSize = DefaultTapQueueSize
 	if conf := os.Getenv(TapRingSizeEnvVar); conf != "" {
@@ -280,6 +291,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("Addresses:           [%s]", conf.AddressString())
 	log.Infof("Routes:              [%s]", conf.RouteString())
 	log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
+	log.Infof("MTU                  %d", conf.Mtu)
 }
 
 func runInitScript(params *config.VppManagerParams) error {

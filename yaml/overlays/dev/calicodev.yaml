@@ -44,6 +44,12 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICOVPP_TAP_TX_QUEUES
+            - name: CALICOVPP_TAP_MTU
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_TAP_MTU
             - name: CALICOVPP_TAP_GSO_ENABLED
               value: ""
               valueFrom:
@@ -284,6 +290,12 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICOVPP_TAP_RING_SIZE
+            - name: CALICOVPP_TAP_MTU
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICOVPP_TAP_MTU
             - name: CALICOVPP_VPP_STARTUP_SLEEP
               value: ""
               valueFrom:

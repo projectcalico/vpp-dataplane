@@ -98,6 +98,7 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 	conf.PromiscOn = link.Attrs().Promisc == 1
 	conf.NumTxQueues = link.Attrs().NumTxQueues
 	conf.NumRxQueues = link.Attrs().NumRxQueues
+	conf.Mtu = link.Attrs().MTU
 
 	pciId, err := utils.GetInterfacePciId(params.MainInterface)
 	if err != nil {

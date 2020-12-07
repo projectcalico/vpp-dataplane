@@ -65,6 +65,7 @@ type VppManagerParams struct {
 	TapTxQueueSize          int
 	RxQueueSize             int
 	TxQueueSize             int
+	TapMtu                  int
 	NumRxQueues             int
 	NewDriverName           string
 	DefaultGWs              []net.IP
@@ -91,6 +92,7 @@ type InterfaceConfig struct {
 	Hasv6        bool
 	NodeIP4      string
 	NodeIP6      string
+	Mtu          int
 }
 
 type KernelVersion struct {
