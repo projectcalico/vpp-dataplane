@@ -8,6 +8,7 @@ data:
   vpp_dataplane_interface: eth1
   veth_mtu: "1440"
   default_ipv4_pool_cidr: 172.16.0.0/16
+  vpp_uplink_driver: "none"
   vpp_config_template: |-
     unix {
       nodaemon
@@ -16,14 +17,13 @@ data:
     }
     api-trace { on }
     cpu {
-        main-core 1
         workers 0
     }
     socksvr {
         socket-name /var/run/vpp/vpp-api.sock
     }
     dpdk {
-      dev __PCI_DEVICE_ID__ { num-rx-queues 1  num-tx-queues 1 }
+      dev __PCI_DEVICE_ID__ { num-rx-queues 1 num-tx-queues 1 }
     }
     plugins {
         plugin default { enable }
@@ -31,7 +31,6 @@ data:
     }
 
 ---
-
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
