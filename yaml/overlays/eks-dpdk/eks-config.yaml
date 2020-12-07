@@ -8,6 +8,7 @@ data:  # Configuration template for VPP in EKS
   vpp_dataplane_interface: eth0
   veth_mtu: "1410"
   default_ipv4_pool_cidr: 192.168.0.0/16
+  vpp_uplink_driver: "none"
   vpp_config_template: |-
     unix {
       nodaemon

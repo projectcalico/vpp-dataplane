@@ -52,9 +52,20 @@ data:
   # so it must be manually configured
   service_prefix: 10.96.0.0/12
 
+  default_ipv4_pool_cidr: 172.16.0.0/16
+
+  # Configure the name of VPP's physical interface
   vpp_dataplane_interface: eth1
 
-  default_ipv4_pool_cidr: 172.16.0.0/16
+  # Configures how VPP grabs the physical interface
+  # available values are :
+  # - ""        : will select try the drivers starting with the fastest
+  # - avf       : use the native AVF driver
+  # - virtio    : use the native virtio driver (requires hugepages)
+  # - af_xdp    : use AF_XDP sock family (require at least kernel 5.4)
+  # - af_packet : use AF_PACKET sock family (slow but failsafe)
+  # - none      : dont configure connectivity
+  vpp_uplink_driver: ""
 
   # Configuration template for VPP.
   vpp_config_template: |-
@@ -289,6 +300,11 @@ spec:
           securityContext:
             privileged: true
           env:
+            - name: CALICOVPP_NATIVE_DRIVER
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: vpp_uplink_driver
             - name: CALICOVPP_IP_CONFIG
               value: linux
             - name: CALICOVPP_INTERFACE

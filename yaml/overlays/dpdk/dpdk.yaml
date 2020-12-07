@@ -8,6 +8,7 @@ data:
   vpp_dataplane_interface: eth1
   veth_mtu: "1440"
   default_ipv4_pool_cidr: 172.16.0.0/16
+  vpp_uplink_driver: "none"
   vpp_config_template: |-
     unix {
       nodaemon
@@ -31,7 +32,6 @@ data:
     }
 
 ---
-
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
