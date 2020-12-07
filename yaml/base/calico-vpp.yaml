@@ -340,7 +340,7 @@ spec:
             # By default drop coredumps to /var/run/vpp which is mounted
             # On the host
             - name: CALICOVPP_CORE_PATTERN
-              value: "/var/run/vpp/vppcore.%e.%p"
+              value: "/var/lib/vpp/vppcore.%e.%p"
           resources:
             requests:
               cpu: 500m
@@ -348,6 +348,8 @@ spec:
           volumeMounts:
             - name: vpp-rundir
               mountPath: /var/run/vpp
+            - name: vpp-data
+              mountPath: /var/lib/vpp
             - name: vpp-config
               mountPath: /etc/vpp
             - name: devices
@@ -358,6 +360,10 @@ spec:
         - name: vpp-rundir
           hostPath:
             path: /var/run/vpp
+        - name: vpp-data
+          hostPath:
+            type: DirectoryOrCreate
+            path: /var/lib/vpp
         - name: vpp-config
           hostPath:
             path: /etc/vpp

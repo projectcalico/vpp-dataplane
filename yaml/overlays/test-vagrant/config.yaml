@@ -33,4 +33,3 @@ spec:
           env:
             - name: CALICO_IPV4POOL_IPIP
               value: Always
-
