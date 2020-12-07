@@ -210,8 +210,8 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.RxQueueSize = DefaultTapQueueSize
-	params.TxQueueSize = DefaultTapQueueSize
+	params.RxQueueSize = DefaultPhyQueueSize
+	params.TxQueueSize = DefaultPhyQueueSize
 	if conf := os.Getenv(RingSizeEnvVar); conf != "" {
 		params.RxQueueSize, params.TxQueueSize, err = parseRingSize(conf)
 		if err != nil {
