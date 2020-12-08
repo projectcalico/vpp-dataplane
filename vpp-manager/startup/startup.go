@@ -30,6 +30,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var supportedEnvVars []string
+
 const (
 	NodeNameEnvVar           = "NODENAME"
 	IpConfigEnvVar           = "CALICOVPP_IP_CONFIG"
@@ -51,13 +53,13 @@ const (
 	SwapDriverEnvVar         = "CALICOVPP_SWAP_DRIVER"
 	DefaultGWEnvVar          = "CALICOVPP_DEFAULT_GW"
 	ServicePrefixEnvVar      = "SERVICE_PREFIX"
-	defaultRxMode            = types.Adaptative
 )
 
 const (
 	DefaultTapQueueSize = 1024
 	DefaultPhyQueueSize = 1024
 	DefaultNumRxQueues  = 1
+	defaultRxMode       = types.Adaptative
 )
 
 func getVppManagerParams() (params *config.VppManagerParams) {
@@ -108,8 +110,22 @@ func getSystemCapabilities(params *config.VppManagerParams) {
 
 }
 
+func isEnvVarSupported(str string) bool {
+	for _, envvar := range supportedEnvVars {
+		if envvar == str {
+			return true
+		}
+	}
+	return false
+}
+
+func getEnvValue(envVar string) string {
+	supportedEnvVars = append(supportedEnvVars, envVar)
+	return os.Getenv(envVar)
+}
+
 func parseEnvVariables(params *config.VppManagerParams) (err error) {
-	vppStartupSleep := os.Getenv(VppStartupSleepEnvVar)
+	vppStartupSleep := getEnvValue(VppStartupSleepEnvVar)
 	if vppStartupSleep == "" {
 		params.VppStartupSleepSeconds = 0
 	} else {
@@ -120,27 +136,27 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.MainInterface = os.Getenv(InterfaceEnvVar)
+	params.MainInterface = getEnvValue(InterfaceEnvVar)
 	if params.MainInterface == "" {
 		return errors.Errorf("No interface specified. Specify an interface through the %s environment variable", InterfaceEnvVar)
 	}
 
-	params.ConfigExecTemplate = os.Getenv(ConfigExecTemplateEnvVar)
-	params.InitScriptTemplate = os.Getenv(InitScriptTemplateEnvVar)
+	params.ConfigExecTemplate = getEnvValue(ConfigExecTemplateEnvVar)
+	params.InitScriptTemplate = getEnvValue(InitScriptTemplateEnvVar)
 
-	params.ConfigTemplate = os.Getenv(ConfigTemplateEnvVar)
+	params.ConfigTemplate = getEnvValue(ConfigTemplateEnvVar)
 	if params.ConfigTemplate == "" {
 		return fmt.Errorf("empty VPP configuration template, set a template in the %s environment variable", ConfigTemplateEnvVar)
 	}
 
-	params.IfConfigSavePath = os.Getenv(IfConfigPathEnvVar)
+	params.IfConfigSavePath = getEnvValue(IfConfigPathEnvVar)
 
-	params.NodeName = os.Getenv(NodeNameEnvVar)
+	params.NodeName = getEnvValue(NodeNameEnvVar)
 	if params.NodeName == "" {
 		return errors.Errorf("No node name specified. Specify the NODENAME environment variable")
 	}
 
-	servicePrefixStr := os.Getenv(ServicePrefixEnvVar)
+	servicePrefixStr := getEnvValue(ServicePrefixEnvVar)
 	for _, prefixStr := range strings.Split(servicePrefixStr, ",") {
 		_, serviceCIDR, err := net.ParseCIDR(prefixStr)
 		if err != nil {
@@ -149,15 +165,15 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		params.ServiceCIDRs = append(params.ServiceCIDRs, *serviceCIDR)
 	}
 
-	params.VppIpConfSource = os.Getenv(IpConfigEnvVar)
+	params.VppIpConfSource = getEnvValue(IpConfigEnvVar)
 	if params.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
 		return errors.Errorf("No ip configuration source specified. Specify one of {linux,} through the %s environment variable", IpConfigEnvVar)
 	}
 
-	params.CorePattern = os.Getenv(CorePatternEnvVar)
+	params.CorePattern = getEnvValue(CorePatternEnvVar)
 
 	params.ExtraAddrCount = 0
-	if extraAddrConf := os.Getenv(ExtraAddrCountEnvVar); extraAddrConf != "" {
+	if extraAddrConf := getEnvValue(ExtraAddrCountEnvVar); extraAddrConf != "" {
 		extraAddrCount, err := strconv.ParseInt(extraAddrConf, 10, 8)
 		if err != nil {
 			log.Errorf("Couldn't parse %s: %v", ExtraAddrCountEnvVar, err)
@@ -167,12 +183,12 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 	}
 
 	params.NativeDriver = ""
-	if conf := os.Getenv(NativeDriverEnvVar); conf != "" {
+	if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
 		params.NativeDriver = conf
 	}
 
 	params.NumRxQueues = DefaultNumRxQueues
-	if conf := os.Getenv(NumRxQueuesEnvVar); conf != "" {
+	if conf := getEnvValue(NumRxQueuesEnvVar); conf != "" {
 		queues, err := strconv.ParseInt(conf, 10, 16)
 		if err != nil || queues <= 0 {
 			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumRxQueuesEnvVar, conf, queues, err)
@@ -181,18 +197,18 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.NewDriverName = os.Getenv(SwapDriverEnvVar)
+	params.NewDriverName = getEnvValue(SwapDriverEnvVar)
 
-	params.RxMode = types.UnformatRxMode(os.Getenv(RxModeEnvVar))
+	params.RxMode = types.UnformatRxMode(getEnvValue(RxModeEnvVar))
 	if params.RxMode == types.UnknownRxMode {
 		params.RxMode = defaultRxMode
 	}
-	params.TapRxMode = types.UnformatRxMode(os.Getenv(TapRxModeEnvVar))
+	params.TapRxMode = types.UnformatRxMode(getEnvValue(TapRxModeEnvVar))
 	if params.TapRxMode == types.UnknownRxMode {
 		params.TapRxMode = defaultRxMode
 	}
 
-	if conf := os.Getenv(DefaultGWEnvVar); conf != "" {
+	if conf := getEnvValue(DefaultGWEnvVar); conf != "" {
 		for _, defaultGWStr := range strings.Split(conf, ",") {
 			defaultGW := net.ParseIP(defaultGWStr)
 			if defaultGW == nil {
@@ -202,7 +218,7 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	if conf := os.Getenv(TapMtuEnvVar); conf != "" {
+	if conf := getEnvValue(TapMtuEnvVar); conf != "" {
 		tapMtu, err := strconv.ParseInt(conf, 10, 32)
 		if err != nil {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapMtuEnvVar, conf, tapMtu, err)
@@ -214,7 +230,7 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 
 	params.TapRxQueueSize = DefaultTapQueueSize
 	params.TapTxQueueSize = DefaultTapQueueSize
-	if conf := os.Getenv(TapRingSizeEnvVar); conf != "" {
+	if conf := getEnvValue(TapRingSizeEnvVar); conf != "" {
 		params.TapRxQueueSize, params.TapTxQueueSize, err = parseRingSize(conf)
 		if err != nil {
 			return errors.Wrapf(err, "Error parsing %s", TapRingSizeEnvVar)
@@ -223,10 +239,19 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 
 	params.RxQueueSize = DefaultPhyQueueSize
 	params.TxQueueSize = DefaultPhyQueueSize
-	if conf := os.Getenv(RingSizeEnvVar); conf != "" {
+	if conf := getEnvValue(RingSizeEnvVar); conf != "" {
 		params.RxQueueSize, params.TxQueueSize, err = parseRingSize(conf)
 		if err != nil {
 			return errors.Wrapf(err, "Error parsing %s", RingSizeEnvVar)
+		}
+	}
+
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		if strings.Contains(pair[0], "CALICOVPP_") {
+			if !isEnvVarSupported(pair[0]) {
+				log.Warnf("Environment variable %s is not supported", pair[0])
+			}
 		}
 	}
 	return nil

@@ -27,6 +27,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var supportedEnvVars []string
+
 const (
 	DataInterfaceSwIfIndex = uint32(1) // Assumption: the VPP config ensures this is true
 	CNIServerSocket        = "/var/run/calico/cni-server.sock"
@@ -53,8 +55,9 @@ const (
 	BgpLogLevelEnvVar         = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar       = "SERVICE_PREFIX"
-	DefaultVXLANVni           = 4096
-	DefaultWireguardPort      = 51820
+
+	DefaultVXLANVni      = 4096
+	DefaultWireguardPort = 51820
 
 	defaultRxMode = types.Adaptative
 )
@@ -93,9 +96,23 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:TapMtu            %d", TapMtu)
 }
 
+func isEnvVarSupported(str string) bool {
+	for _, envvar := range supportedEnvVars {
+		if envvar == str {
+			return true
+		}
+	}
+	return false
+}
+
+func getEnvValue(envVar string) string {
+	supportedEnvVars = append(supportedEnvVars, envVar)
+	return os.Getenv(envVar)
+}
+
 // LoadConfig loads the calico-vpp-agent configuration from the environment
 func LoadConfig(log *logrus.Logger) (err error) {
-	if conf := os.Getenv(BgpLogLevelEnvVar); conf != "" {
+	if conf := getEnvValue(BgpLogLevelEnvVar); conf != "" {
 		loglevel, err := logrus.ParseLevel(conf)
 		if err != nil {
 			log.WithError(err).Error("Failed to parse BGP loglevel: %s, defaulting to info", conf)
@@ -104,7 +121,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		}
 	}
 
-	if conf := os.Getenv(LogLevelEnvVar); conf != "" {
+	if conf := getEnvValue(LogLevelEnvVar); conf != "" {
 		loglevel, err := logrus.ParseLevel(conf)
 		if err != nil {
 			log.WithError(err).Error("Failed to parse loglevel: %s, defaulting to info", conf)
@@ -113,9 +130,9 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		}
 	}
 
-	NodeName = os.Getenv(NodeNameEnvVar)
+	NodeName = getEnvValue(NodeNameEnvVar)
 
-	if conf := os.Getenv(TapNumRxQueuesEnvVar); conf != "" {
+	if conf := getEnvValue(TapNumRxQueuesEnvVar); conf != "" {
 		queues, err := strconv.ParseInt(conf, 10, 16)
 		if err != nil || queues <= 0 {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", TapNumRxQueuesEnvVar, conf, queues, err)
@@ -123,7 +140,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		TapNumRxQueues = int(queues)
 	}
 
-	if conf := os.Getenv(TapNumTxQueuesEnvVar); conf != "" {
+	if conf := getEnvValue(TapNumTxQueuesEnvVar); conf != "" {
 		queues, err := strconv.ParseInt(conf, 10, 16)
 		if err != nil || queues <= 0 {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", TapNumTxQueuesEnvVar, conf, queues, err)
@@ -131,7 +148,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		TapNumTxQueues = int(queues)
 	}
 
-	if conf := os.Getenv(TapGSOEnvVar); conf != "" {
+	if conf := getEnvValue(TapGSOEnvVar); conf != "" {
 		gso, err := strconv.ParseBool(conf)
 		if err != nil {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapGSOEnvVar, conf, gso, err)
@@ -139,7 +156,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		TapGSOEnabled = gso
 	}
 
-	if conf := os.Getenv(EnableIPSecEnvVar); conf != "" {
+	if conf := getEnvValue(EnableIPSecEnvVar); conf != "" {
 		enableIPSec, err := strconv.ParseBool(conf)
 		if err != nil {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableIPSecEnvVar, conf, enableIPSec, err)
@@ -147,7 +164,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		EnableIPSec = enableIPSec
 	}
 
-	if conf := os.Getenv(CrossIpsecTunnelsEnvVar); conf != "" {
+	if conf := getEnvValue(CrossIpsecTunnelsEnvVar); conf != "" {
 		crossIpsecTunnels, err := strconv.ParseBool(conf)
 		if err != nil {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", CrossIpsecTunnelsEnvVar, conf, crossIpsecTunnels, err)
@@ -155,7 +172,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		CrossIpsecTunnels = crossIpsecTunnels
 	}
 
-	if conf := os.Getenv(EnableServicesEnvVar); conf != "" {
+	if conf := getEnvValue(EnableServicesEnvVar); conf != "" {
 		enableServices, err := strconv.ParseBool(conf)
 		if err != nil {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableServicesEnvVar, conf, enableServices, err)
@@ -163,7 +180,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		EnableServices = enableServices
 	}
 
-	if conf := os.Getenv(EnablePoliciesEnvVar); conf != "" {
+	if conf := getEnvValue(EnablePoliciesEnvVar); conf != "" {
 		enablePolicies, err := strconv.ParseBool(conf)
 		if err != nil {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnablePoliciesEnvVar, conf, enablePolicies, err)
@@ -171,7 +188,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		EnablePolicies = enablePolicies
 	}
 
-	if conf := os.Getenv(IPSecExtraAddressesEnvVar); conf != "" {
+	if conf := getEnvValue(IPSecExtraAddressesEnvVar); conf != "" {
 		extraAddressCount, err := strconv.ParseInt(conf, 10, 8)
 		if err != nil {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", IPSecExtraAddressesEnvVar, conf, extraAddressCount, err)
@@ -179,7 +196,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		IpsecAddressCount = int(extraAddressCount) + 1
 	}
 
-	if conf := os.Getenv(TapMtuEnvVar); conf != "" {
+	if conf := getEnvValue(TapMtuEnvVar); conf != "" {
 		tapMtu, err := strconv.ParseInt(conf, 10, 32)
 		if err != nil {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapMtuEnvVar, conf, tapMtu, err)
@@ -187,7 +204,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		TapMtu = int(tapMtu)
 	}
 
-	if conf := os.Getenv(TapQueueSizeEnvVar); conf != "" {
+	if conf := getEnvValue(TapQueueSizeEnvVar); conf != "" {
 		sizes := strings.Split(conf, ",")
 		if len(sizes) == 1 {
 			sz, err := strconv.ParseInt(sizes[0], 10, 32)
@@ -212,13 +229,13 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		}
 	}
 
-	psk := os.Getenv(IPSecIkev2PskEnvVar)
+	psk := getEnvValue(IPSecIkev2PskEnvVar)
 	if EnableIPSec && psk == "" {
 		return errors.New("IKEv2 PSK not configured: nothing found in CALICOVPP_IPSEC_IKEV2_PSK environment variable")
 	}
 	IPSecIkev2Psk = psk
 
-	servicePrefixStr := os.Getenv(ServicePrefixEnvVar)
+	servicePrefixStr := getEnvValue(ServicePrefixEnvVar)
 	for _, prefixStr := range strings.Split(servicePrefixStr, ",") {
 		_, serviceCIDR, err := net.ParseCIDR(prefixStr)
 		if err != nil {
@@ -227,7 +244,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		ServiceCIDRs = append(ServiceCIDRs, serviceCIDR)
 	}
 
-	switch os.Getenv(TapRxModeEnvVar) {
+	switch getEnvValue(TapRxModeEnvVar) {
 	case "interrupt":
 		TapRxMode = types.Interrupt
 	case "polling":
@@ -238,5 +255,13 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		TapRxMode = defaultRxMode
 	}
 
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		if strings.Contains(pair[0], "CALICOVPP_") {
+			if !isEnvVarSupported(pair[0]) {
+				log.Warnf("Environment variable %s is not supported", pair[0])
+			}
+		}
+	}
 	return nil
 }
