@@ -30,8 +30,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var supportedEnvVars []string
-
 const (
 	NodeNameEnvVar           = "NODENAME"
 	IpConfigEnvVar           = "CALICOVPP_IP_CONFIG"
@@ -110,21 +108,21 @@ func getSystemCapabilities(params *config.VppManagerParams) {
 
 }
 
+var supportedEnvVars map[string]bool
+
 func isEnvVarSupported(str string) bool {
-	for _, envvar := range supportedEnvVars {
-		if envvar == str {
-			return true
-		}
-	}
-	return false
+	_, found := supportedEnvVars[str]
+	return found
 }
 
-func getEnvValue(envVar string) string {
-	supportedEnvVars = append(supportedEnvVars, envVar)
-	return os.Getenv(envVar)
+func getEnvValue(str string) string {
+	supportedEnvVars[str] = true
+	return os.Getenv(str)
 }
 
 func parseEnvVariables(params *config.VppManagerParams) (err error) {
+	supportedEnvVars = make(map[string]bool)
+
 	vppStartupSleep := getEnvValue(VppStartupSleepEnvVar)
 	if vppStartupSleep == "" {
 		params.VppStartupSleepSeconds = 0

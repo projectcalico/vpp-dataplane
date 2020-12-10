@@ -27,8 +27,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var supportedEnvVars []string
-
 const (
 	DataInterfaceSwIfIndex = uint32(1) // Assumption: the VPP config ensures this is true
 	CNIServerSocket        = "/var/run/calico/cni-server.sock"
@@ -96,22 +94,22 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:TapMtu            %d", TapMtu)
 }
 
+var supportedEnvVars map[string]bool
+
 func isEnvVarSupported(str string) bool {
-	for _, envvar := range supportedEnvVars {
-		if envvar == str {
-			return true
-		}
-	}
-	return false
+	_, found := supportedEnvVars[str]
+	return found
 }
 
-func getEnvValue(envVar string) string {
-	supportedEnvVars = append(supportedEnvVars, envVar)
-	return os.Getenv(envVar)
+func getEnvValue(str string) string {
+	supportedEnvVars[str] = true
+	return os.Getenv(str)
 }
 
 // LoadConfig loads the calico-vpp-agent configuration from the environment
 func LoadConfig(log *logrus.Logger) (err error) {
+	supportedEnvVars = make(map[string]bool)
+
 	if conf := getEnvValue(BgpLogLevelEnvVar); conf != "" {
 		loglevel, err := logrus.ParseLevel(conf)
 		if err != nil {
