@@ -108,6 +108,12 @@ func (p *VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
 			return errors.Wrapf(err, "Error enabling gso for vxlan interface")
 		}
 
+		err = p.vpp.CnatEnableFeatures(swIfIndex)
+		if err != nil {
+			// TODO : delete tunnel
+			return errors.Wrapf(err, "Error enabling nat for vxlan interface")
+		}
+
 		err = p.vpp.InterfaceAdminUp(swIfIndex)
 		if err != nil {
 			// TODO : delete tunnel

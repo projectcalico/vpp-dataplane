@@ -40,6 +40,7 @@ type WorkloadEndpoint struct {
 	SwIfIndex uint32
 	Profiles  []string
 	Tiers     []Tier
+	server    *Server
 }
 
 func fromProtoEndpointID(ep *proto.WorkloadEndpointID) *WorkloadEndpointID {
@@ -50,10 +51,11 @@ func fromProtoEndpointID(ep *proto.WorkloadEndpointID) *WorkloadEndpointID {
 	}
 }
 
-func fromProtoWorkload(wep *proto.WorkloadEndpoint) *WorkloadEndpoint {
+func fromProtoWorkload(wep *proto.WorkloadEndpoint, server *Server) *WorkloadEndpoint {
 	r := &WorkloadEndpoint{
 		SwIfIndex: types.InvalidID,
 		Profiles:  wep.ProfileIds,
+		server:    server,
 	}
 	for _, tier := range wep.Tiers {
 		r.Tiers = append(r.Tiers, Tier{
@@ -98,6 +100,9 @@ func (w *WorkloadEndpoint) getPolicies(state *PolicyState) (conf *types.Interfac
 			return nil, fmt.Errorf("profile %s not yet created in VPP", profileName)
 		}
 		conf.ProfileIDs = append(conf.ProfileIDs, prof.VppID)
+	}
+	if len(conf.IngressPolicyIDs) > 0 {
+		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, w.server.allowFromHostPolicy.VppID)
 	}
 	return conf, nil
 }

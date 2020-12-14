@@ -33,3 +33,5 @@ spec:
           env:
             - name: CALICO_IPV4POOL_IPIP
               value: Always
+            - name: CALICOVPP_TAP_GSO_ENABLED
+              value: "false"

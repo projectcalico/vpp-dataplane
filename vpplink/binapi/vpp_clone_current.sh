@@ -17,7 +17,7 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/24/29724/3 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/04/29804/1 && git cherry-pick FETCH_HEAD # 29804: cnat: export src_policy fns | https://gerrit.fd.io/r/c/vpp/+/29804
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/55/29955/1 && git cherry-pick FETCH_HEAD # 29955: cnat: Fix throttle hash & cleanup | https://gerrit.fd.io/r/c/vpp/+/29955
 
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/23 && git cherry-pick FETCH_HEAD # 28587: calico: Add SNAT simultaneously to VIP DNAT | https://gerrit.fd.io/r/c/vpp/+/28587
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/25 && git cherry-pick FETCH_HEAD # 28587: calico: CNAT extensions | https://gerrit.fd.io/r/c/vpp/+/28587
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/29649/3 && git cherry-pick FETCH_HEAD # 29649: tap: fix the segv | https://gerrit.fd.io/r/c/vpp/+/29649
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/7 && git cherry-pick FETCH_HEAD # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 
@@ -45,4 +45,4 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/46/30146/1 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/54/30154/1 && git cherry-pick FETCH_HEAD # 30154: wireguard: run feature after gso | https://gerrit.fd.io/r/c/vpp/+/30154
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/73/30273/1 && git cherry-pick FETCH_HEAD # 30273: cnat: Fix session with deleted tr | https://gerrit.fd.io/r/c/vpp/+/30273
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/97/30097/3 && git cherry-pick FETCH_HEAD # 30097: vlib: Fix sh int addr | https://gerrit.fd.io/r/c/vpp/+/30097
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/75/30275/4 && git cherry-pick FETCH_HEAD # 30275: cnat: add input feature node | https://gerrit.fd.io/r/c/vpp/+/30275
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/75/30275/6 && git cherry-pick FETCH_HEAD # 30275: cnat: add input feature node | https://gerrit.fd.io/r/c/vpp/+/30275

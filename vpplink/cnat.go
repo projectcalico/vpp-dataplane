@@ -119,3 +119,23 @@ func (v *VppLink) CnatAddSnatPrefix(prefix *net.IPNet) error {
 func (v *VppLink) CnatDelSnatPrefix(prefix *net.IPNet) error {
 	return v.CnatAddDelSnatPrefix(prefix, false)
 }
+
+func (v *VppLink) CnatEnableFeatures(swIfIndex uint32) (err error) {
+	err = v.EnableFeature(swIfIndex, "ip4-unicast", "cnat-input-ip4")
+	if err != nil {
+		return errors.Wrap(err, "Error enabling ip4 dnat in")
+	}
+	err = v.EnableFeature(swIfIndex, "ip4-output", "cnat-output-ip4")
+	if err != nil {
+		return errors.Wrap(err, "Error enabling ip4 dnat out")
+	}
+	err = v.EnableFeature(swIfIndex, "ip6-unicast", "cnat-input-ip6")
+	if err != nil {
+		return errors.Wrap(err, "Error enabling ip6 dnat in")
+	}
+	err = v.EnableFeature(swIfIndex, "ip6-output", "cnat-output-ip6")
+	if err != nil {
+		return errors.Wrap(err, "Error enabling ip6 dnat out")
+	}
+	return nil
+}

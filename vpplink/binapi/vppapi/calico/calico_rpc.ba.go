@@ -10,7 +10,9 @@ import (
 
 // RPCService defines RPC service calico.
 type RPCService interface {
+	CalicoAddDelPodCidr(ctx context.Context, in *CalicoAddDelPodCidr) (*CalicoAddDelPodCidrReply, error)
 	CalicoEnableDisableInterfaceSnat(ctx context.Context, in *CalicoEnableDisableInterfaceSnat) (*CalicoEnableDisableInterfaceSnatReply, error)
+	CalicoRegisterPodInterface(ctx context.Context, in *CalicoRegisterPodInterface) (*CalicoRegisterPodInterfaceReply, error)
 }
 
 type serviceClient struct {
@@ -21,8 +23,26 @@ func NewServiceClient(conn api.Connection) RPCService {
 	return &serviceClient{conn}
 }
 
+func (c *serviceClient) CalicoAddDelPodCidr(ctx context.Context, in *CalicoAddDelPodCidr) (*CalicoAddDelPodCidrReply, error) {
+	out := new(CalicoAddDelPodCidrReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
 func (c *serviceClient) CalicoEnableDisableInterfaceSnat(ctx context.Context, in *CalicoEnableDisableInterfaceSnat) (*CalicoEnableDisableInterfaceSnatReply, error) {
 	out := new(CalicoEnableDisableInterfaceSnatReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) CalicoRegisterPodInterface(ctx context.Context, in *CalicoRegisterPodInterface) (*CalicoRegisterPodInterfaceReply, error) {
+	out := new(CalicoRegisterPodInterfaceReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

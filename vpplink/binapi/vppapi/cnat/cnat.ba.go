@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "cnat"
 	APIVersion = "0.1.0"
-	VersionCrc = 0xaa485140
+	VersionCrc = 0x33e75655
 )
 
 // CnatTranslationFlags defines enum 'cnat_translation_flags'.
@@ -94,6 +94,7 @@ type CnatSession struct {
 	Dst       CnatEndpoint     `binapi:"cnat_endpoint,name=dst" json:"dst,omitempty"`
 	New       CnatEndpoint     `binapi:"cnat_endpoint,name=new" json:"new,omitempty"`
 	IPProto   ip_types.IPProto `binapi:"ip_proto,name=ip_proto" json:"ip_proto,omitempty"`
+	Location  uint8            `binapi:"u8,name=location" json:"location,omitempty"`
 	Timestamp float64          `binapi:"f64,name=timestamp" json:"timestamp,omitempty"`
 }
 
@@ -267,7 +268,7 @@ type CnatSessionDetails struct {
 
 func (m *CnatSessionDetails) Reset()               { *m = CnatSessionDetails{} }
 func (*CnatSessionDetails) GetMessageName() string { return "cnat_session_details" }
-func (*CnatSessionDetails) GetCrcString() string   { return "6cb91175" }
+func (*CnatSessionDetails) GetCrcString() string   { return "7e5017c7" }
 func (*CnatSessionDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -292,6 +293,7 @@ func (m *CnatSessionDetails) Size() (size int) {
 	size += 1      // m.Session.New.IfAf
 	size += 2      // m.Session.New.Port
 	size += 1      // m.Session.IPProto
+	size += 1      // m.Session.Location
 	size += 8      // m.Session.Timestamp
 	return size
 }
@@ -316,6 +318,7 @@ func (m *CnatSessionDetails) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint8(uint8(m.Session.New.IfAf))
 	buf.EncodeUint16(m.Session.New.Port)
 	buf.EncodeUint8(uint8(m.Session.IPProto))
+	buf.EncodeUint8(m.Session.Location)
 	buf.EncodeFloat64(m.Session.Timestamp)
 	return buf.Bytes(), nil
 }
@@ -337,6 +340,7 @@ func (m *CnatSessionDetails) Unmarshal(b []byte) error {
 	m.Session.New.IfAf = ip_types.AddressFamily(buf.DecodeUint8())
 	m.Session.New.Port = buf.DecodeUint16()
 	m.Session.IPProto = ip_types.IPProto(buf.DecodeUint8())
+	m.Session.Location = buf.DecodeUint8()
 	m.Session.Timestamp = buf.DecodeFloat64()
 	return nil
 }
@@ -850,7 +854,7 @@ func file_cnat_binapi_init() {
 	api.RegisterMessage((*CnatAddDelSnatPrefixReply)(nil), "cnat_add_del_snat_prefix_reply_e8d4e804")
 	api.RegisterMessage((*CnatGetSnatAddresses)(nil), "cnat_get_snat_addresses_51077d14")
 	api.RegisterMessage((*CnatGetSnatAddressesReply)(nil), "cnat_get_snat_addresses_reply_879513c1")
-	api.RegisterMessage((*CnatSessionDetails)(nil), "cnat_session_details_6cb91175")
+	api.RegisterMessage((*CnatSessionDetails)(nil), "cnat_session_details_7e5017c7")
 	api.RegisterMessage((*CnatSessionDump)(nil), "cnat_session_dump_51077d14")
 	api.RegisterMessage((*CnatSessionPurge)(nil), "cnat_session_purge_51077d14")
 	api.RegisterMessage((*CnatSessionPurgeReply)(nil), "cnat_session_purge_reply_e8d4e804")

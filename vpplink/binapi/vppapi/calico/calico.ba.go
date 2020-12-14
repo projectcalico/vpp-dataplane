@@ -3,7 +3,7 @@
 // Package calico contains generated bindings for API file calico.api.
 //
 // Contents:
-//   2 messages
+//   6 messages
 //
 package calico
 
@@ -11,6 +11,7 @@ import (
 	api "git.fd.io/govpp.git/api"
 	codec "git.fd.io/govpp.git/codec"
 	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -21,9 +22,85 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "calico"
-	APIVersion = ""
-	VersionCrc = 0xa6f24e44
+	APIVersion = "0.1.0"
+	VersionCrc = 0xecddfcb9
 )
+
+// CalicoAddDelPodCidr defines message 'calico_add_del_pod_cidr'.
+type CalicoAddDelPodCidr struct {
+	Prefix ip_types.Prefix `binapi:"prefix,name=prefix" json:"prefix,omitempty"`
+	IsAdd  bool            `binapi:"bool,name=is_add" json:"is_add,omitempty"`
+}
+
+func (m *CalicoAddDelPodCidr) Reset()               { *m = CalicoAddDelPodCidr{} }
+func (*CalicoAddDelPodCidr) GetMessageName() string { return "calico_add_del_pod_cidr" }
+func (*CalicoAddDelPodCidr) GetCrcString() string   { return "c96439d8" }
+func (*CalicoAddDelPodCidr) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *CalicoAddDelPodCidr) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1      // m.Prefix.Address.Af
+	size += 1 * 16 // m.Prefix.Address.Un
+	size += 1      // m.Prefix.Len
+	size += 1      // m.IsAdd
+	return size
+}
+func (m *CalicoAddDelPodCidr) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint8(uint8(m.Prefix.Address.Af))
+	buf.EncodeBytes(m.Prefix.Address.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(m.Prefix.Len)
+	buf.EncodeBool(m.IsAdd)
+	return buf.Bytes(), nil
+}
+func (m *CalicoAddDelPodCidr) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Prefix.Address.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Prefix.Address.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Prefix.Len = buf.DecodeUint8()
+	m.IsAdd = buf.DecodeBool()
+	return nil
+}
+
+// CalicoAddDelPodCidrReply defines message 'calico_add_del_pod_cidr_reply'.
+type CalicoAddDelPodCidrReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *CalicoAddDelPodCidrReply) Reset()               { *m = CalicoAddDelPodCidrReply{} }
+func (*CalicoAddDelPodCidrReply) GetMessageName() string { return "calico_add_del_pod_cidr_reply" }
+func (*CalicoAddDelPodCidrReply) GetCrcString() string   { return "e8d4e804" }
+func (*CalicoAddDelPodCidrReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *CalicoAddDelPodCidrReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *CalicoAddDelPodCidrReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *CalicoAddDelPodCidrReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
 
 // CalicoEnableDisableInterfaceSnat defines message 'calico_enable_disable_interface_snat'.
 type CalicoEnableDisableInterfaceSnat struct {
@@ -103,16 +180,96 @@ func (m *CalicoEnableDisableInterfaceSnatReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// CalicoRegisterPodInterface defines message 'calico_register_pod_interface'.
+type CalicoRegisterPodInterface struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	IsAdd     bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
+}
+
+func (m *CalicoRegisterPodInterface) Reset()               { *m = CalicoRegisterPodInterface{} }
+func (*CalicoRegisterPodInterface) GetMessageName() string { return "calico_register_pod_interface" }
+func (*CalicoRegisterPodInterface) GetCrcString() string   { return "e6e9e505" }
+func (*CalicoRegisterPodInterface) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *CalicoRegisterPodInterface) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	size += 1 // m.IsAdd
+	return size
+}
+func (m *CalicoRegisterPodInterface) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeBool(m.IsAdd)
+	return buf.Bytes(), nil
+}
+func (m *CalicoRegisterPodInterface) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.IsAdd = buf.DecodeBool()
+	return nil
+}
+
+// CalicoRegisterPodInterfaceReply defines message 'calico_register_pod_interface_reply'.
+type CalicoRegisterPodInterfaceReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *CalicoRegisterPodInterfaceReply) Reset() { *m = CalicoRegisterPodInterfaceReply{} }
+func (*CalicoRegisterPodInterfaceReply) GetMessageName() string {
+	return "calico_register_pod_interface_reply"
+}
+func (*CalicoRegisterPodInterfaceReply) GetCrcString() string { return "e8d4e804" }
+func (*CalicoRegisterPodInterfaceReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *CalicoRegisterPodInterfaceReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *CalicoRegisterPodInterfaceReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *CalicoRegisterPodInterfaceReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 func init() { file_calico_binapi_init() }
 func file_calico_binapi_init() {
+	api.RegisterMessage((*CalicoAddDelPodCidr)(nil), "calico_add_del_pod_cidr_c96439d8")
+	api.RegisterMessage((*CalicoAddDelPodCidrReply)(nil), "calico_add_del_pod_cidr_reply_e8d4e804")
 	api.RegisterMessage((*CalicoEnableDisableInterfaceSnat)(nil), "calico_enable_disable_interface_snat_7e99d008")
 	api.RegisterMessage((*CalicoEnableDisableInterfaceSnatReply)(nil), "calico_enable_disable_interface_snat_reply_e8d4e804")
+	api.RegisterMessage((*CalicoRegisterPodInterface)(nil), "calico_register_pod_interface_e6e9e505")
+	api.RegisterMessage((*CalicoRegisterPodInterfaceReply)(nil), "calico_register_pod_interface_reply_e8d4e804")
 }
 
 // Messages returns list of all messages in this module.
 func AllMessages() []api.Message {
 	return []api.Message{
+		(*CalicoAddDelPodCidr)(nil),
+		(*CalicoAddDelPodCidrReply)(nil),
 		(*CalicoEnableDisableInterfaceSnat)(nil),
 		(*CalicoEnableDisableInterfaceSnatReply)(nil),
+		(*CalicoRegisterPodInterface)(nil),
+		(*CalicoRegisterPodInterfaceReply)(nil),
 	}
 }

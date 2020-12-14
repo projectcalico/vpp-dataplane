@@ -261,25 +261,14 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	}
 
-	if hasv4 {
-		err = s.vpp.EnableFeature(swIfIndex, "ip4-unicast", "cnat-input-ip4")
-		if err != nil {
-			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip4 dnat in")
-		}
-		err = s.vpp.EnableFeature(swIfIndex, "ip4-output", "cnat-output-ip4")
-		if err != nil {
-			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip4 dnat out")
-		}
+	err = s.vpp.RegisterPodInterface(swIfIndex)
+	if err != nil {
+		return 0, s.tunErrorCleanup(podSpec, err, "error registering pod interface")
 	}
-	if hasv6 {
-		err = s.vpp.EnableFeature(swIfIndex, "ip6-unicast", "cnat-input-ip6")
-		if err != nil {
-			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip6 dnat in")
-		}
-		err = s.vpp.EnableFeature(swIfIndex, "ip6-output", "cnat-output-ip6")
-		if err != nil {
-			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip6 dnat out")
-		}
+
+	err = s.vpp.CnatEnableFeatures(swIfIndex)
+	if err != nil {
+		return 0, s.tunErrorCleanup(podSpec, err, "error configuring nat on pod interface")
 	}
 
 	if doHostSideConf {
@@ -412,6 +401,11 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) error {
 	err = s.delVppInterfaceHandleRoutes(swIfIndex, false /* isIp6 */)
 	if err != nil {
 		return errors.Wrap(err, "Error deleting ip4 routes")
+	}
+
+	err = s.vpp.RemovePodInterface(swIfIndex)
+	if err != nil {
+		s.log.Errorf("error deregistering pod interface: %v", err)
 	}
 
 	// Delete tun
