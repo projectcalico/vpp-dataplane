@@ -1,21 +1,20 @@
-VPP Version                 : 21.01-rc0~299-gfe4bccf94
+VPP Version                 : 21.01-rc0~298-g2da6b1b8d
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 5f4f2081c nat: nat44 enable/disable dynamic config
 ------------------ Cherry picked commits --------------------
-fe4bccf94 cnat: add input feature node
-3df463ed0 vlib: Fix sh int addr
-8c821785f cnat: Fix session with deleted tr
-8a2040109 wireguard: run feature after gso
-5c63b8dbd wireguard: return public key in api
-05b208cbe Use 10us interrupt sleep
-b1df00dcc capo: Calico Policies plugin
-d14229414 acl: acl-plugin custom policies
-bd0087578 virtio: DRAFT: multi tx support
-528205c07 tap: fix the segv
-7f9fad92b calico: CNAT extensions
-2855e1a34 cnat: Fix throttle hash & cleanup
-b3e324ab3 cnat: export src_policy fns
-cc9c49d2e cnat: reduce compile time
-40ced7475 cnat: Fix invalid adj_index
-a297abc37 vlib: force input node interrupts to be unique
+2da6b1b8d capo: Calico Policies plugin
+789ee941d acl: acl-plugin custom policies
+b95ef3850 cnat: k8s extensions
+7a6738a23 cnat: add input feature node
+70a02693a vlib: Fix sh int addr
+d34062231 cnat: Fix session with deleted tr
+e6a74a379 wireguard: run feature after gso
+3b2b0f281 wireguard: return public key in api
+d3414cce4 virtio: DRAFT: multi tx support
+586501b74 tap: fix the segv
+6c9d9d4db cnat: Fix throttle hash & cleanup
+647da6037 cnat: reduce compile time
+4f750a7e2 cnat: Fix invalid adj_index
+dc7e98d57 vlib: force input node interrupts to be unique
+c852c787f Use 10us interrupt sleep
 -------------------------------------------------------------
