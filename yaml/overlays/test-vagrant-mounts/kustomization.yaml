@@ -3,4 +3,3 @@ bases:
 patchesStrategicMerge:
 - mounts.yaml
 - update.yaml
-- policies.yaml

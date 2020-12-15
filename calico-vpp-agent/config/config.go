@@ -65,7 +65,7 @@ var (
 	TapNumTxQueues    = 1
 	TapGSOEnabled     = true
 	EnableServices    = true
-	EnablePolicies    = false
+	EnablePolicies    = true
 	EnableIPSec       = false
 	IpsecAddressCount = 1
 	CrossIpsecTunnels = false
