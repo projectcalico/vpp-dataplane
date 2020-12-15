@@ -213,23 +213,6 @@ spec:
               value: "info"
             - name: FELIX_HEALTHENABLED
               value: "true"
-          volumeMounts:
-            - mountPath: /lib/modules
-              name: lib-modules
-              readOnly: true
-            - mountPath: /run/xtables.lock
-              name: xtables-lock
-              readOnly: false
-            - mountPath: /var/run/calico
-              name: var-run-calico
-              readOnly: false
-            - mountPath: /var/lib/calico
-              name: var-lib-calico
-              readOnly: false
-            - name: policysync
-              mountPath: /var/run/nodeagent
-            - name: vpp-rundir
-              mountPath: /var/run/vpp
         - name: vpp
           image: ${CALICO_VPP_IMAGE}
           imagePullPolicy: ${IMAGE_PULL_POLICY}
@@ -356,61 +339,11 @@ spec:
               memory: 80Gi
               hugepages-2Mi: 4G
           volumeMounts:
-            - name: vpp-rundir
-              mountPath: /var/run/vpp
-            - name: vpp-config
-              mountPath: /etc/vpp
-            - name: devices
-              mountPath: /dev
-            - name: hostsys
-              mountPath: /sys
             # Add your home to the container we can launch rebulid vpp
             # without the whole container
             - name: userhome
               mountPath: /home/hostuser
       volumes:
-        - name: vpp-rundir
-          hostPath:
-            path: /var/run/vpp
-        - name: vpp-config
-          hostPath:
-            path: /etc/vpp
-        - name: devices
-          hostPath:
-            path: /dev
         - name: userhome
           hostPath:
             path: ${USERHOME}
-        - name: hostsys
-          hostPath:
-            path: /sys
-        - name: lib-modules
-          hostPath:
-            path: /lib/modules
-        - name: var-run-calico
-          hostPath:
-            path: /var/run/calico
-        - name: var-lib-calico
-          hostPath:
-            path: /var/lib/calico
-        - name: xtables-lock
-          hostPath:
-            path: /run/xtables.lock
-            type: FileOrCreate
-        - name: cni-bin-dir
-          hostPath:
-            path: /opt/cni/bin
-        - name: cni-net-dir
-          hostPath:
-            path: /etc/cni/net.d
-        - name: host-local-net-dir
-          hostPath:
-            path: /var/lib/cni/networks
-        - name: policysync
-          hostPath:
-            type: DirectoryOrCreate
-            path: /var/run/nodeagent
-        - name: flexvol-driver-host
-          hostPath:
-            type: DirectoryOrCreate
-            path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/nodeagent~uds
