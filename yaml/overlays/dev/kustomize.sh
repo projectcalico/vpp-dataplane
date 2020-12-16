@@ -38,23 +38,48 @@ function get_cluster_service_cidr ()
   kubectl cluster-info dump | grep -m 1 service-cluster-ip-range | cut -d '=' -f 2 | cut -d '"' -f 1
 }
 
+function get_available_node_names ()
+{
+  kubectl get nodes -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}'
+}
+
+function get_node_addresses ()
+{
+  kubectl get nodes $1 -o go-template --template='{{range .spec.podCIDRs}}{{printf "%s\n" .}}{{end}}'
+}
+
 function kustomize_parse_variables ()
 {
-  for ip in $(kubectl get nodes node1 -o go-template --template='{{range .spec.podCIDRs}}{{printf "%s\n" .}}{{end}}') ; do
-	if [[ $(is_ip6 $ip) == true ]]; then
-		CLUSTER_POD_CIDR6=$ip
-	else
-		CLUSTER_POD_CIDR4=$ip
+  # This sets the following vars unless provided
+  # CLUSTER_POD_CIDR4
+  # CLUSTER_POD_CIDR6
+  # SERVICE_CIDR
+  # IP_VERSION
+
+  if [ x${CLUSTER_POD_CIDR4}${CLUSTER_POD_CIDR6} = x ]; then
+	FIRST_NODE=$(get_available_node_names | head -1)
+	for ip in $(get_node_addresses $FIRST_NODE) ; do
+	  if [[ $(is_ip6 $ip) == true ]]; then
+		  CLUSTER_POD_CIDR6=$ip
+	  else
+		  CLUSTER_POD_CIDR4=$ip
+	  fi
+	done
+  fi
+
+  if [ x${IP_VERSION} = x ]; then
+	IP_VERSION=""
+	if [[ x$CLUSTER_POD_CIDR4 != x ]]; then
+  	 IP_VERSION=4
 	fi
-  done
-  IP_VERSION=""
-  if [[ x$CLUSTER_POD_CIDR4 != x ]]; then
-  	IP_VERSION=4
+	if [[ x$CLUSTER_POD_CIDR6 != x ]]; then
+  	 IP_VERSION=${IP_VERSION}6
+	fi
   fi
-  if [[ x$CLUSTER_POD_CIDR6 != x ]]; then
-  	IP_VERSION=${IP_VERSION}6
+
+  if [ x${SERVICE_CIDR} = x ]; then
+	SERVICE_CIDR=$(get_cluster_service_cidr)
   fi
-  CLUSTER_POD_CIDR="${CLUSTER_POD_CIDR4},${CLUSTER_POD_CIDR6}"
 }
 
 function get_vpp_conf ()
@@ -158,17 +183,20 @@ function is_v4_v46_v6 ()
 calico_create_template ()
 {
   kustomize_parse_variables
-  SERVICE_CIDR=$(get_cluster_service_cidr)
-  green "Installing CNI for"
-  green "pod cidr     : $CLUSTER_POD_CIDR"
-  green "service cidr : $SERVICE_CIDR"
-  green "is ip6       : $(is_v4_v46_v6 v4 v46 v6)"
-  if [[ x${CLUSTER_POD_CIDR4}${CLUSTER_POD_CIDR6} = x ]]; then
-  	red "empty pod cidr, exiting"
+  >&2 green "Installing CNI for"
+  >&2 green "pod cidr     : ${CLUSTER_POD_CIDR4},${CLUSTER_POD_CIDR6}"
+  >&2 green "service cidr : $SERVICE_CIDR"
+  >&2 green "is ip6       : $(is_v4_v46_v6 v4 v46 v6)"
+  if [ x${CLUSTER_POD_CIDR4}${CLUSTER_POD_CIDR6} = x ]; then
+  	>&2 red "No CLUSTER_POD_CIDR[46] set, exiting"
+  	exit 1
+  fi
+  if [ x${IP_VERSION} = x ]; then
+  	>&2 red "No IP_VERSION set, exiting"
   	exit 1
   fi
   if [[ x$SERVICE_CIDR = x ]]; then
-  	red "empty service cidr, exiting"
+  	>&2 red "No SERVICE_CIDR set, exiting"
   	exit 1
   fi
 
@@ -227,7 +255,11 @@ function calico_up_cni ()
   if [ x$DISABLE_KUBE_PROXY = xyes ]; then
     kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico": "true"}}}}}'
   fi
-  kubectl apply -f /tmp/calico-vpp.yaml
+  if [ -t 1 ]; then
+	kubectl apply -f /tmp/calico-vpp.yaml
+  else
+  	cat /tmp/calico-vpp.yaml
+  fi
 }
 
 function calico_down_cni ()
