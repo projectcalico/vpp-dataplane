@@ -334,29 +334,38 @@ func (s *Server) serveOne() error {
 }
 
 func (s *Server) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err error) {
-	if !pool.Spec.NATOutgoing {
-		return nil
-	}
 	_, ipNet, err := net.ParseCIDR(pool.Spec.CIDR)
 	if err != nil {
 		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Spec.CIDR)
 	}
-	return s.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
+	if !pool.Spec.NATOutgoing {
+		return nil
+	}
+	err = s.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
+	return errors.Wrapf(err, "Couldn't configure SNAT prefix")
 }
 
-func (s *Server) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) error {
+func (s *Server) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) (err error) {
 	// TODO check if we need to change any routes based on VXLAN / IPIPMode config changes
 	if prevPool == nil {
 		/* Add */
 		s.log.Debugf("Pool %s Added, handler called")
-		s.addDelSnatPrefix(pool, true)
+		return errors.Wrap(s.addDelSnatPrefix(pool, true), "error handling ipam update")
 	} else if pool == nil {
 		/* Deletion */
 		s.log.Debugf("Pool %s deleted, handler called", prevPool.Spec.CIDR)
-		s.addDelSnatPrefix(prevPool, false)
+		return errors.Wrap(s.addDelSnatPrefix(prevPool, false), "error handling ipam update")
 	} else {
-		s.addDelSnatPrefix(pool, true)
-		s.addDelSnatPrefix(prevPool, false)
+		if pool.Spec.CIDR != prevPool.Spec.CIDR {
+			err = s.addDelSnatPrefix(pool, false)
+			if err != nil {
+				return errors.Wrap(err, "error deleting previous pool prefix")
+			}
+			err = s.addDelSnatPrefix(prevPool, true)
+			if err != nil {
+				return errors.Wrap(err, "error configuring new pool prefix")
+			}
+		}
 		/* Update */
 		s.log.Errorf("Parts of IPPool updates are not supported at this time: old: %+v new: %+v", prevPool, pool)
 	}

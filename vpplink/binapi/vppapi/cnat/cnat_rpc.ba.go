@@ -15,9 +15,13 @@ import (
 type RPCService interface {
 	CnatAddDelSnatPrefix(ctx context.Context, in *CnatAddDelSnatPrefix) (*CnatAddDelSnatPrefixReply, error)
 	CnatGetSnatAddresses(ctx context.Context, in *CnatGetSnatAddresses) (*CnatGetSnatAddressesReply, error)
+	CnatK8sAddDelPodCidr(ctx context.Context, in *CnatK8sAddDelPodCidr) (*CnatK8sAddDelPodCidrReply, error)
+	CnatK8sEnableDisableInterfaceSnat(ctx context.Context, in *CnatK8sEnableDisableInterfaceSnat) (*CnatK8sEnableDisableInterfaceSnatReply, error)
+	CnatK8sRegisterPodInterface(ctx context.Context, in *CnatK8sRegisterPodInterface) (*CnatK8sRegisterPodInterfaceReply, error)
 	CnatSessionDump(ctx context.Context, in *CnatSessionDump) (RPCService_CnatSessionDumpClient, error)
 	CnatSessionPurge(ctx context.Context, in *CnatSessionPurge) (*CnatSessionPurgeReply, error)
 	CnatSetSnatAddresses(ctx context.Context, in *CnatSetSnatAddresses) (*CnatSetSnatAddressesReply, error)
+	CnatSetSnatPolicy(ctx context.Context, in *CnatSetSnatPolicy) (*CnatSetSnatPolicyReply, error)
 	CnatTranslationDel(ctx context.Context, in *CnatTranslationDel) (*CnatTranslationDelReply, error)
 	CnatTranslationDump(ctx context.Context, in *CnatTranslationDump) (RPCService_CnatTranslationDumpClient, error)
 	CnatTranslationUpdate(ctx context.Context, in *CnatTranslationUpdate) (*CnatTranslationUpdateReply, error)
@@ -42,6 +46,33 @@ func (c *serviceClient) CnatAddDelSnatPrefix(ctx context.Context, in *CnatAddDel
 
 func (c *serviceClient) CnatGetSnatAddresses(ctx context.Context, in *CnatGetSnatAddresses) (*CnatGetSnatAddressesReply, error) {
 	out := new(CnatGetSnatAddressesReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) CnatK8sAddDelPodCidr(ctx context.Context, in *CnatK8sAddDelPodCidr) (*CnatK8sAddDelPodCidrReply, error) {
+	out := new(CnatK8sAddDelPodCidrReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) CnatK8sEnableDisableInterfaceSnat(ctx context.Context, in *CnatK8sEnableDisableInterfaceSnat) (*CnatK8sEnableDisableInterfaceSnatReply, error) {
+	out := new(CnatK8sEnableDisableInterfaceSnatReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) CnatK8sRegisterPodInterface(ctx context.Context, in *CnatK8sRegisterPodInterface) (*CnatK8sRegisterPodInterfaceReply, error) {
+	out := new(CnatK8sRegisterPodInterfaceReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err
@@ -99,6 +130,15 @@ func (c *serviceClient) CnatSessionPurge(ctx context.Context, in *CnatSessionPur
 
 func (c *serviceClient) CnatSetSnatAddresses(ctx context.Context, in *CnatSetSnatAddresses) (*CnatSetSnatAddressesReply, error) {
 	out := new(CnatSetSnatAddressesReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) CnatSetSnatPolicy(ctx context.Context, in *CnatSetSnatPolicy) (*CnatSetSnatPolicyReply, error) {
+	out := new(CnatSetSnatPolicyReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

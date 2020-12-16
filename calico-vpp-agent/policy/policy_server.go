@@ -16,12 +16,16 @@
 package policy
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"sync"
 
 	"github.com/pkg/errors"
+	calicoapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	calicov3 "github.com/projectcalico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy/proto"
@@ -44,6 +48,7 @@ type Server struct {
 	*common.CalicoVppServerData
 	log            *logrus.Entry
 	vpp            *vpplink.VppLink
+	calico         calicov3.Interface
 	vppRestarted   chan bool
 	felixRestarted chan bool
 	exiting        chan bool
@@ -56,13 +61,27 @@ type Server struct {
 
 	configuredState *PolicyState
 	pendingState    *PolicyState
+
+	allowFromHostPolicy *Policy
+	ip4                 *net.IP
+	ip6                 *net.IP
 }
 
 // NewServer creates a policy server
 func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
-	server := Server{
+	calico, err := calicov3.NewFromEnv()
+	if err != nil {
+		panic(err.Error())
+	}
+	node, err := calico.Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+
+	server := &Server{
 		log:            log,
 		vpp:            vpp,
+		calico:         calico,
 		vppRestarted:   make(chan bool),
 		felixRestarted: make(chan bool),
 		exiting:        make(chan bool),
@@ -76,13 +95,34 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		pendingState:    NewPolicyState(),
 	}
 
+	server.setNodeIPs(&node.Spec)
+
 	// Cleanup potentially left over socket
-	err := os.RemoveAll(config.FelixDataplaneSocket)
+	err = os.RemoveAll(config.FelixDataplaneSocket)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not delete socket %s", config.FelixDataplaneSocket)
 	}
 
-	return &server, nil
+	return server, nil
+}
+
+func (s *Server) setNodeIPs(nodeSpec *calicoapi.NodeSpec) {
+	if nodeSpec.BGP.IPv4Address != "" {
+		addr, _, err := net.ParseCIDR(nodeSpec.BGP.IPv4Address)
+		if err != nil {
+			s.log.Errorf("cannot parse node address %s: %v", nodeSpec.BGP.IPv4Address, err)
+		} else {
+			s.ip4 = &addr
+		}
+	}
+	if nodeSpec.BGP.IPv6Address != "" {
+		addr, _, err := net.ParseCIDR(nodeSpec.BGP.IPv6Address)
+		if err != nil {
+			s.log.Errorf("cannot parse node address %s: %v", nodeSpec.BGP.IPv6Address, err)
+		} else {
+			s.ip6 = &addr
+		}
+	}
 }
 
 // OnVppRestart notifies the policy server that vpp restarted
@@ -168,6 +208,8 @@ func (s *Server) Serve() {
 		os.RemoveAll(config.FelixDataplaneSocket)
 	}()
 
+	s.createAllowFromHostPolicy()
+
 	for {
 		s.state = StateDisconnected
 		// Accept only one connection
@@ -193,6 +235,7 @@ func (s *Server) Serve() {
 			s.log.Infof("Waiting for SyncPolicy to stop...")
 			<-s.felixRestarted
 			s.log.Infof("SyncPolicy exited, reconnecting to felix")
+			s.createAllowFromHostPolicy()
 		case <-s.felixRestarted:
 			s.log.Infof("Felix restarted, starting resync")
 			// Connection was closed. Just accept new one, state will be reconciled on startup.
@@ -495,7 +538,7 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 
 	state := s.currentState(pending)
 	id := fromProtoEndpointID(msg.Id)
-	wep := fromProtoWorkload(msg.Endpoint)
+	wep := fromProtoWorkload(msg.Endpoint, s)
 
 	existing, found := state.WorkloadEndpoints[*id]
 	intf, intfFound := s.endpointsInterfaces[*id]
@@ -644,4 +687,30 @@ func (s *Server) applyPendingState() (err error) {
 	}
 	s.log.Infof("Reconciliation done")
 	return nil
+}
+
+func (s *Server) createAllowFromHostPolicy() (err error) {
+	s.log.Infof("Creating policy to allow traffic from host with ingress policies")
+	r := &Rule{
+		VppID:  types.InvalidID,
+		RuleID: "calicovpp-internal-allowfromhost",
+		Rule: &types.Rule{
+			Action: types.ActionAllow,
+			SrcNet: []net.IPNet{},
+		},
+	}
+	if s.ip4 != nil {
+		r.Rule.SrcNet = append(r.Rule.SrcNet, *common.FullyQualified(*s.ip4))
+	}
+	if s.ip6 != nil {
+		r.Rule.SrcNet = append(r.Rule.SrcNet, *common.FullyQualified(*s.ip6))
+	}
+
+	s.allowFromHostPolicy = &Policy{
+		Policy: &types.Policy{},
+		VppID:  types.InvalidID,
+	}
+	s.allowFromHostPolicy.InboundRules = append(s.allowFromHostPolicy.InboundRules, r)
+	err = s.allowFromHostPolicy.Create(s.vpp, nil)
+	return errors.Wrap(err, "cannot create policy to allow traffic from host")
 }

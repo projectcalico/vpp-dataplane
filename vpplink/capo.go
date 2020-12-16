@@ -225,14 +225,18 @@ func (v *VppLink) PolicyDelete(policyId uint32) (err error) {
 	return nil
 }
 
-func (v *VppLink) ConfigurePolicies(swIfIndex uint32, passId uint32, policies []uint32) (err error) {
+func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfig) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
+	ids := append(conf.IngressPolicyIDs, conf.EgressPolicyIDs...)
+	ids = append(ids, conf.ProfileIDs...)
 	response := &capo.CapoConfigurePoliciesReply{}
 	request := &capo.CapoConfigurePolicies{
-		SwIfIndex:    swIfIndex,
-		PassPolicyID: passId,
-		PolicyIds:    policies,
+		SwIfIndex:          swIfIndex,
+		NumIngressPolicies: uint32(len(conf.IngressPolicyIDs)),
+		NumEgressPolicies:  uint32(len(conf.EgressPolicyIDs)),
+		TotalIds:           uint32(len(conf.IngressPolicyIDs) + len(conf.EgressPolicyIDs) + len(conf.ProfileIDs)),
+		PolicyIds:          ids,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {

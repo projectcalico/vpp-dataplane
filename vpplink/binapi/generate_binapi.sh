@@ -74,7 +74,6 @@ function generate_govpp_apis ()
 	  tapv2 \
 	  nat \
 	  cnat \
-	  calico \
 	  af_packet \
 	  feature \
 	  ip6_nd \

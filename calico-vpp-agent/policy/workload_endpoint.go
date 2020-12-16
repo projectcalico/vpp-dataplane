@@ -22,7 +22,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
 )
 
 type WorkloadEndpointID struct {
@@ -41,6 +40,7 @@ type WorkloadEndpoint struct {
 	SwIfIndex uint32
 	Profiles  []string
 	Tiers     []Tier
+	server    *Server
 }
 
 func fromProtoEndpointID(ep *proto.WorkloadEndpointID) *WorkloadEndpointID {
@@ -51,10 +51,11 @@ func fromProtoEndpointID(ep *proto.WorkloadEndpointID) *WorkloadEndpointID {
 	}
 }
 
-func fromProtoWorkload(wep *proto.WorkloadEndpoint) *WorkloadEndpoint {
+func fromProtoWorkload(wep *proto.WorkloadEndpoint, server *Server) *WorkloadEndpoint {
 	r := &WorkloadEndpoint{
 		SwIfIndex: types.InvalidID,
 		Profiles:  wep.ProfileIds,
+		server:    server,
 	}
 	for _, tier := range wep.Tiers {
 		r.Tiers = append(r.Tiers, Tier{
@@ -66,49 +67,52 @@ func fromProtoWorkload(wep *proto.WorkloadEndpoint) *WorkloadEndpoint {
 	return r
 }
 
-func (w *WorkloadEndpoint) getPolicies(state *PolicyState) (passId uint32, policies []uint32, err error) {
-	policies = make([]uint32, 0)
+func (w *WorkloadEndpoint) getPolicies(state *PolicyState) (conf *types.InterfaceConfig, err error) {
+	conf = types.NewInterfaceConfig()
 	for _, tier := range w.Tiers {
-		for _, polName := range append(tier.IngressPolicies, tier.EgressPolicies...) {
+		for _, polName := range tier.IngressPolicies {
 			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName}]
 			if !ok {
-				return 0, nil, fmt.Errorf("policy %s tier %s not found for workload endpoint", polName, tier.Name)
+				return nil, fmt.Errorf("in policy %s tier %s not found for workload endpoint", polName, tier.Name)
 			}
 			if pol.VppID == types.InvalidID {
-				return 0, nil, fmt.Errorf("policy %s tier %s not yet created in VPP", polName, tier.Name)
+				return nil, fmt.Errorf("in policy %s tier %s not yet created in VPP", polName, tier.Name)
 			}
-			found := false
-			for _, pID := range policies {
-				if pID == pol.VppID {
-					logrus.Warnf("duplicate policy specified %d", pID)
-					found = true
-				}
+			conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, pol.VppID)
+		}
+		for _, polName := range tier.EgressPolicies {
+			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName}]
+			if !ok {
+				return nil, fmt.Errorf("out policy %s tier %s not found for workload endpoint", polName, tier.Name)
 			}
-			if !found {
-				policies = append(policies, pol.VppID)
+			if pol.VppID == types.InvalidID {
+				return nil, fmt.Errorf("out policy %s tier %s not yet created in VPP", polName, tier.Name)
 			}
+			conf.EgressPolicyIDs = append(conf.EgressPolicyIDs, pol.VppID)
 		}
 	}
-	passID := uint32(len(policies))
 	for _, profileName := range w.Profiles {
 		prof, ok := state.Profiles[profileName]
 		if !ok {
-			return 0, nil, fmt.Errorf("profile %s not found for workload endpoint", profileName)
+			return nil, fmt.Errorf("profile %s not found for workload endpoint", profileName)
 		}
 		if prof.VppID == types.InvalidID {
-			return 0, nil, fmt.Errorf("profile %s not yet created in VPP", profileName)
+			return nil, fmt.Errorf("profile %s not yet created in VPP", profileName)
 		}
-		policies = append(policies, prof.VppID)
+		conf.ProfileIDs = append(conf.ProfileIDs, prof.VppID)
 	}
-	return passID, policies, nil
+	if len(conf.IngressPolicyIDs) > 0 {
+		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, w.server.allowFromHostPolicy.VppID)
+	}
+	return conf, nil
 }
 
 func (w *WorkloadEndpoint) Create(vpp *vpplink.VppLink, swIfIndex uint32, state *PolicyState) (err error) {
-	passID, policies, err := w.getPolicies(state)
+	conf, err := w.getPolicies(state)
 	if err != nil {
 		return err
 	}
-	err = vpp.ConfigurePolicies(swIfIndex, passID, policies)
+	err = vpp.ConfigurePolicies(swIfIndex, conf)
 	if err != nil {
 		return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
 	}
@@ -118,11 +122,11 @@ func (w *WorkloadEndpoint) Create(vpp *vpplink.VppLink, swIfIndex uint32, state 
 }
 
 func (w *WorkloadEndpoint) Update(vpp *vpplink.VppLink, new *WorkloadEndpoint, state *PolicyState) (err error) {
-	passID, policies, err := new.getPolicies(state)
+	conf, err := new.getPolicies(state)
 	if err != nil {
 		return err
 	}
-	err = vpp.ConfigurePolicies(w.SwIfIndex, passID, policies)
+	err = vpp.ConfigurePolicies(w.SwIfIndex, conf)
 	if err != nil {
 		return errors.Wrapf(err, "cannot configure policies on interface %d", w.SwIfIndex)
 	}
@@ -137,7 +141,7 @@ func (w *WorkloadEndpoint) Delete(vpp *vpplink.VppLink) (err error) {
 	if w.SwIfIndex == types.InvalidID {
 		return fmt.Errorf("deleting unconfigured wep")
 	}
-	err = vpp.ConfigurePolicies(w.SwIfIndex, 0, make([]uint32, 0))
+	err = vpp.ConfigurePolicies(w.SwIfIndex, types.NewInterfaceConfig())
 	if err != nil {
 		return errors.Wrapf(err, "cannot configure policies on interface %d", w.SwIfIndex)
 	}

@@ -238,6 +238,11 @@ func (v *VppRunner) configureVpp() (err error) {
 		return errors.Wrap(err, "Error enabling ip6 on if")
 	}
 
+	err = v.vpp.CnatEnableFeatures(config.DataInterfaceSwIfIndex)
+	if err != nil {
+		return errors.Wrap(err, "Error configuring NAT on uplink interface")
+	}
+
 	for _, addr := range v.conf.Addresses {
 		log.Infof("Adding address %s to data interface", addr.String())
 		err = v.safeAddInterfaceAddress(config.DataInterfaceSwIfIndex, addr.IPNet)
@@ -332,6 +337,16 @@ func (v *VppRunner) configureVpp() (err error) {
 	err = v.vpp.InterfaceSetUnnumbered(tapSwIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "error setting vpp tap unnumbered")
+	}
+
+	err = v.vpp.CnatEnableFeatures(tapSwIfIndex)
+	if err != nil {
+		return errors.Wrap(err, "Error configuring NAT on vpptap0")
+	}
+
+	err = v.vpp.RegisterPodInterface(tapSwIfIndex)
+	if err != nil {
+		return errors.Wrap(err, "error configuring vpptap0 as pod intf")
 	}
 
 	// Linux side tap setup

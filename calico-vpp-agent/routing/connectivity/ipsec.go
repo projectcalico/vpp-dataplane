@@ -152,6 +152,12 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 		return errors.Wrapf(err, "Error enabling gso for ipip interface")
 	}
 
+	err = p.vpp.CnatEnableFeatures(swIfIndex)
+	if err != nil {
+		p.errorCleanup(tunnel, "")
+		return errors.Wrapf(err, "Error enabling nat for ipip interface")
+	}
+
 	// Add and configure related IKE profile
 	profile := profileName(tunnel)
 	err = p.vpp.AddIKEv2Profile(profile)

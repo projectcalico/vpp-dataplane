@@ -45,8 +45,11 @@ func fromProtoPolicy(p *proto.Policy) (policy *Policy, err error) {
 	if p.Untracked {
 		return nil, fmt.Errorf("Untracked policies not supported")
 	}
-	if !p.PreDnat && len(p.OutboundRules) > 0 {
-		return nil, fmt.Errorf("post dnat outbound policies not supported")
+	if p.PreDnat && len(p.OutboundRules) > 0 {
+		return nil, fmt.Errorf("pre dnat outbound policies not supported")
+	}
+	if p.PreDnat && len(p.InboundRules) > 0 {
+		return nil, fmt.Errorf("pre dnat inbound policies ????")
 	}
 	for _, r := range p.InboundRules {
 		rule, err := fromProtoRule(r)

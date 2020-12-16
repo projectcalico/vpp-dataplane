@@ -248,17 +248,27 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	needsSnat := s.PodSpecNeedsSnat(podSpec)
 	if hasv4 && needsSnat {
 		s.log.Infof("Enable tun[%d] SNAT v4", swIfIndex)
-		err = s.vpp.EnableCalicoSNAT(swIfIndex, false)
+		err = s.vpp.EnableCnatK8sSNAT(swIfIndex, false)
 		if err != nil {
 			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip4 snat")
 		}
 	}
 	if hasv6 && needsSnat {
 		s.log.Infof("Enable tun[%d] SNAT v6", swIfIndex)
-		err = s.vpp.EnableCalicoSNAT(swIfIndex, true)
+		err = s.vpp.EnableCnatK8sSNAT(swIfIndex, true)
 		if err != nil {
 			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip6 snat")
 		}
+	}
+
+	err = s.vpp.RegisterPodInterface(swIfIndex)
+	if err != nil {
+		return 0, s.tunErrorCleanup(podSpec, err, "error registering pod interface")
+	}
+
+	err = s.vpp.CnatEnableFeatures(swIfIndex)
+	if err != nil {
+		return 0, s.tunErrorCleanup(podSpec, err, "error configuring nat on pod interface")
 	}
 
 	if doHostSideConf {
@@ -391,6 +401,11 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) error {
 	err = s.delVppInterfaceHandleRoutes(swIfIndex, false /* isIp6 */)
 	if err != nil {
 		return errors.Wrap(err, "Error deleting ip4 routes")
+	}
+
+	err = s.vpp.RemovePodInterface(swIfIndex)
+	if err != nil {
+		s.log.Errorf("error deregistering pod interface: %v", err)
 	}
 
 	// Delete tun

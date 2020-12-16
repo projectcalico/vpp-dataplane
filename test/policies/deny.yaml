@@ -1,0 +1,8 @@
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-ingress-iperf
+  namespace: iperf
+spec:
+  selector: app == 'iperf-server'
+  ingress: []

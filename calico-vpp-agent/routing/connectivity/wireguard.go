@@ -164,6 +164,12 @@ func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
 		return errors.Wrapf(err, "Error enabling gso for wireguard interface")
 	}
 
+	err = p.vpp.CnatEnableFeatures(swIfIndex)
+	if err != nil {
+		p.errorCleanup(tunnel)
+		return errors.Wrapf(err, "Error enabling nat for wireguard interface")
+	}
+
 	err = p.vpp.InterfaceAdminUp(swIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel)

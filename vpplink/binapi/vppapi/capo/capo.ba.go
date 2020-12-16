@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "capo"
 	APIVersion = "0.1.0"
-	VersionCrc = 0xc20f539
+	VersionCrc = 0x39c18770
 )
 
 // CapoEntryType defines enum 'capo_entry_type'.
@@ -335,15 +335,16 @@ func (u *CapoIpsetMemberValUnion) GetTuple() (a CapoThreeTuple) {
 
 // CapoConfigurePolicies defines message 'capo_configure_policies'.
 type CapoConfigurePolicies struct {
-	SwIfIndex    uint32   `binapi:"u32,name=sw_if_index" json:"sw_if_index,omitempty"`
-	NumPolicies  uint32   `binapi:"u32,name=num_policies" json:"-"`
-	PassPolicyID uint32   `binapi:"u32,name=pass_policy_id" json:"pass_policy_id,omitempty"`
-	PolicyIds    []uint32 `binapi:"u32[num_policies],name=policy_ids" json:"policy_ids,omitempty"`
+	SwIfIndex          uint32   `binapi:"u32,name=sw_if_index" json:"sw_if_index,omitempty"`
+	NumIngressPolicies uint32   `binapi:"u32,name=num_ingress_policies" json:"num_ingress_policies,omitempty"`
+	NumEgressPolicies  uint32   `binapi:"u32,name=num_egress_policies" json:"num_egress_policies,omitempty"`
+	TotalIds           uint32   `binapi:"u32,name=total_ids" json:"-"`
+	PolicyIds          []uint32 `binapi:"u32[total_ids],name=policy_ids" json:"policy_ids,omitempty"`
 }
 
 func (m *CapoConfigurePolicies) Reset()               { *m = CapoConfigurePolicies{} }
 func (*CapoConfigurePolicies) GetMessageName() string { return "capo_configure_policies" }
-func (*CapoConfigurePolicies) GetCrcString() string   { return "00016ce2" }
+func (*CapoConfigurePolicies) GetCrcString() string   { return "3ca1772c" }
 func (*CapoConfigurePolicies) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -353,8 +354,9 @@ func (m *CapoConfigurePolicies) Size() (size int) {
 		return 0
 	}
 	size += 4                    // m.SwIfIndex
-	size += 4                    // m.NumPolicies
-	size += 4                    // m.PassPolicyID
+	size += 4                    // m.NumIngressPolicies
+	size += 4                    // m.NumEgressPolicies
+	size += 4                    // m.TotalIds
 	size += 4 * len(m.PolicyIds) // m.PolicyIds
 	return size
 }
@@ -364,8 +366,9 @@ func (m *CapoConfigurePolicies) Marshal(b []byte) ([]byte, error) {
 	}
 	buf := codec.NewBuffer(b)
 	buf.EncodeUint32(m.SwIfIndex)
+	buf.EncodeUint32(m.NumIngressPolicies)
+	buf.EncodeUint32(m.NumEgressPolicies)
 	buf.EncodeUint32(uint32(len(m.PolicyIds)))
-	buf.EncodeUint32(m.PassPolicyID)
 	for i := 0; i < len(m.PolicyIds); i++ {
 		var x uint32
 		if i < len(m.PolicyIds) {
@@ -378,9 +381,10 @@ func (m *CapoConfigurePolicies) Marshal(b []byte) ([]byte, error) {
 func (m *CapoConfigurePolicies) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.SwIfIndex = buf.DecodeUint32()
-	m.NumPolicies = buf.DecodeUint32()
-	m.PassPolicyID = buf.DecodeUint32()
-	m.PolicyIds = make([]uint32, m.NumPolicies)
+	m.NumIngressPolicies = buf.DecodeUint32()
+	m.NumEgressPolicies = buf.DecodeUint32()
+	m.TotalIds = buf.DecodeUint32()
+	m.PolicyIds = make([]uint32, m.TotalIds)
 	for i := 0; i < len(m.PolicyIds); i++ {
 		m.PolicyIds[i] = buf.DecodeUint32()
 	}
@@ -1342,7 +1346,7 @@ func (m *CapoRuleUpdateReply) Unmarshal(b []byte) error {
 
 func init() { file_capo_binapi_init() }
 func file_capo_binapi_init() {
-	api.RegisterMessage((*CapoConfigurePolicies)(nil), "capo_configure_policies_00016ce2")
+	api.RegisterMessage((*CapoConfigurePolicies)(nil), "capo_configure_policies_3ca1772c")
 	api.RegisterMessage((*CapoConfigurePoliciesReply)(nil), "capo_configure_policies_reply_e8d4e804")
 	api.RegisterMessage((*CapoControlPing)(nil), "capo_control_ping_51077d14")
 	api.RegisterMessage((*CapoControlPingReply)(nil), "capo_control_ping_reply_f6b0b8ca")

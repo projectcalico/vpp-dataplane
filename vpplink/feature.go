@@ -44,9 +44,9 @@ func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName,
 
 func (v *VppLink) enableDisableSNAT(swIfIndex uint32, isEnable bool, isIp6 bool) (err error) {
 	if isIp6 {
-		return v.featureEnableDisable(swIfIndex, isEnable, "ip6-unicast", "ip6-cnat-snat")
+		return v.featureEnableDisable(swIfIndex, isEnable, "ip6-unicast", "cnat-snat-ip6")
 	}
-	return v.featureEnableDisable(swIfIndex, isEnable, "ip4-unicast", "ip4-cnat-snat")
+	return v.featureEnableDisable(swIfIndex, isEnable, "ip4-unicast", "cnat-snat-ip4")
 }
 
 func (v *VppLink) EnableSNATArc(swIfIndex uint32, isIp6 bool) (err error) {
@@ -55,4 +55,12 @@ func (v *VppLink) EnableSNATArc(swIfIndex uint32, isIp6 bool) (err error) {
 
 func (v *VppLink) DisableSNATArc(swIfIndex uint32, isIp6 bool) (err error) {
 	return v.enableDisableSNAT(swIfIndex, false, isIp6)
+}
+
+func (v *VppLink) EnableFeature(swIfIndex uint32, arcName, featureName string) (err error) {
+	return v.featureEnableDisable(swIfIndex, true, arcName, featureName)
+}
+
+func (v *VppLink) DisableFeature(swIfIndex uint32, arcName, featureName string) (err error) {
+	return v.featureEnableDisable(swIfIndex, false, arcName, featureName)
 }

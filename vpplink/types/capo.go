@@ -38,10 +38,6 @@ type IPPort struct {
 	Port    uint16
 }
 
-func (i *IPPort) Equal(j *IPPort) bool {
-	return i.Port == j.Port && i.L4Proto == j.L4Proto && i.Addr.Equal(j.Addr)
-}
-
 type RuleAction uint8
 
 const (
@@ -54,13 +50,6 @@ const (
 type PortRange struct {
 	First uint16
 	Last  uint16
-}
-
-func toCapoPortRange(pr PortRange) capo.CapoPortRange {
-	return capo.CapoPortRange{
-		Start: pr.First,
-		End:   pr.Last,
-	}
 }
 
 type CapoFilterType uint8
@@ -76,14 +65,6 @@ type RuleFilter struct {
 	ShouldMatch bool
 	Type        CapoFilterType
 	Value       int
-}
-
-func toCapoFilter(f *RuleFilter) capo.CapoRuleFilter {
-	return capo.CapoRuleFilter{
-		Value:       uint32(f.Value),
-		Type:        capo.CapoRuleFilterType(f.Type),
-		ShouldMatch: boolToU8(f.ShouldMatch),
-	}
 }
 
 type Rule struct {
@@ -112,11 +93,49 @@ type Rule struct {
 	SrcNotIPSet []uint32
 }
 
+type Policy struct {
+	InboundRuleIDs  []uint32
+	OutboundRuleIDs []uint32
+}
+
+type InterfaceConfig struct {
+	IngressPolicyIDs []uint32
+	EgressPolicyIDs  []uint32
+	ProfileIDs       []uint32
+}
+
+func NewInterfaceConfig() *InterfaceConfig {
+	return &InterfaceConfig{
+		IngressPolicyIDs: make([]uint32, 0),
+		EgressPolicyIDs:  make([]uint32, 0),
+		ProfileIDs:       make([]uint32, 0),
+	}
+}
+
+func toCapoFilter(f *RuleFilter) capo.CapoRuleFilter {
+	return capo.CapoRuleFilter{
+		Value:       uint32(f.Value),
+		Type:        capo.CapoRuleFilterType(f.Type),
+		ShouldMatch: boolToU8(f.ShouldMatch),
+	}
+}
+
 func boolToU8(v bool) uint8 {
 	if v {
 		return uint8(1)
 	}
 	return uint8(0)
+}
+
+func (i *IPPort) Equal(j *IPPort) bool {
+	return i.Port == j.Port && i.L4Proto == j.L4Proto && i.Addr.Equal(j.Addr)
+}
+
+func toCapoPortRange(pr PortRange) capo.CapoPortRange {
+	return capo.CapoPortRange{
+		Start: pr.First,
+		End:   pr.Last,
+	}
 }
 
 func ToCapoRule(r *Rule) (cr capo.CapoRule) {
@@ -219,11 +238,6 @@ func ToCapoRule(r *Rule) (cr capo.CapoRule) {
 		cr.Matches = append(cr.Matches, entry)
 	}
 	return cr
-}
-
-type Policy struct {
-	InboundRuleIDs  []uint32
-	OutboundRuleIDs []uint32
 }
 
 func ToCapoPolicy(p *Policy) (items []capo.CapoPolicyItem) {
