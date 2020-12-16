@@ -298,6 +298,9 @@ spec:
               mountPath: /var/run/nodeagent
             - name: vpp-rundir
               mountPath: /var/run/vpp
+            - name: netns
+              mountPath: /run/netns/
+              mountPropagation: Bidirectional
         - name: vpp
           image: calicovpp/vpp:latest
           imagePullPolicy: IfNotPresent
@@ -356,6 +359,9 @@ spec:
               mountPath: /dev
             - name: hostsys
               mountPath: /sys
+            - name: netns
+              mountPath: /run/netns/
+              mountPropagation: Bidirectional
       volumes:
         - name: vpp-rundir
           hostPath:
@@ -410,4 +416,6 @@ spec:
           hostPath:
             type: DirectoryOrCreate
             path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/nodeagent~uds
-
+        - name: netns
+          hostPath:
+            path: /run/netns
