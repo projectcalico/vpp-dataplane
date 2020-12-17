@@ -1,7 +1,8 @@
 #!/bin/bash
 VPP_COMMIT=5f4f2081c
 
-if [ ! -d $1 ]; then
+if [ ! -d $1/.git ]; then
+	rm -rf $1
 	git clone "https://gerrit.fd.io/r/vpp" $1
 	cd $1
 	git reset --hard ${VPP_COMMIT}
