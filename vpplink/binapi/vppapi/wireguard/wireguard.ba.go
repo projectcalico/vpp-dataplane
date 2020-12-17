@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "wireguard"
 	APIVersion = "0.1.0"
-	VersionCrc = 0xc8fbc73
+	VersionCrc = 0xcd532184
 )
 
 // WireguardPeerFlags defines enum 'wireguard_peer_flags'.
@@ -157,14 +157,13 @@ func (m *WireguardInterfaceCreate) Unmarshal(b []byte) error {
 type WireguardInterfaceCreateReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
-	PublicKey []byte                         `binapi:"u8[32],name=public_key" json:"public_key,omitempty"`
 }
 
 func (m *WireguardInterfaceCreateReply) Reset() { *m = WireguardInterfaceCreateReply{} }
 func (*WireguardInterfaceCreateReply) GetMessageName() string {
 	return "wireguard_interface_create_reply"
 }
-func (*WireguardInterfaceCreateReply) GetCrcString() string { return "84c0614e" }
+func (*WireguardInterfaceCreateReply) GetCrcString() string { return "5383d31f" }
 func (*WireguardInterfaceCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -173,9 +172,8 @@ func (m *WireguardInterfaceCreateReply) Size() (size int) {
 	if m == nil {
 		return 0
 	}
-	size += 4      // m.Retval
-	size += 4      // m.SwIfIndex
-	size += 1 * 32 // m.PublicKey
+	size += 4 // m.Retval
+	size += 4 // m.SwIfIndex
 	return size
 }
 func (m *WireguardInterfaceCreateReply) Marshal(b []byte) ([]byte, error) {
@@ -185,15 +183,12 @@ func (m *WireguardInterfaceCreateReply) Marshal(b []byte) ([]byte, error) {
 	buf := codec.NewBuffer(b)
 	buf.EncodeInt32(m.Retval)
 	buf.EncodeUint32(uint32(m.SwIfIndex))
-	buf.EncodeBytes(m.PublicKey, 32)
 	return buf.Bytes(), nil
 }
 func (m *WireguardInterfaceCreateReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	m.PublicKey = make([]byte, 32)
-	copy(m.PublicKey, buf.DecodeBytes(len(m.PublicKey)))
 	return nil
 }
 
@@ -654,7 +649,7 @@ func (m *WireguardPeersDump) Unmarshal(b []byte) error {
 func init() { file_wireguard_binapi_init() }
 func file_wireguard_binapi_init() {
 	api.RegisterMessage((*WireguardInterfaceCreate)(nil), "wireguard_interface_create_a530137e")
-	api.RegisterMessage((*WireguardInterfaceCreateReply)(nil), "wireguard_interface_create_reply_84c0614e")
+	api.RegisterMessage((*WireguardInterfaceCreateReply)(nil), "wireguard_interface_create_reply_5383d31f")
 	api.RegisterMessage((*WireguardInterfaceDelete)(nil), "wireguard_interface_delete_f9e6675e")
 	api.RegisterMessage((*WireguardInterfaceDeleteReply)(nil), "wireguard_interface_delete_reply_e8d4e804")
 	api.RegisterMessage((*WireguardInterfaceDetails)(nil), "wireguard_interface_details_0dd4865d")

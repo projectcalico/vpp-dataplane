@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "tapv2"
 	APIVersion = "4.0.0"
-	VersionCrc = 0x36151ca4
+	VersionCrc = 0x3ee2101e
 )
 
 // TapFlags defines enum 'tap_flags'.
@@ -216,38 +216,37 @@ func (m *SwInterfaceTapV2Dump) Unmarshal(b []byte) error {
 
 // TapCreateV2 defines message 'tap_create_v2'.
 type TapCreateV2 struct {
-	ID                   uint32                        `binapi:"u32,name=id,default=4294967295" json:"id,omitempty"`
-	UseRandomMac         bool                          `binapi:"bool,name=use_random_mac,default=true" json:"use_random_mac,omitempty"`
-	MacAddress           ethernet_types.MacAddress     `binapi:"mac_address,name=mac_address" json:"mac_address,omitempty"`
-	NumRxQueues          uint8                         `binapi:"u8,name=num_rx_queues,default=1" json:"num_rx_queues,omitempty"`
-	NumTxQueuesPerWorker uint8                         `binapi:"u8,name=num_tx_queues_per_worker,default=0" json:"num_tx_queues_per_worker,omitempty"`
-	TxRingSz             uint16                        `binapi:"u16,name=tx_ring_sz,default=256" json:"tx_ring_sz,omitempty"`
-	RxRingSz             uint16                        `binapi:"u16,name=rx_ring_sz,default=256" json:"rx_ring_sz,omitempty"`
-	HostMtuSet           bool                          `binapi:"bool,name=host_mtu_set" json:"host_mtu_set,omitempty"`
-	HostMtuSize          uint32                        `binapi:"u32,name=host_mtu_size" json:"host_mtu_size,omitempty"`
-	HostMacAddrSet       bool                          `binapi:"bool,name=host_mac_addr_set" json:"host_mac_addr_set,omitempty"`
-	HostMacAddr          ethernet_types.MacAddress     `binapi:"mac_address,name=host_mac_addr" json:"host_mac_addr,omitempty"`
-	HostIP4PrefixSet     bool                          `binapi:"bool,name=host_ip4_prefix_set" json:"host_ip4_prefix_set,omitempty"`
-	HostIP4Prefix        ip_types.IP4AddressWithPrefix `binapi:"ip4_address_with_prefix,name=host_ip4_prefix" json:"host_ip4_prefix,omitempty"`
-	HostIP6PrefixSet     bool                          `binapi:"bool,name=host_ip6_prefix_set" json:"host_ip6_prefix_set,omitempty"`
-	HostIP6Prefix        ip_types.IP6AddressWithPrefix `binapi:"ip6_address_with_prefix,name=host_ip6_prefix" json:"host_ip6_prefix,omitempty"`
-	HostIP4GwSet         bool                          `binapi:"bool,name=host_ip4_gw_set" json:"host_ip4_gw_set,omitempty"`
-	HostIP4Gw            ip_types.IP4Address           `binapi:"ip4_address,name=host_ip4_gw" json:"host_ip4_gw,omitempty"`
-	HostIP6GwSet         bool                          `binapi:"bool,name=host_ip6_gw_set" json:"host_ip6_gw_set,omitempty"`
-	HostIP6Gw            ip_types.IP6Address           `binapi:"ip6_address,name=host_ip6_gw" json:"host_ip6_gw,omitempty"`
-	TapFlags             TapFlags                      `binapi:"tap_flags,name=tap_flags" json:"tap_flags,omitempty"`
-	HostNamespaceSet     bool                          `binapi:"bool,name=host_namespace_set" json:"host_namespace_set,omitempty"`
-	HostNamespace        string                        `binapi:"string[64],name=host_namespace" json:"host_namespace,omitempty"`
-	HostIfNameSet        bool                          `binapi:"bool,name=host_if_name_set" json:"host_if_name_set,omitempty"`
-	HostIfName           string                        `binapi:"string[64],name=host_if_name" json:"host_if_name,omitempty"`
-	HostBridgeSet        bool                          `binapi:"bool,name=host_bridge_set" json:"host_bridge_set,omitempty"`
-	HostBridge           string                        `binapi:"string[64],name=host_bridge" json:"host_bridge,omitempty"`
-	Tag                  string                        `binapi:"string[],name=tag" json:"tag,omitempty"`
+	ID               uint32                        `binapi:"u32,name=id,default=4294967295" json:"id,omitempty"`
+	UseRandomMac     bool                          `binapi:"bool,name=use_random_mac,default=true" json:"use_random_mac,omitempty"`
+	MacAddress       ethernet_types.MacAddress     `binapi:"mac_address,name=mac_address" json:"mac_address,omitempty"`
+	NumRxQueues      uint8                         `binapi:"u8,name=num_rx_queues,default=1" json:"num_rx_queues,omitempty"`
+	TxRingSz         uint16                        `binapi:"u16,name=tx_ring_sz,default=256" json:"tx_ring_sz,omitempty"`
+	RxRingSz         uint16                        `binapi:"u16,name=rx_ring_sz,default=256" json:"rx_ring_sz,omitempty"`
+	HostMtuSet       bool                          `binapi:"bool,name=host_mtu_set" json:"host_mtu_set,omitempty"`
+	HostMtuSize      uint32                        `binapi:"u32,name=host_mtu_size" json:"host_mtu_size,omitempty"`
+	HostMacAddrSet   bool                          `binapi:"bool,name=host_mac_addr_set" json:"host_mac_addr_set,omitempty"`
+	HostMacAddr      ethernet_types.MacAddress     `binapi:"mac_address,name=host_mac_addr" json:"host_mac_addr,omitempty"`
+	HostIP4PrefixSet bool                          `binapi:"bool,name=host_ip4_prefix_set" json:"host_ip4_prefix_set,omitempty"`
+	HostIP4Prefix    ip_types.IP4AddressWithPrefix `binapi:"ip4_address_with_prefix,name=host_ip4_prefix" json:"host_ip4_prefix,omitempty"`
+	HostIP6PrefixSet bool                          `binapi:"bool,name=host_ip6_prefix_set" json:"host_ip6_prefix_set,omitempty"`
+	HostIP6Prefix    ip_types.IP6AddressWithPrefix `binapi:"ip6_address_with_prefix,name=host_ip6_prefix" json:"host_ip6_prefix,omitempty"`
+	HostIP4GwSet     bool                          `binapi:"bool,name=host_ip4_gw_set" json:"host_ip4_gw_set,omitempty"`
+	HostIP4Gw        ip_types.IP4Address           `binapi:"ip4_address,name=host_ip4_gw" json:"host_ip4_gw,omitempty"`
+	HostIP6GwSet     bool                          `binapi:"bool,name=host_ip6_gw_set" json:"host_ip6_gw_set,omitempty"`
+	HostIP6Gw        ip_types.IP6Address           `binapi:"ip6_address,name=host_ip6_gw" json:"host_ip6_gw,omitempty"`
+	TapFlags         TapFlags                      `binapi:"tap_flags,name=tap_flags" json:"tap_flags,omitempty"`
+	HostNamespaceSet bool                          `binapi:"bool,name=host_namespace_set" json:"host_namespace_set,omitempty"`
+	HostNamespace    string                        `binapi:"string[64],name=host_namespace" json:"host_namespace,omitempty"`
+	HostIfNameSet    bool                          `binapi:"bool,name=host_if_name_set" json:"host_if_name_set,omitempty"`
+	HostIfName       string                        `binapi:"string[64],name=host_if_name" json:"host_if_name,omitempty"`
+	HostBridgeSet    bool                          `binapi:"bool,name=host_bridge_set" json:"host_bridge_set,omitempty"`
+	HostBridge       string                        `binapi:"string[64],name=host_bridge" json:"host_bridge,omitempty"`
+	Tag              string                        `binapi:"string[],name=tag" json:"tag,omitempty"`
 }
 
 func (m *TapCreateV2) Reset()               { *m = TapCreateV2{} }
 func (*TapCreateV2) GetMessageName() string { return "tap_create_v2" }
-func (*TapCreateV2) GetCrcString() string   { return "8004afdc" }
+func (*TapCreateV2) GetCrcString() string   { return "445835fd" }
 func (*TapCreateV2) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -260,7 +259,6 @@ func (m *TapCreateV2) Size() (size int) {
 	size += 1              // m.UseRandomMac
 	size += 1 * 6          // m.MacAddress
 	size += 1              // m.NumRxQueues
-	size += 1              // m.NumTxQueuesPerWorker
 	size += 2              // m.TxRingSz
 	size += 2              // m.RxRingSz
 	size += 1              // m.HostMtuSet
@@ -296,7 +294,6 @@ func (m *TapCreateV2) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeBool(m.UseRandomMac)
 	buf.EncodeBytes(m.MacAddress[:], 6)
 	buf.EncodeUint8(m.NumRxQueues)
-	buf.EncodeUint8(m.NumTxQueuesPerWorker)
 	buf.EncodeUint16(m.TxRingSz)
 	buf.EncodeUint16(m.RxRingSz)
 	buf.EncodeBool(m.HostMtuSet)
@@ -329,7 +326,6 @@ func (m *TapCreateV2) Unmarshal(b []byte) error {
 	m.UseRandomMac = buf.DecodeBool()
 	copy(m.MacAddress[:], buf.DecodeBytes(6))
 	m.NumRxQueues = buf.DecodeUint8()
-	m.NumTxQueuesPerWorker = buf.DecodeUint8()
 	m.TxRingSz = buf.DecodeUint16()
 	m.RxRingSz = buf.DecodeUint16()
 	m.HostMtuSet = buf.DecodeBool()
@@ -464,7 +460,7 @@ func init() { file_tapv2_binapi_init() }
 func file_tapv2_binapi_init() {
 	api.RegisterMessage((*SwInterfaceTapV2Details)(nil), "sw_interface_tap_v2_details_e53c16de")
 	api.RegisterMessage((*SwInterfaceTapV2Dump)(nil), "sw_interface_tap_v2_dump_f9e6675e")
-	api.RegisterMessage((*TapCreateV2)(nil), "tap_create_v2_8004afdc")
+	api.RegisterMessage((*TapCreateV2)(nil), "tap_create_v2_445835fd")
 	api.RegisterMessage((*TapCreateV2Reply)(nil), "tap_create_v2_reply_5383d31f")
 	api.RegisterMessage((*TapDeleteV2)(nil), "tap_delete_v2_f9e6675e")
 	api.RegisterMessage((*TapDeleteV2Reply)(nil), "tap_delete_v2_reply_e8d4e804")

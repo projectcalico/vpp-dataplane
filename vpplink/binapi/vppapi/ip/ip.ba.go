@@ -30,7 +30,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip"
 	APIVersion = "3.0.1"
-	VersionCrc = 0x78d167e7
+	VersionCrc = 0xd7d82c5f
 )
 
 // IPReassType defines enum 'ip_reass_type'.

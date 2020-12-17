@@ -3,7 +3,8 @@
 // Package nat_types contains generated bindings for API file nat_types.api.
 //
 // Contents:
-//   1 enum
+//   2 enums
+//   1 struct
 //
 package nat_types
 
@@ -84,4 +85,51 @@ func (x NatConfigFlags) String() string {
 		return str(uint8(x))
 	}
 	return s
+}
+
+// NatLogLevel defines enum 'nat_log_level'.
+type NatLogLevel uint8
+
+const (
+	NAT_LOG_NONE    NatLogLevel = 0
+	NAT_LOG_ERROR   NatLogLevel = 1
+	NAT_LOG_WARNING NatLogLevel = 2
+	NAT_LOG_NOTICE  NatLogLevel = 3
+	NAT_LOG_INFO    NatLogLevel = 4
+	NAT_LOG_DEBUG   NatLogLevel = 5
+)
+
+var (
+	NatLogLevel_name = map[uint8]string{
+		0: "NAT_LOG_NONE",
+		1: "NAT_LOG_ERROR",
+		2: "NAT_LOG_WARNING",
+		3: "NAT_LOG_NOTICE",
+		4: "NAT_LOG_INFO",
+		5: "NAT_LOG_DEBUG",
+	}
+	NatLogLevel_value = map[string]uint8{
+		"NAT_LOG_NONE":    0,
+		"NAT_LOG_ERROR":   1,
+		"NAT_LOG_WARNING": 2,
+		"NAT_LOG_NOTICE":  3,
+		"NAT_LOG_INFO":    4,
+		"NAT_LOG_DEBUG":   5,
+	}
+)
+
+func (x NatLogLevel) String() string {
+	s, ok := NatLogLevel_name[uint8(x)]
+	if ok {
+		return s
+	}
+	return "NatLogLevel(" + strconv.Itoa(int(x)) + ")"
+}
+
+// NatTimeouts defines type 'nat_timeouts'.
+type NatTimeouts struct {
+	UDP            uint32 `binapi:"u32,name=udp" json:"udp,omitempty"`
+	TCPEstablished uint32 `binapi:"u32,name=tcp_established" json:"tcp_established,omitempty"`
+	TCPTransitory  uint32 `binapi:"u32,name=tcp_transitory" json:"tcp_transitory,omitempty"`
+	ICMP           uint32 `binapi:"u32,name=icmp" json:"icmp,omitempty"`
 }

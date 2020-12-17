@@ -3,7 +3,7 @@
 // Package ikev2 contains generated bindings for API file ikev2.api.
 //
 // Contents:
-//  46 messages
+//  48 messages
 //
 package ikev2
 
@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ikev2"
 	APIVersion = "1.0.1"
-	VersionCrc = 0x314f10ac
+	VersionCrc = 0xf973216e
 )
 
 // Ikev2ChildSaDetails defines message 'ikev2_child_sa_details'.
@@ -697,7 +697,7 @@ type Ikev2ProfileDetails struct {
 
 func (m *Ikev2ProfileDetails) Reset()               { *m = Ikev2ProfileDetails{} }
 func (*Ikev2ProfileDetails) GetMessageName() string { return "ikev2_profile_details" }
-func (*Ikev2ProfileDetails) GetCrcString() string   { return "2e2dfd1c" }
+func (*Ikev2ProfileDetails) GetCrcString() string   { return "670d01d9" }
 func (*Ikev2ProfileDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -750,6 +750,7 @@ func (m *Ikev2ProfileDetails) Size() (size int) {
 	size += 2                            // m.Profile.IpsecOverUDPPort
 	size += 4                            // m.Profile.TunItf
 	size += 1                            // m.Profile.UDPEncap
+	size += 1                            // m.Profile.NattDisabled
 	size += 1                            // m.Profile.Auth.Method
 	size += 1                            // m.Profile.Auth.Hex
 	size += 4                            // m.Profile.Auth.DataLen
@@ -805,6 +806,7 @@ func (m *Ikev2ProfileDetails) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint16(m.Profile.IpsecOverUDPPort)
 	buf.EncodeUint32(m.Profile.TunItf)
 	buf.EncodeBool(m.Profile.UDPEncap)
+	buf.EncodeBool(m.Profile.NattDisabled)
 	buf.EncodeUint8(m.Profile.Auth.Method)
 	buf.EncodeUint8(m.Profile.Auth.Hex)
 	buf.EncodeUint32(uint32(len(m.Profile.Auth.Data)))
@@ -857,11 +859,80 @@ func (m *Ikev2ProfileDetails) Unmarshal(b []byte) error {
 	m.Profile.IpsecOverUDPPort = buf.DecodeUint16()
 	m.Profile.TunItf = buf.DecodeUint32()
 	m.Profile.UDPEncap = buf.DecodeBool()
+	m.Profile.NattDisabled = buf.DecodeBool()
 	m.Profile.Auth.Method = buf.DecodeUint8()
 	m.Profile.Auth.Hex = buf.DecodeUint8()
 	m.Profile.Auth.DataLen = buf.DecodeUint32()
 	m.Profile.Auth.Data = make([]byte, m.Profile.Auth.DataLen)
 	copy(m.Profile.Auth.Data, buf.DecodeBytes(len(m.Profile.Auth.Data)))
+	return nil
+}
+
+// Ikev2ProfileDisableNatt defines message 'ikev2_profile_disable_natt'.
+type Ikev2ProfileDisableNatt struct {
+	Name string `binapi:"string[64],name=name" json:"name,omitempty"`
+}
+
+func (m *Ikev2ProfileDisableNatt) Reset()               { *m = Ikev2ProfileDisableNatt{} }
+func (*Ikev2ProfileDisableNatt) GetMessageName() string { return "ikev2_profile_disable_natt" }
+func (*Ikev2ProfileDisableNatt) GetCrcString() string   { return "ebf79a66" }
+func (*Ikev2ProfileDisableNatt) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *Ikev2ProfileDisableNatt) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 64 // m.Name
+	return size
+}
+func (m *Ikev2ProfileDisableNatt) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeString(m.Name, 64)
+	return buf.Bytes(), nil
+}
+func (m *Ikev2ProfileDisableNatt) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Name = buf.DecodeString(64)
+	return nil
+}
+
+// Ikev2ProfileDisableNattReply defines message 'ikev2_profile_disable_natt_reply'.
+type Ikev2ProfileDisableNattReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *Ikev2ProfileDisableNattReply) Reset() { *m = Ikev2ProfileDisableNattReply{} }
+func (*Ikev2ProfileDisableNattReply) GetMessageName() string {
+	return "ikev2_profile_disable_natt_reply"
+}
+func (*Ikev2ProfileDisableNattReply) GetCrcString() string { return "e8d4e804" }
+func (*Ikev2ProfileDisableNattReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *Ikev2ProfileDisableNattReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *Ikev2ProfileDisableNattReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *Ikev2ProfileDisableNattReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
 	return nil
 }
 
@@ -2171,7 +2242,9 @@ func file_ikev2_binapi_init() {
 	api.RegisterMessage((*Ikev2PluginGetVersionReply)(nil), "ikev2_plugin_get_version_reply_9b32cf86")
 	api.RegisterMessage((*Ikev2ProfileAddDel)(nil), "ikev2_profile_add_del_2c925b55")
 	api.RegisterMessage((*Ikev2ProfileAddDelReply)(nil), "ikev2_profile_add_del_reply_e8d4e804")
-	api.RegisterMessage((*Ikev2ProfileDetails)(nil), "ikev2_profile_details_2e2dfd1c")
+	api.RegisterMessage((*Ikev2ProfileDetails)(nil), "ikev2_profile_details_670d01d9")
+	api.RegisterMessage((*Ikev2ProfileDisableNatt)(nil), "ikev2_profile_disable_natt_ebf79a66")
+	api.RegisterMessage((*Ikev2ProfileDisableNattReply)(nil), "ikev2_profile_disable_natt_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2ProfileDump)(nil), "ikev2_profile_dump_51077d14")
 	api.RegisterMessage((*Ikev2ProfileSetAuth)(nil), "ikev2_profile_set_auth_642c97cd")
 	api.RegisterMessage((*Ikev2ProfileSetAuthReply)(nil), "ikev2_profile_set_auth_reply_e8d4e804")
@@ -2223,6 +2296,8 @@ func AllMessages() []api.Message {
 		(*Ikev2ProfileAddDel)(nil),
 		(*Ikev2ProfileAddDelReply)(nil),
 		(*Ikev2ProfileDetails)(nil),
+		(*Ikev2ProfileDisableNatt)(nil),
+		(*Ikev2ProfileDisableNattReply)(nil),
 		(*Ikev2ProfileDump)(nil),
 		(*Ikev2ProfileSetAuth)(nil),
 		(*Ikev2ProfileSetAuthReply)(nil),

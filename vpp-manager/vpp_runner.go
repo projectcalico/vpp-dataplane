@@ -301,11 +301,6 @@ func (v *VppRunner) configureVpp() (err error) {
 		return errors.Wrap(err, "Error writing tap idx")
 	}
 
-	err = v.vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, v.params.TapRxMode)
-	if err != nil {
-		log.Errorf("Error SetInterfaceRxMode on vpptap0 %v", err)
-	}
-
 	err = v.configurePunt(tapSwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error adding redirect to tap")
@@ -340,6 +335,11 @@ func (v *VppRunner) configureVpp() (err error) {
 	err = v.vpp.InterfaceAdminUp(tapSwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error setting tap up")
+	}
+
+	err = v.vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, v.params.TapRxMode)
+	if err != nil {
+		log.Errorf("Error SetInterfaceRxMode on vpptap0 %v", err)
 	}
 
 	// TODO should watch for service prefix and ip pools to always route them through VPP

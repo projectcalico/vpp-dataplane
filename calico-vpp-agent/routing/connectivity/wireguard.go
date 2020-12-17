@@ -152,6 +152,14 @@ func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
 		p.errorCleanup(tunnel)
 		return errors.Wrapf(err, "Error creating wireguard tunnel")
 	}
+	// fetch public key of created tunnel
+	createdTunnel, err := p.vpp.GetWireguardTunnel(swIfIndex)
+	if err != nil {
+		p.errorCleanup(tunnel)
+		return errors.Wrapf(err, "Error fetching wireguard tunnel after creation")
+	}
+	tunnel.PublicKey = createdTunnel.PublicKey
+
 	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel)

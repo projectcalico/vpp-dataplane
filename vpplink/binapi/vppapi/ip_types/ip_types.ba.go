@@ -4,7 +4,7 @@
 //
 // Contents:
 //   5 aliases
-//   4 enums
+//   5 enums
 //   8 structs
 //   1 union
 //
@@ -168,6 +168,42 @@ func (x IPEcn) String() string {
 		return s
 	}
 	return "IPEcn(" + strconv.Itoa(int(x)) + ")"
+}
+
+// IPFeatureLocation defines enum 'ip_feature_location'.
+type IPFeatureLocation uint8
+
+const (
+	IP_API_FEATURE_INPUT  IPFeatureLocation = 0
+	IP_API_FEATURE_OUTPUT IPFeatureLocation = 1
+	IP_API_FEATURE_LOCAL  IPFeatureLocation = 2
+	IP_API_FEATURE_PUNT   IPFeatureLocation = 3
+	IP_API_FEATURE_DROP   IPFeatureLocation = 4
+)
+
+var (
+	IPFeatureLocation_name = map[uint8]string{
+		0: "IP_API_FEATURE_INPUT",
+		1: "IP_API_FEATURE_OUTPUT",
+		2: "IP_API_FEATURE_LOCAL",
+		3: "IP_API_FEATURE_PUNT",
+		4: "IP_API_FEATURE_DROP",
+	}
+	IPFeatureLocation_value = map[string]uint8{
+		"IP_API_FEATURE_INPUT":  0,
+		"IP_API_FEATURE_OUTPUT": 1,
+		"IP_API_FEATURE_LOCAL":  2,
+		"IP_API_FEATURE_PUNT":   3,
+		"IP_API_FEATURE_DROP":   4,
+	}
+)
+
+func (x IPFeatureLocation) String() string {
+	s, ok := IPFeatureLocation_name[uint8(x)]
+	if ok {
+		return s
+	}
+	return "IPFeatureLocation(" + strconv.Itoa(int(x)) + ")"
 }
 
 // IPProto defines enum 'ip_proto'.

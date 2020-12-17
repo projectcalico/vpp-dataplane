@@ -27,13 +27,29 @@ import (
 )
 
 func (v *VppLink) ListWireguardTunnels() ([]*types.WireguardTunnel, error) {
+	tunnels, err := v.listWireguardTunnels(types.InvalidInterface)
+	return tunnels, err
+}
+
+func (v *VppLink) GetWireguardTunnel(swIfIndex uint32) (*types.WireguardTunnel, error) {
+	tunnels, err := v.listWireguardTunnels(interface_types.InterfaceIndex(swIfIndex))
+	if err != nil {
+		return nil, err
+	}
+	if len(tunnels) != 1 {
+		return nil, errors.Errorf("Found %d Wireguard tunnels for swIfIndex %d", len(tunnels), swIfIndex)
+	}
+	return tunnels[0], nil
+}
+
+func (v *VppLink) listWireguardTunnels(swIfIndex interface_types.InterfaceIndex) ([]*types.WireguardTunnel, error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	tunnels := make([]*types.WireguardTunnel, 0)
 	request := &wireguard.WireguardInterfaceDump{
 		ShowPrivateKey: false,
-		SwIfIndex:      types.InvalidInterface,
+		SwIfIndex:      swIfIndex,
 	}
 	stream := v.ch.SendMultiRequest(request)
 	for {
@@ -78,7 +94,6 @@ func (v *VppLink) AddWireguardTunnel(tunnel *types.WireguardTunnel) (uint32, err
 		return ^uint32(1), fmt.Errorf("Add Wireguard Tunnel failed with retval %d", response.Retval)
 	}
 	tunnel.SwIfIndex = uint32(response.SwIfIndex)
-	tunnel.PublicKey = response.PublicKey
 	return uint32(response.SwIfIndex), nil
 }
 

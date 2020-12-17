@@ -21,6 +21,7 @@ type RPCService interface {
 	Ikev2NonceGet(ctx context.Context, in *Ikev2NonceGet) (*Ikev2NonceGetReply, error)
 	Ikev2PluginGetVersion(ctx context.Context, in *Ikev2PluginGetVersion) (*Ikev2PluginGetVersionReply, error)
 	Ikev2ProfileAddDel(ctx context.Context, in *Ikev2ProfileAddDel) (*Ikev2ProfileAddDelReply, error)
+	Ikev2ProfileDisableNatt(ctx context.Context, in *Ikev2ProfileDisableNatt) (*Ikev2ProfileDisableNattReply, error)
 	Ikev2ProfileDump(ctx context.Context, in *Ikev2ProfileDump) (RPCService_Ikev2ProfileDumpClient, error)
 	Ikev2ProfileSetAuth(ctx context.Context, in *Ikev2ProfileSetAuth) (*Ikev2ProfileSetAuthReply, error)
 	Ikev2ProfileSetID(ctx context.Context, in *Ikev2ProfileSetID) (*Ikev2ProfileSetIDReply, error)
@@ -141,6 +142,15 @@ func (c *serviceClient) Ikev2PluginGetVersion(ctx context.Context, in *Ikev2Plug
 
 func (c *serviceClient) Ikev2ProfileAddDel(ctx context.Context, in *Ikev2ProfileAddDel) (*Ikev2ProfileAddDelReply, error) {
 	out := new(Ikev2ProfileAddDelReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) Ikev2ProfileDisableNatt(ctx context.Context, in *Ikev2ProfileDisableNatt) (*Ikev2ProfileDisableNattReply, error) {
+	out := new(Ikev2ProfileDisableNattReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

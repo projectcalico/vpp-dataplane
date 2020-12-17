@@ -1,20 +1,11 @@
-VPP Version                 : 21.01-rc0~298-g2da6b1b8d
+VPP Version                 : 21.06-rc0~10-g8aba79bd0
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 5f4f2081c nat: nat44 enable/disable dynamic config
+VPP Base commit             : 884058096 hsa: http server: fix http response format type error
 ------------------ Cherry picked commits --------------------
-2da6b1b8d capo: Calico Policies plugin
-789ee941d acl: acl-plugin custom policies
-b95ef3850 cnat: k8s extensions
-7a6738a23 cnat: add input feature node
-70a02693a vlib: Fix sh int addr
-d34062231 cnat: Fix session with deleted tr
-e6a74a379 wireguard: run feature after gso
-3b2b0f281 wireguard: return public key in api
-d3414cce4 virtio: DRAFT: multi tx support
-586501b74 tap: fix the segv
-6c9d9d4db cnat: Fix throttle hash & cleanup
-647da6037 cnat: reduce compile time
-4f750a7e2 cnat: Fix invalid adj_index
-dc7e98d57 vlib: force input node interrupts to be unique
-c852c787f Use 10us interrupt sleep
+8aba79bd0 capo: Calico Policies plugin
+ad34d4dd5 acl: acl-plugin custom policies
+d90b9a6b3 cnat: k8s extensions
+e47d86194 cnat: add input feature node
+5c973cc0f cnat: Fix session with deleted tr
+34104fb1d cnat: Fix throttle hash & cleanup
 -------------------------------------------------------------

@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "punt"
 	APIVersion = "2.2.1"
-	VersionCrc = 0x3bd1d688
+	VersionCrc = 0xee63b6c7
 )
 
 // PuntType defines enum 'punt_type'.
