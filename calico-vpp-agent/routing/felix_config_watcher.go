@@ -18,7 +18,6 @@ package routing
 import (
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	"golang.org/x/net/context"
@@ -72,12 +71,8 @@ func (s *Server) watchFelixConfiguration() error {
 		for update := range watcher.ResultChan() {
 			switch update.Type {
 			case watch.Error:
-				switch update.Error.(type) {
-				case calicoerr.ErrorWatchTerminated:
-					break watch
-				default:
-					return errors.Wrap(update.Error, "error while watching FelixConfigurations")
-				}
+				s.log.Infof("Felix conf watch returned an error")
+				break watch
 			case watch.Added, watch.Modified:
 				felix := update.Object.(*calicov3.FelixConfiguration)
 				s.handleFelixConfigurationUpdate(s.felixConfiguration, &felix.Spec)

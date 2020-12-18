@@ -21,7 +21,6 @@ import (
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -150,12 +149,8 @@ func (s *Server) watchBGPPeers() error {
 				}
 				delete(state, ip)
 			case watch.Error:
-				switch update.Error.(type) {
-				case calicoerr.ErrorWatchTerminated:
-					break watch
-				default:
-					return errors.Wrap(err, "BGP Peers watch errored")
-				}
+				s.log.Infof("peers watch returned an error")
+				break watch
 			}
 		}
 	}

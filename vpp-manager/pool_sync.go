@@ -22,7 +22,6 @@ import (
 	"github.com/pkg/errors"
 	calicoapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
-	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
@@ -124,13 +123,8 @@ func syncPools() {
 		for update := range poolsWatcher.ResultChan() {
 			switch update.Type {
 			case watch.Error:
-				switch update.Error.(type) {
-				case calicoerr.ErrorWatchTerminated:
-					break watch
-				default:
-					poolSyncError(errors.Wrap(update.Error, "error while watching IPPools"))
-					return
-				}
+				log.Infof("Watch returned an error")
+				break watch
 			case watch.Added, watch.Modified:
 				pool := update.Object.(*calicoapi.IPPool)
 				key := pool.Spec.CIDR
