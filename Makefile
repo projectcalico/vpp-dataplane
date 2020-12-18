@@ -22,6 +22,14 @@ dev:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
 
+.PHONY: dev.k3s
+dev.k3s: dev
+	@for x in node vpp ; do \
+		docker save -o /tmp/$$x.tar calicovpp/$$x:latest ; \
+		sudo k3s ctr images import /tmp/$$x.tar ; \
+		rm -f /tmp/$$x.tar ; \
+	done
+
 .PHONY: install-test-deps
 install-test-deps:
 	sudo apt-get update
