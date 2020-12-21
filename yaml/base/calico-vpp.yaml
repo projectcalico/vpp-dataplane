@@ -119,8 +119,8 @@ spec:
       nodeSelector:
         beta.kubernetes.io/os: linux
       hostNetwork: true
-      hostPID: true # This is required for VPP to access the other pods net namespaces through /proc .
-                    # It may be sufficient to mount the host /proc in the vpp container
+      # This is required for VPP to access the other pods net namespaces through /proc .
+      hostPID: true
       tolerations:
         # Make sure calico-node gets scheduled on all nodes.
         - effect: NoSchedule
@@ -139,9 +139,13 @@ spec:
         # This container installs the CNI binaries
         # and CNI network config file on each node.
         - name: install-cni
-          image: calico/cni:v3.15.1
-          imagePullPolicy: IfNotPresent
-          command: ["/install-cni.sh"]
+          image: docker.io/calico/cni:v3.17.1
+          command: ["/opt/cni/bin/install"]
+          envFrom:
+          - configMapRef:
+              # Allow KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT to be overridden for eBPF mode.
+              name: kubernetes-services-endpoint
+              optional: true
           env:
             # Name of the CNI config file to create.
             - name: CNI_CONF_NAME
@@ -171,20 +175,23 @@ spec:
               name: cni-bin-dir
             - mountPath: /host/etc/cni/net.d
               name: cni-net-dir
+          securityContext:
+            privileged: true
         # Adds a Flex Volume Driver that creates a per-pod Unix Domain Socket to allow Dikastes
         # to communicate with Felix over the Policy Sync API.
         - name: flexvol-driver
-          image: calico/pod2daemon-flexvol:v3.15.1
-          imagePullPolicy: IfNotPresent
+          image: docker.io/calico/pod2daemon-flexvol:v3.17.1
           volumeMounts:
           - name: flexvol-driver-host
             mountPath: /host/driver
+          securityContext:
+            privileged: true
       containers:
         # Runs calico-node container on each Kubernetes node.  This
         # container programs network policy and routes on each
         # host.
         - name: calico-node
-          image: calicovpp/node:latest
+          image: docker.io/calicovpp/node:latest
           imagePullPolicy: IfNotPresent
           env:
             # Use Kubernetes API as the backing datastore.
@@ -292,7 +299,7 @@ spec:
               mountPath: /run/netns/
               mountPropagation: Bidirectional
         - name: vpp
-          image: calicovpp/vpp:latest
+          image: docker.io/calicovpp/vpp:latest
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
