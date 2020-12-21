@@ -16,6 +16,10 @@
 package uplink
 
 import (
+	"io/ioutil"
+	"strings"
+
+	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -29,6 +33,7 @@ const (
 	NATIVE_DRIVER_AF_XDP    = "af_xdp"
 	NATIVE_DRIVER_VIRTIO    = "virtio"
 	NATIVE_DRIVER_AVF       = "avf"
+	NATIVE_DRIVER_DPDK      = "dpdk"
 )
 
 type UplinkDriverData struct {
@@ -43,6 +48,8 @@ type UplinkDriver interface {
 	RestoreLinux()
 	IsSupported(warn bool) bool
 	GetName() string
+	GenerateVppConfigExecFile() error
+	GenerateVppConfigFile() error
 }
 
 func (d *UplinkDriverData) GetName() string {
@@ -78,6 +85,32 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 
 }
 
+func (d *UplinkDriverData) GenerateVppConfigExecFile() error {
+	if d.params.ConfigExecTemplate == "" {
+		return nil
+	}
+	// Trivial rendering for the moment...
+	template := strings.ReplaceAll(d.params.ConfigExecTemplate, "__PCI_DEVICE_ID__", d.conf.PciId)
+	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", d.params.MainInterface)
+	err := errors.Wrapf(
+		ioutil.WriteFile(config.VppConfigExecFile, []byte(template+"\n"), 0744),
+		"Error writing VPP Exec configuration to %s",
+		config.VppConfigExecFile,
+	)
+	return err
+}
+
+func (d *UplinkDriverData) GenerateVppConfigFile() error {
+	// Trivial rendering for the moment...
+	template := strings.ReplaceAll(d.params.ConfigTemplate, "__PCI_DEVICE_ID__", d.conf.PciId)
+	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", d.params.MainInterface)
+	return errors.Wrapf(
+		ioutil.WriteFile(config.VppConfigFile, []byte(template+"\n"), 0644),
+		"Error writing VPP configuration to %s",
+		config.VppConfigFile,
+	)
+}
+
 func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.InterfaceConfig) []UplinkDriver {
 	lst := make([]UplinkDriver, 0)
 
@@ -106,6 +139,8 @@ func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.
 		d = NewVirtioDriver(params, conf)
 	case NATIVE_DRIVER_AVF:
 		d = NewAVFDriver(params, conf)
+	case NATIVE_DRIVER_DPDK:
+		d = NewDPDKDriver(params, conf)
 	case NATIVE_DRIVER_NONE:
 		fallthrough
 	default:
