@@ -5,6 +5,12 @@ configMapGenerator:
   - name: calico-config
     env: config.properties
     behavior: merge
+  - name: calico-node-dev-config
+    env: config-calico-node.properties
+  - name: vpp-dev-config
+    env: config-vpp.properties
+generatorOptions:
+  disableNameSuffixHash: true
 
 patchesStrategicMerge:
   - calicodev.yaml
