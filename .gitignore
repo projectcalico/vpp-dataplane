@@ -22,3 +22,7 @@ test/vagrant/.vagrant
 
 # macOS
 .DS_Store
+
+# build artefacts
+calico-vpp-agent/version
+vpp-manager/images/ubuntu/version

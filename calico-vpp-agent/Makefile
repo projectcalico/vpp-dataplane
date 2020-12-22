@@ -1,6 +1,9 @@
 .PHONY: all build gobgp image push
 
-TAG ?= latest
+TAG ?= latest # Tag images with :$(TAG)
+ALSO_LATEST ?= n # If 'y' also tag images with :latest
+GENERATE_LOG_FILE=../vpplink/binapi/vppapi/generate.log
+VERSION_FILE=version
 
 all: build gobgp image
 
@@ -16,10 +19,19 @@ gobgp:
 	go build -o ./dep/gobgp $(GOBGP_DIR)/cmd/gobgp/
 
 image: build gobgp
+	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
+	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
+	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
 	docker build --pull -t calicovpp/node:$(TAG) .
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker tag calicovpp/node:$(TAG) calicovpp/node:latest; \
+	fi
 
 push: image
 	docker push calicovpp/node:$(TAG)
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker push calicovpp/node:latest; \
+	fi
 
 dev: build gobgp
 	docker build -t calicovpp/node:$(TAG) .

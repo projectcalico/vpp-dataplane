@@ -7,6 +7,7 @@ ADD cmd/felix-api-proxy /bin/felix-api-proxy
 ADD cmd/calico-vpp-agent /bin/calico-vpp-agent
 ADD cmd/debug /bin/debug
 ADD etc/service/calico-vpp-agent /etc/service/available/calico-vpp-agent
+ADD version /etc/calicovppversion
 
 RUN sed -i.orig \
     -e '/^case "\$CALICO_NETWORKING_BACKEND" in/a \\t"vpp" )\n\
