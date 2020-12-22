@@ -93,7 +93,7 @@ release: check-TAG push
 	$(MAKE) -C yaml
 	git checkout -b release/$(TAG)
 	git add yaml
-	git commit -sm "Release $(TAG)"	
+	git commit -sm "Release $(TAG)"
 	# Tag release and push it
 	git tag $(TAG)
 	git push --set-upstream origin release/$(TAG)
