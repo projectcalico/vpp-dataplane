@@ -85,7 +85,7 @@ yaml:
 
 .PHONY: release
 # TAG must be set to something like v0.6.0-calicov3.9.1
-release: check-TAG push
+release: check-TAG
 	@[ -z "$(shell git status --porcelain)" ] || (echo "Repo is not clean! Aborting." && exit 1)
 	# Generate yaml file for this release
 	sed -i.bak "s|:latest|:$(TAG)|g" yaml/base/calico-vpp.yaml
