@@ -120,27 +120,6 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32) (err error) {
 	return nil
 }
 
-func (v *VppRunner) safeAddInterfaceAddress(swIfIndex uint32, addr *net.IPNet) (err error) {
-	maskSize, _ := addr.Mask.Size()
-	if vpplink.IsIP6(addr.IP) && maskSize != 128 && addr.IP.IsLinkLocalUnicast() {
-		err = v.vpp.AddInterfaceAddress(swIfIndex, &net.IPNet{
-			IP:   addr.IP,
-			Mask: utils.GetMaxCIDRMask(addr.IP),
-		})
-		if err != nil {
-			return err
-		}
-		log.Infof("Adding extra route to %s for %d mask", addr, maskSize)
-		return v.vpp.RouteAdd(&types.Route{
-			Dst: addr,
-			Paths: []types.RoutePath{{
-				SwIfIndex: swIfIndex,
-			}},
-		})
-	}
-	return v.vpp.AddInterfaceAddress(swIfIndex, addr)
-}
-
 func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 	err = netlink.LinkSetUp(link)
 	if err != nil {
@@ -212,7 +191,7 @@ func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount in
 			Mask: addr.Mask,
 		}
 		a.IP[2] += byte(i)
-		err = v.safeAddInterfaceAddress(config.DataInterfaceSwIfIndex, a)
+		err = v.vpp.AddInterfaceAddress(config.DataInterfaceSwIfIndex, a)
 		if err != nil {
 			log.Errorf("Error adding address to data interface: %v", err)
 		}
@@ -245,17 +224,12 @@ func (v *VppRunner) configureVpp() (err error) {
 
 	for _, addr := range v.conf.Addresses {
 		log.Infof("Adding address %s to data interface", addr.String())
-		err = v.safeAddInterfaceAddress(config.DataInterfaceSwIfIndex, addr.IPNet)
+		err = v.vpp.AddInterfaceAddress(config.DataInterfaceSwIfIndex, addr.IPNet)
 		if err != nil {
 			log.Errorf("Error adding address to data interface: %v", err)
 		}
 	}
 	for _, route := range v.conf.Routes {
-		// Only add routes with a next hop, assume the others come from interface addresses
-		if utils.RouteIsLinkLocalUnicast(&route) {
-			log.Infof("Skipping linklocal route %s", route.String())
-			continue
-		}
 		err = v.vpp.RouteAdd(&types.Route{
 			Dst: route.Dst,
 			Paths: []types.RoutePath{{
