@@ -34,4 +34,7 @@ push: image
 	fi
 
 dev: build gobgp
+	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
+	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
+	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
 	docker build -t calicovpp/node:$(TAG) .
