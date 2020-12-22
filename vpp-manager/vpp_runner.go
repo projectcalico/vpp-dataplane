@@ -58,12 +58,12 @@ func (v *VppRunner) Run(driver uplink.UplinkDriver) {
 	v.uplinkDriver = driver
 	log.Infof("Running with uplink %s", driver.GetName())
 
-	err := v.generateVppConfigExecFile()
+	err := v.uplinkDriver.GenerateVppConfigExecFile()
 	if err != nil {
 		log.Fatalf("Error generating VPP config Exec: %s", err)
 	}
 
-	err = v.generateVppConfigFile()
+	err = v.uplinkDriver.GenerateVppConfigFile()
 	if err != nil {
 		log.Fatalf("Error generating VPP config: %s", err)
 	}
@@ -529,30 +529,4 @@ func (v *VppRunner) restoreConfiguration() {
 	if err != nil {
 		log.Errorf("Error pinging calico-vpp: %v", err)
 	}
-}
-
-func (v *VppRunner) generateVppConfigExecFile() error {
-	if v.params.ConfigExecTemplate == "" {
-		return nil
-	}
-	// Trivial rendering for the moment...
-	template := strings.ReplaceAll(v.params.ConfigExecTemplate, "__PCI_DEVICE_ID__", v.conf.PciId)
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", v.params.MainInterface)
-	err := errors.Wrapf(
-		ioutil.WriteFile(config.VppConfigExecFile, []byte(template+"\n"), 0744),
-		"Error writing VPP Exec configuration to %s",
-		config.VppConfigExecFile,
-	)
-	return err
-}
-
-func (v *VppRunner) generateVppConfigFile() error {
-	// Trivial rendering for the moment...
-	template := strings.ReplaceAll(v.params.ConfigTemplate, "__PCI_DEVICE_ID__", v.conf.PciId)
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", v.params.MainInterface)
-	return errors.Wrapf(
-		ioutil.WriteFile(config.VppConfigFile, []byte(template+"\n"), 0644),
-		"Error writing VPP configuration to %s",
-		config.VppConfigFile,
-	)
 }
