@@ -7,7 +7,8 @@ IMAGE_DIR=images/ubuntu
 VPPDEV_FILE=../test/scripts/vppdev.sh
 GENERATE_LOG_FILE=../vpplink/binapi/vppapi/generate.log
 VERSION_FILE=$(IMAGE_DIR)/version
-TAG ?= latest
+TAG ?= latest # Tag images with :$(TAG)
+ALSO_LATEST ?= n # If 'y' also tag images with :latest
 
 all: image
 
@@ -27,9 +28,15 @@ image: build vpp
 	docker build --pull \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
+	fi
 
 push: image
 	docker push calicovpp/vpp:$(TAG)
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker push calicovpp/vpp:latest; \
+	fi
 
 imageonly: build
 	cp $(VPPDEV_FILE) $(IMAGE_DIR)
