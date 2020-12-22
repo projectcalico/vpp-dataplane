@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy/proto"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"

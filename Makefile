@@ -22,6 +22,10 @@ dev:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
 
+.PHONY: proto
+proto:
+	$(MAKE) -C calico-vpp-agent $@
+
 .PHONY: dev.k3s
 dev.k3s: dev
 	@for x in node vpp ; do \

@@ -1,4 +1,4 @@
-.PHONY: all build gobgp image push
+.PHONY: all build gobgp image push proto
 
 TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
@@ -38,3 +38,6 @@ dev: build gobgp
 	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
 	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
 	docker build -t calicovpp/node:$(TAG) .
+
+proto:
+	$(MAKE) -C proto $@
