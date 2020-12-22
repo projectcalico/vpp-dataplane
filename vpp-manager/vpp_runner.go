@@ -496,8 +496,10 @@ func (v *VppRunner) runVpp() (err error) {
 	err = v.configureVpp()
 	v.vpp.Close()
 	if err != nil {
-		<-vppDeadChan
 		terminateVpp("Error configuring VPP (SIGINT %d): %v", vppProcess.Pid, err)
+		<-vppDeadChan
+		v.restoreConfiguration()
+		return errors.Wrap(err, "Error configuring VPP")
 	}
 
 	// Update the Calico node with the IP address actually configured on VPP
