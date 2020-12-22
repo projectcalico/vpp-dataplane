@@ -12,30 +12,30 @@ else
 fi
 
 # ------------- 10us interrupt patches -------------
-# # This should be first to avoid hiding failures in the patches
-# echo "diff --git a/src/vlib/unix/input.c b/src/vlib/unix/input.c
-# index 7531dd197..94a2bfb12 100644
-# --- a/src/vlib/unix/input.c
-# +++ b/src/vlib/unix/input.c
-# @@ -245,7 +245,7 @@ linux_epoll_input_inline (vlib_main_t * vm, vlib_node_runtime_t * node,
-#              {
-#                /* Sleep for 100us at a time */
-#                ts.tv_sec = 0;
-# -              ts.tv_nsec = 1000 * 100;
-# +              ts.tv_nsec = 1000 * 10;
-
-#                while (nanosleep (&ts, &tsrem) < 0)
-#                  ts = tsrem;
-# " | git apply -- && git add -A &&  git commit --author "Calico-vpp builder <>" -m "Use 10us interrupt sleep"
+# This should be first to avoid hiding failures in the patches
+echo "diff --git a/src/vlib/unix/input.c b/src/vlib/unix/input.c
+index 7531dd197..94a2bfb12 100644
+--- a/src/vlib/unix/input.c
++++ b/src/vlib/unix/input.c
+@@ -245,7 +245,7 @@ linux_epoll_input_inline (vlib_main_t * vm, vlib_node_runtime_t * node,
+ 	      {
+ 		/* Sleep for 100us at a time */
+ 		ts.tv_sec = 0;
+-		ts.tv_nsec = 1000 * 100;
++		ts.tv_nsec = 1000 * 10;
+ 
+ 		while (nanosleep (&ts, &tsrem) < 0)
+ 		  ts = tsrem;
+" | git apply -- && git add -A &&  git commit --author "Calico-vpp builder <>" -m "Use 10us interrupt sleep"
 # ------------- 10us interrupt patches -------------
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/67/30467/1 && git cherry-pick FETCH_HEAD # 30467: tap: fix the buffering index for gro | https://gerrit.fd.io/r/c/vpp/+/30467
-# TODO git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/7 && git cherry-pick FETCH_HEAD # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/9 && git cherry-pick FETCH_HEAD # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 
 # ------------- interrupt patches -------------
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/08/29808/25 && git cherry-pick FETCH_HEAD # 29808: interface: rx queue infra rework, part one | https://gerrit.fd.io/r/c/vpp/+/29808
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/28/30128/5 && git cherry-pick FETCH_HEAD # 30128: virtio: update interrupt mode to new infra | https://gerrit.fd.io/r/c/vpp/+/30128
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/91/30391/5 && git cherry-pick FETCH_HEAD # 30391: interface: fix rx-placement api/cli for new infra | https://gerrit.fd.io/r/c/vpp/+/30391
+# git fetch "https://gerrit.fd.io/r/vpp" refs/changes/08/29808/25 && git cherry-pick FETCH_HEAD # 29808: interface: rx queue infra rework, part one | https://gerrit.fd.io/r/c/vpp/+/29808
+# git fetch "https://gerrit.fd.io/r/vpp" refs/changes/28/30128/5 && git cherry-pick FETCH_HEAD # 30128: virtio: update interrupt mode to new infra | https://gerrit.fd.io/r/c/vpp/+/30128
+# git fetch "https://gerrit.fd.io/r/vpp" refs/changes/91/30391/5 && git cherry-pick FETCH_HEAD # 30391: interface: fix rx-placement api/cli for new infra | https://gerrit.fd.io/r/c/vpp/+/30391
 # ------------- interrupt patches -------------
 
 # ------------- Cnat patches -------------
