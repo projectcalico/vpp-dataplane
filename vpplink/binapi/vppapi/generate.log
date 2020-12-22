@@ -1,14 +1,19 @@
-VPP Version                 : 21.06-rc0~13-gc9fb86f14
+VPP Version                 : 21.06-rc0~18-g03c8ee0dd
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 884058096 hsa: http server: fix http response format type error
 ------------------ Cherry picked commits --------------------
-c9fb86f14 capo: Calico Policies plugin
-b2c1ed909 acl: acl-plugin custom policies
-f99c92f58 cnat: k8s extensions
-5259c9faf cnat: add input feature node
-cad761089 cnat: Fix session with deleted tr
-4772c7b48 cnat: Fix throttle hash & cleanup
-73874f398 virtio: DRAFT: multi tx support
-6a4e6add4 tap: fix the buffering index for gro
-80d27b0b9 Use 10us interrupt sleep
+03c8ee0dd capo: Calico Policies plugin
+c306397ec acl: acl-plugin custom policies
+3d8c278b1 cnat: k8s extensions
+5f425eb20 cnat: add input feature node
+e5ed083a7 cnat: Fix session with deleted tr
+67cb972ea cnat: Fix throttle hash & cleanup
+7f730bf68 devices: adapt af_packet to new rxq framework
+795e7e851 interfaces: fix vnet_hw_if_update_runtime_data
+8d5a0936e interface: let drivers control polling when down
+6687dffe8 interface: fix rx-placement api/cli for new infra
+f4a893ead virtio: update interrupt mode to new infra
+135e058aa interface: rx queue infra rework, part one
+eb5b6e70a virtio: DRAFT: multi tx support
+9677c2e10 tap: fix the buffering index for gro
 -------------------------------------------------------------

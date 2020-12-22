@@ -38,7 +38,7 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/28/30128/5 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/91/30391/5 && git cherry-pick FETCH_HEAD # 30391: interface: fix rx-placement api/cli for new infra | https://gerrit.fd.io/r/c/vpp/+/30391
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/27/30527/1 && git cherry-pick FETCH_HEAD # 30527: interface: let drivers control polling when down | https://gerrit.fd.io/r/c/vpp/+/30527
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/30/30530/1 && git cherry-pick FETCH_HEAD # 30530: interfaces: fix vnet_hw_if_update_runtime_data | https://gerrit.fd.io/r/c/vpp/+/30530
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/85/30485/2 && git cherry-pick FETCH_HEAD # 30485: devices: adapt to new vnet rxq framework | https://gerrit.fd.io/r/c/vpp/+/30485
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/85/30485/6 && git cherry-pick FETCH_HEAD # 30485: devices: adapt to new vnet rxq framework | https://gerrit.fd.io/r/c/vpp/+/30485
 # ------------- interrupt patches -------------
 
 # ------------- Cnat patches -------------
@@ -52,5 +52,3 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/28 && git cherry-pi
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/28083/14 && git cherry-pick FETCH_HEAD # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/15 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 # ------------- Policies patches -------------
-
-
