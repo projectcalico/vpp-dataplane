@@ -61,15 +61,29 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 	conf.IsUp = (link.Attrs().Flags & net.FlagUp) != 0
 	if conf.IsUp {
 		// Grab addresses and routes
-		conf.Addresses, err = netlink.AddrList(link, netlink.FAMILY_ALL)
+		tmpAddresses, err := netlink.AddrList(link, netlink.FAMILY_ALL)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot list %s addresses", params.MainInterface)
 		}
-		conf.Routes, err = netlink.RouteList(link, netlink.FAMILY_ALL)
+		for _, addr := range tmpAddresses {
+			// remove link local addresses
+			if vpplink.IsIP6(addr.IP) && addr.IP.IsLinkLocalUnicast() {
+				log.Infof("Skipping linklocal address %s", addr.String())
+				continue
+			}
+			conf.Addresses = append(conf.Addresses, addr)
+		}
+
+		tmpRoutes, err := netlink.RouteList(link, netlink.FAMILY_ALL)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot list %s routes", params.MainInterface)
 		}
-		for i, route := range conf.Routes {
+		for i, route := range tmpRoutes {
+			// remove link-local routes
+			if utils.RouteIsLinkLocalUnicast(&route) {
+				log.Infof("Skipping linklocal route %s", route.String())
+				continue
+			}
 			if route.Dst == nil {
 				if utils.RouteIsIP6(&route) {
 					conf.Routes[i].Dst = &net.IPNet{
@@ -83,6 +97,7 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 					}
 				}
 			}
+			conf.Routes = append(conf.Routes, route)
 		}
 	}
 	conf.HardwareAddr = link.Attrs().HardwareAddr

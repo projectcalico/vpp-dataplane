@@ -21,7 +21,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -58,10 +57,6 @@ func (d *UplinkDriverData) GetName() string {
 
 func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 	for _, addr := range d.conf.Addresses {
-		if vpplink.IsIP6(addr.IP) && addr.IP.IsLinkLocalUnicast() {
-			log.Infof("Skipping linklocal address %s", addr.String())
-			continue
-		}
 		log.Infof("restoring address %s", addr.String())
 		err := netlink.AddrAdd(link, &addr)
 		if err != nil {
@@ -70,10 +65,6 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 		}
 	}
 	for _, route := range d.conf.Routes {
-		if utils.RouteIsLinkLocalUnicast(&route) {
-			log.Infof("Skipping linklocal route %s", route.String())
-			continue
-		}
 		log.Infof("restoring route %s", route.String())
 		route.LinkIndex = link.Attrs().Index
 		err := netlink.RouteAdd(&route)
