@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
@@ -168,12 +167,8 @@ func (s *Server) watchNodes(initialResourceVersion string) error {
 			var calicoNode *calicov3.Node
 			switch update.Type {
 			case watch.Error:
-				switch update.Error.(type) {
-				case calicoerr.ErrorWatchTerminated:
-					break watch
-				default:
-					return errors.Wrap(update.Error, "error while watching for Node updates")
-				}
+				s.log.Infof("nodes watch returned an error")
+				break watch
 			case watch.Modified, watch.Added:
 				calicoNode = update.Object.(*calicov3.Node)
 			case watch.Deleted:

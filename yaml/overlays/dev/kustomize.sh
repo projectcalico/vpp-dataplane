@@ -203,26 +203,29 @@ calico_create_template ()
   WRK=${WRK:=0}
   MAINCORE=${MAINCORE:=12}
   DPDK=${DPDK:=true}
-  export CALICO_IPV4POOL_CIDR=$CLUSTER_POD_CIDR4
+  export default_ipv4_pool_cidr=$CLUSTER_POD_CIDR4
   export CALICO_IPV6POOL_CIDR=$CLUSTER_POD_CIDR6
   export FELIX_IPV6SUPPORT=$(is_v4_v46_v6 false true true)
-  export CALICO_IP=$(is_v4_v46_v6 autodetect autodetect none)
-  export CALICO_IP6=$(is_v4_v46_v6 none autodetect autodetect)
+  export IP=$(is_v4_v46_v6 autodetect autodetect none)
+  export IP6=$(is_v4_v46_v6 none autodetect autodetect)
 
-  export SERVICE_PREFIX=$SERVICE_CIDR
+  export service_prefix=$SERVICE_CIDR
   export cni_network_config=$(get_cni_network_config)
-  export CALICOVPP_CONFIG_TEMPLATE=${CALICOVPP_CONFIG_TEMPLATE:=$(get_vpp_conf)}
+  export vpp_uplink_driver=${CALICOVPP_NATIVE_DRIVER}
+  export vpp_dataplane_interface=${CALICOVPP_INTERFACE:=eth0}
+  export vpp_config_template=${CALICOVPP_CONFIG_TEMPLATE:=$(get_vpp_conf)}
+  export veth_mtu=${CALICOVPP_TAP_MTU:=0}
+
   export CALICOVPP_CONFIG_EXEC_TEMPLATE=${CALICOVPP_CONFIG_EXEC_TEMPLATE}
   export CALICOVPP_INIT_SCRIPT_TEMPLATE=${CALICOVPP_INIT_SCRIPT_TEMPLATE}
   export CALICO_NODE_IMAGE=${CALICO_NODE_IMAGE:=calicovpp/node:latest}
   export CALICO_VPP_IMAGE=${CALICO_VPP_IMAGE:=calicovpp/vpp:latest}
-  export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:=v3.15.1}
+  export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:=v3.17.1}
   export CALICO_CNI_IMAGE=${CALICO_CNI_IMAGE:=calico/cni:${CALICO_VERSION_TAG}}
   export IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:=IfNotPresent}
   export CALICOVPP_VPP_STARTUP_SLEEP=${CALICOVPP_VPP_STARTUP_SLEEP:=0}
   export CALICOVPP_TAP_RX_QUEUES=${CALICOVPP_TAP_RX_QUEUES:=1}
   export CALICOVPP_TAP_TX_QUEUES=${CALICOVPP_TAP_TX_QUEUES:=1}
-  export CALICOVPP_TAP_MTU=${CALICOVPP_TAP_MTU:=0}
   export CALICOVPP_TAP_GSO_ENABLED=${CALICOVPP_TAP_GSO_ENABLED:=true}
   export CALICOVPP_IPSEC_ENABLED=${CALICOVPP_IPSEC_ENABLED:=false}
   export CALICOVPP_NAT_ENABLED=${CALICOVPP_NAT_ENABLED:=true}
@@ -230,8 +233,6 @@ calico_create_template ()
   export CALICOVPP_IPSEC_IKEV2_PSK=${CALICOVPP_IPSEC_IKEV2_PSK:=keykeykey}
   export CALICO_IPV4POOL_IPIP=${CALICO_IPV4POOL_IPIP:=Never}
   export CALICO_IPV4POOL_VXLAN=${CALICO_IPV4POOL_VXLAN:=Never}
-  export CALICOVPP_INTERFACE=${CALICOVPP_INTERFACE:=eth0}
-  export CALICOVPP_NATIVE_DRIVER=${CALICOVPP_NATIVE_DRIVER}
   export CALICOVPP_CONFIGURE_EXTRA_ADDRESSES=${CALICOVPP_CONFIGURE_EXTRA_ADDRESSES:=0}
   export CALICOVPP_IPSEC_CROSS_TUNNELS=${CALICOVPP_IPSEC_CROSS_TUNNELS:=false}
   export CALICOVPP_CORE_PATTERN=${CALICOVPP_CORE_PATTERN:=/var/run/vpp/vppcore.%e.%p}
@@ -243,8 +244,8 @@ calico_create_template ()
   export CALICOVPP_TAP_RING_SIZE=${CALICOVPP_TAP_RING_SIZE}
   export USERHOME=${HOME}
   export FELIX_XDPENABLED=${FELIX_XDPENABLED:=false}
-  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=$CALICOVPP_INTERFACE}
-  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=$CALICOVPP_INTERFACE}
+  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=$vpp_dataplane_interface}
+  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=$vpp_dataplane_interface}
   cd $SCRIPTDIR
   kubectl kustomize . | envsubst | sudo tee /tmp/calico-vpp.yaml > /dev/null
 }

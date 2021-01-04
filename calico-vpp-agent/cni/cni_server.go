@@ -23,7 +23,7 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
-	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/proto"
+	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"

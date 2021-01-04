@@ -1,4 +1,5 @@
 //go:generate protoc -I=. --gogo_out=plugins=grpc:. ./felixbackend.proto
+//go:generate protoc -I=. --gogo_out=plugins=grpc:. ./cnibackend.proto
 
 package proto
 

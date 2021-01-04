@@ -22,7 +22,7 @@ import (
 	"net"
 
 	pb "github.com/gogo/protobuf/proto"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy/proto"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 )
 
 func (s *Server) RecvMessage(conn net.Conn) (msg interface{}, err error) {

@@ -23,7 +23,6 @@ import (
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocliv3 "github.com/projectcalico/libcalico-go/lib/clientv3"
-	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	"github.com/sirupsen/logrus"
@@ -171,12 +170,8 @@ func (c *ipamCache) SyncIPAM() error {
 			pool := update.Object
 			switch update.Type {
 			case watch.Error:
-				switch update.Error.(type) {
-				case calicoerr.ErrorWatchTerminated:
-					break watch
-				default:
-					return errors.Wrap(update.Error, "error while watching IPPools")
-				}
+				c.log.Infof("ipam watch returned an error")
+				break watch
 			case watch.Deleted:
 				del = true
 				pool = update.Previous

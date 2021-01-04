@@ -1,3 +1,4 @@
+---
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
@@ -25,97 +26,10 @@ spec:
         - name: calico-node
           image: ${CALICO_NODE_IMAGE}
           imagePullPolicy: ${IMAGE_PULL_POLICY}
+          envFrom:
+          - configMapRef:
+              name: calico-node-dev-config
           env:
-            - name: FELIX_XDPENABLED
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: FELIX_XDPENABLED
-            - name: CALICOVPP_TAP_RX_QUEUES
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_TAP_RX_QUEUES
-            - name: CALICOVPP_TAP_TX_QUEUES
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_TAP_TX_QUEUES
-            - name: CALICOVPP_TAP_MTU
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_TAP_MTU
-            - name: CALICOVPP_TAP_GSO_ENABLED
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_TAP_GSO_ENABLED
-            - name: CALICOVPP_RX_MODE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_RX_MODE
-            - name: CALICOVPP_TAP_RX_MODE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_TAP_RX_MODE
-            - name: CALICOVPP_TAP_RING_SIZE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_TAP_RING_SIZE
-            - name: CALICOVPP_IPSEC_ENABLED
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_IPSEC_ENABLED
-            - name: CALICOVPP_NAT_ENABLED
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_NAT_ENABLED
-            - name: CALICOVPP_POLICIES_ENABLED
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_POLICIES_ENABLED
-            - name: CALICOVPP_IPSEC_IKEV2_PSK
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_IPSEC_IKEV2_PSK
-            - name: CALICOVPP_IPSEC_CROSS_TUNNELS
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_IPSEC_CROSS_TUNNELS
-            - name: CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_CONFIGURE_EXTRA_ADDRESSES
-            - name: SERVICE_PREFIX
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: SERVICE_PREFIX
             - name: DATASTORE_TYPE
               value: "kubernetes"
             - name: WAIT_FOR_DATASTORE
@@ -133,66 +47,6 @@ spec:
               value: "k8s,bgp"
             - name: CALICO_ROUTER_ID
               value: "hash"
-            - name: CALICO_IPV4POOL_CIDR
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICO_IPV4POOL_CIDR
-            - name: CALICO_IPV4POOL_NAT_OUTGOING
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICO_IPV4POOL_NAT_OUTGOING
-            - name: CALICO_IPV6POOL_NAT_OUTGOING
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICO_IPV6POOL_NAT_OUTGOING
-            - name: CALICO_IPV6POOL_CIDR
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICO_IPV6POOL_CIDR
-            - name: CALICO_IPV4POOL_IPIP
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICO_IPV4POOL_IPIP
-            - name: CALICO_IPV4POOL_VXLAN
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICO_IPV4POOL_VXLAN
-            - name: IP_AUTODETECTION_METHOD
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: IP_AUTODETECTION_METHOD
-            - name: IP6_AUTODETECTION_METHOD
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: IP6_AUTODETECTION_METHOD
-            - name: IP
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICO_IP
-            - name: IP6
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICO_IP6
             - name: FELIX_IPINIPMTU
               value: ""
               valueFrom:
@@ -203,12 +57,6 @@ spec:
               value: "true"
             - name: FELIX_DEFAULTENDPOINTTOHOSTACTION
               value: "ACCEPT"
-            - name: FELIX_IPV6SUPPORT
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: FELIX_IPV6SUPPORT
             - name: FELIX_LOGSEVERITYSCREEN
               value: "info"
             - name: FELIX_HEALTHENABLED
@@ -216,111 +64,12 @@ spec:
         - name: vpp
           image: ${CALICO_VPP_IMAGE}
           imagePullPolicy: ${IMAGE_PULL_POLICY}
+          envFrom:
+          - configMapRef:
+              name: vpp-dev-config
           env:
             - name: CALICOVPP_IP_CONFIG
               value: linux
-            - name: CALICOVPP_INTERFACE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_INTERFACE
-            - name: CALICOVPP_CONFIGURE_EXTRA_ADDRESSES
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_CONFIGURE_EXTRA_ADDRESSES
-            - name: CALICOVPP_CORE_PATTERN
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_CORE_PATTERN
-            - name: CALICOVPP_RX_MODE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_RX_MODE
-            - name: CALICOVPP_RX_QUEUES
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_RX_QUEUES
-            - name: CALICOVPP_RING_SIZE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_RING_SIZE
-            - name: CALICOVPP_NATIVE_DRIVER
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_NATIVE_DRIVER
-            - name: CALICOVPP_TAP_RX_MODE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_TAP_RX_MODE
-            - name: CALICOVPP_TAP_RING_SIZE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_TAP_RING_SIZE
-            - name: CALICOVPP_TAP_MTU
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_TAP_MTU
-            - name: CALICOVPP_VPP_STARTUP_SLEEP
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_VPP_STARTUP_SLEEP
-            - name: CALICOVPP_CONFIG_TEMPLATE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_CONFIG_TEMPLATE
-            - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_CONFIG_EXEC_TEMPLATE
-            - name: CALICOVPP_SWAP_DRIVER
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_SWAP_DRIVER
-            - name: CALICOVPP_INIT_SCRIPT_TEMPLATE
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_INIT_SCRIPT_TEMPLATE
-            - name: CALICOVPP_DEFAULT_GW
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: CALICOVPP_DEFAULT_GW
-            - name: SERVICE_PREFIX
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: SERVICE_PREFIX
             - name: DATASTORE_TYPE
               value: "kubernetes"
             - name: WAIT_FOR_DATASTORE
