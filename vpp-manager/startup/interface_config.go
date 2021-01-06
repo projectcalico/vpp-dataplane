@@ -78,7 +78,7 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot list %s routes", params.MainInterface)
 		}
-		for i, route := range tmpRoutes {
+		for _, route := range tmpRoutes {
 			// remove link-local routes
 			if utils.RouteIsLinkLocalUnicast(&route) {
 				log.Infof("Skipping linklocal route %s", route.String())
@@ -86,12 +86,12 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 			}
 			if route.Dst == nil {
 				if utils.RouteIsIP6(&route) {
-					conf.Routes[i].Dst = &net.IPNet{
+					route.Dst = &net.IPNet{
 						IP:   net.IPv6zero,
 						Mask: net.CIDRMask(0, 128),
 					}
 				} else {
-					conf.Routes[i].Dst = &net.IPNet{
+					route.Dst = &net.IPNet{
 						IP:   net.IPv4zero,
 						Mask: net.CIDRMask(0, 32),
 					}
