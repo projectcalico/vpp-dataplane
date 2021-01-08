@@ -182,7 +182,7 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 
 	params.NativeDriver = ""
 	if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
-		params.NativeDriver = conf
+		params.NativeDriver = strings.ToLower(conf)
 	}
 
 	params.NumRxQueues = DefaultNumRxQueues

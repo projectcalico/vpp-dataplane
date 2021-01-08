@@ -135,6 +135,7 @@ func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.
 	case NATIVE_DRIVER_NONE:
 		fallthrough
 	default:
+		log.Warnf("Using default driver")
 		d = NewDefaultDriver(params, conf)
 	}
 	d.IsSupported(true /* warn */)
