@@ -23,7 +23,7 @@ REVERSE_LINES=sed -e '1!G;h;$$!d'
 
 # === BEGIN USER OPTIONS ===
 # Disk setup
-DISK_SIZE_GB ?= 32
+DISK_SIZE_GB ?= 128
 # VM Resources
 MASTER_CPUS ?= 2
 MASTER_MEMORY_SIZE_GB ?= 4
@@ -58,6 +58,22 @@ CLUSTER_NAME ?= $(shell basename $(REPO_ROOT))
 VAGRANT_LOG ?=
 VAGRANT_VAGRANTFILE ?= $(MFILECWD)/vagrantfiles/Vagrantfile
 # === END USER OPTIONS ===
+
+box:
+	vagrant box remove -f calico-vpp-base || true
+	virsh vol-delete --pool default calico-vpp-base_vagrant_box_image_0.img || true
+	export VAGRANT_VAGRANTFILE=$(MFILECWD)/base/Vagrantfile; \
+	export VAGRANT_LIBVIRT_VIRT_SYSPREP_OPERATIONS="defaults,-ssh-userdir,-ssh-hostkeys,-lvm-uuids"; \
+	export VAGRANT_LIBVIRT_VIRT_SYSPREP_OPTIONS="--delete /etc/machine-id --firstboot-command 'systemd-machine-id-setup; netplan apply'"; \
+	vagrant up && \
+	vagrant package --output calico-vpp-base.box && \
+	vagrant destroy -f
+	vagrant box add --name calico-vpp-base calico-vpp-base.box
+	rm calico-vpp-base.box
+
+clean-box:
+	VAGRANT_VAGRANTFILE=$(MFILECWD)/base/Vagrantfile \
+	vagrant destroy -f
 
 preflight: versions token ## Run checks and gather variables, used for the the `up` target.
 	$(eval KUBETOKEN := $(shell cat $(MFILECWD)/.vagrant/KUBETOKEN))

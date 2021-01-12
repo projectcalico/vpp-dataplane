@@ -11,18 +11,6 @@ Vagrant.configure('2') do |config|
         l.machine_virtual_size = DISK_SIZE_GB
     end
 
-    # Hack around vagrant's inability to configure the vm before mounting shared folders, and attempt to install packages for nfs
-    if DNS_SERVER != ''
-        config.trigger.before :up do |trigger|
-            trigger.info = "DNS hack"
-            trigger.run = {inline: "bash -c 'sudo iptables -t nat -I PREROUTING 1 -p udp -m udp --dport 53 -j DNAT --to-destination #{DNS_SERVER}'"}
-        end
-        config.trigger.after :up do |trigger|
-            trigger.info = "DNS hack cleanup"
-            trigger.run = {inline: "bash -c 'sudo iptables -t nat -D PREROUTING 1'"}
-        end
-    end
-
     config.vm.define 'master' do |subconfig|
         subconfig.vm.hostname = 'master'
         subconfig.vm.network :private_network, ip: MASTER_IP
@@ -30,7 +18,6 @@ Vagrant.configure('2') do |config|
             create: true, readonly: true, linux__nfs_options: ['ro','no_subtree_check','all_squash','crossmnt']
         # Provision
         subconfig.vm.provision :shell, inline: $prepareScript
-        subconfig.vm.provision :shell, inline: $baseInstallScript
         subconfig.vm.provision :shell, inline: $verifyNodeScript
         subconfig.vm.provision :shell, inline: $kubeMasterScript
         # Addons
