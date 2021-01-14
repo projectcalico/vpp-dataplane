@@ -52,3 +52,8 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/28 && git cherry-pi
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/28083/14 && git cherry-pick FETCH_HEAD # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/15 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 # ------------- Policies patches -------------
+
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/95/30695/2 && git cherry-pick FETCH_HEAD # 30695: wireguard: testing alternative timer dispatch | https://gerrit.fd.io/r/c/vpp/+/30695
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/26/30726/3 && git cherry-pick FETCH_HEAD # 30726: avf: fix l2_len for csum offload | https://gerrit.fd.io/r/c/vpp/+/30726
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/62/30762/1 && git cherry-pick FETCH_HEAD # 30762: avf: keep irq on main if PF cannot do WB_ON_ITR | https://gerrit.fd.io/r/c/vpp/+/30762
+

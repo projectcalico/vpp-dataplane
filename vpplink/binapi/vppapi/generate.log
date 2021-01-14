@@ -1,7 +1,10 @@
-VPP Version                 : 21.06-rc0~18-g03c8ee0dd
+VPP Version                 : 21.06-rc0~21-gad7811e32
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 884058096 hsa: http server: fix http response format type error
 ------------------ Cherry picked commits --------------------
+ad7811e32 avf: keep irq on main if PF cannot do WB_ON_ITR
+01e52515e avf: fix l2_len for csum offload
+1058fe61f wireguard: testing alternative timer dispatch
 03c8ee0dd capo: Calico Policies plugin
 c306397ec acl: acl-plugin custom policies
 3d8c278b1 cnat: k8s extensions
