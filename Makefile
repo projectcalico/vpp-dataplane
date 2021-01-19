@@ -39,13 +39,15 @@ install-test-deps:
 	sudo apt-get update
 	sudo apt-get install -y jq nfs-kernel-server qemu-kvm libvirt-daemon-system \
 		libvirt-clients bridge-utils qemu ebtables dnsmasq-base libxslt-dev \
-		libxml2-dev libvirt-dev zlib1g-dev ruby-dev build-essential
+		libxml2-dev libvirt-dev zlib1g-dev ruby-dev build-essential \
+		libguestfs-tools
+	sudo chmod a+r /boot/vmlinuz*	# Required for libguestfs
 	sudo adduser `id -un` libvirt
 	sudo adduser `id -un` kvm
 	newgrp libvirt
-	wget https://releases.hashicorp.com/vagrant/2.2.9/vagrant_2.2.9_x86_64.deb
-	sudo dpkg -i vagrant_2.2.9_x86_64.deb
-	rm vagrant_2.2.9_x86_64.deb
+	wget https://releases.hashicorp.com/vagrant/2.2.14/vagrant_2.2.14_x86_64.deb
+	sudo dpkg -i vagrant_2.2.14_x86_64.deb
+	rm vagrant_2.2.14_x86_64.deb
 	vagrant plugin install vagrant-libvirt
 
 .PHONY: start-test-cluster

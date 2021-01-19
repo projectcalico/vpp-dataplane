@@ -17,13 +17,14 @@ SHELL := /bin/bash
 
 MFILECWD = $(shell pwd)
 REPO_ROOT = $(shell realpath $(MFILECWD)/../..)
+HAVE_BOX = $(shell vagrant box list | grep calico-vpp-base)
 
 # sed 1-liner to reverse the lines in an input stream
 REVERSE_LINES=sed -e '1!G;h;$$!d'
 
 # === BEGIN USER OPTIONS ===
 # Disk setup
-DISK_SIZE_GB ?= 32
+DISK_SIZE_GB ?= 128
 # VM Resources
 MASTER_CPUS ?= 2
 MASTER_MEMORY_SIZE_GB ?= 4
@@ -58,6 +59,23 @@ CLUSTER_NAME ?= $(shell basename $(REPO_ROOT))
 VAGRANT_LOG ?=
 VAGRANT_VAGRANTFILE ?= $(MFILECWD)/vagrantfiles/Vagrantfile
 # === END USER OPTIONS ===
+
+box:
+	-vagrant box remove -f calico-vpp-base --all --no-color
+	-virsh vol-delete --pool default calico-vpp-base_vagrant_box_image_0.img
+	sudo chmod +r /boot/vmlinuz-* # workaround for libguestfs bug, see https://askubuntu.com/questions/1046828/how-to-run-libguestfs-tools-tools-such-as-virt-make-fs-without-sudo
+	export VAGRANT_VAGRANTFILE=$(MFILECWD)/base/Vagrantfile; \
+	export VAGRANT_LIBVIRT_VIRT_SYSPREP_OPERATIONS="defaults,-ssh-userdir,-ssh-hostkeys,-lvm-uuids"; \
+	export VAGRANT_LIBVIRT_VIRT_SYSPREP_OPTIONS="--delete /etc/machine-id --firstboot-command 'systemd-machine-id-setup; sleep 1; netplan apply'"; \
+	vagrant up && \
+	vagrant package --output calico-vpp-base.box && \
+	vagrant destroy -f
+	vagrant box add --name calico-vpp-base calico-vpp-base.box
+	rm calico-vpp-base.box
+
+clean-box:
+	VAGRANT_VAGRANTFILE=$(MFILECWD)/base/Vagrantfile \
+	vagrant destroy -f
 
 preflight: versions token ## Run checks and gather variables, used for the the `up` target.
 	$(eval KUBETOKEN := $(shell cat $(MFILECWD)/.vagrant/KUBETOKEN))
@@ -99,7 +117,10 @@ versions: ## Print the "imporant" tools versions out for easier debugging.
 
 	@echo "=== END Version Info ==="
 
-up: preflight ## Start Kubernetes Vagrant multi-node cluster. Creates, starts and bootsup the master and node VMs.
+up: ## Start Kubernetes Vagrant multi-node cluster. Creates, starts and bootsup the master and node VMs.
+ifeq "$(HAVE_BOX)" ""
+	@$(MAKE) box
+endif
 	@$(MAKE) start
 
 start: preflight
