@@ -1,4 +1,4 @@
-FROM calico/node:v3.15.1
+FROM calico/node:v3.17.1
 
 LABEL maintainer="aloaugus@cisco.com"
 
