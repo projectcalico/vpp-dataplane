@@ -332,6 +332,11 @@ func (v *VppRunner) configureVpp() (err error) {
 		return errors.Wrap(err, "error configuring vpptap0 as pod intf")
 	}
 
+	err = v.vpp.SetK8sSnatPolicy()
+	if err != nil {
+		return errors.Wrap(err, "Error configuring cnat source policy")
+	}
+
 	// Linux side tap setup
 	link, err = netlink.LinkByName(config.HostIfName)
 	if err != nil {
