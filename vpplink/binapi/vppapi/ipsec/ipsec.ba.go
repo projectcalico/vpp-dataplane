@@ -5,7 +5,7 @@
 // Contents:
 //   1 enum
 //   3 structs
-//  42 messages
+//  38 messages
 //
 package ipsec
 
@@ -28,8 +28,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "ipsec"
-	APIVersion = "4.0.0"
-	VersionCrc = 0x15265a51
+	APIVersion = "5.0.0"
+	VersionCrc = 0x553d5bf8
 )
 
 // IpsecSpdAction defines enum 'ipsec_spd_action'.
@@ -1603,244 +1603,6 @@ func (m *IpsecSpdsDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IpsecTunnelIfAddDel defines message 'ipsec_tunnel_if_add_del'.
-type IpsecTunnelIfAddDel struct {
-	IsAdd              bool             `binapi:"bool,name=is_add" json:"is_add,omitempty"`
-	Esn                bool             `binapi:"bool,name=esn" json:"esn,omitempty"`
-	AntiReplay         bool             `binapi:"bool,name=anti_replay" json:"anti_replay,omitempty"`
-	LocalIP            ip_types.Address `binapi:"address,name=local_ip" json:"local_ip,omitempty"`
-	RemoteIP           ip_types.Address `binapi:"address,name=remote_ip" json:"remote_ip,omitempty"`
-	LocalSpi           uint32           `binapi:"u32,name=local_spi" json:"local_spi,omitempty"`
-	RemoteSpi          uint32           `binapi:"u32,name=remote_spi" json:"remote_spi,omitempty"`
-	CryptoAlg          uint8            `binapi:"u8,name=crypto_alg" json:"crypto_alg,omitempty"`
-	LocalCryptoKeyLen  uint8            `binapi:"u8,name=local_crypto_key_len" json:"local_crypto_key_len,omitempty"`
-	LocalCryptoKey     []byte           `binapi:"u8[128],name=local_crypto_key" json:"local_crypto_key,omitempty"`
-	RemoteCryptoKeyLen uint8            `binapi:"u8,name=remote_crypto_key_len" json:"remote_crypto_key_len,omitempty"`
-	RemoteCryptoKey    []byte           `binapi:"u8[128],name=remote_crypto_key" json:"remote_crypto_key,omitempty"`
-	IntegAlg           uint8            `binapi:"u8,name=integ_alg" json:"integ_alg,omitempty"`
-	LocalIntegKeyLen   uint8            `binapi:"u8,name=local_integ_key_len" json:"local_integ_key_len,omitempty"`
-	LocalIntegKey      []byte           `binapi:"u8[128],name=local_integ_key" json:"local_integ_key,omitempty"`
-	RemoteIntegKeyLen  uint8            `binapi:"u8,name=remote_integ_key_len" json:"remote_integ_key_len,omitempty"`
-	RemoteIntegKey     []byte           `binapi:"u8[128],name=remote_integ_key" json:"remote_integ_key,omitempty"`
-	Renumber           bool             `binapi:"bool,name=renumber" json:"renumber,omitempty"`
-	ShowInstance       uint32           `binapi:"u32,name=show_instance" json:"show_instance,omitempty"`
-	UDPEncap           bool             `binapi:"bool,name=udp_encap" json:"udp_encap,omitempty"`
-	TxTableID          uint32           `binapi:"u32,name=tx_table_id" json:"tx_table_id,omitempty"`
-	Salt               uint32           `binapi:"u32,name=salt" json:"salt,omitempty"`
-}
-
-func (m *IpsecTunnelIfAddDel) Reset()               { *m = IpsecTunnelIfAddDel{} }
-func (*IpsecTunnelIfAddDel) GetMessageName() string { return "ipsec_tunnel_if_add_del" }
-func (*IpsecTunnelIfAddDel) GetCrcString() string   { return "2b135e68" }
-func (*IpsecTunnelIfAddDel) GetMessageType() api.MessageType {
-	return api.RequestMessage
-}
-
-func (m *IpsecTunnelIfAddDel) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 1       // m.IsAdd
-	size += 1       // m.Esn
-	size += 1       // m.AntiReplay
-	size += 1       // m.LocalIP.Af
-	size += 1 * 16  // m.LocalIP.Un
-	size += 1       // m.RemoteIP.Af
-	size += 1 * 16  // m.RemoteIP.Un
-	size += 4       // m.LocalSpi
-	size += 4       // m.RemoteSpi
-	size += 1       // m.CryptoAlg
-	size += 1       // m.LocalCryptoKeyLen
-	size += 1 * 128 // m.LocalCryptoKey
-	size += 1       // m.RemoteCryptoKeyLen
-	size += 1 * 128 // m.RemoteCryptoKey
-	size += 1       // m.IntegAlg
-	size += 1       // m.LocalIntegKeyLen
-	size += 1 * 128 // m.LocalIntegKey
-	size += 1       // m.RemoteIntegKeyLen
-	size += 1 * 128 // m.RemoteIntegKey
-	size += 1       // m.Renumber
-	size += 4       // m.ShowInstance
-	size += 1       // m.UDPEncap
-	size += 4       // m.TxTableID
-	size += 4       // m.Salt
-	return size
-}
-func (m *IpsecTunnelIfAddDel) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeBool(m.IsAdd)
-	buf.EncodeBool(m.Esn)
-	buf.EncodeBool(m.AntiReplay)
-	buf.EncodeUint8(uint8(m.LocalIP.Af))
-	buf.EncodeBytes(m.LocalIP.Un.XXX_UnionData[:], 16)
-	buf.EncodeUint8(uint8(m.RemoteIP.Af))
-	buf.EncodeBytes(m.RemoteIP.Un.XXX_UnionData[:], 16)
-	buf.EncodeUint32(m.LocalSpi)
-	buf.EncodeUint32(m.RemoteSpi)
-	buf.EncodeUint8(m.CryptoAlg)
-	buf.EncodeUint8(m.LocalCryptoKeyLen)
-	buf.EncodeBytes(m.LocalCryptoKey, 128)
-	buf.EncodeUint8(m.RemoteCryptoKeyLen)
-	buf.EncodeBytes(m.RemoteCryptoKey, 128)
-	buf.EncodeUint8(m.IntegAlg)
-	buf.EncodeUint8(m.LocalIntegKeyLen)
-	buf.EncodeBytes(m.LocalIntegKey, 128)
-	buf.EncodeUint8(m.RemoteIntegKeyLen)
-	buf.EncodeBytes(m.RemoteIntegKey, 128)
-	buf.EncodeBool(m.Renumber)
-	buf.EncodeUint32(m.ShowInstance)
-	buf.EncodeBool(m.UDPEncap)
-	buf.EncodeUint32(m.TxTableID)
-	buf.EncodeUint32(m.Salt)
-	return buf.Bytes(), nil
-}
-func (m *IpsecTunnelIfAddDel) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.IsAdd = buf.DecodeBool()
-	m.Esn = buf.DecodeBool()
-	m.AntiReplay = buf.DecodeBool()
-	m.LocalIP.Af = ip_types.AddressFamily(buf.DecodeUint8())
-	copy(m.LocalIP.Un.XXX_UnionData[:], buf.DecodeBytes(16))
-	m.RemoteIP.Af = ip_types.AddressFamily(buf.DecodeUint8())
-	copy(m.RemoteIP.Un.XXX_UnionData[:], buf.DecodeBytes(16))
-	m.LocalSpi = buf.DecodeUint32()
-	m.RemoteSpi = buf.DecodeUint32()
-	m.CryptoAlg = buf.DecodeUint8()
-	m.LocalCryptoKeyLen = buf.DecodeUint8()
-	m.LocalCryptoKey = make([]byte, 128)
-	copy(m.LocalCryptoKey, buf.DecodeBytes(len(m.LocalCryptoKey)))
-	m.RemoteCryptoKeyLen = buf.DecodeUint8()
-	m.RemoteCryptoKey = make([]byte, 128)
-	copy(m.RemoteCryptoKey, buf.DecodeBytes(len(m.RemoteCryptoKey)))
-	m.IntegAlg = buf.DecodeUint8()
-	m.LocalIntegKeyLen = buf.DecodeUint8()
-	m.LocalIntegKey = make([]byte, 128)
-	copy(m.LocalIntegKey, buf.DecodeBytes(len(m.LocalIntegKey)))
-	m.RemoteIntegKeyLen = buf.DecodeUint8()
-	m.RemoteIntegKey = make([]byte, 128)
-	copy(m.RemoteIntegKey, buf.DecodeBytes(len(m.RemoteIntegKey)))
-	m.Renumber = buf.DecodeBool()
-	m.ShowInstance = buf.DecodeUint32()
-	m.UDPEncap = buf.DecodeBool()
-	m.TxTableID = buf.DecodeUint32()
-	m.Salt = buf.DecodeUint32()
-	return nil
-}
-
-// IpsecTunnelIfAddDelReply defines message 'ipsec_tunnel_if_add_del_reply'.
-type IpsecTunnelIfAddDelReply struct {
-	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
-	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
-}
-
-func (m *IpsecTunnelIfAddDelReply) Reset()               { *m = IpsecTunnelIfAddDelReply{} }
-func (*IpsecTunnelIfAddDelReply) GetMessageName() string { return "ipsec_tunnel_if_add_del_reply" }
-func (*IpsecTunnelIfAddDelReply) GetCrcString() string   { return "5383d31f" }
-func (*IpsecTunnelIfAddDelReply) GetMessageType() api.MessageType {
-	return api.ReplyMessage
-}
-
-func (m *IpsecTunnelIfAddDelReply) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.Retval
-	size += 4 // m.SwIfIndex
-	return size
-}
-func (m *IpsecTunnelIfAddDelReply) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeInt32(m.Retval)
-	buf.EncodeUint32(uint32(m.SwIfIndex))
-	return buf.Bytes(), nil
-}
-func (m *IpsecTunnelIfAddDelReply) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.Retval = buf.DecodeInt32()
-	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	return nil
-}
-
-// IpsecTunnelIfSetSa defines message 'ipsec_tunnel_if_set_sa'.
-type IpsecTunnelIfSetSa struct {
-	SwIfIndex  interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
-	SaID       uint32                         `binapi:"u32,name=sa_id" json:"sa_id,omitempty"`
-	IsOutbound uint8                          `binapi:"u8,name=is_outbound" json:"is_outbound,omitempty"`
-}
-
-func (m *IpsecTunnelIfSetSa) Reset()               { *m = IpsecTunnelIfSetSa{} }
-func (*IpsecTunnelIfSetSa) GetMessageName() string { return "ipsec_tunnel_if_set_sa" }
-func (*IpsecTunnelIfSetSa) GetCrcString() string   { return "f2f87112" }
-func (*IpsecTunnelIfSetSa) GetMessageType() api.MessageType {
-	return api.RequestMessage
-}
-
-func (m *IpsecTunnelIfSetSa) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.SwIfIndex
-	size += 4 // m.SaID
-	size += 1 // m.IsOutbound
-	return size
-}
-func (m *IpsecTunnelIfSetSa) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeUint32(uint32(m.SwIfIndex))
-	buf.EncodeUint32(m.SaID)
-	buf.EncodeUint8(m.IsOutbound)
-	return buf.Bytes(), nil
-}
-func (m *IpsecTunnelIfSetSa) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	m.SaID = buf.DecodeUint32()
-	m.IsOutbound = buf.DecodeUint8()
-	return nil
-}
-
-// IpsecTunnelIfSetSaReply defines message 'ipsec_tunnel_if_set_sa_reply'.
-type IpsecTunnelIfSetSaReply struct {
-	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
-}
-
-func (m *IpsecTunnelIfSetSaReply) Reset()               { *m = IpsecTunnelIfSetSaReply{} }
-func (*IpsecTunnelIfSetSaReply) GetMessageName() string { return "ipsec_tunnel_if_set_sa_reply" }
-func (*IpsecTunnelIfSetSaReply) GetCrcString() string   { return "e8d4e804" }
-func (*IpsecTunnelIfSetSaReply) GetMessageType() api.MessageType {
-	return api.ReplyMessage
-}
-
-func (m *IpsecTunnelIfSetSaReply) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.Retval
-	return size
-}
-func (m *IpsecTunnelIfSetSaReply) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeInt32(m.Retval)
-	return buf.Bytes(), nil
-}
-func (m *IpsecTunnelIfSetSaReply) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.Retval = buf.DecodeInt32()
-	return nil
-}
-
 // IpsecTunnelProtectDel defines message 'ipsec_tunnel_protect_del'.
 type IpsecTunnelProtectDel struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2130,10 +1892,6 @@ func file_ipsec_binapi_init() {
 	api.RegisterMessage((*IpsecSpdInterfaceDump)(nil), "ipsec_spd_interface_dump_8971de19")
 	api.RegisterMessage((*IpsecSpdsDetails)(nil), "ipsec_spds_details_a04bb254")
 	api.RegisterMessage((*IpsecSpdsDump)(nil), "ipsec_spds_dump_51077d14")
-	api.RegisterMessage((*IpsecTunnelIfAddDel)(nil), "ipsec_tunnel_if_add_del_2b135e68")
-	api.RegisterMessage((*IpsecTunnelIfAddDelReply)(nil), "ipsec_tunnel_if_add_del_reply_5383d31f")
-	api.RegisterMessage((*IpsecTunnelIfSetSa)(nil), "ipsec_tunnel_if_set_sa_f2f87112")
-	api.RegisterMessage((*IpsecTunnelIfSetSaReply)(nil), "ipsec_tunnel_if_set_sa_reply_e8d4e804")
 	api.RegisterMessage((*IpsecTunnelProtectDel)(nil), "ipsec_tunnel_protect_del_ddd2ba36")
 	api.RegisterMessage((*IpsecTunnelProtectDelReply)(nil), "ipsec_tunnel_protect_del_reply_e8d4e804")
 	api.RegisterMessage((*IpsecTunnelProtectDetails)(nil), "ipsec_tunnel_protect_details_ac6c823b")
@@ -2177,10 +1935,6 @@ func AllMessages() []api.Message {
 		(*IpsecSpdInterfaceDump)(nil),
 		(*IpsecSpdsDetails)(nil),
 		(*IpsecSpdsDump)(nil),
-		(*IpsecTunnelIfAddDel)(nil),
-		(*IpsecTunnelIfAddDelReply)(nil),
-		(*IpsecTunnelIfSetSa)(nil),
-		(*IpsecTunnelIfSetSaReply)(nil),
 		(*IpsecTunnelProtectDel)(nil),
 		(*IpsecTunnelProtectDelReply)(nil),
 		(*IpsecTunnelProtectDetails)(nil),

@@ -29,8 +29,6 @@ type RPCService interface {
 	IpsecSpdEntryAddDel(ctx context.Context, in *IpsecSpdEntryAddDel) (*IpsecSpdEntryAddDelReply, error)
 	IpsecSpdInterfaceDump(ctx context.Context, in *IpsecSpdInterfaceDump) (RPCService_IpsecSpdInterfaceDumpClient, error)
 	IpsecSpdsDump(ctx context.Context, in *IpsecSpdsDump) (RPCService_IpsecSpdsDumpClient, error)
-	IpsecTunnelIfAddDel(ctx context.Context, in *IpsecTunnelIfAddDel) (*IpsecTunnelIfAddDelReply, error)
-	IpsecTunnelIfSetSa(ctx context.Context, in *IpsecTunnelIfSetSa) (*IpsecTunnelIfSetSaReply, error)
 	IpsecTunnelProtectDel(ctx context.Context, in *IpsecTunnelProtectDel) (*IpsecTunnelProtectDelReply, error)
 	IpsecTunnelProtectDump(ctx context.Context, in *IpsecTunnelProtectDump) (RPCService_IpsecTunnelProtectDumpClient, error)
 	IpsecTunnelProtectUpdate(ctx context.Context, in *IpsecTunnelProtectUpdate) (*IpsecTunnelProtectUpdateReply, error)
@@ -396,24 +394,6 @@ func (c *serviceClient_IpsecSpdsDumpClient) Recv() (*IpsecSpdsDetails, error) {
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
-}
-
-func (c *serviceClient) IpsecTunnelIfAddDel(ctx context.Context, in *IpsecTunnelIfAddDel) (*IpsecTunnelIfAddDelReply, error) {
-	out := new(IpsecTunnelIfAddDelReply)
-	err := c.conn.Invoke(ctx, in, out)
-	if err != nil {
-		return nil, err
-	}
-	return out, api.RetvalToVPPApiError(out.Retval)
-}
-
-func (c *serviceClient) IpsecTunnelIfSetSa(ctx context.Context, in *IpsecTunnelIfSetSa) (*IpsecTunnelIfSetSaReply, error) {
-	out := new(IpsecTunnelIfSetSaReply)
-	err := c.conn.Invoke(ctx, in, out)
-	if err != nil {
-		return nil, err
-	}
-	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IpsecTunnelProtectDel(ctx context.Context, in *IpsecTunnelProtectDel) (*IpsecTunnelProtectDelReply, error) {

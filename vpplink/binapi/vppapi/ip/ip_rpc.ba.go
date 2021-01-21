@@ -41,7 +41,9 @@ type RPCService interface {
 	IPUnnumberedDump(ctx context.Context, in *IPUnnumberedDump) (RPCService_IPUnnumberedDumpClient, error)
 	MfibSignalDump(ctx context.Context, in *MfibSignalDump) (RPCService_MfibSignalDumpClient, error)
 	SetIPFlowHash(ctx context.Context, in *SetIPFlowHash) (*SetIPFlowHashReply, error)
+	SetIPFlowHashV2(ctx context.Context, in *SetIPFlowHashV2) (*SetIPFlowHashV2Reply, error)
 	SwInterfaceIP6EnableDisable(ctx context.Context, in *SwInterfaceIP6EnableDisable) (*SwInterfaceIP6EnableDisableReply, error)
+	SwInterfaceIP6GetLinkLocalAddress(ctx context.Context, in *SwInterfaceIP6GetLinkLocalAddress) (*SwInterfaceIP6GetLinkLocalAddressReply, error)
 	SwInterfaceIP6SetLinkLocalAddress(ctx context.Context, in *SwInterfaceIP6SetLinkLocalAddress) (*SwInterfaceIP6SetLinkLocalAddressReply, error)
 }
 
@@ -605,8 +607,26 @@ func (c *serviceClient) SetIPFlowHash(ctx context.Context, in *SetIPFlowHash) (*
 	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
+func (c *serviceClient) SetIPFlowHashV2(ctx context.Context, in *SetIPFlowHashV2) (*SetIPFlowHashV2Reply, error) {
+	out := new(SetIPFlowHashV2Reply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
 func (c *serviceClient) SwInterfaceIP6EnableDisable(ctx context.Context, in *SwInterfaceIP6EnableDisable) (*SwInterfaceIP6EnableDisableReply, error) {
 	out := new(SwInterfaceIP6EnableDisableReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) SwInterfaceIP6GetLinkLocalAddress(ctx context.Context, in *SwInterfaceIP6GetLinkLocalAddress) (*SwInterfaceIP6GetLinkLocalAddressReply, error) {
+	out := new(SwInterfaceIP6GetLinkLocalAddressReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err
