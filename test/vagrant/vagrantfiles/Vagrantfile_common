@@ -182,6 +182,7 @@ alias nodelogs='docker logs \$(docker ps |grep k8s_calico-node_calico-vpp-node |
 alias dsn='docker stop \$(docker ps |grep k8s_calico-node_calico-vpp-node | awk "{print \\\\\$1}")'
 alias idu="ip link set eth1 down; ip link set eth1 up"
 alias ifr="ip link set vpptap0 down; echo '0000:00:06.0' > /sys/bus/pci/devices/0000\:00\:06.0/driver/unbind; sleep 0.2; echo '0000:00:06.0' > /sys/bus/pci/drivers/virtio-pci/bind; sleep 0.5; ip link set eth1 up"
+alias lsc="ls -alh /var/lib/vpp"
 }
 
 $prepareScript = <<SCRIPT
