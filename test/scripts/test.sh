@@ -210,7 +210,7 @@ run_test_IPERF ()
 run_test_WRK1 ()
 {
 	TEST_SZ=${TEST_SZ:=4096} # 4096 // 2MB
-	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-${TEST_N} -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-1 -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
 	TEST_CMD="sudo prlimit --nofile=100000 numactl -m 1 -C ${CPUS} ./wrk.py -t10 -c1000 -d${TEST_LEN}s --latency http://${CLUSTER_IP}/${TEST_SZ}"
 	echo "Running test : ${TEST_CMD}"
 	echo $TEST_CMD > $DIR/test_command.sh
@@ -220,7 +220,7 @@ run_test_WRK1 ()
 run_test_WRK2 ()
 {
 	TEST_SZ=${TEST_SZ:=4096} # 4096 // 2MB
-	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-${TEST_N} -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-1 -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
 	TEST_CMD="/wrk/wrk.py -t10 -c1000 -d${TEST_LEN}s --latency http://${CLUSTER_IP}/${TEST_SZ}"
 	echo "Running test : ${TEST_CMD}"
 	echo $TEST_CMD > $DIR/test_command.sh
