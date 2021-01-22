@@ -26,11 +26,10 @@ import (
 )
 
 type CalicoServiceProvider struct {
-	log          *logrus.Entry
-	vpp          *vpplink.VppLink
-	s            *Server
-	clusterIPMap map[string]*types.CnatTranslateEntry
-	nodePortMap  map[string]*types.CnatTranslateEntry
+	log      *logrus.Entry
+	vpp      *vpplink.VppLink
+	s        *Server
+	stateMap map[string]*types.CnatTranslateEntry
 }
 
 func newCalicoServiceProvider(s *Server) (p *CalicoServiceProvider) {
@@ -43,17 +42,29 @@ func newCalicoServiceProvider(s *Server) (p *CalicoServiceProvider) {
 }
 
 func (p *CalicoServiceProvider) Init() (err error) {
-	p.clusterIPMap = make(map[string]*types.CnatTranslateEntry)
-	p.nodePortMap = make(map[string]*types.CnatTranslateEntry)
+	p.stateMap = make(map[string]*types.CnatTranslateEntry)
 	return nil
 }
 
-func getCalicoEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, clusterIP net.IP) (entry *types.CnatTranslateEntry, err error) {
+// | or # should never appear in an IP or in a service / port name which should be a valid DNS name
+func nodePortKey(serviceID, portName string) string {
+	return "NP|" + serviceID + "##" + portName
+}
+
+func clusterIPKey(serviceID, portName string) string {
+	return "C|" + serviceID + "##" + portName
+}
+
+func extIPKey(externalIP, serviceID, portName string) string {
+	return "E|" + serviceID + "##" + externalIP + "##" + portName
+}
+
+func getCalicoEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, clusterIP net.IP, localOnly bool) (entry *types.CnatTranslateEntry, err error) {
 	targetPort, err := getTargetPort(*servicePort)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error determinig target port")
 	}
-	backendIPs := getServiceBackendIPs(servicePort, ep)
+	backendIPs := getServiceBackendIPs(servicePort, ep, localOnly)
 	backends := make([]types.CnatEndpointTuple, 0, len(backendIPs))
 	for _, backendIP := range backendIPs {
 		backends = append(backends, types.CnatEndpointTuple{
@@ -75,12 +86,12 @@ func getCalicoEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, clusterIP net
 	}, nil
 }
 
-func getCalicoNodePortEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, nodeIP net.IP) (entry *types.CnatTranslateEntry, err error) {
+func getCalicoNodePortEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, nodeIP net.IP, localOnly bool) (entry *types.CnatTranslateEntry, err error) {
 	targetPort, err := getTargetPort(*servicePort)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error determinig target port")
 	}
-	backendIPs := getServiceBackendIPs(servicePort, ep)
+	backendIPs := getServiceBackendIPs(servicePort, ep, localOnly)
 	backends := make([]types.CnatEndpointTuple, 0, len(backendIPs))
 	for _, backendIP := range backendIPs {
 		backends = append(backends, types.CnatEndpointTuple{
@@ -105,61 +116,79 @@ func getCalicoNodePortEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, nodeI
 }
 
 func (p *CalicoServiceProvider) OnVppRestart() {
-	for servicePortName, entry := range p.clusterIPMap {
+	newState := make(map[string]*types.CnatTranslateEntry)
+	for key, entry := range p.stateMap {
 		entryID, err := p.vpp.CnatTranslateAdd(entry)
 		if err != nil {
-			p.log.Errorf("Error re-injecting entry %s : %v", entry.String(), err)
+			p.log.Errorf("Error re-injecting cnat entry %s : %v", entry.String(), err)
 		} else {
 			entry.ID = entryID
-			p.clusterIPMap[servicePortName] = entry
+			newState[key] = entry
 		}
 	}
-	for servicePortName, entry := range p.nodePortMap {
-		entryID, err := p.vpp.CnatTranslateAdd(entry)
-		if err != nil {
-			p.log.Errorf("Error re-injecting entry %s : %v", entry.String(), err)
-		} else {
-			entry.ID = entryID
-			p.nodePortMap[servicePortName] = entry
-		}
-	}
+	p.stateMap = newState
 }
 
-func (p *CalicoServiceProvider) AddServicePort(service *v1.Service, ep *v1.Endpoints, isNodePort bool) (err error) {
+func (p *CalicoServiceProvider) updateCnatEntry(key string, entry *types.CnatTranslateEntry) (err error) {
+	previousEntry, previousFound := p.stateMap[key]
+	if !previousFound || !entry.Equal(previousEntry) {
+		p.log.Infof("(add) %s", entry.String())
+		entryID, err := p.vpp.CnatTranslateAdd(entry)
+		if err != nil {
+			return errors.Wrapf(err, "NAT:Error adding translation %s", entry.String())
+		}
+		entry.ID = entryID
+		p.stateMap[key] = entry
+	} else {
+		p.log.Debugf("(unchanged) %s", entry.String())
+	}
+	return nil
+}
+
+func (p *CalicoServiceProvider) AddServicePort(service *v1.Service, ep *v1.Endpoints) (err error) {
 	clusterIP := net.ParseIP(service.Spec.ClusterIP)
 	nodeIP := p.s.getNodeIP(vpplink.IsIP6(clusterIP))
+	localOnly := service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal
+	serviceID := service.ObjectMeta.GetSelfLink()
+
 	for _, servicePort := range service.Spec.Ports {
-		if entry, err := getCalicoEntry(&servicePort, ep, clusterIP); err == nil {
-			previousEntry, previousFound := p.clusterIPMap[servicePort.Name]
-			if !previousFound || !entry.Equal(previousEntry) {
-				p.log.Infof("(add) %s", entry.String())
-				entryID, err := p.vpp.CnatTranslateAdd(entry)
+		// Service ClusterIP handling
+		if clusterIP != nil {
+			if entry, err := getCalicoEntry(&servicePort, ep, clusterIP, localOnly); err == nil {
+				stateKey := clusterIPKey(serviceID, servicePort.Name)
+				err = p.updateCnatEntry(stateKey, entry)
 				if err != nil {
-					return errors.Wrapf(err, "NAT:Error adding nodePort %s", entry.String())
+					return err
 				}
-				entry.ID = entryID
-				p.clusterIPMap[servicePort.Name] = entry
 			} else {
-				p.log.Debugf("(unchanged) %s", entry.String())
+				p.log.Warnf("NAT:Error getting service entry: %v", err)
 			}
-		} else {
-			p.log.Warnf("NAT:Error getting service entry: %v", err)
 		}
-		if !isNodePort {
+
+		// ExternalIPs handling
+		for _, eip := range service.Spec.ExternalIPs {
+			if extIP := net.ParseIP(eip); extIP != nil {
+				if entry, err := getCalicoEntry(&servicePort, ep, extIP, localOnly); err == nil {
+					stateKey := extIPKey(eip, serviceID, servicePort.Name)
+					err = p.updateCnatEntry(stateKey, entry)
+					if err != nil {
+						return err
+					}
+				} else {
+					p.log.Warnf("NAT:Error getting service entry: %v", err)
+				}
+			}
+		}
+
+		// NodePort redirection handling
+		if service.Spec.Type != v1.ServiceTypeNodePort {
 			continue
 		}
-		if entry, err := getCalicoNodePortEntry(&servicePort, ep, nodeIP); err == nil {
-			previousEntry, previousFound := p.nodePortMap[servicePort.Name]
-			if !previousFound || !entry.Equal(previousEntry) {
-				p.log.Infof("(add) %s", entry.String())
-				entryID, err := p.vpp.CnatTranslateAdd(entry)
-				if err != nil {
-					return errors.Wrapf(err, "NAT:Error adding nodePort %s", entry.String())
-				}
-				entry.ID = entryID
-				p.nodePortMap[servicePort.Name] = entry
-			} else {
-				p.log.Debugf("(unchanged) %s", entry.String())
+		if entry, err := getCalicoNodePortEntry(&servicePort, ep, nodeIP, localOnly); err == nil {
+			stateKey := nodePortKey(serviceID, servicePort.Name)
+			err = p.updateCnatEntry(stateKey, entry)
+			if err != nil {
+				return err
 			}
 		} else {
 			p.log.Warnf("NAT:Error getting service entry: %v", err)
@@ -168,30 +197,34 @@ func (p *CalicoServiceProvider) AddServicePort(service *v1.Service, ep *v1.Endpo
 	return nil
 }
 
-func (p *CalicoServiceProvider) DelServicePort(service *v1.Service, ep *v1.Endpoints, isNodePort bool) (err error) {
+func (p *CalicoServiceProvider) DelServicePort(service *v1.Service, ep *v1.Endpoints) (err error) {
+	serviceID := service.ObjectMeta.GetSelfLink()
+
 	for _, servicePort := range service.Spec.Ports {
-		if entry, ok := p.clusterIPMap[servicePort.Name]; ok {
-			p.log.Infof("(del) %s", entry.String())
-			err = p.vpp.CnatTranslateDel(entry.ID)
-			if err != nil {
-				return errors.Wrapf(err, "(del) Error deleting entry %s", entry.String())
-			}
-			delete(p.clusterIPMap, servicePort.Name)
-		} else {
-			p.log.Infof("(del) Entry not found for %s", servicePort.Name)
+		entries := make([]string, 0)
+		if net.ParseIP(service.Spec.ClusterIP) != nil {
+			entries = append(entries, clusterIPKey(serviceID, servicePort.Name))
 		}
-		if !isNodePort {
-			continue
-		}
-		if entry, ok := p.nodePortMap[servicePort.Name]; ok {
-			p.log.Infof("(del) nodeport %s", entry.String())
-			err = p.vpp.CnatTranslateDel(entry.ID)
-			if err != nil {
-				return errors.Wrapf(err, "(del) Error deleting nodeport %s", entry.String())
+		for _, eip := range service.Spec.ExternalIPs {
+			if extIP := net.ParseIP(eip); extIP != nil {
+				entries = append(entries, extIPKey(eip, serviceID, servicePort.Name))
 			}
-			delete(p.clusterIPMap, servicePort.Name)
-		} else {
-			p.log.Infof("(del) Entry not found for %s", servicePort.Name)
+		}
+		if service.Spec.Type != v1.ServiceTypeNodePort {
+			entries = append(entries, nodePortKey(serviceID, servicePort.Name))
+		}
+
+		for _, key := range entries {
+			if entry, ok := p.stateMap[key]; ok {
+				p.log.Infof("(del) %s", entry.String())
+				err = p.vpp.CnatTranslateDel(entry.ID)
+				if err != nil {
+					return errors.Wrapf(err, "(del) Error deleting entry %s", entry.String())
+				}
+				delete(p.stateMap, key)
+			} else {
+				p.log.Errorf("(del) Entry not found for %s", key)
+			}
 		}
 	}
 	return nil

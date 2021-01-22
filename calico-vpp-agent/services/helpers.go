@@ -83,12 +83,15 @@ func formatProto(proto types.IPProto) string {
 	}
 }
 
-func getServiceBackendIPs(servicePort *v1.ServicePort, ep *v1.Endpoints) (backendIPs []net.IP) {
+func getServiceBackendIPs(servicePort *v1.ServicePort, ep *v1.Endpoints, localOnly bool) (backendIPs []net.IP) {
 	for _, set := range ep.Subsets {
 		// Check if this subset exposes the port we're interested in
 		for _, port := range set.Ports {
 			if servicePort.Name == port.Name {
 				for _, addr := range set.Addresses {
+					if localOnly && addr.NodeName != nil && *addr.NodeName != config.NodeName {
+						continue
+					}
 					ip := net.ParseIP(addr.IP)
 					if ip != nil {
 						backendIPs = append(backendIPs, ip)

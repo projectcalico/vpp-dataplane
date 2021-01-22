@@ -40,8 +40,8 @@ import (
 
 type ServiceProvider interface {
 	Init() error
-	AddServicePort(service *v1.Service, ep *v1.Endpoints, isNodePort bool) error
-	DelServicePort(service *v1.Service, ep *v1.Endpoints, isNodePort bool) error
+	AddServicePort(service *v1.Service, ep *v1.Endpoints) error
+	DelServicePort(service *v1.Service, ep *v1.Endpoints) error
 	OnVppRestart()
 }
 
@@ -174,20 +174,10 @@ func (s *Server) addDelService(service *v1.Service, ep *v1.Endpoints, isWithdraw
 	if s.serviceProvider == nil {
 		return nil
 	}
-	isNodePort := false
-	switch service.Spec.Type {
-	case v1.ServiceTypeClusterIP:
-		isNodePort = false
-	case v1.ServiceTypeNodePort:
-		isNodePort = true
-	default:
-		s.log.Debugf("service type creation not supported : %s", service.Spec.Type)
-		return nil
-	}
 	if isWithdrawal {
-		return s.serviceProvider.DelServicePort(service, ep, isNodePort)
+		return s.serviceProvider.DelServicePort(service, ep)
 	} else {
-		return s.serviceProvider.AddServicePort(service, ep, isNodePort)
+		return s.serviceProvider.AddServicePort(service, ep)
 	}
 }
 
@@ -225,7 +215,9 @@ func (s *Server) OnVppRestart() {
 	}
 
 	/* Services NAT config */
-	s.serviceProvider.OnVppRestart()
+	if s.serviceProvider != nil {
+		s.serviceProvider.OnVppRestart()
+	}
 }
 
 func (s *Server) findMatchingService(ep *v1.Endpoints) *v1.Service {
