@@ -27,12 +27,14 @@ func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIf
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	response := &vxlan.VxlanAddDelTunnelReply{}
-	request := &vxlan.VxlanAddDelTunnel{
+	response := &vxlan.VxlanAddDelTunnelV2Reply{}
+	request := &vxlan.VxlanAddDelTunnelV2{
 		IsAdd:          isAdd,
 		Instance:       ^uint32(0),
 		SrcAddress:     types.ToVppAddress(tunnel.SrcAddress),
 		DstAddress:     types.ToVppAddress(tunnel.DstAddress),
+		SrcPort:        tunnel.SrcPort,
+		DstPort:        tunnel.DstPort,
 		Vni:            tunnel.Vni,
 		DecapNextIndex: tunnel.DecapNextIndex,
 	}
