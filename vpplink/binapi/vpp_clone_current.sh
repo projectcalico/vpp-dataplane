@@ -40,6 +40,7 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/73/30273/1 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/97/30097/3 && git cherry-pick FETCH_HEAD # 30097: vlib: Fix sh int addr | https://gerrit.fd.io/r/c/vpp/+/30097
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/75/30275/7 && git cherry-pick FETCH_HEAD # 30275: cnat: add input feature node | https://gerrit.fd.io/r/c/vpp/+/30275
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/27 && git cherry-pick FETCH_HEAD # 28587: cnat: k8s extensions
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/04/30204/7 && git cherry-pick FETCH_HEAD # 30204: vxlan: add udp-port configuration support
 
 # Policies
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/28083/13 && git cherry-pick FETCH_HEAD # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
