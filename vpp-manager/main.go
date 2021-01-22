@@ -90,7 +90,7 @@ func handleSignals() {
 			} else {
 				log.Infof("ignoring sigchld")
 			}
-		} else {
+		} else if s != syscall.SIGPIPE {
 			/* special case
 			   for SIGTERM, which doesn't kill vpp quick enough */
 			if s == syscall.SIGTERM {
