@@ -71,14 +71,14 @@ func poolSyncError(err error) {
 
 func syncPools() {
 	pools := make(map[string]interface{})
-	client, err := calicocli.NewFromEnv()
-	if err != nil {
-		poolSyncError(errors.Wrap(err, "error creating calico client"))
-		return
-	}
-
 	log.Info("Starting pools watcher...")
 	for {
+		/* Need to recreate the client at each loop if pipe breaks */
+		client, err := calicocli.NewFromEnv()
+		if err != nil {
+			poolSyncError(errors.Wrap(err, "error creating calico client"))
+			return
+		}
 		poolsList, err := client.IPPools().List(context.Background(), options.ListOptions{})
 		if err != nil {
 			poolSyncError(errors.Wrap(err, "error listing pools"))
