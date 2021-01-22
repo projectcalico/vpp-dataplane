@@ -29,7 +29,8 @@ import (
 
 type AVFDriver struct {
 	UplinkDriverData
-	pciId string
+	pfPCI string
+	vfPCI string
 }
 
 func (d *AVFDriver) IsSupported(warn bool) (supported bool) {
@@ -52,23 +53,54 @@ func (d *AVFDriver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *AVFDriver) PreconfigureLinux() (err error) {
-	pciId, err := utils.CreateInterfaceVF(d.params.MainInterface)
+	pciId, err := utils.GetInterfacePciId(d.params.MainInterface)
 	if err != nil {
-		return errors.Wrapf(err, "Couldnt create Interface VF")
-	}
-	d.pciId = pciId
-
-	link, err := netlink.LinkByName(d.params.MainInterface)
-	if err != nil {
-		return errors.Wrapf(err, "Couldnt find Interface %s", d.params.MainInterface)
-	}
-	hardwareAddr := utils.CycleHardwareAddr(d.conf.HardwareAddr, 7)
-	err = netlink.LinkSetVfHardwareAddr(link, 0 /* vf */, hardwareAddr)
-	if err != nil {
-		return errors.Wrapf(err, "Couldnt set VF 0 hwaddr %s", d.params.MainInterface)
+		return errors.Wrapf(err, "cannot get interface %s pciID", d.params.MainInterface)
 	}
 
-	log.Infof("Created VF pci:%s hw:%s for %s", d.pciId, hardwareAddr, d.params.MainInterface)
+	numVFs, err := utils.GetInterfaceNumVFs(pciId)
+	if err != nil {
+		/* Most probably we were passed a VF */
+		d.vfPCI = pciId
+		d.pfPCI = ""
+	} else {
+		/* This is a PF */
+		d.pfPCI = pciId
+		if numVFs == 0 {
+			log.Infof("Creating a VF for %s", d.params.MainInterface)
+			err := utils.CreateInterfaceVF(pciId)
+			if err != nil {
+				return errors.Wrapf(err, "Couldnt create VF for %s", d.params.MainInterface)
+			}
+
+			/* Create a mac for the new VF */
+			link, err := netlink.LinkByName(d.params.MainInterface)
+			if err != nil {
+				return errors.Wrapf(err, "Couldnt find Interface %s", d.params.MainInterface)
+			}
+			hardwareAddr := utils.CycleHardwareAddr(d.conf.HardwareAddr, 7)
+			err = netlink.LinkSetVfHardwareAddr(link, 0 /* vf */, hardwareAddr)
+			if err != nil {
+				return errors.Wrapf(err, "Couldnt set VF 0 hwaddr %s", d.params.MainInterface)
+			}
+		}
+		vfPCI, err := utils.GetInterfaceVFPciId(pciId)
+		if err != nil {
+			return errors.Wrapf(err, "Couldnt get VF pciID for %s", d.params.MainInterface)
+		}
+		d.vfPCI = vfPCI
+	}
+
+	driverName, err := utils.GetDriverNameFromPci(d.vfPCI)
+	if err != nil {
+		return errors.Wrapf(err, "Couldnt get VF driver Name for %s", d.vfPCI)
+	}
+	if driverName != config.DRIVER_VFIO_PCI {
+		err := utils.BindVFtoDriver(d.vfPCI, config.DRIVER_VFIO_PCI)
+		if err != nil {
+			return errors.Wrapf(err, "Couldnt bind VF %s to vfio_pci", d.vfPCI)
+		}
+	}
 
 	if d.conf.IsUp {
 		// Set interface down if it is up, bind it to a VPP-friendly driver
@@ -81,11 +113,6 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 }
 
 func (d *AVFDriver) RestoreLinux() {
-	err := utils.DeleteInterfaceVF(d.params.MainInterface)
-	if err != nil {
-		log.Warnf("Error deleting VF for %s: %v", d.params.MainInterface, err)
-	}
-
 	if !d.conf.IsUp {
 		return
 	}
@@ -106,7 +133,7 @@ func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink) error {
 		NumRxQueues: d.params.NumRxQueues,
 		TxQueueSize: d.params.TxQueueSize,
 		RxQueueSize: d.params.RxQueueSize,
-		PciId:       d.pciId,
+		PciId:       d.vfPCI,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Error creating AVF interface")
