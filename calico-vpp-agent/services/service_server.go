@@ -61,7 +61,6 @@ type Server struct {
 	nodeIP6          net.IP
 	nodeIP6Set       bool
 	lock             sync.Mutex
-	vppTapSwIfindex  uint32
 	serviceProvider  ServiceProvider
 }
 
@@ -99,16 +98,11 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 	if err != nil {
 		panic(err.Error())
 	}
-	swIfIndex, err := fetchVppTapSwifIndex()
-	if err != nil {
-		panic(err.Error())
-	}
 	server := Server{
-		clientv3:        calicoCliV3,
-		client:          client,
-		vpp:             vpp,
-		log:             log,
-		vppTapSwIfindex: swIfIndex,
+		clientv3: calicoCliV3,
+		client:   client,
+		vpp:      vpp,
+		log:      log,
 	}
 	node, err := calicoCliV3.Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
 	if err != nil {

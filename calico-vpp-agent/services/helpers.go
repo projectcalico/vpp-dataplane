@@ -16,11 +16,7 @@
 package services
 
 import (
-	"io/ioutil"
 	"net"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -28,20 +24,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
-
-func fetchVppTapSwifIndex() (swIfIndex uint32, err error) {
-	for i := 0; i < 20; i++ {
-		dat, err := ioutil.ReadFile(config.VppManagerTapIdxFile)
-		if err == nil {
-			idx, err := strconv.ParseInt(strings.TrimSpace(string(dat[:])), 10, 32)
-			if err == nil && idx != -1 {
-				return uint32(idx), nil
-			}
-		}
-		time.Sleep(1 * time.Second)
-	}
-	return 0, errors.Errorf("Vpp-host tap not ready after 20 tries")
-}
 
 func getTargetPort(sPort v1.ServicePort) (int32, error) {
 	tp := sPort.TargetPort

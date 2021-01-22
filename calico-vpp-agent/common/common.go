@@ -171,3 +171,19 @@ func FullyQualified(addr net.IP) *net.IPNet {
 		Mask: GetMaxCIDRMask(addr),
 	}
 }
+
+// This function and the related mechanism in vpmanager are curently kept around
+// in case they're useful for the Host Endpoint policies implementation
+func GetVppTapSwifIndex() (swIfIndex uint32, err error) {
+	for i := 0; i < 20; i++ {
+		dat, err := ioutil.ReadFile(config.VppManagerTapIdxFile)
+		if err == nil {
+			idx, err := strconv.ParseInt(strings.TrimSpace(string(dat[:])), 10, 32)
+			if err == nil && idx != -1 {
+				return uint32(idx), nil
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return 0, errors.Errorf("Vpp-host tap not ready after 20 tries")
+}
