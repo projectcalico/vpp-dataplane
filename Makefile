@@ -56,8 +56,8 @@ start-test-cluster:
 
 .PHONY: load-images
 load-images:
-	$(MAKE) -C test/vagrant load-image -j3 IMG=calicovpp/node:latest
-	$(MAKE) -C test/vagrant load-image -j3 IMG=calicovpp/vpp:latest
+	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/node:latest
+	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/vpp:latest
 
 # Allows to simply run calico-vpp from release images in a test cluster
 .PHONY: test-install-calicovpp
