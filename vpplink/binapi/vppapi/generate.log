@@ -1,18 +1,14 @@
-VPP Version                 : 21.06-rc0~136-gb62354f06
+VPP Version                 : 21.06-rc0~144-g86652a0fd
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 91f4a9795 sr: SRv6 FlowLabel Added
+VPP Base commit             : 86f1232dd svm: add custom q implementation for mq
 ------------------ Cherry picked commits --------------------
-b62354f06 Fix new weird type that nobody put into govpp
-143d847fc wireguard: testing alternative timer dispatch
-2ed6ea3d8 capo: Calico Policies plugin
-d77c05616 acl: acl-plugin custom policies
-5f1bccd85 cnat: k8s extensions
-d4761afd1 cnat: add input feature node
-87a3f84b4 cnat: Fix session with deleted tr
-450735b30 cnat: Fix throttle hash & cleanup
-133dd2105 devices: adapt af_packet to new rxq framework
-975ec139b interface: fix vnet_hw_if_update_runtime_data
-c9c242da3 interface: let drivers control polling when down
-b74685db5 interface: fix rx-placement api/cli for new infra
-fecc47fe3 virtio: DRAFT: multi tx support
+86652a0fd Remove enumflag not yet supported in govpp
+2c4d121fa wireguard: testing alternative timer dispatch
+dbc65b7f4 capo: Calico Policies plugin
+49e6f30d9 acl: acl-plugin custom policies
+ca53a234c cnat: k8s extensions
+f9cf30f61 cnat: add input feature node
+02c3bbfc8 cnat: Fix session with deleted tr
+6034a8192 cnat: Fix throttle hash & cleanup
+097eea393 virtio: DRAFT: multi tx support
 -------------------------------------------------------------

@@ -1,5 +1,5 @@
 #!/bin/bash
-VPP_COMMIT=91f4a9795
+VPP_COMMIT=86f1232dd
 
 if [ ! -d $1/.git ]; then
 	rm -rf $1
@@ -12,13 +12,6 @@ else
 fi
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/9 && git cherry-pick FETCH_HEAD # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
-
-# ------------- interrupt patches -------------
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/91/30391/11 && git cherry-pick FETCH_HEAD # 30391: interface: fix rx-placement api/cli for new infra | https://gerrit.fd.io/r/c/vpp/+/30391
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/27/30527/7 && git cherry-pick FETCH_HEAD # 30527: interface: let drivers control polling when down | https://gerrit.fd.io/r/c/vpp/+/30527
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/30/30530/9 && git cherry-pick FETCH_HEAD # 30530: interfaces: fix vnet_hw_if_update_runtime_data | https://gerrit.fd.io/r/c/vpp/+/30530
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/85/30485/11 && git cherry-pick FETCH_HEAD # 30485: devices: adapt to new vnet rxq framework | https://gerrit.fd.io/r/c/vpp/+/30485
-# ------------- interrupt patches -------------
 
 # ------------- Cnat patches -------------
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/55/29955/4 && git cherry-pick FETCH_HEAD # 29955: cnat: Fix throttle hash & cleanup | https://gerrit.fd.io/r/c/vpp/+/29955
@@ -47,4 +40,4 @@ index f201ffbd8..548eb1a2f 100644
  {
    IP_API_FLOW_HASH_SRC_IP = 0x01,
    IP_API_FLOW_HASH_DST_IP = 0x02,
-" | git apply -- && git add -A &&  git commit --author "Calico-vpp builder <>" -m "Fix new weird type that nobody put into govpp"
+" | git apply -- && git add -A &&  git commit --author "Calico-vpp builder <>" -m "Remove enumflag not yet supported in govpp"
