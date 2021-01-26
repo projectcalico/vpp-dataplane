@@ -203,6 +203,16 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		return swIfIndex, nil
 	}
 
+	// configure MTU from env var if present or calculate it from host mtu
+	var tapMtu int = 0
+	if config.TapMtu > 0 {
+		tapMtu = config.TapMtu
+	} else if s.vppLinuxMtu != 0 {
+		tapMtu = s.vppLinuxMtu - 60
+	} else {
+		tapMtu = 1440
+	}
+
 	// Create new tun
 	tun := &types.TapV2{
 		HostNamespace: podSpec.NetnsName,
@@ -213,7 +223,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		RxQueueSize:   config.TapRxQueueSize,
 		TxQueueSize:   config.TapTxQueueSize,
 		Flags:         types.TapFlagTun,
-		Mtu:           config.TapMtu,
+		Mtu:           tapMtu,
 	}
 	if config.TapGSOEnabled {
 		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce

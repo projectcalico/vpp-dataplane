@@ -30,6 +30,7 @@ const (
 	VppConfigExecFile      = "/etc/vpp/startup.exec"
 	VppManagerStatusFile   = "/var/run/vpp/vppmanagerstatus"
 	VppManagerTapIdxFile   = "/var/run/vpp/vppmanagertap0"
+	VppManagerLinuxMtu     = "/var/run/vpp/vppmanagerlinuxmtu"
 	VppApiSocket           = "/var/run/vpp/vpp-api.sock"
 	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
 	VppPath                = "/usr/bin/vpp"
