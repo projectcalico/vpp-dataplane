@@ -78,13 +78,23 @@ func (p *VXLanProvider) getVXLANVNI() uint32 {
 func (p *VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
 	p.log.Debugf("Adding vxlan Tunnel to VPP")
 	nodeIP := p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop))
+	felixConf := p.server.GetFelixConfig()
+
+	var vxLanPort uint16
+	if felixConf.VXLANPort != nil {
+		vxLanPort = uint16(*felixConf.VXLANPort)
+
+	} else {
+		vxLanPort = 0
+	}
+
 	if _, found := p.vxlanIfs[cn.NextHop.String()]; !found {
 		p.log.Infof("VXLan: Add %s->%s", nodeIP.String(), cn.Dst.IP.String())
-		/* TODO: VXLANPort */
-		/* TODO: VXLANMTU */
 		tunnel := &types.VXLanTunnel{
 			SrcAddress:     nodeIP,
 			DstAddress:     cn.NextHop,
+			SrcPort:        vxLanPort,
+			DstPort:        vxLanPort,
 			Vni:            p.getVXLANVNI(),
 			DecapNextIndex: p.ip4NodeIndex,
 		}

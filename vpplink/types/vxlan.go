@@ -22,6 +22,8 @@ import (
 type VXLanTunnel struct {
 	SrcAddress     net.IP
 	DstAddress     net.IP
+	SrcPort        uint16
+	DstPort        uint16
 	Vni            uint32
 	DecapNextIndex uint32
 }
