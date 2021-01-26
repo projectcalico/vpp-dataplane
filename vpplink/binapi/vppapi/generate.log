@@ -1,14 +1,15 @@
-VPP Version                 : 21.06-rc0~144-g86652a0fd
+VPP Version                 : 21.06-rc0~145-gaf7b9db96
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 86f1232dd svm: add custom q implementation for mq
 ------------------ Cherry picked commits --------------------
-86652a0fd Remove enumflag not yet supported in govpp
-2c4d121fa wireguard: testing alternative timer dispatch
-dbc65b7f4 capo: Calico Policies plugin
-49e6f30d9 acl: acl-plugin custom policies
-ca53a234c cnat: k8s extensions
-f9cf30f61 cnat: add input feature node
-02c3bbfc8 cnat: Fix session with deleted tr
-6034a8192 cnat: Fix throttle hash & cleanup
-097eea393 virtio: DRAFT: multi tx support
+af7b9db96 Remove enumflag not yet supported in govpp
+46f4a7007 wireguard: testing alternative timer dispatch
+b6d2a1bc0 capo: Calico Policies plugin
+42f43f6f4 acl: acl-plugin custom policies
+e50512474 cnat: k8s extensions
+ee84a5c51 cnat: add input feature node
+5452f29a8 cnat: Fix session with deleted tr
+fbb6ee190 cnat: Fix throttle hash & cleanup
+f2c179793 vxlan: add udp-port configuration support
+c9e3a1931 virtio: DRAFT: multi tx support
 -------------------------------------------------------------

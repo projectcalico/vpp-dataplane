@@ -12,6 +12,7 @@ else
 fi
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/9 && git cherry-pick FETCH_HEAD # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/04/30204/8 && git cherry-pick FETCH_HEAD # 30204: vxlan: add udp-port configuration support
 
 # ------------- Cnat patches -------------
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/55/29955/4 && git cherry-pick FETCH_HEAD # 29955: cnat: Fix throttle hash & cleanup | https://gerrit.fd.io/r/c/vpp/+/29955

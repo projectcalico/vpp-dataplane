@@ -1,9 +1,8 @@
-$box_image = ENV['BOX_IMAGE'] || 'generic/ubuntu2004'.freeze
-
+$box_image = "calico-vpp-base".freeze
 CLUSTER_NAME = ENV['CLUSTER_NAME']
 
 # Disk setup
-DISK_SIZE_GB = ENV['DISK_SIZE_GB'].to_i || 32
+DISK_SIZE_GB = ENV['DISK_SIZE_GB'].to_i || 128
 
 # Resources
 MASTER_CPUS = ENV['MASTER_CPUS'].to_i || 4
@@ -43,35 +42,13 @@ KUBE_PROXY_IPVS = ENV['KUBE_PROXY_IPVS'] || false
 # Generate new using steps in README
 KUBETOKEN = ENV['KUBETOKEN'] || 'b029ee.968a33e8d8e6bb0d'
 
-aliases = %q{
-alias s="sudo -s"
-alias lh="ls -alh"
-alias d="docker"
-alias dl="docker logs"
-alias dlf="docker logs -f"
-alias dlv='docker logs -f \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}")'
-alias dp="docker ps"
-alias dpa="docker ps -a"
-alias dpv="docker ps -a |grep vpp"
-alias vc='docker exec -it \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}") vppctl'
-alias dsv='docker stop \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}")'
-alias nodelogs='docker logs \$(docker ps |grep k8s_calico-node_calico-vpp-node | awk "{print \\\\\$1}")'
-alias dsn='docker stop \$(docker ps |grep k8s_calico-node_calico-vpp-node | awk "{print \\\\\$1}")'
-alias idu="ip link set eth1 down; ip link set eth1 up"
-alias ifr="ip link set vpptap0 down; echo '0000:00:06.0' > /sys/bus/pci/devices/0000\:00\:06.0/driver/unbind; sleep 0.2; echo '0000:00:06.0' > /sys/bus/pci/drivers/virtio-pci/bind; sleep 0.5; ip link set eth1 up"
-}
 
 # Common scripts
-$prepareScript = <<SCRIPT
-cat <<EOF >> /root/.bashrc
-#{aliases}
-EOF
-cat <<EOF >> /home/vagrant/.bashrc
-#{aliases}
-EOF
 
-resize2fs /dev/vda3
-
+# This script just updates the DNS in the base box so that vagrant can
+# install the nfs client if the google DNS servers are not reachable
+$baseConfigScript = <<SCRIPT
+# DNS configuration
 sed -i 's/^DNS=.*/DNS=#{DNS_SERVER}/' /etc/systemd/resolved.conf
 sed -i 's/^DNSSEC=.*/DNSSEC=no/' /etc/systemd/resolved.conf
 sed -i 's/addresses:.*/addresses: [#{DNS_SERVER}]/' /etc/netplan/01-netcfg.yaml
@@ -80,6 +57,7 @@ systemctl restart systemd-resolved
 systemd-resolve --flush-caches
 systemd-resolve --status
 
+# Disable swap
 swapoff -a
 sed -i '/swap/s/^/#/g' /etc/fstab
 
@@ -93,7 +71,6 @@ net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.conf.all.rp_filter = 0
 vm.nr_hugepages = 128
 EOF
-sysctl -p /etc/sysctl.conf
 
 cat << EOF > /etc/modules-load.d/ipvs.conf
 overlay
@@ -107,7 +84,6 @@ nf_conntrack_ipv4
 nf_conntrack_ipv6
 uio_pci_generic
 EOF
-sudo systemctl restart systemd-modules-load.service
 
 # Set mtu of eth0 and eth1 devices to 1300, otherwise there may be issues when using a VPN on the host system.
 cat <<EOF > /etc/systemd/system/ip-set-mtu.service
@@ -122,11 +98,6 @@ WantedBy=default.target
 EOF
 systemctl daemon-reload
 systemctl enable ip-set-mtu.service
-systemctl start ip-set-mtu.service
-SCRIPT
-
-$baseInstallScript = <<SCRIPT
-set -x
 
 cat <<EOF > /etc/apt/apt.conf.d/proxy.conf
 Acquire {
@@ -134,9 +105,6 @@ Acquire {
   HTTPS::proxy "#{ENV['VAGRANT_VM_PROXY']}";
 }
 EOF
-
-KUBELET_EXTRA_ARGS_FILE=/etc/default/kubelet
-echo 'KUBELET_EXTRA_ARGS=--node-ip=#{NODE > 0 ? NODE_IP : MASTER_IP} --cni-bin-dir=/opt/cni/bin,/usr/libexec/cni' > "${KUBELET_EXTRA_ARGS_FILE}"
 
 mkdir /etc/docker
 cat <<EOF > /etc/docker/daemon.json
@@ -150,11 +118,13 @@ cat <<EOF > /etc/docker/daemon.json
 }
 EOF
 
+
 retries=5
 for ((i=0; i<retries; i++)); do
     apt-get update && \
-    apt-get -y install apt-transport-https curl software-properties-common ca-certificates && \
-        break
+    apt-get -y install apt-transport-https curl software-properties-common \
+        ca-certificates nfs-common portmap && \
+    break
 done
 [[ $retries -eq i ]] && { echo "Failed to install apt-transport-https and other dependenices after 5 tries"; exit 1; }
 
@@ -178,15 +148,57 @@ fi
 retries=5
 for ((i=0; i<retries; i++)); do
     apt-get update && \
-    apt-get -y install tmux screen telnet conntrack socat net-tools docker-ce=#{$docker_version} ${KUBERNETES_PACKAGES} && \
-        break
+    apt-get -y install tmux screen telnet conntrack socat net-tools \
+        docker-ce=#{$docker_version} ${KUBERNETES_PACKAGES} && \
+    break
 done
 [[ $retries -eq i ]] && { echo "Failed to install docker, kubelet, kubeadm and other dependenices after 5 tries"; exit 1; }
 
-apt-mark hold kubelet kubeadm kubectl
+systemctl disable kubelet
+apt-mark hold docker-ce kubelet kubeadm kubectl
 
 # Increase /run dir as it is/was a problem on Ubuntu 18.04 (at least on bento box image)
 echo 'tmpfs /run tmpfs rw,nosuid,noexec,relatime,size=614460k,mode=755' >> /etc/fstab
+
+apt-get clean
+fstrim -a
+
+SCRIPT
+
+
+aliases = %q{
+alias s="sudo -s"
+alias lh="ls -alh"
+alias d="docker"
+alias dl="docker logs"
+alias dlf="docker logs -f"
+alias dlv='docker logs -f \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}")'
+alias dp="docker ps"
+alias dpa="docker ps -a"
+alias dpv="docker ps -a |grep vpp"
+alias vc='docker exec -it \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}") vppctl'
+alias dsv='docker stop \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}")'
+alias nodelogs='docker logs \$(docker ps |grep k8s_calico-node_calico-vpp-node | awk "{print \\\\\$1}")'
+alias dsn='docker stop \$(docker ps |grep k8s_calico-node_calico-vpp-node | awk "{print \\\\\$1}")'
+alias idu="ip link set eth1 down; ip link set eth1 up"
+alias ifr="ip link set vpptap0 down; echo '0000:00:06.0' > /sys/bus/pci/devices/0000\:00\:06.0/driver/unbind; sleep 0.2; echo '0000:00:06.0' > /sys/bus/pci/drivers/virtio-pci/bind; sleep 0.5; ip link set eth1 up"
+}
+
+$prepareScript = <<SCRIPT
+cat <<EOF >> /root/.bashrc
+#{aliases}
+EOF
+cat <<EOF >> /home/vagrant/.bashrc
+#{aliases}
+EOF
+
+resize2fs /dev/vda3
+
+KUBELET_EXTRA_ARGS_FILE=/etc/default/kubelet
+echo 'KUBELET_EXTRA_ARGS=--node-ip=#{NODE > 0 ? NODE_IP : MASTER_IP} --cni-bin-dir=/opt/cni/bin,/usr/libexec/cni' > "${KUBELET_EXTRA_ARGS_FILE}"
+systemctl enable kubelet
+systemctl start kubelet
+
 SCRIPT
 
 
