@@ -24,8 +24,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "ipip"
-	APIVersion = "2.0.1"
-	VersionCrc = 0xd9b71562
+	APIVersion = "2.0.2"
+	VersionCrc = 0xa7344412
 )
 
 // IpipTunnel defines type 'ipip_tunnel'.

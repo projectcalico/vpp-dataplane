@@ -234,11 +234,6 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	}
 
-	err = s.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, config.TapRxMode)
-	if err != nil {
-		return 0, s.tunErrorCleanup(podSpec, err, "error SetInterfaceRxMode on tun interface")
-	}
-
 	// configure vpp side tun
 	err = s.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
@@ -287,6 +282,11 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	err = s.SetupVppRoutes(swIfIndex, podSpec)
 	if err != nil {
 		return 0, s.tunErrorCleanup(podSpec, err, "error adding vpp side routes for interface: %s", tunTag)
+	}
+
+	err = s.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, config.TapRxMode)
+	if err != nil {
+		return 0, s.tunErrorCleanup(podSpec, err, "error SetInterfaceRxMode on tun interface")
 	}
 
 	s.log.Infof("Setup tun[%d] complete", swIfIndex)

@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "cnat"
 	APIVersion = "0.2.0"
-	VersionCrc = 0x51a95ae4
+	VersionCrc = 0x504b22f9
 )
 
 // CnatSnatPolicies defines enum 'cnat_snat_policies'.

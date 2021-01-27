@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "capo"
 	APIVersion = "0.1.0"
-	VersionCrc = 0x39c18770
+	VersionCrc = 0x3dbafffc
 )
 
 // CapoEntryType defines enum 'capo_entry_type'.

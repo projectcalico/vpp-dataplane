@@ -96,6 +96,7 @@ type Ikev2Profile struct {
 	IpsecOverUDPPort uint16             `binapi:"u16,name=ipsec_over_udp_port" json:"ipsec_over_udp_port,omitempty"`
 	TunItf           uint32             `binapi:"u32,name=tun_itf" json:"tun_itf,omitempty"`
 	UDPEncap         bool               `binapi:"bool,name=udp_encap" json:"udp_encap,omitempty"`
+	NattDisabled     bool               `binapi:"bool,name=natt_disabled" json:"natt_disabled,omitempty"`
 	Auth             Ikev2Auth          `binapi:"ikev2_auth,name=auth" json:"auth,omitempty"`
 }
 

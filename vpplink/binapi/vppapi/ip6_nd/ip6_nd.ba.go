@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip6_nd"
 	APIVersion = "1.0.0"
-	VersionCrc = 0x4929166c
+	VersionCrc = 0x2fe73bce
 )
 
 // IP6RaPrefixInfo defines type 'ip6_ra_prefix_info'.

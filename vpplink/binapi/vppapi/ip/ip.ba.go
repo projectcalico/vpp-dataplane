@@ -3,9 +3,9 @@
 // Package ip contains generated bindings for API file ip.api.
 //
 // Contents:
-//   1 enum
+//   2 enums
 //   4 structs
-//  60 messages
+//  64 messages
 //
 package ip
 
@@ -29,9 +29,54 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "ip"
-	APIVersion = "3.0.1"
-	VersionCrc = 0x78d167e7
+	APIVersion = "3.0.2"
+	VersionCrc = 0x2073c247
 )
+
+// IPFlowHashConfig defines enum 'ip_flow_hash_config'.
+type IPFlowHashConfig uint32
+
+const (
+	IP_API_FLOW_HASH_SRC_IP     IPFlowHashConfig = 1
+	IP_API_FLOW_HASH_DST_IP     IPFlowHashConfig = 2
+	IP_API_FLOW_HASH_SRC_PORT   IPFlowHashConfig = 4
+	IP_API_FLOW_HASH_DST_PORT   IPFlowHashConfig = 8
+	IP_API_FLOW_HASH_PROTO      IPFlowHashConfig = 16
+	IP_API_FLOW_HASH_REVERSE    IPFlowHashConfig = 32
+	IP_API_FLOW_HASH_SYMETRIC   IPFlowHashConfig = 64
+	IP_API_FLOW_HASH_FLOW_LABEL IPFlowHashConfig = 128
+)
+
+var (
+	IPFlowHashConfig_name = map[uint32]string{
+		1:   "IP_API_FLOW_HASH_SRC_IP",
+		2:   "IP_API_FLOW_HASH_DST_IP",
+		4:   "IP_API_FLOW_HASH_SRC_PORT",
+		8:   "IP_API_FLOW_HASH_DST_PORT",
+		16:  "IP_API_FLOW_HASH_PROTO",
+		32:  "IP_API_FLOW_HASH_REVERSE",
+		64:  "IP_API_FLOW_HASH_SYMETRIC",
+		128: "IP_API_FLOW_HASH_FLOW_LABEL",
+	}
+	IPFlowHashConfig_value = map[string]uint32{
+		"IP_API_FLOW_HASH_SRC_IP":     1,
+		"IP_API_FLOW_HASH_DST_IP":     2,
+		"IP_API_FLOW_HASH_SRC_PORT":   4,
+		"IP_API_FLOW_HASH_DST_PORT":   8,
+		"IP_API_FLOW_HASH_PROTO":      16,
+		"IP_API_FLOW_HASH_REVERSE":    32,
+		"IP_API_FLOW_HASH_SYMETRIC":   64,
+		"IP_API_FLOW_HASH_FLOW_LABEL": 128,
+	}
+)
+
+func (x IPFlowHashConfig) String() string {
+	s, ok := IPFlowHashConfig_name[uint32(x)]
+	if ok {
+		return s
+	}
+	return "IPFlowHashConfig(" + strconv.Itoa(int(x)) + ")"
+}
 
 // IPReassType defines enum 'ip_reass_type'.
 type IPReassType uint32
@@ -2763,6 +2808,80 @@ func (m *SetIPFlowHashReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// SetIPFlowHashV2 defines message 'set_ip_flow_hash_v2'.
+type SetIPFlowHashV2 struct {
+	TableID        uint32                 `binapi:"u32,name=table_id" json:"table_id,omitempty"`
+	Af             ip_types.AddressFamily `binapi:"address_family,name=af" json:"af,omitempty"`
+	FlowHashConfig IPFlowHashConfig       `binapi:"ip_flow_hash_config,name=flow_hash_config" json:"flow_hash_config,omitempty"`
+}
+
+func (m *SetIPFlowHashV2) Reset()               { *m = SetIPFlowHashV2{} }
+func (*SetIPFlowHashV2) GetMessageName() string { return "set_ip_flow_hash_v2" }
+func (*SetIPFlowHashV2) GetCrcString() string   { return "6d132100" }
+func (*SetIPFlowHashV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SetIPFlowHashV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.TableID
+	size += 1 // m.Af
+	size += 4 // m.FlowHashConfig
+	return size
+}
+func (m *SetIPFlowHashV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.TableID)
+	buf.EncodeUint8(uint8(m.Af))
+	buf.EncodeUint32(uint32(m.FlowHashConfig))
+	return buf.Bytes(), nil
+}
+func (m *SetIPFlowHashV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.TableID = buf.DecodeUint32()
+	m.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	m.FlowHashConfig = IPFlowHashConfig(buf.DecodeUint32())
+	return nil
+}
+
+// SetIPFlowHashV2Reply defines message 'set_ip_flow_hash_v2_reply'.
+type SetIPFlowHashV2Reply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SetIPFlowHashV2Reply) Reset()               { *m = SetIPFlowHashV2Reply{} }
+func (*SetIPFlowHashV2Reply) GetMessageName() string { return "set_ip_flow_hash_v2_reply" }
+func (*SetIPFlowHashV2Reply) GetCrcString() string   { return "e8d4e804" }
+func (*SetIPFlowHashV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SetIPFlowHashV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SetIPFlowHashV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SetIPFlowHashV2Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // SwInterfaceIP6EnableDisable defines message 'sw_interface_ip6_enable_disable'.
 type SwInterfaceIP6EnableDisable struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2832,6 +2951,82 @@ func (m *SwInterfaceIP6EnableDisableReply) Marshal(b []byte) ([]byte, error) {
 func (m *SwInterfaceIP6EnableDisableReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// SwInterfaceIP6GetLinkLocalAddress defines message 'sw_interface_ip6_get_link_local_address'.
+type SwInterfaceIP6GetLinkLocalAddress struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+}
+
+func (m *SwInterfaceIP6GetLinkLocalAddress) Reset() { *m = SwInterfaceIP6GetLinkLocalAddress{} }
+func (*SwInterfaceIP6GetLinkLocalAddress) GetMessageName() string {
+	return "sw_interface_ip6_get_link_local_address"
+}
+func (*SwInterfaceIP6GetLinkLocalAddress) GetCrcString() string { return "f9e6675e" }
+func (*SwInterfaceIP6GetLinkLocalAddress) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SwInterfaceIP6GetLinkLocalAddress) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	return size
+}
+func (m *SwInterfaceIP6GetLinkLocalAddress) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceIP6GetLinkLocalAddress) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	return nil
+}
+
+// SwInterfaceIP6GetLinkLocalAddressReply defines message 'sw_interface_ip6_get_link_local_address_reply'.
+type SwInterfaceIP6GetLinkLocalAddressReply struct {
+	Retval int32               `binapi:"i32,name=retval" json:"retval,omitempty"`
+	IP     ip_types.IP6Address `binapi:"ip6_address,name=ip" json:"ip,omitempty"`
+}
+
+func (m *SwInterfaceIP6GetLinkLocalAddressReply) Reset() {
+	*m = SwInterfaceIP6GetLinkLocalAddressReply{}
+}
+func (*SwInterfaceIP6GetLinkLocalAddressReply) GetMessageName() string {
+	return "sw_interface_ip6_get_link_local_address_reply"
+}
+func (*SwInterfaceIP6GetLinkLocalAddressReply) GetCrcString() string { return "d16b7130" }
+func (*SwInterfaceIP6GetLinkLocalAddressReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SwInterfaceIP6GetLinkLocalAddressReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4      // m.Retval
+	size += 1 * 16 // m.IP
+	return size
+}
+func (m *SwInterfaceIP6GetLinkLocalAddressReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeBytes(m.IP[:], 16)
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceIP6GetLinkLocalAddressReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	copy(m.IP[:], buf.DecodeBytes(16))
 	return nil
 }
 
@@ -2969,8 +3164,12 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*MfibSignalDump)(nil), "mfib_signal_dump_51077d14")
 	api.RegisterMessage((*SetIPFlowHash)(nil), "set_ip_flow_hash_084ee09e")
 	api.RegisterMessage((*SetIPFlowHashReply)(nil), "set_ip_flow_hash_reply_e8d4e804")
+	api.RegisterMessage((*SetIPFlowHashV2)(nil), "set_ip_flow_hash_v2_6d132100")
+	api.RegisterMessage((*SetIPFlowHashV2Reply)(nil), "set_ip_flow_hash_v2_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceIP6EnableDisable)(nil), "sw_interface_ip6_enable_disable_ae6cfcfb")
 	api.RegisterMessage((*SwInterfaceIP6EnableDisableReply)(nil), "sw_interface_ip6_enable_disable_reply_e8d4e804")
+	api.RegisterMessage((*SwInterfaceIP6GetLinkLocalAddress)(nil), "sw_interface_ip6_get_link_local_address_f9e6675e")
+	api.RegisterMessage((*SwInterfaceIP6GetLinkLocalAddressReply)(nil), "sw_interface_ip6_get_link_local_address_reply_d16b7130")
 	api.RegisterMessage((*SwInterfaceIP6SetLinkLocalAddress)(nil), "sw_interface_ip6_set_link_local_address_2931d9fa")
 	api.RegisterMessage((*SwInterfaceIP6SetLinkLocalAddressReply)(nil), "sw_interface_ip6_set_link_local_address_reply_e8d4e804")
 }
@@ -3034,8 +3233,12 @@ func AllMessages() []api.Message {
 		(*MfibSignalDump)(nil),
 		(*SetIPFlowHash)(nil),
 		(*SetIPFlowHashReply)(nil),
+		(*SetIPFlowHashV2)(nil),
+		(*SetIPFlowHashV2Reply)(nil),
 		(*SwInterfaceIP6EnableDisable)(nil),
 		(*SwInterfaceIP6EnableDisableReply)(nil),
+		(*SwInterfaceIP6GetLinkLocalAddress)(nil),
+		(*SwInterfaceIP6GetLinkLocalAddressReply)(nil),
 		(*SwInterfaceIP6SetLinkLocalAddress)(nil),
 		(*SwInterfaceIP6SetLinkLocalAddressReply)(nil),
 	}

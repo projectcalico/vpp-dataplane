@@ -4,7 +4,7 @@
 //
 // Contents:
 //   4 enums
-//   2 structs
+//   3 structs
 //
 package ipsec_types
 
@@ -13,6 +13,7 @@ import (
 
 	api "git.fd.io/govpp.git/api"
 	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	tunnel_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/tunnel_types"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -224,6 +225,26 @@ type IpsecSadEntry struct {
 	Salt               uint32           `binapi:"u32,name=salt" json:"salt,omitempty"`
 	UDPSrcPort         uint16           `binapi:"u16,name=udp_src_port,default=4500" json:"udp_src_port,omitempty"`
 	UDPDstPort         uint16           `binapi:"u16,name=udp_dst_port,default=4500" json:"udp_dst_port,omitempty"`
+}
+
+// IpsecSadEntryV2 defines type 'ipsec_sad_entry_v2'.
+type IpsecSadEntryV2 struct {
+	SadID              uint32                             `binapi:"u32,name=sad_id" json:"sad_id,omitempty"`
+	Spi                uint32                             `binapi:"u32,name=spi" json:"spi,omitempty"`
+	Protocol           IpsecProto                         `binapi:"ipsec_proto,name=protocol" json:"protocol,omitempty"`
+	CryptoAlgorithm    IpsecCryptoAlg                     `binapi:"ipsec_crypto_alg,name=crypto_algorithm" json:"crypto_algorithm,omitempty"`
+	CryptoKey          Key                                `binapi:"key,name=crypto_key" json:"crypto_key,omitempty"`
+	IntegrityAlgorithm IpsecIntegAlg                      `binapi:"ipsec_integ_alg,name=integrity_algorithm" json:"integrity_algorithm,omitempty"`
+	IntegrityKey       Key                                `binapi:"key,name=integrity_key" json:"integrity_key,omitempty"`
+	Flags              IpsecSadFlags                      `binapi:"ipsec_sad_flags,name=flags" json:"flags,omitempty"`
+	TunnelSrc          ip_types.Address                   `binapi:"address,name=tunnel_src" json:"tunnel_src,omitempty"`
+	TunnelDst          ip_types.Address                   `binapi:"address,name=tunnel_dst" json:"tunnel_dst,omitempty"`
+	TunnelFlags        tunnel_types.TunnelEncapDecapFlags `binapi:"tunnel_encap_decap_flags,name=tunnel_flags" json:"tunnel_flags,omitempty"`
+	Dscp               ip_types.IPDscp                    `binapi:"ip_dscp,name=dscp" json:"dscp,omitempty"`
+	TxTableID          uint32                             `binapi:"u32,name=tx_table_id" json:"tx_table_id,omitempty"`
+	Salt               uint32                             `binapi:"u32,name=salt" json:"salt,omitempty"`
+	UDPSrcPort         uint16                             `binapi:"u16,name=udp_src_port,default=4500" json:"udp_src_port,omitempty"`
+	UDPDstPort         uint16                             `binapi:"u16,name=udp_dst_port,default=4500" json:"udp_dst_port,omitempty"`
 }
 
 // Key defines type 'key'.

@@ -23,7 +23,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "vxlan"
 	APIVersion = "2.1.0"
-	VersionCrc = 0x8935b8a3
+	VersionCrc = 0x87d8253f
 )
 
 // SwInterfaceSetVxlanBypass defines message 'sw_interface_set_vxlan_bypass'.

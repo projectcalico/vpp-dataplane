@@ -72,7 +72,7 @@ function generate_govpp_apis ()
 	  ipsec \
 	  ip_neighbor \
 	  tapv2 \
-	  nat \
+	  nat44 \
 	  cnat \
 	  af_packet \
 	  feature \

@@ -21,8 +21,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/nat"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/nat_types"
+	nat "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/nat44"
+	nat_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/nat_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 

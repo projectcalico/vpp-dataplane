@@ -3,9 +3,9 @@
 // Package ip_neighbor contains generated bindings for API file ip_neighbor.api.
 //
 // Contents:
-//   1 enum
+//   2 enums
 //   1 struct
-//  15 messages
+//  18 messages
 //
 package ip_neighbor
 
@@ -28,8 +28,54 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip_neighbor"
 	APIVersion = "1.0.0"
-	VersionCrc = 0x412b25da
+	VersionCrc = 0xda761d45
 )
+
+// IPNeighborEventFlags defines enum 'ip_neighbor_event_flags'.
+type IPNeighborEventFlags uint32
+
+const (
+	IP_NEIGHBOR_API_EVENT_FLAG_ADDED   IPNeighborEventFlags = 1
+	IP_NEIGHBOR_API_EVENT_FLAG_REMOVED IPNeighborEventFlags = 2
+)
+
+var (
+	IPNeighborEventFlags_name = map[uint32]string{
+		1: "IP_NEIGHBOR_API_EVENT_FLAG_ADDED",
+		2: "IP_NEIGHBOR_API_EVENT_FLAG_REMOVED",
+	}
+	IPNeighborEventFlags_value = map[string]uint32{
+		"IP_NEIGHBOR_API_EVENT_FLAG_ADDED":   1,
+		"IP_NEIGHBOR_API_EVENT_FLAG_REMOVED": 2,
+	}
+)
+
+func (x IPNeighborEventFlags) String() string {
+	s, ok := IPNeighborEventFlags_name[uint32(x)]
+	if ok {
+		return s
+	}
+	str := func(n uint32) string {
+		s, ok := IPNeighborEventFlags_name[uint32(n)]
+		if ok {
+			return s
+		}
+		return "IPNeighborEventFlags(" + strconv.Itoa(int(n)) + ")"
+	}
+	for i := uint32(0); i <= 32; i++ {
+		val := uint32(x)
+		if val&(1<<i) != 0 {
+			if s != "" {
+				s += "|"
+			}
+			s += str(1 << i)
+		}
+	}
+	if s == "" {
+		return str(uint32(x))
+	}
+	return s
+}
 
 // IPNeighborFlags defines enum 'ip_neighbor_flags'.
 type IPNeighborFlags uint8
@@ -387,6 +433,59 @@ func (m *IPNeighborEvent) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPNeighborEventV2 defines message 'ip_neighbor_event_v2'.
+type IPNeighborEventV2 struct {
+	PID      uint32               `binapi:"u32,name=pid" json:"pid,omitempty"`
+	Flags    IPNeighborEventFlags `binapi:"ip_neighbor_event_flags,name=flags" json:"flags,omitempty"`
+	Neighbor IPNeighbor           `binapi:"ip_neighbor,name=neighbor" json:"neighbor,omitempty"`
+}
+
+func (m *IPNeighborEventV2) Reset()               { *m = IPNeighborEventV2{} }
+func (*IPNeighborEventV2) GetMessageName() string { return "ip_neighbor_event_v2" }
+func (*IPNeighborEventV2) GetCrcString() string   { return "c1d53dc0" }
+func (*IPNeighborEventV2) GetMessageType() api.MessageType {
+	return api.EventMessage
+}
+
+func (m *IPNeighborEventV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4      // m.PID
+	size += 4      // m.Flags
+	size += 4      // m.Neighbor.SwIfIndex
+	size += 1      // m.Neighbor.Flags
+	size += 1 * 6  // m.Neighbor.MacAddress
+	size += 1      // m.Neighbor.IPAddress.Af
+	size += 1 * 16 // m.Neighbor.IPAddress.Un
+	return size
+}
+func (m *IPNeighborEventV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.PID)
+	buf.EncodeUint32(uint32(m.Flags))
+	buf.EncodeUint32(uint32(m.Neighbor.SwIfIndex))
+	buf.EncodeUint8(uint8(m.Neighbor.Flags))
+	buf.EncodeBytes(m.Neighbor.MacAddress[:], 6)
+	buf.EncodeUint8(uint8(m.Neighbor.IPAddress.Af))
+	buf.EncodeBytes(m.Neighbor.IPAddress.Un.XXX_UnionData[:], 16)
+	return buf.Bytes(), nil
+}
+func (m *IPNeighborEventV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.PID = buf.DecodeUint32()
+	m.Flags = IPNeighborEventFlags(buf.DecodeUint32())
+	m.Neighbor.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.Neighbor.Flags = IPNeighborFlags(buf.DecodeUint8())
+	copy(m.Neighbor.MacAddress[:], buf.DecodeBytes(6))
+	m.Neighbor.IPAddress.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Neighbor.IPAddress.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	return nil
+}
+
 // IPNeighborFlush defines message 'ip_neighbor_flush'.
 type IPNeighborFlush struct {
 	Af        ip_types.AddressFamily         `binapi:"address_family,name=af" json:"af,omitempty"`
@@ -658,6 +757,89 @@ func (m *WantIPNeighborEventsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// WantIPNeighborEventsV2 defines message 'want_ip_neighbor_events_v2'.
+type WantIPNeighborEventsV2 struct {
+	Enable    bool                           `binapi:"bool,name=enable" json:"enable,omitempty"`
+	PID       uint32                         `binapi:"u32,name=pid" json:"pid,omitempty"`
+	IP        ip_types.Address               `binapi:"address,name=ip" json:"ip,omitempty"`
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index,default=4294967295" json:"sw_if_index,omitempty"`
+}
+
+func (m *WantIPNeighborEventsV2) Reset()               { *m = WantIPNeighborEventsV2{} }
+func (*WantIPNeighborEventsV2) GetMessageName() string { return "want_ip_neighbor_events_v2" }
+func (*WantIPNeighborEventsV2) GetCrcString() string   { return "73e70a86" }
+func (*WantIPNeighborEventsV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *WantIPNeighborEventsV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1      // m.Enable
+	size += 4      // m.PID
+	size += 1      // m.IP.Af
+	size += 1 * 16 // m.IP.Un
+	size += 4      // m.SwIfIndex
+	return size
+}
+func (m *WantIPNeighborEventsV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBool(m.Enable)
+	buf.EncodeUint32(m.PID)
+	buf.EncodeUint8(uint8(m.IP.Af))
+	buf.EncodeBytes(m.IP.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	return buf.Bytes(), nil
+}
+func (m *WantIPNeighborEventsV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Enable = buf.DecodeBool()
+	m.PID = buf.DecodeUint32()
+	m.IP.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.IP.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	return nil
+}
+
+// WantIPNeighborEventsV2Reply defines message 'want_ip_neighbor_events_v2_reply'.
+type WantIPNeighborEventsV2Reply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *WantIPNeighborEventsV2Reply) Reset() { *m = WantIPNeighborEventsV2Reply{} }
+func (*WantIPNeighborEventsV2Reply) GetMessageName() string {
+	return "want_ip_neighbor_events_v2_reply"
+}
+func (*WantIPNeighborEventsV2Reply) GetCrcString() string { return "e8d4e804" }
+func (*WantIPNeighborEventsV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *WantIPNeighborEventsV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *WantIPNeighborEventsV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *WantIPNeighborEventsV2Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 func init() { file_ip_neighbor_binapi_init() }
 func file_ip_neighbor_binapi_init() {
 	api.RegisterMessage((*IPNeighborAddDel)(nil), "ip_neighbor_add_del_105518b6")
@@ -667,6 +849,7 @@ func file_ip_neighbor_binapi_init() {
 	api.RegisterMessage((*IPNeighborDetails)(nil), "ip_neighbor_details_870e80b9")
 	api.RegisterMessage((*IPNeighborDump)(nil), "ip_neighbor_dump_cd831298")
 	api.RegisterMessage((*IPNeighborEvent)(nil), "ip_neighbor_event_83933131")
+	api.RegisterMessage((*IPNeighborEventV2)(nil), "ip_neighbor_event_v2_c1d53dc0")
 	api.RegisterMessage((*IPNeighborFlush)(nil), "ip_neighbor_flush_16aa35d2")
 	api.RegisterMessage((*IPNeighborFlushReply)(nil), "ip_neighbor_flush_reply_e8d4e804")
 	api.RegisterMessage((*IPNeighborReplaceBegin)(nil), "ip_neighbor_replace_begin_51077d14")
@@ -675,6 +858,8 @@ func file_ip_neighbor_binapi_init() {
 	api.RegisterMessage((*IPNeighborReplaceEndReply)(nil), "ip_neighbor_replace_end_reply_e8d4e804")
 	api.RegisterMessage((*WantIPNeighborEvents)(nil), "want_ip_neighbor_events_1a312870")
 	api.RegisterMessage((*WantIPNeighborEventsReply)(nil), "want_ip_neighbor_events_reply_e8d4e804")
+	api.RegisterMessage((*WantIPNeighborEventsV2)(nil), "want_ip_neighbor_events_v2_73e70a86")
+	api.RegisterMessage((*WantIPNeighborEventsV2Reply)(nil), "want_ip_neighbor_events_v2_reply_e8d4e804")
 }
 
 // Messages returns list of all messages in this module.
@@ -687,6 +872,7 @@ func AllMessages() []api.Message {
 		(*IPNeighborDetails)(nil),
 		(*IPNeighborDump)(nil),
 		(*IPNeighborEvent)(nil),
+		(*IPNeighborEventV2)(nil),
 		(*IPNeighborFlush)(nil),
 		(*IPNeighborFlushReply)(nil),
 		(*IPNeighborReplaceBegin)(nil),
@@ -695,5 +881,7 @@ func AllMessages() []api.Message {
 		(*IPNeighborReplaceEndReply)(nil),
 		(*WantIPNeighborEvents)(nil),
 		(*WantIPNeighborEventsReply)(nil),
+		(*WantIPNeighborEventsV2)(nil),
+		(*WantIPNeighborEventsV2Reply)(nil),
 	}
 }

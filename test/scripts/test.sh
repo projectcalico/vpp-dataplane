@@ -18,6 +18,13 @@ source $SCRIPTDIR/shared.sh
 
 PERFTESTDIR=/path/to/perf-tests # git clone git@github.com:kubernetes/perf-tests.git
 
+N_TESTS=${N_TESTS:=3}
+TEST_LEN=${TEST_LEN:=30}
+# Skip N sec at start at end
+TEST_SKIP=${TEST_SKIP:=10}
+CASE=${CASE:=IPERF}
+VPP_STATS=${VPP_STATS:=n}
+
 k_delete_namespace ()
 {
   TMP=$(kubectl get namespace $1 2> /dev/null | wc -l)
@@ -114,6 +121,7 @@ function print_usage_and_exit ()
     echo "test.sh pin CPUS=27-35,39-47                                   - pin nginx/iperf/vhost to given CPUS"
     echo "test.sh run [DIR] [N_TESTS=3] [TEST_SZ=4096|2MB] [CASE=WRK1|WRK2|IPERF]"
     echo "            [N_FLOWS=4] [CPUS=27-35,39-47] [OTHERHOST=sshname]"
+    echo "            [TEST_LEN=30] [TEST_SKIP=10] [VPP_STATS=n]"
     echo "test.sh report [DIR]"
     echo
     exit 0
@@ -193,7 +201,7 @@ setup_test_IPERF ()
 run_test_IPERF ()
 {
 	CLUSTER_IP=$( kubectl get svc -n iperf iperf-service -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
-	TEST_CMD="taskset -c ${CPUS} iperf -c ${CLUSTER_IP} -P${N_FLOWS} -t10 -i1"
+	TEST_CMD="taskset -c ${CPUS} iperf -c ${CLUSTER_IP} -P${N_FLOWS} -t${TEST_LEN} -i1"
 	echo "Running test : ${TEST_CMD}"
 	echo $TEST_CMD > $DIR/test_command.sh
 	kubectl exec -it iperf-client -n iperf -- $TEST_CMD > $DIR/test_output
@@ -202,8 +210,8 @@ run_test_IPERF ()
 run_test_WRK1 ()
 {
 	TEST_SZ=${TEST_SZ:=4096} # 4096 // 2MB
-	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-${TEST_N} -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
-	TEST_CMD="sudo prlimit --nofile=100000 numactl -m 1 -C ${CPUS} ./wrk.py -t10 -c1000 -d10s --latency http://${CLUSTER_IP}/${TEST_SZ}"
+	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-1 -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	TEST_CMD="sudo prlimit --nofile=100000 numactl -m 1 -C ${CPUS} ./wrk.py -t10 -c1000 -d${TEST_LEN}s --latency http://${CLUSTER_IP}/${TEST_SZ}"
 	echo "Running test : ${TEST_CMD}"
 	echo $TEST_CMD > $DIR/test_command.sh
 	$TEST_CMD > $DIR/test_output
@@ -212,8 +220,8 @@ run_test_WRK1 ()
 run_test_WRK2 ()
 {
 	TEST_SZ=${TEST_SZ:=4096} # 4096 // 2MB
-	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-${TEST_N} -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
-	TEST_CMD="/wrk/wrk.py -t10 -c1000 -d10s --latency http://${CLUSTER_IP}/${TEST_SZ}"
+	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-1 -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	TEST_CMD="/wrk/wrk.py -t10 -c1000 -d${TEST_LEN}s --latency http://${CLUSTER_IP}/${TEST_SZ}"
 	echo "Running test : ${TEST_CMD}"
 	echo $TEST_CMD > $DIR/test_command.sh
 	kubectl exec -it wrk-client -n wrk -- $TEST_CMD > $DIR/test_output
@@ -223,8 +231,10 @@ test_run_one ()
 {
 	mkdir -p $DIR
 	setup_test_$CASE
-	$SCRIPTDIR/vppdev.sh clear
-	$SCRIPTDIR/vppdev.sh export $DIR start
+	if [ "$VPP_STATS" = "y" ]; then
+		$SCRIPTDIR/vppdev.sh clear
+		$SCRIPTDIR/vppdev.sh export $DIR start
+	fi
 	echo $CASE > $DIR/testcase
 
 	start_time=$(date "+%s")
@@ -238,7 +248,9 @@ test_run_one ()
 	done
 	echo "start=${start_time} end=${end_time}" > $DIR/timestamps
 
-	$SCRIPTDIR/vppdev.sh export $DIR end
+	if [ "$VPP_STATS" = "y" ]; then
+		$SCRIPTDIR/vppdev.sh export $DIR end
+	fi
 }
 
 test_run ()
@@ -249,8 +261,6 @@ test_run ()
       eval $1
       shift
 	done
-	N_TESTS=${N_TESTS:=3}
-	CASE=${CASE:=IPERF}
 
 	if [ x$CPUS = x ]; then
 		echo "provide CPUS=27-35,39-47"
@@ -287,7 +297,10 @@ get_avg_cpu ()
 	if [ ! -f "${FILE}" ]; then
 		printf ";;;;;;"
 	else
-		tail -n +2 $FILE | awk '{M+=$6;U+=$1;N+=$2;S+=$3;I+=$4;T+=$5;}
+		tail -n +2 $FILE | \
+    	tail -n +${TEST_SKIP} | \
+    	head -n +${TEST_SKIP} | \
+		awk '{M+=$6;U+=$1;N+=$2;S+=$3;I+=$4;T+=$5;}
 			END {
 				printf "%.2f;%.2f;%.2f;%.2f;%.2f;%d;%d",U/NR,N/NR,S/NR,I/NR,T/NR,M/NR,NR
 			}'
@@ -310,6 +323,8 @@ get_avg_iperf_bps ()
   fi
   cat $FILE | grep $spattern | \
     egrep -o "[0-9\.]+ [MKG]bits/s" | \
+    tail -n +${TEST_SKIP} | \
+    head -n +${TEST_SKIP} | \
     sed "s@ Gbits/s@ 1000000000@g" | \
     sed "s@ Mbits/s@ 1000000@g" | \
     sed "s@ Kbits/s@ 1000@g" | \
