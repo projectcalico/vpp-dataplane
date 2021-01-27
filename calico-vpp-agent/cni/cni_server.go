@@ -253,6 +253,9 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 	}
 
 	vppLinuxMtu, err := fetchVppLinuxMtu()
+	if err != nil {
+		l.Warn("failed to fetch vpp linux mtu")
+	}
 
 	server := &Server{
 		vpp:             v,

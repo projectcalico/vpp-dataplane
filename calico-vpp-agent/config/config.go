@@ -78,7 +78,7 @@ var (
 	ServiceCIDRs      []*net.IPNet
 	TapRxQueueSize    int = 0
 	TapTxQueueSize    int = 0
-	TapMtu            int = 1440
+	TapMtu            int = 0
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
