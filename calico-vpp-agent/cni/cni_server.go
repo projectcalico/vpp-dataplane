@@ -18,16 +18,20 @@ package cni
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/pkg/errors"
-	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
+	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
@@ -49,10 +53,25 @@ type Server struct {
 	/* without main thread */
 	NumVPPWorkers uint32
 	lock          sync.Mutex
+	vppLinuxMtu   int
 }
 
 func swIfIdxToIfName(idx uint32) string {
 	return fmt.Sprintf("vpp-tun-%d", idx)
+}
+
+func fetchVppLinuxMtu() (mtu int, err error) {
+	for i := 0; i < 20; i++ {
+		dat, err := ioutil.ReadFile(config.VppManagerLinuxMtu)
+		if err == nil {
+			idx, err := strconv.ParseInt(strings.TrimSpace(string(dat[:])), 10, 32)
+			if err == nil && idx != -1 {
+				return int(idx), nil
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return 0, errors.Errorf("Vpp-host mtu not ready after 20 tries")
 }
 
 func NewLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, error) {
@@ -232,6 +251,12 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 		l.Fatalf("failed to listen on %s: %v", config.CNIServerSocket, err)
 		return nil, err
 	}
+
+	vppLinuxMtu, err := fetchVppLinuxMtu()
+	if err != nil {
+		l.Warn("failed to fetch vpp linux mtu")
+	}
+
 	server := &Server{
 		vpp:             v,
 		log:             l,
@@ -241,6 +266,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 		client:          client,
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]storage.LocalPodSpec),
+		vppLinuxMtu:     vppLinuxMtu,
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")

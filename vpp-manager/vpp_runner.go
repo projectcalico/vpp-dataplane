@@ -298,6 +298,11 @@ func (v *VppRunner) configureVpp() (err error) {
 	}
 	err = utils.WriteFile(strconv.FormatInt(int64(tapSwIfIndex), 10), config.VppManagerTapIdxFile)
 	if err != nil {
+		return errors.Wrap(err, "Error writing linux mtu")
+	}
+
+	err = utils.WriteFile(strconv.FormatInt(int64(v.conf.Mtu), 10), config.VppManagerLinuxMtu)
+	if err != nil {
 		return errors.Wrap(err, "Error writing tap idx")
 	}
 
