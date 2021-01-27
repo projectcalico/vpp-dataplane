@@ -102,11 +102,11 @@ function test_ipv4 ()
 	assert_test_output_contains_not "connect failed"
 
 	echo "--Cross node UDP tests--"
-	test "iperf PodIP"           iperf -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1 -u -l1450 -p5003
+	test "iperf PodIP"           iperf -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
-	test "iperf ServiceIP"       iperf -c $(NS=iperf SVC=iperf-service getClusterIP) -t 1 -P1 -i1 -u -l1450 -p5003
+	test "iperf ServiceIP"       iperf -c $(NS=iperf SVC=iperf-service getClusterIP) -t 1 -P1 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
-	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1 -u -l1450 -p5003
+	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
 
 	POD=iperf-client-samehost
@@ -120,11 +120,11 @@ function test_ipv4 ()
 	assert_test_output_contains_not "connect failed"
 
 	echo "--Same host UDP tests--"
-	test "iperf PodIP"           iperf -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1 -u -l1450 -p5003
+	test "iperf PodIP"           iperf -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
-	test "iperf ServiceIP"       iperf -c $(NS=iperf SVC=iperf-service getClusterIP) -t 1 -P1 -i1 -u -l1450 -p5003
+	test "iperf ServiceIP"       iperf -c $(NS=iperf SVC=iperf-service getClusterIP) -t 1 -P1 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
-	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1 -u -l1450 -p5003
+	test "iperf ServiceName -P4" iperf -c iperf-service                              -t 1 -P4 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
 }
 
@@ -139,11 +139,11 @@ function test_ipv6 ()
 	test "iperf ServiceName -P4" iperf -V -c iperf-service                              -t 1 -P4 -i1
 
 	echo "--Cross node UDP tests--"
-	test "iperf PodIP"           iperf -V -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1 -u -l1450 -p5003
+	test "iperf PodIP"           iperf -V -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
-	test "iperf ServiceIP"       iperf -V -c $(NS=iperf SVC=iperf-service getClusterIP) -t 1 -P1 -i1 -u -l1450 -p5003
+	test "iperf ServiceIP"       iperf -V -c $(NS=iperf SVC=iperf-service getClusterIP) -t 1 -P1 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
-	test "iperf ServiceName -P4" iperf -V -c iperf-service                              -t 1 -P4 -i1 -u -l1450 -p5003
+	test "iperf ServiceName -P4" iperf -V -c iperf-service                              -t 1 -P4 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
 
 	POD=iperf-client-samehost
@@ -154,11 +154,11 @@ function test_ipv6 ()
 	test "iperf ServiceName -P4" iperf -V -c iperf-service                              -t 1 -P4 -i1
 
 	echo "--Same host UDP tests--"
-	test "iperf PodIP"           iperf -V -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1 -u -l1450 -p5003
+	test "iperf PodIP"           iperf -V -c $(NS=iperf POD=iperf-server onePodIP)      -t 1 -P1 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
-	test "iperf ServiceIP"       iperf -V -c $(NS=iperf SVC=iperf-service getClusterIP) -t 1 -P1 -i1 -u -l1450 -p5003
+	test "iperf ServiceIP"       iperf -V -c $(NS=iperf SVC=iperf-service getClusterIP) -t 1 -P1 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
-	test "iperf ServiceName -P4" iperf -V -c iperf-service                              -t 1 -P4 -i1 -u -l1450 -p5003
+	test "iperf ServiceName -P4" iperf -V -c iperf-service                              -t 1 -P4 -i1 -u -l1000 -p5003
 	assert_test_output_contains_not WARNING
 }
 

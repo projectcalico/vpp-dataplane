@@ -6,7 +6,7 @@ metadata:
 data:  # Configuration template for VPP.
   vpp_init_script: |-
     echo Y > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
-
+  veth_mtu: "1240"
 ---
 
 kind: DaemonSet
