@@ -40,10 +40,8 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/28 && git cherry-pi
 
 # ------------- Policies patches -------------
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/28083/14 && git cherry-pick FETCH_HEAD # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/15 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/16 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 # ------------- Policies patches -------------
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/95/30695/2 && git cherry-pick FETCH_HEAD # 30695: wireguard: testing alternative timer dispatch | https://gerrit.fd.io/r/c/vpp/+/30695
-
-# tap deletion fix
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/51/30951/1 && git cherry-pick FETCH_HEAD
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/51/30951/1 && git cherry-pick FETCH_HEAD # 30951: tap: fix the interrupt handling | https://gerrit.fd.io/r/c/vpp/+/30951
