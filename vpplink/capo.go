@@ -240,9 +240,9 @@ func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfi
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return errors.Wrapf(err, "CapoPolicyDelete failed: req %+v reply %+v", request, response)
+		return errors.Wrapf(err, "CapoConfigurePolicies failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
-		return fmt.Errorf("CapoPolicyDelete failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CapoConfigurePolicies failed: req %+v reply %+v", request, response)
 	}
 	return nil
 }

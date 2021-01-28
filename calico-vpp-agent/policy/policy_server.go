@@ -131,6 +131,8 @@ func (s *Server) OnVppRestart() {
 	s.vppRestarted <- true
 }
 
+// WorkloadAdded is called by the CNI server when a container interface is created,
+// either during startup when reconnecting the interfaces, or when a new pod is created
 func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32) {
 	// TODO: Send WorkloadEndpointStatusUpdate to felix
 	s.endpointsLock.Lock()
@@ -163,6 +165,7 @@ func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32) {
 	}
 }
 
+// WorkloadRemoved is called by the CNI server when the interface of a pod is deleted
 func (s *Server) WorkloadRemoved(id *WorkloadEndpointID) {
 	// TODO: Send WorkloadEndpointStatusRemove to felix
 	s.endpointsLock.Lock()
@@ -228,7 +231,8 @@ func (s *Server) Serve() {
 			s.log.Infof("VPP restarted, triggering Felix restart")
 			s.configuredState = NewPolicyState()
 			s.endpointsInterfaces = make(map[WorkloadEndpointID]uint32)
-			err = conn.Close() // This should stop the SyncPolicy goroutine
+			// This should stop the SyncPolicy goroutine and trigger a write on the felixRestarted channel
+			err = conn.Close()
 			if err != nil {
 				s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
 			}

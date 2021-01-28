@@ -128,6 +128,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 	if err != nil {
 		return errors.Wrapf(err, "Error setting tap %s up", config.HostIfName)
 	}
+	hasv4, hasv6 := false, false
 	// Add /32 or /128 for each address configured on VPP side
 	for _, addr := range v.conf.Addresses {
 		singleAddr := netlink.Addr{
@@ -142,12 +143,21 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 		if err != nil {
 			return errors.Wrapf(err, "Error adding address %s to tap interface", singleAddr)
 		}
+		if addr.IP.To4() == nil {
+			hasv6 = true
+		} else {
+			hasv4 = true
+		}
 	}
 	// All routes that were on this interface now go through VPP
 	for _, route := range v.conf.Routes {
 		newRoute := netlink.Route{
 			Dst:       route.Dst,
 			LinkIndex: link.Attrs().Index,
+		}
+		if (route.Dst.IP.To4() == nil && !hasv6) || (route.Dst.IP.To4() != nil && !hasv4) {
+			log.Infof("Skipping route %s since we don't have an address in this AF", newRoute)
+			continue
 		}
 		log.Infof("Adding route %s via VPP", newRoute)
 		err = netlink.RouteAdd(&newRoute)
@@ -330,6 +340,11 @@ func (v *VppRunner) configureVpp() (err error) {
 	err = v.vpp.RegisterPodInterface(tapSwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "error configuring vpptap0 as pod intf")
+	}
+
+	err = v.vpp.SetK8sSnatPolicy()
+	if err != nil {
+		return errors.Wrap(err, "Error configuring cnat source policy")
 	}
 
 	// Linux side tap setup

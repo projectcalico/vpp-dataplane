@@ -216,3 +216,27 @@ func (v *VppLink) AddPodCIDR(prefix *net.IPNet) (err error) {
 func (v *VppLink) DelPodCIDR(prefix *net.IPNet) (err error) {
 	return v.CnatK8sAddDelPodCIDR(prefix, false)
 }
+
+func (v *VppLink) cnatSetSnatPolicy(pol cnat.CnatSnatPolicies) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	response := &cnat.CnatSetSnatPolicyReply{}
+	request := &cnat.CnatSetSnatPolicy{
+		Policy: pol,
+	}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrapf(err, "CnatSetSnatPolicy failed: req %+v reply %+v", request, response)
+	} else if response.Retval != 0 {
+		return fmt.Errorf("CnatSetSnatPolicy failed: req %+v reply %+v", request, response)
+	}
+	return nil
+}
+
+func (v *VppLink) SetK8sSnatPolicy() (err error) {
+	return v.cnatSetSnatPolicy(cnat.CNAT_SNAT_POLICY_K8S)
+}
+
+func (v *VppLink) ClearSnatPolicy() (err error) {
+	return v.cnatSetSnatPolicy(cnat.CNAT_SNAT_POLICY_NONE)
+}
