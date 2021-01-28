@@ -14,9 +14,18 @@ $docker_version = '5:19.03.12~3-0~ubuntu-focal'
 
 # Network
 MASTER_IP = ENV['MASTER_IP'] || '192.168.0.254'
-POD_NW_CIDR = ENV['POD_NW_CIDR'] || '172.16.0.0/16'
+MASTER_IP6 = ENV['MASTER_IP6'] || 'fd00::1000'
 NODE_IP_NW = ENV['NODE_IP_NW'] || '192.168.0.'
+NODE_IP6_NW = ENV['NODE_IP6_NW'] || 'fd00::10'
 NODE_IP = NODE_IP_NW + (NODE + 10).to_s
+NODE_IP6 = NODE_IP6_NW + (NODE + 10).to_s
+USE_IPV6 = ENV['USE_IPV6'] == "true"
+MASTER_ADDRESS = USE_IPV6 ? MASTER_IP6 : MASTER_IP
+NODE_ADDRESS = USE_IPV6 ? NODE_IP6 : NODE_IP
+
+POD_NW_CIDR = ENV['POD_NW_CIDR'] || '172.16.0.0/16'
+SERVICE_CIDR = ENV['SERVICE_CIDR'] || '10.96.0.0/12'
+
 DNS_SERVER = ENV['DNS_SERVER'] || '8.8.8.8'
 VAGRANT_VM_PROXY = ENV['VAGRANT_VM_PROXY'] || ''
 
@@ -45,8 +54,8 @@ KUBETOKEN = ENV['KUBETOKEN'] || 'b029ee.968a33e8d8e6bb0d'
 
 # Common scripts
 
-# This script just updates the DNS in the base box so that vagrant can
-# install the nfs client if the google DNS servers are not reachable
+# This script installs all the required packages to create a base box that
+# then speeds up cluster creation
 $baseConfigScript = <<SCRIPT
 # DNS configuration
 sed -i 's/^DNS=.*/DNS=#{DNS_SERVER}/' /etc/systemd/resolved.conf
@@ -67,6 +76,8 @@ net.ipv6.conf.default.disable_ipv6 = 0
 net.ipv6.conf.lo.disable_ipv6 = 0
 net.ipv6.conf.all.accept_dad = 0
 net.ipv6.conf.default.accept_dad = 0
+net.ipv6.conf.default.forwarding = 1:
+net.ipv6.conf.all.forwarding = 1
 net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.conf.all.rp_filter = 0
 vm.nr_hugepages = 128
@@ -195,8 +206,19 @@ EOF
 
 resize2fs /dev/vda3
 
+cat <<EOF > /etc/netplan/99-v6.yaml
+---                                                                                                                                                                                        
+network:                                                                                                                                                                                   
+  version: 2                                                                                                                                                                               
+  renderer: networkd                                                                                                                                                                       
+  ethernets:                                                                                                                                                                               
+    eth1:                                                                                                                                                                                  
+      addresses:                                                                                                                                                                           
+        - #{NODE > 0 ? NODE_IP6 : MASTER_IP6}/64
+EOF
+netplan apply
 KUBELET_EXTRA_ARGS_FILE=/etc/default/kubelet
-echo 'KUBELET_EXTRA_ARGS=--node-ip=#{NODE > 0 ? NODE_IP : MASTER_IP} --cni-bin-dir=/opt/cni/bin,/usr/libexec/cni' > "${KUBELET_EXTRA_ARGS_FILE}"
+echo 'KUBELET_EXTRA_ARGS=--node-ip=#{NODE > 0 ? NODE_ADDRESS : MASTER_ADDRESS} --cni-bin-dir=/opt/cni/bin,/usr/libexec/cni' > "${KUBELET_EXTRA_ARGS_FILE}"
 systemctl enable kubelet
 systemctl start kubelet
 
@@ -219,8 +241,10 @@ for ((i=0; i<retries; i++)); do
     kubeadm init \
         #{$kubeadm_init_flags} \
         --ignore-preflight-errors=SystemVerification \
-        --apiserver-advertise-address=#{MASTER_IP} \
+        --apiserver-advertise-address=#{MASTER_ADDRESS} \
+        --apiserver-cert-extra-sans=#{MASTER_IP},#{MASTER_IP6} \
         --pod-network-cidr=#{POD_NW_CIDR} \
+        --service-cidr=#{SERVICE_CIDR} \
         --token "#{KUBETOKEN}" \
         --token-ttl 0 && \
         break
@@ -248,7 +272,7 @@ for ((i=0; i<retries; i++)); do
         --ignore-preflight-errors=SystemVerification \
         --discovery-token-unsafe-skip-ca-verification \
         --token "#{KUBETOKEN}" \
-        "#{MASTER_IP}:6443" && \
+        "#{USE_IPV6 ? '[' + MASTER_IP6 + ']' : MASTER_IP}:6443" && \
         break
     echo "kubeadm join failed, trying again in 3 seconds (try ${i}/${retries})..."
     sleep 3

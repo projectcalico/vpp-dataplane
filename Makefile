@@ -44,11 +44,11 @@ install-test-deps:
 	sudo chmod a+r /boot/vmlinuz*	# Required for libguestfs
 	sudo adduser `id -un` libvirt
 	sudo adduser `id -un` kvm
-	newgrp libvirt
 	wget https://releases.hashicorp.com/vagrant/2.2.14/vagrant_2.2.14_x86_64.deb
 	sudo dpkg -i vagrant_2.2.14_x86_64.deb
 	rm vagrant_2.2.14_x86_64.deb
 	vagrant plugin install vagrant-libvirt
+	newgrp libvirt
 
 .PHONY: start-test-cluster
 start-test-cluster:
@@ -78,8 +78,8 @@ run-tests:
 
 .PHONY: restart-calicovpp
 restart-calicovpp:
-	kubectl rollout restart ds/calico-vpp-node
-	kubectl rollout status ds/calico-vpp-node
+	kubectl -n kube-system rollout restart ds/calico-vpp-node
+	kubectl -n kube-system rollout status ds/calico-vpp-node
 
 .PHONY: goapi
 goapi:

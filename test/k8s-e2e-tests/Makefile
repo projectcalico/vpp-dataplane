@@ -18,7 +18,8 @@ kubernetes-$(E2E_TEST_VERSION)/_output/bin/e2e.test:
 test: $(E2E_TEST_BINARY)
 	$(E2E_TEST_BINARY) -ginkgo.focus="$(E2E_TEST_FOCUS)" -num-nodes $(E2E_TEST_NODES)
 
-all-tests: conformance-tests policy-tests
+all-tests:
+	E2E_TEST_FOCUS="\[sig-network\].*(NetworkPolicy|Conformance).*" $(MAKE) test
 
 policy-tests: $(E2E_TEST_BINARY)
 	E2E_TEST_FOCUS="\[sig-network\].*NetworkPolicy.*" $(MAKE) test
@@ -27,7 +28,7 @@ conformance-tests: $(E2E_TEST_BINARY)
 	E2E_TEST_FOCUS="\[sig-network\].*Conformance" $(MAKE) test
 
 calico-tests: $(E2E_TEST_BINARY)
-	$(E2E_TEST_BINARY) -ginkgo.focus="$(E2E_TEST_FOCUS)" -num-nodes $(E2E_TEST_NODES) --e2ecfg.product=calico --e2ecfg.release-stream=3.17
+	$(E2E_TEST_BINARY) -ginkgo.focus="$(E2E_TEST_FOCUS)" -num-nodes $(E2E_TEST_NODES) --e2ecfg.product=calico --e2ecfg.release-stream=3.17 --e2ecfg.installer=manual
 
 calico-all-tests:
 	E2E_TEST_FOCUS="\[calico\]" $(MAKE) calico-tests
