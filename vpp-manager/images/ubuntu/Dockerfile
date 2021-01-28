@@ -15,11 +15,10 @@ RUN mkdir /tmp/vpp
 
 COPY *.deb /tmp/vpp/
 
-RUN dpkg -i /tmp/vpp/libvppinfra_*.deb && \
-    dpkg --unpack /tmp/vpp/vpp_*.deb  && \
-    rm -f /var/lib/dpkg/info/vpp.postinst && \
-    dpkg --configure vpp && \
-    dpkg -i /tmp/vpp/vpp-plugin-core_*.deb \
+RUN export VPP_INSTALL_SKIP_SYSCTL=1 && \
+    dpkg -i /tmp/vpp/libvppinfra_*.deb \
+    /tmp/vpp/vpp_*.deb \
+    /tmp/vpp/vpp-plugin-core_*.deb \
     /tmp/vpp/vpp-plugin-dpdk_*.deb \
     /tmp/vpp/vpp-dbg_*.deb
 
