@@ -11,7 +11,7 @@ data:
   typha_service_name: "none"
 
   # Configure the MTU to use
-  veth_mtu: "1440"
+  veth_mtu: "0"
 
   # The CNI network configuration to install on each node.  The special
   # values in this config will be automatically populated.
