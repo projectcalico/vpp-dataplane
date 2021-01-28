@@ -109,3 +109,13 @@ func (r *Route) IsLinkLocal() bool {
 	}
 	return r.Dst.IP.IsLinkLocalUnicast()
 }
+
+type IPFlowHash struct {
+	Src       bool
+	Dst       bool
+	SrcPort   bool
+	DstPort   bool
+	Proto     bool
+	Reverse   bool
+	Symmetric bool
+}

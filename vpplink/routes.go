@@ -176,20 +176,20 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	return nil
 }
 
-func (v *VppLink) SetIPFlowHash(vrfID uint32, isIPv6 bool, src bool, dst bool, sport bool, dport bool, proto bool, reverse bool, symmetric bool) error {
+func (v *VppLink) SetIPFlowHash(ipFlowHash *types.IPFlowHash, vrfID uint32, isIPv6 bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	request := &vppip.SetIPFlowHash{
 		VrfID:     vrfID,
 		IsIPv6:    isIPv6,
-		Src:       src,
-		Dst:       dst,
-		Sport:     sport,
-		Dport:     dport,
-		Proto:     proto,
-		Reverse:   reverse,
-		Symmetric: symmetric,
+		Src:       ipFlowHash.Src,
+		Dst:       ipFlowHash.Dst,
+		Sport:     ipFlowHash.SrcPort,
+		Dport:     ipFlowHash.DstPort,
+		Proto:     ipFlowHash.Proto,
+		Reverse:   ipFlowHash.Reverse,
+		Symmetric: ipFlowHash.Symmetric,
 	}
 
 	response := &vppip.SetIPFlowHashReply{}
