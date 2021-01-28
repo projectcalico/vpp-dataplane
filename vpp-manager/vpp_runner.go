@@ -173,9 +173,20 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 }
 
 func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount int) (err error) {
-	if extraAddrCount == 0 {
-		return nil
+	ipFlowHash := &types.IPFlowHash{
+		Src:       true,
+		Dst:       true,
+		SrcPort:   true,
+		DstPort:   true,
+		Symmetric: true,
 	}
+
+	err = v.vpp.SetIPFlowHash(ipFlowHash, 0 /* vrf */, false /* isIPv6 */)
+	if err != nil {
+		log.Errorf("cannot configure flow hash: %v", err)
+	}
+	/* No v6 as extraAddrCount doesnt support it & flow hash breaks in vpp */
+
 	log.Infof("Adding %d extra addresses", extraAddrCount)
 	v4Count := 0
 	var addr net.IPNet
@@ -256,17 +267,12 @@ func (v *VppRunner) configureVpp() (err error) {
 			log.Errorf("cannot add default route via %s in vpp: %v", defaultGW, err)
 		}
 	}
-	err = v.addExtraAddresses(v.conf.Addresses, v.params.ExtraAddrCount)
-	if err != nil {
-		log.Errorf("Cannot configure requested extra addresses: %v", err)
-	}
-	err = v.vpp.SetIPFlowHash(0, false, true, true, true, true, false, false, true)
-	if err != nil {
-		log.Errorf("cannot configure flow hash: %v", err)
-	}
-	err = v.vpp.SetIPFlowHash(0, true, true, true, true, true, false, false, true)
-	if err != nil {
-		log.Errorf("cannot configure flow hash: %v", err)
+
+	if v.params.ExtraAddrCount > 0 {
+		err = v.addExtraAddresses(v.conf.Addresses, v.params.ExtraAddrCount)
+		if err != nil {
+			log.Errorf("Cannot configure requested extra addresses: %v", err)
+		}
 	}
 
 	// If main interface is still up flush its routes or they'll conflict with $HostIfName
