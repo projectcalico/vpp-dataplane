@@ -43,7 +43,7 @@ func (v *VppLink) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {
 			break
 		}
 		tunnels = append(tunnels, &types.IPIPTunnel{
-			Src:       types.FromVppAddress(response.Tunnel.Dst),
+			Src:       types.FromVppAddress(response.Tunnel.Src),
 			Dst:       types.FromVppAddress(response.Tunnel.Dst),
 			TableID:   response.Tunnel.TableID,
 			SwIfIndex: uint32(response.Tunnel.SwIfIndex),
