@@ -20,11 +20,13 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/vishvananda/netlink"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -104,6 +106,25 @@ write:
 	)
 }
 
+func (d *DPDKDriver) restoreInterfaceName() error {
+	newName, err := utils.GetInterfaceNameFromPci(d.conf.PciId)
+	if err != nil {
+		return errors.Wrapf(err, "Error getting new if name for %s: %v", d.conf.PciId)
+	}
+	if newName == d.params.MainInterface {
+		return nil
+	}
+	link, err := netlink.LinkByName(newName)
+	if err != nil {
+		return errors.Wrapf(err, "Error getting new link %s: %v", newName)
+	}
+	err = netlink.LinkSetName(link, d.params.MainInterface)
+	if err != nil {
+		return errors.Wrapf(err, "Error setting new if name for %s: %v", d.conf.PciId)
+	}
+	return nil
+}
+
 func (d *DPDKDriver) RestoreLinux() {
 	if d.conf.PciId != "" && d.conf.Driver != "" {
 		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
@@ -111,6 +132,17 @@ func (d *DPDKDriver) RestoreLinux() {
 			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
 		}
 	}
+
+	for i := 0 ; i < 10 ; i++ {
+		err := d.restoreInterfaceName()
+		if err != nil {
+			log.Warnf("Error restoring if name %s", err)
+		} else {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	if !d.conf.IsUp {
 		return
 	}
