@@ -1,0 +1,70 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-config
+  namespace: kube-system
+data:
+  veth_mtu: "1440"
+
+  cni_network_config: |-
+    {
+      "name": "k8s-pod-network",
+      "cniVersion": "0.3.1",
+      "plugins": [
+        {
+          "type": "calico",
+          "log_level": "debug",
+          "datastore_type": "kubernetes",
+          "nodename": "__KUBERNETES_NODE_NAME__",
+          "mtu": __CNI_MTU__,
+          "ipam": {
+              "type": "calico-ipam",
+              "assign_ipv4": "false",
+              "assign_ipv6": "true"
+          },
+          "policy": {
+              "type": "k8s"
+          },
+          "kubernetes": {
+              "kubeconfig": "__KUBECONFIG_FILEPATH__"
+          },
+          "dataplane_options": {
+            "type": "grpc",
+            "socket": "unix:///var/run/calico/cni-server.sock"
+          }
+        },
+        {
+          "type": "portmap",
+          "snat": true,
+          "capabilities": {"portMappings": true}
+        }
+      ]
+    }
+
+  service_prefix: "fd02::/108"
+
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: calico-node
+          env:
+            - name: CALICO_IPV4POOL_CIDR
+              value: ""
+            - name: CALICO_IPV6_POOL_CIDR
+              value: "fd01::/64"
+            - name: FELIX_IPV6SUPPORT
+              value: "true"
+            - name: IP
+              value: "none"
+            - name: CALICO_ROUTER_ID
+              value: "hash"
+            - name: IP6
+              value: "autodetect"

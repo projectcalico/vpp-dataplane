@@ -13,7 +13,11 @@ Vagrant.configure('2') do |config|
 
     config.vm.define 'master' do |subconfig|
         subconfig.vm.hostname = 'master'
-        subconfig.vm.network :private_network, ip: MASTER_IP
+        subconfig.vm.network :private_network,
+            :ip => MASTER_IP,
+            :libvirt__guest_ipv6 => "yes",
+            :libvirt__ipv6_address => MASTER_IP6,
+            :libvirt__ipv6_prefix => "64"
         subconfig.vm.synced_folder "../..", '/host-repo', type: 'nfs',
             create: true, readonly: true, linux__nfs_options: ['ro','no_subtree_check','all_squash','crossmnt']
         # Provision
