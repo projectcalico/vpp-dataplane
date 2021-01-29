@@ -69,6 +69,10 @@ test-install-calicovpp:
 test-install-calicovpp-dev:
 	kubectl kustomize yaml/overlays/test-vagrant-mounts | kubectl apply -f -
 
+.PHONY: test-install-calicovpp-dev-v6
+test-install-calicovpp-dev-v6:
+	kubectl kustomize yaml/overlays/test-vagrant-v6-mounts | kubectl apply -f -
+
 .PHONY: run-tests
 run-tests:
 	test/scripts/test.sh up iperf
