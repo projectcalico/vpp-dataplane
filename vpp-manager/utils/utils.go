@@ -273,6 +273,20 @@ func BindVFtoDriver(pciId string, driver string) error {
 	return nil
 }
 
+func GetInterfaceNameFromPci(pciId string) (string, error) {
+	// Grab Driver id for the pci device
+	driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/net", pciId)
+    netDevs, err := ioutil.ReadDir(driverLinkPath)
+    if err != nil {
+		return "", errors.Wrapf(err, "cannot list /net for %s", pciId)
+    }
+    if len(netDevs) != 1 {
+		return "", errors.Wrapf(err, "Found %d devices in /net for %s", len(netDevs), pciId)
+    }
+    return netDevs[0].Name(), nil
+}
+
+
 func GetDriverNameFromPci(pciId string) (string, error) {
 	// Grab Driver id for the pci device
 	driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver", pciId)

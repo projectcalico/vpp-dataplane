@@ -244,8 +244,8 @@ calico_create_template ()
   export CALICOVPP_TAP_RING_SIZE=${CALICOVPP_TAP_RING_SIZE}
   export USERHOME=${HOME}
   export FELIX_XDPENABLED=${FELIX_XDPENABLED:=false}
-  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=$vpp_dataplane_interface}
-  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=$vpp_dataplane_interface}
+  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=vpptap0}
+  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=vpptap0}
   cd $SCRIPTDIR
   kubectl kustomize . | envsubst | sudo tee /tmp/calico-vpp.yaml > /dev/null
 }

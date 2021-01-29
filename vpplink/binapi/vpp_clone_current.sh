@@ -45,3 +45,4 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/16 && git cherry-pi
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/95/30695/2 && git cherry-pick FETCH_HEAD # 30695: wireguard: testing alternative timer dispatch | https://gerrit.fd.io/r/c/vpp/+/30695
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/51/30951/1 && git cherry-pick FETCH_HEAD # 30951: tap: fix the interrupt handling | https://gerrit.fd.io/r/c/vpp/+/30951
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/17/31017/1 && git cherry-pick FETCH_HEAD # 31017: interface: automask interrupts to polling rxqs | https://gerrit.fd.io/r/c/vpp/+/31017
