@@ -105,6 +105,7 @@ function get_vpp_conf ()
 	  plugins {
     	  plugin default { enable }
     	  plugin calico_plugin.so { enable }
+          plugin ping_plugin.so { disable }
     	  plugin dpdk_plugin.so { disable }
 	  }
 	"
