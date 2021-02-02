@@ -5,7 +5,7 @@
 // Contents:
 //   2 enums
 //   4 structs
-//  64 messages
+//  66 messages
 //
 package ip
 
@@ -29,8 +29,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "ip"
-	APIVersion = "3.0.2"
-	VersionCrc = 0x2073c247
+	APIVersion = "3.0.3"
+	VersionCrc = 0xf2f5f4e
 )
 
 // IPFlowHashConfig defines enum 'ip_flow_hash_config'.
@@ -2808,6 +2808,72 @@ func (m *SetIPFlowHashReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// SetIPFlowHashRouterID defines message 'set_ip_flow_hash_router_id'.
+type SetIPFlowHashRouterID struct {
+	RouterID uint32 `binapi:"u32,name=router_id" json:"router_id,omitempty"`
+}
+
+func (m *SetIPFlowHashRouterID) Reset()               { *m = SetIPFlowHashRouterID{} }
+func (*SetIPFlowHashRouterID) GetMessageName() string { return "set_ip_flow_hash_router_id" }
+func (*SetIPFlowHashRouterID) GetCrcString() string   { return "03e4f48e" }
+func (*SetIPFlowHashRouterID) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SetIPFlowHashRouterID) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.RouterID
+	return size
+}
+func (m *SetIPFlowHashRouterID) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.RouterID)
+	return buf.Bytes(), nil
+}
+func (m *SetIPFlowHashRouterID) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.RouterID = buf.DecodeUint32()
+	return nil
+}
+
+// SetIPFlowHashRouterIDReply defines message 'set_ip_flow_hash_router_id_reply'.
+type SetIPFlowHashRouterIDReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SetIPFlowHashRouterIDReply) Reset()               { *m = SetIPFlowHashRouterIDReply{} }
+func (*SetIPFlowHashRouterIDReply) GetMessageName() string { return "set_ip_flow_hash_router_id_reply" }
+func (*SetIPFlowHashRouterIDReply) GetCrcString() string   { return "e8d4e804" }
+func (*SetIPFlowHashRouterIDReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SetIPFlowHashRouterIDReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SetIPFlowHashRouterIDReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SetIPFlowHashRouterIDReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // SetIPFlowHashV2 defines message 'set_ip_flow_hash_v2'.
 type SetIPFlowHashV2 struct {
 	TableID        uint32                 `binapi:"u32,name=table_id" json:"table_id,omitempty"`
@@ -3164,6 +3230,8 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*MfibSignalDump)(nil), "mfib_signal_dump_51077d14")
 	api.RegisterMessage((*SetIPFlowHash)(nil), "set_ip_flow_hash_084ee09e")
 	api.RegisterMessage((*SetIPFlowHashReply)(nil), "set_ip_flow_hash_reply_e8d4e804")
+	api.RegisterMessage((*SetIPFlowHashRouterID)(nil), "set_ip_flow_hash_router_id_03e4f48e")
+	api.RegisterMessage((*SetIPFlowHashRouterIDReply)(nil), "set_ip_flow_hash_router_id_reply_e8d4e804")
 	api.RegisterMessage((*SetIPFlowHashV2)(nil), "set_ip_flow_hash_v2_6d132100")
 	api.RegisterMessage((*SetIPFlowHashV2Reply)(nil), "set_ip_flow_hash_v2_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceIP6EnableDisable)(nil), "sw_interface_ip6_enable_disable_ae6cfcfb")
@@ -3233,6 +3301,8 @@ func AllMessages() []api.Message {
 		(*MfibSignalDump)(nil),
 		(*SetIPFlowHash)(nil),
 		(*SetIPFlowHashReply)(nil),
+		(*SetIPFlowHashRouterID)(nil),
+		(*SetIPFlowHashRouterIDReply)(nil),
 		(*SetIPFlowHashV2)(nil),
 		(*SetIPFlowHashV2Reply)(nil),
 		(*SwInterfaceIP6EnableDisable)(nil),
