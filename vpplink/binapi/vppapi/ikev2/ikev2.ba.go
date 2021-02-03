@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ikev2"
 	APIVersion = "1.0.1"
-	VersionCrc = 0xf973216e
+	VersionCrc = 0x516930f
 )
 
 // Ikev2ChildSaDetails defines message 'ikev2_child_sa_details'.
@@ -1452,7 +1452,7 @@ type Ikev2SaDetails struct {
 
 func (m *Ikev2SaDetails) Reset()               { *m = Ikev2SaDetails{} }
 func (*Ikev2SaDetails) GetMessageName() string { return "ikev2_sa_details" }
-func (*Ikev2SaDetails) GetCrcString() string   { return "8da8209f" }
+func (*Ikev2SaDetails) GetCrcString() string   { return "937c22d5" }
 func (*Ikev2SaDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1514,6 +1514,12 @@ func (m *Ikev2SaDetails) Size() (size int) {
 	size += 2      // m.Sa.Dh.KeyTrunc
 	size += 2      // m.Sa.Dh.BlockSize
 	size += 1      // m.Sa.Dh.DhGroup
+	size += 2      // m.Sa.Stats.NKeepalives
+	size += 2      // m.Sa.Stats.NRekeyReq
+	size += 2      // m.Sa.Stats.NSaInitReq
+	size += 2      // m.Sa.Stats.NSaAuthReq
+	size += 2      // m.Sa.Stats.NRetransmit
+	size += 2      // m.Sa.Stats.NInitSaRetransmit
 	return size
 }
 func (m *Ikev2SaDetails) Marshal(b []byte) ([]byte, error) {
@@ -1574,6 +1580,12 @@ func (m *Ikev2SaDetails) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint16(m.Sa.Dh.KeyTrunc)
 	buf.EncodeUint16(m.Sa.Dh.BlockSize)
 	buf.EncodeUint8(m.Sa.Dh.DhGroup)
+	buf.EncodeUint16(m.Sa.Stats.NKeepalives)
+	buf.EncodeUint16(m.Sa.Stats.NRekeyReq)
+	buf.EncodeUint16(m.Sa.Stats.NSaInitReq)
+	buf.EncodeUint16(m.Sa.Stats.NSaAuthReq)
+	buf.EncodeUint16(m.Sa.Stats.NRetransmit)
+	buf.EncodeUint16(m.Sa.Stats.NInitSaRetransmit)
 	return buf.Bytes(), nil
 }
 func (m *Ikev2SaDetails) Unmarshal(b []byte) error {
@@ -1638,6 +1650,12 @@ func (m *Ikev2SaDetails) Unmarshal(b []byte) error {
 	m.Sa.Dh.KeyTrunc = buf.DecodeUint16()
 	m.Sa.Dh.BlockSize = buf.DecodeUint16()
 	m.Sa.Dh.DhGroup = buf.DecodeUint8()
+	m.Sa.Stats.NKeepalives = buf.DecodeUint16()
+	m.Sa.Stats.NRekeyReq = buf.DecodeUint16()
+	m.Sa.Stats.NSaInitReq = buf.DecodeUint16()
+	m.Sa.Stats.NSaAuthReq = buf.DecodeUint16()
+	m.Sa.Stats.NRetransmit = buf.DecodeUint16()
+	m.Sa.Stats.NInitSaRetransmit = buf.DecodeUint16()
 	return nil
 }
 
@@ -2258,7 +2276,7 @@ func file_ikev2_binapi_init() {
 	api.RegisterMessage((*Ikev2ProfileSetTsReply)(nil), "ikev2_profile_set_ts_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2ProfileSetUDPEncap)(nil), "ikev2_profile_set_udp_encap_ebf79a66")
 	api.RegisterMessage((*Ikev2ProfileSetUDPEncapReply)(nil), "ikev2_profile_set_udp_encap_reply_e8d4e804")
-	api.RegisterMessage((*Ikev2SaDetails)(nil), "ikev2_sa_details_8da8209f")
+	api.RegisterMessage((*Ikev2SaDetails)(nil), "ikev2_sa_details_937c22d5")
 	api.RegisterMessage((*Ikev2SaDump)(nil), "ikev2_sa_dump_51077d14")
 	api.RegisterMessage((*Ikev2SetEspTransforms)(nil), "ikev2_set_esp_transforms_a63dc205")
 	api.RegisterMessage((*Ikev2SetEspTransformsReply)(nil), "ikev2_set_esp_transforms_reply_e8d4e804")

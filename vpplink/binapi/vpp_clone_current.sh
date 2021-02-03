@@ -1,5 +1,5 @@
 #!/bin/bash
-VPP_COMMIT=86f1232dd
+VPP_COMMIT=e988726cb
 
 if [ ! -d $1/.git ]; then
 	rm -rf $1
@@ -32,10 +32,8 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/9 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/04/30204/8 && git cherry-pick FETCH_HEAD # 30204: vxlan: add udp-port configuration support
 
 # ------------- Cnat patches -------------
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/55/29955/4 && git cherry-pick FETCH_HEAD # 29955: cnat: Fix throttle hash & cleanup | https://gerrit.fd.io/r/c/vpp/+/29955
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/73/30273/2 && git cherry-pick FETCH_HEAD # 30273: cnat: Fix session with deleted tr | https://gerrit.fd.io/r/c/vpp/+/30273
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/75/30275/8 && git cherry-pick FETCH_HEAD # 30275: cnat: add input feature node | https://gerrit.fd.io/r/c/vpp/+/30275
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/28 && git cherry-pick FETCH_HEAD # 28587: cnat: k8s extensions
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/75/30275/11 && git cherry-pick FETCH_HEAD # 30275: cnat: add input feature node | https://gerrit.fd.io/r/c/vpp/+/30275
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/31 && git cherry-pick FETCH_HEAD # 28587: cnat: k8s extensions
 # ------------- Cnat patches -------------
 
 # ------------- Policies patches -------------
@@ -44,5 +42,5 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/16 && git cherry-pi
 # ------------- Policies patches -------------
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/95/30695/2 && git cherry-pick FETCH_HEAD # 30695: wireguard: testing alternative timer dispatch | https://gerrit.fd.io/r/c/vpp/+/30695
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/51/30951/1 && git cherry-pick FETCH_HEAD # 30951: tap: fix the interrupt handling | https://gerrit.fd.io/r/c/vpp/+/30951
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/17/31017/1 && git cherry-pick FETCH_HEAD # 31017: interface: automask interrupts to polling rxqs | https://gerrit.fd.io/r/c/vpp/+/31017
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/78/31078/3 && git cherry-pick FETCH_HEAD # 31078: devices: af-packet gso mtu | https://gerrit.fd.io/r/c/vpp/+/31078

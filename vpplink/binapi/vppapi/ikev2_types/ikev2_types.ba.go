@@ -3,7 +3,7 @@
 // Package ikev2_types contains generated bindings for API file ikev2_types.api.
 //
 // Contents:
-//  11 structs
+//  12 structs
 //
 package ikev2_types
 
@@ -121,6 +121,17 @@ type Ikev2Sa struct {
 	Integrity    Ikev2SaTransform `binapi:"ikev2_sa_transform,name=integrity" json:"integrity,omitempty"`
 	Prf          Ikev2SaTransform `binapi:"ikev2_sa_transform,name=prf" json:"prf,omitempty"`
 	Dh           Ikev2SaTransform `binapi:"ikev2_sa_transform,name=dh" json:"dh,omitempty"`
+	Stats        Ikev2SaStats     `binapi:"ikev2_sa_stats,name=stats" json:"stats,omitempty"`
+}
+
+// Ikev2SaStats defines type 'ikev2_sa_stats'.
+type Ikev2SaStats struct {
+	NKeepalives       uint16 `binapi:"u16,name=n_keepalives" json:"n_keepalives,omitempty"`
+	NRekeyReq         uint16 `binapi:"u16,name=n_rekey_req" json:"n_rekey_req,omitempty"`
+	NSaInitReq        uint16 `binapi:"u16,name=n_sa_init_req" json:"n_sa_init_req,omitempty"`
+	NSaAuthReq        uint16 `binapi:"u16,name=n_sa_auth_req" json:"n_sa_auth_req,omitempty"`
+	NRetransmit       uint16 `binapi:"u16,name=n_retransmit" json:"n_retransmit,omitempty"`
+	NInitSaRetransmit uint16 `binapi:"u16,name=n_init_sa_retransmit" json:"n_init_sa_retransmit,omitempty"`
 }
 
 // Ikev2SaTransform defines type 'ikev2_sa_transform'.
