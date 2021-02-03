@@ -130,7 +130,7 @@ function get_cni_network_config_ipam ()
     	\"type\": \"calico-ipam\",
 		\"assign_ipv4\": \"true\",
     	\"assign_ipv6\": \"true\",
-		\"ipv4_pools\": [\"${CALICO_IPV4POOL_CIDR}\"],
+		\"ipv4_pools\": [\"${default_ipv4_pool_cidr}\"],
 		\"ipv6_pools\": [\"${CALICO_IPV6POOL_CIDR}\"]
 	  }"
 	fi
@@ -244,8 +244,8 @@ calico_create_template ()
   export CALICOVPP_DEBUG_ENABLE_GSO=${CALICOVPP_DEBUG_ENABLE_GSO:=true}
   export USERHOME=${HOME}
   export FELIX_XDPENABLED=${FELIX_XDPENABLED:=false}
-  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=vpptap0}
-  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=vpptap0}
+  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=${vpp_dataplane_interface}}
+  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=${vpp_dataplane_interface}}
   cd $SCRIPTDIR
   kubectl kustomize . | envsubst | sudo tee /tmp/calico-vpp.yaml > /dev/null
 }
