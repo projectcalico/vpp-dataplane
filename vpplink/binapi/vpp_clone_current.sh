@@ -11,23 +11,6 @@ else
 	git fetch "https://gerrit.fd.io/r/vpp" && git reset --hard ${VPP_COMMIT}
 fi
 
-# Run first so that it doesn't hide any patch failures
-echo "diff --git a/src/vnet/ip/ip.api b/src/vnet/ip/ip.api
-index f201ffbd8..548eb1a2f 100644
---- a/src/vnet/ip/ip.api
-+++ b/src/vnet/ip/ip.api
-@@ -256,7 +256,7 @@ autoreply define set_ip_flow_hash
-     @param symmetric - include symmetry in flow hash
-     @param flowlabel - include flowlabel in flow hash
- */
--enumflag ip_flow_hash_config
-+enum ip_flow_hash_config
- {
-   IP_API_FLOW_HASH_SRC_IP = 0x01,
-   IP_API_FLOW_HASH_DST_IP = 0x02,
-" | git apply -- && git add -A &&  git commit --author "Calico-vpp builder <>" -m "Remove enumflag not yet supported in govpp"
-
-
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/9 && git cherry-pick FETCH_HEAD # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/04/30204/8 && git cherry-pick FETCH_HEAD # 30204: vxlan: add udp-port configuration support
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/18/31118/1 && git cherry-pick FETCH_HEAD # 31118: interface: Add promisc on/off in api | https://gerrit.fd.io/r/c/vpp/+/31118
