@@ -61,6 +61,12 @@ spec:
               value: "info"
             - name: FELIX_HEALTHENABLED
               value: "true"
+            - name: FELIX_IPV6SUPPORT
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-node-dev-config
+                  key: FELIX_IPV6SUPPORT
         - name: vpp
           image: ${CALICO_VPP_IMAGE}
           imagePullPolicy: ${IMAGE_PULL_POLICY}

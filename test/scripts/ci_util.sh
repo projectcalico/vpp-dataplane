@@ -76,7 +76,6 @@ function start_calico () {
   export CALICO_VPP_IMAGE=calicovpp/vpp:latest
   export IMAGE_PULL_POLICY=Never
   export CALICOVPP_CORE_PATTERN=/home/hostuser/vppcore.%e.%p
-  export CALICOVPP_TAP_GSO_ENABLED=true
   export CALICOVPP_INTERFACE=$IF
 
   export CALICOVPP_IPSEC_ENABLED=false

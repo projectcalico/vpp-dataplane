@@ -226,9 +226,11 @@ func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount in
 func (v *VppRunner) configureVpp() (err error) {
 	// Always enable GSO feature on data interface, only a tiny negative effect on perf if GSO is not
 	// enabled on the taps or already done before an encap
-	err = v.vpp.EnableGSOFeature(config.DataInterfaceSwIfIndex)
-	if err != nil {
-		return errors.Wrap(err, "Error enabling GSO on data interface")
+	if v.params.EnableGSO {
+		err = v.vpp.EnableGSOFeature(config.DataInterfaceSwIfIndex)
+		if err != nil {
+			return errors.Wrap(err, "Error enabling GSO on data interface")
+		}
 	}
 
 	err = v.vpp.SetInterfaceRxMode(config.DataInterfaceSwIfIndex, types.AllQueues, v.params.RxMode)
@@ -325,6 +327,13 @@ func (v *VppRunner) configureVpp() (err error) {
 	err = v.configurePunt(tapSwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error adding redirect to tap")
+	}
+
+	if v.params.EnableGSO {
+		err = v.vpp.EnableGSOFeature(tapSwIfIndex)
+		if err != nil {
+			return errors.Wrap(err, "Error enabling GSO on vpptap0")
+		}
 	}
 
 	err = v.vpp.InterfaceSetUnnumbered(tapSwIfIndex, config.DataInterfaceSwIfIndex)

@@ -131,7 +131,7 @@ function get_cni_network_config_ipam ()
     	\"type\": \"calico-ipam\",
 		\"assign_ipv4\": \"true\",
     	\"assign_ipv6\": \"true\",
-		\"ipv4_pools\": [\"${CALICO_IPV4POOL_CIDR}\"],
+		\"ipv4_pools\": [\"${default_ipv4_pool_cidr}\"],
 		\"ipv6_pools\": [\"${CALICO_IPV6POOL_CIDR}\"]
 	  }"
 	fi
@@ -227,10 +227,7 @@ calico_create_template ()
   export CALICOVPP_VPP_STARTUP_SLEEP=${CALICOVPP_VPP_STARTUP_SLEEP:=0}
   export CALICOVPP_TAP_RX_QUEUES=${CALICOVPP_TAP_RX_QUEUES:=1}
   export CALICOVPP_TAP_TX_QUEUES=${CALICOVPP_TAP_TX_QUEUES:=1}
-  export CALICOVPP_TAP_GSO_ENABLED=${CALICOVPP_TAP_GSO_ENABLED:=true}
   export CALICOVPP_IPSEC_ENABLED=${CALICOVPP_IPSEC_ENABLED:=false}
-  export CALICOVPP_NAT_ENABLED=${CALICOVPP_NAT_ENABLED:=true}
-  export CALICOVPP_POLICIES_ENABLED=${CALICOVPP_POLICIES_ENABLED:=true}
   export CALICOVPP_IPSEC_IKEV2_PSK=${CALICOVPP_IPSEC_IKEV2_PSK:=keykeykey}
   export CALICO_IPV4POOL_IPIP=${CALICO_IPV4POOL_IPIP:=Never}
   export CALICO_IPV4POOL_VXLAN=${CALICO_IPV4POOL_VXLAN:=Never}
@@ -243,10 +240,13 @@ calico_create_template ()
   export CALICO_IPV4POOL_NAT_OUTGOING=${CALICO_IPV4POOL_NAT_OUTGOING:=true}
   export CALICO_IPV6POOL_NAT_OUTGOING=${CALICO_IPV6POOL_NAT_OUTGOING:=true}
   export CALICOVPP_TAP_RING_SIZE=${CALICOVPP_TAP_RING_SIZE}
+  export CALICOVPP_DEBUG_ENABLE_POLICIES=${CALICOVPP_DEBUG_ENABLE_POLICIES:=true}
+  export CALICOVPP_DEBUG_ENABLE_NAT=${CALICOVPP_DEBUG_ENABLE_NAT:=true}
+  export CALICOVPP_DEBUG_ENABLE_GSO=${CALICOVPP_DEBUG_ENABLE_GSO:=true}
   export USERHOME=${HOME}
   export FELIX_XDPENABLED=${FELIX_XDPENABLED:=false}
-  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=vpptap0}
-  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=vpptap0}
+  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=${vpp_dataplane_interface}}
+  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=${vpp_dataplane_interface}}
   cd $SCRIPTDIR
   kubectl kustomize . | envsubst | sudo tee /tmp/calico-vpp.yaml > /dev/null
 }

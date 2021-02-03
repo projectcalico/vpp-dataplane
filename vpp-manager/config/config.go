@@ -71,6 +71,7 @@ type VppManagerParams struct {
 	NewDriverName           string
 	DefaultGWs              []net.IP
 	IfConfigSavePath        string
+	EnableGSO               bool
 	/* Capabilities */
 	LoadedDrivers      map[string]bool
 	KernelVersion      *KernelVersion
