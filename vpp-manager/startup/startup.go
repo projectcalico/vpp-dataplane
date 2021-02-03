@@ -50,6 +50,7 @@ const (
 	NativeDriverEnvVar       = "CALICOVPP_NATIVE_DRIVER"
 	SwapDriverEnvVar         = "CALICOVPP_SWAP_DRIVER"
 	DefaultGWEnvVar          = "CALICOVPP_DEFAULT_GW"
+	EnableGSOEnvVar          = "CALICOVPP_DEBUG_ENABLE_GSO"
 	ServicePrefixEnvVar      = "SERVICE_PREFIX"
 )
 
@@ -242,6 +243,15 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		if err != nil {
 			return errors.Wrapf(err, "Error parsing %s", RingSizeEnvVar)
 		}
+	}
+
+	params.EnableGSO = true
+	if conf := getEnvValue(EnableGSOEnvVar); conf != "" {
+		enableGSO, err := strconv.ParseBool(conf)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableGSOEnvVar, conf, enableGSO, err)
+		}
+		params.EnableGSO = enableGSO
 	}
 
 	for _, e := range os.Environ() {
