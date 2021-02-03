@@ -102,13 +102,8 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 		}
 	}
 
-	if d.conf.IsUp {
-		// Set interface down if it is up, bind it to a VPP-friendly driver
-		err := utils.SafeSetInterfaceDownByName(d.params.MainInterface)
-		if err != nil {
-			return err
-		}
-	}
+	d.removeLinuxIfConf(true /* down */)
+
 	return nil
 }
 

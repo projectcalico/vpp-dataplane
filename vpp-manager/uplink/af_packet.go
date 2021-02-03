@@ -33,13 +33,7 @@ func (d *AFPacketDriver) IsSupported(warn bool) bool {
 }
 
 func (d *AFPacketDriver) PreconfigureLinux() error {
-	if d.conf.IsUp {
-		// Set interface down if it is up, bind it to a VPP-friendly driver
-		err := utils.SafeSetInterfaceDownByName(d.params.MainInterface)
-		if err != nil {
-			return err
-		}
-	}
+	d.removeLinuxIfConf(true /* down */)
 	return nil
 }
 

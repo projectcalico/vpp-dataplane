@@ -82,23 +82,6 @@ func (v *VppRunner) Run(driver uplink.UplinkDriver) {
 	}
 }
 
-func (v *VppRunner) removeInitialRoutes(link netlink.Link) {
-	for _, route := range v.conf.Routes {
-		log.Infof("deleting Route %s", route.String())
-		err := netlink.RouteDel(&route)
-		if err != nil {
-			log.Errorf("cannot delete route %+v: %+v", route, err)
-			// Keep going for the rest of the config
-		}
-	}
-	for _, addr := range v.conf.Addresses {
-		err := netlink.AddrDel(link, &addr)
-		if err != nil {
-			log.Errorf("Error adding address %s to tap interface : %+v", addr, err)
-		}
-	}
-}
-
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32) (err error) {
 	if v.conf.Hasv4 {
 		err := v.vpp.PuntRedirect(vpplink.INVALID_SW_IF_INDEX, tapSwIfIndex, net.ParseIP("0.0.0.0"))
@@ -287,15 +270,6 @@ func (v *VppRunner) configureVpp() (err error) {
 		}
 	}
 
-	// If main interface is still up flush its routes or they'll conflict with $HostIfName
-	link, err := netlink.LinkByName(v.params.MainInterface)
-	if err == nil {
-		isUp := (link.Attrs().Flags & net.FlagUp) != 0
-		if isUp {
-			v.removeInitialRoutes(link)
-		}
-	}
-
 	log.Infof("Creating Linux side interface")
 	var tapMtu int = v.conf.Mtu - 60
 	if v.params.TapMtu != 0 {
@@ -357,7 +331,7 @@ func (v *VppRunner) configureVpp() (err error) {
 	}
 
 	// Linux side tap setup
-	link, err = netlink.LinkByName(config.HostIfName)
+	link, err := netlink.LinkByName(config.HostIfName)
 	if err != nil {
 		return errors.Wrapf(err, "cannot find interface named %s", config.HostIfName)
 	}
