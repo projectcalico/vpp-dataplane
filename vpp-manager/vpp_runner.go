@@ -271,19 +271,21 @@ func (v *VppRunner) configureVpp() (err error) {
 	}
 
 	log.Infof("Creating Linux side interface")
+	vpptap0Flags := types.TapFlagTun
+	if v.params.EnableGSO {
+		vpptap0Flags = vpptap0Flags | types.TapFlagGSO | types.TapGROCoalesce
+	}
 	var tapMtu int = v.conf.Mtu - 60
 	if v.params.TapMtu != 0 {
 		tapMtu = v.params.TapMtu
 	}
 	tapSwIfIndex, err := v.vpp.CreateTapV2(&types.TapV2{
-		HostIfName:     config.HostIfName,
-		Tag:            config.HostIfTag,
-		MacAddress:     v.params.VppSideMacAddress,
-		HostMacAddress: v.params.ContainerSideMacAddress,
-		RxQueueSize:    v.params.TapRxQueueSize,
-		TxQueueSize:    v.params.TapTxQueueSize,
-		Flags:          types.TapFlagTun,
-		Mtu:            tapMtu,
+		HostIfName:  config.HostIfName,
+		Tag:         config.HostIfTag,
+		RxQueueSize: v.params.TapRxQueueSize,
+		TxQueueSize: v.params.TapTxQueueSize,
+		Flags:       vpptap0Flags,
+		Mtu:         tapMtu,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Error creating tap")
