@@ -224,6 +224,24 @@ func GetInterfaceNumVFs(pciId string) (int, error) {
 	return int(numVfs), nil
 }
 
+func SetVFSpoofTrust(ifName string, vf int, spoof bool, trust bool) error {
+	spoofOn := "off"
+	trustOn := "off"
+	if spoof {
+		spoofOn = "on"
+	}
+	if trust {
+		trustOn = "on"
+	}
+	cmd := exec.Command("ip", "link", "set", "dev", ifName,
+		"vf", fmt.Sprintf("%d", vf),
+		"spoof", spoofOn,
+		"trust", trustOn)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 func GetInterfaceVFPciId(pciId string) (vfPciId string, err error) {
 	virtfn0Path := fmt.Sprintf("/sys/bus/pci/devices/%s/virtfn0", pciId)
 	vfPciId, err = getPciIdFromLink(virtfn0Path)

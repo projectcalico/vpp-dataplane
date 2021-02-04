@@ -22,6 +22,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
 type AFPacketDriver struct {
@@ -33,7 +34,15 @@ func (d *AFPacketDriver) IsSupported(warn bool) bool {
 }
 
 func (d *AFPacketDriver) PreconfigureLinux() error {
-	d.removeLinuxIfConf(true /* down */)
+	link, err := netlink.LinkByName(d.params.MainInterface)
+	if err != nil {
+		return errors.Wrapf(err, "Error finding link %s", d.params.MainInterface)
+	}
+	err = netlink.SetPromiscOn(link)
+	if err != nil {
+		return errors.Wrapf(err, "Error set link %s promisc on", d.params.MainInterface)
+	}
+	d.removeLinuxIfConf(false /* down */)
 	return nil
 }
 
@@ -49,6 +58,13 @@ func (d *AFPacketDriver) RestoreLinux() {
 		return
 	}
 
+	if !d.conf.PromiscOn {
+		log.Infof("Setting promisc off")
+		err = netlink.SetPromiscOff(link)
+		if err != nil {
+			log.Errorf("Error setting link %s promisc off %v", d.params.MainInterface, err)
+		}
+	}
 	// Re-add all adresses and routes
 	d.restoreLinuxIfConf(link)
 }
