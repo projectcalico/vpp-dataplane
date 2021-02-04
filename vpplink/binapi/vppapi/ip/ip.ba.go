@@ -33,6 +33,33 @@ const (
 	VersionCrc = 0xf2f5f4e
 )
 
+// IPReassType defines enum 'ip_reass_type'.
+type IPReassType uint32
+
+const (
+	IP_REASS_TYPE_FULL            IPReassType = 0
+	IP_REASS_TYPE_SHALLOW_VIRTUAL IPReassType = 1
+)
+
+var (
+	IPReassType_name = map[uint32]string{
+		0: "IP_REASS_TYPE_FULL",
+		1: "IP_REASS_TYPE_SHALLOW_VIRTUAL",
+	}
+	IPReassType_value = map[string]uint32{
+		"IP_REASS_TYPE_FULL":            0,
+		"IP_REASS_TYPE_SHALLOW_VIRTUAL": 1,
+	}
+)
+
+func (x IPReassType) String() string {
+	s, ok := IPReassType_name[uint32(x)]
+	if ok {
+		return s
+	}
+	return "IPReassType(" + strconv.Itoa(int(x)) + ")"
+}
+
 // IPFlowHashConfig defines enum 'ip_flow_hash_config'.
 type IPFlowHashConfig uint32
 
@@ -75,34 +102,26 @@ func (x IPFlowHashConfig) String() string {
 	if ok {
 		return s
 	}
-	return "IPFlowHashConfig(" + strconv.Itoa(int(x)) + ")"
-}
-
-// IPReassType defines enum 'ip_reass_type'.
-type IPReassType uint32
-
-const (
-	IP_REASS_TYPE_FULL            IPReassType = 0
-	IP_REASS_TYPE_SHALLOW_VIRTUAL IPReassType = 1
-)
-
-var (
-	IPReassType_name = map[uint32]string{
-		0: "IP_REASS_TYPE_FULL",
-		1: "IP_REASS_TYPE_SHALLOW_VIRTUAL",
+	str := func(n uint32) string {
+		s, ok := IPFlowHashConfig_name[uint32(n)]
+		if ok {
+			return s
+		}
+		return "IPFlowHashConfig(" + strconv.Itoa(int(n)) + ")"
 	}
-	IPReassType_value = map[string]uint32{
-		"IP_REASS_TYPE_FULL":            0,
-		"IP_REASS_TYPE_SHALLOW_VIRTUAL": 1,
+	for i := uint32(0); i <= 32; i++ {
+		val := uint32(x)
+		if val&(1<<i) != 0 {
+			if s != "" {
+				s += "|"
+			}
+			s += str(1 << i)
+		}
 	}
-)
-
-func (x IPReassType) String() string {
-	s, ok := IPReassType_name[uint32(x)]
-	if ok {
-		return s
+	if s == "" {
+		return str(uint32(x))
 	}
-	return "IPReassType(" + strconv.Itoa(int(x)) + ")"
+	return s
 }
 
 // IPMroute defines type 'ip_mroute'.

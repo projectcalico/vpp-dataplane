@@ -30,6 +30,8 @@ git.fd.io/govpp.git v0.3.6-0.20200903151113-c94a96227985 h1:SCYXEDTNj5MEshXZKh4y
 git.fd.io/govpp.git v0.3.6-0.20200903151113-c94a96227985/go.mod h1:pCG9BwUtf+AwnHQWe3/Bk9URmfG0nRoM5DHA794z0/Y=
 git.fd.io/govpp.git v0.3.6-0.20201002143632-c2456559a661 h1:u05IeagxPLOAujHl2hvYelqwzjYn320PfvRdx5gaZ4Q=
 git.fd.io/govpp.git v0.3.6-0.20201002143632-c2456559a661/go.mod h1:OCVd4W8SH+666KRQoMj6PM+oipLDZAHhqMz9B1TGbgI=
+git.fd.io/govpp.git v0.3.6-0.20210202134006-4c1cccf48cd1 h1:yNpDKZPsqbDXAuOUSKnJWI22QZp51Zd5fV8NvGvzOtU=
+git.fd.io/govpp.git v0.3.6-0.20210202134006-4c1cccf48cd1/go.mod h1:OCVd4W8SH+666KRQoMj6PM+oipLDZAHhqMz9B1TGbgI=
 github.com/Azure/azure-sdk-for-go v32.5.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78/go.mod h1:LmzpDX56iTiv29bbRTIsUNlaFfuhWRQBWjQdVyAevI8=
 github.com/Azure/go-autorest v10.6.2+incompatible/go.mod h1:r+4oMnoxhatjLLJ6zxSWATqVooLgysK6ZNox3g/xq24=
