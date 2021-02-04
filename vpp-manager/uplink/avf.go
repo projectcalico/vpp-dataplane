@@ -91,6 +91,13 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 		d.vfPCI = vfPCI
 	}
 
+	if d.pfPCI != "" {
+		err := utils.SetVFSpoofTrust(d.params.MainInterface, 0 /* vf */, false /* spoof */, true /* trust */)
+		if err != nil {
+			return errors.Wrapf(err, "Couldnt set VF spoof off trust on %s", d.params.MainInterface)
+		}
+	}
+
 	driverName, err := utils.GetDriverNameFromPci(d.vfPCI)
 	if err != nil {
 		return errors.Wrapf(err, "Couldnt get VF driver Name for %s", d.vfPCI)
@@ -102,13 +109,8 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 		}
 	}
 
-	if d.conf.IsUp {
-		// Set interface down if it is up, bind it to a VPP-friendly driver
-		err := utils.SafeSetInterfaceDownByName(d.params.MainInterface)
-		if err != nil {
-			return err
-		}
-	}
+	d.removeLinuxIfConf(true /* down */)
+
 	return nil
 }
 
@@ -139,6 +141,11 @@ func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink) error {
 		return errors.Wrapf(err, "Error creating AVF interface")
 	}
 	log.Infof("Created AVF interface %d", swIfIndex)
+
+	err = vpp.SetPromiscOn(swIfIndex)
+	if err != nil {
+		return errors.Wrapf(err, "Error setting AVF promisc on")
+	}
 
 	if swIfIndex != config.DataInterfaceSwIfIndex {
 		return fmt.Errorf("Created AVF interface has wrong swIfIndex %d!", swIfIndex)

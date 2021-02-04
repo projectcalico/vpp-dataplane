@@ -3,7 +3,7 @@
 // Package interfaces contains generated bindings for API file interface.api.
 //
 // Contents:
-//  57 messages
+//  59 messages
 //
 package interfaces
 
@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "interface"
 	APIVersion = "3.2.2"
-	VersionCrc = 0x6d3c2922
+	VersionCrc = 0x1288bb93
 )
 
 // CollectDetailedInterfaceStats defines message 'collect_detailed_interface_stats'.
@@ -1790,6 +1790,76 @@ func (m *SwInterfaceSetMtuReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// SwInterfaceSetPromisc defines message 'sw_interface_set_promisc'.
+type SwInterfaceSetPromisc struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	PromiscOn bool                           `binapi:"bool,name=promisc_on" json:"promisc_on,omitempty"`
+}
+
+func (m *SwInterfaceSetPromisc) Reset()               { *m = SwInterfaceSetPromisc{} }
+func (*SwInterfaceSetPromisc) GetMessageName() string { return "sw_interface_set_promisc" }
+func (*SwInterfaceSetPromisc) GetCrcString() string   { return "d40860d4" }
+func (*SwInterfaceSetPromisc) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SwInterfaceSetPromisc) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	size += 1 // m.PromiscOn
+	return size
+}
+func (m *SwInterfaceSetPromisc) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeBool(m.PromiscOn)
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceSetPromisc) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.PromiscOn = buf.DecodeBool()
+	return nil
+}
+
+// SwInterfaceSetPromiscReply defines message 'sw_interface_set_promisc_reply'.
+type SwInterfaceSetPromiscReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SwInterfaceSetPromiscReply) Reset()               { *m = SwInterfaceSetPromiscReply{} }
+func (*SwInterfaceSetPromiscReply) GetMessageName() string { return "sw_interface_set_promisc_reply" }
+func (*SwInterfaceSetPromiscReply) GetCrcString() string   { return "e8d4e804" }
+func (*SwInterfaceSetPromiscReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SwInterfaceSetPromiscReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SwInterfaceSetPromiscReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceSetPromiscReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // SwInterfaceSetRxMode defines message 'sw_interface_set_rx_mode'.
 type SwInterfaceSetRxMode struct {
 	SwIfIndex    interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2289,6 +2359,8 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*SwInterfaceSetMacAddressReply)(nil), "sw_interface_set_mac_address_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetMtu)(nil), "sw_interface_set_mtu_5cbe85e5")
 	api.RegisterMessage((*SwInterfaceSetMtuReply)(nil), "sw_interface_set_mtu_reply_e8d4e804")
+	api.RegisterMessage((*SwInterfaceSetPromisc)(nil), "sw_interface_set_promisc_d40860d4")
+	api.RegisterMessage((*SwInterfaceSetPromiscReply)(nil), "sw_interface_set_promisc_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetRxMode)(nil), "sw_interface_set_rx_mode_780f5cee")
 	api.RegisterMessage((*SwInterfaceSetRxModeReply)(nil), "sw_interface_set_rx_mode_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetRxPlacement)(nil), "sw_interface_set_rx_placement_db65f3c9")
@@ -2351,6 +2423,8 @@ func AllMessages() []api.Message {
 		(*SwInterfaceSetMacAddressReply)(nil),
 		(*SwInterfaceSetMtu)(nil),
 		(*SwInterfaceSetMtuReply)(nil),
+		(*SwInterfaceSetPromisc)(nil),
+		(*SwInterfaceSetPromiscReply)(nil),
 		(*SwInterfaceSetRxMode)(nil),
 		(*SwInterfaceSetRxModeReply)(nil),
 		(*SwInterfaceSetRxPlacement)(nil),

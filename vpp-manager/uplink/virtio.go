@@ -68,21 +68,11 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 			return errors.Wrapf(err, "Virtio preconfigure error")
 		}
 	}
-	if d.conf.IsUp {
-		// Set interface down if it is up, bind it to a VPP-friendly driver
-		err := utils.SafeSetInterfaceDownByName(d.params.MainInterface)
-		if err != nil {
-			return err
-		}
-	}
+	d.removeLinuxIfConf(true /* down */)
 	if doSwapDriver {
-		if d.conf.PciId == "" {
-			log.Warnf("PCI ID not found, not swapping drivers")
-		} else {
-			err = utils.SwapDriver(d.conf.PciId, newDriverName, true)
-			if err != nil {
-				log.Warnf("Failed to swap driver to %s: %v", newDriverName, err)
-			}
+		err = utils.SwapDriver(d.conf.PciId, newDriverName, true)
+		if err != nil {
+			log.Warnf("Failed to swap driver to %s: %v", newDriverName, err)
 		}
 	}
 	return nil

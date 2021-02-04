@@ -55,6 +55,38 @@ func (d *UplinkDriverData) GetName() string {
 	return d.name
 }
 
+func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
+	link, err := netlink.LinkByName(d.params.MainInterface)
+	if err != nil {
+		log.Errorf("Error finding link %s: %s", d.params.MainInterface, err)
+	} else {
+		// Remove routes to not have them conflict with vpptap0
+		for _, route := range d.conf.Routes {
+			log.Infof("deleting Route %s", route.String())
+			err := netlink.RouteDel(&route)
+			if err != nil {
+				log.Errorf("cannot delete route %+v: %+v", route, err)
+			}
+		}
+		// Remove addresses to not have them conflict with vpptap0
+		for _, addr := range d.conf.Addresses {
+			err := netlink.AddrDel(link, &addr)
+			if err != nil {
+				log.Errorf("Error removing address %s from tap interface : %+v", addr, err)
+			}
+		}
+
+		if d.conf.IsUp && setIfDown {
+			err = netlink.LinkSetDown(link)
+			if err != nil {
+				// In case it still succeeded
+				netlink.LinkSetUp(link)
+				log.Errorf("Error setting link %s down: %s", d.params.MainInterface, err)
+			}
+		}
+	}
+}
+
 func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 	for _, addr := range d.conf.Addresses {
 		log.Infof("restoring address %s", addr.String())

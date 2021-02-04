@@ -1,15 +1,16 @@
-VPP Version                 : 21.06-rc0~186-g8c17f2b72
+VPP Version                 : 21.06-rc0~187-g6812f1923
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : e988726cb tests: verify policer stats in punt tests
 ------------------ Cherry picked commits --------------------
-8c17f2b72 devices: af-packet gso mtu
-829bcb00d interface: automask interrupts to polling rxqs
-dc5077070 wireguard: testing alternative timer dispatch
-113b5e523 capo: Calico Policies plugin
-bdddbf43a acl: acl-plugin custom policies
-e839d1d38 cnat: k8s extensions
-086b35494 cnat: add input feature node
-3a3122799 vxlan: add udp-port configuration support
-b3a45063f virtio: DRAFT: multi tx support
-7e2307d53 Remove enumflag not yet supported in govpp
+6812f1923 devices: af-packet gso mtu
+722564f0c interface: automask interrupts to polling rxqs
+97bccddd8 wireguard: testing alternative timer dispatch
+4065a386c capo: Calico Policies plugin
+c741ea95c acl: acl-plugin custom policies
+647ecc29f cnat: k8s extensions
+7825ba8b7 cnat: add input feature node
+aa098e323 interface: Add promisc on/off in api
+31a7192cb vxlan: add udp-port configuration support
+657944f90 virtio: DRAFT: multi tx support
+6693a76a8 Remove enumflag not yet supported in govpp
 -------------------------------------------------------------

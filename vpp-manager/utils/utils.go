@@ -99,6 +99,10 @@ func SetInterfaceRxQueues(ifname string, queues int) error {
 }
 
 func SwapDriver(pciDevice, newDriver string, addId bool) error {
+	if pciDevice == "" {
+		log.Warnf("PCI ID not found, not swapping drivers")
+		return nil
+	}
 	deviceRoot := fmt.Sprintf("/sys/bus/pci/devices/%s", pciDevice)
 	driverRoot := fmt.Sprintf("/sys/bus/pci/drivers/%s", newDriver)
 	if addId {
@@ -220,6 +224,24 @@ func GetInterfaceNumVFs(pciId string) (int, error) {
 	return int(numVfs), nil
 }
 
+func SetVFSpoofTrust(ifName string, vf int, spoof bool, trust bool) error {
+	spoofOn := "off"
+	trustOn := "off"
+	if spoof {
+		spoofOn = "on"
+	}
+	if trust {
+		trustOn = "on"
+	}
+	cmd := exec.Command("ip", "link", "set", "dev", ifName,
+		"vf", fmt.Sprintf("%d", vf),
+		"spoof", spoofOn,
+		"trust", trustOn)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 func GetInterfaceVFPciId(pciId string) (vfPciId string, err error) {
 	virtfn0Path := fmt.Sprintf("/sys/bus/pci/devices/%s/virtfn0", pciId)
 	vfPciId, err = getPciIdFromLink(virtfn0Path)
@@ -276,16 +298,15 @@ func BindVFtoDriver(pciId string, driver string) error {
 func GetInterfaceNameFromPci(pciId string) (string, error) {
 	// Grab Driver id for the pci device
 	driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/net", pciId)
-    netDevs, err := ioutil.ReadDir(driverLinkPath)
-    if err != nil {
+	netDevs, err := ioutil.ReadDir(driverLinkPath)
+	if err != nil {
 		return "", errors.Wrapf(err, "cannot list /net for %s", pciId)
-    }
-    if len(netDevs) != 1 {
+	}
+	if len(netDevs) != 1 {
 		return "", errors.Wrapf(err, "Found %d devices in /net for %s", len(netDevs), pciId)
-    }
-    return netDevs[0].Name(), nil
+	}
+	return netDevs[0].Name(), nil
 }
-
 
 func GetDriverNameFromPci(pciId string) (string, error) {
 	// Grab Driver id for the pci device
@@ -375,20 +396,6 @@ func GetOsKernelVersion() (ver *config.KernelVersion, err error) {
 	}
 	ver, err = ParseKernelVersion(strings.TrimSpace(string(versionStr)))
 	return ver, err
-}
-
-func SafeSetInterfaceDownByName(interfaceName string) error {
-	link, err := netlink.LinkByName(interfaceName)
-	if err != nil {
-		return errors.Wrapf(err, "Error finding link %s", interfaceName)
-	}
-	err = netlink.LinkSetDown(link)
-	if err != nil {
-		// In case it still succeeded
-		netlink.LinkSetUp(link)
-		return errors.Wrapf(err, "Error setting link %s down", interfaceName)
-	}
-	return nil
 }
 
 func SafeSetInterfaceUpByName(interfaceName string) (link netlink.Link, err error) {

@@ -26,8 +26,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/vishvananda/netlink"
 	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
 type DPDKDriver struct {
@@ -39,22 +39,12 @@ func (d *DPDKDriver) IsSupported(warn bool) bool {
 }
 
 func (d *DPDKDriver) PreconfigureLinux() (err error) {
-	if d.conf.IsUp {
-		// Set interface down if it is up, bind it to a VPP-friendly driver
-		err := utils.SafeSetInterfaceDownByName(d.params.MainInterface)
-		if err != nil {
-			return err
-		}
-	}
+	d.removeLinuxIfConf(true /* down */)
 	finalDriver := d.conf.Driver
 	if d.conf.DoSwapDriver {
-		if d.conf.PciId == "" {
-			log.Warnf("PCI ID not found, not swapping drivers")
-		} else {
-			err = utils.SwapDriver(d.conf.PciId, d.params.NewDriverName, true)
-			if err != nil {
-				log.Warnf("Failed to swap driver to %s: %v", d.params.NewDriverName, err)
-			}
+		err = utils.SwapDriver(d.conf.PciId, d.params.NewDriverName, true)
+		if err != nil {
+			log.Warnf("Failed to swap driver to %s: %v", d.params.NewDriverName, err)
 		}
 		finalDriver = d.params.NewDriverName
 	}
@@ -133,7 +123,7 @@ func (d *DPDKDriver) RestoreLinux() {
 		}
 	}
 
-	for i := 0 ; i < 10 ; i++ {
+	for i := 0; i < 10; i++ {
 		err := d.restoreInterfaceName()
 		if err != nil {
 			log.Warnf("Error restoring if name %s", err)

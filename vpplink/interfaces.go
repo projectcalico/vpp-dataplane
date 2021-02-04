@@ -468,6 +468,29 @@ func (v *VppLink) enableDisableGso(swIfIndex uint32, enable bool) error {
 	return nil
 }
 
+func (v *VppLink) setInterfacePromiscuous(swIfIndex uint32, promiscOn bool) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	request := &interfaces.SwInterfaceSetPromisc{
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+		PromiscOn: promiscOn,
+	}
+	response := &interfaces.SwInterfaceSetPromiscReply{}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return fmt.Errorf("cannot configure gso: %v %d", err, response.Retval)
+	}
+	return nil
+}
+
+func (v *VppLink) SetPromiscOn(swIfIndex uint32) error {
+	return v.setInterfacePromiscuous(swIfIndex, true)
+}
+
+func (v *VppLink) SetPromiscOff(swIfIndex uint32) error {
+	return v.setInterfacePromiscuous(swIfIndex, false)
+}
+
 func (v *VppLink) EnableGSOFeature(swIfIndex uint32) error {
 	return v.enableDisableGso(swIfIndex, true)
 }

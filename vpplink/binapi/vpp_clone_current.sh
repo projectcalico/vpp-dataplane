@@ -30,7 +30,7 @@ index f201ffbd8..548eb1a2f 100644
 
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/9 && git cherry-pick FETCH_HEAD # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/04/30204/8 && git cherry-pick FETCH_HEAD # 30204: vxlan: add udp-port configuration support
-
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/18/31118/1 && git cherry-pick FETCH_HEAD # 31118: interface: Add promisc on/off in api | https://gerrit.fd.io/r/c/vpp/+/31118
 # --------------- Cnat patches ---------------
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/75/30275/11 && git cherry-pick FETCH_HEAD # 30275: cnat: add input feature node | https://gerrit.fd.io/r/c/vpp/+/30275
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/31 && git cherry-pick FETCH_HEAD # 28587: cnat: k8s extensions
