@@ -72,13 +72,15 @@ func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
 		for _, addr := range d.conf.Addresses {
 			err := netlink.AddrDel(link, &addr)
 			if err != nil {
-				log.Errorf("Error adding address %s to tap interface : %+v", addr, err)
+				log.Errorf("Error removing address %s from tap interface : %+v", addr, err)
 			}
 		}
 
 		if d.conf.IsUp && setIfDown {
 			err = netlink.LinkSetDown(link)
 			if err != nil {
+				// In case it still succeeded
+				netlink.LinkSetUp(link)
 				log.Errorf("Error setting link %s down: %s", d.params.MainInterface, err)
 			}
 		}
