@@ -140,7 +140,7 @@ func main() {
 		for _, driver := range uplink.SupportedUplinkDrivers(params, conf) {
 			internalKill = false
 			runner.Run(driver)
-			if !internalKill {
+			if vppProcess != nil && !internalKill {
 				log.Infof("External Kill")
 				/* Don't restart VPP if we were asked to terminate */
 				break
