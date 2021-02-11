@@ -66,7 +66,9 @@ func (d *AFXDPDriver) PreconfigureLinux() error {
 	}
 	err = utils.SetInterfaceRxQueues(d.params.MainInterface, d.params.NumRxQueues)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting link %s NumQueues to %d", d.params.MainInterface, d.params.NumRxQueues)
+		log.Errorf("Error setting link %s NumQueues to %d %v", d.params.MainInterface, d.params.NumRxQueues, err)
+		/* Try with linux NumRxQueues on error, otherwise af_xdp wont start */
+		d.params.NumRxQueues = d.conf.NumRxQueues
 	}
 	return nil
 }
