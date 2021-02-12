@@ -28,7 +28,6 @@ data:
     plugins {
         plugin default { enable }
         plugin calico_plugin.so { enable }
-        plugin ping_plugin.so { disable }
     }
 
 ---
