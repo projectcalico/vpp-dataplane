@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "virtio"
 	APIVersion = "3.0.0"
-	VersionCrc = 0xb3c1f9aa
+	VersionCrc = 0xa507d784
 )
 
 // VirtioFlags defines enum 'virtio_flags'.

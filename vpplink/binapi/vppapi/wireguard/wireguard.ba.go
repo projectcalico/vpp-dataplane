@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "wireguard"
 	APIVersion = "0.1.0"
-	VersionCrc = 0xcd532184
+	VersionCrc = 0x1e1d4252
 )
 
 // WireguardPeerFlags defines enum 'wireguard_peer_flags'.

@@ -4,7 +4,7 @@
 //
 // Contents:
 //   1 alias
-//   6 enums
+//   7 enums
 //
 package interface_types
 
@@ -19,6 +19,33 @@ import (
 // A compilation error at this line likely means your copy of the
 // GoVPP api package needs to be updated.
 const _ = api.GoVppAPIPackageIsVersion2
+
+// Direction defines enum 'direction'.
+type Direction uint8
+
+const (
+	RX Direction = 0
+	TX Direction = 1
+)
+
+var (
+	Direction_name = map[uint8]string{
+		0: "RX",
+		1: "TX",
+	}
+	Direction_value = map[string]uint8{
+		"RX": 0,
+		"TX": 1,
+	}
+)
+
+func (x Direction) String() string {
+	s, ok := Direction_name[uint8(x)]
+	if ok {
+		return s
+	}
+	return "Direction(" + strconv.Itoa(int(x)) + ")"
+}
 
 // IfStatusFlags defines enum 'if_status_flags'.
 type IfStatusFlags uint32

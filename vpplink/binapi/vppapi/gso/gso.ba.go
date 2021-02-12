@@ -22,7 +22,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "gso"
 	APIVersion = "1.0.0"
-	VersionCrc = 0xcd91bd3b
+	VersionCrc = 0x81a73026
 )
 
 // FeatureGsoEnableDisable defines message 'feature_gso_enable_disable'.

@@ -22,7 +22,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "feature"
 	APIVersion = "1.0.2"
-	VersionCrc = 0xd8824c00
+	VersionCrc = 0x8a6e6da1
 )
 
 // FeatureEnableDisable defines message 'feature_enable_disable'.

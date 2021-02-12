@@ -4,7 +4,7 @@
 //
 // Contents:
 //   4 enums
-//   3 structs
+//   4 structs
 //
 package ipsec_types
 
@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	api "git.fd.io/govpp.git/api"
+	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	tunnel_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/tunnel_types"
 )
@@ -245,6 +246,22 @@ type IpsecSadEntryV2 struct {
 	Salt               uint32                             `binapi:"u32,name=salt" json:"salt,omitempty"`
 	UDPSrcPort         uint16                             `binapi:"u16,name=udp_src_port,default=4500" json:"udp_src_port,omitempty"`
 	UDPDstPort         uint16                             `binapi:"u16,name=udp_dst_port,default=4500" json:"udp_dst_port,omitempty"`
+}
+
+// IpsecSadEntryV3 defines type 'ipsec_sad_entry_v3'.
+type IpsecSadEntryV3 struct {
+	SadID              uint32              `binapi:"u32,name=sad_id" json:"sad_id,omitempty"`
+	Spi                uint32              `binapi:"u32,name=spi" json:"spi,omitempty"`
+	Protocol           IpsecProto          `binapi:"ipsec_proto,name=protocol" json:"protocol,omitempty"`
+	CryptoAlgorithm    IpsecCryptoAlg      `binapi:"ipsec_crypto_alg,name=crypto_algorithm" json:"crypto_algorithm,omitempty"`
+	CryptoKey          Key                 `binapi:"key,name=crypto_key" json:"crypto_key,omitempty"`
+	IntegrityAlgorithm IpsecIntegAlg       `binapi:"ipsec_integ_alg,name=integrity_algorithm" json:"integrity_algorithm,omitempty"`
+	IntegrityKey       Key                 `binapi:"key,name=integrity_key" json:"integrity_key,omitempty"`
+	Flags              IpsecSadFlags       `binapi:"ipsec_sad_flags,name=flags" json:"flags,omitempty"`
+	Tunnel             tunnel_types.Tunnel `binapi:"tunnel,name=tunnel" json:"tunnel,omitempty"`
+	Salt               uint32              `binapi:"u32,name=salt" json:"salt,omitempty"`
+	UDPSrcPort         uint16              `binapi:"u16,name=udp_src_port,default=4500" json:"udp_src_port,omitempty"`
+	UDPDstPort         uint16              `binapi:"u16,name=udp_dst_port,default=4500" json:"udp_dst_port,omitempty"`
 }
 
 // Key defines type 'key'.

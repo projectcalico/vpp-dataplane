@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ikev2"
 	APIVersion = "1.0.1"
-	VersionCrc = 0x516930f
+	VersionCrc = 0xeeeccac1
 )
 
 // Ikev2ChildSaDetails defines message 'ikev2_child_sa_details'.

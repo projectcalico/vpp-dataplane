@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "tapv2"
 	APIVersion = "4.0.0"
-	VersionCrc = 0xa304fb6f
+	VersionCrc = 0x439a6221
 )
 
 // TapFlags defines enum 'tap_flags'.

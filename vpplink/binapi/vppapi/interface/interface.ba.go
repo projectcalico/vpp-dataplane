@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "interface"
 	APIVersion = "3.2.2"
-	VersionCrc = 0x1288bb93
+	VersionCrc = 0x29a0076c
 )
 
 // CollectDetailedInterfaceStats defines message 'collect_detailed_interface_stats'.

@@ -51,12 +51,14 @@ type RPCService interface {
 	NatHaSetListener(ctx context.Context, in *NatHaSetListener) (*NatHaSetListenerReply, error)
 	NatIpfixEnableDisable(ctx context.Context, in *NatIpfixEnableDisable) (*NatIpfixEnableDisableReply, error)
 	NatSetAddrAndPortAllocAlg(ctx context.Context, in *NatSetAddrAndPortAllocAlg) (*NatSetAddrAndPortAllocAlgReply, error)
+	NatSetFqOptions(ctx context.Context, in *NatSetFqOptions) (*NatSetFqOptionsReply, error)
 	NatSetLogLevel(ctx context.Context, in *NatSetLogLevel) (*NatSetLogLevelReply, error)
 	NatSetMssClamping(ctx context.Context, in *NatSetMssClamping) (*NatSetMssClampingReply, error)
 	NatSetTimeouts(ctx context.Context, in *NatSetTimeouts) (*NatSetTimeoutsReply, error)
 	NatSetWorkers(ctx context.Context, in *NatSetWorkers) (*NatSetWorkersReply, error)
 	NatShowConfig(ctx context.Context, in *NatShowConfig) (*NatShowConfigReply, error)
 	NatShowConfig2(ctx context.Context, in *NatShowConfig2) (*NatShowConfig2Reply, error)
+	NatShowFqOptions(ctx context.Context, in *NatShowFqOptions) (*NatShowFqOptionsReply, error)
 	NatWorkerDump(ctx context.Context, in *NatWorkerDump) (RPCService_NatWorkerDumpClient, error)
 }
 
@@ -680,6 +682,15 @@ func (c *serviceClient) NatSetAddrAndPortAllocAlg(ctx context.Context, in *NatSe
 	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
+func (c *serviceClient) NatSetFqOptions(ctx context.Context, in *NatSetFqOptions) (*NatSetFqOptionsReply, error) {
+	out := new(NatSetFqOptionsReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
 func (c *serviceClient) NatSetLogLevel(ctx context.Context, in *NatSetLogLevel) (*NatSetLogLevelReply, error) {
 	out := new(NatSetLogLevelReply)
 	err := c.conn.Invoke(ctx, in, out)
@@ -727,6 +738,15 @@ func (c *serviceClient) NatShowConfig(ctx context.Context, in *NatShowConfig) (*
 
 func (c *serviceClient) NatShowConfig2(ctx context.Context, in *NatShowConfig2) (*NatShowConfig2Reply, error) {
 	out := new(NatShowConfig2Reply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) NatShowFqOptions(ctx context.Context, in *NatShowFqOptions) (*NatShowFqOptionsReply, error) {
+	out := new(NatShowFqOptionsReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

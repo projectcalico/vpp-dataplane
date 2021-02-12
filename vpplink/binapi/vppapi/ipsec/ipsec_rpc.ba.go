@@ -20,8 +20,10 @@ type RPCService interface {
 	IpsecItfDump(ctx context.Context, in *IpsecItfDump) (RPCService_IpsecItfDumpClient, error)
 	IpsecSaDump(ctx context.Context, in *IpsecSaDump) (RPCService_IpsecSaDumpClient, error)
 	IpsecSaV2Dump(ctx context.Context, in *IpsecSaV2Dump) (RPCService_IpsecSaV2DumpClient, error)
+	IpsecSaV3Dump(ctx context.Context, in *IpsecSaV3Dump) (RPCService_IpsecSaV3DumpClient, error)
 	IpsecSadEntryAddDel(ctx context.Context, in *IpsecSadEntryAddDel) (*IpsecSadEntryAddDelReply, error)
 	IpsecSadEntryAddDelV2(ctx context.Context, in *IpsecSadEntryAddDelV2) (*IpsecSadEntryAddDelV2Reply, error)
+	IpsecSadEntryAddDelV3(ctx context.Context, in *IpsecSadEntryAddDelV3) (*IpsecSadEntryAddDelV3Reply, error)
 	IpsecSelectBackend(ctx context.Context, in *IpsecSelectBackend) (*IpsecSelectBackendReply, error)
 	IpsecSetAsyncMode(ctx context.Context, in *IpsecSetAsyncMode) (*IpsecSetAsyncModeReply, error)
 	IpsecSpdAddDel(ctx context.Context, in *IpsecSpdAddDel) (*IpsecSpdAddDelReply, error)
@@ -225,6 +227,45 @@ func (c *serviceClient_IpsecSaV2DumpClient) Recv() (*IpsecSaV2Details, error) {
 	}
 }
 
+func (c *serviceClient) IpsecSaV3Dump(ctx context.Context, in *IpsecSaV3Dump) (RPCService_IpsecSaV3DumpClient, error) {
+	stream, err := c.conn.NewStream(ctx)
+	if err != nil {
+		return nil, err
+	}
+	x := &serviceClient_IpsecSaV3DumpClient{stream}
+	if err := x.Stream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RPCService_IpsecSaV3DumpClient interface {
+	Recv() (*IpsecSaV3Details, error)
+	api.Stream
+}
+
+type serviceClient_IpsecSaV3DumpClient struct {
+	api.Stream
+}
+
+func (c *serviceClient_IpsecSaV3DumpClient) Recv() (*IpsecSaV3Details, error) {
+	msg, err := c.Stream.RecvMsg()
+	if err != nil {
+		return nil, err
+	}
+	switch m := msg.(type) {
+	case *IpsecSaV3Details:
+		return m, nil
+	case *vpe.ControlPingReply:
+		return nil, io.EOF
+	default:
+		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
+	}
+}
+
 func (c *serviceClient) IpsecSadEntryAddDel(ctx context.Context, in *IpsecSadEntryAddDel) (*IpsecSadEntryAddDelReply, error) {
 	out := new(IpsecSadEntryAddDelReply)
 	err := c.conn.Invoke(ctx, in, out)
@@ -236,6 +277,15 @@ func (c *serviceClient) IpsecSadEntryAddDel(ctx context.Context, in *IpsecSadEnt
 
 func (c *serviceClient) IpsecSadEntryAddDelV2(ctx context.Context, in *IpsecSadEntryAddDelV2) (*IpsecSadEntryAddDelV2Reply, error) {
 	out := new(IpsecSadEntryAddDelV2Reply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) IpsecSadEntryAddDelV3(ctx context.Context, in *IpsecSadEntryAddDelV3) (*IpsecSadEntryAddDelV3Reply, error) {
+	out := new(IpsecSadEntryAddDelV3Reply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

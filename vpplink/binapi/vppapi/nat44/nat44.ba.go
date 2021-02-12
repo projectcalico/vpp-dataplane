@@ -5,7 +5,7 @@
 // Contents:
 //   1 enum
 //   1 struct
-//  91 messages
+//  95 messages
 //
 package nat44
 
@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "nat44"
 	APIVersion = "5.2.0"
-	VersionCrc = 0xb426a8db
+	VersionCrc = 0xb9179080
 )
 
 // Nat44ConfigFlags defines enum 'nat44_config_flags'.
@@ -3243,6 +3243,72 @@ func (m *NatSetAddrAndPortAllocAlgReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NatSetFqOptions defines message 'nat_set_fq_options'.
+type NatSetFqOptions struct {
+	FrameQueueNelts uint32 `binapi:"u32,name=frame_queue_nelts" json:"frame_queue_nelts,omitempty"`
+}
+
+func (m *NatSetFqOptions) Reset()               { *m = NatSetFqOptions{} }
+func (*NatSetFqOptions) GetMessageName() string { return "nat_set_fq_options" }
+func (*NatSetFqOptions) GetCrcString() string   { return "2399bd71" }
+func (*NatSetFqOptions) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *NatSetFqOptions) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.FrameQueueNelts
+	return size
+}
+func (m *NatSetFqOptions) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.FrameQueueNelts)
+	return buf.Bytes(), nil
+}
+func (m *NatSetFqOptions) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.FrameQueueNelts = buf.DecodeUint32()
+	return nil
+}
+
+// NatSetFqOptionsReply defines message 'nat_set_fq_options_reply'.
+type NatSetFqOptionsReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *NatSetFqOptionsReply) Reset()               { *m = NatSetFqOptionsReply{} }
+func (*NatSetFqOptionsReply) GetMessageName() string { return "nat_set_fq_options_reply" }
+func (*NatSetFqOptionsReply) GetCrcString() string   { return "e8d4e804" }
+func (*NatSetFqOptionsReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *NatSetFqOptionsReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *NatSetFqOptionsReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *NatSetFqOptionsReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // NatSetLogLevel defines message 'nat_set_log_level'.
 type NatSetLogLevel struct {
 	LogLevel nat_types.NatLogLevel `binapi:"nat_log_level,name=log_level" json:"log_level,omitempty"`
@@ -3787,6 +3853,70 @@ func (m *NatShowConfigReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NatShowFqOptions defines message 'nat_show_fq_options'.
+type NatShowFqOptions struct{}
+
+func (m *NatShowFqOptions) Reset()               { *m = NatShowFqOptions{} }
+func (*NatShowFqOptions) GetMessageName() string { return "nat_show_fq_options" }
+func (*NatShowFqOptions) GetCrcString() string   { return "51077d14" }
+func (*NatShowFqOptions) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *NatShowFqOptions) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *NatShowFqOptions) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *NatShowFqOptions) Unmarshal(b []byte) error {
+	return nil
+}
+
+// NatShowFqOptionsReply defines message 'nat_show_fq_options_reply'.
+type NatShowFqOptionsReply struct {
+	Retval          int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
+	FrameQueueNelts uint32 `binapi:"u32,name=frame_queue_nelts" json:"frame_queue_nelts,omitempty"`
+}
+
+func (m *NatShowFqOptionsReply) Reset()               { *m = NatShowFqOptionsReply{} }
+func (*NatShowFqOptionsReply) GetMessageName() string { return "nat_show_fq_options_reply" }
+func (*NatShowFqOptionsReply) GetCrcString() string   { return "7213b545" }
+func (*NatShowFqOptionsReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *NatShowFqOptionsReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	size += 4 // m.FrameQueueNelts
+	return size
+}
+func (m *NatShowFqOptionsReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.FrameQueueNelts)
+	return buf.Bytes(), nil
+}
+func (m *NatShowFqOptionsReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.FrameQueueNelts = buf.DecodeUint32()
+	return nil
+}
+
 // NatWorkerDetails defines message 'nat_worker_details'.
 type NatWorkerDetails struct {
 	WorkerIndex uint32 `binapi:"u32,name=worker_index" json:"worker_index,omitempty"`
@@ -3934,6 +4064,8 @@ func file_nat44_binapi_init() {
 	api.RegisterMessage((*NatIpfixEnableDisableReply)(nil), "nat_ipfix_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*NatSetAddrAndPortAllocAlg)(nil), "nat_set_addr_and_port_alloc_alg_deeb746f")
 	api.RegisterMessage((*NatSetAddrAndPortAllocAlgReply)(nil), "nat_set_addr_and_port_alloc_alg_reply_e8d4e804")
+	api.RegisterMessage((*NatSetFqOptions)(nil), "nat_set_fq_options_2399bd71")
+	api.RegisterMessage((*NatSetFqOptionsReply)(nil), "nat_set_fq_options_reply_e8d4e804")
 	api.RegisterMessage((*NatSetLogLevel)(nil), "nat_set_log_level_70076bfe")
 	api.RegisterMessage((*NatSetLogLevelReply)(nil), "nat_set_log_level_reply_e8d4e804")
 	api.RegisterMessage((*NatSetMssClamping)(nil), "nat_set_mss_clamping_25e90abb")
@@ -3946,6 +4078,8 @@ func file_nat44_binapi_init() {
 	api.RegisterMessage((*NatShowConfig2)(nil), "nat_show_config_2_51077d14")
 	api.RegisterMessage((*NatShowConfig2Reply)(nil), "nat_show_config_2_reply_0404a5b4")
 	api.RegisterMessage((*NatShowConfigReply)(nil), "nat_show_config_reply_7903ef06")
+	api.RegisterMessage((*NatShowFqOptions)(nil), "nat_show_fq_options_51077d14")
+	api.RegisterMessage((*NatShowFqOptionsReply)(nil), "nat_show_fq_options_reply_7213b545")
 	api.RegisterMessage((*NatWorkerDetails)(nil), "nat_worker_details_84bf06fc")
 	api.RegisterMessage((*NatWorkerDump)(nil), "nat_worker_dump_51077d14")
 }
@@ -4030,6 +4164,8 @@ func AllMessages() []api.Message {
 		(*NatIpfixEnableDisableReply)(nil),
 		(*NatSetAddrAndPortAllocAlg)(nil),
 		(*NatSetAddrAndPortAllocAlgReply)(nil),
+		(*NatSetFqOptions)(nil),
+		(*NatSetFqOptionsReply)(nil),
 		(*NatSetLogLevel)(nil),
 		(*NatSetLogLevelReply)(nil),
 		(*NatSetMssClamping)(nil),
@@ -4042,6 +4178,8 @@ func AllMessages() []api.Message {
 		(*NatShowConfig2)(nil),
 		(*NatShowConfig2Reply)(nil),
 		(*NatShowConfigReply)(nil),
+		(*NatShowFqOptions)(nil),
+		(*NatShowFqOptionsReply)(nil),
 		(*NatWorkerDetails)(nil),
 		(*NatWorkerDump)(nil),
 	}
