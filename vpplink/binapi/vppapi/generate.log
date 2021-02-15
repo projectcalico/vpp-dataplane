@@ -1,11 +1,12 @@
-VPP Version                 : 21.06-rc0~251-gcca13206f
+VPP Version                 : 21.06-rc0~268-gf875d033d
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : fb0afab7f vppapigen: fix fromjson coverity errors in generation
+VPP Base commit             : bb9831403 tests: test punt policer bound to worker thread
 ------------------ Cherry picked commits --------------------
-cca13206f capo: Calico Policies plugin
-f5d053299 acl: acl-plugin custom policies
-7c8f58c5c cnat: k8s extensions
-d9cab371c cnat: add input feature node
-f5bcba8b1 interface: Add promisc on/off in api
-e8bbf34df virtio: DRAFT: multi tx support
+f875d033d capo: Calico Policies plugin
+b436027d2 acl: acl-plugin custom policies
+b869400e2 cnat: k8s extensions
+51e4e1ba0 cnat: add input feature node
+f140e3836 interface: fix sh int rx
+7510f2f72 interface: Fix rxq deletion
+e9e2b2194 virtio: DRAFT: multi tx support
 -------------------------------------------------------------
