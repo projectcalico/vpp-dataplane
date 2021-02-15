@@ -84,7 +84,6 @@ data:
     }
     plugins {
         plugin default { enable }
-        plugin ping_plugin.so { disable }
         plugin dpdk_plugin.so { disable }
         plugin calico_plugin.so { enable }
     }

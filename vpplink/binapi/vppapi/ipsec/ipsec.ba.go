@@ -5,7 +5,7 @@
 // Contents:
 //   1 enum
 //   3 structs
-//  38 messages
+//  42 messages
 //
 package ipsec
 
@@ -28,8 +28,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "ipsec"
-	APIVersion = "5.0.0"
-	VersionCrc = 0x553d5bf8
+	APIVersion = "5.0.1"
+	VersionCrc = 0x196d64b0
 )
 
 // IpsecSpdAction defines enum 'ipsec_spd_action'.
@@ -753,6 +753,166 @@ func (m *IpsecSaV2Dump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IpsecSaV3Details defines message 'ipsec_sa_v3_details'.
+type IpsecSaV3Details struct {
+	Entry          ipsec_types.IpsecSadEntryV3    `binapi:"ipsec_sad_entry_v3,name=entry" json:"entry,omitempty"`
+	SwIfIndex      interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	SeqOutbound    uint64                         `binapi:"u64,name=seq_outbound" json:"seq_outbound,omitempty"`
+	LastSeqInbound uint64                         `binapi:"u64,name=last_seq_inbound" json:"last_seq_inbound,omitempty"`
+	ReplayWindow   uint64                         `binapi:"u64,name=replay_window" json:"replay_window,omitempty"`
+	StatIndex      uint32                         `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
+}
+
+func (m *IpsecSaV3Details) Reset()               { *m = IpsecSaV3Details{} }
+func (*IpsecSaV3Details) GetMessageName() string { return "ipsec_sa_v3_details" }
+func (*IpsecSaV3Details) GetCrcString() string   { return "2fc991ee" }
+func (*IpsecSaV3Details) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IpsecSaV3Details) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4       // m.Entry.SadID
+	size += 4       // m.Entry.Spi
+	size += 4       // m.Entry.Protocol
+	size += 4       // m.Entry.CryptoAlgorithm
+	size += 1       // m.Entry.CryptoKey.Length
+	size += 1 * 128 // m.Entry.CryptoKey.Data
+	size += 4       // m.Entry.IntegrityAlgorithm
+	size += 1       // m.Entry.IntegrityKey.Length
+	size += 1 * 128 // m.Entry.IntegrityKey.Data
+	size += 4       // m.Entry.Flags
+	size += 4       // m.Entry.Tunnel.Instance
+	size += 1       // m.Entry.Tunnel.Src.Af
+	size += 1 * 16  // m.Entry.Tunnel.Src.Un
+	size += 1       // m.Entry.Tunnel.Dst.Af
+	size += 1 * 16  // m.Entry.Tunnel.Dst.Un
+	size += 4       // m.Entry.Tunnel.SwIfIndex
+	size += 4       // m.Entry.Tunnel.TableID
+	size += 1       // m.Entry.Tunnel.EncapDecapFlags
+	size += 1       // m.Entry.Tunnel.Mode
+	size += 1       // m.Entry.Tunnel.Flags
+	size += 1       // m.Entry.Tunnel.Dscp
+	size += 1       // m.Entry.Tunnel.HopLimit
+	size += 4       // m.Entry.Salt
+	size += 2       // m.Entry.UDPSrcPort
+	size += 2       // m.Entry.UDPDstPort
+	size += 4       // m.SwIfIndex
+	size += 8       // m.SeqOutbound
+	size += 8       // m.LastSeqInbound
+	size += 8       // m.ReplayWindow
+	size += 4       // m.StatIndex
+	return size
+}
+func (m *IpsecSaV3Details) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.Entry.SadID)
+	buf.EncodeUint32(m.Entry.Spi)
+	buf.EncodeUint32(uint32(m.Entry.Protocol))
+	buf.EncodeUint32(uint32(m.Entry.CryptoAlgorithm))
+	buf.EncodeUint8(m.Entry.CryptoKey.Length)
+	buf.EncodeBytes(m.Entry.CryptoKey.Data, 128)
+	buf.EncodeUint32(uint32(m.Entry.IntegrityAlgorithm))
+	buf.EncodeUint8(m.Entry.IntegrityKey.Length)
+	buf.EncodeBytes(m.Entry.IntegrityKey.Data, 128)
+	buf.EncodeUint32(uint32(m.Entry.Flags))
+	buf.EncodeUint32(m.Entry.Tunnel.Instance)
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.Src.Af))
+	buf.EncodeBytes(m.Entry.Tunnel.Src.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.Dst.Af))
+	buf.EncodeBytes(m.Entry.Tunnel.Dst.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint32(uint32(m.Entry.Tunnel.SwIfIndex))
+	buf.EncodeUint32(m.Entry.Tunnel.TableID)
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.EncapDecapFlags))
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.Mode))
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.Flags))
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.Dscp))
+	buf.EncodeUint8(m.Entry.Tunnel.HopLimit)
+	buf.EncodeUint32(m.Entry.Salt)
+	buf.EncodeUint16(m.Entry.UDPSrcPort)
+	buf.EncodeUint16(m.Entry.UDPDstPort)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeUint64(m.SeqOutbound)
+	buf.EncodeUint64(m.LastSeqInbound)
+	buf.EncodeUint64(m.ReplayWindow)
+	buf.EncodeUint32(m.StatIndex)
+	return buf.Bytes(), nil
+}
+func (m *IpsecSaV3Details) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Entry.SadID = buf.DecodeUint32()
+	m.Entry.Spi = buf.DecodeUint32()
+	m.Entry.Protocol = ipsec_types.IpsecProto(buf.DecodeUint32())
+	m.Entry.CryptoAlgorithm = ipsec_types.IpsecCryptoAlg(buf.DecodeUint32())
+	m.Entry.CryptoKey.Length = buf.DecodeUint8()
+	m.Entry.CryptoKey.Data = make([]byte, 128)
+	copy(m.Entry.CryptoKey.Data, buf.DecodeBytes(len(m.Entry.CryptoKey.Data)))
+	m.Entry.IntegrityAlgorithm = ipsec_types.IpsecIntegAlg(buf.DecodeUint32())
+	m.Entry.IntegrityKey.Length = buf.DecodeUint8()
+	m.Entry.IntegrityKey.Data = make([]byte, 128)
+	copy(m.Entry.IntegrityKey.Data, buf.DecodeBytes(len(m.Entry.IntegrityKey.Data)))
+	m.Entry.Flags = ipsec_types.IpsecSadFlags(buf.DecodeUint32())
+	m.Entry.Tunnel.Instance = buf.DecodeUint32()
+	m.Entry.Tunnel.Src.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Entry.Tunnel.Src.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Entry.Tunnel.Dst.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Entry.Tunnel.Dst.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Entry.Tunnel.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.Entry.Tunnel.TableID = buf.DecodeUint32()
+	m.Entry.Tunnel.EncapDecapFlags = tunnel_types.TunnelEncapDecapFlags(buf.DecodeUint8())
+	m.Entry.Tunnel.Mode = tunnel_types.TunnelMode(buf.DecodeUint8())
+	m.Entry.Tunnel.Flags = tunnel_types.TunnelFlags(buf.DecodeUint8())
+	m.Entry.Tunnel.Dscp = ip_types.IPDscp(buf.DecodeUint8())
+	m.Entry.Tunnel.HopLimit = buf.DecodeUint8()
+	m.Entry.Salt = buf.DecodeUint32()
+	m.Entry.UDPSrcPort = buf.DecodeUint16()
+	m.Entry.UDPDstPort = buf.DecodeUint16()
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.SeqOutbound = buf.DecodeUint64()
+	m.LastSeqInbound = buf.DecodeUint64()
+	m.ReplayWindow = buf.DecodeUint64()
+	m.StatIndex = buf.DecodeUint32()
+	return nil
+}
+
+// IpsecSaV3Dump defines message 'ipsec_sa_v3_dump'.
+type IpsecSaV3Dump struct {
+	SaID uint32 `binapi:"u32,name=sa_id" json:"sa_id,omitempty"`
+}
+
+func (m *IpsecSaV3Dump) Reset()               { *m = IpsecSaV3Dump{} }
+func (*IpsecSaV3Dump) GetMessageName() string { return "ipsec_sa_v3_dump" }
+func (*IpsecSaV3Dump) GetCrcString() string   { return "2076c2f4" }
+func (*IpsecSaV3Dump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IpsecSaV3Dump) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SaID
+	return size
+}
+func (m *IpsecSaV3Dump) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.SaID)
+	return buf.Bytes(), nil
+}
+func (m *IpsecSaV3Dump) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SaID = buf.DecodeUint32()
+	return nil
+}
+
 // IpsecSadEntryAddDel defines message 'ipsec_sad_entry_add_del'.
 type IpsecSadEntryAddDel struct {
 	IsAdd bool                      `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -1007,6 +1167,154 @@ func (m *IpsecSadEntryAddDelV2Reply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *IpsecSadEntryAddDelV2Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.StatIndex = buf.DecodeUint32()
+	return nil
+}
+
+// IpsecSadEntryAddDelV3 defines message 'ipsec_sad_entry_add_del_v3'.
+type IpsecSadEntryAddDelV3 struct {
+	IsAdd bool                        `binapi:"bool,name=is_add" json:"is_add,omitempty"`
+	Entry ipsec_types.IpsecSadEntryV3 `binapi:"ipsec_sad_entry_v3,name=entry" json:"entry,omitempty"`
+}
+
+func (m *IpsecSadEntryAddDelV3) Reset()               { *m = IpsecSadEntryAddDelV3{} }
+func (*IpsecSadEntryAddDelV3) GetMessageName() string { return "ipsec_sad_entry_add_del_v3" }
+func (*IpsecSadEntryAddDelV3) GetCrcString() string   { return "c77ebd92" }
+func (*IpsecSadEntryAddDelV3) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IpsecSadEntryAddDelV3) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1       // m.IsAdd
+	size += 4       // m.Entry.SadID
+	size += 4       // m.Entry.Spi
+	size += 4       // m.Entry.Protocol
+	size += 4       // m.Entry.CryptoAlgorithm
+	size += 1       // m.Entry.CryptoKey.Length
+	size += 1 * 128 // m.Entry.CryptoKey.Data
+	size += 4       // m.Entry.IntegrityAlgorithm
+	size += 1       // m.Entry.IntegrityKey.Length
+	size += 1 * 128 // m.Entry.IntegrityKey.Data
+	size += 4       // m.Entry.Flags
+	size += 4       // m.Entry.Tunnel.Instance
+	size += 1       // m.Entry.Tunnel.Src.Af
+	size += 1 * 16  // m.Entry.Tunnel.Src.Un
+	size += 1       // m.Entry.Tunnel.Dst.Af
+	size += 1 * 16  // m.Entry.Tunnel.Dst.Un
+	size += 4       // m.Entry.Tunnel.SwIfIndex
+	size += 4       // m.Entry.Tunnel.TableID
+	size += 1       // m.Entry.Tunnel.EncapDecapFlags
+	size += 1       // m.Entry.Tunnel.Mode
+	size += 1       // m.Entry.Tunnel.Flags
+	size += 1       // m.Entry.Tunnel.Dscp
+	size += 1       // m.Entry.Tunnel.HopLimit
+	size += 4       // m.Entry.Salt
+	size += 2       // m.Entry.UDPSrcPort
+	size += 2       // m.Entry.UDPDstPort
+	return size
+}
+func (m *IpsecSadEntryAddDelV3) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBool(m.IsAdd)
+	buf.EncodeUint32(m.Entry.SadID)
+	buf.EncodeUint32(m.Entry.Spi)
+	buf.EncodeUint32(uint32(m.Entry.Protocol))
+	buf.EncodeUint32(uint32(m.Entry.CryptoAlgorithm))
+	buf.EncodeUint8(m.Entry.CryptoKey.Length)
+	buf.EncodeBytes(m.Entry.CryptoKey.Data, 128)
+	buf.EncodeUint32(uint32(m.Entry.IntegrityAlgorithm))
+	buf.EncodeUint8(m.Entry.IntegrityKey.Length)
+	buf.EncodeBytes(m.Entry.IntegrityKey.Data, 128)
+	buf.EncodeUint32(uint32(m.Entry.Flags))
+	buf.EncodeUint32(m.Entry.Tunnel.Instance)
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.Src.Af))
+	buf.EncodeBytes(m.Entry.Tunnel.Src.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.Dst.Af))
+	buf.EncodeBytes(m.Entry.Tunnel.Dst.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint32(uint32(m.Entry.Tunnel.SwIfIndex))
+	buf.EncodeUint32(m.Entry.Tunnel.TableID)
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.EncapDecapFlags))
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.Mode))
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.Flags))
+	buf.EncodeUint8(uint8(m.Entry.Tunnel.Dscp))
+	buf.EncodeUint8(m.Entry.Tunnel.HopLimit)
+	buf.EncodeUint32(m.Entry.Salt)
+	buf.EncodeUint16(m.Entry.UDPSrcPort)
+	buf.EncodeUint16(m.Entry.UDPDstPort)
+	return buf.Bytes(), nil
+}
+func (m *IpsecSadEntryAddDelV3) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.IsAdd = buf.DecodeBool()
+	m.Entry.SadID = buf.DecodeUint32()
+	m.Entry.Spi = buf.DecodeUint32()
+	m.Entry.Protocol = ipsec_types.IpsecProto(buf.DecodeUint32())
+	m.Entry.CryptoAlgorithm = ipsec_types.IpsecCryptoAlg(buf.DecodeUint32())
+	m.Entry.CryptoKey.Length = buf.DecodeUint8()
+	m.Entry.CryptoKey.Data = make([]byte, 128)
+	copy(m.Entry.CryptoKey.Data, buf.DecodeBytes(len(m.Entry.CryptoKey.Data)))
+	m.Entry.IntegrityAlgorithm = ipsec_types.IpsecIntegAlg(buf.DecodeUint32())
+	m.Entry.IntegrityKey.Length = buf.DecodeUint8()
+	m.Entry.IntegrityKey.Data = make([]byte, 128)
+	copy(m.Entry.IntegrityKey.Data, buf.DecodeBytes(len(m.Entry.IntegrityKey.Data)))
+	m.Entry.Flags = ipsec_types.IpsecSadFlags(buf.DecodeUint32())
+	m.Entry.Tunnel.Instance = buf.DecodeUint32()
+	m.Entry.Tunnel.Src.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Entry.Tunnel.Src.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Entry.Tunnel.Dst.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Entry.Tunnel.Dst.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Entry.Tunnel.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.Entry.Tunnel.TableID = buf.DecodeUint32()
+	m.Entry.Tunnel.EncapDecapFlags = tunnel_types.TunnelEncapDecapFlags(buf.DecodeUint8())
+	m.Entry.Tunnel.Mode = tunnel_types.TunnelMode(buf.DecodeUint8())
+	m.Entry.Tunnel.Flags = tunnel_types.TunnelFlags(buf.DecodeUint8())
+	m.Entry.Tunnel.Dscp = ip_types.IPDscp(buf.DecodeUint8())
+	m.Entry.Tunnel.HopLimit = buf.DecodeUint8()
+	m.Entry.Salt = buf.DecodeUint32()
+	m.Entry.UDPSrcPort = buf.DecodeUint16()
+	m.Entry.UDPDstPort = buf.DecodeUint16()
+	return nil
+}
+
+// IpsecSadEntryAddDelV3Reply defines message 'ipsec_sad_entry_add_del_v3_reply'.
+type IpsecSadEntryAddDelV3Reply struct {
+	Retval    int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
+	StatIndex uint32 `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
+}
+
+func (m *IpsecSadEntryAddDelV3Reply) Reset()               { *m = IpsecSadEntryAddDelV3Reply{} }
+func (*IpsecSadEntryAddDelV3Reply) GetMessageName() string { return "ipsec_sad_entry_add_del_v3_reply" }
+func (*IpsecSadEntryAddDelV3Reply) GetCrcString() string   { return "9ffac24b" }
+func (*IpsecSadEntryAddDelV3Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IpsecSadEntryAddDelV3Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	size += 4 // m.StatIndex
+	return size
+}
+func (m *IpsecSadEntryAddDelV3Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.StatIndex)
+	return buf.Bytes(), nil
+}
+func (m *IpsecSadEntryAddDelV3Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	m.StatIndex = buf.DecodeUint32()
@@ -1874,10 +2182,14 @@ func file_ipsec_binapi_init() {
 	api.RegisterMessage((*IpsecSaDump)(nil), "ipsec_sa_dump_2076c2f4")
 	api.RegisterMessage((*IpsecSaV2Details)(nil), "ipsec_sa_v2_details_e2130051")
 	api.RegisterMessage((*IpsecSaV2Dump)(nil), "ipsec_sa_v2_dump_2076c2f4")
+	api.RegisterMessage((*IpsecSaV3Details)(nil), "ipsec_sa_v3_details_2fc991ee")
+	api.RegisterMessage((*IpsecSaV3Dump)(nil), "ipsec_sa_v3_dump_2076c2f4")
 	api.RegisterMessage((*IpsecSadEntryAddDel)(nil), "ipsec_sad_entry_add_del_b8def364")
 	api.RegisterMessage((*IpsecSadEntryAddDelReply)(nil), "ipsec_sad_entry_add_del_reply_9ffac24b")
 	api.RegisterMessage((*IpsecSadEntryAddDelV2)(nil), "ipsec_sad_entry_add_del_v2_aca78b27")
 	api.RegisterMessage((*IpsecSadEntryAddDelV2Reply)(nil), "ipsec_sad_entry_add_del_v2_reply_9ffac24b")
+	api.RegisterMessage((*IpsecSadEntryAddDelV3)(nil), "ipsec_sad_entry_add_del_v3_c77ebd92")
+	api.RegisterMessage((*IpsecSadEntryAddDelV3Reply)(nil), "ipsec_sad_entry_add_del_v3_reply_9ffac24b")
 	api.RegisterMessage((*IpsecSelectBackend)(nil), "ipsec_select_backend_5bcfd3b7")
 	api.RegisterMessage((*IpsecSelectBackendReply)(nil), "ipsec_select_backend_reply_e8d4e804")
 	api.RegisterMessage((*IpsecSetAsyncMode)(nil), "ipsec_set_async_mode_a6465f7c")
@@ -1917,10 +2229,14 @@ func AllMessages() []api.Message {
 		(*IpsecSaDump)(nil),
 		(*IpsecSaV2Details)(nil),
 		(*IpsecSaV2Dump)(nil),
+		(*IpsecSaV3Details)(nil),
+		(*IpsecSaV3Dump)(nil),
 		(*IpsecSadEntryAddDel)(nil),
 		(*IpsecSadEntryAddDelReply)(nil),
 		(*IpsecSadEntryAddDelV2)(nil),
 		(*IpsecSadEntryAddDelV2Reply)(nil),
+		(*IpsecSadEntryAddDelV3)(nil),
+		(*IpsecSadEntryAddDelV3Reply)(nil),
 		(*IpsecSelectBackend)(nil),
 		(*IpsecSelectBackendReply)(nil),
 		(*IpsecSetAsyncMode)(nil),

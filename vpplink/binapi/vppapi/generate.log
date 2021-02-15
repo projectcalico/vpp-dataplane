@@ -1,15 +1,12 @@
-VPP Version                 : 21.06-rc0~186-gfb8e069a2
+VPP Version                 : 21.06-rc0~268-gf875d033d
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : e988726cb tests: verify policer stats in punt tests
+VPP Base commit             : bb9831403 tests: test punt policer bound to worker thread
 ------------------ Cherry picked commits --------------------
-fb8e069a2 devices: af-packet gso mtu
-de72699e4 interface: automask interrupts to polling rxqs
-1c8160f2d wireguard: testing alternative timer dispatch
-a0140abad capo: Calico Policies plugin
-55e1009a8 acl: acl-plugin custom policies
-f5aa3470a cnat: k8s extensions
-1022b304a cnat: add input feature node
-3ca66947f interface: Add promisc on/off in api
-16833ab1b vxlan: add udp-port configuration support
-1b7aa7cf3 virtio: DRAFT: multi tx support
+f875d033d capo: Calico Policies plugin
+b436027d2 acl: acl-plugin custom policies
+b869400e2 cnat: k8s extensions
+51e4e1ba0 cnat: add input feature node
+f140e3836 interface: fix sh int rx
+7510f2f72 interface: Fix rxq deletion
+e9e2b2194 virtio: DRAFT: multi tx support
 -------------------------------------------------------------

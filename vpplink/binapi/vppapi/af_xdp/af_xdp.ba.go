@@ -25,7 +25,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "af_xdp"
 	APIVersion = "0.1.0"
-	VersionCrc = 0x69941768
+	VersionCrc = 0xf25dd5c5
 )
 
 // AfXdpMode defines enum 'af_xdp_mode'.

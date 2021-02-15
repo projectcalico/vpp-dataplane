@@ -23,7 +23,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "af_packet"
 	APIVersion = "2.0.0"
-	VersionCrc = 0x88e8dc71
+	VersionCrc = 0x4191e8ae
 )
 
 // AfPacketCreate defines message 'af_packet_create'.
