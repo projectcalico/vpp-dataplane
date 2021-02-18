@@ -14,7 +14,7 @@ fi
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/9 && git cherry-pick FETCH_HEAD # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/88/31288/2 && git cherry-pick FETCH_HEAD # 31288: interface: Fix rxq deletion | https://gerrit.fd.io/r/c/vpp/+/31288
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/31287/1 && git cherry-pick FETCH_HEAD # 31287: interface: fix sh int rx | https://gerrit.fd.io/r/c/vpp/+/31287
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31249/3 && git cherry-pick FETCH_HEAD # 31249: dpdk: implement interrupt mode | https://gerrit.fd.io/r/c/vpp/+/31249
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31249/4 && git cherry-pick FETCH_HEAD # 31249: dpdk: implement interrupt mode | https://gerrit.fd.io/r/c/vpp/+/31249
 
 # --------------- Cnat patches ---------------
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/75/30275/11 && git cherry-pick FETCH_HEAD # 30275: cnat: add input feature node | https://gerrit.fd.io/r/c/vpp/+/30275
