@@ -54,6 +54,10 @@ spec:
   template:
     spec:
       containers:
+        - name: vpp
+          env:
+            - name: CALICOVPP_DEFAULT_GW
+              value: "192.168.0.1"
         - name: calico-node
           env:
             - name: CALICO_IPV4POOL_CIDR
