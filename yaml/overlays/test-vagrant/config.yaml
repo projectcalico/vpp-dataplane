@@ -3,12 +3,9 @@ apiVersion: v1
 metadata:
   name: calico-config
   namespace: kube-system
-data:  # Configuration template for VPP.
-  vpp_init_script: |-
-    echo Y > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+data:
   veth_mtu: "1240"
 ---
-
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
@@ -19,19 +16,10 @@ spec:
     spec:
       containers:
         - name: vpp
-          resources:
-            limits:
-              hugepages-2Mi: 256Mi
           env:
-            - name: CALICOVPP_NATIVE_DRIVER
-              value: ""
-            - name: CALICOVPP_INIT_SCRIPT_TEMPLATE
-              value: ""
             - name: CALICOVPP_DEFAULT_GW
               value: "192.168.0.1"
         - name: calico-node
           env:
             - name: CALICO_IPV4POOL_IPIP
               value: Always
-            - name: CALICOVPP_DEBUG_ENABLE_GSO
-              value: "false"

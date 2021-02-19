@@ -1,5 +1,3 @@
-#!/bin/bash
-
 export KUBECONFIG ?= $(shell realpath ~/.kube/config)
 E2E_TEST_VERSION ?= 1.18.12
 E2E_TEST_NODES ?= 2

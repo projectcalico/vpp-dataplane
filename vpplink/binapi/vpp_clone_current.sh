@@ -1,5 +1,5 @@
 #!/bin/bash
-VPP_COMMIT=bb9831403
+VPP_COMMIT=f9db7f0ff51e3c212f70d38c5e4fa68e07b82a96
 
 if [ ! -d $1/.git ]; then
 	rm -rf $1
@@ -26,3 +26,5 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/28083/15 && git cherry-pi
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/18 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 # ------------- Policies patches -------------
 
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/21/31321/2 && git cherry-pick FETCH_HEAD # 31321: virtio: fix l4 partial checksum before tx | https://gerrit.fd.io/r/c/vpp/+/31321
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/37/31337/1 && git cherry-pick FETCH_HEAD # 31337: vlib: fix offload flags value reset | https://gerrit.fd.io/r/c/vpp/+/31337
