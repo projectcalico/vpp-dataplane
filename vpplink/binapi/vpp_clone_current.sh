@@ -18,8 +18,12 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/31287/1 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31249/4 && git cherry-pick FETCH_HEAD # 31249: dpdk: implement interrupt mode | https://gerrit.fd.io/r/c/vpp/+/31249
 
 # --------------- Cnat patches ---------------
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/75/30275/14 && git cherry-pick FETCH_HEAD # 30275: cnat: add input feature node | https://gerrit.fd.io/r/c/vpp/+/30275
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/32 && git cherry-pick FETCH_HEAD # 28587: cnat: k8s extensions | https://gerrit.fd.io/r/c/vpp/+/28587
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/46/31446/2 && git cherry-pick FETCH_HEAD # 31446: cnat: fixes & prepare maglev | https://gerrit.fd.io/r/c/vpp/+/31446
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/25/30925/4 && git cherry-pick FETCH_HEAD # 30925: cnat: Add maglev support | https://gerrit.fd.io/r/c/vpp/+/30925
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/75/30275/15 && git cherry-pick FETCH_HEAD # 30275: cnat: add input feature node | https://gerrit.fd.io/r/c/vpp/+/30275
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/47/31447/3 && git cherry-pick FETCH_HEAD # 31447: cnat: Prepare extended snat policies | https://gerrit.fd.io/r/c/vpp/+/31447
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/34 && git cherry-pick FETCH_HEAD # 28587: cnat: Add calico/k8s src policy | https://gerrit.fd.io/r/c/vpp/+/28587
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31449/1 && git cherry-pick FETCH_HEAD # 31449: cnat: fix cnat feature partial cksum | https://gerrit.fd.io/r/c/vpp/+/31449
 # --------------- Cnat patches ---------------
 
 # ------------- Policies patches -------------

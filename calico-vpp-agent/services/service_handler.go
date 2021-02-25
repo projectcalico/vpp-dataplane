@@ -20,6 +20,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -60,22 +61,12 @@ func extIPKey(externalIP, serviceID, portName string) string {
 }
 
 func getCalicoEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, clusterIP net.IP, localOnly bool) (entry *types.CnatTranslateEntry, err error) {
-	targetPort, err := getTargetPort(*servicePort)
+	backends, err := getServiceBackends(servicePort, ep, localOnly, config.EnableMaglev)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error determinig target port")
+		return nil, err
 	}
-	backendIPs := getServiceBackendIPs(servicePort, ep, localOnly)
-	backends := make([]types.CnatEndpointTuple, 0, len(backendIPs))
-	for _, backendIP := range backendIPs {
-		backends = append(backends, types.CnatEndpointTuple{
-			SrcEndpoint: types.CnatEndpoint{},
-			DstEndpoint: types.CnatEndpoint{
-				Port: uint16(targetPort),
-				IP:   backendIP,
-			},
-		})
-	}
-	return &types.CnatTranslateEntry{
+
+	tr := &types.CnatTranslateEntry{
 		Proto: getServicePortProto(servicePort.Protocol),
 		Endpoint: types.CnatEndpoint{
 			Port: uint16(servicePort.Port),
@@ -83,28 +74,24 @@ func getCalicoEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, clusterIP net
 		},
 		Backends: backends,
 		IsRealIP: false,
-	}, nil
+		LbType:  types.DefaultLB,
+	}
+	if config.EnableMaglev {
+		tr.LbType = types.MaglevLB
+	}
+	return tr, nil
 }
 
 func getCalicoNodePortEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, nodeIP net.IP, localOnly bool) (entry *types.CnatTranslateEntry, err error) {
-	targetPort, err := getTargetPort(*servicePort)
+	backends, err := getServiceBackends(servicePort, ep, localOnly, false /* flagNonLocal */)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error determinig target port")
+		return nil, err
 	}
-	backendIPs := getServiceBackendIPs(servicePort, ep, localOnly)
-	backends := make([]types.CnatEndpointTuple, 0, len(backendIPs))
-	for _, backendIP := range backendIPs {
-		backends = append(backends, types.CnatEndpointTuple{
-			SrcEndpoint: types.CnatEndpoint{
-				IP: nodeIP,
-			},
-			DstEndpoint: types.CnatEndpoint{
-				Port: uint16(targetPort),
-				IP:   backendIP,
-			},
-		})
+
+	for _, backend := range backends {
+		backend.SrcEndpoint.IP = nodeIP
 	}
-	return &types.CnatTranslateEntry{
+	tr := &types.CnatTranslateEntry{
 		Proto: getServicePortProto(servicePort.Protocol),
 		Endpoint: types.CnatEndpoint{
 			Port: uint16(servicePort.NodePort),
@@ -112,7 +99,13 @@ func getCalicoNodePortEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, nodeI
 		},
 		Backends: backends,
 		IsRealIP: true,
-	}, nil
+		LbType:  types.DefaultLB,
+	}
+
+	if config.EnableMaglev {
+		tr.LbType = types.MaglevLB
+	}
+	return tr, nil
 }
 
 func (p *CalicoServiceProvider) OnVppRestart() {

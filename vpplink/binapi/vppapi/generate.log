@@ -1,13 +1,18 @@
-VPP Version                 : 21.06-rc0~269-g7bb96579f
+VPP Version                 : 21.06-rc0~337-gd4f4075df
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : bb9831403 tests: test punt policer bound to worker thread
+VPP Base commit             : 8b4d0dd5b linux-cp: fix vector-used-a-C-string overflow
 ------------------ Cherry picked commits --------------------
-7bb96579f capo: Calico Policies plugin
-6a2a02782 acl: acl-plugin custom policies
-772824254 cnat: k8s extensions
-75ac27466 cnat: add input feature node
-b23d2e5b2 dpdk: implement interrupt mode
-574f922b3 interface: fix sh int rx
-4720fbfcb interface: Fix rxq deletion
-6f83ea29a virtio: DRAFT: multi tx support
+d4f4075df capo: Calico Policies plugin
+31c1275c0 acl: acl-plugin custom policies
+26bd54f26 cnat: fix cnat feature partial cksum
+14a1c90bb cnat: Add calico/k8s src policy
+f00e428ea cnat: Prepare extended snat policies
+7dca29827 cnat: add input feature node
+fbd84ce0e cnat: Add maglev support
+2cd0bfaaa cnat: fixes & prepare maglev
+a2ed7967f dpdk: implement interrupt mode
+c7913e710 interface: fix sh int rx
+76c578a8a interface: Fix rxq deletion
+c37aba86d devices: add support for pseudo header checksum
+c0deef41f virtio: DRAFT: multi tx support
 -------------------------------------------------------------

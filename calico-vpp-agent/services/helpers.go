@@ -65,23 +65,45 @@ func formatProto(proto types.IPProto) string {
 	}
 }
 
-func getServiceBackendIPs(servicePort *v1.ServicePort, ep *v1.Endpoints, localOnly bool) (backendIPs []net.IP) {
+func getServiceBackends(servicePort *v1.ServicePort, ep *v1.Endpoints, localOnly bool, flagNonLocal bool) (backends []types.CnatEndpointTuple, err error) {
+	backends = make([]types.CnatEndpointTuple, 0)
+	targetPort, err := getTargetPort(*servicePort)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error determinig target port")
+	}
 	for _, set := range ep.Subsets {
 		// Check if this subset exposes the port we're interested in
 		for _, port := range set.Ports {
 			if servicePort.Name == port.Name {
 				for _, addr := range set.Addresses {
-					if localOnly && addr.NodeName != nil && *addr.NodeName != config.NodeName {
-						continue
+					isLocal := true
+					if addr.NodeName != nil && *addr.NodeName != config.NodeName {
+						isLocal = false
+					}
+					flags := uint8(0)
+					if !isLocal  {
+						if localOnly {
+							continue
+						}
+						if flagNonLocal {
+							flags = flags | types.CnatNoNat
+						}
 					}
 					ip := net.ParseIP(addr.IP)
-					if ip != nil {
-						backendIPs = append(backendIPs, ip)
+					if ip == nil {
+						continue
 					}
+					backends = append(backends, types.CnatEndpointTuple{
+						DstEndpoint: types.CnatEndpoint{
+							Port: uint16(targetPort),
+							IP:   ip,
+						},
+						Flags: flags,
+					})
 				}
 				break
 			}
 		}
 	}
-	return backendIPs
+	return backends, nil
 }

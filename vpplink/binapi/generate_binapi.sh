@@ -72,7 +72,7 @@ function generate_govpp_apis ()
 	  ipsec \
 	  ip_neighbor \
 	  tapv2 \
-	  nat44 \
+	  nat44_ed \
 	  cnat \
 	  af_packet \
 	  feature \
@@ -89,6 +89,6 @@ function generate_govpp_apis ()
 
 make_binapi_generator
 read_config
-generate_vpp_apis
+# generate_vpp_apis
 generate_govpp_apis
 

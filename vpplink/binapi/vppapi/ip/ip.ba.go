@@ -4,8 +4,8 @@
 //
 // Contents:
 //   2 enums
-//   4 structs
-//  66 messages
+//   5 structs
+//  75 messages
 //
 package ip
 
@@ -30,7 +30,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip"
 	APIVersion = "3.0.3"
-	VersionCrc = 0x333d6203
+	VersionCrc = 0x4dc31a92
 )
 
 // IPReassType defines enum 'ip_reass_type'.
@@ -132,6 +132,15 @@ type IPMroute struct {
 	Prefix     ip_types.Mprefix          `binapi:"mprefix,name=prefix" json:"prefix,omitempty"`
 	NPaths     uint8                     `binapi:"u8,name=n_paths" json:"-"`
 	Paths      []mfib_types.MfibPath     `binapi:"mfib_path[n_paths],name=paths" json:"paths,omitempty"`
+}
+
+// IPPathMtu defines type 'ip_path_mtu'.
+type IPPathMtu struct {
+	ClientIndex uint32           `binapi:"u32,name=client_index" json:"client_index,omitempty"`
+	Context     uint32           `binapi:"u32,name=context" json:"context,omitempty"`
+	TableID     uint32           `binapi:"u32,name=table_id" json:"table_id,omitempty"`
+	Nh          ip_types.Address `binapi:"address,name=nh" json:"nh,omitempty"`
+	PathMtu     uint16           `binapi:"u16,name=path_mtu" json:"path_mtu,omitempty"`
 }
 
 // IPRoute defines type 'ip_route'.
@@ -1018,6 +1027,325 @@ func (m *IPMtableDump) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *IPMtableDump) Unmarshal(b []byte) error {
+	return nil
+}
+
+// IPPathMtuDetails defines message 'ip_path_mtu_details'.
+type IPPathMtuDetails struct {
+	Pmtu IPPathMtu `binapi:"ip_path_mtu,name=pmtu" json:"pmtu,omitempty"`
+}
+
+func (m *IPPathMtuDetails) Reset()               { *m = IPPathMtuDetails{} }
+func (*IPPathMtuDetails) GetMessageName() string { return "ip_path_mtu_details" }
+func (*IPPathMtuDetails) GetCrcString() string   { return "ac9539a7" }
+func (*IPPathMtuDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPPathMtuDetails) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4      // m.Pmtu.ClientIndex
+	size += 4      // m.Pmtu.Context
+	size += 4      // m.Pmtu.TableID
+	size += 1      // m.Pmtu.Nh.Af
+	size += 1 * 16 // m.Pmtu.Nh.Un
+	size += 2      // m.Pmtu.PathMtu
+	return size
+}
+func (m *IPPathMtuDetails) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.Pmtu.ClientIndex)
+	buf.EncodeUint32(m.Pmtu.Context)
+	buf.EncodeUint32(m.Pmtu.TableID)
+	buf.EncodeUint8(uint8(m.Pmtu.Nh.Af))
+	buf.EncodeBytes(m.Pmtu.Nh.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint16(m.Pmtu.PathMtu)
+	return buf.Bytes(), nil
+}
+func (m *IPPathMtuDetails) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Pmtu.ClientIndex = buf.DecodeUint32()
+	m.Pmtu.Context = buf.DecodeUint32()
+	m.Pmtu.TableID = buf.DecodeUint32()
+	m.Pmtu.Nh.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Pmtu.Nh.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Pmtu.PathMtu = buf.DecodeUint16()
+	return nil
+}
+
+// IPPathMtuGet defines message 'ip_path_mtu_get'.
+type IPPathMtuGet struct {
+	Cursor uint32 `binapi:"u32,name=cursor" json:"cursor,omitempty"`
+}
+
+func (m *IPPathMtuGet) Reset()               { *m = IPPathMtuGet{} }
+func (*IPPathMtuGet) GetMessageName() string { return "ip_path_mtu_get" }
+func (*IPPathMtuGet) GetCrcString() string   { return "f75ba505" }
+func (*IPPathMtuGet) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IPPathMtuGet) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Cursor
+	return size
+}
+func (m *IPPathMtuGet) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.Cursor)
+	return buf.Bytes(), nil
+}
+func (m *IPPathMtuGet) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Cursor = buf.DecodeUint32()
+	return nil
+}
+
+// IPPathMtuGetReply defines message 'ip_path_mtu_get_reply'.
+type IPPathMtuGetReply struct {
+	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
+	Cursor uint32 `binapi:"u32,name=cursor" json:"cursor,omitempty"`
+}
+
+func (m *IPPathMtuGetReply) Reset()               { *m = IPPathMtuGetReply{} }
+func (*IPPathMtuGetReply) GetMessageName() string { return "ip_path_mtu_get_reply" }
+func (*IPPathMtuGetReply) GetCrcString() string   { return "53b48f5d" }
+func (*IPPathMtuGetReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPPathMtuGetReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	size += 4 // m.Cursor
+	return size
+}
+func (m *IPPathMtuGetReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.Cursor)
+	return buf.Bytes(), nil
+}
+func (m *IPPathMtuGetReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.Cursor = buf.DecodeUint32()
+	return nil
+}
+
+// IPPathMtuReplaceBegin defines message 'ip_path_mtu_replace_begin'.
+type IPPathMtuReplaceBegin struct{}
+
+func (m *IPPathMtuReplaceBegin) Reset()               { *m = IPPathMtuReplaceBegin{} }
+func (*IPPathMtuReplaceBegin) GetMessageName() string { return "ip_path_mtu_replace_begin" }
+func (*IPPathMtuReplaceBegin) GetCrcString() string   { return "51077d14" }
+func (*IPPathMtuReplaceBegin) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IPPathMtuReplaceBegin) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *IPPathMtuReplaceBegin) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *IPPathMtuReplaceBegin) Unmarshal(b []byte) error {
+	return nil
+}
+
+// IPPathMtuReplaceBeginReply defines message 'ip_path_mtu_replace_begin_reply'.
+type IPPathMtuReplaceBeginReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *IPPathMtuReplaceBeginReply) Reset()               { *m = IPPathMtuReplaceBeginReply{} }
+func (*IPPathMtuReplaceBeginReply) GetMessageName() string { return "ip_path_mtu_replace_begin_reply" }
+func (*IPPathMtuReplaceBeginReply) GetCrcString() string   { return "e8d4e804" }
+func (*IPPathMtuReplaceBeginReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPPathMtuReplaceBeginReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *IPPathMtuReplaceBeginReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *IPPathMtuReplaceBeginReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// IPPathMtuReplaceEnd defines message 'ip_path_mtu_replace_end'.
+type IPPathMtuReplaceEnd struct{}
+
+func (m *IPPathMtuReplaceEnd) Reset()               { *m = IPPathMtuReplaceEnd{} }
+func (*IPPathMtuReplaceEnd) GetMessageName() string { return "ip_path_mtu_replace_end" }
+func (*IPPathMtuReplaceEnd) GetCrcString() string   { return "51077d14" }
+func (*IPPathMtuReplaceEnd) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IPPathMtuReplaceEnd) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *IPPathMtuReplaceEnd) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *IPPathMtuReplaceEnd) Unmarshal(b []byte) error {
+	return nil
+}
+
+// IPPathMtuReplaceEndReply defines message 'ip_path_mtu_replace_end_reply'.
+type IPPathMtuReplaceEndReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *IPPathMtuReplaceEndReply) Reset()               { *m = IPPathMtuReplaceEndReply{} }
+func (*IPPathMtuReplaceEndReply) GetMessageName() string { return "ip_path_mtu_replace_end_reply" }
+func (*IPPathMtuReplaceEndReply) GetCrcString() string   { return "e8d4e804" }
+func (*IPPathMtuReplaceEndReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPPathMtuReplaceEndReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *IPPathMtuReplaceEndReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *IPPathMtuReplaceEndReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// IPPathMtuUpdate defines message 'ip_path_mtu_update'.
+type IPPathMtuUpdate struct {
+	Pmtu IPPathMtu `binapi:"ip_path_mtu,name=pmtu" json:"pmtu,omitempty"`
+}
+
+func (m *IPPathMtuUpdate) Reset()               { *m = IPPathMtuUpdate{} }
+func (*IPPathMtuUpdate) GetMessageName() string { return "ip_path_mtu_update" }
+func (*IPPathMtuUpdate) GetCrcString() string   { return "10bbe5cb" }
+func (*IPPathMtuUpdate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IPPathMtuUpdate) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4      // m.Pmtu.ClientIndex
+	size += 4      // m.Pmtu.Context
+	size += 4      // m.Pmtu.TableID
+	size += 1      // m.Pmtu.Nh.Af
+	size += 1 * 16 // m.Pmtu.Nh.Un
+	size += 2      // m.Pmtu.PathMtu
+	return size
+}
+func (m *IPPathMtuUpdate) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.Pmtu.ClientIndex)
+	buf.EncodeUint32(m.Pmtu.Context)
+	buf.EncodeUint32(m.Pmtu.TableID)
+	buf.EncodeUint8(uint8(m.Pmtu.Nh.Af))
+	buf.EncodeBytes(m.Pmtu.Nh.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint16(m.Pmtu.PathMtu)
+	return buf.Bytes(), nil
+}
+func (m *IPPathMtuUpdate) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Pmtu.ClientIndex = buf.DecodeUint32()
+	m.Pmtu.Context = buf.DecodeUint32()
+	m.Pmtu.TableID = buf.DecodeUint32()
+	m.Pmtu.Nh.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Pmtu.Nh.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Pmtu.PathMtu = buf.DecodeUint16()
+	return nil
+}
+
+// IPPathMtuUpdateReply defines message 'ip_path_mtu_update_reply'.
+type IPPathMtuUpdateReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *IPPathMtuUpdateReply) Reset()               { *m = IPPathMtuUpdateReply{} }
+func (*IPPathMtuUpdateReply) GetMessageName() string { return "ip_path_mtu_update_reply" }
+func (*IPPathMtuUpdateReply) GetCrcString() string   { return "e8d4e804" }
+func (*IPPathMtuUpdateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPPathMtuUpdateReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *IPPathMtuUpdateReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *IPPathMtuUpdateReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
 	return nil
 }
 
@@ -3211,6 +3539,15 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IPMrouteDump)(nil), "ip_mroute_dump_b9d2e09e")
 	api.RegisterMessage((*IPMtableDetails)(nil), "ip_mtable_details_b9d2e09e")
 	api.RegisterMessage((*IPMtableDump)(nil), "ip_mtable_dump_51077d14")
+	api.RegisterMessage((*IPPathMtuDetails)(nil), "ip_path_mtu_details_ac9539a7")
+	api.RegisterMessage((*IPPathMtuGet)(nil), "ip_path_mtu_get_f75ba505")
+	api.RegisterMessage((*IPPathMtuGetReply)(nil), "ip_path_mtu_get_reply_53b48f5d")
+	api.RegisterMessage((*IPPathMtuReplaceBegin)(nil), "ip_path_mtu_replace_begin_51077d14")
+	api.RegisterMessage((*IPPathMtuReplaceBeginReply)(nil), "ip_path_mtu_replace_begin_reply_e8d4e804")
+	api.RegisterMessage((*IPPathMtuReplaceEnd)(nil), "ip_path_mtu_replace_end_51077d14")
+	api.RegisterMessage((*IPPathMtuReplaceEndReply)(nil), "ip_path_mtu_replace_end_reply_e8d4e804")
+	api.RegisterMessage((*IPPathMtuUpdate)(nil), "ip_path_mtu_update_10bbe5cb")
+	api.RegisterMessage((*IPPathMtuUpdateReply)(nil), "ip_path_mtu_update_reply_e8d4e804")
 	api.RegisterMessage((*IPPuntPolice)(nil), "ip_punt_police_db867cea")
 	api.RegisterMessage((*IPPuntPoliceReply)(nil), "ip_punt_police_reply_e8d4e804")
 	api.RegisterMessage((*IPPuntRedirect)(nil), "ip_punt_redirect_a9a5592c")
@@ -3282,6 +3619,15 @@ func AllMessages() []api.Message {
 		(*IPMrouteDump)(nil),
 		(*IPMtableDetails)(nil),
 		(*IPMtableDump)(nil),
+		(*IPPathMtuDetails)(nil),
+		(*IPPathMtuGet)(nil),
+		(*IPPathMtuGetReply)(nil),
+		(*IPPathMtuReplaceBegin)(nil),
+		(*IPPathMtuReplaceBeginReply)(nil),
+		(*IPPathMtuReplaceEnd)(nil),
+		(*IPPathMtuReplaceEndReply)(nil),
+		(*IPPathMtuUpdate)(nil),
+		(*IPPathMtuUpdateReply)(nil),
 		(*IPPuntPolice)(nil),
 		(*IPPuntPoliceReply)(nil),
 		(*IPPuntRedirect)(nil),

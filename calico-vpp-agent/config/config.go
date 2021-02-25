@@ -43,6 +43,7 @@ const (
 	TapNumTxQueuesEnvVar      = "CALICOVPP_TAP_TX_QUEUES"
 	TapGSOEnvVar              = "CALICOVPP_DEBUG_ENABLE_GSO"
 	EnableServicesEnvVar      = "CALICOVPP_DEBUG_ENABLE_NAT"
+	EnableMaglevEnvVar        = "CALICOVPP_DEBUG_ENABLE_MAGLEV"
 	EnablePoliciesEnvVar      = "CALICOVPP_DEBUG_ENABLE_POLICIES"
 	CrossIpsecTunnelsEnvVar   = "CALICOVPP_IPSEC_CROSS_TUNNELS"
 	EnableIPSecEnvVar         = "CALICOVPP_IPSEC_ENABLED"
@@ -65,6 +66,7 @@ var (
 	TapNumRxQueues    = 1
 	TapNumTxQueues    = 1
 	TapGSOEnabled     = true
+	EnableMaglev      = true
 	EnableServices    = true
 	EnablePolicies    = true
 	EnableIPSec       = false
@@ -177,6 +179,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableServicesEnvVar, conf, enableServices, err)
 		}
 		EnableServices = enableServices
+	}
+
+	if conf := getEnvValue(EnableMaglevEnvVar); conf != "" {
+		enableMaglev, err := strconv.ParseBool(conf)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableMaglevEnvVar, conf, enableMaglev, err)
+		}
+		EnableMaglev = enableMaglev
 	}
 
 	if conf := getEnvValue(EnablePoliciesEnvVar); conf != "" {
