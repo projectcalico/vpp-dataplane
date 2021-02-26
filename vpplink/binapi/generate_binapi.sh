@@ -89,6 +89,6 @@ function generate_govpp_apis ()
 
 make_binapi_generator
 read_config
-# generate_vpp_apis
+generate_vpp_apis
 generate_govpp_apis
 
