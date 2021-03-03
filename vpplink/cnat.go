@@ -39,6 +39,7 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err
 		paths = append(paths, cnat.CnatEndpointTuple{
 			SrcEp: types.ToCnatEndpoint(backend.SrcEndpoint),
 			DstEp: types.ToCnatEndpoint(backend.DstEndpoint),
+			Flags: backend.Flags,
 		})
 	}
 
@@ -50,6 +51,7 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err
 			Paths:    paths,
 			IsRealIP: BoolToU8(tr.IsRealIP),
 			Flags:    uint8(cnat.CNAT_TRANSLATION_ALLOC_PORT),
+			LbType:   cnat.CnatLbType (tr.LbType),
 		},
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
@@ -99,11 +101,11 @@ func (v *VppLink) CnatAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err error
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	request := &cnat.CnatAddDelSnatPrefix{
+	request := &cnat.CnatSnatPolicyAddDelExcludePfx{
 		IsAdd:  BoolToU8(isAdd),
 		Prefix: types.ToVppPrefix(prefix),
 	}
-	response := &cnat.CnatAddDelSnatPrefixReply{}
+	response := &cnat.CnatSnatPolicyAddDelExcludePfxReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrap(err, "Add/Del SNAT prefix failed")
@@ -141,80 +143,44 @@ func (v *VppLink) CnatEnableFeatures(swIfIndex uint32) (err error) {
 	return nil
 }
 
-func (v *VppLink) cnatK8sEnableDisableSNAT(swIfIndex uint32, isEnable bool, isIP6 bool) (err error) {
+func (v *VppLink) cnatSnatPolicyAddDelPodInterface(swIfIndex uint32, isAdd bool, table cnat.CnatSnatPolicyTable) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	response := &cnat.CnatK8sEnableDisableInterfaceSnatReply{}
-	request := &cnat.CnatK8sEnableDisableInterfaceSnat{
+	response := &cnat.CnatSnatPolicyAddDelIfReply{}
+	request := &cnat.CnatSnatPolicyAddDelIf{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-		IsIP6:     isIP6,
-		IsEnable:  isEnable,
+		IsAdd:     BoolToU8(isAdd),
+		Table:     table,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return errors.Wrapf(err, "CnatK8sEnableDisableInterfaceSnat failed: req %+v reply %+v", request, response)
+		return errors.Wrapf(err, "CnatSnatPolicyAddDelIf failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
-		return fmt.Errorf("CnatK8sEnableDisableInterfaceSnat failed: req %+v reply %+v", request, response)
-	}
-	return nil
-}
-
-func (v *VppLink) EnableCnatK8sSNAT(swIfIndex uint32, isIp6 bool) (err error) {
-	return v.cnatK8sEnableDisableSNAT(swIfIndex, true, isIp6)
-}
-
-func (v *VppLink) DisableCnatK8sSNAT(swIfIndex uint32, isIp6 bool) (err error) {
-	return v.cnatK8sEnableDisableSNAT(swIfIndex, false, isIp6)
-}
-
-func (v *VppLink) cnatK8sAddDelPodInterface(swIfIndex uint32, isAdd bool) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &cnat.CnatK8sRegisterPodInterfaceReply{}
-	request := &cnat.CnatK8sRegisterPodInterface{
-		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-		IsAdd:     isAdd,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil {
-		return errors.Wrapf(err, "CnatK8sRegisterPodInterface failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CnatK8sRegisterPodInterface failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CnatSnatPolicyAddDelIf failed: req %+v reply %+v", request, response)
 	}
 	return nil
 }
 
 func (v *VppLink) RegisterPodInterface(swIfIndex uint32) (err error) {
-	return v.cnatK8sAddDelPodInterface(swIfIndex, true)
+	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, true /* isAdd */, cnat.CNAT_POLICY_POD)
 }
 
 func (v *VppLink) RemovePodInterface(swIfIndex uint32) (err error) {
-	return v.cnatK8sAddDelPodInterface(swIfIndex, false)
+	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_POD)
 }
 
-func (v *VppLink) CnatK8sAddDelPodCIDR(prefix *net.IPNet, isAdd bool) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &cnat.CnatK8sAddDelPodCidrReply{}
-	request := &cnat.CnatK8sAddDelPodCidr{
-		Prefix: types.ToVppPrefix(prefix),
-		IsAdd:  isAdd,
+func (v *VppLink) EnableCnatSNAT(swIfIndex uint32, isIp6 bool) (err error) {
+	if isIp6 {
+		return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V6)
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil {
-		return errors.Wrapf(err, "CnatK8sAddDelPodCidr failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CnatK8sAddDelPodCidr failed: req %+v reply %+v", request, response)
+	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V4)
+}
+
+func (v *VppLink) DisableCnatSNAT(swIfIndex uint32, isIp6 bool) (err error) {
+	if isIp6 {
+		return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, true /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V6)
 	}
-	return nil
-}
-
-func (v *VppLink) AddPodCIDR(prefix *net.IPNet) (err error) {
-	return v.CnatK8sAddDelPodCIDR(prefix, true)
-}
-
-func (v *VppLink) DelPodCIDR(prefix *net.IPNet) (err error) {
-	return v.CnatK8sAddDelPodCIDR(prefix, false)
+	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, true /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V4)
 }
 
 func (v *VppLink) cnatSetSnatPolicy(pol cnat.CnatSnatPolicies) (err error) {
@@ -234,9 +200,9 @@ func (v *VppLink) cnatSetSnatPolicy(pol cnat.CnatSnatPolicies) (err error) {
 }
 
 func (v *VppLink) SetK8sSnatPolicy() (err error) {
-	return v.cnatSetSnatPolicy(cnat.CNAT_SNAT_POLICY_K8S)
+	return v.cnatSetSnatPolicy(cnat.CNAT_POLICY_K8S)
 }
 
 func (v *VppLink) ClearSnatPolicy() (err error) {
-	return v.cnatSetSnatPolicy(cnat.CNAT_SNAT_POLICY_NONE)
+	return v.cnatSetSnatPolicy(cnat.CNAT_POLICY_DEFAULT)
 }

@@ -1,13 +1,13 @@
-VPP Version                 : 21.06-rc0~269-g7bb96579f
+VPP Version                 : 21.06-rc0~343-gacacd8a40
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : bb9831403 tests: test punt policer bound to worker thread
+VPP Base commit             : edb171646 interface: Fix rxq deletion
 ------------------ Cherry picked commits --------------------
-7bb96579f capo: Calico Policies plugin
-6a2a02782 acl: acl-plugin custom policies
-772824254 cnat: k8s extensions
-75ac27466 cnat: add input feature node
-b23d2e5b2 dpdk: implement interrupt mode
-574f922b3 interface: fix sh int rx
-4720fbfcb interface: Fix rxq deletion
-6f83ea29a virtio: DRAFT: multi tx support
+acacd8a40 capo: Calico Policies plugin
+bd85a81d2 acl: acl-plugin custom policies
+44296f3ca cnat: fix cnat feature partial cksum
+2f8f30db9 cnat: Add calico/k8s src policy
+8c11b2b7c cnat: Prepare extended snat policies
+af4edde5f dpdk: implement interrupt mode
+4012ce834 devices: add support for pseudo header checksum
+300e0eb2b virtio: DRAFT: multi tx support
 -------------------------------------------------------------

@@ -23,6 +23,17 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/cnat"
 )
 
+const (
+	CnatNoNat = uint8(cnat.CNAT_EPT_NO_NAT)
+)
+
+type CnatLbType uint8
+
+const (
+	DefaultLB = CnatLbType(cnat.CNAT_LB_TYPE_DEFAULT)
+	MaglevLB = CnatLbType(cnat.CNAT_LB_TYPE_MAGLEV)
+)
+
 type CnatEndpoint struct {
 	IP   net.IP
 	Port uint16
@@ -38,6 +49,7 @@ func (e *CnatEndpoint) String() string {
 type CnatEndpointTuple struct {
 	SrcEndpoint CnatEndpoint
 	DstEndpoint CnatEndpoint
+	Flags uint8
 }
 
 func (t *CnatEndpointTuple) String() string {
@@ -53,6 +65,7 @@ type CnatTranslateEntry struct {
 	Proto    IPProto
 	IsRealIP bool
 	ID       uint32
+	LbType   CnatLbType
 }
 
 func (n *CnatTranslateEntry) String() string {

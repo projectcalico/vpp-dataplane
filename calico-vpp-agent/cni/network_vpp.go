@@ -253,14 +253,14 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	needsSnat := s.PodSpecNeedsSnat(podSpec)
 	if hasv4 && needsSnat {
 		s.log.Infof("Enable tun[%d] SNAT v4", swIfIndex)
-		err = s.vpp.EnableCnatK8sSNAT(swIfIndex, false)
+		err = s.vpp.EnableCnatSNAT(swIfIndex, false)
 		if err != nil {
 			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip4 snat")
 		}
 	}
 	if hasv6 && needsSnat {
 		s.log.Infof("Enable tun[%d] SNAT v6", swIfIndex)
-		err = s.vpp.EnableCnatK8sSNAT(swIfIndex, true)
+		err = s.vpp.EnableCnatSNAT(swIfIndex, true)
 		if err != nil {
 			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip6 snat")
 		}

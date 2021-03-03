@@ -22,6 +22,10 @@ type RPCService interface {
 	IPMrouteAddDel(ctx context.Context, in *IPMrouteAddDel) (*IPMrouteAddDelReply, error)
 	IPMrouteDump(ctx context.Context, in *IPMrouteDump) (RPCService_IPMrouteDumpClient, error)
 	IPMtableDump(ctx context.Context, in *IPMtableDump) (RPCService_IPMtableDumpClient, error)
+	IPPathMtuGet(ctx context.Context, in *IPPathMtuGet) (RPCService_IPPathMtuGetClient, error)
+	IPPathMtuReplaceBegin(ctx context.Context, in *IPPathMtuReplaceBegin) (*IPPathMtuReplaceBeginReply, error)
+	IPPathMtuReplaceEnd(ctx context.Context, in *IPPathMtuReplaceEnd) (*IPPathMtuReplaceEndReply, error)
+	IPPathMtuUpdate(ctx context.Context, in *IPPathMtuUpdate) (*IPPathMtuUpdateReply, error)
 	IPPuntPolice(ctx context.Context, in *IPPuntPolice) (*IPPuntPoliceReply, error)
 	IPPuntRedirect(ctx context.Context, in *IPPuntRedirect) (*IPPuntRedirectReply, error)
 	IPPuntRedirectDump(ctx context.Context, in *IPPuntRedirectDump) (RPCService_IPPuntRedirectDumpClient, error)
@@ -285,6 +289,69 @@ func (c *serviceClient_IPMtableDumpClient) Recv() (*IPMtableDetails, error) {
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
+}
+
+func (c *serviceClient) IPPathMtuGet(ctx context.Context, in *IPPathMtuGet) (RPCService_IPPathMtuGetClient, error) {
+	stream, err := c.conn.NewStream(ctx)
+	if err != nil {
+		return nil, err
+	}
+	x := &serviceClient_IPPathMtuGetClient{stream}
+	if err := x.Stream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RPCService_IPPathMtuGetClient interface {
+	Recv() (*IPPathMtuDetails, error)
+	api.Stream
+}
+
+type serviceClient_IPPathMtuGetClient struct {
+	api.Stream
+}
+
+func (c *serviceClient_IPPathMtuGetClient) Recv() (*IPPathMtuDetails, error) {
+	msg, err := c.Stream.RecvMsg()
+	if err != nil {
+		return nil, err
+	}
+	switch m := msg.(type) {
+	case *IPPathMtuDetails:
+		return m, nil
+	case *IPPathMtuGetReply:
+		return nil, io.EOF
+	default:
+		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
+	}
+}
+
+func (c *serviceClient) IPPathMtuReplaceBegin(ctx context.Context, in *IPPathMtuReplaceBegin) (*IPPathMtuReplaceBeginReply, error) {
+	out := new(IPPathMtuReplaceBeginReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) IPPathMtuReplaceEnd(ctx context.Context, in *IPPathMtuReplaceEnd) (*IPPathMtuReplaceEndReply, error) {
+	out := new(IPPathMtuReplaceEndReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) IPPathMtuUpdate(ctx context.Context, in *IPPathMtuUpdate) (*IPPathMtuUpdateReply, error) {
+	out := new(IPPathMtuUpdateReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IPPuntPolice(ctx context.Context, in *IPPuntPolice) (*IPPuntPoliceReply, error) {
