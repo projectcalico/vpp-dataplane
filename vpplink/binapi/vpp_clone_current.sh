@@ -16,9 +16,10 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/21/31321/7 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31249/4 && git cherry-pick FETCH_HEAD # 31249: dpdk: implement interrupt mode | https://gerrit.fd.io/r/c/vpp/+/31249
 
 # --------------- Cnat patches ---------------
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/47/31447/4 && git cherry-pick FETCH_HEAD # 31447: cnat: Prepare extended snat policies | https://gerrit.fd.io/r/c/vpp/+/31447
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/35 && git cherry-pick FETCH_HEAD # 28587: cnat: Add calico/k8s src policy | https://gerrit.fd.io/r/c/vpp/+/28587
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31449/2 && git cherry-pick FETCH_HEAD # 31449: cnat: fix cnat feature partial cksum | https://gerrit.fd.io/r/c/vpp/+/31449
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/67/31467/2 && git cherry-pick FETCH_HEAD # 31467: cnat: Fix snat with dhcp | https://gerrit.fd.io/r/c/vpp/+/31467
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/47/31447/8 && git cherry-pick FETCH_HEAD # 31447: cnat: Prepare extended snat policies | https://gerrit.fd.io/r/c/vpp/+/31447
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/87/28587/38 && git cherry-pick FETCH_HEAD # 28587: cnat: Add calico/k8s src policy | https://gerrit.fd.io/r/c/vpp/+/28587
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31449/4 && git cherry-pick FETCH_HEAD # 31449: cnat: fix cnat feature partial cksum | https://gerrit.fd.io/r/c/vpp/+/31449
 # --------------- Cnat patches ---------------
 
 # ------------- Policies patches -------------
