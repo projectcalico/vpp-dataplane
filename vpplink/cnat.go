@@ -204,5 +204,5 @@ func (v *VppLink) SetK8sSnatPolicy() (err error) {
 }
 
 func (v *VppLink) ClearSnatPolicy() (err error) {
-	return v.cnatSetSnatPolicy(cnat.CNAT_POLICY_DEFAULT)
+	return v.cnatSetSnatPolicy(cnat.CNAT_POLICY_NONE)
 }

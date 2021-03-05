@@ -1,13 +1,12 @@
-VPP Version                 : 21.06-rc0~343-gacacd8a40
+VPP Version                 : 21.06-rc0~395-g10f4fccf4
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : edb171646 interface: Fix rxq deletion
+VPP Base commit             : 9cc765559 avf: don't memcpy if adminq output buffer size is 0
 ------------------ Cherry picked commits --------------------
-acacd8a40 capo: Calico Policies plugin
-bd85a81d2 acl: acl-plugin custom policies
-44296f3ca cnat: fix cnat feature partial cksum
-2f8f30db9 cnat: Add calico/k8s src policy
-8c11b2b7c cnat: Prepare extended snat policies
-af4edde5f dpdk: implement interrupt mode
-4012ce834 devices: add support for pseudo header checksum
-300e0eb2b virtio: DRAFT: multi tx support
+10f4fccf4 capo: Calico Policies plugin
+e0a5115fd acl: acl-plugin custom policies
+de2c4bd14 cnat: fix cnat feature partial cksum
+f477e983e cnat: maglev fixes
+8cf1fe620 dpdk: implement interrupt mode
+4c0cfe7ec devices: add support for pseudo header checksum
+eac9413f7 virtio: DRAFT: multi tx support
 -------------------------------------------------------------

@@ -22,6 +22,7 @@ type RPCService interface {
 	Nat44AddressDump(ctx context.Context, in *Nat44AddressDump) (RPCService_Nat44AddressDumpClient, error)
 	Nat44DelSession(ctx context.Context, in *Nat44DelSession) (*Nat44DelSessionReply, error)
 	Nat44DelUser(ctx context.Context, in *Nat44DelUser) (*Nat44DelUserReply, error)
+	Nat44EdPluginEnableDisable(ctx context.Context, in *Nat44EdPluginEnableDisable) (*Nat44EdPluginEnableDisableReply, error)
 	Nat44EdSetFqOptions(ctx context.Context, in *Nat44EdSetFqOptions) (*Nat44EdSetFqOptionsReply, error)
 	Nat44EdShowFqOptions(ctx context.Context, in *Nat44EdShowFqOptions) (*Nat44EdShowFqOptionsReply, error)
 	Nat44ForwardingEnableDisable(ctx context.Context, in *Nat44ForwardingEnableDisable) (*Nat44ForwardingEnableDisableReply, error)
@@ -174,6 +175,15 @@ func (c *serviceClient) Nat44DelSession(ctx context.Context, in *Nat44DelSession
 
 func (c *serviceClient) Nat44DelUser(ctx context.Context, in *Nat44DelUser) (*Nat44DelUserReply, error) {
 	out := new(Nat44DelUserReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) Nat44EdPluginEnableDisable(ctx context.Context, in *Nat44EdPluginEnableDisable) (*Nat44EdPluginEnableDisableReply, error) {
+	out := new(Nat44EdPluginEnableDisableReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

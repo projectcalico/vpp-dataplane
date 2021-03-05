@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "cnat"
 	APIVersion = "0.2.0"
-	VersionCrc = 0x31c2a3e0
+	VersionCrc = 0xfd05573b
 )
 
 // CnatEndpointTupleFlags defines enum 'cnat_endpoint_tuple_flags'.
@@ -105,18 +105,21 @@ func (x CnatLbType) String() string {
 type CnatSnatPolicies uint8
 
 const (
-	CNAT_POLICY_DEFAULT CnatSnatPolicies = 1
-	CNAT_POLICY_K8S     CnatSnatPolicies = 2
+	CNAT_POLICY_NONE   CnatSnatPolicies = 0
+	CNAT_POLICY_IF_PFX CnatSnatPolicies = 1
+	CNAT_POLICY_K8S    CnatSnatPolicies = 2
 )
 
 var (
 	CnatSnatPolicies_name = map[uint8]string{
-		1: "CNAT_POLICY_DEFAULT",
+		0: "CNAT_POLICY_NONE",
+		1: "CNAT_POLICY_IF_PFX",
 		2: "CNAT_POLICY_K8S",
 	}
 	CnatSnatPolicies_value = map[string]uint8{
-		"CNAT_POLICY_DEFAULT": 1,
-		"CNAT_POLICY_K8S":     2,
+		"CNAT_POLICY_NONE":   0,
+		"CNAT_POLICY_IF_PFX": 1,
+		"CNAT_POLICY_K8S":    2,
 	}
 )
 
@@ -566,7 +569,7 @@ type CnatSetSnatPolicy struct {
 
 func (m *CnatSetSnatPolicy) Reset()               { *m = CnatSetSnatPolicy{} }
 func (*CnatSetSnatPolicy) GetMessageName() string { return "cnat_set_snat_policy" }
-func (*CnatSetSnatPolicy) GetCrcString() string   { return "601f682a" }
+func (*CnatSetSnatPolicy) GetCrcString() string   { return "d3e6eaf4" }
 func (*CnatSetSnatPolicy) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1145,7 +1148,7 @@ func file_cnat_binapi_init() {
 	api.RegisterMessage((*CnatSessionPurgeReply)(nil), "cnat_session_purge_reply_e8d4e804")
 	api.RegisterMessage((*CnatSetSnatAddresses)(nil), "cnat_set_snat_addresses_d997e96c")
 	api.RegisterMessage((*CnatSetSnatAddressesReply)(nil), "cnat_set_snat_addresses_reply_e8d4e804")
-	api.RegisterMessage((*CnatSetSnatPolicy)(nil), "cnat_set_snat_policy_601f682a")
+	api.RegisterMessage((*CnatSetSnatPolicy)(nil), "cnat_set_snat_policy_d3e6eaf4")
 	api.RegisterMessage((*CnatSetSnatPolicyReply)(nil), "cnat_set_snat_policy_reply_e8d4e804")
 	api.RegisterMessage((*CnatSnatPolicyAddDelExcludePfx)(nil), "cnat_snat_policy_add_del_exclude_pfx_e26dd79a")
 	api.RegisterMessage((*CnatSnatPolicyAddDelExcludePfxReply)(nil), "cnat_snat_policy_add_del_exclude_pfx_reply_e8d4e804")
