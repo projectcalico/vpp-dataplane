@@ -5,7 +5,7 @@
 // Contents:
 //   1 enum
 //   1 struct
-//  95 messages
+//  97 messages
 //
 package nat44_ed
 
@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "nat44_ed"
 	APIVersion = "5.2.0"
-	VersionCrc = 0xd5b80e18
+	VersionCrc = 0xfd9ae40f
 )
 
 // Nat44ConfigFlags defines enum 'nat44_config_flags'.
@@ -914,6 +914,94 @@ func (m *Nat44DelUserReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *Nat44DelUserReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// Nat44EdPluginEnableDisable defines message 'nat44_ed_plugin_enable_disable'.
+type Nat44EdPluginEnableDisable struct {
+	InsideVrf     uint32           `binapi:"u32,name=inside_vrf" json:"inside_vrf,omitempty"`
+	OutsideVrf    uint32           `binapi:"u32,name=outside_vrf" json:"outside_vrf,omitempty"`
+	Sessions      uint32           `binapi:"u32,name=sessions" json:"sessions,omitempty"`
+	SessionMemory uint32           `binapi:"u32,name=session_memory" json:"session_memory,omitempty"`
+	Enable        bool             `binapi:"bool,name=enable" json:"enable,omitempty"`
+	Flags         Nat44ConfigFlags `binapi:"nat44_config_flags,name=flags" json:"flags,omitempty"`
+}
+
+func (m *Nat44EdPluginEnableDisable) Reset()               { *m = Nat44EdPluginEnableDisable{} }
+func (*Nat44EdPluginEnableDisable) GetMessageName() string { return "nat44_ed_plugin_enable_disable" }
+func (*Nat44EdPluginEnableDisable) GetCrcString() string   { return "be17f8dd" }
+func (*Nat44EdPluginEnableDisable) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *Nat44EdPluginEnableDisable) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.InsideVrf
+	size += 4 // m.OutsideVrf
+	size += 4 // m.Sessions
+	size += 4 // m.SessionMemory
+	size += 1 // m.Enable
+	size += 1 // m.Flags
+	return size
+}
+func (m *Nat44EdPluginEnableDisable) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.InsideVrf)
+	buf.EncodeUint32(m.OutsideVrf)
+	buf.EncodeUint32(m.Sessions)
+	buf.EncodeUint32(m.SessionMemory)
+	buf.EncodeBool(m.Enable)
+	buf.EncodeUint8(uint8(m.Flags))
+	return buf.Bytes(), nil
+}
+func (m *Nat44EdPluginEnableDisable) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.InsideVrf = buf.DecodeUint32()
+	m.OutsideVrf = buf.DecodeUint32()
+	m.Sessions = buf.DecodeUint32()
+	m.SessionMemory = buf.DecodeUint32()
+	m.Enable = buf.DecodeBool()
+	m.Flags = Nat44ConfigFlags(buf.DecodeUint8())
+	return nil
+}
+
+// Nat44EdPluginEnableDisableReply defines message 'nat44_ed_plugin_enable_disable_reply'.
+type Nat44EdPluginEnableDisableReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *Nat44EdPluginEnableDisableReply) Reset() { *m = Nat44EdPluginEnableDisableReply{} }
+func (*Nat44EdPluginEnableDisableReply) GetMessageName() string {
+	return "nat44_ed_plugin_enable_disable_reply"
+}
+func (*Nat44EdPluginEnableDisableReply) GetCrcString() string { return "e8d4e804" }
+func (*Nat44EdPluginEnableDisableReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *Nat44EdPluginEnableDisableReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *Nat44EdPluginEnableDisableReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *Nat44EdPluginEnableDisableReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -4005,6 +4093,8 @@ func file_nat44_ed_binapi_init() {
 	api.RegisterMessage((*Nat44DelSessionReply)(nil), "nat44_del_session_reply_e8d4e804")
 	api.RegisterMessage((*Nat44DelUser)(nil), "nat44_del_user_99a9f998")
 	api.RegisterMessage((*Nat44DelUserReply)(nil), "nat44_del_user_reply_e8d4e804")
+	api.RegisterMessage((*Nat44EdPluginEnableDisable)(nil), "nat44_ed_plugin_enable_disable_be17f8dd")
+	api.RegisterMessage((*Nat44EdPluginEnableDisableReply)(nil), "nat44_ed_plugin_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*Nat44EdSetFqOptions)(nil), "nat44_ed_set_fq_options_2399bd71")
 	api.RegisterMessage((*Nat44EdSetFqOptionsReply)(nil), "nat44_ed_set_fq_options_reply_e8d4e804")
 	api.RegisterMessage((*Nat44EdShowFqOptions)(nil), "nat44_ed_show_fq_options_51077d14")
@@ -4105,6 +4195,8 @@ func AllMessages() []api.Message {
 		(*Nat44DelSessionReply)(nil),
 		(*Nat44DelUser)(nil),
 		(*Nat44DelUserReply)(nil),
+		(*Nat44EdPluginEnableDisable)(nil),
+		(*Nat44EdPluginEnableDisableReply)(nil),
 		(*Nat44EdSetFqOptions)(nil),
 		(*Nat44EdSetFqOptionsReply)(nil),
 		(*Nat44EdShowFqOptions)(nil),
