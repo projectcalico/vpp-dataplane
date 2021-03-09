@@ -193,7 +193,7 @@ spec:
         # container programs network policy and routes on each
         # host.
         - name: calico-node
-          image: docker.io/calicovpp/node:latest
+          image: docker.io/calicovpp/node:v0.13.0-calicov3.17.1
           imagePullPolicy: IfNotPresent
           env:
             # Use Kubernetes API as the backing datastore.
@@ -301,7 +301,7 @@ spec:
               mountPath: /run/netns/
               mountPropagation: Bidirectional
         - name: vpp
-          image: docker.io/calicovpp/vpp:latest
+          image: docker.io/calicovpp/vpp:v0.13.0-calicov3.17.1
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
