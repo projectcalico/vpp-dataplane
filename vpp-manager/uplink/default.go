@@ -74,7 +74,7 @@ func (d *DefaultDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink) error {
+func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error {
 	/* Nothing to do VPP autocreates */
 	return nil
 }

@@ -4,7 +4,7 @@ metadata:
   name: calico-config
   namespace: kube-system
 data:
-  veth_mtu: "1240"
+  vpp_uplink_driver: "af_packet"
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -19,7 +19,11 @@ spec:
           env:
             - name: CALICOVPP_DEFAULT_GW
               value: "192.168.0.1"
+            - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
+              value: |-
+                memory-trace on main-heap
         - name: calico-node
           env:
             - name: CALICO_IPV4POOL_IPIP
               value: Always
+        

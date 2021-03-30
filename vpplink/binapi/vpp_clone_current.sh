@@ -11,6 +11,7 @@ else
 	git fetch "https://gerrit.fd.io/r/vpp" && git reset --hard ${VPP_COMMIT}
 fi
 
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/18/31818/1 && git cherry-pick FETCH_HEAD # 31818: af_packet: use netlink to get/set mtu | https://gerrit.fd.io/r/c/vpp/+/31818
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/9 && git cherry-pick FETCH_HEAD # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/21/31321/7 && git cherry-pick FETCH_HEAD # 31321: devices: add support for pseudo header checksum | https://gerrit.fd.io/r/c/vpp/+/31321
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31249/4 && git cherry-pick FETCH_HEAD # 31249: dpdk: implement interrupt mode | https://gerrit.fd.io/r/c/vpp/+/31249
@@ -25,3 +26,6 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31449/4 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/28083/16 && git cherry-pick FETCH_HEAD # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/19 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 # ------------- Policies patches -------------
+
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/28/31528/2 && git cherry-pick FETCH_HEAD # trajectory trace
+

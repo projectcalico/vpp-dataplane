@@ -48,13 +48,13 @@ func timeoutSigKill(vppIndex int) {
 	if VPPgotTimeout[vppIndex] {
 		return
 	}
-	log.Infof("Timeout : SIGKILL vpp")
+	log.Infof("Timeout : SIGKILL vpp %d", vppIndex)
 	signals <- syscall.SIGKILL
 }
 
 func terminateVpp(format string, args ...interface{}) {
 	log.Errorf(format, args...)
-	log.Infof("Terminating Vpp (SIGINT)")
+	log.Infof("Terminating Vpp %d (SIGINT)", currentVPPIndex)
 	internalKill = true
 	signals <- syscall.SIGINT
 }
@@ -75,20 +75,31 @@ func handleSignals() {
 		for vppProcess == nil {
 			runningCond.Wait()
 		}
-		log.Infof("Received signal %+v", s)
+		log.Infof("Received signal %+v, vpp index %d", s, currentVPPIndex)
 		if s == syscall.SIGCHLD {
-			/* Only allow one sigCHLD per VPP */
-			if !VPPgotSigCHLD[currentVPPIndex] {
-				VPPgotSigCHLD[currentVPPIndex] = true
-				processState, err := vppProcess.Wait()
-				vppDeadChan <- true
-				if err != nil {
-					log.Errorf("processWait errored with %v", err)
+			/* figure out pid of exited process */
+			wstatus := syscall.WaitStatus(0)
+			pid, err := syscall.Wait4(-1, &wstatus, syscall.WNOHANG, nil)
+			if err != nil {
+				log.Errorf("Wait4 error: %v", err)
+			} else if pid == vppProcess.Pid {
+				/* Only allow one SIGCHLD per VPP */
+				if !VPPgotSigCHLD[currentVPPIndex] {
+					VPPgotSigCHLD[currentVPPIndex] = true
+					vppDeadChan <- true
+					err = vppProcess.Release()
+					if err != nil {
+						log.Warnf("Process release error: %v", err)
+					}
+					log.Infof("VPP exited:%v status:%v signaled:%v", wstatus.Exited(), wstatus.ExitStatus(), wstatus.Signaled())
+					if wstatus.Signaled() {
+						log.Infof("Termination signal: %v, core dumped:%v", wstatus.Signal(), wstatus.CoreDump())
+					}
 				} else {
-					log.Infof("processWait returned %v", processState)
+					log.Warnf("This VPP already got a SIGCHLD!")
 				}
 			} else {
-				log.Infof("ignoring sigchld")
+				log.Infof("Ignoring SIGCHLD for pid %d", pid)
 			}
 		} else if s != syscall.SIGPIPE {
 			/* special case

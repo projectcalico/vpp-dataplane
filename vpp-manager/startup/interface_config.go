@@ -67,10 +67,10 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 		}
 		for _, addr := range tmpAddresses {
 			// remove link local addresses
-			if vpplink.IsIP6(addr.IP) && addr.IP.IsLinkLocalUnicast() {
-				log.Infof("Skipping linklocal address %s", addr.String())
-				continue
-			}
+			// if vpplink.IsIP6(addr.IP) && addr.IP.IsLinkLocalUnicast() {
+			// 	log.Infof("Skipping linklocal address %s", addr.String())
+			// 	continue
+			// }
 			conf.Addresses = append(conf.Addresses, addr)
 		}
 
@@ -80,23 +80,23 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 		}
 		for _, route := range tmpRoutes {
 			// remove link-local routes
-			if utils.RouteIsLinkLocalUnicast(&route) {
-				log.Infof("Skipping linklocal route %s", route.String())
-				continue
-			}
-			if route.Dst == nil {
-				if utils.RouteIsIP6(&route) {
-					route.Dst = &net.IPNet{
-						IP:   net.IPv6zero,
-						Mask: net.CIDRMask(0, 128),
-					}
-				} else {
-					route.Dst = &net.IPNet{
-						IP:   net.IPv4zero,
-						Mask: net.CIDRMask(0, 32),
-					}
-				}
-			}
+			// if utils.RouteIsLinkLocalUnicast(&route) {
+			// 	log.Infof("Skipping linklocal route %s", route.String())
+			// 	continue
+			// }
+			// if route.Dst == nil {
+			// 	if utils.RouteIsIP6(&route) {
+			// 		route.Dst = &net.IPNet{
+			// 			IP:   net.IPv6zero,
+			// 			Mask: net.CIDRMask(0, 128),
+			// 		}
+			// 	} else {
+			// 		route.Dst = &net.IPNet{
+			// 			IP:   net.IPv4zero,
+			// 			Mask: net.CIDRMask(0, 32),
+			// 		}
+			// 	}
+			// }
 			conf.Routes = append(conf.Routes, route)
 		}
 	}

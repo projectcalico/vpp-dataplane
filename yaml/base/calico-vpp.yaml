@@ -74,6 +74,7 @@ data:
       full-coredump
       cli-listen /var/run/vpp/cli.sock
       pidfile /run/vpp/vpp.pid
+      exec /etc/vpp/startup.exec
     }
     api-trace { on }
     cpu {

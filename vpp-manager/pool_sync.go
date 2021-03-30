@@ -24,10 +24,18 @@ import (
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
+
+type PoolWatcher struct {
+	stop         chan struct{}
+	RouteWatcher *RouteWatcher
+}
+
+func (p *PoolWatcher) Stop() {
+	p.stop <- struct{}{}
+}
 
 func getNetworkRoute(network string) (route *netlink.Route, err error) {
 	log.Infof("Added ip pool %s", network)
@@ -36,32 +44,32 @@ func getNetworkRoute(network string) (route *netlink.Route, err error) {
 		return nil, errors.Wrapf(err, "error parsing %s", network)
 	}
 
-	link, err := netlink.LinkByName(config.HostIfName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot find interface named %s", config.HostIfName)
+	gw := fakeNextHopIP4
+	if cidr.IP.To4() == nil {
+		gw = fakeNextHopIP6
 	}
 
 	return &netlink.Route{
-		Dst:       cidr,
-		LinkIndex: link.Attrs().Index,
+		Dst: cidr,
+		Gw:  gw,
 	}, nil
 }
 
-func poolAdded(network string) error {
+func (p *PoolWatcher) poolAdded(network string) error {
 	route, err := getNetworkRoute(network)
 	if err != nil {
 		return errors.Wrap(err, "Error adding net")
 	}
-	err = netlink.RouteReplace(route)
+	err = p.RouteWatcher.AddRoute(route)
 	return errors.Wrapf(err, "cannot add pool route %s through vpp tap", network)
 }
 
-func poolDeleted(network string) error {
+func (p *PoolWatcher) poolDeleted(network string) error {
 	route, err := getNetworkRoute(network)
 	if err != nil {
 		return errors.Wrap(err, "Error deleting net")
 	}
-	err = netlink.RouteDel(route)
+	err = p.RouteWatcher.DelRoute(route)
 	return errors.Wrapf(err, "cannot delete pool route %s through vpp tap", network)
 }
 
@@ -69,7 +77,8 @@ func poolSyncError(err error) {
 	terminateVpp("Pool synchronisation error: %v", err)
 }
 
-func syncPools() {
+func (p *PoolWatcher) SyncPools() {
+	p.stop = make(chan struct{})
 	pools := make(map[string]interface{})
 	log.Info("Starting pools watcher...")
 	for {
@@ -91,7 +100,7 @@ func syncPools() {
 			_, exists := pools[key]
 			if !exists {
 				pools[key] = nil
-				err = poolAdded(key)
+				err = p.poolAdded(key)
 				if err != nil {
 					poolSyncError(errors.Wrap(err, "error adding pool %s"))
 					return
@@ -102,7 +111,7 @@ func syncPools() {
 		for key, _ := range pools {
 			_, found := sweepMap[key]
 			if !found {
-				err = poolDeleted(key)
+				err = p.poolDeleted(key)
 				if err != nil {
 					poolSyncError(errors.Wrap(err, "error deleting pool %s"))
 					return
@@ -119,34 +128,45 @@ func syncPools() {
 			poolSyncError(errors.Wrap(err, "error watching pools"))
 			return
 		}
-	watch:
-		for update := range poolsWatcher.ResultChan() {
-			switch update.Type {
-			case watch.Error:
-				log.Infof("Watch returned an error")
-				break watch
-			case watch.Added, watch.Modified:
-				pool := update.Object.(*calicoapi.IPPool)
-				key := pool.Spec.CIDR
-				err = poolAdded(key)
-				if err != nil {
-					poolSyncError(errors.Wrap(err, "error deleting pool %s"))
-					return
-				}
-				pools[key] = nil
-			case watch.Deleted:
-				pool := update.Previous.(*calicoapi.IPPool)
-				key := pool.Spec.CIDR
-				err = poolDeleted(key)
-				if err != nil {
-					poolSyncError(errors.Wrap(err, "error deleting pool %s"))
-					return
-				}
-				delete(pools, key)
-			}
 
+		eventChannel := poolsWatcher.ResultChan()
+	watch:
+		for {
+			select {
+			case update, ok := <-eventChannel:
+				if !ok {
+					eventChannel = nil
+					break watch
+				}
+				switch update.Type {
+				case watch.Error:
+					log.Infof("Watch returned an error")
+					break watch
+				case watch.Added, watch.Modified:
+					pool := update.Object.(*calicoapi.IPPool)
+					key := pool.Spec.CIDR
+					err = p.poolAdded(key)
+					if err != nil {
+						poolSyncError(errors.Wrap(err, "error deleting pool %s"))
+						return
+					}
+					pools[key] = nil
+				case watch.Deleted:
+					pool := update.Previous.(*calicoapi.IPPool)
+					key := pool.Spec.CIDR
+					err = p.poolDeleted(key)
+					if err != nil {
+						poolSyncError(errors.Wrap(err, "error deleting pool %s"))
+						return
+					}
+					delete(pools, key)
+				}
+			case <-p.stop:
+				poolsWatcher.Stop()
+				return
+			}
 		}
 		log.Info("restarting pools watcher...")
+		poolsWatcher.Stop()
 	}
-	return
 }

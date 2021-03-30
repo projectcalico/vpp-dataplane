@@ -21,6 +21,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip6_nd"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	log "github.com/sirupsen/logrus"
 )
 
 func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) (err error) {
@@ -37,6 +39,27 @@ func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) (err error) {
 		return errors.Wrapf(err, "Disabling RA for swif %d failed", swIfIndex)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("Disabling RA for swif %d failed with retval %d", swIfIndex, response.Retval)
+	}
+	return nil
+}
+
+func (v *VppLink) EnableIP6NdProxy(swIfIndex uint32) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	log.Errorf("EnableIP6NdProxy fixme")
+
+	response := &ip6_nd.IP6ndProxyAddDelReply{}
+	request := &ip6_nd.IP6ndProxyAddDel{
+		IsAdd:     true,
+		IP:        ip_types.IP6Address{}, // FIXME
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+	}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrapf(err, "Enabling IP6 ND Proxy swif %d failed", swIfIndex)
+	} else if response.Retval != 0 {
+		return fmt.Errorf("Enabling IP6 ND Proxy swif %d failed with retval %d", swIfIndex, response.Retval)
 	}
 	return nil
 }

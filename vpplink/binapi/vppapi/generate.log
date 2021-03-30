@@ -1,12 +1,14 @@
-VPP Version                 : 21.06-rc0~395-g10f4fccf4
+VPP Version                 : 21.06-rc0~397-g92175478d
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 9cc765559 avf: don't memcpy if adminq output buffer size is 0
 ------------------ Cherry picked commits --------------------
-10f4fccf4 capo: Calico Policies plugin
-e0a5115fd acl: acl-plugin custom policies
-de2c4bd14 cnat: fix cnat feature partial cksum
-f477e983e cnat: maglev fixes
-8cf1fe620 dpdk: implement interrupt mode
-4c0cfe7ec devices: add support for pseudo header checksum
-eac9413f7 virtio: DRAFT: multi tx support
+92175478d vlib: refactor trajectory trace debug feature
+5b209dce5 capo: Calico Policies plugin
+209badc00 acl: acl-plugin custom policies
+a52c1ebe7 cnat: fix cnat feature partial cksum
+ef4da8481 cnat: [WIP] no k8s maglev from pods
+7731175d1 cnat: maglev fixes
+f0934e418 dpdk: implement interrupt mode
+85757a71f devices: add support for pseudo header checksum
+cbf16073f virtio: DRAFT: multi tx support
 -------------------------------------------------------------

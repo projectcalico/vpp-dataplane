@@ -43,7 +43,7 @@ type UplinkDriverData struct {
 
 type UplinkDriver interface {
 	PreconfigureLinux() error
-	CreateMainVppInterface(vpp *vpplink.VppLink) error
+	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error
 	RestoreLinux()
 	IsSupported(warn bool) bool
 	GetName() string
@@ -109,9 +109,6 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 }
 
 func (d *UplinkDriverData) GenerateVppConfigExecFile() error {
-	if d.params.ConfigExecTemplate == "" {
-		return nil
-	}
 	// Trivial rendering for the moment...
 	template := strings.ReplaceAll(d.params.ConfigExecTemplate, "__PCI_DEVICE_ID__", d.conf.PciId)
 	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", d.params.MainInterface)

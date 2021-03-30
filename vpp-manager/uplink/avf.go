@@ -130,7 +130,7 @@ func (d *AVFDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink) error {
+func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error {
 	swIfIndex, err := vpp.CreateAVF(&types.AVFInterface{
 		NumRxQueues: d.params.NumRxQueues,
 		TxQueueSize: d.params.TxQueueSize,
