@@ -11,9 +11,6 @@ spec:
           env:
             - name: CALICOVPP_DEFAULT_GW
               value: "192.168.0.1"
-            - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
-              value: |-
-                memory-trace on main-heap
         - name: calico-node
           env:
             - name: CALICO_IPV4POOL_IPIP
