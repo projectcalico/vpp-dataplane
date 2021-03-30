@@ -78,7 +78,7 @@ func (d *AFXDPDriver) RestoreLinux() {
 	if !d.conf.IsUp {
 		return
 	}
-
+	// Interface should pop back in root ns once vpp exits
 	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
 	if err != nil {
 		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)

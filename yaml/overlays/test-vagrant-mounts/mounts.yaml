@@ -8,6 +8,10 @@ spec:
     spec:
       containers:
         - name: calico-node
+          # command:
+          #   - bash
+          #   - "-c"
+          #   - sleep infinity
           imagePullPolicy: Never
           volumeMounts:
             - name: repo-root

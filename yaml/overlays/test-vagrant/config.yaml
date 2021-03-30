@@ -1,11 +1,3 @@
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: calico-config
-  namespace: kube-system
-data:
-  vpp_uplink_driver: "af_packet"
----
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
