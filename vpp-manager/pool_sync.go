@@ -24,6 +24,8 @@ import (
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -31,13 +33,14 @@ import (
 type PoolWatcher struct {
 	stop         chan struct{}
 	RouteWatcher *RouteWatcher
+	Params       *config.VppManagerParams
 }
 
 func (p *PoolWatcher) Stop() {
 	p.stop <- struct{}{}
 }
 
-func getNetworkRoute(network string) (route *netlink.Route, err error) {
+func (p *PoolWatcher) getNetworkRoute(network string) (route *netlink.Route, err error) {
 	log.Infof("Added ip pool %s", network)
 	_, cidr, err := net.ParseCIDR(network)
 	if err != nil {
@@ -52,11 +55,12 @@ func getNetworkRoute(network string) (route *netlink.Route, err error) {
 	return &netlink.Route{
 		Dst: cidr,
 		Gw:  gw,
+		MTU: p.Params.TapMtu - startup.DefaultEncapSize,
 	}, nil
 }
 
 func (p *PoolWatcher) poolAdded(network string) error {
-	route, err := getNetworkRoute(network)
+	route, err := p.getNetworkRoute(network)
 	if err != nil {
 		return errors.Wrap(err, "Error adding net")
 	}
@@ -65,7 +69,7 @@ func (p *PoolWatcher) poolAdded(network string) error {
 }
 
 func (p *PoolWatcher) poolDeleted(network string) error {
-	route, err := getNetworkRoute(network)
+	route, err := p.getNetworkRoute(network)
 	if err != nil {
 		return errors.Wrap(err, "Error deleting net")
 	}

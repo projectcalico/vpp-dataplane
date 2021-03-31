@@ -32,6 +32,7 @@ import (
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -175,6 +176,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 			Dst:       &serviceCIDR,
 			LinkIndex: link.Attrs().Index,
 			Gw:        gw,
+			MTU:       v.params.TapMtu - startup.DefaultEncapSize,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "cannot add tap route to service %s", serviceCIDR.String())
@@ -293,10 +295,6 @@ func (v *VppRunner) configureVpp() (err error) {
 	if v.params.EnableGSO {
 		vpptap0Flags = vpptap0Flags | types.TapFlagGSO | types.TapGROCoalesce
 	}
-	var tapMtu int = v.conf.Mtu - 60
-	if v.params.TapMtu != 0 {
-		tapMtu = v.params.TapMtu
-	}
 
 	tapSwIfIndex, err := v.vpp.CreateTapV2(&types.TapV2{
 		HostIfName:     v.params.MainInterface,
@@ -305,7 +303,7 @@ func (v *VppRunner) configureVpp() (err error) {
 		RxQueueSize:    v.params.TapRxQueueSize,
 		TxQueueSize:    v.params.TapTxQueueSize,
 		Flags:          vpptap0Flags,
-		Mtu:            tapMtu,
+		Mtu:            v.params.TapMtu,
 		HostMacAddress: v.conf.HardwareAddr,
 		MacAddress:     vppSideMac,
 	})
@@ -533,7 +531,10 @@ func (v *VppRunner) runVpp() (err error) {
 	}
 
 	v.routeWatcher = &RouteWatcher{}
-	v.poolWatcher = &PoolWatcher{RouteWatcher: v.routeWatcher}
+	v.poolWatcher = &PoolWatcher{
+		RouteWatcher: v.routeWatcher,
+		Params:       v.params,
+	}
 	go v.routeWatcher.WatchRoutes()
 
 	// Configure VPP
