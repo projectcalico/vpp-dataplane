@@ -18,6 +18,7 @@ package uplink
 import (
 	"fmt"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
@@ -116,7 +117,9 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (
 	if err != nil {
 		return errors.Wrap(err, "cannot move uplink to vpp netns")
 	}
-	err = netlink.LinkSetUp(link)
+	err = ns.WithNetNSPath(fmt.Sprintf("/proc/%d/ns/net", vppPid), func(ns.NetNS) error {
+		return netlink.LinkSetUp(link)
+	})
 	if err != nil {
 		return errors.Wrap(err, "cannot set uplink up in vpp ns")
 	}
