@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/pkg/errors"
 	calicoapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
@@ -37,6 +38,7 @@ type PoolWatcher struct {
 }
 
 func (p *PoolWatcher) Stop() {
+	log.Info("Stopping pools watcher...")
 	p.stop <- struct{}{}
 }
 
@@ -77,25 +79,23 @@ func (p *PoolWatcher) poolDeleted(network string) error {
 	return errors.Wrapf(err, "cannot delete pool route %s through vpp tap", network)
 }
 
-func poolSyncError(err error) {
-	terminateVpp("Pool synchronisation error: %v", err)
-}
-
 func (p *PoolWatcher) SyncPools() {
-	p.stop = make(chan struct{})
+	p.stop = make(chan struct{}, 1)
 	pools := make(map[string]interface{})
 	log.Info("Starting pools watcher...")
 	for {
+		var poolsWatcher watch.Interface = nil
+		var eventChannel <-chan watch.Event = nil
 		/* Need to recreate the client at each loop if pipe breaks */
 		client, err := calicocli.NewFromEnv()
 		if err != nil {
-			poolSyncError(errors.Wrap(err, "error creating calico client"))
-			return
+			log.Errorf("error creating calico client: %v", err)
+			continue
 		}
 		poolsList, err := client.IPPools().List(context.Background(), options.ListOptions{})
 		if err != nil {
-			poolSyncError(errors.Wrap(err, "error listing pools"))
-			return
+			log.Errorf("error listing pools: %v", err)
+			continue
 		}
 		sweepMap := make(map[string]interface{})
 		for _, pool := range poolsList.Items {
@@ -106,8 +106,8 @@ func (p *PoolWatcher) SyncPools() {
 				pools[key] = nil
 				err = p.poolAdded(key)
 				if err != nil {
-					poolSyncError(errors.Wrap(err, "error adding pool %s"))
-					return
+					log.Errorf("error adding pool %s: %v", err)
+					goto watch /* retry main loop */
 				}
 			}
 		}
@@ -117,42 +117,42 @@ func (p *PoolWatcher) SyncPools() {
 			if !found {
 				err = p.poolDeleted(key)
 				if err != nil {
-					poolSyncError(errors.Wrap(err, "error deleting pool %s"))
-					return
+					log.Errorf("error deleting pool %s: %v", err)
+					goto watch /* retry main loop */
 				}
 				delete(pools, key)
 			}
 		}
 
-		poolsWatcher, err := client.IPPools().Watch(
+		poolsWatcher, err = client.IPPools().Watch(
 			context.Background(),
 			options.ListOptions{ResourceVersion: poolsList.ResourceVersion},
 		)
 		if err != nil {
-			poolSyncError(errors.Wrap(err, "error watching pools"))
-			return
+			log.Errorf("error watching pools: %v", err)
+			continue
 		}
 
-		eventChannel := poolsWatcher.ResultChan()
+		eventChannel = poolsWatcher.ResultChan()
 	watch:
 		for {
 			select {
 			case update, ok := <-eventChannel:
 				if !ok {
 					eventChannel = nil
-					break watch
+					break watch /* retry main loop */
 				}
 				switch update.Type {
 				case watch.Error:
 					log.Infof("Watch returned an error")
-					break watch
+					break watch /* retry main loop */
 				case watch.Added, watch.Modified:
 					pool := update.Object.(*calicoapi.IPPool)
 					key := pool.Spec.CIDR
 					err = p.poolAdded(key)
 					if err != nil {
-						poolSyncError(errors.Wrap(err, "error deleting pool %s"))
-						return
+						log.Errorf("error adding pool %s: %v", err)
+						break watch /* retry main loop */
 					}
 					pools[key] = nil
 				case watch.Deleted:
@@ -160,17 +160,21 @@ func (p *PoolWatcher) SyncPools() {
 					key := pool.Spec.CIDR
 					err = p.poolDeleted(key)
 					if err != nil {
-						poolSyncError(errors.Wrap(err, "error deleting pool %s"))
-						return
+						log.Errorf("error deleting pool %s: %v", err)
+						break watch /* retry main loop */
 					}
 					delete(pools, key)
 				}
 			case <-p.stop:
+				log.Info("Pools watcher stopped")
 				poolsWatcher.Stop()
 				return
 			}
 		}
 		log.Info("restarting pools watcher...")
-		poolsWatcher.Stop()
+		if poolsWatcher != nil {
+			poolsWatcher.Stop()
+		}
+		time.Sleep(2 * time.Second)
 	}
 }

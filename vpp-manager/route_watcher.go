@@ -89,8 +89,8 @@ func (r *RouteWatcher) RestoreAllRoutes() (err error) {
 
 func (r *RouteWatcher) WatchRoutes() {
 	updates := make(chan netlink.RouteUpdate)
-	r.close = make(chan struct{})
-	r.netlinkFailed = make(chan struct{})
+	r.close = make(chan struct{}, 1)
+	r.netlinkFailed = make(chan struct{}, 1)
 	r.stop = false
 
 	for {
