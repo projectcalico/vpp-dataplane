@@ -251,6 +251,21 @@ func (v *VppRunner) configureVpp() (err error) {
 		return errors.Wrap(err, "Error configuring NAT on uplink interface")
 	}
 
+	// special route to forward broadcast dhcp packets from the host
+	err = v.vpp.RouteAdd(&types.Route{
+		Dst: &net.IPNet{
+			IP:   net.IPv4bcast,
+			Mask: net.IPv4Mask(255, 255, 255, 255),
+		},
+		Paths: []types.RoutePath{{
+			Gw:        net.ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
+			SwIfIndex: config.DataInterfaceSwIfIndex,
+		}},
+	})
+	if err != nil {
+		log.Errorf("cannot add broadcast route in vpp: %v", err)
+	}
+
 	for _, addr := range v.conf.Addresses {
 		log.Infof("Adding address %s to data interface", addr.String())
 		err = v.vpp.AddInterfaceAddress(config.DataInterfaceSwIfIndex, addr.IPNet)
