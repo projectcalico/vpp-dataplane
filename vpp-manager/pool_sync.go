@@ -86,6 +86,7 @@ func (p *PoolWatcher) SyncPools() {
 	pools := make(map[string]interface{})
 	log.Info("Starting pools watcher...")
 	for {
+		time.Sleep(2 * time.Second)
 		var poolsWatcher watch.Interface = nil
 		var eventChannel <-chan watch.Event = nil
 		/* Need to recreate the client at each loop if pipe breaks */
@@ -177,6 +178,5 @@ func (p *PoolWatcher) SyncPools() {
 		if poolsWatcher != nil {
 			poolsWatcher.Stop()
 		}
-		time.Sleep(2 * time.Second)
 	}
 }

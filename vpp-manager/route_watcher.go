@@ -107,6 +107,7 @@ func (r *RouteWatcher) WatchRoutes() {
 	go r.watchAddresses()
 
 	for {
+		time.Sleep(2 * time.Second)
 		log.Infof("Subscribing to netlink route updates")
 		updates := make(chan netlink.RouteUpdate, 10)
 		r.close = make(chan struct{})
@@ -159,7 +160,6 @@ func (r *RouteWatcher) WatchRoutes() {
 				}
 			}
 		}
-		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -167,6 +167,7 @@ func (r *RouteWatcher) watchAddresses() {
 	r.addrNetlinkFailed = make(chan struct{}, 1)
 
 	for {
+		time.Sleep(2 * time.Second)
 		log.Infof("Subscribing to netlink address updates")
 		updates := make(chan netlink.AddrUpdate, 10)
 		r.addrClose = make(chan struct{})
@@ -175,13 +176,11 @@ func (r *RouteWatcher) watchAddresses() {
 		})
 		if err != nil {
 			log.Errorf("error watching for addresses, sleeping before retrying")
-			time.Sleep(2 * time.Second)
 			continue
 		}
 		// Stupidly re-add all of our routes after we start watching to make sure they're there
 		if err = r.RestoreAllRoutes(); err != nil {
 			log.Errorf("error adding routes, sleeping before retrying: %v", err)
-			time.Sleep(2 * time.Second)
 			continue
 		}
 	watch:
@@ -193,7 +192,6 @@ func (r *RouteWatcher) watchAddresses() {
 					return
 				}
 				log.Info("Address watcher stopped / failed")
-				time.Sleep(2 * time.Second)
 				break watch
 			case <-updates:
 				r.addrUpdate <- struct{}{}
