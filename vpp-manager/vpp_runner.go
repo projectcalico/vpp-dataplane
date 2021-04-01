@@ -173,10 +173,10 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 			gw = fakeNextHopIP6
 		}
 		err = v.routeWatcher.AddRoute(&netlink.Route{
-			Dst:       &serviceCIDR,
-			LinkIndex: link.Attrs().Index,
-			Gw:        gw,
-			MTU:       v.params.TapMtu - startup.DefaultEncapSize,
+			Dst:      &serviceCIDR,
+			Gw:       gw,
+			Protocol: syscall.RTPROT_STATIC,
+			MTU:      v.params.TapMtu - startup.DefaultEncapSize,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "cannot add tap route to service %s", serviceCIDR.String())
@@ -363,7 +363,17 @@ func (v *VppRunner) configureVpp() (err error) {
 
 	err = v.vpp.EnableArpProxy(tapSwIfIndex, 0 /* table id */)
 	if err != nil {
-		return errors.Wrap(err, "Error enableing ARP proxy")
+		return errors.Wrap(err, "Error enabling ARP proxy")
+	}
+
+	for _, addr := range v.conf.Addresses {
+		if addr.IPNet.IP.To4() == nil {
+			log.Infof("Adding ND proxy for address %s", addr.IPNet.IP)
+			err = v.vpp.EnableIP6NdProxy(config.DataInterfaceSwIfIndex, addr.IPNet.IP)
+			if err != nil {
+				log.Errorf("Error configuring nd proxy for address %s: %v", addr.IPNet.IP.String(), err)
+			}
+		}
 	}
 
 	if v.params.EnableGSO {

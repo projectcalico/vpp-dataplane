@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"net"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -55,9 +56,10 @@ func (p *PoolWatcher) getNetworkRoute(network string) (route *netlink.Route, err
 	}
 
 	return &netlink.Route{
-		Dst: cidr,
-		Gw:  gw,
-		MTU: p.Params.TapMtu - startup.DefaultEncapSize,
+		Dst:      cidr,
+		Gw:       gw,
+		Protocol: syscall.RTPROT_STATIC,
+		MTU:      p.Params.TapMtu - startup.DefaultEncapSize,
 	}, nil
 }
 

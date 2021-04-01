@@ -25,11 +25,14 @@ import (
 )
 
 type RouteWatcher struct {
-	routes        []*netlink.Route
-	close         chan struct{}
-	netlinkFailed chan struct{}
-	stop          bool
-	lock          sync.Mutex
+	routes            []*netlink.Route
+	close             chan struct{}
+	netlinkFailed     chan struct{}
+	addrClose         chan struct{}
+	addrNetlinkFailed chan struct{}
+	addrUpdate        chan struct{}
+	stop              bool
+	lock              sync.Mutex
 }
 
 func (r *RouteWatcher) AddRoute(route *netlink.Route) (err error) {
@@ -63,7 +66,8 @@ func (r *RouteWatcher) DelRoute(route *netlink.Route) (err error) {
 func (r *RouteWatcher) Stop() {
 	log.Infof("stopping route watcher")
 	r.stop = true
-	r.close <- struct{}{}
+	close(r.close)
+	close(r.addrClose)
 }
 
 func (r *RouteWatcher) netlinkError(err error) {
@@ -72,6 +76,14 @@ func (r *RouteWatcher) netlinkError(err error) {
 	}
 	log.Warnf("error from netlink: %v", err)
 	r.netlinkFailed <- struct{}{}
+}
+
+func (r *RouteWatcher) addrNetlinkError(err error) {
+	if r.stop {
+		return
+	}
+	log.Warnf("error from netlink: %v", err)
+	r.addrNetlinkFailed <- struct{}{}
 }
 
 func (r *RouteWatcher) RestoreAllRoutes() (err error) {
@@ -88,13 +100,16 @@ func (r *RouteWatcher) RestoreAllRoutes() (err error) {
 }
 
 func (r *RouteWatcher) WatchRoutes() {
-	updates := make(chan netlink.RouteUpdate)
-	r.close = make(chan struct{}, 1)
+	updates := make(chan netlink.RouteUpdate, 10)
 	r.netlinkFailed = make(chan struct{}, 1)
+	r.addrUpdate = make(chan struct{}, 10)
 	r.stop = false
+
+	go r.watchAddresses()
 
 	for {
 		log.Infof("Subscribing to netlink route updates")
+		r.close = make(chan struct{}, 1)
 		err := netlink.RouteSubscribeWithOptions(updates, r.close, netlink.RouteSubscribeOptions{
 			ErrorCallback: r.netlinkError,
 		})
@@ -130,13 +145,60 @@ func (r *RouteWatcher) WatchRoutes() {
 							err = netlink.RouteReplace(route)
 							if err != nil {
 								log.Errorf("error adding route %+v: %v, restarting watcher", route, err)
-								r.close <- struct{}{}
+								close(r.close)
 							}
 							break
 						}
 					}
 					r.lock.Unlock()
 				}
+			case <-r.addrUpdate:
+				log.Infof("Address update, restoring all routes")
+				if err = r.RestoreAllRoutes(); err != nil {
+					log.Errorf("error adding routes, sleeping before retrying: %v", err)
+					time.Sleep(2 * time.Second)
+					close(r.close)
+				}
+			}
+		}
+	}
+}
+
+func (r *RouteWatcher) watchAddresses() {
+	updates := make(chan netlink.AddrUpdate, 10)
+	r.addrNetlinkFailed = make(chan struct{}, 1)
+
+	for {
+		r.addrClose = make(chan struct{}, 1)
+		log.Infof("Subscribing to netlink address updates")
+		r.addrClose = make(chan struct{}, 1)
+		err := netlink.AddrSubscribeWithOptions(updates, r.close, netlink.AddrSubscribeOptions{
+			ErrorCallback: r.addrNetlinkError,
+		})
+		if err != nil {
+			log.Errorf("error watching for addresses, sleeping before retrying")
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		// Stupidly re-add all of our routes after we start watching to make sure they're there
+		if err = r.RestoreAllRoutes(); err != nil {
+			log.Errorf("error adding routes, sleeping before retrying: %v", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+	watch:
+		for {
+			select {
+			case <-r.addrNetlinkFailed:
+				if r.stop {
+					log.Infof("Address watcher exiting")
+					return
+				}
+				log.Info("Address watcher stopped / failed")
+				time.Sleep(2 * time.Second)
+				break watch
+			case <-updates:
+				r.addrUpdate <- struct{}{}
 			}
 		}
 	}
