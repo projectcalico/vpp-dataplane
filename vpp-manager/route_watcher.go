@@ -100,7 +100,6 @@ func (r *RouteWatcher) RestoreAllRoutes() (err error) {
 }
 
 func (r *RouteWatcher) WatchRoutes() {
-	updates := make(chan netlink.RouteUpdate, 10)
 	r.netlinkFailed = make(chan struct{}, 1)
 	r.addrUpdate = make(chan struct{}, 10)
 	r.stop = false
@@ -109,19 +108,18 @@ func (r *RouteWatcher) WatchRoutes() {
 
 	for {
 		log.Infof("Subscribing to netlink route updates")
-		r.close = make(chan struct{}, 1)
+		updates := make(chan netlink.RouteUpdate, 10)
+		r.close = make(chan struct{})
 		err := netlink.RouteSubscribeWithOptions(updates, r.close, netlink.RouteSubscribeOptions{
 			ErrorCallback: r.netlinkError,
 		})
 		if err != nil {
 			log.Errorf("error watching for routes, sleeping before retrying")
-			time.Sleep(2 * time.Second)
 			continue
 		}
 		// Stupidly re-add all of our routes after we start watching to make sure they're there
 		if err = r.RestoreAllRoutes(); err != nil {
 			log.Errorf("error adding routes, sleeping before retrying: %v", err)
-			time.Sleep(2 * time.Second)
 			continue
 		}
 	watch:
@@ -133,7 +131,6 @@ func (r *RouteWatcher) WatchRoutes() {
 					return
 				}
 				log.Info("Route watcher stopped / failed")
-				time.Sleep(2 * time.Second)
 				break watch
 			case update := <-updates:
 				if update.Type == syscall.RTM_DELROUTE {
@@ -146,6 +143,7 @@ func (r *RouteWatcher) WatchRoutes() {
 							if err != nil {
 								log.Errorf("error adding route %+v: %v, restarting watcher", route, err)
 								close(r.close)
+								break watch
 							}
 							break
 						}
@@ -156,22 +154,22 @@ func (r *RouteWatcher) WatchRoutes() {
 				log.Infof("Address update, restoring all routes")
 				if err = r.RestoreAllRoutes(); err != nil {
 					log.Errorf("error adding routes, sleeping before retrying: %v", err)
-					time.Sleep(2 * time.Second)
 					close(r.close)
+					break watch
 				}
 			}
 		}
+		time.Sleep(2 * time.Second)
 	}
 }
 
 func (r *RouteWatcher) watchAddresses() {
-	updates := make(chan netlink.AddrUpdate, 10)
 	r.addrNetlinkFailed = make(chan struct{}, 1)
 
 	for {
-		r.addrClose = make(chan struct{}, 1)
 		log.Infof("Subscribing to netlink address updates")
-		r.addrClose = make(chan struct{}, 1)
+		updates := make(chan netlink.AddrUpdate, 10)
+		r.addrClose = make(chan struct{})
 		err := netlink.AddrSubscribeWithOptions(updates, r.close, netlink.AddrSubscribeOptions{
 			ErrorCallback: r.addrNetlinkError,
 		})
