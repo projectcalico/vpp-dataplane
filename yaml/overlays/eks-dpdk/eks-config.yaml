@@ -59,3 +59,41 @@ spec:
         - name: host-root
           hostPath:
             path: /
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    k8s-app: calico-init-eks
+  name: calico-init-eks
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      k8s-app: calico-init-eks
+  template:
+    metadata:
+      labels:
+        k8s-app: calico-init-eks
+    spec:
+      # Run without CNI
+      hostNetwork: true
+      containers:
+      - name: calicovpp-init-eks
+        env:
+        - name: HUGEPAGES
+          value: "512"
+        image: calicovpp/init-eks:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            hugepages-2Mi: 0
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /host
+          name: host-root
+      volumes:
+      - hostPath:
+          path: /
+        name: host-root

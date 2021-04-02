@@ -4,6 +4,11 @@
 # Amazon AMI. If run at boot time, this enables running calico-vpp with
 # the DPDK uplink driver in EKS.
 
+while (( "$#" )) ; do
+    eval $1
+    shift
+done
+
 DPDK_VERSION=${DPDK_VERSION:=v20.11}
 HUGEPAGES=${HUGEPAGES:=512}
 BUILD_DIR=/tmp/build
@@ -75,7 +80,18 @@ EOF
 	rm -rf $BUILD_DIR
 }
 
-build_and_install_igb_uio
-sudo modprobe uio
-sudo insmod /lib/modules/$(uname -r)/kernel/drivers/uio/igb_uio.ko wc_activate=1
-sudo sysctl -w vm.nr_hugepages=${HUGEPAGES}
+configure_machine ()
+{
+	sudo modprobe uio
+	if [ x$(lsmod | awk '{ print $1 }' | grep igb_uio) == x ]; then
+		build_and_install_igb_uio
+		sudo insmod /lib/modules/$(uname -r)/kernel/drivers/uio/igb_uio.ko wc_activate=1
+	fi
+	sudo sysctl -w vm.nr_hugepages=${HUGEPAGES}
+	if [ -f /sys/fs/cgroup/hugetlb/kubepods/hugetlb.2MB.limit_in_bytes ]; then
+		echo $((HUGEPAGES * 2 * 1024 * 1024)) | tee /sys/fs/cgroup/hugetlb/kubepods/hugetlb.2MB.limit_in_bytes
+	fi
+	systemctl restart kubelet
+}
+
+configure_machine
