@@ -16,6 +16,8 @@
 package vpplink
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ipsec"
@@ -47,4 +49,23 @@ func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) (protections 
 			InSAIndices: p.SaIn,
 		})
 	}
+}
+
+func (v *VppLink) SetIPsecAsyncMode(enable bool) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	response := &ipsec.IpsecSetAsyncModeReply{}
+
+	request := &ipsec.IpsecSetAsyncMode{
+		AsyncEnable: enable,
+	}
+	v.log.Info("Enabling IPsec async mode")
+	var err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrap(err, "IPsec async mode enable failed")
+	} else if response.Retval != 0 {
+		return fmt.Errorf("IPsec async mode enable failed with retval: %d", response.Retval)
+	}
+	return nil
 }

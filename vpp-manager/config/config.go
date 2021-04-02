@@ -70,6 +70,7 @@ type VppManagerParams struct {
 	DefaultGWs             []net.IP
 	IfConfigSavePath       string
 	EnableGSO              bool
+	IpsecNbAsyncCryptoThread int
 	/* Capabilities */
 	LoadedDrivers      map[string]bool
 	KernelVersion      *KernelVersion

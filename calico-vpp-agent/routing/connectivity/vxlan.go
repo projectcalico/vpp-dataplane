@@ -51,7 +51,6 @@ func (p *VXLanProvider) configureVXLANNodes() error {
 }
 
 func (p *VXLanProvider) RescanState() {
-	p.configureVXLANNodes()
 	// TODO
 
 }

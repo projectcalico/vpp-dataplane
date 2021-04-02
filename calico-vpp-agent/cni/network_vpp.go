@@ -234,12 +234,25 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}
 	s.log.Infof("created tun[%d]", swIfIndex)
 
-	if tun.NumRxQueues > 1 && s.NumVPPWorkers > 0 {
+	var nbDataThread int = 0
+	if config.IpsecNbAsyncCryptoThread > 0 {
+		nbDataThread = (int)(s.NumVPPWorkers) - config.IpsecNbAsyncCryptoThread
+		s.log.Infof("ipsec async crypto %d", config.IpsecNbAsyncCryptoThread)
+	} else {
+		nbDataThread = (int)(s.NumVPPWorkers)
+	}
+
+	if nbDataThread <= 0 {
+		s.log.Error("not enough thread for async crypto")
+		nbDataThread = (int)(s.NumVPPWorkers)
+	}
+
+	if nbDataThread > 0 {
 		for i := 0; i < tun.NumRxQueues; i++ {
-			worker := (swIfIndex*uint32(tun.NumRxQueues) + uint32(i)) % s.NumVPPWorkers
+			worker := (uint32)(swIfIndex*uint32(tun.NumRxQueues)+uint32(i)) % uint32(nbDataThread)
 			err = s.vpp.SetInterfaceRxPlacement(uint32(swIfIndex), uint32(i), uint32(worker), false)
 			if err != nil {
-				s.log.Warnf("failed to set tun[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, i, worker, s.NumVPPWorkers, err)
+				s.log.Warnf("failed to set tun[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, i, worker, nbDataThread, err)
 			}
 		}
 	}
