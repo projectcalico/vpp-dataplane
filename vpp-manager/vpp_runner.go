@@ -369,7 +369,7 @@ func (v *VppRunner) configureVpp() (err error) {
 	for _, addr := range v.conf.Addresses {
 		if addr.IPNet.IP.To4() == nil {
 			log.Infof("Adding ND proxy for address %s", addr.IPNet.IP)
-			err = v.vpp.EnableIP6NdProxy(config.DataInterfaceSwIfIndex, addr.IPNet.IP)
+			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, addr.IPNet.IP)
 			if err != nil {
 				log.Errorf("Error configuring nd proxy for address %s: %v", addr.IPNet.IP.String(), err)
 			}

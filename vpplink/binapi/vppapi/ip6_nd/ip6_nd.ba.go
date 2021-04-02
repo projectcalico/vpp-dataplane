@@ -4,7 +4,7 @@
 //
 // Contents:
 //   1 struct
-//  13 messages
+//  15 messages
 //
 package ip6_nd
 
@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip6_nd"
 	APIVersion = "1.0.0"
-	VersionCrc = 0x90f5895b
+	VersionCrc = 0x6c4308b4
 )
 
 // IP6RaPrefixInfo defines type 'ip6_ra_prefix_info'.
@@ -270,6 +270,76 @@ func (m *IP6ndProxyDump) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *IP6ndProxyDump) Unmarshal(b []byte) error {
+	return nil
+}
+
+// IP6ndProxySilentSt defines message 'ip6nd_proxy_silent_st'.
+type IP6ndProxySilentSt struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	IsEnable  bool                           `binapi:"bool,name=is_enable" json:"is_enable,omitempty"`
+}
+
+func (m *IP6ndProxySilentSt) Reset()               { *m = IP6ndProxySilentSt{} }
+func (*IP6ndProxySilentSt) GetMessageName() string { return "ip6nd_proxy_silent_st" }
+func (*IP6ndProxySilentSt) GetCrcString() string   { return "7daa1e3a" }
+func (*IP6ndProxySilentSt) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IP6ndProxySilentSt) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	size += 1 // m.IsEnable
+	return size
+}
+func (m *IP6ndProxySilentSt) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeBool(m.IsEnable)
+	return buf.Bytes(), nil
+}
+func (m *IP6ndProxySilentSt) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.IsEnable = buf.DecodeBool()
+	return nil
+}
+
+// IP6ndProxySilentStReply defines message 'ip6nd_proxy_silent_st_reply'.
+type IP6ndProxySilentStReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *IP6ndProxySilentStReply) Reset()               { *m = IP6ndProxySilentStReply{} }
+func (*IP6ndProxySilentStReply) GetMessageName() string { return "ip6nd_proxy_silent_st_reply" }
+func (*IP6ndProxySilentStReply) GetCrcString() string   { return "e8d4e804" }
+func (*IP6ndProxySilentStReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IP6ndProxySilentStReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *IP6ndProxySilentStReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *IP6ndProxySilentStReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
 	return nil
 }
 
@@ -668,6 +738,8 @@ func file_ip6_nd_binapi_init() {
 	api.RegisterMessage((*IP6ndProxyAddDelReply)(nil), "ip6nd_proxy_add_del_reply_e8d4e804")
 	api.RegisterMessage((*IP6ndProxyDetails)(nil), "ip6nd_proxy_details_d35be8ff")
 	api.RegisterMessage((*IP6ndProxyDump)(nil), "ip6nd_proxy_dump_51077d14")
+	api.RegisterMessage((*IP6ndProxySilentSt)(nil), "ip6nd_proxy_silent_st_7daa1e3a")
+	api.RegisterMessage((*IP6ndProxySilentStReply)(nil), "ip6nd_proxy_silent_st_reply_e8d4e804")
 	api.RegisterMessage((*IP6ndSendRouterSolicitation)(nil), "ip6nd_send_router_solicitation_e5de609c")
 	api.RegisterMessage((*IP6ndSendRouterSolicitationReply)(nil), "ip6nd_send_router_solicitation_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceIP6ndRaConfig)(nil), "sw_interface_ip6nd_ra_config_3eb00b1c")
@@ -686,6 +758,8 @@ func AllMessages() []api.Message {
 		(*IP6ndProxyAddDelReply)(nil),
 		(*IP6ndProxyDetails)(nil),
 		(*IP6ndProxyDump)(nil),
+		(*IP6ndProxySilentSt)(nil),
+		(*IP6ndProxySilentStReply)(nil),
 		(*IP6ndSendRouterSolicitation)(nil),
 		(*IP6ndSendRouterSolicitationReply)(nil),
 		(*SwInterfaceIP6ndRaConfig)(nil),

@@ -15,6 +15,7 @@ import (
 type RPCService interface {
 	IP6ndProxyAddDel(ctx context.Context, in *IP6ndProxyAddDel) (*IP6ndProxyAddDelReply, error)
 	IP6ndProxyDump(ctx context.Context, in *IP6ndProxyDump) (RPCService_IP6ndProxyDumpClient, error)
+	IP6ndProxySilentSt(ctx context.Context, in *IP6ndProxySilentSt) (*IP6ndProxySilentStReply, error)
 	IP6ndSendRouterSolicitation(ctx context.Context, in *IP6ndSendRouterSolicitation) (*IP6ndSendRouterSolicitationReply, error)
 	SwInterfaceIP6ndRaConfig(ctx context.Context, in *SwInterfaceIP6ndRaConfig) (*SwInterfaceIP6ndRaConfigReply, error)
 	SwInterfaceIP6ndRaPrefix(ctx context.Context, in *SwInterfaceIP6ndRaPrefix) (*SwInterfaceIP6ndRaPrefixReply, error)
@@ -75,6 +76,15 @@ func (c *serviceClient_IP6ndProxyDumpClient) Recv() (*IP6ndProxyDetails, error) 
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
+}
+
+func (c *serviceClient) IP6ndProxySilentSt(ctx context.Context, in *IP6ndProxySilentSt) (*IP6ndProxySilentStReply, error) {
+	out := new(IP6ndProxySilentStReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IP6ndSendRouterSolicitation(ctx context.Context, in *IP6ndSendRouterSolicitation) (*IP6ndSendRouterSolicitationReply, error) {
