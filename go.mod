@@ -15,7 +15,7 @@ require (
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
-	github.com/osrg/gobgp v2.0.0+incompatible
+	github.com/osrg/gobgp v0.0.0-20210302053313-5960e8ebd1e3
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/libcalico-go v1.7.2-0.20200616235705-7bb88b19faec
 	github.com/sirupsen/logrus v1.6.0
@@ -23,7 +23,8 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/vishvananda/netlink v1.0.1-0.20191217171528-ed8931371a80
 	github.com/yookoala/realpath v1.0.0
-	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
+	golang.org/x/net v0.0.0-20200528225125-3c3fba18258b
+	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
 	golang.org/x/sys v0.0.0-20200610111108-226ff32320da
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/grpc v1.24.0
@@ -33,4 +34,3 @@ require (
 	k8s.io/client-go v0.17.9
 )
 
-replace github.com/osrg/gobgp v2.0.0+incompatible => github.com/osrg/gobgp v0.0.0-20191101114856-a42a1a5f6bf0
