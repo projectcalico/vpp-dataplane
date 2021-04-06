@@ -17,6 +17,8 @@ package uplink
 
 import (
 	"fmt"
+
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
@@ -77,8 +79,7 @@ func (d *AFXDPDriver) RestoreLinux() {
 	if !d.conf.IsUp {
 		return
 	}
-	// This assumes the link has kept the same name after the rebind.
-	// It should be always true on systemd based distros
+	// Interface should pop back in root ns once vpp exits
 	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
 	if err != nil {
 		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
@@ -101,11 +102,28 @@ func (d *AFXDPDriver) RestoreLinux() {
 			log.Errorf("Error setting link %s NumQueues to %d %v", d.params.MainInterface, d.conf.NumRxQueues, err)
 		}
 	}
+
 	// Re-add all adresses and routes
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+	// Move interface to VPP namespace
+	link, err := utils.SafeGetLink(d.params.MainInterface)
+	if err != nil {
+		return errors.Wrap(err, "cannot find uplink for af_xdp")
+	}
+	err = netlink.LinkSetNsPid(link, vppPid)
+	if err != nil {
+		return errors.Wrap(err, "cannot move uplink to vpp netns")
+	}
+	err = ns.WithNetNSPath(fmt.Sprintf("/proc/%d/ns/net", vppPid), func(ns.NetNS) error {
+		return netlink.LinkSetUp(link)
+	})
+	if err != nil {
+		return errors.Wrap(err, "cannot set uplink up in vpp ns")
+	}
+
 	intf := types.VppXDPInterface{
 		HostInterfaceName: d.params.MainInterface,
 		RxQueueSize:       d.params.RxQueueSize,

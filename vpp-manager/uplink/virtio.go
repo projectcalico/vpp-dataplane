@@ -106,7 +106,7 @@ func (d *VirtioDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	swIfIndex, err := vpp.CreateVirtio(d.conf.PciId, &d.conf.HardwareAddr)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating VIRTIO interface")

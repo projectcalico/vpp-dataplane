@@ -96,20 +96,6 @@ nf_conntrack_ipv6
 uio_pci_generic
 EOF
 
-# Set mtu of eth0 and eth1 devices to 1300, otherwise there may be issues when using a VPN on the host system.
-cat <<EOF > /etc/systemd/system/ip-set-mtu.service
-[Unit]
-After=network.target
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c 'ip link set mtu 1300 dev eth0'
-ExecStart=/bin/bash -c 'ip link set mtu 1300 dev eth1'
-[Install]
-WantedBy=default.target
-EOF
-systemctl daemon-reload
-systemctl enable ip-set-mtu.service
-
 cat <<EOF > /etc/apt/apt.conf.d/proxy.conf
 Acquire {
   HTTP::proxy "#{ENV['VAGRANT_VM_PROXY']}";
@@ -206,17 +192,22 @@ EOF
 
 resize2fs /dev/vda3
 
-cat <<EOF > /etc/netplan/99-v6.yaml
----                                                                                                                                                                                        
-network:                                                                                                                                                                                   
-  version: 2                                                                                                                                                                               
-  renderer: networkd                                                                                                                                                                       
-  ethernets:                                                                                                                                                                               
-    eth1:                                                                                                                                                                                  
-      addresses:                                                                                                                                                                           
+cat <<EOF > /etc/netplan/99-calicovpp.yaml
+---
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:
+      mtu: 1380
+    eth1:
+      mtu: 1380
+      addresses:
         - #{NODE > 0 ? NODE_IP6 : MASTER_IP6}/64
 EOF
+
 netplan apply
+
 KUBELET_EXTRA_ARGS_FILE=/etc/default/kubelet
 echo 'KUBELET_EXTRA_ARGS=--node-ip=#{NODE > 0 ? NODE_ADDRESS : MASTER_ADDRESS} --cni-bin-dir=/opt/cni/bin,/usr/libexec/cni' > "${KUBELET_EXTRA_ARGS_FILE}"
 systemctl enable kubelet

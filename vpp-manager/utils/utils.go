@@ -398,21 +398,28 @@ func GetOsKernelVersion() (ver *config.KernelVersion, err error) {
 	return ver, err
 }
 
-func SafeSetInterfaceUpByName(interfaceName string) (link netlink.Link, err error) {
+func SafeGetLink(interfaceName string) (link netlink.Link, err error) {
 	retries := 0
 	for {
 		link, err = netlink.LinkByName(interfaceName)
 		if err != nil {
 			retries += 1
-			if retries >= 10 {
+			if retries >= 20 {
 				return nil, errors.Wrapf(err, "Error finding link %s after %d tries", interfaceName, retries)
 			}
 			time.Sleep(500 * time.Millisecond)
 		} else {
-			log.Infof("found links %s after %d tries", interfaceName, retries)
-			break
+			return link, nil
 		}
 	}
+}
+
+func SafeSetInterfaceUpByName(interfaceName string) (link netlink.Link, err error) {
+	link, err = SafeGetLink(interfaceName)
+	if err != nil {
+		return nil, err
+	}
+
 	err = netlink.LinkSetUp(link)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error setting link %s back up", interfaceName)
@@ -432,4 +439,92 @@ func CycleHardwareAddr(hwAddr net.HardwareAddr, n uint8) net.HardwareAddr {
 	i = (i & tmask) | (((i & lmask) << 1) & lmask) | (i & nmask)
 	hw[len(hw)-1] = i
 	return hw
+}
+
+func RenameInterface(name, newName string) (err error) {
+	link, err := SafeGetLink(name)
+	if err != nil {
+		return errors.Wrapf(err, "error finding link %s", name)
+	}
+
+	isUp := (link.Attrs().Flags & net.FlagUp) != 0
+
+	if isUp {
+		if err = netlink.LinkSetDown(link); err != nil {
+			netlink.LinkSetUp(link)
+			return errors.Wrapf(err, "cannot set link %s down", name)
+		}
+	}
+
+	if err = netlink.LinkSetName(link, newName); err != nil {
+		netlink.LinkSetUp(link)
+		return errors.Wrapf(err, "cannot rename link %s to %s", name, newName)
+	}
+
+	if isUp {
+		err = netlink.LinkSetUp(link)
+		return errors.Wrapf(err, "cannot set link %s up", newName)
+	}
+	return nil
+}
+
+func NormalizeIP(in net.IP) net.IP {
+	if out := in.To4(); out != nil {
+		return out
+	}
+	return in.To16()
+}
+
+// IncrementIP returns the given IP + 1
+func IncrementIP(ip net.IP) (result net.IP) {
+	ip = NormalizeIP(ip)
+	result = make([]byte, len(ip))
+
+	carry := true
+	for i := len(ip) - 1; i >= 0; i-- {
+		result[i] = ip[i]
+		if carry {
+			result[i]++
+			if result[i] != 0 {
+				carry = false
+			}
+		}
+	}
+	return
+}
+
+// DecrementIP returns the given IP + 1
+func DecrementIP(ip net.IP) (result net.IP) {
+	ip = NormalizeIP(ip)
+	result = make([]byte, len(ip))
+
+	carry := true
+	for i := len(ip) - 1; i >= 0; i-- {
+		result[i] = ip[i]
+		if carry {
+			result[i]--
+			if result[i] != 0xff {
+				carry = false
+			}
+		}
+	}
+	return
+}
+
+// NetworkAddr returns the first address in the given network, or the network address.
+func NetworkAddr(n *net.IPNet) net.IP {
+	network := make([]byte, len(n.IP))
+	for i := 0; i < len(n.IP); i++ {
+		network[i] = n.IP[i] & n.Mask[i]
+	}
+	return network
+}
+
+// BroadcastAddr returns the last address in the given network, or the broadcast address.
+func BroadcastAddr(n *net.IPNet) net.IP {
+	broadcast := make([]byte, len(n.IP))
+	for i := 0; i < len(n.IP); i++ {
+		broadcast[i] = n.IP[i] | ^n.Mask[i]
+	}
+	return broadcast
 }

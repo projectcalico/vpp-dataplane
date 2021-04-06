@@ -66,6 +66,7 @@ function generate_govpp_apis ()
 	  --no-version-info \
 	  ikev2 \
 	  gso \
+	  arp \
 	  interface \
 	  ip \
 	  ipip \

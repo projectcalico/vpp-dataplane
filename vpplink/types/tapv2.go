@@ -22,6 +22,7 @@ import (
 type TapFlags uint32
 
 const (
+	TapFlagNone        TapFlags = 0
 	TapFlagGSO         TapFlags = 1
 	TapFlagCsumOffload TapFlags = 2
 	TapFlagPersist     TapFlags = 4

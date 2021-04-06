@@ -57,6 +57,7 @@ const (
 const (
 	DefaultTapQueueSize = 1024
 	DefaultPhyQueueSize = 1024
+	DefaultEncapSize    = 60 // Used to lower the MTU of the routes to the cluster
 	DefaultNumRxQueues  = 1
 	defaultRxMode       = types.Adaptative
 )
@@ -366,6 +367,11 @@ func PrepareConfiguration() (params *config.VppManagerParams, conf *config.Inter
 	conf, err = getInterfaceConfig(params)
 	if err != nil {
 		log.Fatalf("Error getting initial interface configuration: %s", err)
+	}
+
+	// Use the linux interface MTU as default value if nothing is configured from env
+	if params.TapMtu == 0 {
+		params.TapMtu = conf.Mtu
 	}
 
 	return params, conf

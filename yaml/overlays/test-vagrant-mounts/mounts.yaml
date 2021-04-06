@@ -9,10 +9,6 @@ spec:
       containers:
         - name: calico-node
           imagePullPolicy: Never
-          # command:
-          #   - bash
-          #   - "-c"
-          #   - sleep infinity
           volumeMounts:
             - name: repo-root
               mountPath: /home/hostuser/vpp-dataplane

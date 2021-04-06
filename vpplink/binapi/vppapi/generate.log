@@ -1,12 +1,16 @@
-VPP Version                 : 21.06-rc0~395-g10f4fccf4
+VPP Version                 : 21.06-rc0~399-gb4471f7a9
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 9cc765559 avf: don't memcpy if adminq output buffer size is 0
 ------------------ Cherry picked commits --------------------
-10f4fccf4 capo: Calico Policies plugin
-e0a5115fd acl: acl-plugin custom policies
-de2c4bd14 cnat: fix cnat feature partial cksum
-f477e983e cnat: maglev fixes
-8cf1fe620 dpdk: implement interrupt mode
-4c0cfe7ec devices: add support for pseudo header checksum
-eac9413f7 virtio: DRAFT: multi tx support
+b4471f7a9 capo: Calico Policies plugin
+f41ca7b3e acl: acl-plugin custom policies
+64fa56a03 cnat: fix cnat feature partial cksum
+99bdce8a7 cnat: [WIP] no k8s maglev from pods
+cc9dbadf2 cnat: maglev fixes
+fc09cee58 ip6-nd: silent the source and target checks on given interface
+d0ad987dd gso: do not try gro on small packets
+cdf2ebaa4 dpdk: implement interrupt mode
+56ae73b00 devices: add support for pseudo header checksum
+4db65c752 virtio: DRAFT: multi tx support
+042faca34 af_packet: use netlink to get/set mtu
 -------------------------------------------------------------

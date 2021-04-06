@@ -148,7 +148,7 @@ func (d *DPDKDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink) error {
+func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error {
 	/* Nothing to do VPP autocreates */
 	return nil
 }
