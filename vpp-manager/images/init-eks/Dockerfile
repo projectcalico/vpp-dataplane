@@ -1,10 +1,8 @@
-FROM centos:6
+FROM centos:8
 
 LABEL maintainer="nskrzypc@cisco.com"
 
-WORKDIR /
+ADD init_eks.sh /init_eks.sh
+ADD entrypoint.sh /entrypoint.sh
 
-ADD 4.14.214-160.339.amzn2.x86_64.igb_uio.ko /igb_uio.ko
-ADD init_eks.sh /
-
-ENTRYPOINT ["/init_eks.sh"]
+ENTRYPOINT ["/entrypoint.sh"]

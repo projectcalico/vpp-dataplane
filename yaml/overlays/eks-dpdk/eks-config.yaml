@@ -42,26 +42,6 @@ metadata:
 spec:
   template:
     spec:
-      initContainers:
-        - name: calicovpp-init-eks
-          imagePullPolicy: IfNotPresent
-          image: calicovpp/init-eks:prerelease
-          securityContext:
-            privileged: true
-          volumeMounts:
-            - mountPath: /lib/modules
-              name: lib-modules
-              readOnly: true
-            - mountPath: /host
-              name: host-root
-          env:
-            - name: NR_HUGEPAGES
-              value: "512"
-          resources:
-            requests:
-              cpu: 1
-            limits:
-              hugepages-2Mi: 0
       containers:
         - name: vpp
           volumeMounts:
