@@ -9,10 +9,6 @@ spec:
       containers:
         - name: calico-node
           imagePullPolicy: Never
-          # command:
-          #   - bash
-          #   - "-c"
-          #   - sleep infinity
           volumeMounts:
             - name: repo-root
               mountPath: /home/hostuser/vpp-dataplane
@@ -24,10 +20,6 @@ spec:
               mountPath: /bin/calico-vpp-agent
               readOnly: true
         - name: vpp
-          # command:
-          #   - bash
-          #   - "-c"
-          #   - sleep infinity
           imagePullPolicy: Never
           env:
             - name: CALICO_LOG_LEVEL
