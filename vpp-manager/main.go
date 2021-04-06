@@ -109,7 +109,7 @@ func handleSignals() {
 			}
 			vppProcess.Signal(s)
 			log.Infof("Signaled vpp (PID %d) %+v", vppProcess.Pid, s)
-			if s == syscall.SIGINT || s == syscall.SIGQUIT || s == syscall.SIGSTOP {
+			if s == syscall.SIGINT || s == syscall.SIGQUIT {
 				go timeoutSigKill(currentVPPIndex)
 			}
 		}
