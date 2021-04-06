@@ -515,8 +515,8 @@ func (v *VppRunner) runVpp() (err error) {
 	vppCmd.Stdout = os.Stdout
 	vppCmd.Stderr = os.Stderr
 	err = vppCmd.Start()
+	defer v.restoreConfiguration()
 	if err != nil {
-		v.restoreConfiguration()
 		return errors.Wrap(err, "Error starting vpp process")
 	}
 	vppProcess = vppCmd.Process
@@ -532,7 +532,6 @@ func (v *VppRunner) runVpp() (err error) {
 		terminateVpp("Error connecting to VPP (SIGINT %d): %v", vppProcess.Pid, err)
 		v.vpp.Close()
 		<-vppDeadChan
-		v.restoreConfiguration()
 		return fmt.Errorf("cannot connect to VPP after 10 tries")
 	}
 
@@ -541,7 +540,6 @@ func (v *VppRunner) runVpp() (err error) {
 		terminateVpp("Error creating main interface (SIGINT %d): %v", vppProcess.Pid, err)
 		v.vpp.Close()
 		<-vppDeadChan
-		v.restoreConfiguration()
 		return errors.Wrap(err, "Error creating main interface")
 	}
 
@@ -551,7 +549,6 @@ func (v *VppRunner) runVpp() (err error) {
 		terminateVpp("Error setting main interface up (SIGINT %d): %v", vppProcess.Pid, err)
 		v.vpp.Close()
 		<-vppDeadChan
-		v.restoreConfiguration()
 		return errors.Wrap(err, "Error setting data interface up")
 	}
 
@@ -568,7 +565,6 @@ func (v *VppRunner) runVpp() (err error) {
 	if err != nil {
 		terminateVpp("Error configuring VPP (SIGINT %d): %v", vppProcess.Pid, err)
 		<-vppDeadChan
-		v.restoreConfiguration()
 		return errors.Wrap(err, "Error configuring VPP")
 	}
 
@@ -577,7 +573,6 @@ func (v *VppRunner) runVpp() (err error) {
 	if err != nil {
 		terminateVpp("Error updating Calico node (SIGINT %d): %v", vppProcess.Pid, err)
 		<-vppDeadChan
-		v.restoreConfiguration()
 		return errors.Wrap(err, "Error updating Calico node")
 	}
 
@@ -589,7 +584,6 @@ func (v *VppRunner) runVpp() (err error) {
 
 	v.poolWatcher.Stop()
 	v.routeWatcher.Stop()
-	v.restoreConfiguration()
 	return nil
 }
 

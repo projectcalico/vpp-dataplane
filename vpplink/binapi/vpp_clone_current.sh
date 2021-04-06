@@ -18,6 +18,7 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/86/29386/9 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/21/31321/7 && git cherry-pick FETCH_HEAD # 31321: devices: add support for pseudo header checksum | https://gerrit.fd.io/r/c/vpp/+/31321
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31249/4 && git cherry-pick FETCH_HEAD # 31249: dpdk: implement interrupt mode | https://gerrit.fd.io/r/c/vpp/+/31249
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/69/31869/7 && git cherry-pick FETCH_HEAD # 31869: gso: fix packet length when padding is present | https://gerrit.fd.io/r/c/vpp/+/31869
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/05/31905/1 && git cherry-pick FETCH_HEAD # 31905: vpp: Fix session flag initialization | https://gerrit.fd.io/r/c/vpp/+/31905
 
 # IPv6 ND patch (temporary)
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/68/31868/1 && git cherry-pick FETCH_HEAD # 31868: ip6-nd: silent the source and target checks on given interface | https://gerrit.fd.io/r/c/vpp/+/31868
@@ -32,3 +33,5 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/49/31449/4 && git cherry-pic
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/28083/16 && git cherry-pick FETCH_HEAD # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/13/28513/19 && git cherry-pick FETCH_HEAD # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 # ------------- Policies patches -------------
+
+
