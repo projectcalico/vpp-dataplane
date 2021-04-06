@@ -33,6 +33,7 @@ type RouteWatcher struct {
 	addrUpdate        chan struct{}
 	stop              bool
 	lock              sync.Mutex
+	closeLock         sync.Mutex
 }
 
 func (r *RouteWatcher) AddRoute(route *netlink.Route) (err error) {
@@ -64,10 +65,18 @@ func (r *RouteWatcher) DelRoute(route *netlink.Route) (err error) {
 }
 
 func (r *RouteWatcher) Stop() {
-	log.Infof("stopping route watcher")
+	log.Infof("Stopping route watcher")
+	r.closeLock.Lock()
+	defer r.closeLock.Unlock()
 	r.stop = true
-	close(r.close)
-	close(r.addrClose)
+	if r.close != nil {
+		close(r.close)
+		r.close = nil
+	}
+	if r.addrClose != nil {
+		close(r.addrClose)
+		r.addrClose = nil
+	}
 }
 
 func (r *RouteWatcher) netlinkError(err error) {
@@ -99,6 +108,15 @@ func (r *RouteWatcher) RestoreAllRoutes() (err error) {
 	return nil
 }
 
+func (r *RouteWatcher) safeClose() {
+	r.closeLock.Lock()
+	if r.close != nil {
+		close(r.close)
+		r.close = nil
+	}
+	r.closeLock.Unlock()
+}
+
 func (r *RouteWatcher) WatchRoutes() {
 	r.netlinkFailed = make(chan struct{}, 1)
 	r.addrUpdate = make(chan struct{}, 10)
@@ -107,23 +125,29 @@ func (r *RouteWatcher) WatchRoutes() {
 	go r.watchAddresses()
 
 	for {
-		time.Sleep(2 * time.Second)
-		log.Infof("Subscribing to netlink route updates")
+		r.closeLock.Lock()
+		if r.stop {
+			log.Infof("Route watcher exited")
+			return
+		}
 		updates := make(chan netlink.RouteUpdate, 10)
 		r.close = make(chan struct{})
+		r.closeLock.Unlock()
+		log.Infof("Subscribing to netlink route updates")
 		err := netlink.RouteSubscribeWithOptions(updates, r.close, netlink.RouteSubscribeOptions{
 			ErrorCallback: r.netlinkError,
 		})
 		if err != nil {
 			log.Errorf("error watching for routes, sleeping before retrying")
-			continue
+			r.safeClose()
+			goto restart
 		}
 		// Stupidly re-add all of our routes after we start watching to make sure they're there
 		if err = r.RestoreAllRoutes(); err != nil {
 			log.Errorf("error adding routes, sleeping before retrying: %v", err)
-			continue
+			r.safeClose()
+			goto restart
 		}
-	watch:
 		for {
 			select {
 			case <-r.netlinkFailed:
@@ -132,7 +156,7 @@ func (r *RouteWatcher) WatchRoutes() {
 					return
 				}
 				log.Info("Route watcher stopped / failed")
-				break watch
+				goto restart
 			case update := <-updates:
 				if update.Type == syscall.RTM_DELROUTE {
 					r.lock.Lock()
@@ -143,8 +167,8 @@ func (r *RouteWatcher) WatchRoutes() {
 							err = netlink.RouteReplace(route)
 							if err != nil {
 								log.Errorf("error adding route %+v: %v, restarting watcher", route, err)
-								close(r.close)
-								break watch
+								r.safeClose()
+								goto restart
 							}
 							break
 						}
@@ -155,11 +179,13 @@ func (r *RouteWatcher) WatchRoutes() {
 				log.Infof("Address update, restoring all routes")
 				if err = r.RestoreAllRoutes(); err != nil {
 					log.Errorf("error adding routes, sleeping before retrying: %v", err)
-					close(r.close)
-					break watch
+					r.safeClose()
+					goto restart
 				}
 			}
 		}
+	restart:
+		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -167,23 +193,29 @@ func (r *RouteWatcher) watchAddresses() {
 	r.addrNetlinkFailed = make(chan struct{}, 1)
 
 	for {
-		time.Sleep(2 * time.Second)
-		log.Infof("Subscribing to netlink address updates")
+		r.closeLock.Lock()
+		if r.stop {
+			log.Infof("Address watcher exited")
+			return
+		}
 		updates := make(chan netlink.AddrUpdate, 10)
 		r.addrClose = make(chan struct{})
+		r.closeLock.Unlock()
+		log.Infof("Subscribing to netlink address updates")
 		err := netlink.AddrSubscribeWithOptions(updates, r.close, netlink.AddrSubscribeOptions{
 			ErrorCallback: r.addrNetlinkError,
 		})
 		if err != nil {
 			log.Errorf("error watching for addresses, sleeping before retrying")
-			continue
+			r.closeLock.Lock()
+			if r.addrClose != nil {
+				close(r.addrClose)
+				r.addrClose = nil
+			}
+			r.closeLock.Unlock()
+			goto restart
 		}
-		// Stupidly re-add all of our routes after we start watching to make sure they're there
-		if err = r.RestoreAllRoutes(); err != nil {
-			log.Errorf("error adding routes, sleeping before retrying: %v", err)
-			continue
-		}
-	watch:
+
 		for {
 			select {
 			case <-r.addrNetlinkFailed:
@@ -192,10 +224,12 @@ func (r *RouteWatcher) watchAddresses() {
 					return
 				}
 				log.Info("Address watcher stopped / failed")
-				break watch
+				goto restart
 			case <-updates:
 				r.addrUpdate <- struct{}{}
 			}
 		}
+	restart:
+		time.Sleep(2 * time.Second)
 	}
 }
