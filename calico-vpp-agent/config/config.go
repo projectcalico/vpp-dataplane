@@ -52,6 +52,7 @@ const (
 	TapRxModeEnvVar           = "CALICOVPP_TAP_RX_MODE"
 	TapQueueSizeEnvVar        = "CALICOVPP_TAP_RING_SIZE"
 	TapMtuEnvVar              = "CALICOVPP_TAP_MTU"
+	IpsecNbAsyncCryptoThEnvVar = "CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD"
 	BgpLogLevelEnvVar         = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar       = "SERVICE_PREFIX"
@@ -81,6 +82,7 @@ var (
 	TapRxQueueSize    int = 0
 	TapTxQueueSize    int = 0
 	TapMtu            int = 0
+	IpsecNbAsyncCryptoThread int = 0
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
@@ -95,6 +97,7 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:BgpLogLevel       %d", BgpLogLevel)
 	log.Infof("Config:LogLevel          %d", LogLevel)
 	log.Infof("Config:TapMtu            %d", TapMtu)
+	log.Infof("Config:IpsecNbAsyncCryptoThread  %d", IpsecNbAsyncCryptoThread)
 }
 
 var supportedEnvVars map[string]bool
@@ -211,6 +214,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapMtuEnvVar, conf, tapMtu, err)
 		}
 		TapMtu = int(tapMtu)
+	}
+
+	if conf := getEnvValue(IpsecNbAsyncCryptoThEnvVar); conf != "" {
+		ipsecNbAsyncCryptoThread, err := strconv.ParseInt(conf, 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", IpsecNbAsyncCryptoThEnvVar, conf, ipsecNbAsyncCryptoThread, err)
+		}
+		IpsecNbAsyncCryptoThread = int(ipsecNbAsyncCryptoThread)
 	}
 
 	if conf := getEnvValue(TapQueueSizeEnvVar); conf != "" {

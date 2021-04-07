@@ -47,29 +47,30 @@ const (
 )
 
 type VppManagerParams struct {
-	VppStartupSleepSeconds int
-	MainInterface          string
-	ConfigExecTemplate     string
-	ConfigTemplate         string
-	InitScriptTemplate     string
-	NodeName               string
-	CorePattern            string
-	RxMode                 types.RxMode
-	TapRxMode              types.RxMode
-	ServiceCIDRs           []net.IPNet
-	VppIpConfSource        string
-	ExtraAddrCount         int
-	NativeDriver           string
-	TapRxQueueSize         int
-	TapTxQueueSize         int
-	RxQueueSize            int
-	TxQueueSize            int
-	TapMtu                 int
-	NumRxQueues            int
-	NewDriverName          string
-	DefaultGWs             []net.IP
-	IfConfigSavePath       string
-	EnableGSO              bool
+	VppStartupSleepSeconds   int
+	MainInterface            string
+	ConfigExecTemplate       string
+	ConfigTemplate           string
+	InitScriptTemplate       string
+	NodeName                 string
+	CorePattern              string
+	RxMode                   types.RxMode
+	TapRxMode                types.RxMode
+	ServiceCIDRs             []net.IPNet
+	VppIpConfSource          string
+	ExtraAddrCount           int
+	NativeDriver             string
+	TapRxQueueSize           int
+	TapTxQueueSize           int
+	RxQueueSize              int
+	TxQueueSize              int
+	TapMtu                   int
+	NumRxQueues              int
+	NewDriverName            string
+	DefaultGWs               []net.IP
+	IfConfigSavePath         string
+	EnableGSO                bool
+	IpsecNbAsyncCryptoThread int
 	/* Capabilities */
 	LoadedDrivers      map[string]bool
 	KernelVersion      *KernelVersion

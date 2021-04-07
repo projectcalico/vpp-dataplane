@@ -609,6 +609,7 @@ func (s *Server) Serve() {
 	}
 	/* Initialization : rescan state */
 	for _, provider := range s.providers {
+		provider.OnVppRestart()
 		provider.RescanState()
 	}
 

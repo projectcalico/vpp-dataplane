@@ -322,6 +322,10 @@ func (v *VppRunner) configureVpp() (err error) {
 		HostMacAddress: v.conf.HardwareAddr,
 		MacAddress:     vppSideMac,
 	})
+
+	// Always set this tap on worker 0
+	err = v.vpp.SetInterfaceRxPlacement(uint32(tapSwIfIndex), uint32(0), uint32(0), false)
+
 	if err != nil {
 		return errors.Wrap(err, "Error creating tap")
 	}
