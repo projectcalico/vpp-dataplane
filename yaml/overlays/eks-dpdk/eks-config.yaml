@@ -52,6 +52,12 @@ spec:
               cpu: 1
             limits:
               hugepages-2Mi: 512Mi
+        - name: calico-node
+          env:
+            - name: CALICO_IPV4POOL_IPIP
+              value: "Always"
+            - name: FELIX_AWSSRCDSTCHECK
+              value: Disable
       volumes:
         - name: hugepage
           emptyDir:
