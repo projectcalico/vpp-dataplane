@@ -131,6 +131,15 @@ func (d *AVFDriver) RestoreLinux() {
 }
 
 func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error {
+	if d.pfPCI != "" {
+		/* We were passed a PF, move it to vpp's NS so it doesn't
+		   conflict with vpptap0 */
+		err := d.moveInterfaceToNS(d.params.MainInterface, vppPid)
+		if err != nil {
+			return errors.Wrap(err, "Moving uplink in NS failed")
+		}
+	}
+
 	swIfIndex, err := vpp.CreateAVF(&types.AVFInterface{
 		NumRxQueues: d.params.NumRxQueues,
 		TxQueueSize: d.params.TxQueueSize,
