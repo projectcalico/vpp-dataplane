@@ -34,11 +34,6 @@ type IpsecProvider struct {
 }
 
 func (p *IpsecProvider) OnVppRestart() {
-	var err error
-	err = p.vpp.SetIPsecAsyncMode(true)
-	if err != nil {
-		p.log.Errorf("SetIPsecAsyncMode error %s", err)
-	}
 
 	var nbDataThread int = 0
 	numVPPWorkers, err := p.vpp.GetNumVPPWorkers()
@@ -47,6 +42,12 @@ func (p *IpsecProvider) OnVppRestart() {
 	}
 
 	if config.IpsecNbAsyncCryptoThread > 0 {
+		var err error
+		err = p.vpp.SetIPsecAsyncMode(true)
+		if err != nil {
+			p.log.Errorf("SetIPsecAsyncMode error %s", err)
+		}
+
 		nbDataThread = (int)(numVPPWorkers) - config.IpsecNbAsyncCryptoThread
 		p.log.Infof("nbDataThread %d", nbDataThread)
 

@@ -234,12 +234,14 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}
 	s.log.Infof("created tun[%d]", swIfIndex)
 
-	var nbDataThread int = 0
+	nbDataThread := int(s.NumVPPWorkers)
 	if config.IpsecNbAsyncCryptoThread > 0 {
-		nbDataThread = (int)(s.NumVPPWorkers) - config.IpsecNbAsyncCryptoThread
+		nbDataThread = nbDataThread - config.IpsecNbAsyncCryptoThread
 		s.log.Infof("ipsec async crypto %d", config.IpsecNbAsyncCryptoThread)
-	} else {
-		nbDataThread = (int)(s.NumVPPWorkers)
+		if nbDataThread <= 0 {
+			s.log.Error("not enough thread for async crypto")
+			nbDataThread = int(s.NumVPPWorkers)
+		}
 	}
 
 	if nbDataThread <= 0 {
