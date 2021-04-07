@@ -16,11 +16,14 @@
 package uplink
 
 import (
+	"fmt"
 	"io/ioutil"
 	"strings"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -53,6 +56,25 @@ type UplinkDriver interface {
 
 func (d *UplinkDriverData) GetName() string {
 	return d.name
+}
+
+func (d *UplinkDriverData) moveInterfaceToNS(ifName string, pid int) error {
+	// Move interface to VPP namespace
+	link, err := utils.SafeGetLink(ifName)
+	if err != nil {
+		return errors.Wrap(err, "cannot find uplink for af_xdp")
+	}
+	err = netlink.LinkSetNsPid(link, pid)
+	if err != nil {
+		return errors.Wrap(err, "cannot move uplink to vpp netns")
+	}
+	err = ns.WithNetNSPath(fmt.Sprintf("/proc/%d/ns/net", pid), func(ns.NetNS) error {
+		return netlink.LinkSetUp(link)
+	})
+	if err != nil {
+		return errors.Wrap(err, "cannot set uplink up in vpp ns")
+	}
+	return nil
 }
 
 func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {

@@ -18,7 +18,6 @@ package uplink
 import (
 	"fmt"
 
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
@@ -72,20 +71,9 @@ func (d *AFPacketDriver) RestoreLinux() {
 }
 
 func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
-	// Move interface to VPP namespace
-	link, err := utils.SafeGetLink(d.params.MainInterface)
+	err = d.moveInterfaceToNS(d.params.MainInterface, vppPid)
 	if err != nil {
-		return errors.Wrap(err, "cannot find uplink for af_packet")
-	}
-	err = netlink.LinkSetNsPid(link, vppPid)
-	if err != nil {
-		return errors.Wrap(err, "cannot move uplink to vpp netns")
-	}
-	err = ns.WithNetNSPath(fmt.Sprintf("/proc/%d/ns/net", vppPid), func(ns.NetNS) error {
-		return netlink.LinkSetUp(link)
-	})
-	if err != nil {
-		return errors.Wrap(err, "cannot set uplink up in vpp ns")
+		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
 
 	swIfIndex, err := vpp.CreateAfPacket(d.params.MainInterface, &d.conf.HardwareAddr)
