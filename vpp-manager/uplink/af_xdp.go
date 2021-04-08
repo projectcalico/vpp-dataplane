@@ -67,7 +67,6 @@ func (d *AFXDPDriver) PreconfigureLinux() error {
 	if err != nil {
 		return errors.Wrapf(err, "Error finding link %s", d.params.MainInterface)
 	}
-	d.removeLinuxIfConf(false /* down */)
 	err = netlink.SetPromiscOn(link)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting link %s promisc on", d.params.MainInterface)
