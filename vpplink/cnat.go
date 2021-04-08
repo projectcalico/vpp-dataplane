@@ -171,16 +171,16 @@ func (v *VppLink) RemovePodInterface(swIfIndex uint32) (err error) {
 
 func (v *VppLink) EnableCnatSNAT(swIfIndex uint32, isIp6 bool) (err error) {
 	if isIp6 {
-		return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V6)
+		return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, true /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V6)
 	}
-	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V4)
+	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, true /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V4)
 }
 
 func (v *VppLink) DisableCnatSNAT(swIfIndex uint32, isIp6 bool) (err error) {
 	if isIp6 {
-		return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, true /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V6)
+		return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V6)
 	}
-	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, true /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V4)
+	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V4)
 }
 
 func (v *VppLink) cnatSetSnatPolicy(pol cnat.CnatSnatPolicies) (err error) {
