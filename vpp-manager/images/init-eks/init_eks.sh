@@ -82,6 +82,7 @@ EOF
 
 configure_machine ()
 {
+	sudo rm -f /etc/cni/net.d/10-aws.conflist
 	sudo modprobe uio
 	if [ x$(lsmod | awk '{ print $1 }' | grep igb_uio) == x ]; then
 		build_and_install_igb_uio
