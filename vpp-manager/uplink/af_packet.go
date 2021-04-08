@@ -43,7 +43,6 @@ func (d *AFPacketDriver) PreconfigureLinux() error {
 	if err != nil {
 		return errors.Wrapf(err, "Error set link %s promisc on", d.params.MainInterface)
 	}
-	d.removeLinuxIfConf(false /* down */)
 	return nil
 }
 
