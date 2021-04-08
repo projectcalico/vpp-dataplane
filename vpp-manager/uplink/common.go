@@ -110,6 +110,10 @@ func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
 }
 
 func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
+	err := netlink.LinkSetMTU(link, d.conf.Mtu)
+	if err != nil {
+		log.Errorf("Cannot restore mtu to %d: %v", d.conf.Mtu, err)
+	}
 	for _, addr := range d.conf.Addresses {
 		log.Infof("restoring address %s", addr.String())
 		err := netlink.AddrAdd(link, &addr)

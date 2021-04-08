@@ -52,6 +52,25 @@ func (v *VppLink) SetInterfaceRxMode(swIfIndex uint32, queueID uint32, mode type
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "SetInterfaceRxMode failed: req %+v reply %+v", request, response)
+	} else if response.Retval != 0 {
+		return fmt.Errorf("SetInterfaceRxMode failed (retval %d). Request: %+v", response.Retval, request)
+	}
+	return nil
+}
+
+func (v *VppLink) SetInterfaceMacAddress(swIfIndex uint32, mac *net.HardwareAddr) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	response := &interfaces.SwInterfaceSetMacAddressReply{}
+	request := &interfaces.SwInterfaceSetMacAddress{
+		SwIfIndex:  interface_types.InterfaceIndex(swIfIndex),
+		MacAddress: types.ToVppMacAddress(mac),
+	}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrapf(err, "SwInterfaceSetMacAddress failed: req %+v reply %+v", request, response)
+	} else if response.Retval != 0 {
+		return fmt.Errorf("SwInterfaceSetMacAddress failed (retval %d). Request: %+v", response.Retval, request)
 	}
 	return nil
 }

@@ -20,7 +20,7 @@ require (
 	github.com/projectcalico/libcalico-go v1.7.2-0.20200616235705-7bb88b19faec
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/viper v1.5.0 // indirect
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.0
 	github.com/vishvananda/netlink v1.0.1-0.20191217171528-ed8931371a80
 	github.com/yookoala/realpath v1.0.0
 	golang.org/x/net v0.0.0-20200528225125-3c3fba18258b
@@ -33,4 +33,3 @@ require (
 	k8s.io/apimachinery v0.17.9
 	k8s.io/client-go v0.17.9
 )
-

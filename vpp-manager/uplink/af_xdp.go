@@ -29,6 +29,7 @@ import (
 
 const (
 	minAfXDPKernelVersion = "5.4.0-0"
+	maxAfXDPMTU           = 3072
 )
 
 type AFXDPDriver struct {
@@ -46,11 +47,17 @@ func (d *AFXDPDriver) IsSupported(warn bool) bool {
 		}
 		return false
 	}
-	if d.params.KernelVersion.IsAtLeast(minVersion) {
-		return true
+	if !d.params.KernelVersion.IsAtLeast(minVersion) {
+		if warn {
+			log.Warnf("Kernel %s doesn't support AF_XDP", d.params.KernelVersion)
+		}
+		return false
 	}
-	if warn {
-		log.Warnf("Kernel %s doesn't support AF_XDP", d.params.KernelVersion)
+	if d.conf.Mtu > maxAfXDPMTU {
+		if warn {
+			log.Warnf("MTU %d too large for AF_XDP (max 3072)", d.conf.Mtu)
+		}
+		return false
 	}
 	return false
 }
@@ -70,6 +77,17 @@ func (d *AFXDPDriver) PreconfigureLinux() error {
 		log.Errorf("Error setting link %s NumQueues to %d, using %d queues: %v", d.params.MainInterface, d.params.NumRxQueues, d.conf.NumRxQueues, err)
 		/* Try with linux NumRxQueues on error, otherwise af_xdp wont start */
 		d.params.NumRxQueues = d.conf.NumRxQueues
+	}
+	if d.conf.Mtu > maxAfXDPMTU {
+		log.Infof("Reducing interface MTU to %d for AF_XDP", maxAfXDPMTU)
+		err = netlink.LinkSetMTU(link, maxAfXDPMTU)
+		if err != nil {
+			return errors.Wrapf(err, "Error reducing MTU to %d", maxAfXDPMTU)
+		}
+		if d.params.TapMtu > maxAfXDPMTU {
+			log.Infof("Reducing tap MTU to %d", maxAfXDPMTU)
+			d.params.TapMtu = maxAfXDPMTU
+		}
 	}
 	return nil
 }
@@ -126,6 +144,11 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (
 
 	if intf.SwIfIndex != config.DataInterfaceSwIfIndex {
 		return fmt.Errorf("Created AF_XDP interface has wrong swIfIndex %d!", intf.SwIfIndex)
+	}
+
+	err = vpp.SetInterfaceMacAddress(intf.SwIfIndex, &d.conf.HardwareAddr)
+	if err != nil {
+		return errors.Wrap(err, "could not set af_xdp interface mac address in vpp")
 	}
 	return nil
 }
