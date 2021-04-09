@@ -16,6 +16,8 @@
 package routing
 
 import (
+	"time"
+
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/options"
@@ -26,6 +28,7 @@ import (
 var (
 	/* Not super pretty but it works... */
 	lastFelixConfigurationVersion string
+	watchedFelixConfName          string = "default"
 )
 
 func (s *Server) GetFelixConfig() *calicov3.FelixConfigurationSpec {
@@ -33,14 +36,20 @@ func (s *Server) GetFelixConfig() *calicov3.FelixConfigurationSpec {
 }
 
 func (s *Server) getFelixConfiguration() error {
-	conf, err := s.clientv3.FelixConfigurations().Get(context.Background(), "default", options.GetOptions{})
+	felixConfList, err := s.clientv3.FelixConfigurations().List(context.Background(), options.ListOptions{})
 	if err != nil {
 		lastFelixConfigurationVersion = ""
-		return errors.Wrap(err, "error getting default felix config")
+		return errors.Wrap(err, "Error getting felix config")
 	}
-	s.handleFelixConfigurationUpdate(s.felixConfiguration, &conf.Spec)
-	s.felixConfiguration = &conf.Spec
-	lastFelixConfigurationVersion = conf.ResourceVersion
+	lastFelixConfigurationVersion = felixConfList.ResourceVersion
+	for _, felixConf := range felixConfList.Items {
+		if felixConf.Name == watchedFelixConfName {
+			s.handleFelixConfigurationUpdate(s.felixConfiguration, &felixConf.Spec)
+			s.felixConfiguration = &felixConf.Spec
+			return nil
+		}
+	}
+	s.log.Warnf("Didn't find a FelixConfig named %s", watchedFelixConfName)
 	return nil
 }
 
@@ -59,28 +68,46 @@ func (s *Server) handleFelixConfigurationUpdate(old, new *calicov3.FelixConfigur
 
 func (s *Server) watchFelixConfiguration() error {
 	for {
-		s.getFelixConfiguration()
-		watcher, err := s.clientv3.FelixConfigurations().Watch(
+		var felixConfigWatcher watch.Interface = nil
+		var eventChannel <-chan watch.Event = nil
+		err := s.getFelixConfiguration()
+		if err != nil {
+			s.log.Errorf("Error getting initial Felix config %s", err)
+			goto restart
+		}
+		felixConfigWatcher, err = s.clientv3.FelixConfigurations().Watch(
 			context.Background(),
 			options.ListOptions{ResourceVersion: lastFelixConfigurationVersion},
 		)
 		if err != nil {
 			return err
+			goto restart
 		}
-	watch:
-		for update := range watcher.ResultChan() {
+		eventChannel = felixConfigWatcher.ResultChan()
+		for {
+			update, ok := <-eventChannel
+			if !ok {
+				eventChannel = nil
+				goto restart
+			}
 			switch update.Type {
 			case watch.Error:
-				s.log.Infof("Felix conf watch returned an error")
-				break watch
+				s.log.Infof("FelixConfig watch returned an error %v", update)
+				goto restart
 			case watch.Added, watch.Modified:
 				felix := update.Object.(*calicov3.FelixConfiguration)
 				s.handleFelixConfigurationUpdate(s.felixConfiguration, &felix.Spec)
 				s.felixConfiguration = &felix.Spec
 			case watch.Deleted:
-				s.log.Infof("delete while watching FelixConfigurations")
+				s.log.Infof("FelixConfig watch returned delete")
 			}
 		}
+	restart:
+		s.log.Info("restarting FelixConfig watcher...")
+		if felixConfigWatcher != nil {
+			felixConfigWatcher.Stop()
+		}
+		time.Sleep(2 * time.Second)
 	}
 	return nil
 }
