@@ -5,8 +5,6 @@ metadata:
   name: calico-config
   namespace: kube-system
 data:
-  veth_mtu: "1440"
-
   cni_network_config: |-
     {
       "name": "k8s-pod-network",
@@ -49,6 +47,20 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: calico-vpp-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: vpp
+          env:
+            - name: CALICOVPP_DEFAULT_GW
+              value: "192.168.0.1"
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-node
   namespace: kube-system
 spec:
   template:

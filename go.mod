@@ -18,6 +18,7 @@ require (
 	github.com/osrg/gobgp v0.0.0-20210302053313-5960e8ebd1e3
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/libcalico-go v1.7.2-0.20200616235705-7bb88b19faec
+	github.com/prometheus/common v0.4.1
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/viper v1.5.0 // indirect
 	github.com/stretchr/testify v1.6.0

@@ -5,8 +5,8 @@ configMapGenerator:
   - name: calico-config
     env: config.properties
     behavior: merge
-  - name: calico-node-dev-config
-    env: config-calico-node.properties
+  - name: calico-agent-dev-config
+    env: config-calico-agent.properties
   - name: vpp-dev-config
     env: config-vpp.properties
 generatorOptions:

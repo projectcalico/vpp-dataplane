@@ -1,0 +1,178 @@
+---
+# VPP version of the calico node daemon
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: kube-system
+  labels:
+    k8s-app: calico-vpp-node
+spec:
+  selector:
+    matchLabels:
+      k8s-app: calico-vpp-node
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        k8s-app: calico-vpp-node
+      annotations:
+        # This, along with the CriticalAddonsOnly toleration below,
+        # marks the pod as a critical add-on, ensuring it gets
+        # priority scheduling and that its resources are reserved
+        # if it ever gets evicted.
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+    spec:
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+      hostNetwork: true
+      # This is required for VPP to access the other pods net namespaces through /proc .
+      hostPID: true
+      tolerations:
+        # Make sure calico-node gets scheduled on all nodes.
+        - effect: NoSchedule
+          operator: Exists
+        # Mark the pod as a critical add-on for rescheduling.
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists
+      serviceAccountName: calico-node
+      # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
+      # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
+      terminationGracePeriodSeconds: 10
+      priorityClassName: system-node-critical
+      containers:
+        - name: agent
+          image: docker.io/calicovpp/agent:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            # Use Kubernetes API as the backing datastore.
+            - name: DATASTORE_TYPE
+              value: "kubernetes"
+            # Wait for the datastore.
+            - name: WAIT_FOR_DATASTORE
+              value: "true"
+            # Set based on the k8s node name.
+            - name: NODENAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CALICOVPP_TAP_MTU
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: veth_mtu
+            - name: SERVICE_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: service_prefix
+          securityContext:
+            # TODO check required
+            privileged: true
+          resources:
+            requests:
+              cpu: 250m
+          volumeMounts:
+            - mountPath: /var/run/calico
+              name: var-run-calico
+              readOnly: false
+            - mountPath: /var/lib/calico/felix-plugins
+              name: felix-plugins
+              readOnly: false
+            - name: vpp-rundir
+              mountPath: /var/run/vpp
+            - name: netns
+              mountPath: /run/netns/
+              mountPropagation: Bidirectional
+        - name: vpp
+          image: docker.io/calicovpp/vpp:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          env:
+            - name: CALICOVPP_NATIVE_DRIVER
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: vpp_uplink_driver
+            - name: CALICOVPP_IP_CONFIG
+              value: linux
+            - name: CALICOVPP_INTERFACE
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: vpp_dataplane_interface
+            - name: CALICOVPP_CONFIG_TEMPLATE
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: vpp_config_template
+            - name: SERVICE_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: service_prefix
+            # Use Kubernetes API as the backing datastore.
+            - name: DATASTORE_TYPE
+              value: "kubernetes"
+            # Wait for the datastore.
+            - name: WAIT_FOR_DATASTORE
+              value: "true"
+            # Set based on the k8s node name.
+            - name: NODENAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            # By default drop coredumps to /var/run/vpp which is mounted
+            # On the host
+            - name: CALICOVPP_CORE_PATTERN
+              value: "/var/lib/vpp/vppcore.%e.%p"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 128Mi
+          volumeMounts:
+            - name: vpp-rundir
+              mountPath: /var/run/vpp
+            - name: vpp-data
+              mountPath: /var/lib/vpp
+            - name: vpp-config
+              mountPath: /etc/vpp
+            - name: devices
+              mountPath: /dev
+            - name: hostsys
+              mountPath: /sys
+            - name: netns
+              mountPath: /run/netns/
+              mountPropagation: Bidirectional
+      volumes:
+        - name: vpp-rundir
+          hostPath:
+            path: /var/run/vpp
+        - name: vpp-data
+          hostPath:
+            type: DirectoryOrCreate
+            path: /var/lib/vpp
+        - name: vpp-config
+          hostPath:
+            path: /etc/vpp
+        - name: devices
+          hostPath:
+            path: /dev
+        - name: hostsys
+          hostPath:
+            path: /sys
+        - name: var-run-calico
+          hostPath:
+            path: /var/run/calico
+        - name: netns
+          hostPath:
+            path: /run/netns
+        - name: felix-plugins
+          hostPath:
+            path: /var/lib/calico/felix-plugins
