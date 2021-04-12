@@ -101,10 +101,15 @@ spec:
               value: /usr/local/bin/felix-plugins/felix-api-proxy
             - name: FELIX_XDPENABLED
               value: "false"
+          # Remove bird from liveness and readiness probes
+          livenessProbe:
+            exec:
+              command:
+              - /bin/calico-node
+              - -felix-live
           readinessProbe:
             exec:
               command:
-              # remove bird-ready
               - /bin/calico-node
               - -felix-ready
           volumeMounts:
