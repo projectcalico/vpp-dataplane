@@ -86,7 +86,7 @@ log_node () # C, POD, NODE
     >&2 red "pod '$POD' not found on node '$NODE'"
   	exit 1
   else
-	kubectl logs $FOLLOW -n $SVC $pod_name -c $C
+	kubectl logs $FOLLOW -n $SVC $pod_name -c ${C:-''}
   fi
 }
 
@@ -158,7 +158,7 @@ vppdev_cli_export ()
 		greychr "Dumping node '$node' logs..."
 		kubectl -n kube-system describe pod/$calicovpp_pod_name       > ${DIR}/${PREFIX}${node}.describe-vpp-pod      ; greydot
 		NODE=$node POD=calico-vpp-node C=vpp log_node                 > ${DIR}/${PREFIX}${node}.vpp.log               ; greydot
-		NODE=$node POD=calico-vpp-node C=calico-node log_node         > ${DIR}/${PREFIX}${node}.calico.log            ; greydot
+		NODE=$node POD=calico-vpp-node C=agent log_node               > ${DIR}/${PREFIX}${node}.calico.log            ; greydot
 		printf '\n'
 		greychr "Dumping node '$node' state..."
 		NODE=$node vppctl show cnat client                            > ${DIR}/${PREFIX}${node}.show-cnat-client      ; greydot
@@ -206,12 +206,12 @@ print_vpp_logs ()
 
 print_agent_logs ()
 {
-  NODE=$NODE POD=calico-vpp-node C=calico-node FOLLOW=$FOLLOW log_node | grep --color=Never -e '^time='
+  NODE=$NODE POD=calico-vpp-node C=agent FOLLOW=$FOLLOW log_node | grep --color=Never -e '^time='
 }
 
 print_felix_logs ()
 {
-  NODE=$NODE POD=calico-vpp-node C=calico-node FOLLOW=$FOLLOW log_node | grep --color=Never -v -e '^time='
+  NODE=$NODE POD=calico-node C= FOLLOW=$FOLLOW log_node | grep --color=Never -v -e '^time='
 }
 
 vppdev_cli_log ()
@@ -267,7 +267,7 @@ vppdev_cli_sh ()
   elif [[ "$1" = "agent" ]]; then
 	grey "This shell lives inside the agent container"
 	grey "You will find calico-vpp-agent & felix running"
-	NODE=$2 POD=calico-vpp-node C=calico-node exec_node bash
+	NODE=$2 POD=calico-vpp-node C=agent exec_node bash
   else
 	echo "Use $(basename -- $0) sh [vpp|agent] [NODENAME]"
   fi
@@ -290,14 +290,14 @@ vppdev_cli ()
     echo "Usage:"
     echo
     echo "$(basename -- $0) vppctl [NODENAME]                 - Get a vppctl shell on specific node"
-    echo "$(basename -- $0) log [-f] [-vpp|-agent] [NODENAME] - Get the logs of vpp (dataplane) or calico-node (controlplane) container"
+    echo "$(basename -- $0) log [-f] [-vpp|-agent] [NODENAME] - Get the logs of vpp (dataplane) or agent (controlplane) container"
     echo
     echo "$(basename -- $0) clear                             - Clear vpp internal stats"
     echo "$(basename -- $0) export                            - Create an archive with vpp & k8 system state for debugging"
     echo "                                                    it accepts a dir name and a prefix 'export [dir] [prefix]'"
 	echo
     echo "$(basename -- $0) gdb                               - Attach a gdb to the running vpp on the current machine"
-    echo "$(basename -- $0) sh [vpp|agent] [NODENAME]         - Get a shell in vpp (dataplane) or calico-node (controlplane) container"
+    echo "$(basename -- $0) sh [vpp|agent] [NODENAME]         - Get a shell in vpp (dataplane) or agent (controlplane) container"
   fi
 }
 

@@ -16,7 +16,7 @@ spec:
         - name: calico-node
           image: calico/node:${CALICO_VERSION_TAG}
           env:
-          - name: NODENAME
+            - name: NODENAME
               value: ""
               valueFrom:
                 fieldRef:
@@ -45,7 +45,7 @@ spec:
               value: ""
               valueFrom:
                 configMapKeyRef:
-                  name: calico-node-dev-config
+                  name: calico-agent-dev-config
                   key: FELIX_IPV6SUPPORT
 
 ---
