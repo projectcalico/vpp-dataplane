@@ -18,6 +18,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -135,10 +136,40 @@ func (c *InterfaceConfig) RouteString() string {
 	var str []string
 	for _, route := range c.Routes {
 		if route.Dst == nil {
-			str = append(str, "<nil Dst>")
+			str = append(str, fmt.Sprintf("<Dst: nil (default), Ifindex: %d", route.LinkIndex))
+			if route.Gw != nil {
+				str = append(str, fmt.Sprintf("Gw: %s", route.Gw.String()))
+			}
+			if route.Src != nil {
+				str = append(str, fmt.Sprintf("Src: %s", route.Src.String()))
+			}
+			str = append(str, ">")
 		} else {
 			str = append(str, route.String())
 		}
 	}
-	return strings.Join(str, ",")
+	return strings.Join(str, ", ")
+}
+
+// SortRoutes sorts the route slice by dependency order, so we can then add them
+// in the order of the slice without issues
+func (c *InterfaceConfig) SortRoutes() {
+	sort.SliceStable(c.Routes, func(i, j int) bool {
+		// Directly connected routes go first
+		if c.Routes[i].Gw == nil {
+			return true
+		} else if c.Routes[j].Gw == nil {
+			return false
+		}
+		// Default routes go last
+		if c.Routes[i].Dst == nil {
+			return false
+		} else if c.Routes[j].Dst == nil {
+			return true
+		}
+		// Finally sort by decreasing prefix length
+		i_len, _ := c.Routes[i].Dst.Mask.Size()
+		j_len, _ := c.Routes[j].Dst.Mask.Size()
+		return i_len > j_len
+	})
 }
