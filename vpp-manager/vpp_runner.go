@@ -117,22 +117,90 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32) (err error) {
 	return nil
 }
 
-// pick a next hop to use for cluster routes (services, pod cidrs) in the address prefix
-func pickNextHopIP(addr netlink.Addr) {
-	nhAddr := utils.DecrementIP(utils.BroadcastAddr(addr.IPNet))
-	if nhAddr.Equal(addr.IP) {
-		nhAddr = utils.IncrementIP(utils.NetworkAddr(addr.IPNet))
+func (v *VppRunner) hasAddr(ip net.IP) bool {
+	for _, addr := range v.conf.Addresses {
+		if ip.Equal(addr.IP) {
+			return true
+		}
 	}
-	if !addr.IPNet.Contains(nhAddr) {
-		log.Warnf("Could not find next hop in %s", addr.IPNet.String())
+	return false
+}
+
+// pick a next hop to use for cluster routes (services, pod cidrs) in the address prefix
+func (v *VppRunner) pickNextHopIP() {
+	var nhAddr net.IP
+	foundV4, foundV6 := false, false
+	needsV4, needsV6 := false, false
+
+	for _, addr := range v.conf.Addresses {
+		if nhAddr.To4() != nil {
+			needsV4 = true
+		} else {
+			needsV6 = true
+		}
+		nhAddr = utils.DecrementIP(utils.BroadcastAddr(addr.IPNet))
+		if nhAddr.Equal(addr.IP) {
+			nhAddr = utils.IncrementIP(utils.NetworkAddr(addr.IPNet))
+		}
+		if !addr.IPNet.Contains(nhAddr) {
+			continue
+		}
+		if nhAddr.To4() != nil && !foundV4 {
+			log.Infof("Using %s as next hop for cluster IPv4 routes", nhAddr.String())
+			fakeNextHopIP4 = nhAddr
+			foundV4 = true
+		} else if !nhAddr.IsLinkLocalUnicast() && !foundV6 {
+			log.Infof("Using %s as next hop for cluster IPv6 routes", nhAddr.String())
+			fakeNextHopIP6 = nhAddr
+			foundV6 = true
+		}
+	}
+
+	if !((needsV4 && !foundV4) || (needsV6 && !foundV6)) {
 		return
 	}
-	if nhAddr.To4() != nil {
-		log.Infof("Using %s as next hop for cluster IPv4 routes", nhAddr.String())
-		fakeNextHopIP4 = nhAddr
-	} else if !nhAddr.IsLinkLocalUnicast() {
-		log.Infof("Using %s as next hop for cluster IPv6 routes", nhAddr.String())
-		fakeNextHopIP6 = nhAddr
+
+	for _, route := range v.conf.Routes {
+		if route.Gw != nil || route.Dst == nil {
+			// We're looking for a directly connected route
+			continue
+		}
+		if (route.Dst.IP.To4() != nil && foundV4) || (route.Dst.IP.To4() == nil && foundV6) || route.Dst.IP.IsLinkLocalUnicast() {
+			continue
+		}
+		ones, _ := route.Dst.Mask.Size()
+		if route.Dst.IP.To4() != nil {
+			if ones == 32 {
+				log.Infof("Using %s as next hop for cluster IPv4 routes (from directly connected /32 route)", route.Dst.IP.String())
+				fakeNextHopIP4 = route.Dst.IP
+				foundV4 = true
+			} else {
+				// pick an address in the subnet
+				nhAddr = utils.DecrementIP(utils.BroadcastAddr(route.Dst))
+				if v.hasAddr(nhAddr) {
+					nhAddr = utils.IncrementIP(utils.NetworkAddr(route.Dst))
+				}
+				log.Infof("Using %s as next hop for cluster IPv4 routes (from directly connected route)", route.Dst.IP.String())
+				fakeNextHopIP4 = nhAddr
+				foundV4 = true
+			}
+		}
+		if route.Dst.IP.To4() == nil {
+			if ones == 128 {
+				log.Infof("Using %s as next hop for cluster IPv6 routes (from directly connected /128 route)", route.Dst.IP.String())
+				fakeNextHopIP6 = route.Dst.IP
+				foundV6 = true
+			} else {
+				// pick an address in the subnet
+				nhAddr = utils.DecrementIP(utils.BroadcastAddr(route.Dst))
+				if v.hasAddr(nhAddr) {
+					nhAddr = utils.IncrementIP(utils.NetworkAddr(route.Dst))
+				}
+				log.Infof("Using %s as next hop for cluster IPv6 routes (from directly connected route)", route.Dst.IP.String())
+				fakeNextHopIP6 = nhAddr
+				foundV6 = true
+			}
+		}
 	}
 }
 
@@ -152,7 +220,6 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 			return errors.Wrapf(err, "Error adding address %s to tap interface", addr)
 		}
 		// Determine a suitable next hop for the cluster routes
-		pickNextHopIP(addr)
 	}
 	for _, route := range v.conf.Routes {
 		route.LinkIndex = link.Attrs().Index
@@ -164,6 +231,8 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 			return errors.Wrapf(err, "cannot add route %+v via vpp", route)
 		}
 	}
+
+	v.pickNextHopIP()
 
 	for _, serviceCIDR := range v.params.ServiceCIDRs {
 		// Add a route for the service prefix through VPP
