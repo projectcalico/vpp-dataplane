@@ -7,7 +7,7 @@ spec:
   template:
     spec:
       containers:
-        - name: calico-node
+        - name: agent
           imagePullPolicy: Never
           volumeMounts:
             - name: repo-root

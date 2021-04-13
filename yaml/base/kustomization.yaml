@@ -1,3 +1,5 @@
 resources:
-- calico-definitions.yaml
-- calico-vpp.yaml
+- calico.yaml
+- calico-vpp-daemonset.yaml
+patchesStrategicMerge:
+- calico-patch.yaml

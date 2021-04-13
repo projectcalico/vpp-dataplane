@@ -7,7 +7,7 @@ spec:
   template:
     spec:
       containers:
-        - name: calico-node
+        - name: agent
           env:
             - name: CALICOVPP_IPSEC_ENABLED
               value: "true"

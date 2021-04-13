@@ -30,32 +30,32 @@ import (
 const (
 	DataInterfaceSwIfIndex = uint32(1) // Assumption: the VPP config ensures this is true
 	CNIServerSocket        = "/var/run/calico/cni-server.sock"
+	FelixDataplaneSocket   = "/var/run/calico/felix-dataplane.sock"
 	VppAPISocket           = "/var/run/vpp/vpp-api.sock"
 	VppManagerStatusFile   = "/var/run/vpp/vppmanagerstatus"
 	VppManagerTapIdxFile   = "/var/run/vpp/vppmanagertap0"
 	VppManagerLinuxMtu     = "/var/run/vpp/vppmanagerlinuxmtu"
 	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
 	CniServerStateFile     = "/var/run/vpp/calico_vpp_pod_state"
-	FelixDataplaneSocket   = "/var/run/vpp/felix-dataplane.sock"
 
-	NodeNameEnvVar            = "NODENAME"
-	TapNumRxQueuesEnvVar      = "CALICOVPP_TAP_RX_QUEUES"
-	TapNumTxQueuesEnvVar      = "CALICOVPP_TAP_TX_QUEUES"
-	TapGSOEnvVar              = "CALICOVPP_DEBUG_ENABLE_GSO"
-	EnableServicesEnvVar      = "CALICOVPP_DEBUG_ENABLE_NAT"
-	EnableMaglevEnvVar        = "CALICOVPP_DEBUG_ENABLE_MAGLEV"
-	EnablePoliciesEnvVar      = "CALICOVPP_DEBUG_ENABLE_POLICIES"
-	CrossIpsecTunnelsEnvVar   = "CALICOVPP_IPSEC_CROSS_TUNNELS"
-	EnableIPSecEnvVar         = "CALICOVPP_IPSEC_ENABLED"
-	IPSecExtraAddressesEnvVar = "CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES"
-	IPSecIkev2PskEnvVar       = "CALICOVPP_IPSEC_IKEV2_PSK"
-	TapRxModeEnvVar           = "CALICOVPP_TAP_RX_MODE"
-	TapQueueSizeEnvVar        = "CALICOVPP_TAP_RING_SIZE"
-	TapMtuEnvVar              = "CALICOVPP_TAP_MTU"
+	NodeNameEnvVar             = "NODENAME"
+	TapNumRxQueuesEnvVar       = "CALICOVPP_TAP_RX_QUEUES"
+	TapNumTxQueuesEnvVar       = "CALICOVPP_TAP_TX_QUEUES"
+	TapGSOEnvVar               = "CALICOVPP_DEBUG_ENABLE_GSO"
+	EnableServicesEnvVar       = "CALICOVPP_DEBUG_ENABLE_NAT"
+	EnableMaglevEnvVar         = "CALICOVPP_DEBUG_ENABLE_MAGLEV"
+	EnablePoliciesEnvVar       = "CALICOVPP_DEBUG_ENABLE_POLICIES"
+	CrossIpsecTunnelsEnvVar    = "CALICOVPP_IPSEC_CROSS_TUNNELS"
+	EnableIPSecEnvVar          = "CALICOVPP_IPSEC_ENABLED"
+	IPSecExtraAddressesEnvVar  = "CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES"
+	IPSecIkev2PskEnvVar        = "CALICOVPP_IPSEC_IKEV2_PSK"
+	TapRxModeEnvVar            = "CALICOVPP_TAP_RX_MODE"
+	TapQueueSizeEnvVar         = "CALICOVPP_TAP_RING_SIZE"
+	TapMtuEnvVar               = "CALICOVPP_TAP_MTU"
 	IpsecNbAsyncCryptoThEnvVar = "CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD"
-	BgpLogLevelEnvVar         = "CALICO_BGP_LOGSEVERITYSCREEN"
-	LogLevelEnvVar            = "CALICO_LOG_LEVEL"
-	ServicePrefixEnvVar       = "SERVICE_PREFIX"
+	BgpLogLevelEnvVar          = "CALICO_BGP_LOGSEVERITYSCREEN"
+	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
+	ServicePrefixEnvVar        = "SERVICE_PREFIX"
 
 	DefaultVXLANVni      = 4096
 	DefaultWireguardPort = 51820
@@ -64,24 +64,24 @@ const (
 )
 
 var (
-	TapNumRxQueues    = 1
-	TapNumTxQueues    = 1
-	TapGSOEnabled     = true
-	EnableMaglev      = true
-	EnableServices    = true
-	EnablePolicies    = true
-	EnableIPSec       = false
-	IpsecAddressCount = 1
-	CrossIpsecTunnels = false
-	IPSecIkev2Psk     = ""
-	TapRxMode         = defaultRxMode
-	BgpLogLevel       = logrus.InfoLevel
-	LogLevel          = logrus.InfoLevel
-	NodeName          = ""
-	ServiceCIDRs      []*net.IPNet
-	TapRxQueueSize    int = 0
-	TapTxQueueSize    int = 0
-	TapMtu            int = 0
+	TapNumRxQueues           = 1
+	TapNumTxQueues           = 1
+	TapGSOEnabled            = true
+	EnableMaglev             = true
+	EnableServices           = true
+	EnablePolicies           = true
+	EnableIPSec              = false
+	IpsecAddressCount        = 1
+	CrossIpsecTunnels        = false
+	IPSecIkev2Psk            = ""
+	TapRxMode                = defaultRxMode
+	BgpLogLevel              = logrus.InfoLevel
+	LogLevel                 = logrus.InfoLevel
+	NodeName                 = ""
+	ServiceCIDRs             []*net.IPNet
+	TapRxQueueSize           int = 0
+	TapTxQueueSize           int = 0
+	TapMtu                   int = 0
 	IpsecNbAsyncCryptoThread int = 0
 )
 

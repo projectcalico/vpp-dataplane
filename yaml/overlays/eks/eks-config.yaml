@@ -9,18 +9,4 @@ data:  # Configuration template for VPP in EKS
   veth_mtu: "1410"
   default_ipv4_pool_cidr: 192.168.0.0/16
   vpp_uplink_driver: af_packet
----
-kind: DaemonSet
-apiVersion: apps/v1
-metadata:
-  name: calico-vpp-node
-  namespace: kube-system
-spec:
-  template:
-    spec:
-      containers:
-        - name: vpp
-          resources:
-            limits:
-              hugepages-2Mi: 0
 

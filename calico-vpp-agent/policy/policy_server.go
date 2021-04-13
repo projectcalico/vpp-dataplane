@@ -18,6 +18,7 @@ package policy
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"sync"
@@ -31,7 +32,13 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/prometheus/common/log"
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	FelixPluginSrcPath = "/bin/felix-api-proxy"
+	FelixPluginDstPath = "/var/lib/calico/felix-plugins/felix-api-proxy"
 )
 
 type SyncState int
@@ -103,7 +110,41 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		return nil, errors.Wrapf(err, "Could not delete socket %s", config.FelixDataplaneSocket)
 	}
 
+	err = InstallFelixPlugin()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not install felix plugin")
+	}
+
 	return server, nil
+}
+
+func InstallFelixPlugin() (err error) {
+	err = os.RemoveAll(FelixPluginDstPath)
+	if err != nil {
+		log.Warnf("Could not delete %s: %v", FelixPluginDstPath, err)
+	}
+
+	in, err := os.Open(FelixPluginSrcPath)
+	if err != nil {
+		return errors.Wrap(err, "cannot open felix plugin to copy")
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(FelixPluginDstPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		return errors.Wrap(err, "cannot open felix plugin to write")
+	}
+	defer func() {
+		cerr := out.Close()
+		if err == nil {
+			err = errors.Wrap(cerr, "cannot close felix plugin file")
+		}
+	}()
+	if _, err = io.Copy(out, in); err != nil {
+		return errors.Wrap(err, "cannot copy data")
+	}
+	err = out.Sync()
+	return errors.Wrapf(err, "could not sync felix plugin changes")
 }
 
 func (s *Server) setNodeIPs(nodeSpec *calicoapi.NodeSpec) {

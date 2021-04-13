@@ -1,4 +1,0 @@
-#!/bin/sh
-exec 2>&1
-rm -f /var/run/calico/cni-server.sock
-exec /bin/calico-vpp-agent

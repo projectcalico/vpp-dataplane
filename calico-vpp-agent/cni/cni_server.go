@@ -246,6 +246,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 	if err != nil {
 		panic(err.Error())
 	}
+	syscall.Unlink(config.CNIServerSocket)
 	lis, err := net.Listen("unix", config.CNIServerSocket)
 	if err != nil {
 		l.Fatalf("failed to listen on %s: %v", config.CNIServerSocket, err)

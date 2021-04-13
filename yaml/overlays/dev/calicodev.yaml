@@ -1,19 +1,9 @@
----
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: calico-vpp-node
+  name: calico-node
   namespace: kube-system
-  labels:
-    k8s-app: calico-vpp-node
 spec:
-  selector:
-    matchLabels:
-      k8s-app: calico-vpp-node
-  updateStrategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 1
   template:
     spec:
       initContainers:
@@ -24,23 +14,13 @@ spec:
           image: calico/pod2daemon-flexvol:${CALICO_VERSION_TAG}
       containers:
         - name: calico-node
-          image: ${CALICO_NODE_IMAGE}
-          imagePullPolicy: ${IMAGE_PULL_POLICY}
-          envFrom:
-          - configMapRef:
-              name: calico-node-dev-config
+          image: calico/node:${CALICO_VERSION_TAG}
           env:
-            - name: DATASTORE_TYPE
-              value: "kubernetes"
-            - name: WAIT_FOR_DATASTORE
-              value: "true"
             - name: NODENAME
               value: ""
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: CALICO_NETWORKING_BACKEND
-              value: vpp
             - name: CALICO_BGP_LOGSEVERITYSCREEN
               value: info
             - name: CLUSTER_TYPE
@@ -65,8 +45,35 @@ spec:
               value: ""
               valueFrom:
                 configMapKeyRef:
-                  name: calico-node-dev-config
+                  name: calico-agent-dev-config
                   key: FELIX_IPV6SUPPORT
+
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: agent
+          image: ${CALICO_AGENT_IMAGE}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          envFrom:
+          - configMapRef:
+              name: calico-agent-dev-config
+          env:
+            - name: DATASTORE_TYPE
+              value: "kubernetes"
+            - name: WAIT_FOR_DATASTORE
+              value: "true"
+            - name: NODENAME
+              value: ""
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
         - name: vpp
           image: ${CALICO_VPP_IMAGE}
           imagePullPolicy: ${IMAGE_PULL_POLICY}

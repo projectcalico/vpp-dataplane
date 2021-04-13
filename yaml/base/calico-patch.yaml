@@ -1,0 +1,122 @@
+# calico-config configmap changes
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-config
+  namespace: kube-system
+data:
+  calico_backend: "none"
+  cni_network_config: |-
+    {
+      "name": "k8s-pod-network",
+      "cniVersion": "0.3.1",
+      "plugins": [
+        {
+          "type": "calico",
+          "log_level": "debug",
+          "datastore_type": "kubernetes",
+          "nodename": "__KUBERNETES_NODE_NAME__",
+          "mtu": __CNI_MTU__,
+          "ipam": {
+              "type": "calico-ipam"
+          },
+          "policy": {
+              "type": "k8s"
+          },
+          "kubernetes": {
+              "kubeconfig": "__KUBECONFIG_FILEPATH__"
+          },
+          "dataplane_options": {
+            "type": "grpc",
+            "socket": "unix:///var/run/calico/cni-server.sock"
+          }
+        },
+        {
+          "type": "portmap",
+          "snat": true,
+          "capabilities": {"portMappings": true}
+        }
+      ]
+    }
+    
+  # K8s service prefix. We currently cannot retrieve this from the API,
+  # so it must be manually configured
+  service_prefix: 10.96.0.0/12
+
+  default_ipv4_pool_cidr: 172.16.0.0/16
+
+  # Configure the name of VPP's physical interface
+  vpp_dataplane_interface: eth1
+
+  # Configures how VPP grabs the physical interface
+  # available values are :
+  # - ""        : will select try the drivers starting with the fastest
+  # - avf       : use the native AVF driver
+  # - virtio    : use the native virtio driver (requires hugepages)
+  # - af_xdp    : use AF_XDP sock family (require at least kernel 5.4)
+  # - af_packet : use AF_PACKET sock family (slow but failsafe)
+  # - none      : dont configure connectivity
+  vpp_uplink_driver: ""
+
+  # Configuration template for VPP.
+  vpp_config_template: |-
+    unix {
+      nodaemon
+      full-coredump
+      cli-listen /var/run/vpp/cli.sock
+      pidfile /run/vpp/vpp.pid
+      exec /etc/vpp/startup.exec
+    }
+    api-trace { on }
+    cpu {
+        workers 0
+    }
+    socksvr {
+        socket-name /var/run/vpp/vpp-api.sock
+    }
+    plugins {
+        plugin default { enable }
+        plugin dpdk_plugin.so { disable }
+        plugin calico_plugin.so { enable }
+    }
+
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-node
+  namespace: kube-system
+  labels:
+    k8s-app: calico-node
+spec:
+  template:
+    spec:
+      hostPID: true
+      containers:
+        - name: calico-node
+          env:
+            - name: FELIX_USEINTERNALDATAPLANEDRIVER
+              value: "false"
+            - name: FELIX_DATAPLANEDRIVER
+              value: /usr/local/bin/felix-plugins/felix-api-proxy
+            - name: FELIX_XDPENABLED
+              value: "false"
+          # Remove bird from liveness and readiness probes
+          livenessProbe:
+            exec:
+              command:
+              - /bin/calico-node
+              - -felix-live
+          readinessProbe:
+            exec:
+              command:
+              - /bin/calico-node
+              - -felix-ready
+          volumeMounts:
+            - mountPath: /usr/local/bin/felix-plugins
+              name: felix-plugins
+              readOnly: true
+      volumes:
+        - name: felix-plugins
+          hostPath:
+            path: /var/lib/calico/felix-plugins
