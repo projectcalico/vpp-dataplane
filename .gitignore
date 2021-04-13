@@ -13,6 +13,9 @@ test/k8s-e2e-tests/kubernetes-*
 test/vagrant/local-config.env
 test/vagrant/.vagrant
 
+# virtualenv
+venv
+
 # Test outputs
 *.out
 *.test
