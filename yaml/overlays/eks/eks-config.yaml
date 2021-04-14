@@ -20,8 +20,6 @@ spec:
       containers:
         - name: calico-node
           env:
-          - name: CALICO_IPV4POOL_IPIP
-            value: "Always"
           - name: FELIX_AWSSRCDSTCHECK
             value: Disable
 
