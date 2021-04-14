@@ -219,7 +219,6 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 		} else if err != nil {
 			return errors.Wrapf(err, "Error adding address %s to tap interface", addr)
 		}
-		// Determine a suitable next hop for the cluster routes
 	}
 	for _, route := range v.conf.Routes {
 		route.LinkIndex = link.Attrs().Index
@@ -232,6 +231,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 		}
 	}
 
+	// Determine a suitable next hop for the cluster routes
 	v.pickNextHopIP()
 
 	for _, serviceCIDR := range v.params.ServiceCIDRs {

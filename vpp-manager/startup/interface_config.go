@@ -70,6 +70,7 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot list %s routes", params.MainInterface)
 		}
+		conf.SortRoutes()
 	}
 	conf.HardwareAddr = link.Attrs().HardwareAddr
 	conf.NodeIP4 = getNodeAddress(&conf, false /* isV6 */)
