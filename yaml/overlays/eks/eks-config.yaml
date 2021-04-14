@@ -22,4 +22,5 @@ spec:
           env:
           - name: FELIX_AWSSRCDSTCHECK
             value: Disable
-
+          - name: IP_AUTODETECTION_METHOD
+            value: interface=eth0

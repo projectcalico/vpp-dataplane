@@ -38,7 +38,7 @@ data:
         }
       ]
     }
-    
+
   # K8s service prefix. We currently cannot retrieve this from the API,
   # so it must be manually configured
   service_prefix: 10.96.0.0/12
