@@ -27,7 +27,6 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -35,7 +34,8 @@ import (
 type PoolWatcher struct {
 	stop         chan struct{}
 	RouteWatcher *RouteWatcher
-	Params       *config.VppManagerParams
+	params       *config.VppManagerParams
+	conf         *config.InterfaceConfig
 }
 
 func (p *PoolWatcher) Stop() {
@@ -59,7 +59,7 @@ func (p *PoolWatcher) getNetworkRoute(network string) (route *netlink.Route, err
 		Dst:      cidr,
 		Gw:       gw,
 		Protocol: syscall.RTPROT_STATIC,
-		MTU:      p.Params.TapMtu - startup.DefaultEncapSize,
+		MTU:      config.GetUplinkMtu(p.params, p.conf, true /* includeEncap */),
 	}, nil
 }
 

@@ -38,6 +38,7 @@ const (
 	HostIfName             = "vpptap0"
 	HostIfTag              = "hosttap"
 	VppSigKillTimeout      = 2
+	DefaultEncapSize       = 60 // Used to lower the MTU of the routes to the cluster
 )
 
 const (
@@ -65,7 +66,7 @@ type VppManagerParams struct {
 	TapTxQueueSize           int
 	RxQueueSize              int
 	TxQueueSize              int
-	TapMtu                   int
+	UserSpecifiedMtu         int
 	NumRxQueues              int
 	NewDriverName            string
 	DefaultGWs               []net.IP
@@ -102,6 +103,18 @@ type KernelVersion struct {
 	Major  int
 	Minor  int
 	Patch  int
+}
+
+func GetUplinkMtu(params *VppManagerParams, conf *InterfaceConfig, includeEncap bool) int {
+	encapSize := 0
+	if includeEncap {
+		encapSize = DefaultEncapSize
+	}
+	// Use the linux interface MTU as default value if nothing is configured from env
+	if params.UserSpecifiedMtu == 0 {
+		return conf.Mtu - encapSize
+	}
+	return params.UserSpecifiedMtu - encapSize
 }
 
 func (ver *KernelVersion) String() string {

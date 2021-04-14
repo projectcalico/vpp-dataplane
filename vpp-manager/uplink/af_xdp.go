@@ -83,10 +83,11 @@ func (d *AFXDPDriver) PreconfigureLinux() error {
 		if err != nil {
 			return errors.Wrapf(err, "Error reducing MTU to %d", maxAfXDPMTU)
 		}
-		if d.params.TapMtu > maxAfXDPMTU {
-			log.Infof("Reducing tap MTU to %d", maxAfXDPMTU)
-			d.params.TapMtu = maxAfXDPMTU
-		}
+		d.conf.Mtu = maxAfXDPMTU
+	}
+	if d.params.UserSpecifiedMtu > maxAfXDPMTU {
+		log.Infof("Reducing user specified MTU to %d", maxAfXDPMTU)
+		d.params.UserSpecifiedMtu = maxAfXDPMTU
 	}
 	return nil
 }

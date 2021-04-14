@@ -45,7 +45,7 @@ const (
 	ExtraAddrCountEnvVar       = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	CorePatternEnvVar          = "CALICOVPP_CORE_PATTERN"
 	TapRingSizeEnvVar          = "CALICOVPP_TAP_RING_SIZE"
-	TapMtuEnvVar               = "CALICOVPP_TAP_MTU"
+	UserSpecifiedMtuEnvVar     = "CALICOVPP_TAP_MTU"
 	IpsecNbAsyncCryptoThEnvVar = "CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD"
 	RingSizeEnvVar             = "CALICOVPP_RING_SIZE"
 	NativeDriverEnvVar         = "CALICOVPP_NATIVE_DRIVER"
@@ -58,7 +58,6 @@ const (
 const (
 	DefaultTapQueueSize = 1024
 	DefaultPhyQueueSize = 1024
-	DefaultEncapSize    = 60 // Used to lower the MTU of the routes to the cluster
 	DefaultNumRxQueues  = 1
 	defaultRxMode       = types.Adaptative
 )
@@ -219,14 +218,14 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	if conf := getEnvValue(TapMtuEnvVar); conf != "" {
-		tapMtu, err := strconv.ParseInt(conf, 10, 32)
+	if conf := getEnvValue(UserSpecifiedMtuEnvVar); conf != "" {
+		userSpecifiedMtu, err := strconv.ParseInt(conf, 10, 32)
 		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapMtuEnvVar, conf, tapMtu, err)
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", UserSpecifiedMtuEnvVar, conf, userSpecifiedMtu, err)
 		}
-		params.TapMtu = int(tapMtu)
+		params.UserSpecifiedMtu = int(userSpecifiedMtu)
 	} else {
-		params.TapMtu = 0
+		params.UserSpecifiedMtu = 0
 	}
 
 	params.TapRxQueueSize = DefaultTapQueueSize
@@ -368,11 +367,6 @@ func PrepareConfiguration() (params *config.VppManagerParams, conf *config.Inter
 	conf, err = getInterfaceConfig(params)
 	if err != nil {
 		log.Fatalf("Error getting initial interface configuration: %s", err)
-	}
-
-	// Use the linux interface MTU as default value if nothing is configured from env
-	if params.TapMtu == 0 {
-		params.TapMtu = conf.Mtu
 	}
 
 	return params, conf

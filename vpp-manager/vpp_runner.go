@@ -32,7 +32,6 @@ import (
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -245,7 +244,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 			Dst:      &serviceCIDR,
 			Gw:       gw,
 			Protocol: syscall.RTPROT_STATIC,
-			MTU:      v.params.TapMtu - startup.DefaultEncapSize,
+			MTU:      config.GetUplinkMtu(v.params, v.conf, true /* includeEncap */),
 		})
 		if err != nil {
 			return errors.Wrapf(err, "cannot add tap route to service %s", serviceCIDR.String())
@@ -303,6 +302,12 @@ func (v *VppRunner) configureVpp() (err error) {
 		if err != nil {
 			return errors.Wrap(err, "Error enabling GSO on data interface")
 		}
+	}
+
+	uplinkMtu := config.GetUplinkMtu(v.params, v.conf, false /* includeEncap */)
+	err = v.vpp.SetInterfaceMtu(config.DataInterfaceSwIfIndex, uplinkMtu)
+	if err != nil {
+		return errors.Wrapf(err, "Error setting %d MTU on data interface", uplinkMtu)
 	}
 
 	err = v.vpp.SetInterfaceRxMode(config.DataInterfaceSwIfIndex, types.AllQueues, v.params.RxMode)
@@ -387,7 +392,7 @@ func (v *VppRunner) configureVpp() (err error) {
 		RxQueueSize:    v.params.TapRxQueueSize,
 		TxQueueSize:    v.params.TapTxQueueSize,
 		Flags:          vpptap0Flags,
-		Mtu:            v.params.TapMtu,
+		Mtu:            config.GetUplinkMtu(v.params, v.conf, false /* includeEncap */),
 		HostMacAddress: v.conf.HardwareAddr,
 		MacAddress:     vppSideMac,
 	})
@@ -628,7 +633,8 @@ func (v *VppRunner) runVpp() (err error) {
 	v.routeWatcher = &RouteWatcher{}
 	v.poolWatcher = &PoolWatcher{
 		RouteWatcher: v.routeWatcher,
-		Params:       v.params,
+		params:       v.params,
+		conf:         v.conf,
 	}
 	go v.routeWatcher.WatchRoutes()
 
