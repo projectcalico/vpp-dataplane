@@ -39,6 +39,25 @@ const (
 
 type NamespaceNotFound error
 
+func (v *VppLink) SetInterfaceMtu(swIfIndex uint32, mtu int) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	mtus := make([]uint32, 4)
+	mtus[interface_types.MTU_PROTO_API_L3] = uint32(mtu)
+	response := &interfaces.SwInterfaceSetMtuReply{}
+	request := &interfaces.SwInterfaceSetMtu{
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+		Mtu:       mtus,
+	}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrapf(err, "SwInterfaceSetMtu failed: req %+v reply %+v", request, response)
+	} else if response.Retval != 0 {
+		return fmt.Errorf("SwInterfaceSetMtu failed (retval %d). Request: %+v", response.Retval, request)
+	}
+	return nil
+}
+
 func (v *VppLink) SetInterfaceRxMode(swIfIndex uint32, queueID uint32, mode types.RxMode) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()

@@ -6,7 +6,21 @@ metadata:
 data:  # Configuration template for VPP in EKS
   service_prefix: 10.100.0.0/16
   vpp_dataplane_interface: eth0
-  veth_mtu: "1410"
-  default_ipv4_pool_cidr: 192.168.0.0/16
+  default_ipv4_pool_cidr: 10.10.0.0/16
   vpp_uplink_driver: af_packet
-
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: calico-node
+          env:
+          - name: FELIX_AWSSRCDSTCHECK
+            value: Disable
+          - name: IP_AUTODETECTION_METHOD
+            value: interface=eth0
