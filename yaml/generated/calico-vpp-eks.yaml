@@ -3441,10 +3441,10 @@ data:
         }
       ]
     }
-  default_ipv4_pool_cidr: 192.168.0.0/16
+  default_ipv4_pool_cidr: 10.10.0.0/16
   service_prefix: 10.100.0.0/16
   typha_service_name: none
-  veth_mtu: "1410"
+  veth_mtu: "0"
   vpp_config_template: |-
     unix {
       nodaemon
@@ -3547,6 +3547,10 @@ spec:
     spec:
       containers:
       - env:
+        - name: FELIX_AWSSRCDSTCHECK
+          value: Disable
+        - name: IP_AUTODETECTION_METHOD
+          value: interface=eth0
         - name: FELIX_USEINTERNALDATAPLANEDRIVER
           value: "false"
         - name: FELIX_DATAPLANEDRIVER
