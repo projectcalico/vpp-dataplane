@@ -20,7 +20,28 @@ spec:
       containers:
         - name: calico-node
           env:
-          - name: FELIX_AWSSRCDSTCHECK
-            value: Disable
-          - name: IP_AUTODETECTION_METHOD
-            value: interface=eth0
+            - name: FELIX_AWSSRCDSTCHECK
+              value: Disable
+            - name: IP_AUTODETECTION_METHOD
+              value: interface=eth0
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: vpp
+          env:
+            - name: CALICOVPP_FINALIZE_SCRIPT_TEMPLATE
+              value: "echo 'sudo systemctl restart network' | chroot /host"
+          volumeMounts:
+            - mountPath: /host
+              name: host-root
+      volumes:
+        - hostPath:
+            path: /
+          name: host-root

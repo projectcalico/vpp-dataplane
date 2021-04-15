@@ -3839,6 +3839,8 @@ spec:
           mountPropagation: Bidirectional
           name: netns
       - env:
+        - name: CALICOVPP_FINALIZE_SCRIPT_TEMPLATE
+          value: echo 'sudo systemctl restart network' | chroot /host
         - name: CALICOVPP_NATIVE_DRIVER
           valueFrom:
             configMapKeyRef:
@@ -3881,6 +3883,8 @@ spec:
         securityContext:
           privileged: true
         volumeMounts:
+        - mountPath: /host
+          name: host-root
         - mountPath: /var/run/vpp
           name: vpp-rundir
         - mountPath: /var/lib/vpp
@@ -3909,6 +3913,9 @@ spec:
       - effect: NoExecute
         operator: Exists
       volumes:
+      - hostPath:
+          path: /
+        name: host-root
       - hostPath:
           path: /var/run/vpp
         name: vpp-rundir

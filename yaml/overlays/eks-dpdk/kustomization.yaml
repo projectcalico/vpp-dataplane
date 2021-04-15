@@ -1,6 +1,6 @@
 resources:
 - eks-init.yaml
 bases:
-- ../../base
+- ../eks
 patchesStrategicMerge:
 - eks-config.yaml
