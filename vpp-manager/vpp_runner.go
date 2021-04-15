@@ -32,6 +32,7 @@ import (
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -665,6 +666,12 @@ func (v *VppRunner) runVpp() (err error) {
 
 	utils.WriteFile("1", config.VppManagerStatusFile)
 	go v.poolWatcher.SyncPools()
+
+	template := startup.TemplateScriptReplace(v.params.FinalizeScriptTemplate, v.params, v.conf)
+	err = utils.RunBashScript(template)
+	if err != nil {
+		log.Errorf("Error running finalize script: %s", err)
+	}
 
 	<-vppDeadChan
 	log.Infof("VPP Exited: status %v", err)

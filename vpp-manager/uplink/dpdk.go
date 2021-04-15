@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
@@ -58,9 +58,7 @@ func (d *DPDKDriver) PreconfigureLinux() (err error) {
 }
 
 func (d *DPDKDriver) GenerateVppConfigFile() error {
-	template := d.params.ConfigTemplate
-	template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", d.conf.PciId)
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", d.params.MainInterface)
+	template := startup.TemplateScriptReplace(d.params.ConfigTemplate, d.params, d.conf)
 	dpdkPluginRegex := regexp.MustCompile(`plugin\s+dpdk_plugin.so\s+{\s+disable\s+}`)
 	template = dpdkPluginRegex.ReplaceAllString(template, "plugin dpdk_plugin.so { enable }")
 

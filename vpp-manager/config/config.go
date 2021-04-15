@@ -54,6 +54,7 @@ type VppManagerParams struct {
 	ConfigExecTemplate       string
 	ConfigTemplate           string
 	InitScriptTemplate       string
+	FinalizeScriptTemplate   string
 	NodeName                 string
 	CorePattern              string
 	RxMode                   types.RxMode
