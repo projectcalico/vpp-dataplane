@@ -3593,6 +3593,11 @@ spec:
             configMapKeyRef:
               key: veth_mtu
               name: calico-config
+        - name: CALICO_IPV4POOL_CIDR
+          valueFrom:
+            configMapKeyRef:
+              key: default_ipv4_pool_cidr
+              name: calico-config
         - name: CALICO_DISABLE_FILE_LOGGING
           value: "true"
         - name: FELIX_DEFAULTENDPOINTTOHOSTACTION

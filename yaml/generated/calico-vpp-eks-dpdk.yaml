@@ -3552,7 +3552,7 @@ spec:
       - env:
         - name: HUGEPAGES
           value: "512"
-        image: calicovpp/init-eks:latest
+        image: calicovpp/init-eks:prerelease
         imagePullPolicy: IfNotPresent
         name: calicovpp-init-eks
         securityContext:
@@ -3636,6 +3636,11 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: veth_mtu
+              name: calico-config
+        - name: CALICO_IPV4POOL_CIDR
+          valueFrom:
+            configMapKeyRef:
+              key: default_ipv4_pool_cidr
               name: calico-config
         - name: CALICO_DISABLE_FILE_LOGGING
           value: "true"
@@ -3862,7 +3867,7 @@ spec:
             configMapKeyRef:
               key: service_prefix
               name: calico-config
-        image: docker.io/calicovpp/agent:latest
+        image: docker.io/calicovpp/agent:prerelease
         imagePullPolicy: IfNotPresent
         name: agent
         resources:
@@ -3919,7 +3924,7 @@ spec:
               fieldPath: spec.nodeName
         - name: CALICOVPP_CORE_PATTERN
           value: /var/lib/vpp/vppcore.%e.%p
-        image: docker.io/calicovpp/vpp:latest
+        image: docker.io/calicovpp/vpp:prerelease
         imagePullPolicy: IfNotPresent
         name: vpp
         resources:
