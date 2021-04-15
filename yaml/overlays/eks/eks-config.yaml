@@ -36,8 +36,10 @@ spec:
       containers:
         - name: vpp
           env:
+            - name: CALICOVPP_POST_INIT_SCRIPT_TEMPLATE
+              value: "echo 'sudo systemctl stop network' | chroot /host"
             - name: CALICOVPP_FINALIZE_SCRIPT_TEMPLATE
-              value: "echo 'sudo systemctl restart network' | chroot /host"
+              value: "echo 'sudo systemctl start network' | chroot /host"
           volumeMounts:
             - mountPath: /host
               name: host-root

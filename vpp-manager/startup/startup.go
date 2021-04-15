@@ -51,6 +51,10 @@ const (
 	   It contains the VPP startup configuration */
 	ConfigTemplateEnvVar = "CALICOVPP_CONFIG_TEMPLATE"
 
+	/* Bash script template run just after getting config
+	   from $CALICOVPP_INTERFACE */
+	InitPostIfScriptTemplateEnvVar = "CALICOVPP_POST_INIT_SCRIPT_TEMPLATE"
+
 	/* Template for VppConfigExecFile (/etc/vpp/startup.exec)
 	   It contains the CLI to be executed in vppctl after startup */
 	ConfigExecTemplateEnvVar = "CALICOVPP_CONFIG_EXEC_TEMPLATE"
@@ -174,6 +178,7 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 
 	params.ConfigExecTemplate = getEnvValue(ConfigExecTemplateEnvVar)
 	params.InitScriptTemplate = getEnvValue(InitScriptTemplateEnvVar)
+	params.InitPostIfScriptTemplate = getEnvValue(InitPostIfScriptTemplateEnvVar)
 	params.FinalizeScriptTemplate = getEnvValue(FinalizeScriptTemplateEnvVar)
 
 	params.ConfigTemplate = getEnvValue(ConfigTemplateEnvVar)
@@ -398,6 +403,12 @@ func PrepareConfiguration() (params *config.VppManagerParams, conf *config.Inter
 	conf, err = getInterfaceConfig(params)
 	if err != nil {
 		log.Fatalf("Error getting initial interface configuration: %s", err)
+	}
+
+	template = TemplateScriptReplace(params.InitPostIfScriptTemplate, params, nil)
+	err = utils.RunBashScript(template)
+	if err != nil {
+		log.Fatalf("Error running init script: %s", err)
 	}
 
 	return params, conf

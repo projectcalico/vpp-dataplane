@@ -54,6 +54,7 @@ type VppManagerParams struct {
 	ConfigExecTemplate       string
 	ConfigTemplate           string
 	InitScriptTemplate       string
+	InitPostIfScriptTemplate string
 	FinalizeScriptTemplate   string
 	NodeName                 string
 	CorePattern              string

@@ -3552,7 +3552,7 @@ spec:
       - env:
         - name: HUGEPAGES
           value: "512"
-        image: calicovpp/init-eks:prerelease
+        image: calicovpp/init-eks:latest
         imagePullPolicy: IfNotPresent
         name: calicovpp-init-eks
         securityContext:
@@ -3843,9 +3843,109 @@ spec:
         k8s-app: calico-vpp-node
     spec:
       containers:
+      - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CALICOVPP_TAP_MTU
+          valueFrom:
+            configMapKeyRef:
+              key: veth_mtu
+              name: calico-config
+        - name: SERVICE_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: service_prefix
+              name: calico-config
+        image: docker.io/calicovpp/agent:latest
+        imagePullPolicy: IfNotPresent
+        name: agent
+        resources:
+          requests:
+            cpu: 250m
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/calico
+          name: var-run-calico
+          readOnly: false
+        - mountPath: /var/lib/calico/felix-plugins
+          name: felix-plugins
+          readOnly: false
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+      - env:
+        - name: CALICOVPP_POST_INIT_SCRIPT_TEMPLATE
+          value: echo 'sudo systemctl stop network' | chroot /host
+        - name: CALICOVPP_FINALIZE_SCRIPT_TEMPLATE
+          value: echo 'sudo systemctl start network' | chroot /host
+        - name: CALICOVPP_NATIVE_DRIVER
+          valueFrom:
+            configMapKeyRef:
+              key: vpp_uplink_driver
+              name: calico-config
+        - name: CALICOVPP_IP_CONFIG
+          value: linux
+        - name: CALICOVPP_INTERFACE
+          valueFrom:
+            configMapKeyRef:
+              key: vpp_dataplane_interface
+              name: calico-config
+        - name: CALICOVPP_CONFIG_TEMPLATE
+          valueFrom:
+            configMapKeyRef:
+              key: vpp_config_template
+              name: calico-config
+        - name: SERVICE_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: service_prefix
+              name: calico-config
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CALICOVPP_CORE_PATTERN
+          value: /var/lib/vpp/vppcore.%e.%p
+        image: docker.io/calicovpp/vpp:latest
+        imagePullPolicy: IfNotPresent
+        name: vpp
         resources:
           limits:
             hugepages-2Mi: 512Mi
+          requests:
+            cpu: 500m
+            memory: 128Mi
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /host
+          name: host-root
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
+        - mountPath: /var/lib/vpp
+          name: vpp-data
+        - mountPath: /etc/vpp
+          name: vpp-config
+        - mountPath: /dev
+          name: devices
+        - mountPath: /sys
+          name: hostsys
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
       hostNetwork: true
       hostPID: true
       nodeSelector:
