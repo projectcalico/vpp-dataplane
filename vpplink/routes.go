@@ -181,6 +181,41 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	return nil
 }
 
+func (v *VppLink) AddDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	prefix := ip_types.Prefix{
+		Address: ip_types.Address{
+			Af: types.ToVppAddressFamily(isIP6),
+		},
+	}
+
+	paths := []fib_types.FibPath{{
+		SwIfIndex: AnyInterface,
+		TableID:   dstTable,
+		Proto:     types.IsV6toFibProto(isIP6),
+	}}
+
+	request := &vppip.IPRouteAddDel{
+		IsAdd: true,
+		Route: vppip.IPRoute{
+			TableID: sourceTable,
+			Prefix:  prefix,
+			Paths:   paths,
+		},
+	}
+
+	response := &vppip.IPRouteAddDelReply{}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add route to VPP")
+	} else if response.Retval != 0 {
+		return fmt.Errorf("failed to add route to VPP (retval %d)", response.Retval)
+	}
+	return nil
+}
+
 func (v *VppLink) SetIPFlowHash(ipFlowHash *types.IPFlowHash, vrfID uint32, isIPv6 bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()

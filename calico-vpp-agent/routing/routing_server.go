@@ -211,7 +211,7 @@ func (s *Server) fetchNodeIPs() (node *calicov3.Node, err error) {
 func (s *Server) createAndStartBGP() error {
 	globalConfig, err := s.getGlobalConfig()
 	if err != nil {
-		return fmt.Errorf("cannot get global configuration: ", err)
+		return fmt.Errorf("cannot get global configuration: %v", err)
 	}
 	maxSize := 256 << 20
 	grpcOpts := []grpc.ServerOption{
