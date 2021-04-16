@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -180,6 +181,20 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 	if err != nil {
 		p.errorCleanup(tunnel, "")
 		return errors.Wrapf(err, "Error enabling nat for ipip interface")
+	}
+
+	p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", tunnel.Dst.String(), swIfIndex)
+	err = p.vpp.RouteAdd(&types.Route{
+		Dst: common.ToMaxLenCIDR(tunnel.Dst),
+		Paths: []types.RoutePath{{
+			SwIfIndex: swIfIndex,
+			Gw:        nil,
+		}},
+		Table: common.PodVRFIndex,
+	})
+	if err != nil {
+		p.errorCleanup(tunnel, "")
+		return errors.Wrapf(err, "Error adding route to %s in ipip tunnel %d for pods", tunnel.Dst.String(), swIfIndex)
 	}
 
 	// Add and configure related IKE profile

@@ -25,6 +25,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -260,6 +261,11 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}
 
 	// configure vpp side tun
+	err = s.vpp.SetInterfaceVRF(swIfIndex, common.PodVRFIndex)
+	if err != nil {
+		return 0, s.tunErrorCleanup(podSpec, err, "error setting vpp tun %d in pod vrf", swIfIndex)
+	}
+
 	err = s.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		return 0, s.tunErrorCleanup(podSpec, err, "error setting vpp tun %d unnumbered", swIfIndex)

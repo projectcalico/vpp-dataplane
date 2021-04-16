@@ -94,6 +94,36 @@ func (v *VppLink) SetInterfaceMacAddress(swIfIndex uint32, mac *net.HardwareAddr
 	return nil
 }
 
+func (v *VppLink) SetInterfaceVRF(swIfIndex, vrfIndex uint32) error {
+	err := v.SetInterfaceVRFAf(swIfIndex, vrfIndex, false)
+	if err != nil {
+		return err
+	}
+	err = v.SetInterfaceVRFAf(swIfIndex, vrfIndex, true)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v *VppLink) SetInterfaceVRFAf(swIfIndex, vrfIndex uint32, isIP6 bool) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	response := &interfaces.SwInterfaceSetTableReply{}
+	request := &interfaces.SwInterfaceSetTable{
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+		IsIPv6:    isIP6,
+		VrfID:     vrfIndex,
+	}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrapf(err, "SwInterfaceSetTable failed: req %+v reply %+v", request, response)
+	} else if response.Retval != 0 {
+		return fmt.Errorf("SwInterfaceSetTable failed (retval %d). Request: %+v", response.Retval, request)
+	}
+	return nil
+}
+
 func defaultIntTo(value, defaultValue int) int {
 	if value == 0 {
 		return defaultValue

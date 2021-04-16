@@ -17,6 +17,7 @@ package connectivity
 
 import (
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -82,7 +83,6 @@ func (p *VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
 	var vxLanPort uint16
 	if felixConf.VXLANPort != nil {
 		vxLanPort = uint16(*felixConf.VXLANPort)
-
 	} else {
 		vxLanPort = 0
 	}
@@ -127,6 +127,20 @@ func (p *VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
 		if err != nil {
 			// TODO : delete tunnel
 			return errors.Wrapf(err, "Error setting vxlan interface up")
+		}
+
+		p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), swIfIndex)
+		err = p.vpp.RouteAdd(&types.Route{
+			Dst: common.ToMaxLenCIDR(cn.NextHop),
+			Paths: []types.RoutePath{{
+				SwIfIndex: swIfIndex,
+				Gw:        nil,
+			}},
+			Table: common.PodVRFIndex,
+		})
+		if err != nil {
+			// TODO : delete tunnel
+			return errors.Wrapf(err, "Error adding route to %s in ipip tunnel %d for pods", cn.NextHop.String(), swIfIndex)
 		}
 
 		p.vxlanIfs[cn.NextHop.String()] = swIfIndex
