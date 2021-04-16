@@ -3844,10 +3844,14 @@ spec:
           mountPropagation: Bidirectional
           name: netns
       - env:
-        - name: CALICOVPP_POST_INIT_SCRIPT_TEMPLATE
+        - name: CALICOVPP_HOOK_BEFORE_VPP_RUN
           value: echo 'sudo systemctl stop network' | chroot /host
-        - name: CALICOVPP_FINALIZE_SCRIPT_TEMPLATE
+        - name: CALICOVPP_HOOK_VPP_RUNNING
           value: echo 'sudo systemctl start network' | chroot /host
+        - name: CALICOVPP_HOOK_VPP_DONE_OK
+          value: echo 'sudo systemctl restart network' | chroot /host
+        - name: CALICOVPP_HOOK_VPP_ERRORED
+          value: echo 'sudo systemctl restart network' | chroot /host
         - name: CALICOVPP_NATIVE_DRIVER
           valueFrom:
             configMapKeyRef:

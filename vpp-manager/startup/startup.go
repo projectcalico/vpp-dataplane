@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
@@ -43,24 +44,22 @@ const (
 	/* Driver to consume the uplink with. Leave empty for autoconf */
 	NativeDriverEnvVar = "CALICOVPP_NATIVE_DRIVER"
 
+	/* Bash template hook points at several points in
+	   the VPP lifecycle. See hook/hooks.go */
+	BashHookEnvVarPrefix = "CALICOVPP_HOOK_"
+
 	/* Bash script template run before getting config
-	   from $CALICOVPP_INTERFACE */
+	   from $CALICOVPP_INTERFACE (same as
+	   CALICOVPP_HOOK_BEFORE_IF_READ)*/
 	InitScriptTemplateEnvVar = "CALICOVPP_INIT_SCRIPT_TEMPLATE"
 
 	/* Template for VppConfigFile (/etc/vpp/startup.conf)
 	   It contains the VPP startup configuration */
 	ConfigTemplateEnvVar = "CALICOVPP_CONFIG_TEMPLATE"
 
-	/* Bash script template run just after getting config
-	   from $CALICOVPP_INTERFACE */
-	InitPostIfScriptTemplateEnvVar = "CALICOVPP_POST_INIT_SCRIPT_TEMPLATE"
-
 	/* Template for VppConfigExecFile (/etc/vpp/startup.exec)
 	   It contains the CLI to be executed in vppctl after startup */
 	ConfigExecTemplateEnvVar = "CALICOVPP_CONFIG_EXEC_TEMPLATE"
-
-	/* Bash script template run after VPP has started */
-	FinalizeScriptTemplateEnvVar = "CALICOVPP_FINALIZE_SCRIPT_TEMPLATE"
 
 	/* "interrupt" "adaptive" or "polling" mode for uplink &
 	   tap interfaces */
@@ -97,7 +96,7 @@ const (
 	defaultRxMode       = types.Adaptative
 )
 
-func getVppManagerParams() (params *config.VppManagerParams) {
+func GetVppManagerParams() (params *config.VppManagerParams) {
 	params = &config.VppManagerParams{}
 	err := parseEnvVariables(params)
 	if err != nil {
@@ -177,9 +176,14 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 	}
 
 	params.ConfigExecTemplate = getEnvValue(ConfigExecTemplateEnvVar)
-	params.InitScriptTemplate = getEnvValue(InitScriptTemplateEnvVar)
-	params.InitPostIfScriptTemplate = getEnvValue(InitPostIfScriptTemplateEnvVar)
-	params.FinalizeScriptTemplate = getEnvValue(FinalizeScriptTemplateEnvVar)
+	for _, hookName := range hooks.AllHooks {
+		if conf := getEnvValue(fmt.Sprintf("%s%s", BashHookEnvVarPrefix, hookName)); conf != "" {
+			hooks.RegisterBashHook(hookName, conf)
+		}
+	}
+	if conf := getEnvValue(InitScriptTemplateEnvVar); conf != "" {
+		hooks.RegisterBashHook(hooks.BEFORE_IF_READ, conf)
+	}
 
 	params.ConfigTemplate = getEnvValue(ConfigTemplateEnvVar)
 	if params.ConfigTemplate == "" {
@@ -365,18 +369,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("MTU                  %d", conf.Mtu)
 }
 
-func TemplateScriptReplace(input string, params *config.VppManagerParams, conf *config.InterfaceConfig) (template string) {
-	template = input
-	if conf != nil {
-		/* We might template scripts before reading interface conf */
-		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", conf.PciId)
-	}
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.MainInterface)
-	return template
-}
-
-func PrepareConfiguration() (params *config.VppManagerParams, conf *config.InterfaceConfig) {
-	params = getVppManagerParams()
+func PrepareConfiguration(params *config.VppManagerParams) (conf *config.InterfaceConfig) {
 	err := utils.ClearVppManagerFiles()
 	if err != nil {
 		log.Fatalf("Error clearing config files: %+v", err)
@@ -392,24 +385,10 @@ func PrepareConfiguration() (params *config.VppManagerParams, conf *config.Inter
 		log.Errorf("Error raising memlock limit, VPP may fail to start: %v", err)
 	}
 
-	/* Run this before getLinuxConfig() in case this is a script
-	 * that's responsible for creating the interface */
-	template := TemplateScriptReplace(params.InitScriptTemplate, params, nil)
-	err = utils.RunBashScript(template)
-	if err != nil {
-		log.Fatalf("Error running init script: %s", err)
-	}
-
 	conf, err = getInterfaceConfig(params)
 	if err != nil {
 		log.Fatalf("Error getting initial interface configuration: %s", err)
 	}
 
-	template = TemplateScriptReplace(params.InitPostIfScriptTemplate, params, nil)
-	err = utils.RunBashScript(template)
-	if err != nil {
-		log.Fatalf("Error running init script: %s", err)
-	}
-
-	return params, conf
+	return conf
 }

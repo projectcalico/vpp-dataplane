@@ -22,7 +22,6 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
@@ -135,7 +134,7 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 }
 
 func (d *UplinkDriverData) GenerateVppConfigExecFile() error {
-	template := startup.TemplateScriptReplace(d.params.ConfigExecTemplate, d.params, d.conf)
+	template := config.TemplateScriptReplace(d.params.ConfigExecTemplate, d.params, d.conf)
 	err := errors.Wrapf(
 		ioutil.WriteFile(config.VppConfigExecFile, []byte(template+"\n"), 0744),
 		"Error writing VPP Exec configuration to %s",
@@ -145,7 +144,7 @@ func (d *UplinkDriverData) GenerateVppConfigExecFile() error {
 }
 
 func (d *UplinkDriverData) GenerateVppConfigFile() error {
-	template := startup.TemplateScriptReplace(d.params.ConfigTemplate, d.params, d.conf)
+	template := config.TemplateScriptReplace(d.params.ConfigTemplate, d.params, d.conf)
 	return errors.Wrapf(
 		ioutil.WriteFile(config.VppConfigFile, []byte(template+"\n"), 0644),
 		"Error writing VPP configuration to %s",

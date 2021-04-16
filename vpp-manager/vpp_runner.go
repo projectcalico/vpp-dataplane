@@ -32,7 +32,7 @@ import (
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -65,32 +65,32 @@ func NewVPPRunner(params *config.VppManagerParams, conf *config.InterfaceConfig)
 	}
 }
 
-func (v *VppRunner) Run(driver uplink.UplinkDriver) {
+func (v *VppRunner) Run(driver uplink.UplinkDriver) error {
 	v.uplinkDriver = driver
 	log.Infof("Running with uplink %s", driver.GetName())
 
 	err := v.uplinkDriver.GenerateVppConfigExecFile()
 	if err != nil {
-		log.Errorf("Error generating VPP config Exec: %s", err)
-		return
+		return errors.Wrapf(err, "Error generating VPP config Exec: %s")
 	}
 
 	err = v.uplinkDriver.GenerateVppConfigFile()
 	if err != nil {
-		log.Errorf("Error generating VPP config: %s", err)
-		return
+		return errors.Wrapf(err, "Error generating VPP config: %s")
 	}
 
 	err = v.uplinkDriver.PreconfigureLinux()
 	if err != nil {
-		log.Errorf("Error pre-configuring Linux main IF: %s", err)
-		return
+		return errors.Wrapf(err, "Error pre-configuring Linux main IF: %s")
 	}
 
+	hooks.RunHook(hooks.BEFORE_VPP_RUN, v.params, v.conf)
 	err = v.runVpp()
 	if err != nil {
-		log.Errorf("Error running VPP: %v", err)
+		return errors.Wrapf(err, "Error running VPP: %v")
 	}
+	hooks.RunHook(hooks.VPP_DONE_OK, v.params, v.conf)
+	return nil
 }
 
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32) (err error) {
@@ -667,11 +667,7 @@ func (v *VppRunner) runVpp() (err error) {
 	utils.WriteFile("1", config.VppManagerStatusFile)
 	go v.poolWatcher.SyncPools()
 
-	template := startup.TemplateScriptReplace(v.params.FinalizeScriptTemplate, v.params, v.conf)
-	err = utils.RunBashScript(template)
-	if err != nil {
-		log.Errorf("Error running finalize script: %s", err)
-	}
+	hooks.RunHook(hooks.VPP_RUNNING, v.params, v.conf)
 
 	<-vppDeadChan
 	log.Infof("VPP Exited: status %v", err)
