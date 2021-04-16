@@ -393,7 +393,7 @@ func (v *VppRunner) configureVpp() (err error) {
 		RxQueueSize:    v.params.TapRxQueueSize,
 		TxQueueSize:    v.params.TapTxQueueSize,
 		Flags:          vpptap0Flags,
-		Mtu:            config.VppTapMtu,
+		Mtu:            config.GetUplinkMtu(v.params, v.conf, false /* includeEncap */),
 		HostMacAddress: v.conf.HardwareAddr,
 		MacAddress:     vppSideMac,
 	})
@@ -407,7 +407,7 @@ func (v *VppRunner) configureVpp() (err error) {
 		return errors.Wrap(err, "Error setting tap rx placement")
 	}
 
-	err = v.vpp.SetInterfaceMtu(uint32(tapSwIfIndex), uplinkMtu)
+	err = v.vpp.SetInterfaceMtu(uint32(tapSwIfIndex), config.VppTapMtu)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting %d MTU on tap interface", uplinkMtu)
 	}
