@@ -3589,6 +3589,11 @@ spec:
             configMapKeyRef:
               key: veth_mtu
               name: calico-config
+        - name: CALICO_IPV4POOL_CIDR
+          valueFrom:
+            configMapKeyRef:
+              key: default_ipv4_pool_cidr
+              name: calico-config
         - name: CALICO_DISABLE_FILE_LOGGING
           value: "true"
         - name: FELIX_DEFAULTENDPOINTTOHOSTACTION
@@ -3796,6 +3801,45 @@ spec:
     spec:
       containers:
       - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CALICOVPP_TAP_MTU
+          valueFrom:
+            configMapKeyRef:
+              key: veth_mtu
+              name: calico-config
+        - name: SERVICE_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: service_prefix
+              name: calico-config
+        image: docker.io/calicovpp/agent:prerelease
+        imagePullPolicy: IfNotPresent
+        name: agent
+        resources:
+          requests:
+            cpu: 250m
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/calico
+          name: var-run-calico
+          readOnly: false
+        - mountPath: /var/lib/calico/felix-plugins
+          name: felix-plugins
+          readOnly: false
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+      - env:
         - name: CALICOVPP_NATIVE_DRIVER
           valueFrom:
             configMapKeyRef:
@@ -3850,45 +3894,6 @@ spec:
           name: devices
         - mountPath: /sys
           name: hostsys
-        - mountPath: /run/netns/
-          mountPropagation: Bidirectional
-          name: netns
-      - env:
-        - name: DATASTORE_TYPE
-          value: kubernetes
-        - name: WAIT_FOR_DATASTORE
-          value: "true"
-        - name: NODENAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: CALICOVPP_TAP_MTU
-          valueFrom:
-            configMapKeyRef:
-              key: veth_mtu
-              name: calico-config
-        - name: SERVICE_PREFIX
-          valueFrom:
-            configMapKeyRef:
-              key: service_prefix
-              name: calico-config
-        image: docker.io/calicovpp/agent:prerelease
-        imagePullPolicy: IfNotPresent
-        name: agent
-        resources:
-          requests:
-            cpu: 250m
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /var/run/calico
-          name: var-run-calico
-          readOnly: false
-        - mountPath: /var/lib/calico/felix-plugins
-          name: felix-plugins
-          readOnly: false
-        - mountPath: /var/run/vpp
-          name: vpp-rundir
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns

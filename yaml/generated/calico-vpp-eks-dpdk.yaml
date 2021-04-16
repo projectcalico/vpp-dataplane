@@ -3444,7 +3444,7 @@ data:
   default_ipv4_pool_cidr: 10.10.0.0/16
   service_prefix: 10.100.0.0/16
   typha_service_name: none
-  veth_mtu: "1410"
+  veth_mtu: "0"
   vpp_config_template: |-
     unix {
       nodaemon
@@ -3591,6 +3591,10 @@ spec:
     spec:
       containers:
       - env:
+        - name: FELIX_AWSSRCDSTCHECK
+          value: Disable
+        - name: IP_AUTODETECTION_METHOD
+          value: interface=eth0
         - name: FELIX_USEINTERNALDATAPLANEDRIVER
           value: "false"
         - name: FELIX_DATAPLANEDRIVER
@@ -3632,6 +3636,11 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: veth_mtu
+              name: calico-config
+        - name: CALICO_IPV4POOL_CIDR
+          valueFrom:
+            configMapKeyRef:
+              key: default_ipv4_pool_cidr
               name: calico-config
         - name: CALICO_DISABLE_FILE_LOGGING
           value: "true"
@@ -3840,6 +3849,53 @@ spec:
     spec:
       containers:
       - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CALICOVPP_TAP_MTU
+          valueFrom:
+            configMapKeyRef:
+              key: veth_mtu
+              name: calico-config
+        - name: SERVICE_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: service_prefix
+              name: calico-config
+        image: docker.io/calicovpp/agent:prerelease
+        imagePullPolicy: IfNotPresent
+        name: agent
+        resources:
+          requests:
+            cpu: 250m
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/calico
+          name: var-run-calico
+          readOnly: false
+        - mountPath: /var/lib/calico/felix-plugins
+          name: felix-plugins
+          readOnly: false
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+      - env:
+        - name: CALICOVPP_HOOK_BEFORE_VPP_RUN
+          value: echo 'sudo systemctl stop network' | chroot /host
+        - name: CALICOVPP_HOOK_VPP_RUNNING
+          value: echo 'sudo systemctl start network' | chroot /host
+        - name: CALICOVPP_HOOK_VPP_DONE_OK
+          value: echo 'sudo systemctl restart network' | chroot /host
+        - name: CALICOVPP_HOOK_VPP_ERRORED
+          value: echo 'sudo systemctl restart network' | chroot /host
         - name: CALICOVPP_NATIVE_DRIVER
           valueFrom:
             configMapKeyRef:
@@ -3879,13 +3935,13 @@ spec:
           limits:
             hugepages-2Mi: 512Mi
           requests:
-            cpu: 1
+            cpu: 500m
             memory: 128Mi
         securityContext:
           privileged: true
         volumeMounts:
-        - mountPath: /hugepages
-          name: hugepage
+        - mountPath: /host
+          name: host-root
         - mountPath: /var/run/vpp
           name: vpp-rundir
         - mountPath: /var/lib/vpp
@@ -3896,51 +3952,6 @@ spec:
           name: devices
         - mountPath: /sys
           name: hostsys
-        - mountPath: /run/netns/
-          mountPropagation: Bidirectional
-          name: netns
-      - env:
-        - name: CALICO_IPV4POOL_IPIP
-          value: Always
-        - name: FELIX_AWSSRCDSTCHECK
-          value: Disable
-        name: calico-node
-      - env:
-        - name: DATASTORE_TYPE
-          value: kubernetes
-        - name: WAIT_FOR_DATASTORE
-          value: "true"
-        - name: NODENAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: CALICOVPP_TAP_MTU
-          valueFrom:
-            configMapKeyRef:
-              key: veth_mtu
-              name: calico-config
-        - name: SERVICE_PREFIX
-          valueFrom:
-            configMapKeyRef:
-              key: service_prefix
-              name: calico-config
-        image: docker.io/calicovpp/agent:prerelease
-        imagePullPolicy: IfNotPresent
-        name: agent
-        resources:
-          requests:
-            cpu: 250m
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /var/run/calico
-          name: var-run-calico
-          readOnly: false
-        - mountPath: /var/lib/calico/felix-plugins
-          name: felix-plugins
-          readOnly: false
-        - mountPath: /var/run/vpp
-          name: vpp-rundir
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns
@@ -3959,9 +3970,6 @@ spec:
       - effect: NoExecute
         operator: Exists
       volumes:
-      - emptyDir:
-          medium: HugePages
-        name: hugepage
       - hostPath:
           path: /
         name: host-root

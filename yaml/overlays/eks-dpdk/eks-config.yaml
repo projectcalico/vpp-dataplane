@@ -4,11 +4,7 @@ metadata:
   name: calico-config
   namespace: kube-system
 data:  # Configuration template for VPP in EKS
-  service_prefix: 10.100.0.0/16
-  vpp_dataplane_interface: eth0
-  veth_mtu: "1410"
-  default_ipv4_pool_cidr: 10.10.0.0/16
-  vpp_uplink_driver: "none"
+  vpp_uplink_driver: none
   vpp_config_template: |-
     unix {
       nodaemon
@@ -44,24 +40,6 @@ spec:
     spec:
       containers:
         - name: vpp
-          volumeMounts:
-            - mountPath: /hugepages
-              name: hugepage
           resources:
-            requests:
-              cpu: 1
             limits:
               hugepages-2Mi: 512Mi
-        - name: calico-node
-          env:
-            - name: CALICO_IPV4POOL_IPIP
-              value: "Always"
-            - name: FELIX_AWSSRCDSTCHECK
-              value: Disable
-      volumes:
-        - name: hugepage
-          emptyDir:
-            medium: HugePages
-        - name: host-root
-          hostPath:
-            path: /

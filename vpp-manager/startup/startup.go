@@ -19,40 +19,74 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	NodeNameEnvVar             = "NODENAME"
-	IpConfigEnvVar             = "CALICOVPP_IP_CONFIG"
-	RxModeEnvVar               = "CALICOVPP_RX_MODE"
-	NumRxQueuesEnvVar          = "CALICOVPP_RX_QUEUES"
-	TapRxModeEnvVar            = "CALICOVPP_TAP_RX_MODE"
-	InterfaceEnvVar            = "CALICOVPP_INTERFACE"
-	ConfigTemplateEnvVar       = "CALICOVPP_CONFIG_TEMPLATE"
-	ConfigExecTemplateEnvVar   = "CALICOVPP_CONFIG_EXEC_TEMPLATE"
-	InitScriptTemplateEnvVar   = "CALICOVPP_INIT_SCRIPT_TEMPLATE"
-	IfConfigPathEnvVar         = "CALICOVPP_IF_CONFIG_PATH"
-	VppStartupSleepEnvVar      = "CALICOVPP_VPP_STARTUP_SLEEP"
-	ExtraAddrCountEnvVar       = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
-	CorePatternEnvVar          = "CALICOVPP_CORE_PATTERN"
-	TapRingSizeEnvVar          = "CALICOVPP_TAP_RING_SIZE"
-	UserSpecifiedMtuEnvVar     = "CALICOVPP_TAP_MTU"
-	IpsecNbAsyncCryptoThEnvVar = "CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD"
-	RingSizeEnvVar             = "CALICOVPP_RING_SIZE"
-	NativeDriverEnvVar         = "CALICOVPP_NATIVE_DRIVER"
-	SwapDriverEnvVar           = "CALICOVPP_SWAP_DRIVER"
-	DefaultGWEnvVar            = "CALICOVPP_DEFAULT_GW"
-	EnableGSOEnvVar            = "CALICOVPP_DEBUG_ENABLE_GSO"
-	ServicePrefixEnvVar        = "SERVICE_PREFIX"
+	NodeNameEnvVar      = "NODENAME"
+	ServicePrefixEnvVar = "SERVICE_PREFIX"
+
+	/* Configuration source. Only linux (aka read from
+	   $CALICOVPP_INTERFACE) is supported for now */
+	IpConfigEnvVar = "CALICOVPP_IP_CONFIG"
+
+	/* linux name of the uplink interface to be used by VPP */
+	InterfaceEnvVar = "CALICOVPP_INTERFACE"
+
+	/* Driver to consume the uplink with. Leave empty for autoconf */
+	NativeDriverEnvVar = "CALICOVPP_NATIVE_DRIVER"
+
+	/* Bash template hook points at several points in
+	   the VPP lifecycle. See hook/hooks.go */
+	BashHookEnvVarPrefix = "CALICOVPP_HOOK_"
+
+	/* Bash script template run before getting config
+	   from $CALICOVPP_INTERFACE (same as
+	   CALICOVPP_HOOK_BEFORE_IF_READ)*/
+	InitScriptTemplateEnvVar = "CALICOVPP_INIT_SCRIPT_TEMPLATE"
+
+	/* Template for VppConfigFile (/etc/vpp/startup.conf)
+	   It contains the VPP startup configuration */
+	ConfigTemplateEnvVar = "CALICOVPP_CONFIG_TEMPLATE"
+
+	/* Template for VppConfigExecFile (/etc/vpp/startup.exec)
+	   It contains the CLI to be executed in vppctl after startup */
+	ConfigExecTemplateEnvVar = "CALICOVPP_CONFIG_EXEC_TEMPLATE"
+
+	/* "interrupt" "adaptive" or "polling" mode for uplink &
+	   tap interfaces */
+	RxModeEnvVar    = "CALICOVPP_RX_MODE"
+	TapRxModeEnvVar = "CALICOVPP_TAP_RX_MODE"
+
+	/* Number of rx queues to use for the uplink interface in VPP */
+	NumRxQueuesEnvVar = "CALICOVPP_RX_QUEUES"
+
+	/* Set the pattern for VPP corefiles. Usually "/var/lib/vpp/vppcore.%e.%p" */
+	CorePatternEnvVar = "CALICOVPP_CORE_PATTERN"
+
+	/* Queue size (either "1024" or "1024,512" for rx,tx) for the tap/the uplink */
+	TapRingSizeEnvVar = "CALICOVPP_TAP_RING_SIZE"
+	RingSizeEnvVar    = "CALICOVPP_RING_SIZE"
+
+	/* Comma separated list of IPs to be configured in VPP as default GW */
+	DefaultGWEnvVar = "CALICOVPP_DEFAULT_GW"
+
+	/* User specified MTU for uplink & the tap */
+	UserSpecifiedMtuEnvVar = "CALICOVPP_TAP_MTU"
+
+	IfConfigPathEnvVar    = "CALICOVPP_IF_CONFIG_PATH"
+	VppStartupSleepEnvVar = "CALICOVPP_VPP_STARTUP_SLEEP"
+	ExtraAddrCountEnvVar  = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
+	SwapDriverEnvVar      = "CALICOVPP_SWAP_DRIVER"
+	EnableGSOEnvVar       = "CALICOVPP_DEBUG_ENABLE_GSO"
 )
 
 const (
@@ -62,7 +96,7 @@ const (
 	defaultRxMode       = types.Adaptative
 )
 
-func getVppManagerParams() (params *config.VppManagerParams) {
+func GetVppManagerParams() (params *config.VppManagerParams) {
 	params = &config.VppManagerParams{}
 	err := parseEnvVariables(params)
 	if err != nil {
@@ -142,7 +176,14 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 	}
 
 	params.ConfigExecTemplate = getEnvValue(ConfigExecTemplateEnvVar)
-	params.InitScriptTemplate = getEnvValue(InitScriptTemplateEnvVar)
+	for _, hookName := range hooks.AllHooks {
+		if conf := getEnvValue(fmt.Sprintf("%s%s", BashHookEnvVarPrefix, hookName)); conf != "" {
+			hooks.RegisterBashHook(hookName, conf)
+		}
+	}
+	if conf := getEnvValue(InitScriptTemplateEnvVar); conf != "" {
+		hooks.RegisterBashHook(hooks.BEFORE_IF_READ, conf)
+	}
 
 	params.ConfigTemplate = getEnvValue(ConfigTemplateEnvVar)
 	if params.ConfigTemplate == "" {
@@ -328,20 +369,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("MTU                  %d", conf.Mtu)
 }
 
-func runInitScript(params *config.VppManagerParams) error {
-	if params.InitScriptTemplate == "" {
-		return nil
-	}
-	// Trivial rendering for the moment...
-	template := strings.ReplaceAll(params.InitScriptTemplate, "__VPP_DATAPLANE_IF__", params.MainInterface)
-	cmd := exec.Command("/bin/bash", "-c", template)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-func PrepareConfiguration() (params *config.VppManagerParams, conf *config.InterfaceConfig) {
-	params = getVppManagerParams()
+func PrepareConfiguration(params *config.VppManagerParams) (conf *config.InterfaceConfig) {
 	err := utils.ClearVppManagerFiles()
 	if err != nil {
 		log.Fatalf("Error clearing config files: %+v", err)
@@ -357,17 +385,10 @@ func PrepareConfiguration() (params *config.VppManagerParams, conf *config.Inter
 		log.Errorf("Error raising memlock limit, VPP may fail to start: %v", err)
 	}
 
-	/* Run this before getLinuxConfig() in case this is a script
-	 * that's responsible for creating the interface */
-	err = runInitScript(params)
-	if err != nil {
-		log.Fatalf("Error running init script: %s", err)
-	}
-
 	conf, err = getInterfaceConfig(params)
 	if err != nil {
 		log.Fatalf("Error getting initial interface configuration: %s", err)
 	}
 
-	return params, conf
+	return conf
 }

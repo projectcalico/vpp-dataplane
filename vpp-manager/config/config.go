@@ -53,7 +53,6 @@ type VppManagerParams struct {
 	MainInterface            string
 	ConfigExecTemplate       string
 	ConfigTemplate           string
-	InitScriptTemplate       string
 	NodeName                 string
 	CorePattern              string
 	RxMode                   types.RxMode
@@ -185,4 +184,14 @@ func (c *InterfaceConfig) SortRoutes() {
 		j_len, _ := c.Routes[j].Dst.Mask.Size()
 		return i_len > j_len
 	})
+}
+
+func TemplateScriptReplace(input string, params *VppManagerParams, conf *InterfaceConfig) (template string) {
+	template = input
+	if conf != nil {
+		/* We might template scripts before reading interface conf */
+		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", conf.PciId)
+	}
+	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.MainInterface)
+	return template
 }

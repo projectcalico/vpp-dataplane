@@ -18,7 +18,6 @@ package uplink
 import (
 	"fmt"
 	"io/ioutil"
-	"strings"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
@@ -135,9 +134,7 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 }
 
 func (d *UplinkDriverData) GenerateVppConfigExecFile() error {
-	// Trivial rendering for the moment...
-	template := strings.ReplaceAll(d.params.ConfigExecTemplate, "__PCI_DEVICE_ID__", d.conf.PciId)
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", d.params.MainInterface)
+	template := config.TemplateScriptReplace(d.params.ConfigExecTemplate, d.params, d.conf)
 	err := errors.Wrapf(
 		ioutil.WriteFile(config.VppConfigExecFile, []byte(template+"\n"), 0744),
 		"Error writing VPP Exec configuration to %s",
@@ -147,9 +144,7 @@ func (d *UplinkDriverData) GenerateVppConfigExecFile() error {
 }
 
 func (d *UplinkDriverData) GenerateVppConfigFile() error {
-	// Trivial rendering for the moment...
-	template := strings.ReplaceAll(d.params.ConfigTemplate, "__PCI_DEVICE_ID__", d.conf.PciId)
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", d.params.MainInterface)
+	template := config.TemplateScriptReplace(d.params.ConfigTemplate, d.params, d.conf)
 	return errors.Wrapf(
 		ioutil.WriteFile(config.VppConfigFile, []byte(template+"\n"), 0644),
 		"Error writing VPP configuration to %s",

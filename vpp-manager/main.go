@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	log "github.com/sirupsen/logrus"
@@ -137,7 +138,10 @@ func main() {
 	VPPgotSigCHLD = make(map[int]bool)
 	VPPgotTimeout = make(map[int]bool)
 
-	params, conf := startup.PrepareConfiguration()
+	params := startup.GetVppManagerParams()
+
+	hooks.RunHook(hooks.BEFORE_IF_READ, params, nil)
+	conf := startup.PrepareConfiguration(params)
 
 	runningCond = sync.NewCond(&sync.Mutex{})
 	go handleSignals()
@@ -150,7 +154,11 @@ func main() {
 	if params.NativeDriver == "" {
 		for _, driver := range uplink.SupportedUplinkDrivers(params, conf) {
 			internalKill = false
-			runner.Run(driver)
+			err := runner.Run(driver)
+			if err != nil {
+				hooks.RunHook(hooks.VPP_ERRORED, params, conf)
+				log.Errorf("VPP(%s) run failed with %s", driver, err)
+			}
 			if vppProcess != nil && !internalKill {
 				log.Infof("External Kill")
 				/* Don't restart VPP if we were asked to terminate */
@@ -160,6 +168,10 @@ func main() {
 		}
 	} else {
 		driver := uplink.NewUplinkDriver(params.NativeDriver, params, conf)
-		runner.Run(driver)
+		err := runner.Run(driver)
+		if err != nil {
+			hooks.RunHook(hooks.VPP_ERRORED, params, conf)
+			log.Errorf("VPP(%s) run failed with %s", params.NativeDriver, err)
+		}
 	}
 }
