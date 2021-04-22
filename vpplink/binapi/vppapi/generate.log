@@ -1,16 +1,17 @@
-VPP Version                 : 21.06-rc0~399-gb4471f7a9
+VPP Version                 : 21.06-rc0~565-gd9e29bb1a
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 9cc765559 avf: don't memcpy if adminq output buffer size is 0
+VPP Base commit             : cf0e257dc vcl: validate fs before cleanup
 ------------------ Cherry picked commits --------------------
-b4471f7a9 capo: Calico Policies plugin
-f41ca7b3e acl: acl-plugin custom policies
-64fa56a03 cnat: fix cnat feature partial cksum
-99bdce8a7 cnat: [WIP] no k8s maglev from pods
-cc9dbadf2 cnat: maglev fixes
-fc09cee58 ip6-nd: silent the source and target checks on given interface
-d0ad987dd gso: do not try gro on small packets
-cdf2ebaa4 dpdk: implement interrupt mode
-56ae73b00 devices: add support for pseudo header checksum
-4db65c752 virtio: DRAFT: multi tx support
-042faca34 af_packet: use netlink to get/set mtu
+d9e29bb1a capo: Calico Policies plugin
+63285358d acl: acl-plugin custom policies
+4abc00831 cnat: fix cnat feature partial cksum
+2496c8d23 cnat: [WIP] no k8s maglev from pods
+b08eb1222 ip6-nd: silent the source and target checks on given interface
+2428bc834 vxlan: Fix L3 mode
+f6d1dd59f punt: ensure ttl doesn't decrease to 0 when punting
+edc51696e vpp: Fix session flag initialization
+4d84492e1 gso: do not try gro on small packets
+a5d36da8d devices: add support for pseudo header checksum
+22124fd31 virtio: DRAFT: multi tx support
+e921e0634 vnet: fix offload flags handling
 -------------------------------------------------------------

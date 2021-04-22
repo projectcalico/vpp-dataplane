@@ -3,7 +3,7 @@
 // Package ikev2 contains generated bindings for API file ikev2.api.
 //
 // Contents:
-//  48 messages
+//  50 messages
 //
 package ikev2
 
@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ikev2"
 	APIVersion = "1.0.1"
-	VersionCrc = 0xeeeccac1
+	VersionCrc = 0x8eb2437c
 )
 
 // Ikev2ChildSaDetails defines message 'ikev2_child_sa_details'.
@@ -1950,6 +1950,82 @@ func (m *Ikev2SetResponder) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Ikev2SetResponderHostname defines message 'ikev2_set_responder_hostname'.
+type Ikev2SetResponderHostname struct {
+	Name      string                         `binapi:"string[64],name=name" json:"name,omitempty"`
+	Hostname  string                         `binapi:"string[64],name=hostname" json:"hostname,omitempty"`
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+}
+
+func (m *Ikev2SetResponderHostname) Reset()               { *m = Ikev2SetResponderHostname{} }
+func (*Ikev2SetResponderHostname) GetMessageName() string { return "ikev2_set_responder_hostname" }
+func (*Ikev2SetResponderHostname) GetCrcString() string   { return "350d6949" }
+func (*Ikev2SetResponderHostname) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *Ikev2SetResponderHostname) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 64 // m.Name
+	size += 64 // m.Hostname
+	size += 4  // m.SwIfIndex
+	return size
+}
+func (m *Ikev2SetResponderHostname) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeString(m.Name, 64)
+	buf.EncodeString(m.Hostname, 64)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	return buf.Bytes(), nil
+}
+func (m *Ikev2SetResponderHostname) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Name = buf.DecodeString(64)
+	m.Hostname = buf.DecodeString(64)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	return nil
+}
+
+// Ikev2SetResponderHostnameReply defines message 'ikev2_set_responder_hostname_reply'.
+type Ikev2SetResponderHostnameReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *Ikev2SetResponderHostnameReply) Reset() { *m = Ikev2SetResponderHostnameReply{} }
+func (*Ikev2SetResponderHostnameReply) GetMessageName() string {
+	return "ikev2_set_responder_hostname_reply"
+}
+func (*Ikev2SetResponderHostnameReply) GetCrcString() string { return "e8d4e804" }
+func (*Ikev2SetResponderHostnameReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *Ikev2SetResponderHostnameReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *Ikev2SetResponderHostnameReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *Ikev2SetResponderHostnameReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // Ikev2SetResponderReply defines message 'ikev2_set_responder_reply'.
 type Ikev2SetResponderReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -2285,6 +2361,8 @@ func file_ikev2_binapi_init() {
 	api.RegisterMessage((*Ikev2SetLocalKey)(nil), "ikev2_set_local_key_799b69ec")
 	api.RegisterMessage((*Ikev2SetLocalKeyReply)(nil), "ikev2_set_local_key_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2SetResponder)(nil), "ikev2_set_responder_a2055df1")
+	api.RegisterMessage((*Ikev2SetResponderHostname)(nil), "ikev2_set_responder_hostname_350d6949")
+	api.RegisterMessage((*Ikev2SetResponderHostnameReply)(nil), "ikev2_set_responder_hostname_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2SetResponderReply)(nil), "ikev2_set_responder_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2SetSaLifetime)(nil), "ikev2_set_sa_lifetime_7039feaa")
 	api.RegisterMessage((*Ikev2SetSaLifetimeReply)(nil), "ikev2_set_sa_lifetime_reply_e8d4e804")
@@ -2338,6 +2416,8 @@ func AllMessages() []api.Message {
 		(*Ikev2SetLocalKey)(nil),
 		(*Ikev2SetLocalKeyReply)(nil),
 		(*Ikev2SetResponder)(nil),
+		(*Ikev2SetResponderHostname)(nil),
+		(*Ikev2SetResponderHostnameReply)(nil),
 		(*Ikev2SetResponderReply)(nil),
 		(*Ikev2SetSaLifetime)(nil),
 		(*Ikev2SetSaLifetimeReply)(nil),

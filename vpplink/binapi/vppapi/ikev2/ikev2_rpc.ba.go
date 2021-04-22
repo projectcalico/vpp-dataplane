@@ -34,6 +34,7 @@ type RPCService interface {
 	Ikev2SetIkeTransforms(ctx context.Context, in *Ikev2SetIkeTransforms) (*Ikev2SetIkeTransformsReply, error)
 	Ikev2SetLocalKey(ctx context.Context, in *Ikev2SetLocalKey) (*Ikev2SetLocalKeyReply, error)
 	Ikev2SetResponder(ctx context.Context, in *Ikev2SetResponder) (*Ikev2SetResponderReply, error)
+	Ikev2SetResponderHostname(ctx context.Context, in *Ikev2SetResponderHostname) (*Ikev2SetResponderHostnameReply, error)
 	Ikev2SetSaLifetime(ctx context.Context, in *Ikev2SetSaLifetime) (*Ikev2SetSaLifetimeReply, error)
 	Ikev2SetTunnelInterface(ctx context.Context, in *Ikev2SetTunnelInterface) (*Ikev2SetTunnelInterfaceReply, error)
 	Ikev2TrafficSelectorDump(ctx context.Context, in *Ikev2TrafficSelectorDump) (RPCService_Ikev2TrafficSelectorDumpClient, error)
@@ -319,6 +320,15 @@ func (c *serviceClient) Ikev2SetLocalKey(ctx context.Context, in *Ikev2SetLocalK
 
 func (c *serviceClient) Ikev2SetResponder(ctx context.Context, in *Ikev2SetResponder) (*Ikev2SetResponderReply, error) {
 	out := new(Ikev2SetResponderReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) Ikev2SetResponderHostname(ctx context.Context, in *Ikev2SetResponderHostname) (*Ikev2SetResponderHostnameReply, error) {
+	out := new(Ikev2SetResponderHostnameReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err
