@@ -37,6 +37,7 @@ func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIf
 		DstPort:        tunnel.DstPort,
 		Vni:            tunnel.Vni,
 		DecapNextIndex: tunnel.DecapNextIndex,
+		IsL3:           true,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	opStr := "Del"

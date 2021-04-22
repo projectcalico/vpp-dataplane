@@ -4,8 +4,8 @@
 //
 // Contents:
 //   2 enums
-//   5 structs
-//  75 messages
+//   6 structs
+//  81 messages
 //
 package ip
 
@@ -29,8 +29,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "ip"
-	APIVersion = "3.0.3"
-	VersionCrc = 0x4dc31a92
+	APIVersion = "3.1.0"
+	VersionCrc = 0x972432b4
 )
 
 // IPReassType defines enum 'ip_reass_type'.
@@ -149,6 +149,16 @@ type IPRoute struct {
 	StatsIndex uint32              `binapi:"u32,name=stats_index" json:"stats_index,omitempty"`
 	Prefix     ip_types.Prefix     `binapi:"prefix,name=prefix" json:"prefix,omitempty"`
 	NPaths     uint8               `binapi:"u8,name=n_paths" json:"-"`
+	Paths      []fib_types.FibPath `binapi:"fib_path[n_paths],name=paths" json:"paths,omitempty"`
+}
+
+// IPRouteV2 defines type 'ip_route_v2'.
+type IPRouteV2 struct {
+	TableID    uint32              `binapi:"u32,name=table_id" json:"table_id,omitempty"`
+	StatsIndex uint32              `binapi:"u32,name=stats_index" json:"stats_index,omitempty"`
+	Prefix     ip_types.Prefix     `binapi:"prefix,name=prefix" json:"prefix,omitempty"`
+	NPaths     uint8               `binapi:"u8,name=n_paths" json:"-"`
+	Src        uint8               `binapi:"u8,name=src" json:"src,omitempty"`
 	Paths      []fib_types.FibPath `binapi:"fib_path[n_paths],name=paths" json:"paths,omitempty"`
 }
 
@@ -2003,6 +2013,175 @@ func (m *IPRouteAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPRouteAddDelV2 defines message 'ip_route_add_del_v2'.
+type IPRouteAddDelV2 struct {
+	IsAdd       bool      `binapi:"bool,name=is_add,default=true" json:"is_add,omitempty"`
+	IsMultipath bool      `binapi:"bool,name=is_multipath" json:"is_multipath,omitempty"`
+	Route       IPRouteV2 `binapi:"ip_route_v2,name=route" json:"route,omitempty"`
+}
+
+func (m *IPRouteAddDelV2) Reset()               { *m = IPRouteAddDelV2{} }
+func (*IPRouteAddDelV2) GetMessageName() string { return "ip_route_add_del_v2" }
+func (*IPRouteAddDelV2) GetCrcString() string   { return "521ef330" }
+func (*IPRouteAddDelV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IPRouteAddDelV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1      // m.IsAdd
+	size += 1      // m.IsMultipath
+	size += 4      // m.Route.TableID
+	size += 4      // m.Route.StatsIndex
+	size += 1      // m.Route.Prefix.Address.Af
+	size += 1 * 16 // m.Route.Prefix.Address.Un
+	size += 1      // m.Route.Prefix.Len
+	size += 1      // m.Route.NPaths
+	size += 1      // m.Route.Src
+	for j2 := 0; j2 < len(m.Route.Paths); j2++ {
+		var s2 fib_types.FibPath
+		_ = s2
+		if j2 < len(m.Route.Paths) {
+			s2 = m.Route.Paths[j2]
+		}
+		size += 4      // s2.SwIfIndex
+		size += 4      // s2.TableID
+		size += 4      // s2.RpfID
+		size += 1      // s2.Weight
+		size += 1      // s2.Preference
+		size += 4      // s2.Type
+		size += 4      // s2.Flags
+		size += 4      // s2.Proto
+		size += 1 * 16 // s2.Nh.Address
+		size += 4      // s2.Nh.ViaLabel
+		size += 4      // s2.Nh.ObjID
+		size += 4      // s2.Nh.ClassifyTableIndex
+		size += 1      // s2.NLabels
+		for j3 := 0; j3 < 16; j3++ {
+			size += 1 // s2.LabelStack[j3].IsUniform
+			size += 4 // s2.LabelStack[j3].Label
+			size += 1 // s2.LabelStack[j3].TTL
+			size += 1 // s2.LabelStack[j3].Exp
+		}
+	}
+	return size
+}
+func (m *IPRouteAddDelV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBool(m.IsAdd)
+	buf.EncodeBool(m.IsMultipath)
+	buf.EncodeUint32(m.Route.TableID)
+	buf.EncodeUint32(m.Route.StatsIndex)
+	buf.EncodeUint8(uint8(m.Route.Prefix.Address.Af))
+	buf.EncodeBytes(m.Route.Prefix.Address.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(m.Route.Prefix.Len)
+	buf.EncodeUint8(uint8(len(m.Route.Paths)))
+	buf.EncodeUint8(m.Route.Src)
+	for j1 := 0; j1 < len(m.Route.Paths); j1++ {
+		var v1 fib_types.FibPath // Paths
+		if j1 < len(m.Route.Paths) {
+			v1 = m.Route.Paths[j1]
+		}
+		buf.EncodeUint32(v1.SwIfIndex)
+		buf.EncodeUint32(v1.TableID)
+		buf.EncodeUint32(v1.RpfID)
+		buf.EncodeUint8(v1.Weight)
+		buf.EncodeUint8(v1.Preference)
+		buf.EncodeUint32(uint32(v1.Type))
+		buf.EncodeUint32(uint32(v1.Flags))
+		buf.EncodeUint32(uint32(v1.Proto))
+		buf.EncodeBytes(v1.Nh.Address.XXX_UnionData[:], 16)
+		buf.EncodeUint32(v1.Nh.ViaLabel)
+		buf.EncodeUint32(v1.Nh.ObjID)
+		buf.EncodeUint32(v1.Nh.ClassifyTableIndex)
+		buf.EncodeUint8(v1.NLabels)
+		for j2 := 0; j2 < 16; j2++ {
+			buf.EncodeUint8(v1.LabelStack[j2].IsUniform)
+			buf.EncodeUint32(v1.LabelStack[j2].Label)
+			buf.EncodeUint8(v1.LabelStack[j2].TTL)
+			buf.EncodeUint8(v1.LabelStack[j2].Exp)
+		}
+	}
+	return buf.Bytes(), nil
+}
+func (m *IPRouteAddDelV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.IsAdd = buf.DecodeBool()
+	m.IsMultipath = buf.DecodeBool()
+	m.Route.TableID = buf.DecodeUint32()
+	m.Route.StatsIndex = buf.DecodeUint32()
+	m.Route.Prefix.Address.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Route.Prefix.Address.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Route.Prefix.Len = buf.DecodeUint8()
+	m.Route.NPaths = buf.DecodeUint8()
+	m.Route.Src = buf.DecodeUint8()
+	m.Route.Paths = make([]fib_types.FibPath, m.Route.NPaths)
+	for j1 := 0; j1 < len(m.Route.Paths); j1++ {
+		m.Route.Paths[j1].SwIfIndex = buf.DecodeUint32()
+		m.Route.Paths[j1].TableID = buf.DecodeUint32()
+		m.Route.Paths[j1].RpfID = buf.DecodeUint32()
+		m.Route.Paths[j1].Weight = buf.DecodeUint8()
+		m.Route.Paths[j1].Preference = buf.DecodeUint8()
+		m.Route.Paths[j1].Type = fib_types.FibPathType(buf.DecodeUint32())
+		m.Route.Paths[j1].Flags = fib_types.FibPathFlags(buf.DecodeUint32())
+		m.Route.Paths[j1].Proto = fib_types.FibPathNhProto(buf.DecodeUint32())
+		copy(m.Route.Paths[j1].Nh.Address.XXX_UnionData[:], buf.DecodeBytes(16))
+		m.Route.Paths[j1].Nh.ViaLabel = buf.DecodeUint32()
+		m.Route.Paths[j1].Nh.ObjID = buf.DecodeUint32()
+		m.Route.Paths[j1].Nh.ClassifyTableIndex = buf.DecodeUint32()
+		m.Route.Paths[j1].NLabels = buf.DecodeUint8()
+		for j2 := 0; j2 < 16; j2++ {
+			m.Route.Paths[j1].LabelStack[j2].IsUniform = buf.DecodeUint8()
+			m.Route.Paths[j1].LabelStack[j2].Label = buf.DecodeUint32()
+			m.Route.Paths[j1].LabelStack[j2].TTL = buf.DecodeUint8()
+			m.Route.Paths[j1].LabelStack[j2].Exp = buf.DecodeUint8()
+		}
+	}
+	return nil
+}
+
+// IPRouteAddDelV2Reply defines message 'ip_route_add_del_v2_reply'.
+type IPRouteAddDelV2Reply struct {
+	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
+	StatsIndex uint32 `binapi:"u32,name=stats_index" json:"stats_index,omitempty"`
+}
+
+func (m *IPRouteAddDelV2Reply) Reset()               { *m = IPRouteAddDelV2Reply{} }
+func (*IPRouteAddDelV2Reply) GetMessageName() string { return "ip_route_add_del_v2_reply" }
+func (*IPRouteAddDelV2Reply) GetCrcString() string   { return "1992deab" }
+func (*IPRouteAddDelV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPRouteAddDelV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	size += 4 // m.StatsIndex
+	return size
+}
+func (m *IPRouteAddDelV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.StatsIndex)
+	return buf.Bytes(), nil
+}
+func (m *IPRouteAddDelV2Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.StatsIndex = buf.DecodeUint32()
+	return nil
+}
+
 // IPRouteDetails defines message 'ip_route_details'.
 type IPRouteDetails struct {
 	Route IPRoute `binapi:"ip_route,name=route" json:"route,omitempty"`
@@ -2332,6 +2511,348 @@ func (m *IPRouteLookupReply) Unmarshal(b []byte) error {
 			m.Route.Paths[j1].LabelStack[j2].Exp = buf.DecodeUint8()
 		}
 	}
+	return nil
+}
+
+// IPRouteLookupV2 defines message 'ip_route_lookup_v2'.
+type IPRouteLookupV2 struct {
+	TableID uint32          `binapi:"u32,name=table_id" json:"table_id,omitempty"`
+	Exact   uint8           `binapi:"u8,name=exact" json:"exact,omitempty"`
+	Prefix  ip_types.Prefix `binapi:"prefix,name=prefix" json:"prefix,omitempty"`
+}
+
+func (m *IPRouteLookupV2) Reset()               { *m = IPRouteLookupV2{} }
+func (*IPRouteLookupV2) GetMessageName() string { return "ip_route_lookup_v2" }
+func (*IPRouteLookupV2) GetCrcString() string   { return "710d6471" }
+func (*IPRouteLookupV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IPRouteLookupV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4      // m.TableID
+	size += 1      // m.Exact
+	size += 1      // m.Prefix.Address.Af
+	size += 1 * 16 // m.Prefix.Address.Un
+	size += 1      // m.Prefix.Len
+	return size
+}
+func (m *IPRouteLookupV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.TableID)
+	buf.EncodeUint8(m.Exact)
+	buf.EncodeUint8(uint8(m.Prefix.Address.Af))
+	buf.EncodeBytes(m.Prefix.Address.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(m.Prefix.Len)
+	return buf.Bytes(), nil
+}
+func (m *IPRouteLookupV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.TableID = buf.DecodeUint32()
+	m.Exact = buf.DecodeUint8()
+	m.Prefix.Address.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Prefix.Address.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Prefix.Len = buf.DecodeUint8()
+	return nil
+}
+
+// IPRouteLookupV2Reply defines message 'ip_route_lookup_v2_reply'.
+type IPRouteLookupV2Reply struct {
+	Retval int32     `binapi:"i32,name=retval" json:"retval,omitempty"`
+	Route  IPRouteV2 `binapi:"ip_route_v2,name=route" json:"route,omitempty"`
+}
+
+func (m *IPRouteLookupV2Reply) Reset()               { *m = IPRouteLookupV2Reply{} }
+func (*IPRouteLookupV2Reply) GetMessageName() string { return "ip_route_lookup_v2_reply" }
+func (*IPRouteLookupV2Reply) GetCrcString() string   { return "84cc9e03" }
+func (*IPRouteLookupV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPRouteLookupV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4      // m.Retval
+	size += 4      // m.Route.TableID
+	size += 4      // m.Route.StatsIndex
+	size += 1      // m.Route.Prefix.Address.Af
+	size += 1 * 16 // m.Route.Prefix.Address.Un
+	size += 1      // m.Route.Prefix.Len
+	size += 1      // m.Route.NPaths
+	size += 1      // m.Route.Src
+	for j2 := 0; j2 < len(m.Route.Paths); j2++ {
+		var s2 fib_types.FibPath
+		_ = s2
+		if j2 < len(m.Route.Paths) {
+			s2 = m.Route.Paths[j2]
+		}
+		size += 4      // s2.SwIfIndex
+		size += 4      // s2.TableID
+		size += 4      // s2.RpfID
+		size += 1      // s2.Weight
+		size += 1      // s2.Preference
+		size += 4      // s2.Type
+		size += 4      // s2.Flags
+		size += 4      // s2.Proto
+		size += 1 * 16 // s2.Nh.Address
+		size += 4      // s2.Nh.ViaLabel
+		size += 4      // s2.Nh.ObjID
+		size += 4      // s2.Nh.ClassifyTableIndex
+		size += 1      // s2.NLabels
+		for j3 := 0; j3 < 16; j3++ {
+			size += 1 // s2.LabelStack[j3].IsUniform
+			size += 4 // s2.LabelStack[j3].Label
+			size += 1 // s2.LabelStack[j3].TTL
+			size += 1 // s2.LabelStack[j3].Exp
+		}
+	}
+	return size
+}
+func (m *IPRouteLookupV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.Route.TableID)
+	buf.EncodeUint32(m.Route.StatsIndex)
+	buf.EncodeUint8(uint8(m.Route.Prefix.Address.Af))
+	buf.EncodeBytes(m.Route.Prefix.Address.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(m.Route.Prefix.Len)
+	buf.EncodeUint8(uint8(len(m.Route.Paths)))
+	buf.EncodeUint8(m.Route.Src)
+	for j1 := 0; j1 < len(m.Route.Paths); j1++ {
+		var v1 fib_types.FibPath // Paths
+		if j1 < len(m.Route.Paths) {
+			v1 = m.Route.Paths[j1]
+		}
+		buf.EncodeUint32(v1.SwIfIndex)
+		buf.EncodeUint32(v1.TableID)
+		buf.EncodeUint32(v1.RpfID)
+		buf.EncodeUint8(v1.Weight)
+		buf.EncodeUint8(v1.Preference)
+		buf.EncodeUint32(uint32(v1.Type))
+		buf.EncodeUint32(uint32(v1.Flags))
+		buf.EncodeUint32(uint32(v1.Proto))
+		buf.EncodeBytes(v1.Nh.Address.XXX_UnionData[:], 16)
+		buf.EncodeUint32(v1.Nh.ViaLabel)
+		buf.EncodeUint32(v1.Nh.ObjID)
+		buf.EncodeUint32(v1.Nh.ClassifyTableIndex)
+		buf.EncodeUint8(v1.NLabels)
+		for j2 := 0; j2 < 16; j2++ {
+			buf.EncodeUint8(v1.LabelStack[j2].IsUniform)
+			buf.EncodeUint32(v1.LabelStack[j2].Label)
+			buf.EncodeUint8(v1.LabelStack[j2].TTL)
+			buf.EncodeUint8(v1.LabelStack[j2].Exp)
+		}
+	}
+	return buf.Bytes(), nil
+}
+func (m *IPRouteLookupV2Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.Route.TableID = buf.DecodeUint32()
+	m.Route.StatsIndex = buf.DecodeUint32()
+	m.Route.Prefix.Address.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Route.Prefix.Address.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Route.Prefix.Len = buf.DecodeUint8()
+	m.Route.NPaths = buf.DecodeUint8()
+	m.Route.Src = buf.DecodeUint8()
+	m.Route.Paths = make([]fib_types.FibPath, m.Route.NPaths)
+	for j1 := 0; j1 < len(m.Route.Paths); j1++ {
+		m.Route.Paths[j1].SwIfIndex = buf.DecodeUint32()
+		m.Route.Paths[j1].TableID = buf.DecodeUint32()
+		m.Route.Paths[j1].RpfID = buf.DecodeUint32()
+		m.Route.Paths[j1].Weight = buf.DecodeUint8()
+		m.Route.Paths[j1].Preference = buf.DecodeUint8()
+		m.Route.Paths[j1].Type = fib_types.FibPathType(buf.DecodeUint32())
+		m.Route.Paths[j1].Flags = fib_types.FibPathFlags(buf.DecodeUint32())
+		m.Route.Paths[j1].Proto = fib_types.FibPathNhProto(buf.DecodeUint32())
+		copy(m.Route.Paths[j1].Nh.Address.XXX_UnionData[:], buf.DecodeBytes(16))
+		m.Route.Paths[j1].Nh.ViaLabel = buf.DecodeUint32()
+		m.Route.Paths[j1].Nh.ObjID = buf.DecodeUint32()
+		m.Route.Paths[j1].Nh.ClassifyTableIndex = buf.DecodeUint32()
+		m.Route.Paths[j1].NLabels = buf.DecodeUint8()
+		for j2 := 0; j2 < 16; j2++ {
+			m.Route.Paths[j1].LabelStack[j2].IsUniform = buf.DecodeUint8()
+			m.Route.Paths[j1].LabelStack[j2].Label = buf.DecodeUint32()
+			m.Route.Paths[j1].LabelStack[j2].TTL = buf.DecodeUint8()
+			m.Route.Paths[j1].LabelStack[j2].Exp = buf.DecodeUint8()
+		}
+	}
+	return nil
+}
+
+// IPRouteV2Details defines message 'ip_route_v2_details'.
+type IPRouteV2Details struct {
+	Route IPRouteV2 `binapi:"ip_route_v2,name=route" json:"route,omitempty"`
+}
+
+func (m *IPRouteV2Details) Reset()               { *m = IPRouteV2Details{} }
+func (*IPRouteV2Details) GetMessageName() string { return "ip_route_v2_details" }
+func (*IPRouteV2Details) GetCrcString() string   { return "b09aa6c0" }
+func (*IPRouteV2Details) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPRouteV2Details) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4      // m.Route.TableID
+	size += 4      // m.Route.StatsIndex
+	size += 1      // m.Route.Prefix.Address.Af
+	size += 1 * 16 // m.Route.Prefix.Address.Un
+	size += 1      // m.Route.Prefix.Len
+	size += 1      // m.Route.NPaths
+	size += 1      // m.Route.Src
+	for j2 := 0; j2 < len(m.Route.Paths); j2++ {
+		var s2 fib_types.FibPath
+		_ = s2
+		if j2 < len(m.Route.Paths) {
+			s2 = m.Route.Paths[j2]
+		}
+		size += 4      // s2.SwIfIndex
+		size += 4      // s2.TableID
+		size += 4      // s2.RpfID
+		size += 1      // s2.Weight
+		size += 1      // s2.Preference
+		size += 4      // s2.Type
+		size += 4      // s2.Flags
+		size += 4      // s2.Proto
+		size += 1 * 16 // s2.Nh.Address
+		size += 4      // s2.Nh.ViaLabel
+		size += 4      // s2.Nh.ObjID
+		size += 4      // s2.Nh.ClassifyTableIndex
+		size += 1      // s2.NLabels
+		for j3 := 0; j3 < 16; j3++ {
+			size += 1 // s2.LabelStack[j3].IsUniform
+			size += 4 // s2.LabelStack[j3].Label
+			size += 1 // s2.LabelStack[j3].TTL
+			size += 1 // s2.LabelStack[j3].Exp
+		}
+	}
+	return size
+}
+func (m *IPRouteV2Details) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.Route.TableID)
+	buf.EncodeUint32(m.Route.StatsIndex)
+	buf.EncodeUint8(uint8(m.Route.Prefix.Address.Af))
+	buf.EncodeBytes(m.Route.Prefix.Address.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(m.Route.Prefix.Len)
+	buf.EncodeUint8(uint8(len(m.Route.Paths)))
+	buf.EncodeUint8(m.Route.Src)
+	for j1 := 0; j1 < len(m.Route.Paths); j1++ {
+		var v1 fib_types.FibPath // Paths
+		if j1 < len(m.Route.Paths) {
+			v1 = m.Route.Paths[j1]
+		}
+		buf.EncodeUint32(v1.SwIfIndex)
+		buf.EncodeUint32(v1.TableID)
+		buf.EncodeUint32(v1.RpfID)
+		buf.EncodeUint8(v1.Weight)
+		buf.EncodeUint8(v1.Preference)
+		buf.EncodeUint32(uint32(v1.Type))
+		buf.EncodeUint32(uint32(v1.Flags))
+		buf.EncodeUint32(uint32(v1.Proto))
+		buf.EncodeBytes(v1.Nh.Address.XXX_UnionData[:], 16)
+		buf.EncodeUint32(v1.Nh.ViaLabel)
+		buf.EncodeUint32(v1.Nh.ObjID)
+		buf.EncodeUint32(v1.Nh.ClassifyTableIndex)
+		buf.EncodeUint8(v1.NLabels)
+		for j2 := 0; j2 < 16; j2++ {
+			buf.EncodeUint8(v1.LabelStack[j2].IsUniform)
+			buf.EncodeUint32(v1.LabelStack[j2].Label)
+			buf.EncodeUint8(v1.LabelStack[j2].TTL)
+			buf.EncodeUint8(v1.LabelStack[j2].Exp)
+		}
+	}
+	return buf.Bytes(), nil
+}
+func (m *IPRouteV2Details) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Route.TableID = buf.DecodeUint32()
+	m.Route.StatsIndex = buf.DecodeUint32()
+	m.Route.Prefix.Address.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Route.Prefix.Address.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Route.Prefix.Len = buf.DecodeUint8()
+	m.Route.NPaths = buf.DecodeUint8()
+	m.Route.Src = buf.DecodeUint8()
+	m.Route.Paths = make([]fib_types.FibPath, m.Route.NPaths)
+	for j1 := 0; j1 < len(m.Route.Paths); j1++ {
+		m.Route.Paths[j1].SwIfIndex = buf.DecodeUint32()
+		m.Route.Paths[j1].TableID = buf.DecodeUint32()
+		m.Route.Paths[j1].RpfID = buf.DecodeUint32()
+		m.Route.Paths[j1].Weight = buf.DecodeUint8()
+		m.Route.Paths[j1].Preference = buf.DecodeUint8()
+		m.Route.Paths[j1].Type = fib_types.FibPathType(buf.DecodeUint32())
+		m.Route.Paths[j1].Flags = fib_types.FibPathFlags(buf.DecodeUint32())
+		m.Route.Paths[j1].Proto = fib_types.FibPathNhProto(buf.DecodeUint32())
+		copy(m.Route.Paths[j1].Nh.Address.XXX_UnionData[:], buf.DecodeBytes(16))
+		m.Route.Paths[j1].Nh.ViaLabel = buf.DecodeUint32()
+		m.Route.Paths[j1].Nh.ObjID = buf.DecodeUint32()
+		m.Route.Paths[j1].Nh.ClassifyTableIndex = buf.DecodeUint32()
+		m.Route.Paths[j1].NLabels = buf.DecodeUint8()
+		for j2 := 0; j2 < 16; j2++ {
+			m.Route.Paths[j1].LabelStack[j2].IsUniform = buf.DecodeUint8()
+			m.Route.Paths[j1].LabelStack[j2].Label = buf.DecodeUint32()
+			m.Route.Paths[j1].LabelStack[j2].TTL = buf.DecodeUint8()
+			m.Route.Paths[j1].LabelStack[j2].Exp = buf.DecodeUint8()
+		}
+	}
+	return nil
+}
+
+// IPRouteV2Dump defines message 'ip_route_v2_dump'.
+type IPRouteV2Dump struct {
+	Src   uint8   `binapi:"u8,name=src" json:"src,omitempty"`
+	Table IPTable `binapi:"ip_table,name=table" json:"table,omitempty"`
+}
+
+func (m *IPRouteV2Dump) Reset()               { *m = IPRouteV2Dump{} }
+func (*IPRouteV2Dump) GetMessageName() string { return "ip_route_v2_dump" }
+func (*IPRouteV2Dump) GetCrcString() string   { return "d16f72e6" }
+func (*IPRouteV2Dump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IPRouteV2Dump) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1  // m.Src
+	size += 4  // m.Table.TableID
+	size += 1  // m.Table.IsIP6
+	size += 64 // m.Table.Name
+	return size
+}
+func (m *IPRouteV2Dump) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint8(m.Src)
+	buf.EncodeUint32(m.Table.TableID)
+	buf.EncodeBool(m.Table.IsIP6)
+	buf.EncodeString(m.Table.Name, 64)
+	return buf.Bytes(), nil
+}
+func (m *IPRouteV2Dump) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Src = buf.DecodeUint8()
+	m.Table.TableID = buf.DecodeUint32()
+	m.Table.IsIP6 = buf.DecodeBool()
+	m.Table.Name = buf.DecodeString(64)
 	return nil
 }
 
@@ -3562,10 +4083,16 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IPReassemblySetReply)(nil), "ip_reassembly_set_reply_e8d4e804")
 	api.RegisterMessage((*IPRouteAddDel)(nil), "ip_route_add_del_c1ff832d")
 	api.RegisterMessage((*IPRouteAddDelReply)(nil), "ip_route_add_del_reply_1992deab")
+	api.RegisterMessage((*IPRouteAddDelV2)(nil), "ip_route_add_del_v2_521ef330")
+	api.RegisterMessage((*IPRouteAddDelV2Reply)(nil), "ip_route_add_del_v2_reply_1992deab")
 	api.RegisterMessage((*IPRouteDetails)(nil), "ip_route_details_d1ffaae1")
 	api.RegisterMessage((*IPRouteDump)(nil), "ip_route_dump_b9d2e09e")
 	api.RegisterMessage((*IPRouteLookup)(nil), "ip_route_lookup_e2986185")
 	api.RegisterMessage((*IPRouteLookupReply)(nil), "ip_route_lookup_reply_ae99de8e")
+	api.RegisterMessage((*IPRouteLookupV2)(nil), "ip_route_lookup_v2_710d6471")
+	api.RegisterMessage((*IPRouteLookupV2Reply)(nil), "ip_route_lookup_v2_reply_84cc9e03")
+	api.RegisterMessage((*IPRouteV2Details)(nil), "ip_route_v2_details_b09aa6c0")
+	api.RegisterMessage((*IPRouteV2Dump)(nil), "ip_route_v2_dump_d16f72e6")
 	api.RegisterMessage((*IPSourceAndPortRangeCheckAddDel)(nil), "ip_source_and_port_range_check_add_del_8bfc76f2")
 	api.RegisterMessage((*IPSourceAndPortRangeCheckAddDelReply)(nil), "ip_source_and_port_range_check_add_del_reply_e8d4e804")
 	api.RegisterMessage((*IPSourceAndPortRangeCheckInterfaceAddDel)(nil), "ip_source_and_port_range_check_interface_add_del_e1ba8987")
@@ -3642,10 +4169,16 @@ func AllMessages() []api.Message {
 		(*IPReassemblySetReply)(nil),
 		(*IPRouteAddDel)(nil),
 		(*IPRouteAddDelReply)(nil),
+		(*IPRouteAddDelV2)(nil),
+		(*IPRouteAddDelV2Reply)(nil),
 		(*IPRouteDetails)(nil),
 		(*IPRouteDump)(nil),
 		(*IPRouteLookup)(nil),
 		(*IPRouteLookupReply)(nil),
+		(*IPRouteLookupV2)(nil),
+		(*IPRouteLookupV2Reply)(nil),
+		(*IPRouteV2Details)(nil),
+		(*IPRouteV2Dump)(nil),
 		(*IPSourceAndPortRangeCheckAddDel)(nil),
 		(*IPSourceAndPortRangeCheckAddDelReply)(nil),
 		(*IPSourceAndPortRangeCheckInterfaceAddDel)(nil),

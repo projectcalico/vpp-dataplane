@@ -22,8 +22,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "vxlan"
-	APIVersion = "2.1.0"
-	VersionCrc = 0xd703028e
+	APIVersion = "2.2.0"
+	VersionCrc = 0x40d6d603
 )
 
 // SwInterfaceSetVxlanBypass defines message 'sw_interface_set_vxlan_bypass'.
@@ -218,11 +218,12 @@ type VxlanAddDelTunnelV2 struct {
 	EncapVrfID     uint32                         `binapi:"u32,name=encap_vrf_id" json:"encap_vrf_id,omitempty"`
 	DecapNextIndex uint32                         `binapi:"u32,name=decap_next_index" json:"decap_next_index,omitempty"`
 	Vni            uint32                         `binapi:"u32,name=vni" json:"vni,omitempty"`
+	IsL3           bool                           `binapi:"bool,name=is_l3,default=false" json:"is_l3,omitempty"`
 }
 
 func (m *VxlanAddDelTunnelV2) Reset()               { *m = VxlanAddDelTunnelV2{} }
 func (*VxlanAddDelTunnelV2) GetMessageName() string { return "vxlan_add_del_tunnel_v2" }
-func (*VxlanAddDelTunnelV2) GetCrcString() string   { return "4f223f40" }
+func (*VxlanAddDelTunnelV2) GetCrcString() string   { return "0072b037" }
 func (*VxlanAddDelTunnelV2) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -243,6 +244,7 @@ func (m *VxlanAddDelTunnelV2) Size() (size int) {
 	size += 4      // m.EncapVrfID
 	size += 4      // m.DecapNextIndex
 	size += 4      // m.Vni
+	size += 1      // m.IsL3
 	return size
 }
 func (m *VxlanAddDelTunnelV2) Marshal(b []byte) ([]byte, error) {
@@ -262,6 +264,7 @@ func (m *VxlanAddDelTunnelV2) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint32(m.EncapVrfID)
 	buf.EncodeUint32(m.DecapNextIndex)
 	buf.EncodeUint32(m.Vni)
+	buf.EncodeBool(m.IsL3)
 	return buf.Bytes(), nil
 }
 func (m *VxlanAddDelTunnelV2) Unmarshal(b []byte) error {
@@ -278,6 +281,7 @@ func (m *VxlanAddDelTunnelV2) Unmarshal(b []byte) error {
 	m.EncapVrfID = buf.DecodeUint32()
 	m.DecapNextIndex = buf.DecodeUint32()
 	m.Vni = buf.DecodeUint32()
+	m.IsL3 = buf.DecodeBool()
 	return nil
 }
 
@@ -606,7 +610,7 @@ func file_vxlan_binapi_init() {
 	api.RegisterMessage((*SwInterfaceSetVxlanBypassReply)(nil), "sw_interface_set_vxlan_bypass_reply_e8d4e804")
 	api.RegisterMessage((*VxlanAddDelTunnel)(nil), "vxlan_add_del_tunnel_a35dc8f5")
 	api.RegisterMessage((*VxlanAddDelTunnelReply)(nil), "vxlan_add_del_tunnel_reply_5383d31f")
-	api.RegisterMessage((*VxlanAddDelTunnelV2)(nil), "vxlan_add_del_tunnel_v2_4f223f40")
+	api.RegisterMessage((*VxlanAddDelTunnelV2)(nil), "vxlan_add_del_tunnel_v2_0072b037")
 	api.RegisterMessage((*VxlanAddDelTunnelV2Reply)(nil), "vxlan_add_del_tunnel_v2_reply_5383d31f")
 	api.RegisterMessage((*VxlanOffloadRx)(nil), "vxlan_offload_rx_89a1564b")
 	api.RegisterMessage((*VxlanOffloadRxReply)(nil), "vxlan_offload_rx_reply_e8d4e804")

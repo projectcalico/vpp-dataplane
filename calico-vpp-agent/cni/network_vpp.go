@@ -237,17 +237,13 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	nbDataThread := int(s.NumVPPWorkers)
 	if config.IpsecNbAsyncCryptoThread > 0 {
-		nbDataThread = nbDataThread - config.IpsecNbAsyncCryptoThread
-		s.log.Infof("ipsec async crypto %d", config.IpsecNbAsyncCryptoThread)
+		nbDataThread = s.NumVPPWorkers - config.IpsecNbAsyncCryptoThread
 		if nbDataThread <= 0 {
-			s.log.Error("not enough thread for async crypto")
-			nbDataThread = int(s.NumVPPWorkers)
+			s.log.Error("Couldn't fullfill request [crypto=%d total=%d]", config.IpsecNbAsyncCryptoThread, s.NumVPPWorkers)
+			nbDataThread = s.NumVPPWorkers
 		}
-	}
+		s.log.Info("Using [data=%d crypto=%d]", nbDataThread, s.NumVPPWorkers-nbDataThread)
 
-	if nbDataThread <= 0 {
-		s.log.Error("not enough thread for async crypto")
-		nbDataThread = (int)(s.NumVPPWorkers)
 	}
 
 	if nbDataThread > 0 {

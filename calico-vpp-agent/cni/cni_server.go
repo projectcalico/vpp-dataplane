@@ -51,7 +51,7 @@ type Server struct {
 	policyServer    *policy.Server
 	podInterfaceMap map[string]storage.LocalPodSpec
 	/* without main thread */
-	NumVPPWorkers uint32
+	NumVPPWorkers int
 	lock          sync.Mutex
 	vppLinuxMtu   int
 }

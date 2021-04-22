@@ -27,6 +27,18 @@ spec:
               value: "k8s,bgp"
             - name: CALICO_ROUTER_ID
               value: "hash"
+            - name: CALICO_IPV4POOL_IPIP
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICO_IPV4POOL_IPIP
+            - name: CALICO_IPV4POOL_VXLAN
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICO_IPV4POOL_VXLAN
             - name: FELIX_IPINIPMTU
               value: ""
               valueFrom:
