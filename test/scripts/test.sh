@@ -80,8 +80,11 @@ get_nodes ()
 test_apply ()
 {
   NAME=$1
-  YAML_FILE=${YAML_FILE:-test.yaml}
-  YAML_FILE=$SCRIPTDIR/perftest/$NAME/${YAML_FILE}
+  if [ x$2 != x ]; then
+	YAML_FILE=$SCRIPTDIR/perftest/$NAME/test_$2.yaml
+  else
+	YAML_FILE=$SCRIPTDIR/perftest/$NAME/test.yaml
+  fi
   shift
   if [ ! -f ${YAML_FILE} ]; then
   	echo "${YAML_FILE} doesnt exist"
@@ -90,24 +93,25 @@ test_apply ()
 
   get_nodes
   k_create_namespace $NAME
-  sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $YAML_FILE | kubectl apply -f -
+  sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $YAML_FILE | \
+	kubectl apply -f -
 }
 
 test_delete ()
 {
-  if [ -z "$2" ]; then
-    yaml_file="test.yaml"
+  NAME=$1
+  if [ x$2 != x ]; then
+	YAML_FILE=$SCRIPTDIR/perftest/$NAME/test_$2.yaml
   else
-    yaml_file=$2
+	YAML_FILE=$SCRIPTDIR/perftest/$NAME/test.yaml
   fi
 
-  if [ ! -d $SCRIPTDIR/perftest/$1 ]; then
-  	cd $SCRIPTDIR/perftest
-  	echo "Please specify a config yaml in $(ls -d */)"
+  if [ ! -f ${YAML_FILE} ]; then
+  	echo "${YAML_FILE} doesnt exist"
   	exit 1
   fi
-  kubectl delete -f $SCRIPTDIR/perftest/$1/$yaml_file
-  echo $yaml_file
+  sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $YAML_FILE | \
+	kubectl delete -f -
   k_delete_namespace $1
 }
 
