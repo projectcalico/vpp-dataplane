@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/prometheus/common/log"
 	"github.com/sirupsen/logrus"
 )
 
@@ -51,11 +52,12 @@ const (
 	IPSecIkev2PskEnvVar        = "CALICOVPP_IPSEC_IKEV2_PSK"
 	TapRxModeEnvVar            = "CALICOVPP_TAP_RX_MODE"
 	TapQueueSizeEnvVar         = "CALICOVPP_TAP_RING_SIZE"
-	TapMtuEnvVar               = "CALICOVPP_TAP_MTU"
 	IpsecNbAsyncCryptoThEnvVar = "CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD"
 	BgpLogLevelEnvVar          = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar        = "SERVICE_PREFIX"
+
+	FelixMTUConfigKey = ""
 
 	DefaultVXLANVni      = 4096
 	DefaultWireguardPort = 51820
@@ -83,6 +85,9 @@ var (
 	TapTxQueueSize           int = 0
 	TapMtu                   int = 0
 	IpsecNbAsyncCryptoThread int = 0
+
+	felixConfigReceived = false
+	felixConfigChan     = make(chan struct{})
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
@@ -208,14 +213,6 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		IpsecAddressCount = int(extraAddressCount) + 1
 	}
 
-	if conf := getEnvValue(TapMtuEnvVar); conf != "" {
-		tapMtu, err := strconv.ParseInt(conf, 10, 32)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapMtuEnvVar, conf, tapMtu, err)
-		}
-		TapMtu = int(tapMtu)
-	}
-
 	if conf := getEnvValue(IpsecNbAsyncCryptoThEnvVar); conf != "" {
 		ipsecNbAsyncCryptoThread, err := strconv.ParseInt(conf, 10, 32)
 		if err != nil {
@@ -284,4 +281,30 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		}
 	}
 	return nil
+}
+
+func WaitForFelixConfig() {
+	<-felixConfigChan
+}
+
+func HandleFelixConfig(config map[string]string) {
+	mtu, ok := config[FelixMTUConfigKey]
+	if ok {
+		mtu_int, err := strconv.Atoi(mtu)
+		if err != nil {
+			log.Warnf("Could not parse MTU sent by felix: %s", mtu)
+		} else {
+			TapMtu = mtu_int
+		}
+	} else {
+		log.Warn("Tap MTU configuration not found in felix configuration")
+	}
+
+	// Note: This function will be called each time the Felix config changes.
+	// MTU changes don't require agent restart. If we start handling config settings that do,
+	// we'll need to add a mechanism for that
+
+	if !felixConfigReceived {
+		felixConfigChan <- struct{}{}
+	}
 }

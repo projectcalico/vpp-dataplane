@@ -238,8 +238,7 @@ func (s *Server) Serve() {
 	s.log.Info("Starting policy server")
 
 	if !config.EnablePolicies {
-		s.log.Warn("Policies disabled, not running policy server")
-		return
+		s.log.Warn("Policies disabled, policy server will not configure VPP")
 	}
 
 	listener, err := net.Listen("unix", config.FelixDataplaneSocket)
@@ -328,6 +327,10 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 		case *proto.InSync:
 			err = s.handleInSync(m)
 		default:
+			if !config.EnablePolicies {
+				// Skip processing of policy messages
+				continue
+			}
 			var pending bool
 			if s.state == StateSyncing {
 				pending = true
@@ -405,6 +408,8 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 	}
 	s.log.Infof("Got config from felix: %+v", msg)
 	s.state = StateSyncing
+
+	config.HandleFelixConfig(msg.Config)
 	return nil
 }
 
