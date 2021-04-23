@@ -17,15 +17,17 @@ package config
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/prometheus/common/log"
 	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -57,8 +59,6 @@ const (
 	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar        = "SERVICE_PREFIX"
 
-	FelixMTUConfigKey = ""
-
 	DefaultVXLANVni      = 4096
 	DefaultWireguardPort = 51820
 
@@ -83,11 +83,19 @@ var (
 	ServiceCIDRs             []*net.IPNet
 	TapRxQueueSize           int = 0
 	TapTxQueueSize           int = 0
-	TapMtu                   int = 0
+	HostMtu                  int = 0
+	PodMtu                   int = 0
 	IpsecNbAsyncCryptoThread int = 0
 
 	felixConfigReceived = false
 	felixConfigChan     = make(chan struct{})
+
+	felixIPIPEnabled          = false
+	felixIPIPMtu          int = 0
+	felixVXLANEnabled         = false
+	felixVXLANMtu         int = 0
+	felixWireguardEnabled     = false
+	felixWireguardMtu     int = 0
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
@@ -101,7 +109,8 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:RxMode            %d", TapRxMode)
 	log.Infof("Config:BgpLogLevel       %d", BgpLogLevel)
 	log.Infof("Config:LogLevel          %d", LogLevel)
-	log.Infof("Config:TapMtu            %d", TapMtu)
+	log.Infof("Config:HostMtu           %d", HostMtu)
+	log.Infof("Config:PodMtu            %d", PodMtu)
 	log.Infof("Config:IpsecNbAsyncCryptoThread  %d", IpsecNbAsyncCryptoThread)
 }
 
@@ -115,6 +124,20 @@ func isEnvVarSupported(str string) bool {
 func getEnvValue(str string) string {
 	supportedEnvVars[str] = true
 	return os.Getenv(str)
+}
+
+func fetchHostMtu() (mtu int, err error) {
+	for i := 0; i < 20; i++ {
+		dat, err := ioutil.ReadFile(VppManagerLinuxMtu)
+		if err == nil {
+			idx, err := strconv.ParseInt(strings.TrimSpace(string(dat[:])), 10, 32)
+			if err == nil && idx != -1 {
+				return int(idx), nil
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return 0, errors.Errorf("Vpp-host mtu not ready after 20 tries")
 }
 
 // LoadConfig loads the calico-vpp-agent configuration from the environment
@@ -280,6 +303,12 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			}
 		}
 	}
+
+	HostMtu, err = fetchHostMtu()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -288,20 +317,48 @@ func WaitForFelixConfig() {
 }
 
 func HandleFelixConfig(config map[string]string) {
-	mtu, ok := config[FelixMTUConfigKey]
-	if ok {
-		mtu_int, err := strconv.Atoi(mtu)
-		if err != nil {
-			log.Warnf("Could not parse MTU sent by felix: %s", mtu)
-		} else {
-			TapMtu = mtu_int
-		}
-	} else {
-		log.Warn("Tap MTU configuration not found in felix configuration")
+	felixIPIPEnabled, _ = strconv.ParseBool(config["IpInIpEnabled"])
+	felixIPIPMtu, _ = strconv.Atoi(config["IpInIpMtu"])
+	if felixIPIPMtu == 0 {
+		felixIPIPMtu = HostMtu - 20
+	}
+	felixVXLANEnabled, _ = strconv.ParseBool(config["VXLANEnabled"])
+	felixVXLANMtu, _ = strconv.Atoi(config["VXLANMTU"])
+	if felixVXLANMtu == 0 {
+		felixVXLANMtu = HostMtu - 50
+	}
+	felixWireguardEnabled, _ = strconv.ParseBool(config["WireguardEnabled"])
+	felixWireguardMtu, _ = strconv.Atoi(config["WireguardMTU"])
+	if felixWireguardMtu == 0 {
+		felixWireguardMtu = HostMtu - 60
 	}
 
+	// Reproduce felix algorithm in determinePodMTU to determine pod MTU
+	// The part where it defaults to the host MTU is done in AddVppInterface
+	// TODO: move the code that retrieves the host mtu to this module...
+	for _, s := range []struct {
+		mtu     int
+		enabled bool
+	}{
+		{felixIPIPMtu, felixIPIPEnabled},
+		{felixVXLANMtu, felixVXLANEnabled},
+		{felixWireguardMtu, felixWireguardEnabled},
+		{HostMtu - 88, EnableIPSec}, // TODO: verify the ipsec header size
+	} {
+		if s.enabled && s.mtu != 0 && (s.mtu < PodMtu || PodMtu == 0) {
+			PodMtu = s.mtu
+		}
+	}
+	if PodMtu == 0 {
+		PodMtu = HostMtu
+	}
+	if PodMtu > HostMtu {
+		log.Warnf("Configured MTU (%d) is larger than detected host interface MTU (%d)", PodMtu, HostMtu)
+	}
+	log.Infof("Determined pod MTU: %d", PodMtu)
+
 	// Note: This function will be called each time the Felix config changes.
-	// MTU changes don't require agent restart. If we start handling config settings that do,
+	// If we start handling config settings that require agent restart,
 	// we'll need to add a mechanism for that
 
 	if !felixConfigReceived {

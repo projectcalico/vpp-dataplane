@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 1 // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 2 // Used to ensure compatibility wen we reload data
 )
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -115,6 +115,7 @@ type LocalPodSpec struct {
 	Routes            []LocalIPNet
 	ContainerIpsSize  int `struc:"int16,sizeof=ContainerIps"`
 	ContainerIps      []LocalIP
+	Mtu               int
 
 	// Pod identifiers
 	OrchestratorIDSize int `struc:"int16,sizeof=OrchestratorID"`

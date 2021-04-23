@@ -110,6 +110,7 @@ func main() {
 	go policyServer.Serve()
 	// Felix Config will be sent by the policy server
 	config.WaitForFelixConfig()
+	config.PrintAgentConfig(log)
 
 	go serviceServer.Serve()
 	go cniServer.Serve()

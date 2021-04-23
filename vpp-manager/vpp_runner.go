@@ -393,7 +393,7 @@ func (v *VppRunner) configureVpp() (err error) {
 		RxQueueSize:    v.params.TapRxQueueSize,
 		TxQueueSize:    v.params.TapTxQueueSize,
 		Flags:          vpptap0Flags,
-		Mtu:            config.GetUplinkMtu(v.params, v.conf, false /* includeEncap */),
+		HostMtu:        config.GetUplinkMtu(v.params, v.conf, false /* includeEncap */),
 		HostMacAddress: v.conf.HardwareAddr,
 		MacAddress:     vppSideMac,
 	})

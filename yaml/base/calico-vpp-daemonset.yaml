@@ -153,9 +153,6 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  # Container interface MTU. 
-  veth_mtu: "0"
-
   # K8s service prefix. We currently cannot retrieve this from the API,
   # so it must be manually configured
   service_prefix: 10.96.0.0/12
@@ -258,11 +255,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: CALICOVPP_TAP_MTU
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: veth_mtu
             - name: SERVICE_PREFIX
               valueFrom:
                 configMapKeyRef:

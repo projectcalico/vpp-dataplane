@@ -42,5 +42,5 @@ type TapV2 struct {
 	Flags          TapFlags
 	TxQueueSize    int
 	RxQueueSize    int
-	Mtu            int
+	HostMtu        int
 }
