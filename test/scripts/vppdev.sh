@@ -92,7 +92,7 @@ log_node () # C, POD, NODE
 
 vppctl () # nodeID args
 {
-  NODE=$NODE POD=calico-vpp-node C=vpp exec_node \
+  NODE=$NODE SVC=calico-vpp-dataplane POD=calico-vpp-node C=vpp exec_node \
 	/usr/bin/vppctl -s /var/run/vpp/cli.sock $@
 }
 
@@ -120,7 +120,7 @@ vppdev_cli_export ()
 		red "Couldn't connect to kubernetes using kubectl"
 		exit 1
 	fi
-	if [ x$(kubectl -n kube-system get pods | grep calico-vpp | wc -l) = x0 ]; then
+	if [ x$(kubectl -n calico-vpp-dataplane get pods | grep calico-vpp | wc -l) = x0 ]; then
 		red "No calico-vpp pod found"
 		exit 1
 	fi
@@ -133,19 +133,20 @@ vppdev_cli_export ()
 
 	greychr "Logging k8 internals..."
 
-	kubectl version                                              > ${DIR}/${PREFIX}kubectl-version                 ; greydot
-	sudo journalctl -u kubelet -r -n200                          > ${DIR}/${PREFIX}kubelet-journal 2>&1            ; greydot
-	kubectl -n kube-system get pods -o wide                      > ${DIR}/${PREFIX}get-pods                        ; greydot
-	kubectl -n kube-system get services -o wide                  > ${DIR}/${PREFIX}get-services                    ; greydot
-	kubectl -n kube-system get nodes -o wide                     > ${DIR}/${PREFIX}get-nodes                       ; greydot
-	kubectl -n kube-system get configmap calico-config -o yaml   > ${DIR}/${PREFIX}calico-config.configmap.yaml    ; greydot
-	kubectl -n kube-system get daemonset calico-vpp-node -o yaml > ${DIR}/${PREFIX}calico-vpp-node.daemonset.yaml  ; greydot
+	kubectl version                                                         > ${DIR}/${PREFIX}kubectl-version                 ; greydot
+	sudo journalctl -u kubelet -r -n200                                     > ${DIR}/${PREFIX}kubelet-journal 2>&1            ; greydot
+	kubectl                         get pods -o wide -A                     > ${DIR}/${PREFIX}get-pods                        ; greydot
+	kubectl                         get services -o wide -A                 > ${DIR}/${PREFIX}get-services                    ; greydot
+	kubectl                         get nodes -o wide                       > ${DIR}/${PREFIX}get-nodes                       ; greydot
+	kubectl -n kube-system          get configmap calico-config -o yaml     > ${DIR}/${PREFIX}calico-config.configmap.yaml    ; greydot
+	kubectl -n calico-vpp-dataplane get daemonset calico-vpp-node -o yaml   > ${DIR}/${PREFIX}calico-vpp-node.daemonset.yaml  ; greydot
+	kubectl -n calico-vpp-dataplane get configmap calico-vpp-config -o yaml > ${DIR}/${PREFIX}calico-vpp-node.daemonset.yaml  ; greydot
 	printf '\n'
 
 	for node in $(get_available_node_names)
 	do
 		greychr "Dumping node '$node' stats..."
-		local calicovpp_pod_name=$(POD=calico-vpp-node NODE=$node find_node_pod)
+		local calicovpp_pod_name=$(POD=calico-vpp-node NODE=$node SVC=calico-vpp-dataplane find_node_pod)
 		NODE=$node vppctl show hardware-interfaces                    > ${DIR}/${PREFIX}${node}.hardware-interfaces   ; greydot
 		NODE=$node vppctl show run                                    > ${DIR}/${PREFIX}${node}.show-run              ; greydot
 		NODE=$node vppctl show err                                    > ${DIR}/${PREFIX}${node}.show-err              ; greydot
@@ -156,9 +157,9 @@ vppdev_cli_export ()
 		NODE=$node vppctl show tun                                    > ${DIR}/${PREFIX}${node}.show-tun              ; greydot
 		printf '\n'
 		greychr "Dumping node '$node' logs..."
-		kubectl -n kube-system describe pod/$calicovpp_pod_name       > ${DIR}/${PREFIX}${node}.describe-vpp-pod      ; greydot
-		NODE=$node POD=calico-vpp-node C=vpp log_node                 > ${DIR}/${PREFIX}${node}.vpp.log               ; greydot
-		NODE=$node POD=calico-vpp-node C=agent log_node               > ${DIR}/${PREFIX}${node}.calico.log            ; greydot
+		kubectl -n calico-vpp-dataplane describe pod/$calicovpp_pod_name         > ${DIR}/${PREFIX}${node}.describe-vpp-pod      ; greydot
+		NODE=$node SVC=calico-vpp-dataplane POD=calico-vpp-node C=vpp log_node   > ${DIR}/${PREFIX}${node}.vpp.log               ; greydot
+		NODE=$node SVC=calico-vpp-dataplane POD=calico-vpp-node C=agent log_node > ${DIR}/${PREFIX}${node}.calico.log            ; greydot
 		printf '\n'
 		greychr "Dumping node '$node' state..."
 		NODE=$node vppctl show cnat client                            > ${DIR}/${PREFIX}${node}.show-cnat-client      ; greydot
@@ -187,7 +188,7 @@ vppdev_cli_export ()
 
 vppdev_cli_clear ()
 {
-	if [ x$(kubectl -n kube-system get pods | grep calico-vpp | wc -l) = x0 ]; then
+	if [ x$(kubectl -n calico-vpp-dataplane get pods | grep calico-vpp | wc -l) = x0 ]; then
 		echo "No calico-vpp pod found"
 		exit 1
 	fi
@@ -269,11 +270,11 @@ vppdev_cli_sh ()
   if [[ "$1" = "vpp" ]]; then
 	grey "This shell lives inside the vpp container"
 	grey "You will find vpp-manager & vpp running"
-	NODE=$2 POD=calico-vpp-node C=vpp exec_node bash
+	NODE=$2 SVC=calico-vpp-dataplane POD=calico-vpp-node C=vpp exec_node bash
   elif [[ "$1" = "agent" ]]; then
 	grey "This shell lives inside the agent container"
 	grey "You will find calico-vpp-agent & felix running"
-	NODE=$2 POD=calico-vpp-node C=agent exec_node bash
+	NODE=$2 SVC=calico-vpp-dataplane POD=calico-vpp-node C=agent exec_node bash
   else
 	echo "Use $(basename -- $0) sh [vpp|agent] [NODENAME]"
   fi

@@ -130,7 +130,7 @@ function get_cni_network_config_ipam ()
     	\"type\": \"calico-ipam\",
 		\"assign_ipv4\": \"true\",
     	\"assign_ipv6\": \"true\",
-		\"ipv4_pools\": [\"${default_ipv4_pool_cidr}\"],
+		\"ipv4_pools\": [\"${CALICO_IPV4POOL_CIDR}\"],
 		\"ipv6_pools\": [\"${CALICO_IPV6POOL_CIDR}\"]
 	  }"
 	fi
@@ -203,7 +203,7 @@ calico_create_template ()
   WRK=${WRK:=0}
   MAINCORE=${MAINCORE:=12}
   DPDK=${DPDK:=true}
-  export default_ipv4_pool_cidr=$CLUSTER_POD_CIDR4
+  export CALICO_IPV4POOL_CIDR=$CLUSTER_POD_CIDR4
   export CALICO_IPV6POOL_CIDR=$CLUSTER_POD_CIDR6
   export FELIX_IPV6SUPPORT=$(is_v4_v46_v6 false true true)
   export IP=$(is_v4_v46_v6 autodetect autodetect none)

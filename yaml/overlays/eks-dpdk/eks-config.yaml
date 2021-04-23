@@ -1,8 +1,8 @@
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: calico-config
-  namespace: kube-system
+  name: calico-vpp-config
+  namespace: calico-vpp-dataplane
 data:  # Configuration template for VPP in EKS
   vpp_uplink_driver: none
   vpp_config_template: |-
@@ -34,7 +34,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: calico-vpp-node
-  namespace: kube-system
+  namespace: calico-vpp-dataplane
 spec:
   template:
     spec:

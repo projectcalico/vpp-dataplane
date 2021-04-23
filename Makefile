@@ -82,8 +82,8 @@ run-tests:
 
 .PHONY: restart-calicovpp
 restart-calicovpp:
-	kubectl -n kube-system rollout restart ds/calico-vpp-node
-	kubectl -n kube-system rollout status ds/calico-vpp-node
+	kubectl -n calico-vpp-dataplane rollout restart ds/calico-vpp-node
+	kubectl -n calico-vpp-dataplane rollout status ds/calico-vpp-node
 
 .PHONY: goapi
 goapi:

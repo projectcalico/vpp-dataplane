@@ -64,7 +64,7 @@ function wait_for_calico_vpp () {
 	NVPPS=0
 	N=${N:=2}
 	while [ x$NVPPS != x$N ]; do
-	  NVPPS=$(kubectl -n kube-system get pods | grep calico-vpp | grep '2/2' | wc -l)
+	  NVPPS=$(kubectl -n calico-vpp-dataplane get pods | grep calico-vpp | grep '2/2' | wc -l)
 	  grey "calico not yet ready"
 	  sleep 5
 	done

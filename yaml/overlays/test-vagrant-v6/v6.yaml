@@ -39,7 +39,13 @@ data:
         }
       ]
     }
-
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-vpp-config
+  namespace: calico-vpp-dataplane
+data:
   service_prefix: "fd02::/108"
 
 ---
@@ -47,7 +53,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: calico-vpp-node
-  namespace: kube-system
+  namespace: calico-vpp-dataplane
 spec:
   template:
     spec:

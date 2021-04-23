@@ -3,17 +3,17 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    k8s-app: calico-init-eks
-  name: calico-init-eks
-  namespace: kube-system
+    k8s-app: calico-vpp-init-eks
+  name: calico-vpp-init-eks
+  namespace: calico-vpp-dataplane
 spec:
   selector:
     matchLabels:
-      k8s-app: calico-init-eks
+      k8s-app: calico-vpp-init-eks
   template:
     metadata:
       labels:
-        k8s-app: calico-init-eks
+        k8s-app: calico-vpp-init-eks
     spec:
       # Run without CNI
       hostNetwork: true
