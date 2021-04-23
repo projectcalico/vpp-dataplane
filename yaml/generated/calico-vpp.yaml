@@ -3544,7 +3544,6 @@ subjects:
 apiVersion: v1
 data:
   service_prefix: 10.96.0.0/12
-  veth_mtu: "0"
   vpp_config_template: |-
     unix {
       nodaemon
@@ -3699,11 +3698,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        - name: CALICOVPP_TAP_MTU
-          valueFrom:
-            configMapKeyRef:
-              key: veth_mtu
-              name: calico-vpp-config
         - name: SERVICE_PREFIX
           valueFrom:
             configMapKeyRef:
