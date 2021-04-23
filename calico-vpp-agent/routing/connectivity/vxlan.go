@@ -17,8 +17,9 @@ package connectivity
 
 import (
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -62,7 +63,7 @@ func (p *VXLanProvider) OnVppRestart() {
 }
 
 func (p *VXLanProvider) getVXLANVNI() uint32 {
-	felixConf := p.server.GetFelixConfig()
+	felixConf := p.GetFelixConfig()
 	if felixConf == nil {
 		return uint32(config.DefaultVXLANVni)
 	}
@@ -75,10 +76,10 @@ func (p *VXLanProvider) getVXLANVNI() uint32 {
 	return uint32(*felixConf.VXLANVNI)
 }
 
-func (p *VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
+func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Debugf("Adding vxlan Tunnel to VPP")
-	nodeIP := p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop))
-	felixConf := p.server.GetFelixConfig()
+	nodeIP := p.GetNodeIP(vpplink.IsIP6(cn.NextHop))
+	felixConf := p.GetFelixConfig()
 
 	var vxLanPort uint16
 	if felixConf.VXLANPort != nil {
@@ -131,12 +132,12 @@ func (p *VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
 
 		p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), swIfIndex)
 		err = p.vpp.RouteAdd(&types.Route{
-			Dst: common.ToMaxLenCIDR(cn.NextHop),
+			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
 				SwIfIndex: swIfIndex,
 				Gw:        nil,
 			}},
-			Table: common.PodVRFIndex,
+			Table: commonAgent.PodVRFIndex,
 		})
 		if err != nil {
 			// TODO : delete tunnel
@@ -159,7 +160,7 @@ func (p *VXLanProvider) AddConnectivity(cn *NodeConnectivity) error {
 	})
 }
 
-func (p *VXLanProvider) DelConnectivity(cn *NodeConnectivity) error {
+func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	swIfIndex, found := p.vxlanIfs[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("VXLan: Del unknown %s", cn.NextHop.String())

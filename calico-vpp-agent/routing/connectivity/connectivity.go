@@ -17,7 +17,6 @@
 package connectivity
 
 import (
-	"fmt"
 	"net"
 
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
@@ -35,19 +34,17 @@ const (
 	WIREGUARD = "wireguard"
 )
 
-type NodeConnectivity struct {
-	Dst              net.IPNet
-	NextHop          net.IP
-	ResolvedProvider string
-}
-
-func (cn *NodeConnectivity) String() string {
-	return fmt.Sprintf("%s-%s", cn.Dst.String(), cn.NextHop.String())
+type ConnectivityProviderData struct {
+	vpp    *vpplink.VppLink
+	log    *logrus.Entry
+	ipv6   *net.IP
+	ipv4   *net.IP
+	server *ConnectivityServer
 }
 
 type ConnectivityProvider interface {
-	AddConnectivity(cn *NodeConnectivity) error
-	DelConnectivity(cn *NodeConnectivity) error
+	AddConnectivity(cn *common.NodeConnectivity) error
+	DelConnectivity(cn *common.NodeConnectivity) error
 	/* Called when VPP signals us that it has restarted */
 	OnVppRestart()
 	/* Check current state in VPP and update local cache */
@@ -56,27 +53,23 @@ type ConnectivityProvider interface {
 	Enabled() bool
 }
 
-type RoutingServerUtils interface {
-	GetNodeByIp(addr net.IP) *common.NodeState
-	GetNodeIP(isv6 bool) net.IP
-	GetNodeIPNet(isv6 bool) *net.IPNet
-	Clientv3() calicov3cli.Interface
-	GetFelixConfig() *calicov3.FelixConfigurationSpec
+func (p *ConnectivityProviderData) GetNodeByIp(addr net.IP) *common.NodeState {
+	return p.server.NodeWatcher.GetNodeByIp(addr)
 }
-
-type ConnectivityProviderData struct {
-	vpp       *vpplink.VppLink
-	log       *logrus.Entry
-	ipv6      *net.IP
-	ipv4      *net.IP
-	felixConf *calicov3.FelixConfigurationSpec
-	server    RoutingServerUtils
+func (p *ConnectivityProviderData) GetNodeIP(isv6 bool) net.IP {
+	return p.server.GetNodeIP(isv6)
+}
+func (p *ConnectivityProviderData) Clientv3() calicov3cli.Interface {
+	return p.server.Clientv3
+}
+func (p *ConnectivityProviderData) GetFelixConfig() *calicov3.FelixConfigurationSpec {
+	return p.server.FelixConfWatcher.GetFelixConfig()
 }
 
 func NewConnectivityProviderData(
 	vpp *vpplink.VppLink,
+	server *ConnectivityServer,
 	log *logrus.Entry,
-	server RoutingServerUtils,
 ) *ConnectivityProviderData {
 	return &ConnectivityProviderData{
 		vpp:    vpp,

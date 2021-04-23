@@ -20,12 +20,8 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
 	bgpapi "github.com/osrg/gobgp/api"
-	bgpserver "github.com/osrg/gobgp/pkg/server"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/client"
@@ -37,107 +33,50 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/ipam"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/watchers"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 
 	"github.com/projectcalico/vpp-dataplane/vpplink"
-
 	"gopkg.in/tomb.v2"
 )
 
 const (
-	aggregatedPrefixSetBaseName = "aggregated"
-	hostPrefixSetBaseName       = "host"
-	policyBaseName              = "calico_aggr"
-
 	RTPROT_GOBGP = 0x11
-
-	prefixWatchInterval = 5 * time.Second
 )
 
 var (
-	bgpFamilyUnicastIPv4 = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_UNICAST}
-	bgpFamilyUnicastIPv6 = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_UNICAST}
-	server               *Server
-	ServerRunning        = make(chan int, 1)
+	server        *Server
+	ServerRunning = make(chan int, 1)
 )
 
 type Server struct {
 	*commonAgent.CalicoVppServerData
-	log             *logrus.Entry
-	vpp             *vpplink.VppLink
-	t               tomb.Tomb
-	bgpServer       *bgpserver.BgpServer
-	client          *calicocli.Client
-	clientv3        calicov3cli.Interface
-	defaultBGPConf  *calicov3.BGPConfigurationSpec
-	ipv4            net.IP
-	ipv6            net.IP
-	ipv4Net         *net.IPNet
-	ipv6Net         *net.IPNet
-	hasV4           bool
-	hasV6           bool
-	ipam            IpamCache
-	reloadCh        chan string
-	prefixReady     chan int
+	log         *logrus.Entry
+	t           tomb.Tomb
+	routingData *common.RoutingData
+
+	ipam            ipam.IpamCache
 	localAddressMap map[string]*net.IPNet
 	ShouldStop      bool
-	// Is bgpServer running (s.bgpServer == nil)
-	bgpServerRunningCond        *sync.Cond
-	updateIPConnectivityLock    sync.Mutex
-	updateAllIPConnectivityChan chan bool
 
-	// For the node watcher
-	nodeStatesByName map[string]common.NodeState
-	nodeNamesByAddr  map[string]string
-	nodeStateLock    sync.Mutex
+	// Is bgpServer running (s.routingData.BGPServer == nil)
+	bgpServerRunningCond *sync.Cond
 
-	// Connectivity providers
-	providers          map[string]connectivity.ConnectivityProvider
-	connectivityMap    map[string]connectivity.NodeConnectivity
-	felixConfiguration *calicov3.FelixConfigurationSpec
-}
+	felixConfWatcher *watchers.FelixConfWatcher
+	bgpWatcher       *watchers.BGPWatcher
+	prefixWatcher    *watchers.PrefixWatcher
+	kernelWatcher    *watchers.KernelWatcher
+	peerWatcher      *watchers.PeerWatcher
+	nodeWatcher      *watchers.NodeWatcher
 
-func v46ify(s string, isv6 bool) string {
-	if isv6 {
-		return s + "-v6"
-	} else {
-		return s + "-v4"
-	}
-}
-
-func (s *Server) GetNodeIPNet(isv6 bool) *net.IPNet {
-	if isv6 {
-		return s.ipv6Net
-	} else {
-		return s.ipv4Net
-	}
-}
-
-func (s *Server) GetNodeIP(isv6 bool) net.IP {
-	if isv6 {
-		return s.ipv6
-	} else {
-		return s.ipv4
-	}
+	connectivityServer *connectivity.ConnectivityServer
 }
 
 func (s *Server) Clientv3() calicov3cli.Interface {
-	return s.clientv3
-}
-
-func GetPolicyName(isv6 bool) string {
-	return v46ify(policyBaseName, isv6)
-}
-
-func GetAggPrefixSetName(isv6 bool) string {
-	return v46ify(aggregatedPrefixSetBaseName, isv6)
-}
-
-func GetHostPrefixSetName(isv6 bool) string {
-	return v46ify(hostPrefixSetBaseName, isv6)
+	return s.routingData.Clientv3
 }
 
 func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
@@ -151,104 +90,39 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create calico v3 api client")
 	}
-
-	server := Server{
-		client:                      calicoCli,
-		clientv3:                    calicoCliV3,
-		reloadCh:                    make(chan string),
-		prefixReady:                 make(chan int),
-		updateAllIPConnectivityChan: make(chan bool),
-		vpp:                         vpp,
-		log:                         l,
-		localAddressMap:             make(map[string]*net.IPNet),
-		bgpServerRunningCond:        sync.NewCond(&sync.Mutex{}),
-		nodeStatesByName:            make(map[string]common.NodeState),
-		nodeNamesByAddr:             make(map[string]string),
-		connectivityMap:             make(map[string]connectivity.NodeConnectivity),
-	}
-
-	BGPConf, err := server.getDefaultBGPConfig()
+	defaultBGPConf, err := server.getDefaultBGPConfig(l, calicoCliV3)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting default BGP configuration")
 	}
-	server.defaultBGPConf = BGPConf
 
-	providerData := connectivity.NewConnectivityProviderData(
-		server.vpp, server.log, &server,
-	)
+	routingData := common.RoutingData{
+		Vpp:                   vpp,
+		Client:                calicoCli,
+		Clientv3:              calicoCliV3,
+		DefaultBGPConf:        defaultBGPConf,
+		ConnectivityEventChan: make(chan common.ConnectivityEvent, 10),
+	}
 
-	server.providers = make(map[string]connectivity.ConnectivityProvider)
-	server.providers[connectivity.FLAT] = connectivity.NewFlatL3Provider(providerData)
-	server.providers[connectivity.IPIP] = connectivity.NewIPIPProvider(providerData)
-	server.providers[connectivity.IPSEC] = connectivity.NewIPsecProvider(providerData)
-	server.providers[connectivity.VXLAN] = connectivity.NewVXLanProvider(providerData)
-	server.providers[connectivity.WIREGUARD] = connectivity.NewWireguardProvider(providerData)
+	ipam := ipam.NewIPAMCache(vpp, calicoCliV3, l.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
+
+	server := Server{
+		log:                  l,
+		routingData:          &routingData,
+		localAddressMap:      make(map[string]*net.IPNet),
+		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
+
+		ipam: ipam,
+	}
+
+	server.felixConfWatcher = watchers.NewFelixConfWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "felix-watcher"}))
+	server.bgpWatcher = watchers.NewBGPWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "bgp-watcher"}))
+	server.prefixWatcher = watchers.NewPrefixWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
+	server.kernelWatcher = watchers.NewKernelWatcher(&routingData, ipam, server.bgpWatcher, l.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
+	server.peerWatcher = watchers.NewPeerWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
+	server.nodeWatcher = watchers.NewNodeWatcher(&routingData, server.peerWatcher, l.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
+	server.connectivityServer = connectivity.NewConnectivityServer(&routingData, ipam, server.felixConfWatcher, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 
 	return &server, nil
-}
-
-func (s *Server) fetchNodeIPs() (node *calicov3.Node, err error) {
-	node, err = s.clientv3.Nodes().Get(
-		context.Background(),
-		config.NodeName,
-		options.GetOptions{},
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot fetch current node")
-	}
-
-	if node.Spec.BGP == nil {
-		return nil, fmt.Errorf("Calico is running in policy-only mode")
-	}
-	s.ipv4, s.ipv4Net, err = net.ParseCIDR(node.Spec.BGP.IPv4Address)
-	s.hasV4 = (err == nil)
-	s.ipv6, s.ipv6Net, err = net.ParseCIDR(node.Spec.BGP.IPv6Address)
-	s.hasV6 = (err == nil)
-	s.log.Infof("Fetched node IPs v4:%s, v6:%s", s.ipv4.String(), s.ipv6.String())
-	return node, nil
-}
-
-func (s *Server) createAndStartBGP() error {
-	globalConfig, err := s.getGlobalConfig()
-	if err != nil {
-		return fmt.Errorf("cannot get global configuration: %v", err)
-	}
-	maxSize := 256 << 20
-	grpcOpts := []grpc.ServerOption{
-		grpc.MaxRecvMsgSize(maxSize),
-		grpc.MaxSendMsgSize(maxSize),
-	}
-	s.bgpServerRunningCond.L.Lock()
-	s.bgpServer = bgpserver.NewBgpServer(
-		bgpserver.GrpcListenAddress("localhost:50051"),
-		bgpserver.GrpcOption(grpcOpts),
-	)
-	s.bgpServerRunningCond.L.Unlock()
-	s.bgpServerRunningCond.Broadcast()
-
-	s.t.Go(func() error { s.bgpServer.Serve(); return fmt.Errorf("bgpServer Serve returned") })
-
-	return s.bgpServer.StartBgp(
-		context.Background(),
-		&bgpapi.StartBgpRequest{Global: globalConfig},
-	)
-}
-
-// Configure SNAT prefixes so that we don't snat traffic going from a local pod to the node
-func (s *Server) configureLocalNodeSnat() error {
-	if s.hasV4 {
-		err := s.vpp.CnatAddDelSnatPrefix(commonAgent.ToMaxLenCIDR(s.ipv4), true)
-		if err != nil {
-			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", s.ipv4)
-		}
-	}
-	if s.hasV6 {
-		err := s.vpp.CnatAddDelSnatPrefix(commonAgent.ToMaxLenCIDR(s.ipv6), true)
-		if err != nil {
-			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", s.ipv6)
-		}
-	}
-	return nil
 }
 
 func (s *Server) serveOne() error {
@@ -268,13 +142,13 @@ func (s *Server) serveOne() error {
 		return errors.Wrap(err, "failed to start BGP server")
 	}
 
-	if s.hasV4 {
+	if s.routingData.HasV4 {
 		err = s.initialPolicySetting(false /* isv6 */)
 		if err != nil {
 			return errors.Wrap(err, "error configuring initial policies")
 		}
 	}
-	if s.hasV6 {
+	if s.routingData.HasV6 {
 		err = s.initialPolicySetting(true /* isv6 */)
 		if err != nil {
 			return errors.Wrap(err, "error configuring initial policies")
@@ -284,30 +158,26 @@ func (s *Server) serveOne() error {
 	s.RestoreLocalAddresses()
 
 	/* We should start watching from our GetNodeIPs change call */
-	s.t.Go(func() error { return fmt.Errorf("watchNodes: %s", s.watchNodes(node.ResourceVersion)) })
-
-	s.ipam = newIPAMCache(s.log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}), s.clientv3, s.ipamUpdateHandler)
+	s.t.Go(func() error { return s.nodeWatcher.WatchNodes(node.ResourceVersion) })
 	// sync IPAM and call ipamUpdateHandler
-	s.t.Go(func() error { return fmt.Errorf("SyncIPAM: %s", s.ipam.SyncIPAM()) })
+	s.t.Go(func() error { return s.ipam.SyncIPAM() })
 	// watch prefix assigned and announce to other BGP peers
-	s.t.Go(func() error { return fmt.Errorf("watchPrefix: %s", s.watchPrefix()) })
+	s.t.Go(func() error { return s.prefixWatcher.WatchPrefix() })
 	// watch BGP peers
-	s.t.Go(func() error { return fmt.Errorf("watchBGPPeers: %s", s.watchBGPPeers()) })
+	s.t.Go(func() error { return s.peerWatcher.WatchBGPPeers() })
 	// watch Felix configuration
-	s.t.Go(func() error { return fmt.Errorf("watchFelixConfiguration: %s", s.watchFelixConfiguration()) })
+	s.t.Go(func() error { return s.felixConfWatcher.WatchFelixConfiguration() })
 
 	// TODO need to watch BGP configurations and restart in case of changes
 	// Need to get initial BGP config here, pass it to the watchers that need it,
 	// and pass its revision to the BGP config and nodes watchers
 
 	// watch routes from other BGP peers and update FIB
-	s.t.Go(func() error { return fmt.Errorf("watchBGPPath: %s", s.watchBGPPath()) })
-	s.t.Go(func() error {
-		return fmt.Errorf("updateAllIPConnectivityMonitor: %s", s.updateAllIPConnectivityMonitor())
-	})
+	s.t.Go(func() error { return s.bgpWatcher.WatchBGPPath() })
+	s.t.Go(func() error { return s.connectivityServer.ServeConnectivity() })
 
 	// watch routes added by kernel and announce to other BGP peers
-	s.t.Go(func() error { return fmt.Errorf("watchKernelRoute: %s", s.watchKernelRoute()) })
+	// FIXME : s.t.Go(s.kernelWatcher.WatchKernelRoute())
 
 	s.ipam.WaitReady()
 	ServerRunning <- 1
@@ -319,7 +189,7 @@ func (s *Server) serveOne() error {
 		return errors.Wrapf(err, "%s, also failed to clean up routes which we injected", s.t.Err())
 	}
 
-	err = s.bgpServer.StopBgp(context.Background(), &bgpapi.StopBgpRequest{})
+	err = s.routingData.BGPServer.StopBgp(context.Background(), &bgpapi.StopBgpRequest{})
 	if err != nil {
 		s.log.Errorf("failed to stop BGP server:", err)
 	}
@@ -327,54 +197,15 @@ func (s *Server) serveOne() error {
 	// This frees the listeners, otherwise NewBgpServer might fail in
 	// case of a restart
 	s.bgpServerRunningCond.L.Lock()
-	s.bgpServer = nil
+	s.routingData.BGPServer = nil
 	s.bgpServerRunningCond.L.Unlock()
 	s.bgpServerRunningCond.Broadcast()
 	return nil
 }
 
-func (s *Server) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err error) {
-	_, ipNet, err := net.ParseCIDR(pool.Spec.CIDR)
-	if err != nil {
-		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Spec.CIDR)
-	}
-	if !pool.Spec.NATOutgoing {
-		return nil
-	}
-	err = s.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
-	return errors.Wrapf(err, "Couldn't configure SNAT prefix")
-}
-
-func (s *Server) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) (err error) {
-	// TODO check if we need to change any routes based on VXLAN / IPIPMode config changes
-	if prevPool == nil {
-		/* Add */
-		s.log.Debugf("Pool %s Added, handler called")
-		return errors.Wrap(s.addDelSnatPrefix(pool, true), "error handling ipam update")
-	} else if pool == nil {
-		/* Deletion */
-		s.log.Debugf("Pool %s deleted, handler called", prevPool.Spec.CIDR)
-		return errors.Wrap(s.addDelSnatPrefix(prevPool, false), "error handling ipam update")
-	} else {
-		if pool.Spec.CIDR != prevPool.Spec.CIDR {
-			err = s.addDelSnatPrefix(pool, false)
-			if err != nil {
-				return errors.Wrap(err, "error deleting previous pool prefix")
-			}
-			err = s.addDelSnatPrefix(prevPool, true)
-			if err != nil {
-				return errors.Wrap(err, "error configuring new pool prefix")
-			}
-		}
-		/* Update */
-		s.log.Errorf("Parts of IPPool updates are not supported at this time: old: %+v new: %+v", prevPool, pool)
-	}
-	return nil
-}
-
-func (s *Server) getDefaultBGPConfig() (*calicov3.BGPConfigurationSpec, error) {
+func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Interface) (*calicov3.BGPConfigurationSpec, error) {
 	b := true
-	conf, err := s.clientv3.BGPConfigurations().Get(context.Background(), "default", options.GetOptions{})
+	conf, err := clientv3.BGPConfigurations().Get(context.Background(), "default", options.GetOptions{})
 	if err == nil {
 		// Fill in nil values with default ones
 		if conf.Spec.NodeToNodeMeshEnabled == nil {
@@ -391,7 +222,7 @@ func (s *Server) getDefaultBGPConfig() (*calicov3.BGPConfigurationSpec, error) {
 	}
 	switch err.(type) {
 	case calicoerr.ErrorResourceDoesNotExist:
-		s.log.Debug("No default BGP config found, using default options")
+		log.Debug("No default BGP config found, using default options")
 		ret := &calicov3.BGPConfigurationSpec{
 			LogSeverityScreen:     "INFO",
 			NodeToNodeMeshEnabled: &b,
@@ -412,7 +243,7 @@ func (s *Server) getNodeASN() (*numorstring.ASNumber, error) {
 }
 
 func (s *Server) getPeerASN(host string) (*numorstring.ASNumber, error) {
-	node, err := s.clientv3.Nodes().Get(context.Background(), host, options.GetOptions{})
+	node, err := s.routingData.Clientv3.Nodes().Get(context.Background(), host, options.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +252,7 @@ func (s *Server) getPeerASN(host string) (*numorstring.ASNumber, error) {
 	}
 	asn := node.Spec.BGP.ASNumber
 	if asn == nil {
-		return s.defaultBGPConf.ASNumber, nil
+		return s.routingData.DefaultBGPConf.ASNumber, nil
 	}
 	return asn, nil
 
@@ -433,77 +264,16 @@ func (s *Server) getGlobalConfig() (*bgpapi.Global, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting current node AS number")
 	}
-	if s.hasV4 {
-		routerId = s.ipv4.String()
-	} else if s.hasV6 {
-		routerId = s.ipv6.String()
+	if s.routingData.HasV4 {
+		routerId = s.routingData.Ipv4.String()
+	} else if s.routingData.HasV6 {
+		routerId = s.routingData.Ipv6.String()
 	} else {
 		return nil, errors.Wrap(err, "Cannot make routerId out of IP")
 	}
 	return &bgpapi.Global{
 		As:       uint32(*asn),
 		RouterId: routerId,
-	}, nil
-}
-
-func (s *Server) makePath(prefix string, isWithdrawal bool) (*bgpapi.Path, error) {
-	_, ipNet, err := net.ParseCIDR(prefix)
-	if err != nil {
-		return nil, err
-	}
-
-	p := ipNet.IP
-	masklen, _ := ipNet.Mask.Size()
-	v4 := true
-	if p.To4() == nil {
-		v4 = false
-	}
-
-	nlri, err := ptypes.MarshalAny(&bgpapi.IPAddressPrefix{
-		Prefix:    p.String(),
-		PrefixLen: uint32(masklen),
-	})
-	if err != nil {
-		return nil, err
-	}
-	var family *bgpapi.Family
-	originAttr, err := ptypes.MarshalAny(&bgpapi.OriginAttribute{Origin: 0})
-	if err != nil {
-		return nil, err
-	}
-	attrs := []*any.Any{originAttr}
-
-	if v4 {
-		family = &bgpFamilyUnicastIPv4
-		nhAttr, err := ptypes.MarshalAny(&bgpapi.NextHopAttribute{
-			NextHop: s.ipv4.String(),
-		})
-		if err != nil {
-			return nil, err
-		}
-		attrs = append(attrs, nhAttr)
-	} else {
-		family = &bgpFamilyUnicastIPv6
-		nlriAttr, err := ptypes.MarshalAny(&bgpapi.MpReachNLRIAttribute{
-			NextHops: []string{s.ipv6.String()},
-			Nlris:    []*any.Any{nlri},
-			Family: &bgpapi.Family{
-				Afi:  bgpapi.Family_AFI_IP6,
-				Safi: bgpapi.Family_SAFI_UNICAST,
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		attrs = append(attrs, nlriAttr)
-	}
-
-	return &bgpapi.Path{
-		Nlri:       nlri,
-		IsWithdraw: isWithdrawal,
-		Pattrs:     attrs,
-		Age:        ptypes.TimestampNow(),
-		Family:     family,
 	}, nil
 }
 
@@ -528,21 +298,21 @@ func (s *Server) cleanUpRoutes() error {
 
 func (s *Server) announceLocalAddress(addr *net.IPNet) error {
 	s.log.Debugf("Announcing prefix %s in BGP", addr.String())
-	path, err := s.makePath(addr.String(), false)
+	path, err := common.MakePath(addr.String(), false /* isWithdrawal */, s.routingData.Ipv4, s.routingData.Ipv6)
 	if err != nil {
 		return errors.Wrap(err, "error making path to announce")
 	}
 	// bgpServer might be nil if in the process of restarting
 	s.bgpServerRunningCond.L.Lock()
 	defer s.bgpServerRunningCond.L.Unlock()
-	for s.bgpServer == nil || s.ShouldStop {
+	for s.routingData.BGPServer == nil || s.ShouldStop {
 		s.bgpServerRunningCond.Wait()
 	}
 	if s.ShouldStop {
 		return nil
 	}
 	s.localAddressMap[addr.String()] = addr
-	_, err = s.bgpServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
+	_, err = s.routingData.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
 		TableType: bgpapi.TableType_GLOBAL,
 		Path:      path,
 	})
@@ -551,21 +321,21 @@ func (s *Server) announceLocalAddress(addr *net.IPNet) error {
 
 func (s *Server) withdrawLocalAddress(addr *net.IPNet) error {
 	s.log.Debugf("Withdrawing prefix %s from BGP", addr.String())
-	path, err := s.makePath(addr.String(), true)
+	path, err := common.MakePath(addr.String(), true /* isWithdrawal */, s.routingData.Ipv4, s.routingData.Ipv6)
 	if err != nil {
 		return errors.Wrap(err, "error making path to withdraw")
 	}
 	// bgpServer might be nil if in the process of restarting
 	s.bgpServerRunningCond.L.Lock()
 	defer s.bgpServerRunningCond.L.Unlock()
-	for s.bgpServer == nil || s.ShouldStop {
+	for s.routingData.BGPServer == nil || s.ShouldStop {
 		s.bgpServerRunningCond.Wait()
 	}
 	if s.ShouldStop {
 		return nil
 	}
 	delete(s.localAddressMap, addr.String())
-	err = s.bgpServer.DeletePath(context.Background(), &bgpapi.DeletePathRequest{
+	err = s.routingData.BGPServer.DeletePath(context.Background(), &bgpapi.DeletePathRequest{
 		TableType: bgpapi.TableType_GLOBAL,
 		Path:      path,
 	})
@@ -598,7 +368,8 @@ func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 }
 
 func (s *Server) Serve() {
-	err := s.getFelixConfiguration()
+	s.log.Infof("Serve() routing")
+	err := s.felixConfWatcher.GetFelixConfiguration()
 	if err != nil {
 		s.log.Fatalf("cannot get felix configuration %s", err)
 	}
@@ -608,9 +379,8 @@ func (s *Server) Serve() {
 		s.log.Errorf("cannot get node ips %v", err)
 	}
 	/* Initialization : rescan state */
-	for _, provider := range s.providers {
-		provider.OnVppRestart()
-		provider.RescanState()
+	s.routingData.ConnectivityEventChan <- common.ConnectivityEvent{
+		Type: common.RescanState,
 	}
 
 	for !s.ShouldStop {
@@ -630,23 +400,16 @@ func (s *Server) Stop() {
 func (s *Server) OnVppRestart() {
 	s.log.Infof("Restarting ROUTING")
 	// Those should happen first, in case we need to cleanup state
-	for _, provider := range s.providers {
-		provider.OnVppRestart()
+	s.routingData.ConnectivityEventChan <- common.ConnectivityEvent{
+		Type: common.VppRestart,
 	}
 	err := s.configureLocalNodeSnat()
 	if err != nil {
 		s.log.Errorf("error reconfiguring loical node snat: %v", err)
 	}
-	for _, node := range s.nodeStatesByName {
-		s.configureRemoteNodeSnat(&node, true /* isAdd */)
-	}
-	for _, cn := range s.connectivityMap {
-		s.log.Infof("Adding routing : %s", cn)
-		err = s.updateIPConnectivity(&cn, false)
-		if err != nil {
-			s.log.Errorf("Error re-injecting connectivity %s : %v", cn, err)
-		}
-	}
+
+	s.nodeWatcher.OnVppRestart()
+
 	err = s.ipam.OnVppRestart()
 	if err != nil {
 		s.log.Errorf("Error re-injecting ipam %v", err)

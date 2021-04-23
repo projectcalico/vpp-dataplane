@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package routing
+package watchers
 
 import (
 	"fmt"
@@ -21,15 +21,25 @@ import (
 	"syscall"
 
 	bgpapi "github.com/osrg/gobgp/api"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/ipam"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/net/context"
 )
 
+type KernelWatcher struct {
+	*common.RoutingData
+	log        *logrus.Entry
+	ipam       ipam.IpamCache
+	bgpWatcher *BGPWatcher
+}
+
 // watchKernelRoute receives netlink route update notification and announces
 // kernel/boot routes using BGP.
 // TODO: should we leverage this to update VPP routes as well?
-func (s *Server) watchKernelRoute() error {
-	err := s.loadKernelRoute()
+func (w *KernelWatcher) WatchKernelRoute() error {
+	err := w.loadKernelRoute()
 	if err != nil {
 		return err
 	}
@@ -40,12 +50,12 @@ func (s *Server) watchKernelRoute() error {
 		return err
 	}
 	for update := range ch {
-		s.log.Debugf("kernel update: %s", update)
+		w.log.Debugf("kernel update: %s", update)
 		if update.Table == syscall.RT_TABLE_MAIN &&
 			(update.Protocol == syscall.RTPROT_KERNEL || update.Protocol == syscall.RTPROT_BOOT) {
 			// TODO: handle ipPool deletion. RTM_DELROUTE message
 			// can belong to previously valid ipPool.
-			if s.ipam.GetPrefixIPPool(update.Dst) == nil {
+			if w.ipam.GetPrefixIPPool(update.Dst) == nil {
 				continue
 			}
 			isWithdrawal := false
@@ -54,15 +64,15 @@ func (s *Server) watchKernelRoute() error {
 				isWithdrawal = true
 			case syscall.RTM_NEWROUTE:
 			default:
-				s.log.Debugf("unhandled rtm type: %d", update.Type)
+				w.log.Debugf("unhandled rtm type: %d", update.Type)
 				continue
 			}
-			path, err := s.makePath(update.Dst.String(), isWithdrawal)
+			path, err := common.MakePath(update.Dst.String(), isWithdrawal, w.Ipv4, w.Ipv6)
 			if err != nil {
 				return err
 			}
-			s.log.Debugf("made path from kernel update: %s", path)
-			if _, err = s.bgpServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
+			w.log.Debugf("made path from kernel update: %s", path)
+			if _, err = w.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
 				TableType: bgpapi.TableType_GLOBAL,
 				Path:      path,
 			}); err != nil {
@@ -77,14 +87,13 @@ func (s *Server) watchKernelRoute() error {
 			if ip.To4() == nil {
 				family = "6"
 			}
-			s.reloadCh <- family
+			w.bgpWatcher.reloadCh <- family
 		}
 	}
 	return fmt.Errorf("netlink route subscription ended")
 }
 
-func (s *Server) loadKernelRoute() error {
-	<-s.prefixReady
+func (w *KernelWatcher) loadKernelRoute() error {
 	filter := &netlink.Route{
 		Table: syscall.RT_TABLE_MAIN,
 	}
@@ -96,16 +105,16 @@ func (s *Server) loadKernelRoute() error {
 		if route.Dst == nil {
 			continue
 		}
-		if s.ipam.GetPrefixIPPool(route.Dst) == nil {
+		if w.ipam.GetPrefixIPPool(route.Dst) == nil {
 			continue
 		}
 		if route.Protocol == syscall.RTPROT_KERNEL || route.Protocol == syscall.RTPROT_BOOT {
-			path, err := s.makePath(route.Dst.String(), false)
+			path, err := common.MakePath(route.Dst.String(), false /* isWithdrawal */, w.Ipv4, w.Ipv6)
 			if err != nil {
 				return err
 			}
-			s.log.Tracef("made path from kernel route: %s", path)
-			if _, err = s.bgpServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
+			w.log.Tracef("made path from kernel route: %s", path)
+			if _, err = w.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
 				TableType: bgpapi.TableType_GLOBAL,
 				Path:      path,
 			}); err != nil {
@@ -114,4 +123,14 @@ func (s *Server) loadKernelRoute() error {
 		}
 	}
 	return nil
+}
+
+func NewKernelWatcher(routingData *common.RoutingData, ipam ipam.IpamCache, bgpWatcher *BGPWatcher, log *logrus.Entry) *KernelWatcher {
+	w := KernelWatcher{
+		RoutingData: routingData,
+		log:         log,
+		ipam:        ipam,
+		bgpWatcher:  bgpWatcher,
+	}
+	return &w
 }

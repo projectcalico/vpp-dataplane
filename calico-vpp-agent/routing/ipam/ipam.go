@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package routing
+package ipam
 
 import (
 	"net"
@@ -27,6 +27,8 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
 
 // contains returns true if the IPPool contains 'prefix'
@@ -60,13 +62,13 @@ type IpamCache interface {
 }
 
 type ipamCache struct {
-	lock          sync.RWMutex
-	ippoolmap     map[string]*calicov3.IPPool
-	client        calicocliv3.Interface
-	updateHandler func(*calicov3.IPPool, *calicov3.IPPool) error
-	ready         bool
-	readyCond     *sync.Cond
-	log           *logrus.Entry
+	log       *logrus.Entry
+	vpp       *vpplink.VppLink
+	lock      sync.RWMutex
+	ippoolmap map[string]*calicov3.IPPool
+	client    calicocliv3.Interface
+	ready     bool
+	readyCond *sync.Cond
 }
 
 // match checks whether we have an IP pool which contains the given prefix.
@@ -106,7 +108,7 @@ func (c *ipamCache) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 
 // update updates the internal map with IPAM updates when the update
 // is new addtion to the map or changes the existing item, it calls
-// updateHandler
+// ipamUpdateHandler
 func (c *ipamCache) handleIPPoolUpdate(pool calicov3.IPPool, del bool) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -116,14 +118,14 @@ func (c *ipamCache) handleIPPoolUpdate(pool calicov3.IPPool, del bool) error {
 	existing := c.ippoolmap[key]
 	if del {
 		delete(c.ippoolmap, key)
-		return c.updateHandler(nil, existing)
+		return c.ipamUpdateHandler(nil, existing)
 	} else if existing != nil && equalPools(&pool, existing) {
 		return nil
 	}
 
 	c.ippoolmap[key] = &pool
 
-	return c.updateHandler(&pool, existing)
+	return c.ipamUpdateHandler(&pool, existing)
 }
 
 // sync synchronizes the IP pools stored under /calico/v1/ipam
@@ -185,9 +187,48 @@ func (c *ipamCache) SyncIPAM() error {
 	return nil
 }
 
+func (c *ipamCache) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err error) {
+	_, ipNet, err := net.ParseCIDR(pool.Spec.CIDR)
+	if err != nil {
+		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Spec.CIDR)
+	}
+	if !pool.Spec.NATOutgoing {
+		return nil
+	}
+	err = c.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
+	return errors.Wrapf(err, "Couldn't configure SNAT prefix")
+}
+
+func (c *ipamCache) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) (err error) {
+	// TODO check if we need to change any routes based on VXLAN / IPIPMode config changes
+	if prevPool == nil {
+		/* Add */
+		c.log.Debugf("Pool %s Added, handler called")
+		return errors.Wrap(c.addDelSnatPrefix(pool, true), "error handling ipam update")
+	} else if pool == nil {
+		/* Deletion */
+		c.log.Debugf("Pool %s deleted, handler called", prevPool.Spec.CIDR)
+		return errors.Wrap(c.addDelSnatPrefix(prevPool, false), "error handling ipam update")
+	} else {
+		if pool.Spec.CIDR != prevPool.Spec.CIDR {
+			err = c.addDelSnatPrefix(pool, false)
+			if err != nil {
+				return errors.Wrap(err, "error deleting previous pool prefix")
+			}
+			err = c.addDelSnatPrefix(prevPool, true)
+			if err != nil {
+				return errors.Wrap(err, "error configuring new pool prefix")
+			}
+		}
+		/* Update */
+		c.log.Errorf("Parts of IPPool updates are not supported at this time: old: %+v new: %+v", prevPool, pool)
+	}
+	return nil
+}
+
 func (c *ipamCache) OnVppRestart() error {
 	for _, pool := range c.ippoolmap {
-		err := c.updateHandler(pool, nil)
+		err := c.ipamUpdateHandler(pool, nil)
 		if err != nil {
 			return err
 		}
@@ -204,14 +245,14 @@ func (c *ipamCache) WaitReady() {
 }
 
 // create new IPAM cache
-func newIPAMCache(log *logrus.Entry, client calicocliv3.Interface, updateHandler func(*calicov3.IPPool, *calicov3.IPPool) error) *ipamCache {
+func NewIPAMCache(vpp *vpplink.VppLink, client calicocliv3.Interface, log *logrus.Entry) *ipamCache {
 	cond := sync.NewCond(&sync.Mutex{})
 	return &ipamCache{
-		ippoolmap:     make(map[string]*calicov3.IPPool),
-		updateHandler: updateHandler,
-		client:        client,
-		readyCond:     cond,
-		log:           log,
-		ready:         false,
+		vpp:       vpp,
+		log:       log,
+		ippoolmap: make(map[string]*calicov3.IPPool),
+		client:    client,
+		readyCond: cond,
+		ready:     false,
 	}
 }

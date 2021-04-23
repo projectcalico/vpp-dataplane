@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package routing
+package watchers
 
 import (
 	"fmt"
@@ -26,56 +26,67 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+)
+
+type PrefixWatcher struct {
+	*common.RoutingData
+	log *logrus.Entry
+}
+
+const (
+	prefixWatchInterval = 5 * time.Second
 )
 
 // watchPrefix watches etcd /calico/ipam/v2/host/$NODENAME and add/delete
 // aggregated routes which are assigned to the node.
 // This function also updates policy appropriately.
-func (s *Server) watchPrefix() error {
+func (w *PrefixWatcher) WatchPrefix() error {
 	assignedPrefixes := make(map[string]bool)
 	// There is no need to react instantly to these changes, and the calico API
 	// doesn't provide a way to watch for changes, so we just poll every minute
 	for {
-		s.log.Debugf("Reconciliating prefix affinities...")
-		newPrefixes, err := s.getAssignedPrefixes()
+		w.log.Debugf("Reconciliating prefix affinities...")
+		newPrefixes, err := w.getAssignedPrefixes()
 		if err != nil {
 			return errors.Wrap(err, "error getting assigned prefixes")
 		}
-		s.log.Debugf("Found %d assigned prefixes", len(newPrefixes))
+		w.log.Debugf("Found %d assigned prefixes", len(newPrefixes))
 		newAssignedPrefixes := make(map[string]bool)
 		var toAdd []*bgpapi.Path
 		for _, prefix := range newPrefixes {
 			if _, found := assignedPrefixes[prefix]; found {
-				s.log.Debugf("Prefix %s is still assigned to us", prefix)
+				w.log.Debugf("Prefix %s is still assigned to us", prefix)
 				assignedPrefixes[prefix] = true     // Prefix is still there, set value to true so we don't delete it
 				newAssignedPrefixes[prefix] = false // Record it in new map
 			} else {
-				s.log.Debugf("New assigned prefix: %s", prefix)
+				w.log.Debugf("New assigned prefix: %s", prefix)
 				newAssignedPrefixes[prefix] = false
-				path, err := s.makePath(prefix, false)
+				path, err := common.MakePath(prefix, false /* isWithdrawal */, w.Ipv4, w.Ipv6)
 				if err != nil {
 					return errors.Wrap(err, "error making new path for assigned prefix")
 				}
 				toAdd = append(toAdd, path)
 			}
 		}
-		if err = s.updateBGPPaths(toAdd); err != nil {
+		if err = w.updateBGPPaths(toAdd); err != nil {
 			return errors.Wrap(err, "error adding prefix announcements")
 		}
 		// Remove paths that don't exist anymore
 		var toRemove []*bgpapi.Path
 		for p, stillThere := range assignedPrefixes {
 			if !stillThere {
-				s.log.Infof("Prefix %s is not assigned to us anymore", p)
-				path, err := s.makePath(p, true)
+				w.log.Infof("Prefix %s is not assigned to us anymore", p)
+				path, err := common.MakePath(p, true /* isWithdrawal */, w.Ipv4, w.Ipv6)
 				if err != nil {
 					return errors.Wrap(err, "error making new path for removed prefix")
 				}
 				toRemove = append(toRemove, path)
 			}
 		}
-		if err = s.updateBGPPaths(toRemove); err != nil {
+		if err = w.updateBGPPaths(toRemove); err != nil {
 			return errors.Wrap(err, "error removing prefix announcements")
 		}
 		assignedPrefixes = newAssignedPrefixes
@@ -89,11 +100,11 @@ func (s *Server) watchPrefix() error {
 // list of BGP path.
 // using backend directly since libcalico-go doesn't seem to have a method to return
 // assigned prefixes yet.
-func (s *Server) getAssignedPrefixes() ([]string, error) {
+func (w *PrefixWatcher) getAssignedPrefixes() ([]string, error) {
 	var ps []string
 
 	f := func(ipVersion int) error {
-		blockList, err := s.client.Backend.List(
+		blockList, err := w.Client.Backend.List(
 			context.Background(),
 			model.BlockAffinityListOptions{Host: config.NodeName, IPVersion: ipVersion},
 			"",
@@ -102,7 +113,7 @@ func (s *Server) getAssignedPrefixes() ([]string, error) {
 			return err
 		}
 		for _, block := range blockList.KVPairs {
-			s.log.Debugf("Found assigned prefix: %+v", block)
+			w.log.Debugf("Found assigned prefix: %+v", block)
 			key := block.Key.(model.BlockAffinityKey)
 			value := block.Value.(*model.BlockAffinity)
 			if value.State == model.StateConfirmed && !value.Deleted {
@@ -112,12 +123,12 @@ func (s *Server) getAssignedPrefixes() ([]string, error) {
 		return nil
 	}
 
-	if s.ipv4 != nil {
+	if w.Ipv4 != nil {
 		if err := f(4); err != nil {
 			return nil, err
 		}
 	}
-	if s.ipv6 != nil {
+	if w.Ipv6 != nil {
 		if err := f(6); err != nil {
 			return nil, err
 		}
@@ -126,9 +137,9 @@ func (s *Server) getAssignedPrefixes() ([]string, error) {
 }
 
 // TODO rename this
-func (s *Server) updateBGPPaths(paths []*bgpapi.Path) error {
+func (w *PrefixWatcher) updateBGPPaths(paths []*bgpapi.Path) error {
 	for _, path := range paths {
-		err := s.updateOneBGPPath(path)
+		err := w.updateOneBGPPath(path)
 		if err != nil {
 			return errors.Wrapf(err, "error processing path %+v", path)
 		}
@@ -144,7 +155,7 @@ func (s *Server) updateBGPPaths(paths []*bgpapi.Path) error {
 //      add "192.168.1.0/26"     to 'aggregated' set
 //      add "192.168.1.0/26..32" to 'host'       set
 //
-func (s *Server) updateOneBGPPath(path *bgpapi.Path) error {
+func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 	ipAddrPrefixNlri := &bgpapi.IPAddressPrefix{}
 	err := ptypes.UnmarshalAny(path.Nlri, ipAddrPrefixNlri)
 	if err != nil {
@@ -155,11 +166,11 @@ func (s *Server) updateOneBGPPath(path *bgpapi.Path) error {
 	isv6 := strings.Contains(prefixAddr, ":")
 	del := path.IsWithdraw
 	prefix := prefixAddr + "/" + strconv.FormatUint(uint64(prefixLen), 10)
-	s.log.Infof("Updating local prefix set with %s", prefix)
+	w.log.Infof("Updating local prefix set with %s", prefix)
 	// Add path to aggregated prefix set, allowing to export it
 	ps := &bgpapi.DefinedSet{
 		DefinedType: bgpapi.DefinedType_PREFIX,
-		Name:        GetAggPrefixSetName(isv6),
+		Name:        common.GetAggPrefixSetName(isv6),
 		Prefixes: []*bgpapi.Prefix{
 			&bgpapi.Prefix{
 				IpPrefix:      prefix,
@@ -169,12 +180,12 @@ func (s *Server) updateOneBGPPath(path *bgpapi.Path) error {
 		},
 	}
 	if del {
-		err = s.bgpServer.DeleteDefinedSet(
+		err = w.BGPServer.DeleteDefinedSet(
 			context.Background(),
 			&bgpapi.DeleteDefinedSetRequest{DefinedSet: ps, All: false},
 		)
 	} else {
-		err = s.bgpServer.AddDefinedSet(
+		err = w.BGPServer.AddDefinedSet(
 			context.Background(),
 			&bgpapi.AddDefinedSetRequest{DefinedSet: ps},
 		)
@@ -185,12 +196,12 @@ func (s *Server) updateOneBGPPath(path *bgpapi.Path) error {
 	// Add all contained prefixes to host prefix set, forbidding the export of containers /32s or /128s
 	max := uint32(32)
 	if isv6 {
-		s.log.Debugf("Address %s detected as v6", prefixAddr)
+		w.log.Debugf("Address %s detected as v6", prefixAddr)
 		max = 128
 	}
 	ps = &bgpapi.DefinedSet{
 		DefinedType: bgpapi.DefinedType_PREFIX,
-		Name:        GetHostPrefixSetName(isv6),
+		Name:        common.GetHostPrefixSetName(isv6),
 		Prefixes: []*bgpapi.Prefix{
 			&bgpapi.Prefix{
 				IpPrefix:      prefix,
@@ -200,12 +211,12 @@ func (s *Server) updateOneBGPPath(path *bgpapi.Path) error {
 		},
 	}
 	if del {
-		err = s.bgpServer.DeleteDefinedSet(
+		err = w.BGPServer.DeleteDefinedSet(
 			context.Background(),
 			&bgpapi.DeleteDefinedSetRequest{DefinedSet: ps, All: false},
 		)
 	} else {
-		err = s.bgpServer.AddDefinedSet(
+		err = w.BGPServer.AddDefinedSet(
 			context.Background(),
 			&bgpapi.AddDefinedSetRequest{DefinedSet: ps},
 		)
@@ -216,16 +227,24 @@ func (s *Server) updateOneBGPPath(path *bgpapi.Path) error {
 
 	// Finally add/remove path to/from the main table to annouce it to our peers
 	if del {
-		err = s.bgpServer.DeletePath(context.Background(), &bgpapi.DeletePathRequest{
+		err = w.BGPServer.DeletePath(context.Background(), &bgpapi.DeletePathRequest{
 			TableType: bgpapi.TableType_GLOBAL,
 			Path:      path,
 		})
 	} else {
-		_, err = s.bgpServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
+		_, err = w.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
 			TableType: bgpapi.TableType_GLOBAL,
 			Path:      path,
 		})
 	}
 
 	return errors.Wrapf(err, "error adding / deleting path %+v", path)
+}
+
+func NewPrefixWatcher(routingData *common.RoutingData, log *logrus.Entry) *PrefixWatcher {
+	w := PrefixWatcher{
+		RoutingData: routingData,
+		log:         log,
+	}
+	return &w
 }
