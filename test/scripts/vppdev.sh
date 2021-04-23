@@ -167,6 +167,12 @@ vppdev_cli_export ()
 		NODE=$node vppctl show cnat timestamp                         > ${DIR}/${PREFIX}${node}.show-cnat-timestamp   ; greydot
 		NODE=$node vppctl show cnat snat                              > ${DIR}/${PREFIX}${node}.show-cnat-snat        ; greydot
 		printf '\n'
+		greychr "Dumping node '$node' policies..."
+		NODE=$node vppctl show capo interfaces                        > ${DIR}/${PREFIX}${node}.show-capo-interfaces  ; greydot
+		NODE=$node vppctl show capo policies verbose                  > ${DIR}/${PREFIX}${node}.show-capo-policies    ; greydot
+		NODE=$node vppctl show capo rules                             > ${DIR}/${PREFIX}${node}.show-capo-rules       ; greydot
+		NODE=$node vppctl show capo ipsets                            > ${DIR}/${PREFIX}${node}.show-capo-ipsets      ; greydot
+		printf '\n'
 	done
 	# By default, compress to archive
 	if [ x$DIR = x./export ]; then
