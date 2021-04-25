@@ -183,7 +183,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server.providers[connectivity.IPSEC] = connectivity.NewIPsecProvider(providerData)
 	server.providers[connectivity.VXLAN] = connectivity.NewVXLanProvider(providerData)
 	server.providers[connectivity.WIREGUARD] = connectivity.NewWireguardProvider(providerData)
-
+	server.providers[connectivity.SRv6] = connectivity.NewSRv6Provider(providerData)
 	return &server, nil
 }
 
