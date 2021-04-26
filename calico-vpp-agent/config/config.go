@@ -343,7 +343,7 @@ func HandleFelixConfig(config map[string]string) {
 		{felixIPIPMtu, felixIPIPEnabled},
 		{felixVXLANMtu, felixVXLANEnabled},
 		{felixWireguardMtu, felixWireguardEnabled},
-		{HostMtu - 88, EnableIPSec}, // TODO: verify the ipsec header size
+		{HostMtu - 60, EnableIPSec},
 	} {
 		if s.enabled && s.mtu != 0 && (s.mtu < PodMtu || PodMtu == 0) {
 			PodMtu = s.mtu
