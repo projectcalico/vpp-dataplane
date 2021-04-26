@@ -85,7 +85,7 @@ func (t *WireguardPeer) Equal(o *WireguardPeer) bool {
 			return false
 		}
 	}
-	return false
+	return true
 
 }
 
