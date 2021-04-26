@@ -2,7 +2,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: calico-vpp-node
-  namespace: kube-system
+  namespace: calico-vpp-dataplane
 spec:
   updateStrategy:
     type: RollingUpdate

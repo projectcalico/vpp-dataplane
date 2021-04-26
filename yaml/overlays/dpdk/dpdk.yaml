@@ -1,13 +1,9 @@
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: calico-config
-  namespace: kube-system
+  name: calico-vpp-config
+  namespace: calico-vpp-dataplane
 data:
-  service_prefix: 10.96.0.0/12
-  vpp_dataplane_interface: eth1
-  veth_mtu: "1440"
-  default_ipv4_pool_cidr: 172.16.0.0/16
   vpp_uplink_driver: "none"
   vpp_config_template: |-
     unix {
@@ -35,7 +31,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: calico-vpp-node
-  namespace: kube-system
+  namespace: calico-vpp-dataplane
 spec:
   template:
     spec:

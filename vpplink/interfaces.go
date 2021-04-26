@@ -143,8 +143,8 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 		NumTxQueuesPerWorker: uint8(defaultIntTo(tap.NumTxQueues, 1)),
 		TxRingSz:             uint16(defaultIntTo(tap.TxQueueSize, 1024)),
 		RxRingSz:             uint16(defaultIntTo(tap.RxQueueSize, 1024)),
-		HostMtuSize:          uint32(tap.Mtu),
-		HostMtuSet:           bool(tap.Mtu != 0),
+		HostMtuSize:          uint32(tap.HostMtu),
+		HostMtuSet:           bool(tap.HostMtu != 0),
 	}
 	if tap.TxQueueSize > 0 {
 		request.TxRingSz = uint16(tap.TxQueueSize)

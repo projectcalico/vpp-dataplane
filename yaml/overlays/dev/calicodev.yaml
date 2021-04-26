@@ -53,19 +53,16 @@ spec:
               value: "info"
             - name: FELIX_HEALTHENABLED
               value: "true"
-            - name: FELIX_IPV6SUPPORT
-              value: ""
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-agent-dev-config
-                  key: FELIX_IPV6SUPPORT
+          envFrom:
+          - configMapRef:
+              name: calico-agent-dev-config
 
 ---
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: calico-vpp-node
-  namespace: kube-system
+  namespace: calico-vpp-dataplane
 spec:
   template:
     spec:

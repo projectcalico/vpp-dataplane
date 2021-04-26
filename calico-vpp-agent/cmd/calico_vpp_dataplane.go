@@ -107,9 +107,13 @@ func main() {
 	go routingServer.Serve()
 	<-routing.ServerRunning
 
+	go policyServer.Serve()
+	// Felix Config will be sent by the policy server
+	config.WaitForFelixConfig()
+	config.PrintAgentConfig(log)
+
 	go serviceServer.Serve()
 	go cniServer.Serve()
-	go policyServer.Serve()
 
 	go common.HandleVppManagerRestart(log, vpp, routingServer, cniServer, serviceServer, policyServer)
 

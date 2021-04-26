@@ -62,16 +62,16 @@ load-images:
 # Allows to simply run calico-vpp from release images in a test cluster
 .PHONY: test-install-calicovpp
 test-install-calicovpp:
-	kubectl kustomize yaml/overlays/test-vagrant | kubectl apply -f -
+	kubectl apply -k yaml/overlays/test-vagrant
 
 # Allows to run calico-vpp in a test cluster with locally-built binaries for dev / debug
 .PHONY: test-install-calicovpp-dev
 test-install-calicovpp-dev:
-	kubectl kustomize yaml/overlays/test-vagrant-mounts | kubectl apply -f -
+	kubectl apply -k yaml/overlays/test-vagrant-mounts
 
 .PHONY: test-install-calicovpp-dev-v6
 test-install-calicovpp-dev-v6:
-	kubectl kustomize yaml/overlays/test-vagrant-v6-mounts | kubectl apply -f -
+	kubectl apply -k yaml/overlays/test-vagrant-v6-mounts
 
 .PHONY: run-tests
 run-tests:
@@ -82,8 +82,8 @@ run-tests:
 
 .PHONY: restart-calicovpp
 restart-calicovpp:
-	kubectl -n kube-system rollout restart ds/calico-vpp-node
-	kubectl -n kube-system rollout status ds/calico-vpp-node
+	kubectl -n calico-vpp-dataplane rollout restart ds/calico-vpp-node
+	kubectl -n calico-vpp-dataplane rollout status ds/calico-vpp-node
 
 .PHONY: goapi
 goapi:

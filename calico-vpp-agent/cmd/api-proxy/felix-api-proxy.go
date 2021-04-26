@@ -17,7 +17,6 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"time"
@@ -46,34 +45,26 @@ func main() {
 		log.Fatalf("Cannot open pipe FDs")
 	}
 
-	if config.EnablePolicies {
-		for i := 1; i <= ConnRetries; i++ {
-			socket, err = net.Dial("unix", config.FelixDataplaneSocket)
-			if err == nil {
-				break
-			} else if i < ConnRetries {
-				log.WithError(err).Warnf("Try %d: Cannot open socket to agent (unix://%s)", i, config.FelixDataplaneSocket)
-				time.Sleep(ConnRetryDelay)
-			} else {
-				log.WithError(err).Fatal("Could not open socket to agent")
-			}
+	for i := 1; i <= ConnRetries; i++ {
+		socket, err = net.Dial("unix", config.FelixDataplaneSocket)
+		if err == nil {
+			break
+		} else if i < ConnRetries {
+			log.WithError(err).Warnf("Try %d: Cannot open socket to agent (unix://%s)", i, config.FelixDataplaneSocket)
+			time.Sleep(ConnRetryDelay)
+		} else {
+			log.WithError(err).Fatal("Could not open socket to agent")
 		}
-
-		t.Go(func() error {
-			_, err := io.Copy(socket, inFile)
-			return err
-		})
-		t.Go(func() error {
-			_, err := io.Copy(outFile, socket)
-			return err
-		})
-	} else {
-		t.Go(func() error {
-			// Discard all incoming messages
-			_, err := io.Copy(ioutil.Discard, inFile)
-			return err
-		})
 	}
+
+	t.Go(func() error {
+		_, err := io.Copy(socket, inFile)
+		return err
+	})
+	t.Go(func() error {
+		_, err := io.Copy(outFile, socket)
+		return err
+	})
 
 	<-t.Dying()
 	log.Info("Felix proxy exited")
