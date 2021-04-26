@@ -2,15 +2,23 @@ bases:
   - ../../base
 
 configMapGenerator:
-  - name: calico-config
-    env: config.properties
-    behavior: merge
+# extra dev config for the VPP-agent
   - name: calico-agent-dev-config
-    env: config-calico-agent.properties
+    env: props/calico-agent-dev-config.properties
+# extra dev config for VPP
   - name: vpp-dev-config
-    env: config-vpp.properties
+    env: props/vpp-dev-config.properties
+# Override base/calico-vpp-daemonset.yaml config variables
+  - name: calico-vpp-config
+    env: props/calico-vpp-config.properties
+    behavior: merge
+# Override Calico node config map
+  - name: calico-config
+    env: props/calico-config.properties
+    behavior: merge
 generatorOptions:
   disableNameSuffixHash: true
 
 patchesStrategicMerge:
-  - calicodev.yaml
+  - calico-node-dev-patch.yaml
+  - calico-vpp-daemonset-dev-patch.yaml

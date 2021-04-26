@@ -208,12 +208,12 @@ vppdev_cli_vppctl ()
 
 print_vpp_logs ()
 {
-  NODE=$NODE POD=calico-vpp-node C=vpp FOLLOW=$FOLLOW log_node
+  SVC=calico-vpp-dataplane NODE=$NODE POD=calico-vpp-node C=vpp FOLLOW=$FOLLOW log_node
 }
 
 print_agent_logs ()
 {
-  NODE=$NODE POD=calico-vpp-node C=agent FOLLOW=$FOLLOW log_node | grep --color=Never -e '^time='
+  SVC=calico-vpp-dataplane NODE=$NODE POD=calico-vpp-node C=agent FOLLOW=$FOLLOW log_node | grep --color=Never -e '^time='
 }
 
 print_felix_logs ()
