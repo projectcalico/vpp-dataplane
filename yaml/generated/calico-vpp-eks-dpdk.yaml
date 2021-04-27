@@ -3718,7 +3718,7 @@ spec:
       - env:
         - name: HUGEPAGES
           value: "512"
-        image: calicovpp/init-eks:prerelease
+        image: calicovpp/init-eks:v0.14.0-calicov3.19.0
         imagePullPolicy: IfNotPresent
         name: calicovpp-init-eks
         securityContext:
@@ -3772,7 +3772,7 @@ spec:
             configMapKeyRef:
               key: service_prefix
               name: calico-vpp-config
-        image: docker.io/calicovpp/agent:prerelease
+        image: docker.io/calicovpp/agent:v0.14.0-calicov3.19.0
         imagePullPolicy: IfNotPresent
         name: agent
         resources:
@@ -3836,7 +3836,7 @@ spec:
               fieldPath: spec.nodeName
         - name: CALICOVPP_CORE_PATTERN
           value: /var/lib/vpp/vppcore.%e.%p
-        image: docker.io/calicovpp/vpp:prerelease
+        image: docker.io/calicovpp/vpp:v0.14.0-calicov3.19.0
         imagePullPolicy: IfNotPresent
         name: vpp
         resources:
