@@ -3555,6 +3555,9 @@ data:
         main-core 1
         workers 0
     }
+    buffers {
+      default data-size 16384
+    }
     dpdk {
       uio-driver igb_uio
       dev __PCI_DEVICE_ID__ { num-rx-queues 1  num-tx-queues 1 }
@@ -3734,48 +3737,17 @@ spec:
     spec:
       containers:
       - env:
-        - name: DATASTORE_TYPE
-          value: kubernetes
-        - name: WAIT_FOR_DATASTORE
-          value: "true"
-        - name: NODENAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: SERVICE_PREFIX
-          valueFrom:
-            configMapKeyRef:
-              key: service_prefix
-              name: calico-vpp-config
-        image: docker.io/calicovpp/agent:prerelease
-        imagePullPolicy: IfNotPresent
-        name: agent
-        resources:
-          requests:
-            cpu: 250m
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /var/run/calico
-          name: var-run-calico
-          readOnly: false
-        - mountPath: /var/lib/calico/felix-plugins
-          name: felix-plugins
-          readOnly: false
-        - mountPath: /var/run/vpp
-          name: vpp-rundir
-        - mountPath: /run/netns/
-          mountPropagation: Bidirectional
-          name: netns
-      - env:
         - name: CALICOVPP_HOOK_BEFORE_VPP_RUN
-          value: echo 'sudo systemctl stop network' | chroot /host
+          value: echo 'sudo systemctl stop network ; sudo systemctl kill network'
+            | chroot /host
         - name: CALICOVPP_HOOK_VPP_RUNNING
           value: echo 'sudo systemctl start network' | chroot /host
         - name: CALICOVPP_HOOK_VPP_DONE_OK
-          value: echo 'sudo systemctl restart network' | chroot /host
+          value: echo 'sudo systemctl stop network ; sudo systemctl kill network ;
+            sudo systemctl start network' | chroot /host
         - name: CALICOVPP_HOOK_VPP_ERRORED
-          value: echo 'sudo systemctl restart network' | chroot /host
+          value: echo 'sudo systemctl stop network ; sudo systemctl kill network ;
+            sudo systemctl start network' | chroot /host
         - name: CALICOVPP_NATIVE_DRIVER
           valueFrom:
             configMapKeyRef:
@@ -3832,6 +3804,40 @@ spec:
           name: devices
         - mountPath: /sys
           name: hostsys
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+      - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: SERVICE_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: service_prefix
+              name: calico-vpp-config
+        image: docker.io/calicovpp/agent:prerelease
+        imagePullPolicy: IfNotPresent
+        name: agent
+        resources:
+          requests:
+            cpu: 250m
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/calico
+          name: var-run-calico
+          readOnly: false
+        - mountPath: /var/lib/calico/felix-plugins
+          name: felix-plugins
+          readOnly: false
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns
