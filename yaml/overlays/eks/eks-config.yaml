@@ -7,6 +7,30 @@ data:  # Configuration template for VPP in EKS
   service_prefix: 10.100.0.0/16
   vpp_dataplane_interface: eth0
   vpp_uplink_driver: af_packet
+  vpp_config_template: |-
+    unix {
+      nodaemon
+      full-coredump
+      cli-listen /var/run/vpp/cli.sock
+      pidfile /run/vpp/vpp.pid
+      exec /etc/vpp/startup.exec
+    }
+    api-trace { on }
+    cpu {
+        workers 0
+    }
+    buffers {
+      default data-size 16384
+    }
+    socksvr {
+        socket-name /var/run/vpp/vpp-api.sock
+    }
+    plugins {
+        plugin default { enable }
+        plugin dpdk_plugin.so { disable }
+        plugin calico_plugin.so { enable }
+    }
+
 ---
 kind: DaemonSet
 apiVersion: apps/v1
