@@ -248,7 +248,12 @@ calico_create_template ()
   export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=${vpp_dataplane_interface}}
   export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=${vpp_dataplane_interface}}
   cd $SCRIPTDIR
-  kubectl kustomize . | envsubst | sudo tee /tmp/calico-vpp.yaml > /dev/null
+  kubectl kustomize . | \
+	envsubst | \
+	sed "s/^  name: vpp-dev-config/  name: vpp-dev-config\n  namespace: calico-vpp-dataplane/g" | \
+	sed "s/^  name: calico-agent-dev-config/  name: calico-agent-dev-config\n  namespace: calico-vpp-dataplane/g" | \
+	sed "s/^  name: calico-vpp-config/  name: calico-vpp-config\n  namespace: calico-vpp-dataplane/g" | \
+	sudo tee /tmp/calico-vpp.yaml > /dev/null
 }
 
 function calico_up_cni ()
