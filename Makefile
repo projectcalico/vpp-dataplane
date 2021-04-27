@@ -98,8 +98,8 @@ yaml:
 release: check-TAG
 	@[ -z "$(shell git status --porcelain)" ] || (echo "Repo is not clean! Aborting." && exit 1)
 	# Generate yaml file for this release
-	sed -i.bak "s|:latest|:$(TAG)|g" yaml/base/calico-vpp.yaml
-	rm yaml/base/calico-vpp.yaml.bak
+	sed -i.bak "s|:latest|:$(TAG)|g" yaml/base/calico-vpp-daemonset.yaml
+	rm yaml/base/calico-vpp-daemonset.yaml.bak
 	$(MAKE) -C yaml
 	git checkout -b release/$(TAG)
 	git add yaml
