@@ -345,6 +345,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("Native driver:       %s", params.NativeDriver)
 	log.Infof("RxMode:              %s", types.FormatRxMode(params.RxMode))
 	log.Infof("TapRxMode:           %s", types.FormatRxMode(params.TapRxMode))
+	log.Infof("Tap MTU override:    %d", params.UserSpecifiedMtu)
 	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
 	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
 	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)

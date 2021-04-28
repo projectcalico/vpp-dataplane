@@ -56,6 +56,7 @@ type VppRunner struct {
 	uplinkDriver uplink.UplinkDriver
 	routeWatcher *RouteWatcher
 	poolWatcher  *PoolWatcher
+	linkWatcher  *LinkWatcher
 }
 
 func NewVPPRunner(params *config.VppManagerParams, conf *config.InterfaceConfig) *VppRunner {
@@ -235,7 +236,8 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 	v.pickNextHopIP()
 
 	for _, serviceCIDR := range v.params.ServiceCIDRs {
-		// Add a route for the service prefix through VPP
+		// Add a route for the service prefix through VPP. This is required even if kube-proxy is
+		// running on the host to ensure correct source address selection if the host has multiple interfaces
 		log.Infof("Adding route to service prefix %s through VPP", serviceCIDR.String())
 		gw := fakeNextHopIP4
 		if serviceCIDR.IP.To4() == nil {
@@ -393,7 +395,7 @@ func (v *VppRunner) configureVpp() (err error) {
 		RxQueueSize:    v.params.TapRxQueueSize,
 		TxQueueSize:    v.params.TapTxQueueSize,
 		Flags:          vpptap0Flags,
-		HostMtu:        config.GetUplinkMtu(v.params, v.conf, false /* includeEncap */),
+		HostMtu:        uplinkMtu,
 		HostMacAddress: v.conf.HardwareAddr,
 		MacAddress:     vppSideMac,
 	})
@@ -409,7 +411,7 @@ func (v *VppRunner) configureVpp() (err error) {
 
 	err = v.vpp.SetInterfaceMtu(uint32(tapSwIfIndex), config.VppTapMtu)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting %d MTU on tap interface", uplinkMtu)
+		return errors.Wrapf(err, "Error setting %d MTU on tap interface", config.VppTapMtu)
 	}
 
 	err = utils.WriteFile(strconv.FormatInt(int64(tapSwIfIndex), 10), config.VppManagerTapIdxFile)
@@ -417,7 +419,7 @@ func (v *VppRunner) configureVpp() (err error) {
 		return errors.Wrap(err, "Error writing linux mtu")
 	}
 
-	err = utils.WriteFile(strconv.FormatInt(int64(v.conf.Mtu), 10), config.VppManagerLinuxMtu)
+	err = utils.WriteFile(strconv.FormatInt(int64(uplinkMtu), 10), config.VppManagerLinuxMtu)
 	if err != nil {
 		return errors.Wrap(err, "Error writing tap idx")
 	}
@@ -511,8 +513,13 @@ func (v *VppRunner) configureVpp() (err error) {
 		return errors.Wrap(err, "Error setting tap up")
 	}
 
-	// TODO should watch for service prefix and ip pools to always route them through VPP
-	// Service prefix is needed even if kube-proxy is running on the host to ensure correct source address selection
+	if v.params.UserSpecifiedMtu != 0 {
+		v.linkWatcher = &LinkWatcher{
+			LinkIndex: link.Attrs().Index,
+			LinkName:  link.Attrs().Name,
+			MTU:       uplinkMtu,
+		}
+	}
 	return nil
 }
 
@@ -666,6 +673,9 @@ func (v *VppRunner) runVpp() (err error) {
 
 	utils.WriteFile("1", config.VppManagerStatusFile)
 	go v.poolWatcher.SyncPools()
+	if v.linkWatcher != nil {
+		go v.linkWatcher.WatchLinks()
+	}
 
 	hooks.RunHook(hooks.VPP_RUNNING, v.params, v.conf)
 
@@ -674,6 +684,9 @@ func (v *VppRunner) runVpp() (err error) {
 
 	v.poolWatcher.Stop()
 	v.routeWatcher.Stop()
+	if v.linkWatcher != nil {
+		v.linkWatcher.Stop()
+	}
 	return nil
 }
 
