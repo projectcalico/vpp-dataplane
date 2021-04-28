@@ -3570,7 +3570,7 @@ data:
         workers 0
     }
     buffers {
-      default data-size 16384
+      default data-size 3776
     }
     socksvr {
         socket-name /var/run/vpp/vpp-api.sock
@@ -3749,6 +3749,8 @@ spec:
           mountPropagation: Bidirectional
           name: netns
       - env:
+        - name: CALICOVPP_TAP_MTU
+          value: "3500"
         - name: CALICOVPP_HOOK_BEFORE_VPP_RUN
           value: echo 'sudo systemctl stop network ; sudo systemctl kill network'
             | chroot /host
