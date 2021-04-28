@@ -56,6 +56,7 @@ type VppRunner struct {
 	uplinkDriver uplink.UplinkDriver
 	routeWatcher *RouteWatcher
 	poolWatcher  *PoolWatcher
+	linkWatcher  *LinkWatcher
 }
 
 func NewVPPRunner(params *config.VppManagerParams, conf *config.InterfaceConfig) *VppRunner {
@@ -511,6 +512,14 @@ func (v *VppRunner) configureVpp() (err error) {
 		return errors.Wrap(err, "Error setting tap up")
 	}
 
+	if v.params.UserSpecifiedMtu != 0 {
+		v.linkWatcher = &LinkWatcher{
+			LinkIndex: link.Attrs().Index,
+			LinkName:  link.Attrs().Name,
+			MTU:       config.GetUplinkMtu(v.params, v.conf, false /* includeEncap */),
+		}
+	}
+
 	// TODO should watch for service prefix and ip pools to always route them through VPP
 	// Service prefix is needed even if kube-proxy is running on the host to ensure correct source address selection
 	return nil
@@ -666,6 +675,9 @@ func (v *VppRunner) runVpp() (err error) {
 
 	utils.WriteFile("1", config.VppManagerStatusFile)
 	go v.poolWatcher.SyncPools()
+	if v.linkWatcher != nil {
+		go v.linkWatcher.WatchLinks()
+	}
 
 	hooks.RunHook(hooks.VPP_RUNNING, v.params, v.conf)
 
@@ -674,6 +686,9 @@ func (v *VppRunner) runVpp() (err error) {
 
 	v.poolWatcher.Stop()
 	v.routeWatcher.Stop()
+	if v.linkWatcher != nil {
+		v.linkWatcher.Stop()
+	}
 	return nil
 }
 
