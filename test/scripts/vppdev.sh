@@ -213,7 +213,7 @@ print_vpp_logs ()
 
 print_agent_logs ()
 {
-  SVC=calico-vpp-dataplane NODE=$NODE POD=calico-vpp-node C=agent FOLLOW=$FOLLOW log_node | grep --color=Never -e '^time='
+  SVC=calico-vpp-dataplane NODE=$NODE POD=calico-vpp-node C=agent FOLLOW=$FOLLOW log_node
 }
 
 print_felix_logs ()
