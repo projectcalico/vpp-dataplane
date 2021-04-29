@@ -111,7 +111,7 @@ func (r *LinkWatcher) WatchLinks() {
 				log.Info("Link watcher stopped / failed")
 				goto restart
 			case update := <-updates:
-				if update.Attrs().Index == r.LinkIndex {
+				if update.Attrs() != nil && update.Attrs().Index == r.LinkIndex {
 					if update.Attrs().Name == r.LinkName {
 						if update.Attrs().MTU != r.MTU {
 							if err = r.ResetMTU(update); err != nil {
