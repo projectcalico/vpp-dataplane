@@ -46,3 +46,7 @@ spec:
           resources:
             limits:
               hugepages-2Mi: 512Mi
+          env:
+            # DPDK supports full MTU
+            - name: CALICOVPP_TAP_MTU
+              $patch: delete
