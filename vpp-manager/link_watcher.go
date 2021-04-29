@@ -110,7 +110,11 @@ func (r *LinkWatcher) WatchLinks() {
 				}
 				log.Info("Link watcher stopped / failed")
 				goto restart
-			case update := <-updates:
+			case update, ok := <-updates:
+				if !ok {
+					/* channel closed, restart */
+					goto restart
+				}
 				if update.Attrs().Index == r.LinkIndex {
 					if update.Attrs().Name == r.LinkName {
 						if update.Attrs().MTU != r.MTU {

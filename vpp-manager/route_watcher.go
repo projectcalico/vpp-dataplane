@@ -157,7 +157,10 @@ func (r *RouteWatcher) WatchRoutes() {
 				}
 				log.Info("Route watcher stopped / failed")
 				goto restart
-			case update := <-updates:
+			case update, ok := <-updates:
+				if !ok {
+					goto restart
+				}
 				if update.Type == syscall.RTM_DELROUTE {
 					r.lock.Lock()
 					for _, route := range r.routes {
@@ -225,7 +228,10 @@ func (r *RouteWatcher) watchAddresses() {
 				}
 				log.Info("Address watcher stopped / failed")
 				goto restart
-			case <-updates:
+			case _, ok := <-updates:
+				if !ok {
+					goto restart
+				}
 				r.addrUpdate <- struct{}{}
 			}
 		}
