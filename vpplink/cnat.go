@@ -66,6 +66,10 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err
 func (v *VppLink) CnatTranslateDel(id uint32) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
+	// corresponds to adding tr.Backends == []
+	if id == InvalidID {
+		return nil
+	}
 
 	response := &cnat.CnatTranslationDelReply{}
 	request := &cnat.CnatTranslationDel{ID: id}
