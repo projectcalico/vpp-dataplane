@@ -362,6 +362,7 @@ func HandleFelixConfig(config map[string]string) {
 	// we'll need to add a mechanism for that
 
 	if !felixConfigReceived {
+		felixConfigReceived = true
 		felixConfigChan <- struct{}{}
 	}
 }
