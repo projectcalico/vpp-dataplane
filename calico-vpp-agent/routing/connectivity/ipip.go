@@ -17,8 +17,9 @@ package connectivity
 
 import (
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -65,7 +66,7 @@ func (p *IpipProvider) errorCleanup(tunnel *types.IPIPTunnel) {
 	}
 }
 
-func (p *IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
+func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Debugf("Adding ipip Tunnel to VPP")
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
@@ -106,12 +107,12 @@ func (p *IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
 
 		p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), swIfIndex)
 		err = p.vpp.RouteAdd(&types.Route{
-			Dst: common.ToMaxLenCIDR(cn.NextHop),
+			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
 				SwIfIndex: swIfIndex,
 				Gw:        nil,
 			}},
-			Table: common.PodVRFIndex,
+			Table: commonAgent.PodVRFIndex,
 		})
 		if err != nil {
 			p.errorCleanup(tunnel)
@@ -136,7 +137,7 @@ func (p *IpipProvider) AddConnectivity(cn *NodeConnectivity) error {
 	return nil
 }
 
-func (p *IpipProvider) DelConnectivity(cn *NodeConnectivity) error {
+func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("IPIP: Del unknown %s", cn.NextHop.String())

@@ -23,8 +23,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -185,12 +186,12 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 
 	p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", tunnel.Dst.String(), swIfIndex)
 	err = p.vpp.RouteAdd(&types.Route{
-		Dst: common.ToMaxLenCIDR(tunnel.Dst),
+		Dst: commonAgent.ToMaxLenCIDR(tunnel.Dst),
 		Paths: []types.RoutePath{{
 			SwIfIndex: swIfIndex,
 			Gw:        nil,
 		}},
-		Table: common.PodVRFIndex,
+		Table: commonAgent.PodVRFIndex,
 	})
 	if err != nil {
 		p.errorCleanup(tunnel, "")
@@ -298,7 +299,7 @@ func (p *IpsecProvider) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
 	if !vpplink.IsIP6(addr) {
 		return addr, nil
 	}
-	otherNode := p.server.GetNodeByIp(addr)
+	otherNode := p.GetNodeByIp(addr)
 	if otherNode == nil {
 		return nil, fmt.Errorf("Didnt find an ip4 for ip %s", addr.String())
 	}
@@ -309,7 +310,7 @@ func (p *IpsecProvider) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
 	return nodeIP, nil
 }
 
-func (p *IpsecProvider) AddConnectivity(cn *NodeConnectivity) (err error) {
+func (p *IpsecProvider) AddConnectivity(cn *common.NodeConnectivity) (err error) {
 	cn.NextHop, err = p.forceOtherNodeIp4(cn.NextHop)
 	if err != nil {
 		return errors.Wrap(err, "Ipsec v6 config failed")
@@ -333,7 +334,7 @@ func (p *IpsecProvider) AddConnectivity(cn *NodeConnectivity) (err error) {
 	return nil
 }
 
-func (p *IpsecProvider) DelConnectivity(cn *NodeConnectivity) (err error) {
+func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
 	cn.NextHop, err = p.forceOtherNodeIp4(cn.NextHop)
 	if err != nil {
 		return errors.Wrap(err, "Ipsec v6 config failed")

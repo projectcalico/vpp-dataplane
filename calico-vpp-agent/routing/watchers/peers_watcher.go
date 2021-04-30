@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package routing
+package watchers
 
 import (
 	"net"
@@ -24,15 +24,22 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
+
+type PeerWatcher struct {
+	*common.RoutingData
+	log *logrus.Entry
+}
 
 type bgpPeer struct {
 	AS        uint32
 	SweepFlag bool
 }
 
-func (s *Server) shouldPeer(peer *calicov3.BGPPeer) bool {
+func (w *PeerWatcher) shouldPeer(peer *calicov3.BGPPeer) bool {
 	if peer.Spec.Node != "" && peer.Spec.Node != config.NodeName {
 		return false
 	}
@@ -41,12 +48,12 @@ func (s *Server) shouldPeer(peer *calicov3.BGPPeer) bool {
 
 // This function watches BGP peers configured in Calico
 // These peers are configured in GoBGP in adcition to the other nodes in the cluster
-func (s *Server) watchBGPPeers() error {
+func (w *PeerWatcher) WatchBGPPeers() error {
 	state := make(map[string]*bgpPeer)
 
 	for {
-		s.log.Debugf("Reconciliating peers...")
-		peers, err := s.clientv3.BGPPeers().List(context.Background(), options.ListOptions{})
+		w.log.Debugf("Reconciliating peers...")
+		peers, err := w.Clientv3.BGPPeers().List(context.Background(), options.ListOptions{})
 		if err != nil {
 			return err
 		}
@@ -54,7 +61,7 @@ func (s *Server) watchBGPPeers() error {
 			p.SweepFlag = true
 		}
 		for _, peer := range peers.Items {
-			if !s.shouldPeer(&peer) {
+			if !w.shouldPeer(&peer) {
 				continue
 			}
 			ip := peer.Spec.PeerIP
@@ -64,7 +71,7 @@ func (s *Server) watchBGPPeers() error {
 				existing.SweepFlag = false
 				if existing.AS != asn {
 					existing.AS = asn
-					err := s.updateBGPPeer(ip, asn)
+					err := w.updateBGPPeer(ip, asn)
 					if err != nil {
 						return errors.Wrap(err, "error updating BGP peer")
 					}
@@ -76,7 +83,7 @@ func (s *Server) watchBGPPeers() error {
 					AS:        asn,
 					SweepFlag: false,
 				}
-				err := s.addBGPPeer(ip, asn)
+				err := w.addBGPPeer(ip, asn)
 				if err != nil {
 					return errors.Wrap(err, "error adding BGP peer")
 				}
@@ -85,7 +92,7 @@ func (s *Server) watchBGPPeers() error {
 		// Remove all peers that still have sweepflag to true
 		for ip, peer := range state {
 			if peer.SweepFlag {
-				err := s.deleteBGPPeer(ip)
+				err := w.deleteBGPPeer(ip)
 				if err != nil {
 					return errors.Wrap(err, "error deleting BGP peer")
 				}
@@ -94,7 +101,7 @@ func (s *Server) watchBGPPeers() error {
 		}
 
 		revision := peers.ResourceVersion
-		watcher, err := s.clientv3.BGPPeers().Watch(
+		watcher, err := w.Clientv3.BGPPeers().Watch(
 			context.Background(),
 			options.ListOptions{ResourceVersion: revision},
 		)
@@ -106,7 +113,7 @@ func (s *Server) watchBGPPeers() error {
 			switch update.Type {
 			case watch.Added, watch.Modified:
 				peer := update.Object.(*calicov3.BGPPeer)
-				if !s.shouldPeer(peer) {
+				if !w.shouldPeer(peer) {
 					continue
 				}
 				ip := peer.Spec.PeerIP
@@ -115,7 +122,7 @@ func (s *Server) watchBGPPeers() error {
 				if ok {
 					if existing.AS != asn {
 						existing.AS = asn
-						err := s.updateBGPPeer(ip, asn)
+						err := w.updateBGPPeer(ip, asn)
 						if err != nil {
 							return errors.Wrap(err, "error updating BGP peer")
 						}
@@ -127,29 +134,29 @@ func (s *Server) watchBGPPeers() error {
 						AS:        asn,
 						SweepFlag: false,
 					}
-					err := s.addBGPPeer(ip, asn)
+					err := w.addBGPPeer(ip, asn)
 					if err != nil {
 						return errors.Wrap(err, "error adding BGP peer")
 					}
 				}
 			case watch.Deleted:
 				peer := update.Previous.(*calicov3.BGPPeer)
-				if !s.shouldPeer(peer) {
+				if !w.shouldPeer(peer) {
 					continue
 				}
 				ip := peer.Spec.PeerIP
 				_, ok := state[ip]
 				if !ok {
-					s.log.Warnf("Deleted peer %s not found", ip)
+					w.log.Warnf("Deleted peer %s not found", ip)
 					continue
 				}
-				err := s.deleteBGPPeer(ip)
+				err := w.deleteBGPPeer(ip)
 				if err != nil {
 					return errors.Wrap(err, "error deleting BGP peer")
 				}
 				delete(state, ip)
 			case watch.Error:
-				s.log.Infof("peers watch returned an error")
+				w.log.Infof("peers watch returned an error")
 				break watch
 			}
 		}
@@ -157,14 +164,14 @@ func (s *Server) watchBGPPeers() error {
 	return nil
 }
 
-func (s *Server) createBGPPeer(ip string, asn uint32) (*bgpapi.Peer, error) {
+func (w *PeerWatcher) createBGPPeer(ip string, asn uint32) (*bgpapi.Peer, error) {
 	ipAddr, err := net.ResolveIPAddr("ip", ip)
 	if err != nil {
 		return nil, err
 	}
-	typ := &bgpFamilyUnicastIPv4
+	typ := &common.BgpFamilyUnicastIPv4
 	if ipAddr.IP.To4() == nil {
-		typ = &bgpFamilyUnicastIPv6
+		typ = &common.BgpFamilyUnicastIPv6
 	}
 
 	afiSafis := []*bgpapi.AfiSafi{
@@ -196,28 +203,36 @@ func (s *Server) createBGPPeer(ip string, asn uint32) (*bgpapi.Peer, error) {
 	return peer, nil
 }
 
-func (s *Server) addBGPPeer(ip string, asn uint32) error {
-	peer, err := s.createBGPPeer(ip, asn)
+func (w *PeerWatcher) addBGPPeer(ip string, asn uint32) error {
+	peer, err := w.createBGPPeer(ip, asn)
 	if err != nil {
 		return err
 	}
-	s.log.Infof("Adding BGP neighbor: %s AS:%d", peer.Conf.NeighborAddress, peer.Conf.PeerAs)
-	err = s.bgpServer.AddPeer(context.Background(), &bgpapi.AddPeerRequest{Peer: peer})
+	w.log.Infof("Adding BGP neighbor: %s AS:%d", peer.Conf.NeighborAddress, peer.Conf.PeerAs)
+	err = w.BGPServer.AddPeer(context.Background(), &bgpapi.AddPeerRequest{Peer: peer})
 	return err
 }
 
-func (s *Server) updateBGPPeer(ip string, asn uint32) error {
-	peer, err := s.createBGPPeer(ip, asn)
+func (w *PeerWatcher) updateBGPPeer(ip string, asn uint32) error {
+	peer, err := w.createBGPPeer(ip, asn)
 	if err != nil {
 		return err
 	}
-	s.log.Infof("Updating BGP neighbor: %s AS:%d", peer.Conf.NeighborAddress, peer.Conf.PeerAs)
-	_, err = s.bgpServer.UpdatePeer(context.Background(), &bgpapi.UpdatePeerRequest{Peer: peer})
+	w.log.Infof("Updating BGP neighbor: %s AS:%d", peer.Conf.NeighborAddress, peer.Conf.PeerAs)
+	_, err = w.BGPServer.UpdatePeer(context.Background(), &bgpapi.UpdatePeerRequest{Peer: peer})
 	return err
 }
 
-func (s *Server) deleteBGPPeer(ip string) error {
-	s.log.Infof("Deleting BGP neighbor: %s", ip)
-	err := s.bgpServer.DeletePeer(context.Background(), &bgpapi.DeletePeerRequest{Address: ip})
+func (w *PeerWatcher) deleteBGPPeer(ip string) error {
+	w.log.Infof("Deleting BGP neighbor: %s", ip)
+	err := w.BGPServer.DeletePeer(context.Background(), &bgpapi.DeletePeerRequest{Address: ip})
 	return err
+}
+
+func NewPeerWatcher(routingData *common.RoutingData, log *logrus.Entry) *PeerWatcher {
+	w := PeerWatcher{
+		RoutingData: routingData,
+		log:         log,
+	}
+	return &w
 }

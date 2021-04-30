@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -38,7 +39,7 @@ func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
 }
 
 func (p *WireguardProvider) Enabled() bool {
-	felixConf := p.server.GetFelixConfig()
+	felixConf := p.GetFelixConfig()
 	if felixConf == nil {
 		return false
 	}
@@ -49,7 +50,7 @@ func (p *WireguardProvider) Enabled() bool {
 }
 
 func (p *WireguardProvider) getWireguardPort() uint16 {
-	felixConf := p.server.GetFelixConfig()
+	felixConf := p.GetFelixConfig()
 	if felixConf == nil {
 		return uint16(config.DefaultWireguardPort)
 	}
@@ -64,9 +65,9 @@ func (p *WireguardProvider) OnVppRestart() {
 	p.wireguardTunnel = nil
 }
 
-func (p *WireguardProvider) getNodePublicKey(cn *NodeConnectivity) ([]byte, error) {
+func (p *WireguardProvider) getNodePublicKey(cn *common.NodeConnectivity) ([]byte, error) {
 	p.log.Infof("Wireguard: pkey ?")
-	node := p.server.GetNodeByIp(cn.NextHop)
+	node := p.GetNodeByIp(cn.NextHop)
 	p.log.Infof("Wireguard: pkey %s = %s", node.Name, node.Status.WireguardPublicKey)
 	key, err := base64.StdEncoding.DecodeString(node.Status.WireguardPublicKey)
 	if err != nil {
@@ -77,13 +78,13 @@ func (p *WireguardProvider) getNodePublicKey(cn *NodeConnectivity) ([]byte, erro
 
 func (p *WireguardProvider) publishWireguardPublicKey(pubKey string) error {
 	// Ref: felix/daemon/daemon.go:1056
-	node, err := p.server.Clientv3().Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
+	node, err := p.Clientv3().Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "Error getting node config")
 	}
 	p.log.Infof("Wireguard: publishing pkey %s=%s", config.NodeName, pubKey)
 	node.Status.WireguardPublicKey = pubKey
-	_, err = p.server.Clientv3().Nodes().Update(context.Background(), node, options.SetOptions{})
+	_, err = p.Clientv3().Nodes().Update(context.Background(), node, options.SetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "Error updating node config")
 	}
@@ -98,8 +99,8 @@ func (p *WireguardProvider) TunnelIsIP6() bool {
 }
 
 func (p *WireguardProvider) RescanState() {
-	nodeIP4 := p.server.GetNodeIP(false)
-	nodeIP6 := p.server.GetNodeIP(true)
+	nodeIP4 := p.GetNodeIP(false)
+	nodeIP6 := p.GetNodeIP(true)
 
 	p.wireguardPeers = make(map[string]types.WireguardPeer)
 	p.wireguardTunnel = nil
@@ -136,7 +137,7 @@ func (p *WireguardProvider) errorCleanup(tunnel *types.WireguardTunnel) {
 }
 
 func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
-	nodeIp := p.server.GetNodeIP(isv6)
+	nodeIp := p.GetNodeIP(isv6)
 	if nodeIp == nil {
 		p.log.Infof("Wireguard: didnt find nodeIP for v6=%t", isv6)
 		return nil
@@ -194,10 +195,10 @@ func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
 	return nil
 }
 
-func (p *WireguardProvider) AddConnectivity(cn *NodeConnectivity) error {
+func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	if p.wireguardTunnel == nil {
 		p.log.Infof("Wireguard: Creating tunnel")
-		nodeIP4 := p.server.GetNodeIP(false)
+		nodeIP4 := p.GetNodeIP(false)
 		if nodeIP4 == nil {
 			return errors.Errorf("Wireguard: no IP4 found for node")
 		}
@@ -263,7 +264,7 @@ func (p *WireguardProvider) AddConnectivity(cn *NodeConnectivity) error {
 	return nil
 }
 
-func (p *WireguardProvider) DelConnectivity(cn *NodeConnectivity) error {
+func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	peer, found := p.wireguardPeers[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("Wireguard: Del unknown %s", cn.NextHop.String())

@@ -252,6 +252,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 
 func (s *Server) Serve() {
 	s.rescanState()
+	s.log.Infof("Serve() CNI")
 	err := s.grpcServer.Serve(s.socketListener)
 	if err != nil {
 		s.log.Fatalf("Failed to serve: %v", err)

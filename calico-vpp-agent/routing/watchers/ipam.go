@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package routing
+package watchers
 
 import (
 	"net"
@@ -22,9 +22,9 @@ import (
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	calicocliv3 "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -60,13 +60,12 @@ type IpamCache interface {
 }
 
 type ipamCache struct {
-	lock          sync.RWMutex
-	ippoolmap     map[string]*calicov3.IPPool
-	client        calicocliv3.Interface
-	updateHandler func(*calicov3.IPPool, *calicov3.IPPool) error
-	ready         bool
-	readyCond     *sync.Cond
-	log           *logrus.Entry
+	*common.RoutingData
+	log       *logrus.Entry
+	lock      sync.RWMutex
+	ippoolmap map[string]*calicov3.IPPool
+	ready     bool
+	readyCond *sync.Cond
 }
 
 // match checks whether we have an IP pool which contains the given prefix.
@@ -106,7 +105,7 @@ func (c *ipamCache) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 
 // update updates the internal map with IPAM updates when the update
 // is new addtion to the map or changes the existing item, it calls
-// updateHandler
+// ipamUpdateHandler
 func (c *ipamCache) handleIPPoolUpdate(pool calicov3.IPPool, del bool) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -116,21 +115,21 @@ func (c *ipamCache) handleIPPoolUpdate(pool calicov3.IPPool, del bool) error {
 	existing := c.ippoolmap[key]
 	if del {
 		delete(c.ippoolmap, key)
-		return c.updateHandler(nil, existing)
+		return c.ipamUpdateHandler(nil, existing)
 	} else if existing != nil && equalPools(&pool, existing) {
 		return nil
 	}
 
 	c.ippoolmap[key] = &pool
 
-	return c.updateHandler(&pool, existing)
+	return c.ipamUpdateHandler(&pool, existing)
 }
 
 // sync synchronizes the IP pools stored under /calico/v1/ipam
 func (c *ipamCache) SyncIPAM() error {
 	for {
 		c.log.Info("Reconciliating pools...")
-		poolsList, err := c.client.IPPools().List(context.Background(), options.ListOptions{})
+		poolsList, err := c.Clientv3.IPPools().List(context.Background(), options.ListOptions{})
 		if err != nil {
 			return errors.Wrap(err, "error listing pools")
 		}
@@ -157,7 +156,7 @@ func (c *ipamCache) SyncIPAM() error {
 			c.readyCond.L.Unlock()
 		}
 
-		poolsWatcher, err := c.client.IPPools().Watch(
+		poolsWatcher, err := c.Clientv3.IPPools().Watch(
 			context.Background(),
 			options.ListOptions{ResourceVersion: poolsList.ResourceVersion},
 		)
@@ -185,9 +184,51 @@ func (c *ipamCache) SyncIPAM() error {
 	return nil
 }
 
+func (c *ipamCache) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err error) {
+	_, ipNet, err := net.ParseCIDR(pool.Spec.CIDR)
+	if err != nil {
+		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Spec.CIDR)
+	}
+	if !pool.Spec.NATOutgoing {
+		return nil
+	}
+	err = c.Vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
+	return errors.Wrapf(err, "Couldn't configure SNAT prefix")
+}
+
+func (c *ipamCache) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) (err error) {
+	if prevPool == nil {
+		/* Add */
+		c.log.Debugf("Pool %s Added, handler called")
+		err = c.addDelSnatPrefix(pool, true /* isAdd */)
+		return errors.Wrap(err, "error handling ipam add")
+	} else if pool == nil {
+		/* Deletion */
+		c.log.Debugf("Pool %s deleted, handler called", prevPool.Spec.CIDR)
+		err = c.addDelSnatPrefix(prevPool, false /* isAdd */)
+		return errors.Wrap(err, "error handling ipam deletion")
+	} else {
+		if pool.Spec.CIDR != prevPool.Spec.CIDR ||
+			pool.Spec.NATOutgoing != prevPool.Spec.NATOutgoing {
+			err = c.addDelSnatPrefix(prevPool, false /* isAdd */)
+			err2 := c.addDelSnatPrefix(pool, true /* isAdd */)
+			if err != nil || err2 != nil {
+				return errors.Errorf("error updating snat prefix del:%s, add:%s", err, err2)
+			}
+		}
+		/* Ping connectivityServer */
+		c.ConnectivityEventChan <- common.ConnectivityEvent{
+			Type: common.IpamConfChanged,
+			Old:  prevPool,
+			New:  pool,
+		}
+	}
+	return nil
+}
+
 func (c *ipamCache) OnVppRestart() error {
 	for _, pool := range c.ippoolmap {
-		err := c.updateHandler(pool, nil)
+		err := c.ipamUpdateHandler(pool, nil)
 		if err != nil {
 			return err
 		}
@@ -204,14 +245,13 @@ func (c *ipamCache) WaitReady() {
 }
 
 // create new IPAM cache
-func newIPAMCache(log *logrus.Entry, client calicocliv3.Interface, updateHandler func(*calicov3.IPPool, *calicov3.IPPool) error) *ipamCache {
+func NewIPAMCache(routingData *common.RoutingData, log *logrus.Entry) *ipamCache {
 	cond := sync.NewCond(&sync.Mutex{})
 	return &ipamCache{
-		ippoolmap:     make(map[string]*calicov3.IPPool),
-		updateHandler: updateHandler,
-		client:        client,
-		readyCond:     cond,
-		log:           log,
-		ready:         false,
+		RoutingData: routingData,
+		log:         log,
+		ippoolmap:   make(map[string]*calicov3.IPPool),
+		readyCond:   cond,
+		ready:       false,
 	}
 }
