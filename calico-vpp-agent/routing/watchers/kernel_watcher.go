@@ -22,7 +22,6 @@ import (
 
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/ipam"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/net/context"
@@ -31,7 +30,7 @@ import (
 type KernelWatcher struct {
 	*common.RoutingData
 	log        *logrus.Entry
-	ipam       ipam.IpamCache
+	ipam       IpamCache
 	bgpWatcher *BGPWatcher
 }
 
@@ -125,7 +124,7 @@ func (w *KernelWatcher) loadKernelRoute() error {
 	return nil
 }
 
-func NewKernelWatcher(routingData *common.RoutingData, ipam ipam.IpamCache, bgpWatcher *BGPWatcher, log *logrus.Entry) *KernelWatcher {
+func NewKernelWatcher(routingData *common.RoutingData, ipam IpamCache, bgpWatcher *BGPWatcher, log *logrus.Entry) *KernelWatcher {
 	w := KernelWatcher{
 		RoutingData: routingData,
 		log:         log,

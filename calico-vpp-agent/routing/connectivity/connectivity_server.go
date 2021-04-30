@@ -20,7 +20,6 @@ import (
 
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/ipam"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/watchers"
 	"github.com/sirupsen/logrus"
 
@@ -33,13 +32,13 @@ type ConnectivityServer struct {
 
 	providers        map[string]ConnectivityProvider
 	connectivityMap  map[string]common.NodeConnectivity
-	ipam             ipam.IpamCache
+	ipam             watchers.IpamCache
 	FelixConfWatcher *watchers.FelixConfWatcher
 	NodeWatcher      *watchers.NodeWatcher
 }
 
 func NewConnectivityServer(routingData *common.RoutingData,
-	ipam ipam.IpamCache,
+	ipam watchers.IpamCache,
 	felixConfWatcher *watchers.FelixConfWatcher,
 	nodeWatcher *watchers.NodeWatcher,
 	log *logrus.Entry) *ConnectivityServer {
@@ -146,6 +145,18 @@ func (s *ConnectivityServer) ServeConnectivity() error {
 				s.updateAllIPConnectivity()
 			} else if old.WireguardListeningPort != new.WireguardListeningPort {
 				s.log.Infof("WireguardListeningPort Changed")
+				s.updateAllIPConnectivity()
+			}
+		case common.IpamConfChanged:
+			old := evt.Old.(*calicov3.IPPool)
+			new := evt.New.(*calicov3.IPPool)
+			if old == nil || new == nil {
+				/* First/last update, do nothing*/
+				continue
+			}
+			if new.Spec.VXLANMode != old.Spec.VXLANMode ||
+				new.Spec.IPIPMode != old.Spec.IPIPMode {
+				s.log.Infof("VXLAN/IPIPMode Changed")
 				s.updateAllIPConnectivity()
 			}
 		}

@@ -33,7 +33,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/ipam"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/watchers"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -58,7 +57,6 @@ type Server struct {
 	t           tomb.Tomb
 	routingData *common.RoutingData
 
-	ipam            ipam.IpamCache
 	localAddressMap map[string]*net.IPNet
 	ShouldStop      bool
 
@@ -71,6 +69,7 @@ type Server struct {
 	kernelWatcher    *watchers.KernelWatcher
 	peerWatcher      *watchers.PeerWatcher
 	nodeWatcher      *watchers.NodeWatcher
+	ipam             watchers.IpamCache
 
 	connectivityServer *connectivity.ConnectivityServer
 }
@@ -103,24 +102,21 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 		ConnectivityEventChan: make(chan common.ConnectivityEvent, 10),
 	}
 
-	ipam := ipam.NewIPAMCache(vpp, calicoCliV3, l.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
-
 	server := Server{
 		log:                  l,
 		routingData:          &routingData,
 		localAddressMap:      make(map[string]*net.IPNet),
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
-
-		ipam: ipam,
 	}
 
+	server.ipam = watchers.NewIPAMCache(&routingData, l.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
 	server.felixConfWatcher = watchers.NewFelixConfWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "felix-watcher"}))
 	server.bgpWatcher = watchers.NewBGPWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "bgp-watcher"}))
 	server.prefixWatcher = watchers.NewPrefixWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
-	server.kernelWatcher = watchers.NewKernelWatcher(&routingData, ipam, server.bgpWatcher, l.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
+	server.kernelWatcher = watchers.NewKernelWatcher(&routingData, server.ipam, server.bgpWatcher, l.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
 	server.peerWatcher = watchers.NewPeerWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
 	server.nodeWatcher = watchers.NewNodeWatcher(&routingData, server.peerWatcher, l.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
-	server.connectivityServer = connectivity.NewConnectivityServer(&routingData, ipam, server.felixConfWatcher, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
+	server.connectivityServer = connectivity.NewConnectivityServer(&routingData, server.ipam, server.felixConfWatcher, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 
 	return &server, nil
 }

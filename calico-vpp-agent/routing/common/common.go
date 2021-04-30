@@ -177,6 +177,7 @@ type ConnectivityEventType string
 const (
 	NodeStateChanged   ConnectivityEventType = "NodeStateChanged"
 	FelixConfChanged   ConnectivityEventType = "FelixConfChanged"
+	IpamConfChanged    ConnectivityEventType = "IpamConfChanged"
 	VppRestart         ConnectivityEventType = "VppRestart"
 	RescanState        ConnectivityEventType = "RescanState"
 	ConnectivtyAdded   ConnectivityEventType = "ConnectivtyAdded"
