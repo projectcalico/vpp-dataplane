@@ -261,6 +261,7 @@ func (s *Server) Serve() {
 			s.log.WithError(err).Error("cannot accept policy client connection")
 			return
 		}
+		s.log.Infof("Accepted connection from felix")
 		s.state = StateConnected
 
 		go s.SyncPolicy(conn)
