@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"reflect"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -210,31 +209,36 @@ func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
 func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.EventType) (shouldRestart bool, err error) {
 	w.log.Debugf("Got node update: %s %s %+v", eventType, node.Name, node)
 	if node.Name == config.NodeName {
-		// No need to manage ourselves, but if we change we need to restart
-		// and reconfigure
-		shouldRestart = false
-		if eventType == watch.Deleted {
-			shouldRestart = true
-		} else {
-			old, found := w.nodeStatesByName[node.Name]
-			if found {
-				// Check that there were no changes, restart if our BGP config changed
-				old.SweepFlag = false
-				w.log.Tracef("node comparison: old:%+v new:%+v", old.Spec.BGP, node.Spec.BGP)
-				shouldRestart = !reflect.DeepEqual(old.Spec.BGP, node.Spec.BGP)
-			}
-		}
+		old, found := w.nodeStatesByName[node.Name]
 		// Always update node state
 		w.addNodeState(node)
-		return shouldRestart, nil
+		// No need to manage ourselves, but if we change we need to restart
+		// and reconfigure
+		if eventType == watch.Deleted {
+			w.log.Infof("node comparison Deleted")
+			return true, nil /* restart */
+		}
+		if found {
+			// Check that there were no changes, restart if our BGP config changed
+			old.SweepFlag = false
+			oldBgp := old.Spec.BGP
+			newBgp := node.Spec.BGP
+			if oldBgp.ASNumber != newBgp.ASNumber ||
+				oldBgp.IPv4Address != newBgp.IPv4Address ||
+				oldBgp.IPv6Address != newBgp.IPv6Address {
+				w.log.Infof("BGP Spec changed: old:%+v new:%+v", oldBgp, newBgp)
+				return true, nil /* restart */
+			}
+		}
+		return false, nil /* don't restart */
 	}
 
 	// If the mesh is disabled, discard all updates that aren't on the current node
 	if node.Spec.BGP == nil { // No BGP config for this node
-		return false, nil
+		return false, nil /* don't restart */
 	}
 	if !w.isMeshMode() {
-		return false, nil
+		return false, nil /* don't restart */
 	}
 	// This ensures that nodes that don't have a BGP Spec are never present in the state map
 
@@ -260,7 +264,7 @@ func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.E
 			return false, fmt.Errorf("Node to delete not found")
 		}
 	}
-	return false, err
+	return false, err /* don't restart */
 }
 
 func (w *NodeWatcher) getSpecAddresses(node *common.NodeState) (string, string) {
