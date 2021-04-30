@@ -2,6 +2,7 @@ package connectivity
 
 import (
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -52,28 +53,39 @@ func (p *SRv6Provider) errorCleanup(policy *types.SrPolicy) {
 }
 
 func (p *SRv6Provider) AddConnectivity(cn *NodeConnectivity) error {
-	p.log.Debugf("Adding SrPolicy to VPP")
+	p.log.Debugf("SRv6: Adding SrPolicy to VPP")
 	listLocalSid, err := p.vpp.ListSRv6Localsid()
 	var localSids *types.SrLocalsid
 	if err != nil {
-		return errors.Wrapf(err, "Error finding LocalSids")
+		p.log.Infof("SRv6: Error finding LocalSids")
+		return errors.Wrapf(err, "SRv6: Error finding LocalSids")
 	}
 	for _, localSidss := range listLocalSid {
 		localSids = localSidss
 	}
-	policy, found := p.srv6Policies[cn.NextHop.String()]
-	if !found {
-		sidList := make([]types.Srv6SidList, 1)
-		nodeIP6 := p.server.GetNodeIP(true)
-		policy = &types.SrPolicy{
-			Bsid:        types.ToVppIP6Address(nodeIP6),
-			IsSpray:     false,
-			IsEncap:     true,
-			FibTable:    1,
-			NumSidLists: 1,
-			SidLists:    sidList,
-		}
+	// TODO should manage it in a different way
+	_, found := p.srv6Policies[cn.NextHop.String()]
 
+	if !found {
+		// TODO should use localsid
+		nodeIP6 := p.server.GetNodeIP(true)
+		//sids := make([]ip_types.IP6Address, 16)
+		//sids[0] = cn.Dst.IP
+		var ipaddr ip_types.IP6Address
+		copy(ipaddr[:], cn.NextHop.To16())
+		policy := &types.SrPolicy{
+			Bsid:     types.ToVppIP6Address(nodeIP6),
+			IsSpray:  false,
+			IsEncap:  true,
+			FibTable: 1,
+			SidLists: types.Srv6SidList{
+				NumSids: 1,
+				Weight:  0,
+				SlIndex: 0,
+				Sids:    [16]ip_types.IP6Address{ipaddr},
+			},
+		}
+		p.log.Infof("SRv6: Adding SrPolicy %s ", policy)
 		err := p.vpp.AddSRv6Policy(policy)
 		if err != nil {
 			return errors.Wrapf(err, "Error adding SrPolicy ")
@@ -81,9 +93,9 @@ func (p *SRv6Provider) AddConnectivity(cn *NodeConnectivity) error {
 		//TODO
 		p.srv6Policies[cn.NextHop.String()] = policy
 	}
-	p.log.Infof("SRv6: policyok")
+	p.log.Infof("SRv6: policy ok")
 
-	p.log.Debugf("Adding SrPolicy route to %s via swIfIndex %d", cn.Dst.IP.String(), localSids.SwIfIndex)
+	p.log.Debugf("SRv6: Adding SrPolicy route to %s via swIfIndex %d", cn.Dst.IP.String(), localSids.SwIfIndex)
 	err_add_route := p.vpp.RouteAdd(&types.Route{
 		Dst:   &cn.Dst,
 		Paths: []types.RoutePath{{SwIfIndex: uint32(localSids.SwIfIndex), Gw: nil}},

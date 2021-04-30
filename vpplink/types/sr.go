@@ -19,12 +19,11 @@ type SrLocalsid struct {
 
 // SrPolicy definition
 type SrPolicy struct {
-	Bsid        ip_types.IP6Address
-	IsSpray     bool
-	IsEncap     bool
-	FibTable    uint32
-	NumSidLists uint8
-	SidLists    []Srv6SidList
+	Bsid     ip_types.IP6Address
+	IsSpray  bool
+	IsEncap  bool
+	FibTable uint32
+	SidLists Srv6SidList
 }
 
 // Srv6SidList definition
