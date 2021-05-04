@@ -20,7 +20,7 @@ eksimage:
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/init-eks:$(TAG) $(INIT_EKS_IMAGE_DIR)
 
-image: build vpp
+image: build vpp eksimage
 	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
 	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
