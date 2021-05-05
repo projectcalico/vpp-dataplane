@@ -26,6 +26,7 @@ image: build gobgp
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/node:$(TAG) calicovpp/node:latest; \
 	fi
+	docker image prune -f
 
 push: image
 	docker push calicovpp/node:$(TAG)

@@ -262,12 +262,14 @@ load-image-master: ## Load local/pulled image into master VM.
 	@if [ ! -z "$(TAG)" ]; then \
 		vagrant ssh "master" -t -c 'sudo docker tag $(IMG) $(TAG)'; \
 	fi
+	vagrant ssh "master" -t -c 'sudo docker image prune -f'
 
 load-image-node-%: ## Load local/pulled image into node VM, where `%` is the number of the node.
 	docker save $(IMG) | NODE=$* vagrant ssh "node$*" -t -c 'sudo docker load'
 	@if [ ! -z "$(TAG)" ]; then \
 		NODE=$* vagrant ssh "node$*" -t -c 'sudo docker tag $(IMG) $(TAG)'; \
 	fi
+	NODE=$* vagrant ssh "node$*" -t -c 'sudo docker image prune -f'
 
 load-image-nodes: $(shell for i in $(shell seq 1 $(NODE_COUNT)); do echo "load-image-node-$$i"; done) ## Load local/pulled Docker image into all node VMs.
 
