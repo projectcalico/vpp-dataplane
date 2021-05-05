@@ -1,0 +1,4 @@
+bases:
+- ../test-vagrant
+patchesStrategicMerge:
+- sr6.yaml
