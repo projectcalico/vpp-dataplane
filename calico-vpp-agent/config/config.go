@@ -58,6 +58,7 @@ const (
 	BgpLogLevelEnvVar          = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar        = "SERVICE_PREFIX"
+	EnableSRv6EnvVar           = "CALICOVPP_SRV6_ENABLED"
 
 	DefaultVXLANVni      = 4096
 	DefaultWireguardPort = 51820
@@ -73,6 +74,7 @@ var (
 	EnableServices           = true
 	EnablePolicies           = true
 	EnableIPSec              = false
+	EnableSRv6               = false
 	IpsecAddressCount        = 1
 	CrossIpsecTunnels        = false
 	IPSecIkev2Psk            = ""
@@ -112,6 +114,7 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:HostMtu           %d", HostMtu)
 	log.Infof("Config:PodMtu            %d", PodMtu)
 	log.Infof("Config:IpsecNbAsyncCryptoThread  %d", IpsecNbAsyncCryptoThread)
+	log.Infof("Config:EnableSRv6        %t", EnableSRv6)
 }
 
 var supportedEnvVars map[string]bool
@@ -267,6 +270,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		} else {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapQueueSizeEnvVar, conf, sizes, err)
 		}
+	}
+
+	if conf := getEnvValue(EnableSRv6EnvVar); conf != "" {
+		enableSRv6, err := strconv.ParseBool(conf)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableSRv6EnvVar, conf, enableSRv6, err)
+		}
+		EnableSRv6 = enableSRv6
 	}
 
 	psk := getEnvValue(IPSecIkev2PskEnvVar)

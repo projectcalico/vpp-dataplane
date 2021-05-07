@@ -86,7 +86,8 @@ function generate_govpp_apis ()
 	  avf \
 	  wireguard \
 	  capo \
-	  crypto_sw_scheduler
+	  crypto_sw_scheduler \
+	  sr
 }
 
 make_binapi_generator

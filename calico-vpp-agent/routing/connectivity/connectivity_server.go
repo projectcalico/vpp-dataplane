@@ -59,6 +59,7 @@ func NewConnectivityServer(routingData *common.RoutingData,
 	server.providers[IPSEC] = NewIPsecProvider(providerData)
 	server.providers[VXLAN] = NewVXLanProvider(providerData)
 	server.providers[WIREGUARD] = NewWireguardProvider(providerData)
+	server.providers[SRv6] = NewSRv6Provider(providerData)
 
 	return &server
 }
