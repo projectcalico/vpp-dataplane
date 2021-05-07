@@ -86,6 +86,7 @@ function generate_govpp_apis ()
 	  avf \
 	  wireguard \
 	  capo \
+	  memif \
 	  crypto_sw_scheduler
 }
 

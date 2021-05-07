@@ -20,6 +20,8 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/69/31869/11 && git cherry-pi
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/82/32482/1 && git cherry-pick FETCH_HEAD # 32482: virtio: compute cksums in output no offload | https://gerrit.fd.io/r/c/vpp/+/32482
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/83/32483/1 && git cherry-pick FETCH_HEAD # 32483: virtio: Still init unused txq | https://gerrit.fd.io/r/c/vpp/+/32483
 
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/71/32271/1 && git cherry-pick FETCH_HEAD # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
+
 # IPv6 ND patch (temporary)
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/68/31868/1 && git cherry-pick FETCH_HEAD # 31868: ip6-nd: silent the source and target checks on given interface | https://gerrit.fd.io/r/c/vpp/+/31868
 

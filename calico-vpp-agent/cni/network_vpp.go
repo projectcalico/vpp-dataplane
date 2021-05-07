@@ -76,25 +76,6 @@ func (s *Server) configureContainerSysctls(podSpec *storage.LocalPodSpec) error 
 	return nil
 }
 
-// SetupRoutes sets up the routes for the host side of the veth pair.
-func (s *Server) SetupVppRoutes(swIfIndex uint32, podSpec *storage.LocalPodSpec) error {
-	// Go through all the IPs and add routes for each IP in the result.
-	for _, containerIP := range podSpec.GetContainerIps() {
-		route := types.Route{
-			Dst: containerIP,
-			Paths: []types.RoutePath{{
-				SwIfIndex: swIfIndex,
-			}},
-		}
-		s.log.Infof("Adding vpp route %s", route.String())
-		err := s.vpp.RouteAdd(&route)
-		if err != nil {
-			return errors.Wrapf(err, "Cannot add route in VPP")
-		}
-	}
-	return nil
-}
-
 func (s *Server) tunErrorCleanup(podSpec *storage.LocalPodSpec, err error, msg string, args ...interface{}) error {
 	s.log.Errorf("Error creating or configuring tun: %s", err)
 	delErr := s.DelVppInterface(podSpec)
@@ -188,50 +169,90 @@ func (s *Server) PodSpecNeedsSnat(ps *storage.LocalPodSpec) (needsSnat bool) {
 	return needsSnat
 }
 
-// AddVppInterface performs the networking for the given config and IPAM result
-func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
-	// Select the first 11 characters of the containerID for the host veth.
-	tunTag := podSpec.NetnsName + "-" + podSpec.InterfaceName
-
-	s.log.Infof("Creating container interface using VPP networking")
-	s.log.Infof("Setting tun tag to %s", tunTag)
-
-	// Clean up old tun if one is found with this tag
-	err, swIfIndex = s.vpp.SearchInterfaceWithTag(tunTag)
-	if err != nil {
-		s.log.Errorf("Error while searching tun %s : %v", tunTag, err)
-	} else if swIfIndex != vpplink.INVALID_SW_IF_INDEX {
-		return swIfIndex, nil
-	}
-
+func getPodMtu(podSpec *storage.LocalPodSpec) int {
 	// configure MTU from env var if present or calculate it from host mtu
-	var podMtu = podSpec.Mtu
-	if podMtu <= 0 {
-		podMtu = config.PodMtu
+	if podSpec.Mtu <= 0 {
+		return config.PodMtu
 	}
-	s.log.Debugf("Add request pod MTU: %d, computed %d", podSpec.Mtu, podMtu)
+	return podSpec.Mtu
+}
 
+func getTunTag(podSpec *storage.LocalPodSpec) string {
+	return podSpec.NetnsName + "-" + podSpec.InterfaceName
+}
+
+func (s *Server) AddVppMemifInterface(podSpec *storage.LocalPodSpec) (uint32, error) {
 	// Create new tun
+	memif := &types.Memif{
+		Role:           types.MemifMaster,
+		Mode:           types.MemifModeEthernet,
+		NumRxQueues:    config.TapNumRxQueues,
+		NumTxQueues:    config.TapNumTxQueues,
+		QueueSize:      config.TapRxQueueSize,
+		SocketFileName: "@memif",
+		Namespace:      podSpec.NetnsName,
+	}
+	err := s.vpp.CreateMemif(memif)
+	if err != nil {
+		return 0, err
+	}
+
+	err = s.vpp.AddInterfaceTag(memif.SwIfIndex, getTunTag(podSpec))
+	if err != nil {
+		return 0, err
+	}
+
+	if config.TapGSOEnabled {
+		err = s.vpp.EnableGSOFeature(memif.SwIfIndex)
+		if err != nil {
+			return 0, errors.Wrap(err, "Error enabling GSO on memif")
+		}
+	}
+	return memif.SwIfIndex, nil
+}
+
+func (s *Server) AddVppTunInterface(podSpec *storage.LocalPodSpec) (uint32, error) {
 	tun := &types.TapV2{
 		HostNamespace: podSpec.NetnsName,
 		HostIfName:    podSpec.InterfaceName,
-		Tag:           tunTag,
+		Tag:           getTunTag(podSpec),
 		NumRxQueues:   config.TapNumRxQueues,
 		NumTxQueues:   config.TapNumTxQueues,
 		RxQueueSize:   config.TapRxQueueSize,
 		TxQueueSize:   config.TapTxQueueSize,
 		Flags:         types.TapFlagTun,
-		HostMtu:       podMtu,
+		HostMtu:       getPodMtu(podSpec),
 	}
+	s.log.Debugf("Add request pod MTU: %d, computed %d", podSpec.Mtu, tun.HostMtu)
+
 	if config.TapGSOEnabled {
 		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce
 	}
-	swIfIndex, err = s.vpp.CreateOrAttachTapV2(tun)
+	swIfIndex, err := s.vpp.CreateOrAttachTapV2(tun)
 	if err != nil {
-		return 0, s.tunErrorCleanup(podSpec, err, "Error creating tun")
+		return 0, fmt.Errorf("Error creating tun")
 	}
 	s.log.Infof("created tun[%d]", swIfIndex)
+	return swIfIndex, nil
+}
 
+func getPodIPNet(swIfIndex uint32, isv6 bool) *net.IPNet {
+	if isv6 {
+		return &net.IPNet{
+			IP:   net.IP{0xfc, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(swIfIndex >> 24), byte(swIfIndex >> 16), byte(swIfIndex >> 8), byte(swIfIndex)},
+			Mask: net.CIDRMask(128, 128),
+		}
+	}
+	return &net.IPNet{
+		IP:   net.IPv4(byte(169), byte(254), byte(swIfIndex>>8), byte(swIfIndex)),
+		Mask: net.CIDRMask(32, 32),
+	}
+}
+
+func (s *Server) doVppInterfaceConfiguration(swIfIndex uint32, podSpec *storage.LocalPodSpec,
+	doHostSideConf bool,
+	doVppRoutes bool,
+	isL3 bool) (err error) {
 	nbDataThread := int(s.NumVPPWorkers)
 	if config.IpsecNbAsyncCryptoThread > 0 {
 		nbDataThread = s.NumVPPWorkers - config.IpsecNbAsyncCryptoThread
@@ -244,8 +265,8 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}
 
 	if nbDataThread > 0 {
-		for i := 0; i < tun.NumRxQueues; i++ {
-			worker := (uint32)(swIfIndex*uint32(tun.NumRxQueues)+uint32(i)) % uint32(nbDataThread)
+		for i := 0; i < config.TapNumRxQueues; i++ {
+			worker := (uint32)(swIfIndex*uint32(config.TapNumRxQueues)+uint32(i)) % uint32(nbDataThread)
 			err = s.vpp.SetInterfaceRxPlacement(uint32(swIfIndex), uint32(i), uint32(worker), false)
 			if err != nil {
 				s.log.Warnf("failed to set tun[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, i, worker, nbDataThread, err)
@@ -256,61 +277,175 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	// configure vpp side tun
 	err = s.vpp.SetInterfaceVRF(swIfIndex, common.PodVRFIndex)
 	if err != nil {
-		return 0, s.tunErrorCleanup(podSpec, err, "error setting vpp tun %d in pod vrf", swIfIndex)
+		return errors.Wrapf(err, "error setting vpp tun %d in pod vrf", swIfIndex)
 	}
 
-	err = s.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
-	if err != nil {
-		return 0, s.tunErrorCleanup(podSpec, err, "error setting vpp tun %d unnumbered", swIfIndex)
-	}
 	hasv4, hasv6 := podSpec.Hasv46()
+
+	if isL3 {
+		err = s.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+		if err != nil {
+			return errors.Wrapf(err, "error setting vpp tun %d unnumbered", swIfIndex)
+		}
+	} else {
+		if hasv4 {
+			addr := getPodIPNet(swIfIndex, false /* isv6 */)
+			err = s.vpp.AddInterfaceAddress(swIfIndex, addr)
+			if err != nil {
+				return errors.Wrapf(err, "error setting vpp if[%d] address %s", swIfIndex, addr)
+			}
+		}
+		if hasv6 {
+			addr := getPodIPNet(swIfIndex, true /* isv6 */)
+			err = s.vpp.AddInterfaceAddress(swIfIndex, addr)
+			if err != nil {
+				return errors.Wrapf(err, "error setting vpp if[%d] address %s", swIfIndex, addr)
+			}
+		}
+	}
+
 	needsSnat := s.PodSpecNeedsSnat(podSpec)
 	if hasv4 && needsSnat {
 		s.log.Infof("Enable tun[%d] SNAT v4", swIfIndex)
 		err = s.vpp.EnableCnatSNAT(swIfIndex, false)
 		if err != nil {
-			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip4 snat")
+			return errors.Wrapf(err, "Error enabling ip4 snat")
 		}
 	}
 	if hasv6 && needsSnat {
 		s.log.Infof("Enable tun[%d] SNAT v6", swIfIndex)
 		err = s.vpp.EnableCnatSNAT(swIfIndex, true)
 		if err != nil {
-			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip6 snat")
+			return errors.Wrapf(err, "Error enabling ip6 snat")
 		}
 	}
 
 	err = s.vpp.RegisterPodInterface(swIfIndex)
 	if err != nil {
-		return 0, s.tunErrorCleanup(podSpec, err, "error registering pod interface")
+		return errors.Wrapf(err, "error registering pod interface")
 	}
 
 	err = s.vpp.CnatEnableFeatures(swIfIndex)
 	if err != nil {
-		return 0, s.tunErrorCleanup(podSpec, err, "error configuring nat on pod interface")
+		return errors.Wrapf(err, "error configuring nat on pod interface")
 	}
 
 	if doHostSideConf {
 		err = ns.WithNetNSPath(podSpec.NetnsName, s.configureNamespaceSideTun(swIfIndex, podSpec))
 		if err != nil {
-			return 0, s.tunErrorCleanup(podSpec, err, "Error enabling ip6")
+			return errors.Wrapf(err, "Error enabling ip6")
+		}
+	}
+
+	if doVppRoutes {
+		// Now that the host side of the veth is moved, state set to UP, and configured with sysctls, we can add the routes to it in the host namespace.
+		if isL3 {
+			err = s.vpp.RoutesAdd(podSpec.GetContainerIps(), &types.RoutePath{
+				SwIfIndex: swIfIndex,
+			})
+			if err != nil {
+				return errors.Wrapf(err, "error adding vpp side routes for interface")
+			}
+		} else {
+			for _, containerIP := range podSpec.GetContainerIps() {
+				addr := getPodIPNet(swIfIndex, types.IsIP6(containerIP.IP))
+				route := types.Route{
+					Dst: containerIP,
+					Paths: []types.RoutePath{{
+						SwIfIndex: swIfIndex,
+						Gw:        addr.IP,
+					}},
+				}
+				err := s.vpp.RouteAdd(&route)
+				if err != nil {
+					return errors.Wrapf(err, "Cannot add route in VPP")
+				}
+			}
+			hardwareAddr, err := net.ParseMAC(config.ContainerSideMacAddressString)
+			if err != nil {
+				return errors.Wrapf(err, "Unable to parse mac: %s", config.ContainerSideMacAddressString)
+			}
+
+			if hasv4 {
+				err = s.vpp.AddNeighbor(&types.Neighbor{
+					SwIfIndex:    swIfIndex,
+					IP:           getPodIPNet(swIfIndex, false /* isv6 */).IP,
+					HardwareAddr: hardwareAddr,
+					Flags:        types.IPNeighborStatic,
+				})
+				if err != nil {
+					return errors.Wrapf(err, "Cannot add neighbor in VPP")
+				}
+			}
+			if hasv6 {
+				err = s.vpp.AddNeighbor(&types.Neighbor{
+					SwIfIndex:    swIfIndex,
+					IP:           getPodIPNet(swIfIndex, true /* isv6 */).IP,
+					HardwareAddr: hardwareAddr,
+					Flags:        types.IPNeighborStatic,
+				})
+				if err != nil {
+					return errors.Wrapf(err, "Cannot add neighbor in VPP")
+				}
+			}
 		}
 	}
 
 	err = s.vpp.InterfaceAdminUp(swIfIndex)
 	if err != nil {
-		return 0, s.tunErrorCleanup(podSpec, err, "error setting new tun up")
-	}
-
-	// Now that the host side of the veth is moved, state set to UP, and configured with sysctls, we can add the routes to it in the host namespace.
-	err = s.SetupVppRoutes(swIfIndex, podSpec)
-	if err != nil {
-		return 0, s.tunErrorCleanup(podSpec, err, "error adding vpp side routes for interface: %s", tunTag)
+		return errors.Wrapf(err, "error setting new tun up")
 	}
 
 	err = s.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, config.TapRxMode)
 	if err != nil {
-		return 0, s.tunErrorCleanup(podSpec, err, "error SetInterfaceRxMode on tun interface")
+		return errors.Wrapf(err, "error SetInterfaceRxMode on tun interface")
+	}
+	return nil
+}
+
+// AddVppInterface performs the networking for the given config and IPAM result
+func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
+	// Select the first 11 characters of the containerID for the host veth.
+	tunTag := getTunTag(podSpec)
+
+	s.log.Infof("Creating container interface using VPP networking")
+	s.log.Infof("Setting tun tag to %s", tunTag)
+
+	// Clean up old tun if one is found with this tag
+	err, swIfIndex = s.vpp.SearchInterfaceWithTag(tunTag)
+	if err != nil {
+		s.log.Errorf("Error while searching tun %s : %v", tunTag, err)
+	} else if swIfIndex != vpplink.INVALID_SW_IF_INDEX {
+		return swIfIndex, nil
+	}
+
+	swIfIndex, err = s.AddVppTunInterface(podSpec)
+	if err != nil {
+		return 0, s.tunErrorCleanup(podSpec, err, "Error creating tun")
+	}
+
+	/* route via tun if no memif */
+	doVppRoutes := podSpec.InterfaceType&storage.VppMemifInterface == 0
+	err = s.doVppInterfaceConfiguration(swIfIndex, podSpec, doHostSideConf, doVppRoutes, true /*isL3*/)
+	if err != nil {
+		return 0, s.tunErrorCleanup(podSpec, err, "Error creating tun")
+	}
+
+	/* For now, we only support memif OR tun for all traffic */
+	if podSpec.InterfaceType&storage.VppMemifInterface != 0 {
+		swIfIndex, err = s.AddVppMemifInterface(podSpec)
+		if err != nil {
+			return 0, s.tunErrorCleanup(podSpec, err, "Error creating memif")
+		}
+		err = s.doVppInterfaceConfiguration(swIfIndex, podSpec, false /* doHostSideConf */, true /* doVppRoutes */, false /*isL3*/)
+		if err != nil {
+			return 0, s.tunErrorCleanup(podSpec, err, "Error configuring memif")
+		}
+
+		err = s.vpp.SetPromiscOn(swIfIndex)
+		if err != nil {
+			return 0, s.tunErrorCleanup(podSpec, err, "Error setting memif promisc")
+		}
 	}
 
 	s.log.Infof("Setup tun[%d] complete", swIfIndex)
@@ -430,6 +565,14 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) error {
 	err = s.vpp.RemovePodInterface(swIfIndex)
 	if err != nil {
 		s.log.Errorf("error deregistering pod interface: %v", err)
+	}
+
+	if podSpec.InterfaceType&storage.VppMemifInterface != 0 {
+		err = s.vpp.DeleteMemif(&types.Memif{
+			SwIfIndex: swIfIndex,
+			SocketId:  0, /* TODO properly cleanup sockets */
+		})
+		s.log.Infof("deleted memif[%d]", swIfIndex)
 	}
 
 	// Delete tun

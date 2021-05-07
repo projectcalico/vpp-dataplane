@@ -17,6 +17,7 @@ package vpplink
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
@@ -111,6 +112,21 @@ func (v *VppLink) addDelNeighbor(neighbor *types.Neighbor, isAdd bool) error {
 		return fmt.Errorf("failed to %s neighbor from VPP (retval %d)", isAddStr(isAdd), response.Retval)
 	}
 	v.log.Debugf("%sed neighbor %+v", isAddStr(isAdd), neighbor)
+	return nil
+}
+
+func (v *VppLink) RoutesAdd(Dsts []*net.IPNet, routepath *types.RoutePath) error {
+	/* add the same route for multiple dsts */
+	for _, dst := range Dsts {
+		route := types.Route{
+			Dst:   dst,
+			Paths: []types.RoutePath{*routepath},
+		}
+		err := v.addDelIPRoute(&route, true)
+		if err != nil {
+			return errors.Wrapf(err, "Cannot add route in VPP")
+		}
+	}
 	return nil
 }
 
