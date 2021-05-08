@@ -2,12 +2,30 @@ package vpplink
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/sr"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
+
+func (v *VppLink) SetEncapSource(addr net.IP) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	request := &sr.SrSetEncapSource{
+		EncapsSource: types.ToVppIP6Address(addr),
+	}
+	response := &sr.SrSetEncapSourceReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrap(err, "SetEncapSource failed")
+	} else if response.Retval != 0 {
+		return fmt.Errorf("SetEncapSource failed with retval %d", response.Retval)
+	}
+	return err
+}
 
 func (v *VppLink) ListSRv6Policies() (list []*types.SrPolicy, err error) {
 	v.lock.Lock()

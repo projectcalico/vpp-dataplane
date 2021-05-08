@@ -2,6 +2,7 @@ package connectivity
 
 import (
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -14,8 +15,18 @@ type SRv6Provider struct {
 
 func NewSRv6Provider(d *ConnectivityProviderData) *SRv6Provider {
 	p := &SRv6Provider{d, make(map[string]*types.SrPolicy)}
-	p.log.Printf("NewSRv6Provider")
+	p.log.Printf("SRv6Provider NewSRv6Provider")
+
 	return p
+}
+
+func (p *SRv6Provider) setEncapSource() {
+	p.log.Printf("SRv6Provider setEncapSource")
+	nodeIP6 := p.server.GetNodeIP(true)
+	err := p.vpp.SetEncapSource(nodeIP6)
+	if err != nil {
+		p.log.Errorf("SRv6Provider setEncapSource: %v", err)
+	}
 }
 
 func (p *SRv6Provider) OnVppRestart() {
@@ -23,26 +34,26 @@ func (p *SRv6Provider) OnVppRestart() {
 }
 
 func (p *SRv6Provider) Enabled() bool {
-	// TODO check config
-	return true
+	return config.EnableSRv6
 }
 
 func (p *SRv6Provider) RescanState() {
-	p.log.Infof("Rescanning existing SrPolicies")
+	p.log.Infof("SRv6Provider RescanState")
+	p.setEncapSource()
 	p.srv6Policies = make(map[string]*types.SrPolicy)
-	policies, err := p.vpp.ListSRv6Policies()
+	_, err := p.vpp.ListSRv6Policies()
 	if err != nil {
-		p.log.Errorf("Error listing SrPolicies: %v", err)
+		p.log.Errorf("SRv6Provider Error listing SrPolicies: %v", err)
 	}
 
-	nodeIP6 := p.server.GetNodeIP(true)
+	/*nodeIP6 := p.server.GetNodeIP(true)
 	for _, policy := range policies {
 		policyIP6 := policy.Bsid.ToIP()
 		if nodeIP6.Equal(policyIP6) {
 			p.log.Infof("Found existing SrPolicy: %s", policy)
 			p.srv6Policies[policy.Bsid.String()] = policy
 		}
-	}
+	} */
 
 }
 
@@ -54,12 +65,12 @@ func (p *SRv6Provider) errorCleanup(policy *types.SrPolicy) {
 }
 
 func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) error {
-	p.log.Debugf("SRv6: Adding SrPolicy to VPP")
+	p.log.Debugf("SRv6Provider Adding SrPolicy to VPP")
 	listLocalSid, err := p.vpp.ListSRv6Localsid()
 	var localSids *types.SrLocalsid
 	if err != nil {
-		p.log.Infof("SRv6: Error finding LocalSids")
-		return errors.Wrapf(err, "SRv6: Error finding LocalSids")
+		p.log.Infof("SRv6Provider Error finding LocalSids")
+		return errors.Wrapf(err, "SRv6Provider Error finding LocalSids")
 	}
 	for _, localSidss := range listLocalSid {
 		localSids = localSidss
@@ -86,7 +97,7 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) error {
 				Sids:    [16]ip_types.IP6Address{ipaddr},
 			},
 		}
-		p.log.Infof("SRv6: Adding SrPolicy %s ", policy)
+		p.log.Infof("SRv6Provider Adding SrPolicy %s ", policy)
 		err := p.vpp.AddSRv6Policy(policy)
 		if err != nil {
 			return errors.Wrapf(err, "Error adding SrPolicy ")
@@ -94,9 +105,9 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) error {
 		//TODO
 		p.srv6Policies[cn.NextHop.String()] = policy
 	}
-	p.log.Infof("SRv6: policy ok")
+	p.log.Infof("SRv6Provider policy ok")
 
-	p.log.Debugf("SRv6: Adding SrPolicy route to %s via swIfIndex %d", cn.Dst.IP.String(), localSids.SwIfIndex)
+	p.log.Debugf("SRv6Provider Adding SrPolicy route to %s via swIfIndex %d", cn.Dst.IP.String(), localSids.SwIfIndex)
 	err_add_route := p.vpp.RouteAdd(&types.Route{
 		Dst:   &cn.Dst,
 		Paths: []types.RoutePath{{SwIfIndex: uint32(localSids.SwIfIndex), Gw: nil}},
@@ -111,8 +122,8 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) error {
 func (p *SRv6Provider) DelConnectivity(cn *common.NodeConnectivity) error {
 	_, found := p.srv6Policies[cn.NextHop.String()]
 	if !found {
-		p.log.Infof("SRv6: Del unknown %s", cn.NextHop.String())
-		return errors.Errorf("Deleting unknown SrPolicy %s", cn.NextHop.String())
+		p.log.Infof("SRv6Provider Del unknown %s", cn.NextHop.String())
+		return errors.Errorf("SRv6Provider Deleting unknown SrPolicy %s", cn.NextHop.String())
 	}
 	err := p.vpp.RouteDel(&types.Route{
 		Dst: &cn.Dst,
@@ -121,7 +132,7 @@ func (p *SRv6Provider) DelConnectivity(cn *common.NodeConnectivity) error {
 		}},
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Error deleting policy route")
+		return errors.Wrapf(err, "SRv6Provider Error deleting policy route")
 	}
 	// TODO remove route
 	return nil
