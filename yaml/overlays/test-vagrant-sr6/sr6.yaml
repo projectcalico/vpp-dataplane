@@ -90,3 +90,19 @@ spec:
               value: "hash"
             - name: IP6
               value: "autodetect"
+# ---
+# apiVersion: projectcalico.org/v3
+# kind: IPPool
+# metadata:
+#   name: sr-localsids-pool
+# spec:
+#   cidr: c5::/122
+#   nodeSelector: "!all()"
+# ---
+# apiVersion: projectcalico.org/v3
+# kind: IPPool
+# metadata:
+#   name: sr-policies-pool
+# spec:
+#   cidr: cafe::/122
+#   nodeSelector: "!all()"

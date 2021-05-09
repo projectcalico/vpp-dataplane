@@ -1,7 +1,11 @@
 package connectivity
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
+	"github.com/projectcalico/libcalico-go/lib/ipam"
+	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
@@ -20,13 +24,79 @@ func NewSRv6Provider(d *ConnectivityProviderData) *SRv6Provider {
 	return p
 }
 
-func (p *SRv6Provider) setEncapSource() {
+func (p *SRv6Provider) setEncapSource() (err error) {
 	p.log.Printf("SRv6Provider setEncapSource")
 	nodeIP6 := p.server.GetNodeIP(true)
-	err := p.vpp.SetEncapSource(nodeIP6)
+	err = p.vpp.SetEncapSource(nodeIP6)
 	if err != nil {
 		p.log.Errorf("SRv6Provider setEncapSource: %v", err)
+		return errors.Wrapf(err, "SRv6Provider setEncapSource")
 	}
+
+	return err
+}
+
+func (p *SRv6Provider) setEndDT4() (err error) {
+	p.log.Printf("SRv6Provider setLocalsid setEndDT4")
+	pinco := []cnet.IPNet{cnet.MustParseNetwork("c5::/122")}
+	_, localSids, err := p.Clientv3().IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
+		Num6:      1,
+		IPv6Pools: pinco,
+	})
+
+	if err != nil {
+		p.log.Infof("SRv6Provider Error assigning ip LocalSid")
+		return errors.Wrapf(err, "SRv6Provider Error assigning ip LocalSid")
+	}
+	if localSids != nil {
+		newLocalSidAddr := types.ToVppIP6Address(localSids[0].IP)
+		p.log.Infof("SRv6Provider new LocalSid ip %s", newLocalSidAddr.String())
+		newLocalSid := &types.SrLocalsid{
+			Localsid: newLocalSidAddr,
+			EndPsp:   false,
+			Behavior: 9,
+			FibTable: 0,
+		}
+		err = p.vpp.AddSRv6Localsid(newLocalSid)
+		if err != nil {
+			p.log.Infof("SRv6Provider Error adding LocalSid")
+			return errors.Wrapf(err, "SRv6Provider Error adding LocalSid")
+		}
+	}
+
+	return err
+}
+
+func (p *SRv6Provider) setEndDT6() (err error) {
+	p.log.Printf("SRv6Provider  setLocalsid setEndDT6")
+	//_, localSidsIPNET, err := net.ParseCIDR("c5::/122")
+	pinco := []cnet.IPNet{cnet.MustParseNetwork("c5::/122")}
+	_, localSids, err := p.Clientv3().IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
+		Num6:      1,
+		IPv6Pools: pinco,
+	})
+
+	if err != nil {
+		p.log.Infof("SRv6Provider Error assigning ip LocalSid")
+		return errors.Wrapf(err, "SRv6Provider Error assigning ip LocalSid")
+	}
+	if localSids != nil {
+		newLocalSidAddr := types.ToVppIP6Address(localSids[0].IP)
+		p.log.Infof("SRv6Provider new LocalSid ip %s", newLocalSidAddr.String())
+		newLocalSid := &types.SrLocalsid{
+			Localsid: newLocalSidAddr,
+			EndPsp:   false,
+			Behavior: 8,
+			FibTable: 0,
+		}
+		err = p.vpp.AddSRv6Localsid(newLocalSid)
+		if err != nil {
+			p.log.Infof("SRv6Provider Error adding LocalSid")
+			return errors.Wrapf(err, "SRv6Provider Error adding LocalSid")
+		}
+	}
+
+	return err
 }
 
 func (p *SRv6Provider) OnVppRestart() {
@@ -40,6 +110,8 @@ func (p *SRv6Provider) Enabled() bool {
 func (p *SRv6Provider) RescanState() {
 	p.log.Infof("SRv6Provider RescanState")
 	p.setEncapSource()
+	//p.setEndDT4()
+	//p.setEndDT6()
 	p.srv6Policies = make(map[string]*types.SrPolicy)
 	_, err := p.vpp.ListSRv6Policies()
 	if err != nil {
