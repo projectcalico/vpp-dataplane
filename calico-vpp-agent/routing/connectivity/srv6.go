@@ -14,11 +14,13 @@ import (
 
 type SRv6Provider struct {
 	*ConnectivityProviderData
-	srv6Policies map[string]*types.SrPolicy
+	srv6Policies  map[string]*types.SrPolicy
+	srv6Localsids map[string]*types.SrLocalsid
+	srv6Steers    []*types.SrSteer
 }
 
 func NewSRv6Provider(d *ConnectivityProviderData) *SRv6Provider {
-	p := &SRv6Provider{d, make(map[string]*types.SrPolicy)}
+	p := &SRv6Provider{d, make(map[string]*types.SrPolicy), make(map[string]*types.SrLocalsid), make([]*types.SrSteer, 0)}
 	p.log.Printf("SRv6Provider NewSRv6Provider")
 
 	return p
@@ -101,6 +103,8 @@ func (p *SRv6Provider) setEndDT6() (err error) {
 
 func (p *SRv6Provider) OnVppRestart() {
 	p.srv6Policies = make(map[string]*types.SrPolicy)
+	p.srv6Localsids = make(map[string]*types.SrLocalsid)
+	p.srv6Steers = make([]*types.SrSteer, 0)
 }
 
 func (p *SRv6Provider) Enabled() bool {
@@ -127,13 +131,6 @@ func (p *SRv6Provider) RescanState() {
 		}
 	} */
 
-}
-
-func (p *SRv6Provider) errorCleanup(policy *types.SrPolicy) {
-	err := p.vpp.DelSRv6Policy(policy)
-	if err != nil {
-		p.log.Errorf("Error deleting SrPolicy %s after error: %v", policy, err)
-	}
 }
 
 func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) error {

@@ -183,3 +183,72 @@ func (v *VppLink) DelSRv6Localsid(localSid *types.SrLocalsid) (err error) {
 	}
 	return err
 }
+
+func (v *VppLink) DelSRv6Steering(steer *types.SrSteer) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	response := &sr.SrSteeringAddDelReply{}
+	request := &sr.SrSteeringAddDel{
+		IsDel:       true,
+		BsidAddr:    steer.Bsid,
+		TableID:     steer.FibTable,
+		Prefix:      steer.Prefix,
+		SwIfIndex:   interface_types.InterfaceIndex(steer.SwIfIndex),
+		TrafficType: steer.TrafficType,
+	}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrap(err, "Add DelSRv6Steering failed")
+	} else if response.Retval != 0 {
+		return fmt.Errorf("Add DelSRv6Steering failed with retval %d", response.Retval)
+	}
+	return err
+}
+
+func (v *VppLink) AddSRv6Steering(steer *types.SrSteer) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	response := &sr.SrSteeringAddDelReply{}
+	request := &sr.SrSteeringAddDel{
+		IsDel:       false,
+		BsidAddr:    steer.Bsid,
+		TableID:     steer.FibTable,
+		Prefix:      steer.Prefix,
+		SwIfIndex:   interface_types.InterfaceIndex(steer.SwIfIndex),
+		TrafficType: steer.TrafficType,
+	}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrap(err, "Add AddSRv6Steering failed")
+	} else if response.Retval != 0 {
+		return fmt.Errorf("Add AddSRv6Steering failed with retval %d", response.Retval)
+	}
+	return err
+}
+
+func (v *VppLink) ListSRv6Steering() (list []*types.SrSteer, err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	request := &sr.SrSteeringPolDump{}
+	stream := v.ch.SendMultiRequest(request)
+	for {
+		response := &sr.SrSteeringPolDetails{}
+		stop, err := stream.ReceiveReply(response)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error listing SRv6 Steering")
+		}
+		if stop {
+			break
+		}
+		list = append(list, &types.SrSteer{
+			TrafficType: response.TrafficType,
+			FibTable:    response.FibTable,
+			Prefix:      response.Prefix,
+			SwIfIndex:   uint32(response.SwIfIndex),
+			Bsid:        response.Bsid,
+		})
+	}
+	return list, err
+}

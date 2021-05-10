@@ -33,3 +33,11 @@ type Srv6SidList struct {
 	SlIndex uint32
 	Sids    [16]ip_types.IP6Address
 }
+
+type SrSteer struct {
+	TrafficType sr_types.SrSteer
+	FibTable    uint32
+	Prefix      ip_types.Prefix
+	SwIfIndex   uint32
+	Bsid        ip_types.IP6Address
+}
