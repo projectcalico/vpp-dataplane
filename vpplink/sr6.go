@@ -42,20 +42,10 @@ func (v *VppLink) ListSRv6Policies() (list []*types.SrPolicy, err error) {
 		if stop {
 			break
 		}
-		for _, sidlist := range response.SidLists {
-			list = append(list, &types.SrPolicy{
-				Bsid:     response.Bsid,
-				IsSpray:  response.IsSpray,
-				IsEncap:  response.IsEncap,
-				FibTable: response.FibTable,
-				SidLists: types.Srv6SidList{
-					NumSids: sidlist.NumSids,
-					Weight:  sidlist.Weight,
-					Sids:    sidlist.Sids,
-				},
-			})
-
-		}
+		srpolicy := &types.SrPolicy{}
+		srpolicy.FromVPP(response)
+		//srpolicy.Srv6SidListFromVPP(response.SidLists)
+		list = append(list, srpolicy)
 
 	}
 	return list, err
@@ -66,7 +56,7 @@ func (v *VppLink) AddSRv6Policy(policy *types.SrPolicy) (err error) {
 	defer v.lock.Unlock()
 
 	response := &sr.SrPolicyAddReply{}
-	sidlist := policy.SidLists
+	sidlist := policy.SidLists[0]
 	request := &sr.SrPolicyAdd{
 		BsidAddr: policy.Bsid,
 		IsEncap:  policy.IsEncap,
@@ -75,8 +65,7 @@ func (v *VppLink) AddSRv6Policy(policy *types.SrPolicy) (err error) {
 		Sids: sr.Srv6SidList{
 			NumSids: sidlist.NumSids,
 			Weight:  sidlist.Weight,
-			//Sids:    [16]ip_types.IP6Address{},
-			Sids: sidlist.Sids,
+			Sids:    sidlist.Sids,
 		},
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
