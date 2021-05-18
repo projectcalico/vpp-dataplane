@@ -30,10 +30,8 @@ DNS_SERVER = ENV['DNS_SERVER'] || '8.8.8.8'
 VAGRANT_VM_PROXY = ENV['VAGRANT_VM_PROXY'] || ''
 
 MASTER_NIC_PASSTHROUGH = ENV['MASTER_NIC_PASSTHROUGH'] || ''  # PCI address of NIC to passthrough
-MASTER_CPUSET = ENV['MASTER_CPUSET'] || ''                    # CPUset to use for VM vCPUs
 MASTER_NODESET = ENV['MASTER_NODESET'] || ''                  # NUMA node to allocate vm memory from
 NODE_NIC_PASSTHROUGH = ENV['NODE_NIC_PASSTHROUGH'] || ''
-NODE_CPUSET = ENV['NODE_CPUSET'] || ''
 NODE_NODESET = ENV['NODE_NODESET'] || ''
 
 # Addons
@@ -60,7 +58,7 @@ KUBETOKEN = ENV['KUBETOKEN'] || 'b029ee.968a33e8d8e6bb0d'
 
 
 def parse_pci(addr) # 0000:06:01.0
-    return :domain => '0x' + addr[0,4], :bus => '0x' + addr[5,7], :slot => '0x' + addr[8,10], :function => '0x' + addr[11]
+    return :domain => "0x"+addr[0..3], :bus => "0x"+addr[5..6], :slot => "0x"+addr[8..9], :function => "0x"+addr[11]
 end
 
 # Common scripts
@@ -203,7 +201,7 @@ EOF
 
 resize2fs /dev/vda3
 
-second_if=$(ip -o link show | awk -F': ' '{print $2}' |grep -v lo |grep -v eth0)
+second_if=$(ip -o link show | awk -F': ' '{print $2}' |grep -v -e lo -e docker -e eth0)
 echo "Using ${second_if} as k8s interface"
 
 cat <<EOF > /etc/netplan/99-calicovpp.yaml

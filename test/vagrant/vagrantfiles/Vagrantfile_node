@@ -14,9 +14,6 @@ Vagrant.configure('2') do |config|
         if NODE_NIC_PASSTHROUGH != ''
             l.pci parse_pci NODE_NIC_PASSTHROUGH
         end
-        if NODE_CPUSET != ''
-            l.cpuset = NODE_CPUSET
-        end
         if NODE_NODESET != ''
             l.nodeset = NODE_NODESET
         end
