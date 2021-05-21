@@ -75,7 +75,13 @@ func (d *DefaultDriver) RestoreLinux() {
 }
 
 func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error {
-	/* Nothing to do VPP autocreates */
+	// If interface is still in the host, move it to vpp netns to allow creation of the tap
+	err := d.moveInterfaceToNS(d.params.MainInterface, vppPid)
+	if err != nil {
+		log.Infof("Did NOT move interface %s to VPP netns: %v", d.params.MainInterface, err)
+	} else {
+		log.Infof("Moved interface %s to VPP netns", d.params.MainInterface)
+	}
 	return nil
 }
 

@@ -3,8 +3,6 @@ kind: DaemonSet
 metadata:
   name: calico-node
   namespace: kube-system
-  labels:
-    k8s-app: calico-node
 spec:
   template:
     spec:
@@ -15,3 +13,62 @@ spec:
               value: "Never"
             - name: CALICO_IPV4POOL_IPIP
               value: "Never"
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-vpp-config
+  namespace: calico-vpp-dataplane
+data:
+  vpp_uplink_driver: "none"
+  vpp_config_template: |-
+    unix {
+      nodaemon
+      full-coredump
+      cli-listen /var/run/vpp/cli.sock
+      pidfile /run/vpp/vpp.pid
+      exec /etc/vpp/startup.exec
+    }
+    api-trace { on }
+    cpu {
+        workers 4
+    }
+    socksvr {
+        socket-name /var/run/vpp/vpp-api.sock
+    }
+    plugins {
+        plugin default { enable }
+        plugin dpdk_plugin.so { disable }
+        plugin calico_plugin.so { enable }
+    }
+    buffers {
+      buffers-per-numa 131072
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: calico-vpp-node
+  namespace: calico-vpp-dataplane
+spec:
+  template:
+    spec:
+      containers:
+        - name: vpp
+          env:
+            - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
+              value: create interface rdma host-if __VPP_DATAPLANE_IF__ rx-queue-size 1024 tx-queue-size 1024 num-rx-queues 4
+            - name: CALICOVPP_VPP_STARTUP_SLEEP
+              value: "5"
+            - name: CALICOVPP_RX_MODE
+              value: polling
+            - name: CALICOVPP_TAP_RX_MODE
+              value: polling
+        - name: agent
+          env:
+            - name: CALICOVPP_TAP_RX_MODE
+              value: polling
+            - name: CALICOVPP_TAP_RX_QUEUES
+              value: "4"
+            - name: CALICOVPP_TAP_TX_QUEUES
+              value: "4"

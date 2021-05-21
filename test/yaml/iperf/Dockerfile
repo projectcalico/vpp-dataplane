@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 RUN apt-get update && apt-get install -y \
 	iperf 			                     \
@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y \
 	inetutils-traceroute	             \
 	netcat			                     \
 	dnsutils                             \
-	tcpdump
+	tcpdump								 \
+	netperf
 
 ADD entrypoint.sh /usr/bin/entrypoint
 RUN chmod +x /usr/bin/entrypoint
