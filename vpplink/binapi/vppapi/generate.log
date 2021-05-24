@@ -1,13 +1,12 @@
-VPP Version                 : 21.06-rc0~714-g4f5584abf
+VPP Version                 : 21.06-rc0~788-g6ee835de2
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 033e6ef52 quic: alloc ctx on udp thread
+VPP Base commit             : af073546e tls: prealloc chunks for dtls dgram enq
 ------------------ Cherry picked commits --------------------
-4f5584abf capo: Calico Policies plugin
-2f5133a91 acl: acl-plugin custom policies
-031037267 cnat: [WIP] no k8s maglev from pods
-c833046a2 ip6-nd: silent the source and target checks on given interface
-e24f397f9 ip: ensure ttl doesn't decrease to 0 when punting
-27c8a8c1d gso: do not try gro on small packets
-8f65b847b devices: add support for pseudo header checksum
-eb20a0b87 virtio: DRAFT: multi tx support
+6ee835de2 capo: Calico Policies plugin
+82e91ca61 acl: acl-plugin custom policies
+3fee7998c cnat: [WIP] no k8s maglev from pods
+138a13458 ip6-nd: silent the source and target checks on given interface
+7c4d9832d gso: do not try gro on small packets
+887512457 devices: add support for pseudo header checksum
+e1c84424c virtio: DRAFT: multi tx support
 -------------------------------------------------------------

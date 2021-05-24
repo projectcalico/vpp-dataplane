@@ -3,7 +3,7 @@
 // Package af_xdp contains generated bindings for API file af_xdp.api.
 //
 // Contents:
-//   1 enum
+//   2 enums
 //   4 messages
 //
 package af_xdp
@@ -24,8 +24,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "af_xdp"
-	APIVersion = "0.1.0"
-	VersionCrc = 0xf25dd5c5
+	APIVersion = "0.2.0"
+	VersionCrc = 0x31450826
 )
 
 // AfXdpMode defines enum 'af_xdp_mode'.
@@ -58,6 +58,49 @@ func (x AfXdpMode) String() string {
 	return "AfXdpMode(" + strconv.Itoa(int(x)) + ")"
 }
 
+// AfXdpFlag defines enum 'af_xdp_flag'.
+type AfXdpFlag uint8
+
+const (
+	AF_XDP_API_FLAGS_NO_SYSCALL_LOCK AfXdpFlag = 1
+)
+
+var (
+	AfXdpFlag_name = map[uint8]string{
+		1: "AF_XDP_API_FLAGS_NO_SYSCALL_LOCK",
+	}
+	AfXdpFlag_value = map[string]uint8{
+		"AF_XDP_API_FLAGS_NO_SYSCALL_LOCK": 1,
+	}
+)
+
+func (x AfXdpFlag) String() string {
+	s, ok := AfXdpFlag_name[uint8(x)]
+	if ok {
+		return s
+	}
+	str := func(n uint8) string {
+		s, ok := AfXdpFlag_name[uint8(n)]
+		if ok {
+			return s
+		}
+		return "AfXdpFlag(" + strconv.Itoa(int(n)) + ")"
+	}
+	for i := uint8(0); i <= 8; i++ {
+		val := uint8(x)
+		if val&(1<<i) != 0 {
+			if s != "" {
+				s += "|"
+			}
+			s += str(1 << i)
+		}
+	}
+	if s == "" {
+		return str(uint8(x))
+	}
+	return s
+}
+
 // AfXdpCreate defines message 'af_xdp_create'.
 type AfXdpCreate struct {
 	HostIf  string    `binapi:"string[64],name=host_if" json:"host_if,omitempty"`
@@ -66,12 +109,13 @@ type AfXdpCreate struct {
 	RxqSize uint16    `binapi:"u16,name=rxq_size,default=0" json:"rxq_size,omitempty"`
 	TxqSize uint16    `binapi:"u16,name=txq_size,default=0" json:"txq_size,omitempty"`
 	Mode    AfXdpMode `binapi:"af_xdp_mode,name=mode,default=0" json:"mode,omitempty"`
+	Flags   AfXdpFlag `binapi:"af_xdp_flag,name=flags,default=0" json:"flags,omitempty"`
 	Prog    string    `binapi:"string[256],name=prog" json:"prog,omitempty"`
 }
 
 func (m *AfXdpCreate) Reset()               { *m = AfXdpCreate{} }
 func (*AfXdpCreate) GetMessageName() string { return "af_xdp_create" }
-func (*AfXdpCreate) GetCrcString() string   { return "66f1ee9a" }
+func (*AfXdpCreate) GetCrcString() string   { return "21226c99" }
 func (*AfXdpCreate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -86,6 +130,7 @@ func (m *AfXdpCreate) Size() (size int) {
 	size += 2   // m.RxqSize
 	size += 2   // m.TxqSize
 	size += 4   // m.Mode
+	size += 1   // m.Flags
 	size += 256 // m.Prog
 	return size
 }
@@ -100,6 +145,7 @@ func (m *AfXdpCreate) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint16(m.RxqSize)
 	buf.EncodeUint16(m.TxqSize)
 	buf.EncodeUint32(uint32(m.Mode))
+	buf.EncodeUint8(uint8(m.Flags))
 	buf.EncodeString(m.Prog, 256)
 	return buf.Bytes(), nil
 }
@@ -111,6 +157,7 @@ func (m *AfXdpCreate) Unmarshal(b []byte) error {
 	m.RxqSize = buf.DecodeUint16()
 	m.TxqSize = buf.DecodeUint16()
 	m.Mode = AfXdpMode(buf.DecodeUint32())
+	m.Flags = AfXdpFlag(buf.DecodeUint8())
 	m.Prog = buf.DecodeString(256)
 	return nil
 }
@@ -220,7 +267,7 @@ func (m *AfXdpDeleteReply) Unmarshal(b []byte) error {
 
 func init() { file_af_xdp_binapi_init() }
 func file_af_xdp_binapi_init() {
-	api.RegisterMessage((*AfXdpCreate)(nil), "af_xdp_create_66f1ee9a")
+	api.RegisterMessage((*AfXdpCreate)(nil), "af_xdp_create_21226c99")
 	api.RegisterMessage((*AfXdpCreateReply)(nil), "af_xdp_create_reply_5383d31f")
 	api.RegisterMessage((*AfXdpDelete)(nil), "af_xdp_delete_f9e6675e")
 	api.RegisterMessage((*AfXdpDeleteReply)(nil), "af_xdp_delete_reply_e8d4e804")
