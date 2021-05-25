@@ -20,9 +20,13 @@ type SrLocalsid struct {
 	NhAddr    ip_types.Address
 }
 
+func (l *SrLocalsid) SetBehavior(code uint8) {
+	l.Behavior = sr_types.SrBehavior(code)
+}
+
 func (l *SrLocalsid) String() (policy string) {
-	return fmt.Sprintf("Localsid: %s, EndPsp: %v, Behavior: %d, SwIfIndex: %d,SwIfIndex: %d, SwIfIndex: %d, SwIfIndex: %s",
-		l.Localsid, l.EndPsp, l.Behavior, l.SwIfIndex, l.VlanIndex, l.FibTable, l.NhAddr.String())
+	return fmt.Sprintf("Localsid: %s, EndPsp: %v, %s, SwIfIndex: %d,SwIfIndex: %d, SwIfIndex: %d, SwIfIndex: %s",
+		l.Localsid, l.EndPsp, l.Behavior.String(), l.SwIfIndex, l.VlanIndex, l.FibTable, l.NhAddr.String())
 }
 
 // SrPolicy definition

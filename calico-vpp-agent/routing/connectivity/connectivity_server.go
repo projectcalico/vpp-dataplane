@@ -19,6 +19,7 @@ import (
 	"net"
 
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/watchers"
 	"github.com/sirupsen/logrus"
@@ -167,6 +168,9 @@ func (s *ConnectivityServer) ServeConnectivity() error {
 
 func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) string {
 	ipPool := s.ipam.GetPrefixIPPool(&cn.Dst)
+	if config.EnableSRv6 {
+		return SRv6
+	}
 	if ipPool == nil {
 		return FLAT
 	}

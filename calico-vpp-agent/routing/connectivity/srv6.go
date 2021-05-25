@@ -2,6 +2,7 @@ package connectivity
 
 import (
 	"context"
+	"net"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/libcalico-go/lib/ipam"
@@ -62,6 +63,7 @@ func (p *SRv6Provider) RescanState() {
 	}
 	for _, localSid := range localSids {
 		p.log.Infof("Found existing SRv6Localsid: %s", localSid.String())
+		p.log.Infof("localSid.Behavior: %d", int(localSid.Behavior))
 		if int(localSid.Behavior) == 9 && localSid.FibTable == 0 {
 			endDt4Exist = true
 		}
@@ -70,27 +72,51 @@ func (p *SRv6Provider) RescanState() {
 		}
 	}
 	if endDt4Exist == false {
-		_, err := p.setEndDT4()
+		_, err := p.setEndDT(4)
 		if err != nil {
 			p.log.Errorf("SRv6Provider Error setEndDT4: %v", err)
 		}
 	}
 	if endDt6Exist == false {
-		_, err := p.setEndDT6()
+		_, err := p.setEndDT(6)
 		if err != nil {
 			p.log.Errorf("SRv6Provider Error setEndDT6: %v", err)
 		}
 	}
 }
 
-func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) error {
-	p.log.Infof("SRv6Provider AddConnectivity")
-
-	return nil
+func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) {
+	p.log.Infof("SRv6Provider AddConnectivity %s", cn.String())
+	if cn.Dst.IP.To16() != nil {
+		bsid, err := p.getSid("cafe::/122")
+		if err != nil {
+			p.log.Errorf("SRv6Provider Error AddConnectivity: %v", err)
+			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
+		}
+		var ipaddr ip_types.IP6Address
+		copy(ipaddr[:], cn.NextHop.To16())
+		sidList := types.Srv6SidList{
+			NumSids: 1,
+			Weight:  0,
+			Sids:    [16]ip_types.IP6Address{ipaddr},
+		}
+		err = p.vpp.AddSRv6Policy(&types.SrPolicy{
+			Bsid:     bsid,
+			IsSpray:  false,
+			IsEncap:  true,
+			FibTable: 0,
+			SidLists: []types.Srv6SidList{sidList},
+		})
+		if err != nil {
+			p.log.Errorf("SRv6Provider Error AddConnectivity: %v", err)
+			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
+		}
+	}
+	return err
 }
 
-func (p *SRv6Provider) DelConnectivity(cn *common.NodeConnectivity) error {
-	p.log.Infof("SRv6Provider DelConnectivity")
+func (p *SRv6Provider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
+	p.log.Infof("SRv6Provider DelConnectivity %s", cn.String())
 
 	return nil
 }
@@ -107,43 +133,29 @@ func (p *SRv6Provider) setEncapSource() (err error) {
 	return err
 }
 
-func (p *SRv6Provider) setEndDT4() (newLocalSid *types.SrLocalsid, err error) {
-	p.log.Printf("SRv6Provider setLocalsid setEndDT4")
-	newLocalSidAddr, err := p.getSid("c5::/122")
-	if err != nil {
-		return nil, err
+func (p *SRv6Provider) setEndDT(typeDT int) (newLocalSid *types.SrLocalsid, err error) {
+	p.log.Printf("SRv6Provider setLocalsid setEndDT%d", typeDT)
+	// temporary solution: assuming the IP6 is like  fd00::xyz0
+	nodeIP6 := p.server.GetNodeIP(true)
+	nodeIP6String := nodeIP6.String()
+	sz := len(nodeIP6String)
+	newLocalSidAddrStr := nodeIP6String[:sz-1]
+	var behavior uint8
+	if typeDT == 4 {
+		newLocalSidAddrStr += "1"
+		behavior = 9
+	} else if typeDT == 6 {
+		newLocalSidAddrStr += "2"
+		behavior = 8
 	}
+	newLocalSidAddr := net.ParseIP(newLocalSidAddrStr)
 	p.log.Infof("SRv6Provider new LocalSid ip %s", newLocalSidAddr.String())
 	newLocalSid = &types.SrLocalsid{
-		Localsid: newLocalSidAddr,
+		Localsid: types.ToVppIP6Address(newLocalSidAddr),
 		EndPsp:   false,
-		Behavior: 9,
 		FibTable: 0,
 	}
-	err = p.vpp.AddSRv6Localsid(newLocalSid)
-	if err != nil {
-		p.log.Infof("SRv6Provider Error adding LocalSid")
-		return nil, errors.Wrapf(err, "SRv6Provider Error adding LocalSid")
-	}
-
-	return newLocalSid, err
-}
-
-func (p *SRv6Provider) setEndDT6() (newLocalSid *types.SrLocalsid, err error) {
-	p.log.Printf("SRv6Provider  setLocalsid setEndDT6")
-
-	newLocalSidAddr, err := p.getSid("c5::/122")
-	if err != nil {
-		return nil, err
-	}
-
-	p.log.Infof("SRv6Provider new LocalSid ip %s", newLocalSidAddr.String())
-	newLocalSid = &types.SrLocalsid{
-		Localsid: newLocalSidAddr,
-		EndPsp:   false,
-		Behavior: 8,
-		FibTable: 0,
-	}
+	newLocalSid.SetBehavior(behavior)
 	err = p.vpp.AddSRv6Localsid(newLocalSid)
 	if err != nil {
 		p.log.Infof("SRv6Provider Error adding LocalSid")
