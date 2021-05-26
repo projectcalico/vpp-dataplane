@@ -326,6 +326,8 @@ spec:
               cpu: 500m
               memory: 128Mi
           volumeMounts:
+            - name: lib-firmware
+              mountPath: /lib/firmware
             - name: vpp-rundir
               mountPath: /var/run/vpp
             - name: vpp-data
@@ -340,6 +342,9 @@ spec:
               mountPath: /run/netns/
               mountPropagation: Bidirectional
       volumes:
+        - name: lib-firmware
+          hostPath:
+            path: /lib/firmware
         - name: vpp-rundir
           hostPath:
             path: /var/run/vpp

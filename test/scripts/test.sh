@@ -81,9 +81,9 @@ test_apply ()
 {
   NAME=$1
   if [ x$2 != x ]; then
-	YAML_FILE=$SCRIPTDIR/perftest/$NAME/test_$2.yaml
+	YAML_FILE=$SCRIPTDIR/../yaml/$NAME/test_$2.yaml
   else
-	YAML_FILE=$SCRIPTDIR/perftest/$NAME/test.yaml
+	YAML_FILE=$SCRIPTDIR/../yaml/$NAME/test.yaml
   fi
   shift
   if [ ! -f ${YAML_FILE} ]; then
@@ -101,9 +101,9 @@ test_delete ()
 {
   NAME=$1
   if [ x$2 != x ]; then
-	YAML_FILE=$SCRIPTDIR/perftest/$NAME/test_$2.yaml
+	YAML_FILE=$SCRIPTDIR/../yaml/$NAME/test_$2.yaml
   else
-	YAML_FILE=$SCRIPTDIR/perftest/$NAME/test.yaml
+	YAML_FILE=$SCRIPTDIR/../yaml/$NAME/test.yaml
   fi
 
   if [ ! -f ${YAML_FILE} ]; then
