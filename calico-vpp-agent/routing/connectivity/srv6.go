@@ -63,11 +63,13 @@ func (p *SRv6Provider) RescanState() {
 	}
 	for _, localSid := range localSids {
 		p.log.Infof("Found existing SRv6Localsid: %s", localSid.String())
-		p.log.Infof("localSid.Behavior: %d", int(localSid.Behavior))
-		if int(localSid.Behavior) == 9 && localSid.FibTable == 0 {
+		p.log.Infof("localSid.Behavior: %d", uint8(localSid.Behavior))
+		p.log.Infof("localSid.Behavior is DT4 %v", localSid.CompareBehaviorTo(uint8(9)))
+		p.log.Infof("localSid.Behavior is DT6 %d", localSid.CompareBehaviorTo(uint8(9)))
+		if localSid.CompareBehaviorTo(uint8(9)) && localSid.FibTable == 0 {
 			endDt4Exist = true
 		}
-		if int(localSid.Behavior) == 8 && localSid.FibTable == 0 {
+		if localSid.CompareBehaviorTo(uint8(8)) && localSid.FibTable == 0 {
 			endDt6Exist = true
 		}
 	}

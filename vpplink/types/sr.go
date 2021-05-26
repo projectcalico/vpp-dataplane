@@ -24,8 +24,12 @@ func (l *SrLocalsid) SetBehavior(code uint8) {
 	l.Behavior = sr_types.SrBehavior(code)
 }
 
+func (l *SrLocalsid) CompareBehaviorTo(behavior uint8) bool {
+	return uint8(l.Behavior) == behavior
+}
+
 func (l *SrLocalsid) String() (policy string) {
-	return fmt.Sprintf("Localsid: %s, EndPsp: %v, %s, SwIfIndex: %d,SwIfIndex: %d, SwIfIndex: %d, SwIfIndex: %s",
+	return fmt.Sprintf("Localsid: %s, EndPsp: %v,  Behavior: %s, SwIfIndex: %d, VlanIndex: %d, FibTable: %d, NhAddr: %s",
 		l.Localsid, l.EndPsp, l.Behavior.String(), l.SwIfIndex, l.VlanIndex, l.FibTable, l.NhAddr.String())
 }
 
