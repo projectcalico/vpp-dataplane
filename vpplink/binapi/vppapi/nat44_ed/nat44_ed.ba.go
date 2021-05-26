@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "nat44_ed"
-	APIVersion = "5.2.0"
+	APIVersion = "5.3.0"
 	VersionCrc = 0xfd9ae40f
 )
 
@@ -105,7 +105,7 @@ type Nat44AddDelAddressRange struct {
 
 func (m *Nat44AddDelAddressRange) Reset()               { *m = Nat44AddDelAddressRange{} }
 func (*Nat44AddDelAddressRange) GetMessageName() string { return "nat44_add_del_address_range" }
-func (*Nat44AddDelAddressRange) GetCrcString() string   { return "d4c7568c" }
+func (*Nat44AddDelAddressRange) GetCrcString() string   { return "6f2b8055" }
 func (*Nat44AddDelAddressRange) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -192,7 +192,7 @@ type Nat44AddDelIdentityMapping struct {
 
 func (m *Nat44AddDelIdentityMapping) Reset()               { *m = Nat44AddDelIdentityMapping{} }
 func (*Nat44AddDelIdentityMapping) GetMessageName() string { return "nat44_add_del_identity_mapping" }
-func (*Nat44AddDelIdentityMapping) GetCrcString() string   { return "8e12743f" }
+func (*Nat44AddDelIdentityMapping) GetCrcString() string   { return "02faaa22" }
 func (*Nat44AddDelIdentityMapping) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -283,7 +283,7 @@ type Nat44AddDelInterfaceAddr struct {
 
 func (m *Nat44AddDelInterfaceAddr) Reset()               { *m = Nat44AddDelInterfaceAddr{} }
 func (*Nat44AddDelInterfaceAddr) GetMessageName() string { return "nat44_add_del_interface_addr" }
-func (*Nat44AddDelInterfaceAddr) GetCrcString() string   { return "fc835325" }
+func (*Nat44AddDelInterfaceAddr) GetCrcString() string   { return "4aed50c0" }
 func (*Nat44AddDelInterfaceAddr) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -365,7 +365,7 @@ type Nat44AddDelLbStaticMapping struct {
 
 func (m *Nat44AddDelLbStaticMapping) Reset()               { *m = Nat44AddDelLbStaticMapping{} }
 func (*Nat44AddDelLbStaticMapping) GetMessageName() string { return "nat44_add_del_lb_static_mapping" }
-func (*Nat44AddDelLbStaticMapping) GetCrcString() string   { return "53b24611" }
+func (*Nat44AddDelLbStaticMapping) GetCrcString() string   { return "4f68ee9d" }
 func (*Nat44AddDelLbStaticMapping) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -491,7 +491,7 @@ type Nat44AddDelStaticMapping struct {
 
 func (m *Nat44AddDelStaticMapping) Reset()               { *m = Nat44AddDelStaticMapping{} }
 func (*Nat44AddDelStaticMapping) GetMessageName() string { return "nat44_add_del_static_mapping" }
-func (*Nat44AddDelStaticMapping) GetCrcString() string   { return "e165e83b" }
+func (*Nat44AddDelStaticMapping) GetCrcString() string   { return "5ae5f03e" }
 func (*Nat44AddDelStaticMapping) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -700,7 +700,7 @@ type Nat44AddressDetails struct {
 
 func (m *Nat44AddressDetails) Reset()               { *m = Nat44AddressDetails{} }
 func (*Nat44AddressDetails) GetMessageName() string { return "nat44_address_details" }
-func (*Nat44AddressDetails) GetCrcString() string   { return "45410ac4" }
+func (*Nat44AddressDetails) GetCrcString() string   { return "0d1beac1" }
 func (*Nat44AddressDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -772,7 +772,7 @@ type Nat44DelSession struct {
 
 func (m *Nat44DelSession) Reset()               { *m = Nat44DelSession{} }
 func (*Nat44DelSession) GetMessageName() string { return "nat44_del_session" }
-func (*Nat44DelSession) GetCrcString() string   { return "4c49c387" }
+func (*Nat44DelSession) GetCrcString() string   { return "15a5bf8c" }
 func (*Nat44DelSession) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1282,7 +1282,7 @@ type Nat44IdentityMappingDetails struct {
 
 func (m *Nat44IdentityMappingDetails) Reset()               { *m = Nat44IdentityMappingDetails{} }
 func (*Nat44IdentityMappingDetails) GetMessageName() string { return "nat44_identity_mapping_details" }
-func (*Nat44IdentityMappingDetails) GetCrcString() string   { return "36d21351" }
+func (*Nat44IdentityMappingDetails) GetCrcString() string   { return "2a52a030" }
 func (*Nat44IdentityMappingDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1517,7 +1517,7 @@ type Nat44InterfaceAddrDetails struct {
 
 func (m *Nat44InterfaceAddrDetails) Reset()               { *m = Nat44InterfaceAddrDetails{} }
 func (*Nat44InterfaceAddrDetails) GetMessageName() string { return "nat44_interface_addr_details" }
-func (*Nat44InterfaceAddrDetails) GetCrcString() string   { return "3e687514" }
+func (*Nat44InterfaceAddrDetails) GetCrcString() string   { return "e4aca9ca" }
 func (*Nat44InterfaceAddrDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1718,7 +1718,7 @@ func (m *Nat44LbStaticMappingAddDelLocal) Reset() { *m = Nat44LbStaticMappingAdd
 func (*Nat44LbStaticMappingAddDelLocal) GetMessageName() string {
 	return "nat44_lb_static_mapping_add_del_local"
 }
-func (*Nat44LbStaticMappingAddDelLocal) GetCrcString() string { return "2910a151" }
+func (*Nat44LbStaticMappingAddDelLocal) GetCrcString() string { return "7ca47547" }
 func (*Nat44LbStaticMappingAddDelLocal) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1814,7 +1814,7 @@ type Nat44LbStaticMappingDetails struct {
 
 func (m *Nat44LbStaticMappingDetails) Reset()               { *m = Nat44LbStaticMappingDetails{} }
 func (*Nat44LbStaticMappingDetails) GetMessageName() string { return "nat44_lb_static_mapping_details" }
-func (*Nat44LbStaticMappingDetails) GetCrcString() string   { return "2267b9e8" }
+func (*Nat44LbStaticMappingDetails) GetCrcString() string   { return "ed5ce876" }
 func (*Nat44LbStaticMappingDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -2275,7 +2275,7 @@ type Nat44StaticMappingDetails struct {
 
 func (m *Nat44StaticMappingDetails) Reset()               { *m = Nat44StaticMappingDetails{} }
 func (*Nat44StaticMappingDetails) GetMessageName() string { return "nat44_static_mapping_details" }
-func (*Nat44StaticMappingDetails) GetCrcString() string   { return "1a433ef7" }
+func (*Nat44StaticMappingDetails) GetCrcString() string   { return "06cb40b2" }
 func (*Nat44StaticMappingDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -2443,7 +2443,7 @@ type Nat44UserSessionDetails struct {
 
 func (m *Nat44UserSessionDetails) Reset()               { *m = Nat44UserSessionDetails{} }
 func (*Nat44UserSessionDetails) GetMessageName() string { return "nat44_user_session_details" }
-func (*Nat44UserSessionDetails) GetCrcString() string   { return "1965fd69" }
+func (*Nat44UserSessionDetails) GetCrcString() string   { return "2cf6e16d" }
 func (*Nat44UserSessionDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -4075,21 +4075,21 @@ func (m *NatWorkerDump) Unmarshal(b []byte) error {
 
 func init() { file_nat44_ed_binapi_init() }
 func file_nat44_ed_binapi_init() {
-	api.RegisterMessage((*Nat44AddDelAddressRange)(nil), "nat44_add_del_address_range_d4c7568c")
+	api.RegisterMessage((*Nat44AddDelAddressRange)(nil), "nat44_add_del_address_range_6f2b8055")
 	api.RegisterMessage((*Nat44AddDelAddressRangeReply)(nil), "nat44_add_del_address_range_reply_e8d4e804")
-	api.RegisterMessage((*Nat44AddDelIdentityMapping)(nil), "nat44_add_del_identity_mapping_8e12743f")
+	api.RegisterMessage((*Nat44AddDelIdentityMapping)(nil), "nat44_add_del_identity_mapping_02faaa22")
 	api.RegisterMessage((*Nat44AddDelIdentityMappingReply)(nil), "nat44_add_del_identity_mapping_reply_e8d4e804")
-	api.RegisterMessage((*Nat44AddDelInterfaceAddr)(nil), "nat44_add_del_interface_addr_fc835325")
+	api.RegisterMessage((*Nat44AddDelInterfaceAddr)(nil), "nat44_add_del_interface_addr_4aed50c0")
 	api.RegisterMessage((*Nat44AddDelInterfaceAddrReply)(nil), "nat44_add_del_interface_addr_reply_e8d4e804")
-	api.RegisterMessage((*Nat44AddDelLbStaticMapping)(nil), "nat44_add_del_lb_static_mapping_53b24611")
+	api.RegisterMessage((*Nat44AddDelLbStaticMapping)(nil), "nat44_add_del_lb_static_mapping_4f68ee9d")
 	api.RegisterMessage((*Nat44AddDelLbStaticMappingReply)(nil), "nat44_add_del_lb_static_mapping_reply_e8d4e804")
-	api.RegisterMessage((*Nat44AddDelStaticMapping)(nil), "nat44_add_del_static_mapping_e165e83b")
+	api.RegisterMessage((*Nat44AddDelStaticMapping)(nil), "nat44_add_del_static_mapping_5ae5f03e")
 	api.RegisterMessage((*Nat44AddDelStaticMappingReply)(nil), "nat44_add_del_static_mapping_reply_e8d4e804")
 	api.RegisterMessage((*Nat44AddDelStaticMappingV2)(nil), "nat44_add_del_static_mapping_v2_5e205f1a")
 	api.RegisterMessage((*Nat44AddDelStaticMappingV2Reply)(nil), "nat44_add_del_static_mapping_v2_reply_e8d4e804")
-	api.RegisterMessage((*Nat44AddressDetails)(nil), "nat44_address_details_45410ac4")
+	api.RegisterMessage((*Nat44AddressDetails)(nil), "nat44_address_details_0d1beac1")
 	api.RegisterMessage((*Nat44AddressDump)(nil), "nat44_address_dump_51077d14")
-	api.RegisterMessage((*Nat44DelSession)(nil), "nat44_del_session_4c49c387")
+	api.RegisterMessage((*Nat44DelSession)(nil), "nat44_del_session_15a5bf8c")
 	api.RegisterMessage((*Nat44DelSessionReply)(nil), "nat44_del_session_reply_e8d4e804")
 	api.RegisterMessage((*Nat44DelUser)(nil), "nat44_del_user_99a9f998")
 	api.RegisterMessage((*Nat44DelUserReply)(nil), "nat44_del_user_reply_e8d4e804")
@@ -4103,21 +4103,21 @@ func file_nat44_ed_binapi_init() {
 	api.RegisterMessage((*Nat44ForwardingEnableDisableReply)(nil), "nat44_forwarding_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*Nat44ForwardingIsEnabled)(nil), "nat44_forwarding_is_enabled_51077d14")
 	api.RegisterMessage((*Nat44ForwardingIsEnabledReply)(nil), "nat44_forwarding_is_enabled_reply_46924a06")
-	api.RegisterMessage((*Nat44IdentityMappingDetails)(nil), "nat44_identity_mapping_details_36d21351")
+	api.RegisterMessage((*Nat44IdentityMappingDetails)(nil), "nat44_identity_mapping_details_2a52a030")
 	api.RegisterMessage((*Nat44IdentityMappingDump)(nil), "nat44_identity_mapping_dump_51077d14")
 	api.RegisterMessage((*Nat44InterfaceAddDelFeature)(nil), "nat44_interface_add_del_feature_f3699b83")
 	api.RegisterMessage((*Nat44InterfaceAddDelFeatureReply)(nil), "nat44_interface_add_del_feature_reply_e8d4e804")
 	api.RegisterMessage((*Nat44InterfaceAddDelOutputFeature)(nil), "nat44_interface_add_del_output_feature_f3699b83")
 	api.RegisterMessage((*Nat44InterfaceAddDelOutputFeatureReply)(nil), "nat44_interface_add_del_output_feature_reply_e8d4e804")
-	api.RegisterMessage((*Nat44InterfaceAddrDetails)(nil), "nat44_interface_addr_details_3e687514")
+	api.RegisterMessage((*Nat44InterfaceAddrDetails)(nil), "nat44_interface_addr_details_e4aca9ca")
 	api.RegisterMessage((*Nat44InterfaceAddrDump)(nil), "nat44_interface_addr_dump_51077d14")
 	api.RegisterMessage((*Nat44InterfaceDetails)(nil), "nat44_interface_details_5d286289")
 	api.RegisterMessage((*Nat44InterfaceDump)(nil), "nat44_interface_dump_51077d14")
 	api.RegisterMessage((*Nat44InterfaceOutputFeatureDetails)(nil), "nat44_interface_output_feature_details_5d286289")
 	api.RegisterMessage((*Nat44InterfaceOutputFeatureDump)(nil), "nat44_interface_output_feature_dump_51077d14")
-	api.RegisterMessage((*Nat44LbStaticMappingAddDelLocal)(nil), "nat44_lb_static_mapping_add_del_local_2910a151")
+	api.RegisterMessage((*Nat44LbStaticMappingAddDelLocal)(nil), "nat44_lb_static_mapping_add_del_local_7ca47547")
 	api.RegisterMessage((*Nat44LbStaticMappingAddDelLocalReply)(nil), "nat44_lb_static_mapping_add_del_local_reply_e8d4e804")
-	api.RegisterMessage((*Nat44LbStaticMappingDetails)(nil), "nat44_lb_static_mapping_details_2267b9e8")
+	api.RegisterMessage((*Nat44LbStaticMappingDetails)(nil), "nat44_lb_static_mapping_details_ed5ce876")
 	api.RegisterMessage((*Nat44LbStaticMappingDump)(nil), "nat44_lb_static_mapping_dump_51077d14")
 	api.RegisterMessage((*Nat44PluginEnableDisable)(nil), "nat44_plugin_enable_disable_dea0d501")
 	api.RegisterMessage((*Nat44PluginEnableDisableReply)(nil), "nat44_plugin_enable_disable_reply_e8d4e804")
@@ -4127,11 +4127,11 @@ func file_nat44_ed_binapi_init() {
 	api.RegisterMessage((*Nat44SetSessionLimitReply)(nil), "nat44_set_session_limit_reply_e8d4e804")
 	api.RegisterMessage((*Nat44ShowRunningConfig)(nil), "nat44_show_running_config_51077d14")
 	api.RegisterMessage((*Nat44ShowRunningConfigReply)(nil), "nat44_show_running_config_reply_93d8e267")
-	api.RegisterMessage((*Nat44StaticMappingDetails)(nil), "nat44_static_mapping_details_1a433ef7")
+	api.RegisterMessage((*Nat44StaticMappingDetails)(nil), "nat44_static_mapping_details_06cb40b2")
 	api.RegisterMessage((*Nat44StaticMappingDump)(nil), "nat44_static_mapping_dump_51077d14")
 	api.RegisterMessage((*Nat44UserDetails)(nil), "nat44_user_details_355896c2")
 	api.RegisterMessage((*Nat44UserDump)(nil), "nat44_user_dump_51077d14")
-	api.RegisterMessage((*Nat44UserSessionDetails)(nil), "nat44_user_session_details_1965fd69")
+	api.RegisterMessage((*Nat44UserSessionDetails)(nil), "nat44_user_session_details_2cf6e16d")
 	api.RegisterMessage((*Nat44UserSessionDump)(nil), "nat44_user_session_dump_e1899c98")
 	api.RegisterMessage((*NatControlPing)(nil), "nat_control_ping_51077d14")
 	api.RegisterMessage((*NatControlPingReply)(nil), "nat_control_ping_reply_f6b0b8ca")
