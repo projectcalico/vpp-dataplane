@@ -113,7 +113,7 @@ type SwInterfaceTapV2Details struct {
 
 func (m *SwInterfaceTapV2Details) Reset()               { *m = SwInterfaceTapV2Details{} }
 func (*SwInterfaceTapV2Details) GetMessageName() string { return "sw_interface_tap_v2_details" }
-func (*SwInterfaceTapV2Details) GetCrcString() string   { return "e53c16de" }
+func (*SwInterfaceTapV2Details) GetCrcString() string   { return "1e2b2a47" }
 func (*SwInterfaceTapV2Details) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -462,7 +462,7 @@ func (m *TapDeleteV2Reply) Unmarshal(b []byte) error {
 
 func init() { file_tapv2_binapi_init() }
 func file_tapv2_binapi_init() {
-	api.RegisterMessage((*SwInterfaceTapV2Details)(nil), "sw_interface_tap_v2_details_e53c16de")
+	api.RegisterMessage((*SwInterfaceTapV2Details)(nil), "sw_interface_tap_v2_details_1e2b2a47")
 	api.RegisterMessage((*SwInterfaceTapV2Dump)(nil), "sw_interface_tap_v2_dump_f9e6675e")
 	api.RegisterMessage((*TapCreateV2)(nil), "tap_create_v2_8004afdc")
 	api.RegisterMessage((*TapCreateV2Reply)(nil), "tap_create_v2_reply_5383d31f")

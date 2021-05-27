@@ -53,7 +53,7 @@ type Ipip6rdAddTunnel struct {
 
 func (m *Ipip6rdAddTunnel) Reset()               { *m = Ipip6rdAddTunnel{} }
 func (*Ipip6rdAddTunnel) GetMessageName() string { return "ipip_6rd_add_tunnel" }
-func (*Ipip6rdAddTunnel) GetCrcString() string   { return "56e93cc0" }
+func (*Ipip6rdAddTunnel) GetCrcString() string   { return "b9ec1863" }
 func (*Ipip6rdAddTunnel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -213,7 +213,7 @@ type IpipAddTunnel struct {
 
 func (m *IpipAddTunnel) Reset()               { *m = IpipAddTunnel{} }
 func (*IpipAddTunnel) GetMessageName() string { return "ipip_add_tunnel" }
-func (*IpipAddTunnel) GetCrcString() string   { return "a9decfcd" }
+func (*IpipAddTunnel) GetCrcString() string   { return "2ac399f5" }
 func (*IpipAddTunnel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -376,7 +376,7 @@ type IpipTunnelDetails struct {
 
 func (m *IpipTunnelDetails) Reset()               { *m = IpipTunnelDetails{} }
 func (*IpipTunnelDetails) GetMessageName() string { return "ipip_tunnel_details" }
-func (*IpipTunnelDetails) GetCrcString() string   { return "53236d75" }
+func (*IpipTunnelDetails) GetCrcString() string   { return "d31cb34e" }
 func (*IpipTunnelDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -464,15 +464,15 @@ func (m *IpipTunnelDump) Unmarshal(b []byte) error {
 
 func init() { file_ipip_binapi_init() }
 func file_ipip_binapi_init() {
-	api.RegisterMessage((*Ipip6rdAddTunnel)(nil), "ipip_6rd_add_tunnel_56e93cc0")
+	api.RegisterMessage((*Ipip6rdAddTunnel)(nil), "ipip_6rd_add_tunnel_b9ec1863")
 	api.RegisterMessage((*Ipip6rdAddTunnelReply)(nil), "ipip_6rd_add_tunnel_reply_5383d31f")
 	api.RegisterMessage((*Ipip6rdDelTunnel)(nil), "ipip_6rd_del_tunnel_f9e6675e")
 	api.RegisterMessage((*Ipip6rdDelTunnelReply)(nil), "ipip_6rd_del_tunnel_reply_e8d4e804")
-	api.RegisterMessage((*IpipAddTunnel)(nil), "ipip_add_tunnel_a9decfcd")
+	api.RegisterMessage((*IpipAddTunnel)(nil), "ipip_add_tunnel_2ac399f5")
 	api.RegisterMessage((*IpipAddTunnelReply)(nil), "ipip_add_tunnel_reply_5383d31f")
 	api.RegisterMessage((*IpipDelTunnel)(nil), "ipip_del_tunnel_f9e6675e")
 	api.RegisterMessage((*IpipDelTunnelReply)(nil), "ipip_del_tunnel_reply_e8d4e804")
-	api.RegisterMessage((*IpipTunnelDetails)(nil), "ipip_tunnel_details_53236d75")
+	api.RegisterMessage((*IpipTunnelDetails)(nil), "ipip_tunnel_details_d31cb34e")
 	api.RegisterMessage((*IpipTunnelDump)(nil), "ipip_tunnel_dump_f9e6675e")
 }
 

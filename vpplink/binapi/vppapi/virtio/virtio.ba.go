@@ -100,7 +100,7 @@ type SwInterfaceVirtioPciDetails struct {
 
 func (m *SwInterfaceVirtioPciDetails) Reset()               { *m = SwInterfaceVirtioPciDetails{} }
 func (*SwInterfaceVirtioPciDetails) GetMessageName() string { return "sw_interface_virtio_pci_details" }
-func (*SwInterfaceVirtioPciDetails) GetCrcString() string   { return "16187f3a" }
+func (*SwInterfaceVirtioPciDetails) GetCrcString() string   { return "6ca9c167" }
 func (*SwInterfaceVirtioPciDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -189,7 +189,7 @@ type VirtioPciCreate struct {
 
 func (m *VirtioPciCreate) Reset()               { *m = VirtioPciCreate{} }
 func (*VirtioPciCreate) GetMessageName() string { return "virtio_pci_create" }
-func (*VirtioPciCreate) GetCrcString() string   { return "a9f1370c" }
+func (*VirtioPciCreate) GetCrcString() string   { return "1944f8db" }
 func (*VirtioPciCreate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -439,9 +439,9 @@ func (m *VirtioPciDeleteReply) Unmarshal(b []byte) error {
 
 func init() { file_virtio_binapi_init() }
 func file_virtio_binapi_init() {
-	api.RegisterMessage((*SwInterfaceVirtioPciDetails)(nil), "sw_interface_virtio_pci_details_16187f3a")
+	api.RegisterMessage((*SwInterfaceVirtioPciDetails)(nil), "sw_interface_virtio_pci_details_6ca9c167")
 	api.RegisterMessage((*SwInterfaceVirtioPciDump)(nil), "sw_interface_virtio_pci_dump_51077d14")
-	api.RegisterMessage((*VirtioPciCreate)(nil), "virtio_pci_create_a9f1370c")
+	api.RegisterMessage((*VirtioPciCreate)(nil), "virtio_pci_create_1944f8db")
 	api.RegisterMessage((*VirtioPciCreateReply)(nil), "virtio_pci_create_reply_5383d31f")
 	api.RegisterMessage((*VirtioPciCreateV2)(nil), "virtio_pci_create_v2_5d096e1a")
 	api.RegisterMessage((*VirtioPciCreateV2Reply)(nil), "virtio_pci_create_v2_reply_5383d31f")

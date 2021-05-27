@@ -474,7 +474,7 @@ type IpsecSaDetails struct {
 
 func (m *IpsecSaDetails) Reset()               { *m = IpsecSaDetails{} }
 func (*IpsecSaDetails) GetMessageName() string { return "ipsec_sa_details" }
-func (*IpsecSaDetails) GetCrcString() string   { return "b30c7f41" }
+func (*IpsecSaDetails) GetCrcString() string   { return "345d14a7" }
 func (*IpsecSaDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -921,7 +921,7 @@ type IpsecSadEntryAddDel struct {
 
 func (m *IpsecSadEntryAddDel) Reset()               { *m = IpsecSadEntryAddDel{} }
 func (*IpsecSadEntryAddDel) GetMessageName() string { return "ipsec_sad_entry_add_del" }
-func (*IpsecSadEntryAddDel) GetCrcString() string   { return "b8def364" }
+func (*IpsecSadEntryAddDel) GetCrcString() string   { return "ab64b5c6" }
 func (*IpsecSadEntryAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1534,7 +1534,7 @@ type IpsecSpdDetails struct {
 
 func (m *IpsecSpdDetails) Reset()               { *m = IpsecSpdDetails{} }
 func (*IpsecSpdDetails) GetMessageName() string { return "ipsec_spd_details" }
-func (*IpsecSpdDetails) GetCrcString() string   { return "f2222790" }
+func (*IpsecSpdDetails) GetCrcString() string   { return "5813d7a2" }
 func (*IpsecSpdDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1656,7 +1656,7 @@ type IpsecSpdEntryAddDel struct {
 
 func (m *IpsecSpdEntryAddDel) Reset()               { *m = IpsecSpdEntryAddDel{} }
 func (*IpsecSpdEntryAddDel) GetMessageName() string { return "ipsec_spd_entry_add_del" }
-func (*IpsecSpdEntryAddDel) GetCrcString() string   { return "9f384b8d" }
+func (*IpsecSpdEntryAddDel) GetCrcString() string   { return "338b7411" }
 func (*IpsecSpdEntryAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1919,7 +1919,7 @@ type IpsecTunnelProtectDel struct {
 
 func (m *IpsecTunnelProtectDel) Reset()               { *m = IpsecTunnelProtectDel{} }
 func (*IpsecTunnelProtectDel) GetMessageName() string { return "ipsec_tunnel_protect_del" }
-func (*IpsecTunnelProtectDel) GetCrcString() string   { return "ddd2ba36" }
+func (*IpsecTunnelProtectDel) GetCrcString() string   { return "cd239930" }
 func (*IpsecTunnelProtectDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1991,7 +1991,7 @@ type IpsecTunnelProtectDetails struct {
 
 func (m *IpsecTunnelProtectDetails) Reset()               { *m = IpsecTunnelProtectDetails{} }
 func (*IpsecTunnelProtectDetails) GetMessageName() string { return "ipsec_tunnel_protect_details" }
-func (*IpsecTunnelProtectDetails) GetCrcString() string   { return "ac6c823b" }
+func (*IpsecTunnelProtectDetails) GetCrcString() string   { return "21663a50" }
 func (*IpsecTunnelProtectDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -2081,7 +2081,7 @@ type IpsecTunnelProtectUpdate struct {
 
 func (m *IpsecTunnelProtectUpdate) Reset()               { *m = IpsecTunnelProtectUpdate{} }
 func (*IpsecTunnelProtectUpdate) GetMessageName() string { return "ipsec_tunnel_protect_update" }
-func (*IpsecTunnelProtectUpdate) GetCrcString() string   { return "143f155d" }
+func (*IpsecTunnelProtectUpdate) GetCrcString() string   { return "30d5f133" }
 func (*IpsecTunnelProtectUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -2178,13 +2178,13 @@ func file_ipsec_binapi_init() {
 	api.RegisterMessage((*IpsecItfDeleteReply)(nil), "ipsec_itf_delete_reply_e8d4e804")
 	api.RegisterMessage((*IpsecItfDetails)(nil), "ipsec_itf_details_548a73b8")
 	api.RegisterMessage((*IpsecItfDump)(nil), "ipsec_itf_dump_f9e6675e")
-	api.RegisterMessage((*IpsecSaDetails)(nil), "ipsec_sa_details_b30c7f41")
+	api.RegisterMessage((*IpsecSaDetails)(nil), "ipsec_sa_details_345d14a7")
 	api.RegisterMessage((*IpsecSaDump)(nil), "ipsec_sa_dump_2076c2f4")
 	api.RegisterMessage((*IpsecSaV2Details)(nil), "ipsec_sa_v2_details_e2130051")
 	api.RegisterMessage((*IpsecSaV2Dump)(nil), "ipsec_sa_v2_dump_2076c2f4")
 	api.RegisterMessage((*IpsecSaV3Details)(nil), "ipsec_sa_v3_details_2fc991ee")
 	api.RegisterMessage((*IpsecSaV3Dump)(nil), "ipsec_sa_v3_dump_2076c2f4")
-	api.RegisterMessage((*IpsecSadEntryAddDel)(nil), "ipsec_sad_entry_add_del_b8def364")
+	api.RegisterMessage((*IpsecSadEntryAddDel)(nil), "ipsec_sad_entry_add_del_ab64b5c6")
 	api.RegisterMessage((*IpsecSadEntryAddDelReply)(nil), "ipsec_sad_entry_add_del_reply_9ffac24b")
 	api.RegisterMessage((*IpsecSadEntryAddDelV2)(nil), "ipsec_sad_entry_add_del_v2_aca78b27")
 	api.RegisterMessage((*IpsecSadEntryAddDelV2Reply)(nil), "ipsec_sad_entry_add_del_v2_reply_9ffac24b")
@@ -2196,19 +2196,19 @@ func file_ipsec_binapi_init() {
 	api.RegisterMessage((*IpsecSetAsyncModeReply)(nil), "ipsec_set_async_mode_reply_e8d4e804")
 	api.RegisterMessage((*IpsecSpdAddDel)(nil), "ipsec_spd_add_del_20e89a95")
 	api.RegisterMessage((*IpsecSpdAddDelReply)(nil), "ipsec_spd_add_del_reply_e8d4e804")
-	api.RegisterMessage((*IpsecSpdDetails)(nil), "ipsec_spd_details_f2222790")
+	api.RegisterMessage((*IpsecSpdDetails)(nil), "ipsec_spd_details_5813d7a2")
 	api.RegisterMessage((*IpsecSpdDump)(nil), "ipsec_spd_dump_afefbf7d")
-	api.RegisterMessage((*IpsecSpdEntryAddDel)(nil), "ipsec_spd_entry_add_del_9f384b8d")
+	api.RegisterMessage((*IpsecSpdEntryAddDel)(nil), "ipsec_spd_entry_add_del_338b7411")
 	api.RegisterMessage((*IpsecSpdEntryAddDelReply)(nil), "ipsec_spd_entry_add_del_reply_9ffac24b")
 	api.RegisterMessage((*IpsecSpdInterfaceDetails)(nil), "ipsec_spd_interface_details_7a0bcf3e")
 	api.RegisterMessage((*IpsecSpdInterfaceDump)(nil), "ipsec_spd_interface_dump_8971de19")
 	api.RegisterMessage((*IpsecSpdsDetails)(nil), "ipsec_spds_details_a04bb254")
 	api.RegisterMessage((*IpsecSpdsDump)(nil), "ipsec_spds_dump_51077d14")
-	api.RegisterMessage((*IpsecTunnelProtectDel)(nil), "ipsec_tunnel_protect_del_ddd2ba36")
+	api.RegisterMessage((*IpsecTunnelProtectDel)(nil), "ipsec_tunnel_protect_del_cd239930")
 	api.RegisterMessage((*IpsecTunnelProtectDelReply)(nil), "ipsec_tunnel_protect_del_reply_e8d4e804")
-	api.RegisterMessage((*IpsecTunnelProtectDetails)(nil), "ipsec_tunnel_protect_details_ac6c823b")
+	api.RegisterMessage((*IpsecTunnelProtectDetails)(nil), "ipsec_tunnel_protect_details_21663a50")
 	api.RegisterMessage((*IpsecTunnelProtectDump)(nil), "ipsec_tunnel_protect_dump_f9e6675e")
-	api.RegisterMessage((*IpsecTunnelProtectUpdate)(nil), "ipsec_tunnel_protect_update_143f155d")
+	api.RegisterMessage((*IpsecTunnelProtectUpdate)(nil), "ipsec_tunnel_protect_update_30d5f133")
 	api.RegisterMessage((*IpsecTunnelProtectUpdateReply)(nil), "ipsec_tunnel_protect_update_reply_e8d4e804")
 }
 

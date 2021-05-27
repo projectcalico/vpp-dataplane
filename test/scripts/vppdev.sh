@@ -15,6 +15,8 @@
 
 set +x
 
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
 function green () { printf "\e[0;32m$1\e[0m\n" ; }
 function red   () { printf "\e[0;31m$1\e[0m\n" ; }
 function blue  () { printf "\e[0;34m$1\e[0m\n" ; }
@@ -280,6 +282,26 @@ vppdev_cli_sh ()
   fi
 }
 
+vppdev_cli_orch ()
+{
+  $SCRIPTDIR/orch.sh $@
+}
+
+vppdev_cli_tst ()
+{
+  $SCRIPTDIR/test.sh $@
+}
+
+vppdev_cli_cases ()
+{
+  $SCRIPTDIR/cases.sh $@
+}
+
+vppdev_cli_ci ()
+{
+  $SCRIPTDIR/ci.sh $@
+}
+
 vppdev_cli ()
 {
   local fn_name=vppdev_cli_$1
@@ -305,6 +327,14 @@ vppdev_cli ()
 	echo
     echo "$(basename -- $0) gdb                               - Attach a gdb to the running vpp on the current machine"
     echo "$(basename -- $0) sh [vpp|agent] [NODENAME]         - Get a shell in vpp (dataplane) or agent (controlplane) container"
+    if [[ -f $SCRIPTDIR/ci.sh ]]; then # only if we have the whole repo
+    	echo
+    	echo
+    	echo "$(basename -- $0) orch                              - Provision test clusters with kubeadm"
+    	echo "$(basename -- $0) tst                               - Deploy test pods"
+    	echo "$(basename -- $0) cases                             - Run test cases using deployed test pods"
+    	echo "$(basename -- $0) ci                                - Simple CI doing provision cluster/pods/testcases"
+	fi
   fi
 }
 

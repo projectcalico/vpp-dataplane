@@ -1,4 +1,4 @@
-module github.com/projectcalico/vpp-dataplane/test/scripts/perftest/scalesvc
+module github.com/projectcalico/vpp-dataplane/test/yaml/scalesvc
 
 go 1.14
 
