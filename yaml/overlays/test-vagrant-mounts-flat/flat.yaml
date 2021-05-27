@@ -20,7 +20,7 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  vpp_uplink_driver: "none"
+  vpp_uplink_driver: "rdma"
   vpp_config_template: |-
     unix {
       nodaemon
@@ -56,10 +56,10 @@ spec:
       containers:
         - name: vpp
           env:
-            - name: CALICOVPP_CONFIG_EXEC_TEMPLATE
-              value: create interface rdma host-if __VPP_DATAPLANE_IF__ rx-queue-size 1024 tx-queue-size 1024 num-rx-queues 4
-            - name: CALICOVPP_VPP_STARTUP_SLEEP
-              value: "5"
+            #- name: CALICOVPP_CONFIG_EXEC_TEMPLATE
+            #  value: create interface rdma host-if __VPP_DATAPLANE_IF__ rx-queue-size 1024 tx-queue-size 1024 num-rx-queues 4
+            #- name: CALICOVPP_VPP_STARTUP_SLEEP
+            #  value: "5"
             - name: CALICOVPP_RX_MODE
               value: polling
             - name: CALICOVPP_TAP_RX_MODE
