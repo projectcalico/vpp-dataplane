@@ -9,11 +9,33 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/sr_types"
 )
 
+type SrBehavior uint8
+
+const (
+	SrBehaviorEND    SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_END)
+	SrBehaviorX      SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_X)
+	SrBehaviorT      SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_T)
+	SrBehaviorDFIRST SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_D_FIRST)
+	SrBehaviorDX2    SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_DX2)
+	SrBehaviorDX6    SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_DX6)
+	SrBehaviorDX4    SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_DX4)
+	SrBehaviorDT6    SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_DT6)
+	SrBehaviorDT4    SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_DT4)
+	SrBehaviorLAST   SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_LAST)
+)
+
+func ToVppSrBehavior(behavior SrBehavior) sr_types.SrBehavior {
+	return sr_types.SrBehavior(behavior)
+}
+func FromVppSrBehavior(behavior sr_types.SrBehavior) SrBehavior {
+	return SrBehavior(behavior)
+}
+
 // SrLocalsid definition
 type SrLocalsid struct {
 	Localsid  ip_types.IP6Address
 	EndPsp    bool
-	Behavior  sr_types.SrBehavior
+	Behavior  SrBehavior
 	SwIfIndex interface_types.InterfaceIndex
 	VlanIndex uint32
 	FibTable  uint32
@@ -21,7 +43,7 @@ type SrLocalsid struct {
 }
 
 func (l *SrLocalsid) SetBehavior(code uint8) {
-	l.Behavior = sr_types.SrBehavior(code)
+	l.Behavior = SrBehavior(code)
 }
 
 func (l *SrLocalsid) CompareBehaviorTo(behavior uint8) bool {
@@ -29,8 +51,8 @@ func (l *SrLocalsid) CompareBehaviorTo(behavior uint8) bool {
 }
 
 func (l *SrLocalsid) String() (policy string) {
-	return fmt.Sprintf("Localsid: %s, EndPsp: %v,  Behavior: %s, SwIfIndex: %d, VlanIndex: %d, FibTable: %d, NhAddr: %s",
-		l.Localsid, l.EndPsp, l.Behavior.String(), l.SwIfIndex, l.VlanIndex, l.FibTable, l.NhAddr.String())
+	return fmt.Sprintf("Localsid: %s, EndPsp: %v,  Behavior: %d, SwIfIndex: %d, VlanIndex: %d, FibTable: %d, NhAddr: %s",
+		l.Localsid, l.EndPsp, uint8(l.Behavior), l.SwIfIndex, l.VlanIndex, l.FibTable, l.NhAddr.String())
 }
 
 // SrPolicy definition
