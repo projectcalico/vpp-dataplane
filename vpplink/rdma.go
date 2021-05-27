@@ -17,25 +17,26 @@ package vpplink
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/rdma"
 )
 
-type RDMAInfo struct{
-	HostIf  string   
-	RxqNum  int   
-	RxqSize int   
-	TxqSize int   
+type RDMAInfo struct {
+	HostIf  string
+	RxqNum  int
+	RxqSize int
+	TxqSize int
 }
+
 func (v *VppLink) CreateRDMA(rdmainfo RDMAInfo) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	response := &rdma.RdmaCreateV2Reply{
-	}
+	response := &rdma.RdmaCreateV2Reply{}
 	request := &rdma.RdmaCreateV2{
-		HostIf: rdmainfo.HostIf,
-		Name: "RDMA-",
-		RxqNum: uint16(rdmainfo.RxqNum),
+		HostIf:  rdmainfo.HostIf,
+		Name:    "RDMA-",
+		RxqNum:  uint16(rdmainfo.RxqNum),
 		RxqSize: uint16(rdmainfo.RxqSize),
 		TxqSize: uint16(rdmainfo.TxqSize),
 	}
