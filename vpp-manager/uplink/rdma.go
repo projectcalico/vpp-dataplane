@@ -32,22 +32,10 @@ type RDMADriver struct {
 func (d *RDMADriver) IsSupported(warn bool) (supported bool) {
 	var ret bool
 	supported = true
-	ret = d.params.LoadedDrivers[config.DRIVER_VFIO_PCI]
-	if !ret && warn {
-		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
-		log.Warnf("VPP may fail to grab its interface")
-	}
-	supported = supported && ret
 
-	ret = d.params.AvailableHugePages > 0
+	ret = d.conf.Driver == config.DRIVER_MLX5_CORE
 	if !ret && warn {
-		log.Warnf("No hugepages configured, driver won't work")
-	}
-	supported = supported && ret
-
-	ret = d.conf.Driver == config.DRIVER_VIRTIO_PCI
-	if !ret && warn {
-		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_VIRTIO_PCI)
+		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_MLX5_CORE)
 	}
 	supported = supported && ret
 
@@ -55,42 +43,12 @@ func (d *RDMADriver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *RDMADriver) PreconfigureLinux() (err error) {
-	newDriverName := d.params.NewDriverName
-	doSwapDriver := d.conf.DoSwapDriver
-	/*if newDriverName == "" {
-		newDriverName = config.DRIVER_VFIO_PCI
-		doSwapDriver = config.DRIVER_VFIO_PCI != d.conf.Driver
-	}*/
-
-	/*if !d.params.VfioUnsafeiommu {
-		err := utils.SetVfioUnsafeiommu(true)
-		if err != nil {
-			return errors.Wrapf(err, "Virtio preconfigure error")
-		}
-	}*/
 	d.removeLinuxIfConf(true /* down */)
-	if doSwapDriver {
-		err = utils.SwapDriver(d.conf.PciId, newDriverName, true)
-		if err != nil {
-			log.Warnf("Failed to swap driver to %s: %v", newDriverName, err)
-		}
-	}
 	return nil
 }
 
 func (d *RDMADriver) RestoreLinux() {
-	if !d.params.VfioUnsafeiommu {
-		err := utils.SetVfioUnsafeiommu(false)
-		if err != nil {
-			log.Warnf("Virtio restore error %v", err)
-		}
-	}
-	if d.conf.PciId != "" && d.conf.Driver != "" {
-		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
-		if err != nil {
-			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
-		}
-	}
+
 	if !d.conf.IsUp {
 		return
 	}
@@ -108,18 +66,21 @@ func (d *RDMADriver) RestoreLinux() {
 
 func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	MyInfo := vpplink.RDMAInfo{
-	d.params.MainInterface,
-	d.params.NumRxQueues,
-	d.params.RxQueueSize,
-	d.params.TxQueueSize,
+		d.params.MainInterface,
+		d.params.NumRxQueues,
+		d.params.RxQueueSize,
+		d.params.TxQueueSize,
 	}
 	swIfIndex, err := vpp.CreateRDMA(MyInfo)
 
 	if err != nil {
 		return errors.Wrapf(err, "Error creating RDMA interface")
 	}
+
 	err = d.moveInterfaceToNS(d.params.MainInterface, vppPid)
-	log.Errorf("Moving uplink in NS failed %s", err)
+	if err != nil {
+		return errors.Wrap(err, "Moving uplink in NS failed")
+	}
 
 	log.Infof("Created RDMA interface %d", swIfIndex)
 

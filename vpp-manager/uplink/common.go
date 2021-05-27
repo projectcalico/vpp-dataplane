@@ -162,15 +162,15 @@ func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.Interf
 	if d := NewAVFDriver(params, conf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
+	if d := NewRDMADriver(params, conf); d.IsSupported(false /* warn */) {
+		lst = append(lst, d)
+	}
 	if d := NewAFXDPDriver(params, conf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
 	if d := NewAFPacketDriver(params, conf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
-	if d := NewRDMADriver(params, conf); d.IsSupported(false /* warn */) {
-		lst = append(lst, d)
-	}	
 	return lst
 }
 
