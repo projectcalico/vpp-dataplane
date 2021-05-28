@@ -57,7 +57,7 @@ type SrLocalsidAddDel struct {
 
 func (m *SrLocalsidAddDel) Reset()               { *m = SrLocalsidAddDel{} }
 func (*SrLocalsidAddDel) GetMessageName() string { return "sr_localsid_add_del" }
-func (*SrLocalsidAddDel) GetCrcString() string   { return "26fa3309" }
+func (*SrLocalsidAddDel) GetCrcString() string   { return "5a36c324" }
 func (*SrLocalsidAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -153,7 +153,7 @@ type SrLocalsidsDetails struct {
 
 func (m *SrLocalsidsDetails) Reset()               { *m = SrLocalsidsDetails{} }
 func (*SrLocalsidsDetails) GetMessageName() string { return "sr_localsids_details" }
-func (*SrLocalsidsDetails) GetCrcString() string   { return "6a6c0265" }
+func (*SrLocalsidsDetails) GetCrcString() string   { return "2e9221b9" }
 func (*SrLocalsidsDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -239,7 +239,7 @@ type SrPoliciesDetails struct {
 
 func (m *SrPoliciesDetails) Reset()               { *m = SrPoliciesDetails{} }
 func (*SrPoliciesDetails) GetMessageName() string { return "sr_policies_details" }
-func (*SrPoliciesDetails) GetCrcString() string   { return "07ec2d93" }
+func (*SrPoliciesDetails) GetCrcString() string   { return "db6ff2a1" }
 func (*SrPoliciesDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -460,7 +460,7 @@ type SrPolicyAdd struct {
 
 func (m *SrPolicyAdd) Reset()               { *m = SrPolicyAdd{} }
 func (*SrPolicyAdd) GetMessageName() string { return "sr_policy_add" }
-func (*SrPolicyAdd) GetCrcString() string   { return "ec79ee6a" }
+func (*SrPolicyAdd) GetCrcString() string   { return "44ac92e8" }
 func (*SrPolicyAdd) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -629,7 +629,7 @@ type SrPolicyMod struct {
 
 func (m *SrPolicyMod) Reset()               { *m = SrPolicyMod{} }
 func (*SrPolicyMod) GetMessageName() string { return "sr_policy_mod" }
-func (*SrPolicyMod) GetCrcString() string   { return "e531a102" }
+func (*SrPolicyMod) GetCrcString() string   { return "b97bb56e" }
 func (*SrPolicyMod) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -863,7 +863,7 @@ type SrSteeringAddDel struct {
 
 func (m *SrSteeringAddDel) Reset()               { *m = SrSteeringAddDel{} }
 func (*SrSteeringAddDel) GetMessageName() string { return "sr_steering_add_del" }
-func (*SrSteeringAddDel) GetCrcString() string   { return "3711dace" }
+func (*SrSteeringAddDel) GetCrcString() string   { return "e46b0a0f" }
 func (*SrSteeringAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -957,7 +957,7 @@ type SrSteeringPolDetails struct {
 
 func (m *SrSteeringPolDetails) Reset()               { *m = SrSteeringPolDetails{} }
 func (*SrSteeringPolDetails) GetMessageName() string { return "sr_steering_pol_details" }
-func (*SrSteeringPolDetails) GetCrcString() string   { return "1c1ee786" }
+func (*SrSteeringPolDetails) GetCrcString() string   { return "d41258c9" }
 func (*SrSteeringPolDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1030,27 +1030,27 @@ func (m *SrSteeringPolDump) Unmarshal(b []byte) error {
 
 func init() { file_sr_binapi_init() }
 func file_sr_binapi_init() {
-	api.RegisterMessage((*SrLocalsidAddDel)(nil), "sr_localsid_add_del_26fa3309")
+	api.RegisterMessage((*SrLocalsidAddDel)(nil), "sr_localsid_add_del_5a36c324")
 	api.RegisterMessage((*SrLocalsidAddDelReply)(nil), "sr_localsid_add_del_reply_e8d4e804")
-	api.RegisterMessage((*SrLocalsidsDetails)(nil), "sr_localsids_details_6a6c0265")
+	api.RegisterMessage((*SrLocalsidsDetails)(nil), "sr_localsids_details_2e9221b9")
 	api.RegisterMessage((*SrLocalsidsDump)(nil), "sr_localsids_dump_51077d14")
-	api.RegisterMessage((*SrPoliciesDetails)(nil), "sr_policies_details_07ec2d93")
+	api.RegisterMessage((*SrPoliciesDetails)(nil), "sr_policies_details_db6ff2a1")
 	api.RegisterMessage((*SrPoliciesDump)(nil), "sr_policies_dump_51077d14")
 	api.RegisterMessage((*SrPoliciesWithSlIndexDetails)(nil), "sr_policies_with_sl_index_details_ca2e9bc8")
 	api.RegisterMessage((*SrPoliciesWithSlIndexDump)(nil), "sr_policies_with_sl_index_dump_51077d14")
-	api.RegisterMessage((*SrPolicyAdd)(nil), "sr_policy_add_ec79ee6a")
+	api.RegisterMessage((*SrPolicyAdd)(nil), "sr_policy_add_44ac92e8")
 	api.RegisterMessage((*SrPolicyAddReply)(nil), "sr_policy_add_reply_e8d4e804")
 	api.RegisterMessage((*SrPolicyDel)(nil), "sr_policy_del_cb4d48d5")
 	api.RegisterMessage((*SrPolicyDelReply)(nil), "sr_policy_del_reply_e8d4e804")
-	api.RegisterMessage((*SrPolicyMod)(nil), "sr_policy_mod_e531a102")
+	api.RegisterMessage((*SrPolicyMod)(nil), "sr_policy_mod_b97bb56e")
 	api.RegisterMessage((*SrPolicyModReply)(nil), "sr_policy_mod_reply_e8d4e804")
 	api.RegisterMessage((*SrSetEncapHopLimit)(nil), "sr_set_encap_hop_limit_aa75d7d0")
 	api.RegisterMessage((*SrSetEncapHopLimitReply)(nil), "sr_set_encap_hop_limit_reply_e8d4e804")
 	api.RegisterMessage((*SrSetEncapSource)(nil), "sr_set_encap_source_d3bad5e1")
 	api.RegisterMessage((*SrSetEncapSourceReply)(nil), "sr_set_encap_source_reply_e8d4e804")
-	api.RegisterMessage((*SrSteeringAddDel)(nil), "sr_steering_add_del_3711dace")
+	api.RegisterMessage((*SrSteeringAddDel)(nil), "sr_steering_add_del_e46b0a0f")
 	api.RegisterMessage((*SrSteeringAddDelReply)(nil), "sr_steering_add_del_reply_e8d4e804")
-	api.RegisterMessage((*SrSteeringPolDetails)(nil), "sr_steering_pol_details_1c1ee786")
+	api.RegisterMessage((*SrSteeringPolDetails)(nil), "sr_steering_pol_details_d41258c9")
 	api.RegisterMessage((*SrSteeringPolDump)(nil), "sr_steering_pol_dump_51077d14")
 }
 
