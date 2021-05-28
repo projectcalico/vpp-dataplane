@@ -1,11 +1,8 @@
 
 all: iperf-image iperf3-image wrk-image nginx-image scalepods-image scalesvc-build
 
-iperf-image:
-	docker build -t sknat/iperf -f ./iperf/Dockerfile ./iperf
-
-iperf3-image:
-	docker build -t sknat/iperf3 -f ./iperf3/Dockerfile ./iperf3
+%-image:
+	docker build -t sknat/$* -f ./$*/Dockerfile ./$*
 
 nginx-image:
 	head -c 4K /dev/urandom > ./nginx/4096
@@ -15,10 +12,6 @@ nginx-image:
 	rm ./nginx/4096
 	rm ./nginx/2MB
 	rm ./nginx/600
-
-wrk-image:
-	docker build -t mra/wrk -f ./wrk/Dockerfile ./wrk
-
 
 scalepods-image:
 	cd scalepods && go build

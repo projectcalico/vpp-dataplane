@@ -59,6 +59,8 @@ const (
 	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar        = "SERVICE_PREFIX"
 
+	ContainerSideMacAddressString = "02:00:00:00:00:01"
+
 	DefaultVXLANVni      = 4096
 	DefaultWireguardPort = 51820
 

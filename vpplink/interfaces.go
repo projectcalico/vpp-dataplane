@@ -219,6 +219,31 @@ func (v *VppLink) AddInterfaceAddress(swIfIndex uint32, addr *net.IPNet) error {
 	return v.addDelInterfaceAddress(swIfIndex, addr, true)
 }
 
+func (v *VppLink) addDelInterfaceTag(swIfIndex uint32, tag string, isAdd bool) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	request := &interfaces.SwInterfaceTagAddDel{
+		IsAdd:     isAdd,
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+		Tag:       tag,
+	}
+	response := &interfaces.SwInterfaceTagAddDelReply{}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return fmt.Errorf("cannot add interface tag: %v %d", err, response.Retval)
+	}
+	return nil
+}
+
+func (v *VppLink) AddInterfaceTag(swIfIndex uint32, tag string) error {
+	return v.addDelInterfaceTag(swIfIndex, tag, true /* isAdd */)
+}
+
+func (v *VppLink) DelInterfaceTag(swIfIndex uint32, tag string) error {
+	return v.addDelInterfaceTag(swIfIndex, tag, false /* isAdd */)
+} // HERE
+
 func (v *VppLink) enableDisableInterfaceIP6(swIfIndex uint32, enable bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()

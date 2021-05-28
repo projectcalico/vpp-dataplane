@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 2 // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 3 // Used to ensure compatibility wen we reload data
 )
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -43,6 +43,18 @@ type LocalIPNet struct {
 type LocalIP struct {
 	IP net.IP `struc:"[16]byte"`
 }
+
+type VppInterfaceType int
+
+const (
+	VppTunInterface   = VppInterfaceType(1 << 0)
+	VppMemifInterface = VppInterfaceType(1 << 1)
+	VppVCLInterface   = VppInterfaceType(1 << 2)
+
+	VppTunIfAnnotation = "vpp-tun"
+	VppMemifAnnotation = "vpp-memif"
+	VppVCLAnnotation   = "vpp-vcl"
+)
 
 func (n *LocalIPNet) String() string {
 	ipnet := net.IPNet{
@@ -116,6 +128,7 @@ type LocalPodSpec struct {
 	ContainerIpsSize  int `struc:"int16,sizeof=ContainerIps"`
 	ContainerIps      []LocalIP
 	Mtu               int
+	InterfaceType     VppInterfaceType
 
 	// Pod identifiers
 	OrchestratorIDSize int `struc:"int16,sizeof=OrchestratorID"`

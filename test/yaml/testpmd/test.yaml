@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: testpmd
+  namespace: testpmd
+  annotations:
+    vpp-memif: "true"
+spec:
+  containers:
+  - name: testpmd
+    image: sknat/testpmd
+    imagePullPolicy: IfNotPresent
+    ports:
+    - containerPort: 4444
+    resources:
+      limits:
+        memory: 2Gi
+        hugepages-2Mi: 512Mi
+  nodeName: _NODE_1_
+
+

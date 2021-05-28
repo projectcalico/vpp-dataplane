@@ -55,6 +55,25 @@ func swIfIdxToIfName(idx uint32) string {
 	return fmt.Sprintf("vpp-tun-%d", idx)
 }
 
+func GetInterfaceType(request *pb.AddRequest) storage.VppInterfaceType {
+	ifType := storage.VppTunInterface
+	workload := request.GetWorkload()
+	if workload == nil {
+		return ifType
+	}
+	for k, _ := range workload.Annotations {
+		switch k {
+		case storage.VppTunIfAnnotation:
+			ifType = ifType | storage.VppTunInterface
+		case storage.VppMemifAnnotation:
+			ifType = ifType | storage.VppMemifInterface
+		case storage.VppVCLAnnotation:
+			ifType = ifType | storage.VppVCLInterface
+		}
+	}
+	return ifType
+}
+
 func NewLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, error) {
 	podSpec := storage.LocalPodSpec{
 		InterfaceName:     request.GetInterfaceName(),
@@ -63,6 +82,7 @@ func NewLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, erro
 		Routes:            make([]storage.LocalIPNet, 0),
 		ContainerIps:      make([]storage.LocalIP, 0),
 		Mtu:               int(request.GetSettings().GetMtu()),
+		InterfaceType:     GetInterfaceType(request),
 
 		OrchestratorID: request.Workload.Orchestrator,
 		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
