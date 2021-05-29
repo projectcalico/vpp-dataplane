@@ -1,0 +1,8 @@
+---
+apiVersion: crd.projectcalico.org/v1
+kind: IPPool
+metadata:
+  name: sr-policies-pool
+spec:
+  cidr: cafe::/122
+  nodeSelector: "!all()"

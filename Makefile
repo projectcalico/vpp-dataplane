@@ -69,6 +69,10 @@ test-install-calicovpp:
 test-install-calicovpp-srv6:
 	kubectl kustomize yaml/overlays/test-vagrant-srv6 | kubectl apply -f -
 
+.PHONY: test-install-calicovpp-dev-srv6
+test-install-calicovpp-dev-srv6:
+	kubectl apply -k yaml/overlays/test-vagrant-srv6-mounts
+
 # Allows to run calico-vpp in a test cluster with locally-built binaries for dev / debug
 .PHONY: test-install-calicovpp-dev
 test-install-calicovpp-dev:

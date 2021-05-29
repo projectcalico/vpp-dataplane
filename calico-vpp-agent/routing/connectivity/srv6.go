@@ -9,6 +9,7 @@ import (
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -40,27 +41,27 @@ func (p *SRv6Provider) RescanState() {
 	if err != nil {
 		p.log.Errorf("SRv6Provider Error listing SRv6Localsid: %v", err)
 	}
-	endDt4Exist := false
+	//endDt4Exist := false
 	endDt6Exist := false
 	for _, localSid := range localSids {
 		p.log.Infof("Found existing SRv6Localsid: %s", localSid.String())
-		p.log.Infof("localSid.Behavior: %d", uint8(localSid.Behavior))
+		p.log.Infof("localSid.Behavior: %s", uint8(localSid.Behavior))
 		p.log.Infof("localSid.Behavior is DT4 %v", localSid.Behavior == types.SrBehaviorDT4)
 		p.log.Infof("localSid.Behavior is DT6 %v", localSid.Behavior == types.SrBehaviorDT6)
-		if localSid.Behavior == types.SrBehaviorDT4 && localSid.FibTable == 0 {
-			endDt4Exist = true
-		}
+		// if localSid.Behavior == types.SrBehaviorDT4 && localSid.FibTable == 0 {
+		// 	endDt4Exist = true
+		// }
 		if localSid.Behavior == types.SrBehaviorDT6 && localSid.FibTable == 0 {
 			endDt6Exist = true
 		}
 	}
-	if endDt4Exist == false {
+	/* 	if endDt4Exist == false {
 		_, err := p.setEndDT(4)
 		if err != nil {
 			p.log.Errorf("SRv6Provider Error setEndDT4: %v", err)
 		}
-	}
-	if endDt6Exist == false {
+	} */
+	if !endDt6Exist {
 		_, err := p.setEndDT(6)
 		if err != nil {
 			p.log.Errorf("SRv6Provider Error setEndDT6: %v", err)
@@ -70,7 +71,7 @@ func (p *SRv6Provider) RescanState() {
 
 func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) {
 	p.log.Infof("SRv6Provider AddConnectivity %s", cn.String())
-	if cn.Dst.IP.To16() != nil {
+	if vpplink.IsIP6(cn.NextHop) {
 		bsid, err := p.getSidFromPool("cafe::/122")
 		if err != nil {
 			p.log.Errorf("SRv6Provider Error AddConnectivity: %v", err)
