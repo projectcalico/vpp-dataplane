@@ -45,12 +45,7 @@ func (p *SRv6Provider) RescanState() {
 	endDt6Exist := false
 	for _, localSid := range localSids {
 		p.log.Infof("Found existing SRv6Localsid: %s", localSid.String())
-		p.log.Infof("localSid.Behavior: %s", uint8(localSid.Behavior))
-		p.log.Infof("localSid.Behavior is DT4 %v", localSid.Behavior == types.SrBehaviorDT4)
-		p.log.Infof("localSid.Behavior is DT6 %v", localSid.Behavior == types.SrBehaviorDT6)
-		// if localSid.Behavior == types.SrBehaviorDT4 && localSid.FibTable == 0 {
-		// 	endDt4Exist = true
-		// }
+		// this condition is not working... currently the value of localSid.Behavior is equal to 0
 		if localSid.Behavior == types.SrBehaviorDT6 && localSid.FibTable == 0 {
 			endDt6Exist = true
 		}
@@ -79,10 +74,16 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 		}
 		var ipaddr ip_types.IP6Address
 		copy(ipaddr[:], cn.NextHop.To16())
+
+		sidDst, err := p.inferLocalSidAddr(6, cn.NextHop.To16())
+		if err != nil {
+			p.log.Errorf("SRv6Provider Error AddConnectivity: %v", err)
+			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
+		}
 		sidList := types.Srv6SidList{
 			NumSids: 1,
 			Weight:  0,
-			Sids:    [16]ip_types.IP6Address{ipaddr},
+			Sids:    [16]ip_types.IP6Address{sidDst},
 		}
 		err = p.vpp.AddSRv6Policy(&types.SrPolicy{
 			Bsid:     bsid,
@@ -94,6 +95,22 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 		if err != nil {
 			p.log.Errorf("SRv6Provider Error AddConnectivity: %v", err)
 			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
+		}
+
+		steeringPrefix, err := ip_types.ParsePrefix(cn.Dst.String())
+		if err != nil {
+			p.log.Errorf("SRv6Provider Error ParsePrefix steering: %v", err)
+			return errors.Wrapf(err, "SRv6Provider ParsePrefix steering")
+		}
+		err = p.vpp.AddSRv6Steering(&types.SrSteer{
+			TrafficType: types.SR_STEER_IPV6,
+			Prefix:      steeringPrefix,
+			Bsid:        bsid,
+		})
+
+		if err != nil {
+			p.log.Errorf("SRv6Provider Error AddSRv6Steering: %v", err)
+			return errors.Wrapf(err, "SRv6Provider AddSRv6Steering")
 		}
 	}
 	return err
@@ -117,6 +134,7 @@ func (p *SRv6Provider) setEncapSource() (err error) {
 	return err
 }
 
+// Add a new SRLocalSid with end.DT4 or end.DT6 behavior
 func (p *SRv6Provider) setEndDT(typeDT int) (newLocalSid *types.SrLocalsid, err error) {
 	p.log.Printf("SRv6Provider setLocalsid setEndDT%d", typeDT)
 
@@ -149,10 +167,10 @@ func (p *SRv6Provider) setEndDT(typeDT int) (newLocalSid *types.SrLocalsid, err 
 }
 
 func (p *SRv6Provider) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6Address, err error) {
-	pinco := []cnet.IPNet{cnet.MustParseNetwork(ipnet)}
+	poolIPNet := []cnet.IPNet{cnet.MustParseNetwork(ipnet)}
 	_, newSids, err := p.Clientv3().IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
 		Num6:      1,
-		IPv6Pools: pinco,
+		IPv6Pools: poolIPNet,
 	})
 	if err != nil || newSids == nil {
 		p.log.Infof("SRv6Provider Error assigning ip LocalSid")
@@ -165,15 +183,19 @@ func (p *SRv6Provider) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6Addr
 }
 
 func (p *SRv6Provider) getNewLocalSidAddr(typeDT int) (newLocalSidAddr ip_types.IP6Address, err error) {
-	// for test only solution: assuming the IP6 is fd00::xyz0
+	// development only solution: assuming the IP6 is fd00::xyz0
 	nodeIP6 := p.server.GetNodeIP(true)
-	nodeIP6String := nodeIP6.String()
-	sz := len(nodeIP6String)
-	newLocalSidAddrStr := nodeIP6String[:sz-1]
 
+	return p.inferLocalSidAddr(typeDT, nodeIP6)
+}
+
+func (p *SRv6Provider) inferLocalSidAddr(typeDT int, ip net.IP) (newLocalSidAddr ip_types.IP6Address, err error) {
+	// development only solution: assuming the IP6 is fd00::xyz0
+	ipString := ip.String()
+	sz := len(ipString)
+	newLocalSidAddrStr := ipString[:sz-1]
 	if typeDT == 4 {
 		newLocalSidAddrStr += "1"
-
 	} else if typeDT == 6 {
 		newLocalSidAddrStr += "2"
 	}

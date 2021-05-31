@@ -98,8 +98,23 @@ func (s *Srv6SidList) String() string {
 		s.NumSids, s.Weight, s.Sids)
 }
 
+type SrSteerTrafficType uint8
+
+const (
+	SR_STEER_L2   SrSteerTrafficType = SrSteerTrafficType(sr_types.SR_STEER_API_L2)
+	SR_STEER_IPV4 SrSteerTrafficType = SrSteerTrafficType(sr_types.SR_STEER_API_IPV4)
+	SR_STEER_IPV6 SrSteerTrafficType = SrSteerTrafficType(sr_types.SR_STEER_API_IPV6)
+)
+
+func ToVppSrSteerTrafficType(trafficType SrSteerTrafficType) sr_types.SrSteer {
+	return sr_types.SrSteer(trafficType)
+}
+func FromVppSrSteerTrafficType(trafficType sr_types.SrSteer) SrSteerTrafficType {
+	return SrSteerTrafficType(trafficType)
+}
+
 type SrSteer struct {
-	TrafficType sr_types.SrSteer
+	TrafficType SrSteerTrafficType
 	FibTable    uint32
 	Prefix      ip_types.Prefix
 	SwIfIndex   uint32

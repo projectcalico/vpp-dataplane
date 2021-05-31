@@ -184,7 +184,7 @@ func (v *VppLink) DelSRv6Steering(steer *types.SrSteer) (err error) {
 		TableID:     steer.FibTable,
 		Prefix:      steer.Prefix,
 		SwIfIndex:   interface_types.InterfaceIndex(steer.SwIfIndex),
-		TrafficType: steer.TrafficType,
+		TrafficType: types.ToVppSrSteerTrafficType(steer.TrafficType),
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
@@ -205,7 +205,7 @@ func (v *VppLink) AddSRv6Steering(steer *types.SrSteer) (err error) {
 		TableID:     steer.FibTable,
 		Prefix:      steer.Prefix,
 		SwIfIndex:   interface_types.InterfaceIndex(steer.SwIfIndex),
-		TrafficType: steer.TrafficType,
+		TrafficType: types.ToVppSrSteerTrafficType(steer.TrafficType),
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
@@ -232,7 +232,7 @@ func (v *VppLink) ListSRv6Steering() (list []*types.SrSteer, err error) {
 			break
 		}
 		list = append(list, &types.SrSteer{
-			TrafficType: response.TrafficType,
+			TrafficType: types.FromVppSrSteerTrafficType(response.TrafficType),
 			FibTable:    response.FibTable,
 			Prefix:      response.Prefix,
 			SwIfIndex:   uint32(response.SwIfIndex),
