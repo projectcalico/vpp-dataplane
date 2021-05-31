@@ -16,8 +16,9 @@
 package types
 
 import (
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/memif"
 	"net"
+
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/memif"
 )
 
 type MemifRole uint32

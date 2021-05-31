@@ -404,7 +404,7 @@ func (v *VppRunner) configureVpp() (err error) {
 	}
 
 	// Always set this tap on worker 0
-	err = v.vpp.SetInterfaceRxPlacement(uint32(tapSwIfIndex), uint32(0), uint32(0), false)
+	err = v.vpp.SetInterfaceRxPlacement(tapSwIfIndex, 0 /*queue*/, 0 /*worker*/, false /*main*/)
 	if err != nil {
 		return errors.Wrap(err, "Error setting tap rx placement")
 	}

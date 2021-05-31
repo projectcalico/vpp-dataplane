@@ -26,6 +26,7 @@ import (
 	"github.com/lunixbochs/struc"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 )
 
 const (
@@ -137,6 +138,21 @@ type LocalPodSpec struct {
 	WorkloadID         string
 	EndpointIDSize     int `struc:"int16,sizeof=EndpointID"`
 	EndpointID         string
+
+	/* Caching */
+	NeedsSnat bool
+}
+
+func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {
+	return fmt.Sprintf("%s-%s-%s", prefix, ps.NetnsName, ps.InterfaceName)
+}
+
+func (ps *LocalPodSpec) GetPodMtu() int {
+	// configure MTU from env var if present or calculate it from host mtu
+	if ps.Mtu <= 0 {
+		return config.PodMtu
+	}
+	return ps.Mtu
 }
 
 func (ps *LocalPodSpec) GetRoutes() (routes []*net.IPNet) {

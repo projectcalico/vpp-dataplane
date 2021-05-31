@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/pod_interface"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -47,8 +48,9 @@ type Server struct {
 	policyServer    *policy.Server
 	podInterfaceMap map[string]storage.LocalPodSpec
 	/* without main thread */
-	NumVPPWorkers int
-	lock          sync.Mutex
+	lock         sync.Mutex
+	memifDriver  *pod_interface.MemifPodInterfaceDriver
+	tuntapDriver *pod_interface.TunTapPodInterfaceDriver
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -163,12 +165,27 @@ func (p *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 	return p.routingServer.IPNetNeedsSNAT(prefix)
 }
 
-func (s *Server) rescanState() error {
-	numVPPWorkers, err := s.vpp.GetNumVPPWorkers()
-	s.NumVPPWorkers = numVPPWorkers
+func (s *Server) FetchNDataThreads() {
+	nVppWorkers, err := s.vpp.GetNumVPPWorkers()
 	if err != nil {
 		s.log.Panicf("Error getting number of VPP workers: %v", err)
 	}
+	nDataThreads := nVppWorkers
+	if config.IpsecNbAsyncCryptoThread > 0 {
+		nDataThreads = nVppWorkers - config.IpsecNbAsyncCryptoThread
+		if nDataThreads <= 0 {
+			s.log.Error("Couldn't fullfill request [crypto=%d total=%d]", config.IpsecNbAsyncCryptoThread, nVppWorkers)
+			nDataThreads = nVppWorkers
+		}
+		s.log.Info("Using [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
+
+	}
+	s.memifDriver.NDataThreads = nDataThreads
+	s.tuntapDriver.NDataThreads = nDataThreads
+}
+
+func (s *Server) rescanState() error {
+	s.FetchNDataThreads()
 
 	podSpecs, err := storage.LoadCniServerState(config.CniServerStateFile)
 	if err != nil {
@@ -206,14 +223,7 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 	s.BarrierSync()
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	err := s.DelVppInterface(podSpec)
-	if err != nil {
-		s.log.Warnf("Interface del failed %s : %v", podSpec.Key(), err)
-		return &pb.DelReply{
-			Successful:   false,
-			ErrorMessage: err.Error(),
-		}, nil
-	}
+	s.DelVppInterface(podSpec)
 
 	initialSpec, ok := s.podInterfaceMap[podSpec.Key()]
 	if !ok {
@@ -256,14 +266,15 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 	}
 
 	server := &Server{
-		vpp:             v,
-		log:             l,
-		routingServer:   rs,
-		policyServer:    ps,
-		socketListener:  lis,
-		client:          client,
-		grpcServer:      grpc.NewServer(),
-		podInterfaceMap: make(map[string]storage.LocalPodSpec),
+		vpp:            v,
+		log:            l,
+		routingServer:  rs,
+		policyServer:   ps,
+		socketListener: lis,
+		client:         client,
+		grpcServer:     grpc.NewServer(),
+		tuntapDriver:   pod_interface.NewTunTapPodInterfaceDriver(v, l),
+		memifDriver:    pod_interface.NewMemifPodInterfaceDriver(v, l),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")

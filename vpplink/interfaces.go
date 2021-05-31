@@ -592,14 +592,14 @@ func (v *VppLink) DisableGSOFeature(swIfIndex uint32) error {
 	return v.enableDisableGso(swIfIndex, false)
 }
 
-func (v *VppLink) SetInterfaceRxPlacement(swIfIndex, queue, worker uint32, main bool) error {
+func (v *VppLink) SetInterfaceRxPlacement(swIfIndex uint32, queue int, worker int, main bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	request := &interfaces.SwInterfaceSetRxPlacement{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-		QueueID:   queue,
-		WorkerID:  worker,
+		QueueID:   uint32(queue),
+		WorkerID:  uint32(worker),
 		IsMain:    main,
 	}
 	response := &interfaces.SwInterfaceSetRxPlacementReply{}

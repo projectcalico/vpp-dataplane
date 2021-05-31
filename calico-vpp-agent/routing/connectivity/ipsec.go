@@ -50,7 +50,7 @@ func (p *IpsecProvider) OnVppRestart() {
 			p.log.Errorf("SetIPsecAsyncMode error %s", err)
 		}
 
-		nbDataThread = (int)(numVPPWorkers) - config.IpsecNbAsyncCryptoThread
+		nbDataThread = numVPPWorkers - config.IpsecNbAsyncCryptoThread
 		p.log.Infof("nbDataThread %d", nbDataThread)
 
 		for i := 0; i < nbDataThread; i++ {
