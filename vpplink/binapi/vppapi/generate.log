@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 VPP Version                 : 21.06-rc0~791-g6fb230048
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : af073546e tls: prealloc chunks for dtls dgram enq
@@ -12,4 +13,17 @@ e3a6c836a gso: handle push flag in gro
 fdaa7fc9a gso: do not try gro on small packets
 46db4b4b7 devices: add support for pseudo header checksum
 8193b8c89 virtio: DRAFT: multi tx support
+=======
+VPP Version                 : 21.06-rc0~788-g2cbf65b8e
+Binapi-generator version    : govpp v0.4.0-dev
+VPP Base commit             : af073546e tls: prealloc chunks for dtls dgram enq
+------------------ Cherry picked commits --------------------
+2cbf65b8e capo: Calico Policies plugin
+f37184082 acl: acl-plugin custom policies
+649157af0 cnat: [WIP] no k8s maglev from pods
+6e239f3c3 ip6-nd: silent the source and target checks on given interface
+2584963a3 gso: do not try gro on small packets
+2024cad79 devices: add support for pseudo header checksum
+7a0d6ede2 virtio: DRAFT: multi tx support
+>>>>>>> add uplink driver vmxnet3
 -------------------------------------------------------------

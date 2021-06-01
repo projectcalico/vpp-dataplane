@@ -62,7 +62,7 @@ func GetMaxCIDRMask(addr net.IP) net.IPMask {
 func WriteFile(state string, path string) error {
 	err := ioutil.WriteFile(path, []byte(state+"\n"), 0400)
 	if err != nil {
-		return errors.Errorf("Failed to write state to %s", path)
+		return errors.Errorf("Failed to write state to %s %s", path, err)
 	}
 	return nil
 }
