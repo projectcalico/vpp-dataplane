@@ -129,7 +129,6 @@ type LocalPodSpec struct {
 	ContainerIpsSize  int `struc:"int16,sizeof=ContainerIps"`
 	ContainerIps      []LocalIP
 	Mtu               int
-	InterfaceType     VppInterfaceType
 
 	// Pod identifiers
 	OrchestratorIDSize int `struc:"int16,sizeof=OrchestratorID"`
@@ -140,7 +139,8 @@ type LocalPodSpec struct {
 	EndpointID         string
 
 	/* Caching */
-	NeedsSnat bool
+	NeedsSnat     bool
+	InterfaceType VppInterfaceType
 }
 
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {

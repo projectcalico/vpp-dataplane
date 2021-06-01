@@ -43,6 +43,29 @@ func (p *RoutePath) tableString() string {
 	}
 }
 
+func (p *RoutePath) ToFibPath(isIP6 bool) fib_types.FibPath {
+	// There is one case where we need an IPv4 route with an IPv6 path
+	// (for broadcast)
+	pathProto := IsV6toFibProto(isIP6)
+	if p.Gw != nil {
+		pathProto = IsV6toFibProto(p.Gw.To4() == nil)
+	}
+	fibPath := fib_types.FibPath{
+		SwIfIndex:  uint32(p.SwIfIndex),
+		TableID:    uint32(p.Table),
+		RpfID:      0,
+		Weight:     1,
+		Preference: 0,
+		Type:       fib_types.FIB_API_PATH_TYPE_NORMAL,
+		Flags:      fib_types.FIB_API_PATH_FLAG_NONE,
+		Proto:      pathProto,
+	}
+	if p.Gw != nil {
+		fibPath.Nh.Address = ToVppAddress(p.Gw).Un
+	}
+	return fibPath
+}
+
 func (p *RoutePath) swIfIndexString() string {
 	if p.SwIfIndex == 0 {
 		return ""

@@ -41,6 +41,7 @@ func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTa
 	i.log = log
 	i.isL3 = true
 	i.name = "tun"
+	i.isMain = true
 	return i
 }
 

@@ -34,6 +34,7 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 	i.log = log
 	i.isL3 = false
 	i.name = "memif"
+	i.isMain = false
 	return i
 }
 

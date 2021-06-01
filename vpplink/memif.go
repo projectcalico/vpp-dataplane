@@ -24,9 +24,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-var (
-	freeSocketIds   []uint32
-	maxFreeSocketId uint32 = 1
+const (
+	socketIdNS string = "socketID"
 )
 
 func (v *VppLink) addDelMemifSocketFileName(socketFileName string, namespace string, socketId uint32, isAdd bool) error {
@@ -49,22 +48,14 @@ func (v *VppLink) addDelMemifSocketFileName(socketFileName string, namespace str
 }
 
 func (v *VppLink) AddMemifSocketFileName(socketFileName string, namespace string) (uint32, error) {
-	var socketId uint32 = 0
-	n := len(freeSocketIds)
-	if n == 0 {
-		socketId = maxFreeSocketId
-		maxFreeSocketId = maxFreeSocketId + 1
-	} else {
-		socketId = freeSocketIds[n-1]
-		freeSocketIds = freeSocketIds[:n-1]
-	}
+	socketId := AllocateID(socketIdNS)
 	return socketId, v.addDelMemifSocketFileName(socketFileName, namespace, socketId, true /* isAdd */)
 }
 
 func (v *VppLink) DelMemifSocketFileName(socketId uint32) error {
 	err := v.addDelMemifSocketFileName("", "", socketId, false /* isAdd */)
 	if err != nil {
-		freeSocketIds = append(freeSocketIds, socketId)
+		FreeID(socketIdNS, socketId)
 	}
 	return err
 }

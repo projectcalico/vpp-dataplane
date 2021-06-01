@@ -33,6 +33,7 @@ type PodInterfaceDriverData struct {
 	isL3         bool
 	name         string
 	NDataThreads int
+	isMain       bool /*fixme*/
 }
 
 func getPodIPNet(swIfIndex uint32, isv6 bool) *net.IPNet {
@@ -62,10 +63,12 @@ func (i *PodInterfaceDriverData) SearchPodInterface(podSpec *storage.LocalPodSpe
 }
 
 func (i *PodInterfaceDriverData) AddPodInterfaceToVPP(podSpec *storage.LocalPodSpec) (swIfIndex uint32, err error) {
+	i.log.Panicf("No Implemented")
 	return 0, nil
 }
 
 func (i *PodInterfaceDriverData) DelPodInterfaceFromVPP(swIfIndex uint32) {
+	i.log.Panicf("No Implemented")
 	return
 }
 
@@ -81,9 +84,16 @@ func (i *PodInterfaceDriverData) Create(podSpec *storage.LocalPodSpec) (swIfInde
 	if err != nil {
 		return swIfIndex, err
 	}
-	err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
-	if err != nil {
-		return swIfIndex, err
+	if i.isMain {
+		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
+		if err != nil {
+			return swIfIndex, err
+		}
+	} else {
+		err = i.DoPodAbfConfiguration(podSpec, swIfIndex)
+		if err != nil {
+			return swIfIndex, err
+		}
 	}
 	return swIfIndex, nil
 }
@@ -94,7 +104,11 @@ func (i *PodInterfaceDriverData) Delete(podSpec *storage.LocalPodSpec) {
 		i.log.Debugf("interface not found %s", podSpec.GetInterfaceTag(i.name))
 		return
 	}
-	i.UndoPodRoutesConfiguration(swIfIndex)
+	if i.isMain {
+		i.UndoPodRoutesConfiguration(swIfIndex)
+	} else {
+		i.UndoPodAbfConfiguration(swIfIndex)
+	}
 	i.UndoPodInterfaceConfiguration(swIfIndex)
 	i.DelPodInterfaceFromVPP(swIfIndex)
 }
@@ -141,6 +155,10 @@ func (i *PodInterfaceDriverData) delPodInterfaceHandleRoutes(swIfIndex uint32, i
 	return nil
 }
 
+func (i *PodInterfaceDriverData) UndoPodAbfConfiguration(swIfIndex uint32) {
+	/*FIXME*/
+}
+
 func (i *PodInterfaceDriverData) UndoPodRoutesConfiguration(swIfIndex uint32) {
 	err := i.delPodInterfaceHandleRoutes(swIfIndex, true /* isIp6 */)
 	if err != nil {
@@ -163,6 +181,10 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 	if err != nil {
 		i.log.Errorf("error deregistering pod interface: %v", err)
 	}
+}
+
+func (i *PodInterfaceDriverData) DoPodAbfConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) error {
+	return nil
 }
 
 func (i *PodInterfaceDriverData) DoPodRoutesConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) error {

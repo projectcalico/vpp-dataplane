@@ -154,25 +154,7 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 
 	paths := make([]fib_types.FibPath, 0, len(route.Paths))
 	for _, routePath := range route.Paths {
-		// There is one case where we need an IPv4 route with an IPv6 path (for broadcast)
-		pathProto := types.IsV6toFibProto(isIP6)
-		if routePath.Gw != nil {
-			pathProto = types.IsV6toFibProto(routePath.Gw.To4() == nil)
-		}
-		path := fib_types.FibPath{
-			SwIfIndex:  uint32(routePath.SwIfIndex),
-			TableID:    uint32(routePath.Table),
-			RpfID:      0,
-			Weight:     1,
-			Preference: 0,
-			Type:       fib_types.FIB_API_PATH_TYPE_NORMAL,
-			Flags:      fib_types.FIB_API_PATH_FLAG_NONE,
-			Proto:      pathProto,
-		}
-		if routePath.Gw != nil {
-			path.Nh.Address = types.ToVppAddress(routePath.Gw).Un
-		}
-		paths = append(paths, path)
+		paths = append(paths, routePath.ToFibPath(isIP6))
 	}
 
 	vppRoute := vppip.IPRoute{
