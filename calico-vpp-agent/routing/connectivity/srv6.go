@@ -26,7 +26,7 @@ func NewSRv6Provider(d *ConnectivityProviderData) *SRv6Provider {
 }
 
 func (p *SRv6Provider) OnVppRestart() {
-
+	p.log.Infof("SRv6Provider OnVppRestart")
 }
 
 func (p *SRv6Provider) Enabled() bool {
@@ -69,7 +69,6 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 	if vpplink.IsIP6(cn.NextHop) {
 		bsid, err := p.getSidFromPool("cafe::/122")
 		if err != nil {
-			p.log.Errorf("SRv6Provider Error AddConnectivity: %v", err)
 			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
 		}
 		var ipaddr ip_types.IP6Address
@@ -77,7 +76,6 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 
 		sidDst, err := p.inferLocalSidAddr(6, cn.NextHop.To16())
 		if err != nil {
-			p.log.Errorf("SRv6Provider Error AddConnectivity: %v", err)
 			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
 		}
 		sidList := types.Srv6SidList{
@@ -93,14 +91,12 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 			SidLists: []types.Srv6SidList{sidList},
 		})
 		if err != nil {
-			p.log.Errorf("SRv6Provider Error AddConnectivity: %v", err)
 			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
 		}
 
 		steeringPrefix, err := ip_types.ParsePrefix(cn.Dst.String())
 		if err != nil {
-			p.log.Errorf("SRv6Provider Error ParsePrefix steering: %v", err)
-			return errors.Wrapf(err, "SRv6Provider ParsePrefix steering")
+			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
 		}
 		err = p.vpp.AddSRv6Steering(&types.SrSteer{
 			TrafficType: types.SR_STEER_IPV6,
@@ -109,8 +105,20 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 		})
 
 		if err != nil {
-			p.log.Errorf("SRv6Provider Error AddSRv6Steering: %v", err)
-			return errors.Wrapf(err, "SRv6Provider AddSRv6Steering")
+			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
+		}
+
+		_, sidDstIPNet, err := net.ParseCIDR(sidDst.String() + "/128")
+		if err != nil {
+			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
+		}
+
+		err = p.vpp.RouteAdd(&types.Route{
+			Dst:   sidDstIPNet,
+			Paths: []types.RoutePath{{Gw: cn.NextHop.To16(), SwIfIndex: config.DataInterfaceSwIfIndex}},
+		})
+		if err != nil {
+			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
 		}
 	}
 	return err
