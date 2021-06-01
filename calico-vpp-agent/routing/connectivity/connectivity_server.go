@@ -203,7 +203,6 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) string
 }
 
 func (s *ConnectivityServer) updateIPConnectivity(cn *common.NodeConnectivity, IsWithdraw bool) (err error) {
-	s.log.Infof("updateIPConnectivity %s %s", cn.String(), IsWithdraw)
 	var providerType string
 	if IsWithdraw {
 		oldCn, found := s.connectivityMap[cn.String()]
