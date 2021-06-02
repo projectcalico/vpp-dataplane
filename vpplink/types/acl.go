@@ -21,18 +21,34 @@ import (
 )
 
 type ACLRule struct {
-	Src   net.IPNet
-	Dst   net.IPNet
-	Proto IPProto
+	Src     net.IPNet
+	Dst     net.IPNet
+	SrcPort uint16
+	DstPort uint16
+	Proto   IPProto
 }
 
 func (r *ACLRule) ToVppACLRule() acl_types.ACLRule {
-	return acl_types.ACLRule{
-		IsPermit:  acl_types.ACL_ACTION_API_PERMIT,
-		SrcPrefix: ToVppPrefix(&r.Src),
-		DstPrefix: ToVppPrefix(&r.Dst),
-		Proto:     ToVppIPProto(r.Proto),
+	rule := acl_types.ACLRule{
+		IsPermit:               acl_types.ACL_ACTION_API_PERMIT,
+		SrcPrefix:              ToVppPrefix(&r.Src),
+		DstPrefix:              ToVppPrefix(&r.Dst),
+		Proto:                  ToVppIPProto(r.Proto),
+		SrcportOrIcmptypeFirst: r.SrcPort,
+		SrcportOrIcmptypeLast:  r.SrcPort,
+		DstportOrIcmpcodeFirst: r.DstPort,
+		DstportOrIcmpcodeLast:  r.DstPort,
 	}
+	if r.SrcPort == 0 {
+		rule.SrcportOrIcmptypeLast = ^uint16(0)
+	}
+	if r.DstPort == 0 {
+		rule.DstportOrIcmpcodeLast = ^uint16(0)
+	}
+	if AddrIsZeros(r.Src.IP) {
+		rule.SrcPrefix.Address.Af = rule.DstPrefix.Address.Af
+	}
+	return rule
 }
 
 type ACL struct {

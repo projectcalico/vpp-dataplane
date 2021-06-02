@@ -98,6 +98,8 @@ var (
 	felixVXLANMtu         int = 0
 	felixWireguardEnabled     = false
 	felixWireguardMtu     int = 0
+
+	ContainerSideMacAddress net.HardwareAddr
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
@@ -310,6 +312,12 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	if err != nil {
 		return err
 	}
+
+	hardwareAddr, err := net.ParseMAC(ContainerSideMacAddressString)
+	if err != nil {
+		return errors.Wrapf(err, "Unable to parse mac: %s", ContainerSideMacAddressString)
+	}
+	ContainerSideMacAddress = hardwareAddr
 
 	return nil
 }

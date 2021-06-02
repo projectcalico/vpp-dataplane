@@ -24,15 +24,9 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-const (
-	aclIdNS string = "aclID"
-)
-
 func (v *VppLink) AddACL(acl *types.ACL) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-
-	acl.ACLIndex = AllocateID(aclIdNS)
 
 	rules := make([]acl_types.ACLRule, 0, len(acl.Rules))
 	for _, aclRule := range acl.Rules {
@@ -41,7 +35,7 @@ func (v *VppLink) AddACL(acl *types.ACL) (err error) {
 
 	response := &vppacl.ACLAddReplaceReply{}
 	request := &vppacl.ACLAddReplace{
-		ACLIndex: acl.ACLIndex,
+		ACLIndex: ^uint32(0),
 		Tag:      acl.Tag,
 		R:        rules,
 		Count:    uint32(len(rules)),
@@ -52,6 +46,7 @@ func (v *VppLink) AddACL(acl *types.ACL) (err error) {
 	} else if response.Retval != 0 {
 		return fmt.Errorf("Add ACL failed with retval %d", response.Retval)
 	}
+	acl.ACLIndex = response.ACLIndex
 	return nil
 }
 
@@ -69,6 +64,5 @@ func (v *VppLink) DelACL(aclIndex uint32) (err error) {
 	} else if response.Retval != 0 {
 		return fmt.Errorf("Del ACL failed with retval %d", response.Retval)
 	}
-	FreeID(aclIdNS, aclIndex)
 	return nil
 }

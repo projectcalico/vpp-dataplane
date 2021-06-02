@@ -85,6 +85,15 @@ func IsV6toFibProto(isv6 bool) fib_types.FibPathNhProto {
 	return fib_types.FIB_API_PATH_NH_PROTO_IP4
 }
 
+func AddrIsZeros(p net.IP) bool {
+	for i := 0; i < len(p); i++ {
+		if p[i] != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *Route) IsIP6() bool {
 	if r.Dst != nil {
 		return IsIP6(r.Dst.IP)

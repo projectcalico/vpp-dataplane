@@ -132,6 +132,12 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 			ErrorMessage: err.Error(),
 		}, nil
 	}
+	if podSpec.NetnsName == "" {
+		s.log.Debugf("no netns passed, skipping")
+		return &pb.AddReply{
+			Successful: true,
+		}, nil
+	}
 
 	s.log.Infof("Add request %s", podSpec.String())
 	s.BarrierSync()
@@ -218,7 +224,13 @@ func (p *Server) OnVppRestart() {
 
 func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply, error) {
 	podSpec := NewLocalPodSpecFromDel(request)
-
+	// Only try to delete the device if a namespace was passed in.
+	if podSpec.NetnsName == "" {
+		s.log.Debugf("no netns passed, skipping")
+		return &pb.DelReply{
+			Successful: true,
+		}, nil
+	}
 	s.log.Infof("Del request %s", podSpec.Key())
 	s.BarrierSync()
 	s.lock.Lock()
@@ -266,15 +278,16 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 	}
 
 	server := &Server{
-		vpp:            v,
-		log:            l,
-		routingServer:  rs,
-		policyServer:   ps,
-		socketListener: lis,
-		client:         client,
-		grpcServer:     grpc.NewServer(),
-		tuntapDriver:   pod_interface.NewTunTapPodInterfaceDriver(v, l),
-		memifDriver:    pod_interface.NewMemifPodInterfaceDriver(v, l),
+		vpp:             v,
+		log:             l,
+		routingServer:   rs,
+		policyServer:    ps,
+		socketListener:  lis,
+		client:          client,
+		grpcServer:      grpc.NewServer(),
+		podInterfaceMap: make(map[string]storage.LocalPodSpec),
+		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(v, l),
+		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(v, l),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")

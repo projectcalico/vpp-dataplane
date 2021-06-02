@@ -23,11 +23,6 @@ import (
 
 // AddVppInterface performs the networking for the given config and IPAM result
 func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
-	if podSpec.NetnsName == "" {
-		s.log.Infof("no netns passed, skipping")
-		return 0, nil
-	}
-
 	podSpec.NeedsSnat = false
 	for _, containerIP := range podSpec.GetContainerIps() {
 		podSpec.NeedsSnat = podSpec.NeedsSnat || s.IPNetNeedsSNAT(containerIP)
@@ -39,9 +34,11 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		goto err1
 	}
 
-	_, err = s.memifDriver.Create(podSpec)
-	if err != nil {
-		goto err2
+	if podSpec.InterfaceType&storage.VppMemifInterface != 0 {
+		_, err = s.memifDriver.Create(podSpec)
+		if err != nil {
+			goto err2
+		}
 	}
 
 	for _, containerIP := range podSpec.GetContainerIps() {
@@ -60,18 +57,12 @@ err2:
 	s.memifDriver.Delete(podSpec)
 err1:
 	_ = s.tuntapDriver.Delete(podSpec)
-	return 0, errors.Wrapf(err, "Error creating interface")
+	return swIfIndex, errors.Wrapf(err, "Error creating interface")
 
 }
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
-	// Only try to delete the device if a namespace was passed in.
-	if podSpec.NetnsName == "" {
-		s.log.Infof("no netns passed, skipping")
-		return
-	}
-
 	containerIPs := s.tuntapDriver.Delete(podSpec)
 	for _, containerIP := range containerIPs {
 		s.routingServer.AnnounceLocalAddress(&containerIP, true /* isWithdrawal */)

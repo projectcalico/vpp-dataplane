@@ -25,7 +25,7 @@ import (
 )
 
 type MemifPodInterfaceDriver struct {
-	*PodInterfaceDriverData
+	PodInterfaceDriverData
 }
 
 func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifPodInterfaceDriver {
@@ -34,8 +34,40 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 	i.log = log
 	i.isL3 = false
 	i.name = "memif"
-	i.isMain = false
 	return i
+}
+
+func (i *MemifPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec) (swIfIndex uint32, err error) {
+	swIfIndex = i.SearchPodInterface(podSpec)
+	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
+		swIfIndex, err = i.AddPodInterfaceToVPP(podSpec)
+		if err != nil {
+			return vpplink.INVALID_SW_IF_INDEX, err
+		}
+	}
+	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex)
+	if err != nil {
+		return swIfIndex, err
+	}
+
+	err = i.DoPodAbfConfiguration(podSpec, swIfIndex)
+	// err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
+	if err != nil {
+		return swIfIndex, err
+	}
+	return swIfIndex, nil
+}
+
+func (i *MemifPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) {
+	swIfIndex := i.SearchPodInterface(podSpec)
+	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
+		i.log.Debugf("interface not found %s", podSpec.GetInterfaceTag(i.name))
+		return
+	}
+	i.UndoPodAbfConfiguration(swIfIndex)
+
+	i.UndoPodInterfaceConfiguration(swIfIndex)
+	i.DelPodInterfaceFromVPP(swIfIndex)
 }
 
 func (i *MemifPodInterfaceDriver) DelPodInterfaceFromVPP(swIfIndex uint32) {

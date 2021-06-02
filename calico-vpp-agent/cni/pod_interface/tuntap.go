@@ -32,7 +32,7 @@ import (
 )
 
 type TunTapPodInterfaceDriver struct {
-	*PodInterfaceDriverData
+	PodInterfaceDriverData
 }
 
 func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTapPodInterfaceDriver {
@@ -41,15 +41,27 @@ func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTa
 	i.log = log
 	i.isL3 = true
 	i.name = "tun"
-	i.isMain = true
 	return i
 }
 
 func (i *TunTapPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
-	swIfIndex, err = i.PodInterfaceDriverData.Create(podSpec)
+	swIfIndex = i.SearchPodInterface(podSpec)
+	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
+		swIfIndex, err = i.AddPodInterfaceToVPP(podSpec)
+		if err != nil {
+			return vpplink.INVALID_SW_IF_INDEX, err
+		}
+	}
+	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex)
 	if err != nil {
 		return swIfIndex, err
 	}
+	// if podSpec.InterfaceType&storage.VppMemifInterface == 0{
+	err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
+	if err != nil {
+		return swIfIndex, err
+	}
+	// }
 	if doHostSideConf {
 		err = i.configureLinux(podSpec, swIfIndex)
 		if err != nil {
@@ -61,8 +73,16 @@ func (i *TunTapPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, doHostS
 }
 
 func (i *TunTapPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) (containerIPs []net.IPNet) {
+	swIfIndex := i.SearchPodInterface(podSpec)
+	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
+		i.log.Debugf("interface not found %s", podSpec.GetInterfaceTag(i.name))
+		return
+	}
 	containerIPs = i.unconfigureLinux(podSpec)
-	i.PodInterfaceDriverData.Delete(podSpec)
+	i.UndoPodRoutesConfiguration(swIfIndex)
+
+	i.UndoPodInterfaceConfiguration(swIfIndex)
+	i.DelPodInterfaceFromVPP(swIfIndex)
 	return containerIPs
 
 }

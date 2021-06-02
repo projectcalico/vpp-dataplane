@@ -321,7 +321,7 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 			s.felixRestarted <- true
 			return
 		}
-		s.log.Infof("Got message from felix: %+v", msg)
+		s.log.Debugf("Got message from felix: %+v", msg)
 		switch m := msg.(type) {
 		case *proto.ConfigUpdate:
 			err = s.handleConfigUpdate(m)

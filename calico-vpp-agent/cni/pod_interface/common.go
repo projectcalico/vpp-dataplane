@@ -24,7 +24,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
-	"net"
 )
 
 type PodInterfaceDriverData struct {
@@ -33,20 +32,6 @@ type PodInterfaceDriverData struct {
 	isL3         bool
 	name         string
 	NDataThreads int
-	isMain       bool /*fixme*/
-}
-
-func getPodIPNet(swIfIndex uint32, isv6 bool) *net.IPNet {
-	if isv6 {
-		return &net.IPNet{
-			IP:   net.IP{0xfc, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(swIfIndex >> 24), byte(swIfIndex >> 16), byte(swIfIndex >> 8), byte(swIfIndex)},
-			Mask: net.CIDRMask(128, 128),
-		}
-	}
-	return &net.IPNet{
-		IP:   net.IPv4(byte(169), byte(254), byte(swIfIndex>>8), byte(swIfIndex)),
-		Mask: net.CIDRMask(32, 32),
-	}
 }
 
 func (i *PodInterfaceDriverData) SearchPodInterface(podSpec *storage.LocalPodSpec) (swIfIndex uint32) {
@@ -55,62 +40,11 @@ func (i *PodInterfaceDriverData) SearchPodInterface(podSpec *storage.LocalPodSpe
 	err, swIfIndex := i.vpp.SearchInterfaceWithTag(tag)
 	if err != nil {
 		i.log.Warnf("error searching interface with tag %s %s", tag, err)
-		return 0
+		return vpplink.INVALID_SW_IF_INDEX
 	} else if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
-		return 0
+		return vpplink.INVALID_SW_IF_INDEX
 	}
 	return swIfIndex
-}
-
-func (i *PodInterfaceDriverData) AddPodInterfaceToVPP(podSpec *storage.LocalPodSpec) (swIfIndex uint32, err error) {
-	i.log.Panicf("No Implemented")
-	return 0, nil
-}
-
-func (i *PodInterfaceDriverData) DelPodInterfaceFromVPP(swIfIndex uint32) {
-	i.log.Panicf("No Implemented")
-	return
-}
-
-func (i *PodInterfaceDriverData) Create(podSpec *storage.LocalPodSpec) (swIfIndex uint32, err error) {
-	swIfIndex = i.SearchPodInterface(podSpec)
-	if swIfIndex != 0 {
-		swIfIndex, err = i.AddPodInterfaceToVPP(podSpec)
-		if err != nil {
-			return 0, err
-		}
-	}
-	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex)
-	if err != nil {
-		return swIfIndex, err
-	}
-	if i.isMain {
-		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
-		if err != nil {
-			return swIfIndex, err
-		}
-	} else {
-		err = i.DoPodAbfConfiguration(podSpec, swIfIndex)
-		if err != nil {
-			return swIfIndex, err
-		}
-	}
-	return swIfIndex, nil
-}
-
-func (i *PodInterfaceDriverData) Delete(podSpec *storage.LocalPodSpec) {
-	swIfIndex := i.SearchPodInterface(podSpec)
-	if swIfIndex == 0 {
-		i.log.Debugf("interface not found %s", podSpec.GetInterfaceTag(i.name))
-		return
-	}
-	if i.isMain {
-		i.UndoPodRoutesConfiguration(swIfIndex)
-	} else {
-		i.UndoPodAbfConfiguration(swIfIndex)
-	}
-	i.UndoPodInterfaceConfiguration(swIfIndex)
-	i.DelPodInterfaceFromVPP(swIfIndex)
 }
 
 func (i *PodInterfaceDriverData) delPodInterfaceHandleRoutes(swIfIndex uint32, isIPv6 bool) error {
@@ -157,6 +91,8 @@ func (i *PodInterfaceDriverData) delPodInterfaceHandleRoutes(swIfIndex uint32, i
 
 func (i *PodInterfaceDriverData) UndoPodAbfConfiguration(swIfIndex uint32) {
 	/*FIXME*/
+	// i.vpp.DelACL
+
 }
 
 func (i *PodInterfaceDriverData) UndoPodRoutesConfiguration(swIfIndex uint32) {
@@ -183,13 +119,56 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 	}
 }
 
-func (i *PodInterfaceDriverData) DoPodAbfConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) error {
+func (i *PodInterfaceDriverData) DoPodAbfConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) (err error) {
+	rules := make([]types.ACLRule, 0)
+	paths := make([]types.RoutePath, 0)
+	for _, containerIP := range podSpec.GetContainerIps() {
+		err = i.vpp.AddNeighbor(&types.Neighbor{
+			SwIfIndex:    swIfIndex,
+			IP:           containerIP.IP, //getPodIPNet(swIfIndex, false /* isv6 */).IP,
+			HardwareAddr: config.ContainerSideMacAddress,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Cannot add neighbor in VPP")
+		}
+		paths = append(paths, types.RoutePath{
+			SwIfIndex: swIfIndex,
+			Gw:        containerIP.IP,
+		})
+		rules = append(rules, types.ACLRule{
+			Dst:     *containerIP,
+			Proto:   types.TCP, // FIXME
+			DstPort: 1234,      // FIXME
+		})
+	}
+
+	acl := types.ACL{Rules: rules}
+	err = i.vpp.AddACL(&acl)
+	if err != nil {
+		return errors.Wrapf(err, "error adding ACL")
+	}
+
+	abfPolicy := types.AbfPolicy{
+		AclIndex: acl.ACLIndex,
+		Paths:    paths,
+	}
+	err = i.vpp.AddAbfPolicy(&abfPolicy)
+	if err != nil {
+		return errors.Wrapf(err, "error adding ABF rule")
+	}
+
+	/* FIXME */
+	err = i.vpp.AttachAbfPolicy(abfPolicy.PolicyID, uint32(1), false /*isv6*/)
+	if err != nil {
+		return errors.Wrapf(err, "error attaching ABF rule")
+	}
 	return nil
 }
 
 func (i *PodInterfaceDriverData) DoPodRoutesConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) error {
 	// Now that the host side of the veth is moved, state set to UP, and configured with sysctls, we can add the routes to it in the host namespace.
 	if i.isL3 {
+		i.log.Infof("Adding route %s if%d", podSpec.GetContainerIps(), swIfIndex)
 		err := i.vpp.RoutesAdd(podSpec.GetContainerIps(), &types.RoutePath{
 			SwIfIndex: swIfIndex,
 		})
@@ -198,43 +177,24 @@ func (i *PodInterfaceDriverData) DoPodRoutesConfiguration(podSpec *storage.Local
 		}
 		return nil
 	}
+
 	for _, containerIP := range podSpec.GetContainerIps() {
-		addr := getPodIPNet(swIfIndex, types.IsIP6(containerIP.IP))
+		i.log.Infof("Adding L2 route %s if%d", containerIP, swIfIndex)
 		route := types.Route{
-			Dst: containerIP,
+			Table: gcommon.PodVRFIndex,
+			Dst:   containerIP,
 			Paths: []types.RoutePath{{
 				SwIfIndex: swIfIndex,
-				Gw:        addr.IP,
 			}},
 		}
 		err := i.vpp.RouteAdd(&route)
 		if err != nil {
 			return errors.Wrapf(err, "Cannot add route in VPP")
 		}
-	}
-	hardwareAddr, err := net.ParseMAC(config.ContainerSideMacAddressString)
-	if err != nil {
-		return errors.Wrapf(err, "Unable to parse mac: %s", config.ContainerSideMacAddressString)
-	}
-
-	hasv4, hasv6 := podSpec.Hasv46()
-	if hasv4 {
 		err = i.vpp.AddNeighbor(&types.Neighbor{
 			SwIfIndex:    swIfIndex,
-			IP:           getPodIPNet(swIfIndex, false /* isv6 */).IP,
-			HardwareAddr: hardwareAddr,
-			Flags:        types.IPNeighborStatic,
-		})
-		if err != nil {
-			return errors.Wrapf(err, "Cannot add neighbor in VPP")
-		}
-	}
-	if hasv6 {
-		err = i.vpp.AddNeighbor(&types.Neighbor{
-			SwIfIndex:    swIfIndex,
-			IP:           getPodIPNet(swIfIndex, true /* isv6 */).IP,
-			HardwareAddr: hardwareAddr,
-			Flags:        types.IPNeighborStatic,
+			IP:           containerIP.IP,
+			HardwareAddr: config.ContainerSideMacAddress,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "Cannot add neighbor in VPP")
@@ -260,34 +220,20 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		return errors.Wrapf(err, "error setting vpp tun %d in pod vrf", swIfIndex)
 	}
 
-	hasv4, hasv6 := podSpec.Hasv46()
-	if i.isL3 {
-		err = i.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
-		if err != nil {
-			return errors.Wrapf(err, "error setting vpp tun %d unnumbered", swIfIndex)
-		}
-	} else {
+	err = i.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+	if err != nil {
+		return errors.Wrapf(err, "error setting vpp if[%d] unnumbered", swIfIndex)
+	}
+
+	if !i.isL3 {
 		/* L2 */
 		err = i.vpp.SetPromiscOn(swIfIndex)
 		if err != nil {
 			return errors.Wrapf(err, "Error setting memif promisc")
 		}
-		if hasv4 {
-			addr := getPodIPNet(swIfIndex, false /* isv6 */)
-			err = i.vpp.AddInterfaceAddress(swIfIndex, addr)
-			if err != nil {
-				return errors.Wrapf(err, "error setting vpp if[%d] address %s", swIfIndex, addr)
-			}
-		}
-		if hasv6 {
-			addr := getPodIPNet(swIfIndex, true /* isv6 */)
-			err = i.vpp.AddInterfaceAddress(swIfIndex, addr)
-			if err != nil {
-				return errors.Wrapf(err, "error setting vpp if[%d] address %s", swIfIndex, addr)
-			}
-		}
 	}
 
+	hasv4, hasv6 := podSpec.Hasv46()
 	if hasv4 && podSpec.NeedsSnat {
 		i.log.Infof("Enable tun[%d] SNAT v4", swIfIndex)
 		err = i.vpp.EnableCnatSNAT(swIfIndex, false)
