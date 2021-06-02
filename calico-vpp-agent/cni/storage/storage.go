@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 const (
@@ -45,16 +46,14 @@ type LocalIP struct {
 	IP net.IP `struc:"[16]byte"`
 }
 
-type VppInterfaceType int
+type VppInterfaceType uint8
 
 const (
-	VppTunInterface   = VppInterfaceType(1 << 0)
-	VppMemifInterface = VppInterfaceType(1 << 1)
-	VppVCLInterface   = VppInterfaceType(1 << 2)
+	VppTun   VppInterfaceType = iota
+	VppMemif VppInterfaceType = iota
 
-	VppTunIfAnnotation = "vpp-tun"
-	VppMemifAnnotation = "vpp-memif"
-	VppVCLAnnotation   = "vpp-vcl"
+	VppTunName   = "tun"
+	VppMemifName = "memif"
 )
 
 func (n *LocalIPNet) String() string {
@@ -117,6 +116,12 @@ func (ps *LocalPodSpec) FullString() string {
 	)
 }
 
+type LocalIfPortConfigs struct {
+	Port   uint16
+	Proto  types.IPProto
+	IfType VppInterfaceType
+}
+
 // XXX: Increment CniServerStateFileVersion when changing this struct
 type LocalPodSpec struct {
 	InterfaceNameSize int `struc:"int16,sizeof=InterfaceName"`
@@ -138,9 +143,24 @@ type LocalPodSpec struct {
 	EndpointIDSize     int `struc:"int16,sizeof=EndpointID"`
 	EndpointID         string
 
+	IfPortConfigsLen int `struc:"int16,sizeof=IfPortConfigs"`
+	IfPortConfigs    []LocalIfPortConfigs
+	DefaultIfType    VppInterfaceType
+
 	/* Caching */
-	NeedsSnat     bool
-	InterfaceType VppInterfaceType
+	NeedsSnat bool
+}
+
+func (ps *LocalPodSpec) HasIfType(ifType VppInterfaceType) bool {
+	if ifType == ps.DefaultIfType {
+		return true
+	}
+	for _, pc := range ps.IfPortConfigs {
+		if ifType == pc.IfType {
+			return true
+		}
+	}
+	return false
 }
 
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {

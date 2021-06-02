@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 
 RUN apt-get update && apt-get install -y \
-  curl xz-utils python3 python3-pip gcc make
+  curl xz-utils python3 python3-pip gcc make libnuma-dev numactl
 RUN pip3 install meson pyelftools ninja
 
 ADD patches/* /tmp/dpdk/patches/

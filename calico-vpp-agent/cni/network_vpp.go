@@ -34,7 +34,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		goto err1
 	}
 
-	if podSpec.InterfaceType&storage.VppMemifInterface != 0 {
+	if podSpec.HasIfType(storage.VppMemif) {
 		_, err = s.memifDriver.Create(podSpec)
 		if err != nil {
 			goto err2

@@ -33,7 +33,8 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 	i.vpp = vpp
 	i.log = log
 	i.isL3 = false
-	i.name = "memif"
+	i.name = storage.VppMemifName
+	i.IfType = storage.VppMemif
 	return i
 }
 
@@ -50,8 +51,11 @@ func (i *MemifPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec) (swIfInd
 		return swIfIndex, err
 	}
 
-	err = i.DoPodAbfConfiguration(podSpec, swIfIndex)
-	// err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
+	if i.IfType == podSpec.DefaultIfType {
+		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
+	} else {
+		err = i.DoPodAbfConfiguration(podSpec, swIfIndex)
+	}
 	if err != nil {
 		return swIfIndex, err
 	}

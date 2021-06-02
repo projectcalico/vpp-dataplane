@@ -16,7 +16,9 @@
 package types
 
 import (
+	"fmt"
 	"net"
+	"strings"
 
 	"golang.org/x/sys/unix"
 
@@ -78,6 +80,23 @@ func formatProto(proto IPProto) string {
 		return "ICMP6"
 	default:
 		return "???"
+	}
+}
+
+func UnformatProto(proto string) (IPProto, error) {
+	switch strings.ToUpper(proto) {
+	case "UDP":
+		return UDP, nil
+	case "TCP":
+		return TCP, nil
+	case "SCTP":
+		return SCTP, nil
+	case "ICMP":
+		return ICMP, nil
+	case "ICMP6":
+		return ICMP6, nil
+	default:
+		return IPProto(0), fmt.Errorf("unknown proto %s", proto)
 	}
 }
 

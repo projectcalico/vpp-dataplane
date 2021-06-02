@@ -19,6 +19,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -31,6 +33,7 @@ import (
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"k8s.io/client-go/kubernetes"
@@ -57,26 +60,7 @@ func swIfIdxToIfName(idx uint32) string {
 	return fmt.Sprintf("vpp-tun-%d", idx)
 }
 
-func GetInterfaceType(request *pb.AddRequest) storage.VppInterfaceType {
-	ifType := storage.VppTunInterface
-	workload := request.GetWorkload()
-	if workload == nil {
-		return ifType
-	}
-	for k, _ := range workload.Annotations {
-		switch k {
-		case storage.VppTunIfAnnotation:
-			ifType = ifType | storage.VppTunInterface
-		case storage.VppMemifAnnotation:
-			ifType = ifType | storage.VppMemifInterface
-		case storage.VppVCLAnnotation:
-			ifType = ifType | storage.VppVCLInterface
-		}
-	}
-	return ifType
-}
-
-func NewLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, error) {
+func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, error) {
 	podSpec := storage.LocalPodSpec{
 		InterfaceName:     request.GetInterfaceName(),
 		NetnsName:         request.GetNetns(),
@@ -84,7 +68,9 @@ func NewLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, erro
 		Routes:            make([]storage.LocalIPNet, 0),
 		ContainerIps:      make([]storage.LocalIP, 0),
 		Mtu:               int(request.GetSettings().GetMtu()),
-		InterfaceType:     GetInterfaceType(request),
+
+		IfPortConfigs: make([]storage.LocalIfPortConfigs, 0),
+		DefaultIfType: storage.VppTun,
 
 		OrchestratorID: request.Workload.Orchestrator,
 		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
@@ -109,7 +95,44 @@ func NewLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, erro
 		// for a tun it doesn't make sense
 		podSpec.ContainerIps = append(podSpec.ContainerIps, storage.LocalIP{IP: containerIp})
 	}
-
+	workload := request.GetWorkload()
+	if workload != nil {
+		for k, v := range workload.Annotations {
+			var ifType storage.VppInterfaceType
+			switch v {
+			case "memif":
+				ifType = storage.VppMemif
+			case "tun":
+				ifType = storage.VppTun
+			default:
+				continue
+			}
+			if k == "all" {
+				podSpec.DefaultIfType = ifType
+				continue
+			}
+			parts := strings.Split(k, "-") /* tcp-1234 */
+			if len(parts) != 2 {
+				s.log.Warnf("Error parsing %s", k)
+				continue
+			}
+			proto, err := types.UnformatProto(parts[0])
+			if err != nil {
+				s.log.Warnf("Error parsing %s %s", k, err)
+				continue
+			}
+			port, err := strconv.ParseInt(parts[1], 10, 32)
+			if err != nil {
+				s.log.Warnf("Error parsing port %s %s", k, err)
+				continue
+			}
+			podSpec.IfPortConfigs = append(podSpec.IfPortConfigs, storage.LocalIfPortConfigs{
+				Port:   uint16(port),
+				Proto:  proto,
+				IfType: ifType,
+			})
+		}
+	}
 	return &podSpec, nil
 }
 
@@ -124,7 +147,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	if request.GetDesiredHostInterfaceName() != "" {
 		s.log.Warn("Desired host side interface name passed, this is not supported with VPP, ignoring it")
 	}
-	podSpec, err := NewLocalPodSpecFromAdd(request)
+	podSpec, err := s.newLocalPodSpecFromAdd(request)
 	if err != nil {
 		s.log.Errorf("Error parsing interface add request %v %v", request, err)
 		return &pb.AddReply{

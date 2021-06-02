@@ -40,7 +40,8 @@ func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTa
 	i.vpp = vpp
 	i.log = log
 	i.isL3 = true
-	i.name = "tun"
+	i.name = storage.VppTunName
+	i.IfType = storage.VppTun
 	return i
 }
 
@@ -56,12 +57,15 @@ func (i *TunTapPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, doHostS
 	if err != nil {
 		return swIfIndex, err
 	}
-	// if podSpec.InterfaceType&storage.VppMemifInterface == 0{
-	err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
+
+	if i.IfType == podSpec.DefaultIfType {
+		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
+	} else {
+		err = i.DoPodAbfConfiguration(podSpec, swIfIndex)
+	}
 	if err != nil {
 		return swIfIndex, err
 	}
-	// }
 	if doHostSideConf {
 		err = i.configureLinux(podSpec, swIfIndex)
 		if err != nil {

@@ -1,5 +1,5 @@
 diff --git a/drivers/net/memif/memif_socket.c b/drivers/net/memif/memif_socket.c
-index 5b373738e..4b7201eb8 100644
+index 5b373738e..43665b9e3 100644
 --- a/drivers/net/memif/memif_socket.c
 +++ b/drivers/net/memif/memif_socket.c
 @@ -1061,6 +1061,7 @@ memif_connect_client(struct rte_eth_dev *dev)
@@ -10,7 +10,7 @@ index 5b373738e..4b7201eb8 100644
  	struct sockaddr_un sun = { 0 };
  	struct pmd_internals *pmd = dev->data->dev_private;
  
-@@ -1075,16 +1076,18 @@ memif_connect_client(struct rte_eth_dev *dev)
+@@ -1075,16 +1076,17 @@ memif_connect_client(struct rte_eth_dev *dev)
  	}
  
  	sun.sun_family = AF_UNIX;
@@ -18,15 +18,14 @@ index 5b373738e..4b7201eb8 100644
  	if (pmd->flags & ETH_MEMIF_FLAG_SOCKET_ABSTRACT) {
  		/* abstract address */
  		sun.sun_path[0] = '\0';
-+		sunlen = strlen(pmd->socket_filename) + 3;
  		strlcpy(sun.sun_path + 1,  pmd->socket_filename, MEMIF_SOCKET_UN_SIZE - 1);
++		sunlen = strlen(pmd->socket_filename) + 1 + sizeof(sun.sun_family);
  	} else {
  		strlcpy(sun.sun_path,  pmd->socket_filename, MEMIF_SOCKET_UN_SIZE);
  	}
  
 -	ret = connect(sockfd, (struct sockaddr *)&sun,
 -		      sizeof(struct sockaddr_un));
-+	MIF_LOG(ERR, "connect socket: %s (sunlen %d) %lu %lu", pmd->socket_filename, sunlen, strlen(pmd->socket_filename), sizeof(sun));
 +	ret = connect(sockfd, (struct sockaddr *)&sun, sunlen);
  	if (ret < 0) {
  		MIF_LOG(ERR, "Failed to connect socket: %s.", pmd->socket_filename);
