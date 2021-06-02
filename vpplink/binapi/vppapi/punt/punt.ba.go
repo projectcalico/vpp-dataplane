@@ -226,7 +226,7 @@ type PuntSocketDeregister struct {
 
 func (m *PuntSocketDeregister) Reset()               { *m = PuntSocketDeregister{} }
 func (*PuntSocketDeregister) GetMessageName() string { return "punt_socket_deregister" }
-func (*PuntSocketDeregister) GetCrcString() string   { return "98a444f4" }
+func (*PuntSocketDeregister) GetCrcString() string   { return "98fc9102" }
 func (*PuntSocketDeregister) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -296,7 +296,7 @@ type PuntSocketDetails struct {
 
 func (m *PuntSocketDetails) Reset()               { *m = PuntSocketDetails{} }
 func (*PuntSocketDetails) GetMessageName() string { return "punt_socket_details" }
-func (*PuntSocketDetails) GetCrcString() string   { return "1de0ce75" }
+func (*PuntSocketDetails) GetCrcString() string   { return "de575080" }
 func (*PuntSocketDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -370,7 +370,7 @@ type PuntSocketRegister struct {
 
 func (m *PuntSocketRegister) Reset()               { *m = PuntSocketRegister{} }
 func (*PuntSocketRegister) GetMessageName() string { return "punt_socket_register" }
-func (*PuntSocketRegister) GetCrcString() string   { return "c8cd10fa" }
+func (*PuntSocketRegister) GetCrcString() string   { return "95268cbf" }
 func (*PuntSocketRegister) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -450,7 +450,7 @@ type SetPunt struct {
 
 func (m *SetPunt) Reset()               { *m = SetPunt{} }
 func (*SetPunt) GetMessageName() string { return "set_punt" }
-func (*SetPunt) GetCrcString() string   { return "83799618" }
+func (*SetPunt) GetCrcString() string   { return "aa83d523" }
 func (*SetPunt) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -519,13 +519,13 @@ func init() { file_punt_binapi_init() }
 func file_punt_binapi_init() {
 	api.RegisterMessage((*PuntReasonDetails)(nil), "punt_reason_details_2c9d4a40")
 	api.RegisterMessage((*PuntReasonDump)(nil), "punt_reason_dump_5c0dd4fe")
-	api.RegisterMessage((*PuntSocketDeregister)(nil), "punt_socket_deregister_98a444f4")
+	api.RegisterMessage((*PuntSocketDeregister)(nil), "punt_socket_deregister_98fc9102")
 	api.RegisterMessage((*PuntSocketDeregisterReply)(nil), "punt_socket_deregister_reply_e8d4e804")
-	api.RegisterMessage((*PuntSocketDetails)(nil), "punt_socket_details_1de0ce75")
+	api.RegisterMessage((*PuntSocketDetails)(nil), "punt_socket_details_de575080")
 	api.RegisterMessage((*PuntSocketDump)(nil), "punt_socket_dump_52974935")
-	api.RegisterMessage((*PuntSocketRegister)(nil), "punt_socket_register_c8cd10fa")
+	api.RegisterMessage((*PuntSocketRegister)(nil), "punt_socket_register_95268cbf")
 	api.RegisterMessage((*PuntSocketRegisterReply)(nil), "punt_socket_register_reply_bd30ae90")
-	api.RegisterMessage((*SetPunt)(nil), "set_punt_83799618")
+	api.RegisterMessage((*SetPunt)(nil), "set_punt_aa83d523")
 	api.RegisterMessage((*SetPuntReply)(nil), "set_punt_reply_e8d4e804")
 }
 
