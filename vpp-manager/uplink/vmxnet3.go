@@ -94,7 +94,7 @@ func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int)
 		TxqNum:    d.params.NumTxQueues,
 		EnableGso: d.params.EnableGSO,
 	}
-	
+
 	swIfIndex, err := vpp.CreateVmxnet3(d.conf.PciId, MyInfo)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating Vmxnet3 interface")

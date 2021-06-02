@@ -25,11 +25,11 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vmxnet3"
 )
 
-type Vmxnet3Info struct{  
-	RxqNum  int   
-	RxqSize int   
-	TxqSize int   
-	TxqNum int
+type Vmxnet3Info struct {
+	RxqNum    int
+	RxqSize   int
+	TxqSize   int
+	TxqNum    int
 	EnableGso bool
 }
 
@@ -71,18 +71,17 @@ func GetPciIdInt(PciIdStr string) (id uint32, err error) {
 func (v *VppLink) CreateVmxnet3(addr string, vmxnet3Info Vmxnet3Info) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	response := &vmxnet3.Vmxnet3CreateReply{
-	}
+	response := &vmxnet3.Vmxnet3CreateReply{}
 	pci, err := GetPciIdInt(addr)
 	if err != nil {
 		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateVmxnet3 error parsing PCI id")
 	}
 	request := &vmxnet3.Vmxnet3Create{
-		PciAddr: pci,
-		RxqNum: uint16(vmxnet3Info.RxqNum),
-		RxqSize: uint16(vmxnet3Info.RxqSize),
-		TxqSize: uint16(vmxnet3Info.TxqSize),
-		TxqNum: uint16(vmxnet3Info.TxqNum),
+		PciAddr:   pci,
+		RxqNum:    uint16(vmxnet3Info.RxqNum),
+		RxqSize:   uint16(vmxnet3Info.RxqSize),
+		TxqSize:   uint16(vmxnet3Info.TxqSize),
+		TxqNum:    uint16(vmxnet3Info.TxqNum),
 		EnableGso: vmxnet3Info.EnableGso,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)

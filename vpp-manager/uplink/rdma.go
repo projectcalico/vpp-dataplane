@@ -68,8 +68,8 @@ func (d *RDMADriver) RestoreLinux() {
 func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 
 	swIfIndex, err := vpp.CreateRDMA(&types.RDMAInterface{
-		HostIf: d.params.MainInterface,
-		RxqNum: d.params.NumRxQueues,
+		HostIf:  d.params.MainInterface,
+		RxqNum:  d.params.NumRxQueues,
 		RxqSize: d.params.RxQueueSize,
 		TxqSize: d.params.TxQueueSize,
 	})

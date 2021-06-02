@@ -31,7 +31,7 @@ type CnatLbType uint8
 
 const (
 	DefaultLB = CnatLbType(cnat.CNAT_LB_TYPE_DEFAULT)
-	MaglevLB = CnatLbType(cnat.CNAT_LB_TYPE_MAGLEV)
+	MaglevLB  = CnatLbType(cnat.CNAT_LB_TYPE_MAGLEV)
 )
 
 type CnatEndpoint struct {
@@ -49,7 +49,7 @@ func (e *CnatEndpoint) String() string {
 type CnatEndpointTuple struct {
 	SrcEndpoint CnatEndpoint
 	DstEndpoint CnatEndpoint
-	Flags uint8
+	Flags       uint8
 }
 
 func (t *CnatEndpointTuple) String() string {
