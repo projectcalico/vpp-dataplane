@@ -1,34 +1,17 @@
-<<<<<<< HEAD
-VPP Version                 : 21.06-rc0~565-gf8ba3e0e6
-=======
-VPP Version                 : 21.06-rc0~791-gd76c2e3c4
->>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
+VPP Version                 : 21.06-rc0~565-g1f3e0c661
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : af073546e tls: prealloc chunks for dtls dgram enq
+VPP Base commit             : cf0e257dc vcl: validate fs before cleanup
 ------------------ Cherry picked commits --------------------
-<<<<<<< HEAD
-f8ba3e0e6 capo: Calico Policies plugin
-99116f3e7 acl: acl-plugin custom policies
-c30df51f2 cnat: fix cnat feature partial cksum
-d81d48a5c cnat: [WIP] no k8s maglev from pods
-f7c8e617a ip6-nd: silent the source and target checks on given interface
-ec7afe5dd vxlan: Fix L3 mode
-d4470bbc9 punt: ensure ttl doesn't decrease to 0 when punting
-bb016a937 vpp: Fix session flag initialization
-4822745b4 gso: do not try gro on small packets
-73fac4f03 devices: add support for pseudo header checksum
-414ef0dec virtio: DRAFT: multi tx support
-14cc662fc vnet: fix offload flags handling
-=======
-d76c2e3c4 capo: Calico Policies plugin
-3496a945e acl: acl-plugin custom policies
-b55ca8323 cnat: [WIP] no k8s maglev from pods
-4ef1290c7 ip6-nd: silent the source and target checks on given interface
-6ee976299 virtio: Still init unused txq
-f2976defc virtio: compute cksums in output no offload
-1e7cc03fb gso: handle push flag in gro
-6580a8b0f gso: do not try gro on small packets
-5cd625108 devices: add support for pseudo header checksum
-451259ca3 virtio: DRAFT: multi tx support
->>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
+1f3e0c661 capo: Calico Policies plugin
+b8b95607e acl: acl-plugin custom policies
+c3d08a2e0 cnat: fix cnat feature partial cksum
+144da35d6 cnat: [WIP] no k8s maglev from pods
+1e6ef7fc9 ip6-nd: silent the source and target checks on given interface
+797606a61 vxlan: Fix L3 mode
+950c448d7 punt: ensure ttl doesn't decrease to 0 when punting
+94f41b32a vpp: Fix session flag initialization
+78575ce99 gso: do not try gro on small packets
+695cb171a devices: add support for pseudo header checksum
+516a4621d virtio: DRAFT: multi tx support
+acf580c58 vnet: fix offload flags handling
 -------------------------------------------------------------

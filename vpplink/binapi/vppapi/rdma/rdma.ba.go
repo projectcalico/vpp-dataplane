@@ -3,13 +3,8 @@
 // Package rdma contains generated bindings for API file rdma.api.
 //
 // Contents:
-<<<<<<< HEAD
 //   1 enum
 //   6 messages
-=======
-//   3 enums
-//   8 messages
->>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
 //
 package rdma
 
@@ -29,13 +24,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "rdma"
-<<<<<<< HEAD
 	APIVersion = "2.0.0"
 	VersionCrc = 0xd65e7dc4
-=======
-	APIVersion = "3.0.0"
-	VersionCrc = 0xdab70fa9
->>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
 )
 
 // RdmaMode defines enum 'rdma_mode'.
@@ -68,75 +58,6 @@ func (x RdmaMode) String() string {
 	return "RdmaMode(" + strconv.Itoa(int(x)) + ")"
 }
 
-<<<<<<< HEAD
-=======
-// RdmaRss4 defines enum 'rdma_rss4'.
-type RdmaRss4 uint32
-
-const (
-	RDMA_API_RSS4_AUTO   RdmaRss4 = 0
-	RDMA_API_RSS4_IP     RdmaRss4 = 1
-	RDMA_API_RSS4_IP_UDP RdmaRss4 = 2
-	RDMA_API_RSS4_IP_TCP RdmaRss4 = 3
-)
-
-var (
-	RdmaRss4_name = map[uint32]string{
-		0: "RDMA_API_RSS4_AUTO",
-		1: "RDMA_API_RSS4_IP",
-		2: "RDMA_API_RSS4_IP_UDP",
-		3: "RDMA_API_RSS4_IP_TCP",
-	}
-	RdmaRss4_value = map[string]uint32{
-		"RDMA_API_RSS4_AUTO":   0,
-		"RDMA_API_RSS4_IP":     1,
-		"RDMA_API_RSS4_IP_UDP": 2,
-		"RDMA_API_RSS4_IP_TCP": 3,
-	}
-)
-
-func (x RdmaRss4) String() string {
-	s, ok := RdmaRss4_name[uint32(x)]
-	if ok {
-		return s
-	}
-	return "RdmaRss4(" + strconv.Itoa(int(x)) + ")"
-}
-
-// RdmaRss6 defines enum 'rdma_rss6'.
-type RdmaRss6 uint32
-
-const (
-	RDMA_API_RSS6_AUTO   RdmaRss6 = 0
-	RDMA_API_RSS6_IP     RdmaRss6 = 1
-	RDMA_API_RSS6_IP_UDP RdmaRss6 = 2
-	RDMA_API_RSS6_IP_TCP RdmaRss6 = 3
-)
-
-var (
-	RdmaRss6_name = map[uint32]string{
-		0: "RDMA_API_RSS6_AUTO",
-		1: "RDMA_API_RSS6_IP",
-		2: "RDMA_API_RSS6_IP_UDP",
-		3: "RDMA_API_RSS6_IP_TCP",
-	}
-	RdmaRss6_value = map[string]uint32{
-		"RDMA_API_RSS6_AUTO":   0,
-		"RDMA_API_RSS6_IP":     1,
-		"RDMA_API_RSS6_IP_UDP": 2,
-		"RDMA_API_RSS6_IP_TCP": 3,
-	}
-)
-
-func (x RdmaRss6) String() string {
-	s, ok := RdmaRss6_name[uint32(x)]
-	if ok {
-		return s
-	}
-	return "RdmaRss6(" + strconv.Itoa(int(x)) + ")"
-}
-
->>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
 // RdmaCreate defines message 'rdma_create'.
 type RdmaCreate struct {
 	HostIf  string   `binapi:"string[64],name=host_if" json:"host_if,omitempty"`
@@ -325,115 +246,6 @@ func (m *RdmaCreateV2Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
-<<<<<<< HEAD
-=======
-// RdmaCreateV3 defines message 'rdma_create_v3'.
-type RdmaCreateV3 struct {
-	HostIf     string   `binapi:"string[64],name=host_if" json:"host_if,omitempty"`
-	Name       string   `binapi:"string[64],name=name" json:"name,omitempty"`
-	RxqNum     uint16   `binapi:"u16,name=rxq_num,default=1" json:"rxq_num,omitempty"`
-	RxqSize    uint16   `binapi:"u16,name=rxq_size,default=1024" json:"rxq_size,omitempty"`
-	TxqSize    uint16   `binapi:"u16,name=txq_size,default=1024" json:"txq_size,omitempty"`
-	Mode       RdmaMode `binapi:"rdma_mode,name=mode,default=0" json:"mode,omitempty"`
-	NoMultiSeg bool     `binapi:"bool,name=no_multi_seg,default=0" json:"no_multi_seg,omitempty"`
-	MaxPktlen  uint16   `binapi:"u16,name=max_pktlen,default=0" json:"max_pktlen,omitempty"`
-	Rss4       RdmaRss4 `binapi:"rdma_rss4,name=rss4,default=0" json:"rss4,omitempty"`
-	Rss6       RdmaRss6 `binapi:"rdma_rss6,name=rss6,default=0" json:"rss6,omitempty"`
-}
-
-func (m *RdmaCreateV3) Reset()               { *m = RdmaCreateV3{} }
-func (*RdmaCreateV3) GetMessageName() string { return "rdma_create_v3" }
-func (*RdmaCreateV3) GetCrcString() string   { return "c6287ea8" }
-func (*RdmaCreateV3) GetMessageType() api.MessageType {
-	return api.RequestMessage
-}
-
-func (m *RdmaCreateV3) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 64 // m.HostIf
-	size += 64 // m.Name
-	size += 2  // m.RxqNum
-	size += 2  // m.RxqSize
-	size += 2  // m.TxqSize
-	size += 4  // m.Mode
-	size += 1  // m.NoMultiSeg
-	size += 2  // m.MaxPktlen
-	size += 4  // m.Rss4
-	size += 4  // m.Rss6
-	return size
-}
-func (m *RdmaCreateV3) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeString(m.HostIf, 64)
-	buf.EncodeString(m.Name, 64)
-	buf.EncodeUint16(m.RxqNum)
-	buf.EncodeUint16(m.RxqSize)
-	buf.EncodeUint16(m.TxqSize)
-	buf.EncodeUint32(uint32(m.Mode))
-	buf.EncodeBool(m.NoMultiSeg)
-	buf.EncodeUint16(m.MaxPktlen)
-	buf.EncodeUint32(uint32(m.Rss4))
-	buf.EncodeUint32(uint32(m.Rss6))
-	return buf.Bytes(), nil
-}
-func (m *RdmaCreateV3) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.HostIf = buf.DecodeString(64)
-	m.Name = buf.DecodeString(64)
-	m.RxqNum = buf.DecodeUint16()
-	m.RxqSize = buf.DecodeUint16()
-	m.TxqSize = buf.DecodeUint16()
-	m.Mode = RdmaMode(buf.DecodeUint32())
-	m.NoMultiSeg = buf.DecodeBool()
-	m.MaxPktlen = buf.DecodeUint16()
-	m.Rss4 = RdmaRss4(buf.DecodeUint32())
-	m.Rss6 = RdmaRss6(buf.DecodeUint32())
-	return nil
-}
-
-// RdmaCreateV3Reply defines message 'rdma_create_v3_reply'.
-type RdmaCreateV3Reply struct {
-	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
-	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
-}
-
-func (m *RdmaCreateV3Reply) Reset()               { *m = RdmaCreateV3Reply{} }
-func (*RdmaCreateV3Reply) GetMessageName() string { return "rdma_create_v3_reply" }
-func (*RdmaCreateV3Reply) GetCrcString() string   { return "5383d31f" }
-func (*RdmaCreateV3Reply) GetMessageType() api.MessageType {
-	return api.ReplyMessage
-}
-
-func (m *RdmaCreateV3Reply) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.Retval
-	size += 4 // m.SwIfIndex
-	return size
-}
-func (m *RdmaCreateV3Reply) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeInt32(m.Retval)
-	buf.EncodeUint32(uint32(m.SwIfIndex))
-	return buf.Bytes(), nil
-}
-func (m *RdmaCreateV3Reply) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.Retval = buf.DecodeInt32()
-	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	return nil
-}
-
->>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
 // RdmaDelete defines message 'rdma_delete'.
 type RdmaDelete struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -506,11 +318,6 @@ func file_rdma_binapi_init() {
 	api.RegisterMessage((*RdmaCreateReply)(nil), "rdma_create_reply_5383d31f")
 	api.RegisterMessage((*RdmaCreateV2)(nil), "rdma_create_v2_5826a4f3")
 	api.RegisterMessage((*RdmaCreateV2Reply)(nil), "rdma_create_v2_reply_5383d31f")
-<<<<<<< HEAD
-=======
-	api.RegisterMessage((*RdmaCreateV3)(nil), "rdma_create_v3_c6287ea8")
-	api.RegisterMessage((*RdmaCreateV3Reply)(nil), "rdma_create_v3_reply_5383d31f")
->>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
 	api.RegisterMessage((*RdmaDelete)(nil), "rdma_delete_f9e6675e")
 	api.RegisterMessage((*RdmaDeleteReply)(nil), "rdma_delete_reply_e8d4e804")
 }
@@ -522,11 +329,6 @@ func AllMessages() []api.Message {
 		(*RdmaCreateReply)(nil),
 		(*RdmaCreateV2)(nil),
 		(*RdmaCreateV2Reply)(nil),
-<<<<<<< HEAD
-=======
-		(*RdmaCreateV3)(nil),
-		(*RdmaCreateV3Reply)(nil),
->>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
 		(*RdmaDelete)(nil),
 		(*RdmaDeleteReply)(nil),
 	}

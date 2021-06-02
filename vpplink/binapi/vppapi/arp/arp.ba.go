@@ -43,7 +43,7 @@ type ProxyArpAddDel struct {
 
 func (m *ProxyArpAddDel) Reset()               { *m = ProxyArpAddDel{} }
 func (*ProxyArpAddDel) GetMessageName() string { return "proxy_arp_add_del" }
-func (*ProxyArpAddDel) GetCrcString() string   { return "1823c3e7" }
+func (*ProxyArpAddDel) GetCrcString() string   { return "85486cbd" }
 func (*ProxyArpAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -118,7 +118,7 @@ type ProxyArpDetails struct {
 
 func (m *ProxyArpDetails) Reset()               { *m = ProxyArpDetails{} }
 func (*ProxyArpDetails) GetMessageName() string { return "proxy_arp_details" }
-func (*ProxyArpDetails) GetCrcString() string   { return "5b948673" }
+func (*ProxyArpDetails) GetCrcString() string   { return "9228c150" }
 func (*ProxyArpDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -311,9 +311,9 @@ func (m *ProxyArpIntfcEnableDisableReply) Unmarshal(b []byte) error {
 
 func init() { file_arp_binapi_init() }
 func file_arp_binapi_init() {
-	api.RegisterMessage((*ProxyArpAddDel)(nil), "proxy_arp_add_del_1823c3e7")
+	api.RegisterMessage((*ProxyArpAddDel)(nil), "proxy_arp_add_del_85486cbd")
 	api.RegisterMessage((*ProxyArpAddDelReply)(nil), "proxy_arp_add_del_reply_e8d4e804")
-	api.RegisterMessage((*ProxyArpDetails)(nil), "proxy_arp_details_5b948673")
+	api.RegisterMessage((*ProxyArpDetails)(nil), "proxy_arp_details_9228c150")
 	api.RegisterMessage((*ProxyArpDump)(nil), "proxy_arp_dump_51077d14")
 	api.RegisterMessage((*ProxyArpIntfcDetails)(nil), "proxy_arp_intfc_details_f6458e5f")
 	api.RegisterMessage((*ProxyArpIntfcDump)(nil), "proxy_arp_intfc_dump_51077d14")

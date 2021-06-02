@@ -142,7 +142,7 @@ type IPNeighborAddDel struct {
 
 func (m *IPNeighborAddDel) Reset()               { *m = IPNeighborAddDel{} }
 func (*IPNeighborAddDel) GetMessageName() string { return "ip_neighbor_add_del" }
-func (*IPNeighborAddDel) GetCrcString() string   { return "0607c257" }
+func (*IPNeighborAddDel) GetCrcString() string   { return "105518b6" }
 func (*IPNeighborAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -306,7 +306,7 @@ type IPNeighborDetails struct {
 
 func (m *IPNeighborDetails) Reset()               { *m = IPNeighborDetails{} }
 func (*IPNeighborDetails) GetMessageName() string { return "ip_neighbor_details" }
-func (*IPNeighborDetails) GetCrcString() string   { return "e29d79f0" }
+func (*IPNeighborDetails) GetCrcString() string   { return "870e80b9" }
 func (*IPNeighborDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -355,7 +355,7 @@ type IPNeighborDump struct {
 
 func (m *IPNeighborDump) Reset()               { *m = IPNeighborDump{} }
 func (*IPNeighborDump) GetMessageName() string { return "ip_neighbor_dump" }
-func (*IPNeighborDump) GetCrcString() string   { return "d817a484" }
+func (*IPNeighborDump) GetCrcString() string   { return "cd831298" }
 func (*IPNeighborDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -392,7 +392,7 @@ type IPNeighborEvent struct {
 
 func (m *IPNeighborEvent) Reset()               { *m = IPNeighborEvent{} }
 func (*IPNeighborEvent) GetMessageName() string { return "ip_neighbor_event" }
-func (*IPNeighborEvent) GetCrcString() string   { return "bdb092b2" }
+func (*IPNeighborEvent) GetCrcString() string   { return "83933131" }
 func (*IPNeighborEvent) GetMessageType() api.MessageType {
 	return api.EventMessage
 }
@@ -686,7 +686,7 @@ type WantIPNeighborEvents struct {
 
 func (m *WantIPNeighborEvents) Reset()               { *m = WantIPNeighborEvents{} }
 func (*WantIPNeighborEvents) GetMessageName() string { return "want_ip_neighbor_events" }
-func (*WantIPNeighborEvents) GetCrcString() string   { return "73e70a86" }
+func (*WantIPNeighborEvents) GetCrcString() string   { return "1a312870" }
 func (*WantIPNeighborEvents) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -842,13 +842,13 @@ func (m *WantIPNeighborEventsV2Reply) Unmarshal(b []byte) error {
 
 func init() { file_ip_neighbor_binapi_init() }
 func file_ip_neighbor_binapi_init() {
-	api.RegisterMessage((*IPNeighborAddDel)(nil), "ip_neighbor_add_del_0607c257")
+	api.RegisterMessage((*IPNeighborAddDel)(nil), "ip_neighbor_add_del_105518b6")
 	api.RegisterMessage((*IPNeighborAddDelReply)(nil), "ip_neighbor_add_del_reply_1992deab")
 	api.RegisterMessage((*IPNeighborConfig)(nil), "ip_neighbor_config_f4a5cf44")
 	api.RegisterMessage((*IPNeighborConfigReply)(nil), "ip_neighbor_config_reply_e8d4e804")
-	api.RegisterMessage((*IPNeighborDetails)(nil), "ip_neighbor_details_e29d79f0")
-	api.RegisterMessage((*IPNeighborDump)(nil), "ip_neighbor_dump_d817a484")
-	api.RegisterMessage((*IPNeighborEvent)(nil), "ip_neighbor_event_bdb092b2")
+	api.RegisterMessage((*IPNeighborDetails)(nil), "ip_neighbor_details_870e80b9")
+	api.RegisterMessage((*IPNeighborDump)(nil), "ip_neighbor_dump_cd831298")
+	api.RegisterMessage((*IPNeighborEvent)(nil), "ip_neighbor_event_83933131")
 	api.RegisterMessage((*IPNeighborEventV2)(nil), "ip_neighbor_event_v2_c1d53dc0")
 	api.RegisterMessage((*IPNeighborFlush)(nil), "ip_neighbor_flush_16aa35d2")
 	api.RegisterMessage((*IPNeighborFlushReply)(nil), "ip_neighbor_flush_reply_e8d4e804")
@@ -856,7 +856,7 @@ func file_ip_neighbor_binapi_init() {
 	api.RegisterMessage((*IPNeighborReplaceBeginReply)(nil), "ip_neighbor_replace_begin_reply_e8d4e804")
 	api.RegisterMessage((*IPNeighborReplaceEnd)(nil), "ip_neighbor_replace_end_51077d14")
 	api.RegisterMessage((*IPNeighborReplaceEndReply)(nil), "ip_neighbor_replace_end_reply_e8d4e804")
-	api.RegisterMessage((*WantIPNeighborEvents)(nil), "want_ip_neighbor_events_73e70a86")
+	api.RegisterMessage((*WantIPNeighborEvents)(nil), "want_ip_neighbor_events_1a312870")
 	api.RegisterMessage((*WantIPNeighborEventsReply)(nil), "want_ip_neighbor_events_reply_e8d4e804")
 	api.RegisterMessage((*WantIPNeighborEventsV2)(nil), "want_ip_neighbor_events_v2_73e70a86")
 	api.RegisterMessage((*WantIPNeighborEventsV2Reply)(nil), "want_ip_neighbor_events_v2_reply_e8d4e804")

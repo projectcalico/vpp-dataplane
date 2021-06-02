@@ -260,7 +260,7 @@ type CreateSubif struct {
 
 func (m *CreateSubif) Reset()               { *m = CreateSubif{} }
 func (*CreateSubif) GetMessageName() string { return "create_subif" }
-func (*CreateSubif) GetCrcString() string   { return "790ca755" }
+func (*CreateSubif) GetCrcString() string   { return "cb371063" }
 func (*CreateSubif) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -691,7 +691,7 @@ type SwInterfaceAddDelAddress struct {
 
 func (m *SwInterfaceAddDelAddress) Reset()               { *m = SwInterfaceAddDelAddress{} }
 func (*SwInterfaceAddDelAddress) GetMessageName() string { return "sw_interface_add_del_address" }
-func (*SwInterfaceAddDelAddress) GetCrcString() string   { return "5463d73b" }
+func (*SwInterfaceAddDelAddress) GetCrcString() string   { return "5803d5c4" }
 func (*SwInterfaceAddDelAddress) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1071,7 +1071,7 @@ type SwInterfaceDetails struct {
 
 func (m *SwInterfaceDetails) Reset()               { *m = SwInterfaceDetails{} }
 func (*SwInterfaceDetails) GetMessageName() string { return "sw_interface_details" }
-func (*SwInterfaceDetails) GetCrcString() string   { return "6c221fc7" }
+func (*SwInterfaceDetails) GetCrcString() string   { return "17b69fa2" }
 func (*SwInterfaceDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1232,7 +1232,7 @@ type SwInterfaceEvent struct {
 
 func (m *SwInterfaceEvent) Reset()               { *m = SwInterfaceEvent{} }
 func (*SwInterfaceEvent) GetMessageName() string { return "sw_interface_event" }
-func (*SwInterfaceEvent) GetCrcString() string   { return "2d3d95a7" }
+func (*SwInterfaceEvent) GetCrcString() string   { return "f709f78d" }
 func (*SwInterfaceEvent) GetMessageType() api.MessageType {
 	return api.EventMessage
 }
@@ -1425,7 +1425,7 @@ func (m *SwInterfaceRxPlacementDetails) Reset() { *m = SwInterfaceRxPlacementDet
 func (*SwInterfaceRxPlacementDetails) GetMessageName() string {
 	return "sw_interface_rx_placement_details"
 }
-func (*SwInterfaceRxPlacementDetails) GetCrcString() string { return "9e44a7ce" }
+func (*SwInterfaceRxPlacementDetails) GetCrcString() string { return "f6d7d024" }
 func (*SwInterfaceRxPlacementDetails) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1501,7 +1501,7 @@ type SwInterfaceSetFlags struct {
 
 func (m *SwInterfaceSetFlags) Reset()               { *m = SwInterfaceSetFlags{} }
 func (*SwInterfaceSetFlags) GetMessageName() string { return "sw_interface_set_flags" }
-func (*SwInterfaceSetFlags) GetCrcString() string   { return "f5aec1b8" }
+func (*SwInterfaceSetFlags) GetCrcString() string   { return "6a2b491a" }
 func (*SwInterfaceSetFlags) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1647,7 +1647,7 @@ type SwInterfaceSetMacAddress struct {
 
 func (m *SwInterfaceSetMacAddress) Reset()               { *m = SwInterfaceSetMacAddress{} }
 func (*SwInterfaceSetMacAddress) GetMessageName() string { return "sw_interface_set_mac_address" }
-func (*SwInterfaceSetMacAddress) GetCrcString() string   { return "c536e7eb" }
+func (*SwInterfaceSetMacAddress) GetCrcString() string   { return "6aca746a" }
 func (*SwInterfaceSetMacAddress) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1870,7 +1870,7 @@ type SwInterfaceSetRxMode struct {
 
 func (m *SwInterfaceSetRxMode) Reset()               { *m = SwInterfaceSetRxMode{} }
 func (*SwInterfaceSetRxMode) GetMessageName() string { return "sw_interface_set_rx_mode" }
-func (*SwInterfaceSetRxMode) GetCrcString() string   { return "b04d1cfe" }
+func (*SwInterfaceSetRxMode) GetCrcString() string   { return "780f5cee" }
 func (*SwInterfaceSetRxMode) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -2101,7 +2101,7 @@ type SwInterfaceSetUnnumbered struct {
 
 func (m *SwInterfaceSetUnnumbered) Reset()               { *m = SwInterfaceSetUnnumbered{} }
 func (*SwInterfaceSetUnnumbered) GetMessageName() string { return "sw_interface_set_unnumbered" }
-func (*SwInterfaceSetUnnumbered) GetCrcString() string   { return "154a6439" }
+func (*SwInterfaceSetUnnumbered) GetCrcString() string   { return "938ef33b" }
 func (*SwInterfaceSetUnnumbered) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -2320,7 +2320,7 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*CreateLoopbackInstance)(nil), "create_loopback_instance_d36a3ee2")
 	api.RegisterMessage((*CreateLoopbackInstanceReply)(nil), "create_loopback_instance_reply_5383d31f")
 	api.RegisterMessage((*CreateLoopbackReply)(nil), "create_loopback_reply_5383d31f")
-	api.RegisterMessage((*CreateSubif)(nil), "create_subif_790ca755")
+	api.RegisterMessage((*CreateSubif)(nil), "create_subif_cb371063")
 	api.RegisterMessage((*CreateSubifReply)(nil), "create_subif_reply_5383d31f")
 	api.RegisterMessage((*CreateVlanSubif)(nil), "create_vlan_subif_af34ac8b")
 	api.RegisterMessage((*CreateVlanSubifReply)(nil), "create_vlan_subif_reply_5383d31f")
@@ -2332,7 +2332,7 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*HwInterfaceSetMtuReply)(nil), "hw_interface_set_mtu_reply_e8d4e804")
 	api.RegisterMessage((*InterfaceNameRenumber)(nil), "interface_name_renumber_2b8858b8")
 	api.RegisterMessage((*InterfaceNameRenumberReply)(nil), "interface_name_renumber_reply_e8d4e804")
-	api.RegisterMessage((*SwInterfaceAddDelAddress)(nil), "sw_interface_add_del_address_5463d73b")
+	api.RegisterMessage((*SwInterfaceAddDelAddress)(nil), "sw_interface_add_del_address_5803d5c4")
 	api.RegisterMessage((*SwInterfaceAddDelAddressReply)(nil), "sw_interface_add_del_address_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceAddDelMacAddress)(nil), "sw_interface_add_del_mac_address_638bb9f4")
 	api.RegisterMessage((*SwInterfaceAddDelMacAddressReply)(nil), "sw_interface_add_del_mac_address_reply_e8d4e804")
@@ -2342,32 +2342,32 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*SwInterfaceAddressReplaceEndReply)(nil), "sw_interface_address_replace_end_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceClearStats)(nil), "sw_interface_clear_stats_f9e6675e")
 	api.RegisterMessage((*SwInterfaceClearStatsReply)(nil), "sw_interface_clear_stats_reply_e8d4e804")
-	api.RegisterMessage((*SwInterfaceDetails)(nil), "sw_interface_details_6c221fc7")
+	api.RegisterMessage((*SwInterfaceDetails)(nil), "sw_interface_details_17b69fa2")
 	api.RegisterMessage((*SwInterfaceDump)(nil), "sw_interface_dump_aa610c27")
-	api.RegisterMessage((*SwInterfaceEvent)(nil), "sw_interface_event_2d3d95a7")
+	api.RegisterMessage((*SwInterfaceEvent)(nil), "sw_interface_event_f709f78d")
 	api.RegisterMessage((*SwInterfaceGetMacAddress)(nil), "sw_interface_get_mac_address_f9e6675e")
 	api.RegisterMessage((*SwInterfaceGetMacAddressReply)(nil), "sw_interface_get_mac_address_reply_40ef2c08")
 	api.RegisterMessage((*SwInterfaceGetTable)(nil), "sw_interface_get_table_2d033de4")
 	api.RegisterMessage((*SwInterfaceGetTableReply)(nil), "sw_interface_get_table_reply_a6eb0109")
-	api.RegisterMessage((*SwInterfaceRxPlacementDetails)(nil), "sw_interface_rx_placement_details_9e44a7ce")
+	api.RegisterMessage((*SwInterfaceRxPlacementDetails)(nil), "sw_interface_rx_placement_details_f6d7d024")
 	api.RegisterMessage((*SwInterfaceRxPlacementDump)(nil), "sw_interface_rx_placement_dump_f9e6675e")
-	api.RegisterMessage((*SwInterfaceSetFlags)(nil), "sw_interface_set_flags_f5aec1b8")
+	api.RegisterMessage((*SwInterfaceSetFlags)(nil), "sw_interface_set_flags_6a2b491a")
 	api.RegisterMessage((*SwInterfaceSetFlagsReply)(nil), "sw_interface_set_flags_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetIPDirectedBroadcast)(nil), "sw_interface_set_ip_directed_broadcast_ae6cfcfb")
 	api.RegisterMessage((*SwInterfaceSetIPDirectedBroadcastReply)(nil), "sw_interface_set_ip_directed_broadcast_reply_e8d4e804")
-	api.RegisterMessage((*SwInterfaceSetMacAddress)(nil), "sw_interface_set_mac_address_c536e7eb")
+	api.RegisterMessage((*SwInterfaceSetMacAddress)(nil), "sw_interface_set_mac_address_6aca746a")
 	api.RegisterMessage((*SwInterfaceSetMacAddressReply)(nil), "sw_interface_set_mac_address_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetMtu)(nil), "sw_interface_set_mtu_5cbe85e5")
 	api.RegisterMessage((*SwInterfaceSetMtuReply)(nil), "sw_interface_set_mtu_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetPromisc)(nil), "sw_interface_set_promisc_d40860d4")
 	api.RegisterMessage((*SwInterfaceSetPromiscReply)(nil), "sw_interface_set_promisc_reply_e8d4e804")
-	api.RegisterMessage((*SwInterfaceSetRxMode)(nil), "sw_interface_set_rx_mode_b04d1cfe")
+	api.RegisterMessage((*SwInterfaceSetRxMode)(nil), "sw_interface_set_rx_mode_780f5cee")
 	api.RegisterMessage((*SwInterfaceSetRxModeReply)(nil), "sw_interface_set_rx_mode_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetRxPlacement)(nil), "sw_interface_set_rx_placement_db65f3c9")
 	api.RegisterMessage((*SwInterfaceSetRxPlacementReply)(nil), "sw_interface_set_rx_placement_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetTable)(nil), "sw_interface_set_table_df42a577")
 	api.RegisterMessage((*SwInterfaceSetTableReply)(nil), "sw_interface_set_table_reply_e8d4e804")
-	api.RegisterMessage((*SwInterfaceSetUnnumbered)(nil), "sw_interface_set_unnumbered_154a6439")
+	api.RegisterMessage((*SwInterfaceSetUnnumbered)(nil), "sw_interface_set_unnumbered_938ef33b")
 	api.RegisterMessage((*SwInterfaceSetUnnumberedReply)(nil), "sw_interface_set_unnumbered_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceTagAddDel)(nil), "sw_interface_tag_add_del_426f8bc1")
 	api.RegisterMessage((*SwInterfaceTagAddDelReply)(nil), "sw_interface_tag_add_del_reply_e8d4e804")

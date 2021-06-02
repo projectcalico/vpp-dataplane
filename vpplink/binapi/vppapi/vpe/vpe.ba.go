@@ -677,7 +677,7 @@ type LogDetails struct {
 
 func (m *LogDetails) Reset()               { *m = LogDetails{} }
 func (*LogDetails) GetMessageName() string { return "log_details" }
-func (*LogDetails) GetCrcString() string   { return "03d61cc0" }
+func (*LogDetails) GetCrcString() string   { return "255827a1" }
 func (*LogDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1007,7 +1007,7 @@ func file_vpe_binapi_init() {
 	api.RegisterMessage((*GetNodeGraphReply)(nil), "get_node_graph_reply_06d68297")
 	api.RegisterMessage((*GetNodeIndex)(nil), "get_node_index_f1984c64")
 	api.RegisterMessage((*GetNodeIndexReply)(nil), "get_node_index_reply_a8600b89")
-	api.RegisterMessage((*LogDetails)(nil), "log_details_03d61cc0")
+	api.RegisterMessage((*LogDetails)(nil), "log_details_255827a1")
 	api.RegisterMessage((*LogDump)(nil), "log_dump_6ab31753")
 	api.RegisterMessage((*ShowThreads)(nil), "show_threads_51077d14")
 	api.RegisterMessage((*ShowThreadsReply)(nil), "show_threads_reply_efd78e83")

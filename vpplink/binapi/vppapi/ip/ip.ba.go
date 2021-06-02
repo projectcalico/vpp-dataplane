@@ -336,7 +336,7 @@ type IPAddressDetails struct {
 
 func (m *IPAddressDetails) Reset()               { *m = IPAddressDetails{} }
 func (*IPAddressDetails) GetMessageName() string { return "ip_address_details" }
-func (*IPAddressDetails) GetCrcString() string   { return "ee29b797" }
+func (*IPAddressDetails) GetCrcString() string   { return "b1199745" }
 func (*IPAddressDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -417,7 +417,7 @@ type IPContainerProxyAddDel struct {
 
 func (m *IPContainerProxyAddDel) Reset()               { *m = IPContainerProxyAddDel{} }
 func (*IPContainerProxyAddDel) GetMessageName() string { return "ip_container_proxy_add_del" }
-func (*IPContainerProxyAddDel) GetCrcString() string   { return "7df1dff1" }
+func (*IPContainerProxyAddDel) GetCrcString() string   { return "91189f40" }
 func (*IPContainerProxyAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -498,7 +498,7 @@ type IPContainerProxyDetails struct {
 
 func (m *IPContainerProxyDetails) Reset()               { *m = IPContainerProxyDetails{} }
 func (*IPContainerProxyDetails) GetMessageName() string { return "ip_container_proxy_details" }
-func (*IPContainerProxyDetails) GetCrcString() string   { return "a8085523" }
+func (*IPContainerProxyDetails) GetCrcString() string   { return "0ee460e8" }
 func (*IPContainerProxyDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1441,7 +1441,7 @@ type IPPuntRedirect struct {
 
 func (m *IPPuntRedirect) Reset()               { *m = IPPuntRedirect{} }
 func (*IPPuntRedirect) GetMessageName() string { return "ip_punt_redirect" }
-func (*IPPuntRedirect) GetCrcString() string   { return "6580f635" }
+func (*IPPuntRedirect) GetCrcString() string   { return "a9a5592c" }
 func (*IPPuntRedirect) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1486,7 +1486,7 @@ type IPPuntRedirectDetails struct {
 
 func (m *IPPuntRedirectDetails) Reset()               { *m = IPPuntRedirectDetails{} }
 func (*IPPuntRedirectDetails) GetMessageName() string { return "ip_punt_redirect_details" }
-func (*IPPuntRedirectDetails) GetCrcString() string   { return "2cef63e7" }
+func (*IPPuntRedirectDetails) GetCrcString() string   { return "3924f5d3" }
 func (*IPPuntRedirectDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1601,7 +1601,7 @@ type IPReassemblyEnableDisable struct {
 
 func (m *IPReassemblyEnableDisable) Reset()               { *m = IPReassemblyEnableDisable{} }
 func (*IPReassemblyEnableDisable) GetMessageName() string { return "ip_reassembly_enable_disable" }
-func (*IPReassemblyEnableDisable) GetCrcString() string   { return "eb77968d" }
+func (*IPReassemblyEnableDisable) GetCrcString() string   { return "885c85a6" }
 func (*IPReassemblyEnableDisable) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1856,7 +1856,7 @@ type IPRouteAddDel struct {
 
 func (m *IPRouteAddDel) Reset()               { *m = IPRouteAddDel{} }
 func (*IPRouteAddDel) GetMessageName() string { return "ip_route_add_del" }
-func (*IPRouteAddDel) GetCrcString() string   { return "b8ecfe0d" }
+func (*IPRouteAddDel) GetCrcString() string   { return "c1ff832d" }
 func (*IPRouteAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -2189,7 +2189,7 @@ type IPRouteDetails struct {
 
 func (m *IPRouteDetails) Reset()               { *m = IPRouteDetails{} }
 func (*IPRouteDetails) GetMessageName() string { return "ip_route_details" }
-func (*IPRouteDetails) GetCrcString() string   { return "bda8f315" }
+func (*IPRouteDetails) GetCrcString() string   { return "d1ffaae1" }
 func (*IPRouteDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -2351,7 +2351,7 @@ type IPRouteLookup struct {
 
 func (m *IPRouteLookup) Reset()               { *m = IPRouteLookup{} }
 func (*IPRouteLookup) GetMessageName() string { return "ip_route_lookup" }
-func (*IPRouteLookup) GetCrcString() string   { return "710d6471" }
+func (*IPRouteLookup) GetCrcString() string   { return "e2986185" }
 func (*IPRouteLookup) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -2397,7 +2397,7 @@ type IPRouteLookupReply struct {
 
 func (m *IPRouteLookupReply) Reset()               { *m = IPRouteLookupReply{} }
 func (*IPRouteLookupReply) GetMessageName() string { return "ip_route_lookup_reply" }
-func (*IPRouteLookupReply) GetCrcString() string   { return "5d8febcb" }
+func (*IPRouteLookupReply) GetCrcString() string   { return "ae99de8e" }
 func (*IPRouteLookupReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -2870,7 +2870,7 @@ func (m *IPSourceAndPortRangeCheckAddDel) Reset() { *m = IPSourceAndPortRangeChe
 func (*IPSourceAndPortRangeCheckAddDel) GetMessageName() string {
 	return "ip_source_and_port_range_check_add_del"
 }
-func (*IPSourceAndPortRangeCheckAddDel) GetCrcString() string { return "92a067e3" }
+func (*IPSourceAndPortRangeCheckAddDel) GetCrcString() string { return "8bfc76f2" }
 func (*IPSourceAndPortRangeCheckAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -3430,7 +3430,7 @@ type IPUnnumberedDetails struct {
 
 func (m *IPUnnumberedDetails) Reset()               { *m = IPUnnumberedDetails{} }
 func (*IPUnnumberedDetails) GetMessageName() string { return "ip_unnumbered_details" }
-func (*IPUnnumberedDetails) GetCrcString() string   { return "cc59bd42" }
+func (*IPUnnumberedDetails) GetCrcString() string   { return "aa12a483" }
 func (*IPUnnumberedDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -3503,7 +3503,7 @@ type MfibSignalDetails struct {
 
 func (m *MfibSignalDetails) Reset()               { *m = MfibSignalDetails{} }
 func (*MfibSignalDetails) GetMessageName() string { return "mfib_signal_details" }
-func (*MfibSignalDetails) GetCrcString() string   { return "6f4a4cfb" }
+func (*MfibSignalDetails) GetCrcString() string   { return "64398a9a" }
 func (*MfibSignalDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -3974,7 +3974,7 @@ func (m *SwInterfaceIP6SetLinkLocalAddress) Reset() { *m = SwInterfaceIP6SetLink
 func (*SwInterfaceIP6SetLinkLocalAddress) GetMessageName() string {
 	return "sw_interface_ip6_set_link_local_address"
 }
-func (*SwInterfaceIP6SetLinkLocalAddress) GetCrcString() string { return "1c10f15f" }
+func (*SwInterfaceIP6SetLinkLocalAddress) GetCrcString() string { return "2931d9fa" }
 func (*SwInterfaceIP6SetLinkLocalAddress) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -4046,11 +4046,11 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IoamDisableReply)(nil), "ioam_disable_reply_e8d4e804")
 	api.RegisterMessage((*IoamEnable)(nil), "ioam_enable_51ccd868")
 	api.RegisterMessage((*IoamEnableReply)(nil), "ioam_enable_reply_e8d4e804")
-	api.RegisterMessage((*IPAddressDetails)(nil), "ip_address_details_ee29b797")
+	api.RegisterMessage((*IPAddressDetails)(nil), "ip_address_details_b1199745")
 	api.RegisterMessage((*IPAddressDump)(nil), "ip_address_dump_2d033de4")
-	api.RegisterMessage((*IPContainerProxyAddDel)(nil), "ip_container_proxy_add_del_7df1dff1")
+	api.RegisterMessage((*IPContainerProxyAddDel)(nil), "ip_container_proxy_add_del_91189f40")
 	api.RegisterMessage((*IPContainerProxyAddDelReply)(nil), "ip_container_proxy_add_del_reply_e8d4e804")
-	api.RegisterMessage((*IPContainerProxyDetails)(nil), "ip_container_proxy_details_a8085523")
+	api.RegisterMessage((*IPContainerProxyDetails)(nil), "ip_container_proxy_details_0ee460e8")
 	api.RegisterMessage((*IPContainerProxyDump)(nil), "ip_container_proxy_dump_51077d14")
 	api.RegisterMessage((*IPDetails)(nil), "ip_details_eb152d07")
 	api.RegisterMessage((*IPDump)(nil), "ip_dump_98d231ca")
@@ -4071,29 +4071,29 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IPPathMtuUpdateReply)(nil), "ip_path_mtu_update_reply_e8d4e804")
 	api.RegisterMessage((*IPPuntPolice)(nil), "ip_punt_police_db867cea")
 	api.RegisterMessage((*IPPuntPoliceReply)(nil), "ip_punt_police_reply_e8d4e804")
-	api.RegisterMessage((*IPPuntRedirect)(nil), "ip_punt_redirect_6580f635")
-	api.RegisterMessage((*IPPuntRedirectDetails)(nil), "ip_punt_redirect_details_2cef63e7")
+	api.RegisterMessage((*IPPuntRedirect)(nil), "ip_punt_redirect_a9a5592c")
+	api.RegisterMessage((*IPPuntRedirectDetails)(nil), "ip_punt_redirect_details_3924f5d3")
 	api.RegisterMessage((*IPPuntRedirectDump)(nil), "ip_punt_redirect_dump_2d033de4")
 	api.RegisterMessage((*IPPuntRedirectReply)(nil), "ip_punt_redirect_reply_e8d4e804")
-	api.RegisterMessage((*IPReassemblyEnableDisable)(nil), "ip_reassembly_enable_disable_eb77968d")
+	api.RegisterMessage((*IPReassemblyEnableDisable)(nil), "ip_reassembly_enable_disable_885c85a6")
 	api.RegisterMessage((*IPReassemblyEnableDisableReply)(nil), "ip_reassembly_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*IPReassemblyGet)(nil), "ip_reassembly_get_ea13ff63")
 	api.RegisterMessage((*IPReassemblyGetReply)(nil), "ip_reassembly_get_reply_d5eb8d34")
 	api.RegisterMessage((*IPReassemblySet)(nil), "ip_reassembly_set_16467d25")
 	api.RegisterMessage((*IPReassemblySetReply)(nil), "ip_reassembly_set_reply_e8d4e804")
-	api.RegisterMessage((*IPRouteAddDel)(nil), "ip_route_add_del_b8ecfe0d")
+	api.RegisterMessage((*IPRouteAddDel)(nil), "ip_route_add_del_c1ff832d")
 	api.RegisterMessage((*IPRouteAddDelReply)(nil), "ip_route_add_del_reply_1992deab")
 	api.RegisterMessage((*IPRouteAddDelV2)(nil), "ip_route_add_del_v2_521ef330")
 	api.RegisterMessage((*IPRouteAddDelV2Reply)(nil), "ip_route_add_del_v2_reply_1992deab")
-	api.RegisterMessage((*IPRouteDetails)(nil), "ip_route_details_bda8f315")
+	api.RegisterMessage((*IPRouteDetails)(nil), "ip_route_details_d1ffaae1")
 	api.RegisterMessage((*IPRouteDump)(nil), "ip_route_dump_b9d2e09e")
-	api.RegisterMessage((*IPRouteLookup)(nil), "ip_route_lookup_710d6471")
-	api.RegisterMessage((*IPRouteLookupReply)(nil), "ip_route_lookup_reply_5d8febcb")
+	api.RegisterMessage((*IPRouteLookup)(nil), "ip_route_lookup_e2986185")
+	api.RegisterMessage((*IPRouteLookupReply)(nil), "ip_route_lookup_reply_ae99de8e")
 	api.RegisterMessage((*IPRouteLookupV2)(nil), "ip_route_lookup_v2_710d6471")
 	api.RegisterMessage((*IPRouteLookupV2Reply)(nil), "ip_route_lookup_v2_reply_84cc9e03")
 	api.RegisterMessage((*IPRouteV2Details)(nil), "ip_route_v2_details_b09aa6c0")
 	api.RegisterMessage((*IPRouteV2Dump)(nil), "ip_route_v2_dump_d16f72e6")
-	api.RegisterMessage((*IPSourceAndPortRangeCheckAddDel)(nil), "ip_source_and_port_range_check_add_del_92a067e3")
+	api.RegisterMessage((*IPSourceAndPortRangeCheckAddDel)(nil), "ip_source_and_port_range_check_add_del_8bfc76f2")
 	api.RegisterMessage((*IPSourceAndPortRangeCheckAddDelReply)(nil), "ip_source_and_port_range_check_add_del_reply_e8d4e804")
 	api.RegisterMessage((*IPSourceAndPortRangeCheckInterfaceAddDel)(nil), "ip_source_and_port_range_check_interface_add_del_e1ba8987")
 	api.RegisterMessage((*IPSourceAndPortRangeCheckInterfaceAddDelReply)(nil), "ip_source_and_port_range_check_interface_add_del_reply_e8d4e804")
@@ -4107,9 +4107,9 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IPTableReplaceBeginReply)(nil), "ip_table_replace_begin_reply_e8d4e804")
 	api.RegisterMessage((*IPTableReplaceEnd)(nil), "ip_table_replace_end_b9d2e09e")
 	api.RegisterMessage((*IPTableReplaceEndReply)(nil), "ip_table_replace_end_reply_e8d4e804")
-	api.RegisterMessage((*IPUnnumberedDetails)(nil), "ip_unnumbered_details_cc59bd42")
+	api.RegisterMessage((*IPUnnumberedDetails)(nil), "ip_unnumbered_details_aa12a483")
 	api.RegisterMessage((*IPUnnumberedDump)(nil), "ip_unnumbered_dump_f9e6675e")
-	api.RegisterMessage((*MfibSignalDetails)(nil), "mfib_signal_details_6f4a4cfb")
+	api.RegisterMessage((*MfibSignalDetails)(nil), "mfib_signal_details_64398a9a")
 	api.RegisterMessage((*MfibSignalDump)(nil), "mfib_signal_dump_51077d14")
 	api.RegisterMessage((*SetIPFlowHash)(nil), "set_ip_flow_hash_084ee09e")
 	api.RegisterMessage((*SetIPFlowHashReply)(nil), "set_ip_flow_hash_reply_e8d4e804")
@@ -4121,7 +4121,7 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*SwInterfaceIP6EnableDisableReply)(nil), "sw_interface_ip6_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceIP6GetLinkLocalAddress)(nil), "sw_interface_ip6_get_link_local_address_f9e6675e")
 	api.RegisterMessage((*SwInterfaceIP6GetLinkLocalAddressReply)(nil), "sw_interface_ip6_get_link_local_address_reply_d16b7130")
-	api.RegisterMessage((*SwInterfaceIP6SetLinkLocalAddress)(nil), "sw_interface_ip6_set_link_local_address_1c10f15f")
+	api.RegisterMessage((*SwInterfaceIP6SetLinkLocalAddress)(nil), "sw_interface_ip6_set_link_local_address_2931d9fa")
 	api.RegisterMessage((*SwInterfaceIP6SetLinkLocalAddressReply)(nil), "sw_interface_ip6_set_link_local_address_reply_e8d4e804")
 }
 
