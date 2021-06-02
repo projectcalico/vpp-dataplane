@@ -1,7 +1,12 @@
+<<<<<<< HEAD
 VPP Version                 : 21.06-rc0~565-gf8ba3e0e6
+=======
+VPP Version                 : 21.06-rc0~791-gd76c2e3c4
+>>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : cf0e257dc vcl: validate fs before cleanup
+VPP Base commit             : af073546e tls: prealloc chunks for dtls dgram enq
 ------------------ Cherry picked commits --------------------
+<<<<<<< HEAD
 f8ba3e0e6 capo: Calico Policies plugin
 99116f3e7 acl: acl-plugin custom policies
 c30df51f2 cnat: fix cnat feature partial cksum
@@ -14,4 +19,16 @@ bb016a937 vpp: Fix session flag initialization
 73fac4f03 devices: add support for pseudo header checksum
 414ef0dec virtio: DRAFT: multi tx support
 14cc662fc vnet: fix offload flags handling
+=======
+d76c2e3c4 capo: Calico Policies plugin
+3496a945e acl: acl-plugin custom policies
+b55ca8323 cnat: [WIP] no k8s maglev from pods
+4ef1290c7 ip6-nd: silent the source and target checks on given interface
+6ee976299 virtio: Still init unused txq
+f2976defc virtio: compute cksums in output no offload
+1e7cc03fb gso: handle push flag in gro
+6580a8b0f gso: do not try gro on small packets
+5cd625108 devices: add support for pseudo header checksum
+451259ca3 virtio: DRAFT: multi tx support
+>>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
 -------------------------------------------------------------

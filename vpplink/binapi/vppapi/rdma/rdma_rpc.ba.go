@@ -12,6 +12,10 @@ import (
 type RPCService interface {
 	RdmaCreate(ctx context.Context, in *RdmaCreate) (*RdmaCreateReply, error)
 	RdmaCreateV2(ctx context.Context, in *RdmaCreateV2) (*RdmaCreateV2Reply, error)
+<<<<<<< HEAD
+=======
+	RdmaCreateV3(ctx context.Context, in *RdmaCreateV3) (*RdmaCreateV3Reply, error)
+>>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
 	RdmaDelete(ctx context.Context, in *RdmaDelete) (*RdmaDeleteReply, error)
 }
 
@@ -41,6 +45,18 @@ func (c *serviceClient) RdmaCreateV2(ctx context.Context, in *RdmaCreateV2) (*Rd
 	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
+<<<<<<< HEAD
+=======
+func (c *serviceClient) RdmaCreateV3(ctx context.Context, in *RdmaCreateV3) (*RdmaCreateV3Reply, error) {
+	out := new(RdmaCreateV3Reply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+>>>>>>> 82bef7f1384eadac3865c0fdbe1b8b37a8ad18ed
 func (c *serviceClient) RdmaDelete(ctx context.Context, in *RdmaDelete) (*RdmaDeleteReply, error) {
 	out := new(RdmaDeleteReply)
 	err := c.conn.Invoke(ctx, in, out)

@@ -51,7 +51,7 @@ type IP6RaEvent struct {
 
 func (m *IP6RaEvent) Reset()               { *m = IP6RaEvent{} }
 func (*IP6RaEvent) GetMessageName() string { return "ip6_ra_event" }
-func (*IP6RaEvent) GetCrcString() string   { return "47e8cfbe" }
+func (*IP6RaEvent) GetCrcString() string   { return "0364c1c5" }
 func (*IP6RaEvent) GetMessageType() api.MessageType {
 	return api.EventMessage
 }
@@ -144,7 +144,7 @@ type IP6ndProxyAddDel struct {
 
 func (m *IP6ndProxyAddDel) Reset()               { *m = IP6ndProxyAddDel{} }
 func (*IP6ndProxyAddDel) GetMessageName() string { return "ip6nd_proxy_add_del" }
-func (*IP6ndProxyAddDel) GetCrcString() string   { return "3fdf6659" }
+func (*IP6ndProxyAddDel) GetCrcString() string   { return "c2e4a686" }
 func (*IP6ndProxyAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -217,7 +217,7 @@ type IP6ndProxyDetails struct {
 
 func (m *IP6ndProxyDetails) Reset()               { *m = IP6ndProxyDetails{} }
 func (*IP6ndProxyDetails) GetMessageName() string { return "ip6nd_proxy_details" }
-func (*IP6ndProxyDetails) GetCrcString() string   { return "d35be8ff" }
+func (*IP6ndProxyDetails) GetCrcString() string   { return "30b9ff4a" }
 func (*IP6ndProxyDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -567,7 +567,7 @@ type SwInterfaceIP6ndRaPrefix struct {
 
 func (m *SwInterfaceIP6ndRaPrefix) Reset()               { *m = SwInterfaceIP6ndRaPrefix{} }
 func (*SwInterfaceIP6ndRaPrefix) GetMessageName() string { return "sw_interface_ip6nd_ra_prefix" }
-func (*SwInterfaceIP6ndRaPrefix) GetCrcString() string   { return "e098785f" }
+func (*SwInterfaceIP6ndRaPrefix) GetCrcString() string   { return "82cc1b28" }
 func (*SwInterfaceIP6ndRaPrefix) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -733,10 +733,10 @@ func (m *WantIP6RaEventsReply) Unmarshal(b []byte) error {
 
 func init() { file_ip6_nd_binapi_init() }
 func file_ip6_nd_binapi_init() {
-	api.RegisterMessage((*IP6RaEvent)(nil), "ip6_ra_event_47e8cfbe")
-	api.RegisterMessage((*IP6ndProxyAddDel)(nil), "ip6nd_proxy_add_del_3fdf6659")
+	api.RegisterMessage((*IP6RaEvent)(nil), "ip6_ra_event_0364c1c5")
+	api.RegisterMessage((*IP6ndProxyAddDel)(nil), "ip6nd_proxy_add_del_c2e4a686")
 	api.RegisterMessage((*IP6ndProxyAddDelReply)(nil), "ip6nd_proxy_add_del_reply_e8d4e804")
-	api.RegisterMessage((*IP6ndProxyDetails)(nil), "ip6nd_proxy_details_d35be8ff")
+	api.RegisterMessage((*IP6ndProxyDetails)(nil), "ip6nd_proxy_details_30b9ff4a")
 	api.RegisterMessage((*IP6ndProxyDump)(nil), "ip6nd_proxy_dump_51077d14")
 	api.RegisterMessage((*IP6ndProxySilentSt)(nil), "ip6nd_proxy_silent_st_7daa1e3a")
 	api.RegisterMessage((*IP6ndProxySilentStReply)(nil), "ip6nd_proxy_silent_st_reply_e8d4e804")
@@ -744,7 +744,7 @@ func file_ip6_nd_binapi_init() {
 	api.RegisterMessage((*IP6ndSendRouterSolicitationReply)(nil), "ip6nd_send_router_solicitation_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceIP6ndRaConfig)(nil), "sw_interface_ip6nd_ra_config_3eb00b1c")
 	api.RegisterMessage((*SwInterfaceIP6ndRaConfigReply)(nil), "sw_interface_ip6nd_ra_config_reply_e8d4e804")
-	api.RegisterMessage((*SwInterfaceIP6ndRaPrefix)(nil), "sw_interface_ip6nd_ra_prefix_e098785f")
+	api.RegisterMessage((*SwInterfaceIP6ndRaPrefix)(nil), "sw_interface_ip6nd_ra_prefix_82cc1b28")
 	api.RegisterMessage((*SwInterfaceIP6ndRaPrefixReply)(nil), "sw_interface_ip6nd_ra_prefix_reply_e8d4e804")
 	api.RegisterMessage((*WantIP6RaEvents)(nil), "want_ip6_ra_events_3ec6d6c2")
 	api.RegisterMessage((*WantIP6RaEventsReply)(nil), "want_ip6_ra_events_reply_e8d4e804")

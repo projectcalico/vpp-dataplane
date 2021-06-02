@@ -17,7 +17,7 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 if [[ "$X" != "" ]]; then set -x ; fi
 
-ORCH=$SCRIPTDIR/../baremetal/orch.sh
+ORCH=$SCRIPTDIR/../scripts/orch.sh
 CASES=$SCRIPTDIR/../scripts/cases.sh
 KUST=$SCRIPTDIR/../../yaml/overlays/dev/kustomize.sh
 
@@ -30,7 +30,7 @@ LOGFILE=$LOG_DIR/testrun.log
 LAST_TEST_LOGFILE=$LOG_DIR/testrun.log~
 
 CI_CONFIG_FILE=~/.config/calicovppci.sh
-PCI_BIND_NIC_TO_KERNEL=$SCRIPTDIR/../baremetal/utils/pci-nic-bind-to-kernel
+PCI_BIND_NIC_TO_KERNEL=$SCRIPTDIR/utils/pci-nic-bind-to-kernel
 
 function green () { printf "\e[0;32m$1\e[0m\n" ; }
 function red   () { printf "\e[0;31m$1\e[0m\n" ; }

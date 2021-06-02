@@ -82,6 +82,9 @@ function calico_if_linux_setup ()
   echo Y | sudo tee /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
 
   sudo ip link set $VPP_DATAPLANE_IF down
+  if [ x$RENAME_IF != x ]; then
+	  sudo ip link set dev $VPP_DATAPLANE_IF name $RENAME_IF
+  fi
   sudo ip link set $VPP_DATAPLANE_IF up
   sudo ip addr flush dev $VPP_DATAPLANE_IF
   for cidr in $(echo $NODE_IP | sed 's/,/ /g' ) ; do
@@ -126,7 +129,7 @@ function raw_create_cluster_conf ()
 
 function raw_create_master_k8 ()
 {
-	calico_if_linux_setup master
+	calico_if_linux_setup
 	raw_create_cluster_conf $SCRIPTDIR/kubeadm/ClusterNewConfiguration.template.yaml
 	if [ x$VERBOSE = xyes ]; then
 		sudo kubeadm init -v 100 --config /tmp/ClusterConf.yaml $@
@@ -142,7 +145,7 @@ function raw_create_master_k8 ()
 
 function raw_join_master_k8 ()
 {
-	calico_if_linux_setup slave
+	calico_if_linux_setup
 	raw_create_cluster_conf $SCRIPTDIR/kubeadm/ClusterJoinConfiguration.template.yaml
 	if [ x$VERBOSE = xyes ]; then
 		sudo kubeadm join -v 100 $MAIN_NODE_IP:6443 --config /tmp/ClusterConf.yaml $@
@@ -211,7 +214,7 @@ function print_usage_and_exit ()
 	echo "Options are :"
 	echo "IF             - linux if name to use"
 	echo "NODE_IP        - ip of this node"
-	echo "MAIN_NODE_IP - ip of the master node to join (if any)"
+	echo "MAIN_NODE_IP   - ip of the master node to join (if any)"
 	echo "POD_CIDR       - CIDR for pods (defaults to 10.0.0.0/16)"
 	echo "SERVICE_CIDR   - CIDR for services (defaults to 10.96.0.0/16)"
 	echo "DNS_TYPE       - CoreDNS or kube-dns"
