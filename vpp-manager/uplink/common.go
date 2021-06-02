@@ -35,6 +35,7 @@ const (
 	NATIVE_DRIVER_VIRTIO    = "virtio"
 	NATIVE_DRIVER_AVF       = "avf"
 	NATIVE_DRIVER_DPDK      = "dpdk"
+	NATIVE_DRIVER_RDMA      = "rdma"
 )
 
 type UplinkDriverData struct {
@@ -161,6 +162,9 @@ func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.Interf
 	if d := NewAVFDriver(params, conf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
+	if d := NewRDMADriver(params, conf); d.IsSupported(false /* warn */) {
+		lst = append(lst, d)
+	}
 	if d := NewAFXDPDriver(params, conf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
@@ -172,6 +176,8 @@ func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.Interf
 
 func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.InterfaceConfig) (d UplinkDriver) {
 	switch name {
+	case NATIVE_DRIVER_RDMA:
+		d = NewRDMADriver(params, conf)
 	case NATIVE_DRIVER_AF_PACKET:
 		d = NewAFPacketDriver(params, conf)
 	case NATIVE_DRIVER_AF_XDP:

@@ -7,17 +7,27 @@ Vagrant.configure('2') do |config|
     config.vm.provider :libvirt do |l|
         l.default_prefix = CLUSTER_NAME + '_'
         l.cpus = MASTER_CPUS
+        l.cputopology :sockets => '1', :cores => MASTER_CPUS, :threads => '1'
         l.memory = MASTER_MEMORY_SIZE_GB * 1024
         l.machine_virtual_size = DISK_SIZE_GB
+
+        if MASTER_NIC_PASSTHROUGH != ''
+            l.pci parse_pci MASTER_NIC_PASSTHROUGH
+        end
+        if MASTER_NODESET != ''
+            l.nodeset = MASTER_NODESET
+        end
     end
 
     config.vm.define 'master' do |subconfig|
         subconfig.vm.hostname = 'master'
-        subconfig.vm.network :private_network,
-            :ip => MASTER_IP,
-            :libvirt__guest_ipv6 => "yes",
-            :libvirt__ipv6_address => MASTER_IP6,
-            :libvirt__ipv6_prefix => "64"
+        if MASTER_NIC_PASSTHROUGH == ''
+            subconfig.vm.network :private_network,
+                :ip => MASTER_IP,
+                :libvirt__guest_ipv6 => "yes",
+                :libvirt__ipv6_address => MASTER_IP6,
+                :libvirt__ipv6_prefix => "64"
+        end
         subconfig.vm.synced_folder "../..", '/host-repo', type: 'nfs',
             create: true, readonly: true, linux__nfs_options: ['ro','no_subtree_check','all_squash','crossmnt']
         # Provision

@@ -47,6 +47,7 @@ const (
 	DRIVER_VFIO_PCI        = "vfio-pci"
 	DRIVER_VIRTIO_PCI      = "virtio-pci"
 	DRIVER_I40E            = "i40e"
+	DRIVER_MLX5_CORE       = "mlx5_core"
 )
 
 type VppManagerParams struct {
