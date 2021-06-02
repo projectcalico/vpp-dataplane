@@ -22,6 +22,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -65,13 +66,13 @@ func (d *RDMADriver) RestoreLinux() {
 }
 
 func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
-	MyInfo := vpplink.RDMAInfo{
-		d.params.MainInterface,
-		d.params.NumRxQueues,
-		d.params.RxQueueSize,
-		d.params.TxQueueSize,
-	}
-	swIfIndex, err := vpp.CreateRDMA(MyInfo)
+
+	swIfIndex, err := vpp.CreateRDMA(&types.RDMAInterface{
+		HostIf: d.params.MainInterface,
+		RxqNum: d.params.NumRxQueues,
+		RxqSize: d.params.RxQueueSize,
+		TxqSize: d.params.TxQueueSize,
+	})
 
 	if err != nil {
 		return errors.Wrapf(err, "Error creating RDMA interface")

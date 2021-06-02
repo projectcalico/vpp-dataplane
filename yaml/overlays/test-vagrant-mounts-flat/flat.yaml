@@ -31,7 +31,7 @@ data:
     }
     api-trace { on }
     cpu {
-        workers 4
+        workers 1
     }
     socksvr {
         socket-name /var/run/vpp/vpp-api.sock

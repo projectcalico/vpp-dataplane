@@ -20,25 +20,18 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/rdma"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-type RDMAInfo struct {
-	HostIf  string
-	RxqNum  int
-	RxqSize int
-	TxqSize int
-}
-
-func (v *VppLink) CreateRDMA(rdmainfo RDMAInfo) (swIfIndex uint32, err error) {
+func (v *VppLink) CreateRDMA(rdmaInterface *types.RDMAInterface) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &rdma.RdmaCreateV2Reply{}
 	request := &rdma.RdmaCreateV2{
-		HostIf:  rdmainfo.HostIf,
-		Name:    "RDMA-",
-		RxqNum:  uint16(rdmainfo.RxqNum),
-		RxqSize: uint16(rdmainfo.RxqSize),
-		TxqSize: uint16(rdmainfo.TxqSize),
+		HostIf:  rdmaInterface.HostIf,
+		RxqNum:  uint16(rdmaInterface.RxqNum),
+		RxqSize: uint16(rdmaInterface.RxqSize),
+		TxqSize: uint16(rdmaInterface.TxqSize),
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
