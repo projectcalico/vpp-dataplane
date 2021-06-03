@@ -22,6 +22,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -87,15 +88,14 @@ func (d *Vmxnet3Driver) RestoreLinux() {
 }
 
 func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
-	MyInfo := vpplink.Vmxnet3Info{
+
+	swIfIndex, err := vpp.CreateVmxnet3(d.conf.PciId, &types.Vmxnet3Interface{
 		RxqNum:    d.params.NumRxQueues,
 		RxqSize:   d.params.RxQueueSize,
 		TxqSize:   d.params.TxQueueSize,
 		TxqNum:    d.params.NumTxQueues,
 		EnableGso: d.params.EnableGSO,
-	}
-
-	swIfIndex, err := vpp.CreateVmxnet3(d.conf.PciId, MyInfo)
+	})
 	if err != nil {
 		return errors.Wrapf(err, "Error creating Vmxnet3 interface")
 	}

@@ -16,73 +16,28 @@
 package vpplink
 
 import (
-	"encoding/binary"
 	"fmt"
-	"regexp"
-	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vmxnet3"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-type Vmxnet3Info struct {
-	RxqNum    int
-	RxqSize   int
-	TxqSize   int
-	TxqNum    int
-	EnableGso bool
-}
-
-func GetPciIdInt(PciIdStr string) (id uint32, err error) {
-	/* 0000:d8:00.1 */
-	re := regexp.MustCompile("([0-9a-f]{4}):([0-9a-f]{2}):([0-9a-f]{2}).([0-9a-f])")
-	match := re.FindStringSubmatch(PciIdStr)
-	if len(match) != 5 {
-		return 0, errors.Errorf("Couldnt parse kernel pciID %s : %v", PciIdStr, match)
-	}
-	domain, err := strconv.ParseInt(match[1], 16, 32)
-	if err != nil {
-		return 0, errors.Wrapf(err, "Couldnt parse PCI domain: %v", err)
-	}
-	bus, err := strconv.ParseInt(match[2], 16, 16)
-	if err != nil {
-		return 0, errors.Wrapf(err, "Couldnt parse PCI bus: %v", err)
-	}
-	slot, err := strconv.ParseInt(match[3], 16, 16)
-	if err != nil {
-		return 0, errors.Wrapf(err, "Couldnt parse PCI slot: %v", err)
-	}
-	function, err := strconv.ParseInt(match[4], 16, 16)
-	if err != nil {
-		return 0, errors.Wrapf(err, "Couldnt parse PCI function: %v", err)
-	}
-	/* 16 bits domain / 8 bits bus / 5bits slot / 3bits function*/
-	/* But this is VPP so endianess is all over the place */
-	b := []byte{
-		byte((domain >> 2) & 0xff),
-		byte(domain & 0xff),
-		byte(bus & 0xff),
-		byte(((function & 7) << 5) | (slot & 31)),
-	}
-	id = binary.LittleEndian.Uint32(b)
-	return id, nil
-}
-
-func (v *VppLink) CreateVmxnet3(addr string, vmxnet3Info Vmxnet3Info) (swIfIndex uint32, err error) {
+func (v *VppLink) CreateVmxnet3(addr string, vmxnet3Interface *types.Vmxnet3Interface) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &vmxnet3.Vmxnet3CreateReply{}
-	pci, err := GetPciIdInt(addr)
+	pci, err := types.GetPciIdInt(addr)
 	if err != nil {
 		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateVmxnet3 error parsing PCI id")
 	}
 	request := &vmxnet3.Vmxnet3Create{
 		PciAddr:   pci,
-		RxqNum:    uint16(vmxnet3Info.RxqNum),
-		RxqSize:   uint16(vmxnet3Info.RxqSize),
-		TxqSize:   uint16(vmxnet3Info.TxqSize),
-		TxqNum:    uint16(vmxnet3Info.TxqNum),
-		EnableGso: vmxnet3Info.EnableGso,
+		RxqNum:    uint16(vmxnet3Interface.RxqNum),
+		RxqSize:   uint16(vmxnet3Interface.RxqSize),
+		TxqSize:   uint16(vmxnet3Interface.TxqSize),
+		TxqNum:    uint16(vmxnet3Interface.TxqNum),
+		EnableGso: vmxnet3Interface.EnableGso,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
