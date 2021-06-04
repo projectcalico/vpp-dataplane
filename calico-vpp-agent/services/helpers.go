@@ -81,7 +81,7 @@ func getServiceBackends(servicePort *v1.ServicePort, ep *v1.Endpoints, localOnly
 						isLocal = false
 					}
 					flags := uint8(0)
-					if !isLocal  {
+					if !isLocal {
 						if localOnly {
 							continue
 						}

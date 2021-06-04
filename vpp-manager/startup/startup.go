@@ -69,6 +69,9 @@ const (
 	/* Number of rx queues to use for the uplink interface in VPP */
 	NumRxQueuesEnvVar = "CALICOVPP_RX_QUEUES"
 
+	/* Number of tx queues to use for the vmxnet3 uplink interface in VPP */
+	NumTxQueuesEnvVar = "CALICOVPP_VMXNET3_DRIVER_TX_QUEUES"
+
 	/* Set the pattern for VPP corefiles. Usually "/var/lib/vpp/vppcore.%e.%p" */
 	CorePatternEnvVar = "CALICOVPP_CORE_PATTERN"
 
@@ -93,6 +96,7 @@ const (
 	DefaultTapQueueSize = 1024
 	DefaultPhyQueueSize = 1024
 	DefaultNumRxQueues  = 1
+	DefaultNumTxQueues  = 1
 	defaultRxMode       = types.Adaptative
 )
 
@@ -238,6 +242,16 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
+	params.NumTxQueues = DefaultNumTxQueues
+	if conf := getEnvValue(NumTxQueuesEnvVar); conf != "" {
+		queues, err := strconv.ParseInt(conf, 10, 16)
+		if err != nil || queues <= 0 {
+			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumTxQueuesEnvVar, conf, queues, err)
+		} else {
+			params.NumTxQueues = int(queues)
+		}
+	}
+
 	params.NewDriverName = getEnvValue(SwapDriverEnvVar)
 
 	params.RxMode = types.UnformatRxMode(getEnvValue(RxModeEnvVar))
@@ -349,7 +363,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
 	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
 	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
-	log.Infof("PHY target #Queues   rx:%d", params.NumRxQueues)
+	log.Infof("PHY target #Queues   rx:%d tx:%d", params.NumRxQueues, params.NumTxQueues)
 	log.Infof("Hugepages            %d", params.AvailableHugePages)
 	log.Infof("KernelVersion        %s", params.KernelVersion)
 	log.Infof("Drivers              %s", params.LoadedDrivers)

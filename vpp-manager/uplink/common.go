@@ -36,6 +36,7 @@ const (
 	NATIVE_DRIVER_AVF       = "avf"
 	NATIVE_DRIVER_DPDK      = "dpdk"
 	NATIVE_DRIVER_RDMA      = "rdma"
+	NATIVE_DRIVER_VMXNET3   = "vmxnet3"
 )
 
 type UplinkDriverData struct {
@@ -165,6 +166,9 @@ func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.Interf
 	if d := NewRDMADriver(params, conf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
+	if d := NewVmxnet3Driver(params, conf); d.IsSupported(false /* warn */) {
+		lst = append(lst, d)
+	}
 	if d := NewAFXDPDriver(params, conf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
@@ -178,6 +182,8 @@ func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.
 	switch name {
 	case NATIVE_DRIVER_RDMA:
 		d = NewRDMADriver(params, conf)
+	case NATIVE_DRIVER_VMXNET3:
+		d = NewVmxnet3Driver(params, conf)
 	case NATIVE_DRIVER_AF_PACKET:
 		d = NewAFPacketDriver(params, conf)
 	case NATIVE_DRIVER_AF_XDP:

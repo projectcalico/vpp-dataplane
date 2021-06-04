@@ -87,7 +87,8 @@ function generate_govpp_apis ()
 	  wireguard \
 	  capo \
 	  crypto_sw_scheduler \
-	  rdma
+	  rdma \
+	  vmxnet3
 }
 
 make_binapi_generator
