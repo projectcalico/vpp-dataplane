@@ -46,6 +46,7 @@ func (v *VppLink) ListVXLanTunnels() ([]*types.VXLanTunnel, error) {
 			DstAddress:     types.FromVppAddress(response.DstAddress),
 			Vni:            response.Vni,
 			DecapNextIndex: response.DecapNextIndex,
+			SwIfIndex:      response.SwIfIndex,
 		})
 	}
 	return tunnels, nil

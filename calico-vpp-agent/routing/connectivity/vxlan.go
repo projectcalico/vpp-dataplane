@@ -65,11 +65,7 @@ func (p *VXLanProvider) RescanState() {
 		if tunnel.SrcAddress.Equal(nodeIP4) || tunnel.SrcAddress.Equal(nodeIP6) {
 			p.log.Infof("Found existing tunnel: %s", tunnel)
 
-			swIfIndex, err := p.vpp.AddVXLanTunnel(tunnel)
-			if err != nil {
-				errors.Wrapf(err, "Error adding vxlan tunnel %s -> %s", tunnel.SrcAddress.String(), tunnel.DstAddress.String())
-			}
-			p.vxlanIfs[tunnel.DstAddress.String()] = swIfIndex
+			p.vxlanIfs[tunnel.DstAddress.String()] = uint32(tunnel.SwIfIndex)
 		}
 	}
 
