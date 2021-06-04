@@ -23,6 +23,33 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
+func (v *VppLink) ListVXLanTunnels() ([]*types.VXLanTunnel, error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	tunnels := make([]*types.VXLanTunnel, 0)
+	request := &vxlan.VxlanTunnelDump{
+		SwIfIndex: types.InvalidInterface,
+	}
+	stream := v.ch.SendMultiRequest(request)
+	for {
+		response := &vxlan.VxlanTunnelDetails{}
+		stop, err := stream.ReceiveReply(response)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error listing VXLan tunnels")
+		}
+		if stop {
+			break
+		}
+		tunnels = append(tunnels, &types.VXLanTunnel{
+			SrcAddress:     types.FromVppAddress(response.SrcAddress),
+			DstAddress:     types.FromVppAddress(response.DstAddress),
+			Vni:            response.Vni,
+			DecapNextIndex: response.DecapNextIndex,
+		})
+	}
+	return tunnels, nil
+}
 func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()

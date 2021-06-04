@@ -370,3 +370,12 @@ spec:
         - name: felix-plugins
           hostPath:
             path: /var/lib/calico/felix-plugins
+#---
+#apiVersion: crd.projectcalico.org/v1
+#kind: IPPool
+#metadata:
+#  name: ippool-vxlan-1
+#spec:
+#  cidr: 192.168.0.0/16
+#  vxlanMode: Always
+#  natOutgoing: true

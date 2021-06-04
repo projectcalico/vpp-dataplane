@@ -53,7 +53,25 @@ func (p *VXLanProvider) configureVXLANNodes() error {
 }
 
 func (p *VXLanProvider) RescanState() {
-	// TODO
+	p.log.Infof("Rescanning existing VXLAN tunnels")
+	p.vxlanIfs = make(map[string]uint32)
+	tunnels, err := p.vpp.ListVXLanTunnels()
+	if err != nil {
+		p.log.Errorf("Error listing VXLan tunnels: %v", err)
+	}
+	nodeIP4 := p.server.GetNodeIP(false)
+	nodeIP6 := p.server.GetNodeIP(true)
+	for _, tunnel := range tunnels {
+		if tunnel.SrcAddress.Equal(nodeIP4) || tunnel.SrcAddress.Equal(nodeIP6) {
+			p.log.Infof("Found existing tunnel: %s", tunnel)
+
+			swIfIndex, err := p.vpp.AddVXLanTunnel(tunnel)
+			if err != nil {
+				errors.Wrapf(err, "Error adding vxlan tunnel %s -> %s", tunnel.SrcAddress.String(), tunnel.DstAddress.String())
+			}
+			p.vxlanIfs[tunnel.DstAddress.String()] = swIfIndex
+		}
+	}
 
 }
 
