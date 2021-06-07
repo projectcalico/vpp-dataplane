@@ -26,6 +26,7 @@ git fetch "https://gerrit.fd.io/r/vpp" refs/changes/68/31868/1 && git cherry-pic
 
 # --------------- Cnat patches ---------------
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/88/31588/1 && git cherry-pick FETCH_HEAD # 31588: cnat: [WIP] no k8s maglev from pods | https://gerrit.fd.io/r/c/vpp/+/31588
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/71/32571/1 && git cherry-pick FETCH_HEAD # 32571: cnat: fix spinlock | https://gerrit.fd.io/r/c/vpp/+/32571
 # --------------- Cnat patches ---------------
 
 # ------------- Policies patches -------------
