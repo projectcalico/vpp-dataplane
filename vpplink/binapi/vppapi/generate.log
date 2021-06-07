@@ -1,16 +1,16 @@
-VPP Version                 : 21.06-rc0~792-gab5beaa90
+VPP Version                 : 21.06-rc0~792-g589bd7c29
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : af073546e tls: prealloc chunks for dtls dgram enq
 ------------------ Cherry picked commits --------------------
-ab5beaa90 capo: Calico Policies plugin
-d827935d9 acl: acl-plugin custom policies
-9074cffe8 cnat: fix spinlock
-19255adf0 cnat: [WIP] no k8s maglev from pods
-ab3a40afc ip6-nd: silent the source and target checks on given interface
-c50ec701a virtio: Still init unused txq
-d48621f08 virtio: compute cksums in output no offload
-f3eda4e4b gso: handle push flag in gro
-ce2579b96 gso: do not try gro on small packets
-36d6d4862 devices: add support for pseudo header checksum
-8b4724b7c virtio: DRAFT: multi tx support
+gerrit:28513/20 capo: Calico Policies plugin
+gerrit:28083/16 acl: acl-plugin custom policies
+gerrit:32571/1 cnat: fix spinlock
+gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
+gerrit:31868/1 ip6-nd: silent the source and target checks on given interface
+gerrit:32483/1 virtio: Still init unused txq
+gerrit:32482/1 virtio: compute cksums in output no offload
+gerrit:32476/2 gso: handle push flag in gro
+gerrit:31869/12 gso: do not try gro on small packets
+gerrit:31321/10 devices: add support for pseudo header checksum
+gerrit:29386/9 virtio: DRAFT: multi tx support
 -------------------------------------------------------------
