@@ -215,7 +215,7 @@ start-node-%: preflight ## Start node VM, where `%` is the number of the node.
 	NODE=$* vagrant up
 ifneq ($(strip $(NODE_FIRST_CPU)),)
 	@for i in $$(seq 0 $$(($(NODE_CPUS)-1))); do \
-		virsh vcpupin $(CLUSTER_NAME)_node$* $$i $$((i+$(NODE_FIRST_CPU))); \
+		virsh vcpupin $(CLUSTER_NAME)_node$* $$i $$((i+$(NODE_FIRST_CPU)+($(NODE)-1)*$(NODE_CPUS))); \
 	done
 endif
 
