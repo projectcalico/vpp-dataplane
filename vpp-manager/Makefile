@@ -50,7 +50,8 @@ vpp: vpp-build-env
 	rm -f $(IMAGE_DIR)/*.deb
 	bash $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ./vpp_build
 	docker run --rm \
-		-v $(CURDIR):/vpp-manager:delegated \
+		-e VPP_MGR_DIR=$(CURDIR) \
+		-v $(CURDIR):$(CURDIR):delegated \
 		--user $$(id -u):$$(id -g) \
 		calicovpp/vpp-build:latest
 	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra vpp-dbg ; do \
