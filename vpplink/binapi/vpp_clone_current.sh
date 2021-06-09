@@ -10,7 +10,7 @@ function git_cherry_pick ()
 }
 
 
-VPP_COMMIT=af073546e1bf130089a58d9cdb8ca1da3492c933
+VPP_COMMIT=e631ece4aa32b33651ed458200ab551ffb8fbb47
 
 if [ ! -d $1/.git ]; then
 	rm -rf $1
