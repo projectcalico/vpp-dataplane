@@ -9,8 +9,13 @@ function git_cherry_pick ()
 	git commit --amend -m "gerrit:${refs#refs/changes/*/} $(git log -1 --pretty=%B)"
 }
 
+if [ -z "$1" ]; then
+	echo "Missing VPP path"
+	exit 1
+fi
 
 VPP_COMMIT=e631ece4aa32b33651ed458200ab551ffb8fbb47
+VPP_DIR="$1"
 
 if [ ! -d $1/.git ]; then
 	rm -rf $1

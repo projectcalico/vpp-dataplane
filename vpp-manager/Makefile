@@ -1,4 +1,4 @@
-.PHONY: all build image push imageonly vpp vpp-build-env
+.PHONY: all build image push imageonly vpp vpp-build-env dev eksimage clean clean-vpp
 
 VPPLINK_DIR=../vpplink
 INIT_EKS_IMAGE_DIR=images/init-eks/
@@ -43,6 +43,11 @@ imageonly: build
 	docker build --pull \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
+
+clean: clean-vpp
+
+clean-vpp:
+	git -C vpp_build clean -ffdx
 
 vpp: vpp-build-env
 	rm -f ./vpp_build/build-root/*.deb

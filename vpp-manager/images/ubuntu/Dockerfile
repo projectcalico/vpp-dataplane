@@ -4,7 +4,7 @@ LABEL maintainer="nskrzypc@cisco.com"
 
 RUN apt-get update \
  && apt-get install -y openssl libapr1 libnuma1 \
-    libmbedcrypto3 libmbedtls12 libmbedx509-0 \
+    libmbedcrypto3 libmbedtls12 libmbedx509-0 libsubunit0 \
     iproute2 ifupdown ethtool libnl-3-dev libnl-route-3-dev \
  && rm -rf /var/lib/apt/lists/*
 

@@ -1,6 +1,6 @@
-VPP Version                 : 21.06-rc0~792-g589bd7c29
+VPP Version                 : 21.10-rc0~43-gb22f5d9e7
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : af073546e tls: prealloc chunks for dtls dgram enq
+VPP Base commit             : e631ece4a ipsec: fix crypto ops in esp decrypt
 ------------------ Cherry picked commits --------------------
 gerrit:28513/20 capo: Calico Policies plugin
 gerrit:28083/16 acl: acl-plugin custom policies
@@ -9,8 +9,8 @@ gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:31868/1 ip6-nd: silent the source and target checks on given interface
 gerrit:32483/1 virtio: Still init unused txq
 gerrit:32482/1 virtio: compute cksums in output no offload
-gerrit:32476/2 gso: handle push flag in gro
-gerrit:31869/12 gso: do not try gro on small packets
+gerrit:32476/3 gso: handle push flag in gro
+gerrit:31869/13 gso: do not try gro on small packets
 gerrit:31321/10 devices: add support for pseudo header checksum
 gerrit:29386/9 virtio: DRAFT: multi tx support
 -------------------------------------------------------------
