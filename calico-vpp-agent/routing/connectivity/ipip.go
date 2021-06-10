@@ -26,11 +26,12 @@ import (
 
 type IpipProvider struct {
 	*ConnectivityProviderData
-	ipipIfs map[string]*types.IPIPTunnel
+	ipipIfs    map[string]*types.IPIPTunnel
+	ipipRoutes map[uint32][]*types.Route
 }
 
 func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
-	return &IpipProvider{d, make(map[string]*types.IPIPTunnel)}
+	return &IpipProvider{d, make(map[string]*types.IPIPTunnel), make(map[uint32][]*types.Route)}
 }
 
 func (p *IpipProvider) OnVppRestart() {
@@ -124,15 +125,22 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Infof("IPIP: tunnnel %s ok", tunnel.String())
 
 	p.log.Debugf("Adding ipip tunnel route to %s via swIfIndex %d", cn.Dst.IP.String(), tunnel.SwIfIndex)
-	err := p.vpp.RouteAdd(&types.Route{
+	route := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: tunnel.SwIfIndex,
 			Gw:        nil,
 		}},
-	})
+	}
+	err := p.vpp.RouteAdd(route)
 	if err != nil {
 		return errors.Wrapf(err, "Error Adding route to ipip tunnel")
+	}
+	_, found = p.ipipRoutes[tunnel.SwIfIndex]
+	if !found {
+		p.ipipRoutes[tunnel.SwIfIndex] = []*types.Route{route}
+	} else {
+		p.ipipRoutes[tunnel.SwIfIndex] = append(p.ipipRoutes[tunnel.SwIfIndex], route)
 	}
 	return nil
 }
@@ -144,18 +152,32 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 		return errors.Errorf("Deleting unknown ipip tunnel %s", cn.NextHop.String())
 	}
 	p.log.Infof("IPIP: Del ?->%s %d", cn.NextHop.String(), tunnel.SwIfIndex)
-	err := p.vpp.RouteDel(&types.Route{
+	route_to_delete := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: tunnel.SwIfIndex,
 			Gw:        nil,
 		}},
-	})
+	}
+	err := p.vpp.RouteDel(route_to_delete)
 	if err != nil {
 		return errors.Wrapf(err, "Error deleting ipip tunnel route")
 	}
-	// We don't delete the interface so keep it in the map
-	// delete(p.ipipIfs, cn.NextHop.String())
-	// also keep the route to the node for pods
+
+	for index, route := range p.ipipRoutes[tunnel.SwIfIndex] {
+		if route.Dst.String() == route_to_delete.Dst.String() {
+			p.ipipRoutes[tunnel.SwIfIndex] = append(p.ipipRoutes[tunnel.SwIfIndex][:index], p.ipipRoutes[tunnel.SwIfIndex][index+1:]...)
+		}
+	}
+	remaining_routes, found := p.ipipRoutes[tunnel.SwIfIndex]
+	if !found || len(remaining_routes) == 0 {
+		p.log.Infof("Deleting tunnel...%s", tunnel)
+		err := p.vpp.DelIPIPTunnel(tunnel)
+		if err != nil {
+			p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
+		}
+		delete(p.ipipIfs, cn.NextHop.String())
+	}
+	p.log.Infof("%s", p.ipipIfs)
 	return nil
 }
