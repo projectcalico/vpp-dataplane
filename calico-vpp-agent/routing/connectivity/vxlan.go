@@ -62,7 +62,8 @@ func (p *VXLanProvider) RescanState() {
 	nodeIP4 := p.server.GetNodeIP(false)
 	nodeIP6 := p.server.GetNodeIP(true)
 	for _, tunnel := range tunnels {
-		if tunnel.SrcAddress.Equal(nodeIP4) || tunnel.SrcAddress.Equal(nodeIP6) {
+		if (tunnel.SrcAddress.Equal(nodeIP4) || tunnel.SrcAddress.Equal(nodeIP6)) &&
+			tunnel.Vni == p.getVXLANVNI() && tunnel.DstPort == p.getVXLANPORT() && tunnel.SrcPort == p.getVXLANPORT() {
 			p.log.Infof("Found existing tunnel: %s", tunnel)
 
 			p.vxlanIfs[tunnel.DstAddress.String()] = uint32(tunnel.SwIfIndex)
@@ -90,18 +91,20 @@ func (p *VXLanProvider) getVXLANVNI() uint32 {
 	return uint32(*felixConf.VXLANVNI)
 }
 
+func (p *VXLanProvider) getVXLANPORT() uint16 {
+	felixConf := p.GetFelixConfig()
+	if felixConf.VXLANPort != nil {
+		return (uint16(*felixConf.VXLANPort))
+	} else {
+		return (0)
+	}
+}
+
 func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Debugf("Adding vxlan Tunnel to VPP")
 	nodeIP := p.GetNodeIP(vpplink.IsIP6(cn.NextHop))
-	felixConf := p.GetFelixConfig()
 
-	var vxLanPort uint16
-	if felixConf.VXLANPort != nil {
-		vxLanPort = uint16(*felixConf.VXLANPort)
-	} else {
-		vxLanPort = 0
-	}
-
+	vxLanPort := p.getVXLANPORT()
 	if _, found := p.vxlanIfs[cn.NextHop.String()]; !found {
 		p.log.Infof("VXLan: Add %s->%s", nodeIP.String(), cn.Dst.IP.String())
 		tunnel := &types.VXLanTunnel{
