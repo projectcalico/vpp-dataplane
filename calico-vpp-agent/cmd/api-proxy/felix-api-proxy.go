@@ -16,6 +16,7 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -58,12 +59,12 @@ func main() {
 	}
 
 	t.Go(func() error {
-		_, err := io.Copy(socket, inFile)
-		return err
+		io.Copy(socket, inFile)
+		return errors.New("copying to agent stopped")
 	})
 	t.Go(func() error {
-		_, err := io.Copy(outFile, socket)
-		return err
+		io.Copy(outFile, socket)
+		return errors.New("copying to felix stopped")
 	})
 
 	<-t.Dying()
