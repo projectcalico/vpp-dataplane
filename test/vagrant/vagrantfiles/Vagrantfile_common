@@ -155,7 +155,7 @@ fi
 retries=5
 for ((i=0; i<retries; i++)); do
     apt-get update && \
-    apt-get -y install tmux screen telnet conntrack socat net-tools gdb \
+    apt-get -y install tmux screen telnet conntrack socat net-tools gdb jq make \
         docker-ce=#{$docker_version} ${KUBERNETES_PACKAGES} && \
     break
 done
