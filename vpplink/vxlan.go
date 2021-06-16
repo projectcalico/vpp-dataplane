@@ -28,12 +28,12 @@ func (v *VppLink) ListVXLanTunnels() ([]*types.VXLanTunnel, error) {
 	defer v.lock.Unlock()
 
 	tunnels := make([]*types.VXLanTunnel, 0)
-	request := &vxlan.VxlanTunnelDump{
+	request := &vxlan.VxlanTunnelV2Dump{
 		SwIfIndex: types.InvalidInterface,
 	}
 	stream := v.ch.SendMultiRequest(request)
 	for {
-		response := &vxlan.VxlanTunnelDetails{}
+		response := &vxlan.VxlanTunnelV2Details{}
 		stop, err := stream.ReceiveReply(response)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error listing VXLan tunnels")
@@ -44,6 +44,8 @@ func (v *VppLink) ListVXLanTunnels() ([]*types.VXLanTunnel, error) {
 		tunnels = append(tunnels, &types.VXLanTunnel{
 			SrcAddress:     types.FromVppAddress(response.SrcAddress),
 			DstAddress:     types.FromVppAddress(response.DstAddress),
+			SrcPort:        response.SrcPort,
+			DstPort:        response.DstPort,
 			Vni:            response.Vni,
 			DecapNextIndex: response.DecapNextIndex,
 			SwIfIndex:      response.SwIfIndex,
