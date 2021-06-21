@@ -60,6 +60,7 @@ const (
 	ServicePrefixEnvVar        = "SERVICE_PREFIX"
 
 	DefaultVXLANVni      = 4096
+	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820
 
 	defaultRxMode = types.Adaptative
