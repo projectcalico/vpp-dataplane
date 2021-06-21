@@ -155,6 +155,9 @@ type LocalPodSpec struct {
 	WorkloadID         string
 	EndpointIDSize     int `struc:"int16,sizeof=EndpointID"`
 	EndpointID         string
+	// HostPort
+	HostPortsSize int `struc:"int16,sizeof=HostPorts"`
+	HostPorts     []HostPortBinding
 
 	IfPortConfigsLen int `struc:"int16,sizeof=IfPortConfigs"`
 	IfPortConfigs    []LocalIfPortConfigs
@@ -181,6 +184,13 @@ type LocalPodSpec struct {
 
 	/* Caching */
 	NeedsSnat bool
+}
+
+type HostPortBinding struct {
+	HostPort      uint32
+	HostIP        net.IP `struc:"[16]byte"`
+	ContainerPort uint32
+	EntryID       uint32
 }
 
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {
