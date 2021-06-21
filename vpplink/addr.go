@@ -28,3 +28,10 @@ func IsIP4(ip net.IP) bool {
 func IsIP6(ip net.IP) bool {
 	return types.IsIP6(ip)
 }
+
+func AddrFamilyDiffers(addr1 net.IP, addr2 net.IP) bool {
+	if IsIP4(addr1) && IsIP4(addr2) || IsIP6(addr1) && IsIP6(addr2) {
+		return true
+	}
+	return false
+}

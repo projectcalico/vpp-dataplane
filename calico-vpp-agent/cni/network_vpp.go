@@ -111,6 +111,12 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		s.routingServer.AnnounceLocalAddress(containerIP, false /* isWithdrawal */)
 	}
 
+	s.log.Infof("Adding HostPorts")
+	err = s.AddHostPort(podSpec, stack)
+	if err != nil {
+		goto err
+	}
+
 	s.policyServer.WorkloadAdded(&policy.WorkloadEndpointID{
 		OrchestratorID: podSpec.OrchestratorID,
 		WorkloadID:     podSpec.WorkloadID,
@@ -128,6 +134,7 @@ err:
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
+	s.DelHostPort(podSpec)
 
 	for _, containerIP := range podSpec.GetContainerIps() {
 		s.routingServer.AnnounceLocalAddress(containerIP, true /* isWithdrawal */)

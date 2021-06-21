@@ -75,6 +75,7 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		OrchestratorID: request.Workload.Orchestrator,
 		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
 		EndpointID:     request.Workload.Endpoint,
+		HostPorts:      make([]storage.HostPortBinding, 0),
 
 		/* defaults */
 		MemifIsL3:  false,
@@ -82,6 +83,15 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 
 		MemifSwIfIndex:  vpplink.InvalidID,
 		TunTapSwIfIndex: vpplink.InvalidID,
+	}
+
+	for _, port := range request.Workload.Ports {
+		podSpec.HostPorts = append(podSpec.HostPorts, storage.HostPortBinding{
+			HostPort:      port.HostPort,
+			HostIP:        net.ParseIP(port.HostIp),
+			ContainerPort: port.Port,
+		})
+
 	}
 	for _, routeStr := range request.GetContainerRoutes() {
 		_, route, err := net.ParseCIDR(routeStr)
