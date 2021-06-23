@@ -273,12 +273,19 @@ func (p *IpsecProvider) waitForIPsecSA(profile string, tunnel *types.IPIPTunnel)
 			p.log.Errorf("Cannot get IPIP tunnel %s status", tunnel.String())
 			return
 		}
-		if !iface.IsUp {
-			p.log.Debugf("IPIP tunnel %s still down", tunnel.String())
-			continue
+		if iface.IsUp {
+			p.log.Infof("Profile %s tunnel now up", profile)
+			return
 		}
-		p.log.Debugf("Profile %s tunnel now up", profile)
-		return
+
+		if bytes.Compare(tunnel.Src.To4(), tunnel.Dst.To4()) > 0 {
+			p.log.Infof("IPIP tunnel %s still down, re-trying initiate", tunnel.String())
+			err = p.vpp.IKEv2Initiate(profile)
+			if err != nil {
+				p.errorCleanup(tunnel, profile)
+				p.log.Errorf("error configuring IPsec tunnel %s %s", tunnel.String(), err)
+			}
+		}
 	}
 }
 
