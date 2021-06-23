@@ -22,6 +22,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -107,7 +108,11 @@ func (d *VirtioDriver) RestoreLinux() {
 }
 
 func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
-	swIfIndex, err := vpp.CreateVirtio(d.conf.PciId, &d.conf.HardwareAddr)
+	intf := types.VirtioInterface{
+		GenericVppInterface: d.getGenericVppInterface(),
+		PciId:               d.conf.PciId,
+	}
+	swIfIndex, err := vpp.CreateVirtio(&intf)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating VIRTIO interface")
 	}

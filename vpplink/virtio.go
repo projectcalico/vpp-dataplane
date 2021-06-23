@@ -17,7 +17,6 @@ package vpplink
 
 import (
 	"fmt"
-	"net"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -55,8 +54,8 @@ func parsePciAddr(addr string) (*pci_types.PciAddress, error) {
 	}, nil
 }
 
-func (v *VppLink) CreateVirtio(pciAddr string, hardwareAddr *net.HardwareAddr) (swIfIndex uint32, err error) {
-	addr, err := parsePciAddr(pciAddr)
+func (v *VppLink) CreateVirtio(intf *types.VirtioInterface) (swIfIndex uint32, err error) {
+	addr, err := parsePciAddr(intf.PciId)
 	if err != nil {
 		return ^uint32(0), errors.Wrap(err, "CreateVirtio failed")
 	}
@@ -66,15 +65,19 @@ func (v *VppLink) CreateVirtio(pciAddr string, hardwareAddr *net.HardwareAddr) (
 	request := &virtio.VirtioPciCreateV2{
 		PciAddr:      *addr,
 		UseRandomMac: false,
-		MacAddress:   types.ToVppMacAddress(hardwareAddr),
 		VirtioFlags:  virtio.VIRTIO_API_FLAG_GSO | virtio.VIRTIO_API_FLAG_CSUM_OFFLOAD,
 	}
+	if intf.HardwareAddr != nil {
+		request.MacAddress = types.ToVppMacAddress(intf.HardwareAddr)
+	}
+
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return ^uint32(0), errors.Wrapf(err, "CreateVirtio failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
 		return ^uint32(0), fmt.Errorf("CreateVirtio failed: req %+v reply %+v", request, response)
 	}
+	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
 }
 

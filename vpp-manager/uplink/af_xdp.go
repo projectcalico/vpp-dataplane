@@ -131,10 +131,7 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (
 	}
 
 	intf := types.VppXDPInterface{
-		HostInterfaceName: d.params.MainInterface,
-		RxQueueSize:       d.params.RxQueueSize,
-		TxQueueSize:       d.params.TxQueueSize,
-		NumRxQueues:       d.params.NumRxQueues,
+		GenericVppInterface: d.getGenericVppInterface(),
 	}
 	err = vpp.CreateAfXDP(&intf)
 	if err != nil {
