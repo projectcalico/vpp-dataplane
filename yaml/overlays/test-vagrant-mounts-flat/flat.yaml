@@ -20,7 +20,7 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  vpp_uplink_driver: ""
+  vpp_uplink_driver: "rdma"
   vpp_config_template: |-
     unix {
       nodaemon
@@ -65,6 +65,6 @@ spec:
             - name: CALICOVPP_TAP_RX_MODE
               value: polling
             - name: CALICOVPP_TAP_RX_QUEUES
-              value: "4"
+              value: "1"
             - name: CALICOVPP_TAP_TX_QUEUES
-              value: "4"
+              value: "1"

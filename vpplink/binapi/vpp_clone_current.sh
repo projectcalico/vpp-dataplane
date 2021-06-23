@@ -9,8 +9,13 @@ function git_cherry_pick ()
 	git commit --amend -m "gerrit:${refs#refs/changes/*/} $(git log -1 --pretty=%B)"
 }
 
+if [ -z "$1" ]; then
+	echo "Missing VPP path"
+	exit 1
+fi
 
 VPP_COMMIT=e631ece4aa32b33651ed458200ab551ffb8fbb47
+VPP_DIR="$1"
 
 if [ ! -d $1/.git ]; then
 	rm -rf $1
@@ -24,8 +29,8 @@ fi
 
 git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git_cherry_pick refs/changes/21/31321/10 # 31321: devices: add support for pseudo header checksum | https://gerrit.fd.io/r/c/vpp/+/31321
-git_cherry_pick refs/changes/69/31869/12 # 31869: gso: do not try gro on small packets | https://gerrit.fd.io/r/c/vpp/+/31869
-git_cherry_pick refs/changes/76/32476/2 # 32476: gso: handle push flag in gro | https://gerrit.fd.io/r/c/vpp/+/32476
+git_cherry_pick refs/changes/69/31869/13 # 31869: gso: do not try gro on small packets | https://gerrit.fd.io/r/c/vpp/+/31869
+git_cherry_pick refs/changes/76/32476/3 # 32476: gso: handle push flag in gro | https://gerrit.fd.io/r/c/vpp/+/32476
 
 git_cherry_pick refs/changes/82/32482/1 # 32482: virtio: compute cksums in output no offload | https://gerrit.fd.io/r/c/vpp/+/32482
 git_cherry_pick refs/changes/83/32483/1 # 32483: virtio: Still init unused txq | https://gerrit.fd.io/r/c/vpp/+/32483
