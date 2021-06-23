@@ -168,6 +168,10 @@ apt-mark hold docker-ce kubelet kubeadm kubectl
 echo 'tmpfs /run tmpfs rw,nosuid,noexec,relatime,size=614460k,mode=755' >> /etc/fstab
 
 apt-get clean
+
+# Download k8s images
+kubeadm config images pull
+
 fstrim -a
 
 SCRIPT
