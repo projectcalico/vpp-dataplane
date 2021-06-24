@@ -1,36 +1,39 @@
 #!/bin/bash
 
 ###############################################################################
-# This is a convenience wrapper script which uses cloud-init/userdata to      #
-# configure the EKS worker nodes during boot time with the customizations     #
-# required for Calico/VPP DPDK based deployments and then it creates an EKS   #
-# cluster consisting of a managed nodegroup with 2 m5.large worker nodes.     #
+# This script uses cloud-init/userdata to configure the EKS worker nodes      #
+# during boot time with the customizations required for Calico/VPP DPDK based #
+# deployments and then it creates an EKS cluster consisting of a managed      #
+# nodegroup with 2 worker nodes.                                              #
 #                                                                             #
 # The following customizations are done on EKS worker nodes:                  #
-#   1. 512 2MB hugepages configured                                           #
-#   2. unsafe_noiommu_mode is enabled                                         #
+#   1. configure 512 2MB hugepages                                            #
+#   2. enable unsafe_noiommu_mode                                             #
 #   3. download, build, install and load ENAv2 compatible igb_uio driver      #
 #   4. download, build, install and load ENAv2 compatible vfio-pci driver     #
 ###############################################################################
 
 
-##############################################################################
-#                           CONFIG PARAMS                                    #
-##############################################################################
+###############################################################################
+#                           CONFIG PARAMS                                     #
+###############################################################################
 ### Config params; replace with appropriate values
 CLUSTER_NAME=				# cluster name (MANDATORY)
 REGION=					# cluster region (MANDATORY)
 NODEGROUP_NAME=$CLUSTER_NAME-nodegroup	# managed nodegroup name
 LT_NAME=$CLUSTER_NAME-lt		# EC2 launch template name
-KEYNAME=				# keypair name for ssh access to worker nodes (MANDATORY)
+KEYNAME=				# keypair name for ssh access to worker nodes
 SSH_SECURITY_GROUP_NAME="$CLUSTER_NAME-ssh-allow"
 SSH_ALLOW_CIDR="0.0.0.0/0"		# source IP from which ssh access is allowed
 INSTANCE_TYPE=m5.large			# EC2 instance type
 INSTANCE_NUM=2				# Number of instances in cluster
-### Calico/VPP deployment yaml
+## Calico/VPP deployment yaml; could be url or local file
 CALICO_VPP_YAML=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/master/yaml/generated/calico-vpp-eks-dpdk.yaml
-#CALICO_VPP_YAML=./calico-vpp-eks-dpdk.yaml
-##############################################################################
+#CALICO_VPP_YAML=<full path>/calico-vpp-eks-dpdk.yaml
+## init_eks.sh script location; could be url or local file
+INIT_EKS_SCRIPT=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/master/scripts/init_eks.sh
+#INIT_EKS_SCRIPT=<full path>/init_eks.sh
+###############################################################################
 
 usage ()
 {
@@ -38,10 +41,10 @@ usage ()
 	echo "Either execute the script after filling in the CONFIG PARAMS section in the"
 	echo "script or execute the script with command-line options as follows:"
 	echo
-	echo "    $0 <cluster name> -r <region name> -k <keyname> [-t <instance type>]"
-	echo "    [-n <number of instances>] [-f <calico/vpp config yaml file>]"
+	echo "    bash $0  <cluster name>  -r <region name>  [-k <keyname>]"
+	echo "    [-t <instance type>]  [-n <number of instances>]  [-f <calico/vpp config yaml file>]"
 	echo
-	echo "Mandatory options are \"cluster name\", \"region name\" and \"keyname\"."
+	echo "Mandatory options are \"cluster name\" and \"region name\"."
 	exit 1
 }
 
@@ -67,15 +70,35 @@ if [ "$1" != "" ]; then
 fi
 
 ### Check for mandatory options
-if [ "$CLUSTER_NAME" = "" -o "$REGION" = "" -o "$KEYNAME" = "" ]; then
-	echo "Please provide \"cluster name\", \"region name\" and \"keyname\"."
+if [ "$CLUSTER_NAME" = "" -o "$REGION" = "" ]; then
+	echo "Please provide \"cluster name\" and \"region name\"."
 	echo
 	usage
 	exit 1
 fi
 
-### Basic sanity checks; save pain of tons of unnecessary errors and wasted time
-# Make sure we have aws cli version 2
+#### Basic sanity checks
+# Save pain of tons of unnecessary errors and wasted time since EKS cluster
+# creation takes an awfully long time (>20 mins)
+
+### check for OS type; only macos and linux
+OS_TYPE=`uname`
+echo; echo "OS_TYPE=$OS_TYPE"
+if [ "$OS_TYPE" = "Darwin" ]; then
+	BASE64_COMMAND="base64"
+elif [ "$OS_TYPE" = "Linux" ]; then
+	# On Linux, by default base64 wraps the lines to 76 column width
+	# which causes launch template creation to fail. "--wrap=0" disables it.
+	BASE64_COMMAND="base64 --wrap=0"
+else
+        echo
+        echo "ERROR: OS_TYPE=$OS_TYPE not supported"
+        exit 1
+fi
+echo "BASE64_COMMAND=$BASE64_COMMAND"
+
+
+### Make sure we have aws cli version 2
 which aws
 if [ $? -ne 0 ]; then
 	echo "You do not have aws cli installed. Please install aws cli version 2."
@@ -88,7 +111,7 @@ if [ "$AWSCLI_VERSION_MAJ" -ne "2" ]; then
 	exit 1
 fi
 
-# Make sure we have eksctl version >= 0.51.0; this is the version recommended by aws
+### Make sure we have eksctl version >= 0.51.0; this is the version recommended by aws
 which eksctl
 if [ $? -ne 0 ]; then
 	echo "You do not have eksctl installed. Please install eksctl version >= 0.51.0"
@@ -102,7 +125,7 @@ if [  $EKSCTL_VERSION_MIN -lt 51 ]; then
 	exit 1
 fi
 
-# Make sure we have kubectl
+### Make sure we have kubectl
 which kubectl
 if [ $? -ne 0 ]; then
 	echo "You do not have kubectl installed. Please install kubectl."
@@ -114,6 +137,81 @@ fi
 TMP_DIR=`mktemp -d`
 CUR_DIR=`pwd`
 cd $TMP_DIR
+
+### Get the Calico/VPP deployment yaml using wget or curl or whatever
+# local file or url
+if [ -f "$CALICO_VPP_YAML" ]; then
+	cp $CALICO_VPP_YAML ./calico_vpp_deployment.yaml
+else # url
+	# try wget first
+	echo "Trying wget..."
+	wget $CALICO_VPP_YAML -O ./calico_vpp_deployment.yaml
+	if [ $? -ne 0 ]; then
+		# and then try curl
+		echo
+		echo "Trying curl..."
+		curl $CALICO_VPP_YAML -o ./calico_vpp_deployment.yaml --fail
+		if [ $? -ne 0 ]; then
+			echo
+			echo "ERROR: could not download \"$CALICO_VPP_YAML\""
+			cd $CUR_DIR; rm -rf $TMP_DIR; exit 1
+		fi
+	fi
+fi
+
+### Get the INIT_EKS_SCRIPT using wget or curl or whatever. It does the
+# following customizations on EKS worker nodes:
+#   1. configure 512 2MB hugepages 
+#   2. enable unsafe_noiommu_mode 
+#   3. download, build, install and load ENAv2 compatible igb_uio driver
+#   4. download, build, install and load ENAv2 compatible vfio-pci driver
+
+# local file or url
+if [ -f "$INIT_EKS_SCRIPT" ]; then
+	cp $INIT_EKS_SCRIPT ./init_eks.sh
+else # url
+	# try wget first
+	echo "Trying wget..."
+	wget $INIT_EKS_SCRIPT -O ./init_eks.sh
+	if [ $? -ne 0 ]; then
+		# and then try curl
+		echo
+		echo "Trying curl..."
+		curl $INIT_EKS_SCRIPT -o ./init_eks.sh --fail
+		if [ $? -ne 0 ]; then
+			echo
+			echo "ERROR: could not download \"$INIT_EKS_SCRIPT\""
+			cd $CUR_DIR; rm -rf $TMP_DIR; exit 1
+		fi
+	fi
+fi
+
+echo
+echo "Here's the \"init_eks.sh\" script which will go into cloud-init/userdata of the EKS"
+echo "worker nodes and it does the following customizations on the EKS worker nodes:"
+echo "  1. configure 512 2MB hugepages"
+echo "  2. enable unsafe_noiommu_mode"
+echo "  3. download, build, install and load ENAv2 compatible igb_uio driver"
+echo "  4. download, build, install and load ENAv2 compatible vfio-pci driver"
+echo
+cat ./init_eks.sh
+
+# enclose in MIME format
+INIT_EKS_SCRIPT_CONTENT=`cat ./init_eks.sh`
+cat << highly_unlikely_that_this_will_be_in_the_init_eks.sh_script > ./mimed_init_eks.sh
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
+
+--==MYBOUNDARY==
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+$INIT_EKS_SCRIPT_CONTENT
+
+--==MYBOUNDARY==--
+highly_unlikely_that_this_will_be_in_the_init_eks.sh_script
+
+# base64 encode it
+USERDATA=`$BASE64_COMMAND < ./mimed_init_eks.sh`
 
 
 ### Create cluster without nodegroup
@@ -141,6 +239,8 @@ if [ "$CLUSTER_SECURITY_GROUP_ID" = "" ]; then
 	echo "ERROR: Missing clusterSecurityGroup. Exiting..."
 	cd $CUR_DIR; rm -rf $TMP_DIR; exit 1
 fi
+LT_SECURITY_GROUP_IDS="\"$CLUSTER_SECURITY_GROUP_ID\""
+
 VPC_ID=`aws eks describe-cluster --name $CLUSTER_NAME | grep RESOURCESVPCCONFIG | awk '{print $5}'`
 if [ "$VPC_ID" = "" ]; then
 	echo "ERROR: Missing cluster VPC ID. Exiting..."
@@ -148,21 +248,29 @@ if [ "$VPC_ID" = "" ]; then
 fi
 
 ### Create security group to allow ssh access
+if [ "$KEYNAME" != "" ]; then
+	echo
+	echo "Creating security group to allow incoming ssh connections..."
+	SSH_SECURITY_GROUP_ID=`aws ec2 create-security-group --description "Allow incoming ssh connections" --group-name $SSH_SECURITY_GROUP_NAME --vpc-id $VPC_ID`
+	aws ec2 authorize-security-group-ingress --group-id $SSH_SECURITY_GROUP_ID --protocol tcp --port 22 --cidr $SSH_ALLOW_CIDR
+	LT_SECURITY_GROUP_IDS="\"$SSH_SECURITY_GROUP_ID\", \"$CLUSTER_SECURITY_GROUP_ID\""
+fi
+
+### Deploy Calico/VPP CNI
+echo; echo
+echo "Deploying calico/VPP CNI..."
 echo
-echo "Creating security group to allow incoming ssh connections..."
-SSH_SECURITY_GROUP_ID=`aws ec2 create-security-group --description "Allow incoming ssh connections" --group-name $SSH_SECURITY_GROUP_NAME --vpc-id $VPC_ID`
-aws ec2 authorize-security-group-ingress --group-id $SSH_SECURITY_GROUP_ID --protocol tcp --port 22 --cidr $SSH_ALLOW_CIDR
+kubectl apply -f ./calico_vpp_deployment.yaml
 
 
 ### Launch template file in JSON
-cat << EOF >> ./lt.json
+cat << EOF > ./lt.json
 {
   "LaunchTemplateData": {
-    "EbsOptimized": false,
     "InstanceType": "$INSTANCE_TYPE",
     "KeyName": "$KEYNAME",
-    "UserData": "TUlNRS1WZXJzaW9uOiAxLjAKQ29udGVudC1UeXBlOiBtdWx0aXBhcnQvbWl4ZWQ7IGJvdW5kYXJ5PSI9PU1ZQk9VTkRBUlk9PSIKCi0tPT1NWUJPVU5EQVJZPT0KQ29udGVudC1UeXBlOiB0ZXh0L3gtc2hlbGxzY3JpcHQ7IGNoYXJzZXQ9InVzLWFzY2lpIgoKIyEvYmluL2Jhc2gKCiMgVGhpcyBzY3JpcHRzIGJ1aWxkcyBhbmQgaW5zZXJ0IHRoZSBkcGRrIGlnYl91aW8ga2VybmVsIG1vZHVsZXMgaW4gYW4KIyBBbWF6b24gQU1JLiBJZiBydW4gYXQgYm9vdCB0aW1lLCB0aGlzIGVuYWJsZXMgcnVubmluZyBjYWxpY28tdnBwIHdpdGgKIyB0aGUgRFBESyB1cGxpbmsgZHJpdmVyIGluIEVLUy4KCndoaWxlICgoICIkIyIgKSkgOyBkbwogICAgZXZhbCAkMQogICAgc2hpZnQKZG9uZQoKRFBES19WRVJTSU9OPSR7RFBES19WRVJTSU9OOj12MjAuMTF9CkhVR0VQQUdFUz0ke0hVR0VQQUdFUzo9NTEyfQpCVUlMRF9ESVI9L3RtcC9idWlsZApJR0JfVUlPX1BBVEg9L2xpYi9tb2R1bGVzLyQodW5hbWUgLXIpL2tlcm5lbC9kcml2ZXJzL3Vpby9pZ2JfdWlvLmtvCgpidWlsZF9hbmRfaW5zdGFsbF9pZ2JfdWlvICgpCnsKCWlmIFsgLWYgJElHQl9VSU9fUEFUSCBdOyB0aGVuCgkJZWNobyAiQWxyZWFkeSBidWlsdCIKCQlyZXR1cm4KCWZpCgoJc3VkbyB5dW0gaW5zdGFsbCAteSBnaXQgcHl0aG9uMyBnY2MgbWFrZSBrZXJuZWwtZGV2ZWwtJCh1bmFtZSAtcikKCXN1ZG8gcGlwMyBpbnN0YWxsIG1lc29uIHB5ZWxmdG9vbHMgbmluamEKCglta2RpciAkQlVJTERfRElSICYmIGNkICRCVUlMRF9ESVIKCglnaXQgY2xvbmUgaHR0cDovL2RwZGsub3JnL2dpdC9kcGRrCgljZCBkcGRrICYmIGdpdCBjaGVja291dCAke0RQREtfVkVSU0lPTn0gJiYgY2QgLi4KCWdpdCBjbG9uZSBodHRwOi8vZHBkay5vcmcvZ2l0L2RwZGsta21vZHMKCWNwIC1yIC4vZHBkay1rbW9kcy9saW51eC9pZ2JfdWlvIC4vZHBkay9rZXJuZWwvbGludXgvCgoJIyMjIyMjIyMjIyBQQVRDSElORyBEUERLICMjIyMjIyMjIyMKCglzZWQgLWkgInMvc3ViZGlycyA9IFxbJ2tuaSdcXS9zdWJkaXJzID0gXFsnaWdiX3VpbydcXS9nIiAuL2RwZGsva2VybmVsL2xpbnV4L21lc29uLmJ1aWxkCgoJY2F0IDw8IEVPRiB8IHRlZSAuL2RwZGsva2VybmVsL2xpbnV4L2lnYl91aW8vbWVzb24uYnVpbGQKIyBTUERYLUxpY2Vuc2UtSWRlbnRpZmllcjogQlNELTMtQ2xhdXNlCiMgQ29weXJpZ2h0KGMpIDIwMTcgSW50ZWwgQ29ycG9yYXRpb24KCm1rZmlsZSA9IGN1c3RvbV90YXJnZXQoJ2lnYl91aW9fbWFrZWZpbGUnLAogICAgICAgIG91dHB1dDogJ01ha2VmaWxlJywKICAgICAgICBjb21tYW5kOiBbJ3RvdWNoJywgJ0BPVVRQVVRAJ10pCgpjdXN0b21fdGFyZ2V0KCdpZ2JfdWlvJywKICAgICAgICBpbnB1dDogWydpZ2JfdWlvLmMnLCAnS2J1aWxkJ10sCiAgICAgICAgb3V0cHV0OiAnaWdiX3Vpby5rbycsCiAgICAgICAgY29tbWFuZDogWydtYWtlJywgJy1DJywgZ2V0X29wdGlvbigna2VybmVsX2RpcicpICsgJy9idWlsZCcsCiAgICAgICAgICAgICAgICAnTT0nICsgbWVzb24uY3VycmVudF9idWlsZF9kaXIoKSwKICAgICAgICAgICAgICAgICdzcmM9JyArIG1lc29uLmN1cnJlbnRfc291cmNlX2RpcigpLAogICAgICAgICAgICAgICAgJ0VYVFJBX0NGTEFHUz0tSScgKyBtZXNvbi5jdXJyZW50X3NvdXJjZV9kaXIoKSArCiAgICAgICAgICAgICAgICAgICAgICAgICcvLi4vLi4vLi4vbGliL2xpYnJ0ZV9lYWwvaW5jbHVkZScsCiAgICAgICAgICAgICAgICAnbW9kdWxlcyddLAogICAgICAgIGRlcGVuZHM6IG1rZmlsZSwKICAgICAgICBpbnN0YWxsOiB0cnVlLAogICAgICAgIGluc3RhbGxfZGlyOiBnZXRfb3B0aW9uKCdrZXJuZWxfZGlyJykgKyAnL2V4dHJhL2RwZGsnLAogICAgICAgIGJ1aWxkX2J5X2RlZmF1bHQ6IGdldF9vcHRpb24oJ2VuYWJsZV9rbW9kcycpKQpFT0YKCglzZWQgLWkgInMvc3ViZGlyKCdsaWInKS9lbmFibGVkX2xpYnMgPSBbXSAjc3ViZGlyKCdsaWInKS9nIiAuL2RwZGsvbWVzb24uYnVpbGQKCXNlZCAtaSAicy9zdWJkaXIoJ2RyaXZlcnMnKS8jc3ViZGlyKCdkcml2ZXJzJykvZyIgLi9kcGRrL21lc29uLmJ1aWxkCglzZWQgLWkgInMvc3ViZGlyKCd1c2VydG9vbHMnKS8jc3ViZGlyKCd1c2VydG9vbHMnKS9nIiAuL2RwZGsvbWVzb24uYnVpbGQKCXNlZCAtaSAicy9zdWJkaXIoJ2FwcCcpLyNzdWJkaXIoJ2FwcCcpL2ciIC4vZHBkay9tZXNvbi5idWlsZAoJc2VkIC1pICJzL3N1YmRpcignZG9jJykvI3N1YmRpcignZG9jJykvZyIgLi9kcGRrL21lc29uLmJ1aWxkCglzZWQgLWkgInMvc3ViZGlyKCdleGFtcGxlcycpLyNzdWJkaXIoJ2V4YW1wbGVzJykvZyIgLi9kcGRrL21lc29uLmJ1aWxkCglzZWQgLWkgInMvaW5zdGFsbF9zdWJkaXIoJ2V4YW1wbGVzJywvI2luc3RhbGxfc3ViZGlyKCdleGFtcGxlcycsL2ciIC4vZHBkay9tZXNvbi5idWlsZAoJc2VkIC1pICJzQGluc3RhbGxfZGlyOiBnZXRfb3B0aW9uKCdkYXRhZGlyJylAI2luc3RhbGxfZGlyOiBnZXRfb3B0aW9uKCdkYXRhZGlyJylAZyIgLi9kcGRrL21lc29uLmJ1aWxkCglzZWQgLWkgInMvZXhjbHVkZV9maWxlczogJ21lc29uLmJ1aWxkJykvI2V4Y2x1ZGVfZmlsZXM6ICdtZXNvbi5idWlsZCcpL2ciIC4vZHBkay9tZXNvbi5idWlsZAoKCSMjIyMjIyMjIyMgUEFUQ0hJTkcgRFBESyAjIyMjIyMjIyMjCgoJY2QgLi9kcGRrCgltZXNvbiBidWlsZCAtRGVuYWJsZV9rbW9kcz10cnVlIC1Ea2VybmVsX2Rpcj0vbGliL21vZHVsZXMvJCh1bmFtZSAtcikvCgluaW5qYSAtQyBidWlsZAoKCXN1ZG8gbXYgLi9idWlsZC9rZXJuZWwvbGludXgvaWdiX3Vpby9pZ2JfdWlvLmtvICR7SUdCX1VJT19QQVRIfQoJc3VkbyBjaG93biByb290OnJvb3QgJHtJR0JfVUlPX1BBVEh9Cn0KCmNvbmZpZ3VyZV9kcGRrX2ludGVycnVwdF9tb2RlX3N1cHBvcnQgKCkKewoJIyBkb3dubG9hZCBhbmQgYnVpbGQgYW5kIGluc3RhbGwgdGhlIHZmaW8tcGNpIGRyaXZlciB3aXRoIHdjIHN1cHBvcnQKCSMgZm9yIEVOQXYyCgljZCAkQlVJTERfRElSCglnaXQgY2xvbmUgaHR0cHM6Ly9naXRodWIuY29tL2Ftem4vYW16bi1kcml2ZXJzLmdpdAoJY2QgYW16bi1kcml2ZXJzL3VzZXJzcGFjZS9kcGRrL2VuYXYyLXZmaW8tcGF0Y2gKCS4vZ2V0LXZmaW8td2l0aC13Yy5zaAoKCSMgTk9URTogdXNlIHN1ZG8gd2hlbi9pZiBydW5uaW5nIHRoZSBzY3JpcHQgbWFudWFsbHkKCSMgbG9hZCB0aGUgZHJpdmVyCgltb2Rwcm9iZSB2ZmlvLXBjaQoKCSMgZW5hYmxlIHVuc2FmZV9ub2lvbW11X21vZGUKCWVjaG8gMSA+IC9zeXMvbW9kdWxlL3ZmaW8vcGFyYW1ldGVycy9lbmFibGVfdW5zYWZlX25vaW9tbXVfbW9kZQoKCSMgcGVyc2lzdCB0aGUgY2hhbmdlcyBhY3Jvc3MgcmVib290cwoJY2F0IDw8IEVPRiA+PiAvZXRjL3JjLmQvcmMubG9jYWwKbW9kcHJvYmUgdmZpby1wY2kKZWNobyAxID4gL3N5cy9tb2R1bGUvdmZpby9wYXJhbWV0ZXJzL2VuYWJsZV91bnNhZmVfbm9pb21tdV9tb2RlCkVPRgoJY2htb2QgK3ggL2V0Yy9yYy5kL3JjLmxvY2FsCgoJcm0gLXJmICRCVUlMRF9ESVIKfQoKY29uZmlndXJlX21hY2hpbmUgKCkKewoJc3VkbyBybSAtZiAvZXRjL2NuaS9uZXQuZC8xMC1hd3MuY29uZmxpc3QKCXN1ZG8gbW9kcHJvYmUgdWlvCglpZiBbIHgkKGxzbW9kIHwgYXdrICd7IHByaW50ICQxIH0nIHwgZ3JlcCBpZ2JfdWlvKSA9PSB4IF07IHRoZW4KCQlidWlsZF9hbmRfaW5zdGFsbF9pZ2JfdWlvCgkJc3VkbyBpbnNtb2QgL2xpYi9tb2R1bGVzLyQodW5hbWUgLXIpL2tlcm5lbC9kcml2ZXJzL3Vpby9pZ2JfdWlvLmtvIHdjX2FjdGl2YXRlPTEKCWZpCgoJIyBjb25maWd1cmUgaHVnZXBhZ2VzIGFuZCBwZXJzaXN0IHRoZSBjb25maWcgYWNyb3NzIHJlYm9vdHMKCXN1ZG8gc3lzY3RsIC13IHZtLm5yX2h1Z2VwYWdlcz0ke0hVR0VQQUdFU30KCWlmIFsgLWYgL3N5cy9mcy9jZ3JvdXAvaHVnZXRsYi9rdWJlcG9kcy9odWdldGxiLjJNQi5saW1pdF9pbl9ieXRlcyBdOyB0aGVuCgkJZWNobyAkKChIVUdFUEFHRVMgKiAyICogMTAyNCAqIDEwMjQpKSB8IHRlZSAvc3lzL2ZzL2Nncm91cC9odWdldGxiL2t1YmVwb2RzL2h1Z2V0bGIuMk1CLmxpbWl0X2luX2J5dGVzCglmaQoJZWNobyAidm0ubnJfaHVnZXBhZ2VzPSR7SFVHRVBBR0VTfSIgPj4gL2V0Yy9zeXNjdGwuY29uZgp9Cgpjb25maWd1cmVfbWFjaGluZQpjb25maWd1cmVfZHBka19pbnRlcnJ1cHRfbW9kZV9zdXBwb3J0CgotLT09TVlCT1VOREFSWT09LS0K",
-    "SecurityGroupIds": ["$SSH_SECURITY_GROUP_ID", "$CLUSTER_SECURITY_GROUP_ID"]
+    "UserData": "$USERDATA",
+    "SecurityGroupIds": [$LT_SECURITY_GROUP_IDS]
   }
 }
 EOF
@@ -183,11 +291,6 @@ echo "Launch Template ID : $LT_ID"
 echo
 cat ./lt.json
 
-echo; echo
-echo "Deploying calico/VPP CNI..."
-echo
-kubectl apply -f $CALICO_VPP_YAML
-
 
 ### yaml to create EKS managed nodegroup with launch template
 cat << EOF >> ./nodegroup.yaml
@@ -198,7 +301,7 @@ metadata:
   region: $REGION
 managedNodeGroups:
 - name: $NODEGROUP_NAME
-  desiredCapacity: 2
+  desiredCapacity: $INSTANCE_NUM
   labels: {role: worker}
   launchTemplate:
     id: $LT_ID
@@ -227,9 +330,11 @@ echo "    SSH_SECURITY_GROUP_NAME=$SSH_SECURITY_GROUP_NAME"
 echo "    SSH_SECURITY_GROUP_ID=$SSH_SECURITY_GROUP_ID"
 echo "    SSH_ALLOW_CIDR=$SSH_ALLOW_CIDR"
 echo "    VPC_ID=$VPC_ID"
+echo "    CLUSTER_SECURITY_GROUP_ID=$CLUSTER_SECURITY_GROUP_ID"
 echo "    INSTANCE_TYPE=$INSTANCE_TYPE"
 echo "    INSTANCE_NUM=$INSTANCE_NUM"
 echo "    CALICO_VPP_YAML=$CALICO_VPP_YAML"
+echo "    INIT_EKS_SCRIPT=$INIT_EKS_SCRIPT"
 echo "    KUBECONFIG=~/.kube/eksctl/clusters/$CLUSTER_NAME"
 echo
 echo "Do not forget to execute \"export KUBECONFIG=~/.kube/eksctl/clusters/$CLUSTER_NAME\""
@@ -244,7 +349,10 @@ echo "Once you are done with the cluster, you may want to cleanup the resources:
 echo "   eksctl delete nodegroup --region=$REGION --cluster=$CLUSTER_NAME --name=$NODEGROUP_NAME"
 echo "   aws ec2 delete-launch-template --launch-template-name $LT_NAME"
 echo "   eksctl delete cluster --region=$REGION --name=$CLUSTER_NAME"
-echo "   aws ec2 delete-security-group --group-id $SSH_SECURITY_GROUP_ID"
+if [ "$KEYNAME" != "" ]; then
+	DELETE_SECURITY_GROUP="aws ec2 delete-security-group --group-id $SSH_SECURITY_GROUP_ID"
+	echo "   $DELETE_SECURITY_GROUP"
+fi
 #echo "   aws ec2 delete-vpc --vpc-id $VPC_ID"
 echo
 echo "These commands are saved in \"./cleanup_eks_cluster.sh\" script in $CUR_DIR and you"
@@ -254,8 +362,8 @@ cat << EOF > ./cleanup_eks_cluster.sh
 eksctl delete nodegroup --region=$REGION --cluster=$CLUSTER_NAME --name=$NODEGROUP_NAME
 aws ec2 delete-launch-template --launch-template-name $LT_NAME
 eksctl delete cluster --region=$REGION --name=$CLUSTER_NAME
-aws ec2 delete-security-group --group-id $SSH_SECURITY_GROUP_ID
+$DELETE_SECURITY_GROUP
 EOF
 
-# Done
+### Done
 exit 0
