@@ -22,6 +22,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -75,7 +76,10 @@ func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
 
-	swIfIndex, err := vpp.CreateAfPacket(d.params.MainInterface, &d.conf.HardwareAddr)
+	intf := types.AfPacketInterface{
+		GenericVppInterface: d.getGenericVppInterface(),
+	}
+	swIfIndex, err := vpp.CreateAfPacket(&intf)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating AF_PACKET interface")
 	}

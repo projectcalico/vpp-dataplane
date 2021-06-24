@@ -88,14 +88,12 @@ func (d *Vmxnet3Driver) RestoreLinux() {
 }
 
 func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
-
-	swIfIndex, err := vpp.CreateVmxnet3(d.conf.PciId, &types.Vmxnet3Interface{
-		RxqNum:    d.params.NumRxQueues,
-		RxqSize:   d.params.RxQueueSize,
-		TxqSize:   d.params.TxQueueSize,
-		TxqNum:    d.params.NumTxQueues,
-		EnableGso: d.params.EnableGSO,
-	})
+	intf := types.Vmxnet3Interface{
+		GenericVppInterface: d.getGenericVppInterface(),
+		EnableGso:           d.params.EnableGSO,
+		PciId:               d.conf.PciId,
+	}
+	swIfIndex, err := vpp.CreateVmxnet3(&intf)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating Vmxnet3 interface")
 	}

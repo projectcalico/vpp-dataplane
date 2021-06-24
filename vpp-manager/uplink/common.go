@@ -24,6 +24,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -152,6 +153,17 @@ func (d *UplinkDriverData) GenerateVppConfigFile() error {
 		"Error writing VPP configuration to %s",
 		config.VppConfigFile,
 	)
+}
+
+func (d *UplinkDriverData) getGenericVppInterface() types.GenericVppInterface {
+	return types.GenericVppInterface{
+		NumRxQueues:       d.params.NumRxQueues,
+		RxQueueSize:       d.params.RxQueueSize,
+		TxQueueSize:       d.params.TxQueueSize,
+		NumTxQueues:       d.params.NumTxQueues,
+		HardwareAddr:      &d.conf.HardwareAddr,
+		HostInterfaceName: d.params.MainInterface,
+	}
 }
 
 func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.InterfaceConfig) []UplinkDriver {

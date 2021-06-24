@@ -23,21 +23,21 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-func (v *VppLink) CreateVmxnet3(addr string, vmxnet3Interface *types.Vmxnet3Interface) (swIfIndex uint32, err error) {
+func (v *VppLink) CreateVmxnet3(intf *types.Vmxnet3Interface) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &vmxnet3.Vmxnet3CreateReply{}
-	pci, err := types.GetPciIdInt(addr)
+	pci, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {
 		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateVmxnet3 error parsing PCI id")
 	}
 	request := &vmxnet3.Vmxnet3Create{
 		PciAddr:   pci,
-		RxqNum:    uint16(vmxnet3Interface.RxqNum),
-		RxqSize:   uint16(vmxnet3Interface.RxqSize),
-		TxqSize:   uint16(vmxnet3Interface.TxqSize),
-		TxqNum:    uint16(vmxnet3Interface.TxqNum),
-		EnableGso: vmxnet3Interface.EnableGso,
+		RxqNum:    uint16(intf.NumRxQueues),
+		RxqSize:   uint16(intf.RxQueueSize),
+		TxqSize:   uint16(intf.TxQueueSize),
+		TxqNum:    uint16(intf.NumTxQueues),
+		EnableGso: intf.EnableGso,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
@@ -45,5 +45,6 @@ func (v *VppLink) CreateVmxnet3(addr string, vmxnet3Interface *types.Vmxnet3Inte
 	} else if response.Retval != 0 {
 		return ^uint32(0), fmt.Errorf("CreateVmxnet3 failed: req %+v reply %+v", request, response)
 	}
+	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
 }

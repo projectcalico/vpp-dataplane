@@ -137,7 +137,6 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 	request := &tapv2.TapCreateV2{
 		ID:                   ^uint32(0),
 		Tag:                  tap.Tag,
-		MacAddress:           types.ToVppMacAddress(&tap.MacAddress),
 		TapFlags:             tapv2.TapFlags(tap.Flags),
 		NumRxQueues:          uint8(defaultIntTo(tap.NumRxQueues, 1)),
 		NumTxQueuesPerWorker: uint8(defaultIntTo(tap.NumTxQueues, 1)),
@@ -146,6 +145,12 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 		HostMtuSize:          uint32(tap.HostMtu),
 		HostMtuSet:           bool(tap.HostMtu != 0),
 	}
+	if tap.HardwareAddr != nil {
+		request.MacAddress = types.ToVppMacAddress(tap.HardwareAddr)
+	} else {
+		request.UseRandomMac = true
+	}
+
 	if tap.TxQueueSize > 0 {
 		request.TxRingSz = uint16(tap.TxQueueSize)
 	}
@@ -159,11 +164,11 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 		request.HostNamespaceSet = true
 		request.HostNamespace = tap.HostNamespace
 	}
-	if len(tap.HostIfName) > 64 {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("HostIfName should be less than 64 characters")
+	if len(tap.HostInterfaceName) > 64 {
+		return INVALID_SW_IF_INDEX, fmt.Errorf("HostInterfaceName should be less than 64 characters")
 	}
-	if tap.HostIfName != "" {
-		request.HostIfName = tap.HostIfName
+	if tap.HostInterfaceName != "" {
+		request.HostIfName = tap.HostInterfaceName
 		request.HostIfNameSet = true
 	}
 	if tap.HostMacAddress != nil {

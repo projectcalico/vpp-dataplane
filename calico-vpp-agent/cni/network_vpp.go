@@ -213,13 +213,15 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	// Create new tun
 	tun := &types.TapV2{
+		GenericVppInterface: types.GenericVppInterface{
+			NumRxQueues:       config.TapNumRxQueues,
+			NumTxQueues:       config.TapNumTxQueues,
+			RxQueueSize:       config.TapRxQueueSize,
+			TxQueueSize:       config.TapTxQueueSize,
+			HostInterfaceName: podSpec.InterfaceName,
+		},
 		HostNamespace: podSpec.NetnsName,
-		HostIfName:    podSpec.InterfaceName,
 		Tag:           tunTag,
-		NumRxQueues:   config.TapNumRxQueues,
-		NumTxQueues:   config.TapNumTxQueues,
-		RxQueueSize:   config.TapRxQueueSize,
-		TxQueueSize:   config.TapTxQueueSize,
 		Flags:         types.TapFlagTun,
 		HostMtu:       podMtu,
 	}
