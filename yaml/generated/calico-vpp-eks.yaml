@@ -560,7 +560,7 @@ spec:
                   udp:68, tcp:179, tcp:2379, tcp:2380, tcp:6443, tcp:6666, tcp:6667]'
                 items:
                   description: ProtoPort is combination of protocol, port, and CIDR.
-                    All three must be specified.
+                    Protocol and port must be specified.
                   properties:
                     net:
                       type: string
@@ -569,7 +569,6 @@ spec:
                     protocol:
                       type: string
                   required:
-                  - net
                   - port
                   - protocol
                   type: object
@@ -588,7 +587,7 @@ spec:
                   tcp:6667, udp:53, udp:67]'
                 items:
                   description: ProtoPort is combination of protocol, port, and CIDR.
-                    All three must be specified.
+                    Protocol and port must be specified.
                   properties:
                     net:
                       type: string
@@ -597,7 +596,6 @@ spec:
                     protocol:
                       type: string
                   required:
-                  - net
                   - port
                   - protocol
                   type: object
@@ -3569,9 +3567,6 @@ data:
     cpu {
         workers 0
     }
-    buffers {
-      default data-size 3776
-    }
     socksvr {
         socket-name /var/run/vpp/vpp-api.sock
     }
@@ -3656,7 +3651,7 @@ spec:
           value: node
         - name: DATASTORE_TYPE
           value: kubernetes
-        image: docker.io/calico/kube-controllers:v3.19.0
+        image: docker.io/calico/kube-controllers:v3.19.1
         livenessProbe:
           exec:
             command:
@@ -3715,42 +3710,6 @@ spec:
     spec:
       containers:
       - env:
-        - name: DATASTORE_TYPE
-          value: kubernetes
-        - name: WAIT_FOR_DATASTORE
-          value: "true"
-        - name: NODENAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: SERVICE_PREFIX
-          valueFrom:
-            configMapKeyRef:
-              key: service_prefix
-              name: calico-vpp-config
-        image: docker.io/calicovpp/agent:prerelease
-        imagePullPolicy: IfNotPresent
-        name: agent
-        resources:
-          requests:
-            cpu: 250m
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /var/run/calico
-          name: var-run-calico
-          readOnly: false
-        - mountPath: /var/lib/calico/felix-plugins
-          name: felix-plugins
-          readOnly: false
-        - mountPath: /var/run/vpp
-          name: vpp-rundir
-        - mountPath: /run/netns/
-          mountPropagation: Bidirectional
-          name: netns
-      - env:
-        - name: CALICOVPP_TAP_MTU
-          value: "3500"
         - name: CALICOVPP_HOOK_BEFORE_VPP_RUN
           value: echo 'sudo systemctl stop network ; sudo systemctl kill network'
             | chroot /host
@@ -3806,6 +3765,8 @@ spec:
         volumeMounts:
         - mountPath: /host
           name: host-root
+        - mountPath: /lib/firmware
+          name: lib-firmware
         - mountPath: /var/run/vpp
           name: vpp-rundir
         - mountPath: /var/lib/vpp
@@ -3816,6 +3777,40 @@ spec:
           name: devices
         - mountPath: /sys
           name: hostsys
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+      - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: SERVICE_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: service_prefix
+              name: calico-vpp-config
+        image: docker.io/calicovpp/agent:prerelease
+        imagePullPolicy: IfNotPresent
+        name: agent
+        resources:
+          requests:
+            cpu: 250m
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/calico
+          name: var-run-calico
+          readOnly: false
+        - mountPath: /var/lib/calico/felix-plugins
+          name: felix-plugins
+          readOnly: false
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns
@@ -3837,6 +3832,9 @@ spec:
       - hostPath:
           path: /
         name: host-root
+      - hostPath:
+          path: /lib/firmware
+        name: lib-firmware
       - hostPath:
           path: /var/run/vpp
         name: vpp-rundir
@@ -3945,7 +3943,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/node:v3.19.0
+        image: docker.io/calico/node:v3.19.1
         livenessProbe:
           exec:
             command:
@@ -4010,7 +4008,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/cni:v3.19.0
+        image: docker.io/calico/cni:v3.19.1
         name: upgrade-ipam
         securityContext:
           privileged: true
@@ -4044,7 +4042,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/cni:v3.19.0
+        image: docker.io/calico/cni:v3.19.1
         name: install-cni
         securityContext:
           privileged: true
@@ -4053,7 +4051,7 @@ spec:
           name: cni-bin-dir
         - mountPath: /host/etc/cni/net.d
           name: cni-net-dir
-      - image: docker.io/calico/pod2daemon-flexvol:v3.19.0
+      - image: docker.io/calico/pod2daemon-flexvol:v3.19.1
         name: flexvol-driver
         securityContext:
           privileged: true

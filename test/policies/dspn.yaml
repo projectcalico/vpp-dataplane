@@ -20,9 +20,8 @@ spec:
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
       containers:
-      - name: iperf
-        image: sknat/iperf:latest
-        imagePullPolicy: Never
+      - name: ns
+        image: nicolaka/netshoot:latest
         command: ["bash", "-c", "sleep infinity"]
         volumeMounts:
         - name: dev
