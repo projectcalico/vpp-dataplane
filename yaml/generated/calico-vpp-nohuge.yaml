@@ -3788,6 +3788,8 @@ spec:
         securityContext:
           privileged: true
         volumeMounts:
+        - mountPath: /lib/firmware
+          name: lib-firmware
         - mountPath: /var/run/vpp
           name: vpp-rundir
         - mountPath: /var/lib/vpp
@@ -3816,6 +3818,9 @@ spec:
       - effect: NoExecute
         operator: Exists
       volumes:
+      - hostPath:
+          path: /lib/firmware
+        name: lib-firmware
       - hostPath:
           path: /var/run/vpp
         name: vpp-rundir
