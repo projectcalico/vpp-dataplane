@@ -234,14 +234,14 @@ echo "Deleting aws-node..."
 kubectl delete daemonset -n kube-system aws-node
 
 ### Grab the clusterSecurityGroup and VpcId
-CLUSTER_SECURITY_GROUP_ID=`aws eks describe-cluster --name $CLUSTER_NAME | grep RESOURCESVPCCONFIG | awk '{print $2}'`
+CLUSTER_SECURITY_GROUP_ID=`aws eks describe-cluster --name $CLUSTER_NAME --output text | grep RESOURCESVPCCONFIG | awk '{print $2}'`
 if [ "$CLUSTER_SECURITY_GROUP_ID" = "" ]; then
 	echo "ERROR: Missing clusterSecurityGroup. Exiting..."
 	cd $CUR_DIR; rm -rf $TMP_DIR; exit 1
 fi
 LT_SECURITY_GROUP_IDS="\"$CLUSTER_SECURITY_GROUP_ID\""
 
-VPC_ID=`aws eks describe-cluster --name $CLUSTER_NAME | grep RESOURCESVPCCONFIG | awk '{print $5}'`
+VPC_ID=`aws eks describe-cluster --name $CLUSTER_NAME --output text | grep RESOURCESVPCCONFIG | awk '{print $5}'`
 if [ "$VPC_ID" = "" ]; then
 	echo "ERROR: Missing cluster VPC ID. Exiting..."
 	cd $CUR_DIR; rm -rf $TMP_DIR; exit 1
@@ -251,7 +251,7 @@ fi
 if [ "$KEYNAME" != "" ]; then
 	echo
 	echo "Creating security group to allow incoming ssh connections..."
-	SSH_SECURITY_GROUP_ID=`aws ec2 create-security-group --description "Allow incoming ssh connections" --group-name $SSH_SECURITY_GROUP_NAME --vpc-id $VPC_ID`
+	SSH_SECURITY_GROUP_ID=`aws ec2 create-security-group --description "Allow incoming ssh connections" --group-name $SSH_SECURITY_GROUP_NAME --vpc-id $VPC_ID --output text`
 	aws ec2 authorize-security-group-ingress --group-id $SSH_SECURITY_GROUP_ID --protocol tcp --port 22 --cidr $SSH_ALLOW_CIDR
 	LT_SECURITY_GROUP_IDS="\"$SSH_SECURITY_GROUP_ID\", \"$CLUSTER_SECURITY_GROUP_ID\""
 fi
@@ -278,7 +278,7 @@ EOF
 ### Create EC2 launch template
 echo
 echo "Creating EC2 launch template..."
-aws ec2 create-launch-template --launch-template-name $LT_NAME --cli-input-json file://./lt.json 1>./lt_output.log 2>./lt_error.log
+aws ec2 create-launch-template --launch-template-name $LT_NAME --output text --cli-input-json file://./lt.json 1>./lt_output.log 2>./lt_error.log
 if [ $? -ne 0 ]; then
 	cat ./lt_error.log
 	echo "ERROR: Could not create EC2 launch template. Refer to error logs above."
