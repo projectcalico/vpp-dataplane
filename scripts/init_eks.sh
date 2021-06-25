@@ -1,8 +1,13 @@
 #!/bin/bash
 
-# This scripts builds and insert the dpdk igb_uio kernel modules in an
-# Amazon AMI. If run at boot time, this enables running calico-vpp with
-# the DPDK uplink driver in EKS.
+# This script applies the following customizations in EKS worker nodes:
+#   1. configure 512 2MB hugepages
+#   2. enable unsafe_noiommu_mode
+#   3. download, build, install and load ENAv2 compatible igb_uio driver
+#   4. download, build, install and load ENAv2 compatible vfio-pci driver
+#
+# These customizations are pre-requisites for running calico-vpp with the
+# DPDK uplink driver in EKS.
 
 while (( "$#" )) ; do
     eval $1
@@ -120,6 +125,7 @@ configure_machine ()
 		echo $((HUGEPAGES * 2 * 1024 * 1024)) | tee /sys/fs/cgroup/hugetlb/kubepods/hugetlb.2MB.limit_in_bytes
 	fi
 	echo "vm.nr_hugepages=${HUGEPAGES}" >> /etc/sysctl.conf
+	systemctl restart kubelet
 }
 
 configure_machine

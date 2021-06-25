@@ -52,3 +52,4 @@ git_cherry_pick refs/changes/83/28083/16 # 28083: acl: acl-plugin custom policie
 git_cherry_pick refs/changes/13/28513/20 # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 # ------------- Policies patches -------------
 
+git_cherry_pick refs/changes/35/32235/1  # 32235: dpdk: enable ena interrupt support | https://gerrit.fd.io/r/c/vpp/+/32235

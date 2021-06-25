@@ -3697,47 +3697,6 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    k8s-app: calico-vpp-init-eks
-  name: calico-vpp-init-eks
-  namespace: calico-vpp-dataplane
-spec:
-  selector:
-    matchLabels:
-      k8s-app: calico-vpp-init-eks
-  template:
-    metadata:
-      labels:
-        k8s-app: calico-vpp-init-eks
-    spec:
-      containers:
-      - env:
-        - name: HUGEPAGES
-          value: "512"
-        image: calicovpp/init-eks:prerelease
-        imagePullPolicy: IfNotPresent
-        name: calicovpp-init-eks
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /host
-          name: host-root
-      hostNetwork: true
-      tolerations:
-      - effect: NoSchedule
-        operator: Exists
-      - key: CriticalAddonsOnly
-        operator: Exists
-      - effect: NoExecute
-        operator: Exists
-      volumes:
-      - hostPath:
-          path: /
-        name: host-root
----
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  labels:
     k8s-app: calico-vpp-node
   name: calico-vpp-node
   namespace: calico-vpp-dataplane
