@@ -33,7 +33,7 @@ import (
 type IpsecProvider struct {
 	*ConnectivityProviderData
 	ipsecIfs    map[string][]*types.IPIPTunnel
-	ipsecRoutes map[string][]*types.Route
+	ipsecRoutes map[string]map[string]bool
 }
 
 func (p *IpsecProvider) OnVppRestart() {
@@ -62,6 +62,7 @@ func (p *IpsecProvider) OnVppRestart() {
 		}
 	}
 	p.ipsecIfs = make(map[string][]*types.IPIPTunnel)
+	p.ipsecRoutes = make(map[string]map[string]bool)
 }
 
 func (p *IpsecProvider) Enabled() bool {
@@ -92,10 +93,32 @@ func (p *IpsecProvider) RescanState() {
 			}
 		}
 	}
+
+	p.ipsecRoutes = make(map[string]map[string]bool)
+	routes, err := p.vpp.GetRoutes(0, false)
+	if err != nil {
+		p.log.Errorf("Error listing routes: %v", err)
+	}
+	for _, route := range routes {
+		for _, routePath := range route.Paths {
+			for _, tunnels := range p.ipsecIfs {
+				for _, tunnel := range tunnels {
+					if routePath.SwIfIndex == tunnel.SwIfIndex {
+						_, found := p.ipsecRoutes[tunnel.Dst.String()]
+						if !found {
+							p.ipsecRoutes[tunnel.Dst.String()] = make(map[string]bool)
+						}
+						p.ipsecRoutes[tunnel.Dst.String()][route.String()] = true
+
+					}
+				}
+			}
+		}
+	}
 }
 
 func NewIPsecProvider(d *ConnectivityProviderData) *IpsecProvider {
-	return &IpsecProvider{d, make(map[string][]*types.IPIPTunnel), make(map[string][]*types.Route)}
+	return &IpsecProvider{d, make(map[string][]*types.IPIPTunnel), make(map[string]map[string]bool)}
 }
 
 func ipToSafeString(addr net.IP) string {
@@ -342,10 +365,10 @@ func (p *IpsecProvider) AddConnectivity(cn *common.NodeConnectivity) (err error)
 	}
 	_, found := p.ipsecRoutes[cn.NextHop.String()]
 	if !found {
-		p.ipsecRoutes[cn.NextHop.String()] = []*types.Route{route}
-	} else {
-		p.ipsecRoutes[cn.NextHop.String()] = append(p.ipsecRoutes[cn.NextHop.String()], route)
+		p.ipsecRoutes[cn.NextHop.String()] = make(map[string]bool)
 	}
+	p.ipsecRoutes[cn.NextHop.String()][route.String()] = true
+
 	return nil
 }
 
@@ -361,21 +384,17 @@ func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error)
 		return errors.Errorf("Deleting unknown ipip tunnel %s", cn.NextHop.String())
 	}
 	p.log.Infof("IPSEC: DEL %s via %s [%v]", cn.Dst.String(), cn.NextHop.String(), tunnels)
-	route_to_delete := &types.Route{
+	routeToDelete := &types.Route{
 		Dst:   &cn.Dst,
 		Paths: getIPSecRoutePaths(tunnels),
 	}
-	err = p.vpp.RouteDel(route_to_delete)
+	err = p.vpp.RouteDel(routeToDelete)
 	if err != nil {
 		return errors.Wrapf(err, "Error deleting route ipip tunnel %v: %v", tunnels)
 	}
 
-	for index, route := range p.ipsecRoutes[cn.NextHop.String()] {
-		if route.Dst.String() == route_to_delete.Dst.String() {
-			p.ipsecRoutes[cn.NextHop.String()] = append(
-				p.ipsecRoutes[cn.NextHop.String()][:index], p.ipsecRoutes[cn.NextHop.String()][index+1:]...)
-		}
-	}
+	delete(p.ipsecRoutes[cn.NextHop.String()], routeToDelete.String())
+
 	remaining_routes, found := p.ipsecRoutes[cn.NextHop.String()]
 	if !found || len(remaining_routes) == 0 {
 		for _, tunnel := range tunnels {

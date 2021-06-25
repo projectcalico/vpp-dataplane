@@ -27,13 +27,13 @@ import (
 type VXLanProvider struct {
 	*ConnectivityProviderData
 	vxlanIfs     map[string]uint32
-	vxlanRoutes  map[uint32][]*types.Route
+	vxlanRoutes  map[uint32]map[string]bool
 	ip4NodeIndex uint32
 	ip6NodeIndex uint32
 }
 
 func NewVXLanProvider(d *ConnectivityProviderData) *VXLanProvider {
-	return &VXLanProvider{d, make(map[string]uint32), make(map[uint32][]*types.Route), 0, 0}
+	return &VXLanProvider{d, make(map[string]uint32), make(map[uint32]map[string]bool), 0, 0}
 }
 
 func (p *VXLanProvider) Enabled() bool {
@@ -71,12 +71,31 @@ func (p *VXLanProvider) RescanState() {
 			p.vxlanIfs[tunnel.DstAddress.String()] = uint32(tunnel.SwIfIndex)
 		}
 	}
-
+	p.log.Infof("Rescanning existing routes")
+	p.vxlanRoutes = make(map[uint32]map[string]bool)
+	routes, err := p.vpp.GetRoutes(0, false)
+	if err != nil {
+		p.log.Errorf("Error listing routes: %v", err)
+	}
+	for _, route := range routes {
+		for _, routePath := range route.Paths{
+			for _, tunnel := range p.vxlanIfs{
+				if routePath.SwIfIndex == tunnel{
+					_, found := p.vxlanRoutes[tunnel]
+					if !found {
+						p.vxlanRoutes[tunnel] = make(map[string]bool)
+					}
+					p.vxlanRoutes[tunnel][route.String()] = true
+				}
+			}
+		}
+	}
 }
 
 func (p *VXLanProvider) OnVppRestart() {
 	p.vxlanIfs = make(map[string]uint32)
 	p.configureVXLANNodes()
+	p.vxlanRoutes = make(map[uint32]map[string]bool)
 }
 
 func (p *VXLanProvider) getVXLANVNI() uint32 {
@@ -180,10 +199,9 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Info(p.vxlanRoutes)
 	_, found := p.vxlanRoutes[swIfIndex]
 	if !found {
-		p.vxlanRoutes[swIfIndex] = []*types.Route{route}
-	} else {
-		p.vxlanRoutes[swIfIndex] = append(p.vxlanRoutes[swIfIndex], route)
+		p.vxlanRoutes[swIfIndex] = make(map[string] bool)
 	}
+	p.vxlanRoutes[swIfIndex][route.String()] = true
 	return p.vpp.RouteAdd(route)
 }
 
@@ -196,22 +214,20 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	/* TODO: delete tunnel */
 	nodeIP := p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop))
 	p.log.Infof("VXLan: Del ?->%s %d", cn.NextHop.String(), swIfIndex)
-	route_to_delete := &types.Route{
+	routeToDelete := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: swIfIndex,
 			Gw:        nodeIP,
 		}},
 	}
-	err := p.vpp.RouteDel(route_to_delete)
+	err := p.vpp.RouteDel(routeToDelete)
 	if err != nil {
 		return errors.Wrapf(err, "Error deleting vxlan tunnel route")
 	}
-	for index, route := range p.vxlanRoutes[swIfIndex] {
-		if route.Dst.String() == route_to_delete.Dst.String() {
-			p.vxlanRoutes[swIfIndex] = append(p.vxlanRoutes[swIfIndex][:index], p.vxlanRoutes[swIfIndex][index+1:]...)
-		}
-	}
+
+	delete(p.vxlanRoutes[swIfIndex], routeToDelete.String())
+
 	remaining_routes, found := p.vxlanRoutes[swIfIndex]
 	existing_vxlan_tunnels, err := p.vpp.ListVXLanTunnels()
 	if err != nil {
@@ -220,7 +236,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	for _, tunnel := range existing_vxlan_tunnels {
 		if swIfIndex == uint32(tunnel.SwIfIndex) && (!found || len(remaining_routes) == 0) {
 			p.log.Infof("Deleting tunnel...[%s]", swIfIndex)
-			p.vpp.DelVXLanTunnel(tunnel)
+			p.vpp.DelVXLanTunnel(&tunnel)
 			delete(p.vxlanIfs, cn.NextHop.String())
 		}
 	}
