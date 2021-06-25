@@ -20,7 +20,7 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  vpp_uplink_driver: "rdma"
+  vpp_uplink_driver: ""
   vpp_config_template: |-
     unix {
       nodaemon
