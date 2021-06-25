@@ -3723,7 +3723,7 @@ spec:
             configMapKeyRef:
               key: service_prefix
               name: calico-vpp-config
-        image: docker.io/calicovpp/agent:prerelease
+        image: docker.io/calicovpp/agent:v0.15.0-calicov3.19.1
         imagePullPolicy: IfNotPresent
         name: agent
         resources:
@@ -3776,7 +3776,7 @@ spec:
               fieldPath: spec.nodeName
         - name: CALICOVPP_CORE_PATTERN
           value: /var/lib/vpp/vppcore.%e.%p
-        image: docker.io/calicovpp/vpp:prerelease
+        image: docker.io/calicovpp/vpp:v0.15.0-calicov3.19.1
         imagePullPolicy: IfNotPresent
         name: vpp
         resources:
