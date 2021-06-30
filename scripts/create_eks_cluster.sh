@@ -233,6 +233,12 @@ echo; echo
 echo "Deleting aws-node..."
 kubectl delete daemonset -n kube-system aws-node
 
+### Deploy Calico/VPP CNI
+echo; echo
+echo "Deploying calico/VPP CNI..."
+echo
+kubectl apply -f ./calico_vpp_deployment.yaml
+
 ### Grab the clusterSecurityGroup and VpcId
 CLUSTER_SECURITY_GROUP_ID=`aws eks describe-cluster --name $CLUSTER_NAME --output text | grep RESOURCESVPCCONFIG | awk '{print $2}'`
 if [ "$CLUSTER_SECURITY_GROUP_ID" = "" ]; then
@@ -248,32 +254,28 @@ if [ "$VPC_ID" = "" ]; then
 fi
 
 ### Create security group to allow ssh access
+LT_KEYNAME_FIELD=
 if [ "$KEYNAME" != "" ]; then
 	echo
 	echo "Creating security group to allow incoming ssh connections..."
 	SSH_SECURITY_GROUP_ID=`aws ec2 create-security-group --description "Allow incoming ssh connections" --group-name $SSH_SECURITY_GROUP_NAME --vpc-id $VPC_ID --output text`
 	aws ec2 authorize-security-group-ingress --group-id $SSH_SECURITY_GROUP_ID --protocol tcp --port 22 --cidr $SSH_ALLOW_CIDR
 	LT_SECURITY_GROUP_IDS="\"$SSH_SECURITY_GROUP_ID\", \"$CLUSTER_SECURITY_GROUP_ID\""
+	LT_KEYNAME_FIELD="\"KeyName\": \"$KEYNAME\","
 fi
-
-### Deploy Calico/VPP CNI
-echo; echo
-echo "Deploying calico/VPP CNI..."
-echo
-kubectl apply -f ./calico_vpp_deployment.yaml
-
 
 ### Launch template file in JSON
 cat << EOF > ./lt.json
 {
   "LaunchTemplateData": {
     "InstanceType": "$INSTANCE_TYPE",
-    "KeyName": "$KEYNAME",
+    $LT_KEYNAME_FIELD
     "UserData": "$USERDATA",
     "SecurityGroupIds": [$LT_SECURITY_GROUP_IDS]
   }
 }
 EOF
+
 
 ### Create EC2 launch template
 echo
@@ -281,7 +283,7 @@ echo "Creating EC2 launch template..."
 aws ec2 create-launch-template --launch-template-name $LT_NAME --output text --cli-input-json file://./lt.json 1>./lt_output.log 2>./lt_error.log
 if [ $? -ne 0 ]; then
 	cat ./lt_error.log
-	echo "ERROR: Could not create EC2 launch template. Refer to error logs above."
+	echo; echo "ERROR: Could not create EC2 launch template. Refer to error logs above."
 	cd $CUR_DIR; rm -rf $TMP_DIR; exit 1
 fi
 cat ./lt_output.log
