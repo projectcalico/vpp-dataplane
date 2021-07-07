@@ -4,5 +4,5 @@ kind: IPPool
 metadata:
   name: sr-policies-pool
 spec:
-  cidr: cafe::/122
+  cidr: cafe::/118
   nodeSelector: "!all()"

@@ -67,7 +67,7 @@ func (p *SRv6Provider) RescanState() {
 func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) {
 	p.log.Infof("SRv6Provider AddConnectivity %s", cn.String())
 	if vpplink.IsIP6(cn.NextHop) {
-		bsid, err := p.getSidFromPool("cafe::/122")
+		bsid, err := p.getSidFromPool("cafe::/118")
 		if err != nil {
 			return errors.Wrapf(err, "SRv6Provider AddConnectivity")
 		}
