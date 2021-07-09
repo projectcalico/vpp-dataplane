@@ -52,10 +52,10 @@ func (d *AVFDriver) IsSupported(warn bool) (supported bool) {
 	return supported
 }
 
-func (d *AVFDriver) PreconfigureLinux() (err error) {
-	pciId, err := utils.GetInterfacePciId(d.params.MainInterface)
+func (d *AVFDriver) PreconfigureLinux(idx int) (err error) {
+	pciId, err := utils.GetInterfacePciId(d.params.MainInterface[idx])
 	if err != nil {
-		return errors.Wrapf(err, "cannot get interface %s pciID", d.params.MainInterface)
+		return errors.Wrapf(err, "cannot get interface %s pciID", d.params.MainInterface[idx])
 	}
 
 	numVFs, err := utils.GetInterfaceNumVFs(pciId)
@@ -67,34 +67,34 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 		/* This is a PF */
 		d.pfPCI = pciId
 		if numVFs == 0 {
-			log.Infof("Creating a VF for %s", d.params.MainInterface)
+			log.Infof("Creating a VF for %s", d.params.MainInterface[idx])
 			err := utils.CreateInterfaceVF(pciId)
 			if err != nil {
-				return errors.Wrapf(err, "Couldnt create VF for %s", d.params.MainInterface)
+				return errors.Wrapf(err, "Couldnt create VF for %s", d.params.MainInterface[idx])
 			}
 
 			/* Create a mac for the new VF */
-			link, err := netlink.LinkByName(d.params.MainInterface)
+			link, err := netlink.LinkByName(d.params.MainInterface[idx])
 			if err != nil {
-				return errors.Wrapf(err, "Couldnt find Interface %s", d.params.MainInterface)
+				return errors.Wrapf(err, "Couldnt find Interface %s", d.params.MainInterface[idx])
 			}
 			hardwareAddr := utils.CycleHardwareAddr(d.conf.HardwareAddr, 7)
 			err = netlink.LinkSetVfHardwareAddr(link, 0 /* vf */, hardwareAddr)
 			if err != nil {
-				return errors.Wrapf(err, "Couldnt set VF 0 hwaddr %s", d.params.MainInterface)
+				return errors.Wrapf(err, "Couldnt set VF 0 hwaddr %s", d.params.MainInterface[idx])
 			}
 		}
 		vfPCI, err := utils.GetInterfaceVFPciId(pciId)
 		if err != nil {
-			return errors.Wrapf(err, "Couldnt get VF pciID for %s", d.params.MainInterface)
+			return errors.Wrapf(err, "Couldnt get VF pciID for %s", d.params.MainInterface[idx])
 		}
 		d.vfPCI = vfPCI
 	}
 
 	if d.pfPCI != "" {
-		err := utils.SetVFSpoofTrust(d.params.MainInterface, 0 /* vf */, false /* spoof */, true /* trust */)
+		err := utils.SetVFSpoofTrust(d.params.MainInterface[idx], 0 /* vf */, false /* spoof */, true /* trust */)
 		if err != nil {
-			return errors.Wrapf(err, "Couldnt set VF spoof off trust on %s", d.params.MainInterface)
+			return errors.Wrapf(err, "Couldnt set VF spoof off trust on %s", d.params.MainInterface[idx])
 		}
 	}
 
@@ -109,20 +109,20 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 		}
 	}
 
-	d.removeLinuxIfConf(true /* down */)
+	d.removeLinuxIfConf(true /* down */, idx)
 
 	return nil
 }
 
-func (d *AVFDriver) RestoreLinux() {
+func (d *AVFDriver) RestoreLinux(idx int) {
 	if !d.conf.IsUp {
 		return
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface[idx])
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.params.MainInterface[idx], err)
 		return
 	}
 
@@ -130,18 +130,18 @@ func (d *AVFDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error {
+func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, idx int) error {
 	if d.pfPCI != "" {
 		/* We were passed a PF, move it to vpp's NS so it doesn't
 		   conflict with vpptap0 */
-		err := d.moveInterfaceToNS(d.params.MainInterface, vppPid)
+		err := d.moveInterfaceToNS(d.params.MainInterface[idx], vppPid)
 		if err != nil {
 			return errors.Wrap(err, "Moving uplink in NS failed")
 		}
 	}
 
 	intf := types.AVFInterface{
-		GenericVppInterface: d.getGenericVppInterface(),
+		GenericVppInterface: d.getGenericVppInterface(idx),
 		PciId:               d.vfPCI,
 	}
 	swIfIndex, err := vpp.CreateAVF(&intf)

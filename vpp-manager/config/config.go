@@ -53,7 +53,7 @@ const (
 
 type VppManagerParams struct {
 	VppStartupSleepSeconds   int
-	MainInterface            string
+	MainInterface            []string
 	ConfigExecTemplate       string
 	ConfigTemplate           string
 	NodeName                 string
@@ -61,9 +61,9 @@ type VppManagerParams struct {
 	RxMode                   types.RxMode
 	TapRxMode                types.RxMode
 	ServiceCIDRs             []net.IPNet
-	VppIpConfSource          string
+	VppIpConfSource          []string
 	ExtraAddrCount           int
-	NativeDriver             string
+	NativeDriver             []string
 	TapRxQueueSize           int
 	TapTxQueueSize           int
 	RxQueueSize              int
@@ -71,7 +71,7 @@ type VppManagerParams struct {
 	UserSpecifiedMtu         int
 	NumRxQueues              int
 	NumTxQueues              int
-	NewDriverName            string
+	NewDriverName            []string
 	DefaultGWs               []net.IP
 	IfConfigSavePath         string
 	EnableGSO                bool
@@ -190,12 +190,12 @@ func (c *InterfaceConfig) SortRoutes() {
 	})
 }
 
-func TemplateScriptReplace(input string, params *VppManagerParams, conf *InterfaceConfig) (template string) {
+func TemplateScriptReplace(input string, params *VppManagerParams, conf *InterfaceConfig, idx int) (template string) {
 	template = input
 	if conf != nil {
 		/* We might template scripts before reading interface conf */
 		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", conf.PciId)
 	}
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.MainInterface)
+	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.MainInterface[idx])
 	return template
 }

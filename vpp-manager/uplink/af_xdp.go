@@ -62,18 +62,18 @@ func (d *AFXDPDriver) IsSupported(warn bool) bool {
 	return false
 }
 
-func (d *AFXDPDriver) PreconfigureLinux() error {
-	link, err := netlink.LinkByName(d.params.MainInterface)
+func (d *AFXDPDriver) PreconfigureLinux(idx int) error {
+	link, err := netlink.LinkByName(d.params.MainInterface[idx])
 	if err != nil {
-		return errors.Wrapf(err, "Error finding link %s", d.params.MainInterface)
+		return errors.Wrapf(err, "Error finding link %s", d.params.MainInterface[idx])
 	}
 	err = netlink.SetPromiscOn(link)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting link %s promisc on", d.params.MainInterface)
+		return errors.Wrapf(err, "Error setting link %s promisc on", d.params.MainInterface[idx])
 	}
-	err = utils.SetInterfaceRxQueues(d.params.MainInterface, d.params.NumRxQueues)
+	err = utils.SetInterfaceRxQueues(d.params.MainInterface[idx], d.params.NumRxQueues)
 	if err != nil {
-		log.Errorf("Error setting link %s NumQueues to %d, using %d queues: %v", d.params.MainInterface, d.params.NumRxQueues, d.conf.NumRxQueues, err)
+		log.Errorf("Error setting link %s NumQueues to %d, using %d queues: %v", d.params.MainInterface[idx], d.params.NumRxQueues, d.conf.NumRxQueues, err)
 		/* Try with linux NumRxQueues on error, otherwise af_xdp wont start */
 		d.params.NumRxQueues = d.conf.NumRxQueues
 	}
@@ -92,14 +92,14 @@ func (d *AFXDPDriver) PreconfigureLinux() error {
 	return nil
 }
 
-func (d *AFXDPDriver) RestoreLinux() {
+func (d *AFXDPDriver) RestoreLinux(idx int) {
 	if !d.conf.IsUp {
 		return
 	}
 	// Interface should pop back in root ns once vpp exits
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface[idx])
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.params.MainInterface[idx], err)
 		return
 	}
 
@@ -109,14 +109,14 @@ func (d *AFXDPDriver) RestoreLinux() {
 		log.Infof("Setting promisc off")
 		err = netlink.SetPromiscOff(link)
 		if err != nil {
-			log.Errorf("Error setting link %s promisc off %v", d.params.MainInterface, err)
+			log.Errorf("Error setting link %s promisc off %v", d.params.MainInterface[idx], err)
 		}
 	}
 	if d.conf.NumRxQueues != d.params.NumRxQueues {
 		log.Infof("Setting back %d queues", d.conf.NumRxQueues)
-		err = utils.SetInterfaceRxQueues(d.params.MainInterface, d.conf.NumRxQueues)
+		err = utils.SetInterfaceRxQueues(d.params.MainInterface[idx], d.conf.NumRxQueues)
 		if err != nil {
-			log.Errorf("Error setting link %s NumQueues to %d %v", d.params.MainInterface, d.conf.NumRxQueues, err)
+			log.Errorf("Error setting link %s NumQueues to %d %v", d.params.MainInterface[idx], d.conf.NumRxQueues, err)
 		}
 	}
 
@@ -124,14 +124,14 @@ func (d *AFXDPDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
-	err = d.moveInterfaceToNS(d.params.MainInterface, vppPid)
+func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, idx int) (err error) {
+	err = d.moveInterfaceToNS(d.params.MainInterface[idx], vppPid)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
 
 	intf := types.VppXDPInterface{
-		GenericVppInterface: d.getGenericVppInterface(),
+		GenericVppInterface: d.getGenericVppInterface(idx),
 	}
 	err = vpp.CreateAfXDP(&intf)
 	if err != nil {

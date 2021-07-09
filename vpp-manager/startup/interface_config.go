@@ -29,8 +29,8 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-func getInterfaceConfig(params *config.VppManagerParams) (conf *config.InterfaceConfig, err error) {
-	conf, err = loadInterfaceConfigFromLinux(params)
+func getInterfaceConfig(params *config.VppManagerParams, idx int) (conf *config.InterfaceConfig, err error) {
+	conf, err = loadInterfaceConfigFromLinux(params, idx)
 	if err == nil {
 		err = saveConfig(params, conf)
 		if err != nil {
@@ -52,23 +52,23 @@ func getInterfaceConfig(params *config.VppManagerParams) (conf *config.Interface
 	return conf, nil
 }
 
-func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.InterfaceConfig, error) {
+func loadInterfaceConfigFromLinux(params *config.VppManagerParams, idx int) (*config.InterfaceConfig, error) {
 	conf := config.InterfaceConfig{}
-	link, err := netlink.LinkByName(params.MainInterface)
+	link, err := netlink.LinkByName(params.MainInterface[idx])
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot find interface named %s", params.MainInterface)
+		return nil, errors.Wrapf(err, "cannot find interface named %s", params.MainInterface[idx])
 	}
 	conf.IsUp = (link.Attrs().Flags & net.FlagUp) != 0
 	if conf.IsUp {
 		// Grab addresses and routes
 		conf.Addresses, err = netlink.AddrList(link, netlink.FAMILY_ALL)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list %s addresses", params.MainInterface)
+			return nil, errors.Wrapf(err, "cannot list %s addresses", params.MainInterface[idx])
 		}
 
 		conf.Routes, err = netlink.RouteList(link, netlink.FAMILY_ALL)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list %s routes", params.MainInterface)
+			return nil, errors.Wrapf(err, "cannot list %s routes", params.MainInterface[idx])
 		}
 		conf.SortRoutes()
 	}
@@ -87,12 +87,12 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 	conf.NumRxQueues = link.Attrs().NumRxQueues
 	conf.Mtu = link.Attrs().MTU
 
-	pciId, err := utils.GetInterfacePciId(params.MainInterface)
+	pciId, err := utils.GetInterfacePciId(params.MainInterface[idx])
 	if err != nil {
 		return nil, err
 	}
 	if pciId == "" {
-		log.Warnf("Could not find pci device for %s", params.MainInterface)
+		log.Warnf("Could not find pci device for %s", params.MainInterface[idx])
 	} else {
 		conf.PciId = pciId
 		driver, err := utils.GetDriverNameFromPci(pciId)
@@ -100,7 +100,7 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 			return nil, err
 		}
 		conf.Driver = driver
-		if params.NewDriverName != "" && params.NewDriverName != conf.Driver {
+		if params.NewDriverName[idx]  != "" && params.NewDriverName[idx] != conf.Driver {
 			conf.DoSwapDriver = true
 		}
 	}

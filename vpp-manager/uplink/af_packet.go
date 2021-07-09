@@ -35,26 +35,26 @@ func (d *AFPacketDriver) IsSupported(warn bool) bool {
 	return true
 }
 
-func (d *AFPacketDriver) PreconfigureLinux() error {
-	link, err := netlink.LinkByName(d.params.MainInterface)
+func (d *AFPacketDriver) PreconfigureLinux(idx int) error {
+	link, err := netlink.LinkByName(d.params.MainInterface[idx])
 	if err != nil {
-		return errors.Wrapf(err, "Error finding link %s", d.params.MainInterface)
+		return errors.Wrapf(err, "Error finding link %s", d.params.MainInterface[idx])
 	}
 	err = netlink.SetPromiscOn(link)
 	if err != nil {
-		return errors.Wrapf(err, "Error set link %s promisc on", d.params.MainInterface)
+		return errors.Wrapf(err, "Error set link %s promisc on", d.params.MainInterface[idx])
 	}
 	return nil
 }
 
-func (d *AFPacketDriver) RestoreLinux() {
+func (d *AFPacketDriver) RestoreLinux(idx int) {
 	if !d.conf.IsUp {
 		return
 	}
 	// Interface should pop back in root ns once vpp exits
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface[idx])
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.params.MainInterface[idx], err)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (d *AFPacketDriver) RestoreLinux() {
 		log.Infof("Setting promisc off")
 		err = netlink.SetPromiscOff(link)
 		if err != nil {
-			log.Errorf("Error setting link %s promisc off %v", d.params.MainInterface, err)
+			log.Errorf("Error setting link %s promisc off %v", d.params.MainInterface[idx], err)
 		}
 	}
 
@@ -70,14 +70,14 @@ func (d *AFPacketDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
-	err = d.moveInterfaceToNS(d.params.MainInterface, vppPid)
+func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, idx int) (err error) {
+	err = d.moveInterfaceToNS(d.params.MainInterface[idx], vppPid)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
 
 	intf := types.AfPacketInterface{
-		GenericVppInterface: d.getGenericVppInterface(),
+		GenericVppInterface: d.getGenericVppInterface(idx),
 	}
 	swIfIndex, err := vpp.CreateAfPacket(&intf)
 	if err != nil {

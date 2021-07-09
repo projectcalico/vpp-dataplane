@@ -66,27 +66,27 @@ func NewVPPRunner(params *config.VppManagerParams, conf *config.InterfaceConfig)
 	}
 }
 
-func (v *VppRunner) Run(driver uplink.UplinkDriver) error {
+func (v *VppRunner) Run(driver uplink.UplinkDriver, idx int) error {
 	v.uplinkDriver = driver
 	log.Infof("Running with uplink %s", driver.GetName())
 
-	err := v.uplinkDriver.GenerateVppConfigExecFile()
+	err := v.uplinkDriver.GenerateVppConfigExecFile(idx)
 	if err != nil {
 		return errors.Wrapf(err, "Error generating VPP config Exec: %s")
 	}
 
-	err = v.uplinkDriver.GenerateVppConfigFile()
+	err = v.uplinkDriver.GenerateVppConfigFile(idx)
 	if err != nil {
 		return errors.Wrapf(err, "Error generating VPP config: %s")
 	}
 
-	err = v.uplinkDriver.PreconfigureLinux()
+	err = v.uplinkDriver.PreconfigureLinux(idx)
 	if err != nil {
 		return errors.Wrapf(err, "Error pre-configuring Linux main IF: %s")
 	}
 
 	hooks.RunHook(hooks.BEFORE_VPP_RUN, v.params, v.conf)
-	err = v.runVpp()
+	err = v.runVpp(idx)
 	if err != nil {
 		return errors.Wrapf(err, "Error running VPP: %v")
 	}
@@ -297,7 +297,7 @@ func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount in
 	return nil
 }
 
-func (v *VppRunner) configureVpp() (err error) {
+func (v *VppRunner) configureVpp(idx int) (err error) {
 	// Always enable GSO feature on data interface, only a tiny negative effect on perf if GSO is not
 	// enabled on the taps or already done before an encap
 	if v.params.EnableGSO {
@@ -390,7 +390,7 @@ func (v *VppRunner) configureVpp() (err error) {
 
 	tapSwIfIndex, err := v.vpp.CreateTapV2(&types.TapV2{
 		GenericVppInterface: types.GenericVppInterface{
-			HostInterfaceName: v.params.MainInterface,
+			HostInterfaceName: v.params.MainInterface[idx],
 			RxQueueSize:       v.params.TapRxQueueSize,
 			TxQueueSize:       v.params.TapTxQueueSize,
 			HardwareAddr:      &vppSideMac,
@@ -500,9 +500,9 @@ func (v *VppRunner) configureVpp() (err error) {
 	}
 
 	// Linux side tap setup
-	link, err := netlink.LinkByName(v.params.MainInterface)
+	link, err := netlink.LinkByName(v.params.MainInterface[idx])
 	if err != nil {
-		return errors.Wrapf(err, "cannot find interface named %s", v.params.MainInterface)
+		return errors.Wrapf(err, "cannot find interface named %s", v.params.MainInterface[idx])
 	}
 
 	err = v.configureLinuxTap(link)
@@ -600,7 +600,7 @@ func (v *VppRunner) pingCalicoVpp() error {
 }
 
 // Returns VPP exit code
-func (v *VppRunner) runVpp() (err error) {
+func (v *VppRunner) runVpp(idx int) (err error) {
 	// From this point it is very important that every exit path calls restoreConfiguration after vpp exits
 	vppCmd := exec.Command(config.VppPath, "-c", config.VppConfigFile)
 	vppCmd.SysProcAttr = &syscall.SysProcAttr{
@@ -611,7 +611,7 @@ func (v *VppRunner) runVpp() (err error) {
 	vppCmd.Stdout = os.Stdout
 	vppCmd.Stderr = os.Stderr
 	err = vppCmd.Start()
-	defer v.restoreConfiguration()
+	defer v.restoreConfiguration(idx)
 	if err != nil {
 		return errors.Wrap(err, "Error starting vpp process")
 	}
@@ -631,7 +631,7 @@ func (v *VppRunner) runVpp() (err error) {
 		return fmt.Errorf("cannot connect to VPP after 10 tries")
 	}
 
-	err = v.uplinkDriver.CreateMainVppInterface(vpp, vppProcess.Pid)
+	err = v.uplinkDriver.CreateMainVppInterface(vpp, vppProcess.Pid, idx)
 	if err != nil {
 		terminateVpp("Error creating main interface (SIGINT %d): %v", vppProcess.Pid, err)
 		v.vpp.Close()
@@ -657,7 +657,7 @@ func (v *VppRunner) runVpp() (err error) {
 	go v.routeWatcher.WatchRoutes()
 
 	// Configure VPP
-	err = v.configureVpp()
+	err = v.configureVpp(idx)
 	v.vpp.Close()
 	if err != nil {
 		terminateVpp("Error configuring VPP (SIGINT %d): %v", vppProcess.Pid, err)
@@ -692,13 +692,13 @@ func (v *VppRunner) runVpp() (err error) {
 	return nil
 }
 
-func (v *VppRunner) restoreConfiguration() {
+func (v *VppRunner) restoreConfiguration(idx int) {
 	log.Infof("Restoring configuration")
 	err := utils.ClearVppManagerFiles()
 	if err != nil {
 		log.Errorf("Error clearing vpp manager files: %v", err)
 	}
-	v.uplinkDriver.RestoreLinux()
+	v.uplinkDriver.RestoreLinux(idx)
 	err = v.pingCalicoVpp()
 	if err != nil {
 		log.Errorf("Error pinging calico-vpp: %v", err)

@@ -137,41 +137,48 @@ func main() {
 	vppDeadChan = make(chan bool, 1)
 	VPPgotSigCHLD = make(map[int]bool)
 	VPPgotTimeout = make(map[int]bool)
+	numberOfIfs := 2
+	var confs []*config.InterfaceConfig
 
 	params := startup.GetVppManagerParams()
 
 	hooks.RunHook(hooks.BEFORE_IF_READ, params, nil)
-	conf := startup.PrepareConfiguration(params)
+
+	for idx := 0; idx < numberOfIfs; idx++ {
+		confs = append(confs, startup.PrepareConfiguration(params, idx))
+	}
 
 	runningCond = sync.NewCond(&sync.Mutex{})
 	go handleSignals()
 
-	startup.PrintVppManagerConfig(params, conf)
+	for idx := 0; idx < numberOfIfs; idx++ {
+		startup.PrintVppManagerConfig(params, confs[idx])
 
-	runner := NewVPPRunner(params, conf)
+		runner := NewVPPRunner(params, confs[idx])
 
-	makeNewVPPIndex()
-	if params.NativeDriver == "" {
-		for _, driver := range uplink.SupportedUplinkDrivers(params, conf) {
-			internalKill = false
-			err := runner.Run(driver)
+		makeNewVPPIndex()
+		if params.NativeDriver[idx] == "" {
+			for _, driver := range uplink.SupportedUplinkDrivers(params, confs[idx]) {
+				internalKill = false
+				err := runner.Run(driver, idx)
+				if err != nil {
+					hooks.RunHook(hooks.VPP_ERRORED, params, confs[idx])
+					log.Errorf("VPP(%s) run failed with %s", driver, err)
+				}
+				if vppProcess != nil && !internalKill {
+					log.Infof("External Kill")
+					/* Don't restart VPP if we were asked to terminate */
+					break
+				}
+				makeNewVPPIndex()
+			}
+		} else {
+			driver := uplink.NewUplinkDriver(params.NativeDriver[idx], params, confs[idx])
+			err := runner.Run(driver, idx)
 			if err != nil {
-				hooks.RunHook(hooks.VPP_ERRORED, params, conf)
-				log.Errorf("VPP(%s) run failed with %s", driver, err)
+				hooks.RunHook(hooks.VPP_ERRORED, params, confs[idx])
+				log.Errorf("VPP(%s) run failed with %s", params.NativeDriver[idx], err)
 			}
-			if vppProcess != nil && !internalKill {
-				log.Infof("External Kill")
-				/* Don't restart VPP if we were asked to terminate */
-				break
-			}
-			makeNewVPPIndex()
-		}
-	} else {
-		driver := uplink.NewUplinkDriver(params.NativeDriver, params, conf)
-		err := runner.Run(driver)
-		if err != nil {
-			hooks.RunHook(hooks.VPP_ERRORED, params, conf)
-			log.Errorf("VPP(%s) run failed with %s", params.NativeDriver, err)
 		}
 	}
 }

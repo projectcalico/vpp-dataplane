@@ -41,9 +41,9 @@ var (
 	vppManagerHooks = make(map[string][]func(params *config.VppManagerParams, conf *config.InterfaceConfig) error)
 )
 
-func RegisterBashHook(name string, bashTemplate string) {
+func RegisterBashHook(name string, bashTemplate string, idx int) {
 	RegisterHook(name, func(params *config.VppManagerParams, conf *config.InterfaceConfig) error {
-		return utils.RunBashScript(config.TemplateScriptReplace(bashTemplate, params, nil))
+		return utils.RunBashScript(config.TemplateScriptReplace(bashTemplate, params, nil, idx))
 	})
 }
 

@@ -55,8 +55,8 @@ func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
 	return supported
 }
 
-func (d *VirtioDriver) PreconfigureLinux() (err error) {
-	newDriverName := d.params.NewDriverName
+func (d *VirtioDriver) PreconfigureLinux(idx int) (err error) {
+	newDriverName := d.params.NewDriverName[idx]
 	doSwapDriver := d.conf.DoSwapDriver
 	if newDriverName == "" {
 		newDriverName = config.DRIVER_VFIO_PCI
@@ -69,7 +69,7 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 			return errors.Wrapf(err, "Virtio preconfigure error")
 		}
 	}
-	d.removeLinuxIfConf(true /* down */)
+	d.removeLinuxIfConf(true /* down */, idx)
 	if doSwapDriver {
 		err = utils.SwapDriver(d.conf.PciId, newDriverName, true)
 		if err != nil {
@@ -79,7 +79,7 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *VirtioDriver) RestoreLinux() {
+func (d *VirtioDriver) RestoreLinux(idx int) {
 	if !d.params.VfioUnsafeiommu {
 		err := utils.SetVfioUnsafeiommu(false)
 		if err != nil {
@@ -97,9 +97,9 @@ func (d *VirtioDriver) RestoreLinux() {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface[idx])
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.params.MainInterface[idx], err)
 		return
 	}
 
@@ -107,9 +107,9 @@ func (d *VirtioDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, idx int) (err error) {
 	intf := types.VirtioInterface{
-		GenericVppInterface: d.getGenericVppInterface(),
+		GenericVppInterface: d.getGenericVppInterface(idx),
 		PciId:               d.conf.PciId,
 	}
 	swIfIndex, err := vpp.CreateVirtio(&intf)

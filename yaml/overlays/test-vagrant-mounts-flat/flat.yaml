@@ -20,7 +20,8 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  vpp_uplink_driver: ""
+  vpp_uplink_driver: "af_packet-af_packet"
+  vpp_dataplane_interface: "eth1-dummy0"
   vpp_config_template: |-
     unix {
       nodaemon

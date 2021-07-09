@@ -37,15 +37,15 @@ func (d *DPDKDriver) IsSupported(warn bool) bool {
 	return true
 }
 
-func (d *DPDKDriver) PreconfigureLinux() (err error) {
-	d.removeLinuxIfConf(true /* down */)
+func (d *DPDKDriver) PreconfigureLinux(idx int) (err error) {
+	d.removeLinuxIfConf(true /* down */, idx)
 	finalDriver := d.conf.Driver
 	if d.conf.DoSwapDriver {
-		err = utils.SwapDriver(d.conf.PciId, d.params.NewDriverName, true)
+		err = utils.SwapDriver(d.conf.PciId, d.params.NewDriverName[idx], true)
 		if err != nil {
-			log.Warnf("Failed to swap driver to %s: %v", d.params.NewDriverName, err)
+			log.Warnf("Failed to swap driver to %s: %v", d.params.NewDriverName[idx], err)
 		}
-		finalDriver = d.params.NewDriverName
+		finalDriver = d.params.NewDriverName[idx]
 	}
 	if finalDriver == config.DRIVER_VFIO_PCI && d.params.AvailableHugePages == 0 {
 		err := utils.SetVfioUnsafeiommu(false)
@@ -56,8 +56,8 @@ func (d *DPDKDriver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *DPDKDriver) GenerateVppConfigFile() error {
-	template := config.TemplateScriptReplace(d.params.ConfigTemplate, d.params, d.conf)
+func (d *DPDKDriver) GenerateVppConfigFile(idx int) error {
+	template := config.TemplateScriptReplace(d.params.ConfigTemplate, d.params, d.conf, idx)
 	dpdkPluginRegex := regexp.MustCompile(`plugin\s+dpdk_plugin.so\s+{\s+disable\s+}`)
 	template = dpdkPluginRegex.ReplaceAllString(template, "plugin dpdk_plugin.so { enable }")
 
@@ -93,26 +93,26 @@ write:
 	)
 }
 
-func (d *DPDKDriver) restoreInterfaceName() error {
+func (d *DPDKDriver) restoreInterfaceName(idx int) error {
 	newName, err := utils.GetInterfaceNameFromPci(d.conf.PciId)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting new if name for %s: %v", d.conf.PciId)
 	}
-	if newName == d.params.MainInterface {
+	if newName == d.params.MainInterface[idx] {
 		return nil
 	}
 	link, err := netlink.LinkByName(newName)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting new link %s: %v", newName)
 	}
-	err = netlink.LinkSetName(link, d.params.MainInterface)
+	err = netlink.LinkSetName(link, d.params.MainInterface[idx])
 	if err != nil {
 		return errors.Wrapf(err, "Error setting new if name for %s: %v", d.conf.PciId)
 	}
 	return nil
 }
 
-func (d *DPDKDriver) RestoreLinux() {
+func (d *DPDKDriver) RestoreLinux(idx int) {
 	if d.conf.PciId != "" && d.conf.Driver != "" {
 		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
 		if err != nil {
@@ -121,7 +121,7 @@ func (d *DPDKDriver) RestoreLinux() {
 	}
 
 	for i := 0; i < 10; i++ {
-		err := d.restoreInterfaceName()
+		err := d.restoreInterfaceName(idx)
 		if err != nil {
 			log.Warnf("Error restoring if name %s", err)
 		} else {
@@ -135,9 +135,9 @@ func (d *DPDKDriver) RestoreLinux() {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface[idx])
 	if err != nil {
-		log.Warnf("Error seting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error seting %s up: %v", d.params.MainInterface[idx], err)
 		return
 	}
 
@@ -145,7 +145,7 @@ func (d *DPDKDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error {
+func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, idx int) error {
 	/* Nothing to do VPP autocreates */
 	return nil
 }

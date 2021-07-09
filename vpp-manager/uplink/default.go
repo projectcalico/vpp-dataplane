@@ -37,22 +37,22 @@ func (d *DefaultDriver) IsSupported(warn bool) bool {
 	return false
 }
 
-func (d *DefaultDriver) PreconfigureLinux() (err error) {
-	d.removeLinuxIfConf(true /* down */)
+func (d *DefaultDriver) PreconfigureLinux(idx int) (err error) {
+	d.removeLinuxIfConf(true /* down */, idx)
 	if d.conf.DoSwapDriver {
 		if d.conf.PciId == "" {
 			log.Warnf("PCI ID not found, not swapping drivers")
 		} else {
-			err = utils.SwapDriver(d.conf.PciId, d.params.NewDriverName, true)
+			err = utils.SwapDriver(d.conf.PciId, d.params.NewDriverName[idx], true)
 			if err != nil {
-				log.Warnf("Failed to swap driver to %s: %v", d.params.NewDriverName, err)
+				log.Warnf("Failed to swap driver to %s: %v", d.params.NewDriverName[idx], err)
 			}
 		}
 	}
 	return nil
 }
 
-func (d *DefaultDriver) RestoreLinux() {
+func (d *DefaultDriver) RestoreLinux(idx int) {
 	if d.conf.PciId != "" && d.conf.Driver != "" {
 		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
 		if err != nil {
@@ -64,7 +64,7 @@ func (d *DefaultDriver) RestoreLinux() {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface[idx])
 	if err != nil {
 		log.Warnf("Error seting %s up: %v", d.params.MainInterface, err)
 		return
@@ -74,13 +74,13 @@ func (d *DefaultDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error {
+func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, idx int) error {
 	// If interface is still in the host, move it to vpp netns to allow creation of the tap
-	err := d.moveInterfaceToNS(d.params.MainInterface, vppPid)
+	err := d.moveInterfaceToNS(d.params.MainInterface[idx], vppPid)
 	if err != nil {
-		log.Infof("Did NOT move interface %s to VPP netns: %v", d.params.MainInterface, err)
+		log.Infof("Did NOT move interface %s to VPP netns: %v", d.params.MainInterface[idx], err)
 	} else {
-		log.Infof("Moved interface %s to VPP netns", d.params.MainInterface)
+		log.Infof("Moved interface %s to VPP netns", d.params.MainInterface[idx])
 	}
 	return nil
 }

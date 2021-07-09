@@ -174,19 +174,19 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.MainInterface = getEnvValue(InterfaceEnvVar)
-	if params.MainInterface == "" {
+	params.MainInterface = strings.Split(getEnvValue(InterfaceEnvVar), "-")
+	if params.MainInterface[0] == "" {
 		return errors.Errorf("No interface specified. Specify an interface through the %s environment variable", InterfaceEnvVar)
 	}
 
 	params.ConfigExecTemplate = getEnvValue(ConfigExecTemplateEnvVar)
 	for _, hookName := range hooks.AllHooks {
 		if conf := getEnvValue(fmt.Sprintf("%s%s", BashHookEnvVarPrefix, hookName)); conf != "" {
-			hooks.RegisterBashHook(hookName, conf)
+			hooks.RegisterBashHook(hookName, conf, 0)
 		}
 	}
 	if conf := getEnvValue(InitScriptTemplateEnvVar); conf != "" {
-		hooks.RegisterBashHook(hooks.BEFORE_IF_READ, conf)
+		hooks.RegisterBashHook(hooks.BEFORE_IF_READ, conf, 0)
 	}
 
 	params.ConfigTemplate = getEnvValue(ConfigTemplateEnvVar)
@@ -210,8 +210,8 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		params.ServiceCIDRs = append(params.ServiceCIDRs, *serviceCIDR)
 	}
 
-	params.VppIpConfSource = getEnvValue(IpConfigEnvVar)
-	if params.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
+	params.VppIpConfSource = strings.Split(getEnvValue(IpConfigEnvVar), "-")
+	if params.VppIpConfSource[0] != "linux" { // TODO add dhcp, config file, etc.
 		return errors.Errorf("No ip configuration source specified. Specify one of {linux,} through the %s environment variable", IpConfigEnvVar)
 	}
 
@@ -227,11 +227,12 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.NativeDriver = ""
-	if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
-		params.NativeDriver = strings.ToLower(conf)
+	params.NativeDriver = strings.Split(getEnvValue(NativeDriverEnvVar), "-")
+	for i, driver := range params.NativeDriver {
+		if driver != "" {
+			params.NativeDriver[i] = strings.ToLower(driver)
+		}
 	}
-
 	params.NumRxQueues = DefaultNumRxQueues
 	if conf := getEnvValue(NumRxQueuesEnvVar); conf != "" {
 		queues, err := strconv.ParseInt(conf, 10, 16)
@@ -252,7 +253,7 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.NewDriverName = getEnvValue(SwapDriverEnvVar)
+	params.NewDriverName = strings.Split(getEnvValue(SwapDriverEnvVar), "-")
 
 	params.RxMode = types.UnformatRxMode(getEnvValue(RxModeEnvVar))
 	if params.RxMode == types.UnknownRxMode {
@@ -384,7 +385,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.Interfa
 	log.Infof("MTU                  %d", conf.Mtu)
 }
 
-func PrepareConfiguration(params *config.VppManagerParams) (conf *config.InterfaceConfig) {
+func PrepareConfiguration(params *config.VppManagerParams, idx int) (conf *config.InterfaceConfig) {
 	err := utils.ClearVppManagerFiles()
 	if err != nil {
 		log.Fatalf("Error clearing config files: %+v", err)
@@ -400,7 +401,7 @@ func PrepareConfiguration(params *config.VppManagerParams) (conf *config.Interfa
 		log.Errorf("Error raising memlock limit, VPP may fail to start: %v", err)
 	}
 
-	conf, err = getInterfaceConfig(params)
+	conf, err = getInterfaceConfig(params, idx)
 	if err != nil {
 		log.Fatalf("Error getting initial interface configuration: %s", err)
 	}
