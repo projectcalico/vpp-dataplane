@@ -8,6 +8,8 @@ import (
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -20,7 +22,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type IPVersion int32
 
@@ -249,88 +251,88 @@ type isToDataplane_Payload interface {
 }
 
 type ToDataplane_InSync struct {
-	InSync *InSync `protobuf:"bytes,1,opt,name=in_sync,json=inSync,proto3,oneof"`
+	InSync *InSync `protobuf:"bytes,1,opt,name=in_sync,json=inSync,proto3,oneof" json:"in_sync,omitempty"`
 }
 type ToDataplane_IpsetUpdate struct {
-	IpsetUpdate *IPSetUpdate `protobuf:"bytes,2,opt,name=ipset_update,json=ipsetUpdate,proto3,oneof"`
+	IpsetUpdate *IPSetUpdate `protobuf:"bytes,2,opt,name=ipset_update,json=ipsetUpdate,proto3,oneof" json:"ipset_update,omitempty"`
 }
 type ToDataplane_IpsetDeltaUpdate struct {
-	IpsetDeltaUpdate *IPSetDeltaUpdate `protobuf:"bytes,3,opt,name=ipset_delta_update,json=ipsetDeltaUpdate,proto3,oneof"`
+	IpsetDeltaUpdate *IPSetDeltaUpdate `protobuf:"bytes,3,opt,name=ipset_delta_update,json=ipsetDeltaUpdate,proto3,oneof" json:"ipset_delta_update,omitempty"`
 }
 type ToDataplane_IpsetRemove struct {
-	IpsetRemove *IPSetRemove `protobuf:"bytes,4,opt,name=ipset_remove,json=ipsetRemove,proto3,oneof"`
+	IpsetRemove *IPSetRemove `protobuf:"bytes,4,opt,name=ipset_remove,json=ipsetRemove,proto3,oneof" json:"ipset_remove,omitempty"`
 }
 type ToDataplane_ActiveProfileUpdate struct {
-	ActiveProfileUpdate *ActiveProfileUpdate `protobuf:"bytes,5,opt,name=active_profile_update,json=activeProfileUpdate,proto3,oneof"`
+	ActiveProfileUpdate *ActiveProfileUpdate `protobuf:"bytes,5,opt,name=active_profile_update,json=activeProfileUpdate,proto3,oneof" json:"active_profile_update,omitempty"`
 }
 type ToDataplane_ActiveProfileRemove struct {
-	ActiveProfileRemove *ActiveProfileRemove `protobuf:"bytes,6,opt,name=active_profile_remove,json=activeProfileRemove,proto3,oneof"`
+	ActiveProfileRemove *ActiveProfileRemove `protobuf:"bytes,6,opt,name=active_profile_remove,json=activeProfileRemove,proto3,oneof" json:"active_profile_remove,omitempty"`
 }
 type ToDataplane_ActivePolicyUpdate struct {
-	ActivePolicyUpdate *ActivePolicyUpdate `protobuf:"bytes,7,opt,name=active_policy_update,json=activePolicyUpdate,proto3,oneof"`
+	ActivePolicyUpdate *ActivePolicyUpdate `protobuf:"bytes,7,opt,name=active_policy_update,json=activePolicyUpdate,proto3,oneof" json:"active_policy_update,omitempty"`
 }
 type ToDataplane_ActivePolicyRemove struct {
-	ActivePolicyRemove *ActivePolicyRemove `protobuf:"bytes,8,opt,name=active_policy_remove,json=activePolicyRemove,proto3,oneof"`
+	ActivePolicyRemove *ActivePolicyRemove `protobuf:"bytes,8,opt,name=active_policy_remove,json=activePolicyRemove,proto3,oneof" json:"active_policy_remove,omitempty"`
 }
 type ToDataplane_HostEndpointUpdate struct {
-	HostEndpointUpdate *HostEndpointUpdate `protobuf:"bytes,9,opt,name=host_endpoint_update,json=hostEndpointUpdate,proto3,oneof"`
+	HostEndpointUpdate *HostEndpointUpdate `protobuf:"bytes,9,opt,name=host_endpoint_update,json=hostEndpointUpdate,proto3,oneof" json:"host_endpoint_update,omitempty"`
 }
 type ToDataplane_HostEndpointRemove struct {
-	HostEndpointRemove *HostEndpointRemove `protobuf:"bytes,10,opt,name=host_endpoint_remove,json=hostEndpointRemove,proto3,oneof"`
+	HostEndpointRemove *HostEndpointRemove `protobuf:"bytes,10,opt,name=host_endpoint_remove,json=hostEndpointRemove,proto3,oneof" json:"host_endpoint_remove,omitempty"`
 }
 type ToDataplane_WorkloadEndpointUpdate struct {
-	WorkloadEndpointUpdate *WorkloadEndpointUpdate `protobuf:"bytes,11,opt,name=workload_endpoint_update,json=workloadEndpointUpdate,proto3,oneof"`
+	WorkloadEndpointUpdate *WorkloadEndpointUpdate `protobuf:"bytes,11,opt,name=workload_endpoint_update,json=workloadEndpointUpdate,proto3,oneof" json:"workload_endpoint_update,omitempty"`
 }
 type ToDataplane_WorkloadEndpointRemove struct {
-	WorkloadEndpointRemove *WorkloadEndpointRemove `protobuf:"bytes,12,opt,name=workload_endpoint_remove,json=workloadEndpointRemove,proto3,oneof"`
+	WorkloadEndpointRemove *WorkloadEndpointRemove `protobuf:"bytes,12,opt,name=workload_endpoint_remove,json=workloadEndpointRemove,proto3,oneof" json:"workload_endpoint_remove,omitempty"`
 }
 type ToDataplane_ConfigUpdate struct {
-	ConfigUpdate *ConfigUpdate `protobuf:"bytes,13,opt,name=config_update,json=configUpdate,proto3,oneof"`
+	ConfigUpdate *ConfigUpdate `protobuf:"bytes,13,opt,name=config_update,json=configUpdate,proto3,oneof" json:"config_update,omitempty"`
 }
 type ToDataplane_HostMetadataUpdate struct {
-	HostMetadataUpdate *HostMetadataUpdate `protobuf:"bytes,14,opt,name=host_metadata_update,json=hostMetadataUpdate,proto3,oneof"`
+	HostMetadataUpdate *HostMetadataUpdate `protobuf:"bytes,14,opt,name=host_metadata_update,json=hostMetadataUpdate,proto3,oneof" json:"host_metadata_update,omitempty"`
 }
 type ToDataplane_HostMetadataRemove struct {
-	HostMetadataRemove *HostMetadataRemove `protobuf:"bytes,18,opt,name=host_metadata_remove,json=hostMetadataRemove,proto3,oneof"`
+	HostMetadataRemove *HostMetadataRemove `protobuf:"bytes,18,opt,name=host_metadata_remove,json=hostMetadataRemove,proto3,oneof" json:"host_metadata_remove,omitempty"`
 }
 type ToDataplane_IpamPoolUpdate struct {
-	IpamPoolUpdate *IPAMPoolUpdate `protobuf:"bytes,16,opt,name=ipam_pool_update,json=ipamPoolUpdate,proto3,oneof"`
+	IpamPoolUpdate *IPAMPoolUpdate `protobuf:"bytes,16,opt,name=ipam_pool_update,json=ipamPoolUpdate,proto3,oneof" json:"ipam_pool_update,omitempty"`
 }
 type ToDataplane_IpamPoolRemove struct {
-	IpamPoolRemove *IPAMPoolRemove `protobuf:"bytes,17,opt,name=ipam_pool_remove,json=ipamPoolRemove,proto3,oneof"`
+	IpamPoolRemove *IPAMPoolRemove `protobuf:"bytes,17,opt,name=ipam_pool_remove,json=ipamPoolRemove,proto3,oneof" json:"ipam_pool_remove,omitempty"`
 }
 type ToDataplane_ServiceAccountUpdate struct {
-	ServiceAccountUpdate *ServiceAccountUpdate `protobuf:"bytes,19,opt,name=service_account_update,json=serviceAccountUpdate,proto3,oneof"`
+	ServiceAccountUpdate *ServiceAccountUpdate `protobuf:"bytes,19,opt,name=service_account_update,json=serviceAccountUpdate,proto3,oneof" json:"service_account_update,omitempty"`
 }
 type ToDataplane_ServiceAccountRemove struct {
-	ServiceAccountRemove *ServiceAccountRemove `protobuf:"bytes,20,opt,name=service_account_remove,json=serviceAccountRemove,proto3,oneof"`
+	ServiceAccountRemove *ServiceAccountRemove `protobuf:"bytes,20,opt,name=service_account_remove,json=serviceAccountRemove,proto3,oneof" json:"service_account_remove,omitempty"`
 }
 type ToDataplane_NamespaceUpdate struct {
-	NamespaceUpdate *NamespaceUpdate `protobuf:"bytes,21,opt,name=namespace_update,json=namespaceUpdate,proto3,oneof"`
+	NamespaceUpdate *NamespaceUpdate `protobuf:"bytes,21,opt,name=namespace_update,json=namespaceUpdate,proto3,oneof" json:"namespace_update,omitempty"`
 }
 type ToDataplane_NamespaceRemove struct {
-	NamespaceRemove *NamespaceRemove `protobuf:"bytes,22,opt,name=namespace_remove,json=namespaceRemove,proto3,oneof"`
+	NamespaceRemove *NamespaceRemove `protobuf:"bytes,22,opt,name=namespace_remove,json=namespaceRemove,proto3,oneof" json:"namespace_remove,omitempty"`
 }
 type ToDataplane_RouteUpdate struct {
-	RouteUpdate *RouteUpdate `protobuf:"bytes,23,opt,name=route_update,json=routeUpdate,proto3,oneof"`
+	RouteUpdate *RouteUpdate `protobuf:"bytes,23,opt,name=route_update,json=routeUpdate,proto3,oneof" json:"route_update,omitempty"`
 }
 type ToDataplane_RouteRemove struct {
-	RouteRemove *RouteRemove `protobuf:"bytes,24,opt,name=route_remove,json=routeRemove,proto3,oneof"`
+	RouteRemove *RouteRemove `protobuf:"bytes,24,opt,name=route_remove,json=routeRemove,proto3,oneof" json:"route_remove,omitempty"`
 }
 type ToDataplane_VtepUpdate struct {
-	VtepUpdate *VXLANTunnelEndpointUpdate `protobuf:"bytes,25,opt,name=vtep_update,json=vtepUpdate,proto3,oneof"`
+	VtepUpdate *VXLANTunnelEndpointUpdate `protobuf:"bytes,25,opt,name=vtep_update,json=vtepUpdate,proto3,oneof" json:"vtep_update,omitempty"`
 }
 type ToDataplane_VtepRemove struct {
-	VtepRemove *VXLANTunnelEndpointRemove `protobuf:"bytes,26,opt,name=vtep_remove,json=vtepRemove,proto3,oneof"`
+	VtepRemove *VXLANTunnelEndpointRemove `protobuf:"bytes,26,opt,name=vtep_remove,json=vtepRemove,proto3,oneof" json:"vtep_remove,omitempty"`
 }
 type ToDataplane_WireguardEndpointUpdate struct {
-	WireguardEndpointUpdate *WireguardEndpointUpdate `protobuf:"bytes,27,opt,name=wireguard_endpoint_update,json=wireguardEndpointUpdate,proto3,oneof"`
+	WireguardEndpointUpdate *WireguardEndpointUpdate `protobuf:"bytes,27,opt,name=wireguard_endpoint_update,json=wireguardEndpointUpdate,proto3,oneof" json:"wireguard_endpoint_update,omitempty"`
 }
 type ToDataplane_WireguardEndpointRemove struct {
-	WireguardEndpointRemove *WireguardEndpointRemove `protobuf:"bytes,28,opt,name=wireguard_endpoint_remove,json=wireguardEndpointRemove,proto3,oneof"`
+	WireguardEndpointRemove *WireguardEndpointRemove `protobuf:"bytes,28,opt,name=wireguard_endpoint_remove,json=wireguardEndpointRemove,proto3,oneof" json:"wireguard_endpoint_remove,omitempty"`
 }
 type ToDataplane_GlobalBgpConfigUpdate struct {
-	GlobalBgpConfigUpdate *GlobalBGPConfigUpdate `protobuf:"bytes,29,opt,name=global_bgp_config_update,json=globalBgpConfigUpdate,proto3,oneof"`
+	GlobalBgpConfigUpdate *GlobalBGPConfigUpdate `protobuf:"bytes,29,opt,name=global_bgp_config_update,json=globalBgpConfigUpdate,proto3,oneof" json:"global_bgp_config_update,omitempty"`
 }
 
 func (*ToDataplane_InSync) isToDataplane_Payload()                  {}
@@ -572,9 +574,9 @@ func (m *ToDataplane) GetGlobalBgpConfigUpdate() *GlobalBGPConfigUpdate {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*ToDataplane) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ToDataplane_OneofMarshaler, _ToDataplane_OneofUnmarshaler, _ToDataplane_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ToDataplane) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*ToDataplane_InSync)(nil),
 		(*ToDataplane_IpsetUpdate)(nil),
 		(*ToDataplane_IpsetDeltaUpdate)(nil),
@@ -604,540 +606,6 @@ func (*ToDataplane) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) e
 		(*ToDataplane_WireguardEndpointRemove)(nil),
 		(*ToDataplane_GlobalBgpConfigUpdate)(nil),
 	}
-}
-
-func _ToDataplane_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*ToDataplane)
-	// payload
-	switch x := m.Payload.(type) {
-	case *ToDataplane_InSync:
-		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.InSync); err != nil {
-			return err
-		}
-	case *ToDataplane_IpsetUpdate:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.IpsetUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_IpsetDeltaUpdate:
-		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.IpsetDeltaUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_IpsetRemove:
-		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.IpsetRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_ActiveProfileUpdate:
-		_ = b.EncodeVarint(5<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ActiveProfileUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_ActiveProfileRemove:
-		_ = b.EncodeVarint(6<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ActiveProfileRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_ActivePolicyUpdate:
-		_ = b.EncodeVarint(7<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ActivePolicyUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_ActivePolicyRemove:
-		_ = b.EncodeVarint(8<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ActivePolicyRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_HostEndpointUpdate:
-		_ = b.EncodeVarint(9<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.HostEndpointUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_HostEndpointRemove:
-		_ = b.EncodeVarint(10<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.HostEndpointRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_WorkloadEndpointUpdate:
-		_ = b.EncodeVarint(11<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.WorkloadEndpointUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_WorkloadEndpointRemove:
-		_ = b.EncodeVarint(12<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.WorkloadEndpointRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_ConfigUpdate:
-		_ = b.EncodeVarint(13<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ConfigUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_HostMetadataUpdate:
-		_ = b.EncodeVarint(14<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.HostMetadataUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_HostMetadataRemove:
-		_ = b.EncodeVarint(18<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.HostMetadataRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_IpamPoolUpdate:
-		_ = b.EncodeVarint(16<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.IpamPoolUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_IpamPoolRemove:
-		_ = b.EncodeVarint(17<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.IpamPoolRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_ServiceAccountUpdate:
-		_ = b.EncodeVarint(19<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ServiceAccountUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_ServiceAccountRemove:
-		_ = b.EncodeVarint(20<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ServiceAccountRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_NamespaceUpdate:
-		_ = b.EncodeVarint(21<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.NamespaceUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_NamespaceRemove:
-		_ = b.EncodeVarint(22<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.NamespaceRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_RouteUpdate:
-		_ = b.EncodeVarint(23<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.RouteUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_RouteRemove:
-		_ = b.EncodeVarint(24<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.RouteRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_VtepUpdate:
-		_ = b.EncodeVarint(25<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.VtepUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_VtepRemove:
-		_ = b.EncodeVarint(26<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.VtepRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_WireguardEndpointUpdate:
-		_ = b.EncodeVarint(27<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.WireguardEndpointUpdate); err != nil {
-			return err
-		}
-	case *ToDataplane_WireguardEndpointRemove:
-		_ = b.EncodeVarint(28<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.WireguardEndpointRemove); err != nil {
-			return err
-		}
-	case *ToDataplane_GlobalBgpConfigUpdate:
-		_ = b.EncodeVarint(29<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.GlobalBgpConfigUpdate); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("ToDataplane.Payload has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _ToDataplane_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*ToDataplane)
-	switch tag {
-	case 1: // payload.in_sync
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(InSync)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_InSync{msg}
-		return true, err
-	case 2: // payload.ipset_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(IPSetUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_IpsetUpdate{msg}
-		return true, err
-	case 3: // payload.ipset_delta_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(IPSetDeltaUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_IpsetDeltaUpdate{msg}
-		return true, err
-	case 4: // payload.ipset_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(IPSetRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_IpsetRemove{msg}
-		return true, err
-	case 5: // payload.active_profile_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ActiveProfileUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_ActiveProfileUpdate{msg}
-		return true, err
-	case 6: // payload.active_profile_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ActiveProfileRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_ActiveProfileRemove{msg}
-		return true, err
-	case 7: // payload.active_policy_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ActivePolicyUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_ActivePolicyUpdate{msg}
-		return true, err
-	case 8: // payload.active_policy_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ActivePolicyRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_ActivePolicyRemove{msg}
-		return true, err
-	case 9: // payload.host_endpoint_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(HostEndpointUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_HostEndpointUpdate{msg}
-		return true, err
-	case 10: // payload.host_endpoint_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(HostEndpointRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_HostEndpointRemove{msg}
-		return true, err
-	case 11: // payload.workload_endpoint_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(WorkloadEndpointUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_WorkloadEndpointUpdate{msg}
-		return true, err
-	case 12: // payload.workload_endpoint_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(WorkloadEndpointRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_WorkloadEndpointRemove{msg}
-		return true, err
-	case 13: // payload.config_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ConfigUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_ConfigUpdate{msg}
-		return true, err
-	case 14: // payload.host_metadata_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(HostMetadataUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_HostMetadataUpdate{msg}
-		return true, err
-	case 18: // payload.host_metadata_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(HostMetadataRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_HostMetadataRemove{msg}
-		return true, err
-	case 16: // payload.ipam_pool_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(IPAMPoolUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_IpamPoolUpdate{msg}
-		return true, err
-	case 17: // payload.ipam_pool_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(IPAMPoolRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_IpamPoolRemove{msg}
-		return true, err
-	case 19: // payload.service_account_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ServiceAccountUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_ServiceAccountUpdate{msg}
-		return true, err
-	case 20: // payload.service_account_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ServiceAccountRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_ServiceAccountRemove{msg}
-		return true, err
-	case 21: // payload.namespace_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(NamespaceUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_NamespaceUpdate{msg}
-		return true, err
-	case 22: // payload.namespace_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(NamespaceRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_NamespaceRemove{msg}
-		return true, err
-	case 23: // payload.route_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(RouteUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_RouteUpdate{msg}
-		return true, err
-	case 24: // payload.route_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(RouteRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_RouteRemove{msg}
-		return true, err
-	case 25: // payload.vtep_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(VXLANTunnelEndpointUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_VtepUpdate{msg}
-		return true, err
-	case 26: // payload.vtep_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(VXLANTunnelEndpointRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_VtepRemove{msg}
-		return true, err
-	case 27: // payload.wireguard_endpoint_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(WireguardEndpointUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_WireguardEndpointUpdate{msg}
-		return true, err
-	case 28: // payload.wireguard_endpoint_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(WireguardEndpointRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_WireguardEndpointRemove{msg}
-		return true, err
-	case 29: // payload.global_bgp_config_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(GlobalBGPConfigUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &ToDataplane_GlobalBgpConfigUpdate{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _ToDataplane_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*ToDataplane)
-	// payload
-	switch x := m.Payload.(type) {
-	case *ToDataplane_InSync:
-		s := proto.Size(x.InSync)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_IpsetUpdate:
-		s := proto.Size(x.IpsetUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_IpsetDeltaUpdate:
-		s := proto.Size(x.IpsetDeltaUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_IpsetRemove:
-		s := proto.Size(x.IpsetRemove)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_ActiveProfileUpdate:
-		s := proto.Size(x.ActiveProfileUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_ActiveProfileRemove:
-		s := proto.Size(x.ActiveProfileRemove)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_ActivePolicyUpdate:
-		s := proto.Size(x.ActivePolicyUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_ActivePolicyRemove:
-		s := proto.Size(x.ActivePolicyRemove)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_HostEndpointUpdate:
-		s := proto.Size(x.HostEndpointUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_HostEndpointRemove:
-		s := proto.Size(x.HostEndpointRemove)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_WorkloadEndpointUpdate:
-		s := proto.Size(x.WorkloadEndpointUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_WorkloadEndpointRemove:
-		s := proto.Size(x.WorkloadEndpointRemove)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_ConfigUpdate:
-		s := proto.Size(x.ConfigUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_HostMetadataUpdate:
-		s := proto.Size(x.HostMetadataUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_HostMetadataRemove:
-		s := proto.Size(x.HostMetadataRemove)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_IpamPoolUpdate:
-		s := proto.Size(x.IpamPoolUpdate)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_IpamPoolRemove:
-		s := proto.Size(x.IpamPoolRemove)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_ServiceAccountUpdate:
-		s := proto.Size(x.ServiceAccountUpdate)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_ServiceAccountRemove:
-		s := proto.Size(x.ServiceAccountRemove)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_NamespaceUpdate:
-		s := proto.Size(x.NamespaceUpdate)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_NamespaceRemove:
-		s := proto.Size(x.NamespaceRemove)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_RouteUpdate:
-		s := proto.Size(x.RouteUpdate)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_RouteRemove:
-		s := proto.Size(x.RouteRemove)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_VtepUpdate:
-		s := proto.Size(x.VtepUpdate)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_VtepRemove:
-		s := proto.Size(x.VtepRemove)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_WireguardEndpointUpdate:
-		s := proto.Size(x.WireguardEndpointUpdate)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_WireguardEndpointRemove:
-		s := proto.Size(x.WireguardEndpointRemove)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToDataplane_GlobalBgpConfigUpdate:
-		s := proto.Size(x.GlobalBgpConfigUpdate)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type FromDataplane struct {
@@ -1184,22 +652,22 @@ type isFromDataplane_Payload interface {
 }
 
 type FromDataplane_ProcessStatusUpdate struct {
-	ProcessStatusUpdate *ProcessStatusUpdate `protobuf:"bytes,3,opt,name=process_status_update,json=processStatusUpdate,proto3,oneof"`
+	ProcessStatusUpdate *ProcessStatusUpdate `protobuf:"bytes,3,opt,name=process_status_update,json=processStatusUpdate,proto3,oneof" json:"process_status_update,omitempty"`
 }
 type FromDataplane_HostEndpointStatusUpdate struct {
-	HostEndpointStatusUpdate *HostEndpointStatusUpdate `protobuf:"bytes,4,opt,name=host_endpoint_status_update,json=hostEndpointStatusUpdate,proto3,oneof"`
+	HostEndpointStatusUpdate *HostEndpointStatusUpdate `protobuf:"bytes,4,opt,name=host_endpoint_status_update,json=hostEndpointStatusUpdate,proto3,oneof" json:"host_endpoint_status_update,omitempty"`
 }
 type FromDataplane_HostEndpointStatusRemove struct {
-	HostEndpointStatusRemove *HostEndpointStatusRemove `protobuf:"bytes,5,opt,name=host_endpoint_status_remove,json=hostEndpointStatusRemove,proto3,oneof"`
+	HostEndpointStatusRemove *HostEndpointStatusRemove `protobuf:"bytes,5,opt,name=host_endpoint_status_remove,json=hostEndpointStatusRemove,proto3,oneof" json:"host_endpoint_status_remove,omitempty"`
 }
 type FromDataplane_WorkloadEndpointStatusUpdate struct {
-	WorkloadEndpointStatusUpdate *WorkloadEndpointStatusUpdate `protobuf:"bytes,6,opt,name=workload_endpoint_status_update,json=workloadEndpointStatusUpdate,proto3,oneof"`
+	WorkloadEndpointStatusUpdate *WorkloadEndpointStatusUpdate `protobuf:"bytes,6,opt,name=workload_endpoint_status_update,json=workloadEndpointStatusUpdate,proto3,oneof" json:"workload_endpoint_status_update,omitempty"`
 }
 type FromDataplane_WorkloadEndpointStatusRemove struct {
-	WorkloadEndpointStatusRemove *WorkloadEndpointStatusRemove `protobuf:"bytes,7,opt,name=workload_endpoint_status_remove,json=workloadEndpointStatusRemove,proto3,oneof"`
+	WorkloadEndpointStatusRemove *WorkloadEndpointStatusRemove `protobuf:"bytes,7,opt,name=workload_endpoint_status_remove,json=workloadEndpointStatusRemove,proto3,oneof" json:"workload_endpoint_status_remove,omitempty"`
 }
 type FromDataplane_WireguardStatusUpdate struct {
-	WireguardStatusUpdate *WireguardStatusUpdate `protobuf:"bytes,9,opt,name=wireguard_status_update,json=wireguardStatusUpdate,proto3,oneof"`
+	WireguardStatusUpdate *WireguardStatusUpdate `protobuf:"bytes,9,opt,name=wireguard_status_update,json=wireguardStatusUpdate,proto3,oneof" json:"wireguard_status_update,omitempty"`
 }
 
 func (*FromDataplane_ProcessStatusUpdate) isFromDataplane_Payload()          {}
@@ -1265,9 +733,9 @@ func (m *FromDataplane) GetWireguardStatusUpdate() *WireguardStatusUpdate {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*FromDataplane) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _FromDataplane_OneofMarshaler, _FromDataplane_OneofUnmarshaler, _FromDataplane_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*FromDataplane) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*FromDataplane_ProcessStatusUpdate)(nil),
 		(*FromDataplane_HostEndpointStatusUpdate)(nil),
 		(*FromDataplane_HostEndpointStatusRemove)(nil),
@@ -1275,144 +743,6 @@ func (*FromDataplane) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer)
 		(*FromDataplane_WorkloadEndpointStatusRemove)(nil),
 		(*FromDataplane_WireguardStatusUpdate)(nil),
 	}
-}
-
-func _FromDataplane_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*FromDataplane)
-	// payload
-	switch x := m.Payload.(type) {
-	case *FromDataplane_ProcessStatusUpdate:
-		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ProcessStatusUpdate); err != nil {
-			return err
-		}
-	case *FromDataplane_HostEndpointStatusUpdate:
-		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.HostEndpointStatusUpdate); err != nil {
-			return err
-		}
-	case *FromDataplane_HostEndpointStatusRemove:
-		_ = b.EncodeVarint(5<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.HostEndpointStatusRemove); err != nil {
-			return err
-		}
-	case *FromDataplane_WorkloadEndpointStatusUpdate:
-		_ = b.EncodeVarint(6<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.WorkloadEndpointStatusUpdate); err != nil {
-			return err
-		}
-	case *FromDataplane_WorkloadEndpointStatusRemove:
-		_ = b.EncodeVarint(7<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.WorkloadEndpointStatusRemove); err != nil {
-			return err
-		}
-	case *FromDataplane_WireguardStatusUpdate:
-		_ = b.EncodeVarint(9<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.WireguardStatusUpdate); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("FromDataplane.Payload has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _FromDataplane_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*FromDataplane)
-	switch tag {
-	case 3: // payload.process_status_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ProcessStatusUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &FromDataplane_ProcessStatusUpdate{msg}
-		return true, err
-	case 4: // payload.host_endpoint_status_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(HostEndpointStatusUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &FromDataplane_HostEndpointStatusUpdate{msg}
-		return true, err
-	case 5: // payload.host_endpoint_status_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(HostEndpointStatusRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &FromDataplane_HostEndpointStatusRemove{msg}
-		return true, err
-	case 6: // payload.workload_endpoint_status_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(WorkloadEndpointStatusUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &FromDataplane_WorkloadEndpointStatusUpdate{msg}
-		return true, err
-	case 7: // payload.workload_endpoint_status_remove
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(WorkloadEndpointStatusRemove)
-		err := b.DecodeMessage(msg)
-		m.Payload = &FromDataplane_WorkloadEndpointStatusRemove{msg}
-		return true, err
-	case 9: // payload.wireguard_status_update
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(WireguardStatusUpdate)
-		err := b.DecodeMessage(msg)
-		m.Payload = &FromDataplane_WireguardStatusUpdate{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _FromDataplane_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*FromDataplane)
-	// payload
-	switch x := m.Payload.(type) {
-	case *FromDataplane_ProcessStatusUpdate:
-		s := proto.Size(x.ProcessStatusUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *FromDataplane_HostEndpointStatusUpdate:
-		s := proto.Size(x.HostEndpointStatusUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *FromDataplane_HostEndpointStatusRemove:
-		s := proto.Size(x.HostEndpointStatusRemove)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *FromDataplane_WorkloadEndpointStatusUpdate:
-		s := proto.Size(x.WorkloadEndpointStatusUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *FromDataplane_WorkloadEndpointStatusRemove:
-		s := proto.Size(x.WorkloadEndpointStatusRemove)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *FromDataplane_WireguardStatusUpdate:
-		s := proto.Size(x.WireguardStatusUpdate)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type ConfigUpdate struct {
@@ -2084,16 +1414,16 @@ type isRule_NotIcmp interface {
 }
 
 type Rule_IcmpType struct {
-	IcmpType int32 `protobuf:"varint,8,opt,name=icmp_type,json=icmpType,proto3,oneof"`
+	IcmpType int32 `protobuf:"varint,8,opt,name=icmp_type,json=icmpType,proto3,oneof" json:"icmp_type,omitempty"`
 }
 type Rule_IcmpTypeCode struct {
-	IcmpTypeCode *IcmpTypeAndCode `protobuf:"bytes,9,opt,name=icmp_type_code,json=icmpTypeCode,proto3,oneof"`
+	IcmpTypeCode *IcmpTypeAndCode `protobuf:"bytes,9,opt,name=icmp_type_code,json=icmpTypeCode,proto3,oneof" json:"icmp_type_code,omitempty"`
 }
 type Rule_NotIcmpType struct {
-	NotIcmpType int32 `protobuf:"varint,107,opt,name=not_icmp_type,json=notIcmpType,proto3,oneof"`
+	NotIcmpType int32 `protobuf:"varint,107,opt,name=not_icmp_type,json=notIcmpType,proto3,oneof" json:"not_icmp_type,omitempty"`
 }
 type Rule_NotIcmpTypeCode struct {
-	NotIcmpTypeCode *IcmpTypeAndCode `protobuf:"bytes,108,opt,name=not_icmp_type_code,json=notIcmpTypeCode,proto3,oneof"`
+	NotIcmpTypeCode *IcmpTypeAndCode `protobuf:"bytes,108,opt,name=not_icmp_type_code,json=notIcmpTypeCode,proto3,oneof" json:"not_icmp_type_code,omitempty"`
 }
 
 func (*Rule_IcmpType) isRule_Icmp()           {}
@@ -2359,118 +1689,14 @@ func (m *Rule) GetRuleId() string {
 	return ""
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Rule) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Rule_OneofMarshaler, _Rule_OneofUnmarshaler, _Rule_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Rule) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*Rule_IcmpType)(nil),
 		(*Rule_IcmpTypeCode)(nil),
 		(*Rule_NotIcmpType)(nil),
 		(*Rule_NotIcmpTypeCode)(nil),
 	}
-}
-
-func _Rule_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Rule)
-	// icmp
-	switch x := m.Icmp.(type) {
-	case *Rule_IcmpType:
-		_ = b.EncodeVarint(8<<3 | proto.WireVarint)
-		_ = b.EncodeVarint(uint64(x.IcmpType))
-	case *Rule_IcmpTypeCode:
-		_ = b.EncodeVarint(9<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.IcmpTypeCode); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("Rule.Icmp has unexpected type %T", x)
-	}
-	// not_icmp
-	switch x := m.NotIcmp.(type) {
-	case *Rule_NotIcmpType:
-		_ = b.EncodeVarint(107<<3 | proto.WireVarint)
-		_ = b.EncodeVarint(uint64(x.NotIcmpType))
-	case *Rule_NotIcmpTypeCode:
-		_ = b.EncodeVarint(108<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.NotIcmpTypeCode); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("Rule.NotIcmp has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Rule_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Rule)
-	switch tag {
-	case 8: // icmp.icmp_type
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.Icmp = &Rule_IcmpType{int32(x)}
-		return true, err
-	case 9: // icmp.icmp_type_code
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(IcmpTypeAndCode)
-		err := b.DecodeMessage(msg)
-		m.Icmp = &Rule_IcmpTypeCode{msg}
-		return true, err
-	case 107: // not_icmp.not_icmp_type
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.NotIcmp = &Rule_NotIcmpType{int32(x)}
-		return true, err
-	case 108: // not_icmp.not_icmp_type_code
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(IcmpTypeAndCode)
-		err := b.DecodeMessage(msg)
-		m.NotIcmp = &Rule_NotIcmpTypeCode{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Rule_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Rule)
-	// icmp
-	switch x := m.Icmp.(type) {
-	case *Rule_IcmpType:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.IcmpType))
-	case *Rule_IcmpTypeCode:
-		s := proto.Size(x.IcmpTypeCode)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	// not_icmp
-	switch x := m.NotIcmp.(type) {
-	case *Rule_NotIcmpType:
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(x.NotIcmpType))
-	case *Rule_NotIcmpTypeCode:
-		s := proto.Size(x.NotIcmpTypeCode)
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type ServiceAccountMatch struct {
@@ -2604,10 +1830,10 @@ type isHTTPMatch_PathMatch_PathMatch interface {
 }
 
 type HTTPMatch_PathMatch_Exact struct {
-	Exact string `protobuf:"bytes,1,opt,name=exact,proto3,oneof"`
+	Exact string `protobuf:"bytes,1,opt,name=exact,proto3,oneof" json:"exact,omitempty"`
 }
 type HTTPMatch_PathMatch_Prefix struct {
-	Prefix string `protobuf:"bytes,2,opt,name=prefix,proto3,oneof"`
+	Prefix string `protobuf:"bytes,2,opt,name=prefix,proto3,oneof" json:"prefix,omitempty"`
 }
 
 func (*HTTPMatch_PathMatch_Exact) isHTTPMatch_PathMatch_PathMatch()  {}
@@ -2634,70 +1860,12 @@ func (m *HTTPMatch_PathMatch) GetPrefix() string {
 	return ""
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*HTTPMatch_PathMatch) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _HTTPMatch_PathMatch_OneofMarshaler, _HTTPMatch_PathMatch_OneofUnmarshaler, _HTTPMatch_PathMatch_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*HTTPMatch_PathMatch) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*HTTPMatch_PathMatch_Exact)(nil),
 		(*HTTPMatch_PathMatch_Prefix)(nil),
 	}
-}
-
-func _HTTPMatch_PathMatch_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*HTTPMatch_PathMatch)
-	// path_match
-	switch x := m.PathMatch.(type) {
-	case *HTTPMatch_PathMatch_Exact:
-		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Exact)
-	case *HTTPMatch_PathMatch_Prefix:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Prefix)
-	case nil:
-	default:
-		return fmt.Errorf("HTTPMatch_PathMatch.PathMatch has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _HTTPMatch_PathMatch_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*HTTPMatch_PathMatch)
-	switch tag {
-	case 1: // path_match.exact
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.PathMatch = &HTTPMatch_PathMatch_Exact{x}
-		return true, err
-	case 2: // path_match.prefix
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.PathMatch = &HTTPMatch_PathMatch_Prefix{x}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _HTTPMatch_PathMatch_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*HTTPMatch_PathMatch)
-	// path_match
-	switch x := m.PathMatch.(type) {
-	case *HTTPMatch_PathMatch_Exact:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Exact)))
-		n += len(x.Exact)
-	case *HTTPMatch_PathMatch_Prefix:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Prefix)))
-		n += len(x.Prefix)
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type RuleMetadata struct {
@@ -2823,10 +1991,10 @@ type isProtocol_NumberOrName interface {
 }
 
 type Protocol_Number struct {
-	Number int32 `protobuf:"varint,1,opt,name=number,proto3,oneof"`
+	Number int32 `protobuf:"varint,1,opt,name=number,proto3,oneof" json:"number,omitempty"`
 }
 type Protocol_Name struct {
-	Name string `protobuf:"bytes,2,opt,name=name,proto3,oneof"`
+	Name string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
 }
 
 func (*Protocol_Number) isProtocol_NumberOrName() {}
@@ -2853,69 +2021,12 @@ func (m *Protocol) GetName() string {
 	return ""
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Protocol) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Protocol_OneofMarshaler, _Protocol_OneofUnmarshaler, _Protocol_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Protocol) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*Protocol_Number)(nil),
 		(*Protocol_Name)(nil),
 	}
-}
-
-func _Protocol_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Protocol)
-	// number_or_name
-	switch x := m.NumberOrName.(type) {
-	case *Protocol_Number:
-		_ = b.EncodeVarint(1<<3 | proto.WireVarint)
-		_ = b.EncodeVarint(uint64(x.Number))
-	case *Protocol_Name:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Name)
-	case nil:
-	default:
-		return fmt.Errorf("Protocol.NumberOrName has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Protocol_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Protocol)
-	switch tag {
-	case 1: // number_or_name.number
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.NumberOrName = &Protocol_Number{int32(x)}
-		return true, err
-	case 2: // number_or_name.name
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.NumberOrName = &Protocol_Name{x}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Protocol_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Protocol)
-	// number_or_name
-	switch x := m.NumberOrName.(type) {
-	case *Protocol_Number:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.Number))
-	case *Protocol_Name:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Name)))
-		n += len(x.Name)
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // Individual ports are sent with first == last.
@@ -5100,6 +4211,14 @@ type PolicySyncServer interface {
 	//  - VXLANTunnelEndpointUpdate
 	//  - VXLANTunnelEndpointRemove
 	Sync(*SyncRequest, PolicySync_SyncServer) error
+}
+
+// UnimplementedPolicySyncServer can be embedded to have forward compatible implementations.
+type UnimplementedPolicySyncServer struct {
+}
+
+func (*UnimplementedPolicySyncServer) Sync(req *SyncRequest, srv PolicySync_SyncServer) error {
+	return status.Errorf(codes.Unimplemented, "method Sync not implemented")
 }
 
 func RegisterPolicySyncServer(s *grpc.Server, srv PolicySyncServer) {

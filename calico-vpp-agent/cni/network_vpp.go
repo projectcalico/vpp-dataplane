@@ -193,6 +193,10 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	// Select the first 11 characters of the containerID for the host veth.
 	tunTag := podSpec.NetnsName + "-" + podSpec.InterfaceName
 
+	for _, port := range podSpec.HostPorts {
+		s.BindHostPort(port.HostIP, port.HostPort, port.ContainerPort, podSpec.ContainerIps[0].IP)
+	}
+	
 	s.log.Infof("Creating container interface using VPP networking")
 	s.log.Infof("Setting tun tag to %s", tunTag)
 

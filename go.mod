@@ -4,13 +4,16 @@ go 1.15
 
 require (
 	git.fd.io/govpp.git v0.3.6-0.20210202134006-4c1cccf48cd1
+	github.com/containernetworking/cni v0.7.0
 	github.com/containernetworking/plugins v0.8.2
+	github.com/coreos/go-iptables v0.4.2
 	github.com/dgryski/go-farm v0.0.0-20191112170834-c2139c5d712b // indirect
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.3
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
+	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09 // indirect
 	github.com/osrg/gobgp v0.0.0-20210302053313-5960e8ebd1e3
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/libcalico-go v1.7.2-0.20210513174936-6ccf0906db1d

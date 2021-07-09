@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 2 // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 3 // Used to ensure compatibility wen we reload data
 )
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -124,6 +124,17 @@ type LocalPodSpec struct {
 	WorkloadID         string
 	EndpointIDSize     int `struc:"int16,sizeof=EndpointID"`
 	EndpointID         string
+
+	//HostPort/HostIP
+	HostPortsSize int `struc:"int16,sizeof=HostPorts"`
+	HostPorts     []HostPortBinding
+}
+
+type HostPortBinding struct {
+	HostPort      uint32
+	HostIPSize    int `struc:"int16,sizeof=HostIP"`
+	HostIP        string
+	ContainerPort uint32
 }
 
 func (ps *LocalPodSpec) GetRoutes() (routes []*net.IPNet) {

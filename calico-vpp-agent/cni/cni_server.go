@@ -30,6 +30,7 @@ import (
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"k8s.io/client-go/kubernetes"
@@ -67,6 +68,15 @@ func NewLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, erro
 		OrchestratorID: request.Workload.Orchestrator,
 		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
 		EndpointID:     request.Workload.Endpoint,
+		HostPorts:      make([]storage.HostPortBinding, 0),
+	}
+	for _, port := range request.Workload.Ports {
+		podSpec.HostPorts = append(podSpec.HostPorts, storage.HostPortBinding{
+			HostPort:      port.HostPort,
+			HostIP:        port.HostIp,
+			ContainerPort: port.Port,
+		})
+
 	}
 	for _, routeStr := range request.GetContainerRoutes() {
 		_, route, err := net.ParseCIDR(routeStr)
@@ -95,6 +105,33 @@ func NewLocalPodSpecFromDel(request *pb.DelRequest) *storage.LocalPodSpec {
 	return &storage.LocalPodSpec{
 		InterfaceName: request.GetInterfaceName(),
 		NetnsName:     request.GetNetns(),
+	}
+}
+
+func (s *Server) BindHostPort(hostIp string, hostPort uint32, containerPort uint32, containerIp net.IP) {
+	entry := &types.CnatTranslateEntry{
+		Endpoint: types.CnatEndpoint{
+			IP:   net.ParseIP(hostIp),
+			Port: uint16(hostPort),
+		},
+		Backends: []types.CnatEndpointTuple{
+			{
+				DstEndpoint: types.CnatEndpoint{
+					Port: uint16(containerPort),
+					IP:   containerIp,
+				},
+			},
+		},
+		IsRealIP: true,
+		Proto:    types.TCP,
+		LbType:   types.DefaultLB,
+	}
+	s.log.Infof("(add) %s", entry.String())
+	id, err := s.vpp.CnatTranslateAdd(entry)
+	if err != nil {
+		s.log.Errorf("Error re-injecting cnat entry %s : %v", entry.String(), err)
+	} else {
+		s.log.Infof("%s", id)
 	}
 }
 
