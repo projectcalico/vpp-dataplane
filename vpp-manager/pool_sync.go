@@ -35,7 +35,7 @@ type PoolWatcher struct {
 	stop         chan struct{}
 	RouteWatcher *RouteWatcher
 	params       *config.VppManagerParams
-	conf         *config.InterfaceConfig
+	conf         *config.LinuxInterfaceState
 }
 
 func (p *PoolWatcher) Stop() {

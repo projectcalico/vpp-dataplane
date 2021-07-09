@@ -38,20 +38,20 @@ const (
 
 var (
 	AllHooks        = []string{BEFORE_IF_READ, BEFORE_VPP_RUN, VPP_RUNNING, VPP_DONE_OK, VPP_ERRORED}
-	vppManagerHooks = make(map[string][]func(params *config.VppManagerParams, conf *config.InterfaceConfig) error)
+	vppManagerHooks = make(map[string][]func(params *config.VppManagerParams, conf []*config.LinuxInterfaceState) error)
 )
 
 func RegisterBashHook(name string, bashTemplate string) {
-	RegisterHook(name, func(params *config.VppManagerParams, conf *config.InterfaceConfig) error {
+	RegisterHook(name, func(params *config.VppManagerParams, conf []*config.LinuxInterfaceState) error {
 		return utils.RunBashScript(config.TemplateScriptReplace(bashTemplate, params, nil))
 	})
 }
 
-func RegisterHook(name string, hook func(params *config.VppManagerParams, conf *config.InterfaceConfig) error) {
+func RegisterHook(name string, hook func(params *config.VppManagerParams, conf []*config.LinuxInterfaceState) error) {
 	vppManagerHooks[name] = append(vppManagerHooks[name], hook)
 }
 
-func RunHook(name string, params *config.VppManagerParams, conf *config.InterfaceConfig) {
+func RunHook(name string, params *config.VppManagerParams, conf []*config.LinuxInterfaceState) {
 	if _, ok := vppManagerHooks[name]; !ok {
 		return
 	}
