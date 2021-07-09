@@ -26,15 +26,17 @@ import (
 
 type IpipProvider struct {
 	*ConnectivityProviderData
-	ipipIfs map[string]*types.IPIPTunnel
+	ipipIfs    map[string]*types.IPIPTunnel
+	ipipRoutes map[uint32]map[string]bool
 }
 
 func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
-	return &IpipProvider{d, make(map[string]*types.IPIPTunnel)}
+	return &IpipProvider{d, make(map[string]*types.IPIPTunnel), make(map[uint32]map[string]bool)}
 }
 
 func (p *IpipProvider) OnVppRestart() {
 	p.ipipIfs = make(map[string]*types.IPIPTunnel)
+	p.ipipRoutes = make(map[uint32]map[string]bool)
 }
 
 func (p *IpipProvider) Enabled() bool {
@@ -55,6 +57,29 @@ func (p *IpipProvider) RescanState() {
 		if tunnel.Src.Equal(nodeIP4) || tunnel.Src.Equal(nodeIP6) {
 			p.log.Infof("Found existing tunnel: %s", tunnel)
 			p.ipipIfs[tunnel.Dst.String()] = tunnel
+		}
+	}
+
+	indexTunnel := make(map[uint32]*types.IPIPTunnel)
+	for _, tunnel := range p.ipipIfs {
+		indexTunnel[tunnel.SwIfIndex] = tunnel
+	}
+	p.log.Infof("Rescanning existing routes")
+	p.ipipRoutes = make(map[uint32]map[string]bool)
+	routes, err := p.vpp.GetRoutes(0, false)
+	if err != nil {
+		p.log.Errorf("Error listing routes: %v", err)
+	}
+	for _, route := range routes {
+		for _, routePath := range route.Paths {
+			_, exists := indexTunnel[routePath.SwIfIndex]
+			if exists {
+				_, found := p.ipipRoutes[routePath.SwIfIndex]
+				if !found {
+					p.ipipRoutes[routePath.SwIfIndex] = make(map[string]bool)
+				}
+				p.ipipRoutes[routePath.SwIfIndex][route.Dst.String()] = true
+			}
 		}
 	}
 }
@@ -124,16 +149,22 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Infof("IPIP: tunnnel %s ok", tunnel.String())
 
 	p.log.Debugf("Adding ipip tunnel route to %s via swIfIndex %d", cn.Dst.IP.String(), tunnel.SwIfIndex)
-	err := p.vpp.RouteAdd(&types.Route{
+	route := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: tunnel.SwIfIndex,
 			Gw:        nil,
 		}},
-	})
+	}
+	err := p.vpp.RouteAdd(route)
 	if err != nil {
 		return errors.Wrapf(err, "Error Adding route to ipip tunnel")
 	}
+	_, found = p.ipipRoutes[tunnel.SwIfIndex]
+	if !found {
+		p.ipipRoutes[tunnel.SwIfIndex] = make(map[string]bool)
+	}
+	p.ipipRoutes[tunnel.SwIfIndex][route.Dst.String()] = true
 	return nil
 }
 
@@ -144,18 +175,29 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 		return errors.Errorf("Deleting unknown ipip tunnel %s", cn.NextHop.String())
 	}
 	p.log.Infof("IPIP: Del ?->%s %d", cn.NextHop.String(), tunnel.SwIfIndex)
-	err := p.vpp.RouteDel(&types.Route{
+	routeToDelete := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: tunnel.SwIfIndex,
 			Gw:        nil,
 		}},
-	})
+	}
+	err := p.vpp.RouteDel(routeToDelete)
 	if err != nil {
 		return errors.Wrapf(err, "Error deleting ipip tunnel route")
 	}
-	// We don't delete the interface so keep it in the map
-	// delete(p.ipipIfs, cn.NextHop.String())
-	// also keep the route to the node for pods
+
+	delete(p.ipipRoutes[tunnel.SwIfIndex], routeToDelete.Dst.String())
+
+	remaining_routes, found := p.ipipRoutes[tunnel.SwIfIndex]
+	if !found || len(remaining_routes) == 0 {
+		p.log.Infof("Deleting tunnel...%s", tunnel)
+		err := p.vpp.DelIPIPTunnel(tunnel)
+		if err != nil {
+			p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
+		}
+		delete(p.ipipIfs, cn.NextHop.String())
+	}
+	p.log.Infof("%s", p.ipipIfs)
 	return nil
 }
