@@ -179,9 +179,12 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.MainInterface = getEnvValue(InterfaceEnvVar)
-	if params.MainInterface == "" {
+	mainInterfaces := strings.Split(getEnvValue(InterfaceEnvVar), "-")
+	if len(mainInterfaces) == 0 || mainInterfaces[0] == "" {
 		return errors.Errorf("No interface specified. Specify an interface through the %s environment variable", InterfaceEnvVar)
+	}
+	for idx, ele := range mainInterfaces {
+		params.InterfacesSpecs = append(params.InterfacesSpecs, config.InterfaceSpec{MainInterface: ele, Idx: idx})
 	}
 
 	params.ConfigExecTemplate = getEnvValue(ConfigExecTemplateEnvVar)
@@ -215,9 +218,14 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		params.ServiceCIDRs = append(params.ServiceCIDRs, *serviceCIDR)
 	}
 
-	params.VppIpConfSource = getEnvValue(IpConfigEnvVar)
-	if params.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
+	vppIpConfSources := strings.Split(getEnvValue(IpConfigEnvVar), "-")
+	if vppIpConfSources[0] != "linux" { // TODO add dhcp, config file, etc.
 		return errors.Errorf("No ip configuration source specified. Specify one of {linux,} through the %s environment variable", IpConfigEnvVar)
+	} else if len(vppIpConfSources) != len(mainInterfaces) {
+		return errors.Errorf("Unmatching ip configuration sources list length in %s", IpConfigEnvVar)
+	}
+	for i := range params.InterfacesSpecs {
+		params.InterfacesSpecs[i].VppIpConfSource = vppIpConfSources[i]
 	}
 
 	params.CorePattern = getEnvValue(CorePatternEnvVar)
@@ -232,32 +240,56 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.NativeDriver = ""
-	if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
-		params.NativeDriver = strings.ToLower(conf)
+	nativeDrivers := strings.Split(getEnvValue(NativeDriverEnvVar), "-")
+	for i, driver := range nativeDrivers {
+		if driver != "" {
+			nativeDrivers[i] = strings.ToLower(driver)
+		}
+	}
+	if len(nativeDrivers) != len(mainInterfaces) && (len(mainInterfaces) != 1 || getEnvValue(NativeDriverEnvVar) != "") {
+		return errors.Errorf("Unmatching native drivers list length in %s", NativeDriverEnvVar)
+	}
+	for i := range params.InterfacesSpecs {
+		params.InterfacesSpecs[i].NativeDriver = nativeDrivers[i]
 	}
 
-	params.NumRxQueues = DefaultNumRxQueues
-	if conf := getEnvValue(NumRxQueuesEnvVar); conf != "" {
-		queues, err := strconv.ParseInt(conf, 10, 16)
+	numRxQueues := strings.Split(getEnvValue(NumRxQueuesEnvVar), "-")
+	if len(mainInterfaces) == 1 && getEnvValue(NumRxQueuesEnvVar) == "" {
+		params.InterfacesSpecs[0].NumRxQueues = DefaultNumRxQueues
+	} else if len(numRxQueues) != len(mainInterfaces) {
+		return errors.Errorf("Unmatching numRxQueues list length in %s", NumRxQueuesEnvVar)
+	}
+	for i := range params.InterfacesSpecs {
+		queues, err := strconv.ParseInt(numRxQueues[i], 10, 16)
 		if err != nil || queues <= 0 {
-			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumRxQueuesEnvVar, conf, queues, err)
+			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumRxQueuesEnvVar, numRxQueues[i], queues, err)
 		} else {
-			params.NumRxQueues = int(queues)
+			params.InterfacesSpecs[i].NumRxQueues = int(queues)
 		}
 	}
 
-	params.NumTxQueues = DefaultNumTxQueues
-	if conf := getEnvValue(NumTxQueuesEnvVar); conf != "" {
-		queues, err := strconv.ParseInt(conf, 10, 16)
+	numTxQueues := strings.Split(getEnvValue(NumTxQueuesEnvVar), "-")
+	if len(mainInterfaces) == 1 && getEnvValue(NumTxQueuesEnvVar) == "" {
+		params.InterfacesSpecs[0].NumRxQueues = DefaultNumTxQueues
+	} else if len(numTxQueues) != len(mainInterfaces) {
+		return errors.Errorf("Unmatching numTxQueues list length in %s", NumTxQueuesEnvVar)
+	}
+	for i := range params.InterfacesSpecs {
+		queues, err := strconv.ParseInt(numTxQueues[i], 10, 16)
 		if err != nil || queues <= 0 {
-			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumTxQueuesEnvVar, conf, queues, err)
+			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumTxQueuesEnvVar, numTxQueues[i], queues, err)
 		} else {
-			params.NumTxQueues = int(queues)
+			params.InterfacesSpecs[i].NumTxQueues = int(queues)
 		}
 	}
 
-	params.NewDriverName = getEnvValue(SwapDriverEnvVar)
+	newDriverNames := strings.Split(getEnvValue(SwapDriverEnvVar), "-")
+	if len(newDriverNames) != len(mainInterfaces) {
+		return errors.Errorf("Unmatching new driver names list length in %s", SwapDriverEnvVar)
+	}
+	for i, ele := range params.InterfacesSpecs {
+		ele.NewDriverName = newDriverNames[i]
+	}
 
 	params.RxMode = types.UnformatRxMode(getEnvValue(RxModeEnvVar))
 	if params.RxMode == types.UnknownRxMode {
@@ -357,39 +389,46 @@ func parseRingSize(conf string) (int, int, error) {
 	return rxSize, txSize, nil
 }
 
-func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.InterfaceConfig) {
+func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.LinuxInterfaceState) {
 	log.Infof("-- Environment --")
 	log.Infof("CorePattern:         %s", params.CorePattern)
 	log.Infof("ExtraAddrCount:      %d", params.ExtraAddrCount)
-	log.Infof("Native driver:       %s", params.NativeDriver)
 	log.Infof("RxMode:              %s", types.FormatRxMode(params.RxMode))
 	log.Infof("TapRxMode:           %s", types.FormatRxMode(params.TapRxMode))
 	log.Infof("Tap MTU override:    %d", params.UserSpecifiedMtu)
 	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
 	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
 	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
-	log.Infof("PHY target #Queues   rx:%d tx:%d", params.NumRxQueues, params.NumTxQueues)
 	log.Infof("Hugepages            %d", params.AvailableHugePages)
 	log.Infof("KernelVersion        %s", params.KernelVersion)
 	log.Infof("Drivers              %s", params.LoadedDrivers)
 	log.Infof("vfio iommu:          %t", params.VfioUnsafeiommu)
-
-	log.Infof("-- Interface config --")
-	log.Infof("Node IP4:            %s", conf.NodeIP4)
-	log.Infof("Node IP6:            %s", conf.NodeIP6)
-	log.Infof("PciId:               %s", conf.PciId)
-	log.Infof("Driver:              %s", conf.Driver)
-	log.Infof("Linux IF was up ?    %t", conf.IsUp)
-	log.Infof("Promisc was on ?     %t", conf.PromiscOn)
-	log.Infof("DoSwapDriver:        %t", conf.DoSwapDriver)
-	log.Infof("Mac:                 %s", conf.HardwareAddr.String())
-	log.Infof("Addresses:           [%s]", conf.AddressString())
-	log.Infof("Routes:              [%s]", conf.RouteString())
-	log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
-	log.Infof("MTU                  %d", conf.Mtu)
+	for _, ifSpec := range params.InterfacesSpecs {
+		log.Infof("-- Interface Spec --")
+		log.Infof("Interface Name:      %s", ifSpec.MainInterface)
+		log.Infof("Native Driver:       %s", ifSpec.NativeDriver)
+		log.Infof("vppIpConfSource:     %s", ifSpec.VppIpConfSource)
+		log.Infof("New Drive Name:      %s", ifSpec.NewDriverName)
+		log.Infof("PHY target #Queues   rx:%d tx:%d", ifSpec.NumRxQueues, ifSpec.NumTxQueues)
+	}
+	for _, conf := range confs {
+		log.Infof("-- Interface config --")
+		log.Infof("Node IP4:            %s", conf.NodeIP4)
+		log.Infof("Node IP6:            %s", conf.NodeIP6)
+		log.Infof("PciId:               %s", conf.PciId)
+		log.Infof("Driver:              %s", conf.Driver)
+		log.Infof("Linux IF was up ?    %t", conf.IsUp)
+		log.Infof("Promisc was on ?     %t", conf.PromiscOn)
+		log.Infof("DoSwapDriver:        %t", conf.DoSwapDriver)
+		log.Infof("Mac:                 %s", conf.HardwareAddr.String())
+		log.Infof("Addresses:           [%s]", conf.AddressString())
+		log.Infof("Routes:              [%s]", conf.RouteString())
+		log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
+		log.Infof("MTU                  %d", conf.Mtu)
+	}
 }
 
-func PrepareConfiguration(params *config.VppManagerParams) (conf *config.InterfaceConfig) {
+func PrepareConfiguration(params *config.VppManagerParams) (conf []*config.LinuxInterfaceState) {
 	err := utils.ClearVppManagerFiles()
 	if err != nil {
 		log.Fatalf("Error clearing config files: %+v", err)

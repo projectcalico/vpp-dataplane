@@ -55,9 +55,9 @@ func (d *RDMADriver) RestoreLinux() {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.spec.MainInterface)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.spec.MainInterface, err)
 		return
 	}
 
@@ -65,34 +65,34 @@ func (d *RDMADriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (swIfIndex uint32, err error) {
 	intf := types.RDMAInterface{
 		GenericVppInterface: d.getGenericVppInterface(),
 	}
-	swIfIndex, err := vpp.CreateRDMA(&intf)
+	swIfIndex, err = vpp.CreateRDMA(&intf)
 
 	if err != nil {
-		return errors.Wrapf(err, "Error creating RDMA interface")
+		return 0, errors.Wrapf(err, "Error creating RDMA interface")
 	}
 
-	err = d.moveInterfaceToNS(d.params.MainInterface, vppPid)
+	err = d.moveInterfaceToNS(d.spec.MainInterface, vppPid)
 	if err != nil {
-		return errors.Wrap(err, "Moving uplink in NS failed")
+		return 0, errors.Wrap(err, "Moving uplink in NS failed")
 	}
 
 	log.Infof("Created RDMA interface %d", swIfIndex)
 
-	if swIfIndex != config.DataInterfaceSwIfIndex {
-		return fmt.Errorf("Created RDMA interface has wrong swIfIndex %d!", swIfIndex)
+	if d.spec.Idx == 0 && swIfIndex != config.DataInterfaceSwIfIndex {
+		return 0, fmt.Errorf("Created RDMA interface has wrong swIfIndex %d!", swIfIndex)
 	}
-
-	return nil
+	return swIfIndex, nil
 }
 
-func NewRDMADriver(params *config.VppManagerParams, conf *config.InterfaceConfig) *RDMADriver {
+func NewRDMADriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *RDMADriver {
 	d := &RDMADriver{}
 	d.name = NATIVE_DRIVER_RDMA
 	d.conf = conf
 	d.params = params
+	d.spec = spec
 	return d
 }

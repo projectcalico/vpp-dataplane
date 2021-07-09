@@ -56,7 +56,7 @@ func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *VirtioDriver) PreconfigureLinux() (err error) {
-	newDriverName := d.params.NewDriverName
+	newDriverName := d.spec.NewDriverName
 	doSwapDriver := d.conf.DoSwapDriver
 	if newDriverName == "" {
 		newDriverName = config.DRIVER_VFIO_PCI
@@ -97,9 +97,9 @@ func (d *VirtioDriver) RestoreLinux() {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.spec.MainInterface)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.spec.MainInterface, err)
 		return
 	}
 
@@ -107,27 +107,28 @@ func (d *VirtioDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (swIfIndex uint32, err error) {
 	intf := types.VirtioInterface{
 		GenericVppInterface: d.getGenericVppInterface(),
 		PciId:               d.conf.PciId,
 	}
-	swIfIndex, err := vpp.CreateVirtio(&intf)
+	swIfIndex, err = vpp.CreateVirtio(&intf)
 	if err != nil {
-		return errors.Wrapf(err, "Error creating VIRTIO interface")
+		return 0, errors.Wrapf(err, "Error creating VIRTIO interface")
 	}
 	log.Infof("Created VIRTIO interface %d", swIfIndex)
 
-	if swIfIndex != config.DataInterfaceSwIfIndex {
-		return fmt.Errorf("Created VIRTIO interface has wrong swIfIndex %d!", swIfIndex)
+	if d.spec.Idx == 0 && swIfIndex != config.DataInterfaceSwIfIndex {
+		return 0, fmt.Errorf("Created VIRTIO interface has wrong swIfIndex %d!", swIfIndex)
 	}
-	return nil
+	return swIfIndex, nil
 }
 
-func NewVirtioDriver(params *config.VppManagerParams, conf *config.InterfaceConfig) *VirtioDriver {
+func NewVirtioDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *VirtioDriver {
 	d := &VirtioDriver{}
 	d.name = NATIVE_DRIVER_VIRTIO
 	d.conf = conf
 	d.params = params
+	d.spec = spec
 	return d
 }

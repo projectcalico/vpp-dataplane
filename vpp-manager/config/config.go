@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -36,8 +37,6 @@ const (
 	VppApiSocket           = "/var/run/vpp/vpp-api.sock"
 	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
 	VppPath                = "/usr/bin/vpp"
-	HostIfName             = "vpptap0"
-	HostIfTag              = "hosttap"
 	VppSigKillTimeout      = 2
 	DefaultEncapSize       = 60 // Used to lower the MTU of the routes to the cluster
 )
@@ -51,9 +50,21 @@ const (
 	DRIVER_VMXNET3         = "vmxnet3"
 )
 
+type InterfaceSpec struct {
+	Idx             int
+	MainInterface   string
+	VppIpConfSource string
+	NativeDriver    string
+	NewDriverName   string
+	NumRxQueues     int
+	NumTxQueues     int
+	SwIfIndex       uint32
+	HostIfTag       string
+}
+
 type VppManagerParams struct {
 	VppStartupSleepSeconds   int
-	MainInterface            string
+	InterfacesSpecs          []InterfaceSpec
 	ConfigExecTemplate       string
 	ConfigTemplate           string
 	NodeName                 string
@@ -61,17 +72,12 @@ type VppManagerParams struct {
 	RxMode                   types.RxMode
 	TapRxMode                types.RxMode
 	ServiceCIDRs             []net.IPNet
-	VppIpConfSource          string
 	ExtraAddrCount           int
-	NativeDriver             string
 	TapRxQueueSize           int
 	TapTxQueueSize           int
 	RxQueueSize              int
 	TxQueueSize              int
 	UserSpecifiedMtu         int
-	NumRxQueues              int
-	NumTxQueues              int
-	NewDriverName            string
 	DefaultGWs               []net.IP
 	IfConfigSavePath         string
 	EnableGSO                bool
@@ -83,22 +89,23 @@ type VppManagerParams struct {
 	VfioUnsafeiommu    bool
 }
 
-type InterfaceConfig struct {
-	PciId        string
-	Driver       string
-	IsUp         bool
-	Addresses    []netlink.Addr
-	Routes       []netlink.Route
-	HardwareAddr net.HardwareAddr
-	PromiscOn    bool
-	NumTxQueues  int
-	NumRxQueues  int
-	DoSwapDriver bool
-	Hasv4        bool
-	Hasv6        bool
-	NodeIP4      string
-	NodeIP6      string
-	Mtu          int
+type LinuxInterfaceState struct {
+	PciId         string
+	Driver        string
+	IsUp          bool
+	Addresses     []netlink.Addr
+	Routes        []netlink.Route
+	HardwareAddr  net.HardwareAddr
+	PromiscOn     bool
+	NumTxQueues   int
+	NumRxQueues   int
+	DoSwapDriver  bool
+	Hasv4         bool
+	Hasv6         bool
+	NodeIP4       string
+	NodeIP6       string
+	Mtu           int
+	MainInterface string
 }
 
 type KernelVersion struct {
@@ -108,7 +115,7 @@ type KernelVersion struct {
 	Patch  int
 }
 
-func GetUplinkMtu(params *VppManagerParams, conf *InterfaceConfig, includeEncap bool) int {
+func GetUplinkMtu(params *VppManagerParams, conf *LinuxInterfaceState, includeEncap bool) int {
 	encapSize := 0
 	if includeEncap {
 		encapSize = DefaultEncapSize
@@ -140,7 +147,7 @@ func (ver *KernelVersion) IsAtLeast(other *KernelVersion) bool {
 	return true
 }
 
-func (c *InterfaceConfig) AddressString() string {
+func (c *LinuxInterfaceState) AddressString() string {
 	var str []string
 	for _, addr := range c.Addresses {
 		str = append(str, addr.String())
@@ -148,7 +155,7 @@ func (c *InterfaceConfig) AddressString() string {
 	return strings.Join(str, ",")
 }
 
-func (c *InterfaceConfig) RouteString() string {
+func (c *LinuxInterfaceState) RouteString() string {
 	var str []string
 	for _, route := range c.Routes {
 		if route.Dst == nil {
@@ -169,7 +176,7 @@ func (c *InterfaceConfig) RouteString() string {
 
 // SortRoutes sorts the route slice by dependency order, so we can then add them
 // in the order of the slice without issues
-func (c *InterfaceConfig) SortRoutes() {
+func (c *LinuxInterfaceState) SortRoutes() {
 	sort.SliceStable(c.Routes, func(i, j int) bool {
 		// Directly connected routes go first
 		if c.Routes[i].Gw == nil {
@@ -190,12 +197,18 @@ func (c *InterfaceConfig) SortRoutes() {
 	})
 }
 
-func TemplateScriptReplace(input string, params *VppManagerParams, conf *InterfaceConfig) (template string) {
+func TemplateScriptReplace(input string, params *VppManagerParams, conf []*LinuxInterfaceState) (template string) {
 	template = input
 	if conf != nil {
 		/* We might template scripts before reading interface conf */
-		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", conf.PciId)
+		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", conf[0].PciId)
+		for i, ifcConf := range conf {
+			template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(i)+"__", ifcConf.PciId)
+		}
 	}
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.MainInterface)
+	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.InterfacesSpecs[0].MainInterface)
+	for i, ifc := range params.InterfacesSpecs {
+		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF_"+strconv.Itoa(i)+"__", ifc.MainInterface)
+	}
 	return template
 }
