@@ -218,7 +218,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 		if err == syscall.EEXIST {
 			log.Warnf("add addr %+v via vpp EEXIST, %+v", addr, err)
 		} else if err != nil {
-			return errors.Wrapf(err, "Error adding address %s to tap interface", addr)
+			log.Errorf("Error adding address %s to tap interface: %v", addr, err)
 		}
 	}
 	for _, route := range v.conf.Routes {
@@ -228,7 +228,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 		if err == syscall.EEXIST {
 			log.Warnf("add route %+v via vpp EEXIST, %+v", route, err)
 		} else if err != nil {
-			return errors.Wrapf(err, "cannot add route %+v via vpp", route)
+			log.Errorf("cannot add route %+v via vpp: %v", route, err)
 		}
 	}
 

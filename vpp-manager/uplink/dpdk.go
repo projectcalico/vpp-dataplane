@@ -33,8 +33,15 @@ type DPDKDriver struct {
 	UplinkDriverData
 }
 
-func (d *DPDKDriver) IsSupported(warn bool) bool {
-	return true
+func (d *DPDKDriver) IsSupported(warn bool) (supported bool) {
+	var ret bool
+	supported = true
+	ret = d.conf.PciId != ""
+	if !ret && warn {
+		log.Warnf("did not find  pci device id for interface")
+	}
+	supported = supported && ret
+	return supported
 }
 
 func (d *DPDKDriver) PreconfigureLinux() (err error) {
