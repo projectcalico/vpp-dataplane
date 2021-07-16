@@ -3713,6 +3713,40 @@ spec:
     spec:
       containers:
       - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: SERVICE_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: service_prefix
+              name: calico-vpp-config
+        image: docker.io/calicovpp/agent:prerelease
+        imagePullPolicy: IfNotPresent
+        name: agent
+        resources:
+          requests:
+            cpu: 250m
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/calico
+          name: var-run-calico
+          readOnly: false
+        - mountPath: /var/lib/calico/felix-plugins
+          name: felix-plugins
+          readOnly: false
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+      - env:
         - name: CALICOVPP_HOOK_BEFORE_VPP_RUN
           value: echo 'sudo systemctl stop network ; sudo systemctl kill network'
             | chroot /host
@@ -3782,40 +3816,6 @@ spec:
           name: devices
         - mountPath: /sys
           name: hostsys
-        - mountPath: /run/netns/
-          mountPropagation: Bidirectional
-          name: netns
-      - env:
-        - name: DATASTORE_TYPE
-          value: kubernetes
-        - name: WAIT_FOR_DATASTORE
-          value: "true"
-        - name: NODENAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: SERVICE_PREFIX
-          valueFrom:
-            configMapKeyRef:
-              key: service_prefix
-              name: calico-vpp-config
-        image: docker.io/calicovpp/agent:prerelease
-        imagePullPolicy: IfNotPresent
-        name: agent
-        resources:
-          requests:
-            cpu: 250m
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /var/run/calico
-          name: var-run-calico
-          readOnly: false
-        - mountPath: /var/lib/calico/felix-plugins
-          name: felix-plugins
-          readOnly: false
-        - mountPath: /var/run/vpp
-          name: vpp-rundir
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns
