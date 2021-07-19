@@ -3554,12 +3554,14 @@ subjects:
 ---
 apiVersion: v1
 data:
-  service_prefix: 10.96.0.0/12
+  service_prefix: 10.96.0.0/16
   vpp_config_template: |-
     unix {
       nodaemon
       full-coredump
       cli-listen /var/run/vpp/cli.sock
+      pidfile /run/vpp/vpp.pid
+      exec /etc/vpp/startup.exec
     }
     api-trace { on }
     cpu {
@@ -3568,15 +3570,13 @@ data:
     socksvr {
         socket-name /var/run/vpp/vpp-api.sock
     }
-    dpdk {
-      dev __PCI_DEVICE_ID__ { num-rx-queues 1 num-tx-queues 1 }
-    }
     plugins {
         plugin default { enable }
+        plugin dpdk_plugin.so { disable }
         plugin calico_plugin.so { enable }
     }
-  vpp_dataplane_interface: eth1
-  vpp_uplink_driver: none
+  vpp_dataplane_interface: eth0
+  vpp_uplink_driver: af_packet
 kind: ConfigMap
 metadata:
   name: calico-vpp-config
@@ -3780,8 +3780,6 @@ spec:
         imagePullPolicy: IfNotPresent
         name: vpp
         resources:
-          limits:
-            hugepages-2Mi: 256Mi
           requests:
             cpu: 500m
             memory: 128Mi
