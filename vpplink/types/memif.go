@@ -26,7 +26,7 @@ type MemifMode uint32
 
 const (
 	MemifMaster MemifRole = MemifRole(memif.MEMIF_ROLE_API_MASTER)
-	MemifSlave  MemifRole = MemifRole(memif.MEMIF_ROLE_API_MASTER)
+	MemifSlave  MemifRole = MemifRole(memif.MEMIF_ROLE_API_SLAVE)
 
 	MemifModeEthernet      MemifMode = MemifMode(memif.MEMIF_MODE_API_ETHERNET)
 	MemifModeApiIP         MemifMode = MemifMode(memif.MEMIF_MODE_API_IP)
