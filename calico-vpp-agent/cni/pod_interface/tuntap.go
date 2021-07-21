@@ -141,13 +141,15 @@ func (i *TunTapPodInterfaceDriver) DelPodInterfaceFromVPP(swIfIndex uint32) {
 
 func (i *TunTapPodInterfaceDriver) AddPodInterfaceToVPP(podSpec *storage.LocalPodSpec) (uint32, error) {
 	tun := &types.TapV2{
+		GenericVppInterface: types.GenericVppInterface{
+			NumRxQueues:       config.TapNumRxQueues,
+			NumTxQueues:       config.TapNumTxQueues,
+			RxQueueSize:       config.TapRxQueueSize,
+			TxQueueSize:       config.TapTxQueueSize,
+			HostInterfaceName: podSpec.InterfaceName,
+		},
 		HostNamespace: podSpec.NetnsName,
-		HostIfName:    podSpec.InterfaceName,
 		Tag:           podSpec.GetInterfaceTag(i.name),
-		NumRxQueues:   config.TapNumRxQueues,
-		NumTxQueues:   config.TapNumTxQueues,
-		RxQueueSize:   config.TapRxQueueSize,
-		TxQueueSize:   config.TapTxQueueSize,
 		Flags:         types.TapFlagTun,
 		HostMtu:       podSpec.GetPodMtu(),
 	}

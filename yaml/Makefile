@@ -6,6 +6,7 @@ build: clean
 	@kubectl kustomize overlays/dpdk           > generated/calico-vpp-dpdk.yaml
 	@kubectl kustomize overlays/eks            > generated/calico-vpp-eks.yaml
 	@kubectl kustomize overlays/eks-dpdk       > generated/calico-vpp-eks-dpdk.yaml
+	@kubectl kustomize overlays/kind           > generated/calico-vpp-kind.yaml
 ifneq ($(strip $(TAG)),)
 	@sed -i.bak "s|:latest|:$(TAG)|g" generated/*.yaml
 	@rm -f generated/*.yaml.bak

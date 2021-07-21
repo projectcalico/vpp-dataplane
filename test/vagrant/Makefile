@@ -205,9 +205,19 @@ pull: ## Add and download, or update the box image on the host.
 
 start-master: preflight ## Start up master VM (automatically done by `up` target).
 	vagrant up
+ifneq ($(strip $(MASTER_FIRST_CPU)),)
+	@for i in $$(seq 0 $$(($(MASTER_CPUS)-1))); do \
+		virsh vcpupin $(CLUSTER_NAME)_master $$i $$((i+$(MASTER_FIRST_CPU))); \
+	done
+endif
 
 start-node-%: preflight ## Start node VM, where `%` is the number of the node.
 	NODE=$* vagrant up
+ifneq ($(strip $(NODE_FIRST_CPU)),)
+	@for i in $$(seq 0 $$(($(NODE_CPUS)-1))); do \
+		virsh vcpupin $(CLUSTER_NAME)_node$* $$i $$((i+$(NODE_FIRST_CPU)+($(NODE)-1)*$(NODE_CPUS))); \
+	done
+endif
 
 start-nodes: preflight $(shell for i in $(shell seq 1 $(NODE_COUNT)); do echo "start-node-$$i"; done) ## Create and start all node VMs by utilizing the `node-X` target (automatically done by `up` target).
 

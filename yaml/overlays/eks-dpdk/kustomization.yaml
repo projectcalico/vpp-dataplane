@@ -1,5 +1,3 @@
-resources:
-- eks-init.yaml
 bases:
 - ../eks
 patchesStrategicMerge:

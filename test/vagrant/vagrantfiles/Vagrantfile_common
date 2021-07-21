@@ -27,7 +27,13 @@ POD_NW_CIDR = ENV['POD_NW_CIDR'] || '172.16.0.0/16'
 SERVICE_CIDR = ENV['SERVICE_CIDR'] || '10.96.0.0/12'
 
 DNS_SERVER = ENV['DNS_SERVER'] || '8.8.8.8'
+DATA_IF_MTU = ENV['DATA_IF_MTU'] || '1380'
 VAGRANT_VM_PROXY = ENV['VAGRANT_VM_PROXY'] || ''
+
+MASTER_NIC_PASSTHROUGH = ENV['MASTER_NIC_PASSTHROUGH'] || ''  # PCI address of NIC to passthrough
+MASTER_NODESET = ENV['MASTER_NODESET'] || ''                  # NUMA node to allocate vm memory from
+NODE_NIC_PASSTHROUGH = ENV['NODE_NIC_PASSTHROUGH'] || ''
+NODE_NODESET = ENV['NODE_NODESET'] || ''
 
 # Addons
 K8S_DASHBOARD = ENV['K8S_DASHBOARD'].downcase == "true" || false
@@ -51,6 +57,10 @@ KUBE_PROXY_IPVS = ENV['KUBE_PROXY_IPVS'] || false
 # Generate new using steps in README
 KUBETOKEN = ENV['KUBETOKEN'] || 'b029ee.968a33e8d8e6bb0d'
 
+
+def parse_pci(addr) # 0000:06:01.0
+    return :domain => "0x"+addr[0..3], :bus => "0x"+addr[5..6], :slot => "0x"+addr[8..9], :function => "0x"+addr[11]
+end
 
 # Common scripts
 
@@ -145,7 +155,7 @@ fi
 retries=5
 for ((i=0; i<retries; i++)); do
     apt-get update && \
-    apt-get -y install tmux screen telnet conntrack socat net-tools gdb \
+    apt-get -y install tmux screen telnet conntrack socat net-tools gdb jq make \
         docker-ce=#{$docker_version} ${KUBERNETES_PACKAGES} && \
     break
 done
@@ -158,6 +168,10 @@ apt-mark hold docker-ce kubelet kubeadm kubectl
 echo 'tmpfs /run tmpfs rw,nosuid,noexec,relatime,size=614460k,mode=755' >> /etc/fstab
 
 apt-get clean
+
+# Download k8s images
+kubeadm config images pull
+
 fstrim -a
 
 SCRIPT
@@ -175,11 +189,15 @@ alias dpa="docker ps -a"
 alias dpv="docker ps -a |grep vpp"
 alias vc='docker exec -it \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}") vppctl'
 alias dsv='docker stop \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}")'
-alias nodelogs='docker logs \$(docker ps |grep k8s_calico-node_calico-vpp-node | awk "{print \\\\\$1}")'
-alias dsn='docker stop \$(docker ps |grep k8s_calico-node_calico-vpp-node | awk "{print \\\\\$1}")'
+alias nodelogs='docker logs \$(docker ps |grep k8s_agent_calico-vpp-node | awk "{print \\\\\$1}")'
+alias dsn='docker stop \$(docker ps |grep k8s_agent_calico-vpp-node | awk "{print \\\\\$1}")'
 alias idu="ip link set eth1 down; ip link set eth1 up"
 alias ifr="ip link set vpptap0 down; echo '0000:00:06.0' > /sys/bus/pci/devices/0000\:00\:06.0/driver/unbind; sleep 0.2; echo '0000:00:06.0' > /sys/bus/pci/drivers/virtio-pci/bind; sleep 0.5; ip link set eth1 up"
 alias lsc="ls -alh /var/lib/vpp"
+alias k="kubectl"
+alias ks="kubectl -n kube-system"
+alias ki="kubectl -n iperf"
+alias kv="kubectl -n calico-vpp-dataplane"
 }
 
 $prepareScript = <<SCRIPT
@@ -192,6 +210,9 @@ EOF
 
 resize2fs /dev/vda3
 
+second_if=$(ip -o link show | awk -F': ' '{print $2}' |grep -v -e lo -e docker -e eth0)
+echo "Using ${second_if} as k8s interface"
+
 cat <<EOF > /etc/netplan/99-calicovpp.yaml
 ---
 network:
@@ -200,9 +221,10 @@ network:
   ethernets:
     eth0:
       mtu: 1380
-    eth1:
-      mtu: 1380
+    ${second_if}:
+      mtu: #{DATA_IF_MTU}
       addresses:
+        - #{NODE > 0 ? NODE_IP : MASTER_IP}/24
         - #{NODE > 0 ? NODE_IP6 : MASTER_IP6}/64
 EOF
 

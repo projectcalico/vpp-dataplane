@@ -3,7 +3,7 @@
 // Package af_packet contains generated bindings for API file af_packet.api.
 //
 // Contents:
-//   8 messages
+//  10 messages
 //
 package af_packet
 
@@ -23,7 +23,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "af_packet"
 	APIVersion = "2.0.0"
-	VersionCrc = 0x4191e8ae
+	VersionCrc = 0xf423ff86
 )
 
 // AfPacketCreate defines message 'af_packet_create'.
@@ -98,6 +98,100 @@ func (m *AfPacketCreateReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *AfPacketCreateReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	return nil
+}
+
+// AfPacketCreateV2 defines message 'af_packet_create_v2'.
+type AfPacketCreateV2 struct {
+	HwAddr           ethernet_types.MacAddress `binapi:"mac_address,name=hw_addr" json:"hw_addr,omitempty"`
+	UseRandomHwAddr  bool                      `binapi:"bool,name=use_random_hw_addr" json:"use_random_hw_addr,omitempty"`
+	HostIfName       string                    `binapi:"string[64],name=host_if_name" json:"host_if_name,omitempty"`
+	RxFrameSize      uint32                    `binapi:"u32,name=rx_frame_size" json:"rx_frame_size,omitempty"`
+	TxFrameSize      uint32                    `binapi:"u32,name=tx_frame_size" json:"tx_frame_size,omitempty"`
+	RxFramesPerBlock uint32                    `binapi:"u32,name=rx_frames_per_block" json:"rx_frames_per_block,omitempty"`
+	TxFramesPerBlock uint32                    `binapi:"u32,name=tx_frames_per_block" json:"tx_frames_per_block,omitempty"`
+}
+
+func (m *AfPacketCreateV2) Reset()               { *m = AfPacketCreateV2{} }
+func (*AfPacketCreateV2) GetMessageName() string { return "af_packet_create_v2" }
+func (*AfPacketCreateV2) GetCrcString() string   { return "8b481d6a" }
+func (*AfPacketCreateV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *AfPacketCreateV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1 * 6 // m.HwAddr
+	size += 1     // m.UseRandomHwAddr
+	size += 64    // m.HostIfName
+	size += 4     // m.RxFrameSize
+	size += 4     // m.TxFrameSize
+	size += 4     // m.RxFramesPerBlock
+	size += 4     // m.TxFramesPerBlock
+	return size
+}
+func (m *AfPacketCreateV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBytes(m.HwAddr[:], 6)
+	buf.EncodeBool(m.UseRandomHwAddr)
+	buf.EncodeString(m.HostIfName, 64)
+	buf.EncodeUint32(m.RxFrameSize)
+	buf.EncodeUint32(m.TxFrameSize)
+	buf.EncodeUint32(m.RxFramesPerBlock)
+	buf.EncodeUint32(m.TxFramesPerBlock)
+	return buf.Bytes(), nil
+}
+func (m *AfPacketCreateV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	copy(m.HwAddr[:], buf.DecodeBytes(6))
+	m.UseRandomHwAddr = buf.DecodeBool()
+	m.HostIfName = buf.DecodeString(64)
+	m.RxFrameSize = buf.DecodeUint32()
+	m.TxFrameSize = buf.DecodeUint32()
+	m.RxFramesPerBlock = buf.DecodeUint32()
+	m.TxFramesPerBlock = buf.DecodeUint32()
+	return nil
+}
+
+// AfPacketCreateV2Reply defines message 'af_packet_create_v2_reply'.
+type AfPacketCreateV2Reply struct {
+	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+}
+
+func (m *AfPacketCreateV2Reply) Reset()               { *m = AfPacketCreateV2Reply{} }
+func (*AfPacketCreateV2Reply) GetMessageName() string { return "af_packet_create_v2_reply" }
+func (*AfPacketCreateV2Reply) GetCrcString() string   { return "5383d31f" }
+func (*AfPacketCreateV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *AfPacketCreateV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	size += 4 // m.SwIfIndex
+	return size
+}
+func (m *AfPacketCreateV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	return buf.Bytes(), nil
+}
+func (m *AfPacketCreateV2Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
@@ -310,6 +404,8 @@ func init() { file_af_packet_binapi_init() }
 func file_af_packet_binapi_init() {
 	api.RegisterMessage((*AfPacketCreate)(nil), "af_packet_create_a190415f")
 	api.RegisterMessage((*AfPacketCreateReply)(nil), "af_packet_create_reply_5383d31f")
+	api.RegisterMessage((*AfPacketCreateV2)(nil), "af_packet_create_v2_8b481d6a")
+	api.RegisterMessage((*AfPacketCreateV2Reply)(nil), "af_packet_create_v2_reply_5383d31f")
 	api.RegisterMessage((*AfPacketDelete)(nil), "af_packet_delete_863fa648")
 	api.RegisterMessage((*AfPacketDeleteReply)(nil), "af_packet_delete_reply_e8d4e804")
 	api.RegisterMessage((*AfPacketDetails)(nil), "af_packet_details_58c7c042")
@@ -323,6 +419,8 @@ func AllMessages() []api.Message {
 	return []api.Message{
 		(*AfPacketCreate)(nil),
 		(*AfPacketCreateReply)(nil),
+		(*AfPacketCreateV2)(nil),
+		(*AfPacketCreateV2Reply)(nil),
 		(*AfPacketDelete)(nil),
 		(*AfPacketDeleteReply)(nil),
 		(*AfPacketDetails)(nil),

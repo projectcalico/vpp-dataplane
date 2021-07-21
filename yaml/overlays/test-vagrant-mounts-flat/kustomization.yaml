@@ -1,0 +1,4 @@
+bases:
+- ../test-vagrant-mounts
+patchesStrategicMerge:
+- flat.yaml

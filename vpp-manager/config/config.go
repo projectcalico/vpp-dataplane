@@ -47,6 +47,8 @@ const (
 	DRIVER_VFIO_PCI        = "vfio-pci"
 	DRIVER_VIRTIO_PCI      = "virtio-pci"
 	DRIVER_I40E            = "i40e"
+	DRIVER_MLX5_CORE       = "mlx5_core"
+	DRIVER_VMXNET3         = "vmxnet3"
 )
 
 type VppManagerParams struct {
@@ -68,6 +70,7 @@ type VppManagerParams struct {
 	TxQueueSize              int
 	UserSpecifiedMtu         int
 	NumRxQueues              int
+	NumTxQueues              int
 	NewDriverName            string
 	DefaultGWs               []net.IP
 	IfConfigSavePath         string

@@ -27,12 +27,13 @@ import (
 type VXLanProvider struct {
 	*ConnectivityProviderData
 	vxlanIfs     map[string]uint32
+	vxlanRoutes  map[uint32]map[string]bool
 	ip4NodeIndex uint32
 	ip6NodeIndex uint32
 }
 
 func NewVXLanProvider(d *ConnectivityProviderData) *VXLanProvider {
-	return &VXLanProvider{d, make(map[string]uint32), 0, 0}
+	return &VXLanProvider{d, make(map[string]uint32), make(map[uint32]map[string]bool), 0, 0}
 }
 
 func (p *VXLanProvider) Enabled() bool {
@@ -53,13 +54,52 @@ func (p *VXLanProvider) configureVXLANNodes() error {
 }
 
 func (p *VXLanProvider) RescanState() {
-	// TODO
+	p.log.Infof("Rescanning existing VXLAN tunnels")
+	p.vxlanIfs = make(map[string]uint32)
+	tunnels, err := p.vpp.ListVXLanTunnels()
+	if err != nil {
+		p.log.Errorf("Error listing VXLan tunnels: %v", err)
+	}
+	nodeIP4 := p.server.GetNodeIP(false)
+	nodeIP6 := p.server.GetNodeIP(true)
+	for _, tunnel := range tunnels {
+		if (tunnel.SrcAddress.Equal(nodeIP4) || tunnel.SrcAddress.Equal(nodeIP6)) &&
+			tunnel.Vni == p.getVXLANVNI() && tunnel.DstPort == p.getVXLANPort() && tunnel.SrcPort == p.getVXLANPort() {
 
+			p.log.Infof("Found existing tunnel: %s", tunnel)
+
+			p.vxlanIfs[tunnel.DstAddress.String()] = uint32(tunnel.SwIfIndex)
+		}
+	}
+
+	indexTunnel := make(map[uint32]string)
+	for str, index := range p.vxlanIfs {
+		indexTunnel[index] = str
+	}
+	p.log.Infof("Rescanning existing routes")
+	p.vxlanRoutes = make(map[uint32]map[string]bool)
+	routes, err := p.vpp.GetRoutes(0, false)
+	if err != nil {
+		p.log.Errorf("Error listing routes: %v", err)
+	}
+	for _, route := range routes {
+		for _, routePath := range route.Paths {
+			_, exists := indexTunnel[routePath.SwIfIndex]
+			if exists {
+				_, found := p.vxlanRoutes[routePath.SwIfIndex]
+				if !found {
+					p.vxlanRoutes[routePath.SwIfIndex] = make(map[string]bool)
+				}
+				p.vxlanRoutes[routePath.SwIfIndex][route.Dst.String()] = true
+			}
+		}
+	}
 }
 
 func (p *VXLanProvider) OnVppRestart() {
 	p.vxlanIfs = make(map[string]uint32)
 	p.configureVXLANNodes()
+	p.vxlanRoutes = make(map[uint32]map[string]bool)
 }
 
 func (p *VXLanProvider) getVXLANVNI() uint32 {
@@ -76,18 +116,20 @@ func (p *VXLanProvider) getVXLANVNI() uint32 {
 	return uint32(*felixConf.VXLANVNI)
 }
 
+func (p *VXLanProvider) getVXLANPort() uint16 {
+	felixConf := p.GetFelixConfig()
+	if felixConf.VXLANPort != nil {
+		return uint16(*felixConf.VXLANPort)
+	} else {
+		return config.DefaultVXLANPort
+	}
+}
+
 func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Debugf("Adding vxlan Tunnel to VPP")
 	nodeIP := p.GetNodeIP(vpplink.IsIP6(cn.NextHop))
-	felixConf := p.GetFelixConfig()
 
-	var vxLanPort uint16
-	if felixConf.VXLANPort != nil {
-		vxLanPort = uint16(*felixConf.VXLANPort)
-	} else {
-		vxLanPort = 0
-	}
-
+	vxLanPort := p.getVXLANPort()
 	if _, found := p.vxlanIfs[cn.NextHop.String()]; !found {
 		p.log.Infof("VXLan: Add %s->%s", nodeIP.String(), cn.Dst.IP.String())
 		tunnel := &types.VXLanTunnel{
@@ -151,13 +193,20 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Infof("VXLan: Added ?->%s %d", cn.Dst.IP.String(), swIfIndex)
 
 	p.log.Debugf("Adding vxlan tunnel route to %s via swIfIndex %d", cn.Dst.IP.String(), swIfIndex)
-	return p.vpp.RouteAdd(&types.Route{
+	route := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: swIfIndex,
 			Gw:        nodeIP,
 		}},
-	})
+	}
+	p.log.Info(p.vxlanRoutes)
+	_, found := p.vxlanRoutes[swIfIndex]
+	if !found {
+		p.vxlanRoutes[swIfIndex] = make(map[string]bool)
+	}
+	p.vxlanRoutes[swIfIndex][route.Dst.String()] = true
+	return p.vpp.RouteAdd(route)
 }
 
 func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
@@ -169,16 +218,31 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	/* TODO: delete tunnel */
 	nodeIP := p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop))
 	p.log.Infof("VXLan: Del ?->%s %d", cn.NextHop.String(), swIfIndex)
-	err := p.vpp.RouteDel(&types.Route{
+	routeToDelete := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: swIfIndex,
 			Gw:        nodeIP,
 		}},
-	})
+	}
+	err := p.vpp.RouteDel(routeToDelete)
 	if err != nil {
 		return errors.Wrapf(err, "Error deleting vxlan tunnel route")
 	}
-	delete(p.vxlanIfs, cn.NextHop.String())
+
+	delete(p.vxlanRoutes[swIfIndex], routeToDelete.Dst.String())
+
+	remaining_routes, found := p.vxlanRoutes[swIfIndex]
+	existing_vxlan_tunnels, err := p.vpp.ListVXLanTunnels()
+	if err != nil {
+		p.log.Errorf("Error listing VXLan tunnels: %v", err)
+	}
+	for _, tunnel := range existing_vxlan_tunnels {
+		if swIfIndex == uint32(tunnel.SwIfIndex) && (!found || len(remaining_routes) == 0) {
+			p.log.Infof("Deleting tunnel...[%s]", swIfIndex)
+			p.vpp.DelVXLanTunnel(&tunnel)
+			delete(p.vxlanIfs, cn.NextHop.String())
+		}
+	}
 	return nil
 }

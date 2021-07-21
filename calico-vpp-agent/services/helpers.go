@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func getTargetPort(sPort v1.ServicePort) (int32, error) {
+func getTargetPort(sPort v1.ServicePort, epPort *v1.EndpointPort) (int32, error) {
 	tp := sPort.TargetPort
 	if tp.Type == intstr.Int {
 		if tp.IntVal == 0 {
@@ -35,7 +35,7 @@ func getTargetPort(sPort v1.ServicePort) (int32, error) {
 			return tp.IntVal, nil
 		}
 	} else {
-		return 0, errors.Errorf("Unsupported string type for service port: %+v", sPort)
+		return epPort.Port, nil
 	}
 }
 
@@ -67,10 +67,7 @@ func formatProto(proto types.IPProto) string {
 
 func getServiceBackends(servicePort *v1.ServicePort, ep *v1.Endpoints, localOnly bool, flagNonLocal bool) (backends []types.CnatEndpointTuple, err error) {
 	backends = make([]types.CnatEndpointTuple, 0)
-	targetPort, err := getTargetPort(*servicePort)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Error determinig target port")
-	}
+
 	for _, set := range ep.Subsets {
 		// Check if this subset exposes the port we're interested in
 		for _, port := range set.Ports {
@@ -81,7 +78,7 @@ func getServiceBackends(servicePort *v1.ServicePort, ep *v1.Endpoints, localOnly
 						isLocal = false
 					}
 					flags := uint8(0)
-					if !isLocal  {
+					if !isLocal {
 						if localOnly {
 							continue
 						}
@@ -92,6 +89,10 @@ func getServiceBackends(servicePort *v1.ServicePort, ep *v1.Endpoints, localOnly
 					ip := net.ParseIP(addr.IP)
 					if ip == nil {
 						continue
+					}
+					targetPort, err := getTargetPort(*servicePort, &port)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Error determinig target port")
 					}
 					backends = append(backends, types.CnatEndpointTuple{
 						DstEndpoint: types.CnatEndpoint{

@@ -148,6 +148,11 @@ func InstallFelixPlugin() (err error) {
 }
 
 func (s *Server) setNodeIPs(nodeSpec *calicoapi.NodeSpec) {
+	if nodeSpec == nil {
+		return
+	} else if nodeSpec.BGP == nil {
+		return
+	}
 	if nodeSpec.BGP.IPv4Address != "" {
 		addr, _, err := net.ParseCIDR(nodeSpec.BGP.IPv4Address)
 		if err != nil {

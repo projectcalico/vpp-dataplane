@@ -62,6 +62,7 @@ const (
 	ContainerSideMacAddressString = "02:00:00:00:00:01"
 
 	DefaultVXLANVni      = 4096
+	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820
 
 	defaultRxMode = types.Adaptative

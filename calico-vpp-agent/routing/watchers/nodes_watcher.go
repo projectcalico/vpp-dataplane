@@ -97,6 +97,9 @@ func (w *NodeWatcher) GetNodeByIp(addr net.IP) *common.NodeState {
 
 func (w *NodeWatcher) addNodeState(state *common.NodeState) {
 	w.nodeStatesByName[state.Name] = *state
+	if state.Spec.BGP == nil {
+		return
+	}
 	nodeIP, _, err := net.ParseCIDR(state.Spec.BGP.IPv6Address)
 	if err == nil {
 		w.nodeNamesByAddr[nodeIP.String()] = state.Name
@@ -108,7 +111,7 @@ func (w *NodeWatcher) addNodeState(state *common.NodeState) {
 }
 func (w *NodeWatcher) delNodeState(nodename string) {
 	node, found := w.nodeStatesByName[nodename]
-	if found {
+	if found && node.Spec.BGP != nil {
 		nodeIP, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
 		if err == nil {
 			delete(w.nodeNamesByAddr, nodeIP.String())
@@ -223,7 +226,11 @@ func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.E
 			old.SweepFlag = false
 			oldBgp := old.Spec.BGP
 			newBgp := node.Spec.BGP
-			if oldBgp.ASNumber != newBgp.ASNumber ||
+			if oldBgp == nil && newBgp == nil {
+				return false, nil /* don't restart */
+			} else if oldBgp == nil || newBgp == nil {
+				return true, nil /* restart */
+			} else if oldBgp.ASNumber != newBgp.ASNumber ||
 				oldBgp.IPv4Address != newBgp.IPv4Address ||
 				oldBgp.IPv6Address != newBgp.IPv6Address {
 				w.log.Infof("BGP Spec changed: old:%+v new:%+v", oldBgp, newBgp)

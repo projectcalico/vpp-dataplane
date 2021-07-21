@@ -65,6 +65,11 @@ type Server struct {
 }
 
 func (s *Server) setSpecAddresses(nodeSpec *calicov3.NodeSpec) {
+	if nodeSpec == nil {
+		return
+	} else if nodeSpec.BGP == nil {
+		return
+	}
 	if nodeSpec.BGP.IPv4Address != "" {
 		addr, _, err := net.ParseCIDR(nodeSpec.BGP.IPv4Address)
 		if err != nil {

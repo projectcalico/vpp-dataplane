@@ -17,24 +17,25 @@ package vpplink
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/af_packet"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-func (v *VppLink) CreateAfPacket(ifName string, hardwareAddr *net.HardwareAddr) (swIfIndex uint32, err error) {
+func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	response := &af_packet.AfPacketCreateReply{}
-	request := &af_packet.AfPacketCreate{
-		UseRandomHwAddr: true,
-		HostIfName:      ifName,
+	response := &af_packet.AfPacketCreateV2Reply{}
+	request := &af_packet.AfPacketCreateV2{
+		UseRandomHwAddr:  true,
+		HostIfName:       intf.HostInterfaceName,
+		RxFramesPerBlock: uint32(intf.RxQueueSize),
+		TxFramesPerBlock: uint32(intf.TxQueueSize),
 	}
-	if hardwareAddr != nil {
+	if intf.HardwareAddr != nil {
 		request.UseRandomHwAddr = false
-		request.HwAddr = types.ToVppMacAddress(hardwareAddr)
+		request.HwAddr = types.ToVppMacAddress(intf.HardwareAddr)
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
@@ -42,6 +43,7 @@ func (v *VppLink) CreateAfPacket(ifName string, hardwareAddr *net.HardwareAddr) 
 	} else if response.Retval != 0 {
 		return INVALID_SW_IF_INDEX, fmt.Errorf("AfPacketCreate failed: req %+v reply %+v", request, response)
 	}
+	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
 }
 
