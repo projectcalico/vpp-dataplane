@@ -78,9 +78,10 @@ func (i *TunTapPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, doHostS
 }
 
 func (i *TunTapPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) (containerIPs []net.IPNet) {
+	i.log.Infof("Del request %s", podSpec.GetInterfaceTag(i.name))
 	swIfIndex := i.SearchPodInterface(podSpec)
 	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
-		i.log.Debugf("interface not found %s", podSpec.GetInterfaceTag(i.name))
+		i.log.Warnf("interface not found %s", podSpec.GetInterfaceTag(i.name))
 		return
 	}
 	containerIPs = i.unconfigureLinux(podSpec)

@@ -13,12 +13,20 @@ spec:
   - name: testpmd
     image: sknat/testpmd
     imagePullPolicy: IfNotPresent
+    securityContext:
+      privileged: true
     ports:
     - containerPort: 4444
     resources:
       limits:
         memory: 2Gi
         hugepages-2Mi: 512Mi
+    volumeMounts:
+    - mountPath: /hugepages
+      name: hugepage
   nodeName: _NODE_1_
-
+  volumes:
+  - name: hugepage
+    emptyDir:
+      medium: HugePages
 

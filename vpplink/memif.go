@@ -87,8 +87,6 @@ func (v *VppLink) CreateMemif(mif *types.Memif) error {
 		return err
 	}
 	mif.SocketId = socketId
-	v.lock.Lock()
-	defer v.lock.Unlock()
 	response := &memif.MemifCreateReply{}
 	request := &memif.MemifCreate{
 		Role:       memif.MemifRole(mif.Role),
@@ -101,7 +99,10 @@ func (v *VppLink) CreateMemif(mif *types.Memif) error {
 	if mif.MacAddress != nil {
 		request.HwAddr = types.ToVppMacAddress(&mif.MacAddress)
 	}
+	v.lock.Lock()
 	err = v.ch.SendRequest(request).ReceiveReply(response)
+	v.lock.Unlock()
+	/* don't defer as memifSocket call also locks */
 	if err != nil {
 		err2 := v.DelMemifSocketFileName(socketId)
 		return errors.Wrapf(err, "MemifCreate failed: req %+v reply %+v (cleanup %s)", request, response, err2)
