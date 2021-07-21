@@ -68,7 +68,11 @@ func (i *MemifPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) {
 		i.log.Debugf("interface not found %s", podSpec.GetInterfaceTag(i.name))
 		return
 	}
-	i.UndoPodAbfConfiguration(swIfIndex)
+	if i.IfType == podSpec.DefaultIfType {
+		i.UndoPodRoutesConfiguration(swIfIndex)
+	} else {
+		i.UndoPodAbfConfiguration(swIfIndex)
+	}
 
 	i.UndoPodInterfaceConfiguration(swIfIndex)
 	i.DelPodInterfaceFromVPP(swIfIndex)

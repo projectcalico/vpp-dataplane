@@ -17,6 +17,10 @@ package pod_interface
 
 import (
 	"fmt"
+	"io"
+	"net"
+	"os"
+
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
@@ -26,9 +30,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
-	"io"
-	"net"
-	"os"
 )
 
 type TunTapPodInterfaceDriver struct {
@@ -83,7 +84,11 @@ func (i *TunTapPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) (contai
 		return
 	}
 	containerIPs = i.unconfigureLinux(podSpec)
-	i.UndoPodRoutesConfiguration(swIfIndex)
+	if i.IfType == podSpec.DefaultIfType {
+		i.UndoPodRoutesConfiguration(swIfIndex)
+	} else {
+		i.UndoPodAbfConfiguration(swIfIndex)
+	}
 
 	i.UndoPodInterfaceConfiguration(swIfIndex)
 	i.DelPodInterfaceFromVPP(swIfIndex)
