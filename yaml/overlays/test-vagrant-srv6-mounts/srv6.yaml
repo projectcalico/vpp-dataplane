@@ -18,7 +18,7 @@ data:
           "mtu": __CNI_MTU__,
           "ipam": {
               "type": "calico-ipam",
-              "assign_ipv4": "false",
+              "assign_ipv4": "true",
               "assign_ipv6": "true"
           },
           "policy": {
@@ -89,7 +89,7 @@ spec:
             - name: FELIX_IPV6SUPPORT
               value: "true"
             - name: IP
-              value: "none"
+              value: "autodetect"
             - name: CALICO_ROUTER_ID
               value: "hash"
             - name: IP6

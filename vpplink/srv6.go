@@ -158,7 +158,7 @@ func (v *VppLink) DelSRv6Localsid(localSid *types.SrLocalsid) (err error) {
 		IsDel:     true,
 		Localsid:  localSid.Localsid,
 		EndPsp:    localSid.EndPsp,
-		Behavior:  types.ToVppSrBehavior(localSid.Behavior),
+		Behavior:  types.ToVppSrBehavior(8),
 		SwIfIndex: localSid.SwIfIndex,
 		VlanIndex: localSid.VlanIndex,
 		FibTable:  localSid.FibTable,

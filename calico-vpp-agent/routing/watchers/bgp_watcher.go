@@ -23,9 +23,11 @@ import (
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type BGPWatcher struct {
@@ -93,6 +95,85 @@ func (w *BGPWatcher) injectRoute(path *bgpapi.Path) error {
 	return nil
 }
 
+func (w *BGPWatcher) getSRv6SegList(path *bgpapi.Path) (srv6tunnel *common.SRv6Tunnel, srnrli *bgpapi.SRPolicyNLRI, err error) {
+	w.log.Infof("getSRv6SegList ")
+	srv6tunnel = &common.SRv6Tunnel{}
+	srnrli = &bgpapi.SRPolicyNLRI{}
+	if err := ptypes.UnmarshalAny(path.Nlri, srnrli); err == nil {
+		w.log.Infof("Got path update with SRv6BindingSID")
+	}
+	srv6tunnel.Dst = srnrli.Endpoint
+
+	for _, attr := range path.Pattrs {
+		w.log.Infof("getSegList1 %s", attr)
+		tun := &bgpapi.TunnelEncapAttribute{}
+		if err := ptypes.UnmarshalAny(attr, tun); err == nil {
+			for _, tlv := range tun.Tlvs {
+				for _, innerTlv := range tlv.Tlvs {
+					segList := &bgpapi.TunnelEncapSubTLVSRSegmentList{}
+					if err := ptypes.UnmarshalAny(innerTlv, segList); err == nil {
+						w.log.Infof("getSegList2 %s", segList.Segments)
+
+						for _, seglist := range segList.Segments {
+							segment := &bgpapi.SegmentTypeB{}
+							if err = ptypes.UnmarshalAny(seglist, segment); err == nil {
+
+								srv6tunnel.Sid = net.IP(segment.GetSid())
+								srv6tunnel.Behavior = uint32(segment.GetEndpointBehaviorStructure().Behavior)
+								break
+							}
+						}
+
+					}
+
+					srbsids := &anypb.Any{}
+					w.log.Infof("getSegList23 srbsid %s", innerTlv.String())
+					if err := ptypes.UnmarshalAny(innerTlv, srbsids); err == nil {
+						w.log.Infof("getSegList3 srbsid %s", srbsids.String())
+						srv6bsid := &bgpapi.SRBindingSID{}
+						if err := ptypes.UnmarshalAny(srbsids, srv6bsid); err == nil {
+							srv6tunnel.Bsid = srv6bsid.Sid
+							w.log.Infof("getSegList4 %s", net.IP(srv6bsid.Sid).String())
+						}
+
+					}
+
+				}
+			}
+		}
+
+	}
+	return srv6tunnel, srnrli, err
+}
+
+func (w *BGPWatcher) injectSRv6Policy(path *bgpapi.Path) error {
+	w.log.Infof("injectSRv6Policy")
+
+	srtunnel, srnrli, err := w.getSRv6SegList(path)
+	if err != nil {
+		return errors.Wrap(err, "error injectSRv6Policy")
+	}
+	//w.log.Infof("Got path update with SRv6BindingSID with sid %s", sid.String())
+	cn := &common.NodeConnectivity{
+		Dst:              net.IPNet{},
+		NextHop:          srnrli.Endpoint,
+		ResolvedProvider: "",
+		Custom:           srtunnel,
+	}
+	if path.IsWithdraw {
+		w.ConnectivityEventChan <- common.ConnectivityEvent{
+			Type: common.SRv6PolicyDeleted,
+			Old:  cn,
+		}
+	} else {
+		w.ConnectivityEventChan <- common.ConnectivityEvent{
+			Type: common.SRv6PolicyAdded,
+			New:  cn,
+		}
+	}
+	return nil
+}
+
 // watchBGPPath watches BGP routes from other peers and inject them into
 // linux kernel
 // TODO: multipath support
@@ -113,6 +194,15 @@ func (w *BGPWatcher) WatchBGPPath() error {
 					w.log.Warnf("nil path update, skipping")
 					return
 				}
+				w.log.Printf("Path monitor family %s, path %s", f.String(), path.String())
+				if f == &common.BgpFamilySRv6IPv6 || f == &common.BgpFamilySRv6IPv4 {
+					w.log.Debugf("Path SRv6")
+					w.BarrierSync()
+					if err := w.injectSRv6Policy(path); err != nil {
+						w.log.Errorf("cannot inject SRv6: %v", err)
+					}
+					return
+				}
 				w.log.Infof("Got path update from %s as %d", path.SourceId, path.SourceAsn)
 				if path.NeighborIp == "<nil>" { // Weird GoBGP API behaviour
 					w.log.Debugf("Ignoring internal path")
@@ -127,11 +217,19 @@ func (w *BGPWatcher) WatchBGPPath() error {
 		return stopFunc, err
 	}
 
-	var stopV4Monitor, stopV6Monitor context.CancelFunc
+	var stopV4Monitor, stopV6Monitor, stopSRv6IP4Monitor, stopSRv6IP6Monitor context.CancelFunc
 	if w.HasV4 {
 		stopV4Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv4)
 		if err != nil {
 			return errors.Wrap(err, "error starting v4 path monitor")
+		}
+
+		if config.EnableSRv6 {
+			w.log.Infof("startMonitor SRv6IP4 disabled")
+			stopSRv6IP4Monitor, err = startMonitor(&common.BgpFamilySRv6IPv4)
+			if err != nil {
+				return errors.Wrap(err, "error starting SRv6IP4 path monitor")
+			}
 		}
 	}
 	if w.HasV6 {
@@ -139,6 +237,14 @@ func (w *BGPWatcher) WatchBGPPath() error {
 		if err != nil {
 			return errors.Wrap(err, "error starting v6 path monitor")
 		}
+		if config.EnableSRv6 {
+			w.log.Infof("startMonitor1 SRv6IP6")
+			stopSRv6IP6Monitor, err = startMonitor(&common.BgpFamilySRv6IPv6)
+			if err != nil {
+				return errors.Wrap(err, "error starting SRv6IP6 path monitor")
+			}
+		}
+
 	}
 	for family := range w.reloadCh {
 		if w.HasV4 && family == "4" {
@@ -147,11 +253,28 @@ func (w *BGPWatcher) WatchBGPPath() error {
 			if err != nil {
 				return err
 			}
+
+			if config.EnableSRv6 {
+				stopSRv6IP4Monitor()
+				w.log.Infof("startMonitor2 SRv6IP4")
+				stopSRv6IP4Monitor, err = startMonitor(&common.BgpFamilySRv6IPv4)
+				if err != nil {
+					return errors.Wrap(err, "error starting SRv6IP4 path monitor")
+				}
+			}
 		} else if w.HasV6 && family == "6" {
 			stopV6Monitor()
 			stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
 			if err != nil {
 				return err
+			}
+			if config.EnableSRv6 {
+				stopSRv6IP6Monitor()
+				w.log.Infof("startMonitor2 SRv6IP6")
+				stopSRv6IP6Monitor, err = startMonitor(&common.BgpFamilySRv6IPv6)
+				if err != nil {
+					return errors.Wrap(err, "error starting SRv6IP6 path monitor")
+				}
 			}
 		}
 	}

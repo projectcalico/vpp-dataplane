@@ -161,6 +161,19 @@ func (s *ConnectivityServer) ServeConnectivity() error {
 				s.log.Infof("VXLAN/IPIPMode Changed")
 				s.updateAllIPConnectivity()
 			}
+		case common.SRv6PolicyAdded:
+			new := evt.New.(*common.NodeConnectivity)
+
+			err := s.updateSRv6Policy(new, false /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while adding SRv6 Policy %s", err)
+			}
+		case common.SRv6PolicyDeleted:
+			old := evt.Old.(*common.NodeConnectivity)
+			err := s.updateSRv6Policy(old, true /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while deleting SRv6 Policy %s", err)
+			}
 		}
 	}
 	return nil
@@ -240,4 +253,15 @@ func (s *ConnectivityServer) updateIPConnectivity(cn *common.NodeConnectivity, I
 			return s.providers[providerType].AddConnectivity(cn)
 		}
 	}
+}
+
+func (s *ConnectivityServer) updateSRv6Policy(cn *common.NodeConnectivity, IsWithdraw bool) (err error) {
+	s.log.Infof("updateSRv6Policy")
+	providerType := SRv6
+	if IsWithdraw {
+		err = s.providers[providerType].DelConnectivity(cn)
+	} else {
+		err = s.providers[providerType].AddConnectivity(cn)
+	}
+	return err
 }

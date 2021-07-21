@@ -250,6 +250,9 @@ vagrant-reload: vagrant-reload-master vagrant-reload-nodes ## Run vagrant reload
 vagrant-reload-master: ## Run vagrant reload for master VM.
 	vagrant reload
 
+vagrant-ssh-config:
+	vagrant ssh-config
+
 vagrant-reload-node-%: ## Run `vagrant reload` for specific node  VM.
 	NODE=$* vagrant reload
 
