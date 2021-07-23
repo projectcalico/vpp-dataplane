@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tigera-operator
+---
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  # Configures Calico networking.
+  calicoNetwork:
+    linuxDataplane:
+      VPP    
+    vpp:
+      uplinkInterface: eth0
+      servicePrefix: 10.100.0.0/16
+      uplinkDriver: dpdk
+      workers: 1
+      hookType: "systemctl"
+
