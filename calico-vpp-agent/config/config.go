@@ -59,6 +59,8 @@ const (
 	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar        = "SERVICE_PREFIX"
 	EnableSRv6EnvVar           = "CALICOVPP_SRV6_ENABLED"
+	SRv6LocalsidPoolEnvVar     = "CALICOVPP_SR_LS_POOL"
+	SRv6PolicyPoolEnvVar       = "CALICOVPP_SR_POLICY_POOL"
 
 	DefaultVXLANVni      = 4096
 	DefaultWireguardPort = 51820
@@ -88,6 +90,8 @@ var (
 	HostMtu                  int = 0
 	PodMtu                   int = 0
 	IpsecNbAsyncCryptoThread int = 0
+	SRv6policyIPPool             = ""
+	SRv6localSidIPPool           = ""
 
 	felixConfigReceived = false
 	felixConfigChan     = make(chan struct{})
@@ -278,6 +282,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableSRv6EnvVar, conf, enableSRv6, err)
 		}
 		EnableSRv6 = enableSRv6
+	}
+
+	if conf := getEnvValue(SRv6LocalsidPoolEnvVar); conf != "" {
+		SRv6localSidIPPool = conf
+	}
+
+	if conf := getEnvValue(SRv6PolicyPoolEnvVar); conf != "" {
+		SRv6policyIPPool = conf
 	}
 
 	psk := getEnvValue(IPSecIkev2PskEnvVar)

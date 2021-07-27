@@ -47,6 +47,8 @@ metadata:
   namespace: calico-vpp-dataplane
 data:
   service_prefix: "fd02::/108"
+  sr_localsid_pool: "c5::/118"
+  sr_policy_pool: "cafe::/118"
 
 ---
 kind: DaemonSet
@@ -66,6 +68,16 @@ spec:
           env:
             - name: CALICOVPP_SRV6_ENABLED
               value: "true"
+            - name: CALICOVPP_SR_LS_POOL
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-vpp-config
+                  key: sr_localsid_pool
+            - name: CALICOVPP_SR_POLICY_POOL
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-vpp-config
+                  key: sr_policy_pool
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -94,3 +106,4 @@ spec:
               value: "hash"
             - name: IP6
               value: "autodetect"
+
