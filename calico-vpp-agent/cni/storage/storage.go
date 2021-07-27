@@ -147,6 +147,8 @@ type LocalPodSpec struct {
 	IfPortConfigs    []LocalIfPortConfigs
 	DefaultIfType    VppInterfaceType
 
+	MemifSocketId uint32
+
 	/* Caching */
 	NeedsSnat bool
 }

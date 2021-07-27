@@ -62,7 +62,7 @@ func (i *TunTapPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, doHostS
 	if i.IfType == podSpec.DefaultIfType {
 		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
 	} else {
-		err = i.DoPodAbfConfiguration(podSpec, swIfIndex)
+		err = i.DoPodPblConfiguration(podSpec, swIfIndex)
 	}
 	if err != nil {
 		return swIfIndex, err
@@ -88,7 +88,7 @@ func (i *TunTapPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) (contai
 	if i.IfType == podSpec.DefaultIfType {
 		i.UndoPodRoutesConfiguration(swIfIndex)
 	} else {
-		i.UndoPodAbfConfiguration(swIfIndex)
+		i.UndoPodPblConfiguration(swIfIndex)
 	}
 
 	i.UndoPodInterfaceConfiguration(swIfIndex)

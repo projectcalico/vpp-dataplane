@@ -44,7 +44,7 @@ git_cherry_pick refs/changes/83/32483/1 # 32483: virtio: Still init unused txq |
 git_cherry_pick refs/changes/71/32871/1 # 32871: devices: Add queues params in create_if | https://gerrit.fd.io/r/c/vpp/+/32871
 
 git_cherry_pick refs/changes/77/33177/2 # 33177: vppinfra: add abstract socket & netns fns | https://gerrit.fd.io/r/c/vpp/+/33177
-git_cherry_pick refs/changes/71/32271/4 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
+git_cherry_pick refs/changes/71/32271/5 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
 
 # IPv6 ND patch (temporary)
 git_cherry_pick refs/changes/68/31868/1 # 31868: ip6-nd: silent the source and target checks on given interface | https://gerrit.fd.io/r/c/vpp/+/31868
@@ -59,3 +59,6 @@ git_cherry_pick refs/changes/13/28513/20 # 25813: capo: Calico Policies plugin |
 # ------------- Policies patches -------------
 
 git_cherry_pick refs/changes/35/32235/1  # 32235: dpdk: enable ena interrupt support | https://gerrit.fd.io/r/c/vpp/+/32235
+
+git_cherry_pick refs/changes/64/33264/1 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
+

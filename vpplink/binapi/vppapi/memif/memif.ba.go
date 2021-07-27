@@ -4,7 +4,7 @@
 //
 // Contents:
 //   2 enums
-//  12 messages
+//  14 messages
 //
 package memif
 
@@ -26,7 +26,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "memif"
 	APIVersion = "3.0.0"
-	VersionCrc = 0x77bf52f7
+	VersionCrc = 0xb559017
 )
 
 // MemifMode defines enum 'memif_mode'.
@@ -441,7 +441,7 @@ func (m *MemifSocketFilenameAddDelReply) Unmarshal(b []byte) error {
 // MemifSocketFilenameAddDelV2 defines message 'memif_socket_filename_add_del_v2'.
 type MemifSocketFilenameAddDelV2 struct {
 	IsAdd          bool   `binapi:"bool,name=is_add" json:"is_add,omitempty"`
-	SocketID       uint32 `binapi:"u32,name=socket_id" json:"socket_id,omitempty"`
+	SocketID       uint32 `binapi:"u32,name=socket_id,default=4294967295" json:"socket_id,omitempty"`
 	SocketFilename string `binapi:"string[108],name=socket_filename" json:"socket_filename,omitempty"`
 	Namespace      string `binapi:"string[],name=namespace" json:"namespace,omitempty"`
 }
@@ -487,14 +487,15 @@ func (m *MemifSocketFilenameAddDelV2) Unmarshal(b []byte) error {
 
 // MemifSocketFilenameAddDelV2Reply defines message 'memif_socket_filename_add_del_v2_reply'.
 type MemifSocketFilenameAddDelV2Reply struct {
-	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+	Retval   int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
+	SocketID uint32 `binapi:"u32,name=socket_id" json:"socket_id,omitempty"`
 }
 
 func (m *MemifSocketFilenameAddDelV2Reply) Reset() { *m = MemifSocketFilenameAddDelV2Reply{} }
 func (*MemifSocketFilenameAddDelV2Reply) GetMessageName() string {
 	return "memif_socket_filename_add_del_v2_reply"
 }
-func (*MemifSocketFilenameAddDelV2Reply) GetCrcString() string { return "e8d4e804" }
+func (*MemifSocketFilenameAddDelV2Reply) GetCrcString() string { return "9f29bdb9" }
 func (*MemifSocketFilenameAddDelV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -504,6 +505,7 @@ func (m *MemifSocketFilenameAddDelV2Reply) Size() (size int) {
 		return 0
 	}
 	size += 4 // m.Retval
+	size += 4 // m.SocketID
 	return size
 }
 func (m *MemifSocketFilenameAddDelV2Reply) Marshal(b []byte) ([]byte, error) {
@@ -512,11 +514,13 @@ func (m *MemifSocketFilenameAddDelV2Reply) Marshal(b []byte) ([]byte, error) {
 	}
 	buf := codec.NewBuffer(b)
 	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.SocketID)
 	return buf.Bytes(), nil
 }
 func (m *MemifSocketFilenameAddDelV2Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
+	m.SocketID = buf.DecodeUint32()
 	return nil
 }
 
@@ -584,6 +588,76 @@ func (m *MemifSocketFilenameDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// MemifSocketFilenameV2Details defines message 'memif_socket_filename_v2_details'.
+type MemifSocketFilenameV2Details struct {
+	SocketID       uint32 `binapi:"u32,name=socket_id" json:"socket_id,omitempty"`
+	SocketFilename string `binapi:"string[108],name=socket_filename" json:"socket_filename,omitempty"`
+	Namespace      string `binapi:"string[],name=namespace" json:"namespace,omitempty"`
+}
+
+func (m *MemifSocketFilenameV2Details) Reset() { *m = MemifSocketFilenameV2Details{} }
+func (*MemifSocketFilenameV2Details) GetMessageName() string {
+	return "memif_socket_filename_v2_details"
+}
+func (*MemifSocketFilenameV2Details) GetCrcString() string { return "a21f3380" }
+func (*MemifSocketFilenameV2Details) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *MemifSocketFilenameV2Details) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4                    // m.SocketID
+	size += 108                  // m.SocketFilename
+	size += 4 + len(m.Namespace) // m.Namespace
+	return size
+}
+func (m *MemifSocketFilenameV2Details) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.SocketID)
+	buf.EncodeString(m.SocketFilename, 108)
+	buf.EncodeString(m.Namespace, 0)
+	return buf.Bytes(), nil
+}
+func (m *MemifSocketFilenameV2Details) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SocketID = buf.DecodeUint32()
+	m.SocketFilename = buf.DecodeString(108)
+	m.Namespace = buf.DecodeString(0)
+	return nil
+}
+
+// MemifSocketFilenameV2Dump defines message 'memif_socket_filename_v2_dump'.
+type MemifSocketFilenameV2Dump struct{}
+
+func (m *MemifSocketFilenameV2Dump) Reset()               { *m = MemifSocketFilenameV2Dump{} }
+func (*MemifSocketFilenameV2Dump) GetMessageName() string { return "memif_socket_filename_v2_dump" }
+func (*MemifSocketFilenameV2Dump) GetCrcString() string   { return "51077d14" }
+func (*MemifSocketFilenameV2Dump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *MemifSocketFilenameV2Dump) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *MemifSocketFilenameV2Dump) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *MemifSocketFilenameV2Dump) Unmarshal(b []byte) error {
+	return nil
+}
+
 func init() { file_memif_binapi_init() }
 func file_memif_binapi_init() {
 	api.RegisterMessage((*MemifCreate)(nil), "memif_create_b1b25061")
@@ -595,9 +669,11 @@ func file_memif_binapi_init() {
 	api.RegisterMessage((*MemifSocketFilenameAddDel)(nil), "memif_socket_filename_add_del_a2ce1a10")
 	api.RegisterMessage((*MemifSocketFilenameAddDelReply)(nil), "memif_socket_filename_add_del_reply_e8d4e804")
 	api.RegisterMessage((*MemifSocketFilenameAddDelV2)(nil), "memif_socket_filename_add_del_v2_89588bb7")
-	api.RegisterMessage((*MemifSocketFilenameAddDelV2Reply)(nil), "memif_socket_filename_add_del_v2_reply_e8d4e804")
+	api.RegisterMessage((*MemifSocketFilenameAddDelV2Reply)(nil), "memif_socket_filename_add_del_v2_reply_9f29bdb9")
 	api.RegisterMessage((*MemifSocketFilenameDetails)(nil), "memif_socket_filename_details_7ff326f7")
 	api.RegisterMessage((*MemifSocketFilenameDump)(nil), "memif_socket_filename_dump_51077d14")
+	api.RegisterMessage((*MemifSocketFilenameV2Details)(nil), "memif_socket_filename_v2_details_a21f3380")
+	api.RegisterMessage((*MemifSocketFilenameV2Dump)(nil), "memif_socket_filename_v2_dump_51077d14")
 }
 
 // Messages returns list of all messages in this module.
@@ -615,5 +691,7 @@ func AllMessages() []api.Message {
 		(*MemifSocketFilenameAddDelV2Reply)(nil),
 		(*MemifSocketFilenameDetails)(nil),
 		(*MemifSocketFilenameDump)(nil),
+		(*MemifSocketFilenameV2Details)(nil),
+		(*MemifSocketFilenameV2Dump)(nil),
 	}
 }

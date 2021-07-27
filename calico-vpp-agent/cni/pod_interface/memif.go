@@ -54,7 +54,7 @@ func (i *MemifPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec) (swIfInd
 	if i.IfType == podSpec.DefaultIfType {
 		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
 	} else {
-		err = i.DoPodAbfConfiguration(podSpec, swIfIndex)
+		err = i.DoPodPblConfiguration(podSpec, swIfIndex)
 	}
 	if err != nil {
 		return swIfIndex, err
@@ -71,17 +71,17 @@ func (i *MemifPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) {
 	if i.IfType == podSpec.DefaultIfType {
 		i.UndoPodRoutesConfiguration(swIfIndex)
 	} else {
-		i.UndoPodAbfConfiguration(swIfIndex)
+		i.UndoPodPblConfiguration(swIfIndex)
 	}
 
 	i.UndoPodInterfaceConfiguration(swIfIndex)
-	i.DelPodInterfaceFromVPP(swIfIndex)
+	i.DelPodInterfaceFromVPP(swIfIndex, podSpec.MemifSocketId)
 }
 
-func (i *MemifPodInterfaceDriver) DelPodInterfaceFromVPP(swIfIndex uint32) {
+func (i *MemifPodInterfaceDriver) DelPodInterfaceFromVPP(swIfIndex uint32, socketId uint32) {
 	err := i.vpp.DeleteMemif(&types.Memif{
 		SwIfIndex: swIfIndex,
-		SocketId:  0, /* TODO properly cleanup sockets */
+		SocketId:  socketId,
 	})
 	if err != nil {
 		i.log.Warnf("Error deleting memif[%d] %s", swIfIndex, err)
@@ -113,6 +113,10 @@ func (i *MemifPodInterfaceDriver) AddPodInterfaceToVPP(podSpec *storage.LocalPod
 	if err != nil {
 		return 0, err
 	}
+
+	/* Maybe don't mutate this here, we can make this stateless
+	 * searching for name / nsname on delete */
+	podSpec.MemifSocketId = memif.SocketId
 
 	err = i.vpp.AddInterfaceTag(memif.SwIfIndex, memifTag)
 	if err != nil {

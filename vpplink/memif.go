@@ -24,11 +24,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-const (
-	socketIdNS string = "socketID"
-)
-
-func (v *VppLink) addDelMemifSocketFileName(socketFileName string, namespace string, socketId uint32, isAdd bool) error {
+func (v *VppLink) addDelMemifSocketFileName(socketFileName string, namespace string, socketId uint32, isAdd bool) (uint32, error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &memif.MemifSocketFilenameAddDelV2Reply{}
@@ -40,23 +36,20 @@ func (v *VppLink) addDelMemifSocketFileName(socketFileName string, namespace str
 	}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return errors.Wrapf(err, "MemifSocketFilenameAddDel failed: req %+v reply %+v", request, response)
+		return 0, errors.Wrapf(err, "MemifSocketFilenameAddDel failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
-		return fmt.Errorf("MemifSocketFilenameAddDel failed (retval %d). Request: %+v", response.Retval, request)
+		return 0, fmt.Errorf("MemifSocketFilenameAddDel failed (retval %d). Request: %+v", response.Retval, request)
 	}
-	return nil
+	return response.SocketID, nil
 }
 
 func (v *VppLink) AddMemifSocketFileName(socketFileName string, namespace string) (uint32, error) {
-	socketId := AllocateID(socketIdNS)
-	return socketId, v.addDelMemifSocketFileName(socketFileName, namespace, socketId, true /* isAdd */)
+	socketId, err := v.addDelMemifSocketFileName(socketFileName, namespace, ^uint32(0), true /* isAdd */)
+	return socketId, err
 }
 
 func (v *VppLink) DelMemifSocketFileName(socketId uint32) error {
-	err := v.addDelMemifSocketFileName("", "", socketId, false /* isAdd */)
-	if err != nil {
-		FreeID(socketIdNS, socketId)
-	}
+	_, err := v.addDelMemifSocketFileName("", "", socketId, false /* isAdd */)
 	return err
 }
 

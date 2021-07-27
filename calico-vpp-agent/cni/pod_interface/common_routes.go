@@ -76,6 +76,44 @@ func (i *PodInterfaceDriverData) UndoPodRoutesConfiguration(swIfIndex uint32) {
 	}
 }
 
+func (i *PodInterfaceDriverData) DoPodPblConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) (err error) {
+	for _, containerIP := range podSpec.GetContainerIps() {
+		err = i.vpp.AddNeighbor(&types.Neighbor{
+			SwIfIndex:    swIfIndex,
+			IP:           containerIP.IP,
+			HardwareAddr: config.ContainerSideMacAddress,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Cannot add neighbor in VPP")
+		}
+
+		path := types.RoutePath{
+			Gw: containerIP.IP,
+		}
+		if !i.isL3 {
+			path.SwIfIndex = swIfIndex
+		}
+		portRanges := make([]types.PortRange, 0)
+		for _, pc := range podSpec.IfPortConfigs {
+			portRanges = append(portRanges, types.PortRange{
+				First: pc.Port,
+				Last: pc.Port,
+			})
+		}
+		client := types.PblClient{
+			ID: ^uint32(0),
+			Addr: containerIP.IP,
+			Path: path,
+			PortRanges: portRanges,
+		}
+		_, err = i.vpp.AddPblClient(&client)
+		if err != nil {
+			return errors.Wrapf(err, "error adding PBL client")
+		}
+	}
+	return nil
+}
+
 func (i *PodInterfaceDriverData) DoPodAbfConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) (err error) {
 	rules := make([]types.ACLRule, 0)
 	paths := make([]types.RoutePath, 0)
@@ -163,8 +201,12 @@ func (i *PodInterfaceDriverData) DoPodRoutesConfiguration(podSpec *storage.Local
 	return nil
 }
 
+func (i *PodInterfaceDriverData) UndoPodPblConfiguration(swIfIndex uint32) {
+	/*FIXME*/
+	// i.vpp.DelACL
+}
+
 func (i *PodInterfaceDriverData) UndoPodAbfConfiguration(swIfIndex uint32) {
 	/*FIXME*/
 	// i.vpp.DelACL
-
 }
