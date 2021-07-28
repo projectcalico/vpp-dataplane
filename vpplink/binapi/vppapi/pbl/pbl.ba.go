@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "pbl"
 	APIVersion = "0.1.0"
-	VersionCrc = 0xafe54039
+	VersionCrc = 0x47666138
 )
 
 // PblClientFlags defines enum 'pbl_client_flags'.
@@ -86,8 +86,9 @@ type PblClient struct {
 
 // PblPortRange defines type 'pbl_port_range'.
 type PblPortRange struct {
-	Start uint16 `binapi:"u16,name=start" json:"start,omitempty"`
-	End   uint16 `binapi:"u16,name=end" json:"end,omitempty"`
+	Start  uint16           `binapi:"u16,name=start" json:"start,omitempty"`
+	End    uint16           `binapi:"u16,name=end" json:"end,omitempty"`
+	Iproto ip_types.IPProto `binapi:"ip_proto,name=iproto" json:"iproto,omitempty"`
 }
 
 // PblClientDel defines message 'pbl_client_del'.
@@ -163,7 +164,7 @@ type PblClientDetails struct {
 
 func (m *PblClientDetails) Reset()               { *m = PblClientDetails{} }
 func (*PblClientDetails) GetMessageName() string { return "pbl_client_details" }
-func (*PblClientDetails) GetCrcString() string   { return "17dc6b84" }
+func (*PblClientDetails) GetCrcString() string   { return "fc65cfed" }
 func (*PblClientDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -204,6 +205,7 @@ func (m *PblClientDetails) Size() (size int) {
 		}
 		size += 2 // s2.Start
 		size += 2 // s2.End
+		size += 1 // s2.Iproto
 	}
 	return size
 }
@@ -243,6 +245,7 @@ func (m *PblClientDetails) Marshal(b []byte) ([]byte, error) {
 		}
 		buf.EncodeUint16(v1.Start)
 		buf.EncodeUint16(v1.End)
+		buf.EncodeUint8(uint8(v1.Iproto))
 	}
 	return buf.Bytes(), nil
 }
@@ -276,6 +279,7 @@ func (m *PblClientDetails) Unmarshal(b []byte) error {
 	for j1 := 0; j1 < len(m.Client.PortRanges); j1++ {
 		m.Client.PortRanges[j1].Start = buf.DecodeUint16()
 		m.Client.PortRanges[j1].End = buf.DecodeUint16()
+		m.Client.PortRanges[j1].Iproto = ip_types.IPProto(buf.DecodeUint8())
 	}
 	return nil
 }
@@ -314,7 +318,7 @@ type PblClientUpdate struct {
 
 func (m *PblClientUpdate) Reset()               { *m = PblClientUpdate{} }
 func (*PblClientUpdate) GetMessageName() string { return "pbl_client_update" }
-func (*PblClientUpdate) GetCrcString() string   { return "30e38018" }
+func (*PblClientUpdate) GetCrcString() string   { return "a40c8928" }
 func (*PblClientUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -355,6 +359,7 @@ func (m *PblClientUpdate) Size() (size int) {
 		}
 		size += 2 // s2.Start
 		size += 2 // s2.End
+		size += 1 // s2.Iproto
 	}
 	return size
 }
@@ -394,6 +399,7 @@ func (m *PblClientUpdate) Marshal(b []byte) ([]byte, error) {
 		}
 		buf.EncodeUint16(v1.Start)
 		buf.EncodeUint16(v1.End)
+		buf.EncodeUint8(uint8(v1.Iproto))
 	}
 	return buf.Bytes(), nil
 }
@@ -427,6 +433,7 @@ func (m *PblClientUpdate) Unmarshal(b []byte) error {
 	for j1 := 0; j1 < len(m.Client.PortRanges); j1++ {
 		m.Client.PortRanges[j1].Start = buf.DecodeUint16()
 		m.Client.PortRanges[j1].End = buf.DecodeUint16()
+		m.Client.PortRanges[j1].Iproto = ip_types.IPProto(buf.DecodeUint8())
 	}
 	return nil
 }
@@ -472,9 +479,9 @@ func init() { file_pbl_binapi_init() }
 func file_pbl_binapi_init() {
 	api.RegisterMessage((*PblClientDel)(nil), "pbl_client_del_3a91bde5")
 	api.RegisterMessage((*PblClientDelReply)(nil), "pbl_client_del_reply_e8d4e804")
-	api.RegisterMessage((*PblClientDetails)(nil), "pbl_client_details_17dc6b84")
+	api.RegisterMessage((*PblClientDetails)(nil), "pbl_client_details_fc65cfed")
 	api.RegisterMessage((*PblClientDump)(nil), "pbl_client_dump_51077d14")
-	api.RegisterMessage((*PblClientUpdate)(nil), "pbl_client_update_30e38018")
+	api.RegisterMessage((*PblClientUpdate)(nil), "pbl_client_update_a40c8928")
 	api.RegisterMessage((*PblClientUpdateReply)(nil), "pbl_client_update_reply_e2fc8294")
 }
 

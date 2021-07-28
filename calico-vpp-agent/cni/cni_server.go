@@ -112,7 +112,7 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 				continue
 			}
 			parts := strings.Split(k, "-") /* tcp-1234 */
-			if len(parts) != 2 {
+			if len(parts) != 2 && len(parts) != 3 {
 				s.log.Warnf("Error parsing %s", k)
 				continue
 			}
@@ -121,13 +121,22 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 				s.log.Warnf("Error parsing %s %s", k, err)
 				continue
 			}
-			port, err := strconv.ParseInt(parts[1], 10, 32)
+			start, err := strconv.ParseInt(parts[1], 10, 32)
 			if err != nil {
 				s.log.Warnf("Error parsing port %s %s", k, err)
 				continue
 			}
+			end := start
+			if len(parts) == 3 {
+				end, err = strconv.ParseInt(parts[2], 10, 32)
+				if err != nil {
+					s.log.Warnf("Error parsing port %s %s", k, err)
+					continue
+				}
+			}
 			podSpec.IfPortConfigs = append(podSpec.IfPortConfigs, storage.LocalIfPortConfigs{
-				Port:   uint16(port),
+				Start:   uint16(start),
+				End:   uint16(end),
 				Proto:  proto,
 				IfType: ifType,
 			})
@@ -258,17 +267,18 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 	s.BarrierSync()
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.DelVppInterface(podSpec)
 
 	initialSpec, ok := s.podInterfaceMap[podSpec.Key()]
 	if !ok {
 		s.log.Warnf("Deleting interface but initial spec not found")
+		s.DelVppInterface(podSpec)
 	} else {
 		s.policyServer.WorkloadRemoved(&policy.WorkloadEndpointID{
 			OrchestratorID: initialSpec.OrchestratorID,
 			WorkloadID:     initialSpec.WorkloadID,
 			EndpointID:     initialSpec.EndpointID,
 		})
+		s.DelVppInterface(&initialSpec)
 	}
 
 	delete(s.podInterfaceMap, podSpec.Key())

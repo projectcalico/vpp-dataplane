@@ -93,11 +93,12 @@ func (i *PodInterfaceDriverData) DoPodPblConfiguration(podSpec *storage.LocalPod
 		if !i.isL3 {
 			path.SwIfIndex = swIfIndex
 		}
-		portRanges := make([]types.PortRange, 0)
+		portRanges := make([]types.PblPortRange, 0)
 		for _, pc := range podSpec.IfPortConfigs {
-			portRanges = append(portRanges, types.PortRange{
-				First: pc.Port,
-				Last: pc.Port,
+			portRanges = append(portRanges, types.PblPortRange{
+				Start: pc.Start,
+				End: pc.End,
+				Proto: pc.Proto,
 			})
 		}
 		client := types.PblClient{
@@ -106,60 +107,11 @@ func (i *PodInterfaceDriverData) DoPodPblConfiguration(podSpec *storage.LocalPod
 			Path: path,
 			PortRanges: portRanges,
 		}
-		_, err = i.vpp.AddPblClient(&client)
+		pblIndex, err := i.vpp.AddPblClient(&client)
 		if err != nil {
 			return errors.Wrapf(err, "error adding PBL client")
 		}
-	}
-	return nil
-}
-
-func (i *PodInterfaceDriverData) DoPodAbfConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) (err error) {
-	rules := make([]types.ACLRule, 0)
-	paths := make([]types.RoutePath, 0)
-	for _, containerIP := range podSpec.GetContainerIps() {
-		err = i.vpp.AddNeighbor(&types.Neighbor{
-			SwIfIndex:    swIfIndex,
-			IP:           containerIP.IP,
-			HardwareAddr: config.ContainerSideMacAddress,
-		})
-		if err != nil {
-			return errors.Wrapf(err, "Cannot add neighbor in VPP")
-		}
-		paths = append(paths, types.RoutePath{
-			SwIfIndex: swIfIndex,
-			Gw:        containerIP.IP,
-		})
-		for _, pc := range podSpec.IfPortConfigs {
-			if pc.IfType == i.IfType {
-				rules = append(rules, types.ACLRule{
-					Dst:     *containerIP,
-					Proto:   pc.Proto,
-					DstPort: pc.Port,
-				})
-			}
-		}
-	}
-
-	acl := types.ACL{Rules: rules}
-	err = i.vpp.AddACL(&acl)
-	if err != nil {
-		return errors.Wrapf(err, "error adding ACL")
-	}
-
-	abfPolicy := types.AbfPolicy{
-		AclIndex: acl.ACLIndex,
-		Paths:    paths,
-	}
-	err = i.vpp.AddAbfPolicy(&abfPolicy)
-	if err != nil {
-		return errors.Wrapf(err, "error adding ABF rule")
-	}
-
-	/* FIXME */
-	err = i.vpp.AttachAbfPolicy(abfPolicy.PolicyID, config.DataInterfaceSwIfIndex, false /*isv6*/)
-	if err != nil {
-		return errors.Wrapf(err, "error attaching ABF rule")
+		podSpec.PblIndexes = append(podSpec.PblIndexes, pblIndex)
 	}
 	return nil
 }
@@ -201,12 +153,11 @@ func (i *PodInterfaceDriverData) DoPodRoutesConfiguration(podSpec *storage.Local
 	return nil
 }
 
-func (i *PodInterfaceDriverData) UndoPodPblConfiguration(swIfIndex uint32) {
-	/*FIXME*/
-	// i.vpp.DelACL
-}
-
-func (i *PodInterfaceDriverData) UndoPodAbfConfiguration(swIfIndex uint32) {
-	/*FIXME*/
-	// i.vpp.DelACL
+func (i *PodInterfaceDriverData) UndoPodPblConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
+	for _, pblIndex := range podSpec.PblIndexes {
+		err := i.vpp.DelPblClient(pblIndex)
+		if err != nil {
+			i.log.Warnf("Error deleting pbl conf %s", err)
+		}
+	}
 }

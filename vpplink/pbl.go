@@ -30,8 +30,9 @@ func (v *VppLink) AddPblClient(client *types.PblClient) (id uint32, err error) {
 	portRanges := make([]pbl.PblPortRange, len(client.PortRanges))
 	for _, r := range client.PortRanges {
 		portRanges = append(portRanges, pbl.PblPortRange{
-			Start: r.First,
-			End: r.Last,
+			Start: r.Start,
+			End: r.End,
+			Iproto: types.ToVppIPProto(r.Proto),
 		})
 	}
 

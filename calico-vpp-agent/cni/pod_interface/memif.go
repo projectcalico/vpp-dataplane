@@ -71,7 +71,7 @@ func (i *MemifPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) {
 	if i.IfType == podSpec.DefaultIfType {
 		i.UndoPodRoutesConfiguration(swIfIndex)
 	} else {
-		i.UndoPodPblConfiguration(swIfIndex)
+		i.UndoPodPblConfiguration(podSpec, swIfIndex)
 	}
 
 	i.UndoPodInterfaceConfiguration(swIfIndex)

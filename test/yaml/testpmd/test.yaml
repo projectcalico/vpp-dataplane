@@ -6,6 +6,7 @@ metadata:
   namespace: testpmd
   annotations:
     tcp-1234: "memif"
+    udp-1234-1236: "memif"
     all: "tun"
 spec:
   containers:

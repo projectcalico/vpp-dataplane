@@ -60,5 +60,5 @@ git_cherry_pick refs/changes/13/28513/20 # 25813: capo: Calico Policies plugin |
 
 git_cherry_pick refs/changes/35/32235/1  # 32235: dpdk: enable ena interrupt support | https://gerrit.fd.io/r/c/vpp/+/32235
 
-git_cherry_pick refs/changes/64/33264/1 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
+git_cherry_pick refs/changes/64/33264/2 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
 

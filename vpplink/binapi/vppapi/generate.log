@@ -1,8 +1,8 @@
-VPP Version                 : 21.10-rc0~128-g3b9f0cef4
+VPP Version                 : 21.10-rc0~128-g38d70ab7c
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 6f6663f3b span: api cleanup
 ------------------ Cherry picked commits --------------------
-pbl: Port based balancer
+gerrit:33264/2 pbl: Port based balancer
 gerrit:32235/1 dpdk: enable ena interrupt support
 gerrit:28513/20 capo: Calico Policies plugin
 gerrit:28083/16 acl: acl-plugin custom policies

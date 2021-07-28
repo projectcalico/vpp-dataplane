@@ -88,7 +88,7 @@ func (i *TunTapPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) (contai
 	if i.IfType == podSpec.DefaultIfType {
 		i.UndoPodRoutesConfiguration(swIfIndex)
 	} else {
-		i.UndoPodPblConfiguration(swIfIndex)
+		i.UndoPodPblConfiguration(podSpec, swIfIndex)
 	}
 
 	i.UndoPodInterfaceConfiguration(swIfIndex)
