@@ -54,6 +54,7 @@ type Server struct {
 	lock         sync.Mutex
 	memifDriver  *pod_interface.MemifPodInterfaceDriver
 	tuntapDriver *pod_interface.TunTapPodInterfaceDriver
+	vclDriver    *pod_interface.VclPodInterfaceDriver
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -98,6 +99,12 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 	workload := request.GetWorkload()
 	if workload != nil {
 		for k, v := range workload.Annotations {
+			if k == "vcl" && v == "enable" {
+				podSpec.IfPortConfigs = append(podSpec.IfPortConfigs, storage.LocalIfPortConfigs{
+					IfType: storage.VppVcl,
+				})
+				continue
+			}
 			var ifType storage.VppInterfaceType
 			switch v {
 			case "memif":
@@ -321,6 +328,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 		podInterfaceMap: make(map[string]storage.LocalPodSpec),
 		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(v, l),
 		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(v, l),
+		vclDriver:       pod_interface.NewVclPodInterfaceDriver(v, l),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")

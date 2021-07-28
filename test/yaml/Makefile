@@ -1,9 +1,6 @@
 
 all: iperf-image iperf3-image wrk-image nginx-image scalepods-image scalesvc-build
 
-%-image:
-	docker build -t sknat/$* -f ./$*/Dockerfile ./$*
-
 nginx-image:
 	head -c 4K /dev/urandom > ./nginx/4096
 	head -c 2M /dev/urandom > ./nginx/2MB
@@ -19,3 +16,13 @@ scalepods-image:
 
 scalesvc-build:
 	cd scalesvc && go build
+
+iperf3-vcl-image:
+	rm -f ./iperf3-vcl/*.so
+	rm -f ./iperf3-vcl/*.so.*
+	cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/*.so ./iperf3-vcl/
+	cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/*.so.* ./iperf3-vcl/
+	docker build -t sknat/iperf3-vcl -f ./iperf3-vcl/Dockerfile ./iperf3-vcl
+
+%-image:
+	docker build -t sknat/$* -f ./$*/Dockerfile ./$*

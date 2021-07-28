@@ -92,7 +92,8 @@ function generate_govpp_apis ()
 	  crypto_sw_scheduler \
 	  rdma \
 	  vmxnet3 \
-	  pbl
+	  pbl \
+	  session
 }
 
 make_binapi_generator

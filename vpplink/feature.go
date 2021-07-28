@@ -17,10 +17,18 @@ package vpplink
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/feature"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+)
+
+const (
+	FeatureArcCnatInput  = "ip?-unicast cnat-input-ip?"
+	FeatureArcCnatOutput = "ip?-output cnat-output-ip?"
+	FeatureArcSnat       = "ip?-unicast cnat-snat-ip?"
+	FeatureArcHsi        = "ip?-output hsi-ip?"
 )
 
 func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName, featureName string) (err error) {
@@ -42,25 +50,44 @@ func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName,
 	return nil
 }
 
-func (v *VppLink) enableDisableSNAT(swIfIndex uint32, isEnable bool, isIp6 bool) (err error) {
-	if isIp6 {
-		return v.featureEnableDisable(swIfIndex, isEnable, "ip6-unicast", "cnat-snat-ip6")
-	}
-	return v.featureEnableDisable(swIfIndex, isEnable, "ip4-unicast", "cnat-snat-ip4")
-}
-
-func (v *VppLink) EnableSNATArc(swIfIndex uint32, isIp6 bool) (err error) {
-	return v.enableDisableSNAT(swIfIndex, true, isIp6)
-}
-
-func (v *VppLink) DisableSNATArc(swIfIndex uint32, isIp6 bool) (err error) {
-	return v.enableDisableSNAT(swIfIndex, false, isIp6)
-}
-
 func (v *VppLink) EnableFeature(swIfIndex uint32, arcName, featureName string) (err error) {
 	return v.featureEnableDisable(swIfIndex, true, arcName, featureName)
 }
 
 func (v *VppLink) DisableFeature(swIfIndex uint32, arcName, featureName string) (err error) {
 	return v.featureEnableDisable(swIfIndex, false, arcName, featureName)
+}
+
+func parseArcDescription(arcDescription string, isIp6 bool) (arcName string, featureName string, err error) {
+	parts := strings.Split(arcDescription, " ")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("wrong split len")
+	}
+	ipStr := "ip4"
+	if isIp6 {
+		ipStr = "ip6"
+	}
+	arcName = strings.ReplaceAll(parts[0], "ip?", ipStr)
+	featureName = strings.ReplaceAll(parts[1], "ip?", ipStr)
+	return arcName, featureName, nil
+}
+
+func (v *VppLink) enableDisableFeatureArc(swIfIndex uint32, arcDescription string, isIp6 bool, isEnable bool) (err error) {
+	arcName, featureName, err := parseArcDescription(arcDescription, isIp6)
+	if err != nil {
+		return errors.Wrapf(err, "Error parsing arc description %s", arcDescription)
+	}
+	return v.featureEnableDisable(swIfIndex, isEnable, arcName, featureName)
+}
+
+func (v *VppLink) EnableFeatureArc46(swIfIndex uint32, arcDescription string) (err error) {
+	err = v.enableDisableFeatureArc(swIfIndex, arcDescription, false /* isip6 */, true /* enable */)
+	if err != nil {
+		return errors.Wrapf(err, "Error enabling ip4 arc %s", arcDescription)
+	}
+	err = v.enableDisableFeatureArc(swIfIndex, arcDescription, true /* isip6 */, true /* enable */)
+	if err != nil {
+		return errors.Wrapf(err, "Error enabling ip6 arc %s", arcDescription)
+	}
+	return nil
 }

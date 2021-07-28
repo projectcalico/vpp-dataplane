@@ -51,9 +51,11 @@ type VppInterfaceType uint8
 const (
 	VppTun   VppInterfaceType = iota
 	VppMemif VppInterfaceType = iota
+	VppVcl   VppInterfaceType = iota
 
 	VppTunName   = "tun"
 	VppMemifName = "memif"
+	VppVclName   = "vcl"
 )
 
 func (n *LocalIPNet) String() string {

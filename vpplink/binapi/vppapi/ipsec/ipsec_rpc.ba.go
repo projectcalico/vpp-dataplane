@@ -21,9 +21,11 @@ type RPCService interface {
 	IpsecSaDump(ctx context.Context, in *IpsecSaDump) (RPCService_IpsecSaDumpClient, error)
 	IpsecSaV2Dump(ctx context.Context, in *IpsecSaV2Dump) (RPCService_IpsecSaV2DumpClient, error)
 	IpsecSaV3Dump(ctx context.Context, in *IpsecSaV3Dump) (RPCService_IpsecSaV3DumpClient, error)
+	IpsecSadEntryAdd(ctx context.Context, in *IpsecSadEntryAdd) (*IpsecSadEntryAddReply, error)
 	IpsecSadEntryAddDel(ctx context.Context, in *IpsecSadEntryAddDel) (*IpsecSadEntryAddDelReply, error)
 	IpsecSadEntryAddDelV2(ctx context.Context, in *IpsecSadEntryAddDelV2) (*IpsecSadEntryAddDelV2Reply, error)
 	IpsecSadEntryAddDelV3(ctx context.Context, in *IpsecSadEntryAddDelV3) (*IpsecSadEntryAddDelV3Reply, error)
+	IpsecSadEntryDel(ctx context.Context, in *IpsecSadEntryDel) (*IpsecSadEntryDelReply, error)
 	IpsecSelectBackend(ctx context.Context, in *IpsecSelectBackend) (*IpsecSelectBackendReply, error)
 	IpsecSetAsyncMode(ctx context.Context, in *IpsecSetAsyncMode) (*IpsecSetAsyncModeReply, error)
 	IpsecSpdAddDel(ctx context.Context, in *IpsecSpdAddDel) (*IpsecSpdAddDelReply, error)
@@ -266,6 +268,15 @@ func (c *serviceClient_IpsecSaV3DumpClient) Recv() (*IpsecSaV3Details, error) {
 	}
 }
 
+func (c *serviceClient) IpsecSadEntryAdd(ctx context.Context, in *IpsecSadEntryAdd) (*IpsecSadEntryAddReply, error) {
+	out := new(IpsecSadEntryAddReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
 func (c *serviceClient) IpsecSadEntryAddDel(ctx context.Context, in *IpsecSadEntryAddDel) (*IpsecSadEntryAddDelReply, error) {
 	out := new(IpsecSadEntryAddDelReply)
 	err := c.conn.Invoke(ctx, in, out)
@@ -286,6 +297,15 @@ func (c *serviceClient) IpsecSadEntryAddDelV2(ctx context.Context, in *IpsecSadE
 
 func (c *serviceClient) IpsecSadEntryAddDelV3(ctx context.Context, in *IpsecSadEntryAddDelV3) (*IpsecSadEntryAddDelV3Reply, error) {
 	out := new(IpsecSadEntryAddDelV3Reply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) IpsecSadEntryDel(ctx context.Context, in *IpsecSadEntryDel) (*IpsecSadEntryDelReply, error) {
+	out := new(IpsecSadEntryDelReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err
