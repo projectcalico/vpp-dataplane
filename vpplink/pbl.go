@@ -30,8 +30,8 @@ func (v *VppLink) AddPblClient(client *types.PblClient) (id uint32, err error) {
 	portRanges := make([]pbl.PblPortRange, len(client.PortRanges))
 	for _, r := range client.PortRanges {
 		portRanges = append(portRanges, pbl.PblPortRange{
-			Start: r.Start,
-			End: r.End,
+			Start:  r.Start,
+			End:    r.End,
 			Iproto: types.ToVppIPProto(r.Proto),
 		})
 	}
@@ -39,10 +39,10 @@ func (v *VppLink) AddPblClient(client *types.PblClient) (id uint32, err error) {
 	response := &pbl.PblClientUpdateReply{}
 	request := &pbl.PblClientUpdate{
 		Client: pbl.PblClient{
-			ID: client.ID,
-			Addr: types.ToVppAddress(client.Addr),
-			Paths: client.Path.ToFibPath(false),
-			Flags: 0,
+			ID:         client.ID,
+			Addr:       types.ToVppAddress(client.Addr),
+			Paths:      client.Path.ToFibPath(false),
+			Flags:      0,
 			PortRanges: portRanges,
 		},
 	}
@@ -72,5 +72,3 @@ func (v *VppLink) DelPblClient(id uint32) (err error) {
 	}
 	return nil
 }
-
-

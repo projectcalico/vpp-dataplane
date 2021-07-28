@@ -21,13 +21,13 @@ import (
 
 type PblPortRange struct {
 	Start uint16
-	End uint16
+	End   uint16
 	Proto IPProto
 }
 
 type PblClient struct {
-	ID    uint32
-	Addr net.IP
-	Path RoutePath
+	ID         uint32
+	Addr       net.IP
+	Path       RoutePath
 	PortRanges []PblPortRange
 }

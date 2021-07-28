@@ -135,8 +135,8 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 				}
 			}
 			podSpec.IfPortConfigs = append(podSpec.IfPortConfigs, storage.LocalIfPortConfigs{
-				Start:   uint16(start),
-				End:   uint16(end),
+				Start:  uint16(start),
+				End:    uint16(end),
 				Proto:  proto,
 				IfType: ifType,
 			})

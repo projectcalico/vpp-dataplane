@@ -17,6 +17,7 @@ package pod_interface
 
 import (
 	"bytes"
+
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -78,33 +79,34 @@ func (i *PodInterfaceDriverData) UndoPodRoutesConfiguration(swIfIndex uint32) {
 
 func (i *PodInterfaceDriverData) DoPodPblConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) (err error) {
 	for _, containerIP := range podSpec.GetContainerIps() {
-		err = i.vpp.AddNeighbor(&types.Neighbor{
-			SwIfIndex:    swIfIndex,
-			IP:           containerIP.IP,
-			HardwareAddr: config.ContainerSideMacAddress,
-		})
-		if err != nil {
-			return errors.Wrapf(err, "Cannot add neighbor in VPP")
-		}
-
 		path := types.RoutePath{
 			Gw: containerIP.IP,
 		}
+
 		if !i.isL3 {
+			err = i.vpp.AddNeighbor(&types.Neighbor{
+				SwIfIndex:    swIfIndex,
+				IP:           containerIP.IP,
+				HardwareAddr: config.ContainerSideMacAddress,
+			})
+			if err != nil {
+				return errors.Wrapf(err, "Cannot add neighbor in VPP")
+			}
 			path.SwIfIndex = swIfIndex
 		}
+
 		portRanges := make([]types.PblPortRange, 0)
 		for _, pc := range podSpec.IfPortConfigs {
 			portRanges = append(portRanges, types.PblPortRange{
 				Start: pc.Start,
-				End: pc.End,
+				End:   pc.End,
 				Proto: pc.Proto,
 			})
 		}
 		client := types.PblClient{
-			ID: ^uint32(0),
-			Addr: containerIP.IP,
-			Path: path,
+			ID:         ^uint32(0),
+			Addr:       containerIP.IP,
+			Path:       path,
 			PortRanges: portRanges,
 		}
 		pblIndex, err := i.vpp.AddPblClient(&client)
@@ -132,7 +134,7 @@ func (i *PodInterfaceDriverData) DoPodRoutesConfiguration(podSpec *storage.Local
 	for _, containerIP := range podSpec.GetContainerIps() {
 		i.log.Infof("Adding L2 route %s if%d", containerIP, swIfIndex)
 		route := types.Route{
-			Dst:   containerIP,
+			Dst: containerIP,
 			Paths: []types.RoutePath{{
 				SwIfIndex: swIfIndex,
 			}},

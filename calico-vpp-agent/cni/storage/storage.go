@@ -117,8 +117,8 @@ func (ps *LocalPodSpec) FullString() string {
 }
 
 type LocalIfPortConfigs struct {
-	Start   uint16
-	End   uint16
+	Start  uint16
+	End    uint16
 	Proto  types.IPProto
 	IfType VppInterfaceType
 }
@@ -149,8 +149,8 @@ type LocalPodSpec struct {
 	DefaultIfType    VppInterfaceType
 
 	MemifSocketId uint32
-	PblIndexesLen   int `struc:"int16,sizeof=PblIndexes"`
-	PblIndexes      []uint32
+	PblIndexesLen int `struc:"int16,sizeof=PblIndexes"`
+	PblIndexes    []uint32
 
 	/* Caching */
 	NeedsSnat bool
