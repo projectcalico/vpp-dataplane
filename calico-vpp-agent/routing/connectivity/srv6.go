@@ -225,7 +225,7 @@ func (p *SRv6Provider) setEncapSource() (err error) {
 
 func (p *SRv6Provider) createLocalSidTunnels(currentLocalSids []*types.SrLocalsid) (localSids []*types.SrLocalsid, err error) {
 	p.log.Printf("SRv6Provider createLocalSidTunnels")
-	endDt4Exist := true // TODO set to false
+	endDt4Exist := false // TODO set to false
 	endDt6Exist := false
 	for _, localSid := range currentLocalSids {
 		p.log.Infof("Found existing SRv6Localsid: %s", localSid.String())
@@ -234,10 +234,12 @@ func (p *SRv6Provider) createLocalSidTunnels(currentLocalSids []*types.SrLocalsi
 			endDt6Exist = true
 		}
 
-		err = p.vpp.DelSRv6Localsid(localSid)
-		if err != nil {
-			p.log.Errorf("SRv6Provider Error DelSRv6Localsid: %v", err)
-		}
+		/*
+			err = p.vpp.DelSRv6Localsid(localSid)
+			if err != nil {
+				p.log.Errorf("SRv6Provider Error DelSRv6Localsid: %v", err)
+			}
+		*/
 
 		if localSid.Behavior == types.SrBehaviorDT4 && localSid.FibTable == 0 {
 			endDt4Exist = true
