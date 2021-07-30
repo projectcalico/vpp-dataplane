@@ -28,7 +28,6 @@ const (
 	FeatureArcCnatInput  = "ip?-unicast cnat-input-ip?"
 	FeatureArcCnatOutput = "ip?-output cnat-output-ip?"
 	FeatureArcSnat       = "ip?-unicast cnat-snat-ip?"
-	FeatureArcHsi        = "ip?-output hsi-ip?"
 )
 
 func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName, featureName string) (err error) {

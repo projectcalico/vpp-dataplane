@@ -43,7 +43,6 @@ func (v *VppLink) AddVRF(index uint32, isIP6 bool, name string) error {
 	return nil
 }
 
-
 func (v *VppLink) AddVRF46(index uint32, name string) (err error) {
 	err = v.AddVRF(index, false, fmt.Sprintf("%s-ip4", name))
 	if err != nil {

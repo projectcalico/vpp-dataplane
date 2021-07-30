@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 )
 
 // AddVppInterface performs the networking for the given config and IPAM result
@@ -30,14 +30,14 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		podSpec.NeedsSnat = podSpec.NeedsSnat || s.IPNetNeedsSNAT(containerIP)
 	}
 
-    err = s.vpp.AddVRF46(podSpec.VrfId, fmt.Sprintf("pod-%s-table", podSpec.Key()))
-    if err != nil {
-            goto err0
-    }
-    err = s.vpp.AddDefault46RouteViaTable(podSpec.VrfId, common.DefaultVRFIndex)
-    if err != nil {
-            goto err0
-    }
+	err = s.vpp.AddVRF46(podSpec.VrfId, fmt.Sprintf("pod-%s-table", podSpec.Key()))
+	if err != nil {
+		goto err0
+	}
+	err = s.vpp.AddDefault46RouteViaTable(podSpec.VrfId, common.PodVRFIndex)
+	if err != nil {
+		goto err0
+	}
 
 	s.log.Infof("Creating container interface using VPP networking")
 	tunTapSwIfIndex, err = s.tuntapDriver.Create(podSpec, doHostSideConf)

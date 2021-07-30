@@ -218,6 +218,7 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 			SwIfIndex: swIfIndex,
 			Gw:        nil,
 		}},
+		Table: commonAgent.PodVRFIndex,
 	})
 	if err != nil {
 		p.errorCleanup(tunnel, "")

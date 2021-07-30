@@ -124,6 +124,11 @@ func HandleVppManagerRestart(log *logrus.Logger, vpp *vpplink.VppLink, servers .
 			log.Fatalf("Timed out waiting for vpp-manager: %v", err)
 			os.Exit(1)
 		}
+		err = SetupPodVRF(vpp)
+		if err != nil {
+			log.Fatalf("Error reconfiguring pod vrf in VPP: %v", err)
+			os.Exit(1)
+		}
 		for i, srv := range servers {
 			srv.OnVppRestart()
 			log.Infof("SR:server %d restarted", i)
@@ -133,6 +138,18 @@ func HandleVppManagerRestart(log *logrus.Logger, vpp *vpplink.VppLink, servers .
 		barrierCond.L.Unlock()
 		barrierCond.Broadcast()
 	}
+}
+
+func SetupPodVRF(vpp *vpplink.VppLink) (err error) {
+	err = vpp.AddVRF46(PodVRFIndex, "calico-pods")
+	if err != nil {
+		return err
+	}
+	err = vpp.AddDefault46RouteViaTable(PodVRFIndex, DefaultVRFIndex)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func SafeFormat(e interface{ String() string }) string {

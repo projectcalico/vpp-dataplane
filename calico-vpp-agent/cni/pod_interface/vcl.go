@@ -18,13 +18,12 @@ package pod_interface
 import (
 	"github.com/pkg/errors"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
-	// "github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 )
-
 
 type VclPodInterfaceDriver struct {
 	PodInterfaceDriverData
@@ -71,30 +70,22 @@ func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, tunTapSwIf
 			i.log.Errorf("Error adding address to pod loopback interface: %v", err)
 		}
 
-		// err := i.vpp.RouteAdd(&types.Route{
-		// 	Dst: containerIP,
-		// 	Paths: []types.RoutePath{{
-		// 		Table: int(podSpec.VrfId),
-		// 	}},
-		// })
-		// if err != nil {
-		// 	return errors.Wrapf(err, "error adding vpp side routes for interface")
-		// }
-
-// FIXME :: 
-// ip route add 11.0.166.130/32 via ip4-lookup-in-table 11
+		err := i.vpp.RouteAdd(&types.Route{
+			Dst: containerIP,
+			Paths: []types.RoutePath{{
+				Table:     int(podSpec.VrfId),
+				SwIfIndex: types.InvalidID,
+			}},
+		})
+		if err != nil {
+			return errors.Wrapf(err, "error adding vpp side routes for interface")
+		}
 	}
 
 	err = i.vpp.AddSessionAppNamespace(vclTag, podSpec.NetnsName, swIfIndex)
 	if err != nil {
 		return err
 	}
-
-	// TODO : not needed anymore ?
-	// err = i.vpp.EnableFeatureArc46(tunTapSwIfIndex, vpplink.FeatureArcHsi)
-	// if err != nil {
-	// 	return err
-	// }
 
 	err = i.vpp.InterfaceAdminUp(swIfIndex)
 	if err != nil {

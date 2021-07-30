@@ -529,7 +529,7 @@ func (v *VppLink) PuntRedirectTable(destSwIfIndex, tableId uint32, isIP6 bool) e
 			RxSwIfIndex: interface_types.InterfaceIndex(INVALID_SW_IF_INDEX),
 			TxSwIfIndex: interface_types.InterfaceIndex(destSwIfIndex),
 			TableID:     tableId,
-			Nh: nh,
+			Nh:          nh,
 		},
 		IsAdd: true,
 	}

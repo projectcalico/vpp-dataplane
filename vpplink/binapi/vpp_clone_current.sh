@@ -14,7 +14,7 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
-VPP_COMMIT=328b5dadb35916e8147237f2339dd5f4c38912fc
+VPP_COMMIT=2e2f9df2f157b60d30a4aa6256fefe793d186d4c
 VPP_DIR="$1"
 
 if [ ! -d $1/.git ]; then
@@ -42,7 +42,13 @@ git_cherry_pick refs/changes/71/32871/1 # 32871: devices: Add queues params in c
 git_cherry_pick refs/changes/71/32271/6 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
 git_cherry_pick refs/changes/68/31868/1 # 31868: ip6-nd: silent the source and target checks on given interface | https://gerrit.fd.io/r/c/vpp/+/31868
 git_cherry_pick refs/changes/35/32235/1  # 32235: dpdk: enable ena interrupt support | https://gerrit.fd.io/r/c/vpp/+/32235
-git_cherry_pick refs/changes/36/32636/11 # 32636: hsi: host stack intercept plugin | https://gerrit.fd.io/r/c/vpp/+/32636
+
+# Revert due to breaking check for unnumbered interfaces
+git fetch "https://gerrit.fd.io/r/vpp" refs/changes/57/33157/6 && git revert --no-edit FETCH_HEAD
+
+git_cherry_pick refs/changes/01/33301/1 # 33301: session: make netns abtract name static | https://gerrit.fd.io/r/c/vpp/+/33301
+git_cherry_pick refs/changes/13/33313/1 # 33313: tcp: no vnet_buf update on lookup fail | https://gerrit.fd.io/r/c/vpp/+/33313
+git_cherry_pick refs/changes/14/33314/1 # 33314: ip: punt: Add table_id support | https://gerrit.fd.io/r/c/vpp/+/33314
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/2 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
@@ -53,10 +59,4 @@ git_cherry_pick refs/changes/83/28083/16 # 28083: acl: acl-plugin custom policie
 git_cherry_pick refs/changes/13/28513/20 # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 # --------------- Dedicated plugins ---------------
 
-# Revert due to breaking check for unnumbered interfaces
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/57/33157/6 && git revert --no-edit FETCH_HEAD
-
-git_cherry_pick refs/changes/01/33301/1 # 33301: session: make netns abtract name static | https://gerrit.fd.io/r/c/vpp/+/33301
-
-# TODO : PUNT patch
 

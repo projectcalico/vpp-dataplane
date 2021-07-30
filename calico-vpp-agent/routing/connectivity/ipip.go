@@ -137,6 +137,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 				SwIfIndex: swIfIndex,
 				Gw:        nil,
 			}},
+			Table: commonAgent.PodVRFIndex,
 		})
 		if err != nil {
 			p.errorCleanup(tunnel)

@@ -226,7 +226,6 @@ func (v *VppLink) AddDefault46RouteViaTable(sourceTable, dstTable uint32) (err e
 	return nil
 }
 
-
 func (v *VppLink) SetIPFlowHash(ipFlowHash *types.IPFlowHash, vrfID uint32, isIPv6 bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()

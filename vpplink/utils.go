@@ -26,7 +26,7 @@ type IDPool struct {
 
 var (
 	idPools map[string]*IDPool = make(map[string]*IDPool)
-	lock   sync.Mutex
+	lock    sync.Mutex
 )
 
 func AllocateID(namespace string, startID uint32) (index uint32) {
