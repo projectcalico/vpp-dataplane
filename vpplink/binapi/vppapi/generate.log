@@ -1,8 +1,10 @@
-VPP Version                 : 21.10-rc0~230-g7f47d355b
+VPP Version                 : 21.10-rc0~232-g7536d7aae
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 328b5dadb gre: set proper fib index for unnumbered interfaces, unset fib index before forwarding gre payload
 ------------------ Cherry picked commits --------------------
-session: Add session_sapi_enable_disable
+vnet: punt: Add table_id support
+gerrit:33301/1 session: make netns abtract name static
+Revert "gre: set proper fib index for unnumbered interfaces, unset fib index before forwarding gre payload"
 gerrit:28513/20 capo: Calico Policies plugin
 gerrit:28083/16 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods

@@ -179,7 +179,6 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 				SwIfIndex: swIfIndex,
 				Gw:        nil,
 			}},
-			Table: commonAgent.PodVRFIndex,
 		})
 		if err != nil {
 			// TODO : delete tunnel

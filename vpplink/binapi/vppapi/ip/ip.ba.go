@@ -4,8 +4,8 @@
 //
 // Contents:
 //   2 enums
-//   6 structs
-//  81 messages
+//   7 structs
+//  83 messages
 //
 package ip
 
@@ -30,7 +30,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip"
 	APIVersion = "3.1.0"
-	VersionCrc = 0x972432b4
+	VersionCrc = 0xb8389024
 )
 
 // IPReassType defines enum 'ip_reass_type'.
@@ -173,6 +173,14 @@ type IPTable struct {
 type PuntRedirect struct {
 	RxSwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=rx_sw_if_index" json:"rx_sw_if_index,omitempty"`
 	TxSwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=tx_sw_if_index" json:"tx_sw_if_index,omitempty"`
+	Nh          ip_types.Address               `binapi:"address,name=nh" json:"nh,omitempty"`
+}
+
+// PuntRedirectV2 defines type 'punt_redirect_v2'.
+type PuntRedirectV2 struct {
+	RxSwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=rx_sw_if_index,default=4294967295" json:"rx_sw_if_index,omitempty"`
+	TxSwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=tx_sw_if_index" json:"tx_sw_if_index,omitempty"`
+	TableID     uint32                         `binapi:"u32,name=table_id,default=4294967295" json:"table_id,omitempty"`
 	Nh          ip_types.Address               `binapi:"address,name=nh" json:"nh,omitempty"`
 }
 
@@ -1586,6 +1594,88 @@ func (m *IPPuntRedirectReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *IPPuntRedirectReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// IPPuntRedirectV2 defines message 'ip_punt_redirect_v2'.
+type IPPuntRedirectV2 struct {
+	Punt  PuntRedirectV2 `binapi:"punt_redirect_v2,name=punt" json:"punt,omitempty"`
+	IsAdd bool           `binapi:"bool,name=is_add,default=true" json:"is_add,omitempty"`
+}
+
+func (m *IPPuntRedirectV2) Reset()               { *m = IPPuntRedirectV2{} }
+func (*IPPuntRedirectV2) GetMessageName() string { return "ip_punt_redirect_v2" }
+func (*IPPuntRedirectV2) GetCrcString() string   { return "b8553d9e" }
+func (*IPPuntRedirectV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IPPuntRedirectV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4      // m.Punt.RxSwIfIndex
+	size += 4      // m.Punt.TxSwIfIndex
+	size += 4      // m.Punt.TableID
+	size += 1      // m.Punt.Nh.Af
+	size += 1 * 16 // m.Punt.Nh.Un
+	size += 1      // m.IsAdd
+	return size
+}
+func (m *IPPuntRedirectV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.Punt.RxSwIfIndex))
+	buf.EncodeUint32(uint32(m.Punt.TxSwIfIndex))
+	buf.EncodeUint32(m.Punt.TableID)
+	buf.EncodeUint8(uint8(m.Punt.Nh.Af))
+	buf.EncodeBytes(m.Punt.Nh.Un.XXX_UnionData[:], 16)
+	buf.EncodeBool(m.IsAdd)
+	return buf.Bytes(), nil
+}
+func (m *IPPuntRedirectV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Punt.RxSwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.Punt.TxSwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.Punt.TableID = buf.DecodeUint32()
+	m.Punt.Nh.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Punt.Nh.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.IsAdd = buf.DecodeBool()
+	return nil
+}
+
+// IPPuntRedirectV2Reply defines message 'ip_punt_redirect_v2_reply'.
+type IPPuntRedirectV2Reply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *IPPuntRedirectV2Reply) Reset()               { *m = IPPuntRedirectV2Reply{} }
+func (*IPPuntRedirectV2Reply) GetMessageName() string { return "ip_punt_redirect_v2_reply" }
+func (*IPPuntRedirectV2Reply) GetCrcString() string   { return "e8d4e804" }
+func (*IPPuntRedirectV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPPuntRedirectV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *IPPuntRedirectV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *IPPuntRedirectV2Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -4075,6 +4165,8 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IPPuntRedirectDetails)(nil), "ip_punt_redirect_details_2cef63e7")
 	api.RegisterMessage((*IPPuntRedirectDump)(nil), "ip_punt_redirect_dump_2d033de4")
 	api.RegisterMessage((*IPPuntRedirectReply)(nil), "ip_punt_redirect_reply_e8d4e804")
+	api.RegisterMessage((*IPPuntRedirectV2)(nil), "ip_punt_redirect_v2_b8553d9e")
+	api.RegisterMessage((*IPPuntRedirectV2Reply)(nil), "ip_punt_redirect_v2_reply_e8d4e804")
 	api.RegisterMessage((*IPReassemblyEnableDisable)(nil), "ip_reassembly_enable_disable_eb77968d")
 	api.RegisterMessage((*IPReassemblyEnableDisableReply)(nil), "ip_reassembly_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*IPReassemblyGet)(nil), "ip_reassembly_get_ea13ff63")
@@ -4161,6 +4253,8 @@ func AllMessages() []api.Message {
 		(*IPPuntRedirectDetails)(nil),
 		(*IPPuntRedirectDump)(nil),
 		(*IPPuntRedirectReply)(nil),
+		(*IPPuntRedirectV2)(nil),
+		(*IPPuntRedirectV2Reply)(nil),
 		(*IPReassemblyEnableDisable)(nil),
 		(*IPReassemblyEnableDisableReply)(nil),
 		(*IPReassemblyGet)(nil),

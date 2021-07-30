@@ -40,6 +40,10 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	podVrfAllocator string = "podVrfAllocator"
+)
+
 type Server struct {
 	*common.CalicoVppServerData
 	log             *logrus.Entry
@@ -99,18 +103,14 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 	workload := request.GetWorkload()
 	if workload != nil {
 		for k, v := range workload.Annotations {
-			if k == "vcl" && v == "enable" {
-				podSpec.IfPortConfigs = append(podSpec.IfPortConfigs, storage.LocalIfPortConfigs{
-					IfType: storage.VppVcl,
-				})
-				continue
-			}
 			var ifType storage.VppInterfaceType
 			switch v {
 			case "memif":
 				ifType = storage.VppMemif
 			case "tun":
 				ifType = storage.VppTun
+			case "vcl":
+				ifType = storage.VppVcl
 			default:
 				continue
 			}
@@ -149,6 +149,9 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 			})
 		}
 	}
+	podSpec.VrfId = vpplink.AllocateID(podVrfAllocator, common.PerPodVRFIndexStart)
+	/* TODO : free */
+s.log.Warnf("ALLOCATED ID %d %s", podSpec.VrfId, podSpec.Key())
 	return &podSpec, nil
 }
 

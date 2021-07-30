@@ -53,7 +53,7 @@ func (i *MemifPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec) (swIfInd
 
 	if i.IfType == podSpec.DefaultIfType {
 		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
-	} else {
+	} else if podSpec.DefaultIfType != storage.VppVcl {
 		err = i.DoPodPblConfiguration(podSpec, swIfIndex)
 	}
 	if err != nil {

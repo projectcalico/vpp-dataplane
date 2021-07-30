@@ -16,10 +16,15 @@
 package pod_interface
 
 import (
+	"github.com/pkg/errors"
+
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	// "github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 )
+
 
 type VclPodInterfaceDriver struct {
 	PodInterfaceDriverData
@@ -34,7 +39,7 @@ func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodIn
 	return i
 }
 
-func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, swIfIndex uint32) (err error) {
+func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, tunTapSwIfIndex uint32) (err error) {
 	vclTag := podSpec.GetInterfaceTag(i.name)
 	// Clean up old tun if one is found with this tag
 	// TODO : search namespace before creating
@@ -44,9 +49,40 @@ func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, swIfIndex 
 		return err
 	}
 
+	//FIXME
 	err = i.vpp.EnableSessionSAPI()
 	if err != nil {
 		return err
+	}
+
+	swIfIndex, err := i.vpp.CreateLoopback(&config.ContainerSideMacAddress)
+	if err != nil {
+		return err
+	}
+
+	err = i.vpp.SetInterfaceVRF46(swIfIndex, podSpec.VrfId)
+	if err != nil {
+		return errors.Wrapf(err, "error setting loopback %d in per pod vrf", swIfIndex)
+	}
+
+	for _, containerIP := range podSpec.GetContainerIps() {
+		err = i.vpp.AddInterfaceAddress(swIfIndex, containerIP)
+		if err != nil {
+			i.log.Errorf("Error adding address to pod loopback interface: %v", err)
+		}
+
+		// err := i.vpp.RouteAdd(&types.Route{
+		// 	Dst: containerIP,
+		// 	Paths: []types.RoutePath{{
+		// 		Table: int(podSpec.VrfId),
+		// 	}},
+		// })
+		// if err != nil {
+		// 	return errors.Wrapf(err, "error adding vpp side routes for interface")
+		// }
+
+// FIXME :: 
+// ip route add 11.0.166.130/32 via ip4-lookup-in-table 11
 	}
 
 	err = i.vpp.AddSessionAppNamespace(vclTag, podSpec.NetnsName, swIfIndex)
@@ -54,9 +90,32 @@ func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, swIfIndex 
 		return err
 	}
 
-	err = i.vpp.EnableFeatureArc46(swIfIndex, vpplink.FeatureArcHsi)
+	// TODO : not needed anymore ?
+	// err = i.vpp.EnableFeatureArc46(tunTapSwIfIndex, vpplink.FeatureArcHsi)
+	// if err != nil {
+	// 	return err
+	// }
+
+	err = i.vpp.InterfaceAdminUp(swIfIndex)
 	if err != nil {
 		return err
+	}
+
+	err = i.vpp.PuntRedirectTable(tunTapSwIfIndex, podSpec.VrfId, false)
+	if err != nil {
+		return errors.Wrapf(err, "Error configuring ipv4 punt")
+	}
+	err = i.vpp.PuntAllL4(false /*isip6*/)
+	if err != nil {
+		return errors.Wrapf(err, "Error configuring ipv4 L4 punt")
+	}
+	err = i.vpp.PuntRedirectTable(tunTapSwIfIndex, podSpec.VrfId, true)
+	if err != nil {
+		return errors.Wrapf(err, "Error configuring ipv6 punt")
+	}
+	err = i.vpp.PuntAllL4(true /*isip6*/)
+	if err != nil {
+		return errors.Wrapf(err, "Error configuring ipv6 L4 punt")
 	}
 
 	return nil

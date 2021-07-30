@@ -18,7 +18,6 @@ package pod_interface
 import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	gcommon "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -72,7 +71,7 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 	}
 
 	// configure vpp side tun
-	err = i.vpp.SetInterfaceVRF(swIfIndex, gcommon.PodVRFIndex)
+	err = i.vpp.SetInterfaceVRF46(swIfIndex, podSpec.VrfId)
 	if err != nil {
 		return errors.Wrapf(err, "error setting vpp tun %d in pod vrf", swIfIndex)
 	}

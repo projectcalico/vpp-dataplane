@@ -4,7 +4,7 @@
 //
 // Contents:
 //   2 enums
-//  26 messages
+//  24 messages
 //
 package session
 
@@ -26,7 +26,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "session"
 	APIVersion = "4.0.0"
-	VersionCrc = 0x556b1b5c
+	VersionCrc = 0x3bd2c00d
 )
 
 // SessionRuleScope defines enum 'session_rule_scope'.
@@ -1127,74 +1127,6 @@ func (m *SessionRulesDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// SessionSapiEnableDisable defines message 'session_sapi_enable_disable'.
-type SessionSapiEnableDisable struct {
-	IsEnable bool `binapi:"bool,name=is_enable,default=true" json:"is_enable,omitempty"`
-}
-
-func (m *SessionSapiEnableDisable) Reset()               { *m = SessionSapiEnableDisable{} }
-func (*SessionSapiEnableDisable) GetMessageName() string { return "session_sapi_enable_disable" }
-func (*SessionSapiEnableDisable) GetCrcString() string   { return "c264d7bf" }
-func (*SessionSapiEnableDisable) GetMessageType() api.MessageType {
-	return api.RequestMessage
-}
-
-func (m *SessionSapiEnableDisable) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 1 // m.IsEnable
-	return size
-}
-func (m *SessionSapiEnableDisable) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeBool(m.IsEnable)
-	return buf.Bytes(), nil
-}
-func (m *SessionSapiEnableDisable) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.IsEnable = buf.DecodeBool()
-	return nil
-}
-
-// SessionSapiEnableDisableReply defines message 'session_sapi_enable_disable_reply'.
-type SessionSapiEnableDisableReply struct {
-	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
-}
-
-func (m *SessionSapiEnableDisableReply) Reset() { *m = SessionSapiEnableDisableReply{} }
-func (*SessionSapiEnableDisableReply) GetMessageName() string {
-	return "session_sapi_enable_disable_reply"
-}
-func (*SessionSapiEnableDisableReply) GetCrcString() string { return "e8d4e804" }
-func (*SessionSapiEnableDisableReply) GetMessageType() api.MessageType {
-	return api.ReplyMessage
-}
-
-func (m *SessionSapiEnableDisableReply) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.Retval
-	return size
-}
-func (m *SessionSapiEnableDisableReply) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeInt32(m.Retval)
-	return buf.Bytes(), nil
-}
-func (m *SessionSapiEnableDisableReply) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.Retval = buf.DecodeInt32()
-	return nil
-}
-
 func init() { file_session_binapi_init() }
 func file_session_binapi_init() {
 	api.RegisterMessage((*AppAddCertKeyPair)(nil), "app_add_cert_key_pair_02eb8016")
@@ -1221,8 +1153,6 @@ func file_session_binapi_init() {
 	api.RegisterMessage((*SessionRuleAddDelReply)(nil), "session_rule_add_del_reply_e8d4e804")
 	api.RegisterMessage((*SessionRulesDetails)(nil), "session_rules_details_28d71830")
 	api.RegisterMessage((*SessionRulesDump)(nil), "session_rules_dump_51077d14")
-	api.RegisterMessage((*SessionSapiEnableDisable)(nil), "session_sapi_enable_disable_c264d7bf")
-	api.RegisterMessage((*SessionSapiEnableDisableReply)(nil), "session_sapi_enable_disable_reply_e8d4e804")
 }
 
 // Messages returns list of all messages in this module.
@@ -1252,7 +1182,5 @@ func AllMessages() []api.Message {
 		(*SessionRuleAddDelReply)(nil),
 		(*SessionRulesDetails)(nil),
 		(*SessionRulesDump)(nil),
-		(*SessionSapiEnableDisable)(nil),
-		(*SessionSapiEnableDisableReply)(nil),
 	}
 }

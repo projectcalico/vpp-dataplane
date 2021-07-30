@@ -23,6 +23,10 @@ data:  # Configuration template for VPP in EKS
     socksvr {
         socket-name /var/run/vpp/vpp-api.sock
     }
+    session {
+      evt_qs_memfd_seg
+      use-app-socket-api
+    }
     plugins {
         plugin default { enable }
         plugin calico_plugin.so { enable }

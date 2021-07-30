@@ -29,6 +29,7 @@ type RPCService interface {
 	IPPuntPolice(ctx context.Context, in *IPPuntPolice) (*IPPuntPoliceReply, error)
 	IPPuntRedirect(ctx context.Context, in *IPPuntRedirect) (*IPPuntRedirectReply, error)
 	IPPuntRedirectDump(ctx context.Context, in *IPPuntRedirectDump) (RPCService_IPPuntRedirectDumpClient, error)
+	IPPuntRedirectV2(ctx context.Context, in *IPPuntRedirectV2) (*IPPuntRedirectV2Reply, error)
 	IPReassemblyEnableDisable(ctx context.Context, in *IPReassemblyEnableDisable) (*IPReassemblyEnableDisableReply, error)
 	IPReassemblyGet(ctx context.Context, in *IPReassemblyGet) (*IPReassemblyGetReply, error)
 	IPReassemblySet(ctx context.Context, in *IPReassemblySet) (*IPReassemblySetReply, error)
@@ -412,6 +413,15 @@ func (c *serviceClient_IPPuntRedirectDumpClient) Recv() (*IPPuntRedirectDetails,
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
+}
+
+func (c *serviceClient) IPPuntRedirectV2(ctx context.Context, in *IPPuntRedirectV2) (*IPPuntRedirectV2Reply, error) {
+	out := new(IPPuntRedirectV2Reply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IPReassemblyEnableDisable(ctx context.Context, in *IPReassemblyEnableDisable) (*IPReassemblyEnableDisableReply, error) {

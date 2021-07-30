@@ -154,6 +154,8 @@ type LocalPodSpec struct {
 	PblIndexesLen int `struc:"int16,sizeof=PblIndexes"`
 	PblIndexes    []uint32
 
+	VrfId uint32
+
 	/* Caching */
 	NeedsSnat bool
 }

@@ -15,21 +15,29 @@
 
 package vpplink
 
+import (
+	"sync"
+)
+
 type IDPool struct {
 	freeList  []uint32
 	maxFreeID uint32
 }
 
 var (
-	idPools map[string]IDPool = make(map[string]IDPool)
+	idPools map[string]*IDPool = make(map[string]*IDPool)
+	lock   sync.Mutex
 )
 
-func AllocateID(namespace string) (index uint32) {
+func AllocateID(namespace string, startID uint32) (index uint32) {
+	lock.Lock()
+	defer lock.Unlock()
+
 	idPool, ok := idPools[namespace]
 	if !ok {
-		idPools[namespace] = IDPool{
+		idPools[namespace] = &IDPool{
 			freeList:  make([]uint32, 0),
-			maxFreeID: 1,
+			maxFreeID: startID,
 		}
 		idPool = idPools[namespace]
 	}
@@ -45,6 +53,9 @@ func AllocateID(namespace string) (index uint32) {
 }
 
 func FreeID(namespace string, index uint32) {
+	lock.Lock()
+	defer lock.Unlock()
+
 	idPool, ok := idPools[namespace]
 	if !ok {
 		return

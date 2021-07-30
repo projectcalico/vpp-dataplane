@@ -61,7 +61,7 @@ func (i *TunTapPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, doHostS
 
 	if i.IfType == podSpec.DefaultIfType {
 		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
-	} else {
+	} else if podSpec.DefaultIfType != storage.VppVcl {
 		err = i.DoPodPblConfiguration(podSpec, swIfIndex)
 	}
 	if err != nil {

@@ -95,7 +95,7 @@ func (v *VppLink) addDelAbfPolicy(policy *types.AbfPolicy, isAdd bool) (err erro
 }
 
 func (v *VppLink) AddAbfPolicy(policy *types.AbfPolicy) (err error) {
-	policy.PolicyID = AllocateID(policyIdNS)
+	policy.PolicyID = AllocateID(policyIdNS, 1 /* startID */)
 	return v.addDelAbfPolicy(policy, true)
 }
 

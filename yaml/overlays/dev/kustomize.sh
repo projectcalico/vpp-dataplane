@@ -98,6 +98,7 @@ function get_vpp_conf ()
 	  }
 	  session {
     	  evt_qs_memfd_seg
+    	  use-app-socket-api
 	  }
 	  buffers {
 		buffers-per-numa 65536

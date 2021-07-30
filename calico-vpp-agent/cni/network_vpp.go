@@ -16,20 +16,31 @@
 package cni
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 )
 
 // AddVppInterface performs the networking for the given config and IPAM result
-func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
+func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
 	podSpec.NeedsSnat = false
 	for _, containerIP := range podSpec.GetContainerIps() {
 		podSpec.NeedsSnat = podSpec.NeedsSnat || s.IPNetNeedsSNAT(containerIP)
 	}
 
+    err = s.vpp.AddVRF46(podSpec.VrfId, fmt.Sprintf("pod-%s-table", podSpec.Key()))
+    if err != nil {
+            goto err0
+    }
+    err = s.vpp.AddDefault46RouteViaTable(podSpec.VrfId, common.DefaultVRFIndex)
+    if err != nil {
+            goto err0
+    }
+
 	s.log.Infof("Creating container interface using VPP networking")
-	swIfIndex, err = s.tuntapDriver.Create(podSpec, doHostSideConf)
+	tunTapSwIfIndex, err = s.tuntapDriver.Create(podSpec, doHostSideConf)
 	if err != nil {
 		goto err1
 	}
@@ -44,7 +55,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	if podSpec.HasIfType(storage.VppVcl) {
 		s.log.Infof("Enabling container VCL")
-		err = s.vclDriver.Create(podSpec, swIfIndex)
+		err = s.vclDriver.Create(podSpec, tunTapSwIfIndex)
 		if err != nil {
 			goto err3
 		}
@@ -58,9 +69,9 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		OrchestratorID: podSpec.OrchestratorID,
 		WorkloadID:     podSpec.WorkloadID,
 		EndpointID:     podSpec.EndpointID,
-	}, swIfIndex)
+	}, tunTapSwIfIndex)
 
-	return swIfIndex, err
+	return tunTapSwIfIndex, err
 
 err3:
 	s.vclDriver.Delete(podSpec)
@@ -68,7 +79,9 @@ err2:
 	s.memifDriver.Delete(podSpec)
 err1:
 	_ = s.tuntapDriver.Delete(podSpec)
-	return swIfIndex, errors.Wrapf(err, "Error creating interface")
+err0:
+	// TODO : delete VRF
+	return tunTapSwIfIndex, errors.Wrapf(err, "Error creating interface")
 
 }
 
@@ -78,6 +91,8 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	for _, containerIP := range containerIPs {
 		s.routingServer.AnnounceLocalAddress(&containerIP, true /* isWithdrawal */)
 	}
+	// TODO : delete VRF
 
 	s.memifDriver.Delete(podSpec)
+	s.vclDriver.Delete(podSpec)
 }

@@ -52,8 +52,8 @@ func (v *VppLink) enableDisableSessionSAPILayer(isEnable bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	response := &session.SessionSapiEnableDisableReply{}
-	request := &session.SessionSapiEnableDisable{
+	response := &session.SessionEnableDisableReply{}
+	request := &session.SessionEnableDisable{
 		IsEnable: isEnable,
 	}
 	err := v.ch.SendRequest(request).ReceiveReply(response)

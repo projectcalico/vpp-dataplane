@@ -56,5 +56,7 @@ git_cherry_pick refs/changes/13/28513/20 # 25813: capo: Calico Policies plugin |
 # Revert due to breaking check for unnumbered interfaces
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/57/33157/6 && git revert --no-edit FETCH_HEAD
 
-git_cherry_pick refs/changes/00/33300/1 # 33300: session: Add session_sapi_enable_disable | https://gerrit.fd.io/r/c/vpp/+/33300
 git_cherry_pick refs/changes/01/33301/1 # 33301: session: make netns abtract name static | https://gerrit.fd.io/r/c/vpp/+/33301
+
+# TODO : PUNT patch
+

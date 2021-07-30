@@ -94,7 +94,7 @@ func (v *VppLink) SetInterfaceMacAddress(swIfIndex uint32, mac *net.HardwareAddr
 	return nil
 }
 
-func (v *VppLink) SetInterfaceVRF(swIfIndex, vrfIndex uint32) error {
+func (v *VppLink) SetInterfaceVRF46(swIfIndex, vrfIndex uint32) error {
 	err := v.SetInterfaceVRFAf(swIfIndex, vrfIndex, false)
 	if err != nil {
 		return err
@@ -516,6 +516,31 @@ func (v *VppLink) PuntRedirect(sourceSwIfIndex, destSwIfIndex uint32, nh net.IP)
 	return nil
 }
 
+func (v *VppLink) PuntRedirectTable(destSwIfIndex, tableId uint32, isIP6 bool) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	nh := ip_types.Address{Af: ip_types.ADDRESS_IP4}
+	if isIP6 {
+		nh.Af = ip_types.ADDRESS_IP6
+	}
+
+	request := &vppip.IPPuntRedirectV2{
+		Punt: vppip.PuntRedirectV2{
+			RxSwIfIndex: interface_types.InterfaceIndex(INVALID_SW_IF_INDEX),
+			TxSwIfIndex: interface_types.InterfaceIndex(destSwIfIndex),
+			TableID:     tableId,
+			Nh: nh,
+		},
+		IsAdd: true,
+	}
+	response := &vppip.IPPuntRedirectV2Reply{}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
+	}
+	return nil
+}
+
 // PuntL4 configures L4 punt for a given address family and protocol. port = ~0 means all ports
 func (v *VppLink) PuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
 	v.lock.Lock()
@@ -611,6 +636,34 @@ func (v *VppLink) SetInterfaceRxPlacement(swIfIndex uint32, queue int, worker in
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return fmt.Errorf("cannot set interface rx placement: %v %d", err, response.Retval)
+	}
+	return nil
+}
+
+func (v *VppLink) CreateLoopback(hwAddr *net.HardwareAddr) (swIfIndex uint32, err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	request := &interfaces.CreateLoopback{
+		MacAddress: types.ToVppMacAddress(hwAddr),
+	}
+	response := &interfaces.CreateLoopbackReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return 0, errors.Wrapf(err, "Error adding loopback: req %+v reply %+v", request, response)
+	}
+	return uint32(response.SwIfIndex), nil
+}
+
+func (v *VppLink) DeleteLoopback(swIfIndex uint32) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	request := &interfaces.DeleteLoopback{
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+	}
+	response := &interfaces.DeleteLoopbackReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return errors.Wrapf(err, "Error deleting loopback: req %+v reply %+v", request, response)
 	}
 	return nil
 }
