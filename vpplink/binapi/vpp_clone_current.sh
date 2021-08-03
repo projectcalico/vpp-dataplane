@@ -28,7 +28,6 @@ else
 fi
 
 git_cherry_pick refs/changes/68/32468/3 # 32468: buffers: fix buffer linearization | https://gerrit.fd.io/r/c/vpp/+/32468
-git_cherry_pick refs/changes/32/32732/1 # 32732: crypto: fix sw async crypto with chained buffers | https://gerrit.fd.io/r/c/vpp/+/32732
 git_cherry_pick refs/changes/33/32833/1 # 32833: ipsec: disable linearization | https://gerrit.fd.io/r/c/vpp/+/32833
 git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git_cherry_pick refs/changes/21/31321/10 # 31321: devices: add support for pseudo header checksum | https://gerrit.fd.io/r/c/vpp/+/31321
