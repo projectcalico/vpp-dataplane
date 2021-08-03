@@ -23,11 +23,11 @@ import (
 
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
-	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	"github.com/projectcalico/api/pkg/lib/numorstring"
 	calicocli "github.com/projectcalico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
-	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"

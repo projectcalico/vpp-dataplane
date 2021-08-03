@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	calicoapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	calicoapi "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
