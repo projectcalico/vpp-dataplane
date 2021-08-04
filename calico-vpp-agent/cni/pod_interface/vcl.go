@@ -16,6 +16,8 @@
 package pod_interface
 
 import (
+	"net"
+
 	"github.com/pkg/errors"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
@@ -96,7 +98,7 @@ func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, tunTapSwIf
 		return err
 	}
 
-	err = i.vpp.PuntRedirectTable(tunTapSwIfIndex, podSpec.VrfId, false)
+	err = i.vpp.PuntRedirectTable(podSpec.VrfId, tunTapSwIfIndex, net.IPv4zero)
 	if err != nil {
 		return errors.Wrapf(err, "Error configuring ipv4 punt")
 	}
@@ -104,7 +106,7 @@ func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, tunTapSwIf
 	if err != nil {
 		return errors.Wrapf(err, "Error configuring ipv4 L4 punt")
 	}
-	err = i.vpp.PuntRedirectTable(tunTapSwIfIndex, podSpec.VrfId, true)
+	err = i.vpp.PuntRedirectTable(podSpec.VrfId, tunTapSwIfIndex, net.IPv6zero)
 	if err != nil {
 		return errors.Wrapf(err, "Error configuring ipv6 punt")
 	}

@@ -16,6 +16,9 @@
 package pod_interface
 
 import (
+	"fmt"
+	"net"
+
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -59,7 +62,7 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 	}
 }
 
-func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) (err error) {
+func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32, ifid int) (err error) {
 	if i.NDataThreads > 0 {
 		for queue := 0; queue < config.TapNumRxQueues; queue++ {
 			worker := (int(swIfIndex)*config.TapNumRxQueues + queue) % i.NDataThreads
@@ -76,9 +79,15 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		return errors.Wrapf(err, "error setting vpp tun %d in pod vrf", swIfIndex)
 	}
 
-	err = i.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+	/* Fixme : we should add an API to enable forwarding without dummy address */
+	_, ipNet, err := net.ParseCIDR(fmt.Sprintf("127.0.0.%d/32", ifid))
 	if err != nil {
-		return errors.Wrapf(err, "error setting vpp if[%d] unnumbered", swIfIndex)
+		return errors.Wrapf(err, "error parsing dummy container address")
+	}
+
+	err = i.vpp.AddInterfaceAddress(swIfIndex, ipNet)
+	if err != nil {
+		return errors.Wrapf(err, "error setting vpp if[%d] dummy address", swIfIndex)
 	}
 
 	if !i.isL3 {

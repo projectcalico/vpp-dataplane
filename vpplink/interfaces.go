@@ -516,20 +516,16 @@ func (v *VppLink) PuntRedirect(sourceSwIfIndex, destSwIfIndex uint32, nh net.IP)
 	return nil
 }
 
-func (v *VppLink) PuntRedirectTable(destSwIfIndex, tableId uint32, isIP6 bool) error {
+func (v *VppLink) PuntRedirectTable(tableId, destSwIfIndex uint32, nh net.IP) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	nh := ip_types.Address{Af: ip_types.ADDRESS_IP4}
-	if isIP6 {
-		nh.Af = ip_types.ADDRESS_IP6
-	}
 
 	request := &vppip.IPPuntRedirectV2{
 		Punt: vppip.PuntRedirectV2{
 			RxSwIfIndex: interface_types.InterfaceIndex(INVALID_SW_IF_INDEX),
 			TxSwIfIndex: interface_types.InterfaceIndex(destSwIfIndex),
 			TableID:     tableId,
-			Nh:          nh,
+			Nh:          types.ToVppAddress(nh),
 		},
 		IsAdd: true,
 	}
