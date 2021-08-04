@@ -225,21 +225,14 @@ func (p *SRv6Provider) setEncapSource() (err error) {
 
 func (p *SRv6Provider) createLocalSidTunnels(currentLocalSids []*types.SrLocalsid) (localSids []*types.SrLocalsid, err error) {
 	p.log.Printf("SRv6Provider createLocalSidTunnels")
-	endDt4Exist := false // TODO set to false
+	endDt4Exist := false
 	endDt6Exist := false
 	for _, localSid := range currentLocalSids {
 		p.log.Infof("Found existing SRv6Localsid: %s", localSid.String())
-		// this condition is not working... currently the returned value of localSid.Behavior is always equal to 0
+
 		if localSid.Behavior == types.SrBehaviorDT6 && localSid.FibTable == 0 {
 			endDt6Exist = true
 		}
-
-		/*
-			err = p.vpp.DelSRv6Localsid(localSid)
-			if err != nil {
-				p.log.Errorf("SRv6Provider Error DelSRv6Localsid: %v", err)
-			}
-		*/
 
 		if localSid.Behavior == types.SrBehaviorDT4 && localSid.FibTable == 0 {
 			endDt4Exist = true
@@ -272,23 +265,65 @@ func (p *SRv6Provider) AdvertiseSRv6Policy() (err error) {
 		p.log.Errorf("SRv6Provider Error listing SRv6Localsid: %v", err)
 	}
 	for _, localsid := range localSids {
-		bsid, err := p.getSidFromPool(config.SRv6policyIPPool)
-		if err != nil {
-			p.log.Errorf("SRv6Provider Error getSidFromPool: %v", err)
-		} else {
-			newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), bsid.ToIP(), p.server.GetNodeIP(true), 6, false)
-			if err == nil {
-				_, err := p.server.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
-					TableType: bgpapi.TableType_GLOBAL,
-					Path:      newPath,
-				})
-				if err != nil {
-					p.log.Errorf("SRv6Provider Error bgpserver.AddPath: %v", err)
-				}
+		switch localsid.Behavior {
+		case types.SrBehaviorDT4:
+			srpolicyBSID, err := p.getSidFromPool(config.SRv6policyIPPool)
+			if err != nil {
+				p.log.Errorf("SRv6Provider Error getSidFromPool: %v", err)
+			} else {
+				newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), srpolicyBSID.ToIP(), p.server.GetNodeIP(true), 4, false)
+				if err == nil {
+					_, err := p.server.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
+						TableType: bgpapi.TableType_GLOBAL,
+						Path:      newPath,
+					})
+					if err != nil {
+						p.log.Errorf("SRv6Provider Error bgpserver.AddPath: %v", err)
+					}
 
-				p.advertised = true
+					p.advertised = true
+				}
+			}
+		case types.SrBehaviorDT6:
+			srpolicyBSID, err := p.getSidFromPool(config.SRv6policyIPPool)
+			if err != nil {
+				p.log.Errorf("SRv6Provider Error getSidFromPool: %v", err)
+			} else {
+				newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), srpolicyBSID.ToIP(), p.server.GetNodeIP(true), 6, false)
+				if err == nil {
+					_, err := p.server.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
+						TableType: bgpapi.TableType_GLOBAL,
+						Path:      newPath,
+					})
+					if err != nil {
+						p.log.Errorf("SRv6Provider Error bgpserver.AddPath: %v", err)
+					}
+					p.advertised = true
+				}
 			}
 		}
+		/*
+			if localsid.Behavior == types.SrBehaviorDT4 || localsid.Behavior == types.SrBehaviorDT6 {
+				bsid, err := p.getSidFromPool(config.SRv6policyIPPool)
+				if err != nil {
+					p.log.Errorf("SRv6Provider Error getSidFromPool: %v", err)
+				} else {
+
+					newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), bsid.ToIP(), p.server.GetNodeIP(true), 6, false)
+					if err == nil {
+						_, err := p.server.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
+							TableType: bgpapi.TableType_GLOBAL,
+							Path:      newPath,
+						})
+						if err != nil {
+							p.log.Errorf("SRv6Provider Error bgpserver.AddPath: %v", err)
+						}
+
+						p.advertised = true
+					}
+				}
+			}*/
+
 	}
 	return err
 }

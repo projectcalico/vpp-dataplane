@@ -11,7 +11,7 @@ require (
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
-	github.com/osrg/gobgp v0.0.0-20210701110518-b284a8082ab4
+	github.com/osrg/gobgp v0.0.0-20210801043420-9e48a36ed97c
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/libcalico-go v1.7.2-0.20210513174936-6ccf0906db1d
 	github.com/prometheus/common v0.9.1

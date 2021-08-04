@@ -1,7 +1,8 @@
-VPP Version                 : 21.10-rc0~121-g49a0f8da0
+VPP Version                 : 21.10-rc0~126-g1367826de
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 6f6663f3b span: api cleanup
 ------------------ Cherry picked commits --------------------
+gerrit:32235/1 dpdk: enable ena interrupt support
 gerrit:28513/20 capo: Calico Policies plugin
 gerrit:28083/16 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
@@ -14,4 +15,8 @@ gerrit:31869/13 gso: do not try gro on small packets
 Revert "gso: fix the gro re-ordering for packets with PSH"
 gerrit:31321/10 devices: add support for pseudo header checksum
 gerrit:29386/9 virtio: DRAFT: multi tx support
+gerrit:32833/1 ipsec: disable linearization
+gerrit:32732/1 crypto: fix sw async crypto with chained buffers
+gerrit:32468/3 buffers: fix buffer linearization
+gerrit:33312/4 sr: fix srv6 definition of behavior associated to a LocalSID
 -------------------------------------------------------------
