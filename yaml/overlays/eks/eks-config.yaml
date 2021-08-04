@@ -7,29 +7,6 @@ data:  # Configuration template for VPP in EKS
   service_prefix: 10.100.0.0/16
   vpp_dataplane_interface: eth0
   vpp_uplink_driver: af_packet
-  vpp_config_template: |-
-    unix {
-      nodaemon
-      full-coredump
-      cli-listen /var/run/vpp/cli.sock
-      pidfile /run/vpp/vpp.pid
-      exec /etc/vpp/startup.exec
-    }
-    api-trace { on }
-    cpu {
-        workers 0
-    }
-    buffers {
-      default data-size 3776
-    }
-    socksvr {
-        socket-name /var/run/vpp/vpp-api.sock
-    }
-    plugins {
-        plugin default { enable }
-        plugin dpdk_plugin.so { disable }
-        plugin calico_plugin.so { enable }
-    }
 
 ---
 kind: DaemonSet
@@ -61,9 +38,6 @@ spec:
       containers:
         - name: vpp
           env:
-            # Lower MTU to ensure compatibility with IPsec on this deployment without hugepages.
-            - name: CALICOVPP_TAP_MTU
-              value: "3500"
             - name: CALICOVPP_HOOK_BEFORE_VPP_RUN
               value: "echo 'sudo systemctl stop network ; sudo systemctl kill network' | chroot /host"
             - name: CALICOVPP_HOOK_VPP_RUNNING

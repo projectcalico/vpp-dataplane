@@ -63,6 +63,7 @@ const (
 	SRv6PolicyPoolEnvVar       = "CALICOVPP_SR_POLICY_POOL"
 
 	DefaultVXLANVni      = 4096
+	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820
 
 	defaultRxMode = types.Adaptative

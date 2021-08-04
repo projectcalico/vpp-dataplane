@@ -140,12 +140,11 @@ func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) err
 		}
 	}
 
-	swIfIndex, err := vpp.CreateAVF(&types.AVFInterface{
-		NumRxQueues: d.params.NumRxQueues,
-		TxQueueSize: d.params.TxQueueSize,
-		RxQueueSize: d.params.RxQueueSize,
-		PciId:       d.vfPCI,
-	})
+	intf := types.AVFInterface{
+		GenericVppInterface: d.getGenericVppInterface(),
+		PciId:               d.vfPCI,
+	}
+	swIfIndex, err := vpp.CreateAVF(&intf)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating AVF interface")
 	}

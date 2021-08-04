@@ -218,7 +218,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 		if err == syscall.EEXIST {
 			log.Warnf("add addr %+v via vpp EEXIST, %+v", addr, err)
 		} else if err != nil {
-			return errors.Wrapf(err, "Error adding address %s to tap interface", addr)
+			log.Errorf("Error adding address %s to tap interface: %v", addr, err)
 		}
 	}
 	for _, route := range v.conf.Routes {
@@ -228,7 +228,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link) (err error) {
 		if err == syscall.EEXIST {
 			log.Warnf("add route %+v via vpp EEXIST, %+v", route, err)
 		} else if err != nil {
-			return errors.Wrapf(err, "cannot add route %+v via vpp", route)
+			log.Errorf("cannot add route %+v via vpp: %v", route, err)
 		}
 	}
 
@@ -389,15 +389,17 @@ func (v *VppRunner) configureVpp() (err error) {
 	}
 
 	tapSwIfIndex, err := v.vpp.CreateTapV2(&types.TapV2{
-		HostIfName:     v.params.MainInterface,
+		GenericVppInterface: types.GenericVppInterface{
+			HostInterfaceName: v.params.MainInterface,
+			RxQueueSize:       v.params.TapRxQueueSize,
+			TxQueueSize:       v.params.TapTxQueueSize,
+			HardwareAddr:      &vppSideMac,
+		},
 		HostNamespace:  "pid:1", // create tap in root netns
 		Tag:            config.HostIfTag,
-		RxQueueSize:    v.params.TapRxQueueSize,
-		TxQueueSize:    v.params.TapTxQueueSize,
 		Flags:          vpptap0Flags,
 		HostMtu:        uplinkMtu,
 		HostMacAddress: v.conf.HardwareAddr,
-		MacAddress:     vppSideMac,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Error creating tap")

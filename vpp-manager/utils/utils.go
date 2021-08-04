@@ -62,7 +62,7 @@ func GetMaxCIDRMask(addr net.IP) net.IPMask {
 func WriteFile(state string, path string) error {
 	err := ioutil.WriteFile(path, []byte(state+"\n"), 0400)
 	if err != nil {
-		return errors.Errorf("Failed to write state to %s", path)
+		return errors.Errorf("Failed to write state to %s %s", path, err)
 	}
 	return nil
 }
@@ -335,7 +335,6 @@ func getPciIdFromLink(path string) (string, error) {
 }
 
 func GetInterfacePciId(interfaceName string) (string, error) {
-	// We allow PCI not to be found e.g for AF_PACKET
 	// Grab PCI id - last PCI id in the real path to /sys/class/net/<device name>
 	deviceLinkPath := fmt.Sprintf("/sys/class/net/%s/device", interfaceName)
 	pciId, err := getPciIdFromLink(deviceLinkPath)

@@ -43,7 +43,7 @@ function read_config ()
 	echo "Binapi-generator version    : $($BINAPI_GENERATOR --version)"  >> $VPP_GOAPI_DIR/generate.log
 	echo "VPP Base commit             : $VPP_BASE_COMMIT"                >> $VPP_GOAPI_DIR/generate.log
 	echo "------------------ Cherry picked commits --------------------" >> $VPP_GOAPI_DIR/generate.log
-	git log origin/master..HEAD --oneline                                >> $VPP_GOAPI_DIR/generate.log
+	git log origin/master..HEAD --pretty=%s                              >> $VPP_GOAPI_DIR/generate.log
 	echo "-------------------------------------------------------------" >> $VPP_GOAPI_DIR/generate.log
 	cat $VPP_GOAPI_DIR/generate.log
 	popd > /dev/null
@@ -87,7 +87,9 @@ function generate_govpp_apis ()
 	  wireguard \
 	  capo \
 	  crypto_sw_scheduler \
-	  sr
+	  sr \
+	  rdma \
+	  vmxnet3
 }
 
 make_binapi_generator

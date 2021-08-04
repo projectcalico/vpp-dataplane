@@ -16,9 +16,6 @@ data:  # Configuration template for VPP in EKS
         main-core 1
         workers 0
     }
-    buffers {
-      default data-size 16384
-    }
     dpdk {
       uio-driver igb_uio
       dev __PCI_DEVICE_ID__ { num-rx-queues 1  num-tx-queues 1 }
@@ -46,7 +43,3 @@ spec:
           resources:
             limits:
               hugepages-2Mi: 512Mi
-          env:
-            # DPDK supports full MTU
-            - name: CALICOVPP_TAP_MTU
-              $patch: delete

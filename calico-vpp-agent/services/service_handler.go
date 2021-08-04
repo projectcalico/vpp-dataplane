@@ -19,8 +19,8 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -74,7 +74,7 @@ func getCalicoEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, clusterIP net
 		},
 		Backends: backends,
 		IsRealIP: false,
-		LbType:  types.DefaultLB,
+		LbType:   types.DefaultLB,
 	}
 	if config.EnableMaglev {
 		tr.LbType = types.MaglevLB
@@ -99,7 +99,7 @@ func getCalicoNodePortEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, nodeI
 		},
 		Backends: backends,
 		IsRealIP: true,
-		LbType:  types.DefaultLB,
+		LbType:   types.DefaultLB,
 	}
 
 	if config.EnableMaglev {

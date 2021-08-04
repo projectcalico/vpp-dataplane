@@ -32,7 +32,7 @@ const (
 func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	addr, err := intf.GetPciId()
+	addr, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {
 		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateAVF error parsing PCI id")
 	}

@@ -16,7 +16,7 @@ RUN apt-get update \
     cmake ninja-build uuid-dev python3-jsonschema python3-yaml \
     python3-venv python3-dev libelf-dev
 
-WORKDIR /root/
+WORKDIR /
 
 # Hack around tar issue setting symlinks mtime on mac os bind mounts
 # This issue only happens on the dpdk tarball, and the -m flag causes
@@ -25,6 +25,6 @@ RUN cd /usr/bin; mv tar tar.orig && \
     echo '#!/bin/bash\nif [[ "$*" == *dpdk* || "$*" == *rdma* ]] ; then ARGS="-m" ; fi\n/usr/bin/tar.orig $ARGS --no-same-owner "$@"' > tar && \
     chmod a+x tar
 
-ADD build_script.sh /root/
+ADD build_script.sh /
 
-CMD "/root/build_script.sh"
+CMD "/build_script.sh"

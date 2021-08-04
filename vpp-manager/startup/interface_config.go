@@ -88,10 +88,8 @@ func loadInterfaceConfigFromLinux(params *config.VppManagerParams) (*config.Inte
 	conf.Mtu = link.Attrs().MTU
 
 	pciId, err := utils.GetInterfacePciId(params.MainInterface)
-	if err != nil {
-		return nil, err
-	}
-	if pciId == "" {
+	// We allow PCI not to be found e.g for AF_PACKET
+	if err != nil || pciId == "" {
 		log.Warnf("Could not find pci device for %s", params.MainInterface)
 	} else {
 		conf.PciId = pciId

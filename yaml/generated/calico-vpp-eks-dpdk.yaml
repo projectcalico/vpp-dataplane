@@ -560,7 +560,7 @@ spec:
                   udp:68, tcp:179, tcp:2379, tcp:2380, tcp:6443, tcp:6666, tcp:6667]'
                 items:
                   description: ProtoPort is combination of protocol, port, and CIDR.
-                    All three must be specified.
+                    Protocol and port must be specified.
                   properties:
                     net:
                       type: string
@@ -569,7 +569,6 @@ spec:
                     protocol:
                       type: string
                   required:
-                  - net
                   - port
                   - protocol
                   type: object
@@ -588,7 +587,7 @@ spec:
                   tcp:6667, udp:53, udp:67]'
                 items:
                   description: ProtoPort is combination of protocol, port, and CIDR.
-                    All three must be specified.
+                    Protocol and port must be specified.
                   properties:
                     net:
                       type: string
@@ -597,7 +596,6 @@ spec:
                     protocol:
                       type: string
                   required:
-                  - net
                   - port
                   - protocol
                   type: object
@@ -3568,9 +3566,6 @@ data:
         main-core 1
         workers 0
     }
-    buffers {
-      default data-size 16384
-    }
     dpdk {
       uio-driver igb_uio
       dev __PCI_DEVICE_ID__ { num-rx-queues 1  num-tx-queues 1 }
@@ -3659,7 +3654,7 @@ spec:
           value: node
         - name: DATASTORE_TYPE
           value: kubernetes
-        image: docker.io/calico/kube-controllers:v3.19.0
+        image: docker.io/calico/kube-controllers:v3.19.1
         livenessProbe:
           exec:
             command:
@@ -3697,47 +3692,6 @@ spec:
   selector:
     matchLabels:
       k8s-app: calico-kube-controllers
----
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  labels:
-    k8s-app: calico-vpp-init-eks
-  name: calico-vpp-init-eks
-  namespace: calico-vpp-dataplane
-spec:
-  selector:
-    matchLabels:
-      k8s-app: calico-vpp-init-eks
-  template:
-    metadata:
-      labels:
-        k8s-app: calico-vpp-init-eks
-    spec:
-      containers:
-      - env:
-        - name: HUGEPAGES
-          value: "512"
-        image: calicovpp/init-eks:prerelease
-        imagePullPolicy: IfNotPresent
-        name: calicovpp-init-eks
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /host
-          name: host-root
-      hostNetwork: true
-      tolerations:
-      - effect: NoSchedule
-        operator: Exists
-      - key: CriticalAddonsOnly
-        operator: Exists
-      - effect: NoExecute
-        operator: Exists
-      volumes:
-      - hostPath:
-          path: /
-        name: host-root
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -3850,6 +3804,8 @@ spec:
         volumeMounts:
         - mountPath: /host
           name: host-root
+        - mountPath: /lib/firmware
+          name: lib-firmware
         - mountPath: /var/run/vpp
           name: vpp-rundir
         - mountPath: /var/lib/vpp
@@ -3881,6 +3837,9 @@ spec:
       - hostPath:
           path: /
         name: host-root
+      - hostPath:
+          path: /lib/firmware
+        name: lib-firmware
       - hostPath:
           path: /var/run/vpp
         name: vpp-rundir
@@ -3989,7 +3948,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/node:v3.19.0
+        image: docker.io/calico/node:v3.19.1
         livenessProbe:
           exec:
             command:
@@ -4054,7 +4013,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/cni:v3.19.0
+        image: docker.io/calico/cni:v3.19.1
         name: upgrade-ipam
         securityContext:
           privileged: true
@@ -4088,7 +4047,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/cni:v3.19.0
+        image: docker.io/calico/cni:v3.19.1
         name: install-cni
         securityContext:
           privileged: true
@@ -4097,7 +4056,7 @@ spec:
           name: cni-bin-dir
         - mountPath: /host/etc/cni/net.d
           name: cni-net-dir
-      - image: docker.io/calico/pod2daemon-flexvol:v3.19.0
+      - image: docker.io/calico/pod2daemon-flexvol:v3.19.1
         name: flexvol-driver
         securityContext:
           privileged: true

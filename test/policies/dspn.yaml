@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: debug-podnet
+  namespace: kube-system
+  labels:
+    k8s-app: debug-podnet
+spec:
+  selector:
+    matchLabels:
+      name: debug-podnet
+  template:
+    metadata:
+      labels:
+        name: debug-podnet
+    spec:
+      tolerations:
+      # this toleration is to have the daemonset runnable on master nodes
+      # remove it if your masters can't run pods
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: ns
+        image: nicolaka/netshoot:latest
+        command: ["bash", "-c", "sleep infinity"]
+        volumeMounts:
+        - name: dev
+          mountPath: /dev
+        - name: etcvpp
+          mountPath: /etc/vpp
+        securityContext:
+          privileged: true
+      terminationGracePeriodSeconds: 1
+      volumes:
+      - name: dev
+        hostPath:
+          path: /dev
+      - name: etcvpp
+        hostPath:
+          path: /etc/vpp

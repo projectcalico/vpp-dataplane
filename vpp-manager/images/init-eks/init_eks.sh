@@ -76,6 +76,31 @@ EOF
 
 	sudo mv ./build/kernel/linux/igb_uio/igb_uio.ko ${IGB_UIO_PATH}
 	sudo chown root:root ${IGB_UIO_PATH}
+}
+
+# NOTE: use sudo when/if running the script manually; not needed when running
+# as part of cloud-init/userdata
+configure_dpdk_interrupt_mode_support ()
+{
+	# download and build and install the vfio-pci driver with wc support
+	# for ENAv2
+	cd $BUILD_DIR
+	git clone https://github.com/amzn/amzn-drivers.git
+	cd amzn-drivers/userspace/dpdk/enav2-vfio-patch
+	./get-vfio-with-wc.sh
+
+	# load the driver
+	modprobe vfio-pci
+
+	# enable unsafe_noiommu_mode
+	echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+
+	# persist the changes across reboots
+	cat << EOF >> /etc/rc.d/rc.local
+modprobe vfio-pci
+echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+EOF
+	chmod +x /etc/rc.d/rc.local
 
 	rm -rf $BUILD_DIR
 }
@@ -88,11 +113,14 @@ configure_machine ()
 		build_and_install_igb_uio
 		sudo insmod /lib/modules/$(uname -r)/kernel/drivers/uio/igb_uio.ko wc_activate=1
 	fi
+
+	# configure hugepages and persist the config across reboots
 	sudo sysctl -w vm.nr_hugepages=${HUGEPAGES}
 	if [ -f /sys/fs/cgroup/hugetlb/kubepods/hugetlb.2MB.limit_in_bytes ]; then
 		echo $((HUGEPAGES * 2 * 1024 * 1024)) | tee /sys/fs/cgroup/hugetlb/kubepods/hugetlb.2MB.limit_in_bytes
 	fi
-	systemctl restart kubelet
+	echo "vm.nr_hugepages=${HUGEPAGES}" >> /etc/sysctl.conf
 }
 
 configure_machine
+configure_dpdk_interrupt_mode_support

@@ -95,6 +95,7 @@ restart-calicovpp:
 	kubectl -n calico-vpp-dataplane rollout status ds/calico-vpp-node
 
 .PHONY: goapi
+export VPP_DIR ?= $(shell pwd)/vpp-manager/vpp_build
 goapi:
 	@./vpplink/binapi/generate_binapi.sh
 

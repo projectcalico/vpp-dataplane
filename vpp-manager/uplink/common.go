@@ -24,6 +24,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -35,6 +36,8 @@ const (
 	NATIVE_DRIVER_VIRTIO    = "virtio"
 	NATIVE_DRIVER_AVF       = "avf"
 	NATIVE_DRIVER_DPDK      = "dpdk"
+	NATIVE_DRIVER_RDMA      = "rdma"
+	NATIVE_DRIVER_VMXNET3   = "vmxnet3"
 )
 
 type UplinkDriverData struct {
@@ -152,6 +155,17 @@ func (d *UplinkDriverData) GenerateVppConfigFile() error {
 	)
 }
 
+func (d *UplinkDriverData) getGenericVppInterface() types.GenericVppInterface {
+	return types.GenericVppInterface{
+		NumRxQueues:       d.params.NumRxQueues,
+		RxQueueSize:       d.params.RxQueueSize,
+		TxQueueSize:       d.params.TxQueueSize,
+		NumTxQueues:       d.params.NumTxQueues,
+		HardwareAddr:      &d.conf.HardwareAddr,
+		HostInterfaceName: d.params.MainInterface,
+	}
+}
+
 func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.InterfaceConfig) []UplinkDriver {
 	lst := make([]UplinkDriver, 0)
 
@@ -159,6 +173,12 @@ func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.Interf
 		lst = append(lst, d)
 	}
 	if d := NewAVFDriver(params, conf); d.IsSupported(false /* warn */) {
+		lst = append(lst, d)
+	}
+	if d := NewRDMADriver(params, conf); d.IsSupported(false /* warn */) {
+		lst = append(lst, d)
+	}
+	if d := NewVmxnet3Driver(params, conf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
 	if d := NewAFXDPDriver(params, conf); d.IsSupported(false /* warn */) {
@@ -172,6 +192,10 @@ func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.Interf
 
 func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.InterfaceConfig) (d UplinkDriver) {
 	switch name {
+	case NATIVE_DRIVER_RDMA:
+		d = NewRDMADriver(params, conf)
+	case NATIVE_DRIVER_VMXNET3:
+		d = NewVmxnet3Driver(params, conf)
 	case NATIVE_DRIVER_AF_PACKET:
 		d = NewAFPacketDriver(params, conf)
 	case NATIVE_DRIVER_AF_XDP:
