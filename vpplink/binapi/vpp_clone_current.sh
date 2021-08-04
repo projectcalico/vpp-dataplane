@@ -46,9 +46,9 @@ git_cherry_pick refs/changes/35/32235/1  # 32235: dpdk: enable ena interrupt sup
 # Revert due to breaking check for unnumbered interfaces
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/57/33157/6 && git revert --no-edit FETCH_HEAD
 
-git_cherry_pick refs/changes/01/33301/1 # 33301: session: make netns abtract name static | https://gerrit.fd.io/r/c/vpp/+/33301
+git_cherry_pick refs/changes/01/33301/2 # 33301: session: make netns abtract name static | https://gerrit.fd.io/r/c/vpp/+/33301
 git_cherry_pick refs/changes/13/33313/1 # 33313: tcp: no vnet_buf update on lookup fail | https://gerrit.fd.io/r/c/vpp/+/33313
-git_cherry_pick refs/changes/14/33314/1 # 33314: ip: punt: Add table_id support | https://gerrit.fd.io/r/c/vpp/+/33314
+# git_cherry_pick refs/changes/14/33314/1 # 33314: ip: punt: Add table_id support | https://gerrit.fd.io/r/c/vpp/+/33314
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/2 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264

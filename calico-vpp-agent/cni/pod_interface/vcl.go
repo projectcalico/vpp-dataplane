@@ -25,6 +25,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	vclSocketName = "@vpp/session"
+)
+
 type VclPodInterfaceDriver struct {
 	PodInterfaceDriverData
 }
@@ -39,7 +43,7 @@ func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodIn
 }
 
 func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, tunTapSwIfIndex uint32) (err error) {
-	vclTag := podSpec.GetInterfaceTag(i.name)
+	// vclTag := podSpec.GetInterfaceTag(i.name)
 	// Clean up old tun if one is found with this tag
 	// TODO : search namespace before creating
 
@@ -49,10 +53,10 @@ func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, tunTapSwIf
 	}
 
 	//FIXME
-	err = i.vpp.EnableSessionSAPI()
-	if err != nil {
-		return err
-	}
+	// err = i.vpp.EnableSessionSAPI()
+	// if err != nil {
+	// 	return err
+	// }
 
 	swIfIndex, err := i.vpp.CreateLoopback(&config.ContainerSideMacAddress)
 	if err != nil {
@@ -82,7 +86,7 @@ func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, tunTapSwIf
 		}
 	}
 
-	err = i.vpp.AddSessionAppNamespace(vclTag, podSpec.NetnsName, swIfIndex)
+	err = i.vpp.AddSessionAppNamespace(vclSocketName, podSpec.NetnsName, swIfIndex)
 	if err != nil {
 		return err
 	}

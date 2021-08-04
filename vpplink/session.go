@@ -85,9 +85,9 @@ func (v *VppLink) addDelSessionAppNamespace(namespaceId string, netns string, sw
 	}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return errors.Wrapf(err, "Enable/Disable session SAPI failed")
+		return errors.Wrapf(err, "Add/Del session namespace")
 	} else if response.Retval != 0 {
-		return fmt.Errorf("Enable/Disable session SAPI failed with retval %d", response.Retval)
+		return fmt.Errorf("Add/Del session namespace with retval %d", response.Retval)
 	}
 	return nil
 }
