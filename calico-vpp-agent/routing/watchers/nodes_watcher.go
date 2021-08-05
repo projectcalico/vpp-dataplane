@@ -22,8 +22,8 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/api/pkg/lib/numorstring"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	"github.com/projectcalico/libcalico-go/lib/numorstring"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	agentCommon "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
