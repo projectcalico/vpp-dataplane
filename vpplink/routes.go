@@ -61,14 +61,14 @@ func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) (routes []types.Route, 
 					vppPath.Nh.Address,
 					vppRoute.Prefix.Address.Af == ip_types.ADDRESS_IP6,
 				),
-				Table:     int(vppPath.TableID),
+				Table:     vppPath.TableID,
 				SwIfIndex: vppPath.SwIfIndex,
 			})
 		}
 
 		route := types.Route{
 			Dst:   types.FromVppPrefix(vppRoute.Prefix),
-			Table: int(vppRoute.TableID),
+			Table: vppRoute.TableID,
 			Paths: routePaths,
 		}
 		routes = append(routes, route)
@@ -179,7 +179,7 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	return nil
 }
 
-func (v *VppLink) AddDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
+func (v *VppLink) addDelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
@@ -196,7 +196,7 @@ func (v *VppLink) AddDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bo
 	}}
 
 	request := &vppip.IPRouteAddDel{
-		IsAdd: true,
+		IsAdd: isAdd,
 		Route: vppip.IPRoute{
 			TableID: sourceTable,
 			Prefix:  prefix,
@@ -214,6 +214,14 @@ func (v *VppLink) AddDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bo
 	return nil
 }
 
+func (v *VppLink) AddDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
+	return v.addDelDefaultRouteViaTable (sourceTable, dstTable, isIP6, true /*isAdd*/)
+}
+
+func (v *VppLink) DelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
+	return v.addDelDefaultRouteViaTable (sourceTable, dstTable, isIP6, false /*isAdd*/)
+}
+
 func (v *VppLink) AddDefault46RouteViaTable(sourceTable, dstTable uint32) (err error) {
 	err = v.AddDefaultRouteViaTable(sourceTable, dstTable, false /*isip6*/)
 	if err != nil {
@@ -222,6 +230,15 @@ func (v *VppLink) AddDefault46RouteViaTable(sourceTable, dstTable uint32) (err e
 	err = v.AddDefaultRouteViaTable(sourceTable, dstTable, true /*isip6*/)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (v *VppLink) DelDefault46RouteViaTable(sourceTable, dstTable uint32) (err error) {
+	err1 := v.DelDefaultRouteViaTable(sourceTable, dstTable, false /*isip6*/)
+	err2 := v.DelDefaultRouteViaTable(sourceTable, dstTable, true /*isip6*/)
+	if err1 != nil || err2 != nil {
+		return fmt.Errorf("DelDefault46RouteViaTable errored ip4:%s ip6:%s", err1, err2)
 	}
 	return nil
 }

@@ -14,7 +14,7 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
-VPP_COMMIT=2e2f9df2f157b60d30a4aa6256fefe793d186d4c
+VPP_COMMIT=a70b015ceeee158eac0d9b33d12c596e1af409b3
 VPP_DIR="$1"
 
 if [ ! -d $1/.git ]; then
@@ -44,8 +44,7 @@ git_cherry_pick refs/changes/68/31868/1 # 31868: ip6-nd: silent the source and t
 git_cherry_pick refs/changes/35/32235/1  # 32235: dpdk: enable ena interrupt support | https://gerrit.fd.io/r/c/vpp/+/32235
 
 git_cherry_pick refs/changes/01/33301/2 # 33301: session: make netns abtract name static | https://gerrit.fd.io/r/c/vpp/+/33301
-git_cherry_pick refs/changes/13/33313/3 # 33313: tcp: no vnet_buf update on lookup fail | https://gerrit.fd.io/r/c/vpp/+/33313
-git_cherry_pick refs/changes/14/33314/2 # 33314: ip: punt: Add table_id support | https://gerrit.fd.io/r/c/vpp/+/33314
+git_cherry_pick refs/changes/51/33451/1 # 33451: ip: punt redirect add nh in api | https://gerrit.fd.io/r/c/vpp/+/33451
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/2 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264

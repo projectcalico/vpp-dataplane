@@ -149,9 +149,6 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 			})
 		}
 	}
-	podSpec.VrfId = vpplink.AllocateID(podVrfAllocator, common.PerPodVRFIndexStart)
-	/* TODO : free */
-	s.log.Warnf("ALLOCATED ID %d %s", podSpec.VrfId, podSpec.Key())
 	return &podSpec, nil
 }
 

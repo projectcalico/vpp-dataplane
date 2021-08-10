@@ -58,6 +58,14 @@ func GetIPFamily(ip net.IP) int {
 	return FAMILY_V6
 }
 
+func GetBoolIPFamily(isIP6 bool) ip_types.AddressFamily {
+	if isIP6 {
+		return ip_types.ADDRESS_IP6
+	}
+	return ip_types.ADDRESS_IP4
+}
+
+
 func IsIP4(ip net.IP) bool {
 	return GetIPFamily(ip) == FAMILY_V4
 }

@@ -54,7 +54,7 @@ func (i *TunTapPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, doHostS
 			return vpplink.INVALID_SW_IF_INDEX, err
 		}
 	}
-	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex, 1)
+	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex)
 	if err != nil {
 		return swIfIndex, err
 	}

@@ -26,13 +26,14 @@ import (
 type RoutePath struct {
 	Gw        net.IP
 	SwIfIndex uint32
-	Table     int
+	Table     uint32
+	IsAttached bool
 }
 
 type Route struct {
 	Dst   *net.IPNet
 	Paths []RoutePath
-	Table int
+	Table uint32
 }
 
 func (p *RoutePath) tableString() string {
@@ -51,14 +52,17 @@ func (p *RoutePath) ToFibPath(isIP6 bool) fib_types.FibPath {
 		pathProto = IsV6toFibProto(p.Gw.To4() == nil)
 	}
 	fibPath := fib_types.FibPath{
-		SwIfIndex:  uint32(p.SwIfIndex),
-		TableID:    uint32(p.Table),
+		SwIfIndex:  p.SwIfIndex,
+		TableID:    p.Table,
 		RpfID:      0,
 		Weight:     1,
 		Preference: 0,
 		Type:       fib_types.FIB_API_PATH_TYPE_NORMAL,
 		Flags:      fib_types.FIB_API_PATH_FLAG_NONE,
 		Proto:      pathProto,
+	}
+	if p.IsAttached {
+		fibPath.Flags |= fib_types.FIB_API_PATH_FLAG_RESOLVE_VIA_ATTACHED
 	}
 	if p.Gw != nil {
 		fibPath.Nh.Address = ToVppAddress(p.Gw).Un

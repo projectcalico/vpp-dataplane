@@ -30,7 +30,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip"
 	APIVersion = "3.1.0"
-	VersionCrc = 0xb8389024
+	VersionCrc = 0x9ee28d87
 )
 
 // IPReassType defines enum 'ip_reass_type'.
@@ -179,9 +179,7 @@ type PuntRedirect struct {
 // PuntRedirectV2 defines type 'punt_redirect_v2'.
 type PuntRedirectV2 struct {
 	RxSwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=rx_sw_if_index,default=4294967295" json:"rx_sw_if_index,omitempty"`
-	TxSwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=tx_sw_if_index" json:"tx_sw_if_index,omitempty"`
-	TableID     uint32                         `binapi:"u32,name=table_id,default=4294967295" json:"table_id,omitempty"`
-	Nh          ip_types.Address               `binapi:"address,name=nh" json:"nh,omitempty"`
+	Path        fib_types.FibPath              `binapi:"fib_path,name=path" json:"path,omitempty"`
 }
 
 // IoamDisable defines message 'ioam_disable'.
@@ -1607,7 +1605,7 @@ type IPPuntRedirectV2 struct {
 
 func (m *IPPuntRedirectV2) Reset()               { *m = IPPuntRedirectV2{} }
 func (*IPPuntRedirectV2) GetMessageName() string { return "ip_punt_redirect_v2" }
-func (*IPPuntRedirectV2) GetCrcString() string   { return "b8553d9e" }
+func (*IPPuntRedirectV2) GetCrcString() string   { return "49bda130" }
 func (*IPPuntRedirectV2) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1617,11 +1615,26 @@ func (m *IPPuntRedirectV2) Size() (size int) {
 		return 0
 	}
 	size += 4      // m.Punt.RxSwIfIndex
-	size += 4      // m.Punt.TxSwIfIndex
-	size += 4      // m.Punt.TableID
-	size += 1      // m.Punt.Nh.Af
-	size += 1 * 16 // m.Punt.Nh.Un
-	size += 1      // m.IsAdd
+	size += 4      // m.Punt.Path.SwIfIndex
+	size += 4      // m.Punt.Path.TableID
+	size += 4      // m.Punt.Path.RpfID
+	size += 1      // m.Punt.Path.Weight
+	size += 1      // m.Punt.Path.Preference
+	size += 4      // m.Punt.Path.Type
+	size += 4      // m.Punt.Path.Flags
+	size += 4      // m.Punt.Path.Proto
+	size += 1 * 16 // m.Punt.Path.Nh.Address
+	size += 4      // m.Punt.Path.Nh.ViaLabel
+	size += 4      // m.Punt.Path.Nh.ObjID
+	size += 4      // m.Punt.Path.Nh.ClassifyTableIndex
+	size += 1      // m.Punt.Path.NLabels
+	for j3 := 0; j3 < 16; j3++ {
+		size += 1 // m.Punt.Path.LabelStack[j3].IsUniform
+		size += 4 // m.Punt.Path.LabelStack[j3].Label
+		size += 1 // m.Punt.Path.LabelStack[j3].TTL
+		size += 1 // m.Punt.Path.LabelStack[j3].Exp
+	}
+	size += 1 // m.IsAdd
 	return size
 }
 func (m *IPPuntRedirectV2) Marshal(b []byte) ([]byte, error) {
@@ -1630,20 +1643,50 @@ func (m *IPPuntRedirectV2) Marshal(b []byte) ([]byte, error) {
 	}
 	buf := codec.NewBuffer(b)
 	buf.EncodeUint32(uint32(m.Punt.RxSwIfIndex))
-	buf.EncodeUint32(uint32(m.Punt.TxSwIfIndex))
-	buf.EncodeUint32(m.Punt.TableID)
-	buf.EncodeUint8(uint8(m.Punt.Nh.Af))
-	buf.EncodeBytes(m.Punt.Nh.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint32(m.Punt.Path.SwIfIndex)
+	buf.EncodeUint32(m.Punt.Path.TableID)
+	buf.EncodeUint32(m.Punt.Path.RpfID)
+	buf.EncodeUint8(m.Punt.Path.Weight)
+	buf.EncodeUint8(m.Punt.Path.Preference)
+	buf.EncodeUint32(uint32(m.Punt.Path.Type))
+	buf.EncodeUint32(uint32(m.Punt.Path.Flags))
+	buf.EncodeUint32(uint32(m.Punt.Path.Proto))
+	buf.EncodeBytes(m.Punt.Path.Nh.Address.XXX_UnionData[:], 16)
+	buf.EncodeUint32(m.Punt.Path.Nh.ViaLabel)
+	buf.EncodeUint32(m.Punt.Path.Nh.ObjID)
+	buf.EncodeUint32(m.Punt.Path.Nh.ClassifyTableIndex)
+	buf.EncodeUint8(m.Punt.Path.NLabels)
+	for j2 := 0; j2 < 16; j2++ {
+		buf.EncodeUint8(m.Punt.Path.LabelStack[j2].IsUniform)
+		buf.EncodeUint32(m.Punt.Path.LabelStack[j2].Label)
+		buf.EncodeUint8(m.Punt.Path.LabelStack[j2].TTL)
+		buf.EncodeUint8(m.Punt.Path.LabelStack[j2].Exp)
+	}
 	buf.EncodeBool(m.IsAdd)
 	return buf.Bytes(), nil
 }
 func (m *IPPuntRedirectV2) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Punt.RxSwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	m.Punt.TxSwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	m.Punt.TableID = buf.DecodeUint32()
-	m.Punt.Nh.Af = ip_types.AddressFamily(buf.DecodeUint8())
-	copy(m.Punt.Nh.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Punt.Path.SwIfIndex = buf.DecodeUint32()
+	m.Punt.Path.TableID = buf.DecodeUint32()
+	m.Punt.Path.RpfID = buf.DecodeUint32()
+	m.Punt.Path.Weight = buf.DecodeUint8()
+	m.Punt.Path.Preference = buf.DecodeUint8()
+	m.Punt.Path.Type = fib_types.FibPathType(buf.DecodeUint32())
+	m.Punt.Path.Flags = fib_types.FibPathFlags(buf.DecodeUint32())
+	m.Punt.Path.Proto = fib_types.FibPathNhProto(buf.DecodeUint32())
+	copy(m.Punt.Path.Nh.Address.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Punt.Path.Nh.ViaLabel = buf.DecodeUint32()
+	m.Punt.Path.Nh.ObjID = buf.DecodeUint32()
+	m.Punt.Path.Nh.ClassifyTableIndex = buf.DecodeUint32()
+	m.Punt.Path.NLabels = buf.DecodeUint8()
+	for j2 := 0; j2 < 16; j2++ {
+		m.Punt.Path.LabelStack[j2].IsUniform = buf.DecodeUint8()
+		m.Punt.Path.LabelStack[j2].Label = buf.DecodeUint32()
+		m.Punt.Path.LabelStack[j2].TTL = buf.DecodeUint8()
+		m.Punt.Path.LabelStack[j2].Exp = buf.DecodeUint8()
+	}
 	m.IsAdd = buf.DecodeBool()
 	return nil
 }
@@ -4165,7 +4208,7 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IPPuntRedirectDetails)(nil), "ip_punt_redirect_details_2cef63e7")
 	api.RegisterMessage((*IPPuntRedirectDump)(nil), "ip_punt_redirect_dump_2d033de4")
 	api.RegisterMessage((*IPPuntRedirectReply)(nil), "ip_punt_redirect_reply_e8d4e804")
-	api.RegisterMessage((*IPPuntRedirectV2)(nil), "ip_punt_redirect_v2_b8553d9e")
+	api.RegisterMessage((*IPPuntRedirectV2)(nil), "ip_punt_redirect_v2_49bda130")
 	api.RegisterMessage((*IPPuntRedirectV2Reply)(nil), "ip_punt_redirect_v2_reply_e8d4e804")
 	api.RegisterMessage((*IPReassemblyEnableDisable)(nil), "ip_reassembly_enable_disable_eb77968d")
 	api.RegisterMessage((*IPReassemblyEnableDisableReply)(nil), "ip_reassembly_enable_disable_reply_e8d4e804")

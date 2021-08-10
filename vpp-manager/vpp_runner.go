@@ -95,26 +95,46 @@ func (v *VppRunner) Run(driver uplink.UplinkDriver) error {
 }
 
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32) (err error) {
-	if v.conf.Hasv4 {
-		err := v.vpp.PuntRedirect(vpplink.INVALID_SW_IF_INDEX, tapSwIfIndex, fakeVppNextHopIP4)
+	err = v.vpp.AddVRF46(config.PuntTableId, "punt-table")
+	if err != nil {
+		return errors.Wrapf(err, "Error creating punt vrf")
+	}
+
+	err = v.vpp.PuntRedirect46(vpplink.InvalidID, types.RoutePath{
+		Table: config.PuntTableId,
+		SwIfIndex: types.InvalidID,
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Error configuring punt redirect")
+	}
+
+	err = v.vpp.PuntAll46L4()
+	if err != nil {
+		return errors.Wrapf(err, "Error configuring L4 punt")
+	}
+
+	for _, neigh := range []net.IP{fakeVppNextHopIP4, fakeVppNextHopIP6} {
+		err = v.vpp.AddNeighbor(&types.Neighbor{
+			SwIfIndex:    tapSwIfIndex,
+			IP:           neigh,
+			HardwareAddr: v.conf.HardwareAddr,
+		})
 		if err != nil {
-			return errors.Wrapf(err, "Error configuring ipv4 punt")
+			return errors.Wrapf(err, "Error adding neighbor %s to tap", neigh)
 		}
-		err = v.vpp.PuntAllL4(false)
+		/* In the punt table (where all punted traffics ends), route to the tap */
+		err = v.vpp.RouteAdd(&types.Route{
+			Table: config.PuntTableId,
+			Paths: []types.RoutePath{{
+				Gw: neigh,
+				SwIfIndex: tapSwIfIndex,
+			}},
+		})
 		if err != nil {
-			return errors.Wrapf(err, "Error configuring ipv4 L4 punt")
+			return errors.Wrapf(err, "error adding vpp side routes for interface")
 		}
 	}
-	if v.conf.Hasv6 {
-		err := v.vpp.PuntRedirect(vpplink.INVALID_SW_IF_INDEX, tapSwIfIndex, fakeVppNextHopIP6)
-		if err != nil {
-			return errors.Wrapf(err, "Error configuring ipv6 punt")
-		}
-		err = v.vpp.PuntAllL4(true)
-		if err != nil {
-			return errors.Wrapf(err, "Error configuring ipv6 L4 punt")
-		}
-	}
+
 	return nil
 }
 
@@ -434,17 +454,6 @@ func (v *VppRunner) configureVpp() (err error) {
 	err = v.vpp.DisableIP6RouterAdvertisements(tapSwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error disabling ip6 RA on vpptap0")
-	}
-
-	for _, neigh := range []net.IP{fakeVppNextHopIP4, fakeVppNextHopIP6} {
-		err = v.vpp.AddNeighbor(&types.Neighbor{
-			SwIfIndex:    tapSwIfIndex,
-			IP:           neigh,
-			HardwareAddr: v.conf.HardwareAddr,
-		})
-		if err != nil {
-			return errors.Wrapf(err, "Error adding neighbor %v to tap", neigh)
-		}
 	}
 
 	err = v.configurePunt(tapSwIfIndex)

@@ -16,14 +16,10 @@
 package pod_interface
 
 import (
-	"net"
-
-	"github.com/pkg/errors"
+	// "net"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -44,7 +40,7 @@ func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodIn
 	return i
 }
 
-func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, tunTapSwIfIndex uint32) (err error) {
+func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, loopbackSwIfIndex uint32) (err error) {
 	// vclTag := podSpec.GetInterfaceTag(i.name)
 	// Clean up old tun if one is found with this tag
 	// TODO : search namespace before creating
@@ -60,59 +56,14 @@ func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, tunTapSwIf
 	// 	return err
 	// }
 
-	swIfIndex, err := i.vpp.CreateLoopback(&config.ContainerSideMacAddress)
+	err = i.vpp.AddSessionAppNamespace(vclSocketName, podSpec.NetnsName, loopbackSwIfIndex)
 	if err != nil {
 		return err
 	}
 
-	err = i.vpp.SetInterfaceVRF46(swIfIndex, podSpec.VrfId)
-	if err != nil {
-		return errors.Wrapf(err, "error setting loopback %d in per pod vrf", swIfIndex)
-	}
-
-	for _, containerIP := range podSpec.GetContainerIps() {
-		err = i.vpp.AddInterfaceAddress(swIfIndex, containerIP)
-		if err != nil {
-			i.log.Errorf("Error adding address to pod loopback interface: %v", err)
-		}
-
-		err := i.vpp.RouteAdd(&types.Route{
-			Dst: containerIP,
-			Paths: []types.RoutePath{{
-				Table:     int(podSpec.VrfId),
-				SwIfIndex: types.InvalidID,
-			}},
-		})
-		if err != nil {
-			return errors.Wrapf(err, "error adding vpp side routes for interface")
-		}
-	}
-
-	err = i.vpp.AddSessionAppNamespace(vclSocketName, podSpec.NetnsName, swIfIndex)
+	err = i.vpp.InterfaceAdminUp(loopbackSwIfIndex)
 	if err != nil {
 		return err
-	}
-
-	err = i.vpp.InterfaceAdminUp(swIfIndex)
-	if err != nil {
-		return err
-	}
-
-	err = i.vpp.PuntRedirectTable(podSpec.VrfId, tunTapSwIfIndex, net.IPv4zero)
-	if err != nil {
-		return errors.Wrapf(err, "Error configuring ipv4 punt")
-	}
-	err = i.vpp.PuntAllL4(false /*isip6*/)
-	if err != nil {
-		return errors.Wrapf(err, "Error configuring ipv4 L4 punt")
-	}
-	err = i.vpp.PuntRedirectTable(podSpec.VrfId, tunTapSwIfIndex, net.IPv6zero)
-	if err != nil {
-		return errors.Wrapf(err, "Error configuring ipv6 punt")
-	}
-	err = i.vpp.PuntAllL4(true /*isip6*/)
-	if err != nil {
-		return errors.Wrapf(err, "Error configuring ipv6 L4 punt")
 	}
 
 	return nil

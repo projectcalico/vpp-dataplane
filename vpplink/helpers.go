@@ -24,6 +24,51 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type CleanupCall struct {
+	args []interface{}
+	f interface{}
+}
+
+
+func (call *CleanupCall) Execute() {
+	var vargs []reflect.Value
+	for _, a := range call.args {
+		vargs = append(vargs, reflect.ValueOf(a))
+	}
+	ret := reflect.ValueOf(call.f).Call(vargs)
+	if len(ret) != 1 {
+		return
+	}
+	/* If only one value is returned, we assume this is an error and log it */
+	if !ret[0].IsNil() {
+		err := ret[0].Interface().(error)
+		log.Errorf("Cleanup errored : %s", err)
+	}
+}
+
+type CleanupStack struct {
+	calls []CleanupCall
+}
+
+func (stack *CleanupStack) Execute() {
+	for i := len(stack.calls) - 1; i >= 0; i-- {
+		stack.calls[i].Execute()
+	}
+}
+
+func (stack *CleanupStack) Push(f interface{}, args ...interface{}) {
+	stack.calls = append(stack.calls, CleanupCall{
+		f: f,
+		args: args,
+	})
+}
+
+func (v *VppLink) NewCleanupStack() *CleanupStack {
+	return &CleanupStack{
+		calls: make([]CleanupCall, 0),
+	}
+}
+
 func (v *VppLink) Retry(sleepBtwRetries time.Duration, retries int, f interface{}, args ...interface{}) (err error) {
 	var vargs []reflect.Value
 	for _, a := range args {

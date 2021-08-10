@@ -22,12 +22,12 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
 )
 
-func (v *VppLink) AddVRF(index uint32, isIP6 bool, name string) error {
+func (v *VppLink) addDelVRF(index uint32, name string, isIP6 bool, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &ip.IPTableAddDelReply{}
 	request := &ip.IPTableAddDel{
-		IsAdd: true,
+		IsAdd: isAdd,
 		Table: ip.IPTable{
 			TableID: index,
 			IsIP6:   isIP6,
@@ -43,6 +43,15 @@ func (v *VppLink) AddVRF(index uint32, isIP6 bool, name string) error {
 	return nil
 }
 
+func (v *VppLink) AddVRF(index uint32, isIP6 bool, name string) error {
+	return v.addDelVRF(index, name, isIP6, true /*isAdd*/)
+}
+
+func (v *VppLink) DelVRF(index uint32, isIP6 bool, name string) error {
+return nil // FIXME
+	return v.addDelVRF(index, name, isIP6, false /*isAdd*/)
+}
+
 func (v *VppLink) AddVRF46(index uint32, name string) (err error) {
 	err = v.AddVRF(index, false, fmt.Sprintf("%s-ip4", name))
 	if err != nil {
@@ -54,3 +63,16 @@ func (v *VppLink) AddVRF46(index uint32, name string) (err error) {
 	}
 	return nil
 }
+
+func (v *VppLink) DelVRF46(index uint32, name string) (err error) {
+	err = v.DelVRF(index, false, fmt.Sprintf("%s-ip4", name))
+	if err != nil {
+		return err
+	}
+	err = v.DelVRF(index, true, fmt.Sprintf("%s-ip6", name))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+

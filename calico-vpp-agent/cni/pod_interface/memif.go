@@ -46,7 +46,7 @@ func (i *MemifPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec) (swIfInd
 			return vpplink.INVALID_SW_IF_INDEX, err
 		}
 	}
-	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex, 2)
+	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex)
 	if err != nil {
 		return swIfIndex, err
 	}

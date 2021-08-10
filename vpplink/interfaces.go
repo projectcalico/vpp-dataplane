@@ -247,26 +247,64 @@ func (v *VppLink) AddInterfaceTag(swIfIndex uint32, tag string) error {
 
 func (v *VppLink) DelInterfaceTag(swIfIndex uint32, tag string) error {
 	return v.addDelInterfaceTag(swIfIndex, tag, false /* isAdd */)
-} // HERE
+}
 
-func (v *VppLink) enableDisableInterfaceIP6(swIfIndex uint32, enable bool) error {
+func (v *VppLink) enableDisableInterfaceIP(swIfIndex uint32, isIP6 bool, isEnable bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-
-	request := &vppip.SwInterfaceIP6EnableDisable{
-		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-		Enable:    enable,
-	}
 	response := &vppip.SwInterfaceIP6EnableDisableReply{}
-	return v.ch.SendRequest(request).ReceiveReply(response)
+	request := &vppip.SwInterfaceIP6EnableDisable{
+		Enable: isEnable,
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+		// Af: types.GetBoolIPFamily(isIP6),
+	}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrapf(err, "SwInterfaceIP6EnableDisable failed: req %+v reply %+v", request, response)
+	} else if response.Retval != 0 {
+		return fmt.Errorf("SwInterfaceIP6EnableDisable failed (retval %d). Request: %+v", response.Retval, request)
+	}
+	return nil
+}
+
+func (v *VppLink) EnableInterfaceIP46(swIfIndex uint32) (err error) {
+	err = v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, true /*isEnable*/)
+	if err != nil {
+		return err
+	}
+	err = v.enableDisableInterfaceIP(swIfIndex, true /*isIP6*/, true /*isEnable*/)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v *VppLink) DisableInterfaceIP46(swIfIndex uint32) (err error) {
+	err = v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, false /*isEnable*/)
+	if err != nil {
+		return err
+	}
+	err = v.enableDisableInterfaceIP(swIfIndex, true /*isIP6*/, false /*isEnable*/)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (v *VppLink) DisableInterfaceIP6(swIfIndex uint32) error {
-	return v.enableDisableInterfaceIP6(swIfIndex, false)
+	return v.enableDisableInterfaceIP(swIfIndex, true /*isIP6*/, false /*isEnable*/)
 }
 
 func (v *VppLink) EnableInterfaceIP6(swIfIndex uint32) error {
-	return v.enableDisableInterfaceIP6(swIfIndex, true)
+	return v.enableDisableInterfaceIP(swIfIndex, true /*isIP6*/, true /*isEnable*/)
+}
+
+func (v *VppLink) DisableInterfaceIP4(swIfIndex uint32) error {
+	return v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, false /*isEnable*/)
+}
+
+func (v *VppLink) EnableInterfaceIP4(swIfIndex uint32) error {
+	return v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, true /*isEnable*/)
 }
 
 func (v *VppLink) SearchInterfaceWithTag(tag string) (err error, swIfIndex uint32) {
@@ -497,35 +535,14 @@ func (v *VppLink) InterfaceUnsetUnnumbered(unnumberedSwIfIndex uint32, swIfIndex
 	return v.interfaceSetUnnumbered(unnumberedSwIfIndex, swIfIndex, false)
 }
 
-func (v *VppLink) PuntRedirect(sourceSwIfIndex, destSwIfIndex uint32, nh net.IP) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	request := &vppip.IPPuntRedirect{
-		Punt: vppip.PuntRedirect{
-			RxSwIfIndex: interface_types.InterfaceIndex(sourceSwIfIndex),
-			TxSwIfIndex: interface_types.InterfaceIndex(destSwIfIndex),
-			Nh:          types.ToVppAddress(nh),
-		},
-		IsAdd: true,
-	}
-	response := &vppip.IPPuntRedirectReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil || response.Retval != 0 {
-		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
-	}
-	return nil
-}
-
-func (v *VppLink) PuntRedirectTable(tableId, destSwIfIndex uint32, nh net.IP) error {
+func (v *VppLink) PuntRedirect(sourceSwIfIndex uint32, path types.RoutePath, isIP6 bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	request := &vppip.IPPuntRedirectV2{
 		Punt: vppip.PuntRedirectV2{
-			RxSwIfIndex: interface_types.InterfaceIndex(INVALID_SW_IF_INDEX),
-			TxSwIfIndex: interface_types.InterfaceIndex(destSwIfIndex),
-			TableID:     tableId,
-			Nh:          types.ToVppAddress(nh),
+			RxSwIfIndex: interface_types.InterfaceIndex(sourceSwIfIndex),
+			Path:          path.ToFibPath(isIP6),
 		},
 		IsAdd: true,
 	}
@@ -536,6 +553,19 @@ func (v *VppLink) PuntRedirectTable(tableId, destSwIfIndex uint32, nh net.IP) er
 	}
 	return nil
 }
+
+func (v *VppLink) PuntRedirect46(sourceSwIfIndex uint32, path types.RoutePath) (err error) {
+	err = v.PuntRedirect(sourceSwIfIndex, path, false /*isIP6*/)
+	if err != nil {
+		return err
+	}
+	err = v.PuntRedirect(sourceSwIfIndex, path, true /*isIP6*/)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 
 // PuntL4 configures L4 punt for a given address family and protocol. port = ~0 means all ports
 func (v *VppLink) PuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
@@ -566,6 +596,18 @@ func (v *VppLink) PuntAllL4(isIPv6 bool) (err error) {
 		return err
 	}
 	err = v.PuntL4(types.UDP, 0xffff, isIPv6)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v *VppLink) PuntAll46L4() (err error) {
+	err = v.PuntAllL4(false /*isIP6*/)
+	if err != nil {
+		return err
+	}
+	err = v.PuntAllL4(true /*isIP6*/)
 	if err != nil {
 		return err
 	}

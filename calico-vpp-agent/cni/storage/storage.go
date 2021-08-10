@@ -151,6 +151,9 @@ type LocalPodSpec struct {
 	DefaultIfType    VppInterfaceType
 
 	MemifSocketId uint32
+	TunTapSwIfIndex uint32
+	MemifSwIfIndex uint32
+	LoopbackSwIfIndex uint32
 	PblIndexesLen int `struc:"int16,sizeof=PblIndexes"`
 	PblIndexes    []uint32
 
