@@ -44,7 +44,7 @@ git_cherry_pick refs/changes/68/31868/1 # 31868: ip6-nd: silent the source and t
 git_cherry_pick refs/changes/35/32235/1  # 32235: dpdk: enable ena interrupt support | https://gerrit.fd.io/r/c/vpp/+/32235
 
 git_cherry_pick refs/changes/01/33301/2 # 33301: session: make netns abtract name static | https://gerrit.fd.io/r/c/vpp/+/33301
-git_cherry_pick refs/changes/51/33451/1 # 33451: ip: punt redirect add nh in api | https://gerrit.fd.io/r/c/vpp/+/33451
+git_cherry_pick refs/changes/51/33451/2 # 33451: ip: punt redirect add nh in api | https://gerrit.fd.io/r/c/vpp/+/33451
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/2 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264

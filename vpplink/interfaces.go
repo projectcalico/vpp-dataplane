@@ -28,6 +28,7 @@ import (
 	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/punt"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/tapv2"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -542,7 +543,7 @@ func (v *VppLink) PuntRedirect(sourceSwIfIndex uint32, path types.RoutePath, isI
 	request := &vppip.IPPuntRedirectV2{
 		Punt: vppip.PuntRedirectV2{
 			RxSwIfIndex: interface_types.InterfaceIndex(sourceSwIfIndex),
-			Path:          path.ToFibPath(isIP6),
+			Paths:          []fib_types.FibPath{path.ToFibPath(isIP6)},
 		},
 		IsAdd: true,
 	}
