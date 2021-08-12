@@ -49,9 +49,10 @@ type LocalIP struct {
 type VppInterfaceType uint8
 
 const (
-	VppTun   VppInterfaceType = iota
-	VppMemif VppInterfaceType = iota
-	VppVcl   VppInterfaceType = iota
+	VppUnknownInterfaceType   VppInterfaceType = iota
+	VppTun                VppInterfaceType = iota
+	VppMemif              VppInterfaceType = iota
+	VppVcl                VppInterfaceType = iota
 
 	VppTunName   = "tun"
 	VppMemifName = "memif"
@@ -122,7 +123,6 @@ type LocalIfPortConfigs struct {
 	Start  uint16
 	End    uint16
 	Proto  types.IPProto
-	IfType VppInterfaceType
 }
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -148,7 +148,12 @@ type LocalPodSpec struct {
 
 	IfPortConfigsLen int `struc:"int16,sizeof=IfPortConfigs"`
 	IfPortConfigs    []LocalIfPortConfigs
-	DefaultIfType    VppInterfaceType
+	/* This interface type will traffic MATCHING the portConfigs */
+	PortFilteredIfType VppInterfaceType
+	/* This interface type will traffic not matching portConfigs */
+	DefaultIfType      VppInterfaceType
+	EnableVCL         bool
+	EnableMemif       bool
 
 	MemifSocketId uint32
 	TunTapSwIfIndex uint32
@@ -161,18 +166,6 @@ type LocalPodSpec struct {
 
 	/* Caching */
 	NeedsSnat bool
-}
-
-func (ps *LocalPodSpec) HasIfType(ifType VppInterfaceType) bool {
-	if ifType == ps.DefaultIfType {
-		return true
-	}
-	for _, pc := range ps.IfPortConfigs {
-		if ifType == pc.IfType {
-			return true
-		}
-	}
-	return false
 }
 
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {

@@ -48,6 +48,12 @@ type IfAddress struct {
 	SwIfIndex uint32
 }
 
+type IpPuntRedirect struct {
+	RxSwIfIndex uint32
+	IsIP6     bool
+	Paths     []RoutePath
+}
+
 func GetIPFamily(ip net.IP) int {
 	if len(ip) <= net.IPv4len {
 		return FAMILY_V4
@@ -152,10 +158,7 @@ func FromVppIpAddressUnion(Un ip_types.AddressUnion, isv6 bool) net.IP {
 }
 
 func FromVppAddress(addr ip_types.Address) net.IP {
-	return FromVppIpAddressUnion(
-		ip_types.AddressUnion(addr.Un),
-		addr.Af == ip_types.ADDRESS_IP6,
-	)
+	return FromVppIpAddressUnion(addr.Un, addr.Af == ip_types.ADDRESS_IP6)
 }
 
 func ToVppAddressWithPrefix(prefix *net.IPNet) ip_types.AddressWithPrefix {

@@ -28,7 +28,6 @@ import (
 type PodInterfaceDriverData struct {
 	log          *logrus.Entry
 	vpp          *vpplink.VppLink
-	isL3         bool
 	name         string
 	NDataThreads int
 	IfType       storage.VppInterfaceType
@@ -60,7 +59,7 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 	}
 }
 
-func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) (err error) {
+func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32, isL3 bool) (err error) {
 	if i.NDataThreads > 0 {
 		for queue := 0; queue < config.TapNumRxQueues; queue++ {
 			worker := (int(swIfIndex)*config.TapNumRxQueues + queue) % i.NDataThreads
@@ -77,7 +76,7 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		return errors.Wrapf(err, "error setting vpp tun %d in pod vrf", swIfIndex)
 	}
 
-	if !i.isL3 {
+	if !isL3 {
 		/* L2 */
 		err = i.vpp.SetPromiscOn(swIfIndex)
 		if err != nil {

@@ -32,7 +32,6 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 	i := &MemifPodInterfaceDriver{}
 	i.vpp = vpp
 	i.log = log
-	i.isL3 = false
 	i.name = storage.VppMemifName
 	i.IfType = storage.VppMemif
 	return i
@@ -41,20 +40,20 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 func (i *MemifPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec) (swIfIndex uint32, err error) {
 	swIfIndex = i.SearchPodInterface(podSpec)
 	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
-		swIfIndex, err = i.AddPodInterfaceToVPP(podSpec)
+		swIfIndex, err = i.addMemifInterfaceToVPP(podSpec)
 		if err != nil {
 			return vpplink.INVALID_SW_IF_INDEX, err
 		}
 	}
-	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex)
+	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex, false /*isL3*/)
 	if err != nil {
 		return swIfIndex, err
 	}
 
 	if i.IfType == podSpec.DefaultIfType {
-		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
-	} else if podSpec.DefaultIfType != storage.VppVcl {
-		err = i.DoPodPblConfiguration(podSpec, swIfIndex)
+		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex, false /*isL3*/)
+	} else if !podSpec.EnableVCL {
+		err = i.DoPodPblConfiguration(podSpec, swIfIndex, false /*isL3*/)
 	}
 	if err != nil {
 		return swIfIndex, err
@@ -75,10 +74,10 @@ func (i *MemifPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) {
 	}
 
 	i.UndoPodInterfaceConfiguration(swIfIndex)
-	i.DelPodInterfaceFromVPP(swIfIndex, podSpec.MemifSocketId)
+	i.delMemifInterfaceFromVPP(swIfIndex, podSpec.MemifSocketId)
 }
 
-func (i *MemifPodInterfaceDriver) DelPodInterfaceFromVPP(swIfIndex uint32, socketId uint32) {
+func (i *MemifPodInterfaceDriver) delMemifInterfaceFromVPP(swIfIndex uint32, socketId uint32) {
 	err := i.vpp.DeleteMemif(&types.Memif{
 		SwIfIndex: swIfIndex,
 		SocketId:  socketId,
@@ -89,7 +88,7 @@ func (i *MemifPodInterfaceDriver) DelPodInterfaceFromVPP(swIfIndex uint32, socke
 	i.log.Infof("deleted memif[%d]", swIfIndex)
 }
 
-func (i *MemifPodInterfaceDriver) AddPodInterfaceToVPP(podSpec *storage.LocalPodSpec) (uint32, error) {
+func (i *MemifPodInterfaceDriver) addMemifInterfaceToVPP(podSpec *storage.LocalPodSpec) (uint32, error) {
 	memifTag := podSpec.GetInterfaceTag(i.name)
 	// Clean up old tun if one is found with this tag
 	err, swIfIndex := i.vpp.SearchInterfaceWithTag(memifTag)

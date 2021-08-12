@@ -28,8 +28,6 @@ import (
 	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/punt"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/tapv2"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -534,85 +532,6 @@ func (v *VppLink) InterfaceSetUnnumbered(unnumberedSwIfIndex uint32, swIfIndex u
 
 func (v *VppLink) InterfaceUnsetUnnumbered(unnumberedSwIfIndex uint32, swIfIndex uint32) error {
 	return v.interfaceSetUnnumbered(unnumberedSwIfIndex, swIfIndex, false)
-}
-
-func (v *VppLink) PuntRedirect(sourceSwIfIndex uint32, path types.RoutePath, isIP6 bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-
-	request := &vppip.IPPuntRedirectV2{
-		Punt: vppip.PuntRedirectV2{
-			RxSwIfIndex: interface_types.InterfaceIndex(sourceSwIfIndex),
-			Paths:          []fib_types.FibPath{path.ToFibPath(isIP6)},
-		},
-		IsAdd: true,
-	}
-	response := &vppip.IPPuntRedirectV2Reply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil || response.Retval != 0 {
-		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
-	}
-	return nil
-}
-
-func (v *VppLink) PuntRedirect46(sourceSwIfIndex uint32, path types.RoutePath) (err error) {
-	err = v.PuntRedirect(sourceSwIfIndex, path, false /*isIP6*/)
-	if err != nil {
-		return err
-	}
-	err = v.PuntRedirect(sourceSwIfIndex, path, true /*isIP6*/)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-
-// PuntL4 configures L4 punt for a given address family and protocol. port = ~0 means all ports
-func (v *VppLink) PuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	request := &punt.SetPunt{
-		Punt: punt.Punt{
-			Type: punt.PUNT_API_TYPE_L4,
-			Punt: punt.PuntUnionL4(punt.PuntL4{
-				Af:       types.ToVppAddressFamily(isIPv6),
-				Protocol: types.ToVppIPProto(proto),
-				Port:     port,
-			}),
-		},
-		IsAdd: true,
-	}
-	response := &punt.SetPuntReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil || response.Retval != 0 {
-		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
-	}
-	return nil
-}
-
-func (v *VppLink) PuntAllL4(isIPv6 bool) (err error) {
-	err = v.PuntL4(types.TCP, 0xffff, isIPv6)
-	if err != nil {
-		return err
-	}
-	err = v.PuntL4(types.UDP, 0xffff, isIPv6)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *VppLink) PuntAll46L4() (err error) {
-	err = v.PuntAllL4(false /*isIP6*/)
-	if err != nil {
-		return err
-	}
-	err = v.PuntAllL4(true /*isIP6*/)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (v *VppLink) enableDisableGso(swIfIndex uint32, enable bool) error {

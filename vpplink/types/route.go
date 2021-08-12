@@ -44,6 +44,30 @@ func (p *RoutePath) tableString() string {
 	}
 }
 
+func FromFibPathList (apiPathList []fib_types.FibPath) (routePaths []RoutePath) {
+	routePaths = make([]RoutePath, 0, len(apiPathList))
+	for _, vppPath := range apiPathList {
+		routePaths = append(routePaths, FromFibPath(vppPath))
+	}
+	return routePaths
+}
+
+func FromFibPath (vppPath fib_types.FibPath) RoutePath {
+	return RoutePath{
+		Gw:        FromVppIpAddressUnion(vppPath.Nh.Address, vppPath.Proto == fib_types.FIB_API_PATH_NH_PROTO_IP4),
+		Table:     vppPath.TableID,
+		SwIfIndex: vppPath.SwIfIndex,
+	}
+}
+
+func ToFibPathList (routePaths []RoutePath, isIP6 bool) (apiPathList []fib_types.FibPath) {
+	apiPathList = make([]fib_types.FibPath, 0, len(routePaths))
+	for _, routePath := range routePaths {
+		apiPathList = append(apiPathList, routePath.ToFibPath(isIP6))
+	}
+	return apiPathList
+}
+
 func (p *RoutePath) ToFibPath(isIP6 bool) fib_types.FibPath {
 	// There is one case where we need an IPv4 route with an IPv6 path
 	// (for broadcast)

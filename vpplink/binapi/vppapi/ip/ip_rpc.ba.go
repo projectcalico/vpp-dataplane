@@ -13,6 +13,7 @@ import (
 
 // RPCService defines RPC service ip.
 type RPCService interface {
+	AddDelIPPuntRedirectV2(ctx context.Context, in *AddDelIPPuntRedirectV2) (*AddDelIPPuntRedirectV2Reply, error)
 	IoamDisable(ctx context.Context, in *IoamDisable) (*IoamDisableReply, error)
 	IoamEnable(ctx context.Context, in *IoamEnable) (*IoamEnableReply, error)
 	IPAddressDump(ctx context.Context, in *IPAddressDump) (RPCService_IPAddressDumpClient, error)
@@ -29,7 +30,7 @@ type RPCService interface {
 	IPPuntPolice(ctx context.Context, in *IPPuntPolice) (*IPPuntPoliceReply, error)
 	IPPuntRedirect(ctx context.Context, in *IPPuntRedirect) (*IPPuntRedirectReply, error)
 	IPPuntRedirectDump(ctx context.Context, in *IPPuntRedirectDump) (RPCService_IPPuntRedirectDumpClient, error)
-	IPPuntRedirectV2(ctx context.Context, in *IPPuntRedirectV2) (*IPPuntRedirectV2Reply, error)
+	IPPuntRedirectV2Dump(ctx context.Context, in *IPPuntRedirectV2Dump) (RPCService_IPPuntRedirectV2DumpClient, error)
 	IPReassemblyEnableDisable(ctx context.Context, in *IPReassemblyEnableDisable) (*IPReassemblyEnableDisableReply, error)
 	IPReassemblyGet(ctx context.Context, in *IPReassemblyGet) (*IPReassemblyGetReply, error)
 	IPReassemblySet(ctx context.Context, in *IPReassemblySet) (*IPReassemblySetReply, error)
@@ -62,6 +63,15 @@ type serviceClient struct {
 
 func NewServiceClient(conn api.Connection) RPCService {
 	return &serviceClient{conn}
+}
+
+func (c *serviceClient) AddDelIPPuntRedirectV2(ctx context.Context, in *AddDelIPPuntRedirectV2) (*AddDelIPPuntRedirectV2Reply, error) {
+	out := new(AddDelIPPuntRedirectV2Reply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) IoamDisable(ctx context.Context, in *IoamDisable) (*IoamDisableReply, error) {
@@ -415,13 +425,43 @@ func (c *serviceClient_IPPuntRedirectDumpClient) Recv() (*IPPuntRedirectDetails,
 	}
 }
 
-func (c *serviceClient) IPPuntRedirectV2(ctx context.Context, in *IPPuntRedirectV2) (*IPPuntRedirectV2Reply, error) {
-	out := new(IPPuntRedirectV2Reply)
-	err := c.conn.Invoke(ctx, in, out)
+func (c *serviceClient) IPPuntRedirectV2Dump(ctx context.Context, in *IPPuntRedirectV2Dump) (RPCService_IPPuntRedirectV2DumpClient, error) {
+	stream, err := c.conn.NewStream(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return out, api.RetvalToVPPApiError(out.Retval)
+	x := &serviceClient_IPPuntRedirectV2DumpClient{stream}
+	if err := x.Stream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RPCService_IPPuntRedirectV2DumpClient interface {
+	Recv() (*IPPuntRedirectV2Details, error)
+	api.Stream
+}
+
+type serviceClient_IPPuntRedirectV2DumpClient struct {
+	api.Stream
+}
+
+func (c *serviceClient_IPPuntRedirectV2DumpClient) Recv() (*IPPuntRedirectV2Details, error) {
+	msg, err := c.Stream.RecvMsg()
+	if err != nil {
+		return nil, err
+	}
+	switch m := msg.(type) {
+	case *IPPuntRedirectV2Details:
+		return m, nil
+	case *vpe.ControlPingReply:
+		return nil, io.EOF
+	default:
+		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
+	}
 }
 
 func (c *serviceClient) IPReassemblyEnableDisable(ctx context.Context, in *IPReassemblyEnableDisable) (*IPReassemblyEnableDisableReply, error) {

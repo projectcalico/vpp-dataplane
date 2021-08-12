@@ -121,7 +121,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		stack.Push(s.vpp.RouteDel, &route)
 	}
 
-	if podSpec.HasIfType(storage.VppMemif) {
+	if podSpec.EnableMemif {
 		s.log.Infof("Creating container memif interface")
 		memifSwIfIndex, err := s.memifDriver.Create(podSpec)
 		if err != nil {
@@ -137,7 +137,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		stack.Push(s.memifDriver.Delete, podSpec)
 	}
 
-	if podSpec.HasIfType(storage.VppVcl) {
+	if podSpec.EnableVCL {
 		s.log.Infof("Enabling container VCL")
 		err = s.vclDriver.Create(podSpec, loopbackSwIfIndex)
 		if err != nil {

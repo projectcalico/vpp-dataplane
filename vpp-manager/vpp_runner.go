@@ -100,9 +100,12 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32) (err error) {
 		return errors.Wrapf(err, "Error creating punt vrf")
 	}
 
-	err = v.vpp.PuntRedirect46(vpplink.InvalidID, types.RoutePath{
-		Table: config.PuntTableId,
-		SwIfIndex: types.InvalidID,
+	err = v.vpp.PuntRedirect46(types.IpPuntRedirect{
+		RxSwIfIndex: vpplink.InvalidID,
+		Paths: []types.RoutePath{{
+			Table: config.PuntTableId,
+			SwIfIndex: types.InvalidID,
+		}},
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Error configuring punt redirect")

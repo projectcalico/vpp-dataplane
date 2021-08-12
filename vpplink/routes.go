@@ -53,23 +53,10 @@ func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) (routes []types.Route, 
 		if stop {
 			return routes, nil
 		}
-		vppRoute := response.Route
-		routePaths := make([]types.RoutePath, 0, vppRoute.NPaths)
-		for _, vppPath := range vppRoute.Paths {
-			routePaths = append(routePaths, types.RoutePath{
-				Gw: types.FromVppIpAddressUnion(
-					vppPath.Nh.Address,
-					vppRoute.Prefix.Address.Af == ip_types.ADDRESS_IP6,
-				),
-				Table:     vppPath.TableID,
-				SwIfIndex: vppPath.SwIfIndex,
-			})
-		}
-
 		route := types.Route{
-			Dst:   types.FromVppPrefix(vppRoute.Prefix),
-			Table: vppRoute.TableID,
-			Paths: routePaths,
+			Dst:   types.FromVppPrefix(response.Route.Prefix),
+			Table: response.Route.TableID,
+			Paths: types.FromFibPathList(response.Route.Paths),
 		}
 		routes = append(routes, route)
 	}

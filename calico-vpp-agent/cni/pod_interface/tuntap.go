@@ -40,7 +40,6 @@ func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTa
 	i := &TunTapPodInterfaceDriver{}
 	i.vpp = vpp
 	i.log = log
-	i.isL3 = true
 	i.name = storage.VppTunName
 	i.IfType = storage.VppTun
 	return i
@@ -49,20 +48,20 @@ func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTa
 func (i *TunTapPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
 	swIfIndex = i.SearchPodInterface(podSpec)
 	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
-		swIfIndex, err = i.AddPodInterfaceToVPP(podSpec)
+		swIfIndex, err = i.addTunTapInterfaceToVPP(podSpec)
 		if err != nil {
 			return vpplink.INVALID_SW_IF_INDEX, err
 		}
 	}
-	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex)
+	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex, true /*isL3*/)
 	if err != nil {
 		return swIfIndex, err
 	}
 
 	if i.IfType == podSpec.DefaultIfType {
-		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex)
-	} else if podSpec.DefaultIfType != storage.VppVcl {
-		err = i.DoPodPblConfiguration(podSpec, swIfIndex)
+		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex, true /*isL3*/)
+	} else if !podSpec.EnableVCL {
+		err = i.DoPodPblConfiguration(podSpec, swIfIndex, true /*isL3*/)
 	}
 	if err != nil {
 		return swIfIndex, err
@@ -92,7 +91,7 @@ func (i *TunTapPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) (contai
 	}
 
 	i.UndoPodInterfaceConfiguration(swIfIndex)
-	i.DelPodInterfaceFromVPP(swIfIndex)
+	i.delTunTapInterfaceFromVPP(swIfIndex)
 	return containerIPs
 
 }
@@ -137,7 +136,7 @@ func (i *TunTapPodInterfaceDriver) unconfigureLinux(podSpec *storage.LocalPodSpe
 	return containerIPs
 }
 
-func (i *TunTapPodInterfaceDriver) DelPodInterfaceFromVPP(swIfIndex uint32) {
+func (i *TunTapPodInterfaceDriver) delTunTapInterfaceFromVPP(swIfIndex uint32) {
 	err := i.vpp.DelTap(swIfIndex)
 	if err != nil {
 		i.log.Warnf("Error deleting tun[%d] %s", swIfIndex, err)
@@ -145,7 +144,7 @@ func (i *TunTapPodInterfaceDriver) DelPodInterfaceFromVPP(swIfIndex uint32) {
 	i.log.Infof("deleted tun[%d]", swIfIndex)
 }
 
-func (i *TunTapPodInterfaceDriver) AddPodInterfaceToVPP(podSpec *storage.LocalPodSpec) (uint32, error) {
+func (i *TunTapPodInterfaceDriver) addTunTapInterfaceToVPP(podSpec *storage.LocalPodSpec) (uint32, error) {
 	tun := &types.TapV2{
 		GenericVppInterface: types.GenericVppInterface{
 			NumRxQueues:       config.TapNumRxQueues,

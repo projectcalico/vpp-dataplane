@@ -19,8 +19,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -33,7 +31,6 @@ import (
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"k8s.io/client-go/kubernetes"
@@ -102,51 +99,9 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 	}
 	workload := request.GetWorkload()
 	if workload != nil {
-		for k, v := range workload.Annotations {
-			var ifType storage.VppInterfaceType
-			switch v {
-			case "memif":
-				ifType = storage.VppMemif
-			case "tun":
-				ifType = storage.VppTun
-			case "vcl":
-				ifType = storage.VppVcl
-			default:
-				continue
-			}
-			if k == "all" {
-				podSpec.DefaultIfType = ifType
-				continue
-			}
-			parts := strings.Split(k, "-") /* tcp-1234 */
-			if len(parts) != 2 && len(parts) != 3 {
-				s.log.Warnf("Error parsing %s", k)
-				continue
-			}
-			proto, err := types.UnformatProto(parts[0])
-			if err != nil {
-				s.log.Warnf("Error parsing %s %s", k, err)
-				continue
-			}
-			start, err := strconv.ParseInt(parts[1], 10, 32)
-			if err != nil {
-				s.log.Warnf("Error parsing port %s %s", k, err)
-				continue
-			}
-			end := start
-			if len(parts) == 3 {
-				end, err = strconv.ParseInt(parts[2], 10, 32)
-				if err != nil {
-					s.log.Warnf("Error parsing port %s %s", k, err)
-					continue
-				}
-			}
-			podSpec.IfPortConfigs = append(podSpec.IfPortConfigs, storage.LocalIfPortConfigs{
-				Start:  uint16(start),
-				End:    uint16(end),
-				Proto:  proto,
-				IfType: ifType,
-			})
+		err := s.ParsePodAnnotations(&podSpec, workload.Annotations)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Cannot parse pod Annotations")
 		}
 	}
 	return &podSpec, nil

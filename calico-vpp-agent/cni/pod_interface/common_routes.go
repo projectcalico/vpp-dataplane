@@ -77,13 +77,13 @@ func (i *PodInterfaceDriverData) UndoPodRoutesConfiguration(swIfIndex uint32) {
 	}
 }
 
-func (i *PodInterfaceDriverData) DoPodPblConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) (err error) {
+func (i *PodInterfaceDriverData) DoPodPblConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32, isL3 bool) (err error) {
 	for _, containerIP := range podSpec.GetContainerIps() {
 		path := types.RoutePath{
 			Gw: containerIP.IP,
 		}
 
-		if !i.isL3 {
+		if !isL3 {
 			err = i.vpp.AddNeighbor(&types.Neighbor{
 				SwIfIndex:    swIfIndex,
 				IP:           containerIP.IP,
@@ -118,9 +118,9 @@ func (i *PodInterfaceDriverData) DoPodPblConfiguration(podSpec *storage.LocalPod
 	return nil
 }
 
-func (i *PodInterfaceDriverData) DoPodRoutesConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32) error {
+func (i *PodInterfaceDriverData) DoPodRoutesConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32, isL3 bool) error {
 	// Now that the host side of the veth is moved, state set to UP, and configured with sysctls, we can add the routes to it in the host namespace.
-	if i.isL3 {
+	if isL3 {
 		i.log.Infof("Adding route %s if%d", podSpec.GetContainerIps(), swIfIndex)
 		err := i.vpp.RoutesAdd(podSpec.GetContainerIps(), &types.RoutePath{
 			SwIfIndex: swIfIndex,
