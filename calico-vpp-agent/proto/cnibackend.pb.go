@@ -8,6 +8,8 @@ import (
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -20,7 +22,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type AddRequest struct {
 	InterfaceName            string             `protobuf:"bytes,1,opt,name=interface_name,json=interfaceName,proto3" json:"interface_name,omitempty"`
@@ -618,6 +620,17 @@ func (c *cniDataplaneClient) Del(ctx context.Context, in *DelRequest, opts ...gr
 type CniDataplaneServer interface {
 	Add(context.Context, *AddRequest) (*AddReply, error)
 	Del(context.Context, *DelRequest) (*DelReply, error)
+}
+
+// UnimplementedCniDataplaneServer can be embedded to have forward compatible implementations.
+type UnimplementedCniDataplaneServer struct {
+}
+
+func (*UnimplementedCniDataplaneServer) Add(ctx context.Context, req *AddRequest) (*AddReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Add not implemented")
+}
+func (*UnimplementedCniDataplaneServer) Del(ctx context.Context, req *DelRequest) (*DelReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Del not implemented")
 }
 
 func RegisterCniDataplaneServer(s *grpc.Server, srv CniDataplaneServer) {

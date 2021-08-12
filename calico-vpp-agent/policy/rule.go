@@ -41,6 +41,8 @@ type Rule struct {
 	DstNotIPSetNames []string
 	SrcIPSetNames    []string
 	SrcNotIPSetNames []string
+
+	DstIPPortSetNames []string
 }
 
 func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
@@ -164,6 +166,8 @@ func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
 	copy(rule.SrcIPSetNames, r.SrcIpSetIds)
 	rule.SrcNotIPSetNames = make([]string, len(r.NotSrcIpSetIds))
 	copy(rule.SrcNotIPSetNames, r.NotSrcIpSetIds)
+	rule.DstIPPortSetNames = make([]string, len(r.DstIpPortSetIds))
+	copy(rule.DstIPPortSetNames, r.DstIpPortSetIds)
 
 	return rule, nil
 }
@@ -205,6 +209,7 @@ func (r *Rule) Create(vpp *vpplink.VppLink, state *PolicyState) (err error) {
 	r.DstNotIPSet = nil
 	r.SrcIPSet = nil
 	r.SrcNotIPSet = nil
+	r.DstIPPortSet = nil
 
 	for _, n := range r.DstIPPortIPSetNames {
 		ipset, ok := state.IPSets[n]
@@ -261,6 +266,13 @@ func (r *Rule) Create(vpp *vpplink.VppLink, state *PolicyState) (err error) {
 			return fmt.Errorf("ipset not found (%v) or created (%d) for rule", ok, ipset.VppID)
 		}
 		r.SrcNotIPSet = append(r.SrcNotIPSet, ipset.VppID)
+	}
+	for _, n := range r.DstIPPortSetNames {
+		ipset, ok := state.IPSets[n]
+		if !ok || ipset.VppID == types.InvalidID {
+			return fmt.Errorf("ipset not found (%v) or created (%d) for rule", ok, ipset.VppID)
+		}
+		r.DstIPPortSet = append(r.DstIPPortSet, ipset.VppID)
 	}
 
 	id, err := vpp.RuleCreate(r.Rule)
