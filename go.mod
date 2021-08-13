@@ -14,7 +14,7 @@ require (
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/osrg/gobgp v0.0.0-20210302053313-5960e8ebd1e3
 	github.com/pkg/errors v0.9.1
-	github.com/projectcalico/api v0.0.0-20210727230154-ae822ba06c23 // indirect
+	github.com/projectcalico/api v0.0.0-20210727230154-ae822ba06c23
 	github.com/projectcalico/libcalico-go v1.7.2-0.20210727232737-a62724233980
 	github.com/prometheus/common v0.10.0
 	github.com/satori/go.uuid v1.2.0 // indirect
