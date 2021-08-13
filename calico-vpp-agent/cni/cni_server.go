@@ -72,7 +72,7 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		Mtu:               int(request.GetSettings().GetMtu()),
 
 		IfPortConfigs: make([]storage.LocalIfPortConfigs, 0),
-		DefaultIfType: storage.VppTun,
+		DefaultIfType: storage.VppIfTypeTunTap,
 
 		OrchestratorID: request.Workload.Orchestrator,
 		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,

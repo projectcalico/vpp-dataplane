@@ -49,14 +49,10 @@ type LocalIP struct {
 type VppInterfaceType uint8
 
 const (
-	VppUnknownInterfaceType   VppInterfaceType = iota
-	VppTun                VppInterfaceType = iota
-	VppMemif              VppInterfaceType = iota
-	VppVcl                VppInterfaceType = iota
-
-	VppTunName   = "tun"
-	VppMemifName = "memif"
-	VppVclName   = "vcl"
+	VppIfTypeUnknown VppInterfaceType = iota
+	VppIfTypeTunTap
+	VppIfTypeMemif
+	VppIfTypeVCL
 )
 
 func (n *LocalIPNet) String() string {
@@ -120,9 +116,9 @@ func (ps *LocalPodSpec) FullString() string {
 }
 
 type LocalIfPortConfigs struct {
-	Start  uint16
-	End    uint16
-	Proto  types.IPProto
+	Start uint16
+	End   uint16
+	Proto types.IPProto
 }
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -151,16 +147,16 @@ type LocalPodSpec struct {
 	/* This interface type will traffic MATCHING the portConfigs */
 	PortFilteredIfType VppInterfaceType
 	/* This interface type will traffic not matching portConfigs */
-	DefaultIfType      VppInterfaceType
-	EnableVCL         bool
-	EnableMemif       bool
+	DefaultIfType VppInterfaceType
+	EnableVCL     bool
+	EnableMemif   bool
 
-	MemifSocketId uint32
-	TunTapSwIfIndex uint32
-	MemifSwIfIndex uint32
+	MemifSocketId     uint32
+	TunTapSwIfIndex   uint32
+	MemifSwIfIndex    uint32
 	LoopbackSwIfIndex uint32
-	PblIndexesLen int `struc:"int16,sizeof=PblIndexes"`
-	PblIndexes    []uint32
+	PblIndexesLen     int `struc:"int16,sizeof=PblIndexes"`
+	PblIndexes        []uint32
 
 	VrfId uint32
 

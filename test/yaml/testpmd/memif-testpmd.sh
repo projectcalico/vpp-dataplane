@@ -1,8 +1,11 @@
 #!/bin/bash
 testpmd --iova-mode=va \
-    -l 0-1 \
+    -l 13-16 \
     --log-level pmd.net.memif:debug \
-    --in-memory \
+    --log-level eal:debug \
+    --no-pci \
+    --no-huge \
+    --proc-type auto \
     --vdev=net_memif,role=client,socket=memif,socket-abstract=yes,zero-copy=no         \
     -- --auto-start \
     --forward-mode=5tswap               \

@@ -1,12 +1,13 @@
-VPP Version                 : 21.10-rc0~259-g8d0e13e2f
+VPP Version                 : 21.10-rc0~236-g57d04b147
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : a70b015ce fib: Compiile time option to use 8-8-8-8 stride tries for FIB rather than 16-8-8-8
+VPP Base commit             : 2e2f9df2f vcl: move vls pool lock to process local state
 ------------------ Cherry picked commits --------------------
 gerrit:28513/20 capo: Calico Policies plugin
 gerrit:28083/16 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/2 pbl: Port based balancer
 gerrit:33451/3 ip: punt redirect add nh in api
+gerrit:33383/3 ip: fix ip punt redirect cli
 gerrit:33301/2 session: Use ns_id as abstract socket name
 gerrit:32235/1 dpdk: enable ena interrupt support
 gerrit:31868/1 ip6-nd: silent the source and target checks on given interface

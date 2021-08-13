@@ -50,8 +50,8 @@ type IfAddress struct {
 
 type IpPuntRedirect struct {
 	RxSwIfIndex uint32
-	IsIP6     bool
-	Paths     []RoutePath
+	IsIP6       bool
+	Paths       []RoutePath
 }
 
 func GetIPFamily(ip net.IP) int {
@@ -70,7 +70,6 @@ func GetBoolIPFamily(isIP6 bool) ip_types.AddressFamily {
 	}
 	return ip_types.ADDRESS_IP4
 }
-
 
 func IsIP4(ip net.IP) bool {
 	return GetIPFamily(ip) == FAMILY_V4

@@ -35,8 +35,7 @@ func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodIn
 	i := &VclPodInterfaceDriver{}
 	i.vpp = vpp
 	i.log = log
-	i.name = storage.VppVclName
-	i.IfType = storage.VppVcl
+	i.name = "vcl"
 	return i
 }
 

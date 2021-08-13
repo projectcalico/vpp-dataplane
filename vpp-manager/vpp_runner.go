@@ -103,7 +103,7 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32) (err error) {
 	err = v.vpp.PuntRedirect46(types.IpPuntRedirect{
 		RxSwIfIndex: vpplink.InvalidID,
 		Paths: []types.RoutePath{{
-			Table: config.PuntTableId,
+			Table:     config.PuntTableId,
 			SwIfIndex: types.InvalidID,
 		}},
 	})
@@ -129,7 +129,7 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32) (err error) {
 		err = v.vpp.RouteAdd(&types.Route{
 			Table: config.PuntTableId,
 			Paths: []types.RoutePath{{
-				Gw: neigh,
+				Gw:        neigh,
 				SwIfIndex: tapSwIfIndex,
 			}},
 		})

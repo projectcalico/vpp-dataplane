@@ -40,8 +40,7 @@ func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTa
 	i := &TunTapPodInterfaceDriver{}
 	i.vpp = vpp
 	i.log = log
-	i.name = storage.VppTunName
-	i.IfType = storage.VppTun
+	i.name = "tun"
 	return i
 }
 
@@ -58,14 +57,6 @@ func (i *TunTapPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, doHostS
 		return swIfIndex, err
 	}
 
-	if i.IfType == podSpec.DefaultIfType {
-		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex, true /*isL3*/)
-	} else if !podSpec.EnableVCL {
-		err = i.DoPodPblConfiguration(podSpec, swIfIndex, true /*isL3*/)
-	}
-	if err != nil {
-		return swIfIndex, err
-	}
 	if doHostSideConf {
 		err = i.configureLinux(podSpec, swIfIndex)
 		if err != nil {
@@ -84,11 +75,6 @@ func (i *TunTapPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) (contai
 		return
 	}
 	containerIPs = i.unconfigureLinux(podSpec)
-	if i.IfType == podSpec.DefaultIfType {
-		i.UndoPodRoutesConfiguration(swIfIndex)
-	} else {
-		i.UndoPodPblConfiguration(podSpec, swIfIndex)
-	}
 
 	i.UndoPodInterfaceConfiguration(swIfIndex)
 	i.delTunTapInterfaceFromVPP(swIfIndex)
@@ -160,7 +146,7 @@ func (i *TunTapPodInterfaceDriver) addTunTapInterfaceToVPP(podSpec *storage.Loca
 	}
 	i.log.Debugf("Add request pod MTU: %d, computed %d", podSpec.Mtu, tun.HostMtu)
 
-	if config.TapGSOEnabled {
+	if config.PodGSOEnabled {
 		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce
 	}
 	swIfIndex, err := i.vpp.CreateOrAttachTapV2(tun)

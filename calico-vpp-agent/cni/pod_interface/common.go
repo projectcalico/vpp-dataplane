@@ -16,7 +16,6 @@
 package pod_interface
 
 import (
-
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -30,7 +29,6 @@ type PodInterfaceDriverData struct {
 	vpp          *vpplink.VppLink
 	name         string
 	NDataThreads int
-	IfType       storage.VppInterfaceType
 }
 
 func (i *PodInterfaceDriverData) SearchPodInterface(podSpec *storage.LocalPodSpec) (swIfIndex uint32) {

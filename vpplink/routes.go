@@ -202,11 +202,11 @@ func (v *VppLink) addDelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6
 }
 
 func (v *VppLink) AddDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
-	return v.addDelDefaultRouteViaTable (sourceTable, dstTable, isIP6, true /*isAdd*/)
+	return v.addDelDefaultRouteViaTable(sourceTable, dstTable, isIP6, true /*isAdd*/)
 }
 
 func (v *VppLink) DelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
-	return v.addDelDefaultRouteViaTable (sourceTable, dstTable, isIP6, false /*isAdd*/)
+	return v.addDelDefaultRouteViaTable(sourceTable, dstTable, isIP6, false /*isAdd*/)
 }
 
 func (v *VppLink) AddDefault46RouteViaTable(sourceTable, dstTable uint32) (err error) {

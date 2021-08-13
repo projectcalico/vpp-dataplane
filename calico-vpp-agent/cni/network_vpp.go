@@ -20,13 +20,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-func getInterfaceVrfName (podSpec *storage.LocalPodSpec) string {
+func getInterfaceVrfName(podSpec *storage.LocalPodSpec) string {
 	return fmt.Sprintf("pod-%s-table", podSpec.Key())
 }
 
@@ -76,8 +76,8 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 			goto err
 		}
 
-        /* In the main table route the container address to its VRF */
-        route := types.Route{
+		/* In the main table route the container address to its VRF */
+		route := types.Route{
 			Dst: containerIP,
 			Paths: []types.RoutePath{{
 				Table:     podSpec.VrfId,
@@ -107,10 +107,10 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}
 
 	for _, containerIP := range podSpec.GetContainerIps() {
-        /* In the punt table (where all punted traffics ends), route the container to the tun */
+		/* In the punt table (where all punted traffics ends), route the container to the tun */
 		route := types.Route{
 			Table: common.PuntTableId,
-			Dst: containerIP,
+			Dst:   containerIP,
 			Paths: []types.RoutePath{{SwIfIndex: tunTapSwIfIndex}},
 		}
 		err := s.vpp.RouteAdd(&route)
@@ -146,6 +146,21 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		stack.Push(s.vclDriver.Delete, podSpec)
 	}
 
+	/* Routes */
+	if !podSpec.EnableVCL {
+		err = s.DoPodRoutesConfiguration(podSpec, tunTapSwIfIndex, true /*isL3*/)
+		if err != nil {
+			goto err
+		}
+
+		if podSpec.PortFilteredIfType == storage.VppIfTypeMemif {
+			err = s.DoPodPblConfiguration(podSpec, podSpec.MemifSwIfIndex, false /*isL3*/)
+			if err != nil {
+				goto err
+			}
+		}
+	}
+
 	for _, containerIP := range podSpec.GetContainerIps() {
 		s.routingServer.AnnounceLocalAddress(containerIP, false /* isWithdrawal */)
 	}
@@ -168,10 +183,10 @@ err:
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	var err error
 	for _, containerIP := range podSpec.GetContainerIps() {
-        /* In the punt table (where all punted traffics ends), route the container to the tun */
+		/* In the punt table (where all punted traffics ends), route the container to the tun */
 		route := types.Route{
 			Table: common.PuntTableId,
-			Dst: containerIP,
+			Dst:   containerIP,
 			Paths: []types.RoutePath{{SwIfIndex: podSpec.TunTapSwIfIndex}},
 		}
 		err = s.vpp.RouteDel(&route)
@@ -180,7 +195,7 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 		}
 
 		/* In the main table route the container address to its VRF */
-        route = types.Route{
+		route = types.Route{
 			Dst: containerIP,
 			Paths: []types.RoutePath{{
 				Table:     podSpec.VrfId,
@@ -190,6 +205,14 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 		err := s.vpp.RouteDel(&route)
 		if err != nil {
 			s.log.Errorf("error deleting vpp side routes for interface %s", err)
+		}
+	}
+
+	/* Routes */
+	if !podSpec.EnableVCL {
+		s.UndoPodRoutesConfiguration(podSpec.TunTapSwIfIndex)
+		if podSpec.PortFilteredIfType == storage.VppIfTypeMemif {
+			s.UndoPodPblConfiguration(podSpec, podSpec.MemifSwIfIndex)
 		}
 	}
 

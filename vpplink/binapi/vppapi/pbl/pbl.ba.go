@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "pbl"
 	APIVersion = "0.1.0"
-	VersionCrc = 0x47666138
+	VersionCrc = 0x87fa66f8
 )
 
 // PblClientFlags defines enum 'pbl_client_flags'.
@@ -80,6 +80,7 @@ type PblClient struct {
 	Addr       ip_types.Address  `binapi:"address,name=addr" json:"addr,omitempty"`
 	Paths      fib_types.FibPath `binapi:"fib_path,name=paths" json:"paths,omitempty"`
 	Flags      uint8             `binapi:"u8,name=flags" json:"flags,omitempty"`
+	TableID    uint32            `binapi:"u32,name=table_id" json:"table_id,omitempty"`
 	NPorts     uint32            `binapi:"u32,name=n_ports" json:"-"`
 	PortRanges []PblPortRange    `binapi:"pbl_port_range[n_ports],name=port_ranges" json:"port_ranges,omitempty"`
 }
@@ -164,7 +165,7 @@ type PblClientDetails struct {
 
 func (m *PblClientDetails) Reset()               { *m = PblClientDetails{} }
 func (*PblClientDetails) GetMessageName() string { return "pbl_client_details" }
-func (*PblClientDetails) GetCrcString() string   { return "fc65cfed" }
+func (*PblClientDetails) GetCrcString() string   { return "14278144" }
 func (*PblClientDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -196,6 +197,7 @@ func (m *PblClientDetails) Size() (size int) {
 		size += 1 // m.Client.Paths.LabelStack[j3].Exp
 	}
 	size += 1 // m.Client.Flags
+	size += 4 // m.Client.TableID
 	size += 4 // m.Client.NPorts
 	for j2 := 0; j2 < len(m.Client.PortRanges); j2++ {
 		var s2 PblPortRange
@@ -237,6 +239,7 @@ func (m *PblClientDetails) Marshal(b []byte) ([]byte, error) {
 		buf.EncodeUint8(m.Client.Paths.LabelStack[j2].Exp)
 	}
 	buf.EncodeUint8(m.Client.Flags)
+	buf.EncodeUint32(m.Client.TableID)
 	buf.EncodeUint32(uint32(len(m.Client.PortRanges)))
 	for j1 := 0; j1 < len(m.Client.PortRanges); j1++ {
 		var v1 PblPortRange // PortRanges
@@ -274,6 +277,7 @@ func (m *PblClientDetails) Unmarshal(b []byte) error {
 		m.Client.Paths.LabelStack[j2].Exp = buf.DecodeUint8()
 	}
 	m.Client.Flags = buf.DecodeUint8()
+	m.Client.TableID = buf.DecodeUint32()
 	m.Client.NPorts = buf.DecodeUint32()
 	m.Client.PortRanges = make([]PblPortRange, m.Client.NPorts)
 	for j1 := 0; j1 < len(m.Client.PortRanges); j1++ {
@@ -318,7 +322,7 @@ type PblClientUpdate struct {
 
 func (m *PblClientUpdate) Reset()               { *m = PblClientUpdate{} }
 func (*PblClientUpdate) GetMessageName() string { return "pbl_client_update" }
-func (*PblClientUpdate) GetCrcString() string   { return "a40c8928" }
+func (*PblClientUpdate) GetCrcString() string   { return "d83d6e65" }
 func (*PblClientUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -350,6 +354,7 @@ func (m *PblClientUpdate) Size() (size int) {
 		size += 1 // m.Client.Paths.LabelStack[j3].Exp
 	}
 	size += 1 // m.Client.Flags
+	size += 4 // m.Client.TableID
 	size += 4 // m.Client.NPorts
 	for j2 := 0; j2 < len(m.Client.PortRanges); j2++ {
 		var s2 PblPortRange
@@ -391,6 +396,7 @@ func (m *PblClientUpdate) Marshal(b []byte) ([]byte, error) {
 		buf.EncodeUint8(m.Client.Paths.LabelStack[j2].Exp)
 	}
 	buf.EncodeUint8(m.Client.Flags)
+	buf.EncodeUint32(m.Client.TableID)
 	buf.EncodeUint32(uint32(len(m.Client.PortRanges)))
 	for j1 := 0; j1 < len(m.Client.PortRanges); j1++ {
 		var v1 PblPortRange // PortRanges
@@ -428,6 +434,7 @@ func (m *PblClientUpdate) Unmarshal(b []byte) error {
 		m.Client.Paths.LabelStack[j2].Exp = buf.DecodeUint8()
 	}
 	m.Client.Flags = buf.DecodeUint8()
+	m.Client.TableID = buf.DecodeUint32()
 	m.Client.NPorts = buf.DecodeUint32()
 	m.Client.PortRanges = make([]PblPortRange, m.Client.NPorts)
 	for j1 := 0; j1 < len(m.Client.PortRanges); j1++ {
@@ -479,9 +486,9 @@ func init() { file_pbl_binapi_init() }
 func file_pbl_binapi_init() {
 	api.RegisterMessage((*PblClientDel)(nil), "pbl_client_del_3a91bde5")
 	api.RegisterMessage((*PblClientDelReply)(nil), "pbl_client_del_reply_e8d4e804")
-	api.RegisterMessage((*PblClientDetails)(nil), "pbl_client_details_fc65cfed")
+	api.RegisterMessage((*PblClientDetails)(nil), "pbl_client_details_14278144")
 	api.RegisterMessage((*PblClientDump)(nil), "pbl_client_dump_51077d14")
-	api.RegisterMessage((*PblClientUpdate)(nil), "pbl_client_update_a40c8928")
+	api.RegisterMessage((*PblClientUpdate)(nil), "pbl_client_update_d83d6e65")
 	api.RegisterMessage((*PblClientUpdateReply)(nil), "pbl_client_update_reply_e2fc8294")
 }
 

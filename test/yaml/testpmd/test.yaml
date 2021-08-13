@@ -5,9 +5,8 @@ metadata:
   name: testpmd
   namespace: testpmd
   annotations:
-    "cni.projectcalico.org/vpp/memif/ports":  "tcp:1234-1236,udp:4456"
-    "cni.projectcalico.org/vpp/tuntap/ports": "default"
-    "cni.projectcalico.org/vpp/vcl":          "enable"
+    "cni.projectcalico.org-vpp.memif.ports":  "tcp:1234-1236,udp:4456"
+    "cni.projectcalico.org-vpp.tuntap.ports": "default"
 spec:
   containers:
   - name: testpmd
@@ -20,13 +19,17 @@ spec:
     resources:
       limits:
         memory: 2Gi
-        hugepages-2Mi: 512Mi
+        hugepages-2Mi: 2Gi
     volumeMounts:
     - mountPath: /hugepages
       name: hugepage
+    - mountPath: /home/nskrzypc
+      name: userhome
   nodeName: _NODE_1_
   volumes:
   - name: hugepage
     emptyDir:
       medium: HugePages
-
+  - name: userhome
+    hostPath:
+      path: /home/nskrzypc

@@ -53,55 +53,43 @@ func (v *VppLink) DelMemifSocketFileName(socketId uint32) error {
 	return err
 }
 
-func (v *VppLink) DeleteMemif(mif *types.Memif) error {
-	var err2 error = nil
-	if mif.SocketId != 0 {
-		err2 = v.DelMemifSocketFileName(mif.SocketId)
-	}
+func (v *VppLink) DeleteMemif(swIfIndex uint32) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-
 	response := &memif.MemifDeleteReply{}
 	request := &memif.MemifDelete{
-		SwIfIndex: interface_types.InterfaceIndex(mif.SwIfIndex),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return errors.Wrapf(err, "DeleteMemif failed: req %+v reply %+v (%s)", request, response, err2)
+		err = errors.Wrapf(err, "DeleteMemif failed: req %+v reply %+v (%s)", request, response)
 	} else if response.Retval != 0 {
-		return fmt.Errorf("DeleteMemif failed (retval %d). Request: %+v (%s)", response.Retval, request, err2)
+		err = fmt.Errorf("DeleteMemif failed (retval %d). Request: %+v (%s)", response.Retval, request)
 	}
-	return err2
+	return nil
 }
 
 func (v *VppLink) CreateMemif(mif *types.Memif) error {
-	socketId, err := v.AddMemifSocketFileName(mif.SocketFileName, mif.Namespace)
-	if err != nil {
-		return err
-	}
-	mif.SocketId = socketId
+	v.lock.Lock()
+	defer v.lock.Unlock()
 	response := &memif.MemifCreateReply{}
 	request := &memif.MemifCreate{
 		Role:       memif.MemifRole(mif.Role),
 		Mode:       memif.MemifMode(mif.Mode),
 		RxQueues:   uint8(mif.NumRxQueues),
 		TxQueues:   uint8(mif.NumTxQueues),
-		SocketID:   socketId,
+		SocketID:   mif.SocketId,
 		BufferSize: uint16(mif.QueueSize),
 	}
 	if mif.MacAddress != nil {
 		request.HwAddr = types.ToVppMacAddress(&mif.MacAddress)
 	}
-	v.lock.Lock()
-	err = v.ch.SendRequest(request).ReceiveReply(response)
-	v.lock.Unlock()
+	err := v.ch.SendRequest(request).ReceiveReply(response)
 	/* don't defer as memifSocket call also locks */
 	if err != nil {
-		err2 := v.DelMemifSocketFileName(socketId)
-		return errors.Wrapf(err, "MemifCreate failed: req %+v reply %+v (cleanup %s)", request, response, err2)
+		return errors.Wrapf(err, "MemifCreate failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
-		err2 := v.DelMemifSocketFileName(socketId)
-		return fmt.Errorf("MemifCreate failed (retval %d). Request: %+v (cleanup %s)", response.Retval, request, err2)
+		return fmt.Errorf("MemifCreate failed (retval %d). Request: %+v", response.Retval, request)
 	}
 	mif.SwIfIndex = uint32(response.SwIfIndex)
 	return nil

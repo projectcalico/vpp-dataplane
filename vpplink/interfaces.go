@@ -253,7 +253,7 @@ func (v *VppLink) enableDisableInterfaceIP(swIfIndex uint32, isIP6 bool, isEnabl
 	defer v.lock.Unlock()
 	response := &vppip.SwInterfaceIP6EnableDisableReply{}
 	request := &vppip.SwInterfaceIP6EnableDisable{
-		Enable: isEnable,
+		Enable:    isEnable,
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		// Af: types.GetBoolIPFamily(isIP6),
 	}

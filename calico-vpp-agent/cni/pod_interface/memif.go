@@ -32,8 +32,7 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 	i := &MemifPodInterfaceDriver{}
 	i.vpp = vpp
 	i.log = log
-	i.name = storage.VppMemifName
-	i.IfType = storage.VppMemif
+	i.name = "memif"
 	return i
 }
 
@@ -50,14 +49,6 @@ func (i *MemifPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec) (swIfInd
 		return swIfIndex, err
 	}
 
-	if i.IfType == podSpec.DefaultIfType {
-		err = i.DoPodRoutesConfiguration(podSpec, swIfIndex, false /*isL3*/)
-	} else if !podSpec.EnableVCL {
-		err = i.DoPodPblConfiguration(podSpec, swIfIndex, false /*isL3*/)
-	}
-	if err != nil {
-		return swIfIndex, err
-	}
 	return swIfIndex, nil
 }
 
@@ -67,24 +58,24 @@ func (i *MemifPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) {
 		i.log.Debugf("interface not found %s", podSpec.GetInterfaceTag(i.name))
 		return
 	}
-	if i.IfType == podSpec.DefaultIfType {
-		i.UndoPodRoutesConfiguration(swIfIndex)
-	} else {
-		i.UndoPodPblConfiguration(podSpec, swIfIndex)
-	}
 
 	i.UndoPodInterfaceConfiguration(swIfIndex)
 	i.delMemifInterfaceFromVPP(swIfIndex, podSpec.MemifSocketId)
 }
 
 func (i *MemifPodInterfaceDriver) delMemifInterfaceFromVPP(swIfIndex uint32, socketId uint32) {
-	err := i.vpp.DeleteMemif(&types.Memif{
-		SwIfIndex: swIfIndex,
-		SocketId:  socketId,
-	})
+	err := i.vpp.DeleteMemif(swIfIndex)
 	if err != nil {
 		i.log.Warnf("Error deleting memif[%d] %s", swIfIndex, err)
 	}
+
+	if socketId != 0 {
+		err = i.vpp.DelMemifSocketFileName(socketId)
+		if err != nil {
+			i.log.Warnf("Error deleting memif[%d] socket[%d] %s", swIfIndex, socketId, err)
+		}
+	}
+
 	i.log.Infof("deleted memif[%d]", swIfIndex)
 }
 
@@ -98,36 +89,39 @@ func (i *MemifPodInterfaceDriver) addMemifInterfaceToVPP(podSpec *storage.LocalP
 		return swIfIndex, nil
 	}
 
+	socketId, err := i.vpp.AddMemifSocketFileName("@memif", podSpec.NetnsName)
+	if err != nil {
+		return 0, err
+	}
+
 	// Create new tun
 	memif := &types.Memif{
-		Role:           types.MemifMaster,
-		Mode:           types.MemifModeEthernet,
-		NumRxQueues:    config.TapNumRxQueues,
-		NumTxQueues:    config.TapNumTxQueues,
-		QueueSize:      config.TapRxQueueSize,
-		SocketFileName: "@memif",
-		Namespace:      podSpec.NetnsName,
+		Role:        types.MemifMaster,
+		Mode:        types.MemifModeEthernet,
+		NumRxQueues: config.TapNumRxQueues,
+		NumTxQueues: config.TapNumTxQueues,
+		QueueSize:   config.TapRxQueueSize,
+		SocketId:    socketId,
 	}
 	err = i.vpp.CreateMemif(memif)
 	if err != nil {
 		return 0, err
 	}
 
-	/* Maybe don't mutate this here, we can make this stateless
-	 * searching for name / nsname on delete */
-	podSpec.MemifSocketId = memif.SocketId
-
 	err = i.vpp.AddInterfaceTag(memif.SwIfIndex, memifTag)
 	if err != nil {
 		return 0, err
 	}
 
-	if config.TapGSOEnabled {
+	if config.PodGSOEnabled {
 		err = i.vpp.EnableGSOFeature(memif.SwIfIndex)
 		if err != nil {
 			return 0, errors.Wrap(err, "Error enabling GSO on memif")
 		}
 	}
+
+	podSpec.MemifSocketId = socketId
+	podSpec.MemifSwIfIndex = swIfIndex
 
 	return memif.SwIfIndex, nil
 }

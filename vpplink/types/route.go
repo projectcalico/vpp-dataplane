@@ -24,9 +24,9 @@ import (
 )
 
 type RoutePath struct {
-	Gw        net.IP
-	SwIfIndex uint32
-	Table     uint32
+	Gw         net.IP
+	SwIfIndex  uint32
+	Table      uint32
 	IsAttached bool
 }
 
@@ -44,7 +44,7 @@ func (p *RoutePath) tableString() string {
 	}
 }
 
-func FromFibPathList (apiPathList []fib_types.FibPath) (routePaths []RoutePath) {
+func FromFibPathList(apiPathList []fib_types.FibPath) (routePaths []RoutePath) {
 	routePaths = make([]RoutePath, 0, len(apiPathList))
 	for _, vppPath := range apiPathList {
 		routePaths = append(routePaths, FromFibPath(vppPath))
@@ -52,7 +52,7 @@ func FromFibPathList (apiPathList []fib_types.FibPath) (routePaths []RoutePath) 
 	return routePaths
 }
 
-func FromFibPath (vppPath fib_types.FibPath) RoutePath {
+func FromFibPath(vppPath fib_types.FibPath) RoutePath {
 	return RoutePath{
 		Gw:        FromVppIpAddressUnion(vppPath.Nh.Address, vppPath.Proto == fib_types.FIB_API_PATH_NH_PROTO_IP4),
 		Table:     vppPath.TableID,
@@ -60,7 +60,7 @@ func FromFibPath (vppPath fib_types.FibPath) RoutePath {
 	}
 }
 
-func ToFibPathList (routePaths []RoutePath, isIP6 bool) (apiPathList []fib_types.FibPath) {
+func ToFibPathList(routePaths []RoutePath, isIP6 bool) (apiPathList []fib_types.FibPath) {
 	apiPathList = make([]fib_types.FibPath, 0, len(routePaths))
 	for _, routePath := range routePaths {
 		apiPathList = append(apiPathList, routePath.ToFibPath(isIP6))

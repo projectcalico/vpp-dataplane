@@ -19,10 +19,10 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
 	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/punt"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -53,7 +53,7 @@ func (v *VppLink) AddVRF(index uint32, isIP6 bool, name string) error {
 }
 
 func (v *VppLink) DelVRF(index uint32, isIP6 bool, name string) error {
-return nil // FIXME
+	return nil // FIXME
 	return v.addDelVRF(index, name, isIP6, false /*isAdd*/)
 }
 
@@ -80,8 +80,6 @@ func (v *VppLink) DelVRF46(index uint32, name string) (err error) {
 	}
 	return nil
 }
-
-
 
 func (v *VppLink) PuntRedirect(punt types.IpPuntRedirect) error {
 	v.lock.Lock()
@@ -122,8 +120,8 @@ func (v *VppLink) PuntRedirectList(swIfIndex uint32, isIP6 bool) (punts []types.
 	defer v.lock.Unlock()
 
 	request := &ip.IPPuntRedirectV2Dump{
-		SwIfIndex:   interface_types.InterfaceIndex(swIfIndex),
-		Af: types.GetBoolIPFamily(isIP6),
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+		Af:        types.GetBoolIPFamily(isIP6),
 	}
 	stream := v.ch.SendMultiRequest(request)
 	punts = make([]types.IpPuntRedirect, 0)
@@ -138,8 +136,8 @@ func (v *VppLink) PuntRedirectList(swIfIndex uint32, isIP6 bool) (punts []types.
 		}
 		punts = append(punts, types.IpPuntRedirect{
 			RxSwIfIndex: uint32(response.Punt.RxSwIfIndex),
-			IsIP6:     response.Punt.Af == ip_types.ADDRESS_IP6,
-			Paths:     types.FromFibPathList(response.Punt.Paths),
+			IsIP6:       response.Punt.Af == ip_types.ADDRESS_IP6,
+			Paths:       types.FromFibPathList(response.Punt.Paths),
 		})
 	}
 	return punts, nil
@@ -191,5 +189,3 @@ func (v *VppLink) PuntAll46L4() (err error) {
 	}
 	return nil
 }
-
-

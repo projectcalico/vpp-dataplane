@@ -28,20 +28,18 @@ const (
 	MemifMaster MemifRole = MemifRole(memif.MEMIF_ROLE_API_MASTER)
 	MemifSlave  MemifRole = MemifRole(memif.MEMIF_ROLE_API_SLAVE)
 
-	MemifModeEthernet      MemifMode = MemifMode(memif.MEMIF_MODE_API_ETHERNET)
-	MemifModeApiIP         MemifMode = MemifMode(memif.MEMIF_MODE_API_IP)
-	MemifModeApiPuntInject MemifMode = MemifMode(memif.MEMIF_MODE_API_PUNT_INJECT)
+	MemifModeEthernet   MemifMode = MemifMode(memif.MEMIF_MODE_API_ETHERNET)
+	MemifModeIP         MemifMode = MemifMode(memif.MEMIF_MODE_API_IP)
+	MemifModePuntInject MemifMode = MemifMode(memif.MEMIF_MODE_API_PUNT_INJECT)
 )
 
 type Memif struct {
-	Role           MemifRole
-	Mode           MemifMode
-	NumRxQueues    int
-	NumTxQueues    int
-	QueueSize      int
-	MacAddress     net.HardwareAddr
-	SocketId       uint32
-	SocketFileName string
-	Namespace      string
-	SwIfIndex      uint32
+	Role        MemifRole
+	Mode        MemifMode
+	NumRxQueues int
+	NumTxQueues int
+	QueueSize   int
+	MacAddress  net.HardwareAddr
+	SocketId    uint32
+	SwIfIndex   uint32
 }

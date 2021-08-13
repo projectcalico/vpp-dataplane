@@ -16,20 +16,19 @@
 package cni
 
 import (
-	"strconv"
-	"strings"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-
+	"strconv"
+	"strings"
 )
 
 const (
-	VppAnnotationPrefix string = "cni.projectcalico.org/vpp/"
-    MemifPortAnnotation string = "memif/ports"
-    TunPortAnnotation string = "tuntap/ports"
-    VclAnnotation string = "vcl"
+	VppAnnotationPrefix  string = "cni.projectcalico.org-vpp."
+	MemifPortAnnotation  string = "memif.ports"
+	TunTapPortAnnotation string = "tuntap.ports"
+	VclAnnotation        string = "vcl"
 )
 
 func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPortConfigs, err error) {
@@ -44,7 +43,7 @@ func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPort
 	}
 
 	portParts := strings.Split(parts[1], "-") /* tcp:1234[-4567] */
-	if len(parts) != 2 && len(parts) != 1 {
+	if len(portParts) != 2 && len(portParts) != 1 {
 		return nil, fmt.Errorf("Please specify a port or a port range e.g. '1234-5678'")
 	}
 
@@ -55,7 +54,7 @@ func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPort
 	ifPortConfigs.Start = uint16(start)
 	ifPortConfigs.End = uint16(start)
 
-	if len(parts) == 2 {
+	if len(portParts) == 2 {
 		end, err := strconv.ParseInt(portParts[1], 10, 32)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Error parsing end port %s", portParts[1])
@@ -66,8 +65,8 @@ func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPort
 }
 
 func (s *Server) ParsePortMappingAnnotation(podSpec *storage.LocalPodSpec, ifType storage.VppInterfaceType, value string) (err error) {
-	if podSpec.PortFilteredIfType != storage.VppUnknownInterfaceType && podSpec.PortFilteredIfType != ifType {
-	    return fmt.Errorf("Cannot use port filters on different interface type")
+	if podSpec.PortFilteredIfType != storage.VppIfTypeUnknown && podSpec.PortFilteredIfType != ifType {
+		return fmt.Errorf("Cannot use port filters on different interface type")
 	}
 	podSpec.PortFilteredIfType = ifType
 	// value is expected to be like "tcp:1234-1236,udp:4456"
@@ -83,21 +82,21 @@ func (s *Server) ParsePortMappingAnnotation(podSpec *storage.LocalPodSpec, ifTyp
 }
 
 func (s *Server) ParseDefaultIfType(podSpec *storage.LocalPodSpec, ifType storage.VppInterfaceType) (err error) {
-	  if podSpec.DefaultIfType != storage.VppUnknownInterfaceType && podSpec.DefaultIfType != ifType {
-	  	 return fmt.Errorf("Cannot set two different default interface type")
-	  }
-	  podSpec.DefaultIfType = ifType
-	  return nil
+	if podSpec.DefaultIfType != storage.VppIfTypeUnknown && podSpec.DefaultIfType != ifType {
+		return fmt.Errorf("Cannot set two different default interface type")
+	}
+	podSpec.DefaultIfType = ifType
+	return nil
 }
 
 func (s *Server) ParseEnableDisableAnnotation(value string) (bool, error) {
 	switch value {
-		case "enable":
-			return true, nil
-		case "disable":
-			return false, nil
-		default:
-			return false, errors.Errorf("Unknown value %s", value)
+	case "enable":
+		return true, nil
+	case "disable":
+		return false, nil
+	default:
+		return false, errors.Errorf("Unknown value %s", value)
 	}
 }
 
@@ -110,18 +109,18 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 		case VppAnnotationPrefix + MemifPortAnnotation:
 			podSpec.EnableMemif = true
 			if value == "default" {
-				err = s.ParseDefaultIfType(podSpec, storage.VppMemif)
+				err = s.ParseDefaultIfType(podSpec, storage.VppIfTypeMemif)
 			} else {
-				err = s.ParsePortMappingAnnotation (podSpec, storage.VppMemif, value)
+				err = s.ParsePortMappingAnnotation(podSpec, storage.VppIfTypeMemif, value)
 			}
-		case VppAnnotationPrefix + TunPortAnnotation:
+		case VppAnnotationPrefix + TunTapPortAnnotation:
 			if value == "default" {
-				err = s.ParseDefaultIfType(podSpec, storage.VppTun)
+				err = s.ParseDefaultIfType(podSpec, storage.VppIfTypeTunTap)
 			} else {
-				err = s.ParsePortMappingAnnotation(podSpec, storage.VppTun, value)
+				err = s.ParsePortMappingAnnotation(podSpec, storage.VppIfTypeTunTap, value)
 			}
 		case VppAnnotationPrefix + VclAnnotation:
-			podSpec.EnableVCL, err = s.ParseEnableDisableAnnotation (value)
+			podSpec.EnableVCL, err = s.ParseEnableDisableAnnotation(value)
 		default:
 			continue
 		}
@@ -131,10 +130,3 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 	}
 	return nil
 }
-
-
-
-
-
-
-
