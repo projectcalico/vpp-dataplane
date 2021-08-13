@@ -1,15 +1,14 @@
-VPP Version                 : 21.10-rc0~236-g89407b218
+VPP Version                 : 21.10-rc0~267-gcf0ba9d79
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 2e2f9df2f vcl: move vls pool lock to process local state
+VPP Base commit             : 078d25803 wireguard: add flag to check hmac for decryption
 ------------------ Cherry picked commits --------------------
 gerrit:28513/20 capo: Calico Policies plugin
 gerrit:28083/16 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/3 pbl: Port based balancer
 gerrit:33451/3 ip: punt redirect add nh in api
-gerrit:33383/3 ip: fix ip punt redirect cli
 gerrit:33301/2 session: Use ns_id as abstract socket name
-gerrit:32235/1 dpdk: enable ena interrupt support
+gerrit:33164/3 dpdk: enable ena interrupt support in dpdk version 21.05
 gerrit:31868/1 ip6-nd: silent the source and target checks on given interface
 gerrit:32271/6 memif: add support for ns abstract sockets
 gerrit:32871/1 devices: Add queues params in create_if

@@ -14,7 +14,7 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
-VPP_COMMIT=2e2f9df2f157b60d30a4aa6256fefe793d186d4c
+VPP_COMMIT=078d258034cef5b4ca74d9deb37b2684cc77d060
 VPP_DIR="$1"
 
 if [ ! -d $1/.git ]; then
