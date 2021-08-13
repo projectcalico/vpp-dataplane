@@ -223,7 +223,7 @@ func (v *VppLink) AddInterfaceAddress(swIfIndex uint32, addr *net.IPNet) error {
 	return v.addDelInterfaceAddress(swIfIndex, addr, true)
 }
 
-func (v *VppLink) addDelInterfaceTag(swIfIndex uint32, tag string, isAdd bool) error {
+func (v *VppLink) setUnsetInterfaceTag(swIfIndex uint32, tag string, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
@@ -240,12 +240,12 @@ func (v *VppLink) addDelInterfaceTag(swIfIndex uint32, tag string, isAdd bool) e
 	return nil
 }
 
-func (v *VppLink) AddInterfaceTag(swIfIndex uint32, tag string) error {
-	return v.addDelInterfaceTag(swIfIndex, tag, true /* isAdd */)
+func (v *VppLink) SetInterfaceTag(swIfIndex uint32, tag string) error {
+	return v.setUnsetInterfaceTag(swIfIndex, tag, true /* isAdd */)
 }
 
-func (v *VppLink) DelInterfaceTag(swIfIndex uint32, tag string) error {
-	return v.addDelInterfaceTag(swIfIndex, tag, false /* isAdd */)
+func (v *VppLink) UnsetInterfaceTag(swIfIndex uint32, tag string) error {
+	return v.setUnsetInterfaceTag(swIfIndex, tag, false /* isAdd */)
 }
 
 func (v *VppLink) enableDisableInterfaceIP(swIfIndex uint32, isIP6 bool, isEnable bool) error {

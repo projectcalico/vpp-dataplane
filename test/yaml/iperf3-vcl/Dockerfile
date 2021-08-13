@@ -1,4 +1,4 @@
-FROM sknat/iperf3
+FROM calicovpp/test-iperf3
 
 ADD vcl.conf /etc/vpp/vcl.conf
 RUN mkdir /usr/local/lib/vpp

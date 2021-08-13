@@ -10,7 +10,7 @@ metadata:
 spec:
   containers:
   - name: testpmd
-    image: sknat/testpmd
+    image: calicovpp/testpmd
     imagePullPolicy: IfNotPresent
     securityContext:
       privileged: true
@@ -23,13 +23,8 @@ spec:
     volumeMounts:
     - mountPath: /hugepages
       name: hugepage
-    - mountPath: /home/nskrzypc
-      name: userhome
   nodeName: _NODE_1_
   volumes:
   - name: hugepage
     emptyDir:
       medium: HugePages
-  - name: userhome
-    hostPath:
-      path: /home/nskrzypc

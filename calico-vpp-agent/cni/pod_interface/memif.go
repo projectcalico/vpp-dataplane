@@ -96,19 +96,19 @@ func (i *MemifPodInterfaceDriver) addMemifInterfaceToVPP(podSpec *storage.LocalP
 
 	// Create new tun
 	memif := &types.Memif{
-		Role:        types.MemifMaster,
-		Mode:        types.MemifModeEthernet,
-		NumRxQueues: config.TapNumRxQueues,
-		NumTxQueues: config.TapNumTxQueues,
-		QueueSize:   config.TapRxQueueSize,
-		SocketId:    socketId,
+		Role:           types.MemifMaster,
+		Mode:           types.MemifModeEthernet,
+		NumRxQueues:    config.TapNumRxQueues,
+		NumTxQueues:    config.TapNumTxQueues,
+		QueueSize:      config.TapRxQueueSize,
+		SocketId:       socketId,
 	}
 	err = i.vpp.CreateMemif(memif)
 	if err != nil {
 		return 0, err
 	}
 
-	err = i.vpp.AddInterfaceTag(memif.SwIfIndex, memifTag)
+	err = i.vpp.SetInterfaceTag(memif.SwIfIndex, memifTag)
 	if err != nil {
 		return 0, err
 	}
