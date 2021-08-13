@@ -24,7 +24,8 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	bgpapi "github.com/osrg/gobgp/api"
 	bgpserver "github.com/osrg/gobgp/pkg/server"
-	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -62,8 +63,8 @@ type RoutingData struct {
 
 type NodeState struct {
 	Name      string
-	Spec      calicov3.NodeSpec
-	Status    calicov3.NodeStatus
+	Spec      oldv3.NodeSpec
+	Status    oldv3.NodeStatus
 	SweepFlag bool
 }
 

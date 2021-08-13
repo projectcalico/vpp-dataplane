@@ -91,6 +91,8 @@ type Rule struct {
 	DstNotIPSet []uint32
 	SrcIPSet    []uint32
 	SrcNotIPSet []uint32
+
+	DstIPPortSet []uint32
 }
 
 type Policy struct {
@@ -234,6 +236,11 @@ func ToCapoRule(r *Rule) (cr capo.CapoRule) {
 	}
 	for _, id := range r.SrcNotIPSet {
 		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: true, Type: capo.CAPO_IP_SET}
+		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		cr.Matches = append(cr.Matches, entry)
+	}
+	for _, id := range r.DstIPPortSet {
+		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_IP_SET}
 		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
