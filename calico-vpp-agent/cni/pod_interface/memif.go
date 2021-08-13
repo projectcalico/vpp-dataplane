@@ -36,23 +36,25 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 	return i
 }
 
-func (i *MemifPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec) (swIfIndex uint32, err error) {
-	swIfIndex = i.SearchPodInterface(podSpec)
+func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec) (err error) {
+	swIfIndex := i.SearchPodInterface(podSpec)
 	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
 		swIfIndex, err = i.addMemifInterfaceToVPP(podSpec)
 		if err != nil {
-			return vpplink.INVALID_SW_IF_INDEX, err
+			return err
 		}
 	}
 	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex, false /*isL3*/)
 	if err != nil {
-		return swIfIndex, err
+		return err
 	}
 
-	return swIfIndex, nil
+	podSpec.MemifSwIfIndex = swIfIndex
+	/* Fixme : in search we'll miss the socketID */
+	return nil
 }
 
-func (i *MemifPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) {
+func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
 	swIfIndex := i.SearchPodInterface(podSpec)
 	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
 		i.log.Debugf("interface not found %s", podSpec.GetInterfaceTag(i.name))
@@ -103,6 +105,10 @@ func (i *MemifPodInterfaceDriver) addMemifInterfaceToVPP(podSpec *storage.LocalP
 		QueueSize:      config.TapRxQueueSize,
 		SocketId:       socketId,
 	}
+	if podSpec.MemifIsL3 {
+		memif.Mode = types.MemifModeIP
+	}
+
 	err = i.vpp.CreateMemif(memif)
 	if err != nil {
 		return 0, err

@@ -1,11 +1,11 @@
-VPP Version                 : 21.10-rc0~236-g57d04b147
+VPP Version                 : 21.10-rc0~236-g89407b218
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 2e2f9df2f vcl: move vls pool lock to process local state
 ------------------ Cherry picked commits --------------------
 gerrit:28513/20 capo: Calico Policies plugin
 gerrit:28083/16 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
-gerrit:33264/2 pbl: Port based balancer
+gerrit:33264/3 pbl: Port based balancer
 gerrit:33451/3 ip: punt redirect add nh in api
 gerrit:33383/3 ip: fix ip punt redirect cli
 gerrit:33301/2 session: Use ns_id as abstract socket name

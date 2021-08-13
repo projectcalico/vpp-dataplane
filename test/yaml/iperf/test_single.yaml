@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: iperf-server
-        image: calico/test-iperf
+        image: calicovpp/test-iperf
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5001
@@ -50,7 +50,7 @@ metadata:
 spec:
   containers:
   - name: iperf-client
-    image: calico/test-iperf
+    image: calicovpp/test-iperf
     imagePullPolicy: IfNotPresent
     ports:
     - containerPort: 5001

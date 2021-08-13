@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: iperf3-server
-        image: calico/test-iperf3-vcl
+        image: calicovpp/test-iperf3-vcl
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5201
@@ -48,7 +48,7 @@ metadata:
 spec:
   containers:
   - name: iperf3-client
-    image: calico/test-iperf3-vcl
+    image: calicovpp/test-iperf3-vcl
     imagePullPolicy: IfNotPresent
     ports:
     - containerPort: 5201

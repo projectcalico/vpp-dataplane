@@ -48,7 +48,7 @@ git_cherry_pick refs/changes/83/33383/3 # 33383: ip: fix ip punt redirect cli | 
 git_cherry_pick refs/changes/51/33451/3 # 33451: ip: punt redirect add nh in api | https://gerrit.fd.io/r/c/vpp/+/33451
 
 # --------------- Dedicated plugins ---------------
-git_cherry_pick refs/changes/64/33264/2 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
+git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
 
 git_cherry_pick refs/changes/88/31588/1 # 31588: cnat: [WIP] no k8s maglev from pods | https://gerrit.fd.io/r/c/vpp/+/31588
 

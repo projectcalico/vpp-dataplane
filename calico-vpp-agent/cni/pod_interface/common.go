@@ -117,5 +117,10 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 	if err != nil {
 		return errors.Wrapf(err, "error SetInterfaceRxMode on tun interface")
 	}
+
+	err = i.vpp.InterfaceSetUnnumbered(swIfIndex, podSpec.LoopbackSwIfIndex)
+	if err != nil {
+		return errors.Wrapf(err, "error setting interface unnumbered")
+	}
 	return nil
 }

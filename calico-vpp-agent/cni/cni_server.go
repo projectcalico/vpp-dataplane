@@ -56,6 +56,7 @@ type Server struct {
 	memifDriver  *pod_interface.MemifPodInterfaceDriver
 	tuntapDriver *pod_interface.TunTapPodInterfaceDriver
 	vclDriver    *pod_interface.VclPodInterfaceDriver
+	loopbackDriver   *pod_interface.LoopbackPodInterfaceDriver
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -77,6 +78,9 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		OrchestratorID: request.Workload.Orchestrator,
 		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
 		EndpointID:     request.Workload.Endpoint,
+
+		MemifIsL3: false, /* default */
+		TunTapIsL3: true, /* default */
 	}
 	for _, routeStr := range request.GetContainerRoutes() {
 		_, route, err := net.ParseCIDR(routeStr)
@@ -284,6 +288,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(v, l),
 		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(v, l),
 		vclDriver:       pod_interface.NewVclPodInterfaceDriver(v, l),
+		loopbackDriver:       pod_interface.NewLoopbackPodInterfaceDriver(v, l),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")

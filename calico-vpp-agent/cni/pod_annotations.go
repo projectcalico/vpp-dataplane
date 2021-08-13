@@ -28,6 +28,8 @@ const (
 	VppAnnotationPrefix  string = "cni.projectcalico.org-vpp."
 	MemifPortAnnotation  string = "memif.ports"
 	TunTapPortAnnotation string = "tuntap.ports"
+	Memifl3Annotation  string = "memif.l3"
+	TunTapl3Annotation string = "tuntap.l3"
 	VclAnnotation        string = "vcl"
 )
 
@@ -100,6 +102,17 @@ func (s *Server) ParseEnableDisableAnnotation(value string) (bool, error) {
 	}
 }
 
+func (s *Server) ParseTrueFalseAnnotation(value string) (bool, error) {
+	switch value {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, errors.Errorf("Unknown value %s", value)
+	}
+}
+
 func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations map[string]string) (err error) {
 	for key, value := range annotations {
 		if !strings.HasPrefix(key, VppAnnotationPrefix) {
@@ -121,6 +134,13 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 			}
 		case VppAnnotationPrefix + VclAnnotation:
 			podSpec.EnableVCL, err = s.ParseEnableDisableAnnotation(value)
+		case VppAnnotationPrefix + Memifl3Annotation:
+			podSpec.MemifIsL3, err = s.ParseTrueFalseAnnotation(value)
+		case VppAnnotationPrefix + TunTapl3Annotation:
+			podSpec.TunTapIsL3, err = s.ParseTrueFalseAnnotation(value)
+			if err != nil {
+				podSpec.TunTapIsL3 = true /* default on error */
+			}
 		default:
 			continue
 		}

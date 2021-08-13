@@ -115,6 +115,17 @@ func (ps *LocalPodSpec) FullString() string {
 	)
 }
 
+func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex uint32, isL3 bool) {
+	switch (ifType) {
+	case VppIfTypeTunTap:
+		return ps.TunTapSwIfIndex, ps.TunTapIsL3
+	case VppIfTypeMemif:
+		return ps.MemifSwIfIndex, ps.MemifIsL3
+	default:
+		return types.InvalidID, true
+	}
+}
+
 type LocalIfPortConfigs struct {
 	Start uint16
 	End   uint16
@@ -150,6 +161,8 @@ type LocalPodSpec struct {
 	DefaultIfType VppInterfaceType
 	EnableVCL     bool
 	EnableMemif   bool
+	MemifIsL3     bool
+	TunTapIsL3    bool
 
 	MemifSocketId     uint32
 	TunTapSwIfIndex   uint32

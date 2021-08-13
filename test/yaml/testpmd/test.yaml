@@ -10,7 +10,7 @@ metadata:
 spec:
   containers:
   - name: testpmd
-    image: calicovpp/testpmd
+    image: calicovpp/test-testpmd
     imagePullPolicy: IfNotPresent
     securityContext:
       privileged: true

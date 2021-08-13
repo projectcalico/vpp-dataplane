@@ -20,7 +20,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -32,7 +31,6 @@ func getInterfaceVrfName(podSpec *storage.LocalPodSpec) string {
 
 // AddVppInterface performs the networking for the given config and IPAM result
 func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
-	var loopbackSwIfIndex uint32
 	podSpec.NeedsSnat = false
 	for _, containerIP := range podSpec.GetContainerIps() {
 		podSpec.NeedsSnat = podSpec.NeedsSnat || s.IPNetNeedsSNAT(containerIP)
@@ -40,6 +38,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	stack := s.vpp.NewCleanupStack()
 
+    /* Create and Setup the per-pod VRF */
 	podSpec.VrfId = vpplink.AllocateID(podVrfAllocator, common.PerPodVRFIndexStart)
 	stack.Push(vpplink.FreeID, podVrfAllocator, podSpec.VrfId)
 	s.log.Infof("Allocated VrfId:%d for %s", podSpec.VrfId, podSpec.Key())
@@ -47,114 +46,68 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	err = s.vpp.AddVRF46(podSpec.VrfId, getInterfaceVrfName(podSpec))
 	if err != nil {
 		goto err
+	} else {
+		stack.Push(s.vpp.DelVRF46, podSpec.VrfId, getInterfaceVrfName(podSpec))
 	}
-	stack.Push(s.vpp.DelVRF46, podSpec.VrfId, getInterfaceVrfName(podSpec))
 
 	err = s.vpp.AddDefault46RouteViaTable(podSpec.VrfId, common.PodVRFIndex)
 	if err != nil {
 		goto err
+	} else {
+		stack.Push(s.vpp.DelDefault46RouteViaTable, podSpec.VrfId, common.PodVRFIndex)
 	}
-	stack.Push(s.vpp.DelDefault46RouteViaTable, podSpec.VrfId, common.PodVRFIndex)
 
-	loopbackSwIfIndex, err = s.vpp.CreateLoopback(&config.ContainerSideMacAddress)
+    err = s.loopbackDriver.CreateInterface(podSpec)
 	if err != nil {
 		goto err
-	}
-	stack.Push(s.vpp.DeleteLoopback, loopbackSwIfIndex)
-	podSpec.LoopbackSwIfIndex = loopbackSwIfIndex
-
-	err = s.vpp.SetInterfaceVRF46(loopbackSwIfIndex, podSpec.VrfId)
-	if err != nil {
-		s.log.Errorf("error setting loopback %d in per pod vrf %s", loopbackSwIfIndex, err)
-		goto err
-	}
-
-	for _, containerIP := range podSpec.GetContainerIps() {
-		err = s.vpp.AddInterfaceAddress(loopbackSwIfIndex, containerIP)
-		if err != nil {
-			s.log.Errorf("Error adding address to pod loopback interface: %v", err)
-			goto err
-		}
-
-		/* In the main table route the container address to its VRF */
-		route := types.Route{
-			Dst: containerIP,
-			Paths: []types.RoutePath{{
-				Table:     podSpec.VrfId,
-				SwIfIndex: types.InvalidID,
-			}},
-		}
-		err := s.vpp.RouteAdd(&route)
-		if err != nil {
-			s.log.Errorf("error adding vpp side routes for interface %s", err)
-			goto err
-		}
-		stack.Push(s.vpp.RouteDel, &route)
+	} else {
+		stack.Push(s.loopbackDriver.DeleteInterface, podSpec)
 	}
 
 	s.log.Infof("Creating container interface using VPP networking")
-	tunTapSwIfIndex, err = s.tuntapDriver.Create(podSpec, doHostSideConf)
+	err = s.tuntapDriver.CreateInterface(podSpec, doHostSideConf)
 	if err != nil {
 		goto err
-	}
-	stack.Push(s.tuntapDriver.Delete, podSpec)
-	podSpec.TunTapSwIfIndex = tunTapSwIfIndex
-
-	err = s.vpp.InterfaceSetUnnumbered(tunTapSwIfIndex, loopbackSwIfIndex)
-	if err != nil {
-		s.log.Errorf("error setting vpp tap unnumbered %s", err)
-		goto err
-	}
-
-	for _, containerIP := range podSpec.GetContainerIps() {
-		/* In the punt table (where all punted traffics ends), route the container to the tun */
-		route := types.Route{
-			Table: common.PuntTableId,
-			Dst:   containerIP,
-			Paths: []types.RoutePath{{SwIfIndex: tunTapSwIfIndex}},
-		}
-		err := s.vpp.RouteAdd(&route)
-		if err != nil {
-			s.log.Errorf("error adding vpp side routes for interface %s", err)
-			goto err
-		}
-		stack.Push(s.vpp.RouteDel, &route)
+	} else {
+		stack.Push(s.tuntapDriver.DeleteInterface, podSpec)
 	}
 
 	if podSpec.EnableMemif {
 		s.log.Infof("Creating container memif interface")
-		memifSwIfIndex, err := s.memifDriver.Create(podSpec)
+		err := s.memifDriver.CreateInterface(podSpec)
 		if err != nil {
 			goto err
 		}
-		podSpec.MemifSwIfIndex = memifSwIfIndex
-
-		err = s.vpp.InterfaceSetUnnumbered(memifSwIfIndex, loopbackSwIfIndex)
-		if err != nil {
-			s.log.Errorf("error setting vpp memif unnumbered %s", err)
-			goto err
-		}
-		stack.Push(s.memifDriver.Delete, podSpec)
 	}
 
 	if podSpec.EnableVCL {
 		s.log.Infof("Enabling container VCL")
-		err = s.vclDriver.Create(podSpec, loopbackSwIfIndex)
+		err = s.vclDriver.CreateInterface(podSpec)
 		if err != nil {
 			goto err
+		} else {
+			stack.Push(s.vclDriver.DeleteInterface, podSpec)
 		}
-		stack.Push(s.vclDriver.Delete, podSpec)
+	}
+
+	err = s.RoutePodVRF(podSpec)
+	if err != nil {
+		goto err
+	} else {
+		stack.Push(s.UnroutePodVRF, podSpec)
 	}
 
 	/* Routes */
 	if !podSpec.EnableVCL {
-		err = s.DoPodRoutesConfiguration(podSpec, tunTapSwIfIndex, true /*isL3*/)
+		swIfIndex, isL3 := podSpec.GetParamsForIfType(podSpec.DefaultIfType)
+		err = s.RoutePodInterface(podSpec, swIfIndex, isL3)
 		if err != nil {
 			goto err
 		}
 
-		if podSpec.PortFilteredIfType == storage.VppIfTypeMemif {
-			err = s.DoPodPblConfiguration(podSpec, podSpec.MemifSwIfIndex, false /*isL3*/)
+		swIfIndex, isL3 = podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
+		if swIfIndex != types.InvalidID {
+			err = s.RoutePblPortsPodInterface(podSpec, podSpec.MemifSwIfIndex, isL3)
 			if err != nil {
 				goto err
 			}
@@ -181,55 +134,40 @@ err:
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
-	var err error
-	for _, containerIP := range podSpec.GetContainerIps() {
-		/* In the punt table (where all punted traffics ends), route the container to the tun */
-		route := types.Route{
-			Table: common.PuntTableId,
-			Dst:   containerIP,
-			Paths: []types.RoutePath{{SwIfIndex: podSpec.TunTapSwIfIndex}},
-		}
-		err = s.vpp.RouteDel(&route)
-		if err != nil {
-			s.log.Errorf("error deleting vpp side routes for interface %s", err)
-		}
-
-		/* In the main table route the container address to its VRF */
-		route = types.Route{
-			Dst: containerIP,
-			Paths: []types.RoutePath{{
-				Table:     podSpec.VrfId,
-				SwIfIndex: types.InvalidID,
-			}},
-		}
-		err := s.vpp.RouteDel(&route)
-		if err != nil {
-			s.log.Errorf("error deleting vpp side routes for interface %s", err)
-		}
-	}
+	var err error = nil
 
 	/* Routes */
 	if !podSpec.EnableVCL {
-		s.UndoPodRoutesConfiguration(podSpec.TunTapSwIfIndex)
-		if podSpec.PortFilteredIfType == storage.VppIfTypeMemif {
-			s.UndoPodPblConfiguration(podSpec, podSpec.MemifSwIfIndex)
+		swIfIndex, _ := podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
+		if swIfIndex != types.InvalidID {
+			s.UnroutePblPortsPodInterface(podSpec, swIfIndex)
 		}
+		swIfIndex, _ = podSpec.GetParamsForIfType(podSpec.DefaultIfType)
+		s.UnroutePodInterface(swIfIndex)
 	}
 
-	err = s.vpp.DeleteLoopback(podSpec.LoopbackSwIfIndex)
-	if err != nil {
-		s.log.Errorf("error deleting vpp loopback %s", err)
+	s.UnroutePodVRF(podSpec)
+
+	/* Interfaces */
+	if podSpec.EnableVCL {
+		s.vclDriver.DeleteInterface(podSpec)
 	}
 
-	containerIPs := s.tuntapDriver.Delete(podSpec)
+	if podSpec.EnableMemif {
+		s.memifDriver.DeleteInterface(podSpec)
+	}
+
+	containerIPs := s.tuntapDriver.DeleteInterface(podSpec)
 	for _, containerIP := range containerIPs {
 		s.routingServer.AnnounceLocalAddress(&containerIP, true /* isWithdrawal */)
 	}
 
-	s.memifDriver.Delete(podSpec)
-	s.vclDriver.Delete(podSpec)
+    s.loopbackDriver.DeleteInterface(podSpec)
 
-	s.vpp.DelDefault46RouteViaTable(podSpec.VrfId, common.PodVRFIndex)
+	err = s.vpp.DelDefault46RouteViaTable(podSpec.VrfId, common.PodVRFIndex)
+	if err != nil {
+		s.log.Errorf("Error deleting default route to VRF %s", err)
+	}
 
 	err = s.vpp.DelVRF46(podSpec.VrfId, getInterfaceVrfName(podSpec))
 	if err != nil {

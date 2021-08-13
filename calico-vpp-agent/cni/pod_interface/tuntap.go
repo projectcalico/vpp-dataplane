@@ -44,30 +44,32 @@ func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTa
 	return i
 }
 
-func (i *TunTapPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, doHostSideConf bool) (swIfIndex uint32, err error) {
-	swIfIndex = i.SearchPodInterface(podSpec)
+func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (err error) {
+	swIfIndex := i.SearchPodInterface(podSpec)
 	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
 		swIfIndex, err = i.addTunTapInterfaceToVPP(podSpec)
 		if err != nil {
-			return vpplink.INVALID_SW_IF_INDEX, err
+			return err
 		}
 	}
 	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex, true /*isL3*/)
 	if err != nil {
-		return swIfIndex, err
+		return err
 	}
 
 	if doHostSideConf {
 		err = i.configureLinux(podSpec, swIfIndex)
 		if err != nil {
-			return swIfIndex, err
+			return err
 		}
 	}
 	i.log.Infof("Created tun[%d]", swIfIndex)
-	return swIfIndex, nil
+
+    podSpec.TunTapSwIfIndex = swIfIndex
+	return nil
 }
 
-func (i *TunTapPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) (containerIPs []net.IPNet) {
+func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) (containerIPs []net.IPNet) {
 	i.log.Infof("Del request %s", podSpec.GetInterfaceTag(i.name))
 	swIfIndex := i.SearchPodInterface(podSpec)
 	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
@@ -141,10 +143,13 @@ func (i *TunTapPodInterfaceDriver) addTunTapInterfaceToVPP(podSpec *storage.Loca
 		},
 		HostNamespace: podSpec.NetnsName,
 		Tag:           podSpec.GetInterfaceTag(i.name),
-		Flags:         types.TapFlagTun,
 		HostMtu:       podSpec.GetPodMtu(),
 	}
 	i.log.Debugf("Add request pod MTU: %d, computed %d", podSpec.Mtu, tun.HostMtu)
+
+	if podSpec.TunTapIsL3 {
+		tun.Flags |= types.TapFlagTun
+	}
 
 	if config.PodGSOEnabled {
 		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce

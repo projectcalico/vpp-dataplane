@@ -39,7 +39,7 @@ func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodIn
 	return i
 }
 
-func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, loopbackSwIfIndex uint32) (err error) {
+func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec) (err error) {
 	// vclTag := podSpec.GetInterfaceTag(i.name)
 	// Clean up old tun if one is found with this tag
 	// TODO : search namespace before creating
@@ -55,12 +55,12 @@ func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, loopbackSw
 	// 	return err
 	// }
 
-	err = i.vpp.AddSessionAppNamespace(vclSocketName, podSpec.NetnsName, loopbackSwIfIndex)
+	err = i.vpp.AddSessionAppNamespace(vclSocketName, podSpec.NetnsName, podSpec.LoopbackSwIfIndex)
 	if err != nil {
 		return err
 	}
 
-	err = i.vpp.InterfaceAdminUp(loopbackSwIfIndex)
+	err = i.vpp.InterfaceAdminUp(podSpec.LoopbackSwIfIndex)
 	if err != nil {
 		return err
 	}
@@ -68,6 +68,6 @@ func (i *VclPodInterfaceDriver) Create(podSpec *storage.LocalPodSpec, loopbackSw
 	return nil
 }
 
-func (i *VclPodInterfaceDriver) Delete(podSpec *storage.LocalPodSpec) {
+func (i *VclPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
 	// TODO
 }
