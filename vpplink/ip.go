@@ -53,7 +53,7 @@ func (v *VppLink) AddVRF(index uint32, isIP6 bool, name string) error {
 }
 
 func (v *VppLink) DelVRF(index uint32, isIP6 bool, name string) error {
-	return nil // FIXME
+	// return nil // FIXME
 	return v.addDelVRF(index, name, isIP6, false /*isAdd*/)
 }
 

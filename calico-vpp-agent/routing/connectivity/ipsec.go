@@ -195,7 +195,7 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel, "")
-		return errors.Wrapf(err, "Error seting ipip tunnel %s unnumbered: %s", tunnel.String())
+		return errors.Wrapf(err, "Error setting ipip tunnel %s unnumbered: %s", tunnel.String())
 	}
 
 	// Always enable GSO feature on IPIP tunnel, only a tiny negative effect on perf if GSO is not enabled on the taps

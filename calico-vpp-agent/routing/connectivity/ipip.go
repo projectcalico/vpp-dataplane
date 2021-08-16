@@ -105,10 +105,11 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		if err != nil {
 			return errors.Wrapf(err, "Error adding ipip tunnel %s", tunnel.String())
 		}
+
 		err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 		if err != nil {
 			p.errorCleanup(tunnel)
-			return errors.Wrapf(err, "Error seting ipip tunnel unnumbered")
+			return errors.Wrapf(err, "Error setting ipip tunnel unnumbered")
 		}
 
 		// Always enable GSO feature on IPIP tunnel, only a tiny negative effect on perf if GSO is not enabled on the taps

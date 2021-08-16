@@ -52,11 +52,11 @@ type Server struct {
 	policyServer    *policy.Server
 	podInterfaceMap map[string]storage.LocalPodSpec
 	/* without main thread */
-	lock         sync.Mutex
-	memifDriver  *pod_interface.MemifPodInterfaceDriver
-	tuntapDriver *pod_interface.TunTapPodInterfaceDriver
-	vclDriver    *pod_interface.VclPodInterfaceDriver
-	loopbackDriver   *pod_interface.LoopbackPodInterfaceDriver
+	lock           sync.Mutex
+	memifDriver    *pod_interface.MemifPodInterfaceDriver
+	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
+	vclDriver      *pod_interface.VclPodInterfaceDriver
+	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -79,8 +79,8 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
 		EndpointID:     request.Workload.Endpoint,
 
-		MemifIsL3: false, /* default */
-		TunTapIsL3: true, /* default */
+		MemifIsL3:  false, /* default */
+		TunTapIsL3: true,  /* default */
 	}
 	for _, routeStr := range request.GetContainerRoutes() {
 		_, route, err := net.ParseCIDR(routeStr)
@@ -141,8 +141,13 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	s.BarrierSync()
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	podSpec.VrfId = vpplink.AllocateID(podVrfAllocator, common.PerPodVRFIndexStart)
+	s.log.Infof("Allocated VrfId:%d for %s", podSpec.VrfId, podSpec.Key())
+
 	swIfIndex, err := s.AddVppInterface(podSpec, true /* doHostSideConf */)
 	if err != nil {
+		vpplink.FreeID(podVrfAllocator, podSpec.VrfId)
 		s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
 		return &pb.AddReply{
 			Successful:   false,
@@ -247,6 +252,7 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 		s.DelVppInterface(&initialSpec)
 	}
 
+	vpplink.FreeID(podVrfAllocator, podSpec.VrfId)
 	delete(s.podInterfaceMap, podSpec.Key())
 	s.log.Infof("Interface del successful %s", podSpec.Key())
 	return &pb.DelReply{
@@ -288,7 +294,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(v, l),
 		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(v, l),
 		vclDriver:       pod_interface.NewVclPodInterfaceDriver(v, l),
-		loopbackDriver:       pod_interface.NewLoopbackPodInterfaceDriver(v, l),
+		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(v, l),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")

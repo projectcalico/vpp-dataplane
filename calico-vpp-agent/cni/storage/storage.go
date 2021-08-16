@@ -116,10 +116,13 @@ func (ps *LocalPodSpec) FullString() string {
 }
 
 func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex uint32, isL3 bool) {
-	switch (ifType) {
+	switch ifType {
 	case VppIfTypeTunTap:
 		return ps.TunTapSwIfIndex, ps.TunTapIsL3
 	case VppIfTypeMemif:
+		if !config.MemifEnabled {
+			return types.InvalidID, true
+		}
 		return ps.MemifSwIfIndex, ps.MemifIsL3
 	default:
 		return types.InvalidID, true

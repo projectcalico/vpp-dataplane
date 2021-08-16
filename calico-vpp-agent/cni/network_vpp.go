@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -38,11 +39,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	stack := s.vpp.NewCleanupStack()
 
-    /* Create and Setup the per-pod VRF */
-	podSpec.VrfId = vpplink.AllocateID(podVrfAllocator, common.PerPodVRFIndexStart)
-	stack.Push(vpplink.FreeID, podVrfAllocator, podSpec.VrfId)
-	s.log.Infof("Allocated VrfId:%d for %s", podSpec.VrfId, podSpec.Key())
-
+	/* Create and Setup the per-pod VRF */
 	err = s.vpp.AddVRF46(podSpec.VrfId, getInterfaceVrfName(podSpec))
 	if err != nil {
 		goto err
@@ -57,7 +54,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		stack.Push(s.vpp.DelDefault46RouteViaTable, podSpec.VrfId, common.PodVRFIndex)
 	}
 
-    err = s.loopbackDriver.CreateInterface(podSpec)
+	err = s.loopbackDriver.CreateInterface(podSpec)
 	if err != nil {
 		goto err
 	} else {
@@ -72,7 +69,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		stack.Push(s.tuntapDriver.DeleteInterface, podSpec)
 	}
 
-	if podSpec.EnableMemif {
+	if podSpec.EnableMemif && config.MemifEnabled {
 		s.log.Infof("Creating container memif interface")
 		err := s.memifDriver.CreateInterface(podSpec)
 		if err != nil {
@@ -80,7 +77,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	}
 
-	if podSpec.EnableVCL {
+	if podSpec.EnableVCL && config.VCLEnabled {
 		s.log.Infof("Enabling container VCL")
 		err = s.vclDriver.CreateInterface(podSpec)
 		if err != nil {
@@ -162,7 +159,7 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 		s.routingServer.AnnounceLocalAddress(&containerIP, true /* isWithdrawal */)
 	}
 
-    s.loopbackDriver.DeleteInterface(podSpec)
+	s.loopbackDriver.DeleteInterface(podSpec)
 
 	err = s.vpp.DelDefault46RouteViaTable(podSpec.VrfId, common.PodVRFIndex)
 	if err != nil {

@@ -167,38 +167,18 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 }
 
 func (v *VppLink) addDelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-
-	prefix := ip_types.Prefix{
-		Address: ip_types.Address{
-			Af: types.ToVppAddressFamily(isIP6),
-		},
+	route := &types.Route{
+		Paths: []types.RoutePath{{
+			Table:     dstTable,
+			SwIfIndex: types.InvalidID,
+		}},
+		Dst:   &net.IPNet{IP: net.IPv4zero},
+		Table: sourceTable,
 	}
-
-	paths := []fib_types.FibPath{{
-		SwIfIndex: AnyInterface,
-		TableID:   dstTable,
-		Proto:     types.IsV6toFibProto(isIP6),
-	}}
-
-	request := &vppip.IPRouteAddDel{
-		IsAdd: isAdd,
-		Route: vppip.IPRoute{
-			TableID: sourceTable,
-			Prefix:  prefix,
-			Paths:   paths,
-		},
+	if isIP6 {
+		route.Dst.IP = net.IPv6zero
 	}
-
-	response := &vppip.IPRouteAddDelReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil {
-		return errors.Wrapf(err, "failed to add route to VPP")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to add route to VPP (retval %d)", response.Retval)
-	}
-	return nil
+	return v.addDelIPRoute(route, isAdd /*isAdd*/)
 }
 
 func (v *VppLink) AddDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
