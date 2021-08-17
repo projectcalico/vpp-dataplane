@@ -45,7 +45,7 @@ git_cherry_pick refs/changes/64/33164/3  # 33164: dpdk: enable ena interrupt sup
 
 git_cherry_pick refs/changes/01/33301/2 # 33301: session: make netns abtract name static | https://gerrit.fd.io/r/c/vpp/+/33301
 git_cherry_pick refs/changes/51/33451/3 # 33451: ip: punt redirect add nh in api | https://gerrit.fd.io/r/c/vpp/+/33451
-git_cherry_pick refs/changes/01/33501/1 # 33501: interface: Remove unnumberd same VRF check | https://gerrit.fd.io/r/c/vpp/+/33501
+git_cherry_pick refs/changes/01/33501/2 # 33501: interface: Always init fib_index_by_sw_if_index | https://gerrit.fd.io/r/c/vpp/+/33501
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
