@@ -117,6 +117,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		EndpointID:     podSpec.EndpointID,
 	}, podSpec.TunTapSwIfIndex)
 
+	s.prometheusServer.PodAdded(podSpec, swIfIndex)
 	return podSpec.TunTapSwIfIndex, err
 
 err:
@@ -131,6 +132,7 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	for _, containerIP := range podSpec.GetContainerIps() {
 		s.routingServer.AnnounceLocalAddress(containerIP, true /* isWithdrawal */)
 	}
+	s.prometheusServer.PodRemoved(podSpec)
 
 	/* Routes */
 	if podSpec.EnableVCL {
