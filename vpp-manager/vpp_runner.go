@@ -95,25 +95,28 @@ func (v *VppRunner) Run(driver uplink.UplinkDriver) error {
 }
 
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32) (err error) {
-	err = v.vpp.AddVRF46(config.PuntTableId, "punt-table")
-	if err != nil {
-		return errors.Wrapf(err, "Error creating punt vrf")
-	}
 
-	err = v.vpp.PuntRedirect46(types.IpPuntRedirect{
-		RxSwIfIndex: vpplink.InvalidID,
-		Paths: []types.RoutePath{{
-			Table:     config.PuntTableId,
-			SwIfIndex: types.InvalidID,
-		}},
-	})
-	if err != nil {
-		return errors.Wrapf(err, "Error configuring punt redirect")
-	}
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = v.vpp.AddVRF(config.PuntTableId, ipFamily.IsIp6, "punt-table")
+		if err != nil {
+			return errors.Wrapf(err, "Error creating punt vrf")
+		}
 
-	err = v.vpp.PuntAll46L4()
-	if err != nil {
-		return errors.Wrapf(err, "Error configuring L4 punt")
+		err = v.vpp.PuntRedirect(types.IpPuntRedirect{
+			RxSwIfIndex: vpplink.InvalidID,
+			Paths: []types.RoutePath{{
+				Table:     config.PuntTableId,
+				SwIfIndex: types.InvalidID,
+			}},
+		}, ipFamily.IsIp6)
+		if err != nil {
+			return errors.Wrapf(err, "Error configuring punt redirect")
+		}
+
+		err = v.vpp.PuntAllL4(ipFamily.IsIp6)
+		if err != nil {
+			return errors.Wrapf(err, "Error configuring L4 punt")
+		}
 	}
 
 	for _, neigh := range []net.IP{fakeVppNextHopIP4, fakeVppNextHopIP6} {

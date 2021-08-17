@@ -37,9 +37,9 @@ func (i *PodInterfaceDriverData) SearchPodInterface(podSpec *storage.LocalPodSpe
 	err, swIfIndex := i.vpp.SearchInterfaceWithTag(tag)
 	if err != nil {
 		i.log.Warnf("error searching interface with tag %s %s", tag, err)
-		return vpplink.INVALID_SW_IF_INDEX
-	} else if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
-		return vpplink.INVALID_SW_IF_INDEX
+		return vpplink.InvalidID
+	} else if swIfIndex == vpplink.InvalidID {
+		return vpplink.InvalidID
 	}
 	return swIfIndex
 }
@@ -55,9 +55,17 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 	if err != nil {
 		i.log.Errorf("error deregistering pod interface: %v", err)
 	}
+
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = i.vpp.DisableCnatSNAT(swIfIndex, ipFamily.IsIp6)
+		if err != nil {
+			i.log.Errorf("Error disabling %s snat %v", ipFamily.Str, err)
+		}
+	}
+
 }
 
-func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, swIfIndex uint32, isL3 bool) (err error) {
+func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
 	if i.NDataThreads > 0 {
 		for queue := 0; queue < config.TapNumRxQueues; queue++ {
 			worker := (int(swIfIndex)*config.TapNumRxQueues + queue) % i.NDataThreads
@@ -69,9 +77,11 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 	}
 
 	// configure vpp side tun
-	err = i.vpp.SetInterfaceVRF46(swIfIndex, podSpec.VrfId)
-	if err != nil {
-		return errors.Wrapf(err, "error setting vpp tun %d in pod vrf", swIfIndex)
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = i.vpp.SetInterfaceVRF(swIfIndex, podSpec.VrfId, ipFamily.IsIp6)
+		if err != nil {
+			return errors.Wrapf(err, "error setting vpp tun %d in pod vrf", swIfIndex)
+		}
 	}
 
 	if !isL3 {
@@ -82,25 +92,23 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		}
 	}
 
-	hasv4, hasv6 := podSpec.Hasv46()
-	if hasv4 && podSpec.NeedsSnat {
-		i.log.Infof("Enable tun[%d] SNAT v4", swIfIndex)
-		err = i.vpp.EnableCnatSNAT(swIfIndex, false)
-		if err != nil {
-			return errors.Wrapf(err, "Error enabling ip4 snat")
-		}
-	}
-	if hasv6 && podSpec.NeedsSnat {
-		i.log.Infof("Enable tun[%d] SNAT v6", swIfIndex)
-		err = i.vpp.EnableCnatSNAT(swIfIndex, true)
-		if err != nil {
-			return errors.Wrapf(err, "Error enabling ip6 snat")
+	if podSpec.NeedsSnat {
+		i.log.Infof("Enable interface[%d] SNAT", swIfIndex)
+		for _, ipFamily := range vpplink.IpFamilies {
+			err = i.vpp.EnableCnatSNAT(swIfIndex, ipFamily.IsIp6)
+			if err != nil {
+				return errors.Wrapf(err, "Error enabling %s snat", ipFamily.Str)
+			} else {
+				stack.Push(i.vpp.DisableCnatSNAT, swIfIndex, false)
+			}
 		}
 	}
 
 	err = i.vpp.RegisterPodInterface(swIfIndex)
 	if err != nil {
 		return errors.Wrapf(err, "error registering pod interface")
+	} else {
+		stack.Push(i.vpp.RemovePodInterface, swIfIndex)
 	}
 
 	err = i.vpp.CnatEnableFeatures(swIfIndex)

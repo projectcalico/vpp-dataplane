@@ -26,6 +26,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -129,6 +130,12 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
+	if isAdd {
+		log.Infof("Add route %s", route)
+	} else {
+		log.Infof("Del route %s", route)
+	}
+
 	isIP6 := route.IsIP6()
 	prefix := ip_types.Prefix{}
 	if route.Dst != nil {
@@ -187,27 +194,6 @@ func (v *VppLink) AddDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bo
 
 func (v *VppLink) DelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
 	return v.addDelDefaultRouteViaTable(sourceTable, dstTable, isIP6, false /*isAdd*/)
-}
-
-func (v *VppLink) AddDefault46RouteViaTable(sourceTable, dstTable uint32) (err error) {
-	err = v.AddDefaultRouteViaTable(sourceTable, dstTable, false /*isip6*/)
-	if err != nil {
-		return err
-	}
-	err = v.AddDefaultRouteViaTable(sourceTable, dstTable, true /*isip6*/)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *VppLink) DelDefault46RouteViaTable(sourceTable, dstTable uint32) (err error) {
-	err1 := v.DelDefaultRouteViaTable(sourceTable, dstTable, false /*isip6*/)
-	err2 := v.DelDefaultRouteViaTable(sourceTable, dstTable, true /*isip6*/)
-	if err1 != nil || err2 != nil {
-		return fmt.Errorf("DelDefault46RouteViaTable errored ip4:%s ip6:%s", err1, err2)
-	}
-	return nil
 }
 
 func (v *VppLink) SetIPFlowHash(ipFlowHash *types.IPFlowHash, vrfID uint32, isIPv6 bool) error {

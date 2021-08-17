@@ -16,6 +16,7 @@
 package common
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -142,13 +143,15 @@ func HandleVppManagerRestart(log *logrus.Logger, vpp *vpplink.VppLink, servers .
 }
 
 func SetupPodVRF(vpp *vpplink.VppLink) (err error) {
-	err = vpp.AddVRF46(PodVRFIndex, "calico-pods")
-	if err != nil {
-		return err
-	}
-	err = vpp.AddDefault46RouteViaTable(PodVRFIndex, DefaultVRFIndex)
-	if err != nil {
-		return err
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = vpp.AddVRF(PodVRFIndex, ipFamily.IsIp6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
+		if err != nil {
+			return err
+		}
+		err = vpp.AddDefaultRouteViaTable(PodVRFIndex, DefaultVRFIndex, ipFamily.IsIp6)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

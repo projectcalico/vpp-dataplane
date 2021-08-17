@@ -79,8 +79,12 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
 		EndpointID:     request.Workload.Endpoint,
 
-		MemifIsL3:  false, /* default */
-		TunTapIsL3: true,  /* default */
+		/* defaults */
+		MemifIsL3:  false,
+		TunTapIsL3: true,
+
+		MemifSwIfIndex:  vpplink.InvalidID,
+		TunTapSwIfIndex: vpplink.InvalidID,
 	}
 	for _, routeStr := range request.GetContainerRoutes() {
 		_, route, err := net.ParseCIDR(routeStr)
@@ -226,23 +230,22 @@ func (p *Server) OnVppRestart() {
 }
 
 func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply, error) {
-	podSpec := NewLocalPodSpecFromDel(request)
+	partialPodSpec := NewLocalPodSpecFromDel(request)
 	// Only try to delete the device if a namespace was passed in.
-	if podSpec.NetnsName == "" {
+	if partialPodSpec.NetnsName == "" {
 		s.log.Debugf("no netns passed, skipping")
 		return &pb.DelReply{
 			Successful: true,
 		}, nil
 	}
-	s.log.Infof("Del request %s", podSpec.Key())
+	s.log.Infof("Del request %s", partialPodSpec.Key())
 	s.BarrierSync()
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	initialSpec, ok := s.podInterfaceMap[podSpec.Key()]
+	initialSpec, ok := s.podInterfaceMap[partialPodSpec.Key()]
 	if !ok {
-		s.log.Warnf("Deleting interface but initial spec not found")
-		s.DelVppInterface(podSpec)
+		s.log.Warnf("Received del interface but initial spec not found")
 	} else {
 		s.policyServer.WorkloadRemoved(&policy.WorkloadEndpointID{
 			OrchestratorID: initialSpec.OrchestratorID,
@@ -252,9 +255,9 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 		s.DelVppInterface(&initialSpec)
 	}
 
-	vpplink.FreeID(podVrfAllocator, podSpec.VrfId)
-	delete(s.podInterfaceMap, podSpec.Key())
-	s.log.Infof("Interface del successful %s", podSpec.Key())
+	vpplink.FreeID(podVrfAllocator, initialSpec.VrfId)
+	delete(s.podInterfaceMap, initialSpec.Key())
+	s.log.Infof("Interface del successful %s", initialSpec.Key())
 	return &pb.DelReply{
 		Successful: true,
 	}, nil

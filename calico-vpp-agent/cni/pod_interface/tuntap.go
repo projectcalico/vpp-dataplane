@@ -44,15 +44,46 @@ func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTa
 	return i
 }
 
-func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (err error) {
+func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) error {
 	swIfIndex := i.SearchPodInterface(podSpec)
-	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
-		swIfIndex, err = i.addTunTapInterfaceToVPP(podSpec)
-		if err != nil {
-			return err
-		}
+	if swIfIndex != vpplink.InvalidID {
+		/* If something is found under this name, try a cleanup before going on */
+		i.DeleteInterface(podSpec)
 	}
-	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex, true /*isL3*/)
+
+	tun := &types.TapV2{
+		GenericVppInterface: types.GenericVppInterface{
+			NumRxQueues:       config.TapNumRxQueues,
+			NumTxQueues:       config.TapNumTxQueues,
+			RxQueueSize:       config.TapRxQueueSize,
+			TxQueueSize:       config.TapTxQueueSize,
+			HostInterfaceName: podSpec.InterfaceName,
+		},
+		HostNamespace: podSpec.NetnsName,
+		Tag:           podSpec.GetInterfaceTag(i.name),
+		HostMtu:       podSpec.GetPodMtu(),
+	}
+
+	if podSpec.TunTapIsL3 {
+		tun.Flags |= types.TapFlagTun
+	}
+
+	if config.PodGSOEnabled {
+		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce
+	}
+
+	i.log.Debugf("Add request pod MTU: %d, computed %d", podSpec.Mtu, tun.HostMtu)
+
+	swIfIndex, err := i.vpp.CreateOrAttachTapV2(tun)
+	if err != nil {
+		return errors.Wrapf(err, "Error creating tun")
+	} else {
+		stack.Push(i.vpp.DelTap, swIfIndex)
+	}
+	podSpec.TunTapSwIfIndex = swIfIndex
+	i.log.Infof("created tun[%d]", swIfIndex)
+
+	err = i.DoPodInterfaceConfiguration(podSpec, stack, swIfIndex, true /*isL3*/)
 	if err != nil {
 		return err
 	}
@@ -65,21 +96,19 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 	}
 	i.log.Infof("Created tun[%d]", swIfIndex)
 
-    podSpec.TunTapSwIfIndex = swIfIndex
 	return nil
 }
 
 func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) (containerIPs []net.IPNet) {
-	i.log.Infof("Del request %s", podSpec.GetInterfaceTag(i.name))
-	swIfIndex := i.SearchPodInterface(podSpec)
-	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
-		i.log.Warnf("interface not found %s", podSpec.GetInterfaceTag(i.name))
-		return
-	}
 	containerIPs = i.unconfigureLinux(podSpec)
 
-	i.UndoPodInterfaceConfiguration(swIfIndex)
-	i.delTunTapInterfaceFromVPP(swIfIndex)
+	i.UndoPodInterfaceConfiguration(podSpec.TunTapSwIfIndex)
+
+	err := i.vpp.DelTap(podSpec.TunTapSwIfIndex)
+	if err != nil {
+		i.log.Warnf("Error deleting tun[%d] %s", podSpec.TunTapSwIfIndex, err)
+	}
+	i.log.Infof("deleted tun[%d]", podSpec.TunTapSwIfIndex)
 	return containerIPs
 
 }
@@ -122,44 +151,6 @@ func (i *TunTapPodInterfaceDriver) unconfigureLinux(podSpec *storage.LocalPodSpe
 		}
 	}
 	return containerIPs
-}
-
-func (i *TunTapPodInterfaceDriver) delTunTapInterfaceFromVPP(swIfIndex uint32) {
-	err := i.vpp.DelTap(swIfIndex)
-	if err != nil {
-		i.log.Warnf("Error deleting tun[%d] %s", swIfIndex, err)
-	}
-	i.log.Infof("deleted tun[%d]", swIfIndex)
-}
-
-func (i *TunTapPodInterfaceDriver) addTunTapInterfaceToVPP(podSpec *storage.LocalPodSpec) (uint32, error) {
-	tun := &types.TapV2{
-		GenericVppInterface: types.GenericVppInterface{
-			NumRxQueues:       config.TapNumRxQueues,
-			NumTxQueues:       config.TapNumTxQueues,
-			RxQueueSize:       config.TapRxQueueSize,
-			TxQueueSize:       config.TapTxQueueSize,
-			HostInterfaceName: podSpec.InterfaceName,
-		},
-		HostNamespace: podSpec.NetnsName,
-		Tag:           podSpec.GetInterfaceTag(i.name),
-		HostMtu:       podSpec.GetPodMtu(),
-	}
-	i.log.Debugf("Add request pod MTU: %d, computed %d", podSpec.Mtu, tun.HostMtu)
-
-	if podSpec.TunTapIsL3 {
-		tun.Flags |= types.TapFlagTun
-	}
-
-	if config.PodGSOEnabled {
-		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce
-	}
-	swIfIndex, err := i.vpp.CreateOrAttachTapV2(tun)
-	if err != nil {
-		return 0, fmt.Errorf("Error creating tun")
-	}
-	i.log.Infof("created tun[%d]", swIfIndex)
-	return swIfIndex, nil
 }
 
 // writeProcSys takes the sysctl path and a string value to set i.e. "0" or "1" and sets the sysctl.

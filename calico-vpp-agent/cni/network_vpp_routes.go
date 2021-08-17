@@ -19,15 +19,14 @@ import (
 	"bytes"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-
-func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32, isL3 bool) error {
+func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) error {
 	for _, containerIP := range podSpec.GetContainerIps() {
 		s.log.Infof("Adding route %s if%d", containerIP, swIfIndex)
 		route := types.Route{
@@ -40,6 +39,8 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint
 		err := s.vpp.RouteAdd(&route)
 		if err != nil {
 			return errors.Wrapf(err, "Cannot add route in VPP")
+		} else {
+			stack.Push(s.vpp.RouteDel, &route)
 		}
 		if !isL3 {
 			err = s.vpp.AddNeighbor(&types.Neighbor{
@@ -108,7 +109,7 @@ func (s *Server) delPodInterfaceHandleRoutes(swIfIndex uint32, isIPv6 bool) erro
 	return nil
 }
 
-func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32, isL3 bool) (err error) {
+func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
 	for _, containerIP := range podSpec.GetContainerIps() {
 		path := types.RoutePath{
 			SwIfIndex: swIfIndex,
@@ -136,6 +137,8 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIfIn
 		pblIndex, err := s.vpp.AddPblClient(&client)
 		if err != nil {
 			return errors.Wrapf(err, "error adding PBL client")
+		} else {
+			stack.Push(s.vpp.DelPblClient, pblIndex)
 		}
 		podSpec.PblIndexes = append(podSpec.PblIndexes, pblIndex)
 
@@ -162,7 +165,27 @@ func (s *Server) UnroutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIf
 	}
 }
 
-func (s *Server) RoutePodVRF(podSpec *storage.LocalPodSpec) (err error) {
+func (s *Server) CreateVRFandRoutesToPod(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
+	/* Create and Setup the per-pod VRF */
+	for _, ipFamily := range vpplink.IpFamilies {
+		vrfName := getInterfaceVrfName(podSpec, ipFamily.Str)
+		err = s.vpp.AddVRF(podSpec.VrfId, ipFamily.IsIp6, vrfName)
+		if err != nil {
+			return err
+		} else {
+			stack.Push(s.vpp.DelVRF, podSpec.VrfId, ipFamily.IsIp6, vrfName)
+		}
+	}
+
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = s.vpp.AddDefaultRouteViaTable(podSpec.VrfId, common.PodVRFIndex, ipFamily.IsIp6)
+		if err != nil {
+			return err
+		} else {
+			stack.Push(s.vpp.DelDefaultRouteViaTable, podSpec.VrfId, common.PodVRFIndex, ipFamily.IsIp6)
+		}
+	}
+
 	for _, containerIP := range podSpec.GetContainerIps() {
 		/* In the main table route the container address to its VRF */
 		route := types.Route{
@@ -175,39 +198,18 @@ func (s *Server) RoutePodVRF(podSpec *storage.LocalPodSpec) (err error) {
 		err := s.vpp.RouteAdd(&route)
 		if err != nil {
 			return errors.Wrapf(err, "error adding vpp side routes for interface")
-		}
-
-		/* In the punt table (where all punted traffics ends),
-		 * route the container to the tun */
-		route = types.Route{
-			Table: common.PuntTableId,
-			Dst:   containerIP,
-			Paths: []types.RoutePath{{SwIfIndex: podSpec.TunTapSwIfIndex}},
-		}
-		err = s.vpp.RouteAdd(&route)
-		if err != nil {
-			return errors.Wrapf(err, "error adding vpp side routes for interface")
+		} else {
+			stack.Push(s.vpp.RouteDel, &route)
 		}
 	}
 	return nil
 }
 
-func (s *Server) UnroutePodVRF(podSpec *storage.LocalPodSpec) {
+func (s *Server) DeleteVRFandRoutesToPod(podSpec *storage.LocalPodSpec) {
 	var err error = nil
 	for _, containerIP := range podSpec.GetContainerIps() {
-		/* In the punt table (where all punted traffics ends), route the container to the tun */
-		route := types.Route{
-			Table: common.PuntTableId,
-			Dst:   containerIP,
-			Paths: []types.RoutePath{{SwIfIndex: podSpec.TunTapSwIfIndex}},
-		}
-		err = s.vpp.RouteDel(&route)
-		if err != nil {
-			s.log.Errorf("error deleting vpp side routes for interface %s", err)
-		}
-
 		/* In the main table route the container address to its VRF */
-		route = types.Route{
+		route := types.Route{
 			Dst: containerIP,
 			Paths: []types.RoutePath{{
 				Table:     podSpec.VrfId,
@@ -215,6 +217,56 @@ func (s *Server) UnroutePodVRF(podSpec *storage.LocalPodSpec) {
 			}},
 		}
 		err := s.vpp.RouteDel(&route)
+		if err != nil {
+			s.log.Errorf("error deleting vpp side routes for interface %s", err)
+		}
+	}
+
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = s.vpp.DelDefaultRouteViaTable(podSpec.VrfId, common.PodVRFIndex, ipFamily.IsIp6)
+		if err != nil {
+			s.log.Errorf("Error deleting default route to VRF %s", err)
+		}
+	}
+
+	for _, ipFamily := range vpplink.IpFamilies {
+		vrfName := getInterfaceVrfName(podSpec, ipFamily.Str)
+		err = s.vpp.DelVRF(podSpec.VrfId, ipFamily.IsIp6, vrfName)
+		if err != nil {
+			s.log.Errorf("Error deleting VRF %s", err)
+		}
+	}
+}
+
+func (s *Server) SetupPuntRoutes(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32) (err error) {
+	for _, containerIP := range podSpec.GetContainerIps() {
+		/* In the punt table (where all punted traffics ends),
+		 * route the container to the tun */
+		route := types.Route{
+			Table: common.PuntTableId,
+			Dst:   containerIP,
+			Paths: []types.RoutePath{{SwIfIndex: swIfIndex}},
+		}
+		err = s.vpp.RouteAdd(&route)
+		if err != nil {
+			return errors.Wrapf(err, "error adding vpp side routes for interface")
+		} else {
+			stack.Push(s.vpp.RouteDel, &route)
+		}
+	}
+	return nil
+}
+
+func (s *Server) RemovePuntRoutes(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
+	var err error = nil
+	for _, containerIP := range podSpec.GetContainerIps() {
+		/* In the punt table (where all punted traffics ends), route the container to the tun */
+		route := types.Route{
+			Table: common.PuntTableId,
+			Dst:   containerIP,
+			Paths: []types.RoutePath{{SwIfIndex: swIfIndex}},
+		}
+		err = s.vpp.RouteDel(&route)
 		if err != nil {
 			s.log.Errorf("error deleting vpp side routes for interface %s", err)
 		}

@@ -40,7 +40,7 @@ func (p *RoutePath) tableString() string {
 	if p.Table == 0 {
 		return ""
 	} else {
-		return fmt.Sprintf("[%d]", p.Table)
+		return fmt.Sprintf("[table:%d]", p.Table)
 	}
 }
 
@@ -95,15 +95,22 @@ func (p *RoutePath) ToFibPath(isIP6 bool) fib_types.FibPath {
 }
 
 func (p *RoutePath) swIfIndexString() string {
-	if p.SwIfIndex == 0 {
+	if p.SwIfIndex == 0 || p.SwIfIndex == InvalidID {
 		return ""
 	} else {
-		return fmt.Sprintf("[idx%d]", p.SwIfIndex)
+		return fmt.Sprintf("[if:%d]", p.SwIfIndex)
 	}
 }
 
+func (p *RoutePath) gwString() string {
+	if p.Gw != nil {
+		return p.Gw.String()
+	}
+	return ""
+}
+
 func (p *RoutePath) String() string {
-	return fmt.Sprintf("%s%s%s", p.tableString(), p.Gw.String(), p.swIfIndexString())
+	return fmt.Sprintf("%s%s%s", p.tableString(), p.gwString(), p.swIfIndexString())
 }
 
 func IsV6toFibProto(isv6 bool) fib_types.FibPathNhProto {
@@ -144,7 +151,7 @@ func (r *Route) tableString() string {
 	if r.Table == 0 {
 		return ""
 	} else {
-		return fmt.Sprintf("[%d] ", r.Table)
+		return fmt.Sprintf("[table:%d] ", r.Table)
 	}
 }
 

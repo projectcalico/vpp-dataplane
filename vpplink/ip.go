@@ -53,43 +53,18 @@ func (v *VppLink) AddVRF(index uint32, isIP6 bool, name string) error {
 }
 
 func (v *VppLink) DelVRF(index uint32, isIP6 bool, name string) error {
-	// return nil // FIXME
 	return v.addDelVRF(index, name, isIP6, false /*isAdd*/)
 }
 
-func (v *VppLink) AddVRF46(index uint32, name string) (err error) {
-	err = v.AddVRF(index, false, fmt.Sprintf("%s-ip4", name))
-	if err != nil {
-		return err
-	}
-	err = v.AddVRF(index, true, fmt.Sprintf("%s-ip6", name))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *VppLink) DelVRF46(index uint32, name string) (err error) {
-	err = v.DelVRF(index, false, fmt.Sprintf("%s-ip4", name))
-	if err != nil {
-		return err
-	}
-	err = v.DelVRF(index, true, fmt.Sprintf("%s-ip6", name))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *VppLink) PuntRedirect(punt types.IpPuntRedirect) error {
+func (v *VppLink) PuntRedirect(punt types.IpPuntRedirect, isIP6 bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	request := &vppip.AddDelIPPuntRedirectV2{
 		Punt: vppip.PuntRedirectV2{
 			RxSwIfIndex: interface_types.InterfaceIndex(punt.RxSwIfIndex),
-			Af:          types.GetBoolIPFamily(punt.IsIP6),
-			Paths:       types.ToFibPathList(punt.Paths, punt.IsIP6),
+			Af:          types.GetBoolIPFamily(isIP6),
+			Paths:       types.ToFibPathList(punt.Paths, isIP6),
 		},
 		IsAdd: true,
 	}
@@ -97,20 +72,6 @@ func (v *VppLink) PuntRedirect(punt types.IpPuntRedirect) error {
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
-	}
-	return nil
-}
-
-func (v *VppLink) PuntRedirect46(punt types.IpPuntRedirect) (err error) {
-	punt.IsIP6 = false
-	err = v.PuntRedirect(punt)
-	if err != nil {
-		return err
-	}
-	punt.IsIP6 = true
-	err = v.PuntRedirect(punt)
-	if err != nil {
-		return err
 	}
 	return nil
 }
@@ -172,18 +133,6 @@ func (v *VppLink) PuntAllL4(isIPv6 bool) (err error) {
 		return err
 	}
 	err = v.PuntL4(types.UDP, 0xffff, isIPv6)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *VppLink) PuntAll46L4() (err error) {
-	err = v.PuntAllL4(false /*isIP6*/)
-	if err != nil {
-		return err
-	}
-	err = v.PuntAllL4(true /*isIP6*/)
 	if err != nil {
 		return err
 	}

@@ -24,11 +24,20 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type CleanupCall struct {
-	args []interface{}
-	f interface{}
+type IpFamily struct {
+	Str   string
+	IsIp6 bool
+	IsIp4 bool
 }
 
+var (
+	IpFamilies = []IpFamily{{"ip4", false, true}, {"ip6", true, false}}
+)
+
+type CleanupCall struct {
+	args []interface{}
+	f    interface{}
+}
 
 func (call *CleanupCall) Execute() {
 	var vargs []reflect.Value
@@ -58,7 +67,7 @@ func (stack *CleanupStack) Execute() {
 
 func (stack *CleanupStack) Push(f interface{}, args ...interface{}) {
 	stack.calls = append(stack.calls, CleanupCall{
-		f: f,
+		f:    f,
 		args: args,
 	})
 }

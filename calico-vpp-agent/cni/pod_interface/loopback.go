@@ -36,16 +36,20 @@ func NewLoopbackPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *Loo
 	return i
 }
 
-func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec) (err error) {
+func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	swIfIndex, err := i.vpp.CreateLoopback(&config.ContainerSideMacAddress)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating loopback")
+	} else {
+		stack.Push(i.vpp.DeleteLoopback, swIfIndex)
 	}
 	podSpec.LoopbackSwIfIndex = swIfIndex
 
-	err = i.vpp.SetInterfaceVRF46(swIfIndex, podSpec.VrfId)
-	if err != nil {
-		return errors.Wrapf(err, "Error setting loopback %d in per pod vrf", swIfIndex)
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = i.vpp.SetInterfaceVRF(swIfIndex, podSpec.VrfId, ipFamily.IsIp6)
+		if err != nil {
+			return errors.Wrapf(err, "Error setting loopback %d in per pod vrf", swIfIndex)
+		}
 	}
 
 	for _, containerIP := range podSpec.GetContainerIps() {

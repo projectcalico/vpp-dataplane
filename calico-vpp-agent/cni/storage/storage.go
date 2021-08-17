@@ -167,6 +167,8 @@ type LocalPodSpec struct {
 	MemifIsL3     bool
 	TunTapIsL3    bool
 
+	/* VPP internals. Persisting on the disk in the case of the
+	 * agent restarting. */
 	MemifSocketId     uint32
 	TunTapSwIfIndex   uint32
 	MemifSwIfIndex    uint32

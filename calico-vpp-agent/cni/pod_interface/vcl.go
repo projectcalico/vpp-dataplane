@@ -39,17 +39,13 @@ func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodIn
 	return i
 }
 
-func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec) (err error) {
-	// vclTag := podSpec.GetInterfaceTag(i.name)
-	// Clean up old tun if one is found with this tag
-	// TODO : search namespace before creating
-
+func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	err = i.vpp.EnableSessionLayer()
 	if err != nil {
 		return err
 	}
 
-	//FIXME
+	// TODO
 	// err = i.vpp.EnableSessionSAPI()
 	// if err != nil {
 	// 	return err

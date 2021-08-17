@@ -93,19 +93,7 @@ func (v *VppLink) SetInterfaceMacAddress(swIfIndex uint32, mac *net.HardwareAddr
 	return nil
 }
 
-func (v *VppLink) SetInterfaceVRF46(swIfIndex, vrfIndex uint32) error {
-	err := v.SetInterfaceVRFAf(swIfIndex, vrfIndex, false)
-	if err != nil {
-		return err
-	}
-	err = v.SetInterfaceVRFAf(swIfIndex, vrfIndex, true)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *VppLink) SetInterfaceVRFAf(swIfIndex, vrfIndex uint32, isIP6 bool) error {
+func (v *VppLink) SetInterfaceVRF(swIfIndex, vrfIndex uint32, isIP6 bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &interfaces.SwInterfaceSetTableReply{}

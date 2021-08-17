@@ -36,74 +36,29 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 	return i
 }
 
-func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec) (err error) {
+func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	swIfIndex := i.SearchPodInterface(podSpec)
-	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
-		swIfIndex, err = i.addMemifInterfaceToVPP(podSpec)
-		if err != nil {
-			return err
-		}
-	}
-	err = i.DoPodInterfaceConfiguration(podSpec, swIfIndex, false /*isL3*/)
-	if err != nil {
-		return err
-	}
-
-	podSpec.MemifSwIfIndex = swIfIndex
-	/* Fixme : in search we'll miss the socketID */
-	return nil
-}
-
-func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
-	swIfIndex := i.SearchPodInterface(podSpec)
-	if swIfIndex == vpplink.INVALID_SW_IF_INDEX {
-		i.log.Debugf("interface not found %s", podSpec.GetInterfaceTag(i.name))
-		return
-	}
-
-	i.UndoPodInterfaceConfiguration(swIfIndex)
-	i.delMemifInterfaceFromVPP(swIfIndex, podSpec.MemifSocketId)
-}
-
-func (i *MemifPodInterfaceDriver) delMemifInterfaceFromVPP(swIfIndex uint32, socketId uint32) {
-	err := i.vpp.DeleteMemif(swIfIndex)
-	if err != nil {
-		i.log.Warnf("Error deleting memif[%d] %s", swIfIndex, err)
-	}
-
-	if socketId != 0 {
-		err = i.vpp.DelMemifSocketFileName(socketId)
-		if err != nil {
-			i.log.Warnf("Error deleting memif[%d] socket[%d] %s", swIfIndex, socketId, err)
-		}
-	}
-
-	i.log.Infof("deleted memif[%d]", swIfIndex)
-}
-
-func (i *MemifPodInterfaceDriver) addMemifInterfaceToVPP(podSpec *storage.LocalPodSpec) (uint32, error) {
-	memifTag := podSpec.GetInterfaceTag(i.name)
-	// Clean up old tun if one is found with this tag
-	err, swIfIndex := i.vpp.SearchInterfaceWithTag(memifTag)
-	if err != nil {
-		i.log.Errorf("Error while searching tun %s : %v", memifTag, err)
-	} else if swIfIndex != vpplink.INVALID_SW_IF_INDEX {
-		return swIfIndex, nil
+	if swIfIndex != vpplink.InvalidID {
+		/* If something is found under this name, try a cleanup before going on */
+		i.DeleteInterface(podSpec)
 	}
 
 	socketId, err := i.vpp.AddMemifSocketFileName("@memif", podSpec.NetnsName)
 	if err != nil {
-		return 0, err
+		return err
+	} else {
+		stack.Push(i.vpp.DelMemifSocketFileName, socketId)
 	}
+	podSpec.MemifSocketId = socketId
 
 	// Create new tun
 	memif := &types.Memif{
-		Role:           types.MemifMaster,
-		Mode:           types.MemifModeEthernet,
-		NumRxQueues:    config.TapNumRxQueues,
-		NumTxQueues:    config.TapNumTxQueues,
-		QueueSize:      config.TapRxQueueSize,
-		SocketId:       socketId,
+		Role:        types.MemifMaster,
+		Mode:        types.MemifModeEthernet,
+		NumRxQueues: config.TapNumRxQueues,
+		NumTxQueues: config.TapNumTxQueues,
+		QueueSize:   config.TapRxQueueSize,
+		SocketId:    socketId,
 	}
 	if podSpec.MemifIsL3 {
 		memif.Mode = types.MemifModeIP
@@ -111,23 +66,51 @@ func (i *MemifPodInterfaceDriver) addMemifInterfaceToVPP(podSpec *storage.LocalP
 
 	err = i.vpp.CreateMemif(memif)
 	if err != nil {
-		return 0, err
+		return err
+	} else {
+		stack.Push(i.vpp.DeleteMemif, memif.SwIfIndex)
 	}
+	podSpec.MemifSwIfIndex = memif.SwIfIndex
 
-	err = i.vpp.SetInterfaceTag(memif.SwIfIndex, memifTag)
+	err = i.vpp.SetInterfaceTag(memif.SwIfIndex, podSpec.GetInterfaceTag(i.name))
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	if config.PodGSOEnabled {
 		err = i.vpp.EnableGSOFeature(memif.SwIfIndex)
 		if err != nil {
-			return 0, errors.Wrap(err, "Error enabling GSO on memif")
+			return errors.Wrap(err, "Error enabling GSO on memif")
 		}
 	}
 
-	podSpec.MemifSocketId = socketId
-	podSpec.MemifSwIfIndex = swIfIndex
+	err = i.DoPodInterfaceConfiguration(podSpec, stack, memif.SwIfIndex, false /*isL3*/)
+	if err != nil {
+		return err
+	}
 
-	return memif.SwIfIndex, nil
+	return nil
+}
+
+func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
+	if podSpec.MemifSwIfIndex == vpplink.InvalidID {
+		return
+	}
+
+	i.UndoPodInterfaceConfiguration(podSpec.MemifSocketId)
+
+	err := i.vpp.DeleteMemif(podSpec.MemifSwIfIndex)
+	if err != nil {
+		i.log.Warnf("Error deleting memif[%d] %s", podSpec.MemifSwIfIndex, err)
+	}
+
+	if podSpec.MemifSocketId != 0 {
+		err = i.vpp.DelMemifSocketFileName(podSpec.MemifSocketId)
+		if err != nil {
+			i.log.Warnf("Error deleting memif[%d] socket[%d] %s", podSpec.MemifSwIfIndex, podSpec.MemifSocketId, err)
+		}
+	}
+
+	i.log.Infof("Deleted memif[%d]", podSpec.MemifSwIfIndex)
+
 }
