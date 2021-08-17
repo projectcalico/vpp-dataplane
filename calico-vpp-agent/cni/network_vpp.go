@@ -28,6 +28,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/vishvananda/netlink"
@@ -201,6 +202,8 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	if err != nil {
 		s.log.Errorf("Error while searching tun %s : %v", tunTag, err)
 	} else if swIfIndex != vpplink.INVALID_SW_IF_INDEX {
+		podSpec.SwIfIndex = swIfIndex
+		prometheus.Channel <- prometheus.PodSpecEvent{Event: "add", Pod: *podSpec}
 		return swIfIndex, nil
 	}
 
@@ -323,6 +326,8 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		EndpointID:     podSpec.EndpointID,
 	}, swIfIndex)
 
+	podSpec.SwIfIndex = swIfIndex
+	prometheus.Channel <- prometheus.PodSpecEvent{Event: "add", Pod: *podSpec}
 	return swIfIndex, err
 }
 
@@ -370,6 +375,7 @@ func (s *Server) delVppInterfaceHandleRoutes(swIfIndex uint32, isIPv6 bool) erro
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) error {
+	prometheus.Channel <- prometheus.PodSpecEvent{Event: "delete", Pod: *podSpec}
 	// Only try to delete the device if a namespace was passed in.
 	if podSpec.NetnsName == "" {
 		s.log.Infof("no netns passed, skipping")

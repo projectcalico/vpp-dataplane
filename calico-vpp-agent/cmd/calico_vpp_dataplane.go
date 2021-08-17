@@ -24,6 +24,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/sirupsen/logrus"
@@ -41,6 +42,7 @@ import (
 func main() {
 	log := logrus.New()
 	signalChannel := make(chan os.Signal, 2)
+	prometheus.Channel = make(chan prometheus.PodSpecEvent, 10)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 
 	err := config.LoadConfig(log)
@@ -103,6 +105,11 @@ func main() {
 		log.Errorf("Failed to create CNI server")
 		log.Fatal(err)
 	}
+	prometheusServer, err := prometheus.NewServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
+	if err != nil {
+		log.Errorf("Failed to create Prometheus server")
+		log.Fatal(err)
+	}
 
 	go routingServer.Serve()
 	<-routing.ServerRunning
@@ -114,6 +121,7 @@ func main() {
 
 	go serviceServer.Serve()
 	go cniServer.Serve()
+	go prometheusServer.Serve()
 
 	go common.HandleVppManagerRestart(log, vpp, routingServer, cniServer, serviceServer, policyServer)
 
