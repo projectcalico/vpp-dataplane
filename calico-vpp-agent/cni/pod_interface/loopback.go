@@ -52,6 +52,11 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 		}
 	}
 
+	err = i.DoPodIfNatConfiguration(podSpec, stack, podSpec.LoopbackSwIfIndex)
+	if err != nil {
+		return err
+	}
+
 	for _, containerIP := range podSpec.GetContainerIps() {
 		err = i.vpp.AddInterfaceAddress(swIfIndex, containerIP)
 		if err != nil {

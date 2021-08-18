@@ -16,8 +16,6 @@
 package cni
 
 import (
-	"bytes"
-
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
@@ -28,7 +26,6 @@ import (
 
 func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) error {
 	for _, containerIP := range podSpec.GetContainerIps() {
-		s.log.Infof("Adding route %s if%d", containerIP, swIfIndex)
 		route := types.Route{
 			Dst:   containerIP,
 			Table: podSpec.VrfId,
@@ -36,6 +33,7 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 				SwIfIndex: swIfIndex,
 			}},
 		}
+		s.log.Infof("Add route [podVRF ->MainIF] %s", route.String())
 		err := s.vpp.RouteAdd(&route)
 		if err != nil {
 			return errors.Wrapf(err, "Cannot add route in VPP")
@@ -56,57 +54,21 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 	return nil
 }
 
-func (s *Server) UnroutePodInterface(swIfIndex uint32) {
-	err := s.delPodInterfaceHandleRoutes(swIfIndex, true /* isIp6 */)
-	if err != nil {
-		s.log.Warnf("Error deleting ip6 routes %s", err)
-	}
-	err = s.delPodInterfaceHandleRoutes(swIfIndex, false /* isIp6 */)
-	if err != nil {
-		s.log.Warnf("Error deleting ip4 routes %s", err)
-	}
-}
-
-func (s *Server) delPodInterfaceHandleRoutes(swIfIndex uint32, isIPv6 bool) error {
-	// Delete connected routes
-	// TODO: Make TableID configurable?
-	routes, err := s.vpp.GetRoutes(0, isIPv6)
-	if err != nil {
-		return errors.Wrap(err, "GetRoutes errored")
-	}
-	for _, route := range routes {
-		// Our routes aren't multipath
-		if len(route.Paths) != 1 {
-			continue
+func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
+	for _, containerIP := range podSpec.GetContainerIps() {
+		route := types.Route{
+			Dst:   containerIP,
+			Table: podSpec.VrfId,
+			Paths: []types.RoutePath{{
+				SwIfIndex: swIfIndex,
+			}},
 		}
-		// Filter routes we don't want to delete
-		if route.Paths[0].SwIfIndex != swIfIndex {
-			continue // Routes on other interfaces
-		}
-		maskSize, _ := route.Dst.Mask.Size()
-		if isIPv6 {
-			if maskSize != 128 {
-				continue
-			}
-			if bytes.Equal(route.Dst.IP[0:2], []uint8{0xfe, 0x80}) {
-				continue // Link locals
-			}
-		} else {
-			if maskSize != 32 {
-				continue
-			}
-			if bytes.Equal(route.Dst.IP[0:2], []uint8{169, 254}) {
-				continue // Addresses configured on VPP side
-			}
-		}
-
-		s.log.Infof("Delete VPP route %s", route.String())
-		err = s.vpp.RouteDel(&route)
+		s.log.Infof("Del route [podVRF ->MainIF] %s", route.String())
+		err := s.vpp.RouteDel(&route)
 		if err != nil {
-			s.log.Errorf("Delete VPP route %s errored: %v", route.String(), err)
+			s.log.Warnf("Error deleting route %s", err)
 		}
 	}
-	return nil
 }
 
 func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
@@ -195,6 +157,7 @@ func (s *Server) CreateVRFandRoutesToPod(podSpec *storage.LocalPodSpec, stack *v
 				SwIfIndex: types.InvalidID,
 			}},
 		}
+		s.log.Infof("Add route [mainVRF ->PodVRF] %s", route.String())
 		err := s.vpp.RouteAdd(&route)
 		if err != nil {
 			return errors.Wrapf(err, "error adding vpp side routes for interface")
@@ -247,6 +210,7 @@ func (s *Server) SetupPuntRoutes(podSpec *storage.LocalPodSpec, stack *vpplink.C
 			Dst:   containerIP,
 			Paths: []types.RoutePath{{SwIfIndex: swIfIndex}},
 		}
+		s.log.Infof("Add route [puntVRF ->PuntIF] %s", route.String())
 		err = s.vpp.RouteAdd(&route)
 		if err != nil {
 			return errors.Wrapf(err, "error adding vpp side routes for interface")

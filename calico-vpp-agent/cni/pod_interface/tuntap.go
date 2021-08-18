@@ -80,8 +80,14 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 	} else {
 		stack.Push(i.vpp.DelTap, swIfIndex)
 	}
+
 	podSpec.TunTapSwIfIndex = swIfIndex
 	i.log.Infof("created tun[%d]", swIfIndex)
+
+	err = i.DoPodIfNatConfiguration(podSpec, stack, swIfIndex)
+	if err != nil {
+		return err
+	}
 
 	err = i.DoPodInterfaceConfiguration(podSpec, stack, swIfIndex, true /*isL3*/)
 	if err != nil {
@@ -99,17 +105,17 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 	return nil
 }
 
-func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) (containerIPs []net.IPNet) {
-	containerIPs = i.unconfigureLinux(podSpec)
+func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
+	i.unconfigureLinux(podSpec)
 
 	i.UndoPodInterfaceConfiguration(podSpec.TunTapSwIfIndex)
+	i.UndoPodIfNatConfiguration(podSpec.TunTapSwIfIndex)
 
 	err := i.vpp.DelTap(podSpec.TunTapSwIfIndex)
 	if err != nil {
 		i.log.Warnf("Error deleting tun[%d] %s", podSpec.TunTapSwIfIndex, err)
 	}
 	i.log.Infof("deleted tun[%d]", podSpec.TunTapSwIfIndex)
-	return containerIPs
 
 }
 

@@ -84,6 +84,11 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		}
 	}
 
+	err = i.DoPodIfNatConfiguration(podSpec, stack, memif.SwIfIndex)
+	if err != nil {
+		return err
+	}
+
 	err = i.DoPodInterfaceConfiguration(podSpec, stack, memif.SwIfIndex, false /*isL3*/)
 	if err != nil {
 		return err
@@ -97,7 +102,8 @@ func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec)
 		return
 	}
 
-	i.UndoPodInterfaceConfiguration(podSpec.MemifSocketId)
+	i.UndoPodInterfaceConfiguration(podSpec.MemifSwIfIndex)
+	i.UndoPodIfNatConfiguration(podSpec.MemifSwIfIndex)
 
 	err := i.vpp.DeleteMemif(podSpec.MemifSwIfIndex)
 	if err != nil {

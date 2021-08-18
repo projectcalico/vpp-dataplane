@@ -53,3 +53,20 @@ spec:
     ports:
     - containerPort: 5201
   nodeName: _NODE_2_
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iperf3-client-samehost
+  namespace: iperf3-vcl
+  annotations:
+    "cni.projectcalico.org-vpp.vcl": "enable"
+spec:
+  containers:
+  - name: iperf3-client
+    image: calicovpp/test-iperf3-vcl
+    imagePullPolicy: IfNotPresent
+    ports:
+    - containerPort: 5201
+  nodeName: _NODE_1_
+ 

@@ -78,9 +78,13 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	/* Routes */
 	if !podSpec.EnableVCL {
 		swIfIndex, isL3 := podSpec.GetParamsForIfType(podSpec.DefaultIfType)
-		err = s.RoutePodInterface(podSpec, stack, swIfIndex, isL3)
-		if err != nil {
-			goto err
+		if swIfIndex != types.InvalidID {
+			err = s.RoutePodInterface(podSpec, stack, swIfIndex, isL3)
+			if err != nil {
+				goto err
+			}
+		} else {
+			s.log.Warn("No default if type for pod")
 		}
 
 		swIfIndex, isL3 = podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
@@ -120,7 +124,7 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 		}
 		swIfIndex, _ = podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 		if swIfIndex != types.InvalidID {
-			s.UnroutePodInterface(swIfIndex)
+			s.UnroutePodInterface(podSpec, swIfIndex)
 		}
 	}
 
@@ -131,9 +135,9 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	/* Interfaces */
 	s.vclDriver.DeleteInterface(podSpec)
 	s.memifDriver.DeleteInterface(podSpec)
+	s.tuntapDriver.DeleteInterface(podSpec)
 
-	containerIPs := s.tuntapDriver.DeleteInterface(podSpec)
-	for _, containerIP := range containerIPs {
+	for _, containerIP := range podSpec.GetContainerIps() {
 		s.routingServer.AnnounceLocalAddress(&containerIP, true /* isWithdrawal */)
 	}
 

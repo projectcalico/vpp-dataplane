@@ -73,7 +73,6 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		Mtu:               int(request.GetSettings().GetMtu()),
 
 		IfPortConfigs: make([]storage.LocalIfPortConfigs, 0),
-		DefaultIfType: storage.VppIfTypeTunTap,
 
 		OrchestratorID: request.Workload.Orchestrator,
 		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
@@ -112,6 +111,11 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 			return nil, errors.Wrapf(err, "Cannot parse pod Annotations")
 		}
 	}
+
+	if podSpec.DefaultIfType == storage.VppIfTypeUnknown {
+		podSpec.DefaultIfType = storage.VppIfTypeTunTap
+	}
+
 	return &podSpec, nil
 }
 
@@ -253,10 +257,15 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 			EndpointID:     initialSpec.EndpointID,
 		})
 		s.DelVppInterface(&initialSpec)
+		s.log.Warnf("Freeing ID %d", initialSpec.VrfId)
+		vpplink.FreeID(podVrfAllocator, initialSpec.VrfId)
 	}
 
-	vpplink.FreeID(podVrfAllocator, initialSpec.VrfId)
 	delete(s.podInterfaceMap, initialSpec.Key())
+	err := storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile)
+	if err != nil {
+		s.log.Errorf("CNI state persist errored %v", err)
+	}
 	s.log.Infof("Interface del successful %s", initialSpec.Key())
 	return &pb.DelReply{
 		Successful: true,
