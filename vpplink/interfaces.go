@@ -35,6 +35,7 @@ import (
 
 const (
 	INVALID_SW_IF_INDEX = ^uint32(0)
+	MAX_MTU             = 9216
 )
 
 type NamespaceNotFound error

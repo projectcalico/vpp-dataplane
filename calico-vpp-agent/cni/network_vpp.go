@@ -282,6 +282,11 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	}
 
+	err = s.vpp.SetInterfaceMtu(swIfIndex, vpplink.MAX_MTU)
+	if err != nil {
+		return 0, s.tunErrorCleanup(podSpec, err, "Error setting MTU on tun interface")
+	}
+
 	err = s.vpp.RegisterPodInterface(swIfIndex)
 	if err != nil {
 		return 0, s.tunErrorCleanup(podSpec, err, "error registering pod interface")
