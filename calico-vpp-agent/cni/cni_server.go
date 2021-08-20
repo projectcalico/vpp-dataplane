@@ -37,10 +37,6 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-const (
-	podVrfAllocator string = "podVrfAllocator"
-)
-
 type Server struct {
 	*common.CalicoVppServerData
 	log             *logrus.Entry
@@ -57,6 +53,8 @@ type Server struct {
 	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
 	vclDriver      *pod_interface.VclPodInterfaceDriver
 	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
+
+	indexAllocator *vpplink.IndexAllocator
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -127,9 +125,7 @@ func NewLocalPodSpecFromDel(request *pb.DelRequest) *storage.LocalPodSpec {
 }
 
 func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply, error) {
-	if request.GetDesiredHostInterfaceName() != "" {
-		s.log.Warn("Desired host side interface name passed, this is not supported with VPP, ignoring it")
-	}
+	/* We don't support request.GetDesiredHostInterfaceName() */
 	podSpec, err := s.newLocalPodSpecFromAdd(request)
 	if err != nil {
 		s.log.Errorf("Error parsing interface add request %v %v", request, err)
@@ -145,17 +141,17 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 		}, nil
 	}
 
-	s.log.Infof("Add request %s", podSpec.String())
 	s.BarrierSync()
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	podSpec.VrfId = vpplink.AllocateID(podVrfAllocator, common.PerPodVRFIndexStart)
-	s.log.Infof("Allocated VrfId:%d for %s", podSpec.VrfId, podSpec.Key())
+	s.log.Infof("Adding Pod %s", podSpec.String())
+	podSpec.VrfId = s.indexAllocator.AllocateIndex()
+	s.log.Infof("Allocated VrfId:%d", podSpec.VrfId)
 
 	swIfIndex, err := s.AddVppInterface(podSpec, true /* doHostSideConf */)
 	if err != nil {
-		vpplink.FreeID(podVrfAllocator, podSpec.VrfId)
+		s.indexAllocator.FreeIndex(podSpec.VrfId)
 		s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
 		return &pb.AddReply{
 			Successful:   false,
@@ -168,7 +164,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
-	s.log.Infof("Interface add successful: %s", podSpec.String())
+	s.log.Infof("Done Adding Pod %s", podSpec.String())
 	// XXX: container MAC doesn't make sense anymore, we just pass back a constant one.
 	// How does calico / k8s use it?
 	return &pb.AddReply{
@@ -209,9 +205,15 @@ func (s *Server) rescanState() error {
 		s.log.Errorf("Error getting pods %v", err)
 		return err
 	}
+
+	s.log.Infof("RescanState: re-creating all interfaces")
 	for _, podSpec := range podSpecs {
-		s.log.Infof("Rescanning pod %v", podSpec.String())
-		_, err2 := s.AddVppInterface(&podSpec, false /* doHostSideConf */)
+		err2 := s.indexAllocator.TakeIndex(podSpec.VrfId)
+		if err2 != nil {
+			s.log.Errorf("Error Taking back index %d : %v", podSpec.VrfId, err2)
+			continue
+		}
+		_, err2 = s.AddVppInterface(&podSpec, false /* doHostSideConf */)
 		if err2 != nil {
 			// TODO: some errors are probably not critical, for instance if the interface
 			// can't be created because the netns disappeared (may happen when the host reboots)
@@ -224,11 +226,17 @@ func (s *Server) rescanState() error {
 	return err
 }
 
-func (p *Server) OnVppRestart() {
-	for name, podSpec := range p.podInterfaceMap {
-		_, err := p.AddVppInterface(&podSpec, false /* doHostSideConf */)
+func (s *Server) OnVppRestart() {
+	s.log.Infof("VppRestart: re-creating all interfaces")
+	for name, podSpec := range s.podInterfaceMap {
+		err := s.indexAllocator.TakeIndex(podSpec.VrfId)
 		if err != nil {
-			p.log.Errorf("Error re-injecting interface %s : %v", name, err)
+			s.log.Errorf("Error Taking back index %d : %v", podSpec.VrfId, err)
+			continue
+		}
+		_, err = s.AddVppInterface(&podSpec, false /* doHostSideConf */)
+		if err != nil {
+			s.log.Errorf("Error re-injecting interface %s : %v", name, err)
 		}
 	}
 }
@@ -242,23 +250,25 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 			Successful: true,
 		}, nil
 	}
-	s.log.Infof("Del request %s", partialPodSpec.Key())
 	s.BarrierSync()
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	s.log.Infof("Deleting pod %s", partialPodSpec.Key())
 	initialSpec, ok := s.podInterfaceMap[partialPodSpec.Key()]
 	if !ok {
-		s.log.Warnf("Received del interface but initial spec not found")
+		s.log.Warnf("Unknown pod to delete")
 	} else {
 		s.policyServer.WorkloadRemoved(&policy.WorkloadEndpointID{
 			OrchestratorID: initialSpec.OrchestratorID,
 			WorkloadID:     initialSpec.WorkloadID,
 			EndpointID:     initialSpec.EndpointID,
 		})
+		s.log.Infof("Deleting pod %s", initialSpec.String())
 		s.DelVppInterface(&initialSpec)
-		s.log.Warnf("Freeing ID %d", initialSpec.VrfId)
-		vpplink.FreeID(podVrfAllocator, initialSpec.VrfId)
+		s.log.Infof("Freeing VRF Index %d", initialSpec.VrfId)
+		s.indexAllocator.FreeIndex(initialSpec.VrfId)
+		s.log.Infof("Done Deleting pod %s", initialSpec.String())
 	}
 
 	delete(s.podInterfaceMap, initialSpec.Key())
@@ -266,7 +276,6 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
-	s.log.Infof("Interface del successful %s", initialSpec.Key())
 	return &pb.DelReply{
 		Successful: true,
 	}, nil
@@ -307,6 +316,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(v, l),
 		vclDriver:       pod_interface.NewVclPodInterfaceDriver(v, l),
 		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(v, l),
+		indexAllocator:  vpplink.NewIndexAllocator(common.PerPodVRFIndexStart),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")

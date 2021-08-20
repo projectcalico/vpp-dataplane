@@ -48,6 +48,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 	swIfIndex := i.SearchPodInterface(podSpec)
 	if swIfIndex != vpplink.InvalidID {
 		/* If something is found under this name, try a cleanup before going on */
+		i.log.Warnf("Found tuntap already existing %d. Trying cleanup", swIfIndex)
 		i.DeleteInterface(podSpec)
 	}
 

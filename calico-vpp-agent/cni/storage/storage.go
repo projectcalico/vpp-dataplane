@@ -82,7 +82,7 @@ func (ps *LocalPodSpec) UpdateSizes() {
 }
 
 func (ps *LocalPodSpec) Key() string {
-	return fmt.Sprintf("%s--%s", ps.NetnsName, ps.InterfaceName)
+	return fmt.Sprintf("netns:%s,if:%s", ps.NetnsName, ps.InterfaceName)
 }
 
 func (ps *LocalPodSpec) String() string {
@@ -91,7 +91,7 @@ func (ps *LocalPodSpec) String() string {
 	for _, e := range lst {
 		strLst = append(strLst, e.String())
 	}
-	return fmt.Sprintf("%s: %s", ps.Key(), strings.Join(strLst, ", "))
+	return fmt.Sprintf("%s [%s]", ps.Key(), strings.Join(strLst, ", "))
 }
 
 func (ps *LocalPodSpec) FullString() string {

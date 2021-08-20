@@ -147,6 +147,14 @@ func (r *Route) pathsString() string {
 	return strings.Join(pathsStr, ", ")
 }
 
+func (r *Route) familyString() string {
+	if r.IsIP6() {
+		return "v6"
+	}
+	return "v4"
+
+}
+
 func (r *Route) tableString() string {
 	if r.Table == 0 {
 		return ""
@@ -158,13 +166,15 @@ func (r *Route) tableString() string {
 func (r *Route) dstString() string {
 	if r.Dst == nil {
 		return "*"
-	} else {
-		return r.Dst.String()
 	}
+	if r.Dst.IP.Equal(net.IPv4zero) || r.Dst.IP.Equal(net.IPv6zero) {
+		return "*"
+	}
+	return r.Dst.String()
 }
 
 func (r *Route) String() string {
-	return fmt.Sprintf("%s%s -> %s", r.tableString(), r.dstString(), r.pathsString())
+	return fmt.Sprintf("%s %s%s -> %s", r.familyString(), r.tableString(), r.dstString(), r.pathsString())
 }
 
 func (r *Route) IsLinkLocal() bool {

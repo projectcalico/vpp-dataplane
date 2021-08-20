@@ -88,7 +88,6 @@ func (i *PodInterfaceDriverData) DoPodIfNatConfiguration(podSpec *storage.LocalP
 }
 
 func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32) {
-	i.log.Infof("found matching VPP tun[%d]", swIfIndex)
 	err := i.vpp.InterfaceAdminDown(swIfIndex)
 	if err != nil {
 		i.log.Errorf("InterfaceAdminDown errored %s", err)

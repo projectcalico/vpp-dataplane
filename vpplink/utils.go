@@ -16,49 +16,75 @@
 package vpplink
 
 import (
+	"fmt"
 	"sync"
 )
 
-type IDPool struct {
-	freeList  []uint32
-	maxFreeID uint32
+type IndexAllocator struct {
+	freeIndexList []uint32
+	startID       uint32
+	maxFreeID     uint32
+	lock          sync.Mutex
 }
 
-var (
-	idPools map[string]*IDPool = make(map[string]*IDPool)
-	lock    sync.Mutex
-)
-
-func AllocateID(namespace string, startID uint32) (index uint32) {
-	lock.Lock()
-	defer lock.Unlock()
-
-	idPool, ok := idPools[namespace]
-	if !ok {
-		idPools[namespace] = &IDPool{
-			freeList:  make([]uint32, 0),
-			maxFreeID: startID,
-		}
-		idPool = idPools[namespace]
+func NewIndexAllocator(startID uint32) *IndexAllocator {
+	return &IndexAllocator{
+		freeIndexList: make([]uint32, 0),
+		startID:       startID,
+		maxFreeID:     startID,
 	}
-	n := len(idPool.freeList)
+}
+
+func (i *IndexAllocator) AllocateIndex() (index uint32) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	n := len(i.freeIndexList)
 	if n == 0 {
-		index = idPool.maxFreeID
-		idPool.maxFreeID = idPool.maxFreeID + 1
+		index = i.maxFreeID
+		i.maxFreeID = i.maxFreeID + 1
 	} else {
-		index = idPool.freeList[n-1]
-		idPool.freeList = idPool.freeList[:n-1]
+		index = i.freeIndexList[n-1]
+		i.freeIndexList = i.freeIndexList[:n-1]
 	}
 	return index
 }
 
-func FreeID(namespace string, index uint32) {
-	lock.Lock()
-	defer lock.Unlock()
+func (i *IndexAllocator) TakeIndex(index uint32) error {
+	i.lock.Lock()
+	defer i.lock.Unlock()
 
-	idPool, ok := idPools[namespace]
-	if !ok {
-		return
+	if index < i.startID {
+		return fmt.Errorf("Index %d lower than minimal index %d", index, i.startID)
 	}
-	idPool.freeList = append(idPool.freeList, index)
+
+	if index >= i.maxFreeID {
+		for ii := i.maxFreeID; ii < index; ii++ {
+			i.freeIndexList = append(i.freeIndexList, ii)
+		}
+		i.maxFreeID = index + 1
+		return nil
+	}
+
+	found := -1
+	for ii, freeIndex := range i.freeIndexList {
+		if freeIndex == index {
+			found = ii
+			break
+		}
+	}
+
+	if found == -1 {
+		return fmt.Errorf("Index %d not in freelist", index)
+	}
+
+	i.freeIndexList = append(i.freeIndexList[:found], i.freeIndexList[found+1:]...)
+	return nil
+}
+
+func (i *IndexAllocator) FreeIndex(index uint32) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	i.freeIndexList = append(i.freeIndexList, index)
 }

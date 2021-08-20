@@ -1,4 +1,4 @@
-VPP Version                 : 21.10-rc0~268-gdf7a686d8
+VPP Version                 : 21.10-rc0~270-g674e20594
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 078d25803 wireguard: add flag to check hmac for decryption
 ------------------ Cherry picked commits --------------------
@@ -6,7 +6,9 @@ gerrit:28513/20 capo: Calico Policies plugin
 gerrit:28083/16 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/3 pbl: Port based balancer
-gerrit:33501/2 interface: Always init fib_index_by_sw_if_index
+gerrit:33557/1 ip: unlock_fib on if delete
+gerrit:33504/2 ip: show ip table CLI
+gerrit:33501/4 interface: fix init fib_index_by_sw_if_index
 gerrit:33451/3 ip: punt redirect add nh in api
 gerrit:33301/2 session: Use ns_id as abstract socket name
 gerrit:33164/3 dpdk: enable ena interrupt support in dpdk version 21.05

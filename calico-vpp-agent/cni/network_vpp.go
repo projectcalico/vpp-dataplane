@@ -38,24 +38,26 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	stack := s.vpp.NewCleanupStack()
 
-	err = s.CreateVRFandRoutesToPod(podSpec, stack)
+	s.log.Infof("Creating Pod VRF")
+	err = s.CreatePodVRF(podSpec, stack)
 	if err != nil {
 		goto err
 	}
 
+	s.log.Infof("Creating Pod loopback")
 	err = s.loopbackDriver.CreateInterface(podSpec, stack)
 	if err != nil {
 		goto err
 	}
 
-	s.log.Infof("Creating container interface using VPP networking")
+	s.log.Infof("Creating Pod tuntap")
 	err = s.tuntapDriver.CreateInterface(podSpec, stack, doHostSideConf)
 	if err != nil {
 		goto err
 	}
 
 	if podSpec.EnableMemif && config.MemifEnabled {
-		s.log.Infof("Creating container memif interface")
+		s.log.Infof("Creating Pod memif")
 		err := s.memifDriver.CreateInterface(podSpec, stack)
 		if err != nil {
 			goto err
@@ -63,22 +65,24 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}
 
 	if podSpec.EnableVCL && config.VCLEnabled {
-		s.log.Infof("Enabling container VCL")
+		s.log.Infof("Creating Pod VCL socket")
 		err = s.vclDriver.CreateInterface(podSpec, stack)
 		if err != nil {
 			goto err
 		}
 	}
 
-	err = s.SetupPuntRoutes(podSpec, stack, podSpec.TunTapSwIfIndex)
-	if err != nil {
-		goto err
-	}
-
 	/* Routes */
-	if !podSpec.EnableVCL {
+	if podSpec.EnableVCL {
+		s.log.Infof("Setting up Pod Punt routes")
+		err = s.SetupPuntRoutes(podSpec, stack, podSpec.TunTapSwIfIndex)
+		if err != nil {
+			goto err
+		}
+	} else {
 		swIfIndex, isL3 := podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 		if swIfIndex != types.InvalidID {
+			s.log.Infof("Adding Pod default routes to %d l3?:%t", swIfIndex, isL3)
 			err = s.RoutePodInterface(podSpec, stack, swIfIndex, isL3)
 			if err != nil {
 				goto err
@@ -89,13 +93,15 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 		swIfIndex, isL3 = podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
 		if swIfIndex != types.InvalidID {
-			err = s.RoutePblPortsPodInterface(podSpec, stack, podSpec.MemifSwIfIndex, isL3)
+			s.log.Infof("Adding Pod PBL routes to %d l3?:%t", swIfIndex, isL3)
+			err = s.RoutePblPortsPodInterface(podSpec, stack, swIfIndex, isL3)
 			if err != nil {
 				goto err
 			}
 		}
 	}
 
+	s.log.Infof("Announcing Pod Addresses")
 	for _, containerIP := range podSpec.GetContainerIps() {
 		s.routingServer.AnnounceLocalAddress(containerIP, false /* isWithdrawal */)
 	}
@@ -116,32 +122,41 @@ err:
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
+
+	for _, containerIP := range podSpec.GetContainerIps() {
+		s.routingServer.AnnounceLocalAddress(containerIP, true /* isWithdrawal */)
+	}
+
 	/* Routes */
-	if !podSpec.EnableVCL {
+	if podSpec.EnableVCL {
+		if podSpec.TunTapSwIfIndex != vpplink.InvalidID {
+			s.log.Infof("Deleting Pod punt routes")
+			s.RemovePuntRoutes(podSpec, podSpec.TunTapSwIfIndex)
+		}
+	} else {
 		swIfIndex, _ := podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
 		if swIfIndex != types.InvalidID {
+			s.log.Infof("Deleting Pod PBL routes to %d", swIfIndex)
 			s.UnroutePblPortsPodInterface(podSpec, swIfIndex)
 		}
 		swIfIndex, _ = podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 		if swIfIndex != types.InvalidID {
+			s.log.Infof("Deleting Pod default routes to %d", swIfIndex)
 			s.UnroutePodInterface(podSpec, swIfIndex)
 		}
 	}
 
-	if podSpec.TunTapSwIfIndex != vpplink.InvalidID {
-		s.RemovePuntRoutes(podSpec, podSpec.TunTapSwIfIndex)
-	}
-
 	/* Interfaces */
+	s.log.Infof("Deleting Pod VCL")
 	s.vclDriver.DeleteInterface(podSpec)
+	s.log.Infof("Deleting Pod memif")
 	s.memifDriver.DeleteInterface(podSpec)
+	s.log.Infof("Deleting Pod tuntap")
 	s.tuntapDriver.DeleteInterface(podSpec)
 
-	for _, containerIP := range podSpec.GetContainerIps() {
-		s.routingServer.AnnounceLocalAddress(&containerIP, true /* isWithdrawal */)
-	}
-
+	s.log.Infof("Deleting Pod loopback")
 	s.loopbackDriver.DeleteInterface(podSpec)
 
-	s.DeleteVRFandRoutesToPod(podSpec)
+	s.log.Infof("Deleting Pod VRF")
+	s.DeletePodVRF(podSpec)
 }

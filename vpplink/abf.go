@@ -25,8 +25,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-const (
-	policyIdNS string = "policyID"
+var (
+	policyIndexAllocator = NewIndexAllocator(1 /*StartIndex*/)
 )
 
 func (v *VppLink) attachDetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool, isAdd bool) (err error) {
@@ -95,14 +95,14 @@ func (v *VppLink) addDelAbfPolicy(policy *types.AbfPolicy, isAdd bool) (err erro
 }
 
 func (v *VppLink) AddAbfPolicy(policy *types.AbfPolicy) (err error) {
-	policy.PolicyID = AllocateID(policyIdNS, 1 /* startID */)
+	policy.PolicyID = policyIndexAllocator.AllocateIndex()
 	return v.addDelAbfPolicy(policy, true)
 }
 
 func (v *VppLink) DelAbfPolicy(policy *types.AbfPolicy) (err error) {
 	err = v.addDelAbfPolicy(policy, false)
 	if err != nil {
-		FreeID(policyIdNS, policy.PolicyID)
+		policyIndexAllocator.FreeIndex(policy.PolicyID)
 	}
 	return err
 }
