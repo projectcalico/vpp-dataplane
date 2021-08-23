@@ -42,7 +42,6 @@ import (
 func main() {
 	log := logrus.New()
 	signalChannel := make(chan os.Signal, 2)
-	prometheus.Channel = make(chan prometheus.PodSpecEvent, 10)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 
 	err := config.LoadConfig(log)
@@ -95,19 +94,20 @@ func main() {
 		log.Errorf("Failed to create policy server")
 		log.Fatal(err)
 	}
+	prometheusServer, err := prometheus.NewServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
+	if err != nil {
+		log.Errorf("Failed to create Prometheus server")
+		log.Fatal(err)
+	}
 	cniServer, err := cni.NewServer(
 		vpp,
 		routingServer,
 		policyServer,
+		prometheusServer,
 		log.WithFields(logrus.Fields{"component": "cni"}),
 	)
 	if err != nil {
 		log.Errorf("Failed to create CNI server")
-		log.Fatal(err)
-	}
-	prometheusServer, err := prometheus.NewServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
-	if err != nil {
-		log.Errorf("Failed to create Prometheus server")
 		log.Fatal(err)
 	}
 

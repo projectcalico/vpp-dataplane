@@ -29,14 +29,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var exported_data string
-var sc *statsclient.StatsClient
 var g_server *Server
-var lock sync.Mutex
-var Channel chan PodSpecEvent
+
+type Event int
+
+const (
+	Add    Event = 0
+	Delete Event = 1
+)
 
 type PodSpecEvent struct {
-	Event string
+	Event Event
 	Pod   storage.LocalPodSpec
 }
 
@@ -44,20 +47,36 @@ type Server struct {
 	log           *logrus.Entry
 	vpp           *vpplink.VppLink
 	podInterfaces []storage.LocalPodSpec
+	exported_data string
+	sc            *statsclient.StatsClient
+	channel       chan PodSpecEvent
+	lock          sync.Mutex
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
-	ifNames, dumpStats, _ := vpplink.Statsclientfunc(sc)
-	exported_data = g_server.statsToPrometheusFormat(ifNames, dumpStats)
-	fmt.Fprint(w, exported_data)
+	ifNames, dumpStats, _ := vpplink.StatsClientFunc(g_server.sc)
+	g_server.exported_data = g_server.statsToPrometheusFormat(ifNames, dumpStats)
+	fmt.Fprint(w, g_server.exported_data)
 }
 
 func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server := &Server{
-		log: l,
-		vpp: vpp,
+		log:     l,
+		vpp:     vpp,
+		channel: make(chan PodSpecEvent, 10),
 	}
 	return server, nil
+}
+
+// PodAdded is called by the CNI server when a vpp interface is added
+func (s *Server) PodAdded(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
+	podSpec.SwIfIndex = swIfIndex
+	s.channel <- PodSpecEvent{Event: Add, Pod: *podSpec}
+}
+
+// PodRemoved is called by the CNI server when a vpp interface is deleted
+func (s *Server) PodRemoved(podSpec *storage.LocalPodSpec) {
+	s.channel <- PodSpecEvent{Event: Delete, Pod: *podSpec}
 }
 
 func (s *Server) statsToPrometheusFormat(ifNames adapter.NameStat, dumpStats []adapter.StatEntry) (text string) {
@@ -73,7 +92,7 @@ func (s *Server) statsToPrometheusFormat(ifNames adapter.NameStat, dumpStats []a
 				for worker := range values {
 					for j := range values[worker] {
 						if string(ifNames[j]) != "" {
-							s.update_text(ifNames, &text, metricNames[0], strconv.Itoa(int(values[worker][j])), worker, j)
+							s.updateText(ifNames, &text, metricNames[0], strconv.Itoa(int(values[worker][j])), worker, j)
 						}
 					}
 				}
@@ -83,7 +102,7 @@ func (s *Server) statsToPrometheusFormat(ifNames adapter.NameStat, dumpStats []a
 					for worker := range values {
 						for j := range values[worker] {
 							if string(ifNames[j]) != "" {
-								s.update_text(ifNames, &text, metricNames[k], strconv.Itoa(int(values[worker][j][k])), worker, j)
+								s.updateText(ifNames, &text, metricNames[k], strconv.Itoa(int(values[worker][j][k])), worker, j)
 							}
 						}
 					}
@@ -94,10 +113,10 @@ func (s *Server) statsToPrometheusFormat(ifNames adapter.NameStat, dumpStats []a
 	return text
 }
 
-func (s *Server) update_text(ifNames adapter.NameStat, text *string, metricName string, value string, worker int, j int) *string {
+func (s *Server) updateText(ifNames adapter.NameStat, text *string, metricName string, value string, worker int, j int) *string {
 	_, swifindex := s.vpp.SearchInterfaceWithName(string(ifNames[j]))
-	lock.Lock()
-	defer lock.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	for _, pod := range s.podInterfaces {
 		if swifindex == pod.SwIfIndex {
 			namespace := pod.WorkloadID[:strings.Index(pod.WorkloadID, "/")]
@@ -116,16 +135,16 @@ func (s *Server) Serve() {
 	s.log.Infof("Serve() Prometheus exporter")
 	go func() {
 		for {
-			event := <-Channel
-			if event.Event == "add" {
-				lock.Lock()
+			event := <-s.channel
+			if event.Event == Add {
+				s.lock.Lock()
 				s.podInterfaces = append(s.podInterfaces, event.Pod)
-				lock.Unlock()
+				s.lock.Unlock()
 			}
 		}
 	}()
-	sc = statsclient.NewStatsClient("")
-	err := sc.Connect()
+	s.sc = statsclient.NewStatsClient("")
+	err := s.sc.Connect()
 	if err != nil {
 		s.log.WithError(err).Errorf("could not connect statsclient")
 		return
@@ -138,6 +157,6 @@ func (s *Server) Serve() {
 		s.log.WithError(err).Errorf("Could not listen and serve on 2112")
 		return
 	}
-	sc.Disconnect()
+	s.sc.Disconnect()
 
 }

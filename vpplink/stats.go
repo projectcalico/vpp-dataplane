@@ -21,7 +21,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Statsclientfunc(sc *statsclient.StatsClient) (ifNames adapter.NameStat, dumpStats []adapter.StatEntry, err error) {
+func StatsClientFunc(sc *statsclient.StatsClient) (ifNames adapter.NameStat, dumpStats []adapter.StatEntry, err error) {
 
 	dumpStatsNames, err := sc.DumpStats("/if/names")
 	if err != nil {

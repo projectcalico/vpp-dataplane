@@ -27,6 +27,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/prometheus"
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -38,14 +39,15 @@ import (
 
 type Server struct {
 	*common.CalicoVppServerData
-	log             *logrus.Entry
-	vpp             *vpplink.VppLink
-	grpcServer      *grpc.Server
-	client          *kubernetes.Clientset
-	socketListener  net.Listener
-	routingServer   *routing.Server
-	policyServer    *policy.Server
-	podInterfaceMap map[string]storage.LocalPodSpec
+	log              *logrus.Entry
+	vpp              *vpplink.VppLink
+	grpcServer       *grpc.Server
+	client           *kubernetes.Clientset
+	socketListener   net.Listener
+	routingServer    *routing.Server
+	policyServer     *policy.Server
+	prometheusServer *prometheus.Server
+	podInterfaceMap  map[string]storage.LocalPodSpec
 	/* without main thread */
 	NumVPPWorkers int
 	lock          sync.Mutex
@@ -219,7 +221,7 @@ func (s *Server) Stop() {
 }
 
 // Serve runs the grpc server for the Calico CNI backend API
-func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *logrus.Entry) (*Server, error) {
+func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, prs *prometheus.Server, l *logrus.Entry) (*Server, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
@@ -236,14 +238,15 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 	}
 
 	server := &Server{
-		vpp:             v,
-		log:             l,
-		routingServer:   rs,
-		policyServer:    ps,
-		socketListener:  lis,
-		client:          client,
-		grpcServer:      grpc.NewServer(),
-		podInterfaceMap: make(map[string]storage.LocalPodSpec),
+		vpp:              v,
+		log:              l,
+		routingServer:    rs,
+		policyServer:     ps,
+		prometheusServer: prs,
+		socketListener:   lis,
+		client:           client,
+		grpcServer:       grpc.NewServer(),
+		podInterfaceMap:  make(map[string]storage.LocalPodSpec),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")
