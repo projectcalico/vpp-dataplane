@@ -1,9 +1,9 @@
-apiVersion: kubeadm.k8s.io/v1beta2
+apiVersion: kubeadm.k8s.io/v1beta3
 bootstrapTokens:
 - groups:
   - system:bootstrappers:kubeadm:default-node-token
-  token: "abcdef.0123456789abcdef"
-  ttl: 0s
+  token: abcdef.0123456789abcdef
+  ttl: 24h0m0s
   usages:
   - signing
   - authentication
@@ -12,24 +12,17 @@ localAPIEndpoint:
   advertiseAddress: "${FIRST_NODE_IP}"
   bindPort: 6443
 nodeRegistration:
-  taints: null
-  kubeletExtraArgs:
-    node-ip: "${FIRST_NODE_IP}"
-    max-pods: "100000"
   criSocket: /var/run/dockershim.sock
+  imagePullPolicy: IfNotPresent
+  taints: null
   name: "${NODE_NAME}"
-  ignorePreflightErrors:
-  - SystemVerification
-  - FileContent--proc-sys-net-ipv6-conf-default-forwarding
-  - DirAvailable--var-lib-etcd
 ---
 # https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
-apiVersion: kubeadm.k8s.io/v1beta2
+apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
 apiServer:
   timeoutForControlPlane: 4m0s
   extraArgs:
-    authorization-mode: Node,RBAC
     advertise-address: "${FIRST_NODE_IP}"
     service-cluster-ip-range: "${SERVICE_CIDR}"
     feature-gates: "IPv6DualStack=${IS_DUAL}"
@@ -42,9 +35,9 @@ controllerManager:
     allocate-node-cidrs: "true"
     cluster-cidr: "${POD_CIDR}"
     service-cluster-ip-range: "${SERVICE_CIDR}"
-    node-cidr-mask-size-ipv4: "${NODE_CIDR_MASK_SIZE4}"
-    node-cidr-mask-size-ipv6: "${NODE_CIDR_MASK_SIZE6}"
-    node-cidr-mask-size: "${NODE_CIDR_MASK_SIZE}"
+    ${DISABLE_NODE_CIDR_MASK_SIZE4}node-cidr-mask-size-ipv4: "${NODE_CIDR_MASK_SIZE4}"
+    ${DISABLE_NODE_CIDR_MASK_SIZE6}node-cidr-mask-size-ipv6: "${NODE_CIDR_MASK_SIZE6}"
+    ${DISABLE_NODE_CIDR_MASK}node-cidr-mask-size: "${NODE_CIDR_MASK_SIZE}"
 dns:
   type: ${DNS_TYPE}
 etcd:
@@ -72,8 +65,10 @@ featureGates:
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
+maxPods: 100000
+cgroupDriver: "cgroupfs"
+imageMinimumGCAge: "72h"
 featureGates:
-  # LocalStorageCapacityIsolation: false
   IPv6DualStack: ${IS_DUAL}
 
 

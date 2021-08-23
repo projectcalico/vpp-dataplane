@@ -6,18 +6,14 @@ discovery:
     token: "abcdef.0123456789abcdef"
     unsafeSkipCAVerification: true
   timeout: 5m0s
-  # tlsBootstrapToken: "abcdef.0123456789abcdef"
+  tlsBootstrapToken: "abcdef.0123456789abcdef"
 kind: JoinConfiguration
 nodeRegistration:
   taints: null
   kubeletExtraArgs:
-    max-pods: "100000"
     node-ip: "${FIRST_NODE_IP}"
   criSocket: /var/run/dockershim.sock
   name: "${NODE_NAME}"
-  ignorePreflightErrors:
-  - SystemVerification
-  - FileContent--proc-sys-net-ipv6-conf-default-forwarding
 ---
 # https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
 apiVersion: kubeadm.k8s.io/v1beta2
@@ -39,7 +35,6 @@ controllerManager:
     cluster-cidr: "${POD_CIDR}"
     service-cluster-ip-range: "${SERVICE_CIDR}"
     node-cidr-mask-size-ipv4: "${NODE_CIDR_MASK_SIZE4}"
-    node-cidr-mask-size-ipv6: "${NODE_CIDR_MASK_SIZE6}"
     node-cidr-mask-size-ipv6: "${NODE_CIDR_MASK_SIZE6}"
     node-cidr-mask-size: "${NODE_CIDR_MASK_SIZE}"
 dns:
@@ -68,9 +63,10 @@ featureGates:
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
-# address: "${LISTEN_ADDR}"
+imageMinimumGCAge: "72h"
+maxPods: 100000
+cgroupDriver: "cgroupfs"
 featureGates:
-  # LocalStorageCapacityIsolation: false
   IPv6DualStack: ${IS_DUAL}
 
 

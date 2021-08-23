@@ -7,7 +7,7 @@ metadata:
   labels:
     app: iperf-server
 spec:
-  replicas: 4
+  replicas: 1
   selector:
     matchLabels:
       app: iperf-server
@@ -31,7 +31,6 @@ metadata:
   namespace: iperf
   name: iperf-service
 spec:
-  ipFamily: IPv4
   selector:
     app: iperf-server
   ports:
