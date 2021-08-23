@@ -39,8 +39,7 @@ const (
 	HostIfName             = "vpptap0"
 	HostIfTag              = "hosttap"
 	VppSigKillTimeout      = 2
-	DefaultEncapSize       = 60   // Used to lower the MTU of the routes to the cluster
-	VppTapMtu              = 9216 /* Max MTU for VPP tap interfaces */
+	DefaultEncapSize       = 60 // Used to lower the MTU of the routes to the cluster
 )
 
 const (

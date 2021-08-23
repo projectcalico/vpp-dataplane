@@ -437,9 +437,9 @@ func (v *VppRunner) configureVpp() (err error) {
 		return errors.Wrap(err, "Error setting tap rx placement")
 	}
 
-	err = v.vpp.SetInterfaceMtu(uint32(tapSwIfIndex), config.VppTapMtu)
+	err = v.vpp.SetInterfaceMtu(uint32(tapSwIfIndex), vpplink.MAX_MTU)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting %d MTU on tap interface", config.VppTapMtu)
+		return errors.Wrapf(err, "Error setting %d MTU on tap interface", vpplink.MAX_MTU)
 	}
 
 	err = utils.WriteFile(strconv.FormatInt(int64(tapSwIfIndex), 10), config.VppManagerTapIdxFile)

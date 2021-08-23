@@ -100,16 +100,15 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 			worker := (int(swIfIndex)*config.TapNumRxQueues + queue) % i.NDataThreads
 			err = i.vpp.SetInterfaceRxPlacement(swIfIndex, queue, worker, false /*main*/)
 			if err != nil {
-				i.log.Warnf("failed to set tun[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, queue, worker, i.NDataThreads, err)
+				i.log.Warnf("failed to set if[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, queue, worker, i.NDataThreads, err)
 			}
 		}
 	}
 
-	// configure vpp side tun
 	for _, ipFamily := range vpplink.IpFamilies {
 		err = i.vpp.SetInterfaceVRF(swIfIndex, podSpec.VrfId, ipFamily.IsIp6)
 		if err != nil {
-			return errors.Wrapf(err, "error setting vpp tun %d in pod vrf", swIfIndex)
+			return errors.Wrapf(err, "error setting vpp if[%d] in pod vrf", swIfIndex)
 		}
 	}
 
@@ -121,14 +120,19 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		}
 	}
 
+	err = i.vpp.SetInterfaceMtu(swIfIndex, vpplink.MAX_MTU)
+	if err != nil {
+		return errors.Wrapf(err, "Error setting MTU on pod interface")
+	}
+
 	err = i.vpp.InterfaceAdminUp(swIfIndex)
 	if err != nil {
-		return errors.Wrapf(err, "error setting new tun up")
+		return errors.Wrapf(err, "error setting new pod if up")
 	}
 
 	err = i.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, config.TapRxMode)
 	if err != nil {
-		return errors.Wrapf(err, "error SetInterfaceRxMode on tun interface")
+		return errors.Wrapf(err, "error SetInterfaceRxMode on pod if interface")
 	}
 
 	err = i.vpp.InterfaceSetUnnumbered(swIfIndex, podSpec.LoopbackSwIfIndex)
