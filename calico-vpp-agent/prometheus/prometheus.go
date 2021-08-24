@@ -16,8 +16,9 @@
 package prometheus
 
 import (
-	"fmt"
 	"net/http"
+	"time"
+
 	"strconv"
 	"strings"
 	"sync"
@@ -26,10 +27,11 @@ import (
 	"git.fd.io/govpp.git/adapter/statsclient"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 )
-
-var g_server *Server
 
 type Event int
 
@@ -38,32 +40,100 @@ const (
 	Delete Event = 1
 )
 
+type Server struct {
+	log           *logrus.Entry
+	vpp           *vpplink.VppLink
+	podInterfaces []storage.LocalPodSpec
+	sc            *statsclient.StatsClient
+	channel       chan PodSpecEvent
+	lock          sync.Mutex
+	counterValue  map[prometheus.Counter]float64
+	counterVecs   map[string]*prometheus.CounterVec
+}
+
 type PodSpecEvent struct {
 	Event Event
 	Pod   storage.LocalPodSpec
 }
 
-type Server struct {
-	log           *logrus.Entry
-	vpp           *vpplink.VppLink
-	podInterfaces []storage.LocalPodSpec
-	exported_data string
-	sc            *statsclient.StatsClient
-	channel       chan PodSpecEvent
-	lock          sync.Mutex
+func (s *Server) recordMetrics() {
+	go func() {
+		for {
+			time.Sleep(time.Second * 5)
+			ifNames, dumpStats, _ := vpplink.StatsClientFunc(s.sc)
+			for _, sta := range dumpStats {
+				if string(sta.Name) != "/if/names" {
+					names := []string{strings.Replace(string(sta.Name[4:]), "-", "_", -1)}
+					if sta.Type == adapter.CombinedCounterVector {
+						names = []string{names[0] + "_packet", names[0] + "_bytes"}
+					}
+					for k, name := range names {
+						metric, exists := s.counterVecs[name]
+						if !exists {
+							metric = promauto.NewCounterVec(prometheus.CounterOpts{
+								Name: name,
+							}, []string{"interfaceName", "worker", "namespace", "podName", "nameInPod"})
+							s.counterVecs[name] = metric
+						}
+						s.lock.Lock()
+						if sta.Type == adapter.SimpleCounterVector {
+							values := sta.Data.(adapter.SimpleCounterStat)
+							for worker := range values {
+								for ifIdx := range values[worker] {
+									_, swifindex := s.vpp.SearchInterfaceWithName(string(ifNames[ifIdx]))
+									for _, pod := range s.podInterfaces {
+										if swifindex == pod.SwIfIndex {
+											counter, _ := s.addCounter(metric, ifNames, ifIdx, worker, pod)
+											counter.Add(float64(values[worker][ifIdx]) - s.counterValue[counter])
+											s.counterValue[counter] = float64(values[worker][ifIdx])
+										}
+									}
+								}
+							}
+						} else if sta.Type == adapter.CombinedCounterVector {
+							values := sta.Data.(adapter.CombinedCounterStat)
+							for worker := range values {
+								for ifIdx := range values[worker] {
+									_, swifindex := s.vpp.SearchInterfaceWithName(string(ifNames[ifIdx]))
+									for _, pod := range s.podInterfaces {
+										if swifindex == pod.SwIfIndex {
+											counter, _ := s.addCounter(metric, ifNames, ifIdx, worker, pod)
+											counter.Add(float64(values[worker][ifIdx][k]) - s.counterValue[counter])
+											s.counterValue[counter] = float64(values[worker][ifIdx][k])
+										}
+									}
+								}
+							}
+						}
+						s.lock.Unlock()
+					}
+				}
+			}
+		}
+	}()
 }
 
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-	ifNames, dumpStats, _ := vpplink.StatsClientFunc(g_server.sc)
-	g_server.exported_data = g_server.statsToPrometheusFormat(ifNames, dumpStats)
-	fmt.Fprint(w, g_server.exported_data)
+func (s *Server) addCounter(metric *prometheus.CounterVec, ifNames adapter.NameStat, ifIdx int, worker int, pod storage.LocalPodSpec) (prometheus.Counter, error){
+	counter, err := metric.GetMetricWith(prometheus.Labels{"interfaceName": string(ifNames[ifIdx]), "worker": strconv.Itoa(worker),
+		"namespace": pod.WorkloadID[:strings.Index(pod.WorkloadID, "/")], "podName": pod.WorkloadID[strings.Index(pod.WorkloadID, "/")+1:],
+		"nameInPod": pod.InterfaceName})
+	if err != nil {
+		return nil, err
+	}
+	_, exists := s.counterValue[counter]
+	if !exists {
+		s.counterValue[counter] = 0
+	}
+	return counter, err
 }
 
 func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server := &Server{
-		log:     l,
-		vpp:     vpp,
-		channel: make(chan PodSpecEvent, 10),
+		log:          l,
+		vpp:          vpp,
+		channel:      make(chan PodSpecEvent, 10),
+		counterValue: make(map[prometheus.Counter]float64),
+		counterVecs:  make(map[string]*prometheus.CounterVec),
 	}
 	return server, nil
 }
@@ -77,58 +147,6 @@ func (s *Server) PodAdded(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
 // PodRemoved is called by the CNI server when a vpp interface is deleted
 func (s *Server) PodRemoved(podSpec *storage.LocalPodSpec) {
 	s.channel <- PodSpecEvent{Event: Delete, Pod: *podSpec}
-}
-
-func (s *Server) statsToPrometheusFormat(ifNames adapter.NameStat, dumpStats []adapter.StatEntry) (text string) {
-	for _, sta := range dumpStats {
-		if string(sta.Name) != "/if/names" {
-			metricNames := []string{strings.Replace(string(sta.Name[4:]), "-", "_", -1)}
-			if sta.Type == adapter.CombinedCounterVector {
-				metricName := metricNames[0]
-				metricNames = []string{metricName + "_packet", metricName + "_bytes"}
-			}
-			if sta.Type == adapter.SimpleCounterVector {
-				values := sta.Data.(adapter.SimpleCounterStat)
-				for worker := range values {
-					for j := range values[worker] {
-						if string(ifNames[j]) != "" {
-							s.updateText(ifNames, &text, metricNames[0], strconv.Itoa(int(values[worker][j])), worker, j)
-						}
-					}
-				}
-			} else if sta.Type == adapter.CombinedCounterVector {
-				values := sta.Data.(adapter.CombinedCounterStat)
-				for k := range metricNames {
-					for worker := range values {
-						for j := range values[worker] {
-							if string(ifNames[j]) != "" {
-								s.updateText(ifNames, &text, metricNames[k], strconv.Itoa(int(values[worker][j][k])), worker, j)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return text
-}
-
-func (s *Server) updateText(ifNames adapter.NameStat, text *string, metricName string, value string, worker int, j int) *string {
-	_, swifindex := s.vpp.SearchInterfaceWithName(string(ifNames[j]))
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	for _, pod := range s.podInterfaces {
-		if swifindex == pod.SwIfIndex {
-			namespace := pod.WorkloadID[:strings.Index(pod.WorkloadID, "/")]
-			podName := pod.WorkloadID[strings.Index(pod.WorkloadID, "/")+1:]
-			nameInPod := pod.InterfaceName
-			*text = *text + "# HELP " + metricName + " any help msg\n"
-			*text = *text + "# TYPE " + metricName + " counter\n"
-			*text = *text + metricName + "{" + "interfaceName=\"" + string(ifNames[j]) + "\",worker=\"" + strconv.Itoa(worker) +
-				"\",namespace=\"" + namespace + "\",podName=\"" + podName + "\",nameInPod=\"" + nameInPod + "\"} " + value + "\n"
-		}
-	}
-	return text
 }
 
 func (s *Server) Serve() {
@@ -149,14 +167,9 @@ func (s *Server) Serve() {
 		s.log.WithError(err).Errorf("could not connect statsclient")
 		return
 	}
-	g_server = s
 
-	http.HandleFunc("/metrics", viewHandler)
-	err = http.ListenAndServe(":2112", nil)
-	if err != nil {
-		s.log.WithError(err).Errorf("Could not listen and serve on 2112")
-		return
-	}
+	s.recordMetrics()
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe(":2112", nil)
 	s.sc.Disconnect()
-
 }
