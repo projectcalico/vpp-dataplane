@@ -49,7 +49,7 @@ spec:
               memory: 4Gi
             limits:
               memory: 80Gi
-              hugepages-2Mi: 4G
+              hugepages-2Mi: 4Gi
           volumeMounts:
             # Add your home to the container we can launch rebulid vpp
             # without the whole container
