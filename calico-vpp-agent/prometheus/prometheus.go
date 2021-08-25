@@ -38,17 +38,20 @@ type Event int
 const (
 	Add    Event = 0
 	Delete Event = 1
+
+	recordMetricInterval int64 = 5
 )
 
 type Server struct {
-	log           *logrus.Entry
-	vpp           *vpplink.VppLink
-	podInterfaces []storage.LocalPodSpec
-	sc            *statsclient.StatsClient
-	channel       chan PodSpecEvent
-	lock          sync.Mutex
-	counterValue  map[prometheus.Counter]float64
-	counterVecs   map[string]*prometheus.CounterVec
+	log                      *logrus.Entry
+	vpp                      *vpplink.VppLink
+	podInterfacesBySwifIndex map[uint32]storage.LocalPodSpec
+	podInterfacesByKey       map[string]storage.LocalPodSpec
+	sc                       *statsclient.StatsClient
+	channel                  chan PodSpecEvent
+	lock                     sync.Mutex
+	counterValue             map[prometheus.Counter]float64
+	counterVecs              map[string]*prometheus.CounterVec
 }
 
 type PodSpecEvent struct {
@@ -59,7 +62,7 @@ type PodSpecEvent struct {
 func (s *Server) recordMetrics() {
 	go func() {
 		for {
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Second * time.Duration(recordMetricInterval))
 			ifNames, dumpStats, _ := vpplink.StatsClientFunc(s.sc)
 			for _, sta := range dumpStats {
 				if string(sta.Name) != "/if/names" {
@@ -72,7 +75,7 @@ func (s *Server) recordMetrics() {
 						if !exists {
 							metric = promauto.NewCounterVec(prometheus.CounterOpts{
 								Name: name,
-							}, []string{"interfaceName", "worker", "namespace", "podName", "nameInPod"})
+							}, []string{"worker", "namespace", "podName", "nameInPod"})
 							s.counterVecs[name] = metric
 						}
 						s.lock.Lock()
@@ -80,10 +83,10 @@ func (s *Server) recordMetrics() {
 							values := sta.Data.(adapter.SimpleCounterStat)
 							for worker := range values {
 								for ifIdx := range values[worker] {
-									_, swifindex := s.vpp.SearchInterfaceWithName(string(ifNames[ifIdx]))
-									for _, pod := range s.podInterfaces {
-										if swifindex == pod.SwIfIndex {
-											counter, _ := s.addCounter(metric, ifNames, ifIdx, worker, pod)
+									if string(ifNames[ifIdx]) != "" {
+										_, swifindex := s.vpp.SearchInterfaceWithName(string(ifNames[ifIdx]))
+										if pod, ok := s.podInterfacesBySwifIndex[swifindex]; ok {
+											counter, _ := s.addCounter(metric, ifIdx, worker, pod)
 											counter.Add(float64(values[worker][ifIdx]) - s.counterValue[counter])
 											s.counterValue[counter] = float64(values[worker][ifIdx])
 										}
@@ -94,10 +97,10 @@ func (s *Server) recordMetrics() {
 							values := sta.Data.(adapter.CombinedCounterStat)
 							for worker := range values {
 								for ifIdx := range values[worker] {
-									_, swifindex := s.vpp.SearchInterfaceWithName(string(ifNames[ifIdx]))
-									for _, pod := range s.podInterfaces {
-										if swifindex == pod.SwIfIndex {
-											counter, _ := s.addCounter(metric, ifNames, ifIdx, worker, pod)
+									if string(ifNames[ifIdx]) != "" {
+										_, swifindex := s.vpp.SearchInterfaceWithName(string(ifNames[ifIdx]))
+										if pod, ok := s.podInterfacesBySwifIndex[swifindex]; ok {
+											counter, _ := s.addCounter(metric, ifIdx, worker, pod)
 											counter.Add(float64(values[worker][ifIdx][k]) - s.counterValue[counter])
 											s.counterValue[counter] = float64(values[worker][ifIdx][k])
 										}
@@ -113,10 +116,9 @@ func (s *Server) recordMetrics() {
 	}()
 }
 
-func (s *Server) addCounter(metric *prometheus.CounterVec, ifNames adapter.NameStat, ifIdx int, worker int, pod storage.LocalPodSpec) (prometheus.Counter, error){
-	counter, err := metric.GetMetricWith(prometheus.Labels{"interfaceName": string(ifNames[ifIdx]), "worker": strconv.Itoa(worker),
-		"namespace": pod.WorkloadID[:strings.Index(pod.WorkloadID, "/")], "podName": pod.WorkloadID[strings.Index(pod.WorkloadID, "/")+1:],
-		"nameInPod": pod.InterfaceName})
+func (s *Server) addCounter(metric *prometheus.CounterVec, ifIdx int, worker int, pod storage.LocalPodSpec) (prometheus.Counter, error) {
+	counter, err := metric.GetMetricWith(prometheus.Labels{"worker": strconv.Itoa(worker), "namespace": pod.WorkloadID[:strings.Index(pod.WorkloadID, "/")],
+		"podName": pod.WorkloadID[strings.Index(pod.WorkloadID, "/")+1:], "nameInPod": pod.InterfaceName})
 	if err != nil {
 		return nil, err
 	}
@@ -129,11 +131,13 @@ func (s *Server) addCounter(metric *prometheus.CounterVec, ifNames adapter.NameS
 
 func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server := &Server{
-		log:          l,
-		vpp:          vpp,
-		channel:      make(chan PodSpecEvent, 10),
-		counterValue: make(map[prometheus.Counter]float64),
-		counterVecs:  make(map[string]*prometheus.CounterVec),
+		log:                      l,
+		vpp:                      vpp,
+		channel:                  make(chan PodSpecEvent, 10),
+		counterValue:             make(map[prometheus.Counter]float64),
+		counterVecs:              make(map[string]*prometheus.CounterVec),
+		podInterfacesByKey:       make(map[string]storage.LocalPodSpec),
+		podInterfacesBySwifIndex: make(map[uint32]storage.LocalPodSpec),
 	}
 	return server, nil
 }
@@ -156,7 +160,20 @@ func (s *Server) Serve() {
 			event := <-s.channel
 			if event.Event == Add {
 				s.lock.Lock()
-				s.podInterfaces = append(s.podInterfaces, event.Pod)
+				s.podInterfacesBySwifIndex[event.Pod.SwIfIndex] = event.Pod
+				s.podInterfacesByKey[event.Pod.Key()] = event.Pod
+				s.lock.Unlock()
+			} else if event.Event == Delete {
+				s.lock.Lock()
+				initialPod := s.podInterfacesByKey[event.Pod.Key()]
+				for _, counterVec := range s.counterVecs {
+					counterVec.Delete(prometheus.Labels{"worker": "0", "namespace": initialPod.WorkloadID[:strings.Index(initialPod.WorkloadID, "/")],
+						"podName": initialPod.WorkloadID[strings.Index(initialPod.WorkloadID, "/")+1:], "nameInPod": initialPod.InterfaceName})
+					counterVec.Delete(prometheus.Labels{"worker": "1", "namespace": initialPod.WorkloadID[:strings.Index(initialPod.WorkloadID, "/")],
+						"podName": initialPod.WorkloadID[strings.Index(initialPod.WorkloadID, "/")+1:], "nameInPod": initialPod.InterfaceName})
+				}
+				delete(s.podInterfacesByKey, initialPod.Key())
+				delete(s.podInterfacesBySwifIndex, initialPod.SwIfIndex)
 				s.lock.Unlock()
 			}
 		}
