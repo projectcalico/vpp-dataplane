@@ -167,12 +167,12 @@ apt-mark hold docker-ce kubelet kubeadm kubectl
 # Increase /run dir as it is/was a problem on Ubuntu 18.04 (at least on bento box image)
 echo 'tmpfs /run tmpfs rw,nosuid,noexec,relatime,size=614460k,mode=755' >> /etc/fstab
 
-apt-get clean
-
 # Download k8s images
 kubeadm config images pull
 
-fstrim -a
+systemctl stop docker.service
+apt-get clean
+sync
 
 SCRIPT
 
