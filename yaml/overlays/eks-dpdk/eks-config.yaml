@@ -27,6 +27,7 @@ data:  # Configuration template for VPP in EKS
         plugin default { enable }
         plugin calico_plugin.so { enable }
         plugin dpdk_plugin.so { enable }
+        plugin ping_plugin.so { disable }
     }
 
 ---
