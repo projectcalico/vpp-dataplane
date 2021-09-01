@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
       - name: iperf3-server
-        image: calicovpp/test-/iperf3
+        image: calicovpp/test-iperf3
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5201

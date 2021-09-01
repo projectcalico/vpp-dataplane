@@ -21,6 +21,13 @@ scalesvc-build:
 iperf3-vcl-image:
 	rm -f ./iperf3-vcl/*.so
 	rm -f ./iperf3-vcl/*.so.*
+	openssl genrsa -out ./iperf3-vcl/iperfcert.key
+	openssl req -new -key ./iperf3-vcl/iperfcert.key \
+				-out ./iperf3-vcl/iperfcert.csr
+	openssl x509 -req -days 365 \
+				 -in ./iperf3-vcl/iperfcert.csr \
+				 -signkey ./iperf3-vcl/iperfcert.key \
+				 -out ./iperf3-vcl/iperfcert.crt
 	cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/*.so ./iperf3-vcl/
 	cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/*.so.* ./iperf3-vcl/
 	docker build -t calicovpp/test-iperf3-vcl -f ./iperf3-vcl/Dockerfile ./iperf3-vcl

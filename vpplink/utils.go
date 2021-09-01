@@ -59,7 +59,7 @@ func (i *IndexAllocator) TakeIndex(index uint32) error {
 	}
 
 	if index >= i.maxFreeID {
-		for ii := i.maxFreeID; ii < index; ii++ {
+		for ii := i.maxFreeID; ii <= index; ii++ {
 			i.freeIndexList = append(i.freeIndexList, ii)
 		}
 		i.maxFreeID = index + 1

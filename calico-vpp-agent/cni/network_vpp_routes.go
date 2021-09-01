@@ -174,45 +174,45 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 	}
 }
 
-// func (s *Server) CreateVRFRoutesToPod(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
-// 	for _, containerIP := range podSpec.GetContainerIps() {
-// 		/* In the main table route the container address to its VRF */
-// 		route := types.Route{
-// 			Dst: containerIP,
-// 			Paths: []types.RoutePath{{
-// 				Table:     podSpec.VrfId,
-// 				SwIfIndex: types.InvalidID,
-// 			}},
-// 		}
-// 		s.log.Infof("Adding route [mainVRF ->PodVRF] %s", route.String())
-// 		err := s.vpp.RouteAdd(&route)
-// 		if err != nil {
-// 			return errors.Wrapf(err, "error adding route [mainVRF ->PodVRF] %s", route.String())
-// 		} else {
-// 			stack.Push(s.vpp.RouteDel, &route)
-// 		}
-// 	}
-// 	return nil
-// }
+func (s *Server) CreateVRFRoutesToPod(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
+	for _, containerIP := range podSpec.GetContainerIps() {
+		/* In the main table route the container address to its VRF */
+		route := types.Route{
+			Dst: containerIP,
+			Paths: []types.RoutePath{{
+				Table:     podSpec.VrfId,
+				SwIfIndex: types.InvalidID,
+			}},
+		}
+		s.log.Infof("Adding route [mainVRF ->PodVRF] %s", route.String())
+		err := s.vpp.RouteAdd(&route)
+		if err != nil {
+			return errors.Wrapf(err, "error adding route [mainVRF ->PodVRF] %s", route.String())
+		} else {
+			stack.Push(s.vpp.RouteDel, &route)
+		}
+	}
+	return nil
+}
 
-// func (s *Server) DeleteVRFRoutesToPod(podSpec *storage.LocalPodSpec) {
-// 	var err error = nil
-// 	for _, containerIP := range podSpec.GetContainerIps() {
-// 		/* In the main table route the container address to its VRF */
-// 		route := types.Route{
-// 			Dst: containerIP,
-// 			Paths: []types.RoutePath{{
-// 				Table:     podSpec.VrfId,
-// 				SwIfIndex: types.InvalidID,
-// 			}},
-// 		}
-// 		s.log.Infof("Deleting route [mainVRF ->PodVRF] %s", route.String())
-// 		err := s.vpp.RouteDel(&route)
-// 		if err != nil {
-// 			s.log.Errorf("error deleting vpp side routes route [mainVRF ->PodVRF] %s : %s", route.String(), err)
-// 		}
-// 	}
-// }
+func (s *Server) DeleteVRFRoutesToPod(podSpec *storage.LocalPodSpec) {
+	var err error = nil
+	for _, containerIP := range podSpec.GetContainerIps() {
+		/* In the main table route the container address to its VRF */
+		route := types.Route{
+			Dst: containerIP,
+			Paths: []types.RoutePath{{
+				Table:     podSpec.VrfId,
+				SwIfIndex: types.InvalidID,
+			}},
+		}
+		s.log.Infof("Deleting route [mainVRF ->PodVRF] %s", route.String())
+		err = s.vpp.RouteDel(&route)
+		if err != nil {
+			s.log.Errorf("error deleting vpp side routes route [mainVRF ->PodVRF] %s : %s", route.String(), err)
+		}
+	}
+}
 
 func (s *Server) SetupPuntRoutes(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32) (err error) {
 	for _, containerIP := range podSpec.GetContainerIps() {

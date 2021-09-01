@@ -55,7 +55,18 @@ spec:
             # without the whole container
             - name: userhome
               mountPath: /home/hostuser
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs/
+            - name: share-certs
+              mountPath: /usr/share/ca-certificates
       volumes:
         - name: userhome
           hostPath:
             path: ${USERHOME}
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs/
+        - name: share-certs
+          hostPath:
+            path: /usr/share/ca-certificates
+

@@ -79,6 +79,10 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		if err != nil {
 			goto err
 		}
+		err = s.CreateVRFRoutesToPod(podSpec, stack)
+		if err != nil {
+			goto err
+		}
 	} else {
 		swIfIndex, isL3 := podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 		if swIfIndex != types.InvalidID {
@@ -130,6 +134,8 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	/* Routes */
 	if podSpec.EnableVCL {
 		if podSpec.TunTapSwIfIndex != vpplink.InvalidID {
+			s.log.Infof("Deleting routes to podVRF")
+			s.DeleteVRFRoutesToPod(podSpec)
 			s.log.Infof("Deleting Pod punt routes")
 			s.RemovePuntRoutes(podSpec, podSpec.TunTapSwIfIndex)
 		}
