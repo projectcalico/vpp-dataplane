@@ -51,8 +51,8 @@ git_cherry_pick refs/changes/88/31588/1 # 31588: cnat: [WIP] no k8s maglev from 
 # --------------- Cnat patches ---------------
 
 # ------------- Policies patches -------------
-git_cherry_pick refs/changes/83/28083/16 # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
-git_cherry_pick refs/changes/13/28513/20 # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
+git_cherry_pick refs/changes/83/28083/20 # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
+git_cherry_pick refs/changes/13/28513/24 # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 # ------------- Policies patches -------------
 
 git_cherry_pick refs/changes/64/33164/3  # 33164: dpdk: enable ena interrupt support in dpdk version 21.05 | https://gerrit.fd.io/r/c/vpp/+/33164
