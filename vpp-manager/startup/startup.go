@@ -19,8 +19,11 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
@@ -98,6 +101,8 @@ const (
 	DefaultNumRxQueues  = 1
 	DefaultNumTxQueues  = 1
 	defaultRxMode       = types.Adaptative
+	/* Allow a maximum number of corefiles, delete older ones */
+	maxCoreFiles = 5
 )
 
 func GetVppManagerParams() (params *config.VppManagerParams) {
@@ -406,4 +411,34 @@ func PrepareConfiguration(params *config.VppManagerParams) (conf *config.Interfa
 	}
 
 	return conf
+}
+
+type timeSlice []time.Time
+
+func (s timeSlice) Less(i, j int) bool { return s[i].Before(s[j]) }
+func (s timeSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s timeSlice) Len() int           { return len(s) }
+
+func CleanupCoreFiles(corePattern string) error {
+	files := make(map[time.Time]string)
+	var times timeSlice = []time.Time{}
+	dir := corePattern[:strings.LastIndex(corePattern, "/")]
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if path != dir {
+			files[info.ModTime()] = path
+			times = append(times, info.ModTime())
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(files) > maxCoreFiles {
+		sort.Sort(times)
+		for _, time := range times[:len(times)-maxCoreFiles] {
+			os.Remove(files[time])
+		}
+	}
+	return nil
 }

@@ -140,6 +140,7 @@ func main() {
 
 	params := startup.GetVppManagerParams()
 
+	startup.CleanupCoreFiles(params.CorePattern)
 	hooks.RunHook(hooks.BEFORE_IF_READ, params, nil)
 	conf := startup.PrepareConfiguration(params)
 
