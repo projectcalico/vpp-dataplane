@@ -18,9 +18,6 @@ package main
 import (
 	"os"
 	"os/signal"
-	"path/filepath"
-	"sort"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -45,9 +42,6 @@ var (
 	VPPgotSigCHLD map[int]bool
 	/* Allow to stop timeouts for given VPP */
 	VPPgotTimeout map[int]bool
-	/* Allow a maximum number of corefiles, delete older ones */
-	maxCoreFiles = 5
-
 )
 
 func timeoutSigKill(vppIndex int) {
@@ -139,36 +133,6 @@ func makeNewVPPIndex() {
 	VPPgotTimeout[currentVPPIndex] = false
 }
 
-type timeSlice []time.Time
-
-func (s timeSlice) Less(i, j int) bool { return s[i].Before(s[j]) }
-func (s timeSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s timeSlice) Len() int           { return len(s) }
-
-func cleanup_corefiles(corePattern string) error {
-	files := make(map[time.Time]string)
-	var times timeSlice = []time.Time{}
-	dir := corePattern[:strings.LastIndex(corePattern, "/")]
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if path != dir {
-			files[info.ModTime()] = path
-			times = append(times, info.ModTime())
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	if len(files) > maxCoreFiles {
-		sort.Sort(times)
-		for _, time := range times[:len(times)-maxCoreFiles] {
-			os.Remove(files[time])
-		}
-	}
-	return nil
-}
-
 func main() {
 	vppDeadChan = make(chan bool, 1)
 	VPPgotSigCHLD = make(map[int]bool)
@@ -176,7 +140,7 @@ func main() {
 
 	params := startup.GetVppManagerParams()
 
-	cleanup_corefiles(params.CorePattern)
+	startup.CleanupCoreFiles(params.CorePattern)
 	hooks.RunHook(hooks.BEFORE_IF_READ, params, nil)
 	conf := startup.PrepareConfiguration(params)
 
