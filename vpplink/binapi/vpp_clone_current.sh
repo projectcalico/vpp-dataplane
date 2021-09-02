@@ -56,3 +56,19 @@ git_cherry_pick refs/changes/13/28513/24 # 25813: capo: Calico Policies plugin |
 # ------------- Policies patches -------------
 
 git_cherry_pick refs/changes/64/33164/3  # 33164: dpdk: enable ena interrupt support in dpdk version 21.05 | https://gerrit.fd.io/r/c/vpp/+/33164
+
+# -------------------- NSM -------------------
+git_cherry_pick refs/changes/49/33449/9  # 33449 ip: source address selection
+git_cherry_pick refs/changes/56/33156/3  # 33156 ip-neighbor: GARP sent to bogus ip address # added to avoid merge conflict with 33495
+git_cherry_pick refs/changes/95/33495/2  # 33495 arp: source address selection
+git_cherry_pick refs/changes/13/32413/6  # 32413 wireguard: move adjacency processing from wireguard_peer to wireguard_interface
+git_cherry_pick refs/changes/43/32443/7  # 32443 wireguard: use the same udp-port for multi-tunnel
+git_cherry_pick refs/changes/09/32009/5  # 32009 wireguard: add ipv6 support
+git_cherry_pick refs/changes/85/32685/4  # 32685 wireguard: add events for peer
+git_cherry_pick refs/changes/03/33303/2 # 33303 memif: fix offset
+git_cherry_pick refs/changes/20/33020/2 # 33020 l3xc: reset dpo on delete
+git_cherry_pick refs/changes/68/33568/1  # 33568 ip: check if interface has link-local address (addition)
+git_cherry_pick refs/changes/58/33558/1  # 33558 ip: check if interface has link-local address
+# -------------------- NSM -------------------
+
+git_cherry_pick refs/changes/71/32271/6  # 32271 memif: add support for ns abstract sockets
