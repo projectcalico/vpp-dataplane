@@ -14,7 +14,7 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
-VPP_COMMIT=6f6663f3ba814e5f721f7cc679e3098812ad93c3
+VPP_COMMIT=078d258034cef5b4ca74d9deb37b2684cc77d060
 VPP_DIR="$1"
 
 if [ ! -d $1/.git ]; then
@@ -28,10 +28,9 @@ else
 fi
 
 git_cherry_pick refs/changes/68/32468/3 # 32468: buffers: fix buffer linearization | https://gerrit.fd.io/r/c/vpp/+/32468
-git_cherry_pick refs/changes/32/32732/1 # 32732: crypto: fix sw async crypto with chained buffers | https://gerrit.fd.io/r/c/vpp/+/32732
 git_cherry_pick refs/changes/33/32833/1 # 32833: ipsec: disable linearization | https://gerrit.fd.io/r/c/vpp/+/32833
 git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
-git_cherry_pick refs/changes/21/31321/10 # 31321: devices: add support for pseudo header checksum | https://gerrit.fd.io/r/c/vpp/+/31321
+git_cherry_pick refs/changes/21/31321/11 # 31321: devices: add support for pseudo header checksum | https://gerrit.fd.io/r/c/vpp/+/31321
 
 # Revert for now
 git fetch "https://gerrit.fd.io/r/vpp" refs/changes/68/32568/6 && git revert --no-edit FETCH_HEAD
@@ -59,14 +58,11 @@ git_cherry_pick refs/changes/64/33164/3  # 33164: dpdk: enable ena interrupt sup
 
 # -------------------- NSM -------------------
 git_cherry_pick refs/changes/49/33449/9  # 33449 ip: source address selection
-git_cherry_pick refs/changes/56/33156/3  # 33156 ip-neighbor: GARP sent to bogus ip address # added to avoid merge conflict with 33495
 git_cherry_pick refs/changes/95/33495/2  # 33495 arp: source address selection
 git_cherry_pick refs/changes/13/32413/6  # 32413 wireguard: move adjacency processing from wireguard_peer to wireguard_interface
 git_cherry_pick refs/changes/43/32443/7  # 32443 wireguard: use the same udp-port for multi-tunnel
 git_cherry_pick refs/changes/09/32009/5  # 32009 wireguard: add ipv6 support
 git_cherry_pick refs/changes/85/32685/4  # 32685 wireguard: add events for peer
-git_cherry_pick refs/changes/03/33303/2 # 33303 memif: fix offset
-git_cherry_pick refs/changes/20/33020/2 # 33020 l3xc: reset dpo on delete
 git_cherry_pick refs/changes/68/33568/1  # 33568 ip: check if interface has link-local address (addition)
 git_cherry_pick refs/changes/58/33558/1  # 33558 ip: check if interface has link-local address
 # -------------------- NSM -------------------
