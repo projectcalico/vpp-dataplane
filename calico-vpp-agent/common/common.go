@@ -42,6 +42,7 @@ const (
 	DefaultVRFIndex     = uint32(0)
 	PuntTableId         = uint32(1)
 	PodVRFIndex         = uint32(2)
+	PerPodVRFIndexStart = uint32(10) /* per pod VRFs will be this ID and above */
 )
 
 type CalicoVppServer interface {
