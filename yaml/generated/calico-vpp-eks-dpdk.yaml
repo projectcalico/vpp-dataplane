@@ -3770,6 +3770,7 @@ data:
         plugin default { enable }
         plugin calico_plugin.so { enable }
         plugin dpdk_plugin.so { enable }
+        plugin ping_plugin.so { disable }
     }
   vpp_dataplane_interface: eth0
   vpp_uplink_driver: none
