@@ -18,7 +18,7 @@ metadata:
   labels:
     app: iperf3-server
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: iperf3-server

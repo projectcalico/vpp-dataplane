@@ -33,7 +33,7 @@ iperf3-vcl-image:
 	docker build -t calicovpp/test-iperf3-vcl -f ./iperf3-vcl/Dockerfile ./iperf3-vcl
 
 %-image:
-	docker build -t calicovpp/test-$* -f ./$*/Dockerfile ./$*
+	docker build --network=host -t calicovpp/test-$* -f ./$*/Dockerfile ./$*
 
 %-push:
 	docker push calicovpp/test-$*

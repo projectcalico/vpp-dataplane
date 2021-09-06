@@ -1,9 +1,9 @@
-VPP Version                 : 21.10-rc0~270-g674e20594
+VPP Version                 : 21.10-rc0~270-g748466481
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 078d25803 wireguard: add flag to check hmac for decryption
 ------------------ Cherry picked commits --------------------
-gerrit:28513/20 capo: Calico Policies plugin
-gerrit:28083/16 acl: acl-plugin custom policies
+gerrit:28513/24 capo: Calico Policies plugin
+gerrit:28083/20 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/3 pbl: Port based balancer
 gerrit:33557/1 ip: unlock_fib on if delete

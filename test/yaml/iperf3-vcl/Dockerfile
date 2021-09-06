@@ -1,7 +1,7 @@
 FROM calicovpp/test-iperf3
 
-ADD vcl.conf /etc/vpp/vcl.conf
-RUN mkdir /usr/local/lib/vpp
+RUN mkdir /usr/local/lib/vpp && mkdir /etc/vpp/
+
 ADD *.so /usr/local/lib/vpp/
 ADD *.so.* /usr/local/lib/vpp/
 
