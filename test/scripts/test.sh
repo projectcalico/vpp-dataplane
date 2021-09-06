@@ -211,6 +211,53 @@ run_test_IPERF ()
 	kubectl exec -it iperf-client -n iperf -- $TEST_CMD > $DIR/test_output
 }
 
+setup_test_IPERF3 ()
+{
+	N_FLOWS=${N_FLOWS:=4}
+	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+}
+
+run_test_IPERF3 ()
+{
+	CLUSTER_IP=$( kubectl get svc -n iperf3 iperf3-service -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	TEST_CMD="taskset -c ${CPUS} iperf3 -c ${CLUSTER_IP} -P${N_FLOWS} -t${TEST_LEN} -i1"
+	echo "Running test : ${TEST_CMD}"
+	echo $TEST_CMD > $DIR/test_command.sh
+	kubectl exec -it iperf3-client -n iperf3 -- $TEST_CMD > $DIR/test_output
+}
+
+setup_test_IPERF3_VCL ()
+{
+	N_FLOWS=${N_FLOWS:=4}
+	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+}
+
+run_test_IPERF3_VCL ()
+{
+	CLUSTER_IP=$( kubectl get svc -n iperf3-vcl iperf3-service -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	TEST_CMD="taskset -c ${CPUS} iperf3-vcl -c ${CLUSTER_IP} -P${N_FLOWS} -t${TEST_LEN} -i1"
+	echo "Running test : ${TEST_CMD}"
+	echo $TEST_CMD > $DIR/test_command.sh
+	kubectl exec -it iperf3-client -n iperf3-vcl -- $TEST_CMD > $DIR/test_output
+}
+
+setup_test_IPERF3_VCL_TLS ()
+{
+	N_FLOWS=${N_FLOWS:=4}
+	TLS_ENGINE=${TLS_ENGINE:=4}
+	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+}
+
+set +x
+run_test_IPERF3_VCL_TLS ()
+{
+	POD_IP=$( kubectl get pods -n iperf3-vcl -o wide | grep server | awk '{print $6}' )
+	TEST_CMD="taskset -c ${CPUS} env TLS_ENGINE=${TLS_ENGINE} iperf3-tls-vcl -c ${POD_IP} -P${N_FLOWS} -t${TEST_LEN} -i1"
+	echo "Running test : ${TEST_CMD}"
+	echo $TEST_CMD > $DIR/test_command.sh
+	kubectl exec -it iperf3-client -n iperf3-vcl -- $TEST_CMD > $DIR/test_output
+}
+
 run_test_WRK1 ()
 {
 	TEST_SZ=${TEST_SZ:=4096} # 4096 // 2MB
@@ -347,7 +394,7 @@ get_avg_report ()
   	exit 1
   fi
   CASE=$(cat $DIR/testcase)
-  if [ x$CASE = xIPERF ]; then
+  if [ x$CASE = xIPERF ] || [ x$CASE = xIPERF3 ] || [ x$CASE = xIPERF3_VCL ] || [ x$CASE = xIPERF3_VCL_TLS ]; then
 	echo "$TEST_N;$(get_avg_iperf_bps $DIR);$(get_avg_cpu $DIR node1);$(get_avg_cpu $DIR node2)"
   else
 	echo "$TEST_N;$(get_wrk_csv_output $DIR);$(get_avg_cpu $DIR node1);$(get_avg_cpu $DIR node2)"

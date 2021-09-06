@@ -1,0 +1,30 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: testpmd
+  namespace: testpmd
+  annotations:
+    "cni.projectcalico.org-vpp.memif.ports":  "tcp:1234-1236,udp:4456"
+    "cni.projectcalico.org-vpp.tuntap.ports": "default"
+spec:
+  containers:
+  - name: testpmd
+    image: calicovpp/test-testpmd
+    imagePullPolicy: IfNotPresent
+    securityContext:
+      privileged: true
+    ports:
+    - containerPort: 4444
+    resources:
+      limits:
+        memory: 2Gi
+        hugepages-2Mi: 2Gi
+    volumeMounts:
+    - mountPath: /hugepages
+      name: hugepage
+  nodeName: _NODE_1_
+  volumes:
+  - name: hugepage
+    emptyDir:
+      medium: HugePages
