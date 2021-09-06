@@ -165,7 +165,7 @@ func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
 	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel)
-		return errors.Wrapf(err, "Error seting wireguard tunnel unnumbered")
+		return errors.Wrapf(err, "Error setting wireguard tunnel unnumbered")
 	}
 
 	err = p.vpp.EnableGSOFeature(swIfIndex)
