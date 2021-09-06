@@ -59,7 +59,7 @@ func getInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxIn
 		for i := range conf {
 			if conf[i] == nil {
 				for j := range confFile {
-					if confFile[j].MainInterface == params.InterfacesSpecs[i].MainInterface{
+					if confFile[j].InterfaceName == params.InterfacesSpecs[i].InterfaceName{
 						conf[i] = confFile[j]
 					}
 				}
@@ -81,21 +81,21 @@ func getInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxIn
 
 func loadInterfaceConfigFromLinux(ifSpec config.InterfaceSpec) (*config.LinuxInterfaceState, error) {
 	conf := config.LinuxInterfaceState{}
-	link, err := netlink.LinkByName(ifSpec.MainInterface)
+	link, err := netlink.LinkByName(ifSpec.InterfaceName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot find interface named %s", ifSpec.MainInterface)
+		return nil, errors.Wrapf(err, "cannot find interface named %s", ifSpec.InterfaceName)
 	}
 	conf.IsUp = (link.Attrs().Flags & net.FlagUp) != 0
 	if conf.IsUp {
 		// Grab addresses and routes
 		conf.Addresses, err = netlink.AddrList(link, netlink.FAMILY_ALL)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list %s addresses", ifSpec.MainInterface)
+			return nil, errors.Wrapf(err, "cannot list %s addresses", ifSpec.InterfaceName)
 		}
 
 		conf.Routes, err = netlink.RouteList(link, netlink.FAMILY_ALL)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list %s routes", ifSpec.MainInterface)
+			return nil, errors.Wrapf(err, "cannot list %s routes", ifSpec.InterfaceName)
 		}
 		conf.SortRoutes()
 	}
@@ -114,10 +114,10 @@ func loadInterfaceConfigFromLinux(ifSpec config.InterfaceSpec) (*config.LinuxInt
 	conf.NumRxQueues = link.Attrs().NumRxQueues
 	conf.Mtu = link.Attrs().MTU
 
-	pciId, err := utils.GetInterfacePciId(ifSpec.MainInterface)
+	pciId, err := utils.GetInterfacePciId(ifSpec.InterfaceName)
 	// We allow PCI not to be found e.g for AF_PACKET
 	if err != nil || pciId == "" {
-		log.Warnf("Could not find pci device for %s", ifSpec.MainInterface)
+		log.Warnf("Could not find pci device for %s", ifSpec.InterfaceName)
 	} else {
 		conf.PciId = pciId
 		driver, err := utils.GetDriverNameFromPci(pciId)
@@ -129,7 +129,7 @@ func loadInterfaceConfigFromLinux(ifSpec config.InterfaceSpec) (*config.LinuxInt
 			conf.DoSwapDriver = true
 		}
 	}
-	conf.MainInterface = ifSpec.MainInterface
+	conf.InterfaceName = ifSpec.InterfaceName
 	return &conf, nil
 }
 

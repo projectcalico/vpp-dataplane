@@ -16,6 +16,7 @@
 package startup
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -92,6 +93,7 @@ const (
 	VppStartupSleepEnvVar = "CALICOVPP_VPP_STARTUP_SLEEP"
 	ExtraAddrCountEnvVar  = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	SwapDriverEnvVar      = "CALICOVPP_SWAP_DRIVER"
+	ExtraInterfaces       = "CALICOVPP_EXTRA_INTERFACES"
 	EnableGSOEnvVar       = "CALICOVPP_DEBUG_ENABLE_GSO"
 )
 
@@ -107,7 +109,8 @@ const (
 
 func GetVppManagerParams() (params *config.VppManagerParams) {
 	params = &config.VppManagerParams{}
-	err := parseEnvVariables(params)
+	mainInterfaceSpec := config.InterfaceSpec{IsMain: true}
+	err := parseEnvVariables(params, mainInterfaceSpec)
 	if err != nil {
 		log.Panicf("Parse error %v", err)
 	}
@@ -165,7 +168,7 @@ func getEnvValue(str string) string {
 	return os.Getenv(str)
 }
 
-func parseEnvVariables(params *config.VppManagerParams) (err error) {
+func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config.InterfaceSpec) (err error) {
 	supportedEnvVars = make(map[string]bool)
 
 	vppStartupSleep := getEnvValue(VppStartupSleepEnvVar)
@@ -179,13 +182,11 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	mainInterfaces := strings.Split(getEnvValue(InterfaceEnvVar), "-")
-	if len(mainInterfaces) == 0 || mainInterfaces[0] == "" {
+	mainInterface := getEnvValue(InterfaceEnvVar)
+	if mainInterface == "" {
 		return errors.Errorf("No interface specified. Specify an interface through the %s environment variable", InterfaceEnvVar)
 	}
-	for idx, ele := range mainInterfaces {
-		params.InterfacesSpecs = append(params.InterfacesSpecs, config.InterfaceSpec{MainInterface: ele, Idx: idx})
-	}
+	mainInterfaceSpec.InterfaceName = mainInterface
 
 	params.ConfigExecTemplate = getEnvValue(ConfigExecTemplateEnvVar)
 	for _, hookName := range hooks.AllHooks {
@@ -218,14 +219,9 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		params.ServiceCIDRs = append(params.ServiceCIDRs, *serviceCIDR)
 	}
 
-	vppIpConfSources := strings.Split(getEnvValue(IpConfigEnvVar), "-")
-	if vppIpConfSources[0] != "linux" { // TODO add dhcp, config file, etc.
+	mainInterfaceSpec.VppIpConfSource = getEnvValue(IpConfigEnvVar)
+	if mainInterfaceSpec.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
 		return errors.Errorf("No ip configuration source specified. Specify one of {linux,} through the %s environment variable", IpConfigEnvVar)
-	} else if len(vppIpConfSources) != len(mainInterfaces) {
-		return errors.Errorf("Unmatching ip configuration sources list length in %s", IpConfigEnvVar)
-	}
-	for i := range params.InterfacesSpecs {
-		params.InterfacesSpecs[i].VppIpConfSource = vppIpConfSources[i]
 	}
 
 	params.CorePattern = getEnvValue(CorePatternEnvVar)
@@ -240,56 +236,44 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	nativeDrivers := strings.Split(getEnvValue(NativeDriverEnvVar), "-")
-	for i, driver := range nativeDrivers {
-		if driver != "" {
-			nativeDrivers[i] = strings.ToLower(driver)
+	mainInterfaceSpec.NativeDriver = ""
+	if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
+		mainInterfaceSpec.NativeDriver = strings.ToLower(conf)
+	} else {
+		if getEnvValue(ExtraInterfaces) != "" {
+			return errors.Errorf("native driver should be specified for multiple interfaces")
 		}
 	}
-	if len(nativeDrivers) != len(mainInterfaces) && (len(mainInterfaces) != 1 || getEnvValue(NativeDriverEnvVar) != "") {
-		return errors.Errorf("Unmatching native drivers list length in %s", NativeDriverEnvVar)
-	}
-	for i := range params.InterfacesSpecs {
-		params.InterfacesSpecs[i].NativeDriver = nativeDrivers[i]
-	}
 
-	numRxQueues := strings.Split(getEnvValue(NumRxQueuesEnvVar), "-")
-	if len(mainInterfaces) == 1 && getEnvValue(NumRxQueuesEnvVar) == "" {
-		params.InterfacesSpecs[0].NumRxQueues = DefaultNumRxQueues
-	} else if len(numRxQueues) != len(mainInterfaces) {
-		return errors.Errorf("Unmatching numRxQueues list length in %s", NumRxQueuesEnvVar)
-	}
-	for i := range params.InterfacesSpecs {
-		queues, err := strconv.ParseInt(numRxQueues[i], 10, 16)
+	mainInterfaceSpec.NumRxQueues = DefaultNumRxQueues
+	if conf := getEnvValue(NumRxQueuesEnvVar); conf != "" {
+		queues, err := strconv.ParseInt(conf, 10, 16)
 		if err != nil || queues <= 0 {
-			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumRxQueuesEnvVar, numRxQueues[i], queues, err)
+			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumRxQueuesEnvVar, conf, queues, err)
 		} else {
-			params.InterfacesSpecs[i].NumRxQueues = int(queues)
+			mainInterfaceSpec.NumRxQueues = int(queues)
 		}
 	}
 
-	numTxQueues := strings.Split(getEnvValue(NumTxQueuesEnvVar), "-")
-	if len(mainInterfaces) == 1 && getEnvValue(NumTxQueuesEnvVar) == "" {
-		params.InterfacesSpecs[0].NumRxQueues = DefaultNumTxQueues
-	} else if len(numTxQueues) != len(mainInterfaces) {
-		return errors.Errorf("Unmatching numTxQueues list length in %s", NumTxQueuesEnvVar)
-	}
-	for i := range params.InterfacesSpecs {
-		queues, err := strconv.ParseInt(numTxQueues[i], 10, 16)
+	mainInterfaceSpec.NumTxQueues = DefaultNumTxQueues
+	if conf := getEnvValue(NumTxQueuesEnvVar); conf != "" {
+		queues, err := strconv.ParseInt(conf, 10, 16)
 		if err != nil || queues <= 0 {
-			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumTxQueuesEnvVar, numTxQueues[i], queues, err)
+			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumTxQueuesEnvVar, conf, queues, err)
 		} else {
-			params.InterfacesSpecs[i].NumTxQueues = int(queues)
+			mainInterfaceSpec.NumTxQueues = int(queues)
 		}
 	}
 
-	newDriverNames := strings.Split(getEnvValue(SwapDriverEnvVar), "-")
-	if len(newDriverNames) != len(mainInterfaces) {
-		return errors.Errorf("Unmatching new driver names list length in %s", SwapDriverEnvVar)
+	mainInterfaceSpec.NewDriverName = getEnvValue(SwapDriverEnvVar)
+
+	extraInterfacesSpecs := []config.InterfaceSpec{}
+	err = json.Unmarshal([]byte(strings.ReplaceAll(getEnvValue(ExtraInterfaces), "'", "\"")), &extraInterfacesSpecs)
+	if err != nil {
+		log.Errorf("extra Interface %s has wrong format", getEnvValue(ExtraInterfaces))
 	}
-	for i, ele := range params.InterfacesSpecs {
-		ele.NewDriverName = newDriverNames[i]
-	}
+	params.InterfacesSpecs = []config.InterfaceSpec{mainInterfaceSpec}
+	params.InterfacesSpecs = append(params.InterfacesSpecs, extraInterfacesSpecs...)
 
 	params.RxMode = types.UnformatRxMode(getEnvValue(RxModeEnvVar))
 	if params.RxMode == types.UnknownRxMode {
@@ -405,7 +389,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 	log.Infof("vfio iommu:          %t", params.VfioUnsafeiommu)
 	for _, ifSpec := range params.InterfacesSpecs {
 		log.Infof("-- Interface Spec --")
-		log.Infof("Interface Name:      %s", ifSpec.MainInterface)
+		log.Infof("Interface Name:      %s", ifSpec.InterfaceName)
 		log.Infof("Native Driver:       %s", ifSpec.NativeDriver)
 		log.Infof("vppIpConfSource:     %s", ifSpec.VppIpConfSource)
 		log.Infof("New Drive Name:      %s", ifSpec.NewDriverName)

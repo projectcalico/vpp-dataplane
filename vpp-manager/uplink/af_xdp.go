@@ -63,17 +63,17 @@ func (d *AFXDPDriver) IsSupported(warn bool) bool {
 }
 
 func (d *AFXDPDriver) PreconfigureLinux() error {
-	link, err := netlink.LinkByName(d.spec.MainInterface)
+	link, err := netlink.LinkByName(d.spec.InterfaceName)
 	if err != nil {
-		return errors.Wrapf(err, "Error finding link %s", d.spec.MainInterface)
+		return errors.Wrapf(err, "Error finding link %s", d.spec.InterfaceName)
 	}
 	err = netlink.SetPromiscOn(link)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting link %s promisc on", d.spec.MainInterface)
+		return errors.Wrapf(err, "Error setting link %s promisc on", d.spec.InterfaceName)
 	}
-	err = utils.SetInterfaceRxQueues(d.spec.MainInterface, d.spec.NumRxQueues)
+	err = utils.SetInterfaceRxQueues(d.spec.InterfaceName, d.spec.NumRxQueues)
 	if err != nil {
-		log.Errorf("Error setting link %s NumQueues to %d, using %d queues: %v", d.spec.MainInterface, d.spec.NumRxQueues, d.conf.NumRxQueues, err)
+		log.Errorf("Error setting link %s NumQueues to %d, using %d queues: %v", d.spec.InterfaceName, d.spec.NumRxQueues, d.conf.NumRxQueues, err)
 		/* Try with linux NumRxQueues on error, otherwise af_xdp wont start */
 		d.spec.NumRxQueues = d.conf.NumRxQueues
 	}
@@ -97,9 +97,9 @@ func (d *AFXDPDriver) RestoreLinux() {
 		return
 	}
 	// Interface should pop back in root ns once vpp exits
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
 		return
 	}
 
@@ -109,14 +109,14 @@ func (d *AFXDPDriver) RestoreLinux() {
 		log.Infof("Setting promisc off")
 		err = netlink.SetPromiscOff(link)
 		if err != nil {
-			log.Errorf("Error setting link %s promisc off %v", d.spec.MainInterface, err)
+			log.Errorf("Error setting link %s promisc off %v", d.spec.InterfaceName, err)
 		}
 	}
 	if d.conf.NumRxQueues != d.spec.NumRxQueues {
 		log.Infof("Setting back %d queues", d.conf.NumRxQueues)
-		err = utils.SetInterfaceRxQueues(d.spec.MainInterface, d.conf.NumRxQueues)
+		err = utils.SetInterfaceRxQueues(d.spec.InterfaceName, d.conf.NumRxQueues)
 		if err != nil {
-			log.Errorf("Error setting link %s NumQueues to %d %v", d.spec.MainInterface, d.conf.NumRxQueues, err)
+			log.Errorf("Error setting link %s NumQueues to %d %v", d.spec.InterfaceName, d.conf.NumRxQueues, err)
 		}
 	}
 
@@ -124,10 +124,10 @@ func (d *AFXDPDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (swIfIndex uint32, err error) {
-	err = d.moveInterfaceToNS(d.spec.MainInterface, vppPid)
+func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
 	if err != nil {
-		return 0, errors.Wrap(err, "Moving uplink in NS failed")
+		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
 
 	intf := types.VppXDPInterface{
@@ -135,19 +135,20 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (
 	}
 	err = vpp.CreateAfXDP(&intf)
 	if err != nil {
-		return 0, errors.Wrapf(err, "Error creating AF_XDP interface")
+		return errors.Wrapf(err, "Error creating AF_XDP interface")
 	}
 	log.Infof("Created AF_XDP interface %d", intf.SwIfIndex)
 
-	if d.spec.Idx == 0 && intf.SwIfIndex != config.DataInterfaceSwIfIndex {
-		return 0, fmt.Errorf("Created AF_XDP interface has wrong swIfIndex %d!", intf.SwIfIndex)
+	if d.spec.IsMain && intf.SwIfIndex != config.DataInterfaceSwIfIndex {
+		return fmt.Errorf("Created AF_XDP interface has wrong swIfIndex %d!", intf.SwIfIndex)
 	}
 
 	err = vpp.SetInterfaceMacAddress(intf.SwIfIndex, &d.conf.HardwareAddr)
 	if err != nil {
-		return 0, errors.Wrap(err, "could not set af_xdp interface mac address in vpp")
+		return errors.Wrap(err, "could not set af_xdp interface mac address in vpp")
 	}
-	return intf.SwIfIndex, nil
+	d.spec.SwIfIndex = intf.SwIfIndex
+	return nil
 }
 
 func NewAFXDPDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *AFXDPDriver {

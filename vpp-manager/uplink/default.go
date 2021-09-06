@@ -64,9 +64,9 @@ func (d *DefaultDriver) RestoreLinux() {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error seting %s up: %v", d.spec.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
 		return
 	}
 
@@ -74,15 +74,15 @@ func (d *DefaultDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (swIfIndex uint32, err error) {
+func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	// If interface is still in the host, move it to vpp netns to allow creation of the tap
-	err = d.moveInterfaceToNS(d.spec.MainInterface, vppPid)
+	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
 	if err != nil {
-		log.Infof("Did NOT move interface %s to VPP netns: %v", d.spec.MainInterface, err)
+		log.Infof("Did NOT move interface %s to VPP netns: %v", d.spec.InterfaceName, err)
 	} else {
-		log.Infof("Moved interface %s to VPP netns", d.spec.MainInterface)
+		log.Infof("Moved interface %s to VPP netns", d.spec.InterfaceName)
 	}
-	return 0, nil
+	return nil
 }
 
 func NewDefaultDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *DefaultDriver {

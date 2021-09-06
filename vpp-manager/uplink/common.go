@@ -48,11 +48,10 @@ type UplinkDriverData struct {
 
 type UplinkDriver interface {
 	PreconfigureLinux() error
-	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (uint32, error)
+	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (error)
 	RestoreLinux()
 	IsSupported(warn bool) bool
 	GetName() string
-	UpdateVppConfigExecFile(template string) string
 	UpdateVppConfigFile(template string) string
 }
 
@@ -80,9 +79,9 @@ func (d *UplinkDriverData) moveInterfaceToNS(ifName string, pid int) error {
 }
 
 func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
-	link, err := netlink.LinkByName(d.spec.MainInterface)
+	link, err := netlink.LinkByName(d.spec.InterfaceName)
 	if err != nil {
-		log.Errorf("Error finding link %s: %s", d.spec.MainInterface, err)
+		log.Errorf("Error finding link %s: %s", d.spec.InterfaceName, err)
 	} else {
 		// Remove routes to not have them conflict with vpptap0
 		for _, route := range d.conf.Routes {
@@ -105,7 +104,7 @@ func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
 			if err != nil {
 				// In case it still succeeded
 				netlink.LinkSetUp(link)
-				log.Errorf("Error setting link %s down: %s", d.spec.MainInterface, err)
+				log.Errorf("Error setting link %s down: %s", d.spec.InterfaceName, err)
 			}
 		}
 	}
@@ -140,10 +139,6 @@ func (d *UplinkDriverData) UpdateVppConfigFile(template string) string {
 	return template
 }
 
-func (d *UplinkDriverData) UpdateVppConfigExecFile(template string) string {
-	return template
-}
-
 func (d *UplinkDriverData) getGenericVppInterface() types.GenericVppInterface {
 	return types.GenericVppInterface{
 		NumRxQueues:       d.spec.NumRxQueues,
@@ -151,7 +146,7 @@ func (d *UplinkDriverData) getGenericVppInterface() types.GenericVppInterface {
 		TxQueueSize:       d.params.TxQueueSize,
 		NumTxQueues:       d.spec.NumTxQueues,
 		HardwareAddr:      &d.conf.HardwareAddr,
-		HostInterfaceName: d.spec.MainInterface,
+		HostInterfaceName: d.spec.InterfaceName,
 	}
 }
 
