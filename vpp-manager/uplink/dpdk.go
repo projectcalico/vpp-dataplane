@@ -99,14 +99,14 @@ func (d *DPDKDriver) restoreInterfaceName() error {
 	if err != nil {
 		return errors.Wrapf(err, "Error getting new if name for %s: %v", d.conf.PciId)
 	}
-	if newName == d.spec.MainInterface {
+	if newName == d.spec.InterfaceName {
 		return nil
 	}
 	link, err := netlink.LinkByName(newName)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting new link %s: %v", newName)
 	}
-	err = netlink.LinkSetName(link, d.spec.MainInterface)
+	err = netlink.LinkSetName(link, d.spec.InterfaceName)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting new if name for %s: %v", d.conf.PciId)
 	}
@@ -136,9 +136,9 @@ func (d *DPDKDriver) RestoreLinux() {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error seting %s up: %v", d.spec.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
 		return
 	}
 
@@ -146,9 +146,9 @@ func (d *DPDKDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (swIfIndex uint32, err error) {
+func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	/* Nothing to do VPP autocreates */
-	return 0, nil
+	return nil
 }
 
 func NewDPDKDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *DPDKDriver {

@@ -427,7 +427,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		}
 	}
 
-	if ifSpec.Idx == 0 {
+	if ifSpec.IsMain {
 		if v.params.ExtraAddrCount > 0 {
 			err = v.addExtraAddresses(ifState.Addresses, v.params.ExtraAddrCount, ifSpec.SwIfIndex)
 			if err != nil {
@@ -444,13 +444,13 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 
 	tapSwIfIndex, err := v.vpp.CreateTapV2(&types.TapV2{
 		GenericVppInterface: types.GenericVppInterface{
-			HostInterfaceName: ifSpec.MainInterface,
+			HostInterfaceName: ifSpec.InterfaceName,
 			RxQueueSize:       v.params.TapRxQueueSize,
 			TxQueueSize:       v.params.TapTxQueueSize,
 			HardwareAddr:      &vppSideMac,
 		},
 		HostNamespace:  "pid:1", // create tap in root netns
-		Tag:            ifSpec.HostIfTag,
+		Tag:            "host-" + ifSpec.InterfaceName,
 		Flags:          vpptap0Flags,
 		HostMtu:        uplinkMtu,
 		HostMacAddress: ifState.HardwareAddr,
@@ -543,9 +543,9 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 	}
 
 	// Linux side tap setup
-	link, err := netlink.LinkByName(ifSpec.MainInterface)
+	link, err := netlink.LinkByName(ifSpec.InterfaceName)
 	if err != nil {
-		return errors.Wrapf(err, "cannot find interface named %s", ifSpec.MainInterface)
+		return errors.Wrapf(err, "cannot find interface named %s", ifSpec.InterfaceName)
 	}
 
 	err = v.configureLinuxTap(link, *ifState)
@@ -684,16 +684,14 @@ func (v *VppRunner) runVpp() (err error) {
 	}
 
 	for idx := 0; idx < len(v.params.InterfacesSpecs); idx++ {
-		vppIfIndex, err := v.uplinkDriver[idx].CreateMainVppInterface(vpp, vppProcess.Pid)
+		err := v.uplinkDriver[idx].CreateMainVppInterface(vpp, vppProcess.Pid)
 		if err != nil {
-			terminateVpp("Error creating main interface %s (SIGINT %d): %v", v.params.InterfacesSpecs[idx].MainInterface, vppProcess.Pid, err)
+			terminateVpp("Error creating main interface %s (SIGINT %d): %v", v.params.InterfacesSpecs[idx].InterfaceName, vppProcess.Pid, err)
 			v.vpp.Close()
 			<-vppDeadChan
 			return errors.Wrap(err, "Error creating main interface")
 		}
 
-		v.params.InterfacesSpecs[idx].SwIfIndex = vppIfIndex
-		v.params.InterfacesSpecs[idx].HostIfTag = "host-" + v.params.InterfacesSpecs[idx].MainInterface
 		// Data interface configuration
 		err = v.vpp.Retry(2*time.Second, 10, v.vpp.InterfaceAdminUp, v.params.InterfacesSpecs[idx].SwIfIndex)
 		if err != nil {
@@ -731,6 +729,7 @@ func (v *VppRunner) runVpp() (err error) {
 		go v.linkWatcher.WatchLinks()
 	}
 
+	// close vpp as we do not program
 	v.vpp.Close()
 	hooks.RunHook(hooks.VPP_RUNNING, v.params, v.conf)
 
@@ -751,7 +750,7 @@ func (v *VppRunner) restoreConfiguration() {
 	if err != nil {
 		log.Errorf("Error clearing vpp manager files: %v", err)
 	}
-	for idx := 0; idx < len(v.params.InterfacesSpecs); idx++ {
+	for idx := range v.params.InterfacesSpecs{
 		v.uplinkDriver[idx].RestoreLinux()
 	}
 	err = v.pingCalicoVpp()

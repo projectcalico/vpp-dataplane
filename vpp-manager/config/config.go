@@ -51,15 +51,14 @@ const (
 )
 
 type InterfaceSpec struct {
-	Idx             int
-	MainInterface   string
-	VppIpConfSource string
-	NativeDriver    string
-	NewDriverName   string
-	NumRxQueues     int
-	NumTxQueues     int
+	IsMain            bool
+	InterfaceName   string `json:"interface"`
+	VppIpConfSource string `json:"vppIpConfSource"`
+	NativeDriver    string `json:"nativeDriver"`
+	NewDriverName   string `json:"newDriver"`
+	NumRxQueues     int    `json:"rx"`
+	NumTxQueues     int    `json:"tx"`
 	SwIfIndex       uint32
-	HostIfTag       string
 }
 
 type VppManagerParams struct {
@@ -105,7 +104,7 @@ type LinuxInterfaceState struct {
 	NodeIP4       string
 	NodeIP6       string
 	Mtu           int
-	MainInterface string
+	InterfaceName string
 }
 
 type KernelVersion struct {
@@ -206,9 +205,9 @@ func TemplateScriptReplace(input string, params *VppManagerParams, conf []*Linux
 			template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(i)+"__", ifcConf.PciId)
 		}
 	}
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.InterfacesSpecs[0].MainInterface)
+	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.InterfacesSpecs[0].InterfaceName)
 	for i, ifc := range params.InterfacesSpecs {
-		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF_"+strconv.Itoa(i)+"__", ifc.MainInterface)
+		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF_"+fmt.Sprintf("%d", i)+"__", ifc.InterfaceName)
 	}
 	return template
 }
