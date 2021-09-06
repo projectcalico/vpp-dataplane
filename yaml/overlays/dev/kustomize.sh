@@ -96,9 +96,6 @@ function get_vpp_conf ()
 	  socksvr {
     	  socket-name /var/run/vpp/vpp-api.sock
 	  }
-	  session {
-    	  evt_qs_memfd_seg
-	  }
 	  buffers {
 		buffers-per-numa 65536
 	  }
@@ -221,7 +218,7 @@ calico_create_template ()
   export CALICOVPP_INIT_SCRIPT_TEMPLATE=${CALICOVPP_INIT_SCRIPT_TEMPLATE}
   export CALICO_AGENT_IMAGE=${CALICO_AGENT_IMAGE:=calicovpp/agent:latest}
   export CALICO_VPP_IMAGE=${CALICO_VPP_IMAGE:=calicovpp/vpp:latest}
-  export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:=v3.18.1}
+  export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:=v3.20.0}
   export CALICO_CNI_IMAGE=${CALICO_CNI_IMAGE:=calico/cni:${CALICO_VERSION_TAG}}
   export IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:=IfNotPresent}
   export CALICOVPP_VPP_STARTUP_SLEEP=${CALICOVPP_VPP_STARTUP_SLEEP:=0}
@@ -243,6 +240,8 @@ calico_create_template ()
   export CALICOVPP_TAP_RING_SIZE=${CALICOVPP_TAP_RING_SIZE}
   export CALICOVPP_DEBUG_ENABLE_POLICIES=${CALICOVPP_DEBUG_ENABLE_POLICIES:=true}
   export CALICOVPP_DEBUG_ENABLE_NAT=${CALICOVPP_DEBUG_ENABLE_NAT:=true}
+  export CALICOVPP_ENABLE_MEMIF=${CALICOVPP_ENABLE_MEMIF:=true}
+  export CALICOVPP_ENABLE_VCL=${CALICOVPP_ENABLE_VCL:=true}
   export CALICOVPP_DEBUG_ENABLE_GSO=${CALICOVPP_DEBUG_ENABLE_GSO:=true}
   export USERHOME=${HOME}
   export FELIX_XDPENABLED=${FELIX_XDPENABLED:=false}

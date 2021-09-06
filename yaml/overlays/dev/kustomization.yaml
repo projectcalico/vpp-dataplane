@@ -4,16 +4,20 @@ bases:
 configMapGenerator:
 # extra dev config for the VPP-agent
   - name: calico-agent-dev-config
+    namespace: calico-vpp-dataplane
     env: props/calico-agent-dev-config.properties
 # extra dev config for VPP
   - name: vpp-dev-config
+    namespace: calico-vpp-dataplane
     env: props/vpp-dev-config.properties
 # Override base/calico-vpp-daemonset.yaml config variables
   - name: calico-vpp-config
+    namespace: calico-vpp-dataplane
     env: props/calico-vpp-config.properties
     behavior: merge
 # Override Calico node config map
   - name: calico-config
+    namespace: kube-system
     env: props/calico-config.properties
     behavior: merge
 generatorOptions:
