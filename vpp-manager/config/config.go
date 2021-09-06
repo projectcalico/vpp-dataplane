@@ -27,6 +27,7 @@ import (
 
 const (
 	DataInterfaceSwIfIndex = uint32(1) // Assumption: the VPP config ensures this is true
+	PuntTableId            = 1
 	VppConfigFile          = "/etc/vpp/startup.conf"
 	VppConfigExecFile      = "/etc/vpp/startup.exec"
 	VppManagerStatusFile   = "/var/run/vpp/vppmanagerstatus"

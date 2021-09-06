@@ -25,6 +25,12 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
+const (
+	FeatureArcCnatInput  = "ip?-unicast cnat-input-ip?"
+	FeatureArcCnatOutput = "ip?-output cnat-output-ip?"
+	FeatureArcSnat       = "ip?-unicast cnat-snat-ip?"
+)
+
 const InvalidID = ^uint32(0)
 
 func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err error) {
@@ -128,21 +134,13 @@ func (v *VppLink) CnatDelSnatPrefix(prefix *net.IPNet) error {
 }
 
 func (v *VppLink) CnatEnableFeatures(swIfIndex uint32) (err error) {
-	err = v.EnableFeature(swIfIndex, "ip4-unicast", "cnat-input-ip4")
+	err = v.EnableFeatureArc46(swIfIndex, FeatureArcCnatInput)
 	if err != nil {
-		return errors.Wrap(err, "Error enabling ip4 dnat in")
+		return errors.Wrap(err, "Error enabling arc dnat in")
 	}
-	err = v.EnableFeature(swIfIndex, "ip4-output", "cnat-output-ip4")
+	err = v.EnableFeatureArc46(swIfIndex, FeatureArcCnatOutput)
 	if err != nil {
-		return errors.Wrap(err, "Error enabling ip4 dnat out")
-	}
-	err = v.EnableFeature(swIfIndex, "ip6-unicast", "cnat-input-ip6")
-	if err != nil {
-		return errors.Wrap(err, "Error enabling ip6 dnat in")
-	}
-	err = v.EnableFeature(swIfIndex, "ip6-output", "cnat-output-ip6")
-	if err != nil {
-		return errors.Wrap(err, "Error enabling ip6 dnat out")
+		return errors.Wrap(err, "Error enabling arc dnat out")
 	}
 	return nil
 }

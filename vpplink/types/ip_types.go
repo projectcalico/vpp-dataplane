@@ -16,7 +16,9 @@
 package types
 
 import (
+	"fmt"
 	"net"
+	"strings"
 
 	"golang.org/x/sys/unix"
 
@@ -46,6 +48,12 @@ type IfAddress struct {
 	SwIfIndex uint32
 }
 
+type IpPuntRedirect struct {
+	RxSwIfIndex uint32
+	IsIP6       bool
+	Paths       []RoutePath
+}
+
 func GetIPFamily(ip net.IP) int {
 	if len(ip) <= net.IPv4len {
 		return FAMILY_V4
@@ -54,6 +62,13 @@ func GetIPFamily(ip net.IP) int {
 		return FAMILY_V4
 	}
 	return FAMILY_V6
+}
+
+func GetBoolIPFamily(isIP6 bool) ip_types.AddressFamily {
+	if isIP6 {
+		return ip_types.ADDRESS_IP6
+	}
+	return ip_types.ADDRESS_IP4
 }
 
 func IsIP4(ip net.IP) bool {
@@ -78,6 +93,23 @@ func formatProto(proto IPProto) string {
 		return "ICMP6"
 	default:
 		return "???"
+	}
+}
+
+func UnformatProto(proto string) (IPProto, error) {
+	switch strings.ToUpper(proto) {
+	case "UDP":
+		return UDP, nil
+	case "TCP":
+		return TCP, nil
+	case "SCTP":
+		return SCTP, nil
+	case "ICMP":
+		return ICMP, nil
+	case "ICMP6":
+		return ICMP6, nil
+	default:
+		return IPProto(0), fmt.Errorf("unknown proto %s", proto)
 	}
 }
 
@@ -125,10 +157,7 @@ func FromVppIpAddressUnion(Un ip_types.AddressUnion, isv6 bool) net.IP {
 }
 
 func FromVppAddress(addr ip_types.Address) net.IP {
-	return FromVppIpAddressUnion(
-		ip_types.AddressUnion(addr.Un),
-		addr.Af == ip_types.ADDRESS_IP6,
-	)
+	return FromVppIpAddressUnion(addr.Un, addr.Af == ip_types.ADDRESS_IP6)
 }
 
 func ToVppAddressWithPrefix(prefix *net.IPNet) ip_types.AddressWithPrefix {
