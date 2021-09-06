@@ -1,4 +1,6 @@
 
+TAG ?= prerelease
+
 .PHONY: build
 build: clean
 	@kubectl kustomize overlays/default-huge   > generated/calico-vpp.yaml
