@@ -13,7 +13,7 @@ testpmd --iova-mode=va \
     --in-memory \
     --no-pci \
     --proc-type primary \
-    --vdev=net_memif,role=client,socket=memif,socket-abstract=yes,zero-copy=no         \
+    --vdev=net_memif,role=client,socket=vpp/memif,socket-abstract=yes,zero-copy=no         \
     -- --auto-start \
     --forward-mode=5tswap               \
     --burst=32                          \
