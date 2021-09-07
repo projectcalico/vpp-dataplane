@@ -10,15 +10,24 @@ RUN apt-get update && apt-get install -y \
 	inetutils-traceroute	             \
 	netcat			                     \
 	dnsutils                             \
-	tcpdump \
-	git \
-	build-essential \
+	tcpdump                              \
+	git                                  \
+	build-essential                      \
+	python3                              \
+	unzip                                \
 	curl
 
-RUN git clone https://github.com/MathiasRaoul/wrk.git
-WORKDIR wrk
-RUN make -j8
-RUN cp wrk /usr/bin/
-RUN apt-get install -y python3
+RUN mkdir -p /root/patches
+ADD ./patches/*.patch /root/patches/
+
+RUN cd /root && \
+  git clone https://github.com/wg/wrk && \
+  cd wrk && \
+  patch -p1 < /root/patches/0001-no-keepalive-option.patch && \
+  rm -r /root/patches && \
+  make -j8
+
+ADD wrk.py /root/wrk/wrk.py
+WORKDIR /root/wrk
 
 ENTRYPOINT ["tail", "-f", "/dev/null"]

@@ -1,0 +1,53 @@
+commit 51efed8ec10e95c0cd04f6c84614941e70379924
+Author: Noah Gibbs <the.codefolio.guy@gmail.com>
+Date:   Thu May 30 17:46:43 2019 +0100
+
+    Add no-keepalive option to disconnect client-side afterward
+
+diff --git a/src/wrk.c b/src/wrk.c
+index 51f46f7..ee43bdf 100644
+--- a/src/wrk.c
++++ b/src/wrk.c
+@@ -13,6 +13,7 @@ static struct config {
+     bool     delay;
+     bool     dynamic;
+     bool     latency;
++    bool     no_keepalive;
+     char    *host;
+     char    *script;
+     SSL_CTX *ctx;
+@@ -52,6 +53,7 @@ static void usage() {
+            "    -H, --header      <H>  Add header to request      \n"
+            "        --latency          Print latency statistics   \n"
+            "        --timeout     <T>  Socket/request timeout     \n"
++           "        --no-keepalive     Don't keep connection alive\n"
+            "    -v, --version          Print version details      \n"
+            "                                                      \n"
+            "  Numeric arguments may include a SI unit (1k, 1M, 1G)\n"
+@@ -348,7 +350,7 @@ static int response_complete(http_parser *parser) {
+         aeCreateFileEvent(thread->loop, c->fd, AE_WRITABLE, socket_writeable, c);
+     }
+ 
+-    if (!http_should_keep_alive(parser)) {
++    if (cfg.no_keepalive || !http_should_keep_alive(parser)) {
+         reconnect_socket(thread, c);
+         goto done;
+     }
+@@ -473,6 +475,7 @@ static struct option longopts[] = {
+     { "script",      required_argument, NULL, 's' },
+     { "header",      required_argument, NULL, 'H' },
+     { "latency",     no_argument,       NULL, 'L' },
++    { "no-keepalive",no_argument,       NULL, 'N' },
+     { "timeout",     required_argument, NULL, 'T' },
+     { "help",        no_argument,       NULL, 'h' },
+     { "version",     no_argument,       NULL, 'v' },
+@@ -509,6 +512,9 @@ static int parse_args(struct config *cfg, char **url, struct http_parser_url *pa
+             case 'L':
+                 cfg->latency = true;
+                 break;
++            case 'N':
++                cfg->no_keepalive = true;
++                break;
+             case 'T':
+                 if (scan_time(optarg, &cfg->timeout)) return -1;
+                 cfg->timeout *= 1000;
