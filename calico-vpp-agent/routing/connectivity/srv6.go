@@ -41,13 +41,20 @@ type SRv6PolicySingleSid struct {
 type SRv6Provider struct {
 	*ConnectivityProviderData
 	//srv6Tunnels  map[string]*Srv6TunnelData
-	nodePrefixes map[string]*NodeToPrefixes
-	nodePolices  map[string]*NodeToPolicies
-	advertised   bool
+	nodePrefixes   map[string]*NodeToPrefixes
+	nodePolices    map[string]*NodeToPolicies
+	localSidIPPool net.IPNet
+	policyIPPool   net.IPNet
+	advertised     bool
 }
 
 func NewSRv6Provider(d *ConnectivityProviderData) *SRv6Provider {
-	p := &SRv6Provider{d, make(map[string]*NodeToPrefixes), make(map[string]*NodeToPolicies), false}
+	p := &SRv6Provider{d, make(map[string]*NodeToPrefixes), make(map[string]*NodeToPolicies), net.IPNet{}, net.IPNet{}, false}
+	if p.Enabled() {
+		p.localSidIPPool = cnet.MustParseNetwork(config.SRv6localSidIPPool).IPNet
+		p.policyIPPool = cnet.MustParseNetwork(config.SRv6policyIPPool).IPNet
+	}
+
 	p.log.Infof("SRv6Provider NewSRv6Provider")
 	return p
 }
@@ -62,6 +69,9 @@ func (p *SRv6Provider) Enabled() bool {
 
 func (p *SRv6Provider) RescanState() {
 	p.log.Infof("SRv6Provider RescanState")
+	if !p.Enabled() {
+		return
+	}
 	p.setEncapSource()
 
 	localSids, err := p.vpp.ListSRv6Localsid()
@@ -97,9 +107,14 @@ func (p *SRv6Provider) CreateSRv6Tunnnel(tunnelData *Srv6TunnelData) (err error)
 	}
 
 	srSteer := &types.SrSteer{
-		TrafficType: types.SR_STEER_IPV6,
+		TrafficType: types.SR_STEER_IPV4,
 		Prefix:      tunnelData.PrefixDst,
 		Bsid:        tunnelData.Bsid,
+	}
+
+	// Change the traffic type if is an IPv6 addr
+	if vpplink.IsIP6(srSteer.Prefix.Address.ToIP()) {
+		srSteer.TrafficType = types.SR_STEER_IPV6
 	}
 
 	err = p.vpp.AddSRv6Steering(srSteer)
@@ -134,8 +149,14 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 	var nodeip string
 	// only IPv6 destination
 	if vpplink.IsIP6(cn.NextHop) && cn.Dst.IP != nil {
+		if p.localSidIPPool.Contains(cn.Dst.IP) || p.policyIPPool.Contains(cn.Dst.IP) {
+			p.log.Infof("SRv6Provider AddConnectivity no valid prefix %s", cn.Dst.String())
+			return err
+		}
 		nodeip = cn.NextHop.String()
 		prefix, err := ip_types.ParsePrefix(cn.Dst.String())
+		p.log.Infof("SRv6Provider AddConnectivity  prefix %s", prefix.String())
+
 		if err != nil {
 			return errors.Wrapf(err, "SRv6Provider unable to parse prefix")
 		}
@@ -181,10 +202,10 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 	if p.nodePrefixes[nodeip] != nil {
 		p.log.Infof("SRv6Provider check new tunnel for node %s", nodeip)
 		for _, prefix := range p.nodePrefixes[nodeip].Prefixes {
-			prefixIP6 := vpplink.IsIP6(prefix.Address.ToIP())
+			//prefixIP6 := vpplink.IsIP6(prefix.Address.ToIP())
 			if p.nodePolices[nodeip] != nil {
 				for _, policy := range p.nodePolices[nodeip].SRv6Policy {
-					if (policy.Behavior == 18 && prefixIP6) || (policy.Behavior == types.SrBehaviorDT4 && !prefixIP6) {
+					if (policy.Behavior == 18 /* types.FromGoBGPSrBehavior(18) */) || (policy.Behavior == types.FromGoBGPSrBehavior(19)) {
 						err = p.CreateSRv6Tunnnel(&Srv6TunnelData{
 							Dst:       p.nodePrefixes[nodeip].Node,
 							PrefixDst: prefix,
@@ -302,27 +323,6 @@ func (p *SRv6Provider) AdvertiseSRv6Policy() (err error) {
 				}
 			}
 		}
-		/*
-			if localsid.Behavior == types.SrBehaviorDT4 || localsid.Behavior == types.SrBehaviorDT6 {
-				bsid, err := p.getSidFromPool(config.SRv6policyIPPool)
-				if err != nil {
-					p.log.Errorf("SRv6Provider Error getSidFromPool: %v", err)
-				} else {
-
-					newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), bsid.ToIP(), p.server.GetNodeIP(true), 6, false)
-					if err == nil {
-						_, err := p.server.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
-							TableType: bgpapi.TableType_GLOBAL,
-							Path:      newPath,
-						})
-						if err != nil {
-							p.log.Errorf("SRv6Provider Error bgpserver.AddPath: %v", err)
-						}
-
-						p.advertised = true
-					}
-				}
-			}*/
 
 	}
 	return err

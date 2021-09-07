@@ -225,7 +225,6 @@ func (w *BGPWatcher) WatchBGPPath() error {
 		}
 
 		if config.EnableSRv6 {
-			w.log.Infof("startMonitor SRv6IP4 disabled")
 			stopSRv6IP4Monitor, err = startMonitor(&common.BgpFamilySRv6IPv4)
 			if err != nil {
 				return errors.Wrap(err, "error starting SRv6IP4 path monitor")
@@ -238,7 +237,6 @@ func (w *BGPWatcher) WatchBGPPath() error {
 			return errors.Wrap(err, "error starting v6 path monitor")
 		}
 		if config.EnableSRv6 {
-			w.log.Infof("startMonitor1 SRv6IP6")
 			stopSRv6IP6Monitor, err = startMonitor(&common.BgpFamilySRv6IPv6)
 			if err != nil {
 				return errors.Wrap(err, "error starting SRv6IP6 path monitor")
@@ -256,7 +254,6 @@ func (w *BGPWatcher) WatchBGPPath() error {
 
 			if config.EnableSRv6 {
 				stopSRv6IP4Monitor()
-				w.log.Infof("startMonitor2 SRv6IP4")
 				stopSRv6IP4Monitor, err = startMonitor(&common.BgpFamilySRv6IPv4)
 				if err != nil {
 					return errors.Wrap(err, "error starting SRv6IP4 path monitor")

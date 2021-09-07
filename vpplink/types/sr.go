@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 
+	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/sr"
@@ -24,11 +25,39 @@ const (
 	SrBehaviorLAST   SrBehavior = SrBehavior(sr_types.SR_BEHAVIOR_API_LAST)
 )
 
+var (
+	SrBehaviorVPP_GoBGP = map[uint8]bgpapi.SRv6Behavior{
+		1: bgpapi.SRv6Behavior_END,
+		2: bgpapi.SRv6Behavior_ENDX,
+		3: bgpapi.SRv6Behavior_ENDT,
+		5: bgpapi.SRv6Behavior_END_DX2,
+		6: bgpapi.SRv6Behavior_END_DX6,
+		7: bgpapi.SRv6Behavior_END_DX4,
+		8: bgpapi.SRv6Behavior_END_DT6,
+		9: bgpapi.SRv6Behavior_END_DT4,
+	}
+	SrBehaviorGoBGP_VPP = map[bgpapi.SRv6Behavior]uint8{
+		bgpapi.SRv6Behavior_END:     1,
+		bgpapi.SRv6Behavior_ENDX:    2,
+		bgpapi.SRv6Behavior_ENDT:    3,
+		bgpapi.SRv6Behavior_END_DX2: 5,
+		bgpapi.SRv6Behavior_END_DX6: 6,
+		bgpapi.SRv6Behavior_END_DX4: 7,
+		bgpapi.SRv6Behavior_END_DT6: 8,
+		bgpapi.SRv6Behavior_END_DT4: 9,
+	}
+)
+
 func ToVppSrBehavior(behavior SrBehavior) sr_types.SrBehavior {
 	return sr_types.SrBehavior(behavior)
 }
 func FromVppSrBehavior(behavior sr_types.SrBehavior) SrBehavior {
 	return SrBehavior(behavior)
+}
+
+func FromGoBGPSrBehavior(behavior bgpapi.SRv6Behavior) SrBehavior {
+	var result = SrBehaviorGoBGP_VPP[behavior]
+	return SrBehavior(result)
 }
 
 // SrLocalsid definition

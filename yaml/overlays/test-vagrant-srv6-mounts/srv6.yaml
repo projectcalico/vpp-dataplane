@@ -46,7 +46,7 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  service_prefix: "fd02::/108"
+  service_prefix: "10.96.0.0/12"
   sr_localsid_pool: "c5::/118"
   sr_policy_pool: "cafe::/118"
 

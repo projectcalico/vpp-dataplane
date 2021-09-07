@@ -18,6 +18,8 @@ package common
 
 import (
 	"fmt"
+	"net"
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	bgpapi "github.com/osrg/gobgp/api"
@@ -25,9 +27,9 @@ import (
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"google.golang.org/protobuf/types/known/anypb"
-	"net"
 )
 
 const (
@@ -118,9 +120,17 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 net.IP, nodeIpv6 net.IP
 
 	if v4 {
 		family = &BgpFamilyUnicastIPv4
-		nhAttr, err := ptypes.MarshalAny(&bgpapi.NextHopAttribute{
-			NextHop: nodeIpv4.String(),
-		})
+		var nhAttr *anypb.Any
+
+		if config.EnableSRv6 {
+			nhAttr, err = ptypes.MarshalAny(&bgpapi.NextHopAttribute{
+				NextHop: nodeIpv6.String(),
+			})
+		} else {
+			nhAttr, err = ptypes.MarshalAny(&bgpapi.NextHopAttribute{
+				NextHop: nodeIpv4.String(),
+			})
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +161,6 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 net.IP, nodeIpv6 net.IP
 }
 
 func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficType uint32, isWithdrawal bool) (*bgpapi.Path, error) {
-	fmt.Printf("MakePathSRv6Tunnel")
 	originAttr, err := ptypes.MarshalAny(&bgpapi.OriginAttribute{Origin: 0})
 	if err != nil {
 		return nil, err
@@ -256,9 +265,7 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 		Pattrs:     attrs,
 		Age:        ptypes.TimestampNow(),
 		SourceAsn:  64512,
-		//SourceId:   nodeIP.String(),
-		//NeighborIp: nodeIP.String(),
-		Family: family,
+		Family:     family,
 	}, nil
 
 }
