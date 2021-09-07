@@ -247,8 +247,8 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	if nbDataThread > 0 {
 		for i := 0; i < tun.NumRxQueues; i++ {
-			worker := (uint32)(swIfIndex*uint32(tun.NumRxQueues)+uint32(i)) % uint32(nbDataThread)
-			err = s.vpp.SetInterfaceRxPlacement(uint32(swIfIndex), uint32(i), uint32(worker), false)
+			worker := (int(swIfIndex)*tun.NumRxQueues+i) % nbDataThread
+			err = s.vpp.SetInterfaceRxPlacement(swIfIndex, i, worker, false)
 			if err != nil {
 				s.log.Warnf("failed to set tun[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, i, worker, nbDataThread, err)
 			}
@@ -256,9 +256,11 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}
 
 	// configure vpp side tun
-	err = s.vpp.SetInterfaceVRF(swIfIndex, common.PodVRFIndex)
-	if err != nil {
-		return 0, s.tunErrorCleanup(podSpec, err, "error setting vpp tun %d in pod vrf", swIfIndex)
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = s.vpp.SetInterfaceVRF(swIfIndex, common.PodVRFIndex, ipFamily.IsIp6)
+		if err != nil {
+			return 0, s.tunErrorCleanup(podSpec, err, "error setting vpp tun %d in pod vrf", swIfIndex)
+		}
 	}
 
 	err = s.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)

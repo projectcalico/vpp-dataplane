@@ -17,6 +17,7 @@ package vpplink
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
@@ -25,6 +26,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -52,23 +54,10 @@ func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) (routes []types.Route, 
 		if stop {
 			return routes, nil
 		}
-		vppRoute := response.Route
-		routePaths := make([]types.RoutePath, 0, vppRoute.NPaths)
-		for _, vppPath := range vppRoute.Paths {
-			routePaths = append(routePaths, types.RoutePath{
-				Gw: types.FromVppIpAddressUnion(
-					vppPath.Nh.Address,
-					vppRoute.Prefix.Address.Af == ip_types.ADDRESS_IP6,
-				),
-				Table:     int(vppPath.TableID),
-				SwIfIndex: vppPath.SwIfIndex,
-			})
-		}
-
 		route := types.Route{
-			Dst:   types.FromVppPrefix(vppRoute.Prefix),
-			Table: int(vppRoute.TableID),
-			Paths: routePaths,
+			Dst:   types.FromVppPrefix(response.Route.Prefix),
+			Table: response.Route.TableID,
+			Paths: types.FromFibPathList(response.Route.Paths),
 		}
 		routes = append(routes, route)
 	}
@@ -114,6 +103,21 @@ func (v *VppLink) addDelNeighbor(neighbor *types.Neighbor, isAdd bool) error {
 	return nil
 }
 
+func (v *VppLink) RoutesAdd(Dsts []*net.IPNet, routepath *types.RoutePath) error {
+	/* add the same route for multiple dsts */
+	for _, dst := range Dsts {
+		route := types.Route{
+			Dst:   dst,
+			Paths: []types.RoutePath{*routepath},
+		}
+		err := v.addDelIPRoute(&route, true)
+		if err != nil {
+			return errors.Wrapf(err, "Cannot add route in VPP")
+		}
+	}
+	return nil
+}
+
 func (v *VppLink) RouteAdd(route *types.Route) error {
 	return v.addDelIPRoute(route, true)
 }
@@ -125,6 +129,12 @@ func (v *VppLink) RouteDel(route *types.Route) error {
 func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
+
+	if isAdd {
+		log.Infof("Add route %s", route)
+	} else {
+		log.Infof("Del route %s", route)
+	}
 
 	isIP6 := route.IsIP6()
 	prefix := ip_types.Prefix{}
@@ -138,25 +148,7 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 
 	paths := make([]fib_types.FibPath, 0, len(route.Paths))
 	for _, routePath := range route.Paths {
-		// There is one case where we need an IPv4 route with an IPv6 path (for broadcast)
-		pathProto := types.IsV6toFibProto(isIP6)
-		if routePath.Gw != nil {
-			pathProto = types.IsV6toFibProto(routePath.Gw.To4() == nil)
-		}
-		path := fib_types.FibPath{
-			SwIfIndex:  uint32(routePath.SwIfIndex),
-			TableID:    uint32(routePath.Table),
-			RpfID:      0,
-			Weight:     1,
-			Preference: 0,
-			Type:       fib_types.FIB_API_PATH_TYPE_NORMAL,
-			Flags:      fib_types.FIB_API_PATH_FLAG_NONE,
-			Proto:      pathProto,
-		}
-		if routePath.Gw != nil {
-			path.Nh.Address = types.ToVppAddress(routePath.Gw).Un
-		}
-		paths = append(paths, path)
+		paths = append(paths, routePath.ToFibPath(isIP6))
 	}
 
 	vppRoute := vppip.IPRoute{
@@ -181,39 +173,27 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	return nil
 }
 
+func (v *VppLink) addDelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool, isAdd bool) error {
+	route := &types.Route{
+		Paths: []types.RoutePath{{
+			Table:     dstTable,
+			SwIfIndex: types.InvalidID,
+		}},
+		Dst:   &net.IPNet{IP: net.IPv4zero},
+		Table: sourceTable,
+	}
+	if isIP6 {
+		route.Dst.IP = net.IPv6zero
+	}
+	return v.addDelIPRoute(route, isAdd /*isAdd*/)
+}
+
 func (v *VppLink) AddDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	return v.addDelDefaultRouteViaTable(sourceTable, dstTable, isIP6, true /*isAdd*/)
+}
 
-	prefix := ip_types.Prefix{
-		Address: ip_types.Address{
-			Af: types.ToVppAddressFamily(isIP6),
-		},
-	}
-
-	paths := []fib_types.FibPath{{
-		SwIfIndex: AnyInterface,
-		TableID:   dstTable,
-		Proto:     types.IsV6toFibProto(isIP6),
-	}}
-
-	request := &vppip.IPRouteAddDel{
-		IsAdd: true,
-		Route: vppip.IPRoute{
-			TableID: sourceTable,
-			Prefix:  prefix,
-			Paths:   paths,
-		},
-	}
-
-	response := &vppip.IPRouteAddDelReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil {
-		return errors.Wrapf(err, "failed to add route to VPP")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to add route to VPP (retval %d)", response.Retval)
-	}
-	return nil
+func (v *VppLink) DelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
+	return v.addDelDefaultRouteViaTable(sourceTable, dstTable, isIP6, false /*isAdd*/)
 }
 
 func (v *VppLink) SetIPFlowHash(ipFlowHash *types.IPFlowHash, vrfID uint32, isIPv6 bool) error {

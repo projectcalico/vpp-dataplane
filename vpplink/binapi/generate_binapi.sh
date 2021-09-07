@@ -86,9 +86,14 @@ function generate_govpp_apis ()
 	  avf \
 	  wireguard \
 	  capo \
+	  memif \
+	  acl \
+	  abf \
 	  crypto_sw_scheduler \
 	  rdma \
-	  vmxnet3
+	  vmxnet3 \
+	  pbl \
+	  session
 }
 
 make_binapi_generator
