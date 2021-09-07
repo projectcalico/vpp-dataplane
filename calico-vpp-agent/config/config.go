@@ -55,7 +55,6 @@ const (
 	TapRxModeEnvVar            = "CALICOVPP_TAP_RX_MODE"
 	TapQueueSizeEnvVar         = "CALICOVPP_TAP_RING_SIZE"
 	IpsecNbAsyncCryptoThEnvVar = "CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD"
-	BgpLogLevelEnvVar          = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar        = "SERVICE_PREFIX"
 
@@ -108,7 +107,6 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:EnablePolicies    %t", EnablePolicies)
 	log.Infof("Config:IpsecAddressCount %d", IpsecAddressCount)
 	log.Infof("Config:RxMode            %d", TapRxMode)
-	log.Infof("Config:BgpLogLevel       %d", BgpLogLevel)
 	log.Infof("Config:LogLevel          %d", LogLevel)
 	log.Infof("Config:HostMtu           %d", HostMtu)
 	log.Infof("Config:PodMtu            %d", PodMtu)
@@ -144,15 +142,6 @@ func fetchHostMtu() (mtu int, err error) {
 // LoadConfig loads the calico-vpp-agent configuration from the environment
 func LoadConfig(log *logrus.Logger) (err error) {
 	supportedEnvVars = make(map[string]bool)
-
-	if conf := getEnvValue(BgpLogLevelEnvVar); conf != "" {
-		loglevel, err := logrus.ParseLevel(conf)
-		if err != nil {
-			log.WithError(err).Error("Failed to parse BGP loglevel: %s, defaulting to info", conf)
-		} else {
-			BgpLogLevel = loglevel
-		}
-	}
 
 	if conf := getEnvValue(LogLevelEnvVar); conf != "" {
 		loglevel, err := logrus.ParseLevel(conf)

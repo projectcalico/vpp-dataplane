@@ -79,7 +79,6 @@ func (s *Server) Clientv3() calicov3cli.Interface {
 }
 
 func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
-	logrus.SetLevel(config.BgpLogLevel) // This sets the log level for the GoBGP server
 
 	calicoCli, err := calicocli.NewFromEnv()
 	if err != nil {
@@ -93,12 +92,17 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting default BGP configuration")
 	}
+	nodeSpecificBGPConf, err := server.getNodeSpecificBGPConf(l, calicoCliV3)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting node specific BGP configurations")
+	}
 
 	routingData := common.RoutingData{
 		Vpp:                   vpp,
 		Client:                calicoCli,
 		Clientv3:              calicoCliV3,
 		DefaultBGPConf:        defaultBGPConf,
+		NodeSpecificBGPConf:   nodeSpecificBGPConf,
 		ConnectivityEventChan: make(chan common.ConnectivityEvent, 10),
 	}
 
@@ -107,6 +111,13 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 		routingData:          &routingData,
 		localAddressMap:      make(map[string]*net.IPNet),
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
+	}
+
+	logLevel, err := logrus.ParseLevel(server.getLogSeverityScreen())
+	if err != nil {
+		l.WithError(err).Error("Failed to parse loglevel: %s, defaulting to info", server.getLogSeverityScreen())
+	} else {
+		logrus.SetLevel(logLevel)
 	}
 
 	server.ipam = watchers.NewIPAMCache(&routingData, l.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
@@ -199,6 +210,20 @@ func (s *Server) serveOne() error {
 	return nil
 }
 
+func (s *Server) getNodeSpecificBGPConf(log *logrus.Entry, clientv3 calicov3cli.Interface) (*calicov3.BGPConfigurationSpec, error) {
+	conf, err := clientv3.BGPConfigurations().Get(context.Background(), "node."+config.NodeName, options.GetOptions{})
+	if err == nil {
+		return &conf.Spec, nil
+	} else {
+		switch err.(type) {
+		case calicoerr.ErrorResourceDoesNotExist:
+			return nil, nil
+		default:
+			return nil, err
+		}
+	}
+}
+
 func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Interface) (*calicov3.BGPConfigurationSpec, error) {
 	b := true
 	conf, err := clientv3.BGPConfigurations().Get(context.Background(), "default", options.GetOptions{})
@@ -214,13 +239,19 @@ func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Int
 			}
 			conf.Spec.ASNumber = &asn
 		}
+		if conf.Spec.ListenPort == 0 {
+			conf.Spec.ListenPort = 179
+		}
+		if conf.Spec.LogSeverityScreen == "" {
+			conf.Spec.LogSeverityScreen = "Info"
+		}
 		return &conf.Spec, nil
 	}
 	switch err.(type) {
 	case calicoerr.ErrorResourceDoesNotExist:
 		log.Debug("No default BGP config found, using default options")
 		ret := &calicov3.BGPConfigurationSpec{
-			LogSeverityScreen:     "INFO",
+			LogSeverityScreen:     "Info",
 			NodeToNodeMeshEnabled: &b,
 		}
 		asn, err := numorstring.ASNumberFromString("64512")
@@ -228,9 +259,28 @@ func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Int
 			return nil, err
 		}
 		ret.ASNumber = &asn
+		ret.ListenPort = 179
 		return ret, nil
 	default:
 		return nil, err
+	}
+}
+
+func (s *Server) getListenPort() uint16 {
+	conf := s.routingData.NodeSpecificBGPConf
+	if conf != nil {
+		return conf.ListenPort
+	} else {
+		return s.routingData.DefaultBGPConf.ListenPort
+	}
+}
+
+func (s *Server) getLogSeverityScreen() string {
+	conf := s.routingData.NodeSpecificBGPConf
+	if conf != nil {
+		return conf.LogSeverityScreen
+	} else {
+		return s.routingData.DefaultBGPConf.LogSeverityScreen
 	}
 }
 
@@ -268,8 +318,9 @@ func (s *Server) getGlobalConfig() (*bgpapi.Global, error) {
 		return nil, errors.Wrap(err, "Cannot make routerId out of IP")
 	}
 	return &bgpapi.Global{
-		As:       uint32(*asn),
-		RouterId: routerId,
+		As:         uint32(*asn),
+		RouterId:   routerId,
+		ListenPort: int32(s.getListenPort()),
 	}, nil
 }
 

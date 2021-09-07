@@ -58,6 +58,7 @@ type RoutingData struct {
 	Client                *calicocli.Client
 	Clientv3              calicov3cli.Interface
 	DefaultBGPConf        *calicov3.BGPConfigurationSpec
+	NodeSpecificBGPConf   *calicov3.BGPConfigurationSpec
 	ConnectivityEventChan chan ConnectivityEvent
 }
 
