@@ -109,16 +109,18 @@ func (c *ipamCache) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 func (c *ipamCache) handleIPPoolUpdate(pool calicov3.IPPool, del bool) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	c.log.Debugf("update ipam cache: %+v, %t", pool.Spec, del)
 	key := pool.Spec.CIDR
 
 	existing := c.ippoolmap[key]
 	if del {
 		delete(c.ippoolmap, key)
+		c.log.Infof("Deleting pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
 		return c.ipamUpdateHandler(nil, existing)
 	} else if existing != nil && equalPools(&pool, existing) {
+		c.log.Infof("Unchanged pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
 		return nil
 	}
+	c.log.Infof("Adding pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
 
 	c.ippoolmap[key] = &pool
 
@@ -136,7 +138,7 @@ func (c *ipamCache) SyncIPAM() error {
 		sweepMap := make(map[string]bool)
 		for _, pool := range poolsList.Items {
 			sweepMap[pool.Spec.CIDR] = true
-			err := c.handleIPPoolUpdate(pool, false)
+			err := c.handleIPPoolUpdate(pool, false /*isdel*/)
 			if err != nil {
 				return errors.Wrap(err, "error processing startup pool update")
 			}
@@ -145,7 +147,10 @@ func (c *ipamCache) SyncIPAM() error {
 		for key, pool := range c.ippoolmap {
 			found := sweepMap[key]
 			if !found {
-				c.handleIPPoolUpdate(*pool, true)
+				err := c.handleIPPoolUpdate(*pool, true /*isdel*/)
+				if err != nil {
+					c.log.Errorf("error deleting ippool %s", err)
+				}
 			}
 		}
 
@@ -189,11 +194,13 @@ func (c *ipamCache) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err err
 	if err != nil {
 		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Spec.CIDR)
 	}
-	if !pool.Spec.NATOutgoing {
-		return nil
+	if pool.Spec.NATOutgoing {
+		err = c.Vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
+		if err != nil {
+			return errors.Wrapf(err, "Couldn't configure SNAT prefix")
+		}
 	}
-	err = c.Vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
-	return errors.Wrapf(err, "Couldn't configure SNAT prefix")
+	return nil
 }
 
 func (c *ipamCache) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) (err error) {

@@ -326,7 +326,7 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 			s.felixRestarted <- true
 			return
 		}
-		s.log.Infof("Got message from felix: %+v", msg)
+		s.log.Debugf("Got message from felix: %+v", msg)
 		switch m := msg.(type) {
 		case *proto.ConfigUpdate:
 			err = s.handleConfigUpdate(m)
@@ -599,11 +599,11 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 	existing, found := state.WorkloadEndpoints[*id]
 	intf, intfFound := s.endpointsInterfaces[*id]
 
-	s.log.Warnf("Updating endpoint %v: found %v, intf %d, intfFound %v", id, found, intf, intfFound)
+	s.log.Infof("Updating endpoint %s(found:%t) if[%d](found:%t)", id.String(), found, intf, intfFound)
 	if existing != nil {
-		s.log.Warnf("Existing: %+v", existing)
+		s.log.Infof("Existing: %s", existing.String())
 	}
-	s.log.Warnf("New: %+v", wep)
+	s.log.Infof("New: %s", wep.String())
 
 	if found {
 		if pending || !intfFound {
