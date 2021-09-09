@@ -32,6 +32,30 @@ iperf3-vcl-image:
 	cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/*.so.* ./iperf3-vcl/
 	docker build -t calicovpp/test-iperf3-vcl -f ./iperf3-vcl/Dockerfile ./iperf3-vcl
 
+.PHONY: trex-image-buildenv
+trex-image-buildenv:
+	docker build \
+		--network=host \
+		-t calicovpp/test-trex-build:latest -f ./trex/build.Dockerfile ./trex
+	docker run \
+		--net=host --rm \
+		-e BUILD_DIR=$(CURDIR) \
+		-v $(CURDIR):$(CURDIR):delegated \
+		--user $$(id -u):$$(id -g) \
+		calicovpp/test-trex-build:latest
+
+.PHONY: trex-image
+trex-image: trex-image-buildenv
+	rm -rf ./trex/trex-bins
+	mkdir ./trex/trex-bins
+	cp ./trex_build/trex-core/linux_dpdk/build_dpdk/linux_dpdk/_t-rex-64 ./trex/trex-bins/t-rex-64
+	cp ./trex_build/trex-core/linux_dpdk/build_dpdk/linux_dpdk/libbpf-64.so ./trex/trex-bins/libbpf-64.so
+	cp -r ./trex_build/trex-core/scripts/automation/trex_control_plane/interactive ./trex/trex-bins/trex-interactive
+	cp -r ./trex_build/trex-core/scripts/external_libs ./trex/trex-bins/trex-external_libs
+	docker build \
+		--network=host \
+		-t calicovpp/test-trex -f ./trex/Dockerfile ./trex
+
 %-image:
 	docker build --network=host -t calicovpp/test-$* -f ./$*/Dockerfile ./$*
 

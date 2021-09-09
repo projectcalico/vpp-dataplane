@@ -2,15 +2,15 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: testpmd
-  namespace: testpmd
+  name: trex
+  namespace: trex
   annotations:
-    "cni.projectcalico.org/vpp.memif.ports":  "tcp:1234-1236,udp:4456"
+    "cni.projectcalico.org/vpp.memif.ports":  "tcp:4444-20000,udp:4444-20000"
     "cni.projectcalico.org/vpp.tuntap.ports": "default"
 spec:
   containers:
-  - name: testpmd
-    image: calicovpp/test-testpmd
+  - name: trex
+    image: calicovpp/test-trex
     imagePullPolicy: IfNotPresent
     securityContext:
       privileged: true
@@ -23,7 +23,7 @@ spec:
     volumeMounts:
     - mountPath: /hugepages
       name: hugepage
-  nodeName: _NODE_1_
+  nodeName: _NODE_2_
   volumes:
   - name: hugepage
     emptyDir:
