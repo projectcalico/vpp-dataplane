@@ -70,6 +70,65 @@ func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex ui
 	}
 }
 
+func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
+	for _, containerIP := range podSpec.GetContainerIps() {
+		path := types.RoutePath{
+			SwIfIndex: swIfIndex,
+		}
+		if !isL3 {
+			path.Gw = containerIP.IP
+		}
+
+		portRanges := make([]types.PblPortRange, 0)
+		for _, pc := range podSpec.IfPortConfigs {
+			portRanges = append(portRanges, types.PblPortRange{
+				Start: pc.Start,
+				End:   pc.End,
+				Proto: pc.Proto,
+			})
+		}
+
+		client := types.PblClient{
+			ID: vpplink.InvalidID,
+			// TableId:    podSpec.VrfId,
+			Addr:       containerIP.IP,
+			Path:       path,
+			PortRanges: portRanges,
+		}
+		s.log.Infof("Adding PBL client for %s VRF %d", containerIP.IP, podSpec.VrfId)
+		pblIndex, err := s.vpp.AddPblClient(&client)
+		if err != nil {
+			return errors.Wrapf(err, "error adding PBL client for %s VRF %d", containerIP.IP, podSpec.VrfId)
+		} else {
+			stack.Push(s.vpp.DelPblClient, pblIndex)
+		}
+		podSpec.PblIndexes = append(podSpec.PblIndexes, pblIndex)
+
+		if !isL3 {
+			s.log.Infof("Adding neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
+			err = s.vpp.AddNeighbor(&types.Neighbor{
+				SwIfIndex:    swIfIndex,
+				IP:           containerIP.IP,
+				HardwareAddr: config.ContainerSideMacAddress,
+			})
+			if err != nil {
+				return errors.Wrapf(err, "Cannot adding neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Server) UnroutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
+	for _, pblIndex := range podSpec.PblIndexes {
+		s.log.Infof("Deleting PBL client[%d]", pblIndex)
+		err := s.vpp.DelPblClient(pblIndex)
+		if err != nil {
+			s.log.Warnf("Error deleting pbl conf %s", err)
+		}
+	}
+}
+
 func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	/* Create and Setup the per-pod VRF */
 	for _, ipFamily := range vpplink.IpFamilies {

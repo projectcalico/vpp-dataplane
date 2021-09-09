@@ -51,6 +51,7 @@ type VppInterfaceType uint8
 const (
 	VppIfTypeUnknown VppInterfaceType = iota
 	VppIfTypeTunTap
+	VppIfTypeMemif
 )
 
 func (n *LocalIPNet) String() string {
@@ -117,9 +118,20 @@ func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex u
 	switch ifType {
 	case VppIfTypeTunTap:
 		return ps.TunTapSwIfIndex, ps.TunTapIsL3
+	case VppIfTypeMemif:
+		if !config.MemifEnabled {
+			return types.InvalidID, true
+		}
+		return ps.MemifSwIfIndex, ps.MemifIsL3
 	default:
 		return types.InvalidID, true
 	}
+}
+
+type LocalIfPortConfigs struct {
+	Start uint16
+	End   uint16
+	Proto types.IPProto
 }
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -142,15 +154,27 @@ type LocalPodSpec struct {
 	WorkloadID         string
 	EndpointIDSize     int `struc:"int16,sizeof=EndpointID"`
 	EndpointID         string
+
+	IfPortConfigsLen int `struc:"int16,sizeof=IfPortConfigs"`
+	IfPortConfigs    []LocalIfPortConfigs
+	/* This interface type will traffic MATCHING the portConfigs */
+	PortFilteredIfType VppInterfaceType
 	/* This interface type will traffic not matching portConfigs */
 	DefaultIfType VppInterfaceType
+	EnableMemif   bool
+	MemifIsL3     bool
 	TunTapIsL3    bool
 
 	/* VPP internals. Persisting on the disk in the case of the
 	 * agent restarting. */
+	MemifSocketId     uint32
 	TunTapSwIfIndex   uint32
+	MemifSwIfIndex    uint32
 	LoopbackSwIfIndex uint32
-	VrfId             uint32
+	PblIndexesLen     int `struc:"int16,sizeof=PblIndexes"`
+	PblIndexes        []uint32
+
+	VrfId uint32
 
 	/* Caching */
 	NeedsSnat bool

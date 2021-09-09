@@ -5,7 +5,7 @@ metadata:
   name: testpmd
   namespace: testpmd
   annotations:
-    "cni.projectcalico.org/vpp.memif.ports":  "tcp:1234-1236,udp:4456"
+    "cni.projectcalico.org/vpp.memif.ports":  "tcp:4444-20000,udp:4444-20000"
     "cni.projectcalico.org/vpp.tuntap.ports": "default"
 spec:
   containers:

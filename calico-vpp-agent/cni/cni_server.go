@@ -49,6 +49,7 @@ type Server struct {
 	podInterfaceMap map[string]storage.LocalPodSpec
 	/* without main thread */
 	lock           sync.Mutex
+	memifDriver    *pod_interface.MemifPodInterfaceDriver
 	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
 	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
 
@@ -68,10 +69,17 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		ContainerIps:      make([]storage.LocalIP, 0),
 		Mtu:               int(request.GetSettings().GetMtu()),
 
-		OrchestratorID:  request.Workload.Orchestrator,
-		WorkloadID:      request.Workload.Namespace + "/" + request.Workload.Pod,
-		EndpointID:      request.Workload.Endpoint,
-		TunTapIsL3:      true,
+		IfPortConfigs: make([]storage.LocalIfPortConfigs, 0),
+
+		OrchestratorID: request.Workload.Orchestrator,
+		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
+		EndpointID:     request.Workload.Endpoint,
+
+		/* defaults */
+		MemifIsL3:  false,
+		TunTapIsL3: true,
+
+		MemifSwIfIndex:  vpplink.InvalidID,
 		TunTapSwIfIndex: vpplink.InvalidID,
 	}
 	for _, routeStr := range request.GetContainerRoutes() {
@@ -92,6 +100,13 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		// We ignore the prefix len set on the address,
 		// for a tun it doesn't make sense
 		podSpec.ContainerIps = append(podSpec.ContainerIps, storage.LocalIP{IP: containerIp})
+	}
+	workload := request.GetWorkload()
+	if workload != nil {
+		err := s.ParsePodAnnotations(&podSpec, workload.Annotations)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Cannot parse pod Annotations")
+		}
 	}
 
 	if podSpec.DefaultIfType == storage.VppIfTypeUnknown {
@@ -177,6 +192,7 @@ func (s *Server) FetchNDataThreads() {
 		s.log.Info("Using [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
 
 	}
+	s.memifDriver.NDataThreads = nDataThreads
 	s.tuntapDriver.NDataThreads = nDataThreads
 }
 
@@ -296,6 +312,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]storage.LocalPodSpec),
 		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(v, l),
+		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(v, l),
 		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(v, l),
 		indexAllocator:  vpplink.NewIndexAllocator(common.PerPodVRFIndexStart),
 	}

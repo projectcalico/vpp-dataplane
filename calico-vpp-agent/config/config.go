@@ -44,6 +44,7 @@ const (
 	NodeNameEnvVar             = "NODENAME"
 	TapNumRxQueuesEnvVar       = "CALICOVPP_TAP_RX_QUEUES"
 	TapNumTxQueuesEnvVar       = "CALICOVPP_TAP_TX_QUEUES"
+	MemifEnabledEnvVar         = "CALICOVPP_ENABLE_MEMIF"
 	PodGSOEnabledEnvVar        = "CALICOVPP_DEBUG_ENABLE_GSO"
 	EnableServicesEnvVar       = "CALICOVPP_DEBUG_ENABLE_NAT"
 	EnableMaglevEnvVar         = "CALICOVPP_DEBUG_ENABLE_MAGLEV"
@@ -59,6 +60,7 @@ const (
 	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar        = "SERVICE_PREFIX"
 
+	MemifSocketName      = "@vpp/memif"
 	DefaultVXLANVni      = 4096
 	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820
@@ -67,8 +69,10 @@ const (
 )
 
 var (
-	TapNumRxQueues           = 1
-	TapNumTxQueues           = 1
+	TapNumRxQueues = 1
+	TapNumTxQueues = 1
+	/* disable by default as it might impact security */
+	MemifEnabled             = false
 	PodGSOEnabled            = true
 	EnableMaglev             = true
 	EnableServices           = true
@@ -103,6 +107,7 @@ var (
 
 func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:TapNumRxQueues    %d", TapNumRxQueues)
+	log.Infof("Config:MemifEnabled      %t", MemifEnabled)
 	log.Infof("Config:PodGSOEnabled     %t", PodGSOEnabled)
 	log.Infof("Config:EnableServices    %t", EnableServices)
 	log.Infof("Config:EnableIPSec       %t", EnableIPSec)
@@ -181,6 +186,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", TapNumTxQueuesEnvVar, conf, queues, err)
 		}
 		TapNumTxQueues = int(queues)
+	}
+
+	if conf := getEnvValue(MemifEnabledEnvVar); conf != "" {
+		enabled, err := strconv.ParseBool(conf)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", MemifEnabledEnvVar, conf, enabled, err)
+		}
+		MemifEnabled = enabled
 	}
 
 	if conf := getEnvValue(PodGSOEnabledEnvVar); conf != "" {
