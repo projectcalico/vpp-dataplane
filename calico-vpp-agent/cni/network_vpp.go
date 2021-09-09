@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -57,6 +58,14 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		goto err
 	}
 
+	if podSpec.EnableMemif && config.MemifEnabled {
+		s.log.Infof("Creating Pod memif")
+		err := s.memifDriver.CreateInterface(podSpec, stack)
+		if err != nil {
+			goto err
+		}
+	}
+
 	/* Routes */
 	swIfIndex, isL3 = podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 	if swIfIndex != types.InvalidID {
@@ -67,6 +76,15 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	} else {
 		s.log.Warn("No default if type for pod")
+	}
+
+	swIfIndex, isL3 = podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
+	if swIfIndex != types.InvalidID {
+		s.log.Infof("Adding Pod PBL routes to %d l3?:%t", swIfIndex, isL3)
+		err = s.RoutePblPortsPodInterface(podSpec, stack, swIfIndex, isL3)
+		if err != nil {
+			goto err
+		}
 	}
 
 	s.log.Infof("Announcing Pod Addresses")
@@ -90,13 +108,17 @@ err:
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
-	var swIfIndex uint32
 
 	for _, containerIP := range podSpec.GetContainerIps() {
 		s.routingServer.AnnounceLocalAddress(containerIP, true /* isWithdrawal */)
 	}
 
 	/* Routes */
+	swIfIndex, _ := podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
+	if swIfIndex != types.InvalidID {
+		s.log.Infof("Deleting Pod PBL routes to %d", swIfIndex)
+		s.UnroutePblPortsPodInterface(podSpec, swIfIndex)
+	}
 	swIfIndex, _ = podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 	if swIfIndex != types.InvalidID {
 		s.log.Infof("Deleting Pod default routes to %d", swIfIndex)
@@ -104,6 +126,8 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	}
 
 	/* Interfaces */
+	s.log.Infof("Deleting Pod memif")
+	s.memifDriver.DeleteInterface(podSpec)
 	s.log.Infof("Deleting Pod tuntap")
 	s.tuntapDriver.DeleteInterface(podSpec)
 
