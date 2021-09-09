@@ -44,7 +44,7 @@ const (
 	NodeNameEnvVar             = "NODENAME"
 	TapNumRxQueuesEnvVar       = "CALICOVPP_TAP_RX_QUEUES"
 	TapNumTxQueuesEnvVar       = "CALICOVPP_TAP_TX_QUEUES"
-	TapGSOEnvVar               = "CALICOVPP_DEBUG_ENABLE_GSO"
+	PodGSOEnabledEnvVar        = "CALICOVPP_DEBUG_ENABLE_GSO"
 	EnableServicesEnvVar       = "CALICOVPP_DEBUG_ENABLE_NAT"
 	EnableMaglevEnvVar         = "CALICOVPP_DEBUG_ENABLE_MAGLEV"
 	EnablePoliciesEnvVar       = "CALICOVPP_DEBUG_ENABLE_POLICIES"
@@ -69,7 +69,7 @@ const (
 var (
 	TapNumRxQueues           = 1
 	TapNumTxQueues           = 1
-	TapGSOEnabled            = true
+	PodGSOEnabled            = true
 	EnableMaglev             = true
 	EnableServices           = true
 	EnablePolicies           = true
@@ -97,11 +97,13 @@ var (
 	felixVXLANMtu         int = 0
 	felixWireguardEnabled     = false
 	felixWireguardMtu     int = 0
+
+	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:TapNumRxQueues    %d", TapNumRxQueues)
-	log.Infof("Config:TapGSOEnabled     %t", TapGSOEnabled)
+	log.Infof("Config:PodGSOEnabled     %t", PodGSOEnabled)
 	log.Infof("Config:EnableServices    %t", EnableServices)
 	log.Infof("Config:EnableIPSec       %t", EnableIPSec)
 	log.Infof("Config:CrossIpsecTunnels %t", CrossIpsecTunnels)
@@ -181,12 +183,12 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		TapNumTxQueues = int(queues)
 	}
 
-	if conf := getEnvValue(TapGSOEnvVar); conf != "" {
+	if conf := getEnvValue(PodGSOEnabledEnvVar); conf != "" {
 		gso, err := strconv.ParseBool(conf)
 		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapGSOEnvVar, conf, gso, err)
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", PodGSOEnabledEnvVar, conf, gso, err)
 		}
-		TapGSOEnabled = gso
+		PodGSOEnabled = gso
 	}
 
 	if conf := getEnvValue(EnableIPSecEnvVar); conf != "" {

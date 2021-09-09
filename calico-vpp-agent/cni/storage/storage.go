@@ -26,10 +26,12 @@ import (
 	"github.com/lunixbochs/struc"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 const (
-	CniServerStateFileVersion = 2 // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 3 // Used to ensure compatibility wen we reload data
 )
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -43,6 +45,13 @@ type LocalIPNet struct {
 type LocalIP struct {
 	IP net.IP `struc:"[16]byte"`
 }
+
+type VppInterfaceType uint8
+
+const (
+	VppIfTypeUnknown VppInterfaceType = iota
+	VppIfTypeTunTap
+)
 
 func (n *LocalIPNet) String() string {
 	ipnet := net.IPNet{
@@ -71,7 +80,7 @@ func (ps *LocalPodSpec) UpdateSizes() {
 }
 
 func (ps *LocalPodSpec) Key() string {
-	return fmt.Sprintf("%s--%s", ps.NetnsName, ps.InterfaceName)
+	return fmt.Sprintf("netns:%s,if:%s", ps.NetnsName, ps.InterfaceName)
 }
 
 func (ps *LocalPodSpec) String() string {
@@ -80,7 +89,7 @@ func (ps *LocalPodSpec) String() string {
 	for _, e := range lst {
 		strLst = append(strLst, e.String())
 	}
-	return fmt.Sprintf("%s: %s", ps.Key(), strings.Join(strLst, ", "))
+	return fmt.Sprintf("%s [%s]", ps.Key(), strings.Join(strLst, ", "))
 }
 
 func (ps *LocalPodSpec) FullString() string {
@@ -104,6 +113,15 @@ func (ps *LocalPodSpec) FullString() string {
 	)
 }
 
+func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex uint32, isL3 bool) {
+	switch ifType {
+	case VppIfTypeTunTap:
+		return ps.TunTapSwIfIndex, ps.TunTapIsL3
+	default:
+		return types.InvalidID, true
+	}
+}
+
 // XXX: Increment CniServerStateFileVersion when changing this struct
 type LocalPodSpec struct {
 	InterfaceNameSize int `struc:"int16,sizeof=InterfaceName"`
@@ -124,6 +142,30 @@ type LocalPodSpec struct {
 	WorkloadID         string
 	EndpointIDSize     int `struc:"int16,sizeof=EndpointID"`
 	EndpointID         string
+	/* This interface type will traffic not matching portConfigs */
+	DefaultIfType VppInterfaceType
+	TunTapIsL3    bool
+
+	/* VPP internals. Persisting on the disk in the case of the
+	 * agent restarting. */
+	TunTapSwIfIndex   uint32
+	LoopbackSwIfIndex uint32
+	VrfId             uint32
+
+	/* Caching */
+	NeedsSnat bool
+}
+
+func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {
+	return fmt.Sprintf("%s-%s-%s", prefix, ps.NetnsName, ps.InterfaceName)
+}
+
+func (ps *LocalPodSpec) GetPodMtu() int {
+	// configure MTU from env var if present or calculate it from host mtu
+	if ps.Mtu <= 0 {
+		return config.PodMtu
+	}
+	return ps.Mtu
 }
 
 func (ps *LocalPodSpec) GetRoutes() (routes []*net.IPNet) {
