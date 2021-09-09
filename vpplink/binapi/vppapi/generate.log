@@ -1,4 +1,4 @@
-VPP Version                 : 22.02-rc0~98-ge088a4769
+VPP Version                 : 22.02-rc0~99-gc56db5d3c
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : ac55a722d ipsec: fix protect update log if nexthop is NULL
 ------------------ Cherry picked commits --------------------
@@ -6,6 +6,7 @@ gerrit:28513/24 capo: Calico Policies plugin
 gerrit:28083/20 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/3 pbl: Port based balancer
+gerrit:33708/7 ip: Add ip46-local node for local swif[rx]
 gerrit:33557/4 ip: unlock_fib on if delete
 gerrit:33749/5 ip: fix fib and mfib locks
 gerrit:32271/7 memif: add support for ns abstract sockets

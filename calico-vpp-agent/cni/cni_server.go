@@ -51,6 +51,7 @@ type Server struct {
 	lock           sync.Mutex
 	memifDriver    *pod_interface.MemifPodInterfaceDriver
 	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
+	vclDriver      *pod_interface.VclPodInterfaceDriver
 	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
 }
 
@@ -194,6 +195,14 @@ func (s *Server) FetchNDataThreads() {
 func (s *Server) rescanState() error {
 	s.FetchNDataThreads()
 
+	if config.VCLEnabled {
+		err := s.vclDriver.Init()
+		if err != nil {
+			s.log.Errorf("Error initializing VCL %v", err)
+			return err
+		}
+	}
+
 	podSpecs, err := storage.LoadCniServerState(config.CniServerStateFile)
 	if err != nil {
 		s.log.Errorf("Error getting pods %v", err)
@@ -217,6 +226,12 @@ func (s *Server) rescanState() error {
 
 func (s *Server) OnVppRestart() {
 	s.log.Infof("VppRestart: re-creating all interfaces")
+	if config.VCLEnabled {
+		err := s.vclDriver.Init()
+		if err != nil {
+			s.log.Errorf("Error initializing VCL %v", err)
+		}
+	}
 	for name, podSpec := range s.podInterfaceMap {
 		_, err := s.AddVppInterface(&podSpec, false /* doHostSideConf */)
 		if err != nil {
@@ -296,6 +311,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 		podInterfaceMap: make(map[string]storage.LocalPodSpec),
 		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(v, l),
 		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(v, l),
+		vclDriver:       pod_interface.NewVclPodInterfaceDriver(v, l),
 		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(v, l),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)

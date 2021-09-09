@@ -52,6 +52,7 @@ const (
 	VppIfTypeUnknown VppInterfaceType = iota
 	VppIfTypeTunTap
 	VppIfTypeMemif
+	VppIfTypeVCL
 )
 
 func (n *LocalIPNet) String() string {
@@ -161,6 +162,7 @@ type LocalPodSpec struct {
 	PortFilteredIfType VppInterfaceType
 	/* This interface type will traffic not matching portConfigs */
 	DefaultIfType VppInterfaceType
+	EnableVCL     bool
 	EnableMemif   bool
 	MemifIsL3     bool
 	TunTapIsL3    bool
