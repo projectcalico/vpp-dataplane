@@ -685,7 +685,7 @@ func (v *VppRunner) runVpp() (err error) {
 	if err != nil {
 		terminateVpp("Error updating Calico node (SIGINT %d): %v", vppProcess.Pid, err)
 		<-vppDeadChan
-		return errors.Wrap(err, "Error updating Calico node")
+		return errors.Wrap(err, "Error updating Calico node: please check inter-node connectivity and service prefix")
 	}
 
 	utils.WriteFile("1", config.VppManagerStatusFile)
