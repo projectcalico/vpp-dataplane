@@ -40,7 +40,7 @@ git_cherry_pick refs/changes/82/32482/1 # 32482: virtio: compute cksums in outpu
 git_cherry_pick refs/changes/83/32483/1 # 32483: virtio: Still init unused txq | https://gerrit.fd.io/r/c/vpp/+/32483
 git_cherry_pick refs/changes/71/32871/1 # 32871: devices: Add queues params in create_if | https://gerrit.fd.io/r/c/vpp/+/32871
 git_cherry_pick refs/changes/71/32271/6 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
-git_cherry_pick refs/changes/68/31868/1 # 31868: ip6-nd: silent the source and target checks on given interface | https://gerrit.fd.io/r/c/vpp/+/31868
+git_cherry_pick refs/changes/21/31921/8 # 31921: ip6-nd: add ip6-nd proxy | https://gerrit.fd.io/r/c/vpp/+/31921
 git_cherry_pick refs/changes/64/33164/3  # 33164: dpdk: enable ena interrupt support in dpdk version 21.05 | https://gerrit.fd.io/r/c/vpp/+/33164
 
 git_cherry_pick refs/changes/01/33301/2 # 33301: session: make netns abtract name static | https://gerrit.fd.io/r/c/vpp/+/33301
