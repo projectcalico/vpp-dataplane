@@ -13,9 +13,12 @@ localAPIEndpoint:
   bindPort: 6443
 nodeRegistration:
   criSocket: /var/run/dockershim.sock
+  # criSocket: /var/run/containerd/containerd.sock
   imagePullPolicy: IfNotPresent
   taints: null
   name: "${NODE_NAME}"
+  kubeletExtraArgs:
+    node-ip: "${FIRST_NODE_IP}"
 ---
 # https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
 apiVersion: kubeadm.k8s.io/v1beta3
@@ -38,8 +41,6 @@ controllerManager:
     ${DISABLE_NODE_CIDR_MASK_SIZE4}node-cidr-mask-size-ipv4: "${NODE_CIDR_MASK_SIZE4}"
     ${DISABLE_NODE_CIDR_MASK_SIZE6}node-cidr-mask-size-ipv6: "${NODE_CIDR_MASK_SIZE6}"
     ${DISABLE_NODE_CIDR_MASK}node-cidr-mask-size: "${NODE_CIDR_MASK_SIZE}"
-dns:
-  type: ${DNS_TYPE}
 etcd:
   local:
     dataDir: /var/lib/etcd
