@@ -52,7 +52,7 @@ VAGRANT_VM_PROXY ?=
 KUBECTL_AUTO_CONF ?= true
 
 # Kubernetes and kubeadm
-KUBERNETES_VERSION ?= 1.18.1
+KUBERNETES_VERSION ?= 1.22.1
 #KUBERNETES_PKG_VERSION_SUFFIX ?=
 # `kubeadm init` flags for master
 # NOTE: The `--kubernetes-version` is automatically set if `KUBERNETES_VERSION` is given.

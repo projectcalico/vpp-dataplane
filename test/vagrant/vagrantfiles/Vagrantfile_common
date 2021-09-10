@@ -10,7 +10,7 @@ MASTER_MEMORY_SIZE_GB = ENV['MASTER_MEMORY_SIZE_GB'].to_i || 16
 NODE_CPUS = ENV['NODE_CPUS'].to_i || 4
 NODE_MEMORY_SIZE_GB = ENV['NODE_MEMORY_SIZE_GB'].to_i || 16
 
-$docker_version = '5:19.03.12~3-0~ubuntu-focal'
+$docker_version = '5:20.10.8~3-0~ubuntu-focal'
 
 # Network
 MASTER_IP = ENV['MASTER_IP'] || '192.168.0.254'
