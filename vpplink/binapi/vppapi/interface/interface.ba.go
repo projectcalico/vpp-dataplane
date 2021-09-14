@@ -3,7 +3,7 @@
 // Package interfaces contains generated bindings for API file interface.api.
 //
 // Contents:
-//  59 messages
+//  61 messages
 //
 package interfaces
 
@@ -23,8 +23,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "interface"
-	APIVersion = "3.2.2"
-	VersionCrc = 0x29a0076c
+	APIVersion = "3.2.3"
+	VersionCrc = 0x828d509
 )
 
 // CollectDetailedInterfaceStats defines message 'collect_detailed_interface_stats'.
@@ -1563,6 +1563,78 @@ func (m *SwInterfaceSetFlagsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// SwInterfaceSetInterfaceName defines message 'sw_interface_set_interface_name'.
+type SwInterfaceSetInterfaceName struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	Name      string                         `binapi:"string[64],name=name" json:"name,omitempty"`
+}
+
+func (m *SwInterfaceSetInterfaceName) Reset()               { *m = SwInterfaceSetInterfaceName{} }
+func (*SwInterfaceSetInterfaceName) GetMessageName() string { return "sw_interface_set_interface_name" }
+func (*SwInterfaceSetInterfaceName) GetCrcString() string   { return "45a1d548" }
+func (*SwInterfaceSetInterfaceName) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SwInterfaceSetInterfaceName) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4  // m.SwIfIndex
+	size += 64 // m.Name
+	return size
+}
+func (m *SwInterfaceSetInterfaceName) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeString(m.Name, 64)
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceSetInterfaceName) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.Name = buf.DecodeString(64)
+	return nil
+}
+
+// SwInterfaceSetInterfaceNameReply defines message 'sw_interface_set_interface_name_reply'.
+type SwInterfaceSetInterfaceNameReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SwInterfaceSetInterfaceNameReply) Reset() { *m = SwInterfaceSetInterfaceNameReply{} }
+func (*SwInterfaceSetInterfaceNameReply) GetMessageName() string {
+	return "sw_interface_set_interface_name_reply"
+}
+func (*SwInterfaceSetInterfaceNameReply) GetCrcString() string { return "e8d4e804" }
+func (*SwInterfaceSetInterfaceNameReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SwInterfaceSetInterfaceNameReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SwInterfaceSetInterfaceNameReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceSetInterfaceNameReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // SwInterfaceSetIPDirectedBroadcast defines message 'sw_interface_set_ip_directed_broadcast'.
 type SwInterfaceSetIPDirectedBroadcast struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2353,6 +2425,8 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*SwInterfaceRxPlacementDump)(nil), "sw_interface_rx_placement_dump_f9e6675e")
 	api.RegisterMessage((*SwInterfaceSetFlags)(nil), "sw_interface_set_flags_f5aec1b8")
 	api.RegisterMessage((*SwInterfaceSetFlagsReply)(nil), "sw_interface_set_flags_reply_e8d4e804")
+	api.RegisterMessage((*SwInterfaceSetInterfaceName)(nil), "sw_interface_set_interface_name_45a1d548")
+	api.RegisterMessage((*SwInterfaceSetInterfaceNameReply)(nil), "sw_interface_set_interface_name_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetIPDirectedBroadcast)(nil), "sw_interface_set_ip_directed_broadcast_ae6cfcfb")
 	api.RegisterMessage((*SwInterfaceSetIPDirectedBroadcastReply)(nil), "sw_interface_set_ip_directed_broadcast_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetMacAddress)(nil), "sw_interface_set_mac_address_c536e7eb")
@@ -2417,6 +2491,8 @@ func AllMessages() []api.Message {
 		(*SwInterfaceRxPlacementDump)(nil),
 		(*SwInterfaceSetFlags)(nil),
 		(*SwInterfaceSetFlagsReply)(nil),
+		(*SwInterfaceSetInterfaceName)(nil),
+		(*SwInterfaceSetInterfaceNameReply)(nil),
 		(*SwInterfaceSetIPDirectedBroadcast)(nil),
 		(*SwInterfaceSetIPDirectedBroadcastReply)(nil),
 		(*SwInterfaceSetMacAddress)(nil),

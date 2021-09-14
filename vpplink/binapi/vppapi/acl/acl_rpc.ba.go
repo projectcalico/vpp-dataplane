@@ -24,6 +24,8 @@ type RPCService interface {
 	ACLPluginControlPing(ctx context.Context, in *ACLPluginControlPing) (*ACLPluginControlPingReply, error)
 	ACLPluginGetConnTableMaxEntries(ctx context.Context, in *ACLPluginGetConnTableMaxEntries) (*ACLPluginGetConnTableMaxEntriesReply, error)
 	ACLPluginGetVersion(ctx context.Context, in *ACLPluginGetVersion) (*ACLPluginGetVersionReply, error)
+	ACLPluginUseHashLookupGet(ctx context.Context, in *ACLPluginUseHashLookupGet) (*ACLPluginUseHashLookupGetReply, error)
+	ACLPluginUseHashLookupSet(ctx context.Context, in *ACLPluginUseHashLookupSet) (*ACLPluginUseHashLookupSetReply, error)
 	ACLStatsIntfCountersEnable(ctx context.Context, in *ACLStatsIntfCountersEnable) (*ACLStatsIntfCountersEnableReply, error)
 	MacipACLAdd(ctx context.Context, in *MacipACLAdd) (*MacipACLAddReply, error)
 	MacipACLAddReplace(ctx context.Context, in *MacipACLAddReplace) (*MacipACLAddReplaceReply, error)
@@ -229,6 +231,24 @@ func (c *serviceClient) ACLPluginGetVersion(ctx context.Context, in *ACLPluginGe
 		return nil, err
 	}
 	return out, nil
+}
+
+func (c *serviceClient) ACLPluginUseHashLookupGet(ctx context.Context, in *ACLPluginUseHashLookupGet) (*ACLPluginUseHashLookupGetReply, error) {
+	out := new(ACLPluginUseHashLookupGetReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) ACLPluginUseHashLookupSet(ctx context.Context, in *ACLPluginUseHashLookupSet) (*ACLPluginUseHashLookupSetReply, error) {
+	out := new(ACLPluginUseHashLookupSetReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) ACLStatsIntfCountersEnable(ctx context.Context, in *ACLStatsIntfCountersEnable) (*ACLStatsIntfCountersEnableReply, error) {
