@@ -4,7 +4,7 @@
 //
 // Contents:
 //   2 enums
-//  24 messages
+//  26 messages
 //
 package session
 
@@ -26,7 +26,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "session"
 	APIVersion = "4.0.0"
-	VersionCrc = 0x3bd2c00d
+	VersionCrc = 0xae335275
 )
 
 // SessionRuleScope defines enum 'session_rule_scope'.
@@ -525,6 +525,104 @@ func (m *AppNamespaceAddDelV2Reply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *AppNamespaceAddDelV2Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.AppnsIndex = buf.DecodeUint32()
+	return nil
+}
+
+// AppNamespaceAddDelV3 defines message 'app_namespace_add_del_v3'.
+type AppNamespaceAddDelV3 struct {
+	Secret      uint64                         `binapi:"u64,name=secret" json:"secret,omitempty"`
+	IsAdd       bool                           `binapi:"bool,name=is_add,default=true" json:"is_add,omitempty"`
+	SwIfIndex   interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index,default=4294967295" json:"sw_if_index,omitempty"`
+	IP4FibID    uint32                         `binapi:"u32,name=ip4_fib_id" json:"ip4_fib_id,omitempty"`
+	IP6FibID    uint32                         `binapi:"u32,name=ip6_fib_id" json:"ip6_fib_id,omitempty"`
+	NamespaceID string                         `binapi:"string[64],name=namespace_id" json:"namespace_id,omitempty"`
+	Netns       string                         `binapi:"string[64],name=netns" json:"netns,omitempty"`
+	SockName    string                         `binapi:"string[],name=sock_name" json:"sock_name,omitempty"`
+}
+
+func (m *AppNamespaceAddDelV3) Reset()               { *m = AppNamespaceAddDelV3{} }
+func (*AppNamespaceAddDelV3) GetMessageName() string { return "app_namespace_add_del_v3" }
+func (*AppNamespaceAddDelV3) GetCrcString() string   { return "8a7e40a1" }
+func (*AppNamespaceAddDelV3) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *AppNamespaceAddDelV3) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 8                   // m.Secret
+	size += 1                   // m.IsAdd
+	size += 4                   // m.SwIfIndex
+	size += 4                   // m.IP4FibID
+	size += 4                   // m.IP6FibID
+	size += 64                  // m.NamespaceID
+	size += 64                  // m.Netns
+	size += 4 + len(m.SockName) // m.SockName
+	return size
+}
+func (m *AppNamespaceAddDelV3) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint64(m.Secret)
+	buf.EncodeBool(m.IsAdd)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeUint32(m.IP4FibID)
+	buf.EncodeUint32(m.IP6FibID)
+	buf.EncodeString(m.NamespaceID, 64)
+	buf.EncodeString(m.Netns, 64)
+	buf.EncodeString(m.SockName, 0)
+	return buf.Bytes(), nil
+}
+func (m *AppNamespaceAddDelV3) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Secret = buf.DecodeUint64()
+	m.IsAdd = buf.DecodeBool()
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.IP4FibID = buf.DecodeUint32()
+	m.IP6FibID = buf.DecodeUint32()
+	m.NamespaceID = buf.DecodeString(64)
+	m.Netns = buf.DecodeString(64)
+	m.SockName = buf.DecodeString(0)
+	return nil
+}
+
+// AppNamespaceAddDelV3Reply defines message 'app_namespace_add_del_v3_reply'.
+type AppNamespaceAddDelV3Reply struct {
+	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
+	AppnsIndex uint32 `binapi:"u32,name=appns_index" json:"appns_index,omitempty"`
+}
+
+func (m *AppNamespaceAddDelV3Reply) Reset()               { *m = AppNamespaceAddDelV3Reply{} }
+func (*AppNamespaceAddDelV3Reply) GetMessageName() string { return "app_namespace_add_del_v3_reply" }
+func (*AppNamespaceAddDelV3Reply) GetCrcString() string   { return "85137120" }
+func (*AppNamespaceAddDelV3Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *AppNamespaceAddDelV3Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	size += 4 // m.AppnsIndex
+	return size
+}
+func (m *AppNamespaceAddDelV3Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.AppnsIndex)
+	return buf.Bytes(), nil
+}
+func (m *AppNamespaceAddDelV3Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	m.AppnsIndex = buf.DecodeUint32()
@@ -1139,6 +1237,8 @@ func file_session_binapi_init() {
 	api.RegisterMessage((*AppNamespaceAddDelReply)(nil), "app_namespace_add_del_reply_85137120")
 	api.RegisterMessage((*AppNamespaceAddDelV2)(nil), "app_namespace_add_del_v2_ee0755cf")
 	api.RegisterMessage((*AppNamespaceAddDelV2Reply)(nil), "app_namespace_add_del_v2_reply_85137120")
+	api.RegisterMessage((*AppNamespaceAddDelV3)(nil), "app_namespace_add_del_v3_8a7e40a1")
+	api.RegisterMessage((*AppNamespaceAddDelV3Reply)(nil), "app_namespace_add_del_v3_reply_85137120")
 	api.RegisterMessage((*AppWorkerAddDel)(nil), "app_worker_add_del_753253dc")
 	api.RegisterMessage((*AppWorkerAddDelReply)(nil), "app_worker_add_del_reply_5735ffe7")
 	api.RegisterMessage((*ApplicationDetach)(nil), "application_detach_51077d14")
@@ -1168,6 +1268,8 @@ func AllMessages() []api.Message {
 		(*AppNamespaceAddDelReply)(nil),
 		(*AppNamespaceAddDelV2)(nil),
 		(*AppNamespaceAddDelV2Reply)(nil),
+		(*AppNamespaceAddDelV3)(nil),
+		(*AppNamespaceAddDelV3Reply)(nil),
 		(*AppWorkerAddDel)(nil),
 		(*AppWorkerAddDelReply)(nil),
 		(*ApplicationDetach)(nil),

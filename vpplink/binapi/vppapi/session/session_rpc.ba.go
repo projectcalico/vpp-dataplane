@@ -18,6 +18,7 @@ type RPCService interface {
 	AppDelCertKeyPair(ctx context.Context, in *AppDelCertKeyPair) (*AppDelCertKeyPairReply, error)
 	AppNamespaceAddDel(ctx context.Context, in *AppNamespaceAddDel) (*AppNamespaceAddDelReply, error)
 	AppNamespaceAddDelV2(ctx context.Context, in *AppNamespaceAddDelV2) (*AppNamespaceAddDelV2Reply, error)
+	AppNamespaceAddDelV3(ctx context.Context, in *AppNamespaceAddDelV3) (*AppNamespaceAddDelV3Reply, error)
 	AppWorkerAddDel(ctx context.Context, in *AppWorkerAddDel) (*AppWorkerAddDelReply, error)
 	ApplicationDetach(ctx context.Context, in *ApplicationDetach) (*ApplicationDetachReply, error)
 	ApplicationTLSCertAdd(ctx context.Context, in *ApplicationTLSCertAdd) (*ApplicationTLSCertAddReply, error)
@@ -73,6 +74,15 @@ func (c *serviceClient) AppNamespaceAddDel(ctx context.Context, in *AppNamespace
 
 func (c *serviceClient) AppNamespaceAddDelV2(ctx context.Context, in *AppNamespaceAddDelV2) (*AppNamespaceAddDelV2Reply, error) {
 	out := new(AppNamespaceAddDelV2Reply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) AppNamespaceAddDelV3(ctx context.Context, in *AppNamespaceAddDelV3) (*AppNamespaceAddDelV3Reply, error) {
+	out := new(AppNamespaceAddDelV3Reply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

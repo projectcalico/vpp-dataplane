@@ -1,17 +1,13 @@
-VPP Version                 : 21.10-rc0~270-gf3aabd239
+VPP Version                 : 21.10-rc0~352-geea722fb5
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 078d25803 wireguard: add flag to check hmac for decryption
+VPP Base commit             : 7854b46f7 interface: fix init fib_index_by_sw_if_index
 ------------------ Cherry picked commits --------------------
 gerrit:28513/24 capo: Calico Policies plugin
 gerrit:28083/20 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/3 pbl: Port based balancer
 gerrit:33557/1 ip: unlock_fib on if delete
-gerrit:33504/2 ip: show ip table CLI
-gerrit:33501/4 interface: fix init fib_index_by_sw_if_index
-gerrit:33451/3 ip: punt redirect add nh in api
-gerrit:33301/2 session: Use ns_id as abstract socket name
-gerrit:33164/3 dpdk: enable ena interrupt support in dpdk version 21.05
+gerrit:33301/4 session: Use ns_id as abstract socket name
 gerrit:31921/8 ip6-nd: add ip6-nd proxy
 gerrit:32271/6 memif: add support for ns abstract sockets
 gerrit:32871/1 devices: Add queues params in create_if
@@ -22,6 +18,4 @@ gerrit:31869/13 gso: do not try gro on small packets
 Revert "gso: fix the gro re-ordering for packets with PSH"
 gerrit:31321/11 devices: add support for pseudo header checksum
 gerrit:29386/9 virtio: DRAFT: multi tx support
-gerrit:32833/1 ipsec: disable linearization
-gerrit:32468/3 buffers: fix buffer linearization
 -------------------------------------------------------------
