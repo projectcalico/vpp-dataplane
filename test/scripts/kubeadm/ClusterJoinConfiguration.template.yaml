@@ -10,10 +10,11 @@ discovery:
 kind: JoinConfiguration
 nodeRegistration:
   taints: null
-  kubeletExtraArgs:
-    node-ip: "${FIRST_NODE_IP}"
+  # criSocket: /var/run/containerd/containerd.sock
   criSocket: /var/run/dockershim.sock
   name: "${NODE_NAME}"
+  kubeletExtraArgs:
+    node-ip: "${FIRST_NODE_IP}"
 ---
 # https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
 apiVersion: kubeadm.k8s.io/v1beta2
@@ -37,8 +38,6 @@ controllerManager:
     node-cidr-mask-size-ipv4: "${NODE_CIDR_MASK_SIZE4}"
     node-cidr-mask-size-ipv6: "${NODE_CIDR_MASK_SIZE6}"
     node-cidr-mask-size: "${NODE_CIDR_MASK_SIZE}"
-dns:
-  type: ${DNS_TYPE}
 etcd:
   local:
     dataDir: /var/lib/etcd

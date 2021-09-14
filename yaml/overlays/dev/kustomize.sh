@@ -16,7 +16,7 @@
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 function is_ip6 () {
-  if [[ $1 =~ .*:.* ]]; then
+  if [[ $1 =~ .*:.*/.* ]]; then
 	echo "true"
   else
 	echo "false"
@@ -245,8 +245,9 @@ calico_create_template ()
   export CALICOVPP_DEBUG_ENABLE_GSO=${CALICOVPP_DEBUG_ENABLE_GSO:=true}
   export USERHOME=${HOME}
   export FELIX_XDPENABLED=${FELIX_XDPENABLED:=false}
-  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=interface=${vpp_dataplane_interface}}
-  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=interface=${vpp_dataplane_interface}}
+  _TMP_="interface=${vpp_dataplane_interface}"
+  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=$(is_v4_v46_v6 $_TMP_ $_TMP_ "")}
+  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=$(is_v4_v46_v6 "" $_TMP_ $_TMP_)}
   cd $SCRIPTDIR
   kubectl kustomize . | \
 	envsubst | \

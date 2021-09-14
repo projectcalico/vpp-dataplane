@@ -102,13 +102,13 @@ function raw_create_cluster_conf ()
 	export SAFE6_FIRST_NODE_IP="$(6safe $FIRST_NODE_IP)"
 
 	if [[ $IS_DUAL == true ]]; then
-		export NODE_CIDR_MASK_SIZE4=24
-		export NODE_CIDR_MASK_SIZE6=120
+		export NODE_CIDR_MASK_SIZE4=16
+		export NODE_CIDR_MASK_SIZE6=80
 		export DISABLE_NODE_CIDR_MASK="# "
 		export DISABLE_NODE_CIDR_MASK_SIZE4=
 		export DISABLE_NODE_CIDR_MASK_SIZE6=
 	elif [[ x$CLUSTER_POD_CIDR6 != x ]]; then
-		export NODE_CIDR_MASK_SIZE=120
+		export NODE_CIDR_MASK_SIZE=80
 		export DISABLE_NODE_CIDR_MASK=
 		export DISABLE_NODE_CIDR_MASK_SIZE4="# "
 		export DISABLE_NODE_CIDR_MASK_SIZE6="# "
