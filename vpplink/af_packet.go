@@ -32,6 +32,7 @@ func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint3
 		HostIfName:       intf.HostInterfaceName,
 		RxFramesPerBlock: uint32(intf.RxQueueSize),
 		TxFramesPerBlock: uint32(intf.TxQueueSize),
+		RxFrameSize:      uint32(1024 * 8 * 8),
 	}
 	if intf.HardwareAddr != nil {
 		request.UseRandomHwAddr = false
