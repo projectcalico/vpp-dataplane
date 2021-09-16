@@ -90,6 +90,19 @@ export VPP_DIR ?= $(shell pwd)/vpp-manager/vpp_build
 goapi:
 	@./vpplink/binapi/generate_binapi.sh
 
+.PHONY: cherry-vpp
+cherry-vpp:
+	@echo "Cherry pick VPP ?"
+	@echo "This will reset current branch"
+	@echo "directory : ${VPP_DIR}"
+	@echo "branch    : $(shell cd ${VPP_DIR} && git branch --show-current)"
+	@echo "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
+	@bash ./vpplink/binapi/vpp_clone_current.sh ${VPP_DIR}
+
+.PHONY: cherry-wipe
+cherry-wipe:
+	rm -rf ./vpplink/binapi/.cherries-cache
+
 .PHONY: yaml
 yaml:
 	$(MAKE) -C yaml
