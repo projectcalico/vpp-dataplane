@@ -93,3 +93,31 @@ func (v *VppLink) CreateMemif(mif *types.Memif) error {
 	mif.SwIfIndex = uint32(response.SwIfIndex)
 	return nil
 }
+
+func (v *VppLink) ListMemifInterfaces() ([]*types.Memif, error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	memifs := make([]*types.Memif, 0)
+	request := &memif.MemifDump{}
+	stream := v.ch.SendMultiRequest(request)
+	for {
+		response := &memif.MemifDetails{}
+		stop, err := stream.ReceiveReply(response)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error listing memifs")
+		}
+		if stop {
+			break
+		}
+		memifs = append(memifs, &types.Memif{
+			SwIfIndex: uint32(response.SwIfIndex),
+			Role:      types.MemifRole(response.Role),
+			Mode:      types.MemifMode(response.Mode),
+			SocketId:  response.SocketID,
+			QueueSize: int(response.BufferSize),
+			Flags:     types.MemifFlag(response.Flags),
+		})
+	}
+	return memifs, nil
+}
