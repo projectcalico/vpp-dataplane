@@ -1,12 +1,60 @@
 #!/bin/bash
 set -e
 
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+CACHE_DIR=$SCRIPTDIR/.cherries-cache
+
+function green () { printf "\e[0;32m$1\e[0m\n" >&2 ; }
+function blue () { printf "\e[0;34m$1\e[0m\n" >&2 ; }
+function grey () { printf "\e[0;37m$1\e[0m\n" >&2 ; }
+function red () { printf "\e[0;31m$1\e[0m\n" >&2 ; }
+function commit_exists () { git show $1 > /dev/null 2>&1 && echo "true" || echo "false" ; }
+function commit_exists_f () { [ -f $1 ] && commit_exists $(cat $1) || echo "false" ; }
+
+function exit_and_print_help ()
+{
+	msg=$1
+	refs=$2
+	red "${msg} failed ! Patch can be found at :"
+	red "https://gerrit.fd.io/r/c/vpp/+/${refs#refs/changes/*/}"
+	echo
+	red "you can use 'cherry-wipe' if you fear this is a caching issue"
+	exit 1
+}
+
+function git_get_commit_from_refs ()
+{
+	refs=$1
+	mkdir -p $CACHE_DIR
+	CACHE_F=$CACHE_DIR/$(echo $refs |sed s@refs/changes/@@g |sed s@/@_@g)
+	if $(commit_exists_f $CACHE_F); then
+		COMMIT_HASH=$(cat $CACHE_F)
+		green "Using cached $COMMIT_HASH"
+	else
+		green "Fetching $refs"
+		git fetch "https://gerrit.fd.io/r/vpp" ${refs}
+		COMMIT_HASH=$(git log FETCH_HEAD -1 --pretty=%H)
+	fi
+	echo $COMMIT_HASH > $CACHE_F
+	echo $COMMIT_HASH
+}
+
 function git_cherry_pick ()
 {
 	refs=$1
-	git fetch "https://gerrit.fd.io/r/vpp" ${refs}
-	git cherry-pick FETCH_HEAD
+    blue "Cherry picking $refs..."
+	COMMIT_HASH=$(git_get_commit_from_refs $refs)
+	git cherry-pick $COMMIT_HASH || exit_and_print_help "Cherry pick" $refs
 	git commit --amend -m "gerrit:${refs#refs/changes/*/} $(git log -1 --pretty=%B)"
+}
+
+function git_revert ()
+{
+	refs=$1
+    blue "Reverting $refs..."
+	COMMIT_HASH=$(git_get_commit_from_refs $refs)
+	git revert --no-edit $COMMIT_HASH || exit_and_print_help "Revert" $refs
+	git commit --amend -m "gerrit:revert:${refs#refs/changes/*/} $(git log -1 --pretty=%B)"
 }
 
 if [ -z "$1" ]; then
@@ -19,19 +67,22 @@ VPP_DIR="$1"
 
 if [ ! -d $1/.git ]; then
 	rm -rf $1
+	green "Cloning VPP..."
 	git clone "https://gerrit.fd.io/r/vpp" $1
 	cd $1
 	git reset --hard ${VPP_COMMIT}
 else
 	cd $1
-	git fetch "https://gerrit.fd.io/r/vpp" && git reset --hard ${VPP_COMMIT}
+	green "Fetching most recent VPP..."
+	git fetch "https://gerrit.fd.io/r/vpp"
+	git reset --hard ${VPP_COMMIT}
 fi
 
 git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git_cherry_pick refs/changes/21/31321/11 # 31321: devices: add support for pseudo header checksum | https://gerrit.fd.io/r/c/vpp/+/31321
 
 # Revert for now
-git fetch "https://gerrit.fd.io/r/vpp" refs/changes/68/32568/6 && git revert --no-edit FETCH_HEAD
+git_revert refs/changes/68/32568/6
 git_cherry_pick refs/changes/69/31869/13 # 31869: gso: do not try gro on small packets | https://gerrit.fd.io/r/c/vpp/+/31869
 git_cherry_pick refs/changes/76/32476/3 # 32476: gso: handle push flag in gro | https://gerrit.fd.io/r/c/vpp/+/32476
 git_cherry_pick refs/changes/82/32482/1 # 32482: virtio: compute cksums in output no offload | https://gerrit.fd.io/r/c/vpp/+/32482
