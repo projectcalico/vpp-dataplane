@@ -18,11 +18,13 @@ package types
 import (
 	"net"
 
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/memif"
 )
 
 type MemifRole uint32
 type MemifMode uint32
+type MemifFlag uint32
 
 const (
 	MemifMaster MemifRole = MemifRole(memif.MEMIF_ROLE_API_MASTER)
@@ -31,6 +33,9 @@ const (
 	MemifModeEthernet   MemifMode = MemifMode(memif.MEMIF_MODE_API_ETHERNET)
 	MemifModeIP         MemifMode = MemifMode(memif.MEMIF_MODE_API_IP)
 	MemifModePuntInject MemifMode = MemifMode(memif.MEMIF_MODE_API_PUNT_INJECT)
+
+	MemifAdminUp MemifFlag = MemifFlag(interface_types.IF_STATUS_API_FLAG_ADMIN_UP)
+	MemifLinkUp  MemifFlag = MemifFlag(interface_types.IF_STATUS_API_FLAG_LINK_UP)
 )
 
 type Memif struct {
@@ -42,4 +47,5 @@ type Memif struct {
 	MacAddress  net.HardwareAddr
 	SocketId    uint32
 	SwIfIndex   uint32
+	Flags       MemifFlag
 }
