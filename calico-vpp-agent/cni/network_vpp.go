@@ -117,7 +117,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		EndpointID:     podSpec.EndpointID,
 	}, podSpec.TunTapSwIfIndex)
 
-	s.prometheusServer.PodAdded(podSpec, swIfIndex)
+	s.prometheusServer.PodAdded(podSpec)
 	return podSpec.TunTapSwIfIndex, err
 
 err:

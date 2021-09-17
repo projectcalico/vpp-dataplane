@@ -147,7 +147,6 @@ type LocalPodSpec struct {
 	ContainerIpsSize  int `struc:"int16,sizeof=ContainerIps"`
 	ContainerIps      []LocalIP
 	Mtu               int
-	SwIfIndex         uint32
 
 	// Pod identifiers
 	OrchestratorIDSize int `struc:"int16,sizeof=OrchestratorID"`
