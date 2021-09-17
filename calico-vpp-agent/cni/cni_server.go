@@ -303,19 +303,19 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, prs *p
 	}
 
 	server := &Server{
-		vpp:             v,
-		log:             l,
-		routingServer:   rs,
-		policyServer:    ps,
+		vpp:              v,
+		log:              l,
+		routingServer:    rs,
+		policyServer:     ps,
 		prometheusServer: prs,
-		socketListener:  lis,
-		client:          client,
-		grpcServer:      grpc.NewServer(),
-		podInterfaceMap: make(map[string]storage.LocalPodSpec),
-		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(v, l),
-		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(v, l),
-		vclDriver:       pod_interface.NewVclPodInterfaceDriver(v, l),
-		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(v, l),
+		socketListener:   lis,
+		client:           client,
+		grpcServer:       grpc.NewServer(),
+		podInterfaceMap:  make(map[string]storage.LocalPodSpec),
+		tuntapDriver:     pod_interface.NewTunTapPodInterfaceDriver(v, l),
+		memifDriver:      pod_interface.NewMemifPodInterfaceDriver(v, l),
+		vclDriver:        pod_interface.NewVclPodInterfaceDriver(v, l),
+		loopbackDriver:   pod_interface.NewLoopbackPodInterfaceDriver(v, l),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")
