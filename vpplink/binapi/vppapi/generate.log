@@ -1,4 +1,4 @@
-VPP Version                 : 21.10-rc0~126-g1367826de
+VPP Version                 : 21.10-rc0~126-gaac82cdb6
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 6f6663f3b span: api cleanup
 ------------------ Cherry picked commits --------------------

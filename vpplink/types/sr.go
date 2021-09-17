@@ -55,8 +55,8 @@ func FromVppSrBehavior(behavior sr_types.SrBehavior) SrBehavior {
 	return SrBehavior(behavior)
 }
 
-func FromGoBGPSrBehavior(behavior bgpapi.SRv6Behavior) SrBehavior {
-	var result = SrBehaviorGoBGP_VPP[behavior]
+func FromGoBGPSrBehavior(behavior uint8) SrBehavior {
+	var result = SrBehaviorGoBGP_VPP[bgpapi.SRv6Behavior(behavior)]
 	return SrBehavior(result)
 }
 
@@ -111,8 +111,13 @@ func (p *SrPolicy) FromVPP(response *sr.SrPoliciesDetails) {
 
 func (p *SrPolicy) String() (policy string) {
 
-	return fmt.Sprintf("Bsid: %s, IsSpray: %v, IsEncap: %v, FibTable: %d",
+	policy = fmt.Sprintf("Bsid: %s, IsSpray: %v, IsEncap: %v, FibTable: %d, SidLists: [",
 		p.Bsid, p.IsSpray, p.IsEncap, p.FibTable)
+	for _, sidList := range p.SidLists {
+		policy += sidList.String()
+	}
+	policy += "]"
+	return policy
 }
 
 // Srv6SidList definition
@@ -123,7 +128,7 @@ type Srv6SidList struct {
 }
 
 func (s *Srv6SidList) String() string {
-	return fmt.Sprintf("NumSids: %d, Weight: %d, Sids: %s",
+	return fmt.Sprintf("{NumSids: %d, Weight: %d, Sids: %s}",
 		s.NumSids, s.Weight, s.Sids)
 }
 

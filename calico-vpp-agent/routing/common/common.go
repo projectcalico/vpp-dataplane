@@ -168,19 +168,17 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 	attrs := []*any.Any{originAttr}
 
 	var family *bgpapi.Family
-	var lengthSRPolicyNLRI uint32
 	var nodeIP = nodeIpv6
-	//family = &BgpFamilySRv6IPv4
+	var epbs = &bgpapi.SRv6EndPointBehavior{}
+	family = &BgpFamilySRv6IPv6
 	if trafficType == 4 {
-		family = &BgpFamilySRv6IPv4
-		lengthSRPolicyNLRI = 96
+		epbs.Behavior = bgpapi.SRv6Behavior_END_DT4
 	} else {
-		family = &BgpFamilySRv6IPv6
-		lengthSRPolicyNLRI = 192
+		epbs.Behavior = bgpapi.SRv6Behavior_END_DT6
 	}
 
 	nlrisr, err := ptypes.MarshalAny(&bgpapi.SRPolicyNLRI{
-		Length:   lengthSRPolicyNLRI,
+		Length:   192,
 		Endpoint: nodeIP,
 	})
 
@@ -212,11 +210,9 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 	}
 
 	segment, err := ptypes.MarshalAny(&bgpapi.SegmentTypeB{
-		Flags: &bgpapi.SegmentFlags{SFlag: true},
-		Sid:   localSid,
-		EndpointBehaviorStructure: &bgpapi.SRv6EndPointBehavior{
-			Behavior: bgpapi.SRv6Behavior_END_DT6,
-		},
+		Flags:                     &bgpapi.SegmentFlags{SFlag: true},
+		Sid:                       localSid,
+		EndpointBehaviorStructure: epbs,
 	})
 	if err != nil {
 		return nil, err
@@ -330,5 +326,5 @@ type SRv6Tunnel struct {
 	Dst      net.IP
 	Bsid     net.IP
 	Sid      net.IP
-	Behavior uint32
+	Behavior uint8
 }

@@ -102,7 +102,7 @@ func (w *BGPWatcher) getSRv6SegList(path *bgpapi.Path) (srv6tunnel *common.SRv6T
 	if err := ptypes.UnmarshalAny(path.Nlri, srnrli); err == nil {
 		w.log.Infof("Got path update with SRv6BindingSID")
 	}
-	srv6tunnel.Dst = srnrli.Endpoint
+	srv6tunnel.Dst = net.IP(srnrli.Endpoint)
 
 	for _, attr := range path.Pattrs {
 		w.log.Infof("getSegList1 %s", attr)
@@ -119,7 +119,7 @@ func (w *BGPWatcher) getSRv6SegList(path *bgpapi.Path) (srv6tunnel *common.SRv6T
 							if err = ptypes.UnmarshalAny(seglist, segment); err == nil {
 
 								srv6tunnel.Sid = net.IP(segment.GetSid())
-								srv6tunnel.Behavior = uint32(segment.GetEndpointBehaviorStructure().Behavior)
+								srv6tunnel.Behavior = uint8(segment.GetEndpointBehaviorStructure().Behavior)
 								break
 							}
 						}
@@ -195,7 +195,7 @@ func (w *BGPWatcher) WatchBGPPath() error {
 					return
 				}
 				w.log.Printf("Path monitor family %s, path %s", f.String(), path.String())
-				if f == &common.BgpFamilySRv6IPv6 || f == &common.BgpFamilySRv6IPv4 {
+				if f == &common.BgpFamilySRv6IPv6 {
 					w.log.Debugf("Path SRv6")
 					w.BarrierSync()
 					if err := w.injectSRv6Policy(path); err != nil {
@@ -217,24 +217,18 @@ func (w *BGPWatcher) WatchBGPPath() error {
 		return stopFunc, err
 	}
 
-	var stopV4Monitor, stopV6Monitor, stopSRv6IP4Monitor, stopSRv6IP6Monitor context.CancelFunc
+	var stopV4Monitor, stopV6Monitor, stopSRv6IP6Monitor context.CancelFunc
 	if w.HasV4 {
 		stopV4Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv4)
 		if err != nil {
 			return errors.Wrap(err, "error starting v4 path monitor")
 		}
 
-		if config.EnableSRv6 {
-			stopSRv6IP4Monitor, err = startMonitor(&common.BgpFamilySRv6IPv4)
-			if err != nil {
-				return errors.Wrap(err, "error starting SRv6IP4 path monitor")
-			}
-		}
 	}
 	if w.HasV6 {
 		stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
 		if err != nil {
-			return errors.Wrap(err, "error starting v6 path monitor")
+			return errors.Wrap(err, "error starting SRv6IP6 path monitor")
 		}
 		if config.EnableSRv6 {
 			stopSRv6IP6Monitor, err = startMonitor(&common.BgpFamilySRv6IPv6)
@@ -252,13 +246,6 @@ func (w *BGPWatcher) WatchBGPPath() error {
 				return err
 			}
 
-			if config.EnableSRv6 {
-				stopSRv6IP4Monitor()
-				stopSRv6IP4Monitor, err = startMonitor(&common.BgpFamilySRv6IPv4)
-				if err != nil {
-					return errors.Wrap(err, "error starting SRv6IP4 path monitor")
-				}
-			}
 		} else if w.HasV6 && family == "6" {
 			stopV6Monitor()
 			stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
@@ -267,7 +254,6 @@ func (w *BGPWatcher) WatchBGPPath() error {
 			}
 			if config.EnableSRv6 {
 				stopSRv6IP6Monitor()
-				w.log.Infof("startMonitor2 SRv6IP6")
 				stopSRv6IP6Monitor, err = startMonitor(&common.BgpFamilySRv6IPv6)
 				if err != nil {
 					return errors.Wrap(err, "error starting SRv6IP6 path monitor")

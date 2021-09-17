@@ -1,8 +1,16 @@
 ---
-apiVersion: crd.projectcalico.org/v1
+apiVersion: projectcalico.org/v3
 kind: IPPool
 metadata:
   name: sr-policies-pool
 spec:
   cidr: cafe::/118
+  nodeSelector: "!all()"
+---
+apiVersion: projectcalico.org/v3
+kind: IPPool
+metadata:
+  name: sr-localsids-pool
+spec:
+  cidr: c5::/118
   nodeSelector: "!all()"
