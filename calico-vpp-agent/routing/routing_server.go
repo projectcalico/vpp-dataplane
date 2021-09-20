@@ -79,7 +79,6 @@ func (s *Server) Clientv3() calicov3cli.Interface {
 }
 
 func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
-	logrus.SetLevel(config.BgpLogLevel) // This sets the log level for the GoBGP server
 
 	calicoCli, err := calicocli.NewFromEnv()
 	if err != nil {
@@ -89,16 +88,16 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create calico v3 api client")
 	}
-	defaultBGPConf, err := server.getDefaultBGPConfig(l, calicoCliV3)
+	BGPConf, err := server.getBGPConf(l, calicoCliV3)
 	if err != nil {
-		return nil, errors.Wrap(err, "error getting default BGP configuration")
+		return nil, errors.Wrap(err, "error getting BGP configuration")
 	}
 
 	routingData := common.RoutingData{
 		Vpp:                   vpp,
 		Client:                calicoCli,
 		Clientv3:              calicoCliV3,
-		DefaultBGPConf:        defaultBGPConf,
+		BGPConf:               BGPConf,
 		ConnectivityEventChan: make(chan common.ConnectivityEvent, 10),
 	}
 
@@ -107,6 +106,13 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 		routingData:          &routingData,
 		localAddressMap:      make(map[string]*net.IPNet),
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
+	}
+
+	logLevel, err := logrus.ParseLevel(server.getLogSeverityScreen())
+	if err != nil {
+		l.WithError(err).Error("Failed to parse loglevel: %s, defaulting to info", server.getLogSeverityScreen())
+	} else {
+		logrus.SetLevel(logLevel)
 	}
 
 	server.ipam = watchers.NewIPAMCache(&routingData, l.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
@@ -199,6 +205,30 @@ func (s *Server) serveOne() error {
 	return nil
 }
 
+func (s *Server) getBGPConf(log *logrus.Entry, clientv3 calicov3cli.Interface) (*calicov3.BGPConfigurationSpec, error) {
+	defaultBGPConf, err := s.getDefaultBGPConfig(log, clientv3)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting default BGP configuration")
+	}
+	nodeSpecificConf, err := clientv3.BGPConfigurations().Get(context.Background(), "node."+config.NodeName, options.GetOptions{})
+	if err != nil {
+		switch err.(type) {
+		case calicoerr.ErrorResourceDoesNotExist:
+			return defaultBGPConf, nil
+		default:
+			return nil, errors.Wrap(err, "error getting node specific BGP configurations")
+		}
+	} else {
+		if nodeSpecificConf.Spec.ListenPort != 0 {
+			defaultBGPConf.ListenPort = nodeSpecificConf.Spec.ListenPort
+		}
+		if defaultBGPConf.LogSeverityScreen != "" {
+			defaultBGPConf.LogSeverityScreen = nodeSpecificConf.Spec.LogSeverityScreen
+		}
+		return defaultBGPConf, nil
+	}
+}
+
 func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Interface) (*calicov3.BGPConfigurationSpec, error) {
 	b := true
 	conf, err := clientv3.BGPConfigurations().Get(context.Background(), "default", options.GetOptions{})
@@ -214,14 +244,21 @@ func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Int
 			}
 			conf.Spec.ASNumber = &asn
 		}
+		if conf.Spec.ListenPort == 0 {
+			conf.Spec.ListenPort = 179
+		}
+		if conf.Spec.LogSeverityScreen == "" {
+			conf.Spec.LogSeverityScreen = "Info"
+		}
 		return &conf.Spec, nil
 	}
 	switch err.(type) {
 	case calicoerr.ErrorResourceDoesNotExist:
 		log.Debug("No default BGP config found, using default options")
 		ret := &calicov3.BGPConfigurationSpec{
-			LogSeverityScreen:     "INFO",
+			LogSeverityScreen:     "Info",
 			NodeToNodeMeshEnabled: &b,
+			ListenPort:            179,
 		}
 		asn, err := numorstring.ASNumberFromString("64512")
 		if err != nil {
@@ -232,6 +269,14 @@ func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Int
 	default:
 		return nil, err
 	}
+}
+
+func (s *Server) getListenPort() uint16 {
+	return s.routingData.BGPConf.ListenPort
+}
+
+func (s *Server) getLogSeverityScreen() string {
+	return s.routingData.BGPConf.LogSeverityScreen
 }
 
 func (s *Server) getNodeASN() (*numorstring.ASNumber, error) {
@@ -248,7 +293,7 @@ func (s *Server) getPeerASN(host string) (*numorstring.ASNumber, error) {
 	}
 	asn := node.Spec.BGP.ASNumber
 	if asn == nil {
-		return s.routingData.DefaultBGPConf.ASNumber, nil
+		return s.routingData.BGPConf.ASNumber, nil
 	}
 	return asn, nil
 
@@ -268,8 +313,9 @@ func (s *Server) getGlobalConfig() (*bgpapi.Global, error) {
 		return nil, errors.Wrap(err, "Cannot make routerId out of IP")
 	}
 	return &bgpapi.Global{
-		As:       uint32(*asn),
-		RouterId: routerId,
+		As:         uint32(*asn),
+		RouterId:   routerId,
+		ListenPort: int32(s.getListenPort()),
 	}, nil
 }
 

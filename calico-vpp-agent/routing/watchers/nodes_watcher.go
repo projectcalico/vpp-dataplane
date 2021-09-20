@@ -44,8 +44,8 @@ type NodeWatcher struct {
 }
 
 func (w *NodeWatcher) isMeshMode() bool {
-	if w.DefaultBGPConf.NodeToNodeMeshEnabled != nil {
-		return *w.DefaultBGPConf.NodeToNodeMeshEnabled
+	if w.BGPConf.NodeToNodeMeshEnabled != nil {
+		return *w.BGPConf.NodeToNodeMeshEnabled
 	}
 	return true
 }
@@ -331,7 +331,7 @@ func (w *NodeWatcher) configureRemoteNodeSnat(node *common.NodeState, isAdd bool
 
 func (w *NodeWatcher) getAsNumber(node *common.NodeState) uint32 {
 	if node.Spec.BGP.ASNumber == nil {
-		return uint32(*w.DefaultBGPConf.ASNumber)
+		return uint32(*w.BGPConf.ASNumber)
 	} else {
 		return uint32(*node.Spec.BGP.ASNumber)
 	}
