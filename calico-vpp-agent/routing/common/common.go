@@ -57,7 +57,7 @@ type RoutingData struct {
 	Ipv6Net               *net.IPNet
 	Client                *calicocli.Client
 	Clientv3              calicov3cli.Interface
-	DefaultBGPConf        *calicov3.BGPConfigurationSpec
+	BGPConf               *calicov3.BGPConfigurationSpec
 	ConnectivityEventChan chan ConnectivityEvent
 }
 
