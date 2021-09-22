@@ -62,7 +62,7 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
-VPP_COMMIT=7854b46f7789aae662f01fc29f4dd222a67bfe3d
+VPP_COMMIT=ef356f57b54b948d990b293514f062aebf86da72
 VPP_DIR="$1"
 
 if [ ! -d $1/.git ]; then
@@ -89,10 +89,8 @@ git_cherry_pick refs/changes/82/32482/1 # 32482: virtio: compute cksums in outpu
 git_cherry_pick refs/changes/83/32483/1 # 32483: virtio: Still init unused txq | https://gerrit.fd.io/r/c/vpp/+/32483
 git_cherry_pick refs/changes/71/32871/1 # 32871: devices: Add queues params in create_if | https://gerrit.fd.io/r/c/vpp/+/32871
 git_cherry_pick refs/changes/71/32271/6 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
-git_cherry_pick refs/changes/21/31921/8 # 31921: ip6-nd: add ip6-nd proxy | https://gerrit.fd.io/r/c/vpp/+/31921
-
-git_cherry_pick refs/changes/01/33301/4 # 33301: session: make netns abtract name static | https://gerrit.fd.io/r/c/vpp/+/33301
 git_cherry_pick refs/changes/57/33557/1 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
+git_cherry_pick refs/changes/94/33794/1 # 33794: tap: Fix tap create with ns | https://gerrit.fd.io/r/c/vpp/+/33794
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264

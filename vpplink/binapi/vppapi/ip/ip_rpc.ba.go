@@ -43,6 +43,7 @@ type RPCService interface {
 	IPSourceAndPortRangeCheckAddDel(ctx context.Context, in *IPSourceAndPortRangeCheckAddDel) (*IPSourceAndPortRangeCheckAddDelReply, error)
 	IPSourceAndPortRangeCheckInterfaceAddDel(ctx context.Context, in *IPSourceAndPortRangeCheckInterfaceAddDel) (*IPSourceAndPortRangeCheckInterfaceAddDelReply, error)
 	IPTableAddDel(ctx context.Context, in *IPTableAddDel) (*IPTableAddDelReply, error)
+	IPTableAllocate(ctx context.Context, in *IPTableAllocate) (*IPTableAllocateReply, error)
 	IPTableDump(ctx context.Context, in *IPTableDump) (RPCService_IPTableDumpClient, error)
 	IPTableFlush(ctx context.Context, in *IPTableFlush) (*IPTableFlushReply, error)
 	IPTableReplaceBegin(ctx context.Context, in *IPTableReplaceBegin) (*IPTableReplaceBeginReply, error)
@@ -625,6 +626,15 @@ func (c *serviceClient) IPSourceAndPortRangeCheckInterfaceAddDel(ctx context.Con
 
 func (c *serviceClient) IPTableAddDel(ctx context.Context, in *IPTableAddDel) (*IPTableAddDelReply, error) {
 	out := new(IPTableAddDelReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) IPTableAllocate(ctx context.Context, in *IPTableAllocate) (*IPTableAllocateReply, error) {
+	out := new(IPTableAllocateReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err
