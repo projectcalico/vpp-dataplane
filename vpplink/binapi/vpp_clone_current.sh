@@ -91,6 +91,7 @@ git_cherry_pick refs/changes/71/32871/1 # 32871: devices: Add queues params in c
 git_cherry_pick refs/changes/71/32271/6 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
 git_cherry_pick refs/changes/57/33557/1 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
 git_cherry_pick refs/changes/94/33794/1 # 33794: tap: Fix tap create with ns | https://gerrit.fd.io/r/c/vpp/+/33794
+git_cherry_pick refs/changes/93/33793/1 # 33793: wireguard: fix wg-output-tun feature configuration | https://gerrit.fd.io/r/c/vpp/+/33793
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
