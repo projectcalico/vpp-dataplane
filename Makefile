@@ -75,10 +75,17 @@ test-install-calicovpp-dev-v6:
 
 .PHONY: run-tests
 run-tests:
-	test/scripts/test.sh up iperf
-	kubectl -n iperf wait pod/iperf-client $$(kubectl -n iperf get pods -l 'app in (iperf-server,iperf-nodeport)' -o name) --for=condition=Ready --timeout=30s
+	test/scripts/test.sh up iperf v4
+	kubectl -n iperf wait pod/iperf-client $$(kubectl -n iperf get pods -l 'app in (iperf-server,iperf-nodeport)' -o name) --for=condition=Ready --timeout=60s
 	test/scripts/cases.sh ipv4
-	test/scripts/test.sh down iperf
+	test/scripts/test.sh down iperf v4
+
+.PHONY: run-tests-v6
+run-tests-v6:
+	test/scripts/test.sh up iperf v6
+	kubectl -n iperf wait pod/iperf-client $$(kubectl -n iperf get pods -l 'app in (iperf-server,iperf-nodeport)' -o name) --for=condition=Ready --timeout=60s
+	test/scripts/cases.sh ipv6
+	test/scripts/test.sh down iperf v6
 
 .PHONY: restart-calicovpp
 restart-calicovpp:
