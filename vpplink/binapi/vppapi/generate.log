@@ -1,21 +1,20 @@
-VPP Version                 : 21.10-rc0~352-geea722fb5
+VPP Version                 : 21.10-rc0~382-gcff4c57a2
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 7854b46f7 interface: fix init fib_index_by_sw_if_index
+VPP Base commit             : ef356f57b hash: fix the initialization warning error on gcc-10
 ------------------ Cherry picked commits --------------------
 gerrit:28513/24 capo: Calico Policies plugin
 gerrit:28083/20 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/3 pbl: Port based balancer
+gerrit:33794/1 tap: Fix tap create with ns
 gerrit:33557/1 ip: unlock_fib on if delete
-gerrit:33301/4 session: Use ns_id as abstract socket name
-gerrit:31921/8 ip6-nd: add ip6-nd proxy
 gerrit:32271/6 memif: add support for ns abstract sockets
 gerrit:32871/1 devices: Add queues params in create_if
 gerrit:32483/1 virtio: Still init unused txq
 gerrit:32482/1 virtio: compute cksums in output no offload
 gerrit:32476/3 gso: handle push flag in gro
 gerrit:31869/13 gso: do not try gro on small packets
-Revert "gso: fix the gro re-ordering for packets with PSH"
+gerrit:revert:32568/6 Revert "gso: fix the gro re-ordering for packets with PSH"
 gerrit:31321/11 devices: add support for pseudo header checksum
 gerrit:29386/9 virtio: DRAFT: multi tx support
 -------------------------------------------------------------

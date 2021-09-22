@@ -5,7 +5,7 @@
 // Contents:
 //   2 enums
 //   7 structs
-//  85 messages
+//  87 messages
 //
 package ip
 
@@ -29,8 +29,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "ip"
-	APIVersion = "3.1.0"
-	VersionCrc = 0x4207aca5
+	APIVersion = "3.2.0"
+	VersionCrc = 0x557b5866
 )
 
 // IPReassType defines enum 'ip_reass_type'.
@@ -3448,6 +3448,88 @@ func (m *IPTableAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPTableAllocate defines message 'ip_table_allocate'.
+type IPTableAllocate struct {
+	Table IPTable `binapi:"ip_table,name=table" json:"table,omitempty"`
+}
+
+func (m *IPTableAllocate) Reset()               { *m = IPTableAllocate{} }
+func (*IPTableAllocate) GetMessageName() string { return "ip_table_allocate" }
+func (*IPTableAllocate) GetCrcString() string   { return "b9d2e09e" }
+func (*IPTableAllocate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IPTableAllocate) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4  // m.Table.TableID
+	size += 1  // m.Table.IsIP6
+	size += 64 // m.Table.Name
+	return size
+}
+func (m *IPTableAllocate) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.Table.TableID)
+	buf.EncodeBool(m.Table.IsIP6)
+	buf.EncodeString(m.Table.Name, 64)
+	return buf.Bytes(), nil
+}
+func (m *IPTableAllocate) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Table.TableID = buf.DecodeUint32()
+	m.Table.IsIP6 = buf.DecodeBool()
+	m.Table.Name = buf.DecodeString(64)
+	return nil
+}
+
+// IPTableAllocateReply defines message 'ip_table_allocate_reply'.
+type IPTableAllocateReply struct {
+	Retval int32   `binapi:"i32,name=retval" json:"retval,omitempty"`
+	Table  IPTable `binapi:"ip_table,name=table" json:"table,omitempty"`
+}
+
+func (m *IPTableAllocateReply) Reset()               { *m = IPTableAllocateReply{} }
+func (*IPTableAllocateReply) GetMessageName() string { return "ip_table_allocate_reply" }
+func (*IPTableAllocateReply) GetCrcString() string   { return "1728303a" }
+func (*IPTableAllocateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPTableAllocateReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4  // m.Retval
+	size += 4  // m.Table.TableID
+	size += 1  // m.Table.IsIP6
+	size += 64 // m.Table.Name
+	return size
+}
+func (m *IPTableAllocateReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.Table.TableID)
+	buf.EncodeBool(m.Table.IsIP6)
+	buf.EncodeString(m.Table.Name, 64)
+	return buf.Bytes(), nil
+}
+func (m *IPTableAllocateReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.Table.TableID = buf.DecodeUint32()
+	m.Table.IsIP6 = buf.DecodeBool()
+	m.Table.Name = buf.DecodeString(64)
+	return nil
+}
+
 // IPTableDetails defines message 'ip_table_details'.
 type IPTableDetails struct {
 	Table IPTable `binapi:"ip_table,name=table" json:"table,omitempty"`
@@ -4411,6 +4493,8 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IPSourceAndPortRangeCheckInterfaceAddDelReply)(nil), "ip_source_and_port_range_check_interface_add_del_reply_e8d4e804")
 	api.RegisterMessage((*IPTableAddDel)(nil), "ip_table_add_del_0ffdaec0")
 	api.RegisterMessage((*IPTableAddDelReply)(nil), "ip_table_add_del_reply_e8d4e804")
+	api.RegisterMessage((*IPTableAllocate)(nil), "ip_table_allocate_b9d2e09e")
+	api.RegisterMessage((*IPTableAllocateReply)(nil), "ip_table_allocate_reply_1728303a")
 	api.RegisterMessage((*IPTableDetails)(nil), "ip_table_details_c79fca0f")
 	api.RegisterMessage((*IPTableDump)(nil), "ip_table_dump_51077d14")
 	api.RegisterMessage((*IPTableFlush)(nil), "ip_table_flush_b9d2e09e")
@@ -4501,6 +4585,8 @@ func AllMessages() []api.Message {
 		(*IPSourceAndPortRangeCheckInterfaceAddDelReply)(nil),
 		(*IPTableAddDel)(nil),
 		(*IPTableAddDelReply)(nil),
+		(*IPTableAllocate)(nil),
+		(*IPTableAllocateReply)(nil),
 		(*IPTableDetails)(nil),
 		(*IPTableDump)(nil),
 		(*IPTableFlush)(nil),
