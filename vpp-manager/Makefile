@@ -16,7 +16,7 @@ build:
 	GOOS=linux go build -o $(IMAGE_DIR)/vpp-manager
 
 eksimage:
-	docker build --pull \
+	docker build --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/init-eks:$(TAG) $(INIT_EKS_IMAGE_DIR)
 
@@ -25,7 +25,7 @@ image: build vpp eksimage
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
 	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
 	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
-	docker build --pull \
+	docker build --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
@@ -40,31 +40,34 @@ push: image
 
 imageonly: build
 	cp $(VPPDEV_FILE) $(IMAGE_DIR)
-	docker build --pull \
+	docker build --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 
 clean: clean-vpp
 
+clone-vpp:
+	bash $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ./vpp_build
+
 clean-vpp:
 	git -C vpp_build clean -ffdx
-
-vpp: vpp-build-env
 	rm -f ./vpp_build/build-root/*.deb
 	rm -f ./vpp_build/build-root/*.buildinfo
 	rm -f $(IMAGE_DIR)/*.deb
-	bash $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ./vpp_build
+
+vpp: clone-vpp clean-vpp vpp-build-env
 	docker run --rm \
 		-e VPP_MGR_DIR=$(CURDIR) \
 		-v $(CURDIR):$(CURDIR):delegated \
 		--user $$(id -u):$$(id -g) \
+		--network=host \
 		calicovpp/vpp-build:latest
 	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra vpp-dbg ; do \
 		cp vpp_build/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
 	done
 
 vpp-build-env:
-	docker build \
+	docker build --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp-build:latest images/ubuntu-build
 
