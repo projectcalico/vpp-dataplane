@@ -49,13 +49,24 @@ spec:
               memory: 4Gi
             limits:
               memory: 80Gi
-              hugepages-2Mi: 4G
+              hugepages-2Mi: 4Gi
           volumeMounts:
             # Add your home to the container we can launch rebulid vpp
             # without the whole container
             - name: userhome
               mountPath: /home/hostuser
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs/
+            - name: share-certs
+              mountPath: /usr/share/ca-certificates
       volumes:
         - name: userhome
           hostPath:
             path: ${USERHOME}
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs/
+        - name: share-certs
+          hostPath:
+            path: /usr/share/ca-certificates
+

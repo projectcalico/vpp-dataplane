@@ -65,7 +65,7 @@ func (s *Server) initialPolicySetting(isv6 bool) error {
 	definition := &bgpapi.Policy{
 		Name: common.GetPolicyName(isv6),
 		Statements: []*bgpapi.Statement{
-			&bgpapi.Statement{
+			{
 				Conditions: &bgpapi.Conditions{
 					PrefixSet: &bgpapi.MatchSet{
 						MatchType: bgpapi.MatchType_ANY,
@@ -76,7 +76,7 @@ func (s *Server) initialPolicySetting(isv6 bool) error {
 					RouteAction: bgpapi.RouteAction_ACCEPT,
 				},
 			},
-			&bgpapi.Statement{
+			{
 				Conditions: &bgpapi.Conditions{
 					PrefixSet: &bgpapi.MatchSet{
 						MatchType: bgpapi.MatchType_ANY,

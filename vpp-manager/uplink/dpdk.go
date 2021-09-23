@@ -144,7 +144,7 @@ func (d *DPDKDriver) RestoreLinux() {
 	// It should be always true on systemd based distros
 	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
 	if err != nil {
-		log.Warnf("Error seting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
 		return
 	}
 

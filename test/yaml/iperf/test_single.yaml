@@ -7,7 +7,7 @@ metadata:
   labels:
     app: iperf-server
 spec:
-  replicas: 4
+  replicas: 1
   selector:
     matchLabels:
       app: iperf-server
@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: iperf-server
-        image: sknat/iperf
+        image: calicovpp/test-iperf
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5001
@@ -31,7 +31,6 @@ metadata:
   namespace: iperf
   name: iperf-service
 spec:
-  ipFamily: IPv4
   selector:
     app: iperf-server
   ports:
@@ -50,7 +49,7 @@ metadata:
 spec:
   containers:
   - name: iperf-client
-    image: sknat/iperf
+    image: calicovpp/test-iperf
     imagePullPolicy: IfNotPresent
     ports:
     - containerPort: 5001

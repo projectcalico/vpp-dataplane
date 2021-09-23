@@ -30,6 +30,10 @@ type WorkloadEndpointID struct {
 	EndpointID     string
 }
 
+func (wi *WorkloadEndpointID) String() string {
+	return fmt.Sprintf("%s:%s:%s", wi.OrchestratorID, wi.WorkloadID, wi.EndpointID)
+}
+
 type Tier struct {
 	Name            string
 	IngressPolicies []string
@@ -41,6 +45,10 @@ type WorkloadEndpoint struct {
 	Profiles  []string
 	Tiers     []Tier
 	server    *Server
+}
+
+func (we *WorkloadEndpoint) String() string {
+	return fmt.Sprintf("if[%d] profiles:[%s] tiers:[%s]", we.SwIfIndex, we.Profiles, we.Tiers)
 }
 
 func fromProtoEndpointID(ep *proto.WorkloadEndpointID) *WorkloadEndpointID {

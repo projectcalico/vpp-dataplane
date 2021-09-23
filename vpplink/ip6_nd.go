@@ -61,16 +61,16 @@ func (v *VppLink) EnableIP6NdProxy(swIfIndex uint32, address net.IP) (err error)
 	}
 
 	// now disable source / dest checks for nd proxy
-	resp := &ip6_nd.IP6ndProxySilentStReply{}
-	req := &ip6_nd.IP6ndProxySilentSt{
+	resp := &ip6_nd.IP6ndProxyEnableDisableReply{}
+	req := &ip6_nd.IP6ndProxyEnableDisable{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		IsEnable:  true,
 	}
 	err = v.ch.SendRequest(req).ReceiveReply(resp)
 	if err != nil {
-		return errors.Wrapf(err, "Enabling silent nd st swif %d failed", swIfIndex)
+		return errors.Wrapf(err, "Enabling nd swif %d failed", swIfIndex)
 	} else if response.Retval != 0 {
-		return fmt.Errorf("Enabling silent nd st swif %d failed with retval %d", swIfIndex, response.Retval)
+		return fmt.Errorf("Enabling nd swif %d failed with retval %d", swIfIndex, response.Retval)
 	}
 
 	return nil

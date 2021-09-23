@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: mra/nginx
+        image: calicovpp/test-nginx
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80

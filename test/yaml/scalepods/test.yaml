@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: scalepods
-        image: sknat/scalepods
+        image: calicovpp/test-scalepods
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80

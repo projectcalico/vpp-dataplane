@@ -52,7 +52,7 @@ VAGRANT_VM_PROXY ?=
 KUBECTL_AUTO_CONF ?= true
 
 # Kubernetes and kubeadm
-KUBERNETES_VERSION ?= 1.18.1
+KUBERNETES_VERSION ?= 1.22.1
 #KUBERNETES_PKG_VERSION_SUFFIX ?=
 # `kubeadm init` flags for master
 # NOTE: The `--kubernetes-version` is automatically set if `KUBERNETES_VERSION` is given.
@@ -271,18 +271,12 @@ vagrant-reload-nodes: $(shell for i in $(shell seq 1 $(NODE_COUNT)); do echo "va
 load-image: load-image-master $(shell for i in $(shell seq 1 $(NODE_COUNT)); do echo "load-image-node-$$i"; done) ## Load local/pulled Docker image into master and all node VMs.
 
 load-image-master: ## Load local/pulled image into master VM.
-	docker save $(IMG) | vagrant ssh "master" -t -c 'sudo docker load'
-	@if [ ! -z "$(TAG)" ]; then \
-		vagrant ssh "master" -t -c 'sudo docker tag $(IMG) $(TAG)'; \
-	fi
-	vagrant ssh "master" -t -c 'sudo docker image prune -f'
+	docker save $(IMG) | vagrant ssh "master" -t -c 'sudo ctr -n k8s.io image import -'
+
 
 load-image-node-%: ## Load local/pulled image into node VM, where `%` is the number of the node.
-	docker save $(IMG) | NODE=$* vagrant ssh "node$*" -t -c 'sudo docker load'
-	@if [ ! -z "$(TAG)" ]; then \
-		NODE=$* vagrant ssh "node$*" -t -c 'sudo docker tag $(IMG) $(TAG)'; \
-	fi
-	NODE=$* vagrant ssh "node$*" -t -c 'sudo docker image prune -f'
+	docker save $(IMG) | NODE=$* vagrant ssh "node$*" -t -c 'sudo ctr -n k8s.io image import -'
+
 
 load-image-nodes: $(shell for i in $(shell seq 1 $(NODE_COUNT)); do echo "load-image-node-$$i"; done) ## Load local/pulled Docker image into all node VMs.
 

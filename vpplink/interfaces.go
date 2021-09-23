@@ -28,13 +28,13 @@ import (
 	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/punt"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/tapv2"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 const (
 	INVALID_SW_IF_INDEX = ^uint32(0)
+	MAX_MTU             = 9216
 )
 
 type NamespaceNotFound error
@@ -94,19 +94,7 @@ func (v *VppLink) SetInterfaceMacAddress(swIfIndex uint32, mac *net.HardwareAddr
 	return nil
 }
 
-func (v *VppLink) SetInterfaceVRF(swIfIndex, vrfIndex uint32) error {
-	err := v.SetInterfaceVRFAf(swIfIndex, vrfIndex, false)
-	if err != nil {
-		return err
-	}
-	err = v.SetInterfaceVRFAf(swIfIndex, vrfIndex, true)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *VppLink) SetInterfaceVRFAf(swIfIndex, vrfIndex uint32, isIP6 bool) error {
+func (v *VppLink) SetInterfaceVRF(swIfIndex, vrfIndex uint32, isIP6 bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	response := &interfaces.SwInterfaceSetTableReply{}
@@ -224,24 +212,86 @@ func (v *VppLink) AddInterfaceAddress(swIfIndex uint32, addr *net.IPNet) error {
 	return v.addDelInterfaceAddress(swIfIndex, addr, true)
 }
 
-func (v *VppLink) enableDisableInterfaceIP6(swIfIndex uint32, enable bool) error {
+func (v *VppLink) setUnsetInterfaceTag(swIfIndex uint32, tag string, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	request := &vppip.SwInterfaceIP6EnableDisable{
+	request := &interfaces.SwInterfaceTagAddDel{
+		IsAdd:     isAdd,
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-		Enable:    enable,
+		Tag:       tag,
 	}
+	response := &interfaces.SwInterfaceTagAddDelReply{}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return fmt.Errorf("cannot add interface tag: %v %d", err, response.Retval)
+	}
+	return nil
+}
+
+func (v *VppLink) SetInterfaceTag(swIfIndex uint32, tag string) error {
+	return v.setUnsetInterfaceTag(swIfIndex, tag, true /* isAdd */)
+}
+
+func (v *VppLink) UnsetInterfaceTag(swIfIndex uint32, tag string) error {
+	return v.setUnsetInterfaceTag(swIfIndex, tag, false /* isAdd */)
+}
+
+func (v *VppLink) enableDisableInterfaceIP(swIfIndex uint32, isIP6 bool, isEnable bool) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
 	response := &vppip.SwInterfaceIP6EnableDisableReply{}
-	return v.ch.SendRequest(request).ReceiveReply(response)
+	request := &vppip.SwInterfaceIP6EnableDisable{
+		Enable:    isEnable,
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+	}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrapf(err, "SwInterfaceIP6EnableDisable failed: req %+v reply %+v", request, response)
+	} else if response.Retval != 0 {
+		return fmt.Errorf("SwInterfaceIP6EnableDisable failed (retval %d). Request: %+v", response.Retval, request)
+	}
+	return nil
+}
+
+func (v *VppLink) EnableInterfaceIP46(swIfIndex uint32) (err error) {
+	err = v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, true /*isEnable*/)
+	if err != nil {
+		return err
+	}
+	err = v.enableDisableInterfaceIP(swIfIndex, true /*isIP6*/, true /*isEnable*/)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v *VppLink) DisableInterfaceIP46(swIfIndex uint32) (err error) {
+	err = v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, false /*isEnable*/)
+	if err != nil {
+		return err
+	}
+	err = v.enableDisableInterfaceIP(swIfIndex, true /*isIP6*/, false /*isEnable*/)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (v *VppLink) DisableInterfaceIP6(swIfIndex uint32) error {
-	return v.enableDisableInterfaceIP6(swIfIndex, false)
+	return v.enableDisableInterfaceIP(swIfIndex, true /*isIP6*/, false /*isEnable*/)
 }
 
 func (v *VppLink) EnableInterfaceIP6(swIfIndex uint32) error {
-	return v.enableDisableInterfaceIP6(swIfIndex, true)
+	return v.enableDisableInterfaceIP(swIfIndex, true /*isIP6*/, true /*isEnable*/)
+}
+
+func (v *VppLink) DisableInterfaceIP4(swIfIndex uint32) error {
+	return v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, false /*isEnable*/)
+}
+
+func (v *VppLink) EnableInterfaceIP4(swIfIndex uint32) error {
+	return v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, true /*isEnable*/)
 }
 
 func (v *VppLink) SearchInterfaceWithTag(tag string) (err error, swIfIndex uint32) {
@@ -472,60 +522,6 @@ func (v *VppLink) InterfaceUnsetUnnumbered(unnumberedSwIfIndex uint32, swIfIndex
 	return v.interfaceSetUnnumbered(unnumberedSwIfIndex, swIfIndex, false)
 }
 
-func (v *VppLink) PuntRedirect(sourceSwIfIndex, destSwIfIndex uint32, nh net.IP) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	request := &vppip.IPPuntRedirect{
-		Punt: vppip.PuntRedirect{
-			RxSwIfIndex: interface_types.InterfaceIndex(sourceSwIfIndex),
-			TxSwIfIndex: interface_types.InterfaceIndex(destSwIfIndex),
-			Nh:          types.ToVppAddress(nh),
-		},
-		IsAdd: true,
-	}
-	response := &vppip.IPPuntRedirectReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil || response.Retval != 0 {
-		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
-	}
-	return nil
-}
-
-// PuntL4 configures L4 punt for a given address family and protocol. port = ~0 means all ports
-func (v *VppLink) PuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	request := &punt.SetPunt{
-		Punt: punt.Punt{
-			Type: punt.PUNT_API_TYPE_L4,
-			Punt: punt.PuntUnionL4(punt.PuntL4{
-				Af:       types.ToVppAddressFamily(isIPv6),
-				Protocol: types.ToVppIPProto(proto),
-				Port:     port,
-			}),
-		},
-		IsAdd: true,
-	}
-	response := &punt.SetPuntReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil || response.Retval != 0 {
-		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
-	}
-	return nil
-}
-
-func (v *VppLink) PuntAllL4(isIPv6 bool) (err error) {
-	err = v.PuntL4(types.TCP, 0xffff, isIPv6)
-	if err != nil {
-		return err
-	}
-	err = v.PuntL4(types.UDP, 0xffff, isIPv6)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (v *VppLink) enableDisableGso(swIfIndex uint32, enable bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
@@ -572,20 +568,48 @@ func (v *VppLink) DisableGSOFeature(swIfIndex uint32) error {
 	return v.enableDisableGso(swIfIndex, false)
 }
 
-func (v *VppLink) SetInterfaceRxPlacement(swIfIndex, queue, worker uint32, main bool) error {
+func (v *VppLink) SetInterfaceRxPlacement(swIfIndex uint32, queue int, worker int, main bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	request := &interfaces.SwInterfaceSetRxPlacement{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-		QueueID:   queue,
-		WorkerID:  worker,
+		QueueID:   uint32(queue),
+		WorkerID:  uint32(worker),
 		IsMain:    main,
 	}
 	response := &interfaces.SwInterfaceSetRxPlacementReply{}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return fmt.Errorf("cannot set interface rx placement: %v %d", err, response.Retval)
+	}
+	return nil
+}
+
+func (v *VppLink) CreateLoopback(hwAddr *net.HardwareAddr) (swIfIndex uint32, err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	request := &interfaces.CreateLoopback{
+		MacAddress: types.ToVppMacAddress(hwAddr),
+	}
+	response := &interfaces.CreateLoopbackReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return 0, errors.Wrapf(err, "Error adding loopback: req %+v reply %+v", request, response)
+	}
+	return uint32(response.SwIfIndex), nil
+}
+
+func (v *VppLink) DeleteLoopback(swIfIndex uint32) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	request := &interfaces.DeleteLoopback{
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+	}
+	response := &interfaces.DeleteLoopbackReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return errors.Wrapf(err, "Error deleting loopback: req %+v reply %+v", request, response)
 	}
 	return nil
 }

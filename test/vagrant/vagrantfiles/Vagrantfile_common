@@ -10,7 +10,7 @@ MASTER_MEMORY_SIZE_GB = ENV['MASTER_MEMORY_SIZE_GB'].to_i || 16
 NODE_CPUS = ENV['NODE_CPUS'].to_i || 4
 NODE_MEMORY_SIZE_GB = ENV['NODE_MEMORY_SIZE_GB'].to_i || 16
 
-$docker_version = '5:19.03.12~3-0~ubuntu-focal'
+$containerd_version = '1.4.9-1'
 
 # Network
 MASTER_IP = ENV['MASTER_IP'] || '192.168.0.254'
@@ -90,6 +90,7 @@ net.ipv6.conf.default.forwarding = 1:
 net.ipv6.conf.all.forwarding = 1
 net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.conf.all.rp_filter = 0
+net.ipv4.ip_forward = 1
 vm.nr_hugepages = 128
 EOF
 
@@ -113,16 +114,13 @@ Acquire {
 }
 EOF
 
-mkdir /etc/docker
-cat <<EOF > /etc/docker/daemon.json
-{
-  "exec-opts": ["native.cgroupdriver=systemd"],
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "100m"
-  },
-  "storage-driver": "overlay2"
-}
+# Crictl install
+curl -fsSL https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.22.0/crictl-v1.22.0-linux-amd64.tar.gz \
+    | tar -zxvf - -C /usr/local/bin
+cat <<EOF > /etc/crictl.yaml
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 5
 EOF
 
 
@@ -155,24 +153,31 @@ fi
 retries=5
 for ((i=0; i<retries; i++)); do
     apt-get update && \
-    apt-get -y install tmux screen telnet conntrack socat net-tools gdb jq make \
-        docker-ce=#{$docker_version} ${KUBERNETES_PACKAGES} && \
+    DEBIAN_FRONTEND=noninteractive apt-get -y install \
+        tmux screen telnet conntrack socat net-tools gdb jq make \
+        containerd.io=#{$containerd_version} ${KUBERNETES_PACKAGES} && \
     break
 done
-[[ $retries -eq i ]] && { echo "Failed to install docker, kubelet, kubeadm and other dependenices after 5 tries"; exit 1; }
+[[ $retries -eq i ]] && { echo "Failed to install containerd, kubelet, kubeadm and other dependenices after 5 tries"; exit 1; }
 
 systemctl disable kubelet
-apt-mark hold docker-ce kubelet kubeadm kubectl
+apt-mark hold containerd kubelet kubeadm kubectl
+
+# Containerd config
+containerd config default \
+    | sed '/plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options/a \            SystemdCgroup = true' \
+    > /etc/containerd/config.toml
+systemctl restart containerd.service
 
 # Increase /run dir as it is/was a problem on Ubuntu 18.04 (at least on bento box image)
 echo 'tmpfs /run tmpfs rw,nosuid,noexec,relatime,size=614460k,mode=755' >> /etc/fstab
 
-apt-get clean
-
 # Download k8s images
 kubeadm config images pull
 
-fstrim -a
+systemctl stop containerd.service
+apt-get clean
+sync
 
 SCRIPT
 
@@ -180,17 +185,17 @@ SCRIPT
 aliases = %q{
 alias s="sudo -s"
 alias lh="ls -alh"
-alias d="docker"
-alias dl="docker logs"
-alias dlf="docker logs -f"
-alias dlv='docker logs -f \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}")'
-alias dp="docker ps"
-alias dpa="docker ps -a"
-alias dpv="docker ps -a |grep vpp"
-alias vc='docker exec -it \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}") vppctl'
-alias dsv='docker stop \$(docker ps |grep k8s_vpp_calico-vpp-node | awk "{print \\\\\$1}")'
-alias nodelogs='docker logs \$(docker ps |grep k8s_agent_calico-vpp-node | awk "{print \\\\\$1}")'
-alias dsn='docker stop \$(docker ps |grep k8s_agent_calico-vpp-node | awk "{print \\\\\$1}")'
+alias d="crictl"
+alias dl="crictl logs"
+alias dlf="crictl logs -f"
+alias dlv='crictl logs -f \$(crictl ps |grep " vpp " | awk "{print \\\\\$1}")'
+alias dp="crictl ps"
+alias dpa="crictl ps -a"
+alias dpv='crictl ps -a |grep -E "vpp|agent|calico"'
+alias vc='crictl exec -it \$(crictl ps |grep " vpp " | awk "{print \\\\\$1}") vppctl'
+alias dsv='crictl stop \$(crictl ps |grep " vpp " | awk "{print \\\\\$1}")'
+alias nodelogs='crictl logs \$(crictl ps |grep " agent " | awk "{print \\\\\$1}")'
+alias dsn='crictl stop \$(crictl ps |grep " agent " | awk "{print \\\\\$1}")'
 alias idu="ip link set eth1 down; ip link set eth1 up"
 alias ifr="ip link set vpptap0 down; echo '0000:00:06.0' > /sys/bus/pci/devices/0000\:00\:06.0/driver/unbind; sleep 0.2; echo '0000:00:06.0' > /sys/bus/pci/drivers/virtio-pci/bind; sleep 0.5; ip link set eth1 up"
 alias lsc="ls -alh /var/lib/vpp"
@@ -239,7 +244,7 @@ SCRIPT
 
 
 $verifyNodeScript = <<SCRIPT
-docker version || { echo "Something wrong with docker"; exit 1; }
+ctr version || { echo "Something wrong with containerd"; exit 1; }
 kubeadm version || { echo "Something wrong with kubeadm"; exit 1; }
 kubelet --version || { echo "Something wrong with kubelet"; exit 1; }
 SCRIPT

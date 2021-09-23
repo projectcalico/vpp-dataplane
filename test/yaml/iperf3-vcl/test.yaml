@@ -1,0 +1,72 @@
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  namespace: iperf3-vcl
+  name: iperf3-server-repl
+  labels:
+    app: iperf3-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iperf3-server
+  template:
+    metadata:
+      labels:
+        app: iperf3-server
+      annotations:
+        "cni.projectcalico.org-vpp.vcl": "enable"
+    spec:
+      containers:
+      - name: iperf3-server
+        image: calicovpp/test-iperf3-vcl
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5201
+      nodeName: _NODE_1_
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: iperf3-vcl
+  name: iperf3-service
+spec:
+  selector:
+    app: iperf3-server
+  ports:
+    - protocol: TCP
+      port: 5201
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iperf3-client
+  namespace: iperf3-vcl
+  annotations:
+    "cni.projectcalico.org-vpp.vcl": "enable"
+spec:
+  containers:
+  - name: iperf3-client
+    image: calicovpp/test-iperf3-vcl
+    imagePullPolicy: IfNotPresent
+    ports:
+    - containerPort: 5201
+  nodeName: _NODE_2_
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iperf3-client-samehost
+  namespace: iperf3-vcl
+  annotations:
+    "cni.projectcalico.org-vpp.vcl": "enable"
+spec:
+  containers:
+  - name: iperf3-client
+    image: calicovpp/test-iperf3-vcl
+    imagePullPolicy: IfNotPresent
+    ports:
+    - containerPort: 5201
+  nodeName: _NODE_1_
+ 

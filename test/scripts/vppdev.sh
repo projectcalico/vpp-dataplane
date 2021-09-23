@@ -112,6 +112,7 @@ vppdev_cli_gdb ()
   	exit 1
   fi
   local pid=$(docker exec -it $container cat /var/run/vpp/vpp.pid)
+  docker exec -it $container ln -s /home/hostuser $HOME
   docker exec -it $container gdb -p $pid -ex continue
 }
 

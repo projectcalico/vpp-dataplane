@@ -84,10 +84,17 @@ test-install-calicovpp-dev-srv6:
 
 .PHONY: run-tests
 run-tests:
-	test/scripts/test.sh up iperf
-	kubectl -n iperf wait pod/iperf-client $$(kubectl -n iperf get pods -l 'app in (iperf-server,iperf-nodeport)' -o name) --for=condition=Ready --timeout=30s
+	test/scripts/test.sh up iperf v4
+	kubectl -n iperf wait pod/iperf-client $$(kubectl -n iperf get pods -l 'app in (iperf-server,iperf-nodeport)' -o name) --for=condition=Ready --timeout=60s
 	test/scripts/cases.sh ipv4
-	test/scripts/test.sh down iperf
+	test/scripts/test.sh down iperf v4
+
+.PHONY: run-tests-v6
+run-tests-v6:
+	test/scripts/test.sh up iperf v6
+	kubectl -n iperf wait pod/iperf-client $$(kubectl -n iperf get pods -l 'app in (iperf-server,iperf-nodeport)' -o name) --for=condition=Ready --timeout=60s
+	test/scripts/cases.sh ipv6
+	test/scripts/test.sh down iperf v6
 
 .PHONY: restart-calicovpp
 restart-calicovpp:
@@ -98,6 +105,19 @@ restart-calicovpp:
 export VPP_DIR ?= $(shell pwd)/vpp-manager/vpp_build
 goapi:
 	@./vpplink/binapi/generate_binapi.sh
+
+.PHONY: cherry-vpp
+cherry-vpp:
+	@echo "Cherry pick VPP ?"
+	@echo "This will reset current branch"
+	@echo "directory : ${VPP_DIR}"
+	@echo "branch    : $(shell cd ${VPP_DIR} && git branch --show-current)"
+	@echo "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
+	@bash ./vpplink/binapi/vpp_clone_current.sh ${VPP_DIR}
+
+.PHONY: cherry-wipe
+cherry-wipe:
+	rm -rf ./vpplink/binapi/.cherries-cache
 
 .PHONY: yaml
 yaml:

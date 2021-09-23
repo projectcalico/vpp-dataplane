@@ -24,35 +24,93 @@ import (
 )
 
 type RoutePath struct {
-	Gw        net.IP
-	SwIfIndex uint32
-	Table     int
+	Gw         net.IP
+	SwIfIndex  uint32
+	Table      uint32
+	IsAttached bool
 }
 
 type Route struct {
 	Dst   *net.IPNet
 	Paths []RoutePath
-	Table int
+	Table uint32
 }
 
 func (p *RoutePath) tableString() string {
 	if p.Table == 0 {
 		return ""
 	} else {
-		return fmt.Sprintf("[%d]", p.Table)
+		return fmt.Sprintf("[table:%d]", p.Table)
 	}
+}
+
+func FromFibPathList(apiPathList []fib_types.FibPath) (routePaths []RoutePath) {
+	routePaths = make([]RoutePath, 0, len(apiPathList))
+	for _, vppPath := range apiPathList {
+		routePaths = append(routePaths, FromFibPath(vppPath))
+	}
+	return routePaths
+}
+
+func FromFibPath(vppPath fib_types.FibPath) RoutePath {
+	return RoutePath{
+		Gw:        FromVppIpAddressUnion(vppPath.Nh.Address, vppPath.Proto == fib_types.FIB_API_PATH_NH_PROTO_IP4),
+		Table:     vppPath.TableID,
+		SwIfIndex: vppPath.SwIfIndex,
+	}
+}
+
+func ToFibPathList(routePaths []RoutePath, isIP6 bool) (apiPathList []fib_types.FibPath) {
+	apiPathList = make([]fib_types.FibPath, 0, len(routePaths))
+	for _, routePath := range routePaths {
+		apiPathList = append(apiPathList, routePath.ToFibPath(isIP6))
+	}
+	return apiPathList
+}
+
+func (p *RoutePath) ToFibPath(isIP6 bool) fib_types.FibPath {
+	// There is one case where we need an IPv4 route with an IPv6 path
+	// (for broadcast)
+	pathProto := IsV6toFibProto(isIP6)
+	if p.Gw != nil {
+		pathProto = IsV6toFibProto(p.Gw.To4() == nil)
+	}
+	fibPath := fib_types.FibPath{
+		SwIfIndex:  p.SwIfIndex,
+		TableID:    p.Table,
+		RpfID:      0,
+		Weight:     1,
+		Preference: 0,
+		Type:       fib_types.FIB_API_PATH_TYPE_NORMAL,
+		Flags:      fib_types.FIB_API_PATH_FLAG_NONE,
+		Proto:      pathProto,
+	}
+	if p.IsAttached {
+		fibPath.Flags |= fib_types.FIB_API_PATH_FLAG_RESOLVE_VIA_ATTACHED
+	}
+	if p.Gw != nil {
+		fibPath.Nh.Address = ToVppAddress(p.Gw).Un
+	}
+	return fibPath
 }
 
 func (p *RoutePath) swIfIndexString() string {
-	if p.SwIfIndex == 0 {
+	if p.SwIfIndex == 0 || p.SwIfIndex == InvalidID {
 		return ""
 	} else {
-		return fmt.Sprintf("[idx%d]", p.SwIfIndex)
+		return fmt.Sprintf("[if:%d]", p.SwIfIndex)
 	}
 }
 
+func (p *RoutePath) gwString() string {
+	if p.Gw != nil {
+		return p.Gw.String()
+	}
+	return ""
+}
+
 func (p *RoutePath) String() string {
-	return fmt.Sprintf("%s%s%s", p.tableString(), p.Gw.String(), p.swIfIndexString())
+	return fmt.Sprintf("%s%s%s", p.tableString(), p.gwString(), p.swIfIndexString())
 }
 
 func IsV6toFibProto(isv6 bool) fib_types.FibPathNhProto {
@@ -60,6 +118,15 @@ func IsV6toFibProto(isv6 bool) fib_types.FibPathNhProto {
 		return fib_types.FIB_API_PATH_NH_PROTO_IP6
 	}
 	return fib_types.FIB_API_PATH_NH_PROTO_IP4
+}
+
+func AddrIsZeros(p net.IP) bool {
+	for i := 0; i < len(p); i++ {
+		if p[i] != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Route) IsIP6() bool {
@@ -80,24 +147,34 @@ func (r *Route) pathsString() string {
 	return strings.Join(pathsStr, ", ")
 }
 
+func (r *Route) familyString() string {
+	if r.IsIP6() {
+		return "v6"
+	}
+	return "v4"
+
+}
+
 func (r *Route) tableString() string {
 	if r.Table == 0 {
 		return ""
 	} else {
-		return fmt.Sprintf("[%d] ", r.Table)
+		return fmt.Sprintf("[table:%d] ", r.Table)
 	}
 }
 
 func (r *Route) dstString() string {
 	if r.Dst == nil {
 		return "*"
-	} else {
-		return r.Dst.String()
 	}
+	if r.Dst.IP.Equal(net.IPv4zero) || r.Dst.IP.Equal(net.IPv6zero) {
+		return "*"
+	}
+	return r.Dst.String()
 }
 
 func (r *Route) String() string {
-	return fmt.Sprintf("%s%s -> %s", r.tableString(), r.dstString(), r.pathsString())
+	return fmt.Sprintf("%s %s%s -> %s", r.familyString(), r.tableString(), r.dstString(), r.pathsString())
 }
 
 func (r *Route) IsLinkLocal() bool {

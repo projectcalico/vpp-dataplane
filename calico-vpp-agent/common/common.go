@@ -16,6 +16,7 @@
 package common
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -38,8 +39,10 @@ var (
 )
 
 const (
-	DefaultVRFIndex = 0
-	PodVRFIndex     = 1
+	DefaultVRFIndex     = uint32(0)
+	PuntTableId         = uint32(1)
+	PodVRFIndex         = uint32(2)
+	PerPodVRFIndexStart = uint32(10) /* per pod VRFs will be this ID and above */
 )
 
 type CalicoVppServer interface {
@@ -140,21 +143,15 @@ func HandleVppManagerRestart(log *logrus.Logger, vpp *vpplink.VppLink, servers .
 }
 
 func SetupPodVRF(vpp *vpplink.VppLink) (err error) {
-	err = vpp.AddVRF(PodVRFIndex, false, "calico-pods-ip4")
-	if err != nil {
-		return err
-	}
-	err = vpp.AddVRF(PodVRFIndex, true, "calico-pods-ip6")
-	if err != nil {
-		return err
-	}
-	err = vpp.AddDefaultRouteViaTable(PodVRFIndex, DefaultVRFIndex, false)
-	if err != nil {
-		return err
-	}
-	err = vpp.AddDefaultRouteViaTable(PodVRFIndex, DefaultVRFIndex, true)
-	if err != nil {
-		return err
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = vpp.AddVRF(PodVRFIndex, ipFamily.IsIp6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
+		if err != nil {
+			return err
+		}
+		err = vpp.AddDefaultRouteViaTable(PodVRFIndex, DefaultVRFIndex, ipFamily.IsIp6)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

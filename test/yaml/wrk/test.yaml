@@ -6,7 +6,7 @@ metadata:
 spec:
   containers:
   - name: wrk-client
-    image: mra/wrk
+    image: calicovpp/test-wrk
     imagePullPolicy: IfNotPresent
     securityContext:
       privileged: true

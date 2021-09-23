@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -164,7 +165,7 @@ func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
 	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel)
-		return errors.Wrapf(err, "Error seting wireguard tunnel unnumbered")
+		return errors.Wrapf(err, "Error setting wireguard tunnel unnumbered")
 	}
 
 	err = p.vpp.EnableGSOFeature(swIfIndex)
@@ -245,6 +246,19 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		_, err := p.vpp.AddWireguardPeer(peer)
 		if err != nil {
 			return errors.Wrapf(err, "Error adding wireguard peer [%s]", peer)
+		}
+
+		p.log.Debugf("Routing pod->node %s traffic into wg tunnel (swIfIndex %d)", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
+		err = p.vpp.RouteAdd(&types.Route{
+			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
+			Paths: []types.RoutePath{{
+				SwIfIndex: p.wireguardTunnel.SwIfIndex,
+				Gw:        nil,
+			}},
+			Table: commonAgent.PodVRFIndex,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Error adding route to %s in ipip tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
 		}
 	}
 	p.log.Infof("Wireguard: peer %s ok", peer)

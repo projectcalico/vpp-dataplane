@@ -27,6 +27,7 @@ import (
 
 const (
 	DataInterfaceSwIfIndex = uint32(1) // Assumption: the VPP config ensures this is true
+	PuntTableId            = 1
 	VppConfigFile          = "/etc/vpp/startup.conf"
 	VppConfigExecFile      = "/etc/vpp/startup.exec"
 	VppManagerStatusFile   = "/var/run/vpp/vppmanagerstatus"
@@ -38,8 +39,7 @@ const (
 	HostIfName             = "vpptap0"
 	HostIfTag              = "hosttap"
 	VppSigKillTimeout      = 2
-	DefaultEncapSize       = 60   // Used to lower the MTU of the routes to the cluster
-	VppTapMtu              = 9216 /* Max MTU for VPP tap interfaces */
+	DefaultEncapSize       = 60 // Used to lower the MTU of the routes to the cluster
 )
 
 const (

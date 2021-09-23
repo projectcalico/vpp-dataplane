@@ -203,7 +203,7 @@ func (p *CalicoServiceProvider) DelServicePort(service *v1.Service, ep *v1.Endpo
 				entries = append(entries, extIPKey(eip, serviceID, servicePort.Name))
 			}
 		}
-		if service.Spec.Type != v1.ServiceTypeNodePort {
+		if service.Spec.Type == v1.ServiceTypeNodePort {
 			entries = append(entries, nodePortKey(serviceID, servicePort.Name))
 		}
 

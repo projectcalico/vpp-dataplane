@@ -150,7 +150,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 		if err != nil {
 			// TODO : delete tunnel
-			return errors.Wrapf(err, "Error seting vxlan tunnel unnumbered")
+			return errors.Wrapf(err, "Error setting vxlan tunnel unnumbered")
 		}
 
 		// Always enable GSO feature on VXLan tunnel, only a tiny negative effect on perf if GSO is not enabled on the taps

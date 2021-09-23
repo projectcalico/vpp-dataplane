@@ -44,7 +44,8 @@ const (
 	NodeNameEnvVar             = "NODENAME"
 	TapNumRxQueuesEnvVar       = "CALICOVPP_TAP_RX_QUEUES"
 	TapNumTxQueuesEnvVar       = "CALICOVPP_TAP_TX_QUEUES"
-	TapGSOEnvVar               = "CALICOVPP_DEBUG_ENABLE_GSO"
+	MemifEnabledEnvVar         = "CALICOVPP_ENABLE_MEMIF"
+	PodGSOEnabledEnvVar        = "CALICOVPP_DEBUG_ENABLE_GSO"
 	EnableServicesEnvVar       = "CALICOVPP_DEBUG_ENABLE_NAT"
 	EnableMaglevEnvVar         = "CALICOVPP_DEBUG_ENABLE_MAGLEV"
 	EnablePoliciesEnvVar       = "CALICOVPP_DEBUG_ENABLE_POLICIES"
@@ -55,13 +56,13 @@ const (
 	TapRxModeEnvVar            = "CALICOVPP_TAP_RX_MODE"
 	TapQueueSizeEnvVar         = "CALICOVPP_TAP_RING_SIZE"
 	IpsecNbAsyncCryptoThEnvVar = "CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD"
-	BgpLogLevelEnvVar          = "CALICO_BGP_LOGSEVERITYSCREEN"
 	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar        = "SERVICE_PREFIX"
 	EnableSRv6EnvVar           = "CALICOVPP_SRV6_ENABLED"
 	SRv6LocalsidPoolEnvVar     = "CALICOVPP_SR_LS_POOL"
 	SRv6PolicyPoolEnvVar       = "CALICOVPP_SR_POLICY_POOL"
 
+	MemifSocketName      = "@vpp/memif"
 	DefaultVXLANVni      = 4096
 	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820
@@ -70,9 +71,11 @@ const (
 )
 
 var (
-	TapNumRxQueues           = 1
-	TapNumTxQueues           = 1
-	TapGSOEnabled            = true
+	TapNumRxQueues = 1
+	TapNumTxQueues = 1
+	/* disable by default as it might impact security */
+	MemifEnabled             = false
+	PodGSOEnabled            = true
 	EnableMaglev             = true
 	EnableServices           = true
 	EnablePolicies           = true
@@ -103,18 +106,20 @@ var (
 	felixVXLANMtu         int = 0
 	felixWireguardEnabled     = false
 	felixWireguardMtu     int = 0
+
+	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:TapNumRxQueues    %d", TapNumRxQueues)
-	log.Infof("Config:TapGSOEnabled     %t", TapGSOEnabled)
+	log.Infof("Config:MemifEnabled      %t", MemifEnabled)
+	log.Infof("Config:PodGSOEnabled     %t", PodGSOEnabled)
 	log.Infof("Config:EnableServices    %t", EnableServices)
 	log.Infof("Config:EnableIPSec       %t", EnableIPSec)
 	log.Infof("Config:CrossIpsecTunnels %t", CrossIpsecTunnels)
 	log.Infof("Config:EnablePolicies    %t", EnablePolicies)
 	log.Infof("Config:IpsecAddressCount %d", IpsecAddressCount)
 	log.Infof("Config:RxMode            %d", TapRxMode)
-	log.Infof("Config:BgpLogLevel       %d", BgpLogLevel)
 	log.Infof("Config:LogLevel          %d", LogLevel)
 	log.Infof("Config:HostMtu           %d", HostMtu)
 	log.Infof("Config:PodMtu            %d", PodMtu)
@@ -152,15 +157,6 @@ func fetchHostMtu() (mtu int, err error) {
 func LoadConfig(log *logrus.Logger) (err error) {
 	supportedEnvVars = make(map[string]bool)
 
-	if conf := getEnvValue(BgpLogLevelEnvVar); conf != "" {
-		loglevel, err := logrus.ParseLevel(conf)
-		if err != nil {
-			log.WithError(err).Error("Failed to parse BGP loglevel: %s, defaulting to info", conf)
-		} else {
-			BgpLogLevel = loglevel
-		}
-	}
-
 	if conf := getEnvValue(LogLevelEnvVar); conf != "" {
 		loglevel, err := logrus.ParseLevel(conf)
 		if err != nil {
@@ -188,12 +184,20 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		TapNumTxQueues = int(queues)
 	}
 
-	if conf := getEnvValue(TapGSOEnvVar); conf != "" {
+	if conf := getEnvValue(MemifEnabledEnvVar); conf != "" {
+		enabled, err := strconv.ParseBool(conf)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", MemifEnabledEnvVar, conf, enabled, err)
+		}
+		MemifEnabled = enabled
+	}
+
+	if conf := getEnvValue(PodGSOEnabledEnvVar); conf != "" {
 		gso, err := strconv.ParseBool(conf)
 		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapGSOEnvVar, conf, gso, err)
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", PodGSOEnabledEnvVar, conf, gso, err)
 		}
-		TapGSOEnabled = gso
+		PodGSOEnabled = gso
 	}
 
 	if conf := getEnvValue(EnableIPSecEnvVar); conf != "" {

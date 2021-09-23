@@ -33,6 +33,18 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: CALICO_IPV4POOL_IPIP
+            - name: FELIX_IPV6SUPPORT
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: FELIX_IPV6SUPPORT
+            - name: CALICO_IPV4POOL_NAT_OUTGOING
+              value: ""
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: CALICO_IPV4POOL_NAT_OUTGOING
             - name: CALICO_IPV4POOL_VXLAN
               value: ""
               valueFrom:
