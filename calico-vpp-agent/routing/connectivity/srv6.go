@@ -374,7 +374,7 @@ func (p *SRv6Provider) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6Addr
 		return newSidAddr, errors.Wrapf(err, "SRv6Provider Error assigning ip LocalSid")
 	}
 
-	newSidAddr = types.ToVppIP6Address(newSids[0].IP)
+	newSidAddr = types.ToVppIP6Address(newSids.IPs[0].IP)
 
 	return newSidAddr, nil
 }

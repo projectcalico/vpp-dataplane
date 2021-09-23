@@ -78,6 +78,7 @@ else
 	git reset --hard ${VPP_COMMIT}
 fi
 
+git_cherry_pick refs/changes/12/33312/4 # 33312: sr: fix srv6 definition of behavior associated to a LocalSID | https://gerrit.fd.io/r/c/vpp/+/33312
 git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git_cherry_pick refs/changes/21/31321/11 # 31321: devices: add support for pseudo header checksum | https://gerrit.fd.io/r/c/vpp/+/31321
 git_cherry_pick refs/changes/69/31869/18 # 31869: gso: do not try gro on small packets | https://gerrit.fd.io/r/c/vpp/+/31869
