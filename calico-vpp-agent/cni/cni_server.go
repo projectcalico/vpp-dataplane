@@ -52,8 +52,6 @@ type Server struct {
 	memifDriver    *pod_interface.MemifPodInterfaceDriver
 	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
 	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
-
-	indexAllocator *vpplink.IndexAllocator
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -145,12 +143,9 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	defer s.lock.Unlock()
 
 	s.log.Infof("Adding Pod %s", podSpec.String())
-	podSpec.VrfId = s.indexAllocator.AllocateIndex()
-	s.log.Infof("Allocated VrfId:%d", podSpec.VrfId)
 
 	swIfIndex, err := s.AddVppInterface(podSpec, true /* doHostSideConf */)
 	if err != nil {
-		s.indexAllocator.FreeIndex(podSpec.VrfId)
 		s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
 		return &pb.AddReply{
 			Successful:   false,
@@ -207,12 +202,7 @@ func (s *Server) rescanState() error {
 
 	s.log.Infof("RescanState: re-creating all interfaces")
 	for _, podSpec := range podSpecs {
-		err2 := s.indexAllocator.TakeIndex(podSpec.VrfId)
-		if err2 != nil {
-			s.log.Errorf("Error Taking back index %d : %v", podSpec.VrfId, err2)
-			continue
-		}
-		_, err2 = s.AddVppInterface(&podSpec, false /* doHostSideConf */)
+		_, err2 := s.AddVppInterface(&podSpec, false /* doHostSideConf */)
 		if err2 != nil {
 			// TODO: some errors are probably not critical, for instance if the interface
 			// can't be created because the netns disappeared (may happen when the host reboots)
@@ -228,12 +218,7 @@ func (s *Server) rescanState() error {
 func (s *Server) OnVppRestart() {
 	s.log.Infof("VppRestart: re-creating all interfaces")
 	for name, podSpec := range s.podInterfaceMap {
-		err := s.indexAllocator.TakeIndex(podSpec.VrfId)
-		if err != nil {
-			s.log.Errorf("Error Taking back index %d : %v", podSpec.VrfId, err)
-			continue
-		}
-		_, err = s.AddVppInterface(&podSpec, false /* doHostSideConf */)
+		_, err := s.AddVppInterface(&podSpec, false /* doHostSideConf */)
 		if err != nil {
 			s.log.Errorf("Error re-injecting interface %s : %v", name, err)
 		}
@@ -265,8 +250,6 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 		})
 		s.log.Infof("Deleting pod %s", initialSpec.String())
 		s.DelVppInterface(&initialSpec)
-		s.log.Infof("Freeing VRF Index %d", initialSpec.VrfId)
-		s.indexAllocator.FreeIndex(initialSpec.VrfId)
 		s.log.Infof("Done Deleting pod %s", initialSpec.String())
 	}
 
@@ -314,7 +297,6 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(v, l),
 		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(v, l),
 		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(v, l),
-		indexAllocator:  vpplink.NewIndexAllocator(common.PerPodVRFIndexStart),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")
