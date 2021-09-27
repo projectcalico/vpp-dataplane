@@ -45,6 +45,7 @@ type AbfPolicy struct {
 }
 
 // AbfItfAttachAddDel defines message 'abf_itf_attach_add_del'.
+// InProgress: the message form may change in the future versions
 type AbfItfAttachAddDel struct {
 	IsAdd  bool         `binapi:"bool,name=is_add" json:"is_add,omitempty"`
 	Attach AbfItfAttach `binapi:"abf_itf_attach,name=attach" json:"attach,omitempty"`
@@ -91,6 +92,7 @@ func (m *AbfItfAttachAddDel) Unmarshal(b []byte) error {
 }
 
 // AbfItfAttachAddDelReply defines message 'abf_itf_attach_add_del_reply'.
+// InProgress: the message form may change in the future versions
 type AbfItfAttachAddDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -124,6 +126,7 @@ func (m *AbfItfAttachAddDelReply) Unmarshal(b []byte) error {
 }
 
 // AbfItfAttachDetails defines message 'abf_itf_attach_details'.
+// InProgress: the message form may change in the future versions
 type AbfItfAttachDetails struct {
 	Attach AbfItfAttach `binapi:"abf_itf_attach,name=attach" json:"attach,omitempty"`
 }
@@ -166,6 +169,7 @@ func (m *AbfItfAttachDetails) Unmarshal(b []byte) error {
 }
 
 // AbfItfAttachDump defines message 'abf_itf_attach_dump'.
+// InProgress: the message form may change in the future versions
 type AbfItfAttachDump struct{}
 
 func (m *AbfItfAttachDump) Reset()               { *m = AbfItfAttachDump{} }
@@ -193,6 +197,7 @@ func (m *AbfItfAttachDump) Unmarshal(b []byte) error {
 }
 
 // AbfPluginGetVersion defines message 'abf_plugin_get_version'.
+// InProgress: the message form may change in the future versions
 type AbfPluginGetVersion struct{}
 
 func (m *AbfPluginGetVersion) Reset()               { *m = AbfPluginGetVersion{} }
@@ -220,6 +225,7 @@ func (m *AbfPluginGetVersion) Unmarshal(b []byte) error {
 }
 
 // AbfPluginGetVersionReply defines message 'abf_plugin_get_version_reply'.
+// InProgress: the message form may change in the future versions
 type AbfPluginGetVersionReply struct {
 	Major uint32 `binapi:"u32,name=major" json:"major,omitempty"`
 	Minor uint32 `binapi:"u32,name=minor" json:"minor,omitempty"`
@@ -257,6 +263,7 @@ func (m *AbfPluginGetVersionReply) Unmarshal(b []byte) error {
 }
 
 // AbfPolicyAddDel defines message 'abf_policy_add_del'.
+// InProgress: the message form may change in the future versions
 type AbfPolicyAddDel struct {
 	IsAdd  bool      `binapi:"bool,name=is_add" json:"is_add,omitempty"`
 	Policy AbfPolicy `binapi:"abf_policy,name=policy" json:"policy,omitempty"`
@@ -373,6 +380,7 @@ func (m *AbfPolicyAddDel) Unmarshal(b []byte) error {
 }
 
 // AbfPolicyAddDelReply defines message 'abf_policy_add_del_reply'.
+// InProgress: the message form may change in the future versions
 type AbfPolicyAddDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -406,6 +414,7 @@ func (m *AbfPolicyAddDelReply) Unmarshal(b []byte) error {
 }
 
 // AbfPolicyDetails defines message 'abf_policy_details'.
+// InProgress: the message form may change in the future versions
 type AbfPolicyDetails struct {
 	Policy AbfPolicy `binapi:"abf_policy,name=policy" json:"policy,omitempty"`
 }
@@ -518,6 +527,7 @@ func (m *AbfPolicyDetails) Unmarshal(b []byte) error {
 }
 
 // AbfPolicyDump defines message 'abf_policy_dump'.
+// InProgress: the message form may change in the future versions
 type AbfPolicyDump struct{}
 
 func (m *AbfPolicyDump) Reset()               { *m = AbfPolicyDump{} }

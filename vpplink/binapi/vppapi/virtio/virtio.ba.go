@@ -178,6 +178,7 @@ func (m *SwInterfaceVirtioPciDump) Unmarshal(b []byte) error {
 }
 
 // VirtioPciCreate defines message 'virtio_pci_create'.
+// Deprecated: the message will be removed in the future versions
 type VirtioPciCreate struct {
 	PciAddr                pci_types.PciAddress      `binapi:"pci_address,name=pci_addr" json:"pci_addr,omitempty"`
 	UseRandomMac           bool                      `binapi:"bool,name=use_random_mac" json:"use_random_mac,omitempty"`
@@ -240,6 +241,7 @@ func (m *VirtioPciCreate) Unmarshal(b []byte) error {
 }
 
 // VirtioPciCreateReply defines message 'virtio_pci_create_reply'.
+// Deprecated: the message will be removed in the future versions
 type VirtioPciCreateReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`

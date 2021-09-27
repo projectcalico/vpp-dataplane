@@ -3,7 +3,7 @@ module github.com/projectcalico/vpp-dataplane
 go 1.15
 
 require (
-	git.fd.io/govpp.git v0.3.6-0.20210202134006-4c1cccf48cd1
+	git.fd.io/govpp.git v0.3.6-0.20210927044411-385ccc0d8ba9
 	github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6 // indirect
 	github.com/containernetworking/plugins v0.8.2
 	github.com/dgryski/go-farm v0.0.0-20191112170834-c2139c5d712b // indirect

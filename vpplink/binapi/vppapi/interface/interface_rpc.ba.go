@@ -212,6 +212,10 @@ func (c *serviceClient_SwInterfaceDumpClient) Recv() (*SwInterfaceDetails, error
 	case *SwInterfaceDetails:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -269,6 +273,10 @@ func (c *serviceClient_SwInterfaceRxPlacementDumpClient) Recv() (*SwInterfaceRxP
 	case *SwInterfaceRxPlacementDetails:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)

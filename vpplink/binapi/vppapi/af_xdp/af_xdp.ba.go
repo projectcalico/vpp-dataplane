@@ -102,6 +102,7 @@ func (x AfXdpFlag) String() string {
 }
 
 // AfXdpCreate defines message 'af_xdp_create'.
+// InProgress: the message form may change in the future versions
 type AfXdpCreate struct {
 	HostIf  string    `binapi:"string[64],name=host_if" json:"host_if,omitempty"`
 	Name    string    `binapi:"string[64],name=name" json:"name,omitempty"`
@@ -163,6 +164,7 @@ func (m *AfXdpCreate) Unmarshal(b []byte) error {
 }
 
 // AfXdpCreateReply defines message 'af_xdp_create_reply'.
+// InProgress: the message form may change in the future versions
 type AfXdpCreateReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -200,6 +202,7 @@ func (m *AfXdpCreateReply) Unmarshal(b []byte) error {
 }
 
 // AfXdpDelete defines message 'af_xdp_delete'.
+// InProgress: the message form may change in the future versions
 type AfXdpDelete struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 }
@@ -233,6 +236,7 @@ func (m *AfXdpDelete) Unmarshal(b []byte) error {
 }
 
 // AfXdpDeleteReply defines message 'af_xdp_delete_reply'.
+// InProgress: the message form may change in the future versions
 type AfXdpDeleteReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }

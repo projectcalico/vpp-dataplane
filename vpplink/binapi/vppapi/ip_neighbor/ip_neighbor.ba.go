@@ -385,6 +385,7 @@ func (m *IPNeighborDump) Unmarshal(b []byte) error {
 }
 
 // IPNeighborEvent defines message 'ip_neighbor_event'.
+// Deprecated: the message will be removed in the future versions
 type IPNeighborEvent struct {
 	PID      uint32     `binapi:"u32,name=pid" json:"pid,omitempty"`
 	Neighbor IPNeighbor `binapi:"ip_neighbor,name=neighbor" json:"neighbor,omitempty"`
@@ -677,6 +678,7 @@ func (m *IPNeighborReplaceEndReply) Unmarshal(b []byte) error {
 }
 
 // WantIPNeighborEvents defines message 'want_ip_neighbor_events'.
+// Deprecated: the message will be removed in the future versions
 type WantIPNeighborEvents struct {
 	Enable    bool                           `binapi:"bool,name=enable" json:"enable,omitempty"`
 	PID       uint32                         `binapi:"u32,name=pid" json:"pid,omitempty"`
@@ -725,6 +727,7 @@ func (m *WantIPNeighborEvents) Unmarshal(b []byte) error {
 }
 
 // WantIPNeighborEventsReply defines message 'want_ip_neighbor_events_reply'.
+// Deprecated: the message will be removed in the future versions
 type WantIPNeighborEventsReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }

@@ -28,6 +28,7 @@ const (
 )
 
 // Ikev2ChildSaDetails defines message 'ikev2_child_sa_details'.
+// InProgress: the message form may change in the future versions
 type Ikev2ChildSaDetails struct {
 	Retval  int32                    `binapi:"i32,name=retval" json:"retval,omitempty"`
 	ChildSa ikev2_types.Ikev2ChildSa `binapi:"ikev2_child_sa,name=child_sa" json:"child_sa,omitempty"`
@@ -177,6 +178,7 @@ func (m *Ikev2ChildSaDetails) Unmarshal(b []byte) error {
 }
 
 // Ikev2ChildSaDump defines message 'ikev2_child_sa_dump'.
+// InProgress: the message form may change in the future versions
 type Ikev2ChildSaDump struct {
 	SaIndex uint32 `binapi:"u32,name=sa_index" json:"sa_index,omitempty"`
 }
@@ -210,6 +212,7 @@ func (m *Ikev2ChildSaDump) Unmarshal(b []byte) error {
 }
 
 // Ikev2InitiateDelChildSa defines message 'ikev2_initiate_del_child_sa'.
+// InProgress: the message form may change in the future versions
 type Ikev2InitiateDelChildSa struct {
 	Ispi uint32 `binapi:"u32,name=ispi" json:"ispi,omitempty"`
 }
@@ -243,6 +246,7 @@ func (m *Ikev2InitiateDelChildSa) Unmarshal(b []byte) error {
 }
 
 // Ikev2InitiateDelChildSaReply defines message 'ikev2_initiate_del_child_sa_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2InitiateDelChildSaReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -278,6 +282,7 @@ func (m *Ikev2InitiateDelChildSaReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2InitiateDelIkeSa defines message 'ikev2_initiate_del_ike_sa'.
+// InProgress: the message form may change in the future versions
 type Ikev2InitiateDelIkeSa struct {
 	Ispi uint64 `binapi:"u64,name=ispi" json:"ispi,omitempty"`
 }
@@ -311,6 +316,7 @@ func (m *Ikev2InitiateDelIkeSa) Unmarshal(b []byte) error {
 }
 
 // Ikev2InitiateDelIkeSaReply defines message 'ikev2_initiate_del_ike_sa_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2InitiateDelIkeSaReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -344,6 +350,7 @@ func (m *Ikev2InitiateDelIkeSaReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2InitiateRekeyChildSa defines message 'ikev2_initiate_rekey_child_sa'.
+// InProgress: the message form may change in the future versions
 type Ikev2InitiateRekeyChildSa struct {
 	Ispi uint32 `binapi:"u32,name=ispi" json:"ispi,omitempty"`
 }
@@ -377,6 +384,7 @@ func (m *Ikev2InitiateRekeyChildSa) Unmarshal(b []byte) error {
 }
 
 // Ikev2InitiateRekeyChildSaReply defines message 'ikev2_initiate_rekey_child_sa_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2InitiateRekeyChildSaReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -412,6 +420,7 @@ func (m *Ikev2InitiateRekeyChildSaReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2InitiateSaInit defines message 'ikev2_initiate_sa_init'.
+// InProgress: the message form may change in the future versions
 type Ikev2InitiateSaInit struct {
 	Name string `binapi:"string[64],name=name" json:"name,omitempty"`
 }
@@ -445,6 +454,7 @@ func (m *Ikev2InitiateSaInit) Unmarshal(b []byte) error {
 }
 
 // Ikev2InitiateSaInitReply defines message 'ikev2_initiate_sa_init_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2InitiateSaInitReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -478,6 +488,7 @@ func (m *Ikev2InitiateSaInitReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2NonceGet defines message 'ikev2_nonce_get'.
+// InProgress: the message form may change in the future versions
 type Ikev2NonceGet struct {
 	IsInitiator bool   `binapi:"bool,name=is_initiator" json:"is_initiator,omitempty"`
 	SaIndex     uint32 `binapi:"u32,name=sa_index" json:"sa_index,omitempty"`
@@ -515,6 +526,7 @@ func (m *Ikev2NonceGet) Unmarshal(b []byte) error {
 }
 
 // Ikev2NonceGetReply defines message 'ikev2_nonce_get_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2NonceGetReply struct {
 	Retval  int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	DataLen uint32 `binapi:"u32,name=data_len" json:"-"`
@@ -621,6 +633,7 @@ func (m *Ikev2PluginGetVersionReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileAddDel defines message 'ikev2_profile_add_del'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileAddDel struct {
 	Name  string `binapi:"string[64],name=name" json:"name,omitempty"`
 	IsAdd bool   `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -658,6 +671,7 @@ func (m *Ikev2ProfileAddDel) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileAddDelReply defines message 'ikev2_profile_add_del_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileAddDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -691,6 +705,7 @@ func (m *Ikev2ProfileAddDelReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileDetails defines message 'ikev2_profile_details'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileDetails struct {
 	Profile ikev2_types.Ikev2Profile `binapi:"ikev2_profile,name=profile" json:"profile,omitempty"`
 }
@@ -869,6 +884,7 @@ func (m *Ikev2ProfileDetails) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileDisableNatt defines message 'ikev2_profile_disable_natt'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileDisableNatt struct {
 	Name string `binapi:"string[64],name=name" json:"name,omitempty"`
 }
@@ -902,6 +918,7 @@ func (m *Ikev2ProfileDisableNatt) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileDisableNattReply defines message 'ikev2_profile_disable_natt_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileDisableNattReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -937,6 +954,7 @@ func (m *Ikev2ProfileDisableNattReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileDump defines message 'ikev2_profile_dump'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileDump struct{}
 
 func (m *Ikev2ProfileDump) Reset()               { *m = Ikev2ProfileDump{} }
@@ -964,6 +982,7 @@ func (m *Ikev2ProfileDump) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetAuth defines message 'ikev2_profile_set_auth'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetAuth struct {
 	Name       string `binapi:"string[64],name=name" json:"name,omitempty"`
 	AuthMethod uint8  `binapi:"u8,name=auth_method" json:"auth_method,omitempty"`
@@ -1014,6 +1033,7 @@ func (m *Ikev2ProfileSetAuth) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetAuthReply defines message 'ikev2_profile_set_auth_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetAuthReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1047,6 +1067,7 @@ func (m *Ikev2ProfileSetAuthReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetID defines message 'ikev2_profile_set_id'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetID struct {
 	Name    string `binapi:"string[64],name=name" json:"name,omitempty"`
 	IsLocal bool   `binapi:"bool,name=is_local" json:"is_local,omitempty"`
@@ -1097,6 +1118,7 @@ func (m *Ikev2ProfileSetID) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetIDReply defines message 'ikev2_profile_set_id_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetIDReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1130,6 +1152,7 @@ func (m *Ikev2ProfileSetIDReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetIpsecUDPPort defines message 'ikev2_profile_set_ipsec_udp_port'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetIpsecUDPPort struct {
 	IsSet uint8  `binapi:"u8,name=is_set" json:"is_set,omitempty"`
 	Port  uint16 `binapi:"u16,name=port" json:"port,omitempty"`
@@ -1173,6 +1196,7 @@ func (m *Ikev2ProfileSetIpsecUDPPort) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetIpsecUDPPortReply defines message 'ikev2_profile_set_ipsec_udp_port_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetIpsecUDPPortReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1208,6 +1232,7 @@ func (m *Ikev2ProfileSetIpsecUDPPortReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetLiveness defines message 'ikev2_profile_set_liveness'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetLiveness struct {
 	Period     uint32 `binapi:"u32,name=period" json:"period,omitempty"`
 	MaxRetries uint32 `binapi:"u32,name=max_retries" json:"max_retries,omitempty"`
@@ -1245,6 +1270,7 @@ func (m *Ikev2ProfileSetLiveness) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetLivenessReply defines message 'ikev2_profile_set_liveness_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetLivenessReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1280,6 +1306,7 @@ func (m *Ikev2ProfileSetLivenessReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetTs defines message 'ikev2_profile_set_ts'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetTs struct {
 	Name string              `binapi:"string[64],name=name" json:"name,omitempty"`
 	Ts   ikev2_types.Ikev2Ts `binapi:"ikev2_ts,name=ts" json:"ts,omitempty"`
@@ -1344,6 +1371,7 @@ func (m *Ikev2ProfileSetTs) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetTsReply defines message 'ikev2_profile_set_ts_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetTsReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1377,6 +1405,7 @@ func (m *Ikev2ProfileSetTsReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetUDPEncap defines message 'ikev2_profile_set_udp_encap'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetUDPEncap struct {
 	Name string `binapi:"string[64],name=name" json:"name,omitempty"`
 }
@@ -1410,6 +1439,7 @@ func (m *Ikev2ProfileSetUDPEncap) Unmarshal(b []byte) error {
 }
 
 // Ikev2ProfileSetUDPEncapReply defines message 'ikev2_profile_set_udp_encap_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2ProfileSetUDPEncapReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1445,6 +1475,7 @@ func (m *Ikev2ProfileSetUDPEncapReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2SaDetails defines message 'ikev2_sa_details'.
+// InProgress: the message form may change in the future versions
 type Ikev2SaDetails struct {
 	Retval int32               `binapi:"i32,name=retval" json:"retval,omitempty"`
 	Sa     ikev2_types.Ikev2Sa `binapi:"ikev2_sa,name=sa" json:"sa,omitempty"`
@@ -1660,6 +1691,7 @@ func (m *Ikev2SaDetails) Unmarshal(b []byte) error {
 }
 
 // Ikev2SaDump defines message 'ikev2_sa_dump'.
+// InProgress: the message form may change in the future versions
 type Ikev2SaDump struct{}
 
 func (m *Ikev2SaDump) Reset()               { *m = Ikev2SaDump{} }
@@ -1687,6 +1719,7 @@ func (m *Ikev2SaDump) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetEspTransforms defines message 'ikev2_set_esp_transforms'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetEspTransforms struct {
 	Name string                         `binapi:"string[64],name=name" json:"name,omitempty"`
 	Tr   ikev2_types.Ikev2EspTransforms `binapi:"ikev2_esp_transforms,name=tr" json:"tr,omitempty"`
@@ -1730,6 +1763,7 @@ func (m *Ikev2SetEspTransforms) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetEspTransformsReply defines message 'ikev2_set_esp_transforms_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetEspTransformsReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1763,6 +1797,7 @@ func (m *Ikev2SetEspTransformsReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetIkeTransforms defines message 'ikev2_set_ike_transforms'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetIkeTransforms struct {
 	Name string                         `binapi:"string[64],name=name" json:"name,omitempty"`
 	Tr   ikev2_types.Ikev2IkeTransforms `binapi:"ikev2_ike_transforms,name=tr" json:"tr,omitempty"`
@@ -1809,6 +1844,7 @@ func (m *Ikev2SetIkeTransforms) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetIkeTransformsReply defines message 'ikev2_set_ike_transforms_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetIkeTransformsReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1842,6 +1878,7 @@ func (m *Ikev2SetIkeTransformsReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetLocalKey defines message 'ikev2_set_local_key'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetLocalKey struct {
 	KeyFile string `binapi:"string[256],name=key_file" json:"key_file,omitempty"`
 }
@@ -1875,6 +1912,7 @@ func (m *Ikev2SetLocalKey) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetLocalKeyReply defines message 'ikev2_set_local_key_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetLocalKeyReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1908,6 +1946,7 @@ func (m *Ikev2SetLocalKeyReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetResponder defines message 'ikev2_set_responder'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetResponder struct {
 	Name      string                     `binapi:"string[64],name=name" json:"name,omitempty"`
 	Responder ikev2_types.Ikev2Responder `binapi:"ikev2_responder,name=responder" json:"responder,omitempty"`
@@ -1951,6 +1990,7 @@ func (m *Ikev2SetResponder) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetResponderHostname defines message 'ikev2_set_responder_hostname'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetResponderHostname struct {
 	Name      string                         `binapi:"string[64],name=name" json:"name,omitempty"`
 	Hostname  string                         `binapi:"string[64],name=hostname" json:"hostname,omitempty"`
@@ -1992,6 +2032,7 @@ func (m *Ikev2SetResponderHostname) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetResponderHostnameReply defines message 'ikev2_set_responder_hostname_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetResponderHostnameReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -2027,6 +2068,7 @@ func (m *Ikev2SetResponderHostnameReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetResponderReply defines message 'ikev2_set_responder_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetResponderReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -2060,6 +2102,7 @@ func (m *Ikev2SetResponderReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetSaLifetime defines message 'ikev2_set_sa_lifetime'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetSaLifetime struct {
 	Name            string `binapi:"string[64],name=name" json:"name,omitempty"`
 	Lifetime        uint64 `binapi:"u64,name=lifetime" json:"lifetime,omitempty"`
@@ -2109,6 +2152,7 @@ func (m *Ikev2SetSaLifetime) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetSaLifetimeReply defines message 'ikev2_set_sa_lifetime_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetSaLifetimeReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -2142,6 +2186,7 @@ func (m *Ikev2SetSaLifetimeReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetTunnelInterface defines message 'ikev2_set_tunnel_interface'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetTunnelInterface struct {
 	Name      string                         `binapi:"string[64],name=name" json:"name,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2179,6 +2224,7 @@ func (m *Ikev2SetTunnelInterface) Unmarshal(b []byte) error {
 }
 
 // Ikev2SetTunnelInterfaceReply defines message 'ikev2_set_tunnel_interface_reply'.
+// InProgress: the message form may change in the future versions
 type Ikev2SetTunnelInterfaceReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -2214,6 +2260,7 @@ func (m *Ikev2SetTunnelInterfaceReply) Unmarshal(b []byte) error {
 }
 
 // Ikev2TrafficSelectorDetails defines message 'ikev2_traffic_selector_details'.
+// InProgress: the message form may change in the future versions
 type Ikev2TrafficSelectorDetails struct {
 	Retval int32               `binapi:"i32,name=retval" json:"retval,omitempty"`
 	Ts     ikev2_types.Ikev2Ts `binapi:"ikev2_ts,name=ts" json:"ts,omitempty"`
@@ -2278,6 +2325,7 @@ func (m *Ikev2TrafficSelectorDetails) Unmarshal(b []byte) error {
 }
 
 // Ikev2TrafficSelectorDump defines message 'ikev2_traffic_selector_dump'.
+// InProgress: the message form may change in the future versions
 type Ikev2TrafficSelectorDump struct {
 	IsInitiator  bool   `binapi:"bool,name=is_initiator" json:"is_initiator,omitempty"`
 	SaIndex      uint32 `binapi:"u32,name=sa_index" json:"sa_index,omitempty"`

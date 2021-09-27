@@ -580,6 +580,7 @@ func (m *Nat44AddDelStaticMappingReply) Unmarshal(b []byte) error {
 }
 
 // Nat44AddDelStaticMappingV2 defines message 'nat44_add_del_static_mapping_v2'.
+// InProgress: the message form may change in the future versions
 type Nat44AddDelStaticMappingV2 struct {
 	IsAdd             bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
 	MatchPool         bool                           `binapi:"bool,name=match_pool" json:"match_pool,omitempty"`
@@ -657,6 +658,7 @@ func (m *Nat44AddDelStaticMappingV2) Unmarshal(b []byte) error {
 }
 
 // Nat44AddDelStaticMappingV2Reply defines message 'nat44_add_del_static_mapping_v2_reply'.
+// InProgress: the message form may change in the future versions
 type Nat44AddDelStaticMappingV2Reply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -920,6 +922,7 @@ func (m *Nat44DelUserReply) Unmarshal(b []byte) error {
 }
 
 // Nat44EdPluginEnableDisable defines message 'nat44_ed_plugin_enable_disable'.
+// InProgress: the message form may change in the future versions
 type Nat44EdPluginEnableDisable struct {
 	InsideVrf     uint32           `binapi:"u32,name=inside_vrf" json:"inside_vrf,omitempty"`
 	OutsideVrf    uint32           `binapi:"u32,name=outside_vrf" json:"outside_vrf,omitempty"`
@@ -973,6 +976,7 @@ func (m *Nat44EdPluginEnableDisable) Unmarshal(b []byte) error {
 }
 
 // Nat44EdPluginEnableDisableReply defines message 'nat44_ed_plugin_enable_disable_reply'.
+// InProgress: the message form may change in the future versions
 type Nat44EdPluginEnableDisableReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1008,6 +1012,7 @@ func (m *Nat44EdPluginEnableDisableReply) Unmarshal(b []byte) error {
 }
 
 // Nat44EdSetFqOptions defines message 'nat44_ed_set_fq_options'.
+// InProgress: the message form may change in the future versions
 type Nat44EdSetFqOptions struct {
 	FrameQueueNelts uint32 `binapi:"u32,name=frame_queue_nelts" json:"frame_queue_nelts,omitempty"`
 }
@@ -1041,6 +1046,7 @@ func (m *Nat44EdSetFqOptions) Unmarshal(b []byte) error {
 }
 
 // Nat44EdSetFqOptionsReply defines message 'nat44_ed_set_fq_options_reply'.
+// InProgress: the message form may change in the future versions
 type Nat44EdSetFqOptionsReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1074,6 +1080,7 @@ func (m *Nat44EdSetFqOptionsReply) Unmarshal(b []byte) error {
 }
 
 // Nat44EdShowFqOptions defines message 'nat44_ed_show_fq_options'.
+// InProgress: the message form may change in the future versions
 type Nat44EdShowFqOptions struct{}
 
 func (m *Nat44EdShowFqOptions) Reset()               { *m = Nat44EdShowFqOptions{} }
@@ -1101,6 +1108,7 @@ func (m *Nat44EdShowFqOptions) Unmarshal(b []byte) error {
 }
 
 // Nat44EdShowFqOptionsReply defines message 'nat44_ed_show_fq_options_reply'.
+// InProgress: the message form may change in the future versions
 type Nat44EdShowFqOptionsReply struct {
 	Retval          int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	FrameQueueNelts uint32 `binapi:"u32,name=frame_queue_nelts" json:"frame_queue_nelts,omitempty"`
@@ -1138,6 +1146,7 @@ func (m *Nat44EdShowFqOptionsReply) Unmarshal(b []byte) error {
 }
 
 // Nat44ForwardingEnableDisable defines message 'nat44_forwarding_enable_disable'.
+// Deprecated: the message will be removed in the future versions
 type Nat44ForwardingEnableDisable struct {
 	Enable bool `binapi:"bool,name=enable" json:"enable,omitempty"`
 }
@@ -1173,6 +1182,7 @@ func (m *Nat44ForwardingEnableDisable) Unmarshal(b []byte) error {
 }
 
 // Nat44ForwardingEnableDisableReply defines message 'nat44_forwarding_enable_disable_reply'.
+// Deprecated: the message will be removed in the future versions
 type Nat44ForwardingEnableDisableReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1208,6 +1218,7 @@ func (m *Nat44ForwardingEnableDisableReply) Unmarshal(b []byte) error {
 }
 
 // Nat44ForwardingIsEnabled defines message 'nat44_forwarding_is_enabled'.
+// Deprecated: the message will be removed in the future versions
 type Nat44ForwardingIsEnabled struct{}
 
 func (m *Nat44ForwardingIsEnabled) Reset()               { *m = Nat44ForwardingIsEnabled{} }
@@ -1235,6 +1246,7 @@ func (m *Nat44ForwardingIsEnabled) Unmarshal(b []byte) error {
 }
 
 // Nat44ForwardingIsEnabledReply defines message 'nat44_forwarding_is_enabled_reply'.
+// Deprecated: the message will be removed in the future versions
 type Nat44ForwardingIsEnabledReply struct {
 	Enabled bool `binapi:"bool,name=enabled" json:"enabled,omitempty"`
 }
@@ -1914,6 +1926,7 @@ func (m *Nat44LbStaticMappingDump) Unmarshal(b []byte) error {
 }
 
 // Nat44PluginEnableDisable defines message 'nat44_plugin_enable_disable'.
+// Deprecated: the message will be removed in the future versions
 type Nat44PluginEnableDisable struct {
 	InsideVrf     uint32           `binapi:"u32,name=inside_vrf" json:"inside_vrf,omitempty"`
 	OutsideVrf    uint32           `binapi:"u32,name=outside_vrf" json:"outside_vrf,omitempty"`
@@ -1979,6 +1992,7 @@ func (m *Nat44PluginEnableDisable) Unmarshal(b []byte) error {
 }
 
 // Nat44PluginEnableDisableReply defines message 'nat44_plugin_enable_disable_reply'.
+// Deprecated: the message will be removed in the future versions
 type Nat44PluginEnableDisableReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -2014,6 +2028,7 @@ func (m *Nat44PluginEnableDisableReply) Unmarshal(b []byte) error {
 }
 
 // Nat44SessionCleanup defines message 'nat44_session_cleanup'.
+// Deprecated: the message will be removed in the future versions
 type Nat44SessionCleanup struct{}
 
 func (m *Nat44SessionCleanup) Reset()               { *m = Nat44SessionCleanup{} }
@@ -2041,6 +2056,7 @@ func (m *Nat44SessionCleanup) Unmarshal(b []byte) error {
 }
 
 // Nat44SessionCleanupReply defines message 'nat44_session_cleanup_reply'.
+// Deprecated: the message will be removed in the future versions
 type Nat44SessionCleanupReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -2144,6 +2160,7 @@ func (m *Nat44SetSessionLimitReply) Unmarshal(b []byte) error {
 }
 
 // Nat44ShowRunningConfig defines message 'nat44_show_running_config'.
+// InProgress: the message form may change in the future versions
 type Nat44ShowRunningConfig struct{}
 
 func (m *Nat44ShowRunningConfig) Reset()               { *m = Nat44ShowRunningConfig{} }
@@ -2171,6 +2188,7 @@ func (m *Nat44ShowRunningConfig) Unmarshal(b []byte) error {
 }
 
 // Nat44ShowRunningConfigReply defines message 'nat44_show_running_config_reply'.
+// InProgress: the message form may change in the future versions
 type Nat44ShowRunningConfigReply struct {
 	Retval              int32                 `binapi:"i32,name=retval" json:"retval,omitempty"`
 	InsideVrf           uint32                `binapi:"u32,name=inside_vrf" json:"inside_vrf,omitempty"`
@@ -2543,6 +2561,7 @@ func (m *Nat44UserSessionDump) Unmarshal(b []byte) error {
 }
 
 // NatControlPing defines message 'nat_control_ping'.
+// Deprecated: the message will be removed in the future versions
 type NatControlPing struct{}
 
 func (m *NatControlPing) Reset()               { *m = NatControlPing{} }
@@ -2570,6 +2589,7 @@ func (m *NatControlPing) Unmarshal(b []byte) error {
 }
 
 // NatControlPingReply defines message 'nat_control_ping_reply'.
+// Deprecated: the message will be removed in the future versions
 type NatControlPingReply struct {
 	Retval      int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	ClientIndex uint32 `binapi:"u32,name=client_index" json:"client_index,omitempty"`
@@ -2765,6 +2785,7 @@ func (m *NatGetMssClampingReply) Unmarshal(b []byte) error {
 }
 
 // NatGetTimeouts defines message 'nat_get_timeouts'.
+// Deprecated: the message will be removed in the future versions
 type NatGetTimeouts struct{}
 
 func (m *NatGetTimeouts) Reset()               { *m = NatGetTimeouts{} }
@@ -2792,6 +2813,7 @@ func (m *NatGetTimeouts) Unmarshal(b []byte) error {
 }
 
 // NatGetTimeoutsReply defines message 'nat_get_timeouts_reply'.
+// Deprecated: the message will be removed in the future versions
 type NatGetTimeoutsReply struct {
 	Retval         int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	UDP            uint32 `binapi:"u32,name=udp" json:"udp,omitempty"`
@@ -3300,6 +3322,7 @@ func (m *NatHaSetListenerReply) Unmarshal(b []byte) error {
 }
 
 // NatIpfixEnableDisable defines message 'nat_ipfix_enable_disable'.
+// Deprecated: the message will be removed in the future versions
 type NatIpfixEnableDisable struct {
 	DomainID uint32 `binapi:"u32,name=domain_id" json:"domain_id,omitempty"`
 	SrcPort  uint16 `binapi:"u16,name=src_port" json:"src_port,omitempty"`
@@ -3341,6 +3364,7 @@ func (m *NatIpfixEnableDisable) Unmarshal(b []byte) error {
 }
 
 // NatIpfixEnableDisableReply defines message 'nat_ipfix_enable_disable_reply'.
+// Deprecated: the message will be removed in the future versions
 type NatIpfixEnableDisableReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -3462,6 +3486,7 @@ func (m *NatSetAddrAndPortAllocAlgReply) Unmarshal(b []byte) error {
 }
 
 // NatSetLogLevel defines message 'nat_set_log_level'.
+// Deprecated: the message will be removed in the future versions
 type NatSetLogLevel struct {
 	LogLevel nat_types.NatLogLevel `binapi:"nat_log_level,name=log_level" json:"log_level,omitempty"`
 }
@@ -3495,6 +3520,7 @@ func (m *NatSetLogLevel) Unmarshal(b []byte) error {
 }
 
 // NatSetLogLevelReply defines message 'nat_set_log_level_reply'.
+// Deprecated: the message will be removed in the future versions
 type NatSetLogLevelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -3598,6 +3624,7 @@ func (m *NatSetMssClampingReply) Unmarshal(b []byte) error {
 }
 
 // NatSetTimeouts defines message 'nat_set_timeouts'.
+// Deprecated: the message will be removed in the future versions
 type NatSetTimeouts struct {
 	UDP            uint32 `binapi:"u32,name=udp" json:"udp,omitempty"`
 	TCPEstablished uint32 `binapi:"u32,name=tcp_established" json:"tcp_established,omitempty"`
@@ -3643,6 +3670,7 @@ func (m *NatSetTimeouts) Unmarshal(b []byte) error {
 }
 
 // NatSetTimeoutsReply defines message 'nat_set_timeouts_reply'.
+// Deprecated: the message will be removed in the future versions
 type NatSetTimeoutsReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -3742,6 +3770,7 @@ func (m *NatSetWorkersReply) Unmarshal(b []byte) error {
 }
 
 // NatShowConfig defines message 'nat_show_config'.
+// Deprecated: the message will be removed in the future versions
 type NatShowConfig struct{}
 
 func (m *NatShowConfig) Reset()               { *m = NatShowConfig{} }
@@ -3769,6 +3798,7 @@ func (m *NatShowConfig) Unmarshal(b []byte) error {
 }
 
 // NatShowConfig2 defines message 'nat_show_config_2'.
+// Deprecated: the message will be removed in the future versions
 type NatShowConfig2 struct{}
 
 func (m *NatShowConfig2) Reset()               { *m = NatShowConfig2{} }
@@ -3796,6 +3826,7 @@ func (m *NatShowConfig2) Unmarshal(b []byte) error {
 }
 
 // NatShowConfig2Reply defines message 'nat_show_config_2_reply'.
+// Deprecated: the message will be removed in the future versions
 type NatShowConfig2Reply struct {
 	Retval                          int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	StaticMappingOnly               bool   `binapi:"bool,name=static_mapping_only" json:"static_mapping_only,omitempty"`
@@ -3905,6 +3936,7 @@ func (m *NatShowConfig2Reply) Unmarshal(b []byte) error {
 }
 
 // NatShowConfigReply defines message 'nat_show_config_reply'.
+// Deprecated: the message will be removed in the future versions
 type NatShowConfigReply struct {
 	Retval                          int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	StaticMappingOnly               bool   `binapi:"bool,name=static_mapping_only" json:"static_mapping_only,omitempty"`

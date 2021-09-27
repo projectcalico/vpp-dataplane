@@ -462,6 +462,7 @@ func (m *IpsecItfDump) Unmarshal(b []byte) error {
 }
 
 // IpsecSaDetails defines message 'ipsec_sa_details'.
+// Deprecated: the message will be removed in the future versions
 type IpsecSaDetails struct {
 	Entry          ipsec_types.IpsecSadEntry      `binapi:"ipsec_sad_entry,name=entry" json:"entry,omitempty"`
 	SwIfIndex      interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -572,6 +573,7 @@ func (m *IpsecSaDetails) Unmarshal(b []byte) error {
 }
 
 // IpsecSaDump defines message 'ipsec_sa_dump'.
+// Deprecated: the message will be removed in the future versions
 type IpsecSaDump struct {
 	SaID uint32 `binapi:"u32,name=sa_id" json:"sa_id,omitempty"`
 }
@@ -1021,6 +1023,7 @@ func (m *IpsecSadEntryAdd) Unmarshal(b []byte) error {
 }
 
 // IpsecSadEntryAddDel defines message 'ipsec_sad_entry_add_del'.
+// Deprecated: the message will be removed in the future versions
 type IpsecSadEntryAddDel struct {
 	IsAdd bool                      `binapi:"bool,name=is_add" json:"is_add,omitempty"`
 	Entry ipsec_types.IpsecSadEntry `binapi:"ipsec_sad_entry,name=entry" json:"entry,omitempty"`
@@ -1111,6 +1114,7 @@ func (m *IpsecSadEntryAddDel) Unmarshal(b []byte) error {
 }
 
 // IpsecSadEntryAddDelReply defines message 'ipsec_sad_entry_add_del_reply'.
+// Deprecated: the message will be removed in the future versions
 type IpsecSadEntryAddDelReply struct {
 	Retval    int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	StatIndex uint32 `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
