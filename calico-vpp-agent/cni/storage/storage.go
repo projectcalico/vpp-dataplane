@@ -174,7 +174,8 @@ type LocalPodSpec struct {
 	PblIndexesLen     int `struc:"int16,sizeof=PblIndexes"`
 	PblIndexes        []uint32
 
-	VrfId uint32
+	V4VrfId uint32
+	V6VrfId uint32
 
 	/* Caching */
 	NeedsSnat bool
@@ -225,6 +226,22 @@ func (ps *LocalPodSpec) Hasv46() (hasv4 bool, hasv6 bool) {
 		}
 	}
 	return hasv4, hasv6
+}
+
+func (ps *LocalPodSpec) GetVrfId(isV6 bool) uint32 {
+	if isV6 {
+		return ps.V6VrfId
+	} else {
+		return ps.V4VrfId
+	}
+}
+
+func (ps *LocalPodSpec) SetVrfId(id uint32, isV6 bool) {
+	if isV6 {
+		ps.V6VrfId = id
+	} else {
+		ps.V4VrfId = id
+	}
 }
 
 type SavedState struct {

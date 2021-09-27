@@ -106,7 +106,8 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 	}
 
 	for _, ipFamily := range vpplink.IpFamilies {
-		err = i.vpp.SetInterfaceVRF(swIfIndex, podSpec.VrfId, ipFamily.IsIp6)
+		vrfId := podSpec.GetVrfId(ipFamily.IsIp6)
+		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfId, ipFamily.IsIp6)
 		if err != nil {
 			return errors.Wrapf(err, "error setting vpp if[%d] in pod vrf", swIfIndex)
 		}
