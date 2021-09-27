@@ -81,7 +81,7 @@ function generate_govpp_apis ()
 	  punt \
 	  vxlan \
 	  af_xdp \
-	  vpe \
+	  vlib \
 	  virtio \
 	  avf \
 	  wireguard \

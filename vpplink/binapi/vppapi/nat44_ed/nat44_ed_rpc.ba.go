@@ -8,7 +8,7 @@ import (
 	"io"
 
 	api "git.fd.io/govpp.git/api"
-	vpe "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vpe"
+	vlib "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vlib"
 )
 
 // RPCService defines RPC service nat44_ed.
@@ -134,7 +134,7 @@ func (c *serviceClient) Nat44AddressDump(ctx context.Context, in *Nat44AddressDu
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -157,7 +157,7 @@ func (c *serviceClient_Nat44AddressDumpClient) Recv() (*Nat44AddressDetails, err
 	switch m := msg.(type) {
 	case *Nat44AddressDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -236,7 +236,7 @@ func (c *serviceClient) Nat44IdentityMappingDump(ctx context.Context, in *Nat44I
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -259,7 +259,7 @@ func (c *serviceClient_Nat44IdentityMappingDumpClient) Recv() (*Nat44IdentityMap
 	switch m := msg.(type) {
 	case *Nat44IdentityMappingDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -293,7 +293,7 @@ func (c *serviceClient) Nat44InterfaceAddrDump(ctx context.Context, in *Nat44Int
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -316,7 +316,7 @@ func (c *serviceClient_Nat44InterfaceAddrDumpClient) Recv() (*Nat44InterfaceAddr
 	switch m := msg.(type) {
 	case *Nat44InterfaceAddrDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -332,7 +332,7 @@ func (c *serviceClient) Nat44InterfaceDump(ctx context.Context, in *Nat44Interfa
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -355,7 +355,7 @@ func (c *serviceClient_Nat44InterfaceDumpClient) Recv() (*Nat44InterfaceDetails,
 	switch m := msg.(type) {
 	case *Nat44InterfaceDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -371,7 +371,7 @@ func (c *serviceClient) Nat44InterfaceOutputFeatureDump(ctx context.Context, in 
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -394,7 +394,7 @@ func (c *serviceClient_Nat44InterfaceOutputFeatureDumpClient) Recv() (*Nat44Inte
 	switch m := msg.(type) {
 	case *Nat44InterfaceOutputFeatureDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -419,7 +419,7 @@ func (c *serviceClient) Nat44LbStaticMappingDump(ctx context.Context, in *Nat44L
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -442,7 +442,7 @@ func (c *serviceClient_Nat44LbStaticMappingDumpClient) Recv() (*Nat44LbStaticMap
 	switch m := msg.(type) {
 	case *Nat44LbStaticMappingDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -494,7 +494,7 @@ func (c *serviceClient) Nat44StaticMappingDump(ctx context.Context, in *Nat44Sta
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -517,7 +517,7 @@ func (c *serviceClient_Nat44StaticMappingDumpClient) Recv() (*Nat44StaticMapping
 	switch m := msg.(type) {
 	case *Nat44StaticMappingDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -533,7 +533,7 @@ func (c *serviceClient) Nat44UserDump(ctx context.Context, in *Nat44UserDump) (R
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -556,7 +556,7 @@ func (c *serviceClient_Nat44UserDumpClient) Recv() (*Nat44UserDetails, error) {
 	switch m := msg.(type) {
 	case *Nat44UserDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -572,7 +572,7 @@ func (c *serviceClient) Nat44UserSessionDump(ctx context.Context, in *Nat44UserS
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -595,7 +595,7 @@ func (c *serviceClient_Nat44UserSessionDumpClient) Recv() (*Nat44UserSessionDeta
 	switch m := msg.(type) {
 	case *Nat44UserSessionDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -773,7 +773,7 @@ func (c *serviceClient) NatWorkerDump(ctx context.Context, in *NatWorkerDump) (R
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -796,7 +796,7 @@ func (c *serviceClient_NatWorkerDumpClient) Recv() (*NatWorkerDetails, error) {
 	switch m := msg.(type) {
 	case *NatWorkerDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
