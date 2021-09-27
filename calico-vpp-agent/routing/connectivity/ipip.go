@@ -192,6 +192,15 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 
 	remaining_routes, found := p.ipipRoutes[tunnel.SwIfIndex]
 	if !found || len(remaining_routes) == 0 {
+		p.log.Infof("Deleting pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), tunnel.SwIfIndex)
+		err = p.vpp.RouteDel(&types.Route{
+			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
+			Paths: []types.RoutePath{{
+				SwIfIndex: tunnel.SwIfIndex,
+				Gw:        nil,
+			}},
+			Table: commonAgent.PodVRFIndex,
+		})
 		p.log.Infof("Deleting tunnel...%s", tunnel)
 		err := p.vpp.DelIPIPTunnel(tunnel)
 		if err != nil {

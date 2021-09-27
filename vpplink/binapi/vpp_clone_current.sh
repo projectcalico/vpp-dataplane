@@ -86,6 +86,11 @@ git_cherry_pick refs/changes/71/32271/6 # 32271: memif: add support for ns abstr
 git_cherry_pick refs/changes/57/33557/1 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
 git_cherry_pick refs/changes/94/33794/1 # 33794: tap: Fix tap create with ns | https://gerrit.fd.io/r/c/vpp/+/33794
 
+git_cherry_pick refs/changes/13/32413/7 # 32413: wireguard: move adjacency processing from wireguard_peer to wireguard_interface | https://gerrit.fd.io/r/c/vpp/+/32413
+git_cherry_pick refs/changes/43/32443/8 # 32443: wireguard: use the same udp-port for multi-tunnel | https://gerrit.fd.io/r/c/vpp/+/32443
+git_cherry_pick refs/changes/09/32009/6 # 32009: wireguard: add ipv6 support | https://gerrit.fd.io/r/c/vpp/+/32009
+git_cherry_pick refs/changes/85/32685/5 # 32685: wireguard: add events for peer | https://gerrit.fd.io/r/c/vpp/+/32685
+
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
 git_cherry_pick refs/changes/88/31588/1 # 31588: cnat: [WIP] no k8s maglev from pods | https://gerrit.fd.io/r/c/vpp/+/31588

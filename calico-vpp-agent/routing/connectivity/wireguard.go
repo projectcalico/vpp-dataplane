@@ -278,7 +278,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	return nil
 }
 
-func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) error {
+func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
 	peer, found := p.wireguardPeers[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("Wireguard: Del unknown %s", cn.NextHop.String())
@@ -286,14 +286,36 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	}
 	p.log.Infof("Wireguard: Del ?->%s %d", cn.NextHop.String(), peer.Index)
 	peer.DelAllowedIp(cn.Dst)
-	err := p.vpp.DelWireguardPeer(&peer)
-	if err != nil {
-		return errors.Wrapf(err, "Error deleting wireguard peer %s", peer)
-	}
-	delete(p.wireguardPeers, cn.NextHop.String())
-	if len(peer.AllowedIps) != 0 {
+
+	if len(peer.AllowedIps) == 0 {
+		err = p.vpp.DelWireguardPeer(&peer)
 		if err != nil {
-			return errors.Wrapf(err, "Error adding (back) wireguard peer %s", peer)
+			return errors.Wrapf(err, "Error deleting wireguard peer %s", peer)
+		}
+		err = p.vpp.RouteDel(&types.Route{
+			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
+			Paths: []types.RoutePath{{
+				SwIfIndex: p.wireguardTunnel.SwIfIndex,
+				Gw:        nil,
+			}},
+			Table: commonAgent.PodVRFIndex,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "Error deleting route to %s in ipip tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
+		}
+		delete(p.wireguardPeers, cn.NextHop.String())
+	} else {
+		/* for now delete + recreate using modified object as delete
+		 * doesn't consider AllowedIps */
+		p.log.Infof("Wireguard: Delete (update) peer [%s]", peer.String())
+		err = p.vpp.DelWireguardPeer(&peer)
+		if err != nil {
+			return errors.Wrapf(err, "Error deleting (update) wireguard peer %s", peer.String())
+		}
+		p.log.Infof("Wireguard: Addback (update) peer [%s]", peer)
+		_, err = p.vpp.AddWireguardPeer(&peer)
+		if err != nil {
+			return errors.Wrapf(err, "Error adding (update) wireguard peer %s", peer)
 		}
 		p.wireguardPeers[cn.NextHop.String()] = peer
 	}
