@@ -8,7 +8,7 @@ import (
 	"io"
 
 	api "git.fd.io/govpp.git/api"
-	vpe "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vpe"
+	vlib "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vlib"
 )
 
 // RPCService defines RPC service vxlan.
@@ -84,7 +84,7 @@ func (c *serviceClient) VxlanTunnelDump(ctx context.Context, in *VxlanTunnelDump
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -107,7 +107,7 @@ func (c *serviceClient_VxlanTunnelDumpClient) Recv() (*VxlanTunnelDetails, error
 	switch m := msg.(type) {
 	case *VxlanTunnelDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -123,7 +123,7 @@ func (c *serviceClient) VxlanTunnelV2Dump(ctx context.Context, in *VxlanTunnelV2
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -146,7 +146,7 @@ func (c *serviceClient_VxlanTunnelV2DumpClient) Recv() (*VxlanTunnelV2Details, e
 	switch m := msg.(type) {
 	case *VxlanTunnelV2Details:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)

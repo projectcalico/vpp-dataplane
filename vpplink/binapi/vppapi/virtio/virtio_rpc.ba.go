@@ -8,7 +8,7 @@ import (
 	"io"
 
 	api "git.fd.io/govpp.git/api"
-	vpe "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vpe"
+	vlib "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vlib"
 )
 
 // RPCService defines RPC service virtio.
@@ -36,7 +36,7 @@ func (c *serviceClient) SwInterfaceVirtioPciDump(ctx context.Context, in *SwInte
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -59,7 +59,7 @@ func (c *serviceClient_SwInterfaceVirtioPciDumpClient) Recv() (*SwInterfaceVirti
 	switch m := msg.(type) {
 	case *SwInterfaceVirtioPciDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)

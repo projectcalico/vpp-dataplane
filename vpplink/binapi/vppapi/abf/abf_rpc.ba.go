@@ -8,7 +8,7 @@ import (
 	"io"
 
 	api "git.fd.io/govpp.git/api"
-	vpe "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vpe"
+	vlib "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vlib"
 )
 
 // RPCService defines RPC service abf.
@@ -46,7 +46,7 @@ func (c *serviceClient) AbfItfAttachDump(ctx context.Context, in *AbfItfAttachDu
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -69,7 +69,7 @@ func (c *serviceClient_AbfItfAttachDumpClient) Recv() (*AbfItfAttachDetails, err
 	switch m := msg.(type) {
 	case *AbfItfAttachDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -103,7 +103,7 @@ func (c *serviceClient) AbfPolicyDump(ctx context.Context, in *AbfPolicyDump) (R
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -126,7 +126,7 @@ func (c *serviceClient_AbfPolicyDumpClient) Recv() (*AbfPolicyDetails, error) {
 	switch m := msg.(type) {
 	case *AbfPolicyDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *vlib.ControlPingReply:
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)

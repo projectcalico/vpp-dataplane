@@ -62,7 +62,7 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
-VPP_COMMIT=ef356f57b54b948d990b293514f062aebf86da72
+VPP_COMMIT=c022b2fe399809eda173a748ca050ffc34c18025
 VPP_DIR="$1"
 
 if [ ! -d $1/.git ]; then
@@ -80,14 +80,11 @@ fi
 
 git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git_cherry_pick refs/changes/21/31321/11 # 31321: devices: add support for pseudo header checksum | https://gerrit.fd.io/r/c/vpp/+/31321
-git_cherry_pick refs/changes/69/31869/18 # 31869: gso: do not try gro on small packets | https://gerrit.fd.io/r/c/vpp/+/31869
 git_cherry_pick refs/changes/82/32482/1 # 32482: virtio: compute cksums in output no offload | https://gerrit.fd.io/r/c/vpp/+/32482
-git_cherry_pick refs/changes/83/32483/1 # 32483: virtio: Still init unused txq | https://gerrit.fd.io/r/c/vpp/+/32483
 git_cherry_pick refs/changes/71/32871/1 # 32871: devices: Add queues params in create_if | https://gerrit.fd.io/r/c/vpp/+/32871
 git_cherry_pick refs/changes/71/32271/6 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
 git_cherry_pick refs/changes/57/33557/1 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
 git_cherry_pick refs/changes/94/33794/1 # 33794: tap: Fix tap create with ns | https://gerrit.fd.io/r/c/vpp/+/33794
-git_cherry_pick refs/changes/93/33793/1 # 33793: wireguard: fix wg-output-tun feature configuration | https://gerrit.fd.io/r/c/vpp/+/33793
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
