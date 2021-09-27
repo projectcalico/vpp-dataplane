@@ -79,6 +79,10 @@ func (c *serviceClient_IpsecBackendDumpClient) Recv() (*IpsecBackendDetails, err
 	case *IpsecBackendDetails:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -145,6 +149,10 @@ func (c *serviceClient_IpsecItfDumpClient) Recv() (*IpsecItfDetails, error) {
 	case *IpsecItfDetails:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -184,6 +192,10 @@ func (c *serviceClient_IpsecSaDumpClient) Recv() (*IpsecSaDetails, error) {
 	case *IpsecSaDetails:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -223,6 +235,10 @@ func (c *serviceClient_IpsecSaV2DumpClient) Recv() (*IpsecSaV2Details, error) {
 	case *IpsecSaV2Details:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -262,6 +278,10 @@ func (c *serviceClient_IpsecSaV3DumpClient) Recv() (*IpsecSaV3Details, error) {
 	case *IpsecSaV3Details:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -373,6 +393,10 @@ func (c *serviceClient_IpsecSpdDumpClient) Recv() (*IpsecSpdDetails, error) {
 	case *IpsecSpdDetails:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -421,6 +445,10 @@ func (c *serviceClient_IpsecSpdInterfaceDumpClient) Recv() (*IpsecSpdInterfaceDe
 	case *IpsecSpdInterfaceDetails:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -460,6 +488,10 @@ func (c *serviceClient_IpsecSpdsDumpClient) Recv() (*IpsecSpdsDetails, error) {
 	case *IpsecSpdsDetails:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -508,6 +540,10 @@ func (c *serviceClient_IpsecTunnelProtectDumpClient) Recv() (*IpsecTunnelProtect
 	case *IpsecTunnelProtectDetails:
 		return m, nil
 	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)

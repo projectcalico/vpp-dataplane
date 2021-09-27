@@ -356,6 +356,7 @@ func (m *AppDelCertKeyPairReply) Unmarshal(b []byte) error {
 }
 
 // AppNamespaceAddDel defines message 'app_namespace_add_del'.
+// Deprecated: the message will be removed in the future versions
 type AppNamespaceAddDel struct {
 	Secret      uint64                         `binapi:"u64,name=secret" json:"secret,omitempty"`
 	SwIfIndex   interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index,default=4294967295" json:"sw_if_index,omitempty"`
@@ -405,6 +406,7 @@ func (m *AppNamespaceAddDel) Unmarshal(b []byte) error {
 }
 
 // AppNamespaceAddDelReply defines message 'app_namespace_add_del_reply'.
+// Deprecated: the message will be removed in the future versions
 type AppNamespaceAddDelReply struct {
 	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	AppnsIndex uint32 `binapi:"u32,name=appns_index" json:"appns_index,omitempty"`
@@ -792,6 +794,7 @@ func (m *ApplicationDetachReply) Unmarshal(b []byte) error {
 }
 
 // ApplicationTLSCertAdd defines message 'application_tls_cert_add'.
+// Deprecated: to be removed post 21.06
 type ApplicationTLSCertAdd struct {
 	AppIndex uint32 `binapi:"u32,name=app_index" json:"app_index,omitempty"`
 	CertLen  uint16 `binapi:"u16,name=cert_len" json:"-"`
@@ -834,6 +837,7 @@ func (m *ApplicationTLSCertAdd) Unmarshal(b []byte) error {
 }
 
 // ApplicationTLSCertAddReply defines message 'application_tls_cert_add_reply'.
+// Deprecated: to be removed post 21.06
 type ApplicationTLSCertAddReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -867,6 +871,7 @@ func (m *ApplicationTLSCertAddReply) Unmarshal(b []byte) error {
 }
 
 // ApplicationTLSKeyAdd defines message 'application_tls_key_add'.
+// Deprecated: to be removed post 21.06
 type ApplicationTLSKeyAdd struct {
 	AppIndex uint32 `binapi:"u32,name=app_index" json:"app_index,omitempty"`
 	KeyLen   uint16 `binapi:"u16,name=key_len" json:"-"`
@@ -909,6 +914,7 @@ func (m *ApplicationTLSKeyAdd) Unmarshal(b []byte) error {
 }
 
 // ApplicationTLSKeyAddReply defines message 'application_tls_key_add_reply'.
+// Deprecated: to be removed post 21.06
 type ApplicationTLSKeyAddReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }

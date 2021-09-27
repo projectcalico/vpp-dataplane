@@ -1593,6 +1593,7 @@ func (m *IPPuntPoliceReply) Unmarshal(b []byte) error {
 }
 
 // IPPuntRedirect defines message 'ip_punt_redirect'.
+// Deprecated: the message will be removed in the future versions
 type IPPuntRedirect struct {
 	Punt  PuntRedirect `binapi:"punt_redirect,name=punt" json:"punt,omitempty"`
 	IsAdd bool         `binapi:"bool,name=is_add,default=true" json:"is_add,omitempty"`
@@ -1718,6 +1719,7 @@ func (m *IPPuntRedirectDump) Unmarshal(b []byte) error {
 }
 
 // IPPuntRedirectReply defines message 'ip_punt_redirect_reply'.
+// Deprecated: the message will be removed in the future versions
 type IPPuntRedirectReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -2322,6 +2324,7 @@ func (m *IPRouteAddDelReply) Unmarshal(b []byte) error {
 }
 
 // IPRouteAddDelV2 defines message 'ip_route_add_del_v2'.
+// InProgress: the message form may change in the future versions
 type IPRouteAddDelV2 struct {
 	IsAdd       bool      `binapi:"bool,name=is_add,default=true" json:"is_add,omitempty"`
 	IsMultipath bool      `binapi:"bool,name=is_multipath" json:"is_multipath,omitempty"`
@@ -2454,6 +2457,7 @@ func (m *IPRouteAddDelV2) Unmarshal(b []byte) error {
 }
 
 // IPRouteAddDelV2Reply defines message 'ip_route_add_del_v2_reply'.
+// InProgress: the message form may change in the future versions
 type IPRouteAddDelV2Reply struct {
 	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	StatsIndex uint32 `binapi:"u32,name=stats_index" json:"stats_index,omitempty"`
@@ -2823,6 +2827,7 @@ func (m *IPRouteLookupReply) Unmarshal(b []byte) error {
 }
 
 // IPRouteLookupV2 defines message 'ip_route_lookup_v2'.
+// InProgress: the message form may change in the future versions
 type IPRouteLookupV2 struct {
 	TableID uint32          `binapi:"u32,name=table_id" json:"table_id,omitempty"`
 	Exact   uint8           `binapi:"u8,name=exact" json:"exact,omitempty"`
@@ -2870,6 +2875,7 @@ func (m *IPRouteLookupV2) Unmarshal(b []byte) error {
 }
 
 // IPRouteLookupV2Reply defines message 'ip_route_lookup_v2_reply'.
+// InProgress: the message form may change in the future versions
 type IPRouteLookupV2Reply struct {
 	Retval int32     `binapi:"i32,name=retval" json:"retval,omitempty"`
 	Route  IPRouteV2 `binapi:"ip_route_v2,name=route" json:"route,omitempty"`
@@ -2998,6 +3004,7 @@ func (m *IPRouteLookupV2Reply) Unmarshal(b []byte) error {
 }
 
 // IPRouteV2Details defines message 'ip_route_v2_details'.
+// InProgress: the message form may change in the future versions
 type IPRouteV2Details struct {
 	Route IPRouteV2 `binapi:"ip_route_v2,name=route" json:"route,omitempty"`
 }
@@ -3122,6 +3129,7 @@ func (m *IPRouteV2Details) Unmarshal(b []byte) error {
 }
 
 // IPRouteV2Dump defines message 'ip_route_v2_dump'.
+// InProgress: the message form may change in the future versions
 type IPRouteV2Dump struct {
 	Src   uint8   `binapi:"u8,name=src" json:"src,omitempty"`
 	Table IPTable `binapi:"ip_table,name=table" json:"table,omitempty"`
@@ -3969,6 +3977,7 @@ func (m *MfibSignalDump) Unmarshal(b []byte) error {
 }
 
 // SetIPFlowHash defines message 'set_ip_flow_hash'.
+// Deprecated: the message will be removed in the future versions
 type SetIPFlowHash struct {
 	VrfID     uint32 `binapi:"u32,name=vrf_id" json:"vrf_id,omitempty"`
 	IsIPv6    bool   `binapi:"bool,name=is_ipv6" json:"is_ipv6,omitempty"`
@@ -4034,6 +4043,7 @@ func (m *SetIPFlowHash) Unmarshal(b []byte) error {
 }
 
 // SetIPFlowHashReply defines message 'set_ip_flow_hash_reply'.
+// Deprecated: the message will be removed in the future versions
 type SetIPFlowHashReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }

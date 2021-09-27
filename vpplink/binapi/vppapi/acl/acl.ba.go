@@ -997,6 +997,7 @@ func (m *ACLPluginGetVersionReply) Unmarshal(b []byte) error {
 }
 
 // ACLPluginUseHashLookupGet defines message 'acl_plugin_use_hash_lookup_get'.
+// InProgress: the message form may change in the future versions
 type ACLPluginUseHashLookupGet struct{}
 
 func (m *ACLPluginUseHashLookupGet) Reset()               { *m = ACLPluginUseHashLookupGet{} }
@@ -1024,6 +1025,7 @@ func (m *ACLPluginUseHashLookupGet) Unmarshal(b []byte) error {
 }
 
 // ACLPluginUseHashLookupGetReply defines message 'acl_plugin_use_hash_lookup_get_reply'.
+// InProgress: the message form may change in the future versions
 type ACLPluginUseHashLookupGetReply struct {
 	Enable bool `binapi:"bool,name=enable" json:"enable,omitempty"`
 }
@@ -1059,6 +1061,7 @@ func (m *ACLPluginUseHashLookupGetReply) Unmarshal(b []byte) error {
 }
 
 // ACLPluginUseHashLookupSet defines message 'acl_plugin_use_hash_lookup_set'.
+// InProgress: the message form may change in the future versions
 type ACLPluginUseHashLookupSet struct {
 	Enable bool `binapi:"bool,name=enable" json:"enable,omitempty"`
 }
@@ -1092,6 +1095,7 @@ func (m *ACLPluginUseHashLookupSet) Unmarshal(b []byte) error {
 }
 
 // ACLPluginUseHashLookupSetReply defines message 'acl_plugin_use_hash_lookup_set_reply'.
+// InProgress: the message form may change in the future versions
 type ACLPluginUseHashLookupSetReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
