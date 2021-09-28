@@ -46,7 +46,8 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 	podSpec.LoopbackSwIfIndex = swIfIndex
 
 	for _, ipFamily := range vpplink.IpFamilies {
-		err = i.vpp.SetInterfaceVRF(swIfIndex, podSpec.VrfId, ipFamily.IsIp6)
+		vrfId := podSpec.GetVrfId(ipFamily.IsIp6)
+		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfId, ipFamily.IsIp6)
 		if err != nil {
 			return errors.Wrapf(err, "Error setting loopback %d in per pod vrf", swIfIndex)
 		}

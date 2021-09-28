@@ -56,6 +56,26 @@ func (v *VppLink) DelVRF(index uint32, isIP6 bool, name string) error {
 	return v.addDelVRF(index, name, isIP6, false /*isAdd*/)
 }
 
+func (v *VppLink) AllocateVRF(isIP6 bool, name string) (uint32, error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	response := &ip.IPTableAllocateReply{}
+	request := &ip.IPTableAllocate{
+		Table: ip.IPTable{
+			TableID: types.InvalidID,
+			IsIP6:   isIP6,
+			Name:    name,
+		},
+	}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return types.InvalidID, errors.Wrapf(err, "IPTableAllocate failed: req %+v reply %+v", request, response)
+	} else if response.Retval != 0 {
+		return types.InvalidID, fmt.Errorf("IPTableAllocate failed (retval %d). Request: %+v", response.Retval, request)
+	}
+	return response.Table.TableID, nil
+}
+
 func (v *VppLink) PuntRedirect(punt types.IpPuntRedirect, isIP6 bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()

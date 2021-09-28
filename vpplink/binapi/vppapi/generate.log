@@ -1,4 +1,4 @@
-VPP Version                 : 21.10-rc0~382-g3346e073a
+VPP Version                 : 21.10-rc0~381-gccd2c7461
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : ef356f57b hash: fix the initialization warning error on gcc-10
 ------------------ Cherry picked commits --------------------
