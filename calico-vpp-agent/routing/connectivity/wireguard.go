@@ -221,7 +221,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		Port:       p.getWireguardPort(),
 		Addr:       cn.NextHop,
 		SwIfIndex:  p.wireguardTunnel.SwIfIndex,
-		AllowedIps: []net.IPNet{cn.Dst},
+		AllowedIps: []net.IPNet{cn.Dst, *commonAgent.ToMaxLenCIDR(cn.NextHop)},
 	}
 	existingPeer, found := p.wireguardPeers[cn.NextHop.String()]
 	p.log.Infof("Wireguard: NH:%s Dst:%s found:%t", cn.NextHop, cn.Dst, found)
@@ -236,14 +236,14 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 				return errors.Wrapf(err, "Error deleting (update) wireguard peer %s", existingPeer.String())
 			}
 			p.log.Infof("Wireguard: Addback (update) peer [%s]", peer)
-			_, err = p.vpp.AddWireguardPeer(peer)
+			peer.Index, err = p.vpp.AddWireguardPeer(peer)
 			if err != nil {
 				return errors.Wrapf(err, "Error adding (update) wireguard peer %s", peer)
 			}
 		}
 	} else {
 		p.log.Infof("Wireguard: Add peer [%s]", peer)
-		_, err := p.vpp.AddWireguardPeer(peer)
+		peer.Index, err = p.vpp.AddWireguardPeer(peer)
 		if err != nil {
 			return errors.Wrapf(err, "Error adding wireguard peer [%s]", peer)
 		}
@@ -258,7 +258,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			Table: commonAgent.PodVRFIndex,
 		})
 		if err != nil {
-			return errors.Wrapf(err, "Error adding route to %s in ipip tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
+			return errors.Wrapf(err, "Error adding route to %s in wg tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
 		}
 	}
 	p.log.Infof("Wireguard: peer %s ok", peer)
@@ -269,7 +269,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: p.wireguardTunnel.SwIfIndex,
-			Gw:        nil,
+			Gw:        cn.Dst.IP,
 		}},
 	})
 	if err != nil {
@@ -287,7 +287,7 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err er
 	p.log.Infof("Wireguard: Del ?->%s %d", cn.NextHop.String(), peer.Index)
 	peer.DelAllowedIp(cn.Dst)
 
-	if len(peer.AllowedIps) == 0 {
+	if len(peer.AllowedIps) == 1 {
 		err = p.vpp.DelWireguardPeer(&peer)
 		if err != nil {
 			return errors.Wrapf(err, "Error deleting wireguard peer %s", peer)
@@ -323,7 +323,7 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err er
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: peer.SwIfIndex,
-			Gw:        nil,
+			Gw:        cn.Dst.IP,
 		}},
 	})
 	if err != nil {

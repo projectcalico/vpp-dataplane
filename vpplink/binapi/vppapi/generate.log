@@ -1,4 +1,4 @@
-VPP Version                 : 22.02-rc0~27-g8d4aed493
+VPP Version                 : 22.02-rc0~27-g472c42acd
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : c022b2fe3 fib: fix crash on exporter tracker remove
 ------------------ Cherry picked commits --------------------
