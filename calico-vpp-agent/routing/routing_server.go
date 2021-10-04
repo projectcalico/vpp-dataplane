@@ -299,23 +299,31 @@ func (s *Server) getPeerASN(host string) (*numorstring.ASNumber, error) {
 
 }
 
-func (s *Server) getGlobalConfig() (*bgpapi.Global, error) {
+func (s *Server) getGoBGPGlobalConfig() (*bgpapi.Global, error) {
 	var routerId string
+	var listenAddresses []string = make([]string, 0)
 	asn, err := s.getNodeASN()
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting current node AS number")
 	}
-	if s.routingData.HasV4 {
-		routerId = s.routingData.Ipv4.String()
-	} else if s.routingData.HasV6 {
+
+	if s.routingData.HasV6 {
 		routerId = s.routingData.Ipv6.String()
-	} else {
-		return nil, errors.Wrap(err, "Cannot make routerId out of IP")
+		listenAddresses = append(listenAddresses, routerId)
+	}
+	if s.routingData.HasV4 {
+		routerId = s.routingData.Ipv4.String() // Override v6 ID if v4 is available
+		listenAddresses = append(listenAddresses, routerId)
+	}
+
+	if routerId == "" {
+		return nil, errors.Wrap(err, "No IPs to make a router ID")
 	}
 	return &bgpapi.Global{
-		As:         uint32(*asn),
-		RouterId:   routerId,
-		ListenPort: int32(s.getListenPort()),
+		As:              uint32(*asn),
+		RouterId:        routerId,
+		ListenPort:      int32(s.getListenPort()),
+		ListenAddresses: listenAddresses,
 	}, nil
 }
 
@@ -429,6 +437,9 @@ func (s *Server) Serve() {
 		err := s.serveOne()
 		if err != nil {
 			s.log.Errorf("routing serve returned %v", err)
+			if s.routingData.BGPServer != nil {
+				s.routingData.BGPServer.StopBgp(context.Background(), &bgpapi.StopBgpRequest{})
+			}
 		}
 	}
 }

@@ -155,7 +155,7 @@ func (s *Server) fetchNodeIPs() (node *calicov3.Node, err error) {
 }
 
 func (s *Server) createAndStartBGP() error {
-	globalConfig, err := s.getGlobalConfig()
+	globalConfig, err := s.getGoBGPGlobalConfig()
 	if err != nil {
 		return fmt.Errorf("cannot get global configuration: %v", err)
 	}
