@@ -13,6 +13,7 @@ import (
 
 // RPCService defines RPC service wireguard.
 type RPCService interface {
+	WantWireguardPeerEvents(ctx context.Context, in *WantWireguardPeerEvents) (*WantWireguardPeerEventsReply, error)
 	WireguardInterfaceCreate(ctx context.Context, in *WireguardInterfaceCreate) (*WireguardInterfaceCreateReply, error)
 	WireguardInterfaceDelete(ctx context.Context, in *WireguardInterfaceDelete) (*WireguardInterfaceDeleteReply, error)
 	WireguardInterfaceDump(ctx context.Context, in *WireguardInterfaceDump) (RPCService_WireguardInterfaceDumpClient, error)
@@ -27,6 +28,15 @@ type serviceClient struct {
 
 func NewServiceClient(conn api.Connection) RPCService {
 	return &serviceClient{conn}
+}
+
+func (c *serviceClient) WantWireguardPeerEvents(ctx context.Context, in *WantWireguardPeerEvents) (*WantWireguardPeerEventsReply, error) {
+	out := new(WantWireguardPeerEventsReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) WireguardInterfaceCreate(ctx context.Context, in *WireguardInterfaceCreate) (*WireguardInterfaceCreateReply, error) {
