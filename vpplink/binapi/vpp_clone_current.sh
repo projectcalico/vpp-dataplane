@@ -91,6 +91,7 @@ git_cherry_pick refs/changes/82/32482/6 # 32482: virtio: compute cksums in outpu
 git_cherry_pick refs/changes/71/32271/7 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
 git_cherry_pick refs/changes/49/33749/5 # 33749: ip: fix fib and mfib locks | https://gerrit.fd.io/r/c/vpp/+/33749
 git_cherry_pick refs/changes/57/33557/4 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
+git_cherry_pick refs/changes/08/33708/7 # 33708: ip: Add ip46-local node for local swif[rx] | https://gerrit.fd.io/r/c/vpp/+/33708
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
