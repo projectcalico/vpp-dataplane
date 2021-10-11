@@ -22,6 +22,8 @@ type RPCService interface {
 	Nat44AddressDump(ctx context.Context, in *Nat44AddressDump) (RPCService_Nat44AddressDumpClient, error)
 	Nat44DelSession(ctx context.Context, in *Nat44DelSession) (*Nat44DelSessionReply, error)
 	Nat44DelUser(ctx context.Context, in *Nat44DelUser) (*Nat44DelUserReply, error)
+	Nat44EdAddDelOutputInterface(ctx context.Context, in *Nat44EdAddDelOutputInterface) (*Nat44EdAddDelOutputInterfaceReply, error)
+	Nat44EdOutputInterfaceGet(ctx context.Context, in *Nat44EdOutputInterfaceGet) (RPCService_Nat44EdOutputInterfaceGetClient, error)
 	Nat44EdPluginEnableDisable(ctx context.Context, in *Nat44EdPluginEnableDisable) (*Nat44EdPluginEnableDisableReply, error)
 	Nat44EdSetFqOptions(ctx context.Context, in *Nat44EdSetFqOptions) (*Nat44EdSetFqOptionsReply, error)
 	Nat44EdShowFqOptions(ctx context.Context, in *Nat44EdShowFqOptions) (*Nat44EdShowFqOptionsReply, error)
@@ -42,6 +44,7 @@ type RPCService interface {
 	Nat44StaticMappingDump(ctx context.Context, in *Nat44StaticMappingDump) (RPCService_Nat44StaticMappingDumpClient, error)
 	Nat44UserDump(ctx context.Context, in *Nat44UserDump) (RPCService_Nat44UserDumpClient, error)
 	Nat44UserSessionDump(ctx context.Context, in *Nat44UserSessionDump) (RPCService_Nat44UserSessionDumpClient, error)
+	Nat44UserSessionV2Dump(ctx context.Context, in *Nat44UserSessionV2Dump) (RPCService_Nat44UserSessionV2DumpClient, error)
 	NatControlPing(ctx context.Context, in *NatControlPing) (*NatControlPingReply, error)
 	NatGetAddrAndPortAllocAlg(ctx context.Context, in *NatGetAddrAndPortAllocAlg) (*NatGetAddrAndPortAllocAlgReply, error)
 	NatGetMssClamping(ctx context.Context, in *NatGetMssClamping) (*NatGetMssClampingReply, error)
@@ -184,6 +187,55 @@ func (c *serviceClient) Nat44DelUser(ctx context.Context, in *Nat44DelUser) (*Na
 		return nil, err
 	}
 	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) Nat44EdAddDelOutputInterface(ctx context.Context, in *Nat44EdAddDelOutputInterface) (*Nat44EdAddDelOutputInterfaceReply, error) {
+	out := new(Nat44EdAddDelOutputInterfaceReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) Nat44EdOutputInterfaceGet(ctx context.Context, in *Nat44EdOutputInterfaceGet) (RPCService_Nat44EdOutputInterfaceGetClient, error) {
+	stream, err := c.conn.NewStream(ctx)
+	if err != nil {
+		return nil, err
+	}
+	x := &serviceClient_Nat44EdOutputInterfaceGetClient{stream}
+	if err := x.Stream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RPCService_Nat44EdOutputInterfaceGetClient interface {
+	Recv() (*Nat44EdOutputInterfaceDetails, error)
+	api.Stream
+}
+
+type serviceClient_Nat44EdOutputInterfaceGetClient struct {
+	api.Stream
+}
+
+func (c *serviceClient_Nat44EdOutputInterfaceGetClient) Recv() (*Nat44EdOutputInterfaceDetails, error) {
+	msg, err := c.Stream.RecvMsg()
+	if err != nil {
+		return nil, err
+	}
+	switch m := msg.(type) {
+	case *Nat44EdOutputInterfaceDetails:
+		return m, nil
+	case *Nat44EdOutputInterfaceGetReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, io.EOF
+	default:
+		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
+	}
 }
 
 func (c *serviceClient) Nat44EdPluginEnableDisable(ctx context.Context, in *Nat44EdPluginEnableDisable) (*Nat44EdPluginEnableDisableReply, error) {
@@ -626,6 +678,49 @@ func (c *serviceClient_Nat44UserSessionDumpClient) Recv() (*Nat44UserSessionDeta
 	}
 	switch m := msg.(type) {
 	case *Nat44UserSessionDetails:
+		return m, nil
+	case *vlib.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, io.EOF
+	default:
+		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
+	}
+}
+
+func (c *serviceClient) Nat44UserSessionV2Dump(ctx context.Context, in *Nat44UserSessionV2Dump) (RPCService_Nat44UserSessionV2DumpClient, error) {
+	stream, err := c.conn.NewStream(ctx)
+	if err != nil {
+		return nil, err
+	}
+	x := &serviceClient_Nat44UserSessionV2DumpClient{stream}
+	if err := x.Stream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RPCService_Nat44UserSessionV2DumpClient interface {
+	Recv() (*Nat44UserSessionV2Details, error)
+	api.Stream
+}
+
+type serviceClient_Nat44UserSessionV2DumpClient struct {
+	api.Stream
+}
+
+func (c *serviceClient_Nat44UserSessionV2DumpClient) Recv() (*Nat44UserSessionV2Details, error) {
+	msg, err := c.Stream.RecvMsg()
+	if err != nil {
+		return nil, err
+	}
+	switch m := msg.(type) {
+	case *Nat44UserSessionV2Details:
 		return m, nil
 	case *vlib.ControlPingReply:
 		err = c.Stream.Close()

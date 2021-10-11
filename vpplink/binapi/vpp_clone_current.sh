@@ -57,39 +57,40 @@ function git_revert ()
 	git commit --amend -m "gerrit:revert:${refs#refs/changes/*/} $(git log -1 --pretty=%B)"
 }
 
-if [ -z "$1" ]; then
-	echo "Missing VPP path"
-	exit 1
-fi
-
-VPP_COMMIT=c022b2fe399809eda173a748ca050ffc34c18025
-VPP_DIR="$1"
-
-if [ ! -d $1/.git ]; then
-	rm -rf $1
-	green "Cloning VPP..."
-	git clone "https://gerrit.fd.io/r/vpp" $1
-	cd $1
+function git_clone_cd_and_reset ()
+{
+	VPP_DIR=$1
+	VPP_COMMIT=$2
+	if [ -z "$VPP_DIR" ]; then
+		red "Please provide the VPP repository path"
+		exit 1
+	fi
+	if [ ! -d $VPP_DIR/.git ]; then
+		if [ x$VPP_DIR == x/ ]; then
+			red "Beware, trying to remove '$VPP_DIR'"
+			exit 1
+		fi
+		rm -rf $VPP_DIR
+		green "Cloning VPP..."
+		git clone "https://gerrit.fd.io/r/vpp" $VPP_DIR
+	fi
+	cd $VPP_DIR
+	if ! $(commit_exists $VPP_COMMIT); then
+		green "Fetching most recent VPP..."
+		git fetch "https://gerrit.fd.io/r/vpp"
+	fi
 	git reset --hard ${VPP_COMMIT}
-else
-	cd $1
-	green "Fetching most recent VPP..."
-	git fetch "https://gerrit.fd.io/r/vpp"
-	git reset --hard ${VPP_COMMIT}
-fi
+}
+
+# --------------- Things to cherry pick ---------------
+
+git_clone_cd_and_reset "$1" ac55a722d67c7354f2ab877ff79309027f7ac3ca
 
 git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
-git_cherry_pick refs/changes/21/31321/11 # 31321: devices: add support for pseudo header checksum | https://gerrit.fd.io/r/c/vpp/+/31321
-git_cherry_pick refs/changes/82/32482/1 # 32482: virtio: compute cksums in output no offload | https://gerrit.fd.io/r/c/vpp/+/32482
-git_cherry_pick refs/changes/71/32871/1 # 32871: devices: Add queues params in create_if | https://gerrit.fd.io/r/c/vpp/+/32871
-git_cherry_pick refs/changes/71/32271/6 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
-git_cherry_pick refs/changes/57/33557/1 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
-git_cherry_pick refs/changes/94/33794/1 # 33794: tap: Fix tap create with ns | https://gerrit.fd.io/r/c/vpp/+/33794
-
-git_cherry_pick refs/changes/13/32413/7 # 32413: wireguard: move adjacency processing from wireguard_peer to wireguard_interface | https://gerrit.fd.io/r/c/vpp/+/32413
-git_cherry_pick refs/changes/43/32443/8 # 32443: wireguard: use the same udp-port for multi-tunnel | https://gerrit.fd.io/r/c/vpp/+/32443
-git_cherry_pick refs/changes/09/32009/6 # 32009: wireguard: add ipv6 support | https://gerrit.fd.io/r/c/vpp/+/32009
-git_cherry_pick refs/changes/85/32685/5 # 32685: wireguard: add events for peer | https://gerrit.fd.io/r/c/vpp/+/32685
+git_cherry_pick refs/changes/82/32482/6 # 32482: virtio: compute cksums in output no offload | https://gerrit.fd.io/r/c/vpp/+/32482
+git_cherry_pick refs/changes/71/32271/7 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
+git_cherry_pick refs/changes/49/33749/5 # 33749: ip: fix fib and mfib locks | https://gerrit.fd.io/r/c/vpp/+/33749
+git_cherry_pick refs/changes/57/33557/4 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264

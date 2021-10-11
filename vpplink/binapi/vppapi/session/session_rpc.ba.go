@@ -26,6 +26,7 @@ type RPCService interface {
 	SessionEnableDisable(ctx context.Context, in *SessionEnableDisable) (*SessionEnableDisableReply, error)
 	SessionRuleAddDel(ctx context.Context, in *SessionRuleAddDel) (*SessionRuleAddDelReply, error)
 	SessionRulesDump(ctx context.Context, in *SessionRulesDump) (RPCService_SessionRulesDumpClient, error)
+	SessionSapiEnableDisable(ctx context.Context, in *SessionSapiEnableDisable) (*SessionSapiEnableDisableReply, error)
 }
 
 type serviceClient struct {
@@ -185,4 +186,13 @@ func (c *serviceClient_SessionRulesDumpClient) Recv() (*SessionRulesDetails, err
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
+}
+
+func (c *serviceClient) SessionSapiEnableDisable(ctx context.Context, in *SessionSapiEnableDisable) (*SessionSapiEnableDisableReply, error) {
+	out := new(SessionSapiEnableDisableReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
