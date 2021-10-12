@@ -195,6 +195,9 @@ func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
 
 			node := nodeSpecCopy(calicoNode)
 			w.nodeStateLock.Lock()
+			if node.Name == config.NodeName {
+				w.peerWatcher.currentCalicoNode = *calicoNode
+			}
 			shouldRestart, err := w.handleNodeUpdate(node, update.Type)
 			w.nodeStateLock.Unlock()
 			if err != nil {

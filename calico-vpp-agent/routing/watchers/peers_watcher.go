@@ -21,7 +21,9 @@ import (
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/libcalico-go/lib/selector"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
@@ -32,6 +34,8 @@ import (
 type PeerWatcher struct {
 	*common.RoutingData
 	log *logrus.Entry
+
+	currentCalicoNode oldv3.Node
 }
 
 type bgpPeer struct {
@@ -39,11 +43,62 @@ type bgpPeer struct {
 	SweepFlag bool
 }
 
+// SelectsNode determines whether or not the selector mySelector
+// matches the labels on the given node.
+func SelectsNode(mySelector string, n oldv3.Node) (bool, error) {
+	// No node selector means that the selector matches the node.
+	if len(mySelector) == 0 {
+		return true, nil
+	}
+	// Check for valid selector syntax.
+	sel, err := selector.Parse(mySelector)
+	if err != nil {
+		return false, err
+	}
+	// Return whether or not the selector matches.
+	return sel.Evaluate(n.Labels), nil
+}
+
 func (w *PeerWatcher) shouldPeer(peer *calicov3.BGPPeer) bool {
-	if peer.Spec.Node != "" && peer.Spec.Node != config.NodeName {
+	matches, err := SelectsNode(peer.Spec.NodeSelector, w.currentCalicoNode)
+	if err != nil {
+		w.log.Error("Error in nodeSelector matching")
+	}
+	if (peer.Spec.Node != "" && peer.Spec.Node != config.NodeName) || (peer.Spec.NodeSelector != "" && !matches) {
 		return false
 	}
 	return true
+}
+
+// Select among nodes list peers that match with peerSelector
+// return corresponding ips and ASN in a map
+func (w *PeerWatcher) selectPeers(nodes *oldv3.NodeList, peerSelector string) map[string]uint32 {
+	ipAsn := make(map[string]uint32)
+	for _, calicoNode := range nodes.Items {
+		matches, err := SelectsNode(peerSelector, calicoNode)
+		if err != nil {
+			w.log.Error("Error in peerSelector matching")
+		}
+		if matches {
+			if calicoNode.Spec.BGP.IPv4Address != "" && w.currentCalicoNode.Spec.BGP.IPv4Address != "" {
+				ad, _, _ := net.ParseCIDR(calicoNode.Spec.BGP.IPv4Address)
+				if calicoNode.Spec.BGP.ASNumber == nil {
+					ipAsn[ad.String()] = uint32(*w.BGPConf.ASNumber)
+				} else {
+					ipAsn[ad.String()] = uint32(*calicoNode.Spec.BGP.ASNumber)
+				}
+			}
+			if calicoNode.Spec.BGP.IPv6Address != "" && w.currentCalicoNode.Spec.BGP.IPv6Address != "" {
+				ad, _, _ := net.ParseCIDR(calicoNode.Spec.BGP.IPv6Address)
+				if calicoNode.Spec.BGP.ASNumber == nil {
+					ipAsn[ad.String()] = uint32(*w.BGPConf.ASNumber)
+				} else {
+					ipAsn[ad.String()] = uint32(*calicoNode.Spec.BGP.ASNumber)
+				}
+			}
+		}
+	}
+	return ipAsn
 }
 
 // This function watches BGP peers configured in Calico
@@ -57,6 +112,15 @@ func (w *PeerWatcher) WatchBGPPeers() error {
 		if err != nil {
 			return err
 		}
+		nodes, err := w.Clientv3.Nodes().List(context.Background(), options.ListOptions{})
+		if err != nil {
+			return err
+		}
+		for _, node := range nodes.Items {
+			if node.Name == config.NodeName {
+				w.currentCalicoNode = node
+			}
+		}
 		for _, p := range state {
 			p.SweepFlag = true
 		}
@@ -66,26 +130,37 @@ func (w *PeerWatcher) WatchBGPPeers() error {
 			}
 			ip := peer.Spec.PeerIP
 			asn := uint32(peer.Spec.ASNumber)
-			existing, ok := state[ip]
-			if ok {
-				existing.SweepFlag = false
-				if existing.AS != asn {
-					existing.AS = asn
-					err := w.updateBGPPeer(ip, asn)
-					if err != nil {
-						return errors.Wrap(err, "error updating BGP peer")
-					}
-				}
-				// Else no change, nothing to do
+			peerSelector := peer.Spec.PeerSelector
+			ipAsn := make(map[string]uint32)
+			if peerSelector != "" {
+				// use peerSelector
+				ipAsn = w.selectPeers(nodes, peerSelector)
 			} else {
-				// New peer
-				state[ip] = &bgpPeer{
-					AS:        asn,
-					SweepFlag: false,
-				}
-				err := w.addBGPPeer(ip, asn)
-				if err != nil {
-					return errors.Wrap(err, "error adding BGP peer")
+				// use peerIP and ASNumber
+				ipAsn[ip] = asn
+			}
+			for ip, asn := range ipAsn {
+				existing, ok := state[ip]
+				if ok {
+					existing.SweepFlag = false
+					if existing.AS != asn {
+						existing.AS = asn
+						err := w.updateBGPPeer(ip, asn)
+						if err != nil {
+							return errors.Wrap(err, "error updating BGP peer")
+						}
+					}
+					// Else no change, nothing to do
+				} else {
+					// New peer
+					state[ip] = &bgpPeer{
+						AS:        asn,
+						SweepFlag: false,
+					}
+					err := w.addBGPPeer(ip, asn)
+					if err != nil {
+						return errors.Wrap(err, "error adding BGP peer")
+					}
 				}
 			}
 		}
@@ -118,25 +193,34 @@ func (w *PeerWatcher) WatchBGPPeers() error {
 				}
 				ip := peer.Spec.PeerIP
 				asn := uint32(peer.Spec.ASNumber)
-				existing, ok := state[ip]
-				if ok {
-					if existing.AS != asn {
-						existing.AS = asn
-						err := w.updateBGPPeer(ip, asn)
-						if err != nil {
-							return errors.Wrap(err, "error updating BGP peer")
-						}
-					}
-					// Else no change, nothing to do
+				peerSelector := peer.Spec.PeerSelector
+				ipAsn := make(map[string]uint32)
+				if peerSelector != "" {
+					ipAsn = w.selectPeers(nodes, peerSelector)
 				} else {
-					// New peer
-					state[ip] = &bgpPeer{
-						AS:        asn,
-						SweepFlag: false,
-					}
-					err := w.addBGPPeer(ip, asn)
-					if err != nil {
-						return errors.Wrap(err, "error adding BGP peer")
+					ipAsn[ip] = asn
+				}
+				existing, ok := state[ip]
+				for ip, asn := range ipAsn {
+					if ok {
+						if existing.AS != asn {
+							existing.AS = asn
+							err := w.updateBGPPeer(ip, asn)
+							if err != nil {
+								return errors.Wrap(err, "error updating BGP peer")
+							}
+						}
+						// Else no change, nothing to do
+					} else {
+						// New peer
+						state[ip] = &bgpPeer{
+							AS:        asn,
+							SweepFlag: false,
+						}
+						err := w.addBGPPeer(ip, asn)
+						if err != nil {
+							return errors.Wrap(err, "error adding BGP peer")
+						}
 					}
 				}
 			case watch.Deleted:
@@ -145,16 +229,25 @@ func (w *PeerWatcher) WatchBGPPeers() error {
 					continue
 				}
 				ip := peer.Spec.PeerIP
-				_, ok := state[ip]
-				if !ok {
-					w.log.Warnf("Deleted peer %s not found", ip)
-					continue
+				peerSelector := peer.Spec.PeerSelector
+				ipAsn := make(map[string]uint32)
+				if peerSelector != "" {
+					ipAsn = w.selectPeers(nodes, peerSelector)
+				} else {
+					ipAsn[ip] = 0
 				}
-				err := w.deleteBGPPeer(ip)
-				if err != nil {
-					return errors.Wrap(err, "error deleting BGP peer")
+				for ip := range ipAsn {
+					_, ok := state[ip]
+					if !ok {
+						w.log.Warnf("Deleted peer %s not found", ip)
+						continue
+					}
+					err := w.deleteBGPPeer(ip)
+					if err != nil {
+						return errors.Wrap(err, "error deleting BGP peer")
+					}
+					delete(state, ip)
 				}
-				delete(state, ip)
 			case watch.Error:
 				w.log.Infof("peers watch returned an error")
 				break watch
