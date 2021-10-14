@@ -4,12 +4,14 @@ go 1.15
 
 require (
 	git.fd.io/govpp.git v0.3.6-0.20210927044411-385ccc0d8ba9
+	github.com/census-instrumentation/opencensus-proto v0.2.1 // indirect
 	github.com/containernetworking/plugins v0.8.2
 	github.com/dgryski/go-farm v0.0.0-20191112170834-c2139c5d712b // indirect
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.3
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
+	github.com/orijtech/prometheus-go-metrics-exporter v0.0.6 // indirect
 	github.com/osrg/gobgp v0.0.0-20210302053313-5960e8ebd1e3
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/api v0.0.0-20211005123650-be8650baf048
