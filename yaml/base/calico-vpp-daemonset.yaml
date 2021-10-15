@@ -236,7 +236,7 @@ spec:
       priorityClassName: system-node-critical
       containers:
         - name: agent
-          image: docker.io/calicovpp/agent:latest
+          image: docker.io/calicovpp/agent:v0.17.0-calicov3.20.2
           imagePullPolicy: IfNotPresent
           env:
             # Use Kubernetes API as the backing datastore.
@@ -274,7 +274,7 @@ spec:
               mountPath: /run/netns/
               mountPropagation: Bidirectional
         - name: vpp
-          image: docker.io/calicovpp/vpp:latest
+          image: docker.io/calicovpp/vpp:v0.17.0-calicov3.20.2
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
