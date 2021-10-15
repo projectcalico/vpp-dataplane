@@ -268,9 +268,11 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 	mainInterfaceSpec.NewDriverName = getEnvValue(SwapDriverEnvVar)
 
 	extraInterfacesSpecs := []config.InterfaceSpec{}
-	err = json.Unmarshal([]byte(strings.ReplaceAll(getEnvValue(ExtraInterfaces), "'", "\"")), &extraInterfacesSpecs)
-	if err != nil {
-		log.Errorf("extra Interface %s has wrong format", getEnvValue(ExtraInterfaces))
+	if ExtraInterfaces != "" {
+		err = json.Unmarshal([]byte(strings.ReplaceAll(getEnvValue(ExtraInterfaces), "'", "\"")), &extraInterfacesSpecs)
+		if err != nil {
+			log.Errorf("extra Interface %s has wrong format", getEnvValue(ExtraInterfaces))
+		}
 	}
 	params.InterfacesSpecs = []config.InterfaceSpec{mainInterfaceSpec}
 	params.InterfacesSpecs = append(params.InterfacesSpecs, extraInterfacesSpecs...)
