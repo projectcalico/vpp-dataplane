@@ -93,7 +93,7 @@ const (
 	VppStartupSleepEnvVar = "CALICOVPP_VPP_STARTUP_SLEEP"
 	ExtraAddrCountEnvVar  = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	SwapDriverEnvVar      = "CALICOVPP_SWAP_DRIVER"
-	ExtraInterfacesEnvVar       = "CALICOVPP_EXTRA_INTERFACES"
+	ExtraInterfacesEnvVar = "CALICOVPP_EXTRA_INTERFACES"
 	EnableGSOEnvVar       = "CALICOVPP_DEBUG_ENABLE_GSO"
 )
 
