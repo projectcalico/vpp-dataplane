@@ -93,7 +93,7 @@ const (
 	VppStartupSleepEnvVar = "CALICOVPP_VPP_STARTUP_SLEEP"
 	ExtraAddrCountEnvVar  = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	SwapDriverEnvVar      = "CALICOVPP_SWAP_DRIVER"
-	ExtraInterfaces       = "CALICOVPP_EXTRA_INTERFACES"
+	ExtraInterfacesEnvVar = "CALICOVPP_EXTRA_INTERFACES"
 	EnableGSOEnvVar       = "CALICOVPP_DEBUG_ENABLE_GSO"
 )
 
@@ -240,7 +240,7 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 	if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
 		mainInterfaceSpec.NativeDriver = strings.ToLower(conf)
 	} else {
-		if getEnvValue(ExtraInterfaces) != "" {
+		if getEnvValue(ExtraInterfacesEnvVar) != "" {
 			return errors.Errorf("native driver should be specified for multiple interfaces")
 		}
 	}
@@ -268,10 +268,10 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 	mainInterfaceSpec.NewDriverName = getEnvValue(SwapDriverEnvVar)
 
 	extraInterfacesSpecs := []config.InterfaceSpec{}
-	if ExtraInterfaces != "" {
-		err = json.Unmarshal([]byte(strings.ReplaceAll(getEnvValue(ExtraInterfaces), "'", "\"")), &extraInterfacesSpecs)
+	if getEnvValue(ExtraInterfacesEnvVar) != "" {
+		err = json.Unmarshal([]byte(strings.ReplaceAll(getEnvValue(ExtraInterfacesEnvVar), "'", "\"")), &extraInterfacesSpecs)
 		if err != nil {
-			log.Errorf("extra Interface %s has wrong format", getEnvValue(ExtraInterfaces))
+			log.Errorf("extra Interface %s has wrong format", getEnvValue(ExtraInterfacesEnvVar))
 		}
 	}
 	params.InterfacesSpecs = []config.InterfaceSpec{mainInterfaceSpec}

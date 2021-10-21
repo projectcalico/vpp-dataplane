@@ -69,6 +69,10 @@ test-install-calicovpp:
 test-install-calicovpp-dev:
 	kubectl apply -k yaml/overlays/test-vagrant-mounts
 
+.PHONY: test-install-calicovpp-v6
+test-install-calicovpp-v6:
+	kubectl apply -k yaml/overlays/test-vagrant-v6
+
 .PHONY: test-install-calicovpp-dev-v6
 test-install-calicovpp-dev-v6:
 	kubectl apply -k yaml/overlays/test-vagrant-v6-mounts
