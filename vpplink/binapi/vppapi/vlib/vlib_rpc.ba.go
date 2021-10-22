@@ -13,7 +13,6 @@ type RPCService interface {
 	AddNodeNext(ctx context.Context, in *AddNodeNext) (*AddNodeNextReply, error)
 	Cli(ctx context.Context, in *Cli) (*CliReply, error)
 	CliInband(ctx context.Context, in *CliInband) (*CliInbandReply, error)
-	ControlPing(ctx context.Context, in *ControlPing) (*ControlPingReply, error)
 	GetF64EndianValue(ctx context.Context, in *GetF64EndianValue) (*GetF64EndianValueReply, error)
 	GetF64IncrementByOne(ctx context.Context, in *GetF64IncrementByOne) (*GetF64IncrementByOneReply, error)
 	GetNextIndex(ctx context.Context, in *GetNextIndex) (*GetNextIndexReply, error)
@@ -50,15 +49,6 @@ func (c *serviceClient) Cli(ctx context.Context, in *Cli) (*CliReply, error) {
 
 func (c *serviceClient) CliInband(ctx context.Context, in *CliInband) (*CliInbandReply, error) {
 	out := new(CliInbandReply)
-	err := c.conn.Invoke(ctx, in, out)
-	if err != nil {
-		return nil, err
-	}
-	return out, api.RetvalToVPPApiError(out.Retval)
-}
-
-func (c *serviceClient) ControlPing(ctx context.Context, in *ControlPing) (*ControlPingReply, error) {
-	out := new(ControlPingReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

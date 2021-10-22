@@ -8,7 +8,7 @@ import (
 	"io"
 
 	api "git.fd.io/govpp.git/api"
-	vlib "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vlib"
+	memclnt "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/memclnt"
 )
 
 // RPCService defines RPC service session.
@@ -154,7 +154,7 @@ func (c *serviceClient) SessionRulesDump(ctx context.Context, in *SessionRulesDu
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -177,7 +177,7 @@ func (c *serviceClient_SessionRulesDumpClient) Recv() (*SessionRulesDetails, err
 	switch m := msg.(type) {
 	case *SessionRulesDetails:
 		return m, nil
-	case *vlib.ControlPingReply:
+	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()
 		if err != nil {
 			return nil, err
