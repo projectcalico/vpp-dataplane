@@ -84,14 +84,11 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-git_clone_cd_and_reset "$1" ac55a722d67c7354f2ab877ff79309027f7ac3ca
+git_clone_cd_and_reset "$1" 0ad060851b4989a1cd300ad711e8498435f65f9a
 
 git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
-git_cherry_pick refs/changes/82/32482/6 # 32482: virtio: compute cksums in output no offload | https://gerrit.fd.io/r/c/vpp/+/32482
 git_cherry_pick refs/changes/71/32271/7 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
-git_cherry_pick refs/changes/49/33749/5 # 33749: ip: fix fib and mfib locks | https://gerrit.fd.io/r/c/vpp/+/33749
-git_cherry_pick refs/changes/57/33557/4 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
-git_cherry_pick refs/changes/08/33708/7 # 33708: ip: Add ip46-local node for local swif[rx] | https://gerrit.fd.io/r/c/vpp/+/33708
+git_cherry_pick refs/changes/57/33557/5 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264

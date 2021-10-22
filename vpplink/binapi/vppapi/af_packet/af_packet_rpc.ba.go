@@ -8,7 +8,7 @@ import (
 	"io"
 
 	api "git.fd.io/govpp.git/api"
-	vlib "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vlib"
+	memclnt "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/memclnt"
 )
 
 // RPCService defines RPC service af_packet.
@@ -64,7 +64,7 @@ func (c *serviceClient) AfPacketDump(ctx context.Context, in *AfPacketDump) (RPC
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -87,7 +87,7 @@ func (c *serviceClient_AfPacketDumpClient) Recv() (*AfPacketDetails, error) {
 	switch m := msg.(type) {
 	case *AfPacketDetails:
 		return m, nil
-	case *vlib.ControlPingReply:
+	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()
 		if err != nil {
 			return nil, err

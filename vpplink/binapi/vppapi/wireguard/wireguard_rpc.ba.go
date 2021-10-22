@@ -8,7 +8,7 @@ import (
 	"io"
 
 	api "git.fd.io/govpp.git/api"
-	vlib "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vlib"
+	memclnt "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/memclnt"
 )
 
 // RPCService defines RPC service wireguard.
@@ -66,7 +66,7 @@ func (c *serviceClient) WireguardInterfaceDump(ctx context.Context, in *Wireguar
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -89,7 +89,7 @@ func (c *serviceClient_WireguardInterfaceDumpClient) Recv() (*WireguardInterface
 	switch m := msg.(type) {
 	case *WireguardInterfaceDetails:
 		return m, nil
-	case *vlib.ControlPingReply:
+	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()
 		if err != nil {
 			return nil, err
@@ -127,7 +127,7 @@ func (c *serviceClient) WireguardPeersDump(ctx context.Context, in *WireguardPee
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -150,7 +150,7 @@ func (c *serviceClient_WireguardPeersDumpClient) Recv() (*WireguardPeersDetails,
 	switch m := msg.(type) {
 	case *WireguardPeersDetails:
 		return m, nil
-	case *vlib.ControlPingReply:
+	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()
 		if err != nil {
 			return nil, err

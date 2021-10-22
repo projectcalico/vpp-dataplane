@@ -8,7 +8,7 @@ import (
 	"io"
 
 	api "git.fd.io/govpp.git/api"
-	vlib "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vlib"
+	memclnt "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/memclnt"
 )
 
 // RPCService defines RPC service acl.
@@ -71,7 +71,7 @@ func (c *serviceClient) ACLDump(ctx context.Context, in *ACLDump) (RPCService_AC
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -94,7 +94,7 @@ func (c *serviceClient_ACLDumpClient) Recv() (*ACLDetails, error) {
 	switch m := msg.(type) {
 	case *ACLDetails:
 		return m, nil
-	case *vlib.ControlPingReply:
+	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()
 		if err != nil {
 			return nil, err
@@ -123,7 +123,7 @@ func (c *serviceClient) ACLInterfaceEtypeWhitelistDump(ctx context.Context, in *
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -146,7 +146,7 @@ func (c *serviceClient_ACLInterfaceEtypeWhitelistDumpClient) Recv() (*ACLInterfa
 	switch m := msg.(type) {
 	case *ACLInterfaceEtypeWhitelistDetails:
 		return m, nil
-	case *vlib.ControlPingReply:
+	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()
 		if err != nil {
 			return nil, err
@@ -166,7 +166,7 @@ func (c *serviceClient) ACLInterfaceListDump(ctx context.Context, in *ACLInterfa
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -189,7 +189,7 @@ func (c *serviceClient_ACLInterfaceListDumpClient) Recv() (*ACLInterfaceListDeta
 	switch m := msg.(type) {
 	case *ACLInterfaceListDetails:
 		return m, nil
-	case *vlib.ControlPingReply:
+	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()
 		if err != nil {
 			return nil, err
@@ -308,7 +308,7 @@ func (c *serviceClient) MacipACLDump(ctx context.Context, in *MacipACLDump) (RPC
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -331,7 +331,7 @@ func (c *serviceClient_MacipACLDumpClient) Recv() (*MacipACLDetails, error) {
 	switch m := msg.(type) {
 	case *MacipACLDetails:
 		return m, nil
-	case *vlib.ControlPingReply:
+	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()
 		if err != nil {
 			return nil, err
@@ -369,7 +369,7 @@ func (c *serviceClient) MacipACLInterfaceListDump(ctx context.Context, in *Macip
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vlib.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -392,7 +392,7 @@ func (c *serviceClient_MacipACLInterfaceListDumpClient) Recv() (*MacipACLInterfa
 	switch m := msg.(type) {
 	case *MacipACLInterfaceListDetails:
 		return m, nil
-	case *vlib.ControlPingReply:
+	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()
 		if err != nil {
 			return nil, err

@@ -93,6 +93,7 @@ function generate_govpp_apis ()
 	  rdma \
 	  vmxnet3 \
 	  pbl \
+	  memclnt \
 	  session
 }
 
