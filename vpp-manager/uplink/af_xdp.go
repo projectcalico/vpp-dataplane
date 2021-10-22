@@ -148,6 +148,7 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (
 		return errors.Wrap(err, "could not set af_xdp interface mac address in vpp")
 	}
 	d.spec.SwIfIndex = intf.SwIfIndex
+	d.TagMainInterface(vpp, intf.SwIfIndex, d.spec.InterfaceName)
 	return nil
 }
 

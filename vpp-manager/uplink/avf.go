@@ -159,6 +159,7 @@ func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (er
 		return fmt.Errorf("Created AVF interface has wrong swIfIndex %d!", swIfIndex)
 	}
 	d.spec.SwIfIndex = swIfIndex
+	d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
 	return nil
 }
 

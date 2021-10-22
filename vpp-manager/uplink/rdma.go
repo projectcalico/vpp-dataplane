@@ -86,6 +86,7 @@ func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (e
 		return fmt.Errorf("Created RDMA interface has wrong swIfIndex %d!", swIfIndex)
 	}
 	d.spec.SwIfIndex = swIfIndex
+	d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
 	return nil
 }
 

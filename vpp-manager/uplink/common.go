@@ -48,7 +48,7 @@ type UplinkDriverData struct {
 
 type UplinkDriver interface {
 	PreconfigureLinux() error
-	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (error)
+	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error
 	RestoreLinux()
 	IsSupported(warn bool) bool
 	GetName() string
@@ -57,6 +57,15 @@ type UplinkDriver interface {
 
 func (d *UplinkDriverData) GetName() string {
 	return d.name
+}
+
+func (d *UplinkDriverData) TagMainInterface(vpp *vpplink.VppLink, swIfIndex uint32, name string) (err error) {
+	log.Infof("tagging interface [%d] with: %s", swIfIndex, name)
+	err = vpp.SetInterfaceTag(swIfIndex, name)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (d *UplinkDriverData) moveInterfaceToNS(ifName string, pid int) error {

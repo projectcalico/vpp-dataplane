@@ -69,9 +69,10 @@ type Server struct {
 	configuredState *PolicyState
 	pendingState    *PolicyState
 
-	allowFromHostPolicy *Policy
-	ip4                 *net.IP
-	ip6                 *net.IP
+	workloadsToHostPolicy *Policy
+	allowFromHostPolicy   *Policy
+	ip4                   *net.IP
+	ip6                   *net.IP
 }
 
 // NewServer creates a policy server
@@ -103,7 +104,7 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 	}
 
 	server.setNodeIPs(&node.Spec)
-
+	server.log.Infof("Alladdresses--%+v", node.Spec.Addresses)
 	// Cleanup potentially left over socket
 	err = os.RemoveAll(config.FelixDataplaneSocket)
 	if err != nil {
@@ -179,7 +180,7 @@ func (s *Server) OnVppRestart() {
 
 // WorkloadAdded is called by the CNI server when a container interface is created,
 // either during startup when reconnecting the interfaces, or when a new pod is created
-func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32) {
+func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32, containerIPs []*net.IPNet) {
 	// TODO: Send WorkloadEndpointStatusUpdate to felix
 	s.endpointsLock.Lock()
 	defer s.endpointsLock.Unlock()
@@ -206,6 +207,37 @@ func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32) {
 			err := wep.Create(s.vpp, swIfIndex, s.configuredState)
 			if err != nil {
 				s.log.Errorf("Error processing workload addition: %s", err)
+			}
+		}
+	}
+	// EndpointToHostAction
+	if config.EndpointToHostAction == "DROP" {
+		r_deny := &Rule{
+			VppID:  types.InvalidID,
+			RuleID: "calicovpp-internal-denypodtohost",
+			Rule: &types.Rule{
+				Action: types.ActionDeny,
+				SrcNet: []net.IPNet{},
+			},
+		}
+		for _, containerIP := range containerIPs {
+			r_deny.Rule.SrcNet = append(r_deny.Rule.SrcNet, *common.FullyQualified(containerIP.IP))
+		}
+		s.workloadsToHostPolicy.InboundRules = append([]*Rule{r_deny}, s.workloadsToHostPolicy.InboundRules...)
+		err := s.workloadsToHostPolicy.Create(s.vpp, nil)
+		if err != nil {
+			s.log.Error("cannot create policy to drop traffic to host")
+		}
+		conf := types.NewInterfaceConfig()
+		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, s.workloadsToHostPolicy.VppID)
+		err, _, swifindexes := s.vpp.SearchInterfaceWithTag("host-", true)
+		if err != nil {
+			s.log.Error(err)
+		}
+		for _, swifindex := range swifindexes {
+			err = s.vpp.ConfigurePolicies(uint32(swifindex), conf)
+			if err != nil {
+				s.log.Error("cannot create policy to drop traffic to host")
 			}
 		}
 	}
@@ -416,6 +448,9 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 	s.state = StateSyncing
 
 	config.HandleFelixConfig(msg.Config)
+	if config.EndpointToHostAction == "DROP" {
+		s.endpointToHostTraffic(types.ActionDeny)
+	}
 	return nil
 }
 
@@ -579,12 +614,59 @@ func (s *Server) handleActiveProfileRemove(msg *proto.ActiveProfileRemove, pendi
 }
 
 func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending bool) (err error) {
-	s.log.Infof("Ignoring HostEndpointUpdate")
+	state := s.currentState(pending)
+	id := fromProtoHostEndpointID(msg.Id)
+	hep := fromProtoHostEndpoint(msg.Endpoint, s)
+
+	err, swifindex, _ := s.vpp.SearchInterfaceWithTag(hep.InterfaceName, false)
+	if err != nil {
+		return err
+	} else if swifindex == types.InvalidID {
+		s.log.Errorf("cannot find host endpoint: interface named %s does not exist", hep.InterfaceName)
+	}
+	s.log.Infof("%s : swifindex: %d", hep.InterfaceName, swifindex)
+
+	hep.SwIfIndex = swifindex
+	existing, found := state.HostEndpoints[*id]
+
+	s.log.Infof("Updating host endpoint %s (found:%t)", id.EndpointID, found)
+	if existing != nil {
+		s.log.Infof("Existing: %s", existing.String())
+	}
+	s.log.Infof("New: %s", hep.String())
+
+	if found {
+		if pending {
+			state.HostEndpoints[*id] = hep
+		} else {
+			return errors.Wrap(existing.Update(s.vpp, hep, state, config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts), "cannot update host endpoint")
+		}
+	} else {
+		state.HostEndpoints[*id] = hep
+		if !pending {
+			return errors.Wrap(hep.Create(s.vpp, hep.SwIfIndex, state, config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts),
+				"cannot create host endpoint")
+		}
+	}
 	return nil
 }
 
 func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending bool) (err error) {
-	s.log.Infof("Ignoring HostEndpointRemove")
+	state := s.currentState(pending)
+	id := fromProtoHostEndpointID(msg.Id)
+	existing, ok := state.HostEndpoints[*id]
+	if !ok {
+		s.log.Debugf("Received host endpoint delete for %v that doesn't exists", id)
+		return nil
+	}
+	if !pending && existing.SwIfIndex != types.InvalidID {
+		s.log.Infof("Removing host endpoint")
+		err = existing.Delete(s.vpp)
+		if err != nil {
+			return errors.Wrap(err, "error deleting profile")
+		}
+	}
+	delete(state.HostEndpoints, *id)
 	return nil
 }
 
@@ -711,6 +793,14 @@ func (s *Server) applyPendingState() (err error) {
 			s.log.Warnf("error deleting ipset: %v", err)
 		}
 	}
+	for _, hep := range s.configuredState.HostEndpoints {
+		if hep.SwIfIndex != types.InvalidID {
+			err = hep.Delete(s.vpp)
+			if err != nil {
+				s.log.Warnf("error deleting hostendpoint")
+			}
+		}
+	}
 
 	s.configuredState = s.pendingState
 	s.pendingState = NewPolicyState()
@@ -741,6 +831,12 @@ func (s *Server) applyPendingState() (err error) {
 			}
 		}
 	}
+	for _, hep := range s.configuredState.HostEndpoints {
+		err = hep.Create(s.vpp, hep.SwIfIndex, s.configuredState, config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts)
+		if err != nil {
+			return errors.Wrap(err, "cannot create host endpoint")
+		}
+	}
 	s.log.Infof("Reconciliation done")
 	return nil
 }
@@ -769,4 +865,28 @@ func (s *Server) createAllowFromHostPolicy() (err error) {
 	s.allowFromHostPolicy.InboundRules = append(s.allowFromHostPolicy.InboundRules, r)
 	err = s.allowFromHostPolicy.Create(s.vpp, nil)
 	return errors.Wrap(err, "cannot create policy to allow traffic from host")
+}
+
+// Allow the rest of the traffic to the host
+func (s *Server) endpointToHostTraffic(action types.RuleAction /*may be return*/) {
+	pol := &Policy{
+		Policy: &types.Policy{},
+		VppID:  types.InvalidID,
+	}
+	r := &Rule{
+		VppID:  types.InvalidID,
+		RuleID: "calicovpp-internal-allowtohost",
+		Rule: &types.Rule{
+			Action: types.ActionAllow,
+			DstNet: []net.IPNet{},
+		},
+	}
+	if s.ip4 != nil {
+		r.Rule.DstNet = append(r.Rule.DstNet, *common.FullyQualified(*s.ip4))
+	}
+	if s.ip6 != nil {
+		r.Rule.DstNet = append(r.Rule.DstNet, *common.FullyQualified(*s.ip6))
+	}
+	pol.InboundRules = append(pol.InboundRules, r)
+	s.workloadsToHostPolicy = pol
 }
