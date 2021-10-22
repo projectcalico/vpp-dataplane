@@ -59,6 +59,15 @@ func (d *UplinkDriverData) GetName() string {
 	return d.name
 }
 
+func (d *UplinkDriverData) TagMainInterface(vpp *vpplink.VppLink, swIfIndex uint32, name string) (err error) {
+	log.Infof("tagging interface [%d] with: %s", swIfIndex, name)
+	err = vpp.SetInterfaceTag(swIfIndex, name)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (d *UplinkDriverData) moveInterfaceToNS(ifName string, pid int) error {
 	// Move interface to VPP namespace
 	link, err := utils.SafeGetLink(ifName)

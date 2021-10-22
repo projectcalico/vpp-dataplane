@@ -103,6 +103,12 @@ var (
 	felixVXLANMtu         int = 0
 	felixWireguardEnabled     = false
 	felixWireguardMtu     int = 0
+
+	FailsafeInboundHostPorts  string = ""
+	FailsafeOutboundHostPorts string = ""
+	EndpointToHostAction      string = ""
+
+	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
@@ -332,6 +338,18 @@ func WaitForFelixConfig() {
 }
 
 func HandleFelixConfig(config map[string]string) {
+	EndpointToHostAction = config["DefaultEndpointToHostAction"]
+	if EndpointToHostAction == "" {
+		EndpointToHostAction = "DROP"
+	}
+	FailsafeInboundHostPorts = config["FailsafeInboundHostPorts"]
+	if FailsafeInboundHostPorts == "" {
+		FailsafeInboundHostPorts = "tcp:22, udp:68, tcp:179, tcp:2379, tcp:2380, tcp:5473, tcp:6443, tcp:6666, tcp:6667"
+	}
+	FailsafeOutboundHostPorts = config["FailsafeOutboundHostPorts"]
+	if FailsafeOutboundHostPorts == "" {
+		FailsafeOutboundHostPorts = "udp:53, udp:67, tcp:179, tcp:2379, tcp:2380, tcp:5473, tcp:6443, tcp:6666, tcp:6667"
+	}
 	felixIPIPEnabled, _ = strconv.ParseBool(config["IpInIpEnabled"])
 	felixIPIPMtu, _ = strconv.Atoi(config["IpInIpMtu"])
 	if felixIPIPMtu == 0 {

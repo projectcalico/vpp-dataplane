@@ -121,7 +121,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		OrchestratorID: podSpec.OrchestratorID,
 		WorkloadID:     podSpec.WorkloadID,
 		EndpointID:     podSpec.EndpointID,
-	}, podSpec.TunTapSwIfIndex)
+	}, podSpec.TunTapSwIfIndex, podSpec.GetContainerIps())
 
 	s.prometheusServer.PodAdded(podSpec)
 	return podSpec.TunTapSwIfIndex, err
