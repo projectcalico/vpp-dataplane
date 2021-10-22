@@ -55,13 +55,15 @@ var (
 	log *logrus.Logger
 )
 
-func Go(f func(t *tomb.Tomb) error) {
+func Go(f func(t *tomb.Tomb) error, name string) {
 	if t.Alive() {
+		log.Infof("STARTING %s", name)
 		t.Go(func() error {
 			err := f(&t)
 			if err != nil {
 				log.Warnf("Tomb function errored with %s", err)
 			}
+			log.Infof("STOPPED %s", name)
 			return err
 		})
 	}
@@ -160,7 +162,7 @@ func main() {
 	serviceServer.SetBGPConf(bgpConf)
 
 	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
-	Go(policyServer.ServePolicy)
+	Go(policyServer.ServePolicy, "policyServer.ServePolicy")
 	felixConfig := watchDog.Wait(policyServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
 	ourBGPSpec := watchDog.Wait(policyServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")
 	if ourBGPSpec != nil {
@@ -173,7 +175,7 @@ func main() {
 	}
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
-		Go(netWatcher.WatchNetworks)
+		Go(netWatcher.WatchNetworks, "netWatcher.WatchNetworks")
 		watchDog.Wait(netWatcher.InSync, "Waiting for networks to be listed and synced")
 	}
 
@@ -182,20 +184,20 @@ func main() {
 		connectivityServer.SetFelixConfig(felixConfig.(*felixconfig.Config))
 	}
 
-	Go(routeWatcher.WatchRoutes)
-	Go(linkWatcher.WatchLinks)
-	Go(bgpConfigurationWatcher.WatchBGPConfiguration)
-	Go(prefixWatcher.WatchPrefix)
-	Go(peerWatcher.WatchBGPPeers)
-	Go(connectivityServer.ServeConnectivity)
-	Go(routingServer.ServeRouting)
-	Go(serviceServer.ServeService)
-	Go(cniServer.ServeCNI)
-	Go(prometheusServer.ServePrometheus)
+	Go(routeWatcher.WatchRoutes, "routeWatcher.WatchRoutes")
+	Go(linkWatcher.WatchLinks, "linkWatcher.WatchLinks")
+	Go(bgpConfigurationWatcher.WatchBGPConfiguration, "bgpConfigurationWatcher.WatchBGPConfiguration")
+	Go(prefixWatcher.WatchPrefix, "prefixWatcher.WatchPrefix")
+	Go(peerWatcher.WatchBGPPeers, "peerWatcher.WatchBGPPeers")
+	Go(connectivityServer.ServeConnectivity, "connectivityServer.ServeConnectivity")
+	Go(routingServer.ServeRouting, "routingServer.ServeRouting")
+	Go(serviceServer.ServeService, "serviceServer.ServeService")
+	Go(cniServer.ServeCNI, "cniServer.ServeCNI")
+	Go(prometheusServer.ServePrometheus, "prometheusServer.ServePrometheus")
 
 	// watch LocalSID if SRv6 is enabled
 	if *config.GetCalicoVppFeatureGates().SRv6Enabled {
-		Go(localSIDWatcher.WatchLocalSID)
+		Go(localSIDWatcher.WatchLocalSID, "localSIDWatcher.WatchLocalSID")
 	}
 
 	log.Infof("Agent started")

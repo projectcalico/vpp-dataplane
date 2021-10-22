@@ -373,7 +373,8 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) error {
 	for {
 		select {
 		case <-t.Dying():
-			break
+			s.log.Warnf("CNI server asked to stop")
+			return nil
 		case evt := <-s.cniEventChan:
 			switch evt.Type {
 			case common.FelixConfChanged:
@@ -482,12 +483,14 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	}
 
 	s.log.Infof("CNI Server returned")
+	s.grpcServer.Stop()
+	s.log.Infof("GRPC stopped")
 
-	s.grpcServer.GracefulStop()
 	err = syscall.Unlink(config.CNIServerSocket)
 	if err != nil {
 		return err
 	}
+	s.log.Infof("Socket CNI unlink")
 
 	return nil
 }

@@ -1,10 +1,15 @@
-VPP Version                 : 23.06-rc0~206-gbc006bb5a
+VPP Version                 : 23.06-rc0~211-gf559a7816
 Binapi-generator version    : govpp v0.8.0-dev
-VPP Base commit             : 28d74a396 gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : 004ebac6a gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:34552/8 cnat: add single lookup
+gerrit:29748/5 cnat: remove rwlock on ts
+gerrit:32821/6 cnat: add ip/client bihash
+gerrit:34108/5 cnat: flag to disable rsession
+gerrit:31449/10 cnat: dont compute offloaded cksums
 gerrit:34726/3 interface: add buffer stats api
 -------------------------------------------------------------

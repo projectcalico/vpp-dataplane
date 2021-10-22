@@ -96,9 +96,20 @@ git_clone_cd_and_reset "$1" 156d452750ab37a51984938bf4a8ab0e16650d82
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 
+git_cherry_pick refs/changes/49/31449/10 # 31449: cnat: dont compute offloaded cksums | https://gerrit.fd.io/r/c/vpp/+/31449
+git_cherry_pick refs/changes/08/34108/5 # 34108: cnat: flag to disable rsession | https://gerrit.fd.io/r/c/vpp/+/34108
+git_cherry_pick refs/changes/21/32821/6 # 32821: cnat: add ip/client bihash | https://gerrit.fd.io/r/c/vpp/+/32821
+git_cherry_pick refs/changes/48/29748/5 # 29748: cnat: remove rwlock on ts | https://gerrit.fd.io/r/c/vpp/+/29748
+git_cherry_pick refs/changes/52/34552/8 # 34552: cnat: add single lookup | https://gerrit.fd.io/r/c/vpp/+/34552
+
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch
 git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
 git_apply_private 0004-capo-Calico-Policies-plugin.patch
+
+
+# git cp 236423e261385e58556b75c9f9eb56006a2b9d67 # perf WIP
+# git cp 7603fd367739e74c47349a1dd9662c78dcf9377d # capo+cnat
+
