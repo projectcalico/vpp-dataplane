@@ -161,7 +161,7 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 net.IP, nodeIpv6 net.IP
 	}, nil
 }
 
-func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficType uint32, isWithdrawal bool) (*bgpapi.Path, error) {
+func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficType int, isWithdrawal bool) (*bgpapi.Path, error) {
 	originAttr, err := ptypes.MarshalAny(&bgpapi.OriginAttribute{Origin: 0})
 	if err != nil {
 		return nil, err

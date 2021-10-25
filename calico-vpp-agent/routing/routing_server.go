@@ -69,6 +69,7 @@ type Server struct {
 	kernelWatcher    *watchers.KernelWatcher
 	peerWatcher      *watchers.PeerWatcher
 	nodeWatcher      *watchers.NodeWatcher
+	localsidWatcher  *watchers.LocalSIDWatcher
 	ipam             watchers.IpamCache
 
 	connectivityServer *connectivity.ConnectivityServer
@@ -122,6 +123,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server.kernelWatcher = watchers.NewKernelWatcher(&routingData, server.ipam, server.bgpWatcher, l.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
 	server.peerWatcher = watchers.NewPeerWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
 	server.nodeWatcher = watchers.NewNodeWatcher(&routingData, server.peerWatcher, l.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
+	server.localsidWatcher = watchers.NewLocalSIDWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
 	server.connectivityServer = connectivity.NewConnectivityServer(&routingData, server.ipam, server.felixConfWatcher, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 
 	return &server, nil
@@ -169,6 +171,11 @@ func (s *Server) serveOne() error {
 	s.t.Go(func() error { return s.peerWatcher.WatchBGPPeers() })
 	// watch Felix configuration
 	s.t.Go(func() error { return s.felixConfWatcher.WatchFelixConfiguration() })
+
+	// watch LocalSID if SRv6 is enabled
+	if config.EnableSRv6 {
+		s.t.Go(func() error { return s.localsidWatcher.WatchLocalSID() })
+	}
 
 	// TODO need to watch BGP configurations and restart in case of changes
 	// Need to get initial BGP config here, pass it to the watchers that need it,

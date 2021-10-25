@@ -153,7 +153,7 @@ func (w *BGPWatcher) injectSRv6Policy(path *bgpapi.Path) error {
 	if err != nil {
 		return errors.Wrap(err, "error injectSRv6Policy")
 	}
-	//w.log.Infof("Got path update with SRv6BindingSID with sid %s", sid.String())
+
 	cn := &common.NodeConnectivity{
 		Dst:              net.IPNet{},
 		NextHop:          srnrli.Endpoint,

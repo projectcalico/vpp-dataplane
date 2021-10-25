@@ -156,6 +156,6 @@ type SrSteer struct {
 }
 
 func (s *SrSteer) String() string {
-	return fmt.Sprintf("TrafficType: %d, FibTable: %d, Prefix: %s, SwIfIndex: %d, Bsid: %d",
-		s.TrafficType, s.FibTable, s.Prefix.String(), s.SwIfIndex, s.Bsid)
+	return fmt.Sprintf("TrafficType: %d, FibTable: %d, Prefix: %s, SwIfIndex: %d, Bsid: %s",
+		s.TrafficType, s.FibTable, s.Prefix.String(), s.SwIfIndex, s.Bsid.String())
 }

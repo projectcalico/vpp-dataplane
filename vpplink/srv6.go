@@ -51,6 +51,30 @@ func (v *VppLink) ListSRv6Policies() (list []*types.SrPolicy, err error) {
 	return list, err
 }
 
+func (v *VppLink) AddModSRv6Policy(policy *types.SrPolicy) (err error) {
+	list, err := v.ListSRv6Policies()
+	isAlreadyDefined := false
+	if err != nil {
+		return errors.Wrapf(err, "error AddModSRv6Policy")
+	}
+	for _, registeredPolicy := range list {
+		if policy.Bsid == registeredPolicy.Bsid {
+			isAlreadyDefined = true
+			break
+		}
+	}
+
+	if isAlreadyDefined {
+		errDel := v.DelSRv6Policy(policy)
+		if errDel != nil {
+			return errors.Wrapf(errDel, "error AddModSRv6Policy")
+		}
+	}
+
+	return v.AddSRv6Policy(policy)
+
+}
+
 func (v *VppLink) AddSRv6Policy(policy *types.SrPolicy) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
