@@ -84,7 +84,7 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-git_clone_cd_and_reset "$1" 0ad060851b4989a1cd300ad711e8498435f65f9a
+git_clone_cd_and_reset "$1" 312b4cd841c94551e1de54df973891747306c390
 
 git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git_cherry_pick refs/changes/71/32271/7 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
