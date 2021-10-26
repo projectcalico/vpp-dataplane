@@ -31,6 +31,7 @@ import (
 	calicoapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
@@ -121,17 +122,11 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 }
 
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInterfaceState) (err error) {
-
 	for _, ipFamily := range vpplink.IpFamilies {
-		err = v.vpp.AddVRF(config.PuntTableId, ipFamily.IsIp6, "punt-table")
-		if err != nil {
-			return errors.Wrapf(err, "Error creating punt vrf")
-		}
-
 		err = v.vpp.PuntRedirect(types.IpPuntRedirect{
 			RxSwIfIndex: vpplink.InvalidID,
 			Paths: []types.RoutePath{{
-				Table:     config.PuntTableId,
+				Table:     common.PuntTableId,
 				SwIfIndex: types.InvalidID,
 			}},
 		}, ipFamily.IsIp6)
@@ -156,7 +151,7 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 		}
 		/* In the punt table (where all punted traffics ends), route to the tap */
 		err = v.vpp.RouteAdd(&types.Route{
-			Table: config.PuntTableId,
+			Table: common.PuntTableId,
 			Paths: []types.RoutePath{{
 				Gw:        neigh,
 				SwIfIndex: tapSwIfIndex,
@@ -349,6 +344,82 @@ func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount in
 	return nil
 }
 
+func (v *VppRunner) allocateStaticVRFs() error {
+	// Create all VRFs with a static ID that we use first so that we can
+	// then call AllocateVRF without risk of conflict
+	for _, ipFamily := range vpplink.IpFamilies {
+		err := v.vpp.AddVRF(common.PuntTableId, ipFamily.IsIp6, fmt.Sprintf("punt-table-%s", ipFamily.Str))
+		if err != nil {
+			return errors.Wrapf(err, "Error creating punt vrf %s", ipFamily.Str)
+		}
+		err = v.vpp.AddVRF(common.PodVRFIndex, ipFamily.IsIp6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
+		if err != nil {
+			return err
+		}
+		err = v.vpp.AddDefaultRouteViaTable(common.PodVRFIndex, common.DefaultVRFIndex, ipFamily.IsIp6)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Configure specific VRFs for a given tap to the host to handle broadcast / multicast trafic sent by the host
+func (v *VppRunner) setupTapVRF(ifSpec *config.InterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
+	for _, ipFamily := range vpplink.IpFamilies {
+		vrfId, err := v.vpp.AllocateVRF(ipFamily.IsIp6, fmt.Sprintf("host-tap-%s-%s", ifSpec.InterfaceName, ipFamily.Str))
+		if err != nil {
+			return []uint32{}, errors.Wrap(err, "Error allocating vrf for tap")
+		}
+		if ipFamily.IsIp4 {
+			// special route to forward broadcast from the host through the matching uplink
+			// useful for instance for DHCP DISCOVER pkts from the host
+			err = v.vpp.RouteAdd(&types.Route{
+				Table: vrfId,
+				Dst: &net.IPNet{
+					IP:   net.IPv4bcast,
+					Mask: net.IPv4Mask(255, 255, 255, 255),
+				},
+				Paths: []types.RoutePath{{
+					Gw:        net.ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
+					SwIfIndex: ifSpec.SwIfIndex,
+				}},
+			})
+			if err != nil {
+				log.Errorf("cannot add broadcast route in vpp: %v", err)
+			}
+		} else {
+			// No custom routes for IPv6 for now. Forward LL multicast from the host?
+		}
+		// default route in default table
+		err = v.vpp.AddDefaultRouteViaTable(vrfId, common.DefaultVRFIndex, ipFamily.IsIp6)
+		if err != nil {
+			return []uint32{}, errors.Wrapf(err, "error adding VRF %d default route via VRF %d", vrfId, common.PodVRFIndex)
+		}
+		// Set tap in this table
+		err = v.vpp.SetInterfaceVRF(tapSwIfIndex, vrfId, ipFamily.IsIp6)
+		if err != nil {
+			return []uint32{}, errors.Wrapf(err, "error setting vpp tap in vrf %d", vrfId)
+		}
+		vrfs = append(vrfs, vrfId)
+	}
+
+	// Configure addresses to enable ipv4 & ipv6 on the tap
+	for _, addr := range ifState.Addresses {
+		log.Infof("Adding address %s to tap interface", addr.String())
+		// to max len cidr because we don't want the rest of the subnet to be considered as
+		// connected to that interface
+		// note that the role of these addresses is just to tell vpp to accept ip4 / ip6 packets on the tap
+		// we use these addresses as the safest option, because as they are configured on linux, linux
+		// will never send us packets with these addresses as destination
+		err = v.vpp.AddInterfaceAddress(tapSwIfIndex, common.ToMaxLenCIDR(addr.IPNet.IP))
+		if err != nil {
+			log.Errorf("Error adding address to tap interface: %v", err)
+		}
+	}
+	return vrfs, nil
+}
+
 func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec config.InterfaceSpec) (err error) {
 	// Always enable GSO feature on data interface, only a tiny negative effect on perf if GSO is not
 	// enabled on the taps or already done before an encap
@@ -378,21 +449,6 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 	err = v.vpp.CnatEnableFeatures(ifSpec.SwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error configuring NAT on uplink interface")
-	}
-
-	// special route to forward broadcast dhcp packets from the host
-	err = v.vpp.RouteAdd(&types.Route{
-		Dst: &net.IPNet{
-			IP:   net.IPv4bcast,
-			Mask: net.IPv4Mask(255, 255, 255, 255),
-		},
-		Paths: []types.RoutePath{{
-			Gw:        net.ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
-			SwIfIndex: ifSpec.SwIfIndex,
-		}},
-	})
-	if err != nil {
-		log.Errorf("cannot add broadcast route in vpp: %v", err)
 	}
 
 	for _, addr := range ifState.Addresses {
@@ -459,6 +515,11 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrap(err, "Error creating tap")
 	}
 
+	vrfs, err := v.setupTapVRF(&ifSpec, ifState, tapSwIfIndex)
+	if err != nil {
+		return errors.Wrap(err, "error configuring VRF for tap")
+	}
+
 	// Always set this tap on worker 0
 	err = v.vpp.SetInterfaceRxPlacement(tapSwIfIndex, 0 /*queue*/, 0 /*worker*/, false /*main*/)
 	if err != nil {
@@ -480,11 +541,6 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrap(err, "Error writing tap idx")
 	}
 
-	err = v.vpp.EnableInterfaceIP6(tapSwIfIndex)
-	if err != nil {
-		return errors.Wrap(err, "Error enabling ip6 on vpptap0")
-	}
-
 	err = v.vpp.DisableIP6RouterAdvertisements(tapSwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error disabling ip6 RA on vpptap0")
@@ -495,7 +551,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrap(err, "Error adding redirect to tap")
 	}
 
-	err = v.vpp.EnableArpProxy(tapSwIfIndex, 0 /* table id */)
+	err = v.vpp.EnableArpProxy(tapSwIfIndex, vrfs[0 /* ip4 */])
 	if err != nil {
 		return errors.Wrap(err, "Error enabling ARP proxy")
 	}
@@ -515,11 +571,6 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		if err != nil {
 			return errors.Wrap(err, "Error enabling GSO on vpptap0")
 		}
-	}
-
-	err = v.vpp.InterfaceSetUnnumbered(tapSwIfIndex, ifSpec.SwIfIndex)
-	if err != nil {
-		return errors.Wrap(err, "error setting vpp tap unnumbered")
 	}
 
 	err = v.vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, v.params.TapRxMode)
@@ -683,6 +734,14 @@ func (v *VppRunner) runVpp() (err error) {
 		conf:         v.conf[0],
 	}
 
+	err = v.allocateStaticVRFs()
+	if err != nil {
+		terminateVpp("Error connecting to VPP (SIGINT %d): %v", vppProcess.Pid, err)
+		v.vpp.Close()
+		<-vppDeadChan
+		return errors.Wrap(err, "error allocating static VRFs")
+	}
+
 	for idx := 0; idx < len(v.params.InterfacesSpecs); idx++ {
 		err := v.uplinkDriver[idx].CreateMainVppInterface(vpp, vppProcess.Pid)
 		if err != nil {
@@ -750,7 +809,7 @@ func (v *VppRunner) restoreConfiguration() {
 	if err != nil {
 		log.Errorf("Error clearing vpp manager files: %v", err)
 	}
-	for idx := range v.params.InterfacesSpecs{
+	for idx := range v.params.InterfacesSpecs {
 		v.uplinkDriver[idx].RestoreLinux()
 	}
 	err = v.pingCalicoVpp()

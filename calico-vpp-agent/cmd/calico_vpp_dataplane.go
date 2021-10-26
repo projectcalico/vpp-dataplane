@@ -72,13 +72,6 @@ func main() {
 		return
 	}
 
-	// This needs to be the first thing created in VPP as multiple servers depend on that
-	err = common.SetupPodVRF(vpp)
-	if err != nil {
-		log.Errorf("Failed to create pod vrf")
-		log.Fatal(err)
-	}
-
 	serviceServer, err := services.NewServer(vpp, log.WithFields(logrus.Fields{"component": "services"}))
 	if err != nil {
 		log.Errorf("Failed to create services server")

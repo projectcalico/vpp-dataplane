@@ -16,7 +16,6 @@
 package common
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -34,15 +33,16 @@ import (
 )
 
 var (
+	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
+
 	barrier     bool
 	barrierCond *sync.Cond
 )
 
 const (
-	DefaultVRFIndex     = uint32(0)
-	PuntTableId         = uint32(1)
-	PodVRFIndex         = uint32(2)
-	PerPodVRFIndexStart = uint32(10) /* per pod VRFs will be this ID and above */
+	DefaultVRFIndex = uint32(0)
+	PuntTableId     = uint32(1)
+	PodVRFIndex     = uint32(2)
 )
 
 type CalicoVppServer interface {
@@ -126,11 +126,6 @@ func HandleVppManagerRestart(log *logrus.Logger, vpp *vpplink.VppLink, servers .
 			log.Fatalf("Timed out waiting for vpp-manager: %v", err)
 			os.Exit(1)
 		}
-		err = SetupPodVRF(vpp)
-		if err != nil {
-			log.Fatalf("Error reconfiguring pod vrf in VPP: %v", err)
-			os.Exit(1)
-		}
 		for i, srv := range servers {
 			srv.OnVppRestart()
 			log.Infof("SR:server %d restarted", i)
@@ -140,20 +135,6 @@ func HandleVppManagerRestart(log *logrus.Logger, vpp *vpplink.VppLink, servers .
 		barrierCond.L.Unlock()
 		barrierCond.Broadcast()
 	}
-}
-
-func SetupPodVRF(vpp *vpplink.VppLink) (err error) {
-	for _, ipFamily := range vpplink.IpFamilies {
-		err = vpp.AddVRF(PodVRFIndex, ipFamily.IsIp6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
-		if err != nil {
-			return err
-		}
-		err = vpp.AddDefaultRouteViaTable(PodVRFIndex, DefaultVRFIndex, ipFamily.IsIp6)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func SafeFormat(e interface{ String() string }) string {
