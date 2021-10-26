@@ -31,7 +31,7 @@ type HostEndpointID struct {
 }
 
 type HostEndpoint struct {
-	SwIfIndex        uint32
+	SwIfIndexes      []uint32
 	Profiles         []string
 	Tiers            []Tier
 	server           *Server
@@ -41,7 +41,7 @@ type HostEndpoint struct {
 }
 
 func (he *HostEndpoint) String() string {
-	return fmt.Sprintf("if[%d] profiles:[%s] tiers:[%s]", he.SwIfIndex, he.Profiles, he.Tiers)
+	return fmt.Sprintf("if[%d] profiles:[%s] tiers:[%s]", he.SwIfIndexes, he.Profiles, he.Tiers)
 }
 
 func fromProtoHostEndpointID(ep *proto.HostEndpointID) *HostEndpointID {
@@ -54,9 +54,10 @@ func fromProtoHostEndpoint(hep *proto.HostEndpoint, server *Server) *HostEndpoin
 	r := &HostEndpoint{
 		Profiles:         hep.ProfileIds,
 		server:           server,
-		SwIfIndex:        types.InvalidID,
+		SwIfIndexes:      []uint32{},
 		InterfaceName:    hep.Name,
 		FailSafepolicies: []*Policy{},
+		expectedIPs:      append(hep.ExpectedIpv4Addrs, hep.ExpectedIpv6Addrs...),
 	}
 	for _, tier := range hep.Tiers {
 		r.Tiers = append(r.Tiers, Tier{
@@ -191,7 +192,7 @@ func (h *HostEndpoint) failSafeInboundOutbound(initialConf *types.InterfaceConfi
 	return conf, nil
 }
 
-func (h *HostEndpoint) Create(vpp *vpplink.VppLink, swIfIndex uint32, state *PolicyState, failSafeInbound string, failSafeOutbound string) (err error) {
+func (h *HostEndpoint) Create(vpp *vpplink.VppLink, state *PolicyState, failSafeInbound string, failSafeOutbound string) (err error) {
 	conf, err := h.getPolicies(state)
 	if err != nil {
 		return err
@@ -200,9 +201,11 @@ func (h *HostEndpoint) Create(vpp *vpplink.VppLink, swIfIndex uint32, state *Pol
 	if err != nil {
 		return err
 	}
-	err = vpp.ConfigurePolicies(swIfIndex, conf)
-	if err != nil {
-		return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
+	for _, swIfIndex := range h.SwIfIndexes {
+		err = vpp.ConfigurePolicies(swIfIndex, conf)
+		if err != nil {
+			return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
+		}
 	}
 
 	return nil
@@ -217,11 +220,12 @@ func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *Po
 	if err != nil {
 		return err
 	}
-	err = vpp.ConfigurePolicies(h.SwIfIndex, conf)
-	if err != nil {
-		return errors.Wrapf(err, "cannot configure policies on interface %d", h.SwIfIndex)
+	for _, swIfIndex := range h.SwIfIndexes {
+		err = vpp.ConfigurePolicies(swIfIndex, conf)
+		if err != nil {
+			return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
+		}
 	}
-
 	// Update local policy with new data
 	h.Profiles = new.Profiles
 	h.Tiers = new.Tiers
@@ -229,17 +233,16 @@ func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *Po
 }
 
 func (h *HostEndpoint) Delete(vpp *vpplink.VppLink) (err error) {
-	if h.SwIfIndex == types.InvalidID {
-		return fmt.Errorf("deleting unconfigured wep")
+	for _, swIfIndex := range h.SwIfIndexes {
+		// Unconfigure policies
+		err = vpp.ConfigurePolicies(swIfIndex, types.NewInterfaceConfig())
+		if err != nil {
+			return errors.Wrapf(err, "cannot unconfigure policies on interface %d", swIfIndex)
+		}
+		for _, failSafePol := range h.FailSafepolicies {
+			failSafePol.Delete(vpp, nil)
+		}
 	}
-	// Unconfigure policies
-	err = vpp.ConfigurePolicies(h.SwIfIndex, types.NewInterfaceConfig())
-	if err != nil {
-		return errors.Wrapf(err, "cannot unconfigure policies on interface %d", h.SwIfIndex)
-	}
-	for _, failSafePol := range h.FailSafepolicies {
-		failSafePol.Delete(vpp, nil)
-	}
-	h.SwIfIndex = types.InvalidID
+	h.SwIfIndexes = []uint32{}
 	return nil
 }

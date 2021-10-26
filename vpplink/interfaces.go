@@ -295,6 +295,54 @@ func (v *VppLink) EnableInterfaceIP4(swIfIndex uint32) error {
 	return v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, true /*isEnable*/)
 }
 
+func (v *VppLink) GetAllInterfaces(main bool) map[uint32]string {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	swIfIndexes := make(map[uint32]string)
+	request := &interfaces.SwInterfaceDump{}
+	stream := v.ch.SendMultiRequest(request)
+	for {
+		response := &interfaces.SwInterfaceDetails{}
+		stop, err := stream.ReceiveReply(response)
+		if err != nil {
+			v.log.Errorf("error listing VPP interfaces: %v", err)
+			return nil
+		}
+		if stop {
+			break
+		}
+		if !main || strings.HasPrefix(response.Tag, "main-") {
+			swIfIndexes[uint32(response.SwIfIndex)] = response.Tag
+		}
+	}
+	return swIfIndexes
+}
+
+func (v *VppLink) SearchInterfacesWithAddresses(addresses []string, main bool) (map[uint32]string, error) {
+	swIfIndexes := v.GetAllInterfaces(main)
+	matchingIndexes := make(map[uint32]string)
+	v.log.Infof("%+v", swIfIndexes)
+	for s, tag := range swIfIndexes {
+		ip4adds, err := v.AddrList(s, false)
+		if err != nil {
+			return nil, err
+		}
+		ip6adds, err := v.AddrList(s, true)
+		if err != nil {
+			return nil, err
+		}
+		adds := append(ip4adds, ip6adds...)
+		for _, add := range adds {
+			for _, address := range addresses {
+				if address == add.IPNet.IP.String() {
+					matchingIndexes[s] = tag
+				}
+			}
+		}
+	}
+	return matchingIndexes, nil
+}
+
 func (v *VppLink) SearchInterfaceWithTag(tag string, startsWith bool) (err error, swIfIndex uint32, swIfIndexes []uint32) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
