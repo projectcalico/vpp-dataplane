@@ -104,7 +104,7 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 	}
 
 	server.setNodeIPs(&node.Spec)
-	server.log.Infof("Alladdresses--%+v", node.Spec.Addresses)
+
 	// Cleanup potentially left over socket
 	err = os.RemoveAll(config.FelixDataplaneSocket)
 	if err != nil {
@@ -617,16 +617,35 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 	state := s.currentState(pending)
 	id := fromProtoHostEndpointID(msg.Id)
 	hep := fromProtoHostEndpoint(msg.Endpoint, s)
-
-	err, swifindex, _ := s.vpp.SearchInterfaceWithTag(hep.InterfaceName, false)
-	if err != nil {
-		return err
-	} else if swifindex == types.InvalidID {
-		s.log.Errorf("cannot find host endpoint: interface named %s does not exist", hep.InterfaceName)
+	swifindexes := []uint32{}
+	if hep.InterfaceName != "" && hep.InterfaceName != "*" {
+		err, swifindex, _ := s.vpp.SearchInterfaceWithTag("main-"+hep.InterfaceName, false)
+		if err != nil {
+			return err
+		} else if swifindex == types.InvalidID {
+			s.log.Errorf("cannot find host endpoint: interface named %s does not exist", hep.InterfaceName)
+		} else {
+			swifindexes = append(swifindexes, swifindex)
+		}
+	} else if hep.InterfaceName == "" && hep.expectedIPs != nil {
+		sw, err := s.vpp.SearchInterfacesWithAddresses(hep.expectedIPs, true)
+		if err != nil {
+			return err
+		}
+		for key := range sw {
+			swifindexes = append(swifindexes, key)
+		}
+	} else if hep.InterfaceName == "*" {
+		sw := s.vpp.GetAllInterfaces(true)
+		for key := range sw {
+			swifindexes = append(swifindexes, key)
+		}
 	}
-	s.log.Infof("%s : swifindex: %d", hep.InterfaceName, swifindex)
-
-	hep.SwIfIndex = swifindex
+	s.log.Infof("%s : %+v swifindexes: %d", hep.InterfaceName, hep.expectedIPs, swifindexes)
+	if len(swifindexes) == 0 {
+		return errors.Errorf("No interface to configure as host endpoint")
+	}
+	hep.SwIfIndexes = swifindexes
 	existing, found := state.HostEndpoints[*id]
 
 	s.log.Infof("Updating host endpoint %s (found:%t)", id.EndpointID, found)
@@ -644,7 +663,7 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 	} else {
 		state.HostEndpoints[*id] = hep
 		if !pending {
-			return errors.Wrap(hep.Create(s.vpp, hep.SwIfIndex, state, config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts),
+			return errors.Wrap(hep.Create(s.vpp, state, config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts),
 				"cannot create host endpoint")
 		}
 	}
@@ -659,7 +678,7 @@ func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending
 		s.log.Debugf("Received host endpoint delete for %v that doesn't exists", id)
 		return nil
 	}
-	if !pending && existing.SwIfIndex != types.InvalidID {
+	if !pending && len(existing.SwIfIndexes) != 0 {
 		s.log.Infof("Removing host endpoint")
 		err = existing.Delete(s.vpp)
 		if err != nil {
@@ -794,7 +813,7 @@ func (s *Server) applyPendingState() (err error) {
 		}
 	}
 	for _, hep := range s.configuredState.HostEndpoints {
-		if hep.SwIfIndex != types.InvalidID {
+		if len(hep.SwIfIndexes) != 0 {
 			err = hep.Delete(s.vpp)
 			if err != nil {
 				s.log.Warnf("error deleting hostendpoint")
@@ -832,7 +851,7 @@ func (s *Server) applyPendingState() (err error) {
 		}
 	}
 	for _, hep := range s.configuredState.HostEndpoints {
-		err = hep.Create(s.vpp, hep.SwIfIndex, s.configuredState, config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts)
+		err = hep.Create(s.vpp, s.configuredState, config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts)
 		if err != nil {
 			return errors.Wrap(err, "cannot create host endpoint")
 		}
