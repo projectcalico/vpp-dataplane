@@ -89,6 +89,7 @@ git_clone_cd_and_reset "$1" 312b4cd841c94551e1de54df973891747306c390
 git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support | https://gerrit.fd.io/r/c/vpp/+/29386
 git_cherry_pick refs/changes/71/32271/7 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
 git_cherry_pick refs/changes/57/33557/5 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
+git_cherry_pick refs/changes/49/34249/1 # 34249: devices: default mode eth in the api | https://gerrit.fd.io/r/c/vpp/+/34249
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
