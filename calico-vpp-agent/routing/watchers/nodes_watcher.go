@@ -138,7 +138,7 @@ func (w *NodeWatcher) initialNodeSync() (string, error) {
 	}
 	for _, calicoNode := range nodes.Items {
 		node := nodeSpecCopy(&calicoNode)
-		shouldRestart, err := w.handleNodeUpdate(node, watch.Added)
+		shouldRestart, err := w.handleNodeUpdate(node, watch.Added, calicoNode)
 		if err != nil {
 			return "", errors.Wrap(err, "error handling node update")
 		}
@@ -148,7 +148,7 @@ func (w *NodeWatcher) initialNodeSync() (string, error) {
 	}
 	for _, node := range w.nodeStatesByName {
 		if node.SweepFlag {
-			shouldRestart, err := w.handleNodeUpdate(&node, watch.Deleted)
+			shouldRestart, err := w.handleNodeUpdate(&node, watch.Deleted, calicov3.Node{})
 			if err != nil {
 				return "", errors.Wrap(err, "error handling node update")
 			}
@@ -198,7 +198,7 @@ func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
 			if node.Name == config.NodeName {
 				w.peerWatcher.currentCalicoNode = *calicoNode
 			}
-			shouldRestart, err := w.handleNodeUpdate(node, update.Type)
+			shouldRestart, err := w.handleNodeUpdate(node, update.Type, *calicoNode)
 			w.nodeStateLock.Unlock()
 			if err != nil {
 				return errors.Wrap(err, "error handling node update")
@@ -212,7 +212,7 @@ func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
 
 // Returns true if the config of the current node has changed and requires a restart
 // Sets node.SweepFlag to false if an existing node is added to allow mark and sweep
-func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.EventType) (shouldRestart bool, err error) {
+func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.EventType, calicoNode calicov3.Node) (shouldRestart bool, err error) {
 	w.log.Debugf("Got node update: %s %s %+v", eventType, node.Name, node)
 	if node.Name == config.NodeName {
 		old, found := w.nodeStatesByName[node.Name]
@@ -248,6 +248,43 @@ func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.E
 		return false, nil /* don't restart */
 	}
 	if !w.isMeshMode() {
+		/// BGP peering depending on peer selector
+		w.log.Infof("++++++++" + node.Name)
+		for bgpPeerName, bgppPeer := range w.peerWatcher.bgpPeersState {
+			if w.peerWatcher.shouldPeer(&bgppPeer) {
+				ipAsn := make(map[string]uint32)
+				peerSelector := bgppPeer.Spec.PeerSelector
+				if peerSelector != "" {
+					ipAsn = w.peerWatcher.selectPeers([]calicov3.Node{calicoNode}, peerSelector)
+				} else {
+					ipAsn[bgppPeer.Spec.PeerIP] = uint32(bgppPeer.Spec.ASNumber)
+				}
+				for ip, asn := range ipAsn {
+					existing_asn, ok := w.peerWatcher.peers[ip]
+					if !ok {
+						if eventType == watch.Deleted {
+							return false, errors.Errorf("trying to delete unfound peer")
+						}
+						w.log.Infof("created node %s is selected by bgppeer %s", node.Name, bgpPeerName)
+						err := w.peerWatcher.addBGPPeer(ip, asn)
+						if err != nil {
+							return false, errors.Wrap(err, "error adding BGP peer")
+						}
+					} else {
+						if eventType != watch.Deleted {
+							if existing_asn != asn {
+								return false, errors.Errorf("error in adding peer: wrong asn: %s != %s", asn, existing_asn)
+							} // else nothing to do
+						} else {
+							err := w.peerWatcher.deleteBGPPeer(ip)
+							if err != nil {
+								return false, errors.Wrap(err, "error deleting BGP peer")
+							}
+						}
+					}
+				}
+			}
+		}
 		return false, nil /* don't restart */
 	}
 	// This ensures that nodes that don't have a BGP Spec are never present in the state map
