@@ -45,15 +45,18 @@ func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodIn
 }
 
 func (i *VclPodInterfaceDriver) Init() (err error) {
+	/* Enable SAPI before session as enabling session
+	 * will create default namespace */
+	err = i.vpp.EnableSessionSAPI()
+	if err != nil {
+		return err
+	}
+
 	err = i.vpp.EnableSessionLayer()
 	if err != nil {
 		return err
 	}
 
-	err = i.vpp.EnableSessionSAPI()
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
