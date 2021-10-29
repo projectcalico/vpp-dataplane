@@ -89,7 +89,10 @@ func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int
 		return fmt.Errorf("Created AF_PACKET interface has wrong swIfIndex %d!", swIfIndex)
 	}
 	d.spec.SwIfIndex = swIfIndex
-	d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

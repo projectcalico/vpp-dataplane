@@ -295,34 +295,13 @@ func (v *VppLink) EnableInterfaceIP4(swIfIndex uint32) error {
 	return v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, true /*isEnable*/)
 }
 
-func (v *VppLink) GetAllInterfaces(main bool) map[uint32]string {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	swIfIndexes := make(map[uint32]string)
-	request := &interfaces.SwInterfaceDump{}
-	stream := v.ch.SendMultiRequest(request)
-	for {
-		response := &interfaces.SwInterfaceDetails{}
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			v.log.Errorf("error listing VPP interfaces: %v", err)
-			return nil
-		}
-		if stop {
-			break
-		}
-		if !main || strings.HasPrefix(response.Tag, "main-") {
-			swIfIndexes[uint32(response.SwIfIndex)] = response.Tag
-		}
+func (v *VppLink) SearchInterfacesWithAddresses(addresses []string, tagPrefix string) ([]uint32, error) {
+	swIfIndexes, err := v.SearchInterfacesWithTagPrefix(tagPrefix)
+	if err != nil {
+		return nil, err
 	}
-	return swIfIndexes
-}
-
-func (v *VppLink) SearchInterfacesWithAddresses(addresses []string, main bool) (map[uint32]string, error) {
-	swIfIndexes := v.GetAllInterfaces(main)
-	matchingIndexes := make(map[uint32]string)
-	v.log.Infof("%+v", swIfIndexes)
-	for s, tag := range swIfIndexes {
+	matchingIndexes := []uint32{}
+	for _, s := range swIfIndexes {
 		ip4adds, err := v.AddrList(s, false)
 		if err != nil {
 			return nil, err
@@ -335,7 +314,7 @@ func (v *VppLink) SearchInterfacesWithAddresses(addresses []string, main bool) (
 		for _, add := range adds {
 			for _, address := range addresses {
 				if address == add.IPNet.IP.String() {
-					matchingIndexes[s] = tag
+					matchingIndexes = append(matchingIndexes, s)
 				}
 			}
 		}
@@ -343,7 +322,17 @@ func (v *VppLink) SearchInterfacesWithAddresses(addresses []string, main bool) (
 	return matchingIndexes, nil
 }
 
-func (v *VppLink) SearchInterfaceWithTag(tag string, startsWith bool) (err error, swIfIndex uint32, swIfIndexes []uint32) {
+func (v *VppLink) SearchInterfaceWithTag(tag string) (uint32, error) {
+	err, sw, _ := v.searchInterfaceWithTagOrTagPrefix(tag, false)
+	return sw, err
+}
+
+func (v *VppLink) SearchInterfacesWithTagPrefix(tag string) ([]uint32, error) {
+	err, _, sws := v.searchInterfaceWithTagOrTagPrefix(tag, true)
+	return sws, err
+}
+
+func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (err error, swIfIndex uint32, swIfIndexes []uint32) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
@@ -363,14 +352,14 @@ func (v *VppLink) SearchInterfaceWithTag(tag string, startsWith bool) (err error
 		}
 		intfTag := string(bytes.Trim([]byte(response.Tag), "\x00"))
 		v.log.Debugf("found interface %d, tag: %s (len %d)", response.SwIfIndex, intfTag, len(intfTag))
-		if intfTag == tag && !startsWith {
+		if intfTag == tag && !prefix {
 			swIfIndex = uint32(response.SwIfIndex)
 		}
-		if strings.HasPrefix(intfTag, tag) && startsWith {
+		if strings.HasPrefix(intfTag, tag) && prefix {
 			swIfIndexes = append(swIfIndexes, uint32(response.SwIfIndex))
 		}
 	}
-	if startsWith {
+	if prefix {
 		return nil, swIfIndex, swIfIndexes
 	} else {
 		return nil, swIfIndex, nil
