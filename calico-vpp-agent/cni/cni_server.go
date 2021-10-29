@@ -264,7 +264,7 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 			OrchestratorID: initialSpec.OrchestratorID,
 			WorkloadID:     initialSpec.WorkloadID,
 			EndpointID:     initialSpec.EndpointID,
-		})
+		}, initialSpec.GetContainerIps())
 		s.log.Infof("Deleting pod %s", initialSpec.String())
 		s.DelVppInterface(&initialSpec)
 		s.log.Infof("Done Deleting pod %s", initialSpec.String())

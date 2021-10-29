@@ -34,7 +34,7 @@ type PodInterfaceDriverData struct {
 func (i *PodInterfaceDriverData) SearchPodInterface(podSpec *storage.LocalPodSpec) (swIfIndex uint32) {
 	tag := podSpec.GetInterfaceTag(i.name)
 	i.log.Infof("looking for tag %s", tag)
-	err, swIfIndex, _ := i.vpp.SearchInterfaceWithTag(tag, false)
+	swIfIndex, err := i.vpp.SearchInterfaceWithTag(tag)
 	if err != nil {
 		i.log.Warnf("error searching interface with tag %s %s", tag, err)
 		return vpplink.InvalidID

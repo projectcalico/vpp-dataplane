@@ -21,6 +21,8 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -69,7 +71,9 @@ type Server struct {
 	configuredState *PolicyState
 	pendingState    *PolicyState
 
-	workloadsToHostPolicy *Policy
+	ingressFailSafePolicy *Policy
+	egressFailSafePolicy  *Policy
+	workloadsToHostIPSet  *IPSet
 	allowFromHostPolicy   *Policy
 	ip4                   *net.IP
 	ip6                   *net.IP
@@ -211,40 +215,15 @@ func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32, contain
 		}
 	}
 	// EndpointToHostAction
-	if config.EndpointToHostAction == "DROP" {
-		r_deny := &Rule{
-			VppID:  types.InvalidID,
-			RuleID: "calicovpp-internal-denypodtohost",
-			Rule: &types.Rule{
-				Action: types.ActionDeny,
-				SrcNet: []net.IPNet{},
-			},
-		}
+	if strings.ToUpper(config.EndpointToHostAction) == "DROP" {
 		for _, containerIP := range containerIPs {
-			r_deny.Rule.SrcNet = append(r_deny.Rule.SrcNet, *common.FullyQualified(containerIP.IP))
-		}
-		s.workloadsToHostPolicy.InboundRules = append([]*Rule{r_deny}, s.workloadsToHostPolicy.InboundRules...)
-		err := s.workloadsToHostPolicy.Create(s.vpp, nil)
-		if err != nil {
-			s.log.Error("cannot create policy to drop traffic to host")
-		}
-		conf := types.NewInterfaceConfig()
-		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, s.workloadsToHostPolicy.VppID)
-		err, _, swifindexes := s.vpp.SearchInterfaceWithTag("host-", true)
-		if err != nil {
-			s.log.Error(err)
-		}
-		for _, swifindex := range swifindexes {
-			err = s.vpp.ConfigurePolicies(uint32(swifindex), conf)
-			if err != nil {
-				s.log.Error("cannot create policy to drop traffic to host")
-			}
+			s.workloadsToHostIPSet.AddMembers([]string{containerIP.IP.String()}, true, s.vpp)
 		}
 	}
 }
 
 // WorkloadRemoved is called by the CNI server when the interface of a pod is deleted
-func (s *Server) WorkloadRemoved(id *WorkloadEndpointID) {
+func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPNet) {
 	// TODO: Send WorkloadEndpointStatusRemove to felix
 	s.endpointsLock.Lock()
 	defer s.endpointsLock.Unlock()
@@ -268,6 +247,12 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID) {
 		}
 	}
 	delete(s.endpointsInterfaces, *id)
+	// EndpointToHostAction
+	if strings.ToUpper(config.EndpointToHostAction) == "DROP" {
+		for _, containerIP := range containerIPs {
+			s.workloadsToHostIPSet.RemoveMembers([]string{containerIP.IP.String()}, true, s.vpp)
+		}
+	}
 }
 
 // Serve runs the policy server
@@ -289,6 +274,7 @@ func (s *Server) Serve() {
 	}()
 
 	s.createAllowFromHostPolicy()
+	s.createEndpointToHostPolicy()
 
 	for {
 		s.state = StateDisconnected
@@ -318,6 +304,7 @@ func (s *Server) Serve() {
 			<-s.felixRestarted
 			s.log.Infof("SyncPolicy exited, reconnecting to felix")
 			s.createAllowFromHostPolicy()
+			s.createEndpointToHostPolicy()
 		case <-s.felixRestarted:
 			s.log.Infof("Felix restarted, starting resync")
 			// Connection was closed. Just accept new one, state will be reconciled on startup.
@@ -448,8 +435,9 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 	s.state = StateSyncing
 
 	config.HandleFelixConfig(msg.Config)
-	if config.EndpointToHostAction == "DROP" {
-		s.endpointToHostTraffic(types.ActionDeny)
+	err = s.createFailSafePolicies(config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -619,7 +607,7 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 	hep := fromProtoHostEndpoint(msg.Endpoint, s)
 	swifindexes := []uint32{}
 	if hep.InterfaceName != "" && hep.InterfaceName != "*" {
-		err, swifindex, _ := s.vpp.SearchInterfaceWithTag("main-"+hep.InterfaceName, false)
+		swifindex, err := s.vpp.SearchInterfaceWithTag("main-" + hep.InterfaceName)
 		if err != nil {
 			return err
 		} else if swifindex == types.InvalidID {
@@ -628,17 +616,14 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 			swifindexes = append(swifindexes, swifindex)
 		}
 	} else if hep.InterfaceName == "" && hep.expectedIPs != nil {
-		sw, err := s.vpp.SearchInterfacesWithAddresses(hep.expectedIPs, true)
+		swifindexes, err = s.vpp.SearchInterfacesWithAddresses(hep.expectedIPs, "main-")
 		if err != nil {
 			return err
 		}
-		for key := range sw {
-			swifindexes = append(swifindexes, key)
-		}
 	} else if hep.InterfaceName == "*" {
-		sw := s.vpp.GetAllInterfaces(true)
-		for key := range sw {
-			swifindexes = append(swifindexes, key)
+		swifindexes, err = s.vpp.SearchInterfacesWithTagPrefix("main-")
+		if err != nil {
+			return err
 		}
 	}
 	s.log.Infof("%s : %+v swifindexes: %d", hep.InterfaceName, hep.expectedIPs, swifindexes)
@@ -658,12 +643,12 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 		if pending {
 			state.HostEndpoints[*id] = hep
 		} else {
-			return errors.Wrap(existing.Update(s.vpp, hep, state, config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts), "cannot update host endpoint")
+			return errors.Wrap(existing.Update(s.vpp, hep, state), "cannot update host endpoint")
 		}
 	} else {
 		state.HostEndpoints[*id] = hep
 		if !pending {
-			return errors.Wrap(hep.Create(s.vpp, state, config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts),
+			return errors.Wrap(hep.Create(s.vpp, state),
 				"cannot create host endpoint")
 		}
 	}
@@ -682,7 +667,7 @@ func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending
 		s.log.Infof("Removing host endpoint")
 		err = existing.Delete(s.vpp)
 		if err != nil {
-			return errors.Wrap(err, "error deleting profile")
+			return errors.Wrap(err, "error deleting host endpoint")
 		}
 	}
 	delete(state.HostEndpoints, *id)
@@ -735,7 +720,7 @@ func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove,
 	if !pending && existing.SwIfIndex != types.InvalidID {
 		err = existing.Delete(s.vpp)
 		if err != nil {
-			return errors.Wrap(err, "error deleting profile")
+			return errors.Wrap(err, "error deleting workload endpoint")
 		}
 	}
 	delete(state.WorkloadEndpoints, *id)
@@ -851,7 +836,7 @@ func (s *Server) applyPendingState() (err error) {
 		}
 	}
 	for _, hep := range s.configuredState.HostEndpoints {
-		err = hep.Create(s.vpp, s.configuredState, config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts)
+		err = hep.Create(s.vpp, s.configuredState)
 		if err != nil {
 			return errors.Wrap(err, "cannot create host endpoint")
 		}
@@ -886,15 +871,13 @@ func (s *Server) createAllowFromHostPolicy() (err error) {
 	return errors.Wrap(err, "cannot create policy to allow traffic from host")
 }
 
-// Allow the rest of the traffic to the host
-func (s *Server) endpointToHostTraffic(action types.RuleAction /*may be return*/) {
+func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 	pol := &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
 	}
 	r := &Rule{
-		VppID:  types.InvalidID,
-		RuleID: "calicovpp-internal-allowtohost",
+		VppID: types.InvalidID,
 		Rule: &types.Rule{
 			Action: types.ActionAllow,
 			DstNet: []net.IPNet{},
@@ -906,6 +889,118 @@ func (s *Server) endpointToHostTraffic(action types.RuleAction /*may be return*/
 	if s.ip6 != nil {
 		r.Rule.DstNet = append(r.Rule.DstNet, *common.FullyQualified(*s.ip6))
 	}
-	pol.InboundRules = append(pol.InboundRules, r)
-	s.workloadsToHostPolicy = pol
+	r_deny_workloads := &Rule{
+		VppID: types.InvalidID,
+		Rule: &types.Rule{
+			Action: types.ActionDeny,
+		},
+		SrcIPSetNames: []string{"ipset1"},
+	}
+	ipset := &IPSet{Type: types.IpsetTypeIP}
+	ps := PolicyState{IPSets: map[string]*IPSet{"ipset1": ipset}}
+	ipset.Create(s.vpp)
+	pol.InboundRules = append(pol.InboundRules, []*Rule{r_deny_workloads, r}...)
+	err = pol.Create(s.vpp, &ps)
+	if err != nil {
+		return err
+	}
+	s.workloadsToHostIPSet = ipset
+
+	conf := types.NewInterfaceConfig()
+	conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, pol.VppID)
+	swifindexes, err := s.vpp.SearchInterfacesWithTagPrefix("host-") // tap interfaces
+	if err != nil {
+		s.log.Error(err)
+	}
+	for _, swifindex := range swifindexes {
+		err = s.vpp.ConfigurePolicies(uint32(swifindex), conf)
+		if err != nil {
+			s.log.Error("cannot create policy to drop traffic to host")
+		}
+	}
+	return nil
+}
+
+func (s *Server) createFailSafePolicies(failSafeInbound string, failSafeOutbound string) (err error) {
+	ingressPol := &Policy{
+		Policy: &types.Policy{},
+		VppID:  types.InvalidID,
+	}
+	egressPol := &Policy{
+		Policy: &types.Policy{},
+		VppID:  types.InvalidID,
+	}
+	failSafeInboundRules, err := getfailSafeRules(failSafeInbound)
+	if err != nil {
+		return err
+	}
+	failSafeOutboundRules, err := getfailSafeRules(failSafeOutbound)
+	if err != nil {
+		return err
+	}
+	ingressPol.InboundRules = failSafeInboundRules
+	egressPol.OutboundRules = failSafeOutboundRules
+	err = ingressPol.Create(s.vpp, nil)
+	if err != nil {
+		return err
+	}
+	err = egressPol.Create(s.vpp, nil)
+	if err != nil {
+		return err
+	}
+	s.ingressFailSafePolicy = ingressPol
+	s.egressFailSafePolicy = egressPol
+	return nil
+}
+
+func getProtocolRules(protocolName string, failSafe string) (*Rule, error) {
+	portRanges := []types.PortRange{}
+
+	failSafe = strings.Join(strings.Fields(failSafe), "")
+	protocolsPorts := strings.Split(failSafe, ",")
+	for _, protocolPort := range protocolsPorts {
+		protocolAndPort := strings.Split(protocolPort, ":")
+		if len(protocolAndPort) != 2 {
+			return nil, errors.Errorf("failsafe has wrong format")
+		}
+		protocol := protocolAndPort[0]
+		port := protocolAndPort[1]
+		if protocol == protocolName {
+			port, err := strconv.Atoi(port)
+			if err != nil {
+				return nil, errors.Errorf("failsafe has wrong format")
+			}
+			portRanges = append(portRanges, types.PortRange{First: uint16(port), Last: uint16(port)})
+		}
+	}
+	protocol, err := parseProtocol(&proto.Protocol{NumberOrName: &proto.Protocol_Name{Name: protocolName}})
+	if err != nil {
+		return nil, err
+	}
+	r_failsafe := &Rule{
+		VppID:  types.InvalidID,
+		RuleID: "failsafe" + protocolName,
+		Rule: &types.Rule{
+			Action:       types.ActionAllow,
+			DstPortRange: portRanges,
+			Filters: []types.RuleFilter{{
+				ShouldMatch: true,
+				Type:        types.CapoFilterProto,
+				Value:       int(protocol),
+			}},
+		},
+	}
+	return r_failsafe, nil
+}
+
+func getfailSafeRules(failSafe string) ([]*Rule, error) {
+	r_failsafe_tcp, err := getProtocolRules("tcp", failSafe)
+	if err != nil {
+		return nil, errors.Errorf("failsafe has wrong format")
+	}
+	r_failsafe_udp, err := getProtocolRules("udp", failSafe)
+	if err != nil {
+		return nil, errors.Errorf("failsafe has wrong format")
+	}
+	return []*Rule{r_failsafe_tcp, r_failsafe_udp}, nil
 }
