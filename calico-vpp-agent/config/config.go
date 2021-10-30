@@ -95,7 +95,6 @@ var (
 	PodMtu                   int = 0
 	IpsecNbAsyncCryptoThread int = 0
 	SRv6policyIPPool             = ""
-	SRv6localSidIPPool           = ""
 
 	felixConfigReceived = false
 	felixConfigChan     = make(chan struct{})
@@ -287,10 +286,6 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableSRv6EnvVar, conf, enableSRv6, err)
 		}
 		EnableSRv6 = enableSRv6
-	}
-
-	if conf := getEnvValue(SRv6LocalsidPoolEnvVar); conf != "" {
-		SRv6localSidIPPool = conf
 	}
 
 	if conf := getEnvValue(SRv6PolicyPoolEnvVar); conf != "" {

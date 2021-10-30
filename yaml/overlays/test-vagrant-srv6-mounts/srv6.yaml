@@ -47,7 +47,7 @@ metadata:
   namespace: calico-vpp-dataplane
 data:
   service_prefix: "10.96.0.0/12"
-  sr_localsid_pool: "c5::/118"
+  sr_localsid_prefix: "sr-localsids-pool-"
   sr_policy_pool: "cafe::/118"
 
 ---
@@ -70,11 +70,6 @@ spec:
               value: "false"
             - name: CALICOVPP_SRV6_ENABLED
               value: "true"
-            - name: CALICOVPP_SR_LS_POOL
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: sr_localsid_pool
             - name: CALICOVPP_SR_POLICY_POOL
               valueFrom:
                 configMapKeyRef:

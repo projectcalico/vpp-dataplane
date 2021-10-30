@@ -80,7 +80,7 @@ test-install-calicovpp-dev-v6:
 
 .PHONY: test-install-calicovpp-dev-srv6
 test-install-calicovpp-dev-srv6:
-	kubectl apply -k yaml/overlays/test-vagrant-srv6-mounts
+	kubectl kustomize yaml/overlays/test-vagrant-srv6-mounts | kubectl apply -f -
 
 .PHONY: run-tests
 run-tests:

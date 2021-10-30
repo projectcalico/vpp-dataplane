@@ -2,8 +2,6 @@ package watchers
 
 import (
 	"context"
-	"time"
-
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -11,6 +9,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
+	"time"
 
 	"github.com/projectcalico/libcalico-go/lib/ipam"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
@@ -28,6 +27,7 @@ const (
 func (w *LocalSIDWatcher) WatchLocalSID() error {
 	w.log.Infof("WatchLocalSID")
 	time.Sleep(localSIDWatchInterval)
+
 	assignedLocalSIDs := make(map[string]bool)
 	for {
 		list, err := w.Vpp.ListSRv6Localsid()

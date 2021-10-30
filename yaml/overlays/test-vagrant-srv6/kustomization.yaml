@@ -1,6 +1,6 @@
+resources:
+- ./srv6res.yaml
 bases:
 - ../test-vagrant
-#resources:
-#- ./srv6res.yaml
 patchesStrategicMerge:
 - srv6.yaml
