@@ -167,7 +167,7 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to add/delete (%d) route from VPP", isAdd)
 	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to add/delete (%d) route from VPP (retval %d)", isAdd, response.Retval)
+		return fmt.Errorf("failed to add/delete (%v) route from VPP (retval %d)", isAdd, response.Retval)
 	}
 	v.log.Debugf("added/deleted (%d) route %+v", isAdd, route)
 	return nil

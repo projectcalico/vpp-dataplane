@@ -49,7 +49,7 @@ var routesLists = [][]netlink.Route{
 
 func TestRouteSort(t *testing.T) {
 	for _, rl := range routesLists {
-		c := InterfaceConfig{Routes: rl}
+		c := LinuxInterfaceState{Routes: rl}
 		c.SortRoutes()
 		for i, r := range c.Routes {
 			assert.Equal(t, r.LinkIndex, i)

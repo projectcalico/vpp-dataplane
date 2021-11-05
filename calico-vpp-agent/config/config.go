@@ -103,8 +103,6 @@ var (
 	felixVXLANMtu         int = 0
 	felixWireguardEnabled     = false
 	felixWireguardMtu     int = 0
-
-	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
 )
 
 func PrintAgentConfig(log *logrus.Logger) {

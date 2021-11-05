@@ -64,7 +64,7 @@ func (v *VppLink) DeleteMemif(swIfIndex uint32) (err error) {
 	if err != nil {
 		err = errors.Wrapf(err, "DeleteMemif failed: req %+v reply %+v (%s)", request, response)
 	} else if response.Retval != 0 {
-		err = fmt.Errorf("DeleteMemif failed (retval %d). Request: %+v (%s)", response.Retval, request)
+		err = fmt.Errorf("DeleteMemif failed (retval %d). Request: %+v", response.Retval, request)
 	}
 	return nil
 }

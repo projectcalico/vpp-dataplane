@@ -116,7 +116,7 @@ func (p *PoolWatcher) SyncPools() {
 			}
 		}
 		// Sweep phase
-		for key, _ := range pools {
+		for key := range pools {
 			_, found := sweepMap[key]
 			if !found {
 				err = p.poolDeleted(key)
