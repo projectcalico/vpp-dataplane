@@ -50,7 +50,6 @@ metadata:
 spec:
   template:
     spec:
-      hostPID: true
       containers:
         - name: calico-node
           env:
