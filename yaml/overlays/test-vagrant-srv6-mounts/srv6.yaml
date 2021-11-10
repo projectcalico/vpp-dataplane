@@ -19,7 +19,9 @@ data:
           "ipam": {
               "type": "calico-ipam",
               "assign_ipv4": "true",
-              "assign_ipv6": "true"
+              "assign_ipv6": "true",
+              "ipv4_pools": ["default-ipv4-ippool"],
+              "ipv6_pools": ["default-ipv6-ippool"]
           },
           "policy": {
               "type": "k8s"
@@ -48,6 +50,7 @@ metadata:
 data:
   service_prefix: "10.96.0.0/12"
   sr_localsid_prefix: "sr-localsids-pool-"
+  sr_localsid_pool: "fcff::/48"
   sr_policy_pool: "cafe::/118"
 
 ---
@@ -75,6 +78,11 @@ spec:
                 configMapKeyRef:
                   name: calico-vpp-config
                   key: sr_policy_pool
+            - name: CALICOVPP_SR_LS_POOL
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-vpp-config
+                  key: sr_localsid_pool
 ---
 kind: DaemonSet
 apiVersion: apps/v1

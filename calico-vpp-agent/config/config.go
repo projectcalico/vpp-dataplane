@@ -95,6 +95,7 @@ var (
 	PodMtu                   int = 0
 	IpsecNbAsyncCryptoThread int = 0
 	SRv6policyIPPool             = ""
+	SRv6localSidIPPool           = ""
 
 	felixConfigReceived = false
 	felixConfigChan     = make(chan struct{})
@@ -290,6 +291,10 @@ func LoadConfig(log *logrus.Logger) (err error) {
 
 	if conf := getEnvValue(SRv6PolicyPoolEnvVar); conf != "" {
 		SRv6policyIPPool = conf
+	}
+
+	if conf := getEnvValue(SRv6LocalsidPoolEnvVar); conf != "" {
+		SRv6localSidIPPool = conf
 	}
 
 	psk := getEnvValue(IPSecIkev2PskEnvVar)

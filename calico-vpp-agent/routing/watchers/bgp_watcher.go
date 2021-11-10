@@ -25,6 +25,8 @@ import (
 	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -95,45 +97,40 @@ func (w *BGPWatcher) injectRoute(path *bgpapi.Path) error {
 	return nil
 }
 
-func (w *BGPWatcher) getSRv6SegList(path *bgpapi.Path) (srv6tunnel *common.SRv6Tunnel, srnrli *bgpapi.SRPolicyNLRI, err error) {
-	w.log.Infof("getSRv6SegList ")
-	srv6tunnel = &common.SRv6Tunnel{}
+func (w *BGPWatcher) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv6tunnel *common.SRv6Tunnel, srnrli *bgpapi.SRPolicyNLRI, err error) {
+	w.log.Infof("getSRPolicy from bgp path")
 	srnrli = &bgpapi.SRPolicyNLRI{}
-	if err := ptypes.UnmarshalAny(path.Nlri, srnrli); err == nil {
-		w.log.Infof("Got path update with SRv6BindingSID")
+	tun := &bgpapi.TunnelEncapAttribute{}
+	subTLVSegList := &bgpapi.TunnelEncapSubTLVSRSegmentList{}
+	segments := []bgpapi.SegmentTypeB{}
+	srv6bsid := &bgpapi.SRBindingSID{}
+	srv6tunnel = &common.SRv6Tunnel{}
+
+	if err := ptypes.UnmarshalAny(path.Nlri, srnrli); err != nil {
+		return nil, nil, nil, err
 	}
 	srv6tunnel.Dst = net.IP(srnrli.Endpoint)
 
-	for _, attr := range path.Pattrs {
-		w.log.Infof("getSegList1 %s", attr)
-		tun := &bgpapi.TunnelEncapAttribute{}
-		if err := ptypes.UnmarshalAny(attr, tun); err == nil {
+	for _, pattr := range path.Pattrs {
+		if err := ptypes.UnmarshalAny(pattr, tun); err == nil {
 			for _, tlv := range tun.Tlvs {
+				// unmarshal Tlvs
 				for _, innerTlv := range tlv.Tlvs {
-					segList := &bgpapi.TunnelEncapSubTLVSRSegmentList{}
-					if err := ptypes.UnmarshalAny(innerTlv, segList); err == nil {
-						w.log.Infof("getSegList2 %s", segList.Segments)
-
-						for _, seglist := range segList.Segments {
+					// search for TunnelEncapSubTLVSRSegmentList
+					if err := ptypes.UnmarshalAny(innerTlv, subTLVSegList); err == nil {
+						for _, seglist := range subTLVSegList.Segments {
 							segment := &bgpapi.SegmentTypeB{}
 							if err = ptypes.UnmarshalAny(seglist, segment); err == nil {
-
-								srv6tunnel.Sid = net.IP(segment.GetSid())
-								srv6tunnel.Behavior = uint8(segment.GetEndpointBehaviorStructure().Behavior)
-								break
+								segments = append(segments, *segment)
 							}
 						}
-
 					}
-
+					// search for TunnelEncapSubTLVSRBindingSID
 					srbsids := &anypb.Any{}
-					w.log.Infof("getSegList23 srbsid %s", innerTlv.String())
 					if err := ptypes.UnmarshalAny(innerTlv, srbsids); err == nil {
-						w.log.Infof("getSegList3 srbsid %s", srbsids.String())
-						srv6bsid := &bgpapi.SRBindingSID{}
-						if err := ptypes.UnmarshalAny(srbsids, srv6bsid); err == nil {
-							srv6tunnel.Bsid = srv6bsid.Sid
-							w.log.Infof("getSegList4 %s", net.IP(srv6bsid.Sid).String())
+						w.log.Debugf("getSRPolicy TunnelEncapSubTLVSRBindingSID")
+						if err := ptypes.UnmarshalAny(srbsids, srv6bsid); err != nil {
+							return nil, nil, nil, err
 						}
 
 					}
@@ -143,13 +140,34 @@ func (w *BGPWatcher) getSRv6SegList(path *bgpapi.Path) (srv6tunnel *common.SRv6T
 		}
 
 	}
-	return srv6tunnel, srnrli, err
+
+	policySidListsids := [16]ip_types.IP6Address{}
+	for i, segment := range segments {
+		policySidListsids[i] = types.ToVppIP6Address(net.IP(segment.Sid))
+	}
+	srv6Policy = &types.SrPolicy{
+		Bsid:     types.ToVppIP6Address(net.IP(srv6bsid.Sid)),
+		IsSpray:  false,
+		IsEncap:  true,
+		FibTable: 0,
+		SidLists: []types.Srv6SidList{{
+			NumSids: uint8(len(segments)),
+			Weight:  1,
+			Sids:    policySidListsids,
+		}},
+	}
+	srv6tunnel.Bsid = srv6Policy.Bsid.ToIP()
+	srv6tunnel.Policy = srv6Policy
+	srv6tunnel.Behavior = uint8(segments[0].GetEndpointBehaviorStructure().Behavior)
+	w.log.Infof("getSRPolicy %s", srv6Policy.Bsid.String())
+	w.log.Infof("getSRPolicy %s", net.IP(srv6bsid.Sid).String())
+	return srv6Policy, srv6tunnel, srnrli, err
 }
 
 func (w *BGPWatcher) injectSRv6Policy(path *bgpapi.Path) error {
 	w.log.Infof("injectSRv6Policy")
+	_, srv6tunnel, srnrli, err := w.getSRPolicy(path)
 
-	srtunnel, srnrli, err := w.getSRv6SegList(path)
 	if err != nil {
 		return errors.Wrap(err, "error injectSRv6Policy")
 	}
@@ -158,7 +176,7 @@ func (w *BGPWatcher) injectSRv6Policy(path *bgpapi.Path) error {
 		Dst:              net.IPNet{},
 		NextHop:          srnrli.Endpoint,
 		ResolvedProvider: "",
-		Custom:           srtunnel,
+		Custom:           srv6tunnel,
 	}
 	if path.IsWithdraw {
 		w.ConnectivityEventChan <- common.ConnectivityEvent{

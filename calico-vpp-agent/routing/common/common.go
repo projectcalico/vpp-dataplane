@@ -30,6 +30,7 @@ import (
 	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -326,6 +327,7 @@ func (cn *NodeConnectivity) String() string {
 type SRv6Tunnel struct {
 	Dst      net.IP
 	Bsid     net.IP
+	Policy   *types.SrPolicy
 	Sid      net.IP
 	Behavior uint8
 }
