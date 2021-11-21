@@ -97,21 +97,6 @@ func (p *SRv6Provider) CreateSRv6Tunnnel(dst net.IP, prefixDst ip_types.Prefix, 
 
 	}
 
-	// TODO: temporary solution
-	singleSid := policyTunnel.SidLists[0].Sids[0]
-	_, sidDstIPNet, err := net.ParseCIDR(singleSid.String() + "/128")
-	if err != nil {
-		p.log.Errorf("SRv6Provider CreateSRv6Tunnnel ParseCIDR subnet %s", err)
-	}
-
-	err = p.vpp.RouteAdd(&types.Route{
-		Dst:   sidDstIPNet,
-		Paths: []types.RoutePath{{Gw: dst.To16(), SwIfIndex: config.DataInterfaceSwIfIndex}},
-	})
-	if err != nil {
-		p.log.Errorf("SRv6Provider CreateSRv6Tunnnel RouteAdd %s", err)
-	}
-
 	return err
 }
 
@@ -121,17 +106,27 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 	var nodeip string
 	// only IPv6 destination
 	if vpplink.IsIP6(cn.NextHop) && cn.Dst.IP != nil {
-		if p.localSidIPPool.Contains(cn.Dst.IP) || p.policyIPPool.Contains(cn.Dst.IP) {
+		if p.policyIPPool.Contains(cn.Dst.IP) {
 			p.log.Infof("SRv6Provider AddConnectivity no valid prefix %s", cn.Dst.String())
 			return err
 		}
 		nodeip = cn.NextHop.String()
 		prefix, err := ip_types.ParsePrefix(cn.Dst.String())
-		p.log.Debugf("SRv6Provider AddConnectivity prefix %s for node %s", prefix.String(), nodeip)
-
 		if err != nil {
 			return errors.Wrapf(err, "SRv6Provider unable to parse prefix")
 		}
+
+		if p.localSidIPPool.Contains(cn.Dst.IP) {
+			p.log.Debugf("SRv6Provider AddConnectivity localSidIPPool prefix %s", cn.Dst.String())
+			err = p.vpp.RouteAdd(&types.Route{
+				Dst:   prefix.ToIPNet(),
+				Paths: []types.RoutePath{{Gw: cn.NextHop.To16(), SwIfIndex: config.DataInterfaceSwIfIndex}},
+			})
+
+			return err
+		}
+
+		p.log.Debugf("SRv6Provider AddConnectivity prefix %s for node %s", prefix.String(), nodeip)
 
 		if p.nodePrefixes[nodeip] == nil {
 			p.nodePrefixes[nodeip] = &NodeToPrefixes{
@@ -157,7 +152,7 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 			}
 		}
 
-		p.log.Debugf("SRv6Provider new policy %s with behavior %d on node %s ", policyData.Bsid.String(), policyData.Behavior, nodeip)
+		p.log.Debugf("SRv6Provider new policy %s with behavior %d on node %s and priority %d", policyData.Bsid.String(), policyData.Behavior, nodeip, policyData.Priority)
 		p.nodePolices[policyData.Dst.String()].SRv6Tunnel = append(p.nodePolices[policyData.Dst.String()].SRv6Tunnel, *policyData)
 
 		if p.nodePrefixes[nodeip] == nil {
@@ -170,16 +165,15 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 		p.log.Debugf("SRv6Provider check new tunnel for node %s, prefixes %d", nodeip, len(p.nodePrefixes[nodeip].Prefixes))
 
 		for _, prefix := range p.nodePrefixes[nodeip].Prefixes {
-			prefixIP6 := vpplink.IsIP6(prefix.Address.ToIP())
-			if p.nodePolices[nodeip] != nil {
-				for _, tunnel := range p.nodePolices[nodeip].SRv6Tunnel {
-					p.log.Debugf("SRv6Provider available tunnel for node %s, prefixes %d", nodeip, len(p.nodePrefixes[nodeip].Prefixes))
-					// this check
-					if (types.FromGoBGPSrBehavior(tunnel.Behavior) == types.SrBehaviorDT6 && prefixIP6) || (types.FromGoBGPSrBehavior(tunnel.Behavior) == types.SrBehaviorDT4 && !prefixIP6) {
-						if err := p.CreateSRv6Tunnnel(p.nodePrefixes[nodeip].Node, prefix, tunnel.Policy); err != nil {
-							p.log.Error(err)
-						}
-					}
+			prefixBehavior := types.SrBehaviorDT4
+			if vpplink.IsIP6(prefix.Address.ToIP()) {
+				prefixBehavior = types.SrBehaviorDT6
+			}
+
+			policy, err := p.getPolicyNode(nodeip, prefixBehavior)
+			if err == nil && policy != nil {
+				if err := p.CreateSRv6Tunnnel(p.nodePrefixes[nodeip].Node, prefix, policy); err != nil {
+					p.log.Error(err)
 				}
 			}
 
@@ -193,6 +187,21 @@ func (p *SRv6Provider) DelConnectivity(cn *common.NodeConnectivity) (err error) 
 	p.log.Infof("SRv6Provider DelConnectivity %s", cn.String())
 
 	return nil
+}
+
+// find the highest priority policy for a specific node
+func (p *SRv6Provider) getPolicyNode(nodeip string, behavior types.SrBehavior) (policy *types.SrPolicy, err error) {
+	p.log.Infof("SRv6Provider getPolicyNode node: %s, with beahvior: %d", nodeip, behavior)
+	if p.nodePolices[nodeip] != nil {
+		var priority uint32
+		for _, tunnel := range p.nodePolices[nodeip].SRv6Tunnel {
+			if types.FromGoBGPSrBehavior(tunnel.Behavior) == behavior && tunnel.Priority >= priority {
+				priority = tunnel.Priority
+				policy = tunnel.Policy
+			}
+		}
+	}
+	return policy, err
 }
 
 func (p *SRv6Provider) setEncapSource() (err error) {

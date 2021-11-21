@@ -135,6 +135,13 @@ func (w *BGPWatcher) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy,
 
 					}
 
+					// search for TunnelEncapSubTLVSRPriority
+					subTLVSRPriority := &bgpapi.TunnelEncapSubTLVSRPriority{}
+					if err := ptypes.UnmarshalAny(innerTlv, subTLVSRPriority); err == nil {
+						w.log.Debugf("getSRPolicyPriority TunnelEncapSubTLVSRPriority")
+						srv6tunnel.Priority = subTLVSRPriority.Priority
+					}
+
 				}
 			}
 		}
@@ -158,9 +165,9 @@ func (w *BGPWatcher) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy,
 	}
 	srv6tunnel.Bsid = srv6Policy.Bsid.ToIP()
 	srv6tunnel.Policy = srv6Policy
-	srv6tunnel.Behavior = uint8(segments[0].GetEndpointBehaviorStructure().Behavior)
-	w.log.Infof("getSRPolicy %s", srv6Policy.Bsid.String())
-	w.log.Infof("getSRPolicy %s", net.IP(srv6bsid.Sid).String())
+
+	srv6tunnel.Behavior = uint8(segments[len(segments)-1].GetEndpointBehaviorStructure().Behavior)
+
 	return srv6Policy, srv6tunnel, srnrli, err
 }
 

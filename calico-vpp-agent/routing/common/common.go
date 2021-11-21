@@ -330,4 +330,5 @@ type SRv6Tunnel struct {
 	Policy   *types.SrPolicy
 	Sid      net.IP
 	Behavior uint8
+	Priority uint32
 }
