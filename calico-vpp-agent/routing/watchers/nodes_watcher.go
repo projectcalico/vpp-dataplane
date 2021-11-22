@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/api/pkg/lib/numorstring"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
@@ -36,47 +35,15 @@ type NodeWatcher struct {
 	*common.RoutingData
 	log *logrus.Entry
 
-	peerWatcher *PeerWatcher
-
 	nodeStatesByName map[string]common.NodeState
 	nodeNamesByAddr  map[string]string
 	nodeStateLock    sync.Mutex
-}
-
-func (w *NodeWatcher) isMeshMode() bool {
-	if w.BGPConf.NodeToNodeMeshEnabled != nil {
-		return *w.BGPConf.NodeToNodeMeshEnabled
-	}
-	return true
+	subscribers      []chan bool
 }
 
 func nodeSpecCopy(calicoNode *calicov3.Node) *common.NodeState {
-	calicoSpec := calicoNode.Spec
-	spec := calicov3.NodeSpec{
-		IPv4VXLANTunnelAddr: calicoSpec.IPv4VXLANTunnelAddr,
-		VXLANTunnelMACAddr:  calicoSpec.VXLANTunnelMACAddr,
-		OrchRefs:            append([]calicov3.OrchRef{}, calicoSpec.OrchRefs...),
-	}
-	if calicoSpec.BGP != nil {
-		spec.BGP = &calicov3.NodeBGPSpec{
-			IPv4Address:             calicoSpec.BGP.IPv4Address,
-			IPv6Address:             calicoSpec.BGP.IPv6Address,
-			IPv4IPIPTunnelAddr:      calicoSpec.BGP.IPv4IPIPTunnelAddr,
-			RouteReflectorClusterID: calicoSpec.BGP.RouteReflectorClusterID,
-		}
-		if calicoSpec.BGP.ASNumber != nil {
-			spec.BGP.ASNumber = new(numorstring.ASNumber)
-			*spec.BGP.ASNumber = *calicoSpec.BGP.ASNumber
-		}
-	}
-	calicoStatus := calicoNode.Status
-	status := calicov3.NodeStatus{
-		WireguardPublicKey: calicoStatus.WireguardPublicKey,
-	}
 	return &common.NodeState{
-		Name:      calicoNode.Name,
-		Spec:      spec,
-		Status:    status,
+		Node:      *calicoNode.DeepCopy(),
 		SweepFlag: false,
 	}
 }
@@ -90,6 +57,7 @@ func (w *NodeWatcher) GetNodeByIp(addr net.IP) *common.NodeState {
 	}
 	node, found := w.nodeStatesByName[nodename]
 	if !found {
+		w.log.Warnf("Inconsistency: node %s found by ip but not by name %s", addr.String(), nodename)
 		return nil
 	}
 	return &node
@@ -109,6 +77,7 @@ func (w *NodeWatcher) addNodeState(state *common.NodeState) {
 		w.nodeNamesByAddr[nodeIP.String()] = state.Name
 	}
 }
+
 func (w *NodeWatcher) delNodeState(nodename string) {
 	node, found := w.nodeStatesByName[nodename]
 	if found && node.Spec.BGP != nil {
@@ -138,7 +107,7 @@ func (w *NodeWatcher) initialNodeSync() (string, error) {
 	}
 	for _, calicoNode := range nodes.Items {
 		node := nodeSpecCopy(&calicoNode)
-		shouldRestart, err := w.handleNodeUpdate(node, watch.Added, calicoNode)
+		shouldRestart, err := w.handleNodeUpdate(node, watch.Added)
 		if err != nil {
 			return "", errors.Wrap(err, "error handling node update")
 		}
@@ -148,7 +117,7 @@ func (w *NodeWatcher) initialNodeSync() (string, error) {
 	}
 	for _, node := range w.nodeStatesByName {
 		if node.SweepFlag {
-			shouldRestart, err := w.handleNodeUpdate(&node, watch.Deleted, calicov3.Node{})
+			shouldRestart, err := w.handleNodeUpdate(&node, watch.Deleted)
 			if err != nil {
 				return "", errors.Wrap(err, "error handling node update")
 			}
@@ -167,6 +136,8 @@ func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
 		if err != nil {
 			return err
 		}
+		w.nodeUpdateNotify()
+
 		/* if its the first time in the loop initialResourceVersion happened
 		 * before the list in initialNodeSync */
 		if firstWatch {
@@ -195,10 +166,7 @@ func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
 
 			node := nodeSpecCopy(calicoNode)
 			w.nodeStateLock.Lock()
-			if node.Name == config.NodeName {
-				w.peerWatcher.currentCalicoNode = *calicoNode
-			}
-			shouldRestart, err := w.handleNodeUpdate(node, update.Type, *calicoNode)
+			shouldRestart, err := w.handleNodeUpdate(node, update.Type)
 			w.nodeStateLock.Unlock()
 			if err != nil {
 				return errors.Wrap(err, "error handling node update")
@@ -206,13 +174,14 @@ func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
 			if shouldRestart {
 				return fmt.Errorf("Current node configuration changed, restarting")
 			}
+			w.nodeUpdateNotify()
 		}
 	}
 }
 
 // Returns true if the config of the current node has changed and requires a restart
 // Sets node.SweepFlag to false if an existing node is added to allow mark and sweep
-func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.EventType, calicoNode calicov3.Node) (shouldRestart bool, err error) {
+func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.EventType) (shouldRestart bool, err error) {
 	w.log.Debugf("Got node update: %s %s %+v", eventType, node.Name, node)
 	if node.Name == config.NodeName {
 		old, found := w.nodeStatesByName[node.Name]
@@ -243,51 +212,10 @@ func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.E
 		return false, nil /* don't restart */
 	}
 
-	// If the mesh is disabled, discard all updates that aren't on the current node
+	// This ensures that nodes that don't have a BGP Spec are never present in the state map
 	if node.Spec.BGP == nil { // No BGP config for this node
 		return false, nil /* don't restart */
 	}
-	if !w.isMeshMode() {
-		/// BGP peering depending on peer selector
-		w.log.Infof("++++++++" + node.Name)
-		for bgpPeerName, bgppPeer := range w.peerWatcher.bgpPeersState {
-			if w.peerWatcher.shouldPeer(&bgppPeer) {
-				ipAsn := make(map[string]uint32)
-				peerSelector := bgppPeer.Spec.PeerSelector
-				if peerSelector != "" {
-					ipAsn = w.peerWatcher.selectPeers([]calicov3.Node{calicoNode}, peerSelector)
-				} else {
-					ipAsn[bgppPeer.Spec.PeerIP] = uint32(bgppPeer.Spec.ASNumber)
-				}
-				for ip, asn := range ipAsn {
-					existing_asn, ok := w.peerWatcher.peers[ip]
-					if !ok {
-						if eventType == watch.Deleted {
-							return false, errors.Errorf("trying to delete unfound peer")
-						}
-						w.log.Infof("created node %s is selected by bgppeer %s", node.Name, bgpPeerName)
-						err := w.peerWatcher.addBGPPeer(ip, asn)
-						if err != nil {
-							return false, errors.Wrap(err, "error adding BGP peer")
-						}
-					} else {
-						if eventType != watch.Deleted {
-							if existing_asn != asn {
-								return false, errors.Errorf("error in adding peer: wrong asn: %s != %s", asn, existing_asn)
-							} // else nothing to do
-						} else {
-							err := w.peerWatcher.deleteBGPPeer(ip)
-							if err != nil {
-								return false, errors.Wrap(err, "error deleting BGP peer")
-							}
-						}
-					}
-				}
-			}
-		}
-		return false, nil /* don't restart */
-	}
-	// This ensures that nodes that don't have a BGP Spec are never present in the state map
 
 	err = nil
 	old, found := w.nodeStatesByName[node.Name]
@@ -369,89 +297,19 @@ func (w *NodeWatcher) configureRemoteNodeSnat(node *common.NodeState, isAdd bool
 	}
 }
 
-func (w *NodeWatcher) getAsNumber(node *common.NodeState) uint32 {
-	if node.Spec.BGP.ASNumber == nil {
-		return uint32(*w.BGPConf.ASNumber)
-	} else {
-		return uint32(*node.Spec.BGP.ASNumber)
-	}
-}
-
 func (w *NodeWatcher) onNodeDeleted(old *common.NodeState) error {
 	w.configureRemoteNodeSnat(old, false /* isAdd */)
-	v4IP, v6IP := w.getSpecAddresses(old)
-	if v4IP != "" {
-		err := w.peerWatcher.deleteBGPPeer(v4IP)
-		if err != nil {
-			return errors.Wrapf(err, "error deleting peer %s", v4IP)
-		}
-	}
-	if v6IP != "" {
-		err := w.peerWatcher.deleteBGPPeer(v6IP)
-		if err != nil {
-			return errors.Wrapf(err, "error deleting peer %s", v6IP)
-		}
-	}
-	return nil
-}
-
-func (w *NodeWatcher) onNodeUpdatedByAddrFamily(oldAddr string, addr string, oldASN uint32, asNumber uint32) (err error) {
-	// Compare IPs and ASN
-	switch common.GetStringChangeType(oldAddr, addr) {
-	case common.ChangeNone:
-		// Address family not configured
-	case common.ChangeSame:
-		// Check for ASN change
-		if oldASN != asNumber {
-			// Update peer
-			err = w.peerWatcher.updateBGPPeer(addr, asNumber)
-			if err != nil {
-				return errors.Wrapf(err, "error adding peer %s", addr)
-			}
-		}
-		// Otherwise nothing to do for address family
-	case common.ChangeAdded:
-		err = w.peerWatcher.addBGPPeer(addr, asNumber)
-		if err != nil {
-			return errors.Wrapf(err, "error adding peer %s", addr)
-		}
-	case common.ChangeDeleted:
-		// Delete old neighbor
-		err = w.peerWatcher.deleteBGPPeer(oldAddr)
-		if err != nil {
-			return errors.Wrapf(err, "error deleting peer %s", oldAddr)
-		}
-	case common.ChangeUpdated:
-		// IP change, delete and re-add neighbor
-		err = w.peerWatcher.deleteBGPPeer(oldAddr)
-		if err != nil {
-			return errors.Wrapf(err, "error deleting peer %s", oldAddr)
-		}
-		err = w.peerWatcher.addBGPPeer(addr, asNumber)
-		if err != nil {
-			return errors.Wrapf(err, "error adding peer %s", addr)
-		}
-	}
 	return nil
 }
 
 func (w *NodeWatcher) onNodeUpdated(old *common.NodeState, node *common.NodeState) (err error) {
 	w.log.Debugf("node comparison: old:%+v new:%+v", old.Spec.BGP, node.Spec.BGP)
 
-	newASN := w.getAsNumber(node)
-	oldASN := w.getAsNumber(old)
 	newV4IP, newV6IP := w.getSpecAddresses(node)
 	oldV4IP, oldV6IP := w.getSpecAddresses(old)
 
-	err = w.onNodeUpdatedByAddrFamily(oldV4IP, newV4IP, oldASN, newASN)
-	if err != nil {
-		return errors.Wrapf(err, "error updating v4")
-	}
-	err = w.onNodeUpdatedByAddrFamily(oldV6IP, newV6IP, oldASN, newASN)
-	if err != nil {
-		return errors.Wrapf(err, "error updating v6")
-	}
-
+	// This is used by the routing server to process Wireguard key updates
+	// As a result we only send an event when a node is updated, not when it is added or deleted
 	w.ConnectivityEventChan <- common.ConnectivityEvent{
 		Type: common.NodeStateChanged,
 		Old:  old,
@@ -470,30 +328,39 @@ func (w *NodeWatcher) onNodeUpdated(old *common.NodeState, node *common.NodeStat
 
 func (w *NodeWatcher) onNodeAdded(node *common.NodeState) (err error) {
 	w.configureRemoteNodeSnat(node, true /* isAdd */)
-	asNumber := w.getAsNumber(node)
-	v4IP, v6IP := w.getSpecAddresses(node)
-	if v4IP != "" {
-		err = w.peerWatcher.addBGPPeer(v4IP, asNumber)
-		if err != nil {
-			return errors.Wrapf(err, "error adding peer %s", v4IP)
-		}
-	}
-	if v6IP != "" {
-		err = w.peerWatcher.addBGPPeer(v6IP, asNumber)
-		if err != nil {
-			return errors.Wrapf(err, "error adding peer %s", v6IP)
-		}
-	}
 	return nil
 }
 
-func NewNodeWatcher(routingData *common.RoutingData, peerWatcher *PeerWatcher, log *logrus.Entry) *NodeWatcher {
+// GetNodeList returns a slice of all the current nodes in the cluster
+func (w *NodeWatcher) GetNodesList() (nodes []*calicov3.Node) {
+	w.nodeStateLock.Lock()
+	defer w.nodeStateLock.Unlock()
+
+	nodes = make([]*calicov3.Node, 0)
+	for _, nodeState := range w.nodeStatesByName {
+		nodes = append(nodes, nodeState.DeepCopy())
+	}
+	return nodes
+}
+
+func (w *NodeWatcher) nodeUpdateNotify() {
+	for _, c := range w.subscribers {
+		c <- true
+	}
+}
+
+func (w *NodeWatcher) NodeUpdateSubscribe() (updates chan bool) {
+	updates = make(chan bool, 1)
+	w.subscribers = append(w.subscribers, updates)
+	return updates
+}
+
+func NewNodeWatcher(routingData *common.RoutingData, log *logrus.Entry) *NodeWatcher {
 	w := NodeWatcher{
 		RoutingData:      routingData,
 		log:              log,
 		nodeStatesByName: make(map[string]common.NodeState),
 		nodeNamesByAddr:  make(map[string]string),
-		peerWatcher:      peerWatcher,
 	}
 	return &w
 }
