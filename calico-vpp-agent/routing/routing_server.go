@@ -120,8 +120,8 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server.bgpWatcher = watchers.NewBGPWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "bgp-watcher"}))
 	server.prefixWatcher = watchers.NewPrefixWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	server.kernelWatcher = watchers.NewKernelWatcher(&routingData, server.ipam, server.bgpWatcher, l.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
-	server.peerWatcher = watchers.NewPeerWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
-	server.nodeWatcher = watchers.NewNodeWatcher(&routingData, server.peerWatcher, l.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
+	server.nodeWatcher = watchers.NewNodeWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
+	server.peerWatcher = watchers.NewPeerWatcher(&routingData, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
 	server.connectivityServer = connectivity.NewConnectivityServer(&routingData, server.ipam, server.felixConfWatcher, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 
 	return &server, nil
