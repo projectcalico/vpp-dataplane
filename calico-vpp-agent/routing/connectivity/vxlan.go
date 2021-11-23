@@ -131,7 +131,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 
 	vxLanPort := p.getVXLANPort()
 	if _, found := p.vxlanIfs[cn.NextHop.String()]; !found {
-		p.log.Infof("VXLan: Add %s->%s", nodeIP.String(), cn.Dst.IP.String())
+		p.log.Infof("VXLan: Add %s->%s", nodeIP.String(), cn.NextHop.String())
 		tunnel := &types.VXLanTunnel{
 			SrcAddress:     nodeIP,
 			DstAddress:     cn.NextHop,
@@ -187,12 +187,11 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		}
 
 		p.vxlanIfs[cn.NextHop.String()] = swIfIndex
-		p.log.Infof("VXLan: Added ?->%s %d", cn.Dst.IP.String(), swIfIndex)
+		p.log.Infof("VXLan: Added ?->%s %d", cn.NextHop.String(), swIfIndex)
 	}
 	swIfIndex := p.vxlanIfs[cn.NextHop.String()]
-	p.log.Infof("VXLan: Added ?->%s %d", cn.Dst.IP.String(), swIfIndex)
 
-	p.log.Debugf("Adding vxlan tunnel route to %s via swIfIndex %d", cn.Dst.IP.String(), swIfIndex)
+	p.log.Infof("Adding vxlan tunnel route to %s via swIfIndex %d", cn.Dst.IP.String(), swIfIndex)
 	route := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{

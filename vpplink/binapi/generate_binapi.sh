@@ -94,7 +94,8 @@ function generate_govpp_apis ()
 	  vmxnet3 \
 	  pbl \
 	  memclnt \
-	  session
+	  session \
+	  vpe
 }
 
 make_binapi_generator
