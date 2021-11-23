@@ -28,6 +28,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type PeerWatcher struct {
@@ -84,7 +85,7 @@ func (w *PeerWatcher) getAsNumber(node *oldv3.Node) uint32 {
 func (w *PeerWatcher) selectPeers(nodes []*oldv3.Node, peerSelector string) map[string]uint32 {
 	ipAsn := make(map[string]uint32)
 	for _, node := range nodes {
-		if node.Name == w.currentCalicoNode.Name {
+		if node.Name == config.NodeName {
 			continue // Don't peer with ourselves :)
 		}
 		matches, err := selectsNode(peerSelector, node)
@@ -137,11 +138,18 @@ func (w *PeerWatcher) WatchBGPPeers() error {
 		}
 		// If in mesh mode, add a fake peer to the list to select all nodes
 		if w.isMeshMode() {
+			w.log.Debugf("Node to node mesh enabled")
 			peers.Items = append(peers.Items, calicov3.BGPPeer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "<internal> virtual full mesh peer",
+				},
 				Spec: calicov3.BGPPeerSpec{
+					Node:         config.NodeName,
 					PeerSelector: "all()",
 				},
 			})
+		} else {
+			w.log.Debugf("Node to node mesh disabled")
 		}
 		for _, peer := range peers.Items {
 			if !w.shouldPeer(&peer) {
@@ -169,6 +177,7 @@ func (w *PeerWatcher) WatchBGPPeers() error {
 					// Else no change, nothing to do
 				} else {
 					// New peer
+					w.log.Infof("Adding neighbor %s for BGPPeer %s", ip, peer.ObjectMeta.Name)
 					state[ip] = &bgpPeer{
 						AS:        asn,
 						SweepFlag: false,
@@ -203,9 +212,9 @@ func (w *PeerWatcher) WatchBGPPeers() error {
 		// node and peer updates should be infrequent enough - just reevaluate all peerings everytime there is an update
 		select {
 		case <-peerUpdatesChan:
-			w.log.Info("Peers updated, reevaluating peerings")
+			w.log.Debug("Peers updated, reevaluating peerings")
 		case <-w.nodeUpdates:
-			w.log.Info("Nodes updated, reevaluating peerings")
+			w.log.Debug("Nodes updated, reevaluating peerings")
 		}
 	}
 }

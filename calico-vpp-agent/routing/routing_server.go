@@ -79,7 +79,6 @@ func (s *Server) Clientv3() calicov3cli.Interface {
 }
 
 func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
-
 	calicoCli, err := calicocli.NewFromEnv()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create calico v1 api client")
@@ -92,6 +91,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting BGP configuration")
 	}
+	l.Infof("Determined BGP configuration: %s", formatBGPConfiguration(BGPConf))
 
 	routingData := common.RoutingData{
 		Vpp:                   vpp,
@@ -205,6 +205,24 @@ func (s *Server) serveOne() error {
 	return nil
 }
 
+func formatBGPConfiguration(conf *calicov3.BGPConfigurationSpec) string {
+	if conf == nil {
+		return "<nil>"
+	}
+	meshConfig := "<nil>"
+	if conf.NodeToNodeMeshEnabled != nil {
+		meshConfig = fmt.Sprintf("%v", *conf.NodeToNodeMeshEnabled)
+	}
+	asn := "<nil>"
+	if conf.ASNumber != nil {
+		asn = conf.ASNumber.String()
+	}
+	return fmt.Sprintf(
+		"LogSeverityScreen: %s, NodeToNodeMeshEnabled: %s, ASNumber: %s, ListenPort: %d",
+		conf.LogSeverityScreen, meshConfig, asn, conf.ListenPort,
+	)
+}
+
 func (s *Server) getBGPConf(log *logrus.Entry, clientv3 calicov3cli.Interface) (*calicov3.BGPConfigurationSpec, error) {
 	defaultBGPConf, err := s.getDefaultBGPConfig(log, clientv3)
 	if err != nil {
@@ -218,15 +236,14 @@ func (s *Server) getBGPConf(log *logrus.Entry, clientv3 calicov3cli.Interface) (
 		default:
 			return nil, errors.Wrap(err, "error getting node specific BGP configurations")
 		}
-	} else {
-		if nodeSpecificConf.Spec.ListenPort != 0 {
-			defaultBGPConf.ListenPort = nodeSpecificConf.Spec.ListenPort
-		}
-		if defaultBGPConf.LogSeverityScreen != "" {
-			defaultBGPConf.LogSeverityScreen = nodeSpecificConf.Spec.LogSeverityScreen
-		}
-		return defaultBGPConf, nil
 	}
+	if nodeSpecificConf.Spec.ListenPort != 0 {
+		defaultBGPConf.ListenPort = nodeSpecificConf.Spec.ListenPort
+	}
+	if defaultBGPConf.LogSeverityScreen != "" {
+		defaultBGPConf.LogSeverityScreen = nodeSpecificConf.Spec.LogSeverityScreen
+	}
+	return defaultBGPConf, nil
 }
 
 func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Interface) (*calicov3.BGPConfigurationSpec, error) {
