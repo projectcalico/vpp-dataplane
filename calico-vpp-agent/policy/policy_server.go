@@ -317,11 +317,13 @@ func (s *Server) Stop() {
 // CNI component adds or deletes container interfaces.
 func (s *Server) SyncPolicy(conn net.Conn) {
 	s.log.Info("Starting policy resync")
+	felixUpdates := s.MessageReader(conn)
 
 	for {
-		msg, err := s.RecvMessage(conn)
-		if err != nil {
-			s.log.WithError(err).Errorf("error communicating with felix")
+		var err error
+		msg, ok := <-felixUpdates
+		if !ok || msg == nil {
+			s.log.Errorf("Error getting felix update: %v %v", msg, ok)
 			conn.Close()
 			s.felixRestarted <- true
 			return
