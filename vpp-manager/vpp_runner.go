@@ -541,9 +541,11 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrap(err, "Error writing tap idx")
 	}
 
-	err = v.vpp.DisableIP6RouterAdvertisements(tapSwIfIndex)
-	if err != nil {
-		return errors.Wrap(err, "Error disabling ip6 RA on vpptap0")
+	if ifState.Hasv6 {
+		err = v.vpp.DisableIP6RouterAdvertisements(tapSwIfIndex)
+		if err != nil {
+			return errors.Wrap(err, "Error disabling ip6 RA on vpptap0")
+		}
 	}
 
 	err = v.configurePunt(tapSwIfIndex, *ifState)
