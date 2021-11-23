@@ -1,4 +1,4 @@
-VPP Version                 : 22.02-rc0~164-g6a8777e8e
+VPP Version                 : 22.02-rc0~164-g55d70e03d
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 312b4cd84 arp: fix for source address selection
 ------------------ Cherry picked commits --------------------

@@ -75,7 +75,16 @@ func CreateVppLink(socket string, log *logrus.Entry) (vpp *vpplink.VppLink, err 
 			err = nil
 			time.Sleep(2 * time.Second)
 		} else {
-			return vpp, nil
+			// Try a simple API message to verify everything is up and running
+			version, err := vpp.GetVPPVersion()
+			if err != nil {
+				log.Warnf("Try [%d/10] broken vpplink: %v", i, err)
+				err = nil
+				time.Sleep(2 * time.Second)
+			} else {
+				log.Infof("Connected to VPP version %s", version)
+				return vpp, nil
+			}
 		}
 	}
 	return nil, errors.Errorf("Cannot connect to VPP after 10 tries")
