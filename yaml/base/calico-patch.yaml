@@ -52,13 +52,6 @@ spec:
     spec:
       containers:
         - name: calico-node
-          env:
-            - name: FELIX_USEINTERNALDATAPLANEDRIVER
-              value: "false"
-            - name: FELIX_DATAPLANEDRIVER
-              value: /usr/local/bin/felix-plugins/felix-api-proxy
-            - name: FELIX_XDPENABLED
-              value: "false"
           # Remove bird from liveness and readiness probes
           livenessProbe:
             exec:

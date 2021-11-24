@@ -365,3 +365,12 @@ spec:
         - name: felix-plugins
           hostPath:
             path: /var/lib/calico/felix-plugins
+---
+apiVersion: crd.projectcalico.org/v1
+kind: FelixConfiguration
+metadata:
+  name: default
+spec:
+  useInternalDataplaneDriver: false
+  dataplaneDriver: /usr/local/bin/felix-plugins/felix-api-proxy
+  xdpEnabled: false
