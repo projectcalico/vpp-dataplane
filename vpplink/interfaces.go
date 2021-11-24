@@ -327,17 +327,17 @@ func (v *VppLink) SearchInterfaceWithTag(tag string) (uint32, error) {
 	return sw, err
 }
 
-func (v *VppLink) SearchInterfacesWithTagPrefix(tag string) ([]uint32, error) {
+func (v *VppLink) SearchInterfacesWithTagPrefix(tag string) (map[string]uint32, error) {
 	err, _, sws := v.searchInterfaceWithTagOrTagPrefix(tag, true)
 	return sws, err
 }
 
-func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (err error, swIfIndex uint32, swIfIndexes []uint32) {
+func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (err error, swIfIndex uint32, swIfIndexes map[string]uint32) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	swIfIndex = INVALID_SW_IF_INDEX
-	swIfIndexes = []uint32{}
+	swIfIndexes = make(map[string]uint32)
 	request := &interfaces.SwInterfaceDump{}
 	stream := v.ch.SendMultiRequest(request)
 	for {
@@ -356,7 +356,7 @@ func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (er
 			swIfIndex = uint32(response.SwIfIndex)
 		}
 		if strings.HasPrefix(intfTag, tag) && prefix {
-			swIfIndexes = append(swIfIndexes, uint32(response.SwIfIndex))
+			swIfIndexes[intfTag] = uint32(response.SwIfIndex)
 		}
 	}
 	if prefix {

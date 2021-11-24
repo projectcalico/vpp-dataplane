@@ -36,6 +36,10 @@ func getRoutePaths(addr net.IP) []types.RoutePath {
 	}}
 }
 
+func (p *FlatL3Provider) GetSwifindexes() []uint32 {
+	return []uint32{}
+}
+
 func (p *FlatL3Provider) OnVppRestart() {
 	/* Nothing to do */
 }
@@ -52,7 +56,7 @@ func NewFlatL3Provider(d *ConnectivityProviderData) *FlatL3Provider {
 	return &FlatL3Provider{d}
 }
 
-func (p *FlatL3Provider) AddConnectivity(cn *common.NodeConnectivity) error {
+func (p *FlatL3Provider) AddConnectivity(cn *common.NodeConnectivity, tunnelAddedChan chan tunnelChange) error {
 	p.log.Printf("adding route %s to VPP", cn.Dst.String())
 	paths := getRoutePaths(cn.NextHop)
 	err := p.vpp.RouteAdd(&types.Route{
@@ -62,7 +66,7 @@ func (p *FlatL3Provider) AddConnectivity(cn *common.NodeConnectivity) error {
 	return errors.Wrap(err, "error replacing route")
 }
 
-func (p *FlatL3Provider) DelConnectivity(cn *common.NodeConnectivity) error {
+func (p *FlatL3Provider) DelConnectivity(cn *common.NodeConnectivity, tunnelAddedChan chan tunnelChange) error {
 	p.log.Debugf("removing route %s from VPP", cn.Dst.String())
 	paths := getRoutePaths(cn.NextHop)
 	err := p.vpp.RouteDel(&types.Route{
