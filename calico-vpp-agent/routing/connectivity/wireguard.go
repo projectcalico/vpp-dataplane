@@ -39,6 +39,14 @@ func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
 	return &WireguardProvider{d, nil, make(map[string]types.WireguardPeer)}
 }
 
+func (p *WireguardProvider) GetSwifindexes() []uint32 {
+	if p.wireguardTunnel != nil {
+		return []uint32{p.wireguardTunnel.SwIfIndex}
+	} else {
+		return []uint32{}
+	}
+}
+
 func (p *WireguardProvider) Enabled() bool {
 	felixConf := p.GetFelixConfig()
 	if felixConf == nil {
@@ -196,7 +204,7 @@ func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
 	return nil
 }
 
-func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
+func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity, tunnelChangeChan chan tunnelChange) error {
 	if p.wireguardTunnel == nil {
 		p.log.Infof("Wireguard: Creating tunnel")
 		nodeIP4 := p.GetNodeIP(false)
@@ -207,6 +215,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		if err != nil {
 			return errors.Wrapf(err, "Wireguard: Error creating tunnel")
 		}
+		tunnelChangeChan <- tunnelChange{p.wireguardTunnel.SwIfIndex, AddChange}
 	}
 	if p.TunnelIsIP6() != vpplink.IsIP6(cn.NextHop) {
 		return errors.Errorf("IP46 wireguard tunnelling not supported")
@@ -278,7 +287,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	return nil
 }
 
-func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
+func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity, tunnelChangeChan chan tunnelChange) (err error) {
 	peer, found := p.wireguardPeers[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("Wireguard: Del unknown %s", cn.NextHop.String())

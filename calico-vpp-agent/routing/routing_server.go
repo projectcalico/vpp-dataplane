@@ -71,7 +71,7 @@ type Server struct {
 	nodeWatcher      *watchers.NodeWatcher
 	ipam             watchers.IpamCache
 
-	connectivityServer *connectivity.ConnectivityServer
+	ConnectivityServer *connectivity.ConnectivityServer
 }
 
 func (s *Server) Clientv3() calicov3cli.Interface {
@@ -122,7 +122,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server.kernelWatcher = watchers.NewKernelWatcher(&routingData, server.ipam, server.bgpWatcher, l.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
 	server.nodeWatcher = watchers.NewNodeWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
 	server.peerWatcher = watchers.NewPeerWatcher(&routingData, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
-	server.connectivityServer = connectivity.NewConnectivityServer(&routingData, server.ipam, server.felixConfWatcher, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
+	server.ConnectivityServer = connectivity.NewConnectivityServer(&routingData, server.ipam, server.felixConfWatcher, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 
 	return &server, nil
 }
@@ -176,7 +176,7 @@ func (s *Server) serveOne() error {
 
 	// watch routes from other BGP peers and update FIB
 	s.t.Go(func() error { return s.bgpWatcher.WatchBGPPath() })
-	s.t.Go(func() error { return s.connectivityServer.ServeConnectivity() })
+	s.t.Go(func() error { return s.ConnectivityServer.ServeConnectivity() })
 
 	// watch routes added by kernel and announce to other BGP peers
 	// FIXME : s.t.Go(s.kernelWatcher.WatchKernelRoute())

@@ -36,6 +36,16 @@ type IpsecProvider struct {
 	ipsecRoutes map[string]map[string]bool
 }
 
+func (p *IpsecProvider) GetSwifindexes() []uint32 {
+	swifindexes := []uint32{}
+	for _, ipsecIf := range p.ipsecIfs {
+		for _, ipipIf := range ipsecIf {
+			swifindexes = append(swifindexes, ipipIf.SwIfIndex)
+		}
+	}
+	return swifindexes
+}
+
 func (p *IpsecProvider) OnVppRestart() {
 
 	var nbDataThread int = 0
@@ -145,19 +155,19 @@ func (p *IpsecProvider) errorCleanup(tunnel *types.IPIPTunnel, profile string) {
 	}
 }
 
-func (p *IpsecProvider) createIPSECTunnels(destNodeAddr net.IP) (err error) {
+func (p *IpsecProvider) createIPSECTunnels(destNodeAddr net.IP, tunnelChangeChan chan tunnelChange) (err error) {
 	/* IP6 is not yet supported by ikev2 */
 	nodeIP := p.server.GetNodeIP(false /* isv6 */)
 	for i := 0; i < config.IpsecAddressCount; i++ {
 		if config.CrossIpsecTunnels {
 			for j := 0; j < config.IpsecAddressCount; j++ {
-				err := p.createOneIndexedIPSECTunnel(i, j, destNodeAddr, nodeIP)
+				err := p.createOneIndexedIPSECTunnel(i, j, destNodeAddr, nodeIP, tunnelChangeChan)
 				if err != nil {
 					return err
 				}
 			}
 		} else {
-			err := p.createOneIndexedIPSECTunnel(i, i, destNodeAddr, nodeIP)
+			err := p.createOneIndexedIPSECTunnel(i, i, destNodeAddr, nodeIP, tunnelChangeChan)
 			if err != nil {
 				return err
 			}
@@ -167,7 +177,7 @@ func (p *IpsecProvider) createIPSECTunnels(destNodeAddr net.IP) (err error) {
 	return nil
 }
 
-func (p *IpsecProvider) createOneIndexedIPSECTunnel(i int, j int, destNodeAddr net.IP, nodeIP net.IP) (err error) {
+func (p *IpsecProvider) createOneIndexedIPSECTunnel(i int, j int, destNodeAddr net.IP, nodeIP net.IP, tunnelChangeChan chan tunnelChange) (err error) {
 	src := net.IP(append([]byte(nil), nodeIP.To4()...))
 	src[2] += byte(i)
 	dst := net.IP(append([]byte(nil), destNodeAddr.To4()...))
@@ -178,7 +188,7 @@ func (p *IpsecProvider) createOneIndexedIPSECTunnel(i int, j int, destNodeAddr n
 		Dst: dst,
 	}
 	p.log.Infof("ROUTING: Adding IPsec tunnel %s", tunnel.String())
-	err = p.createOneIPSECTunnel(tunnel, config.IPSecIkev2Psk)
+	err = p.createOneIPSECTunnel(tunnel, config.IPSecIkev2Psk, tunnelChangeChan)
 	if err != nil {
 		return errors.Wrapf(err, "error configuring ipsec tunnel %s", tunnel.String())
 	}
@@ -186,12 +196,12 @@ func (p *IpsecProvider) createOneIndexedIPSECTunnel(i int, j int, destNodeAddr n
 	return nil
 }
 
-func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk string) error {
+func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk string, tunnelChangeChan chan tunnelChange) error {
 	swIfIndex, err := p.vpp.AddIPIPTunnel(tunnel)
 	if err != nil {
 		return errors.Wrapf(err, "Error adding ipip tunnel %s", tunnel.String())
 	}
-
+	tunnelChangeChan <- tunnelChange{swIfIndex, AddChange}
 	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel, "")
@@ -344,14 +354,14 @@ func (p *IpsecProvider) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
 	return nodeIP, nil
 }
 
-func (p *IpsecProvider) AddConnectivity(cn *common.NodeConnectivity) (err error) {
+func (p *IpsecProvider) AddConnectivity(cn *common.NodeConnectivity, tunnelChangeChan chan tunnelChange) (err error) {
 	cn.NextHop, err = p.forceOtherNodeIp4(cn.NextHop)
 	if err != nil {
 		return errors.Wrap(err, "Ipsec v6 config failed")
 	}
 
 	if _, found := p.ipsecIfs[cn.NextHop.String()]; !found {
-		err = p.createIPSECTunnels(cn.NextHop)
+		err = p.createIPSECTunnels(cn.NextHop, tunnelChangeChan)
 		if err != nil {
 			return errors.Wrapf(err, "Error configuring IPSEC tunnels to %s", cn.NextHop)
 		}
@@ -375,7 +385,7 @@ func (p *IpsecProvider) AddConnectivity(cn *common.NodeConnectivity) (err error)
 	return nil
 }
 
-func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
+func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity, tunnelChangeChan chan tunnelChange) (err error) {
 	cn.NextHop, err = p.forceOtherNodeIp4(cn.NextHop)
 	if err != nil {
 		return errors.Wrap(err, "Ipsec v6 config failed")
@@ -409,6 +419,7 @@ func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error)
 			if err != nil {
 				p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
 			}
+			tunnelChangeChan <- tunnelChange{tunnel.SwIfIndex, DeleteChange}
 		}
 		delete(p.ipsecIfs, cn.NextHop.String())
 	}

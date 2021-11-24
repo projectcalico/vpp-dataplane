@@ -34,6 +34,14 @@ func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
 	return &IpipProvider{d, make(map[string]*types.IPIPTunnel), make(map[uint32]map[string]bool)}
 }
 
+func (p *IpipProvider) GetSwifindexes() []uint32 {
+	swifindexes := []uint32{}
+	for _, ipipIf := range p.ipipIfs {
+		swifindexes = append(swifindexes, ipipIf.SwIfIndex)
+	}
+	return swifindexes
+}
+
 func (p *IpipProvider) OnVppRestart() {
 	p.ipipIfs = make(map[string]*types.IPIPTunnel)
 	p.ipipRoutes = make(map[uint32]map[string]bool)
@@ -91,7 +99,7 @@ func (p *IpipProvider) errorCleanup(tunnel *types.IPIPTunnel) {
 	}
 }
 
-func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
+func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity, tunnelChangeChan chan tunnelChange) error {
 	p.log.Debugf("Adding ipip Tunnel to VPP")
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
@@ -146,6 +154,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		}
 
 		p.ipipIfs[cn.NextHop.String()] = tunnel
+		tunnelChangeChan <- tunnelChange{swIfIndex, AddChange}
 	}
 	p.log.Infof("IPIP: tunnnel %s ok", tunnel.String())
 
@@ -169,7 +178,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	return nil
 }
 
-func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
+func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity, tunnelChangeChan chan tunnelChange) error {
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("IPIP: Del unknown %s", cn.NextHop.String())
@@ -207,6 +216,7 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
 		}
 		delete(p.ipipIfs, cn.NextHop.String())
+		tunnelChangeChan <- tunnelChange{tunnel.SwIfIndex, DeleteChange}
 	}
 	p.log.Infof("%s", p.ipipIfs)
 	return nil

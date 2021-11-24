@@ -30,11 +30,28 @@ type ConnectivityServer struct {
 	*common.RoutingData
 	log *logrus.Entry
 
-	providers        map[string]ConnectivityProvider
+	Providers        map[string]ConnectivityProvider
 	connectivityMap  map[string]common.NodeConnectivity
 	ipam             watchers.IpamCache
 	FelixConfWatcher *watchers.FelixConfWatcher
 	NodeWatcher      *watchers.NodeWatcher
+	TunnelChangeChan chan tunnelChange
+}
+
+type tunnelChange struct {
+	Swifindex  uint32
+	ChangeType change
+}
+
+type change uint8
+
+const (
+	AddChange    change = 0
+	DeleteChange change = 1
+)
+
+func (s *ConnectivityServer) GetTunnelChangeChan() chan tunnelChange {
+	return s.TunnelChangeChan
 }
 
 func NewConnectivityServer(routingData *common.RoutingData,
@@ -49,16 +66,17 @@ func NewConnectivityServer(routingData *common.RoutingData,
 		FelixConfWatcher: felixConfWatcher,
 		NodeWatcher:      nodeWatcher,
 		connectivityMap:  make(map[string]common.NodeConnectivity),
+		TunnelChangeChan: make(chan tunnelChange, 10),
 	}
 
 	providerData := NewConnectivityProviderData(server.Vpp, &server, log)
 
-	server.providers = make(map[string]ConnectivityProvider)
-	server.providers[FLAT] = NewFlatL3Provider(providerData)
-	server.providers[IPIP] = NewIPIPProvider(providerData)
-	server.providers[IPSEC] = NewIPsecProvider(providerData)
-	server.providers[VXLAN] = NewVXLanProvider(providerData)
-	server.providers[WIREGUARD] = NewWireguardProvider(providerData)
+	server.Providers = make(map[string]ConnectivityProvider)
+	server.Providers[FLAT] = NewFlatL3Provider(providerData)
+	server.Providers[IPIP] = NewIPIPProvider(providerData)
+	server.Providers[IPSEC] = NewIPsecProvider(providerData)
+	server.Providers[VXLAN] = NewVXLanProvider(providerData)
+	server.Providers[WIREGUARD] = NewWireguardProvider(providerData)
 
 	return &server
 }
@@ -116,13 +134,13 @@ func (s *ConnectivityServer) ServeConnectivity() error {
 			}
 			break
 		case common.RescanState:
-			for _, provider := range s.providers {
+			for _, provider := range s.Providers {
 				provider.OnVppRestart()
 				provider.RescanState()
 			}
 			break
 		case common.VppRestart:
-			for _, provider := range s.providers {
+			for _, provider := range s.Providers {
 				provider.OnVppRestart()
 			}
 			for _, cn := range s.connectivityMap {
@@ -170,9 +188,9 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) string
 		return FLAT
 	}
 	if ipPool.Spec.IPIPMode == calicov3.IPIPModeAlways {
-		if s.providers[IPSEC].Enabled() {
+		if s.Providers[IPSEC].Enabled() {
 			return IPSEC
-		} else if s.providers[WIREGUARD].Enabled() {
+		} else if s.Providers[WIREGUARD].Enabled() {
 			return WIREGUARD
 		} else {
 			return IPIP
@@ -180,9 +198,9 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) string
 	}
 	ipNet := s.GetNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
 	if ipPool.Spec.IPIPMode == calicov3.IPIPModeCrossSubnet && !isCrossSubnet(cn.NextHop, *ipNet) {
-		if s.providers[IPSEC].Enabled() {
+		if s.Providers[IPSEC].Enabled() {
 			return IPSEC
-		} else if s.providers[WIREGUARD].Enabled() {
+		} else if s.Providers[WIREGUARD].Enabled() {
 			return WIREGUARD
 		} else {
 			return IPIP
@@ -209,7 +227,7 @@ func (s *ConnectivityServer) updateIPConnectivity(cn *common.NodeConnectivity, I
 			delete(s.connectivityMap, oldCn.String())
 			s.log.Infof("Deleting path (%s) %s", providerType, oldCn.String())
 		}
-		return s.providers[providerType].DelConnectivity(cn)
+		return s.Providers[providerType].DelConnectivity(cn, s.TunnelChangeChan)
 	} else {
 		providerType = s.getProviderType(cn)
 		oldCn, found := s.connectivityMap[cn.String()]
@@ -217,22 +235,22 @@ func (s *ConnectivityServer) updateIPConnectivity(cn *common.NodeConnectivity, I
 			oldProviderType := oldCn.ResolvedProvider
 			if oldProviderType != providerType {
 				s.log.Infof("Path (%s) changed provider (%s->%s) %s", providerType, oldProviderType, providerType, cn.String())
-				err := s.providers[oldProviderType].DelConnectivity(cn)
+				err := s.Providers[oldProviderType].DelConnectivity(cn, s.TunnelChangeChan)
 				if err != nil {
 					s.log.Errorf("Error del connectivity when changing provider %s->%s : %s", oldProviderType, providerType, err)
 				}
 				cn.ResolvedProvider = providerType
 				s.connectivityMap[cn.String()] = *cn
-				return s.providers[providerType].AddConnectivity(cn)
+				return s.Providers[providerType].AddConnectivity(cn, s.TunnelChangeChan)
 			} else {
 				s.log.Infof("Added same path (%s) %s", providerType, cn.String())
-				return s.providers[providerType].AddConnectivity(cn)
+				return s.Providers[providerType].AddConnectivity(cn, s.TunnelChangeChan)
 			}
 		} else {
 			s.log.Infof("Added path (%s) %s", providerType, cn.String())
 			cn.ResolvedProvider = providerType
 			s.connectivityMap[cn.String()] = *cn
-			return s.providers[providerType].AddConnectivity(cn)
+			return s.Providers[providerType].AddConnectivity(cn, s.TunnelChangeChan)
 		}
 	}
 }

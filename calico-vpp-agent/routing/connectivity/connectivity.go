@@ -43,14 +43,16 @@ type ConnectivityProviderData struct {
 }
 
 type ConnectivityProvider interface {
-	AddConnectivity(cn *common.NodeConnectivity) error
-	DelConnectivity(cn *common.NodeConnectivity) error
+	AddConnectivity(cn *common.NodeConnectivity, tunnelChangeChan  chan tunnelChange) error
+	DelConnectivity(cn *common.NodeConnectivity, tunnelChangeChan  chan tunnelChange) error
 	/* Called when VPP signals us that it has restarted */
 	OnVppRestart()
 	/* Check current state in VPP and update local cache */
 	RescanState()
 	/* is it enabled in the config ? */
 	Enabled() bool
+	/* get swifindexes */
+	GetSwifindexes() []uint32
 }
 
 func (p *ConnectivityProviderData) GetNodeByIp(addr net.IP) *common.NodeState {

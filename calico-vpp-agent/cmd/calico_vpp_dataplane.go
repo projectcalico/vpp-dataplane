@@ -82,7 +82,7 @@ func main() {
 		log.Errorf("Failed to create routing server")
 		log.Fatal(err)
 	}
-	policyServer, err := policy.NewServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
+	policyServer, err := policy.NewServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}), routingServer)
 	if err != nil {
 		log.Errorf("Failed to create policy server")
 		log.Fatal(err)
