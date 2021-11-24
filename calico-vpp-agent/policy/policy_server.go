@@ -322,7 +322,7 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 	for {
 		var err error
 		msg, ok := <-felixUpdates
-		if !ok || msg == nil {
+		if !ok {
 			s.log.Errorf("Error getting felix update: %v %v", msg, ok)
 			conn.Close()
 			s.felixRestarted <- true
