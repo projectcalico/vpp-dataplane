@@ -91,6 +91,8 @@ git_cherry_pick refs/changes/71/32271/7 # 32271: memif: add support for ns abstr
 git_cherry_pick refs/changes/57/33557/5 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
 git_cherry_pick refs/changes/49/34249/2 # 34249: devices: default mode eth in the api | https://gerrit.fd.io/r/c/vpp/+/34249
 
+git_cherry_pick refs/changes/85/34585/1 # 34585: devices: fix af_packet GSO check | https://gerrit.fd.io/r/c/vpp/+/34585
+
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/3 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
 git_cherry_pick refs/changes/88/31588/1 # 31588: cnat: [WIP] no k8s maglev from pods | https://gerrit.fd.io/r/c/vpp/+/31588
