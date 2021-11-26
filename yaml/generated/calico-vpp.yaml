@@ -4130,12 +4130,6 @@ spec:
     spec:
       containers:
       - env:
-        - name: FELIX_USEINTERNALDATAPLANEDRIVER
-          value: "false"
-        - name: FELIX_DATAPLANEDRIVER
-          value: /usr/local/bin/felix-plugins/felix-api-proxy
-        - name: FELIX_XDPENABLED
-          value: "false"
         - name: DATASTORE_TYPE
           value: kubernetes
         - name: WAIT_FOR_DATASTORE
@@ -4241,7 +4235,6 @@ spec:
           name: cni-log-dir
           readOnly: true
       hostNetwork: true
-      hostPID: true
       initContainers:
       - command:
         - /opt/cni/bin/calico-ipam
@@ -4367,3 +4360,12 @@ spec:
     rollingUpdate:
       maxUnavailable: 1
     type: RollingUpdate
+---
+apiVersion: crd.projectcalico.org/v1
+kind: FelixConfiguration
+metadata:
+  name: default
+spec:
+  dataplaneDriver: /usr/local/bin/felix-plugins/felix-api-proxy
+  useInternalDataplaneDriver: false
+  xdpEnabled: false
