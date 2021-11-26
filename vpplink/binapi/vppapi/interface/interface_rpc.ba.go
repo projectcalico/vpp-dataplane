@@ -20,6 +20,7 @@ type RPCService interface {
 	CreateVlanSubif(ctx context.Context, in *CreateVlanSubif) (*CreateVlanSubifReply, error)
 	DeleteLoopback(ctx context.Context, in *DeleteLoopback) (*DeleteLoopbackReply, error)
 	DeleteSubif(ctx context.Context, in *DeleteSubif) (*DeleteSubifReply, error)
+	GetBuffersStats(ctx context.Context, in *GetBuffersStats) (*GetBuffersStatsReply, error)
 	HwInterfaceSetMtu(ctx context.Context, in *HwInterfaceSetMtu) (*HwInterfaceSetMtuReply, error)
 	InterfaceNameRenumber(ctx context.Context, in *InterfaceNameRenumber) (*InterfaceNameRenumberReply, error)
 	SwInterfaceAddDelAddress(ctx context.Context, in *SwInterfaceAddDelAddress) (*SwInterfaceAddDelAddressReply, error)
@@ -109,6 +110,15 @@ func (c *serviceClient) DeleteLoopback(ctx context.Context, in *DeleteLoopback) 
 
 func (c *serviceClient) DeleteSubif(ctx context.Context, in *DeleteSubif) (*DeleteSubifReply, error) {
 	out := new(DeleteSubifReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) GetBuffersStats(ctx context.Context, in *GetBuffersStats) (*GetBuffersStatsReply, error) {
+	out := new(GetBuffersStatsReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

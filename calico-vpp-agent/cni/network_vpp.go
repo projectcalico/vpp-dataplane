@@ -30,6 +30,20 @@ func getInterfaceVrfName(podSpec *storage.LocalPodSpec, suffix string) string {
 	return fmt.Sprintf("pod-%s-table-%s", podSpec.Key(), suffix)
 }
 
+func (s *Server) checkAvailableBuffers() (uint64, error) {
+	NumRxQueues := config.TapNumRxQueues
+	NumTxQueues := config.TapNumTxQueues
+	RxQueueSize := vpplink.DefaultIntTo(config.TapRxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
+	TxQueueSize := vpplink.DefaultIntTo(config.TapTxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
+	buffersNeeded := uint64(RxQueueSize*NumRxQueues + TxQueueSize*NumTxQueues)
+	if buffersNeeded > s.availableBuffers {
+		return buffersNeeded, errors.Errorf("Cannot create interface: Out of buffers: available buffers = %d, buffers needed = %d. "+
+			"Increase buffers-per-numa in the VPP configuration or reduce CALICOVPP_TAP_RING_SIZE to allow more "+
+			"pods to be scheduled. You may want to limit the number of pods per node to prevent this error", s.availableBuffers, buffersNeeded)
+	}
+	return buffersNeeded, nil
+}
+
 // AddVppInterface performs the networking for the given config and IPAM result
 func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
 	podSpec.NeedsSnat = false
@@ -38,6 +52,12 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}
 
 	stack := s.vpp.NewCleanupStack()
+
+	s.log.Infof("Checking available buffers")
+	buffersNeeded, err := s.checkAvailableBuffers()
+	if err != nil {
+		goto err
+	}
 
 	s.log.Infof("Creating Pod VRF")
 	err = s.CreatePodVRF(podSpec, stack)
@@ -124,6 +144,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}, podSpec.TunTapSwIfIndex, podSpec.GetContainerIps())
 
 	s.prometheusServer.PodAdded(podSpec)
+	s.availableBuffers -= buffersNeeded
 	return podSpec.TunTapSwIfIndex, err
 
 err:
