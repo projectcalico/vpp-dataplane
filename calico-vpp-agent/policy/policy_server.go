@@ -33,7 +33,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/prometheus/common/log"
@@ -74,14 +73,18 @@ type Server struct {
 	configuredState *PolicyState
 	pendingState    *PolicyState
 
-	failSafePolicy        *Policy
+	/* failSafe policies allow traffic on some ports irrespective of the policy */
+	failSafePolicy *Policy
+	/* workloadToHost may drop traffic that goes from the pods to the host */
 	workloadsToHostIPSet  *IPSet
 	workloadsToHostPolicy *Policy
-	allowFromHostPolicy   *Policy
-	allowToHostPolicy     *Policy
-	ip4                   *net.IP
-	ip6                   *net.IP
-	uplinkToTap           map[uint32]uint32
+	/* always allow traffic coming from host to the pods */
+	allowFromHostPolicy *Policy
+	/* allow traffic between uplink/tunnels and tap interfaces */
+	allowToHostPolicy *Policy
+	ip4               *net.IP
+	ip6               *net.IP
+	interfacesMap     map[string]interfaceDetails
 }
 
 // NewServer creates a policy server
@@ -113,7 +116,7 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry, rs *routing.Server) (*Se
 		pendingState:    NewPolicyState(),
 	}
 
-	server.uplinkToTap, err = server.mapUplinkToTapInterfaces()
+	server.interfacesMap, err = server.mapTagToInterfaceDetails()
 	if err != nil {
 		return nil, errors.Wrapf(err, "error in mapping uplink to tap interfaces")
 	}
@@ -133,8 +136,14 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry, rs *routing.Server) (*Se
 	return server, nil
 }
 
-func (s *Server) mapUplinkToTapInterfaces() (uplinkTap map[uint32]uint32, err error) {
-	uplinkTap = make(map[uint32]uint32)
+type interfaceDetails struct {
+	tapIndex    uint32
+	uplinkIndex uint32
+	addresses   []string
+}
+
+func (s *Server) mapTagToInterfaceDetails() (tagIfDetails map[string]interfaceDetails, err error) {
+	tagIfDetails = make(map[string]interfaceDetails)
 	uplinkSwifindexes, err := s.vpp.SearchInterfacesWithTagPrefix("main-")
 	if err != nil {
 		return nil, err
@@ -146,12 +155,25 @@ func (s *Server) mapUplinkToTapInterfaces() (uplinkTap map[uint32]uint32, err er
 	for intf, uplink := range uplinkSwifindexes {
 		tap, found := tapSwifindexes["host-"+intf[5:]]
 		if found {
-			uplinkTap[uplink] = tap
+			ip4adds, err := s.vpp.AddrList(uplink, false)
+			if err != nil {
+				return nil, err
+			}
+			ip6adds, err := s.vpp.AddrList(uplink, true)
+			if err != nil {
+				return nil, err
+			}
+			adds := append(ip4adds, ip6adds...)
+			addresses := []string{}
+			for _, add := range adds {
+				addresses = append(addresses, add.IPNet.IP.String())
+			}
+			tagIfDetails[intf[5:]] = interfaceDetails{tap, uplink, addresses}
 		} else {
 			return nil, errors.Errorf("uplink interface %s not corresponding to a tap interface", uplink)
 		}
 	}
-	return uplinkTap, nil
+	return tagIfDetails, nil
 }
 
 func InstallFelixPlugin() (err error) {
@@ -247,9 +269,11 @@ func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32, contain
 	}
 	// EndpointToHostAction
 	if strings.ToUpper(config.EndpointToHostAction) == "DROP" {
+		allMembers := []string{}
 		for _, containerIP := range containerIPs {
-			s.workloadsToHostIPSet.AddMembers([]string{containerIP.IP.String()}, true, s.vpp)
+			allMembers = append(allMembers, containerIP.IP.String())
 		}
+		s.workloadsToHostIPSet.AddMembers(allMembers, true, s.vpp)
 	}
 }
 
@@ -280,9 +304,11 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 	delete(s.endpointsInterfaces, *id)
 	// EndpointToHostAction
 	if strings.ToUpper(config.EndpointToHostAction) == "DROP" {
+		allMembers := []string{}
 		for _, containerIP := range containerIPs {
-			s.workloadsToHostIPSet.RemoveMembers([]string{containerIP.IP.String()}, true, s.vpp)
+			allMembers = append(allMembers, containerIP.IP.String())
 		}
+		s.workloadsToHostIPSet.RemoveMembers(allMembers, true, s.vpp)
 	}
 }
 
@@ -452,9 +478,9 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 				// TODO: Restart VPP as well? State is left over there...
 				return
 			}
-		case tunnelChange := <-s.routingServer.ConnectivityServer.GetTunnelChangeChan():
+		case tunnelChange := <-s.routingServer.TunnelChangeChan:
 			var pending bool
-			if s.state == StateSyncing {
+			if s.state == StateSyncing || s.state == StateConnected {
 				pending = true
 			} else if s.state == StateInSync {
 				pending = false
@@ -464,29 +490,7 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 			}
 			state := s.currentState(pending)
 			for _, h := range state.HostEndpoints {
-				if tunnelChange.ChangeType == connectivity.AddChange {
-					newTunnel := true
-					for _, v := range h.TunnelSwIfIndexes {
-						if v == tunnelChange.Swifindex {
-							newTunnel = false
-						}
-					}
-					if newTunnel {
-						h.TunnelSwIfIndexes = append(h.TunnelSwIfIndexes, tunnelChange.Swifindex)
-						s.log.Infof("Configuring policies on added tunnel [%d]", tunnelChange.Swifindex)
-						err = s.vpp.ConfigurePolicies(tunnelChange.Swifindex, h.currentForwardConf)
-						if err != nil {
-							s.log.Errorf("cannot configure policies on tunnel interface %d", tunnelChange.Swifindex)
-						}
-					}
-				} else { // delete case
-					s.log.Infof("Tunnel [%d] is deleted", tunnelChange.Swifindex)
-					for index, existingSwifindex := range h.TunnelSwIfIndexes {
-						if existingSwifindex == tunnelChange.Swifindex {
-							h.TunnelSwIfIndexes = append(h.TunnelSwIfIndexes[:index], h.TunnelSwIfIndexes[index+1:]...)
-						}
-					}
-				}
+				h.handleTunnelChange(tunnelChange, pending)
 			}
 		}
 	}
@@ -678,34 +682,35 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 	id := fromProtoHostEndpointID(msg.Id)
 	hep := fromProtoHostEndpoint(msg.Endpoint, s)
 	if hep.InterfaceName != "" && hep.InterfaceName != "*" {
-		swifindex, err := s.vpp.SearchInterfaceWithTag("main-" + hep.InterfaceName)
-		if err != nil {
-			return err
-		} else if swifindex == types.InvalidID {
-			s.log.Errorf("cannot find host endpoint: interface named %s does not exist", hep.InterfaceName)
+		interfaceDetails, found := s.interfacesMap[hep.InterfaceName]
+		if found {
+			hep.UplinkSwIfIndexes = append(hep.UplinkSwIfIndexes, interfaceDetails.uplinkIndex)
+			hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, interfaceDetails.tapIndex)
 		} else {
-			hep.UplinkSwIfIndexes = append(hep.UplinkSwIfIndexes, swifindex)
+			s.log.Errorf("cannot find host endpoint: interface named %s does not exist", hep.InterfaceName)
 		}
-		hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, s.uplinkToTap[swifindex])
 	} else if hep.InterfaceName == "" && hep.expectedIPs != nil {
-		hep.UplinkSwIfIndexes, err = s.vpp.SearchInterfacesWithAddresses(hep.expectedIPs, "main-")
-		if err != nil {
-			return err
-		}
-		for _, swifindex := range hep.UplinkSwIfIndexes {
-			hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, s.uplinkToTap[swifindex])
+		for _, existingIf := range s.interfacesMap {
+		interfaceFound:
+			for _, address := range existingIf.addresses {
+				for _, expectedIP := range hep.expectedIPs {
+					if address == expectedIP {
+						hep.UplinkSwIfIndexes = append(hep.UplinkSwIfIndexes, existingIf.uplinkIndex)
+						hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, existingIf.tapIndex)
+						break interfaceFound
+					}
+				}
+			}
 		}
 	} else if hep.InterfaceName == "*" {
-		for uplink, tap := range s.uplinkToTap {
-			hep.UplinkSwIfIndexes = append(hep.UplinkSwIfIndexes, uplink)
-			hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, tap)
+		for _, interfaceDetails := range s.interfacesMap {
+			hep.UplinkSwIfIndexes = append(hep.UplinkSwIfIndexes, interfaceDetails.uplinkIndex)
+			hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, interfaceDetails.tapIndex)
 		}
 	}
-	for _, provider := range s.routingServer.ConnectivityServer.Providers {
-		hep.TunnelSwIfIndexes = append(hep.TunnelSwIfIndexes, provider.GetSwifindexes()...)
-	}
+	hep.TunnelSwIfIndexes = *s.routingServer.GetAllTunnels()
 	if len(hep.UplinkSwIfIndexes) == 0 || len(hep.TapSwIfIndexes) == 0 {
-		return errors.Errorf("No interface to configure as host endpoint")
+		return errors.Errorf("No interface to configure as host endpoint for %s", id.EndpointID)
 	}
 	existing, found := state.HostEndpoints[*id]
 

@@ -204,7 +204,7 @@ func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
 	return nil
 }
 
-func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity, tunnelChangeChan chan tunnelChange) error {
+func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	if p.wireguardTunnel == nil {
 		p.log.Infof("Wireguard: Creating tunnel")
 		nodeIP4 := p.GetNodeIP(false)
@@ -215,7 +215,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity, tunnelC
 		if err != nil {
 			return errors.Wrapf(err, "Wireguard: Error creating tunnel")
 		}
-		tunnelChangeChan <- tunnelChange{p.wireguardTunnel.SwIfIndex, AddChange}
+		p.tunnelChangeChan <- TunnelChange{p.wireguardTunnel.SwIfIndex, AddChange}
 	}
 	if p.TunnelIsIP6() != vpplink.IsIP6(cn.NextHop) {
 		return errors.Errorf("IP46 wireguard tunnelling not supported")
@@ -287,7 +287,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity, tunnelC
 	return nil
 }
 
-func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity, tunnelChangeChan chan tunnelChange) (err error) {
+func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
 	peer, found := p.wireguardPeers[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("Wireguard: Del unknown %s", cn.NextHop.String())

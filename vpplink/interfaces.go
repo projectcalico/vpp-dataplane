@@ -295,33 +295,6 @@ func (v *VppLink) EnableInterfaceIP4(swIfIndex uint32) error {
 	return v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, true /*isEnable*/)
 }
 
-func (v *VppLink) SearchInterfacesWithAddresses(addresses []string, tagPrefix string) ([]uint32, error) {
-	swIfIndexes, err := v.SearchInterfacesWithTagPrefix(tagPrefix)
-	if err != nil {
-		return nil, err
-	}
-	matchingIndexes := []uint32{}
-	for _, s := range swIfIndexes {
-		ip4adds, err := v.AddrList(s, false)
-		if err != nil {
-			return nil, err
-		}
-		ip6adds, err := v.AddrList(s, true)
-		if err != nil {
-			return nil, err
-		}
-		adds := append(ip4adds, ip6adds...)
-		for _, add := range adds {
-			for _, address := range addresses {
-				if address == add.IPNet.IP.String() {
-					matchingIndexes = append(matchingIndexes, s)
-				}
-			}
-		}
-	}
-	return matchingIndexes, nil
-}
-
 func (v *VppLink) SearchInterfaceWithTag(tag string) (uint32, error) {
 	err, sw, _ := v.searchInterfaceWithTagOrTagPrefix(tag, false)
 	return sw, err
