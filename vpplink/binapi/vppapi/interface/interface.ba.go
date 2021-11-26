@@ -3,7 +3,7 @@
 // Package interfaces contains generated bindings for API file interface.api.
 //
 // Contents:
-//  61 messages
+//  63 messages
 //
 package interfaces
 
@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "interface"
 	APIVersion = "3.2.3"
-	VersionCrc = 0x828d509
+	VersionCrc = 0x32cbf532
 )
 
 // CollectDetailedInterfaceStats defines message 'collect_detailed_interface_stats'.
@@ -538,6 +538,84 @@ func (m *DeleteSubifReply) Marshal(b []byte) ([]byte, error) {
 func (m *DeleteSubifReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// GetBuffersStats defines message 'get_buffers_stats'.
+type GetBuffersStats struct {
+	BufferIndex uint32 `binapi:"u32,name=buffer_index" json:"buffer_index,omitempty"`
+}
+
+func (m *GetBuffersStats) Reset()               { *m = GetBuffersStats{} }
+func (*GetBuffersStats) GetMessageName() string { return "get_buffers_stats" }
+func (*GetBuffersStats) GetCrcString() string   { return "d698f87e" }
+func (*GetBuffersStats) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *GetBuffersStats) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.BufferIndex
+	return size
+}
+func (m *GetBuffersStats) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.BufferIndex)
+	return buf.Bytes(), nil
+}
+func (m *GetBuffersStats) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.BufferIndex = buf.DecodeUint32()
+	return nil
+}
+
+// GetBuffersStatsReply defines message 'get_buffers_stats_reply'.
+type GetBuffersStatsReply struct {
+	Retval           int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
+	AvailableBuffers uint32 `binapi:"u32,name=available_buffers" json:"available_buffers,omitempty"`
+	CachedBuffers    uint32 `binapi:"u32,name=cached_buffers" json:"cached_buffers,omitempty"`
+	UsedBuffers      uint32 `binapi:"u32,name=used_buffers" json:"used_buffers,omitempty"`
+}
+
+func (m *GetBuffersStatsReply) Reset()               { *m = GetBuffersStatsReply{} }
+func (*GetBuffersStatsReply) GetMessageName() string { return "get_buffers_stats_reply" }
+func (*GetBuffersStatsReply) GetCrcString() string   { return "22c0649d" }
+func (*GetBuffersStatsReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *GetBuffersStatsReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	size += 4 // m.AvailableBuffers
+	size += 4 // m.CachedBuffers
+	size += 4 // m.UsedBuffers
+	return size
+}
+func (m *GetBuffersStatsReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.AvailableBuffers)
+	buf.EncodeUint32(m.CachedBuffers)
+	buf.EncodeUint32(m.UsedBuffers)
+	return buf.Bytes(), nil
+}
+func (m *GetBuffersStatsReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.AvailableBuffers = buf.DecodeUint32()
+	m.CachedBuffers = buf.DecodeUint32()
+	m.UsedBuffers = buf.DecodeUint32()
 	return nil
 }
 
@@ -2400,6 +2478,8 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*DeleteLoopbackReply)(nil), "delete_loopback_reply_e8d4e804")
 	api.RegisterMessage((*DeleteSubif)(nil), "delete_subif_f9e6675e")
 	api.RegisterMessage((*DeleteSubifReply)(nil), "delete_subif_reply_e8d4e804")
+	api.RegisterMessage((*GetBuffersStats)(nil), "get_buffers_stats_d698f87e")
+	api.RegisterMessage((*GetBuffersStatsReply)(nil), "get_buffers_stats_reply_22c0649d")
 	api.RegisterMessage((*HwInterfaceSetMtu)(nil), "hw_interface_set_mtu_e6746899")
 	api.RegisterMessage((*HwInterfaceSetMtuReply)(nil), "hw_interface_set_mtu_reply_e8d4e804")
 	api.RegisterMessage((*InterfaceNameRenumber)(nil), "interface_name_renumber_2b8858b8")
@@ -2466,6 +2546,8 @@ func AllMessages() []api.Message {
 		(*DeleteLoopbackReply)(nil),
 		(*DeleteSubif)(nil),
 		(*DeleteSubifReply)(nil),
+		(*GetBuffersStats)(nil),
+		(*GetBuffersStatsReply)(nil),
 		(*HwInterfaceSetMtu)(nil),
 		(*HwInterfaceSetMtuReply)(nil),
 		(*InterfaceNameRenumber)(nil),

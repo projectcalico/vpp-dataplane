@@ -55,6 +55,8 @@ type Server struct {
 	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
 	vclDriver      *pod_interface.VclPodInterfaceDriver
 	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
+
+	availableBuffers uint64
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -329,6 +331,12 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, prs *p
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")
+
+	availableBuffers, _, _, err := v.GetBufferStats()
+	if err != nil {
+		server.log.WithError(err).Errorf("could not get available buffers")
+	}
+	server.availableBuffers = uint64(availableBuffers)
 	return server, nil
 }
 

@@ -90,6 +90,7 @@ git_cherry_pick refs/changes/86/29386/9 # 29386: virtio: DRAFT: multi tx support
 git_cherry_pick refs/changes/71/32271/7 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
 git_cherry_pick refs/changes/57/33557/5 # 33557: ip: unlock_fib on if delete | https://gerrit.fd.io/r/c/vpp/+/33557
 git_cherry_pick refs/changes/49/34249/2 # 34249: devices: default mode eth in the api | https://gerrit.fd.io/r/c/vpp/+/34249
+git_cherry_pick refs/changes/26/34726/1 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 
 git_cherry_pick refs/changes/85/34585/1 # 34585: devices: fix af_packet GSO check | https://gerrit.fd.io/r/c/vpp/+/34585
 
