@@ -40,11 +40,12 @@ type ConnectivityProviderData struct {
 	ipv6   *net.IP
 	ipv4   *net.IP
 	server *ConnectivityServer
+	tunnelChangeChan chan TunnelChange
 }
 
 type ConnectivityProvider interface {
-	AddConnectivity(cn *common.NodeConnectivity, tunnelChangeChan  chan tunnelChange) error
-	DelConnectivity(cn *common.NodeConnectivity, tunnelChangeChan  chan tunnelChange) error
+	AddConnectivity(cn *common.NodeConnectivity) error
+	DelConnectivity(cn *common.NodeConnectivity) error
 	/* Called when VPP signals us that it has restarted */
 	OnVppRestart()
 	/* Check current state in VPP and update local cache */
@@ -77,5 +78,6 @@ func NewConnectivityProviderData(
 		vpp:    vpp,
 		log:    log,
 		server: server,
+		tunnelChangeChan: make(chan TunnelChange, 10),
 	}
 }

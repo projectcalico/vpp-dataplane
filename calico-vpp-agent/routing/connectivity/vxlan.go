@@ -133,7 +133,7 @@ func (p *VXLanProvider) getVXLANPort() uint16 {
 	}
 }
 
-func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity, tunnelChangeChan chan tunnelChange) error {
+func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Debugf("Adding vxlan Tunnel to VPP")
 	nodeIP := p.GetNodeIP(vpplink.IsIP6(cn.NextHop))
 
@@ -196,7 +196,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity, tunnelChang
 
 		p.vxlanIfs[cn.NextHop.String()] = swIfIndex
 		p.log.Infof("VXLan: Added ?->%s %d", cn.NextHop.String(), swIfIndex)
-		tunnelChangeChan <- tunnelChange{swIfIndex, AddChange}
+		p.tunnelChangeChan <- TunnelChange{swIfIndex, AddChange}
 	}
 	swIfIndex := p.vxlanIfs[cn.NextHop.String()]
 
@@ -217,7 +217,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity, tunnelChang
 	return p.vpp.RouteAdd(route)
 }
 
-func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity, tunnelChangeChan chan tunnelChange) error {
+func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	swIfIndex, found := p.vxlanIfs[cn.NextHop.String()]
 	if !found {
 		p.log.Infof("VXLan: Del unknown %s", cn.NextHop.String())
@@ -250,7 +250,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity, tunnelChang
 			p.log.Infof("Deleting tunnel...[%s]", swIfIndex)
 			p.vpp.DelVXLanTunnel(&tunnel)
 			delete(p.vxlanIfs, cn.NextHop.String())
-			tunnelChangeChan <- tunnelChange{swIfIndex, DeleteChange}
+			p.tunnelChangeChan <- TunnelChange{swIfIndex, DeleteChange}
 		}
 	}
 	return nil
