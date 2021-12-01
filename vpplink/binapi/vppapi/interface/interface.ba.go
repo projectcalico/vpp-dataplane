@@ -3,7 +3,7 @@
 // Package interfaces contains generated bindings for API file interface.api.
 //
 // Contents:
-//  61 messages
+//  65 messages
 //
 package interfaces
 
@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "interface"
 	APIVersion = "3.2.3"
-	VersionCrc = 0x828d509
+	VersionCrc = 0xcf5964d
 )
 
 // CollectDetailedInterfaceStats defines message 'collect_detailed_interface_stats'.
@@ -2164,6 +2164,95 @@ func (m *SwInterfaceSetTableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// SwInterfaceSetTxPlacement defines message 'sw_interface_set_tx_placement'.
+type SwInterfaceSetTxPlacement struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	QueueID   uint32                         `binapi:"u32,name=queue_id" json:"queue_id,omitempty"`
+	ArraySize uint32                         `binapi:"u32,name=array_size" json:"-"`
+	Threads   []uint32                       `binapi:"u32[array_size],name=threads" json:"threads,omitempty"`
+}
+
+func (m *SwInterfaceSetTxPlacement) Reset()               { *m = SwInterfaceSetTxPlacement{} }
+func (*SwInterfaceSetTxPlacement) GetMessageName() string { return "sw_interface_set_tx_placement" }
+func (*SwInterfaceSetTxPlacement) GetCrcString() string   { return "4e0cd5ff" }
+func (*SwInterfaceSetTxPlacement) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SwInterfaceSetTxPlacement) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4                  // m.SwIfIndex
+	size += 4                  // m.QueueID
+	size += 4                  // m.ArraySize
+	size += 4 * len(m.Threads) // m.Threads
+	return size
+}
+func (m *SwInterfaceSetTxPlacement) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeUint32(m.QueueID)
+	buf.EncodeUint32(uint32(len(m.Threads)))
+	for i := 0; i < len(m.Threads); i++ {
+		var x uint32
+		if i < len(m.Threads) {
+			x = uint32(m.Threads[i])
+		}
+		buf.EncodeUint32(x)
+	}
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceSetTxPlacement) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.QueueID = buf.DecodeUint32()
+	m.ArraySize = buf.DecodeUint32()
+	m.Threads = make([]uint32, m.ArraySize)
+	for i := 0; i < len(m.Threads); i++ {
+		m.Threads[i] = buf.DecodeUint32()
+	}
+	return nil
+}
+
+// SwInterfaceSetTxPlacementReply defines message 'sw_interface_set_tx_placement_reply'.
+type SwInterfaceSetTxPlacementReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SwInterfaceSetTxPlacementReply) Reset() { *m = SwInterfaceSetTxPlacementReply{} }
+func (*SwInterfaceSetTxPlacementReply) GetMessageName() string {
+	return "sw_interface_set_tx_placement_reply"
+}
+func (*SwInterfaceSetTxPlacementReply) GetCrcString() string { return "e8d4e804" }
+func (*SwInterfaceSetTxPlacementReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SwInterfaceSetTxPlacementReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SwInterfaceSetTxPlacementReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceSetTxPlacementReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // SwInterfaceSetUnnumbered defines message 'sw_interface_set_unnumbered'.
 type SwInterfaceSetUnnumbered struct {
 	SwIfIndex           interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2314,6 +2403,99 @@ func (m *SwInterfaceTagAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// SwInterfaceTxPlacementDetails defines message 'sw_interface_tx_placement_details'.
+type SwInterfaceTxPlacementDetails struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	QueueID   uint32                         `binapi:"u32,name=queue_id" json:"queue_id,omitempty"`
+	Shared    uint8                          `binapi:"u8,name=shared" json:"shared,omitempty"`
+	ArraySize uint32                         `binapi:"u32,name=array_size" json:"-"`
+	Threads   []uint32                       `binapi:"u32[array_size],name=threads" json:"threads,omitempty"`
+}
+
+func (m *SwInterfaceTxPlacementDetails) Reset() { *m = SwInterfaceTxPlacementDetails{} }
+func (*SwInterfaceTxPlacementDetails) GetMessageName() string {
+	return "sw_interface_tx_placement_details"
+}
+func (*SwInterfaceTxPlacementDetails) GetCrcString() string { return "00381a2e" }
+func (*SwInterfaceTxPlacementDetails) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SwInterfaceTxPlacementDetails) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4                  // m.SwIfIndex
+	size += 4                  // m.QueueID
+	size += 1                  // m.Shared
+	size += 4                  // m.ArraySize
+	size += 4 * len(m.Threads) // m.Threads
+	return size
+}
+func (m *SwInterfaceTxPlacementDetails) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeUint32(m.QueueID)
+	buf.EncodeUint8(m.Shared)
+	buf.EncodeUint32(uint32(len(m.Threads)))
+	for i := 0; i < len(m.Threads); i++ {
+		var x uint32
+		if i < len(m.Threads) {
+			x = uint32(m.Threads[i])
+		}
+		buf.EncodeUint32(x)
+	}
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceTxPlacementDetails) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.QueueID = buf.DecodeUint32()
+	m.Shared = buf.DecodeUint8()
+	m.ArraySize = buf.DecodeUint32()
+	m.Threads = make([]uint32, m.ArraySize)
+	for i := 0; i < len(m.Threads); i++ {
+		m.Threads[i] = buf.DecodeUint32()
+	}
+	return nil
+}
+
+// SwInterfaceTxPlacementDump defines message 'sw_interface_tx_placement_dump'.
+type SwInterfaceTxPlacementDump struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+}
+
+func (m *SwInterfaceTxPlacementDump) Reset()               { *m = SwInterfaceTxPlacementDump{} }
+func (*SwInterfaceTxPlacementDump) GetMessageName() string { return "sw_interface_tx_placement_dump" }
+func (*SwInterfaceTxPlacementDump) GetCrcString() string   { return "f9e6675e" }
+func (*SwInterfaceTxPlacementDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SwInterfaceTxPlacementDump) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	return size
+}
+func (m *SwInterfaceTxPlacementDump) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceTxPlacementDump) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	return nil
+}
+
 // WantInterfaceEvents defines message 'want_interface_events'.
 type WantInterfaceEvents struct {
 	EnableDisable uint32 `binapi:"u32,name=enable_disable" json:"enable_disable,omitempty"`
@@ -2441,10 +2623,14 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*SwInterfaceSetRxPlacementReply)(nil), "sw_interface_set_rx_placement_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetTable)(nil), "sw_interface_set_table_df42a577")
 	api.RegisterMessage((*SwInterfaceSetTableReply)(nil), "sw_interface_set_table_reply_e8d4e804")
+	api.RegisterMessage((*SwInterfaceSetTxPlacement)(nil), "sw_interface_set_tx_placement_4e0cd5ff")
+	api.RegisterMessage((*SwInterfaceSetTxPlacementReply)(nil), "sw_interface_set_tx_placement_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetUnnumbered)(nil), "sw_interface_set_unnumbered_154a6439")
 	api.RegisterMessage((*SwInterfaceSetUnnumberedReply)(nil), "sw_interface_set_unnumbered_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceTagAddDel)(nil), "sw_interface_tag_add_del_426f8bc1")
 	api.RegisterMessage((*SwInterfaceTagAddDelReply)(nil), "sw_interface_tag_add_del_reply_e8d4e804")
+	api.RegisterMessage((*SwInterfaceTxPlacementDetails)(nil), "sw_interface_tx_placement_details_00381a2e")
+	api.RegisterMessage((*SwInterfaceTxPlacementDump)(nil), "sw_interface_tx_placement_dump_f9e6675e")
 	api.RegisterMessage((*WantInterfaceEvents)(nil), "want_interface_events_476f5a08")
 	api.RegisterMessage((*WantInterfaceEventsReply)(nil), "want_interface_events_reply_e8d4e804")
 }
@@ -2507,10 +2693,14 @@ func AllMessages() []api.Message {
 		(*SwInterfaceSetRxPlacementReply)(nil),
 		(*SwInterfaceSetTable)(nil),
 		(*SwInterfaceSetTableReply)(nil),
+		(*SwInterfaceSetTxPlacement)(nil),
+		(*SwInterfaceSetTxPlacementReply)(nil),
 		(*SwInterfaceSetUnnumbered)(nil),
 		(*SwInterfaceSetUnnumberedReply)(nil),
 		(*SwInterfaceTagAddDel)(nil),
 		(*SwInterfaceTagAddDelReply)(nil),
+		(*SwInterfaceTxPlacementDetails)(nil),
+		(*SwInterfaceTxPlacementDump)(nil),
 		(*WantInterfaceEvents)(nil),
 		(*WantInterfaceEventsReply)(nil),
 	}
