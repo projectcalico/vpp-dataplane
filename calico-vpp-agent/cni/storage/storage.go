@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 3 // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 4 // Used to ensure compatibility wen we reload data
 )
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -129,6 +129,7 @@ func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex u
 	}
 }
 
+// XXX: Increment CniServerStateFileVersion when changing this struct
 type LocalIfPortConfigs struct {
 	Start uint16
 	End   uint16
@@ -186,6 +187,7 @@ type LocalPodSpec struct {
 	NeedsSnat bool
 }
 
+// XXX: Increment CniServerStateFileVersion when changing this struct
 type HostPortBinding struct {
 	HostPort      uint32
 	HostIP        net.IP `struc:"[16]byte"`
