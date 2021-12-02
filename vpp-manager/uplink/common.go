@@ -48,7 +48,7 @@ type UplinkDriverData struct {
 
 type UplinkDriver interface {
 	PreconfigureLinux() error
-	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (error)
+	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error
 	RestoreLinux()
 	IsSupported(warn bool) bool
 	GetName() string
@@ -63,7 +63,7 @@ func (d *UplinkDriverData) moveInterfaceToNS(ifName string, pid int) error {
 	// Move interface to VPP namespace
 	link, err := utils.SafeGetLink(ifName)
 	if err != nil {
-		return errors.Wrap(err, "cannot find uplink for af_xdp")
+		return errors.Wrap(err, "cannot find uplink to move")
 	}
 	err = netlink.LinkSetNsPid(link, pid)
 	if err != nil {
