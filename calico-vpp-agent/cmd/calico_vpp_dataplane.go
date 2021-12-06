@@ -72,14 +72,14 @@ func main() {
 		return
 	}
 
-	serviceServer, err := services.NewServer(vpp, log.WithFields(logrus.Fields{"component": "services"}))
-	if err != nil {
-		log.Errorf("Failed to create services server")
-		log.Fatal(err)
-	}
 	routingServer, err := routing.NewServer(vpp, log.WithFields(logrus.Fields{"component": "routing"}))
 	if err != nil {
 		log.Errorf("Failed to create routing server")
+		log.Fatal(err)
+	}
+	serviceServer, err := services.NewServer(vpp, routingServer, log.WithFields(logrus.Fields{"component": "services"}))
+	if err != nil {
+		log.Errorf("Failed to create services server")
 		log.Fatal(err)
 	}
 	policyServer, err := policy.NewServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}), routingServer)
