@@ -1,4 +1,4 @@
-VPP Version                 : 22.02-rc0~407-g484a2d434
+VPP Version                 : 22.02-rc0~407-g1049928c5
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 88019c407 vppinfra: toeplitz hash four in parallel
 ------------------ Cherry picked commits --------------------

@@ -274,6 +274,15 @@ func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Int
 		if conf.Spec.LogSeverityScreen == "" {
 			conf.Spec.LogSeverityScreen = "Info"
 		}
+		if conf.Spec.ServiceClusterIPs == nil {
+			conf.Spec.ServiceClusterIPs = []calicov3.ServiceClusterIPBlock{}
+		}
+		if conf.Spec.ServiceExternalIPs == nil {
+			conf.Spec.ServiceExternalIPs = []calicov3.ServiceExternalIPBlock{}
+		}
+		if conf.Spec.ServiceLoadBalancerIPs == nil {
+			conf.Spec.ServiceLoadBalancerIPs = []calicov3.ServiceLoadBalancerIPBlock{}
+		}				
 		return &conf.Spec, nil
 	}
 	switch err.(type) {
@@ -293,6 +302,10 @@ func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Int
 	default:
 		return nil, err
 	}
+}
+
+func (s *Server) GetServiceIPs() ([]calicov3.ServiceClusterIPBlock, []calicov3.ServiceExternalIPBlock, []calicov3.ServiceLoadBalancerIPBlock) {
+	return s.routingData.BGPConf.ServiceClusterIPs, s.routingData.BGPConf.ServiceExternalIPs, s.routingData.BGPConf.ServiceLoadBalancerIPs
 }
 
 func (s *Server) getListenPort() uint16 {

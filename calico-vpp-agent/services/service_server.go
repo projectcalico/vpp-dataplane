@@ -26,6 +26,7 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -62,6 +63,7 @@ type Server struct {
 	nodeIP6Set       bool
 	lock             sync.Mutex
 	serviceProvider  ServiceProvider
+	rs               *routing.Server
 }
 
 func (s *Server) setSpecAddresses(nodeSpec *calicov3.NodeSpec) {
@@ -90,7 +92,7 @@ func (s *Server) setSpecAddresses(nodeSpec *calicov3.NodeSpec) {
 	}
 }
 
-func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
+func NewServer(vpp *vpplink.VppLink, rs *routing.Server, log *logrus.Entry) (*Server, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
@@ -108,6 +110,7 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		client:   client,
 		vpp:      vpp,
 		log:      log,
+		rs:       rs,
 	}
 	node, err := calicoCliV3.Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
 	if err != nil {
@@ -286,6 +289,32 @@ func (s *Server) Serve() {
 	err := s.configureSnat()
 	if err != nil {
 		s.log.Errorf("Failed to configure SNAT: %v", err)
+	}
+
+	serviceClusterIPs, serviceExternalIPs, serviceLoadBalancerIPs := s.rs.GetServiceIPs()
+	for _, serviceClusterIP := range serviceClusterIPs {
+		_, netIP, err := net.ParseCIDR(serviceClusterIP.CIDR)
+		if err != nil {
+			s.log.Error(err)
+		}
+		s.log.Infof("Announcing sevice cluster IP Addresses %+v", netIP)
+		s.rs.AnnounceLocalAddress(netIP, false)
+	}
+	for _, serviceExternalIP := range serviceExternalIPs {
+		_, netIP, err := net.ParseCIDR(serviceExternalIP.CIDR)
+		if err != nil {
+			s.log.Error(err)
+		}
+		s.log.Infof("Announcing service external IP Addresses %+v", netIP)
+		s.rs.AnnounceLocalAddress(netIP, false)
+	}
+	for _, serviceLoadBalancerIP := range serviceLoadBalancerIPs {
+		_, netIP, err := net.ParseCIDR(serviceLoadBalancerIP.CIDR)
+		if err != nil {
+			s.log.Error(err)
+		}
+		s.log.Infof("Announcing service loadBalancer IP Addresses %+v", netIP)
+		s.rs.AnnounceLocalAddress(netIP, false)
 	}
 
 	s.t.Go(func() error { s.serviceInformer.Run(s.t.Dying()); return nil })
