@@ -52,7 +52,7 @@ func (s *Server) BindHostPort(port storage.HostPortBinding, containerIp net.IP, 
 		errors.Wrapf(err, "Error binding hostport: Error re-injecting cnat entry %s", entry.String())
 		return 0, err
 	} else {
-		stack.Push(s.vpp.CnatTranslateAdd, entry)
+		stack.Push(s.vpp.CnatTranslateDel, entry.ID)
 		return id, err
 	}
 }
