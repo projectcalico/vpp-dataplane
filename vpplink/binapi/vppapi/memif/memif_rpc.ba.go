@@ -19,7 +19,6 @@ type RPCService interface {
 	MemifSocketFilenameAddDel(ctx context.Context, in *MemifSocketFilenameAddDel) (*MemifSocketFilenameAddDelReply, error)
 	MemifSocketFilenameAddDelV2(ctx context.Context, in *MemifSocketFilenameAddDelV2) (*MemifSocketFilenameAddDelV2Reply, error)
 	MemifSocketFilenameDump(ctx context.Context, in *MemifSocketFilenameDump) (RPCService_MemifSocketFilenameDumpClient, error)
-	MemifSocketFilenameV2Dump(ctx context.Context, in *MemifSocketFilenameV2Dump) (RPCService_MemifSocketFilenameV2DumpClient, error)
 }
 
 type serviceClient struct {
@@ -140,49 +139,6 @@ func (c *serviceClient_MemifSocketFilenameDumpClient) Recv() (*MemifSocketFilena
 	}
 	switch m := msg.(type) {
 	case *MemifSocketFilenameDetails:
-		return m, nil
-	case *memclnt.ControlPingReply:
-		err = c.Stream.Close()
-		if err != nil {
-			return nil, err
-		}
-		return nil, io.EOF
-	default:
-		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
-	}
-}
-
-func (c *serviceClient) MemifSocketFilenameV2Dump(ctx context.Context, in *MemifSocketFilenameV2Dump) (RPCService_MemifSocketFilenameV2DumpClient, error) {
-	stream, err := c.conn.NewStream(ctx)
-	if err != nil {
-		return nil, err
-	}
-	x := &serviceClient_MemifSocketFilenameV2DumpClient{stream}
-	if err := x.Stream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type RPCService_MemifSocketFilenameV2DumpClient interface {
-	Recv() (*MemifSocketFilenameV2Details, error)
-	api.Stream
-}
-
-type serviceClient_MemifSocketFilenameV2DumpClient struct {
-	api.Stream
-}
-
-func (c *serviceClient_MemifSocketFilenameV2DumpClient) Recv() (*MemifSocketFilenameV2Details, error) {
-	msg, err := c.Stream.RecvMsg()
-	if err != nil {
-		return nil, err
-	}
-	switch m := msg.(type) {
-	case *MemifSocketFilenameV2Details:
 		return m, nil
 	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()

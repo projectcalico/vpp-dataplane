@@ -123,17 +123,17 @@ func DefaultIntTo(value, defaultValue int) int {
 }
 
 func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
-	response := &tapv2.TapCreateV2Reply{}
-	request := &tapv2.TapCreateV2{
-		ID:                   ^uint32(0),
-		Tag:                  tap.Tag,
-		TapFlags:             tapv2.TapFlags(tap.Flags),
-		NumRxQueues:          uint8(DefaultIntTo(tap.NumRxQueues, 1)),
-		NumTxQueuesPerWorker: uint8(DefaultIntTo(tap.NumTxQueues, 1)),
-		TxRingSz:             uint16(DefaultIntTo(tap.TxQueueSize, DEFAULT_QUEUE_SIZE)),
-		RxRingSz:             uint16(DefaultIntTo(tap.RxQueueSize, DEFAULT_QUEUE_SIZE)),
-		HostMtuSize:          uint32(tap.HostMtu),
-		HostMtuSet:           bool(tap.HostMtu != 0),
+	response := &tapv2.TapCreateV3Reply{}
+	request := &tapv2.TapCreateV3{
+		ID:          ^uint32(0),
+		Tag:         tap.Tag,
+		TapFlags:    tapv2.TapFlags(tap.Flags),
+		NumRxQueues: uint16(DefaultIntTo(tap.NumRxQueues, 1)),
+		NumTxQueues: uint16(DefaultIntTo(tap.NumTxQueues, 1)),
+		TxRingSz:    uint16(DefaultIntTo(tap.TxQueueSize, DEFAULT_QUEUE_SIZE)),
+		RxRingSz:    uint16(DefaultIntTo(tap.RxQueueSize, DEFAULT_QUEUE_SIZE)),
+		HostMtuSize: uint32(tap.HostMtu),
+		HostMtuSet:  bool(tap.HostMtu != 0),
 	}
 	if tap.HardwareAddr != nil {
 		request.MacAddress = types.ToVppMacAddress(tap.HardwareAddr)
