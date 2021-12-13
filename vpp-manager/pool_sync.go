@@ -23,7 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	calicoapi "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
+	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
@@ -92,7 +92,7 @@ func (p *PoolWatcher) SyncPools() {
 		sweepMap := make(map[string]interface{})
 
 		/* Need to recreate the client at each loop if pipe breaks */
-		client, err := calicocli.NewFromEnv()
+		client, err := calicov3cli.NewFromEnv()
 		if err != nil {
 			log.Errorf("error creating calico client: %v", err)
 			goto restart

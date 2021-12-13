@@ -16,7 +16,6 @@
 package policy
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net"
@@ -26,17 +25,17 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	calicoapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	calicov3 "github.com/projectcalico/libcalico-go/lib/clientv3"
-	"github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/prometheus/common/log"
 	"github.com/sirupsen/logrus"
+	tomb "gopkg.in/tomb.v2"
+
+	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 )
 
 const (
@@ -56,13 +55,12 @@ const (
 // Server holds all the data required to configure the policies defined by felix in VPP
 type Server struct {
 	*common.CalicoVppServerData
-	log            *logrus.Entry
-	vpp            *vpplink.VppLink
-	calico         calicov3.Interface
+	log *logrus.Entry
+	vpp *vpplink.VppLink
+
 	vppRestarted   chan bool
 	felixRestarted chan bool
-	exiting        chan bool
-	routingServer  *routing.Server
+	nodeBGPSpec    *oldv3.NodeBGPSpec
 
 	state         SyncState
 	nextSeqNumber uint64
@@ -85,27 +83,29 @@ type Server struct {
 	ip4               *net.IP
 	ip6               *net.IP
 	interfacesMap     map[string]interfaceDetails
+
+	policyServerEventChan chan common.CalicoVppEvent
+
+	tunnelSwIfIndexes     map[uint32]bool
+	tunnelSwIfIndexesLock sync.Mutex
+}
+
+func (s *Server) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+	ip4, ip6 := common.GetBGPSpecAddresses(nodeBGPSpec)
+	s.ip4 = ip4
+	s.ip6 = ip6
 }
 
 // NewServer creates a policy server
-func NewServer(vpp *vpplink.VppLink, log *logrus.Entry, rs *routing.Server) (*Server, error) {
-	calico, err := calicov3.NewFromEnv()
-	if err != nil {
-		panic(err.Error())
-	}
-	node, err := calico.Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
-	if err != nil {
-		panic(err.Error())
-	}
+func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
+	var err error
 
 	server := &Server{
-		log:            log,
-		vpp:            vpp,
-		calico:         calico,
+		log: log,
+		vpp: vpp,
+
 		vppRestarted:   make(chan bool),
 		felixRestarted: make(chan bool),
-		exiting:        make(chan bool),
-		routingServer:  rs,
 
 		state:         StateDisconnected,
 		nextSeqNumber: 0,
@@ -114,13 +114,18 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry, rs *routing.Server) (*Se
 
 		configuredState: NewPolicyState(),
 		pendingState:    NewPolicyState(),
+
+		policyServerEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+
+		tunnelSwIfIndexes: make(map[uint32]bool),
 	}
+
+	common.RegisterHandler(server.policyServerEventChan)
 
 	server.interfacesMap, err = server.mapTagToInterfaceDetails()
 	if err != nil {
 		return nil, errors.Wrapf(err, "error in mapping uplink to tap interfaces")
 	}
-	server.setNodeIPs(&node.Spec)
 
 	// Cleanup potentially left over socket
 	err = os.RemoveAll(config.FelixDataplaneSocket)
@@ -205,39 +210,18 @@ func InstallFelixPlugin() (err error) {
 	return errors.Wrapf(err, "could not sync felix plugin changes")
 }
 
-func (s *Server) setNodeIPs(nodeSpec *calicoapi.NodeSpec) {
-	if nodeSpec == nil {
-		return
-	} else if nodeSpec.BGP == nil {
-		return
-	}
-	if nodeSpec.BGP.IPv4Address != "" {
-		addr, _, err := net.ParseCIDR(nodeSpec.BGP.IPv4Address)
-		if err != nil {
-			s.log.Errorf("cannot parse node address %s: %v", nodeSpec.BGP.IPv4Address, err)
-		} else {
-			s.ip4 = &addr
-		}
-	}
-	if nodeSpec.BGP.IPv6Address != "" {
-		addr, _, err := net.ParseCIDR(nodeSpec.BGP.IPv6Address)
-		if err != nil {
-			s.log.Errorf("cannot parse node address %s: %v", nodeSpec.BGP.IPv6Address, err)
-		} else {
-			s.ip6 = &addr
-		}
-	}
-}
-
 // OnVppRestart notifies the policy server that vpp restarted
 func (s *Server) OnVppRestart() {
 	s.log.Warnf("Signaled VPP restart to Policy server")
+	s.tunnelSwIfIndexesLock.Lock()
+	s.tunnelSwIfIndexes = make([uint32]bool)
+	s.tunnelSwIfIndexesLock.Unlock()
 	s.vppRestarted <- true
 }
 
-// WorkloadAdded is called by the CNI server when a container interface is created,
+// workloadAdded is called by the CNI server when a container interface is created,
 // either during startup when reconnecting the interfaces, or when a new pod is created
-func (s *Server) WorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32, containerIPs []*net.IPNet) {
+func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, containerIPs []*net.IPNet) {
 	// TODO: Send WorkloadEndpointStatusUpdate to felix
 	s.endpointsLock.Lock()
 	defer s.endpointsLock.Unlock()
@@ -312,8 +296,73 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 	}
 }
 
+func (s *Server) HandlePolicyServerEvents() error {
+	for {
+		evt := <-s.policyServerEventChan
+		switch evt.Type {
+		case common.PodAdded:
+			podSpec := evt.New.(*storage.LocalPodSpec)
+			s.workloadAdded(&WorkloadEndpointID{
+				OrchestratorID: podSpec.OrchestratorID,
+				WorkloadID:     podSpec.WorkloadID,
+				EndpointID:     podSpec.EndpointID,
+			}, podSpec.TunTapSwIfIndex, podSpec.GetContainerIps())
+		case common.PodDeleted:
+			podSpec := evt.Old.(*storage.LocalPodSpec)
+			if podSpec != nil {
+				s.WorkloadRemoved(&WorkloadEndpointID{
+					OrchestratorID: podSpec.OrchestratorID,
+					WorkloadID:     podSpec.WorkloadID,
+					EndpointID:     podSpec.EndpointID,
+				}, podSpec.GetContainerIps())
+			}
+		case common.TunnelAdded:
+			swIfIndex := evt.New.(uint32)
+
+			s.tunnelSwIfIndexesLock.Lock()
+			s.tunnelSwIfIndexes[swIfIndex] = true
+			s.tunnelSwIfIndexesLock.Unlock()
+
+			var pending bool
+			if s.state == StateSyncing || s.state == StateConnected {
+				pending = true
+			} else if s.state == StateInSync {
+				pending = false
+			} else {
+				s.log.Errorf("Got tunnel %d add but not in syncing or synced state", swIfIndex)
+				continue
+			}
+			state := s.currentState(pending)
+			for _, h := range state.HostEndpoints {
+				h.handleTunnelChange(swIfIndex, true /* isAdd */, pending)
+			}
+		case common.TunnelDeleted:
+			var pending bool
+
+			swIfIndex := evt.Old.(uint32)
+
+			s.tunnelSwIfIndexesLock.Lock()
+			delete(s.tunnelSwIfIndexes, swIfIndex)
+			s.tunnelSwIfIndexesLock.Unlock()
+
+			if s.state == StateSyncing || s.state == StateConnected {
+				pending = true
+			} else if s.state == StateInSync {
+				pending = false
+			} else {
+				s.log.Errorf("Got tunnel %d del but not in syncing or synced state", swIfIndex)
+				continue
+			}
+			state := s.currentState(pending)
+			for _, h := range state.HostEndpoints {
+				h.handleTunnelChange(swIfIndex, false /* isAdd */, pending)
+			}
+		}
+	}
+}
+
 // Serve runs the policy server
-func (s *Server) Serve() {
+func (s *Server) ServePolicy(t *tomb.Tomb) error {
 	s.log.Info("Starting policy server")
 
 	if !config.EnablePolicies {
@@ -322,8 +371,7 @@ func (s *Server) Serve() {
 
 	listener, err := net.Listen("unix", config.FelixDataplaneSocket)
 	if err != nil {
-		s.log.WithError(err).Errorf("Could not bind to unix://%s", config.FelixDataplaneSocket)
-		return
+		return errors.Wrapf(err, "Could not bind to unix://%s", config.FelixDataplaneSocket)
 	}
 	defer func() {
 		listener.Close()
@@ -339,8 +387,7 @@ func (s *Server) Serve() {
 		// Accept only one connection
 		conn, err := listener.Accept()
 		if err != nil {
-			s.log.WithError(err).Error("cannot accept policy client connection")
-			return
+			return errors.Wrap(err, "cannot accept policy client connection")
 		}
 		s.log.Infof("Accepted connection from felix")
 		s.state = StateConnected
@@ -367,7 +414,7 @@ func (s *Server) Serve() {
 		case <-s.felixRestarted:
 			s.log.Infof("Felix restarted, starting resync")
 			// Connection was closed. Just accept new one, state will be reconciled on startup.
-		case <-s.exiting:
+		case <-t.Dying():
 			s.log.Infof("Policy server exiting")
 			err = conn.Close()
 			if err != nil {
@@ -375,18 +422,12 @@ func (s *Server) Serve() {
 			}
 			s.log.Infof("Waiting for SyncPolicy to stop...")
 			<-s.felixRestarted
-			return
+			return nil
 		}
 	}
-}
+	s.log.Infof("Policy Server returned")
 
-func (s *Server) RescanState() error {
 	return nil
-}
-
-// Stop tells the policy server to exit
-func (s *Server) Stop() {
-	s.exiting <- true
 }
 
 // SyncPolicy does the bulk of the policy sync job. It starts by reconciling the current
@@ -477,20 +518,6 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 				s.felixRestarted <- true
 				// TODO: Restart VPP as well? State is left over there...
 				return
-			}
-		case tunnelChange := <-s.routingServer.TunnelChangeChan:
-			var pending bool
-			if s.state == StateSyncing || s.state == StateConnected {
-				pending = true
-			} else if s.state == StateInSync {
-				pending = false
-			} else {
-				s.log.Errorf("Got tunnel change %+v but not in syncing or synced state", tunnelChange)
-				continue
-			}
-			state := s.currentState(pending)
-			for _, h := range state.HostEndpoints {
-				h.handleTunnelChange(tunnelChange, pending)
 			}
 		}
 	}
@@ -677,6 +704,17 @@ func (s *Server) handleActiveProfileRemove(msg *proto.ActiveProfileRemove, pendi
 	return nil
 }
 
+func (s *Server) getAllTunnelSwIfIndexes() (swIfIndexes []uint32) {
+	s.tunnelSwIfIndexesLock.Lock()
+	defer s.tunnelSwIfIndexesLock.Unlock()
+
+	swIfIndexes = make([]uint32, 0)
+	for k, _ := range s.tunnelSwIfIndexes {
+		swIfIndexes = append(swIfIndexes, k)
+	}
+	return swIfIndexes
+}
+
 func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending bool) (err error) {
 	state := s.currentState(pending)
 	id := fromProtoHostEndpointID(msg.Id)
@@ -708,7 +746,7 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 			hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, interfaceDetails.tapIndex)
 		}
 	}
-	hep.TunnelSwIfIndexes = *s.routingServer.GetAllTunnels()
+	hep.TunnelSwIfIndexes = s.getAllTunnelSwIfIndexes()
 	if len(hep.UplinkSwIfIndexes) == 0 || len(hep.TapSwIfIndexes) == 0 {
 		return errors.Errorf("No interface to configure as host endpoint for %s", id.EndpointID)
 	}

@@ -23,9 +23,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -34,16 +33,6 @@ type IpsecProvider struct {
 	*ConnectivityProviderData
 	ipsecIfs    map[string][]*types.IPIPTunnel
 	ipsecRoutes map[string]map[string]bool
-}
-
-func (p *IpsecProvider) GetSwifindexes() []uint32 {
-	swifindexes := []uint32{}
-	for _, ipsecIf := range p.ipsecIfs {
-		for _, ipipIf := range ipsecIf {
-			swifindexes = append(swifindexes, ipipIf.SwIfIndex)
-		}
-	}
-	return swifindexes
 }
 
 func (p *IpsecProvider) OnVppRestart() {
@@ -93,10 +82,9 @@ func (p *IpsecProvider) RescanState() {
 	for _, profile := range profiles {
 		pmap[profile] = true
 	}
-	nodeIP4 := p.server.GetNodeIP(false)
-	nodeIP6 := p.server.GetNodeIP(true)
+	ip4, ip6 := p.server.GetNodeIPs()
 	for _, tunnel := range tunnels {
-		if tunnel.Src.Equal(nodeIP4) || tunnel.Src.Equal(nodeIP6) {
+		if (ip4 != nil && tunnel.Src.Equal(*ip4)) || (ip6 != nil && tunnel.Src.Equal(*ip6)) {
 			_, found := pmap[profileName(tunnel)]
 			if found {
 				p.ipsecIfs[tunnel.Dst.String()] = append(p.ipsecIfs[tunnel.Dst.String()], tunnel)
@@ -157,17 +145,20 @@ func (p *IpsecProvider) errorCleanup(tunnel *types.IPIPTunnel, profile string) {
 
 func (p *IpsecProvider) createIPSECTunnels(destNodeAddr net.IP) (err error) {
 	/* IP6 is not yet supported by ikev2 */
-	nodeIP := p.server.GetNodeIP(false /* isv6 */)
+	ip4, _ := p.server.GetNodeIPs()
+	if ip4 == nil {
+		return fmt.Errorf("no ip4 node address found")
+	}
 	for i := 0; i < config.IpsecAddressCount; i++ {
 		if config.CrossIpsecTunnels {
 			for j := 0; j < config.IpsecAddressCount; j++ {
-				err := p.createOneIndexedIPSECTunnel(i, j, destNodeAddr, nodeIP)
+				err := p.createOneIndexedIPSECTunnel(i, j, destNodeAddr, *ip4)
 				if err != nil {
 					return err
 				}
 			}
 		} else {
-			err := p.createOneIndexedIPSECTunnel(i, i, destNodeAddr, nodeIP)
+			err := p.createOneIndexedIPSECTunnel(i, i, destNodeAddr, *ip4)
 			if err != nil {
 				return err
 			}
@@ -201,7 +192,10 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 	if err != nil {
 		return errors.Wrapf(err, "Error adding ipip tunnel %s", tunnel.String())
 	}
-	p.tunnelChangeChan <- TunnelChange{swIfIndex, AddChange}
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.TunnelAdded,
+		New:  swIfIndex,
+	})
 	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel, "")
@@ -223,12 +217,12 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 
 	p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", tunnel.Dst.String(), swIfIndex)
 	err = p.vpp.RouteAdd(&types.Route{
-		Dst: commonAgent.ToMaxLenCIDR(tunnel.Dst),
+		Dst: common.ToMaxLenCIDR(tunnel.Dst),
 		Paths: []types.RoutePath{{
 			SwIfIndex: swIfIndex,
 			Gw:        nil,
 		}},
-		Table: commonAgent.PodVRFIndex,
+		Table: common.PodVRFIndex,
 	})
 	if err != nil {
 		p.errorCleanup(tunnel, "")
@@ -419,7 +413,10 @@ func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error)
 			if err != nil {
 				p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
 			}
-			p.tunnelChangeChan <- TunnelChange{tunnel.SwIfIndex, DeleteChange}
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.TunnelDeleted,
+				New:  tunnel.SwIfIndex,
+			})
 		}
 		delete(p.ipsecIfs, cn.NextHop.String())
 	}

@@ -20,104 +20,57 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	calicocliv3 "github.com/projectcalico/libcalico-go/lib/clientv3"
-	"github.com/projectcalico/libcalico-go/lib/options"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
+	tomb "gopkg.in/tomb.v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
-	"gopkg.in/tomb.v2"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
-
-type ServiceProvider interface {
-	Init() error
-	AddServicePort(service *v1.Service, ep *v1.Endpoints) error
-	DelServicePort(service *v1.Service, ep *v1.Endpoints) error
-	OnVppRestart()
-}
 
 type Server struct {
 	*common.CalicoVppServerData
 	log              *logrus.Entry
 	vpp              *vpplink.VppLink
-	t                tomb.Tomb
 	endpointStore    cache.Store
 	serviceStore     cache.Store
 	serviceInformer  cache.Controller
 	endpointInformer cache.Controller
-	clientv3         calicocliv3.Interface
-	client           *kubernetes.Clientset
-	nodeIP4          net.IP
-	nodeIP4Set       bool
-	nodeIP6          net.IP
-	nodeIP6Set       bool
-	lock             sync.Mutex
-	serviceProvider  ServiceProvider
-	rs               *routing.Server
+
+	lock sync.Mutex /* protects handleServiceEndpointEvent(s)/OnVppRestartServe */
+
+	BGPConf     *calicov3.BGPConfigurationSpec
+	nodeBGPSpec *oldv3.NodeBGPSpec
+
+	stateMap map[string]*types.CnatTranslateEntry
+
+	t tomb.Tomb
 }
 
-func (s *Server) setSpecAddresses(nodeSpec *calicov3.NodeSpec) {
-	if nodeSpec == nil {
-		return
-	} else if nodeSpec.BGP == nil {
-		return
-	}
-	if nodeSpec.BGP.IPv4Address != "" {
-		addr, _, err := net.ParseCIDR(nodeSpec.BGP.IPv4Address)
-		if err != nil {
-			s.log.Errorf("cannot parse node address %s: %v", nodeSpec.BGP.IPv4Address, err)
-		} else {
-			s.nodeIP4 = addr
-			s.nodeIP4Set = true
-		}
-	}
-	if nodeSpec.BGP.IPv6Address != "" {
-		addr, _, err := net.ParseCIDR(nodeSpec.BGP.IPv6Address)
-		if err != nil {
-			s.log.Errorf("cannot parse node address %s: %v", nodeSpec.BGP.IPv6Address, err)
-		} else {
-			s.nodeIP6 = addr
-			s.nodeIP6Set = true
-		}
-	}
+func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
+	s.BGPConf = bgpConf
 }
 
-func NewServer(vpp *vpplink.VppLink, rs *routing.Server, log *logrus.Entry) (*Server, error) {
-	clusterConfig, err := rest.InClusterConfig()
-	if err != nil {
-		panic(err.Error())
-	}
-	client, err := kubernetes.NewForConfig(clusterConfig)
-	if err != nil {
-		panic(err.Error())
-	}
-	calicoCliV3, err := calicocliv3.NewFromEnv()
-	if err != nil {
-		panic(err.Error())
-	}
+func (s *Server) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+	s.nodeBGPSpec = nodeBGPSpec
+}
+
+func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset,
+	log *logrus.Entry) *Server {
 	server := Server{
-		clientv3: calicoCliV3,
-		client:   client,
 		vpp:      vpp,
 		log:      log,
-		rs:       rs,
+		stateMap: make(map[string]*types.CnatTranslateEntry),
 	}
-	node, err := calicoCliV3.Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
-	if err != nil {
-		panic(err.Error())
-	}
-	server.setSpecAddresses(&node.Spec)
-	serviceListWatch := cache.NewListWatchFromClient(client.CoreV1().RESTClient(),
+
+	serviceListWatch := cache.NewListWatchFromClient(k8sclient.CoreV1().RESTClient(),
 		"services", "", fields.Everything())
 	serviceStore, serviceInformer := cache.NewInformer(
 		serviceListWatch,
@@ -135,7 +88,7 @@ func NewServer(vpp *vpplink.VppLink, rs *routing.Server, log *logrus.Entry) (*Se
 			},
 		})
 
-	endpointListWatch := cache.NewListWatchFromClient(client.CoreV1().RESTClient(),
+	endpointListWatch := cache.NewListWatchFromClient(k8sclient.CoreV1().RESTClient(),
 		"endpoints", "", fields.Everything())
 	endpointStore, endpointInformer := cache.NewInformer(
 		endpointListWatch,
@@ -158,46 +111,50 @@ func NewServer(vpp *vpplink.VppLink, rs *routing.Server, log *logrus.Entry) (*Se
 	server.serviceInformer = serviceInformer
 	server.endpointInformer = endpointInformer
 
-	if config.EnableServices {
-		server.serviceProvider = newCalicoServiceProvider(&server)
-	}
-	return &server, nil
+	return &server
 }
 
 func (s *Server) getNodeIP(isv6 bool) net.IP {
+	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
 	if isv6 {
-		return s.nodeIP6
+		if nodeIP6 != nil {
+			return *nodeIP6
+		}
 	} else {
-		return s.nodeIP4
+		if nodeIP4 != nil {
+			return *nodeIP4
+		}
 	}
+	return net.IP{}
 }
 
 func (s *Server) addDelService(service *v1.Service, ep *v1.Endpoints, isWithdrawal bool) error {
-	if s.serviceProvider == nil {
+	if !config.EnableServices {
 		return nil
 	}
 	if isWithdrawal {
-		return s.serviceProvider.DelServicePort(service, ep)
+		return s.delServicePort(service, ep)
 	} else {
-		return s.serviceProvider.AddServicePort(service, ep)
+		return s.addServicePort(service, ep)
 	}
 }
 
 func (s *Server) configureSnat() (err error) {
-	err = s.vpp.CnatSetSnatAddresses(s.nodeIP4, s.nodeIP6)
+	err = s.vpp.CnatSetSnatAddresses(s.getNodeIP(false /* isv6 */), s.getNodeIP(true /* isv6 */))
 	if err != nil {
 		s.log.Errorf("Failed to configure SNAT addresses %v", err)
 	}
-	if s.nodeIP6Set {
-		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(s.nodeIP6))
+	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
+	if nodeIP6 != nil {
+		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(*nodeIP6))
 		if err != nil {
-			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.nodeIP6), err)
+			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(*nodeIP6), err)
 		}
 	}
-	if s.nodeIP4Set {
-		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(s.nodeIP4))
+	if nodeIP4 != nil {
+		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(*nodeIP4))
 		if err != nil {
-			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(s.nodeIP4), err)
+			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(*nodeIP4), err)
 		}
 	}
 	for _, serviceCIDR := range config.ServiceCIDRs {
@@ -217,8 +174,20 @@ func (s *Server) OnVppRestart() {
 	}
 
 	/* Services NAT config */
-	if s.serviceProvider != nil {
-		s.serviceProvider.OnVppRestart()
+	if config.EnableServices {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		newState := make(map[string]*types.CnatTranslateEntry)
+		for key, entry := range s.stateMap {
+			entryID, err := s.vpp.CnatTranslateAdd(entry)
+			if err != nil {
+				s.log.Errorf("Error re-injecting cnat entry %s : %v", entry.String(), err)
+			} else {
+				entry.ID = entryID
+				newState[key] = entry
+			}
+		}
+		s.stateMap = newState
 	}
 }
 
@@ -259,9 +228,11 @@ func (s *Server) findMatchingEndpoint(service *v1.Service) *v1.Endpoints {
 }
 
 func (s *Server) handleServiceEndpointEvent(service *v1.Service, ep *v1.Endpoints, isWithdrawal bool) {
-	s.BarrierSync()
+	common.WaitIfVppIsRestarting()
+
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
 	if service != nil && ep == nil {
 		ep = s.findMatchingEndpoint(service)
 	}
@@ -278,50 +249,60 @@ func (s *Server) handleServiceEndpointEvent(service *v1.Service, ep *v1.Endpoint
 	}
 }
 
-func (s *Server) Serve() {
-	if s.serviceProvider != nil {
-		err := s.serviceProvider.Init()
-		if err != nil {
-			s.log.Errorf("cannot init serviceProvider")
-			s.log.Fatal(err)
-		}
-	}
+func (s *Server) getServiceIPs() ([]calicov3.ServiceClusterIPBlock, []calicov3.ServiceExternalIPBlock, []calicov3.ServiceLoadBalancerIPBlock) {
+	return s.BGPConf.ServiceClusterIPs, s.BGPConf.ServiceExternalIPs, s.BGPConf.ServiceLoadBalancerIPs
+}
+
+func (s *Server) ServeService(t *tomb.Tomb) error {
 	err := s.configureSnat()
 	if err != nil {
 		s.log.Errorf("Failed to configure SNAT: %v", err)
 	}
 
-	serviceClusterIPs, serviceExternalIPs, serviceLoadBalancerIPs := s.rs.GetServiceIPs()
+	serviceClusterIPs, serviceExternalIPs, serviceLoadBalancerIPs := s.getServiceIPs()
 	for _, serviceClusterIP := range serviceClusterIPs {
 		_, netIP, err := net.ParseCIDR(serviceClusterIP.CIDR)
 		if err != nil {
 			s.log.Error(err)
+			continue
 		}
 		s.log.Infof("Announcing sevice cluster IP Addresses %+v", netIP)
-		s.rs.AnnounceLocalAddress(netIP, false)
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.LocalPodAddressAdded,
+			New:  netIP,
+		})
 	}
 	for _, serviceExternalIP := range serviceExternalIPs {
 		_, netIP, err := net.ParseCIDR(serviceExternalIP.CIDR)
 		if err != nil {
 			s.log.Error(err)
+			continue
 		}
 		s.log.Infof("Announcing service external IP Addresses %+v", netIP)
-		s.rs.AnnounceLocalAddress(netIP, false)
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.LocalPodAddressAdded,
+			New:  netIP,
+		})
 	}
 	for _, serviceLoadBalancerIP := range serviceLoadBalancerIPs {
 		_, netIP, err := net.ParseCIDR(serviceLoadBalancerIP.CIDR)
 		if err != nil {
 			s.log.Error(err)
+			continue
 		}
 		s.log.Infof("Announcing service loadBalancer IP Addresses %+v", netIP)
-		s.rs.AnnounceLocalAddress(netIP, false)
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.LocalPodAddressAdded,
+			New:  netIP,
+		})
 	}
 
-	s.t.Go(func() error { s.serviceInformer.Run(s.t.Dying()); return nil })
-	s.t.Go(func() error { s.endpointInformer.Run(s.t.Dying()); return nil })
-	<-s.t.Dying()
-}
+	s.t.Go(func() error { s.serviceInformer.Run(t.Dying()); return nil })
+	s.t.Go(func() error { s.endpointInformer.Run(t.Dying()); return nil })
 
-func (s *Server) Stop() {
-	s.t.Kill(errors.Errorf("GracefulStop"))
+	<-s.t.Dying()
+
+	s.log.Infof("Service Server returned")
+
+	return nil
 }

@@ -20,108 +20,199 @@ import (
 	"os/signal"
 	"syscall"
 
+	bgpserver "github.com/osrg/gobgp/pkg/server"
+	"github.com/pkg/errors"
+	calicocli "github.com/projectcalico/libcalico-go/lib/client"
+	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
+	"github.com/sirupsen/logrus"
+	grpc "google.golang.org/grpc"
+	tomb "gopkg.in/tomb.v2"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
-	"github.com/sirupsen/logrus"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 )
 
 /*
  * The Calico-VPP agent is responsible for programming VPP based on CNI
  * instructions
  *
- * Server interactions are as follows :
- *
- * CNIServer -> RoutingServer (AnnounceLocalAddress, IPNetNeedsSNAT)
  */
 
+var (
+	felixConfWatcher *watchers.FelixConfWatcher
+	prefixWatcher    *watchers.PrefixWatcher
+	// kernelWatcher    *watchers.KernelWatcher
+	peerWatcher *watchers.PeerWatcher
+	nodeWatcher *watchers.NodeWatcher
+	ipam        watchers.IpamCache
+
+	connectivityServer *connectivity.ConnectivityServer
+
+	t               tomb.Tomb
+	runningServices []common.CalicoVppServer
+
+	log *logrus.Logger
+)
+
+func Go(svc common.CalicoVppServer, f func(t *tomb.Tomb) error) {
+	runningServices = append(runningServices, svc)
+	t.Go(func() error {
+		err := f(&t)
+		log.Warnf("Tomb error : %s", err)
+		return err
+	})
+}
+
 func main() {
-	log := logrus.New()
+	log = logrus.New()
+	runningServices := make([]common.CalicoVppServer, 0)
 	signalChannel := make(chan os.Signal, 2)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 
 	err := config.LoadConfig(log)
 	if err != nil {
-		log.Errorf("Error loading configuration: %v", err)
-		return
+		log.Fatalf("Error loading configuration: %v", err)
 	}
 	config.PrintAgentConfig(log)
 	log.SetLevel(config.LogLevel)
 
 	common.InitRestartHandler()
+
 	err = common.WritePidToFile()
 	if err != nil {
-		log.Errorf("Error writing pidfile: %v", err)
-		return
+		log.Fatalf("Error writing pidfile: %v", err)
 	}
 
+	/**
+	 * Connect to VPP & wait for it to be up
+	 */
 	vpp, err := common.CreateVppLink(config.VppAPISocket, log.WithFields(logrus.Fields{"component": "vpp-api"}))
 	if err != nil {
-		log.Errorf("Cannot create VPP client: %v", err)
-		return
+		log.Fatalf("Cannot create VPP client: %v", err)
 	}
 	// Once we have the api connection, we know vpp & vpp-manager are running and the
 	// state is accurately reported. Wait for vpp-manager to finish the config.
 	err = common.WaitForVppManager()
 	if err != nil {
-		log.Errorf("Vpp Manager not started: %v", err)
-		return
+		log.Fatalf("Vpp Manager not started: %v", err)
 	}
 
-	routingServer, err := routing.NewServer(vpp, log.WithFields(logrus.Fields{"component": "routing"}))
+	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
+
+	/**
+	 * Create the API clients we need
+	 */
+	client, err := calicocli.NewFromEnv()
 	if err != nil {
-		log.Errorf("Failed to create routing server")
-		log.Fatal(err)
+		log.Fatalf("cannot create calico v1 api client %s", err)
 	}
-	serviceServer, err := services.NewServer(vpp, routingServer, log.WithFields(logrus.Fields{"component": "services"}))
+	clientv3, err := calicov3cli.NewFromEnv()
 	if err != nil {
-		log.Errorf("Failed to create services server")
-		log.Fatal(err)
+		log.Fatalf("cannot create calico v3 api client %s", err)
 	}
-	policyServer, err := policy.NewServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}), routingServer)
+	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
-		log.Errorf("Failed to create policy server")
-		log.Fatal(err)
+		log.Fatalf("cannot get clusterConfig %s", err)
 	}
-	prometheusServer, err := prometheus.NewServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
+	k8sclient, err := kubernetes.NewForConfig(clusterConfig)
 	if err != nil {
-		log.Errorf("Failed to create Prometheus server")
-		log.Fatal(err)
+		log.Fatalf("cannot create k8s client %s", err)
 	}
-	cniServer, err := cni.NewServer(
-		vpp,
-		routingServer,
-		policyServer,
-		prometheusServer,
-		log.WithFields(logrus.Fields{"component": "cni"}),
+	bgpServer := bgpserver.NewBgpServer(
+		bgpserver.GrpcListenAddress("localhost:50051"),
+		bgpserver.GrpcOption([]grpc.ServerOption{
+			grpc.MaxRecvMsgSize(256 << 20),
+			grpc.MaxSendMsgSize(256 << 20),
+		}),
 	)
+	/* Start the BGP listener, it never returns */
+	go bgpServer.Serve()
+
+	/**
+	 * Start watching nodes & fetch our BGP spec
+	 */
+	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
+	nodeWatcher := watchers.NewNodeWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
+	ipam := watchers.NewIPAMCache(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
+	felixConfWatcher := watchers.NewFelixConfWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "felix-watcher"}))
+	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
+	// TODO kernelWatcher := watchers.NewKernelWatcher(ipam, log.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
+	peerWatcher := watchers.NewPeerWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
+	connectivityServer = connectivity.NewConnectivityServer(vpp, ipam, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
+	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
+	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
+	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
+	cniServer := cni.NewCNIServer(vpp, ipam, log.WithFields(logrus.Fields{"component": "cni"}))
+	policyServer, err := policy.NewPolicyServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
+
+	/* Pubsub should now be registered */
+
+	bgpConf, err := bgpConfigurationWatcher.GetBGPConf()
 	if err != nil {
-		log.Errorf("Failed to create CNI server")
-		log.Fatal(err)
+		log.Fatalf("cannot get default BGP config %s", err)
 	}
 
-	go routingServer.Serve()
-	<-routing.ServerRunning
+	peerWatcher.SetBGPConf(bgpConf)
+	routingServer.SetBGPConf(bgpConf)
+	serviceServer.SetBGPConf(bgpConf)
 
-	go policyServer.Serve()
-	// Felix Config will be sent by the policy server
+	log.Infof("Waiting for our node's BGP spec...")
+	Go(nodeWatcher, nodeWatcher.WatchNodes)
+	ourBGPSpec := nodeWatcher.WaitForOurBGPSpec()
+
+	prefixWatcher.SetOurBGPSpec(ourBGPSpec)
+	// kernelWatcher.SetOurBGPSpec(ourBGPSpec)
+	connectivityServer.SetOurBGPSpec(ourBGPSpec)
+	routingServer.SetOurBGPSpec(ourBGPSpec)
+	serviceServer.SetOurBGPSpec(ourBGPSpec)
+	policyServer.SetOurBGPSpec(ourBGPSpec)
+
+	/* Some still depend on ipam being ready */
+	log.Infof("Waiting for ipam...")
+	Go(ipam, ipam.SyncIPAM)
+	ipam.WaitReady()
+
+	/**
+	 * This should be done in a separated location, but till then, we
+	 * still have to wait on the policy server starting
+	 */
+	log.Infof("Waiting for felix config being present...")
+	if err != nil {
+		log.Fatalf("Failed to create policy server %s", err)
+	}
+	Go(policyServer, policyServer.ServePolicy)
 	config.WaitForFelixConfig()
-	config.PrintAgentConfig(log)
 
-	go serviceServer.Serve()
-	go cniServer.Serve()
-	go prometheusServer.Serve()
+	Go(prefixWatcher, prefixWatcher.WatchPrefix)
+	Go(peerWatcher, peerWatcher.WatchBGPPeers)
+	Go(felixConfWatcher, felixConfWatcher.WatchFelixConfiguration)
+	Go(connectivityServer, connectivityServer.ServeConnectivity)
+	Go(routingServer, routingServer.ServeRouting)
+	Go(serviceServer, serviceServer.ServeService)
+	Go(cniServer, cniServer.ServeCNI)
+	Go(prometheusServer, prometheusServer.ServePrometheus)
+	// TODO : Go(kernelWatcher, kernelWatcher.WatchKernelRoute)
 
-	go common.HandleVppManagerRestart(log, vpp, routingServer, cniServer, serviceServer, policyServer)
+	go common.HandleVppManagerRestart(log, vpp, runningServices)
 
-	<-signalChannel
-	log.Infof("SIGINT received, exiting")
-	routingServer.Stop()
-	cniServer.Stop()
-	serviceServer.Stop()
+	select {
+	case <-signalChannel:
+		log.Infof("SIG received, exiting")
+		t.Kill(errors.Errorf("Caught signal"))
+	case <-t.Dying():
+		log.Errorf("tomb Dying %s", t.Err())
+	}
+
+	e := t.Wait()
+	log.Infof("Tomb exited with %v", e)
 	vpp.Close()
 }

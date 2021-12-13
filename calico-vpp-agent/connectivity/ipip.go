@@ -16,10 +16,12 @@
 package connectivity
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
-	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -32,14 +34,6 @@ type IpipProvider struct {
 
 func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
 	return &IpipProvider{d, make(map[string]*types.IPIPTunnel), make(map[uint32]map[string]bool)}
-}
-
-func (p *IpipProvider) GetSwifindexes() []uint32 {
-	swifindexes := []uint32{}
-	for _, ipipIf := range p.ipipIfs {
-		swifindexes = append(swifindexes, ipipIf.SwIfIndex)
-	}
-	return swifindexes
 }
 
 func (p *IpipProvider) OnVppRestart() {
@@ -59,10 +53,9 @@ func (p *IpipProvider) RescanState() {
 		p.log.Errorf("Error listing ipip tunnels: %v", err)
 	}
 
-	nodeIP4 := p.server.GetNodeIP(false)
-	nodeIP6 := p.server.GetNodeIP(true)
+	ip4, ip6 := p.server.GetNodeIPs()
 	for _, tunnel := range tunnels {
-		if tunnel.Src.Equal(nodeIP4) || tunnel.Src.Equal(nodeIP6) {
+		if (ip4 != nil && tunnel.Src.Equal(*ip4)) || (ip6 != nil && tunnel.Src.Equal(*ip6)) {
 			p.log.Infof("Found existing tunnel: %s", tunnel)
 			p.ipipIfs[tunnel.Dst.String()] = tunnel
 		}
@@ -104,9 +97,17 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
 		tunnel = &types.IPIPTunnel{
-			Src: p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop)),
 			Dst: cn.NextHop,
 		}
+		ip4, ip6 := p.server.GetNodeIPs()
+		if vpplink.IsIP6(cn.NextHop) && ip6 != nil {
+			tunnel.Src = *ip6
+		} else if !vpplink.IsIP6(cn.NextHop) && ip4 != nil {
+			tunnel.Src = *ip4
+		} else {
+			return fmt.Errorf("Missing node address")
+		}
+
 		p.log.Infof("IPIP: Add %s", tunnel.String())
 
 		swIfIndex, err := p.vpp.AddIPIPTunnel(tunnel)
@@ -141,12 +142,12 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 
 		p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), swIfIndex)
 		err = p.vpp.RouteAdd(&types.Route{
-			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
+			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
 				SwIfIndex: swIfIndex,
 				Gw:        nil,
 			}},
-			Table: commonAgent.PodVRFIndex,
+			Table: common.PodVRFIndex,
 		})
 		if err != nil {
 			p.errorCleanup(tunnel)
@@ -154,7 +155,10 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		}
 
 		p.ipipIfs[cn.NextHop.String()] = tunnel
-		p.tunnelChangeChan <- TunnelChange{swIfIndex, AddChange}
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.TunnelAdded,
+			New:  swIfIndex,
+		})
 	}
 	p.log.Infof("IPIP: tunnnel %s ok", tunnel.String())
 
@@ -203,12 +207,12 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	if !found || len(remaining_routes) == 0 {
 		p.log.Infof("Deleting pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), tunnel.SwIfIndex)
 		err = p.vpp.RouteDel(&types.Route{
-			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
+			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
 				SwIfIndex: tunnel.SwIfIndex,
 				Gw:        nil,
 			}},
-			Table: commonAgent.PodVRFIndex,
+			Table: common.PodVRFIndex,
 		})
 		p.log.Infof("Deleting tunnel...%s", tunnel)
 		err := p.vpp.DelIPIPTunnel(tunnel)
@@ -216,7 +220,10 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
 		}
 		delete(p.ipipIfs, cn.NextHop.String())
-		p.tunnelChangeChan <- TunnelChange{tunnel.SwIfIndex, DeleteChange}
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.TunnelDeleted,
+			New:  tunnel.SwIfIndex,
+		})
 	}
 	p.log.Infof("%s", p.ipipIfs)
 	return nil

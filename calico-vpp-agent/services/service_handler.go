@@ -19,34 +19,13 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
 )
-
-type CalicoServiceProvider struct {
-	log      *logrus.Entry
-	vpp      *vpplink.VppLink
-	s        *Server
-	stateMap map[string]*types.CnatTranslateEntry
-}
-
-func newCalicoServiceProvider(s *Server) (p *CalicoServiceProvider) {
-	p = &CalicoServiceProvider{
-		log: s.log,
-		vpp: s.vpp,
-		s:   s,
-	}
-	return p
-}
-
-func (p *CalicoServiceProvider) Init() (err error) {
-	p.stateMap = make(map[string]*types.CnatTranslateEntry)
-	return nil
-}
 
 // | or # should never appear in an IP or in a service / port name which should be a valid DNS name
 func nodePortKey(serviceID, portName string) string {
@@ -109,57 +88,50 @@ func getCalicoNodePortEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, nodeI
 	return tr, nil
 }
 
-func (p *CalicoServiceProvider) OnVppRestart() {
-	newState := make(map[string]*types.CnatTranslateEntry)
-	for key, entry := range p.stateMap {
-		entryID, err := p.vpp.CnatTranslateAdd(entry)
-		if err != nil {
-			p.log.Errorf("Error re-injecting cnat entry %s : %v", entry.String(), err)
-		} else {
-			entry.ID = entryID
-			newState[key] = entry
-		}
-	}
-	p.stateMap = newState
-}
-
-func (p *CalicoServiceProvider) updateCnatEntry(key string, entry *types.CnatTranslateEntry) (err error) {
-	previousEntry, previousFound := p.stateMap[key]
+func (s *Server) updateCnatEntry(key string, entry *types.CnatTranslateEntry) (err error) {
+	previousEntry, previousFound := s.stateMap[key]
 	if !previousFound || !entry.Equal(previousEntry) {
-		p.log.Infof("(add) %s", entry.String())
-		entryID, err := p.vpp.CnatTranslateAdd(entry)
+		s.log.Infof("(add) %s", entry.String())
+		entryID, err := s.vpp.CnatTranslateAdd(entry)
 		if err != nil {
 			return errors.Wrapf(err, "NAT:Error adding translation %s", entry.String())
 		}
 		entry.ID = entryID
-		p.stateMap[key] = entry
+		s.stateMap[key] = entry
 	} else {
-		p.log.Debugf("(unchanged) %s", entry.String())
+		s.log.Debugf("(unchanged) %s", entry.String())
 	}
 	return nil
 }
 
-func (p *CalicoServiceProvider) advertiseSpecificRouteForExternalIP(extIP net.IP, withdraw bool) {
-	_, serviceExternalIPs, _ := p.s.rs.GetServiceIPs()
+func (s *Server) advertiseSpecificRouteForExternalIP(extIP net.IP, withdraw bool) {
+	_, serviceExternalIPs, _ := s.getServiceIPs()
 	for _, serviceExternalIP := range serviceExternalIPs {
 		_, ipnet, err := net.ParseCIDR(serviceExternalIP.CIDR)
 		if err != nil {
-			p.s.log.Error(err)
+			s.log.Error(err)
 		}
 		if ipnet.Contains(extIP) {
 			if withdraw {
-				p.s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", extIP)
+				common.SendEvent(common.CalicoVppEvent{
+					Type: common.LocalPodAddressDeleted,
+					Old:  common.ToMaxLenCIDR(extIP),
+				})
+				s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", extIP)
 			} else {
-				p.s.log.Infof("Announcing service specific route Addresses %+v", extIP)
+				s.log.Infof("Announcing service specific route Addresses %+v", extIP)
+				common.SendEvent(common.CalicoVppEvent{
+					Type: common.LocalPodAddressAdded,
+					New:  common.ToMaxLenCIDR(extIP),
+				})
 			}
-			p.s.rs.AnnounceLocalAddress(common.ToMaxLenCIDR(extIP), withdraw)
 		}
 	}
 }
 
-func (p *CalicoServiceProvider) AddServicePort(service *v1.Service, ep *v1.Endpoints) (err error) {
+func (s *Server) addServicePort(service *v1.Service, ep *v1.Endpoints) (err error) {
 	clusterIP := net.ParseIP(service.Spec.ClusterIP)
-	nodeIP := p.s.getNodeIP(vpplink.IsIP6(clusterIP))
+	nodeIP := s.getNodeIP(vpplink.IsIP6(clusterIP))
 	localOnly := service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal
 	serviceID := service.ObjectMeta.GetSelfLink()
 
@@ -168,12 +140,12 @@ func (p *CalicoServiceProvider) AddServicePort(service *v1.Service, ep *v1.Endpo
 		if clusterIP != nil {
 			if entry, err := getCalicoEntry(&servicePort, ep, clusterIP, localOnly); err == nil {
 				stateKey := clusterIPKey(serviceID, servicePort.Name)
-				err = p.updateCnatEntry(stateKey, entry)
+				err = s.updateCnatEntry(stateKey, entry)
 				if err != nil {
 					return err
 				}
 			} else {
-				p.log.Warnf("NAT:Error getting service entry: %v", err)
+				s.log.Warnf("NAT:Error getting service entry: %v", err)
 			}
 		}
 
@@ -183,18 +155,18 @@ func (p *CalicoServiceProvider) AddServicePort(service *v1.Service, ep *v1.Endpo
 				if entry, err := getCalicoEntry(&servicePort, ep, extIP, localOnly); err == nil {
 					if localOnly {
 						if len(entry.Backends) > 0 {
-							p.advertiseSpecificRouteForExternalIP(extIP, false)
+							s.advertiseSpecificRouteForExternalIP(extIP, false)
 						} else {
-							p.advertiseSpecificRouteForExternalIP(extIP, true)
+							s.advertiseSpecificRouteForExternalIP(extIP, true)
 						}
 					}
 					stateKey := extIPKey(eip, serviceID, servicePort.Name)
-					err = p.updateCnatEntry(stateKey, entry)
+					err = s.updateCnatEntry(stateKey, entry)
 					if err != nil {
 						return err
 					}
 				} else {
-					p.log.Warnf("NAT:Error getting service entry: %v", err)
+					s.log.Warnf("NAT:Error getting service entry: %v", err)
 				}
 			}
 		}
@@ -205,18 +177,18 @@ func (p *CalicoServiceProvider) AddServicePort(service *v1.Service, ep *v1.Endpo
 		}
 		if entry, err := getCalicoNodePortEntry(&servicePort, ep, nodeIP, localOnly); err == nil {
 			stateKey := nodePortKey(serviceID, servicePort.Name)
-			err = p.updateCnatEntry(stateKey, entry)
+			err = s.updateCnatEntry(stateKey, entry)
 			if err != nil {
 				return err
 			}
 		} else {
-			p.log.Warnf("NAT:Error getting service entry: %v", err)
+			s.log.Warnf("NAT:Error getting service entry: %v", err)
 		}
 	}
 	return nil
 }
 
-func (p *CalicoServiceProvider) DelServicePort(service *v1.Service, ep *v1.Endpoints) (err error) {
+func (s *Server) delServicePort(service *v1.Service, ep *v1.Endpoints) (err error) {
 	serviceID := service.ObjectMeta.GetSelfLink()
 
 	for _, servicePort := range service.Spec.Ports {
@@ -227,9 +199,9 @@ func (p *CalicoServiceProvider) DelServicePort(service *v1.Service, ep *v1.Endpo
 		for _, eip := range service.Spec.ExternalIPs {
 			if extIP := net.ParseIP(eip); extIP != nil {
 				entries = append(entries, extIPKey(eip, serviceID, servicePort.Name))
-				if entry, ok := p.stateMap[extIPKey(eip, serviceID, servicePort.Name)]; ok {
+				if entry, ok := s.stateMap[extIPKey(eip, serviceID, servicePort.Name)]; ok {
 					if service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal && len(entry.Backends) > 0 {
-						p.advertiseSpecificRouteForExternalIP(extIP, true)
+						s.advertiseSpecificRouteForExternalIP(extIP, true)
 					}
 				}
 			}
@@ -239,15 +211,15 @@ func (p *CalicoServiceProvider) DelServicePort(service *v1.Service, ep *v1.Endpo
 		}
 
 		for _, key := range entries {
-			if entry, ok := p.stateMap[key]; ok {
-				p.log.Infof("(del) %s", entry.String())
-				err = p.vpp.CnatTranslateDel(entry.ID)
+			if entry, ok := s.stateMap[key]; ok {
+				s.log.Infof("(del) %s", entry.String())
+				err = s.vpp.CnatTranslateDel(entry.ID)
 				if err != nil {
 					return errors.Wrapf(err, "(del) Error deleting entry %s", entry.String())
 				}
-				delete(p.stateMap, key)
+				delete(s.stateMap, key)
 			} else {
-				p.log.Errorf("(del) Entry not found for %s", key)
+				s.log.Errorf("(del) Entry not found for %s", key)
 			}
 		}
 	}

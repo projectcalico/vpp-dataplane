@@ -19,26 +19,30 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sync"
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
-	agentCommon "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/sirupsen/logrus"
+	tomb "gopkg.in/tomb.v2"
+
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
 
 type NodeWatcher struct {
-	*common.RoutingData
 	log *logrus.Entry
 
-	nodeStatesByName map[string]common.NodeState
-	nodeNamesByAddr  map[string]string
-	nodeStateLock    sync.Mutex
-	subscribers      []chan bool
+	nodeStatesByName   map[string]common.NodeState
+	gotOurNodeBGPchan  chan oldv3.NodeBGPSpec
+	didWeGetOurNodeBGP bool
+
+	clientv3 calicov3cli.Interface
+	vpp      *vpplink.VppLink
 }
 
 func nodeSpecCopy(calicoNode *calicov3.Node) *common.NodeState {
@@ -48,57 +52,10 @@ func nodeSpecCopy(calicoNode *calicov3.Node) *common.NodeState {
 	}
 }
 
-func (w *NodeWatcher) GetNodeByIp(addr net.IP) *common.NodeState {
-	w.nodeStateLock.Lock()
-	defer w.nodeStateLock.Unlock()
-	nodename, found := w.nodeNamesByAddr[addr.String()]
-	if !found {
-		return nil
-	}
-	node, found := w.nodeStatesByName[nodename]
-	if !found {
-		w.log.Warnf("Inconsistency: node %s found by ip but not by name %s", addr.String(), nodename)
-		return nil
-	}
-	return &node
-}
-
-func (w *NodeWatcher) addNodeState(state *common.NodeState) {
-	w.nodeStatesByName[state.Name] = *state
-	if state.Spec.BGP == nil {
-		return
-	}
-	nodeIP, _, err := net.ParseCIDR(state.Spec.BGP.IPv6Address)
-	if err == nil {
-		w.nodeNamesByAddr[nodeIP.String()] = state.Name
-	}
-	nodeIP, _, err = net.ParseCIDR(state.Spec.BGP.IPv4Address)
-	if err == nil {
-		w.nodeNamesByAddr[nodeIP.String()] = state.Name
-	}
-}
-
-func (w *NodeWatcher) delNodeState(nodename string) {
-	node, found := w.nodeStatesByName[nodename]
-	if found && node.Spec.BGP != nil {
-		nodeIP, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
-		if err == nil {
-			delete(w.nodeNamesByAddr, nodeIP.String())
-		}
-		nodeIP, _, err = net.ParseCIDR(node.Spec.BGP.IPv4Address)
-		if err == nil {
-			delete(w.nodeNamesByAddr, nodeIP.String())
-		}
-	}
-	delete(w.nodeStatesByName, nodename)
-}
-
 func (w *NodeWatcher) initialNodeSync() (string, error) {
-	w.nodeStateLock.Lock()
-	defer w.nodeStateLock.Unlock()
 	// TODO: Get and watch only ourselves if there is no mesh
 	w.log.Info("Syncing nodes...")
-	nodes, err := w.Clientv3.Nodes().List(context.Background(), options.ListOptions{})
+	nodes, err := w.clientv3.Nodes().List(context.Background(), options.ListOptions{})
 	if err != nil {
 		return "", errors.Wrap(err, "error listing nodes")
 	}
@@ -129,22 +86,13 @@ func (w *NodeWatcher) initialNodeSync() (string, error) {
 	return nodes.ResourceVersion, nil
 }
 
-func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
-	var firstWatch = true
+func (w *NodeWatcher) WatchNodes(t *tomb.Tomb) error {
 	for {
 		resourceVersion, err := w.initialNodeSync()
 		if err != nil {
 			return err
 		}
-		w.nodeUpdateNotify()
-
-		/* if its the first time in the loop initialResourceVersion happened
-		 * before the list in initialNodeSync */
-		if firstWatch {
-			resourceVersion = initialResourceVersion
-			firstWatch = false
-		}
-		watcher, err := w.Clientv3.Nodes().Watch(
+		watcher, err := w.clientv3.Nodes().Watch(
 			context.Background(),
 			options.ListOptions{ResourceVersion: resourceVersion},
 		)
@@ -152,31 +100,39 @@ func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
 			return errors.Wrap(err, "cannot watch nodes")
 		}
 	watch:
-		for update := range watcher.ResultChan() {
-			var calicoNode *calicov3.Node
-			switch update.Type {
-			case watch.Error:
-				w.log.Infof("nodes watch returned an error")
-				break watch
-			case watch.Modified, watch.Added:
-				calicoNode = update.Object.(*calicov3.Node)
-			case watch.Deleted:
-				calicoNode = update.Previous.(*calicov3.Node)
-			}
+		for {
+			select {
+			case <-t.Dying():
+				w.log.Infof("Nodes Watcher asked to stop")
+				return nil
+			case update := <-watcher.ResultChan():
+				var calicoNode *calicov3.Node
+				switch update.Type {
+				case watch.Error:
+					w.log.Infof("nodes watch returned an error")
+					break watch
+				case watch.Modified, watch.Added:
+					calicoNode = update.Object.(*calicov3.Node)
+				case watch.Deleted:
+					calicoNode = update.Previous.(*calicov3.Node)
+				}
 
-			node := nodeSpecCopy(calicoNode)
-			w.nodeStateLock.Lock()
-			shouldRestart, err := w.handleNodeUpdate(node, update.Type)
-			w.nodeStateLock.Unlock()
-			if err != nil {
-				return errors.Wrap(err, "error handling node update")
+				node := nodeSpecCopy(calicoNode)
+				shouldRestart, err := w.handleNodeUpdate(node, update.Type)
+				if err != nil {
+					return errors.Wrap(err, "error handling node update")
+				}
+				if shouldRestart {
+					return fmt.Errorf("Current node configuration changed, restarting")
+				}
 			}
-			if shouldRestart {
-				return fmt.Errorf("Current node configuration changed, restarting")
-			}
-			w.nodeUpdateNotify()
 		}
 	}
+}
+
+func (w *NodeWatcher) WaitForOurBGPSpec() *oldv3.NodeBGPSpec {
+	bgpspec := <-w.gotOurNodeBGPchan
+	return &bgpspec
 }
 
 // Returns true if the config of the current node has changed and requires a restart
@@ -186,13 +142,26 @@ func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.E
 	if node.Name == config.NodeName {
 		old, found := w.nodeStatesByName[node.Name]
 		// Always update node state
-		w.addNodeState(node)
+		w.nodeStatesByName[node.Name] = *node
 		// No need to manage ourselves, but if we change we need to restart
 		// and reconfigure
 		if eventType == watch.Deleted {
 			w.log.Infof("node comparison Deleted")
 			return true, nil /* restart */
 		}
+		if node.Spec.BGP != nil && !w.didWeGetOurNodeBGP {
+			nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(node.Spec.BGP)
+			if nodeIP4 != nil || nodeIP6 != nil {
+				/* We found a BGP Spec that seems valid enough */
+				w.gotOurNodeBGPchan <- *node.Spec.BGP
+				w.didWeGetOurNodeBGP = true
+			}
+		}
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.OurNodeStateChanged,
+			Old:  &old.Node,
+			New:  &node.Node,
+		})
 		if found {
 			// Check that there were no changes, restart if our BGP config changed
 			old.SweepFlag = false
@@ -229,41 +198,17 @@ func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.E
 		} else {
 			err = w.onNodeAdded(node)
 		}
-		w.addNodeState(node)
+		w.nodeStatesByName[node.Name] = *node
 	case watch.Deleted:
 		// This assumes that the old spec and the new spec are identical.
 		if found {
 			err = w.onNodeDeleted(&old)
-			w.delNodeState(node.Name)
+			delete(w.nodeStatesByName, node.Name)
 		} else {
 			return false, fmt.Errorf("Node to delete not found")
 		}
 	}
 	return false, err /* don't restart */
-}
-
-func (w *NodeWatcher) getSpecAddresses(node *common.NodeState) (string, string) {
-	nodeIP4 := ""
-	nodeIP6 := ""
-	if node.Spec.BGP.IPv4Address != "" {
-		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
-		if err != nil {
-			w.log.Errorf("cannot parse node address %s: %v", node.Spec.BGP.IPv4Address, err)
-			nodeIP4 = ""
-		} else {
-			nodeIP4 = addr.String()
-		}
-	}
-	if node.Spec.BGP.IPv6Address != "" {
-		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
-		if err != nil {
-			w.log.Errorf("cannot parse node address %s: %v", node.Spec.BGP.IPv6Address, err)
-			nodeIP6 = ""
-		} else {
-			nodeIP6 = addr.String()
-		}
-	}
-	return nodeIP4, nodeIP6
 }
 
 func (w *NodeWatcher) OnVppRestart() {
@@ -278,7 +223,7 @@ func (w *NodeWatcher) configureRemoteNodeSnat(node *common.NodeState, isAdd bool
 		if err != nil {
 			w.log.Errorf("cannot parse node address %s: %v", node.Spec.BGP.IPv4Address, err)
 		} else {
-			err = w.Vpp.CnatAddDelSnatPrefix(agentCommon.ToMaxLenCIDR(addr), isAdd)
+			err = w.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(addr), isAdd)
 			if err != nil {
 				w.log.Errorf("error configuring snat prefix for current node (%v): %v", addr, err)
 			}
@@ -289,7 +234,7 @@ func (w *NodeWatcher) configureRemoteNodeSnat(node *common.NodeState, isAdd bool
 		if err != nil {
 			w.log.Errorf("cannot parse node address %s: %v", node.Spec.BGP.IPv6Address, err)
 		} else {
-			err = w.Vpp.CnatAddDelSnatPrefix(agentCommon.ToMaxLenCIDR(addr), isAdd)
+			err = w.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(addr), isAdd)
 			if err != nil {
 				w.log.Errorf("error configuring snat prefix for current node (%v): %v", addr, err)
 			}
@@ -298,6 +243,10 @@ func (w *NodeWatcher) configureRemoteNodeSnat(node *common.NodeState, isAdd bool
 }
 
 func (w *NodeWatcher) onNodeDeleted(old *common.NodeState) error {
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PeerNodeStateChanged,
+		Old:  &old.Node,
+	})
 	w.configureRemoteNodeSnat(old, false /* isAdd */)
 	return nil
 }
@@ -305,16 +254,16 @@ func (w *NodeWatcher) onNodeDeleted(old *common.NodeState) error {
 func (w *NodeWatcher) onNodeUpdated(old *common.NodeState, node *common.NodeState) (err error) {
 	w.log.Debugf("node comparison: old:%+v new:%+v", old.Spec.BGP, node.Spec.BGP)
 
-	newV4IP, newV6IP := w.getSpecAddresses(node)
-	oldV4IP, oldV6IP := w.getSpecAddresses(old)
+	newV4IP, newV6IP := common.GetNodeSpecAddresses(&node.Node)
+	oldV4IP, oldV6IP := common.GetNodeSpecAddresses(&old.Node)
 
 	// This is used by the routing server to process Wireguard key updates
 	// As a result we only send an event when a node is updated, not when it is added or deleted
-	w.ConnectivityEventChan <- common.ConnectivityEvent{
-		Type: common.NodeStateChanged,
-		Old:  old,
-		New:  node,
-	}
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PeerNodeStateChanged,
+		Old:  &old.Node,
+		New:  &node.Node,
+	})
 
 	if common.GetStringChangeType(oldV4IP, newV4IP) > common.ChangeSame ||
 		common.GetStringChangeType(oldV6IP, newV6IP) > common.ChangeSame {
@@ -327,40 +276,21 @@ func (w *NodeWatcher) onNodeUpdated(old *common.NodeState, node *common.NodeStat
 }
 
 func (w *NodeWatcher) onNodeAdded(node *common.NodeState) (err error) {
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PeerNodeStateChanged,
+		New:  &node.Node,
+	})
 	w.configureRemoteNodeSnat(node, true /* isAdd */)
 	return nil
 }
 
-// GetNodeList returns a slice of all the current nodes in the cluster
-func (w *NodeWatcher) GetNodesList() (nodes []*calicov3.Node) {
-	w.nodeStateLock.Lock()
-	defer w.nodeStateLock.Unlock()
-
-	nodes = make([]*calicov3.Node, 0)
-	for _, nodeState := range w.nodeStatesByName {
-		nodes = append(nodes, nodeState.DeepCopy())
-	}
-	return nodes
-}
-
-func (w *NodeWatcher) nodeUpdateNotify() {
-	for _, c := range w.subscribers {
-		c <- true
-	}
-}
-
-func (w *NodeWatcher) NodeUpdateSubscribe() (updates chan bool) {
-	updates = make(chan bool, 1)
-	w.subscribers = append(w.subscribers, updates)
-	return updates
-}
-
-func NewNodeWatcher(routingData *common.RoutingData, log *logrus.Entry) *NodeWatcher {
+func NewNodeWatcher(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *logrus.Entry) *NodeWatcher {
 	w := NodeWatcher{
-		RoutingData:      routingData,
-		log:              log,
-		nodeStatesByName: make(map[string]common.NodeState),
-		nodeNamesByAddr:  make(map[string]string),
+		vpp:               vpp,
+		log:               log,
+		clientv3:          clientv3,
+		gotOurNodeBGPchan: make(chan oldv3.NodeBGPSpec, 10),
+		nodeStatesByName:  make(map[string]common.NodeState),
 	}
 	return &w
 }

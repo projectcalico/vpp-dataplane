@@ -16,19 +16,10 @@
 package routing
 
 import (
-	"fmt"
-	"net"
-
 	bgpapi "github.com/osrg/gobgp/api"
-	bgpserver "github.com/osrg/gobgp/pkg/server"
 	"github.com/pkg/errors"
-	calicov3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	"github.com/projectcalico/libcalico-go/lib/options"
-	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 func (s *Server) createEmptyPrefixSet(name string) error {
@@ -36,7 +27,7 @@ func (s *Server) createEmptyPrefixSet(name string) error {
 		DefinedType: bgpapi.DefinedType_PREFIX,
 		Name:        name,
 	}
-	err := s.routingData.BGPServer.AddDefinedSet(
+	err := s.BGPServer.AddDefinedSet(
 		context.Background(),
 		&bgpapi.AddDefinedSetRequest{DefinedSet: ps},
 	)
@@ -90,7 +81,7 @@ func (s *Server) initialPolicySetting(isv6 bool) error {
 		},
 	}
 
-	err = s.routingData.BGPServer.AddPolicy(
+	err = s.BGPServer.AddPolicy(
 		context.Background(),
 		&bgpapi.AddPolicyRequest{
 			Policy:                  definition,
@@ -100,7 +91,7 @@ func (s *Server) initialPolicySetting(isv6 bool) error {
 	if err != nil {
 		return errors.Wrap(err, "error adding policy")
 	}
-	err = s.routingData.BGPServer.AddPolicyAssignment(
+	err = s.BGPServer.AddPolicyAssignment(
 		context.Background(),
 		&bgpapi.AddPolicyAssignmentRequest{
 			Assignment: &bgpapi.PolicyAssignment{
@@ -118,64 +109,18 @@ func (s *Server) initialPolicySetting(isv6 bool) error {
 
 // Configure SNAT prefixes so that we don't snat traffic going from a local pod to the node
 func (s *Server) configureLocalNodeSnat() error {
-	if s.routingData.HasV4 {
-		err := s.routingData.Vpp.CnatAddDelSnatPrefix(commonAgent.ToMaxLenCIDR(s.routingData.Ipv4), true)
+	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
+	if nodeIP4 != nil {
+		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(*nodeIP4), true)
 		if err != nil {
-			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", s.routingData.Ipv4)
+			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", *nodeIP4)
 		}
 	}
-	if s.routingData.HasV6 {
-		err := s.routingData.Vpp.CnatAddDelSnatPrefix(commonAgent.ToMaxLenCIDR(s.routingData.Ipv6), true)
+	if nodeIP6 != nil {
+		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(*nodeIP6), true)
 		if err != nil {
-			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", s.routingData.Ipv6)
+			return errors.Wrapf(err, "error configuring snat prefix for current node (%v)", *nodeIP6)
 		}
 	}
 	return nil
-}
-
-func (s *Server) fetchNodeIPs() (node *calicov3.Node, err error) {
-	node, err = s.routingData.Clientv3.Nodes().Get(
-		context.Background(),
-		config.NodeName,
-		options.GetOptions{},
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot fetch current node")
-	}
-
-	if node.Spec.BGP == nil {
-		return nil, fmt.Errorf("Calico is running in policy-only mode")
-	}
-	s.routingData.Ipv4, s.routingData.Ipv4Net, err = net.ParseCIDR(node.Spec.BGP.IPv4Address)
-	s.routingData.HasV4 = (err == nil)
-	s.routingData.Ipv6, s.routingData.Ipv6Net, err = net.ParseCIDR(node.Spec.BGP.IPv6Address)
-	s.routingData.HasV6 = (err == nil)
-	s.log.Infof("Fetched node IPs v4:%s, v6:%s", s.routingData.Ipv4.String(), s.routingData.Ipv6.String())
-	return node, nil
-}
-
-func (s *Server) createAndStartBGP() error {
-	globalConfig, err := s.getGoBGPGlobalConfig()
-	if err != nil {
-		return fmt.Errorf("cannot get global configuration: %v", err)
-	}
-	maxSize := 256 << 20
-	grpcOpts := []grpc.ServerOption{
-		grpc.MaxRecvMsgSize(maxSize),
-		grpc.MaxSendMsgSize(maxSize),
-	}
-	s.bgpServerRunningCond.L.Lock()
-	s.routingData.BGPServer = bgpserver.NewBgpServer(
-		bgpserver.GrpcListenAddress("localhost:50051"),
-		bgpserver.GrpcOption(grpcOpts),
-	)
-	s.bgpServerRunningCond.L.Unlock()
-	s.bgpServerRunningCond.Broadcast()
-
-	s.t.Go(func() error { s.routingData.BGPServer.Serve(); return fmt.Errorf("bgpServer Serve returned") })
-
-	return s.routingData.BGPServer.StartBgp(
-		context.Background(),
-		&bgpapi.StartBgpRequest{Global: globalConfig},
-	)
 }
