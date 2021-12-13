@@ -118,9 +118,9 @@ func (v *VppLink) CnatAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err error
 	response := &cnat.CnatSnatPolicyAddDelExcludePfxReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return errors.Wrap(err, "Add/Del SNAT prefix failed")
+		return errors.Wrapf(err, "%s SNAT prefix failed", IsAddToStr(isAdd))
 	} else if response.Retval != 0 {
-		return fmt.Errorf("Add/Del SNAT prefix failed with retval: %d", response.Retval)
+		return fmt.Errorf("%s SNAT prefix failed with retval: %d", IsAddToStr(isAdd), response.Retval)
 	}
 	return nil
 }

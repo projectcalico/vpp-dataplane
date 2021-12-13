@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
@@ -35,6 +36,11 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	podSpec.NeedsSnat = false
 	for _, containerIP := range podSpec.GetContainerIps() {
 		podSpec.NeedsSnat = podSpec.NeedsSnat || s.IPNetNeedsSNAT(containerIP)
+	}
+
+	err = ns.IsNSorErr(podSpec.NetnsName)
+	if err != nil {
+		return vpplink.InvalidID, errors.Wrapf(err, "Netns '%s' doesn't exist, skipping", podSpec.NetnsName)
 	}
 
 	stack := s.vpp.NewCleanupStack()
@@ -59,7 +65,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	if podSpec.EnableMemif && config.MemifEnabled {
 		s.log.Infof("Creating Pod memif")
-		err := s.memifDriver.CreateInterface(podSpec, stack)
+		err = s.memifDriver.CreateInterface(podSpec, stack)
 		if err != nil {
 			goto err
 		}
@@ -127,6 +133,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	return podSpec.TunTapSwIfIndex, err
 
 err:
+	s.log.Errorf("Error, try a cleanup %+v", err)
 	stack.Execute()
 	return vpplink.InvalidID, errors.Wrapf(err, "Error creating interface")
 

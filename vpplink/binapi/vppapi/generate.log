@@ -1,14 +1,12 @@
-VPP Version                 : 22.02-rc0~165-gdc074d1e2
+VPP Version                 : 22.02-rc0~394-g66b969042
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 312b4cd84 arp: fix for source address selection
+VPP Base commit             : d08920612 arp: fix arp_vft callback
 ------------------ Cherry picked commits --------------------
 gerrit:28513/24 capo: Calico Policies plugin
 gerrit:28083/20 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
-gerrit:33264/3 pbl: Port based balancer
-gerrit:34585/1 devices: fix af_packet GSO check
-gerrit:34249/2 devices: default mode eth in the api
-gerrit:33557/5 ip: unlock_fib on if delete
-gerrit:32271/7 memif: add support for ns abstract sockets
+gerrit:33264/7 pbl: Port based balancer
+gerrit:32271/13 memif: add support for ns abstract sockets
+gerrit:34713/2 vppinfra: improve & test abstract socket
 gerrit:29386/9 virtio: DRAFT: multi tx support
 -------------------------------------------------------------

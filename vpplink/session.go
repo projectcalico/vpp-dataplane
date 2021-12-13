@@ -89,9 +89,9 @@ func (v *VppLink) addDelSessionAppNamespace(namespace *types.SessionAppNamespace
 	}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return errors.Wrapf(err, "Add/Del session namespace")
+		return errors.Wrapf(err, "error %sing session namespace", IsAddToStr(isAdd))
 	} else if response.Retval != 0 {
-		return fmt.Errorf("Add/Del session namespace with retval %d", response.Retval)
+		return fmt.Errorf("%s session namespace errored with retval %d", IsAddToStr(isAdd), response.Retval)
 	}
 	return nil
 }
