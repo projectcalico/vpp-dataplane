@@ -20,9 +20,10 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -49,7 +50,7 @@ func (s *Server) checkAvailableBuffers() (uint64, error) {
 func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
 	podSpec.NeedsSnat = false
 	for _, containerIP := range podSpec.GetContainerIps() {
-		podSpec.NeedsSnat = podSpec.NeedsSnat || s.IPNetNeedsSNAT(containerIP)
+		podSpec.NeedsSnat = podSpec.NeedsSnat || s.ipam.IPNetNeedsSNAT(containerIP)
 	}
 
 	err = ns.IsNSorErr(podSpec.NetnsName)
@@ -134,7 +135,10 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	s.log.Infof("Announcing Pod Addresses")
 	for _, containerIP := range podSpec.GetContainerIps() {
-		s.routingServer.AnnounceLocalAddress(containerIP, false /* isWithdrawal */)
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.LocalPodAddressAdded,
+			New:  containerIP,
+		})
 	}
 
 	s.log.Infof("Adding HostPorts")
@@ -143,13 +147,6 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		goto err
 	}
 
-	s.policyServer.WorkloadAdded(&policy.WorkloadEndpointID{
-		OrchestratorID: podSpec.OrchestratorID,
-		WorkloadID:     podSpec.WorkloadID,
-		EndpointID:     podSpec.EndpointID,
-	}, podSpec.TunTapSwIfIndex, podSpec.GetContainerIps())
-
-	s.prometheusServer.PodAdded(podSpec)
 	s.availableBuffers -= buffersNeeded
 	return podSpec.TunTapSwIfIndex, err
 
@@ -165,9 +162,11 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	s.DelHostPort(podSpec)
 
 	for _, containerIP := range podSpec.GetContainerIps() {
-		s.routingServer.AnnounceLocalAddress(containerIP, true /* isWithdrawal */)
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.LocalPodAddressDeleted,
+			Old:  containerIP,
+		})
 	}
-	s.prometheusServer.PodRemoved(podSpec)
 
 	/* Routes */
 	if podSpec.EnableVCL {

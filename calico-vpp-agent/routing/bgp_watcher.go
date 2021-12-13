@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package watchers
+package routing
 
 import (
 	"fmt"
@@ -22,24 +22,17 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
-	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/protobuf/types/known/anypb"
+	tomb "gopkg.in/tomb.v2"
+
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-type BGPWatcher struct {
-	*common.RoutingData
-	*commonAgent.CalicoVppServerData
-	log      *logrus.Entry
-	reloadCh chan string
-}
-
-func (w *BGPWatcher) getNexthop(path *bgpapi.Path) string {
+func (w *Server) getNexthop(path *bgpapi.Path) string {
 	for _, attr := range path.Pattrs {
 		nhAttr := &bgpapi.NextHopAttribute{}
 		mpReachAttr := &bgpapi.MpReachNLRIAttribute{}
@@ -58,7 +51,7 @@ func (w *BGPWatcher) getNexthop(path *bgpapi.Path) string {
 
 // injectRoute is a helper function to inject BGP routes to VPP
 // TODO: multipath support
-func (w *BGPWatcher) injectRoute(path *bgpapi.Path) error {
+func (w *Server) injectRoute(path *bgpapi.Path) error {
 	var dst net.IPNet
 	ipAddrPrefixNlri := &bgpapi.IPAddressPrefix{}
 	otherNodeIP := net.ParseIP(w.getNexthop(path))
@@ -84,20 +77,20 @@ func (w *BGPWatcher) injectRoute(path *bgpapi.Path) error {
 		NextHop: otherNodeIP,
 	}
 	if path.IsWithdraw {
-		w.ConnectivityEventChan <- common.ConnectivityEvent{
-			Type: common.ConnectivtyDeleted,
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.ConnectivityDeleted,
 			Old:  cn,
-		}
+		})
 	} else {
-		w.ConnectivityEventChan <- common.ConnectivityEvent{
-			Type: common.ConnectivtyAdded,
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.ConnectivityAdded,
 			New:  cn,
-		}
+		})
 	}
 	return nil
 }
 
-func (w *BGPWatcher) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv6tunnel *common.SRv6Tunnel, srnrli *bgpapi.SRPolicyNLRI, err error) {
+func (w *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv6tunnel *common.SRv6Tunnel, srnrli *bgpapi.SRPolicyNLRI, err error) {
 	w.log.Infof("getSRPolicy from bgp path")
 	srnrli = &bgpapi.SRPolicyNLRI{}
 	tun := &bgpapi.TunnelEncapAttribute{}
@@ -171,7 +164,7 @@ func (w *BGPWatcher) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy,
 	return srv6Policy, srv6tunnel, srnrli, err
 }
 
-func (w *BGPWatcher) injectSRv6Policy(path *bgpapi.Path) error {
+func (w *Server) injectSRv6Policy(path *bgpapi.Path) error {
 	w.log.Infof("injectSRv6Policy")
 	_, srv6tunnel, srnrli, err := w.getSRPolicy(path)
 
@@ -186,15 +179,15 @@ func (w *BGPWatcher) injectSRv6Policy(path *bgpapi.Path) error {
 		Custom:           srv6tunnel,
 	}
 	if path.IsWithdraw {
-		w.ConnectivityEventChan <- common.ConnectivityEvent{
+		common.SendEvent(common.CalicoVppEvent{
 			Type: common.SRv6PolicyDeleted,
 			Old:  cn,
-		}
+		})
 	} else {
-		w.ConnectivityEventChan <- common.ConnectivityEvent{
+		common.SendEvent(common.CalicoVppEvent{
 			Type: common.SRv6PolicyAdded,
 			New:  cn,
-		}
+		})
 	}
 	return nil
 }
@@ -202,7 +195,7 @@ func (w *BGPWatcher) injectSRv6Policy(path *bgpapi.Path) error {
 // watchBGPPath watches BGP routes from other peers and inject them into
 // linux kernel
 // TODO: multipath support
-func (w *BGPWatcher) WatchBGPPath() error {
+func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 	var err error
 	startMonitor := func(f *bgpapi.Family) (context.CancelFunc, error) {
 		ctx, stopFunc := context.WithCancel(context.Background())
@@ -222,7 +215,7 @@ func (w *BGPWatcher) WatchBGPPath() error {
 				w.log.Printf("Path monitor family %s, path %s", f.String(), path.String())
 				if f == &common.BgpFamilySRv6IPv6 {
 					w.log.Debugf("Path SRv6")
-					w.BarrierSync()
+					common.WaitIfVppIsRestarting()
 					if err := w.injectSRv6Policy(path); err != nil {
 						w.log.Errorf("cannot inject SRv6: %v", err)
 					}
@@ -233,7 +226,6 @@ func (w *BGPWatcher) WatchBGPPath() error {
 					w.log.Debugf("Ignoring internal path")
 					return
 				}
-				w.BarrierSync()
 				if err := w.injectRoute(path); err != nil {
 					w.log.Errorf("cannot inject route: %v", err)
 				}
@@ -243,14 +235,15 @@ func (w *BGPWatcher) WatchBGPPath() error {
 	}
 
 	var stopV4Monitor, stopV6Monitor, stopSRv6IP6Monitor context.CancelFunc
-	if w.HasV4 {
+	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
+	if nodeIP4 != nil {
 		stopV4Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv4)
 		if err != nil {
 			return errors.Wrap(err, "error starting v4 path monitor")
 		}
 
 	}
-	if w.HasV6 {
+	if nodeIP6 != nil {
 		stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
 		if err != nil {
 			return errors.Wrap(err, "error starting SRv6IP6 path monitor")
@@ -263,37 +256,127 @@ func (w *BGPWatcher) WatchBGPPath() error {
 		}
 
 	}
-	for family := range w.reloadCh {
-		if w.HasV4 && family == "4" {
-			stopV4Monitor()
-			stopV4Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv4)
-			if err != nil {
-				return err
+	for {
+		select {
+		case <-t.Dying():
+			if nodeIP4 != nil {
+				stopV4Monitor()
 			}
-
-		} else if w.HasV6 && family == "6" {
-			stopV6Monitor()
-			stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
-			if err != nil {
-				return err
+			if nodeIP6 != nil {
+				stopV6Monitor()
+				if config.EnableSRv6 {
+					stopSRv6IP6Monitor()
+				}
 			}
-			if config.EnableSRv6 {
-				stopSRv6IP6Monitor()
-				stopSRv6IP6Monitor, err = startMonitor(&common.BgpFamilySRv6IPv6)
+			w.log.Infof("Routing Server asked to stop")
+			return nil
+		case evt := <-w.routingServerEventChan:
+			/* Note: we will only receive events we ask for when registering the chan */
+			switch evt.Type {
+			case common.LocalPodAddressAdded:
+				addr := evt.New.(*net.IPNet)
+				err := w.announceLocalAddress(addr)
 				if err != nil {
-					return errors.Wrap(err, "error starting SRv6IP6 path monitor")
+					return err
+				}
+			case common.LocalPodAddressDeleted:
+				addr := evt.Old.(*net.IPNet)
+				err := w.withdrawLocalAddress(addr)
+				if err != nil {
+					return err
+				}
+			case common.BGPReloadIP4:
+				if nodeIP4 != nil {
+					stopV4Monitor()
+					stopV4Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv4)
+					if err != nil {
+						return errors.Wrap(err, "error re-starting ip4 path monitor")
+					}
+				}
+			case common.BGPReloadIP6:
+				if nodeIP6 != nil {
+					stopV6Monitor()
+					stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
+					if err != nil {
+						return errors.Wrap(err, "error re-starting ip6 path monitor")
+					}
+					if config.EnableSRv6 {
+						stopSRv6IP6Monitor()
+						stopSRv6IP6Monitor, err = startMonitor(&common.BgpFamilySRv6IPv6)
+						if err != nil {
+							return errors.Wrap(err, "error re-starting SRv6IP6 path monitor")
+						}
+					}
+				}
+			case common.BGPPathAdded:
+				path := evt.New.(*bgpapi.Path)
+				_, err = w.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
+					TableType: bgpapi.TableType_GLOBAL,
+					Path:      path,
+				})
+				if err != nil {
+					return err
+				}
+			case common.BGPPathDeleted:
+				path := evt.Old.(*bgpapi.Path)
+				err = w.BGPServer.DeletePath(context.Background(), &bgpapi.DeletePathRequest{
+					TableType: bgpapi.TableType_GLOBAL,
+					Path:      path,
+				})
+				if err != nil {
+					return err
+				}
+			case common.BGPDefinedSetAdded:
+				ps := evt.New.(*bgpapi.DefinedSet)
+				err := w.BGPServer.AddDefinedSet(
+					context.Background(),
+					&bgpapi.AddDefinedSetRequest{DefinedSet: ps},
+				)
+				if err != nil {
+					return err
+				}
+			case common.BGPDefinedSetDeleted:
+				ps := evt.Old.(*bgpapi.DefinedSet)
+				err := w.BGPServer.DeleteDefinedSet(
+					context.Background(),
+					&bgpapi.DeleteDefinedSetRequest{DefinedSet: ps, All: false},
+				)
+				if err != nil {
+					return err
+				}
+			case common.BGPPeerAdded:
+				peer := evt.New.(*bgpapi.Peer)
+				w.log.Infof("Adding BGP neighbor: %s AS:%d",
+					peer.Conf.NeighborAddress, peer.Conf.PeerAs)
+				err := w.BGPServer.AddPeer(
+					context.Background(),
+					&bgpapi.AddPeerRequest{Peer: peer},
+				)
+				if err != nil {
+					return err
+				}
+			case common.BGPPeerDeleted:
+				addr := evt.New.(string)
+				w.log.Infof("Deleting BGP neighbor: %s", addr)
+				err := w.BGPServer.DeletePeer(
+					context.Background(),
+					&bgpapi.DeletePeerRequest{Address: addr},
+				)
+				if err != nil {
+					return err
+				}
+			case common.BGPPeerUpdated:
+				peer := evt.New.(*bgpapi.Peer)
+				w.log.Infof("Updating BGP neighbor: %s AS:%d",
+					peer.Conf.NeighborAddress, peer.Conf.PeerAs)
+				_, err = w.BGPServer.UpdatePeer(
+					context.Background(),
+					&bgpapi.UpdatePeerRequest{Peer: peer},
+				)
+				if err != nil {
+					return err
 				}
 			}
 		}
 	}
-	return nil
-}
-
-func NewBGPWatcher(routingData *common.RoutingData, log *logrus.Entry) *BGPWatcher {
-	w := BGPWatcher{
-		RoutingData: routingData,
-		log:         log,
-		reloadCh:    make(chan string),
-	}
-	return &w
 }

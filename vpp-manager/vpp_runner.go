@@ -28,8 +28,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	calicoapi "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	calicocli "github.com/projectcalico/libcalico-go/lib/clientv3"
+	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
@@ -622,11 +622,11 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 }
 
 func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err error) {
-	var node, updated *calicoapi.Node
-	var client calicocli.Interface
+	var node, updated *oldv3.Node
+	var client calicov3cli.Interface
 	// TODO create if doesn't exist? need to be careful to do it atomically... and everyone else must as well.
 	for i := 0; i < 10; i++ {
-		client, err = calicocli.NewFromEnv()
+		client, err = calicov3cli.NewFromEnv()
 		if err != nil {
 			return errors.Wrap(err, "Error creating calico client")
 		}
@@ -641,7 +641,7 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 		// Update node with address
 		needUpdate := false
 		if node.Spec.BGP == nil {
-			node.Spec.BGP = &calicoapi.NodeBGPSpec{}
+			node.Spec.BGP = &oldv3.NodeBGPSpec{}
 		}
 		if ifState.Hasv4 {
 			log.Infof("Setting BGP nodeIP %s", ifState.NodeIP4)

@@ -19,7 +19,7 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -34,10 +34,6 @@ func getRoutePaths(addr net.IP) []types.RoutePath {
 		SwIfIndex: vpplink.AnyInterface,
 		Table:     0,
 	}}
-}
-
-func (p *FlatL3Provider) GetSwifindexes() []uint32 {
-	return []uint32{}
 }
 
 func (p *FlatL3Provider) OnVppRestart() {

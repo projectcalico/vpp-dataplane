@@ -18,13 +18,14 @@ package connectivity
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"net"
 
 	"github.com/pkg/errors"
+
 	"github.com/projectcalico/libcalico-go/lib/options"
-	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -37,14 +38,6 @@ type WireguardProvider struct {
 
 func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
 	return &WireguardProvider{d, nil, make(map[string]types.WireguardPeer)}
-}
-
-func (p *WireguardProvider) GetSwifindexes() []uint32 {
-	if p.wireguardTunnel != nil {
-		return []uint32{p.wireguardTunnel.SwIfIndex}
-	} else {
-		return []uint32{}
-	}
 }
 
 func (p *WireguardProvider) Enabled() bool {
@@ -108,9 +101,6 @@ func (p *WireguardProvider) TunnelIsIP6() bool {
 }
 
 func (p *WireguardProvider) RescanState() {
-	nodeIP4 := p.GetNodeIP(false)
-	nodeIP6 := p.GetNodeIP(true)
-
 	p.wireguardPeers = make(map[string]types.WireguardPeer)
 	p.wireguardTunnel = nil
 
@@ -119,8 +109,9 @@ func (p *WireguardProvider) RescanState() {
 	if err != nil {
 		p.log.Errorf("Error listing wireguard tunnels: %v", err)
 	}
+	ip4, ip6 := p.server.GetNodeIPs()
 	for _, tunnel := range tunnels {
-		if tunnel.Addr.Equal(nodeIP4) || tunnel.Addr.Equal(nodeIP6) {
+		if (ip4 != nil && tunnel.Addr.Equal(*ip4)) || (ip6 != nil && tunnel.Addr.Equal(*ip6)) {
 			p.log.Infof("Found existing tunnel: %s", tunnel)
 			p.wireguardTunnel = tunnel
 			break
@@ -145,11 +136,15 @@ func (p *WireguardProvider) errorCleanup(tunnel *types.WireguardTunnel) {
 	}
 }
 
-func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
-	nodeIp := p.GetNodeIP(isv6)
-	if nodeIp == nil {
-		p.log.Infof("Wireguard: didnt find nodeIP for v6=%t", isv6)
-		return nil
+func (p *WireguardProvider) createWireguardTunnel(cn *common.NodeConnectivity) error {
+	var nodeIp net.IP
+	ip4, ip6 := p.server.GetNodeIPs()
+	if vpplink.IsIP6(cn.NextHop) && ip6 != nil {
+		nodeIp = *ip6
+	} else if !vpplink.IsIP6(cn.NextHop) && ip4 != nil {
+		nodeIp = *ip4
+	} else {
+		return fmt.Errorf("Missing node address")
 	}
 
 	p.log.Debugf("Adding wireguard Tunnel to VPP")
@@ -207,15 +202,14 @@ func (p *WireguardProvider) createWireguardTunnel(isv6 bool) error {
 func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	if p.wireguardTunnel == nil {
 		p.log.Infof("Wireguard: Creating tunnel")
-		nodeIP4 := p.GetNodeIP(false)
-		if nodeIP4 == nil {
-			return errors.Errorf("Wireguard: no IP4 found for node")
-		}
-		err := p.createWireguardTunnel(nodeIP4 == nil /* isv6 */)
+		err := p.createWireguardTunnel(cn)
 		if err != nil {
 			return errors.Wrapf(err, "Wireguard: Error creating tunnel")
 		}
-		p.tunnelChangeChan <- TunnelChange{p.wireguardTunnel.SwIfIndex, AddChange}
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.TunnelAdded,
+			New:  p.wireguardTunnel.SwIfIndex,
+		})
 	}
 	if p.TunnelIsIP6() != vpplink.IsIP6(cn.NextHop) {
 		return errors.Errorf("IP46 wireguard tunnelling not supported")
@@ -230,7 +224,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		Port:       p.getWireguardPort(),
 		Addr:       cn.NextHop,
 		SwIfIndex:  p.wireguardTunnel.SwIfIndex,
-		AllowedIps: []net.IPNet{cn.Dst, *commonAgent.ToMaxLenCIDR(cn.NextHop)},
+		AllowedIps: []net.IPNet{cn.Dst, *common.ToMaxLenCIDR(cn.NextHop)},
 	}
 	existingPeer, found := p.wireguardPeers[cn.NextHop.String()]
 	p.log.Infof("Wireguard: NH:%s Dst:%s found:%t", cn.NextHop, cn.Dst, found)
@@ -259,12 +253,12 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 
 		p.log.Debugf("Routing pod->node %s traffic into wg tunnel (swIfIndex %d)", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
 		err = p.vpp.RouteAdd(&types.Route{
-			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
+			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
 				SwIfIndex: p.wireguardTunnel.SwIfIndex,
 				Gw:        nil,
 			}},
-			Table: commonAgent.PodVRFIndex,
+			Table: common.PodVRFIndex,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "Error adding route to %s in wg tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
@@ -302,12 +296,12 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err er
 			return errors.Wrapf(err, "Error deleting wireguard peer %s", peer)
 		}
 		err = p.vpp.RouteDel(&types.Route{
-			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
+			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
 				SwIfIndex: p.wireguardTunnel.SwIfIndex,
 				Gw:        nil,
 			}},
-			Table: commonAgent.PodVRFIndex,
+			Table: common.PodVRFIndex,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "Error deleting route to %s in ipip tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)

@@ -20,7 +20,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/connectivity"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -93,27 +92,27 @@ func fromProtoHostEndpoint(hep *proto.HostEndpoint, server *Server) *HostEndpoin
 	return r
 }
 
-func (h *HostEndpoint) handleTunnelChange(tunnelChange connectivity.TunnelChange, pending bool) (err error) {
-	if tunnelChange.ChangeType == connectivity.AddChange {
+func (h *HostEndpoint) handleTunnelChange(swIfIndex uint32, isAdd bool, pending bool) (err error) {
+	if isAdd {
 		newTunnel := true
 		for _, v := range h.TunnelSwIfIndexes {
-			if v == tunnelChange.Swifindex {
+			if v == swIfIndex {
 				newTunnel = false
 			}
 		}
 		if newTunnel {
-			h.TunnelSwIfIndexes = append(h.TunnelSwIfIndexes, tunnelChange.Swifindex)
-			h.server.log.Infof("Configuring policies on added tunnel [%d]", tunnelChange.Swifindex)
+			h.TunnelSwIfIndexes = append(h.TunnelSwIfIndexes, swIfIndex)
+			h.server.log.Infof("Configuring policies on added tunnel [%d]", swIfIndex)
 			if !pending {
-				err = h.server.vpp.ConfigurePolicies(tunnelChange.Swifindex, h.currentForwardConf)
+				err = h.server.vpp.ConfigurePolicies(swIfIndex, h.currentForwardConf)
 				if err != nil {
-					h.server.log.Errorf("cannot configure policies on tunnel interface %d", tunnelChange.Swifindex)
+					h.server.log.Errorf("cannot configure policies on tunnel interface %d", swIfIndex)
 				}
 			}
 		}
 	} else { // delete case
 		for index, existingSwifindex := range h.TunnelSwIfIndexes {
-			if existingSwifindex == tunnelChange.Swifindex {
+			if existingSwifindex == swIfIndex {
 				// we don't delete the policies because they are auto-deleted when interfaces are removed
 				h.TunnelSwIfIndexes = append(h.TunnelSwIfIndexes[:index], h.TunnelSwIfIndexes[index+1:]...)
 			}

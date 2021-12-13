@@ -24,16 +24,21 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
+	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+
+	calicocli "github.com/projectcalico/libcalico-go/lib/client"
+	tomb "gopkg.in/tomb.v2"
 )
 
 type PrefixWatcher struct {
-	*common.RoutingData
-	log *logrus.Entry
+	log         *logrus.Entry
+	client      *calicocli.Client
+	nodeBGPSpec *oldv3.NodeBGPSpec
 }
 
 const (
@@ -43,11 +48,11 @@ const (
 // watchPrefix watches etcd /calico/ipam/v2/host/$NODENAME and add/delete
 // aggregated routes which are assigned to the node.
 // This function also updates policy appropriately.
-func (w *PrefixWatcher) WatchPrefix() error {
+func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 	assignedPrefixes := make(map[string]bool)
 	// There is no need to react instantly to these changes, and the calico API
 	// doesn't provide a way to watch for changes, so we just poll every minute
-	for {
+	for t.Alive() {
 		w.log.Debugf("Reconciliating prefix affinities...")
 		newPrefixes, err := w.getAssignedPrefixes()
 		if err != nil {
@@ -64,7 +69,8 @@ func (w *PrefixWatcher) WatchPrefix() error {
 			} else {
 				w.log.Debugf("New assigned prefix: %s", prefix)
 				newAssignedPrefixes[prefix] = false
-				path, err := common.MakePath(prefix, false /* isWithdrawal */, w.Ipv4, w.Ipv6)
+				ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
+				path, err := common.MakePath(prefix, false /* isWithdrawal */, ip4, ip6)
 				if err != nil {
 					return errors.Wrap(err, "error making new path for assigned prefix")
 				}
@@ -79,7 +85,8 @@ func (w *PrefixWatcher) WatchPrefix() error {
 		for p, stillThere := range assignedPrefixes {
 			if !stillThere {
 				w.log.Infof("Prefix %s is not assigned to us anymore", p)
-				path, err := common.MakePath(p, true /* isWithdrawal */, w.Ipv4, w.Ipv6)
+				ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
+				path, err := common.MakePath(p, true /* isWithdrawal */, ip4, ip6)
 				if err != nil {
 					return errors.Wrap(err, "error making new path for removed prefix")
 				}
@@ -93,6 +100,9 @@ func (w *PrefixWatcher) WatchPrefix() error {
 
 		time.Sleep(prefixWatchInterval)
 	}
+
+	w.log.Infof("Prefix Watcher asked to exit")
+
 	return nil
 }
 
@@ -104,7 +114,7 @@ func (w *PrefixWatcher) getAssignedPrefixes() ([]string, error) {
 	var ps []string
 
 	f := func(ipVersion int) error {
-		blockList, err := w.Client.Backend.List(
+		blockList, err := w.client.Backend.List(
 			context.Background(),
 			model.BlockAffinityListOptions{Host: config.NodeName, IPVersion: ipVersion},
 			"",
@@ -123,12 +133,13 @@ func (w *PrefixWatcher) getAssignedPrefixes() ([]string, error) {
 		return nil
 	}
 
-	if w.Ipv4 != nil {
+	ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
+	if ip4 != nil {
 		if err := f(4); err != nil {
 			return nil, err
 		}
 	}
-	if w.Ipv6 != nil {
+	if ip6 != nil {
 		if err := f(6); err != nil {
 			return nil, err
 		}
@@ -145,6 +156,10 @@ func (w *PrefixWatcher) updateBGPPaths(paths []*bgpapi.Path) error {
 		}
 	}
 	return nil
+}
+
+func (w *PrefixWatcher) OnVppRestart() {
+	/* We don't do anything */
 }
 
 // _updatePrefixSet updates 'aggregated' and 'host' prefix-sets
@@ -180,18 +195,15 @@ func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 		},
 	}
 	if del {
-		err = w.BGPServer.DeleteDefinedSet(
-			context.Background(),
-			&bgpapi.DeleteDefinedSetRequest{DefinedSet: ps, All: false},
-		)
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPDefinedSetDeleted,
+			Old:  ps,
+		})
 	} else {
-		err = w.BGPServer.AddDefinedSet(
-			context.Background(),
-			&bgpapi.AddDefinedSetRequest{DefinedSet: ps},
-		)
-	}
-	if err != nil {
-		return errors.Wrapf(err, "error adding / deleting defined set %+v", ps)
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPDefinedSetAdded,
+			New:  ps,
+		})
 	}
 	// Add all contained prefixes to host prefix set, forbidding the export of containers /32s or /128s
 	max := uint32(32)
@@ -211,40 +223,41 @@ func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 		},
 	}
 	if del {
-		err = w.BGPServer.DeleteDefinedSet(
-			context.Background(),
-			&bgpapi.DeleteDefinedSetRequest{DefinedSet: ps, All: false},
-		)
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPDefinedSetDeleted,
+			Old:  ps,
+		})
 	} else {
-		err = w.BGPServer.AddDefinedSet(
-			context.Background(),
-			&bgpapi.AddDefinedSetRequest{DefinedSet: ps},
-		)
-	}
-	if err != nil {
-		return errors.Wrapf(err, "error adding / deleting defined set %+v", ps)
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPDefinedSetAdded,
+			New:  ps,
+		})
 	}
 
 	// Finally add/remove path to/from the main table to annouce it to our peers
 	if del {
-		err = w.BGPServer.DeletePath(context.Background(), &bgpapi.DeletePathRequest{
-			TableType: bgpapi.TableType_GLOBAL,
-			Path:      path,
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPPathDeleted,
+			Old:  path,
 		})
 	} else {
-		_, err = w.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
-			TableType: bgpapi.TableType_GLOBAL,
-			Path:      path,
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPPathAdded,
+			New:  path,
 		})
 	}
 
-	return errors.Wrapf(err, "error adding / deleting path %+v", path)
+	return nil
 }
 
-func NewPrefixWatcher(routingData *common.RoutingData, log *logrus.Entry) *PrefixWatcher {
+func (w *PrefixWatcher) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+	w.nodeBGPSpec = nodeBGPSpec
+}
+
+func NewPrefixWatcher(client *calicocli.Client, log *logrus.Entry) *PrefixWatcher {
 	w := PrefixWatcher{
-		RoutingData: routingData,
-		log:         log,
+		client: client,
+		log:    log,
 	}
 	return &w
 }

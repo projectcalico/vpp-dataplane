@@ -20,28 +20,27 @@ import (
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"github.com/projectcalico/libcalico-go/lib/watch"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	tomb "gopkg.in/tomb.v2"
+
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 )
 
 type FelixConfWatcher struct {
-	*common.RoutingData
 	log                *logrus.Entry
 	felixConfiguration *calicov3.FelixConfigurationSpec
 	/* Not super pretty but it works... */
 	lastFelixConfigurationVersion string
 	watchedFelixConfName          string
+	clientv3                      calicov3cli.Interface
 }
 
-func (w *FelixConfWatcher) GetFelixConfig() *calicov3.FelixConfigurationSpec {
-	return w.felixConfiguration
-}
-
-func (w *FelixConfWatcher) GetFelixConfiguration() error {
-	felixConfList, err := w.Clientv3.FelixConfigurations().List(context.Background(), options.ListOptions{})
+func (w *FelixConfWatcher) getFelixConfiguration() error {
+	felixConfList, err := w.clientv3.FelixConfigurations().List(context.Background(), options.ListOptions{})
 	if err != nil {
 		w.lastFelixConfigurationVersion = ""
 		return errors.Wrap(err, "Error getting felix config")
@@ -59,47 +58,55 @@ func (w *FelixConfWatcher) GetFelixConfiguration() error {
 }
 
 func (w *FelixConfWatcher) handleFelixConfigurationUpdate(old, new *calicov3.FelixConfigurationSpec) {
-	w.ConnectivityEventChan <- common.ConnectivityEvent{
+	common.SendEvent(common.CalicoVppEvent{
 		Type: common.FelixConfChanged,
 		Old:  old,
 		New:  new,
-	}
+	})
 }
 
-func (w *FelixConfWatcher) WatchFelixConfiguration() error {
-	for {
+func (w *FelixConfWatcher) OnVppRestart() {
+	/* We don't do anything */
+}
+
+func (w *FelixConfWatcher) WatchFelixConfiguration(t *tomb.Tomb) error {
+	for t.Alive() {
 		var felixConfigWatcher watch.Interface = nil
 		var eventChannel <-chan watch.Event = nil
-		err := w.GetFelixConfiguration()
+		err := w.getFelixConfiguration()
 		if err != nil {
 			w.log.Errorf("Error getting initial Felix config %s", err)
 			goto restart
 		}
-		felixConfigWatcher, err = w.Clientv3.FelixConfigurations().Watch(
+		felixConfigWatcher, err = w.clientv3.FelixConfigurations().Watch(
 			context.Background(),
 			options.ListOptions{ResourceVersion: w.lastFelixConfigurationVersion},
 		)
 		if err != nil {
 			return err
-			goto restart
 		}
 		eventChannel = felixConfigWatcher.ResultChan()
 		for {
-			update, ok := <-eventChannel
-			if !ok {
-				eventChannel = nil
-				goto restart
-			}
-			switch update.Type {
-			case watch.Error:
-				w.log.Infof("FelixConfig watch returned an error %v", update)
-				goto restart
-			case watch.Added, watch.Modified:
-				felix := update.Object.(*calicov3.FelixConfiguration)
-				w.handleFelixConfigurationUpdate(w.felixConfiguration, &felix.Spec)
-				w.felixConfiguration = &felix.Spec
-			case watch.Deleted:
-				w.log.Infof("FelixConfig watch returned delete")
+			select {
+			case <-t.Dying():
+				w.log.Infof("FelixConfig Watcher asked to stop")
+				return nil
+			case update, ok := <-eventChannel:
+				if !ok {
+					eventChannel = nil
+					goto restart
+				}
+				switch update.Type {
+				case watch.Error:
+					w.log.Infof("FelixConfig watch returned an error %v", update)
+					goto restart
+				case watch.Added, watch.Modified:
+					felix := update.Object.(*calicov3.FelixConfiguration)
+					w.handleFelixConfigurationUpdate(w.felixConfiguration, &felix.Spec)
+					w.felixConfiguration = &felix.Spec
+				case watch.Deleted:
+					w.log.Infof("FelixConfig watch returned delete")
+				}
 			}
 		}
 	restart:
@@ -109,13 +116,15 @@ func (w *FelixConfWatcher) WatchFelixConfiguration() error {
 		}
 		time.Sleep(2 * time.Second)
 	}
+	w.log.Infof("Felixconfig Watcher asked to stop")
+
 	return nil
 }
 
-func NewFelixConfWatcher(routingData *common.RoutingData, log *logrus.Entry) *FelixConfWatcher {
+func NewFelixConfWatcher(clientv3 calicov3cli.Interface, log *logrus.Entry) *FelixConfWatcher {
 	w := FelixConfWatcher{
-		RoutingData:          routingData,
 		log:                  log,
+		clientv3:             clientv3,
 		watchedFelixConfName: "default",
 	}
 	return &w

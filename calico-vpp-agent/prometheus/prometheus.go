@@ -28,10 +28,13 @@ import (
 	"git.fd.io/govpp.git/adapter"
 	"git.fd.io/govpp.git/adapter/statsclient"
 	metricspb "github.com/census-instrumentation/opencensus-proto/gen-go/metrics/v1"
-	"github.com/orijtech/prometheus-go-metrics-exporter"
+	prometheusExporter "github.com/orijtech/prometheus-go-metrics-exporter"
+	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
+	tomb "gopkg.in/tomb.v2"
 )
 
 type Event int
@@ -49,17 +52,12 @@ type Server struct {
 	podInterfacesBySwifIndex map[uint32]storage.LocalPodSpec
 	podInterfacesByKey       map[string]storage.LocalPodSpec
 	sc                       *statsclient.StatsClient
-	channel                  chan PodSpecEvent
+	channel                  chan common.CalicoVppEvent
 	lock                     sync.Mutex
 }
 
-type PodSpecEvent struct {
-	Event Event
-	Pod   storage.LocalPodSpec
-}
-
-func (s *Server) recordMetrics() {
-	pe, err := prometheus.New(prometheus.Options{})
+func (s *Server) recordMetrics(t *tomb.Tomb) {
+	pe, err := prometheusExporter.New(prometheusExporter.Options{})
 	if err != nil {
 		log.Fatalf("Failed to create new exporter: %v", err)
 	}
@@ -68,7 +66,7 @@ func (s *Server) recordMetrics() {
 	go func() {
 		http.ListenAndServe(":8888", mux)
 	}()
-	for {
+	for t.Alive() {
 		time.Sleep(time.Second * time.Duration(recordMetricInterval))
 		ifNames, dumpStats, _ := vpplink.GetInterfaceStats(s.sc)
 		for _, sta := range dumpStats {
@@ -120,7 +118,7 @@ var descriptions = map[string]string{
 	"tx_no_buf": "total number of tx mbuf allocation failures",
 }
 
-func (s *Server) exportMetricsForStat(names []string, sta adapter.StatEntry, ifNames adapter.NameStat, pe *prometheus.Exporter) {
+func (s *Server) exportMetricsForStat(names []string, sta adapter.StatEntry, ifNames adapter.NameStat, pe *prometheusExporter.Exporter) {
 	for k, name := range names {
 		description, ok := descriptions[name]
 		if !ok {
@@ -192,40 +190,40 @@ func getTimeSeries(worker int, pod storage.LocalPodSpec, value float64) *metrics
 	}
 }
 
-func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
+func (s *Server) OnVppRestart() {
+	/* todo : we should recreate the stats client */
+}
+
+func NewPrometheusServer(vpp *vpplink.VppLink, l *logrus.Entry) *Server {
 	server := &Server{
 		log:                      l,
 		vpp:                      vpp,
-		channel:                  make(chan PodSpecEvent, 10),
+		channel:                  make(chan common.CalicoVppEvent, 10),
 		podInterfacesByKey:       make(map[string]storage.LocalPodSpec),
 		podInterfacesBySwifIndex: make(map[uint32]storage.LocalPodSpec),
 	}
-	return server, nil
+	reg := common.RegisterHandler(server.channel, "prometheus events")
+	reg.ExpectEvents(common.PodAdded, common.PodDeleted)
+	return server
 }
 
-// PodAdded is called by the CNI server when a vpp interface is added
-func (s *Server) PodAdded(podSpec *storage.LocalPodSpec) {
-	s.channel <- PodSpecEvent{Event: Add, Pod: *podSpec}
-}
-
-// PodRemoved is called by the CNI server when a vpp interface is deleted
-func (s *Server) PodRemoved(podSpec *storage.LocalPodSpec) {
-	s.channel <- PodSpecEvent{Event: Delete, Pod: *podSpec}
-}
-
-func (s *Server) Serve() {
+func (s *Server) ServePrometheus(t *tomb.Tomb) error {
 	s.log.Infof("Serve() Prometheus exporter")
 	go func() {
-		for {
-			event := <-s.channel
-			if event.Event == Add {
+		for t.Alive() {
+			/* Note: we will only receive events we ask for when registering the chan */
+			evt := <-s.channel
+			switch evt.Type {
+			case common.PodAdded:
+				podSpec := evt.New.(*storage.LocalPodSpec)
 				s.lock.Lock()
-				s.podInterfacesBySwifIndex[event.Pod.TunTapSwIfIndex] = event.Pod
-				s.podInterfacesByKey[event.Pod.Key()] = event.Pod
+				s.podInterfacesBySwifIndex[podSpec.TunTapSwIfIndex] = *podSpec
+				s.podInterfacesByKey[podSpec.Key()] = *podSpec
 				s.lock.Unlock()
-			} else if event.Event == Delete {
+			case common.PodDeleted:
 				s.lock.Lock()
-				initialPod := s.podInterfacesByKey[event.Pod.Key()]
+				podSpec := evt.Old.(*storage.LocalPodSpec)
+				initialPod := s.podInterfacesByKey[podSpec.Key()]
 				delete(s.podInterfacesByKey, initialPod.Key())
 				delete(s.podInterfacesBySwifIndex, initialPod.TunTapSwIfIndex)
 				s.lock.Unlock()
@@ -235,8 +233,11 @@ func (s *Server) Serve() {
 	s.sc = statsclient.NewStatsClient("")
 	err := s.sc.Connect()
 	if err != nil {
-		s.log.WithError(err).Errorf("could not connect statsclient")
-		return
+		return errors.Wrap(err, "could not connect statsclient")
 	}
-	s.recordMetrics()
+	s.recordMetrics(t)
+
+	s.log.Infof("Prometheus Server returned")
+
+	return nil
 }

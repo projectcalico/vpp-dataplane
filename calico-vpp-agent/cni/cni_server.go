@@ -27,30 +27,26 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/prometheus"
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	tomb "gopkg.in/tomb.v2"
 )
 
 type Server struct {
 	*common.CalicoVppServerData
-	log              *logrus.Entry
-	vpp              *vpplink.VppLink
-	grpcServer       *grpc.Server
-	client           *kubernetes.Clientset
-	socketListener   net.Listener
-	routingServer    *routing.Server
-	policyServer     *policy.Server
-	prometheusServer *prometheus.Server
-	podInterfaceMap  map[string]storage.LocalPodSpec
-	/* without main thread */
-	lock           sync.Mutex
+	log *logrus.Entry
+	vpp *vpplink.VppLink
+
+	ipam watchers.IpamCache
+
+	grpcServer *grpc.Server
+
+	podInterfaceMap map[string]storage.LocalPodSpec
+	lock            sync.Mutex /* protects Add/DelVppInterace/OnVppRestart/RescanState */
+
 	memifDriver    *pod_interface.MemifPodInterfaceDriver
 	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
 	vclDriver      *pod_interface.VclPodInterfaceDriver
@@ -153,7 +149,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 		}, nil
 	}
 
-	s.BarrierSync()
+	common.WaitIfVppIsRestarting()
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -167,6 +163,10 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 			ErrorMessage: err.Error(),
 		}, nil
 	}
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PodAdded,
+		New:  podSpec,
+	})
 
 	s.podInterfaceMap[podSpec.Key()] = *podSpec
 	err = storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile)
@@ -181,10 +181,6 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 		HostInterfaceName: swIfIdxToIfName(swIfIndex),
 		ContainerMac:      "02:00:00:00:00:00",
 	}, nil
-}
-
-func (p *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
-	return p.routingServer.IPNetNeedsSNAT(prefix)
 }
 
 func (s *Server) FetchNDataThreads() {
@@ -207,6 +203,12 @@ func (s *Server) FetchNDataThreads() {
 }
 
 func (s *Server) rescanState() error {
+	availableBuffers, _, _, err := s.vpp.GetBufferStats()
+	if err != nil {
+		s.log.WithError(err).Errorf("could not get available buffers")
+	}
+	s.availableBuffers = uint64(availableBuffers)
+
 	s.FetchNDataThreads()
 
 	if config.VCLEnabled {
@@ -224,6 +226,8 @@ func (s *Server) rescanState() error {
 	}
 
 	s.log.Infof("RescanState: re-creating all interfaces")
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	for _, podSpec := range podSpecs {
 		_, err2 := s.AddVppInterface(&podSpec, false /* doHostSideConf */)
 		if err2 != nil {
@@ -246,6 +250,8 @@ func (s *Server) OnVppRestart() {
 			s.log.Errorf("Error initializing VCL %v", err)
 		}
 	}
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	for name, podSpec := range s.podInterfaceMap {
 		_, err := s.AddVppInterface(&podSpec, false /* doHostSideConf */)
 		if err != nil {
@@ -263,7 +269,7 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 			Successful: true,
 		}, nil
 	}
-	s.BarrierSync()
+	common.WaitIfVppIsRestarting()
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -272,11 +278,6 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 	if !ok {
 		s.log.Warnf("Unknown pod to delete")
 	} else {
-		s.policyServer.WorkloadRemoved(&policy.WorkloadEndpointID{
-			OrchestratorID: initialSpec.OrchestratorID,
-			WorkloadID:     initialSpec.WorkloadID,
-			EndpointID:     initialSpec.EndpointID,
-		}, initialSpec.GetContainerIps())
 		s.log.Infof("Deleting pod %s", initialSpec.String())
 		s.DelVppInterface(&initialSpec)
 		s.log.Infof("Done Deleting pod %s", initialSpec.String())
@@ -287,64 +288,53 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
+
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PodDeleted,
+		Old:  &initialSpec,
+	})
+
 	return &pb.DelReply{
 		Successful: true,
 	}, nil
 }
 
-func (s *Server) Stop() {
+// Serve runs the grpc server for the Calico CNI backend API
+func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Entry) *Server {
+	server := &Server{
+		vpp: vpp,
+		log: log,
+
+		ipam: ipam,
+
+		grpcServer:      grpc.NewServer(),
+		podInterfaceMap: make(map[string]storage.LocalPodSpec),
+		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(vpp, log),
+		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(vpp, log),
+		vclDriver:       pod_interface.NewVclPodInterfaceDriver(vpp, log),
+		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(vpp, log),
+	}
+	return server
+}
+
+func (s *Server) ServeCNI(t *tomb.Tomb) error {
+	syscall.Unlink(config.CNIServerSocket)
+	socketListener, err := net.Listen("unix", config.CNIServerSocket)
+	if err != nil {
+		return errors.Wrapf(err, "failed to listen on %s", config.CNIServerSocket)
+	}
+
+	pb.RegisterCniDataplaneServer(s.grpcServer, s)
+	s.rescanState()
+
+	s.log.Infof("Serve() CNI")
+	go s.grpcServer.Serve(socketListener)
+
+	<-t.Dying()
+
+	s.log.Infof("CNI Server returned")
+
 	s.grpcServer.GracefulStop()
 	syscall.Unlink(config.CNIServerSocket)
-}
-
-// Serve runs the grpc server for the Calico CNI backend API
-func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, prs *prometheus.Server, l *logrus.Entry) (*Server, error) {
-	clusterConfig, err := rest.InClusterConfig()
-	if err != nil {
-		panic(err.Error())
-	}
-	client, err := kubernetes.NewForConfig(clusterConfig)
-	if err != nil {
-		panic(err.Error())
-	}
-	syscall.Unlink(config.CNIServerSocket)
-	lis, err := net.Listen("unix", config.CNIServerSocket)
-	if err != nil {
-		l.Fatalf("failed to listen on %s: %v", config.CNIServerSocket, err)
-		return nil, err
-	}
-
-	server := &Server{
-		vpp:              v,
-		log:              l,
-		routingServer:    rs,
-		policyServer:     ps,
-		prometheusServer: prs,
-		socketListener:   lis,
-		client:           client,
-		grpcServer:       grpc.NewServer(),
-		podInterfaceMap:  make(map[string]storage.LocalPodSpec),
-		tuntapDriver:     pod_interface.NewTunTapPodInterfaceDriver(v, l),
-		memifDriver:      pod_interface.NewMemifPodInterfaceDriver(v, l),
-		vclDriver:        pod_interface.NewVclPodInterfaceDriver(v, l),
-		loopbackDriver:   pod_interface.NewLoopbackPodInterfaceDriver(v, l),
-	}
-	pb.RegisterCniDataplaneServer(server.grpcServer, server)
-	l.Infof("Server starting")
-
-	availableBuffers, _, _, err := v.GetBufferStats()
-	if err != nil {
-		server.log.WithError(err).Errorf("could not get available buffers")
-	}
-	server.availableBuffers = uint64(availableBuffers)
-	return server, nil
-}
-
-func (s *Server) Serve() {
-	s.rescanState()
-	s.log.Infof("Serve() CNI")
-	err := s.grpcServer.Serve(s.socketListener)
-	if err != nil {
-		s.log.Fatalf("Failed to serve: %v", err)
-	}
+	return nil
 }
