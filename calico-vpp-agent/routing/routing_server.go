@@ -189,6 +189,7 @@ func (s *Server) serveOne() error {
 
 	s.ipam.WaitReady()
 	ServerRunning <- 1
+	s.log.Infof("Routing server is running ")
 	<-s.t.Dying()
 	s.log.Warnf("routing tomb returned %v", s.t.Err())
 

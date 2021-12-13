@@ -16,6 +16,7 @@
 package pod_interface
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -43,7 +44,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		i.DeleteInterface(podSpec)
 	}
 
-	socketId, err := i.vpp.AddMemifSocketFileName(config.MemifSocketName, podSpec.NetnsName)
+	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("@netns:%s%s", podSpec.NetnsName, config.MemifSocketName))
 	if err != nil {
 		return err
 	} else {

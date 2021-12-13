@@ -165,11 +165,11 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	response := &vppip.IPRouteAddDelReply{}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return errors.Wrapf(err, "failed to add/delete (%d) route from VPP", isAdd)
+		return errors.Wrapf(err, "failed to %s route from VPP", IsAddToStr(isAdd))
 	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to add/delete (%v) route from VPP (retval %d)", isAdd, response.Retval)
+		return fmt.Errorf("failed to %s route from VPP (retval %d)", IsAddToStr(isAdd), response.Retval)
 	}
-	v.log.Debugf("added/deleted (%d) route %+v", isAdd, route)
+	v.log.Debugf("%sed route %+v", IsAddToStr(isAdd), route)
 	return nil
 }
 

@@ -103,3 +103,11 @@ func BoolToU8(b bool) uint8 {
 		return 0
 	}
 }
+
+func IsAddToStr(isAdd bool) string {
+	if isAdd {
+		return "add"
+	} else {
+		return "delete"
+	}
+}
