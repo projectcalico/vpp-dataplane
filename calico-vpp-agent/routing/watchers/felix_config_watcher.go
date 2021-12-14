@@ -66,7 +66,7 @@ func (w *FelixConfWatcher) handleFelixConfigurationUpdate(old, new *calicov3.Fel
 	}
 }
 
-func (w *FelixConfWatcher) WatchFelixConfiguration() error {
+func (w *FelixConfWatcher) WatchFelixConfiguration(dying <-chan struct{}) error {
 	for {
 		var felixConfigWatcher watch.Interface = nil
 		var eventChannel <-chan watch.Event = nil
@@ -85,21 +85,26 @@ func (w *FelixConfWatcher) WatchFelixConfiguration() error {
 		}
 		eventChannel = felixConfigWatcher.ResultChan()
 		for {
-			update, ok := <-eventChannel
-			if !ok {
-				eventChannel = nil
-				goto restart
-			}
-			switch update.Type {
-			case watch.Error:
-				w.log.Infof("FelixConfig watch returned an error %v", update)
-				goto restart
-			case watch.Added, watch.Modified:
-				felix := update.Object.(*calicov3.FelixConfiguration)
-				w.handleFelixConfigurationUpdate(w.felixConfiguration, &felix.Spec)
-				w.felixConfiguration = &felix.Spec
-			case watch.Deleted:
-				w.log.Infof("FelixConfig watch returned delete")
+			select {
+			case update, ok := <-eventChannel:
+				if !ok {
+					eventChannel = nil
+					goto restart
+				}
+				switch update.Type {
+				case watch.Error:
+					w.log.Infof("FelixConfig watch returned an error %v", update)
+					goto restart
+				case watch.Added, watch.Modified:
+					felix := update.Object.(*calicov3.FelixConfiguration)
+					w.handleFelixConfigurationUpdate(w.felixConfiguration, &felix.Spec)
+					w.felixConfiguration = &felix.Spec
+				case watch.Deleted:
+					w.log.Infof("FelixConfig watch returned delete")
+				}
+			case <-dying:
+				w.log.Infof("felix conf watcher DYING...")
+				return nil
 			}
 		}
 	restart:

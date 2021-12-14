@@ -172,10 +172,16 @@ func (s *Server) createAndStartBGP() error {
 	s.bgpServerRunningCond.L.Unlock()
 	s.bgpServerRunningCond.Broadcast()
 
-	s.t.Go(func() error { s.routingData.BGPServer.Serve(); return fmt.Errorf("bgpServer Serve returned") })
+	s.t.Go(func() error { return s.runBGPServer(s.t.Dying()) })
 
 	return s.routingData.BGPServer.StartBgp(
 		context.Background(),
 		&bgpapi.StartBgpRequest{Global: globalConfig},
 	)
+}
+
+func (s *Server) runBGPServer(dying <-chan struct{}) error {
+	go func() error { s.routingData.BGPServer.Serve(); return fmt.Errorf("bgpServer Serve returned") }()
+	<-dying
+	return nil
 }

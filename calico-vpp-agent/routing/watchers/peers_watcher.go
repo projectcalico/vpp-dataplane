@@ -117,7 +117,7 @@ func (w *PeerWatcher) selectPeers(nodes []*oldv3.Node, peerSelector string) map[
 // This function watches BGP peers configured in Calico
 // These peers are configured in GoBGP in addition to the other nodes in the cluster
 // They may also control which nodes to pair with if the peerSelector is set
-func (w *PeerWatcher) WatchBGPPeers() error {
+func (w *PeerWatcher) WatchBGPPeers(dying <-chan struct{}) error {
 	state := make(map[string]*bgpPeer)
 
 	for {
@@ -215,6 +215,9 @@ func (w *PeerWatcher) WatchBGPPeers() error {
 			w.log.Debug("Peers updated, reevaluating peerings")
 		case <-w.nodeUpdates:
 			w.log.Debug("Nodes updated, reevaluating peerings")
+		case <-dying:
+			w.log.Infof("peers watcher DYING...")
+			return nil
 		}
 	}
 }

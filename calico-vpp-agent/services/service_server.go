@@ -51,6 +51,7 @@ type Server struct {
 	log              *logrus.Entry
 	vpp              *vpplink.VppLink
 	t                tomb.Tomb
+	mainTombDying    <-chan struct{}
 	endpointStore    cache.Store
 	serviceStore     cache.Store
 	serviceInformer  cache.Controller
@@ -92,7 +93,7 @@ func (s *Server) setSpecAddresses(nodeSpec *calicov3.NodeSpec) {
 	}
 }
 
-func NewServer(vpp *vpplink.VppLink, rs *routing.Server, log *logrus.Entry) (*Server, error) {
+func NewServer(vpp *vpplink.VppLink, rs *routing.Server, log *logrus.Entry, dying <-chan struct{}) (*Server, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
@@ -106,11 +107,12 @@ func NewServer(vpp *vpplink.VppLink, rs *routing.Server, log *logrus.Entry) (*Se
 		panic(err.Error())
 	}
 	server := Server{
-		clientv3: calicoCliV3,
-		client:   client,
-		vpp:      vpp,
-		log:      log,
-		rs:       rs,
+		clientv3:      calicoCliV3,
+		client:        client,
+		vpp:           vpp,
+		log:           log,
+		rs:            rs,
+		mainTombDying: dying,
 	}
 	node, err := calicoCliV3.Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
 	if err != nil {
@@ -319,7 +321,13 @@ func (s *Server) Serve() {
 
 	s.t.Go(func() error { s.serviceInformer.Run(s.t.Dying()); return nil })
 	s.t.Go(func() error { s.endpointInformer.Run(s.t.Dying()); return nil })
-	<-s.t.Dying()
+	select {
+	case <-s.t.Dead():
+	case <-s.mainTombDying:
+		s.Stop()
+		s.log.Infof("serviceServer DYING...")
+		return
+	}
 }
 
 func (s *Server) Stop() {

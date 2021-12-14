@@ -43,55 +43,61 @@ const (
 // watchPrefix watches etcd /calico/ipam/v2/host/$NODENAME and add/delete
 // aggregated routes which are assigned to the node.
 // This function also updates policy appropriately.
-func (w *PrefixWatcher) WatchPrefix() error {
+func (w *PrefixWatcher) WatchPrefix(dying <-chan struct{}) error {
 	assignedPrefixes := make(map[string]bool)
 	// There is no need to react instantly to these changes, and the calico API
 	// doesn't provide a way to watch for changes, so we just poll every minute
+	ticker := time.NewTicker(prefixWatchInterval)
 	for {
-		w.log.Debugf("Reconciliating prefix affinities...")
-		newPrefixes, err := w.getAssignedPrefixes()
-		if err != nil {
-			return errors.Wrap(err, "error getting assigned prefixes")
-		}
-		w.log.Debugf("Found %d assigned prefixes", len(newPrefixes))
-		newAssignedPrefixes := make(map[string]bool)
-		var toAdd []*bgpapi.Path
-		for _, prefix := range newPrefixes {
-			if _, found := assignedPrefixes[prefix]; found {
-				w.log.Debugf("Prefix %s is still assigned to us", prefix)
-				assignedPrefixes[prefix] = true     // Prefix is still there, set value to true so we don't delete it
-				newAssignedPrefixes[prefix] = false // Record it in new map
-			} else {
-				w.log.Debugf("New assigned prefix: %s", prefix)
-				newAssignedPrefixes[prefix] = false
-				path, err := common.MakePath(prefix, false /* isWithdrawal */, w.Ipv4, w.Ipv6)
-				if err != nil {
-					return errors.Wrap(err, "error making new path for assigned prefix")
-				}
-				toAdd = append(toAdd, path)
+		select {
+		case <-dying:
+			ticker.Stop()
+			w.log.Infof("prefix watcher DYING...")
+			return nil
+		case <- ticker.C:
+			w.log.Debugf("Reconciliating prefix affinities...")
+			newPrefixes, err := w.getAssignedPrefixes()
+			if err != nil {
+				return errors.Wrap(err, "error getting assigned prefixes")
 			}
-		}
-		if err = w.updateBGPPaths(toAdd); err != nil {
-			return errors.Wrap(err, "error adding prefix announcements")
-		}
-		// Remove paths that don't exist anymore
-		var toRemove []*bgpapi.Path
-		for p, stillThere := range assignedPrefixes {
-			if !stillThere {
-				w.log.Infof("Prefix %s is not assigned to us anymore", p)
-				path, err := common.MakePath(p, true /* isWithdrawal */, w.Ipv4, w.Ipv6)
-				if err != nil {
-					return errors.Wrap(err, "error making new path for removed prefix")
+			w.log.Debugf("Found %d assigned prefixes", len(newPrefixes))
+			newAssignedPrefixes := make(map[string]bool)
+			var toAdd []*bgpapi.Path
+			for _, prefix := range newPrefixes {
+				if _, found := assignedPrefixes[prefix]; found {
+					w.log.Debugf("Prefix %s is still assigned to us", prefix)
+					assignedPrefixes[prefix] = true     // Prefix is still there, set value to true so we don't delete it
+					newAssignedPrefixes[prefix] = false // Record it in new map
+				} else {
+					w.log.Debugf("New assigned prefix: %s", prefix)
+					newAssignedPrefixes[prefix] = false
+					path, err := common.MakePath(prefix, false /* isWithdrawal */, w.Ipv4, w.Ipv6)
+					if err != nil {
+						return errors.Wrap(err, "error making new path for assigned prefix")
+					}
+					toAdd = append(toAdd, path)
 				}
-				toRemove = append(toRemove, path)
 			}
+			if err = w.updateBGPPaths(toAdd); err != nil {
+				return errors.Wrap(err, "error adding prefix announcements")
+			}
+			// Remove paths that don't exist anymore
+			var toRemove []*bgpapi.Path
+			for p, stillThere := range assignedPrefixes {
+				if !stillThere {
+					w.log.Infof("Prefix %s is not assigned to us anymore", p)
+					path, err := common.MakePath(p, true /* isWithdrawal */, w.Ipv4, w.Ipv6)
+					if err != nil {
+						return errors.Wrap(err, "error making new path for removed prefix")
+					}
+					toRemove = append(toRemove, path)
+				}
+			}
+			if err = w.updateBGPPaths(toRemove); err != nil {
+				return errors.Wrap(err, "error removing prefix announcements")
+			}
+			assignedPrefixes = newAssignedPrefixes
 		}
-		if err = w.updateBGPPaths(toRemove); err != nil {
-			return errors.Wrap(err, "error removing prefix announcements")
-		}
-		assignedPrefixes = newAssignedPrefixes
-
-		time.Sleep(prefixWatchInterval)
 	}
 	return nil
 }

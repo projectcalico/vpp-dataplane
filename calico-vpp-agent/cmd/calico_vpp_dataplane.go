@@ -16,6 +16,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -28,6 +29,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/tomb.v2"
 )
 
 /*
@@ -41,6 +43,7 @@ import (
 
 func main() {
 	log := logrus.New()
+	var mainTomb tomb.Tomb
 	signalChannel := make(chan os.Signal, 2)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 
@@ -72,22 +75,22 @@ func main() {
 		return
 	}
 
-	routingServer, err := routing.NewServer(vpp, log.WithFields(logrus.Fields{"component": "routing"}))
+	routingServer, err := routing.NewServer(vpp, log.WithFields(logrus.Fields{"component": "routing"}), mainTomb.Dying())
 	if err != nil {
 		log.Errorf("Failed to create routing server")
 		log.Fatal(err)
 	}
-	serviceServer, err := services.NewServer(vpp, routingServer, log.WithFields(logrus.Fields{"component": "services"}))
+	serviceServer, err := services.NewServer(vpp, routingServer, log.WithFields(logrus.Fields{"component": "services"}), mainTomb.Dying())
 	if err != nil {
 		log.Errorf("Failed to create services server")
 		log.Fatal(err)
 	}
-	policyServer, err := policy.NewServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}), routingServer)
+	policyServer, err := policy.NewServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}), routingServer, mainTomb.Dying())
 	if err != nil {
 		log.Errorf("Failed to create policy server")
 		log.Fatal(err)
 	}
-	prometheusServer, err := prometheus.NewServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
+	prometheusServer, err := prometheus.NewServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}), mainTomb.Dying())
 	if err != nil {
 		log.Errorf("Failed to create Prometheus server")
 		log.Fatal(err)
@@ -98,30 +101,47 @@ func main() {
 		policyServer,
 		prometheusServer,
 		log.WithFields(logrus.Fields{"component": "cni"}),
+		mainTomb.Dying(),
 	)
 	if err != nil {
 		log.Errorf("Failed to create CNI server")
 		log.Fatal(err)
 	}
 
-	go routingServer.Serve()
+	mainTomb.Go(func() error {
+		routingServer.Serve()
+		return fmt.Errorf("routing Server exited")
+	})
 	<-routing.ServerRunning
 
-	go policyServer.Serve()
+	mainTomb.Go(func() error {
+		policyServer.Serve()
+		return fmt.Errorf("policy Server exited")
+	})
 	// Felix Config will be sent by the policy server
 	config.WaitForFelixConfig()
 	config.PrintAgentConfig(log)
 
-	go serviceServer.Serve()
-	go cniServer.Serve()
-	go prometheusServer.Serve()
+	mainTomb.Go(func() error {
+		serviceServer.Serve()
+		return fmt.Errorf("service Server exited")
+	})
+	mainTomb.Go(func() error {
+		cniServer.Serve()
+		return fmt.Errorf("cni Server exited")
+	})
+	mainTomb.Go(func() error {
+		prometheusServer.Serve()
+		return fmt.Errorf("prometheus Server exited")
+	})
 
 	go common.HandleVppManagerRestart(log, vpp, routingServer, cniServer, serviceServer, policyServer)
 
-	<-signalChannel
-	log.Infof("SIGINT received, exiting")
-	routingServer.Stop()
-	cniServer.Stop()
-	serviceServer.Stop()
+	select {
+	case <-mainTomb.Dead():
+		log.Infof("Servers dead, exiting")
+	case <-signalChannel:
+		log.Infof("SIGINT received, exiting")
+	}
 	vpp.Close()
 }

@@ -58,6 +58,7 @@ type Server struct {
 	*common.CalicoVppServerData
 	log            *logrus.Entry
 	vpp            *vpplink.VppLink
+	mainTombDying  <-chan struct{}
 	calico         calicov3.Interface
 	vppRestarted   chan bool
 	felixRestarted chan bool
@@ -88,7 +89,7 @@ type Server struct {
 }
 
 // NewServer creates a policy server
-func NewServer(vpp *vpplink.VppLink, log *logrus.Entry, rs *routing.Server) (*Server, error) {
+func NewServer(vpp *vpplink.VppLink, log *logrus.Entry, rs *routing.Server, dying <-chan struct{}) (*Server, error) {
 	calico, err := calicov3.NewFromEnv()
 	if err != nil {
 		panic(err.Error())
@@ -101,6 +102,7 @@ func NewServer(vpp *vpplink.VppLink, log *logrus.Entry, rs *routing.Server) (*Se
 	server := &Server{
 		log:            log,
 		vpp:            vpp,
+		mainTombDying:  dying,
 		calico:         calico,
 		vppRestarted:   make(chan bool),
 		felixRestarted: make(chan bool),
@@ -348,6 +350,9 @@ func (s *Server) Serve() {
 		go s.SyncPolicy(conn)
 
 		select {
+		case <-s.mainTombDying:
+			s.log.Infof("policyServer DYING...")
+			return
 		case <-s.vppRestarted:
 			// Close connection to restart felix, wipe all data and start over
 			s.log.Infof("VPP restarted, triggering Felix restart")
@@ -467,6 +472,8 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 					err = s.handleNamespaceUpdate(m, pending)
 				case *proto.NamespaceRemove:
 					err = s.handleNamespaceRemove(m, pending)
+				case *proto.GlobalBGPConfigUpdate:
+					err = s.handleGlobalBGPConfigUpdate(m, pending)
 				default:
 					s.log.Warnf("Unhandled message from felix: %v", m)
 				}
@@ -845,6 +852,12 @@ func (s *Server) handleNamespaceUpdate(msg *proto.NamespaceUpdate, pending bool)
 
 func (s *Server) handleNamespaceRemove(msg *proto.NamespaceRemove, pending bool) (err error) {
 	s.log.Infof("Ignoring NamespaceRemove")
+	return nil
+}
+
+func (s *Server) handleGlobalBGPConfigUpdate(msg *proto.GlobalBGPConfigUpdate, pending bool) (err error) {
+	s.log.Infof("Got GlobalBGPConfigUpdate")
+	s.routingServer.BGPConfUpdate <- 1
 	return nil
 }
 

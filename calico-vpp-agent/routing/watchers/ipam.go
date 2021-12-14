@@ -53,7 +53,7 @@ func equalPools(a *calicov3.IPPool, b *calicov3.IPPool) bool {
 
 type IpamCache interface {
 	GetPrefixIPPool(*net.IPNet) *calicov3.IPPool
-	SyncIPAM() error
+	SyncIPAM(dying <-chan struct{}) error
 	WaitReady()
 	OnVppRestart() error
 	IPNetNeedsSNAT(prefix *net.IPNet) bool
@@ -128,7 +128,7 @@ func (c *ipamCache) handleIPPoolUpdate(pool calicov3.IPPool, del bool) error {
 }
 
 // sync synchronizes the IP pools stored under /calico/v1/ipam
-func (c *ipamCache) SyncIPAM() error {
+func (c *ipamCache) SyncIPAM(dying <-chan struct{}) error {
 	for {
 		c.log.Info("Reconciliating pools...")
 		poolsList, err := c.Clientv3.IPPools().List(context.Background(), options.ListOptions{})
@@ -169,20 +169,28 @@ func (c *ipamCache) SyncIPAM() error {
 			return errors.Wrap(err, "error watching pools")
 		}
 	watch:
-		for update := range poolsWatcher.ResultChan() {
-			del := false
-			pool := update.Object
-			switch update.Type {
-			case watch.Error:
-				c.log.Infof("ipam watch returned an error")
-				break watch
-			case watch.Deleted:
-				del = true
-				pool = update.Previous
-			case watch.Added, watch.Modified:
-			}
-			if err = c.handleIPPoolUpdate(*pool.(*calicov3.IPPool), del); err != nil {
-				return errors.Wrap(err, "error processing pool update")
+		for {
+			select {
+			case <-dying:
+				c.log.Infof("ipam watcher DYING.sss..")
+				return nil
+			case update, closed := <-poolsWatcher.ResultChan():
+				if !closed {
+					del := false
+					pool := update.Object
+					switch update.Type {
+					case watch.Error:
+						c.log.Infof("ipam watch returned an error")
+						break watch
+					case watch.Deleted:
+						del = true
+						pool = update.Previous
+					case watch.Added, watch.Modified:
+					}
+					if err = c.handleIPPoolUpdate(*pool.(*calicov3.IPPool), del); err != nil {
+						return errors.Wrap(err, "error processing pool update")
+					}
+				}
 			}
 		}
 	}

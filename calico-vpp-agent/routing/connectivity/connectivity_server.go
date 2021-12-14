@@ -115,72 +115,77 @@ func (s *ConnectivityServer) updateAllIPConnectivity() {
 	}
 }
 
-func (s *ConnectivityServer) ServeConnectivity() error {
+func (s *ConnectivityServer) ServeConnectivity(dying <-chan struct{}) error {
 	for {
-		evt := <-s.ConnectivityEventChan
-		switch evt.Type {
-		case common.ConnectivtyAdded:
-			new := evt.New.(*common.NodeConnectivity)
-			err := s.updateIPConnectivity(new, false /* isWithdraw */)
-			if err != nil {
-				s.log.Errorf("Error while adding connectivity %s", err)
-			}
-		case common.ConnectivtyDeleted:
-			old := evt.Old.(*common.NodeConnectivity)
-			err := s.updateIPConnectivity(old, true /* isWithdraw */)
-			if err != nil {
-				s.log.Errorf("Error while deleting connectivity %s", err)
-			}
-		case common.NodeStateChanged:
-			old := evt.Old.(*common.NodeState)
-			new := evt.New.(*common.NodeState)
-			if common.GetStringChangeType(old.Status.WireguardPublicKey, new.Status.WireguardPublicKey) > common.ChangeSame {
-				s.updateAllIPConnectivity()
-			}
-			break
-		case common.RescanState:
-			for _, provider := range s.providers {
-				provider.OnVppRestart()
-				provider.RescanState()
-			}
-			break
-		case common.VppRestart:
-			for _, provider := range s.providers {
-				provider.OnVppRestart()
-			}
-			for _, cn := range s.connectivityMap {
-				s.log.Infof("Adding routing : %s", cn)
-				err := s.updateIPConnectivity(&cn, false)
+		select {
+		case <-dying:
+			s.log.Infof("connectivity server DYING...")
+			return nil
+		case evt := <-s.ConnectivityEventChan:
+			switch evt.Type {
+			case common.ConnectivtyAdded:
+				new := evt.New.(*common.NodeConnectivity)
+				err := s.updateIPConnectivity(new, false /* isWithdraw */)
 				if err != nil {
-					s.log.Errorf("Error re-injecting connectivity %s : %v", cn, err)
+					s.log.Errorf("Error while adding connectivity %s", err)
 				}
-			}
-			break
-		case common.FelixConfChanged:
-			old := evt.Old.(*calicov3.FelixConfigurationSpec)
-			new := evt.New.(*calicov3.FelixConfigurationSpec)
-			if old == nil || new == nil {
-				/* First/last update, do nothing*/
-				continue
-			}
-			if old.WireguardEnabled != new.WireguardEnabled {
-				s.log.Infof("WireguardEnabled Changed")
-				s.updateAllIPConnectivity()
-			} else if old.WireguardListeningPort != new.WireguardListeningPort {
-				s.log.Infof("WireguardListeningPort Changed")
-				s.updateAllIPConnectivity()
-			}
-		case common.IpamConfChanged:
-			old := evt.Old.(*calicov3.IPPool)
-			new := evt.New.(*calicov3.IPPool)
-			if old == nil || new == nil {
-				/* First/last update, do nothing*/
-				continue
-			}
-			if new.Spec.VXLANMode != old.Spec.VXLANMode ||
-				new.Spec.IPIPMode != old.Spec.IPIPMode {
-				s.log.Infof("VXLAN/IPIPMode Changed")
-				s.updateAllIPConnectivity()
+			case common.ConnectivtyDeleted:
+				old := evt.Old.(*common.NodeConnectivity)
+				err := s.updateIPConnectivity(old, true /* isWithdraw */)
+				if err != nil {
+					s.log.Errorf("Error while deleting connectivity %s", err)
+				}
+			case common.NodeStateChanged:
+				old := evt.Old.(*common.NodeState)
+				new := evt.New.(*common.NodeState)
+				if common.GetStringChangeType(old.Status.WireguardPublicKey, new.Status.WireguardPublicKey) > common.ChangeSame {
+					s.updateAllIPConnectivity()
+				}
+				break
+			case common.RescanState:
+				for _, provider := range s.providers {
+					provider.OnVppRestart()
+					provider.RescanState()
+				}
+				break
+			case common.VppRestart:
+				for _, provider := range s.providers {
+					provider.OnVppRestart()
+				}
+				for _, cn := range s.connectivityMap {
+					s.log.Infof("Adding routing : %s", cn)
+					err := s.updateIPConnectivity(&cn, false)
+					if err != nil {
+						s.log.Errorf("Error re-injecting connectivity %s : %v", cn, err)
+					}
+				}
+				break
+			case common.FelixConfChanged:
+				old := evt.Old.(*calicov3.FelixConfigurationSpec)
+				new := evt.New.(*calicov3.FelixConfigurationSpec)
+				if old == nil || new == nil {
+					/* First/last update, do nothing*/
+					continue
+				}
+				if old.WireguardEnabled != new.WireguardEnabled {
+					s.log.Infof("WireguardEnabled Changed")
+					s.updateAllIPConnectivity()
+				} else if old.WireguardListeningPort != new.WireguardListeningPort {
+					s.log.Infof("WireguardListeningPort Changed")
+					s.updateAllIPConnectivity()
+				}
+			case common.IpamConfChanged:
+				old := evt.Old.(*calicov3.IPPool)
+				new := evt.New.(*calicov3.IPPool)
+				if old == nil || new == nil {
+					/* First/last update, do nothing*/
+					continue
+				}
+				if new.Spec.VXLANMode != old.Spec.VXLANMode ||
+					new.Spec.IPIPMode != old.Spec.IPIPMode {
+					s.log.Infof("VXLAN/IPIPMode Changed")
+					s.updateAllIPConnectivity()
+				}
 			}
 		}
 	}

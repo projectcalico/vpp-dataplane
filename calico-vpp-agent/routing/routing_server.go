@@ -19,6 +19,7 @@ package routing
 import (
 	"fmt"
 	"net"
+	"reflect"
 	"sync"
 
 	bgpapi "github.com/osrg/gobgp/api"
@@ -53,9 +54,10 @@ var (
 
 type Server struct {
 	*commonAgent.CalicoVppServerData
-	log         *logrus.Entry
-	t           tomb.Tomb
-	routingData *common.RoutingData
+	log           *logrus.Entry
+	t             tomb.Tomb
+	mainTombDying <-chan struct{}
+	routingData   *common.RoutingData
 
 	localAddressMap map[string]*net.IPNet
 	ShouldStop      bool
@@ -73,6 +75,7 @@ type Server struct {
 
 	connectivityServer *connectivity.ConnectivityServer
 	TunnelChangeChan   chan connectivity.TunnelChange
+	BGPConfUpdate      chan int
 }
 
 func (s *Server) GetAllTunnels() *[]uint32 {
@@ -83,7 +86,7 @@ func (s *Server) Clientv3() calicov3cli.Interface {
 	return s.routingData.Clientv3
 }
 
-func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
+func NewServer(vpp *vpplink.VppLink, l *logrus.Entry, dying <-chan struct{}) (*Server, error) {
 	calicoCli, err := calicocli.NewFromEnv()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create calico v1 api client")
@@ -108,9 +111,11 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 
 	server := Server{
 		log:                  l,
+		mainTombDying:        dying,
 		routingData:          &routingData,
 		localAddressMap:      make(map[string]*net.IPNet),
 		bgpServerRunningCond: sync.NewCond(&sync.Mutex{}),
+		BGPConfUpdate:        make(chan int),
 	}
 
 	logLevel, err := logrus.ParseLevel(server.getLogSeverityScreen())
@@ -131,6 +136,25 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server.TunnelChangeChan = server.connectivityServer.TunnelChangeChan
 
 	return &server, nil
+}
+
+func (s *Server) WatchBGPConf(dying <-chan struct{}) error {
+	for {
+		select {
+		case <-dying:
+			s.log.Infof("BGPConf watcher DYING...")
+			return nil
+		case <-s.BGPConfUpdate:
+			newBGPConf, err := s.getBGPConf(s.log, s.Clientv3())
+			if err != nil {
+				return errors.Wrap(err, "error getting BGP configuration")
+			}
+			if !reflect.DeepEqual(newBGPConf, s.routingData.BGPConf) {
+				s.log.Error("BGPConf updated")
+				return errors.Errorf("BGPConf updated, restarting")
+			}
+		}
+	}
 }
 
 func (s *Server) serveOne() error {
@@ -166,33 +190,36 @@ func (s *Server) serveOne() error {
 	s.RestoreLocalAddresses()
 
 	/* We should start watching from our GetNodeIPs change call */
-	s.t.Go(func() error { return s.nodeWatcher.WatchNodes(node.ResourceVersion) })
+	s.t.Go(func() error { return s.nodeWatcher.WatchNodes(node.ResourceVersion, s.t.Dying()) })
 	// sync IPAM and call ipamUpdateHandler
-	s.t.Go(func() error { return s.ipam.SyncIPAM() })
+	s.t.Go(func() error { return s.ipam.SyncIPAM(s.t.Dying()) })
 	// watch prefix assigned and announce to other BGP peers
-	s.t.Go(func() error { return s.prefixWatcher.WatchPrefix() })
+	s.t.Go(func() error { return s.prefixWatcher.WatchPrefix(s.t.Dying()) })
 	// watch BGP peers
-	s.t.Go(func() error { return s.peerWatcher.WatchBGPPeers() })
+	s.t.Go(func() error { return s.peerWatcher.WatchBGPPeers(s.t.Dying()) })
 	// watch Felix configuration
-	s.t.Go(func() error { return s.felixConfWatcher.WatchFelixConfiguration() })
+	s.t.Go(func() error { return s.felixConfWatcher.WatchFelixConfiguration(s.t.Dying()) })
 
 	// TODO need to watch BGP configurations and restart in case of changes
 	// Need to get initial BGP config here, pass it to the watchers that need it,
 	// and pass its revision to the BGP config and nodes watchers
 
 	// watch routes from other BGP peers and update FIB
-	s.t.Go(func() error { return s.bgpWatcher.WatchBGPPath() })
-	s.t.Go(func() error { return s.connectivityServer.ServeConnectivity() })
+	s.t.Go(func() error { return s.bgpWatcher.WatchBGPPath(s.t.Dying()) })
+	s.t.Go(func() error { return s.connectivityServer.ServeConnectivity(s.t.Dying()) })
+	s.t.Go(func() error { return s.WatchBGPConf(s.t.Dying()) })
 
 	// watch routes added by kernel and announce to other BGP peers
 	// FIXME : s.t.Go(s.kernelWatcher.WatchKernelRoute())
 
 	s.ipam.WaitReady()
 	ServerRunning <- 1
-	s.log.Infof("Routing server is running ")
-	<-s.t.Dying()
-	s.log.Warnf("routing tomb returned %v", s.t.Err())
-
+	select {
+	case <-s.mainTombDying:
+		s.log.Infof("routingServer DYING...")
+	case <-s.t.Dead():
+		s.log.Warnf("routing tomb returned %v", s.t.Err())
+	}
 	err = s.cleanUpRoutes()
 	if err != nil {
 		return errors.Wrapf(err, "%s, also failed to clean up routes which we injected", s.t.Err())
@@ -282,7 +309,7 @@ func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Int
 		}
 		if conf.Spec.ServiceLoadBalancerIPs == nil {
 			conf.Spec.ServiceLoadBalancerIPs = []calicov3.ServiceLoadBalancerIPBlock{}
-		}				
+		}
 		return &conf.Spec, nil
 	}
 	switch err.(type) {
@@ -469,16 +496,14 @@ func (s *Server) Serve() {
 	s.routingData.ConnectivityEventChan <- common.ConnectivityEvent{
 		Type: common.RescanState,
 	}
-
-	for !s.ShouldStop {
-		err := s.serveOne()
-		if err != nil {
-			s.log.Errorf("routing serve returned %v", err)
-			if s.routingData.BGPServer != nil {
-				s.routingData.BGPServer.StopBgp(context.Background(), &bgpapi.StopBgpRequest{})
-			}
+	err = s.serveOne()
+	if err != nil {
+		s.log.Errorf("routing serve returned %v", err)
+		if s.routingData.BGPServer != nil {
+			s.routingData.BGPServer.StopBgp(context.Background(), &bgpapi.StopBgpRequest{})
 		}
 	}
+	s.Stop()
 }
 
 func (s *Server) Stop() {

@@ -96,7 +96,7 @@ func (w *BGPWatcher) injectRoute(path *bgpapi.Path) error {
 // watchBGPPath watches BGP routes from other peers and inject them into
 // linux kernel
 // TODO: multipath support
-func (w *BGPWatcher) WatchBGPPath() error {
+func (w *BGPWatcher) WatchBGPPath(dying <-chan struct{}) error {
 	var err error
 	startMonitor := func(f *bgpapi.Family) (context.CancelFunc, error) {
 		ctx, stopFunc := context.WithCancel(context.Background())
@@ -140,18 +140,26 @@ func (w *BGPWatcher) WatchBGPPath() error {
 			return errors.Wrap(err, "error starting v6 path monitor")
 		}
 	}
-	for family := range w.reloadCh {
-		if w.HasV4 && family == "4" {
-			stopV4Monitor()
-			stopV4Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv4)
-			if err != nil {
-				return err
-			}
-		} else if w.HasV6 && family == "6" {
-			stopV6Monitor()
-			stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
-			if err != nil {
-				return err
+	for {
+		select {
+		case <-dying:
+			w.log.Infof("BGPPath watcher DYING...")
+			return nil
+		case family, closed := <-w.reloadCh:
+			if !closed {
+				if w.HasV4 && family == "4" {
+					stopV4Monitor()
+					stopV4Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv4)
+					if err != nil {
+						return err
+					}
+				} else if w.HasV6 && family == "6" {
+					stopV6Monitor()
+					stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}

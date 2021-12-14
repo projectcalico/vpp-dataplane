@@ -42,6 +42,7 @@ type Server struct {
 	*common.CalicoVppServerData
 	log              *logrus.Entry
 	vpp              *vpplink.VppLink
+	mainTombDying    <-chan struct{}
 	grpcServer       *grpc.Server
 	client           *kubernetes.Clientset
 	socketListener   net.Listener
@@ -298,7 +299,7 @@ func (s *Server) Stop() {
 }
 
 // Serve runs the grpc server for the Calico CNI backend API
-func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, prs *prometheus.Server, l *logrus.Entry) (*Server, error) {
+func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, prs *prometheus.Server, l *logrus.Entry, dying <-chan struct{}) (*Server, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
@@ -317,6 +318,7 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, prs *p
 	server := &Server{
 		vpp:              v,
 		log:              l,
+		mainTombDying:    dying,
 		routingServer:    rs,
 		policyServer:     ps,
 		prometheusServer: prs,
@@ -343,8 +345,13 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, prs *p
 func (s *Server) Serve() {
 	s.rescanState()
 	s.log.Infof("Serve() CNI")
-	err := s.grpcServer.Serve(s.socketListener)
-	if err != nil {
-		s.log.Fatalf("Failed to serve: %v", err)
-	}
+	go func() {
+		err := s.grpcServer.Serve(s.socketListener)
+		if err != nil {
+			s.log.Fatalf("Failed to serve: %v", err)
+		}
+	}()
+	<-s.mainTombDying
+	s.log.Infof("cniServer DYING...")
+	s.Stop()
 }

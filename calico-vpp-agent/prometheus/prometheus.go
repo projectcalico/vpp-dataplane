@@ -46,6 +46,7 @@ const (
 type Server struct {
 	log                      *logrus.Entry
 	vpp                      *vpplink.VppLink
+	mainTombDying            <-chan struct{}
 	podInterfacesBySwifIndex map[uint32]storage.LocalPodSpec
 	podInterfacesByKey       map[string]storage.LocalPodSpec
 	sc                       *statsclient.StatsClient
@@ -70,14 +71,20 @@ func (s *Server) recordMetrics() {
 	}()
 	for {
 		time.Sleep(time.Second * time.Duration(recordMetricInterval))
-		ifNames, dumpStats, _ := vpplink.GetInterfaceStats(s.sc)
-		for _, sta := range dumpStats {
-			if string(sta.Name) != "/if/names" {
-				names := []string{strings.Replace(string(sta.Name[4:]), "-", "_", -1)}
-				if sta.Type == adapter.CombinedCounterVector {
-					names = []string{names[0] + "_packets", names[0] + "_bytes"}
+		select {
+		case <-s.mainTombDying:
+			s.log.Infof("prometheusServer DYING...")
+			return
+		default:
+			ifNames, dumpStats, _ := vpplink.GetInterfaceStats(s.sc)
+			for _, sta := range dumpStats {
+				if string(sta.Name) != "/if/names" {
+					names := []string{strings.Replace(string(sta.Name[4:]), "-", "_", -1)}
+					if sta.Type == adapter.CombinedCounterVector {
+						names = []string{names[0] + "_packets", names[0] + "_bytes"}
+					}
+					s.exportMetricsForStat(names, sta, ifNames, pe)
 				}
-				s.exportMetricsForStat(names, sta, ifNames, pe)
 			}
 		}
 	}
@@ -192,10 +199,11 @@ func getTimeSeries(worker int, pod storage.LocalPodSpec, value float64) *metrics
 	}
 }
 
-func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
+func NewServer(vpp *vpplink.VppLink, l *logrus.Entry, dying <-chan struct{}) (*Server, error) {
 	server := &Server{
 		log:                      l,
 		vpp:                      vpp,
+		mainTombDying:            dying,
 		channel:                  make(chan PodSpecEvent, 10),
 		podInterfacesByKey:       make(map[string]storage.LocalPodSpec),
 		podInterfacesBySwifIndex: make(map[uint32]storage.LocalPodSpec),

@@ -129,7 +129,7 @@ func (w *NodeWatcher) initialNodeSync() (string, error) {
 	return nodes.ResourceVersion, nil
 }
 
-func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
+func (w *NodeWatcher) WatchNodes(initialResourceVersion string, dying <-chan struct{}) error {
 	var firstWatch = true
 	for {
 		resourceVersion, err := w.initialNodeSync()
@@ -152,29 +152,37 @@ func (w *NodeWatcher) WatchNodes(initialResourceVersion string) error {
 			return errors.Wrap(err, "cannot watch nodes")
 		}
 	watch:
-		for update := range watcher.ResultChan() {
-			var calicoNode *calicov3.Node
-			switch update.Type {
-			case watch.Error:
-				w.log.Infof("nodes watch returned an error")
-				break watch
-			case watch.Modified, watch.Added:
-				calicoNode = update.Object.(*calicov3.Node)
-			case watch.Deleted:
-				calicoNode = update.Previous.(*calicov3.Node)
-			}
+		for {
+			select {
+			case <-dying:
+				w.log.Infof("nodes watcher DYING...")
+				return nil
+			case update, closed := <-watcher.ResultChan():
+				if !closed {
+					var calicoNode *calicov3.Node
+					switch update.Type {
+					case watch.Error:
+						w.log.Infof("nodes watch returned an error")
+						break watch
+					case watch.Modified, watch.Added:
+						calicoNode = update.Object.(*calicov3.Node)
+					case watch.Deleted:
+						calicoNode = update.Previous.(*calicov3.Node)
+					}
 
-			node := nodeSpecCopy(calicoNode)
-			w.nodeStateLock.Lock()
-			shouldRestart, err := w.handleNodeUpdate(node, update.Type)
-			w.nodeStateLock.Unlock()
-			if err != nil {
-				return errors.Wrap(err, "error handling node update")
+					node := nodeSpecCopy(calicoNode)
+					w.nodeStateLock.Lock()
+					shouldRestart, err := w.handleNodeUpdate(node, update.Type)
+					w.nodeStateLock.Unlock()
+					if err != nil {
+						return errors.Wrap(err, "error handling node update")
+					}
+					if shouldRestart {
+						return fmt.Errorf("Current node configuration changed, restarting")
+					}
+					w.nodeUpdateNotify()
+				}
 			}
-			if shouldRestart {
-				return fmt.Errorf("Current node configuration changed, restarting")
-			}
-			w.nodeUpdateNotify()
 		}
 	}
 }

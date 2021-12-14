@@ -107,6 +107,8 @@ func (s *Server) RecvMessage(conn net.Conn) (msg interface{}, err error) {
 		msg = payload.NamespaceUpdate
 	case *proto.ToDataplane_NamespaceRemove:
 		msg = payload.NamespaceRemove
+	case *proto.ToDataplane_GlobalBgpConfigUpdate:
+		msg = payload.GlobalBgpConfigUpdate
 
 	default:
 		s.log.WithField("payload", payload).Warn("Ignoring unknown message from felix")
