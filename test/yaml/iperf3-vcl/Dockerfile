@@ -12,4 +12,4 @@ ADD iperf3-vcl.sh /usr/local/bin/iperf3-vcl
 ADD iperf3-tls-vcl.sh /usr/local/bin/iperf3-tls-vcl
 
 EXPOSE 5201
-ENTRYPOINT ["tail", "-f", "/dev/null"]
+ENTRYPOINT ["iperf3-vcl", "-4", "-s"]

@@ -162,6 +162,18 @@ function test_ipv6 ()
 	assert_test_output_contains_not WARNING
 }
 
+function test_ipv4_vcl ()
+{
+	NS=iperf3-vcl
+	POD=iperf3-client
+	echo "--Cross node VCL TCP tests--"
+	test "DNS lookup" nslookup kubernetes.default
+	test "iperf PodIP"           iperf3-vcl -c $(NS=$NS POD=iperf3-server onePodIP)      -t 1 -P1 -i1
+	assert_test_output_contains_not "connect failed"
+	test "iperf ServiceIP"       iperf3-vcl -c $(NS=$NS SVC=iperf3-service getClusterIP) -t 1 -P1 -i1
+	assert_test_output_contains_not "connect failed"
+}
+
 if [ $# = 0 ]; then
 	echo "Usage"
 	for f in $(declare -F); do
