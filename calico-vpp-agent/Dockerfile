@@ -8,4 +8,4 @@ ADD version /etc/calicovppversion
 ADD cmd/felix-api-proxy /bin/felix-api-proxy
 ADD cmd/calico-vpp-agent /bin/calico-vpp-agent
 
-ENTRYPOINT /bin/calico-vpp-agent
+ENTRYPOINT ["/bin/calico-vpp-agent"]
