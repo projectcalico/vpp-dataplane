@@ -78,13 +78,13 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset,
 		60*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				server.handleServiceEndpointEvent(obj.(*v1.Service), nil, false)
+				server.handleServiceEndpointEvent(obj.(*v1.Service), nil, nil, false)
 			},
 			UpdateFunc: func(old interface{}, obj interface{}) {
-				server.handleServiceEndpointEvent(obj.(*v1.Service), nil, false)
+				server.handleServiceEndpointEvent(obj.(*v1.Service), old.(*v1.Service), nil, false)
 			},
 			DeleteFunc: func(obj interface{}) {
-				server.handleServiceEndpointEvent(obj.(*v1.Service), nil, true)
+				server.handleServiceEndpointEvent(obj.(*v1.Service), nil, nil, true)
 			},
 		})
 
@@ -96,13 +96,13 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset,
 		60*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				server.handleServiceEndpointEvent(nil, obj.(*v1.Endpoints), false)
+				server.handleServiceEndpointEvent(nil, nil, obj.(*v1.Endpoints), false)
 			},
 			UpdateFunc: func(old interface{}, obj interface{}) {
-				server.handleServiceEndpointEvent(nil, obj.(*v1.Endpoints), false)
+				server.handleServiceEndpointEvent(nil, nil, obj.(*v1.Endpoints), false)
 			},
 			DeleteFunc: func(obj interface{}) {
-				server.handleServiceEndpointEvent(nil, obj.(*v1.Endpoints), true)
+				server.handleServiceEndpointEvent(nil, nil, obj.(*v1.Endpoints), true)
 			},
 		})
 
@@ -227,7 +227,35 @@ func (s *Server) findMatchingEndpoint(service *v1.Service) *v1.Endpoints {
 	return ep.(*v1.Endpoints)
 }
 
-func (s *Server) handleServiceEndpointEvent(service *v1.Service, ep *v1.Endpoints, isWithdrawal bool) {
+func differentIPList(list1 []string, list2 []string) bool {
+	if len(list1) != len(list2) {
+		return true
+	}
+	for i, v := range list1 {
+		if v != list2[i] {
+			return true
+		}
+	}
+	return false
+}
+
+func differentIPServices(service1 *v1.Service, service2 *v1.Service) bool {
+	if service1.Spec.ClusterIP != service2.Spec.ClusterIP {
+		return true
+	}
+	if service1.Spec.LoadBalancerIP != service2.Spec.LoadBalancerIP {
+		return true
+	}
+	if differentIPList(service1.Spec.ExternalIPs, service2.Spec.ExternalIPs) {
+		return true
+	}
+	if differentIPList(service1.Spec.ClusterIPs, service2.Spec.ClusterIPs) {
+		return true
+	}
+	return false
+}
+
+func (s *Server) handleServiceEndpointEvent(service *v1.Service, oldService *v1.Service, ep *v1.Endpoints, isWithdrawal bool) {
 	common.WaitIfVppIsRestarting()
 
 	s.lock.Lock()
@@ -242,6 +270,14 @@ func (s *Server) handleServiceEndpointEvent(service *v1.Service, ep *v1.Endpoint
 	if ep == nil || service == nil {
 		// Wait
 		return
+	}
+	if oldService != nil {
+		if differentIPServices(oldService, service) {
+			err := s.addDelService(oldService, ep, true)
+			if err != nil {
+				s.log.Errorf("Service errored %v", err)
+			}
+		}
 	}
 	err := s.addDelService(service, ep, isWithdrawal)
 	if err != nil {

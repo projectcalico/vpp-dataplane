@@ -40,6 +40,10 @@ func extIPKey(externalIP, serviceID, portName string) string {
 	return "E|" + serviceID + "##" + externalIP + "##" + portName
 }
 
+func lbIPKey(loadBalancerIP, serviceID, portName string) string {
+	return "LB|" + serviceID + "##" + loadBalancerIP + "##" + portName
+}
+
 func getCalicoEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, clusterIP net.IP, localOnly bool) (entry *types.CnatTranslateEntry, err error) {
 	backends, err := getServiceBackends(servicePort, ep, localOnly, config.EnableMaglev)
 	if err != nil {
@@ -104,26 +108,47 @@ func (s *Server) updateCnatEntry(key string, entry *types.CnatTranslateEntry) (e
 	return nil
 }
 
-func (s *Server) advertiseSpecificRouteForExternalIP(extIP net.IP, withdraw bool) {
-	_, serviceExternalIPs, _ := s.getServiceIPs()
+func (s *Server) advertiseSpecificRoute(IPAddress net.IP, withdraw bool) {
+	_, serviceExternalIPs, serviceLoadbalancerIPs := s.getServiceIPs()
 	for _, serviceExternalIP := range serviceExternalIPs {
 		_, ipnet, err := net.ParseCIDR(serviceExternalIP.CIDR)
 		if err != nil {
 			s.log.Error(err)
 		}
-		if ipnet.Contains(extIP) {
+		if ipnet.Contains(IPAddress) {
 			if withdraw {
 				common.SendEvent(common.CalicoVppEvent{
 					Type: common.LocalPodAddressDeleted,
-					Old:  common.ToMaxLenCIDR(extIP),
+					Old:  common.ToMaxLenCIDR(IPAddress),
 				})
-				s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", extIP)
+				s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", IPAddress)
 			} else {
-				s.log.Infof("Announcing service specific route Addresses %+v", extIP)
 				common.SendEvent(common.CalicoVppEvent{
 					Type: common.LocalPodAddressAdded,
-					New:  common.ToMaxLenCIDR(extIP),
+					New:  common.ToMaxLenCIDR(IPAddress),
 				})
+				s.log.Infof("Announcing service specific route Addresses %+v", IPAddress)
+			}
+		}
+	}
+	for _, serviceLoadbalancerIP := range serviceLoadbalancerIPs {
+		_, ipnet, err := net.ParseCIDR(serviceLoadbalancerIP.CIDR)
+		if err != nil {
+			s.log.Error(err)
+		}
+		if ipnet.Contains(IPAddress) {
+			if withdraw {
+				common.SendEvent(common.CalicoVppEvent{
+					Type: common.LocalPodAddressDeleted,
+					Old:  common.ToMaxLenCIDR(IPAddress),
+				})
+				s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", IPAddress)
+			} else {
+				common.SendEvent(common.CalicoVppEvent{
+					Type: common.LocalPodAddressAdded,
+					New:  common.ToMaxLenCIDR(IPAddress),
+				})
+				s.log.Infof("Announcing service specific route Addresses %+v", IPAddress)
 			}
 		}
 	}
@@ -155,9 +180,9 @@ func (s *Server) addServicePort(service *v1.Service, ep *v1.Endpoints) (err erro
 				if entry, err := getCalicoEntry(&servicePort, ep, extIP, localOnly); err == nil {
 					if localOnly {
 						if len(entry.Backends) > 0 {
-							s.advertiseSpecificRouteForExternalIP(extIP, false)
+							s.advertiseSpecificRoute(extIP, false)
 						} else {
-							s.advertiseSpecificRouteForExternalIP(extIP, true)
+							s.advertiseSpecificRoute(extIP, true)
 						}
 					}
 					stateKey := extIPKey(eip, serviceID, servicePort.Name)
@@ -165,6 +190,28 @@ func (s *Server) addServicePort(service *v1.Service, ep *v1.Endpoints) (err erro
 					if err != nil {
 						return err
 					}
+				} else {
+					s.log.Warnf("NAT:Error getting service entry: %v", err)
+				}
+			}
+		}
+
+		for _, ingress := range service.Status.LoadBalancer.Ingress {
+			if ingressIP := net.ParseIP(ingress.IP); ingressIP != nil {
+				if entry, err := getCalicoEntry(&servicePort, ep, ingressIP, localOnly); err == nil {
+					if localOnly {
+						if len(entry.Backends) > 0 {
+							s.advertiseSpecificRoute(ingressIP, false)
+						} else {
+							s.advertiseSpecificRoute(ingressIP, true)
+						}
+					}
+					stateKey := lbIPKey(ingress.IP, serviceID, servicePort.Name)
+					err := s.updateCnatEntry(stateKey, entry)
+					if err != nil {
+						return err
+					}
+
 				} else {
 					s.log.Warnf("NAT:Error getting service entry: %v", err)
 				}
@@ -201,11 +248,23 @@ func (s *Server) delServicePort(service *v1.Service, ep *v1.Endpoints) (err erro
 				entries = append(entries, extIPKey(eip, serviceID, servicePort.Name))
 				if entry, ok := s.stateMap[extIPKey(eip, serviceID, servicePort.Name)]; ok {
 					if service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal && len(entry.Backends) > 0 {
-						s.advertiseSpecificRouteForExternalIP(extIP, true)
+						s.advertiseSpecificRoute(extIP, true)
 					}
 				}
 			}
 		}
+
+		for _, ingress := range service.Status.LoadBalancer.Ingress {
+			if ingressIP := net.ParseIP(ingress.IP); ingressIP != nil {
+				entries = append(entries, lbIPKey(ingress.IP, serviceID, servicePort.Name))
+				if entry, ok := s.stateMap[lbIPKey(ingress.IP, serviceID, servicePort.Name)]; ok {
+					if service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal && len(entry.Backends) > 0 {
+						s.advertiseSpecificRoute(ingressIP, true)
+					}
+				}
+			}
+		}
+
 		if service.Spec.Type == v1.ServiceTypeNodePort {
 			entries = append(entries, nodePortKey(serviceID, servicePort.Name))
 		}
