@@ -500,6 +500,7 @@ func (m *Vmxnet3Details) Unmarshal(b []byte) error {
 }
 
 // Vmxnet3Dump defines message 'vmxnet3_dump'.
+// Deprecated: the message will be removed in the future versions
 type Vmxnet3Dump struct{}
 
 func (m *Vmxnet3Dump) Reset()               { *m = Vmxnet3Dump{} }

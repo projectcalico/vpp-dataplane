@@ -6,15 +6,23 @@ LABEL maintainer="aloaugus@cisco.com"
 # This must be updated when the list of VPP dependencies change
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    python3-virtualenv libssl-dev dh-python \
-    curl build-essential autoconf automake ccache \
-    debhelper dkms git libtool libapr1-dev dh-systemd \
-    libconfuse-dev git-review exuberant-ctags cscope pkg-config \
-    lcov chrpath autoconf indent clang-format libnuma-dev \
-    python3-all python3-setuptools check \
-    libboost-all-dev libffi-dev python3-ply libmbedtls-dev \
-    cmake ninja-build uuid-dev python3-jsonschema python3-yaml \
-    python3-venv python3-dev libelf-dev
+	curl build-essential autoconf automake ccache \
+	debhelper dkms git libtool libapr1-dev dh-python \
+	libconfuse-dev git-review exuberant-ctags cscope pkg-config \
+	lcov chrpath autoconf libnuma-dev \
+	python3-all python3-setuptools check \
+	libffi-dev python3-ply libmbedtls-dev \
+	cmake ninja-build uuid-dev python3-jsonschema python3-yaml \
+	python3-venv \
+	python3-dev \
+	libnl-3-dev libnl-route-3-dev \
+	enchant \
+	python3-virtualenv \
+	libssl-dev \
+	libelf-dev \
+	clang-11 clang-format-11 clang-format-10 \
+	enchant-2 \
+	libffi7
 
 WORKDIR /
 

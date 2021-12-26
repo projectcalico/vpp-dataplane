@@ -67,9 +67,7 @@ type RoutingData struct {
 }
 
 type NodeState struct {
-	Name      string
-	Spec      oldv3.NodeSpec
-	Status    oldv3.NodeStatus
+	oldv3.Node
 	SweepFlag bool
 }
 

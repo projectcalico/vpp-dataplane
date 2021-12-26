@@ -1,0 +1,28 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vcl-client
+  namespace: simple-vcl
+  annotations:
+    "cni.projectcalico.org/vpp.vcl": "enable"
+spec:
+  containers:
+  - name: simple-client
+    image: calicovpp/test-simple-vcl
+    imagePullPolicy: IfNotPresent
+  nodeName: _NODE_2_
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vcl-server
+  namespace: simple-vcl
+  annotations:
+    "cni.projectcalico.org/vpp.vcl": "enable"
+spec:
+  containers:
+  - name: simple-client
+    image: calicovpp/test-simple-vcl
+    imagePullPolicy: IfNotPresent
+  nodeName: _NODE_1_

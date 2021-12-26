@@ -36,7 +36,20 @@ type ConnectivityServer struct {
 	ipam             watchers.IpamCache
 	FelixConfWatcher *watchers.FelixConfWatcher
 	NodeWatcher      *watchers.NodeWatcher
+	TunnelChangeChan chan TunnelChange
 }
+
+type TunnelChange struct {
+	Swifindex  uint32
+	ChangeType change
+}
+
+type change uint8
+
+const (
+	AddChange    change = 0
+	DeleteChange change = 1
+)
 
 func NewConnectivityServer(routingData *common.RoutingData,
 	ipam watchers.IpamCache,
@@ -62,7 +75,17 @@ func NewConnectivityServer(routingData *common.RoutingData,
 	server.providers[WIREGUARD] = NewWireguardProvider(providerData)
 	server.providers[SRv6] = NewSRv6Provider(providerData)
 
+	server.TunnelChangeChan = providerData.tunnelChangeChan
+
 	return &server
+}
+
+func (s *ConnectivityServer) GetAllTunnels() *[]uint32 {
+	allTunnels := []uint32{}
+	for _, provider := range s.providers {
+		allTunnels = append(allTunnels, provider.GetSwifindexes()...)
+	}
+	return &allTunnels
 }
 
 func isCrossSubnet(gw net.IP, subnet net.IPNet) bool {

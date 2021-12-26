@@ -192,6 +192,9 @@ data:
         plugin calico_plugin.so { enable }
         plugin ping_plugin.so { disable }
     }
+    buffers {
+      buffers-per-numa 131072
+    }
 
 ---
 # VPP version of the calico node daemon
@@ -319,7 +322,7 @@ spec:
           resources:
             requests:
               cpu: 500m
-              memory: 128Mi
+              memory: 512Mi
           volumeMounts:
             - name: lib-firmware
               mountPath: /lib/firmware

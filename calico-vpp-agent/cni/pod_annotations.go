@@ -30,6 +30,7 @@ const (
 	TunTapPortAnnotation string = "tuntap.ports"
 	Memifl3Annotation    string = "memif.l3"
 	TunTapl3Annotation   string = "tuntap.l3"
+	VclAnnotation        string = "vcl"
 )
 
 func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPortConfigs, err error) {
@@ -131,6 +132,8 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 			} else {
 				err = s.ParsePortMappingAnnotation(podSpec, storage.VppIfTypeTunTap, value)
 			}
+		case VppAnnotationPrefix + VclAnnotation:
+			podSpec.EnableVCL, err = s.ParseEnableDisableAnnotation(value)
 		case VppAnnotationPrefix + Memifl3Annotation:
 			podSpec.MemifIsL3, err = s.ParseTrueFalseAnnotation(value)
 		case VppAnnotationPrefix + TunTapl3Annotation:

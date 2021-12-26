@@ -19,6 +19,7 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -138,6 +139,24 @@ func (p *CalicoServiceProvider) updateCnatEntry(key string, entry *types.CnatTra
 	return nil
 }
 
+func (p *CalicoServiceProvider) advertiseSpecificRouteForExternalIP(extIP net.IP, withdraw bool) {
+	_, serviceExternalIPs, _ := p.s.rs.GetServiceIPs()
+	for _, serviceExternalIP := range serviceExternalIPs {
+		_, ipnet, err := net.ParseCIDR(serviceExternalIP.CIDR)
+		if err != nil {
+			p.s.log.Error(err)
+		}
+		if ipnet.Contains(extIP) {
+			if withdraw {
+				p.s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", extIP)
+			} else {
+				p.s.log.Infof("Announcing service specific route Addresses %+v", extIP)
+			}
+			p.s.rs.AnnounceLocalAddress(common.ToMaxLenCIDR(extIP), withdraw)
+		}
+	}
+}
+
 func (p *CalicoServiceProvider) AddServicePort(service *v1.Service, ep *v1.Endpoints) (err error) {
 	clusterIP := net.ParseIP(service.Spec.ClusterIP)
 	nodeIP := p.s.getNodeIP(vpplink.IsIP6(clusterIP))
@@ -162,6 +181,13 @@ func (p *CalicoServiceProvider) AddServicePort(service *v1.Service, ep *v1.Endpo
 		for _, eip := range service.Spec.ExternalIPs {
 			if extIP := net.ParseIP(eip); extIP != nil {
 				if entry, err := getCalicoEntry(&servicePort, ep, extIP, localOnly); err == nil {
+					if localOnly {
+						if len(entry.Backends) > 0 {
+							p.advertiseSpecificRouteForExternalIP(extIP, false)
+						} else {
+							p.advertiseSpecificRouteForExternalIP(extIP, true)
+						}
+					}
 					stateKey := extIPKey(eip, serviceID, servicePort.Name)
 					err = p.updateCnatEntry(stateKey, entry)
 					if err != nil {
@@ -201,6 +227,11 @@ func (p *CalicoServiceProvider) DelServicePort(service *v1.Service, ep *v1.Endpo
 		for _, eip := range service.Spec.ExternalIPs {
 			if extIP := net.ParseIP(eip); extIP != nil {
 				entries = append(entries, extIPKey(eip, serviceID, servicePort.Name))
+				if entry, ok := p.stateMap[extIPKey(eip, serviceID, servicePort.Name)]; ok {
+					if service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal && len(entry.Backends) > 0 {
+						p.advertiseSpecificRouteForExternalIP(extIP, true)
+					}
+				}
 			}
 		}
 		if service.Spec.Type == v1.ServiceTypeNodePort {

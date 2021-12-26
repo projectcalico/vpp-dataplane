@@ -8,11 +8,12 @@ import (
 	"io"
 
 	api "git.fd.io/govpp.git/api"
-	vpe "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vpe"
+	memclnt "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/memclnt"
 )
 
 // RPCService defines RPC service wireguard.
 type RPCService interface {
+	WantWireguardPeerEvents(ctx context.Context, in *WantWireguardPeerEvents) (*WantWireguardPeerEventsReply, error)
 	WireguardInterfaceCreate(ctx context.Context, in *WireguardInterfaceCreate) (*WireguardInterfaceCreateReply, error)
 	WireguardInterfaceDelete(ctx context.Context, in *WireguardInterfaceDelete) (*WireguardInterfaceDeleteReply, error)
 	WireguardInterfaceDump(ctx context.Context, in *WireguardInterfaceDump) (RPCService_WireguardInterfaceDumpClient, error)
@@ -27,6 +28,15 @@ type serviceClient struct {
 
 func NewServiceClient(conn api.Connection) RPCService {
 	return &serviceClient{conn}
+}
+
+func (c *serviceClient) WantWireguardPeerEvents(ctx context.Context, in *WantWireguardPeerEvents) (*WantWireguardPeerEventsReply, error) {
+	out := new(WantWireguardPeerEventsReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
 func (c *serviceClient) WireguardInterfaceCreate(ctx context.Context, in *WireguardInterfaceCreate) (*WireguardInterfaceCreateReply, error) {
@@ -56,7 +66,7 @@ func (c *serviceClient) WireguardInterfaceDump(ctx context.Context, in *Wireguar
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -79,7 +89,11 @@ func (c *serviceClient_WireguardInterfaceDumpClient) Recv() (*WireguardInterface
 	switch m := msg.(type) {
 	case *WireguardInterfaceDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *memclnt.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
@@ -113,7 +127,7 @@ func (c *serviceClient) WireguardPeersDump(ctx context.Context, in *WireguardPee
 	if err := x.Stream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err = x.Stream.SendMsg(&vpe.ControlPing{}); err != nil {
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -136,7 +150,11 @@ func (c *serviceClient_WireguardPeersDumpClient) Recv() (*WireguardPeersDetails,
 	switch m := msg.(type) {
 	case *WireguardPeersDetails:
 		return m, nil
-	case *vpe.ControlPingReply:
+	case *memclnt.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, io.EOF
 	default:
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)

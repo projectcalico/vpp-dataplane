@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 3 // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 4 // Used to ensure compatibility wen we reload data
 )
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -52,6 +52,7 @@ const (
 	VppIfTypeUnknown VppInterfaceType = iota
 	VppIfTypeTunTap
 	VppIfTypeMemif
+	VppIfTypeVCL
 )
 
 func (n *LocalIPNet) String() string {
@@ -128,6 +129,7 @@ func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex u
 	}
 }
 
+// XXX: Increment CniServerStateFileVersion when changing this struct
 type LocalIfPortConfigs struct {
 	Start uint16
 	End   uint16
@@ -154,6 +156,9 @@ type LocalPodSpec struct {
 	WorkloadID         string
 	EndpointIDSize     int `struc:"int16,sizeof=EndpointID"`
 	EndpointID         string
+	// HostPort
+	HostPortsSize int `struc:"int16,sizeof=HostPorts"`
+	HostPorts     []HostPortBinding
 
 	IfPortConfigsLen int `struc:"int16,sizeof=IfPortConfigs"`
 	IfPortConfigs    []LocalIfPortConfigs
@@ -161,6 +166,7 @@ type LocalPodSpec struct {
 	PortFilteredIfType VppInterfaceType
 	/* This interface type will traffic not matching portConfigs */
 	DefaultIfType VppInterfaceType
+	EnableVCL     bool
 	EnableMemif   bool
 	MemifIsL3     bool
 	TunTapIsL3    bool
@@ -179,6 +185,14 @@ type LocalPodSpec struct {
 
 	/* Caching */
 	NeedsSnat bool
+}
+
+// XXX: Increment CniServerStateFileVersion when changing this struct
+type HostPortBinding struct {
+	HostPort      uint32
+	HostIP        net.IP `struc:"[16]byte"`
+	ContainerPort uint32
+	EntryID       uint32
 }
 
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {

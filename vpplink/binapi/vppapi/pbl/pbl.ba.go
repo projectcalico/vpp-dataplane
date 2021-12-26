@@ -93,6 +93,7 @@ type PblPortRange struct {
 }
 
 // PblClientDel defines message 'pbl_client_del'.
+// InProgress: the message form may change in the future versions
 type PblClientDel struct {
 	ID uint32 `binapi:"u32,name=id" json:"id,omitempty"`
 }
@@ -126,6 +127,7 @@ func (m *PblClientDel) Unmarshal(b []byte) error {
 }
 
 // PblClientDelReply defines message 'pbl_client_del_reply'.
+// InProgress: the message form may change in the future versions
 type PblClientDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -159,6 +161,7 @@ func (m *PblClientDelReply) Unmarshal(b []byte) error {
 }
 
 // PblClientDetails defines message 'pbl_client_details'.
+// InProgress: the message form may change in the future versions
 type PblClientDetails struct {
 	Client PblClient `binapi:"pbl_client,name=client" json:"client,omitempty"`
 }
@@ -289,6 +292,7 @@ func (m *PblClientDetails) Unmarshal(b []byte) error {
 }
 
 // PblClientDump defines message 'pbl_client_dump'.
+// InProgress: the message form may change in the future versions
 type PblClientDump struct{}
 
 func (m *PblClientDump) Reset()               { *m = PblClientDump{} }
@@ -316,6 +320,7 @@ func (m *PblClientDump) Unmarshal(b []byte) error {
 }
 
 // PblClientUpdate defines message 'pbl_client_update'.
+// InProgress: the message form may change in the future versions
 type PblClientUpdate struct {
 	Client PblClient `binapi:"pbl_client,name=client" json:"client,omitempty"`
 }
@@ -446,6 +451,7 @@ func (m *PblClientUpdate) Unmarshal(b []byte) error {
 }
 
 // PblClientUpdateReply defines message 'pbl_client_update_reply'.
+// InProgress: the message form may change in the future versions
 type PblClientUpdateReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	ID     uint32 `binapi:"u32,name=id" json:"id,omitempty"`

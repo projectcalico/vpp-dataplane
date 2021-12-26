@@ -34,6 +34,14 @@ func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
 	return &IpipProvider{d, make(map[string]*types.IPIPTunnel), make(map[uint32]map[string]bool)}
 }
 
+func (p *IpipProvider) GetSwifindexes() []uint32 {
+	swifindexes := []uint32{}
+	for _, ipipIf := range p.ipipIfs {
+		swifindexes = append(swifindexes, ipipIf.SwIfIndex)
+	}
+	return swifindexes
+}
+
 func (p *IpipProvider) OnVppRestart() {
 	p.ipipIfs = make(map[string]*types.IPIPTunnel)
 	p.ipipRoutes = make(map[uint32]map[string]bool)
@@ -146,6 +154,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		}
 
 		p.ipipIfs[cn.NextHop.String()] = tunnel
+		p.tunnelChangeChan <- TunnelChange{swIfIndex, AddChange}
 	}
 	p.log.Infof("IPIP: tunnnel %s ok", tunnel.String())
 
@@ -192,12 +201,22 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 
 	remaining_routes, found := p.ipipRoutes[tunnel.SwIfIndex]
 	if !found || len(remaining_routes) == 0 {
+		p.log.Infof("Deleting pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), tunnel.SwIfIndex)
+		err = p.vpp.RouteDel(&types.Route{
+			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
+			Paths: []types.RoutePath{{
+				SwIfIndex: tunnel.SwIfIndex,
+				Gw:        nil,
+			}},
+			Table: commonAgent.PodVRFIndex,
+		})
 		p.log.Infof("Deleting tunnel...%s", tunnel)
 		err := p.vpp.DelIPIPTunnel(tunnel)
 		if err != nil {
 			p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
 		}
 		delete(p.ipipIfs, cn.NextHop.String())
+		p.tunnelChangeChan <- TunnelChange{tunnel.SwIfIndex, DeleteChange}
 	}
 	p.log.Infof("%s", p.ipipIfs)
 	return nil

@@ -4,7 +4,7 @@
 //
 // Contents:
 //   2 enums
-//   4 messages
+//   6 messages
 //
 package af_xdp
 
@@ -25,7 +25,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "af_xdp"
 	APIVersion = "0.2.0"
-	VersionCrc = 0x31450826
+	VersionCrc = 0x346626ce
 )
 
 // AfXdpMode defines enum 'af_xdp_mode'.
@@ -102,6 +102,7 @@ func (x AfXdpFlag) String() string {
 }
 
 // AfXdpCreate defines message 'af_xdp_create'.
+// InProgress: the message form may change in the future versions
 type AfXdpCreate struct {
 	HostIf  string    `binapi:"string[64],name=host_if" json:"host_if,omitempty"`
 	Name    string    `binapi:"string[64],name=name" json:"name,omitempty"`
@@ -163,6 +164,7 @@ func (m *AfXdpCreate) Unmarshal(b []byte) error {
 }
 
 // AfXdpCreateReply defines message 'af_xdp_create_reply'.
+// InProgress: the message form may change in the future versions
 type AfXdpCreateReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -199,7 +201,112 @@ func (m *AfXdpCreateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// AfXdpCreateV2 defines message 'af_xdp_create_v2'.
+// InProgress: the message form may change in the future versions
+type AfXdpCreateV2 struct {
+	HostIf    string    `binapi:"string[64],name=host_if" json:"host_if,omitempty"`
+	Name      string    `binapi:"string[64],name=name" json:"name,omitempty"`
+	RxqNum    uint16    `binapi:"u16,name=rxq_num,default=1" json:"rxq_num,omitempty"`
+	RxqSize   uint16    `binapi:"u16,name=rxq_size,default=0" json:"rxq_size,omitempty"`
+	TxqSize   uint16    `binapi:"u16,name=txq_size,default=0" json:"txq_size,omitempty"`
+	Mode      AfXdpMode `binapi:"af_xdp_mode,name=mode,default=0" json:"mode,omitempty"`
+	Flags     AfXdpFlag `binapi:"af_xdp_flag,name=flags,default=0" json:"flags,omitempty"`
+	Prog      string    `binapi:"string[256],name=prog" json:"prog,omitempty"`
+	Namespace string    `binapi:"string[64],name=namespace" json:"namespace,omitempty"`
+}
+
+func (m *AfXdpCreateV2) Reset()               { *m = AfXdpCreateV2{} }
+func (*AfXdpCreateV2) GetMessageName() string { return "af_xdp_create_v2" }
+func (*AfXdpCreateV2) GetCrcString() string   { return "e17ec2eb" }
+func (*AfXdpCreateV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *AfXdpCreateV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 64  // m.HostIf
+	size += 64  // m.Name
+	size += 2   // m.RxqNum
+	size += 2   // m.RxqSize
+	size += 2   // m.TxqSize
+	size += 4   // m.Mode
+	size += 1   // m.Flags
+	size += 256 // m.Prog
+	size += 64  // m.Namespace
+	return size
+}
+func (m *AfXdpCreateV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeString(m.HostIf, 64)
+	buf.EncodeString(m.Name, 64)
+	buf.EncodeUint16(m.RxqNum)
+	buf.EncodeUint16(m.RxqSize)
+	buf.EncodeUint16(m.TxqSize)
+	buf.EncodeUint32(uint32(m.Mode))
+	buf.EncodeUint8(uint8(m.Flags))
+	buf.EncodeString(m.Prog, 256)
+	buf.EncodeString(m.Namespace, 64)
+	return buf.Bytes(), nil
+}
+func (m *AfXdpCreateV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.HostIf = buf.DecodeString(64)
+	m.Name = buf.DecodeString(64)
+	m.RxqNum = buf.DecodeUint16()
+	m.RxqSize = buf.DecodeUint16()
+	m.TxqSize = buf.DecodeUint16()
+	m.Mode = AfXdpMode(buf.DecodeUint32())
+	m.Flags = AfXdpFlag(buf.DecodeUint8())
+	m.Prog = buf.DecodeString(256)
+	m.Namespace = buf.DecodeString(64)
+	return nil
+}
+
+// AfXdpCreateV2Reply defines message 'af_xdp_create_v2_reply'.
+// InProgress: the message form may change in the future versions
+type AfXdpCreateV2Reply struct {
+	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+}
+
+func (m *AfXdpCreateV2Reply) Reset()               { *m = AfXdpCreateV2Reply{} }
+func (*AfXdpCreateV2Reply) GetMessageName() string { return "af_xdp_create_v2_reply" }
+func (*AfXdpCreateV2Reply) GetCrcString() string   { return "5383d31f" }
+func (*AfXdpCreateV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *AfXdpCreateV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	size += 4 // m.SwIfIndex
+	return size
+}
+func (m *AfXdpCreateV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	return buf.Bytes(), nil
+}
+func (m *AfXdpCreateV2Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	return nil
+}
+
 // AfXdpDelete defines message 'af_xdp_delete'.
+// InProgress: the message form may change in the future versions
 type AfXdpDelete struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 }
@@ -233,6 +340,7 @@ func (m *AfXdpDelete) Unmarshal(b []byte) error {
 }
 
 // AfXdpDeleteReply defines message 'af_xdp_delete_reply'.
+// InProgress: the message form may change in the future versions
 type AfXdpDeleteReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -269,6 +377,8 @@ func init() { file_af_xdp_binapi_init() }
 func file_af_xdp_binapi_init() {
 	api.RegisterMessage((*AfXdpCreate)(nil), "af_xdp_create_21226c99")
 	api.RegisterMessage((*AfXdpCreateReply)(nil), "af_xdp_create_reply_5383d31f")
+	api.RegisterMessage((*AfXdpCreateV2)(nil), "af_xdp_create_v2_e17ec2eb")
+	api.RegisterMessage((*AfXdpCreateV2Reply)(nil), "af_xdp_create_v2_reply_5383d31f")
 	api.RegisterMessage((*AfXdpDelete)(nil), "af_xdp_delete_f9e6675e")
 	api.RegisterMessage((*AfXdpDeleteReply)(nil), "af_xdp_delete_reply_e8d4e804")
 }
@@ -278,6 +388,8 @@ func AllMessages() []api.Message {
 	return []api.Message{
 		(*AfXdpCreate)(nil),
 		(*AfXdpCreateReply)(nil),
+		(*AfXdpCreateV2)(nil),
+		(*AfXdpCreateV2Reply)(nil),
 		(*AfXdpDelete)(nil),
 		(*AfXdpDeleteReply)(nil),
 	}

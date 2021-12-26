@@ -425,7 +425,7 @@ spec:
                 type: boolean
               awsSrcDstCheck:
                 description: 'Set source-destination-check on AWS EC2 instances. Accepted
-                  value must be one of "DoNothing", "Enabled" or "Disabled". [Default:
+                  value must be one of "DoNothing", "Enable" or "Disable". [Default:
                   DoNothing]'
                 enum:
                 - DoNothing
@@ -460,7 +460,7 @@ spec:
                   [Default: false]'
                 type: boolean
               bpfExtToServiceConnmark:
-                description: 'BPFExtToServiceConnmark in BPF mode, controls a 32bit
+                description: 'BPFExtToServiceConnmark in BPF mode, control a 32bit
                   mark that is set on connections from an external client to a local
                   service. This mark allows us to control how packets of that connection
                   are routed within the host and how is routing intepreted by RPF
@@ -824,6 +824,12 @@ spec:
                   to false. This reduces the number of metrics reported, reducing
                   Prometheus load. [Default: true]'
                 type: boolean
+              prometheusWireGuardMetricsEnabled:
+                description: 'PrometheusWireGuardMetricsEnabled disables wireguard
+                  metrics collection, which the Prometheus client does by default,
+                  when set to false. This reduces the number of metrics reported,
+                  reducing Prometheus load. [Default: true]'
+                type: boolean
               removeExternalRoutes:
                 description: Whether or not to remove device routes that have not
                   been programmed by Felix. Disabling this will allow external applications
@@ -904,6 +910,10 @@ spec:
               wireguardEnabled:
                 description: 'WireguardEnabled controls whether Wireguard is enabled.
                   [Default: false]'
+                type: boolean
+              wireguardHostEncryptionEnabled:
+                description: 'WireguardHostEncryptionEnabled controls whether Wireguard
+                  host-to-host encryption is enabled. [Default: false]'
                 type: boolean
               wireguardInterfaceName:
                 description: 'WireguardInterfaceName specifies the name to use for
@@ -2175,6 +2185,12 @@ spec:
           spec:
             description: IPPoolSpec contains the specification for an IPPool resource.
             properties:
+              allowedUses:
+                description: AllowedUse controls what the IP pool will be used for.  If
+                  not specified or empty, defaults to ["Tunnel", "Workload"] for back-compatibility
+                items:
+                  type: string
+                type: array
               blockSize:
                 description: The block size to use for IP address assignments from
                   this pool. Defaults to 26 for IPv4 and 112 for IPv6.
@@ -2230,6 +2246,56 @@ spec:
                 type: string
             required:
             - cidr
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ipreservations.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: IPReservation
+    listKind: IPReservationList
+    plural: ipreservations
+    singular: ipreservation
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: IPReservationSpec contains the specification for an IPReservation
+              resource.
+            properties:
+              reservedCIDRs:
+                description: ReservedCIDRs is a list of CIDRs and/or IP addresses
+                  that Calico IPAM will exclude from new allocations.
+                items:
+                  type: string
+                type: array
             type: object
         type: object
     served: true
@@ -3411,6 +3477,7 @@ rules:
   - crd.projectcalico.org
   resources:
   - ippools
+  - ipreservations
   verbs:
   - list
 - apiGroups:
@@ -3527,6 +3594,7 @@ rules:
   - globalbgpconfigs
   - bgpconfigurations
   - ippools
+  - ipreservations
   - ipamblocks
   - globalnetworkpolicies
   - globalnetworksets
@@ -3848,7 +3916,7 @@ spec:
           value: node
         - name: DATASTORE_TYPE
           value: kubernetes
-        image: docker.io/calico/kube-controllers:v3.20.0
+        image: docker.io/calico/kube-controllers:master
         livenessProbe:
           exec:
             command:
@@ -3905,6 +3973,40 @@ spec:
         k8s-app: calico-vpp-node
     spec:
       containers:
+      - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: SERVICE_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: service_prefix
+              name: calico-vpp-config
+        image: docker.io/calicovpp/agent:prerelease
+        imagePullPolicy: IfNotPresent
+        name: agent
+        resources:
+          requests:
+            cpu: 250m
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/calico
+          name: var-run-calico
+          readOnly: false
+        - mountPath: /var/lib/calico/felix-plugins
+          name: felix-plugins
+          readOnly: false
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
       - env:
         - name: CALICOVPP_HOOK_BEFORE_VPP_RUN
           value: echo 'sudo systemctl stop network ; sudo systemctl kill network'
@@ -3975,40 +4077,6 @@ spec:
           name: devices
         - mountPath: /sys
           name: hostsys
-        - mountPath: /run/netns/
-          mountPropagation: Bidirectional
-          name: netns
-      - env:
-        - name: DATASTORE_TYPE
-          value: kubernetes
-        - name: WAIT_FOR_DATASTORE
-          value: "true"
-        - name: NODENAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: SERVICE_PREFIX
-          valueFrom:
-            configMapKeyRef:
-              key: service_prefix
-              name: calico-vpp-config
-        image: docker.io/calicovpp/agent:prerelease
-        imagePullPolicy: IfNotPresent
-        name: agent
-        resources:
-          requests:
-            cpu: 250m
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /var/run/calico
-          name: var-run-calico
-          readOnly: false
-        - mountPath: /var/lib/calico/felix-plugins
-          name: felix-plugins
-          readOnly: false
-        - mountPath: /var/run/vpp
-          name: vpp-rundir
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns
@@ -4087,12 +4155,6 @@ spec:
           value: interface=eth0
         - name: CALICO_IPV4POOL_CIDR
           value: 10.10.0.0/16
-        - name: FELIX_USEINTERNALDATAPLANEDRIVER
-          value: "false"
-        - name: FELIX_DATAPLANEDRIVER
-          value: /usr/local/bin/felix-plugins/felix-api-proxy
-        - name: FELIX_XDPENABLED
-          value: "false"
         - name: DATASTORE_TYPE
           value: kubernetes
         - name: WAIT_FOR_DATASTORE
@@ -4141,7 +4203,13 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/node:v3.20.0
+        image: docker.io/calico/node:master
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/calico-node
+              - -shutdown
         livenessProbe:
           exec:
             command:
@@ -4192,7 +4260,6 @@ spec:
           name: cni-log-dir
           readOnly: true
       hostNetwork: true
-      hostPID: true
       initContainers:
       - command:
         - /opt/cni/bin/calico-ipam
@@ -4211,7 +4278,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/cni:v3.20.0
+        image: docker.io/calico/cni:master
         name: upgrade-ipam
         securityContext:
           privileged: true
@@ -4245,7 +4312,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/cni:v3.20.0
+        image: docker.io/calico/cni:master
         name: install-cni
         securityContext:
           privileged: true
@@ -4254,7 +4321,7 @@ spec:
           name: cni-bin-dir
         - mountPath: /host/etc/cni/net.d
           name: cni-net-dir
-      - image: docker.io/calico/pod2daemon-flexvol:v3.20.0
+      - image: docker.io/calico/pod2daemon-flexvol:master
         name: flexvol-driver
         securityContext:
           privileged: true
@@ -4318,3 +4385,12 @@ spec:
     rollingUpdate:
       maxUnavailable: 1
     type: RollingUpdate
+---
+apiVersion: crd.projectcalico.org/v1
+kind: FelixConfiguration
+metadata:
+  name: default
+spec:
+  dataplaneDriver: /usr/local/bin/felix-plugins/felix-api-proxy
+  useInternalDataplaneDriver: false
+  xdpEnabled: false

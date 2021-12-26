@@ -336,6 +336,7 @@ func (m *SrPoliciesDump) Unmarshal(b []byte) error {
 }
 
 // SrPoliciesWithSlIndexDetails defines message 'sr_policies_with_sl_index_details'.
+// InProgress: the message form may change in the future versions
 type SrPoliciesWithSlIndexDetails struct {
 	Bsid        ip_types.IP6Address      `binapi:"ip6_address,name=bsid" json:"bsid,omitempty"`
 	IsSpray     bool                     `binapi:"bool,name=is_spray" json:"is_spray,omitempty"`
@@ -422,6 +423,7 @@ func (m *SrPoliciesWithSlIndexDetails) Unmarshal(b []byte) error {
 }
 
 // SrPoliciesWithSlIndexDump defines message 'sr_policies_with_sl_index_dump'.
+// InProgress: the message form may change in the future versions
 type SrPoliciesWithSlIndexDump struct{}
 
 func (m *SrPoliciesWithSlIndexDump) Reset()               { *m = SrPoliciesWithSlIndexDump{} }

@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/session"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func (v *VppLink) enableDisableSessionLayer(isEnable bool) error {
@@ -52,8 +53,8 @@ func (v *VppLink) enableDisableSessionSAPILayer(isEnable bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	response := &session.SessionEnableDisableReply{}
-	request := &session.SessionEnableDisable{
+	response := &session.SessionSapiEnableDisableReply{}
+	request := &session.SessionSapiEnableDisable{
 		IsEnable: isEnable,
 	}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
@@ -73,29 +74,32 @@ func (v *VppLink) DisableSessionSAPI() error {
 	return v.enableDisableSessionSAPILayer(false)
 }
 
-func (v *VppLink) addDelSessionAppNamespace(namespaceId string, netns string, swIfIndex uint32, isAdd bool) error {
+func (v *VppLink) addDelSessionAppNamespace(namespace *types.SessionAppNamespace, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	response := &session.AppNamespaceAddDelV2Reply{}
-	request := &session.AppNamespaceAddDelV2{
-		SwIfIndex:   interface_types.InterfaceIndex(swIfIndex),
-		NamespaceID: namespaceId,
-		Netns:       netns,
+	response := &session.AppNamespaceAddDelV3Reply{}
+	request := &session.AppNamespaceAddDelV3{
+		Secret:      namespace.Secret,
+		NamespaceID: namespace.NamespaceId,
+		Netns:       namespace.Netns,
+		SockName:    namespace.SocketName,
+		SwIfIndex:   interface_types.InterfaceIndex(namespace.SwIfIndex),
+		IsAdd:       isAdd,
 	}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return errors.Wrapf(err, "Add/Del session namespace")
+		return errors.Wrapf(err, "error %sing session namespace", IsAddToStr(isAdd))
 	} else if response.Retval != 0 {
-		return fmt.Errorf("Add/Del session namespace with retval %d", response.Retval)
+		return fmt.Errorf("%s session namespace errored with retval %d", IsAddToStr(isAdd), response.Retval)
 	}
 	return nil
 }
 
-func (v *VppLink) AddSessionAppNamespace(namespaceId string, netns string, swIfIndex uint32) error {
-	return v.addDelSessionAppNamespace(namespaceId, netns, swIfIndex, true /* isAdd */)
+func (v *VppLink) AddSessionAppNamespace(namespace *types.SessionAppNamespace) error {
+	return v.addDelSessionAppNamespace(namespace, true /* isAdd */)
 }
 
-func (v *VppLink) DelSessionAppNamespace(namespaceId string, netns string, swIfIndex uint32) error {
-	return v.addDelSessionAppNamespace(namespaceId, netns, swIfIndex, false /* isAdd */)
+func (v *VppLink) DelSessionAppNamespace(namespace *types.SessionAppNamespace) error {
+	return v.addDelSessionAppNamespace(namespace, false /* isAdd */)
 }

@@ -56,7 +56,7 @@ func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *VirtioDriver) PreconfigureLinux() (err error) {
-	newDriverName := d.params.NewDriverName
+	newDriverName := d.spec.NewDriverName
 	doSwapDriver := d.conf.DoSwapDriver
 	if newDriverName == "" {
 		newDriverName = config.DRIVER_VFIO_PCI
@@ -97,9 +97,9 @@ func (d *VirtioDriver) RestoreLinux() {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
 		return
 	}
 
@@ -118,16 +118,22 @@ func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) 
 	}
 	log.Infof("Created VIRTIO interface %d", swIfIndex)
 
-	if swIfIndex != config.DataInterfaceSwIfIndex {
+	if d.spec.IsMain && swIfIndex != config.DataInterfaceSwIfIndex {
 		return fmt.Errorf("Created VIRTIO interface has wrong swIfIndex %d!", swIfIndex)
+	}
+	d.spec.SwIfIndex = swIfIndex
+	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func NewVirtioDriver(params *config.VppManagerParams, conf *config.InterfaceConfig) *VirtioDriver {
+func NewVirtioDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *VirtioDriver {
 	d := &VirtioDriver{}
 	d.name = NATIVE_DRIVER_VIRTIO
 	d.conf = conf
 	d.params = params
+	d.spec = spec
 	return d
 }

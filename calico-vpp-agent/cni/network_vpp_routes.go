@@ -19,7 +19,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -44,7 +43,7 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 			err = s.vpp.AddNeighbor(&types.Neighbor{
 				SwIfIndex:    swIfIndex,
 				IP:           containerIP.IP,
-				HardwareAddr: config.ContainerSideMacAddress,
+				HardwareAddr: common.ContainerSideMacAddress,
 			})
 			if err != nil {
 				return errors.Wrapf(err, "Error adding neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
@@ -111,7 +110,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 			err = s.vpp.AddNeighbor(&types.Neighbor{
 				SwIfIndex:    swIfIndex,
 				IP:           containerIP.IP,
-				HardwareAddr: config.ContainerSideMacAddress,
+				HardwareAddr: common.ContainerSideMacAddress,
 			})
 			if err != nil {
 				return errors.Wrapf(err, "Cannot adding neighbor if[%d] %s", swIfIndex, containerIP.IP.String())

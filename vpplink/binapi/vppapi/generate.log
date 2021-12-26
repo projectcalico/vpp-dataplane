@@ -1,20 +1,15 @@
-VPP Version                 : 21.10-rc0~381-gccd2c7461
+VPP Version                 : 22.02-rc0~408-g2c81b117d
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : ef356f57b hash: fix the initialization warning error on gcc-10
+VPP Base commit             : 88019c407 vppinfra: toeplitz hash four in parallel
 ------------------ Cherry picked commits --------------------
 gerrit:28513/24 capo: Calico Policies plugin
 gerrit:28083/20 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
-gerrit:33264/3 pbl: Port based balancer
-gerrit:33793/1 wireguard: fix wg-output-tun feature configuration
-gerrit:33794/1 tap: Fix tap create with ns
-gerrit:33557/1 ip: unlock_fib on if delete
-gerrit:32271/6 memif: add support for ns abstract sockets
-gerrit:32871/1 devices: Add queues params in create_if
-gerrit:32483/1 virtio: Still init unused txq
-gerrit:32482/1 virtio: compute cksums in output no offload
-gerrit:31869/18 gso: do not gro on small packets
-gerrit:31321/11 devices: add support for pseudo header checksum
-gerrit:29386/9 virtio: DRAFT: multi tx support
+gerrit:33264/7 pbl: Port based balancer
+gerrit:34757/1 tap: add num_tx_queues API
+gerrit:34726/1 interface: add buffer stats api
+gerrit:34734/2 memif: autogenerate socket_ids
+gerrit:32271/15 memif: add support for ns abstract sockets
+gerrit:34713/3 vppinfra: improve & test abstract socket
 gerrit:33312/4 sr: fix srv6 definition of behavior associated to a LocalSID
 -------------------------------------------------------------

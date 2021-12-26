@@ -28,8 +28,10 @@ iperf3-vcl-image:
 				 -in ./iperf3-vcl/iperfcert.csr \
 				 -signkey ./iperf3-vcl/iperfcert.key \
 				 -out ./iperf3-vcl/iperfcert.crt
-	cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/*.so ./iperf3-vcl/
-	cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/*.so.* ./iperf3-vcl/
+	for f in libvcl_ldpreload.so libvppcom.so.22.02 libvlibmemoryclient.so.22.02 \
+	        libsvm.so.22.02 libvppinfra.so.22.02 ; do \
+		cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/x86_64-linux-gnu/$${f} ./iperf3-vcl/ ; \
+	done
 	docker build -t calicovpp/test-iperf3-vcl -f ./iperf3-vcl/Dockerfile ./iperf3-vcl
 
 .PHONY: trex-image-buildenv

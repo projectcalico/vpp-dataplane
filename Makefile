@@ -74,6 +74,10 @@ test-install-calicovpp-srv6:
 test-install-calicovpp-dev:
 	kubectl apply -k yaml/overlays/test-vagrant-mounts
 
+.PHONY: test-install-calicovpp-v6
+test-install-calicovpp-v6:
+	kubectl apply -k yaml/overlays/test-vagrant-v6
+
 .PHONY: test-install-calicovpp-dev-v6
 test-install-calicovpp-dev-v6:
 	kubectl apply -k yaml/overlays/test-vagrant-v6-mounts
@@ -125,7 +129,8 @@ yaml:
 
 .PHONY: release
 # TAG must be set to something like v0.6.0-calicov3.9.1
-release: check-TAG
+# CALICO_TAG must be the latest calico release, like v3.20.1
+release: check-TAG check-CALICO_TAG
 	@[ -z "$(shell git status --porcelain)" ] || (echo "Repo is not clean! Aborting." && exit 1)
 	# Generate yaml file for this release
 	sed -i.bak "s|:latest|:$(TAG)|g" yaml/base/calico-vpp-daemonset.yaml

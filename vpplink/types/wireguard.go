@@ -57,6 +57,9 @@ func (t *WireguardPeer) Equal(o *WireguardPeer) bool {
 	if o == nil {
 		return false
 	}
+	if o.Index != t.Index {
+		return false
+	}
 	if !bytes.Equal(o.PublicKey, t.PublicKey) {
 		return false
 	}

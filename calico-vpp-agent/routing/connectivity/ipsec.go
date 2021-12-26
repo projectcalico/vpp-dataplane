@@ -36,6 +36,16 @@ type IpsecProvider struct {
 	ipsecRoutes map[string]map[string]bool
 }
 
+func (p *IpsecProvider) GetSwifindexes() []uint32 {
+	swifindexes := []uint32{}
+	for _, ipsecIf := range p.ipsecIfs {
+		for _, ipipIf := range ipsecIf {
+			swifindexes = append(swifindexes, ipipIf.SwIfIndex)
+		}
+	}
+	return swifindexes
+}
+
 func (p *IpsecProvider) OnVppRestart() {
 
 	var nbDataThread int = 0
@@ -191,7 +201,7 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 	if err != nil {
 		return errors.Wrapf(err, "Error adding ipip tunnel %s", tunnel.String())
 	}
-
+	p.tunnelChangeChan <- TunnelChange{swIfIndex, AddChange}
 	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel, "")
@@ -409,6 +419,7 @@ func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error)
 			if err != nil {
 				p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
 			}
+			p.tunnelChangeChan <- TunnelChange{tunnel.SwIfIndex, DeleteChange}
 		}
 		delete(p.ipsecIfs, cn.NextHop.String())
 	}

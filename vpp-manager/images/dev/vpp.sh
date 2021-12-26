@@ -21,12 +21,12 @@ trap "_trap ABRT" SIGABRT
 # vpp-manager in ~/vpp-dataplane/vpp-manager
 
 if [[ -f /home/hostuser/vpp/isrelease ]]; then
-  VPP="/home/hostuser/vpp/build-root/install-vpp-native/vpp/"
+  VPP="/home/hostuser/vpp/build-root/install-vpp-native/vpp"
 else
-  VPP="/home/hostuser/vpp/build-root/install-vpp_debug-native/vpp/"
+  VPP="/home/hostuser/vpp/build-root/install-vpp_debug-native/vpp"
 fi
 
-export LD_LIBRARY_PATH=$VPP/lib/
+export LD_LIBRARY_PATH=$VPP/lib/x86_64-linux-gnu
 $VPP/bin/vpp $@ &
 child=$!
 while kill -0 $child > /dev/null 2>&1

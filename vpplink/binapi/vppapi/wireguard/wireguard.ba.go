@@ -5,7 +5,7 @@
 // Contents:
 //   1 enum
 //   2 structs
-//  12 messages
+//  15 messages
 //
 package wireguard
 
@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "wireguard"
 	APIVersion = "0.1.0"
-	VersionCrc = 0x1e1d4252
+	VersionCrc = 0xbe72fad2
 )
 
 // WireguardPeerFlags defines enum 'wireguard_peer_flags'.
@@ -35,14 +35,17 @@ type WireguardPeerFlags uint8
 
 const (
 	WIREGUARD_PEER_STATUS_DEAD WireguardPeerFlags = 1
+	WIREGUARD_PEER_ESTABLISHED WireguardPeerFlags = 2
 )
 
 var (
 	WireguardPeerFlags_name = map[uint8]string{
 		1: "WIREGUARD_PEER_STATUS_DEAD",
+		2: "WIREGUARD_PEER_ESTABLISHED",
 	}
 	WireguardPeerFlags_value = map[string]uint8{
 		"WIREGUARD_PEER_STATUS_DEAD": 1,
+		"WIREGUARD_PEER_ESTABLISHED": 2,
 	}
 )
 
@@ -96,7 +99,90 @@ type WireguardPeer struct {
 	AllowedIps          []ip_types.Prefix              `binapi:"prefix[n_allowed_ips],name=allowed_ips" json:"allowed_ips,omitempty"`
 }
 
+// WantWireguardPeerEvents defines message 'want_wireguard_peer_events'.
+// InProgress: the message form may change in the future versions
+type WantWireguardPeerEvents struct {
+	SwIfIndex     interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index,default=4294967295" json:"sw_if_index,omitempty"`
+	PeerIndex     uint32                         `binapi:"u32,name=peer_index,default=4294967295" json:"peer_index,omitempty"`
+	EnableDisable uint32                         `binapi:"u32,name=enable_disable" json:"enable_disable,omitempty"`
+	PID           uint32                         `binapi:"u32,name=pid" json:"pid,omitempty"`
+}
+
+func (m *WantWireguardPeerEvents) Reset()               { *m = WantWireguardPeerEvents{} }
+func (*WantWireguardPeerEvents) GetMessageName() string { return "want_wireguard_peer_events" }
+func (*WantWireguardPeerEvents) GetCrcString() string   { return "3bc666c8" }
+func (*WantWireguardPeerEvents) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *WantWireguardPeerEvents) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	size += 4 // m.PeerIndex
+	size += 4 // m.EnableDisable
+	size += 4 // m.PID
+	return size
+}
+func (m *WantWireguardPeerEvents) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeUint32(m.PeerIndex)
+	buf.EncodeUint32(m.EnableDisable)
+	buf.EncodeUint32(m.PID)
+	return buf.Bytes(), nil
+}
+func (m *WantWireguardPeerEvents) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.PeerIndex = buf.DecodeUint32()
+	m.EnableDisable = buf.DecodeUint32()
+	m.PID = buf.DecodeUint32()
+	return nil
+}
+
+// WantWireguardPeerEventsReply defines message 'want_wireguard_peer_events_reply'.
+// InProgress: the message form may change in the future versions
+type WantWireguardPeerEventsReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *WantWireguardPeerEventsReply) Reset() { *m = WantWireguardPeerEventsReply{} }
+func (*WantWireguardPeerEventsReply) GetMessageName() string {
+	return "want_wireguard_peer_events_reply"
+}
+func (*WantWireguardPeerEventsReply) GetCrcString() string { return "e8d4e804" }
+func (*WantWireguardPeerEventsReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *WantWireguardPeerEventsReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *WantWireguardPeerEventsReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *WantWireguardPeerEventsReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // WireguardInterfaceCreate defines message 'wireguard_interface_create'.
+// InProgress: the message form may change in the future versions
 type WireguardInterfaceCreate struct {
 	Interface   WireguardInterface `binapi:"wireguard_interface,name=interface" json:"interface,omitempty"`
 	GenerateKey bool               `binapi:"bool,name=generate_key" json:"generate_key,omitempty"`
@@ -154,6 +240,7 @@ func (m *WireguardInterfaceCreate) Unmarshal(b []byte) error {
 }
 
 // WireguardInterfaceCreateReply defines message 'wireguard_interface_create_reply'.
+// InProgress: the message form may change in the future versions
 type WireguardInterfaceCreateReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -193,6 +280,7 @@ func (m *WireguardInterfaceCreateReply) Unmarshal(b []byte) error {
 }
 
 // WireguardInterfaceDelete defines message 'wireguard_interface_delete'.
+// InProgress: the message form may change in the future versions
 type WireguardInterfaceDelete struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 }
@@ -226,6 +314,7 @@ func (m *WireguardInterfaceDelete) Unmarshal(b []byte) error {
 }
 
 // WireguardInterfaceDeleteReply defines message 'wireguard_interface_delete_reply'.
+// InProgress: the message form may change in the future versions
 type WireguardInterfaceDeleteReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -261,6 +350,7 @@ func (m *WireguardInterfaceDeleteReply) Unmarshal(b []byte) error {
 }
 
 // WireguardInterfaceDetails defines message 'wireguard_interface_details'.
+// InProgress: the message form may change in the future versions
 type WireguardInterfaceDetails struct {
 	Interface WireguardInterface `binapi:"wireguard_interface,name=interface" json:"interface,omitempty"`
 }
@@ -314,6 +404,7 @@ func (m *WireguardInterfaceDetails) Unmarshal(b []byte) error {
 }
 
 // WireguardInterfaceDump defines message 'wireguard_interface_dump'.
+// InProgress: the message form may change in the future versions
 type WireguardInterfaceDump struct {
 	ShowPrivateKey bool                           `binapi:"bool,name=show_private_key" json:"show_private_key,omitempty"`
 	SwIfIndex      interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -351,13 +442,14 @@ func (m *WireguardInterfaceDump) Unmarshal(b []byte) error {
 }
 
 // WireguardPeerAdd defines message 'wireguard_peer_add'.
+// InProgress: the message form may change in the future versions
 type WireguardPeerAdd struct {
 	Peer WireguardPeer `binapi:"wireguard_peer,name=peer" json:"peer,omitempty"`
 }
 
 func (m *WireguardPeerAdd) Reset()               { *m = WireguardPeerAdd{} }
 func (*WireguardPeerAdd) GetMessageName() string { return "wireguard_peer_add" }
-func (*WireguardPeerAdd) GetCrcString() string   { return "ed792326" }
+func (*WireguardPeerAdd) GetCrcString() string   { return "aedf8d59" }
 func (*WireguardPeerAdd) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -434,6 +526,7 @@ func (m *WireguardPeerAdd) Unmarshal(b []byte) error {
 }
 
 // WireguardPeerAddReply defines message 'wireguard_peer_add_reply'.
+// InProgress: the message form may change in the future versions
 type WireguardPeerAddReply struct {
 	Retval    int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	PeerIndex uint32 `binapi:"u32,name=peer_index" json:"peer_index,omitempty"`
@@ -470,7 +563,50 @@ func (m *WireguardPeerAddReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// WireguardPeerEvent defines message 'wireguard_peer_event'.
+// InProgress: the message form may change in the future versions
+type WireguardPeerEvent struct {
+	PID       uint32             `binapi:"u32,name=pid" json:"pid,omitempty"`
+	PeerIndex uint32             `binapi:"u32,name=peer_index" json:"peer_index,omitempty"`
+	Flags     WireguardPeerFlags `binapi:"wireguard_peer_flags,name=flags" json:"flags,omitempty"`
+}
+
+func (m *WireguardPeerEvent) Reset()               { *m = WireguardPeerEvent{} }
+func (*WireguardPeerEvent) GetMessageName() string { return "wireguard_peer_event" }
+func (*WireguardPeerEvent) GetCrcString() string   { return "4e1b5d67" }
+func (*WireguardPeerEvent) GetMessageType() api.MessageType {
+	return api.EventMessage
+}
+
+func (m *WireguardPeerEvent) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.PID
+	size += 4 // m.PeerIndex
+	size += 1 // m.Flags
+	return size
+}
+func (m *WireguardPeerEvent) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.PID)
+	buf.EncodeUint32(m.PeerIndex)
+	buf.EncodeUint8(uint8(m.Flags))
+	return buf.Bytes(), nil
+}
+func (m *WireguardPeerEvent) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.PID = buf.DecodeUint32()
+	m.PeerIndex = buf.DecodeUint32()
+	m.Flags = WireguardPeerFlags(buf.DecodeUint8())
+	return nil
+}
+
 // WireguardPeerRemove defines message 'wireguard_peer_remove'.
+// InProgress: the message form may change in the future versions
 type WireguardPeerRemove struct {
 	PeerIndex uint32 `binapi:"u32,name=peer_index" json:"peer_index,omitempty"`
 }
@@ -504,6 +640,7 @@ func (m *WireguardPeerRemove) Unmarshal(b []byte) error {
 }
 
 // WireguardPeerRemoveReply defines message 'wireguard_peer_remove_reply'.
+// InProgress: the message form may change in the future versions
 type WireguardPeerRemoveReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -537,13 +674,14 @@ func (m *WireguardPeerRemoveReply) Unmarshal(b []byte) error {
 }
 
 // WireguardPeersDetails defines message 'wireguard_peers_details'.
+// InProgress: the message form may change in the future versions
 type WireguardPeersDetails struct {
 	Peer WireguardPeer `binapi:"wireguard_peer,name=peer" json:"peer,omitempty"`
 }
 
 func (m *WireguardPeersDetails) Reset()               { *m = WireguardPeersDetails{} }
 func (*WireguardPeersDetails) GetMessageName() string { return "wireguard_peers_details" }
-func (*WireguardPeersDetails) GetCrcString() string   { return "2097f740" }
+func (*WireguardPeersDetails) GetCrcString() string   { return "29269d0e" }
 func (*WireguardPeersDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -620,11 +758,14 @@ func (m *WireguardPeersDetails) Unmarshal(b []byte) error {
 }
 
 // WireguardPeersDump defines message 'wireguard_peers_dump'.
-type WireguardPeersDump struct{}
+// InProgress: the message form may change in the future versions
+type WireguardPeersDump struct {
+	PeerIndex uint32 `binapi:"u32,name=peer_index,default=4294967295" json:"peer_index,omitempty"`
+}
 
 func (m *WireguardPeersDump) Reset()               { *m = WireguardPeersDump{} }
 func (*WireguardPeersDump) GetMessageName() string { return "wireguard_peers_dump" }
-func (*WireguardPeersDump) GetCrcString() string   { return "51077d14" }
+func (*WireguardPeersDump) GetCrcString() string   { return "3b74607a" }
 func (*WireguardPeersDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -633,6 +774,7 @@ func (m *WireguardPeersDump) Size() (size int) {
 	if m == nil {
 		return 0
 	}
+	size += 4 // m.PeerIndex
 	return size
 }
 func (m *WireguardPeersDump) Marshal(b []byte) ([]byte, error) {
@@ -640,31 +782,39 @@ func (m *WireguardPeersDump) Marshal(b []byte) ([]byte, error) {
 		b = make([]byte, m.Size())
 	}
 	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.PeerIndex)
 	return buf.Bytes(), nil
 }
 func (m *WireguardPeersDump) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.PeerIndex = buf.DecodeUint32()
 	return nil
 }
 
 func init() { file_wireguard_binapi_init() }
 func file_wireguard_binapi_init() {
+	api.RegisterMessage((*WantWireguardPeerEvents)(nil), "want_wireguard_peer_events_3bc666c8")
+	api.RegisterMessage((*WantWireguardPeerEventsReply)(nil), "want_wireguard_peer_events_reply_e8d4e804")
 	api.RegisterMessage((*WireguardInterfaceCreate)(nil), "wireguard_interface_create_a530137e")
 	api.RegisterMessage((*WireguardInterfaceCreateReply)(nil), "wireguard_interface_create_reply_5383d31f")
 	api.RegisterMessage((*WireguardInterfaceDelete)(nil), "wireguard_interface_delete_f9e6675e")
 	api.RegisterMessage((*WireguardInterfaceDeleteReply)(nil), "wireguard_interface_delete_reply_e8d4e804")
 	api.RegisterMessage((*WireguardInterfaceDetails)(nil), "wireguard_interface_details_0dd4865d")
 	api.RegisterMessage((*WireguardInterfaceDump)(nil), "wireguard_interface_dump_2c954158")
-	api.RegisterMessage((*WireguardPeerAdd)(nil), "wireguard_peer_add_ed792326")
+	api.RegisterMessage((*WireguardPeerAdd)(nil), "wireguard_peer_add_aedf8d59")
 	api.RegisterMessage((*WireguardPeerAddReply)(nil), "wireguard_peer_add_reply_084a0cd3")
+	api.RegisterMessage((*WireguardPeerEvent)(nil), "wireguard_peer_event_4e1b5d67")
 	api.RegisterMessage((*WireguardPeerRemove)(nil), "wireguard_peer_remove_3b74607a")
 	api.RegisterMessage((*WireguardPeerRemoveReply)(nil), "wireguard_peer_remove_reply_e8d4e804")
-	api.RegisterMessage((*WireguardPeersDetails)(nil), "wireguard_peers_details_2097f740")
-	api.RegisterMessage((*WireguardPeersDump)(nil), "wireguard_peers_dump_51077d14")
+	api.RegisterMessage((*WireguardPeersDetails)(nil), "wireguard_peers_details_29269d0e")
+	api.RegisterMessage((*WireguardPeersDump)(nil), "wireguard_peers_dump_3b74607a")
 }
 
 // Messages returns list of all messages in this module.
 func AllMessages() []api.Message {
 	return []api.Message{
+		(*WantWireguardPeerEvents)(nil),
+		(*WantWireguardPeerEventsReply)(nil),
 		(*WireguardInterfaceCreate)(nil),
 		(*WireguardInterfaceCreateReply)(nil),
 		(*WireguardInterfaceDelete)(nil),
@@ -673,6 +823,7 @@ func AllMessages() []api.Message {
 		(*WireguardInterfaceDump)(nil),
 		(*WireguardPeerAdd)(nil),
 		(*WireguardPeerAddReply)(nil),
+		(*WireguardPeerEvent)(nil),
 		(*WireguardPeerRemove)(nil),
 		(*WireguardPeerRemoveReply)(nil),
 		(*WireguardPeersDetails)(nil),

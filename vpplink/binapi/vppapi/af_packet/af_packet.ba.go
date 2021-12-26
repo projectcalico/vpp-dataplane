@@ -23,7 +23,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "af_packet"
 	APIVersion = "2.0.0"
-	VersionCrc = 0xf423ff86
+	VersionCrc = 0x589bd50e
 )
 
 // AfPacketCreate defines message 'af_packet_create'.
@@ -113,11 +113,13 @@ type AfPacketCreateV2 struct {
 	TxFrameSize      uint32                    `binapi:"u32,name=tx_frame_size" json:"tx_frame_size,omitempty"`
 	RxFramesPerBlock uint32                    `binapi:"u32,name=rx_frames_per_block" json:"rx_frames_per_block,omitempty"`
 	TxFramesPerBlock uint32                    `binapi:"u32,name=tx_frames_per_block" json:"tx_frames_per_block,omitempty"`
+	Flags            uint32                    `binapi:"u32,name=flags" json:"flags,omitempty"`
+	NumRxQueues      uint16                    `binapi:"u16,name=num_rx_queues,default=1" json:"num_rx_queues,omitempty"`
 }
 
 func (m *AfPacketCreateV2) Reset()               { *m = AfPacketCreateV2{} }
 func (*AfPacketCreateV2) GetMessageName() string { return "af_packet_create_v2" }
-func (*AfPacketCreateV2) GetCrcString() string   { return "8b481d6a" }
+func (*AfPacketCreateV2) GetCrcString() string   { return "4aff0436" }
 func (*AfPacketCreateV2) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -133,6 +135,8 @@ func (m *AfPacketCreateV2) Size() (size int) {
 	size += 4     // m.TxFrameSize
 	size += 4     // m.RxFramesPerBlock
 	size += 4     // m.TxFramesPerBlock
+	size += 4     // m.Flags
+	size += 2     // m.NumRxQueues
 	return size
 }
 func (m *AfPacketCreateV2) Marshal(b []byte) ([]byte, error) {
@@ -147,6 +151,8 @@ func (m *AfPacketCreateV2) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint32(m.TxFrameSize)
 	buf.EncodeUint32(m.RxFramesPerBlock)
 	buf.EncodeUint32(m.TxFramesPerBlock)
+	buf.EncodeUint32(m.Flags)
+	buf.EncodeUint16(m.NumRxQueues)
 	return buf.Bytes(), nil
 }
 func (m *AfPacketCreateV2) Unmarshal(b []byte) error {
@@ -158,6 +164,8 @@ func (m *AfPacketCreateV2) Unmarshal(b []byte) error {
 	m.TxFrameSize = buf.DecodeUint32()
 	m.RxFramesPerBlock = buf.DecodeUint32()
 	m.TxFramesPerBlock = buf.DecodeUint32()
+	m.Flags = buf.DecodeUint32()
+	m.NumRxQueues = buf.DecodeUint16()
 	return nil
 }
 
@@ -404,7 +412,7 @@ func init() { file_af_packet_binapi_init() }
 func file_af_packet_binapi_init() {
 	api.RegisterMessage((*AfPacketCreate)(nil), "af_packet_create_a190415f")
 	api.RegisterMessage((*AfPacketCreateReply)(nil), "af_packet_create_reply_5383d31f")
-	api.RegisterMessage((*AfPacketCreateV2)(nil), "af_packet_create_v2_8b481d6a")
+	api.RegisterMessage((*AfPacketCreateV2)(nil), "af_packet_create_v2_4aff0436")
 	api.RegisterMessage((*AfPacketCreateV2Reply)(nil), "af_packet_create_v2_reply_5383d31f")
 	api.RegisterMessage((*AfPacketDelete)(nil), "af_packet_delete_863fa648")
 	api.RegisterMessage((*AfPacketDeleteReply)(nil), "af_packet_delete_reply_e8d4e804")

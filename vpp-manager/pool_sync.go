@@ -35,7 +35,7 @@ type PoolWatcher struct {
 	stop         chan struct{}
 	RouteWatcher *RouteWatcher
 	params       *config.VppManagerParams
-	conf         *config.InterfaceConfig
+	conf         *config.LinuxInterfaceState
 }
 
 func (p *PoolWatcher) Stop() {
@@ -116,7 +116,7 @@ func (p *PoolWatcher) SyncPools() {
 			}
 		}
 		// Sweep phase
-		for key, _ := range pools {
+		for key := range pools {
 			_, found := sweepMap[key]
 			if !found {
 				err = p.poolDeleted(key)

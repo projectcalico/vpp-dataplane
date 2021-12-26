@@ -36,6 +36,14 @@ func NewVXLanProvider(d *ConnectivityProviderData) *VXLanProvider {
 	return &VXLanProvider{d, make(map[string]uint32), make(map[uint32]map[string]bool), 0, 0}
 }
 
+func (p *VXLanProvider) GetSwifindexes() []uint32 {
+	swifindexes := []uint32{}
+	for _, vxlanIndex := range p.vxlanIfs {
+		swifindexes = append(swifindexes, vxlanIndex)
+	}
+	return swifindexes
+}
+
 func (p *VXLanProvider) Enabled() bool {
 	return true
 }
@@ -131,7 +139,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 
 	vxLanPort := p.getVXLANPort()
 	if _, found := p.vxlanIfs[cn.NextHop.String()]; !found {
-		p.log.Infof("VXLan: Add %s->%s", nodeIP.String(), cn.Dst.IP.String())
+		p.log.Infof("VXLan: Add %s->%s", nodeIP.String(), cn.NextHop.String())
 		tunnel := &types.VXLanTunnel{
 			SrcAddress:     nodeIP,
 			DstAddress:     cn.NextHop,
@@ -187,12 +195,12 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		}
 
 		p.vxlanIfs[cn.NextHop.String()] = swIfIndex
-		p.log.Infof("VXLan: Added ?->%s %d", cn.Dst.IP.String(), swIfIndex)
+		p.log.Infof("VXLan: Added ?->%s %d", cn.NextHop.String(), swIfIndex)
+		p.tunnelChangeChan <- TunnelChange{swIfIndex, AddChange}
 	}
 	swIfIndex := p.vxlanIfs[cn.NextHop.String()]
-	p.log.Infof("VXLan: Added ?->%s %d", cn.Dst.IP.String(), swIfIndex)
 
-	p.log.Debugf("Adding vxlan tunnel route to %s via swIfIndex %d", cn.Dst.IP.String(), swIfIndex)
+	p.log.Infof("Adding vxlan tunnel route to %s via swIfIndex %d", cn.Dst.IP.String(), swIfIndex)
 	route := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
@@ -242,6 +250,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			p.log.Infof("Deleting tunnel...[%s]", swIfIndex)
 			p.vpp.DelVXLanTunnel(&tunnel)
 			delete(p.vxlanIfs, cn.NextHop.String())
+			p.tunnelChangeChan <- TunnelChange{swIfIndex, DeleteChange}
 		}
 	}
 	return nil

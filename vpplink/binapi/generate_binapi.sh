@@ -81,7 +81,7 @@ function generate_govpp_apis ()
 	  punt \
 	  vxlan \
 	  af_xdp \
-	  vpe \
+	  vlib \
 	  virtio \
 	  avf \
 	  wireguard \
@@ -94,7 +94,9 @@ function generate_govpp_apis ()
 	  rdma \
 	  vmxnet3 \
 	  pbl \
-	  session
+	  memclnt \
+	  session \
+	  vpe
 }
 
 make_binapi_generator

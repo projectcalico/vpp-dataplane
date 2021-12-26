@@ -16,6 +16,7 @@
 package startup
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -92,6 +93,7 @@ const (
 	VppStartupSleepEnvVar = "CALICOVPP_VPP_STARTUP_SLEEP"
 	ExtraAddrCountEnvVar  = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
 	SwapDriverEnvVar      = "CALICOVPP_SWAP_DRIVER"
+	ExtraInterfacesEnvVar = "CALICOVPP_EXTRA_INTERFACES"
 	EnableGSOEnvVar       = "CALICOVPP_DEBUG_ENABLE_GSO"
 )
 
@@ -107,7 +109,8 @@ const (
 
 func GetVppManagerParams() (params *config.VppManagerParams) {
 	params = &config.VppManagerParams{}
-	err := parseEnvVariables(params)
+	mainInterfaceSpec := config.InterfaceSpec{IsMain: true}
+	err := parseEnvVariables(params, mainInterfaceSpec)
 	if err != nil {
 		log.Panicf("Parse error %v", err)
 	}
@@ -165,7 +168,7 @@ func getEnvValue(str string) string {
 	return os.Getenv(str)
 }
 
-func parseEnvVariables(params *config.VppManagerParams) (err error) {
+func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config.InterfaceSpec) (err error) {
 	supportedEnvVars = make(map[string]bool)
 
 	vppStartupSleep := getEnvValue(VppStartupSleepEnvVar)
@@ -179,10 +182,11 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.MainInterface = getEnvValue(InterfaceEnvVar)
-	if params.MainInterface == "" {
+	mainInterface := getEnvValue(InterfaceEnvVar)
+	if mainInterface == "" {
 		return errors.Errorf("No interface specified. Specify an interface through the %s environment variable", InterfaceEnvVar)
 	}
+	mainInterfaceSpec.InterfaceName = mainInterface
 
 	params.ConfigExecTemplate = getEnvValue(ConfigExecTemplateEnvVar)
 	for _, hookName := range hooks.AllHooks {
@@ -215,8 +219,8 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		params.ServiceCIDRs = append(params.ServiceCIDRs, *serviceCIDR)
 	}
 
-	params.VppIpConfSource = getEnvValue(IpConfigEnvVar)
-	if params.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
+	mainInterfaceSpec.VppIpConfSource = getEnvValue(IpConfigEnvVar)
+	if mainInterfaceSpec.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
 		return errors.Errorf("No ip configuration source specified. Specify one of {linux,} through the %s environment variable", IpConfigEnvVar)
 	}
 
@@ -232,32 +236,46 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		}
 	}
 
-	params.NativeDriver = ""
+	mainInterfaceSpec.NativeDriver = ""
 	if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
-		params.NativeDriver = strings.ToLower(conf)
+		mainInterfaceSpec.NativeDriver = strings.ToLower(conf)
+	} else {
+		if getEnvValue(ExtraInterfacesEnvVar) != "" {
+			return errors.Errorf("native driver should be specified for multiple interfaces")
+		}
 	}
 
-	params.NumRxQueues = DefaultNumRxQueues
+	mainInterfaceSpec.NumRxQueues = DefaultNumRxQueues
 	if conf := getEnvValue(NumRxQueuesEnvVar); conf != "" {
 		queues, err := strconv.ParseInt(conf, 10, 16)
 		if err != nil || queues <= 0 {
 			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumRxQueuesEnvVar, conf, queues, err)
 		} else {
-			params.NumRxQueues = int(queues)
+			mainInterfaceSpec.NumRxQueues = int(queues)
 		}
 	}
 
-	params.NumTxQueues = DefaultNumTxQueues
+	mainInterfaceSpec.NumTxQueues = DefaultNumTxQueues
 	if conf := getEnvValue(NumTxQueuesEnvVar); conf != "" {
 		queues, err := strconv.ParseInt(conf, 10, 16)
 		if err != nil || queues <= 0 {
 			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumTxQueuesEnvVar, conf, queues, err)
 		} else {
-			params.NumTxQueues = int(queues)
+			mainInterfaceSpec.NumTxQueues = int(queues)
 		}
 	}
 
-	params.NewDriverName = getEnvValue(SwapDriverEnvVar)
+	mainInterfaceSpec.NewDriverName = getEnvValue(SwapDriverEnvVar)
+
+	extraInterfacesSpecs := []config.InterfaceSpec{}
+	if getEnvValue(ExtraInterfacesEnvVar) != "" {
+		err = json.Unmarshal([]byte(strings.ReplaceAll(getEnvValue(ExtraInterfacesEnvVar), "'", "\"")), &extraInterfacesSpecs)
+		if err != nil {
+			log.Errorf("extra Interface %s has wrong format", getEnvValue(ExtraInterfacesEnvVar))
+		}
+	}
+	params.InterfacesSpecs = []config.InterfaceSpec{mainInterfaceSpec}
+	params.InterfacesSpecs = append(params.InterfacesSpecs, extraInterfacesSpecs...)
 
 	params.RxMode = types.UnformatRxMode(getEnvValue(RxModeEnvVar))
 	if params.RxMode == types.UnknownRxMode {
@@ -357,39 +375,46 @@ func parseRingSize(conf string) (int, int, error) {
 	return rxSize, txSize, nil
 }
 
-func PrintVppManagerConfig(params *config.VppManagerParams, conf *config.InterfaceConfig) {
+func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.LinuxInterfaceState) {
 	log.Infof("-- Environment --")
 	log.Infof("CorePattern:         %s", params.CorePattern)
 	log.Infof("ExtraAddrCount:      %d", params.ExtraAddrCount)
-	log.Infof("Native driver:       %s", params.NativeDriver)
 	log.Infof("RxMode:              %s", types.FormatRxMode(params.RxMode))
 	log.Infof("TapRxMode:           %s", types.FormatRxMode(params.TapRxMode))
 	log.Infof("Tap MTU override:    %d", params.UserSpecifiedMtu)
 	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
 	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
 	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
-	log.Infof("PHY target #Queues   rx:%d tx:%d", params.NumRxQueues, params.NumTxQueues)
 	log.Infof("Hugepages            %d", params.AvailableHugePages)
 	log.Infof("KernelVersion        %s", params.KernelVersion)
 	log.Infof("Drivers              %s", params.LoadedDrivers)
 	log.Infof("vfio iommu:          %t", params.VfioUnsafeiommu)
-
-	log.Infof("-- Interface config --")
-	log.Infof("Node IP4:            %s", conf.NodeIP4)
-	log.Infof("Node IP6:            %s", conf.NodeIP6)
-	log.Infof("PciId:               %s", conf.PciId)
-	log.Infof("Driver:              %s", conf.Driver)
-	log.Infof("Linux IF was up ?    %t", conf.IsUp)
-	log.Infof("Promisc was on ?     %t", conf.PromiscOn)
-	log.Infof("DoSwapDriver:        %t", conf.DoSwapDriver)
-	log.Infof("Mac:                 %s", conf.HardwareAddr.String())
-	log.Infof("Addresses:           [%s]", conf.AddressString())
-	log.Infof("Routes:              [%s]", conf.RouteString())
-	log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
-	log.Infof("MTU                  %d", conf.Mtu)
+	for _, ifSpec := range params.InterfacesSpecs {
+		log.Infof("-- Interface Spec --")
+		log.Infof("Interface Name:      %s", ifSpec.InterfaceName)
+		log.Infof("Native Driver:       %s", ifSpec.NativeDriver)
+		log.Infof("vppIpConfSource:     %s", ifSpec.VppIpConfSource)
+		log.Infof("New Drive Name:      %s", ifSpec.NewDriverName)
+		log.Infof("PHY target #Queues   rx:%d tx:%d", ifSpec.NumRxQueues, ifSpec.NumTxQueues)
+	}
+	for _, conf := range confs {
+		log.Infof("-- Interface config --")
+		log.Infof("Node IP4:            %s", conf.NodeIP4)
+		log.Infof("Node IP6:            %s", conf.NodeIP6)
+		log.Infof("PciId:               %s", conf.PciId)
+		log.Infof("Driver:              %s", conf.Driver)
+		log.Infof("Linux IF was up ?    %t", conf.IsUp)
+		log.Infof("Promisc was on ?     %t", conf.PromiscOn)
+		log.Infof("DoSwapDriver:        %t", conf.DoSwapDriver)
+		log.Infof("Mac:                 %s", conf.HardwareAddr.String())
+		log.Infof("Addresses:           [%s]", conf.AddressString())
+		log.Infof("Routes:              [%s]", conf.RouteString())
+		log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
+		log.Infof("MTU                  %d", conf.Mtu)
+	}
 }
 
-func PrepareConfiguration(params *config.VppManagerParams) (conf *config.InterfaceConfig) {
+func PrepareConfiguration(params *config.VppManagerParams) (conf []*config.LinuxInterfaceState) {
 	err := utils.ClearVppManagerFiles()
 	if err != nil {
 		log.Fatalf("Error clearing config files: %+v", err)

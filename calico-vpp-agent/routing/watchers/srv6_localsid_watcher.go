@@ -2,6 +2,8 @@ package watchers
 
 import (
 	"context"
+	"time"
+
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -9,7 +11,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
-	"time"
 
 	"github.com/projectcalico/libcalico-go/lib/ipam"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
@@ -85,8 +86,9 @@ func (p *LocalSIDWatcher) AdvertiseSRv6Policy(localsid *types.SrLocalsid) (err e
 func (p *LocalSIDWatcher) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6Address, err error) {
 	poolIPNet := []cnet.IPNet{cnet.MustParseNetwork(ipnet)}
 	_, newSids, err := p.Clientv3.IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
-		Num6:      1,
-		IPv6Pools: poolIPNet,
+		Num6:        1,
+		IPv6Pools:   poolIPNet,
+		IntendedUse: "Tunnel",
 	})
 	if err != nil || newSids == nil {
 		p.log.Infof("SRv6Provider Error assigning ip LocalSid")

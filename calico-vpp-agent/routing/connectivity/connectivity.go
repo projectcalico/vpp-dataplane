@@ -41,6 +41,7 @@ type ConnectivityProviderData struct {
 	ipv6   *net.IP
 	ipv4   *net.IP
 	server *ConnectivityServer
+	tunnelChangeChan chan TunnelChange
 }
 
 type ConnectivityProvider interface {
@@ -52,6 +53,8 @@ type ConnectivityProvider interface {
 	RescanState()
 	/* is it enabled in the config ? */
 	Enabled() bool
+	/* get swifindexes */
+	GetSwifindexes() []uint32
 }
 
 func (p *ConnectivityProviderData) GetNodeByIp(addr net.IP) *common.NodeState {
@@ -76,5 +79,6 @@ func NewConnectivityProviderData(
 		vpp:    vpp,
 		log:    log,
 		server: server,
+		tunnelChangeChan: make(chan TunnelChange, 10),
 	}
 }

@@ -25,6 +25,24 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 )
 
+func (s *Server) MessageReader(conn net.Conn) <-chan interface{} {
+	ch := make(chan interface{})
+
+	go func() {
+		for {
+			msg, err := s.RecvMessage(conn)
+			if err != nil {
+				s.log.Errorf("Error receiving message from felix: %v", err)
+				break
+			}
+			ch <- msg
+		}
+		close(ch)
+	}()
+
+	return ch
+}
+
 func (s *Server) RecvMessage(conn net.Conn) (msg interface{}, err error) {
 	buf := make([]byte, 8)
 	_, err = io.ReadFull(conn, buf)

@@ -73,6 +73,11 @@ type Server struct {
 	ipam             watchers.IpamCache
 
 	connectivityServer *connectivity.ConnectivityServer
+	TunnelChangeChan   chan connectivity.TunnelChange
+}
+
+func (s *Server) GetAllTunnels() *[]uint32 {
+	return s.connectivityServer.GetAllTunnels()
 }
 
 func (s *Server) Clientv3() calicov3cli.Interface {
@@ -80,7 +85,6 @@ func (s *Server) Clientv3() calicov3cli.Interface {
 }
 
 func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
-
 	calicoCli, err := calicocli.NewFromEnv()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create calico v1 api client")
@@ -93,6 +97,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting BGP configuration")
 	}
+	l.Infof("Determined BGP configuration: %s", formatBGPConfiguration(BGPConf))
 
 	routingData := common.RoutingData{
 		Vpp:                   vpp,
@@ -121,10 +126,11 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server.bgpWatcher = watchers.NewBGPWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "bgp-watcher"}))
 	server.prefixWatcher = watchers.NewPrefixWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	server.kernelWatcher = watchers.NewKernelWatcher(&routingData, server.ipam, server.bgpWatcher, l.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
-	server.peerWatcher = watchers.NewPeerWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
-	server.nodeWatcher = watchers.NewNodeWatcher(&routingData, server.peerWatcher, l.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
 	server.localsidWatcher = watchers.NewLocalSIDWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
+	server.nodeWatcher = watchers.NewNodeWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
+	server.peerWatcher = watchers.NewPeerWatcher(&routingData, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
 	server.connectivityServer = connectivity.NewConnectivityServer(&routingData, server.ipam, server.felixConfWatcher, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
+	server.TunnelChangeChan = server.connectivityServer.TunnelChangeChan
 
 	return &server, nil
 }
@@ -190,6 +196,7 @@ func (s *Server) serveOne() error {
 
 	s.ipam.WaitReady()
 	ServerRunning <- 1
+	s.log.Infof("Routing server is running ")
 	<-s.t.Dying()
 	s.log.Warnf("routing tomb returned %v", s.t.Err())
 
@@ -212,6 +219,24 @@ func (s *Server) serveOne() error {
 	return nil
 }
 
+func formatBGPConfiguration(conf *calicov3.BGPConfigurationSpec) string {
+	if conf == nil {
+		return "<nil>"
+	}
+	meshConfig := "<nil>"
+	if conf.NodeToNodeMeshEnabled != nil {
+		meshConfig = fmt.Sprintf("%v", *conf.NodeToNodeMeshEnabled)
+	}
+	asn := "<nil>"
+	if conf.ASNumber != nil {
+		asn = conf.ASNumber.String()
+	}
+	return fmt.Sprintf(
+		"LogSeverityScreen: %s, NodeToNodeMeshEnabled: %s, ASNumber: %s, ListenPort: %d",
+		conf.LogSeverityScreen, meshConfig, asn, conf.ListenPort,
+	)
+}
+
 func (s *Server) getBGPConf(log *logrus.Entry, clientv3 calicov3cli.Interface) (*calicov3.BGPConfigurationSpec, error) {
 	defaultBGPConf, err := s.getDefaultBGPConfig(log, clientv3)
 	if err != nil {
@@ -225,15 +250,14 @@ func (s *Server) getBGPConf(log *logrus.Entry, clientv3 calicov3cli.Interface) (
 		default:
 			return nil, errors.Wrap(err, "error getting node specific BGP configurations")
 		}
-	} else {
-		if nodeSpecificConf.Spec.ListenPort != 0 {
-			defaultBGPConf.ListenPort = nodeSpecificConf.Spec.ListenPort
-		}
-		if defaultBGPConf.LogSeverityScreen != "" {
-			defaultBGPConf.LogSeverityScreen = nodeSpecificConf.Spec.LogSeverityScreen
-		}
-		return defaultBGPConf, nil
 	}
+	if nodeSpecificConf.Spec.ListenPort != 0 {
+		defaultBGPConf.ListenPort = nodeSpecificConf.Spec.ListenPort
+	}
+	if defaultBGPConf.LogSeverityScreen != "" {
+		defaultBGPConf.LogSeverityScreen = nodeSpecificConf.Spec.LogSeverityScreen
+	}
+	return defaultBGPConf, nil
 }
 
 func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Interface) (*calicov3.BGPConfigurationSpec, error) {
@@ -257,6 +281,15 @@ func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Int
 		if conf.Spec.LogSeverityScreen == "" {
 			conf.Spec.LogSeverityScreen = "Info"
 		}
+		if conf.Spec.ServiceClusterIPs == nil {
+			conf.Spec.ServiceClusterIPs = []calicov3.ServiceClusterIPBlock{}
+		}
+		if conf.Spec.ServiceExternalIPs == nil {
+			conf.Spec.ServiceExternalIPs = []calicov3.ServiceExternalIPBlock{}
+		}
+		if conf.Spec.ServiceLoadBalancerIPs == nil {
+			conf.Spec.ServiceLoadBalancerIPs = []calicov3.ServiceLoadBalancerIPBlock{}
+		}
 		return &conf.Spec, nil
 	}
 	switch err.(type) {
@@ -276,6 +309,10 @@ func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Int
 	default:
 		return nil, err
 	}
+}
+
+func (s *Server) GetServiceIPs() ([]calicov3.ServiceClusterIPBlock, []calicov3.ServiceExternalIPBlock, []calicov3.ServiceLoadBalancerIPBlock) {
+	return s.routingData.BGPConf.ServiceClusterIPs, s.routingData.BGPConf.ServiceExternalIPs, s.routingData.BGPConf.ServiceLoadBalancerIPs
 }
 
 func (s *Server) getListenPort() uint16 {
@@ -306,23 +343,31 @@ func (s *Server) getPeerASN(host string) (*numorstring.ASNumber, error) {
 
 }
 
-func (s *Server) getGlobalConfig() (*bgpapi.Global, error) {
+func (s *Server) getGoBGPGlobalConfig() (*bgpapi.Global, error) {
 	var routerId string
+	var listenAddresses []string = make([]string, 0)
 	asn, err := s.getNodeASN()
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting current node AS number")
 	}
-	if s.routingData.HasV4 {
-		routerId = s.routingData.Ipv4.String()
-	} else if s.routingData.HasV6 {
+
+	if s.routingData.HasV6 {
 		routerId = s.routingData.Ipv6.String()
-	} else {
-		return nil, errors.Wrap(err, "Cannot make routerId out of IP")
+		listenAddresses = append(listenAddresses, routerId)
+	}
+	if s.routingData.HasV4 {
+		routerId = s.routingData.Ipv4.String() // Override v6 ID if v4 is available
+		listenAddresses = append(listenAddresses, routerId)
+	}
+
+	if routerId == "" {
+		return nil, errors.Wrap(err, "No IPs to make a router ID")
 	}
 	return &bgpapi.Global{
-		As:         uint32(*asn),
-		RouterId:   routerId,
-		ListenPort: int32(s.getListenPort()),
+		As:              uint32(*asn),
+		RouterId:        routerId,
+		ListenPort:      int32(s.getListenPort()),
+		ListenAddresses: listenAddresses,
 	}, nil
 }
 
@@ -436,6 +481,9 @@ func (s *Server) Serve() {
 		err := s.serveOne()
 		if err != nil {
 			s.log.Errorf("routing serve returned %v", err)
+			if s.routingData.BGPServer != nil {
+				s.routingData.BGPServer.StopBgp(context.Background(), &bgpapi.StopBgpRequest{})
+			}
 		}
 	}
 }

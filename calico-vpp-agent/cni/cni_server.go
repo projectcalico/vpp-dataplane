@@ -28,6 +28,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/prometheus"
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -39,19 +40,23 @@ import (
 
 type Server struct {
 	*common.CalicoVppServerData
-	log             *logrus.Entry
-	vpp             *vpplink.VppLink
-	grpcServer      *grpc.Server
-	client          *kubernetes.Clientset
-	socketListener  net.Listener
-	routingServer   *routing.Server
-	policyServer    *policy.Server
-	podInterfaceMap map[string]storage.LocalPodSpec
+	log              *logrus.Entry
+	vpp              *vpplink.VppLink
+	grpcServer       *grpc.Server
+	client           *kubernetes.Clientset
+	socketListener   net.Listener
+	routingServer    *routing.Server
+	policyServer     *policy.Server
+	prometheusServer *prometheus.Server
+	podInterfaceMap  map[string]storage.LocalPodSpec
 	/* without main thread */
 	lock           sync.Mutex
 	memifDriver    *pod_interface.MemifPodInterfaceDriver
 	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
+	vclDriver      *pod_interface.VclPodInterfaceDriver
 	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
+
+	availableBuffers uint64
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -72,6 +77,7 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		OrchestratorID: request.Workload.Orchestrator,
 		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
 		EndpointID:     request.Workload.Endpoint,
+		HostPorts:      make([]storage.HostPortBinding, 0),
 
 		/* defaults */
 		MemifIsL3:  false,
@@ -79,6 +85,15 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 
 		MemifSwIfIndex:  vpplink.InvalidID,
 		TunTapSwIfIndex: vpplink.InvalidID,
+	}
+
+	for _, port := range request.Workload.Ports {
+		podSpec.HostPorts = append(podSpec.HostPorts, storage.HostPortBinding{
+			HostPort:      port.HostPort,
+			HostIP:        net.ParseIP(port.HostIp),
+			ContainerPort: port.Port,
+		})
+
 	}
 	for _, routeStr := range request.GetContainerRoutes() {
 		_, route, err := net.ParseCIDR(routeStr)
@@ -194,6 +209,14 @@ func (s *Server) FetchNDataThreads() {
 func (s *Server) rescanState() error {
 	s.FetchNDataThreads()
 
+	if config.VCLEnabled {
+		err := s.vclDriver.Init()
+		if err != nil {
+			s.log.Errorf("Error initializing VCL %v", err)
+			return err
+		}
+	}
+
 	podSpecs, err := storage.LoadCniServerState(config.CniServerStateFile)
 	if err != nil {
 		s.log.Errorf("Error getting pods %v", err)
@@ -217,6 +240,12 @@ func (s *Server) rescanState() error {
 
 func (s *Server) OnVppRestart() {
 	s.log.Infof("VppRestart: re-creating all interfaces")
+	if config.VCLEnabled {
+		err := s.vclDriver.Init()
+		if err != nil {
+			s.log.Errorf("Error initializing VCL %v", err)
+		}
+	}
 	for name, podSpec := range s.podInterfaceMap {
 		_, err := s.AddVppInterface(&podSpec, false /* doHostSideConf */)
 		if err != nil {
@@ -247,7 +276,7 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 			OrchestratorID: initialSpec.OrchestratorID,
 			WorkloadID:     initialSpec.WorkloadID,
 			EndpointID:     initialSpec.EndpointID,
-		})
+		}, initialSpec.GetContainerIps())
 		s.log.Infof("Deleting pod %s", initialSpec.String())
 		s.DelVppInterface(&initialSpec)
 		s.log.Infof("Done Deleting pod %s", initialSpec.String())
@@ -269,7 +298,7 @@ func (s *Server) Stop() {
 }
 
 // Serve runs the grpc server for the Calico CNI backend API
-func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *logrus.Entry) (*Server, error) {
+func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, prs *prometheus.Server, l *logrus.Entry) (*Server, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
@@ -286,20 +315,28 @@ func NewServer(v *vpplink.VppLink, rs *routing.Server, ps *policy.Server, l *log
 	}
 
 	server := &Server{
-		vpp:             v,
-		log:             l,
-		routingServer:   rs,
-		policyServer:    ps,
-		socketListener:  lis,
-		client:          client,
-		grpcServer:      grpc.NewServer(),
-		podInterfaceMap: make(map[string]storage.LocalPodSpec),
-		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(v, l),
-		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(v, l),
-		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(v, l),
+		vpp:              v,
+		log:              l,
+		routingServer:    rs,
+		policyServer:     ps,
+		prometheusServer: prs,
+		socketListener:   lis,
+		client:           client,
+		grpcServer:       grpc.NewServer(),
+		podInterfaceMap:  make(map[string]storage.LocalPodSpec),
+		tuntapDriver:     pod_interface.NewTunTapPodInterfaceDriver(v, l),
+		memifDriver:      pod_interface.NewMemifPodInterfaceDriver(v, l),
+		vclDriver:        pod_interface.NewVclPodInterfaceDriver(v, l),
+		loopbackDriver:   pod_interface.NewLoopbackPodInterfaceDriver(v, l),
 	}
 	pb.RegisterCniDataplaneServer(server.grpcServer, server)
 	l.Infof("Server starting")
+
+	availableBuffers, _, _, err := v.GetBufferStats()
+	if err != nil {
+		server.log.WithError(err).Errorf("could not get available buffers")
+	}
+	server.availableBuffers = uint64(availableBuffers)
 	return server, nil
 }
 

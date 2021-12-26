@@ -49,6 +49,10 @@ func (p *SRv6Provider) OnVppRestart() {
 	p.log.Infof("SRv6Provider OnVppRestart")
 }
 
+func (p *SRv6Provider) GetSwifindexes() []uint32 {
+	return []uint32{}
+}
+
 func (p *SRv6Provider) Enabled() bool {
 	return config.EnableSRv6
 }
@@ -291,8 +295,9 @@ func (p *SRv6Provider) getSidFromPool(poolName string) (newSidAddr ip_types.IP6A
 
 	poolIPNet := []cnet.IPNet{cnet.MustParseNetwork(ippool.Spec.CIDR)}
 	_, newSids, err := p.Clientv3().IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
-		Num6:      1,
-		IPv6Pools: poolIPNet,
+		Num6:        1,
+		IPv6Pools:   poolIPNet,
+		IntendedUse: "Tunnel",
 	})
 	if err != nil || newSids == nil {
 		p.log.Infof("SRv6Provider Error assigning ip LocalSid")

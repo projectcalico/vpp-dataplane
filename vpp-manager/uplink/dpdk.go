@@ -17,7 +17,6 @@ package uplink
 
 import (
 	"fmt"
-	"io/ioutil"
 	"regexp"
 	"time"
 
@@ -48,11 +47,11 @@ func (d *DPDKDriver) PreconfigureLinux() (err error) {
 	d.removeLinuxIfConf(true /* down */)
 	finalDriver := d.conf.Driver
 	if d.conf.DoSwapDriver {
-		err = utils.SwapDriver(d.conf.PciId, d.params.NewDriverName, true)
+		err = utils.SwapDriver(d.conf.PciId, d.spec.NewDriverName, true)
 		if err != nil {
-			log.Warnf("Failed to swap driver to %s: %v", d.params.NewDriverName, err)
+			log.Warnf("Failed to swap driver to %s: %v", d.spec.NewDriverName, err)
 		}
-		finalDriver = d.params.NewDriverName
+		finalDriver = d.spec.NewDriverName
 	}
 	if finalDriver == config.DRIVER_VFIO_PCI && d.params.AvailableHugePages == 0 {
 		err := utils.SetVfioUnsafeiommu(false)
@@ -63,8 +62,7 @@ func (d *DPDKDriver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *DPDKDriver) GenerateVppConfigFile() error {
-	template := config.TemplateScriptReplace(d.params.ConfigTemplate, d.params, d.conf)
+func (d *DPDKDriver) UpdateVppConfigFile(template string) string {
 	dpdkPluginRegex := regexp.MustCompile(`plugin\s+dpdk_plugin.so\s+{\s+disable\s+}`)
 	template = dpdkPluginRegex.ReplaceAllString(template, "plugin dpdk_plugin.so { enable }")
 
@@ -74,9 +72,9 @@ func (d *DPDKDriver) GenerateVppConfigFile() error {
 	}
 
 	if d.params.AvailableHugePages > 0 {
-		template = fmt.Sprintf("%s\ndpdk {\ndev %s { num-rx-queues %d num-rx-desc %d num-tx-desc %d } \n}\n", template, d.conf.PciId, d.params.NumRxQueues, d.params.RxQueueSize, d.params.TxQueueSize)
+		template = fmt.Sprintf("%s\ndpdk {\ndev %s { num-rx-queues %d num-rx-desc %d num-tx-desc %d } \n}\n", template, d.conf.PciId, d.spec.NumRxQueues, d.params.RxQueueSize, d.params.TxQueueSize)
 	} else {
-		template = fmt.Sprintf("%s\ndpdk {\niova-mode va\nno-hugetlb\ndev %s { num-rx-queues %d num-rx-desc %d num-tx-desc %d } \n}\n", template, d.conf.PciId, d.params.NumRxQueues, d.params.RxQueueSize, d.params.TxQueueSize)
+		template = fmt.Sprintf("%s\ndpdk {\niova-mode va\nno-hugetlb\ndev %s { num-rx-queues %d num-rx-desc %d num-tx-desc %d } \n}\n", template, d.conf.PciId, d.spec.NumRxQueues, d.params.RxQueueSize, d.params.TxQueueSize)
 
 		// If no hugepages, also edit `buffers {}`
 		buffersHeadRegex := regexp.MustCompile(`buffers\s+{`)
@@ -93,11 +91,7 @@ func (d *DPDKDriver) GenerateVppConfigFile() error {
 	}
 
 write:
-	return errors.Wrapf(
-		ioutil.WriteFile(config.VppConfigFile, []byte(template+"\n"), 0644),
-		"Error writing VPP configuration to %s",
-		config.VppConfigFile,
-	)
+	return template
 }
 
 func (d *DPDKDriver) restoreInterfaceName() error {
@@ -105,14 +99,14 @@ func (d *DPDKDriver) restoreInterfaceName() error {
 	if err != nil {
 		return errors.Wrapf(err, "Error getting new if name for %s: %v", d.conf.PciId)
 	}
-	if newName == d.params.MainInterface {
+	if newName == d.spec.InterfaceName {
 		return nil
 	}
 	link, err := netlink.LinkByName(newName)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting new link %s: %v", newName)
 	}
-	err = netlink.LinkSetName(link, d.params.MainInterface)
+	err = netlink.LinkSetName(link, d.spec.InterfaceName)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting new if name for %s: %v", d.conf.PciId)
 	}
@@ -142,9 +136,9 @@ func (d *DPDKDriver) RestoreLinux() {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
 		return
 	}
 
@@ -152,15 +146,21 @@ func (d *DPDKDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error {
-	/* Nothing to do VPP autocreates */
+func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+	// Nothing to do VPP autocreates
+	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
+	if !d.spec.IsMain {
+		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)
+	}
+	d.spec.SwIfIndex = config.DataInterfaceSwIfIndex
 	return nil
 }
 
-func NewDPDKDriver(params *config.VppManagerParams, conf *config.InterfaceConfig) *DPDKDriver {
+func NewDPDKDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *DPDKDriver {
 	d := &DPDKDriver{}
 	d.name = NATIVE_DRIVER_DPDK
 	d.conf = conf
 	d.params = params
+	d.spec = spec
 	return d
 }

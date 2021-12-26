@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Cisco Systems Inc.
+// Copyright (C) 2021 Cisco Systems Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,57 +18,22 @@ package vpplink
 import (
 	"fmt"
 
+	"git.fd.io/govpp.git/binapi/vpe"
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vpe"
 )
 
-func (v *VppLink) GetNodeIndex(name string) (nodeIndex uint32, err error) {
+func (v *VppLink) GetVPPVersion() (version string, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	response := &vpe.GetNodeIndexReply{}
-	request := &vpe.GetNodeIndex{
-		NodeName: name,
-	}
+	response := &vpe.ShowVersionReply{}
+	request := &vpe.ShowVersion{}
+
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return ^uint32(1), errors.Wrap(err, "GetNodeIndex failed")
+		return "", errors.Wrapf(err, "ShowVersion failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
-		return ^uint32(1), fmt.Errorf("GetNodeIndex failed with retval %d", response.Retval)
+		return "", fmt.Errorf("ShowVersion failed (retval %d). Request: %+v", response.Retval, request)
 	}
-	return uint32(response.NodeIndex), nil
-}
-
-func (v *VppLink) AddNodeNext(name, next string) (nodeIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-
-	response := &vpe.AddNodeNextReply{}
-	request := &vpe.AddNodeNext{
-		NodeName: name,
-		NextName: next,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil {
-		return ^uint32(1), errors.Wrap(err, "AddNodeNext failed")
-	} else if response.Retval != 0 {
-		return ^uint32(1), fmt.Errorf("AddNodeNext failed with retval %d", response.Retval)
-	}
-	return uint32(response.NextIndex), nil
-}
-
-/* Gets the number of workers WITHOUT the main thread */
-func (v *VppLink) GetNumVPPWorkers() (numVPPWorkers int, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-
-	response := &vpe.ShowThreadsReply{}
-	request := &vpe.ShowThreads{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil {
-		return -1, errors.Wrap(err, "GetNumVPPWorkers failed")
-	} else if response.Retval != 0 {
-		return -1, fmt.Errorf("GetNumVPPWorkers failed with retval %d", response.Retval)
-	}
-	return int(response.Count - 1), nil
+	return response.Version, nil
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/sirupsen/logrus"
@@ -71,32 +72,31 @@ func main() {
 		return
 	}
 
-	// This needs to be the first thing created in VPP as multiple servers depend on that
-	err = common.SetupPodVRF(vpp)
-	if err != nil {
-		log.Errorf("Failed to create pod vrf")
-		log.Fatal(err)
-	}
-
-	serviceServer, err := services.NewServer(vpp, log.WithFields(logrus.Fields{"component": "services"}))
-	if err != nil {
-		log.Errorf("Failed to create services server")
-		log.Fatal(err)
-	}
 	routingServer, err := routing.NewServer(vpp, log.WithFields(logrus.Fields{"component": "routing"}))
 	if err != nil {
 		log.Errorf("Failed to create routing server")
 		log.Fatal(err)
 	}
-	policyServer, err := policy.NewServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
+	serviceServer, err := services.NewServer(vpp, routingServer, log.WithFields(logrus.Fields{"component": "services"}))
+	if err != nil {
+		log.Errorf("Failed to create services server")
+		log.Fatal(err)
+	}
+	policyServer, err := policy.NewServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}), routingServer)
 	if err != nil {
 		log.Errorf("Failed to create policy server")
+		log.Fatal(err)
+	}
+	prometheusServer, err := prometheus.NewServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
+	if err != nil {
+		log.Errorf("Failed to create Prometheus server")
 		log.Fatal(err)
 	}
 	cniServer, err := cni.NewServer(
 		vpp,
 		routingServer,
 		policyServer,
+		prometheusServer,
 		log.WithFields(logrus.Fields{"component": "cni"}),
 	)
 	if err != nil {
@@ -114,6 +114,7 @@ func main() {
 
 	go serviceServer.Serve()
 	go cniServer.Serve()
+	go prometheusServer.Serve()
 
 	go common.HandleVppManagerRestart(log, vpp, routingServer, cniServer, serviceServer, policyServer)
 

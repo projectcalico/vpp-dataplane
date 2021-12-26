@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -35,6 +36,7 @@ import (
 const (
 	INVALID_SW_IF_INDEX = ^uint32(0)
 	MAX_MTU             = 9216
+	DEFAULT_QUEUE_SIZE  = 1024
 )
 
 type NamespaceNotFound error
@@ -112,7 +114,7 @@ func (v *VppLink) SetInterfaceVRF(swIfIndex, vrfIndex uint32, isIP6 bool) error 
 	return nil
 }
 
-func defaultIntTo(value, defaultValue int) int {
+func DefaultIntTo(value, defaultValue int) int {
 	if value == 0 {
 		return defaultValue
 	} else {
@@ -121,17 +123,17 @@ func defaultIntTo(value, defaultValue int) int {
 }
 
 func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
-	response := &tapv2.TapCreateV2Reply{}
-	request := &tapv2.TapCreateV2{
-		ID:                   ^uint32(0),
-		Tag:                  tap.Tag,
-		TapFlags:             tapv2.TapFlags(tap.Flags),
-		NumRxQueues:          uint8(defaultIntTo(tap.NumRxQueues, 1)),
-		NumTxQueuesPerWorker: uint8(defaultIntTo(tap.NumTxQueues, 1)),
-		TxRingSz:             uint16(defaultIntTo(tap.TxQueueSize, 1024)),
-		RxRingSz:             uint16(defaultIntTo(tap.RxQueueSize, 1024)),
-		HostMtuSize:          uint32(tap.HostMtu),
-		HostMtuSet:           bool(tap.HostMtu != 0),
+	response := &tapv2.TapCreateV3Reply{}
+	request := &tapv2.TapCreateV3{
+		ID:          ^uint32(0),
+		Tag:         tap.Tag,
+		TapFlags:    tapv2.TapFlags(tap.Flags),
+		NumRxQueues: uint16(DefaultIntTo(tap.NumRxQueues, 1)),
+		NumTxQueues: uint16(DefaultIntTo(tap.NumTxQueues, 1)),
+		TxRingSz:    uint16(DefaultIntTo(tap.TxQueueSize, DEFAULT_QUEUE_SIZE)),
+		RxRingSz:    uint16(DefaultIntTo(tap.RxQueueSize, DEFAULT_QUEUE_SIZE)),
+		HostMtuSize: uint32(tap.HostMtu),
+		HostMtuSet:  bool(tap.HostMtu != 0),
 	}
 	if tap.HardwareAddr != nil {
 		request.MacAddress = types.ToVppMacAddress(tap.HardwareAddr)
@@ -294,11 +296,22 @@ func (v *VppLink) EnableInterfaceIP4(swIfIndex uint32) error {
 	return v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, true /*isEnable*/)
 }
 
-func (v *VppLink) SearchInterfaceWithTag(tag string) (err error, swIfIndex uint32) {
+func (v *VppLink) SearchInterfaceWithTag(tag string) (uint32, error) {
+	err, sw, _ := v.searchInterfaceWithTagOrTagPrefix(tag, false)
+	return sw, err
+}
+
+func (v *VppLink) SearchInterfacesWithTagPrefix(tag string) (map[string]uint32, error) {
+	err, _, sws := v.searchInterfaceWithTagOrTagPrefix(tag, true)
+	return sws, err
+}
+
+func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (err error, swIfIndex uint32, swIfIndexes map[string]uint32) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	swIfIndex = INVALID_SW_IF_INDEX
+	swIfIndexes = make(map[string]uint32)
 	request := &interfaces.SwInterfaceDump{}
 	stream := v.ch.SendMultiRequest(request)
 	for {
@@ -306,21 +319,25 @@ func (v *VppLink) SearchInterfaceWithTag(tag string) (err error, swIfIndex uint3
 		stop, err := stream.ReceiveReply(response)
 		if err != nil {
 			v.log.Errorf("error listing VPP interfaces: %v", err)
-			return err, INVALID_SW_IF_INDEX
+			return err, INVALID_SW_IF_INDEX, swIfIndexes
 		}
 		if stop {
 			break
 		}
 		intfTag := string(bytes.Trim([]byte(response.Tag), "\x00"))
 		v.log.Debugf("found interface %d, tag: %s (len %d)", response.SwIfIndex, intfTag, len(intfTag))
-		if intfTag == tag {
+		if intfTag == tag && !prefix {
 			swIfIndex = uint32(response.SwIfIndex)
 		}
+		if strings.HasPrefix(intfTag, tag) && prefix {
+			swIfIndexes[intfTag] = uint32(response.SwIfIndex)
+		}
 	}
-	if swIfIndex == INVALID_SW_IF_INDEX {
-		return nil, INVALID_SW_IF_INDEX
+	if prefix {
+		return nil, swIfIndex, swIfIndexes
+	} else {
+		return nil, swIfIndex, nil
 	}
-	return nil, swIfIndex
 }
 
 func (v *VppLink) SearchInterfaceWithName(name string) (err error, swIfIndex uint32) {

@@ -25,6 +25,7 @@ const (
 )
 
 // CryptoSwSchedulerSetWorker defines message 'crypto_sw_scheduler_set_worker'.
+// InProgress: the message form may change in the future versions
 type CryptoSwSchedulerSetWorker struct {
 	WorkerIndex  uint32 `binapi:"u32,name=worker_index" json:"worker_index,omitempty"`
 	CryptoEnable bool   `binapi:"bool,name=crypto_enable" json:"crypto_enable,omitempty"`
@@ -62,6 +63,7 @@ func (m *CryptoSwSchedulerSetWorker) Unmarshal(b []byte) error {
 }
 
 // CryptoSwSchedulerSetWorkerReply defines message 'crypto_sw_scheduler_set_worker_reply'.
+// InProgress: the message form may change in the future versions
 type CryptoSwSchedulerSetWorkerReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }

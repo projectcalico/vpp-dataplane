@@ -36,6 +36,10 @@ func getRoutePaths(addr net.IP) []types.RoutePath {
 	}}
 }
 
+func (p *FlatL3Provider) GetSwifindexes() []uint32 {
+	return []uint32{}
+}
+
 func (p *FlatL3Provider) OnVppRestart() {
 	/* Nothing to do */
 }

@@ -55,9 +55,9 @@ func (d *RDMADriver) RestoreLinux() {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.params.MainInterface)
+	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.params.MainInterface, err)
+		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
 		return
 	}
 
@@ -75,24 +75,29 @@ func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (e
 		return errors.Wrapf(err, "Error creating RDMA interface")
 	}
 
-	err = d.moveInterfaceToNS(d.params.MainInterface, vppPid)
+	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
 
 	log.Infof("Created RDMA interface %d", swIfIndex)
 
-	if swIfIndex != config.DataInterfaceSwIfIndex {
+	if d.spec.IsMain && swIfIndex != config.DataInterfaceSwIfIndex {
 		return fmt.Errorf("Created RDMA interface has wrong swIfIndex %d!", swIfIndex)
 	}
-
+	d.spec.SwIfIndex = swIfIndex
+	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func NewRDMADriver(params *config.VppManagerParams, conf *config.InterfaceConfig) *RDMADriver {
+func NewRDMADriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *RDMADriver {
 	d := &RDMADriver{}
 	d.name = NATIVE_DRIVER_RDMA
 	d.conf = conf
 	d.params = params
+	d.spec = spec
 	return d
 }
