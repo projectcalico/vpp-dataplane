@@ -1,16 +1,64 @@
----
-apiVersion: projectcalico.org/v3
-kind: IPPool
+apiVersion: v1
+items:
+- apiVersion: crd.projectcalico.org/v1
+  kind: IPPool
+  metadata:
+    name: default-ipv4-ippool
+  spec:
+    blockSize: 26
+    cidr: 172.16.0.0/16
+    ipipMode: Never
+    natOutgoing: true
+    nodeSelector: all()
+    vxlanMode: Never
+- apiVersion: crd.projectcalico.org/v1
+  kind: IPPool
+  metadata:
+    name: default-ipv6-ippool
+  spec:
+    blockSize: 122
+    cidr: fdfb:af47:32af::/48
+    ipipMode: Never
+    nodeSelector: all()
+    vxlanMode: Never
+- apiVersion: crd.projectcalico.org/v1
+  kind: IPPool
+  metadata:
+    name: sr-policies-pool
+  spec:
+    blockSize: 122
+    cidr: cafe::/118
+    ipipMode: Never
+    nodeSelector: '!all()'
+    vxlanMode: Never
+- apiVersion: crd.projectcalico.org/v1
+  kind: IPPool
+  metadata:
+    name: sr-localsids-pool-master
+  spec:
+    cidr: fcff:0:0:00AA::/64
+    ipipMode: Never
+    nodeSelector: kubernetes.io/hostname == 'master'
+    vxlanMode: Never
+- apiVersion: crd.projectcalico.org/v1
+  kind: IPPool
+  metadata:
+    name: sr-localsids-pool-node1
+  spec:
+    cidr: fcff:0:0:11AA::/64
+    ipipMode: Never
+    nodeSelector: kubernetes.io/hostname == 'node1'
+    vxlanMode: Never
+- apiVersion: crd.projectcalico.org/v1
+  kind: IPPool
+  metadata:
+    name: sr-localsids-pool-node2
+  spec:
+    cidr: fcff:0:0:12AA::/64
+    ipipMode: Never
+    nodeSelector: kubernetes.io/hostname == 'node2'
+    vxlanMode: Never
+kind: List
 metadata:
-  name: sr-policies-pool
-spec:
-  cidr: cafe::/118
-  nodeSelector: "!all()"
----
-apiVersion: projectcalico.org/v3
-kind: IPPool
-metadata:
-  name: sr-localsids-pool
-spec:
-  cidr: c5::/118
-  nodeSelector: "!all()"
+  resourceVersion: ""
+  selfLink: ""

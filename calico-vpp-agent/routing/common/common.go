@@ -262,7 +262,6 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 		IsWithdraw: isWithdrawal,
 		Pattrs:     attrs,
 		Age:        ptypes.TimestampNow(),
-		SourceAsn:  64512,
 		Family:     family,
 	}, nil
 
