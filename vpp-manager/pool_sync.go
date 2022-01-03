@@ -29,18 +29,13 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	tomb "gopkg.in/tomb.v2"
 )
 
 type PoolWatcher struct {
-	stop         chan struct{}
 	RouteWatcher *RouteWatcher
 	params       *config.VppManagerParams
 	conf         *config.LinuxInterfaceState
-}
-
-func (p *PoolWatcher) Stop() {
-	log.Info("Stopping pools watcher...")
-	p.stop <- struct{}{}
 }
 
 func (p *PoolWatcher) getNetworkRoute(network string) (route *netlink.Route, err error) {
@@ -81,11 +76,10 @@ func (p *PoolWatcher) poolDeleted(network string) error {
 	return errors.Wrapf(err, "cannot delete pool route %s through vpp tap", network)
 }
 
-func (p *PoolWatcher) SyncPools() {
-	p.stop = make(chan struct{}, 1)
+func (p *PoolWatcher) SyncPools(t *tomb.Tomb) {
 	pools := make(map[string]interface{})
 	log.Info("Starting pools watcher...")
-	for {
+	for t.Alive() {
 		var poolsWatcher watch.Interface = nil
 		var eventChannel <-chan watch.Event = nil
 		var poolsList *calicoapi.IPPoolList
@@ -140,6 +134,10 @@ func (p *PoolWatcher) SyncPools() {
 		eventChannel = poolsWatcher.ResultChan()
 		for {
 			select {
+			case <-t.Dying():
+				log.Info("Pools watcher stopped")
+				poolsWatcher.Stop()
+				return
 			case update, ok := <-eventChannel:
 				if !ok {
 					eventChannel = nil
@@ -168,10 +166,6 @@ func (p *PoolWatcher) SyncPools() {
 					}
 					delete(pools, key)
 				}
-			case <-p.stop:
-				log.Info("Pools watcher stopped")
-				poolsWatcher.Stop()
-				return
 			}
 		}
 	restart:

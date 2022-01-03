@@ -21,18 +21,23 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/yookoala/realpath"
+	"golang.org/x/sys/unix"
 )
 
 func IsDriverLoaded(driver string) (bool, error) {
@@ -240,6 +245,142 @@ func SetVFSpoofTrust(ifName string, vf int, spoof bool, trust bool) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+/**
+ * This function was copied from the following repo [0]
+ * as we depend on pkg/ns, but it doesnot support netns creation
+ * [0] github.com/containernetworking/plugins.git:pkg/testutils/netns_linux.go
+ */
+func getNsRunDir() string {
+	xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR")
+
+	/// If XDG_RUNTIME_DIR is set, check if the current user owns /var/run.  If
+	// the owner is different, we are most likely running in a user namespace.
+	// In that case use $XDG_RUNTIME_DIR/netns as runtime dir.
+	if xdgRuntimeDir != "" {
+		if s, err := os.Stat("/var/run"); err == nil {
+			st, ok := s.Sys().(*syscall.Stat_t)
+			if ok && int(st.Uid) != os.Geteuid() {
+				return path.Join(xdgRuntimeDir, "netns")
+			}
+		}
+	}
+
+	return "/var/run/netns"
+}
+
+// getCurrentThreadNetNSPath copied from containernetworking/plugins/pkg/ns
+func getCurrentThreadNetNSPath() string {
+	// /proc/self/ns/net returns the namespace of the main thread, not
+	// of whatever thread this goroutine is running on.  Make sure we
+	// use the thread's net namespace since the thread is switching around
+	return fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), unix.Gettid())
+}
+
+/**
+ * This function was copied from the following repo [0]
+ * as we depend on pkg/ns, but it doesnot support netns creation
+ * [0] github.com/containernetworking/plugins.git:pkg/testutils/netns_linux.go
+ */
+func NewNS(nsName string) (ns.NetNS, error) {
+	// Creates a new persistent (bind-mounted) network namespace and returns an object
+	// representing that namespace, without switching to it.
+
+	nsRunDir := getNsRunDir()
+
+	// Create the directory for mounting network namespaces
+	// This needs to be a shared mountpoint in case it is mounted in to
+	// other namespaces (containers)
+	err := os.MkdirAll(nsRunDir, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	// Remount the namespace directory shared. This will fail if it is not
+	// already a mountpoint, so bind-mount it on to itself to "upgrade" it
+	// to a mountpoint.
+	err = unix.Mount("", nsRunDir, "none", unix.MS_SHARED|unix.MS_REC, "")
+	if err != nil {
+		if err != unix.EINVAL {
+			return nil, fmt.Errorf("mount --make-rshared %s failed: %q", nsRunDir, err)
+		}
+
+		// Recursively remount /var/run/netns on itself. The recursive flag is
+		// so that any existing netns bindmounts are carried over.
+		err = unix.Mount(nsRunDir, nsRunDir, "none", unix.MS_BIND|unix.MS_REC, "")
+		if err != nil {
+			return nil, fmt.Errorf("mount --rbind %s %s failed: %q", nsRunDir, nsRunDir, err)
+		}
+
+		// Now we can make it shared
+		err = unix.Mount("", nsRunDir, "none", unix.MS_SHARED|unix.MS_REC, "")
+		if err != nil {
+			return nil, fmt.Errorf("mount --make-rshared %s failed: %q", nsRunDir, err)
+		}
+
+	}
+
+	// create an empty file at the mount point
+	nsPath := path.Join(nsRunDir, nsName)
+	mountPointFd, err := os.Create(nsPath)
+	if err != nil {
+		return nil, err
+	}
+	mountPointFd.Close()
+
+	// Ensure the mount point is cleaned up on errors; if the namespace
+	// was successfully mounted this will have no effect because the file
+	// is in-use
+	defer os.RemoveAll(nsPath)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// do namespace work in a dedicated goroutine, so that we can safely
+	// Lock/Unlock OSThread without upsetting the lock/unlock state of
+	// the caller of this function
+	go (func() {
+		defer wg.Done()
+		runtime.LockOSThread()
+		// Don't unlock. By not unlocking, golang will kill the OS thread when the
+		// goroutine is done (for go1.10+)
+
+		var origNS ns.NetNS
+		origNS, err = ns.GetNS(getCurrentThreadNetNSPath())
+		if err != nil {
+			return
+		}
+		defer origNS.Close()
+
+		// create a new netns on the current thread
+		err = unix.Unshare(unix.CLONE_NEWNET)
+		if err != nil {
+			return
+		}
+
+		// Put this thread back to the orig ns, since it might get reused (pre go1.10)
+		defer origNS.Set()
+
+		// bind mount the netns from the current thread (from /proc) onto the
+		// mount point. This causes the namespace to persist, even when there
+		// are no threads in the ns.
+		err = unix.Mount(getCurrentThreadNetNSPath(), nsPath, "none", unix.MS_BIND, "")
+		if err != nil {
+			err = fmt.Errorf("failed to bind mount ns at %s: %v", nsPath, err)
+		}
+	})()
+	wg.Wait()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create namespace: %v", err)
+	}
+
+	return ns.GetNS(nsPath)
+}
+
+func GetnetnsPath(nsName string) string {
+	return path.Join(getNsRunDir(), nsName)
 }
 
 func GetInterfaceVFPciId(pciId string) (vfPciId string, err error) {

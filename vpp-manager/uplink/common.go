@@ -16,8 +16,6 @@
 package uplink
 
 import (
-	"fmt"
-
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
@@ -48,7 +46,7 @@ type UplinkDriverData struct {
 
 type UplinkDriver interface {
 	PreconfigureLinux() error
-	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error
+	CreateMainVppInterface(vpp *vpplink.VppLink) error
 	RestoreLinux()
 	IsSupported(warn bool) bool
 	GetName() string
@@ -68,17 +66,45 @@ func (d *UplinkDriverData) TagMainInterface(vpp *vpplink.VppLink, swIfIndex uint
 	return nil
 }
 
-func (d *UplinkDriverData) moveInterfaceToNS(ifName string, pid int) error {
+func (d *UplinkDriverData) moveInterfaceFromNS(ifName string) error {
+	ourNetns, err := ns.GetCurrentNS()
+	if err != nil {
+		return errors.Wrap(err, "cannot find our netns")
+	}
+
+	err = ns.WithNetNSPath(utils.GetnetnsPath(config.VppNetnsName), func(ns.NetNS) error {
+		link, err := utils.SafeGetLink(ifName)
+		if err != nil {
+			return errors.Wrap(err, "cannot find uplink to move back to original netns")
+		}
+		err = netlink.LinkSetNsFd(link, int(ourNetns.Fd()))
+		if err != nil {
+			return errors.Wrap(err, "cannot move uplink back to original netns")
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *UplinkDriverData) moveInterfaceToNS(ifName string) error {
+	netns, err := ns.GetNS(utils.GetnetnsPath(config.VppNetnsName))
+	if err != nil {
+		return errors.Wrap(err, "cannot find netns")
+	}
+
 	// Move interface to VPP namespace
 	link, err := utils.SafeGetLink(ifName)
 	if err != nil {
 		return errors.Wrap(err, "cannot find uplink to move")
 	}
-	err = netlink.LinkSetNsPid(link, pid)
+	err = netlink.LinkSetNsFd(link, int(netns.Fd()))
 	if err != nil {
 		return errors.Wrap(err, "cannot move uplink to vpp netns")
 	}
-	err = ns.WithNetNSPath(fmt.Sprintf("/proc/%d/ns/net", pid), func(ns.NetNS) error {
+	err = ns.WithNetNSPath(utils.GetnetnsPath(config.VppNetnsName), func(ns.NetNS) error {
 		return netlink.LinkSetUp(link)
 	})
 	if err != nil {

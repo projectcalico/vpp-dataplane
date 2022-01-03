@@ -36,6 +36,7 @@ const (
 	VppApiSocket           = "/var/run/vpp/vpp-api.sock"
 	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
 	VppPath                = "/usr/bin/vpp"
+	VppNetnsName           = "calico-vpp-ns"
 	VppSigKillTimeout      = 2
 	DefaultEncapSize       = 60 // Used to lower the MTU of the routes to the cluster
 )

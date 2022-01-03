@@ -93,6 +93,11 @@ func (d *AFXDPDriver) PreconfigureLinux() error {
 }
 
 func (d *AFXDPDriver) RestoreLinux() {
+	err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+	if err != nil {
+		log.Warnf("Moving uplink back from NS failed %s", err)
+	}
+
 	if !d.conf.IsUp {
 		return
 	}
@@ -124,8 +129,8 @@ func (d *AFXDPDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
-	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
+func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+	err = d.moveInterfaceToNS(d.spec.InterfaceName)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
