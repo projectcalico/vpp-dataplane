@@ -214,7 +214,7 @@ func InstallFelixPlugin() (err error) {
 func (s *Server) OnVppRestart() {
 	s.log.Warnf("Signaled VPP restart to Policy server")
 	s.tunnelSwIfIndexesLock.Lock()
-	s.tunnelSwIfIndexes = make([uint32]bool)
+	s.tunnelSwIfIndexes = make(map[uint32]bool)
 	s.tunnelSwIfIndexesLock.Unlock()
 	s.vppRestarted <- true
 }
@@ -508,6 +508,8 @@ func (s *Server) SyncPolicy(conn net.Conn) {
 					err = s.handleNamespaceUpdate(m, pending)
 				case *proto.NamespaceRemove:
 					err = s.handleNamespaceRemove(m, pending)
+				case *proto.GlobalBGPConfigUpdate:
+					err = s.handleGlobalBGPConfigUpdate(m, pending)
 				default:
 					s.log.Warnf("Unhandled message from felix: %v", m)
 				}
@@ -883,6 +885,14 @@ func (s *Server) handleNamespaceUpdate(msg *proto.NamespaceUpdate, pending bool)
 
 func (s *Server) handleNamespaceRemove(msg *proto.NamespaceRemove, pending bool) (err error) {
 	s.log.Infof("Ignoring NamespaceRemove")
+	return nil
+}
+
+func (s *Server) handleGlobalBGPConfigUpdate(msg *proto.GlobalBGPConfigUpdate, pending bool) (err error) {
+	s.log.Infof("Got GlobalBGPConfigUpdate")
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.BGPConfChanged,
+	})
 	return nil
 }
 

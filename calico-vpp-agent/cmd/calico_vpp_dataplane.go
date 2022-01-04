@@ -164,6 +164,7 @@ func main() {
 	peerWatcher.SetBGPConf(bgpConf)
 	routingServer.SetBGPConf(bgpConf)
 	serviceServer.SetBGPConf(bgpConf)
+	bgpConfigurationWatcher.SetBGPConf(bgpConf)
 
 	log.Infof("Waiting for our node's BGP spec...")
 	Go(nodeWatcher, nodeWatcher.WatchNodes)
@@ -192,6 +193,7 @@ func main() {
 	Go(policyServer, policyServer.ServePolicy)
 	config.WaitForFelixConfig()
 
+	Go(bgpConfigurationWatcher, bgpConfigurationWatcher.WatchBGPConfiguration)
 	Go(prefixWatcher, prefixWatcher.WatchPrefix)
 	Go(peerWatcher, peerWatcher.WatchBGPPeers)
 	Go(felixConfWatcher, felixConfWatcher.WatchFelixConfiguration)
