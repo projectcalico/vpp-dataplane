@@ -195,6 +195,7 @@ func main() {
 	Go(policyServer, policyServer.ServePolicy)
 	config.WaitForFelixConfig()
 
+	Go(bgpConfigurationWatcher, bgpConfigurationWatcher.WatchBGPConfiguration)
 	Go(prefixWatcher, prefixWatcher.WatchPrefix)
 	Go(peerWatcher, peerWatcher.WatchBGPPeers)
 	Go(felixConfWatcher, felixConfWatcher.WatchFelixConfiguration)
