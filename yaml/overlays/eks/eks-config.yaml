@@ -12,24 +12,6 @@ data:  # Configuration template for VPP in EKS
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: calico-node
-  namespace: kube-system
-spec:
-  template:
-    spec:
-      containers:
-        - name: calico-node
-          env:
-            - name: FELIX_AWSSRCDSTCHECK
-              value: Disable
-            - name: IP_AUTODETECTION_METHOD
-              value: interface=eth0
-            - name: CALICO_IPV4POOL_CIDR
-              value: 10.10.0.0/16
----
-kind: DaemonSet
-apiVersion: apps/v1
-metadata:
   name: calico-vpp-node
   namespace: calico-vpp-dataplane
 spec:

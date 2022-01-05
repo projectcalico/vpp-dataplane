@@ -59,31 +59,43 @@ load-images:
 	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/agent:latest
 	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/vpp:latest
 
+CALICO_INSTALLATION ?= installation-default
+.PHONY: test-install-calico
+test-install-calico:
+	kubectl apply -f https://projectcalico.docs.tigera.io/master/manifests/tigera-operator.yaml
+	kubectl apply -f yaml/calico/$(CALICO_INSTALLATION).yaml
+
 # Allows to simply run calico-vpp from release images in a test cluster
 .PHONY: test-install-calicovpp
 test-install-calicovpp:
+	$(MAKE) test-install-calico CALICO_INSTALLATION=installation-test-v4
 	kubectl apply -k yaml/overlays/test-vagrant
+
+.PHONY: test-install-calicovpp-v6
+test-install-calicovpp-v6:
+	$(MAKE) test-install-calico CALICO_INSTALLATION=installation-test-v6
+	kubectl apply -k yaml/overlays/test-vagrant-v6
 
 # Allows to simply run calico-vpp from release images in a test cluster with SRv6 configured
 .PHONY: test-install-calicovpp-srv6
 test-install-calicovpp-srv6:
+	$(MAKE) test-install-calico CALICO_INSTALLATION=installation-test-v6
 	kubectl kustomize yaml/overlays/test-vagrant-srv6 | kubectl apply -f -
 
 # Allows to run calico-vpp in a test cluster with locally-built binaries for dev / debug
 .PHONY: test-install-calicovpp-dev
 test-install-calicovpp-dev:
+	$(MAKE) test-install-calico CALICO_INSTALLATION=installation-test-v4
 	kubectl apply -k yaml/overlays/test-vagrant-mounts
-
-.PHONY: test-install-calicovpp-v6
-test-install-calicovpp-v6:
-	kubectl apply -k yaml/overlays/test-vagrant-v6
 
 .PHONY: test-install-calicovpp-dev-v6
 test-install-calicovpp-dev-v6:
+	$(MAKE) test-install-calico CALICO_INSTALLATION=installation-test-v6
 	kubectl apply -k yaml/overlays/test-vagrant-v6-mounts
 
 .PHONY: test-install-calicovpp-dev-srv6
 test-install-calicovpp-dev-srv6:
+	$(MAKE) test-install-calico CALICO_INSTALLATION=installation-test-v6
 	kubectl kustomize yaml/overlays/test-vagrant-srv6-mounts | kubectl apply -f -
 
 .PHONY: run-tests

@@ -83,34 +83,6 @@ spec:
                 configMapKeyRef:
                   name: calico-vpp-config
                   key: sr_localsid_pool
----
-kind: DaemonSet
-apiVersion: apps/v1
-metadata:
-  name: calico-node
-  namespace: kube-system
-spec:
-  template:
-    spec:
-      containers:
-        - name: calico-node
-          env:
-            - name: CALICO_IPV4POOL_IPIP
-              value: "Never"
-            - name: CALICO_IPV6POOL_IPIP
-              value: "Never"
-            - name: CALICO_IPV4POOL_CIDR
-              value: ""
-            - name: CALICO_IPV6_POOL_CIDR
-              value: "fd01::/64"
-            - name: FELIX_IPV6SUPPORT
-              value: "true"
-            - name: IP
-              value: "autodetect"
-            - name: CALICO_ROUTER_ID
-              value: "hash"
-            - name: IP6
-              value: "autodetect"
 
 ---
 # Source: calico/templates/calico-kube-controllers.yaml
