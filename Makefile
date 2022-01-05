@@ -66,6 +66,7 @@ start-test-cluster:
 load-images:
 	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/agent:latest
 	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/vpp:latest
+	$(MAKE) -C test/vagrant load-image -j99 IMG=calico/cni:latest
 
 CALICO_INSTALLATION ?= installation-default
 .PHONY: test-install-calico

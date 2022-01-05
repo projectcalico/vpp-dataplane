@@ -1,11 +1,27 @@
+apiVersion: crd.projectcalico.org/v1
+kind: IPPool
+metadata:
+  name: pool-blue
+  annotations:
+    extensions.projectcalico.org/network: blue
+spec:
+  cidr: 172.17.0.0/16
+  ipipMode: Never
+  vxlanMode: Always
+  natOutgoing: false
+  disabled: false
+  nodeSelector: all()
+  allowedUses:
+  - Workload
+---
 apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
-  name: network-2-conf
+  name: network-blue-conf
 spec:
   config: |-
     {
-      "name": "network-2",
+      "name": "network-blue",
       "cniVersion": "0.3.1",
       "plugins": [
         {
@@ -15,11 +31,7 @@ spec:
           "mtu": 0,
           "ipam": {
               "type": "calico-ipam",
-              "ipv4_pools": ["default-ipv4-ippool"],
-              "routes": [
-                { "dst": "10.10.0.0/24" },
-                { "dst": "10.0.2.0/24" }
-              ]
+              "ipv4_pools": ["pool-blue"]
           },
           "policy": {
               "type": "k8s"
@@ -29,13 +41,9 @@ spec:
           },
           "dataplane_options": {
             "type": "grpc",
-            "socket": "unix:///var/run/calico/cni-server.sock"
+            "socket": "unix:///var/run/calico/cni-server.sock",
+            "network_name": "blue"
           }
-        },
-        {
-          "type": "portmap",
-          "snat": true,
-          "capabilities": {"portMappings": true}
         }
       ]
     }

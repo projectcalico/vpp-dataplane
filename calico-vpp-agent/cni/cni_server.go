@@ -182,6 +182,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	s.log.Warnf("Got Add request for network: %s", request.DataplaneOptions["network_name"])
 	s.log.Infof("pod(add) spec=%s", podSpec.String())
 
 	existingSpec, ok := s.podInterfaceMap[podSpec.Key()]
