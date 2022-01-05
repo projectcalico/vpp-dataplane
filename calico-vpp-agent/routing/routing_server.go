@@ -69,6 +69,7 @@ type Server struct {
 	kernelWatcher    *watchers.KernelWatcher
 	peerWatcher      *watchers.PeerWatcher
 	nodeWatcher      *watchers.NodeWatcher
+	localsidWatcher  *watchers.LocalSIDWatcher
 	ipam             watchers.IpamCache
 
 	connectivityServer *connectivity.ConnectivityServer
@@ -125,6 +126,7 @@ func NewServer(vpp *vpplink.VppLink, l *logrus.Entry) (*Server, error) {
 	server.bgpWatcher = watchers.NewBGPWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "bgp-watcher"}))
 	server.prefixWatcher = watchers.NewPrefixWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	server.kernelWatcher = watchers.NewKernelWatcher(&routingData, server.ipam, server.bgpWatcher, l.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
+	server.localsidWatcher = watchers.NewLocalSIDWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
 	server.nodeWatcher = watchers.NewNodeWatcher(&routingData, l.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
 	server.peerWatcher = watchers.NewPeerWatcher(&routingData, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
 	server.connectivityServer = connectivity.NewConnectivityServer(&routingData, server.ipam, server.felixConfWatcher, server.nodeWatcher, l.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
@@ -175,6 +177,11 @@ func (s *Server) serveOne() error {
 	s.t.Go(func() error { return s.peerWatcher.WatchBGPPeers() })
 	// watch Felix configuration
 	s.t.Go(func() error { return s.felixConfWatcher.WatchFelixConfiguration() })
+
+	// watch LocalSID if SRv6 is enabled
+	if config.EnableSRv6 {
+		s.t.Go(func() error { return s.localsidWatcher.WatchLocalSID() })
+	}
 
 	// TODO need to watch BGP configurations and restart in case of changes
 	// Need to get initial BGP config here, pass it to the watchers that need it,
@@ -282,7 +289,7 @@ func (s *Server) getDefaultBGPConfig(log *logrus.Entry, clientv3 calicov3cli.Int
 		}
 		if conf.Spec.ServiceLoadBalancerIPs == nil {
 			conf.Spec.ServiceLoadBalancerIPs = []calicov3.ServiceLoadBalancerIPBlock{}
-		}				
+		}
 		return &conf.Spec, nil
 	}
 	switch err.(type) {

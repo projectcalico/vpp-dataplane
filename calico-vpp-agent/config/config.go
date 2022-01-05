@@ -59,6 +59,9 @@ const (
 	IpsecNbAsyncCryptoThEnvVar = "CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD"
 	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
 	ServicePrefixEnvVar        = "SERVICE_PREFIX"
+	EnableSRv6EnvVar           = "CALICOVPP_SRV6_ENABLED"
+	SRv6LocalsidPoolEnvVar     = "CALICOVPP_SR_LS_POOL"
+	SRv6PolicyPoolEnvVar       = "CALICOVPP_SR_POLICY_POOL"
 
 	MemifSocketName      = "@vpp/memif"
 	DefaultVXLANVni      = 4096
@@ -80,6 +83,7 @@ var (
 	EnableServices           = true
 	EnablePolicies           = true
 	EnableIPSec              = false
+	EnableSRv6               = false
 	IpsecAddressCount        = 1
 	CrossIpsecTunnels        = false
 	IPSecIkev2Psk            = ""
@@ -93,6 +97,8 @@ var (
 	HostMtu                  int = 0
 	PodMtu                   int = 0
 	IpsecNbAsyncCryptoThread int = 0
+	SRv6policyIPPool             = ""
+	SRv6localSidIPPool           = ""
 
 	felixConfigReceived = false
 	felixConfigChan     = make(chan struct{})
@@ -126,6 +132,7 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:HostMtu           %d", HostMtu)
 	log.Infof("Config:PodMtu            %d", PodMtu)
 	log.Infof("Config:IpsecNbAsyncCryptoThread  %d", IpsecNbAsyncCryptoThread)
+	log.Infof("Config:EnableSRv6        %t", EnableSRv6)
 }
 
 var supportedEnvVars map[string]bool
@@ -288,6 +295,22 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		} else {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapQueueSizeEnvVar, conf, sizes, err)
 		}
+	}
+
+	if conf := getEnvValue(EnableSRv6EnvVar); conf != "" {
+		enableSRv6, err := strconv.ParseBool(conf)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableSRv6EnvVar, conf, enableSRv6, err)
+		}
+		EnableSRv6 = enableSRv6
+	}
+
+	if conf := getEnvValue(SRv6PolicyPoolEnvVar); conf != "" {
+		SRv6policyIPPool = conf
+	}
+
+	if conf := getEnvValue(SRv6LocalsidPoolEnvVar); conf != "" {
+		SRv6localSidIPPool = conf
 	}
 
 	psk := getEnvValue(IPSecIkev2PskEnvVar)

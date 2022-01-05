@@ -90,6 +90,7 @@ function generate_govpp_apis ()
 	  acl \
 	  abf \
 	  crypto_sw_scheduler \
+	  sr \
 	  rdma \
 	  vmxnet3 \
 	  pbl \

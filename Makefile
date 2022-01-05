@@ -64,6 +64,11 @@ load-images:
 test-install-calicovpp:
 	kubectl apply -k yaml/overlays/test-vagrant
 
+# Allows to simply run calico-vpp from release images in a test cluster with SRv6 configured
+.PHONY: test-install-calicovpp-srv6
+test-install-calicovpp-srv6:
+	kubectl kustomize yaml/overlays/test-vagrant-srv6 | kubectl apply -f -
+
 # Allows to run calico-vpp in a test cluster with locally-built binaries for dev / debug
 .PHONY: test-install-calicovpp-dev
 test-install-calicovpp-dev:
@@ -76,6 +81,10 @@ test-install-calicovpp-v6:
 .PHONY: test-install-calicovpp-dev-v6
 test-install-calicovpp-dev-v6:
 	kubectl apply -k yaml/overlays/test-vagrant-v6-mounts
+
+.PHONY: test-install-calicovpp-dev-srv6
+test-install-calicovpp-dev-srv6:
+	kubectl kustomize yaml/overlays/test-vagrant-srv6-mounts | kubectl apply -f -
 
 .PHONY: run-tests
 run-tests:

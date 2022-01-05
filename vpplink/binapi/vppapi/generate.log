@@ -1,4 +1,4 @@
-VPP Version                 : 22.02-rc0~407-g1049928c5
+VPP Version                 : 22.02-rc0~408-g2c81b117d
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 88019c407 vppinfra: toeplitz hash four in parallel
 ------------------ Cherry picked commits --------------------
@@ -11,4 +11,5 @@ gerrit:34726/1 interface: add buffer stats api
 gerrit:34734/2 memif: autogenerate socket_ids
 gerrit:32271/15 memif: add support for ns abstract sockets
 gerrit:34713/3 vppinfra: improve & test abstract socket
+gerrit:33312/4 sr: fix srv6 definition of behavior associated to a LocalSID
 -------------------------------------------------------------

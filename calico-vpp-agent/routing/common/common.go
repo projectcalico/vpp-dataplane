@@ -28,7 +28,10 @@ import (
 	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicocli "github.com/projectcalico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
@@ -39,7 +42,9 @@ const (
 
 var (
 	BgpFamilyUnicastIPv4 = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_UNICAST}
+	BgpFamilySRv6IPv4    = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_SR_POLICY}
 	BgpFamilyUnicastIPv6 = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_UNICAST}
+	BgpFamilySRv6IPv6    = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_SR_POLICY}
 )
 
 // Data managed by the routing server and
@@ -115,9 +120,17 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 net.IP, nodeIpv6 net.IP
 
 	if v4 {
 		family = &BgpFamilyUnicastIPv4
-		nhAttr, err := ptypes.MarshalAny(&bgpapi.NextHopAttribute{
-			NextHop: nodeIpv4.String(),
-		})
+		var nhAttr *anypb.Any
+
+		if config.EnableSRv6 {
+			nhAttr, err = ptypes.MarshalAny(&bgpapi.NextHopAttribute{
+				NextHop: nodeIpv6.String(),
+			})
+		} else {
+			nhAttr, err = ptypes.MarshalAny(&bgpapi.NextHopAttribute{
+				NextHop: nodeIpv4.String(),
+			})
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -145,6 +158,111 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 net.IP, nodeIpv6 net.IP
 		Age:        ptypes.TimestampNow(),
 		Family:     family,
 	}, nil
+}
+
+func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficType int, isWithdrawal bool) (*bgpapi.Path, error) {
+	originAttr, err := ptypes.MarshalAny(&bgpapi.OriginAttribute{Origin: 0})
+	if err != nil {
+		return nil, err
+	}
+	attrs := []*any.Any{originAttr}
+
+	var family *bgpapi.Family
+	var nodeIP = nodeIpv6
+	var epbs = &bgpapi.SRv6EndPointBehavior{}
+	family = &BgpFamilySRv6IPv6
+	if trafficType == 4 {
+		epbs.Behavior = bgpapi.SRv6Behavior_END_DT4
+	} else {
+		epbs.Behavior = bgpapi.SRv6Behavior_END_DT6
+	}
+
+	nlrisr, err := ptypes.MarshalAny(&bgpapi.SRPolicyNLRI{
+		Length:   192,
+		Endpoint: nodeIP,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	nhAttr, err := ptypes.MarshalAny(&bgpapi.NextHopAttribute{
+		NextHop: nodeIP.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	attrs = append(attrs, nhAttr)
+
+	sid, err := ptypes.MarshalAny(&bgpapi.SRBindingSID{
+		SFlag: true,
+		IFlag: false,
+		Sid:   bSid,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	bsid, err := ptypes.MarshalAny(&bgpapi.TunnelEncapSubTLVSRBindingSID{
+		Bsid: sid,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	segment, err := ptypes.MarshalAny(&bgpapi.SegmentTypeB{
+		Flags:                     &bgpapi.SegmentFlags{SFlag: true},
+		Sid:                       localSid,
+		EndpointBehaviorStructure: epbs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	seglist, err := ptypes.MarshalAny(&bgpapi.TunnelEncapSubTLVSRSegmentList{
+		Weight: &bgpapi.SRWeight{
+			Flags:  0,
+			Weight: 12,
+		},
+		Segments: []*any.Any{segment},
+	})
+	if err != nil {
+		return nil, err
+	}
+	pref, err := ptypes.MarshalAny(&bgpapi.TunnelEncapSubTLVSRPreference{
+		Flags:      0,
+		Preference: 11,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	pri, err := ptypes.MarshalAny(&bgpapi.TunnelEncapSubTLVSRPriority{
+		Priority: 10,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// Tunnel Encapsulation attribute for SR Policy
+	tun, err := ptypes.MarshalAny(&bgpapi.TunnelEncapAttribute{
+		Tlvs: []*bgpapi.TunnelEncapTLV{
+			{
+				Type: 15,
+				Tlvs: []*anypb.Any{bsid, seglist, pref, pri},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	attrs = append(attrs, tun)
+
+	return &bgpapi.Path{
+		Nlri:       nlrisr,
+		IsWithdraw: isWithdrawal,
+		Pattrs:     attrs,
+		Age:        ptypes.TimestampNow(),
+		Family:     family,
+	}, nil
+
 }
 
 type ChangeType int
@@ -181,6 +299,8 @@ const (
 	RescanState        ConnectivityEventType = "RescanState"
 	ConnectivtyAdded   ConnectivityEventType = "ConnectivtyAdded"
 	ConnectivtyDeleted ConnectivityEventType = "ConnectivtyDeleted"
+	SRv6PolicyAdded    ConnectivityEventType = "SRv6PolicyAdded"
+	SRv6PolicyDeleted  ConnectivityEventType = "SRv6PolicyDeleted"
 )
 
 type ConnectivityEvent struct {
@@ -194,8 +314,18 @@ type NodeConnectivity struct {
 	Dst              net.IPNet
 	NextHop          net.IP
 	ResolvedProvider string
+	Custom           interface{}
 }
 
 func (cn *NodeConnectivity) String() string {
 	return fmt.Sprintf("%s-%s", cn.Dst.String(), cn.NextHop.String())
+}
+
+type SRv6Tunnel struct {
+	Dst      net.IP
+	Bsid     net.IP
+	Policy   *types.SrPolicy
+	Sid      net.IP
+	Behavior uint8
+	Priority uint32
 }

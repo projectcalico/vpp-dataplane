@@ -220,11 +220,14 @@ func (w *PeerWatcher) WatchBGPPeers() error {
 }
 
 func (w *PeerWatcher) createBGPPeer(ip string, asn uint32) (*bgpapi.Peer, error) {
+	w.log.Infof("createBGPPeer with ip %s", ip)
 	ipAddr, err := net.ResolveIPAddr("ip", ip)
 	if err != nil {
 		return nil, err
 	}
+
 	typ := &common.BgpFamilyUnicastIPv4
+	typSRv6 := &common.BgpFamilySRv6IPv6
 	if ipAddr.IP.To4() == nil {
 		typ = &common.BgpFamilyUnicastIPv6
 	}
@@ -239,6 +242,12 @@ func (w *PeerWatcher) createBGPPeer(ip string, asn uint32) (*bgpapi.Peer, error)
 				Config: &bgpapi.MpGracefulRestartConfig{
 					Enabled: true,
 				},
+			},
+		},
+		&bgpapi.AfiSafi{
+			Config: &bgpapi.AfiSafiConfig{
+				Family:  typSRv6,
+				Enabled: true,
 			},
 		},
 	}

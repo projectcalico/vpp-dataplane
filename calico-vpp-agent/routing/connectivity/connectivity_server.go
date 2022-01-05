@@ -19,6 +19,7 @@ import (
 	"net"
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/watchers"
 	"github.com/sirupsen/logrus"
@@ -72,6 +73,7 @@ func NewConnectivityServer(routingData *common.RoutingData,
 	server.providers[IPSEC] = NewIPsecProvider(providerData)
 	server.providers[VXLAN] = NewVXLanProvider(providerData)
 	server.providers[WIREGUARD] = NewWireguardProvider(providerData)
+	server.providers[SRv6] = NewSRv6Provider(providerData)
 
 	server.TunnelChangeChan = providerData.tunnelChangeChan
 
@@ -182,6 +184,19 @@ func (s *ConnectivityServer) ServeConnectivity() error {
 				s.log.Infof("VXLAN/IPIPMode Changed")
 				s.updateAllIPConnectivity()
 			}
+		case common.SRv6PolicyAdded:
+			new := evt.New.(*common.NodeConnectivity)
+
+			err := s.updateSRv6Policy(new, false /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while adding SRv6 Policy %s", err)
+			}
+		case common.SRv6PolicyDeleted:
+			old := evt.Old.(*common.NodeConnectivity)
+			err := s.updateSRv6Policy(old, true /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while deleting SRv6 Policy %s", err)
+			}
 		}
 	}
 	return nil
@@ -189,6 +204,9 @@ func (s *ConnectivityServer) ServeConnectivity() error {
 
 func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) string {
 	ipPool := s.ipam.GetPrefixIPPool(&cn.Dst)
+	if config.EnableSRv6 {
+		return SRv6
+	}
 	if ipPool == nil {
 		return FLAT
 	}
@@ -258,4 +276,15 @@ func (s *ConnectivityServer) updateIPConnectivity(cn *common.NodeConnectivity, I
 			return s.providers[providerType].AddConnectivity(cn)
 		}
 	}
+}
+
+func (s *ConnectivityServer) updateSRv6Policy(cn *common.NodeConnectivity, IsWithdraw bool) (err error) {
+	s.log.Infof("updateSRv6Policy")
+	providerType := SRv6
+	if IsWithdraw {
+		err = s.providers[providerType].DelConnectivity(cn)
+	} else {
+		err = s.providers[providerType].AddConnectivity(cn)
+	}
+	return err
 }

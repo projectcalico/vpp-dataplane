@@ -32,6 +32,7 @@ const (
 	VXLAN     = "vxlan"
 	IPIP      = "ipip"
 	WIREGUARD = "wireguard"
+	SRv6      = "srv6"
 )
 
 type ConnectivityProviderData struct {
