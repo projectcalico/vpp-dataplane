@@ -1,4 +1,0 @@
-bases:
-- ../test-vagrant-mounts
-patchesStrategicMerge:
-- vxlan.yaml
