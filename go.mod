@@ -30,7 +30,7 @@ require (
 )
 
 replace (
-	github.com/projectcalico/api => github.com/projectcalico/api v0.0.0-20220129171738-695e97a25204 // v3.22.0
+	github.com/projectcalico/api => ../calico-api // github.com/projectcalico/api v0.0.0-20220129171738-695e97a25204 // v3.22.0
 
 	google.golang.org/grpc => google.golang.org/grpc v1.29.1
 

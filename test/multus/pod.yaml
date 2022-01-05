@@ -3,9 +3,9 @@ kind: Pod
 metadata:
   name: samplepod
   annotations:
-    k8s.v1.cni.cncf.io/networks: network-2-conf@ens4,network-2-conf@ens5
+    k8s.v1.cni.cncf.io/networks: network-blue-conf@eth1
 spec:
   containers:
   - name: samplepod
     command: ["/bin/ash", "-c", "trap : TERM INT; sleep infinity & wait"]
-    image: alpine
+    image: nicolaka/netshoot:latest
