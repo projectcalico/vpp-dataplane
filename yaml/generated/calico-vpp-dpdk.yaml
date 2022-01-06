@@ -219,7 +219,7 @@ spec:
         name: vpp
         resources:
           limits:
-            hugepages-2Mi: 256Mi
+            hugepages-2Mi: 512Mi
           requests:
             cpu: 500m
             memory: 512Mi
