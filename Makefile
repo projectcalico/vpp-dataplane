@@ -62,7 +62,7 @@ load-images:
 CALICO_INSTALLATION ?= installation-default
 .PHONY: test-install-calico
 test-install-calico:
-	kubectl apply -f https://projectcalico.docs.tigera.io/master/manifests/tigera-operator.yaml
+	kubectl apply -f https://deploy-preview-5362--calico-master.netlify.app/manifests/tigera-operator.yaml
 	kubectl apply -f yaml/calico/$(CALICO_INSTALLATION).yaml
 
 # Allows to simply run calico-vpp from release images in a test cluster
