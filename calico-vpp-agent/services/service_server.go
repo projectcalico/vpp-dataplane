@@ -285,8 +285,36 @@ func (s *Server) handleServiceEndpointEvent(service *v1.Service, oldService *v1.
 	}
 }
 
-func (s *Server) getServiceIPs() ([]calicov3.ServiceClusterIPBlock, []calicov3.ServiceExternalIPBlock, []calicov3.ServiceLoadBalancerIPBlock) {
-	return s.BGPConf.ServiceClusterIPs, s.BGPConf.ServiceExternalIPs, s.BGPConf.ServiceLoadBalancerIPs
+func (s *Server) getServiceIPs() ([]*net.IPNet, []*net.IPNet, []*net.IPNet) {
+	var serviceClusterIPNets []*net.IPNet
+	var serviceExternalIPNets []*net.IPNet
+	var serviceLBIPNets []*net.IPNet
+	for _, serviceClusterIP := range s.BGPConf.ServiceClusterIPs {
+		_, netIP, err := net.ParseCIDR(serviceClusterIP.CIDR)
+		if err != nil {
+			s.log.Error(err)
+			continue
+		}
+		serviceClusterIPNets = append(serviceClusterIPNets, netIP)
+	}
+	for _, serviceExternalIP := range s.BGPConf.ServiceExternalIPs {
+		_, netIP, err := net.ParseCIDR(serviceExternalIP.CIDR)
+		if err != nil {
+			s.log.Error(err)
+			continue
+		}
+		serviceExternalIPNets = append(serviceExternalIPNets, netIP)
+	}
+	for _, serviceLBIP := range s.BGPConf.ServiceLoadBalancerIPs {
+		_, netIP, err := net.ParseCIDR(serviceLBIP.CIDR)
+		if err != nil {
+			s.log.Error(err)
+			continue
+		}
+		serviceLBIPNets = append(serviceLBIPNets, netIP)
+	}
+
+	return serviceClusterIPNets, serviceExternalIPNets, serviceLBIPNets
 }
 
 func (s *Server) ServeService(t *tomb.Tomb) error {
@@ -294,42 +322,11 @@ func (s *Server) ServeService(t *tomb.Tomb) error {
 	if err != nil {
 		s.log.Errorf("Failed to configure SNAT: %v", err)
 	}
-
-	serviceClusterIPs, serviceExternalIPs, serviceLoadBalancerIPs := s.getServiceIPs()
-	for _, serviceClusterIP := range serviceClusterIPs {
-		_, netIP, err := net.ParseCIDR(serviceClusterIP.CIDR)
-		if err != nil {
-			s.log.Error(err)
-			continue
-		}
-		s.log.Infof("Announcing sevice cluster IP Addresses %+v", netIP)
+	serviceClusterIPNets, serviceExternalIPNets, serviceLBIPNets := s.getServiceIPs()
+	for _, serviceIPNet := range append(serviceClusterIPNets, append(serviceExternalIPNets, serviceLBIPNets...)...) {
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.LocalPodAddressAdded,
-			New:  netIP,
-		})
-	}
-	for _, serviceExternalIP := range serviceExternalIPs {
-		_, netIP, err := net.ParseCIDR(serviceExternalIP.CIDR)
-		if err != nil {
-			s.log.Error(err)
-			continue
-		}
-		s.log.Infof("Announcing service external IP Addresses %+v", netIP)
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.LocalPodAddressAdded,
-			New:  netIP,
-		})
-	}
-	for _, serviceLoadBalancerIP := range serviceLoadBalancerIPs {
-		_, netIP, err := net.ParseCIDR(serviceLoadBalancerIP.CIDR)
-		if err != nil {
-			s.log.Error(err)
-			continue
-		}
-		s.log.Infof("Announcing service loadBalancer IP Addresses %+v", netIP)
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.LocalPodAddressAdded,
-			New:  netIP,
+			New:  serviceIPNet,
 		})
 	}
 

@@ -1,0 +1,51 @@
+# 192.168.3.0/24 is a CIDR block for Kubernetes Service External IPs to be advertised over BGP.
+# 172.217.3.0/16 is a CIDR block for Kubernetes Service status.LoadBalancer IPs to be advertised over BGP,
+# and provisioned by metallb.
+# 172.217.3.4 is a user-specified loadBalancerIP for the service
+
+apiVersion: crd.projectcalico.org/v1
+kind: BGPConfiguration
+metadata:
+  name: default
+spec:
+  serviceLoadBalancerIPs:
+  - cidr: 172.217.3.0/16
+  serviceExternalIPs:
+  - cidr: 192.168.3.0/24
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: bgp
+      addresses:
+      - 172.217.3.0/16
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: my-service
+subsets:
+  - addresses:
+      - ip: 10.10.186.88
+        nodeName: node1
+    ports:
+      - port: 9376
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service	
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9377
+  loadBalancerIP: 172.217.3.4
