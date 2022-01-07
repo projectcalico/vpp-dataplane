@@ -84,14 +84,14 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-git_clone_cd_and_reset "$1" 88019c40725704e6998625937c764d1d0c827975
+git_clone_cd_and_reset "$1" ed999e3b8159eb5b584354af95686a84fb012e05 
 
 git_cherry_pick refs/changes/12/33312/4 # 33312: sr: fix srv6 definition of behavior associated to a LocalSID | https://gerrit.fd.io/r/c/vpp/+/33312
 git_cherry_pick refs/changes/13/34713/3 # 34713: vppinfra: improve & test abstract socket | https://gerrit.fd.io/r/c/vpp/+/34713
 git_cherry_pick refs/changes/71/32271/15 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
 git_cherry_pick refs/changes/34/34734/2 # 34734: memif: autogenerate socket_ids | https://gerrit.fd.io/r/c/vpp/+/34734
 git_cherry_pick refs/changes/26/34726/1 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
-git_cherry_pick refs/changes/57/34757/1 # 34757: tap: add num_tx_queues API | https://gerrit.fd.io/r/c/vpp/+/34757
+git_cherry_pick refs/changes/52/34852/2 # 34852: memif: fix rx/txqueue RC on connected | https://gerrit.fd.io/r/c/vpp/+/34852
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/7 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264

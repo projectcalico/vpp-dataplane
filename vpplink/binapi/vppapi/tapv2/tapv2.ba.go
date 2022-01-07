@@ -396,7 +396,7 @@ type TapCreateV3 struct {
 	UseRandomMac     bool                          `binapi:"bool,name=use_random_mac,default=true" json:"use_random_mac,omitempty"`
 	MacAddress       ethernet_types.MacAddress     `binapi:"mac_address,name=mac_address" json:"mac_address,omitempty"`
 	NumRxQueues      uint16                        `binapi:"u16,name=num_rx_queues,default=1" json:"num_rx_queues,omitempty"`
-	NumTxQueues      uint16                        `binapi:"u16,name=num_tx_queues" json:"num_tx_queues,omitempty"`
+	NumTxQueues      uint16                        `binapi:"u16,name=num_tx_queues,default=1" json:"num_tx_queues,omitempty"`
 	TxRingSz         uint16                        `binapi:"u16,name=tx_ring_sz,default=256" json:"tx_ring_sz,omitempty"`
 	RxRingSz         uint16                        `binapi:"u16,name=rx_ring_sz,default=256" json:"rx_ring_sz,omitempty"`
 	HostMtuSet       bool                          `binapi:"bool,name=host_mtu_set" json:"host_mtu_set,omitempty"`
