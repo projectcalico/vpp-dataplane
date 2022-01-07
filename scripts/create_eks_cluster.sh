@@ -18,20 +18,23 @@
 #                           CONFIG PARAMS                                     #
 ###############################################################################
 ### Config params; replace with appropriate values
-CLUSTER_NAME=				# cluster name (MANDATORY)
-REGION=					# cluster region (MANDATORY)
-NODEGROUP_NAME=$CLUSTER_NAME-nodegroup	# managed nodegroup name
-LT_NAME=$CLUSTER_NAME-lt		# EC2 launch template name
-KEYNAME=				# keypair name for ssh access to worker nodes
+CLUSTER_NAME=                           # cluster name (MANDATORY)
+REGION=                                 # cluster region (MANDATORY)
+NODEGROUP_NAME=$CLUSTER_NAME-nodegroup  # managed nodegroup name
+LT_NAME=$CLUSTER_NAME-lt                # EC2 launch template name
+KEYNAME=                                # keypair name for ssh access to worker nodes
 SSH_SECURITY_GROUP_NAME="$CLUSTER_NAME-ssh-allow"
-SSH_ALLOW_CIDR="0.0.0.0/0"		# source IP from which ssh access is allowed
-INSTANCE_TYPE=m5.large			# EC2 instance type
-INSTANCE_NUM=2				# Number of instances in cluster
+SSH_ALLOW_CIDR="0.0.0.0/0"              # source IP from which ssh access is allowed when KEYNAME is specified
+INSTANCE_TYPE=m5.large                  # EC2 instance type
+INSTANCE_NUM=2                          # Number of instances in cluster
+## Calico installation spec for the operator; could be url or local file
+CALICO_INSTALLATION_YAML=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/{{page.vppbranch}}/yaml/calico/installation-eks.yaml
+#CALICO_INSTALLATION_YAML=./calico_installation.yaml
 ## Calico/VPP deployment yaml; could be url or local file
-CALICO_VPP_YAML=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/master/yaml/generated/calico-vpp-eks-dpdk.yaml
+CALICO_VPP_YAML=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/{{page.vppbranch}}/yaml/generated/calico-vpp-eks-dpdk.yaml
 #CALICO_VPP_YAML=<full path>/calico-vpp-eks-dpdk.yaml
 ## init_eks.sh script location; could be url or local file
-INIT_EKS_SCRIPT=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/master/scripts/init_eks.sh
+INIT_EKS_SCRIPT=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/{{page.vppbranch}}/scripts/init_eks.sh
 #INIT_EKS_SCRIPT=<full path>/init_eks.sh
 ###############################################################################
 
@@ -41,8 +44,8 @@ usage ()
 	echo "Either execute the script after filling in the CONFIG PARAMS section in the"
 	echo "script or execute the script with command-line options as follows:"
 	echo
-	echo "    bash $0  <cluster name>  -r <region name>  [-k <keyname>]"
-	echo "    [-t <instance type>]  [-n <number of instances>]  [-f <calico/vpp config yaml file>]"
+	echo "    bash $0  <cluster name>  -r <region name>  [-k <keyname>] [-t <instance type>]"
+	echo "    [-n <number of instances>]  [-f <calico/vpp config yaml file>] [-i <calico installation yaml>]"
 	echo
 	echo "Mandatory options are \"cluster name\" and \"region name\"."
 	exit 1
@@ -52,7 +55,7 @@ usage ()
 if [ "$1" != "" ]; then
 	CLUSTER_NAME=$1
 	shift
-	while getopts ":r:k:t:n:f:" flag
+	while getopts ":r:k:t:n:f:i:" flag
 	do
 	        case "${flag}" in
 	                r) REGION=${OPTARG};;
@@ -60,6 +63,7 @@ if [ "$1" != "" ]; then
 	                t) INSTANCE_TYPE=${OPTARG};;
 	                n) INSTANCE_NUM=${OPTARG};;
 	                f) CALICO_VPP_YAML=${OPTARG};;
+	                i) CALICO_INSTALLATION_YAML=${OPTARG};;
 	               \?) echo "Invalid option : -${OPTARG}"; usage;;
 	                :) echo "Option -${OPTARG} requires an argument"; usage;;
 	        esac
@@ -138,6 +142,27 @@ TMP_DIR=`mktemp -d`
 CUR_DIR=`pwd`
 cd $TMP_DIR
 
+### Get the Calico installation yaml using wget or curl or whatever
+# local file or url
+if [ -f "$CALICO_INSTALLATION_YAML" ]; then
+	cp $CALICO_INSTALLATION_YAML ./calico_installation.yaml
+else # url
+	# try wget first
+	echo "Trying wget..."
+	wget $CALICO_INSTALLATION_YAML -O ./calico_installation.yaml
+	if [ $? -ne 0 ]; then
+		# and then try curl
+		echo
+		echo "Trying curl..."
+		curl $CALICO_INSTALLATION_YAML -o ./calico_installation.yaml --fail
+		if [ $? -ne 0 ]; then
+			echo
+			echo "ERROR: could not download \"$CALICO_INSTALLATION_YAML\""
+			cd $CUR_DIR; rm -rf $TMP_DIR; exit 1
+		fi
+	fi
+fi
+
 ### Get the Calico/VPP deployment yaml using wget or curl or whatever
 # local file or url
 if [ -f "$CALICO_VPP_YAML" ]; then
@@ -159,8 +184,8 @@ else # url
 	fi
 fi
 
-### Get the INIT_EKS_SCRIPT using wget or curl or whatever. It does the
-# following customizations on EKS worker nodes:
+### Get the INIT_EKS_SCRIPTet or curl or whatever. It does the
+# following customizations on EK using wgS worker nodes:
 #   1. configure 512 2MB hugepages 
 #   2. enable unsafe_noiommu_mode 
 #   3. download, build, install and load ENAv2 compatible igb_uio driver
@@ -233,9 +258,21 @@ echo; echo
 echo "Deleting aws-node..."
 kubectl delete daemonset -n kube-system aws-node
 
-### Deploy Calico/VPP CNI
+### Installing tigera operator
 echo; echo
-echo "Deploying calico/VPP CNI..."
+echo "Installing the Tigera operator..."
+echo
+kubectl apply -f https://deploy-preview-5362--calico-master.netlify.app/manifests/tigera-operator.yaml
+
+### Installing calico
+echo; echo
+echo "Deploying Calico..."
+echo
+kubectl apply -f ./calico_installation.yaml
+
+### Deploy Calico VPP dataplane
+echo; echo
+echo "Deploying the VPP dataplane..."
 echo
 kubectl apply -f ./calico_vpp_deployment.yaml
 
