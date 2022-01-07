@@ -3837,6 +3837,9 @@ data:
         plugin calico_plugin.so { enable }
         plugin ping_plugin.so { disable }
     }
+    buffers {
+      buffers-per-numa 131072
+    }
   vpp_dataplane_interface: eth1
   vpp_uplink_driver: ""
 kind: ConfigMap
@@ -3913,7 +3916,7 @@ spec:
           value: node
         - name: DATASTORE_TYPE
           value: kubernetes
-        image: docker.io/calico/kube-controllers:master
+        image: docker.io/calico/kube-controllers:v3.21.2
         livenessProbe:
           exec:
             command:
@@ -3971,40 +3974,6 @@ spec:
     spec:
       containers:
       - env:
-        - name: DATASTORE_TYPE
-          value: kubernetes
-        - name: WAIT_FOR_DATASTORE
-          value: "true"
-        - name: NODENAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: SERVICE_PREFIX
-          valueFrom:
-            configMapKeyRef:
-              key: service_prefix
-              name: calico-vpp-config
-        image: docker.io/calicovpp/agent:prerelease
-        imagePullPolicy: IfNotPresent
-        name: agent
-        resources:
-          requests:
-            cpu: 250m
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /var/run/calico
-          name: var-run-calico
-          readOnly: false
-        - mountPath: /var/lib/calico/felix-plugins
-          name: felix-plugins
-          readOnly: false
-        - mountPath: /var/run/vpp
-          name: vpp-rundir
-        - mountPath: /run/netns/
-          mountPropagation: Bidirectional
-          name: netns
-      - env:
         - name: CALICOVPP_NATIVE_DRIVER
           valueFrom:
             configMapKeyRef:
@@ -4037,7 +4006,7 @@ spec:
               fieldPath: spec.nodeName
         - name: CALICOVPP_CORE_PATTERN
           value: /var/lib/vpp/vppcore.%e.%p
-        image: docker.io/calicovpp/vpp:prerelease
+        image: docker.io/calicovpp/vpp:v0.18.1-calicov3.21.2
         imagePullPolicy: IfNotPresent
         name: vpp
         resources:
@@ -4045,7 +4014,7 @@ spec:
             hugepages-2Mi: 256Mi
           requests:
             cpu: 500m
-            memory: 128Mi
+            memory: 512Mi
         securityContext:
           privileged: true
         volumeMounts:
@@ -4061,6 +4030,40 @@ spec:
           name: devices
         - mountPath: /sys
           name: hostsys
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+      - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: SERVICE_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: service_prefix
+              name: calico-vpp-config
+        image: docker.io/calicovpp/agent:v0.18.1-calicov3.21.2
+        imagePullPolicy: IfNotPresent
+        name: agent
+        resources:
+          requests:
+            cpu: 250m
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/calico
+          name: var-run-calico
+          readOnly: false
+        - mountPath: /var/lib/calico/felix-plugins
+          name: felix-plugins
+          readOnly: false
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns
@@ -4130,6 +4133,12 @@ spec:
     spec:
       containers:
       - env:
+        - name: FELIX_USEINTERNALDATAPLANEDRIVER
+          value: "false"
+        - name: FELIX_DATAPLANEDRIVER
+          value: /usr/local/bin/felix-plugins/felix-api-proxy
+        - name: FELIX_XDPENABLED
+          value: "false"
         - name: DATASTORE_TYPE
           value: kubernetes
         - name: WAIT_FOR_DATASTORE
@@ -4178,7 +4187,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/node:master
+        image: docker.io/calico/node:v3.21.2
         lifecycle:
           preStop:
             exec:
@@ -4253,7 +4262,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/cni:master
+        image: docker.io/calico/cni:v3.21.2
         name: upgrade-ipam
         securityContext:
           privileged: true
@@ -4287,7 +4296,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/cni:master
+        image: docker.io/calico/cni:v3.21.2
         name: install-cni
         securityContext:
           privileged: true
@@ -4296,7 +4305,7 @@ spec:
           name: cni-bin-dir
         - mountPath: /host/etc/cni/net.d
           name: cni-net-dir
-      - image: docker.io/calico/pod2daemon-flexvol:master
+      - image: docker.io/calico/pod2daemon-flexvol:v3.21.2
         name: flexvol-driver
         securityContext:
           privileged: true
@@ -4360,12 +4369,3 @@ spec:
     rollingUpdate:
       maxUnavailable: 1
     type: RollingUpdate
----
-apiVersion: crd.projectcalico.org/v1
-kind: FelixConfiguration
-metadata:
-  name: default
-spec:
-  dataplaneDriver: /usr/local/bin/felix-plugins/felix-api-proxy
-  useInternalDataplaneDriver: false
-  xdpEnabled: false
