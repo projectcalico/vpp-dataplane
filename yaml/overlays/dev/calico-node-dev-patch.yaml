@@ -7,6 +7,9 @@ spec:
   template:
     spec:
       initContainers:
+        - name: upgrade-ipam
+          image: ${CALICO_CNI_IMAGE}
+          imagePullPolicy: IfNotPresent
         - name: install-cni
           image: ${CALICO_CNI_IMAGE}
           imagePullPolicy: IfNotPresent
@@ -68,3 +71,15 @@ spec:
           envFrom:
           - configMapRef:
               name: calico-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calico-kube-controllers
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: calico-kube-controllers
+          image: docker.io/calico/kube-controllers:${CALICO_VERSION_TAG}

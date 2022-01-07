@@ -2,14 +2,15 @@ package connectivity
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/libcalico-go/lib/ipam"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -210,8 +211,11 @@ func (p *SRv6Provider) getPolicyNode(nodeip string, behavior types.SrBehavior) (
 
 func (p *SRv6Provider) setEncapSource() (err error) {
 	p.log.Printf("SRv6Provider setEncapSource")
-	nodeIP6 := p.server.GetNodeIP(true)
-	if err = p.vpp.SetEncapSource(nodeIP6); err != nil {
+	_, nodeIP6 := p.GetNodeIPs()
+	if nodeIP6 == nil {
+		return fmt.Errorf("No ip6 found for node")
+	}
+	if err = p.vpp.SetEncapSource(*nodeIP6); err != nil {
 		p.log.Errorf("SRv6Provider setEncapSource: %v", err)
 		return errors.Wrapf(err, "SRv6Provider setEncapSource")
 	}

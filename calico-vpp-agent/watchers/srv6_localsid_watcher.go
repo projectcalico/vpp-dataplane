@@ -2,36 +2,42 @@ package watchers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
-
+	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/ipam"
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/sirupsen/logrus"
+	tomb "gopkg.in/tomb.v2"
+
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 type LocalSIDWatcher struct {
-	*common.RoutingData
-	log *logrus.Entry
+	log         *logrus.Entry
+	vpp         *vpplink.VppLink
+	clientv3    calicov3cli.Interface
+	nodeBGPSpec *oldv3.NodeBGPSpec
 }
 
 const (
 	localSIDWatchInterval = 10 * time.Second
 )
 
-func (w *LocalSIDWatcher) WatchLocalSID() error {
+func (w *LocalSIDWatcher) WatchLocalSID(t *tomb.Tomb) error {
 	w.log.Infof("WatchLocalSID")
 	time.Sleep(localSIDWatchInterval)
 
 	assignedLocalSIDs := make(map[string]bool)
-	for {
-		list, err := w.Vpp.ListSRv6Localsid()
+	for t.Alive() {
+		list, err := w.vpp.ListSRv6Localsid()
 		if err != nil {
 			return errors.Wrap(err, "error getting assigned SRv6 LocalSIDs")
 		}
@@ -67,16 +73,16 @@ func (p *LocalSIDWatcher) AdvertiseSRv6Policy(localsid *types.SrLocalsid) (err e
 		} else if localsid.Behavior == types.SrBehaviorDT6 {
 			trafficType = 6
 		}
-		newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), srpolicyBSID.ToIP(), p.Ipv6, trafficType, false)
+		_, nodeIpv6 := common.GetBGPSpecAddresses(p.nodeBGPSpec)
+		if nodeIpv6 == nil {
+			return fmt.Errorf("No ip6 found for node")
+		}
+		newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), srpolicyBSID.ToIP(), *nodeIpv6, trafficType, false)
 		if err == nil {
-			_, err := p.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
-				TableType: bgpapi.TableType_GLOBAL,
-				Path:      newPath,
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.BGPPathAdded,
+				New:  newPath,
 			})
-			if err != nil {
-				p.log.Errorf("SRv6Provider Error bgpserver.AddPath: %v", err)
-			}
-
 		}
 	}
 
@@ -85,7 +91,7 @@ func (p *LocalSIDWatcher) AdvertiseSRv6Policy(localsid *types.SrLocalsid) (err e
 
 func (p *LocalSIDWatcher) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6Address, err error) {
 	poolIPNet := []cnet.IPNet{cnet.MustParseNetwork(ipnet)}
-	_, newSids, err := p.Clientv3.IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
+	_, newSids, err := p.clientv3.IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
 		Num6:        1,
 		IPv6Pools:   poolIPNet,
 		IntendedUse: "Tunnel",
@@ -100,10 +106,19 @@ func (p *LocalSIDWatcher) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6A
 	return newSidAddr, nil
 }
 
-func NewLocalSIDWatcher(routingData *common.RoutingData, log *logrus.Entry) *LocalSIDWatcher {
+func (w *LocalSIDWatcher) OnVppRestart() {
+	/* We don't do anything */
+}
+
+func (w *LocalSIDWatcher) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+	w.nodeBGPSpec = nodeBGPSpec
+}
+
+func NewLocalSIDWatcher(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *logrus.Entry) *LocalSIDWatcher {
 	w := &LocalSIDWatcher{
-		RoutingData: routingData,
-		log:         log,
+		vpp:      vpp,
+		log:      log,
+		clientv3: clientv3,
 	}
 	w.log.Printf("NewLocalSIDWatcher")
 	return w

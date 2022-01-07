@@ -16,10 +16,13 @@
 package connectivity
 
 import (
+	"fmt"
+	"net"
+
 	"github.com/pkg/errors"
-	commonAgent "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -34,14 +37,6 @@ type VXLanProvider struct {
 
 func NewVXLanProvider(d *ConnectivityProviderData) *VXLanProvider {
 	return &VXLanProvider{d, make(map[string]uint32), make(map[uint32]map[string]bool), 0, 0}
-}
-
-func (p *VXLanProvider) GetSwifindexes() []uint32 {
-	swifindexes := []uint32{}
-	for _, vxlanIndex := range p.vxlanIfs {
-		swifindexes = append(swifindexes, vxlanIndex)
-	}
-	return swifindexes
 }
 
 func (p *VXLanProvider) Enabled() bool {
@@ -68,15 +63,13 @@ func (p *VXLanProvider) RescanState() {
 	if err != nil {
 		p.log.Errorf("Error listing VXLan tunnels: %v", err)
 	}
-	nodeIP4 := p.server.GetNodeIP(false)
-	nodeIP6 := p.server.GetNodeIP(true)
+	ip4, ip6 := p.server.GetNodeIPs()
 	for _, tunnel := range tunnels {
-		if (tunnel.SrcAddress.Equal(nodeIP4) || tunnel.SrcAddress.Equal(nodeIP6)) &&
-			tunnel.Vni == p.getVXLANVNI() && tunnel.DstPort == p.getVXLANPort() && tunnel.SrcPort == p.getVXLANPort() {
-
-			p.log.Infof("Found existing tunnel: %s", tunnel)
-
-			p.vxlanIfs[tunnel.DstAddress.String()] = uint32(tunnel.SwIfIndex)
+		if (ip4 != nil && tunnel.SrcAddress.Equal(*ip4)) || (ip6 != nil && tunnel.SrcAddress.Equal(*ip6)) {
+			if tunnel.Vni == p.getVXLANVNI() && tunnel.DstPort == p.getVXLANPort() && tunnel.SrcPort == p.getVXLANPort() {
+				p.log.Infof("Found existing tunnel: %s", tunnel)
+				p.vxlanIfs[tunnel.DstAddress.String()] = uint32(tunnel.SwIfIndex)
+			}
 		}
 	}
 
@@ -135,7 +128,15 @@ func (p *VXLanProvider) getVXLANPort() uint16 {
 
 func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Debugf("Adding vxlan Tunnel to VPP")
-	nodeIP := p.GetNodeIP(vpplink.IsIP6(cn.NextHop))
+	var nodeIP net.IP
+	ip4, ip6 := p.server.GetNodeIPs()
+	if vpplink.IsIP6(cn.NextHop) && ip6 != nil {
+		nodeIP = *ip6
+	} else if !vpplink.IsIP6(cn.NextHop) && ip4 != nil {
+		nodeIP = *ip4
+	} else {
+		return fmt.Errorf("Missing node address")
+	}
 
 	vxLanPort := p.getVXLANPort()
 	if _, found := p.vxlanIfs[cn.NextHop.String()]; !found {
@@ -182,12 +183,12 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 
 		p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), swIfIndex)
 		err = p.vpp.RouteAdd(&types.Route{
-			Dst: commonAgent.ToMaxLenCIDR(cn.NextHop),
+			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
 				SwIfIndex: swIfIndex,
 				Gw:        nil,
 			}},
-			Table: commonAgent.PodVRFIndex,
+			Table: common.PodVRFIndex,
 		})
 		if err != nil {
 			// TODO : delete tunnel
@@ -196,7 +197,11 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 
 		p.vxlanIfs[cn.NextHop.String()] = swIfIndex
 		p.log.Infof("VXLan: Added ?->%s %d", cn.NextHop.String(), swIfIndex)
-		p.tunnelChangeChan <- TunnelChange{swIfIndex, AddChange}
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.TunnelAdded,
+			New:  swIfIndex,
+		})
+
 	}
 	swIfIndex := p.vxlanIfs[cn.NextHop.String()]
 
@@ -224,13 +229,21 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 		return errors.Errorf("Deleting unknown vxlan tunnel %s", cn.NextHop.String())
 	}
 	/* TODO: delete tunnel */
-	nodeIP := p.server.GetNodeIP(vpplink.IsIP6(cn.NextHop))
+	var nodeIp net.IP
+	ip4, ip6 := p.server.GetNodeIPs()
+	if vpplink.IsIP6(cn.NextHop) && ip6 != nil {
+		nodeIp = *ip6
+	} else if !vpplink.IsIP6(cn.NextHop) && ip4 != nil {
+		nodeIp = *ip4
+	} else {
+		return fmt.Errorf("Missing node address")
+	}
 	p.log.Infof("VXLan: Del ?->%s %d", cn.NextHop.String(), swIfIndex)
 	routeToDelete := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: swIfIndex,
-			Gw:        nodeIP,
+			Gw:        nodeIp,
 		}},
 	}
 	err := p.vpp.RouteDel(routeToDelete)
@@ -250,7 +263,10 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			p.log.Infof("Deleting tunnel...[%s]", swIfIndex)
 			p.vpp.DelVXLanTunnel(&tunnel)
 			delete(p.vxlanIfs, cn.NextHop.String())
-			p.tunnelChangeChan <- TunnelChange{swIfIndex, DeleteChange}
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.TunnelDeleted,
+				New:  swIfIndex,
+			})
 		}
 	}
 	return nil

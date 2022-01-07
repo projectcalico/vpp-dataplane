@@ -20,8 +20,9 @@ import (
 	"net"
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 )
@@ -41,7 +42,6 @@ type ConnectivityProviderData struct {
 	ipv6   *net.IP
 	ipv4   *net.IP
 	server *ConnectivityServer
-	tunnelChangeChan chan TunnelChange
 }
 
 type ConnectivityProvider interface {
@@ -53,21 +53,19 @@ type ConnectivityProvider interface {
 	RescanState()
 	/* is it enabled in the config ? */
 	Enabled() bool
-	/* get swifindexes */
-	GetSwifindexes() []uint32
 }
 
-func (p *ConnectivityProviderData) GetNodeByIp(addr net.IP) *common.NodeState {
-	return p.server.NodeWatcher.GetNodeByIp(addr)
+func (p *ConnectivityProviderData) GetNodeByIp(addr net.IP) *oldv3.Node {
+	return p.server.GetNodeByIp(addr)
 }
-func (p *ConnectivityProviderData) GetNodeIP(isv6 bool) net.IP {
-	return p.server.GetNodeIP(isv6)
+func (p *ConnectivityProviderData) GetNodeIPs() (*net.IP, *net.IP) {
+	return p.server.GetNodeIPs()
 }
 func (p *ConnectivityProviderData) Clientv3() calicov3cli.Interface {
 	return p.server.Clientv3
 }
 func (p *ConnectivityProviderData) GetFelixConfig() *calicov3.FelixConfigurationSpec {
-	return p.server.FelixConfWatcher.GetFelixConfig()
+	return &p.server.felixConfiguration
 }
 
 func NewConnectivityProviderData(
@@ -79,6 +77,5 @@ func NewConnectivityProviderData(
 		vpp:    vpp,
 		log:    log,
 		server: server,
-		tunnelChangeChan: make(chan TunnelChange, 10),
 	}
 }
