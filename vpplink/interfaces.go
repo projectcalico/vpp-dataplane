@@ -585,6 +585,24 @@ func (v *VppLink) DisableGSOFeature(swIfIndex uint32) error {
 	return v.enableDisableGso(swIfIndex, false)
 }
 
+func (v *VppLink) SetInterfaceTxPlacement(swIfIndex uint32, queue int, arraySize int, worker uint32) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	request := &interfaces.SwInterfaceSetTxPlacement{
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+		QueueID:   uint32(queue),
+		ArraySize:  uint32(arraySize),
+		Threads:    []uint32{worker},
+	}
+	response := &interfaces.SwInterfaceSetRxPlacementReply{}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return fmt.Errorf("cannot set interface tx placement: %v %d", err, response.Retval)
+	}
+	return nil
+}
+
 func (v *VppLink) SetInterfaceRxPlacement(swIfIndex uint32, queue int, worker int, main bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()

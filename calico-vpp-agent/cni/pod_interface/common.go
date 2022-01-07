@@ -31,6 +31,29 @@ type PodInterfaceDriverData struct {
 	NDataThreads int
 }
 
+func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTxQueues int) (err error) {
+
+	// set first tx queue for main worker
+	err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0, 1, 0)
+	if err != nil {
+		return err
+	}
+	// share tx queues between the rest of workers
+	numVPPWorkers, err := i.vpp.GetNumVPPWorkers()
+	if err != nil {
+		i.log.Errorf("GetNumVPPWorkers error %s", err)
+	}
+	if numVPPWorkers > 0 {
+		for txq := 1; txq < numTxQueues; txq++ {
+			err = i.vpp.SetInterfaceTxPlacement(swIfIndex, txq, 1, uint32((txq-1)%(numVPPWorkers)+1))
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (i *PodInterfaceDriverData) SearchPodInterface(podSpec *storage.LocalPodSpec) (swIfIndex uint32) {
 	tag := podSpec.GetInterfaceTag(i.name)
 	i.log.Infof("looking for tag %s", tag)
