@@ -1,12 +1,12 @@
-VPP Version                 : 22.02-rc0~408-g2c81b117d
+VPP Version                 : 22.02-rc0~477-gd04c3304c
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : 88019c407 vppinfra: toeplitz hash four in parallel
+VPP Base commit             : ed999e3b8 bonding: memory leak on parsing bad CLI command
 ------------------ Cherry picked commits --------------------
 gerrit:28513/24 capo: Calico Policies plugin
 gerrit:28083/20 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/7 pbl: Port based balancer
-gerrit:34757/1 tap: add num_tx_queues API
+gerrit:34852/2 memif: fix rx/txqueue RC on connected
 gerrit:34726/1 interface: add buffer stats api
 gerrit:34734/2 memif: autogenerate socket_ids
 gerrit:32271/15 memif: add support for ns abstract sockets
