@@ -146,7 +146,7 @@ func (d *DPDKDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
 	// Nothing to do VPP autocreates
 	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
 	if !d.spec.IsMain {

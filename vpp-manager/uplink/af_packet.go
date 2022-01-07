@@ -48,6 +48,11 @@ func (d *AFPacketDriver) PreconfigureLinux() error {
 }
 
 func (d *AFPacketDriver) RestoreLinux() {
+	err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+	if err != nil {
+		log.Warnf("Moving uplink back from NS failed", err)
+	}
+
 	if !d.conf.IsUp {
 		return
 	}
@@ -70,8 +75,8 @@ func (d *AFPacketDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
-	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
+func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+	err = d.moveInterfaceToNS(d.spec.InterfaceName)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
