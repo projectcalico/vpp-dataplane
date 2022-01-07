@@ -16,27 +16,36 @@
 package watchers
 
 import (
+	"reflect"
+
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/api/pkg/lib/numorstring"
 	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoerr "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"gopkg.in/tomb.v2"
 )
 
 type BGPConfigurationWatcher struct {
-	log      *logrus.Entry
-	clientv3 calicov3cli.Interface
+	log                              *logrus.Entry
+	clientv3                         calicov3cli.Interface
+	BGPConfigurationWatcherEventChan chan common.CalicoVppEvent
+	BGPConf                          *calicov3.BGPConfigurationSpec
 }
 
 func NewBGPConfigurationWatcher(clientv3 calicov3cli.Interface, log *logrus.Entry) *BGPConfigurationWatcher {
 	w := BGPConfigurationWatcher{
-		log:      log,
-		clientv3: clientv3,
+		log:                              log,
+		clientv3:                         clientv3,
+		BGPConfigurationWatcherEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}
+	reg := common.RegisterHandler(w.BGPConfigurationWatcherEventChan, "BGP Config watcher events")
+	reg.ExpectEvents(common.BGPConfChanged)
 	return &w
 }
 
@@ -50,6 +59,7 @@ func (w *BGPConfigurationWatcher) GetBGPConf() (*calicov3.BGPConfigurationSpec, 
 	if err != nil {
 		switch err.(type) {
 		case calicoerr.ErrorResourceDoesNotExist:
+			w.BGPConf = defaultBGPConf
 			return defaultBGPConf, nil
 		default:
 			return nil, errors.Wrap(err, "error getting node specific BGP configurations")
@@ -61,6 +71,7 @@ func (w *BGPConfigurationWatcher) GetBGPConf() (*calicov3.BGPConfigurationSpec, 
 	if defaultBGPConf.LogSeverityScreen != "" {
 		defaultBGPConf.LogSeverityScreen = nodeSpecificConf.Spec.LogSeverityScreen
 	}
+	w.BGPConf = defaultBGPConf
 	return defaultBGPConf, nil
 }
 
@@ -113,4 +124,32 @@ func (w *BGPConfigurationWatcher) getDefaultBGPConfig() (*calicov3.BGPConfigurat
 	default:
 		return nil, err
 	}
+}
+
+func (w *BGPConfigurationWatcher) OnVppRestart() {
+	/* We don't do anything */
+}
+
+func (w *BGPConfigurationWatcher) WatchBGPConfiguration(t *tomb.Tomb) error {
+	for t.Alive() {
+		select {
+		case <-t.Dying():
+			return nil
+		case evt := <-w.BGPConfigurationWatcherEventChan:
+			switch evt.Type {
+			case common.BGPConfChanged:
+				oldBGPConf := w.BGPConf
+				newBGPConf, err := w.GetBGPConf()
+				if err != nil {
+					return errors.Wrap(err, "error getting BGP configuration")
+				}
+				if !reflect.DeepEqual(newBGPConf, oldBGPConf) {
+					w.log.Error("BGPConf updated")
+					return errors.Errorf("BGPConf updated, restarting")
+				}
+			default:
+			}
+		}
+	}
+	return nil
 }

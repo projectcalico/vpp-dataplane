@@ -28,6 +28,7 @@ const (
 	OurNodeStateChanged  CalicoVppEventType = "OurNodeStateChanged"
 	FelixConfChanged     CalicoVppEventType = "FelixConfChanged"
 	IpamConfChanged      CalicoVppEventType = "IpamConfChanged"
+	BGPConfChanged       CalicoVppEventType = "BGPConfChanged"
 
 	ConnectivityAdded   CalicoVppEventType = "ConnectivityAdded"
 	ConnectivityDeleted CalicoVppEventType = "ConnectivityDeleted"
