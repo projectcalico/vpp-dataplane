@@ -135,20 +135,24 @@ vppdev_cli_export ()
 	green "Exporting to $DIR"
 
 	greychr "Logging k8 internals..."
+    local operator_pod_name=$(kubectl -n tigera-operator get pods -o name)
 
 	kubectl version                                                         > ${DIR}/${PREFIX}kubectl-version                 ; greydot
 	sudo journalctl -u kubelet -r -n200                                     > ${DIR}/${PREFIX}kubelet-journal 2>&1            ; greydot
 	kubectl                         get pods -o wide -A                     > ${DIR}/${PREFIX}get-pods                        ; greydot
 	kubectl                         get services -o wide -A                 > ${DIR}/${PREFIX}get-services                    ; greydot
 	kubectl                         get nodes -o wide                       > ${DIR}/${PREFIX}get-nodes                       ; greydot
-	kubectl -n kube-system          get configmap calico-config -o yaml     > ${DIR}/${PREFIX}calico-config.configmap.yaml    ; greydot
+	kubectl                         get installation -o yaml                > ${DIR}/${PREFIX}installation.yaml               ; greydot
+	kubectl -n calico-system        get configmap cni-config -o yaml        > ${DIR}/${PREFIX}cni-config.configmap.yaml       ; greydot
 	kubectl -n calico-vpp-dataplane get daemonset calico-vpp-node -o yaml   > ${DIR}/${PREFIX}calico-vpp-node.daemonset.yaml  ; greydot
 	kubectl -n calico-vpp-dataplane get configmap calico-vpp-config -o yaml > ${DIR}/${PREFIX}calico-vpp-node.daemonset.yaml  ; greydot
+	kubectl -n tigera-operator      logs $operator_pod_name					> ${DIR}/${PREFIX}operator.log 					  ; greydot
 	printf '\n'
 
 	for node in $(get_available_node_names)
 	do
 		greychr "Dumping node '$node' stats..."
+		local calico_pod_name=$(POD=calico-node NODE=$node SVC=calico-system find_node_pod)
 		local calicovpp_pod_name=$(POD=calico-vpp-node NODE=$node SVC=calico-vpp-dataplane find_node_pod)
 		NODE=$node vppctl show hardware-interfaces                    > ${DIR}/${PREFIX}${node}.hardware-interfaces   ; greydot
 		NODE=$node vppctl show run                                    > ${DIR}/${PREFIX}${node}.show-run              ; greydot
@@ -159,10 +163,14 @@ vppdev_cli_export ()
 		NODE=$node vppctl show int rx                                 > ${DIR}/${PREFIX}${node}.show-int-rx           ; greydot
 		NODE=$node vppctl show tun                                    > ${DIR}/${PREFIX}${node}.show-tun              ; greydot
 		printf '\n'
-		greychr "Dumping node '$node' logs..."
-		kubectl -n calico-vpp-dataplane describe pod/$calicovpp_pod_name         > ${DIR}/${PREFIX}${node}.describe-vpp-pod      ; greydot
-		NODE=$node SVC=calico-vpp-dataplane POD=calico-vpp-node C=vpp log_node   > ${DIR}/${PREFIX}${node}.vpp.log               ; greydot
-		NODE=$node SVC=calico-vpp-dataplane POD=calico-vpp-node C=agent log_node > ${DIR}/${PREFIX}${node}.calico.log            ; greydot
+		greychr "Dumping node '$node' calico logs..."
+		kubectl -n calico-system describe pod/$calico_pod_name              > ${DIR}/${PREFIX}${node}.describe-calico-node-pod ; greydot
+		NODE=$node SVC=calico-system POD=calico-node C=calico-node log_node > ${DIR}/${PREFIX}${node}.calico-node.log          ; greydot
+		printf '\n'
+		greychr "Dumping node '$node' vpp logs..."
+		kubectl -n calico-vpp-dataplane describe pod/$calicovpp_pod_name         > ${DIR}/${PREFIX}${node}.describe-vpp-pod    ; greydot
+		NODE=$node SVC=calico-vpp-dataplane POD=calico-vpp-node C=vpp log_node   > ${DIR}/${PREFIX}${node}.vpp.log             ; greydot
+		NODE=$node SVC=calico-vpp-dataplane POD=calico-vpp-node C=agent log_node > ${DIR}/${PREFIX}${node}.agent.log           ; greydot
 		printf '\n'
 		greychr "Dumping node '$node' state..."
 		NODE=$node vppctl show cnat client                            > ${DIR}/${PREFIX}${node}.show-cnat-client      ; greydot
