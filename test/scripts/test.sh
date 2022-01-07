@@ -45,6 +45,20 @@ k_create_namespace ()
   fi
 }
 
+metallb_test ()
+{
+	kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/namespace.yaml
+	kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/metallb.yaml
+	kubectl delete ds speaker -n metallb-system
+	kubectl apply -f $SCRIPTDIR/../yaml/metallb/test_metallb.yaml
+}
+
+metallb_test_delete ()
+{
+	kubectl delete -f $SCRIPTDIR/../yaml/metallb/test_metallb.yaml
+	kubectl delete -f https://raw.githubusercontent.com/metallb/metallb/v0.11.0/manifests/namespace.yaml
+}
+
 calico_up_nptest ()
 {
   kubectl config set-context --current --namespace=netperf
@@ -154,6 +168,10 @@ kube_test_cli ()
 	calico_down_nptest
   elif [[ "$1 $2" = "build nptest" ]]; then
     calico_build_nptest
+  elif [[ "$1" = "metallb" ]]; then
+    metallb_test
+  elif [[ "$1" = "metallb_delete" ]]; then
+    metallb_test_delete
   elif [[ "$1" = "up" ]]; then
 	shift ; test_apply $@
   elif [[ "$1" = "run" ]]; then

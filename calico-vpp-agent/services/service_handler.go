@@ -108,48 +108,30 @@ func (s *Server) updateCnatEntry(key string, entry *types.CnatTranslateEntry) (e
 	return nil
 }
 
-func (s *Server) advertiseSpecificRoute(IPAddress net.IP, withdraw bool) {
-	_, serviceExternalIPs, serviceLoadbalancerIPs := s.getServiceIPs()
-	for _, serviceExternalIP := range serviceExternalIPs {
-		_, ipnet, err := net.ParseCIDR(serviceExternalIP.CIDR)
-		if err != nil {
-			s.log.Error(err)
-		}
-		if ipnet.Contains(IPAddress) {
-			if withdraw {
-				common.SendEvent(common.CalicoVppEvent{
-					Type: common.LocalPodAddressDeleted,
-					Old:  common.ToMaxLenCIDR(IPAddress),
-				})
-				s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", IPAddress)
-			} else {
-				common.SendEvent(common.CalicoVppEvent{
-					Type: common.LocalPodAddressAdded,
-					New:  common.ToMaxLenCIDR(IPAddress),
-				})
-				s.log.Infof("Announcing service specific route Addresses %+v", IPAddress)
-			}
+func (s *Server) isAddressExternalServiceIP(IPAddress net.IP) bool{
+	_, serviceExternalIPNets, serviceLBIPNets := s.getServiceIPs()
+	for _, serviceIPNet := range append(serviceExternalIPNets, serviceLBIPNets...) {
+		if serviceIPNet.Contains(IPAddress) {
+			return true
 		}
 	}
-	for _, serviceLoadbalancerIP := range serviceLoadbalancerIPs {
-		_, ipnet, err := net.ParseCIDR(serviceLoadbalancerIP.CIDR)
-		if err != nil {
-			s.log.Error(err)
-		}
-		if ipnet.Contains(IPAddress) {
-			if withdraw {
-				common.SendEvent(common.CalicoVppEvent{
-					Type: common.LocalPodAddressDeleted,
-					Old:  common.ToMaxLenCIDR(IPAddress),
-				})
-				s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", IPAddress)
-			} else {
-				common.SendEvent(common.CalicoVppEvent{
-					Type: common.LocalPodAddressAdded,
-					New:  common.ToMaxLenCIDR(IPAddress),
-				})
-				s.log.Infof("Announcing service specific route Addresses %+v", IPAddress)
-			}
+	return false
+}
+
+func (s *Server) advertiseSpecificRoute(IPAddress net.IP, withdraw bool) {
+	if s.isAddressExternalServiceIP(IPAddress) {
+		if withdraw {
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.LocalPodAddressDeleted,
+				Old:  common.ToMaxLenCIDR(IPAddress),
+			})
+			s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", IPAddress)
+		} else {
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.LocalPodAddressAdded,
+				New:  common.ToMaxLenCIDR(IPAddress),
+			})
+			s.log.Infof("Announcing service specific route Addresses %+v", IPAddress)
 		}
 	}
 }

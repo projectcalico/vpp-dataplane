@@ -88,6 +88,20 @@ function test_nodeport_ip6 ()
 	assert_test_output_contains_not "connect failed"
 }
 
+function test_metallb ()
+{
+	if kubectl -n calico-vpp-dataplane exec -it $(kubectl -n calico-vpp-dataplane get pods -owide | awk '$0 ~  /node1/ {print $1}') gobgp global rib |grep 172.217.3.4/32; then
+	  green "Assert OK (specific loadBalancerIP advertised)"
+	else
+	  red "Assert FAILED (specific loadBalancerIP not advertised)"
+	fi
+	if kubectl -n calico-vpp-dataplane exec -it $(kubectl -n calico-vpp-dataplane get pods -owide | awk '$0 ~  /node1/ {print $1}') gobgp global rib |grep 192.168.3.0/24; then
+	  green "Assert OK (externalIPs advertised)"
+	else
+	  red "Assert FAILED (externalIPs not advertised)"
+	fi
+}
+
 function test_ipv4 ()
 {
 	NS=iperf
