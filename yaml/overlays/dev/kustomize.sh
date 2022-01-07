@@ -108,63 +108,25 @@ function get_vpp_conf ()
 	"
 }
 
-function get_cni_network_config_ipam ()
+function get_installation_cidrs ()
 {
 	if [[ $IP_VERSION == 4 ]]; then
-	  echo "{
-        \"type\": \"calico-ipam\",
-		\"assign_ipv4\": \"true\",
-    	\"assign_ipv6\": \"false\"
-	  }"
+	  echo "
+    - cidr: ${CLUSTER_POD_CIDR4}
+      encapsulation: ${CALICO_ENCAPSULATION}
+      natOutgoing: ${CALICO_NAT_OUTGOING}"
 	elif [[ $IP_VERSION == 6 ]]; then
-	  echo "{
-        \"type\": \"calico-ipam\",
-		\"assign_ipv4\": \"false\",
-    	\"assign_ipv6\": \"true\",
-		\"ipv6_pools\": [\"${CALICO_IPV6POOL_CIDR}\", \"default-ipv6-ippool\"]
-	  }"
+	  echo "
+    - cidr: ${CLUSTER_POD_CIDR6}
+      natOutgoing: ${CALICO_NAT_OUTGOING}"
 	else
-	  echo "{
-    	\"type\": \"calico-ipam\",
-		\"assign_ipv4\": \"true\",
-    	\"assign_ipv6\": \"true\",
-		\"ipv4_pools\": [\"${CALICO_IPV4POOL_CIDR}\"],
-		\"ipv6_pools\": [\"${CALICO_IPV6POOL_CIDR}\"]
-	  }"
+	  echo "
+    - cidr: ${CLUSTER_POD_CIDR4}
+      encapsulation: ${CALICO_ENCAPSULATION}
+      natOutgoing: ${CALICO_NAT_OUTGOING}
+    - cidr: ${CLUSTER_POD_CIDR6}
+      natOutgoing: ${CALICO_NAT_OUTGOING}"
 	fi
-}
-
-function get_cni_network_config ()
-{
-	echo "{
-      \"name\": \"k8s-pod-network\",
-      \"cniVersion\": \"0.3.1\",
-      \"plugins\": [
-        {
-          \"type\": \"calico\",
-          \"log_level\": \"debug\",
-          \"datastore_type\": \"kubernetes\",
-          \"nodename\": \"__KUBERNETES_NODE_NAME__\",
-          \"mtu\": __CNI_MTU__,
-          \"ipam\": $(get_cni_network_config_ipam),
-          \"policy\": {
-              \"type\": \"k8s\"
-          },
-          \"kubernetes\": {
-              \"kubeconfig\": \"__KUBECONFIG_FILEPATH__\"
-          },
-          \"dataplane_options\": {
-            \"type\": \"grpc\",
-            \"socket\": \"unix:///var/run/calico/cni-server.sock\"
-          }
-        },
-        {
-          \"type\": \"portmap\",
-          \"snat\": true,
-          \"capabilities\": {\"portMappings\": true}
-        }
-      ]
-    }"
 }
 
 function is_v4_v46_v6 ()
@@ -201,53 +163,68 @@ calico_create_template ()
   WRK=${WRK:=0}
   MAINCORE=${MAINCORE:=12}
   DPDK=${DPDK:=true}
-  export CALICO_IPV4POOL_CIDR=$CLUSTER_POD_CIDR4
-  export CALICO_IPV6POOL_CIDR=$CLUSTER_POD_CIDR6
-  export FELIX_IPV6SUPPORT=$(is_v4_v46_v6 false true true)
-  export IP=$(is_v4_v46_v6 autodetect autodetect none)
-  export IP6=$(is_v4_v46_v6 none autodetect autodetect)
 
-  export service_prefix=$SERVICE_CIDR
-  export cni_network_config=$(get_cni_network_config)
-  export vpp_uplink_driver=${CALICOVPP_NATIVE_DRIVER}
-  export vpp_dataplane_interface=${CALICOVPP_INTERFACE:=eth0}
-  export vpp_config_template=${CALICOVPP_CONFIG_TEMPLATE:=$(get_vpp_conf)}
-  export veth_mtu=${CALICOVPP_TAP_MTU:=0}
-
-  export CALICOVPP_CONFIG_EXEC_TEMPLATE=${CALICOVPP_CONFIG_EXEC_TEMPLATE}
-  export CALICOVPP_INIT_SCRIPT_TEMPLATE=${CALICOVPP_INIT_SCRIPT_TEMPLATE}
   export CALICO_AGENT_IMAGE=${CALICO_AGENT_IMAGE:=calicovpp/agent:latest}
   export CALICO_VPP_IMAGE=${CALICO_VPP_IMAGE:=calicovpp/vpp:latest}
   export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:=v3.20.0}
   export CALICO_CNI_IMAGE=${CALICO_CNI_IMAGE:=calico/cni:${CALICO_VERSION_TAG}}
   export IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:=IfNotPresent}
-  export CALICOVPP_VPP_STARTUP_SLEEP=${CALICOVPP_VPP_STARTUP_SLEEP:=0}
-  export CALICOVPP_TAP_RX_QUEUES=${CALICOVPP_TAP_RX_QUEUES:=1}
-  export CALICOVPP_TAP_TX_QUEUES=${CALICOVPP_TAP_TX_QUEUES:=1}
-  export CALICOVPP_IPSEC_ENABLED=${CALICOVPP_IPSEC_ENABLED:=false}
-  export CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD=${CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD:=0}
-  export CALICOVPP_IPSEC_IKEV2_PSK=${CALICOVPP_IPSEC_IKEV2_PSK:=keykeykey}
-  export CALICO_IPV4POOL_IPIP=${CALICO_IPV4POOL_IPIP:=Never}
-  export CALICO_IPV4POOL_VXLAN=${CALICO_IPV4POOL_VXLAN:=Never}
+
+  export USERHOME=${HOME}
+
+  ## Installation ##
+
+  export CALICO_MTU=${CALICO_MTU:=0}
+  export CALICO_ENCAPSULATION=${CALICO_ENCAPSULATION:=IPIP}
+  export CALICO_NAT_OUTGOING=${CALICO_NAT_OUTGOING:=Enabled}
+  export CLUSTER_POD_CIDR4=${CLUSTER_POD_CIDR4}
+  export INSTALLATION_CIDRS=$(get_installation_cidrs)
+
+  # export CALICO_IPV4POOL_CIDR=$CLUSTER_POD_CIDR4
+  # export CALICO_IPV6POOL_CIDR=$CLUSTER_POD_CIDR6
+  # export FELIX_IPV6SUPPORT=$(is_v4_v46_v6 false true true)
+  # export IP=$(is_v4_v46_v6 autodetect autodetect none)
+  # export IP6=$(is_v4_v46_v6 none autodetect autodetect)
+  # export cni_network_config=$(get_cni_network_config)
+  # export FELIX_XDPENABLED=${FELIX_XDPENABLED:=false}
+
+
+  ## calico-vpp-config variables ##
+  export service_prefix=$SERVICE_CIDR
+  export vpp_dataplane_interface=${CALICOVPP_INTERFACE:=eth0}
+  export vpp_uplink_driver=${CALICOVPP_NATIVE_DRIVER}
+  export vpp_config_template=${CALICOVPP_CONFIG_TEMPLATE:=$(get_vpp_conf)}
+
+  ## vpp-dev-config variables (extra variables for VPP-manager) ##
+  export CALICOVPP_INTERFACE=${CALICOVPP_INTERFACE:=eth0}
   export CALICOVPP_CONFIGURE_EXTRA_ADDRESSES=${CALICOVPP_CONFIGURE_EXTRA_ADDRESSES:=0}
-  export CALICOVPP_IPSEC_CROSS_TUNNELS=${CALICOVPP_IPSEC_CROSS_TUNNELS:=false}
   export CALICOVPP_CORE_PATTERN=${CALICOVPP_CORE_PATTERN:=/home/hostuser/vppcore.%e.%p}
   export CALICOVPP_RX_MODE=${CALICOVPP_RX_MODE:=adaptive}
-  export CALICOVPP_TAP_RX_MODE=${CALICOVPP_TAP_RX_MODE:=adaptive}
-  export CALICOVPP_SWAP_DRIVER=${CALICOVPP_SWAP_DRIVER:=}
-  export CALICO_IPV4POOL_NAT_OUTGOING=${CALICO_IPV4POOL_NAT_OUTGOING:=true}
-  export CALICO_IPV6POOL_NAT_OUTGOING=${CALICO_IPV6POOL_NAT_OUTGOING:=true}
+  export CALICOVPP_RX_QUEUES=${CALICOVPP_RX_QUEUES}
+  export CALICOVPP_RING_SIZE=${CALICOVPP_RING_SIZE}
   export CALICOVPP_TAP_RING_SIZE=${CALICOVPP_TAP_RING_SIZE}
+  export CALICOVPP_VPP_STARTUP_SLEEP=${CALICOVPP_VPP_STARTUP_SLEEP:=0}
+  export CALICOVPP_CONFIG_EXEC_TEMPLATE=${CALICOVPP_CONFIG_EXEC_TEMPLATE}
+  export CALICOVPP_SWAP_DRIVER=${CALICOVPP_SWAP_DRIVER}
+  export CALICOVPP_INIT_SCRIPT_TEMPLATE=${CALICOVPP_INIT_SCRIPT_TEMPLATE}
+  export CALICOVPP_DEFAULT_GW=${CALICOVPP_DEFAULT_GW}
+  export CALICOVPP_DEBUG_ENABLE_GSO=${CALICOVPP_DEBUG_ENABLE_GSO:=true}
+  export CALICOVPP_TAP_MTU=${CALICOVPP_TAP_MTU:=0}
+
+  ## calico-agent-config variables (extra variables for Calico-vpp-agent) ##
+  export CALICOVPP_TAP_RX_QUEUES=${CALICOVPP_TAP_RX_QUEUES:=1}
+  export CALICOVPP_TAP_TX_QUEUES=${CALICOVPP_TAP_TX_QUEUES:=1}
+  export CALICOVPP_TAP_RX_MODE=${CALICOVPP_TAP_RX_MODE:=adaptive}
+  export CALICOVPP_IPSEC_ENABLED=${CALICOVPP_IPSEC_ENABLED:=false}
   export CALICOVPP_DEBUG_ENABLE_POLICIES=${CALICOVPP_DEBUG_ENABLE_POLICIES:=true}
   export CALICOVPP_DEBUG_ENABLE_NAT=${CALICOVPP_DEBUG_ENABLE_NAT:=true}
   export CALICOVPP_ENABLE_MEMIF=${CALICOVPP_ENABLE_MEMIF:=true}
   export CALICOVPP_ENABLE_VCL=${CALICOVPP_ENABLE_VCL:=true}
-  export CALICOVPP_DEBUG_ENABLE_GSO=${CALICOVPP_DEBUG_ENABLE_GSO:=true}
-  export USERHOME=${HOME}
-  export FELIX_XDPENABLED=${FELIX_XDPENABLED:=false}
-  _TMP_="interface=${vpp_dataplane_interface}"
-  export IP_AUTODETECTION_METHOD=${IP_AUTODETECTION_METHOD:=$(is_v4_v46_v6 $_TMP_ $_TMP_ "")}
-  export IP6_AUTODETECTION_METHOD=${IP6_AUTODETECTION_METHOD:=$(is_v4_v46_v6 "" $_TMP_ $_TMP_)}
+  export CALICOVPP_IPSEC_IKEV2_PSK=${CALICOVPP_IPSEC_IKEV2_PSK:=keykeykey}
+  export CALICOVPP_IPSEC_CROSS_TUNNELS=${CALICOVPP_IPSEC_CROSS_TUNNELS:=false}
+  export CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES=${CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES}
+  export CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD=${CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD:=0}
+
   cd $SCRIPTDIR
   kubectl kustomize . | \
 	envsubst | \
