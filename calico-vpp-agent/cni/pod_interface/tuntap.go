@@ -81,6 +81,10 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 	} else {
 		stack.Push(i.vpp.DelTap, swIfIndex)
 	}
+	err = i.SpreadTxQueuesOnWorkers(swIfIndex, tun.NumTxQueues)
+	if err != nil {
+		return err
+	}
 
 	podSpec.TunTapSwIfIndex = swIfIndex
 	i.log.Infof("created tun[%d]", swIfIndex)
