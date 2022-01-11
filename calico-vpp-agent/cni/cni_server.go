@@ -169,7 +169,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	})
 
 	s.podInterfaceMap[podSpec.Key()] = *podSpec
-	err = storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile)
+	err = storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile + fmt.Sprint(storage.CniServerStateFileVersion))
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
@@ -219,7 +219,7 @@ func (s *Server) rescanState() error {
 		}
 	}
 
-	podSpecs, err := storage.LoadCniServerState(config.CniServerStateFile)
+	podSpecs, err := storage.LoadCniServerState(config.CniServerStateFile + fmt.Sprint(storage.CniServerStateFileVersion))
 	if err != nil {
 		s.log.Errorf("Error getting pods %v", err)
 		return err
@@ -284,7 +284,7 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 	}
 
 	delete(s.podInterfaceMap, initialSpec.Key())
-	err := storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile)
+	err := storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile + fmt.Sprint(storage.CniServerStateFileVersion))
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
