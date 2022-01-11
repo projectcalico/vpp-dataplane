@@ -28,13 +28,13 @@ SSH_ALLOW_CIDR="0.0.0.0/0"              # source IP from which ssh access is all
 INSTANCE_TYPE=m5.large                  # EC2 instance type
 INSTANCE_NUM=2                          # Number of instances in cluster
 ## Calico installation spec for the operator; could be url or local file
-CALICO_INSTALLATION_YAML=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/{{page.vppbranch}}/yaml/calico/installation-eks.yaml
+CALICO_INSTALLATION_YAML=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/master/yaml/calico/installation-eks.yaml
 #CALICO_INSTALLATION_YAML=./calico_installation.yaml
 ## Calico/VPP deployment yaml; could be url or local file
-CALICO_VPP_YAML=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/{{page.vppbranch}}/yaml/generated/calico-vpp-eks-dpdk.yaml
+CALICO_VPP_YAML=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/master/yaml/generated/calico-vpp-eks-dpdk.yaml
 #CALICO_VPP_YAML=<full path>/calico-vpp-eks-dpdk.yaml
 ## init_eks.sh script location; could be url or local file
-INIT_EKS_SCRIPT=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/{{page.vppbranch}}/scripts/init_eks.sh
+INIT_EKS_SCRIPT=https://raw.githubusercontent.com/projectcalico/vpp-dataplane/master/scripts/init_eks.sh
 #INIT_EKS_SCRIPT=<full path>/init_eks.sh
 ###############################################################################
 
@@ -262,7 +262,7 @@ kubectl delete daemonset -n kube-system aws-node
 echo; echo
 echo "Installing the Tigera operator..."
 echo
-kubectl apply -f https://deploy-preview-5362--calico-master.netlify.app/manifests/tigera-operator.yaml
+kubectl apply -f https://projectcalico.docs.tigera.io/master/manifests/tigera-operator.yaml
 
 ### Installing calico
 echo; echo
