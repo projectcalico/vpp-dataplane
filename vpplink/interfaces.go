@@ -595,7 +595,7 @@ func (v *VppLink) SetInterfaceTxPlacement(swIfIndex uint32, queue int, arraySize
 		ArraySize:  uint32(arraySize),
 		Threads:    []uint32{worker},
 	}
-	response := &interfaces.SwInterfaceSetRxPlacementReply{}
+	response := &interfaces.SwInterfaceSetTxPlacementReply{}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return fmt.Errorf("cannot set interface tx placement: %v %d", err, response.Retval)
