@@ -184,8 +184,8 @@ else # url
 	fi
 fi
 
-### Get the INIT_EKS_SCRIPTet or curl or whatever. It does the
-# following customizations on EK using wgS worker nodes:
+### Get the INIT_EKS_SCRIPT using wget or curl or whatever. It does the
+# following customizations on EKS worker nodes:
 #   1. configure 512 2MB hugepages 
 #   2. enable unsafe_noiommu_mode 
 #   3. download, build, install and load ENAv2 compatible igb_uio driver
