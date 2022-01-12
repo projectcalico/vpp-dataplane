@@ -6,7 +6,10 @@ metadata:
   name: default
 spec:
   # Configures Calico networking.
+  cni:
+    type: Calico
   calicoNetwork:
+    bgp: Enabled
     linuxDataplane: VPP
     nodeAddressAutodetectionV4:
       interface: eth0
