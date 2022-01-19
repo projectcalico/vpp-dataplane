@@ -20,9 +20,9 @@ import (
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
-	"github.com/projectcalico/libcalico-go/lib/options"
-	"github.com/projectcalico/libcalico-go/lib/watch"
+	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/calico/libcalico-go/lib/options"
+	"github.com/projectcalico/calico/libcalico-go/lib/watch"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	tomb "gopkg.in/tomb.v2"

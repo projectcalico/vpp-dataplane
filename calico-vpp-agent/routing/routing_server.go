@@ -24,7 +24,7 @@ import (
 	bgpserver "github.com/osrg/gobgp/pkg/server"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/net/context"

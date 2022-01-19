@@ -35,7 +35,7 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	bgpapi "github.com/osrg/gobgp/api"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )

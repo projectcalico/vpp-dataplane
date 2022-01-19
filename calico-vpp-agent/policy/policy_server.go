@@ -35,7 +35,7 @@ import (
 	"github.com/sirupsen/logrus"
 	tomb "gopkg.in/tomb.v2"
 
-	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 )
 
 const (

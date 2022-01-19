@@ -22,8 +22,8 @@ import (
 
 	bgpserver "github.com/osrg/gobgp/pkg/server"
 	"github.com/pkg/errors"
-	calicocli "github.com/projectcalico/libcalico-go/lib/client"
-	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
+	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
+	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
 	grpc "google.golang.org/grpc"
 	tomb "gopkg.in/tomb.v2"
