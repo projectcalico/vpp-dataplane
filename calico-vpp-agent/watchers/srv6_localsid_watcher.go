@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
-	"github.com/projectcalico/libcalico-go/lib/ipam"
-	cnet "github.com/projectcalico/libcalico-go/lib/net"
+	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/calico/libcalico-go/lib/ipam"
+	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
 	"github.com/sirupsen/logrus"
 	tomb "gopkg.in/tomb.v2"
 

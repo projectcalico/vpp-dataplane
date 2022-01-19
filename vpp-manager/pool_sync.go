@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	calicoapi "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
-	"github.com/projectcalico/libcalico-go/lib/options"
-	"github.com/projectcalico/libcalico-go/lib/watch"
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/calico/libcalico-go/lib/options"
+	"github.com/projectcalico/calico/libcalico-go/lib/watch"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -82,7 +82,7 @@ func (p *PoolWatcher) SyncPools(t *tomb.Tomb) {
 	for t.Alive() {
 		var poolsWatcher watch.Interface = nil
 		var eventChannel <-chan watch.Event = nil
-		var poolsList *calicoapi.IPPoolList
+		var poolsList *calicov3.IPPoolList
 		sweepMap := make(map[string]interface{})
 
 		/* Need to recreate the client at each loop if pipe breaks */
@@ -148,7 +148,7 @@ func (p *PoolWatcher) SyncPools(t *tomb.Tomb) {
 					log.Infof("Watch returned an error")
 					goto restart
 				case watch.Added, watch.Modified:
-					pool := update.Object.(*calicoapi.IPPool)
+					pool := update.Object.(*calicov3.IPPool)
 					key := pool.Spec.CIDR
 					err = p.poolAdded(key)
 					if err != nil {
@@ -157,7 +157,7 @@ func (p *PoolWatcher) SyncPools(t *tomb.Tomb) {
 					}
 					pools[key] = nil
 				case watch.Deleted:
-					pool := update.Previous.(*calicoapi.IPPool)
+					pool := update.Previous.(*calicov3.IPPool)
 					key := pool.Spec.CIDR
 					err = p.poolDeleted(key)
 					if err != nil {

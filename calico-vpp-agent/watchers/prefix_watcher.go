@@ -24,14 +24,14 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
-	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	"github.com/projectcalico/libcalico-go/lib/backend/model"
+	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/calico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 
-	calicocli "github.com/projectcalico/libcalico-go/lib/client"
+	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
 	tomb "gopkg.in/tomb.v2"
 )
 

@@ -19,7 +19,7 @@ import (
 	"net"
 	"syscall"
 
-	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	tomb "gopkg.in/tomb.v2"

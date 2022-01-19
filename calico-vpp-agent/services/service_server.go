@@ -21,7 +21,7 @@ import (
 	"time"
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/sirupsen/logrus"
 	tomb "gopkg.in/tomb.v2"
 	v1 "k8s.io/api/core/v1"

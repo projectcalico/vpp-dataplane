@@ -29,9 +29,9 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
-	oldv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
-	calicov3cli "github.com/projectcalico/libcalico-go/lib/clientv3"
-	calicoopts "github.com/projectcalico/libcalico-go/lib/options"
+	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
+	calicoopts "github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
