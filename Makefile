@@ -155,3 +155,6 @@ release: check-TAG check-CALICO_TAG
 	git tag $(TAG)
 	git push --set-upstream origin release/$(TAG)
 	git push origin $(TAG)
+	@echo
+	@echo "***IMPORTANT***IMPORTANT***IMPORTANT***IMPORTANT***"
+	@echo "Please update \"vppbranch\" in https://github.com/projectcalico/calico/blob/${CALICO_TAG}/calico/_config.yml to ${TAG} otherwise the install docs get broken."
