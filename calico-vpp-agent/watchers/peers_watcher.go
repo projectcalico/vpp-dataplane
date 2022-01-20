@@ -17,6 +17,7 @@ package watchers
 
 import (
 	"net"
+	"time"
 
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
@@ -25,6 +26,8 @@ import (
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/calico/libcalico-go/lib/selector"
+	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
+	"github.com/projectcalico/calico/libcalico-go/lib/watch"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/sirupsen/logrus"
@@ -40,6 +43,8 @@ type PeerWatcher struct {
 	nodeStatesByName     map[string]oldv3.Node
 	peerWatcherEventChan chan common.CalicoVppEvent
 	BGPConf              *calicov3.BGPConfigurationSpec
+	watcher              watch.Interface
+	currentWatchRevision string
 }
 
 type bgpPeer struct {
@@ -135,13 +140,75 @@ func (w *PeerWatcher) currentCalicoNode() *oldv3.Node {
 func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 	w.log.Infof("PEER watcher starts")
 	state := make(map[string]*bgpPeer)
-
-	for {
-		w.log.Debugf("Reconciliating peers...")
-		peers, err := w.clientv3.BGPPeers().List(context.Background(), options.ListOptions{})
+	for t.Alive() {
+		w.currentWatchRevision = ""
+		err := w.resyncAndCreateWatcher(state)
 		if err != nil {
-			return err
+			w.log.Error(err)
+			goto restart
 		}
+		// node and peer updates should be infrequent enough
+		// just reevaluate all peerings everytime there is an update
+		w.log.Infof("Watching for peer Updates")
+
+		select {
+		case <-t.Dying():
+			w.log.Infof("Peers Watcher asked to stop")
+			w.cleanExistingWatcher()
+			return nil
+		case event, ok := <-w.watcher.ResultChan():
+			if !ok {
+				err := w.resyncAndCreateWatcher(state)
+				if err != nil {
+					goto restart
+				}
+				continue
+			}
+			switch event.Type {
+			case watch.EventType(api.WatchError):
+				w.log.Infof("peers watch returned an error")
+				goto restart
+			default:
+				w.log.Info("Peers updated, reevaluating peerings")
+			}
+		case evt := <-w.peerWatcherEventChan:
+			/* Note: we will only receive events we ask for when registering the chan */
+			switch evt.Type {
+			case common.OurNodeStateChanged:
+				fallthrough
+			case common.PeerNodeStateChanged:
+				old, _ := evt.Old.(*oldv3.Node)
+				new, _ := evt.New.(*oldv3.Node)
+				if old != nil {
+					delete(w.nodeStatesByName, old.Name)
+				}
+				if new != nil {
+					w.nodeStatesByName[new.Name] = *new
+				}
+				w.log.Infof("Nodes updated, reevaluating peerings old %s new %s", old, new)
+			default:
+				goto restart
+			}
+		}
+		w.log.Infof("Got peer Update")
+	restart:
+		w.log.Info("restarting peers watcher...")
+		w.cleanExistingWatcher()
+		time.Sleep(2 * time.Second)
+	}
+	return nil
+}
+
+func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
+	if w.currentWatchRevision == "" {
+		w.log.Debugf("Reconciliating peers...")
+		peers, err := w.clientv3.BGPPeers().List(context.Background(), options.ListOptions{
+			ResourceVersion: w.currentWatchRevision,
+		})
+		if err != nil {
+			return errors.Wrap(err, "cannot list bgp peers")
+		}
+		w.currentWatchRevision = peers.ResourceVersion
 		// Start mark and sweep
 		for _, p := range state {
 			p.SweepFlag = true
@@ -209,46 +276,24 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 				delete(state, ip)
 			}
 		}
+	}
+	w.cleanExistingWatcher()
+	watcher, err := w.clientv3.BGPPeers().Watch(
+		context.Background(),
+		options.ListOptions{ResourceVersion: w.currentWatchRevision},
+	)
+	if err != nil {
+		return err
+	}
+	w.watcher = watcher
+	return nil
+}
 
-		revision := peers.ResourceVersion
-		watcher, err := w.clientv3.BGPPeers().Watch(
-			context.Background(),
-			options.ListOptions{ResourceVersion: revision},
-		)
-		if err != nil {
-			return err
-		}
-		// node and peer updates should be infrequent enough
-		// just reevaluate all peerings everytime there is an update
-		w.log.Infof("Watching for peer Updates")
-
-	waitagain:
-		select {
-		case <-t.Dying():
-			w.log.Infof("Peers Watcher asked to stop")
-			return nil
-		case <-watcher.ResultChan():
-			w.log.Info("Peers updated, reevaluating peerings")
-		case evt := <-w.peerWatcherEventChan:
-			/* Note: we will only receive events we ask for when registering the chan */
-			switch evt.Type {
-			case common.OurNodeStateChanged:
-				fallthrough
-			case common.PeerNodeStateChanged:
-				old, _ := evt.Old.(*oldv3.Node)
-				new, _ := evt.New.(*oldv3.Node)
-				if old != nil {
-					delete(w.nodeStatesByName, old.Name)
-				}
-				if new != nil {
-					w.nodeStatesByName[new.Name] = *new
-				}
-				w.log.Infof("Nodes updated, reevaluating peerings old %s new %s", old, new)
-			default:
-				goto waitagain
-			}
-		}
-		w.log.Infof("Got peer Update")
+func (w *PeerWatcher) cleanExistingWatcher() {
+	if w.watcher != nil {
+		w.watcher.Stop()
+		w.log.Info("Stopped watcher")
+		w.watcher = nil
 	}
 }
 
@@ -303,7 +348,7 @@ func (w *PeerWatcher) createBGPPeer(ip string, asn uint32) (*bgpapi.Peer, error)
 func (w *PeerWatcher) addBGPPeer(ip string, asn uint32) error {
 	peer, err := w.createBGPPeer(ip, asn)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "cannot add bgp peer")
 	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.BGPPeerAdded,
@@ -315,7 +360,7 @@ func (w *PeerWatcher) addBGPPeer(ip string, asn uint32) error {
 func (w *PeerWatcher) updateBGPPeer(ip string, asn uint32) error {
 	peer, err := w.createBGPPeer(ip, asn)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "cannot update bgp peer")
 	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.BGPPeerUpdated,
