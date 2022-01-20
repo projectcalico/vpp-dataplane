@@ -19,12 +19,14 @@ package watchers
 import (
 	"net"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/calico/libcalico-go/lib/watch"
+	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	tomb "gopkg.in/tomb.v2"
@@ -71,6 +73,9 @@ type ipamCache struct {
 	readyCond *sync.Cond
 	clientv3  calicov3cli.Interface
 	vpp       *vpplink.VppLink
+
+	watcher              watch.Interface
+	currentWatchRevision string
 }
 
 // match checks whether we have an IP pool which contains the given prefix.
@@ -135,11 +140,68 @@ func (c *ipamCache) handleIPPoolUpdate(pool *calicov3.IPPool, del bool) error {
 // sync synchronizes the IP pools stored under /calico/v1/ipam
 func (c *ipamCache) SyncIPAM(t *tomb.Tomb) error {
 	for t.Alive() {
-		c.log.Info("Reconciliating pools...")
-		poolsList, err := c.clientv3.IPPools().List(context.Background(), options.ListOptions{})
+		c.currentWatchRevision = ""
+		err := c.resyncAndCreateWatcher()
 		if err != nil {
-			return errors.Wrap(err, "error listing pools")
+			c.log.Error(err, "error watching pools")
+			goto restart
 		}
+		for {
+			select {
+			case <-t.Dying():
+				c.log.Infof("IPAM Watcher asked to stop")
+				c.cleanExistingWatcher()
+				return nil
+			case update, ok := <-c.watcher.ResultChan():
+				if !ok {
+					c.log.Infof("ipam watch channel closed - restarting")
+					err := c.resyncAndCreateWatcher()
+					if err != nil {
+						goto restart
+					}
+					continue
+				}
+				switch update.Type {
+				case watch.EventType(api.WatchError):
+					c.log.Infof("ipam watch returned an error")
+					goto restart
+				case watch.Deleted:
+					pool, _ := update.Previous.(*calicov3.IPPool)
+					err = c.handleIPPoolUpdate(pool, true /* del */)
+					if err != nil {
+						return errors.Wrap(err, "error processing pool del")
+					}
+				case watch.Added, watch.Modified:
+					pool, _ := update.Object.(*calicov3.IPPool)
+					if pool != nil {
+						err = c.handleIPPoolUpdate(pool, false /* del */)
+						if err != nil {
+							return errors.Wrap(err, "error processing pool add / modified")
+						}
+					}
+				}
+			}
+		}
+	restart:
+		c.log.Info("restarting IPAM watcher...")
+		c.cleanExistingWatcher()
+		time.Sleep(2 * time.Second)
+	}
+	c.log.Infof("Ipam Watcher returned")
+
+	return nil
+}
+
+func (c *ipamCache) resyncAndCreateWatcher() error {
+	if c.currentWatchRevision == "" {
+		c.log.Info("Reconciliating pools...")
+		poolsList, err := c.clientv3.IPPools().List(context.Background(), options.ListOptions{
+			ResourceVersion: c.currentWatchRevision,
+		})
+		if err != nil {
+			return errors.Wrap(err, "cannot list pools")
+		}
+		c.currentWatchRevision = poolsList.ResourceVersion
 		sweepMap := make(map[string]bool)
 		for _, pool := range poolsList.Items {
 			sweepMap[pool.Spec.CIDR] = true
@@ -165,47 +227,25 @@ func (c *ipamCache) SyncIPAM(t *tomb.Tomb) error {
 			c.readyCond.Broadcast()
 			c.readyCond.L.Unlock()
 		}
-
-		poolsWatcher, err := c.clientv3.IPPools().Watch(
-			context.Background(),
-			options.ListOptions{ResourceVersion: poolsList.ResourceVersion},
-		)
-		if err != nil {
-			return errors.Wrap(err, "error watching pools")
-		}
-
-	watch:
-		for {
-			select {
-			case <-t.Dying():
-				c.log.Infof("IPAM Watcher asked to stop")
-				return nil
-			case update := <-poolsWatcher.ResultChan():
-				switch update.Type {
-				case watch.Error:
-					c.log.Infof("ipam watch returned an error")
-					break watch
-				case watch.Deleted:
-					pool, _ := update.Previous.(*calicov3.IPPool)
-					err = c.handleIPPoolUpdate(pool, true /* del */)
-					if err != nil {
-						return errors.Wrap(err, "error processing pool del")
-					}
-				case watch.Added, watch.Modified:
-					pool, _ := update.Object.(*calicov3.IPPool)
-					if pool != nil {
-						err = c.handleIPPoolUpdate(pool, false /* del */)
-						if err != nil {
-							return errors.Wrap(err, "error processing pool add / modified")
-						}
-					}
-				}
-			}
-		}
 	}
-	c.log.Infof("Ipam Watcher returned")
-
+	c.cleanExistingWatcher()
+	poolsWatcher, err := c.clientv3.IPPools().Watch(
+		context.Background(),
+		options.ListOptions{ResourceVersion: c.currentWatchRevision},
+	)
+	if err != nil {
+		return errors.Wrap(err, "cannot watch pools %v")
+	}
+	c.watcher = poolsWatcher
 	return nil
+}
+
+func (c *ipamCache) cleanExistingWatcher() {
+	if c.watcher != nil {
+		c.watcher.Stop()
+		c.log.Info("Stopped watcher")
+		c.watcher = nil
+	}
 }
 
 func (c *ipamCache) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err error) {

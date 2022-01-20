@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
@@ -43,6 +44,9 @@ type NodeWatcher struct {
 
 	clientv3 calicov3cli.Interface
 	vpp      *vpplink.VppLink
+
+	watcher              watch.Interface
+	currentWatchRevision string
 }
 
 func nodeSpecCopy(calicoNode *calicov3.Node) *common.NodeState {
@@ -55,7 +59,9 @@ func nodeSpecCopy(calicoNode *calicov3.Node) *common.NodeState {
 func (w *NodeWatcher) initialNodeSync() (string, error) {
 	// TODO: Get and watch only ourselves if there is no mesh
 	w.log.Info("Syncing nodes...")
-	nodes, err := w.clientv3.Nodes().List(context.Background(), options.ListOptions{})
+	nodes, err := w.clientv3.Nodes().List(context.Background(), options.ListOptions{
+		ResourceVersion: w.currentWatchRevision,
+	})
 	if err != nil {
 		return "", errors.Wrap(err, "error listing nodes")
 	}
@@ -87,30 +93,33 @@ func (w *NodeWatcher) initialNodeSync() (string, error) {
 }
 
 func (w *NodeWatcher) WatchNodes(t *tomb.Tomb) error {
-	for {
-		resourceVersion, err := w.initialNodeSync()
+	for t.Alive() {
+		w.currentWatchRevision = ""
+		err := w.resyncAndCreateWatcher()
 		if err != nil {
-			return err
+			w.log.Error(err)
+			goto restart
 		}
-		watcher, err := w.clientv3.Nodes().Watch(
-			context.Background(),
-			options.ListOptions{ResourceVersion: resourceVersion},
-		)
-		if err != nil {
-			return errors.Wrap(err, "cannot watch nodes")
-		}
-	watch:
 		for {
 			select {
 			case <-t.Dying():
 				w.log.Infof("Nodes Watcher asked to stop")
+				w.cleanExistingWatcher()
 				return nil
-			case update := <-watcher.ResultChan():
+			case update, ok := <-w.watcher.ResultChan():
+				if !ok {
+					w.log.Infof("nodes watch channel closed - restarting")
+					err := w.resyncAndCreateWatcher()
+					if err != nil {
+						goto restart
+					}
+					continue
+				}
 				var calicoNode *calicov3.Node
 				switch update.Type {
 				case watch.Error:
 					w.log.Infof("nodes watch returned an error")
-					break watch
+					goto restart
 				case watch.Modified, watch.Added:
 					calicoNode = update.Object.(*calicov3.Node)
 				case watch.Deleted:
@@ -127,6 +136,40 @@ func (w *NodeWatcher) WatchNodes(t *tomb.Tomb) error {
 				}
 			}
 		}
+
+	restart:
+		w.log.Info("restarting nodes watcher...")
+		w.cleanExistingWatcher()
+		time.Sleep(2 * time.Second)
+	}
+	return nil
+}
+
+func (w *NodeWatcher) resyncAndCreateWatcher() error {
+	if w.currentWatchRevision == "" {
+		resourceVersion, err := w.initialNodeSync()
+		if err != nil {
+			return err
+		}
+		w.currentWatchRevision = resourceVersion
+	}
+	w.cleanExistingWatcher()
+	watcher, err := w.clientv3.Nodes().Watch(
+		context.Background(),
+		options.ListOptions{ResourceVersion: w.currentWatchRevision},
+	)
+	if err != nil {
+		return err
+	}
+	w.watcher = watcher
+	return nil
+}
+
+func (w *NodeWatcher) cleanExistingWatcher() {
+	if w.watcher != nil {
+		w.watcher.Stop()
+		w.log.Info("Stopped watcher")
+		w.watcher = nil
 	}
 }
 

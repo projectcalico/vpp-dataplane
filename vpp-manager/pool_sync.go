@@ -36,6 +36,9 @@ type PoolWatcher struct {
 	RouteWatcher *RouteWatcher
 	params       *config.VppManagerParams
 	conf         *config.LinuxInterfaceState
+
+	watcher              watch.Interface
+	currentWatchRevision string
 }
 
 func (p *PoolWatcher) getNetworkRoute(network string) (route *netlink.Route, err error) {
@@ -80,68 +83,26 @@ func (p *PoolWatcher) SyncPools(t *tomb.Tomb) {
 	pools := make(map[string]interface{})
 	log.Info("Starting pools watcher...")
 	for t.Alive() {
-		var poolsWatcher watch.Interface = nil
-		var eventChannel <-chan watch.Event = nil
-		var poolsList *calicov3.IPPoolList
-		sweepMap := make(map[string]interface{})
-
-		/* Need to recreate the client at each loop if pipe breaks */
-		client, err := calicov3cli.NewFromEnv()
+		p.currentWatchRevision = ""
+		err := p.resyncAndCreateWatcher(pools)
 		if err != nil {
-			log.Errorf("error creating calico client: %v", err)
+			log.Error(err)
 			goto restart
 		}
-		poolsList, err = client.IPPools().List(context.Background(), options.ListOptions{})
-		if err != nil {
-			log.Errorf("error listing pools: %v", err)
-			goto restart
-		}
-		for _, pool := range poolsList.Items {
-			key := pool.Spec.CIDR
-			sweepMap[key] = nil
-			_, exists := pools[key]
-			if !exists {
-				pools[key] = nil
-				err = p.poolAdded(key)
-				if err != nil {
-					log.Errorf("error adding pool %s: %v", err)
-					goto restart
-				}
-			}
-		}
-		// Sweep phase
-		for key := range pools {
-			_, found := sweepMap[key]
-			if !found {
-				err = p.poolDeleted(key)
-				if err != nil {
-					log.Errorf("error deleting pool %s: %v", err)
-					goto restart
-				}
-				delete(pools, key)
-			}
-		}
-
-		poolsWatcher, err = client.IPPools().Watch(
-			context.Background(),
-			options.ListOptions{ResourceVersion: poolsList.ResourceVersion},
-		)
-		if err != nil {
-			log.Errorf("error watching pools: %v", err)
-			goto restart
-		}
-
-		eventChannel = poolsWatcher.ResultChan()
 		for {
 			select {
 			case <-t.Dying():
 				log.Info("Pools watcher stopped")
-				poolsWatcher.Stop()
+				p.cleanExistingWatcher()
 				return
-			case update, ok := <-eventChannel:
+			case update, ok := <-p.watcher.ResultChan():
 				if !ok {
-					eventChannel = nil
-					goto restart
+					err := p.resyncAndCreateWatcher(pools)
+					if err != nil {
+						log.Error(err)
+						goto restart
+					}
+					continue
 				}
 				switch update.Type {
 				case watch.Error:
@@ -170,9 +131,73 @@ func (p *PoolWatcher) SyncPools(t *tomb.Tomb) {
 		}
 	restart:
 		log.Info("restarting pools watcher...")
-		if poolsWatcher != nil {
-			poolsWatcher.Stop()
-		}
+		p.cleanExistingWatcher()
 		time.Sleep(2 * time.Second)
+	}
+}
+
+func (p *PoolWatcher) resyncAndCreateWatcher(pools map[string]interface{}) error {
+restart:
+	/* Need to recreate the client at each loop if pipe breaks */
+	client, err := calicov3cli.NewFromEnv()
+	if err != nil {
+		return errors.Wrap(err, "error creating calico client: %v")
+	}
+	if p.currentWatchRevision == "" {
+		var poolsList *calicov3.IPPoolList
+		sweepMap := make(map[string]interface{})
+
+		poolsList, err = client.IPPools().List(context.Background(), options.ListOptions{
+			ResourceVersion: p.currentWatchRevision,
+		})
+		if err != nil {
+			log.Errorf("error listing pools: %v", err)
+			time.Sleep(3 * time.Second)
+			goto restart
+		}
+		p.currentWatchRevision = poolsList.ResourceVersion
+		for _, pool := range poolsList.Items {
+			key := pool.Spec.CIDR
+			sweepMap[key] = nil
+			_, exists := pools[key]
+			if !exists {
+				pools[key] = nil
+				err = p.poolAdded(key)
+				if err != nil {
+					return errors.Wrap(err, "error adding pool %s: %v")
+				}
+			}
+		}
+		// Sweep phase
+		for key := range pools {
+			_, found := sweepMap[key]
+			if !found {
+				err = p.poolDeleted(key)
+				if err != nil {
+					return errors.Wrap(err, "error deleting pool %s: %v")
+				}
+				delete(pools, key)
+			}
+		}
+	}
+	p.cleanExistingWatcher()
+	poolsWatcher, err := client.IPPools().Watch(
+		context.Background(),
+		options.ListOptions{ResourceVersion: p.currentWatchRevision},
+	)
+	if err != nil {
+		log.Errorf("cannot watch pools %v", err)
+		time.Sleep(3 * time.Second)
+		goto restart
+	}
+	p.watcher = poolsWatcher
+	return nil
+}
+
+func (p *PoolWatcher) cleanExistingWatcher() {
+	if p.watcher != nil {
+		p.watcher.Stop()
+		log.Info("Stopped watcher")
+		p.watcher = nil
 	}
 }

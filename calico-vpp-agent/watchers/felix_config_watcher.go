@@ -37,6 +37,7 @@ type FelixConfWatcher struct {
 	lastFelixConfigurationVersion string
 	watchedFelixConfName          string
 	clientv3                      calicov3cli.Interface
+	watcher                       watch.Interface
 }
 
 func (w *FelixConfWatcher) getFelixConfiguration() error {
@@ -71,30 +72,26 @@ func (w *FelixConfWatcher) OnVppRestart() {
 
 func (w *FelixConfWatcher) WatchFelixConfiguration(t *tomb.Tomb) error {
 	for t.Alive() {
-		var felixConfigWatcher watch.Interface = nil
-		var eventChannel <-chan watch.Event = nil
-		err := w.getFelixConfiguration()
+		w.lastFelixConfigurationVersion = ""
+		err := w.resyncAndCreateWatcher()
 		if err != nil {
-			w.log.Errorf("Error getting initial Felix config %s", err)
+			w.log.Error(err)
 			goto restart
 		}
-		felixConfigWatcher, err = w.clientv3.FelixConfigurations().Watch(
-			context.Background(),
-			options.ListOptions{ResourceVersion: w.lastFelixConfigurationVersion},
-		)
-		if err != nil {
-			return err
-		}
-		eventChannel = felixConfigWatcher.ResultChan()
 		for {
 			select {
 			case <-t.Dying():
 				w.log.Infof("FelixConfig Watcher asked to stop")
+				w.cleanExistingWatcher()
 				return nil
-			case update, ok := <-eventChannel:
+			case update, ok := <-w.watcher.ResultChan():
 				if !ok {
-					eventChannel = nil
-					goto restart
+					err := w.resyncAndCreateWatcher()
+					if err != nil {
+						w.log.Error(err)
+						goto restart
+					}
+					continue
 				}
 				switch update.Type {
 				case watch.Error:
@@ -111,14 +108,39 @@ func (w *FelixConfWatcher) WatchFelixConfiguration(t *tomb.Tomb) error {
 		}
 	restart:
 		w.log.Info("restarting FelixConfig watcher...")
-		if felixConfigWatcher != nil {
-			felixConfigWatcher.Stop()
-		}
+		w.cleanExistingWatcher()
 		time.Sleep(2 * time.Second)
 	}
 	w.log.Infof("Felixconfig Watcher asked to stop")
 
 	return nil
+}
+
+func (w *FelixConfWatcher) resyncAndCreateWatcher() error {
+	if w.lastFelixConfigurationVersion == "" {
+		err := w.getFelixConfiguration()
+		if err != nil {
+			return errors.Wrap(err, "Error getting initial Felix config %s")
+		}
+	}
+	w.cleanExistingWatcher()
+	felixConfigWatcher, err := w.clientv3.FelixConfigurations().Watch(
+		context.Background(),
+		options.ListOptions{ResourceVersion: w.lastFelixConfigurationVersion},
+	)
+	if err != nil {
+		return err
+	}
+	w.watcher = felixConfigWatcher
+	return nil
+}
+
+func (w *FelixConfWatcher) cleanExistingWatcher() {
+	if w.watcher != nil {
+		w.watcher.Stop()
+		w.log.Info("Stopped watcher")
+		w.watcher = nil
+	}
 }
 
 func NewFelixConfWatcher(clientv3 calicov3cli.Interface, log *logrus.Entry) *FelixConfWatcher {

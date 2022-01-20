@@ -53,10 +53,13 @@ func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 	// There is no need to react instantly to these changes, and the calico API
 	// doesn't provide a way to watch for changes, so we just poll every minute
 	for t.Alive() {
+	restart:
 		w.log.Debugf("Reconciliating prefix affinities...")
 		newPrefixes, err := w.getAssignedPrefixes()
 		if err != nil {
-			return errors.Wrap(err, "error getting assigned prefixes")
+			w.log.Errorf("error getting assigned prefixes %v", err)
+			time.Sleep(3 * time.Second)
+			goto restart
 		}
 		w.log.Debugf("Found %d assigned prefixes", len(newPrefixes))
 		newAssignedPrefixes := make(map[string]bool)
