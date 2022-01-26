@@ -59,7 +59,6 @@ type Server struct {
 	vpp *vpplink.VppLink
 
 	vppRestarted   chan bool
-	felixRestarted chan bool
 	nodeBGPSpec    *oldv3.NodeBGPSpec
 
 	state         SyncState
@@ -105,7 +104,6 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		vpp: vpp,
 
 		vppRestarted:   make(chan bool),
-		felixRestarted: make(chan bool),
 
 		state:         StateDisconnected,
 		nextSeqNumber: 0,
@@ -302,70 +300,66 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 	}
 }
 
-func (s *Server) HandlePolicyServerEvents() error {
-	for {
-		evt := <-s.policyServerEventChan
-		/* Note: we will only receive events we ask for when registering the chan */
-		switch evt.Type {
-		case common.PodAdded:
-			podSpec := evt.New.(*storage.LocalPodSpec)
-			s.workloadAdded(&WorkloadEndpointID{
+func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
+	/* Note: we will only receive events we ask for when registering the chan */
+	switch evt.Type {
+	case common.PodAdded:
+		podSpec := evt.New.(*storage.LocalPodSpec)
+		s.workloadAdded(&WorkloadEndpointID{
+			OrchestratorID: podSpec.OrchestratorID,
+			WorkloadID:     podSpec.WorkloadID,
+			EndpointID:     podSpec.EndpointID,
+		}, podSpec.TunTapSwIfIndex, podSpec.GetContainerIps())
+	case common.PodDeleted:
+		podSpec := evt.Old.(*storage.LocalPodSpec)
+		if podSpec != nil {
+			s.WorkloadRemoved(&WorkloadEndpointID{
 				OrchestratorID: podSpec.OrchestratorID,
 				WorkloadID:     podSpec.WorkloadID,
 				EndpointID:     podSpec.EndpointID,
-			}, podSpec.TunTapSwIfIndex, podSpec.GetContainerIps())
-		case common.PodDeleted:
-			podSpec := evt.Old.(*storage.LocalPodSpec)
-			if podSpec != nil {
-				s.WorkloadRemoved(&WorkloadEndpointID{
-					OrchestratorID: podSpec.OrchestratorID,
-					WorkloadID:     podSpec.WorkloadID,
-					EndpointID:     podSpec.EndpointID,
-				}, podSpec.GetContainerIps())
-			}
-		case common.TunnelAdded:
-			swIfIndex := evt.New.(uint32)
+			}, podSpec.GetContainerIps())
+		}
+	case common.TunnelAdded:
+		swIfIndex := evt.New.(uint32)
 
-			s.tunnelSwIfIndexesLock.Lock()
-			s.tunnelSwIfIndexes[swIfIndex] = true
-			s.tunnelSwIfIndexesLock.Unlock()
+		s.tunnelSwIfIndexesLock.Lock()
+		s.tunnelSwIfIndexes[swIfIndex] = true
+		s.tunnelSwIfIndexesLock.Unlock()
 
-			var pending bool
-			if s.state == StateSyncing || s.state == StateConnected {
-				pending = true
-			} else if s.state == StateInSync {
-				pending = false
-			} else {
-				s.log.Errorf("Got tunnel %d add but not in syncing or synced state", swIfIndex)
-				continue
-			}
-			state := s.currentState(pending)
-			for _, h := range state.HostEndpoints {
-				h.handleTunnelChange(swIfIndex, true /* isAdd */, pending)
-			}
-		case common.TunnelDeleted:
-			var pending bool
+		var pending bool
+		if s.state == StateSyncing || s.state == StateConnected {
+			pending = true
+		} else if s.state == StateInSync {
+			pending = false
+		} else {
+			return fmt.Errorf("Got tunnel %d add but not in syncing or synced state", swIfIndex)
+		}
+		state := s.currentState(pending)
+		for _, h := range state.HostEndpoints {
+			h.handleTunnelChange(swIfIndex, true /* isAdd */, pending)
+		}
+	case common.TunnelDeleted:
+		var pending bool
 
-			swIfIndex := evt.Old.(uint32)
+		swIfIndex := evt.Old.(uint32)
 
-			s.tunnelSwIfIndexesLock.Lock()
-			delete(s.tunnelSwIfIndexes, swIfIndex)
-			s.tunnelSwIfIndexesLock.Unlock()
+		s.tunnelSwIfIndexesLock.Lock()
+		delete(s.tunnelSwIfIndexes, swIfIndex)
+		s.tunnelSwIfIndexesLock.Unlock()
 
-			if s.state == StateSyncing || s.state == StateConnected {
-				pending = true
-			} else if s.state == StateInSync {
-				pending = false
-			} else {
-				s.log.Errorf("Got tunnel %d del but not in syncing or synced state", swIfIndex)
-				continue
-			}
-			state := s.currentState(pending)
-			for _, h := range state.HostEndpoints {
-				h.handleTunnelChange(swIfIndex, false /* isAdd */, pending)
-			}
+		if s.state == StateSyncing || s.state == StateConnected {
+			pending = true
+		} else if s.state == StateInSync {
+			pending = false
+		} else {
+			return fmt.Errorf("Got tunnel %d del but not in syncing or synced state", swIfIndex)
+		}
+		state := s.currentState(pending)
+		for _, h := range state.HostEndpoints {
+			h.handleTunnelChange(swIfIndex, false /* isAdd */, pending)
 		}
 	}
+	return nil
 }
 
 // Serve runs the policy server
@@ -399,137 +393,127 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 		s.log.Infof("Accepted connection from felix")
 		s.state = StateConnected
 
-		go s.SyncPolicy(conn)
-
-		select {
-		case <-s.vppRestarted:
-			// Close connection to restart felix, wipe all data and start over
-			s.log.Infof("VPP restarted, triggering Felix restart")
-			s.configuredState = NewPolicyState()
-			s.endpointsInterfaces = make(map[WorkloadEndpointID]uint32)
-			// This should stop the SyncPolicy goroutine and trigger a write on the felixRestarted channel
-			err = conn.Close()
-			if err != nil {
-				s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
+		felixUpdates := s.MessageReader(conn)
+innerLoop:
+		for {
+			select {
+			case <-s.vppRestarted:
+				// Close connection to restart felix, wipe all data and start over
+				s.log.Infof("VPP restarted, triggering Felix restart")
+				s.configuredState = NewPolicyState()
+				s.endpointsInterfaces = make(map[WorkloadEndpointID]uint32)
+				s.log.Infof("Waiting for SyncPolicy to stop...")
+				break innerLoop
+			case <-t.Dying():
+				s.log.Infof("Policy server exiting")
+				err = conn.Close()
+				if err != nil {
+					s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
+				}
+				s.log.Infof("Waiting for SyncPolicy to stop...")
+				return nil
+			case evt := <-s.policyServerEventChan:
+				err = s.handlePolicyServerEvents(evt)
+				if err != nil {
+					s.log.WithError(err).Warn("Error handling PolicyServerEvents")
+				}
+			// <-felixUpdates & handleFelixUpdate does the bulk of the policy sync job. It starts by reconciling the current
+			// configured state in VPP (empty at first) with what is sent by felix, and once both are in
+			// sync, it keeps processing felix updates. It also sends endpoint updates to felix when the
+			// CNI component adds or deletes container interfaces.
+			case msg, ok := <-felixUpdates:
+				if !ok {
+					s.log.Errorf("Error getting felix update: %v %v", msg, ok)
+					break innerLoop
+				}
+				err = s.handleFelixUpdate(msg)
+				if err != nil {
+					s.log.WithError(err).Error("Error processing update from felix, restarting")
+					// TODO: Restart VPP as well? State is left over there...
+					break innerLoop
+				}
 			}
-			s.log.Infof("Waiting for SyncPolicy to stop...")
-			<-s.felixRestarted
-			s.log.Infof("SyncPolicy exited, reconnecting to felix")
-			s.createAllowFromHostPolicy()
-			s.createEndpointToHostPolicy()
-			s.createAllowToHostPolicy()
-		case <-s.felixRestarted:
-			s.log.Infof("Felix restarted, starting resync")
-			// Connection was closed. Just accept new one, state will be reconciled on startup.
-		case <-t.Dying():
-			s.log.Infof("Policy server exiting")
-			err = conn.Close()
-			if err != nil {
-				s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
-			}
-			s.log.Infof("Waiting for SyncPolicy to stop...")
-			<-s.felixRestarted
-			return nil
 		}
+		err = conn.Close()
+		if err != nil {
+			s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
+		}
+		s.log.Infof("SyncPolicy exited, reconnecting to felix")
+		s.createAllowFromHostPolicy()
+		s.createEndpointToHostPolicy()
+		s.createAllowToHostPolicy()
 	}
 	s.log.Infof("Policy Server returned")
 
 	return nil
 }
 
-// SyncPolicy does the bulk of the policy sync job. It starts by reconciling the current
-// configured state in VPP (empty at first) with what is sent by felix, and once both are in
-// sync, it keeps processing felix updates. It also sends endpoint updates to felix when the
-// CNI component adds or deletes container interfaces.
-func (s *Server) SyncPolicy(conn net.Conn) {
-	s.log.Info("Starting policy resync")
-	felixUpdates := s.MessageReader(conn)
-	for {
-		var err error
-		select {
-		case msg, ok := <-felixUpdates:
-			if !ok {
-				s.log.Errorf("Error getting felix update: %v %v", msg, ok)
-				conn.Close()
-				s.felixRestarted <- true
-				return
-			}
-			s.log.Debugf("Got message from felix: %+v", msg)
-			switch m := msg.(type) {
-			case *proto.ConfigUpdate:
-				err = s.handleConfigUpdate(m)
-			case *proto.InSync:
-				err = s.handleInSync(m)
-			default:
-				if !config.EnablePolicies {
-					// Skip processing of policy messages
-					continue
-				}
-				var pending bool
-				if s.state == StateSyncing {
-					pending = true
-				} else if s.state == StateInSync {
-					pending = false
-				} else {
-					s.log.Errorf("Got message %+v but not in syncing or synced state", m)
-					conn.Close()
-					s.felixRestarted <- true
-					return
-				}
-				switch m := msg.(type) {
-				case *proto.IPSetUpdate:
-					err = s.handleIpsetUpdate(m, pending)
-				case *proto.IPSetDeltaUpdate:
-					err = s.handleIpsetDeltaUpdate(m, pending)
-				case *proto.IPSetRemove:
-					err = s.handleIpsetRemove(m, pending)
-				case *proto.ActivePolicyUpdate:
-					err = s.handleActivePolicyUpdate(m, pending)
-				case *proto.ActivePolicyRemove:
-					err = s.handleActivePolicyRemove(m, pending)
-				case *proto.ActiveProfileUpdate:
-					err = s.handleActiveProfileUpdate(m, pending)
-				case *proto.ActiveProfileRemove:
-					err = s.handleActiveProfileRemove(m, pending)
-				case *proto.HostEndpointUpdate:
-					err = s.handleHostEndpointUpdate(m, pending)
-				case *proto.HostEndpointRemove:
-					err = s.handleHostEndpointRemove(m, pending)
-				case *proto.WorkloadEndpointUpdate:
-					err = s.handleWorkloadEndpointUpdate(m, pending)
-				case *proto.WorkloadEndpointRemove:
-					err = s.handleWorkloadEndpointRemove(m, pending)
-				case *proto.HostMetadataUpdate:
-					err = s.handleHostMetadataUpdate(m, pending)
-				case *proto.HostMetadataRemove:
-					err = s.handleHostMetadataRemove(m, pending)
-				case *proto.IPAMPoolUpdate:
-					err = s.handleIpamPoolUpdate(m, pending)
-				case *proto.IPAMPoolRemove:
-					err = s.handleIpamPoolRemove(m, pending)
-				case *proto.ServiceAccountUpdate:
-					err = s.handleServiceAccountUpdate(m, pending)
-				case *proto.ServiceAccountRemove:
-					err = s.handleServiceAccountRemove(m, pending)
-				case *proto.NamespaceUpdate:
-					err = s.handleNamespaceUpdate(m, pending)
-				case *proto.NamespaceRemove:
-					err = s.handleNamespaceRemove(m, pending)
-				case *proto.GlobalBGPConfigUpdate:
-					err = s.handleGlobalBGPConfigUpdate(m, pending)
-				default:
-					s.log.Warnf("Unhandled message from felix: %v", m)
-				}
-			}
-			if err != nil {
-				s.log.WithError(err).Error("Error processing update from felix, restarting")
-				conn.Close()
-				s.felixRestarted <- true
-				// TODO: Restart VPP as well? State is left over there...
-				return
-			}
+func (s *Server) handleFelixUpdate(msg interface {}) (err error) {
+	s.log.Debugf("Got message from felix: %+v", msg)
+	switch m := msg.(type) {
+	case *proto.ConfigUpdate:
+		err = s.handleConfigUpdate(m)
+	case *proto.InSync:
+		err = s.handleInSync(m)
+	default:
+		if !config.EnablePolicies {
+			// Skip processing of policy messages
+			return nil
+		}
+		var pending bool
+		if s.state == StateSyncing {
+			pending = true
+		} else if s.state == StateInSync {
+			pending = false
+		} else {
+			return fmt.Errorf("Got message %+v but not in syncing or synced state", m)
+		}
+		switch m := msg.(type) {
+		case *proto.IPSetUpdate:
+			err = s.handleIpsetUpdate(m, pending)
+		case *proto.IPSetDeltaUpdate:
+			err = s.handleIpsetDeltaUpdate(m, pending)
+		case *proto.IPSetRemove:
+			err = s.handleIpsetRemove(m, pending)
+		case *proto.ActivePolicyUpdate:
+			err = s.handleActivePolicyUpdate(m, pending)
+		case *proto.ActivePolicyRemove:
+			err = s.handleActivePolicyRemove(m, pending)
+		case *proto.ActiveProfileUpdate:
+			err = s.handleActiveProfileUpdate(m, pending)
+		case *proto.ActiveProfileRemove:
+			err = s.handleActiveProfileRemove(m, pending)
+		case *proto.HostEndpointUpdate:
+			err = s.handleHostEndpointUpdate(m, pending)
+		case *proto.HostEndpointRemove:
+			err = s.handleHostEndpointRemove(m, pending)
+		case *proto.WorkloadEndpointUpdate:
+			err = s.handleWorkloadEndpointUpdate(m, pending)
+		case *proto.WorkloadEndpointRemove:
+			err = s.handleWorkloadEndpointRemove(m, pending)
+		case *proto.HostMetadataUpdate:
+			err = s.handleHostMetadataUpdate(m, pending)
+		case *proto.HostMetadataRemove:
+			err = s.handleHostMetadataRemove(m, pending)
+		case *proto.IPAMPoolUpdate:
+			err = s.handleIpamPoolUpdate(m, pending)
+		case *proto.IPAMPoolRemove:
+			err = s.handleIpamPoolRemove(m, pending)
+		case *proto.ServiceAccountUpdate:
+			err = s.handleServiceAccountUpdate(m, pending)
+		case *proto.ServiceAccountRemove:
+			err = s.handleServiceAccountRemove(m, pending)
+		case *proto.NamespaceUpdate:
+			err = s.handleNamespaceUpdate(m, pending)
+		case *proto.NamespaceRemove:
+			err = s.handleNamespaceRemove(m, pending)
+		case *proto.GlobalBGPConfigUpdate:
+			err = s.handleGlobalBGPConfigUpdate(m, pending)
+		default:
+			s.log.Warnf("Unhandled message from felix: %v", m)
 		}
 	}
+	return err
 }
 
 func (s *Server) currentState(pending bool) *PolicyState {
