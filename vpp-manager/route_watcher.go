@@ -127,6 +127,15 @@ func (r *RouteWatcher) safeClose() {
 	r.closeLock.Unlock()
 }
 
+func (r *RouteWatcher) safeAddrClose() {
+	r.closeLock.Lock()
+	if r.addrClose != nil {
+		close(r.addrClose)
+		r.addrClose = nil
+	}
+	r.closeLock.Unlock()
+}
+
 func (r *RouteWatcher) WatchRoutes() {
 	r.netlinkFailed = make(chan struct{}, 1)
 	r.addrUpdate = make(chan struct{}, 10)
@@ -149,13 +158,11 @@ func (r *RouteWatcher) WatchRoutes() {
 		})
 		if err != nil {
 			log.Errorf("error watching for routes, sleeping before retrying")
-			r.safeClose()
 			goto restart
 		}
 		// Stupidly re-add all of our routes after we start watching to make sure they're there
 		if err = r.RestoreAllRoutes(); err != nil {
 			log.Errorf("error adding routes, sleeping before retrying: %v", err)
-			r.safeClose()
 			goto restart
 		}
 		for {
@@ -181,7 +188,6 @@ func (r *RouteWatcher) WatchRoutes() {
 							if err != nil {
 								log.Errorf("error adding route %+v: %v, restarting watcher", route, err)
 								r.lock.Unlock()
-								r.safeClose()
 								goto restart
 							}
 							break
@@ -193,12 +199,12 @@ func (r *RouteWatcher) WatchRoutes() {
 				log.Infof("Address update, restoring all routes")
 				if err = r.RestoreAllRoutes(); err != nil {
 					log.Errorf("error adding routes, sleeping before retrying: %v", err)
-					r.safeClose()
 					goto restart
 				}
 			}
 		}
 	restart:
+		r.safeClose()
 		time.Sleep(2 * time.Second)
 	}
 }
@@ -216,17 +222,11 @@ func (r *RouteWatcher) watchAddresses() {
 		r.addrClose = make(chan struct{})
 		r.closeLock.Unlock()
 		log.Infof("Subscribing to netlink address updates")
-		err := netlink.AddrSubscribeWithOptions(updates, r.close, netlink.AddrSubscribeOptions{
+		err := netlink.AddrSubscribeWithOptions(updates, r.addrClose, netlink.AddrSubscribeOptions{
 			ErrorCallback: r.addrNetlinkError,
 		})
 		if err != nil {
 			log.Errorf("error watching for addresses, sleeping before retrying")
-			r.closeLock.Lock()
-			if r.addrClose != nil {
-				close(r.addrClose)
-				r.addrClose = nil
-			}
-			r.closeLock.Unlock()
 			goto restart
 		}
 
@@ -247,6 +247,7 @@ func (r *RouteWatcher) watchAddresses() {
 			}
 		}
 	restart:
+		r.safeAddrClose()
 		time.Sleep(2 * time.Second)
 	}
 }
