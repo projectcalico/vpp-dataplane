@@ -160,6 +160,9 @@ data:
         plugin dpdk_plugin.so { enable }
         plugin ping_plugin.so { disable }
     }
+    buffers {
+      buffers-per-numa 131072
+    }
   vpp_dataplane_interface: eth0
   vpp_uplink_driver: none
 kind: ConfigMap

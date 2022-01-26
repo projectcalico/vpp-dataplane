@@ -29,6 +29,9 @@ data:  # Configuration template for VPP in EKS
         plugin dpdk_plugin.so { enable }
         plugin ping_plugin.so { disable }
     }
+    buffers {
+      buffers-per-numa 131072
+    }
 
 ---
 kind: DaemonSet
