@@ -339,6 +339,8 @@ spec:
             - name: netns
               mountPath: /run/netns/
               mountPropagation: Bidirectional
+            - mountPath: /host
+              name: host-root
       volumes:
         - name: lib-firmware
           hostPath:
@@ -368,3 +370,6 @@ spec:
         - name: felix-plugins
           hostPath:
             path: /var/lib/calico/felix-plugins
+        - hostPath:
+            path: /
+          name: host-root

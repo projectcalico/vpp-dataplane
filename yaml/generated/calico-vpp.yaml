@@ -244,6 +244,8 @@ spec:
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns
+        - mountPath: /host
+          name: host-root
       - env:
         - name: DATASTORE_TYPE
           value: kubernetes
@@ -321,6 +323,9 @@ spec:
       - hostPath:
           path: /var/lib/calico/felix-plugins
         name: felix-plugins
+      - hostPath:
+          path: /
+        name: host-root
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 1

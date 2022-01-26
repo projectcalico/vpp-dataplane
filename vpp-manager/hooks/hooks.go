@@ -16,6 +16,8 @@
 package hooks
 
 import (
+	_ "embed"
+
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	log "github.com/sirupsen/logrus"
@@ -39,6 +41,9 @@ const (
 var (
 	AllHooks        = []string{BEFORE_IF_READ, BEFORE_VPP_RUN, VPP_RUNNING, VPP_DONE_OK, VPP_ERRORED}
 	vppManagerHooks = make(map[string][]func(params *config.VppManagerParams, conf []*config.LinuxInterfaceState) error)
+
+	//go:embed network_restart.sh
+	DEFAULT_RESTART_SCRIPT string
 )
 
 func RegisterBashHook(name string, bashTemplate string) {
@@ -49,6 +54,10 @@ func RegisterBashHook(name string, bashTemplate string) {
 
 func RegisterHook(name string, hook func(params *config.VppManagerParams, conf []*config.LinuxInterfaceState) error) {
 	vppManagerHooks[name] = append(vppManagerHooks[name], hook)
+}
+
+func HookCount(name string) int {
+	return len(vppManagerHooks[name])
 }
 
 func RunHook(name string, params *config.VppManagerParams, conf []*config.LinuxInterfaceState) {

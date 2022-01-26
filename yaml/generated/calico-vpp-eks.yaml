@@ -238,8 +238,6 @@ spec:
         securityContext:
           privileged: true
         volumeMounts:
-        - mountPath: /host
-          name: host-root
         - mountPath: /lib/firmware
           name: lib-firmware
         - mountPath: /var/run/vpp
@@ -255,6 +253,8 @@ spec:
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns
+        - mountPath: /host
+          name: host-root
       - env:
         - name: DATASTORE_TYPE
           value: kubernetes
@@ -305,9 +305,6 @@ spec:
         operator: Exists
       volumes:
       - hostPath:
-          path: /
-        name: host-root
-      - hostPath:
           path: /lib/firmware
         name: lib-firmware
       - hostPath:
@@ -335,6 +332,9 @@ spec:
       - hostPath:
           path: /var/lib/calico/felix-plugins
         name: felix-plugins
+      - hostPath:
+          path: /
+        name: host-root
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 1
