@@ -25,7 +25,7 @@ import (
 )
 
 type RouteWatcher struct {
-	routes            []*netlink.Route
+	routes            []netlink.Route
 	close             chan struct{}
 	netlinkFailed     chan struct{}
 	addrClose         chan struct{}
@@ -36,6 +36,13 @@ type RouteWatcher struct {
 	closeLock         sync.Mutex
 }
 
+func copyRoute(route *netlink.Route) netlink.Route {
+	routeCopy := *route
+	dst := *route.Dst
+	routeCopy.Dst = &dst
+	return routeCopy
+}
+
 func (r *RouteWatcher) AddRoute(route *netlink.Route) (err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -43,7 +50,9 @@ func (r *RouteWatcher) AddRoute(route *netlink.Route) (err error) {
 	if err = netlink.RouteReplace(route); err != nil {
 		return err
 	}
-	r.routes = append(r.routes, route)
+
+	r.routes = append(r.routes, copyRoute(route))
+
 	return nil
 }
 
@@ -100,8 +109,9 @@ func (r *RouteWatcher) RestoreAllRoutes() (err error) {
 	defer r.lock.Unlock()
 
 	for _, route := range r.routes {
-		err = netlink.RouteReplace(route)
+		err = netlink.RouteReplace(&route)
 		if err != nil {
+			log.Errorf("RW.RouteReplace error with %s", route)
 			return err
 		}
 	}
@@ -167,9 +177,10 @@ func (r *RouteWatcher) WatchRoutes() {
 						// See if it is one of our routes
 						if update.Dst != nil && update.Dst.String() == route.Dst.String() {
 							log.Infof("Re-adding route %+v", route)
-							err = netlink.RouteReplace(route)
+							err = netlink.RouteReplace(&route)
 							if err != nil {
 								log.Errorf("error adding route %+v: %v, restarting watcher", route, err)
+								r.lock.Unlock()
 								r.safeClose()
 								goto restart
 							}
