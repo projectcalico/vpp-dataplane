@@ -198,6 +198,13 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 		hooks.RegisterBashHook(hooks.BEFORE_IF_READ, conf)
 	}
 
+	// Add default hook if none specified
+	for _, hookName := range []string{hooks.VPP_RUNNING, hooks.VPP_DONE_OK, hooks.VPP_ERRORED} {
+		if hooks.HookCount(hookName) == 0 {
+			hooks.RegisterBashHook(hookName, hooks.DEFAULT_RESTART_SCRIPT)
+		}
+	}
+
 	params.ConfigTemplate = getEnvValue(ConfigTemplateEnvVar)
 	if params.ConfigTemplate == "" {
 		return fmt.Errorf("empty VPP configuration template, set a template in the %s environment variable", ConfigTemplateEnvVar)

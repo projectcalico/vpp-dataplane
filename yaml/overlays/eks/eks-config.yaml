@@ -28,10 +28,3 @@ spec:
               value: "echo 'sudo systemctl stop network ; sudo systemctl kill network ; sudo systemctl start network' | chroot /host"
             - name: CALICOVPP_HOOK_VPP_ERRORED
               value: "echo 'sudo systemctl stop network ; sudo systemctl kill network ; sudo systemctl start network' | chroot /host"
-          volumeMounts:
-            - mountPath: /host
-              name: host-root
-      volumes:
-        - hostPath:
-            path: /
-          name: host-root
