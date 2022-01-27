@@ -31,9 +31,9 @@ import (
 type IPSet struct {
 	VppID     uint32
 	Type      types.IpsetType
-	IPPorts   []types.IPPort
-	Addresses []net.IP
-	Networks  []*net.IPNet
+	IPPorts   map[string]types.IPPort
+	Addresses map[string]net.IP
+	Networks  map[string]*net.IPNet
 }
 
 var protos = map[string]uint8{
@@ -67,40 +67,64 @@ func parseIPPort(ipps string) (ipp types.IPPort, err error) {
 	return ipp, nil
 }
 
-func parseIPArray(strs []string) (addrs []net.IP, err error) {
-	addrs = make([]net.IP, 0, len(strs))
+func parseIPArray(strs []string) (addrs map[string]net.IP, err error) {
+	addrs = make(map[string]net.IP)
 	for _, addr := range strs {
 		ip := net.ParseIP(addr)
 		if ip == nil {
 			return nil, fmt.Errorf("Cannot parse IP: %s", addr)
 		}
-		addrs = append(addrs, ip)
+		addrs[addr] = ip
 	}
 	return addrs, nil
 }
 
-func parseIPPortArray(strs []string) (ipps []types.IPPort, err error) {
-	ipps = make([]types.IPPort, 0, len(strs))
+func toAddressArray(addrs map[string]net.IP) []net.IP {
+	array := make([]net.IP, 0, len(addrs))
+	for _, v := range addrs {
+		array = append(array, v)
+	}
+	return array
+}
+
+func parseIPPortArray(strs []string) (ipps map[string]types.IPPort, err error) {
+	ipps = make(map[string]types.IPPort)
 	for _, s := range strs {
 		ipp, err := parseIPPort(s)
 		if err != nil {
 			return nil, err
 		}
-		ipps = append(ipps, ipp)
+		ipps[s] = ipp
 	}
 	return ipps, nil
 }
 
-func parseNetArray(strs []string) (nets []*net.IPNet, err error) {
-	nets = make([]*net.IPNet, 0, len(strs))
+func toIPPortArray(addrs map[string]types.IPPort) []types.IPPort {
+	array := make([]types.IPPort, 0, len(addrs))
+	for _, v := range addrs {
+		array = append(array, v)
+	}
+	return array
+}
+
+func parseNetArray(strs []string) (nets map[string]*net.IPNet, err error) {
+	nets = make(map[string]*net.IPNet)
 	for _, n := range strs {
 		_, cidr, err := net.ParseCIDR(n)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot parse CIDR: %s", n)
 		}
-		nets = append(nets, cidr)
+		nets[n] = cidr
 	}
 	return nets, nil
+}
+
+func toNetArray(addrs map[string]*net.IPNet) []*net.IPNet {
+	array := make([]*net.IPNet, 0, len(addrs))
+	for _, v := range addrs {
+		array = append(array, v)
+	}
+	return array
 }
 
 func fromIPSetUpdate(ips *proto.IPSetUpdate) (i *IPSet, err error) {
@@ -128,11 +152,11 @@ func (i *IPSet) Create(vpp *vpplink.VppLink) (err error) {
 	logrus.Infof("Created ipset %d", i.VppID)
 	switch i.Type {
 	case types.IpsetTypeIP:
-		err = vpp.AddIpsetIPMembers(i.VppID, i.Addresses)
+		err = vpp.AddIpsetIPMembers(i.VppID, toAddressArray(i.Addresses))
 	case types.IpsetTypeIPPort:
-		err = vpp.AddIpsetIPPortMembers(i.VppID, i.IPPorts)
+		err = vpp.AddIpsetIPPortMembers(i.VppID, toIPPortArray(i.IPPorts))
 	case types.IpsetTypeNet:
-		err = vpp.AddIpsetNetMembers(i.VppID, i.Networks)
+		err = vpp.AddIpsetNetMembers(i.VppID, toNetArray(i.Networks))
 	}
 	return err
 }
@@ -154,36 +178,42 @@ func (i *IPSet) AddMembers(members []string, apply bool, vpp *vpplink.VppLink) (
 			return err
 		}
 		if apply {
-			err = vpp.AddIpsetIPMembers(i.VppID, addrs)
+			err = vpp.AddIpsetIPMembers(i.VppID, toAddressArray(addrs))
 			if err != nil {
 				return err
 			}
 		}
-		i.Addresses = append(i.Addresses, addrs...)
+		for k, v := range addrs {
+			i.Addresses[k] = v
+		}
 	case types.IpsetTypeIPPort:
 		ipps, err := parseIPPortArray(members)
 		if err != nil {
 			return err
 		}
 		if apply {
-			err = vpp.AddIpsetIPPortMembers(i.VppID, ipps)
+			err = vpp.AddIpsetIPPortMembers(i.VppID, toIPPortArray(ipps))
 			if err != nil {
 				return err
 			}
 		}
-		i.IPPorts = append(i.IPPorts, ipps...)
+		for k, v := range ipps {
+			i.IPPorts[k] = v
+		}
 	case types.IpsetTypeNet:
 		nets, err := parseNetArray(members)
 		if err != nil {
 			return err
 		}
 		if apply {
-			err = vpp.AddIpsetNetMembers(i.VppID, nets)
+			err = vpp.AddIpsetNetMembers(i.VppID, toNetArray(nets))
 			if err != nil {
 				return err
 			}
 		}
-		i.Networks = append(i.Networks, nets...)
+		for k, v := range nets {
+			i.Networks[k] = v
+		}
 	}
 	return err
 }
@@ -196,18 +226,13 @@ func (i *IPSet) RemoveMembers(members []string, apply bool, vpp *vpplink.VppLink
 			return err
 		}
 		if apply {
-			err = vpp.DelIpsetIPMembers(i.VppID, addrs)
+			err = vpp.DelIpsetIPMembers(i.VppID, toAddressArray(addrs))
 			if err != nil {
 				return err
 			}
 		}
-		for j := 0; j < len(i.Addresses); j++ {
-			for _, r := range addrs {
-				if i.Addresses[j].Equal(r) {
-					i.Addresses[j] = i.Addresses[len(i.Addresses)-1]
-					i.Addresses = i.Addresses[:len(i.Addresses)-1]
-				}
-			}
+		for k, _ := range addrs {
+			delete(i.Addresses, k)
 		}
 	case types.IpsetTypeIPPort:
 		ipps, err := parseIPPortArray(members)
@@ -215,18 +240,13 @@ func (i *IPSet) RemoveMembers(members []string, apply bool, vpp *vpplink.VppLink
 			return err
 		}
 		if apply {
-			err = vpp.DelIpsetIPPortMembers(i.VppID, ipps)
+			err = vpp.DelIpsetIPPortMembers(i.VppID, toIPPortArray(ipps))
 			if err != nil {
 				return err
 			}
 		}
-		for j := 0; j < len(i.IPPorts); j++ {
-			for _, r := range ipps {
-				if i.IPPorts[j].Equal(&r) {
-					i.IPPorts[j] = i.IPPorts[len(i.IPPorts)-1]
-					i.IPPorts = i.IPPorts[:len(i.IPPorts)-1]
-				}
-			}
+		for k, _ := range ipps {
+			delete(i.IPPorts, k)
 		}
 	case types.IpsetTypeNet:
 		nets, err := parseNetArray(members)
@@ -234,18 +254,13 @@ func (i *IPSet) RemoveMembers(members []string, apply bool, vpp *vpplink.VppLink
 			return err
 		}
 		if apply {
-			err = vpp.DelIpsetNetMembers(i.VppID, nets)
+			err = vpp.DelIpsetNetMembers(i.VppID, toNetArray(nets))
 			if err != nil {
 				return err
 			}
 		}
-		for j := 0; j < len(i.Networks); j++ {
-			for _, r := range nets {
-				if i.Networks[j] == r {
-					i.Networks[j] = i.Networks[len(i.Networks)-1]
-					i.Networks = i.Networks[:len(i.Networks)-1]
-				}
-			}
+		for k, _ := range nets {
+			delete(i.Networks, k)
 		}
 	}
 	return err
