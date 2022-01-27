@@ -92,6 +92,7 @@ git_cherry_pick refs/changes/71/32271/15 # 32271: memif: add support for ns abst
 git_cherry_pick refs/changes/34/34734/2 # 34734: memif: autogenerate socket_ids | https://gerrit.fd.io/r/c/vpp/+/34734
 git_cherry_pick refs/changes/26/34726/1 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 git_cherry_pick refs/changes/52/34852/2 # 34852: memif: fix rx/txqueue RC on connected | https://gerrit.fd.io/r/c/vpp/+/34852
+git_cherry_pick refs/changes/72/35072/4 # 35072: cnat: maglev fixes & improvements | https://gerrit.fd.io/r/c/vpp/+/35072
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/7 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
