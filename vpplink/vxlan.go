@@ -67,7 +67,9 @@ func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIf
 		DstPort:        tunnel.DstPort,
 		Vni:            tunnel.Vni,
 		DecapNextIndex: tunnel.DecapNextIndex,
-		IsL3:           true,
+		/* Syntax changed due to confusion in https://gerrit.fd.io/r/c/vpp/+/34721
+		 * Now IsL3=false means "disable interface ARP" */
+		IsL3:           false,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	opStr := "Del"
