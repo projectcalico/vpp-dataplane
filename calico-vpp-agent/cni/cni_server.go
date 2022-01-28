@@ -163,10 +163,6 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 			ErrorMessage: err.Error(),
 		}, nil
 	}
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.PodAdded,
-		New:  podSpec,
-	})
 
 	s.podInterfaceMap[podSpec.Key()] = *podSpec
 	err = storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile + fmt.Sprint(storage.CniServerStateFileVersion))
@@ -288,11 +284,6 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
-
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.PodDeleted,
-		Old:  &initialSpec,
-	})
 
 	return &pb.DelReply{
 		Successful: true,
