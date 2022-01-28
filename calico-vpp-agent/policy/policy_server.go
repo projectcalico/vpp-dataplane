@@ -58,8 +58,8 @@ type Server struct {
 	log *logrus.Entry
 	vpp *vpplink.VppLink
 
-	vppRestarted   chan bool
-	nodeBGPSpec    *oldv3.NodeBGPSpec
+	vppRestarted chan bool
+	nodeBGPSpec  *oldv3.NodeBGPSpec
 
 	state         SyncState
 	nextSeqNumber uint64
@@ -103,7 +103,7 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		log: log,
 		vpp: vpp,
 
-		vppRestarted:   make(chan bool),
+		vppRestarted: make(chan bool),
 
 		state:         StateDisconnected,
 		nextSeqNumber: 0,
@@ -394,7 +394,7 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 		s.state = StateConnected
 
 		felixUpdates := s.MessageReader(conn)
-innerLoop:
+	innerLoop:
 		for {
 			select {
 			case <-s.vppRestarted:
@@ -448,7 +448,7 @@ innerLoop:
 	return nil
 }
 
-func (s *Server) handleFelixUpdate(msg interface {}) (err error) {
+func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
 	s.log.Debugf("Got message from felix: %+v", msg)
 	switch m := msg.(type) {
 	case *proto.ConfigUpdate:
@@ -1040,7 +1040,7 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 		},
 		SrcIPSetNames: []string{"ipset1"},
 	}
-	ipset := &IPSet{Type: types.IpsetTypeIP}
+	ipset := NewIPSet()
 	ps := PolicyState{IPSets: map[string]*IPSet{"ipset1": ipset}}
 	ipset.Create(s.vpp)
 	pol.InboundRules = append(pol.InboundRules, r_deny_workloads)
