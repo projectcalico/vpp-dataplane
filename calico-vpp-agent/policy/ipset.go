@@ -42,6 +42,14 @@ var protos = map[string]uint8{
 	"sctp": 132,
 }
 
+func NewIPSet() *IPSet {
+	return &IPSet{
+		IPPorts:   make(map[string]types.IPPort),
+		Addresses: make(map[string]net.IP),
+		Networks:  make(map[string]*net.IPNet),
+	}
+}
+
 func parseIPPort(ipps string) (ipp types.IPPort, err error) {
 	sarray := strings.Split(ipps, ",") // Get host, and proto:port
 	if len(sarray) != 2 {
@@ -128,7 +136,7 @@ func toNetArray(addrs map[string]*net.IPNet) []*net.IPNet {
 }
 
 func fromIPSetUpdate(ips *proto.IPSetUpdate) (i *IPSet, err error) {
-	i = &IPSet{}
+	i = NewIPSet()
 	switch ips.GetType() {
 	case proto.IPSetUpdate_IP:
 		i.Type = types.IpsetTypeIP
@@ -231,7 +239,7 @@ func (i *IPSet) RemoveMembers(members []string, apply bool, vpp *vpplink.VppLink
 				return err
 			}
 		}
-		for k, _ := range addrs {
+		for k := range addrs {
 			delete(i.Addresses, k)
 		}
 	case types.IpsetTypeIPPort:
@@ -245,7 +253,7 @@ func (i *IPSet) RemoveMembers(members []string, apply bool, vpp *vpplink.VppLink
 				return err
 			}
 		}
-		for k, _ := range ipps {
+		for k := range ipps {
 			delete(i.IPPorts, k)
 		}
 	case types.IpsetTypeNet:
@@ -259,7 +267,7 @@ func (i *IPSet) RemoveMembers(members []string, apply bool, vpp *vpplink.VppLink
 				return err
 			}
 		}
-		for k, _ := range nets {
+		for k := range nets {
 			delete(i.Networks, k)
 		}
 	}
