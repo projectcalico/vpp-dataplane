@@ -147,6 +147,10 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		goto err
 	}
 
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PodAdded,
+		New:  podSpec,
+	})
 	s.availableBuffers -= buffersNeeded
 	return podSpec.TunTapSwIfIndex, err
 
@@ -202,4 +206,9 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 
 	s.log.Infof("Deleting Pod VRF")
 	s.DeletePodVRF(podSpec)
+
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PodDeleted,
+		Old:  podSpec,
+	})
 }
