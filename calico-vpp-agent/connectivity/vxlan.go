@@ -265,7 +265,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			delete(p.vxlanIfs, cn.NextHop.String())
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.TunnelDeleted,
-				New:  swIfIndex,
+				Old:  swIfIndex,
 			})
 		}
 	}
