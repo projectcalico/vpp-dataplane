@@ -149,8 +149,6 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 		}
 		// node and peer updates should be infrequent enough
 		// just reevaluate all peerings everytime there is an update
-		w.log.Infof("Watching for peer Updates")
-
 		select {
 		case <-t.Dying():
 			w.log.Infof("Peers Watcher asked to stop")
@@ -185,12 +183,12 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 				if new != nil {
 					w.nodeStatesByName[new.Name] = *new
 				}
-				w.log.Infof("Nodes updated, reevaluating peerings old %s new %s", old, new)
+				w.log.Debugf("Nodes updated, reevaluating peerings old %s new %s", old, new)
 			default:
 				goto restart
 			}
 		}
-		w.log.Infof("Got peer Update")
+
 	restart:
 		w.log.Info("restarting peers watcher...")
 		w.cleanExistingWatcher()
