@@ -28,7 +28,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "capo"
 	APIVersion = "0.1.0"
-	VersionCrc = 0x3dbafffc
+	VersionCrc = 0xf7ab3600
 )
 
 // CapoEntryType defines enum 'capo_entry_type'.
@@ -131,24 +131,24 @@ func (x CapoRuleAction) String() string {
 type CapoRuleFilterType uint8
 
 const (
-	CAPO_RULE_FILTER_NONE_TYPE CapoRuleFilterType = 1
-	CAPO_RULE_FILTER_ICMP_TYPE CapoRuleFilterType = 2
-	CAPO_RULE_FILTER_ICMP_CODE CapoRuleFilterType = 3
-	CAPO_RULE_FILTER_L4_PROTO  CapoRuleFilterType = 4
+	CAPO_RULE_FILTER_NONE_TYPE CapoRuleFilterType = 0
+	CAPO_RULE_FILTER_ICMP_TYPE CapoRuleFilterType = 1
+	CAPO_RULE_FILTER_ICMP_CODE CapoRuleFilterType = 2
+	CAPO_RULE_FILTER_L4_PROTO  CapoRuleFilterType = 3
 )
 
 var (
 	CapoRuleFilterType_name = map[uint8]string{
-		1: "CAPO_RULE_FILTER_NONE_TYPE",
-		2: "CAPO_RULE_FILTER_ICMP_TYPE",
-		3: "CAPO_RULE_FILTER_ICMP_CODE",
-		4: "CAPO_RULE_FILTER_L4_PROTO",
+		0: "CAPO_RULE_FILTER_NONE_TYPE",
+		1: "CAPO_RULE_FILTER_ICMP_TYPE",
+		2: "CAPO_RULE_FILTER_ICMP_CODE",
+		3: "CAPO_RULE_FILTER_L4_PROTO",
 	}
 	CapoRuleFilterType_value = map[string]uint8{
-		"CAPO_RULE_FILTER_NONE_TYPE": 1,
-		"CAPO_RULE_FILTER_ICMP_TYPE": 2,
-		"CAPO_RULE_FILTER_ICMP_CODE": 3,
-		"CAPO_RULE_FILTER_L4_PROTO":  4,
+		"CAPO_RULE_FILTER_NONE_TYPE": 0,
+		"CAPO_RULE_FILTER_ICMP_TYPE": 1,
+		"CAPO_RULE_FILTER_ICMP_CODE": 2,
+		"CAPO_RULE_FILTER_L4_PROTO":  3,
 	}
 )
 
@@ -1066,7 +1066,7 @@ type CapoRuleCreate struct {
 
 func (m *CapoRuleCreate) Reset()               { *m = CapoRuleCreate{} }
 func (*CapoRuleCreate) GetMessageName() string { return "capo_rule_create" }
-func (*CapoRuleCreate) GetCrcString() string   { return "0e23e3f8" }
+func (*CapoRuleCreate) GetCrcString() string   { return "0a2d5fd6" }
 func (*CapoRuleCreate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1256,7 +1256,7 @@ type CapoRuleUpdate struct {
 
 func (m *CapoRuleUpdate) Reset()               { *m = CapoRuleUpdate{} }
 func (*CapoRuleUpdate) GetMessageName() string { return "capo_rule_update" }
-func (*CapoRuleUpdate) GetCrcString() string   { return "a45de2cc" }
+func (*CapoRuleUpdate) GetCrcString() string   { return "a0535ee2" }
 func (*CapoRuleUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1388,11 +1388,11 @@ func file_capo_binapi_init() {
 	api.RegisterMessage((*CapoPolicyDeleteReply)(nil), "capo_policy_delete_reply_e8d4e804")
 	api.RegisterMessage((*CapoPolicyUpdate)(nil), "capo_policy_update_e2097dd0")
 	api.RegisterMessage((*CapoPolicyUpdateReply)(nil), "capo_policy_update_reply_e8d4e804")
-	api.RegisterMessage((*CapoRuleCreate)(nil), "capo_rule_create_0e23e3f8")
+	api.RegisterMessage((*CapoRuleCreate)(nil), "capo_rule_create_0a2d5fd6")
 	api.RegisterMessage((*CapoRuleCreateReply)(nil), "capo_rule_create_reply_b48f8052")
 	api.RegisterMessage((*CapoRuleDelete)(nil), "capo_rule_delete_d19bb6be")
 	api.RegisterMessage((*CapoRuleDeleteReply)(nil), "capo_rule_delete_reply_e8d4e804")
-	api.RegisterMessage((*CapoRuleUpdate)(nil), "capo_rule_update_a45de2cc")
+	api.RegisterMessage((*CapoRuleUpdate)(nil), "capo_rule_update_a0535ee2")
 	api.RegisterMessage((*CapoRuleUpdateReply)(nil), "capo_rule_update_reply_e8d4e804")
 }
 

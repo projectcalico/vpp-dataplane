@@ -567,6 +567,7 @@ func (s *Server) handleIpsetUpdate(msg *proto.IPSetUpdate, pending bool) (err er
 		}
 	}
 	state.IPSets[msg.GetId()] = ips
+	log.Infof("Handled Ipset Update [pending:%t] id=%s %s", pending, msg.GetId(), ips)
 	return nil
 }
 
@@ -583,12 +584,13 @@ func (s *Server) handleIpsetDeltaUpdate(msg *proto.IPSetDeltaUpdate, pending boo
 	if err != nil {
 		return errors.Wrap(err, "cannot process ipset delta update")
 	}
+	log.Infof("Handled Ipset delta Update [pending:%t] id=%s %s", pending, msg.GetId(), ips)
 	return nil
 }
 
 func (s *Server) handleIpsetRemove(msg *proto.IPSetRemove, pending bool) (err error) {
 	state := s.currentState(pending)
-	_, ok := state.IPSets[msg.GetId()]
+	ips, ok := state.IPSets[msg.GetId()]
 	if !ok {
 		s.log.Debugf("Received ipset delete for ID %s that doesn't exists", msg.GetId())
 		return nil
@@ -599,6 +601,7 @@ func (s *Server) handleIpsetRemove(msg *proto.IPSetRemove, pending bool) (err er
 			return errors.Wrapf(err, "cannot delete ipset %s", msg.GetId())
 		}
 	}
+	log.Infof("Handled Ipset delta Update [pending:%t] id=%s %s", pending, msg.GetId(), ips)
 	delete(state.IPSets, msg.GetId())
 	return nil
 }
@@ -629,6 +632,7 @@ func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending
 			return errors.Wrap(p.Create(s.vpp, state), "cannot create policy")
 		}
 	}
+	log.Infof("Handled policy Update [pending:%t] id=%s %s", pending, id, p)
 	return nil
 }
 
@@ -649,6 +653,7 @@ func (s *Server) handleActivePolicyRemove(msg *proto.ActivePolicyRemove, pending
 			return errors.Wrap(err, "error deleting policy")
 		}
 	}
+	log.Infof("Handled policy Remove [pending:%t] id=%s %s", pending, id, existing)
 	delete(state.Policies, id)
 	return nil
 }
@@ -676,6 +681,7 @@ func (s *Server) handleActiveProfileUpdate(msg *proto.ActiveProfileUpdate, pendi
 			return errors.Wrap(p.Create(s.vpp, state), "cannot create profile")
 		}
 	}
+	log.Infof("Handled Profile Update [pending:%t] id=%s %s -> %s", pending, id, existing, p)
 	return nil
 }
 
@@ -693,6 +699,7 @@ func (s *Server) handleActiveProfileRemove(msg *proto.ActiveProfileRemove, pendi
 			return errors.Wrap(err, "error deleting profile")
 		}
 	}
+	log.Infof("Handled Profile Remove [pending:%t] id=%s %s", pending, id, existing)
 	delete(state.Profiles, id)
 	return nil
 }
@@ -764,6 +771,7 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 				"cannot create host endpoint")
 		}
 	}
+	log.Infof("Handled Host Endpoint Update [pending:%t] id=%s %s", pending, *id, hep)
 	return nil
 }
 
@@ -782,6 +790,7 @@ func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending
 			return errors.Wrap(err, "error deleting host endpoint")
 		}
 	}
+	log.Infof("Handled Host Endpoint Remove [pending:%t] id=%s %s", pending, *id, existing)
 	delete(state.HostEndpoints, *id)
 	return nil
 }
@@ -815,6 +824,7 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 			return errors.Wrap(wep.Create(s.vpp, intf, state), "cannot create workload endpoint")
 		}
 	}
+	log.Infof("Handled Workload Endpoint Update [pending:%t] id=%s %s -> %s", pending, *id, existing, wep)
 	return nil
 }
 
@@ -835,47 +845,48 @@ func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove,
 			return errors.Wrap(err, "error deleting workload endpoint")
 		}
 	}
+	log.Infof("Handled Workload Endpoint Remove [pending:%t] id=%s %s", pending, *id, existing)
 	delete(state.WorkloadEndpoints, *id)
 	return nil
 }
 
 func (s *Server) handleHostMetadataUpdate(msg *proto.HostMetadataUpdate, pending bool) (err error) {
-	s.log.Infof("Ignoring HostMetadataUpdate")
+	s.log.Debugf("Ignoring HostMetadataUpdate")
 	return nil
 }
 
 func (s *Server) handleHostMetadataRemove(msg *proto.HostMetadataRemove, pending bool) (err error) {
-	s.log.Infof("Ignoring HostMetadataRemove")
+	s.log.Debugf("Ignoring HostMetadataRemove")
 	return nil
 }
 
 func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate, pending bool) (err error) {
-	s.log.Infof("Ignoring IpamPoolUpdate")
+	s.log.Debugf("Ignoring IpamPoolUpdate")
 	return nil
 }
 
 func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove, pending bool) (err error) {
-	s.log.Infof("Ignoring IpamPoolRemove")
+	s.log.Debugf("Ignoring IpamPoolRemove")
 	return nil
 }
 
 func (s *Server) handleServiceAccountUpdate(msg *proto.ServiceAccountUpdate, pending bool) (err error) {
-	s.log.Infof("Ignoring ServiceAccountUpdate")
+	s.log.Debugf("Ignoring ServiceAccountUpdate")
 	return nil
 }
 
 func (s *Server) handleServiceAccountRemove(msg *proto.ServiceAccountRemove, pending bool) (err error) {
-	s.log.Infof("Ignoring ServiceAccountRemove")
+	s.log.Debugf("Ignoring ServiceAccountRemove")
 	return nil
 }
 
 func (s *Server) handleNamespaceUpdate(msg *proto.NamespaceUpdate, pending bool) (err error) {
-	s.log.Infof("Ignoring NamespaceUpdate")
+	s.log.Debugf("Ignoring NamespaceUpdate")
 	return nil
 }
 
 func (s *Server) handleNamespaceRemove(msg *proto.NamespaceRemove, pending bool) (err error) {
-	s.log.Infof("Ignoring NamespaceRemove")
+	s.log.Debugf("Ignoring NamespaceRemove")
 	return nil
 }
 

@@ -1,9 +1,9 @@
-VPP Version                 : 22.02-rc0~478-g43255c666
+VPP Version                 : 22.02-rc0~478-g14bd8b4c4
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : ed999e3b8 bonding: memory leak on parsing bad CLI command
 ------------------ Cherry picked commits --------------------
-gerrit:28513/24 capo: Calico Policies plugin
-gerrit:28083/20 acl: acl-plugin custom policies
+gerrit:28513/25 capo: Calico Policies plugin
+gerrit:28083/21 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/7 pbl: Port based balancer
 gerrit:35072/4 cnat: maglev fixes & improvements

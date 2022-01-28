@@ -35,7 +35,10 @@ func (s *Server) MessageReader(conn net.Conn) <-chan interface{} {
 				s.log.Errorf("Error receiving message from felix: %v", err)
 				break
 			}
-			ch <- msg
+			if msg != nil {
+				/* Only send supported messages */
+				ch <- msg
+			}
 		}
 		close(ch)
 	}()

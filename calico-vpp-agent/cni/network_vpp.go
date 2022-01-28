@@ -194,10 +194,14 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	}
 
 	/* Interfaces */
-	s.log.Infof("Deleting Pod VCL")
-	s.vclDriver.DeleteInterface(podSpec)
-	s.log.Infof("Deleting Pod memif")
-	s.memifDriver.DeleteInterface(podSpec)
+	if podSpec.EnableVCL && config.VCLEnabled {
+		s.log.Infof("Deleting Pod VCL")
+		s.vclDriver.DeleteInterface(podSpec)
+	}
+	if podSpec.EnableMemif && config.MemifEnabled {
+		s.log.Infof("Deleting Pod memif")
+		s.memifDriver.DeleteInterface(podSpec)
+	}
 	s.log.Infof("Deleting Pod tuntap")
 	s.tuntapDriver.DeleteInterface(podSpec)
 
