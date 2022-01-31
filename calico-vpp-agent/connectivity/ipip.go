@@ -222,7 +222,7 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 		delete(p.ipipIfs, cn.NextHop.String())
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.TunnelDeleted,
-			New:  tunnel.SwIfIndex,
+			Old:  tunnel.SwIfIndex,
 		})
 	}
 	p.log.Infof("%s", p.ipipIfs)

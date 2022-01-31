@@ -415,7 +415,7 @@ func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error)
 			}
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.TunnelDeleted,
-				New:  tunnel.SwIfIndex,
+				Old:  tunnel.SwIfIndex,
 			})
 		}
 		delete(p.ipsecIfs, cn.NextHop.String())
