@@ -418,6 +418,8 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 		log.Infof("Routes:              [%s]", conf.RouteString())
 		log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
 		log.Infof("MTU                  %d", conf.Mtu)
+		log.Infof("isTunTap             %t", conf.IsTunTap)
+		log.Infof("isVeth               %t", conf.IsVeth)
 	}
 }
 

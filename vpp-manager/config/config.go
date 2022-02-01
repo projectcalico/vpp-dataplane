@@ -105,6 +105,8 @@ type LinuxInterfaceState struct {
 	NodeIP6       string
 	Mtu           int
 	InterfaceName string
+	IsTunTap      bool
+	IsVeth        bool
 }
 
 type KernelVersion struct {

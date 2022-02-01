@@ -48,10 +48,12 @@ func (d *RDMADriver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *RDMADriver) RestoreLinux() {
-	err := d.moveInterfaceFromNS(d.spec.InterfaceName)
-	if err != nil {
-		log.Warnf("Moving uplink back from NS failed %s", err)
+func (d *RDMADriver) RestoreLinux(allInterfacesPhysical bool) {
+	if !allInterfacesPhysical {
+		err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+		if err != nil {
+			log.Warnf("Moving uplink back from NS failed %s", err)
+		}
 	}
 	if !d.conf.IsUp {
 		return
@@ -68,7 +70,7 @@ func (d *RDMADriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	intf := types.RDMAInterface{
 		GenericVppInterface: d.getGenericVppInterface(),
 	}
@@ -78,7 +80,7 @@ func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
 		return errors.Wrapf(err, "Error creating RDMA interface")
 	}
 
-	err = d.moveInterfaceToNS(d.spec.InterfaceName)
+	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}

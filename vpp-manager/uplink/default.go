@@ -54,7 +54,7 @@ func (d *DefaultDriver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *DefaultDriver) RestoreLinux() {
+func (d *DefaultDriver) RestoreLinux(allInterfacesPhysical bool) {
 	if d.conf.PciId != "" && d.conf.Driver != "" {
 		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
 		if err != nil {
@@ -76,9 +76,9 @@ func (d *DefaultDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	// If interface is still in the host, move it to vpp netns to allow creation of the tap
-	err = d.moveInterfaceToNS(d.spec.InterfaceName)
+	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
 	if err != nil {
 		log.Infof("Did NOT move interface %s to VPP netns: %v", d.spec.InterfaceName, err)
 	} else {

@@ -79,7 +79,7 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *VirtioDriver) RestoreLinux() {
+func (d *VirtioDriver) RestoreLinux(allInterfacesPhysical bool) {
 	if !d.params.VfioUnsafeiommu {
 		err := utils.SetVfioUnsafeiommu(false)
 		if err != nil {
@@ -92,9 +92,11 @@ func (d *VirtioDriver) RestoreLinux() {
 			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
 		}
 	}
-	err := d.moveInterfaceFromNS(d.spec.InterfaceName)
-	if err != nil {
-		log.Warnf("Moving uplink back from NS failed %s", err)
+	if !allInterfacesPhysical {
+		err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+		if err != nil {
+			log.Warnf("Moving uplink back from NS failed %s", err)
+		}
 	}
 	if !d.conf.IsUp {
 		return
@@ -111,7 +113,7 @@ func (d *VirtioDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	intf := types.VirtioInterface{
 		GenericVppInterface: d.getGenericVppInterface(),
 		PciId:               d.conf.PciId,

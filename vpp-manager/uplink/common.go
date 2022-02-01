@@ -16,6 +16,8 @@
 package uplink
 
 import (
+	"fmt"
+
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
@@ -46,8 +48,8 @@ type UplinkDriverData struct {
 
 type UplinkDriver interface {
 	PreconfigureLinux() error
-	CreateMainVppInterface(vpp *vpplink.VppLink) error
-	RestoreLinux()
+	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error
+	RestoreLinux(allInterfacesPhysical bool)
 	IsSupported(warn bool) bool
 	GetName() string
 	UpdateVppConfigFile(template string) string
@@ -89,22 +91,17 @@ func (d *UplinkDriverData) moveInterfaceFromNS(ifName string) error {
 	return nil
 }
 
-func (d *UplinkDriverData) moveInterfaceToNS(ifName string) error {
-	netns, err := ns.GetNS(utils.GetnetnsPath(config.VppNetnsName))
-	if err != nil {
-		return errors.Wrap(err, "cannot find netns")
-	}
-
+func (d *UplinkDriverData) moveInterfaceToNS(ifName string, pid int) error {
 	// Move interface to VPP namespace
 	link, err := utils.SafeGetLink(ifName)
 	if err != nil {
 		return errors.Wrap(err, "cannot find uplink to move")
 	}
-	err = netlink.LinkSetNsFd(link, int(netns.Fd()))
+	err = netlink.LinkSetNsPid(link, pid)
 	if err != nil {
 		return errors.Wrap(err, "cannot move uplink to vpp netns")
 	}
-	err = ns.WithNetNSPath(utils.GetnetnsPath(config.VppNetnsName), func(ns.NetNS) error {
+	err = ns.WithNetNSPath(fmt.Sprintf("/proc/%d/ns/net", pid), func(ns.NetNS) error {
 		return netlink.LinkSetUp(link)
 	})
 	if err != nil {

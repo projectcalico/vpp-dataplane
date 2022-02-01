@@ -114,11 +114,13 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *AVFDriver) RestoreLinux() {
-	if d.pfPCI != "" {
-		err := d.moveInterfaceFromNS(d.spec.InterfaceName)
-		if err != nil {
-			log.Warnf("Moving uplink back from NS failed %s", err)
+func (d *AVFDriver) RestoreLinux(allInterfacesPhysical bool) {
+	if !allInterfacesPhysical {
+		if d.pfPCI != "" {
+			err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+			if err != nil {
+				log.Warnf("Moving uplink back from NS failed %s", err)
+			}
 		}
 	}
 	if !d.conf.IsUp {
@@ -136,11 +138,11 @@ func (d *AVFDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	if d.pfPCI != "" {
 		/* We were passed a PF, move it to vpp's NS so it doesn't
 		   conflict with vpptap0 */
-		err := d.moveInterfaceToNS(d.spec.InterfaceName)
+		err := d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
 		if err != nil {
 			return errors.Wrap(err, "Moving uplink in NS failed")
 		}
