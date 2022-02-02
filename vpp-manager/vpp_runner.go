@@ -697,37 +697,64 @@ func (v *VppRunner) pingCalicoVpp() error {
 	return nil
 }
 
-// Returns VPP exit code
-func (v *VppRunner) runVpp() (err error) {
-	if ns.IsNSorErr(utils.GetnetnsPath(config.VppNetnsName)) != nil {
-		_, err = utils.NewNS(config.VppNetnsName)
-		if err != nil {
-			return errors.Wrap(err, "Could not add VPP netns")
+func (v *VppRunner) allInterfacesPhysical() bool {
+	for _, ifConf := range v.conf {
+		if ifConf.IsTunTap || ifConf.IsVeth {
+			return false
 		}
 	}
+	return true
+}
 
-	/**
-	 * From this point it is very important that every exit
-	 * path calls restoreConfiguration after vpp exits */
-	defer v.restoreConfiguration()
+// Returns VPP exit code
+func (v *VppRunner) runVpp() (err error) {
+	if !v.allInterfacesPhysical() { // use separate net namespace because linux deletes these interfaces when ns is deleted
+		if ns.IsNSorErr(utils.GetnetnsPath(config.VppNetnsName)) != nil {
+			_, err = utils.NewNS(config.VppNetnsName)
+			if err != nil {
+				return errors.Wrap(err, "Could not add VPP netns")
+			}
+		}
 
-	/**
-	 * Run VPP in an isolated network namespace, used to park the interface
-	 * in af_packet or af_xdp mode */
-	err = ns.WithNetNSPath(utils.GetnetnsPath(config.VppNetnsName), func(ns.NetNS) (err error) {
+		/**
+		 * Run VPP in an isolated network namespace, used to park the interface
+		 * in af_packet or af_xdp mode */
+		err = ns.WithNetNSPath(utils.GetnetnsPath(config.VppNetnsName), func(ns.NetNS) (err error) {
+			vppCmd := exec.Command(config.VppPath, "-c", config.VppConfigFile)
+			vppCmd.Stdout = os.Stdout
+			vppCmd.Stderr = os.Stderr
+			err = vppCmd.Start()
+			if err != nil {
+				return err
+			}
+			vppProcess = vppCmd.Process
+			return nil
+		})
+		if err != nil {
+			return errors.Wrap(err, "Error starting vpp process")
+		}
+	} else { // use vpp own net namespace
+		// From this point it is very important that every exit path calls restoreConfiguration after vpp exits
 		vppCmd := exec.Command(config.VppPath, "-c", config.VppConfigFile)
+		vppCmd.SysProcAttr = &syscall.SysProcAttr{
+			// Run VPP in an isolated network namespace, used to park the interface in
+			// af_packet or af_xdp mode
+			Cloneflags: syscall.CLONE_NEWNET,
+		}
 		vppCmd.Stdout = os.Stdout
 		vppCmd.Stderr = os.Stderr
 		err = vppCmd.Start()
+
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Error starting vpp process")
 		}
 		vppProcess = vppCmd.Process
-		return nil
-	})
-	if err != nil {
-		return errors.Wrap(err, "Error starting vpp process")
 	}
+	
+	/**
+	 * From this point it is very important that every exit
+	 * path calls restoreConfiguration after vpp exits */
+	defer v.restoreConfiguration(v.allInterfacesPhysical())
 
 	log.Infof("VPP started [PID %d]", vppProcess.Pid)
 	runningCond.Broadcast()
@@ -760,7 +787,7 @@ func (v *VppRunner) runVpp() (err error) {
 	}
 
 	for idx := 0; idx < len(v.params.InterfacesSpecs); idx++ {
-		err := v.uplinkDriver[idx].CreateMainVppInterface(vpp)
+		err := v.uplinkDriver[idx].CreateMainVppInterface(vpp, vppProcess.Pid)
 		if err != nil {
 			terminateVpp("Error creating main interface %s (SIGINT %d): %v", v.params.InterfacesSpecs[idx].InterfaceName, vppProcess.Pid, err)
 			v.vpp.Close()
@@ -823,14 +850,14 @@ func (v *VppRunner) runVpp() (err error) {
 	return nil
 }
 
-func (v *VppRunner) restoreConfiguration() {
+func (v *VppRunner) restoreConfiguration(allInterfacesPhysical bool) {
 	log.Infof("Restoring configuration")
 	err := utils.ClearVppManagerFiles()
 	if err != nil {
 		log.Errorf("Error clearing vpp manager files: %v", err)
 	}
 	for idx := range v.params.InterfacesSpecs {
-		v.uplinkDriver[idx].RestoreLinux()
+		v.uplinkDriver[idx].RestoreLinux(allInterfacesPhysical)
 	}
 	err = v.pingCalicoVpp()
 	if err != nil {

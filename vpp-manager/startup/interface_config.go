@@ -113,6 +113,8 @@ func loadInterfaceConfigFromLinux(ifSpec config.InterfaceSpec) (*config.LinuxInt
 	conf.NumTxQueues = link.Attrs().NumTxQueues
 	conf.NumRxQueues = link.Attrs().NumRxQueues
 	conf.Mtu = link.Attrs().MTU
+	_, conf.IsTunTap = link.(*netlink.Tuntap)
+	_, conf.IsVeth = link.(*netlink.Veth)
 
 	pciId, err := utils.GetInterfacePciId(ifSpec.InterfaceName)
 	// We allow PCI not to be found e.g for AF_PACKET

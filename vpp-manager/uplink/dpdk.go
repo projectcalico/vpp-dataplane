@@ -113,7 +113,7 @@ func (d *DPDKDriver) restoreInterfaceName() error {
 	return nil
 }
 
-func (d *DPDKDriver) RestoreLinux() {
+func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
 	if d.conf.PciId != "" && d.conf.Driver != "" {
 		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
 		if err != nil {
@@ -146,7 +146,7 @@ func (d *DPDKDriver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	// Nothing to do VPP autocreates
 	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
 	if !d.spec.IsMain {

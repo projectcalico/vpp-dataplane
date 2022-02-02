@@ -64,7 +64,7 @@ func (d *Vmxnet3Driver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *Vmxnet3Driver) RestoreLinux() {
+func (d *Vmxnet3Driver) RestoreLinux(allInterfacesPhysical bool) {
 	if d.conf.PciId != "" && d.conf.Driver != "" {
 		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, true)
 		if err != nil {
@@ -87,7 +87,7 @@ func (d *Vmxnet3Driver) RestoreLinux() {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink) (err error) {
+func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	intf := types.Vmxnet3Interface{
 		GenericVppInterface: d.getGenericVppInterface(),
 		EnableGso:           d.params.EnableGSO,
