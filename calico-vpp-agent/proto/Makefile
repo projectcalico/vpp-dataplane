@@ -1,10 +1,10 @@
 
-FELIX_VERSION ?= v3.20.0
-CNI_PLUGIN_VERSION ?= v3.21.1
+FELIX_VERSION ?= v3.22.0
+CNI_PLUGIN_VERSION ?= v3.22.0
 PROTOC_VERSION = 3.17.3
 
-FELIX_REPO = https://raw.githubusercontent.com/projectcalico/felix/$(FELIX_VERSION)
-CNI_PLUGIN_REPO = https://raw.githubusercontent.com/projectcalico/cni-plugin/$(CNI_PLUGIN_VERSION)
+FELIX_REPO = https://raw.githubusercontent.com/projectcalico/calico/$(FELIX_VERSION)/felix
+CNI_PLUGIN_REPO = https://raw.githubusercontent.com/projectcalico/calico/$(CNI_PLUGIN_VERSION)/cni-plugin
 
 .PHONY: proto
 proto:

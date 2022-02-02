@@ -12,8 +12,9 @@ require (
 	github.com/orijtech/prometheus-go-metrics-exporter v0.0.6
 	github.com/osrg/gobgp v0.0.0-20210801043420-9e48a36ed97c
 	github.com/pkg/errors v0.9.1
-	github.com/projectcalico/api v0.0.0-20211102181812-edfaf495a5c8 // v3.21.4
-	github.com/projectcalico/calico v0.0.0-20220114225106-220d04c9429e // v3.21.4
+	github.com/projectcalico/api v0.0.0-20220129171738-695e97a25204 // v3.22.0
+	github.com/projectcalico/calico v0.0.0-20220128225346-a86e41d021c4 // v3.22.0
+	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/common v0.10.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
@@ -27,10 +28,11 @@ require (
 	k8s.io/api v0.22.5
 	k8s.io/apimachinery v0.22.5
 	k8s.io/client-go v0.22.5
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 )
 
 replace (
-	github.com/projectcalico/api => github.com/projectcalico/calico/api v0.0.0-20220114225106-220d04c9429e // v3.21.4
+	github.com/projectcalico/api => github.com/projectcalico/api v0.0.0-20220129171738-695e97a25204 // v3.22.0
 
 	google.golang.org/grpc => google.golang.org/grpc v1.29.1
 
