@@ -72,10 +72,6 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		stack.Push(i.vpp.DeleteMemif, memif.SwIfIndex)
 	}
 	podSpec.MemifSwIfIndex = memif.SwIfIndex
-	err = i.SpreadTxQueuesOnWorkers(memif.SwIfIndex, memif.NumTxQueues)
-	if err != nil {
-		return err
-	}
 
 	err = i.vpp.SetInterfaceTag(memif.SwIfIndex, podSpec.GetInterfaceTag(i.name))
 	if err != nil {
