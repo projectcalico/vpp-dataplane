@@ -15,6 +15,7 @@
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $SCRIPTDIR/shared.sh
+VPP_DATAPLANE_DIRECTORY="$(cd $SCRIPTDIR/../.. >/dev/null 2>&1 && pwd)"
 
 PERFTESTDIR=/path/to/perf-tests # git clone git@github.com:kubernetes/perf-tests.git
 
@@ -107,7 +108,10 @@ test_apply ()
 
   get_nodes
   k_create_namespace $NAME
+
+  export VPP_DATAPLANE_DIRECTORY=$VPP_DATAPLANE_DIRECTORY
   sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $YAML_FILE | \
+	envsubst | \
 	kubectl apply -f -
 }
 
@@ -187,6 +191,7 @@ kube_test_cli ()
   fi
 }
 
+setup_test_class_WRK1 () { return; }
 setup_test_WRK1 ()
 {
 	if [ x$OTHERHOST = x ]; then
@@ -203,6 +208,7 @@ setup_test_WRK1 ()
 	done
 }
 
+setup_test_class_WRK2 () { return; }
 setup_test_WRK2 ()
 {
 	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
@@ -214,6 +220,7 @@ setup_test_WRK2 ()
 	done
 }
 
+setup_test_class_IPERF () { return; }
 setup_test_IPERF ()
 {
 	N_FLOWS=${N_FLOWS:=4}
@@ -229,6 +236,7 @@ run_test_IPERF ()
 	kubectl exec -it iperf-client -n iperf -- $TEST_CMD > $DIR/test_output
 }
 
+setup_test_class_IPERF3 () { return; }
 setup_test_IPERF3 ()
 {
 	N_FLOWS=${N_FLOWS:=4}
@@ -244,6 +252,7 @@ run_test_IPERF3 ()
 	kubectl exec -it iperf3-client -n iperf3 -- $TEST_CMD > $DIR/test_output
 }
 
+setup_test_class_IPERF3_VCL () { return; }
 setup_test_IPERF3_VCL ()
 {
 	N_FLOWS=${N_FLOWS:=4}
@@ -259,6 +268,7 @@ run_test_IPERF3_VCL ()
 	kubectl exec -it iperf3-client -n iperf3-vcl -- $TEST_CMD > $DIR/test_output
 }
 
+setup_test_class_IPERF3_VCL_TLS () { return; }
 setup_test_IPERF3_VCL_TLS ()
 {
 	N_FLOWS=${N_FLOWS:=4}
@@ -276,6 +286,40 @@ run_test_IPERF3_VCL_TLS ()
 	kubectl exec -it iperf3-client -n iperf3-vcl -- $TEST_CMD > $DIR/test_output
 }
 
+setup_test_class_MEMIF () { return; }
+setup_test_MEMIF ()
+{
+	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	$SCRIPTDIR/vppdev.sh vppctl node1 cnat session purge
+}
+
+mvpp_vppctl ()
+{
+	kubectl exec -i -n mvpp mvpp -- /home/hostuser/vppctl.sh $@ > $DIR/test_output
+}
+
+# this test assumes
+# - we have mvpp up & running (launched by user), and attached to the memif
+# - We have trex cloned in ~/trex-core on ${OTHERHOST} and trex is running
+# - We have vpp-dataplane cloned on ${OTHERHOST} in the same directory as here
+run_test_MEMIF ()
+{
+	if [ x$ISVIP = xyes ]; then
+		DST_IP=$( kubectl get svc -n mvpp mvpp-service -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
+	else
+		DST_IP=$( kubectl get pods -n mvpp -o wide | grep mvpp | awk '{print $6}' )
+	fi
+	TEST_CMD="$SCRIPTDIR/trex_udp_gen.py --ip ${DST_IP} --frame-size ${FRAME_SIZE} -m 100% -d ${TEST_LEN} --limit-flows ${LIMIT_FLOWS}"
+	echo "Running test : ${TEST_CMD}"
+	echo $TEST_CMD > $DIR/test_command.sh
+	mvpp_vppctl monitor interface memif1/0 interval 1 count ${TEST_LEN} &
+	MVPPPID=$?
+	PYTHONPATH='~/trex-core/scripts/automation/trex_control_plane/interactive'
+	ssh -t $OTHERHOST PYTHONPATH=$PYTHONPATH $TEST_CMD > $DIR/trex_output
+	echo "waiting..."
+	wait $MYVPPPID
+}
+
 run_test_WRK1 ()
 {
 	TEST_SZ=${TEST_SZ:=4096} # 4096 // 2MB
@@ -284,6 +328,54 @@ run_test_WRK1 ()
 	echo "Running test : ${TEST_CMD}"
 	echo $TEST_CMD > $DIR/test_command.sh
 	$TEST_CMD > $DIR/test_output
+}
+
+setup_test_ENVOY ()
+{
+	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	if [ x$ISVPP = xyes ]; then
+		$SCRIPTDIR/vppdev.sh vppctl node1 cnat session purge
+	else
+		sudo conntrack -F
+	fi
+}
+
+run_envoy_linux ()
+{
+	kubectl exec -n envoy envoy-linux -- taskset -c ${CPUS} \
+	  envoy -c /etc/envoy/envoy.yaml \
+	  --concurrency ${N_ENVOYS} > $USER_DIR/envoy_output 2>&1
+}
+
+run_envoy_vcl ()
+{
+	kubectl exec -n envoy envoy-vcl -- taskset -c ${CPUS} \
+	  envoy -c /etc/envoy/envoyvcl.yaml \
+	  --concurrency ${N_ENVOYS} > $USER_DIR/envoy_output 2>&1
+}
+
+setup_test_class_ENVOY ()
+{
+	sudo pkill envoy
+	if [ x$ISVCL = xyes ]; then
+		$SCRIPTDIR/vppdev.sh vppctl node1 set cnat snat-policy prefix 20.0.0.2/32
+		run_envoy_vcl &
+	else
+		run_envoy_linux &
+	fi
+}
+
+run_test_ENVOY ()
+{
+	if [ x$ISVCL = xyes ]; then
+		DST_IP=$( kubectl get pods -n envoy -o wide | grep envoy-vcl | awk '{print $6}' )
+	else
+		DST_IP=$( kubectl get pods -n envoy -o wide | grep envoy-linux | awk '{print $6}' )
+	fi
+	TEST_CMD="$HOME/wrk/wrk.py taskset -c 0-42 wrk -c300 -t30 -d${TEST_LEN}s http://${DST_IP}:10001/64B.json"
+	echo "Running test : ${TEST_CMD}"
+	echo $TEST_CMD > $DIR/test_command.sh
+	ssh -t $OTHERHOST $TEST_CMD > $DIR/test_output
 }
 
 run_test_WRK2 ()
@@ -331,7 +423,7 @@ test_run ()
       shift
 	done
 
-	if [ x$CPUS = x ]; then
+	if [ x$CPUS = x ] && [ x$CASE != xMEMIF ]; then
 		echo "provide CPUS=27-35,39-47"
 		exit 1
 	fi
@@ -352,6 +444,8 @@ test_run ()
 		exit 1
 	fi
 
+	mkdir -p $USER_DIR
+	setup_test_class_$CASE
 	for i in $(seq $N_TESTS); do
 		echo "Test run #${i}"
 		TEST_N=$i DIR=$USER_DIR/test_${i} test_run_one
@@ -380,6 +474,20 @@ get_wrk_csv_output ()
 {
   FILE=$1/test_output
   tail -1 $FILE | sed 's/[^[:print:]]//g'
+}
+
+get_mvpp_csv_output ()
+{
+  FILE=$1/test_output
+  cat $FILE | \
+    tail -n +${TEST_SKIP} | \
+    head -n +${TEST_SKIP} | \
+    awk '{print $2}' | \
+    sed s/Mpps//g | \
+    awk '{BPS+=$1}
+    	END {
+    		printf "%.2f", BPS/NR
+    	}'
 }
 
 get_avg_iperf_bps ()
@@ -414,8 +522,14 @@ get_avg_report ()
   CASE=$(cat $DIR/testcase)
   if [ x$CASE = xIPERF ] || [ x$CASE = xIPERF3 ] || [ x$CASE = xIPERF3_VCL ] || [ x$CASE = xIPERF3_VCL_TLS ]; then
 	echo "$TEST_N;$(get_avg_iperf_bps $DIR);$(get_avg_cpu $DIR node1);$(get_avg_cpu $DIR node2)"
+  elif [ x$CASE = xWRK ] || [ x$CASE = xWRK2 ]; then
+ 	echo "$TEST_N;$(get_wrk_csv_output $DIR);$(get_avg_cpu $DIR node1);$(get_avg_cpu $DIR node2)"
+  elif [ x$CASE = xENVOY ]; then
+ 	echo "$TEST_N;$(get_wrk_csv_output $DIR);$(get_avg_cpu $DIR node1)"
+  elif [ x$CASE = xMEMIF ]; then
+ 	echo "$TEST_N;$(get_mvpp_csv_output $DIR);$(get_avg_cpu $DIR node1)"
   else
-	echo "$TEST_N;$(get_wrk_csv_output $DIR);$(get_avg_cpu $DIR node1);$(get_avg_cpu $DIR node2)"
+    echo "Unknown case"
   fi
 }
 
