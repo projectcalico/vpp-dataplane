@@ -1,7 +1,8 @@
-VPP Version                 : 22.06-rc0~256-gea624d436
+VPP Version                 : 22.06-rc0~257-g47d5ee707
 Binapi-generator version    : govpp v0.6.0-dev
 VPP Base commit             : 38659d8f2 sr: fix srv6 definition of behavior associated to a LocalSID
 ------------------ Cherry picked commits --------------------
+gerrit:37259/2 cnat: Add sctp support
 gerrit:37131/11 urpf: add mode for specific fib index lookup
 gerrit:28513/28 capo: Calico Policies plugin
 gerrit:28083/21 acl: acl-plugin custom policies
