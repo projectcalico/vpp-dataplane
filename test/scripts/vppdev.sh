@@ -311,6 +311,11 @@ vppdev_cli_ci ()
   $SCRIPTDIR/ci.sh $@
 }
 
+vppdev_cli_push ()
+{
+  $SCRIPTDIR/mngmt.sh push $@
+}
+
 vppdev_cli ()
 {
   local fn_name=vppdev_cli_$1
@@ -343,6 +348,7 @@ vppdev_cli ()
     	echo "$(basename -- $0) tst                               - Deploy test pods"
     	echo "$(basename -- $0) cases                             - Run test cases using deployed test pods"
     	echo "$(basename -- $0) ci                                - Simple CI doing provision cluster/pods/testcases"
+    	echo "$(basename -- $0) push                              - Push images"
 	fi
   fi
 }
