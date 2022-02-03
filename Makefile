@@ -34,6 +34,14 @@ dev.k3s: dev
 		rm -f /tmp/$$x.tar ; \
 	done
 
+.PHONY: kind-new-cluster
+kind-new-cluster:
+	make -C test/kind new-cluster
+
+.PHONY: dev-kind
+dev-kind: dev
+	make -C test/kind dev
+
 .PHONY: install-test-deps
 install-test-deps:
 	sudo apt-get update

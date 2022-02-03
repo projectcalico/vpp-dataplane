@@ -6,8 +6,8 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 networking:
   disableDefaultCNI: true
-  podSubnet: "192.168.0.0/16"
-  ipFamily: ipv4
+  podSubnet: "192.168.0.0/16,fd20::0/64"
+  ipFamily: dual
 nodes:
 - role: control-plane
 - role: worker
