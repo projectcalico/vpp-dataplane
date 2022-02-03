@@ -1,0 +1,52 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: mvpp
+  name: mvpp
+  namespace: mvpp
+  annotations:
+    "cni.projectcalico.org/vpp.memif.ports":  "tcp:4444-20000,udp:4444-20000"
+    "cni.projectcalico.org/vpp.tuntap.ports": "default"
+spec:
+  containers:
+  - name: mvpp
+    image: calicovpp/vpp:latest
+    command: ["tail", "-f", "/dev/null"]
+    imagePullPolicy: IfNotPresent
+    securityContext:
+      privileged: true
+    ports:
+    - containerPort: 4444
+      protocol: UDP
+    resources:
+      limits:
+        memory: 2Gi
+        hugepages-2Mi: 2Gi
+    volumeMounts:
+    - mountPath: /home/hostuser
+      name: hostuser
+    - mountPath: /hugepages
+      name: hugepage
+  nodeName: _NODE_1_
+  volumes:
+  - name: hugepage
+    emptyDir:
+      medium: HugePages
+  - name: hostuser
+    hostPath:
+      path: ${HOME}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: mvpp
+  name: mvpp-service
+spec:
+  selector:
+    app: mvpp
+  ports:
+    - protocol: UDP
+      port: 4444
+

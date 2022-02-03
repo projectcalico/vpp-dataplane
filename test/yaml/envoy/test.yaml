@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: envoy-vcl
+  namespace: envoy
+  labels:
+    app: envoy-vcl
+  annotations:
+    "cni.projectcalico.org/vpp.vcl": "enable"
+spec:
+  containers:
+  - name: envoy-vcl
+    image: envoyproxy/envoy-contrib:v1.21-latest
+    imagePullPolicy: IfNotPresent
+    ports:
+    - containerPort: 5001
+    - containerPort: 5003
+    command: ["tail", "-f", "/dev/null"]
+    volumeMounts:
+    - mountPath: /home/hostuser
+      name: hostuser
+    - mountPath: /etc/envoy/envoy.yaml
+      name: envoyyaml
+    - mountPath: /etc/vpp/vcl.conf
+      name: vclconf
+  nodeName: _NODE_1_
+  volumes:
+  - name: hostuser
+    hostPath:
+      path: ${HOME}
+  - name: envoyyaml
+    hostPath:
+      path: ${VPP_DATAPLANE_DIRECTORY}/test/yaml/envoy/envoyvcl.yaml
+  - name: vclconf
+    hostPath:
+      path: ${VPP_DATAPLANE_DIRECTORY}/test/yaml/envoy/vcl.conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: envoy
+  name: envoy-vcl-service
+spec:
+  selector:
+    app: envoy-vcl
+  ports:
+    - protocol: TCP
+      port: 10001
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: envoy-linux
+  namespace: envoy
+  labels:
+    app: envoy-linux
+spec:
+  containers:
+  - name: envoy-linux
+    image: envoyproxy/envoy-contrib:v1.21-latest
+    imagePullPolicy: IfNotPresent
+    ports:
+    - containerPort: 5001
+    - containerPort: 5003
+    command: ["tail", "-f", "/dev/null"]
+    volumeMounts:
+    - mountPath: /home/hostuser
+      name: hostuser
+    - mountPath: /etc/envoy/envoy.yaml
+      name: envoyyaml
+  nodeName: _NODE_1_
+  volumes:
+  - name: hostuser
+    hostPath:
+      path: ${HOME}
+  - name: envoyyaml
+    hostPath:
+      path: ${VPP_DATAPLANE_DIRECTORY}/test/yaml/envoy/envoy.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: envoy
+  name: envoy-linux-service
+spec:
+  selector:
+    app: envoy-linux
+  ports:
+    - protocol: TCP
+      port: 10001
+
+
