@@ -47,7 +47,13 @@ spec:
   ports:
     - protocol: TCP
       port: 5201
-
+      name: iperf3-tcp
+    - protocol: UDP
+      port: 5201
+      name: iperf3-udp
+    - protocol: SCTP
+      port: 5201
+      name: iperf3-sctp
 ---
 apiVersion: v1
 kind: Pod
