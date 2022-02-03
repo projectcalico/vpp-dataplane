@@ -567,7 +567,7 @@ func (s *Server) handleIpsetUpdate(msg *proto.IPSetUpdate, pending bool) (err er
 		}
 	}
 	state.IPSets[msg.GetId()] = ips
-	log.Infof("Handled Ipset Update [pending:%t] id=%s %s", pending, msg.GetId(), ips)
+	log.Debugf("Handled Ipset Update [pending:%t] id=%s %s", pending, msg.GetId(), ips)
 	return nil
 }
 
@@ -584,7 +584,7 @@ func (s *Server) handleIpsetDeltaUpdate(msg *proto.IPSetDeltaUpdate, pending boo
 	if err != nil {
 		return errors.Wrap(err, "cannot process ipset delta update")
 	}
-	log.Infof("Handled Ipset delta Update [pending:%t] id=%s %s", pending, msg.GetId(), ips)
+	log.Debugf("Handled Ipset delta Update [pending:%t] id=%s %s", pending, msg.GetId(), ips)
 	return nil
 }
 
@@ -601,7 +601,7 @@ func (s *Server) handleIpsetRemove(msg *proto.IPSetRemove, pending bool) (err er
 			return errors.Wrapf(err, "cannot delete ipset %s", msg.GetId())
 		}
 	}
-	log.Infof("Handled Ipset delta Update [pending:%t] id=%s %s", pending, msg.GetId(), ips)
+	log.Debugf("Handled Ipset remove [pending:%t] id=%s %s", pending, msg.GetId(), ips)
 	delete(state.IPSets, msg.GetId())
 	return nil
 }
