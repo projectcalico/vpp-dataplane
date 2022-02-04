@@ -443,9 +443,6 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 		s.createEndpointToHostPolicy()
 		s.createAllowToHostPolicy()
 	}
-	s.log.Infof("Policy Server returned")
-
-	return nil
 }
 
 func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
@@ -617,6 +614,7 @@ func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending
 		return errors.Wrapf(err, "cannot process policy update")
 	}
 
+	log.Infof("Handling ActivePolicyUpdate [pending:%t] id=%s %s", pending, id, p)
 	existing, ok := state.Policies[id]
 	if ok { // Policy with this ID already exists
 		if pending {
@@ -632,7 +630,6 @@ func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending
 			return errors.Wrap(p.Create(s.vpp, state), "cannot create policy")
 		}
 	}
-	log.Infof("Handled policy Update [pending:%t] id=%s %s", pending, id, p)
 	return nil
 }
 
@@ -642,6 +639,8 @@ func (s *Server) handleActivePolicyRemove(msg *proto.ActivePolicyRemove, pending
 		Tier: msg.Id.Tier,
 		Name: msg.Id.Name,
 	}
+	log.Infof("Handling ActivePolicyRemove [pending:%t] id=%s", pending, id)
+
 	existing, ok := state.Policies[id]
 	if !ok {
 		s.log.Debugf("Received policy delete for Tier %s Name %s that doesn't exists", id.Tier, id.Name)
@@ -653,7 +652,6 @@ func (s *Server) handleActivePolicyRemove(msg *proto.ActivePolicyRemove, pending
 			return errors.Wrap(err, "error deleting policy")
 		}
 	}
-	log.Infof("Handled policy Remove [pending:%t] id=%s %s", pending, id, existing)
 	delete(state.Policies, id)
 	return nil
 }
