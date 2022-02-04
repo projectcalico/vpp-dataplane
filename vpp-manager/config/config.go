@@ -86,6 +86,8 @@ type VppManagerParams struct {
 	KernelVersion      *KernelVersion
 	AvailableHugePages int
 	VfioUnsafeiommu    bool
+
+	NodeAnnotations map[string]string
 }
 
 type LinuxInterfaceState struct {
@@ -210,6 +212,9 @@ func TemplateScriptReplace(input string, params *VppManagerParams, conf []*Linux
 	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.InterfacesSpecs[0].InterfaceName)
 	for i, ifc := range params.InterfacesSpecs {
 		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF_"+fmt.Sprintf("%d", i)+"__", ifc.InterfaceName)
+	}
+	for key, value := range params.NodeAnnotations {
+		template = strings.ReplaceAll(template, fmt.Sprintf("__NODE_ANNOTATION:%s__", key), value)
 	}
 	return template
 }
