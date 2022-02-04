@@ -16,6 +16,7 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -38,6 +39,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/yookoala/realpath"
 	"golang.org/x/sys/unix"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 func IsDriverLoaded(driver string) (bool, error) {
@@ -677,4 +681,24 @@ func RunBashScript(script string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+func FetchNodeAnnotations(nodeName string) map[string]string {
+	clusterConfig, err := rest.InClusterConfig()
+	if err != nil {
+		return make(map[string]string)
+	}
+
+	k8sclient, err := kubernetes.NewForConfig(clusterConfig)
+	if err != nil {
+		return make(map[string]string)
+	}
+
+	ctx, cancel1 := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel1()
+	node, err := k8sclient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		return make(map[string]string)
+	}
+	return node.Annotations
 }

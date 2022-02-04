@@ -115,6 +115,8 @@ func GetVppManagerParams() (params *config.VppManagerParams) {
 		log.Panicf("Parse error %v", err)
 	}
 	getSystemCapabilities(params)
+	annotations := utils.FetchNodeAnnotations(params.NodeName)
+	params.NodeAnnotations = annotations
 	return params
 }
 
