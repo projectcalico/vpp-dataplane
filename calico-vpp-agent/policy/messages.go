@@ -65,7 +65,6 @@ func (s *Server) RecvMessage(conn net.Conn) (msg interface{}, err error) {
 	if err != nil {
 		return
 	}
-	s.log.WithField("envelope", envelope).Debug("Received message from dataplane.")
 
 	switch payload := envelope.Payload.(type) {
 	case *proto.ToDataplane_ConfigUpdate:
@@ -116,6 +115,8 @@ func (s *Server) RecvMessage(conn net.Conn) (msg interface{}, err error) {
 	default:
 		s.log.WithField("payload", payload).Warn("Ignoring unknown message from felix")
 	}
+
+	s.log.WithField("msg", msg).Debug("Received message from dataplane.")
 
 	return
 }

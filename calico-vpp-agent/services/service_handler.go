@@ -95,7 +95,7 @@ func getCalicoNodePortEntry(servicePort *v1.ServicePort, ep *v1.Endpoints, nodeI
 func (s *Server) updateCnatEntry(key string, entry *types.CnatTranslateEntry) (err error) {
 	previousEntry, previousFound := s.stateMap[key]
 	if !previousFound || !entry.Equal(previousEntry) {
-		s.log.Infof("(add) %s", entry.String())
+		s.log.Infof("(add) %s -> %s", key, entry.String())
 		entryID, err := s.vpp.CnatTranslateAdd(entry)
 		if err != nil {
 			return errors.Wrapf(err, "NAT:Error adding translation %s", entry.String())
@@ -108,7 +108,7 @@ func (s *Server) updateCnatEntry(key string, entry *types.CnatTranslateEntry) (e
 	return nil
 }
 
-func (s *Server) isAddressExternalServiceIP(IPAddress net.IP) bool{
+func (s *Server) isAddressExternalServiceIP(IPAddress net.IP) bool {
 	_, serviceExternalIPNets, serviceLBIPNets := s.getServiceIPs()
 	for _, serviceIPNet := range append(serviceExternalIPNets, serviceLBIPNets...) {
 		if serviceIPNet.Contains(IPAddress) {
@@ -140,7 +140,8 @@ func (s *Server) addServicePort(service *v1.Service, ep *v1.Endpoints) (err erro
 	clusterIP := net.ParseIP(service.Spec.ClusterIP)
 	nodeIP := s.getNodeIP(vpplink.IsIP6(clusterIP))
 	localOnly := service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal
-	serviceID := service.ObjectMeta.GetSelfLink()
+	serviceID := service.Namespace + "/" + service.Name
+	s.log.Debugf("Service update: svc:%s entry:%+v", serviceID, ep.Subsets)
 
 	for _, servicePort := range service.Spec.Ports {
 		// Service ClusterIP handling
@@ -218,7 +219,8 @@ func (s *Server) addServicePort(service *v1.Service, ep *v1.Endpoints) (err erro
 }
 
 func (s *Server) delServicePort(service *v1.Service, ep *v1.Endpoints) (err error) {
-	serviceID := service.ObjectMeta.GetSelfLink()
+	serviceID := service.Namespace + "/" + service.Name
+	s.log.Debugf("Service del: svc:%s entry:%+v", serviceID, ep.Subsets)
 
 	for _, servicePort := range service.Spec.Ports {
 		entries := make([]string, 0)
@@ -253,7 +255,7 @@ func (s *Server) delServicePort(service *v1.Service, ep *v1.Endpoints) (err erro
 
 		for _, key := range entries {
 			if entry, ok := s.stateMap[key]; ok {
-				s.log.Infof("(del) %s", entry.String())
+				s.log.Infof("(del) %s -> %s", key, entry.String())
 				err = s.vpp.CnatTranslateDel(entry.ID)
 				if err != nil {
 					return errors.Wrapf(err, "(del) Error deleting entry %s", entry.String())
