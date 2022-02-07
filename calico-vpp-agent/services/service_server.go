@@ -84,7 +84,11 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset,
 				server.handleServiceEndpointEvent(obj.(*v1.Service), old.(*v1.Service), nil, false)
 			},
 			DeleteFunc: func(obj interface{}) {
-				server.handleServiceEndpointEvent(obj.(*v1.Service), nil, nil, true)
+				svc, ok := obj.(*v1.Service)
+				if !ok {
+					svc = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Service)
+				}
+				server.handleServiceEndpointEvent(svc, nil, nil, true)
 			},
 		})
 
@@ -102,7 +106,11 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset,
 				server.handleServiceEndpointEvent(nil, nil, obj.(*v1.Endpoints), false)
 			},
 			DeleteFunc: func(obj interface{}) {
-				server.handleServiceEndpointEvent(nil, nil, obj.(*v1.Endpoints), true)
+				ep, ok := obj.(*v1.Endpoints)
+				if !ok {
+					ep = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Endpoints)
+				}
+				server.handleServiceEndpointEvent(nil, nil, ep, true)
 			},
 		})
 
