@@ -651,6 +651,9 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 				node.Spec.BGP.IPv4Address = ifState.NodeIP4
 				needUpdate = true
 			}
+		} else {
+			node.Spec.BGP.IPv4Address = ""
+			needUpdate = true
 		}
 		if ifState.Hasv6 {
 			log.Infof("Setting BGP nodeIP %s", ifState.NodeIP6)
@@ -658,6 +661,9 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 				node.Spec.BGP.IPv6Address = ifState.NodeIP6
 				needUpdate = true
 			}
+		} else {
+			node.Spec.BGP.IPv6Address = ""
+			needUpdate = true
 		}
 		if needUpdate {
 			log.Infof("Updating node, version = %s, metaversion = %s", node.ResourceVersion, node.ObjectMeta.ResourceVersion)
