@@ -138,7 +138,10 @@ func (s *Server) ServeRouting(t *tomb.Tomb) (err error) {
 		s.log.Infof("Routing server is running ")
 
 		/* Start watching goBGP */
-		s.WatchBGPPath(t)
+		err = s.WatchBGPPath(t)
+		if err != nil {
+			return err
+		}
 
 		/* watch returned, we shall restart */
 		err = s.cleanUpRoutes()
