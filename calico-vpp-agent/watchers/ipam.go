@@ -23,10 +23,10 @@ import (
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/calico/libcalico-go/lib/watch"
-	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	tomb "gopkg.in/tomb.v2"
@@ -68,7 +68,7 @@ type IpamCache interface {
 type ipamCache struct {
 	log       *logrus.Entry
 	lock      sync.RWMutex
-	ippoolmap map[string]*calicov3.IPPool
+	ippoolmap map[string]calicov3.IPPool
 	ready     bool
 	readyCond *sync.Cond
 	clientv3  calicov3cli.Interface
@@ -91,14 +91,18 @@ func (c *ipamCache) GetPrefixIPPool(prefix *net.IPNet) *calicov3.IPPool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	for _, pool := range c.ippoolmap {
-		in, err := contains(pool, prefix)
+		in, err := contains(&pool, prefix)
 		if err != nil {
 			c.log.Warnf("contains errored: %v", err)
 			continue
 		}
 		if in {
-			return pool
+			return &pool
 		}
+	}
+	c.log.Warnf("No pool found: for %s", prefix)
+	for k, pool := range c.ippoolmap {
+		c.log.Debugf("Available %s=%s", k, pool)
 	}
 	return nil
 }
@@ -116,25 +120,35 @@ func (c *ipamCache) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 // update updates the internal map with IPAM updates when the update
 // is new addtion to the map or changes the existing item, it calls
 // ipamUpdateHandler
-func (c *ipamCache) handleIPPoolUpdate(pool *calicov3.IPPool, del bool) error {
+func (c *ipamCache) handleIPPoolUpdate(pool *calicov3.IPPool, isDel bool) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	key := pool.Spec.CIDR
 
-	existing := c.ippoolmap[key]
-	if del {
-		delete(c.ippoolmap, key)
-		c.log.Infof("Deleting pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
-		return c.ipamUpdateHandler(nil, existing)
-	} else if existing != nil && equalPools(pool, existing) {
-		c.log.Infof("Unchanged pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
-		return nil
+	existing, found := c.ippoolmap[key]
+	if isDel {
+		if found {
+			delete(c.ippoolmap, key)
+			c.log.Infof("Deleting pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
+			return c.ipamUpdateHandler(nil, &existing)
+		} else {
+			c.log.Warnf("Deleting unknown ippool")
+			return nil
+		}
+	} else {
+		if found && equalPools(pool, &existing) {
+			c.log.Infof("Unchanged pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
+			return nil
+		} else if found {
+			c.log.Infof("Updating pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
+		} else {
+			c.log.Infof("Adding pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
+		}
+
+		c.ippoolmap[key] = *pool
+
+		return c.ipamUpdateHandler(pool, &existing)
 	}
-	c.log.Infof("Adding pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
-
-	c.ippoolmap[key] = pool
-
-	return c.ipamUpdateHandler(pool, existing)
 }
 
 // sync synchronizes the IP pools stored under /calico/v1/ipam
@@ -214,7 +228,7 @@ func (c *ipamCache) resyncAndCreateWatcher() error {
 		for key, pool := range c.ippoolmap {
 			found := sweepMap[key]
 			if !found {
-				err := c.handleIPPoolUpdate(pool, true /*isdel*/)
+				err := c.handleIPPoolUpdate(&pool, true /*isdel*/)
 				if err != nil {
 					c.log.Errorf("error deleting ippool %s", err)
 				}
@@ -293,7 +307,7 @@ func (c *ipamCache) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.
 
 func (c *ipamCache) OnVppRestart() {
 	for _, pool := range c.ippoolmap {
-		err := c.ipamUpdateHandler(pool, nil)
+		err := c.ipamUpdateHandler(&pool, nil)
 		if err != nil {
 			c.log.Errorf("ipam restart error: %s", err)
 		}
@@ -315,7 +329,7 @@ func NewIPAMCache(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *log
 		vpp:       vpp,
 		log:       log,
 		clientv3:  clientv3,
-		ippoolmap: make(map[string]*calicov3.IPPool),
+		ippoolmap: make(map[string]calicov3.IPPool),
 		readyCond: cond,
 		ready:     false,
 	}
