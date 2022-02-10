@@ -33,6 +33,21 @@ const (
 
 const InvalidID = ^uint32(0)
 
+func (v *VppLink) CnatPurge() error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	request := &cnat.CnatSessionPurge{}
+	response := &cnat.CnatSessionPurgeReply{}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrap(err, "CNat purge failed")
+	} else if response.Retval != 0 {
+		return fmt.Errorf("%s CNat purge failed with retval: %d", response.Retval)
+	}
+	return nil
+}
+
 func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
