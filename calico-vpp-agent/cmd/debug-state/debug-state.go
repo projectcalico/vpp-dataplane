@@ -16,14 +16,18 @@
 package main
 
 import (
+	"fmt"
 	"flag"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
 	var fname string
-	flag.StringVar(&fname, "f", "/var/run/vpp/calico_vpp_pod_state", "Pod state path")
+	cniServerStateFile := fmt.Sprintf("%s%d", config.CniServerStateFile, storage.CniServerStateFileVersion)
+	flag.StringVar(&fname, "f", cniServerStateFile, "Pod state path")
 	flag.Parse()
 
 	st, err := storage.LoadCniServerState(fname)

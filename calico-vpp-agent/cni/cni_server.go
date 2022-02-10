@@ -175,7 +175,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.log.Infof("Adding Pod %s", podSpec.String())
+	s.log.Infof("pod(add) spec=%s", podSpec.String())
 
 	existingSpec, ok := s.podInterfaceMap[podSpec.Key()]
 	if ok {
@@ -197,7 +197,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
-	s.log.Infof("Done Adding Pod %s", podSpec.String())
+	s.log.Infof("pod(add) Done spec=%s", podSpec.String())
 	// XXX: container MAC doesn't make sense anymore, we just pass back a constant one.
 	// How does calico / k8s use it?
 	return &pb.AddReply{
@@ -219,7 +219,7 @@ func (s *Server) FetchNDataThreads() {
 			s.log.Error("Couldn't fullfill request [crypto=%d total=%d]", config.IpsecNbAsyncCryptoThread, nVppWorkers)
 			nDataThreads = nVppWorkers
 		}
-		s.log.Info("Using [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
+		s.log.Info("Using ipsec workers [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
 
 	}
 	s.memifDriver.NDataThreads = nDataThreads
@@ -301,18 +301,18 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.log.Infof("Deleting pod %s", partialPodSpec.Key())
+	s.log.Infof("pod(del) key=%s", partialPodSpec.Key())
 	initialSpec, ok := s.podInterfaceMap[partialPodSpec.Key()]
 	if !ok {
-		s.log.Warnf("Unknown pod to delete")
+		s.log.Warnf("Unknown pod to delete key=%s", partialPodSpec.Key())
 	} else {
-		s.log.Infof("Deleting pod %s", initialSpec.String())
+		s.log.Infof("pod(del) spec=%s", initialSpec.String())
 		s.DelVppInterface(&initialSpec)
-		s.log.Infof("Done Deleting pod %s", initialSpec.String())
+		s.log.Infof("pod(del) Done! spec=%s", initialSpec.String())
 	}
 
 	delete(s.podInterfaceMap, initialSpec.Key())
-	err := storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile + fmt.Sprint(storage.CniServerStateFileVersion))
+	err := storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile+fmt.Sprint(storage.CniServerStateFileVersion))
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}

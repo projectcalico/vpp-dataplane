@@ -55,19 +55,6 @@ func getServicePortProto(proto v1.Protocol) types.IPProto {
 	}
 }
 
-func formatProto(proto types.IPProto) string {
-	switch proto {
-	case types.UDP:
-		return "UDP"
-	case types.SCTP:
-		return "SCTP"
-	case types.TCP:
-		return "TCP"
-	default:
-		return "???"
-	}
-}
-
 func isEndpointAddressLocal(endpointAddress *v1.EndpointAddress) bool {
 	if endpointAddress != nil && endpointAddress.NodeName != nil && *endpointAddress.NodeName != config.NodeName {
 		return false
@@ -189,7 +176,7 @@ func (s *Server) GetCnatEntries(service *v1.Service, ep *v1.Endpoints) (entries 
 }
 
 func (s *Server) deleteCnatEntry(entry *CnatTranslateEntryVPPState) (err error) {
-	s.log.Infof("svc(del) key=%s entry=%s vpp-id=%d", entry.Key(), entry.String(), entry.Entry.ID)
+	s.log.Infof("svc(del) key=%s %s vpp-id=%d", entry.Key(), entry.String(), entry.Entry.ID)
 	previousEntry, previousFound := s.stateMap[entry.Key()]
 	if !previousFound {
 		s.log.Infof("Cnat entry not found")
@@ -221,7 +208,7 @@ func (s *Server) updateCnatEntry(entry *CnatTranslateEntryVPPState) (err error) 
 			return errors.Wrapf(err, "NAT:Error adding translation %s", entry.String())
 		}
 		entry.Entry.ID = entryID
-		s.log.Infof("svc(add) key=%s entry=%s vpp-id=%d", entry.Key(), entry.String(), entryID)
+		s.log.Infof("svc(add) key=%s %s vpp-id=%d", entry.Key(), entry.String(), entryID)
 		s.stateMap[entry.Key()] = *entry
 	}
 	return nil

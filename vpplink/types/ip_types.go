@@ -85,7 +85,7 @@ func IsIP6(ip net.IP) bool {
 	return GetIPFamily(ip) == FAMILY_V6
 }
 
-func formatProto(proto IPProto) string {
+func (proto IPProto) String() string {
 	switch proto {
 	case UDP:
 		return "UDP"

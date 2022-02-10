@@ -252,7 +252,7 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 					// Else no change, nothing to do
 				} else {
 					// New peer
-					w.log.Infof("Adding neighbor %s for BGPPeer %s", ip, peer.ObjectMeta.Name)
+					w.log.Infof("peer(add) neighbor ip=%s for BGPPeer=%s", ip, peer.ObjectMeta.Name)
 					state[ip] = &bgpPeer{
 						AS:        asn,
 						SweepFlag: false,
@@ -267,6 +267,7 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 		// Remove all peers that still have sweepflag to true
 		for ip, peer := range state {
 			if peer.SweepFlag {
+				w.log.Infof("peer(del) neighbor ip=%s", ip)
 				err := w.deleteBGPPeer(ip)
 				if err != nil {
 					return errors.Wrap(err, "error deleting BGP peer")

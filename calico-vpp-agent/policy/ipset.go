@@ -36,6 +36,23 @@ type IPSet struct {
 	Networks  map[string]*net.IPNet
 }
 
+func (i *IPSet) String() string {
+	s := fmt.Sprintf("[vpp-id=%d ", i.VppID)
+
+	switch i.Type {
+	case types.IpsetTypeIP:
+		s += fmt.Sprintf("addr=%s", i.Addresses)
+	case types.IpsetTypeIPPort:
+		s += fmt.Sprintf("ipport=%s", i.IPPorts)
+	case types.IpsetTypeNet:
+		s += fmt.Sprintf("net=%s", i.Networks)
+	}
+
+	s += "]"
+
+	return s
+}
+
 var protos = map[string]uint8{
 	"tcp":  6,
 	"udp":  17,
@@ -170,6 +187,7 @@ func (i *IPSet) Create(vpp *vpplink.VppLink) (err error) {
 }
 
 func (i *IPSet) Delete(vpp *vpplink.VppLink) (err error) {
+	logrus.Infof("policy(del) ipset %d", i.VppID)
 	err = vpp.IpsetDelete(i.VppID)
 	if err != nil {
 		return err

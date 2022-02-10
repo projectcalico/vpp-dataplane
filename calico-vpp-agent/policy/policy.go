@@ -22,6 +22,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/sirupsen/logrus"
 )
 
 type PolicyID struct {
@@ -35,6 +36,14 @@ type Policy struct {
 	VppID         uint32
 	InboundRules  []*Rule
 	OutboundRules []*Rule
+}
+
+func (p *Policy) String() string {
+	s := fmt.Sprintf("[id=%d", p.VppID)
+	s += types.StrableListToString(" inboundRules=", p.InboundRules)
+	s += types.StrableListToString(" outboundRules=", p.OutboundRules)
+	s += "]"
+	return s
 }
 
 func fromProtoPolicy(p *proto.Policy) (policy *Policy, err error) {
@@ -173,6 +182,7 @@ func (p *Policy) Delete(vpp *vpplink.VppLink, state *PolicyState) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "cannot delete old rules for policy")
 	}
+    logrus.Infof("policy(del) VPP policy id=%d", p.VppID)
 	err = vpp.PolicyDelete(p.VppID)
 	if err != nil {
 		return errors.Wrap(err, "cannot delete policy")

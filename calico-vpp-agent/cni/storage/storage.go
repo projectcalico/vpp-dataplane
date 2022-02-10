@@ -55,6 +55,22 @@ const (
 	VppIfTypeVCL
 )
 
+func (ift VppInterfaceType) String() string {
+	switch ift {
+	case VppIfTypeUnknown:
+		return "Unknown"
+	case VppIfTypeTunTap:
+		return "TunTap"
+	case VppIfTypeMemif:
+		return "Memif"
+	case VppIfTypeVCL:
+		return "VCL"
+	default:
+		return "Unknown"
+	}
+}
+
+
 func (n *LocalIPNet) String() string {
 	ipnet := net.IPNet{
 		IP:   n.IP,
@@ -105,14 +121,30 @@ func (ps *LocalPodSpec) FullString() string {
 	for _, e := range routes {
 		routesLst = append(routesLst, e.String())
 	}
-	return fmt.Sprintf("InterfaceName: %s\nNetnsName: %s\nAllowIpForwarding:%t\nRoutes: %s\nContainerIps: %s\nOrchestratorID: %s\nWorkloadID: %s\nEndpointID: %s",
-		ps.InterfaceName, ps.NetnsName, ps.AllowIpForwarding,
-		strings.Join(routesLst, ", "),
-		strings.Join(containerIpsLst, ", "),
-		ps.OrchestratorID,
-		ps.WorkloadID,
-		ps.EndpointID,
-	)
+	s := fmt.Sprintf("InterfaceName:      %s\n", ps.InterfaceName)
+	s += fmt.Sprintf("NetnsName:          %s\n", ps.NetnsName)
+	s += fmt.Sprintf("AllowIpForwarding:  %t\n", ps.AllowIpForwarding)
+	s += fmt.Sprintf("Routes:             %s\n", strings.Join(routesLst, ", "))
+	s += fmt.Sprintf("ContainerIps:       %s\n", strings.Join(containerIpsLst, ", "))
+	s += fmt.Sprintf("Mtu:                %d\n", ps.Mtu)
+	s += fmt.Sprintf("OrchestratorID:     %s\n", ps.OrchestratorID)
+	s += fmt.Sprintf("WorkloadID:         %s\n", ps.WorkloadID)
+	s += fmt.Sprintf("EndpointID:         %s\n", ps.EndpointID)
+	s += fmt.Sprintf("HostPorts:          %s\n", types.StrableListToString("", ps.HostPorts))
+	s += fmt.Sprintf("IfPortConfigs:      %s\n", types.StrableListToString("", ps.IfPortConfigs))
+	s += fmt.Sprintf("PortFilteredIfType: %s\n", ps.PortFilteredIfType.String())
+	s += fmt.Sprintf("DefaultIfType:      %s\n", ps.DefaultIfType.String())
+	s += fmt.Sprintf("EnableVCL:          %t\n", ps.EnableVCL)
+	s += fmt.Sprintf("EnableMemif:        %t\n", ps.EnableMemif)
+	s += fmt.Sprintf("MemifIsL3:          %t\n", ps.MemifIsL3)
+	s += fmt.Sprintf("MemifSocketId:      %d\n", ps.MemifSocketId)
+	s += fmt.Sprintf("TunTapSwIfIndex:    %d\n", ps.TunTapSwIfIndex)
+	s += fmt.Sprintf("MemifSwIfIndex:     %d\n", ps.MemifSwIfIndex)
+	s += fmt.Sprintf("LoopbackSwIfIndex:  %d\n", ps.LoopbackSwIfIndex)
+	s += fmt.Sprintf("PblIndexes:         %s\n", ps.PblIndexes)
+	s += fmt.Sprintf("V4VrfId:            %d\n", ps.V4VrfId)
+	s += fmt.Sprintf("V6VrfId:            %d\n", ps.V6VrfId)
+	return s
 }
 
 func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex uint32, isL3 bool) {
@@ -134,6 +166,10 @@ type LocalIfPortConfigs struct {
 	Start uint16
 	End   uint16
 	Proto types.IPProto
+}
+
+func (pc* LocalIfPortConfigs) String() string {
+	return fmt.Sprintf("%s %d-%d", pc.Proto.String(), pc.Start, pc.End)
 }
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -194,6 +230,13 @@ type HostPortBinding struct {
 	ContainerPort uint16
 	EntryID       uint32
 	Protocol      types.IPProto
+}
+
+func (hp *HostPortBinding) String() string {
+	s := fmt.Sprintf("%s %s:%p", hp.Protocol.String(), hp.HostIP, hp.HostPort)
+	s += fmt.Sprintf(" cport=%d", hp.ContainerPort)
+	s += fmt.Sprintf(" id=%d", hp.EntryID)
+	return s
 }
 
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {

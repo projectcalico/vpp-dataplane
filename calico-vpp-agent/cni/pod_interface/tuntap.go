@@ -80,7 +80,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 	}
 
 	podSpec.TunTapSwIfIndex = swIfIndex
-	i.log.Infof("created tun[%d]", swIfIndex)
+	i.log.Infof("pod(add) tun swIfIndex=%d", swIfIndex)
 
 	err = i.DoPodIfNatConfiguration(podSpec, stack, swIfIndex)
 	if err != nil {
@@ -98,7 +98,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 			return err
 		}
 	}
-	i.log.Infof("Created tun[%d]", swIfIndex)
+	i.log.Infof("pod(add) Done tun swIfIndex=%d", swIfIndex)
 
 	return nil
 }
@@ -113,7 +113,7 @@ func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec
 	if err != nil {
 		i.log.Warnf("Error deleting tun[%d] %s", podSpec.TunTapSwIfIndex, err)
 	}
-	i.log.Infof("deleted tun[%d]", podSpec.TunTapSwIfIndex)
+	i.log.Infof("pod(del) tun swIfIndex=%d", podSpec.TunTapSwIfIndex)
 
 }
 
@@ -138,7 +138,7 @@ func (i *TunTapPodInterfaceDriver) unconfigureLinux(podSpec *storage.LocalPodSpe
 			return err
 		}
 		for _, addr := range addresses {
-			i.log.Infof("Found address %s on interface, scope %d", addr.IP.String(), addr.Scope)
+			i.log.Infof("pod(del) Found linux address=%s scope=%d", addr.IP.String(), addr.Scope)
 			if addr.Scope == unix.RT_SCOPE_LINK {
 				continue
 			}
@@ -184,14 +184,14 @@ func (i *TunTapPodInterfaceDriver) configureContainerSysctls(podSpec *storage.Lo
 	}
 	// If an IPv4 address is assigned, then configure IPv4 sysctls.
 	if hasv4 {
-		i.log.Info("Configuring IPv4 forwarding")
+		i.log.Info("pod(add) Configuring IPv4 forwarding")
 		if err := writeProcSys("/proc/sys/net/ipv4/ip_forward", ipFwd); err != nil {
 			return err
 		}
 	}
 	// If an IPv6 address is assigned, then configure IPv6 sysctls.
 	if hasv6 {
-		i.log.Info("Configuring IPv6 forwarding")
+		i.log.Info("pod(add) Configuring IPv6 forwarding")
 		if err := writeProcSys("/proc/sys/net/ipv6/conf/all/forwarding", ipFwd); err != nil {
 			return err
 		}
@@ -209,7 +209,7 @@ func (i *TunTapPodInterfaceDriver) configureNamespaceSideTun(swIfIndex uint32, p
 
 		// Do the per-IP version set-up.  Add gateway routes etc.
 		if hasv6 {
-			i.log.Infof("tun %d in NS has v6", swIfIndex)
+			i.log.Infof("pod(add) tun in NS has v6 swIfIndex=%d", swIfIndex)
 			// Make sure ipv6 is enabled in the container/pod network namespace.
 			if err = writeProcSys("/proc/sys/net/ipv6/conf/all/disable_ipv6", "0"); err != nil {
 				return fmt.Errorf("failed to set net.ipv6.conf.all.disable_ipv6=0: %s", err)
@@ -225,10 +225,10 @@ func (i *TunTapPodInterfaceDriver) configureNamespaceSideTun(swIfIndex uint32, p
 		for _, route := range podSpec.GetRoutes() {
 			isV6 := route.IP.To4() == nil
 			if (isV6 && !hasv6) || (!isV6 && !hasv4) {
-				i.log.Infof("Skipping tun[%d] route for %s", swIfIndex, route.String())
+				i.log.Infof("pod(add) Skipping tun swIfIndex=%d route=%s", swIfIndex, route.String())
 				continue
 			}
-			i.log.Infof("Add tun[%d] linux%d route for %s", swIfIndex, contTun.Attrs().Index, route.String())
+			i.log.Infof("pod(add) tun route swIfIndex=%d linux-ifIndex=%d route=%s", swIfIndex, contTun.Attrs().Index, route.String())
 			err = netlink.RouteAdd(&netlink.Route{
 				LinkIndex: contTun.Attrs().Index,
 				Scope:     netlink.SCOPE_UNIVERSE,
@@ -242,7 +242,7 @@ func (i *TunTapPodInterfaceDriver) configureNamespaceSideTun(swIfIndex uint32, p
 
 		// Now add the IPs to the container side of the tun.
 		for _, containerIP := range podSpec.GetContainerIps() {
-			i.log.Infof("Add tun[%d] linux%d ip %s", swIfIndex, contTun.Attrs().Index, containerIP.String())
+			i.log.Infof("pod(add) tun address swIfIndex=%d linux-ifIndex=%d address=%s", swIfIndex, contTun.Attrs().Index, containerIP.String())
 			err = netlink.AddrAdd(contTun, &netlink.Addr{IPNet: containerIP})
 			if err != nil {
 				return errors.Wrapf(err, "failed to add IP addr to %s: %v", contTun.Attrs().Name, err)

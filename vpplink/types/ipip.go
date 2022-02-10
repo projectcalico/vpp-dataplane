@@ -29,7 +29,7 @@ type IPIPTunnel struct {
 
 func (t *IPIPTunnel) String() string {
 	if t.TableID != 0 {
-		return fmt.Sprintf("[%d] %s->%s tbl:%d", t.SwIfIndex, t.Src.String(), t.Dst.String(), t.TableID)
+		return fmt.Sprintf("[swif=%d %s->%s tbl=%d]", t.SwIfIndex, t.Src.String(), t.Dst.String(), t.TableID)
 	}
-	return fmt.Sprintf("[%d] %s->%s", t.SwIfIndex, t.Src.String(), t.Dst.String())
+	return fmt.Sprintf("[swif=%d %s->%s]", t.SwIfIndex, t.Src.String(), t.Dst.String())
 }

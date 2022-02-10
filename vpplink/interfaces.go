@@ -193,6 +193,12 @@ func (v *VppLink) CreateOrAttachTapV2(tap *types.TapV2) (swIfIndex uint32, err e
 func (v *VppLink) addDelInterfaceAddress(swIfIndex uint32, addr *net.IPNet, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
+	if IsIP6(addr.IP) && addr.IP.IsLinkLocalUnicast() {
+		_, bits := addr.Mask.Size()
+		if bits != 128 {
+			return nil
+		}
+	}
 	request := &interfaces.SwInterfaceAddDelAddress{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		IsAdd:     isAdd,

@@ -50,7 +50,7 @@ type Nat44Entry struct {
 
 func (n *Nat44Entry) String() string {
 	return fmt.Sprintf("%s %s:%d -> %+v:%d",
-		formatProto(n.Protocol),
+		n.Protocol.String(),
 		n.ServiceIP.String(),
 		n.ServicePort,
 		n.BackendIPs,

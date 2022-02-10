@@ -210,7 +210,7 @@ func (p *SRv6Provider) getPolicyNode(nodeip string, behavior types.SrBehavior) (
 }
 
 func (p *SRv6Provider) setEncapSource() (err error) {
-	p.log.Printf("SRv6Provider setEncapSource")
+	p.log.Infof("SRv6Provider setEncapSource")
 	_, nodeIP6 := p.GetNodeIPs()
 	if nodeIP6 == nil {
 		return fmt.Errorf("No ip6 found for node")
@@ -224,7 +224,7 @@ func (p *SRv6Provider) setEncapSource() (err error) {
 }
 
 func (p *SRv6Provider) createLocalSidTunnels(currentLocalSids []*types.SrLocalsid) (localSids []*types.SrLocalsid, err error) {
-	p.log.Printf("SRv6Provider createLocalSidTunnels")
+	p.log.Infof("SRv6Provider createLocalSidTunnels")
 	endDt4Exist := false
 	endDt6Exist := false
 	for _, localSid := range currentLocalSids {
@@ -258,7 +258,7 @@ func (p *SRv6Provider) createLocalSidTunnels(currentLocalSids []*types.SrLocalsi
 
 // Add a new SRLocalSid with end.DT4 or end.DT6 behavior
 func (p *SRv6Provider) setEndDT(typeDT int) (newLocalSid *types.SrLocalsid, err error) {
-	p.log.Printf("SRv6Provider setLocalsid setEndDT%d", typeDT)
+	p.log.Infof("SRv6Provider setLocalsid setEndDT%d", typeDT)
 
 	var behavior types.SrBehavior
 	switch typeDT {

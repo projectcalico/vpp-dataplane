@@ -68,9 +68,8 @@ func (p *WireguardProvider) OnVppRestart() {
 }
 
 func (p *WireguardProvider) getNodePublicKey(cn *common.NodeConnectivity) ([]byte, error) {
-	p.log.Infof("Wireguard: pkey ?")
 	node := p.GetNodeByIp(cn.NextHop)
-	p.log.Infof("Wireguard: pkey %s = %s", node.Name, node.Status.WireguardPublicKey)
+	p.log.Infof("connectivity(add) Wireguard nodeName=%s pubKey=%s", node.Name, node.Status.WireguardPublicKey)
 	key, err := base64.StdEncoding.DecodeString(node.Status.WireguardPublicKey)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error decoding wireguard public key %s", node.Status.WireguardPublicKey)
@@ -84,7 +83,7 @@ func (p *WireguardProvider) publishWireguardPublicKey(pubKey string) error {
 	if err != nil {
 		return errors.Wrapf(err, "Error getting node config")
 	}
-	p.log.Infof("Wireguard: publishing pkey %s=%s", config.NodeName, pubKey)
+	p.log.Infof("connectivity(add) Wireguard publishing nodeName=%s pubKey=%s", config.NodeName, pubKey)
 	node.Status.WireguardPublicKey = pubKey
 	_, err = p.Clientv3().Nodes().Update(context.Background(), node, options.SetOptions{})
 	if err != nil {
@@ -195,13 +194,13 @@ func (p *WireguardProvider) createWireguardTunnel(cn *common.NodeConnectivity) e
 		return errors.Wrapf(err, "Wireguard: publish PublicKey error")
 	}
 	p.wireguardTunnel = tunnel
-	p.log.Infof("Wireguard: Added %s", p.wireguardTunnel)
+	p.log.Infof("connectivity(add) Wireguard Done tunnel=%s", p.wireguardTunnel)
 	return nil
 }
 
 func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	if p.wireguardTunnel == nil {
-		p.log.Infof("Wireguard: Creating tunnel")
+		p.log.Infof("connectivity(add) Wireguard Creating tunnel")
 		err := p.createWireguardTunnel(cn)
 		if err != nil {
 			return errors.Wrapf(err, "Wireguard: Error creating tunnel")
@@ -227,25 +226,25 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		AllowedIps: []net.IPNet{cn.Dst, *common.ToMaxLenCIDR(cn.NextHop)},
 	}
 	existingPeer, found := p.wireguardPeers[cn.NextHop.String()]
-	p.log.Infof("Wireguard: NH:%s Dst:%s found:%t", cn.NextHop, cn.Dst, found)
+	p.log.Infof("connectivity(add) Wireguard: NH=%s Dst=%s found=%t", cn.NextHop, cn.Dst, found)
 	if found {
 		peer.AllowedIps = existingPeer.AllowedIps
 		peer.AddAllowedIp(cn.Dst)
 		/* Only update if we need to */
 		if !existingPeer.Equal(peer) {
-			p.log.Infof("Wireguard: Delete (update) peer [%s]", existingPeer.String())
+			p.log.Infof("connectivity(add) Wireguard: Delete (update) peer=%s", existingPeer.String())
 			err := p.vpp.DelWireguardPeer(&existingPeer)
 			if err != nil {
-				return errors.Wrapf(err, "Error deleting (update) wireguard peer %s", existingPeer.String())
+				return errors.Wrapf(err, "Error deleting (update) wireguard peer=%s", existingPeer.String())
 			}
-			p.log.Infof("Wireguard: Addback (update) peer [%s]", peer)
+			p.log.Infof("connectivity(add) Wireguard: Add back (update) peer=%s", peer)
 			peer.Index, err = p.vpp.AddWireguardPeer(peer)
 			if err != nil {
-				return errors.Wrapf(err, "Error adding (update) wireguard peer %s", peer)
+				return errors.Wrapf(err, "Error adding (update) wireguard peer=%s", peer)
 			}
 		}
 	} else {
-		p.log.Infof("Wireguard: Add peer [%s]", peer)
+		p.log.Infof("connectivity(add) Wireguard: Add peer=%s", peer)
 		peer.Index, err = p.vpp.AddWireguardPeer(peer)
 		if err != nil {
 			return errors.Wrapf(err, "Error adding wireguard peer [%s]", peer)
@@ -264,7 +263,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			return errors.Wrapf(err, "Error adding route to %s in wg tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
 		}
 	}
-	p.log.Infof("Wireguard: peer %s ok", peer)
+	p.log.Infof("connectivity(add) Wireguard tunnel done peer=%s", peer)
 	p.wireguardPeers[cn.NextHop.String()] = *peer
 
 	p.log.Debugf("Adding wireguard tunnel route to %s via swIfIndex %d", cn.Dst.IP, p.wireguardTunnel.SwIfIndex)
@@ -284,10 +283,9 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
 	peer, found := p.wireguardPeers[cn.NextHop.String()]
 	if !found {
-		p.log.Infof("Wireguard: Del unknown %s", cn.NextHop.String())
 		return errors.Errorf("Deleting unknown wireguard tunnel %s", cn.NextHop.String())
 	}
-	p.log.Infof("Wireguard: Del ?->%s %d", cn.NextHop.String(), peer.Index)
+	p.log.Infof("connectivity(del) Wireguard cn=%s peer-index=%d", cn.String(), peer.Index)
 	peer.DelAllowedIp(cn.Dst)
 
 	if len(peer.AllowedIps) == 1 {
@@ -310,15 +308,15 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err er
 	} else {
 		/* for now delete + recreate using modified object as delete
 		 * doesn't consider AllowedIps */
-		p.log.Infof("Wireguard: Delete (update) peer [%s]", peer.String())
+		p.log.Infof("connectivity(del) Wireguard: Delete (update) peer=%s", peer.String())
 		err = p.vpp.DelWireguardPeer(&peer)
 		if err != nil {
 			return errors.Wrapf(err, "Error deleting (update) wireguard peer %s", peer.String())
 		}
-		p.log.Infof("Wireguard: Addback (update) peer [%s]", peer)
+		p.log.Infof("connectivity(del) Wireguard: Addback (update) peer=%s", peer)
 		_, err = p.vpp.AddWireguardPeer(&peer)
 		if err != nil {
-			return errors.Wrapf(err, "Error adding (update) wireguard peer %s", peer)
+			return errors.Wrapf(err, "Error adding (update) wireguard peer=%s", peer)
 		}
 		p.wireguardPeers[cn.NextHop.String()] = peer
 	}

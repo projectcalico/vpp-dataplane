@@ -209,10 +209,10 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 				}
 				s.felixConfiguration = *new
 				if old.WireguardEnabled != new.WireguardEnabled {
-					s.log.Infof("WireguardEnabled Changed")
+					s.log.Infof("connectivity(upd) WireguardEnabled Changed")
 					s.updateAllIPConnectivity()
 				} else if old.WireguardListeningPort != new.WireguardListeningPort {
-					s.log.Infof("WireguardListeningPort Changed")
+					s.log.Infof("connectivity(upd) WireguardListeningPort Changed")
 					s.updateAllIPConnectivity()
 				}
 			case common.IpamConfChanged:
@@ -224,7 +224,7 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 				}
 				if new.Spec.VXLANMode != old.Spec.VXLANMode ||
 					new.Spec.IPIPMode != old.Spec.IPIPMode {
-					s.log.Infof("VXLAN/IPIPMode Changed")
+					s.log.Infof("connectivity(upd) VXLAN/IPIPMode Changed")
 					s.updateAllIPConnectivity()
 				}
 			case common.SRv6PolicyAdded:
@@ -312,11 +312,11 @@ func (s *ConnectivityServer) updateIPConnectivity(cn *common.NodeConnectivity, I
 			if err != nil {
 				return errors.Wrap(err, "getting provider failed")
 			}
-			s.log.Infof("Didnt find provider in map, trying :%s", providerType)
+			s.log.Infof("connectivity(del) Didnt find provider in map, trying providerType=%s", providerType)
 		} else {
 			providerType = oldCn.ResolvedProvider
 			delete(s.connectivityMap, oldCn.String())
-			s.log.Infof("Deleting path (%s) %s", providerType, oldCn.String())
+			s.log.Infof("connectivity(del) path providerType=%s cn=%s", providerType, oldCn.String())
 		}
 		return s.providers[providerType].DelConnectivity(cn)
 	} else {
@@ -328,7 +328,7 @@ func (s *ConnectivityServer) updateIPConnectivity(cn *common.NodeConnectivity, I
 		if found {
 			oldProviderType := oldCn.ResolvedProvider
 			if oldProviderType != providerType {
-				s.log.Infof("Path (%s) changed provider (%s->%s) %s", providerType, oldProviderType, providerType, cn.String())
+				s.log.Infof("connectivity(upd) provider Change providerType=%s->%s cn=%s", oldProviderType, providerType, cn.String())
 				err := s.providers[oldProviderType].DelConnectivity(cn)
 				if err != nil {
 					s.log.Errorf("Error del connectivity when changing provider %s->%s : %s", oldProviderType, providerType, err)
@@ -337,11 +337,11 @@ func (s *ConnectivityServer) updateIPConnectivity(cn *common.NodeConnectivity, I
 				s.connectivityMap[cn.String()] = *cn
 				return s.providers[providerType].AddConnectivity(cn)
 			} else {
-				s.log.Infof("Added same path (%s) %s", providerType, cn.String())
+				s.log.Infof("connectivity(same) path providerType=%s cn=%s", providerType, cn.String())
 				return s.providers[providerType].AddConnectivity(cn)
 			}
 		} else {
-			s.log.Infof("Added path (%s) %s", providerType, cn.String())
+			s.log.Infof("connectivity(add) path providerType=%s cn=%s", providerType, cn.String())
 			cn.ResolvedProvider = providerType
 			s.connectivityMap[cn.String()] = *cn
 			return s.providers[providerType].AddConnectivity(cn)

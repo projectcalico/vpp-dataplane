@@ -120,6 +120,5 @@ func NewLocalSIDWatcher(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, lo
 		log:      log,
 		clientv3: clientv3,
 	}
-	w.log.Printf("NewLocalSIDWatcher")
 	return w
 }

@@ -16,7 +16,9 @@
 package types
 
 import (
+	"fmt"
 	"net"
+	"reflect"
 
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/capo"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
@@ -31,6 +33,18 @@ const (
 	IpsetTypeIPPort IpsetType = IpsetType(capo.CAPO_IP_AND_PORT)
 	IpsetTypeNet    IpsetType = IpsetType(capo.CAPO_NET)
 )
+
+func (i IpsetType) String() string {
+	switch i {
+	case IpsetTypeIP:
+		return "ip"
+	case IpsetTypeIPPort:
+		return "ipport"
+	case IpsetTypeNet:
+		return "net"
+	}
+	return "ipset-unknown"
+}
 
 type IPPort struct {
 	Addr    net.IP
@@ -47,9 +61,31 @@ const (
 	ActionPass  RuleAction = RuleAction(capo.CAPO_PASS)
 )
 
+func (r RuleAction) String() string {
+	switch r {
+	case ActionAllow:
+		return "allow"
+	case ActionDeny:
+		return "deny"
+	case ActionLog:
+		return "log"
+	case ActionPass:
+		return "pass"
+	}
+	return "action-unknown"
+}
+
 type PortRange struct {
 	First uint16
 	Last  uint16
+}
+
+func (pr PortRange) String() string {
+	if pr.First == pr.Last {
+		return fmt.Sprintf("%d", pr.First)
+	} else {
+		return fmt.Sprintf("%d-%d", pr.First, pr.Last)
+	}
 }
 
 type CapoFilterType uint8
@@ -61,10 +97,32 @@ const (
 	CapoFilterProto    CapoFilterType = CapoFilterType(capo.CAPO_RULE_FILTER_L4_PROTO)
 )
 
+func (ft CapoFilterType) String() string {
+	switch ft {
+	case CapoFilterTypeNone:
+		return "none"
+	case CapoFilterICMPType:
+		return "icmp-type"
+	case CapoFilterICMPCode:
+		return "icmp-code"
+	case CapoFilterProto:
+		return "proto"
+	}
+	return "unknown-filter-type"
+}
+
 type RuleFilter struct {
 	ShouldMatch bool
 	Type        CapoFilterType
 	Value       int
+}
+
+func (f RuleFilter) String() string {
+	if f.ShouldMatch {
+		return fmt.Sprintf("%s==%d", f.Type.String(), f.Value)
+	} else {
+		return fmt.Sprintf("%s!=%d", f.Type.String(), f.Value)
+	}
 }
 
 type Rule struct {
@@ -95,9 +153,113 @@ type Rule struct {
 	DstIPPortSet []uint32
 }
 
+func StrableListToString(prefix string, arg interface{}) string {
+	value := reflect.ValueOf(arg)
+	if value.Len() == 0 {
+		return ""
+	}
+	s := fmt.Sprintf("%s[", prefix)
+	for i := 0; i < value.Len(); i++ {
+		if i > 0 {
+			s += ","
+		}
+		v := reflect.Indirect(value.Index(i))
+		m := v.MethodByName("String")
+		if !m.IsValid() {
+			m = v.Addr().MethodByName("String")
+		}
+		ret := m.Call(make([]reflect.Value, 0))[0]
+		s += ret.Interface().(string)
+	}
+	return s + "]"
+}
+
+func StrListToString(prefix string, lst []string) string {
+	if len(lst) == 0 {
+		return ""
+	}
+	s := fmt.Sprintf("%s[", prefix)
+	for i, elem := range lst {
+		if i > 0 {
+			s += ","
+		}
+		s = fmt.Sprintf("%s%s", s, elem)
+	}
+	return s + "]"
+}
+
+func IntListToString(prefix string, lst []uint32) string {
+	if len(lst) == 0 {
+		return ""
+	}
+	s := fmt.Sprintf("%s[", prefix)
+	for i, elem := range lst {
+		if i > 0 {
+			s += ","
+		}
+		s = fmt.Sprintf("%s%d", s, elem)
+	}
+	return s + "]"
+}
+
+func (r *Rule) String() string {
+	s := fmt.Sprintf("action=%s", r.Action.String())
+	s += StrableListToString("filters=", r.Filters)
+
+	s += StrableListToString(" dst==", r.DstNet)
+	s += StrableListToString(" dst!=", r.DstNotNet)
+	s += StrableListToString(" src==", r.SrcNet)
+	s += StrableListToString(" src!=", r.SrcNotNet)
+
+	s += StrableListToString(" dport==", r.DstPortRange)
+	s += StrableListToString(" dport!=", r.DstNotPortRange)
+	s += StrableListToString(" sport==", r.SrcPortRange)
+	s += StrableListToString(" sport!=", r.SrcNotPortRange)
+
+	s += IntListToString(" dipport==", r.DstIPPortIPSet)
+	s += IntListToString(" dipport!=", r.DstNotIPPortIPSet)
+	s += IntListToString(" sipport==", r.SrcIPPortIPSet)
+	s += IntListToString(" sipport!=", r.SrcNotIPPortIPSet)
+
+	s += IntListToString(" dipport2==", r.DstIPPortSet)
+
+	s += IntListToString(" dipset==", r.DstIPSet)
+	s += IntListToString(" dipset!=", r.DstNotIPSet)
+	s += IntListToString(" sipset==", r.SrcIPSet)
+	s += IntListToString(" sipset!=", r.SrcNotIPSet)
+
+	return s
+}
+
 type Policy struct {
 	InboundRuleIDs  []uint32
 	OutboundRuleIDs []uint32
+}
+
+func (p *Policy) String() string {
+	s := "["
+	if len(p.InboundRuleIDs) > 0 {
+		s += " inRuleIDs=["
+		for i, ruleID := range p.InboundRuleIDs {
+			if i > 0 {
+				s += ","
+			}
+			s = fmt.Sprintf("%s%d", s, ruleID)
+		}
+		s += "]"
+	}
+	if len(p.OutboundRuleIDs) > 0 {
+		s += " outRuleIDs=["
+		for i, ruleID := range p.OutboundRuleIDs {
+			if i > 0 {
+				s += ","
+			}
+			s = fmt.Sprintf("%s%d", s, ruleID)
+		}
+		s += "]"
+	}
+	s += "]"
+	return s
 }
 
 type InterfaceConfig struct {
