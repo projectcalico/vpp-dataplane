@@ -233,6 +233,10 @@ type LocalPodSpec struct {
 	V4VrfId   uint32
 	V6VrfId   uint32
 	NeedsSnat bool
+
+	/* Multi net */
+	NetworkNameSize int `struc:"int16,sizeof=NetworkName"`
+	NetworkName     string
 }
 
 func (ps *LocalPodSpec) Copy() LocalPodSpec {
