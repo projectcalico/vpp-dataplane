@@ -16,9 +16,8 @@
 package types
 
 import (
+	"fmt"
 	"net"
-
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 )
 
 type VXLanTunnel struct {
@@ -28,5 +27,9 @@ type VXLanTunnel struct {
 	DstPort        uint16
 	Vni            uint32
 	DecapNextIndex uint32
-	SwIfIndex      interface_types.InterfaceIndex
+	SwIfIndex      uint32
+}
+
+func (t *VXLanTunnel) String() string {
+	return fmt.Sprintf("[%d]vni=%d %s:%d->%s:%d", t.SwIfIndex, t.Vni, t.SrcAddress, t.SrcPort, t.DstAddress, t.DstPort)
 }
