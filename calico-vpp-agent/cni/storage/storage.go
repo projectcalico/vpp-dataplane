@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 4 // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 5 // Used to ensure compatibility wen we reload data
 )
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -189,10 +189,11 @@ type LocalPodSpec struct {
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
 type HostPortBinding struct {
-	HostPort      uint32
+	HostPort      uint16
 	HostIP        net.IP `struc:"[16]byte"`
-	ContainerPort uint32
+	ContainerPort uint16
 	EntryID       uint32
+	Protocol      types.IPProto
 }
 
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {
