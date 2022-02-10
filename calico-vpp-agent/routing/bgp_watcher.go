@@ -26,6 +26,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	tomb "gopkg.in/tomb.v2"
 
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
@@ -54,6 +55,8 @@ func (w *Server) getNexthop(path *bgpapi.Path) string {
 func (w *Server) injectRoute(path *bgpapi.Path) error {
 	var dst net.IPNet
 	ipAddrPrefixNlri := &bgpapi.IPAddressPrefix{}
+	labeledVPNIPAddressPrefixNlri := &bgpapi.LabeledVPNIPAddressPrefix{}
+	vpn := false
 	otherNodeIP := net.ParseIP(w.getNexthop(path))
 	if otherNodeIP == nil {
 		return fmt.Errorf("Cannot determine path nexthop: %+v", path)
@@ -69,12 +72,30 @@ func (w *Server) injectRoute(path *bgpapi.Path) error {
 			dst.Mask = net.CIDRMask(int(ipAddrPrefixNlri.PrefixLen), 32)
 		}
 	} else {
-		return fmt.Errorf("Cannot handle Nlri: %+v", path.Nlri)
+		err := ptypes.UnmarshalAny(path.Nlri, labeledVPNIPAddressPrefixNlri)
+		if err == nil {
+			dst.IP = net.ParseIP(labeledVPNIPAddressPrefixNlri.Prefix)
+			if dst.IP == nil {
+				return fmt.Errorf("Cannot parse nlri addr: %s", labeledVPNIPAddressPrefixNlri.Prefix)
+			} else if dst.IP.To4() == nil {
+				dst.Mask = net.CIDRMask(int(labeledVPNIPAddressPrefixNlri.PrefixLen), 128)
+			} else {
+				dst.Mask = net.CIDRMask(int(labeledVPNIPAddressPrefixNlri.PrefixLen), 32)
+			}
+			vpn = true
+		} else {
+			return fmt.Errorf("Cannot handle Nlri: %+v", path.Nlri)
+		}
 	}
 
 	cn := &common.NodeConnectivity{
 		Dst:     dst,
 		NextHop: otherNodeIP,
+	}
+	if vpn {
+		rd := &bgpapi.RouteDistinguisherTwoOctetAS{}
+		ptypes.UnmarshalAny(labeledVPNIPAddressPrefixNlri.Rd, rd)
+		cn.Vni = rd.Assigned
 	}
 	if path.IsWithdraw {
 		common.SendEvent(common.CalicoVppEvent{
@@ -230,14 +251,17 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 		return stopFunc, err
 	}
 
-	var stopV4Monitor, stopV6Monitor, stopSRv6IP6Monitor context.CancelFunc
+	var stopV4Monitor, stopV6Monitor, stopSRv6IP6Monitor, stopV4VPNMonitor context.CancelFunc
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
 	if nodeIP4 != nil {
 		stopV4Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv4)
 		if err != nil {
 			return errors.Wrap(err, "error starting v4 path monitor")
 		}
-
+		stopV4VPNMonitor, err = startMonitor(&common.BgpFamilyUnicastIPv4VPN)
+		if err != nil {
+			return errors.Wrap(err, "error starting v4vpn path monitor")
+		}
 	}
 	if nodeIP6 != nil {
 		stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
@@ -257,6 +281,7 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 		case <-t.Dying():
 			if nodeIP4 != nil {
 				stopV4Monitor()
+				stopV4VPNMonitor()
 			}
 			if nodeIP6 != nil {
 				stopV6Monitor()
@@ -269,15 +294,27 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 		case evt := <-w.routingServerEventChan:
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
+			case common.LocalNetworkPodAddressAdded:
+				networkPod := evt.New.(cni.NetworkPod)
+				err := w.announceLocalAddress(networkPod.ContainerIP, networkPod.NetworkVni)
+				if err != nil {
+					return err
+				}
 			case common.LocalPodAddressAdded:
 				addr := evt.New.(*net.IPNet)
-				err := w.announceLocalAddress(addr)
+				err := w.announceLocalAddress(addr, 0)
 				if err != nil {
 					return err
 				}
 			case common.LocalPodAddressDeleted:
 				addr := evt.Old.(*net.IPNet)
-				err := w.withdrawLocalAddress(addr)
+				err := w.withdrawLocalAddress(addr, 0)
+				if err != nil {
+					return err
+				}
+			case common.LocalNetworkPodAddressDeleted:
+				networkPod := evt.Old.(cni.NetworkPod)
+				err := w.withdrawLocalAddress(networkPod.ContainerIP, networkPod.NetworkVni)
 				if err != nil {
 					return err
 				}
@@ -287,6 +324,11 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					stopV4Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv4)
 					if err != nil {
 						return errors.Wrap(err, "error re-starting ip4 path monitor")
+					}
+					stopV4VPNMonitor()
+					stopV4VPNMonitor, err = startMonitor(&common.BgpFamilyUnicastIPv4VPN)
+					if err != nil {
+						return errors.Wrap(err, "error re-starting ip4vpn path monitor")
 					}
 				}
 			case common.BGPReloadIP6:

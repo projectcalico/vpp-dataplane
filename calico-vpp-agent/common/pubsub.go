@@ -38,8 +38,10 @@ const (
 	PodAdded   CalicoVppEventType = "PodAdded"
 	PodDeleted CalicoVppEventType = "PodDeleted"
 
-	LocalPodAddressAdded   CalicoVppEventType = "LocalPodAddressAdded"
-	LocalPodAddressDeleted CalicoVppEventType = "LocalPodAddressDeleted"
+	LocalPodAddressAdded          CalicoVppEventType = "LocalPodAddressAdded"
+	LocalPodAddressDeleted        CalicoVppEventType = "LocalPodAddressDeleted"
+	LocalNetworkPodAddressAdded   CalicoVppEventType = "LocalNetworkPodAddressAdded"
+	LocalNetworkPodAddressDeleted CalicoVppEventType = "LocalNetworkPodAddressDeleted"
 
 	TunnelAdded   CalicoVppEventType = "TunnelAdded"
 	TunnelDeleted CalicoVppEventType = "TunnelDeleted"
@@ -56,6 +58,10 @@ const (
 
 	BGPReloadIP4 CalicoVppEventType = "BGPReloadIP4"
 	BGPReloadIP6 CalicoVppEventType = "BGPReloadIP6"
+
+	NetAdded   CalicoVppEventType = "NetAdded"
+	NetUpdated CalicoVppEventType = "NetUpdated"
+	NetDeleted CalicoVppEventType = "NetDeleted"
 )
 
 var (

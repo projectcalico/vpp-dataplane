@@ -59,6 +59,9 @@ type Server struct {
 
 	availableBuffers    uint64
 	buffersNeededPerTap uint64
+
+	cniServerEventChan chan common.CalicoVppEvent
+	networkDefinitions map[string]*watchers.NetworkDefinition
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -107,6 +110,8 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 
 		MemifSwIfIndex:  vpplink.InvalidID,
 		TunTapSwIfIndex: vpplink.InvalidID,
+
+		NetworkName: request.DataplaneOptions["network_name"],
 	}
 
 	for _, port := range request.Workload.Ports {
@@ -326,10 +331,18 @@ func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Ent
 		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(vpp, log),
 		vclDriver:       pod_interface.NewVclPodInterfaceDriver(vpp, log),
 		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(vpp, log),
+
+		cniServerEventChan: make(chan common.CalicoVppEvent),
+		networkDefinitions: make(map[string]*watchers.NetworkDefinition),
 	}
 	reg := common.RegisterHandler(server.cniEventChan, "CNI server events")
-	reg.ExpectEvents(common.FelixConfChanged, common.IpamConfChanged)
-
+	reg.ExpectEvents(
+		common.FelixConfChanged,
+		common.IpamConfChanged,
+		common.NetAdded,
+		common.NetUpdated,
+		common.NetDeleted,
+	)
 	return server
 }
 func (s *Server) cniServerEventLoop(t *tomb.Tomb) {
@@ -379,9 +392,26 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	}
 
 	pb.RegisterCniDataplaneServer(s.grpcServer, s)
+
+	go func() {
+		for t.Alive() {
+			event := <-s.cniServerEventChan
+			switch event.Type {
+			case common.NetAdded:
+				netDef := event.New.(*watchers.NetworkDefinition)
+				s.networkDefinitions[netDef.Name] = netDef
+			case common.NetDeleted:
+				netDef := event.Old.(*watchers.NetworkDefinition)
+				delete(s.networkDefinitions, netDef.Name)
+			case common.NetUpdated:
+				//
+			}
+		}
+	}()
 	s.rescanState()
 
 	s.log.Infof("Serve() CNI")
+
 	go s.grpcServer.Serve(socketListener)
 
 	s.cniServerEventLoop(t)

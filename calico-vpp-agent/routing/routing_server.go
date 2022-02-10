@@ -38,11 +38,16 @@ const (
 	RTPROT_GOBGP = 0x11
 )
 
+type localAddress struct {
+	ipNet *net.IPNet
+	vni   uint32
+}
+
 type Server struct {
 	log *logrus.Entry
 	vpp *vpplink.VppLink
 
-	localAddressMap map[string]*net.IPNet
+	localAddressMap map[string]localAddress
 	ShouldStop      bool
 
 	BGPConf   *calicov3.BGPConfigurationSpec
@@ -73,13 +78,15 @@ func NewRoutingServer(vpp *vpplink.VppLink, bgpServer *bgpserver.BgpServer, log 
 		log:             log,
 		vpp:             vpp,
 		BGPServer:       bgpServer,
-		localAddressMap: make(map[string]*net.IPNet),
+		localAddressMap: make(map[string]localAddress),
 
 		routingServerEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}
 
 	reg := common.RegisterHandler(server.routingServerEventChan, "routing server events")
 	reg.ExpectEvents(
+		common.LocalNetworkPodAddressAdded,
+		common.LocalNetworkPodAddressDeleted,
 		common.LocalPodAddressAdded,
 		common.LocalPodAddressDeleted,
 		common.BGPReloadIP4,
@@ -137,6 +144,7 @@ func (s *Server) ServeRouting(t *tomb.Tomb) (err error) {
 		/* Start watching goBGP */
 		err = s.WatchBGPPath(t)
 		if err != nil {
+			s.log.Error(err)
 			return err
 		}
 
@@ -214,14 +222,14 @@ func (s *Server) cleanUpRoutes() error {
 	return nil
 }
 
-func (s *Server) announceLocalAddress(addr *net.IPNet) error {
+func (s *Server) announceLocalAddress(addr *net.IPNet, vni uint32) error {
 	s.log.Debugf("Announcing prefix %s in BGP", addr.String())
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
-	path, err := common.MakePath(addr.String(), false /* isWithdrawal */, nodeIP4, nodeIP6)
+	path, err := common.MakePath(addr.String(), false /* isWithdrawal */, nodeIP4, nodeIP6, vni)
 	if err != nil {
 		return errors.Wrap(err, "error making path to announce")
 	}
-	s.localAddressMap[addr.String()] = addr
+	s.localAddressMap[addr.String()] = localAddress{ipNet: addr, vni: vni}
 	_, err = s.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
 		TableType: bgpapi.TableType_GLOBAL,
 		Path:      path,
@@ -229,10 +237,10 @@ func (s *Server) announceLocalAddress(addr *net.IPNet) error {
 	return errors.Wrap(err, "error announcing local address")
 }
 
-func (s *Server) withdrawLocalAddress(addr *net.IPNet) error {
+func (s *Server) withdrawLocalAddress(addr *net.IPNet, vni uint32) error {
 	s.log.Debugf("Withdrawing prefix %s from BGP", addr.String())
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
-	path, err := common.MakePath(addr.String(), true /* isWithdrawal */, nodeIP4, nodeIP6)
+	path, err := common.MakePath(addr.String(), true /* isWithdrawal */, nodeIP4, nodeIP6, vni)
 	if err != nil {
 		return errors.Wrap(err, "error making path to withdraw")
 	}
@@ -245,10 +253,10 @@ func (s *Server) withdrawLocalAddress(addr *net.IPNet) error {
 }
 
 func (s *Server) RestoreLocalAddresses() {
-	for _, addr := range s.localAddressMap {
-		err := s.announceLocalAddress(addr)
+	for _, localAddr := range s.localAddressMap {
+		err := s.announceLocalAddress(localAddr.ipNet, localAddr.vni)
 		if err != nil {
-			s.log.Errorf("Local address %s restore failed : %+v", addr.String(), err)
+			s.log.Errorf("Local address %s restore failed : %+v", localAddr.ipNet.String(), err)
 		}
 	}
 }

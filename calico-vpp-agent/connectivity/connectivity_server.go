@@ -47,6 +47,7 @@ type ConnectivityServer struct {
 	nodeByAddr  map[string]oldv3.Node
 
 	connectivityEventChan chan common.CalicoVppEvent
+	networks map[uint32]watchers.VRF
 }
 
 type change uint8
@@ -74,10 +75,13 @@ func NewConnectivityServer(vpp *vpplink.VppLink, ipam watchers.IpamCache,
 		connectivityMap:       make(map[string]common.NodeConnectivity),
 		connectivityEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 		nodeByAddr:            make(map[string]oldv3.Node),
+		networks:              make(map[uint32]watchers.VRF),
 	}
 
 	reg := common.RegisterHandler(server.connectivityEventChan, "connectivity server events")
 	reg.ExpectEvents(
+		common.NetAdded,
+		common.NetDeleted,
 		common.ConnectivityAdded,
 		common.ConnectivityDeleted,
 		common.PeerNodeStateChanged,
@@ -151,6 +155,12 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 		case evt := <-s.connectivityEventChan:
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
+			case common.NetAdded:
+				new := evt.New.(*watchers.NetworkDefinition)
+				s.networks[new.Vni] = new.VRF
+			case common.NetDeleted:
+				old := evt.Old.(*watchers.NetworkDefinition)
+				delete(s.networks, old.Vni)
 			case common.ConnectivityAdded:
 				new := evt.New.(*common.NodeConnectivity)
 				err := s.updateIPConnectivity(new, false /* isWithdraw */)
