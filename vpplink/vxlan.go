@@ -48,7 +48,7 @@ func (v *VppLink) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
 			DstPort:        response.DstPort,
 			Vni:            response.Vni,
 			DecapNextIndex: response.DecapNextIndex,
-			SwIfIndex:      response.SwIfIndex,
+			SwIfIndex:      uint32(response.SwIfIndex),
 		})
 	}
 	return tunnels, nil
@@ -69,7 +69,7 @@ func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIf
 		DecapNextIndex: tunnel.DecapNextIndex,
 		/* Syntax changed due to confusion in https://gerrit.fd.io/r/c/vpp/+/34721
 		 * Now IsL3=false means "disable interface ARP" */
-		IsL3:           false,
+		IsL3: false,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	opStr := "Del"
@@ -81,7 +81,7 @@ func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIf
 	} else if response.Retval != 0 {
 		return ^uint32(1), fmt.Errorf("%s vxlan Tunnel failed with retval %d", opStr, response.Retval)
 	}
-	tunnel.SwIfIndex = response.SwIfIndex
+	tunnel.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
 }
 
