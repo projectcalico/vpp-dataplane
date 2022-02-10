@@ -16,6 +16,7 @@
 package services
 
 import (
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -35,6 +36,24 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
+type LocalServiceEndpoint struct {
+	Endpoint *v1.Endpoints
+	Service  *v1.Service
+}
+
+type CnatTranslateEntryVPPState struct {
+	Entry          types.CnatTranslateEntry
+	OwnerServiceID string
+}
+
+func (es *CnatTranslateEntryVPPState) Key() string {
+	return fmt.Sprintf("%d##%s##%d", es.Entry.Proto, es.Entry.Endpoint.IP, es.Entry.Endpoint.Port)
+}
+
+func (es *CnatTranslateEntryVPPState) String() string {
+	return fmt.Sprintf("[%s]%s", es.OwnerServiceID, es.Entry.String())
+}
+
 type Server struct {
 	*common.CalicoVppServerData
 	log              *logrus.Entry
@@ -49,7 +68,7 @@ type Server struct {
 	BGPConf     *calicov3.BGPConfigurationSpec
 	nodeBGPSpec *oldv3.NodeBGPSpec
 
-	stateMap map[string]*types.CnatTranslateEntry
+	stateMap map[string]CnatTranslateEntryVPPState
 
 	t tomb.Tomb
 }
@@ -62,12 +81,11 @@ func (s *Server) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
 	s.nodeBGPSpec = nodeBGPSpec
 }
 
-func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset,
-	log *logrus.Entry) *Server {
+func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log *logrus.Entry) *Server {
 	server := Server{
 		vpp:      vpp,
 		log:      log,
-		stateMap: make(map[string]*types.CnatTranslateEntry),
+		stateMap: make(map[string]CnatTranslateEntryVPPState),
 	}
 
 	serviceListWatch := cache.NewListWatchFromClient(k8sclient.CoreV1().RESTClient(),
@@ -136,15 +154,12 @@ func (s *Server) getNodeIP(isv6 bool) net.IP {
 	return net.IP{}
 }
 
-func (s *Server) addDelService(service *v1.Service, ep *v1.Endpoints, isWithdrawal bool) error {
-	if !config.EnableServices {
-		return nil
-	}
-	if isWithdrawal {
-		return s.delServicePort(service, ep)
-	} else {
-		return s.addServicePort(service, ep)
-	}
+func IsLocalOnly(service *v1.Service) bool {
+	return service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal
+}
+
+func ServiceID(service *v1.Service) string {
+	return service.Namespace + "/" + service.Name
 }
 
 func (s *Server) configureSnat() (err error) {
@@ -185,13 +200,13 @@ func (s *Server) OnVppRestart() {
 	if config.EnableServices {
 		s.lock.Lock()
 		defer s.lock.Unlock()
-		newState := make(map[string]*types.CnatTranslateEntry)
+		newState := make(map[string]CnatTranslateEntryVPPState)
 		for key, entry := range s.stateMap {
-			entryID, err := s.vpp.CnatTranslateAdd(entry)
+			entryID, err := s.vpp.CnatTranslateAdd(&entry.Entry)
 			if err != nil {
-				s.log.Errorf("Error re-injecting cnat entry %s : %v", entry.String(), err)
+				s.log.Errorf("Error re-injecting cnat entry %s : %v", entry, err)
 			} else {
-				entry.ID = entryID
+				entry.Entry.ID = entryID
 				newState[key] = entry
 			}
 		}
@@ -264,6 +279,10 @@ func differentIPServices(service1 *v1.Service, service2 *v1.Service) bool {
 }
 
 func (s *Server) handleServiceEndpointEvent(service *v1.Service, oldService *v1.Service, ep *v1.Endpoints, isWithdrawal bool) {
+	if !config.EnableServices {
+		return
+	}
+
 	common.WaitIfVppIsRestarting()
 
 	s.lock.Lock()
@@ -281,15 +300,22 @@ func (s *Server) handleServiceEndpointEvent(service *v1.Service, oldService *v1.
 	}
 	if oldService != nil {
 		if differentIPServices(oldService, service) {
-			err := s.addDelService(oldService, ep, true)
+			err := s.delServicePort(oldService, ep)
 			if err != nil {
 				s.log.Errorf("Service errored %v", err)
 			}
 		}
 	}
-	err := s.addDelService(service, ep, isWithdrawal)
-	if err != nil {
-		s.log.Errorf("Service errored %v", err)
+	if isWithdrawal {
+		err := s.delServicePort(service, ep)
+		if err != nil {
+			s.log.Errorf("Del Service errored %v", err)
+		}
+	} else {
+		err := s.addServicePort(service, ep)
+		if err != nil {
+			s.log.Errorf("Add Service errored %v", err)
+		}
 	}
 }
 
@@ -336,6 +362,11 @@ func (s *Server) ServeService(t *tomb.Tomb) error {
 			Type: common.LocalPodAddressAdded,
 			New:  serviceIPNet,
 		})
+	}
+
+	err = s.vpp.CnatPurge()
+	if err != nil {
+		return err
 	}
 
 	s.t.Go(func() error { s.serviceInformer.Run(t.Dying()); return nil })
