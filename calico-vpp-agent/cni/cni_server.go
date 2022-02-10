@@ -30,6 +30,7 @@ import (
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	tomb "gopkg.in/tomb.v2"
@@ -59,6 +60,19 @@ func swIfIdxToIfName(idx uint32) string {
 	return fmt.Sprintf("vpp-tun-%d", idx)
 }
 
+func getHostEndpointProto(proto string) types.IPProto {
+	switch proto {
+	case "udp":
+		return types.UDP
+	case "sctp":
+		return types.SCTP
+	case "tcp":
+		return types.TCP
+	default:
+		return types.TCP
+	}
+}
+
 func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, error) {
 	podSpec := storage.LocalPodSpec{
 		InterfaceName:     request.GetInterfaceName(),
@@ -85,11 +99,11 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 
 	for _, port := range request.Workload.Ports {
 		podSpec.HostPorts = append(podSpec.HostPorts, storage.HostPortBinding{
-			HostPort:      port.HostPort,
+			HostPort:      uint16(port.HostPort),
 			HostIP:        net.ParseIP(port.HostIp),
-			ContainerPort: port.Port,
+			ContainerPort: uint16(port.Port),
+			Protocol:      getHostEndpointProto(port.Protocol),
 		})
-
 	}
 	for _, routeStr := range request.GetContainerRoutes() {
 		_, route, err := net.ParseCIDR(routeStr)

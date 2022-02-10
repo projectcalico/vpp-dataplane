@@ -16,58 +16,40 @@
 package cni
 
 import (
-	"net"
-
-	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-func (s *Server) BindHostPort(port storage.HostPortBinding, containerIp net.IP, stack *vpplink.CleanupStack) (id uint32, err error){
-	hostIp := port.HostIP
-	hostPort := port.HostPort
-	containerPort := port.ContainerPort
-
-	entry := &types.CnatTranslateEntry{
-		Endpoint: types.CnatEndpoint{
-			IP:   hostIp,
-			Port: uint16(hostPort),
-		},
-		Backends: []types.CnatEndpointTuple{
-			{
-				DstEndpoint: types.CnatEndpoint{
-					Port: uint16(containerPort),
-					IP:   containerIp,
-				},
-			},
-		},
-		IsRealIP: true,
-		Proto:    types.TCP,
-		LbType:   types.DefaultLB,
-	}
-	s.log.Infof("(add) %s", entry.String())
-	id, err = s.vpp.CnatTranslateAdd(entry)
-	if err != nil {
-		errors.Wrapf(err, "Error binding hostport: Error re-injecting cnat entry %s", entry.String())
-		return 0, err
-	} else {
-		stack.Push(s.vpp.CnatTranslateDel, entry.ID)
-		return id, err
-	}
-}
-
-func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) error{
+func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) error {
 	for idx, hostPort := range podSpec.HostPorts {
 		for _, containerAddr := range podSpec.ContainerIps {
 			if !vpplink.AddrFamilyDiffers(containerAddr.IP, hostPort.HostIP) {
 				continue
 			}
-			id, err := s.BindHostPort(hostPort, containerAddr.IP, stack)
-			podSpec.HostPorts[idx].EntryID = id
+			entry := &types.CnatTranslateEntry{
+				Endpoint: types.CnatEndpoint{
+					IP:   hostPort.HostIP,
+					Port: hostPort.HostPort,
+				},
+				Backends: []types.CnatEndpointTuple{{
+					DstEndpoint: types.CnatEndpoint{
+						Port: hostPort.ContainerPort,
+						IP:   containerAddr.IP,
+					},
+				}},
+				IsRealIP: true,
+				Proto:    hostPort.Protocol,
+				LbType:   types.DefaultLB,
+			}
+			s.log.Infof("pod(add) hostport entry=%s", entry.String())
+			id, err := s.vpp.CnatTranslateAdd(entry)
 			if err != nil {
 				return err
+			} else {
+				stack.Push(s.vpp.CnatTranslateDel, entry.ID)
 			}
+			podSpec.HostPorts[idx].EntryID = id
 		}
 	}
 	return nil
@@ -76,12 +58,12 @@ func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.Clean
 func (s *Server) DelHostPort(podSpec *storage.LocalPodSpec) {
 	initialSpec, ok := s.podInterfaceMap[podSpec.Key()]
 	if ok {
-		for _, hostport := range initialSpec.HostPorts {
-			err := s.vpp.CnatTranslateDel(hostport.EntryID)
+		for _, hostPort := range initialSpec.HostPorts {
+			err := s.vpp.CnatTranslateDel(hostPort.EntryID)
 			if err != nil {
-				s.log.Errorf("(del) Error deleting entry with ID %s: %v", hostport.EntryID, err)
+				s.log.Errorf("(del) Error deleting entry with ID %s: %v", hostPort.EntryID, err)
 			}
-			s.log.Infof("Entry %s deleted", hostport.EntryID)
+			s.log.Infof("pod(del) hostport entry=%s", hostPort.EntryID)
 		}
 	} else {
 		s.log.Warnf("Initial spec not found")
