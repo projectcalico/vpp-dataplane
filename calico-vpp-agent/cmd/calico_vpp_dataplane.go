@@ -223,5 +223,4 @@ func main() {
 
 	e := t.Wait()
 	log.Infof("Tomb exited with %v", e)
-	vpp.Close()
 }

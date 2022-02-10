@@ -125,6 +125,11 @@ func (c *ipamCache) handleIPPoolUpdate(pool *calicov3.IPPool, isDel bool) error 
 	defer c.lock.Unlock()
 	key := pool.Spec.CIDR
 
+	if key == "" {
+		c.log.Debugf("Empty pool")
+		return nil
+	}
+
 	existing, found := c.ippoolmap[key]
 	if isDel {
 		if found {
@@ -141,13 +146,14 @@ func (c *ipamCache) handleIPPoolUpdate(pool *calicov3.IPPool, isDel bool) error 
 			return nil
 		} else if found {
 			c.log.Infof("Updating pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
+			c.ippoolmap[key] = *pool
+
+			return c.ipamUpdateHandler(pool, &existing)
 		} else {
 			c.log.Infof("Adding pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
+			c.ippoolmap[key] = *pool
+			return c.ipamUpdateHandler(pool, nil /* prevPool */)
 		}
-
-		c.ippoolmap[key] = *pool
-
-		return c.ipamUpdateHandler(pool, &existing)
 	}
 }
 
@@ -290,8 +296,9 @@ func (c *ipamCache) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.
 	} else {
 		if pool.Spec.CIDR != prevPool.Spec.CIDR ||
 			pool.Spec.NATOutgoing != prevPool.Spec.NATOutgoing {
+			var err, err2 error
 			err = c.addDelSnatPrefix(prevPool, false /* isAdd */)
-			err2 := c.addDelSnatPrefix(pool, true /* isAdd */)
+			err2 = c.addDelSnatPrefix(pool, true /* isAdd */)
 			if err != nil || err2 != nil {
 				return errors.Errorf("error updating snat prefix del:%s, add:%s", err, err2)
 			}
