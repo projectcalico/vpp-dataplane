@@ -394,7 +394,7 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.InterfaceSpec, ifState *config.Li
 		// default route in default table
 		err = v.vpp.AddDefaultRouteViaTable(vrfId, common.DefaultVRFIndex, ipFamily.IsIp6)
 		if err != nil {
-			return []uint32{}, errors.Wrapf(err, "error adding VRF %d default route via VRF %d", vrfId, common.PodVRFIndex)
+			return []uint32{}, errors.Wrapf(err, "error adding VRF %d default route via VRF %d", vrfId, common.DefaultVRFIndex)
 		}
 		// Set tap in this table
 		err = v.vpp.SetInterfaceVRF(tapSwIfIndex, vrfId, ipFamily.IsIp6)

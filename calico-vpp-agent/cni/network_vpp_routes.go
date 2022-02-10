@@ -143,14 +143,25 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 		}
 	}
 
-	for _, ipFamily := range vpplink.IpFamilies {
+	for idx, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
-		s.log.Infof("pod(add) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
-		err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily), common.PodVRFIndex, ipFamily.IsIp6)
-		if err != nil {
-			return errors.Wrapf(err, "error adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
+		if podSpec.NetworkName == "" { // no multi net
+			s.log.Infof("pod(add) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
+			err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily), common.PodVRFIndex, ipFamily.IsIp6)
+			if err != nil {
+				return errors.Wrapf(err, "error adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
+			} else {
+				stack.Push(s.vpp.DelDefaultRouteViaTable, vrfId, common.PodVRFIndex, ipFamily.IsIp6)
+			}
 		} else {
-			stack.Push(s.vpp.DelDefaultRouteViaTable, vrfId, common.PodVRFIndex, ipFamily.IsIp6)
+			networkVRF := s.networkDefinitions[podSpec.NetworkName].VRF.Tables[idx]
+			s.log.Infof("Adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, networkVRF)
+			err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily.IsIp6), networkVRF, ipFamily.IsIp6)
+			if err != nil {
+				return errors.Wrapf(err, "error adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, networkVRF)
+			} else {
+				stack.Push(s.vpp.DelDefaultRouteViaTable, vrfId, networkVRF, ipFamily.IsIp6)
+			}
 		}
 	}
 	return nil
@@ -158,12 +169,22 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 
 func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 	var err error
-	for _, ipFamily := range vpplink.IpFamilies {
-		vrfId := podSpec.GetVrfId(ipFamily)
-		s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
-		err = s.vpp.DelDefaultRouteViaTable(vrfId, common.PodVRFIndex, ipFamily.IsIp6)
-		if err != nil {
-			s.log.Errorf("Error  VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, common.PodVRFIndex, err)
+	for idx, ipFamily := range vpplink.IpFamilies {
+		if podSpec.NetworkName == "" {
+			vrfId := podSpec.GetVrfId(ipFamily)
+			s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
+			err = s.vpp.DelDefaultRouteViaTable(vrfId, common.PodVRFIndex, ipFamily.IsIp6)
+			if err != nil {
+				s.log.Errorf("Error  VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, common.PodVRFIndex, err)
+			}
+		} else {
+			networkVRF := s.networkDefinitions[podSpec.NetworkName].VRF.Tables[idx]
+			vrfId := podSpec.GetVrfId(ipFamily)
+			s.log.Infof("Deleting VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, networkVRF)
+			err = s.vpp.DelDefaultRouteViaTable(vrfId, networkVRF, ipFamily.IsIp6)
+			if err != nil {
+				s.log.Errorf("Error  VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, networkVRF, err)
+			}
 		}
 	}
 
