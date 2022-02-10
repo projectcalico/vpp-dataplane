@@ -220,7 +220,6 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			Gw:        nodeIP,
 		}},
 	}
-	p.log.Info(p.vxlanRoutes)
 	_, found = p.vxlanRoutes[tunnel.SwIfIndex]
 	if !found {
 		p.vxlanRoutes[tunnel.SwIfIndex] = make(map[string]bool)

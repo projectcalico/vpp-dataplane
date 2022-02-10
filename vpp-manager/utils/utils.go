@@ -176,7 +176,12 @@ func CreateVppLink() (vpp *vpplink.VppLink, err error) {
 	for i := 0; i < 10; i++ {
 		vpp, err = vpplink.NewVppLink(config.VppApiSocket, log.WithFields(log.Fields{"component": "vpp-api"}))
 		if err != nil {
-			log.Warnf("Try [%d/10] %v", i, err)
+			if i < 5 {
+				/* do not warn, it is probably fine */
+				log.Infof("Waiting for VPP... [%d/10]", i)
+			} else {
+				log.Warnf("Waiting for VPP... [%d/10] %v", i, err)
+			}
 			err = nil
 			time.Sleep(2 * time.Second)
 		} else {

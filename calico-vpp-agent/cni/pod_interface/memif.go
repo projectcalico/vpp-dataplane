@@ -112,6 +112,6 @@ func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec)
 		}
 	}
 
-	i.log.Infof("Deleted memif[%d]", podSpec.MemifSwIfIndex)
+	i.log.Infof("pod(del) memif swIfIndex=%d", podSpec.MemifSwIfIndex)
 
 }

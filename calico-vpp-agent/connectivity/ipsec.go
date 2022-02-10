@@ -51,7 +51,7 @@ func (p *IpsecProvider) OnVppRestart() {
 		}
 
 		nbDataThread = numVPPWorkers - config.IpsecNbAsyncCryptoThread
-		p.log.Infof("nbDataThread %d", nbDataThread)
+		p.log.Infof("Using async workers for ipsec, nbDataThread=%d", nbDataThread)
 
 		for i := 0; i < nbDataThread; i++ {
 			err = p.vpp.SetCryptoWorker(uint32(i), false)
@@ -178,7 +178,7 @@ func (p *IpsecProvider) createOneIndexedIPSECTunnel(i int, j int, destNodeAddr n
 		Src: src,
 		Dst: dst,
 	}
-	p.log.Infof("ROUTING: Adding IPsec tunnel %s", tunnel.String())
+	p.log.Infof("connectiviy(add) IPsec tunnel=%s", tunnel.String())
 	err = p.createOneIPSECTunnel(tunnel, config.IPSecIkev2Psk)
 	if err != nil {
 		return errors.Wrapf(err, "error configuring ipsec tunnel %s", tunnel.String())
@@ -261,7 +261,7 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 		return errors.Wrapf(err, "error configuring IPsec tunnel %s", tunnel.String())
 	}
 
-	p.log.Infof("IKE: Profile %s = swifindex %d", profile, tunnel.SwIfIndex)
+	p.log.Infof("connectivity(add) IKE Profile=%s swIfIndex=%d", profile, tunnel.SwIfIndex)
 	err = p.vpp.SetIKEv2TunnelInterface(profile, swIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel, profile)
@@ -270,7 +270,7 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 
 	// Compare addresses lexicographically to select an initiator
 	if bytes.Compare(tunnel.Src.To4(), tunnel.Dst.To4()) > 0 {
-		p.log.Infof("IKE: Set responder %s", tunnel.String())
+		p.log.Infof("connectivity(add) IKE Set responder=%s", tunnel.String())
 		err = p.vpp.SetIKEv2Responder(profile, config.DataInterfaceSwIfIndex, tunnel.Dst)
 		if err != nil {
 			p.errorCleanup(tunnel, profile)
@@ -305,12 +305,12 @@ func (p *IpsecProvider) waitForIPsecSA(profile string, tunnel *types.IPIPTunnel)
 			return
 		}
 		if iface.IsUp {
-			p.log.Infof("Profile %s tunnel now up", profile)
+			p.log.Infof("connectivity(add) tunnel now up Profile=%s", profile)
 			return
 		}
 
 		if bytes.Compare(tunnel.Src.To4(), tunnel.Dst.To4()) > 0 {
-			p.log.Infof("IPIP tunnel %s still down, re-trying initiate", tunnel.String())
+			p.log.Warnf("IPIP tunnel still down, re-trying initiate IKE for IPsec tunnel=%s", tunnel.String())
 			err = p.vpp.IKEv2Initiate(profile)
 			if err != nil {
 				p.errorCleanup(tunnel, profile)
@@ -361,7 +361,7 @@ func (p *IpsecProvider) AddConnectivity(cn *common.NodeConnectivity) (err error)
 		}
 	}
 	tunnels := p.ipsecIfs[cn.NextHop.String()]
-	p.log.Infof("IPSEC: ADD %s via %s [%v]", cn.Dst.String(), cn.NextHop.String(), tunnels)
+	p.log.Infof("connectivity(add) IPSEC cn=%s tunnels=[%v]", cn.String(), tunnels)
 	route := &types.Route{
 		Dst:   &cn.Dst,
 		Paths: getIPSecRoutePaths(tunnels),
@@ -390,7 +390,7 @@ func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error)
 	if !found {
 		return errors.Errorf("Deleting unknown ipip tunnel %s", cn.NextHop.String())
 	}
-	p.log.Infof("IPSEC: DEL %s via %s [%v]", cn.Dst.String(), cn.NextHop.String(), tunnels)
+	p.log.Infof("connectivity(del) IPSEC cn=%s tunnels=[%v]", cn.String(), tunnels)
 	routeToDelete := &types.Route{
 		Dst:   &cn.Dst,
 		Paths: getIPSecRoutePaths(tunnels),
@@ -406,9 +406,9 @@ func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error)
 	if !found || len(remaining_routes) == 0 {
 		for _, tunnel := range tunnels {
 			profile := profileName(tunnel)
-			p.log.Infof("Deleting profile...%s", profile)
+			p.log.Infof("connectivity(del) Deleting IKE profile=%s", profile)
 			p.vpp.DelIKEv2Profile(profile)
-			p.log.Infof("Deleting tunnel...%s", tunnel)
+			p.log.Infof("connectivity(del) Deleting IPsec tunnel=%s", tunnel)
 			err := p.vpp.DelIPIPTunnel(tunnel)
 			if err != nil {
 				p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)

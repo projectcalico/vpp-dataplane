@@ -40,6 +40,13 @@ type Tier struct {
 	EgressPolicies  []string
 }
 
+func (tr *Tier) String() string {
+	s := fmt.Sprintf("name=%s", tr.Name)
+	s += types.StrListToString(" IngressPolicies=", tr.IngressPolicies)
+	s += types.StrListToString(" EgressPolicies=", tr.EgressPolicies)
+	return s
+}
+
 type WorkloadEndpoint struct {
 	SwIfIndex uint32
 	Profiles  []string
@@ -48,7 +55,10 @@ type WorkloadEndpoint struct {
 }
 
 func (we *WorkloadEndpoint) String() string {
-	return fmt.Sprintf("if[%d] profiles:[%s] tiers:[%s]", we.SwIfIndex, we.Profiles, we.Tiers)
+	s := fmt.Sprintf("if=%d profiles=%s= tiers:[%s]", we.SwIfIndex, we.Profiles, we.Tiers)
+	s += types.StrListToString(" Profiles=", we.Profiles)
+	s += types.StrableListToString(" Tiers=", we.Tiers)
+	return s
 }
 
 func fromProtoEndpointID(ep *proto.WorkloadEndpointID) *WorkloadEndpointID {

@@ -40,10 +40,15 @@ type CnatEndpoint struct {
 }
 
 func (e *CnatEndpoint) String() string {
-	return fmt.Sprintf("%s;%d",
-		e.IP.String(),
-		e.Port,
-	)
+	if e.IP.IsUnspecified() && e.Port == 0 {
+		return "()"
+	} else if e.IP.IsUnspecified() && e.Port != 0 {
+		return fmt.Sprintf("();%d", e.Port)
+	} else if e.Port == 0 {
+		return fmt.Sprintf("%s", e.IP.String())
+	} else {
+		return fmt.Sprintf("%s;%d", e.IP.String(), e.Port)
+	}
 }
 
 type CnatEndpointTuple struct {
@@ -53,7 +58,7 @@ type CnatEndpointTuple struct {
 }
 
 func (t *CnatEndpointTuple) String() string {
-	return fmt.Sprintf("%s -> %s",
+	return fmt.Sprintf("[%s->%s]",
 		t.SrcEndpoint.String(),
 		t.DstEndpoint.String(),
 	)
@@ -73,8 +78,8 @@ func (n *CnatTranslateEntry) String() string {
 	for _, e := range n.Backends {
 		strLst = append(strLst, e.String())
 	}
-	return fmt.Sprintf("%s %s => [%s]",
-		formatProto(n.Proto),
+	return fmt.Sprintf("[%s vip=%s rw=%s]",
+		n.Proto.String(),
 		n.Endpoint.String(),
 		strings.Join(strLst, ", "),
 	)

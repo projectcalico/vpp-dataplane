@@ -32,7 +32,9 @@ func (s *Server) MessageReader(conn net.Conn) <-chan interface{} {
 		for {
 			msg, err := s.RecvMessage(conn)
 			if err != nil {
-				s.log.Errorf("Error receiving message from felix: %v", err)
+				if msg != nil {
+					s.log.Errorf("Error receiving message from felix: %v", err)
+				}
 				break
 			}
 			if msg != nil {
@@ -113,7 +115,7 @@ func (s *Server) RecvMessage(conn net.Conn) (msg interface{}, err error) {
 		msg = payload.GlobalBgpConfigUpdate
 
 	default:
-		s.log.WithField("payload", payload).Warn("Ignoring unknown message from felix")
+		s.log.WithField("payload", payload).Debug("Ignoring unknown message from felix")
 	}
 
 	s.log.WithField("msg", msg).Debug("Received message from dataplane.")

@@ -60,7 +60,6 @@ func (v *VppLink) SetIPsecAsyncMode(enable bool) error {
 	request := &ipsec.IpsecSetAsyncMode{
 		AsyncEnable: enable,
 	}
-	v.log.Info("Enabling IPsec async mode")
 	var err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrap(err, "IPsec async mode enable failed")

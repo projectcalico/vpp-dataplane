@@ -67,7 +67,7 @@ func (s *Server) hasVRF(podSpec *storage.LocalPodSpec) bool {
 		}
 	}
 
-    if hasIp4 != hasIp6 {
+	if hasIp4 != hasIp6 {
 		s.log.Warnf("Partial VRF state hasv4=%t hasv6=%t key=%s", hasIp4, hasIp6, podSpec.Key())
 	}
 
@@ -93,32 +93,32 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	stack := s.vpp.NewCleanupStack()
 
-	s.log.Infof("Checking available buffers")
+	s.log.Infof("pod(add) Checking available buffers")
 	buffersNeeded, err := s.checkAvailableBuffers()
 	if err != nil {
 		goto err
 	}
 
-	s.log.Infof("Creating Pod VRF")
+	s.log.Infof("pod(add) VRF")
 	err = s.CreatePodVRF(podSpec, stack)
 	if err != nil {
 		goto err
 	}
 
-	s.log.Infof("Creating Pod loopback")
+	s.log.Infof("pod(add) loopback")
 	err = s.loopbackDriver.CreateInterface(podSpec, stack)
 	if err != nil {
 		goto err
 	}
 
-	s.log.Infof("Creating Pod tuntap")
+	s.log.Infof("pod(add) tuntap")
 	err = s.tuntapDriver.CreateInterface(podSpec, stack, doHostSideConf)
 	if err != nil {
 		goto err
 	}
 
 	if podSpec.EnableMemif && config.MemifEnabled {
-		s.log.Infof("Creating Pod memif")
+		s.log.Infof("pod(add) memif")
 		err = s.memifDriver.CreateInterface(podSpec, stack)
 		if err != nil {
 			goto err
@@ -126,7 +126,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}
 
 	if podSpec.EnableVCL && config.VCLEnabled {
-		s.log.Infof("Creating Pod VCL socket")
+		s.log.Infof("pod(add) VCL socket")
 		err = s.vclDriver.CreateInterface(podSpec, stack)
 		if err != nil {
 			goto err
@@ -135,7 +135,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	/* Routes */
 	if podSpec.EnableVCL {
-		s.log.Infof("Setting up Pod Punt routes")
+		s.log.Infof("pod(add) Punt routes")
 		err = s.SetupPuntRoutes(podSpec, stack, podSpec.TunTapSwIfIndex)
 		if err != nil {
 			goto err
@@ -147,7 +147,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	} else {
 		swIfIndex, isL3 := podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 		if swIfIndex != types.InvalidID {
-			s.log.Infof("Adding Pod default routes to %d l3?:%t", swIfIndex, isL3)
+			s.log.Infof("pod(add) Default routes to swIfIndex=%d isL3=%t", swIfIndex, isL3)
 			err = s.RoutePodInterface(podSpec, stack, swIfIndex, isL3)
 			if err != nil {
 				goto err
@@ -158,7 +158,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 		swIfIndex, isL3 = podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
 		if swIfIndex != types.InvalidID {
-			s.log.Infof("Adding Pod PBL routes to %d l3?:%t", swIfIndex, isL3)
+			s.log.Infof("pod(add) PBL routes to %d l3?:%t", swIfIndex, isL3)
 			err = s.RoutePblPortsPodInterface(podSpec, stack, swIfIndex, isL3)
 			if err != nil {
 				goto err
@@ -166,7 +166,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	}
 
-	s.log.Infof("Announcing Pod Addresses")
+	s.log.Infof("pod(add) announcing pod Addresses")
 	for _, containerIP := range podSpec.GetContainerIps() {
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.LocalPodAddressAdded,
@@ -174,7 +174,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		})
 	}
 
-	s.log.Infof("Adding HostPorts")
+	s.log.Infof("pod(add) HostPorts")
 	err = s.AddHostPort(podSpec, stack)
 	if err != nil {
 		goto err
@@ -208,40 +208,40 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	/* Routes */
 	if podSpec.EnableVCL {
 		if podSpec.TunTapSwIfIndex != vpplink.InvalidID {
-			s.log.Infof("Deleting routes to podVRF")
+			s.log.Infof("pod(del) routes to podVRF")
 			s.DeleteVRFRoutesToPod(podSpec)
-			s.log.Infof("Deleting Pod punt routes")
+			s.log.Infof("pod(del) punt routes")
 			s.RemovePuntRoutes(podSpec, podSpec.TunTapSwIfIndex)
 		}
 	} else {
 		swIfIndex, _ := podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
 		if swIfIndex != types.InvalidID {
-			s.log.Infof("Deleting Pod PBL routes to %d", swIfIndex)
+			s.log.Infof("pod(del) PBL routes to %d", swIfIndex)
 			s.UnroutePblPortsPodInterface(podSpec, swIfIndex)
 		}
 		swIfIndex, _ = podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 		if swIfIndex != types.InvalidID {
-			s.log.Infof("Deleting Pod default routes to %d", swIfIndex)
+			s.log.Infof("pod(del) default routes to %d", swIfIndex)
 			s.UnroutePodInterface(podSpec, swIfIndex)
 		}
 	}
 
 	/* Interfaces */
 	if podSpec.EnableVCL && config.VCLEnabled {
-		s.log.Infof("Deleting Pod VCL")
+		s.log.Infof("pod(del) VCL")
 		s.vclDriver.DeleteInterface(podSpec)
 	}
 	if podSpec.EnableMemif && config.MemifEnabled {
-		s.log.Infof("Deleting Pod memif")
+		s.log.Infof("pod(del) memif")
 		s.memifDriver.DeleteInterface(podSpec)
 	}
-	s.log.Infof("Deleting Pod tuntap")
+	s.log.Infof("pod(del) tuntap")
 	s.tuntapDriver.DeleteInterface(podSpec)
 
-	s.log.Infof("Deleting Pod loopback")
+	s.log.Infof("pod(del) loopback")
 	s.loopbackDriver.DeleteInterface(podSpec)
 
-	s.log.Infof("Deleting Pod VRF")
+	s.log.Infof("pod(del) VRF")
 	s.DeletePodVRF(podSpec)
 
 	common.SendEvent(common.CalicoVppEvent{

@@ -28,6 +28,10 @@ type HostEndpointID struct {
 	EndpointID string
 }
 
+func (eid HostEndpointID) String() string {
+	return eid.EndpointID
+}
+
 type HostEndpoint struct {
 	UplinkSwIfIndexes []uint32
 	TapSwIfIndexes    []uint32
@@ -43,8 +47,16 @@ type HostEndpoint struct {
 }
 
 func (he *HostEndpoint) String() string {
-	return fmt.Sprintf("%s: %+v : uplink[%d] tap[%d] tunnel [%d] profiles:[%s] tiers:[%s] forwardTiers [%s]",
-		he.InterfaceName, he.expectedIPs, he.UplinkSwIfIndexes, he.TapSwIfIndexes, he.TunnelSwIfIndexes, he.Profiles, he.Tiers, he.ForwardTiers)
+	s := fmt.Sprintf("ifName=%s", he.InterfaceName)
+	s += types.StrListToString(" expectedIPs=", he.expectedIPs)
+	s += types.IntListToString(" uplink=", he.UplinkSwIfIndexes)
+	s += types.IntListToString(" tap=", he.TapSwIfIndexes)
+	s += types.IntListToString(" uplink=", he.UplinkSwIfIndexes)
+	s += types.IntListToString(" tunnel=", he.TunnelSwIfIndexes)
+	s += types.StrListToString(" profiles=", he.Profiles)
+	s += types.StrableListToString(" tiers=", he.Tiers)
+	s += types.StrableListToString(" forwardTiers=", he.ForwardTiers)
+	return s
 }
 
 func fromProtoHostEndpointID(ep *proto.HostEndpointID) *HostEndpointID {
@@ -104,6 +116,7 @@ func (h *HostEndpoint) handleTunnelChange(swIfIndex uint32, isAdd bool, pending 
 			h.TunnelSwIfIndexes = append(h.TunnelSwIfIndexes, swIfIndex)
 			h.server.log.Infof("Configuring policies on added tunnel [%d]", swIfIndex)
 			if !pending {
+				h.server.log.Infof("policy(upd) interface swif=%d", swIfIndex)
 				err = h.server.vpp.ConfigurePolicies(swIfIndex, h.currentForwardConf)
 				if err != nil {
 					h.server.log.Errorf("cannot configure policies on tunnel interface %d", swIfIndex)
@@ -226,6 +239,7 @@ func (h *HostEndpoint) Create(vpp *vpplink.VppLink, state *PolicyState) (err err
 		return err
 	}
 	for _, swIfIndex := range append(h.UplinkSwIfIndexes, h.TunnelSwIfIndexes...) {
+		h.server.log.Infof("policy(add) interface swif=%d conf=%s", swIfIndex, forwardConf)
 		err = vpp.ConfigurePolicies(swIfIndex, forwardConf)
 		if err != nil {
 			return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
@@ -237,6 +251,7 @@ func (h *HostEndpoint) Create(vpp *vpplink.VppLink, state *PolicyState) (err err
 		return err
 	}
 	for _, swIfIndex := range h.TapSwIfIndexes {
+		h.server.log.Infof("policy(add) interface swif=%d conf=%s", swIfIndex, tapConf)
 		err = vpp.ConfigurePolicies(swIfIndex, tapConf)
 		if err != nil {
 			return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
@@ -251,6 +266,7 @@ func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *Po
 		return err
 	}
 	for _, swIfIndex := range append(h.UplinkSwIfIndexes, h.TunnelSwIfIndexes...) {
+		h.server.log.Infof("policy(upd) interface swif=%d conf=%s", swIfIndex, forwardConf)
 		err = vpp.ConfigurePolicies(swIfIndex, forwardConf)
 		if err != nil {
 			return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
@@ -262,6 +278,7 @@ func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *Po
 		return err
 	}
 	for _, swIfIndex := range h.TapSwIfIndexes {
+		h.server.log.Infof("policy(upd) interface swif=%d conf=%s", swIfIndex, tapConf)
 		err = vpp.ConfigurePolicies(swIfIndex, tapConf)
 		if err != nil {
 			return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
@@ -277,6 +294,7 @@ func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *Po
 func (h *HostEndpoint) Delete(vpp *vpplink.VppLink) (err error) {
 	for _, swIfIndex := range append(append(h.UplinkSwIfIndexes, h.TapSwIfIndexes...), h.TunnelSwIfIndexes...) {
 		// Unconfigure policies
+		h.server.log.Infof("policy(del) interface swif=%d", swIfIndex)
 		err = vpp.ConfigurePolicies(swIfIndex, types.NewInterfaceConfig())
 		if err != nil {
 			return errors.Wrapf(err, "cannot unconfigure policies on interface %d", swIfIndex)

@@ -47,11 +47,11 @@ type CnatTranslateEntryVPPState struct {
 }
 
 func (es *CnatTranslateEntryVPPState) Key() string {
-	return fmt.Sprintf("%d##%s##%d", es.Entry.Proto, es.Entry.Endpoint.IP, es.Entry.Endpoint.Port)
+	return fmt.Sprintf("%s#%s#%d", es.Entry.Proto.String(), es.Entry.Endpoint.IP, es.Entry.Endpoint.Port)
 }
 
 func (es *CnatTranslateEntryVPPState) String() string {
-	return fmt.Sprintf("[%s]%s", es.OwnerServiceID, es.Entry.String())
+	return fmt.Sprintf("svcID=%s %s", es.OwnerServiceID, es.Entry.String())
 }
 
 type Server struct {

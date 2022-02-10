@@ -111,7 +111,6 @@ func (r *RouteWatcher) RestoreAllRoutes() (err error) {
 	for _, route := range r.routes {
 		err = netlink.RouteReplace(&route)
 		if err != nil {
-			log.Errorf("RW.RouteReplace error with %s", route)
 			return err
 		}
 	}
@@ -157,12 +156,12 @@ func (r *RouteWatcher) WatchRoutes() {
 			ErrorCallback: r.netlinkError,
 		})
 		if err != nil {
-			log.Errorf("error watching for routes, sleeping before retrying")
+			log.Errorf("error watching for routes %v", err)
 			goto restart
 		}
 		// Stupidly re-add all of our routes after we start watching to make sure they're there
 		if err = r.RestoreAllRoutes(); err != nil {
-			log.Errorf("error adding routes, sleeping before retrying: %v", err)
+			log.Errorf("error adding routes %v", err)
 			goto restart
 		}
 		for {
@@ -172,7 +171,6 @@ func (r *RouteWatcher) WatchRoutes() {
 					log.Infof("Route watcher exiting")
 					return
 				}
-				log.Info("Route watcher stopped / failed")
 				goto restart
 			case update, ok := <-updates:
 				if !ok {
@@ -186,7 +184,7 @@ func (r *RouteWatcher) WatchRoutes() {
 							log.Infof("Re-adding route %+v", route)
 							err = netlink.RouteReplace(&route)
 							if err != nil {
-								log.Errorf("error adding route %+v: %v, restarting watcher", route, err)
+								log.Errorf("error adding route %+v: %v", route, err)
 								r.lock.Unlock()
 								goto restart
 							}
@@ -198,7 +196,7 @@ func (r *RouteWatcher) WatchRoutes() {
 			case <-r.addrUpdate:
 				log.Infof("Address update, restoring all routes")
 				if err = r.RestoreAllRoutes(); err != nil {
-					log.Errorf("error adding routes, sleeping before retrying: %v", err)
+					log.Errorf("error adding routes: %v", err)
 					goto restart
 				}
 			}
@@ -206,6 +204,7 @@ func (r *RouteWatcher) WatchRoutes() {
 	restart:
 		r.safeClose()
 		time.Sleep(2 * time.Second)
+		log.Info("Restarting route watcher")
 	}
 }
 

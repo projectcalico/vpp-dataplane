@@ -24,6 +24,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/sirupsen/logrus"
 )
 
 type Rule struct {
@@ -43,6 +44,26 @@ type Rule struct {
 	SrcNotIPSetNames []string
 
 	DstIPPortSetNames []string
+}
+
+func (r *Rule) String() string {
+	s := fmt.Sprintf("[vpp-id=%d rid=%s", r.VppID, r.RuleID)
+
+	s += types.StrListToString(" dipport==", r.DstIPPortIPSetNames)
+	s += types.StrListToString(" dipport!=", r.DstNotIPPortIPSetNames)
+	s += types.StrListToString(" sipport==", r.SrcIPPortIPSetNames)
+	s += types.StrListToString(" sipport!=", r.SrcNotIPPortIPSetNames)
+
+	s += types.StrListToString(" dipset==", r.DstIPSetNames)
+	s += types.StrListToString(" dipset!=", r.DstNotIPSetNames)
+	s += types.StrListToString(" sipset==", r.SrcIPSetNames)
+	s += types.StrListToString(" sipset!=", r.SrcNotIPSetNames)
+
+	s += types.StrListToString(" dipportset==", r.DstIPPortSetNames)
+
+	s += "]"
+
+	return s
 }
 
 func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
@@ -280,11 +301,12 @@ func (r *Rule) Create(vpp *vpplink.VppLink, state *PolicyState) (err error) {
 		return errors.Wrap(err, "error creating rule")
 	}
 	r.VppID = id
+    logrus.Infof("policy(add) VPP rule=%s id=%d", r.Rule, id)
 	return nil
 }
 
 func (r *Rule) Delete(vpp *vpplink.VppLink) (err error) {
-	err = vpp.RuleDelete(r.VppID)
+    logrus.Infof("policy(del) VPP rule id=%d", r.VppID)
 	if err != nil {
 		return err
 	}

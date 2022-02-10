@@ -93,7 +93,7 @@ func (p *IpipProvider) errorCleanup(tunnel *types.IPIPTunnel) {
 }
 
 func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
-	p.log.Debugf("Adding ipip Tunnel to VPP")
+	p.log.Debugf("connectivity(add) IPIP Tunnel to VPP")
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
 		tunnel = &types.IPIPTunnel{
@@ -108,7 +108,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			return fmt.Errorf("Missing node address")
 		}
 
-		p.log.Infof("IPIP: Add %s", tunnel.String())
+		p.log.Infof("connectivity(add) create IPIP tunnel=%s", tunnel.String())
 
 		swIfIndex, err := p.vpp.AddIPIPTunnel(tunnel)
 		if err != nil {
@@ -160,9 +160,9 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			New:  swIfIndex,
 		})
 	}
-	p.log.Infof("IPIP: tunnnel %s ok", tunnel.String())
+	p.log.Infof("connectivity(add) using IPIP tunnel=%s", tunnel.String())
+	p.log.Debugf("connectivity(add) ipip tunnel route dst=%s via tunnel swIfIndex=%d", cn.Dst.IP.String(), tunnel.SwIfIndex)
 
-	p.log.Debugf("Adding ipip tunnel route to %s via swIfIndex %d", cn.Dst.IP.String(), tunnel.SwIfIndex)
 	route := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
@@ -185,10 +185,9 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
-		p.log.Infof("IPIP: Del unknown %s", cn.NextHop.String())
-		return errors.Errorf("Deleting unknown ipip tunnel %s", cn.NextHop.String())
+		return errors.Errorf("Deleting unknown ipip tunnel cn=%s", cn.String())
 	}
-	p.log.Infof("IPIP: Del ?->%s %d", cn.NextHop.String(), tunnel.SwIfIndex)
+	p.log.Infof("connectivity(del) Removed IPIP connectivity cn=%s swIfIndex=%d", cn.String(), tunnel.SwIfIndex)
 	routeToDelete := &types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
@@ -205,7 +204,7 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 
 	remaining_routes, found := p.ipipRoutes[tunnel.SwIfIndex]
 	if !found || len(remaining_routes) == 0 {
-		p.log.Infof("Deleting pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), tunnel.SwIfIndex)
+		p.log.Infof("connectivity(del) all gone. Deleting IPIP tunnel swIfIndex=%d", tunnel.SwIfIndex)
 		err = p.vpp.RouteDel(&types.Route{
 			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
@@ -214,7 +213,10 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			}},
 			Table: common.PodVRFIndex,
 		})
-		p.log.Infof("Deleting tunnel...%s", tunnel)
+		if err != nil {
+			p.log.Errorf("Error deleting ipip route dst=%s via tunnel swIfIndex=%d %s", cn.NextHop.String(), tunnel.SwIfIndex, err)
+		}
+		p.log.Infof("connectivity(del) IPIP tunnel=%s", tunnel)
 		err := p.vpp.DelIPIPTunnel(tunnel)
 		if err != nil {
 			p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
@@ -225,6 +227,5 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			Old:  tunnel.SwIfIndex,
 		})
 	}
-	p.log.Infof("%s", p.ipipIfs)
 	return nil
 }

@@ -241,7 +241,7 @@ func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, contain
 		return
 	}
 
-	s.log.Infof("workload endpoint added: %v -> %d", id, swIfIndex)
+	s.log.Infof("policy(add) Workload id=%v swIfIndex=%d", id, swIfIndex)
 	s.endpointsInterfaces[*id] = swIfIndex
 
 	if s.state == StateInSync {
@@ -273,10 +273,10 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 
 	_, existing := s.endpointsInterfaces[*id]
 	if !existing {
-		s.log.Errorf("nonexistent workload endpoint removed %v", id)
+		s.log.Warnf("nonexistent workload endpoint removed %v", id)
 		return
 	}
-	s.log.Infof("workload endpoint removed: %v", id)
+	s.log.Infof("policy(del) workload id=%v", id)
 
 	if s.state == StateInSync {
 		wep, ok := s.configuredState.WorkloadEndpoints[*id]
@@ -379,9 +379,18 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 		os.RemoveAll(config.FelixDataplaneSocket)
 	}()
 
-	s.createAllowFromHostPolicy()
-	s.createEndpointToHostPolicy()
-	s.createAllowToHostPolicy()
+	err = s.createAllowFromHostPolicy()
+	if err != nil {
+		s.log.Errorf("Error in createAllowFromHostPolicy %s", err)
+	}
+	err = s.createEndpointToHostPolicy()
+	if err != nil {
+		s.log.Errorf("Error in createAllowFromHostPolicy %s", err)
+	}
+	err = s.createAllowToHostPolicy()
+	if err != nil {
+		s.log.Errorf("Error in createAllowToHostPolicy %s", err)
+	}
 
 	for {
 		s.state = StateDisconnected
@@ -423,7 +432,7 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 			// CNI component adds or deletes container interfaces.
 			case msg, ok := <-felixUpdates:
 				if !ok {
-					s.log.Errorf("Error getting felix update: %v %v", msg, ok)
+					s.log.Debugf("Felix MessageReader closed")
 					break innerLoop
 				}
 				err = s.handleFelixUpdate(msg)
@@ -439,9 +448,18 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 			s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
 		}
 		s.log.Infof("SyncPolicy exited, reconnecting to felix")
-		s.createAllowFromHostPolicy()
-		s.createEndpointToHostPolicy()
-		s.createAllowToHostPolicy()
+		err = s.createAllowFromHostPolicy()
+		if err != nil {
+			s.log.Errorf("Error in createAllowFromHostPolicy %s", err)
+		}
+		err = s.createEndpointToHostPolicy()
+		if err != nil {
+			s.log.Errorf("Error in createAllowFromHostPolicy %s", err)
+		}
+		err = s.createAllowToHostPolicy()
+		if err != nil {
+			s.log.Errorf("Error in createAllowToHostPolicy %s", err)
+		}
 	}
 }
 
@@ -524,7 +542,7 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 	if s.state != StateConnected {
 		return fmt.Errorf("Received ConfigUpdate but server is not in Connected state! state: %v", s.state)
 	}
-	s.log.Infof("Got config from felix: %+v", msg)
+	s.log.Debugf("Got config from felix: %+v", msg)
 	s.state = StateSyncing
 
 	config.HandleFelixConfig(msg.Config)
@@ -564,7 +582,7 @@ func (s *Server) handleIpsetUpdate(msg *proto.IPSetUpdate, pending bool) (err er
 		}
 	}
 	state.IPSets[msg.GetId()] = ips
-	log.Debugf("Handled Ipset Update [pending:%t] id=%s %s", pending, msg.GetId(), ips)
+	log.Debugf("Handled Ipset Update pending=%t id=%s %s", pending, msg.GetId(), ips)
 	return nil
 }
 
@@ -581,7 +599,7 @@ func (s *Server) handleIpsetDeltaUpdate(msg *proto.IPSetDeltaUpdate, pending boo
 	if err != nil {
 		return errors.Wrap(err, "cannot process ipset delta update")
 	}
-	log.Debugf("Handled Ipset delta Update [pending:%t] id=%s %s", pending, msg.GetId(), ips)
+	log.Debugf("Handled Ipset delta Update pending=%t id=%s %s", pending, msg.GetId(), ips)
 	return nil
 }
 
@@ -589,16 +607,16 @@ func (s *Server) handleIpsetRemove(msg *proto.IPSetRemove, pending bool) (err er
 	state := s.currentState(pending)
 	ips, ok := state.IPSets[msg.GetId()]
 	if !ok {
-		s.log.Debugf("Received ipset delete for ID %s that doesn't exists", msg.GetId())
+		s.log.Warnf("Received ipset delete for ID %s that doesn't exists", msg.GetId())
 		return nil
 	}
 	if !pending {
-		err = state.IPSets[msg.GetId()].Delete(s.vpp)
+		err = ips.Delete(s.vpp)
 		if err != nil {
 			return errors.Wrapf(err, "cannot delete ipset %s", msg.GetId())
 		}
 	}
-	log.Debugf("Handled Ipset remove [pending:%t] id=%s %s", pending, msg.GetId(), ips)
+	log.Debugf("Handled Ipset remove pending=%t id=%s %s", pending, msg.GetId(), ips)
 	delete(state.IPSets, msg.GetId())
 	return nil
 }
@@ -614,20 +632,26 @@ func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending
 		return errors.Wrapf(err, "cannot process policy update")
 	}
 
-	log.Infof("Handling ActivePolicyUpdate [pending:%t] id=%s %s", pending, id, p)
+	log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", pending, id, p)
 	existing, ok := state.Policies[id]
 	if ok { // Policy with this ID already exists
 		if pending {
 			// Just replace policy in pending state
 			state.Policies[id] = p
 		} else {
-			return errors.Wrap(existing.Update(s.vpp, p, state), "cannot update policy")
+			err := existing.Update(s.vpp, p, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot update policy")
+			}
 		}
 	} else {
 		// Create it in state
 		state.Policies[id] = p
 		if !pending {
-			return errors.Wrap(p.Create(s.vpp, state), "cannot create policy")
+			err := p.Create(s.vpp, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot create policy")
+			}
 		}
 	}
 	return nil
@@ -639,11 +663,11 @@ func (s *Server) handleActivePolicyRemove(msg *proto.ActivePolicyRemove, pending
 		Tier: msg.Id.Tier,
 		Name: msg.Id.Name,
 	}
-	log.Infof("Handling ActivePolicyRemove [pending:%t] id=%s", pending, id)
+	log.Infof("policy(del) Handling ActivePolicyRemove pending=%t id=%s", pending, id)
 
 	existing, ok := state.Policies[id]
 	if !ok {
-		s.log.Debugf("Received policy delete for Tier %s Name %s that doesn't exists", id.Tier, id.Name)
+		s.log.Warnf("Received policy delete for Tier %s Name %s that doesn't exists", id.Tier, id.Name)
 		return nil
 	}
 	if !pending {
@@ -670,16 +694,22 @@ func (s *Server) handleActiveProfileUpdate(msg *proto.ActiveProfileUpdate, pendi
 			// Just replace policy in pending state
 			state.Profiles[id] = p
 		} else {
-			return errors.Wrap(existing.Update(s.vpp, p, state), "cannot update profile")
+			err := existing.Update(s.vpp, p, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot update profile")
+			}
 		}
 	} else {
 		// Create it in state
 		state.Profiles[id] = p
 		if !pending {
-			return errors.Wrap(p.Create(s.vpp, state), "cannot create profile")
+			err := p.Create(s.vpp, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot create profile")
+			}
 		}
 	}
-	log.Infof("Handled Profile Update [pending:%t] id=%s %s -> %s", pending, id, existing, p)
+	log.Infof("policy(upd) Handled Profile Update pending=%t id=%s existing=%s new=%s", pending, id, existing, p)
 	return nil
 }
 
@@ -688,7 +718,7 @@ func (s *Server) handleActiveProfileRemove(msg *proto.ActiveProfileRemove, pendi
 	id := msg.Id.Name
 	existing, ok := state.Profiles[id]
 	if !ok {
-		s.log.Debugf("Received profile delete for Name %s that doesn't exists", id)
+		s.log.Warnf("Received profile delete for Name %s that doesn't exists", id)
 		return nil
 	}
 	if !pending {
@@ -697,7 +727,7 @@ func (s *Server) handleActiveProfileRemove(msg *proto.ActiveProfileRemove, pendi
 			return errors.Wrap(err, "error deleting profile")
 		}
 	}
-	log.Infof("Handled Profile Remove [pending:%t] id=%s %s", pending, id, existing)
+	log.Infof("policy(del) Handled Profile Remove pending=%t id=%s policy=%s", pending, id, existing)
 	delete(state.Profiles, id)
 	return nil
 }
@@ -748,28 +778,28 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 	if len(hep.UplinkSwIfIndexes) == 0 || len(hep.TapSwIfIndexes) == 0 {
 		return errors.Errorf("No interface to configure as host endpoint for %s", id.EndpointID)
 	}
+
 	existing, found := state.HostEndpoints[*id]
-
-	s.log.Infof("Updating host endpoint %s (found:%t)", id.EndpointID, found)
-	if existing != nil {
-		s.log.Infof("Existing: %s", existing.String())
-	}
-	s.log.Infof("New: %s", hep.String())
-
 	if found {
 		if pending {
 			state.HostEndpoints[*id] = hep
 		} else {
-			return errors.Wrap(existing.Update(s.vpp, hep, state), "cannot update host endpoint")
+			err := existing.Update(s.vpp, hep, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot update host endpoint")
+			}
 		}
+		s.log.Infof("policy(upd) Updating host endpoint id=%s found=%t existing=%s new=%s", *id, found, existing, hep)
 	} else {
 		state.HostEndpoints[*id] = hep
 		if !pending {
-			return errors.Wrap(hep.Create(s.vpp, state),
-				"cannot create host endpoint")
+			err := hep.Create(s.vpp, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot create host endpoint")
+			}
 		}
+		s.log.Infof("policy(add) Updating host endpoint id=%s found=%t new=%s", *id, found, hep)
 	}
-	log.Infof("Handled Host Endpoint Update [pending:%t] id=%s %s", pending, *id, hep)
 	return nil
 }
 
@@ -778,17 +808,16 @@ func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending
 	id := fromProtoHostEndpointID(msg.Id)
 	existing, ok := state.HostEndpoints[*id]
 	if !ok {
-		s.log.Debugf("Received host endpoint delete for %v that doesn't exists", id)
+		s.log.Warnf("Received host endpoint delete for id=%s that doesn't exists", id)
 		return nil
 	}
 	if !pending && len(existing.UplinkSwIfIndexes) != 0 {
-		s.log.Infof("Removing host endpoint")
 		err = existing.Delete(s.vpp)
 		if err != nil {
 			return errors.Wrap(err, "error deleting host endpoint")
 		}
 	}
-	log.Infof("Handled Host Endpoint Remove [pending:%t] id=%s %s", pending, *id, existing)
+	log.Infof("policy(del) Handled Host Endpoint Remove pending=%t id=%s %s", pending, id, existing)
 	delete(state.HostEndpoints, *id)
 	return nil
 }
@@ -802,27 +831,31 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 	wep := fromProtoWorkload(msg.Endpoint, s)
 
 	existing, found := state.WorkloadEndpoints[*id]
-	intf, intfFound := s.endpointsInterfaces[*id]
-
-	s.log.Infof("Updating endpoint %s(found:%t) if[%d](found:%t)", id.String(), found, intf, intfFound)
-	if existing != nil {
-		s.log.Infof("Existing: %s", existing.String())
-	}
-	s.log.Infof("New: %s", wep.String())
+	swIfIndex, swIfIndexFound := s.endpointsInterfaces[*id]
 
 	if found {
-		if pending || !intfFound {
+		if pending || !swIfIndexFound {
 			state.WorkloadEndpoints[*id] = wep
+			log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=??", pending, *id, existing, wep)
 		} else {
-			return errors.Wrap(existing.Update(s.vpp, wep, state), "cannot update workload endpoint")
+			err := existing.Update(s.vpp, wep, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot update workload endpoint")
+			}
+			log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=%d", pending, *id, existing, wep, swIfIndex)
 		}
 	} else {
 		state.WorkloadEndpoints[*id] = wep
-		if !pending && intfFound {
-			return errors.Wrap(wep.Create(s.vpp, intf, state), "cannot create workload endpoint")
+		if !pending && swIfIndexFound {
+			err := wep.Create(s.vpp, swIfIndex, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot create workload endpoint")
+			}
+			log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=%d", pending, *id, wep, swIfIndex)
+		} else {
+			log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=??", pending, *id, wep)
 		}
 	}
-	log.Infof("Handled Workload Endpoint Update [pending:%t] id=%s %s -> %s", pending, *id, existing, wep)
 	return nil
 }
 
@@ -834,7 +867,7 @@ func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove,
 	id := fromProtoEndpointID(msg.Id)
 	existing, ok := state.WorkloadEndpoints[*id]
 	if !ok {
-		s.log.Debugf("Received workload endpoint delete for %v that doesn't exists", id)
+		s.log.Warnf("Received workload endpoint delete for %v that doesn't exists", id)
 		return nil
 	}
 	if !pending && existing.SwIfIndex != types.InvalidID {
@@ -843,7 +876,7 @@ func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove,
 			return errors.Wrap(err, "error deleting workload endpoint")
 		}
 	}
-	log.Infof("Handled Workload Endpoint Remove [pending:%t] id=%s %s", pending, *id, existing)
+	log.Infof("policy(del) Handled Workload Endpoint Remove pending=%t id=%s existing=%s", pending, *id, existing)
 	delete(state.WorkloadEndpoints, *id)
 	return nil
 }

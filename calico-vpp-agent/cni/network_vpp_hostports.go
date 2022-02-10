@@ -42,7 +42,7 @@ func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.Clean
 				Proto:    hostPort.Protocol,
 				LbType:   types.DefaultLB,
 			}
-			s.log.Infof("pod(add) hostport entry=%s", entry.String())
+			s.log.Infof("pod(add) hostport %s", entry.String())
 			id, err := s.vpp.CnatTranslateAdd(entry)
 			if err != nil {
 				return err
@@ -61,9 +61,9 @@ func (s *Server) DelHostPort(podSpec *storage.LocalPodSpec) {
 		for _, hostPort := range initialSpec.HostPorts {
 			err := s.vpp.CnatTranslateDel(hostPort.EntryID)
 			if err != nil {
-				s.log.Errorf("(del) Error deleting entry with ID %s: %v", hostPort.EntryID, err)
+				s.log.Errorf("(del) Error deleting entry with ID %d: %v", hostPort.EntryID, err)
 			}
-			s.log.Infof("pod(del) hostport entry=%s", hostPort.EntryID)
+			s.log.Infof("pod(del) hostport entry=%d", hostPort.EntryID)
 		}
 	} else {
 		s.log.Warnf("Initial spec not found")

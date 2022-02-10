@@ -91,7 +91,6 @@ func (w *Server) injectRoute(path *bgpapi.Path) error {
 }
 
 func (w *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv6tunnel *common.SRv6Tunnel, srnrli *bgpapi.SRPolicyNLRI, err error) {
-	w.log.Infof("getSRPolicy from bgp path")
 	srnrli = &bgpapi.SRPolicyNLRI{}
 	tun := &bgpapi.TunnelEncapAttribute{}
 	subTLVSegList := &bgpapi.TunnelEncapSubTLVSRSegmentList{}
@@ -165,7 +164,6 @@ func (w *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv
 }
 
 func (w *Server) injectSRv6Policy(path *bgpapi.Path) error {
-	w.log.Infof("injectSRv6Policy")
 	_, srv6tunnel, srnrli, err := w.getSRPolicy(path)
 
 	if err != nil {
@@ -212,7 +210,6 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					w.log.Warnf("nil path update, skipping")
 					return
 				}
-				w.log.Printf("Path monitor family %s, path %s", f.String(), path.String())
 				if f == &common.BgpFamilySRv6IPv6 {
 					w.log.Debugf("Path SRv6")
 					common.WaitIfVppIsRestarting()
@@ -221,11 +218,11 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					}
 					return
 				}
-				w.log.Infof("Got path update from %s as %d", path.SourceId, path.SourceAsn)
 				if path.NeighborIp == "<nil>" { // Weird GoBGP API behaviour
 					w.log.Debugf("Ignoring internal path")
 					return
 				}
+				w.log.Infof("Got path update from=%s as=%d family=%s", path.SourceId, path.SourceAsn, f.String())
 				if err := w.injectRoute(path); err != nil {
 					w.log.Errorf("cannot inject route: %v", err)
 				}
@@ -346,7 +343,7 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 				}
 			case common.BGPPeerAdded:
 				peer := evt.New.(*bgpapi.Peer)
-				w.log.Infof("Adding BGP neighbor: %s AS:%d",
+				w.log.Infof("bgp(add) new neighbor=%s AS=%d",
 					peer.Conf.NeighborAddress, peer.Conf.PeerAs)
 				err := w.BGPServer.AddPeer(
 					context.Background(),
@@ -357,7 +354,7 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 				}
 			case common.BGPPeerDeleted:
 				addr := evt.New.(string)
-				w.log.Infof("Deleting BGP neighbor: %s", addr)
+				w.log.Infof("bgp(del) neighbor=%s", addr)
 				err := w.BGPServer.DeletePeer(
 					context.Background(),
 					&bgpapi.DeletePeerRequest{Address: addr},
@@ -367,7 +364,7 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 				}
 			case common.BGPPeerUpdated:
 				peer := evt.New.(*bgpapi.Peer)
-				w.log.Infof("Updating BGP neighbor: %s AS:%d",
+				w.log.Infof("bgp(upd) neighbor=%s AS=%d",
 					peer.Conf.NeighborAddress, peer.Conf.PeerAs)
 				_, err = w.BGPServer.UpdatePeer(
 					context.Background(),

@@ -31,7 +31,7 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 				SwIfIndex: swIfIndex,
 			}},
 		}
-		s.log.Infof("Add route [podVRF ->MainIF] %s", route.String())
+		s.log.Infof("pod(add) route [podVRF ->MainIF] %s", route.String())
 		err := s.vpp.RouteAdd(&route)
 		if err != nil {
 			return errors.Wrapf(err, "Cannot adding route [podVRF ->MainIF] %s", route.String())
@@ -39,7 +39,7 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 			stack.Push(s.vpp.RouteDel, &route)
 		}
 		if !isL3 {
-			s.log.Infof("Adding neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
+			s.log.Infof("pod(add) neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
 			err = s.vpp.AddNeighbor(&types.Neighbor{
 				SwIfIndex:    swIfIndex,
 				IP:           containerIP.IP,
@@ -61,7 +61,7 @@ func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex ui
 				SwIfIndex: swIfIndex,
 			}},
 		}
-		s.log.Infof("Del route [podVRF ->MainIF] %s", route.String())
+		s.log.Infof("pod(del) route [podVRF ->MainIF] %s", route.String())
 		err := s.vpp.RouteDel(&route)
 		if err != nil {
 			s.log.Warnf("Error deleting route [podVRF ->MainIF] %s : %s", route.String(), err)
@@ -96,7 +96,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 		}
 
 		vrfId := podSpec.GetVrfId(false) // pbl only supports v4 ?
-		s.log.Infof("Adding PBL client for %s VRF %d", containerIP.IP, vrfId)
+		s.log.Infof("pod(add) PBL client for %s VRF %d", containerIP.IP, vrfId)
 		pblIndex, err := s.vpp.AddPblClient(&client)
 		if err != nil {
 			return errors.Wrapf(err, "error adding PBL client for %s VRF %d", containerIP.IP, vrfId)
@@ -106,7 +106,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 		podSpec.PblIndexes = append(podSpec.PblIndexes, pblIndex)
 
 		if !isL3 {
-			s.log.Infof("Adding neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
+			s.log.Infof("pod(add) neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
 			err = s.vpp.AddNeighbor(&types.Neighbor{
 				SwIfIndex:    swIfIndex,
 				IP:           containerIP.IP,
@@ -122,7 +122,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 
 func (s *Server) UnroutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
 	for _, pblIndex := range podSpec.PblIndexes {
-		s.log.Infof("Deleting PBL client[%d]", pblIndex)
+		s.log.Infof("pod(del) PBL client[%d]", pblIndex)
 		err := s.vpp.DelPblClient(pblIndex)
 		if err != nil {
 			s.log.Warnf("Error deleting pbl conf %s", err)
@@ -146,7 +146,7 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily.IsIp6)
-		s.log.Infof("Adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
+		s.log.Infof("pod(add) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
 		err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily.IsIp6), common.PodVRFIndex, ipFamily.IsIp6)
 		if err != nil {
 			return errors.Wrapf(err, "error adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
@@ -161,7 +161,7 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 	var err error
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily.IsIp6)
-		s.log.Infof("Deleting VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
+		s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
 		err = s.vpp.DelDefaultRouteViaTable(vrfId, common.PodVRFIndex, ipFamily.IsIp6)
 		if err != nil {
 			s.log.Errorf("Error  VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, common.PodVRFIndex, err)
@@ -171,7 +171,7 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily.IsIp6)
 		vrfName := getInterfaceVrfName(podSpec, ipFamily.Str)
-		s.log.Infof("Deleting VRF %d %s", vrfId, ipFamily.Str)
+		s.log.Infof("pod(del) VRF %d %s", vrfId, ipFamily.Str)
 		err = s.vpp.DelVRF(vrfId, ipFamily.IsIp6, vrfName)
 		if err != nil {
 			s.log.Errorf("Error deleting VRF %d %s : %s", vrfId, ipFamily.Str, err)
@@ -190,7 +190,7 @@ func (s *Server) CreateVRFRoutesToPod(podSpec *storage.LocalPodSpec, stack *vppl
 				SwIfIndex: types.InvalidID,
 			}},
 		}
-		s.log.Infof("Adding route [mainVRF ->PodVRF] %s", route.String())
+		s.log.Infof("pod(add) route [mainVRF->PodVRF] %s", route.String())
 		err := s.vpp.RouteAdd(&route)
 		if err != nil {
 			return errors.Wrapf(err, "error adding route [mainVRF ->PodVRF] %s", route.String())
@@ -213,7 +213,7 @@ func (s *Server) DeleteVRFRoutesToPod(podSpec *storage.LocalPodSpec) {
 				SwIfIndex: types.InvalidID,
 			}},
 		}
-		s.log.Infof("Deleting route [mainVRF ->PodVRF] %s", route.String())
+		s.log.Infof("pod(del) route [mainVRF->PodVRF] %s", route.String())
 		err = s.vpp.RouteDel(&route)
 		if err != nil {
 			s.log.Errorf("error deleting vpp side routes route [mainVRF ->PodVRF] %s : %s", route.String(), err)
@@ -230,7 +230,7 @@ func (s *Server) SetupPuntRoutes(podSpec *storage.LocalPodSpec, stack *vpplink.C
 			Dst:   containerIP,
 			Paths: []types.RoutePath{{SwIfIndex: swIfIndex}},
 		}
-		s.log.Infof("Adding route [puntVRF ->PuntIF] %s", route.String())
+		s.log.Infof("pod(add) route [puntVRF->PuntIF] %s", route.String())
 		err = s.vpp.RouteAdd(&route)
 		if err != nil {
 			return errors.Wrapf(err, "error adding vpp side routes for interface")
@@ -250,7 +250,7 @@ func (s *Server) RemovePuntRoutes(podSpec *storage.LocalPodSpec, swIfIndex uint3
 			Dst:   containerIP,
 			Paths: []types.RoutePath{{SwIfIndex: swIfIndex}},
 		}
-		s.log.Infof("Deleting route [puntVRF ->PuntIF] %s", route.String())
+		s.log.Infof("pod(del) route [puntVRF->PuntIF] %s", route.String())
 		err = s.vpp.RouteDel(&route)
 		if err != nil {
 			s.log.Errorf("error deleting route [puntVRF ->PuntIF] %s : %s", route.String(), err)

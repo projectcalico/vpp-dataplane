@@ -32,8 +32,7 @@ func (v *VppLink) SetCryptoWorker(workerIndex uint32, enable bool) error {
 		CryptoEnable: enable,
 	}
 
-	v.log.Infof("crypto_sw_scheduler : set crypto enable=%d, worker %d", enable, workerIndex)
-	var err = v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrap(err, "crypto_sw_scheduler setWorker enable failed")
 	} else if response.Retval != 0 {

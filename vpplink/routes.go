@@ -26,7 +26,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -129,12 +128,6 @@ func (v *VppLink) RouteDel(route *types.Route) error {
 func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-
-	if isAdd {
-		log.Infof("Add route %s", route)
-	} else {
-		log.Infof("Del route %s", route)
-	}
 
 	isIP6 := route.IsIP6()
 	prefix := ip_types.Prefix{}

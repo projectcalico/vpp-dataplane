@@ -53,7 +53,7 @@ func NewFlatL3Provider(d *ConnectivityProviderData) *FlatL3Provider {
 }
 
 func (p *FlatL3Provider) AddConnectivity(cn *common.NodeConnectivity) error {
-	p.log.Printf("adding route %s to VPP", cn.Dst.String())
+	p.log.Infof("connectivity(add) route to VPP cn=%s", cn.String())
 	paths := getRoutePaths(cn.NextHop)
 	err := p.vpp.RouteAdd(&types.Route{
 		Paths: paths,
@@ -63,7 +63,7 @@ func (p *FlatL3Provider) AddConnectivity(cn *common.NodeConnectivity) error {
 }
 
 func (p *FlatL3Provider) DelConnectivity(cn *common.NodeConnectivity) error {
-	p.log.Debugf("removing route %s from VPP", cn.Dst.String())
+	p.log.Debugf("connectivity(del) route to VPP cn=%s", cn.String())
 	paths := getRoutePaths(cn.NextHop)
 	err := p.vpp.RouteDel(&types.Route{
 		Paths: paths,
