@@ -1,13 +1,12 @@
-VPP Version                 : 22.02-rc0~479-g299221770
+VPP Version                 : 22.06-rc0~108-g6309a87cd
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : ed999e3b8 bonding: memory leak on parsing bad CLI command
+VPP Base commit             : be74504d2 srtp: flag connections for no session layer lookup
 ------------------ Cherry picked commits --------------------
 gerrit:28513/25 capo: Calico Policies plugin
 gerrit:28083/21 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/7 pbl: Port based balancer
 gerrit:35209/1 cnat: Fix conflicting rsession
-gerrit:35072/4 cnat: maglev fixes & improvements
 gerrit:34852/2 memif: fix rx/txqueue RC on connected
 gerrit:34726/1 interface: add buffer stats api
 gerrit:34734/2 memif: autogenerate socket_ids

@@ -5,7 +5,7 @@
 // Contents:
 //   1 enum
 //   2 structs
-//  15 messages
+//  17 messages
 //
 package wireguard
 
@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "wireguard"
 	APIVersion = "0.1.0"
-	VersionCrc = 0xbe72fad2
+	VersionCrc = 0xb58de7e
 )
 
 // WireguardPeerFlags defines enum 'wireguard_peer_flags'.
@@ -176,6 +176,74 @@ func (m *WantWireguardPeerEventsReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *WantWireguardPeerEventsReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// WgSetAsyncMode defines message 'wg_set_async_mode'.
+// InProgress: the message form may change in the future versions
+type WgSetAsyncMode struct {
+	AsyncEnable bool `binapi:"bool,name=async_enable" json:"async_enable,omitempty"`
+}
+
+func (m *WgSetAsyncMode) Reset()               { *m = WgSetAsyncMode{} }
+func (*WgSetAsyncMode) GetMessageName() string { return "wg_set_async_mode" }
+func (*WgSetAsyncMode) GetCrcString() string   { return "a6465f7c" }
+func (*WgSetAsyncMode) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *WgSetAsyncMode) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1 // m.AsyncEnable
+	return size
+}
+func (m *WgSetAsyncMode) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBool(m.AsyncEnable)
+	return buf.Bytes(), nil
+}
+func (m *WgSetAsyncMode) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.AsyncEnable = buf.DecodeBool()
+	return nil
+}
+
+// WgSetAsyncModeReply defines message 'wg_set_async_mode_reply'.
+// InProgress: the message form may change in the future versions
+type WgSetAsyncModeReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *WgSetAsyncModeReply) Reset()               { *m = WgSetAsyncModeReply{} }
+func (*WgSetAsyncModeReply) GetMessageName() string { return "wg_set_async_mode_reply" }
+func (*WgSetAsyncModeReply) GetCrcString() string   { return "e8d4e804" }
+func (*WgSetAsyncModeReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *WgSetAsyncModeReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *WgSetAsyncModeReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *WgSetAsyncModeReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -795,6 +863,8 @@ func init() { file_wireguard_binapi_init() }
 func file_wireguard_binapi_init() {
 	api.RegisterMessage((*WantWireguardPeerEvents)(nil), "want_wireguard_peer_events_3bc666c8")
 	api.RegisterMessage((*WantWireguardPeerEventsReply)(nil), "want_wireguard_peer_events_reply_e8d4e804")
+	api.RegisterMessage((*WgSetAsyncMode)(nil), "wg_set_async_mode_a6465f7c")
+	api.RegisterMessage((*WgSetAsyncModeReply)(nil), "wg_set_async_mode_reply_e8d4e804")
 	api.RegisterMessage((*WireguardInterfaceCreate)(nil), "wireguard_interface_create_a530137e")
 	api.RegisterMessage((*WireguardInterfaceCreateReply)(nil), "wireguard_interface_create_reply_5383d31f")
 	api.RegisterMessage((*WireguardInterfaceDelete)(nil), "wireguard_interface_delete_f9e6675e")
@@ -815,6 +885,8 @@ func AllMessages() []api.Message {
 	return []api.Message{
 		(*WantWireguardPeerEvents)(nil),
 		(*WantWireguardPeerEventsReply)(nil),
+		(*WgSetAsyncMode)(nil),
+		(*WgSetAsyncModeReply)(nil),
 		(*WireguardInterfaceCreate)(nil),
 		(*WireguardInterfaceCreateReply)(nil),
 		(*WireguardInterfaceDelete)(nil),
