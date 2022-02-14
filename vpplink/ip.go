@@ -27,6 +27,31 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
+func (v *VppLink) ListVRFs() (vrfs []types.VRF, err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	vrfs = make([]types.VRF, 0)
+	request := &vppip.IPTableDump{}
+	stream := v.ch.SendMultiRequest(request)
+	for {
+		response := &vppip.IPTableDetails{}
+		stop, err := stream.ReceiveReply(response)
+		if err != nil {
+			return vrfs, errors.Wrap(err, "error listing VRF")
+		}
+		if stop {
+			return vrfs, nil
+		}
+		vrfs = append(vrfs, types.VRF{
+			Name:  response.Table.Name,
+			VrfID: response.Table.TableID,
+			IsIP6: response.Table.IsIP6,
+		})
+	}
+
+}
+
 func (v *VppLink) addDelVRF(index uint32, name string, isIP6 bool, isAdd bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()

@@ -46,6 +46,34 @@ func (s *Server) checkAvailableBuffers() (uint64, error) {
 	return buffersNeeded, nil
 }
 
+func (s *Server) hasVRF(podSpec *storage.LocalPodSpec) bool {
+	var hasIp4, hasIp6 bool
+
+	vrfs, err := s.vpp.ListVRFs()
+	if err != nil {
+		s.log.Errorf("Error listing VRFs %s", err)
+		return false
+	}
+
+	for _, vrf := range vrfs {
+		if vrf.VrfID == podSpec.V4VrfId && !vrf.IsIP6 {
+			hasIp4 = true
+		}
+		if vrf.VrfID == podSpec.V6VrfId && vrf.IsIP6 {
+			hasIp6 = true
+		}
+		if hasIp6 && hasIp4 {
+			return true
+		}
+	}
+
+    if hasIp4 != hasIp6 {
+		s.log.Warnf("Partial VRF state hasv4=%t hasv6=%t key=%s", hasIp4, hasIp6, podSpec.Key())
+	}
+
+	return false
+}
+
 // AddVppInterface performs the networking for the given config and IPAM result
 func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
 	podSpec.NeedsSnat = false
@@ -56,6 +84,11 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	err = ns.IsNSorErr(podSpec.NetnsName)
 	if err != nil {
 		return vpplink.InvalidID, errors.Wrapf(err, "Netns '%s' doesn't exist, skipping", podSpec.NetnsName)
+	}
+
+	if s.hasVRF(podSpec) {
+		/* it already exists in VPP */
+		return podSpec.TunTapSwIfIndex, nil
 	}
 
 	stack := s.vpp.NewCleanupStack()
