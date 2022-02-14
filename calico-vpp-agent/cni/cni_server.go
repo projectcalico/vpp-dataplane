@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"syscall"
 
@@ -92,6 +93,9 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		/* defaults */
 		MemifIsL3:  false,
 		TunTapIsL3: true,
+
+		V4VrfId: vpplink.InvalidID,
+		V6VrfId: vpplink.InvalidID,
 
 		MemifSwIfIndex:  vpplink.InvalidID,
 		TunTapSwIfIndex: vpplink.InvalidID,
@@ -169,6 +173,11 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 
 	s.log.Infof("Adding Pod %s", podSpec.String())
 
+	existingSpec, ok := s.podInterfaceMap[podSpec.Key()]
+	if ok {
+		podSpec = &existingSpec
+	}
+
 	swIfIndex, err := s.AddVppInterface(podSpec, true /* doHostSideConf */)
 	if err != nil {
 		s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
@@ -179,7 +188,8 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	}
 
 	s.podInterfaceMap[podSpec.Key()] = *podSpec
-	err = storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile + fmt.Sprint(storage.CniServerStateFileVersion))
+	cniServerStateFile := fmt.Sprintf("%s%d", config.CniServerStateFile, storage.CniServerStateFileVersion)
+	err = storage.PersistCniServerState(s.podInterfaceMap, cniServerStateFile)
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
@@ -224,15 +234,19 @@ func (s *Server) rescanState() error {
 	if config.VCLEnabled {
 		err := s.vclDriver.Init()
 		if err != nil {
+			/* it might already be enabled, do not return */
 			s.log.Errorf("Error initializing VCL %v", err)
-			return err
 		}
 	}
 
-	podSpecs, err := storage.LoadCniServerState(config.CniServerStateFile + fmt.Sprint(storage.CniServerStateFileVersion))
+	cniServerStateFile := fmt.Sprintf("%s%d", config.CniServerStateFile, storage.CniServerStateFileVersion)
+	podSpecs, err := storage.LoadCniServerState(cniServerStateFile)
 	if err != nil {
-		s.log.Errorf("Error getting pods %v", err)
-		return err
+		err2 := os.Remove(cniServerStateFile)
+		if err2 != nil {
+			s.log.Errorf("Could not remove %s, %s", cniServerStateFile, err2)
+		}
+		return errors.Wrapf(err, "Error getting pods")
 	}
 
 	s.log.Infof("RescanState: re-creating all interfaces")
@@ -330,7 +344,10 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	}
 
 	pb.RegisterCniDataplaneServer(s.grpcServer, s)
-	s.rescanState()
+	err = s.rescanState()
+	if err != nil {
+		s.log.Errorf("RescanState errored %s", err)
+	}
 
 	s.log.Infof("Serve() CNI")
 	go s.grpcServer.Serve(socketListener)

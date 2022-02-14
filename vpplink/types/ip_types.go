@@ -54,6 +54,12 @@ type IpPuntRedirect struct {
 	Paths       []RoutePath
 }
 
+type VRF struct {
+	Name  string
+	VrfID uint32
+	IsIP6 bool
+}
+
 func GetIPFamily(ip net.IP) int {
 	if len(ip) <= net.IPv4len {
 		return FAMILY_V4

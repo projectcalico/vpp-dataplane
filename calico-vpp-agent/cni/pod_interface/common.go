@@ -54,19 +54,6 @@ func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTx
 	return nil
 }
 
-func (i *PodInterfaceDriverData) SearchPodInterface(podSpec *storage.LocalPodSpec) (swIfIndex uint32) {
-	tag := podSpec.GetInterfaceTag(i.name)
-	i.log.Infof("looking for tag %s", tag)
-	swIfIndex, err := i.vpp.SearchInterfaceWithTag(tag)
-	if err != nil {
-		i.log.Warnf("error searching interface with tag %s %s", tag, err)
-		return vpplink.InvalidID
-	} else if swIfIndex == vpplink.InvalidID {
-		return vpplink.InvalidID
-	}
-	return swIfIndex
-}
-
 func (i *PodInterfaceDriverData) UndoPodIfNatConfiguration(swIfIndex uint32) {
 	var err error
 	err = i.vpp.RemovePodInterface(swIfIndex)

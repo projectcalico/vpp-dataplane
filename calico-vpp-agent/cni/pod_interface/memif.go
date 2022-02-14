@@ -38,12 +38,6 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 }
 
 func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
-	swIfIndex := i.SearchPodInterface(podSpec)
-	if swIfIndex != vpplink.InvalidID {
-		/* If something is found under this name, try a cleanup before going on */
-		i.DeleteInterface(podSpec)
-	}
-
 	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("@netns:%s%s", podSpec.NetnsName, config.MemifSocketName))
 	if err != nil {
 		return err
