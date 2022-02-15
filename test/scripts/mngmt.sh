@@ -13,10 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VPP_DATAPLANE_DIRECTORY=/tmp/vpp-dataplane/
-REPO_URL=https://github.com/projectcalico/vpp-dataplane.git
-TAG=latest
-EXTRA_TAGS=prerelease
+VPP_DATAPLANE_DIRECTORY=${VPP_DATAPLANE_DIRECTORY:=/tmp/vpp-dataplane/}
+REPO_URL=${REPO_URL:=https://github.com/projectcalico/vpp-dataplane.git}
+BRANCH_NAME=${BRANCH_NAME:=origin/master}
+TAG=${TAG:=latest}
+EXTRA_TAGS=${EXTRA_TAGS:=prerelease}
 
 function push ()
 {
@@ -32,11 +33,11 @@ if [ -d $VPP_DATAPLANE_DIRECTORY ]; then
 	echo "Fetching latest"
 	cd $VPP_DATAPLANE_DIRECTORY
 	git fetch origin -p
-	git reset origin/master --hard
-	git clean -fd
 else
 	git clone $REPO_URL $VPP_DATAPLANE_DIRECTORY
 fi
+git reset $BRANCH_NAME --hard
+git clean -fd
 
 make -C $VPP_DATAPLANE_DIRECTORY image TAG=$TAG
 
@@ -50,14 +51,16 @@ for tagname in $(echo $EXTRA_TAGS | sed 's/,/ /g'); do
 done
 
 trap 'docker logout' EXIT
-docker login --username $DOCKER_USERNAME $DOCKER_TOKEN
+docker login --username $DOCKER_USERNAME  --password $DOCKER_TOKEN
 
+echo ">> Pushing calicovpp/vpp:${TAG}...."
 docker push calicovpp/vpp:${TAG}
+echo ">> Pushing calicovpp/agent:${TAG}...."
 docker push calicovpp/agent:${TAG}
 for tagname in $(echo $EXTRA_TAGS | sed 's/,/ /g'); do
-	echo "Pushing calicovpp/vpp:\${tagname}...."
+	echo ">> Pushing calicovpp/vpp:\${tagname}...."
 	docker push calicovpp/vpp:\${tagname}
-	echo "Pushing calicovpp/vpp:\${tagname}...."
+	echo ">> Pushing calicovpp/vpp:\${tagname}...."
 	docker push calicovpp/agent:\${tagname}
 done
 
@@ -71,6 +74,6 @@ if [ x$1 = xpush ]; then
 else
   echo "Usage"
   echo "mngmt.sh push <some ssh host to build on>"
-  echo "  params: DOCKER_USERNAME= DOCKER_TOKEN="
+  echo "  params: DOCKER_USERNAME= DOCKER_TOKEN= BRANCH_NAME="
 fi
 

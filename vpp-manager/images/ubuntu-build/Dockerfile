@@ -22,7 +22,11 @@ RUN apt-get update \
 	libelf-dev \
 	clang-11 clang-format-11 clang-format-10 \
 	enchant-2 \
-	libffi7
+	libffi7 \
+	libmnl0 \
+	libiperf0 \
+	iperf3 \
+	libmnl-dev
 
 WORKDIR /
 
