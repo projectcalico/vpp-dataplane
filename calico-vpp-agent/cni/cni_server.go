@@ -102,12 +102,16 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 	}
 
 	for _, port := range request.Workload.Ports {
-		podSpec.HostPorts = append(podSpec.HostPorts, storage.HostPortBinding{
-			HostPort:      uint16(port.HostPort),
-			HostIP:        net.ParseIP(port.HostIp),
-			ContainerPort: uint16(port.Port),
-			Protocol:      getHostEndpointProto(port.Protocol),
-		})
+		hostIP := net.ParseIP(port.HostIp)
+		hostPort := uint16(port.HostPort)
+		if hostPort != 0 && hostIP != nil && !hostIP.IsUnspecified() {
+			podSpec.HostPorts = append(podSpec.HostPorts, storage.HostPortBinding{
+				HostPort:      hostPort,
+				HostIP:        hostIP,
+				ContainerPort: uint16(port.Port),
+				Protocol:      getHostEndpointProto(port.Protocol),
+			})
+		}
 	}
 	for _, routeStr := range request.GetContainerRoutes() {
 		_, route, err := net.ParseCIDR(routeStr)

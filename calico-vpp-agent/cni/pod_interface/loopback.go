@@ -69,6 +69,8 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 }
 
 func (i *LoopbackPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
+	i.UndoPodIfNatConfiguration(podSpec.LoopbackSwIfIndex)
+
 	err := i.vpp.DeleteLoopback(podSpec.LoopbackSwIfIndex)
 	if err != nil {
 		i.log.Errorf("Error deleting Loopback %s", err)
