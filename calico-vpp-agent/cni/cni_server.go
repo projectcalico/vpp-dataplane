@@ -136,6 +136,13 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 			Mask: route.Mask,
 		})
 	}
+	_, route, err := net.ParseCIDR(request.DataplaneOptions["route"])
+	if err == nil {
+		podSpec.Routes = append(podSpec.Routes, storage.LocalIPNet{
+			IP:   route.IP,
+			Mask: route.Mask,
+		})
+	}
 	for _, requestContainerIP := range request.GetContainerIps() {
 		containerIp, _, err := net.ParseCIDR(requestContainerIP.GetAddress())
 		if err != nil {
@@ -404,7 +411,8 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 				netDef := event.Old.(*watchers.NetworkDefinition)
 				delete(s.networkDefinitions, netDef.Name)
 			case common.NetUpdated:
-				//
+				netDef := event.New.(*watchers.NetworkDefinition)
+				s.networkDefinitions[netDef.Name].Vni = netDef.Vni
 			}
 		}
 	}()

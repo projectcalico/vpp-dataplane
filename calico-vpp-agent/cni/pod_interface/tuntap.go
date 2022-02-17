@@ -311,16 +311,14 @@ func (i *TunTapPodInterfaceDriver) configureNamespaceSideTun(swIfIndex uint32, p
 				continue
 			}
 			i.log.Infof("pod(add) tun route swIfIndex=%d linux-ifIndex=%d route=%s", swIfIndex, contTun.Attrs().Index, route.String())
-			if podSpec.NetworkName == "" {
-				err = netlink.RouteAdd(&netlink.Route{
-					LinkIndex: contTun.Attrs().Index,
-					Scope:     netlink.SCOPE_UNIVERSE,
-					Dst:       route,
-				})
-				if err != nil {
-					// TODO : in ipv6 '::' already exists
-					i.log.Errorf("Error adding tun[%d] route for %s", swIfIndex, route.String())
-				}
+			err = netlink.RouteAdd(&netlink.Route{
+				LinkIndex: contTun.Attrs().Index,
+				Scope:     netlink.SCOPE_UNIVERSE,
+				Dst:       route,
+			})
+			if err != nil {
+				// TODO : in ipv6 '::' already exists
+				i.log.Errorf("Error adding tun[%d] route for %s", swIfIndex, route.String())
 			}
 		}
 
