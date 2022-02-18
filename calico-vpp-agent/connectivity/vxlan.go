@@ -175,6 +175,8 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		}
 		if cn.Vni != 0 {
 			tunnel.Vni = cn.Vni
+		} else {
+			return nil
 		}
 		if vpplink.IsIP6(cn.NextHop) {
 			tunnel.DecapNextIndex = p.ip6NodeIndex
@@ -282,7 +284,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 }
 
 func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
-	tunnel, found := p.vxlanIfs[cn.NextHop.String()]
+	tunnel, found := p.vxlanIfs[cn.NextHop.String()+fmt.Sprint(cn.Vni)]
 	if !found {
 		return errors.Errorf("Deleting unknown vxlan tunnel cn=%s", cn.String())
 	}
@@ -291,14 +293,33 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 		return err
 	}
 
-	p.log.Infof("connectivity(del) VXLan cn=%s swIfIndex=%d", cn.String(), tunnel.SwIfIndex)
-	routeToDelete := &types.Route{
-		Dst: &cn.Dst,
-		Paths: []types.RoutePath{{
-			SwIfIndex: tunnel.SwIfIndex,
-			Gw:        nodeIP,
-		}},
+	var routeToDelete *types.Route
+	if cn.Vni == 0 {
+		p.log.Infof("connectivity(del) VXLan cn=%s swIfIndex=%d", cn.String(), tunnel.SwIfIndex)
+		routeToDelete = &types.Route{
+			Dst: &cn.Dst,
+			Paths: []types.RoutePath{{
+				SwIfIndex: tunnel.SwIfIndex,
+				Gw:        nodeIP,
+			}},
+		}
+	} else {
+		familyIdx := 0
+		if vpplink.IsIP6(cn.Dst.IP) {
+			familyIdx = 1
+		}
+		vrfIndex := p.server.networks[cn.Vni].VRF.Tables[familyIdx]
+		p.log.Infof("connectivity(del) VXLan cn=%s swIfIndex=%d in VRF %d (VNI:%d)", cn.String(), tunnel.SwIfIndex, vrfIndex, cn.Vni)
+		routeToDelete = &types.Route{
+			Dst: &cn.Dst,
+			Paths: []types.RoutePath{{
+				SwIfIndex: tunnel.SwIfIndex,
+				Gw:        nodeIP,
+			}},
+			Table: vrfIndex,
+		}
 	}
+
 	err = p.vpp.RouteDel(routeToDelete)
 	if err != nil {
 		return errors.Wrapf(err, "Error deleting vxlan tunnel route")
@@ -309,22 +330,24 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	remaining_routes, found := p.vxlanRoutes[tunnel.SwIfIndex]
 	if !found || len(remaining_routes) == 0 {
 		p.log.Infof("connectivity(del) all gone. Deleting VXLan tunnel swIfIndex=%d", tunnel.SwIfIndex)
-		err = p.vpp.RouteDel(&types.Route{
-			Dst: common.ToMaxLenCIDR(cn.NextHop),
-			Paths: []types.RoutePath{{
-				SwIfIndex: tunnel.SwIfIndex,
-				Gw:        nil,
-			}},
-			Table: common.PodVRFIndex,
-		})
-		if err != nil {
-			p.log.Errorf("Error deleting vxlan route dst=%s via tunnel swIfIndex=%d %s", cn.NextHop.String(), tunnel.SwIfIndex, err)
+		if cn.Vni == 0 {
+			err = p.vpp.RouteDel(&types.Route{
+				Dst: common.ToMaxLenCIDR(cn.NextHop),
+				Paths: []types.RoutePath{{
+					SwIfIndex: tunnel.SwIfIndex,
+					Gw:        nil,
+				}},
+				Table: common.PodVRFIndex,
+			})
+			if err != nil {
+				p.log.Errorf("Error deleting vxlan route dst=%s via tunnel swIfIndex=%d %s", cn.NextHop.String(), tunnel.SwIfIndex, err)
+			}
 		}
 		err = p.vpp.DelVXLanTunnel(&tunnel)
 		if err != nil {
 			p.log.Errorf("Error deleting VXLan tunnel %s after error: %v", tunnel.String(), err)
 		}
-		delete(p.vxlanIfs, cn.NextHop.String())
+		delete(p.vxlanIfs, cn.NextHop.String()+fmt.Sprint(cn.Vni))
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.TunnelDeleted,
 			Old:  tunnel.SwIfIndex,
