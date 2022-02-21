@@ -20,23 +20,6 @@ spec:
     ports:
     - containerPort: 4444
       protocol: UDP
-    resources:
-      limits:
-        memory: 2Gi
-        hugepages-2Mi: 2Gi
-    volumeMounts:
-    - mountPath: /home/hostuser
-      name: hostuser
-    - mountPath: /hugepages
-      name: hugepage
-  nodeName: _NODE_1_
-  volumes:
-  - name: hugepage
-    emptyDir:
-      medium: HugePages
-  - name: hostuser
-    hostPath:
-      path: ${HOME}
 ---
 apiVersion: v1
 kind: Service
