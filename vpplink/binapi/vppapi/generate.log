@@ -1,6 +1,6 @@
-VPP Version                 : 22.06-rc0~108-g6309a87cd
+VPP Version                 : 22.06-rc0~145-g4cdb9ff90
 Binapi-generator version    : govpp v0.4.0-dev
-VPP Base commit             : be74504d2 srtp: flag connections for no session layer lookup
+VPP Base commit             : 45207e0fb wireguard: fix dereferences null pointer
 ------------------ Cherry picked commits --------------------
 gerrit:28513/25 capo: Calico Policies plugin
 gerrit:28083/21 acl: acl-plugin custom policies

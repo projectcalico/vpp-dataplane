@@ -16,7 +16,7 @@ build:
 	GOOS=linux go build -o $(IMAGE_DIR)/vpp-manager
 
 eksimage:
-	docker build --pull --network=host \
+	docker build --squash --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/init-eks:$(TAG) $(INIT_EKS_IMAGE_DIR)
 
@@ -25,7 +25,7 @@ image: build vpp eksimage
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
 	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
 	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
-	docker build --pull --network=host \
+	docker build --squash --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
@@ -40,7 +40,7 @@ push: image
 
 imageonly: build
 	cp $(VPPDEV_FILE) $(IMAGE_DIR)
-	docker build --pull --network=host \
+	docker build --squash --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 
@@ -73,6 +73,6 @@ vpp-build-env:
 
 dev: build
 	cp $(VPPDEV_FILE) $(DEV_IMAGE_DIR)
-	docker build \
+	docker build --squash --network=host \
 	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)
