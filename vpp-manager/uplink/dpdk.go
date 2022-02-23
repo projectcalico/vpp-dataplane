@@ -56,34 +56,40 @@ func (d *DPDKDriver) PreconfigureLinux() (err error) {
 	if finalDriver == config.DRIVER_VFIO_PCI && d.params.AvailableHugePages == 0 {
 		err := utils.SetVfioUnsafeiommu(false)
 		if err != nil {
-			return errors.Wrapf(err, "Virtio preconfigure error")
+			return errors.Wrapf(err, "failed to configure vfio")
 		}
 	}
 	return nil
 }
 
 func (d *DPDKDriver) UpdateVppConfigFile(template string) string {
-	dpdkPluginRegex := regexp.MustCompile(`plugin\s+dpdk_plugin.so\s+{\s+disable\s+}`)
+	dpdkPluginRegex := regexp.MustCompile(`plugin\s+dpdk_plugin\.so\s*{\s*disable\s*}`)
 	template = dpdkPluginRegex.ReplaceAllString(template, "plugin dpdk_plugin.so { enable }")
 
-	dpdkStanzaRegex := regexp.MustCompile(`dpdk {[^}]+}`)
+	dpdkStanzaRegex := regexp.MustCompile(`dpdk\s+{[^}]+}`)
 	if dpdkStanzaRegex.MatchString(template) {
 		goto write
 	}
 
 	if d.params.AvailableHugePages > 0 {
-		template = fmt.Sprintf("%s\ndpdk {\ndev %s { num-rx-queues %d num-rx-desc %d num-tx-desc %d } \n}\n", template, d.conf.PciId, d.spec.NumRxQueues, d.params.RxQueueSize, d.params.TxQueueSize)
+		template = fmt.Sprintf(
+			"%s\ndpdk {\nuio-driver %s\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d } \n}\n",
+			template, d.spec.NewDriverName, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues, d.params.RxQueueSize, d.params.TxQueueSize,
+		)
 	} else {
-		template = fmt.Sprintf("%s\ndpdk {\niova-mode va\nno-hugetlb\ndev %s { num-rx-queues %d num-rx-desc %d num-tx-desc %d } \n}\n", template, d.conf.PciId, d.spec.NumRxQueues, d.params.RxQueueSize, d.params.TxQueueSize)
+		template = fmt.Sprintf(
+			"%s\ndpdk {\nuio-driver %s\niova-mode va\nno-hugetlb\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d } \n}\n",
+			template, d.spec.NewDriverName, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues, d.params.RxQueueSize, d.params.TxQueueSize,
+		)
 
 		// If no hugepages, also edit `buffers {}`
-		buffersHeadRegex := regexp.MustCompile(`buffers\s+{`)
-		buffersStanzaRegex := regexp.MustCompile(`buffers\s+{[^}]+}`)
-		buffersNoHugeStanzaRegex := regexp.MustCompile(`buffers\s+{[^}]*no-hugetlb[^}]*}`)
+		buffersHeadRegex := regexp.MustCompile(`buffers\s*{`)
+		buffersStanzaRegex := regexp.MustCompile(`buffers\s*{[^}]+}`)
+		buffersNoHugeStanzaRegex := regexp.MustCompile(`buffers\s*{[^}]*no-hugetlb[^}]*}`)
 		if buffersStanzaRegex.MatchString(template) {
 			if !buffersNoHugeStanzaRegex.MatchString(template) {
 				template = buffersHeadRegex.ReplaceAllString(template, "buffers {\nno-hugetlb")
-				log.Infof("Found buffers")
+				log.Infof("Found buffers configuration in template")
 			}
 		} else {
 			template = fmt.Sprintf("%s\nbuffers {\nno-hugetlb\n}", template)
@@ -147,7 +153,7 @@ func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
 }
 
 func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
-	// Nothing to do VPP autocreates
+	// Nothing to do VPP autocreates on startup
 	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
 	if !d.spec.IsMain {
 		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)

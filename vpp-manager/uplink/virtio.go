@@ -66,7 +66,7 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 	if !d.params.VfioUnsafeiommu {
 		err := utils.SetVfioUnsafeiommu(true)
 		if err != nil {
-			return errors.Wrapf(err, "Virtio preconfigure error")
+			return errors.Wrapf(err, "failed to configure vfio")
 		}
 	}
 	d.removeLinuxIfConf(true /* down */)
