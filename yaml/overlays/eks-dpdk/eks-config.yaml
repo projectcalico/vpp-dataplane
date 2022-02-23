@@ -4,35 +4,7 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:  # Configuration template for VPP in EKS
-  vpp_uplink_driver: none
-  vpp_config_template: |-
-    unix {
-      nodaemon
-      full-coredump
-      cli-listen /var/run/vpp/cli.sock
-    }
-    api-trace { on }
-    cpu {
-        main-core 1
-        workers 0
-    }
-    dpdk {
-      uio-driver vfio-pci
-      dev __PCI_DEVICE_ID__ { num-rx-queues 1  num-tx-queues 1 }
-    }
-    socksvr {
-        socket-name /var/run/vpp/vpp-api.sock
-    }
-    plugins {
-        plugin default { enable }
-        plugin calico_plugin.so { enable }
-        plugin dpdk_plugin.so { enable }
-        plugin ping_plugin.so { disable }
-    }
-    buffers {
-      buffers-per-numa 131072
-    }
-
+  vpp_uplink_driver: "dpdk"
 ---
 kind: DaemonSet
 apiVersion: apps/v1

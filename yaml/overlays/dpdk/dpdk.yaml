@@ -4,32 +4,7 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  vpp_uplink_driver: "none"
-  vpp_config_template: |-
-    unix {
-      nodaemon
-      full-coredump
-      cli-listen /var/run/vpp/cli.sock
-    }
-    api-trace { on }
-    cpu {
-        workers 0
-    }
-    socksvr {
-        socket-name /var/run/vpp/vpp-api.sock
-    }
-    dpdk {
-      dev __PCI_DEVICE_ID__ { num-rx-queues 1 num-tx-queues 1 }
-    }
-    plugins {
-        plugin default { enable }
-        plugin calico_plugin.so { enable }
-        plugin ping_plugin.so { disable }
-    }
-    buffers {
-      buffers-per-numa 131072
-    }
-
+  vpp_uplink_driver: "dpdk"
 ---
 kind: DaemonSet
 apiVersion: apps/v1
