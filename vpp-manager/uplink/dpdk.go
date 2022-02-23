@@ -66,7 +66,7 @@ func (d *DPDKDriver) UpdateVppConfigFile(template string) string {
 	dpdkPluginRegex := regexp.MustCompile(`plugin\s+dpdk_plugin\.so\s*{\s*disable\s*}`)
 	template = dpdkPluginRegex.ReplaceAllString(template, "plugin dpdk_plugin.so { enable }")
 
-	dpdkStanzaRegex := regexp.MustCompile(`dpdk\s+{[^}]+}`)
+	dpdkStanzaRegex := regexp.MustCompile(`dpdk\s*{[^}]+}`)
 	if dpdkStanzaRegex.MatchString(template) {
 		goto write
 	}
