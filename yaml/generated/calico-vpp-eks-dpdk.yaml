@@ -141,30 +141,27 @@ data:
       nodaemon
       full-coredump
       cli-listen /var/run/vpp/cli.sock
+      pidfile /run/vpp/vpp.pid
+      exec /etc/vpp/startup.exec
     }
     api-trace { on }
     cpu {
-        main-core 1
         workers 0
-    }
-    dpdk {
-      uio-driver vfio-pci
-      dev __PCI_DEVICE_ID__ { num-rx-queues 1  num-tx-queues 1 }
     }
     socksvr {
         socket-name /var/run/vpp/vpp-api.sock
     }
     plugins {
         plugin default { enable }
+        plugin dpdk_plugin.so { disable }
         plugin calico_plugin.so { enable }
-        plugin dpdk_plugin.so { enable }
         plugin ping_plugin.so { disable }
     }
     buffers {
       buffers-per-numa 131072
     }
   vpp_dataplane_interface: eth0
-  vpp_uplink_driver: none
+  vpp_uplink_driver: dpdk
 kind: ConfigMap
 metadata:
   name: calico-vpp-config
