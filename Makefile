@@ -96,6 +96,11 @@ test-install-calicovpp-dev:
 	$(MAKE) test-install-calico CALICO_INSTALLATION=installation-test-v4
 	kubectl apply -k yaml/overlays/test-vagrant-mounts
 
+.PHONY: test-install-calicovpp-dev-vxlan
+test-install-calicovpp-dev-vxlan:
+	$(MAKE) test-install-calico CALICO_INSTALLATION=installation-vxlan
+	kubectl apply -k yaml/overlays/test-vagrant-mounts
+
 .PHONY: test-install-calicovpp-dev-v6
 test-install-calicovpp-dev-v6:
 	$(MAKE) test-install-calico CALICO_INSTALLATION=installation-test-v6
