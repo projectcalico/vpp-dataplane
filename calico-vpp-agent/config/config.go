@@ -361,6 +361,7 @@ func WaitForFelixConfig() {
 }
 
 func HandleFelixConfig(config map[string]string) {
+	log.Infof("Got felix configuration: %+v", config)
 	EndpointToHostAction = config["DefaultEndpointToHostAction"]
 	if EndpointToHostAction == "" {
 		EndpointToHostAction = "DROP"
