@@ -19,7 +19,7 @@ package connectivity
 import (
 	"net"
 
-	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	felixConfig "github.com/projectcalico/calico/felix/config"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
@@ -64,8 +64,8 @@ func (p *ConnectivityProviderData) GetNodeIPs() (*net.IP, *net.IP) {
 func (p *ConnectivityProviderData) Clientv3() calicov3cli.Interface {
 	return p.server.Clientv3
 }
-func (p *ConnectivityProviderData) GetFelixConfig() *calicov3.FelixConfigurationSpec {
-	return &p.server.felixConfiguration
+func (p *ConnectivityProviderData) GetFelixConfig() *felixConfig.Config {
+	return p.server.felixConfig
 }
 
 func NewConnectivityProviderData(

@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"strings"
 )
 
 type WireguardTunnel struct {
@@ -110,19 +109,18 @@ func (t *WireguardPeer) DelAllowedIp(addr net.IPNet) {
 }
 
 func (t *WireguardPeer) String() string {
-	s := fmt.Sprintf("peer %d [%d] %s:%d ", t.Index, t.SwIfIndex, t.Addr, t.Port)
+	s := fmt.Sprintf("[id=%d swif=%d", t.Index, t.SwIfIndex)
+	s += fmt.Sprintf(" addr=%s port=%d", t.Addr, t.Port)
+	s += fmt.Sprintf(" pubKey=%s", string(t.PublicKey[:]))
 
-	aips := make([]string, 0)
-	for _, aip := range t.AllowedIps {
-		aips = append(aips, aip.String())
-	}
-	s = fmt.Sprintf("%s [%s]", s, strings.Join(aips, ","))
+	s += StrableListToString(" allowedIps=", t.AllowedIps)
 
 	if t.TableID != 0 {
-		return fmt.Sprintf("%s tbl:%d", s, t.TableID)
+		s += fmt.Sprintf(" tbl=%d", t.TableID)
 	}
 	if t.PersistentKeepalive != 1 {
-		return fmt.Sprintf("%s ka:%d", s, t.PersistentKeepalive)
+		s += fmt.Sprintf(" ka=%d", t.PersistentKeepalive)
 	}
+	s += "]"
 	return s
 }

@@ -48,8 +48,7 @@ import (
  */
 
 var (
-	felixConfWatcher *watchers.FelixConfWatcher
-	prefixWatcher    *watchers.PrefixWatcher
+	prefixWatcher *watchers.PrefixWatcher
 	// kernelWatcher    *watchers.KernelWatcher
 	peerWatcher *watchers.PeerWatcher
 	nodeWatcher *watchers.NodeWatcher
@@ -143,7 +142,6 @@ func main() {
 	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
 	nodeWatcher := watchers.NewNodeWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
 	ipam := watchers.NewIPAMCache(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
-	felixConfWatcher := watchers.NewFelixConfWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "felix-watcher"}))
 	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	// TODO kernelWatcher := watchers.NewKernelWatcher(ipam, log.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
 	peerWatcher := watchers.NewPeerWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
@@ -193,12 +191,14 @@ func main() {
 	log.Infof("Waiting for felix config being present...")
 
 	Go(policyServer, policyServer.ServePolicy)
-	config.WaitForFelixConfig()
+	felixConfig := policyServer.WaitForFelixConfig()
+
+	cniServer.SetFelixConfig(felixConfig)
+	connectivityServer.SetFelixConfig(felixConfig)
 
 	Go(bgpConfigurationWatcher, bgpConfigurationWatcher.WatchBGPConfiguration)
 	Go(prefixWatcher, prefixWatcher.WatchPrefix)
 	Go(peerWatcher, peerWatcher.WatchBGPPeers)
-	Go(felixConfWatcher, felixConfWatcher.WatchFelixConfiguration)
 	Go(connectivityServer, connectivityServer.ServeConnectivity)
 	Go(routingServer, routingServer.ServeRouting)
 	Go(serviceServer, serviceServer.ServeService)
@@ -212,6 +212,8 @@ func main() {
 	}
 
 	go common.HandleVppManagerRestart(log, vpp, runningServices)
+
+	log.Infof("Agent started")
 
 	select {
 	case <-signalChannel:

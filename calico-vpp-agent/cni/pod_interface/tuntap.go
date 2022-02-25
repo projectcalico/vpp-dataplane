@@ -23,17 +23,20 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
+	felixConfig "github.com/projectcalico/calico/felix/config"
+	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
 )
 
 type TunTapPodInterfaceDriver struct {
 	PodInterfaceDriverData
+	felixConfig *felixConfig.Config
 }
 
 func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTapPodInterfaceDriver {
@@ -44,7 +47,44 @@ func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTa
 	return i
 }
 
+func reduceMtuIf(podMtu *int, tunnelMtu int, tunnelEnabled bool) {
+	if tunnelEnabled && tunnelMtu != 0 && tunnelMtu < *podMtu {
+		*podMtu = tunnelMtu
+	}
+}
+
+func (i *TunTapPodInterfaceDriver) computeDefaultPodMtu() int {
+	fc := i.felixConfig
+
+	podMtu := config.HostMtu
+
+	// Reproduce felix algorithm in determinePodMTU to determine pod MTU
+	// The part where it defaults to the host MTU is done in AddVppInterface
+	// TODO: move the code that retrieves the host mtu to this module...
+	reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.IpInIpMtu, config.HostMtu-20), fc.IpInIpEnabled)
+	reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.VXLANMTU, config.HostMtu-50), fc.VXLANEnabled)
+	reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.WireguardMTU, config.HostMtu-60), fc.WireguardEnabled)
+	reduceMtuIf(&podMtu, config.HostMtu-60, config.EnableIPSec)
+
+	return podMtu
+}
+
+func (i *TunTapPodInterfaceDriver) SetFelixConfig(felixConfig *felixConfig.Config) {
+	i.felixConfig = felixConfig
+}
+
 func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) error {
+	// configure MTU from env var if present or calculate it from host mtu
+	podMtu := podSpec.Mtu
+	if podSpec.Mtu <= 0 {
+		podMtu = i.computeDefaultPodMtu()
+	}
+
+	if podMtu > config.HostMtu {
+		i.log.Warnf("Configured MTU (%d) is larger than detected host interface MTU (%d)", podMtu, config.HostMtu)
+	}
+	i.log.Debugf("Determined pod MTU: %d", podMtu)
+
 	tun := &types.TapV2{
 		GenericVppInterface: types.GenericVppInterface{
 			NumRxQueues:       config.TapNumRxQueues,
@@ -55,7 +95,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		},
 		HostNamespace: podSpec.NetnsName,
 		Tag:           podSpec.GetInterfaceTag(i.name),
-		HostMtu:       podSpec.GetPodMtu(),
+		HostMtu:       podMtu,
 	}
 
 	if podSpec.TunTapIsL3 {
