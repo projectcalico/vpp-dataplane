@@ -43,7 +43,7 @@ func (d *AVFDriver) IsSupported(warn bool) (supported bool) {
 	}
 	supported = supported && ret
 
-	ret = d.conf.Driver == config.DRIVER_I40E
+	ret = d.conf.Driver == config.DRIVER_I40E || d.conf.Driver == config.DRIVER_ICE
 	if !ret && warn {
 		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_I40E)
 	}
