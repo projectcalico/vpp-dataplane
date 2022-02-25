@@ -127,7 +127,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		return err
 	}
 
-	err = i.DoPodInterfaceConfiguration(podSpec, stack, swIfIndex, true /*isL3*/)
+	err = i.DoPodInterfaceConfiguration(podSpec, stack, swIfIndex, podSpec.TunTapIsL3)
 	if err != nil {
 		return err
 	}
