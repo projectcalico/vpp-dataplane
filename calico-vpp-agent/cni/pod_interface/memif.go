@@ -17,12 +17,15 @@ package pod_interface
 
 import (
 	"fmt"
+
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
 type MemifPodInterfaceDriver struct {
@@ -38,7 +41,7 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 }
 
 func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
-	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("@netns:%s%s", podSpec.NetnsName, config.MemifSocketName))
+	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("@netns:%s%s-%s", podSpec.NetnsName, config.MemifSocketName, podSpec.InterfaceName))
 	if err != nil {
 		return err
 	} else {
@@ -114,4 +117,57 @@ func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec)
 
 	i.log.Infof("pod(del) memif swIfIndex=%d", podSpec.MemifSwIfIndex)
 
+}
+
+func (i *MemifPodInterfaceDriver) ConfigureDummy(swIfIndex uint32, podSpec *storage.LocalPodSpec) func(hostNS ns.NetNS) error {
+	return func(hostNS ns.NetNS) error {
+		contDummy, err := netlink.LinkByName(podSpec.InterfaceName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to lookup memifDummy: %v", err)
+		}
+		hasv4, hasv6 := podSpec.Hasv46()
+
+		// Do the per-IP version set-up.  Add gateway routes etc.
+		if hasv6 {
+			i.log.Infof("dummy %d in NS has v6", swIfIndex)
+			// Make sure ipv6 is enabled in the container/pod network namespace.
+			if err = writeProcSys("/proc/sys/net/ipv6/conf/all/disable_ipv6", "0"); err != nil {
+				return fmt.Errorf("failed to set net.ipv6.conf.all.disable_ipv6=0: %s", err)
+			}
+			if err = writeProcSys("/proc/sys/net/ipv6/conf/default/disable_ipv6", "0"); err != nil {
+				return fmt.Errorf("failed to set net.ipv6.conf.default.disable_ipv6=0: %s", err)
+			}
+			if err = writeProcSys("/proc/sys/net/ipv6/conf/lo/disable_ipv6", "0"); err != nil {
+				return fmt.Errorf("failed to set net.ipv6.conf.lo.disable_ipv6=0: %s", err)
+			}
+		}
+
+		for _, route := range podSpec.GetRoutes() {
+			isV6 := route.IP.To4() == nil
+			if (isV6 && !hasv6) || (!isV6 && !hasv4) {
+				i.log.Infof("Skipping dummy[%d] route for %s", swIfIndex, route.String())
+				continue
+			}
+			i.log.Infof("Add dummy[%d] linux%d route for %s", swIfIndex, contDummy.Attrs().Index, route.String())
+			err = netlink.RouteAdd(&netlink.Route{
+				LinkIndex: contDummy.Attrs().Index,
+				Scope:     netlink.SCOPE_UNIVERSE,
+				Dst:       route,
+			})
+			if err != nil {
+				// TODO : in ipv6 '::' already exists
+				i.log.Errorf("Error adding dummy[%d] route for %s", swIfIndex, route.String())
+			}
+		}
+
+		// Now add the IPs to the container side of the tun.
+		for _, containerIP := range podSpec.GetContainerIps() {
+			i.log.Infof("Add dummy[%d] linux%d ip %s", swIfIndex, contDummy.Attrs().Index, containerIP.String())
+			err = netlink.AddrAdd(contDummy, &netlink.Addr{IPNet: containerIP})
+			if err != nil {
+				return errors.Wrapf(err, "failed to add IP addr to %s: %v", contDummy.Attrs().Name, err)
+			}
+		}
+		return nil
+	}
 }
