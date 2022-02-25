@@ -32,18 +32,16 @@ func getInterfaceVrfName(podSpec *storage.LocalPodSpec, suffix string) string {
 	return fmt.Sprintf("pod-%s-table-%s", podSpec.Key(), suffix)
 }
 
-func (s *Server) checkAvailableBuffers() (uint64, error) {
-	NumRxQueues := config.TapNumRxQueues
-	NumTxQueues := config.TapNumTxQueues
-	RxQueueSize := vpplink.DefaultIntTo(config.TapRxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
-	TxQueueSize := vpplink.DefaultIntTo(config.TapTxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
-	buffersNeeded := uint64(RxQueueSize*NumRxQueues + TxQueueSize*NumTxQueues)
+func (s *Server) checkAvailableBuffers() error {
+	existingPods := uint64(len(s.podInterfaceMap))
+	buffersNeeded := (existingPods + 1) * s.buffersNeededPerTap
+	s.log.Infof("pod(add) checking available buffers, %d existing pods, request %d / %d", existingPods, buffersNeeded, s.availableBuffers)
 	if buffersNeeded > s.availableBuffers {
-		return buffersNeeded, errors.Errorf("Cannot create interface: Out of buffers: available buffers = %d, buffers needed = %d. "+
+		return errors.Errorf("Cannot create interface: Out of buffers: available buffers = %d, buffers needed = %d. "+
 			"Increase buffers-per-numa in the VPP configuration or reduce CALICOVPP_TAP_RING_SIZE to allow more "+
-			"pods to be scheduled. You may want to limit the number of pods per node to prevent this error", s.availableBuffers, buffersNeeded)
+			"pods to be scheduled. Limit the number of pods per node to prevent this error", s.availableBuffers, buffersNeeded)
 	}
-	return buffersNeeded, nil
+	return nil
 }
 
 func (s *Server) hasVRF(podSpec *storage.LocalPodSpec) bool {
@@ -93,8 +91,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	stack := s.vpp.NewCleanupStack()
 
-	s.log.Infof("pod(add) Checking available buffers")
-	buffersNeeded, err := s.checkAvailableBuffers()
+	err = s.checkAvailableBuffers()
 	if err != nil {
 		goto err
 	}
@@ -184,7 +181,6 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		Type: common.PodAdded,
 		New:  podSpec,
 	})
-	s.availableBuffers -= buffersNeeded
 	return podSpec.TunTapSwIfIndex, err
 
 err:

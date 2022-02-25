@@ -54,7 +54,8 @@ type Server struct {
 	vclDriver      *pod_interface.VclPodInterfaceDriver
 	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
 
-	availableBuffers uint64
+	availableBuffers    uint64
+	buffersNeededPerTap uint64
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -179,6 +180,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 
 	existingSpec, ok := s.podInterfaceMap[podSpec.Key()]
 	if ok {
+		s.log.Info("pod(add) found existing spec")
 		podSpec = &existingSpec
 	}
 
@@ -198,8 +200,9 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
 	s.log.Infof("pod(add) Done spec=%s", podSpec.String())
-	// XXX: container MAC doesn't make sense anymore, we just pass back a constant one.
+	// XXX: container MAC doesn't make sense with tun, we just pass back a constant one.
 	// How does calico / k8s use it?
+	// TODO: pass real mac for tap ?
 	return &pb.AddReply{
 		Successful:        true,
 		HostInterfaceName: swIfIdxToIfName(swIfIndex),
@@ -207,7 +210,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	}, nil
 }
 
-func (s *Server) FetchNDataThreads() {
+func (s *Server) fetchNDataThreads() {
 	nVppWorkers, err := s.vpp.GetNumVPPWorkers()
 	if err != nil {
 		s.log.Panicf("Error getting number of VPP workers: %v", err)
@@ -226,14 +229,23 @@ func (s *Server) FetchNDataThreads() {
 	s.tuntapDriver.NDataThreads = nDataThreads
 }
 
-func (s *Server) rescanState() error {
+func (s *Server) fetchBufferConfig() {
 	availableBuffers, _, _, err := s.vpp.GetBufferStats()
 	if err != nil {
 		s.log.WithError(err).Errorf("could not get available buffers")
 	}
 	s.availableBuffers = uint64(availableBuffers)
 
-	s.FetchNDataThreads()
+	numRxQueues := config.TapNumRxQueues
+	numTxQueues := config.TapNumTxQueues
+	rxQueueSize := vpplink.DefaultIntTo(config.TapRxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
+	txQueueSize := vpplink.DefaultIntTo(config.TapTxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
+	s.buffersNeededPerTap = uint64(rxQueueSize*numRxQueues + txQueueSize*numTxQueues)
+}
+
+func (s *Server) rescanState() error {
+	s.fetchBufferConfig()
+	s.fetchNDataThreads()
 
 	if config.VCLEnabled {
 		err := s.vclDriver.Init()
