@@ -152,6 +152,14 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	s.log.Infof("pod(add) VRF")
 	if podSpec.NetworkName != "" {
+		if isMemif(podSpec.InterfaceName) {
+			if !config.MemifEnabled {
+				s.log.Errorf("Enable memif in config for memif interfaces")
+				goto err
+			}
+			podSpec.EnableMemif = true
+			podSpec.DefaultIfType = storage.VppIfTypeMemif
+		}
 		s.log.Infof("Checking network exists")
 		_, found := s.networkDefinitions[podSpec.NetworkName]
 		if !found {
@@ -171,10 +179,12 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		goto err
 	}
 
-	s.log.Infof("pod(add) tuntap")
-	err = s.tuntapDriver.CreateInterface(podSpec, stack, doHostSideConf)
-	if err != nil {
-		goto err
+	if podSpec.NetworkName == "" || !podSpec.EnableMemif { // The only case where tun is not created is when we create memif interface in non main network
+		s.log.Infof("pod(add) tuntap")
+		err = s.tuntapDriver.CreateInterface(podSpec, stack, doHostSideConf)
+		if err != nil {
+			goto err
+		}
 	}
 
 	if podSpec.EnableMemif && config.MemifEnabled {
@@ -182,6 +192,23 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		err = s.memifDriver.CreateInterface(podSpec, stack)
 		if err != nil {
 			goto err
+		}
+		if doHostSideConf {
+			s.log.Infof("Creating host side dummy for memif interface %s-%s", config.MemifSocketName, podSpec.InterfaceName)
+			if podSpec.NetworkName != "" {
+				err = createDummy(podSpec.NetnsName, podSpec.InterfaceName)
+				if err != nil {
+					s.log.Error(err)
+					goto err
+				}
+			}
+			if podSpec.NetworkName != "" {
+				err = ns.WithNetNSPath(podSpec.NetnsName, s.memifDriver.ConfigureDummy(podSpec.MemifSwIfIndex, podSpec))
+				if err != nil {
+					s.log.Error(errors.Wrapf(err, "Error in linux NS config"))
+					goto err
+				}
+			}
 		}
 	}
 
@@ -253,6 +280,9 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 			Type: common.PodAdded,
 			New:  podSpec,
 		})
+	}
+	if podSpec.NetworkName != "" && podSpec.EnableMemif {
+		return podSpec.MemifSwIfIndex, err
 	}
 	return podSpec.TunTapSwIfIndex, err
 
@@ -328,9 +358,10 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 		s.log.Infof("pod(del) memif")
 		s.memifDriver.DeleteInterface(podSpec)
 	}
-	s.log.Infof("pod(del) tuntap")
-	s.tuntapDriver.DeleteInterface(podSpec)
-
+	if podSpec.NetworkName == "" || !podSpec.EnableMemif {
+		s.log.Infof("pod(del) tuntap")
+		s.tuntapDriver.DeleteInterface(podSpec)
+	}
 	s.log.Infof("pod(del) loopback")
 	s.loopbackDriver.DeleteInterface(podSpec)
 
