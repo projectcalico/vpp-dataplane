@@ -20,22 +20,25 @@ import (
 	"io"
 	"net"
 	"os"
+	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
+	felixConfig "github.com/projectcalico/calico/felix/config"
+	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	"github.com/prometheus/common/log"
+	"github.com/sirupsen/logrus"
+	tomb "gopkg.in/tomb.v2"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/prometheus/common/log"
-	"github.com/sirupsen/logrus"
-	tomb "gopkg.in/tomb.v2"
-
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 )
 
 const (
@@ -87,6 +90,10 @@ type Server struct {
 
 	tunnelSwIfIndexes     map[uint32]bool
 	tunnelSwIfIndexesLock sync.Mutex
+
+	felixConfigReceived bool
+	felixConfigChan     chan *felixConfig.Config
+	felixConfig         *felixConfig.Config
 }
 
 func (s *Server) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
@@ -115,7 +122,10 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 
 		policyServerEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 
-		tunnelSwIfIndexes: make(map[uint32]bool),
+		tunnelSwIfIndexes:   make(map[uint32]bool),
+		felixConfigReceived: false,
+		felixConfigChan:     make(chan *felixConfig.Config),
+		felixConfig:         felixConfig.New(),
 	}
 
 	reg := common.RegisterHandler(server.policyServerEventChan, "policy server events")
@@ -223,6 +233,13 @@ func (s *Server) OnVppRestart() {
 	s.vppRestarted <- true
 }
 
+func (s *Server) getEndpointToHostAction() string {
+	if s.felixConfig.DefaultEndpointToHostAction == "" {
+		return "DROP"
+	}
+	return strings.ToUpper(s.felixConfig.DefaultEndpointToHostAction)
+}
+
 // workloadAdded is called by the CNI server when a container interface is created,
 // either during startup when reconnecting the interfaces, or when a new pod is created
 func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, containerIPs []*net.IPNet) {
@@ -256,7 +273,7 @@ func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, contain
 		}
 	}
 	// EndpointToHostAction
-	if strings.ToUpper(config.EndpointToHostAction) == "DROP" {
+	if s.getEndpointToHostAction() == "DROP" {
 		allMembers := []string{}
 		for _, containerIP := range containerIPs {
 			allMembers = append(allMembers, containerIP.IP.String())
@@ -291,7 +308,7 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 	}
 	delete(s.endpointsInterfaces, *id)
 	// EndpointToHostAction
-	if strings.ToUpper(config.EndpointToHostAction) == "DROP" {
+	if s.getEndpointToHostAction() == "DROP" {
 		allMembers := []string{}
 		for _, containerIP := range containerIPs {
 			allMembers = append(allMembers, containerIP.IP.String())
@@ -538,19 +555,122 @@ func (s *Server) currentState(pending bool) *PolicyState {
 	return s.configuredState
 }
 
+func (s *Server) WaitForFelixConfig() *felixConfig.Config {
+	return <-s.felixConfigChan
+}
+
+func safeParseBool(str string, onErr bool) bool {
+	parsed, err := strconv.ParseBool(str)
+	if err != nil {
+		return onErr
+	}
+	return parsed
+}
+
+func safeParseInt(str string, onErr int) int {
+	parsed, err := strconv.Atoi(str)
+	if err != nil {
+		return onErr
+	}
+	return parsed
+}
+
+/**
+ * remove add the fields of type `file` we dont need and for which the
+ * parsing will fail
+ *
+ * This logic is extracted from `loadParams` in [0]
+ * [0] projectcalico/felix/config/config_params.go:Config
+ * it applies the regex only on the reflected struct definition,
+ * not on the live data.
+ *
+ **/
+func removeFelixConfigFileField(rawData map[string]string) {
+	config := felixConfig.Config{}
+	kind := reflect.TypeOf(config)
+	metaRegexp := regexp.MustCompile(`^([^;(]+)(?:\(([^)]*)\))?;` +
+		`([^;]*)(?:;` +
+		`([^;]*))?$`)
+	for ii := 0; ii < kind.NumField(); ii++ {
+		field := kind.Field(ii)
+		tag := field.Tag.Get("config")
+		if tag == "" {
+			continue
+		}
+		captures := metaRegexp.FindStringSubmatch(tag)
+		kind := captures[1] // Type: "int|oneof|bool|port-list|..."
+		if kind == "file" {
+			delete(rawData, field.Name)
+		}
+	}
+}
+
+// the msg.Config map[string]string is the serialized object
+// projectcalico/felix/config/config_params.go:Config
 func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 	if s.state != StateConnected {
 		return fmt.Errorf("Received ConfigUpdate but server is not in Connected state! state: %v", s.state)
 	}
-	s.log.Debugf("Got config from felix: %+v", msg)
+	s.log.Infof("Got config from felix: %+v", msg)
 	s.state = StateSyncing
 
-	config.HandleFelixConfig(msg.Config)
-	err = s.createFailSafePolicies(config.FailsafeInboundHostPorts, config.FailsafeOutboundHostPorts)
+	oldFelixConfig := s.felixConfig.Copy()
+	removeFelixConfigFileField(msg.Config)
+	changed, err := s.felixConfig.UpdateFrom(msg.Config, felixConfig.InternalOverride)
 	if err != nil {
 		return err
 	}
+
+	// Note: This function will be called each time the Felix config changes.
+	// If we start handling config settings that require agent restart,
+	// we'll need to add a mechanism for that
+	if !s.felixConfigReceived {
+		s.felixConfigReceived = true
+		s.felixConfigChan <- s.felixConfig
+	}
+
+	if !changed {
+		return nil
+	}
+
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.FelixConfChanged,
+		New:  s.felixConfig,
+		Old:  oldFelixConfig,
+	})
+
+	if s.felixConfig.DefaultEndpointToHostAction != oldFelixConfig.DefaultEndpointToHostAction {
+		s.log.Infof("TODO : default endpoint to host action changed")
+	}
+
+	if !protoPortListEqual(s.felixConfig.FailsafeInboundHostPorts, oldFelixConfig.FailsafeInboundHostPorts) ||
+		!protoPortListEqual(s.felixConfig.FailsafeOutboundHostPorts, oldFelixConfig.FailsafeOutboundHostPorts) {
+		err = s.createFailSafePolicies()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func protoPortListEqual(a, b []felixConfig.ProtoPort) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, elemA := range a {
+		elemB := b[i]
+		if elemA.Net != elemB.Net {
+			return false
+		}
+		if elemA.Protocol != elemB.Protocol {
+			return false
+		}
+		if elemA.Port != elemB.Port {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Server) handleInSync(msg *proto.InSync) (err error) {
@@ -1124,19 +1244,50 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 	return nil
 }
 
-func (s *Server) createFailSafePolicies(failSafeInbound string, failSafeOutbound string) (err error) {
+func (s *Server) createFailSafePolicies() (err error) {
 	failSafePol := &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
 	}
-	failSafeInboundRules, err := getfailSafeRules(failSafeInbound)
+
+	fihp := s.felixConfig.FailsafeInboundHostPorts
+	if len(fihp) == 0 {
+		fihp = append(fihp,
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 22},
+			felixConfig.ProtoPort{Protocol: "udp", Port: 68},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 179},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 2379},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 2380},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 5473},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 6443},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 6666},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 6667},
+		)
+	}
+	failSafeInboundRules, err := getfailSafeRules(fihp)
 	if err != nil {
 		return err
 	}
-	failSafeOutboundRules, err := getfailSafeRules(failSafeOutbound)
+
+	fohp := s.felixConfig.FailsafeOutboundHostPorts
+	if len(fohp) == 0 {
+		fihp = append(fihp,
+			felixConfig.ProtoPort{Protocol: "udp", Port: 53},
+			felixConfig.ProtoPort{Protocol: "udp", Port: 67},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 179},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 2379},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 2380},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 5473},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 6443},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 6666},
+			felixConfig.ProtoPort{Protocol: "tcp", Port: 6667},
+		)
+	}
+	failSafeOutboundRules, err := getfailSafeRules(fohp)
 	if err != nil {
 		return err
 	}
+
 	failSafePol.InboundRules = failSafeInboundRules
 	failSafePol.OutboundRules = failSafeOutboundRules
 	err = failSafePol.Create(s.vpp, nil)
@@ -1147,24 +1298,15 @@ func (s *Server) createFailSafePolicies(failSafeInbound string, failSafeOutbound
 	return nil
 }
 
-func getProtocolRules(protocolName string, failSafe string) (*Rule, error) {
+func getProtocolRules(protocolName string, failSafe []felixConfig.ProtoPort) (*Rule, error) {
 	portRanges := []types.PortRange{}
 
-	failSafe = strings.Join(strings.Fields(failSafe), "")
-	protocolsPorts := strings.Split(failSafe, ",")
-	for _, protocolPort := range protocolsPorts {
-		protocolAndPort := strings.Split(protocolPort, ":")
-		if len(protocolAndPort) != 2 {
-			return nil, errors.Errorf("failsafe has wrong format")
-		}
-		protocol := protocolAndPort[0]
-		port := protocolAndPort[1]
-		if protocol == protocolName {
-			port, err := strconv.Atoi(port)
-			if err != nil {
-				return nil, errors.Errorf("failsafe has wrong format")
-			}
-			portRanges = append(portRanges, types.PortRange{First: uint16(port), Last: uint16(port)})
+	for _, protoPort := range failSafe {
+		if protoPort.Protocol == protocolName {
+			portRanges = append(portRanges, types.PortRange{
+				First: protoPort.Port,
+				Last:  protoPort.Port,
+			})
 		}
 	}
 	protocol, err := parseProtocol(&proto.Protocol{NumberOrName: &proto.Protocol_Name{Name: protocolName}})
@@ -1187,7 +1329,7 @@ func getProtocolRules(protocolName string, failSafe string) (*Rule, error) {
 	return r_failsafe, nil
 }
 
-func getfailSafeRules(failSafe string) ([]*Rule, error) {
+func getfailSafeRules(failSafe []felixConfig.ProtoPort) ([]*Rule, error) {
 	r_failsafe_tcp, err := getProtocolRules("tcp", failSafe)
 	if err != nil {
 		return nil, errors.Errorf("failsafe has wrong format")

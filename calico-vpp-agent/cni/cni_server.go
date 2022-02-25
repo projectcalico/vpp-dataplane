@@ -24,17 +24,19 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	felixConfig "github.com/projectcalico/calico/felix/config"
+	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	tomb "gopkg.in/tomb.v2"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/pod_interface"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
-	tomb "gopkg.in/tomb.v2"
 )
 
 type Server struct {
@@ -73,6 +75,10 @@ func getHostEndpointProto(proto string) types.IPProto {
 	default:
 		return types.TCP
 	}
+}
+
+func (s *Server) SetFelixConfig(felixConfig *felixConfig.Config) {
+	s.tuntapDriver.SetFelixConfig(felixConfig)
 }
 
 func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, error) {

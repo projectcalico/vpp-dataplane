@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -95,20 +94,9 @@ var (
 	TapRxQueueSize           int = 0
 	TapTxQueueSize           int = 0
 	HostMtu                  int = 0
-	PodMtu                   int = 0
 	IpsecNbAsyncCryptoThread int = 0
 	SRv6policyIPPool             = ""
 	SRv6localSidIPPool           = ""
-
-	felixConfigReceived = false
-	felixConfigChan     = make(chan struct{})
-
-	felixIPIPEnabled          = false
-	felixIPIPMtu          int = 0
-	felixVXLANEnabled         = false
-	felixVXLANMtu         int = 0
-	felixWireguardEnabled     = false
-	felixWireguardMtu     int = 0
 
 	FailsafeInboundHostPorts  string = ""
 	FailsafeOutboundHostPorts string = ""
@@ -130,7 +118,6 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:RxMode            %d", TapRxMode)
 	log.Infof("Config:LogLevel          %d", LogLevel)
 	log.Infof("Config:HostMtu           %d", HostMtu)
-	log.Infof("Config:PodMtu            %d", PodMtu)
 	log.Infof("Config:IpsecNbAsyncCryptoThread  %d", IpsecNbAsyncCryptoThread)
 	log.Infof("Config:EnableSRv6        %t", EnableSRv6)
 }
@@ -354,72 +341,4 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	}
 
 	return nil
-}
-
-func WaitForFelixConfig() {
-	<-felixConfigChan
-}
-
-func HandleFelixConfig(config map[string]string) {
-	log.Infof("Got felix configuration: %+v", config)
-	EndpointToHostAction = config["DefaultEndpointToHostAction"]
-	if EndpointToHostAction == "" {
-		EndpointToHostAction = "DROP"
-	}
-	FailsafeInboundHostPorts = config["FailsafeInboundHostPorts"]
-	if FailsafeInboundHostPorts == "" {
-		FailsafeInboundHostPorts = "tcp:22, udp:68, tcp:179, tcp:2379, tcp:2380, tcp:5473, tcp:6443, tcp:6666, tcp:6667"
-	}
-	FailsafeOutboundHostPorts = config["FailsafeOutboundHostPorts"]
-	if FailsafeOutboundHostPorts == "" {
-		FailsafeOutboundHostPorts = "udp:53, udp:67, tcp:179, tcp:2379, tcp:2380, tcp:5473, tcp:6443, tcp:6666, tcp:6667"
-	}
-	felixIPIPEnabled, _ = strconv.ParseBool(config["IpInIpEnabled"])
-	felixIPIPMtu, _ = strconv.Atoi(config["IpInIpMtu"])
-	if felixIPIPMtu == 0 {
-		felixIPIPMtu = HostMtu - 20
-	}
-	felixVXLANEnabled, _ = strconv.ParseBool(config["VXLANEnabled"])
-	felixVXLANMtu, _ = strconv.Atoi(config["VXLANMTU"])
-	if felixVXLANMtu == 0 {
-		felixVXLANMtu = HostMtu - 50
-	}
-	felixWireguardEnabled, _ = strconv.ParseBool(config["WireguardEnabled"])
-	felixWireguardMtu, _ = strconv.Atoi(config["WireguardMTU"])
-	if felixWireguardMtu == 0 {
-		felixWireguardMtu = HostMtu - 60
-	}
-
-	// Reproduce felix algorithm in determinePodMTU to determine pod MTU
-	// The part where it defaults to the host MTU is done in AddVppInterface
-	// TODO: move the code that retrieves the host mtu to this module...
-	for _, s := range []struct {
-		mtu     int
-		enabled bool
-	}{
-		{felixIPIPMtu, felixIPIPEnabled},
-		{felixVXLANMtu, felixVXLANEnabled},
-		{felixWireguardMtu, felixWireguardEnabled},
-		{HostMtu - 60, EnableIPSec},
-	} {
-		if s.enabled && s.mtu != 0 && (s.mtu < PodMtu || PodMtu == 0) {
-			PodMtu = s.mtu
-		}
-	}
-	if PodMtu == 0 {
-		PodMtu = HostMtu
-	}
-	if PodMtu > HostMtu {
-		log.Warnf("Configured MTU (%d) is larger than detected host interface MTU (%d)", PodMtu, HostMtu)
-	}
-	log.Infof("Determined pod MTU: %d", PodMtu)
-
-	// Note: This function will be called each time the Felix config changes.
-	// If we start handling config settings that require agent restart,
-	// we'll need to add a mechanism for that
-
-	if !felixConfigReceived {
-		felixConfigReceived = true
-		felixConfigChan <- struct{}{}
-	}
 }

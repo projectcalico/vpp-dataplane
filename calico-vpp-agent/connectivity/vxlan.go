@@ -105,26 +105,19 @@ func (p *VXLanProvider) OnVppRestart() {
 }
 
 func (p *VXLanProvider) getVXLANVNI() uint32 {
-	felixConf := p.GetFelixConfig()
-	if felixConf == nil {
+	felixConfig := p.GetFelixConfig()
+	if felixConfig.VXLANVNI == 0 {
 		return uint32(config.DefaultVXLANVni)
 	}
-	if felixConf.VXLANVNI == nil {
-		return uint32(config.DefaultVXLANVni)
-	}
-	if *felixConf.VXLANVNI == 0 {
-		return uint32(config.DefaultVXLANVni)
-	}
-	return uint32(*felixConf.VXLANVNI)
+	return uint32(felixConfig.VXLANVNI)
 }
 
 func (p *VXLanProvider) getVXLANPort() uint16 {
-	felixConf := p.GetFelixConfig()
-	if felixConf.VXLANPort != nil {
-		return uint16(*felixConf.VXLANPort)
-	} else {
+	felixConfig := p.GetFelixConfig()
+	if felixConfig.VXLANPort == 0 {
 		return config.DefaultVXLANPort
 	}
+	return uint16(felixConfig.VXLANPort)
 }
 
 func (p *VXLanProvider) getNodeIpForConnectivity(cn *common.NodeConnectivity) (nodeIP net.IP, err error) {

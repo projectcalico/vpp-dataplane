@@ -22,13 +22,14 @@ import (
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	felixConfig "github.com/projectcalico/calico/felix/config"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/sirupsen/logrus"
 	tomb "gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
@@ -43,8 +44,8 @@ type ConnectivityServer struct {
 	nodeBGPSpec     *oldv3.NodeBGPSpec
 	vpp             *vpplink.VppLink
 
-	felixConfiguration calicov3.FelixConfigurationSpec
-	nodeByAddr         map[string]oldv3.Node
+	felixConfig *felixConfig.Config
+	nodeByAddr  map[string]oldv3.Node
 
 	connectivityEventChan chan common.CalicoVppEvent
 
@@ -60,6 +61,10 @@ const (
 
 func (s *ConnectivityServer) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
 	s.nodeBGPSpec = nodeBGPSpec
+}
+
+func (s *ConnectivityServer) SetFelixConfig(felixConfig *felixConfig.Config) {
+	s.felixConfig = felixConfig
 }
 
 func NewConnectivityServer(vpp *vpplink.VppLink, ipam watchers.IpamCache,
@@ -201,13 +206,13 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					}
 				}
 			case common.FelixConfChanged:
-				old, _ := evt.Old.(*calicov3.FelixConfigurationSpec)
-				new, _ := evt.New.(*calicov3.FelixConfigurationSpec)
+				old, _ := evt.Old.(*felixConfig.Config)
+				new, _ := evt.New.(*felixConfig.Config)
 				if new == nil || old == nil {
 					/* First/last update, do nothing more */
 					continue
 				}
-				s.felixConfiguration = *new
+				s.felixConfig = new
 				if old.WireguardEnabled != new.WireguardEnabled {
 					s.log.Infof("connectivity(upd) WireguardEnabled Changed")
 					s.updateAllIPConnectivity()

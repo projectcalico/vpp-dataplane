@@ -70,7 +70,6 @@ func (ift VppInterfaceType) String() string {
 	}
 }
 
-
 func (n *LocalIPNet) String() string {
 	ipnet := net.IPNet{
 		IP:   n.IP,
@@ -168,7 +167,7 @@ type LocalIfPortConfigs struct {
 	Proto types.IPProto
 }
 
-func (pc* LocalIfPortConfigs) String() string {
+func (pc *LocalIfPortConfigs) String() string {
 	return fmt.Sprintf("%s %d-%d", pc.Proto.String(), pc.Start, pc.End)
 }
 
@@ -241,14 +240,6 @@ func (hp *HostPortBinding) String() string {
 
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {
 	return fmt.Sprintf("%s-%s-%s", prefix, ps.NetnsName, ps.InterfaceName)
-}
-
-func (ps *LocalPodSpec) GetPodMtu() int {
-	// configure MTU from env var if present or calculate it from host mtu
-	if ps.Mtu <= 0 {
-		return config.PodMtu
-	}
-	return ps.Mtu
 }
 
 func (ps *LocalPodSpec) GetRoutes() (routes []*net.IPNet) {
