@@ -190,10 +190,6 @@ func getTimeSeries(worker int, pod storage.LocalPodSpec, value float64) *metrics
 	}
 }
 
-func (s *Server) OnVppRestart() {
-	/* todo : we should recreate the stats client */
-}
-
 func NewPrometheusServer(vpp *vpplink.VppLink, l *logrus.Entry) *Server {
 	server := &Server{
 		log:                      l,

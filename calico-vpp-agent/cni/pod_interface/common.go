@@ -32,26 +32,33 @@ type PodInterfaceDriverData struct {
 }
 
 func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTxQueues int) (err error) {
-
 	// set first tx queue for main worker
-	err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0, 1, 0)
+	err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0 /* queue */, 0 /* worker */)
 	if err != nil {
 		return err
 	}
 	// share tx queues between the rest of workers
-	numVPPWorkers, err := i.vpp.GetNumVPPWorkers()
-	if err != nil {
-		i.log.Errorf("GetNumVPPWorkers error %s", err)
-	}
-	if numVPPWorkers > 0 {
+	if i.NDataThreads > 0 {
 		for txq := 1; txq < numTxQueues; txq++ {
-			err = i.vpp.SetInterfaceTxPlacement(swIfIndex, txq, 1, uint32((txq-1)%(numVPPWorkers)+1))
+			err = i.vpp.SetInterfaceTxPlacement(swIfIndex, txq, (txq-1)%(i.NDataThreads)+1)
 			if err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func (i *PodInterfaceDriverData) SpreadRxQueuesOnWorkers(swIfIndex uint32) {
+	if i.NDataThreads > 0 {
+		for queue := 0; queue < config.TapNumRxQueues; queue++ {
+			worker := (int(swIfIndex)*config.TapNumRxQueues + queue) % i.NDataThreads
+			err := i.vpp.SetInterfaceRxPlacement(swIfIndex, queue, worker, false /* main */)
+			if err != nil {
+				i.log.Warnf("failed to set if[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, queue, worker, i.NDataThreads, err)
+			}
+		}
+	}
 }
 
 func (i *PodInterfaceDriverData) UndoPodIfNatConfiguration(swIfIndex uint32) {
@@ -105,15 +112,7 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 }
 
 func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
-	if i.NDataThreads > 0 {
-		for queue := 0; queue < config.TapNumRxQueues; queue++ {
-			worker := (int(swIfIndex)*config.TapNumRxQueues + queue) % i.NDataThreads
-			err = i.vpp.SetInterfaceRxPlacement(swIfIndex, queue, worker, false /*main*/)
-			if err != nil {
-				i.log.Warnf("failed to set if[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, queue, worker, i.NDataThreads, err)
-			}
-		}
-	}
+	i.SpreadRxQueuesOnWorkers(swIfIndex)
 
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily.IsIp6)

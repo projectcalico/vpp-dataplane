@@ -36,10 +36,6 @@ func getRoutePaths(addr net.IP) []types.RoutePath {
 	}}
 }
 
-func (p *FlatL3Provider) OnVppRestart() {
-	/* Nothing to do */
-}
-
 func (p *FlatL3Provider) RescanState() {
 	/* Nothing to do */
 }

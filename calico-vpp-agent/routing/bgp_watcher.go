@@ -212,7 +212,6 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 				}
 				if f == &common.BgpFamilySRv6IPv6 {
 					w.log.Debugf("Path SRv6")
-					common.WaitIfVppIsRestarting()
 					if err := w.injectSRv6Policy(path); err != nil {
 						w.log.Errorf("cannot inject SRv6: %v", err)
 					}

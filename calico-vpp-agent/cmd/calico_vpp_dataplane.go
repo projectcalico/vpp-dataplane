@@ -56,14 +56,12 @@ var (
 
 	connectivityServer *connectivity.ConnectivityServer
 
-	t               tomb.Tomb
-	runningServices []common.CalicoVppServer
+	t tomb.Tomb
 
 	log *logrus.Logger
 )
 
-func Go(svc common.CalicoVppServer, f func(t *tomb.Tomb) error) {
-	runningServices = append(runningServices, svc)
+func Go(f func(t *tomb.Tomb) error) {
 	t.Go(func() error {
 		err := f(&t)
 		log.Warnf("Tomb error : %s", err)
@@ -73,9 +71,6 @@ func Go(svc common.CalicoVppServer, f func(t *tomb.Tomb) error) {
 
 func main() {
 	log = logrus.New()
-	runningServices := make([]common.CalicoVppServer, 0)
-	signalChannel := make(chan os.Signal, 2)
-	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 
 	err := config.LoadConfig(log)
 	if err != nil {
@@ -83,8 +78,6 @@ func main() {
 	}
 	config.PrintAgentConfig(log)
 	log.SetLevel(config.LogLevel)
-
-	common.InitRestartHandler()
 
 	err = common.WritePidToFile()
 	if err != nil {
@@ -168,7 +161,7 @@ func main() {
 	serviceServer.SetBGPConf(bgpConf)
 
 	log.Infof("Waiting for our node's BGP spec...")
-	Go(nodeWatcher, nodeWatcher.WatchNodes)
+	Go(nodeWatcher.WatchNodes)
 	ourBGPSpec := nodeWatcher.WaitForOurBGPSpec()
 
 	prefixWatcher.SetOurBGPSpec(ourBGPSpec)
@@ -181,7 +174,7 @@ func main() {
 
 	/* Some still depend on ipam being ready */
 	log.Infof("Waiting for ipam...")
-	Go(ipam, ipam.SyncIPAM)
+	Go(ipam.SyncIPAM)
 	ipam.WaitReady()
 
 	/**
@@ -190,35 +183,43 @@ func main() {
 	 */
 	log.Infof("Waiting for felix config being present...")
 
-	Go(policyServer, policyServer.ServePolicy)
+	Go(policyServer.ServePolicy)
 	felixConfig := policyServer.WaitForFelixConfig()
 
 	cniServer.SetFelixConfig(felixConfig)
 	connectivityServer.SetFelixConfig(felixConfig)
 
-	Go(bgpConfigurationWatcher, bgpConfigurationWatcher.WatchBGPConfiguration)
-	Go(prefixWatcher, prefixWatcher.WatchPrefix)
-	Go(peerWatcher, peerWatcher.WatchBGPPeers)
-	Go(connectivityServer, connectivityServer.ServeConnectivity)
-	Go(routingServer, routingServer.ServeRouting)
-	Go(serviceServer, serviceServer.ServeService)
-	Go(cniServer, cniServer.ServeCNI)
-	Go(prometheusServer, prometheusServer.ServePrometheus)
-	// TODO : Go(kernelWatcher, kernelWatcher.WatchKernelRoute)
+	Go(bgpConfigurationWatcher.WatchBGPConfiguration)
+	Go(prefixWatcher.WatchPrefix)
+	Go(peerWatcher.WatchBGPPeers)
+	Go(connectivityServer.ServeConnectivity)
+	Go(routingServer.ServeRouting)
+	Go(serviceServer.ServeService)
+	Go(cniServer.ServeCNI)
+	Go(prometheusServer.ServePrometheus)
+	// TODO : Go(kernelWatcher.WatchKernelRoute)
 
 	// watch LocalSID if SRv6 is enabled
 	if config.EnableSRv6 {
-		Go(localSIDWatcher, localSIDWatcher.WatchLocalSID)
+		Go(localSIDWatcher.WatchLocalSID)
 	}
-
-	go common.HandleVppManagerRestart(log, vpp, runningServices)
 
 	log.Infof("Agent started")
 
+	interruptSignalChannel := make(chan os.Signal, 2)
+	signal.Notify(interruptSignalChannel, os.Interrupt, syscall.SIGTERM)
+
+	usr1SignalChannel := make(chan os.Signal, 2)
+	signal.Notify(usr1SignalChannel, syscall.SIGUSR1)
+
 	select {
-	case <-signalChannel:
+	case <-usr1SignalChannel:
+		/* vpp-manager pokes us with USR1 if VPP terminates */
+		log.Warnf("Vpp stopped, exiting...")
+		t.Kill(errors.Errorf("Caught signal USR1"))
+	case <-interruptSignalChannel:
 		log.Infof("SIG received, exiting")
-		t.Kill(errors.Errorf("Caught signal"))
+		t.Kill(errors.Errorf("Caught INT signal"))
 	case <-t.Dying():
 		log.Errorf("tomb Dying %s", t.Err())
 	}

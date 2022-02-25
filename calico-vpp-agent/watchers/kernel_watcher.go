@@ -95,10 +95,6 @@ func (w *KernelWatcher) WatchKernelRoute(t *tomb.Tomb) error {
 	}
 }
 
-func (w *KernelWatcher) OnVppRestart() {
-	/* Do nothing */
-}
-
 func (w *KernelWatcher) loadKernelRoute() error {
 	filter := &netlink.Route{
 		Table: syscall.RT_TABLE_MAIN,

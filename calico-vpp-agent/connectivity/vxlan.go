@@ -98,12 +98,6 @@ func (p *VXLanProvider) RescanState() {
 	}
 }
 
-func (p *VXLanProvider) OnVppRestart() {
-	p.vxlanIfs = make(map[string]types.VXLanTunnel)
-	p.configureVXLANNodes()
-	p.vxlanRoutes = make(map[uint32]map[string]bool)
-}
-
 func (p *VXLanProvider) getVXLANVNI() uint32 {
 	felixConfig := p.GetFelixConfig()
 	if felixConfig.VXLANVNI == 0 {

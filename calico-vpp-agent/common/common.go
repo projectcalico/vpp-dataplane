@@ -20,11 +20,8 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"sync"
-	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -42,9 +39,6 @@ import (
 
 var (
 	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
-
-	barrier     bool
-	barrierCond *sync.Cond
 )
 
 const (
@@ -52,21 +46,6 @@ const (
 	PuntTableId     = uint32(1)
 	PodVRFIndex     = uint32(2)
 )
-
-type CalicoVppServer interface {
-	/* Called when VPP signals us that it has restarted */
-	OnVppRestart()
-}
-
-type CalicoVppServerData struct{}
-
-func WaitIfVppIsRestarting() {
-	barrierCond.L.Lock()
-	for barrier {
-		barrierCond.Wait()
-	}
-	barrierCond.L.Unlock()
-}
 
 func CreateVppLink(socket string, log *logrus.Entry) (vpp *vpplink.VppLink, err error) {
 	// Get an API connection, with a few retries to accomodate VPP startup time
@@ -111,46 +90,6 @@ func WaitForVppManager() error {
 func WritePidToFile() error {
 	pid := strconv.FormatInt(int64(os.Getpid()), 10)
 	return ioutil.WriteFile(config.CalicoVppPidFile, []byte(pid+"\n"), 0400)
-}
-
-func InitRestartHandler() {
-	barrier = false
-	barrierCond = sync.NewCond(&sync.Mutex{})
-}
-
-func HandleVppManagerRestart(log *logrus.Logger, vpp *vpplink.VppLink, servers []CalicoVppServer) {
-	barrierCond.L.Lock()
-	barrier = false
-	barrierCond.L.Unlock()
-	barrierCond.Broadcast()
-	signals := make(chan os.Signal, 2)
-	signal.Notify(signals, syscall.SIGUSR1)
-	for {
-		<-signals
-		log.Infof("SR:Vpp restarted")
-		barrierCond.L.Lock()
-		barrier = true
-		barrierCond.L.Unlock()
-		vpp.Close()
-		// Start by reconnecting to VPP to ensure vpp (and so vpp-manager) are running
-		err := vpp.Retry(time.Second, 20, vpp.Reconnect)
-		if err != nil {
-			log.Errorf("Reconnection failed after 20 tries %v", err)
-		}
-		err = WaitForVppManager()
-		if err != nil {
-			log.Fatalf("Timed out waiting for vpp-manager: %v", err)
-			os.Exit(1)
-		}
-		for i, srv := range servers {
-			srv.OnVppRestart()
-			log.Infof("SR:server %d restarted", i)
-		}
-		barrierCond.L.Lock()
-		barrier = false
-		barrierCond.L.Unlock()
-		barrierCond.Broadcast()
-	}
 }
 
 func SafeFormat(e interface{ String() string }) string {
@@ -542,4 +481,22 @@ func formatBGPConfiguration(conf *calicov3.BGPConfigurationSpec) string {
 		"LogSeverityScreen: %s, NodeToNodeMeshEnabled: %s, ASNumber: %s, ListenPort: %d",
 		conf.LogSeverityScreen, meshConfig, asn, conf.ListenPort,
 	)
+}
+
+func FetchNDataThreads(vpp *vpplink.VppLink, log *logrus.Entry) int {
+	nVppWorkers, err := vpp.GetNumVPPWorkers()
+	if err != nil {
+		log.Panicf("Error getting number of VPP workers: %v", err)
+	}
+	nDataThreads := nVppWorkers
+	if config.IpsecNbAsyncCryptoThread > 0 {
+		nDataThreads = nVppWorkers - config.IpsecNbAsyncCryptoThread
+		if nDataThreads <= 0 {
+			log.Error("Couldn't fullfill request [crypto=%d total=%d]", config.IpsecNbAsyncCryptoThread, nVppWorkers)
+			nDataThreads = nVppWorkers
+		}
+		log.Info("Using ipsec workers [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
+
+	}
+	return nDataThreads
 }

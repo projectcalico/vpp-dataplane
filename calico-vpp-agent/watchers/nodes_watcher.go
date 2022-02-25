@@ -254,12 +254,6 @@ func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.E
 	return false, err /* don't restart */
 }
 
-func (w *NodeWatcher) OnVppRestart() {
-	for _, node := range w.nodeStatesByName {
-		w.configureRemoteNodeSnat(&node, true /* isAdd */)
-	}
-}
-
 func (w *NodeWatcher) configureRemoteNodeSnat(node *common.NodeState, isAdd bool) {
 	if node.Spec.BGP.IPv4Address != "" {
 		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)

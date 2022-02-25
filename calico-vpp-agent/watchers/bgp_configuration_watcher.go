@@ -126,10 +126,6 @@ func (w *BGPConfigurationWatcher) getDefaultBGPConfig() (*calicov3.BGPConfigurat
 	}
 }
 
-func (w *BGPConfigurationWatcher) OnVppRestart() {
-	/* We don't do anything */
-}
-
 func (w *BGPConfigurationWatcher) WatchBGPConfiguration(t *tomb.Tomb) error {
 	for t.Alive() {
 		select {

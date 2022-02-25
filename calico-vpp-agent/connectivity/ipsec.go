@@ -31,37 +31,9 @@ import (
 
 type IpsecProvider struct {
 	*ConnectivityProviderData
-	ipsecIfs    map[string][]*types.IPIPTunnel
-	ipsecRoutes map[string]map[string]bool
-}
-
-func (p *IpsecProvider) OnVppRestart() {
-
-	var nbDataThread int = 0
-	numVPPWorkers, err := p.vpp.GetNumVPPWorkers()
-	if err != nil {
-		p.log.Errorf("GetNumVPPWorkers error %s", err)
-	}
-
-	if config.IpsecNbAsyncCryptoThread > 0 {
-		var err error
-		err = p.vpp.SetIPsecAsyncMode(true)
-		if err != nil {
-			p.log.Errorf("SetIPsecAsyncMode error %s", err)
-		}
-
-		nbDataThread = numVPPWorkers - config.IpsecNbAsyncCryptoThread
-		p.log.Infof("Using async workers for ipsec, nbDataThread=%d", nbDataThread)
-
-		for i := 0; i < nbDataThread; i++ {
-			err = p.vpp.SetCryptoWorker(uint32(i), false)
-			if err != nil {
-				p.log.Errorf("SetCryptoWorker error %s", err)
-			}
-		}
-	}
-	p.ipsecIfs = make(map[string][]*types.IPIPTunnel)
-	p.ipsecRoutes = make(map[string]map[string]bool)
+	ipsecIfs     map[string][]*types.IPIPTunnel
+	ipsecRoutes  map[string]map[string]bool
+	nDataThreads int
 }
 
 func (p *IpsecProvider) Enabled() bool {
@@ -116,10 +88,30 @@ func (p *IpsecProvider) RescanState() {
 			}
 		}
 	}
+
+	if config.IpsecNbAsyncCryptoThread > 0 {
+		err := p.vpp.SetIPsecAsyncMode(true)
+		if err != nil {
+			p.log.Errorf("SetIPsecAsyncMode error %s", err)
+		}
+
+		p.log.Infof("Using async workers for ipsec, nbDataThread=%d", p.nDataThreads)
+		for i := 0; i < p.nDataThreads; i++ {
+			err = p.vpp.SetCryptoWorker(uint32(i), false)
+			if err != nil {
+				p.log.Errorf("SetCryptoWorker error %s", err)
+			}
+		}
+	}
 }
 
-func NewIPsecProvider(d *ConnectivityProviderData) *IpsecProvider {
-	return &IpsecProvider{d, make(map[string][]*types.IPIPTunnel), make(map[string]map[string]bool)}
+func NewIPsecProvider(d *ConnectivityProviderData, nDataThreads int) *IpsecProvider {
+	return &IpsecProvider{
+		ConnectivityProviderData: d,
+		ipsecIfs:                 make(map[string][]*types.IPIPTunnel),
+		ipsecRoutes:              make(map[string]map[string]bool),
+		nDataThreads:             nDataThreads,
+	}
 }
 
 func ipToSafeString(addr net.IP) string {

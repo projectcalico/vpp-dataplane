@@ -52,10 +52,6 @@ type bgpPeer struct {
 	SweepFlag bool
 }
 
-func (w *PeerWatcher) OnVppRestart() {
-	/* We don't do anything */
-}
-
 // selectsNode determines whether or not the selector mySelector
 // matches the labels on the given node.
 func selectsNode(mySelector string, n *oldv3.Node) (bool, error) {

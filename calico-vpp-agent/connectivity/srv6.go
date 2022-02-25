@@ -46,10 +46,6 @@ func NewSRv6Provider(d *ConnectivityProviderData) *SRv6Provider {
 	return p
 }
 
-func (p *SRv6Provider) OnVppRestart() {
-	p.log.Infof("SRv6Provider OnVppRestart")
-}
-
 func (p *SRv6Provider) GetSwifindexes() []uint32 {
 	return []uint32{}
 }

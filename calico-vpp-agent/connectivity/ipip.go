@@ -36,11 +36,6 @@ func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
 	return &IpipProvider{d, make(map[string]*types.IPIPTunnel), make(map[uint32]map[string]bool)}
 }
 
-func (p *IpipProvider) OnVppRestart() {
-	p.ipipIfs = make(map[string]*types.IPIPTunnel)
-	p.ipipRoutes = make(map[uint32]map[string]bool)
-}
-
 func (p *IpipProvider) Enabled() bool {
 	return true
 }

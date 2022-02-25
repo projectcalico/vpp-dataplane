@@ -18,7 +18,6 @@ package connectivity
 import (
 	"fmt"
 	"net"
-	"sync"
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
@@ -48,8 +47,6 @@ type ConnectivityServer struct {
 	nodeByAddr  map[string]oldv3.Node
 
 	connectivityEventChan chan common.CalicoVppEvent
-
-	updateIPConnectivityLock sync.Mutex /* protects OnVppRestart() vs Serve() */
 }
 
 type change uint8
@@ -90,12 +87,13 @@ func NewConnectivityServer(vpp *vpplink.VppLink, ipam watchers.IpamCache,
 		common.SRv6PolicyDeleted,
 	)
 
+	nDataThreads := common.FetchNDataThreads(vpp, log)
 	providerData := NewConnectivityProviderData(server.vpp, &server, log)
 
 	server.providers = make(map[string]ConnectivityProvider)
 	server.providers[FLAT] = NewFlatL3Provider(providerData)
 	server.providers[IPIP] = NewIPIPProvider(providerData)
-	server.providers[IPSEC] = NewIPsecProvider(providerData)
+	server.providers[IPSEC] = NewIPsecProvider(providerData, nDataThreads)
 	server.providers[VXLAN] = NewVXLanProvider(providerData)
 	server.providers[WIREGUARD] = NewWireguardProvider(providerData)
 	server.providers[SRv6] = NewSRv6Provider(providerData)
@@ -138,19 +136,6 @@ func (s *ConnectivityServer) updateAllIPConnectivity() {
 	}
 }
 
-func (s *ConnectivityServer) OnVppRestart() {
-	for _, provider := range s.providers {
-		provider.OnVppRestart()
-	}
-	for _, cn := range s.connectivityMap {
-		s.log.Infof("Adding routing : %s", cn)
-		err := s.updateIPConnectivity(&cn, false)
-		if err != nil {
-			s.log.Errorf("Error re-injecting connectivity %s : %v", cn, err)
-		}
-	}
-}
-
 func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 	/**
 	 * There might be leftover state in VPP in case we restarted
@@ -165,7 +150,6 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 			return nil
 		case evt := <-s.connectivityEventChan:
 			/* Note: we will only receive events we ask for when registering the chan */
-			common.WaitIfVppIsRestarting()
 			switch evt.Type {
 			case common.ConnectivityAdded:
 				new := evt.New.(*common.NodeConnectivity)
@@ -308,8 +292,6 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 
 func (s *ConnectivityServer) updateIPConnectivity(cn *common.NodeConnectivity, IsWithdraw bool) (err error) {
 	var providerType string
-	s.updateIPConnectivityLock.Lock()
-	defer s.updateIPConnectivityLock.Unlock()
 	if IsWithdraw {
 		oldCn, found := s.connectivityMap[cn.String()]
 		if !found {
