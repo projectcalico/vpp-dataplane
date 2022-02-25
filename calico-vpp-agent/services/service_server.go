@@ -57,7 +57,6 @@ func (es *CnatTranslateEntryVPPState) String() string {
 }
 
 type Server struct {
-	*common.CalicoVppServerData
 	log              *logrus.Entry
 	vpp              *vpplink.VppLink
 	endpointStore    cache.Store
@@ -65,7 +64,7 @@ type Server struct {
 	serviceInformer  cache.Controller
 	endpointInformer cache.Controller
 
-	lock sync.Mutex /* protects handleServiceEndpointEvent(s)/OnVppRestartServe */
+	lock sync.Mutex /* protects handleServiceEndpointEvent(s)/Serve */
 
 	BGPConf     *calicov3.BGPConfigurationSpec
 	nodeBGPSpec *oldv3.NodeBGPSpec
@@ -191,31 +190,6 @@ func (s *Server) configureSnat() (err error) {
 	return nil
 }
 
-func (s *Server) OnVppRestart() {
-	/* SNAT-outgoing config */
-	err := s.configureSnat()
-	if err != nil {
-		s.log.Errorf("Failed to reconfigure SNAT: %v", err)
-	}
-
-	/* Services NAT config */
-	if config.EnableServices {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-		newState := make(map[string]CnatTranslateEntryVPPState)
-		for key, entry := range s.stateMap {
-			entryID, err := s.vpp.CnatTranslateAdd(&entry.Entry)
-			if err != nil {
-				s.log.Errorf("Error re-injecting cnat entry %s : %v", entry, err)
-			} else {
-				entry.Entry.ID = entryID
-				newState[key] = entry
-			}
-		}
-		s.stateMap = newState
-	}
-}
-
 func (s *Server) findMatchingService(ep *v1.Endpoints) *v1.Service {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(ep)
 	if err != nil {
@@ -296,8 +270,6 @@ func (s *Server) handleServiceEndpointEvent(service *v1.Service, oldService *v1.
 	if !config.EnableServices {
 		return
 	}
-
-	common.WaitIfVppIsRestarting()
 
 	s.lock.Lock()
 	defer s.lock.Unlock()

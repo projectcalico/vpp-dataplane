@@ -161,10 +161,6 @@ func (w *PrefixWatcher) updateBGPPaths(paths []*bgpapi.Path) error {
 	return nil
 }
 
-func (w *PrefixWatcher) OnVppRestart() {
-	/* We don't do anything */
-}
-
 // _updatePrefixSet updates 'aggregated' and 'host' prefix-sets
 // we add the exact prefix to 'aggregated' set, and add corresponding longer
 // prefixes to 'host' set.

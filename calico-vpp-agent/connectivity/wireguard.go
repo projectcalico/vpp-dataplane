@@ -59,12 +59,6 @@ func (p *WireguardProvider) getWireguardPort() uint16 {
 	return uint16(felixConfig.WireguardListeningPort)
 }
 
-func (p *WireguardProvider) OnVppRestart() {
-	p.wireguardPeers = make(map[string]types.WireguardPeer)
-	p.wireguardV4Tunnel = nil
-	p.wireguardV6Tunnel = nil
-}
-
 func (p *WireguardProvider) getNodePublicKey(cn *common.NodeConnectivity) ([]byte, error) {
 	node := p.GetNodeByIp(cn.NextHop)
 	if node.Status.WireguardPublicKey == "" {

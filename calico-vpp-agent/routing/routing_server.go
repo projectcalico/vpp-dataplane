@@ -39,7 +39,6 @@ const (
 )
 
 type Server struct {
-	*common.CalicoVppServerData
 	log *logrus.Entry
 	vpp *vpplink.VppLink
 
@@ -106,8 +105,6 @@ func (s *Server) ServeRouting(t *tomb.Tomb) (err error) {
 	}
 
 	for t.Alive() {
-		common.WaitIfVppIsRestarting()
-
 		globalConfig, err := s.getGoBGPGlobalConfig()
 		if err != nil {
 			return fmt.Errorf("cannot get global configuration: %v", err)
@@ -253,13 +250,5 @@ func (s *Server) RestoreLocalAddresses() {
 		if err != nil {
 			s.log.Errorf("Local address %s restore failed : %+v", addr.String(), err)
 		}
-	}
-}
-
-func (s *Server) OnVppRestart() {
-	s.log.Infof("Restarting ROUTING")
-	err := s.configureLocalNodeSnat()
-	if err != nil {
-		s.log.Errorf("error reconfiguring loical node snat: %v", err)
 	}
 }

@@ -40,7 +40,6 @@ import (
 )
 
 type Server struct {
-	*common.CalicoVppServerData
 	log *logrus.Entry
 	vpp *vpplink.VppLink
 
@@ -49,7 +48,7 @@ type Server struct {
 	grpcServer *grpc.Server
 
 	podInterfaceMap map[string]storage.LocalPodSpec
-	lock            sync.Mutex /* protects Add/DelVppInterace/OnVppRestart/RescanState */
+	lock            sync.Mutex /* protects Add/DelVppInterace/RescanState */
 
 	memifDriver    *pod_interface.MemifPodInterfaceDriver
 	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
@@ -178,7 +177,6 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 		}, nil
 	}
 
-	common.WaitIfVppIsRestarting()
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -217,20 +215,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 }
 
 func (s *Server) fetchNDataThreads() {
-	nVppWorkers, err := s.vpp.GetNumVPPWorkers()
-	if err != nil {
-		s.log.Panicf("Error getting number of VPP workers: %v", err)
-	}
-	nDataThreads := nVppWorkers
-	if config.IpsecNbAsyncCryptoThread > 0 {
-		nDataThreads = nVppWorkers - config.IpsecNbAsyncCryptoThread
-		if nDataThreads <= 0 {
-			s.log.Error("Couldn't fullfill request [crypto=%d total=%d]", config.IpsecNbAsyncCryptoThread, nVppWorkers)
-			nDataThreads = nVppWorkers
-		}
-		s.log.Info("Using ipsec workers [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
-
-	}
+	nDataThreads := common.FetchNDataThreads(s.vpp, s.log)
 	s.memifDriver.NDataThreads = nDataThreads
 	s.tuntapDriver.NDataThreads = nDataThreads
 }
@@ -288,24 +273,6 @@ func (s *Server) rescanState() error {
 	return err
 }
 
-func (s *Server) OnVppRestart() {
-	s.log.Infof("VppRestart: re-creating all interfaces")
-	if config.VCLEnabled {
-		err := s.vclDriver.Init()
-		if err != nil {
-			s.log.Errorf("Error initializing VCL %v", err)
-		}
-	}
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	for name, podSpec := range s.podInterfaceMap {
-		_, err := s.AddVppInterface(&podSpec, false /* doHostSideConf */)
-		if err != nil {
-			s.log.Errorf("Error re-injecting interface %s : %v", name, err)
-		}
-	}
-}
-
 func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply, error) {
 	partialPodSpec := NewLocalPodSpecFromDel(request)
 	// Only try to delete the device if a namespace was passed in.
@@ -315,7 +282,6 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 			Successful: true,
 		}, nil
 	}
-	common.WaitIfVppIsRestarting()
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

@@ -61,7 +61,6 @@ type IpamCache interface {
 	GetPrefixIPPool(*net.IPNet) *calicov3.IPPool
 	SyncIPAM(t *tomb.Tomb) error
 	WaitReady()
-	OnVppRestart()
 	IPNetNeedsSNAT(prefix *net.IPNet) bool
 }
 
@@ -310,15 +309,6 @@ func (c *ipamCache) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.
 		})
 	}
 	return nil
-}
-
-func (c *ipamCache) OnVppRestart() {
-	for _, pool := range c.ippoolmap {
-		err := c.ipamUpdateHandler(&pool, nil)
-		if err != nil {
-			c.log.Errorf("ipam restart error: %s", err)
-		}
-	}
 }
 
 func (c *ipamCache) WaitReady() {

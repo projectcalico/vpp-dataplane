@@ -57,12 +57,10 @@ const (
 
 // Server holds all the data required to configure the policies defined by felix in VPP
 type Server struct {
-	*common.CalicoVppServerData
 	log *logrus.Entry
 	vpp *vpplink.VppLink
 
-	vppRestarted chan bool
-	nodeBGPSpec  *oldv3.NodeBGPSpec
+	nodeBGPSpec *oldv3.NodeBGPSpec
 
 	state         SyncState
 	nextSeqNumber uint64
@@ -109,8 +107,6 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 	server := &Server{
 		log: log,
 		vpp: vpp,
-
-		vppRestarted: make(chan bool),
 
 		state:         StateDisconnected,
 		nextSeqNumber: 0,
@@ -222,15 +218,6 @@ func InstallFelixPlugin() (err error) {
 	}
 	err = out.Sync()
 	return errors.Wrapf(err, "could not sync felix plugin changes")
-}
-
-// OnVppRestart notifies the policy server that vpp restarted
-func (s *Server) OnVppRestart() {
-	s.log.Warnf("Signaled VPP restart to Policy server")
-	s.tunnelSwIfIndexesLock.Lock()
-	s.tunnelSwIfIndexes = make(map[uint32]bool)
-	s.tunnelSwIfIndexesLock.Unlock()
-	s.vppRestarted <- true
 }
 
 func (s *Server) getEndpointToHostAction() string {
@@ -423,13 +410,6 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 	innerLoop:
 		for {
 			select {
-			case <-s.vppRestarted:
-				// Close connection to restart felix, wipe all data and start over
-				s.log.Infof("VPP restarted, triggering Felix restart")
-				s.configuredState = NewPolicyState()
-				s.endpointsInterfaces = make(map[WorkloadEndpointID]uint32)
-				s.log.Infof("Waiting for SyncPolicy to stop...")
-				break innerLoop
 			case <-t.Dying():
 				s.log.Infof("Policy server exiting")
 				err = conn.Close()

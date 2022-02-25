@@ -47,8 +47,6 @@ type ConnectivityProviderData struct {
 type ConnectivityProvider interface {
 	AddConnectivity(cn *common.NodeConnectivity) error
 	DelConnectivity(cn *common.NodeConnectivity) error
-	/* Called when VPP signals us that it has restarted */
-	OnVppRestart()
 	/* Check current state in VPP and update local cache */
 	RescanState()
 	/* is it enabled in the config ? */

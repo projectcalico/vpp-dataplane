@@ -106,10 +106,6 @@ func (p *LocalSIDWatcher) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6A
 	return newSidAddr, nil
 }
 
-func (w *LocalSIDWatcher) OnVppRestart() {
-	/* We don't do anything */
-}
-
 func (w *LocalSIDWatcher) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
 	w.nodeBGPSpec = nodeBGPSpec
 }
