@@ -171,3 +171,14 @@ release: check-TAG check-CALICO_TAG
 	@echo
 	@echo "***IMPORTANT***IMPORTANT***IMPORTANT***IMPORTANT***"
 	@echo "Please update \"vppbranch\" in https://github.com/projectcalico/calico/blob/${CALICO_TAG}/calico/_config.yml to ${TAG} otherwise the install docs get broken."
+
+.PHONY: test-calico-vpp-agent
+test-calico-vpp-agent:
+	cd calico-vpp-agent/cmd; go test -c
+	kubectl apply -f test/agent/agentTests.yaml
+	kubectl -n tests wait pod/samplepod1 --for=condition=Ready --timeout=20s
+	kubectl -n tests wait pod/mvpp --for=condition=Ready --timeout=20s
+	-kubectl -n calico-vpp-dataplane exec -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node2|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test tests samplepod1 tun
+	-kubectl -n calico-vpp-dataplane exec -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node2|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test tests mvpp tun
+	-kubectl -n calico-vpp-dataplane exec -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node2|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test tests mvpp memif
+	kubectl delete -f test/agent/agentTests.yaml
