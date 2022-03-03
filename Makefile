@@ -171,3 +171,7 @@ release: check-TAG check-CALICO_TAG
 	@echo
 	@echo "***IMPORTANT***IMPORTANT***IMPORTANT***IMPORTANT***"
 	@echo "Please update \"vppbranch\" in https://github.com/projectcalico/calico/blob/${CALICO_TAG}/calico/_config.yml to ${TAG} otherwise the install docs get broken."
+
+test-calico-vpp-agent:
+	cd calico-vpp-agent/cmd; go test -c
+	kubectl -n calico-vpp-dataplane exec -c vpp -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node1|awk '{print($$1)}') /home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test

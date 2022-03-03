@@ -59,6 +59,7 @@ type VppInterfaceDetails struct {
 	Name      string
 	Tag       string
 	Type      string
+	Mtu       []uint32
 }
 
 type TapFlags uint32

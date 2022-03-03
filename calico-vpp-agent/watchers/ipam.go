@@ -77,6 +77,10 @@ type ipamCache struct {
 	currentWatchRevision string
 }
 
+func (c *ipamCache) ForceReady() {
+	c.ready = true
+}
+
 // match checks whether we have an IP pool which contains the given prefix.
 // If we have, it returns the pool.
 func (c *ipamCache) GetPrefixIPPool(prefix *net.IPNet) *calicov3.IPPool {

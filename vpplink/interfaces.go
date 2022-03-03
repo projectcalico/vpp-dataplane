@@ -409,6 +409,7 @@ func (v *VppLink) GetInterfaceDetails(swIfIndex uint32) (i *types.VppInterfaceDe
 			Name:      response.InterfaceName,
 			Tag:       response.Tag,
 			Type:      response.InterfaceDevType,
+			Mtu:       response.Mtu,
 		}
 	}
 	if i == nil {
@@ -491,6 +492,23 @@ func (v *VppLink) DelTap(swIfIndex uint32) error {
 		return errors.Wrap(err, "failed to delete tap from VPP")
 	}
 	return nil
+}
+
+func (v *VppLink) InterfaceGetUnnumbered(swIfIndex uint32) (result *vppip.IPUnnumberedDetails, err error) {
+	request := &vppip.IPUnnumberedDump{SwIfIndex: interface_types.InterfaceIndex(swIfIndex)}
+	stream := v.ch.SendMultiRequest(request)
+	for {
+		response := &vppip.IPUnnumberedDetails{}
+		stop, err := stream.ReceiveReply(response)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error listing VPP interfaces addresses")
+		}
+		if stop {
+			break
+		}
+		result = response
+	}
+	return
 }
 
 func (v *VppLink) interfaceSetUnnumbered(unnumberedSwIfIndex uint32, swIfIndex uint32, isAdd bool) error {
