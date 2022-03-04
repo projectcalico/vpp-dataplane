@@ -178,7 +178,15 @@ test-calico-vpp-agent:
 	kubectl apply -f test/agent/agentTests.yaml
 	kubectl -n tests wait pod/samplepod1 --for=condition=Ready --timeout=20s
 	kubectl -n tests wait pod/mvpp --for=condition=Ready --timeout=20s
-	-kubectl -n calico-vpp-dataplane exec -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node2|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test tests samplepod1 tun
-	-kubectl -n calico-vpp-dataplane exec -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node2|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test tests mvpp tun
-	-kubectl -n calico-vpp-dataplane exec -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node2|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test tests mvpp memif
+	-kubectl -n calico-vpp-dataplane exec -c agent -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node2|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test tests samplepod1 tun eth0 fd01 ip6
+	-kubectl -n calico-vpp-dataplane exec -c agent -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node2|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test tests mvpp tun eth0 fd01 ip6 
+	-kubectl -n calico-vpp-dataplane exec -c agent -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node2|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test tests mvpp memif eth0 fd01 ip6
 	kubectl delete -f test/agent/agentTests.yaml
+
+	
+	kubectl apply -f test/agent/multinet.yaml
+	kubectl wait pod/multinetpod1 --for=condition=Ready --timeout=20s
+	-kubectl -n calico-vpp-dataplane exec -c agent -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node1|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test default multinetpod1 tun eth0 fd01 ip6
+	-kubectl -n calico-vpp-dataplane exec -c agent -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node1|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test default multinetpod1 tun eth1 fd02 ip6
+	-kubectl -n calico-vpp-dataplane exec -c agent -it $$(kubectl -n calico-vpp-dataplane get pods -owide|grep node1|awk '{print($$1)}') ./home/hostuser/vpp-dataplane/calico-vpp-agent/cmd/cmd.test default multinetpod1 memif memif1 fd02 ip6
+	kubectl delete -f test/agent/multinet.yaml
