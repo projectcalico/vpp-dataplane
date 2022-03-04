@@ -32,22 +32,23 @@ var _ = Describe("Cni", func() {
 	var vpp *vpplink.VppLink
 	var err error
 	var podSpec *storage.LocalPodSpec
-	arg := os.Args //1:namespace 2:pod name 3:interface type
-
+	arg := os.Args //(1:namespace) (2:pod name) (3:interface type) (4:interface name) (5:network prefix)
+	isIp6 := arg[6] == "ip6"
+	log = logrus.New()
+	vpp, err = common.CreateVppLink(config.VppAPISocket, log.WithFields(logrus.Fields{"component": "vpp-api"}))
+	if err != nil {
+		log.Fatalf("Cannot create VPP client: %v", err)
+	}
+	Expect(vpp).NotTo(BeNil())
 	BeforeEach(func() {
-		log = logrus.New()
-		vpp, err = common.CreateVppLink(config.VppAPISocket, log.WithFields(logrus.Fields{"component": "vpp-api"}))
-		if err != nil {
-			log.Fatalf("Cannot create VPP client: %v", err)
-		}
-		Expect(vpp).NotTo(BeNil())
 
 		cniServerStateFile := fmt.Sprintf("%s%d", config.CniServerStateFile, storage.CniServerStateFileVersion)
 		podSpecs, err := storage.LoadCniServerState(cniServerStateFile)
 		Expect(err).ShouldNot(HaveOccurred())
 		for _, existingPodSpec := range podSpecs {
-			if existingPodSpec.WorkloadID == arg[1]+"/"+arg[2] {
+			if existingPodSpec.WorkloadID == arg[1]+"/"+arg[2] && existingPodSpec.InterfaceName == arg[4] {
 				podSpec = &existingPodSpec
+				log.Infof("--)%+v", *podSpec)
 				break
 			}
 		}
@@ -65,31 +66,36 @@ var _ = Describe("Cni", func() {
 	})
 
 	Describe("Create samplepod", func() {
-		Context("just a pod in the main network", func() {
-			It("should have eth0 interface in linux with address in pool", func() {
+		Context("checking interfaces for pod", func() {
+			Context("should have interface in linux with address in the right pool", func() {
+				It("should have interface in linux with address in the right pool", func() {
 
-				err = ns.WithNetNSPath(podSpec.NetnsName, func(ns.NetNS) error {
-					link, err := netlink.LinkByName("eth0")
-					if err != nil {
-						return errors.Wrapf(err, "unable to retrieve name")
-					}
-					addresses, err := netlink.AddrList(link, netlink.FAMILY_V4)
-					if err != nil {
-						return errors.Wrapf(err, "unable to retrieve address")
-					}
-					for _, addr := range addresses {
-						linuxAddr = addr.IP
-						break
-					}
-					return nil
+					err = ns.WithNetNSPath(podSpec.NetnsName, func(ns.NetNS) error {
+						link, err := netlink.LinkByName(arg[4])
+						if err != nil {
+							return errors.Wrapf(err, "unable to retrieve name")
+						}
+						fam := netlink.FAMILY_V4
+						if isIp6 {
+							fam = netlink.FAMILY_V6
+						}
+						addresses, err := netlink.AddrList(link, fam)
+						if err != nil {
+							return errors.Wrapf(err, "unable to retrieve address")
+						}
+						for _, addr := range addresses {
+							linuxAddr = addr.IP
+							break
+						}
+						return nil
+					})
+					Expect(err).ShouldNot(HaveOccurred())
+
+					inPool := strings.HasPrefix(linuxAddr.String(), arg[5])
+					Expect(inPool).To(BeTrue())
 				})
-				Expect(err).ShouldNot(HaveOccurred())
-
-				inPool := strings.HasPrefix(linuxAddr.String(), "172.16.")
-				Expect(inPool).To(BeTrue())
 			})
-
-			Context("Should have tun in vpp with eth0 address and right mtu", func() {
+			Context("Should have interface in vpp with same address as linux and right mtu", func() {
 				var allInterfaces map[string]uint32
 
 				BeforeEach(func() {
@@ -98,17 +104,20 @@ var _ = Describe("Cni", func() {
 					Expect(allInterfaces).NotTo(BeEmpty())
 				})
 
-				It("Should have tun in vpp with eth0 address", func() {
+				It("Should have interface in vpp with same address as linux", func() {
 					for _, swifindex := range allInterfaces {
-						couple, err := vpp.InterfaceGetUnnumbered(swifindex)
+						unnumberedInt, err := vpp.InterfaceGetUnnumbered(swifindex)
 						Expect(err).ShouldNot(HaveOccurred())
 
-						lb := uint32(couple.IPSwIfIndex)
-						addrList, err := vpp.AddrList(lb, false)
+						lb := uint32(unnumberedInt.IPSwIfIndex)
+
+						addrList, err := vpp.AddrList(lb, isIp6)
 						Expect(err).ShouldNot(HaveOccurred())
 
 						var correctAdress bool
+						log.Infof("l a : %+v", linuxAddr)
 						for _, addr := range addrList {
+							log.Infof("ad: %+v", addr)
 							if addr.IPNet.IP.Equal(linuxAddr) {
 								correctAdress = true
 							}
