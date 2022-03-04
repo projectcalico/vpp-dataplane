@@ -299,7 +299,9 @@ func (w *PeerWatcher) createBGPPeer(ip string, asn uint32) (*bgpapi.Peer, error)
 
 	typ := &common.BgpFamilyUnicastIPv4
 	typSRv6 := &common.BgpFamilySRv6IPv6
-	typvpn := &common.BgpFamilyUnicastIPv4VPN
+	typvpn4 := &common.BgpFamilyUnicastIPv4VPN
+	typvpn6 := &common.BgpFamilyUnicastIPv6VPN
+	
 	if ipAddr.IP.To4() == nil {
 		typ = &common.BgpFamilyUnicastIPv6
 	}
@@ -324,7 +326,13 @@ func (w *PeerWatcher) createBGPPeer(ip string, asn uint32) (*bgpapi.Peer, error)
 		},
 		&bgpapi.AfiSafi{
 			Config: &bgpapi.AfiSafiConfig{
-				Family:  typvpn,
+				Family:  typvpn4,
+				Enabled: true,
+			},
+		},
+		&bgpapi.AfiSafi{
+			Config: &bgpapi.AfiSafiConfig{
+				Family:  typvpn6,
 				Enabled: true,
 			},
 		},

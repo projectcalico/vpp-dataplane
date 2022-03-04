@@ -251,7 +251,7 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 		return stopFunc, err
 	}
 
-	var stopV4Monitor, stopV6Monitor, stopSRv6IP6Monitor, stopV4VPNMonitor context.CancelFunc
+	var stopV4Monitor, stopV6Monitor, stopSRv6IP6Monitor, stopV4VPNMonitor, stopV6VPNMonitor context.CancelFunc
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
 	if nodeIP4 != nil {
 		stopV4Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv4)
@@ -266,7 +266,11 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 	if nodeIP6 != nil {
 		stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
 		if err != nil {
-			return errors.Wrap(err, "error starting SRv6IP6 path monitor")
+			return errors.Wrap(err, "error starting v6 path monitor")
+		}
+		stopV6VPNMonitor, err = startMonitor(&common.BgpFamilyUnicastIPv6VPN)
+		if err != nil {
+			return errors.Wrap(err, "error starting v6vpn path monitor")
 		}
 		if config.EnableSRv6 {
 			stopSRv6IP6Monitor, err = startMonitor(&common.BgpFamilySRv6IPv6)
@@ -285,6 +289,7 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 			}
 			if nodeIP6 != nil {
 				stopV6Monitor()
+				stopV6VPNMonitor()
 				if config.EnableSRv6 {
 					stopSRv6IP6Monitor()
 				}
@@ -337,6 +342,11 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					stopV6Monitor, err = startMonitor(&common.BgpFamilyUnicastIPv6)
 					if err != nil {
 						return errors.Wrap(err, "error re-starting ip6 path monitor")
+					}
+					stopV6VPNMonitor()
+					stopV6VPNMonitor, err = startMonitor(&common.BgpFamilyUnicastIPv4VPN)
+					if err != nil {
+						return errors.Wrap(err, "error re-starting ip6vpn path monitor")
 					}
 					if config.EnableSRv6 {
 						stopSRv6IP6Monitor()
