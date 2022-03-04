@@ -1,0 +1,74 @@
+apiVersion: projectcalico.org/v3
+kind: Network
+metadata:
+  name: blue
+spec:
+  vni: 56
+---
+apiVersion: crd.projectcalico.org/v1
+kind: IPPool
+metadata:
+  name: pool-blue
+  annotations:
+    extensions.projectcalico.org/network: blue
+spec:
+  cidr: 172.17.0.0/16
+  ipipMode: Never
+  vxlanMode: Always
+  natOutgoing: false
+  disabled: false
+  nodeSelector: all()
+  allowedUses:
+  - Workload
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: network-blue-conf
+spec:
+  config: |-
+    {
+      "name": "network-blue",
+      "cniVersion": "0.3.1",
+      "plugins": [
+        {
+          "type": "calico",
+          "log_level": "debug",
+          "datastore_type": "kubernetes",
+          "mtu": 0,
+          "ipam": {
+              "type": "calico-ipam",
+              "ipv4_pools": ["pool-blue"]
+          },
+          "policy": {
+              "type": "k8s"
+          },
+          "kubernetes": {
+              "kubeconfig": "/etc/cni/net.d/calico-kubeconfig"
+          },
+          "dataplane_options": {
+            "type": "grpc",
+            "socket": "unix:///var/run/calico/cni-server.sock",
+            "network_name": "blue",
+            "route": "172.17.0.0/16"
+          }
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: multinetpod1
+  annotations:
+    k8s.v1.cni.cncf.io/networks: network-blue-conf@eth1, network-blue-conf@memif1
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: node1
+  containers:
+  - name: mvpp
+    image: calicovpp/vpp:latest
+    command: ["tail", "-f", "/dev/null"]
+    imagePullPolicy: IfNotPresent
+    securityContext:
+      privileged: true
