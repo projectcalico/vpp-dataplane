@@ -160,6 +160,7 @@ const (
 
 var (
 	BgpFamilyUnicastIPv4VPN = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_MPLS_VPN}
+	BgpFamilyUnicastIPv6VPN = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_MPLS_VPN}
 	BgpFamilyUnicastIPv4    = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_UNICAST}
 	BgpFamilySRv6IPv4       = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_SR_POLICY}
 	BgpFamilyUnicastIPv6    = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_UNICAST}
@@ -261,19 +262,37 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 		attrs = append(attrs, nhAttr)
 	} else {
 		if nodeIpv6 == nil {
-			return nil, fmt.Errorf("No ip4 address for node")
+			return nil, fmt.Errorf("No ip6 address for node")
 		}
 		family = &BgpFamilyUnicastIPv6
-		nlriAttr, err := ptypes.MarshalAny(&bgpapi.MpReachNLRIAttribute{
-			NextHops: []string{nodeIpv6.String()},
-			Nlris:    []*any.Any{nlri},
-			Family: &bgpapi.Family{
-				Afi:  bgpapi.Family_AFI_IP6,
-				Safi: bgpapi.Family_SAFI_UNICAST,
-			},
-		})
-		if err != nil {
-			return nil, err
+		if vni != 0 {
+			family = &BgpFamilyUnicastIPv6VPN
+		}
+		var nlriAttr *anypb.Any
+		if vni != 0 {
+			nlriAttr, err = ptypes.MarshalAny(&bgpapi.MpReachNLRIAttribute{
+				NextHops: []string{nodeIpv6.String()},
+				Nlris:    []*any.Any{nlri},
+				Family: &bgpapi.Family{
+					Afi:  bgpapi.Family_AFI_IP6,
+					Safi: bgpapi.Family_SAFI_MPLS_VPN,
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			nlriAttr, err = ptypes.MarshalAny(&bgpapi.MpReachNLRIAttribute{
+				NextHops: []string{nodeIpv6.String()},
+				Nlris:    []*any.Any{nlri},
+				Family: &bgpapi.Family{
+					Afi:  bgpapi.Family_AFI_IP6,
+					Safi: bgpapi.Family_SAFI_UNICAST,
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
 		}
 		attrs = append(attrs, nlriAttr)
 	}
