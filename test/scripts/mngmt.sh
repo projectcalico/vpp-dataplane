@@ -18,6 +18,7 @@ REPO_URL=${REPO_URL:=https://github.com/projectcalico/vpp-dataplane.git}
 BRANCH_NAME=${BRANCH_NAME:=origin/master}
 TAG=${TAG:=latest}
 EXTRA_TAGS=${EXTRA_TAGS:=prerelease}
+PUSH=${PUSH:=y}
 
 function push ()
 {
@@ -49,6 +50,11 @@ for tagname in $(echo $EXTRA_TAGS | sed 's/,/ /g'); do
 	echo "Tagging calicovpp/agent:\${tagname}..."
 	docker tag calicovpp/agent:${TAG} calicovpp/agent:\${tagname}
 done
+
+if [ $PUSH != "y" ]; then
+	echo "not pushing"
+	exit 0
+fi
 
 trap 'docker logout' EXIT
 docker login --username $DOCKER_USERNAME  --password $DOCKER_TOKEN
