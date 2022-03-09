@@ -18,6 +18,8 @@ package services
 import (
 	"fmt"
 	"net"
+	"reflect"
+	"sort"
 	"sync"
 	"time"
 
@@ -278,6 +280,18 @@ func differentIPServices(service1 *v1.Service, service2 *v1.Service) bool {
 	return false
 }
 
+func differentIPServicePorts(service1 *v1.Service, service2 *v1.Service) bool {
+	service1Ports := service1.Spec.Ports
+	service2Ports := service2.Spec.Ports
+	sort.Slice(service1Ports, func(i, j int) bool {
+		return service1Ports[i].Port < service1Ports[j].Port
+	})
+	sort.Slice(service2Ports, func(i, j int) bool {
+		return service2Ports[i].Port < service2Ports[j].Port
+	})
+	return !reflect.DeepEqual(service1Ports, service2Ports)
+}
+
 func (s *Server) handleServiceEndpointEvent(service *v1.Service, oldService *v1.Service, ep *v1.Endpoints, isWithdrawal bool) {
 	if !config.EnableServices {
 		return
@@ -299,11 +313,13 @@ func (s *Server) handleServiceEndpointEvent(service *v1.Service, oldService *v1.
 		return
 	}
 	if oldService != nil {
-		if differentIPServices(oldService, service) {
+		if differentIPServices(oldService, service) || differentIPServicePorts(service, oldService) {
 			err := s.delServicePort(oldService, ep)
 			if err != nil {
 				s.log.Errorf("Service errored %v", err)
 			}
+		} else {
+			return
 		}
 	}
 	if isWithdrawal {
