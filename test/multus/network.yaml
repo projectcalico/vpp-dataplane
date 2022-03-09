@@ -1,0 +1,13 @@
+apiVersion: projectcalico.org/v3
+kind: Network
+metadata:
+  name: blue
+spec:
+  vni: 56
+---
+apiVersion: projectcalico.org/v3
+kind: Network
+metadata:
+  name: red
+spec:
+  vni: 88
