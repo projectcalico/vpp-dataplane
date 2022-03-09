@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: memifpod
+  annotations:
+    k8s.v1.cni.cncf.io/networks: network-blue-conf@memif1, network-red-conf@eth5
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: node2
+  containers:
+  - name: mvpp
+    image: calicovpp/vpp:latest
+    command: ["tail", "-f", "/dev/null"]
+    imagePullPolicy: IfNotPresent
+    securityContext:
+      privileged: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: samplepod1
+  annotations:
+    k8s.v1.cni.cncf.io/networks: network-blue-conf@eth1, network-red-conf@eth2
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: node1
+  containers:
+  - name: samplepod
+    command: ["/bin/ash", "-c", "trap : TERM INT; sleep infinity & wait"]
+    image: nicolaka/netshoot:latest
