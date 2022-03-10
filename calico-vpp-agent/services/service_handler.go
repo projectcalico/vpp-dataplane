@@ -191,6 +191,7 @@ func (s *Server) deleteCnatEntry(entry *CnatTranslateEntryVPPState) (err error) 
 	if err != nil {
 		return err
 	}
+	delete(s.stateMap, entry.Key())
 
 	return nil
 }
