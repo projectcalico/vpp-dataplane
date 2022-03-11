@@ -385,15 +385,19 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 
 	err = s.createAllowFromHostPolicy()
 	if err != nil {
-		s.log.Errorf("Error in createAllowFromHostPolicy %s", err)
+		return errors.Wrap(err, "Error in createAllowFromHostPolicy")
 	}
 	err = s.createEndpointToHostPolicy()
 	if err != nil {
-		s.log.Errorf("Error in createAllowFromHostPolicy %s", err)
+		return errors.Wrap(err, "Error in createAllowFromHostPolicy")
 	}
 	err = s.createAllowToHostPolicy()
 	if err != nil {
-		s.log.Errorf("Error in createAllowToHostPolicy %s", err)
+		return errors.Wrap(err, "Error in createAllowToHostPolicy")
+	}
+	err = s.createFailSafePolicies()
+	if err != nil {
+		return errors.Wrap(err, "Error in createFailSafePolicies")
 	}
 
 	for {
