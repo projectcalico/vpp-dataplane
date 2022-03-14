@@ -402,7 +402,7 @@ func ToCapoRule(r *Rule) (cr capo.CapoRule) {
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, id := range r.DstIPPortSet {
-		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_IP_SET}
+		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_PORT_IP_SET}
 		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
