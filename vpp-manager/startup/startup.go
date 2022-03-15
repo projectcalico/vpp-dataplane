@@ -104,7 +104,7 @@ const (
 	DefaultNumTxQueues  = 1
 	defaultRxMode       = types.Adaptative
 	/* Allow a maximum number of corefiles, delete older ones */
-	maxCoreFiles = 5
+	maxCoreFiles = 2
 )
 
 func GetVppManagerParams() (params *config.VppManagerParams) {
