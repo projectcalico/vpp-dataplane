@@ -55,7 +55,7 @@ type WorkloadEndpoint struct {
 }
 
 func (we *WorkloadEndpoint) String() string {
-	s := fmt.Sprintf("if=%d profiles=%s= tiers:[%s]", we.SwIfIndex, we.Profiles, we.Tiers)
+	s := fmt.Sprintf("if=%d profiles=%s tiers=%s", we.SwIfIndex, we.Profiles, we.Tiers)
 	s += types.StrListToString(" Profiles=", we.Profiles)
 	s += types.StrableListToString(" Tiers=", we.Tiers)
 	return s

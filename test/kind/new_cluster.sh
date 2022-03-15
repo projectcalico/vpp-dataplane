@@ -36,6 +36,10 @@ nodes:
   extraMounts:
     - hostPath: $HOME
       containerPath: $HOME
+- role: worker
+  extraMounts:
+    - hostPath: $HOME
+      containerPath: $HOME
 EOF
 
 # connect the registry to the cluster network if not already connected
