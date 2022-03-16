@@ -598,12 +598,14 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 	s.log.Infof("Got config from felix: %+v", msg)
 	s.state = StateSyncing
 
-	oldFelixConfig := s.felixConfig.Copy()
+	oldFelixConfig := s.felixConfig
 	removeFelixConfigFileField(msg.Config)
-	changed, err := s.felixConfig.UpdateFrom(msg.Config, felixConfig.InternalOverride)
+	s.felixConfig = felixConfig.New()
+	_, err = s.felixConfig.UpdateFrom(msg.Config, felixConfig.InternalOverride)
 	if err != nil {
 		return err
 	}
+	changed := !reflect.DeepEqual(oldFelixConfig.RawValues(), s.felixConfig.RawValues())
 
 	// Note: This function will be called each time the Felix config changes.
 	// If we start handling config settings that require agent restart,
