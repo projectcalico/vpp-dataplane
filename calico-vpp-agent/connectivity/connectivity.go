@@ -50,7 +50,8 @@ type ConnectivityProvider interface {
 	/* Check current state in VPP and update local cache */
 	RescanState()
 	/* is it enabled in the config ? */
-	Enabled() bool
+	Enabled(cn *common.NodeConnectivity) bool
+	EnableDisable(isEnable bool) ()
 }
 
 func (p *ConnectivityProviderData) GetNodeByIp(addr net.IP) *oldv3.Node {

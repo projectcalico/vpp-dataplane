@@ -186,6 +186,7 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 				}
 				if old != nil && new != nil {
 					if common.GetStringChangeType(old.Status.WireguardPublicKey, new.Status.WireguardPublicKey) > common.ChangeSame {
+						s.log.Infof("connectivity(upd) WireguardPublicKey Changed (%s) %s->%s", old.Name, old.Status.WireguardPublicKey, new.Status.WireguardPublicKey)
 						s.updateAllIPConnectivity()
 					}
 				}
@@ -198,11 +199,11 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 				}
 				s.felixConfig = new
 				if old.WireguardEnabled != new.WireguardEnabled {
-					s.log.Infof("connectivity(upd) WireguardEnabled Changed")
+					s.log.Infof("connectivity(upd) WireguardEnabled Changed %t->%t", old.WireguardEnabled, new.WireguardEnabled)
+					s.providers[WIREGUARD].EnableDisable(new.WireguardEnabled)
 					s.updateAllIPConnectivity()
 				} else if old.WireguardListeningPort != new.WireguardListeningPort {
-					s.log.Infof("connectivity(upd) WireguardListeningPort Changed")
-					s.updateAllIPConnectivity()
+					s.log.Warnf("connectivity(upd) WireguardListeningPort Changed [NOT IMPLEMENTED]")
 				}
 			case common.IpamConfChanged:
 				old, _ := evt.Old.(*calicov3.IPPool)
@@ -253,9 +254,9 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 		return FLAT, nil
 	}
 	if ipPool.Spec.IPIPMode == calicov3.IPIPModeAlways {
-		if s.providers[IPSEC].Enabled() {
+		if s.providers[IPSEC].Enabled(cn) {
 			return IPSEC, nil
-		} else if s.providers[WIREGUARD].Enabled() {
+		} else if s.providers[WIREGUARD].Enabled(cn) {
 			return WIREGUARD, nil
 		} else {
 			return IPIP, nil
@@ -267,9 +268,9 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 			return FLAT, fmt.Errorf("missing node IPnet")
 		}
 		if !isCrossSubnet(cn.NextHop, *ipNet) {
-			if s.providers[IPSEC].Enabled() {
+			if s.providers[IPSEC].Enabled(cn) {
 				return IPSEC, nil
-			} else if s.providers[WIREGUARD].Enabled() {
+			} else if s.providers[WIREGUARD].Enabled(cn) {
 				return WIREGUARD, nil
 			} else {
 				return IPIP, nil

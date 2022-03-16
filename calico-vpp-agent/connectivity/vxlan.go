@@ -39,7 +39,10 @@ func NewVXLanProvider(d *ConnectivityProviderData) *VXLanProvider {
 	return &VXLanProvider{d, make(map[string]types.VXLanTunnel), make(map[uint32]map[string]bool), 0, 0}
 }
 
-func (p *VXLanProvider) Enabled() bool {
+func (p *VXLanProvider) EnableDisable(isEnable bool) () {
+}
+
+func (p *VXLanProvider) Enabled(cn *common.NodeConnectivity) bool {
 	return true
 }
 

@@ -37,7 +37,7 @@ type SRv6Provider struct {
 
 func NewSRv6Provider(d *ConnectivityProviderData) *SRv6Provider {
 	p := &SRv6Provider{d, make(map[string]*NodeToPrefixes), make(map[string]*NodeToPolicies), net.IPNet{}, net.IPNet{}}
-	if p.Enabled() {
+	if config.EnableSRv6 {
 		p.localSidIPPool = cnet.MustParseNetwork(config.SRv6localSidIPPool).IPNet
 		p.policyIPPool = cnet.MustParseNetwork(config.SRv6policyIPPool).IPNet
 	}
@@ -50,14 +50,17 @@ func (p *SRv6Provider) GetSwifindexes() []uint32 {
 	return []uint32{}
 }
 
-func (p *SRv6Provider) Enabled() bool {
+func (p *SRv6Provider) EnableDisable(isEnable bool) () {
+}
+
+func (p *SRv6Provider) Enabled(cn *common.NodeConnectivity) bool {
 	return config.EnableSRv6
 }
 
 func (p *SRv6Provider) RescanState() {
 	p.log.Infof("SRv6Provider RescanState")
 
-	if !p.Enabled() {
+	if !config.EnableSRv6 {
 		return
 	}
 	p.setEncapSource()
