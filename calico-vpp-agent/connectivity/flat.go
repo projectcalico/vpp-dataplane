@@ -36,11 +36,14 @@ func getRoutePaths(addr net.IP) []types.RoutePath {
 	}}
 }
 
+func (p *FlatL3Provider) EnableDisable(isEnable bool) () {
+}
+
 func (p *FlatL3Provider) RescanState() {
 	/* Nothing to do */
 }
 
-func (p *FlatL3Provider) Enabled() bool {
+func (p *FlatL3Provider) Enabled(cn *common.NodeConnectivity) bool {
 	return true
 }
 

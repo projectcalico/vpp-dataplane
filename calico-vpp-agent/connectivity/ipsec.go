@@ -36,7 +36,10 @@ type IpsecProvider struct {
 	nDataThreads int
 }
 
-func (p *IpsecProvider) Enabled() bool {
+func (p *IpsecProvider) EnableDisable(isEnable bool) () {
+}
+
+func (p *IpsecProvider) Enabled(cn *common.NodeConnectivity) bool {
 	return config.EnableIPSec
 }
 
