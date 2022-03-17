@@ -118,7 +118,7 @@ func (w *NodeWatcher) WatchNodes(t *tomb.Tomb) error {
 				var calicoNode *calicov3.Node
 				switch update.Type {
 				case watch.Error:
-					w.log.Infof("nodes watch returned an error")
+					w.log.Debugf("nodes watch returned, restarting")
 					goto restart
 				case watch.Modified, watch.Added:
 					calicoNode = update.Object.(*calicov3.Node)
