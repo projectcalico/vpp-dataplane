@@ -1069,7 +1069,7 @@ func (s *Server) applyPendingState() (err error) {
 		if len(hep.UplinkSwIfIndexes) != 0 {
 			err = hep.Delete(s.vpp)
 			if err != nil {
-				s.log.Warnf("error deleting hostendpoint")
+				s.log.Warnf("error deleting hostendpoint : %v", err)
 			}
 		}
 	}

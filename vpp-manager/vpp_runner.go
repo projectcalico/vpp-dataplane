@@ -689,6 +689,10 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 func (v *VppRunner) pingCalicoVpp() error {
 	dat, err := ioutil.ReadFile(config.CalicoVppPidFile)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Infof("calico-vpp-pid file doesn't exist. Agent probably not started")
+			return nil
+		}
 		return errors.Wrapf(err, "Error reading %s", config.CalicoVppPidFile)
 	}
 	pid, err := strconv.ParseInt(strings.TrimSpace(string(dat[:])), 10, 64)
@@ -756,7 +760,7 @@ func (v *VppRunner) runVpp() (err error) {
 		}
 		vppProcess = vppCmd.Process
 	}
-	
+
 	/**
 	 * From this point it is very important that every exit
 	 * path calls restoreConfiguration after vpp exits */

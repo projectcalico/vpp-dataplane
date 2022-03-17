@@ -160,7 +160,7 @@ func main() {
 			err := runner.Run([]uplink.UplinkDriver{driver})
 			if err != nil {
 				hooks.RunHook(hooks.VPP_ERRORED, params, confs)
-				log.Errorf("VPP(%s) run failed with %s", driver, err)
+				log.Errorf("VPP(%s) run failed with %s", driver.GetName(), err)
 			}
 			if vppProcess != nil && !internalKill {
 				log.Infof("External Kill")
