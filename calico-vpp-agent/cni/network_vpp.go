@@ -16,8 +16,6 @@
 package cni
 
 import (
-	"fmt"
-
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 
@@ -27,10 +25,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
-
-func getInterfaceVrfName(podSpec *storage.LocalPodSpec, suffix string) string {
-	return fmt.Sprintf("pod-%s-table-%s", podSpec.Key(), suffix)
-}
 
 func (s *Server) checkAvailableBuffers() error {
 	existingPods := uint64(len(s.podInterfaceMap))
@@ -54,11 +48,17 @@ func (s *Server) hasVRF(podSpec *storage.LocalPodSpec) bool {
 	}
 
 	for _, vrf := range vrfs {
-		if vrf.VrfID == podSpec.V4VrfId && !vrf.IsIP6 {
+		if vrf.Name == podSpec.GetVrfTag(vpplink.IpFamilyV4) && !vrf.IsIP6 {
 			hasIp4 = true
+			if vrf.VrfID != podSpec.V4VrfId && podSpec.V4VrfId != vpplink.InvalidID {
+				s.log.Errorf("VRFId (v4) not matching found=%d expect=%s key=%s", vrf.VrfID, podSpec.V4VrfId, podSpec.Key())
+			}
 		}
-		if vrf.VrfID == podSpec.V6VrfId && vrf.IsIP6 {
+		if vrf.Name == podSpec.GetVrfTag(vpplink.IpFamilyV6) && vrf.IsIP6 {
 			hasIp6 = true
+			if vrf.VrfID != podSpec.V6VrfId && podSpec.V6VrfId != vpplink.InvalidID {
+				s.log.Errorf("VRFId (v6) not matching found=%d expect=%s key=%s", vrf.VrfID, podSpec.V4VrfId, podSpec.Key())
+			}
 		}
 		if hasIp6 && hasIp4 {
 			return true
@@ -66,7 +66,7 @@ func (s *Server) hasVRF(podSpec *storage.LocalPodSpec) bool {
 	}
 
 	if hasIp4 != hasIp6 {
-		s.log.Warnf("Partial VRF state hasv4=%t hasv6=%t key=%s", hasIp4, hasIp6, podSpec.Key())
+		s.log.Errorf("Partial VRF state hasv4=%t hasv6=%t key=%s", hasIp4, hasIp6, podSpec.Key())
 	}
 
 	return false

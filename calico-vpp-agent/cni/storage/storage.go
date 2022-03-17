@@ -17,21 +17,27 @@ package storage
 
 import (
 	"bytes"
+	"crypto/sha512"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/lunixbochs/struc"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 const (
-	CniServerStateFileVersion = 5 // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 5  // Used to ensure compatibility wen we reload data
+	MaxApiTagLen              = 63 /* No more than 64 characters in API tags */
+	vrfTagHashLen             = 8  /* how many hash charatecters (b64) of the name in tag prefix (useful when trucated) */
 )
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -238,8 +244,29 @@ func (hp *HostPortBinding) String() string {
 	return s
 }
 
+/* 8 base64 character hash */
+func hash(text string) string {
+	h := sha512.Sum512([]byte(text))
+	return base64.StdEncoding.EncodeToString(h[:])[:vrfTagHashLen]
+}
+
+func truncateStr(text string, size int) string {
+	if len(text) > size {
+		return text[:size]
+	}
+	return text
+}
+
+func (ps *LocalPodSpec) GetVrfTag(ipFamily vpplink.IpFamily) string {
+	h := hash(fmt.Sprintf("%s%s%s", ipFamily.ShortStr, ps.NetnsName, ps.InterfaceName))
+	s := fmt.Sprintf("%s-%s-%s-%s", h, ipFamily.ShortStr, ps.InterfaceName, filepath.Base(ps.NetnsName))
+	return truncateStr(s, MaxApiTagLen)
+}
+
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {
-	return fmt.Sprintf("%s-%s-%s", prefix, ps.NetnsName, ps.InterfaceName)
+	h := hash(fmt.Sprintf("%s%s%s", prefix, ps.NetnsName, ps.InterfaceName))
+	s := fmt.Sprintf("%s-%s-%s", h, ps.InterfaceName, filepath.Base(ps.NetnsName))
+	return truncateStr(s, MaxApiTagLen)
 }
 
 func (ps *LocalPodSpec) GetRoutes() (routes []*net.IPNet) {
@@ -277,16 +304,16 @@ func (ps *LocalPodSpec) Hasv46() (hasv4 bool, hasv6 bool) {
 	return hasv4, hasv6
 }
 
-func (ps *LocalPodSpec) GetVrfId(isV6 bool) uint32 {
-	if isV6 {
+func (ps *LocalPodSpec) GetVrfId(ipFamily vpplink.IpFamily) uint32 {
+	if ipFamily.IsIp6 {
 		return ps.V6VrfId
 	} else {
 		return ps.V4VrfId
 	}
 }
 
-func (ps *LocalPodSpec) SetVrfId(id uint32, isV6 bool) {
-	if isV6 {
+func (ps *LocalPodSpec) SetVrfId(id uint32, ipFamily vpplink.IpFamily) {
+	if ipFamily.IsIp6 {
 		ps.V6VrfId = id
 	} else {
 		ps.V4VrfId = id

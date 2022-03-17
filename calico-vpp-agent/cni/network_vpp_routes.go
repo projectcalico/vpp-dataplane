@@ -95,7 +95,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 			PortRanges: portRanges,
 		}
 
-		vrfId := podSpec.GetVrfId(false) // pbl only supports v4 ?
+		vrfId := podSpec.GetVrfId(vpplink.IpFamilyV4) // pbl only supports v4 ?
 		s.log.Infof("pod(add) PBL client for %s VRF %d", containerIP.IP, vrfId)
 		pblIndex, err := s.vpp.AddPblClient(&client)
 		if err != nil {
@@ -133,21 +133,20 @@ func (s *Server) UnroutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIf
 func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	/* Create and Setup the per-pod VRF */
 	for _, ipFamily := range vpplink.IpFamilies {
-		vrfName := getInterfaceVrfName(podSpec, ipFamily.Str)
-		vrfId, err := s.vpp.AllocateVRF(ipFamily.IsIp6, vrfName)
-		podSpec.SetVrfId(vrfId, ipFamily.IsIp6)
+		vrfId, err := s.vpp.AllocateVRF(ipFamily.IsIp6, podSpec.GetVrfTag(ipFamily))
+		podSpec.SetVrfId(vrfId, ipFamily)
 		s.log.Debugf("Allocated %s VRF ID:%d", ipFamily.Str, vrfId)
 		if err != nil {
 			return errors.Wrapf(err, "error allocating VRF %s", ipFamily.Str)
 		} else {
-			stack.Push(s.vpp.DelVRF, vrfId, ipFamily.IsIp6, vrfName)
+			stack.Push(s.vpp.DelVRF, vrfId, ipFamily.IsIp6)
 		}
 	}
 
 	for _, ipFamily := range vpplink.IpFamilies {
-		vrfId := podSpec.GetVrfId(ipFamily.IsIp6)
+		vrfId := podSpec.GetVrfId(ipFamily)
 		s.log.Infof("pod(add) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
-		err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily.IsIp6), common.PodVRFIndex, ipFamily.IsIp6)
+		err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily), common.PodVRFIndex, ipFamily.IsIp6)
 		if err != nil {
 			return errors.Wrapf(err, "error adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
 		} else {
@@ -160,7 +159,7 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 	var err error
 	for _, ipFamily := range vpplink.IpFamilies {
-		vrfId := podSpec.GetVrfId(ipFamily.IsIp6)
+		vrfId := podSpec.GetVrfId(ipFamily)
 		s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
 		err = s.vpp.DelDefaultRouteViaTable(vrfId, common.PodVRFIndex, ipFamily.IsIp6)
 		if err != nil {
@@ -169,10 +168,9 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 	}
 
 	for _, ipFamily := range vpplink.IpFamilies {
-		vrfId := podSpec.GetVrfId(ipFamily.IsIp6)
-		vrfName := getInterfaceVrfName(podSpec, ipFamily.Str)
+		vrfId := podSpec.GetVrfId(ipFamily)
 		s.log.Infof("pod(del) VRF %d %s", vrfId, ipFamily.Str)
-		err = s.vpp.DelVRF(vrfId, ipFamily.IsIp6, vrfName)
+		err = s.vpp.DelVRF(vrfId, ipFamily.IsIp6)
 		if err != nil {
 			s.log.Errorf("Error deleting VRF %d %s : %s", vrfId, ipFamily.Str, err)
 		}
@@ -182,11 +180,10 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 func (s *Server) CreateVRFRoutesToPod(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	for _, containerIP := range podSpec.GetContainerIps() {
 		/* In the main table route the container address to its VRF */
-		isV6 := containerIP.IP.To4() == nil
 		route := types.Route{
 			Dst: containerIP,
 			Paths: []types.RoutePath{{
-				Table:     podSpec.GetVrfId(isV6),
+				Table:     podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP)),
 				SwIfIndex: types.InvalidID,
 			}},
 		}
@@ -205,11 +202,10 @@ func (s *Server) DeleteVRFRoutesToPod(podSpec *storage.LocalPodSpec) {
 	var err error = nil
 	for _, containerIP := range podSpec.GetContainerIps() {
 		/* In the main table route the container address to its VRF */
-		isV6 := containerIP.IP.To4() == nil
 		route := types.Route{
 			Dst: containerIP,
 			Paths: []types.RoutePath{{
-				Table:     podSpec.GetVrfId(isV6),
+				Table:     podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP)),
 				SwIfIndex: types.InvalidID,
 			}},
 		}

@@ -77,8 +77,8 @@ func (v *VppLink) AddVRF(index uint32, isIP6 bool, name string) error {
 	return v.addDelVRF(index, name, isIP6, true /*isAdd*/)
 }
 
-func (v *VppLink) DelVRF(index uint32, isIP6 bool, name string) error {
-	return v.addDelVRF(index, name, isIP6, false /*isAdd*/)
+func (v *VppLink) DelVRF(index uint32, isIP6 bool) error {
+	return v.addDelVRF(index, "", isIP6, false /*isAdd*/)
 }
 
 func (v *VppLink) AllocateVRF(isIP6 bool, name string) (uint32, error) {
