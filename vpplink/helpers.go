@@ -16,8 +16,9 @@
 package vpplink
 
 import (
-	"reflect"
+	"net"
 	"time"
+	"reflect"
 
 	"github.com/pkg/errors"
 
@@ -26,13 +27,26 @@ import (
 
 type IpFamily struct {
 	Str   string
+	ShortStr string
 	IsIp6 bool
 	IsIp4 bool
 }
 
 var (
-	IpFamilies = []IpFamily{{"ip4", false, true}, {"ip6", true, false}}
+	IpFamilyV4 = IpFamily{"ip4", "4", false, true}
+	IpFamilyV6 = IpFamily{"ip6", "6", true, false}
+	IpFamilies = []IpFamily{IpFamilyV4, IpFamilyV6}
 )
+
+func IpFamilyFromIPNet(ipNet *net.IPNet) IpFamily {
+	if ipNet == nil {
+		return IpFamilyV4
+	}
+	if ipNet.IP.To4() == nil {
+		return IpFamilyV6
+	}
+	return IpFamilyV4
+}
 
 type CleanupCall struct {
 	args []interface{}
