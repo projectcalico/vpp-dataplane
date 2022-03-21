@@ -228,6 +228,19 @@ type LocalPodSpec struct {
 	NeedsSnat bool
 }
 
+func (ps *LocalPodSpec) Copy() LocalPodSpec {
+	newPs := *ps
+
+	newPs.Routes = append(make([]LocalIPNet, 0), ps.Routes...)
+	newPs.ContainerIps = append(make([]LocalIP, 0), ps.ContainerIps...)
+	newPs.HostPorts = append(make([]HostPortBinding, 0), ps.HostPorts...)
+	newPs.IfPortConfigs = append(make([]LocalIfPortConfigs, 0), ps.IfPortConfigs...)
+	newPs.PblIndexes = append(make([]uint32, 0), ps.PblIndexes...)
+
+	return newPs
+
+}
+
 // XXX: Increment CniServerStateFileVersion when changing this struct
 type HostPortBinding struct {
 	HostPort      uint16

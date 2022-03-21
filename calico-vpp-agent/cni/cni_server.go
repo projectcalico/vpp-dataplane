@@ -260,14 +260,16 @@ func (s *Server) rescanState() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	for _, podSpec := range podSpecs {
-		_, err2 := s.AddVppInterface(&podSpec, false /* doHostSideConf */)
+		/* copy the podSpec as a pointer to it will be sent over the event chan */
+		podSpecCopy := podSpec.Copy()
+		_, err2 := s.AddVppInterface(&podSpecCopy, false /* doHostSideConf */)
 		if err2 != nil {
 			// TODO: some errors are probably not critical, for instance if the interface
 			// can't be created because the netns disappeared (may happen when the host reboots)
-			s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err2)
+			s.log.Errorf("Interface add failed %s : %v", podSpecCopy.String(), err2)
 			err = err2
 		} else {
-			s.podInterfaceMap[podSpec.Key()] = podSpec
+			s.podInterfaceMap[podSpec.Key()] = podSpecCopy
 		}
 	}
 	return err
