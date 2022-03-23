@@ -234,7 +234,7 @@ func (s *Server) fetchBufferConfig() {
 	s.buffersNeededPerTap = uint64(rxQueueSize*numRxQueues + txQueueSize*numTxQueues)
 }
 
-func (s *Server) rescanState() error {
+func (s *Server) rescanState() {
 	s.fetchBufferConfig()
 	s.fetchNDataThreads()
 
@@ -249,11 +249,11 @@ func (s *Server) rescanState() error {
 	cniServerStateFile := fmt.Sprintf("%s%d", config.CniServerStateFile, storage.CniServerStateFileVersion)
 	podSpecs, err := storage.LoadCniServerState(cniServerStateFile)
 	if err != nil {
-		err2 := os.Remove(cniServerStateFile)
-		if err2 != nil {
-			s.log.Errorf("Could not remove %s, %s", cniServerStateFile, err2)
+		s.log.Errorf("Error getting pods from file %s, removing cache", err)
+		err := os.Remove(cniServerStateFile)
+		if err != nil {
+			s.log.Errorf("Could not remove %s, %s", cniServerStateFile, err)
 		}
-		return errors.Wrapf(err, "Error getting pods")
 	}
 
 	s.log.Infof("RescanState: re-creating all interfaces")
@@ -262,17 +262,16 @@ func (s *Server) rescanState() error {
 	for _, podSpec := range podSpecs {
 		/* copy the podSpec as a pointer to it will be sent over the event chan */
 		podSpecCopy := podSpec.Copy()
-		_, err2 := s.AddVppInterface(&podSpecCopy, false /* doHostSideConf */)
-		if err2 != nil {
-			// TODO: some errors are probably not critical, for instance if the interface
-			// can't be created because the netns disappeared (may happen when the host reboots)
-			s.log.Errorf("Interface add failed %s : %v", podSpecCopy.String(), err2)
-			err = err2
-		} else {
+		_, err := s.AddVppInterface(&podSpecCopy, false /* doHostSideConf */)
+		switch err.(type) {
+		case PodNSNotFoundErr:
+			s.log.Infof("Interface restore but netns missing %s", podSpecCopy.String())
+		case nil:
 			s.podInterfaceMap[podSpec.Key()] = podSpecCopy
+		default:
+			s.log.Errorf("Interface add failed %s : %v", podSpecCopy.String(), err)
 		}
 	}
-	return err
 }
 
 func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply, error) {
@@ -334,10 +333,7 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	}
 
 	pb.RegisterCniDataplaneServer(s.grpcServer, s)
-	err = s.rescanState()
-	if err != nil {
-		s.log.Errorf("RescanState errored %s", err)
-	}
+	s.rescanState()
 
 	s.log.Infof("Serve() CNI")
 	go s.grpcServer.Serve(socketListener)

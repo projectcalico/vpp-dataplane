@@ -16,6 +16,8 @@
 package cni
 
 import (
+	"fmt"
+
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 
@@ -25,6 +27,14 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
+
+type PodNSNotFoundErr struct {
+	ns string
+}
+
+func (e PodNSNotFoundErr) Error() string {
+	return fmt.Sprintf("Netns '%s' doesn't exist, skipping", e.ns)
+}
 
 func (s *Server) checkAvailableBuffers() error {
 	existingPods := uint64(len(s.podInterfaceMap))
@@ -81,7 +91,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	err = ns.IsNSorErr(podSpec.NetnsName)
 	if err != nil {
-		return vpplink.InvalidID, errors.Wrapf(err, "Netns '%s' doesn't exist, skipping", podSpec.NetnsName)
+		return vpplink.InvalidID, PodNSNotFoundErr{podSpec.NetnsName}
 	}
 
 	if s.hasVRF(podSpec) {
@@ -192,6 +202,12 @@ err:
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
+	err := ns.IsNSorErr(podSpec.NetnsName)
+	if err != nil {
+		s.log.Infof("pod(del) netns '%s' doesn't exist, skipping", podSpec.NetnsName)
+		return
+	}
+
 	s.DelHostPort(podSpec)
 
 	for _, containerIP := range podSpec.GetContainerIps() {

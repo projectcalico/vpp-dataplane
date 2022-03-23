@@ -160,7 +160,7 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 			}
 			switch event.Type {
 			case watch.EventType(api.WatchError):
-				w.log.Infof("peers watch returned an error")
+				w.log.Debug("peers watch returned, restarting...")
 				goto restart
 			default:
 				w.log.Info("Peers updated, reevaluating peerings")
@@ -186,7 +186,7 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 		}
 
 	restart:
-		w.log.Info("restarting peers watcher...")
+		w.log.Debug("restarting peers watcher...")
 		w.cleanExistingWatcher()
 		time.Sleep(2 * time.Second)
 	}

@@ -108,7 +108,7 @@ func (w *NodeWatcher) WatchNodes(t *tomb.Tomb) error {
 				return nil
 			case update, ok := <-w.watcher.ResultChan():
 				if !ok {
-					w.log.Infof("nodes watch channel closed - restarting")
+					w.log.Debug("nodes watch channel closed, restarting...")
 					err := w.resyncAndCreateWatcher()
 					if err != nil {
 						goto restart
@@ -118,7 +118,7 @@ func (w *NodeWatcher) WatchNodes(t *tomb.Tomb) error {
 				var calicoNode *calicov3.Node
 				switch update.Type {
 				case watch.Error:
-					w.log.Debugf("nodes watch returned, restarting")
+					w.log.Debug("nodes watch returned, restarting")
 					goto restart
 				case watch.Modified, watch.Added:
 					calicoNode = update.Object.(*calicov3.Node)
@@ -138,7 +138,7 @@ func (w *NodeWatcher) WatchNodes(t *tomb.Tomb) error {
 		}
 
 	restart:
-		w.log.Info("restarting nodes watcher...")
+		w.log.Debug("restarting nodes watcher...")
 		w.cleanExistingWatcher()
 		time.Sleep(2 * time.Second)
 	}
