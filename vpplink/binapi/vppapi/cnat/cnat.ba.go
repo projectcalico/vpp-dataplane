@@ -14,9 +14,12 @@ import (
 
 	api "git.fd.io/govpp.git/api"
 	codec "git.fd.io/govpp.git/codec"
+	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ethernet_types"
 	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
 	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	ip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
 	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/mfib_types"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -28,7 +31,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "cnat"
 	APIVersion = "0.2.0"
-	VersionCrc = 0xfd05573b
+	VersionCrc = 0xc601c6d7
 )
 
 // CnatEndpointTupleFlags defines enum 'cnat_endpoint_tuple_flags'.
@@ -231,14 +234,15 @@ type CnatSession struct {
 
 // CnatTranslation defines type 'cnat_translation'.
 type CnatTranslation struct {
-	Vip      CnatEndpoint        `binapi:"cnat_endpoint,name=vip" json:"vip,omitempty"`
-	ID       uint32              `binapi:"u32,name=id" json:"id,omitempty"`
-	IPProto  ip_types.IPProto    `binapi:"ip_proto,name=ip_proto" json:"ip_proto,omitempty"`
-	IsRealIP uint8               `binapi:"u8,name=is_real_ip" json:"is_real_ip,omitempty"`
-	Flags    uint8               `binapi:"u8,name=flags" json:"flags,omitempty"`
-	LbType   CnatLbType          `binapi:"cnat_lb_type,name=lb_type" json:"lb_type,omitempty"`
-	NPaths   uint32              `binapi:"u32,name=n_paths" json:"-"`
-	Paths    []CnatEndpointTuple `binapi:"cnat_endpoint_tuple[n_paths],name=paths" json:"paths,omitempty"`
+	Vip        CnatEndpoint        `binapi:"cnat_endpoint,name=vip" json:"vip,omitempty"`
+	ID         uint32              `binapi:"u32,name=id" json:"id,omitempty"`
+	IPProto    ip_types.IPProto    `binapi:"ip_proto,name=ip_proto" json:"ip_proto,omitempty"`
+	IsRealIP   uint8               `binapi:"u8,name=is_real_ip" json:"is_real_ip,omitempty"`
+	Flags      uint8               `binapi:"u8,name=flags" json:"flags,omitempty"`
+	LbType     CnatLbType          `binapi:"cnat_lb_type,name=lb_type" json:"lb_type,omitempty"`
+	LbFlowHash ip.IPFlowHashConfig `binapi:"ip_flow_hash_config,name=lb_flow_hash" json:"lb_flow_hash,omitempty"`
+	NPaths     uint32              `binapi:"u32,name=n_paths" json:"-"`
+	Paths      []CnatEndpointTuple `binapi:"cnat_endpoint_tuple[n_paths],name=paths" json:"paths,omitempty"`
 }
 
 // CnatGetSnatAddresses defines message 'cnat_get_snat_addresses'.
@@ -874,7 +878,7 @@ type CnatTranslationDetails struct {
 
 func (m *CnatTranslationDetails) Reset()               { *m = CnatTranslationDetails{} }
 func (*CnatTranslationDetails) GetMessageName() string { return "cnat_translation_details" }
-func (*CnatTranslationDetails) GetCrcString() string   { return "347e1f16" }
+func (*CnatTranslationDetails) GetCrcString() string   { return "f4bafea2" }
 func (*CnatTranslationDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -893,6 +897,7 @@ func (m *CnatTranslationDetails) Size() (size int) {
 	size += 1      // m.Translation.IsRealIP
 	size += 1      // m.Translation.Flags
 	size += 1      // m.Translation.LbType
+	size += 4      // m.Translation.LbFlowHash
 	size += 4      // m.Translation.NPaths
 	for j2 := 0; j2 < len(m.Translation.Paths); j2++ {
 		var s2 CnatEndpointTuple
@@ -929,6 +934,7 @@ func (m *CnatTranslationDetails) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint8(m.Translation.IsRealIP)
 	buf.EncodeUint8(m.Translation.Flags)
 	buf.EncodeUint8(uint8(m.Translation.LbType))
+	buf.EncodeUint32(uint32(m.Translation.LbFlowHash))
 	buf.EncodeUint32(uint32(len(m.Translation.Paths)))
 	for j1 := 0; j1 < len(m.Translation.Paths); j1++ {
 		var v1 CnatEndpointTuple // Paths
@@ -961,6 +967,7 @@ func (m *CnatTranslationDetails) Unmarshal(b []byte) error {
 	m.Translation.IsRealIP = buf.DecodeUint8()
 	m.Translation.Flags = buf.DecodeUint8()
 	m.Translation.LbType = CnatLbType(buf.DecodeUint8())
+	m.Translation.LbFlowHash = ip.IPFlowHashConfig(buf.DecodeUint32())
 	m.Translation.NPaths = buf.DecodeUint32()
 	m.Translation.Paths = make([]CnatEndpointTuple, m.Translation.NPaths)
 	for j1 := 0; j1 < len(m.Translation.Paths); j1++ {
@@ -1015,7 +1022,7 @@ type CnatTranslationUpdate struct {
 
 func (m *CnatTranslationUpdate) Reset()               { *m = CnatTranslationUpdate{} }
 func (*CnatTranslationUpdate) GetMessageName() string { return "cnat_translation_update" }
-func (*CnatTranslationUpdate) GetCrcString() string   { return "cd5aedf5" }
+func (*CnatTranslationUpdate) GetCrcString() string   { return "24c4af5b" }
 func (*CnatTranslationUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1034,6 +1041,7 @@ func (m *CnatTranslationUpdate) Size() (size int) {
 	size += 1      // m.Translation.IsRealIP
 	size += 1      // m.Translation.Flags
 	size += 1      // m.Translation.LbType
+	size += 4      // m.Translation.LbFlowHash
 	size += 4      // m.Translation.NPaths
 	for j2 := 0; j2 < len(m.Translation.Paths); j2++ {
 		var s2 CnatEndpointTuple
@@ -1070,6 +1078,7 @@ func (m *CnatTranslationUpdate) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint8(m.Translation.IsRealIP)
 	buf.EncodeUint8(m.Translation.Flags)
 	buf.EncodeUint8(uint8(m.Translation.LbType))
+	buf.EncodeUint32(uint32(m.Translation.LbFlowHash))
 	buf.EncodeUint32(uint32(len(m.Translation.Paths)))
 	for j1 := 0; j1 < len(m.Translation.Paths); j1++ {
 		var v1 CnatEndpointTuple // Paths
@@ -1102,6 +1111,7 @@ func (m *CnatTranslationUpdate) Unmarshal(b []byte) error {
 	m.Translation.IsRealIP = buf.DecodeUint8()
 	m.Translation.Flags = buf.DecodeUint8()
 	m.Translation.LbType = CnatLbType(buf.DecodeUint8())
+	m.Translation.LbFlowHash = ip.IPFlowHashConfig(buf.DecodeUint32())
 	m.Translation.NPaths = buf.DecodeUint32()
 	m.Translation.Paths = make([]CnatEndpointTuple, m.Translation.NPaths)
 	for j1 := 0; j1 < len(m.Translation.Paths); j1++ {
@@ -1176,9 +1186,9 @@ func file_cnat_binapi_init() {
 	api.RegisterMessage((*CnatSnatPolicyAddDelIfReply)(nil), "cnat_snat_policy_add_del_if_reply_e8d4e804")
 	api.RegisterMessage((*CnatTranslationDel)(nil), "cnat_translation_del_3a91bde5")
 	api.RegisterMessage((*CnatTranslationDelReply)(nil), "cnat_translation_del_reply_e8d4e804")
-	api.RegisterMessage((*CnatTranslationDetails)(nil), "cnat_translation_details_347e1f16")
+	api.RegisterMessage((*CnatTranslationDetails)(nil), "cnat_translation_details_f4bafea2")
 	api.RegisterMessage((*CnatTranslationDump)(nil), "cnat_translation_dump_51077d14")
-	api.RegisterMessage((*CnatTranslationUpdate)(nil), "cnat_translation_update_cd5aedf5")
+	api.RegisterMessage((*CnatTranslationUpdate)(nil), "cnat_translation_update_24c4af5b")
 	api.RegisterMessage((*CnatTranslationUpdateReply)(nil), "cnat_translation_update_reply_e2fc8294")
 }
 

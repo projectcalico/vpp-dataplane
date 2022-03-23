@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/cnat"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -67,12 +68,13 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err
 	response := &cnat.CnatTranslationUpdateReply{}
 	request := &cnat.CnatTranslationUpdate{
 		Translation: cnat.CnatTranslation{
-			Vip:      types.ToCnatEndpoint(tr.Endpoint),
-			IPProto:  types.ToVppIPProto(tr.Proto),
-			Paths:    paths,
-			IsRealIP: BoolToU8(tr.IsRealIP),
-			Flags:    uint8(cnat.CNAT_TRANSLATION_ALLOC_PORT),
-			LbType:   cnat.CnatLbType(tr.LbType),
+			Vip:        types.ToCnatEndpoint(tr.Endpoint),
+			IPProto:    types.ToVppIPProto(tr.Proto),
+			Paths:      paths,
+			IsRealIP:   BoolToU8(tr.IsRealIP),
+			Flags:      uint8(cnat.CNAT_TRANSLATION_ALLOC_PORT),
+			LbType:     cnat.CnatLbType(tr.LbType),
+			LbFlowHash: vppip.IPFlowHashConfig(tr.FlowHashConfig),
 		},
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)

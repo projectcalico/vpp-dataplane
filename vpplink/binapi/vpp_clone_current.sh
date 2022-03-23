@@ -96,6 +96,8 @@ git_cherry_pick refs/changes/09/35209/1 # 35209: cnat: Fix conflicting rsession 
 git_cherry_pick refs/changes/39/35439/1 # 35439: ip: fix assert in ip4_ttl_inc | https://gerrit.fd.io/r/c/vpp/+/35439
 git_cherry_pick refs/changes/38/35438/1 # 35438: af_packet: fix tx stall by retrying failed sendto | https://gerrit.fd.io/r/c/vpp/+/35438
 git_cherry_pick refs/changes/05/35805/2 # 35805: dpdk: add intf tag to dev{} subinput | https://gerrit.fd.io/r/c/vpp/+/35805
+git_cherry_pick refs/changes/54/35754/1 # 35754: ip: Add unformat for flow_hash_config | https://gerrit.fd.io/r/c/vpp/+/35754
+git_cherry_pick refs/changes/56/35756/1 # 35756: cnat: expose flow hash config in tr | https://gerrit.fd.io/r/c/vpp/+/35756
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/7 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264

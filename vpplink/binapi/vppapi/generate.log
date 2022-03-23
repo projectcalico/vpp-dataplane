@@ -1,4 +1,4 @@
-VPP Version                 : 22.06-rc0~148-gd4df3f2ca
+VPP Version                 : 22.06-rc0~150-g69adcd684
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 45207e0fb wireguard: fix dereferences null pointer
 ------------------ Cherry picked commits --------------------
@@ -6,6 +6,8 @@ gerrit:28513/25 capo: Calico Policies plugin
 gerrit:28083/21 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/7 pbl: Port based balancer
+gerrit:35756/1 cnat: expose flow hash config in tr
+gerrit:35754/1 ip: Add unformat for flow_hash_config
 gerrit:35805/2 dpdk: add intf tag to dev{} subinput
 gerrit:35438/1 af_packet: fix tx stall by retrying failed sendto
 gerrit:35439/1 ip: fix assert in ip4_ttl_inc
