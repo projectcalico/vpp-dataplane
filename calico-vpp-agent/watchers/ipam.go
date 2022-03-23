@@ -173,7 +173,7 @@ func (c *ipamCache) SyncIPAM(t *tomb.Tomb) error {
 				return nil
 			case update, ok := <-c.watcher.ResultChan():
 				if !ok {
-					c.log.Infof("ipam watch channel closed - restarting")
+					c.log.Debug("ipam watch channel closed - restarting")
 					err := c.resyncAndCreateWatcher()
 					if err != nil {
 						goto restart
@@ -182,7 +182,7 @@ func (c *ipamCache) SyncIPAM(t *tomb.Tomb) error {
 				}
 				switch update.Type {
 				case watch.EventType(api.WatchError):
-					c.log.Infof("ipam watch returned an error")
+					c.log.Debug("ipam watch returned, restarting...")
 					goto restart
 				case watch.Deleted:
 					pool, _ := update.Previous.(*calicov3.IPPool)
@@ -202,7 +202,7 @@ func (c *ipamCache) SyncIPAM(t *tomb.Tomb) error {
 			}
 		}
 	restart:
-		c.log.Info("restarting IPAM watcher...")
+		c.log.Debug("restarting IPAM watcher...")
 		c.cleanExistingWatcher()
 		time.Sleep(2 * time.Second)
 	}

@@ -36,7 +36,7 @@ type IpsecProvider struct {
 	nDataThreads int
 }
 
-func (p *IpsecProvider) EnableDisable(isEnable bool) () {
+func (p *IpsecProvider) EnableDisable(isEnable bool) {
 }
 
 func (p *IpsecProvider) Enabled(cn *common.NodeConnectivity) bool {
@@ -296,7 +296,7 @@ func (p *IpsecProvider) waitForIPsecSA(profile string, tunnel *types.IPIPTunnel)
 		time.Sleep(time.Second)
 		iface, err := p.vpp.GetInterfaceDetails(tunnel.SwIfIndex)
 		if err != nil {
-			p.log.Errorf("Cannot get IPIP tunnel %s status", tunnel.String())
+			p.log.WithError(err).Errorf("Cannot get IPIP tunnel %s status", tunnel.String())
 			return
 		}
 		if iface.IsUp {

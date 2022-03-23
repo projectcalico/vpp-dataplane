@@ -17,6 +17,7 @@ package uplink
 
 import (
 	"fmt"
+	"syscall"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
@@ -159,8 +160,10 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 		log.Infof("restoring route %s", route.String())
 		route.LinkIndex = link.Attrs().Index
 		err := netlink.RouteAdd(&route)
-		if err != nil {
-			log.Errorf("cannot add route %+v back to %s : %+v", route, link.Attrs().Name, err)
+		if err == syscall.EEXIST {
+			log.Infof("restoring routes : %s already exists", route)
+		} else if err != nil {
+			log.Errorf("cannot add route %s back to %s : %+v", route, link.Attrs().Name, err)
 			// Keep going for the rest of the config
 		}
 	}

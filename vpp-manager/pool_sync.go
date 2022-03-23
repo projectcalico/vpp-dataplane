@@ -106,7 +106,7 @@ func (p *PoolWatcher) SyncPools(t *tomb.Tomb) {
 				}
 				switch update.Type {
 				case watch.Error:
-					log.Infof("Watch returned an error")
+					log.Debug("pool sync watch returned, restarting...")
 					goto restart
 				case watch.Added, watch.Modified:
 					pool := update.Object.(*calicov3.IPPool)
@@ -130,7 +130,7 @@ func (p *PoolWatcher) SyncPools(t *tomb.Tomb) {
 			}
 		}
 	restart:
-		log.Info("restarting pools watcher...")
+		log.Debug("restarting pools watcher...")
 		p.cleanExistingWatcher()
 		time.Sleep(2 * time.Second)
 	}

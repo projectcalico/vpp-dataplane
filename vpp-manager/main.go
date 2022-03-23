@@ -179,7 +179,7 @@ func main() {
 
 		if err != nil {
 			hooks.RunHook(hooks.VPP_ERRORED, params, confs)
-			log.Errorf("VPP(%s) run failed with %v", params.InterfacesSpecs, err)
+			log.Errorf("VPP run failed with %v", err)
 		}
 
 	}

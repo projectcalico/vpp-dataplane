@@ -275,7 +275,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 		log.Infof("Adding route %s via VPP", route)
 		err = netlink.RouteAdd(&route)
 		if err == syscall.EEXIST {
-			log.Warnf("add route %+v via vpp EEXIST, %+v", route, err)
+			log.Infof("add route via vpp : %s already exists", route)
 		} else if err != nil {
 			log.Errorf("cannot add route %+v via vpp: %v", route, err)
 		}
