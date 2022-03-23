@@ -189,23 +189,17 @@ func (v *VppLink) DelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bo
 	return v.addDelDefaultRouteViaTable(sourceTable, dstTable, isIP6, false /*isAdd*/)
 }
 
-func (v *VppLink) SetIPFlowHash(ipFlowHash *types.IPFlowHash, vrfID uint32, isIPv6 bool) error {
+func (v *VppLink) SetIPFlowHash(ipFlowHash types.IPFlowHash, vrfID uint32, isIPv6 bool) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	request := &vppip.SetIPFlowHash{
-		VrfID:     vrfID,
-		IsIPv6:    isIPv6,
-		Src:       ipFlowHash.Src,
-		Dst:       ipFlowHash.Dst,
-		Sport:     ipFlowHash.SrcPort,
-		Dport:     ipFlowHash.DstPort,
-		Proto:     ipFlowHash.Proto,
-		Reverse:   ipFlowHash.Reverse,
-		Symmetric: ipFlowHash.Symmetric,
+	request := &vppip.SetIPFlowHashV2{
+		TableID:        vrfID,
+		Af:             types.GetBoolIPFamily(isIPv6),
+		FlowHashConfig: vppip.IPFlowHashConfig(ipFlowHash),
 	}
 
-	response := &vppip.SetIPFlowHashReply{}
+	response := &vppip.SetIPFlowHashV2Reply{}
 	err := v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update flow hash algo for vrf %d", vrfID)

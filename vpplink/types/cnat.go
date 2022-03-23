@@ -65,12 +65,13 @@ func (t *CnatEndpointTuple) String() string {
 }
 
 type CnatTranslateEntry struct {
-	Endpoint CnatEndpoint
-	Backends []CnatEndpointTuple
-	Proto    IPProto
-	IsRealIP bool
-	ID       uint32
-	LbType   CnatLbType
+	Endpoint       CnatEndpoint
+	Backends       []CnatEndpointTuple
+	Proto          IPProto
+	IsRealIP       bool
+	ID             uint32
+	LbType         CnatLbType
+	FlowHashConfig IPFlowHash
 }
 
 func (n *CnatTranslateEntry) String() string {

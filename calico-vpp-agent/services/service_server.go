@@ -159,6 +159,24 @@ func IsLocalOnly(service *v1.Service) bool {
 	return service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal
 }
 
+func IsServiceAffinityClient(service *v1.Service) bool {
+	return service.Spec.SessionAffinity == v1.ServiceAffinityClientIP
+}
+
+func GetServiceAffinityTimeoutSeconds(service *v1.Service) int32 {
+	sac := service.Spec.SessionAffinityConfig
+	if sac == nil {
+		return 10800 /* default to 3 hours */
+	}
+	if sac.ClientIP == nil {
+		return 10800 /* default to 3 hours */
+	}
+	if sac.ClientIP.TimeoutSeconds == nil {
+		return 10800 /* default to 3 hours */
+	}
+	return *sac.ClientIP.TimeoutSeconds
+}
+
 func ServiceID(service *v1.Service) string {
 	return service.Namespace + "/" + service.Name
 }

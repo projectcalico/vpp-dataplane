@@ -117,6 +117,10 @@ func buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Servi
 			}
 		}
 	}
+	flowHashConfig := types.IPFlowHash(0)
+	if IsServiceAffinityClient(service) {
+		flowHashConfig |= types.FlowHashSrcIP
+	}
 
 	return &CnatTranslateEntryVPPState{
 		Entry: types.CnatTranslateEntry{
@@ -125,10 +129,11 @@ func buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Servi
 				Port: getCnatVipDstPort(servicePort, isNodePort),
 				IP:   serviceIP,
 			},
-			Backends: backends,
-			IsRealIP: isNodePort,
-			LbType:   getCnatLBType(),
-			ID:       vpplink.InvalidID,
+			Backends:       backends,
+			IsRealIP:       isNodePort,
+			LbType:         getCnatLBType(),
+			ID:             vpplink.InvalidID,
+			FlowHashConfig: flowHashConfig,
 		},
 		OwnerServiceID: ServiceID(service),
 	}

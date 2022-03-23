@@ -22,6 +22,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 )
 
@@ -34,6 +35,19 @@ const (
 	ICMP    IPProto = IPProto(ip_types.IP_API_PROTO_ICMP)
 	ICMP6   IPProto = IPProto(ip_types.IP_API_PROTO_ICMP6)
 	INVALID IPProto = IPProto(ip_types.IP_API_PROTO_RESERVED)
+)
+
+type IPFlowHash uint8
+
+const (
+	FlowHashSrcIP     IPFlowHash = IPFlowHash(vppip.IP_API_FLOW_HASH_SRC_IP)
+	FlowHashDstIP     IPFlowHash = IPFlowHash(vppip.IP_API_FLOW_HASH_DST_IP)
+	FlowHashSrcPort   IPFlowHash = IPFlowHash(vppip.IP_API_FLOW_HASH_SRC_PORT)
+	FlowHashDstPort   IPFlowHash = IPFlowHash(vppip.IP_API_FLOW_HASH_DST_PORT)
+	FlowHashProto     IPFlowHash = IPFlowHash(vppip.IP_API_FLOW_HASH_PROTO)
+	FlowHashReverse   IPFlowHash = IPFlowHash(vppip.IP_API_FLOW_HASH_REVERSE)
+	FlowHashSymetric  IPFlowHash = IPFlowHash(vppip.IP_API_FLOW_HASH_SYMETRIC)
+	FlowHashFlowLabel IPFlowHash = IPFlowHash(vppip.IP_API_FLOW_HASH_FLOW_LABEL)
 )
 
 const (
