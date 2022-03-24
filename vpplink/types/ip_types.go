@@ -22,8 +22,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 )
 
 type IPProto uint8

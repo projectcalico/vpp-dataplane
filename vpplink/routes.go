@@ -20,11 +20,11 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_neighbor"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/fib_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
+	vppip "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -33,8 +33,8 @@ const (
 )
 
 func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) (routes []types.Route, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &vppip.IPRouteDump{
 		Table: vppip.IPTable{
@@ -43,8 +43,8 @@ func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) (routes []types.Route, 
 		},
 	}
 	response := &vppip.IPRouteDetails{}
-	v.log.Debug("Listing VPP routes")
-	stream := v.ch.SendMultiRequest(request)
+	v.GetLog().Debug("Listing VPP routes")
+	stream := v.GetChannel().SendMultiRequest(request)
 	for {
 		stop, err := stream.ReceiveReply(response)
 		if err != nil {
@@ -79,8 +79,8 @@ func isAddStr(isAdd bool) string {
 }
 
 func (v *VppLink) addDelNeighbor(neighbor *types.Neighbor, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &ip_neighbor.IPNeighborAddDel{
 		IsAdd: isAdd,
@@ -92,13 +92,13 @@ func (v *VppLink) addDelNeighbor(neighbor *types.Neighbor, isAdd bool) error {
 		},
 	}
 	response := &ip_neighbor.IPNeighborAddDelReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to %s neighbor from VPP", isAddStr(isAdd))
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to %s neighbor from VPP (retval %d)", isAddStr(isAdd), response.Retval)
 	}
-	v.log.Debugf("%sed neighbor %+v", isAddStr(isAdd), neighbor)
+	v.GetLog().Debugf("%sed neighbor %+v", isAddStr(isAdd), neighbor)
 	return nil
 }
 
@@ -126,8 +126,8 @@ func (v *VppLink) RouteDel(route *types.Route) error {
 }
 
 func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	isIP6 := route.IsIP6()
 	prefix := ip_types.Prefix{}
@@ -156,13 +156,13 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	}
 
 	response := &vppip.IPRouteAddDelReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to %s route from VPP", IsAddToStr(isAdd))
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to %s route from VPP (retval %d)", IsAddToStr(isAdd), response.Retval)
 	}
-	v.log.Debugf("%sed route %+v", IsAddToStr(isAdd), route)
+	v.GetLog().Debugf("%sed route %+v", IsAddToStr(isAdd), route)
 	return nil
 }
 
@@ -190,8 +190,8 @@ func (v *VppLink) DelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bo
 }
 
 func (v *VppLink) SetIPFlowHash(ipFlowHash types.IPFlowHash, vrfID uint32, isIPv6 bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &vppip.SetIPFlowHashV2{
 		TableID:        vrfID,
@@ -200,12 +200,12 @@ func (v *VppLink) SetIPFlowHash(ipFlowHash types.IPFlowHash, vrfID uint32, isIPv
 	}
 
 	response := &vppip.SetIPFlowHashV2Reply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update flow hash algo for vrf %d", vrfID)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to update flow hash algo for vrf %d (retval %d)", vrfID, response.Retval)
 	}
-	v.log.Debugf("updated flow hash algo for vrf %d", vrfID)
+	v.GetLog().Debugf("updated flow hash algo for vrf %d", vrfID)
 	return nil
 }

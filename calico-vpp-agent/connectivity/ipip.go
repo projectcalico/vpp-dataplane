@@ -20,6 +20,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	vpptypes "git.fd.io/govpp.git/api/vpplink/v0"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -28,15 +29,15 @@ import (
 
 type IpipProvider struct {
 	*ConnectivityProviderData
-	ipipIfs    map[string]*types.IPIPTunnel
+	ipipIfs    map[string]*vpptypes.IPIPTunnel
 	ipipRoutes map[uint32]map[string]bool
 }
 
 func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
-	return &IpipProvider{d, make(map[string]*types.IPIPTunnel), make(map[uint32]map[string]bool)}
+	return &IpipProvider{d, make(map[string]*vpptypes.IPIPTunnel), make(map[uint32]map[string]bool)}
 }
 
-func (p *IpipProvider) EnableDisable(isEnable bool) () {
+func (p *IpipProvider) EnableDisable(isEnable bool) {
 }
 
 func (p *IpipProvider) Enabled(cn *common.NodeConnectivity) bool {
@@ -45,7 +46,7 @@ func (p *IpipProvider) Enabled(cn *common.NodeConnectivity) bool {
 
 func (p *IpipProvider) RescanState() {
 	p.log.Infof("Rescanning existing tunnels")
-	p.ipipIfs = make(map[string]*types.IPIPTunnel)
+	p.ipipIfs = make(map[string]*vpptypes.IPIPTunnel)
 	tunnels, err := p.vpp.ListIPIPTunnels()
 	if err != nil {
 		p.log.Errorf("Error listing ipip tunnels: %v", err)
@@ -59,7 +60,7 @@ func (p *IpipProvider) RescanState() {
 		}
 	}
 
-	indexTunnel := make(map[uint32]*types.IPIPTunnel)
+	indexTunnel := make(map[uint32]*vpptypes.IPIPTunnel)
 	for _, tunnel := range p.ipipIfs {
 		indexTunnel[tunnel.SwIfIndex] = tunnel
 	}
@@ -83,7 +84,7 @@ func (p *IpipProvider) RescanState() {
 	}
 }
 
-func (p *IpipProvider) errorCleanup(tunnel *types.IPIPTunnel) {
+func (p *IpipProvider) errorCleanup(tunnel *vpptypes.IPIPTunnel) {
 	err := p.vpp.DelIPIPTunnel(tunnel)
 	if err != nil {
 		p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
@@ -94,7 +95,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	p.log.Debugf("connectivity(add) IPIP Tunnel to VPP")
 	tunnel, found := p.ipipIfs[cn.NextHop.String()]
 	if !found {
-		tunnel = &types.IPIPTunnel{
+		tunnel = &vpptypes.IPIPTunnel{
 			Dst: cn.NextHop,
 		}
 		ip4, ip6 := p.server.GetNodeIPs()

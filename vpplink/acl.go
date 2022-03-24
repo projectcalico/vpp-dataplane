@@ -19,14 +19,14 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	vppacl "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/acl"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/acl_types"
+	vppacl "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/acl"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/acl_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func (v *VppLink) AddACL(acl *types.ACL) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	rules := make([]acl_types.ACLRule, 0, len(acl.Rules))
 	for _, aclRule := range acl.Rules {
@@ -40,7 +40,7 @@ func (v *VppLink) AddACL(acl *types.ACL) (err error) {
 		R:        rules,
 		Count:    uint32(len(rules)),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "Add ACL failed")
 	} else if response.Retval != 0 {
@@ -51,14 +51,14 @@ func (v *VppLink) AddACL(acl *types.ACL) (err error) {
 }
 
 func (v *VppLink) DelACL(aclIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &vppacl.ACLDelReply{}
 	request := &vppacl.ACLDel{
 		ACLIndex: aclIndex,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "Del ACL failed")
 	} else if response.Retval != 0 {

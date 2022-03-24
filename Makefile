@@ -136,7 +136,7 @@ restart-calicovpp:
 .PHONY: goapi
 export VPP_DIR ?= $(shell pwd)/vpp-manager/vpp_build
 goapi:
-	@./vpplink/binapi/generate_binapi.sh
+	@go generate -v ./vpplink/generated/
 
 .PHONY: cherry-vpp
 cherry-vpp:

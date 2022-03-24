@@ -19,13 +19,13 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vmxnet3"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/vmxnet3"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func (v *VppLink) CreateVmxnet3(intf *types.Vmxnet3Interface) (swIfIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &vmxnet3.Vmxnet3CreateReply{}
 	pci, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {
@@ -39,7 +39,7 @@ func (v *VppLink) CreateVmxnet3(intf *types.Vmxnet3Interface) (swIfIndex uint32,
 		TxqNum:    uint16(intf.NumTxQueues),
 		EnableGso: intf.EnableGso,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return ^uint32(0), errors.Wrapf(err, "CreateVmxnet3 failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {

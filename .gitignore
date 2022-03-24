@@ -7,15 +7,15 @@ vpp-manager/images/*/vpp-manager
 vpp-manager/images/*/vppdev.sh
 vpp-manager/vpp_build/
 *.deb
-vpplink/binapi/bin/
 multinet-monitor/watcher
+vpplink/generated/bin/
 
 test/k8s-e2e-tests/kubernetes-*
 test/vagrant/local-config.env
 test/vagrant/.vagrant
 
 # cherry-pick patch caching
-vpplink/binapi/.cherries-cache
+vpplink/generated/.cherries-cache
 
 # Test outputs
 *.out

@@ -16,7 +16,7 @@
 package types
 
 import (
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/acl_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/acl_types"
 	"net"
 )
 

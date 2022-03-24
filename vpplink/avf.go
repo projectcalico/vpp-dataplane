@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/avf"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/avf"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -30,8 +30,8 @@ const (
 )
 
 func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	addr, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {
 		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateAVF error parsing PCI id")
@@ -43,9 +43,9 @@ func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err err
 		RxqSize: uint16(intf.RxQueueSize),
 		TxqSize: uint16(intf.TxQueueSize),
 	}
-	defer v.ch.SetReplyTimeout(DefaultReplyTimeout)
-	v.ch.SetReplyTimeout(AvfReplyTimeout)
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	defer v.GetChannel().SetReplyTimeout(DefaultReplyTimeout)
+	v.GetChannel().SetReplyTimeout(AvfReplyTimeout)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateAVF failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -55,13 +55,13 @@ func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err err
 }
 
 func (v *VppLink) DeleteAVF(swIfIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &avf.AvfDeleteReply{}
 	request := &avf.AvfDelete{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "DeleteAVF failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {

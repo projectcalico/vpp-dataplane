@@ -20,21 +20,21 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip6_nd"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip6_nd"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &ip6_nd.SwInterfaceIP6ndRaConfigReply{}
 	request := &ip6_nd.SwInterfaceIP6ndRaConfig{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		Suppress:  1,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "Disabling RA for swif %d failed", swIfIndex)
 	} else if response.Retval != 0 {
@@ -44,8 +44,8 @@ func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) (err error) {
 }
 
 func (v *VppLink) EnableIP6NdProxy(swIfIndex uint32, address net.IP) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &ip6_nd.IP6ndProxyAddDelReply{}
 	request := &ip6_nd.IP6ndProxyAddDel{
@@ -53,7 +53,7 @@ func (v *VppLink) EnableIP6NdProxy(swIfIndex uint32, address net.IP) (err error)
 		IP:        types.ToVppIP6Address(address),
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "Enabling IP6 ND Proxy swif %d failed", swIfIndex)
 	} else if response.Retval != 0 {
@@ -66,7 +66,7 @@ func (v *VppLink) EnableIP6NdProxy(swIfIndex uint32, address net.IP) (err error)
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		IsEnable:  true,
 	}
-	err = v.ch.SendRequest(req).ReceiveReply(resp)
+	err = v.GetChannel().SendRequest(req).ReceiveReply(resp)
 	if err != nil {
 		return errors.Wrapf(err, "Enabling nd swif %d failed", swIfIndex)
 	} else if response.Retval != 0 {

@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 )
 
 type RxMode uint32

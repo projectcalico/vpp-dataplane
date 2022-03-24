@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 
+	vpptypes "git.fd.io/govpp.git/api/vpplink/v0"
 	"github.com/pkg/errors"
 
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
@@ -31,15 +32,15 @@ import (
 
 type WireguardProvider struct {
 	*ConnectivityProviderData
-	wireguardTunnel *types.WireguardTunnel
-	wireguardPeers    map[string]types.WireguardPeer
+	wireguardTunnel *vpptypes.WireguardTunnel
+	wireguardPeers  map[string]vpptypes.WireguardPeer
 }
 
 func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
 	return &WireguardProvider{
 		ConnectivityProviderData: d,
-		wireguardTunnel:        nil,
-		wireguardPeers:           make(map[string]types.WireguardPeer),
+		wireguardTunnel:          nil,
+		wireguardPeers:           make(map[string]vpptypes.WireguardPeer),
 	}
 }
 
@@ -90,7 +91,7 @@ func (p *WireguardProvider) publishWireguardPublicKey(pubKey string) error {
 }
 
 func (p *WireguardProvider) RescanState() {
-	p.wireguardPeers = make(map[string]types.WireguardPeer)
+	p.wireguardPeers = make(map[string]vpptypes.WireguardPeer)
 	p.wireguardTunnel = nil
 
 	p.log.Debugf("Wireguard: Rescanning existing tunnels")
@@ -121,14 +122,14 @@ func (p *WireguardProvider) RescanState() {
 	}
 }
 
-func (p *WireguardProvider) errorCleanup(tunnel *types.WireguardTunnel) {
+func (p *WireguardProvider) errorCleanup(tunnel *vpptypes.WireguardTunnel) {
 	err := p.vpp.DelWireguardTunnel(tunnel)
 	if err != nil {
 		p.log.Errorf("Error deleting wireguard tunnel %s after error: %v", tunnel.String(), err)
 	}
 }
 
-func (p *WireguardProvider) EnableDisable(isEnable bool) () {
+func (p *WireguardProvider) EnableDisable(isEnable bool) {
 	if isEnable {
 		if p.wireguardTunnel == nil {
 			err := p.createWireguardTunnel(false /* isv6 */)
@@ -165,7 +166,7 @@ func (p *WireguardProvider) createWireguardTunnel(isIP6 bool) error {
 	}
 
 	p.log.Debugf("Adding wireguard Tunnel to VPP")
-	tunnel := &types.WireguardTunnel{
+	tunnel := &vpptypes.WireguardTunnel{
 		Addr: nodeIp,
 		Port: p.getWireguardPort(),
 	}
@@ -226,7 +227,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	if err != nil {
 		return errors.Wrapf(err, "Error Getting node %s publicKey", cn.NextHop)
 	}
-	peer := &types.WireguardPeer{
+	peer := &vpptypes.WireguardPeer{
 		PublicKey:  key,
 		Port:       p.getWireguardPort(),
 		Addr:       cn.NextHop,

@@ -12,8 +12,7 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.3.0
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/ginkgo/v2 v2.1.3 // indirect
-	github.com/onsi/gomega v1.18.1
+	github.com/onsi/gomega v1.19.0
 	github.com/orijtech/prometheus-go-metrics-exporter v0.0.6
 	github.com/osrg/gobgp v0.0.0-20210801043420-9e48a36ed97c
 	github.com/pkg/errors v0.9.1
@@ -24,8 +23,8 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20210703095558-21f2c55a7727
 	github.com/yookoala/realpath v1.0.0
-	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
+	golang.org/x/sys v0.0.0-20220503163025-988cb79eb6c6
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
@@ -36,6 +35,8 @@ require (
 )
 
 replace (
+
+	git.fd.io/govpp.git v0.3.6-0.20210927044411-385ccc0d8ba9 => ../govpp
 	github.com/projectcalico/api => github.com/projectcalico/api v0.0.0-20220505231559-852f5034c309 // v3.23.0
 
 	google.golang.org/grpc => google.golang.org/grpc v1.40.0
