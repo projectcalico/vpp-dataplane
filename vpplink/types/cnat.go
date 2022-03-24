@@ -69,9 +69,10 @@ type CnatTranslateEntry struct {
 	Backends       []CnatEndpointTuple
 	Proto          IPProto
 	IsRealIP       bool
-	ID             uint32
 	LbType         CnatLbType
 	FlowHashConfig IPFlowHash
+	/* Vpp State */
+	ID uint32
 }
 
 func (n *CnatTranslateEntry) String() string {
@@ -79,28 +80,48 @@ func (n *CnatTranslateEntry) String() string {
 	for _, e := range n.Backends {
 		strLst = append(strLst, e.String())
 	}
-	return fmt.Sprintf("[%s vip=%s rw=%s]",
+	return fmt.Sprintf("[%s real=%t lbtyp=%d h=%d vip=%s rw=%s]",
 		n.Proto.String(),
+		n.IsRealIP,
+		n.LbType,
+		n.FlowHashConfig,
 		n.Endpoint.String(),
 		strings.Join(strLst, ", "),
 	)
 }
 
-func (n *CnatTranslateEntry) Equal(o *CnatTranslateEntry) bool {
+type ObjEqualityState int
+
+const (
+	AreEqualObj ObjEqualityState = iota
+	CanUpdateObj
+	ShouldRecreateObj
+)
+
+func (n *CnatTranslateEntry) Equal(o *CnatTranslateEntry) ObjEqualityState {
 	if n == nil || o == nil {
-		return false
+		return ShouldRecreateObj
 	}
 	if n.Proto != o.Proto {
-		return false
+		return ShouldRecreateObj
+	}
+	if n.IsRealIP != o.IsRealIP {
+		return ShouldRecreateObj
 	}
 	if n.Endpoint.Port != o.Endpoint.Port {
-		return false
+		return ShouldRecreateObj
 	}
 	if !n.Endpoint.IP.Equal(o.Endpoint.IP) {
-		return false
+		return ShouldRecreateObj
+	}
+	if n.FlowHashConfig != o.FlowHashConfig {
+		return CanUpdateObj
+	}
+	if n.LbType != o.LbType {
+		return CanUpdateObj
 	}
 	if len(n.Backends) != len(o.Backends) {
-		return false
+		return CanUpdateObj
 	}
 	nMap := make(map[string]bool)
 	for _, i := range n.Backends {
@@ -108,10 +129,10 @@ func (n *CnatTranslateEntry) Equal(o *CnatTranslateEntry) bool {
 	}
 	for _, i := range o.Backends {
 		if _, ok := nMap[i.String()]; !ok {
-			return false
+			return CanUpdateObj
 		}
 	}
-	return true
+	return AreEqualObj
 }
 
 func ToCnatEndpoint(ep CnatEndpoint) cnat.CnatEndpoint {

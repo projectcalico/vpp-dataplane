@@ -18,7 +18,6 @@ package services
 import (
 	"net"
 
-	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
@@ -139,22 +138,27 @@ func buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Servi
 	}
 }
 
-func (s *Server) GetCnatEntries(service *v1.Service, ep *v1.Endpoints) (entries []CnatTranslateEntryVPPState, specificRoutes []net.IP) {
+func (s *Server) GetLocalService(service *v1.Service, ep *v1.Endpoints) (localService *LocalService) {
+	localService = &LocalService{
+		Entries:        make([]CnatTranslateEntryVPPState, 0),
+		SpecificRoutes: make([]net.IP, 0),
+	}
+
 	clusterIP := net.ParseIP(service.Spec.ClusterIP)
 	nodeIP := s.getNodeIP(vpplink.IsIP6(clusterIP))
 	for _, servicePort := range service.Spec.Ports {
 		if !clusterIP.IsUnspecified() {
 			entry := buildCnatEntryForServicePort(&servicePort, service, ep, clusterIP, false /* isNodePort */)
-			entries = append(entries, *entry)
+			localService.Entries = append(localService.Entries, *entry)
 		}
 
 		for _, eip := range service.Spec.ExternalIPs {
 			extIP := net.ParseIP(eip)
 			if !extIP.IsUnspecified() {
 				entry := buildCnatEntryForServicePort(&servicePort, service, ep, extIP, false /* isNodePort */)
-				entries = append(entries, *entry)
+				localService.Entries = append(localService.Entries, *entry)
 				if IsLocalOnly(service) && len(entry.Entry.Backends) > 0 {
-					specificRoutes = append(specificRoutes, extIP)
+					localService.SpecificRoutes = append(localService.SpecificRoutes, extIP)
 				}
 			}
 		}
@@ -163,9 +167,9 @@ func (s *Server) GetCnatEntries(service *v1.Service, ep *v1.Endpoints) (entries 
 			ingressIP := net.ParseIP(ingress.IP)
 			if !ingressIP.IsUnspecified() {
 				entry := buildCnatEntryForServicePort(&servicePort, service, ep, ingressIP, false /* isNodePort */)
-				entries = append(entries, *entry)
+				localService.Entries = append(localService.Entries, *entry)
 				if IsLocalOnly(service) && len(entry.Entry.Backends) > 0 {
-					specificRoutes = append(specificRoutes, ingressIP)
+					localService.SpecificRoutes = append(localService.SpecificRoutes, ingressIP)
 				}
 			}
 		}
@@ -173,51 +177,11 @@ func (s *Server) GetCnatEntries(service *v1.Service, ep *v1.Endpoints) (entries 
 		if service.Spec.Type == v1.ServiceTypeNodePort {
 			if !nodeIP.IsUnspecified() {
 				entry := buildCnatEntryForServicePort(&servicePort, service, ep, nodeIP, true /* isNodePort */)
-				entries = append(entries, *entry)
+				localService.Entries = append(localService.Entries, *entry)
 			}
 		}
 	}
-	return entries, specificRoutes
-}
-
-func (s *Server) deleteCnatEntry(entry *CnatTranslateEntryVPPState) (err error) {
-	s.log.Infof("svc(del) key=%s %s vpp-id=%d", entry.Key(), entry.String(), entry.Entry.ID)
-	previousEntry, previousFound := s.stateMap[entry.Key()]
-	if !previousFound {
-		s.log.Infof("Cnat entry not found")
-		return nil
-	}
-	if previousEntry.OwnerServiceID != entry.OwnerServiceID {
-		s.log.Infof("Cnat entry found but changed owner since")
-		return nil
-	}
-
-	err = s.vpp.CnatTranslateDel(previousEntry.Entry.ID)
-	if err != nil {
-		return err
-	}
-	delete(s.stateMap, entry.Key())
-
-	return nil
-}
-
-func (s *Server) updateCnatEntry(entry *CnatTranslateEntryVPPState) (err error) {
-	previousEntry, previousFound := s.stateMap[entry.Key()]
-	if previousFound && entry.Entry.Equal(&previousEntry.Entry) {
-		s.log.Infof("svc(same) %s", entry.String())
-		/* OwnerServiceID might have changed */
-		previousEntry.OwnerServiceID = entry.OwnerServiceID
-		s.stateMap[entry.Key()] = previousEntry
-	} else {
-		entryID, err := s.vpp.CnatTranslateAdd(&entry.Entry)
-		if err != nil {
-			return errors.Wrapf(err, "NAT:Error adding translation %s", entry.String())
-		}
-		entry.Entry.ID = entryID
-		s.log.Infof("svc(add) key=%s %s vpp-id=%d", entry.Key(), entry.String(), entryID)
-		s.stateMap[entry.Key()] = *entry
-	}
-	return nil
+	return
 }
 
 func (s *Server) isAddressExternalServiceIP(IPAddress net.IP) bool {
@@ -230,54 +194,58 @@ func (s *Server) isAddressExternalServiceIP(IPAddress net.IP) bool {
 	return false
 }
 
-func (s *Server) advertiseSpecificRoute(IPAddress net.IP, withdraw bool) {
-	if s.isAddressExternalServiceIP(IPAddress) {
-		if withdraw {
+func (s *Server) advertiseSpecificRoute(added []net.IP, deleted []net.IP) {
+	for _, specificRoute := range deleted {
+		if s.isAddressExternalServiceIP(specificRoute) {
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.LocalPodAddressDeleted,
-				Old:  common.ToMaxLenCIDR(IPAddress),
+				Old:  common.ToMaxLenCIDR(specificRoute),
 			})
-			s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", IPAddress)
-		} else {
+			s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", specificRoute)
+		}
+	}
+	for _, specificRoute := range added {
+		if s.isAddressExternalServiceIP(specificRoute) {
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.LocalPodAddressAdded,
-				New:  common.ToMaxLenCIDR(IPAddress),
+				New:  common.ToMaxLenCIDR(specificRoute),
 			})
-			s.log.Infof("Announcing service specific route Addresses %+v", IPAddress)
+			s.log.Infof("Announcing service specific route Addresses %+v", specificRoute)
 		}
 	}
 }
 
-func (s *Server) addServicePort(service *v1.Service, ep *v1.Endpoints) (err error) {
-	s.log.Debugf("Service update: svc:%s entry:%+v", ServiceID(service), ep.Subsets)
-
-	entries, specificRoutes := s.GetCnatEntries(service, ep)
-	for _, specificRoute := range specificRoutes {
-		s.advertiseSpecificRoute(specificRoute, false /* isWithdraw */)
-	}
+func (s *Server) deleteServiceEntries(entries []CnatTranslateEntryVPPState) {
 	for _, entry := range entries {
-		err := s.updateCnatEntry(&entry)
-		if err != nil {
-			return err
+		s.log.Infof("svc(del) key=%s %s vpp-id=%d", entry.Key(), entry.String(), entry.Entry.ID)
+		previousEntry, previousFound := s.stateMap[entry.Key()]
+		if !previousFound {
+			s.log.Infof("Cnat entry not found")
+			continue
 		}
-	}
+		if previousEntry.OwnerServiceID != entry.OwnerServiceID {
+			s.log.Infof("Cnat entry found but changed owner since")
+			continue
+		}
 
-	return nil
+		err := s.vpp.CnatTranslateDel(previousEntry.Entry.ID)
+		if err != nil {
+			s.log.Errorf("Cnat entry delete errored %s", err)
+			continue
+		}
+		delete(s.stateMap, entry.Key())
+	}
 }
 
-func (s *Server) delServicePort(service *v1.Service, ep *v1.Endpoints) (err error) {
-	s.log.Debugf("Service del: svc:%s entry:%+v", ServiceID(service), ep.Subsets)
-
-	entries, specificRoutes := s.GetCnatEntries(service, ep)
-	for _, specificRoute := range specificRoutes {
-		s.advertiseSpecificRoute(specificRoute, true /* isWithdraw */)
-	}
+func (s *Server) addServiceEntries(entries []CnatTranslateEntryVPPState) {
 	for _, entry := range entries {
-		err := s.deleteCnatEntry(&entry)
+		entryID, err := s.vpp.CnatTranslateAdd(&entry.Entry)
 		if err != nil {
-			return err
+			s.log.Errorf("NAT:Error adding translation %s %s", entry.String(), err)
+			continue
 		}
+		entry.Entry.ID = entryID
+		s.log.Infof("svc(add) key=%s %s vpp-id=%d", entry.Key(), entry.String(), entryID)
+		s.stateMap[entry.Key()] = entry
 	}
-
-	return nil
 }
