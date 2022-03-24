@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/nat_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/nat_types"
 )
 
 type NatFlags uint8

@@ -20,18 +20,18 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/capo"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/capo"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func (v *VppLink) IpsetCreate(ipsetType types.IpsetType) (setId uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &capo.CapoIpsetCreateReply{}
 	request := &capo.CapoIpsetCreate{
 		Type: capo.CapoIpsetType(ipsetType),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return types.InvalidID, errors.Wrapf(err, "CapoIpsetCreate failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -41,13 +41,13 @@ func (v *VppLink) IpsetCreate(ipsetType types.IpsetType) (setId uint32, err erro
 }
 
 func (v *VppLink) IpsetDelete(ipsetID uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &capo.CapoIpsetDeleteReply{}
 	request := &capo.CapoIpsetDelete{
 		SetID: ipsetID,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "CapoIpsetDelete failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -57,8 +57,8 @@ func (v *VppLink) IpsetDelete(ipsetID uint32) (err error) {
 }
 
 func (v *VppLink) addDelIpsetMembers(ipsetID uint32, isAdd bool, members []capo.CapoIpsetMember) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &capo.CapoIpsetAddDelMembersReply{}
 	request := &capo.CapoIpsetAddDelMembers{
 		SetID:   ipsetID,
@@ -66,7 +66,7 @@ func (v *VppLink) addDelIpsetMembers(ipsetID uint32, isAdd bool, members []capo.
 		Len:     uint32(len(members)),
 		Members: members,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "CapoIpsetAddDelMembers failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -128,13 +128,13 @@ func (v *VppLink) DelIpsetIPPortMembers(ipsetID uint32, members []types.IPPort) 
 }
 
 func (v *VppLink) RuleCreate(rule *types.Rule) (ruleId uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &capo.CapoRuleCreateReply{}
 	request := &capo.CapoRuleCreate{
 		Rule: types.ToCapoRule(rule),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return types.InvalidID, errors.Wrapf(err, "CapoRuleCreate failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -144,14 +144,14 @@ func (v *VppLink) RuleCreate(rule *types.Rule) (ruleId uint32, err error) {
 }
 
 func (v *VppLink) RuleUpdate(ruleId uint32, rule *types.Rule) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &capo.CapoRuleUpdateReply{}
 	request := &capo.CapoRuleUpdate{
 		RuleID: ruleId,
 		Rule:   types.ToCapoRule(rule),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "CapoRuleUpdate failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -161,13 +161,13 @@ func (v *VppLink) RuleUpdate(ruleId uint32, rule *types.Rule) (err error) {
 }
 
 func (v *VppLink) RuleDelete(ruleId uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &capo.CapoRuleDeleteReply{}
 	request := &capo.CapoRuleDelete{
 		RuleID: ruleId,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "CapoRuleDelete failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -177,13 +177,13 @@ func (v *VppLink) RuleDelete(ruleId uint32) (err error) {
 }
 
 func (v *VppLink) PolicyCreate(policy *types.Policy) (policyId uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &capo.CapoPolicyCreateReply{}
 	request := &capo.CapoPolicyCreate{
 		Rules: types.ToCapoPolicy(policy),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return types.InvalidID, errors.Wrapf(err, "CapoPolicyCreate failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -193,14 +193,14 @@ func (v *VppLink) PolicyCreate(policy *types.Policy) (policyId uint32, err error
 }
 
 func (v *VppLink) PolicyUpdate(policyId uint32, policy *types.Policy) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &capo.CapoPolicyUpdateReply{}
 	request := &capo.CapoPolicyUpdate{
 		PolicyID: policyId,
 		Rules:    types.ToCapoPolicy(policy),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "CapoPolicyUpdate failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -210,13 +210,13 @@ func (v *VppLink) PolicyUpdate(policyId uint32, policy *types.Policy) (err error
 }
 
 func (v *VppLink) PolicyDelete(policyId uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &capo.CapoPolicyDeleteReply{}
 	request := &capo.CapoPolicyDelete{
 		PolicyID: policyId,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "CapoPolicyDelete failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -226,8 +226,8 @@ func (v *VppLink) PolicyDelete(policyId uint32) (err error) {
 }
 
 func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfig, invertRxTx uint8) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	// In the calico agent, policies are expressed from the point of view of PODs
 	// in VPP this is reversed
 	rxPolicyIDs := conf.EgressPolicyIDs
@@ -245,7 +245,7 @@ func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfi
 		PolicyIds:     ids,
 		InvertRxTx:    invertRxTx,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "CapoConfigurePolicies failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {

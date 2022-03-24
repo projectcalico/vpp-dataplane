@@ -29,7 +29,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 
 	// needed for GoBGP building (in ../Makefile, gobgp target)

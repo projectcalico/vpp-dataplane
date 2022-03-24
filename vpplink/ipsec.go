@@ -19,48 +19,19 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ipsec"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipsec"
 )
 
-func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) (protections []types.IPsecTunnelProtection, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-
-	request := &ipsec.IpsecTunnelProtectDump{
-		SwIfIndex: interface_types.InterfaceIndex(tunnelInterface),
-	}
-	response := &ipsec.IpsecTunnelProtectDetails{}
-	stream := v.ch.SendMultiRequest(request)
-	for {
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error listing tunnel interface %d protections", tunnelInterface)
-		}
-		if stop {
-			return protections, nil
-		}
-		p := response.Tun
-		protections = append(protections, types.IPsecTunnelProtection{
-			SwIfIndex:   uint32(p.SwIfIndex),
-			NextHop:     types.FromVppAddress(p.Nh),
-			OutSAIndex:  p.SaOut,
-			InSAIndices: p.SaIn,
-		})
-	}
-}
-
 func (v *VppLink) SetIPsecAsyncMode(enable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &ipsec.IpsecSetAsyncModeReply{}
 
 	request := &ipsec.IpsecSetAsyncMode{
 		AsyncEnable: enable,
 	}
-	var err = v.ch.SendRequest(request).ReceiveReply(response)
+	var err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrap(err, "IPsec async mode enable failed")
 	} else if response.Retval != 0 {

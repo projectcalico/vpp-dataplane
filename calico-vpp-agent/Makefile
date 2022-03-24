@@ -2,7 +2,7 @@
 
 TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
-GENERATE_LOG_FILE=../vpplink/binapi/vppapi/generate.log
+GENERATE_LOG_FILE=../vpplink/generated/generate.log
 VERSION_FILE=version
 
 all: build gobgp image

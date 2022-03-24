@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	bgpapi "github.com/osrg/gobgp/api"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/sr"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/sr_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/sr"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/sr_types"
 )
 
 type SrBehavior uint8

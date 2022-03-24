@@ -19,9 +19,9 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/abf"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/abf"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/fib_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -30,8 +30,8 @@ var (
 )
 
 func (v *VppLink) attachDetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool, isAdd bool) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &abf.AbfItfAttachAddDelReply{}
 	request := &abf.AbfItfAttachAddDel{
@@ -42,7 +42,7 @@ func (v *VppLink) attachDetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 
 			IsIPv6:    isv6,
 		},
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	opStr := "Detach"
 	if isAdd {
 		opStr = "Attach"
@@ -64,8 +64,8 @@ func (v *VppLink) DetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool) 
 }
 
 func (v *VppLink) addDelAbfPolicy(policy *types.AbfPolicy, isAdd bool) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	paths := make([]fib_types.FibPath, 0, len(policy.Paths))
 	for _, routePath := range policy.Paths {
@@ -81,7 +81,7 @@ func (v *VppLink) addDelAbfPolicy(policy *types.AbfPolicy, isAdd bool) (err erro
 			Paths:    paths,
 		},
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	opStr := "Del"
 	if isAdd {
 		opStr = "Add"

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 
+	vpptypes "github.com/calico-vpp/vpplink/api/v0"
 	"github.com/pkg/errors"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
@@ -29,7 +30,7 @@ import (
 
 type VXLanProvider struct {
 	*ConnectivityProviderData
-	vxlanIfs     map[string]types.VXLanTunnel
+	vxlanIfs     map[string]vpptypes.VXLanTunnel
 	vxlanRoutes  map[uint32]map[string]bool
 	ip4NodeIndex uint32
 	ip6NodeIndex uint32
@@ -38,7 +39,7 @@ type VXLanProvider struct {
 }
 
 func NewVXLanProvider(d *ConnectivityProviderData) *VXLanProvider {
-	return &VXLanProvider{d, make(map[string]types.VXLanTunnel), make(map[uint32]map[string]bool), 0, 0, make(map[uint32]bool)}
+	return &VXLanProvider{d, make(map[string]vpptypes.VXLanTunnel), make(map[uint32]map[string]bool), 0, 0, make(map[uint32]bool)}
 }
 
 func (p *VXLanProvider) EnableDisable(isEnable bool) {
@@ -68,7 +69,7 @@ func (p *VXLanProvider) RescanState() {
 		p.log.Errorf("Error configureVXLANNodes: %v", err)
 	}
 
-	p.vxlanIfs = make(map[string]types.VXLanTunnel)
+	p.vxlanIfs = make(map[string]vpptypes.VXLanTunnel)
 	tunnels, err := p.vpp.ListVXLanTunnels()
 	if err != nil {
 		p.log.Errorf("Error listing VXLan tunnels: %v", err)
@@ -165,7 +166,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	_, found := p.vxlanIfs[cn.NextHop.String()+"-"+fmt.Sprint(cn.Vni)]
 	if !found {
 		p.log.Infof("connectivity(add) VXLan %s->%s(VNI:%d)", nodeIP.String(), cn.NextHop.String(), cn.Vni)
-		tunnel := &types.VXLanTunnel{
+		tunnel := &vpptypes.VXLanTunnel{
 			SrcAddress:     nodeIP,
 			DstAddress:     cn.NextHop,
 			SrcPort:        p.getVXLANPort(),

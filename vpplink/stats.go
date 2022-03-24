@@ -19,9 +19,10 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface"
 	"go.fd.io/govpp/adapter"
 	"go.fd.io/govpp/adapter/statsclient"
+
+	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface"
 )
 
 func GetInterfaceStats(sc *statsclient.StatsClient) (ifNames adapter.NameStat, dumpStats []adapter.StatEntry, err error) {
@@ -43,11 +44,11 @@ func GetInterfaceStats(sc *statsclient.StatsClient) (ifNames adapter.NameStat, d
 }
 
 func (v *VppLink) GetBufferStats() (uint32, uint32, uint32, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &interfaces.GetBuffersStatsReply{}
 	request := &interfaces.GetBuffersStats{BufferIndex: 0}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return 0, 0, 0, errors.Wrapf(err, "update buffer stats failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {

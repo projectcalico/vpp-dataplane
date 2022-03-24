@@ -20,7 +20,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/fib_types"
 )
 
 type RoutePath struct {

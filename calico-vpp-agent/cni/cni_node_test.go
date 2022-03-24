@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	vpptypes "github.com/calico-vpp/vpplink/api/v0"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	gs "github.com/onsi/gomega/gstruct"
@@ -42,8 +43,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks/calico"
 	agentConf "github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -247,7 +248,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					"Failed to get IP-IP tunnels from VPP (for IPSec checking)")
 				ipipSwIfIndex, err := vpp.SearchInterfaceWithName("ipip0")
 				Expect(err).ToNot(HaveOccurred(), "can't find ipip tunnel interface")
-				backendIPIPTunnel := &types.IPIPTunnel{
+				backendIPIPTunnel := &vpptypes.IPIPTunnel{
 					Src:       net.ParseIP(ThisNodeIP).To4(),
 					Dst:       net.ParseIP(AddedNodeIP).To4(),
 					TableID:   0, // not filled -> used default VRF table
@@ -470,7 +471,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(err).ToNot(HaveOccurred(), "can't find ipip tunnel interface")
 				tunnels, err := vpp.ListIPIPTunnels()
 				Expect(err).ToNot(HaveOccurred(), "Failed to get IP-IP tunnels from VPP")
-				Expect(tunnels).To(ContainElements(&types.IPIPTunnel{
+				Expect(tunnels).To(ContainElements(&vpptypes.IPIPTunnel{
 					Src:       net.ParseIP(ThisNodeIP).To4(), // set by configureBGPNodeIPAddresses() call
 					Dst:       net.ParseIP(GatewayIP).To4(),
 					TableID:   0, // not filled -> used default VRF table

@@ -19,20 +19,20 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/session"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/session"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func (v *VppLink) enableDisableSessionLayer(isEnable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &session.SessionEnableDisableReply{}
 	request := &session.SessionEnableDisable{
 		IsEnable: isEnable,
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "Enable/Disable session failed")
 	} else if response.Retval != 0 {
@@ -50,14 +50,14 @@ func (v *VppLink) DisableSessionLayer() error {
 }
 
 func (v *VppLink) enableDisableSessionSAPILayer(isEnable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &session.SessionSapiEnableDisableReply{}
 	request := &session.SessionSapiEnableDisable{
 		IsEnable: isEnable,
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "Enable/Disable session SAPI failed")
 	} else if response.Retval != 0 {
@@ -75,8 +75,8 @@ func (v *VppLink) DisableSessionSAPI() error {
 }
 
 func (v *VppLink) addDelSessionAppNamespace(namespace *types.SessionAppNamespace, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &session.AppNamespaceAddDelV3Reply{}
 	request := &session.AppNamespaceAddDelV3{
@@ -87,7 +87,7 @@ func (v *VppLink) addDelSessionAppNamespace(namespace *types.SessionAppNamespace
 		SwIfIndex:   interface_types.InterfaceIndex(namespace.SwIfIndex),
 		IsAdd:       isAdd,
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "error %sing session namespace", IsAddToStr(isAdd))
 	} else if response.Retval != 0 {

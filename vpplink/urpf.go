@@ -19,9 +19,9 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/urpf"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/urpf"
 )
 
 func (v *VppLink) SetCustomURPF(swifindex uint32, tableId uint32) (err error) {
@@ -33,7 +33,7 @@ func (v *VppLink) SetCustomURPF(swifindex uint32, tableId uint32) (err error) {
 		IsInput:   true,
 		TableID:   tableId,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "setCustomURPF failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -50,7 +50,7 @@ func (v *VppLink) UnsetURPF(swifindex uint32) (err error) {
 		Af:        ip_types.ADDRESS_IP4,
 		IsInput:   true,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "setOffURPF failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {

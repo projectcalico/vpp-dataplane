@@ -19,14 +19,14 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/arp"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/arp"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 )
 
 func (v *VppLink) EnableArpProxy(swIfIndex, tableID uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	// First enable global arp proxy
 	//set arp proxy table-id 0 start 0.0.0.0 end 255.255.255.255
@@ -39,7 +39,7 @@ func (v *VppLink) EnableArpProxy(swIfIndex, tableID uint32) (err error) {
 			Hi:      ip_types.IP4Address{255, 255, 255, 255},
 		},
 	}
-	err = v.ch.SendRequest(request1).ReceiveReply(response1)
+	err = v.GetChannel().SendRequest(request1).ReceiveReply(response1)
 	if err != nil {
 		return errors.Wrapf(err, "Enabling proxyarp swif %d failed", swIfIndex)
 	} else if response1.Retval != 0 {
@@ -51,7 +51,7 @@ func (v *VppLink) EnableArpProxy(swIfIndex, tableID uint32) (err error) {
 		Enable:    true,
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "Enabling proxyarp swif %d failed", swIfIndex)
 	} else if response.Retval != 0 {
