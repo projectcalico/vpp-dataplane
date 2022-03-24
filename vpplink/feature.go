@@ -25,8 +25,8 @@ import (
 )
 
 func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName, featureName string) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &feature.FeatureEnableDisableReply{}
 	request := &feature.FeatureEnableDisable{
 		SwIfIndex:   interface_types.InterfaceIndex(swIfIndex),
@@ -34,7 +34,7 @@ func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName,
 		ArcName:     arcName,
 		FeatureName: featureName,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "FeatureEnableDisable failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {

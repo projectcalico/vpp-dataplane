@@ -349,6 +349,9 @@ func (*CapoConfigurePolicies) GetCrcString() string   { return "3ca1772c" }
 func (*CapoConfigurePolicies) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CapoConfigurePolicies) GetRetVal() error {
+	return nil
+}
 
 func (m *CapoConfigurePolicies) Size() (size int) {
 	if m == nil {
@@ -404,6 +407,9 @@ func (*CapoConfigurePoliciesReply) GetCrcString() string   { return "e8d4e804" }
 func (*CapoConfigurePoliciesReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *CapoConfigurePoliciesReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *CapoConfigurePoliciesReply) Size() (size int) {
 	if m == nil {
@@ -436,6 +442,9 @@ func (*CapoControlPing) GetCrcString() string   { return "51077d14" }
 func (*CapoControlPing) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CapoControlPing) GetRetVal() error {
+	return nil
+}
 
 func (m *CapoControlPing) Size() (size int) {
 	if m == nil {
@@ -467,6 +476,9 @@ func (*CapoControlPingReply) GetMessageName() string { return "capo_control_ping
 func (*CapoControlPingReply) GetCrcString() string   { return "f6b0b8ca" }
 func (*CapoControlPingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CapoControlPingReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CapoControlPingReply) Size() (size int) {
@@ -506,6 +518,9 @@ func (*CapoGetVersion) GetCrcString() string   { return "51077d14" }
 func (*CapoGetVersion) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CapoGetVersion) GetRetVal() error {
+	return nil
+}
 
 func (m *CapoGetVersion) Size() (size int) {
 	if m == nil {
@@ -536,6 +551,9 @@ func (*CapoGetVersionReply) GetMessageName() string { return "capo_get_version_r
 func (*CapoGetVersionReply) GetCrcString() string   { return "9b32cf86" }
 func (*CapoGetVersionReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CapoGetVersionReply) GetRetVal() error {
+	return nil
 }
 
 func (m *CapoGetVersionReply) Size() (size int) {
@@ -576,6 +594,9 @@ func (*CapoIpsetAddDelMembers) GetMessageName() string { return "capo_ipset_add_
 func (*CapoIpsetAddDelMembers) GetCrcString() string   { return "e7056d10" }
 func (*CapoIpsetAddDelMembers) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CapoIpsetAddDelMembers) GetRetVal() error {
+	return nil
 }
 
 func (m *CapoIpsetAddDelMembers) Size() (size int) {
@@ -638,6 +659,9 @@ func (*CapoIpsetAddDelMembersReply) GetCrcString() string { return "e8d4e804" }
 func (*CapoIpsetAddDelMembersReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *CapoIpsetAddDelMembersReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *CapoIpsetAddDelMembersReply) Size() (size int) {
 	if m == nil {
@@ -671,6 +695,9 @@ func (*CapoIpsetCreate) GetMessageName() string { return "capo_ipset_create" }
 func (*CapoIpsetCreate) GetCrcString() string   { return "69150c8a" }
 func (*CapoIpsetCreate) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CapoIpsetCreate) GetRetVal() error {
+	return nil
 }
 
 func (m *CapoIpsetCreate) Size() (size int) {
@@ -706,6 +733,9 @@ func (*CapoIpsetCreateReply) GetMessageName() string { return "capo_ipset_create
 func (*CapoIpsetCreateReply) GetCrcString() string   { return "6a43f193" }
 func (*CapoIpsetCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CapoIpsetCreateReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CapoIpsetCreateReply) Size() (size int) {
@@ -744,6 +774,9 @@ func (*CapoIpsetDelete) GetCrcString() string   { return "ceacdbcb" }
 func (*CapoIpsetDelete) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CapoIpsetDelete) GetRetVal() error {
+	return nil
+}
 
 func (m *CapoIpsetDelete) Size() (size int) {
 	if m == nil {
@@ -777,6 +810,9 @@ func (*CapoIpsetDeleteReply) GetMessageName() string { return "capo_ipset_delete
 func (*CapoIpsetDeleteReply) GetCrcString() string   { return "e8d4e804" }
 func (*CapoIpsetDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CapoIpsetDeleteReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CapoIpsetDeleteReply) Size() (size int) {
@@ -812,6 +848,9 @@ func (*CapoPolicyCreate) GetMessageName() string { return "capo_policy_create" }
 func (*CapoPolicyCreate) GetCrcString() string   { return "f7ed31a8" }
 func (*CapoPolicyCreate) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CapoPolicyCreate) GetRetVal() error {
+	return nil
 }
 
 func (m *CapoPolicyCreate) Size() (size int) {
@@ -870,6 +909,9 @@ func (*CapoPolicyCreateReply) GetCrcString() string   { return "90f27405" }
 func (*CapoPolicyCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *CapoPolicyCreateReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *CapoPolicyCreateReply) Size() (size int) {
 	if m == nil {
@@ -907,6 +949,9 @@ func (*CapoPolicyDelete) GetCrcString() string   { return "ad833868" }
 func (*CapoPolicyDelete) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CapoPolicyDelete) GetRetVal() error {
+	return nil
+}
 
 func (m *CapoPolicyDelete) Size() (size int) {
 	if m == nil {
@@ -940,6 +985,9 @@ func (*CapoPolicyDeleteReply) GetMessageName() string { return "capo_policy_dele
 func (*CapoPolicyDeleteReply) GetCrcString() string   { return "e8d4e804" }
 func (*CapoPolicyDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CapoPolicyDeleteReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CapoPolicyDeleteReply) Size() (size int) {
@@ -976,6 +1024,9 @@ func (*CapoPolicyUpdate) GetMessageName() string { return "capo_policy_update" }
 func (*CapoPolicyUpdate) GetCrcString() string   { return "e2097dd0" }
 func (*CapoPolicyUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CapoPolicyUpdate) GetRetVal() error {
+	return nil
 }
 
 func (m *CapoPolicyUpdate) Size() (size int) {
@@ -1036,6 +1087,9 @@ func (*CapoPolicyUpdateReply) GetCrcString() string   { return "e8d4e804" }
 func (*CapoPolicyUpdateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *CapoPolicyUpdateReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *CapoPolicyUpdateReply) Size() (size int) {
 	if m == nil {
@@ -1069,6 +1123,9 @@ func (*CapoRuleCreate) GetMessageName() string { return "capo_rule_create" }
 func (*CapoRuleCreate) GetCrcString() string   { return "0a2d5fd6" }
 func (*CapoRuleCreate) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CapoRuleCreate) GetRetVal() error {
+	return nil
 }
 
 func (m *CapoRuleCreate) Size() (size int) {
@@ -1154,6 +1211,9 @@ func (*CapoRuleCreateReply) GetCrcString() string   { return "b48f8052" }
 func (*CapoRuleCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *CapoRuleCreateReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *CapoRuleCreateReply) Size() (size int) {
 	if m == nil {
@@ -1191,6 +1251,9 @@ func (*CapoRuleDelete) GetCrcString() string   { return "d19bb6be" }
 func (*CapoRuleDelete) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CapoRuleDelete) GetRetVal() error {
+	return nil
+}
 
 func (m *CapoRuleDelete) Size() (size int) {
 	if m == nil {
@@ -1224,6 +1287,9 @@ func (*CapoRuleDeleteReply) GetMessageName() string { return "capo_rule_delete_r
 func (*CapoRuleDeleteReply) GetCrcString() string   { return "e8d4e804" }
 func (*CapoRuleDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CapoRuleDeleteReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CapoRuleDeleteReply) Size() (size int) {
@@ -1259,6 +1325,9 @@ func (*CapoRuleUpdate) GetMessageName() string { return "capo_rule_update" }
 func (*CapoRuleUpdate) GetCrcString() string   { return "a0535ee2" }
 func (*CapoRuleUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CapoRuleUpdate) GetRetVal() error {
+	return nil
 }
 
 func (m *CapoRuleUpdate) Size() (size int) {
@@ -1345,6 +1414,9 @@ func (*CapoRuleUpdateReply) GetMessageName() string { return "capo_rule_update_r
 func (*CapoRuleUpdateReply) GetCrcString() string   { return "e8d4e804" }
 func (*CapoRuleUpdateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CapoRuleUpdateReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CapoRuleUpdateReply) Size() (size int) {

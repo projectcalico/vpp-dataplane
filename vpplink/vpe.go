@@ -23,13 +23,13 @@ import (
 )
 
 func (v *VppLink) GetVPPVersion() (version string, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &vpe.ShowVersionReply{}
 	request := &vpe.ShowVersion{}
 
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return "", errors.Wrapf(err, "ShowVersion failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {

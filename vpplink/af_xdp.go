@@ -25,8 +25,8 @@ import (
 )
 
 func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &af_xdp.AfXdpCreateReply{}
 	request := &af_xdp.AfXdpCreate{
 		HostIf:  intf.HostInterfaceName,
@@ -36,7 +36,7 @@ func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) (err error) {
 		TxqSize: uint16(DefaultIntTo(intf.TxQueueSize, 1024)),
 		Mode:    af_xdp.AF_XDP_API_MODE_AUTO,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "CreateAfXDP failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -47,13 +47,13 @@ func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) (err error) {
 }
 
 func (v *VppLink) DeleteAfXDP(intf *types.VppXDPInterface) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &af_xdp.AfXdpDeleteReply{}
 	request := &af_xdp.AfXdpDelete{
 		SwIfIndex: interface_types.InterfaceIndex(intf.SwIfIndex),
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "DeleteAfXDP failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {

@@ -24,14 +24,14 @@ import (
 )
 
 func (v *VppLink) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	tunnels := make([]types.VXLanTunnel, 0)
 	request := &vxlan.VxlanTunnelV2Dump{
 		SwIfIndex: types.InvalidInterface,
 	}
-	stream := v.ch.SendMultiRequest(request)
+	stream := v.GetChannel().SendMultiRequest(request)
 	for {
 		response := &vxlan.VxlanTunnelV2Details{}
 		stop, err := stream.ReceiveReply(response)
@@ -54,8 +54,8 @@ func (v *VppLink) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
 	return tunnels, nil
 }
 func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIfIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &vxlan.VxlanAddDelTunnelV3Reply{}
 	request := &vxlan.VxlanAddDelTunnelV3{
@@ -69,7 +69,7 @@ func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIf
 		DecapNextIndex: tunnel.DecapNextIndex,
 		IsL3:           true,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	opStr := "Del"
 	if isAdd {
 		opStr = "Add"

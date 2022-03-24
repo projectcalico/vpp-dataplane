@@ -108,6 +108,9 @@ func (*AppAddCertKeyPair) GetCrcString() string   { return "02eb8016" }
 func (*AppAddCertKeyPair) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *AppAddCertKeyPair) GetRetVal() error {
+	return nil
+}
 
 func (m *AppAddCertKeyPair) Size() (size int) {
 	if m == nil {
@@ -149,6 +152,9 @@ func (*AppAddCertKeyPairReply) GetCrcString() string   { return "b42958d0" }
 func (*AppAddCertKeyPairReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *AppAddCertKeyPairReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *AppAddCertKeyPairReply) Size() (size int) {
 	if m == nil {
@@ -185,6 +191,9 @@ func (*AppAttach) GetMessageName() string { return "app_attach" }
 func (*AppAttach) GetCrcString() string   { return "5f4a260d" }
 func (*AppAttach) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *AppAttach) GetRetVal() error {
+	return nil
 }
 
 func (m *AppAttach) Size() (size int) {
@@ -239,6 +248,9 @@ func (*AppAttachReply) GetMessageName() string { return "app_attach_reply" }
 func (*AppAttachReply) GetCrcString() string   { return "5c89c3b0" }
 func (*AppAttachReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *AppAttachReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *AppAttachReply) Size() (size int) {
@@ -300,6 +312,9 @@ func (*AppDelCertKeyPair) GetCrcString() string   { return "8ac76db6" }
 func (*AppDelCertKeyPair) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *AppDelCertKeyPair) GetRetVal() error {
+	return nil
+}
 
 func (m *AppDelCertKeyPair) Size() (size int) {
 	if m == nil {
@@ -332,6 +347,9 @@ func (*AppDelCertKeyPairReply) GetMessageName() string { return "app_del_cert_ke
 func (*AppDelCertKeyPairReply) GetCrcString() string   { return "e8d4e804" }
 func (*AppDelCertKeyPairReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *AppDelCertKeyPairReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *AppDelCertKeyPairReply) Size() (size int) {
@@ -370,6 +388,9 @@ func (*AppNamespaceAddDel) GetMessageName() string { return "app_namespace_add_d
 func (*AppNamespaceAddDel) GetCrcString() string   { return "6306aecb" }
 func (*AppNamespaceAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *AppNamespaceAddDel) GetRetVal() error {
+	return nil
 }
 
 func (m *AppNamespaceAddDel) Size() (size int) {
@@ -418,6 +439,9 @@ func (*AppNamespaceAddDelReply) GetCrcString() string   { return "85137120" }
 func (*AppNamespaceAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *AppNamespaceAddDelReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *AppNamespaceAddDelReply) Size() (size int) {
 	if m == nil {
@@ -458,6 +482,9 @@ func (*AppNamespaceAddDelV2) GetMessageName() string { return "app_namespace_add
 func (*AppNamespaceAddDelV2) GetCrcString() string   { return "ee0755cf" }
 func (*AppNamespaceAddDelV2) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *AppNamespaceAddDelV2) GetRetVal() error {
+	return nil
 }
 
 func (m *AppNamespaceAddDelV2) Size() (size int) {
@@ -508,6 +535,9 @@ func (*AppNamespaceAddDelV2Reply) GetCrcString() string   { return "85137120" }
 func (*AppNamespaceAddDelV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *AppNamespaceAddDelV2Reply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *AppNamespaceAddDelV2Reply) Size() (size int) {
 	if m == nil {
@@ -550,6 +580,9 @@ func (*AppNamespaceAddDelV3) GetMessageName() string { return "app_namespace_add
 func (*AppNamespaceAddDelV3) GetCrcString() string   { return "8a7e40a1" }
 func (*AppNamespaceAddDelV3) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *AppNamespaceAddDelV3) GetRetVal() error {
+	return nil
 }
 
 func (m *AppNamespaceAddDelV3) Size() (size int) {
@@ -606,6 +639,9 @@ func (*AppNamespaceAddDelV3Reply) GetCrcString() string   { return "85137120" }
 func (*AppNamespaceAddDelV3Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *AppNamespaceAddDelV3Reply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *AppNamespaceAddDelV3Reply) Size() (size int) {
 	if m == nil {
@@ -643,6 +679,9 @@ func (*AppWorkerAddDel) GetMessageName() string { return "app_worker_add_del" }
 func (*AppWorkerAddDel) GetCrcString() string   { return "753253dc" }
 func (*AppWorkerAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *AppWorkerAddDel) GetRetVal() error {
+	return nil
 }
 
 func (m *AppWorkerAddDel) Size() (size int) {
@@ -689,6 +728,9 @@ func (*AppWorkerAddDelReply) GetMessageName() string { return "app_worker_add_de
 func (*AppWorkerAddDelReply) GetCrcString() string   { return "5735ffe7" }
 func (*AppWorkerAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *AppWorkerAddDelReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *AppWorkerAddDelReply) Size() (size int) {
@@ -742,6 +784,9 @@ func (*ApplicationDetach) GetCrcString() string   { return "51077d14" }
 func (*ApplicationDetach) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ApplicationDetach) GetRetVal() error {
+	return nil
+}
 
 func (m *ApplicationDetach) Size() (size int) {
 	if m == nil {
@@ -770,6 +815,9 @@ func (*ApplicationDetachReply) GetMessageName() string { return "application_det
 func (*ApplicationDetachReply) GetCrcString() string   { return "e8d4e804" }
 func (*ApplicationDetachReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ApplicationDetachReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *ApplicationDetachReply) Size() (size int) {
@@ -806,6 +854,9 @@ func (*ApplicationTLSCertAdd) GetMessageName() string { return "application_tls_
 func (*ApplicationTLSCertAdd) GetCrcString() string   { return "3f5cfe45" }
 func (*ApplicationTLSCertAdd) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *ApplicationTLSCertAdd) GetRetVal() error {
+	return nil
 }
 
 func (m *ApplicationTLSCertAdd) Size() (size int) {
@@ -848,6 +899,9 @@ func (*ApplicationTLSCertAddReply) GetCrcString() string   { return "e8d4e804" }
 func (*ApplicationTLSCertAddReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *ApplicationTLSCertAddReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *ApplicationTLSCertAddReply) Size() (size int) {
 	if m == nil {
@@ -883,6 +937,9 @@ func (*ApplicationTLSKeyAdd) GetMessageName() string { return "application_tls_k
 func (*ApplicationTLSKeyAdd) GetCrcString() string   { return "5eaf70cd" }
 func (*ApplicationTLSKeyAdd) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *ApplicationTLSKeyAdd) GetRetVal() error {
+	return nil
 }
 
 func (m *ApplicationTLSKeyAdd) Size() (size int) {
@@ -925,6 +982,9 @@ func (*ApplicationTLSKeyAddReply) GetCrcString() string   { return "e8d4e804" }
 func (*ApplicationTLSKeyAddReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *ApplicationTLSKeyAddReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *ApplicationTLSKeyAddReply) Size() (size int) {
 	if m == nil {
@@ -958,6 +1018,9 @@ func (*SessionEnableDisable) GetCrcString() string   { return "c264d7bf" }
 func (*SessionEnableDisable) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *SessionEnableDisable) GetRetVal() error {
+	return nil
+}
 
 func (m *SessionEnableDisable) Size() (size int) {
 	if m == nil {
@@ -990,6 +1053,9 @@ func (*SessionEnableDisableReply) GetMessageName() string { return "session_enab
 func (*SessionEnableDisableReply) GetCrcString() string   { return "e8d4e804" }
 func (*SessionEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *SessionEnableDisableReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *SessionEnableDisableReply) Size() (size int) {
@@ -1032,6 +1098,9 @@ func (*SessionRuleAddDel) GetMessageName() string { return "session_rule_add_del
 func (*SessionRuleAddDel) GetCrcString() string   { return "e4895422" }
 func (*SessionRuleAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *SessionRuleAddDel) GetRetVal() error {
+	return nil
 }
 
 func (m *SessionRuleAddDel) Size() (size int) {
@@ -1105,6 +1174,9 @@ func (*SessionRuleAddDelReply) GetCrcString() string   { return "e8d4e804" }
 func (*SessionRuleAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *SessionRuleAddDelReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *SessionRuleAddDelReply) Size() (size int) {
 	if m == nil {
@@ -1145,6 +1217,9 @@ func (*SessionRulesDetails) GetMessageName() string { return "session_rules_deta
 func (*SessionRulesDetails) GetCrcString() string   { return "28d71830" }
 func (*SessionRulesDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *SessionRulesDetails) GetRetVal() error {
+	return nil
 }
 
 func (m *SessionRulesDetails) Size() (size int) {
@@ -1213,6 +1288,9 @@ func (*SessionRulesDump) GetCrcString() string   { return "51077d14" }
 func (*SessionRulesDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *SessionRulesDump) GetRetVal() error {
+	return nil
+}
 
 func (m *SessionRulesDump) Size() (size int) {
 	if m == nil {
@@ -1241,6 +1319,9 @@ func (*SessionSapiEnableDisable) GetMessageName() string { return "session_sapi_
 func (*SessionSapiEnableDisable) GetCrcString() string   { return "c264d7bf" }
 func (*SessionSapiEnableDisable) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *SessionSapiEnableDisable) GetRetVal() error {
+	return nil
 }
 
 func (m *SessionSapiEnableDisable) Size() (size int) {
@@ -1276,6 +1357,9 @@ func (*SessionSapiEnableDisableReply) GetMessageName() string {
 func (*SessionSapiEnableDisableReply) GetCrcString() string { return "e8d4e804" }
 func (*SessionSapiEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *SessionSapiEnableDisableReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *SessionSapiEnableDisableReply) Size() (size int) {

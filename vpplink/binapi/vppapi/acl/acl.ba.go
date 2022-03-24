@@ -42,6 +42,9 @@ func (*ACLAddReplace) GetCrcString() string   { return "ee5c2f18" }
 func (*ACLAddReplace) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ACLAddReplace) GetRetVal() error {
+	return nil
+}
 
 func (m *ACLAddReplace) Size() (size int) {
 	if m == nil {
@@ -140,6 +143,9 @@ func (*ACLAddReplaceReply) GetCrcString() string   { return "ac407b0c" }
 func (*ACLAddReplaceReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *ACLAddReplaceReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *ACLAddReplaceReply) Size() (size int) {
 	if m == nil {
@@ -176,6 +182,9 @@ func (*ACLDel) GetCrcString() string   { return "ef34fea4" }
 func (*ACLDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ACLDel) GetRetVal() error {
+	return nil
+}
 
 func (m *ACLDel) Size() (size int) {
 	if m == nil {
@@ -208,6 +217,9 @@ func (*ACLDelReply) GetMessageName() string { return "acl_del_reply" }
 func (*ACLDelReply) GetCrcString() string   { return "e8d4e804" }
 func (*ACLDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ACLDelReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *ACLDelReply) Size() (size int) {
@@ -244,6 +256,9 @@ func (*ACLDetails) GetMessageName() string { return "acl_details" }
 func (*ACLDetails) GetCrcString() string   { return "95babae0" }
 func (*ACLDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ACLDetails) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLDetails) Size() (size int) {
@@ -342,6 +357,9 @@ func (*ACLDump) GetCrcString() string   { return "ef34fea4" }
 func (*ACLDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ACLDump) GetRetVal() error {
+	return nil
+}
 
 func (m *ACLDump) Size() (size int) {
 	if m == nil {
@@ -377,6 +395,9 @@ func (*ACLInterfaceAddDel) GetMessageName() string { return "acl_interface_add_d
 func (*ACLInterfaceAddDel) GetCrcString() string   { return "4b54bebd" }
 func (*ACLInterfaceAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *ACLInterfaceAddDel) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLInterfaceAddDel) Size() (size int) {
@@ -420,6 +441,9 @@ func (*ACLInterfaceAddDelReply) GetCrcString() string   { return "e8d4e804" }
 func (*ACLInterfaceAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *ACLInterfaceAddDelReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *ACLInterfaceAddDelReply) Size() (size int) {
 	if m == nil {
@@ -457,6 +481,9 @@ func (*ACLInterfaceEtypeWhitelistDetails) GetMessageName() string {
 func (*ACLInterfaceEtypeWhitelistDetails) GetCrcString() string { return "cc2bfded" }
 func (*ACLInterfaceEtypeWhitelistDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ACLInterfaceEtypeWhitelistDetails) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLInterfaceEtypeWhitelistDetails) Size() (size int) {
@@ -511,6 +538,9 @@ func (*ACLInterfaceEtypeWhitelistDump) GetCrcString() string { return "f9e6675e"
 func (*ACLInterfaceEtypeWhitelistDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ACLInterfaceEtypeWhitelistDump) GetRetVal() error {
+	return nil
+}
 
 func (m *ACLInterfaceEtypeWhitelistDump) Size() (size int) {
 	if m == nil {
@@ -546,6 +576,9 @@ func (*ACLInterfaceListDetails) GetMessageName() string { return "acl_interface_
 func (*ACLInterfaceListDetails) GetCrcString() string   { return "e695d256" }
 func (*ACLInterfaceListDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ACLInterfaceListDetails) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLInterfaceListDetails) Size() (size int) {
@@ -598,6 +631,9 @@ func (*ACLInterfaceListDump) GetCrcString() string   { return "f9e6675e" }
 func (*ACLInterfaceListDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ACLInterfaceListDump) GetRetVal() error {
+	return nil
+}
 
 func (m *ACLInterfaceListDump) Size() (size int) {
 	if m == nil {
@@ -633,6 +669,9 @@ func (*ACLInterfaceSetACLList) GetMessageName() string { return "acl_interface_s
 func (*ACLInterfaceSetACLList) GetCrcString() string   { return "473982bd" }
 func (*ACLInterfaceSetACLList) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *ACLInterfaceSetACLList) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLInterfaceSetACLList) Size() (size int) {
@@ -687,6 +726,9 @@ func (*ACLInterfaceSetACLListReply) GetCrcString() string { return "e8d4e804" }
 func (*ACLInterfaceSetACLListReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *ACLInterfaceSetACLListReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *ACLInterfaceSetACLListReply) Size() (size int) {
 	if m == nil {
@@ -724,6 +766,9 @@ func (*ACLInterfaceSetEtypeWhitelist) GetMessageName() string {
 func (*ACLInterfaceSetEtypeWhitelist) GetCrcString() string { return "3f5c2d2d" }
 func (*ACLInterfaceSetEtypeWhitelist) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *ACLInterfaceSetEtypeWhitelist) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLInterfaceSetEtypeWhitelist) Size() (size int) {
@@ -778,6 +823,9 @@ func (*ACLInterfaceSetEtypeWhitelistReply) GetCrcString() string { return "e8d4e
 func (*ACLInterfaceSetEtypeWhitelistReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *ACLInterfaceSetEtypeWhitelistReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *ACLInterfaceSetEtypeWhitelistReply) Size() (size int) {
 	if m == nil {
@@ -809,6 +857,9 @@ func (*ACLPluginControlPing) GetCrcString() string   { return "51077d14" }
 func (*ACLPluginControlPing) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ACLPluginControlPing) GetRetVal() error {
+	return nil
+}
 
 func (m *ACLPluginControlPing) Size() (size int) {
 	if m == nil {
@@ -839,6 +890,9 @@ func (*ACLPluginControlPingReply) GetMessageName() string { return "acl_plugin_c
 func (*ACLPluginControlPingReply) GetCrcString() string   { return "f6b0b8ca" }
 func (*ACLPluginControlPingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ACLPluginControlPingReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *ACLPluginControlPingReply) Size() (size int) {
@@ -879,6 +933,9 @@ func (*ACLPluginGetConnTableMaxEntries) GetCrcString() string { return "51077d14
 func (*ACLPluginGetConnTableMaxEntries) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ACLPluginGetConnTableMaxEntries) GetRetVal() error {
+	return nil
+}
 
 func (m *ACLPluginGetConnTableMaxEntries) Size() (size int) {
 	if m == nil {
@@ -909,6 +966,9 @@ func (*ACLPluginGetConnTableMaxEntriesReply) GetMessageName() string {
 func (*ACLPluginGetConnTableMaxEntriesReply) GetCrcString() string { return "7a096d3d" }
 func (*ACLPluginGetConnTableMaxEntriesReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ACLPluginGetConnTableMaxEntriesReply) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLPluginGetConnTableMaxEntriesReply) Size() (size int) {
@@ -941,6 +1001,9 @@ func (*ACLPluginGetVersion) GetCrcString() string   { return "51077d14" }
 func (*ACLPluginGetVersion) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ACLPluginGetVersion) GetRetVal() error {
+	return nil
+}
 
 func (m *ACLPluginGetVersion) Size() (size int) {
 	if m == nil {
@@ -970,6 +1033,9 @@ func (*ACLPluginGetVersionReply) GetMessageName() string { return "acl_plugin_ge
 func (*ACLPluginGetVersionReply) GetCrcString() string   { return "9b32cf86" }
 func (*ACLPluginGetVersionReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ACLPluginGetVersionReply) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLPluginGetVersionReply) Size() (size int) {
@@ -1006,6 +1072,9 @@ func (*ACLPluginUseHashLookupGet) GetCrcString() string   { return "51077d14" }
 func (*ACLPluginUseHashLookupGet) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ACLPluginUseHashLookupGet) GetRetVal() error {
+	return nil
+}
 
 func (m *ACLPluginUseHashLookupGet) Size() (size int) {
 	if m == nil {
@@ -1037,6 +1106,9 @@ func (*ACLPluginUseHashLookupGetReply) GetMessageName() string {
 func (*ACLPluginUseHashLookupGetReply) GetCrcString() string { return "5392ad31" }
 func (*ACLPluginUseHashLookupGetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ACLPluginUseHashLookupGetReply) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLPluginUseHashLookupGetReply) Size() (size int) {
@@ -1071,6 +1143,9 @@ func (*ACLPluginUseHashLookupSet) GetMessageName() string { return "acl_plugin_u
 func (*ACLPluginUseHashLookupSet) GetCrcString() string   { return "b3e225d2" }
 func (*ACLPluginUseHashLookupSet) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *ACLPluginUseHashLookupSet) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLPluginUseHashLookupSet) Size() (size int) {
@@ -1108,6 +1183,9 @@ func (*ACLPluginUseHashLookupSetReply) GetCrcString() string { return "e8d4e804"
 func (*ACLPluginUseHashLookupSetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *ACLPluginUseHashLookupSetReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *ACLPluginUseHashLookupSetReply) Size() (size int) {
 	if m == nil {
@@ -1140,6 +1218,9 @@ func (*ACLStatsIntfCountersEnable) GetMessageName() string { return "acl_stats_i
 func (*ACLStatsIntfCountersEnable) GetCrcString() string   { return "b3e225d2" }
 func (*ACLStatsIntfCountersEnable) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *ACLStatsIntfCountersEnable) GetRetVal() error {
+	return nil
 }
 
 func (m *ACLStatsIntfCountersEnable) Size() (size int) {
@@ -1176,6 +1257,9 @@ func (*ACLStatsIntfCountersEnableReply) GetCrcString() string { return "e8d4e804
 func (*ACLStatsIntfCountersEnableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *ACLStatsIntfCountersEnableReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *ACLStatsIntfCountersEnableReply) Size() (size int) {
 	if m == nil {
@@ -1210,6 +1294,9 @@ func (*MacipACLAdd) GetMessageName() string { return "macip_acl_add" }
 func (*MacipACLAdd) GetCrcString() string   { return "ce6fbad0" }
 func (*MacipACLAdd) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *MacipACLAdd) GetRetVal() error {
+	return nil
 }
 
 func (m *MacipACLAdd) Size() (size int) {
@@ -1283,6 +1370,9 @@ func (*MacipACLAddReplace) GetMessageName() string { return "macip_acl_add_repla
 func (*MacipACLAddReplace) GetCrcString() string   { return "2a461dd4" }
 func (*MacipACLAddReplace) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *MacipACLAddReplace) GetRetVal() error {
+	return nil
 }
 
 func (m *MacipACLAddReplace) Size() (size int) {
@@ -1358,6 +1448,9 @@ func (*MacipACLAddReplaceReply) GetCrcString() string   { return "ac407b0c" }
 func (*MacipACLAddReplaceReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *MacipACLAddReplaceReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *MacipACLAddReplaceReply) Size() (size int) {
 	if m == nil {
@@ -1395,6 +1488,9 @@ func (*MacipACLAddReply) GetCrcString() string   { return "ac407b0c" }
 func (*MacipACLAddReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *MacipACLAddReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *MacipACLAddReply) Size() (size int) {
 	if m == nil {
@@ -1431,6 +1527,9 @@ func (*MacipACLDel) GetCrcString() string   { return "ef34fea4" }
 func (*MacipACLDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *MacipACLDel) GetRetVal() error {
+	return nil
+}
 
 func (m *MacipACLDel) Size() (size int) {
 	if m == nil {
@@ -1463,6 +1562,9 @@ func (*MacipACLDelReply) GetMessageName() string { return "macip_acl_del_reply" 
 func (*MacipACLDelReply) GetCrcString() string   { return "e8d4e804" }
 func (*MacipACLDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *MacipACLDelReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *MacipACLDelReply) Size() (size int) {
@@ -1499,6 +1601,9 @@ func (*MacipACLDetails) GetMessageName() string { return "macip_acl_details" }
 func (*MacipACLDetails) GetCrcString() string   { return "27135b59" }
 func (*MacipACLDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *MacipACLDetails) GetRetVal() error {
+	return nil
 }
 
 func (m *MacipACLDetails) Size() (size int) {
@@ -1573,6 +1678,9 @@ func (*MacipACLDump) GetCrcString() string   { return "ef34fea4" }
 func (*MacipACLDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *MacipACLDump) GetRetVal() error {
+	return nil
+}
 
 func (m *MacipACLDump) Size() (size int) {
 	if m == nil {
@@ -1607,6 +1715,9 @@ func (*MacipACLInterfaceAddDel) GetMessageName() string { return "macip_acl_inte
 func (*MacipACLInterfaceAddDel) GetCrcString() string   { return "4b8690b1" }
 func (*MacipACLInterfaceAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *MacipACLInterfaceAddDel) GetRetVal() error {
+	return nil
 }
 
 func (m *MacipACLInterfaceAddDel) Size() (size int) {
@@ -1649,6 +1760,9 @@ func (*MacipACLInterfaceAddDelReply) GetCrcString() string { return "e8d4e804" }
 func (*MacipACLInterfaceAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *MacipACLInterfaceAddDelReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *MacipACLInterfaceAddDelReply) Size() (size int) {
 	if m == nil {
@@ -1680,6 +1794,9 @@ func (*MacipACLInterfaceGet) GetCrcString() string   { return "51077d14" }
 func (*MacipACLInterfaceGet) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *MacipACLInterfaceGet) GetRetVal() error {
+	return nil
+}
 
 func (m *MacipACLInterfaceGet) Size() (size int) {
 	if m == nil {
@@ -1709,6 +1826,9 @@ func (*MacipACLInterfaceGetReply) GetMessageName() string { return "macip_acl_in
 func (*MacipACLInterfaceGetReply) GetCrcString() string   { return "accf9b05" }
 func (*MacipACLInterfaceGetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *MacipACLInterfaceGetReply) GetRetVal() error {
+	return nil
 }
 
 func (m *MacipACLInterfaceGetReply) Size() (size int) {
@@ -1759,6 +1879,9 @@ func (*MacipACLInterfaceListDetails) GetCrcString() string { return "a0c5d56d" }
 func (*MacipACLInterfaceListDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *MacipACLInterfaceListDetails) GetRetVal() error {
+	return nil
+}
 
 func (m *MacipACLInterfaceListDetails) Size() (size int) {
 	if m == nil {
@@ -1806,6 +1929,9 @@ func (*MacipACLInterfaceListDump) GetMessageName() string { return "macip_acl_in
 func (*MacipACLInterfaceListDump) GetCrcString() string   { return "f9e6675e" }
 func (*MacipACLInterfaceListDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *MacipACLInterfaceListDump) GetRetVal() error {
+	return nil
 }
 
 func (m *MacipACLInterfaceListDump) Size() (size int) {

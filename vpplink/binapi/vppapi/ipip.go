@@ -13,26 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vpplink
+package vppapi
 
 import (
-	"fmt"
-
+	types "git.fd.io/govpp.git/api/v0"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ipip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-func (v *VppLink) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *Vpp) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {
+	v.Lock()
+	defer v.Unlock()
 
 	tunnels := make([]*types.IPIPTunnel, 0)
 	request := &ipip.IpipTunnelDump{
-		SwIfIndex: types.InvalidInterface,
+		SwIfIndex: interface_types.InterfaceIndex(types.InvalidInterface),
 	}
-	stream := v.ch.SendMultiRequest(request)
+	stream := v.GetChannel().SendMultiRequest(request)
 	for {
 		response := &ipip.IpipTunnelDetails{}
 		stop, err := stream.ReceiveReply(response)
@@ -43,8 +42,8 @@ func (v *VppLink) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {
 			break
 		}
 		tunnels = append(tunnels, &types.IPIPTunnel{
-			Src:       types.FromVppAddress(response.Tunnel.Src),
-			Dst:       types.FromVppAddress(response.Tunnel.Dst),
+			Src:       response.Tunnel.Src.ToIP(),
+			Dst:       response.Tunnel.Dst.ToIP(),
 			TableID:   response.Tunnel.TableID,
 			SwIfIndex: uint32(response.Tunnel.SwIfIndex),
 		})
@@ -52,42 +51,32 @@ func (v *VppLink) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {
 	return tunnels, nil
 }
 
-func (v *VppLink) AddIPIPTunnel(tunnel *types.IPIPTunnel) (uint32, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-
+func (v *Vpp) AddIPIPTunnel(tunnel *types.IPIPTunnel) (uint32, error) {
 	response := &ipip.IpipAddTunnelReply{}
 	request := &ipip.IpipAddTunnel{
 		Tunnel: ipip.IpipTunnel{
 			Instance: ^uint32(0),
-			Src:      types.ToVppAddress(tunnel.Src),
-			Dst:      types.ToVppAddress(tunnel.Dst),
+			Src:      ip_types.AddressFromIP(tunnel.Src),
+			Dst:      ip_types.AddressFromIP(tunnel.Dst),
 			TableID:  tunnel.TableID,
 		},
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.SendRequestAwaitReply(request, response)
 	if err != nil {
-		return ^uint32(1), errors.Wrap(err, "Add IPIP Tunnel failed")
-	} else if response.Retval != 0 {
-		return ^uint32(1), fmt.Errorf("Add IPIP Tunnel failed with retval %d", response.Retval)
+		return InvalidSwIfIndex, err
 	}
 	tunnel.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
 }
 
-func (v *VppLink) DelIPIPTunnel(tunnel *types.IPIPTunnel) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-
+func (v *Vpp) DelIPIPTunnel(tunnel *types.IPIPTunnel) (err error) {
 	response := &ipip.IpipDelTunnelReply{}
 	request := &ipip.IpipDelTunnel{
 		SwIfIndex: interface_types.InterfaceIndex(tunnel.SwIfIndex),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.SendRequestAwaitReply(request, response)
 	if err != nil {
-		return errors.Wrapf(err, "Del IPIP Tunnel %s failed", tunnel.String())
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Del IPIP Tunnel %s failed with retval %d", tunnel.String(), response.Retval)
+		return err
 	}
 	return nil
 }

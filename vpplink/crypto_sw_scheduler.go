@@ -23,8 +23,8 @@ import (
 )
 
 func (v *VppLink) SetCryptoWorker(workerIndex uint32, enable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &crypto_sw_scheduler.CryptoSwSchedulerSetWorkerReply{}
 	request := &crypto_sw_scheduler.CryptoSwSchedulerSetWorker{
@@ -32,7 +32,7 @@ func (v *VppLink) SetCryptoWorker(workerIndex uint32, enable bool) error {
 		CryptoEnable: enable,
 	}
 
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrap(err, "crypto_sw_scheduler setWorker enable failed")
 	} else if response.Retval != 0 {

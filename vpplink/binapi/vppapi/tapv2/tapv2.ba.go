@@ -117,6 +117,9 @@ func (*SwInterfaceTapV2Details) GetCrcString() string   { return "1e2b2a47" }
 func (*SwInterfaceTapV2Details) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *SwInterfaceTapV2Details) GetRetVal() error {
+	return nil
+}
 
 func (m *SwInterfaceTapV2Details) Size() (size int) {
 	if m == nil {
@@ -192,6 +195,9 @@ func (*SwInterfaceTapV2Dump) GetCrcString() string   { return "f9e6675e" }
 func (*SwInterfaceTapV2Dump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *SwInterfaceTapV2Dump) GetRetVal() error {
+	return nil
+}
 
 func (m *SwInterfaceTapV2Dump) Size() (size int) {
 	if m == nil {
@@ -249,6 +255,9 @@ func (*TapCreateV2) GetMessageName() string { return "tap_create_v2" }
 func (*TapCreateV2) GetCrcString() string   { return "2d0d6570" }
 func (*TapCreateV2) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *TapCreateV2) GetRetVal() error {
+	return nil
 }
 
 func (m *TapCreateV2) Size() (size int) {
@@ -365,6 +374,9 @@ func (*TapCreateV2Reply) GetCrcString() string   { return "5383d31f" }
 func (*TapCreateV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *TapCreateV2Reply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *TapCreateV2Reply) Size() (size int) {
 	if m == nil {
@@ -426,6 +438,9 @@ func (*TapCreateV3) GetMessageName() string { return "tap_create_v3" }
 func (*TapCreateV3) GetCrcString() string   { return "3f3fd1df" }
 func (*TapCreateV3) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *TapCreateV3) GetRetVal() error {
+	return nil
 }
 
 func (m *TapCreateV3) Size() (size int) {
@@ -545,6 +560,9 @@ func (*TapCreateV3Reply) GetCrcString() string   { return "5383d31f" }
 func (*TapCreateV3Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *TapCreateV3Reply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *TapCreateV3Reply) Size() (size int) {
 	if m == nil {
@@ -581,6 +599,9 @@ func (*TapDeleteV2) GetCrcString() string   { return "f9e6675e" }
 func (*TapDeleteV2) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *TapDeleteV2) GetRetVal() error {
+	return nil
+}
 
 func (m *TapDeleteV2) Size() (size int) {
 	if m == nil {
@@ -613,6 +634,9 @@ func (*TapDeleteV2Reply) GetMessageName() string { return "tap_delete_v2_reply" 
 func (*TapDeleteV2Reply) GetCrcString() string   { return "e8d4e804" }
 func (*TapDeleteV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *TapDeleteV2Reply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *TapDeleteV2Reply) Size() (size int) {

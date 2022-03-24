@@ -251,6 +251,9 @@ func (*CnatGetSnatAddresses) GetCrcString() string   { return "51077d14" }
 func (*CnatGetSnatAddresses) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CnatGetSnatAddresses) GetRetVal() error {
+	return nil
+}
 
 func (m *CnatGetSnatAddresses) Size() (size int) {
 	if m == nil {
@@ -284,6 +287,9 @@ func (*CnatGetSnatAddressesReply) GetMessageName() string { return "cnat_get_sna
 func (*CnatGetSnatAddressesReply) GetCrcString() string   { return "879513c1" }
 func (*CnatGetSnatAddressesReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CnatGetSnatAddressesReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CnatGetSnatAddressesReply) Size() (size int) {
@@ -330,6 +336,9 @@ func (*CnatSessionDetails) GetMessageName() string { return "cnat_session_detail
 func (*CnatSessionDetails) GetCrcString() string   { return "7e5017c7" }
 func (*CnatSessionDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CnatSessionDetails) GetRetVal() error {
+	return nil
 }
 
 func (m *CnatSessionDetails) Size() (size int) {
@@ -414,6 +423,9 @@ func (*CnatSessionDump) GetCrcString() string   { return "51077d14" }
 func (*CnatSessionDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CnatSessionDump) GetRetVal() error {
+	return nil
+}
 
 func (m *CnatSessionDump) Size() (size int) {
 	if m == nil {
@@ -441,6 +453,9 @@ func (*CnatSessionPurge) GetMessageName() string { return "cnat_session_purge" }
 func (*CnatSessionPurge) GetCrcString() string   { return "51077d14" }
 func (*CnatSessionPurge) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CnatSessionPurge) GetRetVal() error {
+	return nil
 }
 
 func (m *CnatSessionPurge) Size() (size int) {
@@ -471,6 +486,9 @@ func (*CnatSessionPurgeReply) GetMessageName() string { return "cnat_session_pur
 func (*CnatSessionPurgeReply) GetCrcString() string   { return "e8d4e804" }
 func (*CnatSessionPurgeReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CnatSessionPurgeReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CnatSessionPurgeReply) Size() (size int) {
@@ -507,6 +525,9 @@ func (*CnatSetSnatAddresses) GetMessageName() string { return "cnat_set_snat_add
 func (*CnatSetSnatAddresses) GetCrcString() string   { return "d997e96c" }
 func (*CnatSetSnatAddresses) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CnatSetSnatAddresses) GetRetVal() error {
+	return nil
 }
 
 func (m *CnatSetSnatAddresses) Size() (size int) {
@@ -548,6 +569,9 @@ func (*CnatSetSnatAddressesReply) GetCrcString() string   { return "e8d4e804" }
 func (*CnatSetSnatAddressesReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *CnatSetSnatAddressesReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *CnatSetSnatAddressesReply) Size() (size int) {
 	if m == nil {
@@ -582,6 +606,9 @@ func (*CnatSetSnatPolicy) GetCrcString() string   { return "d3e6eaf4" }
 func (*CnatSetSnatPolicy) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CnatSetSnatPolicy) GetRetVal() error {
+	return nil
+}
 
 func (m *CnatSetSnatPolicy) Size() (size int) {
 	if m == nil {
@@ -615,6 +642,9 @@ func (*CnatSetSnatPolicyReply) GetMessageName() string { return "cnat_set_snat_p
 func (*CnatSetSnatPolicyReply) GetCrcString() string   { return "e8d4e804" }
 func (*CnatSetSnatPolicyReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CnatSetSnatPolicyReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CnatSetSnatPolicyReply) Size() (size int) {
@@ -652,6 +682,9 @@ func (*CnatSnatPolicyAddDelExcludePfx) GetMessageName() string {
 func (*CnatSnatPolicyAddDelExcludePfx) GetCrcString() string { return "e26dd79a" }
 func (*CnatSnatPolicyAddDelExcludePfx) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CnatSnatPolicyAddDelExcludePfx) GetRetVal() error {
+	return nil
 }
 
 func (m *CnatSnatPolicyAddDelExcludePfx) Size() (size int) {
@@ -698,6 +731,9 @@ func (*CnatSnatPolicyAddDelExcludePfxReply) GetCrcString() string { return "e8d4
 func (*CnatSnatPolicyAddDelExcludePfxReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *CnatSnatPolicyAddDelExcludePfxReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *CnatSnatPolicyAddDelExcludePfxReply) Size() (size int) {
 	if m == nil {
@@ -733,6 +769,9 @@ func (*CnatSnatPolicyAddDelIf) GetMessageName() string { return "cnat_snat_polic
 func (*CnatSnatPolicyAddDelIf) GetCrcString() string   { return "6828deca" }
 func (*CnatSnatPolicyAddDelIf) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CnatSnatPolicyAddDelIf) GetRetVal() error {
+	return nil
 }
 
 func (m *CnatSnatPolicyAddDelIf) Size() (size int) {
@@ -776,6 +815,9 @@ func (*CnatSnatPolicyAddDelIfReply) GetCrcString() string { return "e8d4e804" }
 func (*CnatSnatPolicyAddDelIfReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *CnatSnatPolicyAddDelIfReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *CnatSnatPolicyAddDelIfReply) Size() (size int) {
 	if m == nil {
@@ -809,6 +851,9 @@ func (*CnatTranslationDel) GetMessageName() string { return "cnat_translation_de
 func (*CnatTranslationDel) GetCrcString() string   { return "3a91bde5" }
 func (*CnatTranslationDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CnatTranslationDel) GetRetVal() error {
+	return nil
 }
 
 func (m *CnatTranslationDel) Size() (size int) {
@@ -844,6 +889,9 @@ func (*CnatTranslationDelReply) GetCrcString() string   { return "e8d4e804" }
 func (*CnatTranslationDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *CnatTranslationDelReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *CnatTranslationDelReply) Size() (size int) {
 	if m == nil {
@@ -877,6 +925,9 @@ func (*CnatTranslationDetails) GetMessageName() string { return "cnat_translatio
 func (*CnatTranslationDetails) GetCrcString() string   { return "347e1f16" }
 func (*CnatTranslationDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CnatTranslationDetails) GetRetVal() error {
+	return nil
 }
 
 func (m *CnatTranslationDetails) Size() (size int) {
@@ -989,6 +1040,9 @@ func (*CnatTranslationDump) GetCrcString() string   { return "51077d14" }
 func (*CnatTranslationDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CnatTranslationDump) GetRetVal() error {
+	return nil
+}
 
 func (m *CnatTranslationDump) Size() (size int) {
 	if m == nil {
@@ -1018,6 +1072,9 @@ func (*CnatTranslationUpdate) GetMessageName() string { return "cnat_translation
 func (*CnatTranslationUpdate) GetCrcString() string   { return "cd5aedf5" }
 func (*CnatTranslationUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *CnatTranslationUpdate) GetRetVal() error {
+	return nil
 }
 
 func (m *CnatTranslationUpdate) Size() (size int) {
@@ -1132,6 +1189,9 @@ func (*CnatTranslationUpdateReply) GetMessageName() string { return "cnat_transl
 func (*CnatTranslationUpdateReply) GetCrcString() string   { return "e2fc8294" }
 func (*CnatTranslationUpdateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CnatTranslationUpdateReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CnatTranslationUpdateReply) Size() (size int) {

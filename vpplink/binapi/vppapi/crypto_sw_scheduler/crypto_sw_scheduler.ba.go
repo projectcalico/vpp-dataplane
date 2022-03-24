@@ -37,6 +37,9 @@ func (*CryptoSwSchedulerSetWorker) GetCrcString() string   { return "b4274502" }
 func (*CryptoSwSchedulerSetWorker) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *CryptoSwSchedulerSetWorker) GetRetVal() error {
+	return nil
+}
 
 func (m *CryptoSwSchedulerSetWorker) Size() (size int) {
 	if m == nil {
@@ -75,6 +78,9 @@ func (*CryptoSwSchedulerSetWorkerReply) GetMessageName() string {
 func (*CryptoSwSchedulerSetWorkerReply) GetCrcString() string { return "e8d4e804" }
 func (*CryptoSwSchedulerSetWorkerReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *CryptoSwSchedulerSetWorkerReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *CryptoSwSchedulerSetWorkerReply) Size() (size int) {

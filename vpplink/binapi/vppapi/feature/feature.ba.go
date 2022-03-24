@@ -39,6 +39,9 @@ func (*FeatureEnableDisable) GetCrcString() string   { return "7531c862" }
 func (*FeatureEnableDisable) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *FeatureEnableDisable) GetRetVal() error {
+	return nil
+}
 
 func (m *FeatureEnableDisable) Size() (size int) {
 	if m == nil {
@@ -80,6 +83,9 @@ func (*FeatureEnableDisableReply) GetMessageName() string { return "feature_enab
 func (*FeatureEnableDisableReply) GetCrcString() string   { return "e8d4e804" }
 func (*FeatureEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *FeatureEnableDisableReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *FeatureEnableDisableReply) Size() (size int) {

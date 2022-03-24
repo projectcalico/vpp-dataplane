@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	vpptypes "git.fd.io/govpp.git/api/v0"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -30,11 +31,11 @@ import (
 )
 
 type IpsecTunnel struct {
-	*types.IPIPTunnel
+	*vpptypes.IPIPTunnel
 	cancel func()
 }
 
-func NewIpsecTunnel(ipipTunnel *types.IPIPTunnel) *IpsecTunnel {
+func NewIpsecTunnel(ipipTunnel *vpptypes.IPIPTunnel) *IpsecTunnel {
 	return &IpsecTunnel{IPIPTunnel: ipipTunnel, cancel: func() {}}
 }
 
@@ -143,7 +144,7 @@ func (p *IpsecProvider) getIPSECTunnelSpecs(nodeIP4, destNodeAddr *net.IP) (tunn
 	if config.CrossIpsecTunnels {
 		for i := 0; i < config.IpsecAddressCount; i++ {
 			for j := 0; j < config.IpsecAddressCount; j++ {
-				tunnel := NewIpsecTunnel(&types.IPIPTunnel{})
+				tunnel := NewIpsecTunnel(&vpptypes.IPIPTunnel{})
 				tunnel.Src = net.IP(append([]byte(nil), nodeIP4.To4()...))
 				tunnel.Src[2] += byte(i)
 				tunnel.Dst = net.IP(append([]byte(nil), destNodeAddr.To4()...))
@@ -153,7 +154,7 @@ func (p *IpsecProvider) getIPSECTunnelSpecs(nodeIP4, destNodeAddr *net.IP) (tunn
 		}
 	} else {
 		for i := 0; i < config.IpsecAddressCount; i++ {
-			tunnel := NewIpsecTunnel(&types.IPIPTunnel{})
+			tunnel := NewIpsecTunnel(&vpptypes.IPIPTunnel{})
 			tunnel.Src = net.IP(append([]byte(nil), nodeIP4.To4()...))
 			tunnel.Src[2] += byte(i)
 			tunnel.Dst = net.IP(append([]byte(nil), destNodeAddr.To4()...))
@@ -295,7 +296,6 @@ func (p *IpsecProvider) waitForIPsecSA(tunnel IpsecTunnel) func() {
 					p.log.Infof("connectivity(add) tunnel now up Profile=%s", tunnel.Profile())
 					return
 				}
-
 				if tunnel.IsInitiator() {
 					p.log.Warnf("IPIP tunnel still down, re-trying initiate IKE for IPsec tunnel=%s", tunnel.String())
 					err = p.vpp.IKEv2Initiate(tunnel.Profile())

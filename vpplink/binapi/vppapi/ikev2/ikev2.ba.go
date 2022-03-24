@@ -40,6 +40,9 @@ func (*Ikev2ChildSaDetails) GetCrcString() string   { return "ff67741f" }
 func (*Ikev2ChildSaDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2ChildSaDetails) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2ChildSaDetails) Size() (size int) {
 	if m == nil {
@@ -189,6 +192,9 @@ func (*Ikev2ChildSaDump) GetCrcString() string   { return "01eab609" }
 func (*Ikev2ChildSaDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *Ikev2ChildSaDump) GetRetVal() error {
+	return nil
+}
 
 func (m *Ikev2ChildSaDump) Size() (size int) {
 	if m == nil {
@@ -222,6 +228,9 @@ func (*Ikev2InitiateDelChildSa) GetMessageName() string { return "ikev2_initiate
 func (*Ikev2InitiateDelChildSa) GetCrcString() string   { return "7f004d2e" }
 func (*Ikev2InitiateDelChildSa) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2InitiateDelChildSa) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2InitiateDelChildSa) Size() (size int) {
@@ -259,6 +268,9 @@ func (*Ikev2InitiateDelChildSaReply) GetCrcString() string { return "e8d4e804" }
 func (*Ikev2InitiateDelChildSaReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2InitiateDelChildSaReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2InitiateDelChildSaReply) Size() (size int) {
 	if m == nil {
@@ -292,6 +304,9 @@ func (*Ikev2InitiateDelIkeSa) GetMessageName() string { return "ikev2_initiate_d
 func (*Ikev2InitiateDelIkeSa) GetCrcString() string   { return "8d125bdd" }
 func (*Ikev2InitiateDelIkeSa) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2InitiateDelIkeSa) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2InitiateDelIkeSa) Size() (size int) {
@@ -327,6 +342,9 @@ func (*Ikev2InitiateDelIkeSaReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2InitiateDelIkeSaReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2InitiateDelIkeSaReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2InitiateDelIkeSaReply) Size() (size int) {
 	if m == nil {
@@ -360,6 +378,9 @@ func (*Ikev2InitiateRekeyChildSa) GetMessageName() string { return "ikev2_initia
 func (*Ikev2InitiateRekeyChildSa) GetCrcString() string   { return "7f004d2e" }
 func (*Ikev2InitiateRekeyChildSa) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2InitiateRekeyChildSa) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2InitiateRekeyChildSa) Size() (size int) {
@@ -397,6 +418,9 @@ func (*Ikev2InitiateRekeyChildSaReply) GetCrcString() string { return "e8d4e804"
 func (*Ikev2InitiateRekeyChildSaReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2InitiateRekeyChildSaReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2InitiateRekeyChildSaReply) Size() (size int) {
 	if m == nil {
@@ -430,6 +454,9 @@ func (*Ikev2InitiateSaInit) GetMessageName() string { return "ikev2_initiate_sa_
 func (*Ikev2InitiateSaInit) GetCrcString() string   { return "ebf79a66" }
 func (*Ikev2InitiateSaInit) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2InitiateSaInit) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2InitiateSaInit) Size() (size int) {
@@ -465,6 +492,9 @@ func (*Ikev2InitiateSaInitReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2InitiateSaInitReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2InitiateSaInitReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2InitiateSaInitReply) Size() (size int) {
 	if m == nil {
@@ -499,6 +529,9 @@ func (*Ikev2NonceGet) GetMessageName() string { return "ikev2_nonce_get" }
 func (*Ikev2NonceGet) GetCrcString() string   { return "7fe9ad51" }
 func (*Ikev2NonceGet) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2NonceGet) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2NonceGet) Size() (size int) {
@@ -539,6 +572,9 @@ func (*Ikev2NonceGetReply) GetCrcString() string   { return "1b37a342" }
 func (*Ikev2NonceGetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2NonceGetReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2NonceGetReply) Size() (size int) {
 	if m == nil {
@@ -577,6 +613,9 @@ func (*Ikev2PluginGetVersion) GetCrcString() string   { return "51077d14" }
 func (*Ikev2PluginGetVersion) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *Ikev2PluginGetVersion) GetRetVal() error {
+	return nil
+}
 
 func (m *Ikev2PluginGetVersion) Size() (size int) {
 	if m == nil {
@@ -606,6 +645,9 @@ func (*Ikev2PluginGetVersionReply) GetMessageName() string { return "ikev2_plugi
 func (*Ikev2PluginGetVersionReply) GetCrcString() string   { return "9b32cf86" }
 func (*Ikev2PluginGetVersionReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *Ikev2PluginGetVersionReply) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2PluginGetVersionReply) Size() (size int) {
@@ -645,6 +687,9 @@ func (*Ikev2ProfileAddDel) GetCrcString() string   { return "2c925b55" }
 func (*Ikev2ProfileAddDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *Ikev2ProfileAddDel) GetRetVal() error {
+	return nil
+}
 
 func (m *Ikev2ProfileAddDel) Size() (size int) {
 	if m == nil {
@@ -682,6 +727,9 @@ func (*Ikev2ProfileAddDelReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2ProfileAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2ProfileAddDelReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2ProfileAddDelReply) Size() (size int) {
 	if m == nil {
@@ -715,6 +763,9 @@ func (*Ikev2ProfileDetails) GetMessageName() string { return "ikev2_profile_deta
 func (*Ikev2ProfileDetails) GetCrcString() string   { return "670d01d9" }
 func (*Ikev2ProfileDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *Ikev2ProfileDetails) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2ProfileDetails) Size() (size int) {
@@ -895,6 +946,9 @@ func (*Ikev2ProfileDisableNatt) GetCrcString() string   { return "ebf79a66" }
 func (*Ikev2ProfileDisableNatt) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *Ikev2ProfileDisableNatt) GetRetVal() error {
+	return nil
+}
 
 func (m *Ikev2ProfileDisableNatt) Size() (size int) {
 	if m == nil {
@@ -931,6 +985,9 @@ func (*Ikev2ProfileDisableNattReply) GetCrcString() string { return "e8d4e804" }
 func (*Ikev2ProfileDisableNattReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2ProfileDisableNattReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2ProfileDisableNattReply) Size() (size int) {
 	if m == nil {
@@ -962,6 +1019,9 @@ func (*Ikev2ProfileDump) GetMessageName() string { return "ikev2_profile_dump" }
 func (*Ikev2ProfileDump) GetCrcString() string   { return "51077d14" }
 func (*Ikev2ProfileDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2ProfileDump) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2ProfileDump) Size() (size int) {
@@ -996,6 +1056,9 @@ func (*Ikev2ProfileSetAuth) GetMessageName() string { return "ikev2_profile_set_
 func (*Ikev2ProfileSetAuth) GetCrcString() string   { return "642c97cd" }
 func (*Ikev2ProfileSetAuth) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2ProfileSetAuth) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2ProfileSetAuth) Size() (size int) {
@@ -1044,6 +1107,9 @@ func (*Ikev2ProfileSetAuthReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2ProfileSetAuthReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2ProfileSetAuthReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2ProfileSetAuthReply) Size() (size int) {
 	if m == nil {
@@ -1081,6 +1147,9 @@ func (*Ikev2ProfileSetID) GetMessageName() string { return "ikev2_profile_set_id
 func (*Ikev2ProfileSetID) GetCrcString() string   { return "4d7e2418" }
 func (*Ikev2ProfileSetID) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2ProfileSetID) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2ProfileSetID) Size() (size int) {
@@ -1129,6 +1198,9 @@ func (*Ikev2ProfileSetIDReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2ProfileSetIDReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2ProfileSetIDReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2ProfileSetIDReply) Size() (size int) {
 	if m == nil {
@@ -1166,6 +1238,9 @@ func (*Ikev2ProfileSetIpsecUDPPort) GetMessageName() string {
 func (*Ikev2ProfileSetIpsecUDPPort) GetCrcString() string { return "615ce758" }
 func (*Ikev2ProfileSetIpsecUDPPort) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2ProfileSetIpsecUDPPort) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2ProfileSetIpsecUDPPort) Size() (size int) {
@@ -1209,6 +1284,9 @@ func (*Ikev2ProfileSetIpsecUDPPortReply) GetCrcString() string { return "e8d4e80
 func (*Ikev2ProfileSetIpsecUDPPortReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2ProfileSetIpsecUDPPortReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2ProfileSetIpsecUDPPortReply) Size() (size int) {
 	if m == nil {
@@ -1243,6 +1321,9 @@ func (*Ikev2ProfileSetLiveness) GetMessageName() string { return "ikev2_profile_
 func (*Ikev2ProfileSetLiveness) GetCrcString() string   { return "6bdf4d65" }
 func (*Ikev2ProfileSetLiveness) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2ProfileSetLiveness) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2ProfileSetLiveness) Size() (size int) {
@@ -1283,6 +1364,9 @@ func (*Ikev2ProfileSetLivenessReply) GetCrcString() string { return "e8d4e804" }
 func (*Ikev2ProfileSetLivenessReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2ProfileSetLivenessReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2ProfileSetLivenessReply) Size() (size int) {
 	if m == nil {
@@ -1317,6 +1401,9 @@ func (*Ikev2ProfileSetTs) GetMessageName() string { return "ikev2_profile_set_ts
 func (*Ikev2ProfileSetTs) GetCrcString() string   { return "8eb8cfd1" }
 func (*Ikev2ProfileSetTs) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2ProfileSetTs) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2ProfileSetTs) Size() (size int) {
@@ -1382,6 +1469,9 @@ func (*Ikev2ProfileSetTsReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2ProfileSetTsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2ProfileSetTsReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2ProfileSetTsReply) Size() (size int) {
 	if m == nil {
@@ -1415,6 +1505,9 @@ func (*Ikev2ProfileSetUDPEncap) GetMessageName() string { return "ikev2_profile_
 func (*Ikev2ProfileSetUDPEncap) GetCrcString() string   { return "ebf79a66" }
 func (*Ikev2ProfileSetUDPEncap) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2ProfileSetUDPEncap) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2ProfileSetUDPEncap) Size() (size int) {
@@ -1452,6 +1545,9 @@ func (*Ikev2ProfileSetUDPEncapReply) GetCrcString() string { return "e8d4e804" }
 func (*Ikev2ProfileSetUDPEncapReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2ProfileSetUDPEncapReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2ProfileSetUDPEncapReply) Size() (size int) {
 	if m == nil {
@@ -1486,6 +1582,9 @@ func (*Ikev2SaDetails) GetMessageName() string { return "ikev2_sa_details" }
 func (*Ikev2SaDetails) GetCrcString() string   { return "937c22d5" }
 func (*Ikev2SaDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *Ikev2SaDetails) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *Ikev2SaDetails) Size() (size int) {
@@ -1700,6 +1799,9 @@ func (*Ikev2SaDump) GetCrcString() string   { return "51077d14" }
 func (*Ikev2SaDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *Ikev2SaDump) GetRetVal() error {
+	return nil
+}
 
 func (m *Ikev2SaDump) Size() (size int) {
 	if m == nil {
@@ -1730,6 +1832,9 @@ func (*Ikev2SetEspTransforms) GetMessageName() string { return "ikev2_set_esp_tr
 func (*Ikev2SetEspTransforms) GetCrcString() string   { return "a63dc205" }
 func (*Ikev2SetEspTransforms) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2SetEspTransforms) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2SetEspTransforms) Size() (size int) {
@@ -1774,6 +1879,9 @@ func (*Ikev2SetEspTransformsReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2SetEspTransformsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2SetEspTransformsReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2SetEspTransformsReply) Size() (size int) {
 	if m == nil {
@@ -1808,6 +1916,9 @@ func (*Ikev2SetIkeTransforms) GetMessageName() string { return "ikev2_set_ike_tr
 func (*Ikev2SetIkeTransforms) GetCrcString() string   { return "076d7378" }
 func (*Ikev2SetIkeTransforms) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2SetIkeTransforms) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2SetIkeTransforms) Size() (size int) {
@@ -1855,6 +1966,9 @@ func (*Ikev2SetIkeTransformsReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2SetIkeTransformsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2SetIkeTransformsReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2SetIkeTransformsReply) Size() (size int) {
 	if m == nil {
@@ -1888,6 +2002,9 @@ func (*Ikev2SetLocalKey) GetMessageName() string { return "ikev2_set_local_key" 
 func (*Ikev2SetLocalKey) GetCrcString() string   { return "799b69ec" }
 func (*Ikev2SetLocalKey) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2SetLocalKey) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2SetLocalKey) Size() (size int) {
@@ -1923,6 +2040,9 @@ func (*Ikev2SetLocalKeyReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2SetLocalKeyReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2SetLocalKeyReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2SetLocalKeyReply) Size() (size int) {
 	if m == nil {
@@ -1957,6 +2077,9 @@ func (*Ikev2SetResponder) GetMessageName() string { return "ikev2_set_responder"
 func (*Ikev2SetResponder) GetCrcString() string   { return "a2055df1" }
 func (*Ikev2SetResponder) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2SetResponder) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2SetResponder) Size() (size int) {
@@ -2003,6 +2126,9 @@ func (*Ikev2SetResponderHostname) GetCrcString() string   { return "350d6949" }
 func (*Ikev2SetResponderHostname) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *Ikev2SetResponderHostname) GetRetVal() error {
+	return nil
+}
 
 func (m *Ikev2SetResponderHostname) Size() (size int) {
 	if m == nil {
@@ -2045,6 +2171,9 @@ func (*Ikev2SetResponderHostnameReply) GetCrcString() string { return "e8d4e804"
 func (*Ikev2SetResponderHostnameReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2SetResponderHostnameReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2SetResponderHostnameReply) Size() (size int) {
 	if m == nil {
@@ -2078,6 +2207,9 @@ func (*Ikev2SetResponderReply) GetMessageName() string { return "ikev2_set_respo
 func (*Ikev2SetResponderReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2SetResponderReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *Ikev2SetResponderReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *Ikev2SetResponderReply) Size() (size int) {
@@ -2116,6 +2248,9 @@ func (*Ikev2SetSaLifetime) GetMessageName() string { return "ikev2_set_sa_lifeti
 func (*Ikev2SetSaLifetime) GetCrcString() string   { return "7039feaa" }
 func (*Ikev2SetSaLifetime) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2SetSaLifetime) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2SetSaLifetime) Size() (size int) {
@@ -2163,6 +2298,9 @@ func (*Ikev2SetSaLifetimeReply) GetCrcString() string   { return "e8d4e804" }
 func (*Ikev2SetSaLifetimeReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2SetSaLifetimeReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2SetSaLifetimeReply) Size() (size int) {
 	if m == nil {
@@ -2197,6 +2335,9 @@ func (*Ikev2SetTunnelInterface) GetMessageName() string { return "ikev2_set_tunn
 func (*Ikev2SetTunnelInterface) GetCrcString() string   { return "ca67182c" }
 func (*Ikev2SetTunnelInterface) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2SetTunnelInterface) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2SetTunnelInterface) Size() (size int) {
@@ -2237,6 +2378,9 @@ func (*Ikev2SetTunnelInterfaceReply) GetCrcString() string { return "e8d4e804" }
 func (*Ikev2SetTunnelInterfaceReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *Ikev2SetTunnelInterfaceReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *Ikev2SetTunnelInterfaceReply) Size() (size int) {
 	if m == nil {
@@ -2271,6 +2415,9 @@ func (*Ikev2TrafficSelectorDetails) GetMessageName() string { return "ikev2_traf
 func (*Ikev2TrafficSelectorDetails) GetCrcString() string   { return "518cb06f" }
 func (*Ikev2TrafficSelectorDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *Ikev2TrafficSelectorDetails) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *Ikev2TrafficSelectorDetails) Size() (size int) {
@@ -2337,6 +2484,9 @@ func (*Ikev2TrafficSelectorDump) GetMessageName() string { return "ikev2_traffic
 func (*Ikev2TrafficSelectorDump) GetCrcString() string   { return "a7385e33" }
 func (*Ikev2TrafficSelectorDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *Ikev2TrafficSelectorDump) GetRetVal() error {
+	return nil
 }
 
 func (m *Ikev2TrafficSelectorDump) Size() (size int) {

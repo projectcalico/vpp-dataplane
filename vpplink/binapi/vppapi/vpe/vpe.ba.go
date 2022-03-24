@@ -39,6 +39,9 @@ func (*LogDetails) GetCrcString() string   { return "03d61cc0" }
 func (*LogDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *LogDetails) GetRetVal() error {
+	return nil
+}
 
 func (m *LogDetails) Size() (size int) {
 	if m == nil {
@@ -81,6 +84,9 @@ func (*LogDump) GetCrcString() string   { return "6ab31753" }
 func (*LogDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *LogDump) GetRetVal() error {
+	return nil
+}
 
 func (m *LogDump) Size() (size int) {
 	if m == nil {
@@ -111,6 +117,9 @@ func (*ShowVersion) GetMessageName() string { return "show_version" }
 func (*ShowVersion) GetCrcString() string   { return "51077d14" }
 func (*ShowVersion) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *ShowVersion) GetRetVal() error {
+	return nil
 }
 
 func (m *ShowVersion) Size() (size int) {
@@ -144,6 +153,9 @@ func (*ShowVersionReply) GetMessageName() string { return "show_version_reply" }
 func (*ShowVersionReply) GetCrcString() string   { return "c919bde1" }
 func (*ShowVersionReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ShowVersionReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *ShowVersionReply) Size() (size int) {
@@ -188,6 +200,9 @@ func (*ShowVpeSystemTime) GetCrcString() string   { return "51077d14" }
 func (*ShowVpeSystemTime) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *ShowVpeSystemTime) GetRetVal() error {
+	return nil
+}
 
 func (m *ShowVpeSystemTime) Size() (size int) {
 	if m == nil {
@@ -217,6 +232,9 @@ func (*ShowVpeSystemTimeReply) GetMessageName() string { return "show_vpe_system
 func (*ShowVpeSystemTimeReply) GetCrcString() string   { return "7ffd8193" }
 func (*ShowVpeSystemTimeReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *ShowVpeSystemTimeReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *ShowVpeSystemTimeReply) Size() (size int) {

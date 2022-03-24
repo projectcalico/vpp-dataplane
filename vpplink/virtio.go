@@ -59,8 +59,8 @@ func (v *VppLink) CreateVirtio(intf *types.VirtioInterface) (swIfIndex uint32, e
 	if err != nil {
 		return ^uint32(0), errors.Wrap(err, "CreateVirtio failed")
 	}
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &virtio.VirtioPciCreateV2Reply{}
 	request := &virtio.VirtioPciCreateV2{
 		PciAddr:      *addr,
@@ -71,7 +71,7 @@ func (v *VppLink) CreateVirtio(intf *types.VirtioInterface) (swIfIndex uint32, e
 		request.MacAddress = types.ToVppMacAddress(intf.HardwareAddr)
 	}
 
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return ^uint32(0), errors.Wrapf(err, "CreateVirtio failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -82,13 +82,13 @@ func (v *VppLink) CreateVirtio(intf *types.VirtioInterface) (swIfIndex uint32, e
 }
 
 func (v *VppLink) DeleteVirtio(swIfIndex uint32) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &virtio.VirtioPciDeleteReply{}
 	request := &virtio.VirtioPciDelete{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "DeleteVirtio failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {

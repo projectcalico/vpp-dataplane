@@ -24,8 +24,8 @@ import (
 )
 
 func (v *VppLink) CreateRDMA(intf *types.RDMAInterface) (swIfIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &rdma.RdmaCreateV2Reply{}
 	request := &rdma.RdmaCreateV2{
 		HostIf:  intf.HostInterfaceName,
@@ -33,7 +33,7 @@ func (v *VppLink) CreateRDMA(intf *types.RDMAInterface) (swIfIndex uint32, err e
 		RxqSize: uint16(intf.RxQueueSize),
 		TxqSize: uint16(intf.TxQueueSize),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return ^uint32(0), errors.Wrapf(err, "CreateRDMA failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {

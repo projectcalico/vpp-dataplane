@@ -118,8 +118,8 @@ func (v *VppLink) DelIKEv2Profile(name string) error {
 }
 
 func (v *VppLink) addDelIKEv2Profile(name string, isAdd bool) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	if len(name) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -129,23 +129,23 @@ func (v *VppLink) addDelIKEv2Profile(name string, isAdd bool) (err error) {
 		IsAdd: isAdd,
 	}
 	response := &ikev2.Ikev2ProfileAddDelReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create IKEv2 profile %s", name)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to create IKEv2 profile %s (retval %d)", name, response.Retval)
 	}
-	v.log.Debugf("created ikev2 profile %s", name)
+	v.GetLog().Debugf("created ikev2 profile %s", name)
 	return nil
 }
 
 func (v *VppLink) ListIKEv2Profiles() ([]string, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	profiles := make([]string, 0)
 	request := &ikev2.Ikev2ProfileDump{}
-	stream := v.ch.SendMultiRequest(request)
+	stream := v.GetChannel().SendMultiRequest(request)
 	for {
 		response := &ikev2.Ikev2ProfileDetails{}
 		stop, err := stream.ReceiveReply(response)
@@ -161,8 +161,8 @@ func (v *VppLink) ListIKEv2Profiles() ([]string, error) {
 }
 
 func (v *VppLink) setIKEv2Auth(profile string, authMethod IKEv2AuthMethod, authData []byte) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -174,13 +174,13 @@ func (v *VppLink) setIKEv2Auth(profile string, authMethod IKEv2AuthMethod, authD
 		Data:       authData,
 	}
 	response := &ikev2.Ikev2ProfileSetAuthReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set IKEv2 auth for profile %s", profile)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to set IKEv2 auth for profile %s (retval %d)", profile, response.Retval)
 	}
-	v.log.Debugf("set auth method for profile %s to %d", profile, authMethod)
+	v.GetLog().Debugf("set auth method for profile %s to %d", profile, authMethod)
 	return nil
 }
 
@@ -189,8 +189,8 @@ func (v *VppLink) SetIKEv2PSKAuth(profile, psk string) (err error) {
 }
 
 func (v *VppLink) setIKEv2ID(profile string, isLocal bool, idType IKEv2IDType, id []byte) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -202,13 +202,13 @@ func (v *VppLink) setIKEv2ID(profile string, isLocal bool, idType IKEv2IDType, i
 		Data:    id,
 	}
 	response := &ikev2.Ikev2ProfileSetIDReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set IKEv2 ID %t for profile %s", isLocal, profile)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to set IKEv2 ID %t for profile %s (retval %d)", isLocal, profile, response.Retval)
 	}
-	v.log.Debugf("set IKEv2 ID %t for profile %s", isLocal, profile)
+	v.GetLog().Debugf("set IKEv2 ID %t for profile %s", isLocal, profile)
 	return nil
 }
 
@@ -235,8 +235,8 @@ func (v *VppLink) SetIKEv2TrafficSelector(
 	startAddr net.IP,
 	endAddr net.IP,
 ) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -256,13 +256,13 @@ func (v *VppLink) SetIKEv2TrafficSelector(
 		},
 	}
 	response := &ikev2.Ikev2ProfileSetTsReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set IKEv2 traffic selector for profile %s", profile)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to set IKEv2 traffic selector for profile %s (retval %d)", profile, response.Retval)
 	}
-	v.log.Debugf("set traffic selector for profile %s", profile)
+	v.GetLog().Debugf("set traffic selector for profile %s", profile)
 	return nil
 }
 
@@ -280,8 +280,8 @@ func (v *VppLink) SetIKEv2ESPTransforms(
 	cryptoKeySize uint32,
 	integAlg IKEv2IntegrityAlgorithm,
 ) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -295,13 +295,13 @@ func (v *VppLink) SetIKEv2ESPTransforms(
 		},
 	}
 	response := &ikev2.Ikev2SetEspTransformsReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set ESP transforms for profile %s", profile)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to set ESP transforms for profile %s (retval %d)", profile, response.Retval)
 	}
-	v.log.Debugf("set ESP transforms for profile %s", profile)
+	v.GetLog().Debugf("set ESP transforms for profile %s", profile)
 	return nil
 }
 
@@ -312,8 +312,8 @@ func (v *VppLink) SetIKEv2IKETransforms(
 	integAlg IKEv2IntegrityAlgorithm,
 	dhGroup IKEv2DHGroup,
 ) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -328,13 +328,13 @@ func (v *VppLink) SetIKEv2IKETransforms(
 		},
 	}
 	response := &ikev2.Ikev2SetIkeTransformsReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set IKE transforms for profile %s", profile)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to set IKE transforms for profile %s (retval %d)", profile, response.Retval)
 	}
-	v.log.Debugf("set IKE transforms for profile %s", profile)
+	v.GetLog().Debugf("set IKE transforms for profile %s", profile)
 	return nil
 }
 
@@ -358,8 +358,8 @@ func (v *VppLink) SetIKEv2DefaultTransforms(profile string) (err error) {
 }
 
 func (v *VppLink) SetIKEv2Responder(profile string, swIfIndex uint32, address net.IP) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -376,19 +376,19 @@ func (v *VppLink) SetIKEv2Responder(profile string, swIfIndex uint32, address ne
 		},
 	}
 	response := &ikev2.Ikev2SetResponderReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set IKE responder for profile %s", profile)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to set IKE responder for profile %s (retval %d)", profile, response.Retval)
 	}
-	v.log.Debugf("set IKE responder for profile %s, interface %d addr %v", profile, swIfIndex, vppAddr)
+	v.GetLog().Debugf("set IKE responder for profile %s, interface %d addr %v", profile, swIfIndex, vppAddr)
 	return nil
 }
 
 func (v *VppLink) SetIKEv2TunnelInterface(profile string, swIfIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -398,19 +398,19 @@ func (v *VppLink) SetIKEv2TunnelInterface(profile string, swIfIndex uint32) (err
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
 	response := &ikev2.Ikev2SetTunnelInterfaceReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set IKE tunnel interface for profile %s", profile)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to set IKE tunnel interface for profile %s (retval %d)", profile, response.Retval)
 	}
-	v.log.Debugf("set IKE tunnel interface for profile %s", profile)
+	v.GetLog().Debugf("set IKE tunnel interface for profile %s", profile)
 	return nil
 }
 
 func (v *VppLink) IKEv2Initiate(profile string) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -419,12 +419,12 @@ func (v *VppLink) IKEv2Initiate(profile string) (err error) {
 		Name: profile,
 	}
 	response := &ikev2.Ikev2InitiateSaInitReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "failed to initiate IKE for profile %s", profile)
 	} else if response.Retval != 0 {
 		return fmt.Errorf("failed to initiate IKE for profile %s (retval %d)", profile, response.Retval)
 	}
-	v.log.Debugf("initiated IKE for profile %s", profile)
+	v.GetLog().Debugf("initiated IKE for profile %s", profile)
 	return nil
 }

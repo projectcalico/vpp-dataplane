@@ -42,8 +42,8 @@ const (
 type NamespaceNotFound error
 
 func (v *VppLink) SetInterfaceMtu(swIfIndex uint32, mtu int) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	mtus := make([]uint32, 4)
 	mtus[interface_types.MTU_PROTO_API_L3] = uint32(mtu)
 	response := &interfaces.SwInterfaceSetMtuReply{}
@@ -51,7 +51,7 @@ func (v *VppLink) SetInterfaceMtu(swIfIndex uint32, mtu int) error {
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		Mtu:       mtus,
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "SwInterfaceSetMtu failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -61,8 +61,8 @@ func (v *VppLink) SetInterfaceMtu(swIfIndex uint32, mtu int) error {
 }
 
 func (v *VppLink) SetInterfaceRxMode(swIfIndex uint32, queueID uint32, mode types.RxMode) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &interfaces.SwInterfaceSetRxModeReply{}
 	request := &interfaces.SwInterfaceSetRxMode{
 		SwIfIndex:    interface_types.InterfaceIndex(swIfIndex),
@@ -70,7 +70,7 @@ func (v *VppLink) SetInterfaceRxMode(swIfIndex uint32, queueID uint32, mode type
 		QueueID:      queueID,
 		Mode:         interface_types.RxMode(mode),
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "SetInterfaceRxMode failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -80,14 +80,14 @@ func (v *VppLink) SetInterfaceRxMode(swIfIndex uint32, queueID uint32, mode type
 }
 
 func (v *VppLink) SetInterfaceMacAddress(swIfIndex uint32, mac *net.HardwareAddr) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &interfaces.SwInterfaceSetMacAddressReply{}
 	request := &interfaces.SwInterfaceSetMacAddress{
 		SwIfIndex:  interface_types.InterfaceIndex(swIfIndex),
 		MacAddress: types.ToVppMacAddress(mac),
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "SwInterfaceSetMacAddress failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -97,15 +97,15 @@ func (v *VppLink) SetInterfaceMacAddress(swIfIndex uint32, mac *net.HardwareAddr
 }
 
 func (v *VppLink) SetInterfaceVRF(swIfIndex, vrfIndex uint32, isIP6 bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &interfaces.SwInterfaceSetTableReply{}
 	request := &interfaces.SwInterfaceSetTable{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		IsIPv6:    isIP6,
 		VrfID:     vrfIndex,
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "SwInterfaceSetTable failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -165,9 +165,9 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 		request.HostMacAddr = types.ToVppMacAddress(&tap.HostMacAddress)
 		request.HostMacAddrSet = true
 	}
-	v.lock.Lock()
-	err = v.ch.SendRequest(request).ReceiveReply(response)
-	v.lock.Unlock()
+	v.Lock()
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	v.Unlock()
 
 	if err != nil {
 		return INVALID_SW_IF_INDEX, errors.Wrap(err, "Tap creation request failed")
@@ -191,8 +191,8 @@ func (v *VppLink) CreateOrAttachTapV2(tap *types.TapV2) (swIfIndex uint32, err e
 }
 
 func (v *VppLink) addDelInterfaceAddress(swIfIndex uint32, addr *net.IPNet, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	if IsIP6(addr.IP) && addr.IP.IsLinkLocalUnicast() {
 		_, bits := addr.Mask.Size()
 		if bits != 128 {
@@ -205,7 +205,7 @@ func (v *VppLink) addDelInterfaceAddress(swIfIndex uint32, addr *net.IPNet, isAd
 		Prefix:    types.ToVppAddressWithPrefix(addr),
 	}
 	response := &interfaces.SwInterfaceAddDelAddressReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "Adding IP address failed: req %+v reply %+v", request, response)
 	}
@@ -221,8 +221,8 @@ func (v *VppLink) AddInterfaceAddress(swIfIndex uint32, addr *net.IPNet) error {
 }
 
 func (v *VppLink) setUnsetInterfaceTag(swIfIndex uint32, tag string, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &interfaces.SwInterfaceTagAddDel{
 		IsAdd:     isAdd,
@@ -230,7 +230,7 @@ func (v *VppLink) setUnsetInterfaceTag(swIfIndex uint32, tag string, isAdd bool)
 		Tag:       tag,
 	}
 	response := &interfaces.SwInterfaceTagAddDelReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return fmt.Errorf("cannot add interface tag: %v %d", err, response.Retval)
 	}
@@ -246,14 +246,14 @@ func (v *VppLink) UnsetInterfaceTag(swIfIndex uint32, tag string) error {
 }
 
 func (v *VppLink) enableDisableInterfaceIP(swIfIndex uint32, isIP6 bool, isEnable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &vppip.SwInterfaceIP6EnableDisableReply{}
 	request := &vppip.SwInterfaceIP6EnableDisable{
 		Enable:    isEnable,
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "SwInterfaceIP6EnableDisable failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -313,25 +313,25 @@ func (v *VppLink) SearchInterfacesWithTagPrefix(tag string) (map[string]uint32, 
 }
 
 func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (err error, swIfIndex uint32, swIfIndexes map[string]uint32) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	swIfIndex = INVALID_SW_IF_INDEX
 	swIfIndexes = make(map[string]uint32)
 	request := &interfaces.SwInterfaceDump{}
-	stream := v.ch.SendMultiRequest(request)
+	stream := v.GetChannel().SendMultiRequest(request)
 	for {
 		response := &interfaces.SwInterfaceDetails{}
 		stop, err := stream.ReceiveReply(response)
 		if err != nil {
-			v.log.Errorf("error listing VPP interfaces: %v", err)
+			v.GetLog().Errorf("error listing VPP interfaces: %v", err)
 			return err, INVALID_SW_IF_INDEX, swIfIndexes
 		}
 		if stop {
 			break
 		}
 		intfTag := string(bytes.Trim([]byte(response.Tag), "\x00"))
-		v.log.Debugf("found interface %d, tag: %s (len %d)", response.SwIfIndex, intfTag, len(intfTag))
+		v.GetLog().Debugf("found interface %d, tag: %s (len %d)", response.SwIfIndex, intfTag, len(intfTag))
 		if intfTag == tag && !prefix {
 			swIfIndex = uint32(response.SwIfIndex)
 		}
@@ -347,62 +347,62 @@ func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (er
 }
 
 func (v *VppLink) SearchInterfaceWithName(name string) (err error, swIfIndex uint32) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	swIfIndex = INVALID_SW_IF_INDEX
 	request := &interfaces.SwInterfaceDump{
 		SwIfIndex: interface_types.InterfaceIndex(INVALID_SW_IF_INDEX),
 		// TODO: filter by name with NameFilter
 	}
-	reqCtx := v.ch.SendMultiRequest(request)
+	reqCtx := v.GetChannel().SendMultiRequest(request)
 	for {
 		response := &interfaces.SwInterfaceDetails{}
 		stop, err := reqCtx.ReceiveReply(response)
 		if err != nil {
-			v.log.Errorf("SwInterfaceDump failed: %v", err)
+			v.GetLog().Errorf("SwInterfaceDump failed: %v", err)
 			return err, INVALID_SW_IF_INDEX
 		}
 		if stop {
 			break
 		}
 		interfaceName := string(bytes.Trim([]byte(response.InterfaceName), "\x00"))
-		v.log.Debugf("Found interface: %s", interfaceName)
+		v.GetLog().Debugf("Found interface: %s", interfaceName)
 		if interfaceName == name {
 			swIfIndex = uint32(response.SwIfIndex)
 		}
 
 	}
 	if swIfIndex == INVALID_SW_IF_INDEX {
-		v.log.Errorf("Interface %s not found", name)
+		v.GetLog().Errorf("Interface %s not found", name)
 		return errors.New("Interface not found"), INVALID_SW_IF_INDEX
 	}
 	return nil, swIfIndex
 }
 
 func (v *VppLink) GetInterfaceDetails(swIfIndex uint32) (i *types.VppInterfaceDetails, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &interfaces.SwInterfaceDump{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
-	stream := v.ch.SendMultiRequest(request)
+	stream := v.GetChannel().SendMultiRequest(request)
 	for {
 		response := &interfaces.SwInterfaceDetails{}
 		stop, err := stream.ReceiveReply(response)
 		if err != nil {
-			v.log.Errorf("error listing VPP interfaces: %v", err)
+			v.GetLog().Errorf("error listing VPP interfaces: %v", err)
 			return nil, err
 		}
 		if stop {
 			break
 		}
 		if uint32(response.SwIfIndex) != swIfIndex {
-			v.log.Debugf("Got interface that doesn't match filter, fix vpp")
+			v.GetLog().Debugf("Got interface that doesn't match filter, fix vpp")
 			continue
 		}
-		v.log.Debugf("found interface %d", response.SwIfIndex)
+		v.GetLog().Debugf("found interface %d", response.SwIfIndex)
 		i = &types.VppInterfaceDetails{
 			SwIfIndex: uint32(response.SwIfIndex),
 			IsUp:      response.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP > 0,
@@ -418,8 +418,8 @@ func (v *VppLink) GetInterfaceDetails(swIfIndex uint32) (i *types.VppInterfaceDe
 }
 
 func (v *VppLink) interfaceAdminUpDown(swIfIndex uint32, up bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	var f interface_types.IfStatusFlags = 0
 	if up {
@@ -431,7 +431,7 @@ func (v *VppLink) interfaceAdminUpDown(swIfIndex uint32, up bool) error {
 		Flags:     f,
 	}
 	response := &interfaces.SwInterfaceSetFlagsReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "setting interface up/down failed")
 	}
@@ -447,8 +447,8 @@ func (v *VppLink) InterfaceAdminUp(swIfIndex uint32) error {
 }
 
 func (v *VppLink) GetInterfaceNeighbors(swIfIndex uint32, isIPv6 bool) (err error, neighbors []types.Neighbor) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &ip_neighbor.IPNeighborDump{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
@@ -458,11 +458,11 @@ func (v *VppLink) GetInterfaceNeighbors(swIfIndex uint32, isIPv6 bool) (err erro
 		request.Af = ip_types.ADDRESS_IP6
 	}
 	response := &ip_neighbor.IPNeighborDetails{}
-	stream := v.ch.SendMultiRequest(request)
+	stream := v.GetChannel().SendMultiRequest(request)
 	for {
 		stop, err := stream.ReceiveReply(response)
 		if err != nil {
-			v.log.Errorf("error listing VPP neighbors: %v", err)
+			v.GetLog().Errorf("error listing VPP neighbors: %v", err)
 			return err, nil
 		}
 		if stop {
@@ -479,14 +479,14 @@ func (v *VppLink) GetInterfaceNeighbors(swIfIndex uint32, isIPv6 bool) (err erro
 }
 
 func (v *VppLink) DelTap(swIfIndex uint32) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &tapv2.TapDeleteV2{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
 	response := &tapv2.TapDeleteV2Reply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete tap from VPP")
 	}
@@ -494,8 +494,8 @@ func (v *VppLink) DelTap(swIfIndex uint32) error {
 }
 
 func (v *VppLink) interfaceSetUnnumbered(unnumberedSwIfIndex uint32, swIfIndex uint32, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &interfaces.SwInterfaceSetUnnumbered{
 		SwIfIndex:           interface_types.InterfaceIndex(swIfIndex),
@@ -503,7 +503,7 @@ func (v *VppLink) interfaceSetUnnumbered(unnumberedSwIfIndex uint32, swIfIndex u
 		IsAdd:               isAdd,
 	}
 	response := &interfaces.SwInterfaceSetUnnumberedReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "setting interface unnumbered failed %d -> %d", unnumberedSwIfIndex, swIfIndex)
 	}
@@ -511,14 +511,14 @@ func (v *VppLink) interfaceSetUnnumbered(unnumberedSwIfIndex uint32, swIfIndex u
 }
 
 func (v *VppLink) AddrList(swIfIndex uint32, isv6 bool) (addresses []types.IfAddress, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &vppip.IPAddressDump{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		IsIPv6:    isv6,
 	}
-	stream := v.ch.SendMultiRequest(request)
+	stream := v.GetChannel().SendMultiRequest(request)
 	for {
 		response := &vppip.IPAddressDetails{}
 		stop, err := stream.ReceiveReply(response)
@@ -546,14 +546,14 @@ func (v *VppLink) InterfaceUnsetUnnumbered(unnumberedSwIfIndex uint32, swIfIndex
 }
 
 func (v *VppLink) enableDisableGso(swIfIndex uint32, enable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	request := &gso.FeatureGsoEnableDisable{
 		SwIfIndex:     interface_types.InterfaceIndex(swIfIndex),
 		EnableDisable: enable,
 	}
 	response := &gso.FeatureGsoEnableDisableReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return fmt.Errorf("cannot configure gso: %v %d", err, response.Retval)
 	}
@@ -561,14 +561,14 @@ func (v *VppLink) enableDisableGso(swIfIndex uint32, enable bool) error {
 }
 
 func (v *VppLink) setInterfacePromiscuous(swIfIndex uint32, promiscOn bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	request := &interfaces.SwInterfaceSetPromisc{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		PromiscOn: promiscOn,
 	}
 	response := &interfaces.SwInterfaceSetPromiscReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return fmt.Errorf("cannot configure gso: %v %d", err, response.Retval)
 	}
@@ -592,8 +592,8 @@ func (v *VppLink) DisableGSOFeature(swIfIndex uint32) error {
 }
 
 func (v *VppLink) SetInterfaceTxPlacement(swIfIndex uint32, queue int, worker int) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &interfaces.SwInterfaceSetTxPlacement{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
@@ -602,7 +602,7 @@ func (v *VppLink) SetInterfaceTxPlacement(swIfIndex uint32, queue int, worker in
 		Threads:   []uint32{uint32(worker)},
 	}
 	response := &interfaces.SwInterfaceSetTxPlacementReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return fmt.Errorf("cannot set interface tx placement: %v %d", err, response.Retval)
 	}
@@ -610,8 +610,8 @@ func (v *VppLink) SetInterfaceTxPlacement(swIfIndex uint32, queue int, worker in
 }
 
 func (v *VppLink) SetInterfaceRxPlacement(swIfIndex uint32, queue int, worker int, main bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &interfaces.SwInterfaceSetRxPlacement{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
@@ -620,7 +620,7 @@ func (v *VppLink) SetInterfaceRxPlacement(swIfIndex uint32, queue int, worker in
 		IsMain:    main,
 	}
 	response := &interfaces.SwInterfaceSetRxPlacementReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return fmt.Errorf("cannot set interface rx placement: %v %d", err, response.Retval)
 	}
@@ -628,13 +628,13 @@ func (v *VppLink) SetInterfaceRxPlacement(swIfIndex uint32, queue int, worker in
 }
 
 func (v *VppLink) CreateLoopback(hwAddr *net.HardwareAddr) (swIfIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	request := &interfaces.CreateLoopback{
 		MacAddress: types.ToVppMacAddress(hwAddr),
 	}
 	response := &interfaces.CreateLoopbackReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return 0, errors.Wrapf(err, "Error adding loopback: req %+v reply %+v", request, response)
 	}
@@ -642,13 +642,13 @@ func (v *VppLink) CreateLoopback(hwAddr *net.HardwareAddr) (swIfIndex uint32, er
 }
 
 func (v *VppLink) DeleteLoopback(swIfIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	request := &interfaces.DeleteLoopback{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
 	response := &interfaces.DeleteLoopbackReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
 		return errors.Wrapf(err, "Error deleting loopback: req %+v reply %+v", request, response)
 	}

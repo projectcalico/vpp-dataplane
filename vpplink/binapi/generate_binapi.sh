@@ -64,6 +64,7 @@ function generate_govpp_apis ()
 	  --import-prefix=$VPP_API_IMPORT_PREFIX \
 	  --no-source-path-info \
 	  --no-version-info \
+	  --with-wrappers \
 	  ikev2 \
 	  gso \
 	  arp \

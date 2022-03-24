@@ -8,6 +8,7 @@ require (
 	github.com/containernetworking/plugins v0.8.5
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
+	github.com/hashicorp/go-version v1.4.0 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/orijtech/prometheus-go-metrics-exporter v0.0.6
 	github.com/osrg/gobgp v0.0.0-20210801043420-9e48a36ed97c
@@ -31,6 +32,8 @@ require (
 )
 
 replace (
+	git.fd.io/govpp.git v0.3.6-0.20210927044411-385ccc0d8ba9 => /Users/nskrzypc/wrk/calico/govpp
+
 	github.com/projectcalico/api => github.com/projectcalico/api v0.0.0-20220129171738-695e97a25204 // v3.22.0
 
 	google.golang.org/grpc => google.golang.org/grpc v1.29.1

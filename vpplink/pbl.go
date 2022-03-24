@@ -24,8 +24,8 @@ import (
 )
 
 func (v *VppLink) AddPblClient(client *types.PblClient) (id uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	portRanges := make([]pbl.PblPortRange, len(client.PortRanges))
 	for _, r := range client.PortRanges {
@@ -47,7 +47,7 @@ func (v *VppLink) AddPblClient(client *types.PblClient) (id uint32, err error) {
 			PortRanges: portRanges,
 		},
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return 0, errors.Wrapf(err, "Pbl Client Update failed")
 	} else if response.Retval != 0 {
@@ -58,14 +58,14 @@ func (v *VppLink) AddPblClient(client *types.PblClient) (id uint32, err error) {
 }
 
 func (v *VppLink) DelPblClient(id uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &pbl.PblClientDelReply{}
 	request := &pbl.PblClientDel{
 		ID: id,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "Pbl Client Delete failed")
 	} else if response.Retval != 0 {

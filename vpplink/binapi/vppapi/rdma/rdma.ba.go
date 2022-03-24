@@ -141,6 +141,9 @@ func (*RdmaCreate) GetCrcString() string   { return "076fe418" }
 func (*RdmaCreate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *RdmaCreate) GetRetVal() error {
+	return nil
+}
 
 func (m *RdmaCreate) Size() (size int) {
 	if m == nil {
@@ -190,6 +193,9 @@ func (*RdmaCreateReply) GetCrcString() string   { return "5383d31f" }
 func (*RdmaCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *RdmaCreateReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *RdmaCreateReply) Size() (size int) {
 	if m == nil {
@@ -233,6 +239,9 @@ func (*RdmaCreateV2) GetMessageName() string { return "rdma_create_v2" }
 func (*RdmaCreateV2) GetCrcString() string   { return "5826a4f3" }
 func (*RdmaCreateV2) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *RdmaCreateV2) GetRetVal() error {
+	return nil
 }
 
 func (m *RdmaCreateV2) Size() (size int) {
@@ -289,6 +298,9 @@ func (*RdmaCreateV2Reply) GetCrcString() string   { return "5383d31f" }
 func (*RdmaCreateV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *RdmaCreateV2Reply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *RdmaCreateV2Reply) Size() (size int) {
 	if m == nil {
@@ -333,6 +345,9 @@ func (*RdmaCreateV3) GetMessageName() string { return "rdma_create_v3" }
 func (*RdmaCreateV3) GetCrcString() string   { return "c6287ea8" }
 func (*RdmaCreateV3) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *RdmaCreateV3) GetRetVal() error {
+	return nil
 }
 
 func (m *RdmaCreateV3) Size() (size int) {
@@ -395,6 +410,9 @@ func (*RdmaCreateV3Reply) GetCrcString() string   { return "5383d31f" }
 func (*RdmaCreateV3Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *RdmaCreateV3Reply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *RdmaCreateV3Reply) Size() (size int) {
 	if m == nil {
@@ -431,6 +449,9 @@ func (*RdmaDelete) GetCrcString() string   { return "f9e6675e" }
 func (*RdmaDelete) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *RdmaDelete) GetRetVal() error {
+	return nil
+}
 
 func (m *RdmaDelete) Size() (size int) {
 	if m == nil {
@@ -463,6 +484,9 @@ func (*RdmaDeleteReply) GetMessageName() string { return "rdma_delete_reply" }
 func (*RdmaDeleteReply) GetCrcString() string   { return "e8d4e804" }
 func (*RdmaDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *RdmaDeleteReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *RdmaDeleteReply) Size() (size int) {

@@ -37,6 +37,9 @@ func (*FeatureGsoEnableDisable) GetCrcString() string   { return "5501adee" }
 func (*FeatureGsoEnableDisable) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *FeatureGsoEnableDisable) GetRetVal() error {
+	return nil
+}
 
 func (m *FeatureGsoEnableDisable) Size() (size int) {
 	if m == nil {
@@ -74,6 +77,9 @@ func (*FeatureGsoEnableDisableReply) GetMessageName() string {
 func (*FeatureGsoEnableDisableReply) GetCrcString() string { return "e8d4e804" }
 func (*FeatureGsoEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *FeatureGsoEnableDisableReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *FeatureGsoEnableDisableReply) Size() (size int) {

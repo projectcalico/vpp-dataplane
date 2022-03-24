@@ -23,14 +23,14 @@ import (
 )
 
 func (v *VppLink) GetNodeIndex(name string) (nodeIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &vlib.GetNodeIndexReply{}
 	request := &vlib.GetNodeIndex{
 		NodeName: name,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return ^uint32(1), errors.Wrap(err, "GetNodeIndex failed")
 	} else if response.Retval != 0 {
@@ -40,15 +40,15 @@ func (v *VppLink) GetNodeIndex(name string) (nodeIndex uint32, err error) {
 }
 
 func (v *VppLink) AddNodeNext(name, next string) (nodeIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &vlib.AddNodeNextReply{}
 	request := &vlib.AddNodeNext{
 		NodeName: name,
 		NextName: next,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return ^uint32(1), errors.Wrap(err, "AddNodeNext failed")
 	} else if response.Retval != 0 {
@@ -59,12 +59,12 @@ func (v *VppLink) AddNodeNext(name, next string) (nodeIndex uint32, err error) {
 
 /* Gets the number of workers WITHOUT the main thread */
 func (v *VppLink) GetNumVPPWorkers() (numVPPWorkers int, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &vlib.ShowThreadsReply{}
 	request := &vlib.ShowThreads{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return -1, errors.Wrap(err, "GetNumVPPWorkers failed")
 	} else if response.Retval != 0 {

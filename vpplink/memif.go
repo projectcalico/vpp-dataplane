@@ -25,15 +25,15 @@ import (
 )
 
 func (v *VppLink) addDelMemifSocketFileName(socketFileName string, socketId uint32, isAdd bool) (uint32, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &memif.MemifSocketFilenameAddDelV2Reply{}
 	request := &memif.MemifSocketFilenameAddDelV2{
 		IsAdd:          isAdd,
 		SocketFilename: socketFileName,
 		SocketID:       socketId,
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return 0, errors.Wrapf(err, "MemifSocketFilenameAddDel failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -53,13 +53,13 @@ func (v *VppLink) DelMemifSocketFileName(socketId uint32) error {
 }
 
 func (v *VppLink) DeleteMemif(swIfIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &memif.MemifDeleteReply{}
 	request := &memif.MemifDelete{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		err = errors.Wrapf(err, "DeleteMemif failed: req %+v reply %+v (%s)", request, response)
 	} else if response.Retval != 0 {
@@ -69,8 +69,8 @@ func (v *VppLink) DeleteMemif(swIfIndex uint32) (err error) {
 }
 
 func (v *VppLink) CreateMemif(mif *types.Memif) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 	response := &memif.MemifCreateReply{}
 	request := &memif.MemifCreate{
 		Role:       memif.MemifRole(mif.Role),
@@ -83,7 +83,7 @@ func (v *VppLink) CreateMemif(mif *types.Memif) error {
 	if mif.MacAddress != nil {
 		request.HwAddr = types.ToVppMacAddress(&mif.MacAddress)
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrapf(err, "MemifCreate failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
@@ -94,12 +94,12 @@ func (v *VppLink) CreateMemif(mif *types.Memif) error {
 }
 
 func (v *VppLink) ListMemifInterfaces() ([]*types.Memif, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	memifs := make([]*types.Memif, 0)
 	request := &memif.MemifDump{}
-	stream := v.ch.SendMultiRequest(request)
+	stream := v.GetChannel().SendMultiRequest(request)
 	for {
 		response := &memif.MemifDetails{}
 		stop, err := stream.ReceiveReply(response)

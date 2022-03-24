@@ -104,6 +104,9 @@ func (*PblClientDel) GetCrcString() string   { return "3a91bde5" }
 func (*PblClientDel) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *PblClientDel) GetRetVal() error {
+	return nil
+}
 
 func (m *PblClientDel) Size() (size int) {
 	if m == nil {
@@ -138,6 +141,9 @@ func (*PblClientDelReply) GetCrcString() string   { return "e8d4e804" }
 func (*PblClientDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
+func (m *PblClientDelReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
+}
 
 func (m *PblClientDelReply) Size() (size int) {
 	if m == nil {
@@ -171,6 +177,9 @@ func (*PblClientDetails) GetMessageName() string { return "pbl_client_details" }
 func (*PblClientDetails) GetCrcString() string   { return "14278144" }
 func (*PblClientDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *PblClientDetails) GetRetVal() error {
+	return nil
 }
 
 func (m *PblClientDetails) Size() (size int) {
@@ -301,6 +310,9 @@ func (*PblClientDump) GetCrcString() string   { return "51077d14" }
 func (*PblClientDump) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
+func (m *PblClientDump) GetRetVal() error {
+	return nil
+}
 
 func (m *PblClientDump) Size() (size int) {
 	if m == nil {
@@ -330,6 +342,9 @@ func (*PblClientUpdate) GetMessageName() string { return "pbl_client_update" }
 func (*PblClientUpdate) GetCrcString() string   { return "d83d6e65" }
 func (*PblClientUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
+}
+func (m *PblClientUpdate) GetRetVal() error {
+	return nil
 }
 
 func (m *PblClientUpdate) Size() (size int) {
@@ -462,6 +477,9 @@ func (*PblClientUpdateReply) GetMessageName() string { return "pbl_client_update
 func (*PblClientUpdateReply) GetCrcString() string   { return "e2fc8294" }
 func (*PblClientUpdateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
+}
+func (m *PblClientUpdateReply) GetRetVal() error {
+	return api.RetvalToVPPApiError(m.Retval)
 }
 
 func (m *PblClientUpdateReply) Size() (size int) {

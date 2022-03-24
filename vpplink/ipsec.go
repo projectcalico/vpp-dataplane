@@ -25,14 +25,14 @@ import (
 )
 
 func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) (protections []types.IPsecTunnelProtection, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	request := &ipsec.IpsecTunnelProtectDump{
 		SwIfIndex: interface_types.InterfaceIndex(tunnelInterface),
 	}
 	response := &ipsec.IpsecTunnelProtectDetails{}
-	stream := v.ch.SendMultiRequest(request)
+	stream := v.GetChannel().SendMultiRequest(request)
 	for {
 		stop, err := stream.ReceiveReply(response)
 		if err != nil {
@@ -52,15 +52,15 @@ func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) (protections 
 }
 
 func (v *VppLink) SetIPsecAsyncMode(enable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	v.Lock()
+	defer v.Unlock()
 
 	response := &ipsec.IpsecSetAsyncModeReply{}
 
 	request := &ipsec.IpsecSetAsyncMode{
 		AsyncEnable: enable,
 	}
-	var err = v.ch.SendRequest(request).ReceiveReply(response)
+	var err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
 		return errors.Wrap(err, "IPsec async mode enable failed")
 	} else if response.Retval != 0 {
