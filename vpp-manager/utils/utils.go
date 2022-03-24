@@ -199,17 +199,24 @@ func ClearVppManagerFiles() error {
 	return WriteFile("-1", config.VppManagerTapIdxFile)
 }
 
-func SetVfioUnsafeiommu(iommu bool) error {
+func SetVfioUnsafeiommu(iommu bool) (err error) {
 	if iommu {
-		return WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+		err = WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	} else {
-		return WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+		err = WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	}
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 func IsVfioUnsafeiommu() (bool, error) {
 	iommuStr, err := ioutil.ReadFile("/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
 		return false, errors.Wrapf(err, "Couldnt read /sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	}
 	iommu := "Y" == strings.TrimSpace(string(iommuStr))
