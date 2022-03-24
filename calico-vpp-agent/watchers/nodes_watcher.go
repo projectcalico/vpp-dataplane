@@ -168,7 +168,7 @@ func (w *NodeWatcher) resyncAndCreateWatcher() error {
 func (w *NodeWatcher) cleanExistingWatcher() {
 	if w.watcher != nil {
 		w.watcher.Stop()
-		w.log.Info("Stopped watcher")
+		w.log.Debug("Stopped watcher")
 		w.watcher = nil
 	}
 }

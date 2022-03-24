@@ -197,7 +197,7 @@ restart:
 func (p *PoolWatcher) cleanExistingWatcher() {
 	if p.watcher != nil {
 		p.watcher.Stop()
-		log.Info("Stopped watcher")
+		log.Debug("Stopped watcher")
 		p.watcher = nil
 	}
 }
