@@ -262,7 +262,7 @@ func (c *ipamCache) resyncAndCreateWatcher() error {
 func (c *ipamCache) cleanExistingWatcher() {
 	if c.watcher != nil {
 		c.watcher.Stop()
-		c.log.Info("Stopped watcher")
+		c.log.Debug("Stopped watcher")
 		c.watcher = nil
 	}
 }

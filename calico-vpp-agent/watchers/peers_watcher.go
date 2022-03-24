@@ -287,7 +287,7 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 func (w *PeerWatcher) cleanExistingWatcher() {
 	if w.watcher != nil {
 		w.watcher.Stop()
-		w.log.Info("Stopped watcher")
+		w.log.Debug("Stopped watcher")
 		w.watcher = nil
 	}
 }

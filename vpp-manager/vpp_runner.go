@@ -117,7 +117,7 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 	hooks.RunHook(hooks.BEFORE_VPP_RUN, v.params, v.conf)
 	err = v.runVpp()
 	if err != nil {
-		return errors.Wrapf(err, "Error running VPP: %v")
+		return errors.Wrapf(err, "Error running VPP")
 	}
 	hooks.RunHook(hooks.VPP_DONE_OK, v.params, v.conf)
 	return nil

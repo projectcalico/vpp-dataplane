@@ -882,7 +882,8 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 	}
 	hep.TunnelSwIfIndexes = s.getAllTunnelSwIfIndexes()
 	if len(hep.UplinkSwIfIndexes) == 0 || len(hep.TapSwIfIndexes) == 0 {
-		return errors.Errorf("No interface to configure as host endpoint for %s", id.EndpointID)
+		s.log.Errorf("No interface for host endpoint id=%s hep=%s", id.EndpointID, hep.String())
+		return nil
 	}
 
 	existing, found := state.HostEndpoints[*id]
