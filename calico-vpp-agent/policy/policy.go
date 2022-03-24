@@ -22,7 +22,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type PolicyID struct {
@@ -52,13 +52,16 @@ func fromProtoPolicy(p *proto.Policy) (policy *Policy, err error) {
 		VppID:  types.InvalidID,
 	}
 	if p.Untracked {
-		return nil, fmt.Errorf("Untracked policies not supported")
+		log.Errorf("untracked policies not supported")
+		return
 	}
 	if p.PreDnat && len(p.OutboundRules) > 0 {
-		return nil, fmt.Errorf("pre dnat outbound policies not supported")
+		log.Errorf("pre dnat outbound policies not supported")
+		return
 	}
 	if p.PreDnat && len(p.InboundRules) > 0 {
-		return nil, fmt.Errorf("pre dnat inbound policies ????")
+		log.Errorf("pre dnat inbound policies ????")
+		return
 	}
 	for _, r := range p.InboundRules {
 		rule, err := fromProtoRule(r)
@@ -182,7 +185,7 @@ func (p *Policy) Delete(vpp *vpplink.VppLink, state *PolicyState) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "cannot delete old rules for policy")
 	}
-    logrus.Infof("policy(del) VPP policy id=%d", p.VppID)
+	log.Infof("policy(del) VPP policy id=%d", p.VppID)
 	err = vpp.PolicyDelete(p.VppID)
 	if err != nil {
 		return errors.Wrap(err, "cannot delete policy")
