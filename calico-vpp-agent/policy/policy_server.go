@@ -389,7 +389,7 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 	}
 	err = s.createEndpointToHostPolicy()
 	if err != nil {
-		return errors.Wrap(err, "Error in createAllowFromHostPolicy")
+		return errors.Wrap(err, "Error in createEndpointToHostPolicy")
 	}
 	err = s.createAllowToHostPolicy()
 	if err != nil {
@@ -449,18 +449,6 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 			s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
 		}
 		s.log.Infof("SyncPolicy exited, reconnecting to felix")
-		err = s.createAllowFromHostPolicy()
-		if err != nil {
-			s.log.Errorf("Error in createAllowFromHostPolicy %s", err)
-		}
-		err = s.createEndpointToHostPolicy()
-		if err != nil {
-			s.log.Errorf("Error in createAllowFromHostPolicy %s", err)
-		}
-		err = s.createAllowToHostPolicy()
-		if err != nil {
-			s.log.Errorf("Error in createAllowToHostPolicy %s", err)
-		}
 	}
 }
 
