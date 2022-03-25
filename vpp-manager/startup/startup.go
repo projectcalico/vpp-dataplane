@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -476,5 +477,24 @@ func CleanupCoreFiles(corePattern string) error {
 			os.Remove(files[time])
 		}
 	}
+
+	if len(times) > 0 && maxCoreFiles > 0 {
+		PrintLastBackTrace(files[times[0]])
+	}
 	return nil
+}
+
+func PrintLastBackTrace(coreFile string) {
+	if _, err := os.Stat("/usr/bin/gdb"); os.IsNotExist(err) {
+		log.Infof("Found previous coredump %s, missing gdb for stacktrace", coreFile)
+	} else {
+		log.Infof("Found previous coredump %s, trying to print stacktrace", coreFile)
+		cmd := exec.Command("/usr/bin/gdb", "-ex", "bt", "-ex", "q", "vpp", coreFile)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err := cmd.Start()
+		if err != nil {
+			log.Infof("gdb returned %s", err)
+		}
+	}
 }

@@ -27,4 +27,8 @@ ADD vpp-manager /usr/bin/
 ADD vppdev.sh /usr/bin/calivppctl
 ADD version /etc/calicovppversion
 
+# This takes an additionnal 40MB
+ARG WITH_GDB
+RUN if [ "$WITH_GDB" = "yes" ] ; then apt-get update && apt-get -y --no-install-recommends install gdb ; fi
+
 ENTRYPOINT ["/usr/bin/vpp-manager"]
