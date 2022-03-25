@@ -40,7 +40,7 @@ fi
 git reset $BRANCH_NAME --hard
 git clean -fd
 
-make -C $VPP_DATAPLANE_DIRECTORY image TAG=$TAG
+make -C $VPP_DATAPLANE_DIRECTORY image TAG=$TAG WITH_GDB=$WITH_GDB
 
 echo "built calicovpp/vpp:${TAG}"
 echo "built calicovpp/agent:${TAG}"
