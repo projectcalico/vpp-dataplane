@@ -140,7 +140,6 @@ func main() {
 
 	params := startup.GetVppManagerParams()
 
-	startup.CleanupCoreFiles(params.CorePattern)
 	hooks.RunHook(hooks.BEFORE_IF_READ, params, nil)
 
 	var confs = startup.PrepareConfiguration(params)
@@ -156,6 +155,8 @@ func main() {
 
 	if len(params.InterfacesSpecs) == 1 && params.InterfacesSpecs[0].NativeDriver == "" {
 		for _, driver := range uplink.SupportedUplinkDrivers(params, confs[0], &params.InterfacesSpecs[0]) {
+			startup.CleanupCoreFiles(params.CorePattern)
+
 			internalKill = false
 			err := runner.Run([]uplink.UplinkDriver{driver})
 			if err != nil {
@@ -170,6 +171,8 @@ func main() {
 			makeNewVPPIndex()
 		}
 	} else {
+		startup.CleanupCoreFiles(params.CorePattern)
+
 		var drivers []uplink.UplinkDriver
 		for idx := 0; idx < len(params.InterfacesSpecs); idx++ {
 			drivers = append(drivers, uplink.NewUplinkDriver(params.InterfacesSpecs[idx].NativeDriver,
