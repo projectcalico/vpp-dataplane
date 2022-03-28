@@ -73,14 +73,16 @@ func (d *DPDKDriver) UpdateVppConfigFile(template string) string {
 
 	if d.params.AvailableHugePages > 0 {
 		template = fmt.Sprintf(
-			"%s\ndpdk {\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d } \n}\n",
-			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues, d.params.RxQueueSize, d.params.TxQueueSize,
+			"%s\ndpdk {\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d tag %s } \n}\n",
+			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues,
+			d.params.RxQueueSize, d.params.TxQueueSize, "main-"+d.spec.InterfaceName,
 		)
 
 	} else {
 		template = fmt.Sprintf(
-			"%s\ndpdk {\niova-mode va\nno-hugetlb\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d } \n}\n",
-			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues, d.params.RxQueueSize, d.params.TxQueueSize,
+			"%s\ndpdk {\niova-mode va\nno-hugetlb\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d tag %s } \n}\n",
+			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues,
+			d.params.RxQueueSize, d.params.TxQueueSize, "main-"+d.spec.InterfaceName,
 		)
 
 		// If no hugepages, also edit `buffers {}`
