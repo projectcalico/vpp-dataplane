@@ -22,6 +22,7 @@ import (
 	"os"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
@@ -349,6 +350,7 @@ func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Ent
 		common.NetAdded,
 		common.NetUpdated,
 		common.NetDeleted,
+		common.NetsSynced,
 	)
 	return server
 }
@@ -391,6 +393,23 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) {
 	}
 }
 
+// check that all networks from list exist in map
+func (s *Server) waitForNetsSynced(nets *[]*calicov3.Network) {
+	for {
+	restart:
+		for _, net := range *nets {
+			_, found := s.networkDefinitions[net.Name]
+			if !found {
+				s.log.Infof("network %s missing, retrying...", net.Name)
+				time.Sleep(time.Second)
+				goto restart
+			}
+		}
+		s.log.Infof("all networks synced")
+		break
+	}
+}
+
 func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	syscall.Unlink(config.CNIServerSocket)
 	socketListener, err := net.Listen("unix", config.CNIServerSocket)
@@ -400,10 +419,15 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 
 	pb.RegisterCniDataplaneServer(s.grpcServer, s)
 
+	netsSynced := make(chan bool)
+	nets := &[]*calicov3.Network{}
 	go func() {
 		for t.Alive() {
 			event := <-s.cniServerEventChan
 			switch event.Type {
+			case common.NetsSynced:
+				nets = event.New.(*[]*calicov3.Network)
+				netsSynced <- true
 			case common.NetAdded:
 				netDef := event.New.(*watchers.NetworkDefinition)
 				s.networkDefinitions[netDef.Name] = netDef
@@ -416,6 +440,8 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 			}
 		}
 	}()
+	<- netsSynced
+	s.waitForNetsSynced(nets)
 	s.rescanState()
 
 	s.log.Infof("Serve() CNI")

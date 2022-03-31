@@ -192,7 +192,7 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 			}
 			networkVRF := netDef.VRF.Tables[idx]
 			s.log.Infof("Adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, networkVRF)
-			err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily.IsIp6), networkVRF, ipFamily.IsIp6)
+			err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily), networkVRF, ipFamily.IsIp6)
 			if err != nil {
 				return errors.Wrapf(err, "error adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, networkVRF)
 			} else {
