@@ -173,7 +173,7 @@ func (p *IpsecProvider) createOneIndexedIPSECTunnel(i int, j int, destNodeAddr n
 		Src: src,
 		Dst: dst,
 	}
-	p.log.Infof("connectiviy(add) IPsec tunnel=%s", tunnel.String())
+	p.log.Infof("connectivity(add) IPsec tunnel=%s", tunnel.String())
 	err = p.createOneIPSECTunnel(tunnel, config.IPSecIkev2Psk)
 	if err != nil {
 		return errors.Wrapf(err, "error configuring ipsec tunnel %s", tunnel.String())
@@ -232,6 +232,13 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 		return errors.Wrapf(err, "error configuring IPsec tunnel %s", tunnel.String())
 	}
 
+	p.log.Infof("connectivity(add) IKE Profile=%s swIfIndex=%d", profile, tunnel.SwIfIndex)
+	err = p.vpp.SetIKEv2TunnelInterface(profile, swIfIndex)
+	if err != nil {
+		p.errorCleanup(tunnel, profile)
+		return errors.Wrapf(err, "error configuring IPsec tunnel %s", tunnel.String())
+	}
+
 	err = p.vpp.SetIKEv2PSKAuth(profile, psk)
 	if err != nil {
 		p.errorCleanup(tunnel, profile)
@@ -251,13 +258,6 @@ func (p *IpsecProvider) createOneIPSECTunnel(tunnel *types.IPIPTunnel, psk strin
 	}
 
 	err = p.vpp.SetIKEv2PermissiveTrafficSelectors(profile)
-	if err != nil {
-		p.errorCleanup(tunnel, profile)
-		return errors.Wrapf(err, "error configuring IPsec tunnel %s", tunnel.String())
-	}
-
-	p.log.Infof("connectivity(add) IKE Profile=%s swIfIndex=%d", profile, tunnel.SwIfIndex)
-	err = p.vpp.SetIKEv2TunnelInterface(profile, swIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel, profile)
 		return errors.Wrapf(err, "error configuring IPsec tunnel %s", tunnel.String())
