@@ -212,8 +212,13 @@ type LocalPodSpec struct {
 	MemifIsL3     bool
 	TunTapIsL3    bool
 
-	/* VPP internals. Persisting on the disk in the case of the
-	 * agent restarting. */
+	/**
+	 * Below are VPP internal ids, mutable fields in AddVppInterface
+	 * We persist them on the disk to avoid rescanning when the agent is restarting.
+	 *
+	 * We should be careful during state-reconciliation as they might not be
+	 * valid anymore. VRF tags should provide this guarantee
+	 */
 	MemifSocketId     uint32
 	TunTapSwIfIndex   uint32
 	MemifSwIfIndex    uint32
@@ -221,10 +226,12 @@ type LocalPodSpec struct {
 	PblIndexesLen     int `struc:"int16,sizeof=PblIndexes"`
 	PblIndexes        []uint32
 
-	V4VrfId uint32
-	V6VrfId uint32
-
-	/* Caching */
+	/**
+	 * These fields are only a runtime cache, but we also store them
+	 * on the disk for debugging purposes.
+	 */
+	V4VrfId   uint32
+	V6VrfId   uint32
 	NeedsSnat bool
 }
 
