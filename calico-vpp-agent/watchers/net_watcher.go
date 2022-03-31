@@ -23,11 +23,13 @@ import (
 	v3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/api/pkg/client/clientset_generated/clientset"
 	"github.com/projectcalico/api/pkg/client/informers_generated/externalversions"
+	v3client "github.com/projectcalico/api/pkg/client/listers_generated/projectcalico/v3"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )
@@ -50,6 +52,7 @@ type NetWatcher struct {
 	stop               chan struct{}
 	factory            externalversions.SharedInformerFactory
 	informer           cache.SharedIndexInformer
+	lister             v3client.NetworkLister
 	networkDefinitions map[string]*NetworkDefinition
 }
 
@@ -65,6 +68,7 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 
 	factory := externalversions.NewSharedInformerFactory(client, 10*time.Minute)
 	informer := factory.Projectcalico().V3().Networks().Informer()
+	lister := factory.Projectcalico().V3().Networks().Lister()
 
 	w := NetWatcher{
 		log:                log,
@@ -73,6 +77,7 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 		stop:               make(chan struct{}),
 		factory:            factory,
 		informer:           informer,
+		lister:             lister,
 		networkDefinitions: make(map[string]*NetworkDefinition),
 	}
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -106,25 +111,27 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 	return &w
 }
 
-func (w *NetWatcher) OnVppRestart() {
-	/* We don't do anything */
-	for _, netDef := range w.networkDefinitions {
-		w.log.Infof("re-creating network %s", netDef.Name)
-		netD, err := w.CreateVRFsForNet(netDef.Name, uint32(netDef.Vni))
-		if err != nil {
-			w.log.Error(err)
+func (w *NetWatcher) WaitForNetworksSynced() bool {
+	for {
+		if w.informer.HasSynced() {
+			return true
 		}
-		// send update network event
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.NetUpdated,
-			New:  netD,
-		})
+		time.Sleep(time.Second)
 	}
 }
 
 func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 	w.log.Infof("Net watcher starts")
 	w.factory.Start(w.stop)
+	w.WaitForNetworksSynced()
+	netList, err := w.lister.List(labels.Everything())
+	if err != nil {
+		return err
+	}
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.NetsSynced,
+		New:  &netList,
+	})
 	return nil
 }
 
@@ -212,7 +219,7 @@ func (w *NetWatcher) DeleteNetVRFs(network *v3.Network) (*NetworkDefinition, err
 	for idx, ipFamily := range vpplink.IpFamilies {
 		vrfId := w.networkDefinitions[network.Name].VRF.Tables[idx]
 		w.log.Infof("Deleting VRF %d %s", vrfId, ipFamily.Str)
-		err = w.vpp.DelVRF(vrfId, ipFamily.IsIp6, network.Name)
+		err = w.vpp.DelVRF(vrfId, ipFamily.IsIp6)
 		if err != nil {
 			w.log.Errorf("Error deleting VRF %d %s : %s", vrfId, ipFamily.Str, err)
 		}

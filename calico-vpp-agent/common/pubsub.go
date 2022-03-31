@@ -62,6 +62,7 @@ const (
 	NetAdded   CalicoVppEventType = "NetAdded"
 	NetUpdated CalicoVppEventType = "NetUpdated"
 	NetDeleted CalicoVppEventType = "NetDeleted"
+	NetsSynced CalicoVppEventType = "NetsSynced"
 )
 
 var (
