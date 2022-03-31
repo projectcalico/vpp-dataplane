@@ -260,13 +260,14 @@ func (s *Server) rescanState() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	for _, podSpec := range podSpecs {
-		/* copy the podSpec as a pointer to it will be sent over the event chan */
+		/* copy podSpec as a pointer to it will be sent over the event chan */
 		podSpecCopy := podSpec.Copy()
 		_, err := s.AddVppInterface(&podSpecCopy, false /* doHostSideConf */)
 		switch err.(type) {
 		case PodNSNotFoundErr:
 			s.log.Infof("Interface restore but netns missing %s", podSpecCopy.String())
 		case nil:
+			s.log.Infof("pod(re-add) podSpec=%s", podSpecCopy.String())
 			s.podInterfaceMap[podSpec.Key()] = podSpecCopy
 		default:
 			s.log.Errorf("Interface add failed %s : %v", podSpecCopy.String(), err)

@@ -48,8 +48,9 @@ func (s *Server) checkAvailableBuffers() error {
 	return nil
 }
 
-func (s *Server) hasVRF(podSpec *storage.LocalPodSpec) bool {
-	var hasIp4, hasIp6 bool
+func (s *Server) findPodVRFs(podSpec *storage.LocalPodSpec) bool {
+	podSpec.V4VrfId = types.InvalidID
+	podSpec.V6VrfId = types.InvalidID
 
 	vrfs, err := s.vpp.ListVRFs()
 	if err != nil {
@@ -58,28 +59,42 @@ func (s *Server) hasVRF(podSpec *storage.LocalPodSpec) bool {
 	}
 
 	for _, vrf := range vrfs {
-		if vrf.Name == podSpec.GetVrfTag(vpplink.IpFamilyV4) && !vrf.IsIP6 {
-			hasIp4 = true
-			if vrf.VrfID != podSpec.V4VrfId && podSpec.V4VrfId != vpplink.InvalidID {
-				s.log.Errorf("VRFId (v4) not matching found=%d expect=%s key=%s", vrf.VrfID, podSpec.V4VrfId, podSpec.Key())
+		for _, ipFamily := range vpplink.IpFamilies {
+			if vrf.Name == podSpec.GetVrfTag(ipFamily) {
+				podSpec.SetVrfId(vrf.VrfID, ipFamily)
 			}
 		}
-		if vrf.Name == podSpec.GetVrfTag(vpplink.IpFamilyV6) && vrf.IsIP6 {
-			hasIp6 = true
-			if vrf.VrfID != podSpec.V6VrfId && podSpec.V6VrfId != vpplink.InvalidID {
-				s.log.Errorf("VRFId (v6) not matching found=%d expect=%s key=%s", vrf.VrfID, podSpec.V4VrfId, podSpec.Key())
-			}
-		}
-		if hasIp6 && hasIp4 {
+		if podSpec.V4VrfId != types.InvalidID && podSpec.V6VrfId != types.InvalidID {
 			return true
 		}
 	}
 
-	if hasIp4 != hasIp6 {
-		s.log.Errorf("Partial VRF state hasv4=%t hasv6=%t key=%s", hasIp4, hasIp6, podSpec.Key())
+	if (podSpec.V4VrfId != types.InvalidID) != (podSpec.V6VrfId != types.InvalidID) {
+		s.log.Errorf("Partial VRF state v4=%d v6=%d key=%s", podSpec.V4VrfId, podSpec.V6VrfId, podSpec.Key())
 	}
 
 	return false
+}
+
+func (s *Server) removeConflictingContainers(newAddresses []storage.LocalIP) {
+	addrMap := make(map[string]storage.LocalPodSpec)
+	for _, podSpec := range s.podInterfaceMap {
+		for _, addr := range podSpec.ContainerIps {
+			addrMap[addr.IP.String()] = podSpec
+		}
+	}
+	podSpecsToDelete := make(map[string]storage.LocalPodSpec)
+	for _, newAddr := range newAddresses {
+		podSpec, found := addrMap[newAddr.IP.String()]
+		if found {
+			s.log.Warnf("podSpec conflict newAddr=%s, podSpec=%s", newAddr, podSpec.String())
+			podSpecsToDelete[podSpec.Key()] = podSpec
+		}
+	}
+	for _, podSpec := range podSpecsToDelete {
+		s.log.Infof("Deleting conflicting podSpec=%s", podSpec.Key())
+		s.DelVppInterface(&podSpec)
+	}
 }
 
 // AddVppInterface performs the networking for the given config and IPAM result
@@ -94,10 +109,24 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		return vpplink.InvalidID, PodNSNotFoundErr{podSpec.NetnsName}
 	}
 
-	if s.hasVRF(podSpec) {
-		/* it already exists in VPP */
+	/**
+	 * Check if the VRFs already exist in VPP,
+	 * if yes we postulate the pod is already well setup
+	 */
+	if s.findPodVRFs(podSpec) {
+		s.log.Infof("VRF already exists in VPP podSpec=%s", podSpec.Key())
 		return podSpec.TunTapSwIfIndex, nil
 	}
+
+	/**
+	 * Do we already have a pod with this address in VPP ?
+	 * in this case, clean it up otherwise on the other pod's
+	 * deletion our route in the main VRF will be removed
+	 *
+	 * As we did not find the VRF in VPP, we shouldn't find
+	 * ourselves in s.podInterfaceMap
+	 */
+	s.removeConflictingContainers(podSpec.ContainerIps)
 
 	stack := s.vpp.NewCleanupStack()
 
@@ -206,6 +235,11 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	if err != nil {
 		s.log.Infof("pod(del) netns '%s' doesn't exist, skipping", podSpec.NetnsName)
 		return
+	}
+
+	/* At least one VRF does not exist in VPP, still try removing */
+	if !s.findPodVRFs(podSpec) {
+		s.log.Warnf("pod(del) VRF for netns '%s' doesn't exist", podSpec.NetnsName)
 	}
 
 	s.DelHostPort(podSpec)
