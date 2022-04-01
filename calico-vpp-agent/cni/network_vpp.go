@@ -94,6 +94,11 @@ func (s *Server) removeConflictingContainers(newAddresses []storage.LocalIP) {
 	for _, podSpec := range podSpecsToDelete {
 		s.log.Infof("Deleting conflicting podSpec=%s", podSpec.Key())
 		s.DelVppInterface(&podSpec)
+		delete(s.podInterfaceMap, podSpec.Key())
+		err := storage.PersistCniServerState(s.podInterfaceMap, config.CniServerStateFile+fmt.Sprint(storage.CniServerStateFileVersion))
+		if err != nil {
+			s.log.Errorf("CNI state persist errored %v", err)
+		}
 	}
 }
 
@@ -239,7 +244,8 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 
 	/* At least one VRF does not exist in VPP, still try removing */
 	if !s.findPodVRFs(podSpec) {
-		s.log.Warnf("pod(del) VRF for netns '%s' doesn't exist", podSpec.NetnsName)
+		s.log.Warnf("pod(del) VRF for netns '%s' doesn't exist, skipping", podSpec.NetnsName)
+		return
 	}
 
 	s.DelHostPort(podSpec)
