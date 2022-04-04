@@ -13,6 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+BUILD_LOG_DIR=$SCRIPTDIR/.buildlogs
+BUILD_NAME=$(date +"build.%Y-%m-%dT%H.%M.%s")
+
+if [ -e $BUILD_LOG_DIR/conf ]; then
+    source $BUILD_LOG_DIR/conf
+fi
+
 VPP_DATAPLANE_DIRECTORY=${VPP_DATAPLANE_DIRECTORY:=/tmp/vpp-dataplane/}
 REPO_URL=${REPO_URL:=https://github.com/projectcalico/vpp-dataplane.git}
 BRANCH_NAME=${BRANCH_NAME:=origin/master}
@@ -22,14 +30,19 @@ PUSH=${PUSH:=y}
 
 function push ()
 {
-	SSH_NAME=$1
-	if [ x$SSH_NAME = x ]; then
-		echo "missing ssh host"
-		echo "please use mngmt.sh push <some ssh host to build on>"
-		exit 1
-	fi
 
-	ssh $SSH_NAME /bin/bash << EOF
+SSH_NAME=${SSH_NAME:=$1}
+if [ x$SSH_NAME = x ]; then
+	echo "missing ssh host"
+	echo "please use mngmt.sh push <some ssh host to build on>"
+	exit 1
+fi
+
+mkdir -p $BUILD_LOG_DIR/${BUILD_NAME}
+echo "Starting build..."
+echo "Output redirected to ${BUILD_LOG_DIR}/${BUILD_NAME}/build.log"
+
+ssh $SSH_NAME /bin/bash > ${BUILD_LOG_DIR}/${BUILD_NAME}/build.log << EOF
 if [ -d $VPP_DATAPLANE_DIRECTORY ]; then
 	echo "Fetching latest"
 	cd $VPP_DATAPLANE_DIRECTORY
@@ -72,11 +85,64 @@ done
 
 EOF
 
+echo "Printing summary to ${BUILD_LOG_DIR}/${BUILD_NAME}/summary"
+echo "--------------------------------------------------"   >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+echo "Date                     : $(date +"%Y-%m-%d %H:%M")" >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+echo "REPO_URL                 : $REPO_URL"                 >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+echo "BRANCH_NAME              : $BRANCH_NAME"              >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+echo "VPP_DATAPLANE_DIRECTORY  : $VPP_DATAPLANE_DIRECTORY"  >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+echo "WITH_GDB                 : $WITH_GDB"                 >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+echo "SSH_NAME                 : $SSH_NAME"                 >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+echo "PUSH                     : $PUSH"                     >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+echo "Tags built               : ${TAG},${EXTRA_TAGS}"      >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+ssh $SSH_NAME /bin/bash                                     >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary << EOF
+cd $VPP_DATAPLANE_DIRECTORY
+echo "Commit                   : \$(git log -1 --pretty=%H)"
+EOF
+echo "SHAs                     :"                           >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+echo "--------------------------------------------------"   >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+ssh $SSH_NAME /bin/bash                                     >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary << EOF
+for imgname in calicovpp/vpp calicovpp/agent; do
+for tagname in $(echo "${TAG},${EXTRA_TAGS}" | sed 's/,/ /g'); do
+	echo "\${imgname}:\${tagname} \$(docker inspect \${imgname}:\${tagname} --format '{{ .RepoDigests }}')"
+done
+done
+EOF
+echo "--------------------------------------------------"   >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+
+cat ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
 }
 
+get_message ()
+{
+	printf "Just built & pushed new images\\n"
+    printf "\`\`\`\`\\n"
+	cat ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
+    printf "\`\`\`\`\\n"
+    printf "\\n"
+}
+
+send_report_to_webex ()
+{
+	if [ x$PUSH != "xy" ]; then
+		echo "not pushing"
+		exit 0
+	fi
+	if [ x$ACCESS_TOKEN == x"" ] || [ x$ROOM_ID == x"" ]; then
+		echo "Not sending to webex, missing ACCESS_TOKEN/ROOM_ID"
+		exit 0
+	fi
+    MESSAGE="$(get_message)"
+    curl --request POST \
+      --header "Authorization: Bearer $ACCESS_TOKEN" \
+      --form "roomId=${ROOM_ID}" \
+      --form "markdown=${MESSAGE}" \
+      "https://webexapis.com/v1/messages"
+}
 
 if [ x$1 = xpush ]; then
   shift ; push $@
+  send_report_to_webex
 else
   echo "Usage"
   echo "mngmt.sh push <some ssh host to build on>"

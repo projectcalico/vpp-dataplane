@@ -29,3 +29,4 @@ vpplink/binapi/.cherries-cache
 # build artefacts
 calico-vpp-agent/version
 vpp-manager/images/ubuntu/version
+test/scripts/.buildlogs
