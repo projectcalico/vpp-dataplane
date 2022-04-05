@@ -168,8 +168,6 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 		case evt := <-w.peerWatcherEventChan:
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
-			case common.OurNodeStateChanged:
-				fallthrough
 			case common.PeerNodeStateChanged:
 				old, _ := evt.Old.(*oldv3.Node)
 				new, _ := evt.New.(*oldv3.Node)
@@ -391,7 +389,7 @@ func NewPeerWatcher(clientv3 calicov3cli.Interface, log *logrus.Entry) *PeerWatc
 		peerWatcherEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}
 	reg := common.RegisterHandler(w.peerWatcherEventChan, "peers watcher events")
-	reg.ExpectEvents(common.OurNodeStateChanged, common.PeerNodeStateChanged)
+	reg.ExpectEvents(common.PeerNodeStateChanged)
 
 	return &w
 }
