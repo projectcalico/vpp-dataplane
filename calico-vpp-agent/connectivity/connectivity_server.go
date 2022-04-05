@@ -185,7 +185,8 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					}
 				}
 				if old != nil && new != nil {
-					if common.GetStringChangeType(old.Status.WireguardPublicKey, new.Status.WireguardPublicKey) > common.ChangeSame {
+					change := common.GetStringChangeType(old.Status.WireguardPublicKey, new.Status.WireguardPublicKey)
+					if change != common.ChangeSame {
 						s.log.Infof("connectivity(upd) WireguardPublicKey Changed (%s) %s->%s", old.Name, old.Status.WireguardPublicKey, new.Status.WireguardPublicKey)
 						s.updateAllIPConnectivity()
 					}

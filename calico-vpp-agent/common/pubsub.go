@@ -25,7 +25,6 @@ const (
 	ChanSize = 500
 
 	PeerNodeStateChanged CalicoVppEventType = "PeerNodeStateChanged"
-	OurNodeStateChanged  CalicoVppEventType = "OurNodeStateChanged"
 	FelixConfChanged     CalicoVppEventType = "FelixConfChanged"
 	IpamConfChanged      CalicoVppEventType = "IpamConfChanged"
 	BGPConfChanged       CalicoVppEventType = "BGPConfChanged"

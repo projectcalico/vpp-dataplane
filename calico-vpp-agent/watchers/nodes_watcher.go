@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	calicov3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
@@ -38,7 +37,7 @@ import (
 type NodeWatcher struct {
 	log *logrus.Entry
 
-	nodeStatesByName   map[string]common.NodeState
+	nodeStatesByName   map[string]oldv3.Node
 	gotOurNodeBGPchan  chan oldv3.NodeBGPSpec
 	didWeGetOurNodeBGP bool
 
@@ -49,43 +48,31 @@ type NodeWatcher struct {
 	currentWatchRevision string
 }
 
-func nodeSpecCopy(calicoNode *calicov3.Node) *common.NodeState {
-	return &common.NodeState{
-		Node:      *calicoNode.DeepCopy(),
-		SweepFlag: false,
-	}
-}
-
-func (w *NodeWatcher) initialNodeSync() (string, error) {
+func (w *NodeWatcher) initialNodeSync() (resourceVersion string, err error) {
 	// TODO: Get and watch only ourselves if there is no mesh
 	w.log.Info("Syncing nodes...")
-	nodes, err := w.clientv3.Nodes().List(context.Background(), options.ListOptions{
-		ResourceVersion: w.currentWatchRevision,
-	})
+	nodes, err := w.clientv3.Nodes().List(
+		context.Background(),
+		options.ListOptions{
+			ResourceVersion: w.currentWatchRevision,
+		},
+	)
 	if err != nil {
 		return "", errors.Wrap(err, "error listing nodes")
 	}
-	for _, n := range w.nodeStatesByName {
-		n.SweepFlag = true
-	}
+	nodeNames := make(map[string]bool)
 	for _, calicoNode := range nodes.Items {
-		node := nodeSpecCopy(&calicoNode)
-		shouldRestart, err := w.handleNodeUpdate(node, watch.Added)
+		nodeNames[calicoNode.Name] = true
+		err = w.handleNodeUpdate(&calicoNode, true /* isAdd */)
 		if err != nil {
-			return "", errors.Wrap(err, "error handling node update")
-		}
-		if shouldRestart {
-			return "", fmt.Errorf("Current node configuration changed, restarting")
+			return "", err
 		}
 	}
-	for _, node := range w.nodeStatesByName {
-		if node.SweepFlag {
-			shouldRestart, err := w.handleNodeUpdate(&node, watch.Deleted)
+	for nodeName, node := range w.nodeStatesByName {
+		if _, found := nodeNames[nodeName]; !found {
+			err = w.handleNodeUpdate(&node, false /* isAdd */)
 			if err != nil {
-				return "", errors.Wrap(err, "error handling node update")
-			}
-			if shouldRestart {
-				return "", fmt.Errorf("Current node configuration changed, restarting")
+				return "", err
 			}
 		}
 	}
@@ -115,25 +102,22 @@ func (w *NodeWatcher) WatchNodes(t *tomb.Tomb) error {
 					}
 					continue
 				}
-				var calicoNode *calicov3.Node
 				switch update.Type {
 				case watch.Error:
 					w.log.Debug("nodes watch returned, restarting")
 					goto restart
 				case watch.Modified, watch.Added:
-					calicoNode = update.Object.(*calicov3.Node)
+					err := w.handleNodeUpdate(update.Object.(*oldv3.Node), true /* isAdd */)
+					if err != nil {
+						return err
+					}
 				case watch.Deleted:
-					calicoNode = update.Previous.(*calicov3.Node)
+					err := w.handleNodeUpdate(update.Previous.(*oldv3.Node), false /* isAdd */)
+					if err != nil {
+						return err
+					}
 				}
 
-				node := nodeSpecCopy(calicoNode)
-				shouldRestart, err := w.handleNodeUpdate(node, update.Type)
-				if err != nil {
-					return errors.Wrap(err, "error handling node update")
-				}
-				if shouldRestart {
-					return fmt.Errorf("Current node configuration changed, restarting")
-				}
 			}
 		}
 
@@ -178,83 +162,34 @@ func (w *NodeWatcher) WaitForOurBGPSpec() *oldv3.NodeBGPSpec {
 	return &bgpspec
 }
 
-// Returns true if the config of the current node has changed and requires a restart
-// Sets node.SweepFlag to false if an existing node is added to allow mark and sweep
-func (w *NodeWatcher) handleNodeUpdate(node *common.NodeState, eventType watch.EventType) (shouldRestart bool, err error) {
-	w.log.Debugf("Got node update: %s %s %+v", eventType, node.Name, node)
-	if node.Name == config.NodeName {
-		old, found := w.nodeStatesByName[node.Name]
-		// Always update node state
-		w.nodeStatesByName[node.Name] = *node
-		// No need to manage ourselves, but if we change we need to restart
-		// and reconfigure
-		if eventType == watch.Deleted {
-			w.log.Infof("node comparison Deleted")
-			return true, nil /* restart */
-		}
-		if node.Spec.BGP != nil && !w.didWeGetOurNodeBGP {
-			nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(node.Spec.BGP)
-			if nodeIP4 != nil || nodeIP6 != nil {
-				/* We found a BGP Spec that seems valid enough */
-				w.gotOurNodeBGPchan <- *node.Spec.BGP
-				w.didWeGetOurNodeBGP = true
-			}
-		}
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.OurNodeStateChanged,
-			Old:  &old.Node,
-			New:  &node.Node,
-		})
-		if found {
-			// Check that there were no changes, restart if our BGP config changed
-			old.SweepFlag = false
-			oldBgp := old.Spec.BGP
-			newBgp := node.Spec.BGP
-			if oldBgp == nil && newBgp == nil {
-				return false, nil /* don't restart */
-			} else if oldBgp == nil || newBgp == nil {
-				return true, nil /* restart */
-			} else if oldBgp.ASNumber != newBgp.ASNumber ||
-				oldBgp.IPv4Address != newBgp.IPv4Address ||
-				oldBgp.IPv6Address != newBgp.IPv6Address {
-				w.log.Infof("BGP Spec changed: old:%+v new:%+v", oldBgp, newBgp)
-				return true, nil /* restart */
-			}
-		}
-		return false, nil /* don't restart */
-	}
-
+func (w *NodeWatcher) handleNodeUpdate(nodeP *oldv3.Node, isAdd bool) (err error) {
 	// This ensures that nodes that don't have a BGP Spec are never present in the state map
-	if node.Spec.BGP == nil { // No BGP config for this node
-		return false, nil /* don't restart */
+	if nodeP == nil || nodeP.Spec.BGP == nil { // No BGP config for this node
+		return nil
 	}
 
-	err = nil
+	node := nodeP.DeepCopy()
 	old, found := w.nodeStatesByName[node.Name]
-	switch eventType {
-	case watch.Error:
-		// Shouldn't happen
-		return false, fmt.Errorf("Node event error")
-	case watch.Added, watch.Modified:
+	if isAdd {
 		if found {
 			err = w.onNodeUpdated(&old, node)
 		} else {
 			err = w.onNodeAdded(node)
 		}
 		w.nodeStatesByName[node.Name] = *node
-	case watch.Deleted:
+	} else {
 		// This assumes that the old spec and the new spec are identical.
 		if found {
 			err = w.onNodeDeleted(&old)
 			delete(w.nodeStatesByName, node.Name)
 		} else {
-			return false, fmt.Errorf("Node to delete not found")
+			return fmt.Errorf("Node to delete not found")
 		}
 	}
-	return false, err /* don't restart */
+	return err
 }
 
-func (w *NodeWatcher) configureRemoteNodeSnat(node *common.NodeState, isAdd bool) {
+func (w *NodeWatcher) configureRemoteNodeSnat(node *oldv3.Node, isAdd bool) {
 	if node.Spec.BGP.IPv4Address != "" {
 		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
 		if err != nil {
@@ -279,55 +214,81 @@ func (w *NodeWatcher) configureRemoteNodeSnat(node *common.NodeState, isAdd bool
 	}
 }
 
-func (w *NodeWatcher) onNodeDeleted(old *common.NodeState) error {
+func (w *NodeWatcher) onNodeDeleted(old *oldv3.Node) error {
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.PeerNodeStateChanged,
-		Old:  &old.Node,
+		Old:  old,
 	})
+	if old.Name == config.NodeName {
+		// restart if our BGP config changed
+		return NodeWatcherRestartError{}
+	}
+
 	w.configureRemoteNodeSnat(old, false /* isAdd */)
 	return nil
 }
 
-func (w *NodeWatcher) onNodeUpdated(old *common.NodeState, node *common.NodeState) (err error) {
+type NodeWatcherRestartError struct{}
+
+func (e NodeWatcherRestartError) Error() string {
+	return "node configuration changed, restarting"
+}
+
+func (w *NodeWatcher) onNodeUpdated(old *oldv3.Node, node *oldv3.Node) (err error) {
 	w.log.Debugf("node comparison: old:%+v new:%+v", old.Spec.BGP, node.Spec.BGP)
 
-	newV4IP, newV6IP := common.GetNodeSpecAddresses(&node.Node)
-	oldV4IP, oldV6IP := common.GetNodeSpecAddresses(&old.Node)
+	newV4IP, newV6IP := common.GetNodeSpecAddresses(node)
+	oldV4IP, oldV6IP := common.GetNodeSpecAddresses(old)
 
 	// This is used by the routing server to process Wireguard key updates
 	// As a result we only send an event when a node is updated, not when it is added or deleted
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.PeerNodeStateChanged,
-		Old:  &old.Node,
-		New:  &node.Node,
+		Old:  old,
+		New:  node,
 	})
 
-	if common.GetStringChangeType(oldV4IP, newV4IP) > common.ChangeSame ||
-		common.GetStringChangeType(oldV6IP, newV6IP) > common.ChangeSame {
+	change := common.GetStringChangeType(oldV4IP, newV4IP) | common.GetStringChangeType(oldV6IP, newV6IP)
+	if change&(common.ChangeDeleted|common.ChangeUpdated) != 0 && node.Name == config.NodeName {
+		// restart if our BGP config changed
+		return NodeWatcherRestartError{}
+	}
+	if change != common.ChangeSame {
 		w.configureRemoteNodeSnat(old, false /* isAdd */)
 		w.configureRemoteNodeSnat(node, true /* isAdd */)
 	}
 
-	old.SweepFlag = false
 	return nil
 }
 
-func (w *NodeWatcher) onNodeAdded(node *common.NodeState) (err error) {
+func (w *NodeWatcher) onNodeAdded(node *oldv3.Node) (err error) {
+	if node.Name == config.NodeName && !w.didWeGetOurNodeBGP {
+		nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(node.Spec.BGP)
+		if nodeIP4 != nil || nodeIP6 != nil {
+			/* We found a BGP Spec that seems valid enough */
+			w.gotOurNodeBGPchan <- *node.Spec.BGP
+			w.didWeGetOurNodeBGP = true
+		}
+	}
+
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.PeerNodeStateChanged,
-		New:  &node.Node,
+		New:  node,
 	})
 	w.configureRemoteNodeSnat(node, true /* isAdd */)
+
 	return nil
 }
 
 func NewNodeWatcher(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *logrus.Entry) *NodeWatcher {
 	w := NodeWatcher{
-		vpp:               vpp,
-		log:               log,
-		clientv3:          clientv3,
-		gotOurNodeBGPchan: make(chan oldv3.NodeBGPSpec, 10),
-		nodeStatesByName:  make(map[string]common.NodeState),
+		vpp:                vpp,
+		log:                log,
+		clientv3:           clientv3,
+		nodeStatesByName:   make(map[string]oldv3.Node),
+		gotOurNodeBGPchan:  make(chan oldv3.NodeBGPSpec, 10),
+		didWeGetOurNodeBGP: false,
 	}
+
 	return &w
 }

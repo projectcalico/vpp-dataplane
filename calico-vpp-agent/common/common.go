@@ -371,17 +371,20 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 
 type ChangeType int
 
+/**
+ * Change types are flags so that you can check for multiple
+ * fields changing with an OR
+ */
 const (
-	ChangeNone    ChangeType = iota
-	ChangeSame    ChangeType = iota
-	ChangeAdded   ChangeType = iota
-	ChangeDeleted ChangeType = iota
-	ChangeUpdated ChangeType = iota
+	ChangeSame    ChangeType = 0
+	ChangeAdded   ChangeType = 1
+	ChangeDeleted ChangeType = 2
+	ChangeUpdated ChangeType = 4
 )
 
 func GetStringChangeType(old, new string) ChangeType {
 	if old == new && new == "" {
-		return ChangeNone
+		return ChangeSame
 	} else if old == new {
 		return ChangeSame
 	} else if old == "" {
