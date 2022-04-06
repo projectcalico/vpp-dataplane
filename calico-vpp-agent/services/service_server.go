@@ -16,10 +16,7 @@
 package services
 
 import (
-	"fmt"
 	"net"
-	"reflect"
-	"sort"
 	"sync"
 	"time"
 
@@ -28,6 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	tomb "gopkg.in/tomb.v2"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -38,22 +36,23 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-type LocalServiceEndpoint struct {
-	Endpoint *v1.Endpoints
-	Service  *v1.Service
+/**
+ * Service descriptions from the API are resolved into
+ * slices of LocalService, this allows to diffs between
+ * previous & expected state in VPP
+ */
+type LocalService struct {
+	Entries        []types.CnatTranslateEntry
+	SpecificRoutes []net.IP
+	ServiceID      string
 }
 
-type CnatTranslateEntryVPPState struct {
-	Entry          types.CnatTranslateEntry
-	OwnerServiceID string
-}
-
-func (es *CnatTranslateEntryVPPState) Key() string {
-	return fmt.Sprintf("%s#%s#%d", es.Entry.Proto.String(), es.Entry.Endpoint.IP, es.Entry.Endpoint.Port)
-}
-
-func (es *CnatTranslateEntryVPPState) String() string {
-	return fmt.Sprintf("svcID=%s %s", es.OwnerServiceID, es.Entry.String())
+/**
+ * Store VPP's state in a map [CnatTranslateEntry.Key()]->ServiceState
+ */
+type ServiceState struct {
+	OwnerServiceID string /* serviceID(service.ObjectMeta) of the service that created this entry */
+	VppID          uint32 /* cnat translation ID in VPP */
 }
 
 type Server struct {
@@ -69,7 +68,7 @@ type Server struct {
 	BGPConf     *calicov3.BGPConfigurationSpec
 	nodeBGPSpec *oldv3.NodeBGPSpec
 
-	stateMap map[string]CnatTranslateEntryVPPState
+	serviceStateMap map[string]ServiceState
 
 	t tomb.Tomb
 }
@@ -82,11 +81,35 @@ func (s *Server) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
 	s.nodeBGPSpec = nodeBGPSpec
 }
 
+func (s *Server) resolveLocalServiceFromService(service *v1.Service) *LocalService {
+	if service == nil {
+		return nil
+	}
+	ep := s.findMatchingEndpoint(service)
+	if ep == nil {
+		s.log.Debugf("svc() no endpoints found for service=%s", serviceID(&service.ObjectMeta))
+		return nil
+	}
+	return s.GetLocalService(service, ep)
+}
+
+func (s *Server) resolveLocalServiceFromEndpoints(ep *v1.Endpoints) *LocalService {
+	if ep == nil {
+		return nil
+	}
+	service := s.findMatchingService(ep)
+	if service == nil {
+		s.log.Debugf("svc() no svc found for endpoints=%s", serviceID(&ep.ObjectMeta))
+		return nil
+	}
+	return s.GetLocalService(service, ep)
+}
+
 func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log *logrus.Entry) *Server {
 	server := Server{
-		vpp:      vpp,
-		log:      log,
-		stateMap: make(map[string]CnatTranslateEntryVPPState),
+		vpp:             vpp,
+		log:             log,
+		serviceStateMap: make(map[string]ServiceState),
 	}
 
 	serviceListWatch := cache.NewListWatchFromClient(k8sclient.CoreV1().RESTClient(),
@@ -97,17 +120,20 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 		60*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				server.handleServiceEndpointEvent(obj.(*v1.Service), nil, nil, false)
+				localService := server.resolveLocalServiceFromService(obj.(*v1.Service))
+				server.handleServiceEndpointEvent(localService, nil)
 			},
 			UpdateFunc: func(old interface{}, obj interface{}) {
-				server.handleServiceEndpointEvent(obj.(*v1.Service), old.(*v1.Service), nil, false)
+				oldLocalService := server.resolveLocalServiceFromService(old.(*v1.Service))
+				localService := server.resolveLocalServiceFromService(obj.(*v1.Service))
+				server.handleServiceEndpointEvent(localService, oldLocalService)
 			},
 			DeleteFunc: func(obj interface{}) {
-				svc, ok := obj.(*v1.Service)
+				service, ok := obj.(*v1.Service)
 				if !ok {
-					svc = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Service)
+					service = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Service)
 				}
-				server.handleServiceEndpointEvent(svc, nil, nil, true)
+				server.deleteServiceByName(serviceID(&service.ObjectMeta))
 			},
 		})
 
@@ -119,17 +145,20 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 		60*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				server.handleServiceEndpointEvent(nil, nil, obj.(*v1.Endpoints), false)
+				localService := server.resolveLocalServiceFromEndpoints(obj.(*v1.Endpoints))
+				server.handleServiceEndpointEvent(localService, nil)
 			},
 			UpdateFunc: func(old interface{}, obj interface{}) {
-				server.handleServiceEndpointEvent(nil, nil, obj.(*v1.Endpoints), false)
+				oldLocalService := server.resolveLocalServiceFromEndpoints(old.(*v1.Endpoints))
+				localService := server.resolveLocalServiceFromEndpoints(obj.(*v1.Endpoints))
+				server.handleServiceEndpointEvent(localService, oldLocalService)
 			},
 			DeleteFunc: func(obj interface{}) {
 				ep, ok := obj.(*v1.Endpoints)
 				if !ok {
 					ep = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Endpoints)
 				}
-				server.handleServiceEndpointEvent(nil, nil, ep, true)
+				server.deleteServiceByName(serviceID(&ep.ObjectMeta))
 			},
 		})
 
@@ -159,8 +188,8 @@ func IsLocalOnly(service *v1.Service) bool {
 	return service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal
 }
 
-func ServiceID(service *v1.Service) string {
-	return service.Namespace + "/" + service.Name
+func serviceID(meta *metav1.ObjectMeta) string {
+	return meta.Namespace + "/" + meta.Name
 }
 
 func (s *Server) configureSnat() (err error) {
@@ -226,84 +255,81 @@ func (s *Server) findMatchingEndpoint(service *v1.Service) *v1.Endpoints {
 	return ep.(*v1.Endpoints)
 }
 
-func differentIPList(list1 []string, list2 []string) bool {
-	if len(list1) != len(list2) {
-		return true
-	}
-	for i, v := range list1 {
-		if v != list2[i] {
-			return true
+/**
+ * Compares two lists of service.Entry, match them and return those
+ * who should be deleted (first) and then re-added. It supports update
+ * when the entries can be updated with the add call
+ */
+func compareEntryLists(service *LocalService, oldService *LocalService) (added, same, deleted []types.CnatTranslateEntry, changed bool) {
+	if service == nil && oldService == nil {
+	} else if service == nil {
+		deleted = oldService.Entries
+	} else if oldService == nil {
+		added = service.Entries
+	} else {
+		oldMap := make(map[string]types.CnatTranslateEntry)
+		newMap := make(map[string]types.CnatTranslateEntry)
+		for _, elem := range oldService.Entries {
+			oldMap[elem.Key()] = elem
+		}
+		for _, elem := range service.Entries {
+			newMap[elem.Key()] = elem
+		}
+		for _, oldService := range oldService.Entries {
+			newService, found := newMap[oldService.Key()]
+			/* delete if not found in current map, or if we can't just update */
+			if !found {
+				deleted = append(deleted, oldService)
+			} else if newService.Equal(&oldService) == types.ShouldRecreateObj {
+				deleted = append(deleted, oldService)
+			} else {
+				same = append(same, oldService)
+			}
+		}
+		for _, newService := range service.Entries {
+			oldService, found := oldMap[newService.Key()]
+			/* add if previously not found, just skip if objects are really equal */
+			if !found {
+				added = append(added, newService)
+			} else if newService.Equal(&oldService) != types.AreEqualObj {
+				added = append(added, newService)
+			}
 		}
 	}
-	return false
+	changed = len(added)+len(deleted) > 0
+	return
 }
 
-func differentIPServices(service1 *v1.Service, service2 *v1.Service) bool {
-	if service1.Spec.ClusterIP != service2.Spec.ClusterIP {
-		return true
+/**
+ * Compares two lists of service.SpecificRoutes, match them and return those
+ * who should be deleted and then added.
+ */
+func compareSpecificRoutes(service *LocalService, oldService *LocalService) (added []net.IP, deleted []net.IP, changed bool) {
+	if service == nil && oldService == nil {
+		changed = false
+	} else if service == nil {
+		changed = true
+		deleted = oldService.SpecificRoutes
+	} else if oldService == nil {
+		changed = true
+		added = service.SpecificRoutes
+	} else {
+		added, deleted, changed = common.CompareIPList(service.SpecificRoutes, oldService.SpecificRoutes)
 	}
-	if service1.Spec.LoadBalancerIP != service2.Spec.LoadBalancerIP {
-		return true
-	}
-	if differentIPList(service1.Spec.ExternalIPs, service2.Spec.ExternalIPs) {
-		return true
-	}
-	if differentIPList(service1.Spec.ClusterIPs, service2.Spec.ClusterIPs) {
-		return true
-	}
-	return false
+	return added, deleted, changed
 }
 
-func differentIPServicePorts(service1 *v1.Service, service2 *v1.Service) bool {
-	service1Ports := service1.Spec.Ports
-	service2Ports := service2.Spec.Ports
-	sort.Slice(service1Ports, func(i, j int) bool {
-		return service1Ports[i].Port < service1Ports[j].Port
-	})
-	sort.Slice(service2Ports, func(i, j int) bool {
-		return service2Ports[i].Port < service2Ports[j].Port
-	})
-	return !reflect.DeepEqual(service1Ports, service2Ports)
-}
-
-func (s *Server) handleServiceEndpointEvent(service *v1.Service, oldService *v1.Service, ep *v1.Endpoints, isWithdrawal bool) {
-	if !config.EnableServices {
-		return
-	}
-
+func (s *Server) handleServiceEndpointEvent(service *LocalService, oldService *LocalService) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if service != nil && ep == nil {
-		ep = s.findMatchingEndpoint(service)
+	if added, same, deleted, changed := compareEntryLists(service, oldService); changed {
+		s.deleteServiceEntries(deleted, oldService)
+		s.sameServiceEntries(same, service)
+		s.addServiceEntries(added, service)
 	}
-	if service == nil && ep != nil {
-		service = s.findMatchingService(ep)
-	}
-	if ep == nil || service == nil {
-		// Wait
-		return
-	}
-	if oldService != nil {
-		if differentIPServices(oldService, service) || differentIPServicePorts(service, oldService) {
-			err := s.delServicePort(oldService, ep)
-			if err != nil {
-				s.log.Errorf("Service errored %v", err)
-			}
-		} else {
-			return
-		}
-	}
-	if isWithdrawal {
-		err := s.delServicePort(service, ep)
-		if err != nil {
-			s.log.Errorf("Del Service errored %v", err)
-		}
-	} else {
-		err := s.addServicePort(service, ep)
-		if err != nil {
-			s.log.Errorf("Add Service errored %v", err)
-		}
+	if added, deleted, changed := compareSpecificRoutes(service, oldService); changed {
+		s.advertiseSpecificRoute(added, deleted)
 	}
 }
 
@@ -357,8 +383,10 @@ func (s *Server) ServeService(t *tomb.Tomb) error {
 		return err
 	}
 
-	s.t.Go(func() error { s.serviceInformer.Run(t.Dying()); return nil })
-	s.t.Go(func() error { s.endpointInformer.Run(t.Dying()); return nil })
+	if config.EnableServices {
+		s.t.Go(func() error { s.serviceInformer.Run(t.Dying()); return nil })
+		s.t.Go(func() error { s.endpointInformer.Run(t.Dying()); return nil })
+	}
 
 	<-s.t.Dying()
 

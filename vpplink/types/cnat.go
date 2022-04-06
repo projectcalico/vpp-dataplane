@@ -64,12 +64,15 @@ func (t *CnatEndpointTuple) String() string {
 	)
 }
 
+func (e *CnatTranslateEntry) Key() string {
+	return fmt.Sprintf("%s#%s#%d", e.Proto.String(), e.Endpoint.IP, e.Endpoint.Port)
+}
+
 type CnatTranslateEntry struct {
 	Endpoint CnatEndpoint
 	Backends []CnatEndpointTuple
 	Proto    IPProto
 	IsRealIP bool
-	ID       uint32
 	LbType   CnatLbType
 }
 
@@ -78,39 +81,59 @@ func (n *CnatTranslateEntry) String() string {
 	for _, e := range n.Backends {
 		strLst = append(strLst, e.String())
 	}
-	return fmt.Sprintf("[%s vip=%s rw=%s]",
+	return fmt.Sprintf("[%s real=%t lbtyp=%d vip=%s rw=%s]",
 		n.Proto.String(),
+		n.IsRealIP,
+		n.LbType,
 		n.Endpoint.String(),
 		strings.Join(strLst, ", "),
 	)
 }
 
-func (n *CnatTranslateEntry) Equal(o *CnatTranslateEntry) bool {
-	if n == nil || o == nil {
-		return false
+type ObjEqualityState int
+
+const (
+	AreEqualObj       ObjEqualityState = iota /* objects are equal */
+	CanUpdateObj                              /* objects differ, but you can call update */
+	ShouldRecreateObj                         /* object differ, you need to delete the old & add back the new */
+)
+
+func (n *CnatTranslateEntry) Equal(oldService *CnatTranslateEntry) ObjEqualityState {
+	if n == nil || oldService == nil {
+		return ShouldRecreateObj
 	}
-	if n.Proto != o.Proto {
-		return false
+	if n.Proto != oldService.Proto {
+		return ShouldRecreateObj
 	}
-	if n.Endpoint.Port != o.Endpoint.Port {
-		return false
+	if n.IsRealIP != oldService.IsRealIP {
+		return ShouldRecreateObj
 	}
-	if !n.Endpoint.IP.Equal(o.Endpoint.IP) {
-		return false
+	if n.Endpoint.Port != oldService.Endpoint.Port {
+		return ShouldRecreateObj
 	}
-	if len(n.Backends) != len(o.Backends) {
-		return false
+	if !n.Endpoint.IP.Equal(oldService.Endpoint.IP) {
+		return ShouldRecreateObj
+	}
+	if len(n.Backends) == 0 && len(oldService.Backends) > 0 {
+		/* We do not keep cnat entries with no backends in VPP */
+		return ShouldRecreateObj
+	}
+	if n.LbType != oldService.LbType {
+		return CanUpdateObj
+	}
+	if len(n.Backends) != len(oldService.Backends) {
+		return CanUpdateObj
 	}
 	nMap := make(map[string]bool)
 	for _, i := range n.Backends {
 		nMap[i.String()] = true
 	}
-	for _, i := range o.Backends {
+	for _, i := range oldService.Backends {
 		if _, ok := nMap[i.String()]; !ok {
-			return false
+			return CanUpdateObj
 		}
 	}
-	return true
+	return AreEqualObj
 }
 
 func ToCnatEndpoint(ep CnatEndpoint) cnat.CnatEndpoint {
