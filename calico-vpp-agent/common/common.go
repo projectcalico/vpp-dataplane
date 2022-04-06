@@ -503,3 +503,28 @@ func FetchNDataThreads(vpp *vpplink.VppLink, log *logrus.Entry) int {
 	}
 	return nDataThreads
 }
+
+func CompareIPList(newIPList, oldIPList []net.IP) (added []net.IP, deleted []net.IP, changed bool) {
+	oldIPListMap := make(map[string]bool)
+	newIPListMap := make(map[string]bool)
+	for _, elem := range oldIPList {
+		oldIPListMap[elem.String()] = true
+	}
+	for _, elem := range newIPList {
+		newIPListMap[elem.String()] = true
+	}
+	for _, elem := range oldIPList {
+		_, found := newIPListMap[elem.String()]
+		if !found {
+			deleted = append(deleted, elem)
+		}
+	}
+	for _, elem := range newIPList {
+		_, found := oldIPListMap[elem.String()]
+		if !found {
+			added = append(added, elem)
+		}
+	}
+	changed = len(added)+len(deleted) > 0
+	return
+}

@@ -47,7 +47,7 @@ func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.Clean
 			if err != nil {
 				return err
 			} else {
-				stack.Push(s.vpp.CnatTranslateDel, entry.ID)
+				stack.Push(s.vpp.CnatTranslateDel, id)
 			}
 			podSpec.HostPorts[idx].EntryID = id
 		}
