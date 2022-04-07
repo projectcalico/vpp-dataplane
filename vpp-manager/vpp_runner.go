@@ -306,13 +306,11 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 }
 
 func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount int, vppIfSwIfIndex uint32) (err error) {
-	ipFlowHash := &types.IPFlowHash{
-		Src:       true,
-		Dst:       true,
-		SrcPort:   true,
-		DstPort:   true,
-		Symmetric: true,
-	}
+	ipFlowHash := types.FlowHashSrcIP |
+		types.FlowHashDstIP |
+		types.FlowHashSrcPort |
+		types.FlowHashDstPort |
+		types.FlowHashSymetric
 
 	err = v.vpp.SetIPFlowHash(ipFlowHash, 0 /* vrf */, false /* isIPv6 */)
 	if err != nil {
