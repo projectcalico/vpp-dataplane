@@ -86,11 +86,13 @@ func (s *Server) findPodVRFs(podSpec *storage.LocalPodSpec) bool {
 	return false
 }
 
-func (s *Server) removeConflictingContainers(newAddresses []storage.LocalIP) {
+func (s *Server) removeConflictingContainers(newAddresses []storage.LocalIP, networkName string) {
 	addrMap := make(map[string]storage.LocalPodSpec)
 	for _, podSpec := range s.podInterfaceMap {
 		for _, addr := range podSpec.ContainerIps {
-			addrMap[addr.IP.String()] = podSpec
+			if podSpec.NetworkName == networkName {
+				addrMap[addr.IP.String()] = podSpec
+			}
 		}
 	}
 	podSpecsToDelete := make(map[string]storage.LocalPodSpec)
@@ -141,7 +143,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	 * As we did not find the VRF in VPP, we shouldn't find
 	 * ourselves in s.podInterfaceMap
 	 */
-	s.removeConflictingContainers(podSpec.ContainerIps)
+	s.removeConflictingContainers(podSpec.ContainerIps, podSpec.NetworkName)
 
 	stack := s.vpp.NewCleanupStack()
 

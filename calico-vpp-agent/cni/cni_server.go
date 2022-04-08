@@ -61,7 +61,6 @@ type Server struct {
 	availableBuffers    uint64
 	buffersNeededPerTap uint64
 
-	cniServerEventChan chan common.CalicoVppEvent
 	networkDefinitions map[string]*watchers.NetworkDefinition
 }
 
@@ -137,12 +136,14 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 			Mask: route.Mask,
 		})
 	}
-	_, route, err := net.ParseCIDR(request.DataplaneOptions["route"])
-	if err == nil {
-		podSpec.Routes = append(podSpec.Routes, storage.LocalIPNet{
-			IP:   route.IP,
-			Mask: route.Mask,
-		})
+	if podSpec.NetworkName != "" {
+		_, route, err := net.ParseCIDR(s.networkDefinitions[podSpec.NetworkName].Range)
+		if err == nil {
+			podSpec.Routes = append(podSpec.Routes, storage.LocalIPNet{
+				IP:   route.IP,
+				Mask: route.Mask,
+			})
+		}
 	}
 	for _, requestContainerIP := range request.GetContainerIps() {
 		containerIp, _, err := net.ParseCIDR(requestContainerIP.GetAddress())
@@ -175,6 +176,42 @@ func NewLocalPodSpecFromDel(request *pb.DelRequest) *storage.LocalPodSpec {
 	}
 }
 
+func intersect(n1, n2 *net.IPNet) bool {
+	return n2.Contains(n1.IP) || n1.Contains(n2.IP)
+}
+
+func (s *Server) overlappingPodSpecs(podSpec1 *storage.LocalPodSpec, podSpec2 *storage.LocalPodSpec) (bool, error) {
+	_, b, err := net.ParseCIDR(s.networkDefinitions[podSpec1.NetworkName].Range)
+	if err != nil {
+		return false, err
+	}
+	_, e, err := net.ParseCIDR(s.networkDefinitions[podSpec2.NetworkName].Range)
+	if err != nil {
+		return false, err
+	}
+	if intersect(b, e) {
+		s.log.Warn("overlapping %s and %s", podSpec1.NetworkName, podSpec2.NetworkName)
+		return true, nil
+	}
+	return false, nil
+}
+
+func (s *Server) checkOverlappingNetworks(podSpec *storage.LocalPodSpec) (bool, error) {
+	for _, exPodSpec := range s.podInterfaceMap {
+		if exPodSpec.NetworkName != "" && exPodSpec.NetworkName != podSpec.NetworkName && podSpec.NetnsName == exPodSpec.NetnsName {
+			overlap, err := s.overlappingPodSpecs(podSpec, &exPodSpec)
+			if err != nil {
+				return false, err
+			}
+			if overlap {
+				s.log.Warn("This pod already exists in network %s which overlaps with %s", exPodSpec.NetworkName, podSpec.NetworkName)
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
 func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply, error) {
 	/* We don't support request.GetDesiredHostInterfaceName() */
 	podSpec, err := s.newLocalPodSpecFromAdd(request)
@@ -204,6 +241,23 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 		podSpec = &existingSpec
 	}
 
+	if podSpec.NetworkName != "" {
+		s.log.Infof("check overlapping networks")
+		overlap, err := s.checkOverlappingNetworks(podSpec)
+		if err != nil {
+			return &pb.AddReply{
+				Successful:   false,
+				ErrorMessage: err.Error(),
+			}, nil
+		}
+		if overlap {
+			s.log.Errorf("Interface add failed %s : overlapping networks", podSpec.String())
+			return &pb.AddReply{
+				Successful:   false,
+				ErrorMessage: "overlapping networks",
+			}, nil
+		}
+	}
 	swIfIndex, err := s.AddVppInterface(podSpec, true /* doHostSideConf */)
 	if err != nil {
 		s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
@@ -340,7 +394,6 @@ func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Ent
 		vclDriver:       pod_interface.NewVclPodInterfaceDriver(vpp, log),
 		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(vpp, log),
 
-		cniServerEventChan: make(chan common.CalicoVppEvent),
 		networkDefinitions: make(map[string]*watchers.NetworkDefinition),
 	}
 	reg := common.RegisterHandler(server.cniEventChan, "CNI server events")
@@ -423,7 +476,7 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	nets := &[]*calicov3.Network{}
 	go func() {
 		for t.Alive() {
-			event := <-s.cniServerEventChan
+			event := <-s.cniEventChan
 			switch event.Type {
 			case common.NetsSynced:
 				nets = event.New.(*[]*calicov3.Network)
@@ -440,7 +493,7 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 			}
 		}
 	}()
-	<- netsSynced
+	<-netsSynced
 	s.waitForNetsSynced(nets)
 	s.rescanState()
 

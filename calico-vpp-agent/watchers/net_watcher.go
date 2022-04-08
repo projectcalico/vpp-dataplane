@@ -43,6 +43,7 @@ type NetworkDefinition struct {
 	Vni               uint32
 	Name              string
 	LoopbackSwIfIndex uint32
+	Range             string
 }
 
 type NetWatcher struct {
@@ -141,7 +142,7 @@ func (w *NetWatcher) Stop() {
 
 func (w *NetWatcher) OnNetAdded(net *v3.Network) error {
 	w.log.Infof("adding network %s", net.Name)
-	netDef, err := w.CreateVRFsForNet(net.Name, uint32(net.Spec.VNI))
+	netDef, err := w.CreateVRFsForNet(net.Name, uint32(net.Spec.VNI), net.Spec.Range)
 	if err != nil {
 		return err
 	}
@@ -183,7 +184,7 @@ func getNetworkVrfName(networkName string, suffix string) string {
 	return fmt.Sprintf("pod-%s-table-%s", networkName, suffix)
 }
 
-func (w *NetWatcher) CreateVRFsForNet(networkName string, networkVni uint32) (netDef *NetworkDefinition, err error) {
+func (w *NetWatcher) CreateVRFsForNet(networkName string, networkVni uint32, netRange string) (netDef *NetworkDefinition, err error) {
 	/* Create and Setup the per-network VRF */
 	var tables [2]uint32
 	if _, ok := w.networkDefinitions[networkName]; ok {
@@ -202,7 +203,12 @@ func (w *NetWatcher) CreateVRFsForNet(networkName string, networkVni uint32) (ne
 		}
 		tables[idx] = vrfId
 	}
-	netDef = &NetworkDefinition{VRF: VRF{Tables: tables}, Vni: uint32(networkVni), Name: networkName, LoopbackSwIfIndex: swIfIndex}
+	netDef = &NetworkDefinition{
+		VRF:               VRF{Tables: tables},
+		Vni:               uint32(networkVni),
+		Name:              networkName,
+		LoopbackSwIfIndex: swIfIndex,
+		Range:             netRange}
 	w.networkDefinitions[networkName] = netDef
 	return netDef, nil
 }
