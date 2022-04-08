@@ -263,6 +263,10 @@ func (s *ConnectivityServer) updateSRv6Policy(cn *common.NodeConnectivity, IsWit
 }
 
 func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (string, error) {
+	// use vxlan tunnel if secondary network, no need for ippool
+	if cn.Vni != 0 {
+		return VXLAN, nil
+	}
 	ipPool := s.ipam.GetPrefixIPPool(&cn.Dst)
 	if config.EnableSRv6 {
 		return SRv6, nil
