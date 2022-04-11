@@ -76,7 +76,7 @@ type Server struct {
 	/* workloadToHost may drop traffic that goes from the pods to the host */
 	workloadsToHostIPSet  *IPSet
 	workloadsToHostPolicy *Policy
-	/* always allow traffic coming from host to the pods */
+	/* always allow traffic coming from host to the pods (for healthchecks and so on) */
 	allowFromHostPolicy *Policy
 	/* allow traffic between uplink/tunnels and tap interfaces */
 	allowToHostPolicy *Policy

@@ -205,6 +205,8 @@ alias k="kubectl"
 alias ks="kubectl -n kube-system"
 alias ki="kubectl -n iperf"
 alias kv="kubectl -n calico-vpp-dataplane"
+alias kcs="kubectl -n calico-system"
+alias kto="kubectl -n tigera-operator"
 }
 
 $prepareScript = <<SCRIPT
