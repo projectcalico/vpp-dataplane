@@ -301,12 +301,13 @@ func (r *Rule) Create(vpp *vpplink.VppLink, state *PolicyState) (err error) {
 		return errors.Wrap(err, "error creating rule")
 	}
 	r.VppID = id
-    logrus.Infof("policy(add) VPP rule=%s id=%d", r.Rule, id)
+	logrus.Infof("policy(add) VPP rule=%s id=%d", r.Rule, id)
 	return nil
 }
 
 func (r *Rule) Delete(vpp *vpplink.VppLink) (err error) {
-    logrus.Infof("policy(del) VPP rule id=%d", r.VppID)
+	logrus.Infof("policy(del) VPP rule id=%d", r.VppID)
+	err = vpp.RuleDelete(r.VppID)
 	if err != nil {
 		return err
 	}
