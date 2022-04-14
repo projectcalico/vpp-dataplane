@@ -36,7 +36,9 @@ import (
 
 type TunTapPodInterfaceDriver struct {
 	PodInterfaceDriverData
-	felixConfig *felixConfig.Config
+	felixConfig         *felixConfig.Config
+	ipipEncapRefCounts  int /* how many ippools with IPIP */
+	vxlanEncapRefCounts int /* how many ippools with VXLAN */
 }
 
 func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTapPodInterfaceDriver {
@@ -53,18 +55,31 @@ func reduceMtuIf(podMtu *int, tunnelMtu int, tunnelEnabled bool) {
 	}
 }
 
-func (i *TunTapPodInterfaceDriver) computeDefaultPodMtu() int {
-	fc := i.felixConfig
+/**
+ * Computes the pod MTU from a requested mtu : podSpecMtu (typically specified in the podSpec)
+ * the felixConfig (having some encap details)
+ * and other sources (typically ippool) for vxlanEnabled / ipInIpEnabled
+ */
+func (i *TunTapPodInterfaceDriver) computePodMtu(podSpecMtu int, fc *felixConfig.Config, ipipEnabled bool, vxlanEnabled bool) (podMtu int) {
+	if podSpecMtu > 0 {
+		podMtu = podSpecMtu
+	} else {
+		ipipEnabled := ipipEnabled || fc.IpInIpEnabled
+		vxlanEnabled := vxlanEnabled || fc.VXLANEnabled
 
-	podMtu := config.HostMtu
+		// Reproduce felix algorithm in determinePodMTU to determine pod MTU
+		// The part where it defaults to the host MTU is done in AddVppInterface
+		// TODO: move the code that retrieves the host mtu to this module...
+		podMtu = config.HostMtu
+		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.IpInIpMtu, config.HostMtu-20), ipipEnabled)
+		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.VXLANMTU, config.HostMtu-50), vxlanEnabled)
+		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.WireguardMTU, config.HostMtu-60), fc.WireguardEnabled)
+		reduceMtuIf(&podMtu, config.HostMtu-60, config.EnableIPSec)
+	}
 
-	// Reproduce felix algorithm in determinePodMTU to determine pod MTU
-	// The part where it defaults to the host MTU is done in AddVppInterface
-	// TODO: move the code that retrieves the host mtu to this module...
-	reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.IpInIpMtu, config.HostMtu-20), fc.IpInIpEnabled)
-	reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.VXLANMTU, config.HostMtu-50), fc.VXLANEnabled)
-	reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.WireguardMTU, config.HostMtu-60), fc.WireguardEnabled)
-	reduceMtuIf(&podMtu, config.HostMtu-60, config.EnableIPSec)
+	if podMtu > config.HostMtu {
+		i.log.Warnf("Configured MTU (%d) is larger than detected host interface MTU (%d)", podMtu, config.HostMtu)
+	}
 
 	return podMtu
 }
@@ -73,18 +88,45 @@ func (i *TunTapPodInterfaceDriver) SetFelixConfig(felixConfig *felixConfig.Confi
 	i.felixConfig = felixConfig
 }
 
+/**
+ * This is called when the felix config or ippool encap refcount change,
+ * and update the linux mtu accordingly.
+ *
+ */
+func (i *TunTapPodInterfaceDriver) FelixConfigChanged(newFelixConfig *felixConfig.Config, ipipEncapRefCountDelta int, vxlanEncapRefCountDelta int, podSpecs map[string]storage.LocalPodSpec) {
+	if newFelixConfig == nil {
+		newFelixConfig = i.felixConfig
+	}
+	if i.felixConfig != nil {
+		for name, podSpec := range podSpecs {
+			oldMtu := i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0)
+			newMtu := i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts+ipipEncapRefCountDelta > 0, i.vxlanEncapRefCounts+vxlanEncapRefCountDelta > 0)
+			if oldMtu != newMtu {
+				i.log.Infof("pod(upd) reconfiguring mtu=%d pod=%s", newMtu, name)
+				err := ns.WithNetNSPath(podSpec.NetnsName, func(ns.NetNS) error {
+					containerInterface, err := netlink.LinkByName(podSpec.InterfaceName)
+					if err != nil {
+						return errors.Wrapf(err, "failed to lookup if=%s pod=%s", podSpec.InterfaceName, name)
+					}
+					err = netlink.LinkSetMTU(containerInterface, newMtu)
+					if err != nil {
+						return err
+					}
+					return nil
+				})
+				if err != nil {
+					i.log.Errorf("failed to set mtu pod=%s: %v", name, err)
+				}
+			}
+		}
+	}
+
+	i.felixConfig = newFelixConfig
+	i.ipipEncapRefCounts = i.ipipEncapRefCounts + ipipEncapRefCountDelta
+	i.vxlanEncapRefCounts = i.vxlanEncapRefCounts + vxlanEncapRefCountDelta
+}
+
 func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) error {
-	// configure MTU from env var if present or calculate it from host mtu
-	podMtu := podSpec.Mtu
-	if podSpec.Mtu <= 0 {
-		podMtu = i.computeDefaultPodMtu()
-	}
-
-	if podMtu > config.HostMtu {
-		i.log.Warnf("Configured MTU (%d) is larger than detected host interface MTU (%d)", podMtu, config.HostMtu)
-	}
-	i.log.Debugf("Determined pod MTU: %d", podMtu)
-
 	tun := &types.TapV2{
 		GenericVppInterface: types.GenericVppInterface{
 			NumRxQueues:       config.TapNumRxQueues,
@@ -95,7 +137,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		},
 		HostNamespace: podSpec.NetnsName,
 		Tag:           podSpec.GetInterfaceTag(i.name),
-		HostMtu:       podMtu,
+		HostMtu:       i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0),
 	}
 
 	if podSpec.TunTapIsL3 {
