@@ -24,6 +24,7 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/sirupsen/logrus"
@@ -49,6 +50,7 @@ type Server struct {
 
 	podInterfaceMap map[string]storage.LocalPodSpec
 	lock            sync.Mutex /* protects Add/DelVppInterace/RescanState */
+	cniEventChan    chan common.CalicoVppEvent
 
 	memifDriver    *pod_interface.MemifPodInterfaceDriver
 	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
@@ -314,7 +316,8 @@ func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Ent
 		vpp: vpp,
 		log: log,
 
-		ipam: ipam,
+		ipam:         ipam,
+		cniEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]storage.LocalPodSpec),
@@ -323,7 +326,48 @@ func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Ent
 		vclDriver:       pod_interface.NewVclPodInterfaceDriver(vpp, log),
 		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(vpp, log),
 	}
+	reg := common.RegisterHandler(server.cniEventChan, "CNI server events")
+	reg.ExpectEvents(common.FelixConfChanged, common.IpamConfChanged)
+
 	return server
+}
+func (s *Server) cniServerEventLoop(t *tomb.Tomb) {
+	for {
+		select {
+		case <-t.Dying():
+			break
+		case evt := <-s.cniEventChan:
+			switch evt.Type {
+			case common.FelixConfChanged:
+				if new, _ := evt.New.(*felixConfig.Config); new != nil {
+					s.lock.Lock()
+					s.tuntapDriver.FelixConfigChanged(new, 0 /* ipipEncapRefCountDelta */, 0 /* vxlanEncapRefCountDelta */, s.podInterfaceMap)
+					s.lock.Unlock()
+				}
+			case common.IpamConfChanged:
+				old, _ := evt.Old.(*calicov3.IPPool)
+				new, _ := evt.New.(*calicov3.IPPool)
+				ipipEncapRefCountDelta := 0
+				vxlanEncapRefCountDelta := 0
+				if old != nil && old.Spec.VXLANMode != calicov3.VXLANModeNever {
+					vxlanEncapRefCountDelta--
+				}
+				if old != nil && old.Spec.IPIPMode != calicov3.IPIPModeNever {
+					ipipEncapRefCountDelta--
+				}
+				if new != nil && new.Spec.VXLANMode != calicov3.VXLANModeNever {
+					vxlanEncapRefCountDelta++
+				}
+				if new != nil && new.Spec.IPIPMode != calicov3.IPIPModeNever {
+					ipipEncapRefCountDelta++
+				}
+
+				s.lock.Lock()
+				s.tuntapDriver.FelixConfigChanged(nil /* felixConfig */, ipipEncapRefCountDelta, vxlanEncapRefCountDelta, s.podInterfaceMap)
+				s.lock.Unlock()
+			}
+		}
+	}
 }
 
 func (s *Server) ServeCNI(t *tomb.Tomb) error {
@@ -339,7 +383,7 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	s.log.Infof("Serve() CNI")
 	go s.grpcServer.Serve(socketListener)
 
-	<-t.Dying()
+	s.cniServerEventLoop(t)
 
 	s.log.Infof("CNI Server returned")
 

@@ -286,12 +286,16 @@ func (c *ipamCache) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.
 		/* Add */
 		c.log.Debugf("Pool %s Added, handler called")
 		err = c.addDelSnatPrefix(pool, true /* isAdd */)
-		return errors.Wrap(err, "error handling ipam add")
+		if err != nil {
+			return errors.Wrap(err, "error handling ipam add")
+		}
 	} else if pool == nil {
 		/* Deletion */
 		c.log.Debugf("Pool %s deleted, handler called", prevPool.Spec.CIDR)
 		err = c.addDelSnatPrefix(prevPool, false /* isAdd */)
-		return errors.Wrap(err, "error handling ipam deletion")
+		if err != nil {
+			return errors.Wrap(err, "error handling ipam deletion")
+		}
 	} else {
 		if pool.Spec.CIDR != prevPool.Spec.CIDR ||
 			pool.Spec.NATOutgoing != prevPool.Spec.NATOutgoing {
@@ -302,12 +306,12 @@ func (c *ipamCache) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.
 				return errors.Errorf("error updating snat prefix del:%s, add:%s", err, err2)
 			}
 		}
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.IpamConfChanged,
-			Old:  prevPool,
-			New:  pool,
-		})
 	}
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.IpamConfChanged,
+		Old:  prevPool.DeepCopy(),
+		New:  pool.DeepCopy(),
+	})
 	return nil
 }
 
