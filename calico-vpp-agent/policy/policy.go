@@ -38,6 +38,22 @@ type Policy struct {
 	OutboundRules []*Rule
 }
 
+func (p *Policy) DeepCopy() *Policy {
+	policy := &Policy{
+		Policy:        p.Policy.DeepCopy(),
+		VppID:         p.VppID,
+		InboundRules:  make([]*Rule, 0),
+		OutboundRules: make([]*Rule, 0),
+	}
+	for _, r := range p.InboundRules {
+		policy.InboundRules = append(policy.InboundRules, r.DeepCopy())
+	}
+	for _, r := range p.OutboundRules {
+		policy.OutboundRules = append(policy.OutboundRules, r.DeepCopy())
+	}
+	return policy
+}
+
 func (p *Policy) String() string {
 	s := fmt.Sprintf("[id=%d", p.VppID)
 	s += types.StrableListToString(" inboundRules=", p.InboundRules)
