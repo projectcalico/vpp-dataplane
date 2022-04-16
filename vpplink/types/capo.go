@@ -153,6 +153,52 @@ type Rule struct {
 	DstIPPortSet []uint32
 }
 
+func (r *Rule) DeepCopy() *Rule {
+	rule := &Rule{
+		Action:            r.Action,
+		AddressFamily:     r.AddressFamily,
+		Filters:           make([]RuleFilter, len(r.Filters)),
+		DstNet:            make([]net.IPNet, len(r.DstNet)),
+		DstNotNet:         make([]net.IPNet, len(r.DstNotNet)),
+		SrcNet:            make([]net.IPNet, len(r.SrcNet)),
+		SrcNotNet:         make([]net.IPNet, len(r.SrcNotNet)),
+		DstPortRange:      make([]PortRange, len(r.DstPortRange)),
+		DstNotPortRange:   make([]PortRange, len(r.DstNotPortRange)),
+		SrcPortRange:      make([]PortRange, len(r.SrcPortRange)),
+		SrcNotPortRange:   make([]PortRange, len(r.SrcNotPortRange)),
+		DstIPPortIPSet:    make([]uint32, len(r.DstIPPortIPSet)),
+		DstNotIPPortIPSet: make([]uint32, len(r.DstNotIPPortIPSet)),
+		SrcIPPortIPSet:    make([]uint32, len(r.SrcIPPortIPSet)),
+		SrcNotIPPortIPSet: make([]uint32, len(r.SrcNotIPPortIPSet)),
+		DstIPSet:          make([]uint32, len(r.DstIPSet)),
+		DstNotIPSet:       make([]uint32, len(r.DstNotIPSet)),
+		SrcIPSet:          make([]uint32, len(r.SrcIPSet)),
+		SrcNotIPSet:       make([]uint32, len(r.SrcNotIPSet)),
+		DstIPPortSet:      make([]uint32, len(r.DstIPPortSet)),
+	}
+
+	copy(rule.Filters, r.Filters)
+	copy(rule.DstNet, r.DstNet)
+	copy(rule.DstNotNet, r.DstNotNet)
+	copy(rule.SrcNet, r.SrcNet)
+	copy(rule.SrcNotNet, r.SrcNotNet)
+	copy(rule.DstPortRange, r.DstPortRange)
+	copy(rule.DstNotPortRange, r.DstNotPortRange)
+	copy(rule.SrcPortRange, r.SrcPortRange)
+	copy(rule.SrcNotPortRange, r.SrcNotPortRange)
+	copy(rule.DstIPPortIPSet, r.DstIPPortIPSet)
+	copy(rule.DstNotIPPortIPSet, r.DstNotIPPortIPSet)
+	copy(rule.SrcIPPortIPSet, r.SrcIPPortIPSet)
+	copy(rule.SrcNotIPPortIPSet, r.SrcNotIPPortIPSet)
+	copy(rule.DstIPSet, r.DstIPSet)
+	copy(rule.DstNotIPSet, r.DstNotIPSet)
+	copy(rule.SrcIPSet, r.SrcIPSet)
+	copy(rule.SrcNotIPSet, r.SrcNotIPSet)
+	copy(rule.DstIPPortSet, r.DstIPPortSet)
+
+	return rule
+}
+
 func StrableListToString(prefix string, arg interface{}) string {
 	value := reflect.ValueOf(arg)
 	if value.Len() == 0 {
@@ -234,6 +280,16 @@ func (r *Rule) String() string {
 type Policy struct {
 	InboundRuleIDs  []uint32
 	OutboundRuleIDs []uint32
+}
+
+func (p *Policy) DeepCopy() *Policy {
+	policy := &Policy{
+		InboundRuleIDs:  make([]uint32, len(p.InboundRuleIDs)),
+		OutboundRuleIDs: make([]uint32, len(p.OutboundRuleIDs)),
+	}
+	copy(policy.InboundRuleIDs, p.InboundRuleIDs)
+	copy(policy.OutboundRuleIDs, p.OutboundRuleIDs)
+	return policy
 }
 
 func (p *Policy) String() string {

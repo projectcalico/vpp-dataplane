@@ -44,6 +44,7 @@ type HostEndpoint struct {
 	expectedIPs       []string
 
 	currentForwardConf *types.InterfaceConfig
+	ownPolicies        []Policy
 }
 
 func (he *HostEndpoint) String() string {
@@ -76,6 +77,7 @@ func fromProtoHostEndpoint(hep *proto.HostEndpoint, server *Server) *HostEndpoin
 		Tiers:             make([]Tier, 0),
 		ForwardTiers:      make([]Tier, 0),
 		expectedIPs:       append(hep.ExpectedIpv4Addrs, hep.ExpectedIpv6Addrs...),
+		ownPolicies:       make([]Policy, 0),
 	}
 	for _, tier := range hep.Tiers {
 		r.Tiers = append(r.Tiers, Tier{
@@ -178,50 +180,67 @@ func (h *HostEndpoint) getTapPolicies(state *PolicyState) (conf *types.Interface
 	return conf, nil
 }
 
-func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.InterfaceConfig, err error) {
+func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.InterfaceConfig, ownPolicies []Policy, err error) {
 	conf = types.NewInterfaceConfig()
+	ownPolicies = make([]Policy, 0)
 	for _, tier := range h.ForwardTiers {
 		for _, polName := range tier.IngressPolicies {
 			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName}]
 			if !ok {
-				return nil, fmt.Errorf("in policy %s tier %s not found for host endpoint", polName, tier.Name)
+				return nil, nil, fmt.Errorf("in policy %s tier %s not found for host endpoint", polName, tier.Name)
 			}
 			if pol.VppID == types.InvalidID {
-				return nil, fmt.Errorf("in policy %s tier %s not yet created in VPP", polName, tier.Name)
+				return nil, nil, fmt.Errorf("in policy %s tier %s not yet created in VPP", polName, tier.Name)
 			}
 			// reverse policy inbound and outbound rules
 			newPol := &Policy{
 				Policy: &types.Policy{},
 				VppID:  types.InvalidID,
 			}
-			newPol.InboundRules = pol.OutboundRules
-			newPol.OutboundRules = pol.InboundRules
+			newPol.InboundRules = make([]*Rule, 0)
+			for _, r := range pol.OutboundRules {
+				newPol.InboundRules = append(newPol.InboundRules, r.DeepCopy())
+			}
+			newPol.OutboundRules = make([]*Rule, 0)
+			for _, r := range pol.InboundRules {
+				newPol.OutboundRules = append(newPol.OutboundRules, r.DeepCopy())
+			}
 			err := newPol.Create(h.server.vpp, state)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
+			h.server.log.Infof("Created policy vpp-id=%d for forwardConf (ingress)", newPol.VppID)
 			conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, newPol.VppID)
+			ownPolicies = append(ownPolicies, *newPol)
 		}
 		for _, polName := range tier.EgressPolicies {
 			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName}]
 			if !ok {
-				return nil, fmt.Errorf("out policy %s tier %s not found for host endpoint", polName, tier.Name)
+				return nil, nil, fmt.Errorf("out policy %s tier %s not found for host endpoint", polName, tier.Name)
 			}
 			if pol.VppID == types.InvalidID {
-				return nil, fmt.Errorf("out policy %s tier %s not yet created in VPP", polName, tier.Name)
+				return nil, nil, fmt.Errorf("out policy %s tier %s not yet created in VPP", polName, tier.Name)
 			}
 			// reverse policy inbound and outbound rules
 			newPol := &Policy{
 				Policy: &types.Policy{},
 				VppID:  types.InvalidID,
 			}
-			newPol.InboundRules = pol.OutboundRules
-			newPol.OutboundRules = pol.InboundRules
-			err := newPol.Create(h.server.vpp, state)
-			if err != nil {
-				return nil, err
+			newPol.InboundRules = make([]*Rule, 0)
+			for _, r := range pol.OutboundRules {
+				newPol.InboundRules = append(newPol.InboundRules, r.DeepCopy())
 			}
+			newPol.OutboundRules = make([]*Rule, 0)
+			for _, r := range pol.InboundRules {
+				newPol.OutboundRules = append(newPol.OutboundRules, r.DeepCopy())
+			}
+			err = newPol.Create(h.server.vpp, state)
+			if err != nil {
+				return nil, nil, err
+			}
+			h.server.log.Infof("Created policy vpp-id=%d for forwardConf (egress)", newPol.VppID)
 			conf.EgressPolicyIDs = append(conf.EgressPolicyIDs, newPol.VppID)
+			ownPolicies = append(ownPolicies, *newPol)
 		}
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
@@ -230,11 +249,11 @@ func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.Inter
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.IngressPolicyIDs...)
 	}
-	return conf, nil
+	return conf, ownPolicies, nil
 }
 
 func (h *HostEndpoint) Create(vpp *vpplink.VppLink, state *PolicyState) (err error) {
-	forwardConf, err := h.getForwardPolicies(state)
+	forwardConf, ownPolicies, err := h.getForwardPolicies(state)
 	if err != nil {
 		return err
 	}
@@ -246,6 +265,7 @@ func (h *HostEndpoint) Create(vpp *vpplink.VppLink, state *PolicyState) (err err
 		}
 	}
 	h.currentForwardConf = forwardConf
+	h.ownPolicies = ownPolicies
 	tapConf, err := h.getTapPolicies(state)
 	if err != nil {
 		return err
@@ -261,7 +281,15 @@ func (h *HostEndpoint) Create(vpp *vpplink.VppLink, state *PolicyState) (err err
 }
 
 func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *PolicyState) (err error) {
-	forwardConf, err := new.getForwardPolicies(state)
+	for _, policy := range h.ownPolicies {
+		h.server.log.Infof("policy(upd) Deleting hep policy vpp-id=%d", policy.VppID)
+		err = policy.Delete(vpp, state)
+		if err != nil {
+			h.server.log.Errorf("cannot delete policies for hep=%s %v", h, err)
+		}
+	}
+
+	forwardConf, ownPolicies, err := new.getForwardPolicies(state)
 	if err != nil {
 		return err
 	}
@@ -273,6 +301,7 @@ func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *Po
 		}
 	}
 	h.currentForwardConf = forwardConf
+	h.ownPolicies = ownPolicies
 	tapConf, err := new.getTapPolicies(state)
 	if err != nil {
 		return err
@@ -291,7 +320,15 @@ func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *Po
 	return nil
 }
 
-func (h *HostEndpoint) Delete(vpp *vpplink.VppLink) (err error) {
+func (h *HostEndpoint) Delete(vpp *vpplink.VppLink, state *PolicyState) (err error) {
+	for _, policy := range h.ownPolicies {
+		h.server.log.Infof("policy(del) Deleting hep policy vpp-id=%d", policy.VppID)
+		err = policy.Delete(vpp, state)
+		if err != nil {
+			h.server.log.Errorf("cannot delete policies for hep=%s %v", h, err)
+		}
+	}
+
 	for _, swIfIndex := range append(append(h.UplinkSwIfIndexes, h.TapSwIfIndexes...), h.TunnelSwIfIndexes...) {
 		// Unconfigure policies
 		h.server.log.Infof("policy(del) interface swif=%d", swIfIndex)

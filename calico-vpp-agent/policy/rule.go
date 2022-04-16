@@ -46,6 +46,37 @@ type Rule struct {
 	DstIPPortSetNames []string
 }
 
+func (r *Rule) DeepCopy() *Rule {
+	rule := &Rule{
+		Rule: r.Rule.DeepCopy(),
+
+		RuleID: r.RuleID,
+		VppID:  r.VppID,
+
+		DstIPPortIPSetNames:    make([]string, len(r.DstIPPortSetNames)),
+		DstNotIPPortIPSetNames: make([]string, len(r.DstIPPortSetNames)),
+		SrcIPPortIPSetNames:    make([]string, len(r.DstIPPortSetNames)),
+		SrcNotIPPortIPSetNames: make([]string, len(r.DstIPPortSetNames)),
+		DstIPSetNames:          make([]string, len(r.DstIPPortSetNames)),
+		DstNotIPSetNames:       make([]string, len(r.DstIPPortSetNames)),
+		SrcIPSetNames:          make([]string, len(r.DstIPPortSetNames)),
+		SrcNotIPSetNames:       make([]string, len(r.DstIPPortSetNames)),
+		DstIPPortSetNames:      make([]string, len(r.DstIPPortSetNames)),
+	}
+
+	copy(rule.DstIPPortIPSetNames, r.DstIPPortIPSetNames)
+	copy(rule.DstNotIPPortIPSetNames, r.DstNotIPPortIPSetNames)
+	copy(rule.SrcIPPortIPSetNames, r.SrcIPPortIPSetNames)
+	copy(rule.SrcNotIPPortIPSetNames, r.SrcNotIPPortIPSetNames)
+	copy(rule.DstIPSetNames, r.DstIPSetNames)
+	copy(rule.DstNotIPSetNames, r.DstNotIPSetNames)
+	copy(rule.SrcIPSetNames, r.SrcIPSetNames)
+	copy(rule.SrcNotIPSetNames, r.SrcNotIPSetNames)
+	copy(rule.DstIPPortSetNames, r.DstIPPortSetNames)
+
+	return rule
+}
+
 func (r *Rule) String() string {
 	s := fmt.Sprintf("[vpp-id=%d rid=%s", r.VppID, r.RuleID)
 

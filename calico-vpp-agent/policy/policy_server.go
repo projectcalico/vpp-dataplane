@@ -877,6 +877,8 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 	existing, found := state.HostEndpoints[*id]
 	if found {
 		if pending {
+			hep.ownPolicies = existing.ownPolicies
+			hep.currentForwardConf = existing.currentForwardConf
 			state.HostEndpoints[*id] = hep
 		} else {
 			err := existing.Update(s.vpp, hep, state)
@@ -907,7 +909,7 @@ func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending
 		return nil
 	}
 	if !pending && len(existing.UplinkSwIfIndexes) != 0 {
-		err = existing.Delete(s.vpp)
+		err = existing.Delete(s.vpp, s.configuredState)
 		if err != nil {
 			return errors.Wrap(err, "error deleting host endpoint")
 		}
@@ -1056,7 +1058,7 @@ func (s *Server) applyPendingState() (err error) {
 	}
 	for _, hep := range s.configuredState.HostEndpoints {
 		if len(hep.UplinkSwIfIndexes) != 0 {
-			err = hep.Delete(s.vpp)
+			err = hep.Delete(s.vpp, s.configuredState)
 			if err != nil {
 				s.log.Warnf("error deleting hostendpoint : %v", err)
 			}
