@@ -29,7 +29,7 @@ import (
 	"github.com/pkg/errors"
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus"
 	tomb "gopkg.in/tomb.v2"
 
