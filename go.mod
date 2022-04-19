@@ -14,7 +14,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/api v0.0.0-20220129171738-695e97a25204 // v3.22.0
 	github.com/projectcalico/calico v0.0.0-20220128225346-a86e41d021c4 // v3.22.0
-	github.com/prometheus/common v0.10.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20210703095558-21f2c55a7727
