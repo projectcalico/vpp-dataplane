@@ -26,6 +26,7 @@ import (
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	networkv3 "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/network"
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/sirupsen/logrus"
@@ -447,7 +448,7 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) {
 }
 
 // check that all networks from list exist in map
-func (s *Server) waitForNetsSynced(nets *[]*calicov3.Network) {
+func (s *Server) waitForNetsSynced(nets *[]networkv3.Network) {
 	for {
 	restart:
 		for _, net := range *nets {
@@ -473,13 +474,13 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	pb.RegisterCniDataplaneServer(s.grpcServer, s)
 
 	netsSynced := make(chan bool)
-	nets := &[]*calicov3.Network{}
+	nets := &[]networkv3.Network{}
 	go func() {
 		for t.Alive() {
 			event := <-s.cniEventChan
 			switch event.Type {
 			case common.NetsSynced:
-				nets = event.New.(*[]*calicov3.Network)
+				nets = event.New.(*[]networkv3.Network)
 				netsSynced <- true
 			case common.NetAdded:
 				netDef := event.New.(*watchers.NetworkDefinition)
@@ -487,9 +488,6 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 			case common.NetDeleted:
 				netDef := event.Old.(*watchers.NetworkDefinition)
 				delete(s.networkDefinitions, netDef.Name)
-			case common.NetUpdated:
-				netDef := event.New.(*watchers.NetworkDefinition)
-				s.networkDefinitions[netDef.Name].Vni = netDef.Vni
 			}
 		}
 	}()

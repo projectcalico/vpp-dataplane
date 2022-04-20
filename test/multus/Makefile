@@ -7,3 +7,6 @@ test-memif-multinet:
 	kubectl apply -f netdefinitions.yaml
 	kubectl apply -f pod-memif.yaml
 
+delete-test-memif-multinet:
+	kubectl delete -f pod-memif.yaml
+	kubectl delete -f netdefinitions.yaml
