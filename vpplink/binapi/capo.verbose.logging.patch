@@ -1,0 +1,159 @@
+commit d7a5f42ba01d1b94be2f8b851c8abb924d5e1ab4
+Author: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+Date:   Wed Apr 20 11:10:28 2022 +0200
+
+    gerrit:36003/1 [DO NOT MERGE] capo: verbose logging
+    
+    Change-Id: Icc420494692588f6020db9a9b856bfe1d2eb0b39
+    Signed-off-by: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+
+diff --git a/src/plugins/capo/capo_interface.c b/src/plugins/capo/capo_interface.c
+index d13d58ff4..98f094ef7 100644
+--- a/src/plugins/capo/capo_interface.c
++++ b/src/plugins/capo/capo_interface.c
+@@ -93,6 +93,8 @@ capo_configure_policies (u32 sw_if_index, u32 num_ingress, u32 num_egress,
+     }
+ 
+   capo_main.acl_plugin.wip_clear_sessions (sw_if_index);
++
++  capo_interface_print_current_state ();
+   return 0;
+ 
+ error:
+@@ -100,6 +102,7 @@ error:
+   vec_resize (conf->ingress_policies, 0);
+   vec_resize (conf->egress_policies, 0);
+   vec_resize (conf->profiles, 0);
++  capo_interface_print_current_state ();
+   return 1;
+ }
+ 
+diff --git a/src/vlib/log.c b/src/vlib/log.c
+index 07561d98c..34d7a9204 100644
+--- a/src/vlib/log.c
++++ b/src/vlib/log.c
+@@ -366,6 +366,21 @@ format_vlib_log_level (u8 * s, va_list * args)
+   return format (s, "%s", t);
+ }
+ 
++void
++error_timestamper (void *arg, u8 ** msg, int msg_len)
++{
++  vlib_log_main_t *lm = &log_main;
++  vlib_main_t *vm = vlib_get_main();
++  f64 time_offset;
++  f64 t = vlib_time_now (vm);
++
++  time_offset = (f64) lm->time_zero_timeval.tv_sec
++    + (((f64) lm->time_zero_timeval.tv_usec) * 1e-6) - lm->time_zero;
++
++  *msg = format(*msg, "^-- %U\n", format_time_float, 0, t + time_offset);
++}
++
++
+ static clib_error_t *
+ vlib_log_init (vlib_main_t * vm)
+ {
+diff --git a/src/vlib/log.h b/src/vlib/log.h
+index c3ebb8150..2545e79f2 100644
+--- a/src/vlib/log.h
++++ b/src/vlib/log.h
+@@ -126,6 +126,7 @@ void vlib_log (vlib_log_level_t level, vlib_log_class_t class, char *fmt,
+ int last_log_entry ();
+ u8 *format_vlib_log_class (u8 * s, va_list * args);
+ u8 *format_vlib_log_level (u8 * s, va_list * args);
++void error_timestamper (void *arg, u8 ** msg, int msg_len);
+ 
+ #define vlib_log_emerg(...) vlib_log(VLIB_LOG_LEVEL_EMERG, __VA_ARGS__)
+ #define vlib_log_alert(...) vlib_log(VLIB_LOG_LEVEL_ALERT, __VA_ARGS__)
+diff --git a/src/vlib/unix/main.c b/src/vlib/unix/main.c
+index 69959fd91..987384dbd 100644
+--- a/src/vlib/unix/main.c
++++ b/src/vlib/unix/main.c
+@@ -38,6 +38,7 @@
+  */
+ #include <vlib/vlib.h>
+ #include <vlib/unix/unix.h>
++#include <vlib/log.h>
+ #include <vlib/unix/plugin.h>
+ 
+ #include <signal.h>
+@@ -235,25 +236,25 @@ setup_signal_handlers (unix_main_t * um)
+ }
+ 
+ static void
+-unix_error_handler (void *arg, u8 * msg, int msg_len)
++unix_error_handler (void *arg, u8 ** msg, int msg_len)
+ {
+   unix_main_t *um = arg;
+ 
+   /* Echo to stderr when interactive or syslog is disabled. */
+   if (um->flags & (UNIX_FLAG_INTERACTIVE | UNIX_FLAG_NOSYSLOG))
+     {
+-      CLIB_UNUSED (int r) = write (2, msg, msg_len);
++      CLIB_UNUSED (int r) = write (2, *msg, msg_len);
+     }
+   else
+     {
+-      char save = msg[msg_len - 1];
++      char save = (*msg)[msg_len - 1];
+ 
+       /* Null Terminate. */
+-      msg[msg_len - 1] = 0;
++      (*msg)[msg_len - 1] = 0;
+ 
+-      syslog (LOG_ERR | LOG_DAEMON, "%s", msg);
++      syslog (LOG_ERR | LOG_DAEMON, "%s", *msg);
+ 
+-      msg[msg_len - 1] = save;
++      (*msg)[msg_len - 1] = save;
+     }
+ }
+ 
+@@ -539,6 +540,7 @@ unix_config (vlib_main_t * vm, unformat_input_t * input)
+   if (!(um->flags & (UNIX_FLAG_INTERACTIVE | UNIX_FLAG_NOSYSLOG)))
+     {
+       openlog (vgm->name, LOG_CONS | LOG_PERROR | LOG_PID, LOG_DAEMON);
++      clib_error_register_handler (error_timestamper, um);
+       clib_error_register_handler (unix_error_handler, um);
+ 
+       if (!(um->flags & UNIX_FLAG_NODAEMON) && daemon ( /* chdir to / */ 0,
+diff --git a/src/vpp-api/client/vppapiclient.h b/src/vpp-api/client/vppapiclient.h
+index 5f319a428..f83463e47 100644
+--- a/src/vpp-api/client/vppapiclient.h
++++ b/src/vpp-api/client/vppapiclient.h
+@@ -28,7 +28,7 @@ typedef enum
+ } vac_errno_t;
+ 
+ typedef void (*vac_callback_t)(unsigned char * data, int len);
+-typedef void (*vac_error_callback_t)(void *, unsigned char *, int);
++typedef void (*vac_error_callback_t)(void *, unsigned char **, int);
+ int vac_connect(char * name, char * chroot_prefix, vac_callback_t cb,
+     int rx_qlen);
+ int vac_disconnect(void);
+diff --git a/src/vppinfra/error.c b/src/vppinfra/error.c
+index b2b1a83e5..baff854af 100644
+--- a/src/vppinfra/error.c
++++ b/src/vppinfra/error.c
+@@ -99,7 +99,7 @@ dispatch_message (u8 * msg)
+     return msg;
+ 
+   for (i = 0; i < vec_len (handlers); i++)
+-    handlers[i].func (handlers[i].arg, msg, vec_len (msg));
++    handlers[i].func (handlers[i].arg, &msg, vec_len (msg));
+ 
+   /* If no message handler is specified provide a default one. */
+   if (vec_len (handlers) == 0)
+diff --git a/src/vppinfra/error.h b/src/vppinfra/error.h
+index e0e2d4726..e814fcd17 100644
+--- a/src/vppinfra/error.h
++++ b/src/vppinfra/error.h
+@@ -53,7 +53,7 @@
+ #include <vppinfra/vec.h>
+ 
+ /* Callback functions for error reporting. */
+-typedef void clib_error_handler_func_t (void *arg, u8 * msg, int msg_len);
++typedef void clib_error_handler_func_t (void *arg, u8 ** msg, int msg_len);
+ void clib_error_register_handler (clib_error_handler_func_t func, void *arg);
+ 
+ #define clib_warning(format,args...) \

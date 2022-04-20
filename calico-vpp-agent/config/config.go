@@ -87,8 +87,8 @@ var (
 	CrossIpsecTunnels        = false
 	IPSecIkev2Psk            = ""
 	TapRxMode                = defaultRxMode
-	BgpLogLevel              = logrus.InfoLevel
-	LogLevel                 = logrus.InfoLevel
+	BgpLogLevel              = logrus.DebugLevel
+	LogLevel                 = logrus.DebugLevel
 	NodeName                 = ""
 	ServiceCIDRs             []*net.IPNet
 	TapRxQueueSize           int = 0
@@ -152,14 +152,14 @@ func fetchHostMtu() (mtu int, err error) {
 func LoadConfig(log *logrus.Logger) (err error) {
 	supportedEnvVars = make(map[string]bool)
 
-	if conf := getEnvValue(LogLevelEnvVar); conf != "" {
-		loglevel, err := logrus.ParseLevel(conf)
-		if err != nil {
-			log.WithError(err).Error("Failed to parse loglevel: %s, defaulting to info", conf)
-		} else {
-			LogLevel = loglevel
-		}
-	}
+	// if conf := getEnvValue(LogLevelEnvVar); conf != "" {
+	// 	loglevel, err := logrus.ParseLevel(conf)
+	// 	if err != nil {
+	// 		log.WithError(err).Error("Failed to parse loglevel: %s, defaulting to info", conf)
+	// 	} else {
+	// 		LogLevel = loglevel
+	// 	}
+	// }
 
 	NodeName = getEnvValue(NodeNameEnvVar)
 

@@ -1,8 +1,9 @@
-VPP Version                 : 22.06-rc0~148-gd4df3f2ca
+VPP Version                 : 22.06-rc0~149-g7c0b28178
 Binapi-generator version    : govpp v0.4.0-dev
 VPP Base commit             : 45207e0fb wireguard: fix dereferences null pointer
 ------------------ Cherry picked commits --------------------
-gerrit:28513/25 capo: Calico Policies plugin
+gerrit:36003/1 [DO NOT MERGE] capo: verbose logging
+gerrit:28513/28 capo: Calico Policies plugin
 gerrit:28083/21 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/7 pbl: Port based balancer
