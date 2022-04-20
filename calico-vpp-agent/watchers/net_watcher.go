@@ -16,22 +16,22 @@
 package watchers
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
-	v3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	"github.com/projectcalico/api/pkg/client/clientset_generated/clientset"
-	"github.com/projectcalico/api/pkg/client/informers_generated/externalversions"
-	v3client "github.com/projectcalico/api/pkg/client/listers_generated/projectcalico/v3"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	networkv3 "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/network"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
 )
 
 type VRF struct {
@@ -49,98 +49,124 @@ type NetworkDefinition struct {
 type NetWatcher struct {
 	log                *logrus.Entry
 	vpp                *vpplink.VppLink
-	client             *clientset.Clientset
+	client             *Client
 	stop               chan struct{}
-	factory            externalversions.SharedInformerFactory
-	informer           cache.SharedIndexInformer
-	lister             v3client.NetworkLister
 	networkDefinitions map[string]*NetworkDefinition
 }
 
-func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
+type Client struct {
+	client    client.Client
+	clientSet *kubernetes.Clientset
+	retries   int
+	timeout   time.Duration
+}
+
+func NewClient(timeout time.Duration) (*Client, error) {
+	scheme := runtime.NewScheme()
+	_ = networkv3.AddToScheme(scheme)
+
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
-	client, err := clientset.NewForConfig(config)
+	return newClient(config, scheme, timeout)
+}
+
+func newClient(config *rest.Config, schema *runtime.Scheme, timeout time.Duration) (*Client, error) {
+	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	factory := externalversions.NewSharedInformerFactory(client, 10*time.Minute)
-	informer := factory.Projectcalico().V3().Networks().Informer()
-	lister := factory.Projectcalico().V3().Networks().Lister()
+	mapper, err := apiutil.NewDiscoveryRESTMapper(config)
+	if err != nil {
+		return nil, err
+	}
+	c, err := client.New(config, client.Options{Scheme: schema, Mapper: mapper})
+	if err != nil {
+		return nil, err
+	}
 
+	return newKubernetesClient(c, clientSet, timeout), nil
+}
+
+func newKubernetesClient(k8sClient client.Client, k8sClientSet *kubernetes.Clientset, timeout time.Duration) *Client {
+	if timeout == time.Duration(0) {
+		timeout = 10 * time.Second
+	}
+	return &Client{
+		client:    k8sClient,
+		clientSet: k8sClientSet,
+		retries:   100,
+		timeout:   timeout,
+	}
+}
+
+func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
+	kubernetesClient, err := NewClient(10 * time.Second)
+	if err != nil {
+		panic(fmt.Errorf("failed instantiating kubernetes client: %v", err))
+	}
 	w := NetWatcher{
 		log:                log,
 		vpp:                vpp,
-		client:             client,
+		client:             kubernetesClient,
 		stop:               make(chan struct{}),
-		factory:            factory,
-		informer:           informer,
-		lister:             lister,
 		networkDefinitions: make(map[string]*NetworkDefinition),
 	}
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			net, ok := obj.(*v3.Network)
-			if !ok {
-				w.log.Errorf("Wrong object type received in network watcher: %v", obj)
-			}
-			w.OnNetAdded(net)
-		},
-		UpdateFunc: func(old, new interface{}) {
-			oldNet, ok := old.(*v3.Network)
-			if !ok {
-				w.log.Errorf("Wrong object type received in network watcher: %v", old)
-			}
-			newNet, ok := new.(*v3.Network)
-			if !ok {
-				w.log.Errorf("Wrong object type received in network watcher: %v", new)
-			}
-			w.OnNetChanged(oldNet, newNet)
-		},
-		DeleteFunc: func(obj interface{}) {
-			net, ok := obj.(*v3.Network)
-			if !ok {
-				w.log.Errorf("Wrong object type received in network watcher: %v", obj)
-			}
-			w.OnNetDeleted(net)
-		},
-	})
-
 	return &w
-}
-
-func (w *NetWatcher) WaitForNetworksSynced() bool {
-	for {
-		if w.informer.HasSynced() {
-			return true
-		}
-		time.Sleep(time.Second)
-	}
 }
 
 func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 	w.log.Infof("Net watcher starts")
-	w.factory.Start(w.stop)
-	w.WaitForNetworksSynced()
-	netList, err := w.lister.List(labels.Everything())
+	netList := &networkv3.NetworkList{}
+	err := w.client.client.List(context.Background(), netList, &client.ListOptions{})
 	if err != nil {
 		return err
 	}
+	for _, net := range netList.Items {
+		w.OnNetAdded(&net)
+	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.NetsSynced,
-		New:  &netList,
+		New:  &netList.Items,
 	})
-	return nil
+	for {
+		time.Sleep(3 * time.Second)
+		netList := &networkv3.NetworkList{}
+		err := w.client.client.List(context.Background(), netList, &client.ListOptions{})
+		if err != nil {
+			return err
+		}
+		newNetworkDefinitions := make(map[string]*NetworkDefinition)
+		for _, net := range netList.Items {
+			newNetworkDefinitions[net.Name] = &NetworkDefinition{
+				Name:  net.Name,
+				Range: net.Spec.Range,
+				Vni:   uint32(net.Spec.VNI),
+			}
+		}
+		for oldNetName := range w.networkDefinitions {
+			if _, found := newNetworkDefinitions[oldNetName]; !found {
+				w.OnNetDeleted(oldNetName)
+			}
+		}
+		for _, net := range netList.Items {
+			existing, found := w.networkDefinitions[net.Name]
+			if !found {
+				w.OnNetAdded(&net)
+			} else if existing.Range != net.Spec.Range || existing.Vni != uint32(net.Spec.VNI) {
+				w.log.Warn("network changed, not yet supported!")
+			}
+		}
+	}
 }
 
 func (w *NetWatcher) Stop() {
 	close(w.stop)
 }
 
-func (w *NetWatcher) OnNetAdded(net *v3.Network) error {
+func (w *NetWatcher) OnNetAdded(net *networkv3.Network) error {
 	w.log.Infof("adding network %s", net.Name)
 	netDef, err := w.CreateVRFsForNet(net.Name, uint32(net.Spec.VNI), net.Spec.Range)
 	if err != nil {
@@ -153,23 +179,13 @@ func (w *NetWatcher) OnNetAdded(net *v3.Network) error {
 	return nil
 }
 
-func (w *NetWatcher) OnNetChanged(old, new *v3.Network) {
-	if old.Spec.VNI != new.Spec.VNI {
-		w.log.Infof("network %s changed", old.Name)
-		old := w.networkDefinitions[old.Name]
-		w.networkDefinitions[old.Name].Vni = uint32(new.Spec.VNI)
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.NetUpdated,
-			Old:  old,
-			New:  w.networkDefinitions[old.Name],
-		})
-	}
-	// TODO handle vni change
+func (w *NetWatcher) OnNetChanged(old, new *networkv3.Network) {
+	// TODO handle network change
 }
 
-func (w *NetWatcher) OnNetDeleted(net *v3.Network) error {
-	w.log.Infof("deleting network %s", net.Name)
-	netDef, err := w.DeleteNetVRFs(net)
+func (w *NetWatcher) OnNetDeleted(netName string) error {
+	w.log.Infof("deleting network %s", netName)
+	netDef, err := w.DeleteNetVRFs(netName)
 	if err != nil {
 		return err
 	}
@@ -213,24 +229,24 @@ func (w *NetWatcher) CreateVRFsForNet(networkName string, networkVni uint32, net
 	return netDef, nil
 }
 
-func (w *NetWatcher) DeleteNetVRFs(network *v3.Network) (*NetworkDefinition, error) {
+func (w *NetWatcher) DeleteNetVRFs(networkName string) (*NetworkDefinition, error) {
 	var err error
-	if _, ok := w.networkDefinitions[network.Name]; !ok {
-		w.log.Errorf("non-existent network deleted: %s", network.Name)
+	if _, ok := w.networkDefinitions[networkName]; !ok {
+		w.log.Errorf("non-existent network deleted: %s", networkName)
 	}
-	err = w.vpp.DeleteLoopback(w.networkDefinitions[network.Name].LoopbackSwIfIndex)
+	err = w.vpp.DeleteLoopback(w.networkDefinitions[networkName].LoopbackSwIfIndex)
 	if err != nil {
 		w.log.Errorf("Error deleting network Loopback %s", err)
 	}
 	for idx, ipFamily := range vpplink.IpFamilies {
-		vrfId := w.networkDefinitions[network.Name].VRF.Tables[idx]
+		vrfId := w.networkDefinitions[networkName].VRF.Tables[idx]
 		w.log.Infof("Deleting VRF %d %s", vrfId, ipFamily.Str)
 		err = w.vpp.DelVRF(vrfId, ipFamily.IsIp6)
 		if err != nil {
 			w.log.Errorf("Error deleting VRF %d %s : %s", vrfId, ipFamily.Str, err)
 		}
 	}
-	netDef := w.networkDefinitions[network.Name]
-	delete(w.networkDefinitions, network.Name)
+	netDef := w.networkDefinitions[networkName]
+	delete(w.networkDefinitions, networkName)
 	return netDef, nil
 }

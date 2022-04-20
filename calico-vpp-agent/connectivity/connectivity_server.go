@@ -162,11 +162,6 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 			case common.NetDeleted:
 				old := evt.Old.(*watchers.NetworkDefinition)
 				delete(s.networks, old.Vni)
-			case common.NetUpdated:
-				old := evt.Old.(*watchers.NetworkDefinition)
-				new := evt.New.(*watchers.NetworkDefinition)
-				delete(s.networks, old.Vni)
-				s.networks[new.Vni] = *new
 			case common.ConnectivityAdded:
 				new := evt.New.(*common.NodeConnectivity)
 				err := s.updateIPConnectivity(new, false /* isWithdraw */)

@@ -4,6 +4,7 @@ metadata:
   name: blue
 spec:
   vni: 56
+  range: "172.19.0.0/16"
 ---
 apiVersion: projectcalico.org/v3
 kind: Network
@@ -11,3 +12,4 @@ metadata:
   name: red
 spec:
   vni: 88
+  range: "172.21.0.0/16"
