@@ -245,6 +245,13 @@ spec:
       # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
       terminationGracePeriodSeconds: 10
       priorityClassName: system-node-critical
+      initContainers:
+        - name: install-whereabouts
+          image: docker.io/calicovpp/install-whereabouts:latest
+          command: ["/entrypoint"]
+          volumeMounts:
+            - mountPath: /host/opt/cni/bin
+              name: cni-bin-dir
       containers:
         - name: agent
           image: docker.io/calicovpp/agent:latest
@@ -350,6 +357,9 @@ spec:
             - mountPath: /host
               name: host-root
       volumes:
+        - name: cni-bin-dir
+          hostPath:
+            path: /opt/cni/bin      
         - name: lib-firmware
           hostPath:
             path: /lib/firmware
