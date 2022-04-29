@@ -35,7 +35,17 @@ rules:
       - list
       # Used to discover Typhas.
       - get
+      # Used to create network specific service endpoints
+      - create
+      - update
   # Pod CIDR auto-detection on kubeadm needs access to config maps.
+  - apiGroups: ["k8s.cni.cncf.io"]
+    resources:
+      - network-attachment-definitions
+    verbs:
+      - watch 
+      - get
+      - list
   - apiGroups: [""]
     resources:
       - configmaps
@@ -204,6 +214,32 @@ data:
       buffers-per-numa 131072
     }
 
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: global-watcher-deployment
+  namespace: calico-vpp-dataplane
+  labels:
+    k8s-app: calico-vpp-node
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: calico-vpp-node
+  template:
+    metadata:
+      labels:
+        k8s-app: calico-vpp-node
+    spec:
+      serviceAccountName: calico-vpp-node-sa
+      containers:
+        - name: global-watcher
+          image: docker.io/calicovpp/global-watcher:latest
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 250m
 ---
 # VPP version of the calico node daemon
 kind: DaemonSet
