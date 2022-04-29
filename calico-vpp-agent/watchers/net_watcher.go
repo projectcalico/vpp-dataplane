@@ -28,9 +28,7 @@ import (
 	"gopkg.in/tomb.v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 type VRF struct {
@@ -53,39 +51,8 @@ type NetWatcher struct {
 	networkDefinitions map[string]*NetworkDefinition
 }
 
-func NewClient(timeout time.Duration) (*client.WithWatch, error) {
-	scheme := runtime.NewScheme()
-	_ = networkv3.AddToScheme(scheme)
-
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-	return newClient(config, scheme, timeout)
-}
-
-func newClient(config *rest.Config, schema *runtime.Scheme, timeout time.Duration) (*client.WithWatch, error) {
-	mapper, err := apiutil.NewDiscoveryRESTMapper(config)
-	if err != nil {
-		return nil, err
-	}
-	c, err := client.NewWithWatch(config, client.Options{Scheme: schema, Mapper: mapper})
-	if err != nil {
-		return nil, err
-	}
-
-	return newKubernetesClient(&c, timeout), nil
-}
-
-func newKubernetesClient(k8sClient *client.WithWatch, timeout time.Duration) *client.WithWatch {
-	if timeout == time.Duration(0) {
-		timeout = 10 * time.Second
-	}
-	return k8sClient
-}
-
 func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
-	kubernetesClient, err := NewClient(10 * time.Second)
+	kubernetesClient, err := NewClient(10 * time.Second, []func(s *runtime.Scheme) error{networkv3.AddToScheme})
 	if err != nil {
 		panic(fmt.Errorf("failed instantiating kubernetes client: %v", err))
 	}
