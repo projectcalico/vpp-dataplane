@@ -26,12 +26,11 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 type VRF struct {
@@ -49,19 +48,12 @@ type NetworkDefinition struct {
 type NetWatcher struct {
 	log                *logrus.Entry
 	vpp                *vpplink.VppLink
-	client             *Client
+	client             client.WithWatch
 	stop               chan struct{}
 	networkDefinitions map[string]*NetworkDefinition
 }
 
-type Client struct {
-	client    client.Client
-	clientSet *kubernetes.Clientset
-	retries   int
-	timeout   time.Duration
-}
-
-func NewClient(timeout time.Duration) (*Client, error) {
+func NewClient(timeout time.Duration) (*client.WithWatch, error) {
 	scheme := runtime.NewScheme()
 	_ = networkv3.AddToScheme(scheme)
 
@@ -72,34 +64,24 @@ func NewClient(timeout time.Duration) (*Client, error) {
 	return newClient(config, scheme, timeout)
 }
 
-func newClient(config *rest.Config, schema *runtime.Scheme, timeout time.Duration) (*Client, error) {
-	clientSet, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
+func newClient(config *rest.Config, schema *runtime.Scheme, timeout time.Duration) (*client.WithWatch, error) {
 	mapper, err := apiutil.NewDiscoveryRESTMapper(config)
 	if err != nil {
 		return nil, err
 	}
-	c, err := client.New(config, client.Options{Scheme: schema, Mapper: mapper})
+	c, err := client.NewWithWatch(config, client.Options{Scheme: schema, Mapper: mapper})
 	if err != nil {
 		return nil, err
 	}
 
-	return newKubernetesClient(c, clientSet, timeout), nil
+	return newKubernetesClient(&c, timeout), nil
 }
 
-func newKubernetesClient(k8sClient client.Client, k8sClientSet *kubernetes.Clientset, timeout time.Duration) *Client {
+func newKubernetesClient(k8sClient *client.WithWatch, timeout time.Duration) *client.WithWatch {
 	if timeout == time.Duration(0) {
 		timeout = 10 * time.Second
 	}
-	return &Client{
-		client:    k8sClient,
-		clientSet: k8sClientSet,
-		retries:   100,
-		timeout:   timeout,
-	}
+	return k8sClient
 }
 
 func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
@@ -110,7 +92,7 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 	w := NetWatcher{
 		log:                log,
 		vpp:                vpp,
-		client:             kubernetesClient,
+		client:             *kubernetesClient,
 		stop:               make(chan struct{}),
 		networkDefinitions: make(map[string]*NetworkDefinition),
 	}
@@ -120,44 +102,57 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 	w.log.Infof("Net watcher starts")
 	netList := &networkv3.NetworkList{}
-	err := w.client.client.List(context.Background(), netList, &client.ListOptions{})
+	err := w.client.List(context.Background(), netList, &client.ListOptions{})
 	if err != nil {
 		return err
 	}
+	networks := make(map[string]*NetworkDefinition)
 	for _, net := range netList.Items {
-		w.OnNetAdded(&net)
+		netDef, err := w.OnNetAdded(&net)
+		if err != nil {
+			w.log.Error(err)
+			return err
+		}
+		networks[netDef.Name] = netDef
 	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.NetsSynced,
-		New:  &netList.Items,
+		New:  networks,
 	})
+
+restart:
+	netList = &networkv3.NetworkList{}
+	watcher, err := w.client.Watch(context.Background(), netList, &client.ListOptions{})
+	if err != nil {
+		w.log.Errorf("couldn't watch pods: %s", err)
+	}
+	w.watching(watcher)
+	goto restart
+}
+
+func (w *NetWatcher) watching(watcher watch.Interface) bool {
 	for {
-		time.Sleep(3 * time.Second)
-		netList := &networkv3.NetworkList{}
-		err := w.client.client.List(context.Background(), netList, &client.ListOptions{})
-		if err != nil {
-			return err
+		update, ok := <-watcher.ResultChan()
+		if !ok {
+			w.log.Warn("network watch channel closed")
+			return true
 		}
-		newNetworkDefinitions := make(map[string]*NetworkDefinition)
-		for _, net := range netList.Items {
-			newNetworkDefinitions[net.Name] = &NetworkDefinition{
-				Name:  net.Name,
-				Range: net.Spec.Range,
-				Vni:   uint32(net.Spec.VNI),
+		switch update.Type {
+		case watch.Added:
+			net := update.Object.(*networkv3.Network)
+			netDef, err := w.OnNetAdded(net)
+			if err != nil {
+				w.log.Error(err)
 			}
-		}
-		for oldNetName := range w.networkDefinitions {
-			if _, found := newNetworkDefinitions[oldNetName]; !found {
-				w.OnNetDeleted(oldNetName)
-			}
-		}
-		for _, net := range netList.Items {
-			existing, found := w.networkDefinitions[net.Name]
-			if !found {
-				w.OnNetAdded(&net)
-			} else if existing.Range != net.Spec.Range || existing.Vni != uint32(net.Spec.VNI) {
-				w.log.Warn("network changed, not yet supported!")
-			}
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.NetAdded,
+				New:  netDef,
+			})
+		case watch.Deleted:
+			oldNet := update.Object.(*networkv3.Network)
+			w.OnNetDeleted(oldNet.Name)
+		case watch.Modified:
+			w.log.Warn("network changed, not yet supported!")
 		}
 	}
 }
@@ -166,17 +161,12 @@ func (w *NetWatcher) Stop() {
 	close(w.stop)
 }
 
-func (w *NetWatcher) OnNetAdded(net *networkv3.Network) error {
-	w.log.Infof("adding network %s", net.Name)
+func (w *NetWatcher) OnNetAdded(net *networkv3.Network) (*NetworkDefinition, error) {
 	netDef, err := w.CreateVRFsForNet(net.Name, uint32(net.Spec.VNI), net.Spec.Range)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.NetAdded,
-		New:  netDef,
-	})
-	return nil
+	return netDef, nil
 }
 
 func (w *NetWatcher) OnNetChanged(old, new *networkv3.Network) {
@@ -204,8 +194,9 @@ func (w *NetWatcher) CreateVRFsForNet(networkName string, networkVni uint32, net
 	/* Create and Setup the per-network VRF */
 	var tables [2]uint32
 	if _, ok := w.networkDefinitions[networkName]; ok {
-		return nil, errors.Errorf("existing network added: %s", networkName)
+		return w.networkDefinitions[networkName], nil
 	}
+	w.log.Infof("adding network %s", networkName)
 	swIfIndex, err := w.vpp.CreateLoopback(&common.ContainerSideMacAddress)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error creating loopback for network")

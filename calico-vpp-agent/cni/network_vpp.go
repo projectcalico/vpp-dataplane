@@ -203,8 +203,6 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 					s.log.Error(err)
 					goto err
 				}
-			}
-			if podSpec.NetworkName != "" {
 				err = ns.WithNetNSPath(podSpec.NetnsName, s.memifDriver.ConfigureDummy(podSpec.MemifSwIfIndex, podSpec))
 				if err != nil {
 					s.log.Error(errors.Wrapf(err, "Error in linux NS config"))
@@ -264,7 +262,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 			})
 		}
 	} else {
-		s.log.Infof("Announcing Network Pod Addresses")
+		s.log.Infof("pod(add) announcing network pod Addresses")
 		for _, containerIP := range podSpec.GetContainerIps() {
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.LocalNetworkPodAddressAdded,

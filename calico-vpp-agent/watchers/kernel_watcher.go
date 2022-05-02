@@ -71,7 +71,7 @@ func (w *KernelWatcher) WatchKernelRoute(t *tomb.Tomb) error {
 					continue
 				}
 				ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
-				path, err := common.MakePath(update.Dst.String(), isWithdrawal, ip4, ip6, 0)
+				path, err := common.MakePath(update.Dst.String(), isWithdrawal, ip4, ip6, 0, 0)
 				if err != nil {
 					return err
 				}
@@ -112,7 +112,7 @@ func (w *KernelWatcher) loadKernelRoute() error {
 		}
 		if route.Protocol == syscall.RTPROT_KERNEL || route.Protocol == syscall.RTPROT_BOOT {
 			ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
-			path, err := common.MakePath(route.Dst.String(), false /* isWithdrawal */, ip4, ip6, 0)
+			path, err := common.MakePath(route.Dst.String(), false /* isWithdrawal */, ip4, ip6, 0, 0)
 			if err != nil {
 				return err
 			}

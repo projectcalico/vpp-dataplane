@@ -225,7 +225,7 @@ func (s *Server) cleanUpRoutes() error {
 func (s *Server) announceLocalAddress(addr *net.IPNet, vni uint32) error {
 	s.log.Debugf("Announcing prefix %s in BGP", addr.String())
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
-	path, err := common.MakePath(addr.String(), false /* isWithdrawal */, nodeIP4, nodeIP6, vni)
+	path, err := common.MakePath(addr.String(), false /* isWithdrawal */, nodeIP4, nodeIP6, vni, uint32(*s.BGPConf.ASNumber))
 	if err != nil {
 		return errors.Wrap(err, "error making path to announce")
 	}
@@ -240,7 +240,7 @@ func (s *Server) announceLocalAddress(addr *net.IPNet, vni uint32) error {
 func (s *Server) withdrawLocalAddress(addr *net.IPNet, vni uint32) error {
 	s.log.Debugf("Withdrawing prefix %s from BGP", addr.String())
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
-	path, err := common.MakePath(addr.String(), true /* isWithdrawal */, nodeIP4, nodeIP6, vni)
+	path, err := common.MakePath(addr.String(), true /* isWithdrawal */, nodeIP4, nodeIP6, vni, uint32(*s.BGPConf.ASNumber))
 	if err != nil {
 		return errors.Wrap(err, "error making path to withdraw")
 	}

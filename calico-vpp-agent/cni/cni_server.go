@@ -22,11 +22,9 @@ import (
 	"os"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	networkv3 "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/network"
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/sirupsen/logrus"
@@ -62,7 +60,8 @@ type Server struct {
 	availableBuffers    uint64
 	buffersNeededPerTap uint64
 
-	networkDefinitions map[string]*watchers.NetworkDefinition
+	networkDefinitions   map[string]*watchers.NetworkDefinition
+	cniMultinetEventChan chan common.CalicoVppEvent
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -177,42 +176,6 @@ func NewLocalPodSpecFromDel(request *pb.DelRequest) *storage.LocalPodSpec {
 	}
 }
 
-func intersect(n1, n2 *net.IPNet) bool {
-	return n2.Contains(n1.IP) || n1.Contains(n2.IP)
-}
-
-func (s *Server) overlappingPodSpecs(podSpec1 *storage.LocalPodSpec, podSpec2 *storage.LocalPodSpec) (bool, error) {
-	_, b, err := net.ParseCIDR(s.networkDefinitions[podSpec1.NetworkName].Range)
-	if err != nil {
-		return false, err
-	}
-	_, e, err := net.ParseCIDR(s.networkDefinitions[podSpec2.NetworkName].Range)
-	if err != nil {
-		return false, err
-	}
-	if intersect(b, e) {
-		s.log.Warn("overlapping %s and %s", podSpec1.NetworkName, podSpec2.NetworkName)
-		return true, nil
-	}
-	return false, nil
-}
-
-func (s *Server) checkOverlappingNetworks(podSpec *storage.LocalPodSpec) (bool, error) {
-	for _, exPodSpec := range s.podInterfaceMap {
-		if exPodSpec.NetworkName != "" && exPodSpec.NetworkName != podSpec.NetworkName && podSpec.NetnsName == exPodSpec.NetnsName {
-			overlap, err := s.overlappingPodSpecs(podSpec, &exPodSpec)
-			if err != nil {
-				return false, err
-			}
-			if overlap {
-				s.log.Warn("This pod already exists in network %s which overlaps with %s", exPodSpec.NetworkName, podSpec.NetworkName)
-				return true, nil
-			}
-		}
-	}
-	return false, nil
-}
-
 func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply, error) {
 	/* We don't support request.GetDesiredHostInterfaceName() */
 	podSpec, err := s.newLocalPodSpecFromAdd(request)
@@ -242,23 +205,6 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 		podSpec = &existingSpec
 	}
 
-	if podSpec.NetworkName != "" {
-		s.log.Infof("check overlapping networks")
-		overlap, err := s.checkOverlappingNetworks(podSpec)
-		if err != nil {
-			return &pb.AddReply{
-				Successful:   false,
-				ErrorMessage: err.Error(),
-			}, nil
-		}
-		if overlap {
-			s.log.Errorf("Interface add failed %s : overlapping networks", podSpec.String())
-			return &pb.AddReply{
-				Successful:   false,
-				ErrorMessage: "overlapping networks",
-			}, nil
-		}
-	}
 	swIfIndex, err := s.AddVppInterface(podSpec, true /* doHostSideConf */)
 	if err != nil {
 		s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
@@ -395,12 +341,16 @@ func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Ent
 		vclDriver:       pod_interface.NewVclPodInterfaceDriver(vpp, log),
 		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(vpp, log),
 
-		networkDefinitions: make(map[string]*watchers.NetworkDefinition),
+		networkDefinitions:   make(map[string]*watchers.NetworkDefinition),
+		cniMultinetEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}
 	reg := common.RegisterHandler(server.cniEventChan, "CNI server events")
 	reg.ExpectEvents(
 		common.FelixConfChanged,
 		common.IpamConfChanged,
+	)
+	regM := common.RegisterHandler(server.cniMultinetEventChan, "CNI server Multinet events")
+	regM.ExpectEvents(
 		common.NetAdded,
 		common.NetUpdated,
 		common.NetDeleted,
@@ -447,23 +397,6 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) {
 	}
 }
 
-// check that all networks from list exist in map
-func (s *Server) waitForNetsSynced(nets *[]networkv3.Network) {
-	for {
-	restart:
-		for _, net := range *nets {
-			_, found := s.networkDefinitions[net.Name]
-			if !found {
-				s.log.Infof("network %s missing, retrying...", net.Name)
-				time.Sleep(time.Second)
-				goto restart
-			}
-		}
-		s.log.Infof("all networks synced")
-		break
-	}
-}
-
 func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	syscall.Unlink(config.CNIServerSocket)
 	socketListener, err := net.Listen("unix", config.CNIServerSocket)
@@ -474,13 +407,14 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	pb.RegisterCniDataplaneServer(s.grpcServer, s)
 
 	netsSynced := make(chan bool)
-	nets := &[]networkv3.Network{}
+	nets := make(map[string]*watchers.NetworkDefinition)
 	go func() {
 		for t.Alive() {
-			event := <-s.cniEventChan
+			event := <-s.cniMultinetEventChan
 			switch event.Type {
 			case common.NetsSynced:
-				nets = event.New.(*[]networkv3.Network)
+				nets = event.New.(map[string]*watchers.NetworkDefinition)
+				s.networkDefinitions = nets
 				netsSynced <- true
 			case common.NetAdded:
 				netDef := event.New.(*watchers.NetworkDefinition)
@@ -492,7 +426,7 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 		}
 	}()
 	<-netsSynced
-	s.waitForNetsSynced(nets)
+	s.log.Infof("Networks synced")
 	s.rescanState()
 
 	s.log.Infof("Serve() CNI")

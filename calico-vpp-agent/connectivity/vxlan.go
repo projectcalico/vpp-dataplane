@@ -74,7 +74,7 @@ func (p *VXLanProvider) RescanState() {
 		if (ip4 != nil && tunnel.SrcAddress.Equal(*ip4)) || (ip6 != nil && tunnel.SrcAddress.Equal(*ip6)) {
 			if tunnel.Vni == p.getVXLANVNI() && tunnel.DstPort == p.getVXLANPort() && tunnel.SrcPort == p.getVXLANPort() {
 				p.log.Infof("Found existing tunnel: %s", tunnel)
-				p.vxlanIfs[tunnel.DstAddress.String()+fmt.Sprint(tunnel.Vni)] = tunnel
+				p.vxlanIfs[tunnel.DstAddress.String()+"-"+fmt.Sprint(tunnel.Vni)] = tunnel
 			}
 		}
 	}
@@ -162,7 +162,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			p.netsLoopbacks[cn.Vni] = true
 		}
 	}
-	_, found := p.vxlanIfs[cn.NextHop.String()+fmt.Sprint(cn.Vni)]
+	_, found := p.vxlanIfs[cn.NextHop.String()+"-"+fmt.Sprint(cn.Vni)]
 	if !found {
 		p.log.Infof("connectivity(add) VXLan %s->%s(VNI:%d)", nodeIP.String(), cn.NextHop.String(), cn.Vni)
 		tunnel := &types.VXLanTunnel{
@@ -175,8 +175,6 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		}
 		if cn.Vni != 0 {
 			tunnel.Vni = cn.Vni
-		} else {
-			return nil
 		}
 		if vpplink.IsIP6(cn.NextHop) {
 			tunnel.DecapNextIndex = p.ip6NodeIndex
@@ -228,7 +226,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			}
 		}
 
-		p.vxlanIfs[cn.NextHop.String()+fmt.Sprint(cn.Vni)] = *tunnel
+		p.vxlanIfs[cn.NextHop.String()+"-"+fmt.Sprint(cn.Vni)] = *tunnel
 		p.log.Infof("connectivity(add) VXLan Added tunnel=%s", tunnel)
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.TunnelAdded,
@@ -250,30 +248,24 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			}
 		}
 	}
-	tunnel := p.vxlanIfs[cn.NextHop.String()+fmt.Sprint(cn.Vni)]
+	tunnel := p.vxlanIfs[cn.NextHop.String()+"-"+fmt.Sprint(cn.Vni)]
 
-	var route *types.Route
+	var table uint32
 	if cn.Vni == 0 {
 		p.log.Infof("connectivity(add) vxlan route dst=%s via swIfIndex=%d", cn.Dst.IP.String(), tunnel.SwIfIndex)
-		route = &types.Route{
-			Dst: &cn.Dst,
-			Paths: []types.RoutePath{{
-				SwIfIndex: tunnel.SwIfIndex,
-				Gw:        nodeIP,
-			}},
-		}
 	} else {
 		vrfIndex := p.server.networks[cn.Vni].VRF.Tables[familyIdx]
 		p.log.Infof("connectivity(add) vxlan route dst=%s via swIfIndex %d in VRF %d (VNI:%d)", cn.Dst.IP.String(),
 			tunnel.SwIfIndex, vrfIndex, cn.Vni)
-		route = &types.Route{
-			Dst: &cn.Dst,
-			Paths: []types.RoutePath{{
-				SwIfIndex: tunnel.SwIfIndex,
-				Gw:        nodeIP,
-			}},
-			Table: vrfIndex,
-		}
+		table = vrfIndex
+	}
+	route := &types.Route{
+		Dst: &cn.Dst,
+		Paths: []types.RoutePath{{
+			SwIfIndex: tunnel.SwIfIndex,
+			Gw:        nodeIP,
+		}},
+		Table: table,
 	}
 	_, found = p.vxlanRoutes[tunnel.SwIfIndex]
 	if !found {
@@ -284,7 +276,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 }
 
 func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
-	tunnel, found := p.vxlanIfs[cn.NextHop.String()+fmt.Sprint(cn.Vni)]
+	tunnel, found := p.vxlanIfs[cn.NextHop.String()+"-"+fmt.Sprint(cn.Vni)]
 	if !found {
 		return errors.Errorf("Deleting unknown vxlan tunnel cn=%s", cn.String())
 	}
@@ -347,7 +339,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 		if err != nil {
 			p.log.Errorf("Error deleting VXLan tunnel %s after error: %v", tunnel.String(), err)
 		}
-		delete(p.vxlanIfs, cn.NextHop.String()+fmt.Sprint(cn.Vni))
+		delete(p.vxlanIfs, cn.NextHop.String()+"-"+fmt.Sprint(cn.Vni))
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.TunnelDeleted,
 			Old:  tunnel.SwIfIndex,
