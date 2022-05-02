@@ -6,6 +6,7 @@ You need to create the network crd.
 
 ````yaml
 kubectl apply -f yaml/features/multinet/projectcalico.org_networks.yaml
+kubectl apply -f yaml/features/multinet/whereabouts-daemonset-install.yaml
 ````
 
 ### Running multus
@@ -24,7 +25,6 @@ You need to create crds for whereabouts ipam and run it as a daemonset
 ````yaml
 git clone https://github.com/k8snetworkplumbingwg/whereabouts && cd whereabouts
 kubectl apply \
-    -f doc/crds/daemonset-install.yaml \
     -f doc/crds/whereabouts.cni.cncf.io_ippools.yaml \
     -f doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml \
     -f doc/crds/ip-reconciler-job.yaml

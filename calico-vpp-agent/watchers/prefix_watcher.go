@@ -73,7 +73,7 @@ func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 				w.log.Debugf("New assigned prefix: %s", prefix)
 				newAssignedPrefixes[prefix] = false
 				ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
-				path, err := common.MakePath(prefix, false /* isWithdrawal */, ip4, ip6, 0)
+				path, err := common.MakePath(prefix, false /* isWithdrawal */, ip4, ip6, 0, 0)
 				if err != nil {
 					return errors.Wrap(err, "error making new path for assigned prefix")
 				}
@@ -89,7 +89,7 @@ func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 			if !stillThere {
 				w.log.Infof("Prefix %s is not assigned to us anymore", p)
 				ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
-				path, err := common.MakePath(p, true /* isWithdrawal */, ip4, ip6, 0)
+				path, err := common.MakePath(p, true /* isWithdrawal */, ip4, ip6, 0, 0)
 				if err != nil {
 					return errors.Wrap(err, "error making new path for removed prefix")
 				}
