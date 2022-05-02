@@ -25,29 +25,22 @@ import (
 
 func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) error {
 	for _, containerIP := range podSpec.GetContainerIps() {
-		var route types.Route
-		if podSpec.NetworkName == "" {
-			route = types.Route{
-				Dst: containerIP,
-				Paths: []types.RoutePath{{
-					SwIfIndex: swIfIndex,
-				}},
-			}
-			s.log.Infof("pod(add) route [podVRF ->MainIF] %s", route.String())
-		} else {
+		var table uint32
+		if podSpec.NetworkName != "" {
 			idx := 0
 			if vpplink.IsIP6(containerIP.IP) {
 				idx = 1
 			}
-			route = types.Route{
-				Dst: containerIP,
-				Paths: []types.RoutePath{{
-					SwIfIndex: swIfIndex,
-				}},
-				Table: s.networkDefinitions[podSpec.NetworkName].VRF.Tables[idx],
-			}
-			s.log.Infof("pod(add) route [podVRF ->MainIF] %s", route.String())
+			table = s.networkDefinitions[podSpec.NetworkName].VRF.Tables[idx]
 		}
+		route := types.Route{
+			Dst: containerIP,
+			Paths: []types.RoutePath{{
+				SwIfIndex: swIfIndex,
+			}},
+			Table: table,
+		}
+		s.log.Infof("pod(add) route [podVRF ->MainIF] %s", route.String())
 		err := s.vpp.RouteAdd(&route)
 		if err != nil {
 			return errors.Wrapf(err, "Cannot adding route [podVRF ->MainIF] %s", route.String())
@@ -71,29 +64,22 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 
 func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
 	for _, containerIP := range podSpec.GetContainerIps() {
-		var route types.Route
-		if podSpec.NetworkName == "" {
-			route = types.Route{
-				Dst: containerIP,
-				Paths: []types.RoutePath{{
-					SwIfIndex: swIfIndex,
-				}},
-			}
-			s.log.Infof("pod(del) route [podVRF ->MainIF] %s", route.String())
-		} else {
+		var table uint32
+		if podSpec.NetworkName != "" {
 			idx := 0
 			if vpplink.IsIP6(containerIP.IP) {
 				idx = 1
 			}
-			route = types.Route{
-				Dst: containerIP,
-				Paths: []types.RoutePath{{
-					SwIfIndex: swIfIndex,
-				}},
-				Table: s.networkDefinitions[podSpec.NetworkName].VRF.Tables[idx],
-			}
-			s.log.Infof("pod(del) route [podVRF ->MainIF] %s", route.String())
+			table = s.networkDefinitions[podSpec.NetworkName].VRF.Tables[idx]
 		}
+		route := types.Route{
+			Dst: containerIP,
+			Paths: []types.RoutePath{{
+				SwIfIndex: swIfIndex,
+			}},
+			Table: table,
+		}
+		s.log.Infof("pod(del) route [podVRF ->MainIF] %s", route.String())
 		err := s.vpp.RouteDel(&route)
 		if err != nil {
 			s.log.Warnf("Error deleting route [podVRF ->MainIF] %s : %s", route.String(), err)
@@ -177,27 +163,22 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 
 	for idx, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
+		var vrfIndex uint32
 		if podSpec.NetworkName == "" { // no multi net
-			s.log.Infof("pod(add) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
-			err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily), common.PodVRFIndex, ipFamily.IsIp6)
-			if err != nil {
-				return errors.Wrapf(err, "error adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
-			} else {
-				stack.Push(s.vpp.DelDefaultRouteViaTable, vrfId, common.PodVRFIndex, ipFamily.IsIp6)
-			}
+			vrfIndex = common.PodVRFIndex
 		} else {
 			netDef, found := s.networkDefinitions[podSpec.NetworkName]
 			if !found {
 				return errors.Errorf("network %s not found", podSpec.NetworkName)
 			}
-			networkVRF := netDef.VRF.Tables[idx]
-			s.log.Infof("Adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, networkVRF)
-			err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily), networkVRF, ipFamily.IsIp6)
-			if err != nil {
-				return errors.Wrapf(err, "error adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, networkVRF)
-			} else {
-				stack.Push(s.vpp.DelDefaultRouteViaTable, vrfId, networkVRF, ipFamily.IsIp6)
-			}
+			vrfIndex = netDef.VRF.Tables[idx]
+		}
+		s.log.Infof("pod(add) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)
+		err = s.vpp.AddDefaultRouteViaTable(podSpec.GetVrfId(ipFamily), vrfIndex, ipFamily.IsIp6)
+		if err != nil {
+			return errors.Wrapf(err, "error adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)
+		} else {
+			stack.Push(s.vpp.DelDefaultRouteViaTable, vrfId, vrfIndex, ipFamily.IsIp6)
 		}
 	}
 	return nil
@@ -206,25 +187,21 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) error {
 	var err error
 	for idx, ipFamily := range vpplink.IpFamilies {
+		vrfId := podSpec.GetVrfId(ipFamily)
+		var vrfIndex uint32
 		if podSpec.NetworkName == "" {
-			vrfId := podSpec.GetVrfId(ipFamily)
-			s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, common.PodVRFIndex)
-			err = s.vpp.DelDefaultRouteViaTable(vrfId, common.PodVRFIndex, ipFamily.IsIp6)
-			if err != nil {
-				s.log.Errorf("Error  VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, common.PodVRFIndex, err)
-			}
+			vrfIndex = common.PodVRFIndex
 		} else {
 			netDef, found := s.networkDefinitions[podSpec.NetworkName]
 			if !found {
 				return errors.Errorf("network %s not found", podSpec.NetworkName)
 			}
-			networkVRF := netDef.VRF.Tables[idx]
-			vrfId := podSpec.GetVrfId(ipFamily)
-			s.log.Infof("Deleting VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, networkVRF)
-			err = s.vpp.DelDefaultRouteViaTable(vrfId, networkVRF, ipFamily.IsIp6)
-			if err != nil {
-				s.log.Errorf("Error  VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, networkVRF, err)
-			}
+			vrfIndex = netDef.VRF.Tables[idx]
+		}
+		s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)
+		err = s.vpp.DelDefaultRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
+		if err != nil {
+			s.log.Errorf("Error  VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, vrfIndex, err)
 		}
 	}
 

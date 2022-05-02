@@ -192,7 +192,7 @@ func GetHostPrefixSetName(isv6 bool) string {
 	return v46ify(hostPrefixSetBaseName, isv6)
 }
 
-func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.IP, vni uint32) (*bgpapi.Path, error) {
+func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.IP, vni uint32, asNumber uint32) (*bgpapi.Path, error) {
 	_, ipNet, err := net.ParseCIDR(prefix)
 	if err != nil {
 		return nil, err
@@ -269,30 +269,22 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 			family = &BgpFamilyUnicastIPv6VPN
 		}
 		var nlriAttr *anypb.Any
+		var familySafi bgpapi.Family_Safi
 		if vni != 0 {
-			nlriAttr, err = ptypes.MarshalAny(&bgpapi.MpReachNLRIAttribute{
-				NextHops: []string{nodeIpv6.String()},
-				Nlris:    []*any.Any{nlri},
-				Family: &bgpapi.Family{
-					Afi:  bgpapi.Family_AFI_IP6,
-					Safi: bgpapi.Family_SAFI_MPLS_VPN,
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
+			familySafi = bgpapi.Family_SAFI_MPLS_VPN
 		} else {
-			nlriAttr, err = ptypes.MarshalAny(&bgpapi.MpReachNLRIAttribute{
-				NextHops: []string{nodeIpv6.String()},
-				Nlris:    []*any.Any{nlri},
-				Family: &bgpapi.Family{
-					Afi:  bgpapi.Family_AFI_IP6,
-					Safi: bgpapi.Family_SAFI_UNICAST,
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
+			familySafi = bgpapi.Family_SAFI_UNICAST
+		}
+		nlriAttr, err = ptypes.MarshalAny(&bgpapi.MpReachNLRIAttribute{
+			NextHops: []string{nodeIpv6.String()},
+			Nlris:    []*any.Any{nlri},
+			Family: &bgpapi.Family{
+				Afi:  bgpapi.Family_AFI_IP6,
+				Safi: familySafi,
+			},
+		})
+		if err != nil {
+			return nil, err
 		}
 		attrs = append(attrs, nlriAttr)
 	}
