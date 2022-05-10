@@ -13,7 +13,7 @@ require (
 	github.com/osrg/gobgp v0.0.0-20210801043420-9e48a36ed97c
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/api v0.0.0-20220505231559-852f5034c309 // v3.23.0
-	github.com/projectcalico/calico v1.11.0-cni-plugin.0.20220509191150-29de1d3f8dd7 // v3.23.0
+	github.com/projectcalico/calico v0.0.0-20220509191150-29de1d3f8dd7 // v3.23.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20210703095558-21f2c55a7727

@@ -845,6 +845,8 @@ github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndr
 github.com/pquerna/cachecontrol v0.0.0-20171018203845-0dec1b30a021/go.mod h1:prYjPmNq4d1NPVmpShWobRqXY3q7Vp+80DqgxxUrUIA=
 github.com/projectcalico/api v0.0.0-20220505231559-852f5034c309 h1:/BSDWEUEQkRr5vbfOYDEX7UZ8RKgWv20FqfZ0PfoPZM=
 github.com/projectcalico/api v0.0.0-20220505231559-852f5034c309/go.mod h1:Avoy1rTN1GfeisnHGf3WhQNqR+BuGOcwfNFsdWX6OHE=
+github.com/projectcalico/calico v0.0.0-20220509191150-29de1d3f8dd7 h1:kzaV8KmNqnzOEbeYyfjxbvyj2qBltoemseLydp7l7mk=
+github.com/projectcalico/calico v0.0.0-20220509191150-29de1d3f8dd7/go.mod h1:B1j9Ed1pVMYaSe4GxiRJI7TovdCRYksijT5h5mSSXRk=
 github.com/projectcalico/calico v1.11.0-cni-plugin.0.20220509191150-29de1d3f8dd7 h1:PJ3TrrQSHMUybLqsNuPMdNtUScbCAunwoyWiSGd0pDw=
 github.com/projectcalico/calico v1.11.0-cni-plugin.0.20220509191150-29de1d3f8dd7/go.mod h1:B1j9Ed1pVMYaSe4GxiRJI7TovdCRYksijT5h5mSSXRk=
 github.com/projectcalico/go-json v0.0.0-20161128004156-6219dc7339ba h1:aaF2byUCZhzszHsfPEr2M3qcU4ibtD/yk/il2R7T1PU=
