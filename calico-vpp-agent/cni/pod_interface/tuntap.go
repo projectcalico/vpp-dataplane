@@ -64,8 +64,8 @@ func (i *TunTapPodInterfaceDriver) computePodMtu(podSpecMtu int, fc *felixConfig
 	if podSpecMtu > 0 {
 		podMtu = podSpecMtu
 	} else {
-		ipipEnabled := ipipEnabled || fc.IpInIpEnabled
-		vxlanEnabled := vxlanEnabled || fc.VXLANEnabled
+		ipipEnabled := ipipEnabled || (fc.IpInIpEnabled != nil && *fc.IpInIpEnabled)
+		vxlanEnabled := vxlanEnabled || (fc.VXLANEnabled != nil && *fc.VXLANEnabled)
 
 		// Reproduce felix algorithm in determinePodMTU to determine pod MTU
 		// The part where it defaults to the host MTU is done in AddVppInterface
