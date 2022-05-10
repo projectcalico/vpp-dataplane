@@ -1,7 +1,13 @@
 
-FELIX_VERSION ?= v3.22.0
-CNI_PLUGIN_VERSION ?= v3.22.0
+FELIX_VERSION ?= v3.23.0
+CNI_PLUGIN_VERSION ?= v3.23.0
 PROTOC_VERSION = 3.17.3
+
+# In order to install protoc, do the following :
+# 	  mkdir protoc && cd protoc
+# 	  wget https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-osx-x86_64.zip
+# 	  unzip protoc-${PROTOC_VERSION}-osx-x86_64.zip && rm protoc-${PROTOC_VERSION}-osx-x86_64.zip
+# 	  go get -u github.com/gogo/protobuf/protoc-gen-gogo@v1.3.2
 
 FELIX_REPO = https://raw.githubusercontent.com/projectcalico/calico/$(FELIX_VERSION)/felix
 CNI_PLUGIN_REPO = https://raw.githubusercontent.com/projectcalico/calico/$(CNI_PLUGIN_VERSION)/cni-plugin
@@ -14,3 +20,4 @@ proto:
         echo "Warning : using protoc $(shell protoc --version)"; \
     fi
 	@go generate
+
