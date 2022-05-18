@@ -28,10 +28,11 @@ type WorkloadEndpointID struct {
 	OrchestratorID string
 	WorkloadID     string
 	EndpointID     string
+	Network        string
 }
 
 func (wi *WorkloadEndpointID) String() string {
-	return fmt.Sprintf("%s:%s:%s", wi.OrchestratorID, wi.WorkloadID, wi.EndpointID)
+	return fmt.Sprintf("%s:%s:%s:%s", wi.OrchestratorID, wi.WorkloadID, wi.EndpointID, wi.Network)
 }
 
 type Tier struct {
@@ -48,7 +49,7 @@ func (tr *Tier) String() string {
 }
 
 type WorkloadEndpoint struct {
-	SwIfIndex uint32
+	SwIfIndex []uint32
 	Profiles  []string
 	Tiers     []Tier
 	server    *Server
@@ -71,7 +72,7 @@ func fromProtoEndpointID(ep *proto.WorkloadEndpointID) *WorkloadEndpointID {
 
 func fromProtoWorkload(wep *proto.WorkloadEndpoint, server *Server) *WorkloadEndpoint {
 	r := &WorkloadEndpoint{
-		SwIfIndex: types.InvalidID,
+		SwIfIndex: []uint32{},
 		Profiles:  wep.ProfileIds,
 		server:    server,
 	}
@@ -85,11 +86,17 @@ func fromProtoWorkload(wep *proto.WorkloadEndpoint, server *Server) *WorkloadEnd
 	return r
 }
 
-func (w *WorkloadEndpoint) getPolicies(state *PolicyState) (conf *types.InterfaceConfig, err error) {
+func (w *WorkloadEndpoint) getPolicies(state *PolicyState, network string) (conf *types.InterfaceConfig, err error) {
 	conf = types.NewInterfaceConfig()
 	for _, tier := range w.Tiers {
+		var policyMap map[PolicyID]*Policy
+		if network == "" {
+			policyMap = state.Policies
+		} else {
+			policyMap = state.multinetPolicies[network]
+		}
 		for _, polName := range tier.IngressPolicies {
-			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName}]
+			pol, ok := policyMap[PolicyID{Tier: tier.Name, Name: polName}]
 			if !ok {
 				return nil, fmt.Errorf("in policy %s tier %s not found for workload endpoint", polName, tier.Name)
 			}
@@ -99,7 +106,7 @@ func (w *WorkloadEndpoint) getPolicies(state *PolicyState) (conf *types.Interfac
 			conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, pol.VppID)
 		}
 		for _, polName := range tier.EgressPolicies {
-			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName}]
+			pol, ok := policyMap[PolicyID{Tier: tier.Name, Name: polName}]
 			if !ok {
 				return nil, fmt.Errorf("out policy %s tier %s not found for workload endpoint", polName, tier.Name)
 			}
@@ -125,30 +132,33 @@ func (w *WorkloadEndpoint) getPolicies(state *PolicyState) (conf *types.Interfac
 	return conf, nil
 }
 
-func (w *WorkloadEndpoint) Create(vpp *vpplink.VppLink, swIfIndex uint32, state *PolicyState) (err error) {
-	conf, err := w.getPolicies(state)
+func (w *WorkloadEndpoint) Create(vpp *vpplink.VppLink, swIfIndexes []uint32, state *PolicyState, network string) (err error) {
+	conf, err := w.getPolicies(state, network)
 	if err != nil {
 		return err
 	}
-	err = vpp.ConfigurePolicies(swIfIndex, conf)
-	if err != nil {
-		return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
+	for _, swIfIndex := range swIfIndexes {
+		err = vpp.ConfigurePolicies(swIfIndex, conf)
+		if err != nil {
+			return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
+		}
 	}
 
-	w.SwIfIndex = swIfIndex
+	w.SwIfIndex = append(w.SwIfIndex, swIfIndexes...)
 	return nil
 }
 
-func (w *WorkloadEndpoint) Update(vpp *vpplink.VppLink, new *WorkloadEndpoint, state *PolicyState) (err error) {
-	conf, err := new.getPolicies(state)
+func (w *WorkloadEndpoint) Update(vpp *vpplink.VppLink, new *WorkloadEndpoint, state *PolicyState, network string) (err error) {
+	conf, err := new.getPolicies(state, network)
 	if err != nil {
 		return err
 	}
-	err = vpp.ConfigurePolicies(w.SwIfIndex, conf)
-	if err != nil {
-		return errors.Wrapf(err, "cannot configure policies on interface %d", w.SwIfIndex)
+	for _, swIfIndex := range w.SwIfIndex {
+		err = vpp.ConfigurePolicies(swIfIndex, conf)
+		if err != nil {
+			return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
+		}
 	}
-
 	// Update local policy with new data
 	w.Profiles = new.Profiles
 	w.Tiers = new.Tiers
@@ -156,10 +166,10 @@ func (w *WorkloadEndpoint) Update(vpp *vpplink.VppLink, new *WorkloadEndpoint, s
 }
 
 func (w *WorkloadEndpoint) Delete(vpp *vpplink.VppLink) (err error) {
-	if w.SwIfIndex == types.InvalidID {
+	if len(w.SwIfIndex) == 0 {
 		return fmt.Errorf("deleting unconfigured wep")
 	}
 	// Nothing to do in VPP, policies are cleared when the interface is removed
-	w.SwIfIndex = types.InvalidID
+	w.SwIfIndex = []uint32{}
 	return nil
 }

@@ -186,6 +186,9 @@ func main() {
 	 */
 	log.Infof("Waiting for felix config being present...")
 
+	if config.MultinetEnabled {
+		Go(netWatcher.WatchNetworks)
+	}
 	Go(policyServer.ServePolicy)
 	felixConfig := policyServer.WaitForFelixConfig()
 
@@ -200,9 +203,6 @@ func main() {
 	Go(prefixWatcher.WatchPrefix)
 	Go(peerWatcher.WatchBGPPeers)
 	Go(connectivityServer.ServeConnectivity)
-	if config.MultinetEnabled {
-		Go(netWatcher.WatchNetworks)
-	}
 	Go(routingServer.ServeRouting)
 	Go(serviceServer.ServeService)
 	Go(cniServer.ServeCNI)

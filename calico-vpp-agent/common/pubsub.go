@@ -57,10 +57,9 @@ const (
 	BGPReloadIP4 CalicoVppEventType = "BGPReloadIP4"
 	BGPReloadIP6 CalicoVppEventType = "BGPReloadIP6"
 
-	NetAdded   CalicoVppEventType = "NetAdded"
-	NetUpdated CalicoVppEventType = "NetUpdated"
-	NetDeleted CalicoVppEventType = "NetDeleted"
-	NetsSynced CalicoVppEventType = "NetsSynced"
+	NetAddedOrUpdated CalicoVppEventType = "NetAddedOrUpdated"
+	NetDeleted        CalicoVppEventType = "NetDeleted"
+	NetsSynced        CalicoVppEventType = "NetsSynced"
 )
 
 var (

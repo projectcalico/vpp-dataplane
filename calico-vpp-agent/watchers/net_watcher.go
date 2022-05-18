@@ -17,12 +17,15 @@ package watchers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
+	netv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	networkv3 "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/network"
+	nadv1 "github.com/projectcalico/vpp-dataplane/multinet-monitor/networkAttachmentDefinition"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
@@ -41,6 +44,7 @@ type NetworkDefinition struct {
 	Name              string
 	LoopbackSwIfIndex uint32
 	Range             string
+	Nad               string
 }
 
 type NetWatcher struct {
@@ -49,10 +53,11 @@ type NetWatcher struct {
 	client             client.WithWatch
 	stop               chan struct{}
 	networkDefinitions map[string]*NetworkDefinition
+	nads               map[string]string
 }
 
 func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
-	kubernetesClient, err := NewClient(10*time.Second, []func(s *runtime.Scheme) error{networkv3.AddToScheme})
+	kubernetesClient, err := NewClient(10*time.Second, []func(s *runtime.Scheme) error{networkv3.AddToScheme, nadv1.AddToScheme})
 	if err != nil {
 		panic(fmt.Errorf("failed instantiating kubernetes client: %v", err))
 	}
@@ -62,6 +67,7 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 		client:             *kubernetesClient,
 		stop:               make(chan struct{}),
 		networkDefinitions: make(map[string]*NetworkDefinition),
+		nads: make(map[string]string),
 	}
 	return &w
 }
@@ -73,8 +79,20 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 	if err != nil {
 		return err
 	}
+	nadList := &netv1.NetworkAttachmentDefinitionList{}
+	err = w.client.List(context.Background(), nadList, &client.ListOptions{})
+	if err != nil {
+		return err
+	}
 	for _, net := range netList.Items {
 		err := w.OnNetAdded(&net)
+		if err != nil {
+			w.log.Error(err)
+			return err
+		}
+	}
+	for _, nad := range nadList.Items {
+		err = w.onNadAdded(&nad)
 		if err != nil {
 			w.log.Error(err)
 			return err
@@ -86,33 +104,58 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 
 	for {
 		netList = &networkv3.NetworkList{}
-		watcher, err := w.client.Watch(context.Background(), netList, &client.ListOptions{})
+		netWatcher, err := w.client.Watch(context.Background(), netList, &client.ListOptions{})
 		if err != nil {
-			w.log.Errorf("couldn't watch pods: %s", err)
+			w.log.Errorf("couldn't watch networks: %s", err)
 		}
-		w.watching(watcher)
+		nadList = &netv1.NetworkAttachmentDefinitionList{}
+		nadWatcher, err := w.client.Watch(context.Background(), nadList, &client.ListOptions{})
+		if err != nil {
+			w.log.Errorf("couldn't watch nads: %s", err)
+		}
+		w.watching(netWatcher, nadWatcher)
 	}
 }
 
-func (w *NetWatcher) watching(watcher watch.Interface) bool {
+func (w *NetWatcher) watching(netWatcher, nadWatcher watch.Interface) bool {
 	for {
-		update, ok := <-watcher.ResultChan()
-		if !ok {
-			w.log.Warn("network watch channel closed")
-			return true
-		}
-		switch update.Type {
-		case watch.Added:
-			net := update.Object.(*networkv3.Network)
-			err := w.OnNetAdded(net)
-			if err != nil {
-				w.log.Error(err)
+		select {
+		case update, ok := <-netWatcher.ResultChan():
+			if !ok {
+				w.log.Warn("network watch channel closed")
+				return true
 			}
-		case watch.Deleted:
-			oldNet := update.Object.(*networkv3.Network)
-			w.OnNetDeleted(oldNet.Name)
-		case watch.Modified:
-			w.log.Warn("network changed, not yet supported!")
+			switch update.Type {
+			case watch.Added:
+				net := update.Object.(*networkv3.Network)
+				err := w.OnNetAdded(net)
+				if err != nil {
+					w.log.Error(err)
+				}
+			case watch.Deleted:
+				oldNet := update.Object.(*networkv3.Network)
+				w.OnNetDeleted(oldNet.Name)
+			case watch.Modified:
+				w.log.Warn("network changed, not yet supported!")
+			}
+		case update, ok := <-nadWatcher.ResultChan():
+			if !ok {
+				w.log.Warn("nad watch channel closed")
+			}
+			switch update.Type {
+			case watch.Added:
+				nad := update.Object.(*netv1.NetworkAttachmentDefinition)
+				err := w.onNadAdded(nad)
+				if err != nil {
+					w.log.Error(err)
+				}
+			case watch.Deleted:
+				nad := update.Object.(*netv1.NetworkAttachmentDefinition)
+				err := w.onNadDeleted(nad)
+				if err != nil {
+					w.log.Error(err)
+				}
+			}
 		}
 	}
 }
@@ -121,13 +164,54 @@ func (w *NetWatcher) Stop() {
 	close(w.stop)
 }
 
+func (w *NetWatcher) onNadDeleted(nad *netv1.NetworkAttachmentDefinition) error {
+	delete(w.nads, nad.Namespace+"/"+nad.Name)
+	for key, net := range w.networkDefinitions {
+		if net.Nad == nad.Namespace+"/"+nad.Name {
+			w.networkDefinitions[key].Nad = ""
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.NetAddedOrUpdated,
+				New:  w.networkDefinitions[key],
+			})
+		}
+	}
+	return nil
+}
+
+func (w *NetWatcher) onNadAdded(nad *netv1.NetworkAttachmentDefinition) error {
+	var nadConfig nadv1.NetConfList
+	err := json.Unmarshal([]byte(nad.Spec.Config), &nadConfig)
+	if err != nil {
+		w.log.Error(err)
+		return err
+	}
+	for _, plugin := range nadConfig.Plugins {
+		for key, net := range w.networkDefinitions {
+			if net.Name == plugin.DpOptions.NetName {
+				w.nads[nad.Namespace+"/"+nad.Name] = net.Name
+				w.networkDefinitions[key].Nad = nad.Namespace + "/" + nad.Name
+				common.SendEvent(common.CalicoVppEvent{
+					Type: common.NetAddedOrUpdated,
+					New:  w.networkDefinitions[key],
+				})
+			}
+		}
+	}
+	return nil
+}
+
 func (w *NetWatcher) OnNetAdded(net *networkv3.Network) error {
 	netDef, err := w.CreateVRFsForNet(net.Name, uint32(net.Spec.VNI), net.Spec.Range)
 	if err != nil {
 		return err
 	}
+	for nad, net := range w.nads {
+		if net == netDef.Name {
+			netDef.Nad = nad
+		}
+	}
 	common.SendEvent(common.CalicoVppEvent{
-		Type: common.NetAdded,
+		Type: common.NetAddedOrUpdated,
 		New:  netDef,
 	})
 	return nil

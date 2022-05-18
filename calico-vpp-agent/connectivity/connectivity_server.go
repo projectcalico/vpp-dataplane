@@ -81,7 +81,7 @@ func NewConnectivityServer(vpp *vpplink.VppLink, ipam watchers.IpamCache,
 
 	reg := common.RegisterHandler(server.connectivityEventChan, "connectivity server events")
 	reg.ExpectEvents(
-		common.NetAdded,
+		common.NetAddedOrUpdated,
 		common.NetDeleted,
 		common.ConnectivityAdded,
 		common.ConnectivityDeleted,
@@ -156,7 +156,7 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 		case evt := <-s.connectivityEventChan:
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
-			case common.NetAdded:
+			case common.NetAddedOrUpdated:
 				new := evt.New.(*watchers.NetworkDefinition)
 				s.networks[new.Vni] = *new
 			case common.NetDeleted:
