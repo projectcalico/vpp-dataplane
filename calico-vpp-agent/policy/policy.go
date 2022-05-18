@@ -62,7 +62,26 @@ func (p *Policy) String() string {
 	return s
 }
 
-func fromProtoPolicy(p *proto.Policy) (policy *Policy, err error) {
+func ruleInNetwork(r *proto.Rule, network string) bool {
+	if r.GetMetadata() != nil {
+		if r.GetMetadata().GetAnnotations() != nil {
+			ruleNetwork, found := r.GetMetadata().GetAnnotations()["extensions.projectcalico.org/network"]
+			if found && ruleNetwork == network {
+				return true
+			}
+		}
+	}
+	if network == "" {
+		if r.GetMetadata() == nil || r.GetMetadata().GetAnnotations() == nil {
+			return true
+		} else if _, found := r.GetMetadata().GetAnnotations()["extensions.projectcalico.org/network"]; !found {
+			return true
+		}
+	}
+	return false
+}
+
+func fromProtoPolicy(p *proto.Policy, network string) (policy *Policy, err error) {
 	policy = &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
@@ -80,18 +99,22 @@ func fromProtoPolicy(p *proto.Policy) (policy *Policy, err error) {
 		return
 	}
 	for _, r := range p.InboundRules {
-		rule, err := fromProtoRule(r)
-		if err != nil {
-			return nil, err
+		if ruleInNetwork(r, network) {
+			rule, err := fromProtoRule(r)
+			if err != nil {
+				return nil, err
+			}
+			policy.InboundRules = append(policy.InboundRules, rule)
 		}
-		policy.InboundRules = append(policy.InboundRules, rule)
 	}
 	for _, r := range p.OutboundRules {
-		rule, err := fromProtoRule(r)
-		if err != nil {
-			return nil, err
+		if ruleInNetwork(r, network) {
+			rule, err := fromProtoRule(r)
+			if err != nil {
+				return nil, err
+			}
+			policy.OutboundRules = append(policy.OutboundRules, rule)
 		}
-		policy.OutboundRules = append(policy.OutboundRules, rule)
 	}
 	return policy, nil
 }

@@ -16,6 +16,7 @@
 package policy
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -29,14 +30,16 @@ import (
 	"github.com/pkg/errors"
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
-	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	tomb "gopkg.in/tomb.v2"
 
+	nettypes "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -55,6 +58,11 @@ const (
 	StateInSync
 )
 
+type IfNetwork struct {
+	ifName      string
+	networkName string
+}
+
 // Server holds all the data required to configure the policies defined by felix in VPP
 type Server struct {
 	log *logrus.Entry
@@ -66,7 +74,9 @@ type Server struct {
 	nextSeqNumber uint64
 
 	endpointsLock       sync.Mutex
-	endpointsInterfaces map[WorkloadEndpointID]uint32
+	endpointsInterfaces map[WorkloadEndpointID][]uint32
+
+	idsNetworks map[*WorkloadEndpointID]string
 
 	configuredState *PolicyState
 	pendingState    *PolicyState
@@ -84,7 +94,9 @@ type Server struct {
 	ip6               *net.IP
 	interfacesMap     map[string]interfaceDetails
 
-	policyServerEventChan chan common.CalicoVppEvent
+	policyServerEventChan   chan common.CalicoVppEvent
+	policyMultinetEventChan chan common.CalicoVppEvent
+	networkDefinitions      map[string]*watchers.NetworkDefinition
 
 	tunnelSwIfIndexes     map[uint32]bool
 	tunnelSwIfIndexesLock sync.Mutex
@@ -111,12 +123,16 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		state:         StateDisconnected,
 		nextSeqNumber: 0,
 
-		endpointsInterfaces: make(map[WorkloadEndpointID]uint32),
+		endpointsInterfaces: make(map[WorkloadEndpointID][]uint32),
 
 		configuredState: NewPolicyState(),
 		pendingState:    NewPolicyState(),
 
-		policyServerEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		policyServerEventChan:   make(chan common.CalicoVppEvent, common.ChanSize),
+		policyMultinetEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+
+		idsNetworks:        make(map[*WorkloadEndpointID]string),
+		networkDefinitions: make(map[string]*watchers.NetworkDefinition),
 
 		tunnelSwIfIndexes:   make(map[uint32]bool),
 		felixConfigReceived: false,
@@ -130,6 +146,12 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		common.PodDeleted,
 		common.TunnelAdded,
 		common.TunnelDeleted,
+	)
+	regM := common.RegisterHandler(server.policyMultinetEventChan, "policy server Multinet events")
+	regM.ExpectEvents(
+		common.NetAddedOrUpdated,
+		common.NetDeleted,
+		common.NetsSynced,
 	)
 
 	server.interfacesMap, err = server.mapTagToInterfaceDetails()
@@ -237,23 +259,31 @@ func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, contain
 	intf, existing := s.endpointsInterfaces[*id]
 
 	if existing {
-		if swIfIndex != intf {
-			// VPP restarted and interfaces are being reconnected
-			s.log.Warnf("workload endpoint changed interfaces, did VPP restart? %v %d -> %d", id, intf, swIfIndex)
-			s.endpointsInterfaces[*id] = swIfIndex
+		for _, exInt := range intf {
+			if swIfIndex == exInt {
+				return
+			}
 		}
-		return
+		// VPP restarted and interfaces are being reconnected
+		s.log.Warnf("workload endpoint changed interfaces, did VPP restart? %v %d -> %d", id, intf, swIfIndex)
+		s.endpointsInterfaces[*id] = append(s.endpointsInterfaces[*id], swIfIndex)
 	}
 
 	s.log.Infof("policy(add) Workload id=%v swIfIndex=%d", id, swIfIndex)
-	s.endpointsInterfaces[*id] = swIfIndex
+	if s.endpointsInterfaces[*id] == nil {
+		s.endpointsInterfaces[*id] = []uint32{swIfIndex}
+	} else {
+		s.endpointsInterfaces[*id] = append(s.endpointsInterfaces[*id], swIfIndex)
+	}
 
 	if s.state == StateInSync {
+		s.log.Infof("creating wep in workloadadded?")
 		wep, ok := s.configuredState.WorkloadEndpoints[*id]
 		if !ok {
+			s.log.Infof("not creating wep in workloadadded")
 			// Nothing to configure
 		} else {
-			err := wep.Create(s.vpp, swIfIndex, s.configuredState)
+			err := wep.Create(s.vpp, []uint32{swIfIndex}, s.configuredState, id.Network)
 			if err != nil {
 				s.log.Errorf("Error processing workload addition: %s", err)
 			}
@@ -309,11 +339,16 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 	switch evt.Type {
 	case common.PodAdded:
 		podSpec := evt.New.(*storage.LocalPodSpec)
+		swIfIndex := podSpec.TunTapSwIfIndex
+		if swIfIndex == vpplink.InvalidID {
+			swIfIndex = podSpec.MemifSwIfIndex
+		}
 		s.workloadAdded(&WorkloadEndpointID{
 			OrchestratorID: podSpec.OrchestratorID,
 			WorkloadID:     podSpec.WorkloadID,
 			EndpointID:     podSpec.EndpointID,
-		}, podSpec.TunTapSwIfIndex, podSpec.GetContainerIps())
+			Network:        podSpec.NetworkName,
+		}, swIfIndex, podSpec.GetContainerIps())
 	case common.PodDeleted:
 		podSpec := evt.Old.(*storage.LocalPodSpec)
 		if podSpec != nil {
@@ -321,6 +356,7 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 				OrchestratorID: podSpec.OrchestratorID,
 				WorkloadID:     podSpec.WorkloadID,
 				EndpointID:     podSpec.EndpointID,
+				Network:        podSpec.NetworkName,
 			}, podSpec.GetContainerIps())
 		}
 	case common.TunnelAdded:
@@ -399,7 +435,25 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 	if err != nil {
 		return errors.Wrap(err, "Error in createFailSafePolicies")
 	}
-
+	if config.MultinetEnabled {
+		netsSynced := make(chan bool)
+		go func() {
+			for t.Alive() {
+				event := <-s.policyMultinetEventChan
+				switch event.Type {
+				case common.NetsSynced:
+					netsSynced <- true
+				case common.NetAddedOrUpdated:
+					netDef := event.New.(*watchers.NetworkDefinition)
+					s.networkDefinitions[netDef.Name] = netDef
+				case common.NetDeleted:
+					netDef := event.Old.(*watchers.NetworkDefinition)
+					delete(s.networkDefinitions, netDef.Name)
+				}
+			}
+		}()
+		<-netsSynced
+	}
 	for {
 		s.state = StateDisconnected
 		// Accept only one connection
@@ -721,7 +775,7 @@ func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending
 		Tier: msg.Id.Tier,
 		Name: msg.Id.Name,
 	}
-	p, err := fromProtoPolicy(msg.Policy)
+	p, err := fromProtoPolicy(msg.Policy, "")
 	if err != nil {
 		return errors.Wrapf(err, "cannot process policy update")
 	}
@@ -748,6 +802,41 @@ func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending
 			}
 		}
 	}
+
+	for network := range s.networkDefinitions {
+		p, err := fromProtoPolicy(msg.Policy, network)
+		if err != nil {
+			return errors.Wrapf(err, "cannot process policy update")
+		}
+
+		log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", pending, id, p)
+		_, ok := state.multinetPolicies[network]
+		if !ok {
+			state.multinetPolicies[network] = make(map[PolicyID]*Policy)
+		}
+		existing, ok := state.multinetPolicies[network][id]
+		if ok { // Policy with this ID already exists
+			if pending {
+				// Just replace policy in pending state
+				state.multinetPolicies[network][id] = p
+			} else {
+				err := existing.Update(s.vpp, p, state)
+				if err != nil {
+					return errors.Wrap(err, "cannot update policy")
+				}
+			}
+		} else {
+			// Create it in state
+			state.multinetPolicies[network][id] = p
+			if !pending {
+				err := p.Create(s.vpp, state)
+				if err != nil {
+					return errors.Wrap(err, "cannot create policy")
+				}
+			}
+		}
+
+	}
 	return nil
 }
 
@@ -771,6 +860,20 @@ func (s *Server) handleActivePolicyRemove(msg *proto.ActivePolicyRemove, pending
 		}
 	}
 	delete(state.Policies, id)
+	for network := range state.multinetPolicies {
+		existing, ok := state.multinetPolicies[network][id]
+		if !ok {
+			s.log.Warnf("Received policy delete for Tier %s Name %s that doesn't exists", id.Tier, id.Name)
+			return nil
+		}
+		if !pending {
+			err = existing.Delete(s.vpp, state)
+			if err != nil {
+				return errors.Wrap(err, "error deleting policy")
+			}
+		}
+		delete(state.multinetPolicies[network], id)
+	}
 	return nil
 }
 
@@ -919,38 +1022,63 @@ func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending
 	return nil
 }
 
+func (s *Server) getAllWorkloadIds(msg *proto.WorkloadEndpointUpdate) map[string]*WorkloadEndpointID {
+	id := fromProtoEndpointID(msg.Id)
+	idsNetworks := map[string]*WorkloadEndpointID{"": id}
+	netStatusesJson, found := msg.Endpoint.Annotations["k8s.v1.cni.cncf.io/network-status"]
+	if !found {
+		log.Infof("no network status for pod, no multiple networks")
+	} else {
+		var netStatuses []nettypes.NetworkStatus
+		err := json.Unmarshal([]byte(netStatusesJson), &netStatuses)
+		if err != nil {
+			log.Error(err)
+		}
+		for idx := range netStatuses {
+			for netDefName, netDef := range s.networkDefinitions {
+				if netStatuses[idx].Name == netDef.Nad {
+					id := &WorkloadEndpointID{OrchestratorID: id.OrchestratorID, WorkloadID: id.WorkloadID, EndpointID: id.EndpointID, Network: netDefName}
+					idsNetworks[id.Network] = id
+				}
+			}
+		}
+	}
+	return idsNetworks
+}
+
 func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate, pending bool) (err error) {
 	s.endpointsLock.Lock()
 	defer s.endpointsLock.Unlock()
 
 	state := s.currentState(pending)
-	id := fromProtoEndpointID(msg.Id)
-	wep := fromProtoWorkload(msg.Endpoint, s)
+	idsNetworks := s.getAllWorkloadIds(msg)
+	for _, id := range idsNetworks {
+		wep := fromProtoWorkload(msg.Endpoint, s)
+		existing, found := state.WorkloadEndpoints[*id]
+		swIfIndex, swIfIndexFound := s.endpointsInterfaces[*id]
 
-	existing, found := state.WorkloadEndpoints[*id]
-	swIfIndex, swIfIndexFound := s.endpointsInterfaces[*id]
-
-	if found {
-		if pending || !swIfIndexFound {
+		if found {
+			if pending || !swIfIndexFound {
+				state.WorkloadEndpoints[*id] = wep
+				log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=??", pending, *id, existing, wep)
+			} else {
+				err := existing.Update(s.vpp, wep, state, id.Network)
+				if err != nil {
+					return errors.Wrap(err, "cannot update workload endpoint")
+				}
+				log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=%d", pending, *id, existing, wep, swIfIndex)
+			}
+		} else {
 			state.WorkloadEndpoints[*id] = wep
-			log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=??", pending, *id, existing, wep)
-		} else {
-			err := existing.Update(s.vpp, wep, state)
-			if err != nil {
-				return errors.Wrap(err, "cannot update workload endpoint")
+			if !pending && swIfIndexFound {
+				err := wep.Create(s.vpp, swIfIndex, state, id.Network)
+				if err != nil {
+					return errors.Wrap(err, "cannot create workload endpoint")
+				}
+				log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=%d", pending, *id, wep, swIfIndex)
+			} else {
+				log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=??", pending, *id, wep)
 			}
-			log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=%d", pending, *id, existing, wep, swIfIndex)
-		}
-	} else {
-		state.WorkloadEndpoints[*id] = wep
-		if !pending && swIfIndexFound {
-			err := wep.Create(s.vpp, swIfIndex, state)
-			if err != nil {
-				return errors.Wrap(err, "cannot create workload endpoint")
-			}
-			log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=%d", pending, *id, wep, swIfIndex)
-		} else {
-			log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=??", pending, *id, wep)
 		}
 	}
 	return nil
@@ -967,7 +1095,7 @@ func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove,
 		s.log.Warnf("Received workload endpoint delete for %v that doesn't exists", id)
 		return nil
 	}
-	if !pending && existing.SwIfIndex != types.InvalidID {
+	if !pending && len(existing.SwIfIndex) != 0 {
 		err = existing.Delete(s.vpp)
 		if err != nil {
 			return errors.Wrap(err, "error deleting workload endpoint")
@@ -975,6 +1103,18 @@ func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove,
 	}
 	log.Infof("policy(del) Handled Workload Endpoint Remove pending=%t id=%s existing=%s", pending, *id, existing)
 	delete(state.WorkloadEndpoints, *id)
+	for existingId := range state.WorkloadEndpoints {
+		if existingId.OrchestratorID == id.OrchestratorID && existingId.WorkloadID == id.WorkloadID {
+			if !pending && len(existing.SwIfIndex) != 0 {
+				err = existing.Delete(s.vpp)
+				if err != nil {
+					return errors.Wrap(err, "error deleting workload endpoint")
+				}
+			}
+			log.Infof("policy(del) Handled Workload Endpoint Remove pending=%t id=%s existing=%s", pending, existingId, existing)
+			delete(state.WorkloadEndpoints, existingId)
+		}
+	}
 	return nil
 }
 
@@ -1031,7 +1171,7 @@ func (s *Server) applyPendingState() (err error) {
 	s.log.Infof("Reconciliating pending policy state with configured state")
 	// Stupid algorithm for now, delete all that is in configured state, and then recreate everything
 	for _, wep := range s.configuredState.WorkloadEndpoints {
-		if wep.SwIfIndex != types.InvalidID {
+		if len(wep.SwIfIndex) != 0 {
 			err = wep.Delete(s.vpp)
 			if err != nil {
 				return errors.Wrap(err, "cannot cleanup workload endpoint")
@@ -1042,6 +1182,14 @@ func (s *Server) applyPendingState() (err error) {
 		err = policy.Delete(s.vpp, s.configuredState)
 		if err != nil {
 			s.log.Warnf("error deleting policy: %v", err)
+		}
+	}
+	for _, policyMap := range s.configuredState.multinetPolicies {
+		for _, policy := range policyMap {
+			err = policy.Delete(s.vpp, s.configuredState)
+			if err != nil {
+				s.log.Warnf("error deleting policy: %v", err)
+			}
 		}
 	}
 	for _, profile := range s.configuredState.Profiles {
@@ -1085,10 +1233,18 @@ func (s *Server) applyPendingState() (err error) {
 			return errors.Wrap(err, "error creating policy")
 		}
 	}
+	for _, policyMap := range s.configuredState.multinetPolicies {
+		for _, policy := range policyMap {
+			err = policy.Create(s.vpp, s.configuredState)
+			if err != nil {
+				return errors.Wrap(err, "error creating policy")
+			}
+		}
+	}
 	for id, wep := range s.configuredState.WorkloadEndpoints {
 		intf, intfFound := s.endpointsInterfaces[id]
 		if intfFound {
-			err = wep.Create(s.vpp, intf, s.configuredState)
+			err = wep.Create(s.vpp, intf, s.configuredState, id.Network)
 			if err != nil {
 				return errors.Wrap(err, "cannot configure workload endpoint")
 			}

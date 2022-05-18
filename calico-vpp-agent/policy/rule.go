@@ -44,6 +44,8 @@ type Rule struct {
 	SrcNotIPSetNames []string
 
 	DstIPPortSetNames []string
+
+	Annotations map[string]string
 }
 
 func (r *Rule) DeepCopy() *Rule {
@@ -102,6 +104,9 @@ func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
 		Rule:   &types.Rule{},
 		RuleID: r.RuleId,
 		VppID:  types.InvalidID,
+	}
+	if r.GetMetadata() != nil {
+		rule.Annotations = r.GetMetadata().GetAnnotations()
 	}
 	switch strings.ToLower(r.Action) {
 	case "allow":

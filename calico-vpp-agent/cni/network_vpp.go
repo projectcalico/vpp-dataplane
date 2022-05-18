@@ -244,12 +244,10 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	if err != nil {
 		goto err
 	}
-	if podSpec.NetworkName == "" {
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.PodAdded,
-			New:  podSpec,
-		})
-	}
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PodAdded,
+		New:  podSpec,
+	})
 	if podSpec.NetworkName != "" && podSpec.EnableMemif {
 		return podSpec.MemifSwIfIndex, err
 	}
@@ -337,10 +335,8 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 
 	s.log.Infof("pod(del) VRF")
 	s.DeletePodVRF(podSpec)
-	if podSpec.NetworkName == "" {
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.PodDeleted,
-			Old:  podSpec,
-		})
-	}
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PodDeleted,
+		Old:  podSpec,
+	})
 }

@@ -367,8 +367,7 @@ func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Ent
 	)
 	regM := common.RegisterHandler(server.cniMultinetEventChan, "CNI server Multinet events")
 	regM.ExpectEvents(
-		common.NetAdded,
-		common.NetUpdated,
+		common.NetAddedOrUpdated,
 		common.NetDeleted,
 		common.NetsSynced,
 	)
@@ -433,7 +432,7 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 					switch event.Type {
 					case common.NetsSynced:
 						netsSynced <- true
-					case common.NetAdded:
+					case common.NetAddedOrUpdated:
 						netDef := event.New.(*watchers.NetworkDefinition)
 						s.multinetLock.Lock()
 						s.networkDefinitions[netDef.Name] = netDef

@@ -18,6 +18,7 @@ package policy
 type PolicyState struct {
 	IPSets            map[string]*IPSet
 	Policies          map[PolicyID]*Policy
+	multinetPolicies  map[string]map[PolicyID]*Policy
 	Profiles          map[string]*Policy
 	WorkloadEndpoints map[WorkloadEndpointID]*WorkloadEndpoint
 	HostEndpoints     map[HostEndpointID]*HostEndpoint
@@ -27,6 +28,7 @@ func NewPolicyState() *PolicyState {
 	return &PolicyState{
 		IPSets:            make(map[string]*IPSet),
 		Policies:          make(map[PolicyID]*Policy),
+		multinetPolicies:  make(map[string]map[PolicyID]*Policy),
 		Profiles:          make(map[string]*Policy),
 		WorkloadEndpoints: make(map[WorkloadEndpointID]*WorkloadEndpoint),
 		HostEndpoints:     make(map[HostEndpointID]*HostEndpoint),
