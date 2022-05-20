@@ -186,6 +186,9 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 }
 
 func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
+	if podSpec.TunTapSwIfIndex == vpplink.InvalidID {
+		return
+	}
 	i.unconfigureLinux(podSpec)
 
 	i.UndoPodInterfaceConfiguration(podSpec.TunTapSwIfIndex)
@@ -196,7 +199,6 @@ func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec
 		i.log.Warnf("Error deleting tun[%d] %s", podSpec.TunTapSwIfIndex, err)
 	}
 	i.log.Infof("pod(del) tun swIfIndex=%d", podSpec.TunTapSwIfIndex)
-
 }
 
 func (i *TunTapPodInterfaceDriver) configureLinux(podSpec *storage.LocalPodSpec, swIfIndex uint32) error {

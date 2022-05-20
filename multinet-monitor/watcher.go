@@ -22,9 +22,9 @@ import (
 	"time"
 
 	nettypes "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
-	nadv1 "github.com/projectcalico/vpp-dataplane/global-watcher/networkAttachmentDefinition"
 	netv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
+	nadv1 "github.com/projectcalico/vpp-dataplane/multinet-monitor/networkAttachmentDefinition"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,35 +63,37 @@ func main() {
 	}
 	kubernetesClient = *k8sClient
 
-restart:
-	podList := &v1.PodList{}
-	svcList := &v1.ServiceList{}
-	nadList := &netv1.NetworkAttachmentDefinitionList{}
+	for {
+		podList := &v1.PodList{}
+		svcList := &v1.ServiceList{}
+		nadList := &netv1.NetworkAttachmentDefinitionList{}
 
-	podWatcher, err := kubernetesClient.Watch(context.Background(), podList, &client.ListOptions{})
-	if err != nil {
-		log.Errorf("couldn't watch pods: %s", err)
-	}
-	svcWatcher, err := kubernetesClient.Watch(context.Background(), svcList, &client.ListOptions{})
-	if err != nil {
-		log.Errorf("couldn't watch services: %s", err)
-	}
-	nadWatcher, err := kubernetesClient.Watch(context.Background(), nadList, &client.ListOptions{})
-	if err != nil {
-		log.Errorf("couldn't watch network attachment definitions: %s", err)
-	}
+		podWatcher, err := kubernetesClient.Watch(context.Background(), podList, &client.ListOptions{})
+		if err != nil {
+			log.Errorf("couldn't watch pods: %s", err)
+		}
+		svcWatcher, err := kubernetesClient.Watch(context.Background(), svcList, &client.ListOptions{})
+		if err != nil {
+			log.Errorf("couldn't watch services: %s", err)
+		}
+		nadWatcher, err := kubernetesClient.Watch(context.Background(), nadList, &client.ListOptions{})
+		if err != nil {
+			log.Errorf("couldn't watch network attachment definitions: %s", err)
+			log.Errorf("Network attachment definition CRD probably needs to be installed")
+			return
+		}
 
-	watching(podWatcher, svcWatcher, nadWatcher)
-	goto restart
+		watching(podWatcher, svcWatcher, nadWatcher)
+	}
 }
 
-func watching(podWatcher, svcWatcher, nadWatcher watch.Interface) bool {
+func watching(podWatcher, svcWatcher, nadWatcher watch.Interface) {
 	for {
 		select {
 		case update, ok := <-nadWatcher.ResultChan():
 			if !ok {
 				log.Warn("network attachment definition watch channel closed")
-				return true
+				return
 			}
 			switch update.Type {
 			case watch.Added:
@@ -122,14 +124,14 @@ func watching(podWatcher, svcWatcher, nadWatcher watch.Interface) bool {
 		case update, ok := <-podWatcher.ResultChan():
 			if !ok {
 				log.Warn("pods watch channel closed")
-				return true
+				return
 			}
 			switch update.Type {
 			case watch.Added:
 				pod := update.Object.(*v1.Pod)
 				podNadIf, inNetwork := pod.Annotations["k8s.v1.cni.cncf.io/networks"]
 				if inNetwork {
-					podNad := podNadIf[0:strings.Index(podNadIf, "@")]
+					podNad := strings.Split(podNadIf, "@")[0]
 					log.Infof("POD (add) %s", pod.Name)
 					currentPodList[pod.Name] = pod
 					addPod(pod, podNad)
@@ -146,7 +148,7 @@ func watching(podWatcher, svcWatcher, nadWatcher watch.Interface) bool {
 		case update, ok := <-svcWatcher.ResultChan():
 			if !ok {
 				log.Warn("svc watch channel closed")
-				return true
+				return
 			}
 			switch update.Type {
 			case watch.Added:

@@ -85,8 +85,6 @@ func NewRoutingServer(vpp *vpplink.VppLink, bgpServer *bgpserver.BgpServer, log 
 
 	reg := common.RegisterHandler(server.routingServerEventChan, "routing server events")
 	reg.ExpectEvents(
-		common.LocalNetworkPodAddressAdded,
-		common.LocalNetworkPodAddressDeleted,
 		common.LocalPodAddressAdded,
 		common.LocalPodAddressDeleted,
 		common.BGPReloadIP4,

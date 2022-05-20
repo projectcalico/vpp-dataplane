@@ -8,6 +8,7 @@ vpp-manager/images/*/vppdev.sh
 vpp-manager/vpp_build/
 *.deb
 vpplink/binapi/bin/
+multinet-monitor/watcher
 
 test/k8s-e2e-tests/kubernetes-*
 test/vagrant/local-config.env
@@ -30,3 +31,4 @@ vpplink/binapi/.cherries-cache
 calico-vpp-agent/version
 vpp-manager/images/ubuntu/version
 test/scripts/.buildlogs
+multinet-monitor/version

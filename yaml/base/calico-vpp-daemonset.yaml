@@ -218,7 +218,7 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: global-watcher-deployment
+  name: multinet-monitor-deployment
   namespace: calico-vpp-dataplane
   labels:
     k8s-app: calico-vpp-node
@@ -234,8 +234,8 @@ spec:
     spec:
       serviceAccountName: calico-vpp-node-sa
       containers:
-        - name: global-watcher
-          image: docker.io/calicovpp/global-watcher:latest
+        - name: multinet-monitor
+          image: docker.io/calicovpp/multinet-monitor:latest
           imagePullPolicy: IfNotPresent
           resources:
             requests:

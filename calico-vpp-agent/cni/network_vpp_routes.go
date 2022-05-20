@@ -194,9 +194,10 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) error {
 		} else {
 			netDef, found := s.networkDefinitions[podSpec.NetworkName]
 			if !found {
-				return errors.Errorf("network %s not found", podSpec.NetworkName)
+				s.log.Errorf("network %s not found", podSpec.NetworkName)
+			} else {
+				vrfIndex = netDef.VRF.Tables[idx]
 			}
-			vrfIndex = netDef.VRF.Tables[idx]
 		}
 		s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)
 		err = s.vpp.DelDefaultRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
