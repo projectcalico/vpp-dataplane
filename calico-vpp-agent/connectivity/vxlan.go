@@ -136,19 +136,15 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	if err != nil {
 		return err
 	}
-	familyIdx := 0
-	if vpplink.IsIP6(cn.Dst.IP) {
-		familyIdx = 1
-	}
 	if cn.Vni != 0 {
 		_, found := p.netsLoopbacks[cn.Vni]
 		if !found {
-			err := p.vpp.SetInterfaceVRF(p.server.networks[cn.Vni].LoopbackSwIfIndex, p.server.networks[cn.Vni].VRF.Tables[familyIdx], familyIdx == 1)
+			err := p.vpp.SetInterfaceVRF(p.server.networks[cn.Vni].LoopbackSwIfIndex, p.server.networks[cn.Vni].VRF.Tables[vpplink.IpFamilyFromIPNet(&cn.Dst).FamilyIdx], vpplink.IsIP6(cn.Dst.IP))
 			if err != nil {
 				return errors.Wrapf(err, "Error setting loopback %d in network vrf", p.server.networks[cn.Vni].LoopbackSwIfIndex)
 			}
 			ip4, ip6 := p.GetNodeIPs()
-			if familyIdx == 0 {
+			if vpplink.IsIP4(cn.Dst.IP) {
 				err = p.vpp.AddInterfaceAddress(p.server.networks[cn.Vni].LoopbackSwIfIndex, common.ToMaxLenCIDR(*ip4))
 				if err != nil {
 					return errors.Wrapf(err, "Error adding address %s to pod loopback interface", *ip4)
@@ -233,7 +229,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			New:  swIfIndex,
 		})
 		if cn.Vni != 0 {
-			vrfIndex := p.server.networks[cn.Vni].VRF.Tables[familyIdx]
+			vrfIndex := p.server.networks[cn.Vni].VRF.Tables[vpplink.IpFamilyFromIPNet(&cn.Dst).FamilyIdx]
 			p.log.Infof("connectivity(add) set vxlan interface %d in vrf %d", tunnel.SwIfIndex, vrfIndex)
 			err := p.vpp.SetInterfaceVRF(tunnel.SwIfIndex, vrfIndex, vpplink.IsIP6(cn.Dst.IP))
 			if err != nil {
@@ -254,7 +250,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	if cn.Vni == 0 {
 		p.log.Infof("connectivity(add) vxlan route dst=%s via swIfIndex=%d", cn.Dst.IP.String(), tunnel.SwIfIndex)
 	} else {
-		vrfIndex := p.server.networks[cn.Vni].VRF.Tables[familyIdx]
+		vrfIndex := p.server.networks[cn.Vni].VRF.Tables[vpplink.IpFamilyFromIPNet(&cn.Dst).FamilyIdx]
 		p.log.Infof("connectivity(add) vxlan route dst=%s via swIfIndex %d in VRF %d (VNI:%d)", cn.Dst.IP.String(),
 			tunnel.SwIfIndex, vrfIndex, cn.Vni)
 		table = vrfIndex
@@ -296,11 +292,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			}},
 		}
 	} else {
-		familyIdx := 0
-		if vpplink.IsIP6(cn.Dst.IP) {
-			familyIdx = 1
-		}
-		vrfIndex := p.server.networks[cn.Vni].VRF.Tables[familyIdx]
+		vrfIndex := p.server.networks[cn.Vni].VRF.Tables[vpplink.IpFamilyFromIPNet(&cn.Dst).FamilyIdx]
 		p.log.Infof("connectivity(del) VXLan cn=%s swIfIndex=%d in VRF %d (VNI:%d)", cn.String(), tunnel.SwIfIndex, vrfIndex, cn.Vni)
 		routeToDelete = &types.Route{
 			Dst: &cn.Dst,

@@ -30,11 +30,12 @@ type IpFamily struct {
 	ShortStr string
 	IsIp6 bool
 	IsIp4 bool
+	FamilyIdx int
 }
 
 var (
-	IpFamilyV4 = IpFamily{"ip4", "4", false, true}
-	IpFamilyV6 = IpFamily{"ip6", "6", true, false}
+	IpFamilyV4 = IpFamily{"ip4", "4", false, true, 0}
+	IpFamilyV6 = IpFamily{"ip6", "6", true, false, 1}
 	IpFamilies = []IpFamily{IpFamilyV4, IpFamilyV6}
 )
 

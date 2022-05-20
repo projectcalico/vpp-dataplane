@@ -40,8 +40,6 @@ const (
 
 	LocalPodAddressAdded          CalicoVppEventType = "LocalPodAddressAdded"
 	LocalPodAddressDeleted        CalicoVppEventType = "LocalPodAddressDeleted"
-	LocalNetworkPodAddressAdded   CalicoVppEventType = "LocalNetworkPodAddressAdded"
-	LocalNetworkPodAddressDeleted CalicoVppEventType = "LocalNetworkPodAddressDeleted"
 
 	TunnelAdded   CalicoVppEventType = "TunnelAdded"
 	TunnelDeleted CalicoVppEventType = "TunnelDeleted"

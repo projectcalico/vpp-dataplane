@@ -207,7 +207,7 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 	var nlri *anypb.Any
 	if vni != 0 {
 		rdAttr, err := ptypes.MarshalAny(&bgpapi.RouteDistinguisherTwoOctetAS{
-			Admin:    64512,
+			Admin:    asNumber,
 			Assigned: vni,
 		})
 		if err != nil {

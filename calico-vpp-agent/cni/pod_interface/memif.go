@@ -32,6 +32,17 @@ type MemifPodInterfaceDriver struct {
 	PodInterfaceDriverData
 }
 
+type dummy struct {
+	name string
+}
+
+func (d *dummy) Type() string {
+	return "dummy"
+}
+func (d *dummy) Attrs() *netlink.LinkAttrs {
+	return &netlink.LinkAttrs{Name: d.name}
+}
+
 func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifPodInterfaceDriver {
 	i := &MemifPodInterfaceDriver{}
 	i.vpp = vpp
@@ -40,7 +51,7 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 	return i
 }
 
-func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
+func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) (err error) {
 	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("@netns:%s%s-%s", podSpec.NetnsName, config.MemifSocketName, podSpec.InterfaceName))
 	if err != nil {
 		return err
@@ -92,6 +103,22 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		return err
 	}
 
+	if doHostSideConf {
+		if podSpec.NetworkName != "" {
+			i.log.Infof("Creating host side dummy for memif interface %s-%s", config.MemifSocketName, podSpec.InterfaceName)
+			err = i.createDummy(podSpec.NetnsName, podSpec.InterfaceName)
+			if err != nil {
+				return err
+			} else {
+				stack.Push(i.deleteDummy, podSpec.NetnsName, podSpec.InterfaceName)
+			}
+			err = ns.WithNetNSPath(podSpec.NetnsName, i.configureDummy(podSpec.MemifSwIfIndex, podSpec))
+			if err != nil {
+				return errors.Wrapf(err, "Error in linux NS config")
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -119,7 +146,7 @@ func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec)
 
 }
 
-func (i *MemifPodInterfaceDriver) ConfigureDummy(swIfIndex uint32, podSpec *storage.LocalPodSpec) func(hostNS ns.NetNS) error {
+func (i *MemifPodInterfaceDriver) configureDummy(swIfIndex uint32, podSpec *storage.LocalPodSpec) func(hostNS ns.NetNS) error {
 	return func(hostNS ns.NetNS) error {
 		contDummy, err := netlink.LinkByName(podSpec.InterfaceName)
 		if err != nil {
@@ -170,4 +197,45 @@ func (i *MemifPodInterfaceDriver) ConfigureDummy(swIfIndex uint32, podSpec *stor
 		}
 		return nil
 	}
+}
+
+func (i *MemifPodInterfaceDriver) createDummy(netns string, interfaceName string) error {
+	memifDummy := dummy{name: interfaceName}
+	createDummyInNetns := func(netns ns.NetNS) error {
+		err := netlink.LinkAdd(&memifDummy)
+		if err != nil {
+			return errors.Wrap(err, "unable to create dummy link in linux")
+		}
+		link, err := netlink.LinkByName(interfaceName)
+		if err != nil {
+			return errors.Wrap(err, "unable to retrieve name")
+		}
+
+		err = netlink.LinkSetUp(link)
+		if err != nil {
+			return errors.Wrap(err, "unable to set interface up")
+		}
+		return nil
+	}
+	err := ns.WithNetNSPath(netns, createDummyInNetns)
+	if err != nil {
+		return errors.Wrap(err, "unable to create dummy in netns")
+	}
+	return nil
+}
+
+func (i *MemifPodInterfaceDriver) deleteDummy(netns string, interfaceName string) error {
+	memifDummy := dummy{name: interfaceName}
+	deleteDummyInNetns := func(netns ns.NetNS) error {
+		err := netlink.LinkDel(&memifDummy)
+		if err != nil {
+			return errors.Wrap(err, "unable to delete dummy link in linux")
+		}
+		return nil
+	}
+	err := ns.WithNetNSPath(netns, deleteDummyInNetns)
+	if err != nil {
+		return errors.Wrap(err, "unable to delete dummy in netns")
+	}
+	return nil
 }

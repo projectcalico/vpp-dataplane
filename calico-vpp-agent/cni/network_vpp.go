@@ -42,10 +42,6 @@ type NetworkPod struct {
 	ContainerIP *net.IPNet
 }
 
-func getInterfaceVrfName(podSpec *storage.LocalPodSpec, suffix string) string {
-	return fmt.Sprintf("pod-%s-table-%s", podSpec.Key(), suffix)
-}
-
 func (s *Server) checkAvailableBuffers() error {
 	existingPods := uint64(len(s.podInterfaceMap))
 	buffersNeeded := (existingPods + 1) * s.buffersNeededPerTap
@@ -116,6 +112,8 @@ func (s *Server) removeConflictingContainers(newAddresses []storage.LocalIP, net
 
 // AddVppInterface performs the networking for the given config and IPAM result
 func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
+	s.multinetLock.Lock()
+	defer s.multinetLock.Unlock()
 	podSpec.NeedsSnat = false
 	for _, containerIP := range podSpec.GetContainerIps() {
 		podSpec.NeedsSnat = podSpec.NeedsSnat || s.ipam.IPNetNeedsSNAT(containerIP)
@@ -126,6 +124,14 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		return vpplink.InvalidID, PodNSNotFoundErr{podSpec.NetnsName}
 	}
 
+	if podSpec.NetworkName != "" {
+		s.log.Infof("Checking network exists")
+		_, found := s.networkDefinitions[podSpec.NetworkName]
+		if !found {
+			s.log.Errorf("network %s does not exist", podSpec.NetworkName)
+			return vpplink.InvalidID, errors.Errorf("network %s does not exist", podSpec.NetworkName)
+		}
+	}
 	/**
 	 * Check if the VRFs already exist in VPP,
 	 * if yes we postulate the pod is already well setup
@@ -146,30 +152,13 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	s.removeConflictingContainers(podSpec.ContainerIps, podSpec.NetworkName)
 
 	stack := s.vpp.NewCleanupStack()
-
+	var vni uint32
 	err = s.checkAvailableBuffers()
 	if err != nil {
 		goto err
 	}
 
 	s.log.Infof("pod(add) VRF")
-	if podSpec.NetworkName != "" {
-		if isMemif(podSpec.InterfaceName) {
-			if !config.MemifEnabled {
-				s.log.Errorf("Enable memif in config for memif interfaces")
-				goto err
-			}
-			podSpec.EnableMemif = true
-			podSpec.DefaultIfType = storage.VppIfTypeMemif
-		}
-		s.log.Infof("Checking network exists")
-		_, found := s.networkDefinitions[podSpec.NetworkName]
-		if !found {
-			s.log.Errorf("network %s does not exist", podSpec.NetworkName)
-			goto err
-		}
-	}
-
 	err = s.CreatePodVRF(podSpec, stack)
 	if err != nil {
 		goto err
@@ -191,24 +180,9 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	if podSpec.EnableMemif && config.MemifEnabled {
 		s.log.Infof("pod(add) memif")
-		err = s.memifDriver.CreateInterface(podSpec, stack)
+		err = s.memifDriver.CreateInterface(podSpec, stack, doHostSideConf)
 		if err != nil {
 			goto err
-		}
-		if doHostSideConf {
-			s.log.Infof("Creating host side dummy for memif interface %s-%s", config.MemifSocketName, podSpec.InterfaceName)
-			if podSpec.NetworkName != "" {
-				err = createDummy(podSpec.NetnsName, podSpec.InterfaceName)
-				if err != nil {
-					s.log.Error(err)
-					goto err
-				}
-				err = ns.WithNetNSPath(podSpec.NetnsName, s.memifDriver.ConfigureDummy(podSpec.MemifSwIfIndex, podSpec))
-				if err != nil {
-					s.log.Error(errors.Wrapf(err, "Error in linux NS config"))
-					goto err
-				}
-			}
 		}
 	}
 
@@ -253,23 +227,18 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	}
 
-	if podSpec.NetworkName == "" {
-		s.log.Infof("pod(add) announcing pod Addresses")
-		for _, containerIP := range podSpec.GetContainerIps() {
-			common.SendEvent(common.CalicoVppEvent{
-				Type: common.LocalPodAddressAdded,
-				New:  containerIP,
-			})
-		}
-	} else {
-		s.log.Infof("pod(add) announcing network pod Addresses")
-		for _, containerIP := range podSpec.GetContainerIps() {
-			common.SendEvent(common.CalicoVppEvent{
-				Type: common.LocalNetworkPodAddressAdded,
-				New:  NetworkPod{ContainerIP: containerIP, NetworkVni: s.networkDefinitions[podSpec.NetworkName].Vni},
-			})
-		}
+	if podSpec.NetworkName != "" {
+		vni = s.networkDefinitions[podSpec.NetworkName].Vni
 	}
+
+	s.log.Infof("pod(add) announcing pod Addresses")
+	for _, containerIP := range podSpec.GetContainerIps() {
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.LocalPodAddressAdded,
+			New:  NetworkPod{ContainerIP: containerIP, NetworkVni: vni},
+		})
+	}
+
 	s.log.Infof("pod(add) HostPorts")
 	err = s.AddHostPort(podSpec, stack)
 	if err != nil {
@@ -295,6 +264,8 @@ err:
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
+	s.multinetLock.Lock()
+	defer s.multinetLock.Unlock()
 	err := ns.IsNSorErr(podSpec.NetnsName)
 	if err != nil {
 		s.log.Infof("pod(del) netns '%s' doesn't exist, skipping", podSpec.NetnsName)
@@ -309,22 +280,23 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 
 	s.DelHostPort(podSpec)
 
-	if podSpec.NetworkName == "" {
+	var vni uint32
+	deleteLocalPodAddress := true
+	if podSpec.NetworkName != "" {
+		netDef, found := s.networkDefinitions[podSpec.NetworkName]
+		if found {
+			vni = netDef.Vni
+		} else {
+			deleteLocalPodAddress = false
+		}
+	}
+	if deleteLocalPodAddress {
 		for _, containerIP := range podSpec.GetContainerIps() {
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.LocalPodAddressDeleted,
-				Old:  containerIP,
+				Old:  NetworkPod{ContainerIP: containerIP, NetworkVni: vni},
 			})
-		}
-	} else {
-		for _, containerIP := range podSpec.GetContainerIps() {
-			netDef, found := s.networkDefinitions[podSpec.NetworkName]
-			if found {
-				common.SendEvent(common.CalicoVppEvent{
-					Type: common.LocalNetworkPodAddressDeleted,
-					Old:  NetworkPod{ContainerIP: containerIP, NetworkVni: netDef.Vni},
-				})
-			}
+
 		}
 	}
 
@@ -358,10 +330,8 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 		s.log.Infof("pod(del) memif")
 		s.memifDriver.DeleteInterface(podSpec)
 	}
-	if podSpec.NetworkName == "" || !podSpec.EnableMemif {
-		s.log.Infof("pod(del) tuntap")
-		s.tuntapDriver.DeleteInterface(podSpec)
-	}
+	s.log.Infof("pod(del) tuntap")
+	s.tuntapDriver.DeleteInterface(podSpec)
 	s.log.Infof("pod(del) loopback")
 	s.loopbackDriver.DeleteInterface(podSpec)
 

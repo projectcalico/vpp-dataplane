@@ -62,6 +62,7 @@ type Server struct {
 
 	networkDefinitions   map[string]*watchers.NetworkDefinition
 	cniMultinetEventChan chan common.CalicoVppEvent
+	multinetLock         sync.Mutex
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -114,6 +115,16 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		NetworkName: request.DataplaneOptions["network_name"],
 	}
 
+	if podSpec.NetworkName != "" {
+		if isMemif(podSpec.InterfaceName) {
+			if !config.MemifEnabled {
+				return nil, fmt.Errorf("enable memif in config for memif interfaces")
+			}
+			podSpec.EnableMemif = true
+			podSpec.DefaultIfType = storage.VppIfTypeMemif
+		}
+	}
+
 	for _, port := range request.Workload.Ports {
 		hostIP := net.ParseIP(port.HostIp)
 		hostPort := uint16(port.HostPort)
@@ -136,6 +147,7 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 			Mask: route.Mask,
 		})
 	}
+	s.multinetLock.Lock()
 	if podSpec.NetworkName != "" {
 		_, route, err := net.ParseCIDR(s.networkDefinitions[podSpec.NetworkName].Range)
 		if err == nil {
@@ -145,6 +157,7 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 			})
 		}
 	}
+	s.multinetLock.Unlock()
 	for _, requestContainerIP := range request.GetContainerIps() {
 		containerIp, _, err := net.ParseCIDR(requestContainerIP.GetAddress())
 		if err != nil {
@@ -407,21 +420,26 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	pb.RegisterCniDataplaneServer(s.grpcServer, s)
 
 	netsSynced := make(chan bool)
-	nets := make(map[string]*watchers.NetworkDefinition)
 	go func() {
-		for t.Alive() {
-			event := <-s.cniMultinetEventChan
-			switch event.Type {
-			case common.NetsSynced:
-				nets = event.New.(map[string]*watchers.NetworkDefinition)
-				s.networkDefinitions = nets
-				netsSynced <- true
-			case common.NetAdded:
-				netDef := event.New.(*watchers.NetworkDefinition)
-				s.networkDefinitions[netDef.Name] = netDef
-			case common.NetDeleted:
-				netDef := event.Old.(*watchers.NetworkDefinition)
-				delete(s.networkDefinitions, netDef.Name)
+		for {
+			select {
+			case <-t.Dying():
+				return
+			case event := <-s.cniMultinetEventChan:
+				switch event.Type {
+				case common.NetsSynced:
+					netsSynced <- true
+				case common.NetAdded:
+					netDef := event.New.(*watchers.NetworkDefinition)
+					s.multinetLock.Lock()
+					s.networkDefinitions[netDef.Name] = netDef
+					s.multinetLock.Unlock()
+				case common.NetDeleted:
+					netDef := event.Old.(*watchers.NetworkDefinition)
+					s.multinetLock.Lock()
+					delete(s.networkDefinitions, netDef.Name)
+					s.multinetLock.Unlock()
+				}
 			}
 		}
 	}()

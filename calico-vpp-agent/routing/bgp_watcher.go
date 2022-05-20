@@ -299,25 +299,13 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 		case evt := <-w.routingServerEventChan:
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
-			case common.LocalNetworkPodAddressAdded:
+			case common.LocalPodAddressAdded:
 				networkPod := evt.New.(cni.NetworkPod)
 				err := w.announceLocalAddress(networkPod.ContainerIP, networkPod.NetworkVni)
 				if err != nil {
 					return err
 				}
-			case common.LocalPodAddressAdded:
-				addr := evt.New.(*net.IPNet)
-				err := w.announceLocalAddress(addr, 0)
-				if err != nil {
-					return err
-				}
 			case common.LocalPodAddressDeleted:
-				addr := evt.Old.(*net.IPNet)
-				err := w.withdrawLocalAddress(addr, 0)
-				if err != nil {
-					return err
-				}
-			case common.LocalNetworkPodAddressDeleted:
 				networkPod := evt.Old.(cni.NetworkPod)
 				err := w.withdrawLocalAddress(networkPod.ContainerIP, networkPod.NetworkVni)
 				if err != nil {

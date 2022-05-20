@@ -15,50 +15,8 @@
 
 package cni
 
-import (
-	"strings"
-
-	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
-)
-
-type dummy struct {
-	name string
-}
-
-func (d *dummy) Type() string {
-	return "dummy"
-}
-func (d *dummy) Attrs() *netlink.LinkAttrs {
-	return &netlink.LinkAttrs{Name: d.name}
-}
+import "strings"
 
 func isMemif(ifName string) bool {
 	return strings.HasPrefix(ifName, "memif")
-}
-
-func createDummy(netns string, interfaceName string) error {
-	memifDummy := dummy{name: interfaceName}
-	createDummyInNetns := func(netns ns.NetNS) error {
-		err := netlink.LinkAdd(&memifDummy)
-		if err != nil {
-			return errors.Wrap(err, "unable to create dummy link in linux")
-		}
-		link, err := netlink.LinkByName(interfaceName)
-		if err != nil {
-			return errors.Wrap(err, "unable to retrieve name")
-		}
-
-		err = netlink.LinkSetUp(link)
-		if err != nil {
-			return errors.Wrap(err, "unable to set interface up")
-		}
-		return nil
-	}
-	err := ns.WithNetNSPath(netns, createDummyInNetns)
-	if err != nil {
-		return errors.Wrap(err, "unable to create dummy in netns")
-	}
-	return nil
 }

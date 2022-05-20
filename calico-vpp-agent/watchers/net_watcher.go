@@ -52,7 +52,7 @@ type NetWatcher struct {
 }
 
 func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
-	kubernetesClient, err := NewClient(10 * time.Second, []func(s *runtime.Scheme) error{networkv3.AddToScheme})
+	kubernetesClient, err := NewClient(10*time.Second, []func(s *runtime.Scheme) error{networkv3.AddToScheme})
 	if err != nil {
 		panic(fmt.Errorf("failed instantiating kubernetes client: %v", err))
 	}
@@ -73,28 +73,25 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 	if err != nil {
 		return err
 	}
-	networks := make(map[string]*NetworkDefinition)
 	for _, net := range netList.Items {
-		netDef, err := w.OnNetAdded(&net)
+		err := w.OnNetAdded(&net)
 		if err != nil {
 			w.log.Error(err)
 			return err
 		}
-		networks[netDef.Name] = netDef
 	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.NetsSynced,
-		New:  networks,
 	})
 
-restart:
-	netList = &networkv3.NetworkList{}
-	watcher, err := w.client.Watch(context.Background(), netList, &client.ListOptions{})
-	if err != nil {
-		w.log.Errorf("couldn't watch pods: %s", err)
+	for {
+		netList = &networkv3.NetworkList{}
+		watcher, err := w.client.Watch(context.Background(), netList, &client.ListOptions{})
+		if err != nil {
+			w.log.Errorf("couldn't watch pods: %s", err)
+		}
+		w.watching(watcher)
 	}
-	w.watching(watcher)
-	goto restart
 }
 
 func (w *NetWatcher) watching(watcher watch.Interface) bool {
@@ -107,14 +104,10 @@ func (w *NetWatcher) watching(watcher watch.Interface) bool {
 		switch update.Type {
 		case watch.Added:
 			net := update.Object.(*networkv3.Network)
-			netDef, err := w.OnNetAdded(net)
+			err := w.OnNetAdded(net)
 			if err != nil {
 				w.log.Error(err)
 			}
-			common.SendEvent(common.CalicoVppEvent{
-				Type: common.NetAdded,
-				New:  netDef,
-			})
 		case watch.Deleted:
 			oldNet := update.Object.(*networkv3.Network)
 			w.OnNetDeleted(oldNet.Name)
@@ -128,12 +121,16 @@ func (w *NetWatcher) Stop() {
 	close(w.stop)
 }
 
-func (w *NetWatcher) OnNetAdded(net *networkv3.Network) (*NetworkDefinition, error) {
+func (w *NetWatcher) OnNetAdded(net *networkv3.Network) error {
 	netDef, err := w.CreateVRFsForNet(net.Name, uint32(net.Spec.VNI), net.Spec.Range)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return netDef, nil
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.NetAdded,
+		New:  netDef,
+	})
+	return nil
 }
 
 func (w *NetWatcher) OnNetChanged(old, new *networkv3.Network) {
