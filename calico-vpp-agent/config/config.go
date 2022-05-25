@@ -45,6 +45,7 @@ const (
 	TapNumTxQueuesEnvVar       = "CALICOVPP_TAP_TX_QUEUES"
 	MemifEnabledEnvVar         = "CALICOVPP_ENABLE_MEMIF"
 	VCLEnabledEnvVar           = "CALICOVPP_ENABLE_VCL"
+	MultinetEnabledEnvVar      = "CALICOVPP_ENABLE_MULTINET"
 	PodGSOEnabledEnvVar        = "CALICOVPP_DEBUG_ENABLE_GSO"
 	EnableServicesEnvVar       = "CALICOVPP_DEBUG_ENABLE_NAT"
 	EnableMaglevEnvVar         = "CALICOVPP_DEBUG_ENABLE_MAGLEV"
@@ -73,6 +74,8 @@ const (
 var (
 	TapNumRxQueues = 1
 	TapNumTxQueues = 1
+	/* disable by default as it might impact security */
+	MultinetEnabled = false
 	/* disable by default as it might impact security */
 	MemifEnabled = false
 	/* disable by default as it might impact security */
@@ -107,6 +110,7 @@ var (
 
 func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:TapNumRxQueues    %d", TapNumRxQueues)
+	log.Infof("Config:MultinetEnabled   %t", MultinetEnabled)
 	log.Infof("Config:MemifEnabled      %t", MemifEnabled)
 	log.Infof("Config:VCLEnabled        %t", VCLEnabled)
 	log.Infof("Config:PodGSOEnabled     %t", PodGSOEnabled)
@@ -193,6 +197,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", MemifEnabledEnvVar, conf, enabled, err)
 		}
 		MemifEnabled = enabled
+	}
+
+	if conf := getEnvValue(MultinetEnabledEnvVar); conf != "" {
+		enabled, err := strconv.ParseBool(conf)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", MultinetEnabledEnvVar, conf, enabled, err)
+		}
+		MultinetEnabled = enabled
 	}
 
 	if conf := getEnvValue(PodGSOEnabledEnvVar); conf != "" {
