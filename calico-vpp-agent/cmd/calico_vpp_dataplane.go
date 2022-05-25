@@ -194,7 +194,9 @@ func main() {
 	Go(prefixWatcher.WatchPrefix)
 	Go(peerWatcher.WatchBGPPeers)
 	Go(connectivityServer.ServeConnectivity)
-	Go(netWatcher.WatchNetworks)
+	if config.MultinetEnabled {
+		Go(netWatcher.WatchNetworks)
+	}
 	Go(routingServer.ServeRouting)
 	Go(serviceServer.ServeService)
 	Go(cniServer.ServeCNI)

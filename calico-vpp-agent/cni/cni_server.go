@@ -116,6 +116,9 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 	}
 
 	if podSpec.NetworkName != "" {
+		if !config.MultinetEnabled {
+			return nil, fmt.Errorf("enable multinet in config for multiple networks")
+		}
 		if isMemif(podSpec.InterfaceName) {
 			if !config.MemifEnabled {
 				return nil, fmt.Errorf("enable memif in config for memif interfaces")
@@ -419,32 +422,34 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 
 	pb.RegisterCniDataplaneServer(s.grpcServer, s)
 
-	netsSynced := make(chan bool)
-	go func() {
-		for {
-			select {
-			case <-t.Dying():
-				return
-			case event := <-s.cniMultinetEventChan:
-				switch event.Type {
-				case common.NetsSynced:
-					netsSynced <- true
-				case common.NetAdded:
-					netDef := event.New.(*watchers.NetworkDefinition)
-					s.multinetLock.Lock()
-					s.networkDefinitions[netDef.Name] = netDef
-					s.multinetLock.Unlock()
-				case common.NetDeleted:
-					netDef := event.Old.(*watchers.NetworkDefinition)
-					s.multinetLock.Lock()
-					delete(s.networkDefinitions, netDef.Name)
-					s.multinetLock.Unlock()
+	if config.MultinetEnabled {
+		netsSynced := make(chan bool)
+		go func() {
+			for {
+				select {
+				case <-t.Dying():
+					return
+				case event := <-s.cniMultinetEventChan:
+					switch event.Type {
+					case common.NetsSynced:
+						netsSynced <- true
+					case common.NetAdded:
+						netDef := event.New.(*watchers.NetworkDefinition)
+						s.multinetLock.Lock()
+						s.networkDefinitions[netDef.Name] = netDef
+						s.multinetLock.Unlock()
+					case common.NetDeleted:
+						netDef := event.Old.(*watchers.NetworkDefinition)
+						s.multinetLock.Lock()
+						delete(s.networkDefinitions, netDef.Name)
+						s.multinetLock.Unlock()
+					}
 				}
 			}
-		}
-	}()
-	<-netsSynced
-	s.log.Infof("Networks synced")
+		}()
+		<-netsSynced
+		s.log.Infof("Networks synced")
+	}
 	s.rescanState()
 
 	s.log.Infof("Serve() CNI")

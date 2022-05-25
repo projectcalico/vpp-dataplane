@@ -1,5 +1,24 @@
 ## Test multinet feature
+### Enabling multinet
 
+To use multinet you need to edit the calico-vpp-node daemonset yaml to enable multinet support.
+
+````yaml
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: calico-vpp-dataplane
+spec:
+  template:
+    spec:
+      containers:
+        - name: agent
+          image: calicovpp/agent:latest
+          env:
+            - name: CALICOVPP_ENABLE_MULTINET
+              value: "true"
+````
 ### Creating network CRD 
 
 You need to create the network crd.
