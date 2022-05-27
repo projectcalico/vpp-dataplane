@@ -22,6 +22,7 @@ vpplink/binapi/.cherries-cache
 
 # IDE files
 .vscode
+.idea
 
 # macOS
 .DS_Store
