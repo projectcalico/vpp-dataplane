@@ -126,6 +126,11 @@ func (ps *LocalPodSpec) FullString() string {
 	for _, e := range routes {
 		routesLst = append(routesLst, e.String())
 	}
+	pblIndexes := ps.PblIndexes
+	pblIndexesLst := make([]string, 0, len(pblIndexes))
+	for _, e := range pblIndexes {
+		pblIndexesLst = append(pblIndexesLst, fmt.Sprint(e))
+	}
 	s := fmt.Sprintf("InterfaceName:      %s\n", ps.InterfaceName)
 	s += fmt.Sprintf("NetnsName:          %s\n", ps.NetnsName)
 	s += fmt.Sprintf("AllowIpForwarding:  %t\n", ps.AllowIpForwarding)
@@ -146,7 +151,7 @@ func (ps *LocalPodSpec) FullString() string {
 	s += fmt.Sprintf("TunTapSwIfIndex:    %d\n", ps.TunTapSwIfIndex)
 	s += fmt.Sprintf("MemifSwIfIndex:     %d\n", ps.MemifSwIfIndex)
 	s += fmt.Sprintf("LoopbackSwIfIndex:  %d\n", ps.LoopbackSwIfIndex)
-	s += fmt.Sprintf("PblIndexes:         %s\n", ps.PblIndexes)
+	s += fmt.Sprintf("PblIndexes:         %s\n", strings.Join(pblIndexesLst, ", "))
 	s += fmt.Sprintf("V4VrfId:            %d\n", ps.V4VrfId)
 	s += fmt.Sprintf("V6VrfId:            %d\n", ps.V6VrfId)
 	return s
@@ -258,7 +263,7 @@ type HostPortBinding struct {
 }
 
 func (hp *HostPortBinding) String() string {
-	s := fmt.Sprintf("%s %s:%p", hp.Protocol.String(), hp.HostIP, hp.HostPort)
+	s := fmt.Sprintf("%s %s:%d", hp.Protocol.String(), hp.HostIP, hp.HostPort)
 	s += fmt.Sprintf(" cport=%d", hp.ContainerPort)
 	s += fmt.Sprintf(" id=%d", hp.EntryID)
 	return s
