@@ -15,6 +15,10 @@ all: image
 build:
 	GOOS=linux go build -o $(IMAGE_DIR)/vpp-manager
 
+# docker --squash is an experimental feature,
+# it requires to do the following to work :
+# echo '{"experimental": true}' | sudo tee /etc/docker/daemon.json
+
 eksimage:
 	docker build --squash --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
