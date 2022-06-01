@@ -97,6 +97,6 @@ git_cherry_pick refs/changes/05/35805/2 # 35805: dpdk: add intf tag to dev{} sub
 git_cherry_pick refs/changes/64/33264/7 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
 git_cherry_pick refs/changes/88/31588/1 # 31588: cnat: [WIP] no k8s maglev from pods | https://gerrit.fd.io/r/c/vpp/+/31588
 git_cherry_pick refs/changes/83/28083/21 # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
-git_cherry_pick refs/changes/13/28513/25 # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
+git_cherry_pick refs/changes/13/28513/28 # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 # --------------- Dedicated plugins ---------------
 
