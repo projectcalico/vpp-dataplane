@@ -129,7 +129,7 @@ func (s *ConnectivityServer) GetNodeIPNet(isv6 bool) *net.IPNet {
 
 func (s *ConnectivityServer) updateAllIPConnectivity() {
 	for _, cn := range s.connectivityMap {
-		err := s.updateIPConnectivity(&cn, false /* isWithdraw */)
+		err := s.UpdateIPConnectivity(&cn, false /* isWithdraw */)
 		if err != nil {
 			s.log.Errorf("Error while re-updating connectivity %s", err)
 		}
@@ -153,13 +153,13 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 			switch evt.Type {
 			case common.ConnectivityAdded:
 				new := evt.New.(*common.NodeConnectivity)
-				err := s.updateIPConnectivity(new, false /* isWithdraw */)
+				err := s.UpdateIPConnectivity(new, false /* isWithdraw */)
 				if err != nil {
 					s.log.Errorf("Error while adding connectivity %s", err)
 				}
 			case common.ConnectivityDeleted:
 				old := evt.Old.(*common.NodeConnectivity)
-				err := s.updateIPConnectivity(old, true /* isWithdraw */)
+				err := s.UpdateIPConnectivity(old, true /* isWithdraw */)
 				if err != nil {
 					s.log.Errorf("Error while deleting connectivity %s", err)
 				}
@@ -292,7 +292,7 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 	return FLAT, nil
 }
 
-func (s *ConnectivityServer) updateIPConnectivity(cn *common.NodeConnectivity, IsWithdraw bool) (err error) {
+func (s *ConnectivityServer) UpdateIPConnectivity(cn *common.NodeConnectivity, IsWithdraw bool) (err error) {
 	var providerType string
 	if IsWithdraw {
 		oldCn, found := s.connectivityMap[cn.String()]
