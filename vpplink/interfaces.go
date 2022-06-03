@@ -302,6 +302,8 @@ func (v *VppLink) EnableInterfaceIP4(swIfIndex uint32) error {
 	return v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, true /*isEnable*/)
 }
 
+// SearchInterfaceWithTag searches for interface that is tagged with given prefix. If not such interface is found,
+// then vpplink.INVALID_SW_IF_INDEX is returned as interface swIndex. Otherwise, non-nil error is returned.
 func (v *VppLink) SearchInterfaceWithTag(tag string) (uint32, error) {
 	err, sw, _ := v.searchInterfaceWithTagOrTagPrefix(tag, false)
 	return sw, err

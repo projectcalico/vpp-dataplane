@@ -1,196 +1,154 @@
 package cni_test
 
-// TODO uncomment and change to work similarly to cni node tests
-//import (
-//	"context"
-//	"fmt"
-//	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
-//	"net"
-//	"os"
-//	"os/exec"
-//
-//	"github.com/containernetworking/plugins/pkg/ns"
-//	"github.com/pkg/errors"
-//	"github.com/projectcalico/calico/felix/config"
-//	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-//	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
-//	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
-//	"github.com/vishvananda/netlink"
-//	"github.com/vishvananda/netns"
-//
-//	"github.com/projectcalico/vpp-dataplane/vpplink"
-//	"github.com/sirupsen/logrus"
-//
-//	. "github.com/onsi/ginkgo"
-//	. "github.com/onsi/gomega"
-//)
-//
-//var _ = Describe("Pod-related functionality of CNI", func() {
-//	var log *logrus.Logger
-//	var vpp *vpplink.VppLink
-//	var err error
-//	var ipAddress string
-//	log = logrus.New()
-//	var vppCmd *exec.Cmd
-//
-//	arg := os.Args //(1:namespace) (2:pod name) (3:interface type) (4:interface name) (5:network prefix)
-//	var vppBinary string
-//	if len(arg) < 2 {
-//		vppBinary = "/usr/bin/vpp"
-//	} else {
-//		vppBinary = arg[1]
-//	}
-//
-//	if ns.IsNSorErr("/run/netns/vpptest") != nil {
-//		netns.NewNamed("vpptest")
-//	}
-//
-//	err = ns.WithNetNSPath("/run/netns/vpptest", func(ns.NetNS) (err error) {
-//		vppCmd = exec.Command(vppBinary, `unix {
-//			nodaemon
-//			full-coredump
-//			cli-listen /var/run/vpp/cli2.sock
-//			pidfile /run/vpp/vpp2.pid
-//		  }
-//		  api-trace { on }
-//		  cpu {
-//			  workers 0
-//		  }
-//		  socksvr {
-//			  socket-name /var/run/vpp/vpp-api-test.sock
-//		  }
-//		  plugins {
-//			  plugin default { enable }
-//			  plugin dpdk_plugin.so { disable }
-//			  plugin calico_plugin.so { enable }
-//			  plugin ping_plugin.so { disable }
-//		  }
-//		  buffers {
-//			buffers-per-numa 131072
-//		  }`)
-//		vppCmd.Stdout = os.Stdout
-//		vppCmd.Stderr = os.Stderr
-//		err = vppCmd.Start()
-//		if err != nil {
-//			return err
-//		}
-//		//vppProcess = vppCmd.Process
-//		return nil
-//	})
-//	if err != nil {
-//		log.Fatalf("Error starting vpp process %+v", err)
-//	}
-//
-//	vpp, err = common.CreateVppLink("/var/run/vpp/vpp-api-test.sock", log.WithFields(logrus.Fields{"component": "vpp-api"}))
-//	if err != nil {
-//		log.Fatalf("Cannot create VPP client: %v", err)
-//	}
-//	Expect(vpp).NotTo(BeNil())
-//	for _, ipFamily := range vpplink.IpFamilies { //needed config for pod creation tests
-//		err := vpp.AddVRF(common.PuntTableId, ipFamily.IsIp6, fmt.Sprintf("punt-table-%s", ipFamily.Str))
-//		if err != nil {
-//			log.Fatal(errors.Wrapf(err, "Error creating punt vrf %s", ipFamily.Str))
-//		}
-//		err = vpp.AddVRF(common.PodVRFIndex, ipFamily.IsIp6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
-//		if err != nil {
-//			log.Fatal(err)
-//		}
-//		err = vpp.AddDefaultRouteViaTable(common.PodVRFIndex, common.DefaultVRFIndex, ipFamily.IsIp6)
-//		if err != nil {
-//			log.Fatal(err)
-//		}
-//	}
-//	ipam := watchers.NewIPAMCache(vpp, nil, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
-//	cniServer := cni.NewCNIServer(vpp, ipam, log.WithFields(logrus.Fields{"component": "cni"}))
-//	cniServer.SetFelixConfig(&config.Config{})
-//	common.InitRestartHandler()
-//	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
-//
-//	BeforeEach(func() {
-//		ipAddress = "1.2.3.44"
-//		if ns.IsNSorErr("/run/netns/pod-test") != nil {
-//			netns.NewNamed("pod-test")
-//		}
-//		newPod := &proto.AddRequest{
-//			InterfaceName: "newInterface",
-//			Netns:         "/run/netns/pod-test",
-//			ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
-//			Workload:      &proto.WorkloadIDs{},
-//		}
-//		ipam.ForceReady()
-//		cniServer.Add(context.Background(), newPod)
-//		log.Infof("done adding pod")
-//	})
-//
-//	Describe("Cni server", func() {
-//		Context("context", func() {
-//			It("should have interface in linux and vpp", func() {
-//				var rightAdressInLinux bool
-//				err = ns.WithNetNSPath("/run/netns/pod-test", func(ns.NetNS) error {
-//					link, err := netlink.LinkByName("newInterface")
-//					if err != nil {
-//						return errors.Wrapf(err, "unable to retrieve name")
-//					}
-//					addresses, err := netlink.AddrList(link, netlink.FAMILY_V4)
-//					if err != nil {
-//						return errors.Wrapf(err, "unable to retrieve address")
-//					}
-//					for _, addr := range addresses {
-//						if addr.IP.Equal(net.ParseIP(ipAddress)) {
-//							rightAdressInLinux = true
-//						}
-//					}
-//					return nil
-//				})
-//				Expect(err).ShouldNot(HaveOccurred())
-//				Expect(rightAdressInLinux).To(BeTrue())
-//				log.Infof("checked eth0 interface in linux with address in pool")
-//				var ifSwIfIndex uint32
-//				ifSwIfIndex, err = vpp.SearchInterfaceWithTag("tun-/run/netns/pod-test-newInterface") //is tag truncated?
-//				Expect(err).ShouldNot(HaveOccurred())
-//				Expect(ifSwIfIndex).NotTo(BeZero())
-//				couple, err := vpp.InterfaceGetUnnumbered(ifSwIfIndex)
-//				if err != nil {
-//					log.Error(err)
-//				}
-//				Expect(err).ShouldNot(HaveOccurred())
-//				lb := uint32(couple.IPSwIfIndex)
-//				addrList, err := vpp.AddrList(lb, false)
-//				if err != nil {
-//					log.Error(err)
-//				}
-//				Expect(err).ShouldNot(HaveOccurred())
-//				var correctAdress bool
-//				for _, addr := range addrList {
-//					if addr.IPNet.IP.Equal(net.ParseIP(ipAddress)) {
-//						correctAdress = true
-//					}
-//				}
-//				Expect(correctAdress).To(BeTrue())
-//				log.Infof("checked tun in vpp with eth0 address")
-//				b, err := vpp.GetInterfaceDetails(ifSwIfIndex)
-//				if err != nil {
-//					log.Error(err)
-//				}
-//				Expect(err).ShouldNot(HaveOccurred())
-//				Expect(int(b.Mtu[0])).To(Equal(vpplink.MAX_MTU))
-//				log.Infof("checked right mtu")
-//			})
-//		})
-//	})
-//
-//	AfterEach(func() {
-//		newPod := &proto.DelRequest{
-//			InterfaceName: "newInterface",
-//			Netns:         "/run/netns/pod-test",
-//		}
-//		cniServer.Del(context.Background(), newPod)
-//		log.Infof("done deleting pod")
-//		if err := vppCmd.Process.Kill(); err != nil {
-//			log.Fatal("failed to kill process: ", err)
-//		}
-//		log.Infof("%+v", vppCmd.Process.Pid)
-//		netns.DeleteNamed("pod-test")
-//		netns.DeleteNamed("vpptest")
-//	})
-//})
+import (
+	"context"
+	"fmt"
+	"net"
+	"os/exec"
+	"strings"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/projectcalico/calico/felix/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/sirupsen/logrus"
+)
+
+const (
+	// PodMockContainerName is used container name for poo container mock
+	PodMockContainerName = "vpp-cni-pod-mock"
+	// PodMockImage is docker image used for pod mocking
+	PodMockImage = "calicovpp/vpp-test-pod-mock:latest"
+)
+
+var _ = Describe("Pod-related functionality of CNI", func() {
+	var (
+		log       *logrus.Logger
+		vpp       *vpplink.VppLink
+		cniServer *cni.Server
+	)
+
+	BeforeEach(func() {
+		log = logrus.New()
+		startVPP()
+		vpp, _ = configureVPP(log)
+
+		// setup CNI server (functionality target of tests)
+		ipam := watchers.NewIPAMCache(vpp, nil, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
+		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
+		cniServer = cni.NewCNIServer(vpp, ipam, log.WithFields(logrus.Fields{"component": "cni"}))
+		cniServer.SetFelixConfig(&config.Config{})
+		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
+		ipam.ForceReady()
+	})
+
+	Describe("Addition of the pod", func() {
+		BeforeEach(func() {
+			createPod()
+		})
+
+		Context("When new pod is added", func() {
+			It("should have properly configured interface tunnel to VPP", func() {
+				const (
+					ipAddress     = "1.2.3.44"
+					interfaceName = "newInterface"
+				)
+
+				By("Getting Pod mock container's PID")
+				containerPidOutput, err := exec.Command("docker", "inspect", "-f", "{{.State.Pid}}",
+					PodMockContainerName).Output()
+				Expect(err).Should(BeNil(), "Failed to get pod mock container's PID string")
+				containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
+
+				By("Adding pod using CNI server")
+				newPod := &proto.AddRequest{
+					InterfaceName: interfaceName,
+					Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
+					ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
+					Workload:      &proto.WorkloadIDs{},
+				}
+				reply, err := cniServer.Add(context.Background(), newPod)
+				Expect(err).ToNot(HaveOccurred(), "Pod addition failed")
+				Expect(reply.Successful).To(BeTrue(),
+					fmt.Sprintf("Pod addition failed due to: %s", reply.ErrorMessage))
+
+				By("Checking existence (and IP address) of interface tunnel at added pod's end")
+				interfaceDetails, err := exec.Command("docker", "exec", PodMockContainerName,
+					"ip", "address", "show", "dev", interfaceName).Output()
+				Expect(err).Should(BeNil(), "Failed to get added interface details from pod container")
+				Expect(string(interfaceDetails)).Should(ContainSubstring(ipAddress),
+					"Interface tunnel on new pod's end is either wrong configured "+
+						"for IP address or doesn't exist at all")
+
+				By("Checking existence of interface tunnel at VPP's end")
+				ifSwIfIndex, err := vpp.SearchInterfaceWithTag(
+					interfaceTagForLocalTunTunnel(newPod.InterfaceName, newPod.Netns))
+				Expect(err).ShouldNot(HaveOccurred(), "Failed to get interface at VPP's end")
+				Expect(ifSwIfIndex).ToNot(Equal(vpplink.INVALID_SW_IF_INDEX),
+					"No interface at VPP's end is found")
+				Expect(ifSwIfIndex).NotTo(BeZero(), "No interface at VPP's end is found")
+
+				By("Checking correct IP address of interface tunnel at VPP's end")
+				couple, err := vpp.InterfaceGetUnnumbered(ifSwIfIndex)
+				Expect(err).ShouldNot(HaveOccurred(), "Failed to retrieve unnumbered interface "+
+					"info dump for VPP's end of interface tunnel")
+				addrList, err := vpp.AddrList(uint32(couple.IPSwIfIndex), false)
+				Expect(err).ShouldNot(HaveOccurred(),
+					"Failed to get addresses for unnumbered interfaces")
+				var correctAdress bool
+				for _, addr := range addrList {
+					if addr.IPNet.IP.Equal(net.ParseIP(ipAddress)) {
+						correctAdress = true
+					}
+				}
+				Expect(correctAdress).To(BeTrue(),
+					"VPP's end of interface tunnel is not correctly configured for IP address")
+
+				By("Checking correct MTU for tunnel interface at VPP's end")
+				details, err := vpp.GetInterfaceDetails(ifSwIfIndex)
+				Expect(err).ShouldNot(HaveOccurred(),
+					"Failed to retrieve interface details of VPP's end of interface tunnel")
+				Expect(int(details.Mtu[0])).To(Equal(vpplink.MAX_MTU),
+					"VPP's end of interface tunnel has not correctly configured MTU")
+			})
+		})
+		AfterEach(func() {
+			teardownPod()
+		})
+	})
+
+	AfterEach(func() {
+		teardownVPP()
+	})
+})
+
+// createPod creates docker container that will be used as pod for CNI testing
+func createPod() {
+	// docker container cleanup (failed test that didn't properly clean up docker containers?)
+	err := exec.Command("docker", "rm", "-f", PodMockContainerName).Run()
+	Expect(err).Should(BeNil(), "Failed to clean up old pod mock docker container")
+
+	// start new pod mock (docker container)
+	err = exec.Command("docker", "run", "-d", "--network", "none", "--name", PodMockContainerName,
+		PodMockImage, "sleep", "10d").Run()
+	Expect(err).Should(BeNil(), "Failed to start new pod mock (docker container)")
+}
+
+// teardownPod removes container that is used as Pod mock
+func teardownPod() {
+	err := exec.Command("docker", "rm", "-f", PodMockContainerName).Run()
+	Expect(err).Should(BeNil(), "Failed to stop and remove pod mock (docker container)")
+}
+
+// interfaceTagForLocalTunTunnel constructs the tag for the VPP side of the tap tunnel the same way as cni server
+func interfaceTagForLocalTunTunnel(interfaceName, netns string) string {
+	return (&storage.LocalPodSpec{
+		NetnsName:     netns,
+		InterfaceName: interfaceName,
+	}).GetInterfaceTag("tun" /* private name field of TunTapPodInterfaceDriver */)
+}

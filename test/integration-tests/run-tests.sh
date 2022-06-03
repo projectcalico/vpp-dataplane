@@ -25,9 +25,12 @@ pushd ../../vpp-manager
 make image
 popd
 
-# running the cni tests
+# create pod mock docker image # TODO do proper image build (image name/tags as variables, support for multiple pods building)
+docker build -t calicovpp/vpp-test-pod-mock:latest images/pod-mock
+
+# running the cni tests (some pod tests expect elevated user privileges -> using sudo)
 INTEGRATION_TEST="." VPP_IMAGE="calicovpp/vpp" VPP_BINARY="/usr/bin/vpp" \
-go test -v -run Integration ../../calico-vpp-agent/cni || result=$?
+sudo -E env "PATH=$PATH" go test -v -run Integration ../../calico-vpp-agent/cni || result=$?
 
 
 

@@ -100,7 +100,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 	Describe("Addition of the node", func() {
 		Context("With FLAT connectivity", func() {
 			It("should only configure correct routes in VPP", func() {
-				// add Node
+				By("Adding node")
 				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *ipNet("10.0.200.2/24"),
 					NextHop:          net.ParseIP(GatewayIP),
@@ -108,7 +108,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					Custom:           nil,
 				}, false)
 
-				// get routes and check them
+				By("Getting routes and check them")
 				routes, err := vpp.GetRoutes(0, false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP")
 				Expect(routes).To(ContainElements(
@@ -169,7 +169,9 @@ func startVPP() {
 
 	// start VPP inside docker container
 	err = exec.Command("docker", "run", "-d", "--privileged", "--name", NodeTestsContainerName,
-		"-v", "/tmp/"+NodeTestsContainerName+":/var/run/vpp/", "--entrypoint", vppBinary, vppImage,
+		"-v", "/tmp/"+NodeTestsContainerName+":/var/run/vpp/",
+		"-v", "/proc:/proc", // needed for manipulation of another docker container's network namespace
+		"--entrypoint", vppBinary, vppImage,
 		vppBinaryConfigArg).Run()
 	Expect(err).Should(BeNil(), "Failed to start VPP inside docker container")
 
