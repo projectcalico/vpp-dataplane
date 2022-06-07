@@ -13,23 +13,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
--e # stop at first failed test
+VPP_IMAGE="calicovpp/vpp:latest"
+POD_MOCK_IMAGE="calicovpp/vpp-test-pod-mock:latest"
+
+function prepageImageWithVPPBinary() {
+  if ! docker image inspect $VPP_IMAGE >/dev/null 2>&1; then
+    echo "Can't find docker image "$VPP_IMAGE". Rebuilding it..."
+    pushd ../../vpp-manager
+    if ! make image; then
+      echo "Can't build "$VPP_IMAGE", exiting..."
+      exit 1
+    fi
+    popd
+  fi
+}
+
+function preparePodMockImage() {
+  if ! docker build -t $POD_MOCK_IMAGE images/pod-mock; then
+      echo "Can't build "$POD_MOCK_IMAGE", exiting..."
+      exit 1
+  fi
+}
 
 result=0
 
 echo "Running Integration tests..."
 echo "Running Calico VPP Agent - CNI tests..."
-# creating image with VPP binary that is needed for test
-# TODO check for needed image (tagged latest) to exists - minimal prevention of unnecessary vpp rebuild
-pushd ../../vpp-manager
-make image
-popd
-
-# create pod mock docker image # TODO do proper image build (image name/tags as variables, support for multiple pods building)
-docker build -t calicovpp/vpp-test-pod-mock:latest images/pod-mock
-
-# running the cni tests (some pod tests expect elevated user privileges -> using sudo)
-INTEGRATION_TEST="." VPP_IMAGE="calicovpp/vpp" VPP_BINARY="/usr/bin/vpp" \
+prepageImageWithVPPBinary
+preparePodMockImage
+# Note: some pod tests expect elevated user privileges -> using sudo
+INTEGRATION_TEST="." VPP_IMAGE=$VPP_IMAGE VPP_BINARY="/usr/bin/vpp" \
 sudo -E env "PATH=$PATH" go test -v -run Integration ../../calico-vpp-agent/cni || result=$?
 
 
