@@ -43,7 +43,7 @@ prepageImageWithVPPBinary
 preparePodMockImage
 # Note: some pod tests expect elevated user privileges -> using sudo
 INTEGRATION_TEST="." VPP_IMAGE=$VPP_IMAGE VPP_BINARY="/usr/bin/vpp" \
-sudo -E env "PATH=$PATH" go test -v -run Integration ../../calico-vpp-agent/cni || result=$?
+sudo -E env "PATH=$PATH" go test -v -run Integration ../../calico-vpp-agent/cni -ginkgo.v || result=$?
 
 
 
