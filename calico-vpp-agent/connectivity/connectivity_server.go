@@ -220,13 +220,13 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 				}
 			case common.SRv6PolicyAdded:
 				new := evt.New.(*common.NodeConnectivity)
-				err := s.updateSRv6Policy(new, false /* isWithdraw */)
+				err := s.UpdateSRv6Policy(new, false /* isWithdraw */)
 				if err != nil {
 					s.log.Errorf("Error while adding SRv6 Policy %s", err)
 				}
 			case common.SRv6PolicyDeleted:
 				old := evt.Old.(*common.NodeConnectivity)
-				err := s.updateSRv6Policy(old, true /* isWithdraw */)
+				err := s.UpdateSRv6Policy(old, true /* isWithdraw */)
 				if err != nil {
 					s.log.Errorf("Error while deleting SRv6 Policy %s", err)
 				}
@@ -235,7 +235,7 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 	}
 }
 
-func (s *ConnectivityServer) updateSRv6Policy(cn *common.NodeConnectivity, IsWithdraw bool) (err error) {
+func (s *ConnectivityServer) UpdateSRv6Policy(cn *common.NodeConnectivity, IsWithdraw bool) (err error) {
 	s.log.Infof("updateSRv6Policy")
 	providerType := SRv6
 	if IsWithdraw {
@@ -336,4 +336,16 @@ func (s *ConnectivityServer) UpdateIPConnectivity(cn *common.NodeConnectivity, I
 			return s.providers[providerType].AddConnectivity(cn)
 		}
 	}
+}
+
+// ForceRescanState forces to rescan VPP state (ConnectivityProvider.RescanState()) for initialized
+// ConnectivityProvider of given type.
+// The usage is mainly for testing purposes.
+func (s *ConnectivityServer) ForceRescanState(providerType string) (err error) {
+	provider, found := s.providers[providerType]
+	if !found {
+		return fmt.Errorf("can't find connectivity provider of type %s", providerType)
+	}
+	provider.RescanState()
+	return nil
 }
