@@ -407,6 +407,7 @@ func (cn *NodeConnectivity) String() string {
 	return fmt.Sprintf("%s-%s", cn.Dst.String(), cn.NextHop.String())
 }
 
+// SRv6Tunnel contains info needed to create all SRv6 tunnel components (Steering, Policy, Localsids)
 type SRv6Tunnel struct {
 	Dst      net.IP
 	Bsid     net.IP

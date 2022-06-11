@@ -16,22 +16,32 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
+// NodeToPrefixes is data holder for node and traffic destination prefixes (subnets) that should end in the given node
 type NodeToPrefixes struct {
 	Node     net.IP
 	Prefixes []ip_types.Prefix
 }
 
+// NodeToPolicies is data holder for node and SRv6 tunnel ending in the given node
 type NodeToPolicies struct {
 	Node       net.IP
 	SRv6Tunnel []common.SRv6Tunnel
 }
 
+// SRv6Provider is node connectivity provider that uses segment routing over IPv6 (SRv6) to connect the nodes
+// For more info about SRv6, see https://datatracker.ietf.org/doc/html/rfc8986.
 type SRv6Provider struct {
 	*ConnectivityProviderData
 
-	nodePrefixes   map[string]*NodeToPrefixes
-	nodePolices    map[string]*NodeToPolicies
-	policyIPPool   net.IPNet
+	// nodePrefixes is internal data holder for information from common.NodeConnectivity data
+	// from common.ConnectivityAdded event
+	nodePrefixes map[string]*NodeToPrefixes
+	// nodePolices is internal data holder for information about SRv6 tunnel(policies)
+	// from common.SRv6PolicyAdded event
+	nodePolices map[string]*NodeToPolicies
+	// policyIPPool is IP pool for Policy BSIDs (BSID = IPv6 address in SRv6)
+	policyIPPool net.IPNet
+	// localSidIPPool is IP pool for LocalSID's SIDs (SID = IPv6 address in SRv6)
 	localSidIPPool net.IPNet
 }
 
@@ -50,13 +60,16 @@ func (p *SRv6Provider) GetSwifindexes() []uint32 {
 	return []uint32{}
 }
 
-func (p *SRv6Provider) EnableDisable(isEnable bool) () {
+func (p *SRv6Provider) EnableDisable(isEnable bool) {
 }
 
 func (p *SRv6Provider) Enabled(cn *common.NodeConnectivity) bool {
 	return config.EnableSRv6
 }
 
+// RescanState recreates(if missing in VPP) the static parts of the SRv6 tunneling on this node:
+// 1. missing locasids (possible SRv6 tunnel endpoints) if they are not existing.
+// 2. source encapsulation setting (pointing to IP of this node)
 func (p *SRv6Provider) RescanState() {
 	p.log.Infof("SRv6Provider RescanState")
 
@@ -104,22 +117,35 @@ func (p *SRv6Provider) CreateSRv6Tunnnel(dst net.IP, prefixDst ip_types.Prefix, 
 	return err
 }
 
+// AddConnectivity creates dynamic parts of SRv6 tunnel leading to node that we are adding connectivity to.
+// The static parts are created in RescanState.
+// This method doesn't create the needed parts in one pass, you need to call this function 3 times. Once
+// with basic NodeConnectivity data(from common.ConnectivityAdded event) as is done with other connectivity
+// providers, once with data of the SRv6 tunnel(common.SRv6Tunnel) (from common.SRv6PolicyAdded event)
+// that ends in node that we are adding connectivity to and once for create SRv6 traffic forwarding.
+// The SRv6 tunnel info is propagated from tunnel-ending node using BGP(see bgp_watcher.go and
+// srv6_localsid_watcher.go). After these 3 calls (and the RescanState call)
+// you get fully configured SRv6 tunnel with SR steering, SR policy, SR localsids an SRv6 traffic forwarding.
 func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) {
 	p.log.Infof("SRv6Provider AddConnectivity %s", cn.String())
 
 	var nodeip string
-	// only IPv6 destination
-	if vpplink.IsIP6(cn.NextHop) && cn.Dst.IP != nil {
+	// processing normal NodeConnectivity data only IPv6 destination
+	if vpplink.IsIP6(cn.NextHop) && !p.isSRv6TunnelInfoFromBGP(cn) {
+		// destination IP can't be from policy IPPool, because this IPPool is reserved for policy BSIDs
 		if p.policyIPPool.Contains(cn.Dst.IP) {
 			p.log.Infof("SRv6Provider AddConnectivity no valid prefix %s", cn.Dst.String())
 			return err
 		}
-		nodeip = cn.NextHop.String()
-		prefix, err := ip_types.ParsePrefix(cn.Dst.String())
+
+		// variables processing
+		nodeip = cn.NextHop.String()                         // destination node IP
+		prefix, err := ip_types.ParsePrefix(cn.Dst.String()) // traffic destination that should use SRv6 tunnel
 		if err != nil {
 			return errors.Wrapf(err, "SRv6Provider unable to parse prefix")
 		}
 
+		// Creating SRv6 traffic forwarding (this is where one call of this method finishes)
 		if p.localSidIPPool.Contains(cn.Dst.IP) {
 			p.log.Debugf("SRv6Provider AddConnectivity localSidIPPool prefix %s", cn.Dst.String())
 			err = p.vpp.RouteAdd(&types.Route{
@@ -132,6 +158,7 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 
 		p.log.Debugf("SRv6Provider AddConnectivity prefix %s for node %s", prefix.String(), nodeip)
 
+		// storing info in nodePrefixes
 		if p.nodePrefixes[nodeip] == nil {
 			p.nodePrefixes[nodeip] = &NodeToPrefixes{
 				Node:     cn.NextHop,
@@ -140,13 +167,16 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 		}
 		p.nodePrefixes[nodeip].Prefixes = append(p.nodePrefixes[nodeip].Prefixes, prefix)
 
+		// stopping processing until we have also needed SRv6 tunnel data (SRv6 policy)
+		// from the destination node (BGP transportation)
 		if p.nodePolices[nodeip] == nil {
 			p.log.Infof("SRv6Provider no policies for %s", nodeip)
 			return err
 		}
 
-	} else if cn.Custom != nil {
+	} else if p.isSRv6TunnelInfoFromBGP(cn) && cn.Custom != nil { // getting SRv6 tunnel data from BGP
 
+		// storing info in nodePolices
 		policyData := cn.Custom.(*common.SRv6Tunnel)
 		nodeip = policyData.Dst.String()
 		if p.nodePolices[policyData.Dst.String()] == nil {
@@ -159,12 +189,16 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 		p.log.Debugf("SRv6Provider new policy %s with behavior %d on node %s and priority %d", policyData.Bsid.String(), policyData.Behavior, nodeip, policyData.Priority)
 		p.nodePolices[policyData.Dst.String()].SRv6Tunnel = append(p.nodePolices[policyData.Dst.String()].SRv6Tunnel, *policyData)
 
+		// stopping processing until we have also needed normal common.NodeConnectivity data
 		if p.nodePrefixes[nodeip] == nil {
 			p.log.Debugf("SRv6Provider no prefixes for %s", nodeip)
 			return err
 		}
 
 	}
+
+	// We got all needed data (normal common.NodeConnectivity and SRv6 tunnel info from tunnel-end node transported by BGP)
+	// we can create dynamic parts of SRv6 tunnel (SR steering and SR policy)
 	if p.nodePrefixes[nodeip] != nil {
 		p.log.Debugf("SRv6Provider check new tunnel for node %s, prefixes %d", nodeip, len(p.nodePrefixes[nodeip].Prefixes))
 
@@ -189,8 +223,14 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 
 func (p *SRv6Provider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
 	p.log.Infof("SRv6Provider DelConnectivity %s", cn.String())
-
+	// FIXME SRv6 node connectivity removal not supported
 	return nil
+}
+
+// isSRv6TunnelInfoFromBGP checks whether given NodeConnectivity data is from BGP watcher that should pass
+// SRv6 tunnel information from node where the tunnel should end
+func (p *SRv6Provider) isSRv6TunnelInfoFromBGP(cn *common.NodeConnectivity) bool {
+	return cn.Dst.IP == nil
 }
 
 // find the highest priority policy for a specific node

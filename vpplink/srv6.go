@@ -80,6 +80,9 @@ func (v *VppLink) AddSRv6Policy(policy *types.SrPolicy) (err error) {
 	defer v.lock.Unlock()
 
 	response := &sr.SrPolicyAddReply{}
+	// supporting only one SID list here -> multiple weighted paths for workload balance not supported
+	// This means that lso IsSpray setting is useless as it switches between default weighted path mode
+	// and spray mode(=replicate-traffic-and-multicast-to-all-paths)
 	sidlist := policy.SidLists[0]
 	request := &sr.SrPolicyAdd{
 		BsidAddr: policy.Bsid,
