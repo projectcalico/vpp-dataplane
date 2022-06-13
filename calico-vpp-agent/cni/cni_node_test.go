@@ -18,6 +18,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -35,7 +36,7 @@ import (
 	agentConf "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks/calico"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -106,11 +107,12 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		log                *logrus.Logger
 		vpp                *vpplink.VppLink
 		connectivityServer *connectivity.ConnectivityServer
-		client             *mocks.CalicoClientStub
+		client             *calico.CalicoClientStub
+		ipamStub           *mocks.IpamCacheStub
 		uplinkSwIfIndex    uint32
 	)
 	BeforeEach(func() {
-		client = mocks.NewCalicoClientStub()
+		client = calico.NewCalicoClientStub()
 	})
 
 	JustBeforeEach(func() {
@@ -119,13 +121,14 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		vpp, uplinkSwIfIndex = configureVPP(log)
 
 		// setup connectivity server (functionality target of tests)
-		ipam := watchers.NewIPAMCache(vpp, client, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
+		if ipamStub == nil {
+			ipamStub = mocks.NewIpamCacheStub()
+		}
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
-		connectivityServer = connectivity.NewConnectivityServer(vpp, ipam, client,
+		connectivityServer = connectivity.NewConnectivityServer(vpp, ipamStub, client,
 			log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 		connectivityServer.SetOurBGPSpec(&oldv3.NodeBGPSpec{})
 		connectivityServer.SetFelixConfig(&config.Config{})
-		ipam.ForceReady() // needed for proper IPAM usage
 	})
 
 	Describe("Addition of the node", func() {
@@ -133,7 +136,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			It("should only configure correct routes in VPP", func() {
 				By("Adding node")
 				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
-					Dst:              *ipNet("10.0.200.2/24"),
+					Dst:              *ipNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.FLAT,
 					Custom:           nil,
@@ -164,7 +167,61 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			// TODO impl IPSEC test
 		})
 		Context("With VXLAN connectivity", func() {
-			// TODO impl VXLAN test
+			BeforeEach(func() {
+				// add node pool for VXLAN
+				ipamStub = mocks.NewIpamCacheStub()
+				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &apiv3.IPPool{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: fmt.Sprintf("custom-test-pool-for-vxlan-%s", AddedNodeIP+"/24"),
+					},
+					Spec: apiv3.IPPoolSpec{
+						CIDR:      AddedNodeIP + "/24",
+						VXLANMode: apiv3.VXLANModeAlways, // important for connectivity provider selection
+					},
+				})
+			})
+
+			// TODO test removal of VXLAN tunnel
+			// TODO test cases when some VXLAN tunnels already exists before CNI calls (VXLAN tunnel reuse,
+			//  VXLAN tunnel is removed only when last prefix connectivity that is using given VXLAN is removed)
+
+			It("should have vxlan tunnel and route forwarding to it", func() {
+				By("Initialize VXLAN and add static VXLAN configuration")
+				err := connectivityServer.ForceRescanState(connectivity.VXLAN)
+				Expect(err).ToNot(HaveOccurred(), "can't rescan state of VPP and therefore "+
+					"can't properly create ???")
+
+				By("Checking VPP's node graph modifications for VXLAN")
+				ipv4DecapNextIndex := assertNextNodeLink("vxlan4-input", "ip4-input", vpp)
+				assertNextNodeLink("vxlan6-input", "ip6-input", vpp)
+
+				By("Adding node")
+				configureBGPNodeIPAddresses(connectivityServer)
+				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+					Dst:              *ipNet(AddedNodeIP + "/24"), // FIXME destination and nodeIP are probably separate things!
+					NextHop:          net.ParseIP(GatewayIP),
+					ResolvedProvider: connectivity.VXLAN,
+					Custom:           nil,
+				}, false)
+
+				By("Checking VXLAN tunnel")
+				tunnels, err := vpp.ListVXLanTunnels()
+				Expect(err).ToNot(HaveOccurred(), "Failed to get VXLAN tunnels from VPP")
+				// Note: this is guessing based on existing interfaces in VPP, could be done better by listing
+				// interfaces from VPP and filtering the correct one FIXME do it better?
+				vxlanSwIfIndex := uplinkSwIfIndex + 1
+				Expect(tunnels).To(ContainElements(types.VXLanTunnel{
+					SrcAddress:     net.ParseIP(ThisNodeIP).To4(), // set by configureBGPNodeIPAddresses() call
+					DstAddress:     net.ParseIP(GatewayIP).To4(),
+					SrcPort:        agentConf.DefaultVXLANPort,
+					DstPort:        agentConf.DefaultVXLANPort,
+					Vni:            agentConf.DefaultVXLANVni,
+					DecapNextIndex: uint32(ipv4DecapNextIndex),
+					SwIfIndex:      vxlanSwIfIndex,
+				}))
+
+				// TODO check vxlan interface properties + 2 route + implication of sending CalicoVppEvent of type common.TunnelAdded
+			})
 		})
 		Context("With IP-IP connectivity", func() {
 			// TODO impl IPIP test
@@ -195,7 +252,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				agentConf.NodeName = "node1"
 
 				// add node pool for SRv6 (subnet of agentConf.SRv6localSidIPPool)
-				addIPPool(client, fmt.Sprintf("sr-localsids-pool-%s", agentConf.NodeName), "B::1:0/112")
+				addIPPoolForCalicoClient(client, fmt.Sprintf("sr-localsids-pool-%s", agentConf.NodeName), "B::1:0/112")
 
 				// SID/BSID format for testing: <BSID/Localsid prefix><node id>:<suffix created by IPAM IP assignment>
 				// i.e. "C::2:1" = First IP generated by IPAM on node 2 and it should be used as policy BSID
@@ -248,10 +305,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 					By("Setting and checking encapsulation source for SRv6")
 					// Note: encapsulation source sets source IP for traffic when exiting tunnel(=decapsulating)
-					connectivityServer.SetOurBGPSpec(&oldv3.NodeBGPSpec{
-						IPv4Address: ThisNodeIP + "/24",
-						IPv6Address: ThisNodeIPv6 + "/128",
-					})
+					configureBGPNodeIPAddresses(connectivityServer)
 					err := connectivityServer.ForceRescanState(connectivity.SRv6)
 					Expect(err).ToNot(HaveOccurred(), "can't rescan state of VPP and therefore "+
 						"can't properly set encapsulation source IP for this node")
@@ -363,6 +417,34 @@ var _ = Describe("Node-related functionality of CNI", func() {
 	})
 })
 
+func configureBGPNodeIPAddresses(connectivityServer *connectivity.ConnectivityServer) {
+	connectivityServer.SetOurBGPSpec(&oldv3.NodeBGPSpec{
+		IPv4Address: ThisNodeIP + "/24",
+		IPv6Address: ThisNodeIPv6 + "/128",
+	})
+}
+
+// assertNextNodeLink asserts that in VPP graph the given node has linked the linkedNextNode as one of its
+// "next" nodes for processing. It returns to node specific index of the checked next node.
+func assertNextNodeLink(node, linkedNextNode string, vpp *vpplink.VppLink) int {
+	// get the node information from VPP (No VPP binary API for that -> using VPE)
+	nodeInfoStr, err := vpp.RunCli(fmt.Sprintf("show node %s", node))
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to VPP graph info for node %s", node))
+
+	// asserting next node
+	Expect(strings.ToLower(nodeInfoStr)).To(ContainSubstring(strings.ToLower(linkedNextNode)),
+		fmt.Sprintf("can't find added next node %s in node %s information", linkedNextNode, node))
+
+	// getting next node's index that is relative to the given node (this is kind of brittle as we parse VPP CLI output)
+	linesToNextNode := strings.Split(strings.Split(nodeInfoStr, linkedNextNode)[0], "\n")
+	indexStrOfLinkedNextNode := strings.TrimSpace(linesToNextNode[len(linesToNextNode)-1][:10])
+	nextNodeIndex, err := strconv.Atoi(indexStrOfLinkedNextNode)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("can't parse next node index "+
+		"in given node from VPP CLI output %s", nodeInfoStr))
+
+	return nextNodeIndex
+}
+
 // startVPP creates docker container and runs inside the VPP
 func startVPP() {
 	// prepare VPP configuration
@@ -473,8 +555,10 @@ func teardownVPP() {
 	Expect(err).Should(BeNil(), "Failed to stop and remove VPP docker container")
 }
 
-// addIPPool is convenience function for adding IPPool to mocked Calico IPAM Stub
-func addIPPool(client *mocks.CalicoClientStub, poolName string, poolCIRD string) (*apiv3.IPPool, error) {
+// addIPPoolForCalicoClient is convenience function for adding IPPool to mocked Calico IPAM Stub used
+// in Calico client stub. This function doesn't set anything for the watchers.IpamCache implementation.
+func addIPPoolForCalicoClient(client *calico.CalicoClientStub, poolName string, poolCIRD string) (
+	*apiv3.IPPool, error) {
 	return client.IPPoolsStub.Create(nil, &apiv3.IPPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: poolName,
