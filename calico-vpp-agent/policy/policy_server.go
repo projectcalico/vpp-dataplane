@@ -989,11 +989,19 @@ func (s *Server) handleHostMetadataRemove(msg *proto.HostMetadataRemove, pending
 }
 
 func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate, pending bool) (err error) {
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.IpamPoolUpdate,
+		New:  msg,
+	})
 	s.log.Debugf("Ignoring IpamPoolUpdate")
 	return nil
 }
 
 func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove, pending bool) (err error) {
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.IpamPoolRemove,
+		Old:  msg,
+	})
 	s.log.Debugf("Ignoring IpamPoolRemove")
 	return nil
 }
