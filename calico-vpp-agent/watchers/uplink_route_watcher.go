@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 
@@ -223,10 +223,10 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 			case event := <-r.routeEventChan:
 				switch event.Type {
 				case common.IpamConfChanged:
-					old, _ := event.Old.(*calicov3.IPPool)
-					new, _ := event.New.(*calicov3.IPPool)
+					old, _ := event.Old.(*proto.IPAMPool)
+					new, _ := event.New.(*proto.IPAMPool)
 					if new == nil {
-						key := old.Spec.CIDR
+						key := old.Cidr
 						route, err := r.getNetworkRoute(key)
 						if err != nil {
 							return errors.Wrap(err, "Error deleting net")
@@ -234,7 +234,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 						err = r.DelRoute(route)
 						return errors.Wrapf(err, "cannot delete pool route %s through vpp tap", key)
 					} else {
-						key := new.Spec.CIDR
+						key := new.Cidr
 						route, err := r.getNetworkRoute(key)
 						if err != nil {
 							return errors.Wrap(err, "Error adding net")

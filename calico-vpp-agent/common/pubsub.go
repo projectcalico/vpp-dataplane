@@ -60,6 +60,9 @@ const (
 	NetAddedOrUpdated CalicoVppEventType = "NetAddedOrUpdated"
 	NetDeleted        CalicoVppEventType = "NetDeleted"
 	NetsSynced        CalicoVppEventType = "NetsSynced"
+
+	IpamPoolUpdate CalicoVppEventType = "IpamPoolUpdate"
+	IpamPoolRemove CalicoVppEventType = "IpamPoolRemove"
 )
 
 var (

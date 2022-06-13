@@ -18,6 +18,7 @@ package connectivity
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
@@ -218,14 +220,14 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					s.log.Warnf("connectivity(upd) WireguardListeningPort Changed [NOT IMPLEMENTED]")
 				}
 			case common.IpamConfChanged:
-				old, _ := evt.Old.(*calicov3.IPPool)
-				new, _ := evt.New.(*calicov3.IPPool)
+				old, _ := evt.Old.(*proto.IPAMPool)
+				new, _ := evt.New.(*proto.IPAMPool)
 				if old == nil || new == nil {
 					/* First/last update, do nothing*/
 					continue
 				}
-				if new.Spec.VXLANMode != old.Spec.VXLANMode ||
-					new.Spec.IPIPMode != old.Spec.IPIPMode {
+				if new.VxlanMode != old.VxlanMode ||
+					new.IpipMode != old.IpipMode {
 					s.log.Infof("connectivity(upd) VXLAN/IPIPMode Changed")
 					s.updateAllIPConnectivity()
 				}
@@ -269,7 +271,7 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 	if ipPool == nil {
 		return FLAT, nil
 	}
-	if ipPool.Spec.IPIPMode == calicov3.IPIPModeAlways {
+	if strings.ToLower(ipPool.Pool.IpipMode) == strings.ToLower(string(calicov3.IPIPModeAlways)) {
 		if s.providers[IPSEC].Enabled(cn) {
 			return IPSEC, nil
 		} else if s.providers[WIREGUARD].Enabled(cn) {
@@ -279,7 +281,7 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 		}
 	}
 	ipNet := s.GetNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
-	if ipPool.Spec.IPIPMode == calicov3.IPIPModeCrossSubnet {
+	if strings.ToLower(ipPool.Pool.IpipMode) == strings.ToLower(string(calicov3.IPIPModeCrossSubnet)) {
 		if ipNet == nil {
 			return FLAT, fmt.Errorf("missing node IPnet")
 		}
@@ -293,13 +295,13 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 			}
 		}
 	}
-	if ipPool.Spec.VXLANMode == calicov3.VXLANModeAlways {
+	if strings.ToLower(ipPool.Pool.VxlanMode) == strings.ToLower(string(calicov3.VXLANModeAlways)) {
 		if s.providers[WIREGUARD].Enabled(cn) {
 			return WIREGUARD, nil
 		}
 		return VXLAN, nil
 	}
-	if ipPool.Spec.VXLANMode == calicov3.VXLANModeCrossSubnet {
+	if strings.ToLower(ipPool.Pool.VxlanMode) == strings.ToLower(string(calicov3.VXLANModeCrossSubnet)) {
 		if ipNet == nil {
 			return FLAT, fmt.Errorf("missing node IPnet")
 		}
