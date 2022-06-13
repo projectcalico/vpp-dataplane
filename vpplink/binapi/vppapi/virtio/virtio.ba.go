@@ -263,7 +263,7 @@ func (*VirtioPciCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *VirtioPciCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *VirtioPciCreateReply) Size() (size int) {
@@ -364,7 +364,7 @@ func (*VirtioPciCreateV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *VirtioPciCreateV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *VirtioPciCreateV2Reply) Size() (size int) {
@@ -439,7 +439,7 @@ func (*VirtioPciDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *VirtioPciDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *VirtioPciDeleteReply) Size() (size int) {

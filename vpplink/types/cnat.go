@@ -17,6 +17,7 @@ package types
 
 import (
 	"fmt"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi"
 	"net"
 	"strings"
 
@@ -140,7 +141,7 @@ func ToCnatEndpoint(ep CnatEndpoint) cnat.CnatEndpoint {
 	return cnat.CnatEndpoint{
 		Port:      ep.Port,
 		Addr:      ToVppAddress(ep.IP),
-		SwIfIndex: InvalidInterface,
+		SwIfIndex: vppapi.InvalidInterface,
 	}
 
 }

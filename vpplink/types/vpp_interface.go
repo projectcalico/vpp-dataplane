@@ -22,23 +22,6 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-)
-
-type RxMode uint32
-
-const (
-	InvalidInterface = interface_types.InterfaceIndex(^uint32(0))
-)
-
-const (
-	UnknownRxMode RxMode = 0
-	Polling       RxMode = 1
-	Interrupt     RxMode = 2
-	Adaptative    RxMode = 3
-	DefaultRxMode RxMode = 4
-
-	AllQueues = ^uint32(0)
 )
 
 type GenericVppInterface struct {
@@ -52,26 +35,6 @@ type GenericVppInterface struct {
 	/* return value on create */
 	SwIfIndex uint32
 }
-
-type VppInterfaceDetails struct {
-	SwIfIndex uint32
-	IsUp      bool
-	Name      string
-	Tag       string
-	Type      string
-}
-
-type TapFlags uint32
-
-const (
-	TapFlagNone        TapFlags = 0
-	TapFlagGSO         TapFlags = 1
-	TapFlagCsumOffload TapFlags = 2
-	TapFlagPersist     TapFlags = 4
-	TapFlagAttach      TapFlags = 8
-	TapFlagTun         TapFlags = 16
-	TapGROCoalesce     TapFlags = 32
-)
 
 type VppXDPInterface struct {
 	GenericVppInterface
@@ -99,15 +62,6 @@ type Vmxnet3Interface struct {
 
 type RDMAInterface struct {
 	GenericVppInterface
-}
-
-type TapV2 struct {
-	GenericVppInterface
-	HostNamespace  string
-	Tag            string
-	HostMacAddress net.HardwareAddr
-	Flags          TapFlags
-	HostMtu        int
 }
 
 func GetPciIdInt(PciIdStr string) (id uint32, err error) {
@@ -143,30 +97,4 @@ func GetPciIdInt(PciIdStr string) (id uint32, err error) {
 	}
 	id = binary.LittleEndian.Uint32(b)
 	return id, nil
-}
-
-func UnformatRxMode(str string) RxMode {
-	switch str {
-	case "interrupt":
-		return Interrupt
-	case "polling":
-		return Polling
-	case "adaptive":
-		return Adaptative
-	default:
-		return UnknownRxMode
-	}
-}
-
-func FormatRxMode(rxMode RxMode) string {
-	switch rxMode {
-	case Interrupt:
-		return "interrupt"
-	case Polling:
-		return "polling"
-	case Adaptative:
-		return "adaptive"
-	default:
-		return "default"
-	}
 }

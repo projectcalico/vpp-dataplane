@@ -17,6 +17,7 @@ package vpplink
 
 import (
 	"fmt"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vmxnet3"
@@ -29,7 +30,7 @@ func (v *VppLink) CreateVmxnet3(intf *types.Vmxnet3Interface) (swIfIndex uint32,
 	response := &vmxnet3.Vmxnet3CreateReply{}
 	pci, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateVmxnet3 error parsing PCI id")
+		return vppapi.InvalidSwIfIndex, errors.Wrapf(err, "CreateVmxnet3 error parsing PCI id")
 	}
 	request := &vmxnet3.Vmxnet3Create{
 		PciAddr:   pci,

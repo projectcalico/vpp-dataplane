@@ -175,7 +175,7 @@ func (*MemifCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *MemifCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *MemifCreateReply) Size() (size int) {
@@ -250,7 +250,7 @@ func (*MemifDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *MemifDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *MemifDeleteReply) Size() (size int) {
@@ -438,7 +438,7 @@ func (*MemifSocketFilenameAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *MemifSocketFilenameAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *MemifSocketFilenameAddDelReply) Size() (size int) {
@@ -523,7 +523,7 @@ func (*MemifSocketFilenameAddDelV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *MemifSocketFilenameAddDelV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *MemifSocketFilenameAddDelV2Reply) Size() (size int) {

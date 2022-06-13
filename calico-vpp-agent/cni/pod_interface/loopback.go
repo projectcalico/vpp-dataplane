@@ -22,6 +22,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 type LoopbackPodInterfaceDriver struct {
@@ -43,11 +45,12 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 	} else {
 		stack.Push(i.vpp.DeleteLoopback, swIfIndex)
 	}
-	podSpec.LoopbackSwIfIndex = swIfIndex
+	iface := types2.Interface{SwIfIndex: swIfIndex}
+	podSpec.LoopbackSwIfIndex = iface.SwIfIndex
 
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
-		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfId, ipFamily.IsIp6)
+		err = i.vpp.SetInterfaceVRF(&iface, vrfId, ipFamily.IsIp6)
 		if err != nil {
 			return errors.Wrapf(err, "Error setting loopback %d in per pod vrf", swIfIndex)
 		}
@@ -59,7 +62,7 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 	}
 
 	for _, containerIP := range podSpec.GetContainerIps() {
-		err = i.vpp.AddInterfaceAddress(swIfIndex, containerIP)
+		err = i.vpp.AddInterfaceAddress(&iface, containerIP)
 		if err != nil {
 			return errors.Wrapf(err, "Error adding address %s to pod loopback interface", containerIP)
 		}
@@ -71,7 +74,9 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 func (i *LoopbackPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
 	i.UndoPodIfNatConfiguration(podSpec.LoopbackSwIfIndex)
 
-	err := i.vpp.DeleteLoopback(podSpec.LoopbackSwIfIndex)
+	iface := types2.Interface{SwIfIndex: podSpec.LoopbackSwIfIndex}
+
+	err := i.vpp.DeleteLoopback(&iface)
 	if err != nil {
 		i.log.Errorf("Error deleting Loopback %s", err)
 	}

@@ -89,7 +89,7 @@ func (*AddNodeNextReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AddNodeNextReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AddNodeNextReply) Size() (size int) {
@@ -201,7 +201,7 @@ func (*CliInbandReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CliInbandReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CliInbandReply) Size() (size int) {
@@ -241,7 +241,7 @@ func (*CliReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CliReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CliReply) Size() (size int) {
@@ -317,7 +317,7 @@ func (*GetF64EndianValueReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *GetF64EndianValueReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *GetF64EndianValueReply) Size() (size int) {
@@ -393,7 +393,7 @@ func (*GetF64IncrementByOneReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *GetF64IncrementByOneReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *GetF64IncrementByOneReply) Size() (size int) {
@@ -473,7 +473,7 @@ func (*GetNextIndexReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *GetNextIndexReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *GetNextIndexReply) Size() (size int) {
@@ -543,7 +543,7 @@ func (*GetNodeGraphReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *GetNodeGraphReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *GetNodeGraphReply) Size() (size int) {
@@ -619,7 +619,7 @@ func (*GetNodeIndexReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *GetNodeIndexReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *GetNodeIndexReply) Size() (size int) {
@@ -690,7 +690,7 @@ func (*ShowThreadsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ShowThreadsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ShowThreadsReply) Size() (size int) {

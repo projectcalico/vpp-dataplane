@@ -83,7 +83,7 @@ func (*CollectDetailedInterfaceStatsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CollectDetailedInterfaceStatsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CollectDetailedInterfaceStatsReply) Size() (size int) {
@@ -200,7 +200,7 @@ func (*CreateLoopbackInstanceReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CreateLoopbackInstanceReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CreateLoopbackInstanceReply) Size() (size int) {
@@ -240,7 +240,7 @@ func (*CreateLoopbackReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CreateLoopbackReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CreateLoopbackReply) Size() (size int) {
@@ -332,7 +332,7 @@ func (*CreateSubifReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CreateSubifReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CreateSubifReply) Size() (size int) {
@@ -412,7 +412,7 @@ func (*CreateVlanSubifReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CreateVlanSubifReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CreateVlanSubifReply) Size() (size int) {
@@ -487,7 +487,7 @@ func (*DeleteLoopbackReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *DeleteLoopbackReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *DeleteLoopbackReply) Size() (size int) {
@@ -559,7 +559,7 @@ func (*DeleteSubifReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *DeleteSubifReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *DeleteSubifReply) Size() (size int) {
@@ -634,7 +634,7 @@ func (*GetBuffersStatsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *GetBuffersStatsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *GetBuffersStatsReply) Size() (size int) {
@@ -719,7 +719,7 @@ func (*HwInterfaceSetMtuReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *HwInterfaceSetMtuReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *HwInterfaceSetMtuReply) Size() (size int) {
@@ -795,7 +795,7 @@ func (*InterfaceNameRenumberReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *InterfaceNameRenumberReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *InterfaceNameRenumberReply) Size() (size int) {
@@ -887,7 +887,7 @@ func (*SwInterfaceAddDelAddressReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceAddDelAddressReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceAddDelAddressReply) Size() (size int) {
@@ -971,7 +971,7 @@ func (*SwInterfaceAddDelMacAddressReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceAddDelMacAddressReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceAddDelMacAddressReply) Size() (size int) {
@@ -1041,7 +1041,7 @@ func (*SwInterfaceAddressReplaceBeginReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceAddressReplaceBeginReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceAddressReplaceBeginReply) Size() (size int) {
@@ -1111,7 +1111,7 @@ func (*SwInterfaceAddressReplaceEndReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceAddressReplaceEndReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceAddressReplaceEndReply) Size() (size int) {
@@ -1183,7 +1183,7 @@ func (*SwInterfaceClearStatsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceClearStatsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceClearStatsReply) Size() (size int) {
@@ -1495,7 +1495,7 @@ func (*SwInterfaceGetMacAddressReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceGetMacAddressReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceGetMacAddressReply) Size() (size int) {
@@ -1575,7 +1575,7 @@ func (*SwInterfaceGetTableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceGetTableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceGetTableReply) Size() (size int) {
@@ -1740,7 +1740,7 @@ func (*SwInterfaceSetFlagsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetFlagsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetFlagsReply) Size() (size int) {
@@ -1818,7 +1818,7 @@ func (*SwInterfaceSetInterfaceNameReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetInterfaceNameReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetInterfaceNameReply) Size() (size int) {
@@ -1900,7 +1900,7 @@ func (*SwInterfaceSetIPDirectedBroadcastReply) GetMessageType() api.MessageType 
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetIPDirectedBroadcastReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetIPDirectedBroadcastReply) Size() (size int) {
@@ -1978,7 +1978,7 @@ func (*SwInterfaceSetMacAddressReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetMacAddressReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetMacAddressReply) Size() (size int) {
@@ -2063,7 +2063,7 @@ func (*SwInterfaceSetMtuReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetMtuReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetMtuReply) Size() (size int) {
@@ -2139,7 +2139,7 @@ func (*SwInterfaceSetPromiscReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetPromiscReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetPromiscReply) Size() (size int) {
@@ -2223,7 +2223,7 @@ func (*SwInterfaceSetRxModeReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetRxModeReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetRxModeReply) Size() (size int) {
@@ -2309,7 +2309,7 @@ func (*SwInterfaceSetRxPlacementReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetRxPlacementReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetRxPlacementReply) Size() (size int) {
@@ -2389,7 +2389,7 @@ func (*SwInterfaceSetTableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetTableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetTableReply) Size() (size int) {
@@ -2484,7 +2484,7 @@ func (*SwInterfaceSetTxPlacementReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetTxPlacementReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetTxPlacementReply) Size() (size int) {
@@ -2566,7 +2566,7 @@ func (*SwInterfaceSetUnnumberedReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetUnnumberedReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetUnnumberedReply) Size() (size int) {
@@ -2646,7 +2646,7 @@ func (*SwInterfaceTagAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceTagAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceTagAddDelReply) Size() (size int) {
@@ -2788,7 +2788,7 @@ func (*SwInterfaceTxPlacementGetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceTxPlacementGetReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceTxPlacementGetReply) Size() (size int) {
@@ -2867,7 +2867,7 @@ func (*WantInterfaceEventsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *WantInterfaceEventsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *WantInterfaceEventsReply) Size() (size int) {

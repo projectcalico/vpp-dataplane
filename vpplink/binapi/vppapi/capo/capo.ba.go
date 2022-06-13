@@ -408,7 +408,7 @@ func (*CapoConfigurePoliciesReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoConfigurePoliciesReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoConfigurePoliciesReply) Size() (size int) {
@@ -478,7 +478,7 @@ func (*CapoControlPingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoControlPingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoControlPingReply) Size() (size int) {
@@ -660,7 +660,7 @@ func (*CapoIpsetAddDelMembersReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoIpsetAddDelMembersReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoIpsetAddDelMembersReply) Size() (size int) {
@@ -735,7 +735,7 @@ func (*CapoIpsetCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoIpsetCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoIpsetCreateReply) Size() (size int) {
@@ -812,7 +812,7 @@ func (*CapoIpsetDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoIpsetDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoIpsetDeleteReply) Size() (size int) {
@@ -910,7 +910,7 @@ func (*CapoPolicyCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoPolicyCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoPolicyCreateReply) Size() (size int) {
@@ -987,7 +987,7 @@ func (*CapoPolicyDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoPolicyDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoPolicyDeleteReply) Size() (size int) {
@@ -1088,7 +1088,7 @@ func (*CapoPolicyUpdateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoPolicyUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoPolicyUpdateReply) Size() (size int) {
@@ -1212,7 +1212,7 @@ func (*CapoRuleCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoRuleCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoRuleCreateReply) Size() (size int) {
@@ -1289,7 +1289,7 @@ func (*CapoRuleDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoRuleDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoRuleDeleteReply) Size() (size int) {
@@ -1416,7 +1416,7 @@ func (*CapoRuleUpdateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CapoRuleUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CapoRuleUpdateReply) Size() (size int) {

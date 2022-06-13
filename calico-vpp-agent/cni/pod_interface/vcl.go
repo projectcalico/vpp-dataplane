@@ -22,6 +22,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 const (
@@ -75,7 +77,9 @@ func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, s
 		stack.Push(i.vpp.DelSessionAppNamespace, appNamespace)
 	}
 
-	err = i.vpp.InterfaceAdminUp(podSpec.LoopbackSwIfIndex)
+	iface := types2.Interface{SwIfIndex: podSpec.LoopbackSwIfIndex}
+
+	err = i.vpp.InterfaceAdminUp(&iface)
 	if err != nil {
 		return err
 	}

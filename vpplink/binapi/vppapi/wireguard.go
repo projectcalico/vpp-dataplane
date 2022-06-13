@@ -13,26 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vpplink
+package vppapi
 
 import (
 	"fmt"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi"
 	"net"
 
 	"github.com/pkg/errors"
+    types "git.fd.io/govpp.git/api/v0"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/wireguard"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-func (v *VppLink) ListWireguardTunnels() ([]*types.WireguardTunnel, error) {
-	tunnels, err := v.listWireguardTunnels(vppapi.InvalidInterface)
+func (v *Vpp) ListWireguardTunnels() ([]*types.WireguardTunnel, error) {
+	tunnels, err := v.listWireguardTunnels(interface_types.InterfaceIndex(InvalidInterface))
 	return tunnels, err
 }
 
-func (v *VppLink) GetWireguardTunnel(swIfIndex uint32) (*types.WireguardTunnel, error) {
+func (v *Vpp) GetWireguardTunnel(swIfIndex uint32) (*types.WireguardTunnel, error) {
 	tunnels, err := v.listWireguardTunnels(interface_types.InterfaceIndex(swIfIndex))
 	if err != nil {
 		return nil, err
@@ -43,7 +42,7 @@ func (v *VppLink) GetWireguardTunnel(swIfIndex uint32) (*types.WireguardTunnel, 
 	return tunnels[0], nil
 }
 
-func (v *VppLink) listWireguardTunnels(swIfIndex interface_types.InterfaceIndex) ([]*types.WireguardTunnel, error) {
+func (v *Vpp) listWireguardTunnels(swIfIndex interface_types.InterfaceIndex) ([]*types.WireguardTunnel, error) {
 	v.Lock()
 	defer v.Unlock()
 
@@ -64,7 +63,7 @@ func (v *VppLink) listWireguardTunnels(swIfIndex interface_types.InterfaceIndex)
 		}
 		tunnels = append(tunnels, &types.WireguardTunnel{
 			Port:      response.Interface.Port,
-			Addr:      types.FromVppAddress(response.Interface.SrcIP),
+			Addr:      response.Interface.SrcIP.ToIP(),
 			SwIfIndex: uint32(response.Interface.SwIfIndex),
 			PublicKey: response.Interface.PublicKey,
 		})
@@ -72,7 +71,7 @@ func (v *VppLink) listWireguardTunnels(swIfIndex interface_types.InterfaceIndex)
 	return tunnels, nil
 }
 
-func (v *VppLink) AddWireguardTunnel(tunnel *types.WireguardTunnel) (uint32, error) {
+func (v *Vpp) AddWireguardTunnel(tunnel *types.WireguardTunnel) (uint32, error) {
 	v.Lock()
 	defer v.Unlock()
 
@@ -81,9 +80,9 @@ func (v *VppLink) AddWireguardTunnel(tunnel *types.WireguardTunnel) (uint32, err
 		GenerateKey: true,
 		Interface: wireguard.WireguardInterface{
 			UserInstance: ^uint32(0),
-			SwIfIndex:    vppapi.InvalidInterface,
+			SwIfIndex:    interface_types.InterfaceIndex(InvalidInterface),
 			Port:         tunnel.Port,
-			SrcIP:        types.ToVppAddress(tunnel.Addr),
+			SrcIP:        ip_types.AddressFromIP(tunnel.Addr),
 			PrivateKey:   tunnel.PrivateKey,
 			PublicKey:    tunnel.PublicKey,
 		},
@@ -98,7 +97,7 @@ func (v *VppLink) AddWireguardTunnel(tunnel *types.WireguardTunnel) (uint32, err
 	return uint32(response.SwIfIndex), nil
 }
 
-func (v *VppLink) DelWireguardTunnel(tunnel *types.WireguardTunnel) (err error) {
+func (v *Vpp) DelWireguardTunnel(tunnel *types.WireguardTunnel) (err error) {
 	v.Lock()
 	defer v.Unlock()
 
@@ -115,7 +114,7 @@ func (v *VppLink) DelWireguardTunnel(tunnel *types.WireguardTunnel) (err error) 
 	return nil
 }
 
-func (v *VppLink) ListWireguardPeers() ([]*types.WireguardPeer, error) {
+func (v *Vpp) ListWireguardPeers() ([]*types.WireguardPeer, error) {
 	v.Lock()
 	defer v.Unlock()
 
@@ -133,13 +132,13 @@ func (v *VppLink) ListWireguardPeers() ([]*types.WireguardPeer, error) {
 		}
 		allowedIps := make([]net.IPNet, 0)
 		for _, aip := range response.Peer.AllowedIps {
-			allowedIps = append(allowedIps, *types.FromVppPrefix(aip))
+			allowedIps = append(allowedIps, *FromVppPrefix(aip))
 		}
 		tunnels = append(tunnels, &types.WireguardPeer{
 			Port:                response.Peer.Port,
 			PersistentKeepalive: int(response.Peer.PersistentKeepalive),
 			TableID:             response.Peer.TableID,
-			Addr:                types.FromVppAddress(response.Peer.Endpoint),
+			Addr:                response.Peer.Endpoint.ToIP(),
 			SwIfIndex:           uint32(response.Peer.SwIfIndex),
 			PublicKey:           response.Peer.PublicKey,
 			AllowedIps:          allowedIps,
@@ -148,13 +147,13 @@ func (v *VppLink) ListWireguardPeers() ([]*types.WireguardPeer, error) {
 	return tunnels, nil
 }
 
-func (v *VppLink) AddWireguardPeer(peer *types.WireguardPeer) (uint32, error) {
+func (v *Vpp) AddWireguardPeer(peer *types.WireguardPeer) (uint32, error) {
 	v.Lock()
 	defer v.Unlock()
 
 	allowedIps := make([]ip_types.Prefix, 0)
 	for _, aip := range peer.AllowedIps {
-		allowedIps = append(allowedIps, types.ToVppPrefix(&aip))
+		allowedIps = append(allowedIps, ToVppPrefix(&aip))
 	}
 	ka := uint16(peer.PersistentKeepalive)
 	if ka == 0 {
@@ -168,7 +167,7 @@ func (v *VppLink) AddWireguardPeer(peer *types.WireguardPeer) (uint32, error) {
 			Port:                peer.Port,
 			PersistentKeepalive: ka,
 			TableID:             peer.TableID,
-			Endpoint:            types.ToVppAddress(peer.Addr),
+			Endpoint:            ip_types.AddressFromIP(peer.Addr),
 			SwIfIndex:           interface_types.InterfaceIndex(peer.SwIfIndex),
 			AllowedIps:          allowedIps,
 		},
@@ -183,7 +182,7 @@ func (v *VppLink) AddWireguardPeer(peer *types.WireguardPeer) (uint32, error) {
 	return uint32(response.PeerIndex), nil
 }
 
-func (v *VppLink) DelWireguardPeer(peer *types.WireguardPeer) (err error) {
+func (v *Vpp) DelWireguardPeer(peer *types.WireguardPeer) (err error) {
 	v.Lock()
 	defer v.Unlock()
 

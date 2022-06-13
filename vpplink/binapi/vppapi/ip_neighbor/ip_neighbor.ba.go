@@ -199,7 +199,7 @@ func (*IPNeighborAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPNeighborAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPNeighborAddDelReply) Size() (size int) {
@@ -286,7 +286,7 @@ func (*IPNeighborConfigReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPNeighborConfigReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPNeighborConfigReply) Size() (size int) {
@@ -563,7 +563,7 @@ func (*IPNeighborFlushReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPNeighborFlushReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPNeighborFlushReply) Size() (size int) {
@@ -629,7 +629,7 @@ func (*IPNeighborReplaceBeginReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPNeighborReplaceBeginReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPNeighborReplaceBeginReply) Size() (size int) {
@@ -695,7 +695,7 @@ func (*IPNeighborReplaceEndReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPNeighborReplaceEndReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPNeighborReplaceEndReply) Size() (size int) {
@@ -784,7 +784,7 @@ func (*WantIPNeighborEventsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *WantIPNeighborEventsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *WantIPNeighborEventsReply) Size() (size int) {
@@ -873,7 +873,7 @@ func (*WantIPNeighborEventsV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *WantIPNeighborEventsV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *WantIPNeighborEventsV2Reply) Size() (size int) {

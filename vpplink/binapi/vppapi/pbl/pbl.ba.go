@@ -142,7 +142,7 @@ func (*PblClientDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *PblClientDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *PblClientDelReply) Size() (size int) {
@@ -479,7 +479,7 @@ func (*PblClientUpdateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *PblClientUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *PblClientUpdateReply) Size() (size int) {

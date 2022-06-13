@@ -155,7 +155,7 @@ func (*ShowVersionReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ShowVersionReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ShowVersionReply) Size() (size int) {
@@ -234,7 +234,7 @@ func (*ShowVpeSystemTimeReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ShowVpeSystemTimeReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ShowVpeSystemTimeReply) Size() (size int) {

@@ -27,18 +27,20 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 type WireguardProvider struct {
 	*ConnectivityProviderData
 	wireguardTunnel *types.WireguardTunnel
-	wireguardPeers    map[string]types.WireguardPeer
+	wireguardPeers  map[string]types.WireguardPeer
 }
 
 func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
 	return &WireguardProvider{
 		ConnectivityProviderData: d,
-		wireguardTunnel:        nil,
+		wireguardTunnel:          nil,
 		wireguardPeers:           make(map[string]types.WireguardPeer),
 	}
 }
@@ -128,7 +130,7 @@ func (p *WireguardProvider) errorCleanup(tunnel *types.WireguardTunnel) {
 	}
 }
 
-func (p *WireguardProvider) EnableDisable(isEnable bool) () {
+func (p *WireguardProvider) EnableDisable(isEnable bool) {
 	if isEnable {
 		if p.wireguardTunnel == nil {
 			err := p.createWireguardTunnel(false /* isv6 */)
@@ -174,33 +176,36 @@ func (p *WireguardProvider) createWireguardTunnel(isIP6 bool) error {
 		p.errorCleanup(tunnel)
 		return errors.Wrapf(err, "Error creating wireguard tunnel")
 	}
+
+	iface := types2.Interface{SwIfIndex: swIfIndex}
+
 	// fetch public key of created tunnel
-	createdTunnel, err := p.vpp.GetWireguardTunnel(swIfIndex)
+	createdTunnel, err := p.vpp.GetWireguardTunnel(iface.SwIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel)
 		return errors.Wrapf(err, "Error fetching wireguard tunnel after creation")
 	}
 	tunnel.PublicKey = createdTunnel.PublicKey
 
-	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+	err = p.vpp.InterfaceSetUnnumbered(iface.SwIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel)
 		return errors.Wrapf(err, "Error setting wireguard tunnel unnumbered")
 	}
 
-	err = p.vpp.EnableGSOFeature(swIfIndex)
+	err = p.vpp.EnableGSOFeature(&iface)
 	if err != nil {
 		p.errorCleanup(tunnel)
 		return errors.Wrapf(err, "Error enabling gso for wireguard interface")
 	}
 
-	err = p.vpp.CnatEnableFeatures(swIfIndex)
+	err = p.vpp.CnatEnableFeatures(iface.SwIfIndex)
 	if err != nil {
 		p.errorCleanup(tunnel)
 		return errors.Wrapf(err, "Error enabling nat for wireguard interface")
 	}
 
-	err = p.vpp.InterfaceAdminUp(swIfIndex)
+	err = p.vpp.InterfaceAdminUp(&iface)
 	if err != nil {
 		p.errorCleanup(tunnel)
 		return errors.Wrapf(err, "Error setting wireguard interface up")
@@ -208,7 +213,7 @@ func (p *WireguardProvider) createWireguardTunnel(isIP6 bool) error {
 
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.TunnelAdded,
-		New:  swIfIndex,
+		New:  iface.SwIfIndex,
 	})
 
 	p.wireguardTunnel = tunnel

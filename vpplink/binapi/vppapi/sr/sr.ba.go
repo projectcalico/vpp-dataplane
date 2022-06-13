@@ -122,7 +122,7 @@ func (*SrLocalsidAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SrLocalsidAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SrLocalsidAddDelReply) Size() (size int) {
@@ -554,7 +554,7 @@ func (*SrPolicyAddReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SrPolicyAddReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SrPolicyAddReply) Size() (size int) {
@@ -630,7 +630,7 @@ func (*SrPolicyDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SrPolicyDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SrPolicyDelReply) Size() (size int) {
@@ -738,7 +738,7 @@ func (*SrPolicyModReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SrPolicyModReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SrPolicyModReply) Size() (size int) {
@@ -810,7 +810,7 @@ func (*SrSetEncapHopLimitReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SrSetEncapHopLimitReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SrSetEncapHopLimitReply) Size() (size int) {
@@ -882,7 +882,7 @@ func (*SrSetEncapSourceReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SrSetEncapSourceReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SrSetEncapSourceReply) Size() (size int) {
@@ -984,7 +984,7 @@ func (*SrSteeringAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SrSteeringAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SrSteeringAddDelReply) Size() (size int) {

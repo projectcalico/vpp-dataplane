@@ -107,7 +107,7 @@ func (*AbfItfAttachAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AbfItfAttachAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AbfItfAttachAddDelReply) Size() (size int) {
@@ -413,7 +413,7 @@ func (*AbfPolicyAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AbfPolicyAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AbfPolicyAddDelReply) Size() (size int) {

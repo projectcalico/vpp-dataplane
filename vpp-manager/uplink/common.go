@@ -27,6 +27,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 const (
@@ -62,7 +64,8 @@ func (d *UplinkDriverData) GetName() string {
 
 func (d *UplinkDriverData) TagMainInterface(vpp *vpplink.VppLink, swIfIndex uint32, name string) (err error) {
 	log.Infof("tagging interface [%d] with: %s", swIfIndex, "main-"+name)
-	err = vpp.SetInterfaceTag(swIfIndex, "main-"+name)
+	iface := types2.Interface{SwIfIndex: swIfIndex}
+	err = vpp.SetInterfaceTag(&iface, "main-"+name)
 	if err != nil {
 		return err
 	}

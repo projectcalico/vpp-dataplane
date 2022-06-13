@@ -30,3 +30,5 @@ vpplink/binapi/.cherries-cache
 calico-vpp-agent/version
 vpp-manager/images/ubuntu/version
 test/scripts/.buildlogs
+
+.idea/*

@@ -17,12 +17,12 @@ package config
 
 import (
 	"fmt"
+	types2 "git.fd.io/govpp.git/api/v0"
 	"net"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -63,14 +63,16 @@ type InterfaceSpec struct {
 }
 
 type VppManagerParams struct {
-	VppStartupSleepSeconds   int
-	InterfacesSpecs          []InterfaceSpec
-	ConfigExecTemplate       string
-	ConfigTemplate           string
-	NodeName                 string
-	CorePattern              string
-	RxMode                   types.RxMode
-	TapRxMode                types.RxMode
+	VppStartupSleepSeconds int
+	InterfacesSpecs        []InterfaceSpec
+	ConfigExecTemplate     string
+	ConfigTemplate         string
+	NodeName               string
+	CorePattern            string
+
+	RxMode    types2.RxMode
+	TapRxMode types2.RxMode
+
 	ServiceCIDRs             []net.IPNet
 	ExtraAddrCount           int
 	TapRxQueueSize           int

@@ -17,8 +17,8 @@ package vpplink
 
 import (
 	"net"
-	"time"
 	"reflect"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -26,10 +26,10 @@ import (
 )
 
 type IpFamily struct {
-	Str   string
+	Str      string
 	ShortStr string
-	IsIp6 bool
-	IsIp4 bool
+	IsIp6    bool
+	IsIp4    bool
 }
 
 var (
@@ -123,5 +123,13 @@ func IsAddToStr(isAdd bool) string {
 		return "add"
 	} else {
 		return "delete"
+	}
+}
+
+func DefaultIntTo(value, defaultValue int) int {
+	if value == 0 {
+		return defaultValue
+	} else {
+		return value
 	}
 }

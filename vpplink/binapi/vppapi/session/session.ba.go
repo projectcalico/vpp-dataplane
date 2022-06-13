@@ -153,7 +153,7 @@ func (*AppAddCertKeyPairReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AppAddCertKeyPairReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AppAddCertKeyPairReply) Size() (size int) {
@@ -250,7 +250,7 @@ func (*AppAttachReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AppAttachReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AppAttachReply) Size() (size int) {
@@ -349,7 +349,7 @@ func (*AppDelCertKeyPairReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AppDelCertKeyPairReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AppDelCertKeyPairReply) Size() (size int) {
@@ -440,7 +440,7 @@ func (*AppNamespaceAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AppNamespaceAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AppNamespaceAddDelReply) Size() (size int) {
@@ -536,7 +536,7 @@ func (*AppNamespaceAddDelV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AppNamespaceAddDelV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AppNamespaceAddDelV2Reply) Size() (size int) {
@@ -640,7 +640,7 @@ func (*AppNamespaceAddDelV3Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AppNamespaceAddDelV3Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AppNamespaceAddDelV3Reply) Size() (size int) {
@@ -730,7 +730,7 @@ func (*AppWorkerAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AppWorkerAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AppWorkerAddDelReply) Size() (size int) {
@@ -817,7 +817,7 @@ func (*ApplicationDetachReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ApplicationDetachReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ApplicationDetachReply) Size() (size int) {
@@ -900,7 +900,7 @@ func (*ApplicationTLSCertAddReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ApplicationTLSCertAddReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ApplicationTLSCertAddReply) Size() (size int) {
@@ -983,7 +983,7 @@ func (*ApplicationTLSKeyAddReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ApplicationTLSKeyAddReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ApplicationTLSKeyAddReply) Size() (size int) {
@@ -1055,7 +1055,7 @@ func (*SessionEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SessionEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SessionEnableDisableReply) Size() (size int) {
@@ -1175,7 +1175,7 @@ func (*SessionRuleAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SessionRuleAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SessionRuleAddDelReply) Size() (size int) {
@@ -1359,7 +1359,7 @@ func (*SessionSapiEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SessionSapiEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SessionSapiEnableDisableReply) Size() (size int) {

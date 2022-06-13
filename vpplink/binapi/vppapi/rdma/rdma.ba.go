@@ -194,7 +194,7 @@ func (*RdmaCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *RdmaCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *RdmaCreateReply) Size() (size int) {
@@ -299,7 +299,7 @@ func (*RdmaCreateV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *RdmaCreateV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *RdmaCreateV2Reply) Size() (size int) {
@@ -411,7 +411,7 @@ func (*RdmaCreateV3Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *RdmaCreateV3Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *RdmaCreateV3Reply) Size() (size int) {
@@ -486,7 +486,7 @@ func (*RdmaDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *RdmaDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *RdmaDeleteReply) Size() (size int) {

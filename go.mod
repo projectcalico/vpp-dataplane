@@ -8,7 +8,6 @@ require (
 	github.com/containernetworking/plugins v0.8.5
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
-	github.com/hashicorp/go-version v1.4.0 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/orijtech/prometheus-go-metrics-exporter v0.0.6
 	github.com/osrg/gobgp v0.0.0-20210801043420-9e48a36ed97c
@@ -20,8 +19,8 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20210703095558-21f2c55a7727
 	github.com/yookoala/realpath v1.0.0
-	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
-	golang.org/x/sys v0.0.0-20210816074244-15123e1e1f71
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
+	golang.org/x/sys v0.0.0-20220731174439-a90be440212d
 	google.golang.org/grpc v1.31.0
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
@@ -32,7 +31,7 @@ require (
 )
 
 replace (
-	git.fd.io/govpp.git v0.3.6-0.20210927044411-385ccc0d8ba9 => /Users/nskrzypc/wrk/calico/govpp
+	git.fd.io/govpp.git v0.3.6-0.20210927044411-385ccc0d8ba9 => /data/work/cisco/git/govpp
 
 	github.com/projectcalico/api => github.com/projectcalico/api v0.0.0-20220129171738-695e97a25204 // v3.22.0
 

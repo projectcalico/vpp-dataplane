@@ -93,7 +93,7 @@ func (*ProxyArpAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ProxyArpAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ProxyArpAddDelReply) Size() (size int) {
@@ -309,7 +309,7 @@ func (*ProxyArpIntfcEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ProxyArpIntfcEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ProxyArpIntfcEnableDisableReply) Size() (size int) {

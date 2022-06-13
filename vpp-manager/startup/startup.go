@@ -18,6 +18,7 @@ package startup
 import (
 	"encoding/json"
 	"fmt"
+	types2 "git.fd.io/govpp.git/api/v0"
 	"net"
 	"os"
 	"os/exec"
@@ -31,7 +32,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -103,7 +103,7 @@ const (
 	DefaultPhyQueueSize = 1024
 	DefaultNumRxQueues  = 1
 	DefaultNumTxQueues  = 1
-	defaultRxMode       = types.Adaptative
+	defaultRxMode       = types2.Adaptative
 	/* Allow a maximum number of corefiles, delete older ones */
 	maxCoreFiles = 2
 )
@@ -287,12 +287,12 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 	params.InterfacesSpecs = []config.InterfaceSpec{mainInterfaceSpec}
 	params.InterfacesSpecs = append(params.InterfacesSpecs, extraInterfacesSpecs...)
 
-	params.RxMode = types.UnformatRxMode(getEnvValue(RxModeEnvVar))
-	if params.RxMode == types.UnknownRxMode {
+	params.RxMode = types2.UnformatRxMode(getEnvValue(RxModeEnvVar))
+	if params.RxMode == types2.UnknownRxMode {
 		params.RxMode = defaultRxMode
 	}
-	params.TapRxMode = types.UnformatRxMode(getEnvValue(TapRxModeEnvVar))
-	if params.TapRxMode == types.UnknownRxMode {
+	params.TapRxMode = types2.UnformatRxMode(getEnvValue(TapRxModeEnvVar))
+	if params.TapRxMode == types2.UnknownRxMode {
 		params.TapRxMode = defaultRxMode
 	}
 
@@ -389,8 +389,8 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 	log.Infof("-- Environment --")
 	log.Infof("CorePattern:         %s", params.CorePattern)
 	log.Infof("ExtraAddrCount:      %d", params.ExtraAddrCount)
-	log.Infof("RxMode:              %s", types.FormatRxMode(params.RxMode))
-	log.Infof("TapRxMode:           %s", types.FormatRxMode(params.TapRxMode))
+	log.Infof("RxMode:              %s", params.RxMode)
+	log.Infof("TapRxMode:           %s", params.TapRxMode)
 	log.Infof("Tap MTU override:    %d", params.UserSpecifiedMtu)
 	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
 	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)

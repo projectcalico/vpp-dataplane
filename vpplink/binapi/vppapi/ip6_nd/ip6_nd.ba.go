@@ -194,7 +194,7 @@ func (*IP6ndProxyAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IP6ndProxyAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IP6ndProxyAddDelReply) Size() (size int) {
@@ -342,7 +342,7 @@ func (*IP6ndProxyEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IP6ndProxyEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IP6ndProxyEnableDisableReply) Size() (size int) {
@@ -436,7 +436,7 @@ func (*IP6ndSendRouterSolicitationReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IP6ndSendRouterSolicitationReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IP6ndSendRouterSolicitationReply) Size() (size int) {
@@ -562,7 +562,7 @@ func (*SwInterfaceIP6ndRaConfigReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceIP6ndRaConfigReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceIP6ndRaConfigReply) Size() (size int) {
@@ -678,7 +678,7 @@ func (*SwInterfaceIP6ndRaPrefixReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceIP6ndRaPrefixReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceIP6ndRaPrefixReply) Size() (size int) {
@@ -754,7 +754,7 @@ func (*WantIP6RaEventsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *WantIP6RaEventsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *WantIP6RaEventsReply) Size() (size int) {

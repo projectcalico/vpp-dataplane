@@ -1,4 +1,4 @@
-VPP Version                 : 22.06-rc0~149-g70a9a1d9f
+VPP Version                 : 22.06-rc0~148-g7f6735793
 Binapi-generator version    : govpp v0.5.0-dev
 VPP Base commit             : 45207e0fb wireguard: fix dereferences null pointer
 ------------------ Cherry picked commits --------------------

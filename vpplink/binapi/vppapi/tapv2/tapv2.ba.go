@@ -375,7 +375,7 @@ func (*TapCreateV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *TapCreateV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *TapCreateV2Reply) Size() (size int) {
@@ -561,7 +561,7 @@ func (*TapCreateV3Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *TapCreateV3Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *TapCreateV3Reply) Size() (size int) {
@@ -636,7 +636,7 @@ func (*TapDeleteV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *TapDeleteV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *TapDeleteV2Reply) Size() (size int) {

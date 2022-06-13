@@ -85,7 +85,7 @@ func (*FeatureEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *FeatureEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *FeatureEnableDisableReply) Size() (size int) {

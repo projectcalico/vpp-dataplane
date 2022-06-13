@@ -18,6 +18,7 @@ package cni
 import (
 	"context"
 	"fmt"
+	types2 "git.fd.io/govpp.git/api/v0"
 	"net"
 	"os"
 	"sync"
@@ -229,8 +230,8 @@ func (s *Server) fetchBufferConfig() {
 
 	numRxQueues := config.TapNumRxQueues
 	numTxQueues := config.TapNumTxQueues
-	rxQueueSize := vpplink.DefaultIntTo(config.TapRxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
-	txQueueSize := vpplink.DefaultIntTo(config.TapTxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
+	rxQueueSize := vpplink.DefaultIntTo(config.TapRxQueueSize, types2.DefaultQueueSize)
+	txQueueSize := vpplink.DefaultIntTo(config.TapTxQueueSize, types2.DefaultQueueSize)
 	s.buffersNeededPerTap = uint64(rxQueueSize*numRxQueues + txQueueSize*numTxQueues)
 }
 

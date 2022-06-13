@@ -25,6 +25,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 type AVFDriver struct {
@@ -158,16 +160,18 @@ func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (er
 	}
 	log.Infof("Created AVF interface %d", swIfIndex)
 
-	err = vpp.SetPromiscOn(swIfIndex)
+	iface := types2.Interface{SwIfIndex: swIfIndex}
+
+	err = vpp.SetPromiscOn(&iface)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting AVF promisc on")
 	}
 
-	if d.spec.IsMain && swIfIndex != config.DataInterfaceSwIfIndex {
-		return fmt.Errorf("Created AVF interface has wrong swIfIndex %d!", swIfIndex)
+	if d.spec.IsMain && iface.SwIfIndex != config.DataInterfaceSwIfIndex {
+		return fmt.Errorf("Created AVF interface has wrong swIfIndex %d!", iface.SwIfIndex)
 	}
-	d.spec.SwIfIndex = swIfIndex
-	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	d.spec.SwIfIndex = iface.SwIfIndex
+	err = d.TagMainInterface(vpp, iface.SwIfIndex, d.spec.InterfaceName)
 	if err != nil {
 		return err
 	}

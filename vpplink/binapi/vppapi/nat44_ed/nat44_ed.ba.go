@@ -160,7 +160,7 @@ func (*Nat44AddDelAddressRangeReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44AddDelAddressRangeReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44AddDelAddressRangeReply) Size() (size int) {
@@ -262,7 +262,7 @@ func (*Nat44AddDelIdentityMappingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44AddDelIdentityMappingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44AddDelIdentityMappingReply) Size() (size int) {
@@ -344,7 +344,7 @@ func (*Nat44AddDelInterfaceAddrReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44AddDelInterfaceAddrReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44AddDelInterfaceAddrReply) Size() (size int) {
@@ -475,7 +475,7 @@ func (*Nat44AddDelLbStaticMappingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44AddDelLbStaticMappingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44AddDelLbStaticMappingReply) Size() (size int) {
@@ -585,7 +585,7 @@ func (*Nat44AddDelStaticMappingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44AddDelStaticMappingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44AddDelStaticMappingReply) Size() (size int) {
@@ -705,7 +705,7 @@ func (*Nat44AddDelStaticMappingV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44AddDelStaticMappingV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44AddDelStaticMappingV2Reply) Size() (size int) {
@@ -875,7 +875,7 @@ func (*Nat44DelSessionReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44DelSessionReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44DelSessionReply) Size() (size int) {
@@ -951,7 +951,7 @@ func (*Nat44DelUserReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44DelUserReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44DelUserReply) Size() (size int) {
@@ -1031,7 +1031,7 @@ func (*Nat44EdAddDelOutputInterfaceReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44EdAddDelOutputInterfaceReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44EdAddDelOutputInterfaceReply) Size() (size int) {
@@ -1144,7 +1144,7 @@ func (*Nat44EdOutputInterfaceGetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44EdOutputInterfaceGetReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44EdOutputInterfaceGetReply) Size() (size int) {
@@ -1243,7 +1243,7 @@ func (*Nat44EdPluginEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44EdPluginEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44EdPluginEnableDisableReply) Size() (size int) {
@@ -1317,7 +1317,7 @@ func (*Nat44EdSetFqOptionsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44EdSetFqOptionsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44EdSetFqOptionsReply) Size() (size int) {
@@ -1386,7 +1386,7 @@ func (*Nat44EdShowFqOptionsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44EdShowFqOptionsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44EdShowFqOptionsReply) Size() (size int) {
@@ -1467,7 +1467,7 @@ func (*Nat44ForwardingEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44ForwardingEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44ForwardingEnableDisableReply) Size() (size int) {
@@ -1709,7 +1709,7 @@ func (*Nat44InterfaceAddDelFeatureReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44InterfaceAddDelFeatureReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44InterfaceAddDelFeatureReply) Size() (size int) {
@@ -1797,7 +1797,7 @@ func (*Nat44InterfaceAddDelOutputFeatureReply) GetMessageType() api.MessageType 
 	return api.ReplyMessage
 }
 func (m *Nat44InterfaceAddDelOutputFeatureReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44InterfaceAddDelOutputFeatureReply) Size() (size int) {
@@ -2114,7 +2114,7 @@ func (*Nat44LbStaticMappingAddDelLocalReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44LbStaticMappingAddDelLocalReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44LbStaticMappingAddDelLocalReply) Size() (size int) {
@@ -2341,7 +2341,7 @@ func (*Nat44PluginEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44PluginEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44PluginEnableDisableReply) Size() (size int) {
@@ -2409,7 +2409,7 @@ func (*Nat44SessionCleanupReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44SessionCleanupReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44SessionCleanupReply) Size() (size int) {
@@ -2485,7 +2485,7 @@ func (*Nat44SetSessionLimitReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44SetSessionLimitReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44SetSessionLimitReply) Size() (size int) {
@@ -2565,7 +2565,7 @@ func (*Nat44ShowRunningConfigReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Nat44ShowRunningConfigReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Nat44ShowRunningConfigReply) Size() (size int) {
@@ -3110,7 +3110,7 @@ func (*NatControlPingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatControlPingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatControlPingReply) Size() (size int) {
@@ -3190,7 +3190,7 @@ func (*NatGetAddrAndPortAllocAlgReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatGetAddrAndPortAllocAlgReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatGetAddrAndPortAllocAlgReply) Size() (size int) {
@@ -3276,7 +3276,7 @@ func (*NatGetMssClampingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatGetMssClampingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatGetMssClampingReply) Size() (size int) {
@@ -3354,7 +3354,7 @@ func (*NatGetTimeoutsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatGetTimeoutsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatGetTimeoutsReply) Size() (size int) {
@@ -3432,7 +3432,7 @@ func (*NatHaFlushReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatHaFlushReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatHaFlushReply) Size() (size int) {
@@ -3501,7 +3501,7 @@ func (*NatHaGetFailoverReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatHaGetFailoverReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatHaGetFailoverReply) Size() (size int) {
@@ -3579,7 +3579,7 @@ func (*NatHaGetListenerReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatHaGetListenerReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatHaGetListenerReply) Size() (size int) {
@@ -3704,7 +3704,7 @@ func (*NatHaResyncReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatHaResyncReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatHaResyncReply) Size() (size int) {
@@ -3784,7 +3784,7 @@ func (*NatHaSetFailoverReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatHaSetFailoverReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatHaSetFailoverReply) Size() (size int) {
@@ -3864,7 +3864,7 @@ func (*NatHaSetListenerReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatHaSetListenerReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatHaSetListenerReply) Size() (size int) {
@@ -3946,7 +3946,7 @@ func (*NatIpfixEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatIpfixEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatIpfixEnableDisableReply) Size() (size int) {
@@ -4040,7 +4040,7 @@ func (*NatSetAddrAndPortAllocAlgReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatSetAddrAndPortAllocAlgReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatSetAddrAndPortAllocAlgReply) Size() (size int) {
@@ -4114,7 +4114,7 @@ func (*NatSetLogLevelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatSetLogLevelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatSetLogLevelReply) Size() (size int) {
@@ -4190,7 +4190,7 @@ func (*NatSetMssClampingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatSetMssClampingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatSetMssClampingReply) Size() (size int) {
@@ -4276,7 +4276,7 @@ func (*NatSetTimeoutsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatSetTimeoutsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatSetTimeoutsReply) Size() (size int) {
@@ -4348,7 +4348,7 @@ func (*NatSetWorkersReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatSetWorkersReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatSetWorkersReply) Size() (size int) {
@@ -4466,7 +4466,7 @@ func (*NatShowConfig2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatShowConfig2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatShowConfig2Reply) Size() (size int) {
@@ -4577,7 +4577,7 @@ func (*NatShowConfigReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *NatShowConfigReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *NatShowConfigReply) Size() (size int) {

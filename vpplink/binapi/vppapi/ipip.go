@@ -29,7 +29,7 @@ func (v *Vpp) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {
 
 	tunnels := make([]*types.IPIPTunnel, 0)
 	request := &ipip.IpipTunnelDump{
-		SwIfIndex: interface_types.InterfaceIndex(types.InvalidInterface),
+		SwIfIndex: interface_types.InterfaceIndex(InvalidInterface),
 	}
 	stream := v.GetChannel().SendMultiRequest(request)
 	for {

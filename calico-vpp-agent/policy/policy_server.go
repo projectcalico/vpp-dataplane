@@ -39,6 +39,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 const (
@@ -168,13 +170,14 @@ func (s *Server) mapTagToInterfaceDetails() (tagIfDetails map[string]interfaceDe
 		return nil, err
 	}
 	for intf, uplink := range uplinkSwifindexes {
+		iface := types2.Interface{SwIfIndex: uplink}
 		tap, found := tapSwifindexes["host-"+intf[5:]]
 		if found {
-			ip4adds, err := s.vpp.AddrList(uplink, false)
+			ip4adds, err := s.vpp.GetInterfaceAddressesIP4(&iface)
 			if err != nil {
 				return nil, err
 			}
-			ip6adds, err := s.vpp.AddrList(uplink, true)
+			ip6adds, err := s.vpp.GetInterfaceAddressesIP6(&iface)
 			if err != nil {
 				return nil, err
 			}
@@ -183,9 +186,9 @@ func (s *Server) mapTagToInterfaceDetails() (tagIfDetails map[string]interfaceDe
 			for _, add := range adds {
 				addresses = append(addresses, add.IPNet.IP.String())
 			}
-			tagIfDetails[intf[5:]] = interfaceDetails{tap, uplink, addresses}
+			tagIfDetails[intf[5:]] = interfaceDetails{tap, iface.SwIfIndex, addresses}
 		} else {
-			return nil, errors.Errorf("uplink interface %s not corresponding to a tap interface", uplink)
+			return nil, errors.Errorf("uplink interface %s not corresponding to a tap interface", iface.SwIfIndex)
 		}
 	}
 	return tagIfDetails, nil

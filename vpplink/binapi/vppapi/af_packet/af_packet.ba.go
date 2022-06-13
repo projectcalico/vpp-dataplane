@@ -83,7 +83,7 @@ func (*AfPacketCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AfPacketCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AfPacketCreateReply) Size() (size int) {
@@ -191,7 +191,7 @@ func (*AfPacketCreateV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AfPacketCreateV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AfPacketCreateV2Reply) Size() (size int) {
@@ -266,7 +266,7 @@ func (*AfPacketDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AfPacketDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AfPacketDeleteReply) Size() (size int) {
@@ -414,7 +414,7 @@ func (*AfPacketSetL4CksumOffloadReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AfPacketSetL4CksumOffloadReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AfPacketSetL4CksumOffloadReply) Size() (size int) {

@@ -23,6 +23,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 type MemifPodInterfaceDriver struct {
@@ -65,15 +67,16 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	} else {
 		stack.Push(i.vpp.DeleteMemif, memif.SwIfIndex)
 	}
-	podSpec.MemifSwIfIndex = memif.SwIfIndex
+	iface := types2.Interface{SwIfIndex: memif.SwIfIndex}
+	podSpec.MemifSwIfIndex = iface.SwIfIndex
 
-	err = i.vpp.SetInterfaceTag(memif.SwIfIndex, podSpec.GetInterfaceTag(i.name))
+	err = i.vpp.SetInterfaceTag(&iface, podSpec.GetInterfaceTag(i.name))
 	if err != nil {
 		return err
 	}
 
 	if config.PodGSOEnabled {
-		err = i.vpp.EnableGSOFeature(memif.SwIfIndex)
+		err = i.vpp.EnableGSOFeature(&iface)
 		if err != nil {
 			return errors.Wrap(err, "Error enabling GSO on memif")
 		}

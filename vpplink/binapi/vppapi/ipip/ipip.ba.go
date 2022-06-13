@@ -119,7 +119,7 @@ func (*Ipip6rdAddTunnelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Ipip6rdAddTunnelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Ipip6rdAddTunnelReply) Size() (size int) {
@@ -194,7 +194,7 @@ func (*Ipip6rdDelTunnelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Ipip6rdDelTunnelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Ipip6rdDelTunnelReply) Size() (size int) {
@@ -294,7 +294,7 @@ func (*IpipAddTunnelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpipAddTunnelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpipAddTunnelReply) Size() (size int) {
@@ -369,7 +369,7 @@ func (*IpipDelTunnelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpipDelTunnelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpipDelTunnelReply) Size() (size int) {

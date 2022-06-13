@@ -144,7 +144,7 @@ func (*ACLAddReplaceReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ACLAddReplaceReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ACLAddReplaceReply) Size() (size int) {
@@ -219,7 +219,7 @@ func (*ACLDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ACLDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ACLDelReply) Size() (size int) {
@@ -442,7 +442,7 @@ func (*ACLInterfaceAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ACLInterfaceAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ACLInterfaceAddDelReply) Size() (size int) {
@@ -727,7 +727,7 @@ func (*ACLInterfaceSetACLListReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ACLInterfaceSetACLListReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ACLInterfaceSetACLListReply) Size() (size int) {
@@ -824,7 +824,7 @@ func (*ACLInterfaceSetEtypeWhitelistReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ACLInterfaceSetEtypeWhitelistReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ACLInterfaceSetEtypeWhitelistReply) Size() (size int) {
@@ -892,7 +892,7 @@ func (*ACLPluginControlPingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ACLPluginControlPingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ACLPluginControlPingReply) Size() (size int) {
@@ -1184,7 +1184,7 @@ func (*ACLPluginUseHashLookupSetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ACLPluginUseHashLookupSetReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ACLPluginUseHashLookupSetReply) Size() (size int) {
@@ -1258,7 +1258,7 @@ func (*ACLStatsIntfCountersEnableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ACLStatsIntfCountersEnableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ACLStatsIntfCountersEnableReply) Size() (size int) {
@@ -1449,7 +1449,7 @@ func (*MacipACLAddReplaceReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *MacipACLAddReplaceReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *MacipACLAddReplaceReply) Size() (size int) {
@@ -1489,7 +1489,7 @@ func (*MacipACLAddReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *MacipACLAddReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *MacipACLAddReply) Size() (size int) {
@@ -1564,7 +1564,7 @@ func (*MacipACLDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *MacipACLDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *MacipACLDelReply) Size() (size int) {
@@ -1761,7 +1761,7 @@ func (*MacipACLInterfaceAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *MacipACLInterfaceAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *MacipACLInterfaceAddDelReply) Size() (size int) {

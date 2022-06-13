@@ -25,6 +25,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 type VXLanProvider struct {
@@ -153,50 +155,53 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		if err != nil {
 			return errors.Wrapf(err, "Error adding vxlan tunnel %s -> %s", nodeIP.String(), cn.NextHop.String())
 		}
-		err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+
+		iface := types2.Interface{SwIfIndex: swIfIndex}
+
+		err = p.vpp.InterfaceSetUnnumbered(iface.SwIfIndex, config.DataInterfaceSwIfIndex)
 		if err != nil {
 			// TODO : delete tunnel
 			return errors.Wrapf(err, "Error setting vxlan tunnel unnumbered")
 		}
 
 		// Always enable GSO feature on VXLan tunnel, only a tiny negative effect on perf if GSO is not enabled on the taps
-		err = p.vpp.EnableGSOFeature(swIfIndex)
+		err = p.vpp.EnableGSOFeature(&iface)
 		if err != nil {
 			// TODO : delete tunnel
 			return errors.Wrapf(err, "Error enabling gso for vxlan interface")
 		}
 
-		err = p.vpp.CnatEnableFeatures(swIfIndex)
+		err = p.vpp.CnatEnableFeatures(iface.SwIfIndex)
 		if err != nil {
 			// TODO : delete tunnel
 			return errors.Wrapf(err, "Error enabling nat for vxlan interface")
 		}
 
-		err = p.vpp.InterfaceAdminUp(swIfIndex)
+		err = p.vpp.InterfaceAdminUp(&iface)
 		if err != nil {
 			// TODO : delete tunnel
 			return errors.Wrapf(err, "Error setting vxlan interface up")
 		}
 
-		p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), swIfIndex)
+		p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), iface.SwIfIndex)
 		err = p.vpp.RouteAdd(&types.Route{
 			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
-				SwIfIndex: swIfIndex,
+				SwIfIndex: iface.SwIfIndex,
 				Gw:        nil,
 			}},
 			Table: common.PodVRFIndex,
 		})
 		if err != nil {
 			// TODO : delete tunnel
-			return errors.Wrapf(err, "Error adding route to %s in ipip tunnel %d for pods", cn.NextHop.String(), swIfIndex)
+			return errors.Wrapf(err, "Error adding route to %s in ipip tunnel %d for pods", cn.NextHop.String(), iface.SwIfIndex)
 		}
 
 		p.vxlanIfs[cn.NextHop.String()] = *tunnel
 		p.log.Infof("connectivity(add) VXLan Added tunnel=%s", tunnel)
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.TunnelAdded,
-			New:  swIfIndex,
+			New:  iface.SwIfIndex,
 		})
 
 	}

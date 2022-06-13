@@ -17,6 +17,7 @@ package pod_interface
 
 import (
 	"fmt"
+	types2 "git.fd.io/govpp.git/api/v0"
 	"io"
 	"net"
 	"os"
@@ -31,7 +32,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 type TunTapPodInterfaceDriver struct {
@@ -85,8 +85,8 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 	}
 	i.log.Debugf("Determined pod MTU: %d", podMtu)
 
-	tun := &types.TapV2{
-		GenericVppInterface: types.GenericVppInterface{
+	tun := &types2.TapInterface{
+		Interface: types2.Interface{
 			NumRxQueues:       config.TapNumRxQueues,
 			NumTxQueues:       config.TapNumTxQueues,
 			RxQueueSize:       config.TapRxQueueSize,
@@ -99,11 +99,11 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 	}
 
 	if podSpec.TunTapIsL3 {
-		tun.Flags |= types.TapFlagTun
+		tun.Flags |= types2.TapFlagTun
 	}
 
 	if config.PodGSOEnabled {
-		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce
+		tun.Flags |= types2.TapFlagGSO | types2.TapGROCoalesce
 	}
 
 	i.log.Debugf("Add request pod MTU: %d, computed %d", podSpec.Mtu, tun.HostMtu)
@@ -149,7 +149,9 @@ func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec
 	i.UndoPodInterfaceConfiguration(podSpec.TunTapSwIfIndex)
 	i.UndoPodIfNatConfiguration(podSpec.TunTapSwIfIndex)
 
-	err := i.vpp.DelTap(podSpec.TunTapSwIfIndex)
+	iface := types2.Interface{SwIfIndex: podSpec.TunTapSwIfIndex}
+
+	err := i.vpp.DelTap(&iface)
 	if err != nil {
 		i.log.Warnf("Error deleting tun[%d] %s", podSpec.TunTapSwIfIndex, err)
 	}

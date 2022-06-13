@@ -276,7 +276,7 @@ func (*PuntSocketDeregisterReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *PuntSocketDeregisterReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *PuntSocketDeregisterReply) Size() (size int) {
@@ -439,7 +439,7 @@ func (*PuntSocketRegisterReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *PuntSocketRegisterReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *PuntSocketRegisterReply) Size() (size int) {
@@ -521,7 +521,7 @@ func (*SetPuntReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SetPuntReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SetPuntReply) Size() (size int) {

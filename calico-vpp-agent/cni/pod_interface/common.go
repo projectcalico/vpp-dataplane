@@ -20,8 +20,9 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 type PodInterfaceDriverData struct {
@@ -32,15 +33,17 @@ type PodInterfaceDriverData struct {
 }
 
 func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTxQueues int) (err error) {
+	iface := types2.Interface{SwIfIndex: swIfIndex}
+
 	// set first tx queue for main worker
-	err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0 /* queue */, 0 /* worker */)
+	err = i.vpp.SetInterfaceTxPlacement(&iface, 0 /* queue */, 0 /* worker */)
 	if err != nil {
 		return err
 	}
 	// share tx queues between the rest of workers
 	if i.NDataThreads > 0 {
 		for txq := 1; txq < numTxQueues; txq++ {
-			err = i.vpp.SetInterfaceTxPlacement(swIfIndex, txq, (txq-1)%(i.NDataThreads)+1)
+			err = i.vpp.SetInterfaceTxPlacement(&iface, txq, (txq-1)%(i.NDataThreads)+1)
 			if err != nil {
 				return err
 			}
@@ -50,10 +53,11 @@ func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTx
 }
 
 func (i *PodInterfaceDriverData) SpreadRxQueuesOnWorkers(swIfIndex uint32) {
+	iface := types2.Interface{SwIfIndex: swIfIndex}
 	if i.NDataThreads > 0 {
 		for queue := 0; queue < config.TapNumRxQueues; queue++ {
 			worker := (int(swIfIndex)*config.TapNumRxQueues + queue) % i.NDataThreads
-			err := i.vpp.SetInterfaceRxPlacement(swIfIndex, queue, worker, false /* main */)
+			err := i.vpp.SetInterfaceRxPlacement(&iface, queue, worker, false /* main */)
 			if err != nil {
 				i.log.Warnf("failed to set if[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, queue, worker, i.NDataThreads, err)
 			}
@@ -105,18 +109,20 @@ func (i *PodInterfaceDriverData) DoPodIfNatConfiguration(podSpec *storage.LocalP
 }
 
 func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32) {
-	err := i.vpp.InterfaceAdminDown(swIfIndex)
+	iface := types2.Interface{SwIfIndex: swIfIndex}
+	err := i.vpp.InterfaceAdminDown(&iface)
 	if err != nil {
 		i.log.Errorf("InterfaceAdminDown errored %s", err)
 	}
 }
 
 func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
-	i.SpreadRxQueuesOnWorkers(swIfIndex)
+	iface := types2.Interface{SwIfIndex: swIfIndex}
+	i.SpreadRxQueuesOnWorkers(iface.SwIfIndex)
 
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
-		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfId, ipFamily.IsIp6)
+		err = i.vpp.SetInterfaceVRF(&iface, vrfId, ipFamily.IsIp6)
 		if err != nil {
 			return errors.Wrapf(err, "error setting vpp if[%d] in pod vrf", swIfIndex)
 		}
@@ -124,23 +130,24 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 
 	if !isL3 {
 		/* L2 */
-		err = i.vpp.SetPromiscOn(swIfIndex)
+		err = i.vpp.SetPromiscOn(&iface)
 		if err != nil {
 			return errors.Wrapf(err, "Error setting memif promisc")
 		}
 	}
 
-	err = i.vpp.SetInterfaceMtu(swIfIndex, vpplink.MAX_MTU)
+	err = i.vpp.SetInterfaceMtu(&iface, types2.MaxMtu)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting MTU on pod interface")
 	}
 
-	err = i.vpp.InterfaceAdminUp(swIfIndex)
+	err = i.vpp.InterfaceAdminUp(&iface)
 	if err != nil {
 		return errors.Wrapf(err, "error setting new pod if up")
 	}
 
-	err = i.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, config.TapRxMode)
+	// TODO: is this configurable variable or not ?
+	err = i.vpp.SetInterfaceRxMode(&iface, types2.AllQueues, config.TapRxMode)
 	if err != nil {
 		return errors.Wrapf(err, "error SetInterfaceRxMode on pod if interface")
 	}

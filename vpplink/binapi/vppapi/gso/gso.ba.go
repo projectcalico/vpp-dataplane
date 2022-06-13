@@ -79,7 +79,7 @@ func (*FeatureGsoEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *FeatureGsoEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *FeatureGsoEnableDisableReply) Size() (size int) {

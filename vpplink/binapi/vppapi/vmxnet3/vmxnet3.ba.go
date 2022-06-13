@@ -289,7 +289,7 @@ func (*Vmxnet3CreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Vmxnet3CreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Vmxnet3CreateReply) Size() (size int) {
@@ -364,7 +364,7 @@ func (*Vmxnet3DeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *Vmxnet3DeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *Vmxnet3DeleteReply) Size() (size int) {

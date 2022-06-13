@@ -317,7 +317,7 @@ func (*AddDelIPPuntRedirectV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AddDelIPPuntRedirectV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AddDelIPPuntRedirectV2Reply) Size() (size int) {
@@ -389,7 +389,7 @@ func (*IoamDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IoamDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IoamDisableReply) Size() (size int) {
@@ -481,7 +481,7 @@ func (*IoamEnableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IoamEnableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IoamEnableReply) Size() (size int) {
@@ -655,7 +655,7 @@ func (*IPContainerProxyAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPContainerProxyAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPContainerProxyAddDelReply) Size() (size int) {
@@ -885,7 +885,7 @@ func (*IPLocalReassEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPLocalReassEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPLocalReassEnableDisableReply) Size() (size int) {
@@ -953,7 +953,7 @@ func (*IPLocalReassGetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPLocalReassGetReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPLocalReassGetReply) Size() (size int) {
@@ -1137,7 +1137,7 @@ func (*IPMrouteAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPMrouteAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPMrouteAddDelReply) Size() (size int) {
@@ -1511,7 +1511,7 @@ func (*IPPathMtuGetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPPathMtuGetReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPPathMtuGetReply) Size() (size int) {
@@ -1580,7 +1580,7 @@ func (*IPPathMtuReplaceBeginReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPPathMtuReplaceBeginReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPPathMtuReplaceBeginReply) Size() (size int) {
@@ -1646,7 +1646,7 @@ func (*IPPathMtuReplaceEndReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPPathMtuReplaceEndReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPPathMtuReplaceEndReply) Size() (size int) {
@@ -1733,7 +1733,7 @@ func (*IPPathMtuUpdateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPPathMtuUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPPathMtuUpdateReply) Size() (size int) {
@@ -1813,7 +1813,7 @@ func (*IPPuntPoliceReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPPuntPoliceReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPPuntPoliceReply) Size() (size int) {
@@ -1985,7 +1985,7 @@ func (*IPPuntRedirectReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPPuntRedirectReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPPuntRedirectReply) Size() (size int) {
@@ -2226,7 +2226,7 @@ func (*IPReassemblyEnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPReassemblyEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPReassemblyEnableDisableReply) Size() (size int) {
@@ -2307,7 +2307,7 @@ func (*IPReassemblyGetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPReassemblyGetReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPReassemblyGetReply) Size() (size int) {
@@ -2414,7 +2414,7 @@ func (*IPReassemblySetReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPReassemblySetReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPReassemblySetReply) Size() (size int) {
@@ -2583,7 +2583,7 @@ func (*IPRouteAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPRouteAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPRouteAddDelReply) Size() (size int) {
@@ -2760,7 +2760,7 @@ func (*IPRouteAddDelV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPRouteAddDelV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPRouteAddDelV2Reply) Size() (size int) {
@@ -3016,7 +3016,7 @@ func (*IPRouteLookupReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPRouteLookupReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPRouteLookupReply) Size() (size int) {
@@ -3196,7 +3196,7 @@ func (*IPRouteLookupV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPRouteLookupV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPRouteLookupV2Reply) Size() (size int) {
@@ -3585,7 +3585,7 @@ func (*IPSourceAndPortRangeCheckAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPSourceAndPortRangeCheckAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPSourceAndPortRangeCheckAddDelReply) Size() (size int) {
@@ -3685,7 +3685,7 @@ func (*IPSourceAndPortRangeCheckInterfaceAddDelReply) GetMessageType() api.Messa
 	return api.ReplyMessage
 }
 func (m *IPSourceAndPortRangeCheckInterfaceAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPSourceAndPortRangeCheckInterfaceAddDelReply) Size() (size int) {
@@ -3767,7 +3767,7 @@ func (*IPTableAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPTableAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPTableAddDelReply) Size() (size int) {
@@ -3846,7 +3846,7 @@ func (*IPTableAllocateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPTableAllocateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPTableAllocateReply) Size() (size int) {
@@ -4005,7 +4005,7 @@ func (*IPTableFlushReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPTableFlushReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPTableFlushReply) Size() (size int) {
@@ -4083,7 +4083,7 @@ func (*IPTableReplaceBeginReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPTableReplaceBeginReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPTableReplaceBeginReply) Size() (size int) {
@@ -4161,7 +4161,7 @@ func (*IPTableReplaceEndReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IPTableReplaceEndReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IPTableReplaceEndReply) Size() (size int) {
@@ -4435,7 +4435,7 @@ func (*SetIPFlowHashReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SetIPFlowHashReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SetIPFlowHashReply) Size() (size int) {
@@ -4507,7 +4507,7 @@ func (*SetIPFlowHashRouterIDReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SetIPFlowHashRouterIDReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SetIPFlowHashRouterIDReply) Size() (size int) {
@@ -4587,7 +4587,7 @@ func (*SetIPFlowHashV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SetIPFlowHashV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SetIPFlowHashV2Reply) Size() (size int) {
@@ -4665,7 +4665,7 @@ func (*SwInterfaceIP6EnableDisableReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceIP6EnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceIP6EnableDisableReply) Size() (size int) {
@@ -4744,7 +4744,7 @@ func (*SwInterfaceIP6GetLinkLocalAddressReply) GetMessageType() api.MessageType 
 	return api.ReplyMessage
 }
 func (m *SwInterfaceIP6GetLinkLocalAddressReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceIP6GetLinkLocalAddressReply) Size() (size int) {
@@ -4829,7 +4829,7 @@ func (*SwInterfaceIP6SetLinkLocalAddressReply) GetMessageType() api.MessageType 
 	return api.ReplyMessage
 }
 func (m *SwInterfaceIP6SetLinkLocalAddressReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceIP6SetLinkLocalAddressReply) Size() (size int) {

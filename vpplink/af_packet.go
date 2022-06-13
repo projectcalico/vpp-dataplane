@@ -17,6 +17,7 @@ package vpplink
 
 import (
 	"fmt"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/af_packet"
@@ -40,9 +41,9 @@ func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint3
 	}
 	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "AfPacketCreate failed: req %+v reply %+v", request, response)
+		return vppapi.InvalidSwIfIndex, errors.Wrapf(err, "AfPacketCreate failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("AfPacketCreate failed: req %+v reply %+v", request, response)
+		return vppapi.InvalidSwIfIndex, fmt.Errorf("AfPacketCreate failed: req %+v reply %+v", request, response)
 	}
 	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil

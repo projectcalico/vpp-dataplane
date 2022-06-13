@@ -42,6 +42,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	tomb "gopkg.in/tomb.v2"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 var (
@@ -306,6 +308,8 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 }
 
 func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount int, vppIfSwIfIndex uint32) (err error) {
+	iface := types2.Interface{SwIfIndex: vppIfSwIfIndex}
+
 	ipFlowHash := types.FlowHashSrcIP |
 		types.FlowHashDstIP |
 		types.FlowHashSrcPort |
@@ -336,7 +340,7 @@ func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount in
 			Mask: addr.Mask,
 		}
 		a.IP[2] += byte(i)
-		err = v.vpp.AddInterfaceAddress(vppIfSwIfIndex, a)
+		err = v.vpp.AddInterfaceAddress(&iface, a)
 		if err != nil {
 			log.Errorf("Error adding address to data interface: %v", err)
 		}
@@ -366,6 +370,7 @@ func (v *VppRunner) allocateStaticVRFs() error {
 
 // Configure specific VRFs for a given tap to the host to handle broadcast / multicast trafic sent by the host
 func (v *VppRunner) setupTapVRF(ifSpec *config.InterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
+	iface := types2.Interface{SwIfIndex: tapSwIfIndex}
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId, err := v.vpp.AllocateVRF(ipFamily.IsIp6, fmt.Sprintf("host-tap-%s-%s", ifSpec.InterfaceName, ipFamily.Str))
 		if err != nil {
@@ -397,7 +402,7 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.InterfaceSpec, ifState *config.Li
 			return []uint32{}, errors.Wrapf(err, "error adding VRF %d default route via VRF %d", vrfId, common.PodVRFIndex)
 		}
 		// Set tap in this table
-		err = v.vpp.SetInterfaceVRF(tapSwIfIndex, vrfId, ipFamily.IsIp6)
+		err = v.vpp.SetInterfaceVRF(&iface, vrfId, ipFamily.IsIp6)
 		if err != nil {
 			return []uint32{}, errors.Wrapf(err, "error setting vpp tap in vrf %d", vrfId)
 		}
@@ -412,7 +417,7 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.InterfaceSpec, ifState *config.Li
 		// note that the role of these addresses is just to tell vpp to accept ip4 / ip6 packets on the tap
 		// we use these addresses as the safest option, because as they are configured on linux, linux
 		// will never send us packets with these addresses as destination
-		err = v.vpp.AddInterfaceAddress(tapSwIfIndex, common.ToMaxLenCIDR(addr.IPNet.IP))
+		err = v.vpp.AddInterfaceAddress(&iface, common.ToMaxLenCIDR(addr.IPNet.IP))
 		if err != nil {
 			log.Errorf("Error adding address to tap interface: %v", err)
 		}
@@ -423,25 +428,26 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.InterfaceSpec, ifState *config.Li
 func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec config.InterfaceSpec) (err error) {
 	// Always enable GSO feature on data interface, only a tiny negative effect on perf if GSO is not
 	// enabled on the taps or already done before an encap
+	iface := types2.Interface{SwIfIndex: ifSpec.SwIfIndex}
 	if v.params.EnableGSO {
-		err = v.vpp.EnableGSOFeature(ifSpec.SwIfIndex)
+		err = v.vpp.EnableGSOFeature(&iface)
 		if err != nil {
 			return errors.Wrap(err, "Error enabling GSO on data interface")
 		}
 	}
 
 	uplinkMtu := config.GetUplinkMtu(v.params, ifState, false /* includeEncap */)
-	err = v.vpp.SetInterfaceMtu(ifSpec.SwIfIndex, uplinkMtu)
+	err = v.vpp.SetInterfaceMtu(&iface, uplinkMtu)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting %d MTU on data interface", uplinkMtu)
 	}
 
-	err = v.vpp.SetInterfaceRxMode(ifSpec.SwIfIndex, types.AllQueues, v.params.RxMode)
+	err = v.vpp.SetInterfaceRxMode(&iface, types2.AllQueues, v.params.RxMode)
 	if err != nil {
 		log.Warnf("%v", err)
 	}
 
-	err = v.vpp.EnableInterfaceIP6(ifSpec.SwIfIndex)
+	err = v.vpp.EnableInterfaceIP6(&iface)
 	if err != nil {
 		return errors.Wrap(err, "Error enabling ip6 on if")
 	}
@@ -453,7 +459,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 
 	for _, addr := range ifState.Addresses {
 		log.Infof("Adding address %s to data interface", addr.String())
-		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
+		err = v.vpp.AddInterfaceAddress(&iface, addr.IPNet)
 		if err != nil {
 			log.Errorf("Error adding address to data interface: %v", err)
 		}
@@ -493,13 +499,13 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 	}
 
 	log.Infof("Creating Linux side interface")
-	vpptap0Flags := types.TapFlagNone
+	vpptap0Flags := types2.TapFlagNone
 	if v.params.EnableGSO {
-		vpptap0Flags = vpptap0Flags | types.TapFlagGSO | types.TapGROCoalesce
+		vpptap0Flags = vpptap0Flags | types2.TapFlagGSO | types2.TapGROCoalesce
 	}
 
-	tapSwIfIndex, err := v.vpp.CreateTapV2(&types.TapV2{
-		GenericVppInterface: types.GenericVppInterface{
+	tapSwIfIndex, err := v.vpp.CreateTapV2(&types2.TapInterface{
+		Interface: types2.Interface{
 			HostInterfaceName: ifSpec.InterfaceName,
 			RxQueueSize:       v.params.TapRxQueueSize,
 			TxQueueSize:       v.params.TapTxQueueSize,
@@ -515,23 +521,25 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrap(err, "Error creating tap")
 	}
 
-	vrfs, err := v.setupTapVRF(&ifSpec, ifState, tapSwIfIndex)
+	tapIface := types2.Interface{SwIfIndex: tapSwIfIndex}
+
+	vrfs, err := v.setupTapVRF(&ifSpec, ifState, tapIface.SwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "error configuring VRF for tap")
 	}
 
 	// Always set this tap on worker 0
-	err = v.vpp.SetInterfaceRxPlacement(tapSwIfIndex, 0 /*queue*/, 0 /*worker*/, false /*main*/)
+	err = v.vpp.SetInterfaceRxPlacement(&tapIface, 0 /*queue*/, 0 /*worker*/, false /*main*/)
 	if err != nil {
 		return errors.Wrap(err, "Error setting tap rx placement")
 	}
 
-	err = v.vpp.SetInterfaceMtu(uint32(tapSwIfIndex), vpplink.MAX_MTU)
+	err = v.vpp.SetInterfaceMtu(&tapIface, types2.MaxMtu)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting %d MTU on tap interface", vpplink.MAX_MTU)
+		return errors.Wrapf(err, "Error setting %d MTU on tap interface", types2.MaxMtu)
 	}
 
-	err = utils.WriteFile(strconv.FormatInt(int64(tapSwIfIndex), 10), config.VppManagerTapIdxFile)
+	err = utils.WriteFile(strconv.FormatInt(int64(tapIface.SwIfIndex), 10), config.VppManagerTapIdxFile)
 	if err != nil {
 		return errors.Wrap(err, "Error writing linux mtu")
 	}
@@ -542,18 +550,18 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 	}
 
 	if ifState.Hasv6 {
-		err = v.vpp.DisableIP6RouterAdvertisements(tapSwIfIndex)
+		err = v.vpp.DisableIP6RouterAdvertisements(tapIface.SwIfIndex)
 		if err != nil {
 			return errors.Wrap(err, "Error disabling ip6 RA on vpptap0")
 		}
 	}
 
-	err = v.configurePunt(tapSwIfIndex, *ifState)
+	err = v.configurePunt(tapIface.SwIfIndex, *ifState)
 	if err != nil {
 		return errors.Wrap(err, "Error adding redirect to tap")
 	}
 
-	err = v.vpp.EnableArpProxy(tapSwIfIndex, vrfs[0 /* ip4 */])
+	err = v.vpp.EnableArpProxy(tapIface.SwIfIndex, vrfs[0 /* ip4 */])
 	if err != nil {
 		return errors.Wrap(err, "Error enabling ARP proxy")
 	}
@@ -561,7 +569,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 	for _, addr := range ifState.Addresses {
 		if addr.IPNet.IP.To4() == nil {
 			log.Infof("Adding ND proxy for address %s", addr.IPNet.IP)
-			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, addr.IPNet.IP)
+			err = v.vpp.EnableIP6NdProxy(tapIface.SwIfIndex, addr.IPNet.IP)
 			if err != nil {
 				log.Errorf("Error configuring nd proxy for address %s: %v", addr.IPNet.IP.String(), err)
 			}
@@ -569,23 +577,23 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 	}
 
 	if v.params.EnableGSO {
-		err = v.vpp.EnableGSOFeature(tapSwIfIndex)
+		err = v.vpp.EnableGSOFeature(&tapIface)
 		if err != nil {
 			return errors.Wrap(err, "Error enabling GSO on vpptap0")
 		}
 	}
 
-	err = v.vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, v.params.TapRxMode)
+	err = v.vpp.SetInterfaceRxMode(&tapIface, types2.AllQueues, v.params.TapRxMode)
 	if err != nil {
 		log.Errorf("Error SetInterfaceRxMode on vpptap0 %v", err)
 	}
 
-	err = v.vpp.CnatEnableFeatures(tapSwIfIndex)
+	err = v.vpp.CnatEnableFeatures(tapIface.SwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error configuring NAT on vpptap0")
 	}
 
-	err = v.vpp.RegisterPodInterface(tapSwIfIndex)
+	err = v.vpp.RegisterPodInterface(tapIface.SwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "error configuring vpptap0 as pod intf")
 	}
@@ -606,7 +614,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrap(err, "Error configuring tap on linux side")
 	}
 
-	err = v.vpp.InterfaceAdminUp(tapSwIfIndex)
+	err = v.vpp.InterfaceAdminUp(&tapIface)
 	if err != nil {
 		return errors.Wrap(err, "Error setting tap up")
 	}

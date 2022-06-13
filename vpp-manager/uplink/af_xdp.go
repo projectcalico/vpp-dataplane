@@ -25,6 +25,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 const (
@@ -150,7 +152,9 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (
 		return fmt.Errorf("Created AF_XDP interface has wrong swIfIndex %d!", intf.SwIfIndex)
 	}
 
-	err = vpp.SetInterfaceMacAddress(intf.SwIfIndex, &d.conf.HardwareAddr)
+	iface := types2.Interface{SwIfIndex: intf.SwIfIndex}
+
+	err = vpp.SetInterfaceMacAddress(&iface, &d.conf.HardwareAddr)
 	if err != nil {
 		return errors.Wrap(err, "could not set af_xdp interface mac address in vpp")
 	}

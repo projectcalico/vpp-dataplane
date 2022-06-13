@@ -28,6 +28,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+
+	types2 "git.fd.io/govpp.git/api/v0"
 )
 
 type IpsecTunnel struct {
@@ -174,43 +176,45 @@ func (p *IpsecProvider) createIPSECTunnel(tunnel *IpsecTunnel, psk string, stack
 		stack.Push(p.vpp.DelIPIPTunnel, tunnel)
 	}
 
+	iface := types2.Interface{SwIfIndex: swIfIndex}
+
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.TunnelAdded,
-		New:  swIfIndex,
+		New:  iface.SwIfIndex,
 	})
 	stack.Push(common.SendEvent, common.CalicoVppEvent{
 		Type: common.TunnelDeleted,
-		Old:  swIfIndex,
+		Old:  iface.SwIfIndex,
 	})
 
-	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+	err = p.vpp.InterfaceSetUnnumbered(iface.SwIfIndex, config.DataInterfaceSwIfIndex)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting ipip tunnel %s unnumbered: %s", tunnel.String())
 	}
 
 	// Always enable GSO feature on IPIP tunnel, only a tiny negative effect on perf if GSO is not enabled on the taps
-	err = p.vpp.EnableGSOFeature(swIfIndex)
+	err = p.vpp.EnableGSOFeature(&iface)
 	if err != nil {
 		return errors.Wrapf(err, "Error enabling gso for ipip interface")
 	}
 
-	err = p.vpp.CnatEnableFeatures(swIfIndex)
+	err = p.vpp.CnatEnableFeatures(iface.SwIfIndex)
 	if err != nil {
 		return errors.Wrapf(err, "Error enabling nat for ipip interface")
 	}
 
-	p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", tunnel.Dst.String(), swIfIndex)
+	p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", tunnel.Dst.String(), iface.SwIfIndex)
 	route := &types.Route{
 		Dst: common.ToMaxLenCIDR(tunnel.Dst),
 		Paths: []types.RoutePath{{
-			SwIfIndex: swIfIndex,
+			SwIfIndex: iface.SwIfIndex,
 			Gw:        nil,
 		}},
 		Table: common.PodVRFIndex,
 	}
 	err = p.vpp.RouteAdd(route)
 	if err != nil {
-		return errors.Wrapf(err, "Error adding route to %s in ipip tunnel %d for pods", tunnel.Dst.String(), swIfIndex)
+		return errors.Wrapf(err, "Error adding route to %s in ipip tunnel %d for pods", tunnel.Dst.String(), iface.SwIfIndex)
 	} else {
 		stack.Push(p.vpp.RouteDel, route)
 	}
@@ -224,7 +228,7 @@ func (p *IpsecProvider) createIPSECTunnel(tunnel *IpsecTunnel, psk string, stack
 	}
 
 	p.log.Infof("connectivity(add) IKE Profile=%s swIfIndex=%d", tunnel.Profile(), tunnel.SwIfIndex)
-	err = p.vpp.SetIKEv2TunnelInterface(tunnel.Profile(), swIfIndex)
+	err = p.vpp.SetIKEv2TunnelInterface(tunnel.Profile(), iface.SwIfIndex)
 	if err != nil {
 		return errors.Wrapf(err, "error configuring IPsec tunnel %s", tunnel.String())
 	}
@@ -287,7 +291,7 @@ func (p *IpsecProvider) waitForIPsecSA(tunnel IpsecTunnel) func() {
 				p.log.Infof("connectivity(del) canceling Profile=%s", tunnel.Profile())
 				return
 			case <-ticker.C:
-				iface, err := p.vpp.GetInterfaceDetails(tunnel.SwIfIndex)
+				iface, err := p.vpp.GetInterfaceDetails(&types2.Interface{SwIfIndex: tunnel.SwIfIndex})
 				if err != nil {
 					p.log.WithError(err).Errorf("Cannot get IPIP tunnel %s status", tunnel.String())
 					return

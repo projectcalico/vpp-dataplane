@@ -83,7 +83,7 @@ func (*APIVersionsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *APIVersionsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *APIVersionsReply) Size() (size int) {
@@ -182,7 +182,7 @@ func (*ControlPingReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *ControlPingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *ControlPingReply) Size() (size int) {
@@ -261,7 +261,7 @@ func (*GetFirstMsgIDReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *GetFirstMsgIDReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *GetFirstMsgIDReply) Size() (size int) {
@@ -519,7 +519,7 @@ func (*MemclntKeepaliveReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *MemclntKeepaliveReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *MemclntKeepaliveReply) Size() (size int) {
@@ -684,7 +684,7 @@ func (*RPCCallReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *RPCCallReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *RPCCallReply) Size() (size int) {
@@ -809,7 +809,7 @@ func (*SockInitShmReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SockInitShmReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SockInitShmReply) Size() (size int) {

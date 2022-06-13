@@ -163,7 +163,7 @@ func (*WantWireguardPeerEventsReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *WantWireguardPeerEventsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *WantWireguardPeerEventsReply) Size() (size int) {
@@ -237,7 +237,7 @@ func (*WgSetAsyncModeReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *WgSetAsyncModeReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *WgSetAsyncModeReply) Size() (size int) {
@@ -338,7 +338,7 @@ func (*WireguardInterfaceCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *WireguardInterfaceCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *WireguardInterfaceCreateReply) Size() (size int) {
@@ -417,7 +417,7 @@ func (*WireguardInterfaceDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *WireguardInterfaceDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *WireguardInterfaceDeleteReply) Size() (size int) {
@@ -640,7 +640,7 @@ func (*WireguardPeerAddReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *WireguardPeerAddReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *WireguardPeerAddReply) Size() (size int) {
@@ -762,7 +762,7 @@ func (*WireguardPeerRemoveReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *WireguardPeerRemoveReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *WireguardPeerRemoveReply) Size() (size int) {

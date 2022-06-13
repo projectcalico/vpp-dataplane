@@ -17,6 +17,7 @@ package vpplink
 
 import (
 	"fmt"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi"
 	"time"
 
 	"github.com/pkg/errors"
@@ -34,7 +35,7 @@ func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err err
 	defer v.Unlock()
 	addr, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateAVF error parsing PCI id")
+		return vppapi.InvalidSwIfIndex, errors.Wrapf(err, "CreateAVF error parsing PCI id")
 	}
 	response := &avf.AvfCreateReply{}
 	request := &avf.AvfCreate{
@@ -47,9 +48,9 @@ func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err err
 	v.GetChannel().SetReplyTimeout(AvfReplyTimeout)
 	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateAVF failed: req %+v reply %+v", request, response)
+		return vppapi.InvalidSwIfIndex, errors.Wrapf(err, "CreateAVF failed: req %+v reply %+v", request, response)
 	} else if response.Retval != 0 {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("CreateAVF failed: req %+v reply %+v", request, response)
+		return vppapi.InvalidSwIfIndex, fmt.Errorf("CreateAVF failed: req %+v reply %+v", request, response)
 	}
 	return uint32(response.SwIfIndex), nil
 }

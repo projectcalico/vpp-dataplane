@@ -17,6 +17,7 @@ package vpplink
 
 import (
 	"fmt"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi"
 	"net"
 
 	"github.com/pkg/errors"
@@ -110,7 +111,7 @@ func (v *VppLink) CnatSetSnatAddresses(v4, v6 net.IP) (err error) {
 	request := &cnat.CnatSetSnatAddresses{
 		SnatIP4:   types.ToVppIP4Address(v4),
 		SnatIP6:   types.ToVppIP6Address(v6),
-		SwIfIndex: types.InvalidInterface,
+		SwIfIndex: vppapi.InvalidInterface,
 	}
 	response := &cnat.CnatSetSnatAddressesReply{}
 	err = v.GetChannel().SendRequest(request).ReceiveReply(response)

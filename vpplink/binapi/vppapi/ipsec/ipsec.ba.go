@@ -235,7 +235,7 @@ func (*IpsecInterfaceAddDelSpdReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecInterfaceAddDelSpdReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecInterfaceAddDelSpdReply) Size() (size int) {
@@ -314,7 +314,7 @@ func (*IpsecItfCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecItfCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecItfCreateReply) Size() (size int) {
@@ -389,7 +389,7 @@ func (*IpsecItfDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecItfDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecItfDeleteReply) Size() (size int) {
@@ -1181,7 +1181,7 @@ func (*IpsecSadEntryAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecSadEntryAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecSadEntryAddDelReply) Size() (size int) {
@@ -1320,7 +1320,7 @@ func (*IpsecSadEntryAddDelV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecSadEntryAddDelV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecSadEntryAddDelV2Reply) Size() (size int) {
@@ -1474,7 +1474,7 @@ func (*IpsecSadEntryAddDelV3Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecSadEntryAddDelV3Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecSadEntryAddDelV3Reply) Size() (size int) {
@@ -1514,7 +1514,7 @@ func (*IpsecSadEntryAddReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecSadEntryAddReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecSadEntryAddReply) Size() (size int) {
@@ -1589,7 +1589,7 @@ func (*IpsecSadEntryDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecSadEntryDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecSadEntryDelReply) Size() (size int) {
@@ -1665,7 +1665,7 @@ func (*IpsecSelectBackendReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecSelectBackendReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecSelectBackendReply) Size() (size int) {
@@ -1737,7 +1737,7 @@ func (*IpsecSetAsyncModeReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecSetAsyncModeReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecSetAsyncModeReply) Size() (size int) {
@@ -1813,7 +1813,7 @@ func (*IpsecSpdAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecSpdAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecSpdAddDelReply) Size() (size int) {
@@ -2068,7 +2068,7 @@ func (*IpsecSpdEntryAddDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecSpdEntryAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecSpdEntryAddDelReply) Size() (size int) {
@@ -2300,7 +2300,7 @@ func (*IpsecTunnelProtectDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecTunnelProtectDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecTunnelProtectDelReply) Size() (size int) {
@@ -2494,7 +2494,7 @@ func (*IpsecTunnelProtectUpdateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *IpsecTunnelProtectUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *IpsecTunnelProtectUpdateReply) Size() (size int) {

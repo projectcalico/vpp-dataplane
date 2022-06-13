@@ -289,7 +289,7 @@ func (*CnatGetSnatAddressesReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CnatGetSnatAddressesReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CnatGetSnatAddressesReply) Size() (size int) {
@@ -488,7 +488,7 @@ func (*CnatSessionPurgeReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CnatSessionPurgeReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CnatSessionPurgeReply) Size() (size int) {
@@ -570,7 +570,7 @@ func (*CnatSetSnatAddressesReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CnatSetSnatAddressesReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CnatSetSnatAddressesReply) Size() (size int) {
@@ -644,7 +644,7 @@ func (*CnatSetSnatPolicyReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CnatSetSnatPolicyReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CnatSetSnatPolicyReply) Size() (size int) {
@@ -732,7 +732,7 @@ func (*CnatSnatPolicyAddDelExcludePfxReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CnatSnatPolicyAddDelExcludePfxReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CnatSnatPolicyAddDelExcludePfxReply) Size() (size int) {
@@ -816,7 +816,7 @@ func (*CnatSnatPolicyAddDelIfReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CnatSnatPolicyAddDelIfReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CnatSnatPolicyAddDelIfReply) Size() (size int) {
@@ -890,7 +890,7 @@ func (*CnatTranslationDelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CnatTranslationDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CnatTranslationDelReply) Size() (size int) {
@@ -1191,7 +1191,7 @@ func (*CnatTranslationUpdateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *CnatTranslationUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *CnatTranslationUpdateReply) Size() (size int) {

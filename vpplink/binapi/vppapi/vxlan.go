@@ -13,24 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vpplink
+package vppapi
 
 import (
 	"fmt"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi"
-
+	types "git.fd.io/govpp.git/api/v0"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vxlan"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-func (v *VppLink) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
+func (v *Vpp) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
 	v.Lock()
 	defer v.Unlock()
 
 	tunnels := make([]types.VXLanTunnel, 0)
 	request := &vxlan.VxlanTunnelV2Dump{
-		SwIfIndex: vppapi.InvalidInterface,
+		SwIfIndex: interface_types.InterfaceIndex(InvalidInterface),
 	}
 	stream := v.GetChannel().SendMultiRequest(request)
 	for {
@@ -43,8 +43,8 @@ func (v *VppLink) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
 			break
 		}
 		tunnels = append(tunnels, types.VXLanTunnel{
-			SrcAddress:     types.FromVppAddress(response.SrcAddress),
-			DstAddress:     types.FromVppAddress(response.DstAddress),
+			SrcAddress:     response.SrcAddress.ToIP(),
+			DstAddress:     response.DstAddress.ToIP(),
 			SrcPort:        response.SrcPort,
 			DstPort:        response.DstPort,
 			Vni:            response.Vni,
@@ -54,7 +54,7 @@ func (v *VppLink) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
 	}
 	return tunnels, nil
 }
-func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIfIndex uint32, err error) {
+func (v *Vpp) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIfIndex uint32, err error) {
 	v.Lock()
 	defer v.Unlock()
 
@@ -62,8 +62,8 @@ func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIf
 	request := &vxlan.VxlanAddDelTunnelV3{
 		IsAdd:          isAdd,
 		Instance:       ^uint32(0),
-		SrcAddress:     types.ToVppAddress(tunnel.SrcAddress),
-		DstAddress:     types.ToVppAddress(tunnel.DstAddress),
+		SrcAddress:     ip_types.AddressFromIP(tunnel.SrcAddress),
+		DstAddress:     ip_types.AddressFromIP(tunnel.DstAddress),
 		SrcPort:        tunnel.SrcPort,
 		DstPort:        tunnel.DstPort,
 		Vni:            tunnel.Vni,
@@ -76,19 +76,20 @@ func (v *VppLink) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIf
 		opStr = "Add"
 	}
 	if err != nil {
-		return ^uint32(1), errors.Wrapf(err, "%s vxlan Tunnel failed", opStr)
+	// TODO: return invalid interface here from types
+		return InvalidSwIfIndex, errors.Wrapf(err, "%s vxlan Tunnel failed", opStr)
 	} else if response.Retval != 0 {
-		return ^uint32(1), fmt.Errorf("%s vxlan Tunnel failed with retval %d", opStr, response.Retval)
+		return InvalidSwIfIndex, fmt.Errorf("%s vxlan Tunnel failed with retval %d", opStr, response.Retval)
 	}
 	tunnel.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
 }
 
-func (v *VppLink) AddVXLanTunnel(tunnel *types.VXLanTunnel) (swIfIndex uint32, err error) {
+func (v *Vpp) AddVXLanTunnel(tunnel *types.VXLanTunnel) (swIfIndex uint32, err error) {
 	return v.addDelVXLanTunnel(tunnel, true)
 }
 
-func (v *VppLink) DelVXLanTunnel(tunnel *types.VXLanTunnel) (err error) {
+func (v *Vpp) DelVXLanTunnel(tunnel *types.VXLanTunnel) (err error) {
 	_, err = v.addDelVXLanTunnel(tunnel, false)
 	return err
 }

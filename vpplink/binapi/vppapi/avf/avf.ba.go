@@ -90,7 +90,7 @@ func (*AvfCreateReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AvfCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AvfCreateReply) Size() (size int) {
@@ -165,7 +165,7 @@ func (*AvfDeleteReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *AvfDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *AvfDeleteReply) Size() (size int) {

@@ -17,6 +17,7 @@ package config
 
 import (
 	"fmt"
+	types2 "git.fd.io/govpp.git/api/v0"
 	"io/ioutil"
 	"net"
 	"os"
@@ -25,7 +26,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -67,7 +67,7 @@ const (
 	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820
 
-	defaultRxMode = types.Adaptative
+	defaultRxMode = types2.Adaptative
 )
 
 var (
@@ -315,13 +315,14 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		ServiceCIDRs = append(ServiceCIDRs, serviceCIDR)
 	}
 
+	// TODO: To/From String these are duplicates again
 	switch getEnvValue(TapRxModeEnvVar) {
 	case "interrupt":
-		TapRxMode = types.Interrupt
+		TapRxMode = types2.Interrupt
 	case "polling":
-		TapRxMode = types.Polling
+		TapRxMode = types2.Polling
 	case "adaptive":
-		TapRxMode = types.Adaptative
+		TapRxMode = types2.Adaptative
 	default:
 		TapRxMode = defaultRxMode
 	}

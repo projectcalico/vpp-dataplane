@@ -84,7 +84,7 @@ func (*SwInterfaceSetVxlanBypassReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *SwInterfaceSetVxlanBypassReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *SwInterfaceSetVxlanBypassReply) Size() (size int) {
@@ -191,7 +191,7 @@ func (*VxlanAddDelTunnelReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *VxlanAddDelTunnelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *VxlanAddDelTunnelReply) Size() (size int) {
@@ -309,7 +309,7 @@ func (*VxlanAddDelTunnelV2Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *VxlanAddDelTunnelV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *VxlanAddDelTunnelV2Reply) Size() (size int) {
@@ -431,7 +431,7 @@ func (*VxlanAddDelTunnelV3Reply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *VxlanAddDelTunnelV3Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *VxlanAddDelTunnelV3Reply) Size() (size int) {
@@ -514,7 +514,7 @@ func (*VxlanOffloadRxReply) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
 func (m *VxlanOffloadRxReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(m.Retval)
+	return api.RetvalToVPPApiError(int32(m.Retval))
 }
 
 func (m *VxlanOffloadRxReply) Size() (size int) {
