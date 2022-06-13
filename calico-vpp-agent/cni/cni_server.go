@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	felixConfig "github.com/projectcalico/calico/felix/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -386,20 +387,20 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) {
 					s.lock.Unlock()
 				}
 			case common.IpamConfChanged:
-				old, _ := evt.Old.(*calicov3.IPPool)
-				new, _ := evt.New.(*calicov3.IPPool)
+				old, _ := evt.Old.(*proto.IPAMPool)
+				new, _ := evt.New.(*proto.IPAMPool)
 				ipipEncapRefCountDelta := 0
 				vxlanEncapRefCountDelta := 0
-				if old != nil && old.Spec.VXLANMode != calicov3.VXLANModeNever {
+				if old != nil && calicov3.VXLANMode(old.VxlanMode) != calicov3.VXLANModeNever {
 					vxlanEncapRefCountDelta--
 				}
-				if old != nil && old.Spec.IPIPMode != calicov3.IPIPModeNever {
+				if old != nil && calicov3.IPIPMode(old.IpipMode) != calicov3.IPIPModeNever {
 					ipipEncapRefCountDelta--
 				}
-				if new != nil && new.Spec.VXLANMode != calicov3.VXLANModeNever {
+				if new != nil && calicov3.VXLANMode(new.VxlanMode) != calicov3.VXLANModeNever {
 					vxlanEncapRefCountDelta++
 				}
-				if new != nil && new.Spec.IPIPMode != calicov3.IPIPModeNever {
+				if new != nil && calicov3.IPIPMode(new.IpipMode) != calicov3.IPIPModeNever {
 					ipipEncapRefCountDelta++
 				}
 
