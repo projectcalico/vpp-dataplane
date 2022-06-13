@@ -22,6 +22,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vlib"
 )
 
+// GetNodeIndex gets node index of the node given by name. This is a helper method for VPP's node graph
+// that process packets.
 func (v *VppLink) GetNodeIndex(name string) (nodeIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
@@ -39,6 +41,8 @@ func (v *VppLink) GetNodeIndex(name string) (nodeIndex uint32, err error) {
 	return uint32(response.NodeIndex), nil
 }
 
+// AddNodeNext sets the next node for the node given by name in node graph. This is a helper method for VPP's
+// node graph that process packets.
 func (v *VppLink) AddNodeNext(name, next string) (nodeIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
@@ -57,7 +61,7 @@ func (v *VppLink) AddNodeNext(name, next string) (nodeIndex uint32, err error) {
 	return uint32(response.NextIndex), nil
 }
 
-/* Gets the number of workers WITHOUT the main thread */
+// GetNumVPPWorkers gets the number of workers WITHOUT the main thread
 func (v *VppLink) GetNumVPPWorkers() (numVPPWorkers int, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
