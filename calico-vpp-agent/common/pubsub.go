@@ -38,8 +38,8 @@ const (
 	PodAdded   CalicoVppEventType = "PodAdded"
 	PodDeleted CalicoVppEventType = "PodDeleted"
 
-	LocalPodAddressAdded          CalicoVppEventType = "LocalPodAddressAdded"
-	LocalPodAddressDeleted        CalicoVppEventType = "LocalPodAddressDeleted"
+	LocalPodAddressAdded   CalicoVppEventType = "LocalPodAddressAdded"
+	LocalPodAddressDeleted CalicoVppEventType = "LocalPodAddressDeleted"
 
 	TunnelAdded   CalicoVppEventType = "TunnelAdded"
 	TunnelDeleted CalicoVppEventType = "TunnelDeleted"
@@ -61,6 +61,9 @@ const (
 	NetUpdated CalicoVppEventType = "NetUpdated"
 	NetDeleted CalicoVppEventType = "NetDeleted"
 	NetsSynced CalicoVppEventType = "NetsSynced"
+
+	IpamPoolUpdate CalicoVppEventType = "IpamPoolUpdate"
+	IpamPoolRemove CalicoVppEventType = "IpamPoolRemove"
 )
 
 var (

@@ -18,47 +18,49 @@ package watchers
 
 import (
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
-	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
+	//calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+
+	//"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
-	"github.com/projectcalico/calico/libcalico-go/lib/watch"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	tomb "gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
 
 // contains returns true if the IPPool contains 'prefix'
-func contains(pool *calicov3.IPPool, prefix *net.IPNet) (bool, error) {
-	_, poolCIDR, _ := net.ParseCIDR(pool.Spec.CIDR) // this field is validated so this should never error
+func contains(pool *proto.IPAMPoolUpdate, prefix *net.IPNet) (bool, error) {
+	_, poolCIDR, _ := net.ParseCIDR(pool.Pool.Cidr) // this field is validated so this should never error
 	poolCIDRLen, poolCIDRBits := poolCIDR.Mask.Size()
 	prefixLen, prefixBits := prefix.Mask.Size()
 	return poolCIDRBits == prefixBits && poolCIDR.Contains(prefix.IP) && prefixLen >= poolCIDRLen, nil
 }
 
 // Compare only the fields that make a difference for this agent i.e. the fields that have an impact on routing
-func equalPools(a *calicov3.IPPool, b *calicov3.IPPool) bool {
-	if a.Spec.CIDR != b.Spec.CIDR {
+func equalPools(a *proto.IPAMPoolUpdate, b *proto.IPAMPoolUpdate) bool {
+	if a.Pool.Cidr != b.Pool.Cidr {
 		return false
 	}
-	if a.Spec.IPIPMode != b.Spec.IPIPMode {
+	if a.Pool.IpipMode != b.Pool.IpipMode {
 		return false
 	}
-	if a.Spec.VXLANMode != b.Spec.VXLANMode {
+	if a.Pool.VxlanMode != b.Pool.VxlanMode {
 		return false
 	}
 	return true
 }
 
 type IpamCache interface {
-	GetPrefixIPPool(*net.IPNet) *calicov3.IPPool
+	GetPrefixIPPool(*net.IPNet) *proto.IPAMPoolUpdate
 	SyncIPAM(t *tomb.Tomb) error
 	WaitReady()
 	IPNetNeedsSNAT(prefix *net.IPNet) bool
@@ -67,19 +69,20 @@ type IpamCache interface {
 type ipamCache struct {
 	log       *logrus.Entry
 	lock      sync.RWMutex
-	ippoolmap map[string]calicov3.IPPool
+	ippoolmap map[string]proto.IPAMPoolUpdate
 	ready     bool
 	readyCond *sync.Cond
 	clientv3  calicov3cli.Interface
 	vpp       *vpplink.VppLink
 
-	watcher              watch.Interface
 	currentWatchRevision string
+
+	ipamEventChan chan common.CalicoVppEvent
 }
 
 // match checks whether we have an IP pool which contains the given prefix.
 // If we have, it returns the pool.
-func (c *ipamCache) GetPrefixIPPool(prefix *net.IPNet) *calicov3.IPPool {
+func (c *ipamCache) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPoolUpdate {
 	if !c.ready {
 		c.readyCond.L.Lock()
 		for !c.ready {
@@ -111,7 +114,7 @@ func (c *ipamCache) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 	if pool == nil {
 		return false
 	} else {
-		return pool.Spec.NATOutgoing
+		return pool.Pool.Masquerade
 	}
 
 }
@@ -119,10 +122,15 @@ func (c *ipamCache) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 // update updates the internal map with IPAM updates when the update
 // is new addtion to the map or changes the existing item, it calls
 // ipamUpdateHandler
-func (c *ipamCache) handleIPPoolUpdate(pool *calicov3.IPPool, isDel bool) error {
+func (c *ipamCache) handleIPPoolUpdate(poolUpdate *proto.IPAMPoolUpdate, poolRemove *proto.IPAMPoolRemove, isDel bool) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	key := pool.Spec.CIDR
+	key := ""
+	if poolUpdate != nil {
+		key = poolUpdate.Id
+	} else {
+		key = poolRemove.Id
+	}
 
 	if key == "" {
 		c.log.Debugf("Empty pool")
@@ -133,25 +141,25 @@ func (c *ipamCache) handleIPPoolUpdate(pool *calicov3.IPPool, isDel bool) error 
 	if isDel {
 		if found {
 			delete(c.ippoolmap, key)
-			c.log.Infof("Deleting pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
+			c.log.Infof("Deleting pool: %s", key)
 			return c.ipamUpdateHandler(nil, &existing)
 		} else {
 			c.log.Warnf("Deleting unknown ippool")
 			return nil
 		}
 	} else {
-		if found && equalPools(pool, &existing) {
-			c.log.Infof("Unchanged pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
+		if found && equalPools(poolUpdate, &existing) {
+			c.log.Infof("Unchanged pool: %s, nat:%t", key, poolUpdate.Pool.Masquerade)
 			return nil
 		} else if found {
-			c.log.Infof("Updating pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
-			c.ippoolmap[key] = *pool
+			c.log.Infof("Updating pool: %s, nat:%t", key, poolUpdate.Pool.Masquerade)
+			c.ippoolmap[key] = *poolUpdate
 
-			return c.ipamUpdateHandler(pool, &existing)
+			return c.ipamUpdateHandler(poolUpdate, &existing)
 		} else {
-			c.log.Infof("Adding pool: %s, nat:%t", key, pool.Spec.NATOutgoing)
-			c.ippoolmap[key] = *pool
-			return c.ipamUpdateHandler(pool, nil /* prevPool */)
+			c.log.Infof("Adding pool: %s, nat:%t", key, poolUpdate.Pool.Masquerade)
+			c.ippoolmap[key] = *poolUpdate
+			return c.ipamUpdateHandler(poolUpdate, nil /* prevPool */)
 		}
 	}
 }
@@ -169,33 +177,23 @@ func (c *ipamCache) SyncIPAM(t *tomb.Tomb) error {
 			select {
 			case <-t.Dying():
 				c.log.Infof("IPAM Watcher asked to stop")
-				c.cleanExistingWatcher()
 				return nil
-			case update, ok := <-c.watcher.ResultChan():
-				if !ok {
-					c.log.Debug("ipam watch channel closed - restarting")
-					err := c.resyncAndCreateWatcher()
-					if err != nil {
-						goto restart
-					}
-					continue
-				}
-				switch update.Type {
-				case watch.EventType(api.WatchError):
-					c.log.Debug("ipam watch returned, restarting...")
-					goto restart
-				case watch.Deleted:
-					pool, _ := update.Previous.(*calicov3.IPPool)
-					err = c.handleIPPoolUpdate(pool, true /* del */)
-					if err != nil {
-						return errors.Wrap(err, "error processing pool del")
-					}
-				case watch.Added, watch.Modified:
-					pool, _ := update.Object.(*calicov3.IPPool)
+			case event := <-c.ipamEventChan:
+				switch event.Type {
+				case common.IpamPoolUpdate:
+					pool := event.New.(*proto.IPAMPoolUpdate)
 					if pool != nil {
-						err = c.handleIPPoolUpdate(pool, false /* del */)
+						err = c.handleIPPoolUpdate(pool, nil, false /* del */)
 						if err != nil {
 							return errors.Wrap(err, "error processing pool add / modified")
+						}
+					}
+				case common.IpamPoolRemove:
+					pool := event.Old.(*proto.IPAMPoolRemove)
+					if pool != nil {
+						err = c.handleIPPoolUpdate(nil, pool, true /* del */)
+						if err != nil {
+							return errors.Wrap(err, "error processing pool del")
 						}
 					}
 				}
@@ -203,7 +201,6 @@ func (c *ipamCache) SyncIPAM(t *tomb.Tomb) error {
 		}
 	restart:
 		c.log.Debug("restarting IPAM watcher...")
-		c.cleanExistingWatcher()
 		time.Sleep(2 * time.Second)
 	}
 	c.log.Infof("Ipam Watcher returned")
@@ -224,7 +221,15 @@ func (c *ipamCache) resyncAndCreateWatcher() error {
 		sweepMap := make(map[string]bool)
 		for _, pool := range poolsList.Items {
 			sweepMap[pool.Spec.CIDR] = true
-			err := c.handleIPPoolUpdate(&pool, false /*isdel*/)
+			poolUpdate := &proto.IPAMPoolUpdate{
+				Id: strings.Replace(pool.Spec.CIDR, "/", "-", 1), // same as felix
+				Pool: &proto.IPAMPool{
+					Cidr:       pool.Spec.CIDR,
+					Masquerade: pool.Spec.NATOutgoing,
+					IpipMode:   string(pool.Spec.IPIPMode),
+					VxlanMode:  string(pool.Spec.VXLANMode),
+				}}
+			err := c.handleIPPoolUpdate(poolUpdate, nil, false /*isdel*/)
 			if err != nil {
 				return errors.Wrap(err, "error processing startup pool update")
 			}
@@ -233,7 +238,7 @@ func (c *ipamCache) resyncAndCreateWatcher() error {
 		for key, pool := range c.ippoolmap {
 			found := sweepMap[key]
 			if !found {
-				err := c.handleIPPoolUpdate(&pool, true /*isdel*/)
+				err := c.handleIPPoolUpdate(nil, &proto.IPAMPoolRemove{Id: pool.Id}, true /*isdel*/)
 				if err != nil {
 					c.log.Errorf("error deleting ippool %s", err)
 				}
@@ -247,32 +252,15 @@ func (c *ipamCache) resyncAndCreateWatcher() error {
 			c.readyCond.L.Unlock()
 		}
 	}
-	c.cleanExistingWatcher()
-	poolsWatcher, err := c.clientv3.IPPools().Watch(
-		context.Background(),
-		options.ListOptions{ResourceVersion: c.currentWatchRevision},
-	)
-	if err != nil {
-		return errors.Wrap(err, "cannot watch pools %v")
-	}
-	c.watcher = poolsWatcher
 	return nil
 }
 
-func (c *ipamCache) cleanExistingWatcher() {
-	if c.watcher != nil {
-		c.watcher.Stop()
-		c.log.Debug("Stopped watcher")
-		c.watcher = nil
-	}
-}
-
-func (c *ipamCache) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err error) {
-	_, ipNet, err := net.ParseCIDR(pool.Spec.CIDR)
+func (c *ipamCache) addDelSnatPrefix(pool *proto.IPAMPoolUpdate, isAdd bool) (err error) {
+	_, ipNet, err := net.ParseCIDR(pool.Pool.Cidr)
 	if err != nil {
-		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Spec.CIDR)
+		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Pool.Cidr)
 	}
-	if pool.Spec.NATOutgoing {
+	if pool.Pool.Masquerade {
 		err = c.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
 		if err != nil {
 			return errors.Wrapf(err, "Couldn't configure SNAT prefix")
@@ -281,36 +269,45 @@ func (c *ipamCache) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err err
 	return nil
 }
 
-func (c *ipamCache) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) (err error) {
-	if prevPool == nil {
+func (c *ipamCache) ipamUpdateHandler(poolUpdate *proto.IPAMPoolUpdate, prevPoolUpdate *proto.IPAMPoolUpdate) (err error) {
+	if prevPoolUpdate == nil {
 		/* Add */
 		c.log.Debugf("Pool %s Added, handler called")
-		err = c.addDelSnatPrefix(pool, true /* isAdd */)
+		err = c.addDelSnatPrefix(poolUpdate, true /* isAdd */)
 		if err != nil {
 			return errors.Wrap(err, "error handling ipam add")
 		}
-	} else if pool == nil {
+	} else if poolUpdate == nil {
 		/* Deletion */
-		c.log.Debugf("Pool %s deleted, handler called", prevPool.Spec.CIDR)
-		err = c.addDelSnatPrefix(prevPool, false /* isAdd */)
+		c.log.Debugf("Pool %s deleted, handler called", prevPoolUpdate.Pool.Cidr)
+		err = c.addDelSnatPrefix(prevPoolUpdate, false /* isAdd */)
 		if err != nil {
 			return errors.Wrap(err, "error handling ipam deletion")
 		}
 	} else {
-		if pool.Spec.CIDR != prevPool.Spec.CIDR ||
-			pool.Spec.NATOutgoing != prevPool.Spec.NATOutgoing {
+		if poolUpdate.Pool.Cidr != prevPoolUpdate.Pool.Cidr ||
+			poolUpdate.Pool.Masquerade != prevPoolUpdate.Pool.Masquerade {
 			var err, err2 error
-			err = c.addDelSnatPrefix(prevPool, false /* isAdd */)
-			err2 = c.addDelSnatPrefix(pool, true /* isAdd */)
+			err = c.addDelSnatPrefix(prevPoolUpdate, false /* isAdd */)
+			err2 = c.addDelSnatPrefix(poolUpdate, true /* isAdd */)
 			if err != nil || err2 != nil {
 				return errors.Errorf("error updating snat prefix del:%s, add:%s", err, err2)
 			}
 		}
 	}
+
+	var prevPoolUpdateCopy *proto.IPAMPool
+	var poolUpdateCopy *proto.IPAMPool
+	if prevPoolUpdate != nil {
+		prevPoolUpdateCopy = &proto.IPAMPool{IpipMode: prevPoolUpdate.Pool.IpipMode, VxlanMode: prevPoolUpdate.Pool.VxlanMode}
+	}
+	if poolUpdate != nil {
+		poolUpdateCopy = &proto.IPAMPool{IpipMode: poolUpdate.Pool.IpipMode, VxlanMode: poolUpdate.Pool.VxlanMode}
+	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.IpamConfChanged,
-		Old:  prevPool.DeepCopy(),
-		New:  pool.DeepCopy(),
+		Old:  prevPoolUpdateCopy,
+		New:  poolUpdateCopy,
 	})
 	return nil
 }
@@ -326,12 +323,16 @@ func (c *ipamCache) WaitReady() {
 // create new IPAM cache
 func NewIPAMCache(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *logrus.Entry) *ipamCache {
 	cond := sync.NewCond(&sync.Mutex{})
-	return &ipamCache{
-		vpp:       vpp,
-		log:       log,
-		clientv3:  clientv3,
-		ippoolmap: make(map[string]calicov3.IPPool),
-		readyCond: cond,
-		ready:     false,
+	ipamCache := &ipamCache{
+		vpp:           vpp,
+		log:           log,
+		clientv3:      clientv3,
+		ippoolmap:     make(map[string]proto.IPAMPoolUpdate),
+		readyCond:     cond,
+		ready:         false,
+		ipamEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}
+	reg := common.RegisterHandler(ipamCache.ipamEventChan, "ipam pool watcher events")
+	reg.ExpectEvents(common.IpamPoolRemove, common.IpamPoolUpdate)
+	return ipamCache
 }
