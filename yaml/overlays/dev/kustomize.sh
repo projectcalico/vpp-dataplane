@@ -164,10 +164,11 @@ calico_create_template ()
   MAINCORE=${MAINCORE:=12}
   DPDK=${DPDK:=true}
 
-  export CALICO_AGENT_IMAGE=${CALICO_AGENT_IMAGE:=calicovpp/agent:latest}
-  export CALICO_VPP_IMAGE=${CALICO_VPP_IMAGE:=calicovpp/vpp:latest}
+  export CALICO_AGENT_IMAGE=${CALICO_AGENT_IMAGE:=docker.io/calicovpp/agent:latest}
+  export CALICO_VPP_IMAGE=${CALICO_VPP_IMAGE:=docker.io/calicovpp/vpp:latest}
+  export MULTINET_MONITOR_IMAGE=${MULTINET_MONITOR_IMAGE:=docker.io/calicovpp/multinet-monitor:latest}
   export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:=v3.20.0}
-  export CALICO_CNI_IMAGE=${CALICO_CNI_IMAGE:=calico/cni:${CALICO_VERSION_TAG}}
+  export CALICO_CNI_IMAGE=${CALICO_CNI_IMAGE:=docker.io/calico/cni:${CALICO_VERSION_TAG}}
   export IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:=IfNotPresent}
 
   export USERHOME=${HOME}
@@ -219,6 +220,7 @@ calico_create_template ()
   export CALICOVPP_DEBUG_ENABLE_POLICIES=${CALICOVPP_DEBUG_ENABLE_POLICIES:=true}
   export CALICOVPP_DEBUG_ENABLE_NAT=${CALICOVPP_DEBUG_ENABLE_NAT:=true}
   export CALICOVPP_DEBUG_ENABLE_MAGLEV=${CALICOVPP_DEBUG_ENABLE_MAGLEV:=true}
+  export CALICOVPP_ENABLE_MULTINET=${CALICOVPP_ENABLE_MULTINET:=true}
   export CALICOVPP_ENABLE_MEMIF=${CALICOVPP_ENABLE_MEMIF:=true}
   export CALICOVPP_ENABLE_VCL=${CALICOVPP_ENABLE_VCL:=true}
   export CALICOVPP_IPSEC_IKEV2_PSK=${CALICOVPP_IPSEC_IKEV2_PSK:=keykeykey}
