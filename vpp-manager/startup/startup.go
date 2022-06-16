@@ -228,6 +228,7 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 		}
 		params.ServiceCIDRs = append(params.ServiceCIDRs, *serviceCIDR)
 	}
+	config.Info.ServiceCIDRs = params.ServiceCIDRs
 
 	mainInterfaceSpec.VppIpConfSource = getEnvValue(IpConfigEnvVar)
 	if mainInterfaceSpec.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
@@ -312,9 +313,12 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", UserSpecifiedMtuEnvVar, conf, userSpecifiedMtu, err)
 		}
 		params.UserSpecifiedMtu = int(userSpecifiedMtu)
+		config.Info.UserSpecifiedMtu = params.UserSpecifiedMtu
 	} else {
 		params.UserSpecifiedMtu = 0
+		config.Info.UserSpecifiedMtu = 0
 	}
+	//utils.WriteInfoFile()
 
 	params.TapRxQueueSize = DefaultTapQueueSize
 	params.TapTxQueueSize = DefaultTapQueueSize

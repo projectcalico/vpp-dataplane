@@ -13,20 +13,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package vpp_manager_watchers
 
 import (
 	"sync"
 	"time"
 
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
 type LinkWatcher struct {
-	LinkIndex     int
-	LinkName      string
-	MTU           int
+	LinkMap       map[int]*config.Link
 	close         chan struct{}
 	netlinkFailed chan struct{}
 	stop          bool
@@ -52,9 +51,9 @@ func (r *LinkWatcher) netlinkError(err error) {
 	r.netlinkFailed <- struct{}{}
 }
 
-func (r *LinkWatcher) ResetMTU(link netlink.Link) (err error) {
+func (r *LinkWatcher) ResetMTU(link netlink.Link, mtu int) (err error) {
 	//TODO
-	return netlink.LinkSetMTU(link, r.MTU)
+	return netlink.LinkSetMTU(link, mtu)
 }
 
 func (r *LinkWatcher) safeClose() {
@@ -89,17 +88,19 @@ func (r *LinkWatcher) WatchLinks() {
 			r.safeClose()
 			goto restart
 		}
-		link, err = netlink.LinkByIndex(r.LinkIndex)
-		if err != nil || link.Attrs().Name != r.LinkName {
-			log.Errorf("error getting link to watch: %v %v", link, err)
-			r.safeClose()
-			goto restart
-		}
-		// Set the MTU on watch restart
-		if err = r.ResetMTU(link); err != nil {
-			log.Errorf("error resetting MTU, sleeping before retrying: %v", err)
-			r.safeClose()
-			goto restart
+		for index, existingLink := range r.LinkMap {
+			link, err = netlink.LinkByIndex(index)
+			if err != nil || link.Attrs().Name != existingLink.Name {
+				log.Errorf("error getting link to watch: %v %v", link, err)
+				r.safeClose()
+				goto restart
+			}
+			// Set the MTU on watch restart
+			if err = r.ResetMTU(link, existingLink.MTU); err != nil {
+				log.Errorf("error resetting MTU, sleeping before retrying: %v", err)
+				r.safeClose()
+				goto restart
+			}
 		}
 		for {
 			select {
@@ -115,10 +116,10 @@ func (r *LinkWatcher) WatchLinks() {
 					/* channel closed, restart */
 					goto restart
 				}
-				if update.Attrs().Index == r.LinkIndex {
-					if update.Attrs().Name == r.LinkName {
-						if update.Attrs().MTU != r.MTU {
-							if err = r.ResetMTU(update); err != nil {
+				if existingLink, found := r.LinkMap[update.Attrs().Index]; found {
+					if update.Attrs().Name == existingLink.Name {
+						if update.Attrs().MTU != existingLink.MTU {
+							if err = r.ResetMTU(update, existingLink.MTU); err != nil {
 								log.Warnf("Error resetting link mtu: %v", err)
 								r.safeClose()
 								goto restart

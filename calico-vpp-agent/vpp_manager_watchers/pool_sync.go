@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package vpp_manager_watchers
 
 import (
 	"context"
@@ -34,11 +34,13 @@ import (
 
 type PoolWatcher struct {
 	RouteWatcher *RouteWatcher
-	params       *config.VppManagerParams
-	conf         *config.LinuxInterfaceState
 
 	watcher              watch.Interface
 	currentWatchRevision string
+	UserSpecifiedMtu int
+	Mtu int
+	FakeNextHopIP4 net.IP
+	FakeNextHopIP6 net.IP
 }
 
 func (p *PoolWatcher) getNetworkRoute(network string) (route *netlink.Route, err error) {
@@ -48,17 +50,29 @@ func (p *PoolWatcher) getNetworkRoute(network string) (route *netlink.Route, err
 		return nil, errors.Wrapf(err, "error parsing %s", network)
 	}
 
-	gw := fakeNextHopIP4
+	gw := p.FakeNextHopIP4
 	if cidr.IP.To4() == nil {
-		gw = fakeNextHopIP6
+		gw = p.FakeNextHopIP6
 	}
 
 	return &netlink.Route{
 		Dst:      cidr,
 		Gw:       gw,
 		Protocol: syscall.RTPROT_STATIC,
-		MTU:      config.GetUplinkMtu(p.params, p.conf, true /* includeEncap */),
+		MTU:      GetUplinkMtu(p.UserSpecifiedMtu, p.Mtu, true /* includeEncap */),
 	}, nil
+}
+
+func GetUplinkMtu(userSpecifiedMtu int, mtu int, includeEncap bool) int {
+	encapSize := 0
+	if includeEncap {
+		encapSize = config.DefaultEncapSize
+	}
+	// Use the linux interface MTU as default value if nothing is configured from env
+	if userSpecifiedMtu == 0 {
+		return mtu - encapSize
+	}
+	return userSpecifiedMtu - encapSize
 }
 
 func (p *PoolWatcher) poolAdded(network string) error {

@@ -59,7 +59,7 @@ func getInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxIn
 		for i := range conf {
 			if conf[i] == nil {
 				for j := range confFile {
-					if confFile[j].InterfaceName == params.InterfacesSpecs[i].InterfaceName{
+					if confFile[j].InterfaceName == params.InterfacesSpecs[i].InterfaceName {
 						conf[i] = confFile[j]
 					}
 				}
@@ -113,6 +113,10 @@ func loadInterfaceConfigFromLinux(ifSpec config.InterfaceSpec) (*config.LinuxInt
 	conf.NumTxQueues = link.Attrs().NumTxQueues
 	conf.NumRxQueues = link.Attrs().NumRxQueues
 	conf.Mtu = link.Attrs().MTU
+	if ifSpec.IsMain {
+		config.Info.MainUplinkMtu = conf.Mtu
+		//utils.WriteInfoFile()
+	}
 	_, conf.IsTunTap = link.(*netlink.Tuntap)
 	_, conf.IsVeth = link.(*netlink.Veth)
 

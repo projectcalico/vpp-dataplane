@@ -57,9 +57,6 @@ type VppRunner struct {
 	conf         []*config.LinuxInterfaceState
 	vpp          *vpplink.VppLink
 	uplinkDriver []uplink.UplinkDriver
-	routeWatcher *RouteWatcher
-	poolWatcher  *PoolWatcher
-	linkWatcher  *LinkWatcher
 }
 
 func NewVPPRunner(params *config.VppManagerParams, confs []*config.LinuxInterfaceState) *VppRunner {
@@ -283,25 +280,8 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 
 	// Determine a suitable next hop for the cluster routes
 	v.pickNextHopIP(ifState)
-
-	for _, serviceCIDR := range v.params.ServiceCIDRs {
-		// Add a route for the service prefix through VPP. This is required even if kube-proxy is
-		// running on the host to ensure correct source address selection if the host has multiple interfaces
-		log.Infof("Adding route to service prefix %s through VPP", serviceCIDR.String())
-		gw := fakeNextHopIP4
-		if serviceCIDR.IP.To4() == nil {
-			gw = fakeNextHopIP6
-		}
-		err = v.routeWatcher.AddRoute(&netlink.Route{
-			Dst:      &serviceCIDR,
-			Gw:       gw,
-			Protocol: syscall.RTPROT_STATIC,
-			MTU:      config.GetUplinkMtu(v.params, &ifState, true /* includeEncap */),
-		})
-		if err != nil {
-			return errors.Wrapf(err, "cannot add tap route to service %s", serviceCIDR.String())
-		}
-	}
+	config.Info.FakeNextHopIP4 = fakeNextHopIP4
+	config.Info.FakeNextHopIP6 = fakeNextHopIP6
 	return nil
 }
 
@@ -531,14 +511,8 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrapf(err, "Error setting %d MTU on tap interface", vpplink.MAX_MTU)
 	}
 
-	err = utils.WriteFile(strconv.FormatInt(int64(tapSwIfIndex), 10), config.VppManagerTapIdxFile)
-	if err != nil {
-		return errors.Wrap(err, "Error writing linux mtu")
-	}
-
-	err = utils.WriteFile(strconv.FormatInt(int64(uplinkMtu), 10), config.VppManagerLinuxMtu)
-	if err != nil {
-		return errors.Wrap(err, "Error writing tap idx")
+	if config.Info.Uplinks != nil {
+		config.Info.Uplinks[int(tapSwIfIndex)] = int(uplinkMtu)
 	}
 
 	if ifState.Hasv6 {
@@ -611,13 +585,8 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrap(err, "Error setting tap up")
 	}
 
-	if v.params.UserSpecifiedMtu != 0 {
-		v.linkWatcher = &LinkWatcher{
-			LinkIndex: link.Attrs().Index,
-			LinkName:  link.Attrs().Name,
-			MTU:       uplinkMtu,
-		}
-	}
+	config.Info.LinkMap[link.Attrs().Index] = &config.Link{Name: link.Attrs().Name, MTU: uplinkMtu}
+	//utils.WriteInfoFile()
 	return nil
 }
 
@@ -779,13 +748,6 @@ func (v *VppRunner) runVpp() (err error) {
 		return fmt.Errorf("cannot connect to VPP after 10 tries")
 	}
 
-	v.routeWatcher = &RouteWatcher{}
-	v.poolWatcher = &PoolWatcher{
-		RouteWatcher: v.routeWatcher,
-		params:       v.params,
-		conf:         v.conf[0],
-	}
-
 	err = v.allocateStaticVRFs()
 	if err != nil {
 		terminateVpp("Error connecting to VPP (SIGINT %d): %v", vppProcess.Pid, err)
@@ -812,9 +774,6 @@ func (v *VppRunner) runVpp() (err error) {
 			return errors.Wrap(err, "Error setting data interface up")
 		}
 
-		if idx == 0 {
-			go v.routeWatcher.WatchRoutes()
-		}
 		// Configure VPP
 		err = v.configureVpp(v.conf[idx], v.params.InterfacesSpecs[idx])
 
@@ -833,14 +792,10 @@ func (v *VppRunner) runVpp() (err error) {
 		return errors.Wrap(err, "Error updating Calico node: please check inter-node connectivity and service prefix")
 	}
 
-	utils.WriteFile("1", config.VppManagerStatusFile)
+	config.Info.Status = 1
+	utils.WriteInfoFile()
 
 	var t tomb.Tomb
-
-	t.Go(func() error { v.poolWatcher.SyncPools(&t); return nil })
-	if v.linkWatcher != nil {
-		go v.linkWatcher.WatchLinks()
-	}
 
 	// close vpp as we do not program
 	v.vpp.Close()
@@ -851,10 +806,6 @@ func (v *VppRunner) runVpp() (err error) {
 
 	t.Killf("Vpp exited, stopping watchers")
 
-	v.routeWatcher.Stop()
-	if v.linkWatcher != nil {
-		v.linkWatcher.Stop()
-	}
 	return nil
 }
 
