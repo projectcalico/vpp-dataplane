@@ -1,0 +1,37 @@
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: pol
+spec:
+  selector: demo == 'demo'
+  ingress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      ports:
+      - 3434
+  - action: Allow
+    protocol: TCP
+    metadata:
+      annotations:
+        extensions.projectcalico.org/network: "blue" 
+    destination:
+      ports:
+      - 7809
+  egress:
+  - action: Allow
+    protocol: TCP
+    metadata:
+      annotations:
+        extensions.projectcalico.org/network: "red"    
+    destination:
+      ports:
+      - 5555
+  - action: Allow
+    protocol: TCP
+    metadata:
+      annotations:
+        extensions.projectcalico.org/network: "red"    
+    destination:
+      ports:
+      - 5588
