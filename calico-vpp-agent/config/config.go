@@ -16,6 +16,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 )
@@ -34,9 +36,7 @@ const (
 	CNIServerSocket        = "/var/run/calico/cni-server.sock"
 	FelixDataplaneSocket   = "/var/run/calico/felix-dataplane.sock"
 	VppAPISocket           = "/var/run/vpp/vpp-api.sock"
-	VppManagerStatusFile   = "/var/run/vpp/vppmanagerstatus"
-	VppManagerTapIdxFile   = "/var/run/vpp/vppmanagertap0"
-	VppManagerLinuxMtu     = "/var/run/vpp/vppmanagerlinuxmtu"
+	VppManagerInfoFile     = "/var/run/vpp/vppmanagerinfofile"
 	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
 	CniServerStateFile     = "/var/run/vpp/calico_vpp_pod_state"
 
@@ -139,12 +139,19 @@ func getEnvValue(str string) string {
 }
 
 func fetchHostMtu() (mtu int, err error) {
+	vppManagerInfo := &vppmanagerconfig.VppManagerInfo{}
 	for i := 0; i < 20; i++ {
-		dat, err := ioutil.ReadFile(VppManagerLinuxMtu)
+		dat, err := ioutil.ReadFile(VppManagerInfoFile)
 		if err == nil {
-			idx, err := strconv.ParseInt(strings.TrimSpace(string(dat[:])), 10, 32)
-			if err == nil && idx != -1 {
-				return int(idx), nil
+			err2 := json.Unmarshal(dat, vppManagerInfo)
+			if err2 == nil && len(vppManagerInfo.Uplinks) != 0 {
+				minMtu := 1000000
+				for _, v := range vppManagerInfo.Uplinks {
+					if v < minMtu {
+						minMtu = v
+					}
+				}
+				return minMtu, nil
 			}
 		}
 		time.Sleep(1 * time.Second)

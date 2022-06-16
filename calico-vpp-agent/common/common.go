@@ -16,6 +16,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -35,6 +36,7 @@ import (
 	bgpapi "github.com/osrg/gobgp/api"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -87,15 +89,21 @@ func CreateVppLinkInRetryLoop(socket string, log *logrus.Entry, timeout time.Dur
 	return nil, errors.Errorf("Cannot connect to VPP after 10 tries")
 }
 
-func WaitForVppManager() error {
+func WaitForVppManager() (*vppmanagerconfig.VppManagerInfo, error) {
+	vppManagerInfo := &vppmanagerconfig.VppManagerInfo{}
 	for i := 0; i < 20; i++ {
-		dat, err := ioutil.ReadFile(config.VppManagerStatusFile)
-		if err == nil && strings.TrimSpace(string(dat[:])) == "1" {
-			return nil
+		dat, err := ioutil.ReadFile(config.VppManagerInfoFile)
+		if err == nil {
+			err2 := json.Unmarshal(dat, vppManagerInfo)
+			if err2 != nil {
+				return nil, errors.Errorf("cannot unmarshal vpp manager info file", err2)
+			} else if vppManagerInfo.Status == 1 {
+				return vppManagerInfo, nil
+			}
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return errors.Errorf("Vpp manager not ready after 20 tries")
+	return nil, errors.Errorf("Vpp manager not ready after 20 tries")
 }
 
 func WritePidToFile() error {
@@ -144,22 +152,6 @@ func FullyQualified(addr net.IP) *net.IPNet {
 		IP:   addr,
 		Mask: GetMaxCIDRMask(addr),
 	}
-}
-
-// This function and the related mechanism in vpmanager are curently kept around
-// in case they're useful for the Host Endpoint policies implementation
-func GetVppTapSwifIndex() (swIfIndex uint32, err error) {
-	for i := 0; i < 20; i++ {
-		dat, err := ioutil.ReadFile(config.VppManagerTapIdxFile)
-		if err == nil {
-			idx, err := strconv.ParseInt(strings.TrimSpace(string(dat[:])), 10, 32)
-			if err == nil && idx != -1 {
-				return uint32(idx), nil
-			}
-		}
-		time.Sleep(1 * time.Second)
-	}
-	return 0, errors.Errorf("Vpp-host tap not ready after 20 tries")
 }
 
 const (
