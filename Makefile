@@ -22,6 +22,7 @@ push:
 dev:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
+	$(MAKE) -C multinet-monitor $@
 
 .PHONY: proto
 proto:

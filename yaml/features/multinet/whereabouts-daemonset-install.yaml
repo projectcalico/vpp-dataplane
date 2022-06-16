@@ -77,7 +77,7 @@ spec:
         app: whereabouts
         name: whereabouts
     spec:
-      hostNetwork: true      
+      hostNetwork: true
       serviceAccountName: whereabouts
       nodeSelector:
         beta.kubernetes.io/arch: amd64
