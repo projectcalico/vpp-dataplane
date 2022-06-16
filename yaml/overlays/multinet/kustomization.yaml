@@ -1,0 +1,6 @@
+resources:
+- monitor-deployment.yaml
+bases:
+- ../../base
+patchesStrategicMerge:
+- multinet.yaml
