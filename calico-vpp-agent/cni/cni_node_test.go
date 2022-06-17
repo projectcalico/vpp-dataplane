@@ -38,6 +38,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks/calico"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
@@ -109,14 +110,16 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		connectivityServer *connectivity.ConnectivityServer
 		client             *calico.CalicoClientStub
 		ipamStub           *mocks.IpamCacheStub
+		pubSubHandlerMock  *mocks.PubSubHandlerMock
 		uplinkSwIfIndex    uint32
 	)
 	BeforeEach(func() {
+		log = logrus.New()
 		client = calico.NewCalicoClientStub()
+		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 	})
 
 	JustBeforeEach(func() {
-		log = logrus.New()
 		startVPP()
 		vpp, uplinkSwIfIndex = configureVPP(log)
 
@@ -124,7 +127,6 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		if ipamStub == nil {
 			ipamStub = mocks.NewIpamCacheStub()
 		}
-		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 		connectivityServer = connectivity.NewConnectivityServer(vpp, ipamStub, client,
 			log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 		connectivityServer.SetOurBGPSpec(&oldv3.NodeBGPSpec{})
@@ -179,6 +181,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						VXLANMode: apiv3.VXLANModeAlways, // important for connectivity provider selection
 					},
 				})
+
+				// setup PubSub handler to catch TunnelAdded events
+				pubSubHandlerMock = mocks.NewPubSubHandlerMock(common.TunnelAdded)
+				pubSubHandlerMock.Start()
 			})
 
 			// TODO test removal of VXLAN tunnel
@@ -220,7 +226,78 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					SwIfIndex:      vxlanSwIfIndex,
 				}))
 
-				// TODO check vxlan interface properties + 2 route + implication of sending CalicoVppEvent of type common.TunnelAdded
+				By("checking VXLAN tunnel interface attributes (Unnumbered)")
+				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(vxlanSwIfIndex)
+				Expect(err).ToNot(HaveOccurred(),
+					"can't get unnumbered details of VXLAN tunnel interface")
+				Expect(unnumberedDetails.IPSwIfIndex).To(Equal(
+					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
+					"Unnumberred VXLAN tunnel interface doesn't get IP address from expected interface")
+
+				By("checking VXLAN tunnel interface attributes (GSO+CNAT)")
+				// Note: no specialized binary api or VPP CLI for getting GSO on VXLAN tunne interface -> using
+				// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
+				// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
+				featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", vxlanSwIfIndex))
+				Expect(err).ToNot(HaveOccurred(),
+					"failed to get VXLAN tunnel interface's configured features")
+				featuresStr = strings.ToLower(featuresStr)
+				var GSOFeatureArcs = []string{"gso-ip4", "gso-ip6", "gso-l2-ip4", "gso-l2-ip6"}
+				for _, gsoStr := range GSOFeatureArcs {
+					// Note: not checking full Feature Arc (i.e. ipv4-unicast: gso-ipv4), just the destination
+					// of traffic steering. This is enough because without GSO enabled, the destination would not exist.
+					Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
+						"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
+				}
+				var CNATFeatureArcs = []string{"cnat-input-ip4", "cnat-input-ip6", "cnat-output-ip4", "cnat-output-ip6"}
+				for _, cnatStr := range CNATFeatureArcs {
+					// Note: could be enhanced by checking the full Feature Arc (from where we steer traffic to cnat)
+					Expect(featuresStr).To(ContainSubstring(cnatStr), fmt.Sprintf("CNAT not fully enabled "+
+						"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
+				}
+
+				By("checking VXLAN tunnel interface attributes (Up state)")
+				interfaceDetails, err := vpp.GetInterfaceDetails(vxlanSwIfIndex)
+				Expect(err).ToNot(HaveOccurred(), "can't get VXLAN tunnel interface's basic attributes ")
+				Expect(interfaceDetails.IsUp).To(BeTrue(), "VXLAN tunnel interface should be in UP state")
+
+				By("checking 2 routes")
+				routes, err := vpp.GetRoutes(common.PodVRFIndex, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for Pod VRF")
+				Expect(routes).To(ContainElements(
+					// when VXLAN is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
+					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+						"Dst": gs.PointTo(Equal(*ipNet(GatewayIP + "/32"))),
+						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+							"SwIfIndex": Equal(vxlanSwIfIndex),
+						})),
+					})))
+				routes, err = vpp.GetRoutes(common.DefaultVRFIndex, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for default VRF")
+				Expect(routes).To(ContainElements(
+					// steering route for NodeConnectivity.Dst using vxlan that is leading to the added node
+					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
+						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+							"SwIfIndex": Equal(vxlanSwIfIndex),
+							"Gw":        Equal(net.ParseIP(ThisNodeIP).To4()), // TODO why this node IP when leaving node ?
+						})),
+					}),
+				), "Can't find 2 routes that should steer the traffic to newly added node")
+
+				By("checking pushing of TunnelAdded event")
+				// Note: VPP configuration done by receiver of this event is out of scope for this test
+				Expect(pubSubHandlerMock.ReceivedEvents).To(ContainElement(common.CalicoVppEvent{
+					Type: common.TunnelAdded,
+					New:  vxlanSwIfIndex,
+				}))
+			})
+
+			AfterEach(func() {
+				if pubSubHandlerMock != nil {
+					Expect(pubSubHandlerMock.Stop()).ToNot(HaveOccurred(),
+						"can't properly stop mock of PubSub's handler")
+				}
 			})
 		})
 		Context("With IP-IP connectivity", func() {
