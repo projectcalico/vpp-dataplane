@@ -220,21 +220,55 @@ calico_create_template ()
   export CALICOVPP_DEBUG_ENABLE_POLICIES=${CALICOVPP_DEBUG_ENABLE_POLICIES:=true}
   export CALICOVPP_DEBUG_ENABLE_NAT=${CALICOVPP_DEBUG_ENABLE_NAT:=true}
   export CALICOVPP_DEBUG_ENABLE_MAGLEV=${CALICOVPP_DEBUG_ENABLE_MAGLEV:=true}
-  export CALICOVPP_ENABLE_MULTINET=${CALICOVPP_ENABLE_MULTINET:=true}
+  export CALICOVPP_ENABLE_MULTINET=${CALICOVPP_ENABLE_MULTINET:=false}
   export CALICOVPP_ENABLE_MEMIF=${CALICOVPP_ENABLE_MEMIF:=true}
   export CALICOVPP_ENABLE_VCL=${CALICOVPP_ENABLE_VCL:=true}
   export CALICOVPP_IPSEC_IKEV2_PSK=${CALICOVPP_IPSEC_IKEV2_PSK:=keykeykey}
   export CALICOVPP_IPSEC_CROSS_TUNNELS=${CALICOVPP_IPSEC_CROSS_TUNNELS:=false}
   export CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES=${CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES}
   export CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD=${CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD:=0}
+  if [ x$CALICOVPP_ENABLE_MULTINET = xtrue ]; then export USE_MULTINET_MONITOR_DEV_PATCH=true ; fi
 
   cd $SCRIPTDIR
+
+cat > kustomization.yaml <<EOF
+bases:
+  - ../../base
+  - installation-dev.yaml
+
+${USE_MULTINET_MONITOR_DEV_PATCH:+components:}
+${USE_MULTINET_MONITOR_DEV_PATCH:+  - ../../components/multinet}
+
+configMapGenerator:
+# extra dev config for the VPP-agent
+  - name: calico-agent-dev-config
+    namespace: calico-vpp-dataplane
+    env: props/calico-agent-dev-config.properties
+# extra dev config for VPP
+  - name: vpp-dev-config
+    namespace: calico-vpp-dataplane
+    env: props/vpp-dev-config.properties
+# Override base/calico-vpp-daemonset.yaml config variables
+  - name: calico-vpp-config
+    namespace: calico-vpp-dataplane
+    env: props/calico-vpp-config.properties
+    behavior: merge
+generatorOptions:
+  disableNameSuffixHash: true
+
+patchesStrategicMerge:
+  - calico-vpp-daemonset-dev-patch.yaml
+${USE_MULTINET_MONITOR_DEV_PATCH:+  - multinet-monitor-dev-patch.yaml}
+EOF
+
   kubectl kustomize . | \
 	envsubst | \
 	sed "s/^  name: vpp-dev-config/  name: vpp-dev-config\n  namespace: calico-vpp-dataplane/g" | \
 	sed "s/^  name: calico-agent-dev-config/  name: calico-agent-dev-config\n  namespace: calico-vpp-dataplane/g" | \
 	sed "s/^  name: calico-vpp-config/  name: calico-vpp-config\n  namespace: calico-vpp-dataplane/g" | \
 	sudo tee /tmp/calico-vpp.yaml > /dev/null
+
+  rm kustomization.yaml
 }
 
 function calico_up_cni ()
