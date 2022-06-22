@@ -1,0 +1,13 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multinet-monitor-deployment
+  namespace: calico-vpp-dataplane
+spec:
+  template:
+    spec:
+      containers:
+        - name: multinet-monitor
+          image: ${MULTINET_MONITOR_IMAGE}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}

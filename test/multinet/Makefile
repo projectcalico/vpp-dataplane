@@ -24,12 +24,22 @@ install:
 .PHONY: delete
 delete:
 	@echo "--Deleting whereabouts daemonset..."
-	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
-	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
-	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/ip-reconciler-job.yaml
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/ip-reconciler-job.yaml
 	@echo "--Deleting multus daemonset..."
-	@kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick-plugin.yml
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick-plugin.yml
 	@echo "--Deleting network CRD..."
-	@kubectl apply -f ../../yaml/features/multinet/projectcalico.org_networks.yaml
-	@kubectl apply -f ../../yaml/features/multinet/whereabouts-daemonset-install.yaml
-
+	@kubectl delete -f ../../yaml/features/multinet/projectcalico.org_networks.yaml
+	@kubectl delete -f ../../yaml/features/multinet/whereabouts-daemonset-install.yaml
+	@echo "--Removing pod & CNI installation..."
+	@kubectl -n calico-vpp-dataplane delete deployment multinet-monitor-deployment
+	@( \
+	  for cid in `kubectl -n calico-vpp-dataplane get pods -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}'` ;\
+	  do \
+		kubectl exec -it -n calico-vpp-dataplane $$cid -c vpp -- \
+		  rm -rvf /host/etc/cni/net.d/multus.d \
+		          /host/etc/cni/net.d/whereabouts.d \
+		          /host/etc/cni/net.d/00-multus.conf ;\
+	  done ;\
+	)
