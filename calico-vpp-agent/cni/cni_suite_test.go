@@ -1,4 +1,4 @@
-package main_test
+package cni_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestCmd(t *testing.T) {
+func TestCni(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Cmd Suite")
+	RunSpecs(t, "Cni Suite")
 }
