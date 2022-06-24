@@ -494,7 +494,7 @@ func (v *VppLink) DelTap(swIfIndex uint32) error {
 	return nil
 }
 
-func (v *VppLink) InterfaceGetUnnumbered(swIfIndex uint32) (result *vppip.IPUnnumberedDetails, err error) {
+func (v *VppLink) InterfaceGetUnnumbered(swIfIndex uint32) (result []*vppip.IPUnnumberedDetails, err error) {
 	request := &vppip.IPUnnumberedDump{SwIfIndex: interface_types.InterfaceIndex(swIfIndex)}
 	stream := v.ch.SendMultiRequest(request)
 	for {
@@ -506,7 +506,7 @@ func (v *VppLink) InterfaceGetUnnumbered(swIfIndex uint32) (result *vppip.IPUnnu
 		if stop {
 			break
 		}
-		result = response
+		result = append(result, response)
 	}
 	return
 }

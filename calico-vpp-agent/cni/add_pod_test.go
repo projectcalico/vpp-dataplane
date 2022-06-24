@@ -1,4 +1,4 @@
-package main_test
+package cni_test
 
 import (
 	"context"
@@ -19,12 +19,12 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Cni", func() {
+var _ = Describe("AddPod", func() {
+
 	var log *logrus.Logger
 	var vpp *vpplink.VppLink
 	var err error
@@ -32,13 +32,7 @@ var _ = Describe("Cni", func() {
 	log = logrus.New()
 	var vppCmd *exec.Cmd
 
-	arg := os.Args //(1:namespace) (2:pod name) (3:interface type) (4:interface name) (5:network prefix)
-	var vppBinary string
-	if len(arg) < 2 {
-		vppBinary = "/usr/bin/vpp"
-	} else {
-		vppBinary = arg[1]
-	}
+	vppBinary := os.Getenv("VPP_BIN")
 
 	if ns.IsNSorErr("/run/netns/vpptest") != nil {
 		netns.NewNamed("vpptest")
@@ -100,10 +94,9 @@ var _ = Describe("Cni", func() {
 		}
 	}
 	ipam := watchers.NewIPAMCache(vpp, nil, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
+	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 	cniServer := cni.NewCNIServer(vpp, ipam, log.WithFields(logrus.Fields{"component": "cni"}))
 	cniServer.SetFelixConfig(&config.Config{})
-	common.InitRestartHandler()
-	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 
 	BeforeEach(func() {
 		ipAddress = "1.2.3.44"
@@ -144,14 +137,11 @@ var _ = Describe("Cni", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(rightAdressInLinux).To(BeTrue())
 				log.Infof("checked eth0 interface in linux with address in pool")
-				var ifSwIfIndex uint32
-				ifSwIfIndex, err = vpp.SearchInterfaceWithTag("tun-/run/netns/pod-test-newInterface") //is tag truncated?
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(ifSwIfIndex).NotTo(BeZero())
-				couple, err := vpp.InterfaceGetUnnumbered(ifSwIfIndex)
+				couples, err := vpp.InterfaceGetUnnumbered(vpplink.InvalidID)
 				if err != nil {
 					log.Error(err)
 				}
+				couple := couples[0]
 				Expect(err).ShouldNot(HaveOccurred())
 				lb := uint32(couple.IPSwIfIndex)
 				addrList, err := vpp.AddrList(lb, false)
@@ -167,10 +157,11 @@ var _ = Describe("Cni", func() {
 				}
 				Expect(correctAdress).To(BeTrue())
 				log.Infof("checked tun in vpp with eth0 address")
-				b, err := vpp.GetInterfaceDetails(ifSwIfIndex)
+				b, err := vpp.GetInterfaceDetails(uint32(couple.SwIfIndex))
 				if err != nil {
 					log.Error(err)
 				}
+				log.Infof("%v", b.Tag)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(int(b.Mtu[0])).To(Equal(vpplink.MAX_MTU))
 				log.Infof("checked right mtu")
