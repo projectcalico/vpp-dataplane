@@ -1,0 +1,71 @@
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: network-blue-conf
+spec:
+  config: |-
+    {
+      "name": "network-blue",
+      "cniVersion": "0.3.0",
+      "plugins": [
+        {
+          "type": "calico",
+          "log_level": "debug",
+          "datastore_type": "kubernetes",
+          "mtu": 0,
+          "ipam": {
+              "type": "whereabouts",
+              "enable_overlapping_ranges": false,
+              "log_file" : "/tmp/whereabouts.log",
+              "network" : "blue"
+          },
+          "policy": {
+              "type": "k8s"
+          },
+          "kubernetes": {
+              "kubeconfig": "/etc/cni/net.d/calico-kubeconfig"
+          },
+          "dataplane_options": {
+            "type": "grpc",
+            "socket": "unix:///var/run/calico/cni-server.sock",
+            "network_name": "blue"
+          }
+        }
+      ]
+    }
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: network-red-conf
+spec:
+  config: |-
+    {
+      "name": "network-red",
+      "cniVersion": "0.3.0",
+      "plugins": [
+        {
+          "type": "calico",
+          "log_level": "debug",
+          "datastore_type": "kubernetes",
+          "mtu": 0,
+          "ipam": {
+              "type": "whereabouts",
+              "enable_overlapping_ranges": false,
+              "log_file" : "/tmp/whereabouts.log",
+              "network" : "red"
+          },
+          "policy": {
+              "type": "k8s"
+          },
+          "kubernetes": {
+              "kubeconfig": "/etc/cni/net.d/calico-kubeconfig"
+          },
+          "dataplane_options": {
+            "type": "grpc",
+            "socket": "unix:///var/run/calico/cni-server.sock",
+            "network_name": "red"
+          }
+        }
+      ]
+    }

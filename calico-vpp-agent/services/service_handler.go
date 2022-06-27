@@ -20,6 +20,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -191,7 +192,7 @@ func (s *Server) advertiseSpecificRoute(added []net.IP, deleted []net.IP) {
 		if s.isAddressExternalServiceIP(specificRoute) {
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.LocalPodAddressDeleted,
-				Old:  common.ToMaxLenCIDR(specificRoute),
+				Old:  cni.NetworkPod{ContainerIP: common.ToMaxLenCIDR(specificRoute), NetworkVni: 0},
 			})
 			s.log.Infof("Withdrawing advertisement for service specific route Addresses %+v", specificRoute)
 		}
@@ -200,7 +201,7 @@ func (s *Server) advertiseSpecificRoute(added []net.IP, deleted []net.IP) {
 		if s.isAddressExternalServiceIP(specificRoute) {
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.LocalPodAddressAdded,
-				New:  common.ToMaxLenCIDR(specificRoute),
+				New: cni.NetworkPod{ContainerIP: common.ToMaxLenCIDR(specificRoute), NetworkVni: 0},
 			})
 			s.log.Infof("Announcing service specific route Addresses %+v", specificRoute)
 		}

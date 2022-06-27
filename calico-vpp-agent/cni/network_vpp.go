@@ -17,6 +17,7 @@ package cni
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
@@ -34,6 +35,11 @@ type PodNSNotFoundErr struct {
 
 func (e PodNSNotFoundErr) Error() string {
 	return fmt.Sprintf("Netns '%s' doesn't exist, skipping", e.ns)
+}
+
+type NetworkPod struct {
+	NetworkVni  uint32
+	ContainerIP *net.IPNet
 }
 
 func (s *Server) checkAvailableBuffers() error {
@@ -76,11 +82,13 @@ func (s *Server) findPodVRFs(podSpec *storage.LocalPodSpec) bool {
 	return false
 }
 
-func (s *Server) removeConflictingContainers(newAddresses []storage.LocalIP) {
+func (s *Server) removeConflictingContainers(newAddresses []storage.LocalIP, networkName string) {
 	addrMap := make(map[string]storage.LocalPodSpec)
 	for _, podSpec := range s.podInterfaceMap {
 		for _, addr := range podSpec.ContainerIps {
-			addrMap[addr.IP.String()] = podSpec
+			if podSpec.NetworkName == networkName {
+				addrMap[addr.IP.String()] = podSpec
+			}
 		}
 	}
 	podSpecsToDelete := make(map[string]storage.LocalPodSpec)
@@ -104,6 +112,8 @@ func (s *Server) removeConflictingContainers(newAddresses []storage.LocalIP) {
 
 // AddVppInterface performs the networking for the given config and IPAM result
 func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
+	s.multinetLock.Lock()
+	defer s.multinetLock.Unlock()
 	podSpec.NeedsSnat = false
 	for _, containerIP := range podSpec.GetContainerIps() {
 		podSpec.NeedsSnat = podSpec.NeedsSnat || s.ipam.IPNetNeedsSNAT(containerIP)
@@ -114,6 +124,14 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		return vpplink.InvalidID, PodNSNotFoundErr{podSpec.NetnsName}
 	}
 
+	if podSpec.NetworkName != "" {
+		s.log.Infof("Checking network exists")
+		_, found := s.networkDefinitions[podSpec.NetworkName]
+		if !found {
+			s.log.Errorf("network %s does not exist", podSpec.NetworkName)
+			return vpplink.InvalidID, errors.Errorf("network %s does not exist", podSpec.NetworkName)
+		}
+	}
 	/**
 	 * Check if the VRFs already exist in VPP,
 	 * if yes we postulate the pod is already well setup
@@ -131,10 +149,10 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	 * As we did not find the VRF in VPP, we shouldn't find
 	 * ourselves in s.podInterfaceMap
 	 */
-	s.removeConflictingContainers(podSpec.ContainerIps)
+	s.removeConflictingContainers(podSpec.ContainerIps, podSpec.NetworkName)
 
 	stack := s.vpp.NewCleanupStack()
-
+	var vni uint32
 	err = s.checkAvailableBuffers()
 	if err != nil {
 		goto err
@@ -152,15 +170,17 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		goto err
 	}
 
-	s.log.Infof("pod(add) tuntap")
-	err = s.tuntapDriver.CreateInterface(podSpec, stack, doHostSideConf)
-	if err != nil {
-		goto err
+	if podSpec.NetworkName == "" || !podSpec.EnableMemif { // The only case where tun is not created is when we create memif interface in non main network
+		s.log.Infof("pod(add) tuntap")
+		err = s.tuntapDriver.CreateInterface(podSpec, stack, doHostSideConf)
+		if err != nil {
+			goto err
+		}
 	}
 
 	if podSpec.EnableMemif && config.MemifEnabled {
 		s.log.Infof("pod(add) memif")
-		err = s.memifDriver.CreateInterface(podSpec, stack)
+		err = s.memifDriver.CreateInterface(podSpec, stack, doHostSideConf)
 		if err != nil {
 			goto err
 		}
@@ -207,11 +227,15 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	}
 
+	if podSpec.NetworkName != "" {
+		vni = s.networkDefinitions[podSpec.NetworkName].Vni
+	}
+
 	s.log.Infof("pod(add) announcing pod Addresses")
 	for _, containerIP := range podSpec.GetContainerIps() {
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.LocalPodAddressAdded,
-			New:  containerIP,
+			New:  NetworkPod{ContainerIP: containerIP, NetworkVni: vni},
 		})
 	}
 
@@ -220,11 +244,15 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	if err != nil {
 		goto err
 	}
-
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.PodAdded,
-		New:  podSpec,
-	})
+	if podSpec.NetworkName == "" {
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.PodAdded,
+			New:  podSpec,
+		})
+	}
+	if podSpec.NetworkName != "" && podSpec.EnableMemif {
+		return podSpec.MemifSwIfIndex, err
+	}
 	return podSpec.TunTapSwIfIndex, err
 
 err:
@@ -236,6 +264,8 @@ err:
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
+	s.multinetLock.Lock()
+	defer s.multinetLock.Unlock()
 	err := ns.IsNSorErr(podSpec.NetnsName)
 	if err != nil {
 		s.log.Infof("pod(del) netns '%s' doesn't exist, skipping", podSpec.NetnsName)
@@ -250,11 +280,24 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 
 	s.DelHostPort(podSpec)
 
-	for _, containerIP := range podSpec.GetContainerIps() {
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.LocalPodAddressDeleted,
-			Old:  containerIP,
-		})
+	var vni uint32
+	deleteLocalPodAddress := true
+	if podSpec.NetworkName != "" {
+		netDef, found := s.networkDefinitions[podSpec.NetworkName]
+		if found {
+			vni = netDef.Vni
+		} else {
+			deleteLocalPodAddress = false
+		}
+	}
+	if deleteLocalPodAddress {
+		for _, containerIP := range podSpec.GetContainerIps() {
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.LocalPodAddressDeleted,
+				Old:  NetworkPod{ContainerIP: containerIP, NetworkVni: vni},
+			})
+
+		}
 	}
 
 	/* Routes */
@@ -289,15 +332,15 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	}
 	s.log.Infof("pod(del) tuntap")
 	s.tuntapDriver.DeleteInterface(podSpec)
-
 	s.log.Infof("pod(del) loopback")
 	s.loopbackDriver.DeleteInterface(podSpec)
 
 	s.log.Infof("pod(del) VRF")
 	s.DeletePodVRF(podSpec)
-
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.PodDeleted,
-		Old:  podSpec,
-	})
+	if podSpec.NetworkName == "" {
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.PodDeleted,
+			Old:  podSpec,
+		})
+	}
 }

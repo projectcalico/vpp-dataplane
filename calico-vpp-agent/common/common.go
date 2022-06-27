@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
@@ -158,10 +159,12 @@ const (
 )
 
 var (
-	BgpFamilyUnicastIPv4 = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_UNICAST}
-	BgpFamilySRv6IPv4    = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_SR_POLICY}
-	BgpFamilyUnicastIPv6 = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_UNICAST}
-	BgpFamilySRv6IPv6    = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_SR_POLICY}
+	BgpFamilyUnicastIPv4VPN = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_MPLS_VPN}
+	BgpFamilyUnicastIPv6VPN = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_MPLS_VPN}
+	BgpFamilyUnicastIPv4    = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_UNICAST}
+	BgpFamilySRv6IPv4       = bgpapi.Family{Afi: bgpapi.Family_AFI_IP, Safi: bgpapi.Family_SAFI_SR_POLICY}
+	BgpFamilyUnicastIPv6    = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_UNICAST}
+	BgpFamilySRv6IPv6       = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_SR_POLICY}
 )
 
 type NodeState struct {
@@ -189,7 +192,7 @@ func GetHostPrefixSetName(isv6 bool) string {
 	return v46ify(hostPrefixSetBaseName, isv6)
 }
 
-func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.IP) (*bgpapi.Path, error) {
+func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.IP, vni uint32, asNumber uint32) (*bgpapi.Path, error) {
 	_, ipNet, err := net.ParseCIDR(prefix)
 	if err != nil {
 		return nil, err
@@ -201,13 +204,31 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 	if p.To4() == nil {
 		v4 = false
 	}
-
-	nlri, err := ptypes.MarshalAny(&bgpapi.IPAddressPrefix{
-		Prefix:    p.String(),
-		PrefixLen: uint32(masklen),
-	})
-	if err != nil {
-		return nil, err
+	var nlri *anypb.Any
+	if vni != 0 {
+		rdAttr, err := ptypes.MarshalAny(&bgpapi.RouteDistinguisherTwoOctetAS{
+			Admin:    asNumber,
+			Assigned: vni,
+		})
+		if err != nil {
+			return nil, err
+		}
+		nlri, err = ptypes.MarshalAny(&bgpapi.LabeledVPNIPAddressPrefix{
+			Prefix:    p.String(),
+			PrefixLen: uint32(masklen),
+			Rd:        rdAttr,
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		nlri, err = ptypes.MarshalAny(&bgpapi.IPAddressPrefix{
+			Prefix:    p.String(),
+			PrefixLen: uint32(masklen),
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 	var family *bgpapi.Family
 	originAttr, err := ptypes.MarshalAny(&bgpapi.OriginAttribute{Origin: 0})
@@ -221,6 +242,9 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 			return nil, fmt.Errorf("No ip4 address for node")
 		}
 		family = &BgpFamilyUnicastIPv4
+		if vni != 0 {
+			family = &BgpFamilyUnicastIPv4VPN
+		}
 		var nhAttr *any.Any
 
 		if config.EnableSRv6 {
@@ -238,15 +262,25 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 		attrs = append(attrs, nhAttr)
 	} else {
 		if nodeIpv6 == nil {
-			return nil, fmt.Errorf("No ip4 address for node")
+			return nil, fmt.Errorf("No ip6 address for node")
 		}
 		family = &BgpFamilyUnicastIPv6
-		nlriAttr, err := ptypes.MarshalAny(&bgpapi.MpReachNLRIAttribute{
+		if vni != 0 {
+			family = &BgpFamilyUnicastIPv6VPN
+		}
+		var nlriAttr *anypb.Any
+		var familySafi bgpapi.Family_Safi
+		if vni != 0 {
+			familySafi = bgpapi.Family_SAFI_MPLS_VPN
+		} else {
+			familySafi = bgpapi.Family_SAFI_UNICAST
+		}
+		nlriAttr, err = ptypes.MarshalAny(&bgpapi.MpReachNLRIAttribute{
 			NextHops: []string{nodeIpv6.String()},
 			Nlris:    []*any.Any{nlri},
 			Family: &bgpapi.Family{
 				Afi:  bgpapi.Family_AFI_IP6,
-				Safi: bgpapi.Family_SAFI_UNICAST,
+				Safi: familySafi,
 			},
 		})
 		if err != nil {
@@ -401,10 +435,11 @@ type NodeConnectivity struct {
 	NextHop          net.IP
 	ResolvedProvider string
 	Custom           interface{}
+	Vni              uint32
 }
 
 func (cn *NodeConnectivity) String() string {
-	return fmt.Sprintf("%s-%s", cn.Dst.String(), cn.NextHop.String())
+	return fmt.Sprintf("%s-%s-%s", cn.Dst.String(), cn.NextHop.String(), fmt.Sprint(cn.Vni))
 }
 
 // SRv6Tunnel contains info needed to create all SRv6 tunnel components (Steering, Policy, Localsids)

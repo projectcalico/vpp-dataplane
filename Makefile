@@ -11,6 +11,7 @@ images: image
 image:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
+	$(MAKE) -C multinet-monitor $@
 
 .PHONY: push
 push:
@@ -21,6 +22,7 @@ push:
 dev:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
+	$(MAKE) -C multinet-monitor $@
 
 .PHONY: proto
 proto:
@@ -66,6 +68,7 @@ start-test-cluster:
 load-images:
 	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/agent:latest
 	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/vpp:latest
+	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/multinet-monitor:latest
 
 CALICO_INSTALLATION ?= installation-default
 .PHONY: test-install-calico

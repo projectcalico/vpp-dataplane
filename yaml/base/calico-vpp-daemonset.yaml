@@ -341,7 +341,7 @@ spec:
               mountPropagation: Bidirectional
             - mountPath: /host
               name: host-root
-      volumes:
+      volumes:   
         - name: lib-firmware
           hostPath:
             path: /lib/firmware

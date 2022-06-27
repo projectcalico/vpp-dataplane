@@ -59,6 +59,10 @@ type Server struct {
 
 	availableBuffers    uint64
 	buffersNeededPerTap uint64
+
+	networkDefinitions   map[string]*watchers.NetworkDefinition
+	cniMultinetEventChan chan common.CalicoVppEvent
+	multinetLock         sync.Mutex
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -107,6 +111,21 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 
 		MemifSwIfIndex:  vpplink.InvalidID,
 		TunTapSwIfIndex: vpplink.InvalidID,
+
+		NetworkName: request.DataplaneOptions["network_name"],
+	}
+
+	if podSpec.NetworkName != "" {
+		if !config.MultinetEnabled {
+			return nil, fmt.Errorf("enable multinet in config for multiple networks")
+		}
+		if isMemif(podSpec.InterfaceName) {
+			if !config.MemifEnabled {
+				return nil, fmt.Errorf("enable memif in config for memif interfaces")
+			}
+			podSpec.EnableMemif = true
+			podSpec.DefaultIfType = storage.VppIfTypeMemif
+		}
 	}
 
 	for _, port := range request.Workload.Ports {
@@ -131,6 +150,17 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 			Mask: route.Mask,
 		})
 	}
+	s.multinetLock.Lock()
+	if podSpec.NetworkName != "" {
+		_, route, err := net.ParseCIDR(s.networkDefinitions[podSpec.NetworkName].Range)
+		if err == nil {
+			podSpec.Routes = append(podSpec.Routes, storage.LocalIPNet{
+				IP:   route.IP,
+				Mask: route.Mask,
+			})
+		}
+	}
+	s.multinetLock.Unlock()
 	for _, requestContainerIP := range request.GetContainerIps() {
 		containerIp, _, err := net.ParseCIDR(requestContainerIP.GetAddress())
 		if err != nil {
@@ -182,6 +212,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	s.log.Warnf("Got Add request for network: %s", request.DataplaneOptions["network_name"])
 	s.log.Infof("pod(add) spec=%s", podSpec.String())
 
 	existingSpec, ok := s.podInterfaceMap[podSpec.Key()]
@@ -325,10 +356,22 @@ func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Ent
 		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(vpp, log),
 		vclDriver:       pod_interface.NewVclPodInterfaceDriver(vpp, log),
 		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(vpp, log),
+
+		networkDefinitions:   make(map[string]*watchers.NetworkDefinition),
+		cniMultinetEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}
 	reg := common.RegisterHandler(server.cniEventChan, "CNI server events")
-	reg.ExpectEvents(common.FelixConfChanged, common.IpamConfChanged)
-
+	reg.ExpectEvents(
+		common.FelixConfChanged,
+		common.IpamConfChanged,
+	)
+	regM := common.RegisterHandler(server.cniMultinetEventChan, "CNI server Multinet events")
+	regM.ExpectEvents(
+		common.NetAdded,
+		common.NetUpdated,
+		common.NetDeleted,
+		common.NetsSynced,
+	)
 	return server
 }
 func (s *Server) cniServerEventLoop(t *tomb.Tomb) {
@@ -378,9 +421,39 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	}
 
 	pb.RegisterCniDataplaneServer(s.grpcServer, s)
+
+	if config.MultinetEnabled {
+		netsSynced := make(chan bool)
+		go func() {
+			for {
+				select {
+				case <-t.Dying():
+					return
+				case event := <-s.cniMultinetEventChan:
+					switch event.Type {
+					case common.NetsSynced:
+						netsSynced <- true
+					case common.NetAdded:
+						netDef := event.New.(*watchers.NetworkDefinition)
+						s.multinetLock.Lock()
+						s.networkDefinitions[netDef.Name] = netDef
+						s.multinetLock.Unlock()
+					case common.NetDeleted:
+						netDef := event.Old.(*watchers.NetworkDefinition)
+						s.multinetLock.Lock()
+						delete(s.networkDefinitions, netDef.Name)
+						s.multinetLock.Unlock()
+					}
+				}
+			}
+		}()
+		<-netsSynced
+		s.log.Infof("Networks synced")
+	}
 	s.rescanState()
 
 	s.log.Infof("Serve() CNI")
+
 	go s.grpcServer.Serve(socketListener)
 
 	s.cniServerEventLoop(t)
