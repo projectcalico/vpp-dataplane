@@ -235,7 +235,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					"Unnumberred VXLAN tunnel interface doesn't get IP address from expected interface")
 
 				By("checking VXLAN tunnel interface attributes (GSO+CNAT)")
-				// Note: no specialized binary api or VPP CLI for getting GSO on VXLAN tunne interface -> using
+				// Note: no specialized binary api or VPP CLI for getting GSO on VXLAN tunnel interface -> using
 				// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
 				// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
 				featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", vxlanSwIfIndex))
@@ -301,7 +301,123 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			})
 		})
 		Context("With IP-IP connectivity", func() {
-			// TODO impl IPIP test
+			BeforeEach(func() {
+				// add node pool for IPIP
+				ipamStub = mocks.NewIpamCacheStub()
+				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &apiv3.IPPool{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: fmt.Sprintf("custom-test-pool-for-ipip-%s", AddedNodeIP+"/24"),
+					},
+					Spec: apiv3.IPPoolSpec{
+						CIDR:     AddedNodeIP + "/24",
+						IPIPMode: apiv3.IPIPModeAlways, // important for connectivity provider selection
+					},
+				})
+
+				// setup PubSub handler to catch TunnelAdded events
+				pubSubHandlerMock = mocks.NewPubSubHandlerMock(common.TunnelAdded)
+				pubSubHandlerMock.Start()
+			})
+
+			// TODO test removal of IPIP tunnel
+			// TODO test cases when some IPIP tunnels already exists before CNI calls (IPIP tunnel reuse,
+			//  IPIP tunnel is removed only when last prefix connectivity that is using given IPIP is removed)
+
+			It("should have IP-IP tunnel and route forwarding to it", func() {
+				By("Adding node")
+				configureBGPNodeIPAddresses(connectivityServer)
+				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+					Dst:              *ipNet(AddedNodeIP + "/24"), // FIXME destination and nodeIP are probably separate things!
+					NextHop:          net.ParseIP(GatewayIP),
+					ResolvedProvider: connectivity.IPIP,
+					Custom:           nil,
+				}, false)
+
+				By("Checking IP-IP tunnel")
+				tunnels, err := vpp.ListIPIPTunnels()
+				Expect(err).ToNot(HaveOccurred(), "Failed to get IP-IP tunnels from VPP")
+				// Note: this is guessing based on existing interfaces in VPP, could be done better by listing
+				// interfaces from VPP and filtering the correct one FIXME do it better?
+				ipipSwIfIndex := uplinkSwIfIndex + 1
+				Expect(tunnels).To(ContainElements(&types.IPIPTunnel{
+					Src:       net.ParseIP(ThisNodeIP).To4(), // set by configureBGPNodeIPAddresses() call
+					Dst:       net.ParseIP(GatewayIP).To4(),
+					TableID:   0, // not filled -> used default VRF table
+					SwIfIndex: ipipSwIfIndex,
+				}))
+
+				By("checking IPIP tunnel interface attributes (Unnumbered)")
+				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(ipipSwIfIndex)
+				Expect(err).ToNot(HaveOccurred(),
+					"can't get unnumbered details of IPIP tunnel interface")
+				Expect(unnumberedDetails.IPSwIfIndex).To(Equal(
+					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
+					"Unnumberred IPIP tunnel interface doesn't get IP address from expected interface")
+
+				By("checking IPIP tunnel interface attributes (GSO+CNAT)")
+				// Note: no specialized binary api or VPP CLI for getting GSO on IPIP tunnel interface -> using
+				// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
+				// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
+				featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", ipipSwIfIndex))
+				Expect(err).ToNot(HaveOccurred(),
+					"failed to get IPIP tunnel interface's configured features")
+				featuresStr = strings.ToLower(featuresStr)
+				var GSOFeatureArcs = []string{"gso-ip4", "gso-ip6", "gso-l2-ip4", "gso-l2-ip6"}
+				for _, gsoStr := range GSOFeatureArcs {
+					// Note: not checking full Feature Arc (i.e. ipv4-unicast: gso-ipv4), just the destination
+					// of traffic steering. This is enough because without GSO enabled, the destination would not exist.
+					Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
+						"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
+				}
+				var CNATFeatureArcs = []string{"cnat-input-ip4", "cnat-input-ip6", "cnat-output-ip4", "cnat-output-ip6"}
+				for _, cnatStr := range CNATFeatureArcs {
+					// Note: could be enhanced by checking the full Feature Arc (from where we steer traffic to cnat)
+					Expect(featuresStr).To(ContainSubstring(cnatStr), fmt.Sprintf("CNAT not fully enabled "+
+						"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
+				}
+
+				By("checking VXLAN tunnel interface attributes (Up state)")
+				interfaceDetails, err := vpp.GetInterfaceDetails(ipipSwIfIndex)
+				Expect(err).ToNot(HaveOccurred(), "can't get IPIP tunnel interface's basic attributes ")
+				Expect(interfaceDetails.IsUp).To(BeTrue(), "IPIP tunnel interface should be in UP state")
+
+				By("checking 2 routes")
+				routes, err := vpp.GetRoutes(common.PodVRFIndex, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for Pod VRF")
+				Expect(routes).To(ContainElements(
+					// when IPIP is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
+					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+						"Dst": gs.PointTo(Equal(*ipNet(GatewayIP + "/32"))),
+						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+							"SwIfIndex": Equal(ipipSwIfIndex),
+						})),
+					})))
+				routes, err = vpp.GetRoutes(common.DefaultVRFIndex, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for default VRF")
+				Expect(routes).To(ContainElements(
+					// steering route for NodeConnectivity.Dst using ipip that is leading to the added node
+					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
+						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+							"SwIfIndex": Equal(ipipSwIfIndex),
+						})),
+					}),
+				), "Can't find 2 routes that should steer the traffic to newly added node")
+
+				By("checking pushing of TunnelAdded event")
+				// Note: VPP configuration done by receiver of this event is out of scope for this test
+				Expect(pubSubHandlerMock.ReceivedEvents).To(ContainElement(common.CalicoVppEvent{
+					Type: common.TunnelAdded,
+					New:  ipipSwIfIndex,
+				}))
+			})
+
+			AfterEach(func() {
+				if pubSubHandlerMock != nil {
+					Expect(pubSubHandlerMock.Stop()).ToNot(HaveOccurred(),
+						"can't properly stop mock of PubSub's handler")
+				}
+			})
 		})
 		Context("With Wireguard connectivity", func() {
 			// TODO impl Wireguard test
