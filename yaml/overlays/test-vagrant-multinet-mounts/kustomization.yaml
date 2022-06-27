@@ -1,6 +1,4 @@
-resources:
-- monitor-deployment.yaml
 bases:
 - ../test-vagrant-mounts
-patchesStrategicMerge:
-- multinet.yaml
+components:
+- ../../components/multinet
