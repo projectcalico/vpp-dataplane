@@ -77,7 +77,7 @@ func (p *IpsecProvider) RescanState() {
 		p.log.Errorf("Error listing ikev2 profiles: %v", err)
 	}
 	for _, profile := range profiles {
-		pmap[profile] = true
+		pmap[profile.Name] = true
 	}
 	ip4, ip6 := p.server.GetNodeIPs()
 	for _, tunnel := range tunnels {
@@ -122,7 +122,7 @@ func (p *IpsecProvider) RescanState() {
 
 		p.log.Infof("Using async workers for ipsec, nbDataThread=%d", p.nDataThreads)
 		for i := 0; i < p.nDataThreads; i++ {
-			err = p.vpp.SetCryptoWorker(uint32(i), false)
+			err = p.vpp.SetCryptoWorker(uint32(i), false) // FIXME is this correct? It seems like disabling instead of enabling worker threads for IPSec
 			if err != nil {
 				p.log.Errorf("SetCryptoWorker error %s", err)
 			}
