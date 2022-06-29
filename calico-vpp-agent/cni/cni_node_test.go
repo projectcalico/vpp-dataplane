@@ -166,7 +166,166 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			})
 		})
 		Context("With IPSEC connectivity", func() {
-			// TODO impl IPSEC test
+			BeforeEach(func() {
+				// add node pool for IPSec (uses IPIP tunnels)
+				ipamStub = mocks.NewIpamCacheStub()
+				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &apiv3.IPPool{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: fmt.Sprintf("custom-test-pool-for-ipsec-%s", AddedNodeIP+"/24"),
+					},
+					Spec: apiv3.IPPoolSpec{
+						CIDR: AddedNodeIP + "/24",
+						// important for connectivity provider selection (IPSec uses IPIP tunnel)
+						IPIPMode: apiv3.IPIPModeAlways,
+					},
+				})
+
+				// Enables IPSec (=uses IPSec over IPIP tunnel and not pure IPIP tunnel)
+				agentConf.EnableIPSec = true
+
+				// setup PubSub handler to catch TunnelAdded events
+				pubSubHandlerMock = mocks.NewPubSubHandlerMock(common.TunnelAdded)
+				pubSubHandlerMock.Start()
+
+				// setting Ikev2 PreShared Key to non-empty string as VPP fails with empty string
+				// (empty preshared key = no IPSec security => makes no sense => VPP gives configuration error)
+				agentConf.IPSecIkev2Psk = "testing-preshared-key-for-IPSec"
+			})
+
+			// TODO test IPSec tunnel delete
+			// TODO test IPSec tunnel sharing for multiple connections
+			// TODO test multiple IPSec tunnels (there is created a group of IPSec at once)
+
+			// FIXME This is partial test due to not simulating second IPSec node where the IPSec tunnel should end.
+			//  The IPSec implementation in VPP can't negotiate with the other IPSec tunnel end node anything, so
+			//  i guess that VPP is not showing a lot of stuff that it should be there after up and running
+			//  IPSec tunnel between 2 nodes.
+			//  => not testing rest of IPSec settings, IPSec's IPIP tunnel to be in UP state, test existence of
+			//  route to each IPSec tunnel (1 multipath route)
+			It("should have setup IPIP tunnel as backend and all IPSec settings (only PARTIAL test!)", func() {
+				//Note: not testing setting of IPsecAsyncMode and threads dedicated to IPSec (CryptoWorkers)
+				// inside RescanState() function call
+				By("Adding node")
+				configureBGPNodeIPAddresses(connectivityServer)
+				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+					Dst:              *ipNet(AddedNodeIP + "/24"), // FIXME destination and nodeIP are probably separate things!
+					NextHop:          net.ParseIP(AddedNodeIP),    // next hop == other node IP (for IPSec impl)
+					ResolvedProvider: connectivity.IPSEC,
+					Custom:           nil,
+				}, false)
+
+				By("Checking IP-IP tunnel")
+				tunnels, err := vpp.ListIPIPTunnels()
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to get IP-IP tunnels from VPP (for IPSec checking)")
+				// Note: this is guessing based on existing interfaces in VPP, could be done better by listing
+				// interfaces from VPP and filtering the correct one FIXME do it better?
+				ipipSwIfIndex := uplinkSwIfIndex + 1
+				backendIPIPTunnel := &types.IPIPTunnel{
+					Src:       net.ParseIP(ThisNodeIP).To4(),
+					Dst:       net.ParseIP(AddedNodeIP).To4(),
+					TableID:   0, // not filled -> used default VRF table
+					SwIfIndex: ipipSwIfIndex,
+				}
+				Expect(tunnels).To(ContainElements(backendIPIPTunnel))
+
+				By("checking pushing of TunnelAdded event")
+				// Note: VPP configuration done by receiver of this event is out of scope for this test
+				Expect(pubSubHandlerMock.ReceivedEvents).To(ContainElement(common.CalicoVppEvent{
+					Type: common.TunnelAdded,
+					New:  ipipSwIfIndex, // IPSec tunnel uses IPIP tunnel
+				}))
+
+				By("checking IPSec's IPIP tunnel interface attributes (Unnumbered)")
+				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(ipipSwIfIndex)
+				Expect(err).ToNot(HaveOccurred(),
+					"can't get unnumbered details of IPSec's IPIP tunnel interface")
+				Expect(unnumberedDetails.IPSwIfIndex).To(Equal(
+					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
+					"Unnumberred IPSec's IPIP tunnel interface doesn't "+
+						"get IP address from expected interface")
+
+				By("checking IPSec's IPIP tunnel interface attributes (GSO+CNAT)")
+				// Note: no specialized binary api or VPP CLI for getting GSO on IPIP tunnel interface -> using
+				// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
+				// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
+				featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", ipipSwIfIndex))
+				Expect(err).ToNot(HaveOccurred(),
+					"failed to get IPSec's IPIP tunnel interface's configured features")
+				featuresStr = strings.ToLower(featuresStr)
+				var GSOFeatureArcs = []string{"gso-ip4", "gso-ip6", "gso-l2-ip4", "gso-l2-ip6"}
+				for _, gsoStr := range GSOFeatureArcs {
+					// Note: not checking full Feature Arc (i.e. ipv4-unicast: gso-ipv4), just the destination
+					// of traffic steering. This is enough because without GSO enabled, the destination would not exist.
+					Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
+						"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
+				}
+				var CNATFeatureArcs = []string{"cnat-input-ip4", "cnat-input-ip6", "cnat-output-ip4", "cnat-output-ip6"}
+				for _, cnatStr := range CNATFeatureArcs {
+					// Note: could be enhanced by checking the full Feature Arc (from where we steer traffic to cnat)
+					Expect(featuresStr).To(ContainSubstring(cnatStr), fmt.Sprintf("CNAT not fully enabled "+
+						"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
+				}
+
+				By("checking route for IPSec's IPIP tunnel from pod VRF")
+				routes, err := vpp.GetRoutes(common.PodVRFIndex, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for Pod VRF")
+				Expect(routes).To(ContainElements(
+					// when IPIP is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
+					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/32"))),
+						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+							"SwIfIndex": Equal(ipipSwIfIndex),
+						})),
+					})))
+
+				By("checking IKEv2 profile")
+				profiles, err := vpp.ListIKEv2Profiles()
+				Expect(err).ToNot(HaveOccurred(), "Failed to get IKEv2 profiles from VPP")
+				Expect(profiles).To(ContainElements(
+					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+						"Name":   Equal(connectivity.NewIpsecTunnel(backendIPIPTunnel).Profile()),
+						"TunItf": Equal(ipipSwIfIndex),
+						"Auth": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+							"Data": Equal([]byte(agentConf.IPSecIkev2Psk)),
+						}),
+						//permissive (local/remote) traffic selectors
+						"LocTs": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+							"ProtocolID": Equal(uint8(0)),
+							"StartPort":  Equal(uint16(0)),
+							"EndPort":    Equal(uint16(0xffff)),
+							"StartAddr":  Equal(types.ToVppAddress(net.ParseIP("0.0.0.0"))),
+							"EndAddr":    Equal(types.ToVppAddress(net.ParseIP("255.255.255.255"))),
+						}),
+						"RemTs": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+							"ProtocolID": Equal(uint8(0)),
+							"StartPort":  Equal(uint16(0)),
+							"EndPort":    Equal(uint16(0xffff)),
+							"StartAddr":  Equal(types.ToVppAddress(net.ParseIP("0.0.0.0"))),
+							"EndAddr":    Equal(types.ToVppAddress(net.ParseIP("255.255.255.255"))),
+						}),
+					}),
+				))
+
+				// Note: strangely the IKEv2 profile didn't have filled the tunnel source and destination IP addresses
+				// even when clearly visible in the VPP CLI -> using VPP CLI (Is this another problem when there
+				// is no second IPSec node where the IPSec tunnel can end and therefore no IPSec negotiation can occur?)
+				profileStr, err := vpp.RunCli("show ikev2 profile")
+				Expect(err).ToNot(HaveOccurred(),
+					"failed to get IPSec's IKEv2 profile configuration from VPP CLI")
+				Expect(profileStr).To(ContainSubstring(ThisNodeIP),
+					"IKEv2 profile doesn't contain IPSec tunnel source IP address")
+				Expect(profileStr).To(ContainSubstring(AddedNodeIP),
+					"IKEv2 profile doesn't contain IPSec tunnel destination IP address")
+			})
+
+			AfterEach(func() {
+				if pubSubHandlerMock != nil {
+					Expect(pubSubHandlerMock.Stop()).ToNot(HaveOccurred(),
+						"can't properly stop mock of PubSub's handler")
+				}
+				agentConf.EnableIPSec = false // disable for following tests
+			})
 		})
 		Context("With VXLAN connectivity", func() {
 			BeforeEach(func() {
@@ -376,7 +535,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
 				}
 
-				By("checking VXLAN tunnel interface attributes (Up state)")
+				By("checking IPIP tunnel interface attributes (Up state)")
 				interfaceDetails, err := vpp.GetInterfaceDetails(ipipSwIfIndex)
 				Expect(err).ToNot(HaveOccurred(), "can't get IPIP tunnel interface's basic attributes ")
 				Expect(interfaceDetails.IsUp).To(BeTrue(), "IPIP tunnel interface should be in UP state")
