@@ -29,7 +29,7 @@ type DefaultDriver struct {
 }
 
 func (d *DefaultDriver) IsSupported(warn bool) bool {
-	if d.params.LoadedDrivers[config.DRIVER_VFIO_PCI] || d.params.LoadedDrivers[config.DRIVER_VFIO_PCI] {
+	if d.params.LoadedDrivers[config.DRIVER_VFIO_PCI] || d.params.LoadedDrivers[config.DRIVER_UIO_PCI_GENERIC] {
 		return true
 	}
 	if warn {
