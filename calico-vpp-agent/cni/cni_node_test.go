@@ -14,6 +14,8 @@
 package cni_test
 
 import (
+	"context"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"os"
@@ -89,13 +91,16 @@ var _ = BeforeSuite(func() {
 
 // Common setup constants
 const (
-	UplinkIfName  = "uplink"
-	UplinkIP      = "10.0.100.1"
-	UplinkIPv6    = "A::1:1"
-	GatewayIP     = "10.0.100.254"
-	GatewayIPv6   = "A::1:254"
-	ThisNodeIP    = UplinkIP
-	ThisNodeIPv6  = UplinkIPv6
+	ThisNodeName = "node1"
+	UplinkIfName = "uplink"
+	UplinkIP     = "10.0.100.1"
+	UplinkIPv6   = "A::1:1"
+	GatewayIP    = "10.0.100.254"
+	GatewayIPv6  = "A::1:254"
+	ThisNodeIP   = UplinkIP
+	ThisNodeIPv6 = UplinkIPv6
+
+	AddedNodeName = "node2"
 	AddedNodeIP   = "10.0.200.1"
 	AddedNodeIPv6 = "A::2:1"
 )
@@ -111,6 +116,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		client             *calico.CalicoClientStub
 		ipamStub           *mocks.IpamCacheStub
 		pubSubHandlerMock  *mocks.PubSubHandlerMock
+		felixConfig        *config.Config
 		uplinkSwIfIndex    uint32
 	)
 	BeforeEach(func() {
@@ -130,7 +136,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		connectivityServer = connectivity.NewConnectivityServer(vpp, ipamStub, client,
 			log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 		connectivityServer.SetOurBGPSpec(&oldv3.NodeBGPSpec{})
-		connectivityServer.SetFelixConfig(&config.Config{})
+		if felixConfig == nil {
+			felixConfig = &config.Config{}
+		}
+		connectivityServer.SetFelixConfig(felixConfig)
 	})
 
 	Describe("Addition of the node", func() {
@@ -579,7 +588,166 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			})
 		})
 		Context("With Wireguard connectivity", func() {
-			// TODO impl Wireguard test
+			BeforeEach(func() {
+				// setup felix config for Wireguard configuration
+				felixConfig.WireguardEnabled = true
+				felixConfig.WireguardListeningPort = 11111
+
+				// setup PubSub handler to catch TunnelAdded events
+				pubSubHandlerMock = mocks.NewPubSubHandlerMock(common.TunnelAdded)
+				pubSubHandlerMock.Start()
+
+				// configure this node's name and make Calico info data holder for it
+				agentConf.NodeName = ThisNodeName
+				client.Nodes().Create(context.Background(), &oldv3.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: agentConf.NodeName,
+					},
+				}, options.SetOptions{})
+
+				// configure added node for wireguard public crypto key
+				client.Nodes().Create(context.Background(), &oldv3.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: agentConf.NodeName,
+					},
+				}, options.SetOptions{})
+			})
+
+			// TODO test delete
+
+			It("must configure wireguard tunnel with one peer and routes to it", func() {
+				By("Adding node")
+				configureBGPNodeIPAddresses(connectivityServer)
+				connectivityServer.ForceProviderEnableDisable(connectivity.WIREGUARD, true) // creates the tunnel (this is normally called by Felix config change event handler)
+				addedNodePublicKey := "public-key-for-added-node"                           // max 32 characters due to VPP binapi
+				connectivityServer.ForceNodeAddition(oldv3.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: AddedNodeName,
+					},
+					Status: oldv3.NodeStatus{
+						WireguardPublicKey: base64.StdEncoding.EncodeToString([]byte(addedNodePublicKey)),
+					},
+				}, net.ParseIP(AddedNodeIP))
+				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+					Dst:              *ipNet(AddedNodeIP + "/24"),
+					NextHop:          net.ParseIP(AddedNodeIP), // wireguard impl uses nexthop as node IP
+					ResolvedProvider: connectivity.WIREGUARD,
+					Custom:           nil,
+				}, false)
+
+				By("checking wireguard tunnel")
+				// Note: this is guessing based on existing interfaces in VPP, could be done better by listing
+				// interfaces from VPP and filtering the correct one FIXME do it better?
+				wireguardSwIfIndex := uplinkSwIfIndex + 1
+				wgTunnel, err := vpp.GetWireguardTunnel(wireguardSwIfIndex)
+				Expect(err).ToNot(HaveOccurred(), "can't get wireguard tunnel from VPP")
+				Expect(wgTunnel.Port).To(Equal(uint16(felixConfig.WireguardListeningPort)),
+					"incorrectly set wireguard listening port")
+				Expect(wgTunnel.Addr).To(Equal(net.ParseIP(ThisNodeIP).To4()),
+					"incorrectly set IP address of this node's wireguard tunnel interface")
+
+				// TODO extract common checks like interface UP state, GSO+CNAT, Unnumbered interface and refactor for better reading (lower line count)
+
+				By("checking wireguard tunnel interface attributes (Unnumbered)")
+				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(wireguardSwIfIndex)
+				Expect(err).ToNot(HaveOccurred(),
+					"can't get unnumbered details of wireguard tunnel interface")
+				Expect(unnumberedDetails.IPSwIfIndex).To(Equal(
+					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
+					"Unnumberred wireguard tunnel interface doesn't get IP address from expected interface")
+
+				By("checking wireguard tunnel interface attributes (GSO+CNAT)")
+				// Note: no specialized binary api or VPP CLI for getting GSO on IPIP tunnel interface -> using
+				// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
+				// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
+				featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", wireguardSwIfIndex))
+				Expect(err).ToNot(HaveOccurred(),
+					"failed to get wireguard tunnel interface's configured features")
+				featuresStr = strings.ToLower(featuresStr)
+				var GSOFeatureArcs = []string{"gso-ip4", "gso-ip6", "gso-l2-ip4", "gso-l2-ip6"}
+				for _, gsoStr := range GSOFeatureArcs {
+					// Note: not checking full Feature Arc (i.e. ipv4-unicast: gso-ipv4), just the destination
+					// of traffic steering. This is enough because without GSO enabled, the destination would not exist.
+					Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
+						"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
+				}
+				var CNATFeatureArcs = []string{"cnat-input-ip4", "cnat-input-ip6", "cnat-output-ip4", "cnat-output-ip6"}
+				for _, cnatStr := range CNATFeatureArcs {
+					// Note: could be enhanced by checking the full Feature Arc (from where we steer traffic to cnat)
+					Expect(featuresStr).To(ContainSubstring(cnatStr), fmt.Sprintf("CNAT not fully enabled "+
+						"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
+				}
+
+				By("checking wireguard tunnel interface attributes (Up state)")
+				interfaceDetails, err := vpp.GetInterfaceDetails(wireguardSwIfIndex)
+				Expect(err).ToNot(HaveOccurred(), "can't get wireguard tunnel interface's basic attributes")
+				Expect(interfaceDetails.IsUp).To(BeTrue(), "wireguard tunnel interface should be in UP state")
+
+				By("checking pushing of TunnelAdded event")
+				// Note: VPP configuration done by receiver of this event is out of scope for this test
+				Expect(pubSubHandlerMock.ReceivedEvents).To(ContainElement(common.CalicoVppEvent{
+					Type: common.TunnelAdded,
+					New:  wireguardSwIfIndex,
+				}))
+
+				By("checking remembering of public key for wireguard tunnel in calico configuration")
+				// Note: public/private key is created by VPP (connectivity server sends empty public/private
+				// keys but retrieves it back properly filled)
+				thisNode, err := client.Nodes().Get(context.Background(), agentConf.NodeName, options.GetOptions{})
+				Expect(err).ToNot(HaveOccurred(),
+					"can't get this node info from mocked node info storage")
+				Expect(thisNode.Status).ToNot(BeNil(),
+					"public crypto key is not properly exposed in calico configuration")
+				Expect(thisNode.Status.WireguardPublicKey).To(Equal(base64.StdEncoding.EncodeToString(wgTunnel.PublicKey)),
+					"public crypto key is not properly exposed in calico configuration "+
+						"(-> other nodes setuping wireguard can't use it and setup peer with this node)")
+
+				By("checking wireguard peer")
+				peers, err := vpp.ListWireguardPeers()
+				Expect(thisNode.Status).ToNot(BeNil(),
+					"can't get wireguard peers from VPP")
+				Expect(peers).To(ContainElement(gs.PointTo(
+					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+						"PublicKey":  Equal(addPaddingTo32Bytes([]byte(addedNodePublicKey))),
+						"Port":       Equal(uint16(felixConfig.WireguardListeningPort)),
+						"TableID":    Equal(uint32(0)), // default table
+						"Addr":       Equal(net.ParseIP(AddedNodeIP).To4()),
+						"SwIfIndex":  Equal(wireguardSwIfIndex),
+						"AllowedIps": ContainElements(*ipNet(AddedNodeIP + "/32")),
+					}),
+				)))
+
+				By("checking wireguard routes to tunnel")
+				routes, err := vpp.GetRoutes(common.PodVRFIndex, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for Pod VRF")
+				Expect(routes).To(ContainElements(
+					// when wireguard is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
+					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/32"))),
+						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+							"SwIfIndex": Equal(wireguardSwIfIndex),
+						})),
+					})))
+				routes, err = vpp.GetRoutes(common.DefaultVRFIndex, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for default VRF")
+				Expect(routes).To(ContainElements(
+					// steering route for NodeConnectivity.Dst using wireguard tunnel that is leading to the added node
+					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
+						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+							"SwIfIndex": Equal(wireguardSwIfIndex),
+						})),
+					}),
+				), "Can't find 2 routes that should steer the traffic to newly added node")
+			})
+
+			AfterEach(func() {
+				if pubSubHandlerMock != nil {
+					Expect(pubSubHandlerMock.Stop()).ToNot(HaveOccurred(),
+						"can't properly stop mock of PubSub's handler")
+				}
+				felixConfig = nil // cleanup for next tests
+			})
 		})
 		Context("With SRv6 connectivity", func() {
 			// Simple use cases of segment routing over IPv6 (SRv6) are used in VPP-dataplane. Therefor some
@@ -601,7 +769,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				agentConf.EnableSRv6 = true
 				agentConf.SRv6localSidIPPool = "B::/16" // also B::<node number>/112 subnet for LocalSids for given node
 				agentConf.SRv6policyIPPool = "C::/16"   // also C::<node number>/112 subnet for BindingSIDs(=BSID=PolicyIP) for given node
-				agentConf.NodeName = "node1"
+				agentConf.NodeName = ThisNodeName
 
 				// add node pool for SRv6 (subnet of agentConf.SRv6localSidIPPool)
 				addIPPoolForCalicoClient(client, fmt.Sprintf("sr-localsids-pool-%s", agentConf.NodeName), "B::1:0/112")
@@ -768,6 +936,12 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		teardownVPP()
 	})
 })
+
+func addPaddingTo32Bytes(value []byte) []byte {
+	result := [32]byte{}
+	copy(result[:], value)
+	return result[:]
+}
 
 func configureBGPNodeIPAddresses(connectivityServer *connectivity.ConnectivityServer) {
 	connectivityServer.SetOurBGPSpec(&oldv3.NodeBGPSpec{

@@ -364,3 +364,23 @@ func (s *ConnectivityServer) ForceRescanState(providerType string) (err error) {
 	provider.RescanState()
 	return nil
 }
+
+// ForceProviderEnableDisable force to enable/disable specific connectivity provider.
+// The usage is mainly for testing purposes.
+func (s *ConnectivityServer) ForceProviderEnableDisable(providerType string, enable bool) (err error) {
+	provider, found := s.providers[providerType]
+	if !found {
+		return fmt.Errorf("can't find connectivity provider of type %s", providerType)
+	}
+	provider.EnableDisable(enable)
+	return nil
+}
+
+// TODO get rid (if possible) of all this "Force" methods by refactor the test code
+//  (run the ConnectivityServer.ServeConnectivity(...) function and send into it events with common.SendEvent(...))
+
+// ForceNodeAddition will add other node information as provided by calico configuration
+// The usage is mainly for testing purposes.
+func (s *ConnectivityServer) ForceNodeAddition(newNode oldv3.Node, newNodeIP net.IP) {
+	s.nodeByAddr[newNodeIP.String()] = newNode
+}
