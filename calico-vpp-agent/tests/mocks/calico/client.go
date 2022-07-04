@@ -23,6 +23,7 @@ import (
 type CalicoClientStub struct {
 	IPPoolsStub *IPPoolsStub
 	IPAMStub    *IpamInterfaceStub
+	NodesMock   *NodesMock
 }
 
 // NewCalicoClientStub creates new CalicoClientStub instance
@@ -30,6 +31,7 @@ func NewCalicoClientStub() *CalicoClientStub {
 	return &CalicoClientStub{
 		IPPoolsStub: NewIPPoolsStub(),
 		IPAMStub:    NewIpamInterfaceStub(),
+		NodesMock:   NewNodesMock(),
 	}
 }
 
@@ -45,7 +47,7 @@ func (cc *CalicoClientStub) IPAM() ipam.Interface {
 
 // Nodes returns an interface for managing node resources.
 func (cc *CalicoClientStub) Nodes() clientv3.NodeInterface {
-	panic("not implemented")
+	return cc.NodesMock
 }
 
 // GlobalNetworkPolicies returns an interface for managing global network policy resources.
