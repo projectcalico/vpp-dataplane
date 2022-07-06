@@ -53,9 +53,9 @@ func (tunnel *IpsecTunnel) IsInitiator() bool {
 
 type IpsecProvider struct {
 	*ConnectivityProviderData
-	ipsecIfs     map[string][]IpsecTunnel
-	ipsecRoutes  map[string]map[string]bool
-	nDataThreads int
+	ipsecIfs         map[string][]IpsecTunnel
+	ipsecRoutes      map[string]map[string]bool
+	nonCryptoThreads int
 }
 
 func (p *IpsecProvider) EnableDisable(isEnable bool) {
@@ -120,9 +120,11 @@ func (p *IpsecProvider) RescanState() {
 			p.log.Errorf("SetIPsecAsyncMode error %s", err)
 		}
 
-		p.log.Infof("Using async workers for ipsec, nbDataThread=%d", p.nDataThreads)
-		for i := 0; i < p.nDataThreads; i++ {
-			err = p.vpp.SetCryptoWorker(uint32(i), false) // FIXME is this correct? It seems like disabling instead of enabling worker threads for IPSec
+		p.log.Infof("Using async workers for ipsec, nonCryptoThreads=%d", p.nonCryptoThreads)
+		// setting first p.nonCryptoThreads threads to not be used for Crypto calculation (-> other packet processing)
+		// and let the remaining threads handle crypto operations
+		for i := 0; i < p.nonCryptoThreads; i++ {
+			err = p.vpp.SetCryptoWorker(uint32(i), false)
 			if err != nil {
 				p.log.Errorf("SetCryptoWorker error %s", err)
 			}
@@ -130,12 +132,12 @@ func (p *IpsecProvider) RescanState() {
 	}
 }
 
-func NewIPsecProvider(d *ConnectivityProviderData, nDataThreads int) *IpsecProvider {
+func NewIPsecProvider(d *ConnectivityProviderData, nonCryptoThreads int) *IpsecProvider {
 	return &IpsecProvider{
 		ConnectivityProviderData: d,
 		ipsecIfs:                 make(map[string][]IpsecTunnel),
 		ipsecRoutes:              make(map[string]map[string]bool),
-		nDataThreads:             nDataThreads,
+		nonCryptoThreads:         nonCryptoThreads,
 	}
 }
 
