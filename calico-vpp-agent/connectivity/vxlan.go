@@ -41,7 +41,7 @@ func NewVXLanProvider(d *ConnectivityProviderData) *VXLanProvider {
 	return &VXLanProvider{d, make(map[string]types.VXLanTunnel), make(map[uint32]map[string]bool), 0, 0, make(map[uint32]bool)}
 }
 
-func (p *VXLanProvider) EnableDisable(isEnable bool) () {
+func (p *VXLanProvider) EnableDisable(isEnable bool) {
 }
 
 func (p *VXLanProvider) Enabled(cn *common.NodeConnectivity) bool {
@@ -259,7 +259,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: tunnel.SwIfIndex,
-			Gw:        nodeIP,
+			Gw:        nodeIP, // FIXME this is probably wrong. The gateway of route going out to another node should not point to THIS node.
 		}},
 		Table: table,
 	}
