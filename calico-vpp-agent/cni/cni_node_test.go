@@ -452,7 +452,6 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"SwIfIndex": Equal(vxlanSwIfIndex),
-							"Gw":        Equal(net.ParseIP(ThisNodeIP).To4()), // TODO why this node IP when leaving node ?
 						})),
 					}),
 				), "Can't find 2 routes that should steer the traffic to newly added node")
@@ -1016,19 +1015,13 @@ func startVPP() {
 		"--entrypoint", vppBinary, vppImage,
 		vppBinaryConfigArg).Run()
 	Expect(err).Should(BeNil(), "Failed to start VPP inside docker container")
-
-	time.Sleep(1 * time.Second) // TODO wait properly for socket to appear (<1s wait?)
-	// fix file permissions for VPP binary socket exposed from docker container
-	err = exec.Command("docker", "exec", VPPContainerName, "chmod", "o+rw",
-		"/var/run/vpp/vpp-api-test.sock").Run()
-	Expect(err).Should(BeNil(), "Failed to change file permissions for VPP binary API socket")
 }
 
 // configureVPP connects to VPP and configures it with common configuration needed for tests
 func configureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uint32) {
 	// connect to VPP
-	vpp, err := common.CreateVppLink("/tmp/"+VPPContainerName+"/vpp-api-test.sock",
-		log.WithFields(logrus.Fields{"component": "vpp-api"}))
+	vpp, err := common.CreateVppLinkInRetryLoop("/tmp/"+VPPContainerName+"/vpp-api-test.sock",
+		log.WithFields(logrus.Fields{"component": "vpp-api"}), 20*time.Second, 100*time.Millisecond)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Cannot create VPP client: %v", err))
 	Expect(vpp).NotTo(BeNil())
 
