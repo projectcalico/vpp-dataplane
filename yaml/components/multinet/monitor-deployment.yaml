@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multinet-monitor-deployment
+  namespace: calico-vpp-dataplane
+  labels:
+    k8s-app: calico-vpp-node
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: calico-vpp-node
+  template:
+    metadata:
+      labels:
+        k8s-app: calico-vpp-node
+    spec:
+      serviceAccountName: calico-vpp-node-sa
+      containers:
+        - name: multinet-monitor
+          image: docker.io/calicovpp/multinet-monitor:latest
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 250m
