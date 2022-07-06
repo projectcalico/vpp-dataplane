@@ -107,10 +107,11 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 				Expect(ifSwIfIndex).NotTo(BeZero(), "No interface at VPP's end is found")
 
 				By("Checking correct IP address of interface tunnel at VPP's end")
-				couple, err := vpp.InterfaceGetUnnumbered(ifSwIfIndex)
+				couples, err := vpp.InterfaceGetUnnumbered(ifSwIfIndex)
 				Expect(err).ShouldNot(HaveOccurred(), "Failed to retrieve unnumbered interface "+
 					"info dump for VPP's end of interface tunnel")
-				addrList, err := vpp.AddrList(uint32(couple.IPSwIfIndex), false)
+				Expect(couples).ToNot(BeEmpty(), "can't find unnumbered interface")
+				addrList, err := vpp.AddrList(uint32(couples[0].IPSwIfIndex), false)
 				Expect(err).ShouldNot(HaveOccurred(),
 					"Failed to get addresses for unnumbered interfaces")
 				var correctAdress bool

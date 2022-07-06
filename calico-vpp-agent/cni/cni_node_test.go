@@ -249,7 +249,9 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(ipipSwIfIndex)
 				Expect(err).ToNot(HaveOccurred(),
 					"can't get unnumbered details of IPSec's IPIP tunnel interface")
-				Expect(unnumberedDetails.IPSwIfIndex).To(Equal(
+				Expect(unnumberedDetails).ToNot(BeEmpty(),
+					"can't find unnumbered details of IPSec's IPIP tunnel interface")
+				Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
 					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
 					"Unnumberred IPSec's IPIP tunnel interface doesn't "+
 						"get IP address from expected interface")
@@ -398,7 +400,9 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(vxlanSwIfIndex)
 				Expect(err).ToNot(HaveOccurred(),
 					"can't get unnumbered details of VXLAN tunnel interface")
-				Expect(unnumberedDetails.IPSwIfIndex).To(Equal(
+				Expect(unnumberedDetails).ToNot(BeEmpty(),
+					"can't find unnumbered details of VXLAN tunnel interface")
+				Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
 					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
 					"Unnumberred VXLAN tunnel interface doesn't get IP address from expected interface")
 
@@ -518,7 +522,9 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(ipipSwIfIndex)
 				Expect(err).ToNot(HaveOccurred(),
 					"can't get unnumbered details of IPIP tunnel interface")
-				Expect(unnumberedDetails.IPSwIfIndex).To(Equal(
+				Expect(unnumberedDetails).ToNot(BeEmpty(),
+					"can't find unnumbered details of IPIP tunnel interface")
+				Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
 					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
 					"Unnumberred IPIP tunnel interface doesn't get IP address from expected interface")
 
@@ -652,7 +658,8 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(wireguardSwIfIndex)
 				Expect(err).ToNot(HaveOccurred(),
 					"can't get unnumbered details of wireguard tunnel interface")
-				Expect(unnumberedDetails.IPSwIfIndex).To(Equal(
+				Expect(unnumberedDetails).ToNot(BeEmpty(), "can't find unnumbered interface")
+				Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
 					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
 					"Unnumberred wireguard tunnel interface doesn't get IP address from expected interface")
 
