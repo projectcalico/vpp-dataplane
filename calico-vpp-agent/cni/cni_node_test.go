@@ -227,9 +227,8 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				tunnels, err := vpp.ListIPIPTunnels()
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to get IP-IP tunnels from VPP (for IPSec checking)")
-				// Note: this is guessing based on existing interfaces in VPP, could be done better by listing
-				// interfaces from VPP and filtering the correct one FIXME do it better?
-				ipipSwIfIndex := uplinkSwIfIndex + 1
+				ipipSwIfIndex, err := vpp.SearchInterfaceWithName("ipip0")
+				Expect(err).ToNot(HaveOccurred(), "can't find ipip tunnel interface")
 				backendIPIPTunnel := &types.IPIPTunnel{
 					Src:       net.ParseIP(ThisNodeIP).To4(),
 					Dst:       net.ParseIP(AddedNodeIP).To4(),
@@ -381,11 +380,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}, false)
 
 				By("Checking VXLAN tunnel")
+				vxlanSwIfIndex, err := vpp.SearchInterfaceWithName("vxlan_tunnel0")
+				Expect(err).ToNot(HaveOccurred(), "can't find VXLAN tunnel interface")
 				tunnels, err := vpp.ListVXLanTunnels()
 				Expect(err).ToNot(HaveOccurred(), "Failed to get VXLAN tunnels from VPP")
-				// Note: this is guessing based on existing interfaces in VPP, could be done better by listing
-				// interfaces from VPP and filtering the correct one FIXME do it better?
-				vxlanSwIfIndex := uplinkSwIfIndex + 1
 				Expect(tunnels).To(ContainElements(types.VXLanTunnel{
 					SrcAddress:     net.ParseIP(ThisNodeIP).To4(), // set by configureBGPNodeIPAddresses() call
 					DstAddress:     net.ParseIP(GatewayIP).To4(),
@@ -505,11 +503,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}, false)
 
 				By("Checking IP-IP tunnel")
+				ipipSwIfIndex, err := vpp.SearchInterfaceWithName("ipip0")
+				Expect(err).ToNot(HaveOccurred(), "can't find ipip tunnel interface")
 				tunnels, err := vpp.ListIPIPTunnels()
 				Expect(err).ToNot(HaveOccurred(), "Failed to get IP-IP tunnels from VPP")
-				// Note: this is guessing based on existing interfaces in VPP, could be done better by listing
-				// interfaces from VPP and filtering the correct one FIXME do it better?
-				ipipSwIfIndex := uplinkSwIfIndex + 1
 				Expect(tunnels).To(ContainElements(&types.IPIPTunnel{
 					Src:       net.ParseIP(ThisNodeIP).To4(), // set by configureBGPNodeIPAddresses() call
 					Dst:       net.ParseIP(GatewayIP).To4(),
@@ -641,9 +638,8 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}, false)
 
 				By("checking wireguard tunnel")
-				// Note: this is guessing based on existing interfaces in VPP, could be done better by listing
-				// interfaces from VPP and filtering the correct one FIXME do it better?
-				wireguardSwIfIndex := uplinkSwIfIndex + 1
+				wireguardSwIfIndex, err := vpp.SearchInterfaceWithName("wg0")
+				Expect(err).ToNot(HaveOccurred(), "can't find wireguard tunnel interface")
 				wgTunnel, err := vpp.GetWireguardTunnel(wireguardSwIfIndex)
 				Expect(err).ToNot(HaveOccurred(), "can't get wireguard tunnel from VPP")
 				Expect(wgTunnel.Port).To(Equal(uint16(felixConfig.WireguardListeningPort)),

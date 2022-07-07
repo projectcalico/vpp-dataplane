@@ -348,7 +348,7 @@ func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (er
 	}
 }
 
-func (v *VppLink) SearchInterfaceWithName(name string) (err error, swIfIndex uint32) {
+func (v *VppLink) SearchInterfaceWithName(name string) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
@@ -363,7 +363,7 @@ func (v *VppLink) SearchInterfaceWithName(name string) (err error, swIfIndex uin
 		stop, err := reqCtx.ReceiveReply(response)
 		if err != nil {
 			v.log.Errorf("SwInterfaceDump failed: %v", err)
-			return err, INVALID_SW_IF_INDEX
+			return INVALID_SW_IF_INDEX, err
 		}
 		if stop {
 			break
@@ -377,9 +377,9 @@ func (v *VppLink) SearchInterfaceWithName(name string) (err error, swIfIndex uin
 	}
 	if swIfIndex == INVALID_SW_IF_INDEX {
 		v.log.Errorf("Interface %s not found", name)
-		return errors.New("Interface not found"), INVALID_SW_IF_INDEX
+		return INVALID_SW_IF_INDEX, errors.New("Interface not found")
 	}
-	return nil, swIfIndex
+	return swIfIndex, nil
 }
 
 func (v *VppLink) GetInterfaceDetails(swIfIndex uint32) (i *types.VppInterfaceDetails, err error) {
