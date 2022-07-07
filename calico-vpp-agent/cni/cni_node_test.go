@@ -203,22 +203,29 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 			// TODO test IPSec tunnel delete
 			// TODO test IPSec tunnel sharing for multiple connections
-			// TODO test multiple IPSec tunnels (there is created a group of IPSec at once)
+			// TODO test multiple IPSec tunnels (there is a option to created a group of IPSec tunnels at once)
 
 			// FIXME This is partial test due to not simulating second IPSec node where the IPSec tunnel should end.
 			//  The IPSec implementation in VPP can't negotiate with the other IPSec tunnel end node anything, so
-			//  i guess that VPP is not showing a lot of stuff that it should be there after up and running
-			//  IPSec tunnel between 2 nodes.
-			//  => not testing rest of IPSec settings, IPSec's IPIP tunnel to be in UP state, test existence of
+			//  probably that is the reason why VPP is not showing all possible IPSec configuration as it usually does
+			//  when the IPSec tunnel is up and running between 2 nodes.
+			//  => not testing all IPSec settings, IPSec's IPIP tunnel being in UP state, test existence of
 			//  route to each IPSec tunnel (1 multipath route)
 			It("should have setup IPIP tunnel as backend and all IPSec settings (only PARTIAL test!)", func() {
 				//Note: not testing setting of IPsecAsyncMode and threads dedicated to IPSec (CryptoWorkers)
 				// inside RescanState() function call
 				By("Adding node")
 				configureBGPNodeIPAddresses(connectivityServer)
+				// FIXME The concept of Destination and NextHop in common.NodeConnectivity is not well defined
+				//  (is the Destination the IP of added node, or it subnet or totally unrelated network? Is
+				//  the nexthop the IP of added node or could it be IP of some intermediate router that is
+				//  sitting between nodes?). Hence the interpretation differs between connectivity providers.
+				//  Need to either define it well(unify it?) and fix connectivity providers(and tests) or leave it
+				//  in connectivity provider implementation and check each test for semantics used in given
+				//  connectivity provider
 				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
-					Dst:              *ipNet(AddedNodeIP + "/24"), // FIXME destination and nodeIP are probably separate things!
-					NextHop:          net.ParseIP(AddedNodeIP),    // next hop == other node IP (for IPSec impl)
+					Dst:              *ipNet(AddedNodeIP + "/24"),
+					NextHop:          net.ParseIP(AddedNodeIP), // next hop == other node IP (for IPSec impl)
 					ResolvedProvider: connectivity.IPSEC,
 					Custom:           nil,
 				}, false)
@@ -245,37 +252,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}))
 
 				By("checking IPSec's IPIP tunnel interface attributes (Unnumbered)")
-				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(ipipSwIfIndex)
-				Expect(err).ToNot(HaveOccurred(),
-					"can't get unnumbered details of IPSec's IPIP tunnel interface")
-				Expect(unnumberedDetails).ToNot(BeEmpty(),
-					"can't find unnumbered details of IPSec's IPIP tunnel interface")
-				Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
-					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
-					"Unnumberred IPSec's IPIP tunnel interface doesn't "+
-						"get IP address from expected interface")
+				assertUnnumberedInterface(ipipSwIfIndex, "IPSec's IPIP tunnel interface", vpp)
 
 				By("checking IPSec's IPIP tunnel interface attributes (GSO+CNAT)")
-				// Note: no specialized binary api or VPP CLI for getting GSO on IPIP tunnel interface -> using
-				// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
-				// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
-				featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", ipipSwIfIndex))
-				Expect(err).ToNot(HaveOccurred(),
-					"failed to get IPSec's IPIP tunnel interface's configured features")
-				featuresStr = strings.ToLower(featuresStr)
-				var GSOFeatureArcs = []string{"gso-ip4", "gso-ip6", "gso-l2-ip4", "gso-l2-ip6"}
-				for _, gsoStr := range GSOFeatureArcs {
-					// Note: not checking full Feature Arc (i.e. ipv4-unicast: gso-ipv4), just the destination
-					// of traffic steering. This is enough because without GSO enabled, the destination would not exist.
-					Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
-						"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
-				}
-				var CNATFeatureArcs = []string{"cnat-input-ip4", "cnat-input-ip6", "cnat-output-ip4", "cnat-output-ip6"}
-				for _, cnatStr := range CNATFeatureArcs {
-					// Note: could be enhanced by checking the full Feature Arc (from where we steer traffic to cnat)
-					Expect(featuresStr).To(ContainSubstring(cnatStr), fmt.Sprintf("CNAT not fully enabled "+
-						"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
-				}
+				assertInterfaceGSOCNat(ipipSwIfIndex, "IPSec's IPIP tunnel interface", vpp)
 
 				By("checking route for IPSec's IPIP tunnel from pod VRF")
 				routes, err := vpp.GetRoutes(common.PodVRFIndex, false)
@@ -373,7 +353,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				By("Adding node")
 				configureBGPNodeIPAddresses(connectivityServer)
 				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
-					Dst:              *ipNet(AddedNodeIP + "/24"), // FIXME destination and nodeIP are probably separate things!
+					Dst:              *ipNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.VXLAN,
 					Custom:           nil,
@@ -395,36 +375,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}))
 
 				By("checking VXLAN tunnel interface attributes (Unnumbered)")
-				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(vxlanSwIfIndex)
-				Expect(err).ToNot(HaveOccurred(),
-					"can't get unnumbered details of VXLAN tunnel interface")
-				Expect(unnumberedDetails).ToNot(BeEmpty(),
-					"can't find unnumbered details of VXLAN tunnel interface")
-				Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
-					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
-					"Unnumberred VXLAN tunnel interface doesn't get IP address from expected interface")
+				assertUnnumberedInterface(vxlanSwIfIndex, "VXLAN tunnel interface", vpp)
 
 				By("checking VXLAN tunnel interface attributes (GSO+CNAT)")
-				// Note: no specialized binary api or VPP CLI for getting GSO on VXLAN tunnel interface -> using
-				// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
-				// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
-				featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", vxlanSwIfIndex))
-				Expect(err).ToNot(HaveOccurred(),
-					"failed to get VXLAN tunnel interface's configured features")
-				featuresStr = strings.ToLower(featuresStr)
-				var GSOFeatureArcs = []string{"gso-ip4", "gso-ip6", "gso-l2-ip4", "gso-l2-ip6"}
-				for _, gsoStr := range GSOFeatureArcs {
-					// Note: not checking full Feature Arc (i.e. ipv4-unicast: gso-ipv4), just the destination
-					// of traffic steering. This is enough because without GSO enabled, the destination would not exist.
-					Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
-						"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
-				}
-				var CNATFeatureArcs = []string{"cnat-input-ip4", "cnat-input-ip6", "cnat-output-ip4", "cnat-output-ip6"}
-				for _, cnatStr := range CNATFeatureArcs {
-					// Note: could be enhanced by checking the full Feature Arc (from where we steer traffic to cnat)
-					Expect(featuresStr).To(ContainSubstring(cnatStr), fmt.Sprintf("CNAT not fully enabled "+
-						"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
-				}
+				assertInterfaceGSOCNat(vxlanSwIfIndex, "VXLAN tunnel interface", vpp)
 
 				By("checking VXLAN tunnel interface attributes (Up state)")
 				interfaceDetails, err := vpp.GetInterfaceDetails(vxlanSwIfIndex)
@@ -496,7 +450,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				By("Adding node")
 				configureBGPNodeIPAddresses(connectivityServer)
 				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
-					Dst:              *ipNet(AddedNodeIP + "/24"), // FIXME destination and nodeIP are probably separate things!
+					Dst:              *ipNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.IPIP,
 					Custom:           nil,
@@ -515,36 +469,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}))
 
 				By("checking IPIP tunnel interface attributes (Unnumbered)")
-				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(ipipSwIfIndex)
-				Expect(err).ToNot(HaveOccurred(),
-					"can't get unnumbered details of IPIP tunnel interface")
-				Expect(unnumberedDetails).ToNot(BeEmpty(),
-					"can't find unnumbered details of IPIP tunnel interface")
-				Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
-					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
-					"Unnumberred IPIP tunnel interface doesn't get IP address from expected interface")
+				assertUnnumberedInterface(ipipSwIfIndex, "IPIP tunnel interface", vpp)
 
 				By("checking IPIP tunnel interface attributes (GSO+CNAT)")
-				// Note: no specialized binary api or VPP CLI for getting GSO on IPIP tunnel interface -> using
-				// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
-				// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
-				featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", ipipSwIfIndex))
-				Expect(err).ToNot(HaveOccurred(),
-					"failed to get IPIP tunnel interface's configured features")
-				featuresStr = strings.ToLower(featuresStr)
-				var GSOFeatureArcs = []string{"gso-ip4", "gso-ip6", "gso-l2-ip4", "gso-l2-ip6"}
-				for _, gsoStr := range GSOFeatureArcs {
-					// Note: not checking full Feature Arc (i.e. ipv4-unicast: gso-ipv4), just the destination
-					// of traffic steering. This is enough because without GSO enabled, the destination would not exist.
-					Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
-						"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
-				}
-				var CNATFeatureArcs = []string{"cnat-input-ip4", "cnat-input-ip6", "cnat-output-ip4", "cnat-output-ip6"}
-				for _, cnatStr := range CNATFeatureArcs {
-					// Note: could be enhanced by checking the full Feature Arc (from where we steer traffic to cnat)
-					Expect(featuresStr).To(ContainSubstring(cnatStr), fmt.Sprintf("CNAT not fully enabled "+
-						"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
-				}
+				assertInterfaceGSOCNat(ipipSwIfIndex, "IPIP tunnel interface", vpp)
 
 				By("checking IPIP tunnel interface attributes (Up state)")
 				interfaceDetails, err := vpp.GetInterfaceDetails(ipipSwIfIndex)
@@ -615,7 +543,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}, options.SetOptions{})
 			})
 
-			// TODO test delete
+			// TODO test removal of wireguard tunnel
 
 			It("must configure wireguard tunnel with one peer and routes to it", func() {
 				By("Adding node")
@@ -647,38 +575,11 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(wgTunnel.Addr).To(Equal(net.ParseIP(ThisNodeIP).To4()),
 					"incorrectly set IP address of this node's wireguard tunnel interface")
 
-				// TODO extract common checks like interface UP state, GSO+CNAT, Unnumbered interface and refactor for better reading (lower line count)
-
 				By("checking wireguard tunnel interface attributes (Unnumbered)")
-				unnumberedDetails, err := vpp.InterfaceGetUnnumbered(wireguardSwIfIndex)
-				Expect(err).ToNot(HaveOccurred(),
-					"can't get unnumbered details of wireguard tunnel interface")
-				Expect(unnumberedDetails).ToNot(BeEmpty(), "can't find unnumbered interface")
-				Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
-					interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
-					"Unnumberred wireguard tunnel interface doesn't get IP address from expected interface")
+				assertUnnumberedInterface(wireguardSwIfIndex, "wireguard tunnel interface", vpp)
 
 				By("checking wireguard tunnel interface attributes (GSO+CNAT)")
-				// Note: no specialized binary api or VPP CLI for getting GSO on IPIP tunnel interface -> using
-				// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
-				// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
-				featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", wireguardSwIfIndex))
-				Expect(err).ToNot(HaveOccurred(),
-					"failed to get wireguard tunnel interface's configured features")
-				featuresStr = strings.ToLower(featuresStr)
-				var GSOFeatureArcs = []string{"gso-ip4", "gso-ip6", "gso-l2-ip4", "gso-l2-ip6"}
-				for _, gsoStr := range GSOFeatureArcs {
-					// Note: not checking full Feature Arc (i.e. ipv4-unicast: gso-ipv4), just the destination
-					// of traffic steering. This is enough because without GSO enabled, the destination would not exist.
-					Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
-						"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
-				}
-				var CNATFeatureArcs = []string{"cnat-input-ip4", "cnat-input-ip6", "cnat-output-ip4", "cnat-output-ip6"}
-				for _, cnatStr := range CNATFeatureArcs {
-					// Note: could be enhanced by checking the full Feature Arc (from where we steer traffic to cnat)
-					Expect(featuresStr).To(ContainSubstring(cnatStr), fmt.Sprintf("CNAT not fully enabled "+
-						"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
-				}
+				assertInterfaceGSOCNat(wireguardSwIfIndex, "wireguard tunnel interface", vpp)
 
 				By("checking wireguard tunnel interface attributes (Up state)")
 				interfaceDetails, err := vpp.GetInterfaceDetails(wireguardSwIfIndex)
@@ -840,7 +741,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					By("Adding node (the tunnel end node IP destination)")
 					err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
 						Dst:              *tunnelEndNodeIPNet,
-						NextHop:          net.ParseIP(AddedNodeIPv6), // TODO check if this is right? next hop is not the other side of outgoing interface, but IPv6 of added node?
+						NextHop:          net.ParseIP(AddedNodeIPv6),
 						ResolvedProvider: connectivity.SRv6,
 						Custom:           nil,
 					}, false)
@@ -879,8 +780,6 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						"configuration (steering and policy)")
 
 					By("Adding Srv6 traffic routing")
-					// TODO check from where this is called in full K8s/Calico/VPP installation and whether
-					//  we call it with correct input values here
 					err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
 						Dst:              *tunnelEndLocalSid,
 						NextHop:          net.ParseIP(GatewayIPv6),
@@ -938,40 +837,6 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		teardownVPP()
 	})
 })
-
-func addPaddingTo32Bytes(value []byte) []byte {
-	result := [32]byte{}
-	copy(result[:], value)
-	return result[:]
-}
-
-func configureBGPNodeIPAddresses(connectivityServer *connectivity.ConnectivityServer) {
-	connectivityServer.SetOurBGPSpec(&oldv3.NodeBGPSpec{
-		IPv4Address: ThisNodeIP + "/24",
-		IPv6Address: ThisNodeIPv6 + "/128",
-	})
-}
-
-// assertNextNodeLink asserts that in VPP graph the given node has linked the linkedNextNode as one of its
-// "next" nodes for processing. It returns to node specific index of the checked next node.
-func assertNextNodeLink(node, linkedNextNode string, vpp *vpplink.VppLink) int {
-	// get the node information from VPP (No VPP binary API for that -> using VPE)
-	nodeInfoStr, err := vpp.RunCli(fmt.Sprintf("show node %s", node))
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to VPP graph info for node %s", node))
-
-	// asserting next node
-	Expect(strings.ToLower(nodeInfoStr)).To(ContainSubstring(strings.ToLower(linkedNextNode)),
-		fmt.Sprintf("can't find added next node %s in node %s information", linkedNextNode, node))
-
-	// getting next node's index that is relative to the given node (this is kind of brittle as we parse VPP CLI output)
-	linesToNextNode := strings.Split(strings.Split(nodeInfoStr, linkedNextNode)[0], "\n")
-	indexStrOfLinkedNextNode := strings.TrimSpace(linesToNextNode[len(linesToNextNode)-1][:10])
-	nextNodeIndex, err := strconv.Atoi(indexStrOfLinkedNextNode)
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("can't parse next node index "+
-		"in given node from VPP CLI output %s", nodeInfoStr))
-
-	return nextNodeIndex
-}
 
 // startVPP creates docker container and runs inside the VPP
 func startVPP() {
@@ -1077,6 +942,70 @@ func teardownVPP() {
 	Expect(err).Should(BeNil(), "Failed to stop and remove VPP docker container")
 }
 
+// assertUnnumberedInterface checks whether the provided interface is unnumbered and properly takes IP address
+// from the correct interface (conf.DataInterfaceSwIfIndex).
+func assertUnnumberedInterface(swIfIndex uint32, interfaceDescriptiveName string, vpp *vpplink.VppLink) {
+	unnumberedDetails, err := vpp.InterfaceGetUnnumbered(swIfIndex)
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("can't get unnumbered details of %s", interfaceDescriptiveName))
+	Expect(unnumberedDetails).ToNot(BeEmpty(), "can't find unnumbered interface")
+	Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
+		interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
+		fmt.Sprintf("Unnumberred %s doesn't get IP address from expected interface", interfaceDescriptiveName))
+}
+
+// assertInterfaceGSOCNat check whether the given interface has properly set the GSO and CNAT attributes
+func assertInterfaceGSOCNat(swIfIndex uint32, interfaceDescriptiveName string, vpp *vpplink.VppLink) {
+	// Note: no specialized binary api or VPP CLI for getting GSO on interface -> using
+	// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
+	// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
+	featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", swIfIndex))
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("failed to get %s's configured features", interfaceDescriptiveName))
+	featuresStr = strings.ToLower(featuresStr)
+	var GSOFeatureArcs = []string{"gso-ip4", "gso-ip6", "gso-l2-ip4", "gso-l2-ip6"}
+	for _, gsoStr := range GSOFeatureArcs {
+		// Note: not checking full Feature Arc (i.e. ipv4-unicast: gso-ipv4), just the destination
+		// of traffic steering. This is enough because without GSO enabled, the destination would not exist.
+		Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
+			"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
+	}
+	var CNATFeatureArcs = []string{"cnat-input-ip4", "cnat-input-ip6", "cnat-output-ip4", "cnat-output-ip6"}
+	for _, cnatStr := range CNATFeatureArcs {
+		// Note: could be enhanced by checking the full Feature Arc (from where we steer traffic to cnat)
+		Expect(featuresStr).To(ContainSubstring(cnatStr), fmt.Sprintf("CNAT not fully enabled "+
+			"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
+	}
+}
+
+// assertNextNodeLink asserts that in VPP graph the given node has linked the linkedNextNode as one of its
+// "next" nodes for processing. It returns to node specific index of the checked next node.
+func assertNextNodeLink(node, linkedNextNode string, vpp *vpplink.VppLink) int {
+	// get the node information from VPP (No VPP binary API for that -> using VPE)
+	nodeInfoStr, err := vpp.RunCli(fmt.Sprintf("show node %s", node))
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to VPP graph info for node %s", node))
+
+	// asserting next node
+	Expect(strings.ToLower(nodeInfoStr)).To(ContainSubstring(strings.ToLower(linkedNextNode)),
+		fmt.Sprintf("can't find added next node %s in node %s information", linkedNextNode, node))
+
+	// getting next node's index that is relative to the given node (this is kind of brittle as we parse VPP CLI output)
+	linesToNextNode := strings.Split(strings.Split(nodeInfoStr, linkedNextNode)[0], "\n")
+	indexStrOfLinkedNextNode := strings.TrimSpace(linesToNextNode[len(linesToNextNode)-1][:10])
+	nextNodeIndex, err := strconv.Atoi(indexStrOfLinkedNextNode)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("can't parse next node index "+
+		"in given node from VPP CLI output %s", nodeInfoStr))
+
+	return nextNodeIndex
+}
+
+func configureBGPNodeIPAddresses(connectivityServer *connectivity.ConnectivityServer) {
+	connectivityServer.SetOurBGPSpec(&oldv3.NodeBGPSpec{
+		IPv4Address: ThisNodeIP + "/24",
+		IPv6Address: ThisNodeIPv6 + "/128",
+	})
+}
+
 // addIPPoolForCalicoClient is convenience function for adding IPPool to mocked Calico IPAM Stub used
 // in Calico client stub. This function doesn't set anything for the watchers.IpamCache implementation.
 func addIPPoolForCalicoClient(client *calico.CalicoClientStub, poolName string, poolCIRD string) (
@@ -1114,4 +1043,10 @@ func sidArray(addresses ...ip_types.IP6Address) (sids [16]ip_types.IP6Address) {
 		sids[i] = address
 	}
 	return sids
+}
+
+func addPaddingTo32Bytes(value []byte) []byte {
+	result := [32]byte{}
+	copy(result[:], value)
+	return result[:]
 }
