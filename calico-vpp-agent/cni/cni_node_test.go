@@ -52,6 +52,7 @@ const (
 	IntegrationTestEnableArgName = "INTEGRATION_TEST"
 	VppImageArgName              = "VPP_IMAGE"
 	VppBinaryArgName             = "VPP_BINARY"
+	VppContainerExtraArgsName    = "VPP_CONTAINER_EXTRA_ARGS"
 )
 
 var (
@@ -59,6 +60,8 @@ var (
 	vppImage string
 	// vppBinary is the full path to VPP binary inside docker image
 	vppBinary string
+	// vppContainerExtraArgs is a list of additionnal cli parameters for the VPP `docker run ...`
+	vppContainerExtraArgs []string = []string{}
 )
 
 // TestCniIntegration runs all the ginkgo integration test inside CNI package
@@ -87,6 +90,14 @@ var _ = BeforeSuite(func() {
 		Expect(vppBinary).ToNot(BeEmpty(), fmt.Sprintf("Please specify VPP binary (full path) "+
 			"inside docker image %s using %s environment variable.", vppImage, VppBinaryArgName))
 	}
+
+	vppContainerExtraArgsList, found := os.LookupEnv(VppContainerExtraArgsName)
+	if found {
+		for _, arg := range strings.Split(vppContainerExtraArgsList, ",") {
+			vppContainerExtraArgs = append(vppContainerExtraArgs, arg)
+		}
+	}
+
 })
 
 // Common setup constants
@@ -869,12 +880,13 @@ func startVPP() {
 	Expect(err).Should(BeNil(), "Failed to clean up old VPP docker container")
 
 	// start VPP inside docker container
-	err = exec.Command("docker", "run", "-d", "--privileged", "--name", VPPContainerName,
-		"-v", "/tmp/"+VPPContainerName+":/var/run/vpp/",
+	cmd := []string{"run", "-d", "--privileged", "--name", VPPContainerName,
+		"-v", "/tmp/" + VPPContainerName + ":/var/run/vpp/",
 		"-v", "/proc:/proc", // needed for manipulation of another docker container's network namespace
-		"--sysctl", "net.ipv6.conf.all.disable_ipv6=0", // enable IPv6 in container (to set IPv6 on host's end of uplink)
-		"--entrypoint", vppBinary, vppImage,
-		vppBinaryConfigArg).Run()
+		"--sysctl", "net.ipv6.conf.all.disable_ipv6=0"} // enable IPv6 in container (to set IPv6 on host's end of uplink)
+	cmd = append(cmd, vppContainerExtraArgs...)
+	cmd = append(cmd, "--entrypoint", vppBinary, vppImage, vppBinaryConfigArg)
+	err = exec.Command("docker", cmd...).Run()
 	Expect(err).Should(BeNil(), "Failed to start VPP inside docker container")
 }
 
