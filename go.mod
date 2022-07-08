@@ -8,6 +8,7 @@ require (
 	github.com/containernetworking/plugins v1.0.1
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
+	github.com/inconshreveable/mousetrap v1.0.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.3.0
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/onsi/ginkgo v1.16.5
@@ -19,9 +20,9 @@ require (
 	github.com/projectcalico/api v0.0.0-20220505231559-852f5034c309 // v3.23.0
 	github.com/projectcalico/calico v0.0.0-20220509191150-29de1d3f8dd7 // v3.23.0
 	github.com/sirupsen/logrus v1.8.1
+	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20210703095558-21f2c55a7727
-	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 	github.com/yookoala/realpath v1.0.0
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
