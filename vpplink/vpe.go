@@ -16,8 +16,10 @@
 package vpplink
 
 import (
+	"context"
 	"fmt"
 
+	"git.fd.io/govpp.git/api"
 	"git.fd.io/govpp.git/binapi/vpe"
 	"github.com/pkg/errors"
 )
@@ -36,4 +38,18 @@ func (v *VppLink) GetVPPVersion() (version string, err error) {
 		return "", fmt.Errorf("ShowVersion failed (retval %d). Request: %+v", response.Retval, request)
 	}
 	return response.Version, nil
+}
+
+// RunCli sends CLI command to VPP and returns response.
+func (v *VppLink) RunCli(cmd string) (string, error) {
+	client := vpe.NewServiceClient(v.conn) // TODO create service client only once by VppLink creation/start?
+	resp, err := client.CliInband(context.Background(), &vpe.CliInband{
+		Cmd: cmd,
+	})
+	if err != nil {
+		return "", errors.Wrapf(err, "VPP CLI command '%s' failed", cmd)
+	} else if err = api.RetvalToVPPApiError(resp.Retval); err != nil {
+		return "", err
+	}
+	return resp.Reply, nil
 }

@@ -44,14 +44,17 @@ type ConnectivityProviderData struct {
 	server *ConnectivityServer
 }
 
+// ConnectivityProvider configures VPP to have proper connectivity to other K8s nodes.
+// Different implementations can connect VPP with VPP in other K8s node by using different networking
+// technologies (VXLAN, SRv6,...).
 type ConnectivityProvider interface {
 	AddConnectivity(cn *common.NodeConnectivity) error
 	DelConnectivity(cn *common.NodeConnectivity) error
-	/* Check current state in VPP and update local cache */
+	// RescanState check current state in VPP and updates local cache
 	RescanState()
-	/* is it enabled in the config ? */
+	// Enabled checks whether the ConnectivityProvider is enabled in the config
 	Enabled(cn *common.NodeConnectivity) bool
-	EnableDisable(isEnable bool) ()
+	EnableDisable(isEnable bool)
 }
 
 func (p *ConnectivityProviderData) GetNodeByIp(addr net.IP) *oldv3.Node {

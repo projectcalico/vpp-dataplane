@@ -31,6 +31,10 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+
+	// needed for GoBGP building (in ../Makefile, gobgp target)
+	_ "github.com/inconshreveable/mousetrap"
+	_ "github.com/spf13/cobra"
 )
 
 func (w *Server) getNexthop(path *bgpapi.Path) string {

@@ -302,6 +302,8 @@ func (v *VppLink) EnableInterfaceIP4(swIfIndex uint32) error {
 	return v.enableDisableInterfaceIP(swIfIndex, false /*isIP6*/, true /*isEnable*/)
 }
 
+// SearchInterfaceWithTag searches for interface that is tagged with given prefix. If not such interface is found,
+// then vpplink.INVALID_SW_IF_INDEX is returned as interface swIndex. Otherwise, non-nil error is returned.
 func (v *VppLink) SearchInterfaceWithTag(tag string) (uint32, error) {
 	err, sw, _ := v.searchInterfaceWithTagOrTagPrefix(tag, false)
 	return sw, err
@@ -346,7 +348,7 @@ func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (er
 	}
 }
 
-func (v *VppLink) SearchInterfaceWithName(name string) (err error, swIfIndex uint32) {
+func (v *VppLink) SearchInterfaceWithName(name string) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
@@ -361,7 +363,7 @@ func (v *VppLink) SearchInterfaceWithName(name string) (err error, swIfIndex uin
 		stop, err := reqCtx.ReceiveReply(response)
 		if err != nil {
 			v.log.Errorf("SwInterfaceDump failed: %v", err)
-			return err, INVALID_SW_IF_INDEX
+			return INVALID_SW_IF_INDEX, err
 		}
 		if stop {
 			break
@@ -375,9 +377,9 @@ func (v *VppLink) SearchInterfaceWithName(name string) (err error, swIfIndex uin
 	}
 	if swIfIndex == INVALID_SW_IF_INDEX {
 		v.log.Errorf("Interface %s not found", name)
-		return errors.New("Interface not found"), INVALID_SW_IF_INDEX
+		return INVALID_SW_IF_INDEX, errors.New("Interface not found")
 	}
-	return nil, swIfIndex
+	return swIfIndex, nil
 }
 
 func (v *VppLink) GetInterfaceDetails(swIfIndex uint32) (i *types.VppInterfaceDetails, err error) {

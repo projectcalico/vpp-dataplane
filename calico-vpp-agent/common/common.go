@@ -18,6 +18,7 @@ package common
 import (
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net"
 	"os"
 	"strconv"
@@ -48,26 +49,35 @@ const (
 	PodVRFIndex     = uint32(2)
 )
 
+// CreateVppLink creates new link to VPP and waits for VPP to be up and running (by using simple VPP API call)
 func CreateVppLink(socket string, log *logrus.Entry) (vpp *vpplink.VppLink, err error) {
-	// Get an API connection, with a few retries to accomodate VPP startup time
-	for i := 0; i < 10; i++ {
+	return CreateVppLinkInRetryLoop(socket, log, 20*time.Second, 2*time.Second)
+}
+
+// CreateVppLinkInRetryLoop creates new link to VPP and waits for VPP to be up and running (by using simple
+// VPP API call). This process is retried in a loop and has a timeout limit.
+func CreateVppLinkInRetryLoop(socket string, log *logrus.Entry, timeout time.Duration,
+	retry time.Duration) (vpp *vpplink.VppLink, err error) {
+	// Get an API connection, with a few retries to accommodate VPP startup time
+	maxRetry := int(math.Round(float64(timeout.Nanoseconds() / retry.Nanoseconds())))
+	for i := 0; i < maxRetry; i++ {
 		vpp, err = vpplink.NewVppLink(socket, log)
 		if err != nil {
-			if i < 5 {
+			if i < (maxRetry / 2) {
 				/* do not warn, it is probably fine */
-				log.Infof("Waiting for VPP... [%d/10]", i)
+				log.Infof("Waiting for VPP... [%d/%d]", i, maxRetry)
 			} else {
-				log.Warnf("Waiting for VPP... [%d/10] %v", i, err)
+				log.Warnf("Waiting for VPP... [%d/%d] %v", i, maxRetry, err)
 			}
 			err = nil
-			time.Sleep(2 * time.Second)
+			time.Sleep(retry)
 		} else {
 			// Try a simple API message to verify everything is up and running
 			version, err := vpp.GetVPPVersion()
 			if err != nil {
-				log.Warnf("Try [%d/10] broken vpplink: %v", i, err)
+				log.Warnf("Try [%d/%d] broken vpplink: %v", i, maxRetry, err)
 				err = nil
-				time.Sleep(2 * time.Second)
+				time.Sleep(retry)
 			} else {
 				log.Infof("Connected to VPP version %s", version)
 				return vpp, nil
@@ -442,6 +452,7 @@ func (cn *NodeConnectivity) String() string {
 	return fmt.Sprintf("%s-%s-%s", cn.Dst.String(), cn.NextHop.String(), fmt.Sprint(cn.Vni))
 }
 
+// SRv6Tunnel contains info needed to create all SRv6 tunnel components (Steering, Policy, Localsids)
 type SRv6Tunnel struct {
 	Dst      net.IP
 	Bsid     net.IP

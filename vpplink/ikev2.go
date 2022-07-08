@@ -139,11 +139,11 @@ func (v *VppLink) addDelIKEv2Profile(name string, isAdd bool) (err error) {
 	return nil
 }
 
-func (v *VppLink) ListIKEv2Profiles() ([]string, error) {
+func (v *VppLink) ListIKEv2Profiles() ([]ikev2_types.Ikev2Profile, error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
-	profiles := make([]string, 0)
+	profiles := make([]ikev2_types.Ikev2Profile, 0)
 	request := &ikev2.Ikev2ProfileDump{}
 	stream := v.ch.SendMultiRequest(request)
 	for {
@@ -155,7 +155,7 @@ func (v *VppLink) ListIKEv2Profiles() ([]string, error) {
 		if stop {
 			break
 		}
-		profiles = append(profiles, response.Profile.Name)
+		profiles = append(profiles, response.Profile)
 	}
 	return profiles, nil
 }
