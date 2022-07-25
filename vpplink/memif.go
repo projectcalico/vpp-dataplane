@@ -52,6 +52,30 @@ func (v *VppLink) DelMemifSocketFileName(socketId uint32) error {
 	return err
 }
 
+func (v *VppLink) ListMemifSockets() ([]*types.MemifSocket, error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	sockets := make([]*types.MemifSocket, 0)
+	request := &memif.MemifSocketFilenameDump{}
+	stream := v.ch.SendMultiRequest(request)
+	for {
+		response := &memif.MemifSocketFilenameDetails{}
+		stop, err := stream.ReceiveReply(response)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error listing memif sockets")
+		}
+		if stop {
+			break
+		}
+		sockets = append(sockets, &types.MemifSocket{
+			SocketID:       response.SocketID,
+			SocketFilename: response.SocketFilename,
+		})
+	}
+	return sockets, nil
+}
+
 func (v *VppLink) DeleteMemif(swIfIndex uint32) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
@@ -119,4 +143,17 @@ func (v *VppLink) ListMemifInterfaces() ([]*types.Memif, error) {
 		})
 	}
 	return memifs, nil
+}
+
+func (v *VppLink) MemifsocketByID(socketID uint32) (*types.MemifSocket, error) {
+	sockets, err := v.ListMemifSockets()
+	if err != nil {
+		return nil, errors.Wrapf(err, "error listing memif sockets")
+	}
+	for _, socket := range sockets {
+		if socket.SocketID == socketID {
+			return socket, nil
+		}
+	}
+	return nil, fmt.Errorf("can't find socket with id %d", socketID)
 }
