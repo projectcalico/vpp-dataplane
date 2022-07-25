@@ -64,7 +64,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	memif := &types.Memif{
 		Role:        types.MemifMaster,
 		Mode:        types.MemifModeEthernet,
-		NumRxQueues: config.TapNumRxQueues,
+		NumRxQueues: config.TapNumRxQueues, // FIXME using tap setting for memif can limit memif functionality at best, break something in worst case
 		NumTxQueues: config.TapNumTxQueues,
 		QueueSize:   config.TapRxQueueSize,
 		SocketId:    socketId,
