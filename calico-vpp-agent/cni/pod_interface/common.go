@@ -27,7 +27,7 @@ import (
 type PodInterfaceDriverData struct {
 	log          *logrus.Entry
 	vpp          *vpplink.VppLink
-	name         string
+	Name         string
 	NDataThreads int
 }
 

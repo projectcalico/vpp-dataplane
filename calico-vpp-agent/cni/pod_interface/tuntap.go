@@ -45,7 +45,7 @@ func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTa
 	i := &TunTapPodInterfaceDriver{}
 	i.vpp = vpp
 	i.log = log
-	i.name = "tun"
+	i.Name = "tun"
 	return i
 }
 
@@ -136,7 +136,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 			HostInterfaceName: podSpec.InterfaceName,
 		},
 		HostNamespace: podSpec.NetnsName,
-		Tag:           podSpec.GetInterfaceTag(i.name),
+		Tag:           podSpec.GetInterfaceTag(i.Name),
 		HostMtu:       i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0),
 	}
 

@@ -40,7 +40,7 @@ func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodIn
 	i := &VclPodInterfaceDriver{}
 	i.vpp = vpp
 	i.log = log
-	i.name = "vcl"
+	i.Name = "vcl"
 	return i
 }
 
