@@ -47,7 +47,7 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 	i := &MemifPodInterfaceDriver{}
 	i.vpp = vpp
 	i.log = log
-	i.name = "memif"
+	i.Name = "memif"
 	return i
 }
 
@@ -64,7 +64,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	memif := &types.Memif{
 		Role:        types.MemifMaster,
 		Mode:        types.MemifModeEthernet,
-		NumRxQueues: config.TapNumRxQueues,
+		NumRxQueues: config.TapNumRxQueues, // FIXME using tap setting for memif can limit memif functionality at best, break something in worst case
 		NumTxQueues: config.TapNumTxQueues,
 		QueueSize:   config.TapRxQueueSize,
 		SocketId:    socketId,
@@ -81,7 +81,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	}
 	podSpec.MemifSwIfIndex = memif.SwIfIndex
 
-	err = i.vpp.SetInterfaceTag(memif.SwIfIndex, podSpec.GetInterfaceTag(i.name))
+	err = i.vpp.SetInterfaceTag(memif.SwIfIndex, podSpec.GetInterfaceTag(i.Name))
 	if err != nil {
 		return err
 	}

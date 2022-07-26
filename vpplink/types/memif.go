@@ -49,3 +49,8 @@ type Memif struct {
 	SwIfIndex   uint32
 	Flags       MemifFlag
 }
+
+type MemifSocket struct {
+	SocketID       uint32
+	SocketFilename string
+}

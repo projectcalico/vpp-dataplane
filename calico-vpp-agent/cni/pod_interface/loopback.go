@@ -32,7 +32,7 @@ func NewLoopbackPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *Loo
 	i := &LoopbackPodInterfaceDriver{}
 	i.vpp = vpp
 	i.log = log
-	i.name = "loopback"
+	i.Name = "loopback"
 	return i
 }
 
