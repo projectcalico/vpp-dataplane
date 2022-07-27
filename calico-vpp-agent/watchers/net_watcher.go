@@ -44,7 +44,7 @@ type NetworkDefinition struct {
 	Name              string
 	LoopbackSwIfIndex uint32
 	Range             string
-	Nad               string
+	NetAttachDefs     string
 }
 
 type NetWatcher struct {
@@ -67,7 +67,7 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 		client:             *kubernetesClient,
 		stop:               make(chan struct{}),
 		networkDefinitions: make(map[string]*NetworkDefinition),
-		nads: make(map[string]string),
+		nads:               make(map[string]string),
 	}
 	return &w
 }
@@ -167,8 +167,8 @@ func (w *NetWatcher) Stop() {
 func (w *NetWatcher) onNadDeleted(nad *netv1.NetworkAttachmentDefinition) error {
 	delete(w.nads, nad.Namespace+"/"+nad.Name)
 	for key, net := range w.networkDefinitions {
-		if net.Nad == nad.Namespace+"/"+nad.Name {
-			w.networkDefinitions[key].Nad = ""
+		if net.NetAttachDefs == nad.Namespace+"/"+nad.Name {
+			w.networkDefinitions[key].NetAttachDefs = ""
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.NetAddedOrUpdated,
 				New:  w.networkDefinitions[key],
@@ -189,7 +189,7 @@ func (w *NetWatcher) onNadAdded(nad *netv1.NetworkAttachmentDefinition) error {
 		for key, net := range w.networkDefinitions {
 			if net.Name == plugin.DpOptions.NetName {
 				w.nads[nad.Namespace+"/"+nad.Name] = net.Name
-				w.networkDefinitions[key].Nad = nad.Namespace + "/" + nad.Name
+				w.networkDefinitions[key].NetAttachDefs = nad.Namespace + "/" + nad.Name
 				common.SendEvent(common.CalicoVppEvent{
 					Type: common.NetAddedOrUpdated,
 					New:  w.networkDefinitions[key],
@@ -207,7 +207,7 @@ func (w *NetWatcher) OnNetAdded(net *networkv3.Network) error {
 	}
 	for nad, net := range w.nads {
 		if net == netDef.Name {
-			netDef.Nad = nad
+			netDef.NetAttachDefs = nad
 		}
 	}
 	common.SendEvent(common.CalicoVppEvent{

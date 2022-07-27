@@ -25,9 +25,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	netAnnotationsLabel = "extensions.projectcalico.org/network" //this annotation is assigned to rules in multinet to precise network
+)
+
 type PolicyID struct {
-	Tier string
-	Name string
+	Tier    string
+	Name    string
+	Network string
 }
 
 // Policy represents both Policies and Profiles in the calico API
@@ -65,20 +70,13 @@ func (p *Policy) String() string {
 func ruleInNetwork(r *proto.Rule, network string) bool {
 	if r.GetMetadata() != nil {
 		if r.GetMetadata().GetAnnotations() != nil {
-			ruleNetwork, found := r.GetMetadata().GetAnnotations()["extensions.projectcalico.org/network"]
-			if found && ruleNetwork == network {
-				return true
+			ruleNetwork, found := r.GetMetadata().GetAnnotations()[netAnnotationsLabel]
+			if found {
+				return ruleNetwork == network
 			}
 		}
 	}
-	if network == "" {
-		if r.GetMetadata() == nil || r.GetMetadata().GetAnnotations() == nil {
-			return true
-		} else if _, found := r.GetMetadata().GetAnnotations()["extensions.projectcalico.org/network"]; !found {
-			return true
-		}
-	}
-	return false
+	return network == ""
 }
 
 func fromProtoPolicy(p *proto.Policy, network string) (policy *Policy, err error) {

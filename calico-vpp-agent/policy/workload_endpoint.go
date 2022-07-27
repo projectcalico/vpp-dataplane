@@ -89,14 +89,8 @@ func fromProtoWorkload(wep *proto.WorkloadEndpoint, server *Server) *WorkloadEnd
 func (w *WorkloadEndpoint) getPolicies(state *PolicyState, network string) (conf *types.InterfaceConfig, err error) {
 	conf = types.NewInterfaceConfig()
 	for _, tier := range w.Tiers {
-		var policyMap map[PolicyID]*Policy
-		if network == "" {
-			policyMap = state.Policies
-		} else {
-			policyMap = state.multinetPolicies[network]
-		}
 		for _, polName := range tier.IngressPolicies {
-			pol, ok := policyMap[PolicyID{Tier: tier.Name, Name: polName}]
+			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName, Network: network}]
 			if !ok {
 				return nil, fmt.Errorf("in policy %s tier %s not found for workload endpoint", polName, tier.Name)
 			}
@@ -106,7 +100,7 @@ func (w *WorkloadEndpoint) getPolicies(state *PolicyState, network string) (conf
 			conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, pol.VppID)
 		}
 		for _, polName := range tier.EgressPolicies {
-			pol, ok := policyMap[PolicyID{Tier: tier.Name, Name: polName}]
+			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName, Network: network}]
 			if !ok {
 				return nil, fmt.Errorf("out policy %s tier %s not found for workload endpoint", polName, tier.Name)
 			}
