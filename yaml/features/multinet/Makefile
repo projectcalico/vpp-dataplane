@@ -12,26 +12,24 @@ delete-test-memif-multinet:
 .PHONY: install
 install:
 	@echo "--Installing network CRD..."
-	@kubectl apply -f ../../yaml/features/multinet/projectcalico.org_networks.yaml
-	@kubectl apply -f ../../yaml/features/multinet/whereabouts-daemonset-install.yaml
+	@kubectl apply -f ../../../yaml/features/multinet/projectcalico.org_networks.yaml
+	@kubectl apply -f ../../../yaml/features/multinet/whereabouts-daemonset-install.yaml
 	@echo "--Installing multus daemonset..."
 	@kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick-plugin.yml
 	@echo "--Installing whereabouts daemonset..."
 	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
 	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
-	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/ip-reconciler-job.yaml
 
 .PHONY: delete
 delete:
 	@echo "--Deleting whereabouts daemonset..."
 	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
 	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
-	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/ip-reconciler-job.yaml
 	@echo "--Deleting multus daemonset..."
 	@kubectl delete -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick-plugin.yml
 	@echo "--Deleting network CRD..."
-	@kubectl delete -f ../../yaml/features/multinet/projectcalico.org_networks.yaml
-	@kubectl delete -f ../../yaml/features/multinet/whereabouts-daemonset-install.yaml
+	@kubectl delete -f ../../../yaml/features/multinet/projectcalico.org_networks.yaml
+	@kubectl delete -f ../../../yaml/features/multinet/whereabouts-daemonset-install.yaml
 	@echo "--Removing pod & CNI installation..."
 	@kubectl -n calico-vpp-dataplane delete deployment multinet-monitor-deployment
 	@( \
