@@ -69,7 +69,7 @@ type Server struct {
 	nextSeqNumber uint64
 
 	endpointsLock       sync.Mutex
-	endpointsInterfaces map[WorkloadEndpointID][]uint32
+	endpointsInterfaces map[WorkloadEndpointID]map[string]uint32
 
 	configuredState *PolicyState
 	pendingState    *PolicyState
@@ -87,8 +87,8 @@ type Server struct {
 	ip6               *net.IP
 	interfacesMap     map[string]interfaceDetails
 
-	policyServerEventChan   chan common.CalicoVppEvent
-	networkDefinitions      map[string]*watchers.NetworkDefinition
+	policyServerEventChan chan common.CalicoVppEvent
+	networkDefinitions    map[string]*watchers.NetworkDefinition
 
 	tunnelSwIfIndexes     map[uint32]bool
 	tunnelSwIfIndexesLock sync.Mutex
@@ -115,12 +115,12 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		state:         StateDisconnected,
 		nextSeqNumber: 0,
 
-		endpointsInterfaces: make(map[WorkloadEndpointID][]uint32),
+		endpointsInterfaces: make(map[WorkloadEndpointID]map[string]uint32),
 
 		configuredState: NewPolicyState(),
 		pendingState:    NewPolicyState(),
 
-		policyServerEventChan:   make(chan common.CalicoVppEvent, common.ChanSize),
+		policyServerEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 
 		networkDefinitions: make(map[string]*watchers.NetworkDefinition),
 
@@ -237,7 +237,7 @@ func (s *Server) getEndpointToHostAction() string {
 
 // workloadAdded is called by the CNI server when a container interface is created,
 // either during startup when reconnecting the interfaces, or when a new pod is created
-func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, containerIPs []*net.IPNet) {
+func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, ifName string, containerIPs []*net.IPNet) {
 	// TODO: Send WorkloadEndpointStatusUpdate to felix
 	s.endpointsLock.Lock()
 	defer s.endpointsLock.Unlock()
@@ -252,14 +252,14 @@ func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, contain
 		}
 		// VPP restarted and interfaces are being reconnected
 		s.log.Warnf("workload endpoint changed interfaces, did VPP restart? %v %d -> %d", id, intf, swIfIndex)
-		s.endpointsInterfaces[*id] = append(s.endpointsInterfaces[*id], swIfIndex)
+		s.endpointsInterfaces[*id][ifName] = swIfIndex
 	}
 
 	s.log.Infof("policy(add) Workload id=%v swIfIndex=%d", id, swIfIndex)
 	if s.endpointsInterfaces[*id] == nil {
-		s.endpointsInterfaces[*id] = []uint32{swIfIndex}
+		s.endpointsInterfaces[*id] = map[string]uint32{ifName: swIfIndex}
 	} else {
-		s.endpointsInterfaces[*id] = append(s.endpointsInterfaces[*id], swIfIndex)
+		s.endpointsInterfaces[*id][ifName] = swIfIndex
 	}
 
 	if s.state == StateInSync {
@@ -340,7 +340,7 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 			WorkloadID:     podSpec.WorkloadID,
 			EndpointID:     podSpec.EndpointID,
 			Network:        podSpec.NetworkName,
-		}, swIfIndex, podSpec.GetContainerIps())
+		}, swIfIndex, podSpec.InterfaceName, podSpec.GetContainerIps())
 	case common.PodDeleted:
 		podSpec := evt.Old.(*storage.LocalPodSpec)
 		if podSpec != nil {
@@ -1020,7 +1020,7 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 	for _, id := range idsNetworks {
 		wep := fromProtoWorkload(msg.Endpoint, s)
 		existing, found := state.WorkloadEndpoints[*id]
-		swIfIndex, swIfIndexFound := s.endpointsInterfaces[*id]
+		swIfIndexMap, swIfIndexFound := s.endpointsInterfaces[*id]
 
 		if found {
 			if pending || !swIfIndexFound {
@@ -1031,16 +1031,20 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 				if err != nil {
 					return errors.Wrap(err, "cannot update workload endpoint")
 				}
-				log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=%d", pending, *id, existing, wep, swIfIndex)
+				log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=%d", pending, *id, existing, wep, swIfIndexMap)
 			}
 		} else {
 			state.WorkloadEndpoints[*id] = wep
 			if !pending && swIfIndexFound {
-				err := wep.Create(s.vpp, swIfIndex, state, id.Network)
+				swIfIndexList := []uint32{}
+				for _, idx := range swIfIndexMap {
+					swIfIndexList = append(swIfIndexList, idx)
+				}
+				err := wep.Create(s.vpp, swIfIndexList, state, id.Network)
 				if err != nil {
 					return errors.Wrap(err, "cannot create workload endpoint")
 				}
-				log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=%d", pending, *id, wep, swIfIndex)
+				log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=%d", pending, *id, wep, swIfIndexMap)
 			} else {
 				log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=??", pending, *id, wep)
 			}
@@ -1193,7 +1197,11 @@ func (s *Server) applyPendingState() (err error) {
 	for id, wep := range s.configuredState.WorkloadEndpoints {
 		intf, intfFound := s.endpointsInterfaces[id]
 		if intfFound {
-			err = wep.Create(s.vpp, intf, s.configuredState, id.Network)
+			swIfIndexList := []uint32{}
+			for _, idx := range intf {
+				swIfIndexList = append(swIfIndexList, idx)
+			}
+			err = wep.Create(s.vpp, swIfIndexList, s.configuredState, id.Network)
 			if err != nil {
 				return errors.Wrap(err, "cannot configure workload endpoint")
 			}
