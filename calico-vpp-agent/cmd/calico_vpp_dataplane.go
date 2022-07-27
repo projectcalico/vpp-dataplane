@@ -188,6 +188,8 @@ func main() {
 
 	if config.MultinetEnabled {
 		Go(netWatcher.WatchNetworks)
+		<- netWatcher.InSync
+		log.Infof("Networks synced")
 	}
 	Go(policyServer.ServePolicy)
 	felixConfig := policyServer.WaitForFelixConfig()

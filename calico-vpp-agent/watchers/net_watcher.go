@@ -54,6 +54,7 @@ type NetWatcher struct {
 	stop               chan struct{}
 	networkDefinitions map[string]*NetworkDefinition
 	nads               map[string]string
+	InSync             chan int
 }
 
 func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
@@ -68,6 +69,7 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 		stop:               make(chan struct{}),
 		networkDefinitions: make(map[string]*NetworkDefinition),
 		nads:               make(map[string]string),
+		InSync:             make(chan int),
 	}
 	return &w
 }
@@ -98,6 +100,7 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 			return err
 		}
 	}
+	w.InSync <- 1
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.NetsSynced,
 	})

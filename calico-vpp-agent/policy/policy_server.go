@@ -88,7 +88,6 @@ type Server struct {
 	interfacesMap     map[string]interfaceDetails
 
 	policyServerEventChan   chan common.CalicoVppEvent
-	policyMultinetEventChan chan common.CalicoVppEvent
 	networkDefinitions      map[string]*watchers.NetworkDefinition
 
 	tunnelSwIfIndexes     map[uint32]bool
@@ -122,7 +121,6 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		pendingState:    NewPolicyState(),
 
 		policyServerEventChan:   make(chan common.CalicoVppEvent, common.ChanSize),
-		policyMultinetEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 
 		networkDefinitions: make(map[string]*watchers.NetworkDefinition),
 
@@ -138,12 +136,8 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		common.PodDeleted,
 		common.TunnelAdded,
 		common.TunnelDeleted,
-	)
-	regM := common.RegisterHandler(server.policyMultinetEventChan, "policy server Multinet events")
-	regM.ExpectEvents(
 		common.NetAddedOrUpdated,
 		common.NetDeleted,
-		common.NetsSynced,
 	)
 
 	server.interfacesMap, err = server.mapTagToInterfaceDetails()
@@ -329,6 +323,12 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 	/* Note: we will only receive events we ask for when registering the chan */
 	switch evt.Type {
+	case common.NetAddedOrUpdated:
+		netDef := evt.New.(*watchers.NetworkDefinition)
+		s.networkDefinitions[netDef.Name] = netDef
+	case common.NetDeleted:
+		netDef := evt.Old.(*watchers.NetworkDefinition)
+		delete(s.networkDefinitions, netDef.Name)
 	case common.PodAdded:
 		podSpec := evt.New.(*storage.LocalPodSpec)
 		swIfIndex := podSpec.TunTapSwIfIndex
@@ -426,25 +426,6 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 	err = s.createFailSafePolicies()
 	if err != nil {
 		return errors.Wrap(err, "Error in createFailSafePolicies")
-	}
-	if config.MultinetEnabled {
-		netsSynced := make(chan bool)
-		go func() {
-			for t.Alive() {
-				event := <-s.policyMultinetEventChan
-				switch event.Type {
-				case common.NetsSynced:
-					netsSynced <- true
-				case common.NetAddedOrUpdated:
-					netDef := event.New.(*watchers.NetworkDefinition)
-					s.networkDefinitions[netDef.Name] = netDef
-				case common.NetDeleted:
-					netDef := event.Old.(*watchers.NetworkDefinition)
-					delete(s.networkDefinitions, netDef.Name)
-				}
-			}
-		}()
-		<-netsSynced
 	}
 	for {
 		s.state = StateDisconnected
