@@ -209,6 +209,89 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 				})
 
 			})
+
+			Context("With MultiNet configuration (and multinet VRF and loopback already configured)", func() {
+				var networkDefinition *watchers.NetworkDefinition
+
+				BeforeEach(func() {
+					agentConf.MultinetEnabled = true
+
+					// Setup test prerequisite (per-multinet-network VRF and loopback interface)")
+					// (this is normally done by watchers.NetWatcher.CreateVRFsForNet(...))
+					loopbackSwIfIndex, err := vpp.CreateLoopback(&common.ContainerSideMacAddress)
+					Expect(err).ToNot(HaveOccurred(), "error creating loopback for multinet network")
+					var tables [2]uint32
+					networkName := "myFirstMultinetNetwork"
+					for idx, ipFamily := range vpplink.IpFamilies {
+						vrfName := fmt.Sprintf("pod-%s-table-%s", networkName, ipFamily.Str)
+						vrfId, err := vpp.AllocateVRF(ipFamily.IsIp6, vrfName)
+						Expect(err).ToNot(HaveOccurred(),
+							fmt.Sprintf("can't create VRF table requirement for IP family %s", ipFamily.Str))
+						tables[idx] = vrfId
+					}
+					// NetworkDefinition CRD information caught by NetWatcher and send with additional information
+					// (VRF and loopback created by watcher) to the cni server as common.NetAdded CalicoVPPEvent
+					networkDefinition = &watchers.NetworkDefinition{
+						VRF:               watchers.VRF{Tables: tables},
+						Vni:               uint32(0), // important only for VXLAN tunnel going out of node
+						Name:              networkName,
+						LoopbackSwIfIndex: loopbackSwIfIndex,
+						Range:             "10.1.1.0/24", // IP range for secondary network defined by multinet
+					}
+					cniServer.ForceAddingNetworkDefinition(networkDefinition)
+				})
+
+				// TODO test multinet(additional network for pod) with MEMIF interface
+
+				Context("With default (TAP) interface configured for secondary(multinet) tunnel to pod", func() {
+					It("should have properly configured both TAP interface tunnels to VPP", func() {
+						const (
+							ipAddress              = "1.2.3.44" // main TAP tunnel (=not multinet)
+							mainInterfaceName      = "mainInterface"
+							secondaryInterfaceName = "secondaryInterface"
+						)
+
+						By("Getting Pod mock container's PID")
+						containerPidOutput, err := exec.Command("docker", "inspect", "-f", "{{.State.Pid}}",
+							PodMockContainerName).Output()
+						Expect(err).Should(BeNil(), "Failed to get pod mock container's PID string")
+						containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
+
+						By("Adding Pod to primary network using CNI server")
+						newPodForPrimaryNetwork := &proto.AddRequest{
+							InterfaceName: mainInterfaceName,
+							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
+							ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
+							Workload:      &proto.WorkloadIDs{},
+						}
+						reply, err := cniServer.Add(context.Background(), newPodForPrimaryNetwork)
+						Expect(err).ToNot(HaveOccurred(), "Pod addition to primary network failed")
+						Expect(reply.Successful).To(BeTrue(),
+							fmt.Sprintf("Pod addition to primary network failed due to: %s", reply.ErrorMessage))
+
+						By("Adding Pod to secondary(multinet) network using CNI server")
+						newPodForSecondaryNetwork := &proto.AddRequest{
+							InterfaceName: secondaryInterfaceName,
+							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
+							ContainerIps: []*proto.IPConfig{{
+								Address: firstIPinIPRange(networkDefinition.Range).String() + "/24",
+							}},
+							Workload: &proto.WorkloadIDs{},
+						}
+						reply, err = cniServer.Add(context.Background(), newPodForSecondaryNetwork)
+						Expect(err).ToNot(HaveOccurred(), "Pod addition to secondary network failed")
+						Expect(reply.Successful).To(BeTrue(),
+							fmt.Sprintf("Pod addition to secondary network failed due to: %s", reply.ErrorMessage))
+
+						// TODO check 2 TAP interfaces that they exists and are well configured
+						// TODO networkdefinition -> default route from pod vrf to global pod vrf/multinet pod vrf
+						//  -> route from global pod vrf/multinet pod vrf to pod interface
+						//  -> s.networkDefinitions[podSpec.NetworkName].Range to podSpec.Routes
+						//  -> route settings in pod
+						//  -> bgp pod announcing/withdraw (common.LocalPodAddressAdded + common.LocalPodAddressDeleted)
+					})
+				})
+			})
 		})
 
 		AfterEach(func() {
@@ -311,4 +394,12 @@ func interfaceTagForLocalTunnel(prefix, interfaceName, netns string) string {
 		NetnsName:     netns,
 		InterfaceName: interfaceName,
 	}).GetInterfaceTag(prefix)
+}
+
+func firstIPinIPRange(ipRangeCIDR string) net.IP {
+	ip, _, err := net.ParseCIDR(ipRangeCIDR)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("can't parse range subnet string %s as CIDR", ipRangeCIDR))
+	ip = ip.To4()
+	ip[3]++
+	return ip
 }

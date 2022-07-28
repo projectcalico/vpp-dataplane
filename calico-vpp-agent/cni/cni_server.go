@@ -464,3 +464,9 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	syscall.Unlink(config.CNIServerSocket)
 	return nil
 }
+
+// ForceAddingNetworkDefinition will add another NetworkDefinition to this CNI server.
+// The usage is mainly for testing purposes.
+func (s *Server) ForceAddingNetworkDefinition(networkDefinition *watchers.NetworkDefinition) {
+	s.networkDefinitions[networkDefinition.Name] = networkDefinition
+}
