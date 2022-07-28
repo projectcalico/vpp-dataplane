@@ -246,9 +246,9 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 				Context("With default (TAP) interface configured for secondary(multinet) tunnel to pod", func() {
 					It("should have properly configured both TAP interface tunnels to VPP", func() {
 						const (
-							ipAddress              = "1.2.3.44" // main TAP tunnel (=not multinet)
-							mainInterfaceName      = "mainInterface"
-							secondaryInterfaceName = "secondaryInterface"
+							ipAddress              = "1.2.3.44"      // main TAP tunnel (=not multinet)
+							mainInterfaceName      = "mainInterface" // name must be <=16 characters long due to tap name size on pod linux side
+							secondaryInterfaceName = "secInterface"  // name must be <=16 characters long due to tap name size on pod linux side
 						)
 
 						By("Getting Pod mock container's PID")
