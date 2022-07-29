@@ -16,17 +16,13 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
-	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
 )
@@ -62,6 +58,8 @@ const (
 	EnableSRv6EnvVar           = "CALICOVPP_SRV6_ENABLED"
 	SRv6LocalsidPoolEnvVar     = "CALICOVPP_SR_LS_POOL"
 	SRv6PolicyPoolEnvVar       = "CALICOVPP_SR_POLICY_POOL"
+	/* User specified MTU for uplink & the tap */
+	UserSpecifiedMtuEnvVar = "CALICOVPP_TAP_MTU"
 
 	MemifSocketName      = "@vpp/memif"
 	DefaultVXLANVni      = 4096
@@ -96,7 +94,7 @@ var (
 	ServiceCIDRs             []*net.IPNet
 	TapRxQueueSize           int = 0
 	TapTxQueueSize           int = 0
-	HostMtu                  int = 0
+	UserSpecifiedMtu         int = 0
 	IpsecNbAsyncCryptoThread int = 0
 	SRv6policyIPPool             = ""
 	SRv6localSidIPPool           = ""
@@ -121,7 +119,6 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:IpsecAddressCount %d", IpsecAddressCount)
 	log.Infof("Config:RxMode            %d", TapRxMode)
 	log.Infof("Config:LogLevel          %d", LogLevel)
-	log.Infof("Config:HostMtu           %d", HostMtu)
 	log.Infof("Config:IpsecNbAsyncCryptoThread  %d", IpsecNbAsyncCryptoThread)
 	log.Infof("Config:EnableSRv6        %t", EnableSRv6)
 }
@@ -136,27 +133,6 @@ func isEnvVarSupported(str string) bool {
 func getEnvValue(str string) string {
 	supportedEnvVars[str] = true
 	return os.Getenv(str)
-}
-
-func fetchHostMtu() (mtu int, err error) {
-	vppManagerInfo := &vppmanagerconfig.VppManagerInfo{}
-	for i := 0; i < 20; i++ {
-		dat, err := ioutil.ReadFile(VppManagerInfoFile)
-		if err == nil {
-			err2 := json.Unmarshal(dat, vppManagerInfo)
-			if err2 == nil && len(vppManagerInfo.Uplinks) != 0 {
-				minMtu := 1000000
-				for _, v := range vppManagerInfo.Uplinks {
-					if v < minMtu {
-						minMtu = v
-					}
-				}
-				return minMtu, nil
-			}
-		}
-		time.Sleep(1 * time.Second)
-	}
-	return 0, errors.Errorf("Vpp-host mtu not ready after 20 tries")
 }
 
 // LoadConfig loads the calico-vpp-agent configuration from the environment
@@ -303,6 +279,16 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		}
 	}
 
+	if conf := getEnvValue(UserSpecifiedMtuEnvVar); conf != "" {
+		userSpecifiedMtu, err := strconv.ParseInt(conf, 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", UserSpecifiedMtuEnvVar, conf, userSpecifiedMtu, err)
+		}
+		UserSpecifiedMtu = int(userSpecifiedMtu)
+	} else {
+		UserSpecifiedMtu = 0
+	}
+
 	if conf := getEnvValue(EnableSRv6EnvVar); conf != "" {
 		enableSRv6, err := strconv.ParseBool(conf)
 		if err != nil {
@@ -352,11 +338,6 @@ func LoadConfig(log *logrus.Logger) (err error) {
 				log.Warnf("Environment variable %s is not supported", pair[0])
 			}
 		}
-	}
-
-	HostMtu, err = fetchHostMtu()
-	if err != nil {
-		return err
 	}
 
 	return nil

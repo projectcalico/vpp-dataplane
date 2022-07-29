@@ -29,6 +29,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -61,6 +62,14 @@ func reduceMtuIf(podMtu *int, tunnelMtu int, tunnelEnabled bool) {
  * and other sources (typically ippool) for vxlanEnabled / ipInIpEnabled
  */
 func (i *TunTapPodInterfaceDriver) computePodMtu(podSpecMtu int, fc *felixConfig.Config, ipipEnabled bool, vxlanEnabled bool) (podMtu int) {
+	hostMtu := vpplink.MAX_MTU
+	if len(common.VppManagerInfo.UplinkStatuses) != 0 {
+		for _, v := range common.VppManagerInfo.UplinkStatuses {
+			if v.Mtu < hostMtu {
+				hostMtu = v.Mtu
+			}
+		}
+	}
 	if podSpecMtu > 0 {
 		podMtu = podSpecMtu
 	} else {
@@ -70,15 +79,15 @@ func (i *TunTapPodInterfaceDriver) computePodMtu(podSpecMtu int, fc *felixConfig
 		// Reproduce felix algorithm in determinePodMTU to determine pod MTU
 		// The part where it defaults to the host MTU is done in AddVppInterface
 		// TODO: move the code that retrieves the host mtu to this module...
-		podMtu = config.HostMtu
-		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.IpInIpMtu, config.HostMtu-20), ipipEnabled)
-		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.VXLANMTU, config.HostMtu-50), vxlanEnabled)
-		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.WireguardMTU, config.HostMtu-60), fc.WireguardEnabled)
-		reduceMtuIf(&podMtu, config.HostMtu-60, config.EnableIPSec)
+		podMtu = hostMtu
+		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.IpInIpMtu, hostMtu-20), ipipEnabled)
+		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.VXLANMTU, hostMtu-50), vxlanEnabled)
+		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.WireguardMTU, hostMtu-60), fc.WireguardEnabled)
+		reduceMtuIf(&podMtu, hostMtu-60, config.EnableIPSec)
 	}
 
-	if podMtu > config.HostMtu {
-		i.log.Warnf("Configured MTU (%d) is larger than detected host interface MTU (%d)", podMtu, config.HostMtu)
+	if podMtu > hostMtu {
+		i.log.Warnf("Configured MTU (%d) is larger than detected host interface MTU (%d)", podMtu, hostMtu)
 	}
 
 	return podMtu

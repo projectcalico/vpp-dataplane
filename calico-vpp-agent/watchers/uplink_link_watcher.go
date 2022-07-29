@@ -25,11 +25,11 @@ import (
 )
 
 type LinkWatcher struct {
-	LinkMap       map[int]*config.Link
-	close         chan struct{}
-	netlinkFailed chan struct{}
-	stop          bool
-	closeLock     sync.Mutex
+	UplinkStatuses []config.UplinkStatus
+	close          chan struct{}
+	netlinkFailed  chan struct{}
+	stop           bool
+	closeLock      sync.Mutex
 }
 
 func (r *LinkWatcher) Stop() {
@@ -88,15 +88,15 @@ func (r *LinkWatcher) WatchLinks() {
 			r.safeClose()
 			goto restart
 		}
-		for index, existingLink := range r.LinkMap {
-			link, err = netlink.LinkByIndex(index)
-			if err != nil || link.Attrs().Name != existingLink.Name {
+		for _, v := range r.UplinkStatuses {
+			link, err = netlink.LinkByIndex(v.LinkIndex)
+			if err != nil || link.Attrs().Name != v.Name {
 				log.Errorf("error getting link to watch: %v %v", link, err)
 				r.safeClose()
 				goto restart
 			}
 			// Set the MTU on watch restart
-			if err = netlink.LinkSetMTU(link, existingLink.MTU); err != nil {
+			if err = netlink.LinkSetMTU(link, v.Mtu); err != nil {
 				log.Errorf("error resetting MTU, sleeping before retrying: %v", err)
 				r.safeClose()
 				goto restart
@@ -116,10 +116,18 @@ func (r *LinkWatcher) WatchLinks() {
 					/* channel closed, restart */
 					goto restart
 				}
-				if existingLink, found := r.LinkMap[update.Attrs().Index]; found {
-					if update.Attrs().Name == existingLink.Name {
-						if update.Attrs().MTU != existingLink.MTU {
-							if err = netlink.LinkSetMTU(link, existingLink.MTU); err != nil {
+				found := false
+				v := config.UplinkStatus{}
+				for _, v := range r.UplinkStatuses {
+					if update.Attrs().Index == v.LinkIndex {
+						found = true
+						break
+					}
+				}
+				if found {
+					if update.Attrs().Name == v.Name {
+						if update.Attrs().MTU != v.Mtu {
+							if err = netlink.LinkSetMTU(link, v.Mtu); err != nil {
 								log.Warnf("Error resetting link mtu: %v", err)
 								r.safeClose()
 								goto restart

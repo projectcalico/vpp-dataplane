@@ -25,7 +25,6 @@ import (
 	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 	grpc "google.golang.org/grpc"
 	tomb "gopkg.in/tomb.v2"
 	"k8s.io/client-go/kubernetes"
@@ -40,7 +39,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 
-	//vmw "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/vpp_manager_watchers"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 )
 
@@ -96,49 +94,24 @@ func main() {
 	}
 	// Once we have the api connection, we know vpp & vpp-manager are running and the
 	// state is accurately reported. Wait for vpp-manager to finish the config.
-	vppManagerInfo, err := common.WaitForVppManager()
+	common.VppManagerInfo, err = common.WaitForVppManager()
 	if err != nil {
 		log.Fatalf("Vpp Manager not started: %v", err)
 	}
-	routeWatcher := &watchers.RouteWatcher{}
-	poolWatcher := &watchers.PoolWatcher{
-		RouteWatcher:     routeWatcher,
-		UserSpecifiedMtu: vppManagerInfo.UserSpecifiedMtu,
-		Mtu:              vppManagerInfo.MainUplinkMtu,
-		FakeNextHopIP4:   vppManagerInfo.FakeNextHopIP4,
-		FakeNextHopIP6:   vppManagerInfo.FakeNextHopIP6,
-	}
-	go routeWatcher.WatchRoutes()
+	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
+	routeWatcher := watchers.NewRouteWatcher()
+
+	Go(routeWatcher.WatchRoutes)
 	var linkWatcher *watchers.LinkWatcher
-	for _, serviceCIDR := range vppManagerInfo.ServiceCIDRs {
-		// Add a route for the service prefix through VPP. This is required even if kube-proxy is
-		// running on the host to ensure correct source address selection if the host has multiple interfaces
-		log.Infof("Adding route to service prefix %s through VPP", serviceCIDR.String())
-		gw := vppManagerInfo.FakeNextHopIP4
-		if serviceCIDR.IP.To4() == nil {
-			gw = vppManagerInfo.FakeNextHopIP6
-		}
-		err = routeWatcher.AddRoute(&netlink.Route{
-			Dst:      &serviceCIDR,
-			Gw:       gw,
-			Protocol: syscall.RTPROT_STATIC,
-			MTU:      watchers.GetUplinkMtu(vppManagerInfo.UserSpecifiedMtu, vppManagerInfo.MainUplinkMtu, true /* includeEncap */),
-		})
-		if err != nil {
-			log.Error(err, "cannot add tap route to service %s", serviceCIDR.String())
-		}
-	}
-	if vppManagerInfo.UserSpecifiedMtu != 0 {
+
+	if config.UserSpecifiedMtu != 0 {
 		linkWatcher = &watchers.LinkWatcher{
-			LinkMap: vppManagerInfo.LinkMap,
+			UplinkStatuses: common.VppManagerInfo.UplinkStatuses,
 		}
 	}
-	Go(poolWatcher.SyncPools)
 	if linkWatcher != nil {
 		go linkWatcher.WatchLinks()
 	}
-
-	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 
 	/**
 	 * Create the API clients we need

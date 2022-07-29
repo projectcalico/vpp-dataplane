@@ -113,9 +113,6 @@ func loadInterfaceConfigFromLinux(ifSpec config.InterfaceSpec) (*config.LinuxInt
 	conf.NumTxQueues = link.Attrs().NumTxQueues
 	conf.NumRxQueues = link.Attrs().NumRxQueues
 	conf.Mtu = link.Attrs().MTU
-	if ifSpec.IsMain {
-		config.Info.MainUplinkMtu = conf.Mtu
-	}
 	_, conf.IsTunTap = link.(*netlink.Tuntap)
 	_, conf.IsVeth = link.(*netlink.Veth)
 

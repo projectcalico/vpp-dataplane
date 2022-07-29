@@ -198,11 +198,8 @@ func CreateVppLink() (vpp *vpplink.VppLink, err error) {
 }
 
 func ClearVppManagerFiles() error {
-	config.Info.Status = 0
-	config.Info.Uplinks = make(map[int]int)
-	config.Info.LinkMap = make(map[int]*config.Link)
-	config.Info.MainUplinkMtu = 0
-	config.Info.UserSpecifiedMtu = 0
+	config.Info.Status = config.Starting
+	config.Info.UplinkStatuses = make([]config.UplinkStatus, 0)
 	return WriteInfoFile()
 }
 

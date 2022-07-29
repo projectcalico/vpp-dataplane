@@ -43,6 +43,7 @@ import (
 
 var (
 	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
+	VppManagerInfo             *vppmanagerconfig.VppManagerInfo
 )
 
 const (
@@ -97,7 +98,7 @@ func WaitForVppManager() (*vppmanagerconfig.VppManagerInfo, error) {
 			err2 := json.Unmarshal(dat, vppManagerInfo)
 			if err2 != nil {
 				return nil, errors.Errorf("cannot unmarshal vpp manager info file", err2)
-			} else if vppManagerInfo.Status == 1 {
+			} else if vppManagerInfo.Status == vppmanagerconfig.Ready {
 				return vppManagerInfo, nil
 			}
 		}

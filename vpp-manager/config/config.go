@@ -51,20 +51,26 @@ const (
 
 var Info = &VppManagerInfo{}
 
-type Link struct {
-	Name string
-	MTU  int
+type vppManagerStatus string
+
+const (
+	Ready    vppManagerStatus = "ready"
+	Starting vppManagerStatus = "starting"
+)
+
+type UplinkStatus struct {
+	SwIfIndex uint32
+	LinkIndex int
+	Name      string
+	IsMain    bool
+	Mtu       int
 }
 
 type VppManagerInfo struct {
-	Uplinks          map[int]int //map tapswifindex to linuxmtu
-	Status           int
-	UserSpecifiedMtu int
-	MainUplinkMtu    int //this mtu is used in routes for added networks
-	LinkMap          map[int]*Link
-	ServiceCIDRs     []net.IPNet
-	FakeNextHopIP4   net.IP
-	FakeNextHopIP6   net.IP
+	Status         vppManagerStatus
+	UplinkStatuses []UplinkStatus
+	FakeNextHopIP4 net.IP
+	FakeNextHopIP6 net.IP
 }
 
 type InterfaceSpec struct {

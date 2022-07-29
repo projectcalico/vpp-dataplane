@@ -511,10 +511,6 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrapf(err, "Error setting %d MTU on tap interface", vpplink.MAX_MTU)
 	}
 
-	if config.Info.Uplinks != nil {
-		config.Info.Uplinks[int(tapSwIfIndex)] = int(uplinkMtu)
-	}
-
 	if ifState.Hasv6 {
 		err = v.vpp.DisableIP6RouterAdvertisements(tapSwIfIndex)
 		if err != nil {
@@ -585,7 +581,15 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrap(err, "Error setting tap up")
 	}
 
-	config.Info.LinkMap[link.Attrs().Index] = &config.Link{Name: link.Attrs().Name, MTU: uplinkMtu}
+	if config.Info.UplinkStatuses != nil {
+		config.Info.UplinkStatuses = append(config.Info.UplinkStatuses, config.UplinkStatus{
+			SwIfIndex: tapSwIfIndex,
+			Mtu:       uplinkMtu,
+			LinkIndex: link.Attrs().Index,
+			Name:      link.Attrs().Name,
+			IsMain:    ifSpec.IsMain,
+		})
+	}
 	return nil
 }
 
@@ -791,9 +795,11 @@ func (v *VppRunner) runVpp() (err error) {
 		return errors.Wrap(err, "Error updating Calico node: please check inter-node connectivity and service prefix")
 	}
 
-	config.Info.Status = 1
-	utils.WriteInfoFile()
-
+	config.Info.Status = config.Ready
+	err = utils.WriteInfoFile()
+	if err != nil {
+		log.Errorf("Error writing vpp manager file: %v", err)
+	}
 	var t tomb.Tomb
 
 	// close vpp as we do not program
