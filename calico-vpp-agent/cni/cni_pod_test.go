@@ -16,12 +16,17 @@ package cni_test
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"os/exec"
+	"reflect"
 	"strings"
+	"syscall"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	gs "github.com/onsi/gomega/gstruct"
 	"github.com/projectcalico/calico/felix/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/pod_interface"
@@ -29,10 +34,13 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	agentConf "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/multinet-monitor/networkAttachmentDefinition"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -103,13 +111,15 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							"for IP address or doesn't exist at all")
 
 					By("Checking existence of interface tunnel at VPP's end")
-					ifSwIfIndex := assertMainTunInterfaceExistence(vpp, newPod)
+					ifSwIfIndex := assertTunInterfaceExistence(vpp, newPod)
 
 					By("Checking correct IP address of interface tunnel at VPP's end")
 					assertTunnelInterfaceIPAddress(vpp, ifSwIfIndex, ipAddress)
 
 					By("Checking correct MTU for tunnel interface at VPP's end")
 					assertTunnelInterfaceMTU(vpp, ifSwIfIndex)
+
+					// TODO check other end in the pod too (tun interface in pod netns)
 				})
 			})
 
@@ -159,11 +169,13 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						fmt.Sprintf("Pod addition failed due to: %s", reply.ErrorMessage))
 
 					By("Checking existence of main interface tunnel to pod (at VPP's end)")
-					ifSwIfIndex := assertMainTunInterfaceExistence(vpp, newPod)
+					ifSwIfIndex := assertTunInterfaceExistence(vpp, newPod)
 
 					By("Checking main tunnel's tun interface for common interface attributes")
 					assertTunnelInterfaceIPAddress(vpp, ifSwIfIndex, ipAddress)
 					assertTunnelInterfaceMTU(vpp, ifSwIfIndex)
+
+					// TODO check other end in the pod too (tun interface in pod netns)
 
 					By("Checking secondary tunnel's memif interface for existence")
 					memifSwIfIndex, err := vpp.SearchInterfaceWithTag(
@@ -211,7 +223,10 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 			})
 
 			Context("With MultiNet configuration (and multinet VRF and loopback already configured)", func() {
-				var networkDefinition *watchers.NetworkDefinition
+				var (
+					networkDefinition *watchers.NetworkDefinition
+					pubSubHandlerMock *mocks.PubSubHandlerMock
+				)
 
 				BeforeEach(func() {
 					agentConf.MultinetEnabled = true
@@ -239,6 +254,10 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						Range:             "10.1.1.0/24", // IP range for secondary network defined by multinet
 					}
 					cniServer.ForceAddingNetworkDefinition(networkDefinition)
+
+					// setup PubSub handler to catch LocalPodAddressAdded events
+					pubSubHandlerMock = mocks.NewPubSubHandlerMock(common.LocalPodAddressAdded)
+					pubSubHandlerMock.Start()
 				})
 
 				// TODO test multinet(additional network for pod) with MEMIF interface
@@ -270,25 +289,118 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							fmt.Sprintf("Pod addition to primary network failed due to: %s", reply.ErrorMessage))
 
 						By("Adding Pod to secondary(multinet) network using CNI server")
+						secondaryIPAddress := firstIPinIPRange(networkDefinition.Range).String()
 						newPodForSecondaryNetwork := &proto.AddRequest{
 							InterfaceName: secondaryInterfaceName,
 							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
 							ContainerIps: []*proto.IPConfig{{
-								Address: firstIPinIPRange(networkDefinition.Range).String() + "/24",
+								Address: secondaryIPAddress + "/24",
 							}},
 							Workload: &proto.WorkloadIDs{},
+							DataplaneOptions: map[string]string{
+								dpoNetworkNameFieldName(): networkDefinition.Name,
+							},
 						}
 						reply, err = cniServer.Add(context.Background(), newPodForSecondaryNetwork)
 						Expect(err).ToNot(HaveOccurred(), "Pod addition to secondary network failed")
 						Expect(reply.Successful).To(BeTrue(),
 							fmt.Sprintf("Pod addition to secondary network failed due to: %s", reply.ErrorMessage))
 
-						// TODO check 2 TAP interfaces that they exists and are well configured
-						// TODO networkdefinition -> default route from pod vrf to global pod vrf/multinet pod vrf
-						//  -> route from global pod vrf/multinet pod vrf to pod interface
-						//  -> s.networkDefinitions[podSpec.NetworkName].Range to podSpec.Routes
-						//  -> route settings in pod
-						//  -> bgp pod announcing/withdraw (common.LocalPodAddressAdded + common.LocalPodAddressDeleted)
+						By("Checking existence of main tun interface tunnel to pod (at VPP's end)")
+						mainSwIfIndex := assertTunInterfaceExistence(vpp, newPodForPrimaryNetwork)
+
+						By("Checking main tunnel's tun interface for common interface attributes")
+						assertTunnelInterfaceIPAddress(vpp, mainSwIfIndex, ipAddress)
+						assertTunnelInterfaceMTU(vpp, mainSwIfIndex)
+
+						By("Checking secondary tunnel's tun interface for existence")
+						secondarySwIfIndex := assertTunInterfaceExistence(vpp, newPodForSecondaryNetwork)
+
+						By("Checking secondary tunnel's tun interface for common interface attributes")
+						assertTunnelInterfaceIPAddress(vpp, secondarySwIfIndex, secondaryIPAddress)
+						assertTunnelInterfaceMTU(vpp, secondarySwIfIndex)
+
+						ns.WithNetNSPath(newPodForSecondaryNetwork.Netns, func(hostNS ns.NetNS) error {
+							defer GinkgoRecover() // running in different goroutine -> needed for failed assertion retrieval
+
+							By("Checking secondary tunnel's tun interface on pod side")
+							secTunLink, err := netlink.LinkByName(secondaryInterfaceName)
+							Expect(err).ToNot(HaveOccurred(), "can't find secondary(multinet) interface in pod")
+
+							By("Checking multinet related routes on pod side")
+							secTunLinkRoutes, err := netlink.RouteList(secTunLink, syscall.AF_INET) // Ipv4 routes only
+							Expect(err).ToNot(HaveOccurred(), "can't get routes from pod")
+							Expect(secTunLinkRoutes).To(ContainElements(
+								gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+									"Dst": gs.PointTo(Equal(*ipNet(networkDefinition.Range))),
+								}),
+							), "can't find route in pod that steers all multinet network "+
+								"traffic into multinet tunnel interface in pod")
+							return nil
+						})
+
+						By("checking pushing of LocalPodAddressAdded event for BGP pod network announcing")
+						// Note: BGP is not tested here, only that event for it was sent
+						Expect(pubSubHandlerMock.ReceivedEvents).To(ContainElements(
+							gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+								"Type": Equal(common.LocalPodAddressAdded),
+								"New": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+									"ContainerIP": gs.PointTo(Equal(*ipNetWithIPInIPv6Format(ipAddress + "/32"))),
+								}),
+							}),
+							gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+								"Type": Equal(common.LocalPodAddressAdded),
+								"New": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+									"ContainerIP": gs.PointTo(Equal(*ipNetWithIPInIPv6Format(secondaryIPAddress + "/32"))),
+								}),
+							}),
+						))
+
+						By("Checking default route from pod-specific VRF to multinet network-specific vrf")
+						podVrf4ID, podVrf6ID, err := podVRFs(secondaryInterfaceName, newPodForSecondaryNetwork.Netns, vpp)
+						Expect(err).ToNot(HaveOccurred(), "can't find pod-specific VRFs")
+						for idx, ipFamily := range vpplink.IpFamilies {
+							podVrfID := podVrf4ID
+							zeroIPNet := &net.IPNet{IP: net.IPv4zero.To4(), Mask: net.IPMask(net.IPv4zero.To4())}
+							if ipFamily.IsIp6 {
+								podVrfID = podVrf6ID
+								zeroIPNet = &net.IPNet{IP: net.IPv6zero, Mask: net.IPMask(net.IPv6zero)}
+							}
+							routes, err := vpp.GetRoutes(podVrfID, ipFamily.IsIp6)
+							Expect(err).ToNot(HaveOccurred(),
+								fmt.Sprintf("can't get %s routes in pod-specific VRF", ipFamily.Str))
+							Expect(routes).To(ContainElements(
+								types.Route{
+									Paths: []types.RoutePath{{
+										Table:     networkDefinition.VRF.Tables[idx],
+										SwIfIndex: types.InvalidID,
+										Gw:        zeroIPNet.IP,
+									}},
+									Dst:   zeroIPNet,
+									Table: podVrfID,
+								},
+							), "can't find default route from pod-specific VRF to multinet "+
+								"network-specific vrf")
+						}
+
+						By("Checking steering route in multinet network VRF leading to pod " +
+							"using multinet tunnel interface")
+						// Note: should be checked for all container IPs of multinet, but we have only one
+						multinetVRFID := networkDefinition.VRF.Tables[ipFamilyIndex(vpplink.IpFamilyV4)] // secondaryIPAddress is from IpFamilyV4
+						routes, err := vpp.GetRoutes(multinetVRFID, false)
+						Expect(err).ToNot(HaveOccurred(),
+							"can't get ipv4 routes in multinet network-specific VRF")
+						Expect(routes).To(ContainElements(
+							types.Route{
+								Dst: ipNet(secondaryIPAddress + "/32"),
+								Paths: []types.RoutePath{{
+									SwIfIndex: secondarySwIfIndex,
+									Gw:        ipNet(secondaryIPAddress + "/32").IP,
+								}},
+								Table: multinetVRFID,
+							},
+						), "can't find steering route in multinet network VRF leading "+
+							"to pod using multinet tunnel interface")
 					})
 				})
 			})
@@ -304,7 +416,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 	})
 })
 
-func assertMainTunInterfaceExistence(vpp *vpplink.VppLink, newPod *proto.AddRequest) uint32 {
+func assertTunInterfaceExistence(vpp *vpplink.VppLink, newPod *proto.AddRequest) uint32 {
 	ifSwIfIndex, err := vpp.SearchInterfaceWithTag(
 		interfaceTagForLocalTunTunnel(newPod.InterfaceName, newPod.Netns))
 	Expect(err).ShouldNot(HaveOccurred(), "Failed to get interface at VPP's end")
@@ -376,6 +488,16 @@ func teardownPod() {
 	Expect(err).Should(BeNil(), "Failed to stop and remove pod mock (docker container)")
 }
 
+// dpoNetworkNameFieldName extracts JSON field name for NetworkName used in proto.AddRequest.DataplaneOptions
+func dpoNetworkNameFieldName() string {
+	netNameField, found := reflect.TypeOf(networkAttachmentDefinition.NetConf{}.DpOptions).FieldByName("NetName")
+	Expect(found).To(BeTrue(),
+		"can't find network name field in NetworkAttachmentDefinition. Did that structure changed?")
+	jsonStr, isSet := netNameField.Tag.Lookup("json")
+	Expect(isSet).To(BeTrue(), "can't find json name for network name field in NetworkAttachmentDefinition")
+	return strings.Split(jsonStr, ",")[0]
+}
+
 // interfaceTagForLocalTunTunnel constructs the tag for the VPP side of the tap tunnel the same way as cni server
 func interfaceTagForLocalTunTunnel(interfaceName, netns string) string {
 	return interfaceTagForLocalTunnel(pod_interface.NewTunTapPodInterfaceDriver(nil, nil).Name,
@@ -402,4 +524,43 @@ func firstIPinIPRange(ipRangeCIDR string) net.IP {
 	ip = ip.To4()
 	ip[3]++
 	return ip
+}
+
+// podVRFs gets ids of IPv4 and IPv6 pod-specific VRFs from VPP
+func podVRFs(podInterface, podNetNSName string, vpp *vpplink.VppLink) (vrf4ID, vrf6ID uint32, err error) {
+	vrfs, err := vpp.ListVRFs()
+	Expect(err).ToNot(HaveOccurred(), "error listing VRFs to find all pod VRFs")
+
+	podSpec := storage.LocalPodSpec{
+		InterfaceName: podInterface,
+		NetnsName:     podNetNSName,
+		V4VrfId:       types.InvalidID,
+		V6VrfId:       types.InvalidID,
+	}
+	for _, vrf := range vrfs {
+		for _, ipFamily := range vpplink.IpFamilies {
+			if vrf.Name == podSpec.GetVrfTag(ipFamily) {
+				podSpec.SetVrfId(vrf.VrfID, ipFamily)
+			}
+		}
+		if podSpec.V4VrfId != types.InvalidID && podSpec.V6VrfId != types.InvalidID {
+			return podSpec.V4VrfId, podSpec.V6VrfId, nil
+		}
+	}
+
+	if (podSpec.V4VrfId != types.InvalidID) != (podSpec.V6VrfId != types.InvalidID) {
+		return podSpec.V4VrfId, podSpec.V6VrfId,
+			fmt.Errorf("partial VRF state v4=%d v6=%d key=%s", podSpec.V4VrfId, podSpec.V6VrfId, podSpec.Key())
+	}
+
+	return podSpec.V4VrfId, podSpec.V6VrfId, fmt.Errorf("not VRFs state (key=%s)", podSpec.Key())
+}
+
+func ipFamilyIndex(ipFamily vpplink.IpFamily) int {
+	for idx, family := range vpplink.IpFamilies {
+		if family == ipFamily {
+			return idx
+		}
+	}
+	return math.MaxInt
 }

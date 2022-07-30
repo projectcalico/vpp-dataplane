@@ -1038,6 +1038,13 @@ func ipNet(ipNetCIDRStr string) *net.IPNet {
 	return ipNet
 }
 
+func ipNetWithIPInIPv6Format(ipNetCIDRStr string) *net.IPNet {
+	_, ipNet, err := net.ParseCIDR(ipNetCIDRStr)
+	ipNet.IP = ipNet.IP.To16()
+	Expect(err).To(BeNil())
+	return ipNet
+}
+
 func mac(macStr string) *net.HardwareAddr {
 	mac, err := net.ParseMAC(macStr)
 	Expect(err).To(BeNil())
