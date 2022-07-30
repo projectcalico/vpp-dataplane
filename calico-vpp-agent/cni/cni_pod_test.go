@@ -119,7 +119,11 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					By("Checking correct MTU for tunnel interface at VPP's end")
 					assertTunnelInterfaceMTU(vpp, ifSwIfIndex)
 
-					// TODO check other end in the pod too (tun interface in pod netns)
+					runInPod(newPod.Netns, func() {
+						By("Checking tun interface on pod side")
+						_, err := netlink.LinkByName(interfaceName)
+						Expect(err).ToNot(HaveOccurred(), "can't find tun interface in pod")
+					})
 				})
 			})
 
@@ -175,7 +179,11 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					assertTunnelInterfaceIPAddress(vpp, ifSwIfIndex, ipAddress)
 					assertTunnelInterfaceMTU(vpp, ifSwIfIndex)
 
-					// TODO check other end in the pod too (tun interface in pod netns)
+					runInPod(newPod.Netns, func() {
+						By("Checking main tunnel's tun interface on pod side")
+						_, err := netlink.LinkByName(interfaceName)
+						Expect(err).ToNot(HaveOccurred(), "can't find main interface in pod")
+					})
 
 					By("Checking secondary tunnel's memif interface for existence")
 					memifSwIfIndex, err := vpp.SearchInterfaceWithTag(
@@ -320,8 +328,10 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						assertTunnelInterfaceIPAddress(vpp, secondarySwIfIndex, secondaryIPAddress)
 						assertTunnelInterfaceMTU(vpp, secondarySwIfIndex)
 
-						ns.WithNetNSPath(newPodForSecondaryNetwork.Netns, func(hostNS ns.NetNS) error {
-							defer GinkgoRecover() // running in different goroutine -> needed for failed assertion retrieval
+						runInPod(newPodForSecondaryNetwork.Netns, func() {
+							By("Checking main tunnel's tun interface on pod side")
+							_, err := netlink.LinkByName(mainInterfaceName)
+							Expect(err).ToNot(HaveOccurred(), "can't find main interface in pod")
 
 							By("Checking secondary tunnel's tun interface on pod side")
 							secTunLink, err := netlink.LinkByName(secondaryInterfaceName)
@@ -336,7 +346,6 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 								}),
 							), "can't find route in pod that steers all multinet network "+
 								"traffic into multinet tunnel interface in pod")
-							return nil
 						})
 
 						By("checking pushing of LocalPodAddressAdded event for BGP pod network announcing")
@@ -486,6 +495,16 @@ func createPod() {
 func teardownPod() {
 	err := exec.Command("docker", "rm", "-f", PodMockContainerName).Run()
 	Expect(err).Should(BeNil(), "Failed to stop and remove pod mock (docker container)")
+}
+
+// runInPod runs runner function in provided pod network namespace. This is the same as running
+// networking commands inside pod.
+func runInPod(podNetNS string, runner func()) {
+	ns.WithNetNSPath(podNetNS, func(hostNS ns.NetNS) error {
+		defer GinkgoRecover() // running in different goroutine -> needed for failed assertion retrieval
+		runner()
+		return nil
+	})
 }
 
 // dpoNetworkNameFieldName extracts JSON field name for NetworkName used in proto.AddRequest.DataplaneOptions
