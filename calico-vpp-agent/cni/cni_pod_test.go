@@ -537,11 +537,13 @@ func interfaceTagForLocalTunnel(prefix, interfaceName, netns string) string {
 	}).GetInterfaceTag(prefix)
 }
 
+// firstIPinIPRange computes first usable IPv4 address from the given subnet. The subnet definition IP address
+// (ending with zero bits) is not considered as usable IPv4 address as it can have special meaning in certain situations.
 func firstIPinIPRange(ipRangeCIDR string) net.IP {
 	ip, _, err := net.ParseCIDR(ipRangeCIDR)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("can't parse range subnet string %s as CIDR", ipRangeCIDR))
-	ip = ip.To4()
-	ip[3]++
+	ip = ip.To4() // expecting IPv4 address
+	ip[3]++       // incrementing last IP address byte to get the first usable IP address in subnet range (subnet x.y.z.0 -> first ip address x.y.z.1)
 	return ip
 }
 
