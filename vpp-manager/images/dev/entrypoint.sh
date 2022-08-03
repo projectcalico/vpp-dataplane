@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VPP_MANAGER=/home/hostuser/vpp-dataplane/vpp-manager/images/ubuntu/vpp-manager
+VPP_MANAGER=/repo/vpp-manager/images/ubuntu/vpp-manager
 
 _trap() {
   echo "Caught $1 signal!"
@@ -15,20 +15,13 @@ trap "_trap HUP" SIGHUP
 trap "_trap ABRT" SIGABRT
 
 # This targets a vpp that is compiled separately
-# living in /home/hostuser/vpp which is mounted
+# living in $VPP_DIR which is mounted
 # from the host home by yaml/overlays/dev
 
 # Assumes that
-# vpp lives in ~/vpp
-# vpp-manager in ~/vpp-dataplane/vpp-manager
+# vpp was built by make -C vpp-manager/ vpp
 
-if [[ -f /home/hostuser/vpp/isrelease ]]; then
-  VPP="/home/hostuser/vpp/build-root/install-vpp-native/vpp/"
-else
-  VPP="/home/hostuser/vpp/build-root/install-vpp_debug-native/vpp/"
-fi
-
-if [[ -f /home/hostuser/vpp/istailnull ]]; then
+if [[ "x$DEBUG" == xsleep ]]; then
   tail -f /dev/null
 else
   $VPP_MANAGER &

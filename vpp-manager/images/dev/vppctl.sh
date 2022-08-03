@@ -1,17 +1,18 @@
 #!/bin/bash
 
+VPP_DIR=/repo/vpp-manager/vpp_build
+
 # This targets a vpp that is compiled separately
-# living in /home/hostuser/vpp which is mounted
+# living in $VPP_DIR which is mounted
 # from the host home by yaml/overlays/dev
 
 # Assumes that
-# vpp lives in ~/vpp
-# vpp-manager in ~/vpp-dataplane/vpp-manager
+# vpp was built by make -C vpp-manager/ vpp
 
-if [[ -f /home/hostuser/vpp/isrelease ]]; then
-  VPP="/home/hostuser/vpp/build-root/install-vpp-native/vpp"
+if [[ "x$DEBUG" != x ]]; then
+  VPP="$VPP_DIR/build-root/install-vpp_debug-native/vpp"
 else
-  VPP="/home/hostuser/vpp/build-root/install-vpp_debug-native/vpp"
+  VPP="$VPP_DIR/build-root/install-vpp-native/vpp"
 fi
 
 export LD_LIBRARY_PATH=$VPP/lib/x86_64-linux-gnu

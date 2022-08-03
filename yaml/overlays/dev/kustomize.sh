@@ -172,6 +172,7 @@ calico_create_template ()
   export IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:=IfNotPresent}
 
   export USERHOME=${HOME}
+  export REPO_DIRECTORY=$(readlink -f ${SCRIPTDIR}/../../..)
 
   ## Installation ##
 
