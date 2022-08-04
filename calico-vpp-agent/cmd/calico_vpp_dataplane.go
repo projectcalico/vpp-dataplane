@@ -99,19 +99,6 @@ func main() {
 		log.Fatalf("Vpp Manager not started: %v", err)
 	}
 	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
-	routeWatcher := watchers.NewRouteWatcher()
-
-	Go(routeWatcher.WatchRoutes)
-	var linkWatcher *watchers.LinkWatcher
-
-	if config.UserSpecifiedMtu != 0 {
-		linkWatcher = &watchers.LinkWatcher{
-			UplinkStatuses: common.VppManagerInfo.UplinkStatuses,
-		}
-	}
-	if linkWatcher != nil {
-		go linkWatcher.WatchLinks()
-	}
 
 	/**
 	 * Create the API clients we need
@@ -145,6 +132,8 @@ func main() {
 	/**
 	 * Start watching nodes & fetch our BGP spec
 	 */
+	routeWatcher := watchers.NewRouteWatcher(common.VppManagerInfo.FakeNextHopIP4, common.VppManagerInfo.FakeNextHopIP6)
+	linkWatcher := watchers.NewLinkWatcher(common.VppManagerInfo.UplinkStatuses)
 	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
 	nodeWatcher := watchers.NewNodeWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
 	ipam := watchers.NewIPAMCache(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
@@ -203,6 +192,10 @@ func main() {
 	cniServer.SetFelixConfig(felixConfig)
 	connectivityServer.SetFelixConfig(felixConfig)
 
+	Go(routeWatcher.WatchRoutes)
+	if config.UserSpecifiedMtu != 0 {
+		Go(linkWatcher.WatchLinks)
+	}
 	Go(bgpConfigurationWatcher.WatchBGPConfiguration)
 	Go(prefixWatcher.WatchPrefix)
 	Go(peerWatcher.WatchBGPPeers)
@@ -239,10 +232,6 @@ func main() {
 		t.Kill(errors.Errorf("Caught INT signal"))
 	case <-t.Dying():
 		log.Errorf("tomb Dying %s", t.Err())
-	}
-	routeWatcher.Stop()
-	if linkWatcher != nil {
-		linkWatcher.Stop()
 	}
 	e := t.Wait()
 	log.Infof("Tomb exited with %v", e)

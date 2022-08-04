@@ -22,31 +22,23 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"gopkg.in/tomb.v2"
 )
 
 type LinkWatcher struct {
 	UplinkStatuses []config.UplinkStatus
 	close          chan struct{}
 	netlinkFailed  chan struct{}
-	stop           bool
 	closeLock      sync.Mutex
 }
 
-func (r *LinkWatcher) Stop() {
-	log.Infof("Stopping link watcher")
-	r.closeLock.Lock()
-	defer r.closeLock.Unlock()
-	r.stop = true
-	if r.close != nil {
-		close(r.close)
-		r.close = nil
+func NewLinkWatcher(uplinkStatus []config.UplinkStatus) *LinkWatcher {
+	return &LinkWatcher{
+		UplinkStatuses: uplinkStatus,
 	}
 }
 
 func (r *LinkWatcher) netlinkError(err error) {
-	if r.stop {
-		return
-	}
 	log.Warnf("error from netlink: %v", err)
 	r.netlinkFailed <- struct{}{}
 }
@@ -65,17 +57,12 @@ func (r *LinkWatcher) safeClose() {
 	r.closeLock.Unlock()
 }
 
-func (r *LinkWatcher) WatchLinks() {
+func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 	r.netlinkFailed = make(chan struct{}, 1)
-	r.stop = false
 	var link netlink.Link
 
 	for {
 		r.closeLock.Lock()
-		if r.stop {
-			log.Infof("Link watcher exited")
-			return
-		}
 		updates := make(chan netlink.LinkUpdate, 10)
 		r.close = make(chan struct{})
 		r.closeLock.Unlock()
@@ -104,11 +91,16 @@ func (r *LinkWatcher) WatchLinks() {
 		}
 		for {
 			select {
-			case <-r.netlinkFailed:
-				if r.stop {
-					log.Infof("Link watcher exiting")
-					return
+			case <-t.Dying():
+				r.closeLock.Lock()
+				defer r.closeLock.Unlock()
+				if r.close != nil {
+					close(r.close)
+					r.close = nil
 				}
+				log.Info("Link watcher stopped")
+				return nil
+			case <-r.netlinkFailed:
 				log.Info("Link watcher stopped / failed")
 				goto restart
 			case update, ok := <-updates:

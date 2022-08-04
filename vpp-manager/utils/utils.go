@@ -78,7 +78,10 @@ func WriteFile(state string, path string) error {
 }
 
 func WriteInfoFile() error {
-	file, _ := json.MarshalIndent(config.Info, "", " ")
+	file, err := json.MarshalIndent(config.Info, "", " ")
+	if err != nil {
+		return errors.Errorf("Failed to encode json for info file: %s", err)
+	}
 	return ioutil.WriteFile(config.VppManagerInfoFile, file, 0644)
 }
 

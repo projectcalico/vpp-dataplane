@@ -40,19 +40,17 @@ type RouteWatcher struct {
 	addrClose         chan struct{}
 	addrNetlinkFailed chan struct{}
 	addrUpdate        chan struct{}
-	stop              bool
-	lock              sync.Mutex
 	closeLock         sync.Mutex
 	routeEventChan    chan common.CalicoVppEvent
 	FakeNextHopIP4    net.IP
 	FakeNextHopIP6    net.IP
 }
 
-func NewRouteWatcher() *RouteWatcher {
+func NewRouteWatcher(fakeNextHopIP4, fakeNextHopIP6 net.IP) *RouteWatcher {
 	routeWatcher := &RouteWatcher{
 		routeEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
-		FakeNextHopIP4: common.VppManagerInfo.FakeNextHopIP4,
-		FakeNextHopIP6: common.VppManagerInfo.FakeNextHopIP6,
+		FakeNextHopIP4: fakeNextHopIP4,
+		FakeNextHopIP6: fakeNextHopIP6,
 	}
 	reg := common.RegisterHandler(routeWatcher.routeEventChan, "route watcher events")
 	reg.ExpectEvents(
@@ -69,9 +67,6 @@ func copyRoute(route *netlink.Route) netlink.Route {
 }
 
 func (r *RouteWatcher) AddRoute(route *netlink.Route) (err error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
 	if err = netlink.RouteReplace(route); err != nil {
 		return err
 	}
@@ -82,9 +77,6 @@ func (r *RouteWatcher) AddRoute(route *netlink.Route) (err error) {
 }
 
 func (r *RouteWatcher) DelRoute(route *netlink.Route) (err error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
 	if err = netlink.RouteDel(route); err != nil {
 		return err
 	}
@@ -98,41 +90,17 @@ func (r *RouteWatcher) DelRoute(route *netlink.Route) (err error) {
 	return nil
 }
 
-func (r *RouteWatcher) Stop() {
-	log.Infof("Stopping route watcher")
-	r.closeLock.Lock()
-	defer r.closeLock.Unlock()
-	r.stop = true
-	if r.close != nil {
-		close(r.close)
-		r.close = nil
-	}
-	if r.addrClose != nil {
-		close(r.addrClose)
-		r.addrClose = nil
-	}
-}
-
 func (r *RouteWatcher) netlinkError(err error) {
-	if r.stop {
-		return
-	}
 	log.Warnf("error from netlink: %v", err)
 	r.netlinkFailed <- struct{}{}
 }
 
 func (r *RouteWatcher) addrNetlinkError(err error) {
-	if r.stop {
-		return
-	}
 	log.Warnf("error from netlink: %v", err)
 	r.addrNetlinkFailed <- struct{}{}
 }
 
 func (r *RouteWatcher) RestoreAllRoutes() (err error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
 	for _, route := range r.routes {
 		err = netlink.RouteReplace(&route)
 		if err != nil {
@@ -203,9 +171,8 @@ func (r *RouteWatcher) getNetworkRoute(network string) (route *netlink.Route, er
 func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 	r.netlinkFailed = make(chan struct{}, 1)
 	r.addrUpdate = make(chan struct{}, 10)
-	r.stop = false
 
-	go r.watchAddresses()
+	go r.watchAddresses(t)
 	for _, serviceCIDR := range config.ServiceCIDRs {
 		// Add a route for the service prefix through VPP. This is required even if kube-proxy is
 		// running on the host to ensure correct source address selection if the host has multiple interfaces
@@ -226,10 +193,6 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 	}
 	for {
 		r.closeLock.Lock()
-		if r.stop {
-			log.Infof("Route watcher exited")
-			return nil
-		}
 		updates := make(chan netlink.RouteUpdate, 10)
 		r.close = make(chan struct{})
 		r.closeLock.Unlock()
@@ -249,7 +212,13 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 		for {
 			select {
 			case <-t.Dying():
-				log.Info("Pools watcher stopped")
+				r.closeLock.Lock()
+				defer r.closeLock.Unlock()
+				if r.close != nil {
+					close(r.close)
+					r.close = nil
+				}
+				log.Info("Route watcher stopped")
 				return nil
 			case event := <-r.routeEventChan:
 				switch event.Type {
@@ -275,17 +244,12 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 					}
 				}
 			case <-r.netlinkFailed:
-				if r.stop {
-					log.Infof("Route watcher exiting")
-					return nil
-				}
 				goto restart
 			case update, ok := <-updates:
 				if !ok {
 					goto restart
 				}
 				if update.Type == syscall.RTM_DELROUTE {
-					r.lock.Lock()
 					for _, route := range r.routes {
 						// See if it is one of our routes
 						if update.Dst != nil && update.Dst.String() == route.Dst.String() {
@@ -293,13 +257,11 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 							err = netlink.RouteReplace(&route)
 							if err != nil {
 								log.Errorf("error adding route %+v: %v", route, err)
-								r.lock.Unlock()
 								goto restart
 							}
 							break
 						}
 					}
-					r.lock.Unlock()
 				}
 			case <-r.addrUpdate:
 				log.Infof("Address update, restoring all routes")
@@ -316,15 +278,11 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 	}
 }
 
-func (r *RouteWatcher) watchAddresses() {
+func (r *RouteWatcher) watchAddresses(t *tomb.Tomb) {
 	r.addrNetlinkFailed = make(chan struct{}, 1)
 
 	for {
 		r.closeLock.Lock()
-		if r.stop {
-			log.Infof("Address watcher exited")
-			return
-		}
 		updates := make(chan netlink.AddrUpdate, 10)
 		r.addrClose = make(chan struct{})
 		r.closeLock.Unlock()
@@ -339,11 +297,16 @@ func (r *RouteWatcher) watchAddresses() {
 
 		for {
 			select {
-			case <-r.addrNetlinkFailed:
-				if r.stop {
-					log.Infof("Address watcher exiting")
-					return
+			case <-t.Dying():
+				r.closeLock.Lock()
+				defer r.closeLock.Unlock()
+				if r.addrClose != nil {
+					close(r.addrClose)
+					r.addrClose = nil
 				}
+				log.Info("Route watcher stopped")
+				return
+			case <-r.addrNetlinkFailed:
 				log.Info("Address watcher stopped / failed")
 				goto restart
 			case _, ok := <-updates:
