@@ -13,48 +13,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package watchers
 
 import (
 	"sync"
 	"time"
 
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"gopkg.in/tomb.v2"
 )
 
 type LinkWatcher struct {
-	LinkIndex     int
-	LinkName      string
-	MTU           int
-	close         chan struct{}
-	netlinkFailed chan struct{}
-	stop          bool
-	closeLock     sync.Mutex
+	UplinkStatuses []config.UplinkStatus
+	close          chan struct{}
+	netlinkFailed  chan struct{}
+	closeLock      sync.Mutex
 }
 
-func (r *LinkWatcher) Stop() {
-	log.Infof("Stopping link watcher")
-	r.closeLock.Lock()
-	defer r.closeLock.Unlock()
-	r.stop = true
-	if r.close != nil {
-		close(r.close)
-		r.close = nil
+func NewLinkWatcher(uplinkStatus []config.UplinkStatus) *LinkWatcher {
+	return &LinkWatcher{
+		UplinkStatuses: uplinkStatus,
 	}
 }
 
 func (r *LinkWatcher) netlinkError(err error) {
-	if r.stop {
-		return
-	}
 	log.Warnf("error from netlink: %v", err)
 	r.netlinkFailed <- struct{}{}
 }
 
-func (r *LinkWatcher) ResetMTU(link netlink.Link) (err error) {
+func (r *LinkWatcher) ResetMTU(link netlink.Link, mtu int) (err error) {
 	//TODO
-	return netlink.LinkSetMTU(link, r.MTU)
+	return netlink.LinkSetMTU(link, mtu)
 }
 
 func (r *LinkWatcher) safeClose() {
@@ -66,17 +57,12 @@ func (r *LinkWatcher) safeClose() {
 	r.closeLock.Unlock()
 }
 
-func (r *LinkWatcher) WatchLinks() {
+func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 	r.netlinkFailed = make(chan struct{}, 1)
-	r.stop = false
 	var link netlink.Link
 
 	for {
 		r.closeLock.Lock()
-		if r.stop {
-			log.Infof("Link watcher exited")
-			return
-		}
 		updates := make(chan netlink.LinkUpdate, 10)
 		r.close = make(chan struct{})
 		r.closeLock.Unlock()
@@ -89,25 +75,32 @@ func (r *LinkWatcher) WatchLinks() {
 			r.safeClose()
 			goto restart
 		}
-		link, err = netlink.LinkByIndex(r.LinkIndex)
-		if err != nil || link.Attrs().Name != r.LinkName {
-			log.Errorf("error getting link to watch: %v %v", link, err)
-			r.safeClose()
-			goto restart
-		}
-		// Set the MTU on watch restart
-		if err = r.ResetMTU(link); err != nil {
-			log.Errorf("error resetting MTU, sleeping before retrying: %v", err)
-			r.safeClose()
-			goto restart
+		for _, v := range r.UplinkStatuses {
+			link, err = netlink.LinkByIndex(v.LinkIndex)
+			if err != nil || link.Attrs().Name != v.Name {
+				log.Errorf("error getting link to watch: %v %v", link, err)
+				r.safeClose()
+				goto restart
+			}
+			// Set the MTU on watch restart
+			if err = netlink.LinkSetMTU(link, v.Mtu); err != nil {
+				log.Errorf("error resetting MTU, sleeping before retrying: %v", err)
+				r.safeClose()
+				goto restart
+			}
 		}
 		for {
 			select {
-			case <-r.netlinkFailed:
-				if r.stop {
-					log.Infof("Link watcher exiting")
-					return
+			case <-t.Dying():
+				r.closeLock.Lock()
+				defer r.closeLock.Unlock()
+				if r.close != nil {
+					close(r.close)
+					r.close = nil
 				}
+				log.Info("Link watcher stopped")
+				return nil
+			case <-r.netlinkFailed:
 				log.Info("Link watcher stopped / failed")
 				goto restart
 			case update, ok := <-updates:
@@ -115,10 +108,18 @@ func (r *LinkWatcher) WatchLinks() {
 					/* channel closed, restart */
 					goto restart
 				}
-				if update.Attrs().Index == r.LinkIndex {
-					if update.Attrs().Name == r.LinkName {
-						if update.Attrs().MTU != r.MTU {
-							if err = r.ResetMTU(update); err != nil {
+				found := false
+				v := config.UplinkStatus{}
+				for _, v := range r.UplinkStatuses {
+					if update.Attrs().Index == v.LinkIndex {
+						found = true
+						break
+					}
+				}
+				if found {
+					if update.Attrs().Name == v.Name {
+						if update.Attrs().MTU != v.Mtu {
+							if err = netlink.LinkSetMTU(link, v.Mtu); err != nil {
 								log.Warnf("Error resetting link mtu: %v", err)
 								r.safeClose()
 								goto restart

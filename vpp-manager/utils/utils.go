@@ -17,6 +17,7 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -74,6 +75,14 @@ func WriteFile(state string, path string) error {
 		return errors.Errorf("Failed to write state to %s %s", path, err)
 	}
 	return nil
+}
+
+func WriteInfoFile() error {
+	file, err := json.MarshalIndent(config.Info, "", " ")
+	if err != nil {
+		return errors.Errorf("Failed to encode json for info file: %s", err)
+	}
+	return ioutil.WriteFile(config.VppManagerInfoFile, file, 0644)
 }
 
 func RouteIsIP6(r *netlink.Route) bool {
@@ -192,11 +201,9 @@ func CreateVppLink() (vpp *vpplink.VppLink, err error) {
 }
 
 func ClearVppManagerFiles() error {
-	err := WriteFile("0", config.VppManagerStatusFile)
-	if err != nil {
-		return err
-	}
-	return WriteFile("-1", config.VppManagerTapIdxFile)
+	config.Info.Status = config.Starting
+	config.Info.UplinkStatuses = make([]config.UplinkStatus, 0)
+	return WriteInfoFile()
 }
 
 func SetVfioUnsafeiommu(iommu bool) (err error) {

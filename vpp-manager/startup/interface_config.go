@@ -59,7 +59,7 @@ func getInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxIn
 		for i := range conf {
 			if conf[i] == nil {
 				for j := range confFile {
-					if confFile[j].InterfaceName == params.InterfacesSpecs[i].InterfaceName{
+					if confFile[j].InterfaceName == params.InterfacesSpecs[i].InterfaceName {
 						conf[i] = confFile[j]
 					}
 				}

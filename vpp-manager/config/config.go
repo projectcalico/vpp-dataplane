@@ -30,9 +30,7 @@ const (
 	DataInterfaceSwIfIndex = uint32(1) // Assumption: the VPP config ensures this is true
 	VppConfigFile          = "/etc/vpp/startup.conf"
 	VppConfigExecFile      = "/etc/vpp/startup.exec"
-	VppManagerStatusFile   = "/var/run/vpp/vppmanagerstatus"
-	VppManagerTapIdxFile   = "/var/run/vpp/vppmanagertap0"
-	VppManagerLinuxMtu     = "/var/run/vpp/vppmanagerlinuxmtu"
+	VppManagerInfoFile     = "/var/run/vpp/vppmanagerinfofile"
 	VppApiSocket           = "/var/run/vpp/vpp-api.sock"
 	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
 	VppPath                = "/usr/bin/vpp"
@@ -50,6 +48,30 @@ const (
 	DRIVER_MLX5_CORE       = "mlx5_core"
 	DRIVER_VMXNET3         = "vmxnet3"
 )
+
+var Info = &VppManagerInfo{}
+
+type vppManagerStatus string
+
+const (
+	Ready    vppManagerStatus = "ready"
+	Starting vppManagerStatus = "starting"
+)
+
+type UplinkStatus struct {
+	SwIfIndex uint32
+	LinkIndex int
+	Name      string
+	IsMain    bool
+	Mtu       int
+}
+
+type VppManagerInfo struct {
+	Status         vppManagerStatus
+	UplinkStatuses []UplinkStatus
+	FakeNextHopIP4 net.IP
+	FakeNextHopIP6 net.IP
+}
 
 type InterfaceSpec struct {
 	IsMain          bool

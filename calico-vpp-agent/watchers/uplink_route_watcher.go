@@ -13,15 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package watchers
 
 import (
+	"net"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"gopkg.in/tomb.v2"
 )
 
 type RouteWatcher struct {
@@ -31,9 +40,23 @@ type RouteWatcher struct {
 	addrClose         chan struct{}
 	addrNetlinkFailed chan struct{}
 	addrUpdate        chan struct{}
-	stop              bool
-	lock              sync.Mutex
 	closeLock         sync.Mutex
+	routeEventChan    chan common.CalicoVppEvent
+	FakeNextHopIP4    net.IP
+	FakeNextHopIP6    net.IP
+}
+
+func NewRouteWatcher(fakeNextHopIP4, fakeNextHopIP6 net.IP) *RouteWatcher {
+	routeWatcher := &RouteWatcher{
+		routeEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		FakeNextHopIP4: fakeNextHopIP4,
+		FakeNextHopIP6: fakeNextHopIP6,
+	}
+	reg := common.RegisterHandler(routeWatcher.routeEventChan, "route watcher events")
+	reg.ExpectEvents(
+		common.IpamConfChanged,
+	)
+	return routeWatcher
 }
 
 func copyRoute(route *netlink.Route) netlink.Route {
@@ -44,9 +67,6 @@ func copyRoute(route *netlink.Route) netlink.Route {
 }
 
 func (r *RouteWatcher) AddRoute(route *netlink.Route) (err error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
 	if err = netlink.RouteReplace(route); err != nil {
 		return err
 	}
@@ -57,9 +77,6 @@ func (r *RouteWatcher) AddRoute(route *netlink.Route) (err error) {
 }
 
 func (r *RouteWatcher) DelRoute(route *netlink.Route) (err error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
 	if err = netlink.RouteDel(route); err != nil {
 		return err
 	}
@@ -73,41 +90,17 @@ func (r *RouteWatcher) DelRoute(route *netlink.Route) (err error) {
 	return nil
 }
 
-func (r *RouteWatcher) Stop() {
-	log.Infof("Stopping route watcher")
-	r.closeLock.Lock()
-	defer r.closeLock.Unlock()
-	r.stop = true
-	if r.close != nil {
-		close(r.close)
-		r.close = nil
-	}
-	if r.addrClose != nil {
-		close(r.addrClose)
-		r.addrClose = nil
-	}
-}
-
 func (r *RouteWatcher) netlinkError(err error) {
-	if r.stop {
-		return
-	}
 	log.Warnf("error from netlink: %v", err)
 	r.netlinkFailed <- struct{}{}
 }
 
 func (r *RouteWatcher) addrNetlinkError(err error) {
-	if r.stop {
-		return
-	}
 	log.Warnf("error from netlink: %v", err)
 	r.addrNetlinkFailed <- struct{}{}
 }
 
 func (r *RouteWatcher) RestoreAllRoutes() (err error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
 	for _, route := range r.routes {
 		err = netlink.RouteReplace(&route)
 		if err != nil {
@@ -135,19 +128,71 @@ func (r *RouteWatcher) safeAddrClose() {
 	r.closeLock.Unlock()
 }
 
-func (r *RouteWatcher) WatchRoutes() {
+func GetUplinkMtu(userSpecifiedMtu int, includeEncap bool) int {
+	hostMtu := vpplink.MAX_MTU
+	if len(common.VppManagerInfo.UplinkStatuses) != 0 {
+		for _, v := range common.VppManagerInfo.UplinkStatuses {
+			if v.Mtu < hostMtu {
+				hostMtu = v.Mtu
+			}
+		}
+	}
+	encapSize := 0
+	if includeEncap {
+		encapSize = vppmanagerconfig.DefaultEncapSize
+	}
+	// Use the linux interface MTU as default value if nothing is configured from env
+	if userSpecifiedMtu == 0 {
+		return hostMtu - encapSize
+	}
+	return userSpecifiedMtu - encapSize
+}
+
+func (r *RouteWatcher) getNetworkRoute(network string) (route *netlink.Route, err error) {
+	log.Infof("Added ip pool %s", network)
+	_, cidr, err := net.ParseCIDR(network)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error parsing %s", network)
+	}
+
+	gw := r.FakeNextHopIP4
+	if cidr.IP.To4() == nil {
+		gw = r.FakeNextHopIP6
+	}
+
+	return &netlink.Route{
+		Dst:      cidr,
+		Gw:       gw,
+		Protocol: syscall.RTPROT_STATIC,
+		MTU:      GetUplinkMtu(config.UserSpecifiedMtu, true /* includeEncap */),
+	}, nil
+}
+
+func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 	r.netlinkFailed = make(chan struct{}, 1)
 	r.addrUpdate = make(chan struct{}, 10)
-	r.stop = false
 
-	go r.watchAddresses()
-
+	go r.watchAddresses(t)
+	for _, serviceCIDR := range config.ServiceCIDRs {
+		// Add a route for the service prefix through VPP. This is required even if kube-proxy is
+		// running on the host to ensure correct source address selection if the host has multiple interfaces
+		log.Infof("Adding route to service prefix %s through VPP", serviceCIDR.String())
+		gw := common.VppManagerInfo.FakeNextHopIP4
+		if serviceCIDR.IP.To4() == nil {
+			gw = common.VppManagerInfo.FakeNextHopIP6
+		}
+		err := r.AddRoute(&netlink.Route{
+			Dst:      serviceCIDR,
+			Gw:       gw,
+			Protocol: syscall.RTPROT_STATIC,
+			MTU:      GetUplinkMtu(config.UserSpecifiedMtu, true /* includeEncap */),
+		})
+		if err != nil {
+			log.Error(err, "cannot add tap route to service %s", serviceCIDR.String())
+		}
+	}
 	for {
 		r.closeLock.Lock()
-		if r.stop {
-			log.Infof("Route watcher exited")
-			return
-		}
 		updates := make(chan netlink.RouteUpdate, 10)
 		r.close = make(chan struct{})
 		r.closeLock.Unlock()
@@ -166,18 +211,45 @@ func (r *RouteWatcher) WatchRoutes() {
 		}
 		for {
 			select {
-			case <-r.netlinkFailed:
-				if r.stop {
-					log.Infof("Route watcher exiting")
-					return
+			case <-t.Dying():
+				r.closeLock.Lock()
+				defer r.closeLock.Unlock()
+				if r.close != nil {
+					close(r.close)
+					r.close = nil
 				}
+				log.Info("Route watcher stopped")
+				return nil
+			case event := <-r.routeEventChan:
+				switch event.Type {
+				case common.IpamConfChanged:
+					old, _ := event.Old.(*calicov3.IPPool)
+					new, _ := event.New.(*calicov3.IPPool)
+					if new == nil {
+						key := old.Spec.CIDR
+						route, err := r.getNetworkRoute(key)
+						if err != nil {
+							return errors.Wrap(err, "Error deleting net")
+						}
+						err = r.DelRoute(route)
+						return errors.Wrapf(err, "cannot delete pool route %s through vpp tap", key)
+					} else {
+						key := new.Spec.CIDR
+						route, err := r.getNetworkRoute(key)
+						if err != nil {
+							return errors.Wrap(err, "Error adding net")
+						}
+						err = r.AddRoute(route)
+						return errors.Wrapf(err, "cannot add pool route %s through vpp tap", key)
+					}
+				}
+			case <-r.netlinkFailed:
 				goto restart
 			case update, ok := <-updates:
 				if !ok {
 					goto restart
 				}
 				if update.Type == syscall.RTM_DELROUTE {
-					r.lock.Lock()
 					for _, route := range r.routes {
 						// See if it is one of our routes
 						if update.Dst != nil && update.Dst.String() == route.Dst.String() {
@@ -185,13 +257,11 @@ func (r *RouteWatcher) WatchRoutes() {
 							err = netlink.RouteReplace(&route)
 							if err != nil {
 								log.Errorf("error adding route %+v: %v", route, err)
-								r.lock.Unlock()
 								goto restart
 							}
 							break
 						}
 					}
-					r.lock.Unlock()
 				}
 			case <-r.addrUpdate:
 				log.Infof("Address update, restoring all routes")
@@ -208,15 +278,11 @@ func (r *RouteWatcher) WatchRoutes() {
 	}
 }
 
-func (r *RouteWatcher) watchAddresses() {
+func (r *RouteWatcher) watchAddresses(t *tomb.Tomb) {
 	r.addrNetlinkFailed = make(chan struct{}, 1)
 
 	for {
 		r.closeLock.Lock()
-		if r.stop {
-			log.Infof("Address watcher exited")
-			return
-		}
 		updates := make(chan netlink.AddrUpdate, 10)
 		r.addrClose = make(chan struct{})
 		r.closeLock.Unlock()
@@ -231,11 +297,16 @@ func (r *RouteWatcher) watchAddresses() {
 
 		for {
 			select {
-			case <-r.addrNetlinkFailed:
-				if r.stop {
-					log.Infof("Address watcher exiting")
-					return
+			case <-t.Dying():
+				r.closeLock.Lock()
+				defer r.closeLock.Unlock()
+				if r.addrClose != nil {
+					close(r.addrClose)
+					r.addrClose = nil
 				}
+				log.Info("Route watcher stopped")
+				return
+			case <-r.addrNetlinkFailed:
 				log.Info("Address watcher stopped / failed")
 				goto restart
 			case _, ok := <-updates:
