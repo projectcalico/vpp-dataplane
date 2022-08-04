@@ -8,7 +8,7 @@
 package pci_types
 
 import (
-	api "git.fd.io/govpp.git/api"
+	api "go.fd.io/govpp/api"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -16,6 +16,12 @@ import (
 // A compilation error at this line likely means your copy of the
 // GoVPP api package needs to be updated.
 const _ = api.GoVppAPIPackageIsVersion2
+
+const (
+	APIFile    = "pci_types"
+	APIVersion = "1.0.0"
+	VersionCrc = 0x5d418665
+)
 
 // PciAddress defines type 'pci_address'.
 type PciAddress struct {

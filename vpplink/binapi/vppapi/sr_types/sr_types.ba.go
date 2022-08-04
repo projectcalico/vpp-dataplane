@@ -10,7 +10,7 @@ package sr_types
 import (
 	"strconv"
 
-	api "git.fd.io/govpp.git/api"
+	api "go.fd.io/govpp/api"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -18,6 +18,12 @@ import (
 // A compilation error at this line likely means your copy of the
 // GoVPP api package needs to be updated.
 const _ = api.GoVppAPIPackageIsVersion2
+
+const (
+	APIFile    = "sr_types"
+	APIVersion = "1.0.0"
+	VersionCrc = 0x7955bd50
+)
 
 // SrBehavior defines enum 'sr_behavior'.
 type SrBehavior uint8

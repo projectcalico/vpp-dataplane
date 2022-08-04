@@ -11,9 +11,9 @@ package mfib_types
 import (
 	"strconv"
 
-	api "git.fd.io/govpp.git/api"
 	fib_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
 	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	api "go.fd.io/govpp/api"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -21,6 +21,12 @@ import (
 // A compilation error at this line likely means your copy of the
 // GoVPP api package needs to be updated.
 const _ = api.GoVppAPIPackageIsVersion2
+
+const (
+	APIFile    = "mfib_types"
+	APIVersion = "1.0.0"
+	VersionCrc = 0xd2b57aaf
+)
 
 // MfibEntryFlags defines enum 'mfib_entry_flags'.
 type MfibEntryFlags uint32

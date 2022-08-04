@@ -11,8 +11,8 @@ package fib_types
 import (
 	"strconv"
 
-	api "git.fd.io/govpp.git/api"
 	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	api "go.fd.io/govpp/api"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -20,6 +20,12 @@ import (
 // A compilation error at this line likely means your copy of the
 // GoVPP api package needs to be updated.
 const _ = api.GoVppAPIPackageIsVersion2
+
+const (
+	APIFile    = "fib_types"
+	APIVersion = "2.0.1"
+	VersionCrc = 0x21fd785b
+)
 
 // FibPathFlags defines enum 'fib_path_flags'.
 type FibPathFlags uint32

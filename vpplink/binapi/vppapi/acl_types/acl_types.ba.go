@@ -11,9 +11,9 @@ package acl_types
 import (
 	"strconv"
 
-	api "git.fd.io/govpp.git/api"
 	ethernet_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ethernet_types"
 	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	api "go.fd.io/govpp/api"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -21,6 +21,12 @@ import (
 // A compilation error at this line likely means your copy of the
 // GoVPP api package needs to be updated.
 const _ = api.GoVppAPIPackageIsVersion2
+
+const (
+	APIFile    = "acl_types"
+	APIVersion = "1.0.0"
+	VersionCrc = 0x878da4fa
+)
 
 // ACLAction defines enum 'acl_action'.
 type ACLAction uint8

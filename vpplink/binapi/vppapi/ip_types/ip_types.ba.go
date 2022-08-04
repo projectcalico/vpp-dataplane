@@ -16,8 +16,8 @@ import (
 	"strconv"
 	"strings"
 
-	api "git.fd.io/govpp.git/api"
-	codec "git.fd.io/govpp.git/codec"
+	api "go.fd.io/govpp/api"
+	codec "go.fd.io/govpp/codec"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -25,6 +25,12 @@ import (
 // A compilation error at this line likely means your copy of the
 // GoVPP api package needs to be updated.
 const _ = api.GoVppAPIPackageIsVersion2
+
+const (
+	APIFile    = "ip_types"
+	APIVersion = "3.0.0"
+	VersionCrc = 0xfee023ed
+)
 
 // AddressFamily defines enum 'address_family'.
 type AddressFamily uint8
@@ -276,12 +282,15 @@ func ParseAddressWithPrefix(s string) (AddressWithPrefix, error) {
 	}
 	return AddressWithPrefix(prefix), nil
 }
+
 func (x AddressWithPrefix) String() string {
 	return Prefix(x).String()
 }
+
 func (x *AddressWithPrefix) MarshalText() ([]byte, error) {
 	return []byte(x.String()), nil
 }
+
 func (x *AddressWithPrefix) UnmarshalText(text []byte) error {
 	prefix, err := ParseAddressWithPrefix(string(text))
 	if err != nil {
@@ -307,12 +316,15 @@ func ParseIP4Address(s string) (IP4Address, error) {
 func (x IP4Address) ToIP() net.IP {
 	return net.IP(x[:]).To4()
 }
+
 func (x IP4Address) String() string {
 	return x.ToIP().String()
 }
+
 func (x *IP4Address) MarshalText() ([]byte, error) {
 	return []byte(x.String()), nil
 }
+
 func (x *IP4Address) UnmarshalText(text []byte) error {
 	ipaddr, err := ParseIP4Address(string(text))
 	if err != nil {
@@ -341,12 +353,15 @@ func ParseIP6Address(s string) (IP6Address, error) {
 func (x IP6Address) ToIP() net.IP {
 	return net.IP(x[:]).To16()
 }
+
 func (x IP6Address) String() string {
 	return x.ToIP().String()
 }
+
 func (x *IP6Address) MarshalText() ([]byte, error) {
 	return []byte(x.String()), nil
 }
+
 func (x *IP6Address) UnmarshalText(text []byte) error {
 	ipaddr, err := ParseIP6Address(string(text))
 	if err != nil {
@@ -370,6 +385,10 @@ func ParseAddress(s string) (Address, error) {
 	if ip == nil {
 		return Address{}, fmt.Errorf("invalid address: %s", s)
 	}
+	return AddressFromIP(ip), nil
+}
+
+func AddressFromIP(ip net.IP) Address {
 	var addr Address
 	if ip.To4() == nil {
 		addr.Af = ADDRESS_IP6
@@ -382,8 +401,9 @@ func ParseAddress(s string) (Address, error) {
 		copy(ip4[:], ip.To4())
 		addr.Un.SetIP4(ip4)
 	}
-	return addr, nil
+	return addr
 }
+
 func (x Address) ToIP() net.IP {
 	if x.Af == ADDRESS_IP6 {
 		ip6 := x.Un.GetIP6()
@@ -393,12 +413,15 @@ func (x Address) ToIP() net.IP {
 		return net.IP(ip4[:]).To4()
 	}
 }
+
 func (x Address) String() string {
 	return x.ToIP().String()
 }
+
 func (x *Address) MarshalText() ([]byte, error) {
 	return []byte(x.String()), nil
 }
+
 func (x *Address) UnmarshalText(text []byte) error {
 	addr, err := ParseAddress(string(text))
 	if err != nil {
@@ -447,18 +470,22 @@ func ParseIP4Prefix(s string) (prefix IP4Prefix, err error) {
 	}
 	return prefix, nil
 }
+
 func (x IP4Prefix) ToIPNet() *net.IPNet {
 	mask := net.CIDRMask(int(x.Len), 32)
 	ipnet := &net.IPNet{IP: x.Address.ToIP(), Mask: mask}
 	return ipnet
 }
+
 func (x IP4Prefix) String() string {
 	ip := x.Address.String()
 	return ip + "/" + strconv.Itoa(int(x.Len))
 }
+
 func (x *IP4Prefix) MarshalText() ([]byte, error) {
 	return []byte(x.String()), nil
 }
+
 func (x *IP4Prefix) UnmarshalText(text []byte) error {
 	prefix, err := ParseIP4Prefix(string(text))
 	if err != nil {
@@ -507,18 +534,22 @@ func ParseIP6Prefix(s string) (prefix IP6Prefix, err error) {
 	}
 	return prefix, nil
 }
+
 func (x IP6Prefix) ToIPNet() *net.IPNet {
 	mask := net.CIDRMask(int(x.Len), 128)
 	ipnet := &net.IPNet{IP: x.Address.ToIP(), Mask: mask}
 	return ipnet
 }
+
 func (x IP6Prefix) String() string {
 	ip := x.Address.String()
 	return ip + "/" + strconv.Itoa(int(x.Len))
 }
+
 func (x *IP6Prefix) MarshalText() ([]byte, error) {
 	return []byte(x.String()), nil
 }
+
 func (x *IP6Prefix) UnmarshalText(text []byte) error {
 	prefix, err := ParseIP6Prefix(string(text))
 	if err != nil {
@@ -569,6 +600,7 @@ func ParsePrefix(ip string) (prefix Prefix, err error) {
 	}
 	return prefix, nil
 }
+
 func (x Prefix) ToIPNet() *net.IPNet {
 	var mask net.IPMask
 	if x.Address.Af == ADDRESS_IP4 {
@@ -579,13 +611,16 @@ func (x Prefix) ToIPNet() *net.IPNet {
 	ipnet := &net.IPNet{IP: x.Address.ToIP(), Mask: mask}
 	return ipnet
 }
+
 func (x Prefix) String() string {
 	ip := x.Address.String()
 	return ip + "/" + strconv.Itoa(int(x.Len))
 }
+
 func (x *Prefix) MarshalText() ([]byte, error) {
 	return []byte(x.String()), nil
 }
+
 func (x *Prefix) UnmarshalText(text []byte) error {
 	prefix, err := ParsePrefix(string(text))
 	if err != nil {

@@ -5,7 +5,7 @@ set -e
 SOURCE="${BASH_SOURCE[0]}"
 SCRIPTDIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
 
-GOVPP_DIR=$(go list -f '{{.Dir}}' -m git.fd.io/govpp.git)
+GOVPP_DIR=$(go list -f '{{.Dir}}' -m go.fd.io/govpp)
 BINAPI_GENERATOR=$SCRIPTDIR/bin/binapi-generator
 VPPLINK_DIR=$SCRIPTDIR/..
 

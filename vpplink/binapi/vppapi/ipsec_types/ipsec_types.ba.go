@@ -11,10 +11,10 @@ package ipsec_types
 import (
 	"strconv"
 
-	api "git.fd.io/govpp.git/api"
 	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	tunnel_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/tunnel_types"
+	api "go.fd.io/govpp/api"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -22,6 +22,12 @@ import (
 // A compilation error at this line likely means your copy of the
 // GoVPP api package needs to be updated.
 const _ = api.GoVppAPIPackageIsVersion2
+
+const (
+	APIFile    = "ipsec_types"
+	APIVersion = "3.0.1"
+	VersionCrc = 0x48f74470
+)
 
 // IpsecCryptoAlg defines enum 'ipsec_crypto_alg'.
 type IpsecCryptoAlg uint32
