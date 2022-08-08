@@ -9,11 +9,11 @@
 package abf
 
 import (
-	api "git.fd.io/govpp.git/api"
-	codec "git.fd.io/govpp.git/codec"
 	fib_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
 	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	api "go.fd.io/govpp/api"
+	codec "go.fd.io/govpp/codec"
 )
 
 // This is a compile-time assertion to ensure that this generated file

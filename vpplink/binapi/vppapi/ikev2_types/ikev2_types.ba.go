@@ -8,9 +8,9 @@
 package ikev2_types
 
 import (
-	api "git.fd.io/govpp.git/api"
 	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	api "go.fd.io/govpp/api"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -18,6 +18,12 @@ import (
 // A compilation error at this line likely means your copy of the
 // GoVPP api package needs to be updated.
 const _ = api.GoVppAPIPackageIsVersion2
+
+const (
+	APIFile    = "ikev2_types"
+	APIVersion = "1.0.0"
+	VersionCrc = 0xe7510e
+)
 
 // Ikev2Auth defines type 'ikev2_auth'.
 type Ikev2Auth struct {

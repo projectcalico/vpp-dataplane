@@ -18,8 +18,8 @@ package vpplink
 import (
 	"fmt"
 
-	"git.fd.io/govpp.git/adapter"
-	"git.fd.io/govpp.git/adapter/statsclient"
+	"go.fd.io/govpp/adapter"
+	"go.fd.io/govpp/adapter/statsclient"
 	"github.com/pkg/errors"
 	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface"
 )

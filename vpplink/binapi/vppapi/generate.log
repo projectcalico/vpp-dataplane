@@ -1,8 +1,8 @@
-VPP Version                 : 22.06-rc0~250-g25c58ed26
-Binapi-generator version    : govpp v0.4.0-dev
+VPP Version                 : 22.06-rc0~250-g11ac652ca
+Binapi-generator version    : govpp v0.6.0-dev
 VPP Base commit             : 38659d8f2 sr: fix srv6 definition of behavior associated to a LocalSID
 ------------------ Cherry picked commits --------------------
-gerrit:28513/25 capo: Calico Policies plugin
+gerrit:28513/28 capo: Calico Policies plugin
 gerrit:28083/21 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/7 pbl: Port based balancer

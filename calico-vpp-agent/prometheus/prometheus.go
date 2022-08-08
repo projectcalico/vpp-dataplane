@@ -25,8 +25,8 @@ import (
 	"strings"
 	"sync"
 
-	"git.fd.io/govpp.git/adapter"
-	"git.fd.io/govpp.git/adapter/statsclient"
+	"go.fd.io/govpp/adapter"
+	"go.fd.io/govpp/adapter/statsclient"
 	metricspb "github.com/census-instrumentation/opencensus-proto/gen-go/metrics/v1"
 	prometheusExporter "github.com/orijtech/prometheus-go-metrics-exporter"
 	"github.com/pkg/errors"

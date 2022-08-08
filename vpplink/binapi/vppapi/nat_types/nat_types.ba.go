@@ -11,7 +11,7 @@ package nat_types
 import (
 	"strconv"
 
-	api "git.fd.io/govpp.git/api"
+	api "go.fd.io/govpp/api"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -19,6 +19,12 @@ import (
 // A compilation error at this line likely means your copy of the
 // GoVPP api package needs to be updated.
 const _ = api.GoVppAPIPackageIsVersion2
+
+const (
+	APIFile    = "nat_types"
+	APIVersion = "0.0.1"
+	VersionCrc = 0x2ca9110f
+)
 
 // NatConfigFlags defines enum 'nat_config_flags'.
 type NatConfigFlags uint8

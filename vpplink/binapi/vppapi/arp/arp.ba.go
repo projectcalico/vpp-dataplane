@@ -9,11 +9,11 @@
 package arp
 
 import (
-	api "git.fd.io/govpp.git/api"
-	codec "git.fd.io/govpp.git/codec"
 	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ethernet_types"
 	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	api "go.fd.io/govpp/api"
+	codec "go.fd.io/govpp/codec"
 )
 
 // This is a compile-time assertion to ensure that this generated file

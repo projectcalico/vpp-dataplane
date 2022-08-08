@@ -19,9 +19,9 @@ import (
 	"sync"
 	"time"
 
-	govpp "git.fd.io/govpp.git"
-	vppapi "git.fd.io/govpp.git/api"
-	vppcore "git.fd.io/govpp.git/core"
+	govpp "go.fd.io/govpp"
+	vppapi "go.fd.io/govpp/api"
+	vppcore "go.fd.io/govpp/core"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
