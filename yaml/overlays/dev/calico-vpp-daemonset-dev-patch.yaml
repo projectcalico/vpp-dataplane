@@ -42,7 +42,7 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
             - name: LD_LIBRARY_PATH
-              value: "/home/hostuser/vpp/build-root/install-vpp-native/vpp/"
+              value: "/repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/"
           resources:
             requests:
               cpu: 1
@@ -53,16 +53,16 @@ spec:
           volumeMounts:
             # Add your home to the container we can launch rebulid vpp
             # without the whole container
-            - name: userhome
-              mountPath: /home/hostuser
+            - name: repo-directory
+              mountPath: /repo
             - name: ssl-certs
               mountPath: /etc/ssl/certs/
             - name: share-certs
               mountPath: /usr/share/ca-certificates
       volumes:
-        - name: userhome
+        - name: repo-directory
           hostPath:
-            path: ${USERHOME}
+            path: ${REPO_DIRECTORY}
         - name: ssl-certs
           hostPath:
             path: /etc/ssl/certs/
