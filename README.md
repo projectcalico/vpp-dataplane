@@ -12,7 +12,12 @@ This repository contains the source for Calico's VPP dataplane integration. The 
 
 ## Get Started Developing Calico/VPP
 
-Contributions to this code are welcome! Before starting, make sure you've read [the Calico contributor guide][contrib].
+Contributions to this code are welcome! 
+
+Before starting, make sure you've read [the Calico contributor guide][contrib].
+
+You can follow the [guide to setup a kind based development cluster](https://github.com/projectcalico/vpp-dataplane/blob/master/DEVELOPPER_GUIDE.md)
+
 
 ### License
 
