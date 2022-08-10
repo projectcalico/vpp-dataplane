@@ -23,7 +23,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20210703095558-21f2c55a7727
 	github.com/yookoala/realpath v1.0.0
-	go.fd.io/govpp v0.6.0-alpha // indirect
+	go.fd.io/govpp v0.6.0-alpha
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	golang.org/x/sys v0.0.0-20220803195053-6e608f9ce704
 	google.golang.org/grpc v1.40.0
