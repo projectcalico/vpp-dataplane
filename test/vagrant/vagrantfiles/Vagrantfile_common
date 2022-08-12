@@ -231,6 +231,9 @@ network:
     eth0:
       mtu: 1380
     ${second_if}:
+      routes:
+        - to: 0::0/0
+          scope: link
       mtu: #{DATA_IF_MTU}
       accept-ra: false
       addresses:
