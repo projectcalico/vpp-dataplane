@@ -294,6 +294,9 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 		}
 	}
 	if ipPool.Spec.VXLANMode == calicov3.VXLANModeAlways {
+		if s.providers[WIREGUARD].Enabled(cn) {
+			return WIREGUARD, nil
+		}
 		return VXLAN, nil
 	}
 	if ipPool.Spec.VXLANMode == calicov3.VXLANModeCrossSubnet {
