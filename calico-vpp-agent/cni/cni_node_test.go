@@ -37,6 +37,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	agentConf "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/connectivity"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks/calico"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -189,14 +190,11 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			BeforeEach(func() {
 				// add node pool for IPSec (uses IPIP tunnels)
 				ipamStub = mocks.NewIpamCacheStub()
-				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &apiv3.IPPool{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: fmt.Sprintf("custom-test-pool-for-ipsec-%s", AddedNodeIP+"/24"),
-					},
-					Spec: apiv3.IPPoolSpec{
-						CIDR: AddedNodeIP + "/24",
-						// important for connectivity provider selection (IPSec uses IPIP tunnel)
-						IPIPMode: apiv3.IPIPModeAlways,
+				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &proto.IPAMPoolUpdate{
+					Id: fmt.Sprintf("custom-test-pool-for-ipsec-%s", AddedNodeIP+"/24"),
+					Pool: &proto.IPAMPool{
+						Cidr:     AddedNodeIP + "/24",
+						IpipMode: apiv3.IPIPModeAlways,
 					},
 				})
 
@@ -332,13 +330,11 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			BeforeEach(func() {
 				// add node pool for VXLAN
 				ipamStub = mocks.NewIpamCacheStub()
-				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &apiv3.IPPool{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: fmt.Sprintf("custom-test-pool-for-vxlan-%s", AddedNodeIP+"/24"),
-					},
-					Spec: apiv3.IPPoolSpec{
-						CIDR:      AddedNodeIP + "/24",
-						VXLANMode: apiv3.VXLANModeAlways, // important for connectivity provider selection
+				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &proto.IPAMPoolUpdate{
+					Id: fmt.Sprintf("custom-test-pool-for-vxlan-%s", AddedNodeIP+"/24"),
+					Pool: &proto.IPAMPool{
+						Cidr:      AddedNodeIP + "/24",
+						VxlanMode: apiv3.VXLANModeAlways,
 					},
 				})
 
@@ -438,13 +434,11 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			BeforeEach(func() {
 				// add node pool for IPIP
 				ipamStub = mocks.NewIpamCacheStub()
-				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &apiv3.IPPool{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: fmt.Sprintf("custom-test-pool-for-ipip-%s", AddedNodeIP+"/24"),
-					},
-					Spec: apiv3.IPPoolSpec{
-						CIDR:     AddedNodeIP + "/24",
-						IPIPMode: apiv3.IPIPModeAlways, // important for connectivity provider selection
+				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &proto.IPAMPoolUpdate{
+					Id: fmt.Sprintf("custom-test-pool-for-ipip-%s", AddedNodeIP+"/24"),
+					Pool: &proto.IPAMPool{
+						Cidr:     AddedNodeIP + "/24",
+						IpipMode: apiv3.IPIPModeAlways,
 					},
 				})
 

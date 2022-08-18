@@ -15,28 +15,27 @@ package mocks
 
 import (
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net"
 
-	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"gopkg.in/tomb.v2"
 )
 
 // IpamCacheStub is stub implementation of watchers.IpamCache.
 type IpamCacheStub struct {
-	ipPools map[string]*calicov3.IPPool
+	ipPools map[string]*proto.IPAMPoolUpdate
 }
 
 // NewIpamCacheStub creates new IpamCacheStub instance
 func NewIpamCacheStub() *IpamCacheStub {
 	return &IpamCacheStub{
-		ipPools: make(map[string]*calicov3.IPPool),
+		ipPools: make(map[string]*proto.IPAMPoolUpdate),
 	}
 }
 
 // GetPrefixIPPool returns cached IPPools for given prefixes for testing purposes. If no such IPPool exists,
 // it is created. This function never runs out of IPPools
-func (s *IpamCacheStub) GetPrefixIPPool(prefix *net.IPNet) *calicov3.IPPool {
+func (s *IpamCacheStub) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPoolUpdate {
 	// get cached IPPool
 	ipPool, found := s.ipPools[prefix.String()]
 	if found {
@@ -44,14 +43,20 @@ func (s *IpamCacheStub) GetPrefixIPPool(prefix *net.IPNet) *calicov3.IPPool {
 	}
 
 	// create new IPPool and cache it
-	ipPool = &calicov3.IPPool{
+	ipPool = &proto.IPAMPoolUpdate{
+		Id: fmt.Sprintf("ippool-for-testing-%s", prefix.String),
+		Pool: &proto.IPAMPool{
+			Cidr: prefix.String(),
+		},
+	}
+	/*ipPool = &calicov3.IPPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("ippool-for-testing-%s", prefix.String),
 		},
 		Spec: calicov3.IPPoolSpec{
 			CIDR: prefix.String(),
 		},
-	}
+	}*/
 	s.ipPools[prefix.String()] = ipPool
 	return ipPool
 }
@@ -68,6 +73,6 @@ func (s *IpamCacheStub) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 	panic("not implemented")
 }
 
-func (s *IpamCacheStub) AddPrefixIPPool(prefix *net.IPNet, ipPool *calicov3.IPPool) {
+func (s *IpamCacheStub) AddPrefixIPPool(prefix *net.IPNet, ipPool *proto.IPAMPoolUpdate) {
 	s.ipPools[prefix.String()] = ipPool
 }
