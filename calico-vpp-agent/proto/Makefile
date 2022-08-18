@@ -8,7 +8,7 @@ CNI_PLUGIN_REPO = https://raw.githubusercontent.com/projectcalico/calico/$(CNI_P
 
 .PHONY: proto
 proto:
-#@curl $(FELIX_REPO)/proto/felixbackend.proto -O 2> /dev/null
+	@curl $(FELIX_REPO)/proto/felixbackend.proto -O 2> /dev/null
 	@curl $(CNI_PLUGIN_REPO)/pkg/dataplane/grpc/proto/cnibackend.proto -O 2> /dev/null
 	@if [ "$(shell protoc --version)" != "libprotoc $(PROTOC_VERSION)" ]; then \
         echo "Warning : using protoc $(shell protoc --version)"; \
