@@ -373,7 +373,6 @@ message WorkloadEndpoint {
   repeated NatInfo ipv4_nat = 8;
   repeated NatInfo ipv6_nat = 9;
   repeated string allow_spoofed_source_prefixes = 10;
-  map<string, string> annotations = 11;
 }
 
 message WorkloadEndpointRemove {
@@ -471,8 +470,6 @@ message IPAMPoolRemove {
 message IPAMPool {
   string cidr = 1;
   bool masquerade = 2;
-  string ipip_mode = 3;
-  string vxlan_mode = 4;
 }
 
 message Encapsulation {

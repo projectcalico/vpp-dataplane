@@ -64,11 +64,10 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 		vpp, _ = configureVPP(log)
 
 		// setup CNI server (functionality target of tests)
-		ipam := watchers.NewIPAMCache(vpp, nil, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
+		ipam := watchers.NewIPAMCache(vpp, nil, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
 		cniServer = cni.NewCNIServer(vpp, ipam, log.WithFields(logrus.Fields{"component": "cni"}))
 		cniServer.SetFelixConfig(&config.Config{})
-		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 		ipam.ForceReady()
 	})
 
