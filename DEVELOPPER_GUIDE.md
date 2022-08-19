@@ -15,7 +15,7 @@ You should now have `kubectl get nodes` reporting four nodes
 
 ### Install the calico operator to the cluster
 ````bash
-kubectl apply -f https://projectcalico.docs.tigera.io/v3.23/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.0/manifests/tigera-operator.yaml
 ````
 
 ### Build development images
