@@ -20,7 +20,8 @@ RUN export VPP_INSTALL_SKIP_SYSCTL=1 && \
     /tmp/vpp/vpp_*.deb \
     /tmp/vpp/vpp-plugin-core_*.deb \
     /tmp/vpp/vpp-plugin-dpdk_*.deb \
-    /tmp/vpp/vpp-dbg_*.deb
+    /tmp/vpp/vpp-dbg_*.deb \
+    /tmp/vpp/vpp-plugin-devtools_*.deb
 
 RUN rm -rf /tmp/vpp
 ADD vpp-manager /usr/bin/
