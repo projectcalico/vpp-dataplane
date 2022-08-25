@@ -86,6 +86,9 @@ function git_clone_cd_and_reset ()
 
 git_clone_cd_and_reset "$1" 38659d8f2c588500f4e844195e0c59ab1cf6107f
 
+
+git_cherry_pick refs/changes/45/36945/1 # 36945: wireguard: fix ipv6 handshake packet | https://gerrit.fd.io/r/c/vpp/+/36945
+git_cherry_pick refs/changes/18/37018/1 # 37018: wireguard: fix ipv6 payload_length computation | https://gerrit.fd.io/r/c/vpp/+/37018
 git_cherry_pick refs/changes/13/34713/3 # 34713: vppinfra: improve & test abstract socket | https://gerrit.fd.io/r/c/vpp/+/34713
 git_cherry_pick refs/changes/71/32271/15 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
 git_cherry_pick refs/changes/34/34734/2 # 34734: memif: autogenerate socket_ids | https://gerrit.fd.io/r/c/vpp/+/34734
