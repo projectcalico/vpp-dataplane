@@ -156,10 +156,10 @@ func (p *WireguardProvider) createWireguardTunnel(isIP6 bool) error {
 
 	var nodeIp net.IP
 	ip4, ip6 := p.server.GetNodeIPs()
-	if ip4 != nil {
-		nodeIp = *ip4
-	} else if ip6 != nil {
+	if ip6 != nil {
 		nodeIp = *ip6
+	} else if ip4 != nil {
+		nodeIp = *ip4
 	} else {
 		return fmt.Errorf("Missing node address")
 	}
