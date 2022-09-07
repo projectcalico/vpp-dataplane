@@ -1,0 +1,29 @@
+ARG BASE_IMAGE
+
+#
+# Dependencies image
+#
+FROM ${BASE_IMAGE} as dependencies
+
+ENV UNATTENDED=y
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    apt-utils wget cmake curl git
+
+ENV GOVERSION=1.18.2
+ENV GOROOT="/root/.go"
+ENV GOPATH="/root/go"
+ENV PATH=$GOROOT/bin:$PATH
+ENV PATH=$GOPATH/bin:$PATH
+
+RUN mkdir -p "${GOROOT}" &&\
+    mkdir -p "${GOPATH}"/src "${GOPATH}"/pkg "${GOPATH}"/bin
+RUN wget -nv "https://dl.google.com/go/go${GOVERSION}.linux-amd64.tar.gz" -O "/tmp/go.tar.gz" && \
+    tar -C "${GOROOT}" --strip-components=1 -xzf "/tmp/go.tar.gz" && \
+    rm -f "/tmp/go.tar.gz"
+
+# Get modules used by the source code
+COPY . /vpp-dataplane
+WORKDIR /vpp-dataplane
+RUN go get ./... && rm -fr /vpp-dataplane
