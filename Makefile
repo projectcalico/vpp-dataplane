@@ -185,3 +185,8 @@ run-integration-tests:
 test:
 	gofmt -s -l . | grep -v binapi | diff -u /dev/null -
 	go vet ./...
+
+.PHONY: go-check
+go-check:
+	gofmt -s -l . | grep -v binapi | diff -u /dev/null -
+	go vet ./...
