@@ -1,0 +1,31 @@
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  pre_build:
+    commands:
+      - cd builder/
+      - echo Build started on `date`
+
+      - docker --version
+
+      - echo "Logging to dockerhub"
+      - docker login --username ${DOCKERHUB_USERNAME} --password=${DOCKERHUB_TOKEN} || true
+
+      - echo "Building dependencies image"
+      - make depend-image
+
+      - echo "Pushing dependencies image"
+      - make push-depend-image
+
+  build:
+    commands:
+      - make go-vet
+
+  post_build:
+    commands:
+      - echo "Build complete"
+
+      - echo Build completed on `date`
