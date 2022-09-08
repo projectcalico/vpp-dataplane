@@ -96,7 +96,8 @@ function generate_govpp_apis ()
 	  pbl \
 	  memclnt \
 	  session \
-	  vpe
+	  vpe \
+	  urpf
 }
 
 make_binapi_generator

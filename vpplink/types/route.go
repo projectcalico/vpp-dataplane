@@ -28,6 +28,7 @@ type RoutePath struct {
 	SwIfIndex  uint32
 	Table      uint32
 	IsAttached bool
+	Preference uint8
 }
 
 type Route struct {
@@ -80,7 +81,7 @@ func (p *RoutePath) ToFibPath(isIP6 bool) fib_types.FibPath {
 		TableID:    p.Table,
 		RpfID:      0,
 		Weight:     1,
-		Preference: 0,
+		Preference: p.Preference,
 		Type:       fib_types.FIB_API_PATH_TYPE_NORMAL,
 		Flags:      fib_types.FIB_API_PATH_FLAG_NONE,
 		Proto:      pathProto,
