@@ -397,7 +397,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
 	log.Infof("Hugepages            %d", params.AvailableHugePages)
 	log.Infof("KernelVersion        %s", params.KernelVersion)
-	log.Infof("Drivers              %s", params.LoadedDrivers)
+	log.Infof("Drivers              %v", params.LoadedDrivers)
 	log.Infof("vfio iommu:          %t", params.VfioUnsafeiommu)
 	for _, ifSpec := range params.InterfacesSpecs {
 		log.Infof("-- Interface Spec --")

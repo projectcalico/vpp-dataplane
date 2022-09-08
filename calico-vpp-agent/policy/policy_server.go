@@ -193,7 +193,7 @@ func (s *Server) mapTagToInterfaceDetails() (tagIfDetails map[string]interfaceDe
 			}
 			tagIfDetails[intf[5:]] = interfaceDetails{tap, uplink, addresses}
 		} else {
-			return nil, errors.Errorf("uplink interface %s not corresponding to a tap interface", uplink)
+			return nil, errors.Errorf("uplink interface %d not corresponding to a tap interface", uplink)
 		}
 	}
 	return tagIfDetails, nil
@@ -251,7 +251,7 @@ func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, ifName 
 			}
 		}
 		// VPP restarted and interfaces are being reconnected
-		s.log.Warnf("workload endpoint changed interfaces, did VPP restart? %v %d -> %d", id, intf, swIfIndex)
+		s.log.Warnf("workload endpoint changed interfaces, did VPP restart? %v %v -> %d", id, intf, swIfIndex)
 		s.endpointsInterfaces[*id][ifName] = swIfIndex
 	}
 
@@ -1031,7 +1031,7 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 				if err != nil {
 					return errors.Wrap(err, "cannot update workload endpoint")
 				}
-				log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=%d", pending, *id, existing, wep, swIfIndexMap)
+				log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=%v", pending, *id, existing, wep, swIfIndexMap)
 			}
 		} else {
 			state.WorkloadEndpoints[*id] = wep
@@ -1044,7 +1044,7 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 				if err != nil {
 					return errors.Wrap(err, "cannot create workload endpoint")
 				}
-				log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=%d", pending, *id, wep, swIfIndexMap)
+				log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=%v", pending, *id, wep, swIfIndexMap)
 			} else {
 				log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=??", pending, *id, wep)
 			}

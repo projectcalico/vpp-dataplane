@@ -52,11 +52,11 @@ func (p *VXLanProvider) configureVXLANNodes() error {
 	var err error
 	p.ip4NodeIndex, err = p.vpp.AddNodeNext("vxlan4-input", "ip4-input")
 	if err != nil {
-		p.log.Fatal("Couldn't find node id for ip4-input : %v", err)
+		p.log.Fatalf("Couldn't find node id for ip4-input : %v", err)
 	}
 	p.ip6NodeIndex, err = p.vpp.AddNodeNext("vxlan6-input", "ip6-input")
 	if err != nil {
-		p.log.Fatal("Couldn't find node id for ip6-input : %v", err)
+		p.log.Fatalf("Couldn't find node id for ip6-input : %v", err)
 	}
 	return nil
 }
@@ -73,7 +73,7 @@ func (p *VXLanProvider) RescanState() {
 	for _, tunnel := range tunnels {
 		if (ip4 != nil && tunnel.SrcAddress.Equal(*ip4)) || (ip6 != nil && tunnel.SrcAddress.Equal(*ip6)) {
 			if tunnel.Vni == p.getVXLANVNI() && tunnel.DstPort == p.getVXLANPort() && tunnel.SrcPort == p.getVXLANPort() {
-				p.log.Infof("Found existing tunnel: %s", tunnel)
+				p.log.Infof("Found existing tunnel: %s", tunnel.String())
 				p.vxlanIfs[tunnel.DstAddress.String()+"-"+fmt.Sprint(tunnel.Vni)] = tunnel
 			}
 		}

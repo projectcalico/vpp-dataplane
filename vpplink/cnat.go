@@ -43,7 +43,7 @@ func (v *VppLink) CnatPurge() error {
 	if err != nil {
 		return errors.Wrap(err, "CNat purge failed")
 	} else if response.Retval != 0 {
-		return fmt.Errorf("%s CNat purge failed with retval: %d", response.Retval)
+		return fmt.Errorf("CNat purge failed with retval: %d", response.Retval)
 	}
 	return nil
 }
