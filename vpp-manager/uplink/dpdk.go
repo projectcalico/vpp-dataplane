@@ -106,18 +106,18 @@ write:
 func (d *DPDKDriver) restoreInterfaceName() error {
 	newName, err := utils.GetInterfaceNameFromPci(d.conf.PciId)
 	if err != nil {
-		return errors.Wrapf(err, "Error getting new if name for %s: %v", d.conf.PciId)
+		return errors.Wrapf(err, "Error getting new if name for %s: %v", newName, d.conf.PciId)
 	}
 	if newName == d.spec.InterfaceName {
 		return nil
 	}
 	link, err := netlink.LinkByName(newName)
 	if err != nil {
-		return errors.Wrapf(err, "Error getting new link %s: %v", newName)
+		return errors.Wrapf(err, "Error getting new link %s: %v", newName, link)
 	}
 	err = netlink.LinkSetName(link, d.spec.InterfaceName)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting new if name for %s: %v", d.conf.PciId)
+		return errors.Wrapf(err, "Error setting new if name for %s: %v", d.spec.InterfaceName, link)
 	}
 	return nil
 }

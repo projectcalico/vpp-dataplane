@@ -97,7 +97,7 @@ func WaitForVppManager() (*vppmanagerconfig.VppManagerInfo, error) {
 		if err == nil {
 			err2 := json.Unmarshal(dat, vppManagerInfo)
 			if err2 != nil {
-				return nil, errors.Errorf("cannot unmarshal vpp manager info file", err2)
+				return nil, errors.Errorf("cannot unmarshal vpp manager info file %s", err2)
 			} else if vppManagerInfo.Status == vppmanagerconfig.Ready {
 				return vppManagerInfo, nil
 			}
@@ -534,10 +534,10 @@ func FetchNDataThreads(vpp *vpplink.VppLink, log *logrus.Entry) int {
 	if config.IpsecNbAsyncCryptoThread > 0 {
 		nDataThreads = nVppWorkers - config.IpsecNbAsyncCryptoThread
 		if nDataThreads <= 0 {
-			log.Error("Couldn't fullfill request [crypto=%d total=%d]", config.IpsecNbAsyncCryptoThread, nVppWorkers)
+			log.Errorf("Couldn't fulfill request [crypto=%d total=%d]", config.IpsecNbAsyncCryptoThread, nVppWorkers)
 			nDataThreads = nVppWorkers
 		}
-		log.Info("Using ipsec workers [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
+		log.Infof("Using ipsec workers [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
 
 	}
 	return nDataThreads

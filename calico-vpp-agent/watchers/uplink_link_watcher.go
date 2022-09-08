@@ -128,7 +128,7 @@ func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 							log.Infof("Got link update, MTU unchanged")
 						}
 					} else {
-						log.Infof("Ignoring link update for index %d but name %d", update.Attrs().Index, update.Attrs().Name)
+						log.Infof("Ignoring link update for index %d but name %s", update.Attrs().Index, update.Attrs().Name)
 					}
 				} else {
 					log.Infof("Ignoring link update for index %d", update.Attrs().Index)

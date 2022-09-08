@@ -46,7 +46,7 @@ func (s *IpamCacheStub) GetPrefixIPPool(prefix *net.IPNet) *calicov3.IPPool {
 	// create new IPPool and cache it
 	ipPool = &calicov3.IPPool{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("ippool-for-testing-%s", prefix.String),
+			Name: fmt.Sprintf("ippool-for-testing-%s", prefix.String()),
 		},
 		Spec: calicov3.IPPoolSpec{
 			CIDR: prefix.String(),

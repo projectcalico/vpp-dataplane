@@ -299,7 +299,7 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err er
 	if len(peer.AllowedIps) == 1 {
 		err = p.vpp.DelWireguardPeer(&peer)
 		if err != nil {
-			return errors.Wrapf(err, "Error deleting wireguard peer %s", peer)
+			return errors.Wrapf(err, "Error deleting wireguard peer %s", peer.String())
 		}
 		err = p.vpp.RouteDel(&types.Route{
 			Dst: common.ToMaxLenCIDR(cn.NextHop),
@@ -321,10 +321,10 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err er
 		if err != nil {
 			return errors.Wrapf(err, "Error deleting (update) wireguard peer %s", peer.String())
 		}
-		p.log.Infof("connectivity(del) Wireguard: Addback (update) peer=%s", peer)
+		p.log.Infof("connectivity(del) Wireguard: Addback (update) peer=%s", peer.String())
 		_, err = p.vpp.AddWireguardPeer(&peer)
 		if err != nil {
-			return errors.Wrapf(err, "Error adding (update) wireguard peer=%s", peer)
+			return errors.Wrapf(err, "Error adding (update) wireguard peer=%s", peer.String())
 		}
 		p.wireguardPeers[cn.NextHop.String()] = peer
 	}

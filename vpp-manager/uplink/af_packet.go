@@ -51,7 +51,7 @@ func (d *AFPacketDriver) RestoreLinux(allInterfacesPhysical bool) {
 	if !allInterfacesPhysical {
 		err := d.moveInterfaceFromNS(d.spec.InterfaceName)
 		if err != nil {
-			log.Warnf("Moving uplink back from NS failed", err)
+			log.Warnf("Moving uplink back from NS failed %s", err)
 		}
 	}
 

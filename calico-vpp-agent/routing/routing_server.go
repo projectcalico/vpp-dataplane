@@ -63,7 +63,7 @@ func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 
 	logLevel, err := logrus.ParseLevel(s.getLogSeverityScreen())
 	if err != nil {
-		s.log.WithError(err).Error("Failed to parse loglevel: %s, defaulting to info", s.getLogSeverityScreen())
+		s.log.WithError(err).Errorf("Failed to parse loglevel: %s, defaulting to info", s.getLogSeverityScreen())
 	} else {
 		logrus.SetLevel(logLevel)
 	}
@@ -154,7 +154,7 @@ func (s *Server) ServeRouting(t *tomb.Tomb) (err error) {
 
 		err = s.BGPServer.StopBgp(context.Background(), &bgpapi.StopBgpRequest{})
 		if err != nil {
-			s.log.Errorf("failed to stop BGP server:", err)
+			s.log.Errorf("failed to stop BGP server: %s", err)
 		}
 		s.log.Infof("Routing server stopped")
 

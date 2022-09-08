@@ -177,7 +177,7 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 				if new != nil {
 					w.nodeStatesByName[new.Name] = *new
 				}
-				w.log.Debugf("Nodes updated, reevaluating peerings old %s new %s", old, new)
+				w.log.Debugf("Nodes updated, reevaluating peerings old %v new %v", old, new)
 			default:
 				goto restart
 			}

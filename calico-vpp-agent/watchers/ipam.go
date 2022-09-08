@@ -105,7 +105,7 @@ func (c *ipamCache) GetPrefixIPPool(prefix *net.IPNet) *calicov3.IPPool {
 	}
 	c.log.Warnf("No pool found: for %s", prefix)
 	for k, pool := range c.ippoolmap {
-		c.log.Debugf("Available %s=%s", k, pool)
+		c.log.Debugf("Available %s=%v", k, pool)
 	}
 	return nil
 }
@@ -288,7 +288,7 @@ func (c *ipamCache) addDelSnatPrefix(pool *calicov3.IPPool, isAdd bool) (err err
 func (c *ipamCache) ipamUpdateHandler(pool *calicov3.IPPool, prevPool *calicov3.IPPool) (err error) {
 	if prevPool == nil {
 		/* Add */
-		c.log.Debugf("Pool %s Added, handler called")
+		c.log.Debugf("Pool %v Added, handler called", pool)
 		err = c.addDelSnatPrefix(pool, true /* isAdd */)
 		if err != nil {
 			return errors.Wrap(err, "error handling ipam add")
