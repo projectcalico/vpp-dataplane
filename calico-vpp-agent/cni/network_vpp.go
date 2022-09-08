@@ -66,7 +66,7 @@ func (s *Server) findPodVRFs(podSpec *storage.LocalPodSpec) bool {
 
 	for _, vrf := range vrfs {
 		for _, ipFamily := range vpplink.IpFamilies {
-			if vrf.Name == podSpec.GetVrfTag(ipFamily) {
+			if vrf.Name == podSpec.GetVrfTag(ipFamily, "") {
 				podSpec.SetVrfId(vrf.VrfID, ipFamily)
 			}
 		}
@@ -251,6 +251,13 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	if podSpec.NetworkName != "" && podSpec.EnableMemif {
 		return podSpec.MemifSwIfIndex, err
 	}
+
+	s.log.Infof("pod(add) activate strict RPF on interface")
+	err = s.ActivateStrictRPF(podSpec, stack)
+	if err != nil {
+		s.log.Errorf("failed to activate rpf strict on interface : %s", err)
+		goto err
+	}
 	return podSpec.TunTapSwIfIndex, err
 
 err:
@@ -318,6 +325,10 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 			s.UnroutePodInterface(podSpec, swIfIndex)
 		}
 	}
+
+	/* RPF */
+	s.log.Infof("pod(del) RPF VRF")
+	s.DeactivateStrictRPF(podSpec)
 
 	/* Interfaces */
 	if podSpec.EnableVCL && config.VCLEnabled {

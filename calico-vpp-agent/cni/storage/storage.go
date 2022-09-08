@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 6  // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 7  // Used to ensure compatibility wen we reload data
 	MaxApiTagLen              = 63 /* No more than 64 characters in API tags */
 	vrfTagHashLen             = 8  /* how many hash charatecters (b64) of the name in tag prefix (useful when trucated) */
 )
@@ -242,6 +242,13 @@ type LocalPodSpec struct {
 	/* Multi net */
 	NetworkNameSize int `struc:"int16,sizeof=NetworkName"`
 	NetworkName     string
+
+	/* rpf check */
+	AllowedSpoofingPrefixesSize int `struc:"int16,sizeof=AllowedSpoofingPrefixes"`
+	AllowedSpoofingPrefixes string
+
+	V4RPFVrfId uint32
+	V6RPFVrfId uint32
 }
 
 func (ps *LocalPodSpec) Copy() LocalPodSpec {
@@ -286,8 +293,8 @@ func truncateStr(text string, size int) string {
 	return text
 }
 
-func (ps *LocalPodSpec) GetVrfTag(ipFamily vpplink.IpFamily) string {
-	h := hash(fmt.Sprintf("%s%s%s", ipFamily.ShortStr, ps.NetnsName, ps.InterfaceName))
+func (ps *LocalPodSpec) GetVrfTag(ipFamily vpplink.IpFamily, custom string) string {
+	h := hash(fmt.Sprintf("%s%s%s%s", ipFamily.ShortStr, ps.NetnsName, ps.InterfaceName, custom))
 	s := fmt.Sprintf("%s-%s-%s-%s", h, ipFamily.ShortStr, ps.InterfaceName, filepath.Base(ps.NetnsName))
 	return truncateStr(s, MaxApiTagLen)
 }
@@ -341,11 +348,27 @@ func (ps *LocalPodSpec) GetVrfId(ipFamily vpplink.IpFamily) uint32 {
 	}
 }
 
+func (ps *LocalPodSpec) GetRPFVrfId(ipFamily vpplink.IpFamily) uint32 {
+	if ipFamily.IsIp6 {
+		return ps.V6RPFVrfId
+	} else {
+		return ps.V4RPFVrfId
+	}
+}
+
 func (ps *LocalPodSpec) SetVrfId(id uint32, ipFamily vpplink.IpFamily) {
 	if ipFamily.IsIp6 {
 		ps.V6VrfId = id
 	} else {
 		ps.V4VrfId = id
+	}
+}
+
+func (ps *LocalPodSpec) SetRPFVrfId(id uint32, ipFamily vpplink.IpFamily) {
+	if ipFamily.IsIp6 {
+		ps.V6RPFVrfId = id
+	} else {
+		ps.V4RPFVrfId = id
 	}
 }
 

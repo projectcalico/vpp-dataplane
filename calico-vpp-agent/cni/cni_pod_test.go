@@ -560,7 +560,7 @@ func podVRFs(podInterface, podNetNSName string, vpp *vpplink.VppLink) (vrf4ID, v
 	}
 	for _, vrf := range vrfs {
 		for _, ipFamily := range vpplink.IpFamilies {
-			if vrf.Name == podSpec.GetVrfTag(ipFamily) {
+			if vrf.Name == podSpec.GetVrfTag(ipFamily, "") {
 				podSpec.SetVrfId(vrf.VrfID, ipFamily)
 			}
 		}

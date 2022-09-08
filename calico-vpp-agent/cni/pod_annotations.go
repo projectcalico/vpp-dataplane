@@ -16,21 +16,26 @@
 package cni
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
+	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 const (
-	VppAnnotationPrefix  string = "cni.projectcalico.org/vpp."
-	MemifPortAnnotation  string = "memif.ports"
-	TunTapPortAnnotation string = "tuntap.ports"
-	Memifl3Annotation    string = "memif.l3"
-	TunTapl3Annotation   string = "tuntap.l3"
-	VclAnnotation        string = "vcl"
+	CalicoAnnotationPrefix string = "cni.projectcalico.org/"
+	VppAnnotationPrefix    string = "cni.projectcalico.org/vpp."
+	MemifPortAnnotation    string = "memif.ports"
+	TunTapPortAnnotation   string = "tuntap.ports"
+	Memifl3Annotation      string = "memif.l3"
+	TunTapl3Annotation     string = "tuntap.l3"
+	VclAnnotation          string = "vcl"
+	SpoofAnnotation        string = "allowedSourcePrefixes"
 )
 
 func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPortConfigs, err error) {
@@ -113,8 +118,29 @@ func (s *Server) ParseTrueFalseAnnotation(value string) (bool, error) {
 	}
 }
 
+func (s *Server) ParseSpoofAddressAnnotation(value string) ([]cnet.IPNet, error){
+	var requestedSourcePrefixes []string
+	var allowedSources []cnet.IPNet
+	err := json.Unmarshal([]byte(value), &requestedSourcePrefixes)
+	if err != nil {
+		return nil, errors.Errorf("failed to parse '%s' as JSON: %s", value, err)
+	}
+	for _, prefix := range requestedSourcePrefixes {
+		var ipn *cnet.IPNet
+		_, ipn, err = cnet.ParseCIDROrIP(prefix)
+		if err != nil {
+			return nil, err
+		}
+		allowedSources = append(allowedSources, *(ipn.Network()))
+	}
+	return allowedSources, nil
+}
+
 func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations map[string]string) (err error) {
 	for key, value := range annotations {
+		if key == CalicoAnnotationPrefix+SpoofAnnotation {
+			podSpec.AllowedSpoofingPrefixes = annotations[CalicoAnnotationPrefix+SpoofAnnotation]
+		}
 		if !strings.HasPrefix(key, VppAnnotationPrefix) {
 			continue
 		}
