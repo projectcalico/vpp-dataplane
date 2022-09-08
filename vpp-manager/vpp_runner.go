@@ -96,18 +96,18 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 	}
 	err := v.GenerateVppConfigExecFile()
 	if err != nil {
-		return errors.Wrapf(err, "Error generating VPP config Exec: %s")
+		return errors.Wrap(err, "Error generating VPP config Exec")
 	}
 
 	err = v.GenerateVppConfigFile(drivers)
 	if err != nil {
-		return errors.Wrapf(err, "Error generating VPP config: %s")
+		return errors.Wrap(err, "Error generating VPP config")
 	}
 
 	for idx := range v.conf {
 		err = v.uplinkDriver[idx].PreconfigureLinux()
 		if err != nil {
-			return errors.Wrapf(err, "Error pre-configuring Linux main IF: %s")
+			return errors.Wrapf(err, "Error pre-configuring Linux main IF: %s", v.uplinkDriver[idx])
 		}
 	}
 

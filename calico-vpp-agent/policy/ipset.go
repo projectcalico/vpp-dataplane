@@ -43,7 +43,7 @@ func (i *IPSet) String() string {
 	case types.IpsetTypeIP:
 		s += fmt.Sprintf("addr=%s", i.Addresses)
 	case types.IpsetTypeIPPort:
-		s += fmt.Sprintf("ipport=%s", i.IPPorts)
+		s += fmt.Sprintf("ipport=%v", i.IPPorts)
 	case types.IpsetTypeNet:
 		s += fmt.Sprintf("net=%s", i.Networks)
 	}

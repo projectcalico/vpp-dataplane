@@ -36,7 +36,7 @@ func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) (protections 
 	for {
 		stop, err := stream.ReceiveReply(response)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error listing tunnel interface %u protections", tunnelInterface)
+			return nil, errors.Wrapf(err, "error listing tunnel interface %d protections", tunnelInterface)
 		}
 		if stop {
 			return protections, nil

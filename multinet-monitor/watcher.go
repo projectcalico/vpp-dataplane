@@ -180,7 +180,7 @@ func addPod(pod *v1.Pod, podNad string) {
 		svcNetwork := svc.Annotations["extensions.projectcalico.org/network"]
 		svcSelectorLabels, err := labels.ConvertSelectorToLabelsMap(svcSelector)
 		if err != nil {
-			log.Error("selector annotation is not valid %s", err)
+			log.Errorf("selector annotation is not valid %s", err)
 		} else {
 			SelectorMatch := false
 			for podSelectorKey, podSelectorValue := range pod.Labels {
@@ -230,7 +230,7 @@ func addService(service *v1.Service, svcSelector string, svcNetwork string) {
 	}
 	svcSelectorLabels, err := labels.ConvertSelectorToLabelsMap(svcSelector)
 	if err != nil {
-		log.Error("selector annotation is not valid %s", err)
+		log.Errorf("selector annotation is not valid %s", err)
 	} else {
 		for _, pod := range currentPodList {
 			SelectorMatch := false

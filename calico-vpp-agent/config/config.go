@@ -142,7 +142,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	if conf := getEnvValue(LogLevelEnvVar); conf != "" {
 		loglevel, err := logrus.ParseLevel(conf)
 		if err != nil {
-			log.WithError(err).Error("Failed to parse loglevel: %s, defaulting to info", conf)
+			log.WithError(err).Errorf("Failed to parse loglevel: %s, defaulting to info", conf)
 		} else {
 			LogLevel = loglevel
 		}
