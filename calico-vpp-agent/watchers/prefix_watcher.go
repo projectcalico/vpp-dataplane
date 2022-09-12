@@ -24,7 +24,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
@@ -38,7 +37,7 @@ import (
 type PrefixWatcher struct {
 	log         *logrus.Entry
 	client      *calicocli.Client
-	nodeBGPSpec *oldv3.NodeBGPSpec
+	nodeBGPSpec *common.LocalNodeSpec
 }
 
 const (
@@ -249,7 +248,7 @@ func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 	return nil
 }
 
-func (w *PrefixWatcher) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+func (w *PrefixWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	w.nodeBGPSpec = nodeBGPSpec
 }
 

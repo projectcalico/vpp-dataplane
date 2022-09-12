@@ -49,7 +49,7 @@ func (p *WireguardProvider) Enabled(cn *common.NodeConnectivity) bool {
 		return false
 	}
 	node := p.GetNodeByIp(cn.NextHop)
-	return node.Status.WireguardPublicKey != ""
+	return node.WireguardPublicKey != ""
 }
 
 func (p *WireguardProvider) getWireguardPort() uint16 {
@@ -62,14 +62,14 @@ func (p *WireguardProvider) getWireguardPort() uint16 {
 
 func (p *WireguardProvider) getNodePublicKey(cn *common.NodeConnectivity) ([]byte, error) {
 	node := p.GetNodeByIp(cn.NextHop)
-	if node.Status.WireguardPublicKey == "" {
+	if node.WireguardPublicKey == "" {
 		return nil, fmt.Errorf("no public key for node=%s", node.Name)
 	}
 
-	p.log.Infof("connectivity(add) Wireguard nodeName=%s pubKey=%s", node.Name, node.Status.WireguardPublicKey)
-	key, err := base64.StdEncoding.DecodeString(node.Status.WireguardPublicKey)
+	p.log.Infof("connectivity(add) Wireguard nodeName=%s pubKey=%s", node.Name, node.WireguardPublicKey)
+	key, err := base64.StdEncoding.DecodeString(node.WireguardPublicKey)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error decoding wireguard public key %s", node.Status.WireguardPublicKey)
+		return nil, errors.Wrapf(err, "Error decoding wireguard public key %s", node.WireguardPublicKey)
 	}
 	return key, nil
 }

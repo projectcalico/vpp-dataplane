@@ -19,7 +19,6 @@ import (
 	"net"
 	"syscall"
 
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	tomb "gopkg.in/tomb.v2"
@@ -30,7 +29,7 @@ import (
 type KernelWatcher struct {
 	log         *logrus.Entry
 	ipam        IpamCache
-	nodeBGPSpec *oldv3.NodeBGPSpec
+	nodeBGPSpec *common.LocalNodeSpec
 }
 
 // watchKernelRoute receives netlink route update notification and announces
@@ -126,7 +125,7 @@ func (w *KernelWatcher) loadKernelRoute() error {
 	return nil
 }
 
-func (w *KernelWatcher) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+func (w *KernelWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	w.nodeBGPSpec = nodeBGPSpec
 }
 

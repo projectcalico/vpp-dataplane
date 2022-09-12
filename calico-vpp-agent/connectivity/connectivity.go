@@ -20,7 +20,6 @@ import (
 	"net"
 
 	felixConfig "github.com/projectcalico/calico/felix/config"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -57,7 +56,7 @@ type ConnectivityProvider interface {
 	EnableDisable(isEnable bool)
 }
 
-func (p *ConnectivityProviderData) GetNodeByIp(addr net.IP) *oldv3.Node {
+func (p *ConnectivityProviderData) GetNodeByIp(addr net.IP) *common.LocalNodeSpec {
 	return p.server.GetNodeByIp(addr)
 }
 func (p *ConnectivityProviderData) GetNodeIPs() (*net.IP, *net.IP) {
