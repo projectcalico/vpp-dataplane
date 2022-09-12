@@ -28,7 +28,6 @@ import (
 
 	"github.com/pkg/errors"
 	felixConfig "github.com/projectcalico/calico/felix/config"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	tomb "gopkg.in/tomb.v2"
@@ -96,9 +95,10 @@ type Server struct {
 
 	ippoolmap  map[string]proto.IPAMPoolUpdate
 	ippoolLock sync.RWMutex
+	hosts map[string]string
 }
 
-func (s *Server) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+func (s *Server) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	ip4, ip6 := common.GetBGPSpecAddresses(nodeBGPSpec)
 	s.ip4 = ip4
 	s.ip6 = ip6
@@ -130,6 +130,7 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		felixConfig:         felixConfig.New(),
 
 		ippoolmap: make(map[string]proto.IPAMPoolUpdate),
+		hosts:               make(map[string]string),
 	}
 
 	reg := common.RegisterHandler(server.policyServerEventChan, "policy server events")
@@ -554,6 +555,10 @@ func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
 			err = s.handleNamespaceRemove(m, pending)
 		case *proto.GlobalBGPConfigUpdate:
 			err = s.handleGlobalBGPConfigUpdate(m, pending)
+		case *proto.RouteUpdate:
+			err = s.handleRouteUpdate(m, pending)
+		case *proto.RouteRemove:
+			err = s.handleRouteRemove(m, pending)
 		default:
 			s.log.Warnf("Unhandled message from felix: %v", m)
 		}
@@ -1092,6 +1097,34 @@ func (s *Server) handleHostMetadataUpdate(msg *proto.HostMetadataUpdate, pending
 
 func (s *Server) handleHostMetadataRemove(msg *proto.HostMetadataRemove, pending bool) (err error) {
 	s.log.Debugf("Ignoring HostMetadataRemove")
+	return nil
+}
+
+func (s *Server) handleRouteUpdate(msg *proto.RouteUpdate, pending bool) (err error) {
+	// node update (local or remote host)
+	if msg.Type == proto.RouteType_REMOTE_HOST || msg.Type == proto.RouteType_LOCAL_HOST {
+		s.log.Infof("received node update msg from felix: %+v", msg)
+		s.hosts[msg.Dst] = msg.DstNodeName
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.NodeRouteUpdate,
+			New:  msg,
+		})
+	}
+	return nil
+}
+
+func (s *Server) handleRouteRemove(msg *proto.RouteRemove, pending bool) (err error) {
+	// cannot directly tell which type of route that is, so look in map?
+	if name, ok := s.hosts[msg.Dst]; ok {
+		s.log.Infof("received node remove msg from felix: %+v: %s", msg, name)
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.NodeRouteDelete,
+			Old: &common.NodeRouteRemove{
+				Dst:  msg.Dst,
+				Name: name,
+			},
+		})
+	}
 	return nil
 }
 

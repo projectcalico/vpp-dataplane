@@ -21,7 +21,6 @@ import (
 
 	"github.com/pkg/errors"
 	felixConfig "github.com/projectcalico/calico/felix/config"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/encap"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
@@ -40,11 +39,11 @@ type ConnectivityServer struct {
 	connectivityMap  map[string]common.NodeConnectivity
 	policyServerIpam common.PolicyServerIpam
 	Clientv3         calicov3cli.Interface
-	nodeBGPSpec      *oldv3.NodeBGPSpec
-	vpp              *vpplink.VppLink
+	nodeBGPSpec     *common.LocalNodeSpec
+	vpp             *vpplink.VppLink
 
 	felixConfig *felixConfig.Config
-	nodeByAddr  map[string]oldv3.Node
+	nodeByAddr  map[string]common.LocalNodeSpec
 
 	connectivityEventChan chan common.CalicoVppEvent
 
@@ -58,7 +57,7 @@ const (
 	DeleteChange change = 1
 )
 
-func (s *ConnectivityServer) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+func (s *ConnectivityServer) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	s.nodeBGPSpec = nodeBGPSpec
 }
 
@@ -75,7 +74,7 @@ func NewConnectivityServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyS
 		Clientv3:              clientv3,
 		connectivityMap:       make(map[string]common.NodeConnectivity),
 		connectivityEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
-		nodeByAddr:            make(map[string]oldv3.Node),
+		nodeByAddr:            make(map[string]common.LocalNodeSpec),
 		networks:              make(map[uint32]watchers.NetworkDefinition),
 	}
 
@@ -110,7 +109,7 @@ func isCrossSubnet(gw net.IP, subnet net.IPNet) bool {
 	return !subnet.Contains(gw)
 }
 
-func (s *ConnectivityServer) GetNodeByIp(addr net.IP) *oldv3.Node {
+func (s *ConnectivityServer) GetNodeByIp(addr net.IP) *common.LocalNodeSpec {
 	ns, found := s.nodeByAddr[addr.String()]
 	if !found {
 		return nil
@@ -175,8 +174,8 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					s.log.Errorf("Error while deleting connectivity %s", err)
 				}
 			case common.PeerNodeStateChanged:
-				old, _ := evt.Old.(*oldv3.Node)
-				new, _ := evt.New.(*oldv3.Node)
+				old, _ := evt.Old.(*common.LocalNodeSpec)
+				new, _ := evt.New.(*common.LocalNodeSpec)
 				if old != nil {
 					oldV4IP, oldV6IP := common.GetNodeSpecAddresses(old)
 					if oldV4IP != "" {
@@ -196,9 +195,9 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					}
 				}
 				if old != nil && new != nil {
-					change := common.GetStringChangeType(old.Status.WireguardPublicKey, new.Status.WireguardPublicKey)
+					change := common.GetStringChangeType(old.WireguardPublicKey, new.WireguardPublicKey)
 					if change != common.ChangeSame {
-						s.log.Infof("connectivity(upd) WireguardPublicKey Changed (%s) %s->%s", old.Name, old.Status.WireguardPublicKey, new.Status.WireguardPublicKey)
+						s.log.Infof("connectivity(upd) WireguardPublicKey Changed (%s) %s->%s", old.Name, old.WireguardPublicKey, new.WireguardPublicKey)
 						s.updateAllIPConnectivity()
 					}
 				}
@@ -375,6 +374,6 @@ func (s *ConnectivityServer) ForceProviderEnableDisable(providerType string, ena
 
 // ForceNodeAddition will add other node information as provided by calico configuration
 // The usage is mainly for testing purposes.
-func (s *ConnectivityServer) ForceNodeAddition(newNode oldv3.Node, newNodeIP net.IP) {
+func (s *ConnectivityServer) ForceNodeAddition(newNode common.LocalNodeSpec, newNodeIP net.IP) {
 	s.nodeByAddr[newNodeIP.String()] = newNode
 }

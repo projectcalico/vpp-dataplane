@@ -21,7 +21,6 @@ import (
 	"time"
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/sirupsen/logrus"
 	tomb "gopkg.in/tomb.v2"
 	v1 "k8s.io/api/core/v1"
@@ -67,7 +66,7 @@ type Server struct {
 	lock sync.Mutex /* protects handleServiceEndpointEvent(s)/Serve */
 
 	BGPConf     *calicov3.BGPConfigurationSpec
-	nodeBGPSpec *oldv3.NodeBGPSpec
+	nodeBGPSpec *common.LocalNodeSpec
 
 	serviceStateMap map[string]ServiceState
 
@@ -78,7 +77,7 @@ func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 	s.BGPConf = bgpConf
 }
 
-func (s *Server) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+func (s *Server) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	s.nodeBGPSpec = nodeBGPSpec
 }
 

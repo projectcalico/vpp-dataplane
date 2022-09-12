@@ -24,7 +24,6 @@ import (
 	bgpserver "github.com/osrg/gobgp/pkg/server"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/net/context"
@@ -55,7 +54,7 @@ type Server struct {
 
 	routingServerEventChan chan common.CalicoVppEvent
 
-	nodeBGPSpec *oldv3.NodeBGPSpec
+	nodeBGPSpec *common.LocalNodeSpec
 }
 
 func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
@@ -69,7 +68,7 @@ func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 	}
 }
 
-func (s *Server) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+func (s *Server) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	s.nodeBGPSpec = nodeBGPSpec
 }
 
@@ -178,6 +177,7 @@ func (s *Server) getGoBGPGlobalConfig() (*bgpapi.Global, error) {
 	asn := s.nodeBGPSpec.ASNumber
 	if asn == nil {
 		asn = s.BGPConf.ASNumber
+		s.log.Infof("herere %+v", asn)
 	}
 
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)

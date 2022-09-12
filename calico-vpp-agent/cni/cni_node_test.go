@@ -146,7 +146,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		}
 		connectivityServer = connectivity.NewConnectivityServer(vpp, ipamStub, client,
 			log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
-		connectivityServer.SetOurBGPSpec(&oldv3.NodeBGPSpec{})
+		connectivityServer.SetOurBGPSpec(&common.LocalNodeSpec{})
 		if felixConfig == nil {
 			felixConfig = &config.Config{}
 		}
@@ -563,13 +563,9 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(err).ToNot(HaveOccurred(), "could not call ForceProviderEnableDisable")
 
 				addedNodePublicKey := "public-key-for-added-node" // max 32 characters due to VPP binapi
-				connectivityServer.ForceNodeAddition(oldv3.Node{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: AddedNodeName,
-					},
-					Status: oldv3.NodeStatus{
-						WireguardPublicKey: base64.StdEncoding.EncodeToString([]byte(addedNodePublicKey)),
-					},
+				connectivityServer.ForceNodeAddition(common.LocalNodeSpec{
+					Name: AddedNodeName,
+					WireguardPublicKey: base64.StdEncoding.EncodeToString([]byte(addedNodePublicKey)),
 				}, net.ParseIP(AddedNodeIP))
 				err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *ipNet(AddedNodeIP + "/24"),
@@ -1017,7 +1013,7 @@ func assertNextNodeLink(node, linkedNextNode string, vpp *vpplink.VppLink) int {
 }
 
 func configureBGPNodeIPAddresses(connectivityServer *connectivity.ConnectivityServer) {
-	connectivityServer.SetOurBGPSpec(&oldv3.NodeBGPSpec{
+	connectivityServer.SetOurBGPSpec(&common.LocalNodeSpec{
 		IPv4Address: ThisNodeIP + "/24",
 		IPv6Address: ThisNodeIPv6 + "/128",
 	})
