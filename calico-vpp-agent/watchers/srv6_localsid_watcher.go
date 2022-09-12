@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/ipam"
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
@@ -24,7 +23,7 @@ type LocalSIDWatcher struct {
 	log         *logrus.Entry
 	vpp         *vpplink.VppLink
 	clientv3    calicov3cli.Interface
-	nodeBGPSpec *oldv3.NodeBGPSpec
+	nodeBGPSpec *common.LocalNodeSpec
 }
 
 const (
@@ -106,7 +105,7 @@ func (p *LocalSIDWatcher) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6A
 	return newSidAddr, nil
 }
 
-func (w *LocalSIDWatcher) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
+func (w *LocalSIDWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	w.nodeBGPSpec = nodeBGPSpec
 }
 

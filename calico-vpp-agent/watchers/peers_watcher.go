@@ -30,7 +30,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/api"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
@@ -48,7 +47,7 @@ type PeerWatcher struct {
 	// Subcomponent for accessing and watching secrets (that hold BGP passwords).
 	secretWatcher *secretWatcher
 
-	nodeStatesByName     map[string]oldv3.Node
+	nodeStatesByName     map[string]common.LocalNodeSpec
 	peerWatcherEventChan chan common.CalicoVppEvent
 	BGPConf              *calicov3.BGPConfigurationSpec
 	watcher              watch.Interface
@@ -64,7 +63,7 @@ type bgpPeer struct {
 
 // selectsNode determines whether or not the selector mySelector
 // matches the labels on the given node.
-func selectsNode(mySelector string, n *oldv3.Node) (bool, error) {
+func selectsNode(mySelector string, n *common.LocalNodeSpec) (bool, error) {
 	// No node selector means that the selector matches the node.
 	if len(mySelector) == 0 {
 		return true, nil
@@ -89,11 +88,11 @@ func (w *PeerWatcher) shouldPeer(peer *calicov3.BGPPeer) bool {
 	return true
 }
 
-func (w *PeerWatcher) getAsNumber(node *oldv3.Node) uint32 {
-	if node.Spec.BGP.ASNumber == nil {
+func (w *PeerWatcher) getAsNumber(node *common.LocalNodeSpec) uint32 {
+	if node.ASNumber == nil {
 		return uint32(*w.BGPConf.ASNumber)
 	} else {
-		return uint32(*node.Spec.BGP.ASNumber)
+		return uint32(*node.ASNumber)
 	}
 }
 
@@ -110,24 +109,20 @@ func (w *PeerWatcher) selectPeers(peerSelector string) map[string]uint32 {
 			w.log.Errorf("Error in peerSelector matching: %v", err)
 		}
 		if matches {
-			if node.Spec.BGP != nil && node.Spec.BGP.IPv4Address != "" &&
-				w.currentCalicoNode().Spec.BGP != nil &&
-				w.currentCalicoNode().Spec.BGP.IPv4Address != "" {
-				ad, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
+			if node.IPv4Address != "" && w.currentCalicoNode().IPv4Address != "" {
+				ad, _, err := net.ParseCIDR(node.IPv4Address)
 				if err == nil {
 					ipAsn[ad.String()] = w.getAsNumber(&node)
 				} else {
-					w.log.Warnf("Can't parse node IPv4: %s", node.Spec.BGP.IPv4Address)
+					w.log.Warnf("Can't parse node IPv4: %s", node.IPv4Address)
 				}
 			}
-			if node.Spec.BGP != nil && node.Spec.BGP.IPv6Address != "" &&
-				w.currentCalicoNode().Spec.BGP != nil &&
-				w.currentCalicoNode().Spec.BGP.IPv6Address != "" {
-				ad, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
+			if node.IPv6Address != "" && w.currentCalicoNode().IPv6Address != "" {
+				ad, _, err := net.ParseCIDR(node.IPv6Address)
 				if err == nil {
 					ipAsn[ad.String()] = w.getAsNumber(&node)
 				} else {
-					w.log.Warnf("Can't parse node IPv6: %s", node.Spec.BGP.IPv6Address)
+					w.log.Warnf("Can't parse node IPv6: %s", node.IPv6Address)
 				}
 			}
 		}
@@ -135,7 +130,7 @@ func (w *PeerWatcher) selectPeers(peerSelector string) map[string]uint32 {
 	return ipAsn
 }
 
-func (w *PeerWatcher) currentCalicoNode() *oldv3.Node {
+func (w *PeerWatcher) currentCalicoNode() *common.LocalNodeSpec {
 	node := w.nodeStatesByName[config.NodeName]
 	return &node
 }
@@ -179,8 +174,8 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
 			case common.PeerNodeStateChanged:
-				old, _ := evt.Old.(*oldv3.Node)
-				new, _ := evt.New.(*oldv3.Node)
+				old, _ := evt.Old.(*common.LocalNodeSpec)
+				new, _ := evt.New.(*common.LocalNodeSpec)
 				if old != nil {
 					delete(w.nodeStatesByName, old.Name)
 				}
@@ -518,7 +513,7 @@ func NewPeerWatcher(clientv3 calicov3cli.Interface, k8sclient *kubernetes.Client
 	var err error
 	w := PeerWatcher{
 		clientv3:             clientv3,
-		nodeStatesByName:     make(map[string]oldv3.Node),
+		nodeStatesByName:     make(map[string]common.LocalNodeSpec),
 		log:                  log,
 		peerWatcherEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}

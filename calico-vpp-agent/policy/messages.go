@@ -99,6 +99,10 @@ func (s *Server) RecvMessage(conn net.Conn) (msg interface{}, err error) {
 		msg = payload.HostMetadataUpdate
 	case *proto.ToDataplane_HostMetadataRemove:
 		msg = payload.HostMetadataRemove
+	case *proto.ToDataplane_RouteUpdate:
+		msg = payload.RouteUpdate
+	case *proto.ToDataplane_RouteRemove:
+		msg = payload.RouteRemove
 	case *proto.ToDataplane_IpamPoolUpdate:
 		msg = payload.IpamPoolUpdate
 	case *proto.ToDataplane_IpamPoolRemove:

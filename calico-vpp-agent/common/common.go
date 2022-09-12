@@ -34,7 +34,7 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	bgpapi "github.com/osrg/gobgp/api"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/api/pkg/lib/numorstring"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -54,6 +54,19 @@ const (
 type PolicyServerIpam interface {
 	IPNetNeedsSNAT(prefix *net.IPNet) bool
 	GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool
+}
+type NodeRouteRemove struct {
+	Dst  string
+	Name string
+}
+
+type LocalNodeSpec struct {
+	ASNumber           *numorstring.ASNumber
+	Labels             map[string]string
+	Name               string
+	IPv4Address        string
+	IPv6Address        string
+	WireguardPublicKey string
 }
 
 // CreateVppLink creates new link to VPP and waits for VPP to be up and running (by using simple VPP API call)
@@ -172,11 +185,6 @@ var (
 	BgpFamilyUnicastIPv6    = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_UNICAST}
 	BgpFamilySRv6IPv6       = bgpapi.Family{Afi: bgpapi.Family_AFI_IP6, Safi: bgpapi.Family_SAFI_SR_POLICY}
 )
-
-type NodeState struct {
-	oldv3.Node
-	SweepFlag bool
-}
 
 func v46ify(s string, isv6 bool) string {
 	if isv6 {
@@ -458,7 +466,7 @@ type SRv6Tunnel struct {
 	Priority uint32
 }
 
-func GetBGPSpecAddresses(nodeBGPSpec *oldv3.NodeBGPSpec) (*net.IP, *net.IP) {
+func GetBGPSpecAddresses(nodeBGPSpec *LocalNodeSpec) (*net.IP, *net.IP) {
 	var ip4 *net.IP
 	var ip6 *net.IP
 	if nodeBGPSpec.IPv4Address != "" {
@@ -476,7 +484,7 @@ func GetBGPSpecAddresses(nodeBGPSpec *oldv3.NodeBGPSpec) (*net.IP, *net.IP) {
 	return ip4, ip6
 }
 
-func GetBGPSpecIPNet(nodeBGPSpec *oldv3.NodeBGPSpec) (ip4 *net.IPNet, ip6 *net.IPNet) {
+func GetBGPSpecIPNet(nodeBGPSpec *LocalNodeSpec) (ip4 *net.IPNet, ip6 *net.IPNet) {
 	if nodeBGPSpec.IPv4Address != "" {
 		_, ipNet, err := net.ParseCIDR(nodeBGPSpec.IPv4Address)
 		if err == nil {
@@ -492,17 +500,17 @@ func GetBGPSpecIPNet(nodeBGPSpec *oldv3.NodeBGPSpec) (ip4 *net.IPNet, ip6 *net.I
 	return ip4, ip6
 }
 
-func GetNodeSpecAddresses(node *oldv3.Node) (string, string) {
+func GetNodeSpecAddresses(node *LocalNodeSpec) (string, string) {
 	nodeIP4 := ""
 	nodeIP6 := ""
-	if node.Spec.BGP.IPv4Address != "" {
-		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv4Address)
+	if node.IPv4Address != "" {
+		addr, _, err := net.ParseCIDR(node.IPv4Address)
 		if err == nil {
 			nodeIP4 = addr.String()
 		}
 	}
-	if node.Spec.BGP.IPv6Address != "" {
-		addr, _, err := net.ParseCIDR(node.Spec.BGP.IPv6Address)
+	if node.IPv6Address != "" {
+		addr, _, err := net.ParseCIDR(node.IPv6Address)
 		if err == nil {
 			nodeIP6 = addr.String()
 		}
