@@ -48,7 +48,7 @@ func (v *VppLink) listWireguardTunnels(swIfIndex interface_types.InterfaceIndex)
 
 	tunnels := make([]*types.WireguardTunnel, 0)
 	request := &wireguard.WireguardInterfaceDump{
-		ShowPrivateKey: false,
+		ShowPrivateKey: true,
 		SwIfIndex:      swIfIndex,
 	}
 	stream := v.ch.SendMultiRequest(request)
@@ -62,22 +62,23 @@ func (v *VppLink) listWireguardTunnels(swIfIndex interface_types.InterfaceIndex)
 			break
 		}
 		tunnels = append(tunnels, &types.WireguardTunnel{
-			Port:      response.Interface.Port,
-			Addr:      types.FromVppAddress(response.Interface.SrcIP),
-			SwIfIndex: uint32(response.Interface.SwIfIndex),
-			PublicKey: response.Interface.PublicKey,
+			Port:       response.Interface.Port,
+			Addr:       types.FromVppAddress(response.Interface.SrcIP),
+			SwIfIndex:  uint32(response.Interface.SwIfIndex),
+			PublicKey:  response.Interface.PublicKey,
+			PrivateKey: response.Interface.PrivateKey,
 		})
 	}
 	return tunnels, nil
 }
 
-func (v *VppLink) AddWireguardTunnel(tunnel *types.WireguardTunnel) (uint32, error) {
+func (v *VppLink) AddWireguardTunnel(tunnel *types.WireguardTunnel, generateKey bool) (uint32, error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
 	response := &wireguard.WireguardInterfaceCreateReply{}
 	request := &wireguard.WireguardInterfaceCreate{
-		GenerateKey: true,
+		GenerateKey: generateKey,
 		Interface: wireguard.WireguardInterface{
 			UserInstance: ^uint32(0),
 			SwIfIndex:    types.InvalidInterface,

@@ -31,14 +31,14 @@ import (
 
 type WireguardProvider struct {
 	*ConnectivityProviderData
-	wireguardTunnel *types.WireguardTunnel
-	wireguardPeers    map[string]types.WireguardPeer
+	wireguardTunnels map[string]*types.WireguardTunnel
+	wireguardPeers   map[string]types.WireguardPeer
 }
 
 func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
 	return &WireguardProvider{
 		ConnectivityProviderData: d,
-		wireguardTunnel:        nil,
+		wireguardTunnels:         make(map[string]*types.WireguardTunnel),
 		wireguardPeers:           make(map[string]types.WireguardPeer),
 	}
 }
@@ -91,7 +91,7 @@ func (p *WireguardProvider) publishWireguardPublicKey(pubKey string) error {
 
 func (p *WireguardProvider) RescanState() {
 	p.wireguardPeers = make(map[string]types.WireguardPeer)
-	p.wireguardTunnel = nil
+	p.wireguardTunnels = make(map[string]*types.WireguardTunnel)
 
 	p.log.Debugf("Wireguard: Rescanning existing tunnels")
 	tunnels, err := p.vpp.ListWireguardTunnels()
@@ -102,11 +102,11 @@ func (p *WireguardProvider) RescanState() {
 	for _, tunnel := range tunnels {
 		if ip4 != nil && tunnel.Addr.Equal(*ip4) {
 			p.log.Infof("Found existing v4 tunnel: %s", tunnel)
-			p.wireguardTunnel = tunnel
+			p.wireguardTunnels["ip4"] = tunnel
 		}
 		if ip6 != nil && tunnel.Addr.Equal(*ip6) {
 			p.log.Infof("Found existing v6 tunnel: %s", tunnel)
-			p.wireguardTunnel = tunnel
+			p.wireguardTunnels["ip6"] = tunnel
 		}
 	}
 
@@ -128,20 +128,24 @@ func (p *WireguardProvider) errorCleanup(tunnel *types.WireguardTunnel) {
 	}
 }
 
-func (p *WireguardProvider) EnableDisable(isEnable bool) () {
+func (p *WireguardProvider) EnableDisable(isEnable bool) {
 	if isEnable {
-		if p.wireguardTunnel == nil {
-			err := p.createWireguardTunnel(false /* isv6 */)
+		if len(p.wireguardTunnels) == 0 {
+			err := p.createWireguardTunnels()
 			if err != nil {
 				p.log.Errorf("Wireguard: Error creating v4 tunnel %s", err)
 				return
 			}
 		}
 
-		key := base64.StdEncoding.EncodeToString(p.wireguardTunnel.PublicKey)
-		err := p.publishWireguardPublicKey(key)
-		if err != nil {
-			p.log.Errorf("Wireguard: publish PublicKey error %s", err)
+		for _, tun := range p.wireguardTunnels {
+			key := base64.StdEncoding.EncodeToString(tun.PublicKey)
+			err := p.publishWireguardPublicKey(key)
+			if err != nil {
+				p.log.Errorf("Wireguard: publish PublicKey error %s", err)
+			}
+			// should be the same for all, so one publishing is enough
+			break
 		}
 	} else {
 		/* disable wireguard */
@@ -152,76 +156,95 @@ func (p *WireguardProvider) EnableDisable(isEnable bool) () {
 	}
 }
 
-func (p *WireguardProvider) createWireguardTunnel(isIP6 bool) error {
+func (p *WireguardProvider) createWireguardTunnels() error {
 
-	var nodeIp net.IP
+	var nodeIp4, nodeIp6 net.IP
 	ip4, ip6 := p.server.GetNodeIPs()
 	if ip6 != nil {
-		nodeIp = *ip6
-	} else if ip4 != nil {
-		nodeIp = *ip4
+		nodeIp6 = *ip6
+	}
+	if ip4 != nil {
+		nodeIp4 = *ip4
 	} else {
 		return fmt.Errorf("Missing node address")
 	}
+	nodeIps := map[string]net.IP{"ip4": nodeIp4, "ip6": nodeIp6}
+	for ipfamily, nodeIp := range nodeIps {
+		if nodeIp != nil {
+			p.log.Debugf("Adding wireguard Tunnel to VPP")
+			tunnel := &types.WireguardTunnel{
+				Addr: nodeIp,
+				Port: p.getWireguardPort(),
+			}
+			var swIfIndex uint32
+			var err error
+			if len(p.wireguardTunnels) != 0 { // we already have one, use same public key
+				for _, tun := range p.wireguardTunnels {
+					tunnel.PrivateKey = tun.PrivateKey
+					break
+				}
+				swIfIndex, err = p.vpp.AddWireguardTunnel(tunnel, false /* generateKey */)
+			} else {
+				swIfIndex, err = p.vpp.AddWireguardTunnel(tunnel, true /* generateKey */)
+			}
 
-	p.log.Debugf("Adding wireguard Tunnel to VPP")
-	tunnel := &types.WireguardTunnel{
-		Addr: nodeIp,
-		Port: p.getWireguardPort(),
+			if err != nil {
+				p.errorCleanup(tunnel)
+				return errors.Wrapf(err, "Error creating wireguard tunnel")
+			}
+			// fetch public key of created tunnel
+			createdTunnel, err := p.vpp.GetWireguardTunnel(swIfIndex)
+			if err != nil {
+				p.errorCleanup(tunnel)
+				return errors.Wrapf(err, "Error fetching wireguard tunnel after creation")
+			}
+			tunnel.PublicKey = createdTunnel.PublicKey
+			tunnel.PrivateKey = createdTunnel.PrivateKey
+
+			err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+			if err != nil {
+				p.errorCleanup(tunnel)
+				return errors.Wrapf(err, "Error setting wireguard tunnel unnumbered")
+			}
+
+			err = p.vpp.EnableGSOFeature(swIfIndex)
+			if err != nil {
+				p.errorCleanup(tunnel)
+				return errors.Wrapf(err, "Error enabling gso for wireguard interface")
+			}
+
+			err = p.vpp.CnatEnableFeatures(swIfIndex)
+			if err != nil {
+				p.errorCleanup(tunnel)
+				return errors.Wrapf(err, "Error enabling nat for wireguard interface")
+			}
+
+			err = p.vpp.InterfaceAdminUp(swIfIndex)
+			if err != nil {
+				p.errorCleanup(tunnel)
+				return errors.Wrapf(err, "Error setting wireguard interface up")
+			}
+
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.TunnelAdded,
+				New:  swIfIndex,
+			})
+
+			p.wireguardTunnels[ipfamily] = tunnel
+		}
 	}
-	swIfIndex, err := p.vpp.AddWireguardTunnel(tunnel)
-	if err != nil {
-		p.errorCleanup(tunnel)
-		return errors.Wrapf(err, "Error creating wireguard tunnel")
-	}
-	// fetch public key of created tunnel
-	createdTunnel, err := p.vpp.GetWireguardTunnel(swIfIndex)
-	if err != nil {
-		p.errorCleanup(tunnel)
-		return errors.Wrapf(err, "Error fetching wireguard tunnel after creation")
-	}
-	tunnel.PublicKey = createdTunnel.PublicKey
-
-	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
-	if err != nil {
-		p.errorCleanup(tunnel)
-		return errors.Wrapf(err, "Error setting wireguard tunnel unnumbered")
-	}
-
-	err = p.vpp.EnableGSOFeature(swIfIndex)
-	if err != nil {
-		p.errorCleanup(tunnel)
-		return errors.Wrapf(err, "Error enabling gso for wireguard interface")
-	}
-
-	err = p.vpp.CnatEnableFeatures(swIfIndex)
-	if err != nil {
-		p.errorCleanup(tunnel)
-		return errors.Wrapf(err, "Error enabling nat for wireguard interface")
-	}
-
-	err = p.vpp.InterfaceAdminUp(swIfIndex)
-	if err != nil {
-		p.errorCleanup(tunnel)
-		return errors.Wrapf(err, "Error setting wireguard interface up")
-	}
-
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.TunnelAdded,
-		New:  swIfIndex,
-	})
-
-	p.wireguardTunnel = tunnel
-
-	p.log.Infof("connectivity(add) Wireguard Done tunnel=%s", p.wireguardTunnel)
+	p.log.Infof("connectivity(add) Wireguard Done tunnel=%s", p.wireguardTunnels)
 	return nil
 }
 
 func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
-	if p.wireguardTunnel == nil {
-		return fmt.Errorf("Wireguard: missing tunnel")
+	ipfamily := "ip4"
+	if cn.NextHop.To4() == nil {
+		ipfamily = "ip6"
 	}
-
+	if _, exists := p.wireguardTunnels[ipfamily] ; !exists {
+		return fmt.Errorf("Wireguard: missing tunnel for ip family %s", ipfamily)
+	 }
 	key, err := p.getNodePublicKey(cn)
 	if err != nil {
 		return errors.Wrapf(err, "Error Getting node %s publicKey", cn.NextHop)
@@ -230,7 +253,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		PublicKey:  key,
 		Port:       p.getWireguardPort(),
 		Addr:       cn.NextHop,
-		SwIfIndex:  p.wireguardTunnel.SwIfIndex,
+		SwIfIndex:  p.wireguardTunnels[ipfamily].SwIfIndex,
 		AllowedIps: []net.IPNet{cn.Dst, *common.ToMaxLenCIDR(cn.NextHop)},
 	}
 	existingPeer, found := p.wireguardPeers[cn.NextHop.String()]
@@ -258,27 +281,27 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			return errors.Wrapf(err, "Error adding wireguard peer [%s]", peer)
 		}
 
-		p.log.Debugf("Routing pod->node %s traffic into wg tunnel (swIfIndex %d)", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
+		p.log.Debugf("Routing pod->node %s traffic into wg tunnel (swIfIndex %d)", cn.NextHop.String(), p.wireguardTunnels[ipfamily].SwIfIndex)
 		err = p.vpp.RouteAdd(&types.Route{
 			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
-				SwIfIndex: p.wireguardTunnel.SwIfIndex,
+				SwIfIndex: p.wireguardTunnels[ipfamily].SwIfIndex,
 				Gw:        nil,
 			}},
 			Table: common.PodVRFIndex,
 		})
 		if err != nil {
-			return errors.Wrapf(err, "Error adding route to %s in wg tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
+			return errors.Wrapf(err, "Error adding route to %s in wg tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnels[ipfamily].SwIfIndex)
 		}
 	}
 	p.log.Infof("connectivity(add) Wireguard tunnel done peer=%s", peer)
 	p.wireguardPeers[cn.NextHop.String()] = *peer
 
-	p.log.Debugf("Adding wireguard tunnel route to %s via swIfIndex %d", cn.Dst.IP, p.wireguardTunnel.SwIfIndex)
+	p.log.Debugf("Adding wireguard tunnel route to %s via swIfIndex %d", cn.Dst.IP, p.wireguardTunnels[ipfamily].SwIfIndex)
 	err = p.vpp.RouteAdd(&types.Route{
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
-			SwIfIndex: p.wireguardTunnel.SwIfIndex,
+			SwIfIndex: p.wireguardTunnels[ipfamily].SwIfIndex,
 			Gw:        cn.Dst.IP,
 		}},
 	})
@@ -289,6 +312,13 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 }
 
 func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
+	ipfamily := "ip4"
+	if cn.NextHop.To4() == nil {
+		ipfamily = "ip6"
+	}
+	if _, exists := p.wireguardTunnels[ipfamily] ; !exists {
+		return fmt.Errorf("Wireguard: missing tunnel for ip family %s", ipfamily)
+	 }	
 	peer, found := p.wireguardPeers[cn.NextHop.String()]
 	if !found {
 		return errors.Errorf("Deleting unknown wireguard tunnel %s", cn.NextHop.String())
@@ -304,13 +334,13 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err er
 		err = p.vpp.RouteDel(&types.Route{
 			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
-				SwIfIndex: p.wireguardTunnel.SwIfIndex,
+				SwIfIndex: p.wireguardTunnels[ipfamily].SwIfIndex,
 				Gw:        nil,
 			}},
 			Table: common.PodVRFIndex,
 		})
 		if err != nil {
-			return errors.Wrapf(err, "Error deleting route to %s in ipip tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnel.SwIfIndex)
+			return errors.Wrapf(err, "Error deleting route to %s in ipip tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnels[ipfamily].SwIfIndex)
 		}
 		delete(p.wireguardPeers, cn.NextHop.String())
 	} else {
