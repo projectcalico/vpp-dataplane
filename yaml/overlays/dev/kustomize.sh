@@ -118,6 +118,7 @@ function get_installation_cidrs ()
 	elif [[ $IP_VERSION == 6 ]]; then
 	  echo "
     - cidr: ${CLUSTER_POD_CIDR6}
+      encapsulation: ${CALICO_ENCAPSULATION}
       natOutgoing: ${CALICO_NAT_OUTGOING}"
 	else
 	  echo "
@@ -125,6 +126,7 @@ function get_installation_cidrs ()
       encapsulation: ${CALICO_ENCAPSULATION}
       natOutgoing: ${CALICO_NAT_OUTGOING}
     - cidr: ${CLUSTER_POD_CIDR6}
+      encapsulation: ${CALICO_ENCAPSULATION}
       natOutgoing: ${CALICO_NAT_OUTGOING}"
 	fi
 }
