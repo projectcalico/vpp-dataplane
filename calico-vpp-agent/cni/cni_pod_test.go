@@ -33,6 +33,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	agentConf "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
@@ -97,6 +98,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
 						Workload:      &proto.WorkloadIDs{},
 					}
+					common.VppManagerInfo = &vppmanagerconfig.VppManagerInfo{}
 					reply, err := cniServer.Add(context.Background(), newPod)
 					Expect(err).ToNot(HaveOccurred(), "Pod addition failed")
 					Expect(reply.Successful).To(BeTrue(),
@@ -167,6 +169,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							},
 						},
 					}
+					common.VppManagerInfo = &vppmanagerconfig.VppManagerInfo{}
 					reply, err := cniServer.Add(context.Background(), newPod)
 					Expect(err).ToNot(HaveOccurred(), "Pod addition failed")
 					Expect(reply.Successful).To(BeTrue(),
@@ -291,6 +294,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
 							Workload:      &proto.WorkloadIDs{},
 						}
+						common.VppManagerInfo = &vppmanagerconfig.VppManagerInfo{}
 						reply, err := cniServer.Add(context.Background(), newPodForPrimaryNetwork)
 						Expect(err).ToNot(HaveOccurred(), "Pod addition to primary network failed")
 						Expect(reply.Successful).To(BeTrue(),
