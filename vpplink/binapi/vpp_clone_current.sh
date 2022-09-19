@@ -84,27 +84,17 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-git_clone_cd_and_reset "$1" 38659d8f2c588500f4e844195e0c59ab1cf6107f
+git_clone_cd_and_reset "$1" 8b90d89b05322ceaaf57e0eda403c4f92546f7b3
 
-
-git_cherry_pick refs/changes/45/36945/1 # 36945: wireguard: fix ipv6 handshake packet | https://gerrit.fd.io/r/c/vpp/+/36945
-git_cherry_pick refs/changes/18/37018/1 # 37018: wireguard: fix ipv6 payload_length computation | https://gerrit.fd.io/r/c/vpp/+/37018
-git_cherry_pick refs/changes/13/34713/3 # 34713: vppinfra: improve & test abstract socket | https://gerrit.fd.io/r/c/vpp/+/34713
-git_cherry_pick refs/changes/71/32271/15 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
-git_cherry_pick refs/changes/34/34734/2 # 34734: memif: autogenerate socket_ids | https://gerrit.fd.io/r/c/vpp/+/34734
+git_cherry_pick refs/changes/13/34713/4 # 34713: vppinfra: improve & test abstract socket | https://gerrit.fd.io/r/c/vpp/+/34713
+git_cherry_pick refs/changes/71/32271/16 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
+git_cherry_pick refs/changes/34/34734/3 # 34734: memif: autogenerate socket_ids | https://gerrit.fd.io/r/c/vpp/+/34734
 git_cherry_pick refs/changes/26/34726/1 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
-git_cherry_pick refs/changes/38/35438/1 # 35438: af_packet: fix tx stall by retrying failed sendto | https://gerrit.fd.io/r/c/vpp/+/35438
 git_cherry_pick refs/changes/05/35805/2 # 35805: dpdk: add intf tag to dev{} subinput | https://gerrit.fd.io/r/c/vpp/+/35805
-git_cherry_pick refs/changes/78/35678/2 # 35678: dpdk: copy the enable_rxq_int flag from driver to conf | https://gerrit.fd.io/r/c/vpp/+/35678
-
-git_cherry_pick refs/changes/65/37365/2 # 37365: gso: set the header offsets in gro hdr fixup | https://gerrit.fd.io/r/c/vpp/+/37365
-git_cherry_pick refs/changes/64/37364/1 # 37364: gso: fix the checksum for odd number of data bytes | https://gerrit.fd.io/r/c/vpp/+/37364
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/7 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
-git_cherry_pick refs/changes/88/31588/1 # 31588: cnat: [WIP] no k8s maglev from pods | https://gerrit.fd.io/r/c/vpp/+/31588
+git_cherry_pick refs/changes/88/31588/4 # 31588: cnat: [WIP] no k8s maglev from pods | https://gerrit.fd.io/r/c/vpp/+/31588
 git_cherry_pick refs/changes/83/28083/21 # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
 git_cherry_pick refs/changes/13/28513/28 # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
-git_cherry_pick refs/changes/31/37131/11 # 37131: urpf: add mode for specific fib index lookup | https://gerrit.fd.io/r/c/vpp/+/37131/
-git_cherry_pick refs/changes/59/37259/2 # 37259: cnat: Add sctp support | https://gerrit.fd.io/r/c/vpp/+/37259
 # --------------- Dedicated plugins ---------------

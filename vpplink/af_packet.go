@@ -26,13 +26,18 @@ import (
 func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint32, err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	response := &af_packet.AfPacketCreateV2Reply{}
-	request := &af_packet.AfPacketCreateV2{
+	response := &af_packet.AfPacketCreateV3Reply{}
+	request := &af_packet.AfPacketCreateV3{
+		Mode:             af_packet.AF_PACKET_API_MODE_ETHERNET,
 		UseRandomHwAddr:  true,
 		HostIfName:       intf.HostInterfaceName,
 		RxFramesPerBlock: uint32(intf.RxQueueSize),
 		TxFramesPerBlock: uint32(intf.TxQueueSize),
 		RxFrameSize:      uint32(1024 * 8 * 8),
+		TxFrameSize:      uint32(1024 * 8 * 8),
+		NumRxQueues:      uint16(intf.NumRxQueues),
+		NumTxQueues:      uint16(intf.NumTxQueues),
+		Flags:            af_packet.AF_PACKET_API_FLAG_VERSION_2 | af_packet.AF_PACKET_API_FLAG_CKSUM_GSO | af_packet.AF_PACKET_API_FLAG_QDISC_BYPASS,
 	}
 	if intf.HardwareAddr != nil {
 		request.UseRandomHwAddr = false

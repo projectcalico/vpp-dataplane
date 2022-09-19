@@ -15,6 +15,7 @@ import (
 type RPCService interface {
 	SrLocalsidAddDel(ctx context.Context, in *SrLocalsidAddDel) (*SrLocalsidAddDelReply, error)
 	SrLocalsidsDump(ctx context.Context, in *SrLocalsidsDump) (RPCService_SrLocalsidsDumpClient, error)
+	SrLocalsidsWithPacketStatsDump(ctx context.Context, in *SrLocalsidsWithPacketStatsDump) (RPCService_SrLocalsidsWithPacketStatsDumpClient, error)
 	SrPoliciesDump(ctx context.Context, in *SrPoliciesDump) (RPCService_SrPoliciesDumpClient, error)
 	SrPoliciesWithSlIndexDump(ctx context.Context, in *SrPoliciesWithSlIndexDump) (RPCService_SrPoliciesWithSlIndexDumpClient, error)
 	SrPolicyAdd(ctx context.Context, in *SrPolicyAdd) (*SrPolicyAddReply, error)
@@ -74,6 +75,49 @@ func (c *serviceClient_SrLocalsidsDumpClient) Recv() (*SrLocalsidsDetails, error
 	}
 	switch m := msg.(type) {
 	case *SrLocalsidsDetails:
+		return m, nil
+	case *memclnt.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, io.EOF
+	default:
+		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
+	}
+}
+
+func (c *serviceClient) SrLocalsidsWithPacketStatsDump(ctx context.Context, in *SrLocalsidsWithPacketStatsDump) (RPCService_SrLocalsidsWithPacketStatsDumpClient, error) {
+	stream, err := c.conn.NewStream(ctx)
+	if err != nil {
+		return nil, err
+	}
+	x := &serviceClient_SrLocalsidsWithPacketStatsDumpClient{stream}
+	if err := x.Stream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RPCService_SrLocalsidsWithPacketStatsDumpClient interface {
+	Recv() (*SrLocalsidsWithPacketStatsDetails, error)
+	api.Stream
+}
+
+type serviceClient_SrLocalsidsWithPacketStatsDumpClient struct {
+	api.Stream
+}
+
+func (c *serviceClient_SrLocalsidsWithPacketStatsDumpClient) Recv() (*SrLocalsidsWithPacketStatsDetails, error) {
+	msg, err := c.Stream.RecvMsg()
+	if err != nil {
+		return nil, err
+	}
+	switch m := msg.(type) {
+	case *SrLocalsidsWithPacketStatsDetails:
 		return m, nil
 	case *memclnt.ControlPingReply:
 		err = c.Stream.Close()

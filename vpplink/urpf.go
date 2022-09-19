@@ -27,7 +27,7 @@ import (
 func (v *VppLink) SetCustomURPF(swifindex uint32, tableId uint32) (err error) {
 	response := &urpf.UrpfUpdateV2Reply{}
 	request := &urpf.UrpfUpdateV2{
-		Mode:      urpf.URPF_API_MODE_CUSTOM_VRF,
+		Mode:      urpf.URPF_API_MODE_LOOSE,
 		SwIfIndex: interface_types.InterfaceIndex(swifindex),
 		Af:        ip_types.ADDRESS_IP4,
 		IsInput:   true,
