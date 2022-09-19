@@ -65,7 +65,9 @@ var (
 func Go(f func(t *tomb.Tomb) error) {
 	t.Go(func() error {
 		err := f(&t)
-		log.Warnf("Tomb error : %s", err)
+		if err != nil {
+			log.Warnf("Tomb function errored with %s", err)
+		}
 		return err
 	})
 }
