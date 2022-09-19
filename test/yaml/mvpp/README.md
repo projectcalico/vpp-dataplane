@@ -47,7 +47,7 @@ mkdir -p /run/vpp
 
 INTADDR=$(ip addr show dev eth0 | grep 'inet ' | awk '{print $2}')
 echo "
-create memif socket id 1 filename @vpp/memif
+create memif socket id 1 filename @vpp/memif-eth0
 create interface memif socket-id 1 id 0 slave buffer-size 4096 rx-queues 1 tx-queues 1
 set int ip addr memif1/0 ${INTADDR}
 set interface mac address memif1/0 02:00:00:00:00:01
