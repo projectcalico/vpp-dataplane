@@ -245,7 +245,7 @@ type LocalPodSpec struct {
 
 	/* rpf check */
 	AllowedSpoofingPrefixesSize int `struc:"int16,sizeof=AllowedSpoofingPrefixes"`
-	AllowedSpoofingPrefixes string
+	AllowedSpoofingPrefixes     string
 
 	V4RPFVrfId uint32
 	V6RPFVrfId uint32

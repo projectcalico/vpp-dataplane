@@ -36,7 +36,7 @@ func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
 	return &IpipProvider{d, make(map[string]*types.IPIPTunnel), make(map[uint32]map[string]bool)}
 }
 
-func (p *IpipProvider) EnableDisable(isEnable bool) () {
+func (p *IpipProvider) EnableDisable(isEnable bool) {
 }
 
 func (p *IpipProvider) Enabled(cn *common.NodeConnectivity) bool {

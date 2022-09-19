@@ -25,8 +25,6 @@ import (
 	"strings"
 	"sync"
 
-	"go.fd.io/govpp/adapter"
-	"go.fd.io/govpp/adapter/statsclient"
 	metricspb "github.com/census-instrumentation/opencensus-proto/gen-go/metrics/v1"
 	prometheusExporter "github.com/orijtech/prometheus-go-metrics-exporter"
 	"github.com/pkg/errors"
@@ -34,6 +32,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/sirupsen/logrus"
+	"go.fd.io/govpp/adapter"
+	"go.fd.io/govpp/adapter/statsclient"
 	tomb "gopkg.in/tomb.v2"
 )
 

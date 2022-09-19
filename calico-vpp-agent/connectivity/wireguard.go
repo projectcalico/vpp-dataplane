@@ -242,9 +242,9 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	if cn.NextHop.To4() == nil {
 		ipfamily = "ip6"
 	}
-	if _, exists := p.wireguardTunnels[ipfamily] ; !exists {
+	if _, exists := p.wireguardTunnels[ipfamily]; !exists {
 		return fmt.Errorf("Wireguard: missing tunnel for ip family %s", ipfamily)
-	 }
+	}
 	key, err := p.getNodePublicKey(cn)
 	if err != nil {
 		return errors.Wrapf(err, "Error Getting node %s publicKey", cn.NextHop)
@@ -316,9 +316,9 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err er
 	if cn.NextHop.To4() == nil {
 		ipfamily = "ip6"
 	}
-	if _, exists := p.wireguardTunnels[ipfamily] ; !exists {
+	if _, exists := p.wireguardTunnels[ipfamily]; !exists {
 		return fmt.Errorf("Wireguard: missing tunnel for ip family %s", ipfamily)
-	 }	
+	}
 	peer, found := p.wireguardPeers[cn.NextHop.String()]
 	if !found {
 		return errors.Errorf("Deleting unknown wireguard tunnel %s", cn.NextHop.String())

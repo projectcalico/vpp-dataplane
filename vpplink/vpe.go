@@ -18,10 +18,10 @@ package vpplink
 import (
 	"fmt"
 
-	"go.fd.io/govpp/api"
-	"go.fd.io/govpp/binapi/vpe"
-	"go.fd.io/govpp/binapi/vlib"
 	"github.com/pkg/errors"
+	"go.fd.io/govpp/api"
+	"go.fd.io/govpp/binapi/vlib"
+	"go.fd.io/govpp/binapi/vpe"
 )
 
 func (v *VppLink) GetVPPVersion() (version string, err error) {

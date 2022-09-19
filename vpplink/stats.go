@@ -18,10 +18,10 @@ package vpplink
 import (
 	"fmt"
 
-	"go.fd.io/govpp/adapter"
-	"go.fd.io/govpp/adapter/statsclient"
 	"github.com/pkg/errors"
 	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface"
+	"go.fd.io/govpp/adapter"
+	"go.fd.io/govpp/adapter/statsclient"
 )
 
 func GetInterfaceStats(sc *statsclient.StatsClient) (ifNames adapter.NameStat, dumpStats []adapter.StatEntry, err error) {

@@ -19,11 +19,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	govpp "go.fd.io/govpp"
 	vppapi "go.fd.io/govpp/api"
 	vppcore "go.fd.io/govpp/core"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
