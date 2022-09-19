@@ -156,6 +156,7 @@ data:
         plugin dpdk_plugin.so { disable }
         plugin calico_plugin.so { enable }
         plugin ping_plugin.so { disable }
+        plugin dispatch_trace_plugin.so { enable }
     }
     buffers {
       buffers-per-numa 131072
@@ -217,7 +218,7 @@ spec:
               fieldPath: spec.nodeName
         - name: CALICOVPP_CORE_PATTERN
           value: /var/lib/vpp/vppcore.%e.%p
-        image: docker.io/calicovpp/vpp:prerelease
+        image: docker.io/calicovpp/vpp:v3.24.0
         imagePullPolicy: IfNotPresent
         name: vpp
         resources:
@@ -260,7 +261,7 @@ spec:
             configMapKeyRef:
               key: service_prefix
               name: calico-vpp-config
-        image: docker.io/calicovpp/agent:prerelease
+        image: docker.io/calicovpp/agent:v3.24.0
         imagePullPolicy: IfNotPresent
         name: agent
         resources:
