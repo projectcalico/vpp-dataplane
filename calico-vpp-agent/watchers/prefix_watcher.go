@@ -166,9 +166,9 @@ func (w *PrefixWatcher) updateBGPPaths(paths []*bgpapi.Path) error {
 // prefixes to 'host' set.
 //
 // e.g. prefix: "192.168.1.0/26" del: false
-//      add "192.168.1.0/26"     to 'aggregated' set
-//      add "192.168.1.0/26..32" to 'host'       set
 //
+//	add "192.168.1.0/26"     to 'aggregated' set
+//	add "192.168.1.0/26..32" to 'host'       set
 func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 	ipAddrPrefixNlri := &bgpapi.IPAddressPrefix{}
 	err := ptypes.UnmarshalAny(path.Nlri, ipAddrPrefixNlri)
@@ -186,7 +186,7 @@ func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 		DefinedType: bgpapi.DefinedType_PREFIX,
 		Name:        common.GetAggPrefixSetName(isv6),
 		Prefixes: []*bgpapi.Prefix{
-			&bgpapi.Prefix{
+			{
 				IpPrefix:      prefix,
 				MaskLengthMin: prefixLen,
 				MaskLengthMax: prefixLen,
@@ -214,7 +214,7 @@ func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 		DefinedType: bgpapi.DefinedType_PREFIX,
 		Name:        common.GetHostPrefixSetName(isv6),
 		Prefixes: []*bgpapi.Prefix{
-			&bgpapi.Prefix{
+			{
 				IpPrefix:      prefix,
 				MaskLengthMax: max,
 				MaskLengthMin: prefixLen,

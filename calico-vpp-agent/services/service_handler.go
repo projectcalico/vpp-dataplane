@@ -201,7 +201,7 @@ func (s *Server) advertiseSpecificRoute(added []net.IP, deleted []net.IP) {
 		if s.isAddressExternalServiceIP(specificRoute) {
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.LocalPodAddressAdded,
-				New: cni.NetworkPod{ContainerIP: common.ToMaxLenCIDR(specificRoute), NetworkVni: 0},
+				New:  cni.NetworkPod{ContainerIP: common.ToMaxLenCIDR(specificRoute), NetworkVni: 0},
 			})
 			s.log.Infof("Announcing service specific route Addresses %+v", specificRoute)
 		}

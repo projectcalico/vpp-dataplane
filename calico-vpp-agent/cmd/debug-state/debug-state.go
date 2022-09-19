@@ -16,8 +16,8 @@
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"

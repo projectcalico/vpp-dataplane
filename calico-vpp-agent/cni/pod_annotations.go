@@ -118,7 +118,7 @@ func (s *Server) ParseTrueFalseAnnotation(value string) (bool, error) {
 	}
 }
 
-func (s *Server) ParseSpoofAddressAnnotation(value string) ([]cnet.IPNet, error){
+func (s *Server) ParseSpoofAddressAnnotation(value string) ([]cnet.IPNet, error) {
 	var requestedSourcePrefixes []string
 	var allowedSources []cnet.IPNet
 	err := json.Unmarshal([]byte(value), &requestedSourcePrefixes)

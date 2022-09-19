@@ -17,8 +17,8 @@ package vpplink
 
 import (
 	"net"
-	"time"
 	"reflect"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -26,10 +26,10 @@ import (
 )
 
 type IpFamily struct {
-	Str   string
-	ShortStr string
-	IsIp6 bool
-	IsIp4 bool
+	Str       string
+	ShortStr  string
+	IsIp6     bool
+	IsIp4     bool
 	FamilyIdx int
 }
 

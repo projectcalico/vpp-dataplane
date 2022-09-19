@@ -899,7 +899,7 @@ func (s *Server) getAllTunnelSwIfIndexes() (swIfIndexes []uint32) {
 	defer s.tunnelSwIfIndexesLock.Unlock()
 
 	swIfIndexes = make([]uint32, 0)
-	for k, _ := range s.tunnelSwIfIndexes {
+	for k := range s.tunnelSwIfIndexes {
 		swIfIndexes = append(swIfIndexes, k)
 	}
 	return swIfIndexes

@@ -375,7 +375,7 @@ func (s *Server) ServeService(t *tomb.Tomb) error {
 	for _, serviceIPNet := range append(serviceClusterIPNets, append(serviceExternalIPNets, serviceLBIPNets...)...) {
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.LocalPodAddressAdded,
-			New: cni.NetworkPod{ContainerIP: serviceIPNet, NetworkVni: 0},
+			New:  cni.NetworkPod{ContainerIP: serviceIPNet, NetworkVni: 0},
 		})
 	}
 

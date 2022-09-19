@@ -175,5 +175,11 @@ release: check-TAG check-CALICO_TAG
 	@echo "***IMPORTANT***IMPORTANT***IMPORTANT***IMPORTANT***"
 	@echo "Please update \"vppbranch\" in https://github.com/projectcalico/calico/blob/${CALICO_TAG}/calico/_config.yml to ${TAG} otherwise the install docs get broken."
 
+.PHONY: run-integration-tests
 run-integration-tests:
 	cd test/integration-tests;./run-tests.sh
+
+.PHONY: test
+test:
+	gofmt -s -l . | grep -v binapi | diff -u /dev/null -
+	go vet ./...
