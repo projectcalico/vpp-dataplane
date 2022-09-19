@@ -73,7 +73,7 @@ load-images:
 CALICO_INSTALLATION ?= installation-default
 .PHONY: test-install-calico
 test-install-calico:
-	kubectl apply -f https://projectcalico.docs.tigera.io/v3.23/manifests/tigera-operator.yaml
+	kubectl replace --force -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
 	kubectl apply -f yaml/calico/$(CALICO_INSTALLATION).yaml
 
 # Allows to simply run calico-vpp from release images in a test cluster
@@ -146,6 +146,7 @@ cherry-vpp:
 	@echo "branch    : $(shell cd ${VPP_DIR} && git branch --show-current)"
 	@echo "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
 	@bash ./vpplink/binapi/vpp_clone_current.sh ${VPP_DIR}
+	@make goapi
 
 .PHONY: cherry-wipe
 cherry-wipe:

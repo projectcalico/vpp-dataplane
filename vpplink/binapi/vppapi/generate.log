@@ -1,22 +1,14 @@
-VPP Version                 : 22.06-rc0~257-g47d5ee707
+VPP Version                 : 23.02-rc0~81-g1abb2ae46
 Binapi-generator version    : govpp v0.6.0-dev
-VPP Base commit             : 38659d8f2 sr: fix srv6 definition of behavior associated to a LocalSID
+VPP Base commit             : 8b90d89b0 devices: add support for af-packet v2
 ------------------ Cherry picked commits --------------------
-gerrit:37259/2 cnat: Add sctp support
-gerrit:37131/11 urpf: add mode for specific fib index lookup
 gerrit:28513/28 capo: Calico Policies plugin
 gerrit:28083/21 acl: acl-plugin custom policies
-gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
+gerrit:31588/4 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/7 pbl: Port based balancer
-gerrit:37364/1 gso: fix the checksum for odd number of data bytes
-gerrit:37365/2 gso: set the header offsets in gro hdr fixup
-gerrit:35678/2 dpdk: copy the enable_rxq_int flag from driver to conf
 gerrit:35805/2 dpdk: add intf tag to dev{} subinput
-gerrit:35438/1 af_packet: fix tx stall by retrying failed sendto
 gerrit:34726/1 interface: add buffer stats api
-gerrit:34734/2 memif: autogenerate socket_ids
-gerrit:32271/15 memif: add support for ns abstract sockets
-gerrit:34713/3 vppinfra: improve & test abstract socket
-gerrit:37018/1 wireguard: fix ipv6 payload_length computation
-gerrit:36945/1 wireguard: fix ipv6 handshake packet
+gerrit:34734/3 memif: autogenerate socket_ids
+gerrit:32271/16 memif: add support for ns abstract sockets
+gerrit:34713/4 vppinfra: improve & test abstract socket
 -------------------------------------------------------------

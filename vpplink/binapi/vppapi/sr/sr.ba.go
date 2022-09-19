@@ -5,7 +5,7 @@
 // Contents:
 //
 //	 2 structs
-//	22 messages
+//	24 messages
 package sr
 
 import (
@@ -25,7 +25,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "sr"
 	APIVersion = "2.0.0"
-	VersionCrc = 0xb17a64be
+	VersionCrc = 0x66d92d1b
 )
 
 // Srv6SidList defines type 'srv6_sid_list'.
@@ -224,6 +224,115 @@ func (m *SrLocalsidsDump) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *SrLocalsidsDump) Unmarshal(b []byte) error {
+	return nil
+}
+
+// SrLocalsidsWithPacketStatsDetails defines message 'sr_localsids_with_packet_stats_details'.
+// InProgress: the message form may change in the future versions
+type SrLocalsidsWithPacketStatsDetails struct {
+	Addr                    ip_types.IP6Address `binapi:"ip6_address,name=addr" json:"addr,omitempty"`
+	EndPsp                  bool                `binapi:"bool,name=end_psp" json:"end_psp,omitempty"`
+	Behavior                sr_types.SrBehavior `binapi:"sr_behavior,name=behavior" json:"behavior,omitempty"`
+	FibTable                uint32              `binapi:"u32,name=fib_table" json:"fib_table,omitempty"`
+	VlanIndex               uint32              `binapi:"u32,name=vlan_index" json:"vlan_index,omitempty"`
+	XconnectNhAddr          ip_types.Address    `binapi:"address,name=xconnect_nh_addr" json:"xconnect_nh_addr,omitempty"`
+	XconnectIfaceOrVrfTable uint32              `binapi:"u32,name=xconnect_iface_or_vrf_table" json:"xconnect_iface_or_vrf_table,omitempty"`
+	GoodTrafficBytes        uint64              `binapi:"u64,name=good_traffic_bytes" json:"good_traffic_bytes,omitempty"`
+	GoodTrafficPktCount     uint64              `binapi:"u64,name=good_traffic_pkt_count" json:"good_traffic_pkt_count,omitempty"`
+	BadTrafficBytes         uint64              `binapi:"u64,name=bad_traffic_bytes" json:"bad_traffic_bytes,omitempty"`
+	BadTrafficPktCount      uint64              `binapi:"u64,name=bad_traffic_pkt_count" json:"bad_traffic_pkt_count,omitempty"`
+}
+
+func (m *SrLocalsidsWithPacketStatsDetails) Reset() { *m = SrLocalsidsWithPacketStatsDetails{} }
+func (*SrLocalsidsWithPacketStatsDetails) GetMessageName() string {
+	return "sr_localsids_with_packet_stats_details"
+}
+func (*SrLocalsidsWithPacketStatsDetails) GetCrcString() string { return "ce0b1ce0" }
+func (*SrLocalsidsWithPacketStatsDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SrLocalsidsWithPacketStatsDetails) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1 * 16 // m.Addr
+	size += 1      // m.EndPsp
+	size += 1      // m.Behavior
+	size += 4      // m.FibTable
+	size += 4      // m.VlanIndex
+	size += 1      // m.XconnectNhAddr.Af
+	size += 1 * 16 // m.XconnectNhAddr.Un
+	size += 4      // m.XconnectIfaceOrVrfTable
+	size += 8      // m.GoodTrafficBytes
+	size += 8      // m.GoodTrafficPktCount
+	size += 8      // m.BadTrafficBytes
+	size += 8      // m.BadTrafficPktCount
+	return size
+}
+func (m *SrLocalsidsWithPacketStatsDetails) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBytes(m.Addr[:], 16)
+	buf.EncodeBool(m.EndPsp)
+	buf.EncodeUint8(uint8(m.Behavior))
+	buf.EncodeUint32(m.FibTable)
+	buf.EncodeUint32(m.VlanIndex)
+	buf.EncodeUint8(uint8(m.XconnectNhAddr.Af))
+	buf.EncodeBytes(m.XconnectNhAddr.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint32(m.XconnectIfaceOrVrfTable)
+	buf.EncodeUint64(m.GoodTrafficBytes)
+	buf.EncodeUint64(m.GoodTrafficPktCount)
+	buf.EncodeUint64(m.BadTrafficBytes)
+	buf.EncodeUint64(m.BadTrafficPktCount)
+	return buf.Bytes(), nil
+}
+func (m *SrLocalsidsWithPacketStatsDetails) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	copy(m.Addr[:], buf.DecodeBytes(16))
+	m.EndPsp = buf.DecodeBool()
+	m.Behavior = sr_types.SrBehavior(buf.DecodeUint8())
+	m.FibTable = buf.DecodeUint32()
+	m.VlanIndex = buf.DecodeUint32()
+	m.XconnectNhAddr.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.XconnectNhAddr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.XconnectIfaceOrVrfTable = buf.DecodeUint32()
+	m.GoodTrafficBytes = buf.DecodeUint64()
+	m.GoodTrafficPktCount = buf.DecodeUint64()
+	m.BadTrafficBytes = buf.DecodeUint64()
+	m.BadTrafficPktCount = buf.DecodeUint64()
+	return nil
+}
+
+// SrLocalsidsWithPacketStatsDump defines message 'sr_localsids_with_packet_stats_dump'.
+// InProgress: the message form may change in the future versions
+type SrLocalsidsWithPacketStatsDump struct{}
+
+func (m *SrLocalsidsWithPacketStatsDump) Reset() { *m = SrLocalsidsWithPacketStatsDump{} }
+func (*SrLocalsidsWithPacketStatsDump) GetMessageName() string {
+	return "sr_localsids_with_packet_stats_dump"
+}
+func (*SrLocalsidsWithPacketStatsDump) GetCrcString() string { return "51077d14" }
+func (*SrLocalsidsWithPacketStatsDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SrLocalsidsWithPacketStatsDump) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *SrLocalsidsWithPacketStatsDump) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *SrLocalsidsWithPacketStatsDump) Unmarshal(b []byte) error {
 	return nil
 }
 
@@ -1036,6 +1145,8 @@ func file_sr_binapi_init() {
 	api.RegisterMessage((*SrLocalsidAddDelReply)(nil), "sr_localsid_add_del_reply_e8d4e804")
 	api.RegisterMessage((*SrLocalsidsDetails)(nil), "sr_localsids_details_2e9221b9")
 	api.RegisterMessage((*SrLocalsidsDump)(nil), "sr_localsids_dump_51077d14")
+	api.RegisterMessage((*SrLocalsidsWithPacketStatsDetails)(nil), "sr_localsids_with_packet_stats_details_ce0b1ce0")
+	api.RegisterMessage((*SrLocalsidsWithPacketStatsDump)(nil), "sr_localsids_with_packet_stats_dump_51077d14")
 	api.RegisterMessage((*SrPoliciesDetails)(nil), "sr_policies_details_db6ff2a1")
 	api.RegisterMessage((*SrPoliciesDump)(nil), "sr_policies_dump_51077d14")
 	api.RegisterMessage((*SrPoliciesWithSlIndexDetails)(nil), "sr_policies_with_sl_index_details_ca2e9bc8")
@@ -1063,6 +1174,8 @@ func AllMessages() []api.Message {
 		(*SrLocalsidAddDelReply)(nil),
 		(*SrLocalsidsDetails)(nil),
 		(*SrLocalsidsDump)(nil),
+		(*SrLocalsidsWithPacketStatsDetails)(nil),
+		(*SrLocalsidsWithPacketStatsDump)(nil),
 		(*SrPoliciesDetails)(nil),
 		(*SrPoliciesDump)(nil),
 		(*SrPoliciesWithSlIndexDetails)(nil),
