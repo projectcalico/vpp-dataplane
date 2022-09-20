@@ -267,7 +267,7 @@ EOF
 	sed "s/^  name: vpp-dev-config/  name: vpp-dev-config\n  namespace: calico-vpp-dataplane/g" | \
 	sed "s/^  name: calico-agent-dev-config/  name: calico-agent-dev-config\n  namespace: calico-vpp-dataplane/g" | \
 	sed "s/^  name: calico-vpp-config/  name: calico-vpp-config\n  namespace: calico-vpp-dataplane/g" | \
-	sudo tee /tmp/calico-vpp.yaml > /dev/null
+	tee /tmp/calico-vpp.yaml > /dev/null
 
   rm kustomization.yaml
 }
