@@ -32,6 +32,12 @@ type PodInterfaceDriverData struct {
 }
 
 func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTxQueues int) (err error) {
+	i.log.WithFields(map[string]interface{}{
+		"swIfIndex":    swIfIndex,
+		"numTxQueues":  numTxQueues,
+		"NDataThreads": i.NDataThreads,
+	}).Debugf("spreading tx queues on workers for interface: %v", i.Name)
+
 	// set first tx queue for main worker
 	err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0 /* queue */, 0 /* worker */)
 	if err != nil {

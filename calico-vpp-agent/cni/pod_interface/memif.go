@@ -20,12 +20,13 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 type MemifPodInterfaceDriver struct {
@@ -80,6 +81,26 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		stack.Push(i.vpp.DeleteMemif, memif.SwIfIndex)
 	}
 	podSpec.MemifSwIfIndex = memif.SwIfIndex
+
+	watcher, err := i.vpp.WatchInterfaceEvents(memif.SwIfIndex)
+	if err != nil {
+		return err
+	} else {
+		stack.Push(watcher.Stop)
+	}
+	go func() {
+		for event := range watcher.Events() {
+			switch event.Type {
+			case types.InterfaceEventLinkUp:
+				err = i.SpreadTxQueuesOnWorkers(memif.SwIfIndex, memif.NumTxQueues)
+				if err != nil {
+					i.log.Error("error spreading tx queues on workers: %v", err)
+				}
+			case types.InterfaceEventDeleted: // this might not be needed here, it could be handled internally in the watcher
+				watcher.Stop()
+			}
+		}
+	}()
 
 	err = i.vpp.SetInterfaceTag(memif.SwIfIndex, podSpec.GetInterfaceTag(i.Name))
 	if err != nil {
