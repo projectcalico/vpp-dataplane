@@ -16,12 +16,13 @@
 package vpplink
 
 import (
+	"os"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	govpp "go.fd.io/govpp"
+	"go.fd.io/govpp"
 	vppapi "go.fd.io/govpp/api"
 	vppcore "go.fd.io/govpp/core"
 )
@@ -31,18 +32,22 @@ const (
 )
 
 type VppLink struct {
-	lock   sync.Mutex
-	conn   *vppcore.Connection
-	ch     vppapi.Channel
-	socket string
-	log    *logrus.Entry
+	lock                   sync.Mutex
+	conn                   *vppcore.Connection
+	ch                     vppapi.Channel
+	socket                 string
+	log                    logrus.FieldLogger
+	pid                    uint32
+	watcherLock            sync.Mutex
+	interfaceEventWatchers []*interfaceEventWatcher
+	stopEvents             func() error
 }
 
 func (v *VppLink) GetChannel() (vppapi.Channel, error) {
 	return v.conn.NewAPIChannel()
 }
 
-func NewVppLink(socket string, logger *logrus.Entry) (*VppLink, error) {
+func NewVppLink(socket string, logger logrus.FieldLogger) (*VppLink, error) {
 	conn, err := govpp.Connect(socket)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot connect to VPP on socket %s", socket)
@@ -53,12 +58,22 @@ func NewVppLink(socket string, logger *logrus.Entry) (*VppLink, error) {
 		return nil, errors.Wrap(err, "channel creation failed")
 	}
 
-	return &VppLink{
+	vppLink := &VppLink{
 		conn:   conn,
 		ch:     ch,
 		socket: socket,
 		log:    logger,
-	}, nil
+		pid:    uint32(os.Getpid()),
+	}
+
+	stopEvents, err := vppLink.watchInterfaceEvents()
+	if err != nil {
+		vppLink.log.Warnf("error watching interface events: %v", err)
+	} else {
+		vppLink.stopEvents = stopEvents
+	}
+
+	return vppLink, nil
 }
 
 func (v *VppLink) Reconnect() (err error) {
@@ -76,6 +91,9 @@ func (v *VppLink) Reconnect() (err error) {
 func (v *VppLink) Close() {
 	if v == nil {
 		return
+	}
+	if v.stopEvents != nil {
+		_ = v.stopEvents()
 	}
 	if v.ch != nil {
 		v.ch.Close()

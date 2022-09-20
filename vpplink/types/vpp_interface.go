@@ -22,6 +22,8 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
+
+	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 )
 
@@ -170,4 +172,34 @@ func FormatRxMode(rxMode RxMode) string {
 	default:
 		return "default"
 	}
+}
+
+type InterfaceEventType int
+
+const (
+	InterfaceEventUnknown InterfaceEventType = iota
+	InterfaceEventAdminUp
+	InterfaceEventLinkUp
+	InterfaceEventDeleted
+)
+
+type InterfaceEvent struct {
+	SwIfIndex uint32
+	Type      InterfaceEventType
+}
+
+func ToInterfaceEvent(e *interfaces.SwInterfaceEvent) InterfaceEvent {
+	event := InterfaceEvent{
+		SwIfIndex: uint32(e.SwIfIndex),
+		Type:      InterfaceEventUnknown,
+	}
+	switch {
+	case e.Deleted:
+		event.Type = InterfaceEventDeleted
+	case e.Flags&interface_types.IF_STATUS_API_FLAG_LINK_UP != 0:
+		event.Type = InterfaceEventLinkUp
+	case e.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP != 0:
+		event.Type = InterfaceEventAdminUp
+	}
+	return event
 }

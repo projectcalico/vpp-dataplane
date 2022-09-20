@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"go.fd.io/govpp/api"
 
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/gso"
 	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface"
@@ -673,4 +674,141 @@ func (v *VppLink) DeleteLoopback(swIfIndex uint32) (err error) {
 		return errors.Wrapf(err, "Error deleting loopback: req %+v reply %+v", request, response)
 	}
 	return nil
+}
+
+func (v *VppLink) enableInterfaceEvents() (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	request := &interfaces.WantInterfaceEvents{
+		EnableDisable: 1,
+		PID:           v.pid,
+	}
+	response := &interfaces.WantInterfaceEventsReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return errors.Wrapf(err, "Error deleting loopback: req %+v reply %+v", request, response)
+	}
+	return nil
+}
+
+func (v *VppLink) disableInterfaceEvents() (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	request := &interfaces.WantInterfaceEvents{
+		EnableDisable: 0,
+		PID:           v.pid,
+	}
+	response := &interfaces.WantInterfaceEventsReply{}
+	err = v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil || response.Retval != 0 {
+		return errors.Wrapf(err, "Error deleting loopback: req %+v reply %+v", request, response)
+	}
+	return nil
+}
+
+// watchInterfaceEvents handles interface event subscription and dispatches incoming events to watchers
+func (v *VppLink) watchInterfaceEvents() (func() error, error) {
+	notifChan := make(chan api.Message, 100)
+
+	// subscribe for specific notification message
+	sub, err := v.ch.SubscribeNotification(notifChan, &interfaces.SwInterfaceEvent{})
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error subscribing to interface events")
+	}
+
+	if err := v.enableInterfaceEvents(); err != nil {
+		return nil, errors.Wrapf(err, "Error enabling interface events")
+	}
+
+	// process incoming notifications
+	go func() {
+		for notif := range notifChan {
+			e, ok := notif.(*interfaces.SwInterfaceEvent)
+			if !ok {
+				continue
+			}
+			v.log.Debugf("incoming interface event: %+v\n", e)
+			event := types.ToInterfaceEvent(e)
+			v.watcherLock.Lock()
+			for _, watcher := range v.interfaceEventWatchers {
+				if watcher.swIfIndex != uint32(e.SwIfIndex) {
+					continue
+				}
+				select {
+				case watcher.events <- event:
+					// push event
+				default:
+					v.log.Debugf("interface event channel busy, dropping event")
+				}
+			}
+			v.watcherLock.Unlock()
+		}
+	}()
+
+	stop := func() error {
+		if err := v.disableInterfaceEvents(); err != nil {
+			return errors.Wrapf(err, "Error disabling interface events")
+		}
+
+		// unsubscribe from delivery of the notifications
+		if err := sub.Unsubscribe(); err != nil {
+			return errors.Wrapf(err, "Error unsubscribing from interface events")
+		}
+
+		return nil
+	}
+
+	return stop, nil
+}
+
+type InterfaceEventWatcher interface {
+	Stop()
+	Events() <-chan types.InterfaceEvent
+}
+
+// WatchInterfaceEvents starts a watcher of interface events for specific swIfIndex,
+// it returns InterfaceEventWatcher or error if any.
+func (v *VppLink) WatchInterfaceEvents(swIfIndex uint32) (InterfaceEventWatcher, error) {
+	w := &interfaceEventWatcher{
+		swIfIndex: swIfIndex,
+		stop:      make(chan struct{}),
+		events:    make(chan types.InterfaceEvent, 10),
+	}
+	v.watcherLock.Lock()
+	v.interfaceEventWatchers = append(v.interfaceEventWatchers, w)
+	v.watcherLock.Unlock()
+	go func() {
+		// wait for stop
+		<-w.stop
+		v.watcherLock.Lock()
+		for i, item := range v.interfaceEventWatchers {
+			if item == w {
+				// close event channel
+				close(v.interfaceEventWatchers[i].events)
+				// remove i-th item in the slice
+				v.interfaceEventWatchers = append(v.interfaceEventWatchers[:i], v.interfaceEventWatchers[i+1:]...)
+				break
+			}
+		}
+		v.watcherLock.Unlock()
+	}()
+	return w, nil
+}
+
+type interfaceEventWatcher struct {
+	swIfIndex uint32
+	stop      chan struct{}
+	events    chan types.InterfaceEvent
+}
+
+func (i *interfaceEventWatcher) Stop() {
+	if i.stop == nil {
+		return
+	}
+	close(i.stop)
+	i.stop = nil
+}
+
+func (i *interfaceEventWatcher) Events() <-chan types.InterfaceEvent {
+	return i.events
 }
