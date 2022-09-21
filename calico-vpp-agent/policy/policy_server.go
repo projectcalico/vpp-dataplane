@@ -1102,7 +1102,6 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate, pending bool) (
 		Type: common.IpamPoolUpdate,
 		New:  msg,
 	})
-	s.log.Debugf("Ignoring IpamPoolUpdate")
 	return nil
 }
 
@@ -1111,7 +1110,6 @@ func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove, pending bool) (
 		Type: common.IpamPoolRemove,
 		Old:  msg,
 	})
-	s.log.Debugf("Ignoring IpamPoolRemove")
 	return nil
 }
 

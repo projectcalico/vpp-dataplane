@@ -34,6 +34,7 @@ import (
 	"github.com/projectcalico/calico/felix/config"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
+	"github.com/projectcalico/calico/libcalico-go/lib/backend/encap"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	agentConf "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/connectivity"
@@ -194,7 +195,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					Id: fmt.Sprintf("custom-test-pool-for-ipsec-%s", AddedNodeIP+"/24"),
 					Pool: &proto.IPAMPool{
 						Cidr:     AddedNodeIP + "/24",
-						IpipMode: apiv3.IPIPModeAlways,
+						IpipMode: encap.Always,
 					},
 				})
 
@@ -334,7 +335,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					Id: fmt.Sprintf("custom-test-pool-for-vxlan-%s", AddedNodeIP+"/24"),
 					Pool: &proto.IPAMPool{
 						Cidr:      AddedNodeIP + "/24",
-						VxlanMode: apiv3.VXLANModeAlways,
+						VxlanMode: encap.Always,
 					},
 				})
 
@@ -438,7 +439,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					Id: fmt.Sprintf("custom-test-pool-for-ipip-%s", AddedNodeIP+"/24"),
 					Pool: &proto.IPAMPool{
 						Cidr:     AddedNodeIP + "/24",
-						IpipMode: apiv3.IPIPModeAlways,
+						IpipMode: encap.Always,
 					},
 				})
 

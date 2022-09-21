@@ -58,7 +58,7 @@ func equalPools(a *proto.IPAMPoolUpdate, b *proto.IPAMPoolUpdate) bool {
 }
 
 type IpamCache interface {
-	GetPrefixIPPool(*net.IPNet) *proto.IPAMPoolUpdate
+	GetPrefixIPPool(*net.IPNet) *proto.IPAMPool
 	SyncIPAM(t *tomb.Tomb) error
 	WaitReady()
 	IPNetNeedsSNAT(prefix *net.IPNet) bool
@@ -84,7 +84,8 @@ func (c *ipamCache) ForceReady() {
 
 // match checks whether we have an IP pool which contains the given prefix.
 // If we have, it returns the pool.
-func (c *ipamCache) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPoolUpdate {
+func (c *ipamCache) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool {
+	c.log.Infof("MSGMSG: %+v", c.ippoolmap)
 	if !c.ready {
 		c.readyCond.L.Lock()
 		for !c.ready {
@@ -101,7 +102,7 @@ func (c *ipamCache) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPoolUpdate {
 			continue
 		}
 		if in {
-			return &pool
+			return pool.Pool
 		}
 	}
 	c.log.Warnf("No pool found: for %s", prefix)
@@ -116,7 +117,7 @@ func (c *ipamCache) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 	if pool == nil {
 		return false
 	} else {
-		return pool.Pool.Masquerade
+		return pool.Masquerade
 	}
 
 }

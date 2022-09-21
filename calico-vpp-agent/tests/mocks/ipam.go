@@ -35,11 +35,11 @@ func NewIpamCacheStub() *IpamCacheStub {
 
 // GetPrefixIPPool returns cached IPPools for given prefixes for testing purposes. If no such IPPool exists,
 // it is created. This function never runs out of IPPools
-func (s *IpamCacheStub) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPoolUpdate {
+func (s *IpamCacheStub) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool {
 	// get cached IPPool
 	ipPool, found := s.ipPools[prefix.String()]
 	if found {
-		return ipPool
+		return ipPool.Pool
 	}
 
 	// create new IPPool and cache it
@@ -58,7 +58,7 @@ func (s *IpamCacheStub) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPoolUpdate
 		},
 	}*/
 	s.ipPools[prefix.String()] = ipPool
-	return ipPool
+	return ipPool.Pool
 }
 
 func (s *IpamCacheStub) SyncIPAM(t *tomb.Tomb) error {
