@@ -18,12 +18,11 @@ package connectivity
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/pkg/errors"
-	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/calico/libcalico-go/lib/backend/encap"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
 	tomb "gopkg.in/tomb.v2"
@@ -271,7 +270,7 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 	if ipPool == nil {
 		return FLAT, nil
 	}
-	if strings.ToLower(ipPool.Pool.IpipMode) == strings.ToLower(string(calicov3.IPIPModeAlways)) {
+	if ipPool.IpipMode == string(encap.Always) {
 		if s.providers[IPSEC].Enabled(cn) {
 			return IPSEC, nil
 		} else if s.providers[WIREGUARD].Enabled(cn) {
@@ -281,7 +280,7 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 		}
 	}
 	ipNet := s.GetNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
-	if strings.ToLower(ipPool.Pool.IpipMode) == strings.ToLower(string(calicov3.IPIPModeCrossSubnet)) {
+	if ipPool.IpipMode == string(encap.CrossSubnet) {
 		if ipNet == nil {
 			return FLAT, fmt.Errorf("missing node IPnet")
 		}
@@ -295,13 +294,13 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 			}
 		}
 	}
-	if strings.ToLower(ipPool.Pool.VxlanMode) == strings.ToLower(string(calicov3.VXLANModeAlways)) {
+	if ipPool.VxlanMode == string(encap.Always) {
 		if s.providers[WIREGUARD].Enabled(cn) {
 			return WIREGUARD, nil
 		}
 		return VXLAN, nil
 	}
-	if strings.ToLower(ipPool.Pool.VxlanMode) == strings.ToLower(string(calicov3.VXLANModeCrossSubnet)) {
+	if ipPool.VxlanMode == string(encap.CrossSubnet) {
 		if ipNet == nil {
 			return FLAT, fmt.Errorf("missing node IPnet")
 		}

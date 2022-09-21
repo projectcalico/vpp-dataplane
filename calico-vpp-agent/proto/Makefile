@@ -1,6 +1,6 @@
 
-FELIX_VERSION ?= v3.23.0
-CNI_PLUGIN_VERSION ?= v3.23.0
+FELIX_VERSION ?= master
+CNI_PLUGIN_VERSION ?= master
 PROTOC_VERSION = 3.17.3
 
 FELIX_REPO = https://raw.githubusercontent.com/projectcalico/calico/$(FELIX_VERSION)/felix
