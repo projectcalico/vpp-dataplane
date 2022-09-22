@@ -15,10 +15,13 @@ package cni_test
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/base64"
 	"fmt"
 	"math"
 	"net"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -96,7 +99,11 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						InterfaceName: interfaceName,
 						Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
 						ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
-						Workload:      &proto.WorkloadIDs{},
+						Workload: &proto.WorkloadIDs{
+							Annotations: map[string]string{
+								"cni.projectcalico.org/allowedSourcePrefixes": "[\"172.16.104.7\", \"3.4.5.6\"]",
+							},
+						},
 					}
 					common.VppManagerInfo = &vppmanagerconfig.VppManagerInfo{}
 					reply, err := cniServer.Add(context.Background(), newPod)
@@ -126,6 +133,12 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						_, err := netlink.LinkByName(interfaceName)
 						Expect(err).ToNot(HaveOccurred(), "can't find tun interface in pod")
 					})
+
+					By("Checking created pod RPF VRF")
+					RPFVRF := assertRPFVRFExistence(vpp, interfaceName, newPod.Netns)
+
+					By("Checking RPF routes are added")
+					assertRPFRoutes(vpp, RPFVRF, ifSwIfIndex, ipAddress)
 				})
 			})
 
@@ -481,6 +494,64 @@ func assertInterfaceGSO(swIfIndex uint32, interfaceDescriptiveName string, vpp *
 		Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
 			"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
 	}
+}
+
+// assertRPFVRFExistence checks that dedicated VRF for RPF is created for interface in VPP
+func assertRPFVRFExistence(vpp *vpplink.VppLink, interfaceName string, netnsName string) uint32 {
+	VRFs, err := vpp.ListVRFs()
+	Expect(err).ShouldNot(HaveOccurred(),
+		"Failed to retrieve list of VRFs in VPP")
+	hbytes := sha512.Sum512([]byte(fmt.Sprintf("%s%s%s%s", "4", netnsName, interfaceName, "RPF")))
+	h := base64.StdEncoding.EncodeToString(hbytes[:])[:storage.VrfTagHashLen]
+	s := fmt.Sprintf("%s-%s-%s-%s", h, "4", interfaceName, filepath.Base(netnsName))
+	vrfTag := storage.TruncateStr(s, storage.MaxApiTagLen)
+	foundRPFVRF := false
+	var vrfID uint32
+	for _, VRF := range VRFs {
+		if VRF.Name == vrfTag {
+			foundRPFVRF = true
+			vrfID = VRF.VrfID
+			break
+		}
+	}
+	Expect(foundRPFVRF).Should(BeTrue(),
+		"Failed to find RPF VRF for interface")
+	return vrfID
+}
+
+// assertRPFRoutes checks that a route to the pod is added in the RPFVRF and to addresses allowed
+// to be spoofed
+func assertRPFRoutes(vpp *vpplink.VppLink, vrfID uint32, swifindex uint32, ipAddress string) {
+	routes, err := vpp.GetRoutes(vrfID, false)
+	Expect(err).ShouldNot(HaveOccurred(),
+		"Failed to get routes from RPF VRF")
+	Expect(routes).To(ContainElements(
+		types.Route{
+			Dst: ipNet(ipAddress + "/32"),
+			Paths: []types.RoutePath{{
+				SwIfIndex: swifindex,
+				Gw:        ipNet(ipAddress + "/32").IP,
+			}},
+			Table: vrfID,
+		},
+		types.Route{
+			Dst: ipNet("172.16.104.7" + "/32"),
+			Paths: []types.RoutePath{{
+				SwIfIndex: swifindex,
+				Gw:        ipNet(ipAddress + "/32").IP,
+			}},
+			Table: vrfID,
+		},
+		types.Route{
+			Dst: ipNet("3.4.5.6" + "/32"),
+			Paths: []types.RoutePath{{
+				SwIfIndex: swifindex,
+				Gw:        ipNet(ipAddress + "/32").IP,
+			}},
+			Table: vrfID,
+		},
+	), "Cannot find route to pod in RPF VRF %s", ipAddress)
+
 }
 
 // createPod creates docker container that will be used as pod for CNI testing
