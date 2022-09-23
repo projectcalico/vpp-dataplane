@@ -185,7 +185,7 @@ func (m *WantWireguardPeerEventsReply) Unmarshal(b []byte) error {
 // WgSetAsyncMode defines message 'wg_set_async_mode'.
 // InProgress: the message form may change in the future versions
 type WgSetAsyncMode struct {
-	AsyncEnable bool `binapi:"bool,name=async_enable" json:"async_enable,omitempty"`
+	AsyncEnable bool `binapi:"bool,name=async_enable,default=false" json:"async_enable,omitempty"`
 }
 
 func (m *WgSetAsyncMode) Reset()               { *m = WgSetAsyncMode{} }

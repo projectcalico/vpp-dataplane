@@ -11,22 +11,19 @@ RUN apt-get update \
 	libconfuse-dev git-review exuberant-ctags cscope pkg-config \
 	lcov chrpath autoconf libnuma-dev \
 	python3-all python3-setuptools check \
-	libffi-dev python3-ply libmbedtls-dev \
+	libffi-dev python3-ply \
 	cmake ninja-build uuid-dev python3-jsonschema python3-yaml \
 	python3-venv \
-	python3-dev \
-	libnl-3-dev libnl-route-3-dev \
-	enchant \
+	python3-dev python3-pip \
+	libnl-3-dev libnl-route-3-dev libmnl-dev \
 	python3-virtualenv \
 	libssl-dev \
 	libelf-dev \
-	clang-11 clang-format-11 clang-format-10 \
-	enchant-2 \
-	libffi7 \
-	libmnl0 \
-	libiperf0 \
 	iperf3 \
-	libmnl-dev
+	nasm \
+	clang clang-format-11 \
+	enchant-2 \
+	libffi7
 
 WORKDIR /
 

@@ -27,31 +27,31 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "urpf"
 	APIVersion = "1.0.0"
-	VersionCrc = 0xa015d999
+	VersionCrc = 0xd0c7b3c9
 )
 
 // UrpfMode defines enum 'urpf_mode'.
 type UrpfMode uint8
 
 const (
-	URPF_API_MODE_OFF        UrpfMode = 1
-	URPF_API_MODE_LOOSE      UrpfMode = 2
-	URPF_API_MODE_STRICT     UrpfMode = 3
-	URPF_API_MODE_CUSTOM_VRF UrpfMode = 4
+	URPF_API_MODE_OFF        UrpfMode = 0
+	URPF_API_MODE_LOOSE      UrpfMode = 1
+	URPF_API_MODE_STRICT     UrpfMode = 2
+	URPF_API_MODE_CUSTOM_VRF UrpfMode = 3
 )
 
 var (
 	UrpfMode_name = map[uint8]string{
-		1: "URPF_API_MODE_OFF",
-		2: "URPF_API_MODE_LOOSE",
-		3: "URPF_API_MODE_STRICT",
-		4: "URPF_API_MODE_CUSTOM_VRF",
+		0: "URPF_API_MODE_OFF",
+		1: "URPF_API_MODE_LOOSE",
+		2: "URPF_API_MODE_STRICT",
+		3: "URPF_API_MODE_CUSTOM_VRF",
 	}
 	UrpfMode_value = map[string]uint8{
-		"URPF_API_MODE_OFF":        1,
-		"URPF_API_MODE_LOOSE":      2,
-		"URPF_API_MODE_STRICT":     3,
-		"URPF_API_MODE_CUSTOM_VRF": 4,
+		"URPF_API_MODE_OFF":        0,
+		"URPF_API_MODE_LOOSE":      1,
+		"URPF_API_MODE_STRICT":     2,
+		"URPF_API_MODE_CUSTOM_VRF": 3,
 	}
 )
 
@@ -73,7 +73,7 @@ type UrpfUpdate struct {
 
 func (m *UrpfUpdate) Reset()               { *m = UrpfUpdate{} }
 func (*UrpfUpdate) GetMessageName() string { return "urpf_update" }
-func (*UrpfUpdate) GetCrcString() string   { return "2bf8a77c" }
+func (*UrpfUpdate) GetCrcString() string   { return "cc274cd1" }
 func (*UrpfUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -152,7 +152,7 @@ type UrpfUpdateV2 struct {
 
 func (m *UrpfUpdateV2) Reset()               { *m = UrpfUpdateV2{} }
 func (*UrpfUpdateV2) GetMessageName() string { return "urpf_update_v2" }
-func (*UrpfUpdateV2) GetCrcString() string   { return "5fac3b85" }
+func (*UrpfUpdateV2) GetCrcString() string   { return "b873d028" }
 func (*UrpfUpdateV2) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -225,9 +225,9 @@ func (m *UrpfUpdateV2Reply) Unmarshal(b []byte) error {
 
 func init() { file_urpf_binapi_init() }
 func file_urpf_binapi_init() {
-	api.RegisterMessage((*UrpfUpdate)(nil), "urpf_update_2bf8a77c")
+	api.RegisterMessage((*UrpfUpdate)(nil), "urpf_update_cc274cd1")
 	api.RegisterMessage((*UrpfUpdateReply)(nil), "urpf_update_reply_e8d4e804")
-	api.RegisterMessage((*UrpfUpdateV2)(nil), "urpf_update_v2_5fac3b85")
+	api.RegisterMessage((*UrpfUpdateV2)(nil), "urpf_update_v2_b873d028")
 	api.RegisterMessage((*UrpfUpdateV2Reply)(nil), "urpf_update_v2_reply_e8d4e804")
 }
 
