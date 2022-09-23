@@ -89,7 +89,7 @@ configure_dpdk_interrupt_mode_support ()
 {
 	# download and build and install the vfio-pci driver with wc support
 	# for ENAv2
-	cd $BUILD_DIR
+	mkdir $BUILD_DIR && cd $BUILD_DIR
 	git clone https://github.com/amzn/amzn-drivers.git
 	cd amzn-drivers/userspace/dpdk/enav2-vfio-patch
 	./get-vfio-with-wc.sh
@@ -113,11 +113,17 @@ EOF
 configure_machine ()
 {
 	sudo rm -f /etc/cni/net.d/10-aws.conflist
-	sudo modprobe uio
-	if [ x$(lsmod | awk '{ print $1 }' | grep igb_uio) == x ]; then
-		build_and_install_igb_uio
-		sudo insmod /lib/modules/$(uname -r)/kernel/drivers/uio/igb_uio.ko wc_activate=1
-	fi
+
+	# 23/Sep/2022
+	# onong: commenting out the igb_uio portion as we no longer support it
+	# but not removing the code outright as of now just in case we need it
+	# for debugging purposes. In case you are interested in igb_uio,
+	# uncomment the following 5 lines and adjust DPDK_VERSION appropriately
+	#sudo modprobe uio
+	#if [ x$(lsmod | awk '{ print $1 }' | grep igb_uio) == x ]; then
+		#build_and_install_igb_uio
+		#sudo insmod /lib/modules/$(uname -r)/kernel/drivers/uio/igb_uio.ko wc_activate=1
+	#fi
 
 	# configure hugepages and persist the config across reboots
 	sudo sysctl -w vm.nr_hugepages=${HUGEPAGES}
@@ -126,7 +132,7 @@ configure_machine ()
 	fi
 	echo "vm.nr_hugepages=${HUGEPAGES}" >> /etc/sysctl.conf
 	systemctl restart kubelet
+	configure_dpdk_interrupt_mode_support
 }
 
 configure_machine
-configure_dpdk_interrupt_mode_support
