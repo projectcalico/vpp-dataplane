@@ -58,8 +58,8 @@ type Server struct {
 	vclDriver      *pod_interface.VclPodInterfaceDriver
 	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
 
-	availableBuffers    uint64
-	buffersNeededPerTap uint64
+	availableBuffers int
+	buffersNeeded    int
 
 	networkDefinitions   map[string]*watchers.NetworkDefinition
 	cniMultinetEventChan chan common.CalicoVppEvent
@@ -104,8 +104,10 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		HostPorts:      make([]storage.HostPortBinding, 0),
 
 		/* defaults */
-		MemifIsL3:  false,
-		TunTapIsL3: true,
+		MemifIfSpec:             GetDefaultIfSpec(false),
+		HasSpecificMemifIfSpec:  false,
+		TunTapIfSpec:            GetDefaultIfSpec(true),
+		HasSpecificTunTapIfSpec: false,
 
 		V4VrfId: vpplink.InvalidID,
 		V6VrfId: vpplink.InvalidID,
@@ -258,13 +260,7 @@ func (s *Server) fetchBufferConfig() {
 	if err != nil {
 		s.log.WithError(err).Errorf("could not get available buffers")
 	}
-	s.availableBuffers = uint64(availableBuffers)
-
-	numRxQueues := config.TapNumRxQueues
-	numTxQueues := config.TapNumTxQueues
-	rxQueueSize := vpplink.DefaultIntTo(config.TapRxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
-	txQueueSize := vpplink.DefaultIntTo(config.TapTxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
-	s.buffersNeededPerTap = uint64(rxQueueSize*numRxQueues + txQueueSize*numTxQueues)
+	s.availableBuffers = int(availableBuffers)
 }
 
 func (s *Server) rescanState() {

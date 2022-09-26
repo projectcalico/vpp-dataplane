@@ -16,6 +16,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -37,6 +38,7 @@ const (
 	CniServerStateFile     = "/var/run/vpp/calico_vpp_pod_state"
 
 	NodeNameEnvVar             = "NODENAME"
+	DefaultInterfaceSpecEnvVar = "DEFAULT_INTERFACE_SPEC"
 	TapNumRxQueuesEnvVar       = "CALICOVPP_TAP_RX_QUEUES"
 	TapNumTxQueuesEnvVar       = "CALICOVPP_TAP_TX_QUEUES"
 	MemifEnabledEnvVar         = "CALICOVPP_ENABLE_MEMIF"
@@ -70,8 +72,6 @@ const (
 )
 
 var (
-	TapNumRxQueues = 1
-	TapNumTxQueues = 1
 	/* disable by default as it might impact security */
 	MultinetEnabled = false
 	/* disable by default as it might impact security */
@@ -92,8 +92,6 @@ var (
 	LogLevel                 = logrus.InfoLevel
 	NodeName                 = ""
 	ServiceCIDRs             []*net.IPNet
-	TapRxQueueSize           int = 0
-	TapTxQueueSize           int = 0
 	UserSpecifiedMtu         int = 0
 	IpsecNbAsyncCryptoThread int = 0
 	SRv6policyIPPool             = ""
@@ -104,10 +102,19 @@ var (
 	EndpointToHostAction      string = ""
 
 	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
+
+	DefaultInterfaceSpec InterfaceSpec = InterfaceSpec{NumRxQueues: 1, NumTxQueues: 1, RxQueueSize: 0, TxQueueSize: 0}
 )
 
+type InterfaceSpec struct {
+	NumRxQueues int  `json:"rx"`
+	NumTxQueues int  `json:"tx"`
+	RxQueueSize int  `json:"rxqsz"`
+	TxQueueSize int  `json:"txqsz"`
+	IsL3        bool `json:"isl3"`
+}
+
 func PrintAgentConfig(log *logrus.Logger) {
-	log.Infof("Config:TapNumRxQueues    %d", TapNumRxQueues)
 	log.Infof("Config:MultinetEnabled   %t", MultinetEnabled)
 	log.Infof("Config:MemifEnabled      %t", MemifEnabled)
 	log.Infof("Config:VCLEnabled        %t", VCLEnabled)
@@ -150,20 +157,11 @@ func LoadConfig(log *logrus.Logger) (err error) {
 
 	NodeName = getEnvValue(NodeNameEnvVar)
 
-	if conf := getEnvValue(TapNumRxQueuesEnvVar); conf != "" {
-		queues, err := strconv.ParseInt(conf, 10, 16)
-		if err != nil || queues <= 0 {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", TapNumRxQueuesEnvVar, conf, queues, err)
+	if conf := getEnvValue(DefaultInterfaceSpecEnvVar); conf != "" {
+		err := json.Unmarshal([]byte(conf), &DefaultInterfaceSpec)
+		if err != nil {
+			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", DefaultInterfaceSpecEnvVar, conf, err)
 		}
-		TapNumRxQueues = int(queues)
-	}
-
-	if conf := getEnvValue(TapNumTxQueuesEnvVar); conf != "" {
-		queues, err := strconv.ParseInt(conf, 10, 16)
-		if err != nil || queues <= 0 {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %d err %v", TapNumTxQueuesEnvVar, conf, queues, err)
-		}
-		TapNumTxQueues = int(queues)
 	}
 
 	if conf := getEnvValue(VCLEnabledEnvVar); conf != "" {
@@ -252,31 +250,6 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", IpsecNbAsyncCryptoThEnvVar, conf, ipsecNbAsyncCryptoThread, err)
 		}
 		IpsecNbAsyncCryptoThread = int(ipsecNbAsyncCryptoThread)
-	}
-
-	if conf := getEnvValue(TapQueueSizeEnvVar); conf != "" {
-		sizes := strings.Split(conf, ",")
-		if len(sizes) == 1 {
-			sz, err := strconv.ParseInt(sizes[0], 10, 32)
-			if err != nil {
-				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapQueueSizeEnvVar, conf, sz, err)
-			}
-			TapRxQueueSize = int(sz)
-			TapTxQueueSize = int(sz)
-		} else if len(sizes) == 2 {
-			sz, err := strconv.ParseInt(sizes[0], 10, 32)
-			if err != nil {
-				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapQueueSizeEnvVar, conf, sz, err)
-			}
-			TapRxQueueSize = int(sz)
-			sz, err = strconv.ParseInt(sizes[1], 10, 32)
-			if err != nil {
-				return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapQueueSizeEnvVar, conf, sz, err)
-			}
-			TapTxQueueSize = int(sz)
-		} else {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", TapQueueSizeEnvVar, conf, sizes, err)
-		}
 	}
 
 	if conf := getEnvValue(UserSpecifiedMtuEnvVar); conf != "" {

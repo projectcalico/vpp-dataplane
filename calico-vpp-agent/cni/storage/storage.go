@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 7  // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 8  // Used to ensure compatibility wen we reload data
 	MaxApiTagLen              = 63 /* No more than 64 characters in API tags */
 	VrfTagHashLen             = 8  /* how many hash charatecters (b64) of the name in tag prefix (useful when trucated) */
 )
@@ -146,7 +146,7 @@ func (ps *LocalPodSpec) FullString() string {
 	s += fmt.Sprintf("DefaultIfType:      %s\n", ps.DefaultIfType.String())
 	s += fmt.Sprintf("EnableVCL:          %t\n", ps.EnableVCL)
 	s += fmt.Sprintf("EnableMemif:        %t\n", ps.EnableMemif)
-	s += fmt.Sprintf("MemifIsL3:          %t\n", ps.MemifIsL3)
+	s += fmt.Sprintf("MemifIsL3:          %t\n", ps.MemifIfSpec.IsL3)
 	s += fmt.Sprintf("MemifSocketId:      %d\n", ps.MemifSocketId)
 	s += fmt.Sprintf("TunTapSwIfIndex:    %d\n", ps.TunTapSwIfIndex)
 	s += fmt.Sprintf("MemifSwIfIndex:     %d\n", ps.MemifSwIfIndex)
@@ -160,12 +160,20 @@ func (ps *LocalPodSpec) FullString() string {
 func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex uint32, isL3 bool) {
 	switch ifType {
 	case VppIfTypeTunTap:
-		return ps.TunTapSwIfIndex, ps.TunTapIsL3
+		if ps.HasSpecificTunTapIfSpec {
+			return ps.TunTapSwIfIndex, ps.TunTapIfSpec.IsL3
+		} else {
+			return ps.TunTapSwIfIndex, config.DefaultInterfaceSpec.IsL3
+		}
 	case VppIfTypeMemif:
 		if !config.MemifEnabled {
 			return types.InvalidID, true
 		}
-		return ps.MemifSwIfIndex, ps.MemifIsL3
+		if ps.HasSpecificMemifIfSpec {
+			return ps.MemifSwIfIndex, ps.MemifIfSpec.IsL3
+		} else {
+			return ps.MemifSwIfIndex, config.DefaultInterfaceSpec.IsL3
+		}
 	default:
 		return types.InvalidID, true
 	}
@@ -214,8 +222,11 @@ type LocalPodSpec struct {
 	DefaultIfType VppInterfaceType
 	EnableVCL     bool
 	EnableMemif   bool
-	MemifIsL3     bool
-	TunTapIsL3    bool
+
+	HasSpecificMemifIfSpec  bool
+	MemifIfSpec             config.InterfaceSpec
+	HasSpecificTunTapIfSpec bool
+	TunTapIfSpec            config.InterfaceSpec
 
 	/**
 	 * Below are VPP internal ids, mutable fields in AddVppInterface

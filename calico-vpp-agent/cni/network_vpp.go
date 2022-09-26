@@ -42,14 +42,39 @@ type NetworkPod struct {
 	ContainerIP *net.IPNet
 }
 
-func (s *Server) checkAvailableBuffers() error {
+func calculateBuffersNeededForInterface(ifSpec config.InterfaceSpec) int {
+	return ifSpec.NumRxQueues*vpplink.DefaultIntTo(ifSpec.RxQueueSize, vpplink.DEFAULT_QUEUE_SIZE) +
+		ifSpec.NumTxQueues*vpplink.DefaultIntTo(ifSpec.TxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
+}
+
+func calculateBuffersNeededForPod(podSpec *storage.LocalPodSpec) int {
+	var buffersNeededForThisPod int
+	if podSpec.NetworkName == "" || !podSpec.EnableMemif {
+		if podSpec.HasSpecificTunTapIfSpec {
+			buffersNeededForThisPod += calculateBuffersNeededForInterface(podSpec.TunTapIfSpec)
+		} else {
+			buffersNeededForThisPod += calculateBuffersNeededForInterface(config.DefaultInterfaceSpec)
+		}
+	}
+	if podSpec.EnableMemif && config.MemifEnabled {
+		if podSpec.HasSpecificMemifIfSpec {
+			buffersNeededForThisPod += calculateBuffersNeededForInterface(podSpec.MemifIfSpec)
+		} else {
+			buffersNeededForThisPod += calculateBuffersNeededForInterface(config.DefaultInterfaceSpec)
+		}
+	}
+	return buffersNeededForThisPod
+}
+
+func (s *Server) checkAvailableBuffers(podSpec *storage.LocalPodSpec) error {
+	buffersNeededForThisPod := calculateBuffersNeededForPod(podSpec)
 	existingPods := uint64(len(s.podInterfaceMap))
-	buffersNeeded := (existingPods + 1) * s.buffersNeededPerTap
-	s.log.Infof("pod(add) checking available buffers, %d existing pods, request %d / %d", existingPods, buffersNeeded, s.availableBuffers)
-	if buffersNeeded > s.availableBuffers {
+	s.buffersNeeded += buffersNeededForThisPod
+	s.log.Infof("pod(add) checking available buffers, %d existing pods, request for this pod: %d, total request: %d / %d", existingPods, buffersNeededForThisPod, s.buffersNeeded, s.availableBuffers)
+	if s.buffersNeeded > s.availableBuffers {
 		return errors.Errorf("Cannot create interface: Out of buffers: available buffers = %d, buffers needed = %d. "+
 			"Increase buffers-per-numa in the VPP configuration or reduce CALICOVPP_TAP_RING_SIZE to allow more "+
-			"pods to be scheduled. Limit the number of pods per node to prevent this error", s.availableBuffers, buffersNeeded)
+			"pods to be scheduled. Limit the number of pods per node to prevent this error", s.availableBuffers, s.buffersNeeded)
 	}
 	return nil
 }
@@ -153,7 +178,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	stack := s.vpp.NewCleanupStack()
 	var vni uint32
-	err = s.checkAvailableBuffers()
+	err = s.checkAvailableBuffers(podSpec)
 	if err != nil {
 		goto err
 	}
@@ -350,4 +375,7 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 		Type: common.PodDeleted,
 		Old:  podSpec,
 	})
+	buffersNeededForThisPod := calculateBuffersNeededForPod(podSpec)
+	s.buffersNeeded -= buffersNeededForThisPod
+	s.log.Infof("pod(del) %d buffers are now free", buffersNeededForThisPod)
 }
