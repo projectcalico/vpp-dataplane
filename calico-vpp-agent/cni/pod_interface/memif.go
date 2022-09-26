@@ -65,12 +65,12 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	memif := &types.Memif{
 		Role:        types.MemifMaster,
 		Mode:        types.MemifModeEthernet,
-		NumRxQueues: config.TapNumRxQueues, // FIXME using tap setting for memif can limit memif functionality at best, break something in worst case
-		NumTxQueues: config.TapNumTxQueues,
-		QueueSize:   config.TapRxQueueSize,
+		NumRxQueues: podSpec.MemifIfSpec.NumRxQueues, // FIXME using tap setting for memif can limit memif functionality at best, break something in worst case
+		NumTxQueues: podSpec.MemifIfSpec.NumTxQueues,
+		QueueSize:   podSpec.MemifIfSpec.RxQueueSize,
 		SocketId:    socketId,
 	}
-	if podSpec.MemifIsL3 {
+	if podSpec.MemifIfSpec.IsL3 {
 		memif.Mode = types.MemifModeIP
 	}
 
@@ -104,7 +104,8 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 				if err != nil {
 					i.log.Error("error spreading tx queues on workers: %v", err)
 				}
-				i.SpreadRxQueuesOnWorkers(memif.SwIfIndex, memif.NumRxQueues)
+				_, ifSpec := GetInterface(podSpec, true /*is memif*/)
+				i.SpreadRxQueuesOnWorkers(memif.SwIfIndex, ifSpec.NumRxQueues)
 			case types.InterfaceEventDeleted: // this might not be needed here, it could be handled internally in the watcher
 				watcher.Stop()
 				break
@@ -134,7 +135,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		return err
 	}
 
-	err = i.DoPodInterfaceConfiguration(podSpec, stack, memif.SwIfIndex, podSpec.MemifIsL3)
+	err = i.DoPodInterfaceConfiguration(podSpec, stack, true /* is memif */)
 	if err != nil {
 		return err
 	}

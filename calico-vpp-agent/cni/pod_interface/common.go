@@ -120,7 +120,29 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 	}
 }
 
-func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
+func GetInterface(podSpec *storage.LocalPodSpec, memif bool) (uint32, config.InterfaceSpec) {
+	var swIfIndex uint32
+	var ifSpec config.InterfaceSpec
+	if memif {
+		swIfIndex = podSpec.MemifSwIfIndex
+		if podSpec.HasSpecificMemifIfSpec {
+			ifSpec = podSpec.MemifIfSpec
+		} else {
+			ifSpec = config.DefaultInterfaceSpec
+		}
+	} else {
+		swIfIndex = podSpec.TunTapSwIfIndex
+		if podSpec.HasSpecificTunTapIfSpec {
+			ifSpec = podSpec.TunTapIfSpec
+		} else {
+			ifSpec = config.DefaultInterfaceSpec
+		}
+	}
+	return swIfIndex, ifSpec
+}
+
+func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, memif bool) (err error) {
+	swIfIndex, ifSpec := GetInterface(podSpec, memif)
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
 		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfId, ipFamily.IsIp6)
@@ -129,7 +151,7 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		}
 	}
 
-	if !isL3 {
+	if !ifSpec.IsL3 {
 		/* L2 */
 		err = i.vpp.SetPromiscOn(swIfIndex)
 		if err != nil {

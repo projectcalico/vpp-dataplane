@@ -170,6 +170,10 @@ data:
   # - none      : dont configure connectivity
   vpp_uplink_driver: ""
 
+  # Configures default values for interfaces buffers and mode
+  default_interface_spec: |-
+    {"rx": 1, "tx":1, "isl3": true}
+
   # Configuration template for VPP.
   vpp_config_template: |-
     unix {
@@ -259,6 +263,11 @@ spec:
                 configMapKeyRef:
                   name: calico-vpp-config
                   key: service_prefix
+            - name: DEFAULT_INTERFACE_SPEC
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-vpp-config
+                  key: default_interface_spec
           securityContext:
             # TODO check required
             privileged: true
@@ -305,6 +314,11 @@ spec:
                 configMapKeyRef:
                   name: calico-vpp-config
                   key: service_prefix
+            - name: DEFAULT_INTERFACE_SPEC
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-vpp-config
+                  key: default_interface_spec                  
             # Use Kubernetes API as the backing datastore.
             - name: DATASTORE_TYPE
               value: "kubernetes"
