@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -32,10 +33,9 @@ const (
 	VppAnnotationPrefix    string = "cni.projectcalico.org/vpp."
 	MemifPortAnnotation    string = "memif.ports"
 	TunTapPortAnnotation   string = "tuntap.ports"
-	Memifl3Annotation      string = "memif.l3"
-	TunTapl3Annotation     string = "tuntap.l3"
 	VclAnnotation          string = "vcl"
 	SpoofAnnotation        string = "allowedSourcePrefixes"
+	IfSpecAnnotation       string = "interfaceSpec"
 )
 
 func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPortConfigs, err error) {
@@ -136,6 +136,25 @@ func (s *Server) ParseSpoofAddressAnnotation(value string) ([]cnet.IPNet, error)
 	return allowedSources, nil
 }
 
+func (s *Server) ParseInterfaceSpec(value string) (map[string]config.InterfaceSpec, error) {
+	var interfaceSpecs map[string]config.InterfaceSpec
+	err := json.Unmarshal([]byte(value), &interfaceSpecs)
+	if err != nil {
+		return nil, errors.Errorf("failed to parse '%s' as JSON: %s", value, err)
+	}
+	return interfaceSpecs, nil
+}
+
+func GetDefaultIfSpec(isL3 bool) config.InterfaceSpec {
+	return config.InterfaceSpec{
+		NumRxQueues: config.DefaultInterfaceSpec.NumRxQueues,
+		NumTxQueues: config.DefaultInterfaceSpec.NumTxQueues,
+		RxQueueSize: config.DefaultInterfaceSpec.RxQueueSize,
+		TxQueueSize: config.DefaultInterfaceSpec.TxQueueSize,
+		IsL3:        isL3,
+	}
+}
+
 func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations map[string]string) (err error) {
 	for key, value := range annotations {
 		if key == CalicoAnnotationPrefix+SpoofAnnotation {
@@ -145,6 +164,40 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 			continue
 		}
 		switch key {
+		case VppAnnotationPrefix + IfSpecAnnotation:
+			var ifSpecs map[string]config.InterfaceSpec
+			ifSpecs, err = s.ParseInterfaceSpec(value)
+			if err != nil {
+				s.log.Warnf("Error parsing key %s %s", key, err)
+			}
+			if podSpec.InterfaceName == "eth0" && podSpec.NetworkName == "" { // double check to be sure
+				eth0Spec, found := ifSpecs["eth0"]
+				if found {
+					podSpec.HasSpecificTunTapIfSpec = true
+					podSpec.TunTapIfSpec = eth0Spec
+					s.log.Infof("eth0:: %+v", eth0Spec)
+				}
+				memif0Spec, found := ifSpecs["memif0"]
+				if found {
+					podSpec.HasSpecificMemifIfSpec = true
+					podSpec.MemifIfSpec = memif0Spec
+					s.log.Infof("memif0:: %+v", memif0Spec)
+				}
+			} else {
+				ethSpec, found := ifSpecs[podSpec.InterfaceName]
+				if found {
+					if podSpec.EnableMemif {
+						podSpec.MemifIfSpec = ethSpec
+						podSpec.HasSpecificMemifIfSpec = true
+					} else {
+						podSpec.TunTapIfSpec = ethSpec
+						podSpec.HasSpecificTunTapIfSpec = true
+					}
+					s.log.Infof("%s:: %+v", podSpec.InterfaceName, ethSpec)
+				}
+			}
+			s.log.Infof("%+v", ifSpecs)
+
 		case VppAnnotationPrefix + MemifPortAnnotation:
 			podSpec.EnableMemif = true
 			if value == "default" {
@@ -160,13 +213,6 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 			}
 		case VppAnnotationPrefix + VclAnnotation:
 			podSpec.EnableVCL, err = s.ParseEnableDisableAnnotation(value)
-		case VppAnnotationPrefix + Memifl3Annotation:
-			podSpec.MemifIsL3, err = s.ParseTrueFalseAnnotation(value)
-		case VppAnnotationPrefix + TunTapl3Annotation:
-			podSpec.TunTapIsL3, err = s.ParseTrueFalseAnnotation(value)
-			if err != nil {
-				podSpec.TunTapIsL3 = true /* default on error */
-			}
 		default:
 			continue
 		}

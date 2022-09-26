@@ -136,12 +136,19 @@ func (i *TunTapPodInterfaceDriver) FelixConfigChanged(newFelixConfig *felixConfi
 }
 
 func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) error {
+	var usedIfSpec config.InterfaceSpec
+	if podSpec.HasSpecificTunTapIfSpec {
+		usedIfSpec = podSpec.TunTapIfSpec
+	} else {
+		usedIfSpec = config.DefaultInterfaceSpec
+	}
+
 	tun := &types.TapV2{
 		GenericVppInterface: types.GenericVppInterface{
-			NumRxQueues:       config.TapNumRxQueues,
-			NumTxQueues:       config.TapNumTxQueues,
-			RxQueueSize:       config.TapRxQueueSize,
-			TxQueueSize:       config.TapTxQueueSize,
+			NumRxQueues:       usedIfSpec.NumRxQueues,
+			NumTxQueues:       usedIfSpec.NumTxQueues,
+			RxQueueSize:       usedIfSpec.RxQueueSize,
+			TxQueueSize:       usedIfSpec.TxQueueSize,
 			HostInterfaceName: podSpec.InterfaceName,
 		},
 		HostNamespace: podSpec.NetnsName,
@@ -149,7 +156,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		HostMtu:       i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0),
 	}
 
-	if podSpec.TunTapIsL3 {
+	if usedIfSpec.IsL3 {
 		tun.Flags |= types.TapFlagTun
 	}
 
@@ -178,9 +185,10 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		return err
 	}
 
-	i.SpreadRxQueuesOnWorkers(swIfIndex, tun.NumRxQueues)
+	_, ifSpec := GetInterface(podSpec, false /*is memif */)
+	i.SpreadRxQueuesOnWorkers(swIfIndex, ifSpec.NumRxQueues)
 
-	err = i.DoPodInterfaceConfiguration(podSpec, stack, swIfIndex, podSpec.TunTapIsL3)
+	err = i.DoPodInterfaceConfiguration(podSpec, stack, false /* is memif */)
 	if err != nil {
 		return err
 	}
