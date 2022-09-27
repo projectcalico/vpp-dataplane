@@ -25,6 +25,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -61,16 +62,22 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	}
 	podSpec.MemifSocketId = socketId
 
+	var usedIfSpec common_config.InterfaceSpec
+	if podSpec.HasSpecificTunTapIfSpec {
+		usedIfSpec = podSpec.MemifIfSpec
+	} else {
+		usedIfSpec = config.DefaultInterfaceSpec
+	}
 	// Create new memif
 	memif := &types.Memif{
 		Role:        types.MemifMaster,
 		Mode:        types.MemifModeEthernet,
-		NumRxQueues: podSpec.MemifIfSpec.NumRxQueues, // FIXME using tap setting for memif can limit memif functionality at best, break something in worst case
-		NumTxQueues: podSpec.MemifIfSpec.NumTxQueues,
-		QueueSize:   podSpec.MemifIfSpec.RxQueueSize,
+		NumRxQueues: usedIfSpec.NumRxQueues,
+		NumTxQueues: usedIfSpec.NumTxQueues,
+		QueueSize:   usedIfSpec.RxQueueSize,
 		SocketId:    socketId,
 	}
-	if podSpec.MemifIfSpec.IsL3 {
+	if usedIfSpec.IsL3 {
 		memif.Mode = types.MemifModeIP
 	}
 

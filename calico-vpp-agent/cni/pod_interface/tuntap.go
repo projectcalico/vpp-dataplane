@@ -33,6 +33,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/common-config"
 )
 
 type TunTapPodInterfaceDriver struct {
@@ -136,7 +137,7 @@ func (i *TunTapPodInterfaceDriver) FelixConfigChanged(newFelixConfig *felixConfi
 }
 
 func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) error {
-	var usedIfSpec config.InterfaceSpec
+	var usedIfSpec common_config.InterfaceSpec
 	if podSpec.HasSpecificTunTapIfSpec {
 		usedIfSpec = podSpec.TunTapIfSpec
 	} else {

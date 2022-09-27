@@ -25,6 +25,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -42,7 +43,7 @@ type NetworkPod struct {
 	ContainerIP *net.IPNet
 }
 
-func calculateBuffersNeededForInterface(ifSpec config.InterfaceSpec) int {
+func calculateBuffersNeededForInterface(ifSpec common_config.InterfaceSpec) int {
 	return ifSpec.NumRxQueues*vpplink.DefaultIntTo(ifSpec.RxQueueSize, vpplink.DEFAULT_QUEUE_SIZE) +
 		ifSpec.NumTxQueues*vpplink.DefaultIntTo(ifSpec.TxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
 }

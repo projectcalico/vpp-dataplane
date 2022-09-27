@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -87,7 +88,7 @@ func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (e
 
 	log.Infof("Created RDMA interface %d", swIfIndex)
 
-	if d.spec.IsMain && swIfIndex != config.DataInterfaceSwIfIndex {
+	if *d.spec.IsMain && swIfIndex != config.DataInterfaceSwIfIndex {
 		return fmt.Errorf("Created RDMA interface has wrong swIfIndex %d!", swIfIndex)
 	}
 	d.spec.SwIfIndex = swIfIndex
@@ -98,7 +99,7 @@ func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (e
 	return nil
 }
 
-func NewRDMADriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *RDMADriver {
+func NewRDMADriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *common_config.UplinkInterfaceSpec) *RDMADriver {
 	d := &RDMADriver{}
 	d.name = NATIVE_DRIVER_RDMA
 	d.conf = conf

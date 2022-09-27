@@ -11,6 +11,8 @@ spec:
           imagePullPolicy: Never
           volumeMounts:
             - name: repo-root
+              mountPath: /repo
+            - name: repo-root
               mountPath: /home/hostuser/vpp-dataplane
               readOnly: true
             - name: api-proxy-binary
@@ -24,7 +26,11 @@ spec:
           env:
             - name: CALICO_LOG_LEVEL
               value: debug
+            - name: DEBUG
+              value: "false"
           volumeMounts:
+            - name: repo-root
+              mountPath: /repo
             - name: vpp-root
               mountPath: /home/hostuser/vpp
               readOnly: true

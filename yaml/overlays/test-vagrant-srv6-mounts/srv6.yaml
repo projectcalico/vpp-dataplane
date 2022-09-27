@@ -5,41 +5,19 @@ metadata:
   namespace: calico-vpp-dataplane
 data:
   service_prefix: "10.96.0.0/12"
-  sr_localsid_prefix: "sr-localsids-pool-"
-  sr_localsid_pool: "fcff::/48"
-  sr_policy_pool: "cafe::/118"
-
----
-kind: DaemonSet
-apiVersion: apps/v1
-metadata:
-  name: calico-vpp-node
-  namespace: calico-vpp-dataplane
-spec:
-  template:
-    spec:
-      containers:
-        - name: vpp
-          env:
-            - name: CALICOVPP_DEFAULT_GW
-              value: "192.168.0.1"
-        - name: agent
-          env:
-            - name: CALICOVPP_DEBUG_ENABLE_GSO
-              value: "false"
-            - name: CALICOVPP_SRV6_ENABLED
-              value: "true"
-            - name: CALICOVPP_SR_POLICY_POOL
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: sr_policy_pool
-            - name: CALICOVPP_SR_LS_POOL
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: sr_localsid_pool
-
+  CALICOVPP_DEBUG: |-
+    {
+      "GSOEnabled": false
+    }
+  CALICOVPP_SRV6: |-
+    {
+      "policyPool": "cafe::/118",
+      "localsidPool": "fcff::/48",
+    }
+  CALICOVPP_FEATURE_GATES: |-
+    {
+      "SRv6Enabled": true
+    }
 ---
 # Source: calico/templates/calico-kube-controllers.yaml
 # See https://github.com/projectcalico/kube-controllers

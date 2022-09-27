@@ -17,14 +17,12 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/sirupsen/logrus"
 )
 
@@ -37,38 +35,22 @@ const (
 	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
 	CniServerStateFile     = "/var/run/vpp/calico_vpp_pod_state"
 
-	NodeNameEnvVar             = "NODENAME"
-	DefaultInterfaceSpecEnvVar = "DEFAULT_INTERFACE_SPEC"
-	TapNumRxQueuesEnvVar       = "CALICOVPP_TAP_RX_QUEUES"
-	TapNumTxQueuesEnvVar       = "CALICOVPP_TAP_TX_QUEUES"
-	MemifEnabledEnvVar         = "CALICOVPP_ENABLE_MEMIF"
-	VCLEnabledEnvVar           = "CALICOVPP_ENABLE_VCL"
-	MultinetEnabledEnvVar      = "CALICOVPP_ENABLE_MULTINET"
-	PodGSOEnabledEnvVar        = "CALICOVPP_DEBUG_ENABLE_GSO"
-	EnableServicesEnvVar       = "CALICOVPP_DEBUG_ENABLE_NAT"
-	EnableMaglevEnvVar         = "CALICOVPP_DEBUG_ENABLE_MAGLEV"
-	EnablePoliciesEnvVar       = "CALICOVPP_DEBUG_ENABLE_POLICIES"
-	CrossIpsecTunnelsEnvVar    = "CALICOVPP_IPSEC_CROSS_TUNNELS"
-	EnableIPSecEnvVar          = "CALICOVPP_IPSEC_ENABLED"
-	IPSecExtraAddressesEnvVar  = "CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES"
-	IPSecIkev2PskEnvVar        = "CALICOVPP_IPSEC_IKEV2_PSK"
-	TapRxModeEnvVar            = "CALICOVPP_TAP_RX_MODE"
-	TapQueueSizeEnvVar         = "CALICOVPP_TAP_RING_SIZE"
-	IpsecNbAsyncCryptoThEnvVar = "CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD"
-	LogLevelEnvVar             = "CALICO_LOG_LEVEL"
-	ServicePrefixEnvVar        = "SERVICE_PREFIX"
-	EnableSRv6EnvVar           = "CALICOVPP_SRV6_ENABLED"
-	SRv6LocalsidPoolEnvVar     = "CALICOVPP_SR_LS_POOL"
-	SRv6PolicyPoolEnvVar       = "CALICOVPP_SR_POLICY_POOL"
-	/* User specified MTU for uplink & the tap */
-	UserSpecifiedMtuEnvVar = "CALICOVPP_TAP_MTU"
+	NodeNameEnvVar      = "NODENAME"
+	LogLevelEnvVar      = "CALICO_LOG_LEVEL"
+	ServicePrefixEnvVar = "SERVICE_PREFIX"
+	IPSecIkev2PskEnvVar = "CALICOVPP_IPSEC_IKEV2_PSK"
+
+	CalicoVppInitialConfigEnvVar = "CALICOVPP_INITIAL_CONFIG"
+	CalicoVppInterfacesEnvVar    = "CALICOVPP_INTERFACES"
+	CalicoVppIpsecEnvVar         = "CALICOVPP_IPSEC"
+	CalicoVppSrv6EnvVar          = "CALICOVPP_SRV6"
+	CalicoVppFeatureGatesEnvVar  = "CALICOVPP_FEATURE_GATES"
+	CalicoVppDebugEnvVar         = "CALICOVPP_DEBUG"
 
 	MemifSocketName      = "@vpp/memif"
 	DefaultVXLANVni      = 4096
 	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820
-
-	defaultRxMode = types.Adaptative
 )
 
 var (
@@ -87,7 +69,6 @@ var (
 	IpsecAddressCount        = 1
 	CrossIpsecTunnels        = false
 	IPSecIkev2Psk            = ""
-	TapRxMode                = defaultRxMode
 	BgpLogLevel              = logrus.InfoLevel
 	LogLevel                 = logrus.InfoLevel
 	NodeName                 = ""
@@ -97,22 +78,9 @@ var (
 	SRv6policyIPPool             = ""
 	SRv6localSidIPPool           = ""
 
-	FailsafeInboundHostPorts  string = ""
-	FailsafeOutboundHostPorts string = ""
-	EndpointToHostAction      string = ""
-
-	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
-
-	DefaultInterfaceSpec InterfaceSpec = InterfaceSpec{NumRxQueues: 1, NumTxQueues: 1, RxQueueSize: 0, TxQueueSize: 0}
+	DefaultInterfaceSpec common_config.InterfaceSpec = common_config.InterfaceSpec{NumRxQueues: 1, NumTxQueues: 1, RxQueueSize: 0, TxQueueSize: 0}
+	MaxIfSpec common_config.InterfaceSpec
 )
-
-type InterfaceSpec struct {
-	NumRxQueues int  `json:"rx"`
-	NumTxQueues int  `json:"tx"`
-	RxQueueSize int  `json:"rxqsz"`
-	TxQueueSize int  `json:"txqsz"`
-	IsL3        bool `json:"isl3"`
-}
 
 func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:MultinetEnabled   %t", MultinetEnabled)
@@ -124,7 +92,6 @@ func PrintAgentConfig(log *logrus.Logger) {
 	log.Infof("Config:CrossIpsecTunnels %t", CrossIpsecTunnels)
 	log.Infof("Config:EnablePolicies    %t", EnablePolicies)
 	log.Infof("Config:IpsecAddressCount %d", IpsecAddressCount)
-	log.Infof("Config:RxMode            %d", TapRxMode)
 	log.Infof("Config:LogLevel          %d", LogLevel)
 	log.Infof("Config:IpsecNbAsyncCryptoThread  %d", IpsecNbAsyncCryptoThread)
 	log.Infof("Config:EnableSRv6        %t", EnableSRv6)
@@ -157,126 +124,97 @@ func LoadConfig(log *logrus.Logger) (err error) {
 
 	NodeName = getEnvValue(NodeNameEnvVar)
 
-	if conf := getEnvValue(DefaultInterfaceSpecEnvVar); conf != "" {
-		err := json.Unmarshal([]byte(conf), &DefaultInterfaceSpec)
+	var calicoVppInterfaces common_config.CalicoVppInterfaces
+	conf := getEnvValue(CalicoVppInterfacesEnvVar)
+	if conf != "" {
+		err := json.Unmarshal([]byte(conf), &calicoVppInterfaces)
 		if err != nil {
-			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", DefaultInterfaceSpecEnvVar, conf, err)
+			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", CalicoVppInterfacesEnvVar, conf, err)
 		}
 	}
 
-	if conf := getEnvValue(VCLEnabledEnvVar); conf != "" {
-		enabled, err := strconv.ParseBool(conf)
+	var calicoVppFeatureGates common_config.CalicoVppFeatureGates
+	conf = getEnvValue(CalicoVppFeatureGatesEnvVar)
+	if conf != "" {
+		err := json.Unmarshal([]byte(conf), &calicoVppFeatureGates)
 		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", VCLEnabledEnvVar, conf, enabled, err)
+			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", CalicoVppFeatureGatesEnvVar, conf, err)
 		}
-		VCLEnabled = enabled
 	}
 
-	if conf := getEnvValue(MemifEnabledEnvVar); conf != "" {
-		enabled, err := strconv.ParseBool(conf)
+	var calicoVppIpsec common_config.CalicoVppIpsec
+	conf = getEnvValue(CalicoVppIpsecEnvVar)
+	if conf != "" {
+		err := json.Unmarshal([]byte(conf), &calicoVppIpsec)
 		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", MemifEnabledEnvVar, conf, enabled, err)
+			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", CalicoVppIpsecEnvVar, conf, err)
 		}
-		MemifEnabled = enabled
 	}
 
-	if conf := getEnvValue(MultinetEnabledEnvVar); conf != "" {
-		enabled, err := strconv.ParseBool(conf)
+	var calicoVppDebug common_config.CalicoVppDebug
+	conf = getEnvValue(CalicoVppDebugEnvVar)
+	if conf != "" {
+		err := json.Unmarshal([]byte(conf), &calicoVppDebug)
 		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", MultinetEnabledEnvVar, conf, enabled, err)
+			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", CalicoVppDebugEnvVar, conf, err)
 		}
-		MultinetEnabled = enabled
 	}
 
-	if conf := getEnvValue(PodGSOEnabledEnvVar); conf != "" {
-		gso, err := strconv.ParseBool(conf)
+	var calicoVppSrv6 common_config.CalicoVppSrv6
+	conf = getEnvValue(CalicoVppSrv6EnvVar)
+	if conf != "" {
+		err := json.Unmarshal([]byte(conf), &calicoVppSrv6)
 		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", PodGSOEnabledEnvVar, conf, gso, err)
+			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", CalicoVppSrv6EnvVar, conf, err)
 		}
-		PodGSOEnabled = gso
 	}
 
-	if conf := getEnvValue(EnableIPSecEnvVar); conf != "" {
-		enableIPSec, err := strconv.ParseBool(conf)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableIPSecEnvVar, conf, enableIPSec, err)
+	if calicoVppInterfaces.MaxIfSpec != nil {
+		MaxIfSpec = *calicoVppInterfaces.MaxIfSpec
+	}
+	if calicoVppInterfaces.DefaultPodIfSpec != nil {
+		if common_config.NotExceedMax(*calicoVppInterfaces.DefaultPodIfSpec, MaxIfSpec) {
+			DefaultInterfaceSpec = *calicoVppInterfaces.DefaultPodIfSpec
+		} else {
+			DefaultInterfaceSpec = MaxIfSpec
 		}
-		EnableIPSec = enableIPSec
 	}
-
-	if conf := getEnvValue(CrossIpsecTunnelsEnvVar); conf != "" {
-		crossIpsecTunnels, err := strconv.ParseBool(conf)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", CrossIpsecTunnelsEnvVar, conf, crossIpsecTunnels, err)
-		}
-		CrossIpsecTunnels = crossIpsecTunnels
+	if calicoVppFeatureGates.VCLEnabled != nil {
+		VCLEnabled = *calicoVppFeatureGates.VCLEnabled
 	}
-
-	if conf := getEnvValue(EnableServicesEnvVar); conf != "" {
-		enableServices, err := strconv.ParseBool(conf)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableServicesEnvVar, conf, enableServices, err)
-		}
-		EnableServices = enableServices
+	if calicoVppFeatureGates.MemifEnabled != nil {
+		MemifEnabled = *calicoVppFeatureGates.MemifEnabled
 	}
-
-	if conf := getEnvValue(EnableMaglevEnvVar); conf != "" {
-		enableMaglev, err := strconv.ParseBool(conf)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableMaglevEnvVar, conf, enableMaglev, err)
-		}
-		EnableMaglev = enableMaglev
+	if calicoVppFeatureGates.MultinetEnabled != nil {
+		MultinetEnabled = *calicoVppFeatureGates.MultinetEnabled
 	}
-
-	if conf := getEnvValue(EnablePoliciesEnvVar); conf != "" {
-		enablePolicies, err := strconv.ParseBool(conf)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnablePoliciesEnvVar, conf, enablePolicies, err)
-		}
-		EnablePolicies = enablePolicies
+	if calicoVppDebug.GSOEnabled != nil {
+		PodGSOEnabled = *calicoVppDebug.GSOEnabled
 	}
-
-	if conf := getEnvValue(IPSecExtraAddressesEnvVar); conf != "" {
-		extraAddressCount, err := strconv.ParseInt(conf, 10, 8)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", IPSecExtraAddressesEnvVar, conf, extraAddressCount, err)
-		}
-		IpsecAddressCount = int(extraAddressCount) + 1
+	if calicoVppFeatureGates.IPSecEnabled != nil {
+		EnableIPSec = *calicoVppFeatureGates.IPSecEnabled
 	}
-
-	if conf := getEnvValue(IpsecNbAsyncCryptoThEnvVar); conf != "" {
-		ipsecNbAsyncCryptoThread, err := strconv.ParseInt(conf, 10, 32)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", IpsecNbAsyncCryptoThEnvVar, conf, ipsecNbAsyncCryptoThread, err)
-		}
-		IpsecNbAsyncCryptoThread = int(ipsecNbAsyncCryptoThread)
+	if calicoVppDebug.ServicesEnabled != nil {
+		EnableServices = *calicoVppDebug.ServicesEnabled
 	}
-
-	if conf := getEnvValue(UserSpecifiedMtuEnvVar); conf != "" {
-		userSpecifiedMtu, err := strconv.ParseInt(conf, 10, 32)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", UserSpecifiedMtuEnvVar, conf, userSpecifiedMtu, err)
-		}
-		UserSpecifiedMtu = int(userSpecifiedMtu)
-	} else {
-		UserSpecifiedMtu = 0
+	if calicoVppDebug.MaglevEnabled != nil {
+		EnableMaglev = *calicoVppDebug.MaglevEnabled
 	}
-
-	if conf := getEnvValue(EnableSRv6EnvVar); conf != "" {
-		enableSRv6, err := strconv.ParseBool(conf)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableSRv6EnvVar, conf, enableSRv6, err)
-		}
-		EnableSRv6 = enableSRv6
+	if calicoVppDebug.PoliciesEnabled != nil {
+		EnablePolicies = *calicoVppDebug.PoliciesEnabled
 	}
-
-	if conf := getEnvValue(SRv6PolicyPoolEnvVar); conf != "" {
-		SRv6policyIPPool = conf
+	if calicoVppIpsec.CrossIpsecTunnels != nil {
+		CrossIpsecTunnels = *calicoVppIpsec.CrossIpsecTunnels
 	}
-
-	if conf := getEnvValue(SRv6LocalsidPoolEnvVar); conf != "" {
-		SRv6localSidIPPool = conf
+	if calicoVppFeatureGates.SRv6Enabled != nil {
+		EnableSRv6 = *calicoVppFeatureGates.SRv6Enabled
 	}
+	SRv6localSidIPPool = calicoVppSrv6.LocalsidPool
+	SRv6policyIPPool = calicoVppSrv6.PolicyPool
+	IpsecNbAsyncCryptoThread = calicoVppIpsec.NbAsyncCryptoThreads
+	extraAddressCount := calicoVppIpsec.ExtraAddresses
+	IpsecAddressCount = int(extraAddressCount) + 1
+	UserSpecifiedMtu = calicoVppInterfaces.Mtu
 
 	psk := getEnvValue(IPSecIkev2PskEnvVar)
 	if EnableIPSec && psk == "" {
@@ -291,17 +229,6 @@ func LoadConfig(log *logrus.Logger) (err error) {
 			return errors.Errorf("invalid service prefix configuration: %s %s", prefixStr, err)
 		}
 		ServiceCIDRs = append(ServiceCIDRs, serviceCIDR)
-	}
-
-	switch getEnvValue(TapRxModeEnvVar) {
-	case "interrupt":
-		TapRxMode = types.Interrupt
-	case "polling":
-		TapRxMode = types.Polling
-	case "adaptive":
-		TapRxMode = types.Adaptative
-	default:
-		TapRxMode = defaultRxMode
 	}
 
 	for _, e := range os.Environ() {

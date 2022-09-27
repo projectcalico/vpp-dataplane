@@ -30,6 +30,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -224,9 +225,9 @@ type LocalPodSpec struct {
 	EnableMemif   bool
 
 	HasSpecificMemifIfSpec  bool
-	MemifIfSpec             config.InterfaceSpec
+	MemifIfSpec             common_config.InterfaceSpec
 	HasSpecificTunTapIfSpec bool
-	TunTapIfSpec            config.InterfaceSpec
+	TunTapIfSpec            common_config.InterfaceSpec
 
 	/**
 	 * Below are VPP internal ids, mutable fields in AddVppInterface

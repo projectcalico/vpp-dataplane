@@ -25,6 +25,7 @@ import (
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -136,8 +137,8 @@ func (s *Server) ParseSpoofAddressAnnotation(value string) ([]cnet.IPNet, error)
 	return allowedSources, nil
 }
 
-func (s *Server) ParseInterfaceSpec(value string) (map[string]config.InterfaceSpec, error) {
-	var interfaceSpecs map[string]config.InterfaceSpec
+func (s *Server) ParseInterfaceSpec(value string) (map[string]common_config.InterfaceSpec, error) {
+	var interfaceSpecs map[string]common_config.InterfaceSpec
 	err := json.Unmarshal([]byte(value), &interfaceSpecs)
 	if err != nil {
 		return nil, errors.Errorf("failed to parse '%s' as JSON: %s", value, err)
@@ -145,8 +146,8 @@ func (s *Server) ParseInterfaceSpec(value string) (map[string]config.InterfaceSp
 	return interfaceSpecs, nil
 }
 
-func GetDefaultIfSpec(isL3 bool) config.InterfaceSpec {
-	return config.InterfaceSpec{
+func GetDefaultIfSpec(isL3 bool) common_config.InterfaceSpec {
+	return common_config.InterfaceSpec{
 		NumRxQueues: config.DefaultInterfaceSpec.NumRxQueues,
 		NumTxQueues: config.DefaultInterfaceSpec.NumTxQueues,
 		RxQueueSize: config.DefaultInterfaceSpec.RxQueueSize,
@@ -165,7 +166,7 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 		}
 		switch key {
 		case VppAnnotationPrefix + IfSpecAnnotation:
-			var ifSpecs map[string]config.InterfaceSpec
+			var ifSpecs map[string]common_config.InterfaceSpec
 			ifSpecs, err = s.ParseInterfaceSpec(value)
 			if err != nil {
 				s.log.Warnf("Error parsing key %s %s", key, err)
@@ -173,30 +174,38 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 			if podSpec.InterfaceName == "eth0" && podSpec.NetworkName == "" { // double check to be sure
 				eth0Spec, found := ifSpecs["eth0"]
 				if found {
-					podSpec.HasSpecificTunTapIfSpec = true
-					podSpec.TunTapIfSpec = eth0Spec
-					s.log.Infof("eth0:: %+v", eth0Spec)
+					if common_config.NotExceedMax(eth0Spec, config.MaxIfSpec) {
+						podSpec.HasSpecificTunTapIfSpec = true
+						podSpec.TunTapIfSpec = eth0Spec
+					} else {
+						return errors.Errorf("pod interface config %+v exceeds max config: %+v", eth0Spec, config.MaxIfSpec)
+					}
 				}
 				memif0Spec, found := ifSpecs["memif0"]
 				if found {
-					podSpec.HasSpecificMemifIfSpec = true
-					podSpec.MemifIfSpec = memif0Spec
-					s.log.Infof("memif0:: %+v", memif0Spec)
-				}
-			} else {
-				ethSpec, found := ifSpecs[podSpec.InterfaceName]
-				if found {
-					if podSpec.EnableMemif {
-						podSpec.MemifIfSpec = ethSpec
+					if common_config.NotExceedMax(memif0Spec, config.MaxIfSpec) {
 						podSpec.HasSpecificMemifIfSpec = true
+						podSpec.MemifIfSpec = memif0Spec
 					} else {
-						podSpec.TunTapIfSpec = ethSpec
-						podSpec.HasSpecificTunTapIfSpec = true
+						return errors.Errorf("pod interface config %+v exceeds max config: %+v", memif0Spec, config.MaxIfSpec)
 					}
-					s.log.Infof("%s:: %+v", podSpec.InterfaceName, ethSpec)
+				}
+			} else { // multinet
+				ethSpec, found := ifSpecs[podSpec.InterfaceName]
+				if common_config.NotExceedMax(ethSpec, config.MaxIfSpec) {
+					if found {
+						if podSpec.EnableMemif {
+							podSpec.MemifIfSpec = ethSpec
+							podSpec.HasSpecificMemifIfSpec = true
+						} else {
+							podSpec.TunTapIfSpec = ethSpec
+							podSpec.HasSpecificTunTapIfSpec = true
+						}
+					}
+				} else {
+					return errors.Errorf("pod interface config %+v exceeds max config: %+v", ethSpec, config.MaxIfSpec)
 				}
 			}
-			s.log.Infof("%+v", ifSpecs)
 
 		case VppAnnotationPrefix + MemifPortAnnotation:
 			podSpec.EnableMemif = true

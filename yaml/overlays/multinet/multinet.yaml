@@ -1,3 +1,14 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-vpp-config
+  namespace: calico-vpp-dataplane
+data:
+  CALICOVPP_FEATURE_GATES: |-
+    {
+      "multinetEnabled": true
+    }
+---
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
@@ -6,12 +17,6 @@ metadata:
 spec:
   template:
     spec:
-      containers:
-        - name: agent
-          image: calicovpp/agent:latest
-          env:
-            - name: CALICOVPP_ENABLE_MULTINET
-              value: "true"
       initContainers:
         - name: install-whereabouts
           image: docker.io/calicovpp/install-whereabouts:latest

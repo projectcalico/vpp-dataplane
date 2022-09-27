@@ -29,27 +29,20 @@ data:
     buffers {
       buffers-per-numa 131072
     }
----
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: calico-vpp-node
-  namespace: calico-vpp-dataplane
-spec:
-  template:
-    spec:
-      containers:
-        - name: vpp
-          env:
-            - name: CALICOVPP_RX_MODE
-              value: polling
-            - name: CALICOVPP_TAP_RX_MODE
-              value: polling
-        - name: agent
-          env:
-            - name: CALICOVPP_TAP_RX_MODE
-              value: polling
-            - name: CALICOVPP_TAP_RX_QUEUES
-              value: "1"
-            - name: CALICOVPP_TAP_TX_QUEUES
-              value: "1"
+  CALICOVPP_INTERFACES: |-
+    {
+      "maxIfSpec": {
+        "rx": 10, "tx":10
+      },
+      "defaultPodIfSpec": {
+        "rx": 1, "tx":1, "isl3": true, "rxMode": "polling"
+      },
+      "vppHostTapSpec": {
+        "rx": 1, "tx":1, "rxqsz": 1024, "txqsz": 1024, "isl3": false, "rxMode": "polling"
+      },
+      "uplinkInterfaces": [
+        {
+          "isMain": true, "interface": "eth1", "vppIpConfSource": "linux", "rxMode": "polling"
+        }
+      ]
+    }

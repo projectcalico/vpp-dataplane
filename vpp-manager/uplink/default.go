@@ -18,6 +18,7 @@ package uplink
 import (
 	"fmt"
 
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -85,14 +86,14 @@ func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int)
 		log.Infof("Moved interface %s to VPP netns", d.spec.InterfaceName)
 	}
 	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
-	if !d.spec.IsMain {
+	if !*d.spec.IsMain {
 		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)
 	}
 	d.spec.SwIfIndex = config.DataInterfaceSwIfIndex
 	return nil
 }
 
-func NewDefaultDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *DefaultDriver {
+func NewDefaultDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *common_config.UplinkInterfaceSpec) *DefaultDriver {
 	d := &DefaultDriver{}
 	d.name = NATIVE_DRIVER_NONE
 	d.conf = conf
