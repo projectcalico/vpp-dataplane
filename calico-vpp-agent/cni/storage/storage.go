@@ -37,7 +37,7 @@ import (
 const (
 	CniServerStateFileVersion = 7  // Used to ensure compatibility wen we reload data
 	MaxApiTagLen              = 63 /* No more than 64 characters in API tags */
-	vrfTagHashLen             = 8  /* how many hash charatecters (b64) of the name in tag prefix (useful when trucated) */
+	VrfTagHashLen             = 8  /* how many hash charatecters (b64) of the name in tag prefix (useful when trucated) */
 )
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -283,10 +283,10 @@ func (hp *HostPortBinding) String() string {
 /* 8 base64 character hash */
 func hash(text string) string {
 	h := sha512.Sum512([]byte(text))
-	return base64.StdEncoding.EncodeToString(h[:])[:vrfTagHashLen]
+	return base64.StdEncoding.EncodeToString(h[:])[:VrfTagHashLen]
 }
 
-func truncateStr(text string, size int) string {
+func TruncateStr(text string, size int) string {
 	if len(text) > size {
 		return text[:size]
 	}
@@ -296,13 +296,13 @@ func truncateStr(text string, size int) string {
 func (ps *LocalPodSpec) GetVrfTag(ipFamily vpplink.IpFamily, custom string) string {
 	h := hash(fmt.Sprintf("%s%s%s%s", ipFamily.ShortStr, ps.NetnsName, ps.InterfaceName, custom))
 	s := fmt.Sprintf("%s-%s-%s-%s", h, ipFamily.ShortStr, ps.InterfaceName, filepath.Base(ps.NetnsName))
-	return truncateStr(s, MaxApiTagLen)
+	return TruncateStr(s, MaxApiTagLen)
 }
 
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {
 	h := hash(fmt.Sprintf("%s%s%s", prefix, ps.NetnsName, ps.InterfaceName))
 	s := fmt.Sprintf("%s-%s-%s", h, ps.InterfaceName, filepath.Base(ps.NetnsName))
-	return truncateStr(s, MaxApiTagLen)
+	return TruncateStr(s, MaxApiTagLen)
 }
 
 func (ps *LocalPodSpec) GetRoutes() (routes []*net.IPNet) {
