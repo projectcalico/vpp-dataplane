@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -32,7 +33,7 @@ import (
 func getInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxInterfaceState, err error) {
 	errs := []error{}
 	conf = []*config.LinuxInterfaceState{}
-	for _, ifSpec := range params.InterfacesSpecs {
+	for _, ifSpec := range params.UplinksSpecs {
 		configuration, err := loadInterfaceConfigFromLinux(ifSpec)
 		errs = append(errs, err)
 		conf = append(conf, configuration)
@@ -59,7 +60,7 @@ func getInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxIn
 		for i := range conf {
 			if conf[i] == nil {
 				for j := range confFile {
-					if confFile[j].InterfaceName == params.InterfacesSpecs[i].InterfaceName {
+					if confFile[j].InterfaceName == params.UplinksSpecs[i].InterfaceName {
 						conf[i] = confFile[j]
 					}
 				}
@@ -79,7 +80,7 @@ func getInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxIn
 	return conf, nil
 }
 
-func loadInterfaceConfigFromLinux(ifSpec config.InterfaceSpec) (*config.LinuxInterfaceState, error) {
+func loadInterfaceConfigFromLinux(ifSpec common_config.UplinkInterfaceSpec) (*config.LinuxInterfaceState, error) {
 	conf := config.LinuxInterfaceState{}
 	link, err := netlink.LinkByName(ifSpec.InterfaceName)
 	if err != nil {

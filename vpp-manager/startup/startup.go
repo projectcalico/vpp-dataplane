@@ -28,10 +28,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,15 +39,15 @@ const (
 	NodeNameEnvVar      = "NODENAME"
 	ServicePrefixEnvVar = "SERVICE_PREFIX"
 
+	/* Deprecated vars */
 	/* Configuration source. Only linux (aka read from
 	   $CALICOVPP_INTERFACE) is supported for now */
 	IpConfigEnvVar = "CALICOVPP_IP_CONFIG"
-
 	/* linux name of the uplink interface to be used by VPP */
 	InterfaceEnvVar = "CALICOVPP_INTERFACE"
-
 	/* Driver to consume the uplink with. Leave empty for autoconf */
 	NativeDriverEnvVar = "CALICOVPP_NATIVE_DRIVER"
+	SwapDriverEnvVar   = "CALICOVPP_SWAP_DRIVER"
 
 	/* Bash template hook points at several points in
 	   the VPP lifecycle. See hook/hooks.go */
@@ -66,51 +66,23 @@ const (
 	   It contains the CLI to be executed in vppctl after startup */
 	ConfigExecTemplateEnvVar = "CALICOVPP_CONFIG_EXEC_TEMPLATE"
 
-	/* "interrupt" "adaptive" or "polling" mode for uplink &
-	   tap interfaces */
-	RxModeEnvVar    = "CALICOVPP_RX_MODE"
-	TapRxModeEnvVar = "CALICOVPP_TAP_RX_MODE"
-
-	/* Number of rx queues to use for the uplink interface in VPP */
-	NumRxQueuesEnvVar = "CALICOVPP_RX_QUEUES"
-
-	/* Number of tx queues to use for the vmxnet3 uplink interface in VPP */
-	NumTxQueuesEnvVar = "CALICOVPP_VMXNET3_DRIVER_TX_QUEUES"
-
-	/* Set the pattern for VPP corefiles. Usually "/var/lib/vpp/vppcore.%e.%p" */
-	CorePatternEnvVar = "CALICOVPP_CORE_PATTERN"
-
-	/* Queue size (either "1024" or "1024,512" for rx,tx) for the tap/the uplink */
-	TapRingSizeEnvVar = "CALICOVPP_TAP_RING_SIZE"
-	RingSizeEnvVar    = "CALICOVPP_RING_SIZE"
-
-	/* Comma separated list of IPs to be configured in VPP as default GW */
-	DefaultGWEnvVar = "CALICOVPP_DEFAULT_GW"
-
-	/* User specified MTU for uplink & the tap */
-	UserSpecifiedMtuEnvVar = "CALICOVPP_TAP_MTU"
-
-	IfConfigPathEnvVar    = "CALICOVPP_IF_CONFIG_PATH"
-	VppStartupSleepEnvVar = "CALICOVPP_VPP_STARTUP_SLEEP"
-	ExtraAddrCountEnvVar  = "CALICOVPP_CONFIGURE_EXTRA_ADDRESSES"
-	SwapDriverEnvVar      = "CALICOVPP_SWAP_DRIVER"
-	ExtraInterfacesEnvVar = "CALICOVPP_EXTRA_INTERFACES"
-	EnableGSOEnvVar       = "CALICOVPP_DEBUG_ENABLE_GSO"
+	CalicoVppInitialConfigEnvVar = "CALICOVPP_INITIAL_CONFIG"
+	CalicoVppInterfacesEnvVar    = "CALICOVPP_INTERFACES"
+	CalicoVppIpsecEnvVar         = "CALICOVPP_IPSEC"
+	CalicoVppSrv6EnvVar          = "CALICOVPP_SRV6"
+	CalicoVppFeatureGatesEnvVar  = "CALICOVPP_FEATURE_GATES"
+	CalicoVppDebugEnvVar         = "CALICOVPP_DEBUG"
 )
 
 const (
-	DefaultTapQueueSize = 1024
-	DefaultPhyQueueSize = 1024
-	DefaultNumRxQueues  = 1
-	DefaultNumTxQueues  = 1
-	defaultRxMode       = types.Adaptative
 	/* Allow a maximum number of corefiles, delete older ones */
 	maxCoreFiles = 2
 )
 
 func GetVppManagerParams() (params *config.VppManagerParams) {
 	params = &config.VppManagerParams{}
-	mainInterfaceSpec := config.InterfaceSpec{IsMain: true}
+	True := true
+	mainInterfaceSpec := common_config.UplinkInterfaceSpec{IsMain: &True}
 	err := parseEnvVariables(params, mainInterfaceSpec)
 	if err != nil {
 		log.Panicf("Parse error %v", err)
@@ -171,26 +143,95 @@ func getEnvValue(str string) string {
 	return os.Getenv(str)
 }
 
-func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config.InterfaceSpec) (err error) {
+func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec common_config.UplinkInterfaceSpec) (err error) {
 	supportedEnvVars = make(map[string]bool)
 
-	vppStartupSleep := getEnvValue(VppStartupSleepEnvVar)
-	if vppStartupSleep == "" {
-		params.VppStartupSleepSeconds = 0
-	} else {
-		i, err := strconv.ParseInt(vppStartupSleep, 10, 32)
-		params.VppStartupSleepSeconds = int(i)
+	/* general calicovpp configuration */
+	var calicoVppInitialConfig common_config.CalicoVppInitialConfig
+	conf := getEnvValue(CalicoVppInitialConfigEnvVar)
+	if conf != "" {
+		err := json.Unmarshal([]byte(conf), &calicoVppInitialConfig)
 		if err != nil {
-			return errors.Wrapf(err, "Error Parsing %s", VppStartupSleepEnvVar)
+			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", CalicoVppInitialConfigEnvVar, conf, err)
 		}
 	}
+	params.IfConfigSavePath = calicoVppInitialConfig.IfConfigSavePath
+	params.VppStartupSleepSeconds = calicoVppInitialConfig.VppStartupSleepSeconds
+	params.CorePattern = calicoVppInitialConfig.CorePattern
+	params.ExtraAddrCount = calicoVppInitialConfig.ExtraAddrCount
 
-	mainInterface := getEnvValue(InterfaceEnvVar)
-	if mainInterface == "" {
-		return errors.Errorf("No interface specified. Specify an interface through the %s environment variable", InterfaceEnvVar)
+	/* interfaces configuration */
+	var calicoVppInterfaces common_config.CalicoVppInterfaces
+	conf = getEnvValue(CalicoVppInterfacesEnvVar)
+	if conf != "" {
+		err := json.Unmarshal([]byte(conf), &calicoVppInterfaces)
+		if err != nil {
+			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", CalicoVppInterfacesEnvVar, conf, err)
+		}
 	}
-	mainInterfaceSpec.InterfaceName = mainInterface
+	params.UserSpecifiedMtu = calicoVppInterfaces.Mtu
 
+	/* host tap configuration */
+	vpphosttapIfSpec := common_config.InterfaceSpec{NumRxQueues: 1, NumTxQueues: 1, RxQueueSize: 1024, TxQueueSize: 1024}
+	if calicoVppInterfaces.VppHostTapSpec != nil {
+		vpphosttapIfSpec = *calicoVppInterfaces.VppHostTapSpec
+	}
+	params.DefaultTap = vpphosttapIfSpec
+
+	/* uplinks configuration */
+	var uplinkInterfaces *[]common_config.UplinkInterfaceSpec
+	extraInterfacesSpecs := []common_config.UplinkInterfaceSpec{}
+	mainInterfaceDefined := false
+	if calicoVppInterfaces.UplinkInterfaces != nil {
+		uplinkInterfaces = calicoVppInterfaces.UplinkInterfaces
+		for _, uplinkInterface := range *uplinkInterfaces {
+			if !mainInterfaceDefined && *uplinkInterface.IsMain { // first uplink that is main is taken and the rest are extra
+				mainInterfaceSpec = uplinkInterface
+				mainInterfaceDefined = true
+				if mainInterfaceSpec.VppIpConfSource != "linux" {
+					return errors.Errorf("No ip configuration source specified. Specify one of {linux,}")
+				}
+			} else { // automatically not main
+				var False *bool
+				*False = false
+				uplinkInterface.IsMain = False
+				extraInterfacesSpecs = append(extraInterfacesSpecs, uplinkInterface)
+				if uplinkInterface.NativeDriver == "" {
+					return errors.Errorf("native driver should be specified for multiple interfaces")
+				}
+				if uplinkInterface.VppIpConfSource != "linux" {
+					return errors.Errorf("No ip configuration source specified. Specify one of {linux,}")
+				}
+			}
+		}
+	}
+	/* uplink configuration: This is being deprecated */
+	if !mainInterfaceDefined {
+		log.Warn("Use of CALICOVPP_INTERFACE, CALICOVPP_NATIVE_DRIVER and CALICOVPP_IP_CONFIG, CALICOVPP_SWAP_DRIVER is deprecated, please use CALICOVPP_INTERFACES instead")
+
+		mainInterface := getEnvValue(InterfaceEnvVar)
+		if mainInterface == "" {
+			return errors.Errorf("No interface specified. Specify an interface through the %s environment variable", InterfaceEnvVar)
+		}
+		mainInterfaceSpec.InterfaceName = mainInterface
+
+		mainInterfaceSpec.VppIpConfSource = getEnvValue(IpConfigEnvVar)
+		if mainInterfaceSpec.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
+			return errors.Errorf("No ip configuration source specified. Specify one of {linux,} through the %s environment variable", IpConfigEnvVar)
+		}
+
+		mainInterfaceSpec.NativeDriver = ""
+		if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
+			mainInterfaceSpec.NativeDriver = strings.ToLower(conf)
+		}
+
+		mainInterfaceSpec.NewDriverName = getEnvValue(SwapDriverEnvVar)
+	}
+
+	params.UplinksSpecs = []common_config.UplinkInterfaceSpec{mainInterfaceSpec}
+	params.UplinksSpecs = append(params.UplinksSpecs, extraInterfacesSpecs...)
+
+	/* general calicovpp configuration */
 	params.ConfigExecTemplate = getEnvValue(ConfigExecTemplateEnvVar)
 	for _, hookName := range hooks.AllHooks {
 		if conf := getEnvValue(fmt.Sprintf("%s%s", BashHookEnvVarPrefix, hookName)); conf != "" {
@@ -213,8 +254,6 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 		return fmt.Errorf("empty VPP configuration template, set a template in the %s environment variable", ConfigTemplateEnvVar)
 	}
 
-	params.IfConfigSavePath = getEnvValue(IfConfigPathEnvVar)
-
 	params.NodeName = getEnvValue(NodeNameEnvVar)
 	if params.NodeName == "" {
 		return errors.Errorf("No node name specified. Specify the NODENAME environment variable")
@@ -229,75 +268,9 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 		params.ServiceCIDRs = append(params.ServiceCIDRs, *serviceCIDR)
 	}
 
-	mainInterfaceSpec.VppIpConfSource = getEnvValue(IpConfigEnvVar)
-	if mainInterfaceSpec.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
-		return errors.Errorf("No ip configuration source specified. Specify one of {linux,} through the %s environment variable", IpConfigEnvVar)
-	}
-
-	params.CorePattern = getEnvValue(CorePatternEnvVar)
-
-	params.ExtraAddrCount = 0
-	if extraAddrConf := getEnvValue(ExtraAddrCountEnvVar); extraAddrConf != "" {
-		extraAddrCount, err := strconv.ParseInt(extraAddrConf, 10, 8)
-		if err != nil {
-			log.Errorf("Couldn't parse %s: %v", ExtraAddrCountEnvVar, err)
-		} else {
-			params.ExtraAddrCount = int(extraAddrCount)
-		}
-	}
-
-	mainInterfaceSpec.NativeDriver = ""
-	if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
-		mainInterfaceSpec.NativeDriver = strings.ToLower(conf)
-	} else {
-		if getEnvValue(ExtraInterfacesEnvVar) != "" {
-			return errors.Errorf("native driver should be specified for multiple interfaces")
-		}
-	}
-
-	mainInterfaceSpec.NumRxQueues = DefaultNumRxQueues
-	if conf := getEnvValue(NumRxQueuesEnvVar); conf != "" {
-		queues, err := strconv.ParseInt(conf, 10, 16)
-		if err != nil || queues <= 0 {
-			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumRxQueuesEnvVar, conf, queues, err)
-		} else {
-			mainInterfaceSpec.NumRxQueues = int(queues)
-		}
-	}
-
-	mainInterfaceSpec.NumTxQueues = DefaultNumTxQueues
-	if conf := getEnvValue(NumTxQueuesEnvVar); conf != "" {
-		queues, err := strconv.ParseInt(conf, 10, 16)
-		if err != nil || queues <= 0 {
-			log.Errorf("Invalid %s configuration: %s parses to %d err %v", NumTxQueuesEnvVar, conf, queues, err)
-		} else {
-			mainInterfaceSpec.NumTxQueues = int(queues)
-		}
-	}
-
-	mainInterfaceSpec.NewDriverName = getEnvValue(SwapDriverEnvVar)
-
-	extraInterfacesSpecs := []config.InterfaceSpec{}
-	if getEnvValue(ExtraInterfacesEnvVar) != "" {
-		err = json.Unmarshal([]byte(strings.ReplaceAll(getEnvValue(ExtraInterfacesEnvVar), "'", "\"")), &extraInterfacesSpecs)
-		if err != nil {
-			log.Errorf("extra Interface %s has wrong format", getEnvValue(ExtraInterfacesEnvVar))
-		}
-	}
-	params.InterfacesSpecs = []config.InterfaceSpec{mainInterfaceSpec}
-	params.InterfacesSpecs = append(params.InterfacesSpecs, extraInterfacesSpecs...)
-
-	params.RxMode = types.UnformatRxMode(getEnvValue(RxModeEnvVar))
-	if params.RxMode == types.UnknownRxMode {
-		params.RxMode = defaultRxMode
-	}
-	params.TapRxMode = types.UnformatRxMode(getEnvValue(TapRxModeEnvVar))
-	if params.TapRxMode == types.UnknownRxMode {
-		params.TapRxMode = defaultRxMode
-	}
-
-	if conf := getEnvValue(DefaultGWEnvVar); conf != "" {
-		for _, defaultGWStr := range strings.Split(conf, ",") {
+	defaultGW := calicoVppInitialConfig.DefaultGWs
+	if defaultGW != "" {
+		for _, defaultGWStr := range strings.Split(defaultGW, ",") {
 			defaultGW := net.ParseIP(defaultGWStr)
 			if defaultGW == nil {
 				return errors.Errorf("Unable to parse IP: %s", conf)
@@ -306,41 +279,17 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 		}
 	}
 
-	if conf := getEnvValue(UserSpecifiedMtuEnvVar); conf != "" {
-		userSpecifiedMtu, err := strconv.ParseInt(conf, 10, 32)
+	/* debug */
+	var calicoVppDebug common_config.CalicoVppDebug
+	conf = getEnvValue(CalicoVppDebugEnvVar)
+	if conf != "" {
+		err := json.Unmarshal([]byte(conf), &calicoVppDebug)
 		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", UserSpecifiedMtuEnvVar, conf, userSpecifiedMtu, err)
-		}
-		params.UserSpecifiedMtu = int(userSpecifiedMtu)
-	} else {
-		params.UserSpecifiedMtu = 0
-	}
-
-	params.TapRxQueueSize = DefaultTapQueueSize
-	params.TapTxQueueSize = DefaultTapQueueSize
-	if conf := getEnvValue(TapRingSizeEnvVar); conf != "" {
-		params.TapRxQueueSize, params.TapTxQueueSize, err = parseRingSize(conf)
-		if err != nil {
-			return errors.Wrapf(err, "Error parsing %s", TapRingSizeEnvVar)
+			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", CalicoVppDebugEnvVar, conf, err)
 		}
 	}
-
-	params.RxQueueSize = DefaultPhyQueueSize
-	params.TxQueueSize = DefaultPhyQueueSize
-	if conf := getEnvValue(RingSizeEnvVar); conf != "" {
-		params.RxQueueSize, params.TxQueueSize, err = parseRingSize(conf)
-		if err != nil {
-			return errors.Wrapf(err, "Error parsing %s", RingSizeEnvVar)
-		}
-	}
-
-	params.EnableGSO = true
-	if conf := getEnvValue(EnableGSOEnvVar); conf != "" {
-		enableGSO, err := strconv.ParseBool(conf)
-		if err != nil {
-			return fmt.Errorf("Invalid %s configuration: %s parses to %v err %v", EnableGSOEnvVar, conf, enableGSO, err)
-		}
-		params.EnableGSO = enableGSO
+	if calicoVppDebug.GSOEnabled != nil {
+		params.EnableGSO = *calicoVppDebug.GSOEnabled
 	}
 
 	for _, e := range os.Environ() {
@@ -389,17 +338,13 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 	log.Infof("-- Environment --")
 	log.Infof("CorePattern:         %s", params.CorePattern)
 	log.Infof("ExtraAddrCount:      %d", params.ExtraAddrCount)
-	log.Infof("RxMode:              %s", types.FormatRxMode(params.RxMode))
-	log.Infof("TapRxMode:           %s", types.FormatRxMode(params.TapRxMode))
 	log.Infof("Tap MTU override:    %d", params.UserSpecifiedMtu)
 	log.Infof("Service CIDRs:       [%s]", utils.FormatIPNetSlice(params.ServiceCIDRs))
-	log.Infof("Tap Queue Size:      rx:%d tx:%d", params.TapRxQueueSize, params.TapTxQueueSize)
-	log.Infof("PHY Queue Size:      rx:%d tx:%d", params.RxQueueSize, params.TxQueueSize)
 	log.Infof("Hugepages            %d", params.AvailableHugePages)
 	log.Infof("KernelVersion        %s", params.KernelVersion)
 	log.Infof("Drivers              %v", params.LoadedDrivers)
 	log.Infof("vfio iommu:          %t", params.VfioUnsafeiommu)
-	for _, ifSpec := range params.InterfacesSpecs {
+	for _, ifSpec := range params.UplinksSpecs {
 		log.Infof("-- Interface Spec --")
 		log.Infof("Interface Name:      %s", ifSpec.InterfaceName)
 		log.Infof("Native Driver:       %s", ifSpec.NativeDriver)

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -75,14 +76,14 @@ func (d *DPDKDriver) UpdateVppConfigFile(template string) string {
 		template = fmt.Sprintf(
 			"%s\ndpdk {\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d tag %s } \n}\n",
 			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues,
-			d.params.RxQueueSize, d.params.TxQueueSize, "main-"+d.spec.InterfaceName,
+			d.spec.RxQueueSize, d.spec.TxQueueSize, "main-"+d.spec.InterfaceName,
 		)
 
 	} else {
 		template = fmt.Sprintf(
 			"%s\ndpdk {\niova-mode va\nno-hugetlb\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d tag %s } \n}\n",
 			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues,
-			d.params.RxQueueSize, d.params.TxQueueSize, "main-"+d.spec.InterfaceName,
+			d.spec.RxQueueSize, d.spec.TxQueueSize, "main-"+d.spec.InterfaceName,
 		)
 
 		// If no hugepages, also edit `buffers {}`
@@ -158,14 +159,14 @@ func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
 func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	// Nothing to do VPP autocreates on startup
 	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
-	if !d.spec.IsMain {
+	if !*d.spec.IsMain {
 		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)
 	}
 	d.spec.SwIfIndex = config.DataInterfaceSwIfIndex
 	return nil
 }
 
-func NewDPDKDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *DPDKDriver {
+func NewDPDKDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *common_config.UplinkInterfaceSpec) *DPDKDriver {
 	d := &DPDKDriver{}
 	d.name = NATIVE_DRIVER_DPDK
 	d.conf = conf
