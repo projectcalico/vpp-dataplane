@@ -170,9 +170,28 @@ data:
   # - none      : dont configure connectivity
   vpp_uplink_driver: ""
 
-  # Configures default values for interfaces buffers and mode
-  default_interface_spec: |-
-    {"rx": 1, "tx":1, "isl3": true}
+  # Configures parameters for calicovpp agent and vpp manager
+  CALICOVPP_INTERFACES: |-
+    {
+      "defaultPodIfSpec": {
+        "rx": 1, "tx":1, "isl3": true
+      },
+      "vppHostTapSpec": {
+        "rx": 1, "tx":1, "rxqsz": 1024, "txqsz": 1024, "isl3": false
+      },
+      "uplinkInterfaces": [
+        {
+          "isMain": true,
+          "interface": "eth1",
+          "vppIpConfSource": "linux"
+        }
+      ]
+    }
+  CALICOVPP_INITIAL_CONFIG: |-
+    {
+      "vppStartupSleepSeconds": 1,
+      "corePattern": "/var/lib/vpp/vppcore.%e.%p"
+    }
 
   # Configuration template for VPP.
   vpp_config_template: |-
@@ -246,6 +265,9 @@ spec:
         - name: agent
           image: docker.io/calicovpp/agent:latest
           imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: calico-vpp-config 
           env:
             # Use Kubernetes API as the backing datastore.
             - name: DATASTORE_TYPE
@@ -263,11 +285,6 @@ spec:
                 configMapKeyRef:
                   name: calico-vpp-config
                   key: service_prefix
-            - name: DEFAULT_INTERFACE_SPEC
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: default_interface_spec
           securityContext:
             # TODO check required
             privileged: true
@@ -291,19 +308,10 @@ spec:
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
+          envFrom:
+            - configMapRef:
+                name: calico-vpp-config 
           env:
-            - name: CALICOVPP_NATIVE_DRIVER
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: vpp_uplink_driver
-            - name: CALICOVPP_IP_CONFIG
-              value: linux
-            - name: CALICOVPP_INTERFACE
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: vpp_dataplane_interface
             - name: CALICOVPP_CONFIG_TEMPLATE
               valueFrom:
                 configMapKeyRef:
@@ -314,11 +322,6 @@ spec:
                 configMapKeyRef:
                   name: calico-vpp-config
                   key: service_prefix
-            - name: DEFAULT_INTERFACE_SPEC
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: default_interface_spec                  
             # Use Kubernetes API as the backing datastore.
             - name: DATASTORE_TYPE
               value: "kubernetes"
@@ -330,10 +333,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            # By default drop coredumps to /var/run/vpp which is mounted
-            # On the host
-            - name: CALICOVPP_CORE_PATTERN
-              value: "/var/lib/vpp/vppcore.%e.%p"
           resources:
             requests:
               cpu: 500m

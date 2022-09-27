@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
@@ -163,7 +164,7 @@ func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (er
 		return errors.Wrapf(err, "Error setting AVF promisc on")
 	}
 
-	if d.spec.IsMain && swIfIndex != config.DataInterfaceSwIfIndex {
+	if *d.spec.IsMain && swIfIndex != config.DataInterfaceSwIfIndex {
 		return fmt.Errorf("Created AVF interface has wrong swIfIndex %d!", swIfIndex)
 	}
 	d.spec.SwIfIndex = swIfIndex
@@ -174,7 +175,7 @@ func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (er
 	return nil
 }
 
-func NewAVFDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.InterfaceSpec) *AVFDriver {
+func NewAVFDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *common_config.UplinkInterfaceSpec) *AVFDriver {
 	d := &AVFDriver{}
 	d.name = NATIVE_DRIVER_AVF
 	d.conf = conf

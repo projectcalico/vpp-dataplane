@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	common_config "github.com/projectcalico/vpp-dataplane/common-config"
 	"github.com/vishvananda/netlink"
 )
 
@@ -73,32 +73,16 @@ type VppManagerInfo struct {
 	FakeNextHopIP6 net.IP
 }
 
-type InterfaceSpec struct {
-	IsMain          bool
-	InterfaceName   string `json:"interface"`
-	VppIpConfSource string `json:"vppIpConfSource"`
-	NativeDriver    string `json:"nativeDriver"`
-	NewDriverName   string `json:"newDriver"`
-	NumRxQueues     int    `json:"rx"`
-	NumTxQueues     int    `json:"tx"`
-	SwIfIndex       uint32
-}
-
 type VppManagerParams struct {
 	VppStartupSleepSeconds   int
-	InterfacesSpecs          []InterfaceSpec
+	UplinksSpecs             []common_config.UplinkInterfaceSpec
+	DefaultTap               common_config.InterfaceSpec
 	ConfigExecTemplate       string
 	ConfigTemplate           string
 	NodeName                 string
 	CorePattern              string
-	RxMode                   types.RxMode
-	TapRxMode                types.RxMode
 	ServiceCIDRs             []net.IPNet
 	ExtraAddrCount           int
-	TapRxQueueSize           int
-	TapTxQueueSize           int
-	RxQueueSize              int
-	TxQueueSize              int
 	UserSpecifiedMtu         int
 	DefaultGWs               []net.IP
 	IfConfigSavePath         string
@@ -232,8 +216,8 @@ func TemplateScriptReplace(input string, params *VppManagerParams, conf []*Linux
 			template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(i)+"__", ifcConf.PciId)
 		}
 	}
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.InterfacesSpecs[0].InterfaceName)
-	for i, ifc := range params.InterfacesSpecs {
+	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.UplinksSpecs[0].InterfaceName)
+	for i, ifc := range params.UplinksSpecs {
 		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF_"+fmt.Sprintf("%d", i)+"__", ifc.InterfaceName)
 	}
 	for key, value := range params.NodeAnnotations {

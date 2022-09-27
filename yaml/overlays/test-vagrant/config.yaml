@@ -1,14 +1,12 @@
-kind: DaemonSet
-apiVersion: apps/v1
+kind: ConfigMap
+apiVersion: v1
 metadata:
-  name: calico-vpp-node
+  name: calico-vpp-config
   namespace: calico-vpp-dataplane
-spec:
-  template:
-    spec:
-      containers:
-        - name: vpp
-          env:
-            - name: CALICOVPP_DEFAULT_GW
-              value: "192.168.0.1"
-
+data:
+  CALICOVPP_INITIAL_CONFIG: |-
+    {
+      "vppStartupSleepSeconds": 1,
+      "corePattern": "/var/lib/vpp/vppcore.%e.%p",
+      "defaultGWs": "192.168.0.1"
+    }

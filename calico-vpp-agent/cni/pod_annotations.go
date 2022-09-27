@@ -26,6 +26,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/common-config"
 )
 
 const (
@@ -136,8 +137,8 @@ func (s *Server) ParseSpoofAddressAnnotation(value string) ([]cnet.IPNet, error)
 	return allowedSources, nil
 }
 
-func (s *Server) ParseInterfaceSpec(value string) (map[string]config.InterfaceSpec, error) {
-	var interfaceSpecs map[string]config.InterfaceSpec
+func (s *Server) ParseInterfaceSpec(value string) (map[string]common_config.InterfaceSpec, error) {
+	var interfaceSpecs map[string]common_config.InterfaceSpec
 	err := json.Unmarshal([]byte(value), &interfaceSpecs)
 	if err != nil {
 		return nil, errors.Errorf("failed to parse '%s' as JSON: %s", value, err)
@@ -145,8 +146,8 @@ func (s *Server) ParseInterfaceSpec(value string) (map[string]config.InterfaceSp
 	return interfaceSpecs, nil
 }
 
-func GetDefaultIfSpec(isL3 bool) config.InterfaceSpec {
-	return config.InterfaceSpec{
+func GetDefaultIfSpec(isL3 bool) common_config.InterfaceSpec {
+	return common_config.InterfaceSpec{
 		NumRxQueues: config.DefaultInterfaceSpec.NumRxQueues,
 		NumTxQueues: config.DefaultInterfaceSpec.NumTxQueues,
 		RxQueueSize: config.DefaultInterfaceSpec.RxQueueSize,
@@ -165,7 +166,7 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 		}
 		switch key {
 		case VppAnnotationPrefix + IfSpecAnnotation:
-			var ifSpecs map[string]config.InterfaceSpec
+			var ifSpecs map[string]common_config.InterfaceSpec
 			ifSpecs, err = s.ParseInterfaceSpec(value)
 			if err != nil {
 				s.log.Warnf("Error parsing key %s %s", key, err)
