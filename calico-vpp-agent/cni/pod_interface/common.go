@@ -17,11 +17,12 @@ package pod_interface
 
 import (
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
 )
 
 type PodInterfaceDriverData struct {
@@ -33,10 +34,8 @@ type PodInterfaceDriverData struct {
 
 func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTxQueues int) (err error) {
 	i.log.WithFields(map[string]interface{}{
-		"swIfIndex":    swIfIndex,
-		"numTxQueues":  numTxQueues,
-		"NDataThreads": i.NDataThreads,
-	}).Debugf("spreading tx queues on workers for interface: %v", i.Name)
+		"swIfIndex": swIfIndex,
+	}).Infof("spreading %d TX queues on %d workers for pod interface: %v", numTxQueues, i.NDataThreads, i.Name)
 
 	// set first tx queue for main worker
 	err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0 /* queue */, 0 /* worker */)
@@ -55,13 +54,17 @@ func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTx
 	return nil
 }
 
-func (i *PodInterfaceDriverData) SpreadRxQueuesOnWorkers(swIfIndex uint32) {
+func (i *PodInterfaceDriverData) SpreadRxQueuesOnWorkers(swIfIndex uint32, numRxQueues int) {
+	i.log.WithFields(map[string]interface{}{
+		"swIfIndex": swIfIndex,
+	}).Infof("spreading %d RX queues on %d workers for pod interface: %v", numRxQueues, i.NDataThreads, i.Name)
+
 	if i.NDataThreads > 0 {
-		for queue := 0; queue < config.TapNumRxQueues; queue++ {
-			worker := (int(swIfIndex)*config.TapNumRxQueues + queue) % i.NDataThreads
+		for queue := 0; queue < numRxQueues; queue++ {
+			worker := (int(swIfIndex)*numRxQueues + queue) % i.NDataThreads
 			err := i.vpp.SetInterfaceRxPlacement(swIfIndex, queue, worker, false /* main */)
 			if err != nil {
-				i.log.Warnf("failed to set if[%d] queue%d worker%d (tot workers %d): %v", swIfIndex, queue, worker, i.NDataThreads, err)
+				i.log.Warnf("failed to set if[%d] queue:%d worker:%d (tot workers %d): %v", swIfIndex, queue, worker, i.NDataThreads, err)
 			}
 		}
 	}
@@ -118,8 +121,6 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 }
 
 func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
-	i.SpreadRxQueuesOnWorkers(swIfIndex)
-
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
 		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfId, ipFamily.IsIp6)

@@ -66,13 +66,6 @@ func NewVppLink(socket string, logger logrus.FieldLogger) (*VppLink, error) {
 		pid:    uint32(os.Getpid()),
 	}
 
-	stopEvents, err := vppLink.watchInterfaceEvents()
-	if err != nil {
-		vppLink.log.Warnf("error watching interface events: %v", err)
-	} else {
-		vppLink.stopEvents = stopEvents
-	}
-
 	return vppLink, nil
 }
 

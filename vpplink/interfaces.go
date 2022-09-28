@@ -676,69 +676,63 @@ func (v *VppLink) DeleteLoopback(swIfIndex uint32) (err error) {
 	return nil
 }
 
-func (v *VppLink) enableInterfaceEvents() (err error) {
+func (v *VppLink) wantInterfaceEvents(on bool) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	request := &interfaces.WantInterfaceEvents{
-		EnableDisable: 1,
-		PID:           v.pid,
+		PID: v.pid,
+	}
+	if on {
+		request.EnableDisable = 1
 	}
 	response := &interfaces.WantInterfaceEventsReply{}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil || response.Retval != 0 {
-		return errors.Wrapf(err, "Error deleting loopback: req %+v reply %+v", request, response)
+		return errors.Wrapf(err, "Error want interface event: req %+v reply %+v", request, response)
 	}
 	return nil
 }
 
-func (v *VppLink) disableInterfaceEvents() (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	request := &interfaces.WantInterfaceEvents{
-		EnableDisable: 0,
-		PID:           v.pid,
-	}
-	response := &interfaces.WantInterfaceEventsReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil || response.Retval != 0 {
-		return errors.Wrapf(err, "Error deleting loopback: req %+v reply %+v", request, response)
-	}
-	return nil
-}
-
-// watchInterfaceEvents handles interface event subscription and dispatches incoming events to watchers
-func (v *VppLink) watchInterfaceEvents() (func() error, error) {
+// processEvents handles interface event subscription and dispatches incoming events to watchers
+func (v *VppLink) processEvents() (func() error, error) {
 	notifChan := make(chan api.Message, 100)
 
 	// subscribe for specific notification message
 	sub, err := v.ch.SubscribeNotification(notifChan, &interfaces.SwInterfaceEvent{})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error subscribing to interface events")
+		return nil, errors.Wrapf(err, "Error subscribing to VPP interface events")
 	}
 
-	if err := v.enableInterfaceEvents(); err != nil {
+	// send request to enable interface events
+	if err := v.wantInterfaceEvents(true); err != nil {
 		return nil, errors.Wrapf(err, "Error enabling interface events")
 	}
 
 	// process incoming notifications
 	go func() {
+		v.log.Infof("waiting for incoming VPP interface events")
+		defer v.log.Infof("done waiting for incoming VPP notifications")
+
 		for notif := range notifChan {
 			e, ok := notif.(*interfaces.SwInterfaceEvent)
 			if !ok {
+				v.log.Warnf("invalid notification type: %#v", e)
 				continue
 			}
-			v.log.Debugf("incoming interface event: %+v\n", e)
+			v.log.Infof("incoming VPP interface event: %+v\n", e)
 			event := types.ToInterfaceEvent(e)
+
 			v.watcherLock.Lock()
+			// dispatch to the active watchers
 			for _, watcher := range v.interfaceEventWatchers {
-				if watcher.swIfIndex != uint32(e.SwIfIndex) {
+				if watcher.swIfIndex != event.SwIfIndex {
 					continue
 				}
 				select {
 				case watcher.events <- event:
-					// push event
+					// event accepted
 				default:
-					v.log.Debugf("interface event channel busy, dropping event")
+					v.log.Warnf("interface event watcher channel busy, dropping event: %+v", event)
 				}
 			}
 			v.watcherLock.Unlock()
@@ -746,13 +740,13 @@ func (v *VppLink) watchInterfaceEvents() (func() error, error) {
 	}()
 
 	stop := func() error {
-		if err := v.disableInterfaceEvents(); err != nil {
+		if err := v.wantInterfaceEvents(false); err != nil {
 			return errors.Wrapf(err, "Error disabling interface events")
 		}
 
 		// unsubscribe from delivery of the notifications
 		if err := sub.Unsubscribe(); err != nil {
-			return errors.Wrapf(err, "Error unsubscribing from interface events")
+			return errors.Wrapf(err, "Error unsubscribing from VPP interface events")
 		}
 
 		return nil
@@ -774,13 +768,35 @@ func (v *VppLink) WatchInterfaceEvents(swIfIndex uint32) (InterfaceEventWatcher,
 		stop:      make(chan struct{}),
 		events:    make(chan types.InterfaceEvent, 10),
 	}
+
 	v.watcherLock.Lock()
+	// begin event processing if this is first watcher
+	if len(v.interfaceEventWatchers) == 0 {
+		if v.stopEvents != nil {
+			v.log.Warnf("events already set before first watcher")
+		} else {
+			var err error
+			v.stopEvents, err = v.processEvents()
+			if err != nil {
+				v.log.Warnf("error start processing interface events: %v", err)
+				v.watcherLock.Unlock()
+				return nil, err
+			} else {
+				v.log.Infof("start processing events before first watcher")
+			}
+		}
+	}
+	// add watcher to the list
 	v.interfaceEventWatchers = append(v.interfaceEventWatchers, w)
 	v.watcherLock.Unlock()
+
 	go func() {
-		// wait for stop
+		// wait until watcher stops
 		<-w.stop
+		v.log.WithField("swIfIdx", swIfIndex).Infof("stopped interface event watcher")
+
 		v.watcherLock.Lock()
+		// remove watcher from the list
 		for i, item := range v.interfaceEventWatchers {
 			if item == w {
 				// close event channel
@@ -790,8 +806,22 @@ func (v *VppLink) WatchInterfaceEvents(swIfIndex uint32) (InterfaceEventWatcher,
 				break
 			}
 		}
+		// stop even processing if this was last watcher
+		if len(v.interfaceEventWatchers) == 0 {
+			if v.stopEvents == nil {
+				v.log.Warnf("events not set after last watcher")
+			} else {
+				if err := v.stopEvents(); err != nil {
+					v.log.Warnf("error stop watching interface events: %v", err)
+				} else {
+					v.log.Infof("stop processing events after last watcher")
+				}
+				v.stopEvents = nil
+			}
+		}
 		v.watcherLock.Unlock()
 	}()
+
 	return w, nil
 }
 

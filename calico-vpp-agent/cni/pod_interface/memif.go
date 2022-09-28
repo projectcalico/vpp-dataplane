@@ -61,7 +61,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	}
 	podSpec.MemifSocketId = socketId
 
-	// Create new tun
+	// Create new memif
 	memif := &types.Memif{
 		Role:        types.MemifMaster,
 		Mode:        types.MemifModeEthernet,
@@ -89,17 +89,32 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		stack.Push(watcher.Stop)
 	}
 	go func() {
+		i.log.WithFields(map[string]interface{}{
+			"swIfIndex": memif.SwIfIndex,
+		}).Infof("begin watching interface events for: %v", i.Name)
+
 		for event := range watcher.Events() {
+			i.log.WithFields(map[string]interface{}{
+				"swIfIndex": memif.SwIfIndex,
+			}).Infof("processing interface event for %v: %+v", i.Name, event)
+
 			switch event.Type {
 			case types.InterfaceEventLinkUp:
 				err = i.SpreadTxQueuesOnWorkers(memif.SwIfIndex, memif.NumTxQueues)
 				if err != nil {
 					i.log.Error("error spreading tx queues on workers: %v", err)
 				}
+				i.SpreadRxQueuesOnWorkers(memif.SwIfIndex, memif.NumRxQueues)
 			case types.InterfaceEventDeleted: // this might not be needed here, it could be handled internally in the watcher
 				watcher.Stop()
+				break
 			}
 		}
+
+		i.log.WithFields(map[string]interface{}{
+			"swIfIndex": memif.SwIfIndex,
+		}).Infof("done watching interface events for: %v", i.Name)
+
 	}()
 
 	err = i.vpp.SetInterfaceTag(memif.SwIfIndex, podSpec.GetInterfaceTag(i.Name))
