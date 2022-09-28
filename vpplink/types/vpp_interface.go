@@ -193,13 +193,15 @@ func ToInterfaceEvent(e *interfaces.SwInterfaceEvent) InterfaceEvent {
 		SwIfIndex: uint32(e.SwIfIndex),
 		Type:      InterfaceEventUnknown,
 	}
-	switch {
-	case e.Deleted:
+	if e.Deleted {
 		event.Type = InterfaceEventDeleted
-	case e.Flags&interface_types.IF_STATUS_API_FLAG_LINK_UP != 0:
-		event.Type = InterfaceEventLinkUp
-	case e.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP != 0:
-		event.Type = InterfaceEventAdminUp
+	} else {
+		switch {
+		case e.Flags&interface_types.IF_STATUS_API_FLAG_LINK_UP != 0:
+			event.Type = InterfaceEventLinkUp
+		case e.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP != 0:
+			event.Type = InterfaceEventAdminUp
+		}
 	}
 	return event
 }

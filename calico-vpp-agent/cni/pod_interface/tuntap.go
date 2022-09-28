@@ -178,6 +178,8 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		return err
 	}
 
+	i.SpreadRxQueuesOnWorkers(swIfIndex, tun.NumRxQueues)
+
 	err = i.DoPodInterfaceConfiguration(podSpec, stack, swIfIndex, podSpec.TunTapIsL3)
 	if err != nil {
 		return err
