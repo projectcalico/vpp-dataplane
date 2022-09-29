@@ -26,7 +26,7 @@ delete:
 	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
 	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
 	@echo "--Deleting multus daemonset..."
-	@kubectl delete -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick-plugin.yml
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
 	@echo "--Deleting network CRD..."
 	@kubectl delete -f ../../../yaml/features/multinet/projectcalico.org_networks.yaml
 	@kubectl delete -f ../../../yaml/features/multinet/whereabouts-daemonset-install.yaml
