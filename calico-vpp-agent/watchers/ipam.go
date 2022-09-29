@@ -85,7 +85,6 @@ func (c *ipamCache) ForceReady() {
 // match checks whether we have an IP pool which contains the given prefix.
 // If we have, it returns the pool.
 func (c *ipamCache) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool {
-	c.log.Infof("MSGMSG: %+v", c.ippoolmap)
 	if !c.ready {
 		c.readyCond.L.Lock()
 		for !c.ready {
