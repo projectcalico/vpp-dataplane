@@ -29,7 +29,6 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
@@ -37,12 +36,12 @@ import (
 type ConnectivityServer struct {
 	log *logrus.Entry
 
-	providers       map[string]ConnectivityProvider
-	connectivityMap map[string]common.NodeConnectivity
-	ipam            watchers.IpamCache
-	Clientv3        calicov3cli.Interface
-	nodeBGPSpec     *oldv3.NodeBGPSpec
-	vpp             *vpplink.VppLink
+	providers        map[string]ConnectivityProvider
+	connectivityMap  map[string]common.NodeConnectivity
+	policyServerIpam common.PolicyServerIpam
+	Clientv3         calicov3cli.Interface
+	nodeBGPSpec      *oldv3.NodeBGPSpec
+	vpp              *vpplink.VppLink
 
 	felixConfig *felixConfig.Config
 	nodeByAddr  map[string]oldv3.Node
@@ -67,12 +66,12 @@ func (s *ConnectivityServer) SetFelixConfig(felixConfig *felixConfig.Config) {
 	s.felixConfig = felixConfig
 }
 
-func NewConnectivityServer(vpp *vpplink.VppLink, ipam watchers.IpamCache,
+func NewConnectivityServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyServerIpam,
 	clientv3 calicov3cli.Interface, log *logrus.Entry) *ConnectivityServer {
 	server := ConnectivityServer{
 		log:                   log,
 		vpp:                   vpp,
-		ipam:                  ipam,
+		policyServerIpam:      policyServerIpam,
 		Clientv3:              clientv3,
 		connectivityMap:       make(map[string]common.NodeConnectivity),
 		connectivityEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
@@ -219,17 +218,8 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					s.log.Warnf("connectivity(upd) WireguardListeningPort Changed [NOT IMPLEMENTED]")
 				}
 			case common.IpamConfChanged:
-				old, _ := evt.Old.(*proto.IPAMPool)
-				new, _ := evt.New.(*proto.IPAMPool)
-				if old == nil || new == nil {
-					/* First/last update, do nothing*/
-					continue
-				}
-				if new.VxlanMode != old.VxlanMode ||
-					new.IpipMode != old.IpipMode {
-					s.log.Infof("connectivity(upd) VXLAN/IPIPMode Changed")
-					s.updateAllIPConnectivity()
-				}
+				s.log.Infof("connectivity(upd) ipamConf Changed")
+				s.updateAllIPConnectivity()
 			case common.SRv6PolicyAdded:
 				new := evt.New.(*common.NodeConnectivity)
 				err := s.UpdateSRv6Policy(new, false /* isWithdraw */)
@@ -263,7 +253,7 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 	if cn.Vni != 0 {
 		return VXLAN, nil
 	}
-	ipPool := s.ipam.GetPrefixIPPool(&cn.Dst)
+	ipPool := s.policyServerIpam.GetPrefixIPPool(&cn.Dst)
 	if config.EnableSRv6 {
 		return SRv6, nil
 	}

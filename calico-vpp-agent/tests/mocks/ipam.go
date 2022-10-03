@@ -70,7 +70,7 @@ func (s *IpamCacheStub) WaitReady() {
 }
 
 func (s *IpamCacheStub) IPNetNeedsSNAT(prefix *net.IPNet) bool {
-	panic("not implemented")
+	return false
 }
 
 func (s *IpamCacheStub) AddPrefixIPPool(prefix *net.IPNet, ipPool *proto.IPAMPoolUpdate) {

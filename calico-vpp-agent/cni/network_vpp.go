@@ -116,7 +116,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	defer s.multinetLock.Unlock()
 	podSpec.NeedsSnat = false
 	for _, containerIP := range podSpec.GetContainerIps() {
-		podSpec.NeedsSnat = podSpec.NeedsSnat || s.ipam.IPNetNeedsSNAT(containerIP)
+		podSpec.NeedsSnat = podSpec.NeedsSnat || s.policyServerIpam.IPNetNeedsSNAT(containerIP)
 	}
 
 	err = ns.IsNSorErr(podSpec.NetnsName)

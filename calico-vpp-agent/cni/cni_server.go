@@ -45,7 +45,7 @@ type Server struct {
 	log *logrus.Entry
 	vpp *vpplink.VppLink
 
-	ipam watchers.IpamCache
+	policyServerIpam common.PolicyServerIpam
 
 	grpcServer *grpc.Server
 
@@ -342,13 +342,13 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 }
 
 // Serve runs the grpc server for the Calico CNI backend API
-func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Entry) *Server {
+func NewCNIServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyServerIpam, log *logrus.Entry) *Server {
 	server := &Server{
 		vpp: vpp,
 		log: log,
 
-		ipam:         ipam,
-		cniEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		policyServerIpam: policyServerIpam,
+		cniEventChan:     make(chan common.CalicoVppEvent, common.ChanSize),
 
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]storage.LocalPodSpec),
@@ -373,7 +373,7 @@ func NewCNIServer(vpp *vpplink.VppLink, ipam watchers.IpamCache, log *logrus.Ent
 	)
 	return server
 }
-func (s *Server) cniServerEventLoop(t *tomb.Tomb) {
+func (s *Server) cniServerEventLoop(t *tomb.Tomb) error {
 	for {
 		select {
 		case <-t.Dying():
@@ -404,6 +404,25 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) {
 					ipipEncapRefCountDelta++
 				}
 
+				for _, podSpec := range s.podInterfaceMap {
+					NeededSnat := podSpec.NeedsSnat
+					for _, containerIP := range podSpec.GetContainerIps() {
+						podSpec.NeedsSnat = podSpec.NeedsSnat || s.policyServerIpam.IPNetNeedsSNAT(containerIP)
+					}
+					if NeededSnat != podSpec.NeedsSnat {
+						for _, swIfIndex := range []uint32{podSpec.LoopbackSwIfIndex, podSpec.TunTapSwIfIndex, podSpec.MemifSwIfIndex} {
+							if swIfIndex != vpplink.InvalidID {
+								s.log.Infof("Enable/Disable interface[%d] SNAT", swIfIndex)
+								for _, ipFamily := range vpplink.IpFamilies {
+									err := s.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIp6, podSpec.NeedsSnat)
+									if err != nil {
+										return errors.Wrapf(err, "Error enabling/disabling %s snat", ipFamily.Str)
+									}
+								}
+							}
+						}
+					}
+				}
 				s.lock.Lock()
 				s.tuntapDriver.FelixConfigChanged(nil /* felixConfig */, ipipEncapRefCountDelta, vxlanEncapRefCountDelta, s.podInterfaceMap)
 				s.lock.Unlock()

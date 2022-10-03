@@ -49,16 +49,7 @@ import (
  */
 
 var (
-	prefixWatcher *watchers.PrefixWatcher
-	// kernelWatcher    *watchers.KernelWatcher
-	peerWatcher *watchers.PeerWatcher
-	nodeWatcher *watchers.NodeWatcher
-	ipam        watchers.IpamCache
-
-	connectivityServer *connectivity.ConnectivityServer
-
-	t tomb.Tomb
-
+	t   tomb.Tomb
 	log *logrus.Logger
 )
 
@@ -138,21 +129,19 @@ func main() {
 	linkWatcher := watchers.NewLinkWatcher(common.VppManagerInfo.UplinkStatuses)
 	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
 	nodeWatcher := watchers.NewNodeWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
-	ipam := watchers.NewIPAMCache(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
 	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
-	// TODO kernelWatcher := watchers.NewKernelWatcher(ipam, log.WithFields(logrus.Fields{"subcomponent": "kernel-watcher"}))
 	peerWatcher := watchers.NewPeerWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
-	connectivityServer = connectivity.NewConnectivityServer(vpp, ipam, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
-	cniServer := cni.NewCNIServer(vpp, ipam, log.WithFields(logrus.Fields{"component": "cni"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
 	policyServer, err := policy.NewPolicyServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
 	if err != nil {
 		log.Fatalf("Failed to create policy server %s", err)
 	}
+	connectivityServer := connectivity.NewConnectivityServer(vpp, policyServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
+	cniServer := cni.NewCNIServer(vpp, policyServer, log.WithFields(logrus.Fields{"component": "cni"}))
 
 	/* Pubsub should now be registered */
 
@@ -170,17 +159,11 @@ func main() {
 	ourBGPSpec := nodeWatcher.WaitForOurBGPSpec()
 
 	prefixWatcher.SetOurBGPSpec(ourBGPSpec)
-	// kernelWatcher.SetOurBGPSpec(ourBGPSpec)
 	connectivityServer.SetOurBGPSpec(ourBGPSpec)
 	routingServer.SetOurBGPSpec(ourBGPSpec)
 	serviceServer.SetOurBGPSpec(ourBGPSpec)
 	policyServer.SetOurBGPSpec(ourBGPSpec)
 	localSIDWatcher.SetOurBGPSpec(ourBGPSpec)
-
-	/* Some still depend on ipam being ready */
-	log.Infof("Waiting for ipam...")
-	Go(ipam.SyncIPAM)
-	ipam.WaitReady()
 
 	/**
 	 * This should be done in a separated location, but till then, we
@@ -211,7 +194,6 @@ func main() {
 	Go(serviceServer.ServeService)
 	Go(cniServer.ServeCNI)
 	Go(prometheusServer.ServePrometheus)
-	// TODO : Go(kernelWatcher.WatchKernelRoute)
 
 	// watch LocalSID if SRv6 is enabled
 	if config.EnableSRv6 {

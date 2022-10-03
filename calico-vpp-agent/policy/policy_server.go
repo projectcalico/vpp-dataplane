@@ -96,6 +96,9 @@ type Server struct {
 	felixConfigReceived bool
 	felixConfigChan     chan *felixConfig.Config
 	felixConfig         *felixConfig.Config
+
+	ippoolmap  map[string]proto.IPAMPoolUpdate
+	ippoolLock sync.RWMutex
 }
 
 func (s *Server) SetOurBGPSpec(nodeBGPSpec *oldv3.NodeBGPSpec) {
@@ -128,6 +131,8 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		felixConfigReceived: false,
 		felixConfigChan:     make(chan *felixConfig.Config),
 		felixConfig:         felixConfig.New(),
+
+		ippoolmap: make(map[string]proto.IPAMPoolUpdate),
 	}
 
 	reg := common.RegisterHandler(server.policyServerEventChan, "policy server events")
@@ -1098,19 +1103,157 @@ func (s *Server) handleHostMetadataRemove(msg *proto.HostMetadataRemove, pending
 }
 
 func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate, pending bool) (err error) {
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.IpamPoolUpdate,
-		New:  msg,
-	})
+	if msg != nil {
+		s.ippoolLock.Lock()
+		defer s.ippoolLock.Unlock()
+		key := msg.Id
+		if key == "" {
+			s.log.Debugf("Empty pool")
+			return nil
+		}
+		existing, found := s.ippoolmap[key]
+		if found && equalPools(msg, &existing) {
+			s.log.Infof("Unchanged pool: %s, nat:%t", key, msg.Pool.Masquerade)
+			return nil
+		} else if found {
+			s.log.Infof("Updating pool: %s, nat:%t", key, msg.Pool.Masquerade)
+			s.ippoolmap[key] = *msg
+			if msg.Pool.Cidr != existing.Pool.Cidr ||
+				msg.Pool.Masquerade != existing.Pool.Masquerade {
+				var err, err2 error
+				err = s.addDelSnatPrefix(&existing, false /* isAdd */)
+				err2 = s.addDelSnatPrefix(msg, true /* isAdd */)
+				if err != nil || err2 != nil {
+					return errors.Errorf("error updating snat prefix del:%s, add:%s", err, err2)
+				}
+				common.SendEvent(common.CalicoVppEvent{
+					Type: common.IpamConfChanged,
+					Old:  s.IpamPoolCopy(&existing),
+					New:  s.IpamPoolCopy(msg),
+				})
+			}
+		} else {
+			s.log.Infof("Adding pool: %s, nat:%t", key, msg.Pool.Masquerade)
+			s.ippoolmap[key] = *msg
+			s.log.Debugf("Pool %v Added, handler called", msg)
+			err = s.addDelSnatPrefix(msg, true /* isAdd */)
+			if err != nil {
+				return errors.Wrap(err, "error handling ipam add")
+			}
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.IpamConfChanged,
+				Old:  nil,
+				New:  s.IpamPoolCopy(msg),
+			})
+		}
+	}
 	return nil
 }
 
 func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove, pending bool) (err error) {
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.IpamPoolRemove,
-		Old:  msg,
-	})
+	if msg != nil {
+		s.ippoolLock.Lock()
+		defer s.ippoolLock.Unlock()
+		key := msg.Id
+		if key == "" {
+			s.log.Debugf("Empty pool")
+			return nil
+		}
+		existing, found := s.ippoolmap[key]
+		if found {
+			delete(s.ippoolmap, key)
+			s.log.Infof("Deleting pool: %s", key)
+			s.log.Debugf("Pool %s deleted, handler called", existing.Pool.Cidr)
+			err = s.addDelSnatPrefix(&existing, false /* isAdd */)
+			if err != nil {
+				return errors.Wrap(err, "error handling ipam deletion")
+			}
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.IpamConfChanged,
+				Old:  s.IpamPoolCopy(&existing),
+				New:  nil,
+			})
+		} else {
+			s.log.Warnf("Deleting unknown ippool")
+			return nil
+		}
+	}
 	return nil
+}
+
+func (s *Server) IpamPoolCopy(update *proto.IPAMPoolUpdate) *proto.IPAMPool {
+	if update != nil {
+		return &proto.IPAMPool{IpipMode: update.Pool.IpipMode, VxlanMode: update.Pool.VxlanMode, Cidr: update.Pool.Cidr}
+	}
+	return nil
+}
+
+// Compare only the fields that make a difference for this agent i.e. the fields that have an impact on routing
+func equalPools(a *proto.IPAMPoolUpdate, b *proto.IPAMPoolUpdate) bool {
+	if a.Pool.Cidr != b.Pool.Cidr {
+		return false
+	}
+	if a.Pool.IpipMode != b.Pool.IpipMode {
+		return false
+	}
+	if a.Pool.VxlanMode != b.Pool.VxlanMode {
+		return false
+	}
+	return true
+}
+
+func (s *Server) addDelSnatPrefix(pool *proto.IPAMPoolUpdate, isAdd bool) (err error) {
+	_, ipNet, err := net.ParseCIDR(pool.Pool.Cidr)
+	if err != nil {
+		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Pool.Cidr)
+	}
+	if pool.Pool.Masquerade {
+		err = s.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
+		if err != nil {
+			return errors.Wrapf(err, "Couldn't configure SNAT prefix")
+		}
+	}
+	return nil
+}
+
+// match checks whether we have an IP pool which contains the given prefix.
+// If we have, it returns the pool.
+func (s *Server) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool {
+	s.ippoolLock.RLock()
+	defer s.ippoolLock.RUnlock()
+	for _, pool := range s.ippoolmap {
+		in, err := contains(&pool, prefix)
+		if err != nil {
+			s.log.Warnf("contains errored: %v", err)
+			continue
+		}
+		if in {
+			return pool.Pool
+		}
+	}
+	s.log.Warnf("No pool found: for %s", prefix)
+	for k, pool := range s.ippoolmap {
+		s.log.Debugf("Available %s=%v", k, pool)
+	}
+	return nil
+}
+
+func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
+	pool := s.GetPrefixIPPool(prefix)
+	if pool == nil {
+		return false
+	} else {
+		return pool.Masquerade
+	}
+
+}
+
+// contains returns true if the IPPool contains 'prefix'
+func contains(pool *proto.IPAMPoolUpdate, prefix *net.IPNet) (bool, error) {
+	_, poolCIDR, _ := net.ParseCIDR(pool.Pool.Cidr) // this field is validated so this should never error
+	poolCIDRLen, poolCIDRBits := poolCIDR.Mask.Size()
+	prefixLen, prefixBits := prefix.Mask.Size()
+	return poolCIDRBits == prefixBits && poolCIDR.Contains(prefix.IP) && prefixLen >= poolCIDRLen, nil
 }
 
 func (s *Server) handleServiceAccountUpdate(msg *proto.ServiceAccountUpdate, pending bool) (err error) {

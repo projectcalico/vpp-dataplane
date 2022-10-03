@@ -36,6 +36,7 @@ import (
 	bgpapi "github.com/osrg/gobgp/api"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -51,6 +52,11 @@ const (
 	PuntTableId     = uint32(1)
 	PodVRFIndex     = uint32(2)
 )
+
+type PolicyServerIpam interface {
+	IPNetNeedsSNAT(prefix *net.IPNet) bool
+	GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool
+}
 
 // CreateVppLink creates new link to VPP and waits for VPP to be up and running (by using simple VPP API call)
 func CreateVppLink(socket string, log *logrus.Entry) (vpp *vpplink.VppLink, err error) {
