@@ -59,19 +59,21 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 		log       *logrus.Logger
 		vpp       *vpplink.VppLink
 		cniServer *cni.Server
+		ipamStub  *mocks.IpamCacheStub
 	)
 
 	BeforeEach(func() {
 		log = logrus.New()
 		startVPP()
 		vpp, _ = configureVPP(log)
-
+		// setup connectivity server (functionality target of tests)
+		if ipamStub == nil {
+			ipamStub = mocks.NewIpamCacheStub()
+		}
 		// setup CNI server (functionality target of tests)
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
-		ipam := watchers.NewIPAMCache(vpp, nil, log.WithFields(logrus.Fields{"subcomponent": "ipam-cache"}))
-		cniServer = cni.NewCNIServer(vpp, ipam, log.WithFields(logrus.Fields{"component": "cni"}))
+		cniServer = cni.NewCNIServer(vpp, ipamStub, log.WithFields(logrus.Fields{"component": "cni"}))
 		cniServer.SetFelixConfig(&config.Config{})
-		ipam.ForceReady()
 	})
 
 	Describe("Addition of the pod", func() {

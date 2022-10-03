@@ -78,7 +78,7 @@ func (i *PodInterfaceDriverData) UndoPodIfNatConfiguration(swIfIndex uint32) {
 	}
 
 	for _, ipFamily := range vpplink.IpFamilies {
-		err = i.vpp.DisableCnatSNAT(swIfIndex, ipFamily.IsIp6)
+		err = i.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIp6, false /*isEnable*/)
 		if err != nil {
 			i.log.Errorf("Error disabling %s snat %v", ipFamily.Str, err)
 		}
@@ -89,11 +89,11 @@ func (i *PodInterfaceDriverData) DoPodIfNatConfiguration(podSpec *storage.LocalP
 	if podSpec.NeedsSnat {
 		i.log.Infof("pod(add) Enable interface[%d] SNAT", swIfIndex)
 		for _, ipFamily := range vpplink.IpFamilies {
-			err = i.vpp.EnableCnatSNAT(swIfIndex, ipFamily.IsIp6)
+			err = i.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIp6, true /*isEnable*/)
 			if err != nil {
 				return errors.Wrapf(err, "Error enabling %s snat", ipFamily.Str)
 			} else {
-				stack.Push(i.vpp.DisableCnatSNAT, swIfIndex, false)
+				stack.Push(i.vpp.EnableDisableCnatSNAT, swIfIndex, ipFamily.IsIp6, false)
 			}
 		}
 	}
