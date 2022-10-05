@@ -102,7 +102,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 			case types.InterfaceEventLinkUp:
 				err = i.SpreadTxQueuesOnWorkers(memif.SwIfIndex, memif.NumTxQueues)
 				if err != nil {
-					i.log.Error("error spreading tx queues on workers: %v", err)
+					i.log.Errorf("error spreading tx queues on workers: %v", err)
 				}
 				i.SpreadRxQueuesOnWorkers(memif.SwIfIndex, memif.NumRxQueues)
 			case types.InterfaceEventDeleted: // this might not be needed here, it could be handled internally in the watcher

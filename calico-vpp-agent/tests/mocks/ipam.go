@@ -44,7 +44,7 @@ func (s *IpamCacheStub) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool {
 
 	// create new IPPool and cache it
 	ipPool = &proto.IPAMPoolUpdate{
-		Id: fmt.Sprintf("ippool-for-testing-%s", prefix.String),
+		Id: fmt.Sprintf("ippool-for-testing-%s", prefix.String()),
 		Pool: &proto.IPAMPool{
 			Cidr: prefix.String(),
 		},
