@@ -3,9 +3,9 @@
 // Package virtio contains generated bindings for API file virtio.api.
 //
 // Contents:
-//   1 enum
-//   8 messages
 //
+//	1 enum
+//	8 messages
 package virtio
 
 import (

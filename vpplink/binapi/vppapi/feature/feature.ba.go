@@ -3,8 +3,8 @@
 // Package feature contains generated bindings for API file feature.api.
 //
 // Contents:
-//   2 messages
 //
+//	2 messages
 package feature
 
 import (

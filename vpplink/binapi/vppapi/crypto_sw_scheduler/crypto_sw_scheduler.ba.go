@@ -3,8 +3,8 @@
 // Package crypto_sw_scheduler contains generated bindings for API file crypto_sw_scheduler.api.
 //
 // Contents:
-//   2 messages
 //
+//	2 messages
 package crypto_sw_scheduler
 
 import (
