@@ -3,8 +3,8 @@
 // Package avf contains generated bindings for API file avf.api.
 //
 // Contents:
-//   4 messages
 //
+//	4 messages
 package avf
 
 import (

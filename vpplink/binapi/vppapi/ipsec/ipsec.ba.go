@@ -3,10 +3,10 @@
 // Package ipsec contains generated bindings for API file ipsec.api.
 //
 // Contents:
-//   1 enum
-//   3 structs
-//  46 messages
 //
+//	 1 enum
+//	 3 structs
+//	46 messages
 package ipsec
 
 import (

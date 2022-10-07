@@ -3,9 +3,9 @@
 // Package af_xdp contains generated bindings for API file af_xdp.api.
 //
 // Contents:
-//   2 enums
-//   6 messages
 //
+//	2 enums
+//	6 messages
 package af_xdp
 
 import (
