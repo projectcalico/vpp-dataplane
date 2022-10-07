@@ -3,8 +3,8 @@
 // Package af_packet contains generated bindings for API file af_packet.api.
 //
 // Contents:
-//  10 messages
 //
+//	10 messages
 package af_packet
 
 import (

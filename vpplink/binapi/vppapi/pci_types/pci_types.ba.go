@@ -3,8 +3,8 @@
 // Package pci_types contains generated bindings for API file pci_types.api.
 //
 // Contents:
-//   1 struct
 //
+//	1 struct
 package pci_types
 
 import (

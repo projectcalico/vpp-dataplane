@@ -3,10 +3,10 @@
 // Package cnat contains generated bindings for API file cnat.api.
 //
 // Contents:
-//   5 enums
-//   4 structs
-//  20 messages
 //
+//	 5 enums
+//	 4 structs
+//	20 messages
 package cnat
 
 import (

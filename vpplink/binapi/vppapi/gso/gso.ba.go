@@ -3,8 +3,8 @@
 // Package gso contains generated bindings for API file gso.api.
 //
 // Contents:
-//   2 messages
 //
+//	2 messages
 package gso
 
 import (

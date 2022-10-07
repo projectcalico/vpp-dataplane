@@ -3,10 +3,10 @@
 // Package pbl contains generated bindings for API file pbl.api.
 //
 // Contents:
-//   1 enum
-//   2 structs
-//   6 messages
 //
+//	1 enum
+//	2 structs
+//	6 messages
 package pbl
 
 import (

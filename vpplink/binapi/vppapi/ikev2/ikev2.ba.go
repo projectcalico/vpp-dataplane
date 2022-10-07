@@ -3,8 +3,8 @@
 // Package ikev2 contains generated bindings for API file ikev2.api.
 //
 // Contents:
-//  50 messages
 //
+//	50 messages
 package ikev2
 
 import (
