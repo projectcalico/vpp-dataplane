@@ -3,9 +3,9 @@
 // Package urpf contains generated bindings for API file urpf.api.
 //
 // Contents:
-//   1 enum
-//   4 messages
 //
+//	1 enum
+//	4 messages
 package urpf
 
 import (

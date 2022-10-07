@@ -3,9 +3,9 @@
 // Package session contains generated bindings for API file session.api.
 //
 // Contents:
-//   2 enums
-//  28 messages
 //
+//	 2 enums
+//	28 messages
 package session
 
 import (

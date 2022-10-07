@@ -3,11 +3,11 @@
 // Package capo contains generated bindings for API file capo.api.
 //
 // Contents:
-//   4 enums
-//   8 structs
-//   2 unions
-//  24 messages
 //
+//	 4 enums
+//	 8 structs
+//	 2 unions
+//	24 messages
 package capo
 
 import (

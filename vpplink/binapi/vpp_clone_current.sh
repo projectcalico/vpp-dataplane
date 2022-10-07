@@ -97,6 +97,9 @@ git_cherry_pick refs/changes/38/35438/1 # 35438: af_packet: fix tx stall by retr
 git_cherry_pick refs/changes/05/35805/2 # 35805: dpdk: add intf tag to dev{} subinput | https://gerrit.fd.io/r/c/vpp/+/35805
 git_cherry_pick refs/changes/78/35678/2 # 35678: dpdk: copy the enable_rxq_int flag from driver to conf | https://gerrit.fd.io/r/c/vpp/+/35678
 
+git_cherry_pick refs/changes/65/37365/2 # 37365: gso: set the header offsets in gro hdr fixup | https://gerrit.fd.io/r/c/vpp/+/37365
+git_cherry_pick refs/changes/64/37364/1 # 37364: gso: fix the checksum for odd number of data bytes | https://gerrit.fd.io/r/c/vpp/+/37364
+
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/7 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
 git_cherry_pick refs/changes/88/31588/1 # 31588: cnat: [WIP] no k8s maglev from pods | https://gerrit.fd.io/r/c/vpp/+/31588

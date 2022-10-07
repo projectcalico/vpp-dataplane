@@ -3,8 +3,8 @@
 // Package ikev2_types contains generated bindings for API file ikev2_types.api.
 //
 // Contents:
-//  12 structs
 //
+//	12 structs
 package ikev2_types
 
 import (
