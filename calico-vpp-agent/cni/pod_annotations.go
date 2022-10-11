@@ -54,7 +54,7 @@ func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPort
 		return nil, fmt.Errorf("Please specify a port or a port range e.g. '1234-5678'")
 	}
 
-	start, err := strconv.ParseInt(portParts[0], 10, 32)
+	start, err := strconv.ParseInt(portParts[0], 10, 16)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error parsing port %s", portParts[0])
 	}
@@ -62,7 +62,7 @@ func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPort
 	ifPortConfigs.End = uint16(start)
 
 	if len(portParts) == 2 {
-		end, err := strconv.ParseInt(portParts[1], 10, 32)
+		end, err := strconv.ParseInt(portParts[1], 10, 16)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Error parsing end port %s", portParts[1])
 		}
