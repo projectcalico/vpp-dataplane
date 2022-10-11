@@ -665,7 +665,7 @@ func (v *VppRunner) pingCalicoVpp() error {
 		}
 		return errors.Wrapf(err, "Error reading %s", config.CalicoVppPidFile)
 	}
-	pid, err := strconv.ParseInt(strings.TrimSpace(string(dat[:])), 10, 64)
+	pid, err := strconv.ParseInt(strings.TrimSpace(string(dat[:])), 10, 32)
 	if err != nil {
 		return errors.Wrapf(err, "Error parsing %s", dat)
 	}
