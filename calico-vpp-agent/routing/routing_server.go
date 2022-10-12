@@ -177,7 +177,6 @@ func (s *Server) getGoBGPGlobalConfig() (*bgpapi.Global, error) {
 	asn := s.nodeBGPSpec.ASNumber
 	if asn == nil {
 		asn = s.BGPConf.ASNumber
-		s.log.Infof("herere %+v", asn)
 	}
 
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)

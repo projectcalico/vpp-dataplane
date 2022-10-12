@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/api/pkg/lib/numorstring"
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
@@ -56,6 +57,12 @@ const (
 	StateInSync
 )
 
+type NodeWatcherRestartError struct{}
+
+func (e NodeWatcherRestartError) Error() string {
+	return "node configuration changed, restarting"
+}
+
 // Server holds all the data required to configure the policies defined by felix in VPP
 type Server struct {
 	log *logrus.Entry
@@ -71,17 +78,17 @@ type Server struct {
 	pendingState    *PolicyState
 
 	/* failSafe policies allow traffic on some ports irrespective of the policy */
-	failSafePolicy *Policy
+	failSafePolicyId uint32
 	/* workloadToHost may drop traffic that goes from the pods to the host */
 	workloadsToHostIPSet  *IPSet
 	workloadsToHostPolicy *Policy
 	/* always allow traffic coming from host to the pods (for healthchecks and so on) */
-	allowFromHostPolicy *Policy
+	allowFromHostPolicyId uint32
 	/* allow traffic between uplink/tunnels and tap interfaces */
-	allowToHostPolicy *Policy
-	ip4               *net.IP
-	ip6               *net.IP
-	interfacesMap     map[string]interfaceDetails
+	allowToHostPolicyId uint32
+	ip4                 *net.IP
+	ip6                 *net.IP
+	interfacesMap       map[string]interfaceDetails
 
 	policyServerEventChan chan common.CalicoVppEvent
 	networkDefinitions    map[string]*watchers.NetworkDefinition
@@ -93,15 +100,12 @@ type Server struct {
 	felixConfigChan     chan *felixConfig.Config
 	felixConfig         *felixConfig.Config
 
-	ippoolmap  map[string]proto.IPAMPoolUpdate
-	ippoolLock sync.RWMutex
-	hosts map[string]string
-}
+	ippoolmap     map[string]proto.IPAMPoolUpdate
+	ippoolLock    sync.RWMutex
+	hostNameByDst map[string]string
 
-func (s *Server) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
-	ip4, ip6 := common.GetBGPSpecAddresses(nodeBGPSpec)
-	s.ip4 = ip4
-	s.ip6 = ip6
+	nodeStatesByName  map[string]*common.LocalNodeSpec
+	gotOurNodeBGPchan chan common.LocalNodeSpec
 }
 
 // NewServer creates a policy server
@@ -129,8 +133,15 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		felixConfigChan:     make(chan *felixConfig.Config),
 		felixConfig:         felixConfig.New(),
 
-		ippoolmap: make(map[string]proto.IPAMPoolUpdate),
-		hosts:               make(map[string]string),
+		ippoolmap:     make(map[string]proto.IPAMPoolUpdate),
+		hostNameByDst: make(map[string]string),
+
+		nodeStatesByName:  make(map[string]*common.LocalNodeSpec),
+		gotOurNodeBGPchan: make(chan common.LocalNodeSpec),
+
+		failSafePolicyId:      types.InvalidID,
+		allowFromHostPolicyId: types.InvalidID,
+		allowToHostPolicyId:   types.InvalidID,
 	}
 
 	reg := common.RegisterHandler(server.policyServerEventChan, "policy server events")
@@ -425,14 +436,13 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 		listener.Close()
 		os.RemoveAll(config.FelixDataplaneSocket)
 	}()
-
-	err = s.createAllowFromHostPolicy()
-	if err != nil {
-		return errors.Wrap(err, "Error in createAllowFromHostPolicy")
-	}
 	err = s.createEndpointToHostPolicy()
 	if err != nil {
 		return errors.Wrap(err, "Error in createEndpointToHostPolicy")
+	}
+	err = s.createAllowFromHostPolicy()
+	if err != nil {
+		return errors.Wrap(err, "Error in createAllowFromHostPolicy")
 	}
 	err = s.createAllowToHostPolicy()
 	if err != nil {
@@ -480,9 +490,14 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 				}
 				err = s.handleFelixUpdate(msg)
 				if err != nil {
-					s.log.WithError(err).Error("Error processing update from felix, restarting")
-					// TODO: Restart VPP as well? State is left over there...
-					break innerLoop
+					switch err.(type) {
+					case NodeWatcherRestartError:
+						return err
+					default:
+						s.log.WithError(err).Error("Error processing update from felix, restarting")
+						// TODO: Restart VPP as well? State is left over there...
+						break innerLoop
+					}
 				}
 			}
 		}
@@ -1104,26 +1119,160 @@ func (s *Server) handleRouteUpdate(msg *proto.RouteUpdate, pending bool) (err er
 	// node update (local or remote host)
 	if msg.Type == proto.RouteType_REMOTE_HOST || msg.Type == proto.RouteType_LOCAL_HOST {
 		s.log.Infof("received node update msg from felix: %+v", msg)
-		s.hosts[msg.Dst] = msg.DstNodeName
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.NodeRouteUpdate,
-			New:  msg,
-		})
+		s.hostNameByDst[msg.Dst] = msg.DstNodeName
+		localNodeSpec := &common.LocalNodeSpec{
+			Name:               msg.DstNodeName,
+			Labels:             msg.Labels,
+			WireguardPublicKey: msg.WireguardPublicKey,
+		}
+		if msg.Asnumber != "" {
+			asn, err := numorstring.ASNumberFromString(msg.Asnumber)
+			if err != nil {
+				return err
+			}
+			localNodeSpec.ASNumber = &asn
+		}
+		ip, ipnet, err := net.ParseCIDR(msg.Dst)
+		if err != nil {
+			return err
+		}
+		ipnet.IP = ip
+		if ipnet.IP.To4() == nil {
+			localNodeSpec.IPv6Address = ipnet
+		} else {
+			localNodeSpec.IPv4Address = ipnet
+		}
+		old, found := s.nodeStatesByName[localNodeSpec.Name]
+		if found {
+			err = s.onNodeUpdated(old, localNodeSpec)
+		} else {
+			err = s.onNodeAdded(localNodeSpec)
+		}
+		s.nodeStatesByName[localNodeSpec.Name] = localNodeSpec
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (s *Server) handleRouteRemove(msg *proto.RouteRemove, pending bool) (err error) {
 	// cannot directly tell which type of route that is, so look in map?
-	if name, ok := s.hosts[msg.Dst]; ok {
+	if name, ok := s.hostNameByDst[msg.Dst]; ok {
 		s.log.Infof("received node remove msg from felix: %+v: %s", msg, name)
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.NodeRouteDelete,
-			Old: &common.NodeRouteRemove{
-				Dst:  msg.Dst,
-				Name: name,
-			},
-		})
+		localNodeSpec := &common.LocalNodeSpec{Name: name}
+		ip, ipnet, err := net.ParseCIDR(msg.Dst)
+		if err != nil {
+			return err
+		}
+		ipnet.IP = ip
+		if ipnet.IP.To4() == nil {
+			localNodeSpec.IPv6Address = ipnet
+		} else {
+			localNodeSpec.IPv4Address = ipnet
+		}
+		old, found := s.nodeStatesByName[localNodeSpec.Name]
+		if found {
+			err = s.onNodeDeleted(old, localNodeSpec)
+			if err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("Node to delete not found")
+		}
+	}
+	return nil
+}
+
+func (s *Server) onNodeUpdated(old *common.LocalNodeSpec, node *common.LocalNodeSpec) (err error) {
+	if node.IPv4Address == nil {
+		node.IPv4Address = old.IPv4Address
+	}
+	if node.IPv6Address == nil {
+		node.IPv6Address = old.IPv6Address
+	}
+
+	// This is used by the routing server to process Wireguard key updates
+	// As a result we only send an event when a node is updated, not when it is added or deleted
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PeerNodeStateChanged,
+		Old:  old,
+		New:  node,
+	})
+	change := common.GetIpNetChangeType(old.IPv4Address, node.IPv4Address) | common.GetIpNetChangeType(old.IPv6Address, node.IPv6Address)
+	if change&(common.ChangeDeleted|common.ChangeUpdated) != 0 && node.Name == config.NodeName {
+		// restart if our BGP config changed
+		return NodeWatcherRestartError{}
+	}
+	if change != common.ChangeSame {
+		s.configureRemoteNodeSnat(old, false /* isAdd */)
+		s.configureRemoteNodeSnat(node, true /* isAdd */)
+	}
+
+	return nil
+}
+
+func (s *Server) onNodeAdded(node *common.LocalNodeSpec) (err error) {
+	if node.Name == config.NodeName &&
+		(node.IPv4Address != nil || node.IPv6Address != nil) {
+		if s.ip4 == nil && s.ip6 == nil {
+			/* We found a BGP Spec that seems valid enough */
+			s.gotOurNodeBGPchan <- *node
+		}
+		if node.IPv4Address != nil {
+			s.ip4 = &node.IPv4Address.IP
+		}
+		if node.IPv6Address != nil {
+			s.ip6 = &node.IPv6Address.IP
+		}
+		s.createAllowFromHostPolicy()
+		s.createAllowToHostPolicy()
+	}
+
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PeerNodeStateChanged,
+		New:  node,
+	})
+	s.configureRemoteNodeSnat(node, true /* isAdd */)
+
+	return nil
+}
+
+func (s *Server) configureRemoteNodeSnat(node *common.LocalNodeSpec, isAdd bool) {
+	if node.IPv4Address != nil {
+		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(node.IPv4Address.IP), isAdd)
+		if err != nil {
+			s.log.Errorf("error configuring snat prefix for current node (%v): %v", node.IPv4Address.IP, err)
+		}
+	}
+	if node.IPv6Address != nil {
+		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(node.IPv6Address.IP), isAdd)
+		if err != nil {
+			s.log.Errorf("error configuring snat prefix for current node (%v): %v", node.IPv6Address.IP, err)
+		}
+	}
+}
+
+func (s *Server) onNodeDeleted(old *common.LocalNodeSpec, node *common.LocalNodeSpec) error {
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.PeerNodeStateChanged,
+		Old:  old,
+	})
+	if old.Name == config.NodeName {
+		// restart if our BGP config changed
+		return NodeWatcherRestartError{}
+	}
+
+	if node.IPv4Address != nil {
+		old.IPv4Address = nil
+	}
+	if node.IPv6Address != nil {
+		old.IPv6Address = nil
+	}
+	s.configureRemoteNodeSnat(old, false /* isAdd */)
+	if old.IPv4Address == nil && old.IPv6Address == nil { //both addresses deleted
+		s.log.Infof("deleted node %+v", node)
+		delete(s.nodeStatesByName, node.Name)
 	}
 	return nil
 }
@@ -1274,6 +1423,11 @@ func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 
 }
 
+func (s *Server) WaitForOurBGPSpec() *common.LocalNodeSpec {
+	bgpspec := <-s.gotOurNodeBGPchan
+	return &bgpspec
+}
+
 // contains returns true if the IPPool contains 'prefix'
 func contains(pool *proto.IPAMPoolUpdate, prefix *net.IPNet) (bool, error) {
 	_, poolCIDR, _ := net.ParseCIDR(pool.Pool.Cidr) // this field is validated so this should never error
@@ -1419,13 +1573,14 @@ func (s *Server) createAllowToHostPolicy() (err error) {
 		r_out.Rule.SrcNet = append(r_out.Rule.SrcNet, *common.FullyQualified(*s.ip6))
 	}
 
-	s.allowToHostPolicy = &Policy{
+	allowToHostPolicy := &Policy{
 		Policy: &types.Policy{},
-		VppID:  types.InvalidID,
+		VppID:  s.allowToHostPolicyId,
 	}
-	s.allowToHostPolicy.InboundRules = append(s.allowToHostPolicy.InboundRules, r_out)
-	s.allowToHostPolicy.OutboundRules = append(s.allowToHostPolicy.OutboundRules, r_in)
-	err = s.allowToHostPolicy.Create(s.vpp, nil)
+	allowToHostPolicy.InboundRules = append(allowToHostPolicy.InboundRules, r_out)
+	allowToHostPolicy.OutboundRules = append(allowToHostPolicy.OutboundRules, r_in)
+	err = allowToHostPolicy.Create(s.vpp, nil)
+	s.allowToHostPolicyId = allowToHostPolicy.VppID
 	return errors.Wrap(err, "cannot create policy to allow traffic to host")
 }
 
@@ -1446,12 +1601,13 @@ func (s *Server) createAllowFromHostPolicy() (err error) {
 		r.Rule.SrcNet = append(r.Rule.SrcNet, *common.FullyQualified(*s.ip6))
 	}
 
-	s.allowFromHostPolicy = &Policy{
+	allowFromHostPolicy := &Policy{
 		Policy: &types.Policy{},
-		VppID:  types.InvalidID,
+		VppID:  s.allowFromHostPolicyId,
 	}
-	s.allowFromHostPolicy.InboundRules = append(s.allowFromHostPolicy.InboundRules, r)
-	err = s.allowFromHostPolicy.Create(s.vpp, nil)
+	allowFromHostPolicy.InboundRules = append(allowFromHostPolicy.InboundRules, r)
+	err = allowFromHostPolicy.Create(s.vpp, nil)
+	s.allowFromHostPolicyId = allowFromHostPolicy.VppID
 	return errors.Wrap(err, "cannot create policy to allow traffic from host")
 }
 
@@ -1515,7 +1671,7 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 func (s *Server) createFailSafePolicies() (err error) {
 	failSafePol := &Policy{
 		Policy: &types.Policy{},
-		VppID:  types.InvalidID,
+		VppID:  s.failSafePolicyId,
 	}
 
 	failSafeInboundRules, err := getfailSafeRules(s.felixConfig.FailsafeInboundHostPorts)
@@ -1534,7 +1690,7 @@ func (s *Server) createFailSafePolicies() (err error) {
 	if err != nil {
 		return err
 	}
-	s.failSafePolicy = failSafePol
+	s.failSafePolicyId = failSafePol.VppID
 	return nil
 }
 

@@ -109,21 +109,11 @@ func (w *PeerWatcher) selectPeers(peerSelector string) map[string]uint32 {
 			w.log.Errorf("Error in peerSelector matching: %v", err)
 		}
 		if matches {
-			if node.IPv4Address != "" && w.currentCalicoNode().IPv4Address != "" {
-				ad, _, err := net.ParseCIDR(node.IPv4Address)
-				if err == nil {
-					ipAsn[ad.String()] = w.getAsNumber(&node)
-				} else {
-					w.log.Warnf("Can't parse node IPv4: %s", node.IPv4Address)
-				}
+			if node.IPv4Address != nil && w.currentCalicoNode().IPv4Address != nil {
+				ipAsn[node.IPv4Address.IP.String()] = w.getAsNumber(&node)
 			}
-			if node.IPv6Address != "" && w.currentCalicoNode().IPv6Address != "" {
-				ad, _, err := net.ParseCIDR(node.IPv6Address)
-				if err == nil {
-					ipAsn[ad.String()] = w.getAsNumber(&node)
-				} else {
-					w.log.Warnf("Can't parse node IPv6: %s", node.IPv6Address)
-				}
+			if node.IPv6Address != nil && w.currentCalicoNode().IPv6Address != nil {
+				ipAsn[node.IPv6Address.IP.String()] = w.getAsNumber(&node)
 			}
 		}
 	}

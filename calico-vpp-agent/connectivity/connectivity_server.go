@@ -39,8 +39,8 @@ type ConnectivityServer struct {
 	connectivityMap  map[string]common.NodeConnectivity
 	policyServerIpam common.PolicyServerIpam
 	Clientv3         calicov3cli.Interface
-	nodeBGPSpec     *common.LocalNodeSpec
-	vpp             *vpplink.VppLink
+	nodeBGPSpec      *common.LocalNodeSpec
+	vpp              *vpplink.VppLink
 
 	felixConfig *felixConfig.Config
 	nodeByAddr  map[string]common.LocalNodeSpec
@@ -123,7 +123,7 @@ func (s *ConnectivityServer) GetNodeIPs() (ip4 *net.IP, ip6 *net.IP) {
 }
 
 func (s *ConnectivityServer) GetNodeIPNet(isv6 bool) *net.IPNet {
-	ip4, ip6 := common.GetBGPSpecIPNet(s.nodeBGPSpec)
+	ip4, ip6 := s.nodeBGPSpec.IPv4Address, s.nodeBGPSpec.IPv6Address
 	if isv6 {
 		return ip6
 	} else {
@@ -177,21 +177,19 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 				old, _ := evt.Old.(*common.LocalNodeSpec)
 				new, _ := evt.New.(*common.LocalNodeSpec)
 				if old != nil {
-					oldV4IP, oldV6IP := common.GetNodeSpecAddresses(old)
-					if oldV4IP != "" {
-						delete(s.nodeByAddr, oldV4IP)
+					if old.IPv4Address != nil {
+						delete(s.nodeByAddr, old.IPv4Address.IP.String())
 					}
-					if oldV6IP != "" {
-						delete(s.nodeByAddr, oldV6IP)
+					if old.IPv6Address != nil {
+						delete(s.nodeByAddr, old.IPv6Address.IP.String())
 					}
 				}
 				if new != nil {
-					newV4IP, newV6IP := common.GetNodeSpecAddresses(new)
-					if newV4IP != "" {
-						s.nodeByAddr[newV4IP] = *new
+					if new.IPv4Address != nil {
+						s.nodeByAddr[new.IPv4Address.IP.String()] = *new
 					}
-					if newV6IP != "" {
-						s.nodeByAddr[newV6IP] = *new
+					if new.IPv6Address != nil {
+						s.nodeByAddr[new.IPv6Address.IP.String()] = *new
 					}
 				}
 				if old != nil && new != nil {

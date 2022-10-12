@@ -332,9 +332,11 @@ func (p *IpsecProvider) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
 	if otherNode == nil {
 		return nil, fmt.Errorf("Didnt find an ip4 for ip %s", addr.String())
 	}
-	nodeIP, _, err := net.ParseCIDR(otherNode.IPv4Address)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Didnt find an ip4 for ip %s", addr.String())
+	var nodeIP net.IP
+	if otherNode.IPv4Address != nil {
+		nodeIP = otherNode.IPv4Address.IP
+	} else {
+		return nil, fmt.Errorf("didn't find an ip4")
 	}
 	return nodeIP, nil
 }

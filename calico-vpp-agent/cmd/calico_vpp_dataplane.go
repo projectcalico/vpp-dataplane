@@ -128,7 +128,6 @@ func main() {
 	routeWatcher := watchers.NewRouteWatcher(common.VppManagerInfo.FakeNextHopIP4, common.VppManagerInfo.FakeNextHopIP6)
 	linkWatcher := watchers.NewLinkWatcher(common.VppManagerInfo.UplinkStatuses)
 	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
-	nodeWatcher := watchers.NewNodeWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "node-watcher"}))
 	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	peerWatcher := watchers.NewPeerWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
@@ -154,15 +153,15 @@ func main() {
 	routingServer.SetBGPConf(bgpConf)
 	serviceServer.SetBGPConf(bgpConf)
 
+	Go(policyServer.ServePolicy)
 	log.Infof("Waiting for our node's BGP spec...")
-	Go(nodeWatcher.WatchNodes)
-	ourBGPSpec := nodeWatcher.WaitForOurBGPSpec()
+	felixConfig := policyServer.WaitForFelixConfig()
+	ourBGPSpec := policyServer.WaitForOurBGPSpec()
 
 	prefixWatcher.SetOurBGPSpec(ourBGPSpec)
 	connectivityServer.SetOurBGPSpec(ourBGPSpec)
 	routingServer.SetOurBGPSpec(ourBGPSpec)
 	serviceServer.SetOurBGPSpec(ourBGPSpec)
-	policyServer.SetOurBGPSpec(ourBGPSpec)
 	localSIDWatcher.SetOurBGPSpec(ourBGPSpec)
 
 	/**
@@ -176,8 +175,6 @@ func main() {
 		<-netWatcher.InSync
 		log.Infof("Networks synced")
 	}
-	Go(policyServer.ServePolicy)
-	felixConfig := policyServer.WaitForFelixConfig()
 
 	cniServer.SetFelixConfig(felixConfig)
 	connectivityServer.SetFelixConfig(felixConfig)
