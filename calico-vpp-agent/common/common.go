@@ -55,17 +55,13 @@ type PolicyServerIpam interface {
 	IPNetNeedsSNAT(prefix *net.IPNet) bool
 	GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool
 }
-type NodeRouteRemove struct {
-	Dst  string
-	Name string
-}
 
 type LocalNodeSpec struct {
 	ASNumber           *numorstring.ASNumber
 	Labels             map[string]string
 	Name               string
-	IPv4Address        string
-	IPv6Address        string
+	IPv4Address        *net.IPNet
+	IPv6Address        *net.IPNet
 	WireguardPublicKey string
 }
 
@@ -430,6 +426,17 @@ const (
 	ChangeUpdated ChangeType = 4
 )
 
+func GetIpNetChangeType(old, new *net.IPNet) ChangeType {
+	var oldStr, newStr string
+	if old != nil {
+		oldStr = old.IP.String()
+	}
+	if new != nil {
+		newStr = new.IP.String()
+	}
+	return GetStringChangeType(oldStr, newStr)
+}
+
 func GetStringChangeType(old, new string) ChangeType {
 	if old == new && new == "" {
 		return ChangeSame
@@ -466,56 +473,14 @@ type SRv6Tunnel struct {
 	Priority uint32
 }
 
-func GetBGPSpecAddresses(nodeBGPSpec *LocalNodeSpec) (*net.IP, *net.IP) {
-	var ip4 *net.IP
-	var ip6 *net.IP
-	if nodeBGPSpec.IPv4Address != "" {
-		addr, _, err := net.ParseCIDR(nodeBGPSpec.IPv4Address)
-		if err == nil {
-			ip4 = &addr
-		}
+func GetBGPSpecAddresses(nodeBGPSpec *LocalNodeSpec) (ip4 *net.IP, ip6 *net.IP) {
+	if nodeBGPSpec.IPv4Address != nil {
+		ip4 = &nodeBGPSpec.IPv4Address.IP
 	}
-	if nodeBGPSpec.IPv6Address != "" {
-		addr, _, err := net.ParseCIDR(nodeBGPSpec.IPv6Address)
-		if err == nil {
-			ip6 = &addr
-		}
+	if nodeBGPSpec.IPv6Address != nil {
+		ip6 = &nodeBGPSpec.IPv6Address.IP
 	}
-	return ip4, ip6
-}
-
-func GetBGPSpecIPNet(nodeBGPSpec *LocalNodeSpec) (ip4 *net.IPNet, ip6 *net.IPNet) {
-	if nodeBGPSpec.IPv4Address != "" {
-		_, ipNet, err := net.ParseCIDR(nodeBGPSpec.IPv4Address)
-		if err == nil {
-			ip4 = ipNet
-		}
-	}
-	if nodeBGPSpec.IPv6Address != "" {
-		_, ipNet, err := net.ParseCIDR(nodeBGPSpec.IPv6Address)
-		if err == nil {
-			ip6 = ipNet
-		}
-	}
-	return ip4, ip6
-}
-
-func GetNodeSpecAddresses(node *LocalNodeSpec) (string, string) {
-	nodeIP4 := ""
-	nodeIP6 := ""
-	if node.IPv4Address != "" {
-		addr, _, err := net.ParseCIDR(node.IPv4Address)
-		if err == nil {
-			nodeIP4 = addr.String()
-		}
-	}
-	if node.IPv6Address != "" {
-		addr, _, err := net.ParseCIDR(node.IPv6Address)
-		if err == nil {
-			nodeIP6 = addr.String()
-		}
-	}
-	return nodeIP4, nodeIP6
+	return
 }
 
 func FormatBGPConfiguration(conf *calicov3.BGPConfigurationSpec) string {

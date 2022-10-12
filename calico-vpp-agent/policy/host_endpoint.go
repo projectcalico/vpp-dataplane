@@ -172,10 +172,10 @@ func (h *HostEndpoint) getTapPolicies(state *PolicyState) (conf *types.Interface
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append([]uint32{h.server.workloadsToHostPolicy.VppID}, conf.IngressPolicyIDs...)
-		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicyId}, conf.IngressPolicyIDs...)
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
-		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicyId}, conf.EgressPolicyIDs...)
 	}
 	return conf, nil
 }
@@ -244,10 +244,10 @@ func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.Inter
 		}
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
-		conf.EgressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.allowToHostPolicyId}, conf.EgressPolicyIDs...)
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
-		conf.IngressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{h.server.allowToHostPolicyId}, conf.IngressPolicyIDs...)
 	}
 	return conf, ownPolicies, nil
 }
