@@ -22,8 +22,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
@@ -80,7 +79,7 @@ func getInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxIn
 	return conf, nil
 }
 
-func loadInterfaceConfigFromLinux(ifSpec common_config.UplinkInterfaceSpec) (*config.LinuxInterfaceState, error) {
+func loadInterfaceConfigFromLinux(ifSpec config.UplinkInterfaceSpec) (*config.LinuxInterfaceState, error) {
 	conf := config.LinuxInterfaceState{}
 	link, err := netlink.LinkByName(ifSpec.InterfaceName)
 	if err != nil {

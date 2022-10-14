@@ -20,8 +20,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -121,29 +120,7 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 	}
 }
 
-func GetInterface(podSpec *storage.LocalPodSpec, memif bool) (uint32, common_config.InterfaceSpec) {
-	var swIfIndex uint32
-	var ifSpec common_config.InterfaceSpec
-	if memif {
-		swIfIndex = podSpec.MemifSwIfIndex
-		if podSpec.HasSpecificMemifIfSpec {
-			ifSpec = podSpec.MemifIfSpec
-		} else {
-			ifSpec = config.DefaultInterfaceSpec
-		}
-	} else {
-		swIfIndex = podSpec.TunTapSwIfIndex
-		if podSpec.HasSpecificTunTapIfSpec {
-			ifSpec = podSpec.TunTapIfSpec
-		} else {
-			ifSpec = config.DefaultInterfaceSpec
-		}
-	}
-	return swIfIndex, ifSpec
-}
-
-func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, memif bool) (err error) {
-	swIfIndex, ifSpec := GetInterface(podSpec, memif)
+func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, ifSpec config.InterfaceSpec, swIfIndex uint32) (err error) {
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
 		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfId, ipFamily.IsIp6)
@@ -170,7 +147,7 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		return errors.Wrapf(err, "error setting new pod if up")
 	}
 
-	err = i.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, common_config.GetRxMode(ifSpec.RxMode))
+	err = i.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, types.RxMode(ifSpec.RxMode))
 	if err != nil {
 		return errors.Wrapf(err, "error SetInterfaceRxMode on pod if interface")
 	}

@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -37,14 +37,13 @@ import (
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
-	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 var (
 	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
-	VppManagerInfo             *vppmanagerconfig.VppManagerInfo
+	VppManagerInfo             *config.VppManagerInfo
 )
 
 const (
@@ -96,15 +95,15 @@ func CreateVppLinkInRetryLoop(socket string, log *logrus.Entry, timeout time.Dur
 	return nil, errors.Errorf("Cannot connect to VPP after 10 tries")
 }
 
-func WaitForVppManager() (*vppmanagerconfig.VppManagerInfo, error) {
-	vppManagerInfo := &vppmanagerconfig.VppManagerInfo{}
+func WaitForVppManager() (*config.VppManagerInfo, error) {
+	vppManagerInfo := &config.VppManagerInfo{}
 	for i := 0; i < 20; i++ {
 		dat, err := ioutil.ReadFile(config.VppManagerInfoFile)
 		if err == nil {
 			err2 := json.Unmarshal(dat, vppManagerInfo)
 			if err2 != nil {
 				return nil, errors.Errorf("cannot unmarshal vpp manager info file %s", err2)
-			} else if vppManagerInfo.Status == vppmanagerconfig.Ready {
+			} else if vppManagerInfo.Status == config.Ready {
 				return vppManagerInfo, nil
 			}
 		}

@@ -29,8 +29,7 @@ import (
 	"github.com/lunixbochs/struc"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -147,7 +146,7 @@ func (ps *LocalPodSpec) FullString() string {
 	s += fmt.Sprintf("DefaultIfType:      %s\n", ps.DefaultIfType.String())
 	s += fmt.Sprintf("EnableVCL:          %t\n", ps.EnableVCL)
 	s += fmt.Sprintf("EnableMemif:        %t\n", ps.EnableMemif)
-	s += fmt.Sprintf("MemifIsL3:          %t\n", ps.MemifIfSpec.IsL3)
+	s += fmt.Sprintf("IsL3:               %t\n", ps.IfSpec.IsL3)
 	s += fmt.Sprintf("MemifSocketId:      %d\n", ps.MemifSocketId)
 	s += fmt.Sprintf("TunTapSwIfIndex:    %d\n", ps.TunTapSwIfIndex)
 	s += fmt.Sprintf("MemifSwIfIndex:     %d\n", ps.MemifSwIfIndex)
@@ -161,23 +160,24 @@ func (ps *LocalPodSpec) FullString() string {
 func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex uint32, isL3 bool) {
 	switch ifType {
 	case VppIfTypeTunTap:
-		if ps.HasSpecificTunTapIfSpec {
-			return ps.TunTapSwIfIndex, ps.TunTapIfSpec.IsL3
-		} else {
-			return ps.TunTapSwIfIndex, config.DefaultInterfaceSpec.IsL3
-		}
+		return ps.TunTapSwIfIndex, ps.IfSpec.IsL3
 	case VppIfTypeMemif:
 		if !config.MemifEnabled {
 			return types.InvalidID, true
 		}
-		if ps.HasSpecificMemifIfSpec {
-			return ps.MemifSwIfIndex, ps.MemifIfSpec.IsL3
-		} else {
-			return ps.MemifSwIfIndex, config.DefaultInterfaceSpec.IsL3
-		}
+		return ps.MemifSwIfIndex, ps.IfSpec.IsL3
 	default:
 		return types.InvalidID, true
 	}
+}
+
+func (ps *LocalPodSpec) GetBuffersNeeded() uint64 {
+	var buffersNeededForThisPod uint64
+	buffersNeededForThisPod += ps.IfSpec.GetBuffersNeeded()
+	if ps.NetworkName == "" && ps.EnableMemif {
+		buffersNeededForThisPod += ps.PBLMemifIfSpec.GetBuffersNeeded()
+	}
+	return buffersNeededForThisPod
 }
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
@@ -224,10 +224,8 @@ type LocalPodSpec struct {
 	EnableVCL     bool
 	EnableMemif   bool
 
-	HasSpecificMemifIfSpec  bool
-	MemifIfSpec             common_config.InterfaceSpec
-	HasSpecificTunTapIfSpec bool
-	TunTapIfSpec            common_config.InterfaceSpec
+	IfSpec         config.InterfaceSpec
+	PBLMemifIfSpec config.InterfaceSpec
 
 	/**
 	 * Below are VPP internal ids, mutable fields in AddVppInterface

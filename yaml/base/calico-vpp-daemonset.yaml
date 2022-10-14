@@ -173,6 +173,9 @@ data:
   # Configures parameters for calicovpp agent and vpp manager
   CALICOVPP_INTERFACES: |-
     {
+      "maxIfSpec": {
+        "rx": 10, "tx": 10, "rxqsz": 1024, "txqsz": 1024
+      },
       "defaultPodIfSpec": {
         "rx": 1, "tx":1, "isl3": true
       },
@@ -182,8 +185,7 @@ data:
       "uplinkInterfaces": [
         {
           "isMain": true,
-          "interface": "eth1",
-          "vppIpConfSource": "linux"
+          "interface": "eth1"
         }
       ]
     }

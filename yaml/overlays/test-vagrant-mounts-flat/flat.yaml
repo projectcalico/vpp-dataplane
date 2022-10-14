@@ -35,14 +35,14 @@ data:
         "rx": 10, "tx":10
       },
       "defaultPodIfSpec": {
-        "rx": 1, "tx":1, "isl3": true, "rxMode": "polling"
+        "rx": 1, "tx":1, "rxqsz": 1024, "txqsz": 1024, "isl3": true, "rxMode": "polling"
       },
       "vppHostTapSpec": {
         "rx": 1, "tx":1, "rxqsz": 1024, "txqsz": 1024, "isl3": false, "rxMode": "polling"
       },
       "uplinkInterfaces": [
         {
-          "isMain": true, "interface": "eth1", "vppIpConfSource": "linux", "rxMode": "polling"
+          "isMain": true, "interface": "eth1", "rxMode": "polling"
         }
       ]
     }

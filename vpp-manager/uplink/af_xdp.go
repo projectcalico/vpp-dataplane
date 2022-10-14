@@ -19,8 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -147,7 +146,7 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (
 	}
 	log.Infof("Created AF_XDP interface %d", intf.SwIfIndex)
 
-	if *d.spec.IsMain && intf.SwIfIndex != config.DataInterfaceSwIfIndex {
+	if d.spec.GetIsMain() && intf.SwIfIndex != config.DataInterfaceSwIfIndex {
 		return fmt.Errorf("Created AF_XDP interface has wrong swIfIndex %d!", intf.SwIfIndex)
 	}
 
@@ -163,7 +162,7 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (
 	return nil
 }
 
-func NewAFXDPDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *common_config.UplinkInterfaceSpec) *AFXDPDriver {
+func NewAFXDPDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *AFXDPDriver {
 	d := &AFXDPDriver{}
 	d.name = NATIVE_DRIVER_AF_XDP
 	d.conf = conf
