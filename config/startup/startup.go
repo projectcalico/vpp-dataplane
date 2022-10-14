@@ -28,8 +28,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	log "github.com/sirupsen/logrus"
@@ -82,7 +81,7 @@ const (
 func GetVppManagerParams() (params *config.VppManagerParams) {
 	params = &config.VppManagerParams{}
 	True := true
-	mainInterfaceSpec := common_config.UplinkInterfaceSpec{IsMain: &True}
+	mainInterfaceSpec := config.UplinkInterfaceSpec{IsMain: &True}
 	err := parseEnvVariables(params, mainInterfaceSpec)
 	if err != nil {
 		log.Panicf("Parse error %v", err)
@@ -143,11 +142,11 @@ func getEnvValue(str string) string {
 	return os.Getenv(str)
 }
 
-func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec common_config.UplinkInterfaceSpec) (err error) {
+func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config.UplinkInterfaceSpec) (err error) {
 	supportedEnvVars = make(map[string]bool)
 
 	/* general calicovpp configuration */
-	var calicoVppInitialConfig common_config.CalicoVppInitialConfig
+	var calicoVppInitialConfig config.CalicoVppInitialConfig
 	conf := getEnvValue(CalicoVppInitialConfigEnvVar)
 	if conf != "" {
 		err := json.Unmarshal([]byte(conf), &calicoVppInitialConfig)
@@ -161,7 +160,7 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec common
 	params.ExtraAddrCount = calicoVppInitialConfig.ExtraAddrCount
 
 	/* interfaces configuration */
-	var calicoVppInterfaces common_config.CalicoVppInterfaces
+	var calicoVppInterfaces config.CalicoVppInterfaces
 	conf = getEnvValue(CalicoVppInterfacesEnvVar)
 	if conf != "" {
 		err := json.Unmarshal([]byte(conf), &calicoVppInterfaces)
@@ -172,15 +171,15 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec common
 	params.UserSpecifiedMtu = calicoVppInterfaces.Mtu
 
 	/* host tap configuration */
-	vpphosttapIfSpec := common_config.InterfaceSpec{NumRxQueues: 1, NumTxQueues: 1, RxQueueSize: 1024, TxQueueSize: 1024}
+	vpphosttapIfSpec := config.InterfaceSpec{NumRxQueues: 1, NumTxQueues: 1, RxQueueSize: 1024, TxQueueSize: 1024}
 	if calicoVppInterfaces.VppHostTapSpec != nil {
 		vpphosttapIfSpec = *calicoVppInterfaces.VppHostTapSpec
 	}
 	params.DefaultTap = vpphosttapIfSpec
 
 	/* uplinks configuration */
-	var uplinkInterfaces *[]common_config.UplinkInterfaceSpec
-	extraInterfacesSpecs := []common_config.UplinkInterfaceSpec{}
+	var uplinkInterfaces *[]config.UplinkInterfaceSpec
+	extraInterfacesSpecs := []config.UplinkInterfaceSpec{}
 	mainInterfaceDefined := false
 	if calicoVppInterfaces.UplinkInterfaces != nil {
 		uplinkInterfaces = calicoVppInterfaces.UplinkInterfaces
@@ -188,9 +187,6 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec common
 			if !mainInterfaceDefined && *uplinkInterface.IsMain { // first uplink that is main is taken and the rest are extra
 				mainInterfaceSpec = uplinkInterface
 				mainInterfaceDefined = true
-				if mainInterfaceSpec.VppIpConfSource != "linux" {
-					return errors.Errorf("No ip configuration source specified. Specify one of {linux,}")
-				}
 			} else { // automatically not main
 				var False *bool
 				*False = false
@@ -198,9 +194,6 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec common
 				extraInterfacesSpecs = append(extraInterfacesSpecs, uplinkInterface)
 				if uplinkInterface.NativeDriver == "" {
 					return errors.Errorf("native driver should be specified for multiple interfaces")
-				}
-				if uplinkInterface.VppIpConfSource != "linux" {
-					return errors.Errorf("No ip configuration source specified. Specify one of {linux,}")
 				}
 			}
 		}
@@ -215,11 +208,6 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec common
 		}
 		mainInterfaceSpec.InterfaceName = mainInterface
 
-		mainInterfaceSpec.VppIpConfSource = getEnvValue(IpConfigEnvVar)
-		if mainInterfaceSpec.VppIpConfSource != "linux" { // TODO add dhcp, config file, etc.
-			return errors.Errorf("No ip configuration source specified. Specify one of {linux,} through the %s environment variable", IpConfigEnvVar)
-		}
-
 		mainInterfaceSpec.NativeDriver = ""
 		if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
 			mainInterfaceSpec.NativeDriver = strings.ToLower(conf)
@@ -228,7 +216,7 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec common
 		mainInterfaceSpec.NewDriverName = getEnvValue(SwapDriverEnvVar)
 	}
 
-	params.UplinksSpecs = []common_config.UplinkInterfaceSpec{mainInterfaceSpec}
+	params.UplinksSpecs = []config.UplinkInterfaceSpec{mainInterfaceSpec}
 	params.UplinksSpecs = append(params.UplinksSpecs, extraInterfacesSpecs...)
 
 	/* general calicovpp configuration */
@@ -280,7 +268,7 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec common
 	}
 
 	/* debug */
-	var calicoVppDebug common_config.CalicoVppDebug
+	var calicoVppDebug config.CalicoVppDebug
 	conf = getEnvValue(CalicoVppDebugEnvVar)
 	if conf != "" {
 		err := json.Unmarshal([]byte(conf), &calicoVppDebug)
@@ -348,7 +336,6 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 		log.Infof("-- Interface Spec --")
 		log.Infof("Interface Name:      %s", ifSpec.InterfaceName)
 		log.Infof("Native Driver:       %s", ifSpec.NativeDriver)
-		log.Infof("vppIpConfSource:     %s", ifSpec.VppIpConfSource)
 		log.Infof("New Drive Name:      %s", ifSpec.NewDriverName)
 		log.Infof("PHY target #Queues   rx:%d tx:%d", ifSpec.NumRxQueues, ifSpec.NumTxQueues)
 	}

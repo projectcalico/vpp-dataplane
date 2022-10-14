@@ -4,8 +4,9 @@ metadata:
   name: samplepod
   annotations:
     k8s.v1.cni.cncf.io/networks: network-blue-conf@eth1, network-red-conf@eth6
-    cni.projectcalico.org/vpp.interfaceSpec: "{\"eth0\": {\"rx\": 1, \"tx\":2, \"isl3\": true }, \"memif0\": {\"rx\": 2, \"tx\": 1}, \"eth1\": {\"rx\": 5, \"tx\": 3, \"isl3\": true}}"
+    cni.projectcalico.org/vpp.interfaceSpec: "{\"eth0\": {\"rx\": 1, \"tx\":2, \"isl3\": true }, \"eth1\": {\"rx\": 5, \"tx\": 9, \"isl3\": true}}"
 spec:
+  nodeName: node1
   containers:
   - name: samplepod
     command: ["/bin/ash", "-c", "trap : TERM INT; sleep infinity & wait"]

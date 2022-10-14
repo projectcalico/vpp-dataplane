@@ -30,10 +30,9 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/projectcalico/vpp-dataplane/common-config"
 )
 
 type TunTapPodInterfaceDriver struct {
@@ -137,13 +136,7 @@ func (i *TunTapPodInterfaceDriver) FelixConfigChanged(newFelixConfig *felixConfi
 }
 
 func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) error {
-	var usedIfSpec common_config.InterfaceSpec
-	if podSpec.HasSpecificTunTapIfSpec {
-		usedIfSpec = podSpec.TunTapIfSpec
-	} else {
-		usedIfSpec = config.DefaultInterfaceSpec
-	}
-
+	usedIfSpec := podSpec.IfSpec
 	tun := &types.TapV2{
 		GenericVppInterface: types.GenericVppInterface{
 			NumRxQueues:       usedIfSpec.NumRxQueues,
@@ -186,10 +179,9 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		return err
 	}
 
-	_, ifSpec := GetInterface(podSpec, false /*is memif */)
-	i.SpreadRxQueuesOnWorkers(swIfIndex, ifSpec.NumRxQueues)
+	i.SpreadRxQueuesOnWorkers(swIfIndex, podSpec.IfSpec.NumRxQueues)
 
-	err = i.DoPodInterfaceConfiguration(podSpec, stack, false /* is memif */)
+	err = i.DoPodInterfaceConfiguration(podSpec, stack, podSpec.IfSpec, swIfIndex)
 	if err != nil {
 		return err
 	}

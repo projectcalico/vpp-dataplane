@@ -29,7 +29,7 @@ import (
 	"github.com/projectcalico/calico/libcalico-go/lib/selector"
 	"github.com/projectcalico/calico/libcalico-go/lib/watch"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	tomb "gopkg.in/tomb.v2"

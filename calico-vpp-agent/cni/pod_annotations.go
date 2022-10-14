@@ -24,8 +24,7 @@ import (
 	"github.com/pkg/errors"
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -33,10 +32,10 @@ const (
 	CalicoAnnotationPrefix string = "cni.projectcalico.org/"
 	VppAnnotationPrefix    string = "cni.projectcalico.org/vpp."
 	MemifPortAnnotation    string = "memif.ports"
-	TunTapPortAnnotation   string = "tuntap.ports"
 	VclAnnotation          string = "vcl"
 	SpoofAnnotation        string = "allowedSourcePrefixes"
 	IfSpecAnnotation       string = "interfaceSpec"
+	IfSpecPBLAnnotation    string = "PblMemifIfSpec"
 )
 
 func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPortConfigs, err error) {
@@ -137,8 +136,8 @@ func (s *Server) ParseSpoofAddressAnnotation(value string) ([]cnet.IPNet, error)
 	return allowedSources, nil
 }
 
-func (s *Server) ParseInterfaceSpec(value string) (map[string]common_config.InterfaceSpec, error) {
-	var interfaceSpecs map[string]common_config.InterfaceSpec
+func (s *Server) ParseInterfaceSpecs(value string) (map[string]config.InterfaceSpec, error) {
+	var interfaceSpecs map[string]config.InterfaceSpec
 	err := json.Unmarshal([]byte(value), &interfaceSpecs)
 	if err != nil {
 		return nil, errors.Errorf("failed to parse '%s' as JSON: %s", value, err)
@@ -146,8 +145,17 @@ func (s *Server) ParseInterfaceSpec(value string) (map[string]common_config.Inte
 	return interfaceSpecs, nil
 }
 
-func GetDefaultIfSpec(isL3 bool) common_config.InterfaceSpec {
-	return common_config.InterfaceSpec{
+func (s *Server) ParseInterfaceSpec(value string) (*config.InterfaceSpec, error) {
+	var interfaceSpec *config.InterfaceSpec
+	err := json.Unmarshal([]byte(value), &interfaceSpec)
+	if err != nil {
+		return nil, errors.Errorf("failed to parse '%s' as JSON: %s", value, err)
+	}
+	return interfaceSpec, nil
+}
+
+func GetDefaultIfSpec(isL3 bool) config.InterfaceSpec {
+	return config.InterfaceSpec{
 		NumRxQueues: config.DefaultInterfaceSpec.NumRxQueues,
 		NumTxQueues: config.DefaultInterfaceSpec.NumTxQueues,
 		RxQueueSize: config.DefaultInterfaceSpec.RxQueueSize,
@@ -166,60 +174,33 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 		}
 		switch key {
 		case VppAnnotationPrefix + IfSpecAnnotation:
-			var ifSpecs map[string]common_config.InterfaceSpec
-			ifSpecs, err = s.ParseInterfaceSpec(value)
+			var ifSpecs map[string]config.InterfaceSpec
+			ifSpecs, err = s.ParseInterfaceSpecs(value)
 			if err != nil {
 				s.log.Warnf("Error parsing key %s %s", key, err)
 			}
-			if podSpec.InterfaceName == "eth0" && podSpec.NetworkName == "" { // double check to be sure
-				eth0Spec, found := ifSpecs["eth0"]
-				if found {
-					if common_config.NotExceedMax(eth0Spec, config.MaxIfSpec) {
-						podSpec.HasSpecificTunTapIfSpec = true
-						podSpec.TunTapIfSpec = eth0Spec
-					} else {
-						return errors.Errorf("pod interface config %+v exceeds max config: %+v", eth0Spec, config.MaxIfSpec)
-					}
+			for _, ifSpec := range ifSpecs {
+				if err := ifSpec.Validate(config.MaxIfSpec); err != nil {
+					return err
 				}
-				memif0Spec, found := ifSpecs["memif0"]
-				if found {
-					if common_config.NotExceedMax(memif0Spec, config.MaxIfSpec) {
-						podSpec.HasSpecificMemifIfSpec = true
-						podSpec.MemifIfSpec = memif0Spec
-					} else {
-						return errors.Errorf("pod interface config %+v exceeds max config: %+v", memif0Spec, config.MaxIfSpec)
-					}
-				}
-			} else { // multinet
-				ethSpec, found := ifSpecs[podSpec.InterfaceName]
-				if common_config.NotExceedMax(ethSpec, config.MaxIfSpec) {
-					if found {
-						if podSpec.EnableMemif {
-							podSpec.MemifIfSpec = ethSpec
-							podSpec.HasSpecificMemifIfSpec = true
-						} else {
-							podSpec.TunTapIfSpec = ethSpec
-							podSpec.HasSpecificTunTapIfSpec = true
-						}
-					}
-				} else {
-					return errors.Errorf("pod interface config %+v exceeds max config: %+v", ethSpec, config.MaxIfSpec)
-				}
+			}
+			if ethSpec, found := ifSpecs[podSpec.InterfaceName]; found {
+				podSpec.IfSpec = ethSpec
 			}
 
 		case VppAnnotationPrefix + MemifPortAnnotation:
 			podSpec.EnableMemif = true
-			if value == "default" {
-				err = s.ParseDefaultIfType(podSpec, storage.VppIfTypeMemif)
-			} else {
-				err = s.ParsePortMappingAnnotation(podSpec, storage.VppIfTypeMemif, value)
+			err = s.ParsePortMappingAnnotation(podSpec, storage.VppIfTypeMemif, value)
+			if err != nil {
+				return err
 			}
-		case VppAnnotationPrefix + TunTapPortAnnotation:
-			if value == "default" {
-				err = s.ParseDefaultIfType(podSpec, storage.VppIfTypeTunTap)
-			} else {
-				err = s.ParsePortMappingAnnotation(podSpec, storage.VppIfTypeTunTap, value)
+			err = s.ParseDefaultIfType(podSpec, storage.VppIfTypeTunTap)
+		case VppAnnotationPrefix + IfSpecPBLAnnotation:
+			ifSpec, err := s.ParseInterfaceSpec(value)
+			if err != nil {
+				s.log.Warnf("Error parsing key %s %s", key, err)
 			}
+			podSpec.PBLMemifIfSpec = *ifSpec
 		case VppAnnotationPrefix + VclAnnotation:
 			podSpec.EnableVCL, err = s.ParseEnableDisableAnnotation(value)
 		default:

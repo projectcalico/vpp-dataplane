@@ -23,9 +23,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
-	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 
 	log "github.com/sirupsen/logrus"
@@ -139,7 +138,7 @@ func GetUplinkMtu(userSpecifiedMtu int, includeEncap bool) int {
 	}
 	encapSize := 0
 	if includeEncap {
-		encapSize = vppmanagerconfig.DefaultEncapSize
+		encapSize = config.DefaultEncapSize
 	}
 	// Use the linux interface MTU as default value if nothing is configured from env
 	if userSpecifiedMtu == 0 {

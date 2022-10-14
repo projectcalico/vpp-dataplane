@@ -5,7 +5,7 @@ metadata:
   namespace: calico-vpp-dataplane
 data:
   service_prefix: "10.96.0.0/12"
-  CALICO_VPP_DEBUG: |-
+  CALICOVPP_DEBUG: |-
     {
       "GSOEnabled": false
     }

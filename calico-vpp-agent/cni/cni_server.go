@@ -35,8 +35,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/pod_interface"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
+	config "github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -59,7 +59,7 @@ type Server struct {
 	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
 
 	availableBuffers int
-	buffersNeeded    int
+	buffersInUse     int
 
 	networkDefinitions   map[string]*watchers.NetworkDefinition
 	cniMultinetEventChan chan common.CalicoVppEvent
@@ -104,10 +104,8 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		HostPorts:      make([]storage.HostPortBinding, 0),
 
 		/* defaults */
-		MemifIfSpec:             GetDefaultIfSpec(false),
-		HasSpecificMemifIfSpec:  false,
-		TunTapIfSpec:            GetDefaultIfSpec(true),
-		HasSpecificTunTapIfSpec: false,
+		IfSpec:         GetDefaultIfSpec(true),
+		PBLMemifIfSpec: GetDefaultIfSpec(false),
 
 		V4VrfId: vpplink.InvalidID,
 		V6VrfId: vpplink.InvalidID,
@@ -128,6 +126,7 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 			}
 			podSpec.EnableMemif = true
 			podSpec.DefaultIfType = storage.VppIfTypeMemif
+			podSpec.IfSpec = GetDefaultIfSpec(false)
 		}
 	}
 
@@ -255,7 +254,7 @@ func (s *Server) fetchNDataThreads() {
 	s.tuntapDriver.NDataThreads = nDataThreads
 }
 
-func (s *Server) fetchBufferConfig() {
+func (s *Server) FetchBufferConfig() {
 	availableBuffers, _, _, err := s.vpp.GetBufferStats()
 	if err != nil {
 		s.log.WithError(err).Errorf("could not get available buffers")
@@ -264,7 +263,7 @@ func (s *Server) fetchBufferConfig() {
 }
 
 func (s *Server) rescanState() {
-	s.fetchBufferConfig()
+	s.FetchBufferConfig()
 	s.fetchNDataThreads()
 
 	if config.VCLEnabled {

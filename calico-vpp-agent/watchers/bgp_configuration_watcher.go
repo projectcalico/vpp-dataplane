@@ -25,7 +25,7 @@ import (
 	calicoerr "github.com/projectcalico/calico/libcalico-go/lib/errors"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"gopkg.in/tomb.v2"

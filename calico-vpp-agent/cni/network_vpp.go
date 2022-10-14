@@ -24,8 +24,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -43,39 +42,31 @@ type NetworkPod struct {
 	ContainerIP *net.IPNet
 }
 
-func calculateBuffersNeededForInterface(ifSpec common_config.InterfaceSpec) int {
-	return ifSpec.NumRxQueues*vpplink.DefaultIntTo(ifSpec.RxQueueSize, vpplink.DEFAULT_QUEUE_SIZE) +
-		ifSpec.NumTxQueues*vpplink.DefaultIntTo(ifSpec.TxQueueSize, vpplink.DEFAULT_QUEUE_SIZE)
-}
-
 func calculateBuffersNeededForPod(podSpec *storage.LocalPodSpec) int {
 	var buffersNeededForThisPod int
-	if podSpec.NetworkName == "" || !podSpec.EnableMemif {
-		if podSpec.HasSpecificTunTapIfSpec {
-			buffersNeededForThisPod += calculateBuffersNeededForInterface(podSpec.TunTapIfSpec)
-		} else {
-			buffersNeededForThisPod += calculateBuffersNeededForInterface(config.DefaultInterfaceSpec)
-		}
-	}
-	if podSpec.EnableMemif && config.MemifEnabled {
-		if podSpec.HasSpecificMemifIfSpec {
-			buffersNeededForThisPod += calculateBuffersNeededForInterface(podSpec.MemifIfSpec)
-		} else {
-			buffersNeededForThisPod += calculateBuffersNeededForInterface(config.DefaultInterfaceSpec)
-		}
+	buffersNeededForThisPod += podSpec.IfSpec.CalculateBuffersNeededForInterface()
+	if podSpec.NetworkName == "" && podSpec.EnableMemif {
+		buffersNeededForThisPod += podSpec.IfSpec.CalculateBuffersNeededForInterface()
 	}
 	return buffersNeededForThisPod
+}
+
+func calculateBuffersNeeded(podInterfaceMap map[string]storage.LocalPodSpec) (buffers int) {
+	for _, podSpec := range podInterfaceMap {
+		buffers += calculateBuffersNeededForPod(&podSpec)
+	}
+	return buffers
 }
 
 func (s *Server) checkAvailableBuffers(podSpec *storage.LocalPodSpec) error {
 	buffersNeededForThisPod := calculateBuffersNeededForPod(podSpec)
 	existingPods := uint64(len(s.podInterfaceMap))
-	s.buffersNeeded += buffersNeededForThisPod
-	s.log.Infof("pod(add) checking available buffers, %d existing pods, request for this pod: %d, total request: %d / %d", existingPods, buffersNeededForThisPod, s.buffersNeeded, s.availableBuffers)
-	if s.buffersNeeded > s.availableBuffers {
+	s.buffersInUse = calculateBuffersNeeded(s.podInterfaceMap) + buffersNeededForThisPod
+	s.log.Infof("pod(add) checking available buffers, %d existing pods, request for this pod: %d, total request: %d / %d", existingPods, buffersNeededForThisPod, s.buffersInUse, s.availableBuffers)
+	if s.buffersInUse > s.availableBuffers {
 		return errors.Errorf("Cannot create interface: Out of buffers: available buffers = %d, buffers needed = %d. "+
 			"Increase buffers-per-numa in the VPP configuration or reduce CALICOVPP_TAP_RING_SIZE to allow more "+
-			"pods to be scheduled. Limit the number of pods per node to prevent this error", s.availableBuffers, s.buffersNeeded)
+			"pods to be scheduled. Limit the number of pods per node to prevent this error", s.availableBuffers, s.buffersInUse)
 	}
 	return nil
 }
@@ -377,6 +368,6 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 		Old:  podSpec,
 	})
 	buffersNeededForThisPod := calculateBuffersNeededForPod(podSpec)
-	s.buffersNeeded -= buffersNeededForThisPod
+	s.buffersInUse -= buffersNeededForThisPod
 	s.log.Infof("pod(del) %d buffers are now free", buffersNeededForThisPod)
 }

@@ -30,17 +30,16 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	gs "github.com/onsi/gomega/gstruct"
-	"github.com/projectcalico/calico/felix/config"
+	felixconfig "github.com/projectcalico/calico/felix/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/pod_interface"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	agentConf "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/multinet-monitor/networkAttachmentDefinition"
-	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"github.com/sirupsen/logrus"
@@ -73,7 +72,8 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 		// setup CNI server (functionality target of tests)
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 		cniServer = cni.NewCNIServer(vpp, ipamStub, log.WithFields(logrus.Fields{"component": "cni"}))
-		cniServer.SetFelixConfig(&config.Config{})
+		cniServer.SetFelixConfig(&felixconfig.Config{})
+		cniServer.FetchBufferConfig()
 	})
 
 	Describe("Addition of the pod", func() {
@@ -106,7 +106,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							},
 						},
 					}
-					common.VppManagerInfo = &vppmanagerconfig.VppManagerInfo{}
+					common.VppManagerInfo = &config.VppManagerInfo{}
 					reply, err := cniServer.Add(context.Background(), newPod)
 					Expect(err).ToNot(HaveOccurred(), "Pod addition failed")
 					Expect(reply.Successful).To(BeTrue(),
@@ -145,8 +145,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 			Context("With additional memif interface configured", func() {
 				BeforeEach(func() {
-					agentConf.MemifEnabled = true
-					agentConf.TapRxQueueSize = 0 // must be 0 as main TUN interface creation will fail
+					config.MemifEnabled = true
 				})
 
 				// TODO test also use case with that creates memif-dummy interface in pod (dummy interface is
@@ -158,9 +157,9 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						ipAddress         = "1.2.3.44"
 						interfaceName     = "newInterface"
 						memifTCPPortStart = 2222
-						memifTCPPortEnd   = 33333
+						memifTCPPortEnd   = 3333
 						memifUDPPortStart = 4444
-						memifUDPPortEnd   = 55555
+						memifUDPPortEnd   = 5555
 					)
 
 					By("Getting Pod mock container's PID")
@@ -179,11 +178,10 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 								// needed just for setting up steering of traffic to default Tun/Tap and to secondary Memif
 								cni.VppAnnotationPrefix + cni.MemifPortAnnotation: fmt.Sprintf("tcp:%d-%d,udp:%d-%d",
 									memifTCPPortStart, memifTCPPortEnd, memifUDPPortStart, memifUDPPortEnd),
-								cni.VppAnnotationPrefix + cni.TunTapPortAnnotation: "default",
 							},
 						},
 					}
-					common.VppManagerInfo = &vppmanagerconfig.VppManagerInfo{}
+					common.VppManagerInfo = &config.VppManagerInfo{}
 					reply, err := cniServer.Add(context.Background(), newPod)
 					Expect(err).ToNot(HaveOccurred(), "Pod addition failed")
 					Expect(reply.Successful).To(BeTrue(),
@@ -219,14 +217,14 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					Expect(memifs[0].Role).To(Equal(types.MemifMaster))
 					Expect(memifs[0].Mode).To(Equal(types.MemifModeEthernet))
 					Expect(memifs[0].Flags&types.MemifAdminUp > 0).To(BeTrue())
-					Expect(memifs[0].QueueSize).To(Equal(agentConf.TapRxQueueSize))
+					Expect(memifs[0].QueueSize).To(Equal(config.DefaultInterfaceSpec.RxQueueSize))
 					//Note:Memif.NumRxQueues and Memif.NumTxQueues is not dumped by VPP binary API dump -> can't test it
 
 					By("Checking secondary tunnel's memif socket file") // checking only VPP setting, not file socket presence
 					socket, err := vpp.MemifsocketByID(memifs[0].SocketId)
 					Expect(err).ToNot(HaveOccurred(), "failed to get memif socket")
 					Expect(socket.SocketFilename).To(Equal(
-						fmt.Sprintf("@netns:%s%s-%s", newPod.Netns, agentConf.MemifSocketName, newPod.InterfaceName)),
+						fmt.Sprintf("@netns:%s%s-%s", newPod.Netns, config.MemifSocketName, newPod.InterfaceName)),
 						"memif socket file is not configured correctly")
 
 					By("Checking PBL (packet punting) to redirect some traffic into memif (secondary interface)")
@@ -254,7 +252,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 				)
 
 				BeforeEach(func() {
-					agentConf.MultinetEnabled = true
+					config.MultinetEnabled = true
 
 					// Setup test prerequisite (per-multinet-network VRF and loopback interface)")
 					// (this is normally done by watchers.NetWatcher.CreateVRFsForNet(...))
@@ -308,7 +306,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
 							Workload:      &proto.WorkloadIDs{},
 						}
-						common.VppManagerInfo = &vppmanagerconfig.VppManagerInfo{}
+						common.VppManagerInfo = &config.VppManagerInfo{}
 						reply, err := cniServer.Add(context.Background(), newPodForPrimaryNetwork)
 						Expect(err).ToNot(HaveOccurred(), "Pod addition to primary network failed")
 						Expect(reply.Successful).To(BeTrue(),

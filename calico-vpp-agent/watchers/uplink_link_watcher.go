@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"gopkg.in/tomb.v2"
