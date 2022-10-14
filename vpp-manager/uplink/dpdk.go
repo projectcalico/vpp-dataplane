@@ -21,8 +21,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
@@ -159,14 +158,14 @@ func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
 func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
 	// Nothing to do VPP autocreates on startup
 	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
-	if !*d.spec.IsMain {
+	if !d.spec.GetIsMain() {
 		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)
 	}
 	d.spec.SwIfIndex = config.DataInterfaceSwIfIndex
 	return nil
 }
 
-func NewDPDKDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *common_config.UplinkInterfaceSpec) *DPDKDriver {
+func NewDPDKDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *DPDKDriver {
 	d := &DPDKDriver{}
 	d.name = NATIVE_DRIVER_DPDK
 	d.conf = conf

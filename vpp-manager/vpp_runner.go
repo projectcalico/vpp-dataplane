@@ -33,8 +33,7 @@ import (
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
@@ -346,7 +345,7 @@ func (v *VppRunner) allocateStaticVRFs() error {
 }
 
 // Configure specific VRFs for a given tap to the host to handle broadcast / multicast trafic sent by the host
-func (v *VppRunner) setupTapVRF(ifSpec *common_config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
+func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId, err := v.vpp.AllocateVRF(ipFamily.IsIp6, fmt.Sprintf("host-tap-%s-%s", ifSpec.InterfaceName, ipFamily.Str))
 		if err != nil {
@@ -401,7 +400,7 @@ func (v *VppRunner) setupTapVRF(ifSpec *common_config.UplinkInterfaceSpec, ifSta
 	return vrfs, nil
 }
 
-func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec common_config.UplinkInterfaceSpec) (err error) {
+func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec config.UplinkInterfaceSpec) (err error) {
 	// Always enable GSO feature on data interface, only a tiny negative effect on perf if GSO is not
 	// enabled on the taps or already done before an encap
 	if v.params.EnableGSO {
@@ -417,7 +416,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec com
 		return errors.Wrapf(err, "Error setting %d MTU on data interface", uplinkMtu)
 	}
 
-	err = v.vpp.SetInterfaceRxMode(ifSpec.SwIfIndex, types.AllQueues, common_config.GetRxMode(ifSpec.RxMode))
+	err = v.vpp.SetInterfaceRxMode(ifSpec.SwIfIndex, types.AllQueues, types.RxMode(ifSpec.RxMode))
 	if err != nil {
 		log.Warnf("%v", err)
 	}
@@ -464,7 +463,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec com
 		}
 	}
 
-	if *ifSpec.IsMain {
+	if ifSpec.GetIsMain() {
 		if v.params.ExtraAddrCount > 0 {
 			err = v.addExtraAddresses(ifState.Addresses, v.params.ExtraAddrCount, ifSpec.SwIfIndex)
 			if err != nil {
@@ -546,7 +545,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec com
 		}
 	}
 
-	err = v.vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, common_config.GetRxMode(v.params.DefaultTap.RxMode))
+	err = v.vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, types.RxMode(v.params.DefaultTap.RxMode))
 	if err != nil {
 		log.Errorf("Error SetInterfaceRxMode on vpptap0 %v", err)
 	}
@@ -588,7 +587,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec com
 			Mtu:       uplinkMtu,
 			LinkIndex: link.Attrs().Index,
 			Name:      link.Attrs().Name,
-			IsMain:    *ifSpec.IsMain,
+			IsMain:    ifSpec.GetIsMain(),
 		})
 	}
 	return nil

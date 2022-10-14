@@ -30,10 +30,9 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/projectcalico/vpp-dataplane/common-config"
 )
 
 type TunTapPodInterfaceDriver struct {
@@ -137,19 +136,12 @@ func (i *TunTapPodInterfaceDriver) FelixConfigChanged(newFelixConfig *felixConfi
 }
 
 func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) error {
-	var usedIfSpec common_config.InterfaceSpec
-	if podSpec.HasSpecificTunTapIfSpec {
-		usedIfSpec = podSpec.TunTapIfSpec
-	} else {
-		usedIfSpec = config.DefaultInterfaceSpec
-	}
-
 	tun := &types.TapV2{
 		GenericVppInterface: types.GenericVppInterface{
-			NumRxQueues:       usedIfSpec.NumRxQueues,
-			NumTxQueues:       usedIfSpec.NumTxQueues,
-			RxQueueSize:       usedIfSpec.RxQueueSize,
-			TxQueueSize:       usedIfSpec.TxQueueSize,
+			NumRxQueues:       podSpec.IfSpec.NumRxQueues,
+			NumTxQueues:       podSpec.IfSpec.NumTxQueues,
+			RxQueueSize:       podSpec.IfSpec.RxQueueSize,
+			TxQueueSize:       podSpec.IfSpec.TxQueueSize,
 			HostInterfaceName: podSpec.InterfaceName,
 		},
 		HostNamespace: podSpec.NetnsName,
@@ -157,7 +149,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		HostMtu:       i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0),
 	}
 
-	if usedIfSpec.IsL3 {
+	if podSpec.IfSpec.IsL3 {
 		tun.Flags |= types.TapFlagTun
 	}
 
@@ -186,10 +178,9 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		return err
 	}
 
-	_, ifSpec := GetInterface(podSpec, false /*is memif */)
-	i.SpreadRxQueuesOnWorkers(swIfIndex, ifSpec.NumRxQueues)
+	i.SpreadRxQueuesOnWorkers(swIfIndex, podSpec.IfSpec.NumRxQueues)
 
-	err = i.DoPodInterfaceConfiguration(podSpec, stack, false /* is memif */)
+	err = i.DoPodInterfaceConfiguration(podSpec, stack, podSpec.IfSpec, swIfIndex)
 	if err != nil {
 		return err
 	}

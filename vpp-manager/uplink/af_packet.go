@@ -19,8 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -93,7 +92,7 @@ func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int
 	}
 	log.Infof("Created AF_PACKET interface %d", swIfIndex)
 
-	if *d.spec.IsMain && swIfIndex != config.DataInterfaceSwIfIndex {
+	if d.spec.GetIsMain() && swIfIndex != config.DataInterfaceSwIfIndex {
 		return fmt.Errorf("Created AF_PACKET interface has wrong swIfIndex %d!", swIfIndex)
 	}
 	d.spec.SwIfIndex = swIfIndex
@@ -104,7 +103,7 @@ func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int
 	return nil
 }
 
-func NewAFPacketDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *common_config.UplinkInterfaceSpec) *AFPacketDriver {
+func NewAFPacketDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *AFPacketDriver {
 	d := &AFPacketDriver{}
 	d.name = NATIVE_DRIVER_AF_PACKET
 	d.conf = conf

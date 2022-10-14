@@ -22,9 +22,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config/startup"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	log "github.com/sirupsen/logrus"
 )

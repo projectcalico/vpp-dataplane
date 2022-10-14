@@ -21,8 +21,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -45,7 +44,7 @@ type UplinkDriverData struct {
 	conf   *config.LinuxInterfaceState
 	params *config.VppManagerParams
 	name   string
-	spec   *common_config.UplinkInterfaceSpec
+	spec   *config.UplinkInterfaceSpec
 }
 
 type UplinkDriver interface {
@@ -186,7 +185,7 @@ func (d *UplinkDriverData) getGenericVppInterface() types.GenericVppInterface {
 	}
 }
 
-func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *common_config.UplinkInterfaceSpec) []UplinkDriver {
+func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) []UplinkDriver {
 	lst := make([]UplinkDriver, 0)
 
 	if d := NewVirtioDriver(params, conf, spec); d.IsSupported(false /* warn */) {
@@ -210,7 +209,7 @@ func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.LinuxI
 	return lst
 }
 
-func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *common_config.UplinkInterfaceSpec) (d UplinkDriver) {
+func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) (d UplinkDriver) {
 	switch name {
 	case NATIVE_DRIVER_RDMA:
 		d = NewRDMADriver(params, conf, spec)

@@ -24,8 +24,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -62,11 +61,11 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	}
 	podSpec.MemifSocketId = socketId
 
-	var usedIfSpec common_config.InterfaceSpec
-	if podSpec.HasSpecificTunTapIfSpec {
-		usedIfSpec = podSpec.MemifIfSpec
+	var usedIfSpec config.InterfaceSpec
+	if podSpec.NetworkName == "" { //PBL case
+		usedIfSpec = podSpec.PBLMemifIfSpec
 	} else {
-		usedIfSpec = config.DefaultInterfaceSpec
+		usedIfSpec = podSpec.IfSpec
 	}
 	// Create new memif
 	memif := &types.Memif{
@@ -111,8 +110,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 				if err != nil {
 					i.log.Errorf("error spreading tx queues on workers: %v", err)
 				}
-				_, ifSpec := GetInterface(podSpec, true /*is memif*/)
-				i.SpreadRxQueuesOnWorkers(memif.SwIfIndex, ifSpec.NumRxQueues)
+				i.SpreadRxQueuesOnWorkers(memif.SwIfIndex, podSpec.IfSpec.NumRxQueues)
 			case types.InterfaceEventDeleted: // this might not be needed here, it could be handled internally in the watcher
 				watcher.Stop()
 				break
@@ -142,7 +140,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		return err
 	}
 
-	err = i.DoPodInterfaceConfiguration(podSpec, stack, true /* is memif */)
+	err = i.DoPodInterfaceConfiguration(podSpec, stack, podSpec.IfSpec, memif.SwIfIndex)
 	if err != nil {
 		return err
 	}

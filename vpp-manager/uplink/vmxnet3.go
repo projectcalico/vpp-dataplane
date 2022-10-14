@@ -19,8 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	common_config "github.com/projectcalico/vpp-dataplane/common-config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -101,7 +100,7 @@ func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int)
 
 	log.Infof("Created Vmxnet3 interface %d", swIfIndex)
 
-	if *d.spec.IsMain && swIfIndex != config.DataInterfaceSwIfIndex {
+	if d.spec.GetIsMain() && swIfIndex != config.DataInterfaceSwIfIndex {
 		return fmt.Errorf("created Vmxnet3 interface has wrong swIfIndex %d", swIfIndex)
 	}
 	d.spec.SwIfIndex = swIfIndex
@@ -112,7 +111,7 @@ func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int)
 	return nil
 }
 
-func NewVmxnet3Driver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *common_config.UplinkInterfaceSpec) *Vmxnet3Driver {
+func NewVmxnet3Driver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *Vmxnet3Driver {
 	d := &Vmxnet3Driver{}
 	d.name = NATIVE_DRIVER_VMXNET3
 	d.conf = conf
