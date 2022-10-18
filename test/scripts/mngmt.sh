@@ -42,7 +42,7 @@ mkdir -p $BUILD_LOG_DIR/${BUILD_NAME}
 echo "Starting build..."
 echo "Output redirected to ${BUILD_LOG_DIR}/${BUILD_NAME}/build.log"
 
-ssh $SSH_NAME /bin/bash > ${BUILD_LOG_DIR}/${BUILD_NAME}/build.log << EOF
+ssh $SSH_NAME /bin/bash > ${BUILD_LOG_DIR}/${BUILD_NAME}/build.log 2>&1 << EOF
 if [ -d $VPP_DATAPLANE_DIRECTORY ]; then
 	echo "Fetching latest"
 	cd $VPP_DATAPLANE_DIRECTORY
