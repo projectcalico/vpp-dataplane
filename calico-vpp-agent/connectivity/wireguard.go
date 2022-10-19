@@ -201,7 +201,7 @@ func (p *WireguardProvider) createWireguardTunnels() error {
 			tunnel.PublicKey = createdTunnel.PublicKey
 			tunnel.PrivateKey = createdTunnel.PrivateKey
 
-			err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+			err = p.vpp.InterfaceSetUnnumbered(swIfIndex, common.VppManagerInfo.GetMainSwIfIndex())
 			if err != nil {
 				p.errorCleanup(tunnel)
 				return errors.Wrapf(err, "Error setting wireguard tunnel unnumbered")

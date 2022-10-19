@@ -153,6 +153,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			felixConfig = &config.Config{}
 		}
 		connectivityServer.SetFelixConfig(felixConfig)
+		common.VppManagerInfo = &agentConf.VppManagerInfo{UplinkStatuses: []agentConf.UplinkStatus{{IsMain: true, SwIfIndex: 1}}}
 	})
 
 	Describe("Addition of the node", func() {
@@ -830,7 +831,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 							"Dst": gs.PointTo(Equal(*tunnelEndLocalSid)),
 							"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 								"Gw":        Equal(net.ParseIP(GatewayIPv6)),
-								"SwIfIndex": Equal(agentConf.DataInterfaceSwIfIndex),
+								"SwIfIndex": Equal(common.VppManagerInfo.GetMainSwIfIndex()),
 							})),
 						}),
 					), "Can't find forwarding of SRv6 tunnel traffic out of node")
@@ -950,14 +951,14 @@ func teardownVPP() {
 }
 
 // assertUnnumberedInterface checks whether the provided interface is unnumbered and properly takes IP address
-// from the correct interface (conf.DataInterfaceSwIfIndex).
+// from the correct interface (common.VppManagerInfo.GetMainSwIfIndex()).
 func assertUnnumberedInterface(swIfIndex uint32, interfaceDescriptiveName string, vpp *vpplink.VppLink) {
 	unnumberedDetails, err := vpp.InterfaceGetUnnumbered(swIfIndex)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("can't get unnumbered details of %s", interfaceDescriptiveName))
 	Expect(unnumberedDetails).ToNot(BeEmpty(), "can't find unnumbered interface")
 	Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
-		interface_types.InterfaceIndex(agentConf.DataInterfaceSwIfIndex)),
+		interface_types.InterfaceIndex(common.VppManagerInfo.GetMainSwIfIndex())),
 		fmt.Sprintf("Unnumberred %s doesn't get IP address from expected interface", interfaceDescriptiveName))
 }
 

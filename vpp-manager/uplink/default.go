@@ -88,7 +88,11 @@ func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int)
 	if !d.spec.GetIsMain() {
 		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)
 	}
-	d.spec.SwIfIndex = config.DataInterfaceSwIfIndex
+	swIfIndex, err := vpp.SearchInterfaceWithTag("main-" + d.spec.InterfaceName)
+	if err != nil {
+		return fmt.Errorf("error trying to find interface with tag main-%s", d.spec.InterfaceName)
+	}
+	d.spec.SwIfIndex = swIfIndex
 	return nil
 }
 

@@ -180,7 +180,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			return errors.Wrapf(err, "Error adding vxlan tunnel %s -> %s", nodeIP.String(), cn.NextHop.String())
 		}
 		if cn.Vni == 0 {
-			err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+			err = p.vpp.InterfaceSetUnnumbered(swIfIndex, common.VppManagerInfo.GetMainSwIfIndex())
 			if err != nil {
 				// TODO : delete tunnel
 				return errors.Wrapf(err, "Error setting vxlan tunnel unnumbered")

@@ -21,7 +21,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -113,7 +112,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			return errors.Wrapf(err, "Error adding ipip tunnel %s", tunnel.String())
 		}
 
-		err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+		err = p.vpp.InterfaceSetUnnumbered(swIfIndex, common.VppManagerInfo.GetMainSwIfIndex())
 		if err != nil {
 			p.errorCleanup(tunnel)
 			return errors.Wrapf(err, "Error setting ipip tunnel unnumbered")

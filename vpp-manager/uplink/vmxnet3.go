@@ -16,8 +16,6 @@
 package uplink
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
@@ -100,9 +98,6 @@ func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int)
 
 	log.Infof("Created Vmxnet3 interface %d", swIfIndex)
 
-	if d.spec.GetIsMain() && swIfIndex != config.DataInterfaceSwIfIndex {
-		return fmt.Errorf("created Vmxnet3 interface has wrong swIfIndex %d", swIfIndex)
-	}
 	d.spec.SwIfIndex = swIfIndex
 	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
 	if err != nil {

@@ -16,8 +16,6 @@
 package uplink
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	config "github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
@@ -87,9 +85,6 @@ func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (e
 
 	log.Infof("Created RDMA interface %d", swIfIndex)
 
-	if d.spec.GetIsMain() && swIfIndex != config.DataInterfaceSwIfIndex {
-		return fmt.Errorf("Created RDMA interface has wrong swIfIndex %d!", swIfIndex)
-	}
 	d.spec.SwIfIndex = swIfIndex
 	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
 	if err != nil {
