@@ -16,8 +16,6 @@
 package uplink
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
@@ -92,9 +90,6 @@ func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int
 	}
 	log.Infof("Created AF_PACKET interface %d", swIfIndex)
 
-	if d.spec.GetIsMain() && swIfIndex != config.DataInterfaceSwIfIndex {
-		return fmt.Errorf("Created AF_PACKET interface has wrong swIfIndex %d!", swIfIndex)
-	}
 	d.spec.SwIfIndex = swIfIndex
 	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
 	if err != nil {

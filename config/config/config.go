@@ -24,6 +24,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 
 	"fmt"
@@ -153,13 +154,12 @@ type CalicoVppInitialConfig struct { //out of agent and vppmanager
 }
 
 const (
-	DataInterfaceSwIfIndex = uint32(1) // Assumption: the VPP config ensures this is true
-	CNIServerSocket        = "/var/run/calico/cni-server.sock"
-	FelixDataplaneSocket   = "/var/run/calico/felix-dataplane.sock"
-	VppAPISocket           = "/var/run/vpp/vpp-api.sock"
-	VppManagerInfoFile     = "/var/run/vpp/vppmanagerinfofile"
-	CniServerStateFile     = "/var/run/vpp/calico_vpp_pod_state"
-	CalicoVppPidFile       = "/var/run/vpp/calico_vpp.pid"
+	CNIServerSocket      = "/var/run/calico/cni-server.sock"
+	FelixDataplaneSocket = "/var/run/calico/felix-dataplane.sock"
+	VppAPISocket         = "/var/run/vpp/vpp-api.sock"
+	VppManagerInfoFile   = "/var/run/vpp/vppmanagerinfofile"
+	CniServerStateFile   = "/var/run/vpp/calico_vpp_pod_state"
+	CalicoVppPidFile     = "/var/run/vpp/calico_vpp.pid"
 
 	NodeNameEnvVar      = "NODENAME"
 	LogLevelEnvVar      = "CALICO_LOG_LEVEL"
@@ -379,11 +379,12 @@ const (
 )
 
 type UplinkStatus struct {
-	SwIfIndex uint32
-	LinkIndex int
-	Name      string
-	IsMain    bool
-	Mtu       int
+	SwIfIndex    uint32
+	TapSwIfIndex uint32
+	LinkIndex    int
+	Name         string
+	IsMain       bool
+	Mtu          int
 }
 
 type VppManagerInfo struct {
@@ -391,6 +392,15 @@ type VppManagerInfo struct {
 	UplinkStatuses []UplinkStatus
 	FakeNextHopIP4 net.IP
 	FakeNextHopIP6 net.IP
+}
+
+func (i *VppManagerInfo) GetMainSwIfIndex() uint32 {
+	for _, u := range i.UplinkStatuses {
+		if u.IsMain {
+			return u.SwIfIndex
+		}
+	}
+	return vpplink.INVALID_SW_IF_INDEX
 }
 
 type VppManagerParams struct {

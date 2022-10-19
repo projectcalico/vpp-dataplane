@@ -16,8 +16,6 @@
 package uplink
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
@@ -163,9 +161,6 @@ func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (er
 		return errors.Wrapf(err, "Error setting AVF promisc on")
 	}
 
-	if d.spec.GetIsMain() && swIfIndex != config.DataInterfaceSwIfIndex {
-		return fmt.Errorf("Created AVF interface has wrong swIfIndex %d!", swIfIndex)
-	}
 	d.spec.SwIfIndex = swIfIndex
 	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
 	if err != nil {
