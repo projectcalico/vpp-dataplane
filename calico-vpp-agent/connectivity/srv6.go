@@ -150,7 +150,7 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 			p.log.Debugf("SRv6Provider AddConnectivity localSidIPPool prefix %s", cn.Dst.String())
 			err = p.vpp.RouteAdd(&types.Route{
 				Dst:   prefix.ToIPNet(),
-				Paths: []types.RoutePath{{Gw: cn.NextHop.To16(), SwIfIndex: config.DataInterfaceSwIfIndex}},
+				Paths: []types.RoutePath{{Gw: cn.NextHop.To16(), SwIfIndex: common.VppManagerInfo.GetMainSwIfIndex()}},
 			})
 
 			return err

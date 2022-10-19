@@ -583,11 +583,12 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 
 	if config.Info.UplinkStatuses != nil {
 		config.Info.UplinkStatuses = append(config.Info.UplinkStatuses, config.UplinkStatus{
-			SwIfIndex: tapSwIfIndex,
-			Mtu:       uplinkMtu,
-			LinkIndex: link.Attrs().Index,
-			Name:      link.Attrs().Name,
-			IsMain:    ifSpec.GetIsMain(),
+			TapSwIfIndex: tapSwIfIndex,
+			SwIfIndex:    ifSpec.SwIfIndex,
+			Mtu:          uplinkMtu,
+			LinkIndex:    link.Attrs().Index,
+			Name:         link.Attrs().Name,
+			IsMain:       ifSpec.GetIsMain(),
 		})
 	}
 	return nil

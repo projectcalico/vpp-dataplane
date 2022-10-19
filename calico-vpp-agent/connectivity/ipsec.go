@@ -184,7 +184,7 @@ func (p *IpsecProvider) createIPSECTunnel(tunnel *IpsecTunnel, psk string, stack
 		Old:  swIfIndex,
 	})
 
-	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, config.DataInterfaceSwIfIndex)
+	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, common.VppManagerInfo.GetMainSwIfIndex())
 	if err != nil {
 		return errors.Wrapf(err, "Error setting ipip tunnel %s unnumbered", tunnel.String())
 	}
@@ -253,7 +253,7 @@ func (p *IpsecProvider) createIPSECTunnel(tunnel *IpsecTunnel, psk string, stack
 	// Compare addresses lexicographically to select an initiator
 	if tunnel.IsInitiator() {
 		p.log.Infof("connectivity(add) IKE Set responder=%s", tunnel.String())
-		err = p.vpp.SetIKEv2Responder(tunnel.Profile(), config.DataInterfaceSwIfIndex, tunnel.Dst)
+		err = p.vpp.SetIKEv2Responder(tunnel.Profile(), common.VppManagerInfo.GetMainSwIfIndex(), tunnel.Dst)
 		if err != nil {
 			return errors.Wrapf(err, "error configuring IPsec tunnel %s", tunnel.String())
 		}

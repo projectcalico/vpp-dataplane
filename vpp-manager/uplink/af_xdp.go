@@ -16,8 +16,6 @@
 package uplink
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
@@ -145,10 +143,6 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (
 		return errors.Wrapf(err, "Error creating AF_XDP interface")
 	}
 	log.Infof("Created AF_XDP interface %d", intf.SwIfIndex)
-
-	if d.spec.GetIsMain() && intf.SwIfIndex != config.DataInterfaceSwIfIndex {
-		return fmt.Errorf("Created AF_XDP interface has wrong swIfIndex %d!", intf.SwIfIndex)
-	}
 
 	err = vpp.SetInterfaceMacAddress(intf.SwIfIndex, &d.conf.HardwareAddr)
 	if err != nil {
