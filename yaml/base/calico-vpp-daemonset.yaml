@@ -157,19 +157,6 @@ data:
   # so it must be manually configured
   SERVICE_PREFIX: 10.96.0.0/12
 
-  # Configure the name of VPP's physical interface
-  CALICOVPP_INTERFACE: eth1
-
-  # Configures how VPP grabs the physical interface
-  # available values are :
-  # - ""        : will select the fastest driver among those supported for this interface
-  # - avf       : use the native AVF driver
-  # - virtio    : use the native virtio driver (requires hugepages)
-  # - af_xdp    : use AF_XDP sock family (require at least kernel 5.4)
-  # - af_packet : use AF_PACKET sock family (slow but failsafe)
-  # - none      : dont configure connectivity
-  CALICOVPP_NATIVE_DRIVER: ""
-
   # Configures parameters for calicovpp agent and vpp manager
   CALICOVPP_INTERFACES: |-
     {

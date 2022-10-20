@@ -108,4 +108,3 @@ git_cherry_pick refs/changes/13/28513/28 # 25813: capo: Calico Policies plugin |
 git_cherry_pick refs/changes/31/37131/11 # 37131: urpf: add mode for specific fib index lookup | https://gerrit.fd.io/r/c/vpp/+/37131/
 git_cherry_pick refs/changes/59/37259/2 # 37259: cnat: Add sctp support | https://gerrit.fd.io/r/c/vpp/+/37259
 # --------------- Dedicated plugins ---------------
-

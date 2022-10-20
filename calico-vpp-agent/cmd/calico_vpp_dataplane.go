@@ -183,9 +183,7 @@ func main() {
 	connectivityServer.SetFelixConfig(felixConfig)
 
 	Go(routeWatcher.WatchRoutes)
-	if config.UserSpecifiedMtu != 0 {
-		Go(linkWatcher.WatchLinks)
-	}
+	Go(linkWatcher.WatchLinks)
 	Go(bgpConfigurationWatcher.WatchBGPConfiguration)
 	Go(prefixWatcher.WatchPrefix)
 	Go(peerWatcher.WatchBGPPeers)

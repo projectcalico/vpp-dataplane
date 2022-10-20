@@ -129,7 +129,7 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		}
 	}
 
-	if !ifSpec.IsL3 {
+	if !*ifSpec.IsL3 {
 		/* L2 */
 		err = i.vpp.SetPromiscOn(swIfIndex)
 		if err != nil {

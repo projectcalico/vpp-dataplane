@@ -36,55 +36,63 @@ import (
 const DefaultRxMode = types.Adaptative
 
 type InterfaceSpec struct {
-	NumRxQueues int  `json:"rx"`
-	NumTxQueues int  `json:"tx"`
-	RxQueueSize int  `json:"rxqsz"`
-	TxQueueSize int  `json:"txqsz"`
-	IsL3        bool `json:"isl3"`
+	NumRxQueues int   `json:"rx"`
+	NumTxQueues int   `json:"tx"`
+	RxQueueSize int   `json:"rxqsz"`
+	TxQueueSize int   `json:"txqsz"`
+	IsL3        *bool `json:"isl3"`
 	/* "interrupt" "adaptive" or "polling" mode */
 	RxMode types.RxMode `json:"rxMode"`
+}
+
+func (i *InterfaceSpec) GetIsL3(isMemif bool) bool {
+	if i.IsL3 != nil {
+		return *i.IsL3
+	}
+	return !isMemif //default value is true for tuntap and false for memif
 }
 
 func (i *InterfaceSpec) GetBuffersNeeded() uint64 {
 	return uint64(i.NumRxQueues*i.RxQueueSize + i.NumTxQueues*i.TxQueueSize)
 }
 
-func (i *InterfaceSpec) Validate(maxIfSpec InterfaceSpec) error {
-	noMaxIfSpec := maxIfSpec.NumRxQueues == 0 && maxIfSpec.NumTxQueues == 0 &&
-		maxIfSpec.RxQueueSize == 0 && maxIfSpec.TxQueueSize == 0
-	notExceedMax := i.NumRxQueues <= maxIfSpec.NumRxQueues && i.NumTxQueues <= maxIfSpec.NumTxQueues &&
-		i.RxQueueSize <= maxIfSpec.RxQueueSize && i.TxQueueSize <= maxIfSpec.TxQueueSize
-	// accept if no max provided (values are zero) or if not exceeds max
-	if noMaxIfSpec || notExceedMax {
-		// default values for partially defined specs
-		if i.RxMode == types.UnknownRxMode {
-			i.RxMode = DefaultRxMode
-		}
-		if i.NumRxQueues == 0 {
-			i.NumRxQueues = 1
-		}
-		if i.NumTxQueues == 0 {
-			i.NumTxQueues = 1
-		}
-		if i.RxQueueSize == 0 {
-			i.RxQueueSize = 1024
-		}
-		if i.TxQueueSize == 0 {
-			i.TxQueueSize = 1024
-		}
+func (i *InterfaceSpec) Validate(maxIfSpec *InterfaceSpec) error {
+	if i.RxMode == types.UnknownRxMode {
+		i.RxMode = DefaultRxMode
+	}
+	if i.NumRxQueues == 0 {
+		i.NumRxQueues = 1
+	}
+	if i.NumTxQueues == 0 {
+		i.NumTxQueues = 1
+	}
+	if i.RxQueueSize == 0 {
+		i.RxQueueSize = 1024
+	}
+	if i.TxQueueSize == 0 {
+		i.TxQueueSize = 1024
+	}
+	if maxIfSpec == nil {
 		return nil
-	} else {
+	}
+	if (i.NumRxQueues > maxIfSpec.NumRxQueues && maxIfSpec.NumRxQueues > 0) ||
+		(i.NumTxQueues > maxIfSpec.NumTxQueues && maxIfSpec.NumTxQueues > 0) ||
+		(i.RxQueueSize > maxIfSpec.RxQueueSize && maxIfSpec.RxQueueSize > 0) ||
+		(i.TxQueueSize > maxIfSpec.TxQueueSize && maxIfSpec.TxQueueSize > 0) {
 		return errors.Errorf("interface config %+v exceeds max config: %+v", *i, maxIfSpec)
 	}
+	return nil
 }
 
 type UplinkInterfaceSpec struct {
 	InterfaceSpec
-	IsMain        *bool
+	IsMain        *bool  `json:"-"`
 	InterfaceName string `json:"interfaceName"`
 	VppDriver     string `json:"vppDriver"`
 	NewDriverName string `json:"newDriver"`
-	SwIfIndex     uint32
+	/* User specified MTU for uplink & the tap */
+	Mtu       int `json:"mtu"`
+	SwIfIndex uint32
 }
 
 func (u *UplinkInterfaceSpec) GetIsMain() bool {
@@ -92,6 +100,13 @@ func (u *UplinkInterfaceSpec) GetIsMain() bool {
 		return false
 	}
 	return *u.IsMain
+}
+
+func (u *UplinkInterfaceSpec) Validate(maxIfSpec *InterfaceSpec, isMain bool) error {
+	if !isMain && u.VppDriver == "" {
+		return errors.Errorf("vpp driver should be specified for secondary uplink interfaces")
+	}
+	return u.InterfaceSpec.Validate(maxIfSpec)
 }
 
 type CalicoVppDebug struct {
@@ -121,13 +136,10 @@ type CalicoVppIpsec struct {
 }
 
 type CalicoVppInterfaces struct {
-	/* User specified MTU for uplink & the tap */
-	Mtu int `json:"Mtu"`
-
-	DefaultPodIfSpec *InterfaceSpec         `json:"defaultPodIfSpec,omitempty"`
-	MaxPodIfSpec     *InterfaceSpec         `json:"maxPodIfSpec,omitempty"`
-	VppHostTapSpec   *InterfaceSpec         `json:"vppHostTapSpec,omitempty"`
-	UplinkInterfaces *[]UplinkInterfaceSpec `json:"uplinkInterfaces,omitempty"`
+	DefaultPodIfSpec *InterfaceSpec        `json:"defaultPodIfSpec,omitempty"`
+	MaxPodIfSpec     *InterfaceSpec        `json:"maxPodIfSpec,omitempty"`
+	VppHostTapSpec   *InterfaceSpec        `json:"vppHostTapSpec,omitempty"`
+	UplinkInterfaces []UplinkInterfaceSpec `json:"uplinkInterfaces,omitempty"`
 }
 
 type CalicoVppInitialConfig struct { //out of agent and vppmanager
@@ -187,13 +199,12 @@ var (
 	LogLevel                 = logrus.InfoLevel
 	NodeName                 = ""
 	ServiceCIDRs             []*net.IPNet
-	UserSpecifiedMtu         int = 0
 	IpsecNbAsyncCryptoThread int = 0
 	SRv6policyIPPool             = ""
 	SRv6localSidIPPool           = ""
 
 	DefaultInterfaceSpec InterfaceSpec = InterfaceSpec{NumRxQueues: 1, NumTxQueues: 1, RxQueueSize: 0, TxQueueSize: 0}
-	MaxPodIfSpec         InterfaceSpec
+	MaxPodIfSpec         *InterfaceSpec
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
@@ -291,14 +302,16 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	}
 
 	if calicoVppInterfaces.MaxPodIfSpec != nil {
-		calicoVppInterfaces.MaxPodIfSpec.Validate(InterfaceSpec{})
-		MaxPodIfSpec = *calicoVppInterfaces.MaxPodIfSpec
+		calicoVppInterfaces.MaxPodIfSpec.Validate(nil)
+		MaxPodIfSpec = calicoVppInterfaces.MaxPodIfSpec
 	}
 	if calicoVppInterfaces.DefaultPodIfSpec != nil {
 		if err := calicoVppInterfaces.DefaultPodIfSpec.Validate(MaxPodIfSpec); err != nil {
 			return errors.Errorf("default pod interface spec exceeds max interface spec: %s", err)
 		} else {
 			DefaultInterfaceSpec = *calicoVppInterfaces.DefaultPodIfSpec
+			isL3 := DefaultInterfaceSpec.GetIsL3(false)
+			DefaultInterfaceSpec.IsL3 = &isL3
 		}
 	}
 
@@ -318,7 +331,6 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	IpsecNbAsyncCryptoThread = calicoVppIpsec.NbAsyncCryptoThreads
 	extraAddressCount := calicoVppIpsec.ExtraAddresses
 	IpsecAddressCount = int(extraAddressCount) + 1
-	UserSpecifiedMtu = calicoVppInterfaces.Mtu
 
 	psk := getEnvValue(IPSecIkev2PskEnvVar)
 	if EnableIPSec && psk == "" {
@@ -391,7 +403,6 @@ type VppManagerParams struct {
 	CorePattern              string
 	ServiceCIDRs             []net.IPNet
 	ExtraAddrCount           int
-	UserSpecifiedMtu         int
 	DefaultGWs               []net.IP
 	IfConfigSavePath         string
 	EnableGSO                bool
@@ -431,18 +442,6 @@ type KernelVersion struct {
 	Major  int
 	Minor  int
 	Patch  int
-}
-
-func GetUplinkMtu(params *VppManagerParams, conf *LinuxInterfaceState, includeEncap bool) int {
-	encapSize := 0
-	if includeEncap {
-		encapSize = DefaultEncapSize
-	}
-	// Use the linux interface MTU as default value if nothing is configured from env
-	if params.UserSpecifiedMtu == 0 {
-		return conf.Mtu - encapSize
-	}
-	return params.UserSpecifiedMtu - encapSize
 }
 
 func (ver *KernelVersion) String() string {

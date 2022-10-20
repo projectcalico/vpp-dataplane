@@ -39,11 +39,11 @@ data:
       "vppHostTapSpec": {
         "rx": 1, "tx":1, "rxqsz": 1024, "txqsz": 1024, "isl3": false
       },
-      "mtu": 1400,
       "uplinkInterfaces": [
         {
           "interfaceName": "eth1",
           "vppDriver": "af_packet",
+          "mtu": 1400,
           "rxMode": "adaptive"
         }
       ]
@@ -83,4 +83,24 @@ data:
     "srv6Enabled": false,
     "ipsecEnabled": false
   }
+```
+
+As part of user config, you can set specific configuration for pod interfaces using pod annotations.
+Here's an example:
+
+```yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: samplepod
+  annotations:
+    k8s.v1.cni.cncf.io/networks: network-blue-conf@eth1, network-red-conf@eth6
+    cni.projectcalico.org/vppInterfacesSpec: |-
+    {
+      "eth0": {"rx": 1, "tx": 2, "isl3": true },
+      "eth1": {"rx": 5, "tx": 9, "isl3": true },
+      "eth6": {"rx": 3, "tx": 3, "isl3": false }
+    }
+
 ```

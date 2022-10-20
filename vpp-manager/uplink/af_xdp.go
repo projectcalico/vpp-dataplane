@@ -85,9 +85,9 @@ func (d *AFXDPDriver) PreconfigureLinux() error {
 		}
 		d.conf.Mtu = maxAfXDPMTU
 	}
-	if d.params.UserSpecifiedMtu > maxAfXDPMTU {
+	if d.spec.Mtu > maxAfXDPMTU {
 		log.Infof("Reducing user specified MTU to %d", maxAfXDPMTU)
-		d.params.UserSpecifiedMtu = maxAfXDPMTU
+		d.spec.Mtu = maxAfXDPMTU
 	}
 	return nil
 }

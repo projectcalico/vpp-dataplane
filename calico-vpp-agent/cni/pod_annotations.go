@@ -143,7 +143,7 @@ func GetDefaultIfSpec(isL3 bool) config.InterfaceSpec {
 		NumTxQueues: config.DefaultInterfaceSpec.NumTxQueues,
 		RxQueueSize: vpplink.DefaultIntTo(config.DefaultInterfaceSpec.RxQueueSize, vpplink.DEFAULT_QUEUE_SIZE),
 		TxQueueSize: vpplink.DefaultIntTo(config.DefaultInterfaceSpec.TxQueueSize, vpplink.DEFAULT_QUEUE_SIZE),
-		IsL3:        isL3,
+		IsL3:        &isL3,
 		RxMode:      config.DefaultRxMode,
 	}
 }
@@ -171,6 +171,8 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 			}
 			if ethSpec, found := ifSpecs[podSpec.InterfaceName]; found {
 				podSpec.IfSpec = ethSpec
+				isL3 := podSpec.IfSpec.GetIsL3(isMemif(podSpec.InterfaceName))
+				podSpec.IfSpec.IsL3 = &isL3
 			}
 
 		case VppAnnotationPrefix + MemifPortAnnotation:
@@ -191,6 +193,8 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 				return err
 			}
 			podSpec.PBLMemifSpec = *ifSpec
+			isL3 := podSpec.PBLMemifSpec.GetIsL3(true)
+			podSpec.PBLMemifSpec.IsL3 = &isL3
 		case VppAnnotationPrefix + VclAnnotation:
 			podSpec.EnableVCL, err = s.ParseEnableDisableAnnotation(value)
 		default:
