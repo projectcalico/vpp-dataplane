@@ -107,4 +107,3 @@ git_cherry_pick refs/changes/83/28083/21 # 28083: acl: acl-plugin custom policie
 git_cherry_pick refs/changes/13/28513/28 # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
 git_cherry_pick refs/changes/31/37131/11 # 37131: urpf: add mode for specific fib index lookup | https://gerrit.fd.io/r/c/vpp/+/37131/
 # --------------- Dedicated plugins ---------------
-

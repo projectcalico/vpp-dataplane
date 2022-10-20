@@ -149,7 +149,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		HostMtu:       i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0),
 	}
 
-	if podSpec.IfSpec.IsL3 {
+	if *podSpec.IfSpec.IsL3 {
 		tun.Flags |= types.TapFlagTun
 	}
 

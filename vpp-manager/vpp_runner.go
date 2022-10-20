@@ -410,7 +410,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		}
 	}
 
-	uplinkMtu := config.GetUplinkMtu(v.params, ifState, false /* includeEncap */)
+	uplinkMtu := vpplink.DefaultIntTo(ifSpec.Mtu, ifState.Mtu)
 	err = v.vpp.SetInterfaceMtu(ifSpec.SwIfIndex, uplinkMtu)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting %d MTU on data interface", uplinkMtu)

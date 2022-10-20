@@ -146,7 +146,7 @@ func (ps *LocalPodSpec) FullString() string {
 	s += fmt.Sprintf("DefaultIfType:      %s\n", ps.DefaultIfType.String())
 	s += fmt.Sprintf("EnableVCL:          %t\n", ps.EnableVCL)
 	s += fmt.Sprintf("EnableMemif:        %t\n", ps.EnableMemif)
-	s += fmt.Sprintf("IsL3:               %t\n", ps.IfSpec.IsL3)
+	s += fmt.Sprintf("IsL3:               %t\n", *ps.IfSpec.IsL3)
 	s += fmt.Sprintf("MemifSocketId:      %d\n", ps.MemifSocketId)
 	s += fmt.Sprintf("TunTapSwIfIndex:    %d\n", ps.TunTapSwIfIndex)
 	s += fmt.Sprintf("MemifSwIfIndex:     %d\n", ps.MemifSwIfIndex)
@@ -160,12 +160,12 @@ func (ps *LocalPodSpec) FullString() string {
 func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex uint32, isL3 bool) {
 	switch ifType {
 	case VppIfTypeTunTap:
-		return ps.TunTapSwIfIndex, ps.IfSpec.IsL3
+		return ps.TunTapSwIfIndex, *ps.IfSpec.IsL3
 	case VppIfTypeMemif:
 		if !config.MemifEnabled {
 			return types.InvalidID, true
 		}
-		return ps.MemifSwIfIndex, ps.IfSpec.IsL3
+		return ps.MemifSwIfIndex, *ps.IfSpec.IsL3
 	default:
 		return types.InvalidID, true
 	}

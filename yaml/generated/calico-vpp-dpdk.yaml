@@ -165,7 +165,6 @@ data:
       "vppStartupSleepSeconds": 1,
       "corePattern": "/var/lib/vpp/vppcore.%e.%p"
     }
-  CALICOVPP_INTERFACE: eth1
   CALICOVPP_INTERFACES: |-
     {
       "maxPodIfSpec": {

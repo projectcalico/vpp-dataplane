@@ -46,7 +46,8 @@ export CALICOVPP_INTERFACE=eth0
 export CALICOVPP_NATIVE_DRIVER=af_packet
 
 # ---------------- encaps ----------------
-export CALICO_ENCAPSULATION=IPIP
+export CALICO_ENCAPSULATION_V4=IPIP
+export CALICO_ENCAPSULATION_V6=None
 export CALICO_NAT_OUTGOING=Enabled
 
 # ---------------- vpp config ----------------
@@ -57,9 +58,8 @@ export CALICOVPP_CONFIG_TEMPLATE="unix {
   cli-listen /var/run/vpp/cli.sock
   pidfile /run/vpp/vpp.pid
 }
-cpu {
-  main-core 1
-  workers 0
+buffers {
+	buffers-per-numa 262144
 }
 socksvr { socket-name /var/run/vpp/vpp-api.sock }
 plugins {

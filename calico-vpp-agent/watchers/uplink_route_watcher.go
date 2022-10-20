@@ -127,7 +127,7 @@ func (r *RouteWatcher) safeAddrClose() {
 	r.closeLock.Unlock()
 }
 
-func GetUplinkMtu(userSpecifiedMtu int, includeEncap bool) int {
+func GetUplinkMtu() int {
 	hostMtu := vpplink.MAX_MTU
 	if len(common.VppManagerInfo.UplinkStatuses) != 0 {
 		for _, v := range common.VppManagerInfo.UplinkStatuses {
@@ -136,15 +136,9 @@ func GetUplinkMtu(userSpecifiedMtu int, includeEncap bool) int {
 			}
 		}
 	}
-	encapSize := 0
-	if includeEncap {
-		encapSize = config.DefaultEncapSize
-	}
+	encapSize := config.DefaultEncapSize
 	// Use the linux interface MTU as default value if nothing is configured from env
-	if userSpecifiedMtu == 0 {
-		return hostMtu - encapSize
-	}
-	return userSpecifiedMtu - encapSize
+	return hostMtu - encapSize
 }
 
 func (r *RouteWatcher) getNetworkRoute(network string) (route *netlink.Route, err error) {
@@ -163,7 +157,7 @@ func (r *RouteWatcher) getNetworkRoute(network string) (route *netlink.Route, er
 		Dst:      cidr,
 		Gw:       gw,
 		Protocol: syscall.RTPROT_STATIC,
-		MTU:      GetUplinkMtu(config.UserSpecifiedMtu, true /* includeEncap */),
+		MTU:      GetUplinkMtu(),
 	}, nil
 }
 
@@ -184,7 +178,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 			Dst:      serviceCIDR,
 			Gw:       gw,
 			Protocol: syscall.RTPROT_STATIC,
-			MTU:      GetUplinkMtu(config.UserSpecifiedMtu, true /* includeEncap */),
+			MTU:      GetUplinkMtu(),
 		})
 		if err != nil {
 			log.Error(err, "cannot add tap route to service %s", serviceCIDR.String())

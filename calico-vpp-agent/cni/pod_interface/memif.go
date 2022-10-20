@@ -76,7 +76,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		QueueSize:   usedIfSpec.RxQueueSize,
 		SocketId:    socketId,
 	}
-	if usedIfSpec.IsL3 {
+	if *usedIfSpec.IsL3 {
 		memif.Mode = types.MemifModeIP
 	}
 
