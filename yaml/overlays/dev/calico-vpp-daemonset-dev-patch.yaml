@@ -31,8 +31,8 @@ spec:
           - configMapRef:
               name: vpp-dev-config
           env:
-            - name: CALICOVPP_IP_CONFIG
-              value: linux
+            #- name: CALICOVPP_IP_CONFIG
+            #  value: linux
             - name: DATASTORE_TYPE
               value: "kubernetes"
             - name: WAIT_FOR_DATASTORE

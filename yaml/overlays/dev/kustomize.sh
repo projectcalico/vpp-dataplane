@@ -92,6 +92,7 @@ function get_vpp_conf ()
 		cli-listen /var/run/vpp/cli.sock
     	pidfile /run/vpp/vpp.pid
 	  }
+    api-trace { on }
 	  cpu { main-core ${MAINCORE} workers ${WRK} }
 	  socksvr {
     	  socket-name /var/run/vpp/vpp-api.sock
@@ -106,6 +107,73 @@ function get_vpp_conf ()
         plugin ping_plugin.so { disable }
 	  }
 	"
+}
+
+function get_initial_config ()
+{
+    echo "
+    {
+      \"vppStartupSleepSeconds\": ${CALICOVPP_VPP_STARTUP_SLEEP:=0},
+      \"corePattern\": \"${CALICOVPP_CORE_PATTERN}\",
+      \"defaultGWs\": \"${CALICOVPP_DEFAULT_GW}\"
+    }
+    "
+}
+
+function get_feature_gates ()
+{
+    echo "
+    {
+      \"memifEnabled\": ${CALICOVPP_ENABLE_MEMIF},
+      \"vCLEnabled\": ${CALICOVPP_ENABLE_VCL},
+      \"multinetEnabled\": ${CALICOVPP_ENABLE_MULTINET},
+      \"ipsecEnabled\": ${CALICOVPP_IPSEC_ENABLED}
+    }
+    "
+}
+
+function get_debug ()
+{
+    echo "
+    {
+      \"policiesEnabled\": ${CALICOVPP_DEBUG_ENABLE_POLICIES},
+      \"servicesEnabled\": ${CALICOVPP_ENABLE_VCL},
+      \"maglevEnabled\": ${CALICOVPP_DEBUG_ENABLE_MAGLEV},
+      \"GSOEnabled\": ${CALICOVPP_DEBUG_ENABLE_GSO}
+    }
+    "
+}
+
+function get_interfaces ()
+{
+    echo "
+    {
+        \"Mtu\": ${CALICOVPP_TAP_MTU:=0},
+        \"ringSize\": \"${CALICOVPP_RING_SIZE:=1024}\",
+        \"defaultPodIfSpec\": {
+          \"rx\": ${CALICOVPP_RX_QUEUES:=1},
+          \"tx\": ${CALICOVPP_TX_QUEUES:=1},
+          \"isl3\": true,
+          \"rxMode\": \"${CALICOVPP_RX_MODE:=adaptive}\"
+        },
+        \"vppHostTapSpec\": {
+          \"rx\": ${CALICOVPP_TAP_RX_QUEUES:=1},
+          \"tx\": ${CALICOVPP_TAP_TX_QUEUES:=1},
+          \"rxqsz\": 1024, 
+          \"txqsz\": 1024, 
+          \"isl3\": false,
+          \"rxMode\": \"${CALICOVPP_TAP_RX_MODE:=adaptive}\"
+        },
+        \"uplinkInterfaces\": [
+          {
+            \"isMain\": true,
+            \"interface\": \"${CALICOVPP_INTERFACE:=eth0}\",
+            \"vppIpConfSource\": \"linux\",
+            \"nativeDriver\": \"${CALICOVPP_NATIVE_DRIVER:=af_packet}\",
+            \"rxMode\": \"${CALICOVPP_RX_MODE:=adaptive}\"
+          }
+        ]
+    }"
 }
 
 function get_installation_cidrs ()
@@ -201,12 +269,12 @@ calico_create_template ()
 
   ## vpp-dev-config variables (extra variables for VPP-manager) ##
   export CALICOVPP_INTERFACE=${CALICOVPP_INTERFACE:=eth0}
-  export CALICOVPP_CONFIGURE_EXTRA_ADDRESSES=${CALICOVPP_CONFIGURE_EXTRA_ADDRESSES:=0}
+  #export CALICOVPP_CONFIGURE_EXTRA_ADDRESSES=${CALICOVPP_CONFIGURE_EXTRA_ADDRESSES:=0}
   export CALICOVPP_CORE_PATTERN=${CALICOVPP_CORE_PATTERN:=/home/hostuser/vppcore.%e.%p}
   export CALICOVPP_RX_MODE=${CALICOVPP_RX_MODE:=adaptive}
   export CALICOVPP_RX_QUEUES=${CALICOVPP_RX_QUEUES}
   export CALICOVPP_RING_SIZE=${CALICOVPP_RING_SIZE}
-  export CALICOVPP_TAP_RING_SIZE=${CALICOVPP_TAP_RING_SIZE}
+  #export CALICOVPP_TAP_RING_SIZE=${CALICOVPP_TAP_RING_SIZE}
   export CALICOVPP_VPP_STARTUP_SLEEP=${CALICOVPP_VPP_STARTUP_SLEEP:=0}
   export CALICOVPP_CONFIG_EXEC_TEMPLATE=${CALICOVPP_CONFIG_EXEC_TEMPLATE}
   export CALICOVPP_SWAP_DRIVER=${CALICOVPP_SWAP_DRIVER}
@@ -221,15 +289,20 @@ calico_create_template ()
   export CALICOVPP_TAP_RX_MODE=${CALICOVPP_TAP_RX_MODE:=adaptive}
   export CALICOVPP_IPSEC_ENABLED=${CALICOVPP_IPSEC_ENABLED:=false}
   export CALICOVPP_DEBUG_ENABLE_POLICIES=${CALICOVPP_DEBUG_ENABLE_POLICIES:=true}
-  export CALICOVPP_DEBUG_ENABLE_NAT=${CALICOVPP_DEBUG_ENABLE_NAT:=true}
+  #export CALICOVPP_DEBUG_ENABLE_NAT=${CALICOVPP_DEBUG_ENABLE_NAT:=true}
   export CALICOVPP_DEBUG_ENABLE_MAGLEV=${CALICOVPP_DEBUG_ENABLE_MAGLEV:=true}
   export CALICOVPP_ENABLE_MULTINET=${CALICOVPP_ENABLE_MULTINET:=false}
   export CALICOVPP_ENABLE_MEMIF=${CALICOVPP_ENABLE_MEMIF:=true}
   export CALICOVPP_ENABLE_VCL=${CALICOVPP_ENABLE_VCL:=true}
   export CALICOVPP_IPSEC_IKEV2_PSK=${CALICOVPP_IPSEC_IKEV2_PSK:=keykeykey}
-  export CALICOVPP_IPSEC_CROSS_TUNNELS=${CALICOVPP_IPSEC_CROSS_TUNNELS:=false}
-  export CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES=${CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES}
-  export CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD=${CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD:=0}
+  #export CALICOVPP_IPSEC_CROSS_TUNNELS=${CALICOVPP_IPSEC_CROSS_TUNNELS:=false}
+  #export CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES=${CALICOVPP_IPSEC_ASSUME_EXTRA_ADDRESSES}
+  #export CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD=${CALICOVPP_IPSEC_NB_ASYNC_CRYPTO_THREAD:=0}
+
+  export CALICOVPP_INITIAL_CONFIG=${CALICOVPP_INITIAL_CONFIG:=$(get_initial_config)}
+  export CALICOVPP_INTERFACES=${CALICOVPP_INTERFACES:=$(get_interfaces)}
+  export CALICOVPP_DEBUG=${CALICOVPP_DEBUG:=$(get_debug)}
+
   if [ x$CALICOVPP_ENABLE_MULTINET = xtrue ]; then export USE_MULTINET_MONITOR_DEV_PATCH=true ; fi
 
   cd $SCRIPTDIR
