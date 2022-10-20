@@ -8,7 +8,7 @@ data:
   sr_localsid_prefix: "sr-localsids-pool-"
   sr_localsid_pool: "fcff::/48"
   sr_policy_pool: "cafe::/118"
-  CALICO_VPP_DEBUG: |-
+  CALICOVPP_DEBUG: |-
     {
       "GSOEnabled": false
     }
@@ -17,7 +17,7 @@ data:
       "policyPool": "cafe::/118",
       "localsidPool": "fcff::/48",
     }
-  CALICOVPP_FEATURES_GATE: |-
+  CALICOVPP_FEATURE_GATES: |-
     {
       "SRv6Enabled": true
     }
