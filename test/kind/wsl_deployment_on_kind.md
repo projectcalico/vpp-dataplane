@@ -69,8 +69,8 @@ curl -o calico-vpp.yaml https://raw.githubusercontent.com/projectcalico/vpp-data
 Make necessary changes to `calico-vpp.yaml` configMap depending on cluster, in kind this should normally be:
 
 ```yaml
-vpp_dataplane_interface: eth0
-service_prefix: 10.96.0.0/16
+CALICOVPP_INTERFACE: eth0
+SERVICE_PREFIX: 10.96.0.0/16
 buffers {
       buffers-per-numa 16384
       page-size 4k

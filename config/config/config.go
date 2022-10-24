@@ -42,7 +42,7 @@ type InterfaceSpec struct {
 	TxQueueSize int  `json:"txqsz"`
 	IsL3        bool `json:"isl3"`
 	/* "interrupt" "adaptive" or "polling" mode */
-	RxMode RxModeType `json:"rxMode"`
+	RxMode types.RxMode `json:"rxMode"`
 }
 
 func (i *InterfaceSpec) GetBuffersNeeded() uint64 {
@@ -50,47 +50,41 @@ func (i *InterfaceSpec) GetBuffersNeeded() uint64 {
 }
 
 func (i *InterfaceSpec) Validate(maxIfSpec InterfaceSpec) error {
-	if i.RxMode == RxModeType(types.UnknownRxMode) {
-		i.RxMode = RxModeType(DefaultRxMode)
-	}
-	if maxIfSpec.NumRxQueues == 0 && maxIfSpec.NumTxQueues == 0 && maxIfSpec.RxQueueSize == 0 && maxIfSpec.TxQueueSize == 0 {
-		return nil
-	}
-	if i.NumRxQueues <= maxIfSpec.NumRxQueues && i.NumTxQueues <= maxIfSpec.NumTxQueues &&
-		i.RxQueueSize <= maxIfSpec.RxQueueSize && i.TxQueueSize <= maxIfSpec.TxQueueSize {
+	noMaxIfSpec := maxIfSpec.NumRxQueues == 0 && maxIfSpec.NumTxQueues == 0 &&
+		maxIfSpec.RxQueueSize == 0 && maxIfSpec.TxQueueSize == 0
+	notExceedMax := i.NumRxQueues <= maxIfSpec.NumRxQueues && i.NumTxQueues <= maxIfSpec.NumTxQueues &&
+		i.RxQueueSize <= maxIfSpec.RxQueueSize && i.TxQueueSize <= maxIfSpec.TxQueueSize
+	// accept if no max provided (values are zero) or if not exceeds max
+	if noMaxIfSpec || notExceedMax {
+		// default values for partially defined specs
+		if i.RxMode == types.UnknownRxMode {
+			i.RxMode = DefaultRxMode
+		}
+		if i.NumRxQueues == 0 {
+			i.NumRxQueues = 1
+		}
+		if i.NumTxQueues == 0 {
+			i.NumTxQueues = 1
+		}
+		if i.RxQueueSize == 0 {
+			i.RxQueueSize = 1024
+		}
+		if i.TxQueueSize == 0 {
+			i.TxQueueSize = 1024
+		}
 		return nil
 	} else {
 		return errors.Errorf("interface config %+v exceeds max config: %+v", *i, maxIfSpec)
 	}
 }
 
-type RxModeType uint32
-
-func (n *RxModeType) UnmarshalText(text []byte) error {
-	// set the uint32 value based on text
-	rxMode := types.UnformatRxMode(string(text))
-	if rxMode == types.UnknownRxMode {
-		rxMode = DefaultRxMode
-	}
-	*n = RxModeType(rxMode)
-	return nil
-}
-
 type UplinkInterfaceSpec struct {
 	InterfaceSpec
-	IsMain        *bool  `json:"isMain,omitempty"`
-	InterfaceName string `json:"interface"`
-	NativeDriver  string `json:"nativeDriver"`
+	IsMain        *bool
+	InterfaceName string `json:"interfaceName"`
+	VppDriver     string `json:"vppDriver"`
 	NewDriverName string `json:"newDriver"`
 	SwIfIndex     uint32
-}
-
-func GetRxMode(rxModeString string) types.RxMode {
-	rxMode := types.UnformatRxMode(rxModeString)
-	if rxMode == types.UnknownRxMode {
-		rxMode = DefaultRxMode
-	}
-	return rxMode
 }
 
 func (u *UplinkInterfaceSpec) GetIsMain() bool {
@@ -104,15 +98,15 @@ type CalicoVppDebug struct {
 	PoliciesEnabled *bool `json:"policiesEnabled,omitempty"`
 	ServicesEnabled *bool `json:"servicesEnabled,omitempty"`
 	MaglevEnabled   *bool `json:"maglevEnabled,omitempty"`
-	GSOEnabled      *bool `json:"GSOEnabled,omitempty"`
+	GSOEnabled      *bool `json:"gsoEnabled,omitempty"`
 }
 
 type CalicoVppFeatureGates struct {
 	MemifEnabled    *bool `json:"memifEnabled,omitempty"`
-	VCLEnabled      *bool `json:"vCLEnabled,omitempty"`
+	VCLEnabled      *bool `json:"vclEnabled,omitempty"`
 	MultinetEnabled *bool `json:"multinetEnabled,omitempty"`
-	SRv6Enabled     *bool `json:"SRv6Enabled,omitempty"`
-	IPSecEnabled    *bool `json:"IPSecEnabled,omitempty"`
+	SRv6Enabled     *bool `json:"srv6Enabled,omitempty"`
+	IPSecEnabled    *bool `json:"ipsecEnabled,omitempty"`
 }
 
 type CalicoVppSrv6 struct {
@@ -122,8 +116,8 @@ type CalicoVppSrv6 struct {
 
 type CalicoVppIpsec struct {
 	CrossIpsecTunnels    *bool `json:"crossIPSecTunnels,omitempty"`
-	NbAsyncCryptoThreads int   `json:"NbAsyncCryptoThreads"`
-	ExtraAddresses       int   `json:"ExtraAddresses"`
+	NbAsyncCryptoThreads int   `json:"nbAsyncCryptoThreads"`
+	ExtraAddresses       int   `json:"extraAddresses"`
 }
 
 type CalicoVppInterfaces struct {
@@ -131,7 +125,7 @@ type CalicoVppInterfaces struct {
 	Mtu int `json:"Mtu"`
 
 	DefaultPodIfSpec *InterfaceSpec         `json:"defaultPodIfSpec,omitempty"`
-	MaxIfSpec        *InterfaceSpec         `json:"maxIfSpec,omitempty"`
+	MaxPodIfSpec     *InterfaceSpec         `json:"maxPodIfSpec,omitempty"`
 	VppHostTapSpec   *InterfaceSpec         `json:"vppHostTapSpec,omitempty"`
 	UplinkInterfaces *[]UplinkInterfaceSpec `json:"uplinkInterfaces,omitempty"`
 }
@@ -199,7 +193,7 @@ var (
 	SRv6localSidIPPool           = ""
 
 	DefaultInterfaceSpec InterfaceSpec = InterfaceSpec{NumRxQueues: 1, NumTxQueues: 1, RxQueueSize: 0, TxQueueSize: 0}
-	MaxIfSpec            InterfaceSpec
+	MaxPodIfSpec         InterfaceSpec
 )
 
 func PrintAgentConfig(log *logrus.Logger) {
@@ -296,21 +290,18 @@ func LoadConfig(log *logrus.Logger) (err error) {
 		}
 	}
 
-	if calicoVppInterfaces.MaxIfSpec != nil {
-		MaxIfSpec = *calicoVppInterfaces.MaxIfSpec
+	if calicoVppInterfaces.MaxPodIfSpec != nil {
+		calicoVppInterfaces.MaxPodIfSpec.Validate(InterfaceSpec{})
+		MaxPodIfSpec = *calicoVppInterfaces.MaxPodIfSpec
 	}
 	if calicoVppInterfaces.DefaultPodIfSpec != nil {
-		if err := calicoVppInterfaces.DefaultPodIfSpec.Validate(MaxIfSpec); err != nil {
+		if err := calicoVppInterfaces.DefaultPodIfSpec.Validate(MaxPodIfSpec); err != nil {
 			return errors.Errorf("default pod interface spec exceeds max interface spec: %s", err)
 		} else {
 			DefaultInterfaceSpec = *calicoVppInterfaces.DefaultPodIfSpec
 		}
 	}
-	if calicoVppInterfaces.VppHostTapSpec != nil {
-		if err := calicoVppInterfaces.VppHostTapSpec.Validate(MaxIfSpec); err != nil {
-			return errors.Errorf("vpphosttap interface spec exceeds max interface spec: %s", err)
-		}
-	}
+
 	VCLEnabled = GetBool(calicoVppFeatureGates.VCLEnabled, VCLEnabled)
 	MemifEnabled = GetBool(calicoVppFeatureGates.MemifEnabled, MemifEnabled)
 	MultinetEnabled = GetBool(calicoVppFeatureGates.MultinetEnabled, MultinetEnabled)

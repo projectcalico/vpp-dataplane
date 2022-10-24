@@ -5,7 +5,7 @@ metadata:
   name: vcl-client
   namespace: simple-vcl
   annotations:
-    "cni.projectcalico.org/vpp.vcl": "enable"
+    "cni.projectcalico.org/vppVcl": "enable"
 spec:
   containers:
   - name: simple-client
@@ -19,7 +19,7 @@ metadata:
   name: vcl-server
   namespace: simple-vcl
   annotations:
-    "cni.projectcalico.org/vpp.vcl": "enable"
+    "cni.projectcalico.org/vppVcl": "enable"
 spec:
   containers:
   - name: simple-client

@@ -38,9 +38,6 @@ const (
 	ServicePrefixEnvVar = "SERVICE_PREFIX"
 
 	/* Deprecated vars */
-	/* Configuration source. Only linux (aka read from
-	   $CALICOVPP_INTERFACE) is supported for now */
-	IpConfigEnvVar = "CALICOVPP_IP_CONFIG"
 	/* linux name of the uplink interface to be used by VPP */
 	InterfaceEnvVar = "CALICOVPP_INTERFACE"
 	/* Driver to consume the uplink with. Leave empty for autoconf */
@@ -172,40 +169,37 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 	/* host tap configuration */
 	vpphosttapIfSpec := config.InterfaceSpec{NumRxQueues: 1, NumTxQueues: 1, RxQueueSize: 1024, TxQueueSize: 1024}
 	if calicoVppInterfaces.VppHostTapSpec != nil {
-		if err := calicoVppInterfaces.VppHostTapSpec.Validate(config.MaxIfSpec); err != nil {
-			return errors.Errorf("vpphosttap interface spec exceeds max interface spec: %s", err)
-		}
+		calicoVppInterfaces.VppHostTapSpec.Validate(config.InterfaceSpec{})
 		vpphosttapIfSpec = *calicoVppInterfaces.VppHostTapSpec
 	}
 	params.DefaultTap = vpphosttapIfSpec
 
 	/* uplinks configuration */
-	var uplinkInterfaces *[]config.UplinkInterfaceSpec
 	extraInterfacesSpecs := []config.UplinkInterfaceSpec{}
 	mainInterfaceDefined := false
 	if calicoVppInterfaces.UplinkInterfaces != nil {
-		uplinkInterfaces = calicoVppInterfaces.UplinkInterfaces
-		for _, uplinkInterface := range *uplinkInterfaces {
-			if err := uplinkInterface.Validate(config.MaxIfSpec); err != nil {
-				return errors.Errorf("uplink interface spec exceeds max interface spec: %s", err)
-			}
-			if !mainInterfaceDefined && *uplinkInterface.IsMain { // first uplink that is main is taken and the rest are extra
-				mainInterfaceSpec = uplinkInterface
-				mainInterfaceDefined = true
-			} else { // automatically not main
-				var False *bool
-				*False = false
-				uplinkInterface.IsMain = False
-				extraInterfacesSpecs = append(extraInterfacesSpecs, uplinkInterface)
-				if uplinkInterface.NativeDriver == "" {
-					return errors.Errorf("native driver should be specified for multiple interfaces")
+		if len(*calicoVppInterfaces.UplinkInterfaces) != 0 {
+			mainInterfaceSpec = (*calicoVppInterfaces.UplinkInterfaces)[0]
+			mainInterfaceSpec.Validate(config.InterfaceSpec{})
+			True := true
+			mainInterfaceSpec.IsMain = &True
+			mainInterfaceDefined = true
+		}
+		if len(*calicoVppInterfaces.UplinkInterfaces) > 1 {
+			for _, uplink := range (*calicoVppInterfaces.UplinkInterfaces)[1:] {
+				uplink.Validate(config.InterfaceSpec{})
+				False := false
+				uplink.IsMain = &False
+				extraInterfacesSpecs = append(extraInterfacesSpecs, uplink)
+				if uplink.VppDriver == "" {
+					return errors.Errorf("vpp driver should be specified for multiple uplink interfaces")
 				}
 			}
 		}
 	}
 	/* uplink configuration: This is being deprecated */
 	if !mainInterfaceDefined {
-		log.Warn("Use of CALICOVPP_INTERFACE, CALICOVPP_NATIVE_DRIVER and CALICOVPP_IP_CONFIG, CALICOVPP_SWAP_DRIVER is deprecated, please use CALICOVPP_INTERFACES instead")
+		log.Warn("Use of CALICOVPP_INTERFACE, CALICOVPP_NATIVE_DRIVER and CALICOVPP_SWAP_DRIVER is deprecated, please use CALICOVPP_INTERFACES instead")
 
 		mainInterface := getEnvValue(InterfaceEnvVar)
 		if mainInterface == "" {
@@ -213,9 +207,9 @@ func parseEnvVariables(params *config.VppManagerParams, mainInterfaceSpec config
 		}
 		mainInterfaceSpec.InterfaceName = mainInterface
 
-		mainInterfaceSpec.NativeDriver = ""
+		mainInterfaceSpec.VppDriver = ""
 		if conf := getEnvValue(NativeDriverEnvVar); conf != "" {
-			mainInterfaceSpec.NativeDriver = strings.ToLower(conf)
+			mainInterfaceSpec.VppDriver = strings.ToLower(conf)
 		}
 
 		mainInterfaceSpec.NewDriverName = getEnvValue(SwapDriverEnvVar)
@@ -309,7 +303,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 	for _, ifSpec := range params.UplinksSpecs {
 		log.Infof("-- Interface Spec --")
 		log.Infof("Interface Name:      %s", ifSpec.InterfaceName)
-		log.Infof("Native Driver:       %s", ifSpec.NativeDriver)
+		log.Infof("Native Driver:       %s", ifSpec.VppDriver)
 		log.Infof("New Drive Name:      %s", ifSpec.NewDriverName)
 		log.Infof("PHY target #Queues   rx:%d tx:%d", ifSpec.NumRxQueues, ifSpec.NumTxQueues)
 	}

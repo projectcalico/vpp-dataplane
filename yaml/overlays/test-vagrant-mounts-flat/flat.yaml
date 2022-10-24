@@ -4,8 +4,9 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  vpp_uplink_driver: ""
-  vpp_config_template: |-
+  CALICOVPP_NATIVE_DRIVER: ""
+  
+  CALICOVPP_CONFIG_TEMPLATE: |-
     unix {
       nodaemon
       full-coredump
@@ -31,7 +32,7 @@ data:
     }
   CALICOVPP_INTERFACES: |-
     {
-      "maxIfSpec": {
+      "maxPodIfSpec": {
         "rx": 10, "tx":10
       },
       "defaultPodIfSpec": {
@@ -42,7 +43,7 @@ data:
       },
       "uplinkInterfaces": [
         {
-          "isMain": true, "interface": "eth1", "rxMode": "polling"
+          "interfaceName": "eth1", "rxMode": "polling"
         }
       ]
     }

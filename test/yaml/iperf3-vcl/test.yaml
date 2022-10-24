@@ -16,7 +16,7 @@ spec:
       labels:
         app: iperf3-server
       annotations:
-        "cni.projectcalico.org/vpp.vcl": "enable"
+        "cni.projectcalico.org/vppVcl": "enable"
     spec:
       containers:
       - name: iperf3-server
@@ -44,7 +44,7 @@ metadata:
   name: iperf3-client
   namespace: iperf3-vcl
   annotations:
-    "cni.projectcalico.org/vpp.vcl": "enable"
+    "cni.projectcalico.org/vppVcl": "enable"
 spec:
   containers:
   - name: iperf3-client
@@ -60,7 +60,7 @@ metadata:
   name: iperf3-client-samehost
   namespace: iperf3-vcl
   annotations:
-    "cni.projectcalico.org/vpp.vcl": "enable"
+    "cni.projectcalico.org/vppVcl": "enable"
 spec:
   containers:
   - name: iperf3-client

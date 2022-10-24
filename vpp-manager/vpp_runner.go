@@ -416,7 +416,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrapf(err, "Error setting %d MTU on data interface", uplinkMtu)
 	}
 
-	err = v.vpp.SetInterfaceRxMode(ifSpec.SwIfIndex, types.AllQueues, types.RxMode(ifSpec.RxMode))
+	err = v.vpp.SetInterfaceRxMode(ifSpec.SwIfIndex, types.AllQueues, ifSpec.RxMode)
 	if err != nil {
 		log.Warnf("%v", err)
 	}
@@ -545,7 +545,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		}
 	}
 
-	err = v.vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, types.RxMode(v.params.DefaultTap.RxMode))
+	err = v.vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, v.params.DefaultTap.RxMode)
 	if err != nil {
 		log.Errorf("Error SetInterfaceRxMode on vpptap0 %v", err)
 	}

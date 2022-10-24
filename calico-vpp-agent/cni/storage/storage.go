@@ -175,7 +175,7 @@ func (ps *LocalPodSpec) GetBuffersNeeded() uint64 {
 	var buffersNeededForThisPod uint64
 	buffersNeededForThisPod += ps.IfSpec.GetBuffersNeeded()
 	if ps.NetworkName == "" && ps.EnableMemif {
-		buffersNeededForThisPod += ps.PBLMemifIfSpec.GetBuffersNeeded()
+		buffersNeededForThisPod += ps.PBLMemifSpec.GetBuffersNeeded()
 	}
 	return buffersNeededForThisPod
 }
@@ -224,8 +224,8 @@ type LocalPodSpec struct {
 	EnableVCL     bool
 	EnableMemif   bool
 
-	IfSpec         config.InterfaceSpec
-	PBLMemifIfSpec config.InterfaceSpec
+	IfSpec       config.InterfaceSpec
+	PBLMemifSpec config.InterfaceSpec
 
 	/**
 	 * Below are VPP internal ids, mutable fields in AddVppInterface

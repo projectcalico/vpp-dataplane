@@ -103,8 +103,8 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 		HostPorts:      make([]storage.HostPortBinding, 0),
 
 		/* defaults */
-		IfSpec:         GetDefaultIfSpec(true /* isL3 */),
-		PBLMemifIfSpec: GetDefaultIfSpec(false /* isL3 */),
+		IfSpec:       GetDefaultIfSpec(true /* isL3 */),
+		PBLMemifSpec: GetDefaultIfSpec(false /* isL3 */),
 
 		V4VrfId: vpplink.InvalidID,
 		V6VrfId: vpplink.InvalidID,

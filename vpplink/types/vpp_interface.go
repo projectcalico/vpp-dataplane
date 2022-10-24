@@ -29,6 +29,16 @@ import (
 
 type RxMode uint32
 
+func (n *RxMode) UnmarshalText(text []byte) error {
+	// set the uint32 value based on text
+	rxMode := UnformatRxMode(string(text))
+	if rxMode == UnknownRxMode {
+		rxMode = DefaultRxMode
+	}
+	*n = rxMode
+	return nil
+}
+
 const (
 	InvalidInterface = interface_types.InterfaceIndex(^uint32(0))
 )

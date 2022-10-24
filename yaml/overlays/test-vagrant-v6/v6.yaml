@@ -4,5 +4,5 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  service_prefix: "fd02::/108"
+  SERVICE_PREFIX: "fd02::/108"
 
