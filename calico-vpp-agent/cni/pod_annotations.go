@@ -31,12 +31,12 @@ import (
 
 const (
 	CalicoAnnotationPrefix string = "cni.projectcalico.org/"
-	VppAnnotationPrefix    string = "cni.projectcalico.org/vpp."
-	MemifPortAnnotation    string = "memif.ports"
-	VclAnnotation          string = "vcl"
-	SpoofAnnotation        string = "allowedSourcePrefixes"
-	IfSpecAnnotation       string = "interfaceSpec"
-	IfSpecPBLAnnotation    string = "PblMemifIfSpec"
+	VppAnnotationPrefix    string = "cni.projectcalico.org/vpp"
+	MemifPortAnnotation    string = "ExtraMemifPorts"
+	VclAnnotation          string = "Vcl"
+	SpoofAnnotation        string = "AllowedSourcePrefixes"
+	IfSpecAnnotation       string = "InterfacesSpec"
+	IfSpecPBLAnnotation    string = "ExtraMemifSpec"
 )
 
 func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPortConfigs, err error) {
@@ -144,7 +144,7 @@ func GetDefaultIfSpec(isL3 bool) config.InterfaceSpec {
 		RxQueueSize: vpplink.DefaultIntTo(config.DefaultInterfaceSpec.RxQueueSize, vpplink.DEFAULT_QUEUE_SIZE),
 		TxQueueSize: vpplink.DefaultIntTo(config.DefaultInterfaceSpec.TxQueueSize, vpplink.DEFAULT_QUEUE_SIZE),
 		IsL3:        isL3,
-		RxMode:      config.RxModeType(config.DefaultRxMode),
+		RxMode:      config.DefaultRxMode,
 	}
 }
 
@@ -164,7 +164,7 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 				s.log.Warnf("Error parsing key %s %s", key, err)
 			}
 			for _, ifSpec := range ifSpecs {
-				if err := ifSpec.Validate(config.MaxIfSpec); err != nil {
+				if err := ifSpec.Validate(config.MaxPodIfSpec); err != nil {
 					s.log.Error("Pod interface config exceeds max config")
 					return err
 				}
@@ -186,11 +186,11 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 			if err != nil {
 				s.log.Warnf("Error parsing key %s %s", key, err)
 			}
-			if err := ifSpec.Validate(config.MaxIfSpec); err != nil {
+			if err := ifSpec.Validate(config.MaxPodIfSpec); err != nil {
 				s.log.Error("PBL Memif interface config exceeds max config")
 				return err
 			}
-			podSpec.PBLMemifIfSpec = *ifSpec
+			podSpec.PBLMemifSpec = *ifSpec
 		case VppAnnotationPrefix + VclAnnotation:
 			podSpec.EnableVCL, err = s.ParseEnableDisableAnnotation(value)
 		default:

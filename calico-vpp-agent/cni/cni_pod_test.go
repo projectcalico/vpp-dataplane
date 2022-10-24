@@ -102,7 +102,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
 						Workload: &proto.WorkloadIDs{
 							Annotations: map[string]string{
-								"cni.projectcalico.org/allowedSourcePrefixes": "[\"172.16.104.7\", \"3.4.5.6\"]",
+								"cni.projectcalico.org/AllowedSourcePrefixes": "[\"172.16.104.7\", \"3.4.5.6\"]",
 							},
 						},
 					}

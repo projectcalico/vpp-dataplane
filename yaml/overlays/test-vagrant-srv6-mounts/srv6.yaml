@@ -4,10 +4,10 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  service_prefix: "10.96.0.0/12"
+  SERVICE_PREFIX: "10.96.0.0/12"
   CALICOVPP_DEBUG: |-
     {
-      "GSOEnabled": false
+      "gsoEnabled": false
     }
   CALICOVPP_SRV6: |-
     {
@@ -16,7 +16,7 @@ data:
     }
   CALICOVPP_FEATURE_GATES: |-
     {
-      "SRv6Enabled": true
+      "srv6Enabled": true
     }
 ---
 # Source: calico/templates/calico-kube-controllers.yaml

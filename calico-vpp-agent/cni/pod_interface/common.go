@@ -147,7 +147,7 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		return errors.Wrapf(err, "error setting new pod if up")
 	}
 
-	err = i.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, types.RxMode(ifSpec.RxMode))
+	err = i.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, ifSpec.RxMode)
 	if err != nil {
 		return errors.Wrapf(err, "error SetInterfaceRxMode on pod if interface")
 	}

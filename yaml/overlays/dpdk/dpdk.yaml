@@ -4,7 +4,7 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  vpp_uplink_driver: "dpdk"
+  CALICOVPP_NATIVE_DRIVER: "dpdk"
 ---
 kind: DaemonSet
 apiVersion: apps/v1

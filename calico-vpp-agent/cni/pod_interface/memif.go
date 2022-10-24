@@ -63,7 +63,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 
 	var usedIfSpec config.InterfaceSpec
 	if podSpec.NetworkName == "" { //PBL case
-		usedIfSpec = podSpec.PBLMemifIfSpec
+		usedIfSpec = podSpec.PBLMemifSpec
 	} else {
 		usedIfSpec = podSpec.IfSpec
 	}

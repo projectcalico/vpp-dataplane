@@ -155,10 +155,10 @@ metadata:
 data:
   # K8s service prefix. We currently cannot retrieve this from the API,
   # so it must be manually configured
-  service_prefix: 10.96.0.0/12
+  SERVICE_PREFIX: 10.96.0.0/12
 
   # Configure the name of VPP's physical interface
-  vpp_dataplane_interface: eth1
+  CALICOVPP_INTERFACE: eth1
 
   # Configures how VPP grabs the physical interface
   # available values are :
@@ -168,12 +168,12 @@ data:
   # - af_xdp    : use AF_XDP sock family (require at least kernel 5.4)
   # - af_packet : use AF_PACKET sock family (slow but failsafe)
   # - none      : dont configure connectivity
-  vpp_uplink_driver: ""
+  CALICOVPP_NATIVE_DRIVER: ""
 
   # Configures parameters for calicovpp agent and vpp manager
   CALICOVPP_INTERFACES: |-
     {
-      "maxIfSpec": {
+      "maxPodIfSpec": {
         "rx": 10, "tx": 10, "rxqsz": 1024, "txqsz": 1024
       },
       "defaultPodIfSpec": {
@@ -184,8 +184,7 @@ data:
       },
       "uplinkInterfaces": [
         {
-          "isMain": true,
-          "interface": "eth1"
+          "interfaceName": "eth1"
         }
       ]
     }
@@ -196,7 +195,7 @@ data:
     }
 
   # Configuration template for VPP.
-  vpp_config_template: |-
+  CALICOVPP_CONFIG_TEMPLATE: |-
     unix {
       nodaemon
       full-coredump
@@ -282,11 +281,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: SERVICE_PREFIX
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: service_prefix
           securityContext:
             # TODO check required
             privileged: true
@@ -314,16 +308,6 @@ spec:
             - configMapRef:
                 name: calico-vpp-config 
           env:
-            - name: CALICOVPP_CONFIG_TEMPLATE
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: vpp_config_template
-            - name: SERVICE_PREFIX
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-vpp-config
-                  key: service_prefix
             # Use Kubernetes API as the backing datastore.
             - name: DATASTORE_TYPE
               value: "kubernetes"

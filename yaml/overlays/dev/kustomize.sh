@@ -194,10 +194,10 @@ calico_create_template ()
 
 
   ## calico-vpp-config variables ##
-  export service_prefix=$SERVICE_CIDR
-  export vpp_dataplane_interface=${CALICOVPP_INTERFACE:=eth0}
-  export vpp_uplink_driver=${CALICOVPP_NATIVE_DRIVER}
-  export vpp_config_template=${CALICOVPP_CONFIG_TEMPLATE:=$(get_vpp_conf)}
+  export SERVICE_PREFIX=$SERVICE_CIDR
+  export CALICOVPP_INTERFACE=${CALICOVPP_INTERFACE:=eth0}
+  export CALICOVPP_NATIVE_DRIVER=${CALICOVPP_NATIVE_DRIVER}
+  export CALICOVPP_CONFIG_TEMPLATE=${CALICOVPP_CONFIG_TEMPLATE:=$(get_vpp_conf)}
 
   ## vpp-dev-config variables (extra variables for VPP-manager) ##
   export CALICOVPP_INTERFACE=${CALICOVPP_INTERFACE:=eth0}

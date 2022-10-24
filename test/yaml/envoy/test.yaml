@@ -6,7 +6,7 @@ metadata:
   labels:
     app: envoy-vcl
   annotations:
-    "cni.projectcalico.org/vpp.vcl": "enable"
+    "cni.projectcalico.org/vppVcl": "enable"
 spec:
   containers:
   - name: envoy-vcl
