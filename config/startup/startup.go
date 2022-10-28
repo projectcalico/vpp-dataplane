@@ -153,10 +153,10 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 	/* host tap configuration */
 	vpphosttapIfSpec := config.InterfaceSpec{NumRxQueues: 1, NumTxQueues: 1, RxQueueSize: 1024, TxQueueSize: 1024}
 	if calicoVppInterfaces.VppHostTapSpec != nil {
-		calicoVppInterfaces.VppHostTapSpec.Validate(nil)
 		vpphosttapIfSpec = *calicoVppInterfaces.VppHostTapSpec
 	}
 	params.DefaultTap = vpphosttapIfSpec
+	params.DefaultTap.Validate(nil)
 
 	/* uplink configuration: This is being deprecated */
 	if mainInterface := getEnvValue(InterfaceEnvVar); mainInterface != "" {
