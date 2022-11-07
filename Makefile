@@ -44,6 +44,14 @@ kind-new-cluster:
 dev-kind: dev
 	make -C test/kind dev
 
+.PHONY: run-prometheus
+run-prometheus:
+	make -C test/prometheus run
+
+.PHONY: stop-prometheus
+stop-prometheus:
+	make -C test/prometheus stop
+
 .PHONY: install-test-deps
 install-test-deps:
 	sudo apt-get update
