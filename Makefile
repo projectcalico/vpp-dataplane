@@ -44,6 +44,10 @@ kind-new-cluster:
 dev-kind: dev
 	make -C test/kind dev
 
+.PHONY: load-kind
+load-kind:
+	make -C test/kind load
+
 .PHONY: run-prometheus
 run-prometheus:
 	make -C test/prometheus run
