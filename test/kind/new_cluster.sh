@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -o errexit
 
 # create registry container unless it already exists
@@ -11,7 +11,7 @@ if [ "$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true
 fi
 
 # create a cluster with the local registry enabled in containerd
-cat <<EOF | kind create cluster --config=-
+config=$(cat <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 containerdConfigPatches:
@@ -28,19 +28,27 @@ nodes:
   extraMounts:
     - hostPath: $HOME
       containerPath: $HOME
-- role: worker
-  extraMounts:
-    - hostPath: $HOME
-      containerPath: $HOME
-- role: worker
-  extraMounts:
-    - hostPath: $HOME
-      containerPath: $HOME
+EOF
+)
+
+if [ "$1" == "" ]
+then
+echo "please specify number of nodes"
+exit 1
+fi
+
+for ((i=1; i<=$1; i++)); do \
+config=$(cat <<EOF
+$config
 - role: worker
   extraMounts:
     - hostPath: $HOME
       containerPath: $HOME
 EOF
+);\
+done
+
+echo -e "$config" | kind create cluster --config=-
 
 # connect the registry to the cluster network if not already connected
 if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' "${reg_name}")" = 'null' ]; then

@@ -5,7 +5,7 @@ We also have a [vagrant based setup](https://github.com/projectcalico/vpp-datapl
 
 ### First create a kind cluster :
 ````bash
-make kind-new-cluster
+make kind-new-cluster nodes=3 # 3 is an example of number of worker nodes in your cluster
 ````
 This creates a dual-stack cluster with four nodes. The cluster is configured with a local registry to allow sharing images on all nodes without having to copy them [you can read more about his here](https://kind.sigs.k8s.io/docs/user/local-registry/). You can adapt the configuration by editing `./test/kind/new_cluster.sh`
 
@@ -15,7 +15,7 @@ You should now have `kubectl get nodes` reporting four nodes
 
 ### Install the calico operator to the cluster
 ````bash
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.0/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/master/manifests/tigera-operator.yaml
 ````
 
 ### Build development images
@@ -28,6 +28,11 @@ make -C vpp-manager/ vpp
 Then build the agents, containers & push them to the local docker repository
 ````bash
 make dev-kind
+````
+
+Then pull calico images once and load them on the nodes (to avoid pulling image limitation issues in case you have a large cluster)
+````bash
+make load-kind
 ````
 
 ### Install Calico/VPP targeting the images just built
