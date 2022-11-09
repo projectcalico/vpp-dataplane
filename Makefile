@@ -192,10 +192,12 @@ run-integration-tests:
 
 .PHONY: test
 test:
-	gofmt -s -l . | grep -v binapi | diff -u /dev/null -
+	gofmt -s -l . | grep -v binapi | grep -v vpp_build | diff -u /dev/null -
 	go vet ./...
+	go test ./...
 
 .PHONY: go-check
 go-check:
-	gofmt -s -l . | grep -v binapi | diff -u /dev/null -
+	gofmt -s -l . | grep -v binapi | grep -v vpp_build | diff -u /dev/null -
 	go vet ./...
+	go test ./...

@@ -67,7 +67,10 @@ const (
 )
 
 const (
-	/* Allow a maximum number of corefiles, delete older ones */
+/* Allow a maximum number of corefiles, delete older ones */
+)
+
+var (
 	maxCoreFiles = 2
 )
 
@@ -304,36 +307,42 @@ func PrepareConfiguration(params *config.VppManagerParams) (conf []*config.Linux
 	return conf
 }
 
-type timeSlice []time.Time
+type timeAndPath struct {
+	path    string
+	modTime time.Time
+}
 
-func (s timeSlice) Less(i, j int) bool { return s[i].Before(s[j]) }
-func (s timeSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s timeSlice) Len() int           { return len(s) }
+type timeAndPathSlice []timeAndPath
+
+func (s timeAndPathSlice) Less(i, j int) bool { return s[i].modTime.After(s[j].modTime) }
+func (s timeAndPathSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s timeAndPathSlice) Len() int           { return len(s) }
 
 func CleanupCoreFiles(corePattern string) error {
-	files := make(map[time.Time]string)
-	var times timeSlice = []time.Time{}
-	dir := corePattern[:strings.LastIndex(corePattern, "/")]
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if path != dir {
-			files[info.ModTime()] = path
-			times = append(times, info.ModTime())
+	if corePattern == "" {
+		return nil
+	}
+	var timeAndPaths timeAndPathSlice = make([]timeAndPath, 0)
+	err := filepath.Walk(filepath.Dir(corePattern), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return errors.Wrap(err, "Inner walk errored")
+		}
+		if !info.IsDir() {
+			timeAndPaths = append(timeAndPaths, timeAndPath{path, info.ModTime()})
 		}
 		return nil
 	})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "walk errored")
+	}
+	// sort timeAndPaths by decreasing times
+	sort.Sort(timeAndPaths)
+	for i := maxCoreFiles; i < len(timeAndPaths); i++ {
+		os.Remove(timeAndPaths[i].path)
 	}
 
-	if len(files) > maxCoreFiles {
-		sort.Sort(times)
-		for _, time := range times[:len(times)-maxCoreFiles] {
-			os.Remove(files[time])
-		}
-	}
-
-	if len(times) > 0 && maxCoreFiles > 0 {
-		PrintLastBackTrace(files[times[0]])
+	if len(timeAndPaths) > 0 && maxCoreFiles > 0 {
+		PrintLastBackTrace(timeAndPaths[0].path)
 	}
 	return nil
 }
