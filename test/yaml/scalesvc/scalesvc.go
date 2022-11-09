@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -53,7 +55,7 @@ func parallel(val int, modul int) func() error {
 			}
 			service.Name = fmt.Sprintf("nginx-service-%d", i)
 			service.Namespace = "backs"
-			_, err := corev1.Services("backs").Create(&service)
+			_, err := corev1.Services("backs").Create(context.Background(), &service, metav1.CreateOptions{})
 			if err != nil {
 				log.Errorf("err: %v ", err)
 			}
@@ -71,7 +73,7 @@ func parallel(val int, modul int) func() error {
 			endpoints.Name = fmt.Sprintf("nginx-service-%d", i)
 			endpoints.Namespace = "backs"
 
-			_, err = corev1.Endpoints("backs").Create(&endpoints)
+			_, err = corev1.Endpoints("backs").Create(context.Background(), &endpoints, metav1.CreateOptions{})
 			if err != nil {
 				log.Errorf("err: %v ", err)
 			}
