@@ -4,7 +4,15 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:  # Configuration template for VPP in EKS
-  CALICOVPP_NATIVE_DRIVER: "dpdk"
+  CALICOVPP_INTERFACES: |-
+    {
+      "uplinkInterfaces": [
+        {
+          "interfaceName": "eth0",
+          "vppDriver": "dpdk"
+        }
+      ]
+    }
 ---
 kind: DaemonSet
 apiVersion: apps/v1

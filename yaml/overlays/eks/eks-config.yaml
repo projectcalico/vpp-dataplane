@@ -5,8 +5,15 @@ metadata:
   namespace: calico-vpp-dataplane
 data:  # Configuration template for VPP in EKS
   SERVICE_PREFIX: 10.100.0.0/16
-  CALICOVPP_INTERFACE: eth0
-  CALICOVPP_NATIVE_DRIVER: af_packet
+  CALICOVPP_INTERFACES: |-
+    {
+      "uplinkInterfaces": [
+        {
+          "interfaceName": "eth0",
+          "vppDriver": "af_packet"
+        }
+      ]
+    }
 
 ---
 kind: DaemonSet

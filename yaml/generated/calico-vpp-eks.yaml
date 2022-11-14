@@ -165,25 +165,15 @@ data:
       "vppStartupSleepSeconds": 1,
       "corePattern": "/var/lib/vpp/vppcore.%e.%p"
     }
-  CALICOVPP_INTERFACE: eth0
   CALICOVPP_INTERFACES: |-
     {
-      "maxPodIfSpec": {
-        "rx": 10, "tx": 10, "rxqsz": 1024, "txqsz": 1024
-      },
-      "defaultPodIfSpec": {
-        "rx": 1, "tx":1, "isl3": true
-      },
-      "vppHostTapSpec": {
-        "rx": 1, "tx":1, "rxqsz": 1024, "txqsz": 1024, "isl3": false
-      },
       "uplinkInterfaces": [
         {
-          "interfaceName": "eth1"
+          "interfaceName": "eth0",
+          "vppDriver": "af_packet"
         }
       ]
     }
-  CALICOVPP_NATIVE_DRIVER: af_packet
   SERVICE_PREFIX: 10.100.0.0/16
 kind: ConfigMap
 metadata:
