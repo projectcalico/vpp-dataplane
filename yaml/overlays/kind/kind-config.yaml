@@ -5,5 +5,12 @@ metadata:
   namespace: calico-vpp-dataplane
 data:  # Configuration template for VPP in Kind
   SERVICE_PREFIX: 10.96.0.0/16
-  CALICOVPP_INTERFACE: eth0
-  CALICOVPP_NATIVE_DRIVER: af_packet
+  CALICOVPP_INTERFACES: |-
+    {
+      "uplinkInterfaces": [
+        {
+          "interfaceName": "eth0",
+          "vppDriver": "af_packet"
+        }
+      ]
+    }
