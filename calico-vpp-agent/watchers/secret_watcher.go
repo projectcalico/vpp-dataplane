@@ -27,7 +27,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package watchers
 
 import (
@@ -44,15 +43,16 @@ import (
 )
 
 type secretWatchData struct {
-	// The channel that we should write to when we no longer want this watch.
+	// The channel that we should write to when we no longer want this watch
 	stopCh chan struct{}
 
-	// Secret value.
+	// Secret value
 	secret *v1.Secret
 }
 
 type SecretWatcherClient interface {
-	OnSecretUpdate(old, new *v1.Secret)
+	// this function is invoked upon add|update|delete of a secret
+	OnSecretUpdate(secret string)
 }
 
 type secretWatcher struct {
@@ -65,16 +65,17 @@ type secretWatcher struct {
 
 func NewSecretWatcher(c SecretWatcherClient, k8sclient *kubernetes.Clientset) (*secretWatcher, error) {
 	sw := &secretWatcher{
-		client:  c,
-		watches: make(map[string]*secretWatchData),
+		client:       c,
+		watches:      make(map[string]*secretWatchData),
 		k8sClientset: k8sclient,
 	}
 
-	// Find the namespace we're running in.
+	// Find the namespace we're running in (for the unlikely case where we
+	// are being run in a namespace other than calico-vpp-dataplane)
 	sw.namespace = os.Getenv("NAMESPACE")
 	if sw.namespace == "" {
 		// Default to kube-system.
-		sw.namespace = "kube-system"
+		sw.namespace = "calico-vpp-dataplane"
 	}
 
 	return sw, nil
@@ -148,19 +149,19 @@ func (sw *secretWatcher) GetSecret(name, key string) (string, error) {
 func (sw *secretWatcher) OnAdd(obj interface{}) {
 	log.Debug("Secret added")
 	sw.updateSecret(obj.(*v1.Secret))
-	sw.client.OnSecretUpdate(nil, obj.(*v1.Secret))
+	sw.client.OnSecretUpdate((obj.(*v1.Secret)).Name)
 }
 
 func (sw *secretWatcher) OnUpdate(oldObj, newObj interface{}) {
 	log.Debug("Secret updated")
 	sw.updateSecret(newObj.(*v1.Secret))
-	sw.client.OnSecretUpdate(oldObj.(*v1.Secret), newObj.(*v1.Secret))
+	sw.client.OnSecretUpdate((newObj.(*v1.Secret)).Name)
 }
 
 func (sw *secretWatcher) OnDelete(obj interface{}) {
 	log.Debug("Secret deleted")
 	sw.deleteSecret(obj.(*v1.Secret))
-	sw.client.OnSecretUpdate(obj.(*v1.Secret), nil)
+	sw.client.OnSecretUpdate((obj.(*v1.Secret)).Name)
 }
 
 func (sw *secretWatcher) updateSecret(secret *v1.Secret) {
@@ -172,16 +173,18 @@ func (sw *secretWatcher) updateSecret(secret *v1.Secret) {
 func (sw *secretWatcher) deleteSecret(secret *v1.Secret) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
-	delete(sw.watches, secret.Name)
+	sw.watches[secret.Name].secret = nil
 }
 
-func (sw *secretWatcher) DeleteSecretByName(name string) {
+func (sw *secretWatcher) SweepStale(activeSecrets map[string]struct{}) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
-	watchData, found := sw.watches[name]
-	if !found {
-		return
+
+	for name, watchData := range sw.watches {
+		if _, ok := activeSecrets[name]; !ok {
+			log.Debugf("Deleting secret '%s'", name)
+			close(watchData.stopCh)
+			delete(sw.watches, name)
+		}
 	}
-	close(watchData.stopCh)
-	delete(sw.watches, name)
 }
