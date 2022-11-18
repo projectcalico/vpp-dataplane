@@ -18,7 +18,6 @@ package watchers
 import (
 	"net"
 	"time"
-	"sync"
 
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
@@ -26,8 +25,8 @@ import (
 	"golang.org/x/net/context"
 	tomb "gopkg.in/tomb.v2"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
@@ -46,21 +45,22 @@ type PeerWatcher struct {
 	log      *logrus.Entry
 	clientv3 calicov3cli.Interface
 
-	// mutex protects the secretWatcher async callback & the main loop
-	mutex                 sync.Mutex
+	// Subcomponent for accessing and watching secrets (that hold BGP passwords).
+	secretWatcher          *secretWatcher
+	secretWatcherEventChan chan string
 
 	nodeStatesByName     map[string]oldv3.Node
 	peerWatcherEventChan chan common.CalicoVppEvent
 	BGPConf              *calicov3.BGPConfigurationSpec
 	watcher              watch.Interface
 	currentWatchRevision string
-	secretWatcher *secretWatcher
 }
 
 type bgpPeer struct {
-	AS        uint32
-	SweepFlag bool
-	BGPPeerSpec *calicov3.BGPPeerSpec
+	AS            uint32
+	SweepFlag     bool
+	BGPPeerSpec   *calicov3.BGPPeerSpec
+	SecretUpdated bool
 }
 
 // selectsNode determines whether or not the selector mySelector
@@ -192,6 +192,15 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 			default:
 				goto restart
 			}
+		case secret := <-w.secretWatcherEventChan:
+			/* BGP secret related event - update the SecretUpdated field of affected peers */
+			w.log.Debugf("secret update event received for %s", secret)
+			for _, peer := range state {
+				if peer.BGPPeerSpec.Password != nil && peer.BGPPeerSpec.Password.SecretKeyRef != nil && peer.BGPPeerSpec.Password.SecretKeyRef.Name == secret {
+					w.log.Debugf("SecretUpdated field set for peer=%s", peer.BGPPeerSpec.PeerIP)
+					peer.SecretUpdated = true
+				}
+			}
 		}
 
 	restart:
@@ -216,6 +225,7 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 		for _, p := range state {
 			p.SweepFlag = true
 		}
+
 		// If in mesh mode, add a fake peer to the list to select all nodes
 		if w.isMeshMode() {
 			w.log.Debugf("Node to node mesh enabled")
@@ -246,27 +256,38 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 			for ip, asn := range ipAsn {
 				existing, ok := state[ip]
 				if ok {
+					w.log.Debugf("peer(update) neighbor ip=%s for BGPPeer=%s", ip, peer.ObjectMeta.Name)
 					existing.SweepFlag = false
-					if existing.AS != asn {
-						existing.AS = asn
-						existing.BGPPeerSpec = &peer.Spec
+					oldSecret := ""
+					if existing.BGPPeerSpec.Password != nil && existing.BGPPeerSpec.Password.SecretKeyRef != nil {
+						oldSecret = existing.BGPPeerSpec.Password.SecretKeyRef.Name
+					}
+					newSecret := ""
+					if peer.Spec.Password != nil && peer.Spec.Password.SecretKeyRef != nil {
+						newSecret = peer.Spec.Password.SecretKeyRef.Name
+					}
+					w.log.Debugf("peer(update) oldSecret=%s newSecret=%s SecretUpdated=%t for BGPPeer=%s", oldSecret, newSecret, existing.SecretUpdated, peer.ObjectMeta.Name)
+					if existing.AS != asn || oldSecret != newSecret || existing.SecretUpdated {
 						err := w.updateBGPPeer(ip, asn, &peer.Spec)
 						if err != nil {
 							return errors.Wrap(err, "error updating BGP peer")
 						}
-					}
-					// Else no change, nothing to do
+						existing.AS = asn
+						existing.BGPPeerSpec = peer.Spec.DeepCopy()
+						existing.SecretUpdated = false
+					} // Else no change, nothing to do
 				} else {
 					// New peer
 					w.log.Infof("peer(add) neighbor ip=%s for BGPPeer=%s", ip, peer.ObjectMeta.Name)
-					state[ip] = &bgpPeer{
-						AS:        asn,
-						SweepFlag: false,
-						BGPPeerSpec: &peer.Spec,
-					}
 					err := w.addBGPPeer(ip, asn, &peer.Spec)
 					if err != nil {
 						return errors.Wrap(err, "error adding BGP peer")
+					}
+					state[ip] = &bgpPeer{
+						AS:            asn,
+						SweepFlag:     false,
+						SecretUpdated: false,
+						BGPPeerSpec:   peer.Spec.DeepCopy(),
 					}
 				}
 			}
@@ -281,6 +302,16 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 				}
 				delete(state, ip)
 			}
+		}
+		// Clean up any secrets that are no longer referenced by any bgp peers
+		if w.secretWatcher != nil {
+			activeSecrets := map[string]struct{}{}
+			for _, peer := range state {
+				if peer.BGPPeerSpec.Password != nil && peer.BGPPeerSpec.Password.SecretKeyRef != nil {
+					activeSecrets[peer.BGPPeerSpec.Password.SecretKeyRef.Name] = struct{}{}
+				}
+			}
+			w.secretWatcher.SweepStale(activeSecrets)
 		}
 	}
 	w.cleanExistingWatcher()
@@ -373,14 +404,6 @@ func (w *PeerWatcher) createBGPPeer(ip string, asn uint32, peerSpec *calicov3.BG
 	return peer, nil
 }
 
-func (c *PeerWatcher) getPassword(secretKeySelector *v1.SecretKeySelector) (string, error) {
-	password, err := c.secretWatcher.GetSecret(
-		secretKeySelector.Name,
-		secretKeySelector.Key,
-	)
-	return password, err
-}
-
 func (w *PeerWatcher) addBGPPeer(ip string, asn uint32, peerSpec *calicov3.BGPPeerSpec) error {
 	peer, err := w.createBGPPeer(ip, asn, peerSpec)
 	if err != nil {
@@ -406,9 +429,6 @@ func (w *PeerWatcher) updateBGPPeer(ip string, asn uint32, peerSpec *calicov3.BG
 }
 
 func (w *PeerWatcher) deleteBGPPeer(ip string, peerSpec *calicov3.BGPPeerSpec) error {
-	if peerSpec.Password != nil && peerSpec.Password.SecretKeyRef != nil {
-		w.secretWatcher.DeleteSecretByName(peerSpec.Password.SecretKeyRef.Name)
-	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.BGPPeerDeleted,
 		New:  ip,
@@ -427,20 +447,30 @@ func (w *PeerWatcher) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 	w.BGPConf = bgpConf
 }
 
-func (w *PeerWatcher) OnSecretUpdate(old, new *v1.Secret) {
-	// TODO
-	// w.mutex.Lock()
-	// defer w.mutex.Unlock()
-	return
+// Get the BGP password from SecretWatcher
+func (w *PeerWatcher) getPassword(secretKeySelector *v1.SecretKeySelector) (string, error) {
+	password, err := w.secretWatcher.GetSecret(
+		secretKeySelector.Name,
+		secretKeySelector.Key,
+	)
+	return password, err
+}
+
+// This function gets called from SecretWatcher when a secret is added, updated or deleted
+func (w *PeerWatcher) OnSecretUpdate(secret string) {
+	select {
+	case w.secretWatcherEventChan <- secret:
+	}
 }
 
 func NewPeerWatcher(clientv3 calicov3cli.Interface, k8sclient *kubernetes.Clientset, log *logrus.Entry) *PeerWatcher {
 	var err error
 	w := PeerWatcher{
-		clientv3:             clientv3,
-		nodeStatesByName:     make(map[string]oldv3.Node),
-		log:                  log,
-		peerWatcherEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		clientv3:               clientv3,
+		nodeStatesByName:       make(map[string]oldv3.Node),
+		log:                    log,
+		peerWatcherEventChan:   make(chan common.CalicoVppEvent, common.ChanSize),
+		secretWatcherEventChan: make(chan string, 1),
 	}
 	w.secretWatcher, err = NewSecretWatcher(&w, k8sclient)
 	if err != nil {

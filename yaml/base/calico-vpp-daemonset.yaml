@@ -259,6 +259,10 @@ spec:
                 configMapKeyRef:
                   name: calico-vpp-config
                   key: service_prefix
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           securityContext:
             # TODO check required
             privileged: true
