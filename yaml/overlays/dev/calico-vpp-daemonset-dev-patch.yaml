@@ -8,39 +8,7 @@ spec:
   template:
     spec:
       containers:
-        - name: agent
-          image: ${CALICO_AGENT_IMAGE}
-          imagePullPolicy: ${IMAGE_PULL_POLICY}
-          envFrom:
-          - configMapRef:
-              name: calico-agent-dev-config
-          env:
-            - name: DATASTORE_TYPE
-              value: "kubernetes"
-            - name: WAIT_FOR_DATASTORE
-              value: "true"
-            - name: NODENAME
-              value: ""
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
         - name: vpp
-          image: ${CALICO_VPP_IMAGE}
-          imagePullPolicy: ${IMAGE_PULL_POLICY}
-          envFrom:
-          - configMapRef:
-              name: vpp-dev-config
-          env:
-            - name: DATASTORE_TYPE
-              value: "kubernetes"
-            - name: WAIT_FOR_DATASTORE
-              value: "true"
-            - name: NODENAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-            - name: LD_LIBRARY_PATH
-              value: "/repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/"
           resources:
             requests:
               cpu: 1
@@ -48,22 +16,3 @@ spec:
             limits:
               memory: 80Gi
               hugepages-2Mi: 4Gi
-          volumeMounts:
-            # Add your home to the container we can launch rebulid vpp
-            # without the whole container
-            - name: repo-directory
-              mountPath: /repo
-            - name: ssl-certs
-              mountPath: /etc/ssl/certs/
-            - name: share-certs
-              mountPath: /usr/share/ca-certificates
-      volumes:
-        - name: repo-directory
-          hostPath:
-            path: ${REPO_DIRECTORY}
-        - name: ssl-certs
-          hostPath:
-            path: /etc/ssl/certs/
-        - name: share-certs
-          hostPath:
-            path: /usr/share/ca-certificates
