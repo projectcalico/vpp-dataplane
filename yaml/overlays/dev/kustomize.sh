@@ -321,10 +321,19 @@ configMapGenerator:
 generatorOptions:
   disableNameSuffixHash: true
 
+EOF
+
+echo "
+patchesStrategicMerge:
+  - calico-vpp-daemonset-dev-patch-nohuge.yaml
+${USE_MULTINET_MONITOR_DEV_PATCH:+  - multinet-monitor-dev-patch.yaml}" >> kustomization.yaml
+
+if [ x$@ != xnohuge ]; then
+echo "
 patchesStrategicMerge:
   - calico-vpp-daemonset-dev-patch.yaml
-${USE_MULTINET_MONITOR_DEV_PATCH:+  - multinet-monitor-dev-patch.yaml}
-EOF
+${USE_MULTINET_MONITOR_DEV_PATCH:+  - multinet-monitor-dev-patch.yaml}" >> kustomization.yaml
+fi
 
   kubectl kustomize . | \
 	envsubst | \
@@ -338,7 +347,7 @@ EOF
 
 function calico_up_cni ()
 {
-  calico_create_template
+  calico_create_template $@
   if [ x$DISABLE_KUBE_PROXY = xyes ]; then
     kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico": "true"}}}}}'
   fi
@@ -361,8 +370,9 @@ function calico_down_cni ()
 function print_usage_and_exit ()
 {
     echo "Usage:"
-    echo "kustomize.sh up     - Install calico dev cni"
-    echo "kustomize.sh dn     - Delete calico dev cni"
+    echo "kustomize.sh up            - Install calico dev cni"
+    echo "kustomize.sh up nohuge     - Install calico dev cni without hugepages"
+    echo "kustomize.sh dn            - Delete calico dev cni"
     echo
     exit 0
 }
