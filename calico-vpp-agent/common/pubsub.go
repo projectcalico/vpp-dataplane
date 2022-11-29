@@ -44,9 +44,10 @@ const (
 	TunnelAdded   CalicoVppEventType = "TunnelAdded"
 	TunnelDeleted CalicoVppEventType = "TunnelDeleted"
 
-	BGPPeerAdded   CalicoVppEventType = "BGPPeerAdded"
-	BGPPeerDeleted CalicoVppEventType = "BGPPeerDeleted"
-	BGPPeerUpdated CalicoVppEventType = "BGPPeerUpdated"
+	BGPPeerAdded     CalicoVppEventType = "BGPPeerAdded"
+	BGPPeerDeleted   CalicoVppEventType = "BGPPeerDeleted"
+	BGPPeerUpdated   CalicoVppEventType = "BGPPeerUpdated"
+	BGPSecretChanged CalicoVppEventType = "BGPSecretChanged"
 
 	BGPDefinedSetAdded   CalicoVppEventType = "BGPDefinedSetAdded"
 	BGPDefinedSetDeleted CalicoVppEventType = "BGPDefinedSetDeleted"

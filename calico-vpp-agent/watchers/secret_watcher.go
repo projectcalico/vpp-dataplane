@@ -52,7 +52,7 @@ type secretWatchData struct {
 
 type SecretWatcherClient interface {
 	// this function is invoked upon add|update|delete of a secret
-	OnSecretUpdate(secret string)
+	OnSecretUpdate(old, new *v1.Secret)
 }
 
 type secretWatcher struct {
@@ -149,19 +149,19 @@ func (sw *secretWatcher) GetSecret(name, key string) (string, error) {
 func (sw *secretWatcher) OnAdd(obj interface{}) {
 	log.Debug("Secret added")
 	sw.updateSecret(obj.(*v1.Secret))
-	sw.client.OnSecretUpdate((obj.(*v1.Secret)).Name)
+	sw.client.OnSecretUpdate(nil, obj.(*v1.Secret))
 }
 
 func (sw *secretWatcher) OnUpdate(oldObj, newObj interface{}) {
 	log.Debug("Secret updated")
 	sw.updateSecret(newObj.(*v1.Secret))
-	sw.client.OnSecretUpdate((newObj.(*v1.Secret)).Name)
+	sw.client.OnSecretUpdate(oldObj.(*v1.Secret), newObj.(*v1.Secret))
 }
 
 func (sw *secretWatcher) OnDelete(obj interface{}) {
 	log.Debug("Secret deleted")
 	sw.deleteSecret(obj.(*v1.Secret))
-	sw.client.OnSecretUpdate((obj.(*v1.Secret)).Name)
+	sw.client.OnSecretUpdate(obj.(*v1.Secret), nil)
 }
 
 func (sw *secretWatcher) updateSecret(secret *v1.Secret) {
