@@ -46,8 +46,7 @@ type PeerWatcher struct {
 	clientv3 calicov3cli.Interface
 
 	// Subcomponent for accessing and watching secrets (that hold BGP passwords).
-	secretWatcher          *secretWatcher
-	secretWatcherEventChan chan string
+	secretWatcher *secretWatcher
 
 	nodeStatesByName     map[string]oldv3.Node
 	peerWatcherEventChan chan common.CalicoVppEvent
@@ -60,7 +59,7 @@ type bgpPeer struct {
 	AS            uint32
 	SweepFlag     bool
 	BGPPeerSpec   *calicov3.BGPPeerSpec
-	SecretUpdated bool
+	SecretChanged bool
 }
 
 // selectsNode determines whether or not the selector mySelector
@@ -154,8 +153,8 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 			w.log.Error(err)
 			goto restart
 		}
-		// node and peer updates should be infrequent enough
-		// just reevaluate all peerings everytime there is an update
+		// node and peer updates should be infrequent enough so just reevaluate
+		// all peerings everytime there is an update.
 		select {
 		case <-t.Dying():
 			w.log.Infof("Peers Watcher asked to stop")
@@ -189,18 +188,61 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 					w.nodeStatesByName[new.Name] = *new
 				}
 				w.log.Debugf("Nodes updated, reevaluating peerings old %v new %v", old, new)
+			case common.BGPSecretChanged:
+				old, _ := evt.Old.(*v1.Secret)
+				new, _ := evt.New.(*v1.Secret)
+				secretEvt := ""
+				secretName := ""
+				// secret added
+				if old == nil && new != nil {
+					secretEvt = "add"
+					secretName = new.Name
+					w.log.Infof("New secret '%s' added", new.Name)
+				}
+				// secret deleted
+				if old != nil && new == nil {
+					secretEvt = "del"
+					secretName = old.Name
+					w.log.Infof("secret '%s' deleted", old.Name)
+				}
+				// secret updated
+				if old != nil && new != nil {
+					secretEvt = "upd"
+					secretName = old.Name
+					w.log.Infof("secret '%s' updated", old.Name)
+				}
+				// sweep through the peers and update the SecretChanged field of impacted peers
+				for _, peer := range state {
+					switch secretEvt {
+					case "add":
+						// Note(onong): any future add event specifc processing code goes here. For now we fallthrough.
+						// the bgp peer could have been  waiting for a while and BGPPeerSpec might have
+						// undergone some changes so better to punt to the resync loop
+						fallthrough
+					case "del":
+						// Note(onong): any future delete event specifc processing code goes here. For now we fallthrough.
+						// BGP peer's secret has been deleted. What do we do? We treat this the same as a
+						// password change event, ie, password has changed to "" and hence an updateBGPPeer
+						// is called for
+						fallthrough
+					case "upd":
+						// BGP password has changed
+						if w.getSecretName(peer.BGPPeerSpec) == secretName {
+							w.log.Infof("SecretChanged field set for peer=%s", peer.BGPPeerSpec.PeerIP)
+							peer.SecretChanged = true
+						}
+					default:
+						w.log.Warn("Unrecognized secret change event received. Ignoring...")
+					}
+				}
 			default:
 				goto restart
 			}
-		case secret := <-w.secretWatcherEventChan:
-			/* BGP secret related event - update the SecretUpdated field of affected peers */
-			w.log.Debugf("secret update event received for %s", secret)
-			for _, peer := range state {
-				if peer.BGPPeerSpec.Password != nil && peer.BGPPeerSpec.Password.SecretKeyRef != nil && peer.BGPPeerSpec.Password.SecretKeyRef.Name == secret {
-					w.log.Debugf("SecretUpdated field set for peer=%s", peer.BGPPeerSpec.PeerIP)
-					peer.SecretUpdated = true
-				}
-			}
+		// Wake up every once in a while and check things instead of blocking on events indefinitely
+		// An addBGPPeer or updateBGPPeer could be stuck waiting for secret creation
+		case <-time.After(time.Second * 10):
+			w.log.Debug("peers watcher timeout")
+			goto restart
 		}
 
 	restart:
@@ -258,35 +300,31 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 				if ok {
 					w.log.Debugf("peer(update) neighbor ip=%s for BGPPeer=%s", ip, peer.ObjectMeta.Name)
 					existing.SweepFlag = false
-					oldSecret := ""
-					if existing.BGPPeerSpec.Password != nil && existing.BGPPeerSpec.Password.SecretKeyRef != nil {
-						oldSecret = existing.BGPPeerSpec.Password.SecretKeyRef.Name
-					}
-					newSecret := ""
-					if peer.Spec.Password != nil && peer.Spec.Password.SecretKeyRef != nil {
-						newSecret = peer.Spec.Password.SecretKeyRef.Name
-					}
-					w.log.Debugf("peer(update) oldSecret=%s newSecret=%s SecretUpdated=%t for BGPPeer=%s", oldSecret, newSecret, existing.SecretUpdated, peer.ObjectMeta.Name)
-					if existing.AS != asn || oldSecret != newSecret || existing.SecretUpdated {
+					oldSecret := w.getSecretName(existing.BGPPeerSpec)
+					newSecret := w.getSecretName(peer.Spec)
+					w.log.Debugf("peer(update) oldSecret=%s newSecret=%s SecretChanged=%t for BGPPeer=%s", oldSecret, newSecret, existing.SecretChanged, peer.ObjectMeta.Name)
+					if existing.AS != asn || oldSecret != newSecret || existing.SecretChanged {
 						err := w.updateBGPPeer(ip, asn, &peer.Spec)
 						if err != nil {
-							return errors.Wrap(err, "error updating BGP peer")
+							w.log.Warn(errors.Wrap(err, "error updating BGP peer"))
+							continue
 						}
 						existing.AS = asn
 						existing.BGPPeerSpec = peer.Spec.DeepCopy()
-						existing.SecretUpdated = false
+						existing.SecretChanged = false
 					} // Else no change, nothing to do
 				} else {
 					// New peer
 					w.log.Infof("peer(add) neighbor ip=%s for BGPPeer=%s", ip, peer.ObjectMeta.Name)
 					err := w.addBGPPeer(ip, asn, &peer.Spec)
 					if err != nil {
-						return errors.Wrap(err, "error adding BGP peer")
+						w.log.Warn(errors.Wrap(err, "error adding BGP peer"))
+						continue
 					}
 					state[ip] = &bgpPeer{
 						AS:            asn,
 						SweepFlag:     false,
-						SecretUpdated: false,
+						SecretChanged: false,
 						BGPPeerSpec:   peer.Spec.DeepCopy(),
 					}
 				}
@@ -296,23 +334,22 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 		for ip, peer := range state {
 			if peer.SweepFlag {
 				w.log.Infof("peer(del) neighbor ip=%s", ip)
-				err := w.deleteBGPPeer(ip, peer.BGPPeerSpec)
+				err := w.deleteBGPPeer(ip)
 				if err != nil {
-					return errors.Wrap(err, "error deleting BGP peer")
+					w.log.Warn(errors.Wrap(err, "error deleting BGP peer"))
 				}
 				delete(state, ip)
 			}
 		}
 		// Clean up any secrets that are no longer referenced by any bgp peers
-		if w.secretWatcher != nil {
-			activeSecrets := map[string]struct{}{}
-			for _, peer := range state {
-				if peer.BGPPeerSpec.Password != nil && peer.BGPPeerSpec.Password.SecretKeyRef != nil {
-					activeSecrets[peer.BGPPeerSpec.Password.SecretKeyRef.Name] = struct{}{}
-				}
+		activeSecrets := map[string]struct{}{}
+		for _, peer := range state {
+			secretName := w.getSecretName(peer.BGPPeerSpec)
+			if secretName != "" {
+				activeSecrets[secretName] = struct{}{}
 			}
-			w.secretWatcher.SweepStale(activeSecrets)
 		}
+		w.secretWatcher.SweepStale(activeSecrets)
 	}
 	w.cleanExistingWatcher()
 	watcher, err := w.clientv3.BGPPeers().Watch(
@@ -395,7 +432,7 @@ func (w *PeerWatcher) createBGPPeer(ip string, asn uint32, peerSpec *calicov3.BG
 		AfiSafis: afiSafis,
 	}
 
-	if peerSpec.Password != nil && peerSpec.Password.SecretKeyRef != nil {
+	if w.getSecretKeyRef(peerSpec) != nil {
 		peer.Conf.AuthPassword, err = w.getPassword(peerSpec.Password.SecretKeyRef)
 		if err != nil {
 			return nil, err
@@ -428,7 +465,7 @@ func (w *PeerWatcher) updateBGPPeer(ip string, asn uint32, peerSpec *calicov3.BG
 	return nil
 }
 
-func (w *PeerWatcher) deleteBGPPeer(ip string, peerSpec *calicov3.BGPPeerSpec) error {
+func (w *PeerWatcher) deleteBGPPeer(ip string) error {
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.BGPPeerDeleted,
 		New:  ip,
@@ -447,6 +484,22 @@ func (w *PeerWatcher) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 	w.BGPConf = bgpConf
 }
 
+// Given peer's BGPPeerConf check if Password is set and return SecretKeyRef
+func (w *PeerWatcher) getSecretKeyRef(spec *calicov3.BGPPeerSpec) *v1.SecretKeySelector {
+	if spec.Password != nil && spec.Password.SecretKeyRef != nil {
+		return spec.Password.SecretKeyRef
+	}
+	return nil
+}
+
+// Given peer's BGPPeerConf check if Password is set and return secret name
+func (w *PeerWatcher) getSecretName(spec *calicov3.BGPPeerSpec) string {
+	if spec.Password != nil && spec.Password.SecretKeyRef != nil {
+		return spec.Password.SecretKeyRef.Name
+	}
+	return ""
+}
+
 // Get the BGP password from SecretWatcher
 func (w *PeerWatcher) getPassword(secretKeySelector *v1.SecretKeySelector) (string, error) {
 	password, err := w.secretWatcher.GetSecret(
@@ -457,27 +510,28 @@ func (w *PeerWatcher) getPassword(secretKeySelector *v1.SecretKeySelector) (stri
 }
 
 // This function gets called from SecretWatcher when a secret is added, updated or deleted
-func (w *PeerWatcher) OnSecretUpdate(secret string) {
-	select {
-	case w.secretWatcherEventChan <- secret:
-	}
+func (w *PeerWatcher) OnSecretUpdate(old, new *v1.Secret) {
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.BGPSecretChanged,
+		Old:  old,
+		New:  new,
+	})
 }
 
 func NewPeerWatcher(clientv3 calicov3cli.Interface, k8sclient *kubernetes.Clientset, log *logrus.Entry) *PeerWatcher {
 	var err error
 	w := PeerWatcher{
-		clientv3:               clientv3,
-		nodeStatesByName:       make(map[string]oldv3.Node),
-		log:                    log,
-		peerWatcherEventChan:   make(chan common.CalicoVppEvent, common.ChanSize),
-		secretWatcherEventChan: make(chan string, 1),
+		clientv3:             clientv3,
+		nodeStatesByName:     make(map[string]oldv3.Node),
+		log:                  log,
+		peerWatcherEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}
 	w.secretWatcher, err = NewSecretWatcher(&w, k8sclient)
 	if err != nil {
 		log.Fatalf("NewSecretWatcher failed with %s", err)
 	}
 	reg := common.RegisterHandler(w.peerWatcherEventChan, "peers watcher events")
-	reg.ExpectEvents(common.PeerNodeStateChanged)
+	reg.ExpectEvents(common.PeerNodeStateChanged, common.BGPSecretChanged)
 
 	return &w
 }
