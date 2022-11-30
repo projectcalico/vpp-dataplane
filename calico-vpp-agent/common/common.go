@@ -57,11 +57,15 @@ type PolicyServerIpam interface {
 }
 
 type LocalNodeSpec struct {
-	ASNumber           *numorstring.ASNumber
-	Labels             map[string]string
+	ASNumber    *numorstring.ASNumber
+	Labels      map[string]string
+	Name        string
+	IPv4Address *net.IPNet
+	IPv6Address *net.IPNet
+}
+
+type NodeWireguardPublicKey struct {
 	Name               string
-	IPv4Address        *net.IPNet
-	IPv6Address        *net.IPNet
 	WireguardPublicKey string
 }
 

@@ -89,6 +89,7 @@ func NewConnectivityServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyS
 		common.IpamConfChanged,
 		common.SRv6PolicyAdded,
 		common.SRv6PolicyDeleted,
+		common.WireguardPublicKeyChanged,
 	)
 
 	nDataThreads := common.FetchNDataThreads(vpp, log)
@@ -173,6 +174,15 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 				if err != nil {
 					s.log.Errorf("Error while deleting connectivity %s", err)
 				}
+			case common.WireguardPublicKeyChanged:
+				old, _ := evt.Old.(*common.NodeWireguardPublicKey)
+				new, _ := evt.New.(*common.NodeWireguardPublicKey)
+				s.providers[WIREGUARD].(*WireguardProvider).nodesToWGPublicKey[new.Name] = new.WireguardPublicKey
+				change := common.GetStringChangeType(old.WireguardPublicKey, new.WireguardPublicKey)
+				if change != common.ChangeSame {
+					s.log.Infof("connectivity(upd) WireguardPublicKey Changed (%s) %s->%s", old.Name, old.WireguardPublicKey, new.WireguardPublicKey)
+					s.updateAllIPConnectivity()
+				}
 			case common.PeerNodeStateChanged:
 				old, _ := evt.Old.(*common.LocalNodeSpec)
 				new, _ := evt.New.(*common.LocalNodeSpec)
@@ -190,13 +200,6 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					}
 					if new.IPv6Address != nil {
 						s.nodeByAddr[new.IPv6Address.IP.String()] = *new
-					}
-				}
-				if old != nil && new != nil {
-					change := common.GetStringChangeType(old.WireguardPublicKey, new.WireguardPublicKey)
-					if change != common.ChangeSame {
-						s.log.Infof("connectivity(upd) WireguardPublicKey Changed (%s) %s->%s", old.Name, old.WireguardPublicKey, new.WireguardPublicKey)
-						s.updateAllIPConnectivity()
 					}
 				}
 			case common.FelixConfChanged:
@@ -374,4 +377,10 @@ func (s *ConnectivityServer) ForceProviderEnableDisable(providerType string, ena
 // The usage is mainly for testing purposes.
 func (s *ConnectivityServer) ForceNodeAddition(newNode common.LocalNodeSpec, newNodeIP net.IP) {
 	s.nodeByAddr[newNodeIP.String()] = newNode
+}
+
+// ForceWGPublicKeyAddition will add other node information as provided by calico configuration
+// The usage is mainly for testing purposes.
+func (s *ConnectivityServer) ForceWGPublicKeyAddition(newNode string, wgPublicKey string) {
+	s.providers[WIREGUARD].(*WireguardProvider).nodesToWGPublicKey[newNode] = wgPublicKey
 }

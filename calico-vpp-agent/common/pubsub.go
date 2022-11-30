@@ -64,6 +64,8 @@ const (
 
 	IpamPoolUpdate CalicoVppEventType = "IpamPoolUpdate"
 	IpamPoolRemove CalicoVppEventType = "IpamPoolRemove"
+
+	WireguardPublicKeyChanged CalicoVppEventType = "WireguardPublicKeyChanged"
 )
 
 var (

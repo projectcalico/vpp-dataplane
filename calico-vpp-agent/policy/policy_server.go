@@ -100,11 +100,12 @@ type Server struct {
 	felixConfigChan     chan *felixConfig.Config
 	felixConfig         *felixConfig.Config
 
-	ippoolmap     map[string]proto.IPAMPoolUpdate
-	ippoolLock    sync.RWMutex
-	hostNameByDst map[string]string
+	ippoolmap  map[string]proto.IPAMPoolUpdate
+	ippoolLock sync.RWMutex
 
 	nodeStatesByName  map[string]*common.LocalNodeSpec
+	nodeByWGPublicKey map[string]string
+
 	gotOurNodeBGPchan chan common.LocalNodeSpec
 }
 
@@ -133,8 +134,7 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		felixConfigChan:     make(chan *felixConfig.Config),
 		felixConfig:         felixConfig.New(),
 
-		ippoolmap:     make(map[string]proto.IPAMPoolUpdate),
-		hostNameByDst: make(map[string]string),
+		ippoolmap: make(map[string]proto.IPAMPoolUpdate),
 
 		nodeStatesByName:  make(map[string]*common.LocalNodeSpec),
 		gotOurNodeBGPchan: make(chan common.LocalNodeSpec),
@@ -556,6 +556,10 @@ func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
 			err = s.handleHostMetadataUpdate(m, pending)
 		case *proto.HostMetadataRemove:
 			err = s.handleHostMetadataRemove(m, pending)
+		case *proto.HostMetadataV4V6Update:
+			err = s.handleHostMetadataV4V6Update(m, pending)
+		case *proto.HostMetadataV4V6Remove:
+			err = s.handleHostMetadataV4V6Remove(m, pending)
 		case *proto.IPAMPoolUpdate:
 			err = s.handleIpamPoolUpdate(m, pending)
 		case *proto.IPAMPoolRemove:
@@ -570,10 +574,10 @@ func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
 			err = s.handleNamespaceRemove(m, pending)
 		case *proto.GlobalBGPConfigUpdate:
 			err = s.handleGlobalBGPConfigUpdate(m, pending)
-		case *proto.RouteUpdate:
-			err = s.handleRouteUpdate(m, pending)
-		case *proto.RouteRemove:
-			err = s.handleRouteRemove(m, pending)
+		case *proto.WireguardEndpointUpdate:
+			err = s.handleWireguardEndpointUpdate(m, pending)
+		case *proto.WireguardEndpointRemove:
+			err = s.handleWireguardEndpointRemove(m, pending)
 		default:
 			s.log.Warnf("Unhandled message from felix: %v", m)
 		}
@@ -1115,83 +1119,81 @@ func (s *Server) handleHostMetadataRemove(msg *proto.HostMetadataRemove, pending
 	return nil
 }
 
-func (s *Server) handleRouteUpdate(msg *proto.RouteUpdate, pending bool) (err error) {
-	// node update (local or remote host)
-	if msg.Type == proto.RouteType_REMOTE_HOST || msg.Type == proto.RouteType_LOCAL_HOST {
-		s.log.Infof("received node update msg from felix: %+v", msg)
-		s.hostNameByDst[msg.Dst] = msg.DstNodeName
-		localNodeSpec := &common.LocalNodeSpec{
-			Name:               msg.DstNodeName,
-			Labels:             msg.Labels,
-			WireguardPublicKey: msg.WireguardPublicKey,
-		}
-		if msg.Asnumber != "" {
-			asn, err := numorstring.ASNumberFromString(msg.Asnumber)
-			if err != nil {
-				return err
-			}
-			localNodeSpec.ASNumber = &asn
-		}
-		ip, ipnet, err := net.ParseCIDR(msg.Dst)
+func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update, pending bool) (err error) {
+	ip, ip4net, err := net.ParseCIDR(msg.Ipv4Addr)
+	if err != nil {
+		return err
+	}
+	ip4net.IP = ip
+	ip, ip6net, err := net.ParseCIDR(msg.Ipv6Addr)
+	if err != nil {
+		return err
+	}
+	ip6net.IP = ip
+	localNodeSpec := &common.LocalNodeSpec{
+		Name:        msg.Hostname,
+		Labels:      msg.Labels,
+		IPv4Address: ip4net,
+		IPv6Address: ip6net,
+	}
+	if msg.Asnumber != "" {
+		asn, err := numorstring.ASNumberFromString(msg.Asnumber)
 		if err != nil {
 			return err
 		}
-		ipnet.IP = ip
-		if ipnet.IP.To4() == nil {
-			localNodeSpec.IPv6Address = ipnet
-		} else {
-			localNodeSpec.IPv4Address = ipnet
-		}
-		old, found := s.nodeStatesByName[localNodeSpec.Name]
-		if found {
-			err = s.onNodeUpdated(old, localNodeSpec)
-		} else {
-			err = s.onNodeAdded(localNodeSpec)
-		}
-		s.nodeStatesByName[localNodeSpec.Name] = localNodeSpec
-		if err != nil {
-			return err
-		}
+		localNodeSpec.ASNumber = &asn
+	}
+
+	old, found := s.nodeStatesByName[localNodeSpec.Name]
+	if found {
+		err = s.onNodeUpdated(old, localNodeSpec)
+	} else {
+		err = s.onNodeAdded(localNodeSpec)
+	}
+	s.nodeStatesByName[localNodeSpec.Name] = localNodeSpec
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func (s *Server) handleRouteRemove(msg *proto.RouteRemove, pending bool) (err error) {
-	// cannot directly tell which type of route that is, so look in map?
-	if name, ok := s.hostNameByDst[msg.Dst]; ok {
-		s.log.Infof("received node remove msg from felix: %+v: %s", msg, name)
-		localNodeSpec := &common.LocalNodeSpec{Name: name}
-		ip, ipnet, err := net.ParseCIDR(msg.Dst)
+func (s *Server) handleHostMetadataV4V6Remove(msg *proto.HostMetadataV4V6Remove, pending bool) (err error) {
+	localNodeSpec := &common.LocalNodeSpec{Name: msg.Hostname}
+	old, found := s.nodeStatesByName[localNodeSpec.Name]
+	if found {
+		err = s.onNodeDeleted(old, localNodeSpec)
 		if err != nil {
 			return err
 		}
-		ipnet.IP = ip
-		if ipnet.IP.To4() == nil {
-			localNodeSpec.IPv6Address = ipnet
-		} else {
-			localNodeSpec.IPv4Address = ipnet
-		}
-		old, found := s.nodeStatesByName[localNodeSpec.Name]
-		if found {
-			err = s.onNodeDeleted(old, localNodeSpec)
-			if err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("Node to delete not found")
-		}
+	} else {
+		return fmt.Errorf("Node to delete not found")
 	}
+	return nil
+}
+
+func (s *Server) handleWireguardEndpointUpdate(msg *proto.WireguardEndpointUpdate, pending bool) (err error) {
+	s.log.Infof("Received wireguard public key %+v", msg)
+	var old *common.NodeWireguardPublicKey
+	_, ok := s.nodeByWGPublicKey[msg.Hostname]
+	if ok {
+		old = &common.NodeWireguardPublicKey{Name: msg.Hostname, WireguardPublicKey: s.nodeByWGPublicKey[msg.Hostname]}
+	} else {
+		old = &common.NodeWireguardPublicKey{Name: msg.Hostname}
+	}
+	new := &common.NodeWireguardPublicKey{Name: msg.Hostname, WireguardPublicKey: msg.PublicKey}
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.WireguardPublicKeyChanged,
+		Old:  old,
+		New:  new,
+	})
+	return nil
+}
+
+func (s *Server) handleWireguardEndpointRemove(msg *proto.WireguardEndpointRemove, pending bool) (err error) {
 	return nil
 }
 
 func (s *Server) onNodeUpdated(old *common.LocalNodeSpec, node *common.LocalNodeSpec) (err error) {
-	if node.IPv4Address == nil {
-		node.IPv4Address = old.IPv4Address
-	}
-	if node.IPv6Address == nil {
-		node.IPv6Address = old.IPv6Address
-	}
-
 	// This is used by the routing server to process Wireguard key updates
 	// As a result we only send an event when a node is updated, not when it is added or deleted
 	common.SendEvent(common.CalicoVppEvent{
@@ -1225,8 +1227,14 @@ func (s *Server) onNodeAdded(node *common.LocalNodeSpec) (err error) {
 		if node.IPv6Address != nil {
 			s.ip6 = &node.IPv6Address.IP
 		}
-		s.createAllowFromHostPolicy()
-		s.createAllowToHostPolicy()
+		err = s.createAllowFromHostPolicy()
+		if err != nil {
+			return errors.Wrap(err, "Error in createAllowFromHostPolicy")
+		}
+		err = s.createAllowToHostPolicy()
+		if err != nil {
+			return errors.Wrap(err, "Error in createAllowToHostPolicy")
+		}
 	}
 
 	common.SendEvent(common.CalicoVppEvent{
@@ -1263,17 +1271,7 @@ func (s *Server) onNodeDeleted(old *common.LocalNodeSpec, node *common.LocalNode
 		return NodeWatcherRestartError{}
 	}
 
-	if node.IPv4Address != nil {
-		old.IPv4Address = nil
-	}
-	if node.IPv6Address != nil {
-		old.IPv6Address = nil
-	}
 	s.configureRemoteNodeSnat(old, false /* isAdd */)
-	if old.IPv4Address == nil && old.IPv6Address == nil { //both addresses deleted
-		s.log.Infof("deleted node %+v", node)
-		delete(s.nodeStatesByName, node.Name)
-	}
 	return nil
 }
 
