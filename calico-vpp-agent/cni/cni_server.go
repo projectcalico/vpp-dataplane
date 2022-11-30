@@ -426,7 +426,10 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) error {
 }
 
 func (s *Server) ServeCNI(t *tomb.Tomb) error {
-	syscall.Unlink(config.CNIServerSocket)
+	err := syscall.Unlink(config.CNIServerSocket)
+	if err != nil {
+		s.log.Warnf("unable to unlink cni server socket: %+v", err)
+	}
 
 	socketListener, err := net.Listen("unix", config.CNIServerSocket)
 	if err != nil {

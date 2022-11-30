@@ -564,9 +564,9 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 				addedNodePublicKey := "public-key-for-added-node" // max 32 characters due to VPP binapi
 				connectivityServer.ForceNodeAddition(common.LocalNodeSpec{
-					Name:               AddedNodeName,
-					WireguardPublicKey: base64.StdEncoding.EncodeToString([]byte(addedNodePublicKey)),
+					Name: AddedNodeName,
 				}, net.ParseIP(AddedNodeIP))
+				connectivityServer.ForceWGPublicKeyAddition(AddedNodeName, base64.StdEncoding.EncodeToString([]byte(addedNodePublicKey)))
 				err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *ipNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(AddedNodeIP), // wireguard impl uses nexthop as node IP

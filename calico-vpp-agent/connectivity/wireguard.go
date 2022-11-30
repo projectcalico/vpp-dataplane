@@ -31,8 +31,9 @@ import (
 
 type WireguardProvider struct {
 	*ConnectivityProviderData
-	wireguardTunnels map[string]*types.WireguardTunnel
-	wireguardPeers   map[string]types.WireguardPeer
+	wireguardTunnels   map[string]*types.WireguardTunnel
+	wireguardPeers     map[string]types.WireguardPeer
+	nodesToWGPublicKey map[string]string
 }
 
 func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
@@ -40,6 +41,7 @@ func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
 		ConnectivityProviderData: d,
 		wireguardTunnels:         make(map[string]*types.WireguardTunnel),
 		wireguardPeers:           make(map[string]types.WireguardPeer),
+		nodesToWGPublicKey:       make(map[string]string),
 	}
 }
 
@@ -49,7 +51,7 @@ func (p *WireguardProvider) Enabled(cn *common.NodeConnectivity) bool {
 		return false
 	}
 	node := p.GetNodeByIp(cn.NextHop)
-	return node.WireguardPublicKey != ""
+	return p.nodesToWGPublicKey[node.Name] != ""
 }
 
 func (p *WireguardProvider) getWireguardPort() uint16 {
@@ -62,14 +64,14 @@ func (p *WireguardProvider) getWireguardPort() uint16 {
 
 func (p *WireguardProvider) getNodePublicKey(cn *common.NodeConnectivity) ([]byte, error) {
 	node := p.GetNodeByIp(cn.NextHop)
-	if node.WireguardPublicKey == "" {
+	if p.nodesToWGPublicKey[node.Name] == "" {
 		return nil, fmt.Errorf("no public key for node=%s", node.Name)
 	}
 
-	p.log.Infof("connectivity(add) Wireguard nodeName=%s pubKey=%s", node.Name, node.WireguardPublicKey)
-	key, err := base64.StdEncoding.DecodeString(node.WireguardPublicKey)
+	p.log.Infof("connectivity(add) Wireguard nodeName=%s pubKey=%s", node.Name, p.nodesToWGPublicKey[node.Name])
+	key, err := base64.StdEncoding.DecodeString(p.nodesToWGPublicKey[node.Name])
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error decoding wireguard public key %s", node.WireguardPublicKey)
+		return nil, errors.Wrapf(err, "Error decoding wireguard public key %s", p.nodesToWGPublicKey[node.Name])
 	}
 	return key, nil
 }
