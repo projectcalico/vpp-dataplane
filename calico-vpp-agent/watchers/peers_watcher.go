@@ -215,15 +215,10 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 				for _, peer := range state {
 					switch secretEvt {
 					case "add":
-						// Note(onong): any future add event specifc processing code goes here. For now we fallthrough.
-						// the bgp peer could have been  waiting for a while and BGPPeerSpec might have
-						// undergone some changes so better to punt to the resync loop
+						// Note: any future add event specifc processing code goes here. For now we fallthrough.
 						fallthrough
 					case "del":
-						// Note(onong): any future delete event specifc processing code goes here. For now we fallthrough.
-						// BGP peer's secret has been deleted. What do we do? We treat this the same as a
-						// password change event, ie, password has changed to "" and hence an updateBGPPeer
-						// is called for
+						// Note: any future delete event specifc processing code goes here. For now we fallthrough.
 						fallthrough
 					case "upd":
 						// BGP password has changed
@@ -238,11 +233,6 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 			default:
 				goto restart
 			}
-		// Wake up every once in a while and check things instead of blocking on events indefinitely
-		// An addBGPPeer or updateBGPPeer could be stuck waiting for secret creation
-		case <-time.After(time.Second * 10):
-			w.log.Debug("peers watcher timeout")
-			goto restart
 		}
 
 	restart:
@@ -283,6 +273,8 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 		} else {
 			w.log.Debugf("Node to node mesh disabled")
 		}
+		// Intialize the set consisting of active secrets
+		activeSecrets := map[string]struct{}{}
 		for _, peer := range peers.Items {
 			if !w.shouldPeer(&peer) {
 				continue
@@ -301,12 +293,12 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 					w.log.Debugf("peer(update) neighbor ip=%s for BGPPeer=%s", ip, peer.ObjectMeta.Name)
 					existing.SweepFlag = false
 					oldSecret := w.getSecretName(existing.BGPPeerSpec)
-					newSecret := w.getSecretName(peer.Spec)
+					newSecret := w.getSecretName(&peer.Spec)
 					w.log.Debugf("peer(update) oldSecret=%s newSecret=%s SecretChanged=%t for BGPPeer=%s", oldSecret, newSecret, existing.SecretChanged, peer.ObjectMeta.Name)
 					if existing.AS != asn || oldSecret != newSecret || existing.SecretChanged {
 						err := w.updateBGPPeer(ip, asn, &peer.Spec)
 						if err != nil {
-							w.log.Warn(errors.Wrap(err, "error updating BGP peer"))
+							w.log.Warn(errors.Wrapf(err, "error updating BGP peer %s, ip=%s", peer.ObjectMeta.Name, ip))
 							continue
 						}
 						existing.AS = asn
@@ -318,7 +310,12 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 					w.log.Infof("peer(add) neighbor ip=%s for BGPPeer=%s", ip, peer.ObjectMeta.Name)
 					err := w.addBGPPeer(ip, asn, &peer.Spec)
 					if err != nil {
-						w.log.Warn(errors.Wrap(err, "error adding BGP peer"))
+						w.log.Warn(errors.Wrapf(err, "error adding BGP peer %s, ip=%s", peer.ObjectMeta.Name, ip))
+						// Add the secret to the set of active secrets so it does not get cleaned up
+						secretName := w.getSecretName(&peer.Spec)
+						if secretName != "" {
+							activeSecrets[secretName] = struct{}{}
+						}
 						continue
 					}
 					state[ip] = &bgpPeer{
@@ -336,13 +333,12 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 				w.log.Infof("peer(del) neighbor ip=%s", ip)
 				err := w.deleteBGPPeer(ip)
 				if err != nil {
-					w.log.Warn(errors.Wrap(err, "error deleting BGP peer"))
+					w.log.Warn(errors.Wrapf(err, "error deleting BGP peer %s", ip))
 				}
 				delete(state, ip)
 			}
 		}
 		// Clean up any secrets that are no longer referenced by any bgp peers
-		activeSecrets := map[string]struct{}{}
 		for _, peer := range state {
 			secretName := w.getSecretName(peer.BGPPeerSpec)
 			if secretName != "" {
