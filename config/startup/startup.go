@@ -159,7 +159,7 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		vpphosttapIfSpec = *calicoVppInterfaces.VppHostTapSpec
 	}
 	params.DefaultTap = vpphosttapIfSpec
-	params.DefaultTap.Validate(nil)
+	_ = params.DefaultTap.Validate(nil)
 
 	/* uplink configuration: This is being deprecated */
 	if mainInterface := getEnvValue(InterfaceEnvVar); mainInterface != "" {
@@ -173,7 +173,7 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 
 	/* uplinks configuration */
 	for index, uplink := range calicoVppInterfaces.UplinkInterfaces {
-		uplink.Validate(nil, index == 0)
+		_ = uplink.Validate(nil, index == 0)
 		params.UplinksSpecs = append(params.UplinksSpecs, uplink)
 	}
 	if len(params.UplinksSpecs) == 0 {

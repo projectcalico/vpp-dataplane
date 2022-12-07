@@ -31,7 +31,6 @@ func network(address string) *net.IPNet {
 var (
 	gw               = net.ParseIP("192.168.2.1")
 	net0             = network("192.168.2.1/32")
-	net1             = network("192.168.2.0/24")
 	net2             = network("192.168.3.0/24")
 	net3             = network("10.8.0.0/16")
 	deflt *net.IPNet = nil

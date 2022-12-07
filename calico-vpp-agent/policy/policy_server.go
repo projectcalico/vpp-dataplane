@@ -23,7 +23,6 @@ import (
 	"os"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -62,8 +61,6 @@ const (
 type Server struct {
 	log *logrus.Entry
 	vpp *vpplink.VppLink
-
-	nodeBGPSpec *oldv3.NodeBGPSpec
 
 	state         SyncState
 	nextSeqNumber uint64
@@ -286,7 +283,10 @@ func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, ifName 
 		for _, containerIP := range containerIPs {
 			allMembers = append(allMembers, containerIP.IP.String())
 		}
-		s.workloadsToHostIPSet.AddMembers(allMembers, true, s.vpp)
+		err := s.workloadsToHostIPSet.AddMembers(allMembers, true, s.vpp)
+		if err != nil {
+			s.log.Errorf("Error processing workload addition: %s", err)
+		}
 	}
 }
 
@@ -321,7 +321,10 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 		for _, containerIP := range containerIPs {
 			allMembers = append(allMembers, containerIP.IP.String())
 		}
-		s.workloadsToHostIPSet.RemoveMembers(allMembers, true, s.vpp)
+		err := s.workloadsToHostIPSet.RemoveMembers(allMembers, true, s.vpp)
+		if err != nil {
+			s.log.Errorf("Error workloadsToHostIPSet.RemoveMembers: %s", err)
+		}
 	}
 }
 
@@ -373,7 +376,10 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 		}
 		state := s.currentState(pending)
 		for _, h := range state.HostEndpoints {
-			h.handleTunnelChange(swIfIndex, true /* isAdd */, pending)
+			err := h.handleTunnelChange(swIfIndex, true /* isAdd */, pending)
+			if err != nil {
+				return err
+			}
 		}
 	case common.TunnelDeleted:
 		var pending bool
@@ -393,7 +399,10 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 		}
 		state := s.currentState(pending)
 		for _, h := range state.HostEndpoints {
-			h.handleTunnelChange(swIfIndex, false /* isAdd */, pending)
+			err := h.handleTunnelChange(swIfIndex, false /* isAdd */, pending)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -561,22 +570,6 @@ func (s *Server) currentState(pending bool) *PolicyState {
 
 func (s *Server) WaitForFelixConfig() *felixConfig.Config {
 	return <-s.felixConfigChan
-}
-
-func safeParseBool(str string, onErr bool) bool {
-	parsed, err := strconv.ParseBool(str)
-	if err != nil {
-		return onErr
-	}
-	return parsed
-}
-
-func safeParseInt(str string, onErr int) int {
-	parsed, err := strconv.Atoi(str)
-	if err != nil {
-		return onErr
-	}
-	return parsed
 }
 
 /**
@@ -1443,7 +1436,10 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 	}
 	ipset := NewIPSet()
 	ps := PolicyState{IPSets: map[string]*IPSet{"ipset1": ipset}}
-	ipset.Create(s.vpp)
+	err = ipset.Create(s.vpp)
+	if err != nil {
+		return err
+	}
 	pol.InboundRules = append(pol.InboundRules, r_deny_workloads)
 	err = pol.Create(s.vpp, &ps)
 	if err != nil {
@@ -1510,7 +1506,7 @@ func (s *Server) createFailSafePolicies() (err error) {
 
 	fohp := s.felixConfig.FailsafeOutboundHostPorts
 	if len(fohp) == 0 {
-		fihp = append(fihp,
+		fohp = append(fohp,
 			felixConfig.ProtoPort{Protocol: "udp", Port: 53},
 			felixConfig.ProtoPort{Protocol: "udp", Port: 67},
 			felixConfig.ProtoPort{Protocol: "tcp", Port: 179},

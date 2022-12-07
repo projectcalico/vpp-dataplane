@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
-func NewClient(timeout time.Duration, addToSchemes []func(s *runtime.Scheme) error) (*client.WithWatch, error) {
+func NewK8SClient(timeout time.Duration, addToSchemes []func(s *runtime.Scheme) error) (*client.WithWatch, error) {
 	scheme := runtime.NewScheme()
 	for _, addToScheme := range addToSchemes {
 		_ = addToScheme(scheme)
@@ -34,25 +34,16 @@ func NewClient(timeout time.Duration, addToSchemes []func(s *runtime.Scheme) err
 	if err != nil {
 		return nil, err
 	}
-	return newClient(config, scheme, timeout)
-}
 
-func newClient(config *rest.Config, schema *runtime.Scheme, timeout time.Duration) (*client.WithWatch, error) {
 	mapper, err := apiutil.NewDiscoveryRESTMapper(config)
 	if err != nil {
 		return nil, err
 	}
-	c, err := client.NewWithWatch(config, client.Options{Scheme: schema, Mapper: mapper})
+
+	k8sClient, err := client.NewWithWatch(config, client.Options{Scheme: scheme, Mapper: mapper})
 	if err != nil {
 		return nil, err
 	}
 
-	return newKubernetesClient(&c, timeout), nil
-}
-
-func newKubernetesClient(k8sClient *client.WithWatch, timeout time.Duration) *client.WithWatch {
-	if timeout == time.Duration(0) {
-		timeout = 10 * time.Second
-	}
-	return k8sClient
+	return &k8sClient, nil
 }

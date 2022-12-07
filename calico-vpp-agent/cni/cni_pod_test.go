@@ -574,11 +574,12 @@ func teardownPod() {
 // runInPod runs runner function in provided pod network namespace. This is the same as running
 // networking commands inside pod.
 func runInPod(podNetNS string, runner func()) {
-	ns.WithNetNSPath(podNetNS, func(hostNS ns.NetNS) error {
+	err := ns.WithNetNSPath(podNetNS, func(hostNS ns.NetNS) error {
 		defer GinkgoRecover() // running in different goroutine -> needed for failed assertion retrieval
 		runner()
 		return nil
 	})
+	Expect(err).Should(BeNil(), "Failed to runInPod")
 }
 
 // dpoNetworkNameFieldName extracts JSON field name for NetworkName used in proto.AddRequest.DataplaneOptions

@@ -57,7 +57,7 @@ func main() {
 	AddToScheme := SchemeBuilder.AddToScheme
 	SchemeBuilder.Register(&v1.ServiceList{}, &v1.PodList{}, &v1.Pod{}, &v1.Service{}, &v1.Endpoints{})
 
-	k8sClient, err := watchers.NewClient(10*time.Second, []func(s *runtime.Scheme) error{AddToScheme, nadv1.AddToScheme})
+	k8sClient, err := watchers.NewK8SClient(10*time.Second, []func(s *runtime.Scheme) error{AddToScheme, nadv1.AddToScheme})
 	if err != nil {
 		log.Errorf("failed instantiating kubernetes client: %v", err)
 	}

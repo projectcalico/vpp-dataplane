@@ -18,7 +18,6 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net"
 	"os"
@@ -84,7 +83,6 @@ func CreateVppLinkInRetryLoop(socket string, log *logrus.Entry, timeout time.Dur
 			version, err := vpp.GetVPPVersion()
 			if err != nil {
 				log.Warnf("Try [%d/%d] broken vpplink: %v", i, maxRetry, err)
-				err = nil
 				time.Sleep(retry)
 			} else {
 				log.Infof("Connected to VPP version %s", version)
@@ -98,7 +96,7 @@ func CreateVppLinkInRetryLoop(socket string, log *logrus.Entry, timeout time.Dur
 func WaitForVppManager() (*config.VppManagerInfo, error) {
 	vppManagerInfo := &config.VppManagerInfo{}
 	for i := 0; i < 20; i++ {
-		dat, err := ioutil.ReadFile(config.VppManagerInfoFile)
+		dat, err := os.ReadFile(config.VppManagerInfoFile)
 		if err == nil {
 			err2 := json.Unmarshal(dat, vppManagerInfo)
 			if err2 != nil {
@@ -114,7 +112,7 @@ func WaitForVppManager() (*config.VppManagerInfo, error) {
 
 func WritePidToFile() error {
 	pid := strconv.FormatInt(int64(os.Getpid()), 10)
-	return ioutil.WriteFile(config.CalicoVppPidFile, []byte(pid+"\n"), 0400)
+	return os.WriteFile(config.CalicoVppPidFile, []byte(pid+"\n"), 0400)
 }
 
 func SafeFormat(e interface{ String() string }) string {
@@ -512,7 +510,7 @@ func GetNodeSpecAddresses(node *oldv3.Node) (string, string) {
 	return nodeIP4, nodeIP6
 }
 
-func formatBGPConfiguration(conf *calicov3.BGPConfigurationSpec) string {
+func FormatBGPConfiguration(conf *calicov3.BGPConfigurationSpec) string {
 	if conf == nil {
 		return "<nil>"
 	}

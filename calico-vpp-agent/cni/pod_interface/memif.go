@@ -113,7 +113,6 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 				i.SpreadRxQueuesOnWorkers(memif.SwIfIndex, podSpec.IfSpec.NumRxQueues)
 			case types.InterfaceEventDeleted: // this might not be needed here, it could be handled internally in the watcher
 				watcher.Stop()
-				break
 			}
 		}
 

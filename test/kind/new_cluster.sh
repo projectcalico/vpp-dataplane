@@ -25,6 +25,7 @@ networking:
   ipFamily: dual
 nodes:
 - role: control-plane
+  image: kindest/node:v1.24.7
   extraMounts:
     - hostPath: $HOME
       containerPath: $HOME
@@ -41,6 +42,7 @@ for ((i=1; i<=$1; i++)); do \
 config=$(cat <<EOF
 $config
 - role: worker
+  image: kindest/node:v1.24.7
   extraMounts:
     - hostPath: $HOME
       containerPath: $HOME

@@ -45,7 +45,7 @@ func (e *CnatEndpoint) String() string {
 	} else if e.IP.IsUnspecified() && e.Port != 0 {
 		return fmt.Sprintf("();%d", e.Port)
 	} else if e.Port == 0 {
-		return fmt.Sprintf("%s", e.IP.String())
+		return e.IP.String()
 	} else {
 		return fmt.Sprintf("%s;%d", e.IP.String(), e.Port)
 	}

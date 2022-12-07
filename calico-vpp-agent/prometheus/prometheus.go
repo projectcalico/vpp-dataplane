@@ -17,7 +17,6 @@ package prometheus
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
@@ -59,12 +58,15 @@ type Server struct {
 func (s *Server) recordMetrics(t *tomb.Tomb) {
 	pe, err := prometheusExporter.New(prometheusExporter.Options{})
 	if err != nil {
-		log.Fatalf("Failed to create new exporter: %v", err)
+		s.log.Fatalf("Failed to create new exporter: %v", err)
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", pe)
 	go func() {
-		http.ListenAndServe(":8888", mux)
+		err := http.ListenAndServe(":8888", mux)
+		if err != nil {
+			s.log.Fatalf("Failed to serve metrics: %s", err)
+		}
 	}()
 	for t.Alive() {
 		time.Sleep(time.Second * time.Duration(recordMetricInterval))
@@ -75,7 +77,10 @@ func (s *Server) recordMetrics(t *tomb.Tomb) {
 				if sta.Type == adapter.CombinedCounterVector {
 					names = []string{names[0] + "_packets", names[0] + "_bytes"}
 				}
-				s.exportMetricsForStat(names, sta, ifNames, pe)
+				err := s.exportMetricsForStat(names, sta, ifNames, pe)
+				if err != nil {
+					s.log.Errorf("exportMetricsForStat errored with %s", err)
+				}
 			}
 		}
 	}
@@ -118,7 +123,7 @@ var descriptions = map[string]string{
 	"tx_no_buf": "total number of tx mbuf allocation failures",
 }
 
-func (s *Server) exportMetricsForStat(names []string, sta adapter.StatEntry, ifNames adapter.NameStat, pe *prometheusExporter.Exporter) {
+func (s *Server) exportMetricsForStat(names []string, sta adapter.StatEntry, ifNames adapter.NameStat, pe *prometheusExporter.Exporter) error {
 	for k, name := range names {
 		description, ok := descriptions[name]
 		if !ok {
@@ -168,8 +173,12 @@ func (s *Server) exportMetricsForStat(names []string, sta adapter.StatEntry, ifN
 		if len(metric.Timeseries) == 0 {
 			metric.Timeseries = []*metricspb.TimeSeries{{}}
 		}
-		pe.ExportMetric(context.Background(), nil, nil, metric)
+		err := pe.ExportMetric(context.Background(), nil, nil, metric)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func getTimeSeries(worker int, pod storage.LocalPodSpec, value float64) *metricspb.TimeSeries {

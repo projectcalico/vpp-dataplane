@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -70,7 +69,7 @@ func GetMaxCIDRMask(addr net.IP) net.IPMask {
 }
 
 func WriteFile(state string, path string) error {
-	err := ioutil.WriteFile(path, []byte(state+"\n"), 0400)
+	err := os.WriteFile(path, []byte(state+"\n"), 0400)
 	if err != nil {
 		return errors.Errorf("Failed to write state to %s %s", path, err)
 	}
@@ -82,7 +81,7 @@ func WriteInfoFile() error {
 	if err != nil {
 		return errors.Errorf("Failed to encode json for info file: %s", err)
 	}
-	return ioutil.WriteFile(config.VppManagerInfoFile, file, 0644)
+	return os.WriteFile(config.VppManagerInfoFile, file, 0644)
 }
 
 func RouteIsIP6(r *netlink.Route) bool {
@@ -125,28 +124,28 @@ func SwapDriver(pciDevice, newDriver string, addId bool) error {
 	driverRoot := fmt.Sprintf("/sys/bus/pci/drivers/%s", newDriver)
 	if addId {
 		// Grab device vendor and id
-		vendor, err := ioutil.ReadFile(deviceRoot + "/vendor")
+		vendor, err := os.ReadFile(deviceRoot + "/vendor")
 		if err != nil {
 			return errors.Wrapf(err, "Error reading device %s vendor", pciDevice)
 		}
-		device, err := ioutil.ReadFile(deviceRoot + "/device")
+		device, err := os.ReadFile(deviceRoot + "/device")
 		if err != nil {
 			return errors.Wrapf(err, "Error reading device %s id", pciDevice)
 		}
 		// Add it to driver before unbinding to prevent spontaneous binds
 		identifier := fmt.Sprintf("%s %s\n", string(vendor[2:6]), string(device[2:6]))
 		log.Infof("Adding id '%s' to driver %s", identifier, newDriver)
-		err = ioutil.WriteFile(driverRoot+"/new_id", []byte(identifier), 0200)
+		err = os.WriteFile(driverRoot+"/new_id", []byte(identifier), 0200)
 		if err != nil {
 			log.Warnf("Could not add id %s to driver %s: %v", identifier, newDriver, err)
 		}
 	}
-	err := ioutil.WriteFile(deviceRoot+"/driver/unbind", []byte(pciDevice), 0200)
+	err := os.WriteFile(deviceRoot+"/driver/unbind", []byte(pciDevice), 0200)
 	if err != nil {
 		// Error on unbind is not critical, device might beind successfully afterwards if it is not currently bound
 		log.Warnf("Error unbinding %s: %v", pciDevice, err)
 	}
-	err = ioutil.WriteFile(driverRoot+"/bind", []byte(pciDevice), 0200)
+	err = os.WriteFile(driverRoot+"/bind", []byte(pciDevice), 0200)
 	return errors.Wrapf(err, "Error binding %s to %s", pciDevice, newDriver)
 }
 
@@ -219,7 +218,7 @@ func SetVfioUnsafeiommu(iommu bool) (err error) {
 }
 
 func IsVfioUnsafeiommu() (bool, error) {
-	iommuStr, err := ioutil.ReadFile("/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+	iommuStr, err := os.ReadFile("/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
@@ -241,7 +240,7 @@ func DeleteInterfaceVF(pciId string) (err error) {
 
 func GetInterfaceNumVFs(pciId string) (int, error) {
 	sriovNumvfsPath := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", pciId)
-	numVfsStr, err := ioutil.ReadFile(sriovNumvfsPath)
+	numVfsStr, err := os.ReadFile(sriovNumvfsPath)
 	if err != nil {
 		return 0, errors.Wrapf(err, "/sys/bus/pci/devices/%s/sriov_numvfs", pciId)
 	}
@@ -383,7 +382,12 @@ func NewNS(nsName string) (ns.NetNS, error) {
 		}
 
 		// Put this thread back to the orig ns, since it might get reused (pre go1.10)
-		defer origNS.Set()
+		defer func() {
+			err2 := origNS.Set()
+			if err2 != nil {
+				err = fmt.Errorf("Error setting origNS %s (origin err %s)", err2, err)
+			}
+		}()
 
 		// bind mount the netns from the current thread (from /proc) onto the
 		// mount point. This causes the namespace to persist, even when there
@@ -462,7 +466,7 @@ func BindVFtoDriver(pciId string, driver string) error {
 func GetInterfaceNameFromPci(pciId string) (string, error) {
 	// Grab Driver id for the pci device
 	driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/net", pciId)
-	netDevs, err := ioutil.ReadDir(driverLinkPath)
+	netDevs, err := os.ReadDir(driverLinkPath)
 	if err != nil {
 		return "", errors.Wrapf(err, "cannot list /net for %s", pciId)
 	}
@@ -509,7 +513,7 @@ func GetInterfacePciId(interfaceName string) (string, error) {
 }
 
 func GetNrHugepages() (int, error) {
-	nrHugepagesStr, err := ioutil.ReadFile("/proc/sys/vm/nr_hugepages")
+	nrHugepagesStr, err := os.ReadFile("/proc/sys/vm/nr_hugepages")
 	if err != nil {
 		return 0, errors.Wrapf(err, "Couldnt read /proc/sys/vm/nr_hugepages")
 	}
@@ -553,7 +557,7 @@ func ParseKernelVersion(versionStr string) (ver *config.KernelVersion, err error
 }
 
 func GetOsKernelVersion() (ver *config.KernelVersion, err error) {
-	versionStr, err := ioutil.ReadFile("/proc/sys/kernel/osrelease")
+	versionStr, err := os.ReadFile("/proc/sys/kernel/osrelease")
 	if err != nil {
 		return nil, errors.Wrapf(err, "Couldnt read /proc/sys/kernel/osrelease")
 	}
@@ -614,14 +618,14 @@ func RenameInterface(name, newName string) (err error) {
 
 	if isUp {
 		if err = netlink.LinkSetDown(link); err != nil {
-			netlink.LinkSetUp(link)
-			return errors.Wrapf(err, "cannot set link %s down", name)
+			err2 := netlink.LinkSetUp(link)
+			return errors.Wrapf(err, "cannot set link %s down (err2 %s)", name, err2)
 		}
 	}
 
 	if err = netlink.LinkSetName(link, newName); err != nil {
-		netlink.LinkSetUp(link)
-		return errors.Wrapf(err, "cannot rename link %s to %s", name, newName)
+		err2 := netlink.LinkSetUp(link)
+		return errors.Wrapf(err, "cannot rename link %s to %s (err2 %s)", name, newName, err2)
 	}
 
 	if isUp {

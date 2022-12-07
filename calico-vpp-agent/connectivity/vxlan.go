@@ -52,18 +52,22 @@ func (p *VXLanProvider) configureVXLANNodes() error {
 	var err error
 	p.ip4NodeIndex, err = p.vpp.AddNodeNext("vxlan4-input", "ip4-input")
 	if err != nil {
-		p.log.Fatalf("Couldn't find node id for ip4-input : %v", err)
+		return fmt.Errorf("Couldn't find node id for ip4-input : %v", err)
 	}
 	p.ip6NodeIndex, err = p.vpp.AddNodeNext("vxlan6-input", "ip6-input")
 	if err != nil {
-		p.log.Fatalf("Couldn't find node id for ip6-input : %v", err)
+		return fmt.Errorf("Couldn't find node id for ip6-input : %v", err)
 	}
 	return nil
 }
 
 func (p *VXLanProvider) RescanState() {
 	p.log.Infof("Rescanning existing VXLAN tunnels")
-	p.configureVXLANNodes()
+	err := p.configureVXLANNodes()
+	if err != nil {
+		p.log.Errorf("Error configureVXLANNodes: %v", err)
+	}
+
 	p.vxlanIfs = make(map[string]types.VXLanTunnel)
 	tunnels, err := p.vpp.ListVXLanTunnels()
 	if err != nil {

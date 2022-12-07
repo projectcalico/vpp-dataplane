@@ -420,9 +420,12 @@ func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error)
 	if !found || len(remaining_routes) == 0 {
 		for _, tunnel := range tunnels {
 			tunnel.cancel()
-			p.vpp.DelIKEv2Profile(tunnel.Profile())
+			err = p.vpp.DelIKEv2Profile(tunnel.Profile())
+			if err != nil {
+				p.log.Errorf("Error DelIKEv2Profile: %v", err)
+			}
 			p.log.Infof("connectivity(del) Deleting IPsec tunnel=%s", tunnel)
-			err := p.vpp.DelIPIPTunnel(tunnel.IPIPTunnel)
+			err = p.vpp.DelIPIPTunnel(tunnel.IPIPTunnel)
 			if err != nil {
 				p.log.Errorf("Error deleting ipip tunnel %s after error: %v", tunnel.String(), err)
 			}

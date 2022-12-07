@@ -108,7 +108,10 @@ func handleSignals() {
 			if s == syscall.SIGTERM {
 				s = syscall.SIGINT
 			}
-			vppProcess.Signal(s)
+			err := vppProcess.Signal(s)
+			if err != nil {
+				log.WithError(err).Warn("Process signal errord")
+			}
 			log.Infof("Signaled vpp (PID %d) %+v", vppProcess.Pid, s)
 			if s == syscall.SIGINT || s == syscall.SIGQUIT {
 				go timeoutSigKill(currentVPPIndex)
@@ -155,10 +158,13 @@ func main() {
 
 	if len(params.UplinksSpecs) == 1 && params.UplinksSpecs[0].VppDriver == "" {
 		for _, driver := range uplink.SupportedUplinkDrivers(params, confs[0], &params.UplinksSpecs[0]) {
-			startup.CleanupCoreFiles(params.CorePattern)
+			err := startup.CleanupCoreFiles(params.CorePattern)
+			if err != nil {
+				log.Errorf("CleanupCoreFiles errored %s", err)
+			}
 
 			internalKill = false
-			err := runner.Run([]uplink.UplinkDriver{driver})
+			err = runner.Run([]uplink.UplinkDriver{driver})
 			if err != nil {
 				hooks.RunHook(hooks.VPP_ERRORED, params, confs)
 				log.Errorf("VPP(%s) run failed with %s", driver.GetName(), err)
@@ -171,15 +177,18 @@ func main() {
 			makeNewVPPIndex()
 		}
 	} else {
-		startup.CleanupCoreFiles(params.CorePattern)
+		err := startup.CleanupCoreFiles(params.CorePattern)
+		if err != nil {
+			log.Errorf("CleanupCoreFiles errored %s", err)
+		}
 
 		var drivers []uplink.UplinkDriver
 		for idx := 0; idx < len(params.UplinksSpecs); idx++ {
 			drivers = append(drivers, uplink.NewUplinkDriver(params.UplinksSpecs[idx].VppDriver,
 				params, confs[idx], &params.UplinksSpecs[idx]))
 		}
-		err := runner.Run(drivers)
 
+		err = runner.Run(drivers)
 		if err != nil {
 			hooks.RunHook(hooks.VPP_ERRORED, params, confs)
 			log.Errorf("VPP run failed with %v", err)

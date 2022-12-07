@@ -426,7 +426,10 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) error {
 }
 
 func (s *Server) ServeCNI(t *tomb.Tomb) error {
-	syscall.Unlink(config.CNIServerSocket)
+	err := syscall.Unlink(config.CNIServerSocket)
+	if err != nil {
+		return err
+	}
 	socketListener, err := net.Listen("unix", config.CNIServerSocket)
 	if err != nil {
 		return errors.Wrapf(err, "failed to listen on %s", config.CNIServerSocket)
@@ -466,14 +469,26 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 
 	s.log.Infof("Serve() CNI")
 
-	go s.grpcServer.Serve(socketListener)
+	go func() {
+		err := s.grpcServer.Serve(socketListener)
+		if err != nil {
+			s.log.Fatalf("GrpcServer Server returned %s", err)
+		}
+	}()
 
-	s.cniServerEventLoop(t)
+	err = s.cniServerEventLoop(t)
+	if err != nil {
+		return err
+	}
 
 	s.log.Infof("CNI Server returned")
 
 	s.grpcServer.GracefulStop()
-	syscall.Unlink(config.CNIServerSocket)
+	err = syscall.Unlink(config.CNIServerSocket)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
