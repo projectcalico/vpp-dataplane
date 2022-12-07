@@ -38,7 +38,7 @@ import (
 	"github.com/projectcalico/calico/libcalico-go/lib/watch"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
 )
 
 type PeerWatcher struct {
