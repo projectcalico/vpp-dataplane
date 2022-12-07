@@ -18,7 +18,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -69,7 +68,7 @@ func NewVPPRunner(params *config.VppManagerParams, confs []*config.LinuxInterfac
 func (v *VppRunner) GenerateVppConfigExecFile() error {
 	template := config.TemplateScriptReplace(v.params.ConfigExecTemplate, v.params, v.conf)
 	err := errors.Wrapf(
-		ioutil.WriteFile(config.VppConfigExecFile, []byte(template+"\n"), 0744),
+		os.WriteFile(config.VppConfigExecFile, []byte(template+"\n"), 0744),
 		"Error writing VPP Exec configuration to %s",
 		config.VppConfigExecFile,
 	)
@@ -82,7 +81,7 @@ func (v *VppRunner) GenerateVppConfigFile(drivers []uplink.UplinkDriver) error {
 		template = driver.UpdateVppConfigFile(template)
 	}
 	err := errors.Wrapf(
-		ioutil.WriteFile(config.VppConfigFile, []byte(template+"\n"), 0644),
+		os.WriteFile(config.VppConfigFile, []byte(template+"\n"), 0644),
 		"Error writing VPP configuration to %s",
 		config.VppConfigFile,
 	)
@@ -368,9 +367,8 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 			if err != nil {
 				log.Errorf("cannot add broadcast route in vpp: %v", err)
 			}
-		} else {
-			// No custom routes for IPv6 for now. Forward LL multicast from the host?
-		}
+		} // else {} No custom routes for IPv6 for now. Forward LL multicast from the host?
+
 		// default route in default table
 		err = v.vpp.AddDefaultRouteViaTable(vrfId, common.DefaultVRFIndex, ipFamily.IsIp6)
 		if err != nil {
@@ -658,7 +656,7 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 }
 
 func (v *VppRunner) pingCalicoVpp() error {
-	dat, err := ioutil.ReadFile(config.CalicoVppPidFile)
+	dat, err := os.ReadFile(config.CalicoVppPidFile)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			log.Infof("calico-vpp-pid file doesn't exist. Agent probably not started")
@@ -810,8 +808,10 @@ func (v *VppRunner) runVpp() (err error) {
 	<-vppDeadChan
 	log.Infof("VPP Exited: status %v", err)
 
-	t.Killf("Vpp exited, stopping watchers")
-
+	err = t.Killf("Vpp exited, stopping watchers")
+	if err != nil {
+		log.Errorf("Error Killf vpp: %v", err)
+	}
 	return nil
 }
 

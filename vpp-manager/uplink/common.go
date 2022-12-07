@@ -136,8 +136,8 @@ func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
 			err = netlink.LinkSetDown(link)
 			if err != nil {
 				// In case it still succeeded
-				netlink.LinkSetUp(link)
-				log.Errorf("Error setting link %s down: %s", d.spec.InterfaceName, err)
+				err2 := netlink.LinkSetUp(link)
+				log.Errorf("Error setting link %s down: %s (err2 %s)", d.spec.InterfaceName, err, err2)
 			}
 		}
 	}

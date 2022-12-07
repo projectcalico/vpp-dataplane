@@ -20,7 +20,6 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -404,7 +403,7 @@ func PersistCniServerState(podInterfaceMap map[string]LocalPodSpec, fname string
 		return errors.Wrap(err, "Error encoding pod data")
 	}
 
-	err = ioutil.WriteFile(tmpFile, buf.Bytes(), 0200)
+	err = os.WriteFile(tmpFile, buf.Bytes(), 0200)
 	if err != nil {
 		return errors.Wrapf(err, "Error writing file %s", tmpFile)
 	}
@@ -417,7 +416,7 @@ func PersistCniServerState(podInterfaceMap map[string]LocalPodSpec, fname string
 
 func LoadCniServerState(fname string) ([]LocalPodSpec, error) {
 	var state SavedState
-	data, err := ioutil.ReadFile(fname)
+	data, err := os.ReadFile(fname)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil // No state to load

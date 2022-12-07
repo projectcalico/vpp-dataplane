@@ -16,7 +16,7 @@
 package main
 
 import (
-	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -35,10 +35,12 @@ const (
 func main() {
 	var socket net.Conn
 	var t tomb.Tomb
-	var err error
 
 	log := logrus.New()
-	config.LoadConfig(log)
+	err := config.LoadConfig(log)
+	if err != nil {
+		log.Fatalf("Cannot load config %s", err)
+	}
 
 	inFile := os.NewFile(3, "pipe1")
 	outFile := os.NewFile(4, "pipe2")
@@ -59,12 +61,12 @@ func main() {
 	}
 
 	t.Go(func() error {
-		io.Copy(socket, inFile)
-		return errors.New("copying to agent stopped")
+		_, err := io.Copy(socket, inFile)
+		return fmt.Errorf("copying to agent stopped %s", err)
 	})
 	t.Go(func() error {
-		io.Copy(outFile, socket)
-		return errors.New("copying to felix stopped")
+		_, err := io.Copy(outFile, socket)
+		return fmt.Errorf("copying to felix stopped %s", err)
 	})
 
 	<-t.Dying()

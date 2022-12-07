@@ -39,8 +39,6 @@ const (
 type ConnectivityProviderData struct {
 	vpp    *vpplink.VppLink
 	log    *logrus.Entry
-	ipv6   *net.IP
-	ipv4   *net.IP
 	server *ConnectivityServer
 }
 

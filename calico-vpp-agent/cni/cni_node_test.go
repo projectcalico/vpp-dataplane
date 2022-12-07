@@ -95,9 +95,7 @@ var _ = BeforeSuite(func() {
 
 	vppContainerExtraArgsList, found := os.LookupEnv(VppContainerExtraArgsName)
 	if found {
-		for _, arg := range strings.Split(vppContainerExtraArgsList, ",") {
-			vppContainerExtraArgs = append(vppContainerExtraArgs, arg)
-		}
+		vppContainerExtraArgs = append(vppContainerExtraArgs, strings.Split(vppContainerExtraArgsList, ",")...)
 	}
 
 })
@@ -160,12 +158,13 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		Context("With FLAT connectivity", func() {
 			It("should only configure correct routes in VPP", func() {
 				By("Adding node")
-				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+				err := connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *ipNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.FLAT,
 					Custom:           nil,
 				}, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to call UpdateIPConnectivity")
 
 				By("Getting routes and check them")
 				routes, err := vpp.GetRoutes(0, false)
@@ -234,12 +233,13 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				//  Need to either define it well(unify it?) and fix connectivity providers(and tests) or leave it
 				//  in connectivity provider implementation and check each test for semantics used in given
 				//  connectivity provider
-				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+				err := connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *ipNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(AddedNodeIP), // next hop == other node IP (for IPSec impl)
 					ResolvedProvider: connectivity.IPSEC,
 					Custom:           nil,
 				}, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to call UpdateIPConnectivity")
 
 				By("Checking IP-IP tunnel")
 				tunnels, err := vpp.ListIPIPTunnels()
@@ -361,12 +361,13 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 				By("Adding node")
 				configureBGPNodeIPAddresses(connectivityServer)
-				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+				err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *ipNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.VXLAN,
 					Custom:           nil,
 				}, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to call UpdateIPConnectivity")
 
 				By("Checking VXLAN tunnel")
 				vxlanSwIfIndex, err := vpp.SearchInterfaceWithName("vxlan_tunnel0")
@@ -456,12 +457,13 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			It("should have IP-IP tunnel and route forwarding to it", func() {
 				By("Adding node")
 				configureBGPNodeIPAddresses(connectivityServer)
-				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+				err := connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *ipNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.IPIP,
 					Custom:           nil,
 				}, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to call UpdateIPConnectivity")
 
 				By("Checking IP-IP tunnel")
 				ipipSwIfIndex, err := vpp.SearchInterfaceWithName("ipip0")
@@ -536,18 +538,20 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 				// configure this node's name and make Calico info data holder for it
 				agentConf.NodeName = ThisNodeName
-				client.Nodes().Create(context.Background(), &oldv3.Node{
+				_, err := client.Nodes().Create(context.Background(), &oldv3.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: agentConf.NodeName,
 					},
 				}, options.SetOptions{})
+				Expect(err).ToNot(HaveOccurred(), "Failed to call client.Nodes().Create()")
 
 				// configure added node for wireguard public crypto key
-				client.Nodes().Create(context.Background(), &oldv3.Node{
+				_, err = client.Nodes().Create(context.Background(), &oldv3.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: agentConf.NodeName,
 					},
 				}, options.SetOptions{})
+				Expect(err).ToNot(HaveOccurred(), "could not call client.Nodes().Create()")
 			})
 
 			// TODO test removal of wireguard tunnel
@@ -555,8 +559,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			It("must configure wireguard tunnel with one peer and routes to it", func() {
 				By("Adding node")
 				configureBGPNodeIPAddresses(connectivityServer)
-				connectivityServer.ForceProviderEnableDisable(connectivity.WIREGUARD, true) // creates the tunnel (this is normally called by Felix config change event handler)
-				addedNodePublicKey := "public-key-for-added-node"                           // max 32 characters due to VPP binapi
+				err := connectivityServer.ForceProviderEnableDisable(connectivity.WIREGUARD, true) // creates the tunnel (this is normally called by Felix config change event handler)
+				Expect(err).ToNot(HaveOccurred(), "could not call ForceProviderEnableDisable")
+
+				addedNodePublicKey := "public-key-for-added-node" // max 32 characters due to VPP binapi
 				connectivityServer.ForceNodeAddition(oldv3.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: AddedNodeName,
@@ -565,12 +571,13 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						WireguardPublicKey: base64.StdEncoding.EncodeToString([]byte(addedNodePublicKey)),
 					},
 				}, net.ParseIP(AddedNodeIP))
-				connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+				err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *ipNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(AddedNodeIP), // wireguard impl uses nexthop as node IP
 					ResolvedProvider: connectivity.WIREGUARD,
 					Custom:           nil,
 				}, false)
+				Expect(err).ToNot(HaveOccurred(), "could not call UpdateIPConnectivity")
 
 				By("checking wireguard tunnel")
 				wireguardSwIfIndex, err := vpp.SearchInterfaceWithName("wg0")
@@ -614,6 +621,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 				By("checking wireguard peer")
 				peers, err := vpp.ListWireguardPeers()
+				Expect(err).ToNot(HaveOccurred(), "Failed to call ListWireguardPeers")
 				Expect(thisNode.Status).ToNot(BeNil(),
 					"can't get wireguard peers from VPP")
 				Expect(peers).To(ContainElement(gs.PointTo(
@@ -682,7 +690,8 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				agentConf.NodeName = ThisNodeName
 
 				// add node pool for SRv6 (subnet of agentConf.SRv6localSidIPPool)
-				addIPPoolForCalicoClient(client, fmt.Sprintf("sr-localsids-pool-%s", agentConf.NodeName), "B::1:0/112")
+				_, err := addIPPoolForCalicoClient(client, fmt.Sprintf("sr-localsids-pool-%s", agentConf.NodeName), "B::1:0/112")
+				Expect(err).ToNot(HaveOccurred(), "could not call addIPPoolForCalicoClient")
 
 				// SID/BSID format for testing: <BSID/Localsid prefix><node id>:<suffix created by IPAM IP assignment>
 				// i.e. "C::2:1" = First IP generated by IPAM on node 2 and it should be used as policy BSID
@@ -1018,7 +1027,7 @@ func configureBGPNodeIPAddresses(connectivityServer *connectivity.ConnectivitySe
 // in Calico client stub. This function doesn't set anything for the watchers.IpamCache implementation.
 func addIPPoolForCalicoClient(client *calico.CalicoClientStub, poolName string, poolCIRD string) (
 	*apiv3.IPPool, error) {
-	return client.IPPoolsStub.Create(nil, &apiv3.IPPool{
+	return client.IPPoolsStub.Create(context.Background(), &apiv3.IPPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: poolName,
 		},
@@ -1054,9 +1063,7 @@ func iptypesIP6Address(address string) ip_types.IP6Address {
 }
 
 func sidArray(addresses ...ip_types.IP6Address) (sids [16]ip_types.IP6Address) {
-	for i, address := range addresses {
-		sids[i] = address
-	}
+	copy(sids[:], addresses)
 	return sids
 }
 

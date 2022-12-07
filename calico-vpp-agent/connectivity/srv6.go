@@ -76,7 +76,11 @@ func (p *SRv6Provider) RescanState() {
 	if !config.EnableSRv6 {
 		return
 	}
-	p.setEncapSource()
+
+	err := p.setEncapSource()
+	if err != nil {
+		p.log.Errorf("setEncapSource Error : %v", err)
+	}
 
 	localSids, err := p.vpp.ListSRv6Localsid()
 	if err != nil {

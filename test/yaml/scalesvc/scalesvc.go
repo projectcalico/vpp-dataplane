@@ -17,7 +17,6 @@ import (
 )
 
 var (
-	client              *kubernetes.Clientset
 	t                   tomb.Tomb
 	clusterConfig       *restclient.Config
 	NServices           int = 10000

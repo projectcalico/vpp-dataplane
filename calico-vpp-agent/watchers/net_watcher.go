@@ -58,7 +58,7 @@ type NetWatcher struct {
 }
 
 func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
-	kubernetesClient, err := NewClient(10*time.Second, []func(s *runtime.Scheme) error{networkv3.AddToScheme, nadv1.AddToScheme})
+	kubernetesClient, err := NewK8SClient(10*time.Second, []func(s *runtime.Scheme) error{networkv3.AddToScheme, nadv1.AddToScheme})
 	if err != nil {
 		panic(fmt.Errorf("failed instantiating kubernetes client: %v", err))
 	}
@@ -137,7 +137,10 @@ func (w *NetWatcher) watching(netWatcher, nadWatcher watch.Interface) bool {
 				}
 			case watch.Deleted:
 				oldNet := update.Object.(*networkv3.Network)
-				w.OnNetDeleted(oldNet.Name)
+				err := w.OnNetDeleted(oldNet.Name)
+				if err != nil {
+					w.log.Error(err)
+				}
 			case watch.Modified:
 				w.log.Warn("network changed, not yet supported!")
 			}

@@ -121,7 +121,7 @@ func (h *HostEndpoint) handleTunnelChange(swIfIndex uint32, isAdd bool, pending 
 				h.server.log.Infof("policy(upd) interface swif=%d", swIfIndex)
 				err = h.server.vpp.ConfigurePolicies(swIfIndex, h.currentForwardConf)
 				if err != nil {
-					h.server.log.Errorf("cannot configure policies on tunnel interface %d", swIfIndex)
+					return errors.Wrapf(err, "cannot configure policies on tunnel interface %d", swIfIndex)
 				}
 			}
 		}

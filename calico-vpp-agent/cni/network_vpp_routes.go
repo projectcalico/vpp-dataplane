@@ -275,7 +275,7 @@ func (s *Server) AddRPFRoutes(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 	return nil
 }
 
-func (s *Server) DeactivateStrictRPF(podSpec *storage.LocalPodSpec) error {
+func (s *Server) DeactivateStrictRPF(podSpec *storage.LocalPodSpec) {
 	var err error
 	for _, containerIP := range podSpec.GetContainerIps() {
 		RPFvrfId := podSpec.GetRPFVrfId(vpplink.IpFamilyFromIPNet(containerIP))
@@ -308,7 +308,7 @@ func (s *Server) DeactivateStrictRPF(podSpec *storage.LocalPodSpec) error {
 			// Parse Annotation data
 			allowedSources, err := s.ParseSpoofAddressAnnotation(podSpec.AllowedSpoofingPrefixes)
 			if err != nil {
-				return errors.Wrapf(err, "error parsing allowSpoofing addresses")
+				s.log.WithError(err).Error("error parsing allowSpoofing addresses")
 			}
 			for _, allowedSource := range allowedSources {
 				s.log.Infof("pod(del) del route to %+v in rpfvrf %+v used to allow spoofing", allowedSource.IPNet, RPFvrfId)
@@ -332,10 +332,9 @@ func (s *Server) DeactivateStrictRPF(podSpec *storage.LocalPodSpec) error {
 			s.log.Errorf("Error deleting RPF-VRF %d %s : %s", rpfvrfId, ipFamily.Str, err)
 		}
 	}
-	return nil
 }
 
-func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) error {
+func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 	var err error
 	for idx, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
@@ -365,7 +364,6 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) error {
 			s.log.Errorf("Error deleting VRF %d %s : %s", vrfId, ipFamily.Str, err)
 		}
 	}
-	return nil
 }
 
 func (s *Server) CreateVRFRoutesToPod(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
@@ -390,7 +388,6 @@ func (s *Server) CreateVRFRoutesToPod(podSpec *storage.LocalPodSpec, stack *vppl
 }
 
 func (s *Server) DeleteVRFRoutesToPod(podSpec *storage.LocalPodSpec) {
-	var err error = nil
 	for _, containerIP := range podSpec.GetContainerIps() {
 		/* In the main table route the container address to its VRF */
 		route := types.Route{
@@ -401,7 +398,7 @@ func (s *Server) DeleteVRFRoutesToPod(podSpec *storage.LocalPodSpec) {
 			}},
 		}
 		s.log.Infof("pod(del) route [mainVRF->PodVRF] %s", route.String())
-		err = s.vpp.RouteDel(&route)
+		err := s.vpp.RouteDel(&route)
 		if err != nil {
 			s.log.Errorf("error deleting vpp side routes route [mainVRF ->PodVRF] %s : %s", route.String(), err)
 		}
@@ -429,7 +426,6 @@ func (s *Server) SetupPuntRoutes(podSpec *storage.LocalPodSpec, stack *vpplink.C
 }
 
 func (s *Server) RemovePuntRoutes(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
-	var err error = nil
 	for _, containerIP := range podSpec.GetContainerIps() {
 		/* In the punt table (where all punted traffics ends), route the container to the tun */
 		route := types.Route{
@@ -438,7 +434,7 @@ func (s *Server) RemovePuntRoutes(podSpec *storage.LocalPodSpec, swIfIndex uint3
 			Paths: []types.RoutePath{{SwIfIndex: swIfIndex}},
 		}
 		s.log.Infof("pod(del) route [puntVRF->PuntIF] %s", route.String())
-		err = s.vpp.RouteDel(&route)
+		err := s.vpp.RouteDel(&route)
 		if err != nil {
 			s.log.Errorf("error deleting route [puntVRF ->PuntIF] %s : %s", route.String(), err)
 		}

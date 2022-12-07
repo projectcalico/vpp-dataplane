@@ -224,11 +224,6 @@ func PrintAgentConfig(log *logrus.Logger) {
 
 var supportedEnvVars map[string]bool
 
-func isEnvVarSupported(str string) bool {
-	_, found := supportedEnvVars[str]
-	return found
-}
-
 func getEnvValue(str string) string {
 	supportedEnvVars[str] = true
 	return os.Getenv(str)
@@ -302,7 +297,7 @@ func LoadConfig(log *logrus.Logger) (err error) {
 	}
 
 	if calicoVppInterfaces.MaxPodIfSpec != nil {
-		calicoVppInterfaces.MaxPodIfSpec.Validate(nil)
+		_ = calicoVppInterfaces.MaxPodIfSpec.Validate(nil)
 		MaxPodIfSpec = calicoVppInterfaces.MaxPodIfSpec
 	}
 	if calicoVppInterfaces.DefaultPodIfSpec != nil {

@@ -215,7 +215,10 @@ func (s *Server) cleanUpRoutes() error {
 		return err
 	}
 	for _, route := range append(list4, list6...) {
-		netlink.RouteDel(&route)
+		err = netlink.RouteDel(&route)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
