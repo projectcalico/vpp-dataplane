@@ -1485,40 +1485,12 @@ func (s *Server) createFailSafePolicies() (err error) {
 		VppID:  types.InvalidID,
 	}
 
-	fihp := s.felixConfig.FailsafeInboundHostPorts
-	if len(fihp) == 0 {
-		fihp = append(fihp,
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 22},
-			felixConfig.ProtoPort{Protocol: "udp", Port: 68},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 179},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 2379},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 2380},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 5473},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 6443},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 6666},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 6667},
-		)
-	}
-	failSafeInboundRules, err := getfailSafeRules(fihp)
+	failSafeInboundRules, err := getfailSafeRules(s.felixConfig.FailsafeInboundHostPorts)
 	if err != nil {
 		return err
 	}
 
-	fohp := s.felixConfig.FailsafeOutboundHostPorts
-	if len(fohp) == 0 {
-		fohp = append(fohp,
-			felixConfig.ProtoPort{Protocol: "udp", Port: 53},
-			felixConfig.ProtoPort{Protocol: "udp", Port: 67},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 179},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 2379},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 2380},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 5473},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 6443},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 6666},
-			felixConfig.ProtoPort{Protocol: "tcp", Port: 6667},
-		)
-	}
-	failSafeOutboundRules, err := getfailSafeRules(fohp)
+	failSafeOutboundRules, err := getfailSafeRules(s.felixConfig.FailsafeOutboundHostPorts)
 	if err != nil {
 		return err
 	}
