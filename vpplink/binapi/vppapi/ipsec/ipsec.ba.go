@@ -1898,6 +1898,7 @@ func (m *IpsecSpdEntryAddDel) Unmarshal(b []byte) error {
 }
 
 // IpsecSpdEntryAddDelReply defines message 'ipsec_spd_entry_add_del_reply'.
+// Deprecated: the message will be removed in the future versions
 type IpsecSpdEntryAddDelReply struct {
 	Retval    int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	StatIndex uint32 `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`

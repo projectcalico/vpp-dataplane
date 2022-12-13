@@ -1,6 +1,6 @@
-VPP Version                 : 23.02-rc0~81-g1abb2ae46
+VPP Version                 : 23.02-rc0~185-g77488ae02
 Binapi-generator version    : govpp v0.6.0-dev
-VPP Base commit             : 8b90d89b0 devices: add support for af-packet v2
+VPP Base commit             : e416893a5 tests: tapv2, tunv2 and af_packet interface tests for vpp
 ------------------ Cherry picked commits --------------------
 gerrit:28513/28 capo: Calico Policies plugin
 gerrit:28083/21 acl: acl-plugin custom policies
