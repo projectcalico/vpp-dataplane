@@ -84,7 +84,7 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-git_clone_cd_and_reset "$1" 8b90d89b05322ceaaf57e0eda403c4f92546f7b3
+git_clone_cd_and_reset "$1" e416893a597959509c7f667c140c271c0bb78c14
 
 git_cherry_pick refs/changes/13/34713/4 # 34713: vppinfra: improve & test abstract socket | https://gerrit.fd.io/r/c/vpp/+/34713
 git_cherry_pick refs/changes/71/32271/16 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
