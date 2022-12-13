@@ -210,7 +210,7 @@ func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.Inter
 				return nil, nil, err
 			}
 			h.server.log.Infof("Created policy vpp-id=%d for forwardConf (ingress)", newPol.VppID)
-			conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, newPol.VppID)
+			conf.EgressPolicyIDs = append(conf.EgressPolicyIDs, newPol.VppID)
 			ownPolicies = append(ownPolicies, *newPol)
 		}
 		for _, polName := range tier.EgressPolicies {
@@ -239,7 +239,7 @@ func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.Inter
 				return nil, nil, err
 			}
 			h.server.log.Infof("Created policy vpp-id=%d for forwardConf (egress)", newPol.VppID)
-			conf.EgressPolicyIDs = append(conf.EgressPolicyIDs, newPol.VppID)
+			conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, newPol.VppID)
 			ownPolicies = append(ownPolicies, *newPol)
 		}
 	}
