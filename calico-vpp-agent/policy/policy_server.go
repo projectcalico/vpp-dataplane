@@ -936,7 +936,7 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 	}
 	hep.TunnelSwIfIndexes = s.getAllTunnelSwIfIndexes()
 	if len(hep.UplinkSwIfIndexes) == 0 || len(hep.TapSwIfIndexes) == 0 {
-		s.log.Errorf("No interface for host endpoint id=%s hep=%s", id.EndpointID, hep.String())
+		s.log.Warnf("No interface in vpp for host endpoint id=%s hep=%s", id.EndpointID, hep.String())
 		return nil
 	}
 
