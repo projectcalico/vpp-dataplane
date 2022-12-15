@@ -13,7 +13,7 @@ import (
 	tomb "gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -62,7 +62,7 @@ func (w *LocalSIDWatcher) WatchLocalSID(t *tomb.Tomb) error {
 
 func (p *LocalSIDWatcher) AdvertiseSRv6Policy(localsid *types.SrLocalsid) (err error) {
 	p.log.Infof("AdvertiseSRv6Policy for LocalSID: %s", localsid.Localsid.String())
-	srpolicyBSID, err := p.getSidFromPool(config.SRv6policyIPPool)
+	srpolicyBSID, err := p.getSidFromPool(config.GetCalicoVppSrv6().PolicyPool)
 	if err != nil {
 		return errors.Wrap(err, "Error getSidFromPool")
 	} else {

@@ -30,7 +30,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -83,7 +83,7 @@ func (i *TunTapPodInterfaceDriver) computePodMtu(podSpecMtu int, fc *felixConfig
 		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.IpInIpMtu, hostMtu-20), ipipEnabled)
 		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.VXLANMTU, hostMtu-50), vxlanEnabled)
 		reduceMtuIf(&podMtu, vpplink.DefaultIntTo(fc.WireguardMTU, hostMtu-60), fc.WireguardEnabled)
-		reduceMtuIf(&podMtu, hostMtu-60, config.EnableIPSec)
+		reduceMtuIf(&podMtu, hostMtu-60, *config.GetCalicoVppFeatureGates().IPSecEnabled)
 	}
 
 	if podMtu > hostMtu {
@@ -153,7 +153,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		tun.Flags |= types.TapFlagTun
 	}
 
-	if config.PodGSOEnabled {
+	if *config.GetCalicoVppDebug().GSOEnabled {
 		tun.Flags |= types.TapFlagGSO | types.TapGROCoalesce
 	}
 

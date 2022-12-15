@@ -22,11 +22,18 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/config/config"
-	"github.com/projectcalico/vpp-dataplane/config/startup"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
-	log "github.com/sirupsen/logrus"
+	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
+
+	"github.com/sirupsen/logrus"
+)
+
+const (
+	// maxCoreFiles sets the maximum number of corefiles to keep and deletes older ones
+	maxCoreFiles = 2
 )
 
 var (
@@ -42,6 +49,8 @@ var (
 	VPPgotSigCHLD map[int]bool
 	/* Allow to stop timeouts for given VPP */
 	VPPgotTimeout map[int]bool
+
+	log *logrus.Logger
 )
 
 func timeoutSigKill(vppIndex int) {
@@ -137,15 +146,40 @@ func makeNewVPPIndex() {
 }
 
 func main() {
+	log = logrus.New()
+
 	vppDeadChan = make(chan bool, 1)
 	VPPgotSigCHLD = make(map[int]bool)
 	VPPgotTimeout = make(map[int]bool)
+
+	err := config.LoadConfig(log)
+	if err != nil {
+		log.Fatalf("Error loading configuration: %v", err)
+	}
 
 	params := startup.GetVppManagerParams()
 
 	hooks.RunHook(hooks.BEFORE_IF_READ, params, nil)
 
-	var confs = startup.PrepareConfiguration(params)
+	err = utils.ClearVppManagerFiles()
+	if err != nil {
+		log.Fatalf("Error clearing config files: %+v", err)
+	}
+
+	err = utils.SetCorePattern(config.GetCalicoVppInitialConfig().CorePattern)
+	if err != nil {
+		log.Fatalf("Error setting core pattern: %s", err)
+	}
+
+	err = utils.SetRLimitMemLock()
+	if err != nil {
+		log.Errorf("Error raising memlock limit, VPP may fail to start: %v", err)
+	}
+
+	confs, err := startup.GetInterfaceConfig(params)
+	if err != nil {
+		log.Fatalf("Error getting initial interface configuration: %s", err)
+	}
 
 	runningCond = sync.NewCond(&sync.Mutex{})
 	go handleSignals()
@@ -158,7 +192,7 @@ func main() {
 
 	if len(params.UplinksSpecs) == 1 && params.UplinksSpecs[0].VppDriver == "" {
 		for _, driver := range uplink.SupportedUplinkDrivers(params, confs[0], &params.UplinksSpecs[0]) {
-			err := startup.CleanupCoreFiles(params.CorePattern)
+			err := utils.CleanupCoreFiles(config.GetCalicoVppInitialConfig().CorePattern, maxCoreFiles)
 			if err != nil {
 				log.Errorf("CleanupCoreFiles errored %s", err)
 			}
@@ -177,7 +211,7 @@ func main() {
 			makeNewVPPIndex()
 		}
 	} else {
-		err := startup.CleanupCoreFiles(params.CorePattern)
+		err := utils.CleanupCoreFiles(config.GetCalicoVppInitialConfig().CorePattern, maxCoreFiles)
 		if err != nil {
 			log.Errorf("CleanupCoreFiles errored %s", err)
 		}

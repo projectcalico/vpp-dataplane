@@ -38,7 +38,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/multinet-monitor/networkAttachmentDefinition"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -145,7 +145,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 			Context("With additional memif interface configured", func() {
 				BeforeEach(func() {
-					config.MemifEnabled = true
+					config.GetCalicoVppFeatureGates().MemifEnabled = &config.True
 				})
 
 				// TODO test also use case with that creates memif-dummy interface in pod (dummy interface is
@@ -217,7 +217,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					Expect(memifs[0].Role).To(Equal(types.MemifMaster))
 					Expect(memifs[0].Mode).To(Equal(types.MemifModeEthernet))
 					Expect(memifs[0].Flags&types.MemifAdminUp > 0).To(BeTrue())
-					Expect(memifs[0].QueueSize).To(Equal(config.DefaultInterfaceSpec.RxQueueSize))
+					Expect(memifs[0].QueueSize).To(Equal(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize))
 					//Note:Memif.NumRxQueues and Memif.NumTxQueues is not dumped by VPP binary API dump -> can't test it
 
 					By("Checking secondary tunnel's memif socket file") // checking only VPP setting, not file socket presence
@@ -252,7 +252,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 				)
 
 				BeforeEach(func() {
-					config.MultinetEnabled = true
+					config.GetCalicoVppFeatureGates().MultinetEnabled = &config.True
 
 					// Setup test prerequisite (per-multinet-network VRF and loopback interface)")
 					// (this is normally done by watchers.NetWatcher.CreateVRFsForNet(...))

@@ -28,7 +28,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
 
@@ -254,7 +254,7 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 		return VXLAN, nil
 	}
 	ipPool := s.policyServerIpam.GetPrefixIPPool(&cn.Dst)
-	if config.EnableSRv6 {
+	if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 		return SRv6, nil
 	}
 	if ipPool == nil {

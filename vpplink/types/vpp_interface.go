@@ -30,13 +30,19 @@ import (
 
 type RxMode uint32
 
-func (n *RxMode) UnmarshalText(text []byte) error {
-	// set the uint32 value based on text
-	rxMode := UnformatRxMode(string(text))
-	if rxMode == UnknownRxMode {
-		rxMode = DefaultRxMode
+func (mode *RxMode) UnmarshalText(text []byte) error {
+	switch string(text) {
+	case "interrupt":
+		*mode = InterruptRxMode
+	case "polling":
+		*mode = PollingRxMode
+	case "adaptive":
+		*mode = AdaptativeRxMode
+	case "default":
+		*mode = DefaultRxMode
+	default:
+		*mode = UnknownRxMode
 	}
-	*n = rxMode
 	return nil
 }
 
@@ -45,11 +51,11 @@ const (
 )
 
 const (
-	UnknownRxMode RxMode = 0
-	Polling       RxMode = 1
-	Interrupt     RxMode = 2
-	Adaptative    RxMode = 3
-	DefaultRxMode RxMode = 4
+	UnknownRxMode    RxMode = 0
+	PollingRxMode    RxMode = 1
+	InterruptRxMode  RxMode = 2
+	AdaptativeRxMode RxMode = 3
+	DefaultRxMode    RxMode = 4
 
 	AllQueues = ^uint32(0)
 )
@@ -160,29 +166,18 @@ func GetPciIdInt(PciIdStr string) (id uint32, err error) {
 	return id, nil
 }
 
-func UnformatRxMode(str string) RxMode {
-	switch str {
-	case "interrupt":
-		return Interrupt
-	case "polling":
-		return Polling
-	case "adaptive":
-		return Adaptative
-	default:
-		return UnknownRxMode
-	}
-}
-
 func FormatRxMode(rxMode RxMode) string {
 	switch rxMode {
-	case Interrupt:
+	case InterruptRxMode:
 		return "interrupt"
-	case Polling:
+	case PollingRxMode:
 		return "polling"
-	case Adaptative:
+	case AdaptativeRxMode:
 		return "adaptive"
-	default:
+	case DefaultRxMode:
 		return "default"
+	default:
+		return "unknown"
 	}
 }
 

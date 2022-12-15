@@ -17,7 +17,7 @@ package uplink
 
 import (
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -88,7 +88,7 @@ func (d *Vmxnet3Driver) RestoreLinux(allInterfacesPhysical bool) {
 func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	intf := types.Vmxnet3Interface{
 		GenericVppInterface: d.getGenericVppInterface(),
-		EnableGso:           d.params.EnableGSO,
+		EnableGso:           *config.GetCalicoVppDebug().GSOEnabled,
 		PciId:               d.conf.PciId,
 	}
 	swIfIndex, err := vpp.CreateVmxnet3(&intf)

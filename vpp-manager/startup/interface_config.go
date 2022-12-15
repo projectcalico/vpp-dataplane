@@ -22,14 +22,14 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
-func getInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxInterfaceState, err error) {
+func GetInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxInterfaceState, err error) {
 	errs := []error{}
 	conf = []*config.LinuxInterfaceState{}
 	for _, ifSpec := range params.UplinksSpecs {
@@ -119,7 +119,7 @@ func loadInterfaceConfigFromLinux(ifSpec config.UplinkInterfaceSpec) (*config.Li
 	pciId, err := utils.GetInterfacePciId(ifSpec.InterfaceName)
 	// We allow PCI not to be found e.g for AF_PACKET
 	if err != nil || pciId == "" {
-		log.Warnf("Could not find pci device for %s", ifSpec.InterfaceName)
+		log.Infof("No pci device for interface %s", ifSpec.InterfaceName)
 	} else {
 		conf.PciId = pciId
 		driver, err := utils.GetDriverNameFromPci(pciId)
@@ -147,20 +147,20 @@ func getNodeAddress(conf *config.LinuxInterfaceState, isV6 bool) string {
 }
 
 func clearSavedConfig(params *config.VppManagerParams) {
-	if params.IfConfigSavePath == "" {
+	if config.GetCalicoVppInitialConfig().IfConfigSavePath == "" {
 		return
 	}
-	err := os.Remove(params.IfConfigSavePath)
+	err := os.Remove(config.GetCalicoVppInitialConfig().IfConfigSavePath)
 	if err != nil {
 		log.Warnf("could not delete saved interface config: %v", err)
 	}
 }
 
 func saveConfig(params *config.VppManagerParams, conf []*config.LinuxInterfaceState) error {
-	if params.IfConfigSavePath == "" {
+	if config.GetCalicoVppInitialConfig().IfConfigSavePath == "" {
 		return nil
 	}
-	file, err := os.Create(params.IfConfigSavePath)
+	file, err := os.Create(config.GetCalicoVppInitialConfig().IfConfigSavePath)
 	if err != nil {
 		return errors.Wrap(err, "error opening save file")
 	}
@@ -180,10 +180,10 @@ func saveConfig(params *config.VppManagerParams, conf []*config.LinuxInterfaceSt
 
 func loadInterfaceConfigFromFile(params *config.VppManagerParams) ([]*config.LinuxInterfaceState, error) {
 	conf := []*config.LinuxInterfaceState{}
-	if params.IfConfigSavePath == "" {
+	if config.GetCalicoVppInitialConfig().IfConfigSavePath == "" {
 		return nil, fmt.Errorf("interface config save file not configured")
 	}
-	file, err := os.Open(params.IfConfigSavePath)
+	file, err := os.Open(config.GetCalicoVppInitialConfig().IfConfigSavePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "error opening save file")
 	}

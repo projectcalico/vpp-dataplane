@@ -19,7 +19,6 @@ import (
 	"net"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
 )
 
@@ -51,7 +50,9 @@ func TestRouteSort(t *testing.T) {
 		c := LinuxInterfaceState{Routes: rl}
 		c.SortRoutes()
 		for i, r := range c.Routes {
-			assert.Equal(t, r.LinkIndex, i)
+			if r.LinkIndex != i {
+				t.Errorf("Link %d should be at index %d", r.LinkIndex, i)
+			}
 		}
 	}
 }

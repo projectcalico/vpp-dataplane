@@ -31,7 +31,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -210,7 +210,7 @@ func (s *Server) configureSnat() (err error) {
 			s.log.Errorf("Failed to add SNAT %s %v", common.FullyQualified(*nodeIP4), err)
 		}
 	}
-	for _, serviceCIDR := range config.ServiceCIDRs {
+	for _, serviceCIDR := range *config.ServiceCIDRs {
 		err = s.vpp.CnatAddSnatPrefix(serviceCIDR)
 		if err != nil {
 			s.log.Errorf("Failed to Add Service CIDR %s %v", serviceCIDR, err)
@@ -383,7 +383,7 @@ func (s *Server) ServeService(t *tomb.Tomb) error {
 		return err
 	}
 
-	if config.EnableServices {
+	if *config.GetCalicoVppDebug().ServicesEnabled {
 		s.t.Go(func() error { s.serviceInformer.Run(t.Dying()); return nil })
 		s.t.Go(func() error { s.endpointInformer.Run(t.Dying()); return nil })
 	}

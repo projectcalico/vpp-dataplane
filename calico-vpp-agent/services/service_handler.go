@@ -22,7 +22,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -56,14 +56,14 @@ func getServicePortProto(proto v1.Protocol) types.IPProto {
 }
 
 func isEndpointAddressLocal(endpointAddress *v1.EndpointAddress) bool {
-	if endpointAddress != nil && endpointAddress.NodeName != nil && *endpointAddress.NodeName != config.NodeName {
+	if endpointAddress != nil && endpointAddress.NodeName != nil && *endpointAddress.NodeName != *config.NodeName {
 		return false
 	}
 	return true
 }
 
 func getCnatLBType() types.CnatLbType {
-	if config.EnableMaglev {
+	if *config.GetCalicoVppDebug().MaglevEnabled {
 		return types.MaglevLB
 	}
 	return types.DefaultLB
@@ -93,7 +93,7 @@ func buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Servi
 					}
 					if !isEndpointAddressLocal(&endpointAddress) {
 						/* dont NAT to remote endpoints unless this is a nodeport */
-						if config.EnableMaglev && !isNodePort {
+						if *config.GetCalicoVppDebug().MaglevEnabled && !isNodePort {
 							flags = flags | types.CnatNoNat
 						}
 					}

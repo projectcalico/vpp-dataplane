@@ -22,7 +22,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 )
@@ -38,7 +38,7 @@ func main() {
 	var err error
 
 	log := logrus.New()
-	config.LoadConfig(log)
+	config.LoadConfigSilent(log)
 
 	inFile := os.NewFile(3, "pipe1")
 	outFile := os.NewFile(4, "pipe2")

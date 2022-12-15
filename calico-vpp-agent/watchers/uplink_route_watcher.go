@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 
 	log "github.com/sirupsen/logrus"
@@ -166,7 +166,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 	r.addrUpdate = make(chan struct{}, 10)
 
 	go r.watchAddresses(t)
-	for _, serviceCIDR := range config.ServiceCIDRs {
+	for _, serviceCIDR := range *config.ServiceCIDRs {
 		// Add a route for the service prefix through VPP. This is required even if kube-proxy is
 		// running on the host to ensure correct source address selection if the host has multiple interfaces
 		log.Infof("Adding route to service prefix %s through VPP", serviceCIDR.String())

@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/af_packet"
@@ -36,6 +36,9 @@ type AFPacketDriver struct {
 func (d *AFPacketDriver) IsSupported(warn bool) bool {
 	return true
 }
+
+// We prefer defaulting to adaptive, but af_packet only supports interrupt or polling
+func (d *AFPacketDriver) GetDefaultRxMode() types.RxMode { return types.InterruptRxMode }
 
 func (d *AFPacketDriver) PreconfigureLinux() error {
 	link, err := netlink.LinkByName(d.spec.InterfaceName)
@@ -99,7 +102,7 @@ func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int
 	}
 
 	intf := types.AfPacketInterface{GenericVppInterface: d.getGenericVppInterface()}
-	if d.params.EnableGSO {
+	if *config.GetCalicoVppDebug().GSOEnabled {
 		intf.Flags |= af_packet.AF_PACKET_API_FLAG_CKSUM_GSO
 	}
 	if d.fetchBooleanAnnotation("AfPacketQdiscBypass", false /* default */, uplinkSpec) {

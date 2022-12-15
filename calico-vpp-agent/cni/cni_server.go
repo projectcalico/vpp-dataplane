@@ -36,7 +36,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
-	config "github.com/projectcalico/vpp-dataplane/config/config"
+	config "github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -116,11 +116,11 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 	}
 
 	if podSpec.NetworkName != "" {
-		if !config.MultinetEnabled {
+		if !*config.GetCalicoVppFeatureGates().MultinetEnabled {
 			return nil, fmt.Errorf("enable multinet in config for multiple networks")
 		}
 		if isMemif(podSpec.InterfaceName) {
-			if !config.MemifEnabled {
+			if !*config.GetCalicoVppFeatureGates().MemifEnabled {
 				return nil, fmt.Errorf("enable memif in config for memif interfaces")
 			}
 			podSpec.EnableMemif = true
@@ -265,7 +265,7 @@ func (s *Server) rescanState() {
 	s.FetchBufferConfig()
 	s.fetchNDataThreads()
 
-	if config.VCLEnabled {
+	if *config.GetCalicoVppFeatureGates().VCLEnabled {
 		err := s.vclDriver.Init()
 		if err != nil {
 			/* it might already be enabled, do not return */
@@ -438,7 +438,7 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 
 	pb.RegisterCniDataplaneServer(s.grpcServer, s)
 
-	if config.MultinetEnabled {
+	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
 		netsSynced := make(chan bool)
 		go func() {
 			for {

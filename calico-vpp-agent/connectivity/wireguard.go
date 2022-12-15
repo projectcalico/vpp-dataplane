@@ -25,7 +25,7 @@ import (
 
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -78,11 +78,11 @@ func (p *WireguardProvider) getNodePublicKey(cn *common.NodeConnectivity) ([]byt
 
 func (p *WireguardProvider) publishWireguardPublicKey(pubKey string) error {
 	// Ref: felix/daemon/daemon.go:1056
-	node, err := p.Clientv3().Nodes().Get(context.Background(), config.NodeName, options.GetOptions{})
+	node, err := p.Clientv3().Nodes().Get(context.Background(), *config.NodeName, options.GetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "Error getting node config")
 	}
-	p.log.Infof("connectivity(add) Wireguard publishing nodeName=%s pubKey=%s", config.NodeName, pubKey)
+	p.log.Infof("connectivity(add) Wireguard publishing nodeName=%s pubKey=%s", *config.NodeName, pubKey)
 	node.Status.WireguardPublicKey = pubKey
 	_, err = p.Clientv3().Nodes().Update(context.Background(), node, options.SetOptions{})
 	if err != nil {

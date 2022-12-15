@@ -24,7 +24,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -182,7 +182,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	}
 
-	if podSpec.EnableMemif && config.MemifEnabled {
+	if podSpec.EnableMemif && *config.GetCalicoVppFeatureGates().MemifEnabled {
 		s.log.Infof("pod(add) memif")
 		err = s.memifDriver.CreateInterface(podSpec, stack, doHostSideConf)
 		if err != nil {
@@ -190,7 +190,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		}
 	}
 
-	if podSpec.EnableVCL && config.VCLEnabled {
+	if podSpec.EnableVCL && *config.GetCalicoVppFeatureGates().VCLEnabled {
 		s.log.Infof("pod(add) VCL socket")
 		err = s.vclDriver.CreateInterface(podSpec, stack)
 		if err != nil {
@@ -335,11 +335,11 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	s.DeactivateStrictRPF(podSpec)
 
 	/* Interfaces */
-	if podSpec.EnableVCL && config.VCLEnabled {
+	if podSpec.EnableVCL && *config.GetCalicoVppFeatureGates().VCLEnabled {
 		s.log.Infof("pod(del) VCL")
 		s.vclDriver.DeleteInterface(podSpec)
 	}
-	if podSpec.EnableMemif && config.MemifEnabled {
+	if podSpec.EnableMemif && *config.GetCalicoVppFeatureGates().MemifEnabled {
 		s.log.Infof("pod(del) memif")
 		s.memifDriver.DeleteInterface(podSpec)
 	}

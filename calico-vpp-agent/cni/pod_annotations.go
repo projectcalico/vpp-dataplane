@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -139,12 +139,11 @@ func (s *Server) ParseSpoofAddressAnnotation(value string) ([]cnet.IPNet, error)
 
 func GetDefaultIfSpec(isL3 bool) config.InterfaceSpec {
 	return config.InterfaceSpec{
-		NumRxQueues: config.DefaultInterfaceSpec.NumRxQueues,
-		NumTxQueues: config.DefaultInterfaceSpec.NumTxQueues,
-		RxQueueSize: vpplink.DefaultIntTo(config.DefaultInterfaceSpec.RxQueueSize, vpplink.DEFAULT_QUEUE_SIZE),
-		TxQueueSize: vpplink.DefaultIntTo(config.DefaultInterfaceSpec.TxQueueSize, vpplink.DEFAULT_QUEUE_SIZE),
+		NumRxQueues: config.GetCalicoVppInterfaces().DefaultPodIfSpec.NumRxQueues,
+		NumTxQueues: config.GetCalicoVppInterfaces().DefaultPodIfSpec.NumTxQueues,
+		RxQueueSize: vpplink.DefaultIntTo(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize, vpplink.DEFAULT_QUEUE_SIZE),
+		TxQueueSize: vpplink.DefaultIntTo(config.GetCalicoVppInterfaces().DefaultPodIfSpec.TxQueueSize, vpplink.DEFAULT_QUEUE_SIZE),
 		IsL3:        &isL3,
-		RxMode:      config.DefaultRxMode,
 	}
 }
 
@@ -164,7 +163,7 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 				s.log.Warnf("Error parsing key %s %s", key, err)
 			}
 			for _, ifSpec := range ifSpecs {
-				if err := ifSpec.Validate(config.MaxPodIfSpec); err != nil {
+				if err := ifSpec.Validate(config.GetCalicoVppInterfaces().MaxPodIfSpec); err != nil {
 					s.log.Error("Pod interface config exceeds max config")
 					return err
 				}
@@ -188,7 +187,8 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 			if err != nil {
 				s.log.Warnf("Error parsing key %s %s", key, err)
 			}
-			if err := ifSpec.Validate(config.MaxPodIfSpec); err != nil {
+			err = ifSpec.Validate(config.GetCalicoVppInterfaces().MaxPodIfSpec)
+			if err != nil {
 				s.log.Error("PBL Memif interface config exceeds max config")
 				return err
 			}

@@ -37,7 +37,7 @@ import (
 	"github.com/projectcalico/calico/libcalico-go/lib/watch"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 )
 
 type PeerWatcher struct {
@@ -82,7 +82,7 @@ func (w *PeerWatcher) shouldPeer(peer *calicov3.BGPPeer) bool {
 	if err != nil {
 		w.log.Error(errors.Wrapf(err, "Error in nodeSelector matching for peer %s", peer.Name))
 	}
-	if (peer.Spec.Node != "" && peer.Spec.Node != config.NodeName) || (peer.Spec.NodeSelector != "" && !matches) {
+	if (peer.Spec.Node != "" && peer.Spec.Node != *config.NodeName) || (peer.Spec.NodeSelector != "" && !matches) {
 		return false
 	}
 	return true
@@ -101,7 +101,7 @@ func (w *PeerWatcher) getAsNumber(node *common.LocalNodeSpec) uint32 {
 func (w *PeerWatcher) selectPeers(peerSelector string) map[string]uint32 {
 	ipAsn := make(map[string]uint32)
 	for _, node := range w.nodeStatesByName {
-		if node.Name == config.NodeName {
+		if node.Name == *config.NodeName {
 			continue // Don't peer with ourselves :)
 		}
 		matches, err := selectsNode(peerSelector, &node)
@@ -121,7 +121,7 @@ func (w *PeerWatcher) selectPeers(peerSelector string) map[string]uint32 {
 }
 
 func (w *PeerWatcher) currentCalicoNode() *common.LocalNodeSpec {
-	node := w.nodeStatesByName[config.NodeName]
+	node := w.nodeStatesByName[*config.NodeName]
 	return &node
 }
 
@@ -251,7 +251,7 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 					Name: "<internal> virtual full mesh peer",
 				},
 				Spec: calicov3.BGPPeerSpec{
-					Node:         config.NodeName,
+					Node:         *config.NodeName,
 					PeerSelector: "all()",
 				},
 			})

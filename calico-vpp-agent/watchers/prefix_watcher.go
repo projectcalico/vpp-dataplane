@@ -26,7 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 
@@ -118,7 +118,7 @@ func (w *PrefixWatcher) getAssignedPrefixes() ([]string, error) {
 	f := func(ipVersion int) error {
 		blockList, err := w.client.Backend.List(
 			context.Background(),
-			model.BlockAffinityListOptions{Host: config.NodeName, IPVersion: ipVersion},
+			model.BlockAffinityListOptions{Host: *config.NodeName, IPVersion: ipVersion},
 			"",
 		)
 		if err != nil {
