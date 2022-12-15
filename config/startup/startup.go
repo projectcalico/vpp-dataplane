@@ -239,6 +239,7 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 			return errors.Errorf("Invalid %s configuration: failed to parse '%s' as JSON: %s", CalicoVppDebugEnvVar, conf, err)
 		}
 	}
+	params.EnableGSO = true
 	if calicoVppDebug.GSOEnabled != nil {
 		params.EnableGSO = *calicoVppDebug.GSOEnabled
 	}
