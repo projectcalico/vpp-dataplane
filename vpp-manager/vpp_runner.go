@@ -31,16 +31,16 @@ import (
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/calico/libcalico-go/lib/options"
+	"github.com/vishvananda/netlink"
+	tomb "gopkg.in/tomb.v2"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	log "github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
-	tomb "gopkg.in/tomb.v2"
 )
 
 var (
@@ -66,7 +66,7 @@ func NewVPPRunner(params *config.VppManagerParams, confs []*config.LinuxInterfac
 }
 
 func (v *VppRunner) GenerateVppConfigExecFile() error {
-	template := config.TemplateScriptReplace(v.params.ConfigExecTemplate, v.params, v.conf)
+	template := config.TemplateScriptReplace(*config.ConfigExecTemplate, v.params, v.conf)
 	err := errors.Wrapf(
 		os.WriteFile(config.VppConfigExecFile, []byte(template+"\n"), 0744),
 		"Error writing VPP Exec configuration to %s",
@@ -76,7 +76,7 @@ func (v *VppRunner) GenerateVppConfigExecFile() error {
 }
 
 func (v *VppRunner) GenerateVppConfigFile(drivers []uplink.UplinkDriver) error {
-	template := config.TemplateScriptReplace(v.params.ConfigTemplate, v.params, v.conf)
+	template := config.TemplateScriptReplace(*config.ConfigTemplate, v.params, v.conf)
 	for _, driver := range drivers {
 		template = driver.UpdateVppConfigFile(template)
 	}
@@ -384,7 +384,12 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 
 	// Configure addresses to enable ipv4 & ipv6 on the tap
 	for _, addr := range ifState.Addresses {
-		log.Infof("Adding address %s to tap interface", addr.String())
+		if addr.IPNet.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
+			log.Infof("Not adding address %s to data interface (vpp requires /128 link-local)", addr.String())
+			continue
+		} else {
+			log.Infof("Adding address %s to tap interface", addr.String())
+		}
 		// to max len cidr because we don't want the rest of the subnet to be considered as
 		// connected to that interface
 		// note that the role of these addresses is just to tell vpp to accept ip4 / ip6 packets on the tap
@@ -398,10 +403,10 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 	return vrfs, nil
 }
 
-func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec config.UplinkInterfaceSpec) (err error) {
+func (v *VppRunner) configureVpp(uplinkDriver uplink.UplinkDriver, ifState *config.LinuxInterfaceState, ifSpec config.UplinkInterfaceSpec) (err error) {
 	// Always enable GSO feature on data interface, only a tiny negative effect on perf if GSO is not
 	// enabled on the taps or already done before an encap
-	if v.params.EnableGSO {
+	if *config.GetCalicoVppDebug().GSOEnabled {
 		err = v.vpp.EnableGSOFeature(ifSpec.SwIfIndex)
 		if err != nil {
 			return errors.Wrap(err, "Error enabling GSO on data interface")
@@ -414,7 +419,7 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		return errors.Wrapf(err, "Error setting %d MTU on data interface", uplinkMtu)
 	}
 
-	err = v.vpp.SetInterfaceRxMode(ifSpec.SwIfIndex, types.AllQueues, ifSpec.RxMode)
+	err = v.vpp.SetInterfaceRxMode(ifSpec.SwIfIndex, types.AllQueues, ifSpec.GetRxModeWithDefault(uplinkDriver.GetDefaultRxMode()))
 	if err != nil {
 		log.Warnf("%v", err)
 	}
@@ -430,7 +435,12 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 	}
 
 	for _, addr := range ifState.Addresses {
-		log.Infof("Adding address %s to data interface", addr.String())
+		if addr.IPNet.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
+			log.Infof("Not adding address %s to data interface (vpp requires /128 link-local)", addr.String())
+			continue
+		} else {
+			log.Infof("Adding address %s to data interface", addr.String())
+		}
 		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
 		if err != nil {
 			log.Errorf("Error adding address to data interface: %v", err)
@@ -448,7 +458,12 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 			log.Errorf("cannot add route in vpp: %v", err)
 		}
 	}
-	for _, defaultGW := range v.params.DefaultGWs {
+
+	gws, err := config.GetCalicoVppInitialConfig().GetDefaultGWs()
+	if err != nil {
+		return err
+	}
+	for _, defaultGW := range gws {
 		log.Infof("Adding default route to %s", defaultGW.String())
 		err = v.vpp.RouteAdd(&types.Route{
 			Paths: []types.RoutePath{{
@@ -462,8 +477,8 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 	}
 
 	if ifSpec.GetIsMain() {
-		if v.params.ExtraAddrCount > 0 {
-			err = v.addExtraAddresses(ifState.Addresses, v.params.ExtraAddrCount, ifSpec.SwIfIndex)
+		if config.GetCalicoVppInitialConfig().ExtraAddrCount > 0 {
+			err = v.addExtraAddresses(ifState.Addresses, config.GetCalicoVppInitialConfig().ExtraAddrCount, ifSpec.SwIfIndex)
 			if err != nil {
 				log.Errorf("Cannot configure requested extra addresses: %v", err)
 			}
@@ -472,15 +487,15 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 
 	log.Infof("Creating Linux side interface")
 	vpptap0Flags := types.TapFlagNone
-	if v.params.EnableGSO {
+	if *config.GetCalicoVppDebug().GSOEnabled {
 		vpptap0Flags = vpptap0Flags | types.TapFlagGSO | types.TapGROCoalesce
 	}
 
 	tapSwIfIndex, err := v.vpp.CreateTapV2(&types.TapV2{
 		GenericVppInterface: types.GenericVppInterface{
 			HostInterfaceName: ifSpec.InterfaceName,
-			RxQueueSize:       v.params.DefaultTap.RxQueueSize,
-			TxQueueSize:       v.params.DefaultTap.TxQueueSize,
+			RxQueueSize:       config.GetCalicoVppInterfaces().VppHostTapSpec.RxQueueSize,
+			TxQueueSize:       config.GetCalicoVppInterfaces().VppHostTapSpec.TxQueueSize,
 			HardwareAddr:      &vppSideMac,
 		},
 		HostNamespace:  "pid:1", // create tap in root netns
@@ -536,14 +551,14 @@ func (v *VppRunner) configureVpp(ifState *config.LinuxInterfaceState, ifSpec con
 		}
 	}
 
-	if v.params.EnableGSO {
+	if *config.GetCalicoVppDebug().GSOEnabled {
 		err = v.vpp.EnableGSOFeature(tapSwIfIndex)
 		if err != nil {
 			return errors.Wrap(err, "Error enabling GSO on vpptap0")
 		}
 	}
 
-	err = v.vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, v.params.DefaultTap.RxMode)
+	err = v.vpp.SetInterfaceRxMode(tapSwIfIndex, types.AllQueues, config.GetCalicoVppInterfaces().VppHostTapSpec.GetRxModeWithDefault(types.AdaptativeRxMode))
 	if err != nil {
 		log.Errorf("Error SetInterfaceRxMode on vpptap0 %v", err)
 	}
@@ -603,7 +618,7 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 		}
 		ctx, cancel1 := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel1()
-		node, err = client.Nodes().Get(ctx, v.params.NodeName, calicoopts.GetOptions{})
+		node, err = client.Nodes().Get(ctx, *config.NodeName, calicoopts.GetOptions{})
 		if err != nil {
 			log.Warnf("Try [%d/10] cannot get current node from Calico %+v", i, err)
 			time.Sleep(1 * time.Second)
@@ -739,7 +754,7 @@ func (v *VppRunner) runVpp() (err error) {
 	runningCond.Broadcast()
 
 	// If needed, wait some time that vpp boots up
-	time.Sleep(time.Duration(v.params.VppStartupSleepSeconds) * time.Second)
+	time.Sleep(time.Duration(config.GetCalicoVppInitialConfig().VppStartupSleepSeconds) * time.Second)
 
 	vpp, err := utils.CreateVppLink()
 	v.vpp = vpp
@@ -777,7 +792,7 @@ func (v *VppRunner) runVpp() (err error) {
 		}
 
 		// Configure VPP
-		err = v.configureVpp(v.conf[idx], v.params.UplinksSpecs[idx])
+		err = v.configureVpp(v.uplinkDriver[idx], v.conf[idx], v.params.UplinksSpecs[idx])
 
 		if err != nil {
 			terminateVpp("Error configuring VPP (SIGINT %d): %v", vppProcess.Pid, err)

@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	log "github.com/sirupsen/logrus"
 )
 

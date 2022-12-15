@@ -24,7 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -62,7 +62,7 @@ func (p *IpsecProvider) EnableDisable(isEnable bool) {
 }
 
 func (p *IpsecProvider) Enabled(cn *common.NodeConnectivity) bool {
-	return config.EnableIPSec
+	return *config.GetCalicoVppFeatureGates().IPSecEnabled
 }
 
 func (p *IpsecProvider) RescanState() {
@@ -114,7 +114,7 @@ func (p *IpsecProvider) RescanState() {
 		}
 	}
 
-	if config.IpsecNbAsyncCryptoThread > 0 {
+	if config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread > 0 {
 		err := p.vpp.SetIPsecAsyncMode(true)
 		if err != nil {
 			p.log.Errorf("SetIPsecAsyncMode error %s", err)
@@ -142,9 +142,9 @@ func NewIPsecProvider(d *ConnectivityProviderData, nonCryptoThreads int) *IpsecP
 }
 
 func (p *IpsecProvider) getIPSECTunnelSpecs(nodeIP4, destNodeAddr *net.IP) (tunnels []IpsecTunnel) {
-	if config.CrossIpsecTunnels {
-		for i := 0; i < config.IpsecAddressCount; i++ {
-			for j := 0; j < config.IpsecAddressCount; j++ {
+	if *config.GetCalicoVppIpsec().CrossIpsecTunnels {
+		for i := 0; i < config.GetCalicoVppIpsec().GetIpsecAddressCount(); i++ {
+			for j := 0; j < config.GetCalicoVppIpsec().GetIpsecAddressCount(); j++ {
 				tunnel := NewIpsecTunnel(&types.IPIPTunnel{})
 				tunnel.Src = net.IP(append([]byte(nil), nodeIP4.To4()...))
 				tunnel.Src[2] += byte(i)
@@ -154,7 +154,7 @@ func (p *IpsecProvider) getIPSECTunnelSpecs(nodeIP4, destNodeAddr *net.IP) (tunn
 			}
 		}
 	} else {
-		for i := 0; i < config.IpsecAddressCount; i++ {
+		for i := 0; i < config.GetCalicoVppIpsec().GetIpsecAddressCount(); i++ {
 			tunnel := NewIpsecTunnel(&types.IPIPTunnel{})
 			tunnel.Src = net.IP(append([]byte(nil), nodeIP4.To4()...))
 			tunnel.Src[2] += byte(i)
@@ -361,7 +361,7 @@ func (p *IpsecProvider) AddConnectivity(cn *common.NodeConnectivity) (err error)
 	if !found {
 		tunnelSpecs := p.getIPSECTunnelSpecs(nodeIP4, &cn.NextHop)
 		for _, tunnelSpec := range tunnelSpecs {
-			err = p.createIPSECTunnel(&tunnelSpec, config.IPSecIkev2Psk, stack)
+			err = p.createIPSECTunnel(&tunnelSpec, *config.IPSecIkev2Psk, stack)
 			if err != nil {
 				err = errors.Wrapf(err, "Error configuring IPSEC tunnels to %s", cn.NextHop)
 				goto err

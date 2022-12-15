@@ -37,7 +37,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 )
@@ -70,8 +70,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error loading configuration: %v", err)
 	}
-	config.PrintAgentConfig(log)
-	log.SetLevel(config.LogLevel)
 
 	err = common.WritePidToFile()
 	if err != nil {
@@ -170,7 +168,7 @@ func main() {
 	 */
 	log.Infof("Waiting for felix config being present...")
 
-	if config.MultinetEnabled {
+	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
 		Go(netWatcher.WatchNetworks)
 		<-netWatcher.InSync
 		log.Infof("Networks synced")
@@ -191,7 +189,7 @@ func main() {
 	Go(prometheusServer.ServePrometheus)
 
 	// watch LocalSID if SRv6 is enabled
-	if config.EnableSRv6 {
+	if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 		Go(localSIDWatcher.WatchLocalSID)
 	}
 

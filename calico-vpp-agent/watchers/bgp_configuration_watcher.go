@@ -25,7 +25,7 @@ import (
 	calicoerr "github.com/projectcalico/calico/libcalico-go/lib/errors"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"gopkg.in/tomb.v2"
@@ -55,7 +55,7 @@ func (w *BGPConfigurationWatcher) GetBGPConf() (*calicov3.BGPConfigurationSpec, 
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting default BGP configuration")
 	}
-	nodeSpecificConf, err := w.clientv3.BGPConfigurations().Get(context.Background(), "node."+config.NodeName, options.GetOptions{})
+	nodeSpecificConf, err := w.clientv3.BGPConfigurations().Get(context.Background(), "node."+*config.NodeName, options.GetOptions{})
 	if err != nil {
 		switch err.(type) {
 		case calicoerr.ErrorResourceDoesNotExist:
@@ -76,12 +76,11 @@ func (w *BGPConfigurationWatcher) GetBGPConf() (*calicov3.BGPConfigurationSpec, 
 }
 
 func (w *BGPConfigurationWatcher) getDefaultBGPConfig() (*calicov3.BGPConfigurationSpec, error) {
-	b := true
 	conf, err := w.clientv3.BGPConfigurations().Get(context.Background(), "default", options.GetOptions{})
 	if err == nil {
 		// Fill in nil values with default ones
 		if conf.Spec.NodeToNodeMeshEnabled == nil {
-			conf.Spec.NodeToNodeMeshEnabled = &b // Go is great sometimes
+			conf.Spec.NodeToNodeMeshEnabled = &config.True // Go is great sometimes
 		}
 		if conf.Spec.ASNumber == nil {
 			asn, err := numorstring.ASNumberFromString("64512")
@@ -112,7 +111,7 @@ func (w *BGPConfigurationWatcher) getDefaultBGPConfig() (*calicov3.BGPConfigurat
 		w.log.Debug("No default BGP config found, using default options")
 		ret := &calicov3.BGPConfigurationSpec{
 			LogSeverityScreen:     "Info",
-			NodeToNodeMeshEnabled: &b,
+			NodeToNodeMeshEnabled: &config.True,
 			ListenPort:            179,
 		}
 		asn, err := numorstring.ASNumberFromString("64512")

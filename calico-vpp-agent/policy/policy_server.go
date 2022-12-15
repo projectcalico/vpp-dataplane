@@ -38,7 +38,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -279,12 +279,12 @@ func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, ifName 
 	}
 
 	if s.state == StateInSync {
-		s.log.Infof("creating wep in workloadadded?")
 		wep, ok := s.configuredState.WorkloadEndpoints[*id]
 		if !ok {
 			s.log.Infof("not creating wep in workloadadded")
 			// Nothing to configure
 		} else {
+			s.log.Infof("creating wep in workloadadded")
 			err := wep.Create(s.vpp, []uint32{swIfIndex}, s.configuredState, id.Network)
 			if err != nil {
 				s.log.Errorf("Error processing workload addition: %s", err)
@@ -428,7 +428,7 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 func (s *Server) ServePolicy(t *tomb.Tomb) error {
 	s.log.Info("Starting policy server")
 
-	if !config.EnablePolicies {
+	if !*config.GetCalicoVppDebug().PoliciesEnabled {
 		s.log.Warn("Policies disabled, policy server will not configure VPP")
 	}
 
@@ -521,7 +521,7 @@ func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
 	case *proto.InSync:
 		err = s.handleInSync(m)
 	default:
-		if !config.EnablePolicies {
+		if !*config.GetCalicoVppDebug().PoliciesEnabled {
 			// Skip processing of policy messages
 			return nil
 		}
@@ -1226,7 +1226,7 @@ func (s *Server) onNodeUpdated(old *common.LocalNodeSpec, node *common.LocalNode
 		New:  node,
 	})
 	change := common.GetIpNetChangeType(old.IPv4Address, node.IPv4Address) | common.GetIpNetChangeType(old.IPv6Address, node.IPv6Address)
-	if change&(common.ChangeDeleted|common.ChangeUpdated) != 0 && node.Name == config.NodeName {
+	if change&(common.ChangeDeleted|common.ChangeUpdated) != 0 && node.Name == *config.NodeName {
 		// restart if our BGP config changed
 		return NodeWatcherRestartError{}
 	}
@@ -1239,7 +1239,7 @@ func (s *Server) onNodeUpdated(old *common.LocalNodeSpec, node *common.LocalNode
 }
 
 func (s *Server) onNodeAdded(node *common.LocalNodeSpec) (err error) {
-	if node.Name == config.NodeName &&
+	if node.Name == *config.NodeName &&
 		(node.IPv4Address != nil || node.IPv6Address != nil) {
 		if s.ip4 == nil && s.ip6 == nil {
 			/* We found a BGP Spec that seems valid enough */
@@ -1290,7 +1290,7 @@ func (s *Server) onNodeDeleted(old *common.LocalNodeSpec, node *common.LocalNode
 		Type: common.PeerNodeStateChanged,
 		Old:  old,
 	})
-	if old.Name == config.NodeName {
+	if old.Name == *config.NodeName {
 		// restart if our BGP config changed
 		return NodeWatcherRestartError{}
 	}

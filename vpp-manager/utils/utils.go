@@ -23,8 +23,10 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,7 +35,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -724,4 +726,71 @@ func FetchNodeAnnotations(nodeName string) map[string]string {
 		return make(map[string]string)
 	}
 	return node.Annotations
+}
+
+type timeAndPath struct {
+	path    string
+	modTime time.Time
+}
+
+type timeAndPathSlice []timeAndPath
+
+func (s timeAndPathSlice) Less(i, j int) bool { return s[i].modTime.After(s[j].modTime) }
+func (s timeAndPathSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s timeAndPathSlice) Len() int           { return len(s) }
+
+// to avoid side effects we only check that the prefix match
+func matchesCorePattern(fname, corePattern string) bool {
+	splits := strings.SplitN(corePattern, "%", 2)
+	return strings.HasPrefix(fname, splits[0])
+}
+
+func CleanupCoreFiles(corePattern string, maxCoreFiles int) error {
+	if corePattern == "" {
+		return nil
+	}
+	var timeAndPaths timeAndPathSlice = make([]timeAndPath, 0)
+	directory, err := os.Open(filepath.Dir(corePattern))
+	if err != nil {
+		return errors.Wrap(err, "walk errored")
+	}
+	infos, err := directory.Readdir(-1)
+	directory.Close()
+	if err != nil {
+		return errors.Wrap(err, "directory readdir errored")
+	}
+	for _, info := range infos {
+		if !info.IsDir() && matchesCorePattern(info.Name(), filepath.Base(corePattern)) {
+			timeAndPaths = append(timeAndPaths, timeAndPath{
+				filepath.Join(filepath.Dir(corePattern), info.Name()),
+				info.ModTime(),
+			})
+		}
+	}
+	// sort timeAndPaths by decreasing times
+	sort.Sort(timeAndPaths)
+	// we remove at most (2 * maxCoreFiles + 2) coredumps leaving the first maxCorefiles in place
+	for i := maxCoreFiles; i < len(timeAndPaths) && (i-maxCoreFiles < maxCoreFiles+2); i++ {
+		os.Remove(timeAndPaths[i].path)
+	}
+
+	if len(timeAndPaths) > 0 && maxCoreFiles > 0 {
+		PrintLastBackTrace(timeAndPaths[0].path)
+	}
+	return nil
+}
+
+func PrintLastBackTrace(coreFile string) {
+	if _, err := os.Stat("/usr/bin/gdb"); os.IsNotExist(err) {
+		log.Infof("Found previous coredump %s, missing gdb for stacktrace", coreFile)
+	} else {
+		log.Infof("Found previous coredump %s, trying to print stacktrace", coreFile)
+		cmd := exec.Command("/usr/bin/gdb", "-ex", "bt", "-ex", "q", "vpp", coreFile)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err := cmd.Start()
+		if err != nil {
+			log.Infof("gdb returned %s", err)
+		}
+	}
 }

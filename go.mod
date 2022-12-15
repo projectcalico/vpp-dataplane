@@ -19,7 +19,6 @@ require (
 	github.com/projectcalico/calico v0.0.0-20220509191150-29de1d3f8dd7 // v3.23.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.2.1
-	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20210703095558-21f2c55a7727
 	github.com/yookoala/realpath v1.0.0
 	go.fd.io/govpp v0.7.0
@@ -86,7 +85,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/pelletier/go-toml v1.9.3 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/projectcalico/go-json v0.0.0-20161128004156-6219dc7339ba // indirect
 	github.com/projectcalico/go-yaml-wrapper v0.0.0-20191112210931-090425220c54 // indirect
 	github.com/prometheus/client_golang v1.12.1 // indirect

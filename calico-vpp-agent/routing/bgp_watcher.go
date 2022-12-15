@@ -28,7 +28,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 
@@ -276,7 +276,7 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 		if err != nil {
 			return errors.Wrap(err, "error starting v6vpn path monitor")
 		}
-		if config.EnableSRv6 {
+		if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 			stopSRv6IP6Monitor, err = startMonitor(&common.BgpFamilySRv6IPv6)
 			if err != nil {
 				return errors.Wrap(err, "error starting SRv6IP6 path monitor")
@@ -294,7 +294,7 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 			if nodeIP6 != nil {
 				stopV6Monitor()
 				stopV6VPNMonitor()
-				if config.EnableSRv6 {
+				if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 					stopSRv6IP6Monitor()
 				}
 			}
@@ -340,7 +340,7 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					if err != nil {
 						return errors.Wrap(err, "error re-starting ip6vpn path monitor")
 					}
-					if config.EnableSRv6 {
+					if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 						stopSRv6IP6Monitor()
 						stopSRv6IP6Monitor, err = startMonitor(&common.BgpFamilySRv6IPv6)
 						if err != nil {

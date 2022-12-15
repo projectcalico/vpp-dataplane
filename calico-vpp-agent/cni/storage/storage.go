@@ -28,7 +28,7 @@ import (
 	"github.com/lunixbochs/struc"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -161,7 +161,7 @@ func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex u
 	case VppIfTypeTunTap:
 		return ps.TunTapSwIfIndex, *ps.IfSpec.IsL3
 	case VppIfTypeMemif:
-		if !config.MemifEnabled {
+		if !*config.GetCalicoVppFeatureGates().MemifEnabled {
 			return types.InvalidID, true
 		}
 		return ps.MemifSwIfIndex, *ps.IfSpec.IsL3

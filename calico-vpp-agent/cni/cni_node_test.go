@@ -40,7 +40,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks/calico"
-	agentConf "github.com/projectcalico/vpp-dataplane/config/config"
+	agentConf "github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
@@ -200,7 +200,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				})
 
 				// Enables IPSec (=uses IPSec over IPIP tunnel and not pure IPIP tunnel)
-				agentConf.EnableIPSec = true
+				agentConf.GetCalicoVppFeatureGates().IPSecEnabled = &agentConf.True
 
 				// setup PubSub handler to catch TunnelAdded events
 				pubSubHandlerMock = mocks.NewPubSubHandlerMock(common.TunnelAdded)
@@ -208,7 +208,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 				// setting Ikev2 PreShared Key to non-empty string as VPP fails with empty string
 				// (empty preshared key = no IPSec security => makes no sense => VPP gives configuration error)
-				agentConf.IPSecIkev2Psk = "testing-preshared-key-for-IPSec"
+				*agentConf.IPSecIkev2Psk = "testing-preshared-key-for-IPSec"
 			})
 
 			// TODO test IPSec tunnel delete
@@ -288,7 +288,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						"Name":   Equal(connectivity.NewIpsecTunnel(backendIPIPTunnel).Profile()),
 						"TunItf": Equal(ipipSwIfIndex),
 						"Auth": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-							"Data": Equal([]byte(agentConf.IPSecIkev2Psk)),
+							"Data": Equal([]byte(*agentConf.IPSecIkev2Psk)),
 						}),
 						//permissive (local/remote) traffic selectors
 						"LocTs": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
@@ -325,7 +325,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					Expect(pubSubHandlerMock.Stop()).ToNot(HaveOccurred(),
 						"can't properly stop mock of PubSub's handler")
 				}
-				agentConf.EnableIPSec = false // disable for following tests
+				agentConf.GetCalicoVppFeatureGates().IPSecEnabled = &agentConf.False // disable for following tests
 			})
 		})
 		Context("With VXLAN connectivity", func() {
@@ -537,10 +537,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				pubSubHandlerMock.Start()
 
 				// configure this node's name and make Calico info data holder for it
-				agentConf.NodeName = ThisNodeName
+				*agentConf.NodeName = ThisNodeName
 				_, err := client.Nodes().Create(context.Background(), &oldv3.Node{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: agentConf.NodeName,
+						Name: *agentConf.NodeName,
 					},
 				}, options.SetOptions{})
 				Expect(err).ToNot(HaveOccurred(), "Failed to call client.Nodes().Create()")
@@ -548,7 +548,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				// configure added node for wireguard public crypto key
 				_, err = client.Nodes().Create(context.Background(), &oldv3.Node{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: agentConf.NodeName,
+						Name: *agentConf.NodeName,
 					},
 				}, options.SetOptions{})
 				Expect(err).ToNot(HaveOccurred(), "could not call client.Nodes().Create()")
@@ -606,7 +606,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				By("checking remembering of public key for wireguard tunnel in calico configuration")
 				// Note: public/private key is created by VPP (connectivity server sends empty public/private
 				// keys but retrieves it back properly filled)
-				thisNode, err := client.Nodes().Get(context.Background(), agentConf.NodeName, options.GetOptions{})
+				thisNode, err := client.Nodes().Get(context.Background(), *agentConf.NodeName, options.GetOptions{})
 				Expect(err).ToNot(HaveOccurred(),
 					"can't get this node info from mocked node info storage")
 				Expect(thisNode.Status).ToNot(BeNil(),
@@ -680,13 +680,13 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 			BeforeEach(func() {
 				// configuring global config for SRv6 ConnectivityProvider
-				agentConf.EnableSRv6 = true
-				agentConf.SRv6localSidIPPool = "B::/16" // also B::<node number>/112 subnet for LocalSids for given node
-				agentConf.SRv6policyIPPool = "C::/16"   // also C::<node number>/112 subnet for BindingSIDs(=BSID=PolicyIP) for given node
-				agentConf.NodeName = ThisNodeName
+				agentConf.GetCalicoVppFeatureGates().SRv6Enabled = &agentConf.True
+				agentConf.GetCalicoVppSrv6().LocalsidPool = "B::/16" // also B::<node number>/112 subnet for LocalSids for given node
+				agentConf.GetCalicoVppSrv6().PolicyPool = "C::/16"   // also C::<node number>/112 subnet for BindingSIDs(=BSID=PolicyIP) for given node
+				*agentConf.NodeName = ThisNodeName
 
-				// add node pool for SRv6 (subnet of agentConf.SRv6localSidIPPool)
-				_, err := addIPPoolForCalicoClient(client, fmt.Sprintf("sr-localsids-pool-%s", agentConf.NodeName), "B::1:0/112")
+				// add node pool for SRv6 (subnet of agentConf.CalicoVppSrv6.LocalsidPool)
+				_, err := addIPPoolForCalicoClient(client, fmt.Sprintf("sr-localsids-pool-%s", *agentConf.NodeName), "B::1:0/112")
 				Expect(err).ToNot(HaveOccurred(), "could not call addIPPoolForCalicoClient")
 
 				// SID/BSID format for testing: <BSID/Localsid prefix><node id>:<suffix created by IPAM IP assignment>

@@ -24,7 +24,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -127,7 +127,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		return err
 	}
 
-	if config.PodGSOEnabled {
+	if *config.GetCalicoVppDebug().GSOEnabled {
 		err = i.vpp.EnableGSOFeature(memif.SwIfIndex)
 		if err != nil {
 			return errors.Wrap(err, "Error enabling GSO on memif")

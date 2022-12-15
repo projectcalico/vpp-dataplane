@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -164,6 +164,16 @@ func ToMaxLenCIDR(addr net.IP) *net.IPNet {
 	}
 }
 
+func IsV6Cidr(cidr *net.IPNet) bool {
+	_, bits := cidr.Mask.Size()
+	return bits == 128
+}
+
+func IsFullyQualified(cidr *net.IPNet) bool {
+	ones, bits := cidr.Mask.Size()
+	return ones == bits
+}
+
 func FullyQualified(addr net.IP) *net.IPNet {
 	return &net.IPNet{
 		IP:   addr,
@@ -261,7 +271,7 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 		}
 		var nhAttr *any.Any
 
-		if config.EnableSRv6 {
+		if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 			nhAttr, err = ptypes.MarshalAny(&bgpapi.NextHopAttribute{
 				NextHop: nodeIpv6.String(),
 			})
@@ -511,10 +521,10 @@ func FetchNDataThreads(vpp *vpplink.VppLink, log *logrus.Entry) int {
 		log.Panicf("Error getting number of VPP workers: %v", err)
 	}
 	nDataThreads := nVppWorkers
-	if config.IpsecNbAsyncCryptoThread > 0 {
-		nDataThreads = nVppWorkers - config.IpsecNbAsyncCryptoThread
+	if config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread > 0 {
+		nDataThreads = nVppWorkers - config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread
 		if nDataThreads <= 0 {
-			log.Errorf("Couldn't fulfill request [crypto=%d total=%d]", config.IpsecNbAsyncCryptoThread, nVppWorkers)
+			log.Errorf("Couldn't fulfill request [crypto=%d total=%d]", config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread, nVppWorkers)
 			nDataThreads = nVppWorkers
 		}
 		log.Infof("Using ipsec workers [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)

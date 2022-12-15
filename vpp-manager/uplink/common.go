@@ -21,7 +21,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -54,11 +54,11 @@ type UplinkDriver interface {
 	IsSupported(warn bool) bool
 	GetName() string
 	UpdateVppConfigFile(template string) string
+	GetDefaultRxMode() types.RxMode
 }
 
-func (d *UplinkDriverData) GetName() string {
-	return d.name
-}
+func (d *UplinkDriverData) GetDefaultRxMode() types.RxMode { return types.AdaptativeRxMode }
+func (d *UplinkDriverData) GetName() string                { return d.name }
 
 func (d *UplinkDriverData) TagMainInterface(vpp *vpplink.VppLink, swIfIndex uint32, name string) (err error) {
 	log.Infof("tagging interface [%d] with: %s", swIfIndex, "main-"+name)

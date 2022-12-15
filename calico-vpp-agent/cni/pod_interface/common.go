@@ -20,7 +20,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -35,7 +35,7 @@ type PodInterfaceDriverData struct {
 func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTxQueues int) (err error) {
 	i.log.WithFields(map[string]interface{}{
 		"swIfIndex": swIfIndex,
-	}).Infof("spreading %d TX queues on %d workers for pod interface: %v", numTxQueues, i.NDataThreads, i.Name)
+	}).Debugf("Spreading %d TX queues on %d workers for pod interface: %v", numTxQueues, i.NDataThreads, i.Name)
 
 	// set first tx queue for main worker
 	err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0 /* queue */, 0 /* worker */)
@@ -57,7 +57,7 @@ func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTx
 func (i *PodInterfaceDriverData) SpreadRxQueuesOnWorkers(swIfIndex uint32, numRxQueues int) {
 	i.log.WithFields(map[string]interface{}{
 		"swIfIndex": swIfIndex,
-	}).Infof("spreading %d RX queues on %d workers for pod interface: %v", numRxQueues, i.NDataThreads, i.Name)
+	}).Debugf("Spreading %d RX queues on %d workers for pod interface: %v", numRxQueues, i.NDataThreads, i.Name)
 
 	if i.NDataThreads > 0 {
 		for queue := 0; queue < numRxQueues; queue++ {
@@ -147,7 +147,7 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		return errors.Wrapf(err, "error setting new pod if up")
 	}
 
-	err = i.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, ifSpec.RxMode)
+	err = i.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, ifSpec.GetRxModeWithDefault(types.AdaptativeRxMode))
 	if err != nil {
 		return errors.Wrapf(err, "error SetInterfaceRxMode on pod if interface")
 	}

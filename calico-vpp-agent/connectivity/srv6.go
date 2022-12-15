@@ -10,7 +10,7 @@ import (
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config/config"
+	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -47,9 +47,9 @@ type SRv6Provider struct {
 
 func NewSRv6Provider(d *ConnectivityProviderData) *SRv6Provider {
 	p := &SRv6Provider{d, make(map[string]*NodeToPrefixes), make(map[string]*NodeToPolicies), net.IPNet{}, net.IPNet{}}
-	if config.EnableSRv6 {
-		p.localSidIPPool = cnet.MustParseNetwork(config.SRv6localSidIPPool).IPNet
-		p.policyIPPool = cnet.MustParseNetwork(config.SRv6policyIPPool).IPNet
+	if *config.GetCalicoVppFeatureGates().SRv6Enabled {
+		p.localSidIPPool = cnet.MustParseNetwork(config.GetCalicoVppSrv6().LocalsidPool).IPNet
+		p.policyIPPool = cnet.MustParseNetwork(config.GetCalicoVppSrv6().PolicyPool).IPNet
 	}
 
 	p.log.Infof("SRv6Provider NewSRv6Provider")
@@ -64,7 +64,7 @@ func (p *SRv6Provider) EnableDisable(isEnable bool) {
 }
 
 func (p *SRv6Provider) Enabled(cn *common.NodeConnectivity) bool {
-	return config.EnableSRv6
+	return *config.GetCalicoVppFeatureGates().SRv6Enabled
 }
 
 // RescanState recreates(if missing in VPP) the static parts of the SRv6 tunneling on this node:
@@ -73,7 +73,7 @@ func (p *SRv6Provider) Enabled(cn *common.NodeConnectivity) bool {
 func (p *SRv6Provider) RescanState() {
 	p.log.Infof("SRv6Provider RescanState")
 
-	if !config.EnableSRv6 {
+	if !*config.GetCalicoVppFeatureGates().SRv6Enabled {
 		return
 	}
 
@@ -311,7 +311,7 @@ func (p *SRv6Provider) setEndDT(typeDT int) (newLocalSid *types.SrLocalsid, err 
 		behavior = types.SrBehaviorDT6
 	}
 
-	poolLocalSIDName := "sr-localsids-pool-" + config.NodeName
+	poolLocalSIDName := "sr-localsids-pool-" + *config.NodeName
 	newLocalSidAddr, err := p.getSidFromPool(poolLocalSIDName)
 
 	if err != nil {
