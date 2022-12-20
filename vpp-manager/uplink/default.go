@@ -76,7 +76,7 @@ func (d *DefaultDriver) RestoreLinux(allInterfacesPhysical bool) {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	// If interface is still in the host, move it to vpp netns to allow creation of the tap
 	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
 	if err != nil {

@@ -49,7 +49,7 @@ type UplinkDriverData struct {
 
 type UplinkDriver interface {
 	PreconfigureLinux() error
-	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) error
+	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) error
 	RestoreLinux(allInterfacesPhysical bool)
 	IsSupported(warn bool) bool
 	GetName() string

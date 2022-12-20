@@ -68,7 +68,7 @@ func (d *RDMADriver) RestoreLinux(allInterfacesPhysical bool) {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	intf := types.RDMAInterface{
 		GenericVppInterface: d.getGenericVppInterface(),
 	}

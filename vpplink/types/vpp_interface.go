@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/af_packet"
 	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 )
@@ -92,6 +93,7 @@ type VppXDPInterface struct {
 
 type AfPacketInterface struct {
 	GenericVppInterface
+	Flags af_packet.AfPacketFlags
 }
 
 type VirtioInterface struct {

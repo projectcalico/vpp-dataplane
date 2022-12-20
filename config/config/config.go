@@ -43,7 +43,8 @@ type InterfaceSpec struct {
 	TxQueueSize int   `json:"txqsz"`
 	IsL3        *bool `json:"isl3"`
 	/* "interrupt" "adaptive" or "polling" mode */
-	RxMode types.RxMode `json:"rxMode"`
+	RxMode      types.RxMode      `json:"rxMode"`
+	Annotations map[string]string `json:"annotations"`
 }
 
 func (i *InterfaceSpec) GetIsL3(isMemif bool) bool {

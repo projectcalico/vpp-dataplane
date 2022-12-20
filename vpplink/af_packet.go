@@ -37,7 +37,7 @@ func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint3
 		TxFrameSize:      uint32(1024 * 8 * 8),
 		NumRxQueues:      uint16(intf.NumRxQueues),
 		NumTxQueues:      uint16(intf.NumTxQueues),
-		Flags:            af_packet.AF_PACKET_API_FLAG_VERSION_2 | af_packet.AF_PACKET_API_FLAG_CKSUM_GSO | af_packet.AF_PACKET_API_FLAG_QDISC_BYPASS,
+		Flags:            intf.Flags,
 	}
 	if intf.HardwareAddr != nil {
 		request.UseRandomHwAddr = false
