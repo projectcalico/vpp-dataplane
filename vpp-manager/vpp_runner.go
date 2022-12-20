@@ -759,7 +759,7 @@ func (v *VppRunner) runVpp() (err error) {
 	}
 
 	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
-		err := v.uplinkDriver[idx].CreateMainVppInterface(vpp, vppProcess.Pid)
+		err := v.uplinkDriver[idx].CreateMainVppInterface(vpp, vppProcess.Pid, &v.params.UplinksSpecs[idx])
 		if err != nil {
 			terminateVpp("Error creating main interface %s (SIGINT %d): %v", v.params.UplinksSpecs[idx].InterfaceName, vppProcess.Pid, err)
 			v.vpp.Close()

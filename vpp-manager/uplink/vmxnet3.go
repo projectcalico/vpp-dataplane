@@ -85,7 +85,7 @@ func (d *Vmxnet3Driver) RestoreLinux(allInterfacesPhysical bool) {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	intf := types.Vmxnet3Interface{
 		GenericVppInterface: d.getGenericVppInterface(),
 		EnableGso:           d.params.EnableGSO,

@@ -16,13 +16,17 @@
 package uplink
 
 import (
+	"strconv"
+
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+
 	"github.com/projectcalico/vpp-dataplane/config/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/af_packet"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	log "github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 type AFPacketDriver struct {
@@ -75,14 +79,34 @@ func (d *AFPacketDriver) RestoreLinux(allInterfacesPhysical bool) {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+func (d *AFPacketDriver) fetchBooleanAnnotation(annotation string, defaultValue bool, uplinkSpec *config.UplinkInterfaceSpec) bool {
+	spec, found := uplinkSpec.Annotations[annotation]
+	if !found {
+		return defaultValue
+	}
+	b, err := strconv.ParseBool(spec)
+	if err != nil {
+		log.WithError(err).Errorf("Error parsing annotation %s '%s'", annotation, spec)
+		return defaultValue
+	}
+	return b
+}
+
+func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
 
-	intf := types.AfPacketInterface{
-		GenericVppInterface: d.getGenericVppInterface(),
+	intf := types.AfPacketInterface{GenericVppInterface: d.getGenericVppInterface()}
+	if d.params.EnableGSO {
+		intf.Flags |= af_packet.AF_PACKET_API_FLAG_CKSUM_GSO
+	}
+	if d.fetchBooleanAnnotation("AfPacketQdiscBypass", false /* default */, uplinkSpec) {
+		intf.Flags |= af_packet.AF_PACKET_API_FLAG_QDISC_BYPASS
+	}
+	if !d.fetchBooleanAnnotation("AfPacketUseV3", false /* default */, uplinkSpec) {
+		intf.Flags |= af_packet.AF_PACKET_API_FLAG_VERSION_2
 	}
 	swIfIndex, err := vpp.CreateAfPacket(&intf)
 	if err != nil {

@@ -111,7 +111,7 @@ func (d *VirtioDriver) RestoreLinux(allInterfacesPhysical bool) {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	intf := types.VirtioInterface{
 		GenericVppInterface: d.getGenericVppInterface(),
 		PciId:               d.conf.PciId,

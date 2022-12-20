@@ -136,7 +136,7 @@ func (d *AVFDriver) RestoreLinux(allInterfacesPhysical bool) {
 	d.restoreLinuxIfConf(link)
 }
 
-func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int) (err error) {
+func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	if d.pfPCI != "" {
 		/* We were passed a PF, move it to vpp's NS so it doesn't
 		   conflict with vpptap0 */
