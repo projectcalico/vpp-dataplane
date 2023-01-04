@@ -1,8 +1,9 @@
 TAG ?= latest # Tag images with :$(TAG)
+N_KIND_WORKERS ?= 3
 
 .PHONY: new-cluster
 new-cluster:
-	@./new_cluster.sh $(nodes)
+	@N_KIND_WORKERS=$(N_KIND_WORKERS) ./new_cluster.sh
 
 .PHONY: delete-cluster
 delete-cluster:

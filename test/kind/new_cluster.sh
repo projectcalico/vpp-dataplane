@@ -31,13 +31,12 @@ nodes:
 EOF
 )
 
-if [ "$1" == "" ]
-then
-echo "please specify number of nodes"
-exit 1
+if [ "$N_KIND_WORKERS" == "" ]; then
+	echo "Please Set N_KIND_WORKERS"
+	exit 1
 fi
 
-for ((i=1; i<=$1; i++)); do \
+for ((i=1; i<=$N_KIND_WORKERS; i++)); do \
 config=$(cat <<EOF
 $config
 - role: worker
