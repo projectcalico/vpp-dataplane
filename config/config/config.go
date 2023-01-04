@@ -43,8 +43,7 @@ type InterfaceSpec struct {
 	TxQueueSize int   `json:"txqsz"`
 	IsL3        *bool `json:"isl3"`
 	/* "interrupt" "adaptive" or "polling" mode */
-	RxMode      types.RxMode      `json:"rxMode"`
-	Annotations map[string]string `json:"annotations"`
+	RxMode types.RxMode `json:"rxMode"`
 }
 
 func (i *InterfaceSpec) GetIsL3(isMemif bool) bool {
@@ -88,13 +87,14 @@ func (i *InterfaceSpec) Validate(maxIfSpec *InterfaceSpec) error {
 
 type UplinkInterfaceSpec struct {
 	InterfaceSpec
-	IsMain        *bool  `json:"-"`
-	InterfaceName string `json:"interfaceName"`
-	VppDriver     string `json:"vppDriver"`
-	NewDriverName string `json:"newDriver"`
-	/* User specified MTU for uplink & the tap */
-	Mtu       int `json:"mtu"`
-	SwIfIndex uint32
+	IsMain        *bool             `json:"-"`
+	InterfaceName string            `json:"interfaceName"`
+	VppDriver     string            `json:"vppDriver"`
+	NewDriverName string            `json:"newDriver"`
+	Annotations   map[string]string `json:"annotations"`
+	// Mtu is the User specified MTU for uplink & the tap
+	Mtu       int    `json:"mtu"`
+	SwIfIndex uint32 `json:"-"`
 }
 
 func (u *UplinkInterfaceSpec) GetIsMain() bool {
