@@ -113,8 +113,8 @@ function get_initial_config ()
 {
     echo "
     {
-      \"vppStartupSleepSeconds\": ${CALICOVPP_VPP_STARTUP_SLEEP:=0},
-      \"corePattern\": \"${CALICOVPP_CORE_PATTERN}\",
+      \"vppStartupSleepSeconds\": ${CALICOVPP_VPP_STARTUP_SLEEP:-0},
+      \"corePattern\": \"${CALICOVPP_CORE_PATTERN:-/repo/vppcore.%e.%p}\",
       \"defaultGWs\": \"${CALICOVPP_DEFAULT_GW}\"
     }
     "
@@ -124,10 +124,10 @@ function get_feature_gates ()
 {
     echo "
     {
-      \"memifEnabled\": ${CALICOVPP_ENABLE_MEMIF},
-      \"vclEnabled\": ${CALICOVPP_ENABLE_VCL},
-      \"multinetEnabled\": ${CALICOVPP_ENABLE_MULTINET},
-      \"ipsecEnabled\": ${CALICOVPP_IPSEC_ENABLED}
+      \"memifEnabled\": ${CALICOVPP_ENABLE_MEMIF:false},
+      \"vclEnabled\": ${CALICOVPP_ENABLE_VCL:false},
+      \"multinetEnabled\": ${CALICOVPP_ENABLE_MULTINET:false},
+      \"ipsecEnabled\": ${CALICOVPP_IPSEC_ENABLED:false}
     }
     "
 }
@@ -136,10 +136,10 @@ function get_debug ()
 {
     echo "
     {
-      \"policiesEnabled\": ${CALICOVPP_DEBUG_ENABLE_POLICIES},
-      \"servicesEnabled\": ${CALICOVPP_DEBUG_ENABLE_SERVICES},
-      \"maglevEnabled\": ${CALICOVPP_DEBUG_ENABLE_MAGLEV},
-      \"gsoEnabled\": ${CALICOVPP_DEBUG_ENABLE_GSO}
+      \"policiesEnabled\": ${CALICOVPP_DEBUG_ENABLE_POLICIES:-true},
+      \"servicesEnabled\": ${CALICOVPP_DEBUG_ENABLE_SERVICES:-true},
+      \"maglevEnabled\": ${CALICOVPP_DEBUG_ENABLE_MAGLEV:-true},
+      \"gsoEnabled\": ${CALICOVPP_DEBUG_ENABLE_GSO:-true}
     }
     "
 }
@@ -149,24 +149,24 @@ function get_interfaces ()
     echo "
     {
         \"defaultPodIfSpec\": {
-          \"rx\": ${CALICOVPP_RX_QUEUES:=1},
-          \"tx\": ${CALICOVPP_TX_QUEUES:=1},
+          \"rx\": ${CALICOVPP_RX_QUEUES:-1},
+          \"tx\": ${CALICOVPP_TX_QUEUES:-1},
           \"isl3\": true,
-          \"rxMode\": \"${CALICOVPP_RX_MODE:=adaptive}\"
+          \"rxMode\": \"${CALICOVPP_RX_MODE:-adaptive}\"
         },
         \"vppHostTapSpec\": {
-          \"rx\": ${CALICOVPP_TAP_RX_QUEUES:=1},
-          \"tx\": ${CALICOVPP_TAP_TX_QUEUES:=1},
-          \"rxqsz\": 1024, 
-          \"txqsz\": 1024, 
+          \"rx\": ${CALICOVPP_TAP_RX_QUEUES:-1},
+          \"tx\": ${CALICOVPP_TAP_TX_QUEUES:-1},
+          \"rxqsz\": 1024,
+          \"txqsz\": 1024,
           \"isl3\": false,
-          \"rxMode\": \"${CALICOVPP_TAP_RX_MODE:=adaptive}\"
+          \"rxMode\": \"${CALICOVPP_TAP_RX_MODE:-adaptive}\"
         },
         \"uplinkInterfaces\": [
           {
-            \"interfaceName\": \"${CALICOVPP_INTERFACE:=eth0}\",
-            \"vppDriver\": \"${CALICOVPP_NATIVE_DRIVER:=af_packet}\",
-            \"rxMode\": \"${CALICOVPP_RX_MODE:=adaptive}\"
+            \"interfaceName\": \"${CALICOVPP_INTERFACE:-eth0}\",
+            \"vppDriver\": \"${CALICOVPP_NATIVE_DRIVER:-af_packet}\",
+            \"rxMode\": \"${CALICOVPP_RX_MODE:-adaptive}\"
           }
         ]
     }"
@@ -206,6 +206,13 @@ function is_v4_v46_v6 ()
   	fi
 }
 
+function get_empty_object ()
+{
+	echo "
+      {}
+    "
+}
+
 calico_create_template ()
 {
   kustomize_parse_variables
@@ -226,73 +233,46 @@ calico_create_template ()
   	exit 1
   fi
 
-  WRK=${WRK:=0}
-  MAINCORE=${MAINCORE:=12}
-  DPDK=${DPDK:=true}
+  WRK=${WRK:-0}
+  MAINCORE=${MAINCORE:-12}
+  DPDK=${DPDK:-true}
 
-  export CALICO_AGENT_IMAGE=${CALICO_AGENT_IMAGE:=docker.io/calicovpp/agent:latest}
-  export CALICO_VPP_IMAGE=${CALICO_VPP_IMAGE:=docker.io/calicovpp/vpp:latest}
-  export MULTINET_MONITOR_IMAGE=${MULTINET_MONITOR_IMAGE:=docker.io/calicovpp/multinet-monitor:latest}
-  export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:=v3.20.0}
-  export CALICO_CNI_IMAGE=${CALICO_CNI_IMAGE:=docker.io/calico/cni:${CALICO_VERSION_TAG}}
-  export IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:=IfNotPresent}
+  export CALICO_AGENT_IMAGE=${CALICO_AGENT_IMAGE:-docker.io/calicovpp/agent:latest}
+  export CALICO_VPP_IMAGE=${CALICO_VPP_IMAGE:-docker.io/calicovpp/vpp:latest}
+  export MULTINET_MONITOR_IMAGE=${MULTINET_MONITOR_IMAGE:-docker.io/calicovpp/multinet-monitor:latest}
+  export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:-v3.20.0}
+  export CALICO_CNI_IMAGE=${CALICO_CNI_IMAGE:-docker.io/calico/cni:${CALICO_VERSION_TAG}}
+  export IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:-IfNotPresent}
 
   export USERHOME=${HOME}
   export REPO_DIRECTORY=$(readlink -f ${SCRIPTDIR}/../../..)
 
   ## Installation ##
-
-  export CALICO_MTU=${CALICO_MTU:=0}
-  export CALICO_ENCAPSULATION_V4=${CALICO_ENCAPSULATION_V4:=IPIP}
-  export CALICO_ENCAPSULATION_V6=${CALICO_ENCAPSULATION_V6:=None}
-  export CALICO_NAT_OUTGOING=${CALICO_NAT_OUTGOING:=Enabled}
+  export CALICO_MTU=${CALICO_MTU:-0}
+  export CALICO_ENCAPSULATION_V4=${CALICO_ENCAPSULATION_V4:-IPIP}
+  export CALICO_ENCAPSULATION_V6=${CALICO_ENCAPSULATION_V6:-None}
+  export CALICO_NAT_OUTGOING=${CALICO_NAT_OUTGOING:-Enabled}
   export CLUSTER_POD_CIDR4=${CLUSTER_POD_CIDR4}
   export INSTALLATION_CIDRS=$(get_installation_cidrs)
 
-  # export CALICO_IPV4POOL_CIDR=$CLUSTER_POD_CIDR4
-  # export CALICO_IPV6POOL_CIDR=$CLUSTER_POD_CIDR6
-  # export FELIX_IPV6SUPPORT=$(is_v4_v46_v6 false true true)
-  # export IP=$(is_v4_v46_v6 autodetect autodetect none)
-  # export IP6=$(is_v4_v46_v6 none autodetect autodetect)
-  # export cni_network_config=$(get_cni_network_config)
-  # export FELIX_XDPENABLED=${FELIX_XDPENABLED:=false}
-
-
   ## calico-vpp-config variables ##
   export SERVICE_PREFIX=$SERVICE_CIDR
-  export CALICOVPP_INTERFACE=${CALICOVPP_INTERFACE:=eth0}
-  export CALICOVPP_NATIVE_DRIVER=${CALICOVPP_NATIVE_DRIVER}
-  export CALICOVPP_CONFIG_TEMPLATE=${CALICOVPP_CONFIG_TEMPLATE:=$(get_vpp_conf)}
+  export CALICOVPP_INTERFACE='"'${CALICOVPP_INTERFACE:-}'"' # DEPRECATED
+  export CALICOVPP_NATIVE_DRIVER='"'${CALICOVPP_NATIVE_DRIVER}'"' # DEPRECATED
+  export CALICOVPP_SWAP_DRIVER='"'${CALICOVPP_SWAP_DRIVER}'"' # DEPRECATED
+  export CALICOVPP_CONFIG_EXEC_TEMPLATE='"'${CALICOVPP_CONFIG_EXEC_TEMPLATE}'"'
+  export CALICOVPP_INIT_SCRIPT_TEMPLATE='"'${CALICOVPP_INIT_SCRIPT_TEMPLATE}'"'
+  export CALICOVPP_IPSEC_IKEV2_PSK='"'${CALICOVPP_IPSEC_IKEV2_PSK:-keykeykey}'"'
+  export CALICOVPP_LOG_LEVEL='"'${CALICOVPP_LOG_LEVEL}'"'
+  export DEBUG='"'${DEBUG}'"'
 
-  ## vpp-dev-config variables (extra variables for VPP-manager) ##
-  export CALICOVPP_CORE_PATTERN=${CALICOVPP_CORE_PATTERN:=/home/hostuser/vppcore.%e.%p}
-  export CALICOVPP_RX_MODE=${CALICOVPP_RX_MODE:=adaptive}
-  export CALICOVPP_RX_QUEUES=${CALICOVPP_RX_QUEUES}
-  export CALICOVPP_VPP_STARTUP_SLEEP=${CALICOVPP_VPP_STARTUP_SLEEP:=0}
-  export CALICOVPP_CONFIG_EXEC_TEMPLATE=${CALICOVPP_CONFIG_EXEC_TEMPLATE}
-  export CALICOVPP_INIT_SCRIPT_TEMPLATE=${CALICOVPP_INIT_SCRIPT_TEMPLATE}
-  export CALICOVPP_DEFAULT_GW=${CALICOVPP_DEFAULT_GW}
-  export CALICOVPP_DEBUG_ENABLE_GSO=${CALICOVPP_DEBUG_ENABLE_GSO:=true}
-  export CALICOVPP_TAP_MTU=${CALICOVPP_TAP_MTU:=0}
-  export DEBUG=${DEBUG}
-
-  ## calico-agent-config variables (extra variables for Calico-vpp-agent) ##
-  export CALICOVPP_TAP_RX_QUEUES=${CALICOVPP_TAP_RX_QUEUES:=1}
-  export CALICOVPP_TAP_TX_QUEUES=${CALICOVPP_TAP_TX_QUEUES:=1}
-  export CALICOVPP_IPSEC_ENABLED=${CALICOVPP_IPSEC_ENABLED:=false}
-  export CALICOVPP_DEBUG_ENABLE_POLICIES=${CALICOVPP_DEBUG_ENABLE_POLICIES:=true}
-  export CALICOVPP_DEBUG_ENABLE_SERVICES=${CALICOVPP_DEBUG_ENABLE_SERVICES:=true}
-  export CALICOVPP_DEBUG_ENABLE_MAGLEV=${CALICOVPP_DEBUG_ENABLE_MAGLEV:=true}
-  export CALICOVPP_ENABLE_MULTINET=${CALICOVPP_ENABLE_MULTINET:=false}
-  export CALICOVPP_ENABLE_MEMIF=${CALICOVPP_ENABLE_MEMIF:=true}
-  export CALICOVPP_ENABLE_VCL=${CALICOVPP_ENABLE_VCL:=true}
-  export CALICOVPP_IPSEC_IKEV2_PSK=${CALICOVPP_IPSEC_IKEV2_PSK:=keykeykey}
-
-  export CALICOVPP_INITIAL_CONFIG=${CALICOVPP_INITIAL_CONFIG:=$(get_initial_config)}
-  export CALICOVPP_INTERFACES=${CALICOVPP_INTERFACES:=$(get_interfaces)}
-  export CALICOVPP_DEBUG=${CALICOVPP_DEBUG:=$(get_debug)}
-
-  if [ x$CALICOVPP_ENABLE_MULTINET = xtrue ]; then export USE_MULTINET_MONITOR_DEV_PATCH=true ; fi
+  export CALICOVPP_CONFIG_TEMPLATE="|- ${CALICOVPP_CONFIG_TEMPLATE:-$(get_vpp_conf)}"
+  export CALICOVPP_INITIAL_CONFIG="|- ${CALICOVPP_INITIAL_CONFIG:-$(get_initial_config)}"
+  export CALICOVPP_INTERFACES="|- ${CALICOVPP_INTERFACES:-$(get_interfaces)}"
+  export CALICOVPP_DEBUG="|- ${CALICOVPP_DEBUG:-$(get_debug)}"
+  export CALICOVPP_FEATURE_GATES="|- ${CALICOVPP_FEATURE_GATES:-$(get_empty_object)}"
+  export CALICOVPP_IPSEC="|- ${CALICOVPP_IPSEC:-$(get_empty_object)}"
+  export CALICOVPP_SRV6="|- ${CALICOVPP_SRV6:-$(get_empty_object)}"
 
   cd $SCRIPTDIR
 
@@ -300,46 +280,16 @@ cat > kustomization.yaml <<EOF
 bases:
   - ../../base
   - installation-dev.yaml
-
-${USE_MULTINET_MONITOR_DEV_PATCH:+components:}
-${USE_MULTINET_MONITOR_DEV_PATCH:+  - ../../components/multinet}
-
-configMapGenerator:
-# extra dev config for the VPP-agent
-  - name: calico-agent-dev-config
-    namespace: calico-vpp-dataplane
-    env: props/calico-agent-dev-config.properties
-# extra dev config for VPP
-  - name: vpp-dev-config
-    namespace: calico-vpp-dataplane
-    env: props/vpp-dev-config.properties
-# Override base/calico-vpp-daemonset.yaml config variables
-  - name: calico-vpp-config
-    namespace: calico-vpp-dataplane
-    env: props/calico-vpp-config.properties
-    behavior: merge
-generatorOptions:
-  disableNameSuffixHash: true
-
+components:
+${CALICOVPP_ENABLE_MULTINET:+  - ../../components/multinet}
+patchesStrategicMerge:
+  - calico-vpp-dev-configmap.yaml
+  - calico-vpp-dev-patch.yaml
+${CALICOVPP_ENABLE_MULTINET:+  - multinet-monitor-dev-patch.yaml}
+${CALICOVPP_DISABLE_HUGEPAGES:+  - calico-vpp-nohuge.yaml}
 EOF
 
-echo "
-patchesStrategicMerge:
-  - calico-vpp-daemonset-dev-patch-nohuge.yaml
-${USE_MULTINET_MONITOR_DEV_PATCH:+  - multinet-monitor-dev-patch.yaml}" >> kustomization.yaml
-
-if [ x$@ != xnohuge ]; then
-echo "
-patchesStrategicMerge:
-  - calico-vpp-daemonset-dev-patch.yaml
-${USE_MULTINET_MONITOR_DEV_PATCH:+  - multinet-monitor-dev-patch.yaml}" >> kustomization.yaml
-fi
-
-  kubectl kustomize . | \
-	envsubst | \
-	sed "s/^  name: vpp-dev-config/  name: vpp-dev-config\n  namespace: calico-vpp-dataplane/g" | \
-	sed "s/^  name: calico-agent-dev-config/  name: calico-agent-dev-config\n  namespace: calico-vpp-dataplane/g" | \
-	sed "s/^  name: calico-vpp-config/  name: calico-vpp-config\n  namespace: calico-vpp-dataplane/g" | \
+  kubectl kustomize . | envsubst | \
 	tee /tmp/calico-vpp.yaml > /dev/null
 
   rm kustomization.yaml

@@ -10,9 +10,5 @@ spec:
       containers:
         - name: vpp
           resources:
-            requests:
-              cpu: 1
-              memory: 4Gi
             limits:
-              memory: 80Gi
-              hugepages-2Mi: 4Gi
+              hugepages-2Mi:
