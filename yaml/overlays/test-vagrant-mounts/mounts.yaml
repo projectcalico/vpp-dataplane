@@ -24,7 +24,7 @@ spec:
         - name: vpp
           imagePullPolicy: Never
           env:
-            - name: CALICO_LOG_LEVEL
+            - name: CALICOVPP_LOG_LEVEL
               value: debug
             - name: DEBUG
               value: "false"
