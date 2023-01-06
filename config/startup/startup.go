@@ -319,26 +319,38 @@ func (s timeAndPathSlice) Less(i, j int) bool { return s[i].modTime.After(s[j].m
 func (s timeAndPathSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s timeAndPathSlice) Len() int           { return len(s) }
 
+// to avoid side effects we only check that the prefix match
+func matchesCorePattern(fname, corePattern string) bool {
+	splits := strings.SplitN(corePattern, "%", 2)
+	return strings.HasPrefix(fname, splits[0])
+}
+
 func CleanupCoreFiles(corePattern string) error {
 	if corePattern == "" {
 		return nil
 	}
 	var timeAndPaths timeAndPathSlice = make([]timeAndPath, 0)
-	err := filepath.Walk(filepath.Dir(corePattern), func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return errors.Wrap(err, "Inner walk errored")
-		}
-		if !info.IsDir() {
-			timeAndPaths = append(timeAndPaths, timeAndPath{path, info.ModTime()})
-		}
-		return nil
-	})
+	directory, err := os.Open(filepath.Dir(corePattern))
 	if err != nil {
 		return errors.Wrap(err, "walk errored")
 	}
+	infos, err := directory.Readdir(-1)
+	directory.Close()
+	if err != nil {
+		return errors.Wrap(err, "directory readdir errored")
+	}
+	for _, info := range infos {
+		if !info.IsDir() && matchesCorePattern(info.Name(), filepath.Base(corePattern)) {
+			timeAndPaths = append(timeAndPaths, timeAndPath{
+				filepath.Join(filepath.Dir(corePattern), info.Name()),
+				info.ModTime(),
+			})
+		}
+	}
 	// sort timeAndPaths by decreasing times
 	sort.Sort(timeAndPaths)
-	for i := maxCoreFiles; i < len(timeAndPaths); i++ {
+	// we remove at most (2 * maxCoreFiles + 2) coredumps leaving the first maxCorefiles in place
+	for i := maxCoreFiles; i < len(timeAndPaths) && (i-maxCoreFiles < maxCoreFiles+2); i++ {
 		os.Remove(timeAndPaths[i].path)
 	}
 

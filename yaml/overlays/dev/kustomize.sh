@@ -114,7 +114,7 @@ function get_initial_config ()
     echo "
     {
       \"vppStartupSleepSeconds\": ${CALICOVPP_VPP_STARTUP_SLEEP:-0},
-      \"corePattern\": \"${CALICOVPP_CORE_PATTERN:-/repo/vppcore.%e.%p}\",
+      \"corePattern\": \"${CALICOVPP_CORE_PATTERN:-/var/lib/vpp/vppcore.%e.%p}\",
       \"defaultGWs\": \"${CALICOVPP_DEFAULT_GW}\"
     }
     "
