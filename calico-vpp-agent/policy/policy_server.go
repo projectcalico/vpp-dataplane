@@ -1121,19 +1121,20 @@ func (s *Server) handleHostMetadataRemove(msg *proto.HostMetadataRemove, pending
 
 func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update, pending bool) (err error) {
 	var ip4net, ip6net *net.IPNet
+	var ip4, ip6 net.IP
 	if msg.Ipv4Addr != "" {
-		ip, ip4net, err := net.ParseCIDR(msg.Ipv4Addr)
+		ip4, ip4net, err = net.ParseCIDR(msg.Ipv4Addr)
 		if err != nil {
 			return err
 		}
-		ip4net.IP = ip
+		ip4net.IP = ip4
 	}
 	if msg.Ipv6Addr != "" {
-		ip, ip6net, err := net.ParseCIDR(msg.Ipv6Addr)
+		ip6, ip6net, err = net.ParseCIDR(msg.Ipv6Addr)
 		if err != nil {
 			return err
 		}
-		ip6net.IP = ip
+		ip6net.IP = ip6
 	}
 
 	localNodeSpec := &common.LocalNodeSpec{
