@@ -59,44 +59,46 @@ To run with hugepages on:
 
 ````bash
 # ---------------- vpp config ----------------
-export CALICOVPP_CONFIG_TEMPLATE="unix {
-  nodaemon
-  full-coredump
-  log /var/run/vpp/vpp.log
-  cli-listen /var/run/vpp/cli.sock
-  pidfile /run/vpp/vpp.pid
-}
-buffers {
-	buffers-per-numa 262144
-}
-socksvr { socket-name /var/run/vpp/vpp-api.sock }
-plugins {
-    plugin default { enable }
-    plugin calico_plugin.so { enable }
-    plugin dpdk_plugin.so { disable }
-}"
+export CALICOVPP_CONFIG_TEMPLATE="
+    unix {
+      nodaemon
+      full-coredump
+      log /var/run/vpp/vpp.log
+      cli-listen /var/run/vpp/cli.sock
+      pidfile /run/vpp/vpp.pid
+    }
+    buffers {
+      buffers-per-numa 262144
+    }
+    socksvr { socket-name /var/run/vpp/vpp-api.sock }
+    plugins {
+        plugin default { enable }
+        plugin calico_plugin.so { enable }
+        plugin dpdk_plugin.so { disable }
+    }"
 bash ./yaml/overlays/dev/kustomize.sh up
 ````
 
 To run without hugepages
 ````bash
 # ---------------- vpp config ----------------
-export CALICOVPP_CONFIG_TEMPLATE="unix {
-  nodaemon
-  full-coredump
-  log /var/run/vpp/vpp.log
-  cli-listen /var/run/vpp/cli.sock
-  pidfile /run/vpp/vpp.pid
-}
-buffers {
-    page-size 4K
-}
-socksvr { socket-name /var/run/vpp/vpp-api.sock }
-plugins {
-    plugin default { enable }
-    plugin calico_plugin.so { enable }
-    plugin dpdk_plugin.so { disable }
-}"
+export CALICOVPP_CONFIG_TEMPLATE="
+    unix {
+      nodaemon
+      full-coredump
+      log /var/run/vpp/vpp.log
+      cli-listen /var/run/vpp/cli.sock
+      pidfile /run/vpp/vpp.pid
+    }
+    buffers {
+        page-size 4K
+    }
+    socksvr { socket-name /var/run/vpp/vpp-api.sock }
+    plugins {
+        plugin default { enable }
+        plugin calico_plugin.so { enable }
+        plugin dpdk_plugin.so { disable }
+    }"
 bash ./yaml/overlays/dev/kustomize.sh up nohuge
 ````
 

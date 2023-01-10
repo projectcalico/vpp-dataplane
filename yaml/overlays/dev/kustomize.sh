@@ -164,8 +164,8 @@ function get_interfaces ()
         },
         \"uplinkInterfaces\": [
           {
-            \"interfaceName\": \"${CALICOVPP_INTERFACE:-eth0}\",
-            \"vppDriver\": \"${CALICOVPP_NATIVE_DRIVER:-af_packet}\",
+            \"interfaceName\": \"${CALICOVPP_MAIN_INTERFACE:-eth0}\",
+            \"vppDriver\": \"${CALICOVPP_MAIN_NATIVE_DRIVER:-af_packet}\",
             \"rxMode\": \"${CALICOVPP_RX_MODE:-adaptive}\"
           }
         ]
