@@ -55,14 +55,14 @@ func (r *Rule) DeepCopy() *Rule {
 		RuleID: r.RuleID,
 		VppID:  r.VppID,
 
-		DstIPPortIPSetNames:    make([]string, len(r.DstIPPortSetNames)),
-		DstNotIPPortIPSetNames: make([]string, len(r.DstIPPortSetNames)),
-		SrcIPPortIPSetNames:    make([]string, len(r.DstIPPortSetNames)),
-		SrcNotIPPortIPSetNames: make([]string, len(r.DstIPPortSetNames)),
-		DstIPSetNames:          make([]string, len(r.DstIPPortSetNames)),
-		DstNotIPSetNames:       make([]string, len(r.DstIPPortSetNames)),
-		SrcIPSetNames:          make([]string, len(r.DstIPPortSetNames)),
-		SrcNotIPSetNames:       make([]string, len(r.DstIPPortSetNames)),
+		DstIPPortIPSetNames:    make([]string, len(r.DstIPPortIPSetNames)),
+		DstNotIPPortIPSetNames: make([]string, len(r.DstNotIPPortIPSetNames)),
+		SrcIPPortIPSetNames:    make([]string, len(r.SrcIPPortIPSetNames)),
+		SrcNotIPPortIPSetNames: make([]string, len(r.SrcNotIPPortIPSetNames)),
+		DstIPSetNames:          make([]string, len(r.DstIPSetNames)),
+		DstNotIPSetNames:       make([]string, len(r.DstNotIPSetNames)),
+		SrcIPSetNames:          make([]string, len(r.SrcIPSetNames)),
+		SrcNotIPSetNames:       make([]string, len(r.SrcNotIPSetNames)),
 		DstIPPortSetNames:      make([]string, len(r.DstIPPortSetNames)),
 	}
 
