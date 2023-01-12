@@ -3,7 +3,7 @@ kind: Pod
 metadata:
   name: samplepod
   annotations:
-    k8s.v1.cni.cncf.io/networks: network-blue-conf@eth1
+    k8s.v1.cni.cncf.io/networks: network-blue-conf@eth1, network-red-conf@eth2
 spec:
   containers:
   - name: samplepod

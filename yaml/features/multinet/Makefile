@@ -15,7 +15,7 @@ install:
 	@kubectl apply -f ../../../yaml/features/multinet/projectcalico.org_networks.yaml
 	@kubectl apply -f ../../../yaml/features/multinet/whereabouts-daemonset-install.yaml
 	@echo "--Installing multus daemonset..."
-	@kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick-plugin.yml
+	@kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
 	@echo "--Installing whereabouts daemonset..."
 	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
 	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml

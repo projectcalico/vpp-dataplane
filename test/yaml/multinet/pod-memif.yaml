@@ -5,8 +5,6 @@ metadata:
   annotations:
     k8s.v1.cni.cncf.io/networks: network-blue-conf@memif1, network-red-conf@eth5
 spec:
-  nodeSelector:
-    kubernetes.io/hostname: node2
   containers:
   - name: mvpp
     image: calicovpp/vpp:latest
@@ -22,8 +20,6 @@ metadata:
   annotations:
     k8s.v1.cni.cncf.io/networks: network-blue-conf@eth1, network-red-conf@eth2
 spec:
-  nodeSelector:
-    kubernetes.io/hostname: node1
   containers:
   - name: samplepod
     command: ["/bin/ash", "-c", "trap : TERM INT; sleep infinity & wait"]
