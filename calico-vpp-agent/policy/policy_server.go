@@ -1679,14 +1679,19 @@ func (s *Server) createFailSafePolicies() (err error) {
 		VppID:  s.failSafePolicyId,
 	}
 
-	failSafeInboundRules, err := getfailSafeRules(s.felixConfig.FailsafeInboundHostPorts)
-	if err != nil {
-		return err
+	var failSafeInboundRules, failSafeOutboundRules []*Rule
+	if len(s.felixConfig.FailsafeInboundHostPorts) != 0 {
+		failSafeInboundRules, err = getfailSafeRules(s.felixConfig.FailsafeInboundHostPorts)
+		if err != nil {
+			return err
+		}
 	}
 
-	failSafeOutboundRules, err := getfailSafeRules(s.felixConfig.FailsafeOutboundHostPorts)
-	if err != nil {
-		return err
+	if len(s.felixConfig.FailsafeOutboundHostPorts) != 0 {
+		failSafeOutboundRules, err = getfailSafeRules(s.felixConfig.FailsafeOutboundHostPorts)
+		if err != nil {
+			return err
+		}
 	}
 
 	failSafePol.InboundRules = failSafeInboundRules
