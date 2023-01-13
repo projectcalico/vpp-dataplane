@@ -29,7 +29,7 @@ function prepageImageWithVPPBinary() {
 }
 
 function preparePodMockImage() {
-  if ! docker build -t $POD_MOCK_IMAGE images/pod-mock; then
+  if ! docker build --network=host -t $POD_MOCK_IMAGE images/pod-mock; then
       echo "Can't build "$POD_MOCK_IMAGE", exiting..."
       exit 1
   fi

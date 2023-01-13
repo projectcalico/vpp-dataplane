@@ -5,7 +5,7 @@ We also have a [vagrant based setup](https://github.com/projectcalico/vpp-datapl
 
 ### First create a kind cluster :
 ````bash
-make kind-new-cluster nodes=3 # 3 is an example of number of worker nodes in your cluster
+make kind-new-cluster N_KIND_WORKERS=3 # 3 is an example of number of worker nodes in your cluster
 ````
 This creates a dual-stack cluster with four nodes. The cluster is configured with a local registry to allow sharing images on all nodes without having to copy them [you can read more about his here](https://kind.sigs.k8s.io/docs/user/local-registry/). You can adapt the configuration by editing `./test/kind/new_cluster.sh`
 
@@ -47,8 +47,14 @@ export MULTINET_MONITOR_IMAGE=localhost:5000/calicovpp/multinet-monitor:latest
 export IMAGE_PULL_POLICY=Always
 
 # ---------------- interfaces ----------------
-export CALICOVPP_INTERFACE=eth0
-export CALICOVPP_NATIVE_DRIVER=af_packet
+export CALICOVPP_INTERFACES='{
+  "uplinkInterfaces": [
+    {
+      "interfaceName": "eth0",
+      "vppDriver": "af_packet"
+    }
+  ]
+}'
 
 # ---------------- encaps ----------------
 export CALICO_ENCAPSULATION_V4=IPIP
