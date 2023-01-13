@@ -50,7 +50,7 @@ var _ = Describe("Test CleanupCoreFiles", func() {
 			Expect(err).ToNot(HaveOccurred(), "Error Writing file")
 			time.Sleep(100 * time.Millisecond)
 		}
-		err = os.WriteFile(filepath.Join(dir, fmt.Sprintf("notvppcore")), []byte("data"), 0666)
+		err = os.WriteFile(filepath.Join(dir, "notvppcore"), []byte("data"), 0666)
 		Expect(err).ToNot(HaveOccurred(), "Error Writing file")
 
 		err = CleanupCoreFiles(filepath.Join(dir, "vppcore.%e.%p"))
@@ -64,17 +64,17 @@ var _ = Describe("Test CleanupCoreFiles", func() {
 			_, err = os.Stat(filepath.Join(dir, fmt.Sprintf("vppcore.%d", i)))
 			Expect(err).ToNot(HaveOccurred(), "vppcore.%d not found", i)
 		}
-		_, err = os.Stat(filepath.Join(dir, fmt.Sprintf("notvppcore")))
+		_, err = os.Stat(filepath.Join(dir, "notvppcore"))
 		Expect(err).ToNot(HaveOccurred(), "notvppcore not found")
 
 		maxCoreFiles = 0
 		err = CleanupCoreFiles(filepath.Join(dir, "vppcore.%e.%p"))
 		Expect(err).ToNot(HaveOccurred(), "Error calling CleanupCoreFiles")
 
-		_, err = os.Stat(filepath.Join(dir, fmt.Sprintf("notvppcore")))
+		_, err = os.Stat(filepath.Join(dir, "notvppcore"))
 		Expect(err).ToNot(HaveOccurred(), "notvppcore not found")
 
-		err = os.Remove(filepath.Join(dir, fmt.Sprintf("notvppcore")))
+		err = os.Remove(filepath.Join(dir, "notvppcore"))
 		Expect(err).ToNot(HaveOccurred(), "Could not remote notvppcore")
 
 		err = os.Remove(dir)
