@@ -10,9 +10,9 @@ spec:
     linuxDataplane: VPP
     mtu: ${CALICO_MTU}
     nodeAddressAutodetectionV4:
-      interface: ${CALICOVPP_MAIN_INTERFACE:-eth0}
+      interface: ${CALICOVPP_MAIN_INTERFACE}
     nodeAddressAutodetectionV6:
-      interface: ${CALICOVPP_MAIN_INTERFACE:-eth0}
+      interface: ${CALICOVPP_MAIN_INTERFACE}
     ipPools:
       ${INSTALLATION_CIDRS}
 ---

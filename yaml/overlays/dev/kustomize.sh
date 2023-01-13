@@ -84,92 +84,82 @@ function kustomize_parse_variables ()
 
 function get_vpp_conf ()
 {
-	echo "
-	  unix {
+	echo "unix {
 		nodaemon
 		full-coredump
 		log /var/run/vpp/vpp.log
 		cli-listen /var/run/vpp/cli.sock
-    	pidfile /run/vpp/vpp.pid
-	  }
-    api-trace { on }
-	  cpu { main-core ${MAINCORE} workers ${WRK} }
-	  socksvr {
-    	  socket-name /var/run/vpp/vpp-api.sock
-	  }
-	  buffers {
-		buffers-per-numa 65536
-	  }
-	  plugins {
-    	  plugin default { enable }
-    	  plugin calico_plugin.so { enable }
-    	  plugin dpdk_plugin.so { disable }
-        plugin ping_plugin.so { disable }
-	  }
-	"
+		pidfile /run/vpp/vpp.pid
+	}
+	api-trace { on }
+	cpu { main-core ${MAINCORE} workers ${WRK} }
+	socksvr {
+		socket-name /var/run/vpp/vpp-api.sock
+	}
+	buffers {
+	  buffers-per-numa 65536
+	}
+	plugins {
+		plugin default { enable }
+		plugin calico_plugin.so { enable }
+		plugin dpdk_plugin.so { disable }
+		plugin ping_plugin.so { disable }
+	}"
 }
 
 function get_initial_config ()
 {
-    echo "
-    {
+    echo "{
       \"vppStartupSleepSeconds\": ${CALICOVPP_VPP_STARTUP_SLEEP:-0},
       \"corePattern\": \"${CALICOVPP_CORE_PATTERN:-/var/lib/vpp/vppcore.%e.%p}\",
       \"defaultGWs\": \"${CALICOVPP_DEFAULT_GW}\"
-    }
-    "
+    }"
 }
 
 function get_feature_gates ()
 {
-    echo "
-    {
+    echo "{
       \"memifEnabled\": ${CALICOVPP_ENABLE_MEMIF:false},
       \"vclEnabled\": ${CALICOVPP_ENABLE_VCL:false},
       \"multinetEnabled\": ${CALICOVPP_ENABLE_MULTINET:false},
       \"ipsecEnabled\": ${CALICOVPP_IPSEC_ENABLED:false}
-    }
-    "
+    }"
 }
 
 function get_debug ()
 {
-    echo "
-    {
+    echo "{
       \"policiesEnabled\": ${CALICOVPP_DEBUG_ENABLE_POLICIES:-true},
       \"servicesEnabled\": ${CALICOVPP_DEBUG_ENABLE_SERVICES:-true},
       \"maglevEnabled\": ${CALICOVPP_DEBUG_ENABLE_MAGLEV:-true},
       \"gsoEnabled\": ${CALICOVPP_DEBUG_ENABLE_GSO:-true}
-    }
-    "
+    }"
 }
 
 function get_interfaces ()
 {
-    echo "
-    {
-        \"defaultPodIfSpec\": {
-          \"rx\": ${CALICOVPP_RX_QUEUES:-1},
-          \"tx\": ${CALICOVPP_TX_QUEUES:-1},
-          \"isl3\": true,
-          \"rxMode\": \"${CALICOVPP_RX_MODE:-adaptive}\"
-        },
-        \"vppHostTapSpec\": {
-          \"rx\": ${CALICOVPP_TAP_RX_QUEUES:-1},
-          \"tx\": ${CALICOVPP_TAP_TX_QUEUES:-1},
-          \"rxqsz\": 1024,
-          \"txqsz\": 1024,
-          \"isl3\": false,
-          \"rxMode\": \"${CALICOVPP_TAP_RX_MODE:-adaptive}\"
-        },
-        \"uplinkInterfaces\": [
-          {
-            \"interfaceName\": \"${CALICOVPP_MAIN_INTERFACE:-eth0}\",
-            \"vppDriver\": \"${CALICOVPP_MAIN_NATIVE_DRIVER:-af_packet}\",
-            \"rxMode\": \"${CALICOVPP_RX_MODE:-adaptive}\"
-          }
-        ]
-    }"
+    echo "{
+    \"defaultPodIfSpec\": {
+      \"rx\": ${CALICOVPP_RX_QUEUES:-1},
+      \"tx\": ${CALICOVPP_TX_QUEUES:-1},
+      \"isl3\": true,
+      \"rxMode\": \"${CALICOVPP_RX_MODE:-adaptive}\"
+    },
+    \"vppHostTapSpec\": {
+      \"rx\": ${CALICOVPP_TAP_RX_QUEUES:-1},
+      \"tx\": ${CALICOVPP_TAP_TX_QUEUES:-1},
+      \"rxqsz\": 1024,
+      \"txqsz\": 1024,
+      \"isl3\": false,
+      \"rxMode\": \"${CALICOVPP_TAP_RX_MODE:-adaptive}\"
+    },
+    \"uplinkInterfaces\": [
+      {
+        \"interfaceName\": \"${CALICOVPP_MAIN_INTERFACE:-eth0}\",
+        \"vppDriver\": \"${CALICOVPP_MAIN_NATIVE_DRIVER:-af_packet}\",
+        \"rxMode\": \"${CALICOVPP_RX_MODE:-adaptive}\"
+      }
+    ]}"
 }
 
 function get_installation_cidrs ()
@@ -177,21 +167,21 @@ function get_installation_cidrs ()
 	if [[ $IP_VERSION == 4 ]]; then
 	  echo "
     - cidr: ${CLUSTER_POD_CIDR4}
-      encapsulation: ${CALICO_ENCAPSULATION_V4}
-      natOutgoing: ${CALICO_NAT_OUTGOING}"
+      encapsulation: ${CALICO_ENCAPSULATION_V4:-IPIP}
+      natOutgoing: ${CALICO_NAT_OUTGOING:-Enabled}"
 	elif [[ $IP_VERSION == 6 ]]; then
 	  echo "
     - cidr: ${CLUSTER_POD_CIDR6}
-      encapsulation: ${CALICO_ENCAPSULATION_V6}
-      natOutgoing: ${CALICO_NAT_OUTGOING}"
+      encapsulation: ${CALICO_ENCAPSULATION_V6:-None}
+      natOutgoing: ${CALICO_NAT_OUTGOING:-Enabled}"
 	else
 	  echo "
     - cidr: ${CLUSTER_POD_CIDR4}
-      encapsulation: ${CALICO_ENCAPSULATION_V4}
-      natOutgoing: ${CALICO_NAT_OUTGOING}
+      encapsulation: ${CALICO_ENCAPSULATION_V4:-IPIP}
+      natOutgoing: ${CALICO_NAT_OUTGOING:-Enabled}
     - cidr: ${CLUSTER_POD_CIDR6}
-      encapsulation: ${CALICO_ENCAPSULATION_V6}
-      natOutgoing: ${CALICO_NAT_OUTGOING}"
+      encapsulation: ${CALICO_ENCAPSULATION_V6:-None}
+      natOutgoing: ${CALICO_NAT_OUTGOING:-Enabled}"
 	fi
 }
 
@@ -208,9 +198,7 @@ function is_v4_v46_v6 ()
 
 function get_empty_object ()
 {
-	echo "
-      {}
-    "
+	echo "{}"
 }
 
 calico_create_template ()
@@ -237,42 +225,36 @@ calico_create_template ()
   MAINCORE=${MAINCORE:-12}
   DPDK=${DPDK:-true}
 
+  ## Templating calico-vpp-dev-patch.yaml ##
   export CALICO_AGENT_IMAGE=${CALICO_AGENT_IMAGE:-docker.io/calicovpp/agent:latest}
   export CALICO_VPP_IMAGE=${CALICO_VPP_IMAGE:-docker.io/calicovpp/vpp:latest}
-  export MULTINET_MONITOR_IMAGE=${MULTINET_MONITOR_IMAGE:-docker.io/calicovpp/multinet-monitor:latest}
   export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:-v3.20.0}
-  export CALICO_CNI_IMAGE=${CALICO_CNI_IMAGE:-docker.io/calico/cni:${CALICO_VERSION_TAG}}
   export IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:-IfNotPresent}
-
-  export USERHOME=${HOME}
   export REPO_DIRECTORY=$(readlink -f ${SCRIPTDIR}/../../..)
 
-  ## Installation ##
+  ## Templating multinet-monitor-dev-patch.yaml ##
+  export MULTINET_MONITOR_IMAGE=${MULTINET_MONITOR_IMAGE:-docker.io/calicovpp/multinet-monitor:latest}
+
+  ## Templating installation-dev.yaml ##
   export CALICO_MTU=${CALICO_MTU:-0}
-  export CALICO_ENCAPSULATION_V4=${CALICO_ENCAPSULATION_V4:-IPIP}
-  export CALICO_ENCAPSULATION_V6=${CALICO_ENCAPSULATION_V6:-None}
-  export CALICO_NAT_OUTGOING=${CALICO_NAT_OUTGOING:-Enabled}
-  export CLUSTER_POD_CIDR4=${CLUSTER_POD_CIDR4}
+  export CALICOVPP_MAIN_INTERFACE=${CALICOVPP_MAIN_INTERFACE:-eth0}
   export INSTALLATION_CIDRS=$(get_installation_cidrs)
 
-  ## calico-vpp-config variables ##
+  ## Templating calico-vpp-dev-configmap.yaml ##
   export SERVICE_PREFIX=$SERVICE_CIDR
-  export CALICOVPP_INTERFACE='"'${CALICOVPP_INTERFACE:-}'"' # DEPRECATED
-  export CALICOVPP_NATIVE_DRIVER='"'${CALICOVPP_NATIVE_DRIVER}'"' # DEPRECATED
   export CALICOVPP_SWAP_DRIVER='"'${CALICOVPP_SWAP_DRIVER}'"' # DEPRECATED
   export CALICOVPP_CONFIG_EXEC_TEMPLATE='"'${CALICOVPP_CONFIG_EXEC_TEMPLATE}'"'
   export CALICOVPP_INIT_SCRIPT_TEMPLATE='"'${CALICOVPP_INIT_SCRIPT_TEMPLATE}'"'
   export CALICOVPP_IPSEC_IKEV2_PSK='"'${CALICOVPP_IPSEC_IKEV2_PSK:-keykeykey}'"'
   export CALICOVPP_LOG_LEVEL='"'${CALICOVPP_LOG_LEVEL}'"'
-  export DEBUG='"'${DEBUG}'"'
-
-  export CALICOVPP_CONFIG_TEMPLATE="|- ${CALICOVPP_CONFIG_TEMPLATE:-$(get_vpp_conf)}"
-  export CALICOVPP_INITIAL_CONFIG="|- ${CALICOVPP_INITIAL_CONFIG:-$(get_initial_config)}"
-  export CALICOVPP_INTERFACES="|- ${CALICOVPP_INTERFACES:-$(get_interfaces)}"
-  export CALICOVPP_DEBUG="|- ${CALICOVPP_DEBUG:-$(get_debug)}"
-  export CALICOVPP_FEATURE_GATES="|- ${CALICOVPP_FEATURE_GATES:-$(get_empty_object)}"
-  export CALICOVPP_IPSEC="|- ${CALICOVPP_IPSEC:-$(get_empty_object)}"
-  export CALICOVPP_SRV6="|- ${CALICOVPP_SRV6:-$(get_empty_object)}"
+  export CALICOVPP_CONFIG_TEMPLATE="$(indent_variable "${CALICOVPP_CONFIG_TEMPLATE:-$(get_vpp_conf)}")"
+  export CALICOVPP_INITIAL_CONFIG="$(indent_variable "${CALICOVPP_INITIAL_CONFIG:-$(get_initial_config)}")"
+  export CALICOVPP_INTERFACES="$(indent_variable "${CALICOVPP_INTERFACES:-$(get_interfaces)}")"
+  export CALICOVPP_DEBUG="$(indent_variable "${CALICOVPP_DEBUG:-$(get_debug)}")"
+  export CALICOVPP_FEATURE_GATES="$(indent_variable "${CALICOVPP_FEATURE_GATES:-"{}"}")"
+  export CALICOVPP_IPSEC="$(indent_variable "${CALICOVPP_IPSEC:-"{}"}")"
+  export CALICOVPP_SRV6="$(indent_variable "${CALICOVPP_SRV6:-"{}"}")"
+  export DEBUG='"'${DEBUG}'"' # should we run VPP release or debug ?
 
   cd $SCRIPTDIR
 
@@ -293,6 +275,11 @@ EOF
 	tee /tmp/calico-vpp.yaml > /dev/null
 
   rm kustomization.yaml
+}
+
+function indent_variable () {
+  echo "|-"
+  printf "%s\n" "$1" | (while read; do echo "    $REPLY"; done)
 }
 
 function calico_up_cni ()
