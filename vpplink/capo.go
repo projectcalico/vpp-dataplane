@@ -228,15 +228,21 @@ func (v *VppLink) PolicyDelete(policyId uint32) (err error) {
 func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfig) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
-	ids := append(conf.IngressPolicyIDs, conf.EgressPolicyIDs...)
-	ids = append(ids, conf.ProfileIDs...)
+	// In the calico agent, policies are expressed from the point of view of PODs
+	// in VPP this is reversed
+	rxPolicyIDs := conf.EgressPolicyIDs
+	txPolicyIDs := conf.IngressPolicyIDs
+	profileIDs := conf.ProfileIDs
+
+	ids := append(rxPolicyIDs, txPolicyIDs...)
+	ids = append(ids, profileIDs...)
 	response := &capo.CapoConfigurePoliciesReply{}
 	request := &capo.CapoConfigurePolicies{
-		SwIfIndex:          swIfIndex,
-		NumIngressPolicies: uint32(len(conf.IngressPolicyIDs)),
-		NumEgressPolicies:  uint32(len(conf.EgressPolicyIDs)),
-		TotalIds:           uint32(len(conf.IngressPolicyIDs) + len(conf.EgressPolicyIDs) + len(conf.ProfileIDs)),
-		PolicyIds:          ids,
+		SwIfIndex:     swIfIndex,
+		NumRxPolicies: uint32(len(rxPolicyIDs)),
+		NumTxPolicies: uint32(len(txPolicyIDs)),
+		TotalIds:      uint32(len(rxPolicyIDs) + len(txPolicyIDs) + len(profileIDs)),
+		PolicyIds:     ids,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {

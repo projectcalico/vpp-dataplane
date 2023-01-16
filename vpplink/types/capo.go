@@ -469,14 +469,16 @@ func ToCapoPolicy(p *Policy) (items []capo.CapoPolicyItem) {
 	items = make([]capo.CapoPolicyItem, 0, len(p.InboundRuleIDs)+len(p.OutboundRuleIDs))
 	for _, rid := range p.InboundRuleIDs {
 		items = append(items, capo.CapoPolicyItem{
-			IsInbound: true,
-			RuleID:    rid,
+			IsInbound: false, // Calico policies are expressed from the point of view of PODs
+			// in VPP this is reversed
+			RuleID: rid,
 		})
 	}
 	for _, rid := range p.OutboundRuleIDs {
 		items = append(items, capo.CapoPolicyItem{
-			IsInbound: false,
-			RuleID:    rid,
+			IsInbound: true, // Calico policies are expressed from the point of view of PODs
+			// in VPP this is reversed
+			RuleID: rid,
 		})
 	}
 	return items

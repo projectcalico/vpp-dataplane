@@ -18,12 +18,12 @@ Signed-off-by: MathiasRaoul <mathias.raoul@gmail.com>
  src/plugins/capo/bihash_8_24.h     | 107 ++++
  src/plugins/capo/capo.api          | 260 ++++++++++
  src/plugins/capo/capo.h            |  58 +++
- src/plugins/capo/capo_api.c        | 444 ++++++++++++++++
- src/plugins/capo/capo_interface.c  | 340 ++++++++++++
- src/plugins/capo/capo_interface.h  |  40 ++
+ src/plugins/capo/capo_api.c        | 443 ++++++++++++++++
+ src/plugins/capo/capo_interface.c  | 339 ++++++++++++
+ src/plugins/capo/capo_interface.h  |  41 ++
  src/plugins/capo/capo_ipset.c      | 472 +++++++++++++++++
  src/plugins/capo/capo_ipset.h      |  68 +++
- src/plugins/capo/capo_match.c      | 736 ++++++++++++++++++++++++++
+ src/plugins/capo/capo_match.c      | 734 ++++++++++++++++++++++++++
  src/plugins/capo/capo_match.h      |  49 ++
  src/plugins/capo/capo_policy.c     | 263 ++++++++++
  src/plugins/capo/capo_policy.h     |  58 +++
@@ -31,7 +31,7 @@ Signed-off-by: MathiasRaoul <mathias.raoul@gmail.com>
  src/plugins/capo/capo_rule.h       |  91 ++++
  src/plugins/capo/capo_test.c       | 490 ++++++++++++++++++
  src/plugins/capo/test/test_capo.py | 806 +++++++++++++++++++++++++++++
- 18 files changed, 4824 insertions(+)
+ 18 files changed, 4821 insertions(+)
  create mode 100644 src/plugins/capo/CMakeLists.txt
  create mode 100644 src/plugins/capo/bihash_8_24.h
  create mode 100644 src/plugins/capo/capo.api
@@ -215,7 +215,7 @@ index 000000000..79d1005bc
 + */
 diff --git a/src/plugins/capo/capo.api b/src/plugins/capo/capo.api
 new file mode 100644
-index 000000000..48732828e
+index 000000000..f29925e1d
 --- /dev/null
 +++ b/src/plugins/capo/capo.api
 @@ -0,0 +1,260 @@
@@ -474,10 +474,10 @@ index 000000000..48732828e
 +  u32 client_index;
 +  u32 context;
 +  u32 sw_if_index;
-+  u32 num_ingress_policies;
-+  u32 num_egress_policies;
++  u32 num_rx_policies;
++  u32 num_tx_policies;
 +  u32 total_ids;
-+  u32 policy_ids[total_ids]; // ingress, then egress, then profiles
++  u32 policy_ids[total_ids]; // rx_policies, then tx_policies, then profiles
 +};
 diff --git a/src/plugins/capo/capo.h b/src/plugins/capo/capo.h
 new file mode 100644
@@ -545,10 +545,10 @@ index 000000000..812d14831
 + */
 diff --git a/src/plugins/capo/capo_api.c b/src/plugins/capo/capo_api.c
 new file mode 100644
-index 000000000..c44b77eda
+index 000000000..335ed79cc
 --- /dev/null
 +++ b/src/plugins/capo/capo_api.c
-@@ -0,0 +1,444 @@
+@@ -0,0 +1,443 @@
 +/*
 + * Copyright (c) 2020 Cisco and/or its affiliates.
 + * Licensed under the Apache License, Version 2.0 (the "License");
@@ -916,18 +916,17 @@ index 000000000..c44b77eda
 +  int i = 0;
 +
 +  mp->sw_if_index = clib_net_to_host_u32 (mp->sw_if_index);
-+  mp->num_ingress_policies = clib_net_to_host_u32 (mp->num_ingress_policies);
-+  mp->num_egress_policies = clib_net_to_host_u32 (mp->num_egress_policies);
++  mp->num_rx_policies = clib_net_to_host_u32 (mp->num_rx_policies);
++  mp->num_tx_policies = clib_net_to_host_u32 (mp->num_tx_policies);
 +  mp->total_ids = clib_net_to_host_u32 (mp->total_ids);
-+  num_profiles =
-+    mp->total_ids - mp->num_ingress_policies - mp->num_egress_policies;
++  num_profiles = mp->total_ids - mp->num_rx_policies - mp->num_tx_policies;
 +  for (i = 0; i < mp->total_ids; i++)
 +    {
 +      mp->policy_ids[i] = clib_net_to_host_u32 (mp->policy_ids[i]);
 +    }
 +
-+  rv = capo_configure_policies (mp->sw_if_index, mp->num_ingress_policies,
-+				mp->num_egress_policies, num_profiles,
++  rv = capo_configure_policies (mp->sw_if_index, mp->num_rx_policies,
++				mp->num_tx_policies, num_profiles,
 +				mp->policy_ids);
 +
 +  REPLY_MACRO (VL_API_CAPO_CONFIGURE_POLICIES_REPLY);
@@ -995,10 +994,10 @@ index 000000000..c44b77eda
 + */
 diff --git a/src/plugins/capo/capo_interface.c b/src/plugins/capo/capo_interface.c
 new file mode 100644
-index 000000000..d13d58ff4
+index 000000000..6f9289383
 --- /dev/null
 +++ b/src/plugins/capo/capo_interface.c
-@@ -0,0 +1,340 @@
+@@ -0,0 +1,339 @@
 +/*
 + * Copyright (c) 2020 Cisco and/or its affiliates.
 + * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1041,8 +1040,9 @@ index 000000000..d13d58ff4
 +}
 +
 +int
-+capo_configure_policies (u32 sw_if_index, u32 num_ingress, u32 num_egress,
-+			 u32 num_profiles, u32 *policy_ids)
++capo_configure_policies (u32 sw_if_index, u32 num_rx_policies,
++			 u32 num_tx_policies, u32 num_profiles,
++			 u32 *policy_ids)
 +{
 +  clib_bihash_kv_8_24_t kv = { sw_if_index, { 0 } };
 +  capo_interface_config_t *conf = (capo_interface_config_t *) &kv.value;
@@ -1061,27 +1061,25 @@ index 000000000..d13d58ff4
 +  if (clib_bihash_search_8_24 (&capo_main.if_config, &kv, &kv) >= 0)
 +    {
 +      old_conf = (capo_interface_config_t *) &kv.value;
-+      vec_free (old_conf->ingress_policies);
-+      vec_free (old_conf->egress_policies);
++      vec_free (old_conf->rx_policies);
++      vec_free (old_conf->tx_policies);
 +      vec_free (old_conf->profiles);
 +      found = 1;
 +    }
 +
-+  clib_warning ("configuring policies for if %u", sw_if_index);
-+
-+  for (i = 0; i < num_ingress + num_egress + num_profiles; i++)
++  for (i = 0; i < num_rx_policies + num_tx_policies + num_profiles; i++)
 +    if (pool_is_free_index (capo_policies, policy_ids[i]))
 +      goto error;
 +
-+  vec_resize (conf->ingress_policies, num_ingress);
-+  for (i = 0; i < num_ingress; i++)
-+    conf->ingress_policies[i] = policy_ids[i];
-+  vec_resize (conf->egress_policies, num_egress);
-+  for (i = 0; i < num_egress; i++)
-+    conf->egress_policies[i] = policy_ids[num_ingress + i];
++  vec_resize (conf->rx_policies, num_rx_policies);
++  for (i = 0; i < num_rx_policies; i++)
++    conf->rx_policies[i] = policy_ids[i];
++  vec_resize (conf->tx_policies, num_tx_policies);
++  for (i = 0; i < num_tx_policies; i++)
++    conf->tx_policies[i] = policy_ids[num_rx_policies + i];
 +  vec_resize (conf->profiles, num_profiles);
 +  for (i = 0; i < num_profiles; i++)
-+    conf->profiles[i] = policy_ids[num_ingress + num_egress + i];
++    conf->profiles[i] = policy_ids[num_rx_policies + num_tx_policies + i];
 +
 +  clib_bihash_add_del_8_24 (&capo_main.if_config, &kv, 1 /* is_add */);
 +
@@ -1098,8 +1096,8 @@ index 000000000..d13d58ff4
 +
 +error:
 +  clib_warning ("error configuring policies for %u", sw_if_index);
-+  vec_resize (conf->ingress_policies, 0);
-+  vec_resize (conf->egress_policies, 0);
++  vec_resize (conf->rx_policies, 0);
++  vec_resize (conf->tx_policies, 0);
 +  vec_resize (conf->profiles, 0);
 +  return 1;
 +}
@@ -1117,8 +1115,8 @@ index 000000000..d13d58ff4
 +  if (clib_bihash_search_8_24 (&capo_main.if_config, &kv, &kv) >= 0)
 +    {
 +      conf = (capo_interface_config_t *) &kv.value;
-+      vec_free (conf->ingress_policies);
-+      vec_free (conf->egress_policies);
++      vec_free (conf->rx_policies);
++      vec_free (conf->tx_policies);
 +      vec_free (conf->profiles);
 +    }
 +
@@ -1157,21 +1155,21 @@ index 000000000..d13d58ff4
 +  if (ip4)
 +    s = format (s, "%U", format_ip4_address, ip4);
 +  s = format (s, "]\n");
-+  if (vec_len (conf->ingress_policies))
-+    s = format (s, "  ingress:\n");
-+  vec_foreach_index (i, conf->ingress_policies)
++  if (vec_len (conf->rx_policies))
++    s = format (s, "  rx:\n");
++  vec_foreach_index (i, conf->rx_policies)
 +    {
-+      policy = capo_policy_get_if_exists (conf->ingress_policies[i]);
++      policy = capo_policy_get_if_exists (conf->rx_policies[i]);
 +      s = format (s, "    %U", format_capo_policy, policy, 4 /* indent */,
-+		  CAPO_POLICY_ONLY_INGRESS);
++		  CAPO_POLICY_ONLY_RX);
 +    }
-+  if (vec_len (conf->egress_policies))
-+    s = format (s, "  egress:\n");
-+  vec_foreach_index (i, conf->egress_policies)
++  if (vec_len (conf->tx_policies))
++    s = format (s, "  tx:\n");
++  vec_foreach_index (i, conf->tx_policies)
 +    {
-+      policy = capo_policy_get_if_exists (conf->egress_policies[i]);
++      policy = capo_policy_get_if_exists (conf->tx_policies[i]);
 +      s = format (s, "    %U", format_capo_policy, policy, 4 /* indent */,
-+		  CAPO_POLICY_ONLY_EGRESS);
++		  CAPO_POLICY_ONLY_TX);
 +    }
 +  if (vec_len (conf->profiles))
 +    s = format (s, "  profiles:\n");
@@ -1268,8 +1266,8 @@ index 000000000..d13d58ff4
 +  unformat_input_t _line_input, *line_input = &_line_input;
 +  clib_error_t *error = 0;
 +  u32 sw_if_index = CAPO_INVALID_INDEX;
-+  u32 num_ingress = 0;
-+  u32 num_egress = 0;
++  u32 num_rx_policies = 0;
++  u32 num_tx_policies = 0;
 +  u32 policy_id;
 +  u32 *policy_list = NULL;
 +  int rv;
@@ -1284,9 +1282,9 @@ index 000000000..d13d58ff4
 +	;
 +      else if (unformat (line_input, "sw_if_index %d", &sw_if_index))
 +	;
-+      else if (unformat (line_input, "in %d", &num_ingress))
++      else if (unformat (line_input, "rx %d", &num_rx_policies))
 +	;
-+      else if (unformat (line_input, "out %d", &num_egress))
++      else if (unformat (line_input, "tx %d", &num_tx_policies))
 +	;
 +      else if (unformat (line_input, "%d", &policy_id))
 +	vec_add1 (policy_list, policy_id);
@@ -1310,8 +1308,8 @@ index 000000000..d13d58ff4
 +    }
 +
 +  rv = capo_configure_policies (
-+    sw_if_index, num_ingress, num_egress,
-+    vec_len (policy_list) - num_ingress - num_egress, policy_list);
++    sw_if_index, num_rx_policies, num_tx_policies,
++    vec_len (policy_list) - num_rx_policies - num_tx_policies, policy_list);
 +
 +  if (rv)
 +    error =
@@ -1328,8 +1326,8 @@ index 000000000..d13d58ff4
 +VLIB_CLI_COMMAND (capo_interface_configure_cmd, static) = {
 +  .path = "capo interface configure",
 +  .function = capo_interface_configure_cmd_fn,
-+  .short_help = "capo interface configure [interface | sw_if_index N] in "
-+		"<num_ingress> out <num_egress> <policy_id> ...",
++  .short_help = "capo interface configure [interface | sw_if_index N] rx "
++		"<num_rx> tx <num_tx> <policy_id> ...",
 +};
 +
 +/*
@@ -1341,10 +1339,10 @@ index 000000000..d13d58ff4
 + */
 diff --git a/src/plugins/capo/capo_interface.h b/src/plugins/capo/capo_interface.h
 new file mode 100644
-index 000000000..f02c608a8
+index 000000000..b87bbcb4d
 --- /dev/null
 +++ b/src/plugins/capo/capo_interface.h
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,41 @@
 +/*
 + * Copyright (c) 2020 Cisco and/or its affiliates.
 + * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1367,13 +1365,14 @@ index 000000000..f02c608a8
 +
 +typedef struct
 +{
-+  u32 *ingress_policies;
-+  u32 *egress_policies;
++  u32 *rx_policies;
++  u32 *tx_policies;
 +  u32 *profiles;
 +} capo_interface_config_t;
 +
-+int capo_configure_policies (u32 sw_if_index, u32 num_ingress, u32 num_egress,
-+			     u32 num_profiles, u32 *policy_ids);
++int capo_configure_policies (u32 sw_if_index, u32 num_rx_policies,
++			     u32 num_tx_policies, u32 num_profiles,
++			     u32 *policy_ids);
 +u8 *format_capo_interface (u8 *s, va_list *args);
 +
 +#endif
@@ -1939,10 +1938,10 @@ index 000000000..56bb0f466
 + */
 diff --git a/src/plugins/capo/capo_match.c b/src/plugins/capo/capo_match.c
 new file mode 100644
-index 000000000..eed0cb233
+index 000000000..59dfe826e
 --- /dev/null
 +++ b/src/plugins/capo/capo_match.c
-@@ -0,0 +1,736 @@
+@@ -0,0 +1,734 @@
 +/*
 + * Copyright (c) 2020 Cisco and/or its affiliates.
 + * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1987,8 +1986,7 @@ index 000000000..eed0cb233
 +      return 0;
 +    }
 +  if_config = (capo_interface_config_t *) conf_kv.value;
-+  policies =
-+    is_inbound ? if_config->egress_policies : if_config->ingress_policies;
++  policies = is_inbound ? if_config->rx_policies : if_config->tx_policies;
 +
 +  if (vec_len (policies) == 0)
 +    goto profiles; /* no policies, jump to profiles */
@@ -2054,10 +2052,9 @@ index 000000000..eed0cb233
 +capo_match_policy (capo_policy_t *policy, u32 is_inbound, u32 is_ip6,
 +		   fa_5tuple_t *pkt_5tuple)
 +{
-+  /* inbound packet from VPP pov is outbound from container pov - need to match
-+     it against TX policies */
++  /* packets RX/TX from VPP perspective */
 +  u32 *rules =
-+    is_inbound ? policy->rule_ids[VLIB_TX] : policy->rule_ids[VLIB_RX];
++    is_inbound ? policy->rule_ids[VLIB_RX] : policy->rule_ids[VLIB_TX];
 +  u32 *rule_id;
 +  capo_rule_t *rule;
 +  int r;
@@ -2736,7 +2733,7 @@ index 000000000..fe1907485
 + */
 diff --git a/src/plugins/capo/capo_policy.c b/src/plugins/capo/capo_policy.c
 new file mode 100644
-index 000000000..86c61b8cc
+index 000000000..0e94400c3
 --- /dev/null
 +++ b/src/plugins/capo/capo_policy.c
 @@ -0,0 +1,263 @@
@@ -2832,18 +2829,18 @@ index 000000000..86c61b8cc
 +    {
 +      s = format (s, "[policy#%u]\n", policy - capo_policies);
 +      capo_rule_t *rule;
-+      if (verbose != CAPO_POLICY_ONLY_INGRESS)
++      if (verbose != CAPO_POLICY_ONLY_RX)
 +	vec_foreach (rule_id, policy->rule_ids[VLIB_TX])
 +	  {
 +	    rule = capo_rule_get_if_exists (*rule_id);
-+	    s = format (s, "%Uegress :%U\n", format_white_space, indent + 2,
++	    s = format (s, "%Utx:%U\n", format_white_space, indent + 2,
 +			format_capo_rule, rule);
 +	  }
-+      if (verbose != CAPO_POLICY_ONLY_EGRESS)
++      if (verbose != CAPO_POLICY_ONLY_TX)
 +	vec_foreach (rule_id, policy->rule_ids[VLIB_RX])
 +	  {
 +	    rule = capo_rule_get_if_exists (*rule_id);
-+	    s = format (s, "%Uingress:%U\n", format_white_space, indent + 2,
++	    s = format (s, "%Urx:%U\n", format_white_space, indent + 2,
 +			format_capo_rule, rule);
 +	  }
 +    }
@@ -3005,7 +3002,7 @@ index 000000000..86c61b8cc
 + */
 diff --git a/src/plugins/capo/capo_policy.h b/src/plugins/capo/capo_policy.h
 new file mode 100644
-index 000000000..a98799929
+index 000000000..c598f9ade
 --- /dev/null
 +++ b/src/plugins/capo/capo_policy.h
 @@ -0,0 +1,58 @@
@@ -3047,8 +3044,8 @@ index 000000000..a98799929
 +{
 +  CAPO_POLICY_QUIET,
 +  CAPO_POLICY_VERBOSE,
-+  CAPO_POLICY_ONLY_INGRESS,
-+  CAPO_POLICY_ONLY_EGRESS,
++  CAPO_POLICY_ONLY_RX,
++  CAPO_POLICY_ONLY_TX,
 +} capo_policy_format_type_t;
 +
 +extern capo_policy_t *capo_policies;
