@@ -1,11 +1,11 @@
-VPP Version                 : 23.02-rc0~185-g77488ae02
+VPP Version                 : 23.02-rc0~185-g631edff89
 Binapi-generator version    : govpp v0.6.0-dev
 VPP Base commit             : e416893a5 tests: tapv2, tunv2 and af_packet interface tests for vpp
 ------------------ Cherry picked commits --------------------
-gerrit:28513/28 capo: Calico Policies plugin
-gerrit:28083/21 acl: acl-plugin custom policies
-gerrit:31588/4 cnat: [WIP] no k8s maglev from pods
-gerrit:33264/7 pbl: Port based balancer
+capo: Calico Policies plugin
+acl: acl-plugin custom policies
+cnat: [WIP] no k8s maglev from pods
+pbl: Port based balancer
 gerrit:35805/2 dpdk: add intf tag to dev{} subinput
 gerrit:34726/1 interface: add buffer stats api
 gerrit:34734/3 memif: autogenerate socket_ids

@@ -1,0 +1,810 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Yourtchenko <ayourtch@gmail.com>
+Date: Tue, 28 Jul 2020 10:23:06 +0000
+Subject: [PATCH 3/4] acl: acl-plugin custom policies
+
+Type: feature
+Change-Id: I3117e84d9e822b68b12265e9261992e4d7f50f0f
+Signed-off-by: Andrew Yourtchenko <ayourtch@gmail.com>
+Signed-off-by: Aloys Augustin <aloaugus@cisco.com>
+---
+ src/plugins/acl/CMakeLists.txt   |   2 +
+ src/plugins/acl/acl.c            |  27 +++-
+ src/plugins/acl/acl.h            |  21 ++-
+ src/plugins/acl/acl_caiop.c      | 249 +++++++++++++++++++++++++++++++
+ src/plugins/acl/acl_caiop.h      |  18 +++
+ src/plugins/acl/acl_util.h       |  17 +++
+ src/plugins/acl/dataplane_node.c | 194 ++++++++++++++++--------
+ src/plugins/acl/exported_types.h |  29 +++-
+ src/plugins/acl/lookup_context.c |   9 +-
+ 9 files changed, 489 insertions(+), 77 deletions(-)
+ create mode 100644 src/plugins/acl/acl_caiop.c
+ create mode 100644 src/plugins/acl/acl_caiop.h
+ create mode 100644 src/plugins/acl/acl_util.h
+
+diff --git a/src/plugins/acl/CMakeLists.txt b/src/plugins/acl/CMakeLists.txt
+index c43dd23ea..44e4e6a60 100644
+--- a/src/plugins/acl/CMakeLists.txt
++++ b/src/plugins/acl/CMakeLists.txt
+@@ -20,6 +20,8 @@ add_vpp_plugin(acl
+   dataplane_node.c
+   dataplane_node_nonip.c
+ 
++  acl_caiop.c
++
+   MULTIARCH_SOURCES
+   dataplane_node.c
+   dataplane_node_nonip.c
+diff --git a/src/plugins/acl/acl.c b/src/plugins/acl/acl.c
+index 064741c32..aa1b620b2 100644
+--- a/src/plugins/acl/acl.c
++++ b/src/plugins/acl/acl.c
+@@ -39,6 +39,7 @@
+ 
+ #include "fa_node.h"
+ #include "public_inlines.h"
++#include "acl_caiop.h"
+ 
+ acl_main_t acl_main;
+ 
+@@ -521,6 +522,11 @@ acl_clear_sessions (acl_main_t * am, u32 sw_if_index)
+ 			     sw_if_index);
+ }
+ 
++void
++acl_plugin_wip_clear_sessions (u32 sw_if_index)
++{
++  acl_clear_sessions (&acl_main, sw_if_index);
++}
+ 
+ static int
+ acl_interface_in_enable_disable (acl_main_t * am, u32 sw_if_index,
+@@ -605,8 +611,8 @@ acl_stats_intf_counters_enable_disable (acl_main_t * am, int enable_disable)
+   return rv;
+ }
+ 
+-static int
+-acl_interface_inout_enable_disable (acl_main_t * am, u32 sw_if_index,
++int
++acl_interface_inout_enable_disable (acl_main_t *am, u32 sw_if_index,
+ 				    int is_input, int enable_disable)
+ {
+   if (is_input)
+@@ -615,6 +621,12 @@ acl_interface_inout_enable_disable (acl_main_t * am, u32 sw_if_index,
+     return acl_interface_out_enable_disable (am, sw_if_index, enable_disable);
+ }
+ 
++int
++is_acl_enabled_on_sw_if_index (u32 sw_if_index, int is_input)
++{
++  return 1; /* TODO */
++}
++
+ static int
+ acl_is_not_defined (acl_main_t * am, u32 acl_list_index)
+ {
+@@ -751,8 +763,11 @@ acl_interface_set_inout_acl_list (acl_main_t * am, u32 sw_if_index,
+ 	}
+     }
+   /* ensure ACL processing is enabled/disabled as needed */
++  int feature_enable =
++    is_acl_caiop_enabled_on_sw_if_index (sw_if_index, is_input) ||
++    (vec_len (vec_acl_list_index) > 0);
+   acl_interface_inout_enable_disable (am, sw_if_index, is_input,
+-				      vec_len (vec_acl_list_index) > 0);
++				      feature_enable);
+ 
+ done:
+   clib_bitmap_free (change_acl_bitmap);
+@@ -3403,6 +3418,10 @@ acl_plugin_show_sessions (acl_main_t * am,
+ 		   ((f64) am->fa_current_cleaner_timer_wait_interval) *
+ 		   1000.0 / (f64) vm->clib_time.clocks_per_second);
+   vlib_cli_output (vm, "Reclassify sessions: %d", am->reclassify_sessions);
++  vlib_cli_output (vm, "Custom access input policies: %d",
++		   am->custom_access_input_policies_count);
++  vlib_cli_output (vm, "Custom access output policies: %d",
++		   am->custom_access_output_policies_count);
+ }
+ 
+ static clib_error_t *
+@@ -3718,6 +3737,8 @@ acl_init (vlib_main_t * vm)
+     ACL_FA_CONN_TABLE_DEFAULT_HASH_MEMORY_SIZE;
+   am->fa_conn_table_max_entries = ACL_FA_CONN_TABLE_DEFAULT_MAX_ENTRIES;
+   am->reclassify_sessions = 0;
++  am->custom_access_input_policies_count = 0;
++  am->custom_access_output_policies_count = 0;
+   vlib_thread_main_t *tm = vlib_get_thread_main ();
+ 
+   am->fa_min_deleted_sessions_per_interval =
+diff --git a/src/plugins/acl/acl.h b/src/plugins/acl/acl.h
+index c540bf8fb..440097899 100644
+--- a/src/plugins/acl/acl.h
++++ b/src/plugins/acl/acl.h
+@@ -113,6 +113,11 @@ typedef struct
+   u8 from_tm;
+ } ace_mask_type_entry_t;
+ 
++/* This is a private experimental type, subject to change */
++typedef int (*acl_plugin_private_caiop_match_5tuple_func_t) (
++  void *p_acl_main, u32 sw_if_index, u32 is_inbound,
++  fa_5tuple_opaque_t *pkt_5tuple, int is_ip6, u8 *r_action, u32 *trace_bitmap);
++
+ typedef struct {
+   /* API message ID base */
+   u16 msg_id_base;
+@@ -168,7 +173,18 @@ typedef struct {
+   /* whether we need to take the epoch of the session into account */
+   int reclassify_sessions;
+ 
++  /* activation of dataplane for custom policies  when > 0 */
++  int custom_access_input_policies_count;
++  int custom_access_output_policies_count;
++  /* bitmaps when set the processing is enabled on the interface */
++  uword *caip_on_sw_if_index;
++  uword *caop_on_sw_if_index;
+ 
++  /* CAIOP match function vectors by sw_if_index */
++  acl_plugin_private_caiop_match_5tuple_func_t *
++    *caip_match_func_by_sw_if_index;
++  acl_plugin_private_caiop_match_5tuple_func_t *
++    *caop_match_func_by_sw_if_index;
+ 
+   /* Total count of interface+direction pairs enabled */
+   u32 fa_total_enabled_count;
+@@ -376,7 +392,10 @@ typedef enum {
+   ACL_FA_N_REQ,
+ } acl_fa_sess_req_t;
+ 
++int acl_interface_inout_enable_disable (acl_main_t *am, u32 sw_if_index,
++					int is_input, int enable_disable);
++int is_acl_enabled_on_sw_if_index (u32 sw_if_index, int is_input);
+ void aclp_post_session_change_request(acl_main_t *am, u32 target_thread, u32 target_session, acl_fa_sess_req_t request_type);
+ void aclp_swap_wip_and_pending_session_change_requests(acl_main_t *am, u32 target_thread);
+-
++void acl_plugin_wip_clear_sessions (u32 sw_if_index);
+ #endif
+diff --git a/src/plugins/acl/acl_caiop.c b/src/plugins/acl/acl_caiop.c
+new file mode 100644
+index 000000000..fa11d32a0
+--- /dev/null
++++ b/src/plugins/acl/acl_caiop.c
+@@ -0,0 +1,249 @@
++/*
++ * Copyright (c) 2016-2018 Cisco and/or its affiliates.
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at:
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#include <stddef.h>
++#include <netinet/in.h>
++
++#include <vlib/vlib.h>
++#include <vnet/vnet.h>
++#include <vnet/pg/pg.h>
++#include <vppinfra/error.h>
++
++#include <acl/acl.h>
++#include <vnet/ip/icmp46_packet.h>
++
++#include <plugins/acl/fa_node.h>
++#include <plugins/acl/acl.h>
++#include <plugins/acl/lookup_context.h>
++#include <plugins/acl/public_inlines.h>
++#include <plugins/acl/session_inlines.h>
++#include <plugins/acl/acl_util.h>
++#include <plugins/acl/acl_caiop.h>
++
++int
++is_acl_caiop_enabled_on_sw_if_index (u32 sw_if_index, int is_input)
++{
++  acl_main_t *am = &acl_main;
++  int ret = 0;
++  if (is_input)
++    {
++      ret = clib_bitmap_get (am->caip_on_sw_if_index, sw_if_index);
++    }
++  else
++    {
++      ret = clib_bitmap_get (am->caop_on_sw_if_index, sw_if_index);
++    }
++  return ret;
++}
++
++void
++acl_caiop_enable_disable (u32 sw_if_index, int is_input, int enable_disable)
++{
++  acl_main_t *am = &acl_main;
++
++  if (is_input)
++    {
++      ASSERT (clib_bitmap_get (am->caip_on_sw_if_index, sw_if_index) !=
++	      enable_disable);
++      am->caip_on_sw_if_index =
++	clib_bitmap_set (am->caip_on_sw_if_index, sw_if_index, enable_disable);
++    }
++  else
++    {
++      ASSERT (clib_bitmap_get (am->caop_on_sw_if_index, sw_if_index) !=
++	      enable_disable);
++      am->caop_on_sw_if_index =
++	clib_bitmap_set (am->caop_on_sw_if_index, sw_if_index, enable_disable);
++    }
++}
++
++static int
++not_found (u32 index)
++{
++  return (index == ((u32) ~0));
++}
++
++static int
++caiop_add (u32 sw_if_index, int is_input,
++	   acl_plugin_private_caiop_match_5tuple_func_t func)
++{
++  acl_main_t *am = &acl_main;
++  acl_plugin_private_caiop_match_5tuple_func_t ***pvecvec =
++    is_input ? &am->caip_match_func_by_sw_if_index :
++	       &am->caop_match_func_by_sw_if_index;
++  uword **pbitmap =
++    is_input ? &am->caip_on_sw_if_index : &am->caop_on_sw_if_index;
++  int *pcount = is_input ? &am->custom_access_input_policies_count :
++			   &am->custom_access_output_policies_count;
++
++  vec_validate (*pvecvec, sw_if_index);
++  u32 index = vec_search ((*pvecvec)[sw_if_index], func);
++  if (not_found (index))
++    {
++      vec_add1 ((*pvecvec)[sw_if_index], func);
++      *pbitmap = clib_bitmap_set (*pbitmap, sw_if_index, 1);
++      (*pcount)++;
++      return acl_interface_inout_enable_disable (am, sw_if_index, is_input, 1);
++    }
++  else
++    {
++      clib_warning ("Existing Index: %d", index);
++      return -2;
++    }
++}
++
++static int
++caiop_del (u32 sw_if_index, int is_input,
++	   acl_plugin_private_caiop_match_5tuple_func_t func)
++{
++  acl_main_t *am = &acl_main;
++  acl_plugin_private_caiop_match_5tuple_func_t ***pvecvec =
++    is_input ? &am->caip_match_func_by_sw_if_index :
++	       &am->caop_match_func_by_sw_if_index;
++  uword **pbitmap =
++    is_input ? &am->caip_on_sw_if_index : &am->caop_on_sw_if_index;
++  int *pcount = is_input ? &am->custom_access_input_policies_count :
++			   &am->custom_access_output_policies_count;
++
++  if (sw_if_index >= vec_len (*pvecvec))
++    {
++      return -2;
++    }
++  else
++    {
++      u32 index = vec_search ((*pvecvec)[sw_if_index], func);
++      if (not_found (index))
++	{
++	  return -3;
++	}
++      else
++	{
++	  vec_del1 ((*pvecvec)[sw_if_index], index);
++	  *pbitmap = clib_bitmap_set (*pbitmap, sw_if_index, 0);
++	  (*pcount)--;
++	  int enable = (*pcount > 0) ||
++		       is_acl_enabled_on_sw_if_index (sw_if_index, is_input);
++	  return acl_interface_inout_enable_disable (am, sw_if_index, is_input,
++						     enable);
++	}
++    }
++}
++
++int
++acl_caiop_add_del (int is_add, u32 sw_if_index, int is_input,
++		   acl_plugin_private_caiop_match_5tuple_func_t func)
++{
++  acl_main_t *am = &acl_main;
++  if (!vnet_sw_interface_is_api_valid (am->vnet_main, sw_if_index))
++    {
++      return -1;
++    }
++  return is_add ? caiop_add (sw_if_index, is_input, func) :
++		  caiop_del (sw_if_index, is_input, func);
++}
++
++void
++show_custom_access_policies (vlib_main_t *vm, u32 verbose)
++{
++  acl_main_t *am = &acl_main;
++  int i;
++  vlib_cli_output (vm, "\nCustom access policies:");
++  acl_cli_output_u (vm, am->custom_access_input_policies_count);
++  acl_cli_output_u (vm, am->custom_access_output_policies_count);
++  acl_cli_output_bitmap (vm, am->caip_on_sw_if_index);
++  acl_cli_output_bitmap (vm, am->caop_on_sw_if_index);
++  for (i = 0; i < vec_len (am->caip_match_func_by_sw_if_index); i++)
++    {
++      if (i == 0)
++	{
++	  vlib_cli_output (vm, "\n input function pointers:");
++	}
++      vlib_cli_output (vm, "sw_if_index: %d vector: %U", i, format_vec_uword,
++		       am->caip_match_func_by_sw_if_index[i], "%p");
++    }
++  for (i = 0; i < vec_len (am->caop_match_func_by_sw_if_index); i++)
++    {
++      if (i == 0)
++	{
++	  vlib_cli_output (vm, "\n output function pointers:");
++	}
++      vlib_cli_output (vm, "sw_if_index: %d vector: %U", i, format_vec_uword,
++		       am->caop_match_func_by_sw_if_index[i], "%p");
++    }
++}
++
++static clib_error_t *
++acl_show_custom_access_policies_fn (vlib_main_t *vm, unformat_input_t *input,
++				    vlib_cli_command_t *cmd)
++{
++  clib_error_t *error = 0;
++
++  u32 show_policies_verbose = 0;
++  (void) unformat (input, "verbose %u", &show_policies_verbose);
++
++  show_custom_access_policies (vm, show_policies_verbose);
++  return error;
++}
++
++static int
++dummy_match_5tuple_fun (void *p_acl_main, u32 sw_if_index, u32 is_inbound,
++			fa_5tuple_opaque_t *pkt_5tuple, int is_ip6,
++			u8 *r_action, u32 *trace_bitmap)
++{
++  /* permit and create connection */
++  *r_action = 2;
++  return 1;
++}
++
++static clib_error_t *
++acl_test_custom_access_policy_fn (vlib_main_t *vm, unformat_input_t *input,
++				  vlib_cli_command_t *cmd)
++{
++  clib_error_t *error = 0;
++  int is_del = unformat (input, "del");
++  int is_input = unformat (input, "input");
++  u32 sw_if_index = ~0;
++  (void) unformat (input, "sw_if_index %u", &sw_if_index);
++  vlib_cli_output (vm, "Test %s %s sw_if_index: %d", is_del ? "del" : "add",
++		   is_input ? "input" : "output", sw_if_index);
++  u32 ret =
++    acl_caiop_add_del (!is_del, sw_if_index, is_input, dummy_match_5tuple_fun);
++  if (ret != 0)
++    {
++      error = clib_error_return (0, "non-zero ret code: %d", ret);
++    }
++
++  return error;
++}
++
++VLIB_CLI_COMMAND (aclplugin_set_custom_policy_command, static) = {
++  .path = "show acl-plugin custom-access-policies",
++  .short_help = "show acl-plugin custom-access-policies [verbose]",
++  .function = acl_show_custom_access_policies_fn,
++};
++
++VLIB_CLI_COMMAND (aclplugin_test_custom_policy_command, static) = {
++  .path = "test acl-plugin custom-access-policy",
++  .short_help =
++    "test acl-plugin custom-access-policy [del] [input] [sw_if_index <N>]",
++  .function = acl_test_custom_access_policy_fn,
++};
++
++/*
++ * fd.io coding-style-patch-verification: ON
++ *
++ * Local Variables:
++ * eval: (c-set-style "gnu")
++ * End:
++ */
+diff --git a/src/plugins/acl/acl_caiop.h b/src/plugins/acl/acl_caiop.h
+new file mode 100644
+index 000000000..d26f39d6d
+--- /dev/null
++++ b/src/plugins/acl/acl_caiop.h
+@@ -0,0 +1,18 @@
++#ifndef vpp_acl_caiop_h
++#define vpp_acl_caiop_h
++
++#include <plugins/acl/acl.h>
++
++int is_acl_caiop_enabled_on_sw_if_index (u32 sw_if_index, int is_input);
++int acl_caiop_add_del (int is_add, u32 sw_if_index, int is_input,
++		       acl_plugin_private_caiop_match_5tuple_func_t func);
++
++#endif
++
++/*
++ * fd.io coding-style-patch-verification: ON
++ *
++ * Local Variables:
++ * eval: (c-set-style "gnu")
++ * End:
++ */
+diff --git a/src/plugins/acl/acl_util.h b/src/plugins/acl/acl_util.h
+new file mode 100644
+index 000000000..843a671ad
+--- /dev/null
++++ b/src/plugins/acl/acl_util.h
+@@ -0,0 +1,17 @@
++#ifndef vpp_acl_plugin_util_h
++#define vpp_acl_plugin_util_h
++
++#define acl_cli_output_u(vm, value)                                           \
++  vlib_cli_output (vm, "  %s: %u", #value, value)
++#define acl_cli_output_bitmap(vm, bitmap)                                     \
++  vlib_cli_output (vm, "  %s bitmap: %U", #bitmap, format_bitmap_hex, bitmap)
++
++#endif
++
++/*
++ * fd.io coding-style-patch-verification: ON
++ *
++ * Local Variables:
++ * eval: (c-set-style "gnu")
++ * End:
++ */
+diff --git a/src/plugins/acl/dataplane_node.c b/src/plugins/acl/dataplane_node.c
+index 4bef8f077..4ccc2a4b1 100644
+--- a/src/plugins/acl/dataplane_node.c
++++ b/src/plugins/acl/dataplane_node.c
+@@ -25,6 +25,7 @@
+ 
+ #include <plugins/acl/fa_node.h>
+ #include <plugins/acl/acl.h>
++#include <plugins/acl/acl_caiop.h>
+ #include <plugins/acl/lookup_context.h>
+ #include <plugins/acl/public_inlines.h>
+ #include <plugins/acl/session_inlines.h>
+@@ -318,13 +319,12 @@ acl_fa_node_common_prepare_fn (vlib_main_t * vm,
+     }
+ }
+ 
+-
+ always_inline uword
+-acl_fa_inner_node_fn (vlib_main_t * vm,
+-		      vlib_node_runtime_t * node, vlib_frame_t * frame,
+-		      int is_ip6, int is_input, int is_l2_path,
+-		      int with_stateful_datapath, int node_trace_on,
+-		      int reclassify_sessions)
++acl_fa_inner_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
++		      vlib_frame_t *frame, int is_ip6, int is_input,
++		      int is_l2_path, int with_stateful_datapath,
++		      int node_trace_on, int reclassify_sessions,
++		      const int do_custom_access_policies)
+ {
+   u32 n_left;
+   u32 pkts_exist_session = 0;
+@@ -465,39 +465,85 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
+ 
+ 	  if (acl_check_needed)
+ 	    {
+-	      if (is_input)
+-		lc_index0 = am->input_lc_index_by_sw_if_index[sw_if_index[0]];
+-	      else
+-		lc_index0 =
+-		  am->output_lc_index_by_sw_if_index[sw_if_index[0]];
+-
+-	      action = 0;	/* deny by default */
+-	      int is_match = acl_plugin_match_5tuple_inline (am, lc_index0,
+-							     (fa_5tuple_opaque_t *) & fa_5tuple[0], is_ip6,
+-							     &action,
+-							     &match_acl_pos,
+-							     &match_acl_in_index,
+-							     &match_rule_index,
+-							     &trace_bitmap);
+-	      if (PREDICT_FALSE
+-		  (is_match && am->interface_acl_counters_enabled))
++	      if (do_custom_access_policies)
+ 		{
+-		  u32 buf_len = vlib_buffer_length_in_chain (vm, b[0]);
+-		  vlib_increment_combined_counter (am->combined_acl_counters +
+-						   saved_matched_acl_index,
+-						   thread_index,
+-						   saved_matched_ace_index,
+-						   saved_packet_count,
+-						   saved_byte_count);
+-		  saved_matched_acl_index = match_acl_in_index;
+-		  saved_matched_ace_index = match_rule_index;
+-		  saved_packet_count = 1;
+-		  saved_byte_count = buf_len;
+-		  /* prefetch the counter that we are going to increment */
+-		  vlib_prefetch_combined_counter (am->combined_acl_counters +
+-						  saved_matched_acl_index,
+-						  thread_index,
+-						  saved_matched_ace_index);
++		  if (is_acl_caiop_enabled_on_sw_if_index (sw_if_index[0],
++							   is_input))
++		    {
++		      acl_plugin_private_caiop_match_5tuple_func_t
++			*caiop_match_vec,
++			*pf;
++
++		      if (is_input)
++			{
++			  caiop_match_vec =
++			    vec_elt (am->caip_match_func_by_sw_if_index,
++				     sw_if_index[0]);
++			}
++		      else
++			{
++			  caiop_match_vec =
++			    vec_elt (am->caop_match_func_by_sw_if_index,
++				     sw_if_index[0]);
++			}
++		      vec_foreach (pf, caiop_match_vec)
++			{
++			  int is_match =
++			    (*pf) (am, sw_if_index[0], is_input,
++				   (fa_5tuple_opaque_t *) &fa_5tuple[0],
++				   is_ip6, &action, &trace_bitmap);
++			  if (is_match)
++			    {
++			      acl_check_needed = 0;
++			      break;
++			    }
++			}
++		      /* If no match in policy but no ACL configured, bypass
++		       * the ACL check, else it will crash */
++		      if (acl_check_needed)
++			{
++			  if (is_input)
++			    acl_check_needed =
++			      vec_len (am->input_lc_index_by_sw_if_index) >
++			      sw_if_index[0];
++			  else
++			    acl_check_needed =
++			      vec_len (am->output_lc_index_by_sw_if_index) >
++			      sw_if_index[0];
++			}
++		    }
++		}
++	      if (acl_check_needed)
++		{
++		  if (is_input)
++		    lc_index0 =
++		      am->input_lc_index_by_sw_if_index[sw_if_index[0]];
++		  else
++		    lc_index0 =
++		      am->output_lc_index_by_sw_if_index[sw_if_index[0]];
++
++		  action = 0; /* deny by default */
++		  int is_match = acl_plugin_match_5tuple_inline (
++		    am, lc_index0, (fa_5tuple_opaque_t *) &fa_5tuple[0],
++		    is_ip6, &action, &match_acl_pos, &match_acl_in_index,
++		    &match_rule_index, &trace_bitmap);
++		  if (PREDICT_FALSE (is_match &&
++				     am->interface_acl_counters_enabled))
++		    {
++		      u32 buf_len = vlib_buffer_length_in_chain (vm, b[0]);
++		      vlib_increment_combined_counter (
++			am->combined_acl_counters + saved_matched_acl_index,
++			thread_index, saved_matched_ace_index,
++			saved_packet_count, saved_byte_count);
++		      saved_matched_acl_index = match_acl_in_index;
++		      saved_matched_ace_index = match_rule_index;
++		      saved_packet_count = 1;
++		      saved_byte_count = buf_len;
++		      /* prefetch the counter that we are going to increment */
++		      vlib_prefetch_combined_counter (
++			am->combined_acl_counters + saved_matched_acl_index,
++			thread_index, saved_matched_ace_index);
++		    }
+ 		}
+ 
+ 	      b[0]->error = error_node->errors[action];
+@@ -582,11 +628,10 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
+    * if we were had an acl match then we have a counter to increment.
+    * else it is all zeroes, so this will be harmless.
+    */
+-  vlib_increment_combined_counter (am->combined_acl_counters +
+-				   saved_matched_acl_index,
+-				   thread_index,
+-				   saved_matched_ace_index,
+-				   saved_packet_count, saved_byte_count);
++  if (am->combined_acl_counters && saved_packet_count)
++    vlib_increment_combined_counter (
++      am->combined_acl_counters + saved_matched_acl_index, thread_index,
++      saved_matched_ace_index, saved_packet_count, saved_byte_count);
+ 
+   vlib_node_increment_counter (vm, node->node_index,
+ 			       ACL_FA_ERROR_ACL_CHECK, frame->n_vectors);
+@@ -602,10 +647,10 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
+ }
+ 
+ always_inline uword
+-acl_fa_outer_node_fn (vlib_main_t * vm,
+-		      vlib_node_runtime_t * node, vlib_frame_t * frame,
+-		      int is_ip6, int is_input, int is_l2_path,
+-		      int do_stateful_datapath)
++acl_fa_outer_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
++		      vlib_frame_t *frame, int is_ip6, int is_input,
++		      int is_l2_path, int do_stateful_datapath,
++		      int do_custom_access_policies)
+ {
+   acl_main_t *am = &acl_main;
+ 
+@@ -615,25 +660,24 @@ acl_fa_outer_node_fn (vlib_main_t * vm,
+   if (am->reclassify_sessions)
+     {
+       if (PREDICT_FALSE (node->flags & VLIB_NODE_FLAG_TRACE))
+-	return acl_fa_inner_node_fn (vm, node, frame, is_ip6, is_input,
+-				     is_l2_path, do_stateful_datapath,
+-				     1 /* trace */ ,
+-				     1 /* reclassify */ );
++	return acl_fa_inner_node_fn (
++	  vm, node, frame, is_ip6, is_input, is_l2_path, do_stateful_datapath,
++	  1 /* trace */, 1 /* reclassify */, do_custom_access_policies);
+       else
+-	return acl_fa_inner_node_fn (vm, node, frame, is_ip6, is_input,
+-				     is_l2_path, do_stateful_datapath, 0,
+-				     1 /* reclassify */ );
++	return acl_fa_inner_node_fn (
++	  vm, node, frame, is_ip6, is_input, is_l2_path, do_stateful_datapath,
++	  0, 1 /* reclassify */, do_custom_access_policies);
+     }
+   else
+     {
+       if (PREDICT_FALSE (node->flags & VLIB_NODE_FLAG_TRACE))
+-	return acl_fa_inner_node_fn (vm, node, frame, is_ip6, is_input,
+-				     is_l2_path, do_stateful_datapath,
+-				     1 /* trace */ ,
+-				     0);
++	return acl_fa_inner_node_fn (
++	  vm, node, frame, is_ip6, is_input, is_l2_path, do_stateful_datapath,
++	  1 /* trace */, 0, do_custom_access_policies);
+       else
+ 	return acl_fa_inner_node_fn (vm, node, frame, is_ip6, is_input,
+-				     is_l2_path, do_stateful_datapath, 0, 0);
++				     is_l2_path, do_stateful_datapath, 0, 0,
++				     do_custom_access_policies);
+     }
+ }
+ 
+@@ -646,13 +690,35 @@ acl_fa_node_fn (vlib_main_t * vm,
+   acl_main_t *am = &acl_main;
+   acl_fa_per_worker_data_t *pw = &am->per_worker_data[vm->thread_index];
+   uword rv;
++  int do_custom_access_policies = 0;
++  if (is_input)
++    {
++      do_custom_access_policies = (am->custom_access_input_policies_count > 0);
++    }
++  else
++    {
++      do_custom_access_policies =
++	(am->custom_access_output_policies_count > 0);
++    }
+ 
+-  if (am->fa_sessions_hash_is_initialized)
+-    rv = acl_fa_outer_node_fn (vm, node, frame, is_ip6, is_input,
+-			       is_l2_path, 1);
++  if (do_custom_access_policies)
++    {
++      if (am->fa_sessions_hash_is_initialized)
++	rv = acl_fa_outer_node_fn (vm, node, frame, is_ip6, is_input,
++				   is_l2_path, 1, 1);
++      else
++	rv = acl_fa_outer_node_fn (vm, node, frame, is_ip6, is_input,
++				   is_l2_path, 0, 1);
++    }
+   else
+-    rv = acl_fa_outer_node_fn (vm, node, frame, is_ip6, is_input,
+-			       is_l2_path, 0);
++    {
++      if (am->fa_sessions_hash_is_initialized)
++	rv = acl_fa_outer_node_fn (vm, node, frame, is_ip6, is_input,
++				   is_l2_path, 1, 0);
++      else
++	rv = acl_fa_outer_node_fn (vm, node, frame, is_ip6, is_input,
++				   is_l2_path, 0, 0);
++    }
+ 
+   vlib_buffer_enqueue_to_next (vm, node, vlib_frame_vector_args (frame),
+ 			       pw->nexts, frame->n_vectors);
+diff --git a/src/plugins/acl/exported_types.h b/src/plugins/acl/exported_types.h
+index a5b1c3497..b052b818a 100644
+--- a/src/plugins/acl/exported_types.h
++++ b/src/plugins/acl/exported_types.h
+@@ -16,6 +16,9 @@
+ #ifndef included_acl_exported_types_h
+ #define included_acl_exported_types_h
+ 
++#include <vppinfra/types.h>
++#include <vlib/buffer.h>
++
+ /* 
+  * The overlay struct matching an internal type. Contents/size may change. 
+  * During the compile of the ACL plugin it is checked to have the same size
+@@ -74,15 +77,25 @@ typedef int (*acl_plugin_match_5tuple_fn_t) (u32 lc_index,
+                                            u32 * r_rule_match_p,
+                                            u32 * trace_bitmap);
+ 
++/*
++ * This is an experimental method, subject to change or disappear.
++ */
+ 
+-#define foreach_acl_plugin_exported_method_name \
+-_(acl_exists)                          \
+-_(register_user_module)                \
+-_(get_lookup_context_index)            \
+-_(put_lookup_context_index)            \
+-_(set_acl_vec_for_context)             \
+-_(fill_5tuple)                         \
+-_(match_5tuple)                        
++typedef int (*acl_plugin_wip_add_del_custom_access_io_policy_fn_t) (
++  int is_add, u32 sw_if_index, int is_input, void *func);
++
++typedef void (*acl_plugin_wip_clear_sessions_fn_t) (u32 sw_if_index);
++
++#define foreach_acl_plugin_exported_method_name                               \
++  _ (acl_exists)                                                              \
++  _ (register_user_module)                                                    \
++  _ (get_lookup_context_index)                                                \
++  _ (put_lookup_context_index)                                                \
++  _ (set_acl_vec_for_context)                                                 \
++  _ (wip_add_del_custom_access_io_policy)                                     \
++  _ (wip_clear_sessions)                                                      \
++  _ (fill_5tuple)                                                             \
++  _ (match_5tuple)
+ 
+ #define _(name) acl_plugin_ ## name ## _fn_t name;
+ typedef struct {
+diff --git a/src/plugins/acl/lookup_context.c b/src/plugins/acl/lookup_context.c
+index 8d1f3f20f..52641f9e7 100644
+--- a/src/plugins/acl/lookup_context.c
++++ b/src/plugins/acl/lookup_context.c
+@@ -14,6 +14,7 @@
+  */
+ 
+ #include <plugins/acl/acl.h>
++#include <plugins/acl/acl_caiop.h>
+ #include <plugins/acl/fa_node.h>
+ #include <vlib/unix/plugin.h>
+ #include <plugins/acl/public_inlines.h>
+@@ -282,7 +283,6 @@ void acl_plugin_lookup_context_notify_acl_change(u32 acl_num)
+   }
+ }
+ 
+-
+ /* Fill the 5-tuple from the packet */
+ 
+ static void acl_plugin_fill_5tuple (u32 lc_index, vlib_buffer_t * b0, int is_ip6, int is_input,
+@@ -302,6 +302,13 @@ static int acl_plugin_match_5tuple (u32 lc_index,
+   return acl_plugin_match_5tuple_inline (&acl_main, lc_index, pkt_5tuple, is_ip6, r_action, r_acl_pos_p, r_acl_match_p, r_rule_match_p, trace_bitmap);
+ }
+ 
++/* This is an experimental method, subject to change or disappear */
++static int
++acl_plugin_wip_add_del_custom_access_io_policy (int is_add, u32 sw_if_index,
++						int is_input, void *func)
++{
++  return acl_caiop_add_del (is_add, sw_if_index, is_input, func);
++}
+ 
+ void
+ acl_plugin_show_lookup_user (u32 user_index)
+-- 
+2.38.0
+
