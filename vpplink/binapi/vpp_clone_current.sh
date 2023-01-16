@@ -48,6 +48,14 @@ function git_cherry_pick ()
 	git commit --amend -m "gerrit:${refs#refs/changes/*/} $(git log -1 --pretty=%B)"
 }
 
+function git_apply_private ()
+{
+	refs=$1
+    blue "Applying $refs..."
+    git am < $SCRIPTDIR/patches/$refs
+}
+
+
 function git_revert ()
 {
 	refs=$1
@@ -92,9 +100,10 @@ git_cherry_pick refs/changes/34/34734/3 # 34734: memif: autogenerate socket_ids 
 git_cherry_pick refs/changes/26/34726/1 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 git_cherry_pick refs/changes/05/35805/2 # 35805: dpdk: add intf tag to dev{} subinput | https://gerrit.fd.io/r/c/vpp/+/35805
 
-# --------------- Dedicated plugins ---------------
-git_cherry_pick refs/changes/64/33264/7 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
-git_cherry_pick refs/changes/88/31588/4 # 31588: cnat: [WIP] no k8s maglev from pods | https://gerrit.fd.io/r/c/vpp/+/31588
-git_cherry_pick refs/changes/83/28083/21 # 28083: acl: acl-plugin custom policies |  https://gerrit.fd.io/r/c/vpp/+/28083
-git_cherry_pick refs/changes/13/28513/28 # 25813: capo: Calico Policies plugin | https://gerrit.fd.io/r/c/vpp/+/28513
-# --------------- Dedicated plugins ---------------
+# --------------- private plugins ---------------
+# Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^'
+git_apply_private 0001-pbl-Port-based-balancer.patch
+git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
+git_apply_private 0003-acl-acl-plugin-custom-policies.patch
+git_apply_private 0004-capo-Calico-Policies-plugin.patch
+
