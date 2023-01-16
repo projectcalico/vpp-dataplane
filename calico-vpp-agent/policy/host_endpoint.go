@@ -209,6 +209,7 @@ func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.Inter
 			if err != nil {
 				return nil, nil, err
 			}
+			pol.ReversedPolicyIds = append(pol.ReversedPolicyIds, newPol.VppID)
 			h.server.log.Infof("Created policy vpp-id=%d for forwardConf (ingress)", newPol.VppID)
 			conf.EgressPolicyIDs = append(conf.EgressPolicyIDs, newPol.VppID)
 			ownPolicies = append(ownPolicies, *newPol)
@@ -238,6 +239,7 @@ func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.Inter
 			if err != nil {
 				return nil, nil, err
 			}
+			pol.ReversedPolicyIds = append(pol.ReversedPolicyIds, newPol.VppID)
 			h.server.log.Infof("Created policy vpp-id=%d for forwardConf (egress)", newPol.VppID)
 			conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, newPol.VppID)
 			ownPolicies = append(ownPolicies, *newPol)

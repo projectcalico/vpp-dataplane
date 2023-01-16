@@ -41,6 +41,8 @@ type Policy struct {
 	VppID         uint32
 	InboundRules  []*Rule
 	OutboundRules []*Rule
+
+	ReversedPolicyIds []uint32
 }
 
 func (p *Policy) DeepCopy() *Policy {
@@ -188,6 +190,23 @@ func (p *Policy) Create(vpp *vpplink.VppLink, state *PolicyState) (err error) {
 	return nil
 }
 
+func (p *Policy) Reverse(vpp *vpplink.VppLink, state *PolicyState) (*Policy, error) {
+	// reverse policy inbound and outbound rules
+	newPol := &Policy{
+		Policy: &types.Policy{},
+		VppID:  types.InvalidID,
+	}
+	newPol.InboundRules = make([]*Rule, 0)
+	for _, r := range p.OutboundRules {
+		newPol.InboundRules = append(newPol.InboundRules, r.DeepCopy())
+	}
+	newPol.OutboundRules = make([]*Rule, 0)
+	for _, r := range p.InboundRules {
+		newPol.OutboundRules = append(newPol.OutboundRules, r.DeepCopy())
+	}
+	return newPol, nil
+}
+
 // Apply any changes to VPP and update this policy to new
 func (p *Policy) Update(vpp *vpplink.VppLink, new *Policy, state *PolicyState) (err error) {
 	// Start by creating new rules
@@ -200,6 +219,24 @@ func (p *Policy) Update(vpp *vpplink.VppLink, new *Policy, state *PolicyState) (
 	err = vpp.PolicyUpdate(p.VppID, new.Policy)
 	if err != nil {
 		return errors.Wrap(err, "cannot update policy")
+	}
+
+	// update reversedpolicy used for hostendpoint policies that are applied on forward
+	if len(p.ReversedPolicyIds) != 0 {
+		ReversedPolicy, err := new.Reverse(vpp, state)
+		if err != nil {
+			return errors.Wrap(err, "cannot reverse policy")
+		}
+		err = ReversedPolicy.createRules(vpp, state)
+		if err != nil {
+			return errors.Wrap(err, "cannot create rules for policy")
+		}
+		for _, policyId := range p.ReversedPolicyIds {
+			err = vpp.PolicyUpdate(policyId, ReversedPolicy.Policy)
+			if err != nil {
+				return errors.Wrap(err, "cannot update reversed policy")
+			}
+		}
 	}
 
 	// Delete old rules
@@ -228,5 +265,15 @@ func (p *Policy) Delete(vpp *vpplink.VppLink, state *PolicyState) (err error) {
 		return errors.Wrap(err, "cannot delete policy")
 	}
 	p.VppID = types.InvalidID
+	// delete reversedpolicy used for hostendpoint policies that are applied on forward
+	if len(p.ReversedPolicyIds) != 0 {
+		log.Infof("policy(del) VPP policy id=%d (reversed policy)", p.VppID)
+		for _, policyId := range p.ReversedPolicyIds {
+			err = vpp.PolicyDelete(policyId)
+			if err != nil {
+				return errors.Wrap(err, "cannot delete reverse policy")
+			}
+		}
+	}
 	return nil
 }
