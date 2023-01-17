@@ -1,4 +1,4 @@
-VPP Version                 : 23.02-rc0~185-g8991b1fdc
+VPP Version                 : 23.02-rc0~185-g6f7711c7b
 Binapi-generator version    : govpp v0.6.0-dev
 VPP Base commit             : e416893a5 tests: tapv2, tunv2 and af_packet interface tests for vpp
 ------------------ Cherry picked commits --------------------
