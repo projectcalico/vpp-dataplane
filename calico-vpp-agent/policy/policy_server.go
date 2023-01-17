@@ -82,6 +82,7 @@ type Server struct {
 	/* workloadToHost may drop traffic that goes from the pods to the host */
 	workloadsToHostIPSet  *IPSet
 	workloadsToHostPolicy *Policy
+	workloadAddresses     map[string]string
 	/* always allow traffic coming from host to the pods (for healthchecks and so on) */
 	allowFromHostPolicyId uint32
 	/* allow traffic between uplink/tunnels and tap interfaces */
@@ -142,6 +143,7 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		failSafePolicyId:      types.InvalidID,
 		allowFromHostPolicyId: types.InvalidID,
 		allowToHostPolicyId:   types.InvalidID,
+		workloadAddresses:     make(map[string]string),
 	}
 
 	reg := common.RegisterHandler(server.policyServerEventChan, "policy server events")
@@ -290,11 +292,12 @@ func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, ifName 
 		}
 	}
 	// EndpointToHostAction
+	allMembers := []string{}
+	for _, containerIP := range containerIPs {
+		allMembers = append(allMembers, containerIP.IP.String())
+		s.workloadAddresses[containerIP.IP.String()] = ""
+	}
 	if s.getEndpointToHostAction() == "DROP" {
-		allMembers := []string{}
-		for _, containerIP := range containerIPs {
-			allMembers = append(allMembers, containerIP.IP.String())
-		}
 		err := s.workloadsToHostIPSet.AddMembers(allMembers, true, s.vpp)
 		if err != nil {
 			s.log.Errorf("Error processing workload addition: %s", err)
@@ -328,11 +331,12 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 	}
 	delete(s.endpointsInterfaces, *id)
 	// EndpointToHostAction
+	allMembers := []string{}
+	for _, containerIP := range containerIPs {
+		allMembers = append(allMembers, containerIP.IP.String())
+		delete(s.workloadAddresses, containerIP.IP.String())
+	}
 	if s.getEndpointToHostAction() == "DROP" {
-		allMembers := []string{}
-		for _, containerIP := range containerIPs {
-			allMembers = append(allMembers, containerIP.IP.String())
-		}
 		err := s.workloadsToHostIPSet.RemoveMembers(allMembers, true, s.vpp)
 		if err != nil {
 			s.log.Errorf("Error workloadsToHostIPSet.RemoveMembers: %s", err)
@@ -663,9 +667,23 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 	})
 
 	if s.felixConfig.DefaultEndpointToHostAction != oldFelixConfig.DefaultEndpointToHostAction {
-		s.log.Infof("TODO : default endpoint to host action changed")
+		s.log.Infof("Change in EndpointToHostAction to %s", s.getEndpointToHostAction())
+		allMembers := []string{}
+		for addr := range s.workloadAddresses {
+			allMembers = append(allMembers, addr)
+		}
+		if s.getEndpointToHostAction() == "ACCEPT" {
+			err := s.workloadsToHostIPSet.RemoveMembers(allMembers, true, s.vpp)
+			if err != nil {
+				s.log.Errorf("Error workloadsToHostIPSet.RemoveMembers: %s", err)
+			}
+		} else if s.getEndpointToHostAction() == "DROP" {
+			err := s.workloadsToHostIPSet.AddMembers(allMembers, true, s.vpp)
+			if err != nil {
+				s.log.Errorf("Error processing workload addition: %s", err)
+			}
+		}
 	}
-
 	if !protoPortListEqual(s.felixConfig.FailsafeInboundHostPorts, oldFelixConfig.FailsafeInboundHostPorts) ||
 		!protoPortListEqual(s.felixConfig.FailsafeOutboundHostPorts, oldFelixConfig.FailsafeOutboundHostPorts) {
 		err = s.createFailSafePolicies()
