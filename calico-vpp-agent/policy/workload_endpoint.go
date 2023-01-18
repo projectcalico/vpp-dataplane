@@ -121,7 +121,7 @@ func (w *WorkloadEndpoint) getPolicies(state *PolicyState, network string) (conf
 		conf.ProfileIDs = append(conf.ProfileIDs, prof.VppID)
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
-		conf.IngressPolicyIDs = append([]uint32{w.server.allowFromHostPolicyId}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{w.server.IngressAllowFromHostPolicyId}, conf.IngressPolicyIDs...)
 	}
 	return conf, nil
 }

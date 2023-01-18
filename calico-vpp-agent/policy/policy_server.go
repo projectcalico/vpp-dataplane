@@ -84,7 +84,9 @@ type Server struct {
 	workloadsToHostPolicy *Policy
 	workloadAddresses     map[string]string
 	/* always allow traffic coming from host to the pods (for healthchecks and so on) */
-	allowFromHostPolicyId uint32
+	IngressAllowFromHostPolicyId uint32
+	EgressAllowFromHostPolicyId  uint32
+	AllowFromHostIPSet           *IPSet
 	/* allow traffic between uplink/tunnels and tap interfaces */
 	allowToHostPolicyId uint32
 	ip4                 *net.IP
@@ -140,10 +142,11 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		nodeStatesByName:  make(map[string]*common.LocalNodeSpec),
 		gotOurNodeBGPchan: make(chan common.LocalNodeSpec),
 
-		failSafePolicyId:      types.InvalidID,
-		allowFromHostPolicyId: types.InvalidID,
-		allowToHostPolicyId:   types.InvalidID,
-		workloadAddresses:     make(map[string]string),
+		failSafePolicyId:             types.InvalidID,
+		allowToHostPolicyId:          types.InvalidID,
+		workloadAddresses:            make(map[string]string),
+		IngressAllowFromHostPolicyId: types.InvalidID,
+		EgressAllowFromHostPolicyId:  types.InvalidID,
 	}
 
 	reg := common.RegisterHandler(server.policyServerEventChan, "policy server events")
@@ -297,6 +300,10 @@ func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, ifName 
 		allMembers = append(allMembers, containerIP.IP.String())
 		s.workloadAddresses[containerIP.IP.String()] = ""
 	}
+	err := s.AllowFromHostIPSet.AddMembers(allMembers, true, s.vpp)
+	if err != nil {
+		s.log.Errorf("Error processing workload addition: %s", err)
+	}
 	if s.getEndpointToHostAction() == "DROP" {
 		err := s.workloadsToHostIPSet.AddMembers(allMembers, true, s.vpp)
 		if err != nil {
@@ -335,6 +342,10 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 	for _, containerIP := range containerIPs {
 		allMembers = append(allMembers, containerIP.IP.String())
 		delete(s.workloadAddresses, containerIP.IP.String())
+	}
+	err := s.AllowFromHostIPSet.RemoveMembers(allMembers, true, s.vpp)
+	if err != nil {
+		s.log.Errorf("Error workloadsToHostIPSet.RemoveMembers: %s", err)
 	}
 	if s.getEndpointToHostAction() == "DROP" {
 		err := s.workloadsToHostIPSet.RemoveMembers(allMembers, true, s.vpp)
@@ -444,9 +455,13 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 	if err != nil {
 		return errors.Wrap(err, "Error in createEndpointToHostPolicy")
 	}
-	err = s.createAllowFromHostPolicy()
+	err = s.createIngressAllowFromHostPolicy()
 	if err != nil {
-		return errors.Wrap(err, "Error in createAllowFromHostPolicy")
+		return errors.Wrap(err, "Error in createIngressAllowFromHostPolicy")
+	}
+	err = s.createEgressAllowFromHostPolicy()
+	if err != nil {
+		return errors.Wrap(err, "Error in createEgressAllowFromHostPolicy")
 	}
 	err = s.createAllowToHostPolicy()
 	if err != nil {
@@ -1251,9 +1266,9 @@ func (s *Server) onNodeAdded(node *common.LocalNodeSpec) (err error) {
 		if node.IPv6Address != nil {
 			s.ip6 = &node.IPv6Address.IP
 		}
-		err = s.createAllowFromHostPolicy()
+		err = s.createIngressAllowFromHostPolicy()
 		if err != nil {
-			return errors.Wrap(err, "Error in createAllowFromHostPolicy")
+			return errors.Wrap(err, "Error in createIngressAllowFromHostPolicy")
 		}
 		err = s.createAllowToHostPolicy()
 		if err != nil {
@@ -1606,11 +1621,11 @@ func (s *Server) createAllowToHostPolicy() (err error) {
 	return errors.Wrap(err, "cannot create policy to allow traffic to host")
 }
 
-func (s *Server) createAllowFromHostPolicy() (err error) {
+func (s *Server) createIngressAllowFromHostPolicy() (err error) {
 	s.log.Infof("Creating policy to allow traffic from host with ingress policies")
 	r := &Rule{
 		VppID:  types.InvalidID,
-		RuleID: "calicovpp-internal-allowfromhost",
+		RuleID: "calicovpp-internal-ingressallowfromhost",
 		Rule: &types.Rule{
 			Action: types.ActionAllow,
 			SrcNet: []net.IPNet{},
@@ -1625,12 +1640,40 @@ func (s *Server) createAllowFromHostPolicy() (err error) {
 
 	allowFromHostPolicy := &Policy{
 		Policy: &types.Policy{},
-		VppID:  s.allowFromHostPolicyId,
+		VppID:  s.IngressAllowFromHostPolicyId,
 	}
 	allowFromHostPolicy.InboundRules = append(allowFromHostPolicy.InboundRules, r)
 	err = allowFromHostPolicy.Create(s.vpp, nil)
-	s.allowFromHostPolicyId = allowFromHostPolicy.VppID
-	return errors.Wrap(err, "cannot create policy to allow traffic from host")
+	s.IngressAllowFromHostPolicyId = allowFromHostPolicy.VppID
+	return errors.Wrap(err, "cannot create policy to allow ingress traffic from host")
+}
+
+func (s *Server) createEgressAllowFromHostPolicy() (err error) {
+	s.log.Infof("Creating policy to allow traffic from host to pods with egress policies")
+	r := &Rule{
+		VppID: types.InvalidID,
+		Rule: &types.Rule{
+			Action: types.ActionAllow,
+		},
+		DstIPSetNames: []string{"ipset-allow-to-pods"},
+	}
+	ipset := NewIPSet()
+	ps := PolicyState{IPSets: map[string]*IPSet{"ipset-allow-to-pods": ipset}}
+	err = ipset.Create(s.vpp)
+	if err != nil {
+		return err
+	}
+
+	allowFromHostPolicy := &Policy{
+		Policy: &types.Policy{},
+		VppID:  s.EgressAllowFromHostPolicyId,
+	}
+	allowFromHostPolicy.OutboundRules = append(allowFromHostPolicy.OutboundRules, r)
+	err = allowFromHostPolicy.Create(s.vpp, &ps)
+
+	s.AllowFromHostIPSet = ipset
+	s.EgressAllowFromHostPolicyId = allowFromHostPolicy.VppID
+	return errors.Wrap(err, "cannot create policy to allow traffic from host to pods on egress")
 }
 
 func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
