@@ -967,7 +967,6 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 	existing, found := state.HostEndpoints[*id]
 	if found {
 		if pending {
-			hep.ownPolicies = existing.ownPolicies
 			hep.currentForwardConf = existing.currentForwardConf
 			state.HostEndpoints[*id] = hep
 		} else {
@@ -1582,8 +1581,8 @@ func (s *Server) createAllowToHostPolicy() (err error) {
 		Policy: &types.Policy{},
 		VppID:  s.allowToHostPolicyId,
 	}
-	allowToHostPolicy.InboundRules = append(allowToHostPolicy.InboundRules, r_out)
-	allowToHostPolicy.OutboundRules = append(allowToHostPolicy.OutboundRules, r_in)
+	allowToHostPolicy.InboundRules = append(allowToHostPolicy.InboundRules, r_in)
+	allowToHostPolicy.OutboundRules = append(allowToHostPolicy.OutboundRules, r_out)
 	err = allowToHostPolicy.Create(s.vpp, nil)
 	s.allowToHostPolicyId = allowToHostPolicy.VppID
 	return errors.Wrap(err, "cannot create policy to allow traffic to host")
@@ -1665,7 +1664,7 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 		s.log.Error(err)
 	}
 	for _, swifindex := range swifindexes {
-		err = s.vpp.ConfigurePolicies(uint32(swifindex), conf)
+		err = s.vpp.ConfigurePolicies(uint32(swifindex), conf, 0)
 		if err != nil {
 			s.log.Error("cannot create policy to drop traffic to host")
 		}

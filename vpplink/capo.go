@@ -225,7 +225,7 @@ func (v *VppLink) PolicyDelete(policyId uint32) (err error) {
 	return nil
 }
 
-func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfig) (err error) {
+func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfig, invertRxTx uint8) (err error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	// In the calico agent, policies are expressed from the point of view of PODs
@@ -243,6 +243,7 @@ func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfi
 		NumTxPolicies: uint32(len(txPolicyIDs)),
 		TotalIds:      uint32(len(rxPolicyIDs) + len(txPolicyIDs) + len(profileIDs)),
 		PolicyIds:     ids,
+		InvertRxTx:    invertRxTx,
 	}
 	err = v.ch.SendRequest(request).ReceiveReply(response)
 	if err != nil {
