@@ -132,7 +132,7 @@ func (w *WorkloadEndpoint) Create(vpp *vpplink.VppLink, swIfIndexes []uint32, st
 		return err
 	}
 	for _, swIfIndex := range swIfIndexes {
-		err = vpp.ConfigurePolicies(swIfIndex, conf)
+		err = vpp.ConfigurePolicies(swIfIndex, conf, 0)
 		if err != nil {
 			return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
 		}
@@ -148,7 +148,7 @@ func (w *WorkloadEndpoint) Update(vpp *vpplink.VppLink, new *WorkloadEndpoint, s
 		return err
 	}
 	for _, swIfIndex := range w.SwIfIndex {
-		err = vpp.ConfigurePolicies(swIfIndex, conf)
+		err = vpp.ConfigurePolicies(swIfIndex, conf, 0)
 		if err != nil {
 			return errors.Wrapf(err, "cannot configure policies on interface %d", swIfIndex)
 		}
