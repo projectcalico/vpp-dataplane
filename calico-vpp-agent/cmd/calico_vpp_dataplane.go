@@ -20,7 +20,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	bgpserver "github.com/osrg/gobgp/pkg/server"
+	bgpserver "github.com/osrg/gobgp/v3/pkg/server"
 	"github.com/pkg/errors"
 	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"

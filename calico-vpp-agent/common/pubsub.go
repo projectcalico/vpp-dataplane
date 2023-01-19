@@ -55,9 +55,6 @@ const (
 	BGPPathAdded   CalicoVppEventType = "BGPPathAdded"
 	BGPPathDeleted CalicoVppEventType = "BGPPathDeleted"
 
-	BGPReloadIP4 CalicoVppEventType = "BGPReloadIP4"
-	BGPReloadIP6 CalicoVppEventType = "BGPReloadIP6"
-
 	NetAddedOrUpdated CalicoVppEventType = "NetAddedOrUpdated"
 	NetDeleted        CalicoVppEventType = "NetDeleted"
 	NetsSynced        CalicoVppEventType = "NetsSynced"

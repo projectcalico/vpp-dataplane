@@ -28,7 +28,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	gs "github.com/onsi/gomega/gstruct"
-	gobgpapi "github.com/osrg/gobgp/api"
+	gobgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/calico/felix/config"

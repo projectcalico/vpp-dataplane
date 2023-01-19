@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	bgpapi "github.com/osrg/gobgp/api"
+	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/sr"

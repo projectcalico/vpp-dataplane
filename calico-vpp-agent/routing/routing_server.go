@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"net"
 
-	bgpapi "github.com/osrg/gobgp/api"
-	bgpserver "github.com/osrg/gobgp/pkg/server"
+	bgpapi "github.com/osrg/gobgp/v3/api"
+	bgpserver "github.com/osrg/gobgp/v3/pkg/server"
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/sirupsen/logrus"
@@ -86,8 +86,6 @@ func NewRoutingServer(vpp *vpplink.VppLink, bgpServer *bgpserver.BgpServer, log 
 	reg.ExpectEvents(
 		common.LocalPodAddressAdded,
 		common.LocalPodAddressDeleted,
-		common.BGPReloadIP4,
-		common.BGPReloadIP6,
 		common.BGPPathAdded,
 		common.BGPPathDeleted,
 		common.BGPDefinedSetAdded,
@@ -193,7 +191,7 @@ func (s *Server) getGoBGPGlobalConfig() (*bgpapi.Global, error) {
 		return nil, fmt.Errorf("No IPs to make a router ID")
 	}
 	return &bgpapi.Global{
-		As:              uint32(*asn),
+		Asn:             uint32(*asn),
 		RouterId:        routerId,
 		ListenPort:      int32(s.getListenPort()),
 		ListenAddresses: listenAddresses,
