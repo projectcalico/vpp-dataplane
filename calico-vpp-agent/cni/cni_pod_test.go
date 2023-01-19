@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -107,6 +108,14 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						},
 					}
 					common.VppManagerInfo = &config.VppManagerInfo{}
+					os.Setenv("NODENAME", ThisNodeName)
+					os.Setenv("CALICOVPP_CONFIG_TEMPLATE", "sss")
+					err = config.LoadConfigSilent(log)
+					if err != nil {
+						log.Error(err)
+					}
+					config.GetCalicoVppFeatureGates().IPSecEnabled = &config.False
+					config.GetCalicoVppDebug().GSOEnabled = &config.True
 					reply, err := cniServer.Add(context.Background(), newPod)
 					Expect(err).ToNot(HaveOccurred(), "Pod addition failed")
 					Expect(reply.Successful).To(BeTrue(),
@@ -217,7 +226,8 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					Expect(memifs[0].Role).To(Equal(types.MemifMaster))
 					Expect(memifs[0].Mode).To(Equal(types.MemifModeEthernet))
 					Expect(memifs[0].Flags&types.MemifAdminUp > 0).To(BeTrue())
-					Expect(memifs[0].QueueSize).To(Equal(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize))
+					// Note: queues are allocated only when a client is listening
+					// Expect(memifs[0].QueueSize).To(Equal(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize))
 					//Note:Memif.NumRxQueues and Memif.NumTxQueues is not dumped by VPP binary API dump -> can't test it
 
 					By("Checking secondary tunnel's memif socket file") // checking only VPP setting, not file socket presence
