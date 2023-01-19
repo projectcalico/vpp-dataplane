@@ -1,11 +1,12 @@
-VPP Version                 : 23.02-rc0~185-g6f7711c7b
+VPP Version                 : 23.06-rc0~11-g50e4f4e80
 Binapi-generator version    : govpp v0.6.0-dev
-VPP Base commit             : e416893a5 tests: tapv2, tunv2 and af_packet interface tests for vpp
+VPP Base commit             : 8a0fd0669 af_packet: add the missing header-len for packets with checksum offload
 ------------------ Cherry picked commits --------------------
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:37931/1 ip: add the missing offload check
 gerrit:35805/2 dpdk: add intf tag to dev{} subinput
 gerrit:34726/1 interface: add buffer stats api
 gerrit:34734/3 memif: autogenerate socket_ids
