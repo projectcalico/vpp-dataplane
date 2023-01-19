@@ -5,7 +5,7 @@
 // Contents:
 //
 //	 2 structs
-//	48 messages
+//	50 messages
 package ipsec
 
 import (
@@ -26,7 +26,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ipsec"
 	APIVersion = "5.0.2"
-	VersionCrc = 0xd8d93805
+	VersionCrc = 0x9dfdcc71
 )
 
 // IpsecItf defines type 'ipsec_itf'.
@@ -1481,6 +1481,121 @@ func (m *IpsecSadEntryDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IpsecSadEntryUpdate defines message 'ipsec_sad_entry_update'.
+type IpsecSadEntryUpdate struct {
+	SadID      uint32              `binapi:"u32,name=sad_id" json:"sad_id,omitempty"`
+	IsTun      bool                `binapi:"bool,name=is_tun" json:"is_tun,omitempty"`
+	Tunnel     tunnel_types.Tunnel `binapi:"tunnel,name=tunnel" json:"tunnel,omitempty"`
+	UDPSrcPort uint16              `binapi:"u16,name=udp_src_port,default=65535" json:"udp_src_port,omitempty"`
+	UDPDstPort uint16              `binapi:"u16,name=udp_dst_port,default=65535" json:"udp_dst_port,omitempty"`
+}
+
+func (m *IpsecSadEntryUpdate) Reset()               { *m = IpsecSadEntryUpdate{} }
+func (*IpsecSadEntryUpdate) GetMessageName() string { return "ipsec_sad_entry_update" }
+func (*IpsecSadEntryUpdate) GetCrcString() string   { return "1412af86" }
+func (*IpsecSadEntryUpdate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IpsecSadEntryUpdate) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4      // m.SadID
+	size += 1      // m.IsTun
+	size += 4      // m.Tunnel.Instance
+	size += 1      // m.Tunnel.Src.Af
+	size += 1 * 16 // m.Tunnel.Src.Un
+	size += 1      // m.Tunnel.Dst.Af
+	size += 1 * 16 // m.Tunnel.Dst.Un
+	size += 4      // m.Tunnel.SwIfIndex
+	size += 4      // m.Tunnel.TableID
+	size += 1      // m.Tunnel.EncapDecapFlags
+	size += 1      // m.Tunnel.Mode
+	size += 1      // m.Tunnel.Flags
+	size += 1      // m.Tunnel.Dscp
+	size += 1      // m.Tunnel.HopLimit
+	size += 2      // m.UDPSrcPort
+	size += 2      // m.UDPDstPort
+	return size
+}
+func (m *IpsecSadEntryUpdate) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.SadID)
+	buf.EncodeBool(m.IsTun)
+	buf.EncodeUint32(m.Tunnel.Instance)
+	buf.EncodeUint8(uint8(m.Tunnel.Src.Af))
+	buf.EncodeBytes(m.Tunnel.Src.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(uint8(m.Tunnel.Dst.Af))
+	buf.EncodeBytes(m.Tunnel.Dst.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint32(uint32(m.Tunnel.SwIfIndex))
+	buf.EncodeUint32(m.Tunnel.TableID)
+	buf.EncodeUint8(uint8(m.Tunnel.EncapDecapFlags))
+	buf.EncodeUint8(uint8(m.Tunnel.Mode))
+	buf.EncodeUint8(uint8(m.Tunnel.Flags))
+	buf.EncodeUint8(uint8(m.Tunnel.Dscp))
+	buf.EncodeUint8(m.Tunnel.HopLimit)
+	buf.EncodeUint16(m.UDPSrcPort)
+	buf.EncodeUint16(m.UDPDstPort)
+	return buf.Bytes(), nil
+}
+func (m *IpsecSadEntryUpdate) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SadID = buf.DecodeUint32()
+	m.IsTun = buf.DecodeBool()
+	m.Tunnel.Instance = buf.DecodeUint32()
+	m.Tunnel.Src.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Tunnel.Src.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Tunnel.Dst.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Tunnel.Dst.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Tunnel.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.Tunnel.TableID = buf.DecodeUint32()
+	m.Tunnel.EncapDecapFlags = tunnel_types.TunnelEncapDecapFlags(buf.DecodeUint8())
+	m.Tunnel.Mode = tunnel_types.TunnelMode(buf.DecodeUint8())
+	m.Tunnel.Flags = tunnel_types.TunnelFlags(buf.DecodeUint8())
+	m.Tunnel.Dscp = ip_types.IPDscp(buf.DecodeUint8())
+	m.Tunnel.HopLimit = buf.DecodeUint8()
+	m.UDPSrcPort = buf.DecodeUint16()
+	m.UDPDstPort = buf.DecodeUint16()
+	return nil
+}
+
+// IpsecSadEntryUpdateReply defines message 'ipsec_sad_entry_update_reply'.
+type IpsecSadEntryUpdateReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *IpsecSadEntryUpdateReply) Reset()               { *m = IpsecSadEntryUpdateReply{} }
+func (*IpsecSadEntryUpdateReply) GetMessageName() string { return "ipsec_sad_entry_update_reply" }
+func (*IpsecSadEntryUpdateReply) GetCrcString() string   { return "e8d4e804" }
+func (*IpsecSadEntryUpdateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IpsecSadEntryUpdateReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *IpsecSadEntryUpdateReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *IpsecSadEntryUpdateReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // IpsecSelectBackend defines message 'ipsec_select_backend'.
 type IpsecSelectBackend struct {
 	Protocol ipsec_types.IpsecProto `binapi:"ipsec_proto,name=protocol" json:"protocol,omitempty"`
@@ -2481,6 +2596,8 @@ func file_ipsec_binapi_init() {
 	api.RegisterMessage((*IpsecSadEntryAddReply)(nil), "ipsec_sad_entry_add_reply_9ffac24b")
 	api.RegisterMessage((*IpsecSadEntryDel)(nil), "ipsec_sad_entry_del_3a91bde5")
 	api.RegisterMessage((*IpsecSadEntryDelReply)(nil), "ipsec_sad_entry_del_reply_e8d4e804")
+	api.RegisterMessage((*IpsecSadEntryUpdate)(nil), "ipsec_sad_entry_update_1412af86")
+	api.RegisterMessage((*IpsecSadEntryUpdateReply)(nil), "ipsec_sad_entry_update_reply_e8d4e804")
 	api.RegisterMessage((*IpsecSelectBackend)(nil), "ipsec_select_backend_5bcfd3b7")
 	api.RegisterMessage((*IpsecSelectBackendReply)(nil), "ipsec_select_backend_reply_e8d4e804")
 	api.RegisterMessage((*IpsecSetAsyncMode)(nil), "ipsec_set_async_mode_a6465f7c")
@@ -2534,6 +2651,8 @@ func AllMessages() []api.Message {
 		(*IpsecSadEntryAddReply)(nil),
 		(*IpsecSadEntryDel)(nil),
 		(*IpsecSadEntryDelReply)(nil),
+		(*IpsecSadEntryUpdate)(nil),
+		(*IpsecSadEntryUpdateReply)(nil),
 		(*IpsecSelectBackend)(nil),
 		(*IpsecSelectBackendReply)(nil),
 		(*IpsecSetAsyncMode)(nil),
