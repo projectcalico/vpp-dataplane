@@ -19,6 +19,7 @@ RUN apt-get update \
 	python3-virtualenv \
 	libssl-dev \
 	libelf-dev \
+	libpcap-dev iperf ethtool \
 	iperf3 \
 	nasm \
 	clang clang-format-11 \
