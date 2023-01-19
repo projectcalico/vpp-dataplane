@@ -16,7 +16,7 @@
 package routing
 
 import (
-	bgpapi "github.com/osrg/gobgp/api"
+	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"golang.org/x/net/context"
@@ -59,8 +59,8 @@ func (s *Server) initialPolicySetting(isv6 bool) error {
 			{
 				Conditions: &bgpapi.Conditions{
 					PrefixSet: &bgpapi.MatchSet{
-						MatchType: bgpapi.MatchType_ANY,
-						Name:      aggregatedPrefixSetName,
+						Type: bgpapi.MatchSet_ANY,
+						Name: aggregatedPrefixSetName,
 					},
 				},
 				Actions: &bgpapi.Actions{
@@ -70,8 +70,8 @@ func (s *Server) initialPolicySetting(isv6 bool) error {
 			{
 				Conditions: &bgpapi.Conditions{
 					PrefixSet: &bgpapi.MatchSet{
-						MatchType: bgpapi.MatchType_ANY,
-						Name:      hostPrefixSetName,
+						Type: bgpapi.MatchSet_ANY,
+						Name: hostPrefixSetName,
 					},
 				},
 				Actions: &bgpapi.Actions{

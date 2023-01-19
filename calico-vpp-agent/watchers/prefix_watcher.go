@@ -21,8 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	bgpapi "github.com/osrg/gobgp/api"
+	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
@@ -170,7 +169,7 @@ func (w *PrefixWatcher) updateBGPPaths(paths []*bgpapi.Path) error {
 //	add "192.168.1.0/26..32" to 'host'       set
 func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 	ipAddrPrefixNlri := &bgpapi.IPAddressPrefix{}
-	err := ptypes.UnmarshalAny(path.Nlri, ipAddrPrefixNlri)
+	err := path.Nlri.UnmarshalTo(ipAddrPrefixNlri)
 	if err != nil {
 		return fmt.Errorf("Cannot handle Nlri: %+v", path.Nlri)
 	}

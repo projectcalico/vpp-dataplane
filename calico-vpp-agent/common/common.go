@@ -28,16 +28,15 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
-	bgpapi "github.com/osrg/gobgp/api"
+	bgpapi "github.com/osrg/gobgp/v3/api"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/api/pkg/lib/numorstring"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	apb "google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -228,16 +227,16 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 	if p.To4() == nil {
 		v4 = false
 	}
-	var nlri *anypb.Any
+	var nlri *apb.Any
 	if vni != 0 {
-		rdAttr, err := ptypes.MarshalAny(&bgpapi.RouteDistinguisherTwoOctetAS{
+		rdAttr, err := apb.New(&bgpapi.RouteDistinguisherTwoOctetASN{
 			Admin:    asNumber,
 			Assigned: vni,
 		})
 		if err != nil {
 			return nil, err
 		}
-		nlri, err = ptypes.MarshalAny(&bgpapi.LabeledVPNIPAddressPrefix{
+		nlri, err = apb.New(&bgpapi.LabeledVPNIPAddressPrefix{
 			Prefix:    p.String(),
 			PrefixLen: uint32(masklen),
 			Rd:        rdAttr,
@@ -246,7 +245,7 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 			return nil, err
 		}
 	} else {
-		nlri, err = ptypes.MarshalAny(&bgpapi.IPAddressPrefix{
+		nlri, err = apb.New(&bgpapi.IPAddressPrefix{
 			Prefix:    p.String(),
 			PrefixLen: uint32(masklen),
 		})
@@ -255,11 +254,11 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 		}
 	}
 	var family *bgpapi.Family
-	originAttr, err := ptypes.MarshalAny(&bgpapi.OriginAttribute{Origin: 0})
+	originAttr, err := apb.New(&bgpapi.OriginAttribute{Origin: 0})
 	if err != nil {
 		return nil, err
 	}
-	attrs := []*any.Any{originAttr}
+	attrs := []*apb.Any{originAttr}
 
 	if v4 {
 		if nodeIpv4 == nil {
@@ -269,14 +268,14 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 		if vni != 0 {
 			family = &BgpFamilyUnicastIPv4VPN
 		}
-		var nhAttr *any.Any
+		var nhAttr *apb.Any
 
 		if *config.GetCalicoVppFeatureGates().SRv6Enabled {
-			nhAttr, err = ptypes.MarshalAny(&bgpapi.NextHopAttribute{
+			nhAttr, err = apb.New(&bgpapi.NextHopAttribute{
 				NextHop: nodeIpv6.String(),
 			})
 		} else {
-			nhAttr, err = ptypes.MarshalAny(&bgpapi.NextHopAttribute{
+			nhAttr, err = apb.New(&bgpapi.NextHopAttribute{
 				NextHop: nodeIpv4.String(),
 			})
 		}
@@ -292,16 +291,16 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 		if vni != 0 {
 			family = &BgpFamilyUnicastIPv6VPN
 		}
-		var nlriAttr *anypb.Any
+		var nlriAttr *apb.Any
 		var familySafi bgpapi.Family_Safi
 		if vni != 0 {
 			familySafi = bgpapi.Family_SAFI_MPLS_VPN
 		} else {
 			familySafi = bgpapi.Family_SAFI_UNICAST
 		}
-		nlriAttr, err = ptypes.MarshalAny(&bgpapi.MpReachNLRIAttribute{
+		nlriAttr, err = apb.New(&bgpapi.MpReachNLRIAttribute{
 			NextHops: []string{nodeIpv6.String()},
-			Nlris:    []*any.Any{nlri},
+			Nlris:    []*apb.Any{nlri},
 			Family: &bgpapi.Family{
 				Afi:  bgpapi.Family_AFI_IP6,
 				Safi: familySafi,
@@ -317,17 +316,17 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 		Nlri:       nlri,
 		IsWithdraw: isWithdrawal,
 		Pattrs:     attrs,
-		Age:        ptypes.TimestampNow(),
+		Age:        timestamppb.Now(),
 		Family:     family,
 	}, nil
 }
 
 func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficType int, isWithdrawal bool) (*bgpapi.Path, error) {
-	originAttr, err := ptypes.MarshalAny(&bgpapi.OriginAttribute{Origin: 0})
+	originAttr, err := apb.New(&bgpapi.OriginAttribute{Origin: 0})
 	if err != nil {
 		return nil, err
 	}
-	attrs := []*any.Any{originAttr}
+	attrs := []*apb.Any{originAttr}
 
 	var family *bgpapi.Family
 	var nodeIP = nodeIpv6
@@ -339,7 +338,7 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 		epbs.Behavior = bgpapi.SRv6Behavior_END_DT6
 	}
 
-	nlrisr, err := ptypes.MarshalAny(&bgpapi.SRPolicyNLRI{
+	nlrisr, err := apb.New(&bgpapi.SRPolicyNLRI{
 		Length:   192,
 		Endpoint: nodeIP,
 	})
@@ -347,7 +346,7 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 	if err != nil {
 		return nil, err
 	}
-	nhAttr, err := ptypes.MarshalAny(&bgpapi.NextHopAttribute{
+	nhAttr, err := apb.New(&bgpapi.NextHopAttribute{
 		NextHop: nodeIP.String(),
 	})
 	if err != nil {
@@ -355,7 +354,7 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 	}
 	attrs = append(attrs, nhAttr)
 
-	sid, err := ptypes.MarshalAny(&bgpapi.SRBindingSID{
+	sid, err := apb.New(&bgpapi.SRBindingSID{
 		SFlag: true,
 		IFlag: false,
 		Sid:   bSid,
@@ -364,14 +363,14 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 	if err != nil {
 		return nil, err
 	}
-	bsid, err := ptypes.MarshalAny(&bgpapi.TunnelEncapSubTLVSRBindingSID{
+	bsid, err := apb.New(&bgpapi.TunnelEncapSubTLVSRBindingSID{
 		Bsid: sid,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	segment, err := ptypes.MarshalAny(&bgpapi.SegmentTypeB{
+	segment, err := apb.New(&bgpapi.SegmentTypeB{
 		Flags:                     &bgpapi.SegmentFlags{SFlag: true},
 		Sid:                       localSid,
 		EndpointBehaviorStructure: epbs,
@@ -379,17 +378,17 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 	if err != nil {
 		return nil, err
 	}
-	seglist, err := ptypes.MarshalAny(&bgpapi.TunnelEncapSubTLVSRSegmentList{
+	seglist, err := apb.New(&bgpapi.TunnelEncapSubTLVSRSegmentList{
 		Weight: &bgpapi.SRWeight{
 			Flags:  0,
 			Weight: 12,
 		},
-		Segments: []*any.Any{segment},
+		Segments: []*apb.Any{segment},
 	})
 	if err != nil {
 		return nil, err
 	}
-	pref, err := ptypes.MarshalAny(&bgpapi.TunnelEncapSubTLVSRPreference{
+	pref, err := apb.New(&bgpapi.TunnelEncapSubTLVSRPreference{
 		Flags:      0,
 		Preference: 11,
 	})
@@ -397,18 +396,18 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 		return nil, err
 	}
 
-	pri, err := ptypes.MarshalAny(&bgpapi.TunnelEncapSubTLVSRPriority{
+	pri, err := apb.New(&bgpapi.TunnelEncapSubTLVSRPriority{
 		Priority: 10,
 	})
 	if err != nil {
 		return nil, err
 	}
 	// Tunnel Encapsulation attribute for SR Policy
-	tun, err := ptypes.MarshalAny(&bgpapi.TunnelEncapAttribute{
+	tun, err := apb.New(&bgpapi.TunnelEncapAttribute{
 		Tlvs: []*bgpapi.TunnelEncapTLV{
 			{
 				Type: 15,
-				Tlvs: []*any.Any{bsid, seglist, pref, pri},
+				Tlvs: []*apb.Any{bsid, seglist, pref, pri},
 			},
 		},
 	})
@@ -421,7 +420,7 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 		Nlri:       nlrisr,
 		IsWithdraw: isWithdrawal,
 		Pattrs:     attrs,
-		Age:        ptypes.TimestampNow(),
+		Age:        timestamppb.Now(),
 		Family:     family,
 	}, nil
 
