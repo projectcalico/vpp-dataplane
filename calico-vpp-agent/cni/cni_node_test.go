@@ -134,6 +134,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		log = logrus.New()
 		client = calico.NewCalicoClientStub()
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
+		agentConf.GetCalicoVppFeatureGates().SRv6Enabled = &agentConf.False
 	})
 
 	JustBeforeEach(func() {
@@ -201,6 +202,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 				// Enables IPSec (=uses IPSec over IPIP tunnel and not pure IPIP tunnel)
 				agentConf.GetCalicoVppFeatureGates().IPSecEnabled = &agentConf.True
+				agentConf.GetCalicoVppIpsec().CrossIpsecTunnels = &agentConf.False
 
 				// setup PubSub handler to catch TunnelAdded events
 				pubSubHandlerMock = mocks.NewPubSubHandlerMock(common.TunnelAdded)
