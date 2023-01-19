@@ -80,9 +80,10 @@ type Server struct {
 	/* failSafe policies allow traffic on some ports irrespective of the policy */
 	failSafePolicyId uint32
 	/* workloadToHost may drop traffic that goes from the pods to the host */
-	workloadsToHostIPSet  *IPSet
-	workloadsToHostPolicy *Policy
-	workloadAddresses     map[string]string
+	workloadsToHostIPSet   *IPSet
+	workloadsToHostPolicy  *Policy
+	defaultTap0IngressConf []uint32
+	workloadAddresses      map[string]string
 	/* always allow traffic coming from host to the pods (for healthchecks and so on) */
 	// AllowFromHostPolicyId persists the ID of the policy allowing host --> pod communications.
 	// See CreateAllowFromHostPolicy definition
@@ -1723,6 +1724,7 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 			s.log.Error("cannot create policy to drop traffic to host")
 		}
 	}
+	s.defaultTap0IngressConf = conf.IngressPolicyIDs
 	return nil
 }
 
