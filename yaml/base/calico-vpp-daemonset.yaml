@@ -171,7 +171,8 @@ data:
       },
       "uplinkInterfaces": [
         {
-          "interfaceName": "eth1"
+          "interfaceName": "eth1",
+          "vppDriver": "af_packet"
         }
       ]
     }
