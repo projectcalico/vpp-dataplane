@@ -178,11 +178,11 @@ data:
       },
       "uplinkInterfaces": [
         {
-          "interfaceName": "eth1"
+          "interfaceName": "eth1",
+          "vppDriver": "dpdk"
         }
       ]
     }
-  CALICOVPP_NATIVE_DRIVER: dpdk
   SERVICE_PREFIX: 10.96.0.0/12
 kind: ConfigMap
 metadata:
@@ -256,6 +256,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         envFrom:
         - configMapRef:
             name: calico-vpp-config
