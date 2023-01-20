@@ -200,6 +200,51 @@ test:
 	go vet ./...
 	go test ./...
 
+.PHONY: test-memif-multinet
+test-memif-multinet:
+	kubectl apply -f test/yaml/multinet/network.yaml
+	kubectl apply -f test/yaml/multinet/netdefinitions.yaml
+	kubectl apply -f test/yaml/multinet/pod-memif.yaml
+
+.PHONY: delete-test-memif-multinet
+delete-test-memif-multinet:
+	kubectl delete -f test/yaml/multinet/pod-memif.yaml
+	kubectl delete -f test/yaml/multinet/netdefinitions.yaml
+
+.PHONY: install-multinet
+install-multinet:
+	@echo "--Installing network CRD..."
+	@kubectl apply -f test/yaml/multinet/projectcalico.org_networks.yaml
+	@kubectl apply -f test/yaml/multinet/whereabouts-daemonset-install.yaml
+	@echo "--Installing multus daemonset..."
+	@kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
+	@echo "--Installing whereabouts daemonset..."
+	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
+	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+
+.PHONY: delete-multinet
+delete-multinet:
+	@echo "--Deleting whereabouts daemonset..."
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+	@echo "--Deleting multus daemonset..."
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
+	@echo "--Deleting network CRD..."
+	@kubectl delete -f test/yaml/multinet/projectcalico.org_networks.yaml
+	@kubectl delete -f test/yaml/multinet/whereabouts-daemonset-install.yaml
+	@echo "--Removing pod & CNI installation..."
+	@kubectl -n calico-vpp-dataplane delete deployment multinet-monitor-deployment
+	@( \
+	  for cid in `kubectl -n calico-vpp-dataplane get pods -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}'` ;\
+	  do \
+		kubectl exec -it -n calico-vpp-dataplane $$cid -c vpp -- \
+		  rm -rvf /host/etc/cni/net.d/multus.d \
+		          /host/etc/cni/net.d/whereabouts.d \
+		          /host/etc/cni/net.d/00-multus.conf ;\
+	  done ;\
+	)
+
+
 .PHONY: go-check
 go-check:
 	gofmt -s -l . | grep -v binapi | grep -v vpp_build | diff -u /dev/null -
