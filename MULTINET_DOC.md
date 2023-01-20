@@ -173,3 +173,38 @@ This feature is still a work in progress. Here are a list of the topics we are a
   - How are serviceIPs routed within the pods ? The same question applies for DNS & service resolution in case the configurations differ between networks.
   - What is the pod’s resulting configuration when attaching to networks with overlapping addresses.
 
+## Testing multinet feature
+
+### Installing dependencies
+#### Installing network CRD
+
+````yaml
+kubectl apply -f test/yaml/multinet/projectcalico.org_networks.yaml
+kubectl apply -f test/yaml/multinet/whereabouts-daemonset-install.yaml
+````
+
+#### Installing multus deamonset
+
+````yaml
+kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
+kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
+kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+````
+
+### Enabling multinet
+
+Install calicovpp as mentioned in https://projectcalico.docs.tigera.io/getting-started/kubernetes/vpp/getting-started
+
+But use the manifest from `yaml/generated/calico-vpp-multinet.yaml` for installation.
+
+NOTE: if whereabouts is installed after calico/vpp is already installed, restart calicovpp in order to patch whereabouts.
+
+### Testing
+
+````yaml
+kubectl apply -f test/yaml/multinet/network.yaml
+kubectl apply -f test/yaml/multinet/netdefinitions.yaml
+kubectl apply -f test/yaml/multinet/pod-memif.yaml
+````
+
+Make sure pods are created and are running.

@@ -4,6 +4,7 @@ CALICO_TAG ?= master
 
 .PHONY: build
 build: clean
+	@kubectl kustomize overlays/multinet       > generated/calico-vpp-multinet.yaml
 	@kubectl kustomize overlays/default-huge   > generated/calico-vpp.yaml
 	@kubectl kustomize base                    > generated/calico-vpp-nohuge.yaml
 	@kubectl kustomize overlays/dpdk           > generated/calico-vpp-dpdk.yaml
