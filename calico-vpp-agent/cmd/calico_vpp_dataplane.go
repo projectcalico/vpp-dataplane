@@ -151,22 +151,18 @@ func main() {
 	routingServer.SetBGPConf(bgpConf)
 	serviceServer.SetBGPConf(bgpConf)
 
+	watchDog := NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}))
+	Go(watchDog.watch)
 	Go(policyServer.ServePolicy)
-	log.Infof("Waiting for our node's BGP spec...")
 	felixConfig := policyServer.WaitForFelixConfig()
+	felixConfigReceived = true
 	ourBGPSpec := policyServer.WaitForOurBGPSpec()
-
+	bgpSpecReceived = true
 	prefixWatcher.SetOurBGPSpec(ourBGPSpec)
 	connectivityServer.SetOurBGPSpec(ourBGPSpec)
 	routingServer.SetOurBGPSpec(ourBGPSpec)
 	serviceServer.SetOurBGPSpec(ourBGPSpec)
 	localSIDWatcher.SetOurBGPSpec(ourBGPSpec)
-
-	/**
-	 * This should be done in a separated location, but till then, we
-	 * still have to wait on the policy server starting
-	 */
-	log.Infof("Waiting for felix config being present...")
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
 		Go(netWatcher.WatchNetworks)
