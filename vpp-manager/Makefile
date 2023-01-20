@@ -60,6 +60,15 @@ clean-vpp:
 	rm -f ./vpp_build/build-root/*.buildinfo
 	rm -f $(IMAGE_DIR)/*.deb
 
+rebuild-vpp: vpp-build-env
+	docker run --rm \
+		-e VPP_MGR_DIR=$(CURDIR) \
+		-v $(CURDIR):$(CURDIR):delegated \
+		--user $$(id -u):$$(id -g) \
+		--env NO_BUILD_DEBS=true \
+		--network=host \
+		calicovpp/vpp-build:latest
+
 vpp: clone-vpp clean-vpp vpp-build-env
 	docker run --rm \
 		-e VPP_MGR_DIR=$(CURDIR) \
