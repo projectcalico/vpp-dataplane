@@ -225,6 +225,7 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 		w.cleanExistingWatcher()
 		time.Sleep(2 * time.Second)
 	}
+	w.log.Warn("BGPPeer watcher stopped")
 	return nil
 }
 

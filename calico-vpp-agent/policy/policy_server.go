@@ -104,7 +104,7 @@ type Server struct {
 	tunnelSwIfIndexesLock sync.Mutex
 
 	felixConfigReceived bool
-	felixConfigChan     chan *felixConfig.Config
+	FelixConfigChan     chan interface{}
 	felixConfig         *felixConfig.Config
 
 	ippoolmap  map[string]proto.IPAMPoolUpdate
@@ -113,7 +113,7 @@ type Server struct {
 	nodeStatesByName  map[string]*common.LocalNodeSpec
 	nodeByWGPublicKey map[string]string
 
-	gotOurNodeBGPchan chan common.LocalNodeSpec
+	GotOurNodeBGPchan chan interface{}
 }
 
 // NewServer creates a policy server
@@ -138,13 +138,13 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 
 		tunnelSwIfIndexes:   make(map[uint32]bool),
 		felixConfigReceived: false,
-		felixConfigChan:     make(chan *felixConfig.Config),
+		FelixConfigChan:     make(chan interface{}),
 		felixConfig:         felixConfig.New(),
 
 		ippoolmap: make(map[string]proto.IPAMPoolUpdate),
 
 		nodeStatesByName:  make(map[string]*common.LocalNodeSpec),
-		gotOurNodeBGPchan: make(chan common.LocalNodeSpec),
+		GotOurNodeBGPchan: make(chan interface{}),
 
 		failSafePolicyId:      types.InvalidID,
 		allowToHostPolicyId:   types.InvalidID,
@@ -485,7 +485,7 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 		for {
 			select {
 			case <-t.Dying():
-				s.log.Infof("Policy server exiting")
+				s.log.Warn("Policy server exiting")
 				err = conn.Close()
 				if err != nil {
 					s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
@@ -610,10 +610,6 @@ func (s *Server) currentState(pending bool) *PolicyState {
 	return s.configuredState
 }
 
-func (s *Server) WaitForFelixConfig() *felixConfig.Config {
-	return <-s.felixConfigChan
-}
-
 /**
  * remove add the fields of type `file` we dont need and for which the
  * parsing will fail
@@ -667,7 +663,7 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 	// we'll need to add a mechanism for that
 	if !s.felixConfigReceived {
 		s.felixConfigReceived = true
-		s.felixConfigChan <- s.felixConfig
+		s.FelixConfigChan <- s.felixConfig
 	}
 
 	if !changed {
@@ -1257,7 +1253,7 @@ func (s *Server) onNodeAdded(node *common.LocalNodeSpec) (err error) {
 		(node.IPv4Address != nil || node.IPv6Address != nil) {
 		if s.ip4 == nil && s.ip6 == nil {
 			/* We found a BGP Spec that seems valid enough */
-			s.gotOurNodeBGPchan <- *node
+			s.GotOurNodeBGPchan <- node
 		}
 		if node.IPv4Address != nil {
 			s.ip4 = &node.IPv4Address.IP
@@ -1457,11 +1453,6 @@ func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 		return pool.Masquerade
 	}
 
-}
-
-func (s *Server) WaitForOurBGPSpec() *common.LocalNodeSpec {
-	bgpspec := <-s.gotOurNodeBGPchan
-	return &bgpspec
 }
 
 // contains returns true if the IPPool contains 'prefix'

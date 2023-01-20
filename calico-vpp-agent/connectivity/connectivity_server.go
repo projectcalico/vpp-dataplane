@@ -151,7 +151,7 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 	for {
 		select {
 		case <-t.Dying():
-			s.log.Infof("Connectivity Server asked to stop")
+			s.log.Warn("Connectivity Server asked to stop")
 			return nil
 		case evt := <-s.connectivityEventChan:
 			/* Note: we will only receive events we ask for when registering the chan */

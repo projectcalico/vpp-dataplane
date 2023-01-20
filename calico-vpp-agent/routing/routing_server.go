@@ -158,7 +158,7 @@ func (s *Server) ServeRouting(t *tomb.Tomb) (err error) {
 		s.log.Infof("Routing server stopped")
 
 	}
-	s.log.Infof("Routing Server returned")
+	s.log.Warn("Routing Server returned")
 
 	return nil
 }
