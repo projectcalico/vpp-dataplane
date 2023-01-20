@@ -84,9 +84,12 @@ type Server struct {
 	workloadsToHostPolicy *Policy
 	workloadAddresses     map[string]string
 	/* always allow traffic coming from host to the pods (for healthchecks and so on) */
-	IngressAllowFromHostPolicyId uint32
-	EgressAllowFromHostPolicyId  uint32
-	AllowFromHostIPSet           *IPSet
+	// AllowFromHostPolicyId persists the ID of the policy allowing host --> pod communications.
+	// See CreateAllowFromHostPolicy definition
+	AllowFromHostPolicyId uint32
+	// AllowFromHostIPSet persists the ipset containing all the workload endpoints (pods)
+	// addresses, it is used to allow traffic from host to pods
+	AllowFromHostIPSet *IPSet
 	/* allow traffic between uplink/tunnels and tap interfaces */
 	allowToHostPolicyId uint32
 	ip4                 *net.IP
@@ -142,11 +145,10 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		nodeStatesByName:  make(map[string]*common.LocalNodeSpec),
 		gotOurNodeBGPchan: make(chan common.LocalNodeSpec),
 
-		failSafePolicyId:             types.InvalidID,
-		allowToHostPolicyId:          types.InvalidID,
-		workloadAddresses:            make(map[string]string),
-		IngressAllowFromHostPolicyId: types.InvalidID,
-		EgressAllowFromHostPolicyId:  types.InvalidID,
+		failSafePolicyId:      types.InvalidID,
+		allowToHostPolicyId:   types.InvalidID,
+		workloadAddresses:     make(map[string]string),
+		AllowFromHostPolicyId: types.InvalidID,
 	}
 
 	reg := common.RegisterHandler(server.policyServerEventChan, "policy server events")
@@ -455,13 +457,9 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 	if err != nil {
 		return errors.Wrap(err, "Error in createEndpointToHostPolicy")
 	}
-	err = s.createIngressAllowFromHostPolicy()
+	err = s.createAllowFromHostPolicy()
 	if err != nil {
-		return errors.Wrap(err, "Error in createIngressAllowFromHostPolicy")
-	}
-	err = s.createEgressAllowFromHostPolicy()
-	if err != nil {
-		return errors.Wrap(err, "Error in createEgressAllowFromHostPolicy")
+		return errors.Wrap(err, "Error in creating AllowFromHostPolicy")
 	}
 	err = s.createAllowToHostPolicy()
 	if err != nil {
@@ -1266,9 +1264,9 @@ func (s *Server) onNodeAdded(node *common.LocalNodeSpec) (err error) {
 		if node.IPv6Address != nil {
 			s.ip6 = &node.IPv6Address.IP
 		}
-		err = s.createIngressAllowFromHostPolicy()
+		err = s.createAllowFromHostPolicy()
 		if err != nil {
-			return errors.Wrap(err, "Error in createIngressAllowFromHostPolicy")
+			return errors.Wrap(err, "Error in creating AllowFromHostPolicy")
 		}
 		err = s.createAllowToHostPolicy()
 		if err != nil {
@@ -1621,9 +1619,31 @@ func (s *Server) createAllowToHostPolicy() (err error) {
 	return errors.Wrap(err, "cannot create policy to allow traffic to host")
 }
 
-func (s *Server) createIngressAllowFromHostPolicy() (err error) {
-	s.log.Infof("Creating policy to allow traffic from host with ingress policies")
-	r := &Rule{
+// createAllowFromHostPolicy creates a policy allowing host->pod communications. This is needed
+// to maintain vanilla Calico's behavior where the host can always reach pods.
+// This policy is applied in Egress on the host endpoint tap (i.e. linux -> VPP)
+// and on the Ingress of Workload endpoints (i.e. VPP -> pod)
+func (s *Server) createAllowFromHostPolicy() (err error) {
+	s.log.Infof("Creating rules to allow traffic from host to pods with egress policies")
+	r_out := &Rule{
+		VppID:  types.InvalidID,
+		RuleID: "calicovpp-internal-egressallowfromhost",
+		Rule: &types.Rule{
+			Action: types.ActionAllow,
+		},
+		DstIPSetNames: []string{"ipset-allow-to-pods"},
+	}
+	if s.AllowFromHostIPSet == nil {
+		ipset := NewIPSet()
+		err = ipset.Create(s.vpp)
+		if err != nil {
+			return err
+		}
+		s.AllowFromHostIPSet = ipset
+	}
+	ps := PolicyState{IPSets: map[string]*IPSet{"ipset-allow-to-pods": s.AllowFromHostIPSet}}
+	s.log.Infof("Creating rules to allow traffic from host to pods with ingress policies")
+	r_in := &Rule{
 		VppID:  types.InvalidID,
 		RuleID: "calicovpp-internal-ingressallowfromhost",
 		Rule: &types.Rule{
@@ -1632,48 +1652,21 @@ func (s *Server) createIngressAllowFromHostPolicy() (err error) {
 		},
 	}
 	if s.ip4 != nil {
-		r.Rule.SrcNet = append(r.Rule.SrcNet, *common.FullyQualified(*s.ip4))
+		r_in.Rule.SrcNet = append(r_in.Rule.SrcNet, *common.FullyQualified(*s.ip4))
 	}
 	if s.ip6 != nil {
-		r.Rule.SrcNet = append(r.Rule.SrcNet, *common.FullyQualified(*s.ip6))
+		r_in.Rule.SrcNet = append(r_in.Rule.SrcNet, *common.FullyQualified(*s.ip6))
 	}
 
 	allowFromHostPolicy := &Policy{
 		Policy: &types.Policy{},
-		VppID:  s.IngressAllowFromHostPolicyId,
+		VppID:  s.AllowFromHostPolicyId,
 	}
-	allowFromHostPolicy.InboundRules = append(allowFromHostPolicy.InboundRules, r)
-	err = allowFromHostPolicy.Create(s.vpp, nil)
-	s.IngressAllowFromHostPolicyId = allowFromHostPolicy.VppID
-	return errors.Wrap(err, "cannot create policy to allow ingress traffic from host")
-}
-
-func (s *Server) createEgressAllowFromHostPolicy() (err error) {
-	s.log.Infof("Creating policy to allow traffic from host to pods with egress policies")
-	r := &Rule{
-		VppID: types.InvalidID,
-		Rule: &types.Rule{
-			Action: types.ActionAllow,
-		},
-		DstIPSetNames: []string{"ipset-allow-to-pods"},
-	}
-	ipset := NewIPSet()
-	ps := PolicyState{IPSets: map[string]*IPSet{"ipset-allow-to-pods": ipset}}
-	err = ipset.Create(s.vpp)
-	if err != nil {
-		return err
-	}
-
-	allowFromHostPolicy := &Policy{
-		Policy: &types.Policy{},
-		VppID:  s.EgressAllowFromHostPolicyId,
-	}
-	allowFromHostPolicy.OutboundRules = append(allowFromHostPolicy.OutboundRules, r)
+	allowFromHostPolicy.OutboundRules = append(allowFromHostPolicy.OutboundRules, r_out)
+	allowFromHostPolicy.InboundRules = append(allowFromHostPolicy.InboundRules, r_in)
 	err = allowFromHostPolicy.Create(s.vpp, &ps)
-
-	s.AllowFromHostIPSet = ipset
-	s.EgressAllowFromHostPolicyId = allowFromHostPolicy.VppID
-	return errors.Wrap(err, "cannot create policy to allow traffic from host to pods on egress")
+	s.AllowFromHostPolicyId = allowFromHostPolicy.VppID
+	return errors.Wrap(err, "cannot create policy to allow traffic from host to pods")
 }
 
 func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
