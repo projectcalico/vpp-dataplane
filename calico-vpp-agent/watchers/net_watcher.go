@@ -79,25 +79,23 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 	netList := &networkv3.NetworkList{}
 	err := w.client.List(context.Background(), netList, &client.ListOptions{})
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Listing Networks failed")
 	}
 	nadList := &netv1.NetworkAttachmentDefinitionList{}
 	err = w.client.List(context.Background(), nadList, &client.ListOptions{})
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Listing NetworkAttachmentDefinitions failed")
 	}
 	for _, net := range netList.Items {
 		err := w.OnNetAdded(&net)
 		if err != nil {
-			w.log.Error(err)
-			return err
+			return errors.Wrapf(err, "OnNetAdded failed for %v", net)
 		}
 	}
 	for _, nad := range nadList.Items {
 		err = w.onNadAdded(&nad)
 		if err != nil {
-			w.log.Error(err)
-			return err
+			return errors.Wrapf(err, "OnNadAdded failed for %v", nad)
 		}
 	}
 	w.InSync <- 1

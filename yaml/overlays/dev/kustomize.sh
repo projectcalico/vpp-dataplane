@@ -119,10 +119,10 @@ function get_initial_config ()
 function get_feature_gates ()
 {
     echo "{
-      \"memifEnabled\": ${CALICOVPP_ENABLE_MEMIF:false},
-      \"vclEnabled\": ${CALICOVPP_ENABLE_VCL:false},
-      \"multinetEnabled\": ${CALICOVPP_ENABLE_MULTINET:false},
-      \"ipsecEnabled\": ${CALICOVPP_IPSEC_ENABLED:false}
+      \"memifEnabled\": ${CALICOVPP_ENABLE_MEMIF:-"false"},
+      \"vclEnabled\": ${CALICOVPP_ENABLE_VCL:-"false"},
+      \"multinetEnabled\": ${CALICOVPP_ENABLE_MULTINET:-"false"},
+      \"ipsecEnabled\": ${CALICOVPP_IPSEC_ENABLED:-"false"}
     }"
 }
 
@@ -251,7 +251,7 @@ calico_create_template ()
   export CALICOVPP_INITIAL_CONFIG="$(indent_variable "${CALICOVPP_INITIAL_CONFIG:-$(get_initial_config)}")"
   export CALICOVPP_INTERFACES="$(indent_variable "${CALICOVPP_INTERFACES:-$(get_interfaces)}")"
   export CALICOVPP_DEBUG="$(indent_variable "${CALICOVPP_DEBUG:-$(get_debug)}")"
-  export CALICOVPP_FEATURE_GATES="$(indent_variable "${CALICOVPP_FEATURE_GATES:-"{}"}")"
+  export CALICOVPP_FEATURE_GATES="$(indent_variable "${CALICOVPP_FEATURE_GATES:-$(get_feature_gates)}")"
   export CALICOVPP_IPSEC="$(indent_variable "${CALICOVPP_IPSEC:-"{}"}")"
   export CALICOVPP_SRV6="$(indent_variable "${CALICOVPP_SRV6:-"{}"}")"
   export DEBUG='"'${DEBUG}'"' # should we run VPP release or debug ?
