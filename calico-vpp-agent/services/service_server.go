@@ -390,7 +390,7 @@ func (s *Server) ServeService(t *tomb.Tomb) error {
 
 	<-s.t.Dying()
 
-	s.log.Infof("Service Server returned")
+	s.log.Warn("Service Server returned")
 
 	return nil
 }

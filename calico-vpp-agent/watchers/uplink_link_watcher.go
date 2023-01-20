@@ -98,7 +98,7 @@ func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 					close(r.close)
 					r.close = nil
 				}
-				log.Info("Link watcher stopped")
+				log.Warn("Link watcher stopped")
 				return nil
 			case <-r.netlinkFailed:
 				log.Info("Link watcher stopped / failed")

@@ -444,6 +444,7 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 			for {
 				select {
 				case <-t.Dying():
+					s.log.Warn("Cni server asked to exit")
 					return
 				case event := <-s.cniMultinetEventChan:
 					switch event.Type {

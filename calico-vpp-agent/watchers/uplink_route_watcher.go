@@ -211,7 +211,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 					close(r.close)
 					r.close = nil
 				}
-				log.Info("Route watcher stopped")
+				log.Warn("Route watcher stopped")
 				return nil
 			case event := <-r.routeEventChan:
 				switch event.Type {

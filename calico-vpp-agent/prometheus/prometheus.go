@@ -250,7 +250,7 @@ func (s *Server) ServePrometheus(t *tomb.Tomb) error {
 	}
 	s.recordMetrics(t)
 
-	s.log.Infof("Prometheus Server returned")
+	s.log.Warn("Prometheus Server returned")
 
 	return nil
 }

@@ -103,7 +103,7 @@ func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 		time.Sleep(prefixWatchInterval)
 	}
 
-	w.log.Infof("Prefix Watcher asked to exit")
+	w.log.Warn("Prefix Watcher asked to exit")
 
 	return nil
 }

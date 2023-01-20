@@ -129,6 +129,7 @@ func (w *BGPConfigurationWatcher) WatchBGPConfiguration(t *tomb.Tomb) error {
 	for t.Alive() {
 		select {
 		case <-t.Dying():
+			w.log.Warn("BGPConf watcher stopped")
 			return nil
 		case evt := <-w.BGPConfigurationWatcherEventChan:
 			switch evt.Type {
