@@ -110,6 +110,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					common.VppManagerInfo = &config.VppManagerInfo{}
 					os.Setenv("NODENAME", ThisNodeName)
 					os.Setenv("CALICOVPP_CONFIG_TEMPLATE", "sss")
+					config.GetCalicoVppInterfaces().DefaultPodIfSpec = &config.InterfaceSpec{}
 					err = config.LoadConfigSilent(log)
 					if err != nil {
 						log.Error(err)
