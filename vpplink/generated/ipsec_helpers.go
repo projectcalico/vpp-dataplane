@@ -17,7 +17,6 @@ package generated
 
 import (
 	types "github.com/calico-vpp/vpplink/api/v0"
-
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipsec_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/tunnel_types"
 )
@@ -47,8 +46,8 @@ func toVppTunnel(tunnel types.Tunnel) tunnel_types.Tunnel {
 
 func fromVppTunnel(tunnel tunnel_types.Tunnel) types.Tunnel {
 	return types.Tunnel{
-		Src:     fromVppAddress(tunnel.Src),
-		Dst:     fromVppAddress(tunnel.Dst),
+		Src:     tunnel.Src.ToIP(),
+		Dst:     tunnel.Dst.ToIP(),
 		TableID: tunnel.TableID,
 	}
 }
@@ -56,24 +55,31 @@ func fromVppTunnel(tunnel tunnel_types.Tunnel) types.Tunnel {
 func GetSaFlagNone() types.SaFlags {
 	return types.SaFlags(ipsec_types.IPSEC_API_SAD_FLAG_NONE)
 }
+
 func GetSaFlagUseEsn() types.SaFlags {
 	return types.SaFlags(ipsec_types.IPSEC_API_SAD_FLAG_USE_ESN)
 }
+
 func GetSaFlagAntiReplay() types.SaFlags {
 	return types.SaFlags(ipsec_types.IPSEC_API_SAD_FLAG_USE_ANTI_REPLAY)
 }
+
 func GetSaFlagIsTunnel() types.SaFlags {
 	return types.SaFlags(ipsec_types.IPSEC_API_SAD_FLAG_IS_TUNNEL)
 }
+
 func GetSaFlagIsTunnelV6() types.SaFlags {
 	return types.SaFlags(ipsec_types.IPSEC_API_SAD_FLAG_IS_TUNNEL_V6)
 }
+
 func GetSaFlagUdpEncap() types.SaFlags {
 	return types.SaFlags(ipsec_types.IPSEC_API_SAD_FLAG_UDP_ENCAP)
 }
+
 func GetSaFlagIsInbound() types.SaFlags {
 	return types.SaFlags(ipsec_types.IPSEC_API_SAD_FLAG_IS_INBOUND)
 }
+
 func GetSaFlagAsync() types.SaFlags {
 	return types.SaFlags(ipsec_types.IPSEC_API_SAD_FLAG_ASYNC)
 }

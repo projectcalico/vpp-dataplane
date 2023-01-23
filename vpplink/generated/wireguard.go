@@ -20,8 +20,6 @@ import (
 	"net"
 
 	types "github.com/calico-vpp/vpplink/api/v0"
-	"github.com/pkg/errors"
-
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/wireguard"
@@ -31,33 +29,33 @@ func (v *Vpp) ListWireguardTunnels() ([]*types.WireguardTunnel, error) {
 	tunnels, err := v.listWireguardTunnels(interface_types.InterfaceIndex(types.InvalidInterface))
 	return tunnels, err
 }
+
 func (v *Vpp) GetWireguardTunnel(swIfIndex uint32) (*types.WireguardTunnel, error) {
 	tunnels, err := v.listWireguardTunnels(interface_types.InterfaceIndex(swIfIndex))
 	if err != nil {
 		return nil, err
 	}
 	if len(tunnels) != 1 {
-		return nil, errors.Errorf("Found %d Wireguard tunnels for swIfIndex %d", len(tunnels), swIfIndex)
+		return nil, fmt.Errorf("found %d Wireguard tunnels for swIfIndex %d", len(tunnels), swIfIndex)
 	}
 	return tunnels[0], nil
 }
+
 func (v *Vpp) listWireguardTunnels(swIfIndex interface_types.InterfaceIndex) ([]*types.WireguardTunnel, error) {
-	v.Lock()
-	defer v.Unlock()
-	tunnels := make([]*types.WireguardTunnel, 0)
-	request := &wireguard.WireguardInterfaceDump{
+	client := wireguard.NewServiceClient(v.conn)
+
+	stream, err := client.WireguardInterfaceDump(v.ctx, &wireguard.WireguardInterfaceDump{
 		ShowPrivateKey: false,
 		SwIfIndex:      swIfIndex,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list Wireguard tunnels: %w", err)
 	}
-	stream := v.GetChannel().SendMultiRequest(request)
+	var tunnels []*types.WireguardTunnel
 	for {
-		response := &wireguard.WireguardInterfaceDetails{}
-		stop, err := stream.ReceiveReply(response)
+		response, err := stream.Recv()
 		if err != nil {
-			return nil, errors.Wrapf(err, "error listing Wireguard tunnels")
-		}
-		if stop {
-			break
+			return nil, fmt.Errorf("failed to list Wireguard tunnels: %w", err)
 		}
 		tunnels = append(tunnels, &types.WireguardTunnel{
 			Port:      response.Interface.Port,
@@ -68,11 +66,11 @@ func (v *Vpp) listWireguardTunnels(swIfIndex interface_types.InterfaceIndex) ([]
 	}
 	return tunnels, nil
 }
+
 func (v *Vpp) AddWireguardTunnel(tunnel *types.WireguardTunnel, generateKey bool) (uint32, error) {
-	v.Lock()
-	defer v.Unlock()
-	response := &wireguard.WireguardInterfaceCreateReply{}
-	request := &wireguard.WireguardInterfaceCreate{
+	client := wireguard.NewServiceClient(v.conn)
+
+	response, err := client.WireguardInterfaceCreate(v.ctx, &wireguard.WireguardInterfaceCreate{
 		GenerateKey: generateKey,
 		Interface: wireguard.WireguardInterface{
 			UserInstance: ^uint32(0),
@@ -82,49 +80,42 @@ func (v *Vpp) AddWireguardTunnel(tunnel *types.WireguardTunnel, generateKey bool
 			PrivateKey:   tunnel.PrivateKey,
 			PublicKey:    tunnel.PublicKey,
 		},
-	}
-	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return ^uint32(1), errors.Wrap(err, "Add Wireguard Tunnel failed")
-	} else if response.Retval != 0 {
-		return ^uint32(1), fmt.Errorf("Add Wireguard Tunnel failed with retval %d", response.Retval)
+		return InvalidSwIfIndex, fmt.Errorf("failed to add Wireguard Tunnel: %w", err)
 	}
 	tunnel.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
 }
-func (v *Vpp) DelWireguardTunnel(tunnel *types.WireguardTunnel) (err error) {
-	v.Lock()
-	defer v.Unlock()
-	response := &wireguard.WireguardInterfaceDeleteReply{}
-	request := &wireguard.WireguardInterfaceDelete{
+
+func (v *Vpp) DelWireguardTunnel(tunnel *types.WireguardTunnel) error {
+	client := wireguard.NewServiceClient(v.conn)
+
+	_, err := client.WireguardInterfaceDelete(v.ctx, &wireguard.WireguardInterfaceDelete{
 		SwIfIndex: interface_types.InterfaceIndex(tunnel.SwIfIndex),
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Del Wireguard Tunnel %s failed", tunnel.String())
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Del Wireguard Tunnel %s failed with retval %d", tunnel.String(), response.Retval)
+		return fmt.Errorf("failed to delete Wireguard Tunnel %s: %w", tunnel, err)
 	}
 	return nil
 }
+
 func (v *Vpp) ListWireguardPeers() ([]*types.WireguardPeer, error) {
-	v.Lock()
-	defer v.Unlock()
-	tunnels := make([]*types.WireguardPeer, 0)
-	request := &wireguard.WireguardPeersDump{}
-	stream := v.GetChannel().SendMultiRequest(request)
+	client := wireguard.NewServiceClient(v.conn)
+
+	stream, err := client.WireguardPeersDump(v.ctx, &wireguard.WireguardPeersDump{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list Wireguard peers: %w", err)
+	}
+	var tunnels []*types.WireguardPeer
 	for {
-		response := &wireguard.WireguardPeersDetails{}
-		stop, err := stream.ReceiveReply(response)
+		response, err := stream.Recv()
 		if err != nil {
-			return nil, errors.Wrapf(err, "error listing Wireguard peers")
-		}
-		if stop {
-			break
+			return nil, fmt.Errorf("failed to list Wireguard peers: %w", err)
 		}
 		allowedIps := make([]net.IPNet, 0)
 		for _, aip := range response.Peer.AllowedIps {
-			allowedIps = append(allowedIps, *FromVppPrefix(aip))
+			allowedIps = append(allowedIps, *aip.ToIPNet())
 		}
 		tunnels = append(tunnels, &types.WireguardPeer{
 			Port:                response.Peer.Port,
@@ -138,9 +129,8 @@ func (v *Vpp) ListWireguardPeers() ([]*types.WireguardPeer, error) {
 	}
 	return tunnels, nil
 }
+
 func (v *Vpp) AddWireguardPeer(peer *types.WireguardPeer) (uint32, error) {
-	v.Lock()
-	defer v.Unlock()
 	allowedIps := make([]ip_types.Prefix, 0)
 	for _, aip := range peer.AllowedIps {
 		allowedIps = append(allowedIps, ToVppPrefix(&aip))
@@ -149,8 +139,10 @@ func (v *Vpp) AddWireguardPeer(peer *types.WireguardPeer) (uint32, error) {
 	if ka == 0 {
 		ka = 1 /* default to 1 */
 	}
-	response := &wireguard.WireguardPeerAddReply{}
-	request := &wireguard.WireguardPeerAdd{
+
+	client := wireguard.NewServiceClient(v.conn)
+
+	response, err := client.WireguardPeerAdd(v.ctx, &wireguard.WireguardPeerAdd{
 		Peer: wireguard.WireguardPeer{
 			PublicKey:           peer.PublicKey,
 			Port:                peer.Port,
@@ -160,28 +152,22 @@ func (v *Vpp) AddWireguardPeer(peer *types.WireguardPeer) (uint32, error) {
 			SwIfIndex:           interface_types.InterfaceIndex(peer.SwIfIndex),
 			AllowedIps:          allowedIps,
 		},
-	}
-	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return ^uint32(1), errors.Wrap(err, "Add Wireguard Peer failed")
-	} else if response.Retval != 0 {
-		return ^uint32(1), fmt.Errorf("Add Wireguard Peer failed with retval %d", response.Retval)
+		return InvalidSwIfIndex, fmt.Errorf("failed to add Wireguard Peer: %w", err)
 	}
 	peer.Index = uint32(response.PeerIndex)
 	return uint32(response.PeerIndex), nil
 }
-func (v *Vpp) DelWireguardPeer(peer *types.WireguardPeer) (err error) {
-	v.Lock()
-	defer v.Unlock()
-	response := &wireguard.WireguardPeerRemoveReply{}
-	request := &wireguard.WireguardPeerRemove{
+
+func (v *Vpp) DelWireguardPeer(peer *types.WireguardPeer) error {
+	client := wireguard.NewServiceClient(v.conn)
+
+	_, err := client.WireguardPeerRemove(v.ctx, &wireguard.WireguardPeerRemove{
 		PeerIndex: uint32(peer.Index),
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Del Wireguard Peer Tunnel %s failed", peer.String())
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Del Wireguard Peer Tunnel %s failed with retval %d", peer.String(), response.Retval)
+		return fmt.Errorf("failed to delete Wireguard Peer %s: %w", peer, err)
 	}
 	return nil
 }

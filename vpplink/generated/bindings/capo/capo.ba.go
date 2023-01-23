@@ -343,10 +343,12 @@ type CapoConfigurePolicies struct {
 	PolicyIds     []uint32 `binapi:"u32[total_ids],name=policy_ids" json:"policy_ids,omitempty"`
 }
 
-func (m *CapoConfigurePolicies) Reset()                        { *m = CapoConfigurePolicies{} }
-func (*CapoConfigurePolicies) GetMessageName() string          { return "capo_configure_policies" }
-func (*CapoConfigurePolicies) GetCrcString() string            { return "743e3c30" }
-func (*CapoConfigurePolicies) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoConfigurePolicies) Reset()               { *m = CapoConfigurePolicies{} }
+func (*CapoConfigurePolicies) GetMessageName() string { return "capo_configure_policies" }
+func (*CapoConfigurePolicies) GetCrcString() string   { return "743e3c30" }
+func (*CapoConfigurePolicies) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoConfigurePolicies) Size() (size int) {
 	if m == nil {
@@ -399,12 +401,11 @@ type CapoConfigurePoliciesReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *CapoConfigurePoliciesReply) Reset()                        { *m = CapoConfigurePoliciesReply{} }
-func (*CapoConfigurePoliciesReply) GetMessageName() string          { return "capo_configure_policies_reply" }
-func (*CapoConfigurePoliciesReply) GetCrcString() string            { return "e8d4e804" }
-func (*CapoConfigurePoliciesReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoConfigurePoliciesReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *CapoConfigurePoliciesReply) Reset()               { *m = CapoConfigurePoliciesReply{} }
+func (*CapoConfigurePoliciesReply) GetMessageName() string { return "capo_configure_policies_reply" }
+func (*CapoConfigurePoliciesReply) GetCrcString() string   { return "e8d4e804" }
+func (*CapoConfigurePoliciesReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoConfigurePoliciesReply) Size() (size int) {
@@ -432,10 +433,12 @@ func (m *CapoConfigurePoliciesReply) Unmarshal(b []byte) error {
 // InProgress: the message form may change in the future versions
 type CapoControlPing struct{}
 
-func (m *CapoControlPing) Reset()                        { *m = CapoControlPing{} }
-func (*CapoControlPing) GetMessageName() string          { return "capo_control_ping" }
-func (*CapoControlPing) GetCrcString() string            { return "51077d14" }
-func (*CapoControlPing) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoControlPing) Reset()               { *m = CapoControlPing{} }
+func (*CapoControlPing) GetMessageName() string { return "capo_control_ping" }
+func (*CapoControlPing) GetCrcString() string   { return "51077d14" }
+func (*CapoControlPing) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoControlPing) Size() (size int) {
 	if m == nil {
@@ -462,12 +465,11 @@ type CapoControlPingReply struct {
 	VpePID      uint32 `binapi:"u32,name=vpe_pid" json:"vpe_pid,omitempty"`
 }
 
-func (m *CapoControlPingReply) Reset()                        { *m = CapoControlPingReply{} }
-func (*CapoControlPingReply) GetMessageName() string          { return "capo_control_ping_reply" }
-func (*CapoControlPingReply) GetCrcString() string            { return "f6b0b8ca" }
-func (*CapoControlPingReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoControlPingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *CapoControlPingReply) Reset()               { *m = CapoControlPingReply{} }
+func (*CapoControlPingReply) GetMessageName() string { return "capo_control_ping_reply" }
+func (*CapoControlPingReply) GetCrcString() string   { return "f6b0b8ca" }
+func (*CapoControlPingReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoControlPingReply) Size() (size int) {
@@ -501,10 +503,12 @@ func (m *CapoControlPingReply) Unmarshal(b []byte) error {
 // InProgress: the message form may change in the future versions
 type CapoGetVersion struct{}
 
-func (m *CapoGetVersion) Reset()                        { *m = CapoGetVersion{} }
-func (*CapoGetVersion) GetMessageName() string          { return "capo_get_version" }
-func (*CapoGetVersion) GetCrcString() string            { return "51077d14" }
-func (*CapoGetVersion) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoGetVersion) Reset()               { *m = CapoGetVersion{} }
+func (*CapoGetVersion) GetMessageName() string { return "capo_get_version" }
+func (*CapoGetVersion) GetCrcString() string   { return "51077d14" }
+func (*CapoGetVersion) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoGetVersion) Size() (size int) {
 	if m == nil {
@@ -530,12 +534,11 @@ type CapoGetVersionReply struct {
 	Minor uint32 `binapi:"u32,name=minor" json:"minor,omitempty"`
 }
 
-func (m *CapoGetVersionReply) Reset()                        { *m = CapoGetVersionReply{} }
-func (*CapoGetVersionReply) GetMessageName() string          { return "capo_get_version_reply" }
-func (*CapoGetVersionReply) GetCrcString() string            { return "9b32cf86" }
-func (*CapoGetVersionReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoGetVersionReply) GetRetVal() error {
-	return nil
+func (m *CapoGetVersionReply) Reset()               { *m = CapoGetVersionReply{} }
+func (*CapoGetVersionReply) GetMessageName() string { return "capo_get_version_reply" }
+func (*CapoGetVersionReply) GetCrcString() string   { return "9b32cf86" }
+func (*CapoGetVersionReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoGetVersionReply) Size() (size int) {
@@ -571,10 +574,12 @@ type CapoIpsetAddDelMembers struct {
 	Members []CapoIpsetMember `binapi:"capo_ipset_member[len],name=members" json:"members,omitempty"`
 }
 
-func (m *CapoIpsetAddDelMembers) Reset()                        { *m = CapoIpsetAddDelMembers{} }
-func (*CapoIpsetAddDelMembers) GetMessageName() string          { return "capo_ipset_add_del_members" }
-func (*CapoIpsetAddDelMembers) GetCrcString() string            { return "e7056d10" }
-func (*CapoIpsetAddDelMembers) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoIpsetAddDelMembers) Reset()               { *m = CapoIpsetAddDelMembers{} }
+func (*CapoIpsetAddDelMembers) GetMessageName() string { return "capo_ipset_add_del_members" }
+func (*CapoIpsetAddDelMembers) GetCrcString() string   { return "e7056d10" }
+func (*CapoIpsetAddDelMembers) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoIpsetAddDelMembers) Size() (size int) {
 	if m == nil {
@@ -632,10 +637,9 @@ func (m *CapoIpsetAddDelMembersReply) Reset() { *m = CapoIpsetAddDelMembersReply
 func (*CapoIpsetAddDelMembersReply) GetMessageName() string {
 	return "capo_ipset_add_del_members_reply"
 }
-func (*CapoIpsetAddDelMembersReply) GetCrcString() string            { return "e8d4e804" }
-func (*CapoIpsetAddDelMembersReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoIpsetAddDelMembersReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (*CapoIpsetAddDelMembersReply) GetCrcString() string { return "e8d4e804" }
+func (*CapoIpsetAddDelMembersReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoIpsetAddDelMembersReply) Size() (size int) {
@@ -665,10 +669,12 @@ type CapoIpsetCreate struct {
 	Type CapoIpsetType `binapi:"capo_ipset_type,name=type" json:"type,omitempty"`
 }
 
-func (m *CapoIpsetCreate) Reset()                        { *m = CapoIpsetCreate{} }
-func (*CapoIpsetCreate) GetMessageName() string          { return "capo_ipset_create" }
-func (*CapoIpsetCreate) GetCrcString() string            { return "69150c8a" }
-func (*CapoIpsetCreate) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoIpsetCreate) Reset()               { *m = CapoIpsetCreate{} }
+func (*CapoIpsetCreate) GetMessageName() string { return "capo_ipset_create" }
+func (*CapoIpsetCreate) GetCrcString() string   { return "69150c8a" }
+func (*CapoIpsetCreate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoIpsetCreate) Size() (size int) {
 	if m == nil {
@@ -698,12 +704,11 @@ type CapoIpsetCreateReply struct {
 	SetID  uint32 `binapi:"u32,name=set_id" json:"set_id,omitempty"`
 }
 
-func (m *CapoIpsetCreateReply) Reset()                        { *m = CapoIpsetCreateReply{} }
-func (*CapoIpsetCreateReply) GetMessageName() string          { return "capo_ipset_create_reply" }
-func (*CapoIpsetCreateReply) GetCrcString() string            { return "6a43f193" }
-func (*CapoIpsetCreateReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoIpsetCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *CapoIpsetCreateReply) Reset()               { *m = CapoIpsetCreateReply{} }
+func (*CapoIpsetCreateReply) GetMessageName() string { return "capo_ipset_create_reply" }
+func (*CapoIpsetCreateReply) GetCrcString() string   { return "6a43f193" }
+func (*CapoIpsetCreateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoIpsetCreateReply) Size() (size int) {
@@ -736,10 +741,12 @@ type CapoIpsetDelete struct {
 	SetID uint32 `binapi:"u32,name=set_id" json:"set_id,omitempty"`
 }
 
-func (m *CapoIpsetDelete) Reset()                        { *m = CapoIpsetDelete{} }
-func (*CapoIpsetDelete) GetMessageName() string          { return "capo_ipset_delete" }
-func (*CapoIpsetDelete) GetCrcString() string            { return "ceacdbcb" }
-func (*CapoIpsetDelete) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoIpsetDelete) Reset()               { *m = CapoIpsetDelete{} }
+func (*CapoIpsetDelete) GetMessageName() string { return "capo_ipset_delete" }
+func (*CapoIpsetDelete) GetCrcString() string   { return "ceacdbcb" }
+func (*CapoIpsetDelete) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoIpsetDelete) Size() (size int) {
 	if m == nil {
@@ -768,12 +775,11 @@ type CapoIpsetDeleteReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *CapoIpsetDeleteReply) Reset()                        { *m = CapoIpsetDeleteReply{} }
-func (*CapoIpsetDeleteReply) GetMessageName() string          { return "capo_ipset_delete_reply" }
-func (*CapoIpsetDeleteReply) GetCrcString() string            { return "e8d4e804" }
-func (*CapoIpsetDeleteReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoIpsetDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *CapoIpsetDeleteReply) Reset()               { *m = CapoIpsetDeleteReply{} }
+func (*CapoIpsetDeleteReply) GetMessageName() string { return "capo_ipset_delete_reply" }
+func (*CapoIpsetDeleteReply) GetCrcString() string   { return "e8d4e804" }
+func (*CapoIpsetDeleteReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoIpsetDeleteReply) Size() (size int) {
@@ -804,10 +810,12 @@ type CapoPolicyCreate struct {
 	Rules    []CapoPolicyItem `binapi:"capo_policy_item[num_items],name=rules" json:"rules,omitempty"`
 }
 
-func (m *CapoPolicyCreate) Reset()                        { *m = CapoPolicyCreate{} }
-func (*CapoPolicyCreate) GetMessageName() string          { return "capo_policy_create" }
-func (*CapoPolicyCreate) GetCrcString() string            { return "f7ed31a8" }
-func (*CapoPolicyCreate) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoPolicyCreate) Reset()               { *m = CapoPolicyCreate{} }
+func (*CapoPolicyCreate) GetMessageName() string { return "capo_policy_create" }
+func (*CapoPolicyCreate) GetCrcString() string   { return "f7ed31a8" }
+func (*CapoPolicyCreate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoPolicyCreate) Size() (size int) {
 	if m == nil {
@@ -859,12 +867,11 @@ type CapoPolicyCreateReply struct {
 	PolicyID uint32 `binapi:"u32,name=policy_id" json:"policy_id,omitempty"`
 }
 
-func (m *CapoPolicyCreateReply) Reset()                        { *m = CapoPolicyCreateReply{} }
-func (*CapoPolicyCreateReply) GetMessageName() string          { return "capo_policy_create_reply" }
-func (*CapoPolicyCreateReply) GetCrcString() string            { return "90f27405" }
-func (*CapoPolicyCreateReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoPolicyCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *CapoPolicyCreateReply) Reset()               { *m = CapoPolicyCreateReply{} }
+func (*CapoPolicyCreateReply) GetMessageName() string { return "capo_policy_create_reply" }
+func (*CapoPolicyCreateReply) GetCrcString() string   { return "90f27405" }
+func (*CapoPolicyCreateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoPolicyCreateReply) Size() (size int) {
@@ -897,10 +904,12 @@ type CapoPolicyDelete struct {
 	PolicyID uint32 `binapi:"u32,name=policy_id" json:"policy_id,omitempty"`
 }
 
-func (m *CapoPolicyDelete) Reset()                        { *m = CapoPolicyDelete{} }
-func (*CapoPolicyDelete) GetMessageName() string          { return "capo_policy_delete" }
-func (*CapoPolicyDelete) GetCrcString() string            { return "ad833868" }
-func (*CapoPolicyDelete) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoPolicyDelete) Reset()               { *m = CapoPolicyDelete{} }
+func (*CapoPolicyDelete) GetMessageName() string { return "capo_policy_delete" }
+func (*CapoPolicyDelete) GetCrcString() string   { return "ad833868" }
+func (*CapoPolicyDelete) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoPolicyDelete) Size() (size int) {
 	if m == nil {
@@ -929,12 +938,11 @@ type CapoPolicyDeleteReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *CapoPolicyDeleteReply) Reset()                        { *m = CapoPolicyDeleteReply{} }
-func (*CapoPolicyDeleteReply) GetMessageName() string          { return "capo_policy_delete_reply" }
-func (*CapoPolicyDeleteReply) GetCrcString() string            { return "e8d4e804" }
-func (*CapoPolicyDeleteReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoPolicyDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *CapoPolicyDeleteReply) Reset()               { *m = CapoPolicyDeleteReply{} }
+func (*CapoPolicyDeleteReply) GetMessageName() string { return "capo_policy_delete_reply" }
+func (*CapoPolicyDeleteReply) GetCrcString() string   { return "e8d4e804" }
+func (*CapoPolicyDeleteReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoPolicyDeleteReply) Size() (size int) {
@@ -966,10 +974,12 @@ type CapoPolicyUpdate struct {
 	Rules    []CapoPolicyItem `binapi:"capo_policy_item[num_items],name=rules" json:"rules,omitempty"`
 }
 
-func (m *CapoPolicyUpdate) Reset()                        { *m = CapoPolicyUpdate{} }
-func (*CapoPolicyUpdate) GetMessageName() string          { return "capo_policy_update" }
-func (*CapoPolicyUpdate) GetCrcString() string            { return "e2097dd0" }
-func (*CapoPolicyUpdate) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoPolicyUpdate) Reset()               { *m = CapoPolicyUpdate{} }
+func (*CapoPolicyUpdate) GetMessageName() string { return "capo_policy_update" }
+func (*CapoPolicyUpdate) GetCrcString() string   { return "e2097dd0" }
+func (*CapoPolicyUpdate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoPolicyUpdate) Size() (size int) {
 	if m == nil {
@@ -1023,12 +1033,11 @@ type CapoPolicyUpdateReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *CapoPolicyUpdateReply) Reset()                        { *m = CapoPolicyUpdateReply{} }
-func (*CapoPolicyUpdateReply) GetMessageName() string          { return "capo_policy_update_reply" }
-func (*CapoPolicyUpdateReply) GetCrcString() string            { return "e8d4e804" }
-func (*CapoPolicyUpdateReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoPolicyUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *CapoPolicyUpdateReply) Reset()               { *m = CapoPolicyUpdateReply{} }
+func (*CapoPolicyUpdateReply) GetMessageName() string { return "capo_policy_update_reply" }
+func (*CapoPolicyUpdateReply) GetCrcString() string   { return "e8d4e804" }
+func (*CapoPolicyUpdateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoPolicyUpdateReply) Size() (size int) {
@@ -1058,10 +1067,12 @@ type CapoRuleCreate struct {
 	Rule CapoRule `binapi:"capo_rule,name=rule" json:"rule,omitempty"`
 }
 
-func (m *CapoRuleCreate) Reset()                        { *m = CapoRuleCreate{} }
-func (*CapoRuleCreate) GetMessageName() string          { return "capo_rule_create" }
-func (*CapoRuleCreate) GetCrcString() string            { return "0a2d5fd6" }
-func (*CapoRuleCreate) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoRuleCreate) Reset()               { *m = CapoRuleCreate{} }
+func (*CapoRuleCreate) GetMessageName() string { return "capo_rule_create" }
+func (*CapoRuleCreate) GetCrcString() string   { return "0a2d5fd6" }
+func (*CapoRuleCreate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoRuleCreate) Size() (size int) {
 	if m == nil {
@@ -1140,12 +1151,11 @@ type CapoRuleCreateReply struct {
 	RuleID uint32 `binapi:"u32,name=rule_id" json:"rule_id,omitempty"`
 }
 
-func (m *CapoRuleCreateReply) Reset()                        { *m = CapoRuleCreateReply{} }
-func (*CapoRuleCreateReply) GetMessageName() string          { return "capo_rule_create_reply" }
-func (*CapoRuleCreateReply) GetCrcString() string            { return "b48f8052" }
-func (*CapoRuleCreateReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoRuleCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *CapoRuleCreateReply) Reset()               { *m = CapoRuleCreateReply{} }
+func (*CapoRuleCreateReply) GetMessageName() string { return "capo_rule_create_reply" }
+func (*CapoRuleCreateReply) GetCrcString() string   { return "b48f8052" }
+func (*CapoRuleCreateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoRuleCreateReply) Size() (size int) {
@@ -1178,10 +1188,12 @@ type CapoRuleDelete struct {
 	RuleID uint32 `binapi:"u32,name=rule_id" json:"rule_id,omitempty"`
 }
 
-func (m *CapoRuleDelete) Reset()                        { *m = CapoRuleDelete{} }
-func (*CapoRuleDelete) GetMessageName() string          { return "capo_rule_delete" }
-func (*CapoRuleDelete) GetCrcString() string            { return "d19bb6be" }
-func (*CapoRuleDelete) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoRuleDelete) Reset()               { *m = CapoRuleDelete{} }
+func (*CapoRuleDelete) GetMessageName() string { return "capo_rule_delete" }
+func (*CapoRuleDelete) GetCrcString() string   { return "d19bb6be" }
+func (*CapoRuleDelete) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoRuleDelete) Size() (size int) {
 	if m == nil {
@@ -1210,12 +1222,11 @@ type CapoRuleDeleteReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *CapoRuleDeleteReply) Reset()                        { *m = CapoRuleDeleteReply{} }
-func (*CapoRuleDeleteReply) GetMessageName() string          { return "capo_rule_delete_reply" }
-func (*CapoRuleDeleteReply) GetCrcString() string            { return "e8d4e804" }
-func (*CapoRuleDeleteReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoRuleDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *CapoRuleDeleteReply) Reset()               { *m = CapoRuleDeleteReply{} }
+func (*CapoRuleDeleteReply) GetMessageName() string { return "capo_rule_delete_reply" }
+func (*CapoRuleDeleteReply) GetCrcString() string   { return "e8d4e804" }
+func (*CapoRuleDeleteReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoRuleDeleteReply) Size() (size int) {
@@ -1246,10 +1257,12 @@ type CapoRuleUpdate struct {
 	Rule   CapoRule `binapi:"capo_rule,name=rule" json:"rule,omitempty"`
 }
 
-func (m *CapoRuleUpdate) Reset()                        { *m = CapoRuleUpdate{} }
-func (*CapoRuleUpdate) GetMessageName() string          { return "capo_rule_update" }
-func (*CapoRuleUpdate) GetCrcString() string            { return "a0535ee2" }
-func (*CapoRuleUpdate) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CapoRuleUpdate) Reset()               { *m = CapoRuleUpdate{} }
+func (*CapoRuleUpdate) GetMessageName() string { return "capo_rule_update" }
+func (*CapoRuleUpdate) GetCrcString() string   { return "a0535ee2" }
+func (*CapoRuleUpdate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CapoRuleUpdate) Size() (size int) {
 	if m == nil {
@@ -1330,12 +1343,11 @@ type CapoRuleUpdateReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *CapoRuleUpdateReply) Reset()                        { *m = CapoRuleUpdateReply{} }
-func (*CapoRuleUpdateReply) GetMessageName() string          { return "capo_rule_update_reply" }
-func (*CapoRuleUpdateReply) GetCrcString() string            { return "e8d4e804" }
-func (*CapoRuleUpdateReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CapoRuleUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *CapoRuleUpdateReply) Reset()               { *m = CapoRuleUpdateReply{} }
+func (*CapoRuleUpdateReply) GetMessageName() string { return "capo_rule_update_reply" }
+func (*CapoRuleUpdateReply) GetCrcString() string   { return "e8d4e804" }
+func (*CapoRuleUpdateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CapoRuleUpdateReply) Size() (size int) {

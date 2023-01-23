@@ -19,29 +19,25 @@ import (
 	"fmt"
 
 	types "github.com/calico-vpp/vpplink/api/v0"
-	"github.com/pkg/errors"
-
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/vxlan"
 )
 
 func (v *Vpp) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
-	v.Lock()
-	defer v.Unlock()
-	tunnels := make([]types.VXLanTunnel, 0)
-	request := &vxlan.VxlanTunnelV2Dump{
+	client := vxlan.NewServiceClient(v.conn)
+
+	stream, err := client.VxlanTunnelV2Dump(v.ctx, &vxlan.VxlanTunnelV2Dump{
 		SwIfIndex: interface_types.InterfaceIndex(types.InvalidInterface),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list VXLan tunnels: %w", err)
 	}
-	stream := v.GetChannel().SendMultiRequest(request)
+	var tunnels []types.VXLanTunnel
 	for {
-		response := &vxlan.VxlanTunnelV2Details{}
-		stop, err := stream.ReceiveReply(response)
+		response, err := stream.Recv()
 		if err != nil {
-			return nil, errors.Wrapf(err, "error listing VXLan tunnels")
-		}
-		if stop {
-			break
+			return nil, fmt.Errorf("failed to list VXLan tunnels: %w", err)
 		}
 		tunnels = append(tunnels, types.VXLanTunnel{
 			SrcAddress:     response.SrcAddress.ToIP(),
@@ -55,11 +51,11 @@ func (v *Vpp) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
 	}
 	return tunnels, nil
 }
+
 func (v *Vpp) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIfIndex uint32, err error) {
-	v.Lock()
-	defer v.Unlock()
-	response := &vxlan.VxlanAddDelTunnelV3Reply{}
-	request := &vxlan.VxlanAddDelTunnelV3{
+	client := vxlan.NewServiceClient(v.conn)
+
+	response, err := client.VxlanAddDelTunnelV3(v.ctx, &vxlan.VxlanAddDelTunnelV3{
 		IsAdd:          isAdd,
 		Instance:       ^uint32(0),
 		SrcAddress:     ip_types.AddressFromIP(tunnel.SrcAddress),
@@ -69,24 +65,26 @@ func (v *Vpp) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIfInde
 		Vni:            tunnel.Vni,
 		DecapNextIndex: tunnel.DecapNextIndex,
 		IsL3:           true,
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
-	opStr := "Del"
-	if isAdd {
-		opStr = "Add"
-	}
+	})
 	if err != nil {
-		return ^uint32(1), errors.Wrapf(err, "%s vxlan Tunnel failed", opStr)
-	} else if response.Retval != 0 {
-		return ^uint32(1), fmt.Errorf("%s vxlan Tunnel failed with retval %d", opStr, response.Retval)
+		return 0, err
 	}
-	tunnel.SwIfIndex = uint32(response.SwIfIndex)
+
 	return uint32(response.SwIfIndex), nil
 }
+
 func (v *Vpp) AddVXLanTunnel(tunnel *types.VXLanTunnel) (swIfIndex uint32, err error) {
-	return v.addDelVXLanTunnel(tunnel, true)
+	swIfIndex, err = v.addDelVXLanTunnel(tunnel, true)
+	if err != nil {
+		return 0, fmt.Errorf("failed to add VXLan tunnel: %w", err)
+	}
+	return swIfIndex, nil
 }
+
 func (v *Vpp) DelVXLanTunnel(tunnel *types.VXLanTunnel) (err error) {
 	_, err = v.addDelVXLanTunnel(tunnel, false)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete VXLan tunnel: %w", err)
+	}
+	return nil
 }

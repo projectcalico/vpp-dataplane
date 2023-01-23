@@ -67,10 +67,12 @@ type UrpfUpdate struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 }
 
-func (m *UrpfUpdate) Reset()                        { *m = UrpfUpdate{} }
-func (*UrpfUpdate) GetMessageName() string          { return "urpf_update" }
-func (*UrpfUpdate) GetCrcString() string            { return "cc274cd1" }
-func (*UrpfUpdate) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *UrpfUpdate) Reset()               { *m = UrpfUpdate{} }
+func (*UrpfUpdate) GetMessageName() string { return "urpf_update" }
+func (*UrpfUpdate) GetCrcString() string   { return "cc274cd1" }
+func (*UrpfUpdate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *UrpfUpdate) Size() (size int) {
 	if m == nil {
@@ -107,12 +109,11 @@ type UrpfUpdateReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *UrpfUpdateReply) Reset()                        { *m = UrpfUpdateReply{} }
-func (*UrpfUpdateReply) GetMessageName() string          { return "urpf_update_reply" }
-func (*UrpfUpdateReply) GetCrcString() string            { return "e8d4e804" }
-func (*UrpfUpdateReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *UrpfUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *UrpfUpdateReply) Reset()               { *m = UrpfUpdateReply{} }
+func (*UrpfUpdateReply) GetMessageName() string { return "urpf_update_reply" }
+func (*UrpfUpdateReply) GetCrcString() string   { return "e8d4e804" }
+func (*UrpfUpdateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *UrpfUpdateReply) Size() (size int) {
@@ -145,10 +146,12 @@ type UrpfUpdateV2 struct {
 	TableID   uint32                         `binapi:"u32,name=table_id,default=4294967295" json:"table_id,omitempty"`
 }
 
-func (m *UrpfUpdateV2) Reset()                        { *m = UrpfUpdateV2{} }
-func (*UrpfUpdateV2) GetMessageName() string          { return "urpf_update_v2" }
-func (*UrpfUpdateV2) GetCrcString() string            { return "b873d028" }
-func (*UrpfUpdateV2) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *UrpfUpdateV2) Reset()               { *m = UrpfUpdateV2{} }
+func (*UrpfUpdateV2) GetMessageName() string { return "urpf_update_v2" }
+func (*UrpfUpdateV2) GetCrcString() string   { return "b873d028" }
+func (*UrpfUpdateV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *UrpfUpdateV2) Size() (size int) {
 	if m == nil {
@@ -188,12 +191,11 @@ type UrpfUpdateV2Reply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *UrpfUpdateV2Reply) Reset()                        { *m = UrpfUpdateV2Reply{} }
-func (*UrpfUpdateV2Reply) GetMessageName() string          { return "urpf_update_v2_reply" }
-func (*UrpfUpdateV2Reply) GetCrcString() string            { return "e8d4e804" }
-func (*UrpfUpdateV2Reply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *UrpfUpdateV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *UrpfUpdateV2Reply) Reset()               { *m = UrpfUpdateV2Reply{} }
+func (*UrpfUpdateV2Reply) GetMessageName() string { return "urpf_update_v2_reply" }
+func (*UrpfUpdateV2Reply) GetCrcString() string   { return "e8d4e804" }
+func (*UrpfUpdateV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *UrpfUpdateV2Reply) Size() (size int) {

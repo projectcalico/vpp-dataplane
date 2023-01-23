@@ -17,44 +17,41 @@
 package generated
 
 import (
-	types "github.com/calico-vpp/vpplink/api/v0"
-	"github.com/pkg/errors"
+	"fmt"
 
+	types "github.com/calico-vpp/vpplink/api/v0"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipsec"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipsec_types"
 )
 
 func (v *Vpp) GetIPsecTunnelProtection(tunnelInterface uint32) (protections []types.IPsecTunnelProtection, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := ipsec.NewServiceClient(v.conn)
 
-	request := &ipsec.IpsecTunnelProtectDump{
+	stream, err := client.IpsecTunnelProtectDump(v.ctx, &ipsec.IpsecTunnelProtectDump{
 		SwIfIndex: interface_types.InterfaceIndex(tunnelInterface),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing tunnel interface %v protections: %w", tunnelInterface, err)
 	}
-	stream := v.GetChannel().SendMultiRequest(request)
 	for {
-		response := &ipsec.IpsecTunnelProtectDetails{}
-		stop, err := stream.ReceiveReply(response)
+		response, err := stream.Recv()
 		if err != nil {
-			return nil, errors.Wrapf(err, "error listing tunnel interface %v protections", tunnelInterface)
-		}
-		if stop {
-			return protections, nil
+			return nil, fmt.Errorf("error listing tunnel interface %v protections: %w", tunnelInterface, err)
 		}
 		protections = append(protections, types.IPsecTunnelProtection{
 			SwIfIndex:   uint32(response.Tun.SwIfIndex),
-			NextHop:     fromVppAddress(response.Tun.Nh),
+			NextHop:     response.Tun.Nh.ToIP(),
 			OutSAIndex:  response.Tun.SaOut,
 			InSAIndices: response.Tun.SaIn,
 		})
 	}
+	return protections, nil
 }
 
 func (v *Vpp) addDelIpsecSA(sa *types.IPSecSA, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &ipsec.IpsecSadEntryAddDelV3Reply{}
+	client := ipsec.NewServiceClient(v.conn)
+
 	request := &ipsec.IpsecSadEntryAddDelV3{
 		IsAdd: isAdd,
 		Entry: ipsec_types.IpsecSadEntryV3{
@@ -74,67 +71,77 @@ func (v *Vpp) addDelIpsecSA(sa *types.IPSecSA, isAdd bool) error {
 	if sa.Tunnel != nil {
 		request.Entry.Tunnel = toVppTunnel(*sa.Tunnel)
 	}
-	return v.SendRequestAwaitReply(request, response)
+	_, err := client.IpsecSadEntryAddDelV3(v.ctx, request)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (v *Vpp) AddIpsecSA(sa *types.IPSecSA) error {
-	return v.addDelIpsecSA(sa, true /* isAdd */)
+	if err := v.addDelIpsecSA(sa, true); err != nil {
+		return fmt.Errorf("failed to add IPSec SA: %w", err)
+	}
+	return nil
 }
 
 func (v *Vpp) DelIpsecSA(sa *types.IPSecSA) error {
-	return v.addDelIpsecSA(sa, false /* isAdd */)
+	if err := v.addDelIpsecSA(sa, false); err != nil {
+		return fmt.Errorf("failed to delete IPSec SA: %w", err)
+	}
+	return nil
 }
 
 func (v *Vpp) AddIpsecSAProtect(swIfIndex, saIn, saOut uint32) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := ipsec.NewServiceClient(v.conn)
 
-	response := &ipsec.IpsecTunnelProtectUpdateReply{}
-	request := &ipsec.IpsecTunnelProtectUpdate{
+	_, err := client.IpsecTunnelProtectUpdate(v.ctx, &ipsec.IpsecTunnelProtectUpdate{
 		Tunnel: ipsec.IpsecTunnelProtect{
 			SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 			SaOut:     saOut,
 			SaIn:      []uint32{saIn},
 		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to add IPSec Tunnel Protect: %w", err)
 	}
-	return v.SendRequestAwaitReply(request, response)
+	return nil
 }
 
 func (v *Vpp) DelIpsecSAProtect(swIfIndex uint32) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := ipsec.NewServiceClient(v.conn)
 
-	response := &ipsec.IpsecTunnelProtectDelReply{}
-	request := &ipsec.IpsecTunnelProtectDel{
+	_, err := client.IpsecTunnelProtectDel(v.ctx, &ipsec.IpsecTunnelProtectDel{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete IPSec Tunnel Protect: %w", err)
 	}
-	return v.SendRequestAwaitReply(request, response)
+	return nil
 }
 
 func (v *Vpp) AddIpsecInterface() (uint32, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := ipsec.NewServiceClient(v.conn)
 
-	response := &ipsec.IpsecItfCreateReply{}
-	request := &ipsec.IpsecItfCreate{
+	response, err := client.IpsecItfCreate(v.ctx, &ipsec.IpsecItfCreate{
 		Itf: ipsec.IpsecItf{
 			UserInstance: ^uint32(0),
 		},
-	}
-	err := v.SendRequestAwaitReply(request, response)
+	})
 	if err != nil {
-		return InvalidSwIfIndex, err
+		return InvalidSwIfIndex, fmt.Errorf("failed to add IPSec interface: %w", err)
 	}
 	return uint32(response.SwIfIndex), nil
 }
 
 func (v *Vpp) DelIpsecInterface(swIfIndex uint32) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := ipsec.NewServiceClient(v.conn)
 
-	response := &ipsec.IpsecItfDeleteReply{}
-	request := &ipsec.IpsecItfDelete{
+	_, err := client.IpsecItfDelete(v.ctx, &ipsec.IpsecItfDelete{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete IPSec interface: %w", err)
 	}
-	return v.SendRequestAwaitReply(request, response)
+	return nil
 }

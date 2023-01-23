@@ -17,31 +17,28 @@
 package generated
 
 import (
-	types "github.com/calico-vpp/vpplink/api/v0"
-	"github.com/pkg/errors"
+	"fmt"
 
+	types "github.com/calico-vpp/vpplink/api/v0"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipip"
 )
 
 func (v *Vpp) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {
-	v.Lock()
-	defer v.Unlock()
+	client := ipip.NewServiceClient(v.conn)
 
-	tunnels := make([]*types.IPIPTunnel, 0)
-	request := &ipip.IpipTunnelDump{
+	stream, err := client.IpipTunnelDump(v.ctx, &ipip.IpipTunnelDump{
 		SwIfIndex: interface_types.InterfaceIndex(types.InvalidInterface),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list IPIP tunnels: %w", err)
 	}
-	stream := v.GetChannel().SendMultiRequest(request)
+	var tunnels []*types.IPIPTunnel
 	for {
-		response := &ipip.IpipTunnelDetails{}
-		stop, err := stream.ReceiveReply(response)
+		response, err := stream.Recv()
 		if err != nil {
-			return nil, errors.Wrapf(err, "error listing IPIP tunnels")
-		}
-		if stop {
-			break
+			return nil, fmt.Errorf("failed to list IPIP tunnels: %w", err)
 		}
 		tunnels = append(tunnels, &types.IPIPTunnel{
 			Src:       response.Tunnel.Src.ToIP(),
@@ -54,31 +51,31 @@ func (v *Vpp) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {
 }
 
 func (v *Vpp) AddIPIPTunnel(tunnel *types.IPIPTunnel) (uint32, error) {
-	response := &ipip.IpipAddTunnelReply{}
-	request := &ipip.IpipAddTunnel{
+	client := ipip.NewServiceClient(v.conn)
+
+	response, err := client.IpipAddTunnel(v.ctx, &ipip.IpipAddTunnel{
 		Tunnel: ipip.IpipTunnel{
 			Instance: ^uint32(0),
 			Src:      ip_types.AddressFromIP(tunnel.Src),
 			Dst:      ip_types.AddressFromIP(tunnel.Dst),
 			TableID:  tunnel.TableID,
 		},
-	}
-	err := v.SendRequestAwaitReply(request, response)
+	})
 	if err != nil {
-		return InvalidSwIfIndex, err
+		return InvalidSwIfIndex, fmt.Errorf("failed to add IPIP tunnel: %w", err)
 	}
 	tunnel.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
 }
 
-func (v *Vpp) DelIPIPTunnel(tunnel *types.IPIPTunnel) (err error) {
-	response := &ipip.IpipDelTunnelReply{}
-	request := &ipip.IpipDelTunnel{
+func (v *Vpp) DelIPIPTunnel(tunnel *types.IPIPTunnel) error {
+	client := ipip.NewServiceClient(v.conn)
+
+	_, err := client.IpipDelTunnel(v.ctx, &ipip.IpipDelTunnel{
 		SwIfIndex: interface_types.InterfaceIndex(tunnel.SwIfIndex),
-	}
-	err = v.SendRequestAwaitReply(request, response)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete IPIP tunnel: %w", err)
 	}
 	return nil
 }

@@ -22,7 +22,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/vishvananda/netlink v1.1.1-0.20210703095558-21f2c55a7727
 	github.com/yookoala/realpath v1.0.0
-	go.fd.io/govpp v0.6.1-0.20220928123720-fe96cac6bad7
+	go.fd.io/govpp v0.8.0-alpha.0.20230119104801-57da5b22a44c
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	golang.org/x/sys v0.4.0
 	google.golang.org/grpc v1.40.0
@@ -55,7 +55,6 @@ require (
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/emicklei/go-restful v2.11.2-0.20200112161605-a7c079c43d51+incompatible // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
-	github.com/fatih/color v1.13.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/ftrvxmtrx/fd v0.0.0-20150925145434-c6d800382fff // indirect
@@ -83,8 +82,6 @@ require (
 	github.com/leodido/go-urn v0.0.0-20181204092800-a67a23e1c1af // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
-	github.com/mattn/go-colorable v0.1.9 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -111,7 +108,7 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
+	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
@@ -166,4 +163,9 @@ replace (
 	k8s.io/metrics => k8s.io/metrics v0.21.8
 	k8s.io/mount-utils => k8s.io/mount-utils v0.21.8
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.21.8
+)
+
+replace (
+	github.com/calico-vpp/vpplink => github.com/ondrej-fabry/vpplink v0.0.0-20230123221646-cb53be317c45
+	go.fd.io/govpp => go.fd.io/govpp v0.8.0-alpha.0.20230119104801-57da5b22a44c
 )

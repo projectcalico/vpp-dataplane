@@ -17,14 +17,15 @@
 package generated
 
 import (
+	"context"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	govpp "go.fd.io/govpp"
 	vppapi "go.fd.io/govpp/api"
 	vppcore "go.fd.io/govpp/core"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -42,6 +43,7 @@ type Vpp struct {
 	ch     vppapi.Channel
 	socket string
 	log    *logrus.Entry
+	ctx    context.Context
 }
 
 func (v *Vpp) GetLog() *logrus.Entry {
@@ -50,14 +52,6 @@ func (v *Vpp) GetLog() *logrus.Entry {
 
 func (v *Vpp) GetChannel() vppapi.Channel {
 	return v.ch
-}
-
-func (v *Vpp) Lock() {
-	v.lock.Lock()
-}
-
-func (v *Vpp) Unlock() {
-	v.lock.Unlock()
 }
 
 func (v *Vpp) MakeNewChannel() (vppapi.Channel, error) {
@@ -105,19 +99,5 @@ func (v *Vpp) Close() error {
 	if v.conn != nil {
 		v.conn.Disconnect()
 	}
-	return nil
-}
-
-func (v *Vpp) SendRequestAwaitReply(request vppapi.Message, response vppapi.ReplyMessage) error {
-	v.Lock()
-	defer v.Unlock()
-
-	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
-	if err != nil {
-		return errors.Wrapf(err, "API internal error, msg=%s", request.GetMessageName())
-	} else if response.GetRetVal() != nil {
-		return response.GetRetVal()
-	}
-
 	return nil
 }

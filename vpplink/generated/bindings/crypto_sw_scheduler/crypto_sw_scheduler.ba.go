@@ -30,10 +30,12 @@ type CryptoSwSchedulerSetWorker struct {
 	CryptoEnable bool   `binapi:"bool,name=crypto_enable" json:"crypto_enable,omitempty"`
 }
 
-func (m *CryptoSwSchedulerSetWorker) Reset()                        { *m = CryptoSwSchedulerSetWorker{} }
-func (*CryptoSwSchedulerSetWorker) GetMessageName() string          { return "crypto_sw_scheduler_set_worker" }
-func (*CryptoSwSchedulerSetWorker) GetCrcString() string            { return "b4274502" }
-func (*CryptoSwSchedulerSetWorker) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *CryptoSwSchedulerSetWorker) Reset()               { *m = CryptoSwSchedulerSetWorker{} }
+func (*CryptoSwSchedulerSetWorker) GetMessageName() string { return "crypto_sw_scheduler_set_worker" }
+func (*CryptoSwSchedulerSetWorker) GetCrcString() string   { return "b4274502" }
+func (*CryptoSwSchedulerSetWorker) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *CryptoSwSchedulerSetWorker) Size() (size int) {
 	if m == nil {
@@ -69,10 +71,9 @@ func (m *CryptoSwSchedulerSetWorkerReply) Reset() { *m = CryptoSwSchedulerSetWor
 func (*CryptoSwSchedulerSetWorkerReply) GetMessageName() string {
 	return "crypto_sw_scheduler_set_worker_reply"
 }
-func (*CryptoSwSchedulerSetWorkerReply) GetCrcString() string            { return "e8d4e804" }
-func (*CryptoSwSchedulerSetWorkerReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *CryptoSwSchedulerSetWorkerReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (*CryptoSwSchedulerSetWorkerReply) GetCrcString() string { return "e8d4e804" }
+func (*CryptoSwSchedulerSetWorkerReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *CryptoSwSchedulerSetWorkerReply) Size() (size int) {

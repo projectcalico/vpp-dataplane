@@ -50,10 +50,12 @@ type AbfItfAttachAddDel struct {
 	Attach AbfItfAttach `binapi:"abf_itf_attach,name=attach" json:"attach,omitempty"`
 }
 
-func (m *AbfItfAttachAddDel) Reset()                        { *m = AbfItfAttachAddDel{} }
-func (*AbfItfAttachAddDel) GetMessageName() string          { return "abf_itf_attach_add_del" }
-func (*AbfItfAttachAddDel) GetCrcString() string            { return "25c8621b" }
-func (*AbfItfAttachAddDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *AbfItfAttachAddDel) Reset()               { *m = AbfItfAttachAddDel{} }
+func (*AbfItfAttachAddDel) GetMessageName() string { return "abf_itf_attach_add_del" }
+func (*AbfItfAttachAddDel) GetCrcString() string   { return "25c8621b" }
+func (*AbfItfAttachAddDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *AbfItfAttachAddDel) Size() (size int) {
 	if m == nil {
@@ -94,12 +96,11 @@ type AbfItfAttachAddDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *AbfItfAttachAddDelReply) Reset()                        { *m = AbfItfAttachAddDelReply{} }
-func (*AbfItfAttachAddDelReply) GetMessageName() string          { return "abf_itf_attach_add_del_reply" }
-func (*AbfItfAttachAddDelReply) GetCrcString() string            { return "e8d4e804" }
-func (*AbfItfAttachAddDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *AbfItfAttachAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *AbfItfAttachAddDelReply) Reset()               { *m = AbfItfAttachAddDelReply{} }
+func (*AbfItfAttachAddDelReply) GetMessageName() string { return "abf_itf_attach_add_del_reply" }
+func (*AbfItfAttachAddDelReply) GetCrcString() string   { return "e8d4e804" }
+func (*AbfItfAttachAddDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *AbfItfAttachAddDelReply) Size() (size int) {
@@ -129,12 +130,11 @@ type AbfItfAttachDetails struct {
 	Attach AbfItfAttach `binapi:"abf_itf_attach,name=attach" json:"attach,omitempty"`
 }
 
-func (m *AbfItfAttachDetails) Reset()                        { *m = AbfItfAttachDetails{} }
-func (*AbfItfAttachDetails) GetMessageName() string          { return "abf_itf_attach_details" }
-func (*AbfItfAttachDetails) GetCrcString() string            { return "7819523e" }
-func (*AbfItfAttachDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *AbfItfAttachDetails) GetRetVal() error {
-	return nil
+func (m *AbfItfAttachDetails) Reset()               { *m = AbfItfAttachDetails{} }
+func (*AbfItfAttachDetails) GetMessageName() string { return "abf_itf_attach_details" }
+func (*AbfItfAttachDetails) GetCrcString() string   { return "7819523e" }
+func (*AbfItfAttachDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *AbfItfAttachDetails) Size() (size int) {
@@ -171,10 +171,12 @@ func (m *AbfItfAttachDetails) Unmarshal(b []byte) error {
 // InProgress: the message form may change in the future versions
 type AbfItfAttachDump struct{}
 
-func (m *AbfItfAttachDump) Reset()                        { *m = AbfItfAttachDump{} }
-func (*AbfItfAttachDump) GetMessageName() string          { return "abf_itf_attach_dump" }
-func (*AbfItfAttachDump) GetCrcString() string            { return "51077d14" }
-func (*AbfItfAttachDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *AbfItfAttachDump) Reset()               { *m = AbfItfAttachDump{} }
+func (*AbfItfAttachDump) GetMessageName() string { return "abf_itf_attach_dump" }
+func (*AbfItfAttachDump) GetCrcString() string   { return "51077d14" }
+func (*AbfItfAttachDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *AbfItfAttachDump) Size() (size int) {
 	if m == nil {
@@ -197,10 +199,12 @@ func (m *AbfItfAttachDump) Unmarshal(b []byte) error {
 // InProgress: the message form may change in the future versions
 type AbfPluginGetVersion struct{}
 
-func (m *AbfPluginGetVersion) Reset()                        { *m = AbfPluginGetVersion{} }
-func (*AbfPluginGetVersion) GetMessageName() string          { return "abf_plugin_get_version" }
-func (*AbfPluginGetVersion) GetCrcString() string            { return "51077d14" }
-func (*AbfPluginGetVersion) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *AbfPluginGetVersion) Reset()               { *m = AbfPluginGetVersion{} }
+func (*AbfPluginGetVersion) GetMessageName() string { return "abf_plugin_get_version" }
+func (*AbfPluginGetVersion) GetCrcString() string   { return "51077d14" }
+func (*AbfPluginGetVersion) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *AbfPluginGetVersion) Size() (size int) {
 	if m == nil {
@@ -226,12 +230,11 @@ type AbfPluginGetVersionReply struct {
 	Minor uint32 `binapi:"u32,name=minor" json:"minor,omitempty"`
 }
 
-func (m *AbfPluginGetVersionReply) Reset()                        { *m = AbfPluginGetVersionReply{} }
-func (*AbfPluginGetVersionReply) GetMessageName() string          { return "abf_plugin_get_version_reply" }
-func (*AbfPluginGetVersionReply) GetCrcString() string            { return "9b32cf86" }
-func (*AbfPluginGetVersionReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *AbfPluginGetVersionReply) GetRetVal() error {
-	return nil
+func (m *AbfPluginGetVersionReply) Reset()               { *m = AbfPluginGetVersionReply{} }
+func (*AbfPluginGetVersionReply) GetMessageName() string { return "abf_plugin_get_version_reply" }
+func (*AbfPluginGetVersionReply) GetCrcString() string   { return "9b32cf86" }
+func (*AbfPluginGetVersionReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *AbfPluginGetVersionReply) Size() (size int) {
@@ -265,10 +268,12 @@ type AbfPolicyAddDel struct {
 	Policy AbfPolicy `binapi:"abf_policy,name=policy" json:"policy,omitempty"`
 }
 
-func (m *AbfPolicyAddDel) Reset()                        { *m = AbfPolicyAddDel{} }
-func (*AbfPolicyAddDel) GetMessageName() string          { return "abf_policy_add_del" }
-func (*AbfPolicyAddDel) GetCrcString() string            { return "c6131197" }
-func (*AbfPolicyAddDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *AbfPolicyAddDel) Reset()               { *m = AbfPolicyAddDel{} }
+func (*AbfPolicyAddDel) GetMessageName() string { return "abf_policy_add_del" }
+func (*AbfPolicyAddDel) GetCrcString() string   { return "c6131197" }
+func (*AbfPolicyAddDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *AbfPolicyAddDel) Size() (size int) {
 	if m == nil {
@@ -379,12 +384,11 @@ type AbfPolicyAddDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *AbfPolicyAddDelReply) Reset()                        { *m = AbfPolicyAddDelReply{} }
-func (*AbfPolicyAddDelReply) GetMessageName() string          { return "abf_policy_add_del_reply" }
-func (*AbfPolicyAddDelReply) GetCrcString() string            { return "e8d4e804" }
-func (*AbfPolicyAddDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *AbfPolicyAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *AbfPolicyAddDelReply) Reset()               { *m = AbfPolicyAddDelReply{} }
+func (*AbfPolicyAddDelReply) GetMessageName() string { return "abf_policy_add_del_reply" }
+func (*AbfPolicyAddDelReply) GetCrcString() string   { return "e8d4e804" }
+func (*AbfPolicyAddDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *AbfPolicyAddDelReply) Size() (size int) {
@@ -414,12 +418,11 @@ type AbfPolicyDetails struct {
 	Policy AbfPolicy `binapi:"abf_policy,name=policy" json:"policy,omitempty"`
 }
 
-func (m *AbfPolicyDetails) Reset()                        { *m = AbfPolicyDetails{} }
-func (*AbfPolicyDetails) GetMessageName() string          { return "abf_policy_details" }
-func (*AbfPolicyDetails) GetCrcString() string            { return "b7487fa4" }
-func (*AbfPolicyDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *AbfPolicyDetails) GetRetVal() error {
-	return nil
+func (m *AbfPolicyDetails) Reset()               { *m = AbfPolicyDetails{} }
+func (*AbfPolicyDetails) GetMessageName() string { return "abf_policy_details" }
+func (*AbfPolicyDetails) GetCrcString() string   { return "b7487fa4" }
+func (*AbfPolicyDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *AbfPolicyDetails) Size() (size int) {
@@ -526,10 +529,12 @@ func (m *AbfPolicyDetails) Unmarshal(b []byte) error {
 // InProgress: the message form may change in the future versions
 type AbfPolicyDump struct{}
 
-func (m *AbfPolicyDump) Reset()                        { *m = AbfPolicyDump{} }
-func (*AbfPolicyDump) GetMessageName() string          { return "abf_policy_dump" }
-func (*AbfPolicyDump) GetCrcString() string            { return "51077d14" }
-func (*AbfPolicyDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *AbfPolicyDump) Reset()               { *m = AbfPolicyDump{} }
+func (*AbfPolicyDump) GetMessageName() string { return "abf_policy_dump" }
+func (*AbfPolicyDump) GetCrcString() string   { return "51077d14" }
+func (*AbfPolicyDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *AbfPolicyDump) Size() (size int) {
 	if m == nil {

@@ -41,10 +41,12 @@ type ModuleVersion struct {
 // APIVersions defines message 'api_versions'.
 type APIVersions struct{}
 
-func (m *APIVersions) Reset()                        { *m = APIVersions{} }
-func (*APIVersions) GetMessageName() string          { return "api_versions" }
-func (*APIVersions) GetCrcString() string            { return "51077d14" }
-func (*APIVersions) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *APIVersions) Reset()               { *m = APIVersions{} }
+func (*APIVersions) GetMessageName() string { return "api_versions" }
+func (*APIVersions) GetCrcString() string   { return "51077d14" }
+func (*APIVersions) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *APIVersions) Size() (size int) {
 	if m == nil {
@@ -70,12 +72,11 @@ type APIVersionsReply struct {
 	APIVersions []ModuleVersion `binapi:"module_version[count],name=api_versions" json:"api_versions,omitempty"`
 }
 
-func (m *APIVersionsReply) Reset()                        { *m = APIVersionsReply{} }
-func (*APIVersionsReply) GetMessageName() string          { return "api_versions_reply" }
-func (*APIVersionsReply) GetCrcString() string            { return "5f0d99d6" }
-func (*APIVersionsReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *APIVersionsReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *APIVersionsReply) Reset()               { *m = APIVersionsReply{} }
+func (*APIVersionsReply) GetMessageName() string { return "api_versions_reply" }
+func (*APIVersionsReply) GetCrcString() string   { return "5f0d99d6" }
+func (*APIVersionsReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *APIVersionsReply) Size() (size int) {
@@ -133,10 +134,12 @@ func (m *APIVersionsReply) Unmarshal(b []byte) error {
 // ControlPing defines message 'control_ping'.
 type ControlPing struct{}
 
-func (m *ControlPing) Reset()                        { *m = ControlPing{} }
-func (*ControlPing) GetMessageName() string          { return "control_ping" }
-func (*ControlPing) GetCrcString() string            { return "51077d14" }
-func (*ControlPing) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *ControlPing) Reset()               { *m = ControlPing{} }
+func (*ControlPing) GetMessageName() string { return "control_ping" }
+func (*ControlPing) GetCrcString() string   { return "51077d14" }
+func (*ControlPing) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *ControlPing) Size() (size int) {
 	if m == nil {
@@ -162,12 +165,11 @@ type ControlPingReply struct {
 	VpePID      uint32 `binapi:"u32,name=vpe_pid" json:"vpe_pid,omitempty"`
 }
 
-func (m *ControlPingReply) Reset()                        { *m = ControlPingReply{} }
-func (*ControlPingReply) GetMessageName() string          { return "control_ping_reply" }
-func (*ControlPingReply) GetCrcString() string            { return "f6b0b8ca" }
-func (*ControlPingReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *ControlPingReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *ControlPingReply) Reset()               { *m = ControlPingReply{} }
+func (*ControlPingReply) GetMessageName() string { return "control_ping_reply" }
+func (*ControlPingReply) GetCrcString() string   { return "f6b0b8ca" }
+func (*ControlPingReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *ControlPingReply) Size() (size int) {
@@ -202,10 +204,12 @@ type GetFirstMsgID struct {
 	Name string `binapi:"string[64],name=name" json:"name,omitempty"`
 }
 
-func (m *GetFirstMsgID) Reset()                        { *m = GetFirstMsgID{} }
-func (*GetFirstMsgID) GetMessageName() string          { return "get_first_msg_id" }
-func (*GetFirstMsgID) GetCrcString() string            { return "ebf79a66" }
-func (*GetFirstMsgID) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *GetFirstMsgID) Reset()               { *m = GetFirstMsgID{} }
+func (*GetFirstMsgID) GetMessageName() string { return "get_first_msg_id" }
+func (*GetFirstMsgID) GetCrcString() string   { return "ebf79a66" }
+func (*GetFirstMsgID) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *GetFirstMsgID) Size() (size int) {
 	if m == nil {
@@ -234,12 +238,11 @@ type GetFirstMsgIDReply struct {
 	FirstMsgID uint16 `binapi:"u16,name=first_msg_id" json:"first_msg_id,omitempty"`
 }
 
-func (m *GetFirstMsgIDReply) Reset()                        { *m = GetFirstMsgIDReply{} }
-func (*GetFirstMsgIDReply) GetMessageName() string          { return "get_first_msg_id_reply" }
-func (*GetFirstMsgIDReply) GetCrcString() string            { return "7d337472" }
-func (*GetFirstMsgIDReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *GetFirstMsgIDReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *GetFirstMsgIDReply) Reset()               { *m = GetFirstMsgIDReply{} }
+func (*GetFirstMsgIDReply) GetMessageName() string { return "get_first_msg_id_reply" }
+func (*GetFirstMsgIDReply) GetCrcString() string   { return "7d337472" }
+func (*GetFirstMsgIDReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *GetFirstMsgIDReply) Size() (size int) {
@@ -274,12 +277,11 @@ type MemclntCreate struct {
 	APIVersions []uint32 `binapi:"u32[8],name=api_versions" json:"api_versions,omitempty"`
 }
 
-func (m *MemclntCreate) Reset()                        { *m = MemclntCreate{} }
-func (*MemclntCreate) GetMessageName() string          { return "memclnt_create" }
-func (*MemclntCreate) GetCrcString() string            { return "9c5e1c2f" }
-func (*MemclntCreate) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *MemclntCreate) GetRetVal() error {
-	return nil
+func (m *MemclntCreate) Reset()               { *m = MemclntCreate{} }
+func (*MemclntCreate) GetMessageName() string { return "memclnt_create" }
+func (*MemclntCreate) GetCrcString() string   { return "9c5e1c2f" }
+func (*MemclntCreate) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *MemclntCreate) Size() (size int) {
@@ -329,12 +331,11 @@ type MemclntCreateReply struct {
 	MessageTable uint64 `binapi:"u64,name=message_table" json:"message_table,omitempty"`
 }
 
-func (m *MemclntCreateReply) Reset()                        { *m = MemclntCreateReply{} }
-func (*MemclntCreateReply) GetMessageName() string          { return "memclnt_create_reply" }
-func (*MemclntCreateReply) GetCrcString() string            { return "42ec4560" }
-func (*MemclntCreateReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *MemclntCreateReply) GetRetVal() error {
-	return nil
+func (m *MemclntCreateReply) Reset()               { *m = MemclntCreateReply{} }
+func (*MemclntCreateReply) GetMessageName() string { return "memclnt_create_reply" }
+func (*MemclntCreateReply) GetCrcString() string   { return "42ec4560" }
+func (*MemclntCreateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *MemclntCreateReply) Size() (size int) {
@@ -376,12 +377,11 @@ type MemclntCreateV2 struct {
 	Keepalive   bool     `binapi:"bool,name=keepalive,default=true" json:"keepalive,omitempty"`
 }
 
-func (m *MemclntCreateV2) Reset()                        { *m = MemclntCreateV2{} }
-func (*MemclntCreateV2) GetMessageName() string          { return "memclnt_create_v2" }
-func (*MemclntCreateV2) GetCrcString() string            { return "c4bd4882" }
-func (*MemclntCreateV2) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *MemclntCreateV2) GetRetVal() error {
-	return nil
+func (m *MemclntCreateV2) Reset()               { *m = MemclntCreateV2{} }
+func (*MemclntCreateV2) GetMessageName() string { return "memclnt_create_v2" }
+func (*MemclntCreateV2) GetCrcString() string   { return "c4bd4882" }
+func (*MemclntCreateV2) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *MemclntCreateV2) Size() (size int) {
@@ -434,12 +434,11 @@ type MemclntCreateV2Reply struct {
 	MessageTable uint64 `binapi:"u64,name=message_table" json:"message_table,omitempty"`
 }
 
-func (m *MemclntCreateV2Reply) Reset()                        { *m = MemclntCreateV2Reply{} }
-func (*MemclntCreateV2Reply) GetMessageName() string          { return "memclnt_create_v2_reply" }
-func (*MemclntCreateV2Reply) GetCrcString() string            { return "42ec4560" }
-func (*MemclntCreateV2Reply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *MemclntCreateV2Reply) GetRetVal() error {
-	return nil
+func (m *MemclntCreateV2Reply) Reset()               { *m = MemclntCreateV2Reply{} }
+func (*MemclntCreateV2Reply) GetMessageName() string { return "memclnt_create_v2_reply" }
+func (*MemclntCreateV2Reply) GetCrcString() string   { return "42ec4560" }
+func (*MemclntCreateV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *MemclntCreateV2Reply) Size() (size int) {
@@ -479,10 +478,12 @@ type MemclntDelete struct {
 	DoCleanup bool   `binapi:"bool,name=do_cleanup" json:"do_cleanup,omitempty"`
 }
 
-func (m *MemclntDelete) Reset()                        { *m = MemclntDelete{} }
-func (*MemclntDelete) GetMessageName() string          { return "memclnt_delete" }
-func (*MemclntDelete) GetCrcString() string            { return "7e1c04e3" }
-func (*MemclntDelete) GetMessageType() api.MessageType { return api.OtherMessageType }
+func (m *MemclntDelete) Reset()               { *m = MemclntDelete{} }
+func (*MemclntDelete) GetMessageName() string { return "memclnt_delete" }
+func (*MemclntDelete) GetCrcString() string   { return "7e1c04e3" }
+func (*MemclntDelete) GetMessageType() api.MessageType {
+	return api.OtherMessage
+}
 
 func (m *MemclntDelete) Size() (size int) {
 	if m == nil {
@@ -517,10 +518,12 @@ type MemclntDeleteReply struct {
 	Handle   uint64 `binapi:"u64,name=handle" json:"handle,omitempty"`
 }
 
-func (m *MemclntDeleteReply) Reset()                        { *m = MemclntDeleteReply{} }
-func (*MemclntDeleteReply) GetMessageName() string          { return "memclnt_delete_reply" }
-func (*MemclntDeleteReply) GetCrcString() string            { return "3d3b6312" }
-func (*MemclntDeleteReply) GetMessageType() api.MessageType { return api.OtherMessageType }
+func (m *MemclntDeleteReply) Reset()               { *m = MemclntDeleteReply{} }
+func (*MemclntDeleteReply) GetMessageName() string { return "memclnt_delete_reply" }
+func (*MemclntDeleteReply) GetCrcString() string   { return "3d3b6312" }
+func (*MemclntDeleteReply) GetMessageType() api.MessageType {
+	return api.OtherMessage
+}
 
 func (m *MemclntDeleteReply) Size() (size int) {
 	if m == nil {
@@ -549,10 +552,12 @@ func (m *MemclntDeleteReply) Unmarshal(b []byte) error {
 // MemclntKeepalive defines message 'memclnt_keepalive'.
 type MemclntKeepalive struct{}
 
-func (m *MemclntKeepalive) Reset()                        { *m = MemclntKeepalive{} }
-func (*MemclntKeepalive) GetMessageName() string          { return "memclnt_keepalive" }
-func (*MemclntKeepalive) GetCrcString() string            { return "51077d14" }
-func (*MemclntKeepalive) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *MemclntKeepalive) Reset()               { *m = MemclntKeepalive{} }
+func (*MemclntKeepalive) GetMessageName() string { return "memclnt_keepalive" }
+func (*MemclntKeepalive) GetCrcString() string   { return "51077d14" }
+func (*MemclntKeepalive) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *MemclntKeepalive) Size() (size int) {
 	if m == nil {
@@ -576,12 +581,11 @@ type MemclntKeepaliveReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *MemclntKeepaliveReply) Reset()                        { *m = MemclntKeepaliveReply{} }
-func (*MemclntKeepaliveReply) GetMessageName() string          { return "memclnt_keepalive_reply" }
-func (*MemclntKeepaliveReply) GetCrcString() string            { return "e8d4e804" }
-func (*MemclntKeepaliveReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *MemclntKeepaliveReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *MemclntKeepaliveReply) Reset()               { *m = MemclntKeepaliveReply{} }
+func (*MemclntKeepaliveReply) GetMessageName() string { return "memclnt_keepalive_reply" }
+func (*MemclntKeepaliveReply) GetCrcString() string   { return "e8d4e804" }
+func (*MemclntKeepaliveReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *MemclntKeepaliveReply) Size() (size int) {
@@ -610,10 +614,12 @@ type MemclntReadTimeout struct {
 	Dummy uint8 `binapi:"u8,name=dummy" json:"dummy,omitempty"`
 }
 
-func (m *MemclntReadTimeout) Reset()                        { *m = MemclntReadTimeout{} }
-func (*MemclntReadTimeout) GetMessageName() string          { return "memclnt_read_timeout" }
-func (*MemclntReadTimeout) GetCrcString() string            { return "c3a3a452" }
-func (*MemclntReadTimeout) GetMessageType() api.MessageType { return api.OtherMessageType }
+func (m *MemclntReadTimeout) Reset()               { *m = MemclntReadTimeout{} }
+func (*MemclntReadTimeout) GetMessageName() string { return "memclnt_read_timeout" }
+func (*MemclntReadTimeout) GetCrcString() string   { return "c3a3a452" }
+func (*MemclntReadTimeout) GetMessageType() api.MessageType {
+	return api.OtherMessage
+}
 
 func (m *MemclntReadTimeout) Size() (size int) {
 	if m == nil {
@@ -641,10 +647,12 @@ type MemclntRxThreadSuspend struct {
 	Dummy uint8 `binapi:"u8,name=dummy" json:"dummy,omitempty"`
 }
 
-func (m *MemclntRxThreadSuspend) Reset()                        { *m = MemclntRxThreadSuspend{} }
-func (*MemclntRxThreadSuspend) GetMessageName() string          { return "memclnt_rx_thread_suspend" }
-func (*MemclntRxThreadSuspend) GetCrcString() string            { return "c3a3a452" }
-func (*MemclntRxThreadSuspend) GetMessageType() api.MessageType { return api.OtherMessageType }
+func (m *MemclntRxThreadSuspend) Reset()               { *m = MemclntRxThreadSuspend{} }
+func (*MemclntRxThreadSuspend) GetMessageName() string { return "memclnt_rx_thread_suspend" }
+func (*MemclntRxThreadSuspend) GetCrcString() string   { return "c3a3a452" }
+func (*MemclntRxThreadSuspend) GetMessageType() api.MessageType {
+	return api.OtherMessage
+}
 
 func (m *MemclntRxThreadSuspend) Size() (size int) {
 	if m == nil {
@@ -677,10 +685,12 @@ type RPCCall struct {
 	Data            []byte `binapi:"u8[data_len],name=data" json:"data,omitempty"`
 }
 
-func (m *RPCCall) Reset()                        { *m = RPCCall{} }
-func (*RPCCall) GetMessageName() string          { return "rpc_call" }
-func (*RPCCall) GetCrcString() string            { return "7e8a2c95" }
-func (*RPCCall) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *RPCCall) Reset()               { *m = RPCCall{} }
+func (*RPCCall) GetMessageName() string { return "rpc_call" }
+func (*RPCCall) GetCrcString() string   { return "7e8a2c95" }
+func (*RPCCall) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *RPCCall) Size() (size int) {
 	if m == nil {
@@ -724,12 +734,11 @@ type RPCCallReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *RPCCallReply) Reset()                        { *m = RPCCallReply{} }
-func (*RPCCallReply) GetMessageName() string          { return "rpc_call_reply" }
-func (*RPCCallReply) GetCrcString() string            { return "e8d4e804" }
-func (*RPCCallReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *RPCCallReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *RPCCallReply) Reset()               { *m = RPCCallReply{} }
+func (*RPCCallReply) GetMessageName() string { return "rpc_call_reply" }
+func (*RPCCallReply) GetCrcString() string   { return "e8d4e804" }
+func (*RPCCallReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *RPCCallReply) Size() (size int) {
@@ -758,10 +767,12 @@ type RxThreadExit struct {
 	Dummy uint8 `binapi:"u8,name=dummy" json:"dummy,omitempty"`
 }
 
-func (m *RxThreadExit) Reset()                        { *m = RxThreadExit{} }
-func (*RxThreadExit) GetMessageName() string          { return "rx_thread_exit" }
-func (*RxThreadExit) GetCrcString() string            { return "c3a3a452" }
-func (*RxThreadExit) GetMessageType() api.MessageType { return api.OtherMessageType }
+func (m *RxThreadExit) Reset()               { *m = RxThreadExit{} }
+func (*RxThreadExit) GetMessageName() string { return "rx_thread_exit" }
+func (*RxThreadExit) GetCrcString() string   { return "c3a3a452" }
+func (*RxThreadExit) GetMessageType() api.MessageType {
+	return api.OtherMessage
+}
 
 func (m *RxThreadExit) Size() (size int) {
 	if m == nil {
@@ -791,10 +802,12 @@ type SockInitShm struct {
 	Configs       []uint64 `binapi:"u64[nitems],name=configs" json:"configs,omitempty"`
 }
 
-func (m *SockInitShm) Reset()                        { *m = SockInitShm{} }
-func (*SockInitShm) GetMessageName() string          { return "sock_init_shm" }
-func (*SockInitShm) GetCrcString() string            { return "51646d92" }
-func (*SockInitShm) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SockInitShm) Reset()               { *m = SockInitShm{} }
+func (*SockInitShm) GetMessageName() string { return "sock_init_shm" }
+func (*SockInitShm) GetCrcString() string   { return "51646d92" }
+func (*SockInitShm) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SockInitShm) Size() (size int) {
 	if m == nil {
@@ -837,12 +850,11 @@ type SockInitShmReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *SockInitShmReply) Reset()                        { *m = SockInitShmReply{} }
-func (*SockInitShmReply) GetMessageName() string          { return "sock_init_shm_reply" }
-func (*SockInitShmReply) GetCrcString() string            { return "e8d4e804" }
-func (*SockInitShmReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SockInitShmReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *SockInitShmReply) Reset()               { *m = SockInitShmReply{} }
+func (*SockInitShmReply) GetMessageName() string { return "sock_init_shm_reply" }
+func (*SockInitShmReply) GetCrcString() string   { return "e8d4e804" }
+func (*SockInitShmReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SockInitShmReply) Size() (size int) {
@@ -871,12 +883,11 @@ type SockclntCreate struct {
 	Name string `binapi:"string[64],name=name" json:"name,omitempty"`
 }
 
-func (m *SockclntCreate) Reset()                        { *m = SockclntCreate{} }
-func (*SockclntCreate) GetMessageName() string          { return "sockclnt_create" }
-func (*SockclntCreate) GetCrcString() string            { return "455fb9c4" }
-func (*SockclntCreate) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SockclntCreate) GetRetVal() error {
-	return nil
+func (m *SockclntCreate) Reset()               { *m = SockclntCreate{} }
+func (*SockclntCreate) GetMessageName() string { return "sockclnt_create" }
+func (*SockclntCreate) GetCrcString() string   { return "455fb9c4" }
+func (*SockclntCreate) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SockclntCreate) Size() (size int) {
@@ -908,10 +919,12 @@ type SockclntCreateReply struct {
 	MessageTable []MessageTableEntry `binapi:"message_table_entry[count],name=message_table" json:"message_table,omitempty"`
 }
 
-func (m *SockclntCreateReply) Reset()                        { *m = SockclntCreateReply{} }
-func (*SockclntCreateReply) GetMessageName() string          { return "sockclnt_create_reply" }
-func (*SockclntCreateReply) GetCrcString() string            { return "35166268" }
-func (*SockclntCreateReply) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SockclntCreateReply) Reset()               { *m = SockclntCreateReply{} }
+func (*SockclntCreateReply) GetMessageName() string { return "sockclnt_create_reply" }
+func (*SockclntCreateReply) GetCrcString() string   { return "35166268" }
+func (*SockclntCreateReply) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SockclntCreateReply) Size() (size int) {
 	if m == nil {
@@ -967,10 +980,12 @@ type SockclntDelete struct {
 	Index uint32 `binapi:"u32,name=index" json:"index,omitempty"`
 }
 
-func (m *SockclntDelete) Reset()                        { *m = SockclntDelete{} }
-func (*SockclntDelete) GetMessageName() string          { return "sockclnt_delete" }
-func (*SockclntDelete) GetCrcString() string            { return "8ac76db6" }
-func (*SockclntDelete) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SockclntDelete) Reset()               { *m = SockclntDelete{} }
+func (*SockclntDelete) GetMessageName() string { return "sockclnt_delete" }
+func (*SockclntDelete) GetCrcString() string   { return "8ac76db6" }
+func (*SockclntDelete) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SockclntDelete) Size() (size int) {
 	if m == nil {
@@ -998,12 +1013,11 @@ type SockclntDeleteReply struct {
 	Response int32 `binapi:"i32,name=response" json:"response,omitempty"`
 }
 
-func (m *SockclntDeleteReply) Reset()                        { *m = SockclntDeleteReply{} }
-func (*SockclntDeleteReply) GetMessageName() string          { return "sockclnt_delete_reply" }
-func (*SockclntDeleteReply) GetCrcString() string            { return "8f38b1ee" }
-func (*SockclntDeleteReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SockclntDeleteReply) GetRetVal() error {
-	return nil
+func (m *SockclntDeleteReply) Reset()               { *m = SockclntDeleteReply{} }
+func (*SockclntDeleteReply) GetMessageName() string { return "sockclnt_delete_reply" }
+func (*SockclntDeleteReply) GetCrcString() string   { return "8f38b1ee" }
+func (*SockclntDeleteReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SockclntDeleteReply) Size() (size int) {
@@ -1034,10 +1048,12 @@ type TracePluginMsgIds struct {
 	LastMsgID  uint16 `binapi:"u16,name=last_msg_id" json:"last_msg_id,omitempty"`
 }
 
-func (m *TracePluginMsgIds) Reset()                        { *m = TracePluginMsgIds{} }
-func (*TracePluginMsgIds) GetMessageName() string          { return "trace_plugin_msg_ids" }
-func (*TracePluginMsgIds) GetCrcString() string            { return "f476d3ce" }
-func (*TracePluginMsgIds) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *TracePluginMsgIds) Reset()               { *m = TracePluginMsgIds{} }
+func (*TracePluginMsgIds) GetMessageName() string { return "trace_plugin_msg_ids" }
+func (*TracePluginMsgIds) GetCrcString() string   { return "f476d3ce" }
+func (*TracePluginMsgIds) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *TracePluginMsgIds) Size() (size int) {
 	if m == nil {

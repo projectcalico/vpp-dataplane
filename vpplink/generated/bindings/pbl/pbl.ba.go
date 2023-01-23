@@ -97,10 +97,12 @@ type PblClientDel struct {
 	ID uint32 `binapi:"u32,name=id" json:"id,omitempty"`
 }
 
-func (m *PblClientDel) Reset()                        { *m = PblClientDel{} }
-func (*PblClientDel) GetMessageName() string          { return "pbl_client_del" }
-func (*PblClientDel) GetCrcString() string            { return "3a91bde5" }
-func (*PblClientDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *PblClientDel) Reset()               { *m = PblClientDel{} }
+func (*PblClientDel) GetMessageName() string { return "pbl_client_del" }
+func (*PblClientDel) GetCrcString() string   { return "3a91bde5" }
+func (*PblClientDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *PblClientDel) Size() (size int) {
 	if m == nil {
@@ -129,12 +131,11 @@ type PblClientDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *PblClientDelReply) Reset()                        { *m = PblClientDelReply{} }
-func (*PblClientDelReply) GetMessageName() string          { return "pbl_client_del_reply" }
-func (*PblClientDelReply) GetCrcString() string            { return "e8d4e804" }
-func (*PblClientDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *PblClientDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *PblClientDelReply) Reset()               { *m = PblClientDelReply{} }
+func (*PblClientDelReply) GetMessageName() string { return "pbl_client_del_reply" }
+func (*PblClientDelReply) GetCrcString() string   { return "e8d4e804" }
+func (*PblClientDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *PblClientDelReply) Size() (size int) {
@@ -164,12 +165,11 @@ type PblClientDetails struct {
 	Client PblClient `binapi:"pbl_client,name=client" json:"client,omitempty"`
 }
 
-func (m *PblClientDetails) Reset()                        { *m = PblClientDetails{} }
-func (*PblClientDetails) GetMessageName() string          { return "pbl_client_details" }
-func (*PblClientDetails) GetCrcString() string            { return "14278144" }
-func (*PblClientDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *PblClientDetails) GetRetVal() error {
-	return nil
+func (m *PblClientDetails) Reset()               { *m = PblClientDetails{} }
+func (*PblClientDetails) GetMessageName() string { return "pbl_client_details" }
+func (*PblClientDetails) GetCrcString() string   { return "14278144" }
+func (*PblClientDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *PblClientDetails) Size() (size int) {
@@ -294,10 +294,12 @@ func (m *PblClientDetails) Unmarshal(b []byte) error {
 // InProgress: the message form may change in the future versions
 type PblClientDump struct{}
 
-func (m *PblClientDump) Reset()                        { *m = PblClientDump{} }
-func (*PblClientDump) GetMessageName() string          { return "pbl_client_dump" }
-func (*PblClientDump) GetCrcString() string            { return "51077d14" }
-func (*PblClientDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *PblClientDump) Reset()               { *m = PblClientDump{} }
+func (*PblClientDump) GetMessageName() string { return "pbl_client_dump" }
+func (*PblClientDump) GetCrcString() string   { return "51077d14" }
+func (*PblClientDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *PblClientDump) Size() (size int) {
 	if m == nil {
@@ -322,10 +324,12 @@ type PblClientUpdate struct {
 	Client PblClient `binapi:"pbl_client,name=client" json:"client,omitempty"`
 }
 
-func (m *PblClientUpdate) Reset()                        { *m = PblClientUpdate{} }
-func (*PblClientUpdate) GetMessageName() string          { return "pbl_client_update" }
-func (*PblClientUpdate) GetCrcString() string            { return "d83d6e65" }
-func (*PblClientUpdate) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *PblClientUpdate) Reset()               { *m = PblClientUpdate{} }
+func (*PblClientUpdate) GetMessageName() string { return "pbl_client_update" }
+func (*PblClientUpdate) GetCrcString() string   { return "d83d6e65" }
+func (*PblClientUpdate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *PblClientUpdate) Size() (size int) {
 	if m == nil {
@@ -452,12 +456,11 @@ type PblClientUpdateReply struct {
 	ID     uint32 `binapi:"u32,name=id" json:"id,omitempty"`
 }
 
-func (m *PblClientUpdateReply) Reset()                        { *m = PblClientUpdateReply{} }
-func (*PblClientUpdateReply) GetMessageName() string          { return "pbl_client_update_reply" }
-func (*PblClientUpdateReply) GetCrcString() string            { return "e2fc8294" }
-func (*PblClientUpdateReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *PblClientUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *PblClientUpdateReply) Reset()               { *m = PblClientUpdateReply{} }
+func (*PblClientUpdateReply) GetMessageName() string { return "pbl_client_update_reply" }
+func (*PblClientUpdateReply) GetCrcString() string   { return "e2fc8294" }
+func (*PblClientUpdateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *PblClientUpdateReply) Size() (size int) {

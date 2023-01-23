@@ -52,12 +52,11 @@ type IpsecBackendDetails struct {
 	Active   bool                   `binapi:"bool,name=active" json:"active,omitempty"`
 }
 
-func (m *IpsecBackendDetails) Reset()                        { *m = IpsecBackendDetails{} }
-func (*IpsecBackendDetails) GetMessageName() string          { return "ipsec_backend_details" }
-func (*IpsecBackendDetails) GetCrcString() string            { return "ee601c29" }
-func (*IpsecBackendDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecBackendDetails) GetRetVal() error {
-	return nil
+func (m *IpsecBackendDetails) Reset()               { *m = IpsecBackendDetails{} }
+func (*IpsecBackendDetails) GetMessageName() string { return "ipsec_backend_details" }
+func (*IpsecBackendDetails) GetCrcString() string   { return "ee601c29" }
+func (*IpsecBackendDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecBackendDetails) Size() (size int) {
@@ -93,10 +92,12 @@ func (m *IpsecBackendDetails) Unmarshal(b []byte) error {
 // IpsecBackendDump defines message 'ipsec_backend_dump'.
 type IpsecBackendDump struct{}
 
-func (m *IpsecBackendDump) Reset()                        { *m = IpsecBackendDump{} }
-func (*IpsecBackendDump) GetMessageName() string          { return "ipsec_backend_dump" }
-func (*IpsecBackendDump) GetCrcString() string            { return "51077d14" }
-func (*IpsecBackendDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecBackendDump) Reset()               { *m = IpsecBackendDump{} }
+func (*IpsecBackendDump) GetMessageName() string { return "ipsec_backend_dump" }
+func (*IpsecBackendDump) GetCrcString() string   { return "51077d14" }
+func (*IpsecBackendDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecBackendDump) Size() (size int) {
 	if m == nil {
@@ -122,10 +123,12 @@ type IpsecInterfaceAddDelSpd struct {
 	SpdID     uint32                         `binapi:"u32,name=spd_id" json:"spd_id,omitempty"`
 }
 
-func (m *IpsecInterfaceAddDelSpd) Reset()                        { *m = IpsecInterfaceAddDelSpd{} }
-func (*IpsecInterfaceAddDelSpd) GetMessageName() string          { return "ipsec_interface_add_del_spd" }
-func (*IpsecInterfaceAddDelSpd) GetCrcString() string            { return "80f80cbb" }
-func (*IpsecInterfaceAddDelSpd) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecInterfaceAddDelSpd) Reset()               { *m = IpsecInterfaceAddDelSpd{} }
+func (*IpsecInterfaceAddDelSpd) GetMessageName() string { return "ipsec_interface_add_del_spd" }
+func (*IpsecInterfaceAddDelSpd) GetCrcString() string   { return "80f80cbb" }
+func (*IpsecInterfaceAddDelSpd) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecInterfaceAddDelSpd) Size() (size int) {
 	if m == nil {
@@ -163,10 +166,9 @@ func (m *IpsecInterfaceAddDelSpdReply) Reset() { *m = IpsecInterfaceAddDelSpdRep
 func (*IpsecInterfaceAddDelSpdReply) GetMessageName() string {
 	return "ipsec_interface_add_del_spd_reply"
 }
-func (*IpsecInterfaceAddDelSpdReply) GetCrcString() string            { return "e8d4e804" }
-func (*IpsecInterfaceAddDelSpdReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecInterfaceAddDelSpdReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (*IpsecInterfaceAddDelSpdReply) GetCrcString() string { return "e8d4e804" }
+func (*IpsecInterfaceAddDelSpdReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecInterfaceAddDelSpdReply) Size() (size int) {
@@ -195,10 +197,12 @@ type IpsecItfCreate struct {
 	Itf IpsecItf `binapi:"ipsec_itf,name=itf" json:"itf,omitempty"`
 }
 
-func (m *IpsecItfCreate) Reset()                        { *m = IpsecItfCreate{} }
-func (*IpsecItfCreate) GetMessageName() string          { return "ipsec_itf_create" }
-func (*IpsecItfCreate) GetCrcString() string            { return "6f50b3bc" }
-func (*IpsecItfCreate) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecItfCreate) Reset()               { *m = IpsecItfCreate{} }
+func (*IpsecItfCreate) GetMessageName() string { return "ipsec_itf_create" }
+func (*IpsecItfCreate) GetCrcString() string   { return "6f50b3bc" }
+func (*IpsecItfCreate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecItfCreate) Size() (size int) {
 	if m == nil {
@@ -233,12 +237,11 @@ type IpsecItfCreateReply struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 }
 
-func (m *IpsecItfCreateReply) Reset()                        { *m = IpsecItfCreateReply{} }
-func (*IpsecItfCreateReply) GetMessageName() string          { return "ipsec_itf_create_reply" }
-func (*IpsecItfCreateReply) GetCrcString() string            { return "5383d31f" }
-func (*IpsecItfCreateReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecItfCreateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecItfCreateReply) Reset()               { *m = IpsecItfCreateReply{} }
+func (*IpsecItfCreateReply) GetMessageName() string { return "ipsec_itf_create_reply" }
+func (*IpsecItfCreateReply) GetCrcString() string   { return "5383d31f" }
+func (*IpsecItfCreateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecItfCreateReply) Size() (size int) {
@@ -270,10 +273,12 @@ type IpsecItfDelete struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 }
 
-func (m *IpsecItfDelete) Reset()                        { *m = IpsecItfDelete{} }
-func (*IpsecItfDelete) GetMessageName() string          { return "ipsec_itf_delete" }
-func (*IpsecItfDelete) GetCrcString() string            { return "f9e6675e" }
-func (*IpsecItfDelete) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecItfDelete) Reset()               { *m = IpsecItfDelete{} }
+func (*IpsecItfDelete) GetMessageName() string { return "ipsec_itf_delete" }
+func (*IpsecItfDelete) GetCrcString() string   { return "f9e6675e" }
+func (*IpsecItfDelete) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecItfDelete) Size() (size int) {
 	if m == nil {
@@ -301,12 +306,11 @@ type IpsecItfDeleteReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *IpsecItfDeleteReply) Reset()                        { *m = IpsecItfDeleteReply{} }
-func (*IpsecItfDeleteReply) GetMessageName() string          { return "ipsec_itf_delete_reply" }
-func (*IpsecItfDeleteReply) GetCrcString() string            { return "e8d4e804" }
-func (*IpsecItfDeleteReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecItfDeleteReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecItfDeleteReply) Reset()               { *m = IpsecItfDeleteReply{} }
+func (*IpsecItfDeleteReply) GetMessageName() string { return "ipsec_itf_delete_reply" }
+func (*IpsecItfDeleteReply) GetCrcString() string   { return "e8d4e804" }
+func (*IpsecItfDeleteReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecItfDeleteReply) Size() (size int) {
@@ -335,12 +339,11 @@ type IpsecItfDetails struct {
 	Itf IpsecItf `binapi:"ipsec_itf,name=itf" json:"itf,omitempty"`
 }
 
-func (m *IpsecItfDetails) Reset()                        { *m = IpsecItfDetails{} }
-func (*IpsecItfDetails) GetMessageName() string          { return "ipsec_itf_details" }
-func (*IpsecItfDetails) GetCrcString() string            { return "548a73b8" }
-func (*IpsecItfDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecItfDetails) GetRetVal() error {
-	return nil
+func (m *IpsecItfDetails) Reset()               { *m = IpsecItfDetails{} }
+func (*IpsecItfDetails) GetMessageName() string { return "ipsec_itf_details" }
+func (*IpsecItfDetails) GetCrcString() string   { return "548a73b8" }
+func (*IpsecItfDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecItfDetails) Size() (size int) {
@@ -375,10 +378,12 @@ type IpsecItfDump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 }
 
-func (m *IpsecItfDump) Reset()                        { *m = IpsecItfDump{} }
-func (*IpsecItfDump) GetMessageName() string          { return "ipsec_itf_dump" }
-func (*IpsecItfDump) GetCrcString() string            { return "f9e6675e" }
-func (*IpsecItfDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecItfDump) Reset()               { *m = IpsecItfDump{} }
+func (*IpsecItfDump) GetMessageName() string { return "ipsec_itf_dump" }
+func (*IpsecItfDump) GetCrcString() string   { return "f9e6675e" }
+func (*IpsecItfDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecItfDump) Size() (size int) {
 	if m == nil {
@@ -413,12 +418,11 @@ type IpsecSaDetails struct {
 	StatIndex      uint32                         `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
 }
 
-func (m *IpsecSaDetails) Reset()                        { *m = IpsecSaDetails{} }
-func (*IpsecSaDetails) GetMessageName() string          { return "ipsec_sa_details" }
-func (*IpsecSaDetails) GetCrcString() string            { return "345d14a7" }
-func (*IpsecSaDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSaDetails) GetRetVal() error {
-	return nil
+func (m *IpsecSaDetails) Reset()               { *m = IpsecSaDetails{} }
+func (*IpsecSaDetails) GetMessageName() string { return "ipsec_sa_details" }
+func (*IpsecSaDetails) GetCrcString() string   { return "345d14a7" }
+func (*IpsecSaDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSaDetails) Size() (size int) {
@@ -519,10 +523,12 @@ type IpsecSaDump struct {
 	SaID uint32 `binapi:"u32,name=sa_id" json:"sa_id,omitempty"`
 }
 
-func (m *IpsecSaDump) Reset()                        { *m = IpsecSaDump{} }
-func (*IpsecSaDump) GetMessageName() string          { return "ipsec_sa_dump" }
-func (*IpsecSaDump) GetCrcString() string            { return "2076c2f4" }
-func (*IpsecSaDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSaDump) Reset()               { *m = IpsecSaDump{} }
+func (*IpsecSaDump) GetMessageName() string { return "ipsec_sa_dump" }
+func (*IpsecSaDump) GetCrcString() string   { return "2076c2f4" }
+func (*IpsecSaDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSaDump) Size() (size int) {
 	if m == nil {
@@ -556,12 +562,11 @@ type IpsecSaV2Details struct {
 	StatIndex      uint32                         `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
 }
 
-func (m *IpsecSaV2Details) Reset()                        { *m = IpsecSaV2Details{} }
-func (*IpsecSaV2Details) GetMessageName() string          { return "ipsec_sa_v2_details" }
-func (*IpsecSaV2Details) GetCrcString() string            { return "e2130051" }
-func (*IpsecSaV2Details) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSaV2Details) GetRetVal() error {
-	return nil
+func (m *IpsecSaV2Details) Reset()               { *m = IpsecSaV2Details{} }
+func (*IpsecSaV2Details) GetMessageName() string { return "ipsec_sa_v2_details" }
+func (*IpsecSaV2Details) GetCrcString() string   { return "e2130051" }
+func (*IpsecSaV2Details) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSaV2Details) Size() (size int) {
@@ -667,10 +672,12 @@ type IpsecSaV2Dump struct {
 	SaID uint32 `binapi:"u32,name=sa_id" json:"sa_id,omitempty"`
 }
 
-func (m *IpsecSaV2Dump) Reset()                        { *m = IpsecSaV2Dump{} }
-func (*IpsecSaV2Dump) GetMessageName() string          { return "ipsec_sa_v2_dump" }
-func (*IpsecSaV2Dump) GetCrcString() string            { return "2076c2f4" }
-func (*IpsecSaV2Dump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSaV2Dump) Reset()               { *m = IpsecSaV2Dump{} }
+func (*IpsecSaV2Dump) GetMessageName() string { return "ipsec_sa_v2_dump" }
+func (*IpsecSaV2Dump) GetCrcString() string   { return "2076c2f4" }
+func (*IpsecSaV2Dump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSaV2Dump) Size() (size int) {
 	if m == nil {
@@ -703,12 +710,11 @@ type IpsecSaV3Details struct {
 	StatIndex      uint32                         `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
 }
 
-func (m *IpsecSaV3Details) Reset()                        { *m = IpsecSaV3Details{} }
-func (*IpsecSaV3Details) GetMessageName() string          { return "ipsec_sa_v3_details" }
-func (*IpsecSaV3Details) GetCrcString() string            { return "2fc991ee" }
-func (*IpsecSaV3Details) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSaV3Details) GetRetVal() error {
-	return nil
+func (m *IpsecSaV3Details) Reset()               { *m = IpsecSaV3Details{} }
+func (*IpsecSaV3Details) GetMessageName() string { return "ipsec_sa_v3_details" }
+func (*IpsecSaV3Details) GetCrcString() string   { return "2fc991ee" }
+func (*IpsecSaV3Details) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSaV3Details) Size() (size int) {
@@ -826,10 +832,12 @@ type IpsecSaV3Dump struct {
 	SaID uint32 `binapi:"u32,name=sa_id" json:"sa_id,omitempty"`
 }
 
-func (m *IpsecSaV3Dump) Reset()                        { *m = IpsecSaV3Dump{} }
-func (*IpsecSaV3Dump) GetMessageName() string          { return "ipsec_sa_v3_dump" }
-func (*IpsecSaV3Dump) GetCrcString() string            { return "2076c2f4" }
-func (*IpsecSaV3Dump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSaV3Dump) Reset()               { *m = IpsecSaV3Dump{} }
+func (*IpsecSaV3Dump) GetMessageName() string { return "ipsec_sa_v3_dump" }
+func (*IpsecSaV3Dump) GetCrcString() string   { return "2076c2f4" }
+func (*IpsecSaV3Dump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSaV3Dump) Size() (size int) {
 	if m == nil {
@@ -857,10 +865,12 @@ type IpsecSadEntryAdd struct {
 	Entry ipsec_types.IpsecSadEntryV3 `binapi:"ipsec_sad_entry_v3,name=entry" json:"entry,omitempty"`
 }
 
-func (m *IpsecSadEntryAdd) Reset()                        { *m = IpsecSadEntryAdd{} }
-func (*IpsecSadEntryAdd) GetMessageName() string          { return "ipsec_sad_entry_add" }
-func (*IpsecSadEntryAdd) GetCrcString() string            { return "50229353" }
-func (*IpsecSadEntryAdd) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSadEntryAdd) Reset()               { *m = IpsecSadEntryAdd{} }
+func (*IpsecSadEntryAdd) GetMessageName() string { return "ipsec_sad_entry_add" }
+func (*IpsecSadEntryAdd) GetCrcString() string   { return "50229353" }
+func (*IpsecSadEntryAdd) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSadEntryAdd) Size() (size int) {
 	if m == nil {
@@ -964,10 +974,12 @@ type IpsecSadEntryAddDel struct {
 	Entry ipsec_types.IpsecSadEntry `binapi:"ipsec_sad_entry,name=entry" json:"entry,omitempty"`
 }
 
-func (m *IpsecSadEntryAddDel) Reset()                        { *m = IpsecSadEntryAddDel{} }
-func (*IpsecSadEntryAddDel) GetMessageName() string          { return "ipsec_sad_entry_add_del" }
-func (*IpsecSadEntryAddDel) GetCrcString() string            { return "ab64b5c6" }
-func (*IpsecSadEntryAddDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSadEntryAddDel) Reset()               { *m = IpsecSadEntryAddDel{} }
+func (*IpsecSadEntryAddDel) GetMessageName() string { return "ipsec_sad_entry_add_del" }
+func (*IpsecSadEntryAddDel) GetCrcString() string   { return "ab64b5c6" }
+func (*IpsecSadEntryAddDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSadEntryAddDel) Size() (size int) {
 	if m == nil {
@@ -1053,12 +1065,11 @@ type IpsecSadEntryAddDelReply struct {
 	StatIndex uint32 `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
 }
 
-func (m *IpsecSadEntryAddDelReply) Reset()                        { *m = IpsecSadEntryAddDelReply{} }
-func (*IpsecSadEntryAddDelReply) GetMessageName() string          { return "ipsec_sad_entry_add_del_reply" }
-func (*IpsecSadEntryAddDelReply) GetCrcString() string            { return "9ffac24b" }
-func (*IpsecSadEntryAddDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSadEntryAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecSadEntryAddDelReply) Reset()               { *m = IpsecSadEntryAddDelReply{} }
+func (*IpsecSadEntryAddDelReply) GetMessageName() string { return "ipsec_sad_entry_add_del_reply" }
+func (*IpsecSadEntryAddDelReply) GetCrcString() string   { return "9ffac24b" }
+func (*IpsecSadEntryAddDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSadEntryAddDelReply) Size() (size int) {
@@ -1091,10 +1102,12 @@ type IpsecSadEntryAddDelV2 struct {
 	Entry ipsec_types.IpsecSadEntryV2 `binapi:"ipsec_sad_entry_v2,name=entry" json:"entry,omitempty"`
 }
 
-func (m *IpsecSadEntryAddDelV2) Reset()                        { *m = IpsecSadEntryAddDelV2{} }
-func (*IpsecSadEntryAddDelV2) GetMessageName() string          { return "ipsec_sad_entry_add_del_v2" }
-func (*IpsecSadEntryAddDelV2) GetCrcString() string            { return "aca78b27" }
-func (*IpsecSadEntryAddDelV2) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSadEntryAddDelV2) Reset()               { *m = IpsecSadEntryAddDelV2{} }
+func (*IpsecSadEntryAddDelV2) GetMessageName() string { return "ipsec_sad_entry_add_del_v2" }
+func (*IpsecSadEntryAddDelV2) GetCrcString() string   { return "aca78b27" }
+func (*IpsecSadEntryAddDelV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSadEntryAddDelV2) Size() (size int) {
 	if m == nil {
@@ -1185,12 +1198,11 @@ type IpsecSadEntryAddDelV2Reply struct {
 	StatIndex uint32 `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
 }
 
-func (m *IpsecSadEntryAddDelV2Reply) Reset()                        { *m = IpsecSadEntryAddDelV2Reply{} }
-func (*IpsecSadEntryAddDelV2Reply) GetMessageName() string          { return "ipsec_sad_entry_add_del_v2_reply" }
-func (*IpsecSadEntryAddDelV2Reply) GetCrcString() string            { return "9ffac24b" }
-func (*IpsecSadEntryAddDelV2Reply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSadEntryAddDelV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecSadEntryAddDelV2Reply) Reset()               { *m = IpsecSadEntryAddDelV2Reply{} }
+func (*IpsecSadEntryAddDelV2Reply) GetMessageName() string { return "ipsec_sad_entry_add_del_v2_reply" }
+func (*IpsecSadEntryAddDelV2Reply) GetCrcString() string   { return "9ffac24b" }
+func (*IpsecSadEntryAddDelV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSadEntryAddDelV2Reply) Size() (size int) {
@@ -1223,10 +1235,12 @@ type IpsecSadEntryAddDelV3 struct {
 	Entry ipsec_types.IpsecSadEntryV3 `binapi:"ipsec_sad_entry_v3,name=entry" json:"entry,omitempty"`
 }
 
-func (m *IpsecSadEntryAddDelV3) Reset()                        { *m = IpsecSadEntryAddDelV3{} }
-func (*IpsecSadEntryAddDelV3) GetMessageName() string          { return "ipsec_sad_entry_add_del_v3" }
-func (*IpsecSadEntryAddDelV3) GetCrcString() string            { return "c77ebd92" }
-func (*IpsecSadEntryAddDelV3) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSadEntryAddDelV3) Reset()               { *m = IpsecSadEntryAddDelV3{} }
+func (*IpsecSadEntryAddDelV3) GetMessageName() string { return "ipsec_sad_entry_add_del_v3" }
+func (*IpsecSadEntryAddDelV3) GetCrcString() string   { return "c77ebd92" }
+func (*IpsecSadEntryAddDelV3) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSadEntryAddDelV3) Size() (size int) {
 	if m == nil {
@@ -1332,12 +1346,11 @@ type IpsecSadEntryAddDelV3Reply struct {
 	StatIndex uint32 `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
 }
 
-func (m *IpsecSadEntryAddDelV3Reply) Reset()                        { *m = IpsecSadEntryAddDelV3Reply{} }
-func (*IpsecSadEntryAddDelV3Reply) GetMessageName() string          { return "ipsec_sad_entry_add_del_v3_reply" }
-func (*IpsecSadEntryAddDelV3Reply) GetCrcString() string            { return "9ffac24b" }
-func (*IpsecSadEntryAddDelV3Reply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSadEntryAddDelV3Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecSadEntryAddDelV3Reply) Reset()               { *m = IpsecSadEntryAddDelV3Reply{} }
+func (*IpsecSadEntryAddDelV3Reply) GetMessageName() string { return "ipsec_sad_entry_add_del_v3_reply" }
+func (*IpsecSadEntryAddDelV3Reply) GetCrcString() string   { return "9ffac24b" }
+func (*IpsecSadEntryAddDelV3Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSadEntryAddDelV3Reply) Size() (size int) {
@@ -1370,12 +1383,11 @@ type IpsecSadEntryAddReply struct {
 	StatIndex uint32 `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
 }
 
-func (m *IpsecSadEntryAddReply) Reset()                        { *m = IpsecSadEntryAddReply{} }
-func (*IpsecSadEntryAddReply) GetMessageName() string          { return "ipsec_sad_entry_add_reply" }
-func (*IpsecSadEntryAddReply) GetCrcString() string            { return "9ffac24b" }
-func (*IpsecSadEntryAddReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSadEntryAddReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecSadEntryAddReply) Reset()               { *m = IpsecSadEntryAddReply{} }
+func (*IpsecSadEntryAddReply) GetMessageName() string { return "ipsec_sad_entry_add_reply" }
+func (*IpsecSadEntryAddReply) GetCrcString() string   { return "9ffac24b" }
+func (*IpsecSadEntryAddReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSadEntryAddReply) Size() (size int) {
@@ -1407,10 +1419,12 @@ type IpsecSadEntryDel struct {
 	ID uint32 `binapi:"u32,name=id" json:"id,omitempty"`
 }
 
-func (m *IpsecSadEntryDel) Reset()                        { *m = IpsecSadEntryDel{} }
-func (*IpsecSadEntryDel) GetMessageName() string          { return "ipsec_sad_entry_del" }
-func (*IpsecSadEntryDel) GetCrcString() string            { return "3a91bde5" }
-func (*IpsecSadEntryDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSadEntryDel) Reset()               { *m = IpsecSadEntryDel{} }
+func (*IpsecSadEntryDel) GetMessageName() string { return "ipsec_sad_entry_del" }
+func (*IpsecSadEntryDel) GetCrcString() string   { return "3a91bde5" }
+func (*IpsecSadEntryDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSadEntryDel) Size() (size int) {
 	if m == nil {
@@ -1438,12 +1452,11 @@ type IpsecSadEntryDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *IpsecSadEntryDelReply) Reset()                        { *m = IpsecSadEntryDelReply{} }
-func (*IpsecSadEntryDelReply) GetMessageName() string          { return "ipsec_sad_entry_del_reply" }
-func (*IpsecSadEntryDelReply) GetCrcString() string            { return "e8d4e804" }
-func (*IpsecSadEntryDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSadEntryDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecSadEntryDelReply) Reset()               { *m = IpsecSadEntryDelReply{} }
+func (*IpsecSadEntryDelReply) GetMessageName() string { return "ipsec_sad_entry_del_reply" }
+func (*IpsecSadEntryDelReply) GetCrcString() string   { return "e8d4e804" }
+func (*IpsecSadEntryDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSadEntryDelReply) Size() (size int) {
@@ -1473,10 +1486,12 @@ type IpsecSelectBackend struct {
 	Index    uint8                  `binapi:"u8,name=index" json:"index,omitempty"`
 }
 
-func (m *IpsecSelectBackend) Reset()                        { *m = IpsecSelectBackend{} }
-func (*IpsecSelectBackend) GetMessageName() string          { return "ipsec_select_backend" }
-func (*IpsecSelectBackend) GetCrcString() string            { return "5bcfd3b7" }
-func (*IpsecSelectBackend) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSelectBackend) Reset()               { *m = IpsecSelectBackend{} }
+func (*IpsecSelectBackend) GetMessageName() string { return "ipsec_select_backend" }
+func (*IpsecSelectBackend) GetCrcString() string   { return "5bcfd3b7" }
+func (*IpsecSelectBackend) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSelectBackend) Size() (size int) {
 	if m == nil {
@@ -1507,12 +1522,11 @@ type IpsecSelectBackendReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *IpsecSelectBackendReply) Reset()                        { *m = IpsecSelectBackendReply{} }
-func (*IpsecSelectBackendReply) GetMessageName() string          { return "ipsec_select_backend_reply" }
-func (*IpsecSelectBackendReply) GetCrcString() string            { return "e8d4e804" }
-func (*IpsecSelectBackendReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSelectBackendReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecSelectBackendReply) Reset()               { *m = IpsecSelectBackendReply{} }
+func (*IpsecSelectBackendReply) GetMessageName() string { return "ipsec_select_backend_reply" }
+func (*IpsecSelectBackendReply) GetCrcString() string   { return "e8d4e804" }
+func (*IpsecSelectBackendReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSelectBackendReply) Size() (size int) {
@@ -1541,10 +1555,12 @@ type IpsecSetAsyncMode struct {
 	AsyncEnable bool `binapi:"bool,name=async_enable" json:"async_enable,omitempty"`
 }
 
-func (m *IpsecSetAsyncMode) Reset()                        { *m = IpsecSetAsyncMode{} }
-func (*IpsecSetAsyncMode) GetMessageName() string          { return "ipsec_set_async_mode" }
-func (*IpsecSetAsyncMode) GetCrcString() string            { return "a6465f7c" }
-func (*IpsecSetAsyncMode) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSetAsyncMode) Reset()               { *m = IpsecSetAsyncMode{} }
+func (*IpsecSetAsyncMode) GetMessageName() string { return "ipsec_set_async_mode" }
+func (*IpsecSetAsyncMode) GetCrcString() string   { return "a6465f7c" }
+func (*IpsecSetAsyncMode) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSetAsyncMode) Size() (size int) {
 	if m == nil {
@@ -1572,12 +1588,11 @@ type IpsecSetAsyncModeReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *IpsecSetAsyncModeReply) Reset()                        { *m = IpsecSetAsyncModeReply{} }
-func (*IpsecSetAsyncModeReply) GetMessageName() string          { return "ipsec_set_async_mode_reply" }
-func (*IpsecSetAsyncModeReply) GetCrcString() string            { return "e8d4e804" }
-func (*IpsecSetAsyncModeReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSetAsyncModeReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecSetAsyncModeReply) Reset()               { *m = IpsecSetAsyncModeReply{} }
+func (*IpsecSetAsyncModeReply) GetMessageName() string { return "ipsec_set_async_mode_reply" }
+func (*IpsecSetAsyncModeReply) GetCrcString() string   { return "e8d4e804" }
+func (*IpsecSetAsyncModeReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSetAsyncModeReply) Size() (size int) {
@@ -1607,10 +1622,12 @@ type IpsecSpdAddDel struct {
 	SpdID uint32 `binapi:"u32,name=spd_id" json:"spd_id,omitempty"`
 }
 
-func (m *IpsecSpdAddDel) Reset()                        { *m = IpsecSpdAddDel{} }
-func (*IpsecSpdAddDel) GetMessageName() string          { return "ipsec_spd_add_del" }
-func (*IpsecSpdAddDel) GetCrcString() string            { return "20e89a95" }
-func (*IpsecSpdAddDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSpdAddDel) Reset()               { *m = IpsecSpdAddDel{} }
+func (*IpsecSpdAddDel) GetMessageName() string { return "ipsec_spd_add_del" }
+func (*IpsecSpdAddDel) GetCrcString() string   { return "20e89a95" }
+func (*IpsecSpdAddDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSpdAddDel) Size() (size int) {
 	if m == nil {
@@ -1641,12 +1658,11 @@ type IpsecSpdAddDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *IpsecSpdAddDelReply) Reset()                        { *m = IpsecSpdAddDelReply{} }
-func (*IpsecSpdAddDelReply) GetMessageName() string          { return "ipsec_spd_add_del_reply" }
-func (*IpsecSpdAddDelReply) GetCrcString() string            { return "e8d4e804" }
-func (*IpsecSpdAddDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSpdAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecSpdAddDelReply) Reset()               { *m = IpsecSpdAddDelReply{} }
+func (*IpsecSpdAddDelReply) GetMessageName() string { return "ipsec_spd_add_del_reply" }
+func (*IpsecSpdAddDelReply) GetCrcString() string   { return "e8d4e804" }
+func (*IpsecSpdAddDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSpdAddDelReply) Size() (size int) {
@@ -1675,12 +1691,11 @@ type IpsecSpdDetails struct {
 	Entry ipsec_types.IpsecSpdEntry `binapi:"ipsec_spd_entry,name=entry" json:"entry,omitempty"`
 }
 
-func (m *IpsecSpdDetails) Reset()                        { *m = IpsecSpdDetails{} }
-func (*IpsecSpdDetails) GetMessageName() string          { return "ipsec_spd_details" }
-func (*IpsecSpdDetails) GetCrcString() string            { return "5813d7a2" }
-func (*IpsecSpdDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSpdDetails) GetRetVal() error {
-	return nil
+func (m *IpsecSpdDetails) Reset()               { *m = IpsecSpdDetails{} }
+func (*IpsecSpdDetails) GetMessageName() string { return "ipsec_spd_details" }
+func (*IpsecSpdDetails) GetCrcString() string   { return "5813d7a2" }
+func (*IpsecSpdDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSpdDetails) Size() (size int) {
@@ -1761,10 +1776,12 @@ type IpsecSpdDump struct {
 	SaID  uint32 `binapi:"u32,name=sa_id" json:"sa_id,omitempty"`
 }
 
-func (m *IpsecSpdDump) Reset()                        { *m = IpsecSpdDump{} }
-func (*IpsecSpdDump) GetMessageName() string          { return "ipsec_spd_dump" }
-func (*IpsecSpdDump) GetCrcString() string            { return "afefbf7d" }
-func (*IpsecSpdDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSpdDump) Reset()               { *m = IpsecSpdDump{} }
+func (*IpsecSpdDump) GetMessageName() string { return "ipsec_spd_dump" }
+func (*IpsecSpdDump) GetCrcString() string   { return "afefbf7d" }
+func (*IpsecSpdDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSpdDump) Size() (size int) {
 	if m == nil {
@@ -1797,10 +1814,12 @@ type IpsecSpdEntryAddDel struct {
 	Entry ipsec_types.IpsecSpdEntry `binapi:"ipsec_spd_entry,name=entry" json:"entry,omitempty"`
 }
 
-func (m *IpsecSpdEntryAddDel) Reset()                        { *m = IpsecSpdEntryAddDel{} }
-func (*IpsecSpdEntryAddDel) GetMessageName() string          { return "ipsec_spd_entry_add_del" }
-func (*IpsecSpdEntryAddDel) GetCrcString() string            { return "338b7411" }
-func (*IpsecSpdEntryAddDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSpdEntryAddDel) Reset()               { *m = IpsecSpdEntryAddDel{} }
+func (*IpsecSpdEntryAddDel) GetMessageName() string { return "ipsec_spd_entry_add_del" }
+func (*IpsecSpdEntryAddDel) GetCrcString() string   { return "338b7411" }
+func (*IpsecSpdEntryAddDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSpdEntryAddDel) Size() (size int) {
 	if m == nil {
@@ -1884,12 +1903,11 @@ type IpsecSpdEntryAddDelReply struct {
 	StatIndex uint32 `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
 }
 
-func (m *IpsecSpdEntryAddDelReply) Reset()                        { *m = IpsecSpdEntryAddDelReply{} }
-func (*IpsecSpdEntryAddDelReply) GetMessageName() string          { return "ipsec_spd_entry_add_del_reply" }
-func (*IpsecSpdEntryAddDelReply) GetCrcString() string            { return "9ffac24b" }
-func (*IpsecSpdEntryAddDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSpdEntryAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecSpdEntryAddDelReply) Reset()               { *m = IpsecSpdEntryAddDelReply{} }
+func (*IpsecSpdEntryAddDelReply) GetMessageName() string { return "ipsec_spd_entry_add_del_reply" }
+func (*IpsecSpdEntryAddDelReply) GetCrcString() string   { return "9ffac24b" }
+func (*IpsecSpdEntryAddDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSpdEntryAddDelReply) Size() (size int) {
@@ -1922,10 +1940,12 @@ type IpsecSpdEntryAddDelV2 struct {
 	Entry ipsec_types.IpsecSpdEntryV2 `binapi:"ipsec_spd_entry_v2,name=entry" json:"entry,omitempty"`
 }
 
-func (m *IpsecSpdEntryAddDelV2) Reset()                        { *m = IpsecSpdEntryAddDelV2{} }
-func (*IpsecSpdEntryAddDelV2) GetMessageName() string          { return "ipsec_spd_entry_add_del_v2" }
-func (*IpsecSpdEntryAddDelV2) GetCrcString() string            { return "7bfe69fc" }
-func (*IpsecSpdEntryAddDelV2) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSpdEntryAddDelV2) Reset()               { *m = IpsecSpdEntryAddDelV2{} }
+func (*IpsecSpdEntryAddDelV2) GetMessageName() string { return "ipsec_spd_entry_add_del_v2" }
+func (*IpsecSpdEntryAddDelV2) GetCrcString() string   { return "7bfe69fc" }
+func (*IpsecSpdEntryAddDelV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSpdEntryAddDelV2) Size() (size int) {
 	if m == nil {
@@ -2008,12 +2028,11 @@ type IpsecSpdEntryAddDelV2Reply struct {
 	StatIndex uint32 `binapi:"u32,name=stat_index" json:"stat_index,omitempty"`
 }
 
-func (m *IpsecSpdEntryAddDelV2Reply) Reset()                        { *m = IpsecSpdEntryAddDelV2Reply{} }
-func (*IpsecSpdEntryAddDelV2Reply) GetMessageName() string          { return "ipsec_spd_entry_add_del_v2_reply" }
-func (*IpsecSpdEntryAddDelV2Reply) GetCrcString() string            { return "9ffac24b" }
-func (*IpsecSpdEntryAddDelV2Reply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSpdEntryAddDelV2Reply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecSpdEntryAddDelV2Reply) Reset()               { *m = IpsecSpdEntryAddDelV2Reply{} }
+func (*IpsecSpdEntryAddDelV2Reply) GetMessageName() string { return "ipsec_spd_entry_add_del_v2_reply" }
+func (*IpsecSpdEntryAddDelV2Reply) GetCrcString() string   { return "9ffac24b" }
+func (*IpsecSpdEntryAddDelV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSpdEntryAddDelV2Reply) Size() (size int) {
@@ -2046,12 +2065,11 @@ type IpsecSpdInterfaceDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 }
 
-func (m *IpsecSpdInterfaceDetails) Reset()                        { *m = IpsecSpdInterfaceDetails{} }
-func (*IpsecSpdInterfaceDetails) GetMessageName() string          { return "ipsec_spd_interface_details" }
-func (*IpsecSpdInterfaceDetails) GetCrcString() string            { return "7a0bcf3e" }
-func (*IpsecSpdInterfaceDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSpdInterfaceDetails) GetRetVal() error {
-	return nil
+func (m *IpsecSpdInterfaceDetails) Reset()               { *m = IpsecSpdInterfaceDetails{} }
+func (*IpsecSpdInterfaceDetails) GetMessageName() string { return "ipsec_spd_interface_details" }
+func (*IpsecSpdInterfaceDetails) GetCrcString() string   { return "7a0bcf3e" }
+func (*IpsecSpdInterfaceDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSpdInterfaceDetails) Size() (size int) {
@@ -2084,10 +2102,12 @@ type IpsecSpdInterfaceDump struct {
 	SpdIndexValid uint8  `binapi:"u8,name=spd_index_valid" json:"spd_index_valid,omitempty"`
 }
 
-func (m *IpsecSpdInterfaceDump) Reset()                        { *m = IpsecSpdInterfaceDump{} }
-func (*IpsecSpdInterfaceDump) GetMessageName() string          { return "ipsec_spd_interface_dump" }
-func (*IpsecSpdInterfaceDump) GetCrcString() string            { return "8971de19" }
-func (*IpsecSpdInterfaceDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSpdInterfaceDump) Reset()               { *m = IpsecSpdInterfaceDump{} }
+func (*IpsecSpdInterfaceDump) GetMessageName() string { return "ipsec_spd_interface_dump" }
+func (*IpsecSpdInterfaceDump) GetCrcString() string   { return "8971de19" }
+func (*IpsecSpdInterfaceDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSpdInterfaceDump) Size() (size int) {
 	if m == nil {
@@ -2119,12 +2139,11 @@ type IpsecSpdsDetails struct {
 	Npolicies uint32 `binapi:"u32,name=npolicies" json:"npolicies,omitempty"`
 }
 
-func (m *IpsecSpdsDetails) Reset()                        { *m = IpsecSpdsDetails{} }
-func (*IpsecSpdsDetails) GetMessageName() string          { return "ipsec_spds_details" }
-func (*IpsecSpdsDetails) GetCrcString() string            { return "a04bb254" }
-func (*IpsecSpdsDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecSpdsDetails) GetRetVal() error {
-	return nil
+func (m *IpsecSpdsDetails) Reset()               { *m = IpsecSpdsDetails{} }
+func (*IpsecSpdsDetails) GetMessageName() string { return "ipsec_spds_details" }
+func (*IpsecSpdsDetails) GetCrcString() string   { return "a04bb254" }
+func (*IpsecSpdsDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecSpdsDetails) Size() (size int) {
@@ -2154,10 +2173,12 @@ func (m *IpsecSpdsDetails) Unmarshal(b []byte) error {
 // IpsecSpdsDump defines message 'ipsec_spds_dump'.
 type IpsecSpdsDump struct{}
 
-func (m *IpsecSpdsDump) Reset()                        { *m = IpsecSpdsDump{} }
-func (*IpsecSpdsDump) GetMessageName() string          { return "ipsec_spds_dump" }
-func (*IpsecSpdsDump) GetCrcString() string            { return "51077d14" }
-func (*IpsecSpdsDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecSpdsDump) Reset()               { *m = IpsecSpdsDump{} }
+func (*IpsecSpdsDump) GetMessageName() string { return "ipsec_spds_dump" }
+func (*IpsecSpdsDump) GetCrcString() string   { return "51077d14" }
+func (*IpsecSpdsDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecSpdsDump) Size() (size int) {
 	if m == nil {
@@ -2182,10 +2203,12 @@ type IpsecTunnelProtectDel struct {
 	Nh        ip_types.Address               `binapi:"address,name=nh" json:"nh,omitempty"`
 }
 
-func (m *IpsecTunnelProtectDel) Reset()                        { *m = IpsecTunnelProtectDel{} }
-func (*IpsecTunnelProtectDel) GetMessageName() string          { return "ipsec_tunnel_protect_del" }
-func (*IpsecTunnelProtectDel) GetCrcString() string            { return "cd239930" }
-func (*IpsecTunnelProtectDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecTunnelProtectDel) Reset()               { *m = IpsecTunnelProtectDel{} }
+func (*IpsecTunnelProtectDel) GetMessageName() string { return "ipsec_tunnel_protect_del" }
+func (*IpsecTunnelProtectDel) GetCrcString() string   { return "cd239930" }
+func (*IpsecTunnelProtectDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecTunnelProtectDel) Size() (size int) {
 	if m == nil {
@@ -2219,12 +2242,11 @@ type IpsecTunnelProtectDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *IpsecTunnelProtectDelReply) Reset()                        { *m = IpsecTunnelProtectDelReply{} }
-func (*IpsecTunnelProtectDelReply) GetMessageName() string          { return "ipsec_tunnel_protect_del_reply" }
-func (*IpsecTunnelProtectDelReply) GetCrcString() string            { return "e8d4e804" }
-func (*IpsecTunnelProtectDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecTunnelProtectDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *IpsecTunnelProtectDelReply) Reset()               { *m = IpsecTunnelProtectDelReply{} }
+func (*IpsecTunnelProtectDelReply) GetMessageName() string { return "ipsec_tunnel_protect_del_reply" }
+func (*IpsecTunnelProtectDelReply) GetCrcString() string   { return "e8d4e804" }
+func (*IpsecTunnelProtectDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecTunnelProtectDelReply) Size() (size int) {
@@ -2253,12 +2275,11 @@ type IpsecTunnelProtectDetails struct {
 	Tun IpsecTunnelProtect `binapi:"ipsec_tunnel_protect,name=tun" json:"tun,omitempty"`
 }
 
-func (m *IpsecTunnelProtectDetails) Reset()                        { *m = IpsecTunnelProtectDetails{} }
-func (*IpsecTunnelProtectDetails) GetMessageName() string          { return "ipsec_tunnel_protect_details" }
-func (*IpsecTunnelProtectDetails) GetCrcString() string            { return "21663a50" }
-func (*IpsecTunnelProtectDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecTunnelProtectDetails) GetRetVal() error {
-	return nil
+func (m *IpsecTunnelProtectDetails) Reset()               { *m = IpsecTunnelProtectDetails{} }
+func (*IpsecTunnelProtectDetails) GetMessageName() string { return "ipsec_tunnel_protect_details" }
+func (*IpsecTunnelProtectDetails) GetCrcString() string   { return "21663a50" }
+func (*IpsecTunnelProtectDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecTunnelProtectDetails) Size() (size int) {
@@ -2311,10 +2332,12 @@ type IpsecTunnelProtectDump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 }
 
-func (m *IpsecTunnelProtectDump) Reset()                        { *m = IpsecTunnelProtectDump{} }
-func (*IpsecTunnelProtectDump) GetMessageName() string          { return "ipsec_tunnel_protect_dump" }
-func (*IpsecTunnelProtectDump) GetCrcString() string            { return "f9e6675e" }
-func (*IpsecTunnelProtectDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecTunnelProtectDump) Reset()               { *m = IpsecTunnelProtectDump{} }
+func (*IpsecTunnelProtectDump) GetMessageName() string { return "ipsec_tunnel_protect_dump" }
+func (*IpsecTunnelProtectDump) GetCrcString() string   { return "f9e6675e" }
+func (*IpsecTunnelProtectDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecTunnelProtectDump) Size() (size int) {
 	if m == nil {
@@ -2342,10 +2365,12 @@ type IpsecTunnelProtectUpdate struct {
 	Tunnel IpsecTunnelProtect `binapi:"ipsec_tunnel_protect,name=tunnel" json:"tunnel,omitempty"`
 }
 
-func (m *IpsecTunnelProtectUpdate) Reset()                        { *m = IpsecTunnelProtectUpdate{} }
-func (*IpsecTunnelProtectUpdate) GetMessageName() string          { return "ipsec_tunnel_protect_update" }
-func (*IpsecTunnelProtectUpdate) GetCrcString() string            { return "30d5f133" }
-func (*IpsecTunnelProtectUpdate) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *IpsecTunnelProtectUpdate) Reset()               { *m = IpsecTunnelProtectUpdate{} }
+func (*IpsecTunnelProtectUpdate) GetMessageName() string { return "ipsec_tunnel_protect_update" }
+func (*IpsecTunnelProtectUpdate) GetCrcString() string   { return "30d5f133" }
+func (*IpsecTunnelProtectUpdate) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *IpsecTunnelProtectUpdate) Size() (size int) {
 	if m == nil {
@@ -2401,10 +2426,9 @@ func (m *IpsecTunnelProtectUpdateReply) Reset() { *m = IpsecTunnelProtectUpdateR
 func (*IpsecTunnelProtectUpdateReply) GetMessageName() string {
 	return "ipsec_tunnel_protect_update_reply"
 }
-func (*IpsecTunnelProtectUpdateReply) GetCrcString() string            { return "e8d4e804" }
-func (*IpsecTunnelProtectUpdateReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *IpsecTunnelProtectUpdateReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (*IpsecTunnelProtectUpdateReply) GetCrcString() string { return "e8d4e804" }
+func (*IpsecTunnelProtectUpdateReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *IpsecTunnelProtectUpdateReply) Size() (size int) {

@@ -54,10 +54,12 @@ type SrLocalsidAddDel struct {
 	NhAddr    ip_types.Address               `binapi:"address,name=nh_addr" json:"nh_addr,omitempty"`
 }
 
-func (m *SrLocalsidAddDel) Reset()                        { *m = SrLocalsidAddDel{} }
-func (*SrLocalsidAddDel) GetMessageName() string          { return "sr_localsid_add_del" }
-func (*SrLocalsidAddDel) GetCrcString() string            { return "5a36c324" }
-func (*SrLocalsidAddDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrLocalsidAddDel) Reset()               { *m = SrLocalsidAddDel{} }
+func (*SrLocalsidAddDel) GetMessageName() string { return "sr_localsid_add_del" }
+func (*SrLocalsidAddDel) GetCrcString() string   { return "5a36c324" }
+func (*SrLocalsidAddDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrLocalsidAddDel) Size() (size int) {
 	if m == nil {
@@ -109,12 +111,11 @@ type SrLocalsidAddDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *SrLocalsidAddDelReply) Reset()                        { *m = SrLocalsidAddDelReply{} }
-func (*SrLocalsidAddDelReply) GetMessageName() string          { return "sr_localsid_add_del_reply" }
-func (*SrLocalsidAddDelReply) GetCrcString() string            { return "e8d4e804" }
-func (*SrLocalsidAddDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrLocalsidAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *SrLocalsidAddDelReply) Reset()               { *m = SrLocalsidAddDelReply{} }
+func (*SrLocalsidAddDelReply) GetMessageName() string { return "sr_localsid_add_del_reply" }
+func (*SrLocalsidAddDelReply) GetCrcString() string   { return "e8d4e804" }
+func (*SrLocalsidAddDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrLocalsidAddDelReply) Size() (size int) {
@@ -149,12 +150,11 @@ type SrLocalsidsDetails struct {
 	XconnectIfaceOrVrfTable uint32              `binapi:"u32,name=xconnect_iface_or_vrf_table" json:"xconnect_iface_or_vrf_table,omitempty"`
 }
 
-func (m *SrLocalsidsDetails) Reset()                        { *m = SrLocalsidsDetails{} }
-func (*SrLocalsidsDetails) GetMessageName() string          { return "sr_localsids_details" }
-func (*SrLocalsidsDetails) GetCrcString() string            { return "2e9221b9" }
-func (*SrLocalsidsDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrLocalsidsDetails) GetRetVal() error {
-	return nil
+func (m *SrLocalsidsDetails) Reset()               { *m = SrLocalsidsDetails{} }
+func (*SrLocalsidsDetails) GetMessageName() string { return "sr_localsids_details" }
+func (*SrLocalsidsDetails) GetCrcString() string   { return "2e9221b9" }
+func (*SrLocalsidsDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrLocalsidsDetails) Size() (size int) {
@@ -202,10 +202,12 @@ func (m *SrLocalsidsDetails) Unmarshal(b []byte) error {
 // SrLocalsidsDump defines message 'sr_localsids_dump'.
 type SrLocalsidsDump struct{}
 
-func (m *SrLocalsidsDump) Reset()                        { *m = SrLocalsidsDump{} }
-func (*SrLocalsidsDump) GetMessageName() string          { return "sr_localsids_dump" }
-func (*SrLocalsidsDump) GetCrcString() string            { return "51077d14" }
-func (*SrLocalsidsDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrLocalsidsDump) Reset()               { *m = SrLocalsidsDump{} }
+func (*SrLocalsidsDump) GetMessageName() string { return "sr_localsids_dump" }
+func (*SrLocalsidsDump) GetCrcString() string   { return "51077d14" }
+func (*SrLocalsidsDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrLocalsidsDump) Size() (size int) {
 	if m == nil {
@@ -246,10 +248,7 @@ func (*SrLocalsidsWithPacketStatsDetails) GetMessageName() string {
 }
 func (*SrLocalsidsWithPacketStatsDetails) GetCrcString() string { return "ce0b1ce0" }
 func (*SrLocalsidsWithPacketStatsDetails) GetMessageType() api.MessageType {
-	return api.ReplyMessageType
-}
-func (m *SrLocalsidsWithPacketStatsDetails) GetRetVal() error {
-	return nil
+	return api.ReplyMessage
 }
 
 func (m *SrLocalsidsWithPacketStatsDetails) Size() (size int) {
@@ -316,7 +315,7 @@ func (*SrLocalsidsWithPacketStatsDump) GetMessageName() string {
 }
 func (*SrLocalsidsWithPacketStatsDump) GetCrcString() string { return "51077d14" }
 func (*SrLocalsidsWithPacketStatsDump) GetMessageType() api.MessageType {
-	return api.RequestMessageType
+	return api.RequestMessage
 }
 
 func (m *SrLocalsidsWithPacketStatsDump) Size() (size int) {
@@ -346,12 +345,11 @@ type SrPoliciesDetails struct {
 	SidLists    []Srv6SidList       `binapi:"srv6_sid_list[num_sid_lists],name=sid_lists" json:"sid_lists,omitempty"`
 }
 
-func (m *SrPoliciesDetails) Reset()                        { *m = SrPoliciesDetails{} }
-func (*SrPoliciesDetails) GetMessageName() string          { return "sr_policies_details" }
-func (*SrPoliciesDetails) GetCrcString() string            { return "db6ff2a1" }
-func (*SrPoliciesDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrPoliciesDetails) GetRetVal() error {
-	return nil
+func (m *SrPoliciesDetails) Reset()               { *m = SrPoliciesDetails{} }
+func (*SrPoliciesDetails) GetMessageName() string { return "sr_policies_details" }
+func (*SrPoliciesDetails) GetCrcString() string   { return "db6ff2a1" }
+func (*SrPoliciesDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrPoliciesDetails) Size() (size int) {
@@ -421,10 +419,12 @@ func (m *SrPoliciesDetails) Unmarshal(b []byte) error {
 // SrPoliciesDump defines message 'sr_policies_dump'.
 type SrPoliciesDump struct{}
 
-func (m *SrPoliciesDump) Reset()                        { *m = SrPoliciesDump{} }
-func (*SrPoliciesDump) GetMessageName() string          { return "sr_policies_dump" }
-func (*SrPoliciesDump) GetCrcString() string            { return "51077d14" }
-func (*SrPoliciesDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrPoliciesDump) Reset()               { *m = SrPoliciesDump{} }
+func (*SrPoliciesDump) GetMessageName() string { return "sr_policies_dump" }
+func (*SrPoliciesDump) GetCrcString() string   { return "51077d14" }
+func (*SrPoliciesDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrPoliciesDump) Size() (size int) {
 	if m == nil {
@@ -458,10 +458,9 @@ func (m *SrPoliciesWithSlIndexDetails) Reset() { *m = SrPoliciesWithSlIndexDetai
 func (*SrPoliciesWithSlIndexDetails) GetMessageName() string {
 	return "sr_policies_with_sl_index_details"
 }
-func (*SrPoliciesWithSlIndexDetails) GetCrcString() string            { return "ca2e9bc8" }
-func (*SrPoliciesWithSlIndexDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrPoliciesWithSlIndexDetails) GetRetVal() error {
-	return nil
+func (*SrPoliciesWithSlIndexDetails) GetCrcString() string { return "ca2e9bc8" }
+func (*SrPoliciesWithSlIndexDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrPoliciesWithSlIndexDetails) Size() (size int) {
@@ -535,10 +534,12 @@ func (m *SrPoliciesWithSlIndexDetails) Unmarshal(b []byte) error {
 // InProgress: the message form may change in the future versions
 type SrPoliciesWithSlIndexDump struct{}
 
-func (m *SrPoliciesWithSlIndexDump) Reset()                        { *m = SrPoliciesWithSlIndexDump{} }
-func (*SrPoliciesWithSlIndexDump) GetMessageName() string          { return "sr_policies_with_sl_index_dump" }
-func (*SrPoliciesWithSlIndexDump) GetCrcString() string            { return "51077d14" }
-func (*SrPoliciesWithSlIndexDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrPoliciesWithSlIndexDump) Reset()               { *m = SrPoliciesWithSlIndexDump{} }
+func (*SrPoliciesWithSlIndexDump) GetMessageName() string { return "sr_policies_with_sl_index_dump" }
+func (*SrPoliciesWithSlIndexDump) GetCrcString() string   { return "51077d14" }
+func (*SrPoliciesWithSlIndexDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrPoliciesWithSlIndexDump) Size() (size int) {
 	if m == nil {
@@ -567,10 +568,12 @@ type SrPolicyAdd struct {
 	Sids     Srv6SidList         `binapi:"srv6_sid_list,name=sids" json:"sids,omitempty"`
 }
 
-func (m *SrPolicyAdd) Reset()                        { *m = SrPolicyAdd{} }
-func (*SrPolicyAdd) GetMessageName() string          { return "sr_policy_add" }
-func (*SrPolicyAdd) GetCrcString() string            { return "44ac92e8" }
-func (*SrPolicyAdd) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrPolicyAdd) Reset()               { *m = SrPolicyAdd{} }
+func (*SrPolicyAdd) GetMessageName() string { return "sr_policy_add" }
+func (*SrPolicyAdd) GetCrcString() string   { return "44ac92e8" }
+func (*SrPolicyAdd) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrPolicyAdd) Size() (size int) {
 	if m == nil {
@@ -625,12 +628,11 @@ type SrPolicyAddReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *SrPolicyAddReply) Reset()                        { *m = SrPolicyAddReply{} }
-func (*SrPolicyAddReply) GetMessageName() string          { return "sr_policy_add_reply" }
-func (*SrPolicyAddReply) GetCrcString() string            { return "e8d4e804" }
-func (*SrPolicyAddReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrPolicyAddReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *SrPolicyAddReply) Reset()               { *m = SrPolicyAddReply{} }
+func (*SrPolicyAddReply) GetMessageName() string { return "sr_policy_add_reply" }
+func (*SrPolicyAddReply) GetCrcString() string   { return "e8d4e804" }
+func (*SrPolicyAddReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrPolicyAddReply) Size() (size int) {
@@ -660,10 +662,12 @@ type SrPolicyDel struct {
 	SrPolicyIndex uint32              `binapi:"u32,name=sr_policy_index" json:"sr_policy_index,omitempty"`
 }
 
-func (m *SrPolicyDel) Reset()                        { *m = SrPolicyDel{} }
-func (*SrPolicyDel) GetMessageName() string          { return "sr_policy_del" }
-func (*SrPolicyDel) GetCrcString() string            { return "cb4d48d5" }
-func (*SrPolicyDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrPolicyDel) Reset()               { *m = SrPolicyDel{} }
+func (*SrPolicyDel) GetMessageName() string { return "sr_policy_del" }
+func (*SrPolicyDel) GetCrcString() string   { return "cb4d48d5" }
+func (*SrPolicyDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrPolicyDel) Size() (size int) {
 	if m == nil {
@@ -694,12 +698,11 @@ type SrPolicyDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *SrPolicyDelReply) Reset()                        { *m = SrPolicyDelReply{} }
-func (*SrPolicyDelReply) GetMessageName() string          { return "sr_policy_del_reply" }
-func (*SrPolicyDelReply) GetCrcString() string            { return "e8d4e804" }
-func (*SrPolicyDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrPolicyDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *SrPolicyDelReply) Reset()               { *m = SrPolicyDelReply{} }
+func (*SrPolicyDelReply) GetMessageName() string { return "sr_policy_del_reply" }
+func (*SrPolicyDelReply) GetCrcString() string   { return "e8d4e804" }
+func (*SrPolicyDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrPolicyDelReply) Size() (size int) {
@@ -734,10 +737,12 @@ type SrPolicyMod struct {
 	Sids          Srv6SidList         `binapi:"srv6_sid_list,name=sids" json:"sids,omitempty"`
 }
 
-func (m *SrPolicyMod) Reset()                        { *m = SrPolicyMod{} }
-func (*SrPolicyMod) GetMessageName() string          { return "sr_policy_mod" }
-func (*SrPolicyMod) GetCrcString() string            { return "b97bb56e" }
-func (*SrPolicyMod) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrPolicyMod) Reset()               { *m = SrPolicyMod{} }
+func (*SrPolicyMod) GetMessageName() string { return "sr_policy_mod" }
+func (*SrPolicyMod) GetCrcString() string   { return "b97bb56e" }
+func (*SrPolicyMod) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrPolicyMod) Size() (size int) {
 	if m == nil {
@@ -795,12 +800,11 @@ type SrPolicyModReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *SrPolicyModReply) Reset()                        { *m = SrPolicyModReply{} }
-func (*SrPolicyModReply) GetMessageName() string          { return "sr_policy_mod_reply" }
-func (*SrPolicyModReply) GetCrcString() string            { return "e8d4e804" }
-func (*SrPolicyModReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrPolicyModReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *SrPolicyModReply) Reset()               { *m = SrPolicyModReply{} }
+func (*SrPolicyModReply) GetMessageName() string { return "sr_policy_mod_reply" }
+func (*SrPolicyModReply) GetCrcString() string   { return "e8d4e804" }
+func (*SrPolicyModReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrPolicyModReply) Size() (size int) {
@@ -829,10 +833,12 @@ type SrSetEncapHopLimit struct {
 	HopLimit uint8 `binapi:"u8,name=hop_limit" json:"hop_limit,omitempty"`
 }
 
-func (m *SrSetEncapHopLimit) Reset()                        { *m = SrSetEncapHopLimit{} }
-func (*SrSetEncapHopLimit) GetMessageName() string          { return "sr_set_encap_hop_limit" }
-func (*SrSetEncapHopLimit) GetCrcString() string            { return "aa75d7d0" }
-func (*SrSetEncapHopLimit) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrSetEncapHopLimit) Reset()               { *m = SrSetEncapHopLimit{} }
+func (*SrSetEncapHopLimit) GetMessageName() string { return "sr_set_encap_hop_limit" }
+func (*SrSetEncapHopLimit) GetCrcString() string   { return "aa75d7d0" }
+func (*SrSetEncapHopLimit) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrSetEncapHopLimit) Size() (size int) {
 	if m == nil {
@@ -860,12 +866,11 @@ type SrSetEncapHopLimitReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *SrSetEncapHopLimitReply) Reset()                        { *m = SrSetEncapHopLimitReply{} }
-func (*SrSetEncapHopLimitReply) GetMessageName() string          { return "sr_set_encap_hop_limit_reply" }
-func (*SrSetEncapHopLimitReply) GetCrcString() string            { return "e8d4e804" }
-func (*SrSetEncapHopLimitReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrSetEncapHopLimitReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *SrSetEncapHopLimitReply) Reset()               { *m = SrSetEncapHopLimitReply{} }
+func (*SrSetEncapHopLimitReply) GetMessageName() string { return "sr_set_encap_hop_limit_reply" }
+func (*SrSetEncapHopLimitReply) GetCrcString() string   { return "e8d4e804" }
+func (*SrSetEncapHopLimitReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrSetEncapHopLimitReply) Size() (size int) {
@@ -894,10 +899,12 @@ type SrSetEncapSource struct {
 	EncapsSource ip_types.IP6Address `binapi:"ip6_address,name=encaps_source" json:"encaps_source,omitempty"`
 }
 
-func (m *SrSetEncapSource) Reset()                        { *m = SrSetEncapSource{} }
-func (*SrSetEncapSource) GetMessageName() string          { return "sr_set_encap_source" }
-func (*SrSetEncapSource) GetCrcString() string            { return "d3bad5e1" }
-func (*SrSetEncapSource) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrSetEncapSource) Reset()               { *m = SrSetEncapSource{} }
+func (*SrSetEncapSource) GetMessageName() string { return "sr_set_encap_source" }
+func (*SrSetEncapSource) GetCrcString() string   { return "d3bad5e1" }
+func (*SrSetEncapSource) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrSetEncapSource) Size() (size int) {
 	if m == nil {
@@ -925,12 +932,11 @@ type SrSetEncapSourceReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *SrSetEncapSourceReply) Reset()                        { *m = SrSetEncapSourceReply{} }
-func (*SrSetEncapSourceReply) GetMessageName() string          { return "sr_set_encap_source_reply" }
-func (*SrSetEncapSourceReply) GetCrcString() string            { return "e8d4e804" }
-func (*SrSetEncapSourceReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrSetEncapSourceReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *SrSetEncapSourceReply) Reset()               { *m = SrSetEncapSourceReply{} }
+func (*SrSetEncapSourceReply) GetMessageName() string { return "sr_set_encap_source_reply" }
+func (*SrSetEncapSourceReply) GetCrcString() string   { return "e8d4e804" }
+func (*SrSetEncapSourceReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrSetEncapSourceReply) Size() (size int) {
@@ -965,10 +971,12 @@ type SrSteeringAddDel struct {
 	TrafficType   sr_types.SrSteer               `binapi:"sr_steer,name=traffic_type" json:"traffic_type,omitempty"`
 }
 
-func (m *SrSteeringAddDel) Reset()                        { *m = SrSteeringAddDel{} }
-func (*SrSteeringAddDel) GetMessageName() string          { return "sr_steering_add_del" }
-func (*SrSteeringAddDel) GetCrcString() string            { return "e46b0a0f" }
-func (*SrSteeringAddDel) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrSteeringAddDel) Reset()               { *m = SrSteeringAddDel{} }
+func (*SrSteeringAddDel) GetMessageName() string { return "sr_steering_add_del" }
+func (*SrSteeringAddDel) GetCrcString() string   { return "e46b0a0f" }
+func (*SrSteeringAddDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrSteeringAddDel) Size() (size int) {
 	if m == nil {
@@ -1020,12 +1028,11 @@ type SrSteeringAddDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
 
-func (m *SrSteeringAddDelReply) Reset()                        { *m = SrSteeringAddDelReply{} }
-func (*SrSteeringAddDelReply) GetMessageName() string          { return "sr_steering_add_del_reply" }
-func (*SrSteeringAddDelReply) GetCrcString() string            { return "e8d4e804" }
-func (*SrSteeringAddDelReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrSteeringAddDelReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (m *SrSteeringAddDelReply) Reset()               { *m = SrSteeringAddDelReply{} }
+func (*SrSteeringAddDelReply) GetMessageName() string { return "sr_steering_add_del_reply" }
+func (*SrSteeringAddDelReply) GetCrcString() string   { return "e8d4e804" }
+func (*SrSteeringAddDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrSteeringAddDelReply) Size() (size int) {
@@ -1058,12 +1065,11 @@ type SrSteeringPolDetails struct {
 	Bsid        ip_types.IP6Address            `binapi:"ip6_address,name=bsid" json:"bsid,omitempty"`
 }
 
-func (m *SrSteeringPolDetails) Reset()                        { *m = SrSteeringPolDetails{} }
-func (*SrSteeringPolDetails) GetMessageName() string          { return "sr_steering_pol_details" }
-func (*SrSteeringPolDetails) GetCrcString() string            { return "d41258c9" }
-func (*SrSteeringPolDetails) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *SrSteeringPolDetails) GetRetVal() error {
-	return nil
+func (m *SrSteeringPolDetails) Reset()               { *m = SrSteeringPolDetails{} }
+func (*SrSteeringPolDetails) GetMessageName() string { return "sr_steering_pol_details" }
+func (*SrSteeringPolDetails) GetCrcString() string   { return "d41258c9" }
+func (*SrSteeringPolDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *SrSteeringPolDetails) Size() (size int) {
@@ -1108,10 +1114,12 @@ func (m *SrSteeringPolDetails) Unmarshal(b []byte) error {
 // SrSteeringPolDump defines message 'sr_steering_pol_dump'.
 type SrSteeringPolDump struct{}
 
-func (m *SrSteeringPolDump) Reset()                        { *m = SrSteeringPolDump{} }
-func (*SrSteeringPolDump) GetMessageName() string          { return "sr_steering_pol_dump" }
-func (*SrSteeringPolDump) GetCrcString() string            { return "51077d14" }
-func (*SrSteeringPolDump) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *SrSteeringPolDump) Reset()               { *m = SrSteeringPolDump{} }
+func (*SrSteeringPolDump) GetMessageName() string { return "sr_steering_pol_dump" }
+func (*SrSteeringPolDump) GetCrcString() string   { return "51077d14" }
+func (*SrSteeringPolDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *SrSteeringPolDump) Size() (size int) {
 	if m == nil {

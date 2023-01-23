@@ -30,10 +30,12 @@ type FeatureGsoEnableDisable struct {
 	EnableDisable bool                           `binapi:"bool,name=enable_disable" json:"enable_disable,omitempty"`
 }
 
-func (m *FeatureGsoEnableDisable) Reset()                        { *m = FeatureGsoEnableDisable{} }
-func (*FeatureGsoEnableDisable) GetMessageName() string          { return "feature_gso_enable_disable" }
-func (*FeatureGsoEnableDisable) GetCrcString() string            { return "5501adee" }
-func (*FeatureGsoEnableDisable) GetMessageType() api.MessageType { return api.RequestMessageType }
+func (m *FeatureGsoEnableDisable) Reset()               { *m = FeatureGsoEnableDisable{} }
+func (*FeatureGsoEnableDisable) GetMessageName() string { return "feature_gso_enable_disable" }
+func (*FeatureGsoEnableDisable) GetCrcString() string   { return "5501adee" }
+func (*FeatureGsoEnableDisable) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
 
 func (m *FeatureGsoEnableDisable) Size() (size int) {
 	if m == nil {
@@ -68,10 +70,9 @@ func (m *FeatureGsoEnableDisableReply) Reset() { *m = FeatureGsoEnableDisableRep
 func (*FeatureGsoEnableDisableReply) GetMessageName() string {
 	return "feature_gso_enable_disable_reply"
 }
-func (*FeatureGsoEnableDisableReply) GetCrcString() string            { return "e8d4e804" }
-func (*FeatureGsoEnableDisableReply) GetMessageType() api.MessageType { return api.ReplyMessageType }
-func (m *FeatureGsoEnableDisableReply) GetRetVal() error {
-	return api.RetvalToVPPApiError(int32(m.Retval))
+func (*FeatureGsoEnableDisableReply) GetCrcString() string { return "e8d4e804" }
+func (*FeatureGsoEnableDisableReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
 }
 
 func (m *FeatureGsoEnableDisableReply) Size() (size int) {
