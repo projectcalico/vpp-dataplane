@@ -23,8 +23,6 @@ import (
 )
 
 func (v *VppLink) SetCryptoWorker(workerIndex uint32, enable bool) error {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &crypto_sw_scheduler.CryptoSwSchedulerSetWorkerReply{}
 	request := &crypto_sw_scheduler.CryptoSwSchedulerSetWorker{

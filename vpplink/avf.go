@@ -30,8 +30,6 @@ const (
 )
 
 func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err error) {
-	v.Lock()
-	defer v.Unlock()
 	addr, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {
 		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateAVF error parsing PCI id")
@@ -55,8 +53,6 @@ func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err err
 }
 
 func (v *VppLink) DeleteAVF(swIfIndex uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &avf.AvfDeleteReply{}
 	request := &avf.AvfDelete{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),

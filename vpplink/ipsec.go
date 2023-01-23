@@ -23,8 +23,6 @@ import (
 )
 
 func (v *VppLink) SetIPsecAsyncMode(enable bool) error {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &ipsec.IpsecSetAsyncModeReply{}
 

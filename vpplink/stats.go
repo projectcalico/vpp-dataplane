@@ -44,8 +44,6 @@ func GetInterfaceStats(sc *statsclient.StatsClient) (ifNames adapter.NameStat, d
 }
 
 func (v *VppLink) GetBufferStats() (uint32, uint32, uint32, error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &interfaces.GetBuffersStatsReply{}
 	request := &interfaces.GetBuffersStats{BufferIndex: 0}
 	err := v.GetChannel().SendRequest(request).ReceiveReply(response)

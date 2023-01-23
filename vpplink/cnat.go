@@ -34,8 +34,6 @@ const (
 const InvalidID = ^uint32(0)
 
 func (v *VppLink) CnatPurge() error {
-	v.Lock()
-	defer v.Unlock()
 
 	request := &cnat.CnatSessionPurge{}
 	response := &cnat.CnatSessionPurgeReply{}
@@ -49,8 +47,6 @@ func (v *VppLink) CnatPurge() error {
 }
 
 func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err error) {
-	v.Lock()
-	defer v.Unlock()
 	if len(tr.Backends) == 0 {
 		return InvalidID, nil
 	}
@@ -85,8 +81,6 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err
 }
 
 func (v *VppLink) CnatTranslateDel(id uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	// corresponds to adding tr.Backends == []
 	if id == InvalidID {
 		return nil
@@ -104,8 +98,6 @@ func (v *VppLink) CnatTranslateDel(id uint32) (err error) {
 }
 
 func (v *VppLink) CnatSetSnatAddresses(v4, v6 net.IP) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	request := &cnat.CnatSetSnatAddresses{
 		SnatIP4:   types.ToVppIP4Address(v4),
@@ -123,8 +115,6 @@ func (v *VppLink) CnatSetSnatAddresses(v4, v6 net.IP) (err error) {
 }
 
 func (v *VppLink) CnatAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	request := &cnat.CnatSnatPolicyAddDelExcludePfx{
 		IsAdd:  BoolToU8(isAdd),
@@ -161,8 +151,6 @@ func (v *VppLink) CnatEnableFeatures(swIfIndex uint32) (err error) {
 }
 
 func (v *VppLink) cnatSnatPolicyAddDelPodInterface(swIfIndex uint32, isAdd bool, table cnat.CnatSnatPolicyTable) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &cnat.CnatSnatPolicyAddDelIfReply{}
 	request := &cnat.CnatSnatPolicyAddDelIf{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
@@ -209,8 +197,6 @@ func (v *VppLink) disableCnatSNAT(swIfIndex uint32, isIp6 bool) (err error) {
 }
 
 func (v *VppLink) cnatSetSnatPolicy(pol cnat.CnatSnatPolicies) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &cnat.CnatSetSnatPolicyReply{}
 	request := &cnat.CnatSetSnatPolicy{
 		Policy: pol,

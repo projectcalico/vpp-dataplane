@@ -25,8 +25,6 @@ import (
 )
 
 func (v *VppLink) addDelMemifSocketFileName(socketFileName string, socketId uint32, isAdd bool) (uint32, error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &memif.MemifSocketFilenameAddDelV2Reply{}
 	request := &memif.MemifSocketFilenameAddDelV2{
 		IsAdd:          isAdd,
@@ -53,8 +51,6 @@ func (v *VppLink) DelMemifSocketFileName(socketId uint32) error {
 }
 
 func (v *VppLink) ListMemifSockets() ([]*types.MemifSocket, error) {
-	v.Lock()
-	defer v.Unlock()
 
 	sockets := make([]*types.MemifSocket, 0)
 	request := &memif.MemifSocketFilenameDump{}
@@ -77,8 +73,6 @@ func (v *VppLink) ListMemifSockets() ([]*types.MemifSocket, error) {
 }
 
 func (v *VppLink) DeleteMemif(swIfIndex uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &memif.MemifDeleteReply{}
 	request := &memif.MemifDelete{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
@@ -93,8 +87,6 @@ func (v *VppLink) DeleteMemif(swIfIndex uint32) (err error) {
 }
 
 func (v *VppLink) CreateMemif(mif *types.Memif) error {
-	v.Lock()
-	defer v.Unlock()
 	response := &memif.MemifCreateReply{}
 	request := &memif.MemifCreate{
 		Role:       memif.MemifRole(mif.Role),
@@ -118,8 +110,6 @@ func (v *VppLink) CreateMemif(mif *types.Memif) error {
 }
 
 func (v *VppLink) ListMemifInterfaces() ([]*types.Memif, error) {
-	v.Lock()
-	defer v.Unlock()
 
 	memifs := make([]*types.Memif, 0)
 	request := &memif.MemifDump{}

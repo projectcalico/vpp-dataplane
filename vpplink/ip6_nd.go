@@ -26,8 +26,6 @@ import (
 )
 
 func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &ip6_nd.SwInterfaceIP6ndRaConfigReply{}
 	request := &ip6_nd.SwInterfaceIP6ndRaConfig{
@@ -44,8 +42,6 @@ func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) (err error) {
 }
 
 func (v *VppLink) EnableIP6NdProxy(swIfIndex uint32, address net.IP) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &ip6_nd.IP6ndProxyAddDelReply{}
 	request := &ip6_nd.IP6ndProxyAddDel{

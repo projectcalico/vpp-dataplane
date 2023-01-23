@@ -25,8 +25,6 @@ import (
 )
 
 func (v *VppLink) GetVPPVersion() (version string, err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &vpe.ShowVersionReply{}
 	request := &vpe.ShowVersion{}
@@ -42,8 +40,6 @@ func (v *VppLink) GetVPPVersion() (version string, err error) {
 
 // RunCli sends CLI command to VPP and returns response.
 func (v *VppLink) RunCli(cmd string) (string, error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &vlib.CliInbandReply{}
 	request := &vlib.CliInband{}

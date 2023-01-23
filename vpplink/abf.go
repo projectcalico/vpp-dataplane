@@ -30,8 +30,6 @@ var (
 )
 
 func (v *VppLink) attachDetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool, isAdd bool) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &abf.AbfItfAttachAddDelReply{}
 	request := &abf.AbfItfAttachAddDel{
@@ -64,8 +62,6 @@ func (v *VppLink) DetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool) 
 }
 
 func (v *VppLink) addDelAbfPolicy(policy *types.AbfPolicy, isAdd bool) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	paths := make([]fib_types.FibPath, 0, len(policy.Paths))
 	for _, routePath := range policy.Paths {

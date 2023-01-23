@@ -24,8 +24,6 @@ import (
 )
 
 func (v *VppLink) CreateRDMA(intf *types.RDMAInterface) (swIfIndex uint32, err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &rdma.RdmaCreateV2Reply{}
 	request := &rdma.RdmaCreateV2{
 		HostIf:  intf.HostInterfaceName,

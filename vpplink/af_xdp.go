@@ -25,8 +25,6 @@ import (
 )
 
 func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &af_xdp.AfXdpCreateReply{}
 	request := &af_xdp.AfXdpCreate{
 		HostIf:  intf.HostInterfaceName,
@@ -47,8 +45,6 @@ func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) (err error) {
 }
 
 func (v *VppLink) DeleteAfXDP(intf *types.VppXDPInterface) error {
-	v.Lock()
-	defer v.Unlock()
 	response := &af_xdp.AfXdpDeleteReply{}
 	request := &af_xdp.AfXdpDelete{
 		SwIfIndex: interface_types.InterfaceIndex(intf.SwIfIndex),

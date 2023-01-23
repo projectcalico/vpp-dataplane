@@ -25,8 +25,6 @@ import (
 )
 
 func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName, featureName string) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &feature.FeatureEnableDisableReply{}
 	request := &feature.FeatureEnableDisable{
 		SwIfIndex:   interface_types.InterfaceIndex(swIfIndex),

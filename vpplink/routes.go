@@ -33,8 +33,6 @@ const (
 )
 
 func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) (routes []types.Route, err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	request := &vppip.IPRouteDump{
 		Table: vppip.IPTable{
@@ -79,8 +77,6 @@ func isAddStr(isAdd bool) string {
 }
 
 func (v *VppLink) addDelNeighbor(neighbor *types.Neighbor, isAdd bool) error {
-	v.Lock()
-	defer v.Unlock()
 
 	request := &ip_neighbor.IPNeighborAddDel{
 		IsAdd: isAdd,
@@ -126,8 +122,6 @@ func (v *VppLink) RouteDel(route *types.Route) error {
 }
 
 func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
-	v.Lock()
-	defer v.Unlock()
 
 	isIP6 := route.IsIP6()
 	prefix := ip_types.Prefix{}
@@ -190,8 +184,6 @@ func (v *VppLink) DelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bo
 }
 
 func (v *VppLink) SetIPFlowHash(ipFlowHash types.IPFlowHash, vrfID uint32, isIPv6 bool) error {
-	v.Lock()
-	defer v.Unlock()
 
 	request := &vppip.SetIPFlowHashV2{
 		TableID:        vrfID,

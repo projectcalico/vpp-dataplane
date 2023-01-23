@@ -25,8 +25,6 @@ import (
 )
 
 func (v *VppLink) enableDisableSessionLayer(isEnable bool) error {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &session.SessionEnableDisableReply{}
 	request := &session.SessionEnableDisable{
@@ -50,8 +48,6 @@ func (v *VppLink) DisableSessionLayer() error {
 }
 
 func (v *VppLink) enableDisableSessionSAPILayer(isEnable bool) error {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &session.SessionSapiEnableDisableReply{}
 	request := &session.SessionSapiEnableDisable{
@@ -75,8 +71,6 @@ func (v *VppLink) DisableSessionSAPI() error {
 }
 
 func (v *VppLink) addDelSessionAppNamespace(namespace *types.SessionAppNamespace, isAdd bool) error {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &session.AppNamespaceAddDelV3Reply{}
 	request := &session.AppNamespaceAddDelV3{

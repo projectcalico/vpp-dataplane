@@ -27,8 +27,6 @@ import (
 )
 
 func (v *VppLink) EnableNatForwarding() (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &nat.Nat44ForwardingEnableDisableReply{}
 	request := &nat.Nat44ForwardingEnableDisable{
@@ -45,8 +43,6 @@ func (v *VppLink) EnableNatForwarding() (err error) {
 }
 
 func (v *VppLink) addDelNat44Address(isAdd bool, address net.IP) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &nat.Nat44AddDelAddressRangeReply{}
 	request := &nat.Nat44AddDelAddressRange{
@@ -74,8 +70,6 @@ func (v *VppLink) DelNat44InterfaceAddress(swIfIndex uint32, flags types.NatFlag
 }
 
 func (v *VppLink) addDelNat44InterfaceAddress(isAdd bool, swIfIndex uint32, flags types.NatFlags) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &nat.Nat44AddDelInterfaceAddrReply{}
 	request := &nat.Nat44AddDelInterfaceAddr{
@@ -101,8 +95,6 @@ func (v *VppLink) DelNat44Address(address net.IP) error {
 }
 
 func (v *VppLink) addDelNat44Interface(isAdd bool, flags types.NatFlags, swIfIndex uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &nat.Nat44InterfaceAddDelFeatureReply{}
 	request := &nat.Nat44InterfaceAddDelFeature{
@@ -148,8 +140,6 @@ func (v *VppLink) getLBLocals(entry *types.Nat44Entry) (locals []nat.Nat44LbAddr
 }
 
 func (v *VppLink) addDelNat44LBStaticMapping(isAdd bool, entry *types.Nat44Entry) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	locals := v.getLBLocals(entry)
 	response := &nat.Nat44AddDelLbStaticMappingReply{}
@@ -179,8 +169,6 @@ func (v *VppLink) DelNat44LBStaticMapping(entry *types.Nat44Entry) error {
 }
 
 func (v *VppLink) addDelNat44StaticMapping(isAdd bool, entry *types.Nat44Entry) error {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &nat.Nat44AddDelStaticMappingReply{}
 	request := &nat.Nat44AddDelStaticMapping{

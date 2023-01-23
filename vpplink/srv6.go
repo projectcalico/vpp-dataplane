@@ -11,8 +11,6 @@ import (
 )
 
 func (v *VppLink) SetEncapSource(addr net.IP) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	request := &sr.SrSetEncapSource{
 		EncapsSource: types.ToVppIP6Address(addr),
@@ -28,8 +26,6 @@ func (v *VppLink) SetEncapSource(addr net.IP) (err error) {
 }
 
 func (v *VppLink) ListSRv6Policies() (list []*types.SrPolicy, err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	request := &sr.SrPoliciesDump{}
 	stream := v.GetChannel().SendMultiRequest(request)
@@ -76,8 +72,6 @@ func (v *VppLink) AddModSRv6Policy(policy *types.SrPolicy) (err error) {
 }
 
 func (v *VppLink) AddSRv6Policy(policy *types.SrPolicy) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &sr.SrPolicyAddReply{}
 	// supporting only one SID list here -> multiple weighted paths for workload balance not supported
@@ -105,8 +99,6 @@ func (v *VppLink) AddSRv6Policy(policy *types.SrPolicy) (err error) {
 }
 
 func (v *VppLink) DelSRv6Policy(policy *types.SrPolicy) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &sr.SrPolicyDelReply{}
 	request := &sr.SrPolicyDel{
@@ -123,8 +115,6 @@ func (v *VppLink) DelSRv6Policy(policy *types.SrPolicy) (err error) {
 }
 
 func (v *VppLink) ListSRv6Localsid() (list []*types.SrLocalsid, err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	request := &sr.SrLocalsidsDump{}
 	stream := v.GetChannel().SendMultiRequest(request)
@@ -152,8 +142,6 @@ func (v *VppLink) ListSRv6Localsid() (list []*types.SrLocalsid, err error) {
 }
 
 func (v *VppLink) AddSRv6Localsid(localSid *types.SrLocalsid) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &sr.SrLocalsidAddDelReply{}
 	request := &sr.SrLocalsidAddDel{
@@ -177,8 +165,6 @@ func (v *VppLink) AddSRv6Localsid(localSid *types.SrLocalsid) (err error) {
 }
 
 func (v *VppLink) DelSRv6Localsid(localSid *types.SrLocalsid) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &sr.SrLocalsidAddDelReply{}
 	request := &sr.SrLocalsidAddDel{
@@ -201,8 +187,6 @@ func (v *VppLink) DelSRv6Localsid(localSid *types.SrLocalsid) (err error) {
 }
 
 func (v *VppLink) DelSRv6Steering(steer *types.SrSteer) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &sr.SrSteeringAddDelReply{}
 	request := &sr.SrSteeringAddDel{
@@ -223,8 +207,6 @@ func (v *VppLink) DelSRv6Steering(steer *types.SrSteer) (err error) {
 }
 
 func (v *VppLink) AddSRv6Steering(steer *types.SrSteer) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &sr.SrSteeringAddDelReply{}
 	request := &sr.SrSteeringAddDel{
 		IsDel:       false,
@@ -244,8 +226,6 @@ func (v *VppLink) AddSRv6Steering(steer *types.SrSteer) (err error) {
 }
 
 func (v *VppLink) ListSRv6Steering() (list []*types.SrSteer, err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	request := &sr.SrSteeringPolDump{}
 	stream := v.GetChannel().SendMultiRequest(request)

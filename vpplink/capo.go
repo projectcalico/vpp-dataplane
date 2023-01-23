@@ -25,8 +25,6 @@ import (
 )
 
 func (v *VppLink) IpsetCreate(ipsetType types.IpsetType) (setId uint32, err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &capo.CapoIpsetCreateReply{}
 	request := &capo.CapoIpsetCreate{
 		Type: capo.CapoIpsetType(ipsetType),
@@ -41,8 +39,6 @@ func (v *VppLink) IpsetCreate(ipsetType types.IpsetType) (setId uint32, err erro
 }
 
 func (v *VppLink) IpsetDelete(ipsetID uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &capo.CapoIpsetDeleteReply{}
 	request := &capo.CapoIpsetDelete{
 		SetID: ipsetID,
@@ -57,8 +53,6 @@ func (v *VppLink) IpsetDelete(ipsetID uint32) (err error) {
 }
 
 func (v *VppLink) addDelIpsetMembers(ipsetID uint32, isAdd bool, members []capo.CapoIpsetMember) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &capo.CapoIpsetAddDelMembersReply{}
 	request := &capo.CapoIpsetAddDelMembers{
 		SetID:   ipsetID,
@@ -128,8 +122,6 @@ func (v *VppLink) DelIpsetIPPortMembers(ipsetID uint32, members []types.IPPort) 
 }
 
 func (v *VppLink) RuleCreate(rule *types.Rule) (ruleId uint32, err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &capo.CapoRuleCreateReply{}
 	request := &capo.CapoRuleCreate{
 		Rule: types.ToCapoRule(rule),
@@ -144,8 +136,6 @@ func (v *VppLink) RuleCreate(rule *types.Rule) (ruleId uint32, err error) {
 }
 
 func (v *VppLink) RuleUpdate(ruleId uint32, rule *types.Rule) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &capo.CapoRuleUpdateReply{}
 	request := &capo.CapoRuleUpdate{
 		RuleID: ruleId,
@@ -161,8 +151,6 @@ func (v *VppLink) RuleUpdate(ruleId uint32, rule *types.Rule) (err error) {
 }
 
 func (v *VppLink) RuleDelete(ruleId uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &capo.CapoRuleDeleteReply{}
 	request := &capo.CapoRuleDelete{
 		RuleID: ruleId,
@@ -177,8 +165,6 @@ func (v *VppLink) RuleDelete(ruleId uint32) (err error) {
 }
 
 func (v *VppLink) PolicyCreate(policy *types.Policy) (policyId uint32, err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &capo.CapoPolicyCreateReply{}
 	request := &capo.CapoPolicyCreate{
 		Rules: types.ToCapoPolicy(policy),
@@ -193,8 +179,6 @@ func (v *VppLink) PolicyCreate(policy *types.Policy) (policyId uint32, err error
 }
 
 func (v *VppLink) PolicyUpdate(policyId uint32, policy *types.Policy) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &capo.CapoPolicyUpdateReply{}
 	request := &capo.CapoPolicyUpdate{
 		PolicyID: policyId,
@@ -210,8 +194,6 @@ func (v *VppLink) PolicyUpdate(policyId uint32, policy *types.Policy) (err error
 }
 
 func (v *VppLink) PolicyDelete(policyId uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &capo.CapoPolicyDeleteReply{}
 	request := &capo.CapoPolicyDelete{
 		PolicyID: policyId,
@@ -226,8 +208,6 @@ func (v *VppLink) PolicyDelete(policyId uint32) (err error) {
 }
 
 func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfig, invertRxTx uint8) (err error) {
-	v.Lock()
-	defer v.Unlock()
 	// In the calico agent, policies are expressed from the point of view of PODs
 	// in VPP this is reversed
 	rxPolicyIDs := conf.EgressPolicyIDs

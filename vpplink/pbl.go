@@ -24,8 +24,6 @@ import (
 )
 
 func (v *VppLink) AddPblClient(client *types.PblClient) (id uint32, err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	portRanges := make([]pbl.PblPortRange, len(client.PortRanges))
 	for _, r := range client.PortRanges {
@@ -58,8 +56,6 @@ func (v *VppLink) AddPblClient(client *types.PblClient) (id uint32, err error) {
 }
 
 func (v *VppLink) DelPblClient(id uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &pbl.PblClientDelReply{}
 	request := &pbl.PblClientDel{

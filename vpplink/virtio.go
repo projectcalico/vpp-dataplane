@@ -59,8 +59,6 @@ func (v *VppLink) CreateVirtio(intf *types.VirtioInterface) (swIfIndex uint32, e
 	if err != nil {
 		return ^uint32(0), errors.Wrap(err, "CreateVirtio failed")
 	}
-	v.Lock()
-	defer v.Unlock()
 	response := &virtio.VirtioPciCreateV2Reply{}
 	request := &virtio.VirtioPciCreateV2{
 		PciAddr:      *addr,
@@ -82,8 +80,6 @@ func (v *VppLink) CreateVirtio(intf *types.VirtioInterface) (swIfIndex uint32, e
 }
 
 func (v *VppLink) DeleteVirtio(swIfIndex uint32) error {
-	v.Lock()
-	defer v.Unlock()
 	response := &virtio.VirtioPciDeleteReply{}
 	request := &virtio.VirtioPciDelete{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),

@@ -24,8 +24,6 @@ import (
 )
 
 func (v *VppLink) CreateVmxnet3(intf *types.Vmxnet3Interface) (swIfIndex uint32, err error) {
-	v.Lock()
-	defer v.Unlock()
 	response := &vmxnet3.Vmxnet3CreateReply{}
 	pci, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {

@@ -118,8 +118,6 @@ func (v *VppLink) DelIKEv2Profile(name string) error {
 }
 
 func (v *VppLink) addDelIKEv2Profile(name string, isAdd bool) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	if len(name) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -140,8 +138,6 @@ func (v *VppLink) addDelIKEv2Profile(name string, isAdd bool) (err error) {
 }
 
 func (v *VppLink) ListIKEv2Profiles() ([]ikev2_types.Ikev2Profile, error) {
-	v.Lock()
-	defer v.Unlock()
 
 	profiles := make([]ikev2_types.Ikev2Profile, 0)
 	request := &ikev2.Ikev2ProfileDump{}
@@ -161,8 +157,6 @@ func (v *VppLink) ListIKEv2Profiles() ([]ikev2_types.Ikev2Profile, error) {
 }
 
 func (v *VppLink) setIKEv2Auth(profile string, authMethod IKEv2AuthMethod, authData []byte) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -189,8 +183,6 @@ func (v *VppLink) SetIKEv2PSKAuth(profile, psk string) (err error) {
 }
 
 func (v *VppLink) setIKEv2ID(profile string, isLocal bool, idType IKEv2IDType, id []byte) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -235,8 +227,6 @@ func (v *VppLink) SetIKEv2TrafficSelector(
 	startAddr net.IP,
 	endAddr net.IP,
 ) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -280,8 +270,6 @@ func (v *VppLink) SetIKEv2ESPTransforms(
 	cryptoKeySize uint32,
 	integAlg IKEv2IntegrityAlgorithm,
 ) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -312,8 +300,6 @@ func (v *VppLink) SetIKEv2IKETransforms(
 	integAlg IKEv2IntegrityAlgorithm,
 	dhGroup IKEv2DHGroup,
 ) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -358,8 +344,6 @@ func (v *VppLink) SetIKEv2DefaultTransforms(profile string) (err error) {
 }
 
 func (v *VppLink) SetIKEv2Responder(profile string, swIfIndex uint32, address net.IP) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -387,8 +371,6 @@ func (v *VppLink) SetIKEv2Responder(profile string, swIfIndex uint32, address ne
 }
 
 func (v *VppLink) SetIKEv2TunnelInterface(profile string, swIfIndex uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -409,8 +391,6 @@ func (v *VppLink) SetIKEv2TunnelInterface(profile string, swIfIndex uint32) (err
 }
 
 func (v *VppLink) IKEv2Initiate(profile string) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")

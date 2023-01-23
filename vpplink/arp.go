@@ -19,14 +19,13 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/arp"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 )
 
 func (v *VppLink) EnableArpProxy(swIfIndex, tableID uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	// First enable global arp proxy
 	//set arp proxy table-id 0 start 0.0.0.0 end 255.255.255.255

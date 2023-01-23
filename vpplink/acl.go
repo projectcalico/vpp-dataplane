@@ -19,14 +19,13 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+
 	vppacl "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/acl"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/acl_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func (v *VppLink) AddACL(acl *types.ACL) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	rules := make([]acl_types.ACLRule, 0, len(acl.Rules))
 	for _, aclRule := range acl.Rules {
@@ -51,8 +50,6 @@ func (v *VppLink) AddACL(acl *types.ACL) (err error) {
 }
 
 func (v *VppLink) DelACL(aclIndex uint32) (err error) {
-	v.Lock()
-	defer v.Unlock()
 
 	response := &vppacl.ACLDelReply{}
 	request := &vppacl.ACLDel{
