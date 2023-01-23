@@ -41,7 +41,6 @@ const (
 	CalicoVppPidFile     = "/var/run/vpp/calico_vpp.pid"
 	CalicoVppVersionFile = "/etc/calicovppversion"
 
-	MemifSocketName      = "@vpp/memif"
 	DefaultVXLANVni      = 4096
 	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820
