@@ -66,12 +66,12 @@ var (
 
 	ServiceCIDRs           = PrefixListEnvVar("SERVICE_PREFIX")
 	IPSecIkev2Psk          = StringEnvVar("CALICOVPP_IPSEC_IKEV2_PSK", "")
-	CalicoVppDebug         = ValidableJsonEnvVar("CALICOVPP_DEBUG", &CalicoVppDebugConfigType{})
-	CalicoVppInterfaces    = ValidableJsonEnvVar("CALICOVPP_INTERFACES", &CalicoVppInterfacesConfigType{})
-	CalicoVppFeatureGates  = ValidableJsonEnvVar("CALICOVPP_FEATURE_GATES", &CalicoVppFeatureGatesConfigType{})
-	CalicoVppIpsec         = ValidableJsonEnvVar("CALICOVPP_IPSEC", &CalicoVppIpsecConfigType{})
-	CalicoVppSrv6          = ValidableJsonEnvVar("CALICOVPP_SRV6", &CalicoVppSrv6ConfigType{})
-	CalicoVppInitialConfig = ValidableJsonEnvVar("CALICOVPP_INITIAL_CONFIG", &CalicoVppInitialConfigConfigType{})
+	CalicoVppDebug         = JsonEnvVar("CALICOVPP_DEBUG", &CalicoVppDebugConfigType{})
+	CalicoVppInterfaces    = JsonEnvVar("CALICOVPP_INTERFACES", &CalicoVppInterfacesConfigType{})
+	CalicoVppFeatureGates  = JsonEnvVar("CALICOVPP_FEATURE_GATES", &CalicoVppFeatureGatesConfigType{})
+	CalicoVppIpsec         = JsonEnvVar("CALICOVPP_IPSEC", &CalicoVppIpsecConfigType{})
+	CalicoVppSrv6          = JsonEnvVar("CALICOVPP_SRV6", &CalicoVppSrv6ConfigType{})
+	CalicoVppInitialConfig = JsonEnvVar("CALICOVPP_INITIAL_CONFIG", &CalicoVppInitialConfigConfigType{})
 	LogFormat              = StringEnvVar("CALICOVPP_LOG_FORMAT", "")
 
 	/* Deprecated vars */
