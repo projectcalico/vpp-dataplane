@@ -17,6 +17,7 @@ package cni
 
 import (
 	"context"
+	gerrors "errors"
 	"fmt"
 	"net"
 	"os"
@@ -427,7 +428,7 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) error {
 
 func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	err := syscall.Unlink(config.CNIServerSocket)
-	if err != nil {
+	if err != nil && !gerrors.Is(err, os.ErrNotExist) {
 		s.log.Warnf("unable to unlink cni server socket: %+v", err)
 	}
 
