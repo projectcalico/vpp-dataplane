@@ -78,24 +78,24 @@ type Server struct {
 	pendingState    *PolicyState
 
 	/* failSafe policies allow traffic on some ports irrespective of the policy */
-	failSafePolicyId uint32
+	failSafePolicy *Policy
 	/* workloadToHost may drop traffic that goes from the pods to the host */
 	workloadsToHostIPSet   *IPSet
 	workloadsToHostPolicy  *Policy
 	defaultTap0IngressConf []uint32
 	workloadAddresses      map[string]string
 	/* always allow traffic coming from host to the pods (for healthchecks and so on) */
-	// AllowFromHostPolicyId persists the ID of the policy allowing host --> pod communications.
+	// AllowFromHostPolicy persists the policy allowing host --> pod communications.
 	// See CreateAllowFromHostPolicy definition
-	AllowFromHostPolicyId uint32
+	AllowFromHostPolicy *Policy
 	// AllowFromHostIPSet persists the ipset containing all the workload endpoints (pods)
 	// addresses, it is used to allow traffic from host to pods
 	AllowFromHostIPSet *IPSet
 	/* allow traffic between uplink/tunnels and tap interfaces */
-	allowToHostPolicyId uint32
-	ip4                 *net.IP
-	ip6                 *net.IP
-	interfacesMap       map[string]interfaceDetails
+	allowToHostPolicy *Policy
+	ip4               *net.IP
+	ip6               *net.IP
+	interfacesMap     map[string]interfaceDetails
 
 	policyServerEventChan chan common.CalicoVppEvent
 	networkDefinitions    map[string]*watchers.NetworkDefinition
@@ -146,10 +146,7 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		nodeStatesByName:  make(map[string]*common.LocalNodeSpec),
 		GotOurNodeBGPchan: make(chan interface{}),
 
-		failSafePolicyId:      types.InvalidID,
-		allowToHostPolicyId:   types.InvalidID,
-		workloadAddresses:     make(map[string]string),
-		AllowFromHostPolicyId: types.InvalidID,
+		workloadAddresses: make(map[string]string),
 	}
 
 	reg := common.RegisterHandler(server.policyServerEventChan, "policy server events")
@@ -1602,13 +1599,22 @@ func (s *Server) createAllowToHostPolicy() (err error) {
 
 	allowToHostPolicy := &Policy{
 		Policy: &types.Policy{},
-		VppID:  s.allowToHostPolicyId,
+		VppID:  types.InvalidID,
 	}
 	allowToHostPolicy.InboundRules = append(allowToHostPolicy.InboundRules, r_in)
 	allowToHostPolicy.OutboundRules = append(allowToHostPolicy.OutboundRules, r_out)
-	err = allowToHostPolicy.Create(s.vpp, nil)
-	s.allowToHostPolicyId = allowToHostPolicy.VppID
-	return errors.Wrap(err, "cannot create policy to allow traffic to host")
+	if s.allowToHostPolicy == nil {
+		err = allowToHostPolicy.Create(s.vpp, nil)
+	} else {
+		allowToHostPolicy.VppID = s.allowToHostPolicy.VppID
+		err = s.allowToHostPolicy.Update(s.vpp, allowToHostPolicy, nil)
+	}
+	s.allowToHostPolicy = allowToHostPolicy
+	if err != nil {
+		return errors.Wrap(err, "cannot create policy to allow traffic to host")
+	}
+	s.log.Infof("Created policy to allow traffic to host with ID: %+v", s.allowToHostPolicy.VppID)
+	return nil
 }
 
 // createAllowFromHostPolicy creates a policy allowing host->pod communications. This is needed
@@ -1652,13 +1658,22 @@ func (s *Server) createAllowFromHostPolicy() (err error) {
 
 	allowFromHostPolicy := &Policy{
 		Policy: &types.Policy{},
-		VppID:  s.AllowFromHostPolicyId,
+		VppID:  types.InvalidID,
 	}
 	allowFromHostPolicy.OutboundRules = append(allowFromHostPolicy.OutboundRules, r_out)
 	allowFromHostPolicy.InboundRules = append(allowFromHostPolicy.InboundRules, r_in)
-	err = allowFromHostPolicy.Create(s.vpp, &ps)
-	s.AllowFromHostPolicyId = allowFromHostPolicy.VppID
-	return errors.Wrap(err, "cannot create policy to allow traffic from host to pods")
+	if s.AllowFromHostPolicy == nil {
+		err = allowFromHostPolicy.Create(s.vpp, &ps)
+	} else {
+		allowFromHostPolicy.VppID = s.AllowFromHostPolicy.VppID
+		err = s.AllowFromHostPolicy.Update(s.vpp, allowFromHostPolicy, &ps)
+	}
+	s.AllowFromHostPolicy = allowFromHostPolicy
+	if err != nil {
+		return errors.Wrap(err, "cannot create policy to allow traffic from host to pods")
+	}
+	s.log.Infof("Created allow from host to pods traffic with ID: %+v", s.AllowFromHostPolicy.VppID)
+	return nil
 }
 
 func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
@@ -1722,7 +1737,7 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 func (s *Server) createFailSafePolicies() (err error) {
 	failSafePol := &Policy{
 		Policy: &types.Policy{},
-		VppID:  s.failSafePolicyId,
+		VppID:  types.InvalidID,
 	}
 
 	var failSafeInboundRules, failSafeOutboundRules []*Rule
@@ -1742,11 +1757,18 @@ func (s *Server) createFailSafePolicies() (err error) {
 
 	failSafePol.InboundRules = failSafeInboundRules
 	failSafePol.OutboundRules = failSafeOutboundRules
-	err = failSafePol.Create(s.vpp, nil)
+	if s.failSafePolicy == nil {
+		err = failSafePol.Create(s.vpp, nil)
+
+	} else {
+		failSafePol.VppID = s.failSafePolicy.VppID
+		err = s.failSafePolicy.Update(s.vpp, failSafePol, nil)
+	}
 	if err != nil {
 		return err
 	}
-	s.failSafePolicyId = failSafePol.VppID
+	s.failSafePolicy = failSafePol
+	s.log.Infof("Created failsafe policy with ID %+v", s.failSafePolicy.VppID)
 	return nil
 }
 

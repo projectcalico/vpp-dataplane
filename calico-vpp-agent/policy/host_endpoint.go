@@ -178,13 +178,13 @@ func (h *HostEndpoint) getTapPolicies(state *PolicyState) (conf *types.Interface
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, h.server.workloadsToHostPolicy.VppID)
-		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicyId}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.IngressPolicyIDs...)
 	} else {
 		conf.IngressPolicyIDs = h.server.defaultTap0IngressConf
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
-		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicyId}, conf.EgressPolicyIDs...)
-		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicyId}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.EgressPolicyIDs...)
 	}
 	return conf, nil
 }
@@ -195,10 +195,10 @@ func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.Inter
 		return nil, errors.Wrap(err, "cannot create host policies for forwardConf")
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
-		conf.EgressPolicyIDs = append([]uint32{h.server.allowToHostPolicyId}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.EgressPolicyIDs...)
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
-		conf.IngressPolicyIDs = append([]uint32{h.server.allowToHostPolicyId}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.IngressPolicyIDs...)
 	}
 	return conf, nil
 }
