@@ -64,7 +64,7 @@ func timeoutSigKill(vppIndex int) {
 
 func terminateVpp(format string, args ...interface{}) {
 	log.Errorf(format, args...)
-	log.Infof("Terminating Vpp %d (SIGINT)", currentVPPIndex)
+	log.Infof("Terminating Vpp %d (SIGINT %d)", currentVPPIndex, vppProcess.Pid)
 	internalKill = true
 	signals <- syscall.SIGINT
 }
