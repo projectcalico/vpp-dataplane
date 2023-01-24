@@ -403,20 +403,26 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 	return vrfs, nil
 }
 
-func (v *VppRunner) configureVpp(uplinkDriver uplink.UplinkDriver, ifState *config.LinuxInterfaceState, ifSpec config.UplinkInterfaceSpec) (err error) {
+// configureVppUplinkInterface configures one uplink interface in VPP
+// and creates the corresponding tap in Linux
+func (v *VppRunner) configureVppUplinkInterface(
+	uplinkDriver uplink.UplinkDriver,
+	ifState *config.LinuxInterfaceState,
+	ifSpec config.UplinkInterfaceSpec,
+) (err error) {
 	// Always enable GSO feature on data interface, only a tiny negative effect on perf if GSO is not
 	// enabled on the taps or already done before an encap
 	if *config.GetCalicoVppDebug().GSOEnabled {
 		err = v.vpp.EnableGSOFeature(ifSpec.SwIfIndex)
 		if err != nil {
-			return errors.Wrap(err, "Error enabling GSO on data interface")
+			return errors.Wrap(err, "Error enabling GSO on uplink interface")
 		}
 	}
 
 	uplinkMtu := vpplink.DefaultIntTo(ifSpec.Mtu, ifState.Mtu)
 	err = v.vpp.SetInterfaceMtu(ifSpec.SwIfIndex, uplinkMtu)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting %d MTU on data interface", uplinkMtu)
+		return errors.Wrapf(err, "Error setting %d MTU on uplink interface", uplinkMtu)
 	}
 
 	err = v.vpp.SetInterfaceRxMode(ifSpec.SwIfIndex, types.AllQueues, ifSpec.GetRxModeWithDefault(uplinkDriver.GetDefaultRxMode()))
@@ -426,7 +432,12 @@ func (v *VppRunner) configureVpp(uplinkDriver uplink.UplinkDriver, ifState *conf
 
 	err = v.vpp.EnableInterfaceIP6(ifSpec.SwIfIndex)
 	if err != nil {
-		return errors.Wrap(err, "Error enabling ip6 on if")
+		return errors.Wrap(err, "Error enabling ipv6 on uplink interface")
+	}
+
+	err = v.vpp.DisableIP6RouterAdvertisements(ifSpec.SwIfIndex)
+	if err != nil {
+		return errors.Wrap(err, "Error disabling ipv6 RA on uplink interface")
 	}
 
 	err = v.vpp.CnatEnableFeatures(ifSpec.SwIfIndex)
@@ -436,14 +447,14 @@ func (v *VppRunner) configureVpp(uplinkDriver uplink.UplinkDriver, ifState *conf
 
 	for _, addr := range ifState.Addresses {
 		if addr.IPNet.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
-			log.Infof("Not adding address %s to data interface (vpp requires /128 link-local)", addr.String())
+			log.Infof("Not adding address %s to uplink interface (vpp requires /128 link-local)", addr.String())
 			continue
 		} else {
-			log.Infof("Adding address %s to data interface", addr.String())
+			log.Infof("Adding address %s to uplink interface", addr.String())
 		}
 		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
 		if err != nil {
-			log.Errorf("Error adding address to data interface: %v", err)
+			log.Errorf("Error adding address to uplink interface: %v", err)
 		}
 	}
 	for _, route := range ifState.Routes {
@@ -573,11 +584,6 @@ func (v *VppRunner) configureVpp(uplinkDriver uplink.UplinkDriver, ifState *conf
 		return errors.Wrap(err, "error configuring vpptap0 as pod intf")
 	}
 
-	err = v.vpp.SetK8sSnatPolicy()
-	if err != nil {
-		return errors.Wrap(err, "Error configuring cnat source policy")
-	}
-
 	// Linux side tap setup
 	link, err := netlink.LinkByName(ifSpec.InterfaceName)
 	if err != nil {
@@ -604,6 +610,20 @@ func (v *VppRunner) configureVpp(uplinkDriver uplink.UplinkDriver, ifState *conf
 			IsMain:       ifSpec.GetIsMain(),
 		})
 	}
+	return nil
+}
+
+func (v *VppRunner) doVppGlobalConfiguration() (err error) {
+	err = v.allocateStaticVRFs()
+	if err != nil {
+		return errors.Wrap(err, "Error creating static VRFs in VPP")
+	}
+
+	err = v.vpp.SetK8sSnatPolicy()
+	if err != nil {
+		return errors.Wrap(err, "Error configuring cnat source policy")
+	}
+
 	return nil
 }
 
@@ -759,43 +779,42 @@ func (v *VppRunner) runVpp() (err error) {
 	vpp, err := utils.CreateVppLink()
 	v.vpp = vpp
 	if err != nil {
-		terminateVpp("Error connecting to VPP (SIGINT %d): %v", vppProcess.Pid, err)
+		terminateVpp("Error connecting to VPP: %v", err)
 		v.vpp.Close()
 		<-vppDeadChan
 		return fmt.Errorf("cannot connect to VPP after 10 tries")
 	}
 
-	err = v.allocateStaticVRFs()
+	err = v.doVppGlobalConfiguration()
 	if err != nil {
-		terminateVpp("Error connecting to VPP (SIGINT %d): %v", vppProcess.Pid, err)
+		terminateVpp("Error configuring VPP: %v", err)
 		v.vpp.Close()
 		<-vppDeadChan
-		return errors.Wrap(err, "error allocating static VRFs")
+		return errors.Wrap(err, "Error configuring VPP")
 	}
 
 	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
 		err := v.uplinkDriver[idx].CreateMainVppInterface(vpp, vppProcess.Pid, &v.params.UplinksSpecs[idx])
 		if err != nil {
-			terminateVpp("Error creating main interface %s (SIGINT %d): %v", v.params.UplinksSpecs[idx].InterfaceName, vppProcess.Pid, err)
+			terminateVpp("Error creating uplink interface %s: %v", v.params.UplinksSpecs[idx].InterfaceName, err)
 			v.vpp.Close()
 			<-vppDeadChan
-			return errors.Wrap(err, "Error creating main interface")
+			return errors.Wrap(err, "Error creating uplink interface")
 		}
 
 		// Data interface configuration
 		err = v.vpp.Retry(2*time.Second, 10, v.vpp.InterfaceAdminUp, v.params.UplinksSpecs[idx].SwIfIndex)
 		if err != nil {
-			terminateVpp("Error setting main interface up (SIGINT %d): %v", vppProcess.Pid, err)
+			terminateVpp("Error setting uplink interface up: %v", err)
 			v.vpp.Close()
 			<-vppDeadChan
-			return errors.Wrap(err, "Error setting data interface up")
+			return errors.Wrap(err, "Error setting uplink interface up")
 		}
 
-		// Configure VPP
-		err = v.configureVpp(v.uplinkDriver[idx], v.conf[idx], v.params.UplinksSpecs[idx])
+		err = v.configureVppUplinkInterface(v.uplinkDriver[idx], v.conf[idx], v.params.UplinksSpecs[idx])
 
 		if err != nil {
-			terminateVpp("Error configuring VPP (SIGINT %d): %v", vppProcess.Pid, err)
+			terminateVpp("Error configuring VPP: %v", err)
 			<-vppDeadChan
 			return errors.Wrap(err, "Error configuring VPP")
 		}
