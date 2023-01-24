@@ -28,8 +28,13 @@ Vagrant.configure('2') do |config|
                 :libvirt__ipv6_address => MASTER_IP6,
                 :libvirt__ipv6_prefix => "64"
         end
-        subconfig.vm.synced_folder "../..", '/host-repo', type: 'nfs',
-            create: true, readonly: true, linux__nfs_options: ['ro','no_subtree_check','all_squash','crossmnt']
+        subconfig.vm.synced_folder ".", "/vagrant", type: "nfs",nfs_version: 4, nfs_udp: false
+        subconfig.vm.synced_folder "../..", '/host-repo', type: "nfs",
+            nfs_version: 4,
+            nfs_udp: false,
+            create: true,
+            readonly: true,
+            linux__nfs_options: ['ro','no_subtree_check','all_squash','crossmnt']
         # Provision
         subconfig.vm.provision :shell, inline: $prepareScript
         subconfig.vm.provision :shell, inline: $verifyNodeScript
