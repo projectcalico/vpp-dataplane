@@ -36,6 +36,7 @@ func NewWatchDog(log *logrus.Entry, t *tomb.Tomb) *WatchDog {
 
 func (wd *WatchDog) Wait(myChan chan interface{}, msg string) interface{} {
 	ticker := time.NewTicker(time.Second * 5)
+	nbTicks := 0
 	defer ticker.Stop()
 	for {
 		select {
@@ -44,7 +45,12 @@ func (wd *WatchDog) Wait(myChan chan interface{}, msg string) interface{} {
 		case <-wd.t.Dying():
 			return nil
 		case <-ticker.C:
-			wd.log.Warn(msg)
+			nbTicks++
+			if nbTicks >= 6 { // Start warning after 6 ticks, i.e. 30sec
+				wd.log.Warn(msg)
+			} else {
+				wd.log.Info(msg)
+			}
 		}
 	}
 }
