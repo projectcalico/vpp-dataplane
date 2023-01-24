@@ -38,7 +38,10 @@ func main() {
 	var err error
 
 	log := logrus.New()
-	config.LoadConfigSilent(log)
+	err = config.LoadConfigSilent(log)
+	if err != nil {
+		log.Errorf("Error loading configuration: %v", err)
+	}
 
 	inFile := os.NewFile(3, "pipe1")
 	outFile := os.NewFile(4, "pipe2")
@@ -59,10 +62,12 @@ func main() {
 	}
 
 	t.Go(func() error {
+		//nolint:errcheck
 		io.Copy(socket, inFile)
 		return errors.New("copying to agent stopped")
 	})
 	t.Go(func() error {
+		//nolint:errcheck
 		io.Copy(outFile, socket)
 		return errors.New("copying to felix stopped")
 	})
