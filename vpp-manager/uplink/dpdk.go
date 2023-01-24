@@ -166,6 +166,10 @@ func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, up
 		return fmt.Errorf("error trying to find interface with tag main-%s", d.spec.InterfaceName)
 	}
 	d.spec.SwIfIndex = swIfIndex
+	err = vpp.SetInterfaceMacAddress(swIfIndex, &d.conf.HardwareAddr)
+	if err != nil {
+		return errors.Wrap(err, "could not set dpdk interface mac address in vpp")
+	}
 	return nil
 }
 

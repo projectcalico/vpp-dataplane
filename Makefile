@@ -66,9 +66,9 @@ install-test-deps:
 	sudo chmod a+r /boot/vmlinuz*	# Required for libguestfs
 	sudo adduser `id -un` libvirt
 	sudo adduser `id -un` kvm
-	wget https://releases.hashicorp.com/vagrant/2.2.14/vagrant_2.2.14_x86_64.deb
-	sudo dpkg -i vagrant_2.2.14_x86_64.deb
-	rm vagrant_2.2.14_x86_64.deb
+	wget https://releases.hashicorp.com/vagrant/2.3.4/vagrant_2.3.4-1_amd64.deb
+	sudo dpkg -i vagrant_2.3.4-1_amd64.deb
+	rm vagrant_2.3.4-1_amd64.deb
 	vagrant plugin install vagrant-libvirt
 	newgrp libvirt
 
@@ -85,7 +85,7 @@ load-images:
 CALICO_INSTALLATION ?= installation-default
 .PHONY: test-install-calico
 test-install-calico:
-	kubectl replace --force -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
+	kubectl replace --force -f https://raw.githubusercontent.com/projectcalico/calico/master/manifests/tigera-operator.yaml
 	kubectl apply -f yaml/calico/$(CALICO_INSTALLATION).yaml
 
 # Allows to simply run calico-vpp from release images in a test cluster

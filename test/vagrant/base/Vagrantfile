@@ -2,12 +2,12 @@
 
 # Load the vagrantfile_common file to have all the variables & the config script
 $vagrantfilecommon = File.expand_path('../../vagrantfiles/Vagrantfile_common', __FILE__)
-NODE = 0 # Unused but required
+NODE = 0 # Unused but required by the script
 load $vagrantfilecommon
 
 Vagrant.configure('2') do |config|
     config.vm.define :base_vm do |base_vm|
-        base_vm.vm.box = "generic/ubuntu2004"
+        base_vm.vm.box = "generic/ubuntu2204"
         base_vm.ssh.insert_key = false
         base_vm.vm.boot_timeout = 900
 
