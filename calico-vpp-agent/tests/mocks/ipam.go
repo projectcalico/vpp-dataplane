@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
+	"github.com/projectcalico/calico/felix/proto"
 	"gopkg.in/tomb.v2"
 )
 
