@@ -16,6 +16,7 @@
 package uplink
 
 import (
+	gerrors "errors"
 	"fmt"
 	"regexp"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -167,7 +169,9 @@ func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, up
 	}
 	d.spec.SwIfIndex = swIfIndex
 	err = vpp.SetInterfaceMacAddress(swIfIndex, &d.conf.HardwareAddr)
-	if err != nil {
+	if err != nil && gerrors.Is(err, types.VppErrorUnimplemented) {
+		log.Warn("Setting dpdk interface mac address in vpp unsupported")
+	} else if err != nil {
 		return errors.Wrap(err, "could not set dpdk interface mac address in vpp")
 	}
 	return nil
