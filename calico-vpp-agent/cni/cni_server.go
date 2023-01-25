@@ -26,9 +26,9 @@ import (
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	cniproto "github.com/projectcalico/calico/cni-plugin/pkg/dataplane/grpc/proto"
 	felixConfig "github.com/projectcalico/calico/felix/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
-	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
+	"github.com/projectcalico/calico/felix/proto"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	tomb "gopkg.in/tomb.v2"
@@ -87,7 +87,7 @@ func (s *Server) SetFelixConfig(felixConfig *felixConfig.Config) {
 	s.tuntapDriver.SetFelixConfig(felixConfig)
 }
 
-func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalPodSpec, error) {
+func (s *Server) newLocalPodSpecFromAdd(request *cniproto.AddRequest) (*storage.LocalPodSpec, error) {
 	podSpec := storage.LocalPodSpec{
 		InterfaceName:     request.GetInterfaceName(),
 		NetnsName:         request.GetNetns(),
@@ -187,26 +187,26 @@ func (s *Server) newLocalPodSpecFromAdd(request *pb.AddRequest) (*storage.LocalP
 	return &podSpec, nil
 }
 
-func NewLocalPodSpecFromDel(request *pb.DelRequest) *storage.LocalPodSpec {
+func NewLocalPodSpecFromDel(request *cniproto.DelRequest) *storage.LocalPodSpec {
 	return &storage.LocalPodSpec{
 		InterfaceName: request.GetInterfaceName(),
 		NetnsName:     request.GetNetns(),
 	}
 }
 
-func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply, error) {
+func (s *Server) Add(ctx context.Context, request *cniproto.AddRequest) (*cniproto.AddReply, error) {
 	/* We don't support request.GetDesiredHostInterfaceName() */
 	podSpec, err := s.newLocalPodSpecFromAdd(request)
 	if err != nil {
 		s.log.Errorf("Error parsing interface add request %v %v", request, err)
-		return &pb.AddReply{
+		return &cniproto.AddReply{
 			Successful:   false,
 			ErrorMessage: err.Error(),
 		}, nil
 	}
 	if podSpec.NetnsName == "" {
 		s.log.Debugf("no netns passed, skipping")
-		return &pb.AddReply{
+		return &cniproto.AddReply{
 			Successful: true,
 		}, nil
 	}
@@ -225,7 +225,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	swIfIndex, err := s.AddVppInterface(podSpec, true /* doHostSideConf */)
 	if err != nil {
 		s.log.Errorf("Interface add failed %s : %v", podSpec.String(), err)
-		return &pb.AddReply{
+		return &cniproto.AddReply{
 			Successful:   false,
 			ErrorMessage: err.Error(),
 		}, nil
@@ -241,7 +241,7 @@ func (s *Server) Add(ctx context.Context, request *pb.AddRequest) (*pb.AddReply,
 	// XXX: container MAC doesn't make sense with tun, we just pass back a constant one.
 	// How does calico / k8s use it?
 	// TODO: pass real mac for tap ?
-	return &pb.AddReply{
+	return &cniproto.AddReply{
 		Successful:        true,
 		HostInterfaceName: swIfIdxToIfName(swIfIndex),
 		ContainerMac:      "02:00:00:00:00:00",
@@ -303,12 +303,12 @@ func (s *Server) rescanState() {
 	}
 }
 
-func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply, error) {
+func (s *Server) Del(ctx context.Context, request *cniproto.DelRequest) (*cniproto.DelReply, error) {
 	partialPodSpec := NewLocalPodSpecFromDel(request)
 	// Only try to delete the device if a namespace was passed in.
 	if partialPodSpec.NetnsName == "" {
 		s.log.Debugf("no netns passed, skipping")
-		return &pb.DelReply{
+		return &cniproto.DelReply{
 			Successful: true,
 		}, nil
 	}
@@ -331,7 +331,7 @@ func (s *Server) Del(ctx context.Context, request *pb.DelRequest) (*pb.DelReply,
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
 
-	return &pb.DelReply{
+	return &cniproto.DelReply{
 		Successful: true,
 	}, nil
 }
@@ -437,7 +437,7 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 		return errors.Wrapf(err, "failed to listen on %s", config.CNIServerSocket)
 	}
 
-	pb.RegisterCniDataplaneServer(s.grpcServer, s)
+	cniproto.RegisterCniDataplaneServer(s.grpcServer, s)
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
 		netsSynced := make(chan bool)
