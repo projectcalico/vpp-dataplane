@@ -80,17 +80,14 @@ type Server struct {
 	/* failSafe policies allow traffic on some ports irrespective of the policy */
 	failSafePolicy *Policy
 	/* workloadToHost may drop traffic that goes from the pods to the host */
-	workloadsToHostIPSet   *IPSet
 	workloadsToHostPolicy  *Policy
 	defaultTap0IngressConf []uint32
-	workloadAddresses      map[string]string
 	/* always allow traffic coming from host to the pods (for healthchecks and so on) */
 	// AllowFromHostPolicy persists the policy allowing host --> pod communications.
 	// See CreateAllowFromHostPolicy definition
 	AllowFromHostPolicy *Policy
-	// AllowFromHostIPSet persists the ipset containing all the workload endpoints (pods)
-	// addresses, it is used to allow traffic from host to pods
-	AllowFromHostIPSet *IPSet
+	// allPodsIpset persists the ipset containing all the workload endpoints (pods) addresses
+	allPodsIpset *IPSet
 	/* allow traffic between uplink/tunnels and tap interfaces */
 	allowToHostPolicy *Policy
 	ip4               *net.IP
@@ -145,8 +142,6 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 
 		nodeStatesByName:  make(map[string]*common.LocalNodeSpec),
 		GotOurNodeBGPchan: make(chan interface{}),
-
-		workloadAddresses: make(map[string]string),
 	}
 
 	reg := common.RegisterHandler(server.policyServerEventChan, "policy server events")
@@ -247,11 +242,11 @@ func InstallFelixPlugin() (err error) {
 	return errors.Wrapf(err, "could not sync felix plugin changes")
 }
 
-func (s *Server) getEndpointToHostAction() string {
-	if s.felixConfig.DefaultEndpointToHostAction == "" {
-		return "DROP"
+func (s *Server) getEndpointToHostAction() types.RuleAction {
+	if strings.ToUpper(s.felixConfig.DefaultEndpointToHostAction) == "ACCEPT" {
+		return types.ActionAllow
 	}
-	return strings.ToUpper(s.felixConfig.DefaultEndpointToHostAction)
+	return types.ActionDeny
 }
 
 // workloadAdded is called by the CNI server when a container interface is created,
@@ -298,17 +293,10 @@ func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, ifName 
 	allMembers := []string{}
 	for _, containerIP := range containerIPs {
 		allMembers = append(allMembers, containerIP.IP.String())
-		s.workloadAddresses[containerIP.IP.String()] = ""
 	}
-	err := s.AllowFromHostIPSet.AddMembers(allMembers, true, s.vpp)
+	err := s.allPodsIpset.AddMembers(allMembers, true, s.vpp)
 	if err != nil {
 		s.log.Errorf("Error processing workload addition: %s", err)
-	}
-	if s.getEndpointToHostAction() == "DROP" {
-		err := s.workloadsToHostIPSet.AddMembers(allMembers, true, s.vpp)
-		if err != nil {
-			s.log.Errorf("Error processing workload addition: %s", err)
-		}
 	}
 }
 
@@ -341,17 +329,10 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 	allMembers := []string{}
 	for _, containerIP := range containerIPs {
 		allMembers = append(allMembers, containerIP.IP.String())
-		delete(s.workloadAddresses, containerIP.IP.String())
 	}
-	err := s.AllowFromHostIPSet.RemoveMembers(allMembers, true, s.vpp)
+	err := s.allPodsIpset.RemoveMembers(allMembers, true, s.vpp)
 	if err != nil {
-		s.log.Errorf("Error workloadsToHostIPSet.RemoveMembers: %s", err)
-	}
-	if s.getEndpointToHostAction() == "DROP" {
-		err := s.workloadsToHostIPSet.RemoveMembers(allMembers, true, s.vpp)
-		if err != nil {
-			s.log.Errorf("Error workloadsToHostIPSet.RemoveMembers: %s", err)
-		}
+		s.log.Errorf("Error processing workload remove: %s", err)
 	}
 }
 
@@ -451,6 +432,10 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 		listener.Close()
 		os.RemoveAll(config.FelixDataplaneSocket)
 	}()
+	err = s.createAllPodsIpset()
+	if err != nil {
+		return errors.Wrap(err, "Error in createallPodsIpset")
+	}
 	err = s.createEndpointToHostPolicy()
 	if err != nil {
 		return errors.Wrap(err, "Error in createEndpointToHostPolicy")
@@ -674,22 +659,18 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 	})
 
 	if s.felixConfig.DefaultEndpointToHostAction != oldFelixConfig.DefaultEndpointToHostAction {
-		s.log.Infof("Change in EndpointToHostAction to %s", s.getEndpointToHostAction())
-		allMembers := []string{}
-		for addr := range s.workloadAddresses {
-			allMembers = append(allMembers, addr)
+		s.log.Infof("Change in EndpointToHostAction to %+v", s.getEndpointToHostAction())
+		workloadsToHostAllowRule := &Rule{
+			VppID: types.InvalidID,
+			Rule: &types.Rule{
+				Action: s.getEndpointToHostAction(),
+			},
+			SrcIPSetNames: []string{"calico-vpp-wep-addr-ipset"},
 		}
-		if s.getEndpointToHostAction() == "ACCEPT" {
-			err := s.workloadsToHostIPSet.RemoveMembers(allMembers, true, s.vpp)
-			if err != nil {
-				s.log.Errorf("Error workloadsToHostIPSet.RemoveMembers: %s", err)
-			}
-		} else if s.getEndpointToHostAction() == "DROP" {
-			err := s.workloadsToHostIPSet.AddMembers(allMembers, true, s.vpp)
-			if err != nil {
-				s.log.Errorf("Error processing workload addition: %s", err)
-			}
-		}
+		policy := s.workloadsToHostPolicy.DeepCopy()
+		policy.InboundRules = []*Rule{workloadsToHostAllowRule}
+		s.workloadsToHostPolicy.Update(s.vpp, policy,
+			&PolicyState{IPSets: map[string]*IPSet{"calico-vpp-wep-addr-ipset": s.allPodsIpset}})
 	}
 	if !protoPortListEqual(s.felixConfig.FailsafeInboundHostPorts, oldFelixConfig.FailsafeInboundHostPorts) ||
 		!protoPortListEqual(s.felixConfig.FailsafeOutboundHostPorts, oldFelixConfig.FailsafeOutboundHostPorts) {
@@ -1617,6 +1598,16 @@ func (s *Server) createAllowToHostPolicy() (err error) {
 	return nil
 }
 
+func (s *Server) createAllPodsIpset() (err error) {
+	ipset := NewIPSet()
+	err = ipset.Create(s.vpp)
+	if err != nil {
+		return err
+	}
+	s.allPodsIpset = ipset
+	return nil
+}
+
 // createAllowFromHostPolicy creates a policy allowing host->pod communications. This is needed
 // to maintain vanilla Calico's behavior where the host can always reach pods.
 // This policy is applied in Egress on the host endpoint tap (i.e. linux -> VPP)
@@ -1629,17 +1620,9 @@ func (s *Server) createAllowFromHostPolicy() (err error) {
 		Rule: &types.Rule{
 			Action: types.ActionAllow,
 		},
-		DstIPSetNames: []string{"ipset-allow-to-pods"},
+		DstIPSetNames: []string{"calico-vpp-wep-addr-ipset"},
 	}
-	if s.AllowFromHostIPSet == nil {
-		ipset := NewIPSet()
-		err = ipset.Create(s.vpp)
-		if err != nil {
-			return err
-		}
-		s.AllowFromHostIPSet = ipset
-	}
-	ps := PolicyState{IPSets: map[string]*IPSet{"ipset-allow-to-pods": s.AllowFromHostIPSet}}
+	ps := PolicyState{IPSets: map[string]*IPSet{"calico-vpp-wep-addr-ipset": s.allPodsIpset}}
 	s.log.Infof("Creating rules to allow traffic from host to pods with ingress policies")
 	r_in := &Rule{
 		VppID:  types.InvalidID,
@@ -1677,50 +1660,45 @@ func (s *Server) createAllowFromHostPolicy() (err error) {
 }
 
 func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
-	pol := &Policy{
+	workloadsToHostPolicy := &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
 	}
-	r_deny_workloads := &Rule{
+	workloadsToHostRule := &Rule{
 		VppID: types.InvalidID,
 		Rule: &types.Rule{
-			Action: types.ActionDeny,
+			Action: s.getEndpointToHostAction(),
 		},
-		SrcIPSetNames: []string{"ipset1"},
+		SrcIPSetNames: []string{"calico-vpp-wep-addr-ipset"},
 	}
-	ipset := NewIPSet()
-	ps := PolicyState{IPSets: map[string]*IPSet{"ipset1": ipset}}
-	err = ipset.Create(s.vpp)
-	if err != nil {
-		return err
-	}
-	pol.InboundRules = append(pol.InboundRules, r_deny_workloads)
-	err = pol.Create(s.vpp, &ps)
-	if err != nil {
-		return err
-	}
-	s.workloadsToHostIPSet = ipset
-	s.workloadsToHostPolicy = pol
+	ps := PolicyState{IPSets: map[string]*IPSet{"calico-vpp-wep-addr-ipset": s.allPodsIpset}}
+	workloadsToHostPolicy.InboundRules = append(workloadsToHostPolicy.InboundRules, workloadsToHostRule)
 
-	r := &Rule{
-		VppID: types.InvalidID,
-		Rule: &types.Rule{
-			Action: types.ActionAllow,
-		},
+	err = workloadsToHostPolicy.Create(s.vpp, &ps)
+	if err != nil {
+		return err
 	}
-	pol = &Policy{
+	s.workloadsToHostPolicy = workloadsToHostPolicy
+
+	allowAllPol := &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
+		InboundRules: []*Rule{
+			{
+				VppID: types.InvalidID,
+				Rule: &types.Rule{
+					Action: types.ActionAllow,
+				},
+			},
+		},
 	}
-	pol.InboundRules = append(pol.InboundRules, r)
-	err = pol.Create(s.vpp, &ps)
+	err = allowAllPol.Create(s.vpp, &ps)
 	if err != nil {
 		return err
 	}
 	conf := types.NewInterfaceConfig()
-	conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, s.workloadsToHostPolicy.VppID)
-	conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, pol.VppID)
-	swifindexes, err := s.vpp.SearchInterfacesWithTagPrefix("host-") // tap interfaces
+	conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, s.workloadsToHostPolicy.VppID, allowAllPol.VppID)
+	swifindexes, err := s.vpp.SearchInterfacesWithTagPrefix("host-") // tap0 interfaces
 	if err != nil {
 		s.log.Error(err)
 	}
