@@ -36,7 +36,7 @@ index c43dd23ea..44e4e6a60 100644
    dataplane_node.c
    dataplane_node_nonip.c
 diff --git a/src/plugins/acl/acl.c b/src/plugins/acl/acl.c
-index 064741c32..aa1b620b2 100644
+index f834425b5..9257289d0 100644
 --- a/src/plugins/acl/acl.c
 +++ b/src/plugins/acl/acl.c
 @@ -39,6 +39,7 @@
@@ -96,7 +96,7 @@ index 064741c32..aa1b620b2 100644
  
  done:
    clib_bitmap_free (change_acl_bitmap);
-@@ -3403,6 +3418,10 @@ acl_plugin_show_sessions (acl_main_t * am,
+@@ -3440,6 +3455,10 @@ acl_plugin_show_sessions (acl_main_t * am,
  		   ((f64) am->fa_current_cleaner_timer_wait_interval) *
  		   1000.0 / (f64) vm->clib_time.clocks_per_second);
    vlib_cli_output (vm, "Reclassify sessions: %d", am->reclassify_sessions);
@@ -107,7 +107,7 @@ index 064741c32..aa1b620b2 100644
  }
  
  static clib_error_t *
-@@ -3718,6 +3737,8 @@ acl_init (vlib_main_t * vm)
+@@ -3776,6 +3795,8 @@ acl_init (vlib_main_t * vm)
      ACL_FA_CONN_TABLE_DEFAULT_HASH_MEMORY_SIZE;
    am->fa_conn_table_max_entries = ACL_FA_CONN_TABLE_DEFAULT_MAX_ENTRIES;
    am->reclassify_sessions = 0;

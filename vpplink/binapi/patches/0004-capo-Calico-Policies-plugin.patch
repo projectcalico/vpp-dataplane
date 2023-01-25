@@ -17,9 +17,9 @@ Signed-off-by: MathiasRaoul <mathias.raoul@gmail.com>
  src/plugins/capo/CMakeLists.txt    |  28 +
  src/plugins/capo/bihash_8_32.h     | 107 ++++
  src/plugins/capo/capo.api          | 261 ++++++++++
- src/plugins/capo/capo.h            |  58 +++
+ src/plugins/capo/capo.h            |  59 +++
  src/plugins/capo/capo_api.c        | 443 ++++++++++++++++
- src/plugins/capo/capo_interface.c  | 353 +++++++++++++
+ src/plugins/capo/capo_interface.c  | 365 +++++++++++++
  src/plugins/capo/capo_interface.h  |  47 ++
  src/plugins/capo/capo_ipset.c      | 472 +++++++++++++++++
  src/plugins/capo/capo_ipset.h      |  68 +++
@@ -31,7 +31,7 @@ Signed-off-by: MathiasRaoul <mathias.raoul@gmail.com>
  src/plugins/capo/capo_rule.h       |  91 ++++
  src/plugins/capo/capo_test.c       | 490 ++++++++++++++++++
  src/plugins/capo/test/test_capo.py | 807 +++++++++++++++++++++++++++++
- 18 files changed, 4848 insertions(+)
+ 18 files changed, 4861 insertions(+)
  create mode 100644 src/plugins/capo/CMakeLists.txt
  create mode 100644 src/plugins/capo/bihash_8_32.h
  create mode 100644 src/plugins/capo/capo.api
@@ -51,10 +51,10 @@ Signed-off-by: MathiasRaoul <mathias.raoul@gmail.com>
  create mode 100644 src/plugins/capo/test/test_capo.py
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index a1f8fed22..27ac4b72a 100644
+index 37d183f6b..5705be32f 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -738,6 +738,11 @@ M:	Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+@@ -743,6 +743,11 @@ M:	Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
  M:	Neale Ranns <neale@graphiant.com>
  F:	src/plugins/cnat
  
@@ -482,10 +482,10 @@ index 000000000..b213d1ee6
 +};
 diff --git a/src/plugins/capo/capo.h b/src/plugins/capo/capo.h
 new file mode 100644
-index 000000000..0edd50de6
+index 000000000..5124ec92d
 --- /dev/null
 +++ b/src/plugins/capo/capo.h
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,59 @@
 +/*
 + * Copyright (c) 2020 Cisco and/or its affiliates.
 + * Licensed under the Apache License, Version 2.0 (the "License");
@@ -514,6 +514,7 @@ index 000000000..0edd50de6
 +#include <capo/capo_interface.h>
 +
 +#define CAPO_INVALID_INDEX ((u32) ~0)
++#define CAPO_DEBUG	   0
 +
 +typedef struct
 +{
@@ -995,10 +996,10 @@ index 000000000..05ece3cdb
 + */
 diff --git a/src/plugins/capo/capo_interface.c b/src/plugins/capo/capo_interface.c
 new file mode 100644
-index 000000000..59481ba03
+index 000000000..2d3168aa3
 --- /dev/null
 +++ b/src/plugins/capo/capo_interface.c
-@@ -0,0 +1,353 @@
+@@ -0,0 +1,365 @@
 +/*
 + * Copyright (c) 2020 Cisco and/or its affiliates.
 + * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1036,7 +1037,9 @@ index 000000000..59481ba03
 +  u8 *s = 0;
 +  clib_bihash_foreach_key_value_pair_8_32 (&capo_main.if_config,
 +					   print_capo_interface2, (void *) &s);
++#if CAPO_DEBUG > 0
 +  clib_warning ("Current interface state:\n%s", s);
++#endif
 +  vec_free (s);
 +}
 +
@@ -1053,9 +1056,11 @@ index 000000000..59481ba03
 +  if (pool_is_free_index (vnet_get_main ()->interface_main.sw_interfaces,
 +			  sw_if_index))
 +    {
++#if CAPO_DEBUG > 0
 +      clib_warning (
 +	"configuring policies for interface %u which doesn't exist",
 +	sw_if_index);
++#endif
 +      return VNET_API_ERROR_INVALID_SW_IF_INDEX;
 +    }
 +
@@ -1097,7 +1102,9 @@ index 000000000..59481ba03
 +  return 0;
 +
 +error:
++#if CAPO_DEBUG > 0
 +  clib_warning ("error configuring policies for %u", sw_if_index);
++#endif
 +  vec_resize (conf->rx_policies, 0);
 +  vec_resize (conf->tx_policies, 0);
 +  vec_resize (conf->profiles, 0);
@@ -1122,20 +1129,26 @@ index 000000000..59481ba03
 +      vec_free (conf->profiles);
 +    }
 +
++#if CAPO_DEBUG > 0
 +  clib_warning ("unconfiguring policies for if %u deleted", sw_if_index);
++#endif
 +  clib_bihash_add_del_8_32 (&capo_main.if_config, &kv, 0 /* is_add */);
 +  rv = capo_main.acl_plugin.wip_add_del_custom_access_io_policy (
 +    0 /* is_add */, sw_if_index, 0 /* is_input */
 +    ,
 +    capo_match_func);
++#if CAPO_DEBUG > 0
 +  if (rv)
 +    clib_warning ("error deleting caiop (output): %d", rv);
++#endif
 +  rv = capo_main.acl_plugin.wip_add_del_custom_access_io_policy (
 +    0 /* is_add */, sw_if_index, 1 /* is_input */
 +    ,
 +    capo_match_func);
++#if CAPO_DEBUG > 0
 +  if (rv)
 +    clib_warning ("error deleting caiop (input): %d", rv);
++#endif
 +  return NULL;
 +}
 +
