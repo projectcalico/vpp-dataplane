@@ -18,14 +18,13 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/af_packet"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint32, err error) {
-	response := &af_packet.AfPacketCreateV3Reply{}
+	client := af_packet.NewServiceClient(v.GetConnection())
+
 	request := &af_packet.AfPacketCreateV3{
 		Mode:             af_packet.AF_PACKET_API_MODE_ETHERNET,
 		UseRandomHwAddr:  true,
@@ -42,26 +41,22 @@ func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint3
 		request.UseRandomHwAddr = false
 		request.HwAddr = types.ToVppMacAddress(intf.HardwareAddr)
 	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	response, err := client.AfPacketCreateV3(v.GetContext(), request)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "AfPacketCreate failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("AfPacketCreate failed: req %+v reply %+v", request, response)
+		return INVALID_SW_IF_INDEX, fmt.Errorf("create AfPacket %+v failed: req %w", request, err)
 	}
 	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
 }
 
 func (v *VppLink) DeleteAfPacket(ifName string) error {
-	response := &af_packet.AfPacketDeleteReply{}
-	request := &af_packet.AfPacketDelete{
+	client := af_packet.NewServiceClient(v.GetConnection())
+
+	_, err := client.AfPacketDelete(v.GetContext(), &af_packet.AfPacketDelete{
 		HostIfName: ifName,
-	}
-	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "AfPacketDelete failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("AfPacketDelete failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("delete AfPacket %s failed: %w", ifName, err)
 	}
 	return nil
 }

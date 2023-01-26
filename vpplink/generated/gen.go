@@ -1,6 +1,9 @@
+//go:build generate
+
 package generated
 
 import (
+	_ "github.com/calico-vpp/vpplink/pkg"
 	_ "go.fd.io/govpp/cmd/binapi-generator"
 )
 

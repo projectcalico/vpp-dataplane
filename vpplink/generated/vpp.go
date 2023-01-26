@@ -50,6 +50,14 @@ func (v *Vpp) GetLog() *logrus.Entry {
 	return v.log
 }
 
+func (v *Vpp) GetContext() context.Context {
+	return v.ctx
+}
+
+func (v *Vpp) GetConnection() vppapi.Connection {
+	return v.conn
+}
+
 func (v *Vpp) GetChannel() vppapi.Channel {
 	return v.ch
 }
@@ -74,6 +82,7 @@ func NewVpp(socket string, logger *logrus.Entry) (*Vpp, error) {
 		ch:     ch,
 		socket: socket,
 		log:    logger,
+		ctx:    context.Background(),
 	}, nil
 }
 

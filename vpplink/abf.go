@@ -18,7 +18,6 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/abf"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/fib_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
@@ -29,26 +28,23 @@ var (
 	policyIndexAllocator = NewIndexAllocator(1 /*StartIndex*/)
 )
 
-func (v *VppLink) attachDetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool, isAdd bool) (err error) {
+func (v *VppLink) attachDetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool, isAdd bool) error {
+	client := abf.NewServiceClient(v.GetConnection())
 
-	response := &abf.AbfItfAttachAddDelReply{}
-	request := &abf.AbfItfAttachAddDel{
+	_, err := client.AbfItfAttachAddDel(v.GetContext(), &abf.AbfItfAttachAddDel{
 		IsAdd: isAdd,
 		Attach: abf.AbfItfAttach{
 			PolicyID:  policyID,
 			SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 			IsIPv6:    isv6,
 		},
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	opStr := "Detach"
 	if isAdd {
 		opStr = "Attach"
 	}
 	if err != nil {
-		return errors.Wrapf(err, "%s Abf Policy failed", opStr)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("%s Abf Policy failed with retval %d", opStr, response.Retval)
+		return fmt.Errorf("%s Abf Policy failed: %w", opStr, err)
 	}
 	return nil
 }
@@ -61,31 +57,29 @@ func (v *VppLink) DetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool) 
 	return v.attachDetachAbfPolicy(policyID, swIfIndex, isv6, false)
 }
 
-func (v *VppLink) addDelAbfPolicy(policy *types.AbfPolicy, isAdd bool) (err error) {
+func (v *VppLink) addDelAbfPolicy(policy *types.AbfPolicy, isAdd bool) error {
+	client := abf.NewServiceClient(v.GetConnection())
 
 	paths := make([]fib_types.FibPath, 0, len(policy.Paths))
 	for _, routePath := range policy.Paths {
 		paths = append(paths, routePath.ToFibPath(false /*isip6*/))
 	}
 
-	response := &abf.AbfPolicyAddDelReply{}
-	request := &abf.AbfPolicyAddDel{
+	_, err := client.AbfPolicyAddDel(v.GetContext(), &abf.AbfPolicyAddDel{
 		IsAdd: isAdd,
 		Policy: abf.AbfPolicy{
 			PolicyID: policy.PolicyID,
 			ACLIndex: policy.AclIndex,
 			Paths:    paths,
 		},
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
+
 	opStr := "Del"
 	if isAdd {
 		opStr = "Add"
 	}
 	if err != nil {
-		return errors.Wrapf(err, "%s Abf Policy failed", opStr)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("%s Abf Policy failed with retval %d", opStr, response.Retval)
+		return fmt.Errorf("%s Abf Policy failed: %w", opStr, err)
 	}
 	return nil
 }

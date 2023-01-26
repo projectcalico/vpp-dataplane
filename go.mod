@@ -166,6 +166,8 @@ replace (
 )
 
 replace (
-	github.com/calico-vpp/vpplink => github.com/ondrej-fabry/vpplink v0.0.0-20230123221646-cb53be317c45
+	github.com/calico-vpp/vpplink => github.com/ondrej-fabry/vpplink v0.0.0-20230126133130-d65f225748ef
 	go.fd.io/govpp => go.fd.io/govpp v0.8.0-alpha.0.20230119104801-57da5b22a44c
 )
+
+//replace github.com/calico-vpp/vpplink => ../vpplink

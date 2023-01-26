@@ -16,10 +16,10 @@
 package vpplink
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/avf"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -29,39 +29,38 @@ const (
 	AvfReplyTimeout = 15 * time.Second
 )
 
-func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err error) {
+func (v *VppLink) CreateAVF(intf *types.AVFInterface) (uint32, error) {
+	client := avf.NewServiceClient(v.GetConnection())
+
 	addr, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateAVF error parsing PCI id")
+		return INVALID_SW_IF_INDEX, fmt.Errorf("create AVF error parsing PCI id: %w", err)
 	}
-	response := &avf.AvfCreateReply{}
+
+	ctx, cancel := context.WithTimeout(v.GetContext(), AvfReplyTimeout)
+	defer cancel()
+
 	request := &avf.AvfCreate{
 		PciAddr: addr,
 		RxqNum:  uint16(intf.NumRxQueues),
 		RxqSize: uint16(intf.RxQueueSize),
 		TxqSize: uint16(intf.TxQueueSize),
 	}
-	defer v.GetChannel().SetReplyTimeout(DefaultReplyTimeout)
-	v.GetChannel().SetReplyTimeout(AvfReplyTimeout)
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	response, err := client.AvfCreate(ctx, request)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateAVF failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("CreateAVF failed: req %+v reply %+v", request, response)
+		return INVALID_SW_IF_INDEX, fmt.Errorf("create AVF %+v failed: %w", request, err)
 	}
 	return uint32(response.SwIfIndex), nil
 }
 
-func (v *VppLink) DeleteAVF(swIfIndex uint32) (err error) {
-	response := &avf.AvfDeleteReply{}
-	request := &avf.AvfDelete{
+func (v *VppLink) DeleteAVF(swIfIndex uint32) error {
+	client := avf.NewServiceClient(v.GetConnection())
+
+	_, err := client.AvfDelete(v.GetContext(), &avf.AvfDelete{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "DeleteAVF failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("DeleteAVF failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("delete AVF %v failed: %w", swIfIndex, err)
 	}
 	return nil
 }
