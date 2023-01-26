@@ -179,8 +179,6 @@ func (h *HostEndpoint) getTapPolicies(state *PolicyState) (conf *types.Interface
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, h.server.workloadsToHostPolicy.VppID)
 		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.IngressPolicyIDs...)
-	} else {
-		conf.IngressPolicyIDs = h.server.defaultTap0IngressConf
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
 		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
