@@ -18,37 +18,29 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-	"go.fd.io/govpp/api"
-	"go.fd.io/govpp/binapi/vlib"
-	"go.fd.io/govpp/binapi/vpe"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/vlib"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/vpe"
 )
 
-func (v *VppLink) GetVPPVersion() (version string, err error) {
+func (v *VppLink) GetVPPVersion() (string, error) {
+	client := vpe.NewServiceClient(v.GetConnection())
 
-	response := &vpe.ShowVersionReply{}
-	request := &vpe.ShowVersion{}
-
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	response, err := client.ShowVersion(v.GetContext(), &vpe.ShowVersion{})
 	if err != nil {
-		return "", errors.Wrapf(err, "ShowVersion failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return "", fmt.Errorf("ShowVersion failed (retval %d). Request: %+v", response.Retval, request)
+		return "", fmt.Errorf("failed to get VPP version: %w", err)
 	}
 	return response.Version, nil
 }
 
 // RunCli sends CLI command to VPP and returns response.
 func (v *VppLink) RunCli(cmd string) (string, error) {
+	client := vlib.NewServiceClient(v.GetConnection())
 
-	response := &vlib.CliInbandReply{}
-	request := &vlib.CliInband{}
-
-	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
+	response, err := client.CliInband(v.GetContext(), &vlib.CliInband{
+		Cmd: cmd,
+	})
 	if err != nil {
-		return "", errors.Wrapf(err, "VPP CLI command '%s' failed", cmd)
-	} else if err = api.RetvalToVPPApiError(response.Retval); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to run VPP CLI command %q: %w", cmd, err)
 	}
 	return response.Reply, nil
 }
