@@ -996,7 +996,7 @@ index 000000000..05ece3cdb
 + */
 diff --git a/src/plugins/capo/capo_interface.c b/src/plugins/capo/capo_interface.c
 new file mode 100644
-index 000000000..2d3168aa3
+index 000000000..787bdfa2d
 --- /dev/null
 +++ b/src/plugins/capo/capo_interface.c
 @@ -0,0 +1,365 @@
@@ -1116,7 +1116,7 @@ index 000000000..2d3168aa3
 +{
 +  clib_bihash_kv_8_32_t kv = { sw_if_index, { 0 } };
 +  capo_interface_config_t *conf = (capo_interface_config_t *) &kv.value;
-+  int rv = 0;
++  int __clib_unused rv = 0;
 +
 +  if (is_add)
 +    return NULL;
