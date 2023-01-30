@@ -25,6 +25,8 @@ import (
 )
 
 func (v *VppLink) SetCustomURPF(swifindex uint32, tableId uint32) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
 	response := &urpf.UrpfUpdateV2Reply{}
 	request := &urpf.UrpfUpdateV2{
 		Mode:      urpf.URPF_API_MODE_LOOSE,
@@ -43,6 +45,8 @@ func (v *VppLink) SetCustomURPF(swifindex uint32, tableId uint32) (err error) {
 }
 
 func (v *VppLink) UnsetURPF(swifindex uint32) (err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
 	response := &urpf.UrpfUpdateV2Reply{}
 	request := &urpf.UrpfUpdateV2{
 		Mode:      urpf.URPF_API_MODE_OFF,
