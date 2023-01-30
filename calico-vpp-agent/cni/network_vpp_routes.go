@@ -194,6 +194,13 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 		} else {
 			stack.Push(s.vpp.DelDefaultRouteViaTable, vrfId, vrfIndex, ipFamily.IsIp6)
 		}
+
+		err = s.vpp.AddDefaultMRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
+		if err != nil {
+			return errors.Wrapf(err, "error adding VRF %d %s default Mroute via VRF %d", vrfId, ipFamily.Str, vrfIndex)
+		} else {
+			stack.Push(s.vpp.DelDefaultMRouteViaTable, vrfId, vrfIndex, ipFamily.IsIp6)
+		}
 	}
 	return nil
 }
@@ -352,7 +359,11 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 		s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)
 		err = s.vpp.DelDefaultRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
 		if err != nil {
-			s.log.Errorf("Error  VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, vrfIndex, err)
+			s.log.Errorf("Error deleting VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, vrfIndex, err)
+		}
+		err = s.vpp.DelDefaultMRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
+		if err != nil {
+			s.log.Errorf("Error deleting VRF %d %s default mroute via VRF %d : %s", vrfId, ipFamily.Str, vrfIndex, err)
 		}
 	}
 

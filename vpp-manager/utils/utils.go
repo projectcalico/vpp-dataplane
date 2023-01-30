@@ -192,7 +192,6 @@ func CreateVppLink() (vpp *vpplink.VppLink, err error) {
 			} else {
 				log.Warnf("Waiting for VPP... [%d/10] %v", i, err)
 			}
-			err = nil
 			time.Sleep(2 * time.Second)
 		} else {
 			return vpp, nil

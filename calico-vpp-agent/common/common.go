@@ -88,7 +88,6 @@ func CreateVppLinkInRetryLoop(socket string, log *logrus.Entry, timeout time.Dur
 			} else {
 				log.Warnf("Waiting for VPP... [%d/%d] %v", i, maxRetry, err)
 			}
-			err = nil
 			time.Sleep(retry)
 		} else {
 			// Try a simple API message to verify everything is up and running

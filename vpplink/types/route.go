@@ -29,12 +29,14 @@ type RoutePath struct {
 	Table      uint32
 	IsAttached bool
 	Preference uint8
+	RpfID      uint32
 }
 
 type Route struct {
 	Dst   *net.IPNet
 	Paths []RoutePath
 	Table uint32
+	RpfID uint32
 }
 
 func (p *RoutePath) tableString() string {
@@ -79,7 +81,7 @@ func (p *RoutePath) ToFibPath(isIP6 bool) fib_types.FibPath {
 	fibPath := fib_types.FibPath{
 		SwIfIndex:  p.SwIfIndex,
 		TableID:    p.Table,
-		RpfID:      0,
+		RpfID:      p.RpfID,
 		Weight:     1,
 		Preference: p.Preference,
 		Type:       fib_types.FIB_API_PATH_TYPE_NORMAL,
