@@ -18,43 +18,39 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/urpf"
 )
 
-func (v *VppLink) SetCustomURPF(swifindex uint32, tableId uint32) (err error) {
-	response := &urpf.UrpfUpdateV2Reply{}
-	request := &urpf.UrpfUpdateV2{
+func (v *VppLink) SetCustomURPF(swifindex uint32, tableId uint32) error {
+	client := urpf.NewServiceClient(v.GetConnection())
+
+	_, err := client.UrpfUpdateV2(v.GetContext(), &urpf.UrpfUpdateV2{
 		Mode:      urpf.URPF_API_MODE_LOOSE,
 		SwIfIndex: interface_types.InterfaceIndex(swifindex),
 		Af:        ip_types.ADDRESS_IP4,
 		IsInput:   true,
 		TableID:   tableId,
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "setCustomURPF failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("setCustomURPF failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("failed to set URPF mode to loose: %w", err)
 	}
-	return
+	return nil
 }
 
-func (v *VppLink) UnsetURPF(swifindex uint32) (err error) {
-	response := &urpf.UrpfUpdateV2Reply{}
-	request := &urpf.UrpfUpdateV2{
+func (v *VppLink) UnsetURPF(swifindex uint32) error {
+	client := urpf.NewServiceClient(v.GetConnection())
+
+	_, err := client.UrpfUpdateV2(v.GetContext(), &urpf.UrpfUpdateV2{
 		Mode:      urpf.URPF_API_MODE_OFF,
 		SwIfIndex: interface_types.InterfaceIndex(swifindex),
 		Af:        ip_types.ADDRESS_IP4,
 		IsInput:   true,
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "setOffURPF failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("setOffURPF failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("failed to set URPF mode to off: %w", err)
 	}
-	return
+
+	return nil
 }
