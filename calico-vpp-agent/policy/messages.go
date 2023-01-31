@@ -34,6 +34,8 @@ func (s *Server) MessageReader(conn net.Conn) <-chan interface{} {
 			if err != nil {
 				if msg != nil {
 					s.log.Errorf("Error receiving message from felix: %v", err)
+				} else {
+					s.log.Errorf("Error while no message is received: %+v", err)
 				}
 				break
 			}

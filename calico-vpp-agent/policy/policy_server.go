@@ -485,7 +485,7 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 			// CNI component adds or deletes container interfaces.
 			case msg, ok := <-felixUpdates:
 				if !ok {
-					s.log.Debugf("Felix MessageReader closed")
+					s.log.Infof("Felix MessageReader closed")
 					break innerLoop
 				}
 				err = s.handleFelixUpdate(msg)
