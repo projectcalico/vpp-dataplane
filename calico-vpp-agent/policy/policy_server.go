@@ -669,14 +669,17 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 		}
 		policy := s.workloadsToHostPolicy.DeepCopy()
 		policy.InboundRules = []*Rule{workloadsToHostAllowRule}
-		s.workloadsToHostPolicy.Update(s.vpp, policy,
+		err := s.workloadsToHostPolicy.Update(s.vpp, policy,
 			&PolicyState{IPSets: map[string]*IPSet{"calico-vpp-wep-addr-ipset": s.allPodsIpset}})
+		if err != nil {
+			return errors.Wrap(err, "error updating workloadsToHostPolicy")
+		}
 	}
 	if !protoPortListEqual(s.felixConfig.FailsafeInboundHostPorts, oldFelixConfig.FailsafeInboundHostPorts) ||
 		!protoPortListEqual(s.felixConfig.FailsafeOutboundHostPorts, oldFelixConfig.FailsafeOutboundHostPorts) {
 		err = s.createFailSafePolicies()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "error updating FailSafePolicies")
 		}
 	}
 
