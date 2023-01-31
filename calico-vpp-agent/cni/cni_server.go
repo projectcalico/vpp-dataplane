@@ -386,16 +386,16 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) error {
 				new, _ := evt.New.(*proto.IPAMPool)
 				ipipEncapRefCountDelta := 0
 				vxlanEncapRefCountDelta := 0
-				if old != nil && calicov3.VXLANMode(old.VxlanMode) != calicov3.VXLANModeNever {
+				if old != nil && calicov3.VXLANMode(old.VxlanMode) != calicov3.VXLANModeNever && calicov3.VXLANMode(old.VxlanMode) != "" {
 					vxlanEncapRefCountDelta--
 				}
-				if old != nil && calicov3.IPIPMode(old.IpipMode) != calicov3.IPIPModeNever {
+				if old != nil && calicov3.IPIPMode(old.IpipMode) != calicov3.IPIPModeNever && calicov3.IPIPMode(old.IpipMode) != "" {
 					ipipEncapRefCountDelta--
 				}
-				if new != nil && calicov3.VXLANMode(new.VxlanMode) != calicov3.VXLANModeNever {
+				if new != nil && calicov3.VXLANMode(new.VxlanMode) != calicov3.VXLANModeNever && calicov3.VXLANMode(new.VxlanMode) != "" {
 					vxlanEncapRefCountDelta++
 				}
-				if new != nil && calicov3.IPIPMode(new.IpipMode) != calicov3.IPIPModeNever {
+				if new != nil && calicov3.IPIPMode(new.IpipMode) != calicov3.IPIPModeNever && calicov3.IPIPMode(new.IpipMode) != "" {
 					ipipEncapRefCountDelta++
 				}
 
