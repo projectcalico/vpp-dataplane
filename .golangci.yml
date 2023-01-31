@@ -1,0 +1,17 @@
+run:
+  timeout: 5m
+linters:
+  enable:
+    - errcheck
+    - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - typecheck
+    - unused
+output:
+    format: tab
+    sort-results: true
