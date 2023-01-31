@@ -343,7 +343,7 @@ func (v *VppRunner) allocateStaticVRFs() error {
 	return nil
 }
 
-// Configure specific VRFs for a given tap to the host to handle broadcast / multicast trafic sent by the host
+// Configure specific VRFs for a given tap to the host to handle broadcast / multicast traffic sent by the host
 func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId, err := v.vpp.AllocateVRF(ipFamily.IsIp6, fmt.Sprintf("host-tap-%s-%s", ifSpec.InterfaceName, ipFamily.Str))

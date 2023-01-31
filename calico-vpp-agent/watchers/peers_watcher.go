@@ -259,7 +259,7 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 		} else {
 			w.log.Debugf("Node to node mesh disabled")
 		}
-		// Intialize the set consisting of active secrets
+		// Initialize the set consisting of active secrets
 		activeSecrets := map[string]struct{}{}
 		for _, peer := range peers.Items {
 			if !w.shouldPeer(&peer) {
