@@ -195,9 +195,8 @@ run-integration-tests:
 	cd test/integration-tests;./run-tests.sh
 
 .PHONY: test
-test:
+test: go-lint
 	gofmt -s -l . | grep -v binapi | grep -v vpp_build | diff -u /dev/null -
-	go vet ./...
 	go test ./...
 
 .PHONY: test-memif-multinet
@@ -246,7 +245,14 @@ delete-multinet:
 
 
 .PHONY: go-check
-go-check:
+go-check: go-lint
 	gofmt -s -l . | grep -v binapi | grep -v vpp_build | diff -u /dev/null -
-	go vet ./...
 	go test ./...
+
+.PHONY: go-lint
+go-lint:
+	golangci-lint run --color=never
+
+.PHONY: go-lint-fix
+go-lint-fix:
+	golangci-lint run --fix

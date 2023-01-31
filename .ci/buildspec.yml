@@ -19,7 +19,7 @@ phases:
 
   build:
     commands:
-      - make go-vet
+      - make go-check
 
   post_build:
     commands:

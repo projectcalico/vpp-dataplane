@@ -43,6 +43,6 @@ depend-image: ## Make dependencies image. (Not required normally; is implied in 
 # go vet vpp dataplane code
 #
 .PHONY: go-vet
-go-vet: depend-image
+go-check: depend-image
 	@echo Checking go code
 	docker run -t --rm --name build_temp -v ${ABS_PATH}:/vpp-dataplane ${DEPEND_IMAGE} make -C /vpp-dataplane go-check
