@@ -17,9 +17,10 @@ package types
 
 import (
 	gerrors "errors"
+	"testing"
+
 	"github.com/pkg/errors"
 	"go.fd.io/govpp/api"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
