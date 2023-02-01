@@ -16,7 +16,7 @@
 package common
 
 import (
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type CalicoVppEventType string
@@ -95,7 +95,7 @@ func (reg *PubSubHandlerRegistration) ExpectEvents(eventTypes ...CalicoVppEventT
 }
 
 type PubSub struct {
-	log                        *logrus.Entry
+	log                        *log.Entry
 	pubSubHandlerRegistrations []*PubSubHandlerRegistration
 }
 
@@ -111,6 +111,7 @@ func RegisterHandler(channel chan CalicoVppEvent, name string) *PubSubHandlerReg
 }
 
 func SendEvent(event CalicoVppEvent) {
+	ThePubSub.log.Debugf("Broadcasting event %+v", event)
 	for _, reg := range ThePubSub.pubSubHandlerRegistrations {
 		if reg.expectAllEvents || reg.expectedEvents[event.Type] {
 			reg.channel <- event
@@ -118,7 +119,7 @@ func SendEvent(event CalicoVppEvent) {
 	}
 }
 
-func NewPubSub(log *logrus.Entry) *PubSub {
+func NewPubSub(log *log.Entry) *PubSub {
 	return &PubSub{
 		log:                        log,
 		pubSubHandlerRegistrations: make([]*PubSubHandlerRegistration, 0),
