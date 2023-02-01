@@ -64,7 +64,7 @@ func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 		var toAdd []*bgpapi.Path
 		for _, prefix := range newPrefixes {
 			if _, found := assignedPrefixes[prefix]; found {
-				w.log.Debugf("Prefix %s is still assigned to us", prefix)
+				w.log.Debugf("Prefix %s is still assigned to this node", prefix)
 				assignedPrefixes[prefix] = true     // Prefix is still there, set value to true so we don't delete it
 				newAssignedPrefixes[prefix] = false // Record it in new map
 			} else {
