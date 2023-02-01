@@ -254,6 +254,7 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 		return VXLAN, nil
 	}
 	ipPool := s.policyServerIpam.GetPrefixIPPool(&cn.Dst)
+	s.log.Debugf("IPPool for route %s: %+v", cn.String(), ipPool)
 	if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 		return SRv6, nil
 	}
