@@ -203,6 +203,9 @@ func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.LinuxI
 	if d := NewAFXDPDriver(params, conf, spec); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
+	if d := NewDPDKDriver(params, conf, spec); d.IsSupported(false /* warn */) {
+		lst = append(lst, d)
+	}
 	if d := NewAFPacketDriver(params, conf, spec); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
