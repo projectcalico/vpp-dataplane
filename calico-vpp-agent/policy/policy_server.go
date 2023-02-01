@@ -510,7 +510,7 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 }
 
 func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
-	s.log.Debugf("Got message from felix: %+v", msg)
+	s.log.Debugf("Got message from felix: %T %+v", msg, msg)
 	switch m := msg.(type) {
 	case *proto.ConfigUpdate:
 		err = s.handleConfigUpdate(m)
@@ -1419,7 +1419,7 @@ func (s *Server) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool {
 			return pool.Pool
 		}
 	}
-	s.log.Warnf("No pool found: for %s", prefix)
+	s.log.Warnf("No pool found for %s", prefix)
 	for k, pool := range s.ippoolmap {
 		s.log.Debugf("Available %s=%v", k, pool)
 	}
@@ -1433,7 +1433,6 @@ func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
 	} else {
 		return pool.Masquerade
 	}
-
 }
 
 // contains returns true if the IPPool contains 'prefix'
