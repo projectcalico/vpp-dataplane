@@ -86,6 +86,7 @@ CALICO_INSTALLATION ?= installation-default
 .PHONY: test-install-calico
 test-install-calico:
 	kubectl replace --force -f https://raw.githubusercontent.com/projectcalico/calico/master/manifests/tigera-operator.yaml
+	sleep 2
 	kubectl apply -f yaml/calico/$(CALICO_INSTALLATION).yaml
 
 # Allows to simply run calico-vpp from release images in a test cluster
