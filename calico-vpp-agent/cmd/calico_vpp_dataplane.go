@@ -126,8 +126,8 @@ func main() {
 	/**
 	 * Start watching nodes & fetch our BGP spec
 	 */
-	routeWatcher := watchers.NewRouteWatcher(log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}), common.VppManagerInfo.FakeNextHopIP4, common.VppManagerInfo.FakeNextHopIP6)
-	linkWatcher := watchers.NewLinkWatcher(common.VppManagerInfo.UplinkStatuses)
+	routeWatcher := watchers.NewRouteWatcher(common.VppManagerInfo.FakeNextHopIP4, common.VppManagerInfo.FakeNextHopIP6, log.WithFields(logrus.Fields{"subcomponent": "host-route-watcher"}))
+	linkWatcher := watchers.NewLinkWatcher(common.VppManagerInfo.UplinkStatuses, log.WithFields(logrus.Fields{"subcomponent": "host-link-watcher"}))
 	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
 	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	peerWatcher := watchers.NewPeerWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
