@@ -106,8 +106,8 @@ func NewConnectivityServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyS
 	return &server
 }
 
-func isCrossSubnet(gw net.IP, subnet net.IPNet) bool {
-	return !subnet.Contains(gw)
+func isInSubnet(addr net.IP, subnet net.IPNet) bool {
+	return subnet.Contains(addr)
 }
 
 func (s *ConnectivityServer) GetNodeByIp(addr net.IP) *common.LocalNodeSpec {
@@ -260,7 +260,7 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 	if ipPool == nil {
 		return FLAT, nil
 	}
-	if ipPool.IpipMode == string(encap.Always) {
+	if ipPool.IpipMode == encap.Always {
 		if s.providers[IPSEC].Enabled(cn) {
 			return IPSEC, nil
 		} else if s.providers[WIREGUARD].Enabled(cn) {
@@ -270,11 +270,11 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 		}
 	}
 	ipNet := s.GetNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
-	if ipPool.IpipMode == string(encap.CrossSubnet) {
+	if ipPool.IpipMode == encap.CrossSubnet {
 		if ipNet == nil {
 			return FLAT, fmt.Errorf("missing node IPnet")
 		}
-		if !isCrossSubnet(cn.NextHop, *ipNet) {
+		if isInSubnet(cn.NextHop, *ipNet) {
 			if s.providers[IPSEC].Enabled(cn) {
 				return IPSEC, nil
 			} else if s.providers[WIREGUARD].Enabled(cn) {
@@ -284,17 +284,17 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 			}
 		}
 	}
-	if ipPool.VxlanMode == string(encap.Always) {
+	if ipPool.VxlanMode == encap.Always {
 		if s.providers[WIREGUARD].Enabled(cn) {
 			return WIREGUARD, nil
 		}
 		return VXLAN, nil
 	}
-	if ipPool.VxlanMode == string(encap.CrossSubnet) {
+	if ipPool.VxlanMode == encap.CrossSubnet {
 		if ipNet == nil {
 			return FLAT, fmt.Errorf("missing node IPnet")
 		}
-		if !isCrossSubnet(cn.NextHop, *ipNet) {
+		if isInSubnet(cn.NextHop, *ipNet) {
 			return VXLAN, nil
 		}
 	}

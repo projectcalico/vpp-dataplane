@@ -30,16 +30,18 @@ type LinkWatcher struct {
 	close          chan struct{}
 	netlinkFailed  chan struct{}
 	closeLock      sync.Mutex
+	log            *log.Entry
 }
 
-func NewLinkWatcher(uplinkStatus []config.UplinkStatus) *LinkWatcher {
+func NewLinkWatcher(uplinkStatus []config.UplinkStatus, log *log.Entry) *LinkWatcher {
 	return &LinkWatcher{
 		UplinkStatuses: uplinkStatus,
+		log:            log,
 	}
 }
 
 func (r *LinkWatcher) netlinkError(err error) {
-	log.Warnf("error from netlink: %v", err)
+	r.log.Warnf("error from netlink: %v", err)
 	r.netlinkFailed <- struct{}{}
 }
 
@@ -66,25 +68,25 @@ func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 		updates := make(chan netlink.LinkUpdate, 10)
 		r.close = make(chan struct{})
 		r.closeLock.Unlock()
-		log.Infof("Subscribing to netlink link updates")
+		r.log.Infof("Subscribing to netlink link updates")
 		err := netlink.LinkSubscribeWithOptions(updates, r.close, netlink.LinkSubscribeOptions{
 			ErrorCallback: r.netlinkError,
 		})
 		if err != nil {
-			log.Errorf("error watching for links, sleeping before retrying")
+			r.log.Errorf("error watching for links, sleeping before retrying")
 			r.safeClose()
 			goto restart
 		}
 		for _, v := range r.UplinkStatuses {
 			link, err = netlink.LinkByIndex(v.LinkIndex)
 			if err != nil || link.Attrs().Name != v.Name {
-				log.Errorf("error getting link to watch: %v %v", link, err)
+				r.log.Errorf("error getting link to watch: %v %v", link, err)
 				r.safeClose()
 				goto restart
 			}
 			// Set the MTU on watch restart
 			if err = netlink.LinkSetMTU(link, v.Mtu); err != nil {
-				log.Errorf("error resetting MTU, sleeping before retrying: %v", err)
+				r.log.Errorf("error resetting MTU, sleeping before retrying: %v", err)
 				r.safeClose()
 				goto restart
 			}
@@ -98,10 +100,10 @@ func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 					close(r.close)
 					r.close = nil
 				}
-				log.Warn("Link watcher stopped")
+				r.log.Warn("Link watcher stopped")
 				return nil
 			case <-r.netlinkFailed:
-				log.Info("Link watcher stopped / failed")
+				r.log.Info("Link watcher stopped / failed")
 				goto restart
 			case update, ok := <-updates:
 				if !ok {
@@ -120,18 +122,18 @@ func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 					if update.Attrs().Name == v.Name {
 						if update.Attrs().MTU != v.Mtu {
 							if err = netlink.LinkSetMTU(link, v.Mtu); err != nil {
-								log.Warnf("Error resetting link mtu: %v", err)
+								r.log.Warnf("Error resetting link mtu: %v", err)
 								r.safeClose()
 								goto restart
 							}
 						} else {
-							log.Infof("Got link update, MTU unchanged")
+							r.log.Infof("Got link update, MTU unchanged")
 						}
 					} else {
-						log.Infof("Ignoring link update for index %d but name %s", update.Attrs().Index, update.Attrs().Name)
+						r.log.Infof("Ignoring link update for index %d but name %s", update.Attrs().Index, update.Attrs().Name)
 					}
 				} else {
-					log.Infof("Ignoring link update for index %d", update.Attrs().Index)
+					r.log.Infof("Ignoring link update for index %d", update.Attrs().Index)
 				}
 			}
 		}

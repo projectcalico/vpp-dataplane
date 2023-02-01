@@ -46,7 +46,7 @@ type RouteWatcher struct {
 	log               *log.Entry
 }
 
-func NewRouteWatcher(log *log.Entry, fakeNextHopIP4, fakeNextHopIP6 net.IP) *RouteWatcher {
+func NewRouteWatcher(fakeNextHopIP4, fakeNextHopIP6 net.IP, log *log.Entry) *RouteWatcher {
 	routeWatcher := &RouteWatcher{
 		ipamEventChan:  make(chan common.CalicoVppEvent, common.ChanSize),
 		FakeNextHopIP4: fakeNextHopIP4,
