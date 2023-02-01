@@ -510,7 +510,7 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 }
 
 func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
-	s.log.Debugf("Got message from felix: %T %+v", msg, msg)
+	s.log.Debugf("Got message from felix: %#v", msg)
 	switch m := msg.(type) {
 	case *proto.ConfigUpdate:
 		err = s.handleConfigUpdate(m)
@@ -527,7 +527,7 @@ func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
 		} else if s.state == StateInSync {
 			pending = false
 		} else {
-			return fmt.Errorf("Got message %+v but not in syncing or synced state", m)
+			return fmt.Errorf("Got message %#v but not in syncing or synced state", m)
 		}
 		switch m := msg.(type) {
 		case *proto.IPSetUpdate:

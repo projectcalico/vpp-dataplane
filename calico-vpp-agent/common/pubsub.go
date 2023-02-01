@@ -16,6 +16,8 @@
 package common
 
 import (
+	"fmt"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -110,8 +112,18 @@ func RegisterHandler(channel chan CalicoVppEvent, name string) *PubSubHandlerReg
 	return reg
 }
 
+func redactPassword(event CalicoVppEvent) string {
+	switch event.Type {
+	case BGPPeerAdded:
+		return string(event.Type)
+	default:
+		return fmt.Sprintf("%+v", event)
+	}
+
+}
+
 func SendEvent(event CalicoVppEvent) {
-	ThePubSub.log.Debugf("Broadcasting event %+v", event)
+	ThePubSub.log.Debugf("Broadcasting event %s", redactPassword(event))
 	for _, reg := range ThePubSub.pubSubHandlerRegistrations {
 		if reg.expectAllEvents || reg.expectedEvents[event.Type] {
 			reg.channel <- event
