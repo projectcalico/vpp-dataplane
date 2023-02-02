@@ -17,9 +17,9 @@ package vpplink
 
 import (
 	"fmt"
+	"io"
 	"net"
 
-	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/fib_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	vppip "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip"
@@ -32,24 +32,26 @@ const (
 	AnyInterface = ^uint32(0)
 )
 
-func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) (routes []types.Route, err error) {
+func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) ([]types.Route, error) {
+	client := vppip.NewServiceClient(v.GetConnection())
 
-	request := &vppip.IPRouteDump{
+	stream, err := client.IPRouteDump(v.GetContext(), &vppip.IPRouteDump{
 		Table: vppip.IPTable{
 			TableID: tableID,
 			IsIP6:   isIPv6,
 		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump VPP routes: %w", err)
 	}
-	response := &vppip.IPRouteDetails{}
-	v.GetLog().Debug("Listing VPP routes")
-	stream := v.GetChannel().SendMultiRequest(request)
+	var routes []types.Route
 	for {
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return nil, errors.Wrap(err, "error listing VPP routes")
+		response, err := stream.Recv()
+		if err == io.EOF {
+			break
 		}
-		if stop {
-			return routes, nil
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump VPP routes: %w", err)
 		}
 		route := types.Route{
 			Dst:   types.FromVppPrefix(response.Route.Prefix),
@@ -58,6 +60,7 @@ func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) (routes []types.Route, 
 		}
 		routes = append(routes, route)
 	}
+	return routes, nil
 }
 
 func (v *VppLink) AddNeighbor(neighbor *types.Neighbor) error {
@@ -68,31 +71,20 @@ func (v *VppLink) DelNeighbor(neighbor *types.Neighbor) error {
 	return v.addDelNeighbor(neighbor, false)
 }
 
-func isAddStr(isAdd bool) string {
-	if isAdd {
-		return "add"
-	} else {
-		return "delete"
-	}
-}
-
 func (v *VppLink) addDelNeighbor(neighbor *types.Neighbor, isAdd bool) error {
+	client := ip_neighbor.NewServiceClient(v.GetConnection())
 
-	request := &ip_neighbor.IPNeighborAddDel{
+	_, err := client.IPNeighborAddDel(v.GetContext(), &ip_neighbor.IPNeighborAddDel{
 		IsAdd: isAdd,
 		Neighbor: ip_neighbor.IPNeighbor{
 			SwIfIndex:  interface_types.InterfaceIndex(neighbor.SwIfIndex),
 			Flags:      types.ToVppNeighborFlags(neighbor.Flags),
-			MacAddress: types.ToVppMacAddress(&neighbor.HardwareAddr),
+			MacAddress: types.MacAddress(neighbor.HardwareAddr),
 			IPAddress:  types.ToVppAddress(neighbor.IP),
 		},
-	}
-	response := &ip_neighbor.IPNeighborAddDelReply{}
-	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s neighbor from VPP", isAddStr(isAdd))
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to %s neighbor from VPP (retval %d)", isAddStr(isAdd), response.Retval)
+		return fmt.Errorf("failed to %s neighbor from VPP: %w", isAddStr(isAdd), err)
 	}
 	v.GetLog().Debugf("%sed neighbor %+v", isAddStr(isAdd), neighbor)
 	return nil
@@ -107,7 +99,7 @@ func (v *VppLink) RoutesAdd(Dsts []*net.IPNet, routepath *types.RoutePath) error
 		}
 		err := v.addDelIPRoute(&route, true)
 		if err != nil {
-			return errors.Wrapf(err, "Cannot add route in VPP")
+			return fmt.Errorf("failed to add route in VPP: %w", err)
 		}
 	}
 	return nil
@@ -122,6 +114,7 @@ func (v *VppLink) RouteDel(route *types.Route) error {
 }
 
 func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
+	client := vppip.NewServiceClient(v.GetConnection())
 
 	isIP6 := route.IsIP6()
 	prefix := ip_types.Prefix{}
@@ -139,22 +132,17 @@ func (v *VppLink) addDelIPRoute(route *types.Route, isAdd bool) error {
 	}
 
 	vppRoute := vppip.IPRoute{
-		TableID: uint32(route.Table),
+		TableID: route.Table,
 		Prefix:  prefix,
 		Paths:   paths,
 	}
 
-	request := &vppip.IPRouteAddDel{
+	_, err := client.IPRouteAddDel(v.GetContext(), &vppip.IPRouteAddDel{
 		IsAdd: isAdd,
 		Route: vppRoute,
-	}
-
-	response := &vppip.IPRouteAddDelReply{}
-	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s route from VPP", IsAddToStr(isAdd))
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to %s route from VPP (retval %d)", IsAddToStr(isAdd), response.Retval)
+		return fmt.Errorf("failed to %s route from VPP: %w", IsAddToStr(isAdd), err)
 	}
 	v.GetLog().Debugf("%sed route %+v", IsAddToStr(isAdd), route)
 	return nil
@@ -184,19 +172,15 @@ func (v *VppLink) DelDefaultRouteViaTable(sourceTable, dstTable uint32, isIP6 bo
 }
 
 func (v *VppLink) SetIPFlowHash(ipFlowHash types.IPFlowHash, vrfID uint32, isIPv6 bool) error {
+	client := vppip.NewServiceClient(v.GetConnection())
 
-	request := &vppip.SetIPFlowHashV2{
+	_, err := client.SetIPFlowHashV2(v.GetContext(), &vppip.SetIPFlowHashV2{
 		TableID:        vrfID,
 		Af:             types.GetBoolIPFamily(isIPv6),
 		FlowHashConfig: vppip.IPFlowHashConfig(ipFlowHash),
-	}
-
-	response := &vppip.SetIPFlowHashV2Reply{}
-	err := v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to update flow hash algo for vrf %d", vrfID)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to update flow hash algo for vrf %d (retval %d)", vrfID, response.Retval)
+		return fmt.Errorf("failed to update flow hash algo for vrf %d: %w", vrfID, err)
 	}
 	v.GetLog().Debugf("updated flow hash algo for vrf %d", vrfID)
 	return nil
