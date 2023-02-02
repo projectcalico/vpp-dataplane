@@ -17,6 +17,7 @@ package generated
 
 import (
 	"fmt"
+	"io"
 
 	types "github.com/calico-vpp/vpplink/api/v0"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
@@ -36,6 +37,9 @@ func (v *Vpp) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
 	var tunnels []types.VXLanTunnel
 	for {
 		response, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to list VXLan tunnels: %w", err)
 		}

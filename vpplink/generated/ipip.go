@@ -18,6 +18,7 @@ package generated
 
 import (
 	"fmt"
+	"io"
 
 	types "github.com/calico-vpp/vpplink/api/v0"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
@@ -37,6 +38,9 @@ func (v *Vpp) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {
 	var tunnels []*types.IPIPTunnel
 	for {
 		response, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to list IPIP tunnels: %w", err)
 		}
@@ -56,8 +60,8 @@ func (v *Vpp) AddIPIPTunnel(tunnel *types.IPIPTunnel) (uint32, error) {
 	response, err := client.IpipAddTunnel(v.ctx, &ipip.IpipAddTunnel{
 		Tunnel: ipip.IpipTunnel{
 			Instance: ^uint32(0),
-			Src:      ip_types.AddressFromIP(tunnel.Src),
-			Dst:      ip_types.AddressFromIP(tunnel.Dst),
+			Src:      ip_types.NewAddress(tunnel.Src),
+			Dst:      ip_types.NewAddress(tunnel.Dst),
 			TableID:  tunnel.TableID,
 		},
 	})

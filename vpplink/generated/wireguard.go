@@ -17,6 +17,7 @@ package generated
 
 import (
 	"fmt"
+	"io"
 	"net"
 
 	types "github.com/calico-vpp/vpplink/api/v0"
@@ -54,6 +55,9 @@ func (v *Vpp) listWireguardTunnels(swIfIndex interface_types.InterfaceIndex) ([]
 	var tunnels []*types.WireguardTunnel
 	for {
 		response, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to list Wireguard tunnels: %w", err)
 		}
@@ -76,7 +80,7 @@ func (v *Vpp) AddWireguardTunnel(tunnel *types.WireguardTunnel, generateKey bool
 			UserInstance: ^uint32(0),
 			SwIfIndex:    interface_types.InterfaceIndex(types.InvalidInterface),
 			Port:         tunnel.Port,
-			SrcIP:        ip_types.AddressFromIP(tunnel.Addr),
+			SrcIP:        ip_types.NewAddress(tunnel.Addr),
 			PrivateKey:   tunnel.PrivateKey,
 			PublicKey:    tunnel.PublicKey,
 		},
@@ -110,6 +114,9 @@ func (v *Vpp) ListWireguardPeers() ([]*types.WireguardPeer, error) {
 	var tunnels []*types.WireguardPeer
 	for {
 		response, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to list Wireguard peers: %w", err)
 		}
@@ -148,7 +155,7 @@ func (v *Vpp) AddWireguardPeer(peer *types.WireguardPeer) (uint32, error) {
 			Port:                peer.Port,
 			PersistentKeepalive: ka,
 			TableID:             peer.TableID,
-			Endpoint:            ip_types.AddressFromIP(peer.Addr),
+			Endpoint:            ip_types.NewAddress(peer.Addr),
 			SwIfIndex:           interface_types.InterfaceIndex(peer.SwIfIndex),
 			AllowedIps:          allowedIps,
 		},
