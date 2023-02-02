@@ -230,6 +230,7 @@ func (v *VppLink) UnsetInterfaceTag(swIfIndex uint32, tag string) error {
 }
 
 var (
+	strAddRemove     = map[bool]string{true: "add", false: "remove"}
 	strSetUnset      = map[bool]string{true: "set", false: "unset"}
 	strUpDown        = map[bool]string{true: "up", false: "down"}
 	strEnableDisable = map[bool]string{true: "enable", false: "disable"}
