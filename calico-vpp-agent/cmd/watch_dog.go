@@ -18,6 +18,7 @@ package main
 import (
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 )
@@ -46,7 +47,9 @@ func (wd *WatchDog) Wait(myChan chan interface{}, msg string) interface{} {
 			return nil
 		case <-ticker.C:
 			nbTicks++
-			if nbTicks >= 6 { // Start warning after 6 ticks, i.e. 30sec
+			if nbTicks >= 30 {
+				wd.t.Kill(errors.Errorf("Timeout: restarting agent"))
+			} else if nbTicks >= 6 { // Start warning after 6 ticks, i.e. 30sec
 				wd.log.Warn(msg)
 			} else {
 				wd.log.Info(msg)
