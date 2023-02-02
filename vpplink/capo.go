@@ -19,52 +19,45 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/capo"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func (v *VppLink) IpsetCreate(ipsetType types.IpsetType) (setId uint32, err error) {
-	response := &capo.CapoIpsetCreateReply{}
-	request := &capo.CapoIpsetCreate{
+	client := capo.NewServiceClient(v.GetConnection())
+
+	response, err := client.CapoIpsetCreate(v.GetContext(), &capo.CapoIpsetCreate{
 		Type: capo.CapoIpsetType(ipsetType),
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return types.InvalidID, errors.Wrapf(err, "CapoIpsetCreate failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return types.InvalidID, fmt.Errorf("CapoIpsetCreate failed: req %+v reply %+v", request, response)
+		return 0, fmt.Errorf("CapoIpsetCreate failed: %w", err)
 	}
 	return response.SetID, nil
 }
 
-func (v *VppLink) IpsetDelete(ipsetID uint32) (err error) {
-	response := &capo.CapoIpsetDeleteReply{}
-	request := &capo.CapoIpsetDelete{
+func (v *VppLink) IpsetDelete(ipsetID uint32) error {
+	client := capo.NewServiceClient(v.GetConnection())
+
+	_, err := client.CapoIpsetDelete(v.GetContext(), &capo.CapoIpsetDelete{
 		SetID: ipsetID,
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "CapoIpsetDelete failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CapoIpsetDelete failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CapoIpsetDelete failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) addDelIpsetMembers(ipsetID uint32, isAdd bool, members []capo.CapoIpsetMember) (err error) {
-	response := &capo.CapoIpsetAddDelMembersReply{}
-	request := &capo.CapoIpsetAddDelMembers{
+func (v *VppLink) addDelIpsetMembers(ipsetID uint32, isAdd bool, members []capo.CapoIpsetMember) error {
+	client := capo.NewServiceClient(v.GetConnection())
+
+	_, err := client.CapoIpsetAddDelMembers(v.GetContext(), &capo.CapoIpsetAddDelMembers{
 		SetID:   ipsetID,
 		IsAdd:   isAdd,
 		Len:     uint32(len(members)),
 		Members: members,
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "CapoIpsetAddDelMembers failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CapoIpsetAddDelMembers failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CapoIpsetAddDelMembers failed: %w", err)
 	}
 	return nil
 }
@@ -122,92 +115,82 @@ func (v *VppLink) DelIpsetIPPortMembers(ipsetID uint32, members []types.IPPort) 
 }
 
 func (v *VppLink) RuleCreate(rule *types.Rule) (ruleId uint32, err error) {
-	response := &capo.CapoRuleCreateReply{}
-	request := &capo.CapoRuleCreate{
+	client := capo.NewServiceClient(v.GetConnection())
+
+	response, err := client.CapoRuleCreate(v.GetContext(), &capo.CapoRuleCreate{
 		Rule: types.ToCapoRule(rule),
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return types.InvalidID, errors.Wrapf(err, "CapoRuleCreate failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return types.InvalidID, fmt.Errorf("CapoRuleCreate failed: req %+v reply %+v", request, response)
+		return 0, fmt.Errorf("CapoRuleCreate failed: %w", err)
 	}
 	return response.RuleID, nil
 }
 
-func (v *VppLink) RuleUpdate(ruleId uint32, rule *types.Rule) (err error) {
-	response := &capo.CapoRuleUpdateReply{}
-	request := &capo.CapoRuleUpdate{
+func (v *VppLink) RuleUpdate(ruleId uint32, rule *types.Rule) error {
+	client := capo.NewServiceClient(v.GetConnection())
+
+	_, err := client.CapoRuleUpdate(v.GetContext(), &capo.CapoRuleUpdate{
 		RuleID: ruleId,
 		Rule:   types.ToCapoRule(rule),
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "CapoRuleUpdate failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CapoRuleUpdate failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CapoRuleUpdate failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) RuleDelete(ruleId uint32) (err error) {
-	response := &capo.CapoRuleDeleteReply{}
-	request := &capo.CapoRuleDelete{
+func (v *VppLink) RuleDelete(ruleId uint32) error {
+	client := capo.NewServiceClient(v.GetConnection())
+
+	_, err := client.CapoRuleDelete(v.GetContext(), &capo.CapoRuleDelete{
 		RuleID: ruleId,
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "CapoRuleDelete failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CapoRuleDelete failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CapoRuleDelete failed: %w", err)
 	}
 	return nil
 }
 
 func (v *VppLink) PolicyCreate(policy *types.Policy) (policyId uint32, err error) {
-	response := &capo.CapoPolicyCreateReply{}
-	request := &capo.CapoPolicyCreate{
+	client := capo.NewServiceClient(v.GetConnection())
+
+	response, err := client.CapoPolicyCreate(v.GetContext(), &capo.CapoPolicyCreate{
 		Rules: types.ToCapoPolicy(policy),
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return types.InvalidID, errors.Wrapf(err, "CapoPolicyCreate failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return types.InvalidID, fmt.Errorf("CapoPolicyCreate failed: req %+v reply %+v", request, response)
+		return 0, fmt.Errorf("CapoPolicyCreate failed: %w", err)
 	}
 	return response.PolicyID, nil
 }
 
-func (v *VppLink) PolicyUpdate(policyId uint32, policy *types.Policy) (err error) {
-	response := &capo.CapoPolicyUpdateReply{}
-	request := &capo.CapoPolicyUpdate{
+func (v *VppLink) PolicyUpdate(policyId uint32, policy *types.Policy) error {
+	client := capo.NewServiceClient(v.GetConnection())
+
+	_, err := client.CapoPolicyUpdate(v.GetContext(), &capo.CapoPolicyUpdate{
 		PolicyID: policyId,
 		Rules:    types.ToCapoPolicy(policy),
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "CapoPolicyUpdate failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CapoPolicyUpdate failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CapoPolicyUpdate failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) PolicyDelete(policyId uint32) (err error) {
-	response := &capo.CapoPolicyDeleteReply{}
-	request := &capo.CapoPolicyDelete{
+func (v *VppLink) PolicyDelete(policyId uint32) error {
+	client := capo.NewServiceClient(v.GetConnection())
+
+	_, err := client.CapoPolicyDelete(v.GetContext(), &capo.CapoPolicyDelete{
 		PolicyID: policyId,
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "CapoPolicyDelete failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CapoPolicyDelete failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CapoPolicyDelete failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfig, invertRxTx uint8) (err error) {
+func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfig, invertRxTx uint8) error {
+	client := capo.NewServiceClient(v.GetConnection())
+
 	// In the calico agent, policies are expressed from the point of view of PODs
 	// in VPP this is reversed
 	rxPolicyIDs := conf.EgressPolicyIDs
@@ -216,20 +199,16 @@ func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfi
 
 	ids := append(rxPolicyIDs, txPolicyIDs...)
 	ids = append(ids, profileIDs...)
-	response := &capo.CapoConfigurePoliciesReply{}
-	request := &capo.CapoConfigurePolicies{
+	_, err := client.CapoConfigurePolicies(v.GetContext(), &capo.CapoConfigurePolicies{
 		SwIfIndex:     swIfIndex,
 		NumRxPolicies: uint32(len(rxPolicyIDs)),
 		NumTxPolicies: uint32(len(txPolicyIDs)),
 		TotalIds:      uint32(len(rxPolicyIDs) + len(txPolicyIDs) + len(profileIDs)),
 		PolicyIds:     ids,
 		InvertRxTx:    invertRxTx,
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "CapoConfigurePolicies failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CapoConfigurePolicies failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CapoConfigurePolicies failed: %w", err)
 	}
 	return nil
 }
