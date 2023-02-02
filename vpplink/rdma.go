@@ -18,24 +18,21 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/rdma"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
 func (v *VppLink) CreateRDMA(intf *types.RDMAInterface) (swIfIndex uint32, err error) {
-	response := &rdma.RdmaCreateV2Reply{}
-	request := &rdma.RdmaCreateV2{
+	client := rdma.NewServiceClient(v.GetConnection())
+
+	response, err := client.RdmaCreateV2(v.GetContext(), &rdma.RdmaCreateV2{
 		HostIf:  intf.HostInterfaceName,
 		RxqNum:  uint16(intf.NumRxQueues),
 		RxqSize: uint16(intf.RxQueueSize),
 		TxqSize: uint16(intf.TxQueueSize),
-	}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return ^uint32(0), errors.Wrapf(err, "CreateRDMA failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return ^uint32(0), fmt.Errorf("CreateRDMA failed: req %+v reply %+v", request, response)
+		return 0, fmt.Errorf("failed to create RDMA interface: %w", err)
 	}
 	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
