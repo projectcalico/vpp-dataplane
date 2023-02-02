@@ -18,22 +18,17 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipsec"
 )
 
 func (v *VppLink) SetIPsecAsyncMode(enable bool) error {
+	client := ipsec.NewServiceClient(v.GetConnection())
 
-	response := &ipsec.IpsecSetAsyncModeReply{}
-
-	request := &ipsec.IpsecSetAsyncMode{
+	_, err := client.IpsecSetAsyncMode(v.GetContext(), &ipsec.IpsecSetAsyncMode{
 		AsyncEnable: enable,
-	}
-	var err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "IPsec async mode enable failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("IPsec async mode enable failed with retval: %d", response.Retval)
+		return fmt.Errorf("failed to %v IPsec async mode: %w", strEnableDisable[enable], err)
 	}
 	return nil
 }
