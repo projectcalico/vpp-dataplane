@@ -62,8 +62,8 @@ func (v *Vpp) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIfInde
 	response, err := client.VxlanAddDelTunnelV3(v.ctx, &vxlan.VxlanAddDelTunnelV3{
 		IsAdd:          isAdd,
 		Instance:       ^uint32(0),
-		SrcAddress:     ip_types.AddressFromIP(tunnel.SrcAddress),
-		DstAddress:     ip_types.AddressFromIP(tunnel.DstAddress),
+		SrcAddress:     ip_types.NewAddress(tunnel.SrcAddress),
+		DstAddress:     ip_types.NewAddress(tunnel.DstAddress),
 		SrcPort:        tunnel.SrcPort,
 		DstPort:        tunnel.DstPort,
 		Vni:            tunnel.Vni,
