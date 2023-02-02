@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	bgpapi "github.com/osrg/gobgp/api"
+
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/sr"
@@ -98,7 +99,7 @@ func (p *SrPolicy) FromVPP(response *sr.SrPoliciesDetails) {
 	p.IsSpray = response.IsSpray
 	p.IsEncap = response.IsEncap
 	p.FibTable = response.FibTable
-	sidLists := []Srv6SidList{}
+	var sidLists []Srv6SidList
 	for _, sl := range response.SidLists {
 		sidLists = append(sidLists, Srv6SidList{
 			NumSids: sl.NumSids,

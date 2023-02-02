@@ -1051,10 +1051,10 @@ func ipNetWithIPInIPv6Format(ipNetCIDRStr string) *net.IPNet {
 	return ipNet
 }
 
-func mac(macStr string) *net.HardwareAddr {
+func mac(macStr string) net.HardwareAddr {
 	mac, err := net.ParseMAC(macStr)
 	Expect(err).To(BeNil())
-	return &mac
+	return mac
 }
 
 func iptypesIP6Address(address string) ip_types.IP6Address {

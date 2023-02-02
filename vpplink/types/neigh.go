@@ -43,13 +43,3 @@ func ToVppNeighborFlags(flags IPNeighborFlags) ip_neighbor.IPNeighborFlags {
 func FromVppNeighborFlags(flags ip_neighbor.IPNeighborFlags) IPNeighborFlags {
 	return IPNeighborFlags(flags)
 }
-
-func FromVppMacAddress(vppHwAddr ethernet_types.MacAddress) net.HardwareAddr {
-	return net.HardwareAddr(vppHwAddr[:])
-}
-
-func ToVppMacAddress(hardwareAddr *net.HardwareAddr) ethernet_types.MacAddress {
-	hwAddr := [6]uint8{}
-	copy(hwAddr[:], *hardwareAddr)
-	return ethernet_types.MacAddress(hwAddr)
-}

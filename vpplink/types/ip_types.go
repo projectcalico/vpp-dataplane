@@ -185,10 +185,10 @@ func ToVppAddressWithPrefix(prefix *net.IPNet) ip_types.AddressWithPrefix {
 }
 
 func ToVppPrefix(prefix *net.IPNet) ip_types.Prefix {
-	len, _ := prefix.Mask.Size()
+	length, _ := prefix.Mask.Size()
 	r := ip_types.Prefix{
 		Address: ToVppAddress(prefix.IP),
-		Len:     uint8(len),
+		Len:     uint8(length),
 	}
 	return r
 }

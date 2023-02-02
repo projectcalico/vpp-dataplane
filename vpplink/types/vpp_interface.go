@@ -63,7 +63,7 @@ const (
 type GenericVppInterface struct {
 	Name              string /* Desired name in VPP */
 	HostInterfaceName string /* Name of the host interface */
-	HardwareAddr      *net.HardwareAddr
+	HardwareAddr      net.HardwareAddr
 	NumRxQueues       int
 	NumTxQueues       int
 	TxQueueSize       int
