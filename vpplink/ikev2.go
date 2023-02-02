@@ -17,9 +17,11 @@ package vpplink
 
 import (
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/pkg/errors"
+
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ikev2"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ikev2_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
@@ -117,62 +119,60 @@ func (v *VppLink) DelIKEv2Profile(name string) error {
 	return v.addDelIKEv2Profile(name, false)
 }
 
-func (v *VppLink) addDelIKEv2Profile(name string, isAdd bool) (err error) {
+func (v *VppLink) addDelIKEv2Profile(name string, isAdd bool) error {
+	client := ikev2.NewServiceClient(v.GetConnection())
 
 	if len(name) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
 	}
-	request := &ikev2.Ikev2ProfileAddDel{
+
+	_, err := client.Ikev2ProfileAddDel(v.GetContext(), &ikev2.Ikev2ProfileAddDel{
 		Name:  name,
 		IsAdd: isAdd,
-	}
-	response := &ikev2.Ikev2ProfileAddDelReply{}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to create IKEv2 profile %s", name)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to create IKEv2 profile %s (retval %d)", name, response.Retval)
+		return fmt.Errorf("failed to create IKEv2 profile %s: %w", name, err)
 	}
 	v.GetLog().Debugf("created ikev2 profile %s", name)
 	return nil
 }
 
 func (v *VppLink) ListIKEv2Profiles() ([]ikev2_types.Ikev2Profile, error) {
+	client := ikev2.NewServiceClient(v.GetConnection())
 
-	profiles := make([]ikev2_types.Ikev2Profile, 0)
-	request := &ikev2.Ikev2ProfileDump{}
-	stream := v.GetChannel().SendMultiRequest(request)
+	stream, err := client.Ikev2ProfileDump(v.GetContext(), &ikev2.Ikev2ProfileDump{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump IKEv2 profiles: %w", err)
+	}
+	var profiles []ikev2_types.Ikev2Profile
 	for {
-		response := &ikev2.Ikev2ProfileDetails{}
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error listing Ikev2 profiles")
-		}
-		if stop {
+		response, err := stream.Recv()
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump IKEv2 profiles: %w", err)
 		}
 		profiles = append(profiles, response.Profile)
 	}
 	return profiles, nil
 }
 
-func (v *VppLink) setIKEv2Auth(profile string, authMethod IKEv2AuthMethod, authData []byte) (err error) {
+func (v *VppLink) setIKEv2Auth(profile string, authMethod IKEv2AuthMethod, authData []byte) error {
+	client := ikev2.NewServiceClient(v.GetConnection())
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
 	}
-	request := &ikev2.Ikev2ProfileSetAuth{
+
+	_, err := client.Ikev2ProfileSetAuth(v.GetContext(), &ikev2.Ikev2ProfileSetAuth{
 		Name:       profile,
 		AuthMethod: uint8(authMethod),
 		IsHex:      false,
 		Data:       authData,
-	}
-	response := &ikev2.Ikev2ProfileSetAuthReply{}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to set IKEv2 auth for profile %s", profile)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to set IKEv2 auth for profile %s (retval %d)", profile, response.Retval)
+		return fmt.Errorf("failed to set IKEv2 auth for profile %s: %w", profile, err)
 	}
 	v.GetLog().Debugf("set auth method for profile %s to %d", profile, authMethod)
 	return nil
@@ -182,23 +182,21 @@ func (v *VppLink) SetIKEv2PSKAuth(profile, psk string) (err error) {
 	return v.setIKEv2Auth(profile, IKEv2AuthMethodSharedKeyMic, []byte(psk))
 }
 
-func (v *VppLink) setIKEv2ID(profile string, isLocal bool, idType IKEv2IDType, id []byte) (err error) {
+func (v *VppLink) setIKEv2ID(profile string, isLocal bool, idType IKEv2IDType, id []byte) error {
+	client := ikev2.NewServiceClient(v.GetConnection())
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
 	}
-	request := &ikev2.Ikev2ProfileSetID{
+
+	_, err := client.Ikev2ProfileSetID(v.GetContext(), &ikev2.Ikev2ProfileSetID{
 		Name:    profile,
 		IsLocal: isLocal,
 		IDType:  uint8(idType),
 		Data:    id,
-	}
-	response := &ikev2.Ikev2ProfileSetIDReply{}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to set IKEv2 ID %t for profile %s", isLocal, profile)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to set IKEv2 ID %t for profile %s (retval %d)", isLocal, profile, response.Retval)
+		return fmt.Errorf("failed to set IKEv2 ID %t for profile %s: %w", isLocal, profile, err)
 	}
 	v.GetLog().Debugf("set IKEv2 ID %t for profile %s", isLocal, profile)
 	return nil
@@ -226,7 +224,8 @@ func (v *VppLink) SetIKEv2TrafficSelector(
 	endPort uint16,
 	startAddr net.IP,
 	endAddr net.IP,
-) (err error) {
+) error {
+	client := ikev2.NewServiceClient(v.GetConnection())
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -234,7 +233,8 @@ func (v *VppLink) SetIKEv2TrafficSelector(
 	if startAddr.To4() == nil || endAddr.To4() == nil {
 		return errors.New("IPv6 unsupported in IKEv2 at this time")
 	}
-	request := &ikev2.Ikev2ProfileSetTs{
+
+	_, err := client.Ikev2ProfileSetTs(v.GetContext(), &ikev2.Ikev2ProfileSetTs{
 		Name: profile,
 		Ts: ikev2_types.Ikev2Ts{
 			IsLocal:    isLocal,
@@ -244,13 +244,9 @@ func (v *VppLink) SetIKEv2TrafficSelector(
 			StartAddr:  types.ToVppAddress(startAddr),
 			EndAddr:    types.ToVppAddress(endAddr),
 		},
-	}
-	response := &ikev2.Ikev2ProfileSetTsReply{}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to set IKEv2 traffic selector for profile %s", profile)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to set IKEv2 traffic selector for profile %s (retval %d)", profile, response.Retval)
+		return fmt.Errorf("failed to set IKEv2 traffic selector for profile %s: %w", profile, err)
 	}
 	v.GetLog().Debugf("set traffic selector for profile %s", profile)
 	return nil
@@ -269,25 +265,23 @@ func (v *VppLink) SetIKEv2ESPTransforms(
 	cryptoAlg IKEv2EncryptionAlgorithm,
 	cryptoKeySize uint32,
 	integAlg IKEv2IntegrityAlgorithm,
-) (err error) {
+) error {
+	client := ikev2.NewServiceClient(v.GetConnection())
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
 	}
-	request := &ikev2.Ikev2SetEspTransforms{
+
+	_, err := client.Ikev2SetEspTransforms(v.GetContext(), &ikev2.Ikev2SetEspTransforms{
 		Name: profile,
 		Tr: ikev2_types.Ikev2EspTransforms{
 			CryptoAlg:     uint8(cryptoAlg),
 			CryptoKeySize: cryptoKeySize,
 			IntegAlg:      uint8(integAlg),
 		},
-	}
-	response := &ikev2.Ikev2SetEspTransformsReply{}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to set ESP transforms for profile %s", profile)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to set ESP transforms for profile %s (retval %d)", profile, response.Retval)
+		return fmt.Errorf("failed to set ESP transforms for profile %s: %w", profile, err)
 	}
 	v.GetLog().Debugf("set ESP transforms for profile %s", profile)
 	return nil
@@ -299,12 +293,14 @@ func (v *VppLink) SetIKEv2IKETransforms(
 	cryptoKeySize uint32,
 	integAlg IKEv2IntegrityAlgorithm,
 	dhGroup IKEv2DHGroup,
-) (err error) {
+) error {
+	client := ikev2.NewServiceClient(v.GetConnection())
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
 	}
-	request := &ikev2.Ikev2SetIkeTransforms{
+
+	_, err := client.Ikev2SetIkeTransforms(v.GetContext(), &ikev2.Ikev2SetIkeTransforms{
 		Name: profile,
 		Tr: ikev2_types.Ikev2IkeTransforms{
 			CryptoAlg:     uint8(cryptoAlg),
@@ -312,13 +308,9 @@ func (v *VppLink) SetIKEv2IKETransforms(
 			IntegAlg:      uint8(integAlg),
 			DhGroup:       uint8(dhGroup),
 		},
-	}
-	response := &ikev2.Ikev2SetIkeTransformsReply{}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to set IKE transforms for profile %s", profile)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to set IKE transforms for profile %s (retval %d)", profile, response.Retval)
+		return fmt.Errorf("failed to set IKE transforms for profile %s: %w", profile, err)
 	}
 	v.GetLog().Debugf("set IKE transforms for profile %s", profile)
 	return nil
@@ -343,7 +335,8 @@ func (v *VppLink) SetIKEv2DefaultTransforms(profile string) (err error) {
 	)
 }
 
-func (v *VppLink) SetIKEv2Responder(profile string, swIfIndex uint32, address net.IP) (err error) {
+func (v *VppLink) SetIKEv2Responder(profile string, swIfIndex uint32, address net.IP) error {
+	client := ikev2.NewServiceClient(v.GetConnection())
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
@@ -351,59 +344,52 @@ func (v *VppLink) SetIKEv2Responder(profile string, swIfIndex uint32, address ne
 	if address.To4() == nil {
 		return errors.New("IPv6 unsupported in IKEv2 at this time")
 	}
+
 	vppAddr := types.ToVppAddress(address)
-	request := &ikev2.Ikev2SetResponder{
+	_, err := client.Ikev2SetResponder(v.GetContext(), &ikev2.Ikev2SetResponder{
 		Name: profile,
 		Responder: ikev2_types.Ikev2Responder{
 			SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 			Addr:      vppAddr,
 		},
-	}
-	response := &ikev2.Ikev2SetResponderReply{}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to set IKE responder for profile %s", profile)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to set IKE responder for profile %s (retval %d)", profile, response.Retval)
+		return fmt.Errorf("failed to set IKE responder for profile %s: %w", profile, err)
 	}
 	v.GetLog().Debugf("set IKE responder for profile %s, interface %d addr %v", profile, swIfIndex, vppAddr)
 	return nil
 }
 
-func (v *VppLink) SetIKEv2TunnelInterface(profile string, swIfIndex uint32) (err error) {
+func (v *VppLink) SetIKEv2TunnelInterface(profile string, swIfIndex uint32) error {
+	client := ikev2.NewServiceClient(v.GetConnection())
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
 	}
-	request := &ikev2.Ikev2SetTunnelInterface{
+
+	_, err := client.Ikev2SetTunnelInterface(v.GetContext(), &ikev2.Ikev2SetTunnelInterface{
 		Name:      profile,
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-	}
-	response := &ikev2.Ikev2SetTunnelInterfaceReply{}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to set IKE tunnel interface for profile %s", profile)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to set IKE tunnel interface for profile %s (retval %d)", profile, response.Retval)
+		return fmt.Errorf("failed to set IKE tunnel interface for profile %s: %w", profile, err)
 	}
 	v.GetLog().Debugf("set IKE tunnel interface for profile %s", profile)
 	return nil
 }
 
-func (v *VppLink) IKEv2Initiate(profile string) (err error) {
+func (v *VppLink) IKEv2Initiate(profile string) error {
+	client := ikev2.NewServiceClient(v.GetConnection())
 
 	if len(profile) >= 64 {
 		return errors.New("IKEv2 profile name too long (max 64)")
 	}
-	request := &ikev2.Ikev2InitiateSaInit{
+
+	_, err := client.Ikev2InitiateSaInit(v.GetContext(), &ikev2.Ikev2InitiateSaInit{
 		Name: profile,
-	}
-	response := &ikev2.Ikev2InitiateSaInitReply{}
-	err = v.GetChannel().SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to initiate IKE for profile %s", profile)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to initiate IKE for profile %s (retval %d)", profile, response.Retval)
+		return fmt.Errorf("failed to initiate IKE for profile %s: %w", profile, err)
 	}
 	v.GetLog().Debugf("initiated IKE for profile %s", profile)
 	return nil
