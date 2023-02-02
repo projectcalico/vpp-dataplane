@@ -28,10 +28,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
-const (
-	AnyInterface = ^uint32(0)
-)
-
 func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) ([]types.Route, error) {
 	client := vppip.NewServiceClient(v.GetConnection())
 

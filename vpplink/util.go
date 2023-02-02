@@ -1,5 +1,9 @@
 package vpplink
 
+const (
+	AnyInterface = ^uint32(0)
+)
+
 var (
 	strAddRemove     = map[bool]string{true: "add", false: "remove"}
 	strSetUnset      = map[bool]string{true: "set", false: "unset"}
