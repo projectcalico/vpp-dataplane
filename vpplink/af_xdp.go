@@ -36,7 +36,7 @@ func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) error {
 	}
 	response, err := client.AfXdpCreate(v.GetContext(), request)
 	if err != nil {
-		return fmt.Errorf("create AfXDP %+v failed: %w", request, err)
+		return fmt.Errorf("failed to create AfXDP (%+v): %w", request, err)
 	}
 	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return nil
@@ -49,7 +49,7 @@ func (v *VppLink) DeleteAfXDP(intf *types.VppXDPInterface) error {
 		SwIfIndex: interface_types.InterfaceIndex(intf.SwIfIndex),
 	})
 	if err != nil {
-		return fmt.Errorf("delete AfXDP %v failed: %w", intf.SwIfIndex, err)
+		return fmt.Errorf("failed to delete AfXDP (%v): %w", intf.SwIfIndex, err)
 	}
 	return nil
 }

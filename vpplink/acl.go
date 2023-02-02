@@ -38,7 +38,7 @@ func (v *VppLink) AddACL(acl *types.ACL) error {
 		Count:    uint32(len(rules)),
 	})
 	if err != nil {
-		return fmt.Errorf("add ACL failed: %w", err)
+		return fmt.Errorf("failed to add ACL: %w", err)
 	}
 	acl.ACLIndex = response.ACLIndex
 	return nil
@@ -51,7 +51,7 @@ func (v *VppLink) DelACL(aclIndex uint32) error {
 		ACLIndex: aclIndex,
 	})
 	if err != nil {
-		return fmt.Errorf("delete ACL failed: %w", err)
+		return fmt.Errorf("failed to delete ACL: %w", err)
 	}
 	return nil
 }

@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	policyIndexAllocator = NewIndexAllocator(1 /*StartIndex*/)
+	policyIndexAllocator = NewIndexAllocator(1)
 )
 
 func (v *VppLink) attachDetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool, isAdd bool) error {
@@ -39,30 +39,32 @@ func (v *VppLink) attachDetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 
 			IsIPv6:    isv6,
 		},
 	})
-	opStr := "Detach"
-	if isAdd {
-		opStr = "Attach"
-	}
 	if err != nil {
-		return fmt.Errorf("%s Abf Policy failed: %w", opStr, err)
+		return err
 	}
 	return nil
 }
 
-func (v *VppLink) AttachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool) (err error) {
-	return v.attachDetachAbfPolicy(policyID, swIfIndex, isv6, true)
+func (v *VppLink) AttachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool) error {
+	if err := v.attachDetachAbfPolicy(policyID, swIfIndex, isv6, true); err != nil {
+		return fmt.Errorf("failed to attach ABF Policy: %w", err)
+	}
+	return nil
 }
 
-func (v *VppLink) DetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool) (err error) {
-	return v.attachDetachAbfPolicy(policyID, swIfIndex, isv6, false)
+func (v *VppLink) DetachAbfPolicy(policyID uint32, swIfIndex uint32, isv6 bool) error {
+	if err := v.attachDetachAbfPolicy(policyID, swIfIndex, isv6, false); err != nil {
+		return fmt.Errorf("failed to detach ABF Policy: %w", err)
+	}
+	return nil
 }
 
 func (v *VppLink) addDelAbfPolicy(policy *types.AbfPolicy, isAdd bool) error {
 	client := abf.NewServiceClient(v.GetConnection())
 
-	paths := make([]fib_types.FibPath, 0, len(policy.Paths))
-	for _, routePath := range policy.Paths {
-		paths = append(paths, routePath.ToFibPath(false /*isip6*/))
+	fibPaths := make([]fib_types.FibPath, 0, len(policy.Paths))
+	for _, path := range policy.Paths {
+		fibPaths = append(fibPaths, path.ToFibPath(false))
 	}
 
 	_, err := client.AbfPolicyAddDel(v.GetContext(), &abf.AbfPolicyAddDel{
@@ -70,29 +72,27 @@ func (v *VppLink) addDelAbfPolicy(policy *types.AbfPolicy, isAdd bool) error {
 		Policy: abf.AbfPolicy{
 			PolicyID: policy.PolicyID,
 			ACLIndex: policy.AclIndex,
-			Paths:    paths,
+			Paths:    fibPaths,
 		},
 	})
-
-	opStr := "Del"
-	if isAdd {
-		opStr = "Add"
-	}
 	if err != nil {
-		return fmt.Errorf("%s Abf Policy failed: %w", opStr, err)
+		return err
 	}
 	return nil
 }
 
-func (v *VppLink) AddAbfPolicy(policy *types.AbfPolicy) (err error) {
+func (v *VppLink) AddAbfPolicy(policy *types.AbfPolicy) error {
 	policy.PolicyID = policyIndexAllocator.AllocateIndex()
-	return v.addDelAbfPolicy(policy, true)
+	if err := v.addDelAbfPolicy(policy, true); err != nil {
+		return fmt.Errorf("failed to add ABF Policy: %w", err)
+	}
+	return nil
 }
 
-func (v *VppLink) DelAbfPolicy(policy *types.AbfPolicy) (err error) {
-	err = v.addDelAbfPolicy(policy, false)
-	if err != nil {
-		policyIndexAllocator.FreeIndex(policy.PolicyID)
+func (v *VppLink) DelAbfPolicy(policy *types.AbfPolicy) error {
+	if err := v.addDelAbfPolicy(policy, false); err != nil {
+		return fmt.Errorf("failed to delete ABF Policy: %w", err)
 	}
-	return err
+	policyIndexAllocator.FreeIndex(policy.PolicyID)
+	return nil
 }

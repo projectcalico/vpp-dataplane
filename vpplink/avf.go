@@ -34,7 +34,7 @@ func (v *VppLink) CreateAVF(intf *types.AVFInterface) (uint32, error) {
 
 	addr, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("create AVF error parsing PCI id: %w", err)
+		return INVALID_SW_IF_INDEX, fmt.Errorf("error parsing PCI id: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(v.GetContext(), AvfReplyTimeout)
@@ -48,7 +48,7 @@ func (v *VppLink) CreateAVF(intf *types.AVFInterface) (uint32, error) {
 	}
 	response, err := client.AvfCreate(ctx, request)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("create AVF %+v failed: %w", request, err)
+		return INVALID_SW_IF_INDEX, fmt.Errorf("failed to create AVF (%+v): %w", request, err)
 	}
 	return uint32(response.SwIfIndex), nil
 }
@@ -60,7 +60,7 @@ func (v *VppLink) DeleteAVF(swIfIndex uint32) error {
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	})
 	if err != nil {
-		return fmt.Errorf("delete AVF %v failed: %w", swIfIndex, err)
+		return fmt.Errorf("failed to delete AVF (%v): %w", swIfIndex, err)
 	}
 	return nil
 }

@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/af_packet"
+	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ethernet_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
@@ -39,11 +40,11 @@ func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint3
 	}
 	if intf.HardwareAddr != nil {
 		request.UseRandomHwAddr = false
-		request.HwAddr = types.ToVppMacAddress(intf.HardwareAddr)
+		request.HwAddr = ethernet_types.NewMacAddress(intf.HardwareAddr)
 	}
 	response, err := client.AfPacketCreateV3(v.GetContext(), request)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("create AfPacket %+v failed: req %w", request, err)
+		return INVALID_SW_IF_INDEX, fmt.Errorf("failed to create AfPacket interface (%+v): %w", request, err)
 	}
 	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
@@ -56,7 +57,7 @@ func (v *VppLink) DeleteAfPacket(ifName string) error {
 		HostIfName: ifName,
 	})
 	if err != nil {
-		return fmt.Errorf("delete AfPacket %s failed: %w", ifName, err)
+		return fmt.Errorf("failed to delete AfPacket interface (%s): %w", ifName, err)
 	}
 	return nil
 }

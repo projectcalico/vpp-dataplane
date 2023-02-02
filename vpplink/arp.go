@@ -38,7 +38,7 @@ func (v *VppLink) EnableArpProxy(swIfIndex, tableID uint32) error {
 	}
 	_, err := client.ProxyArpAddDel(v.GetContext(), request)
 	if err != nil {
-		return fmt.Errorf("adding proxyarp %+v failed: %w", request, err)
+		return fmt.Errorf("failed to add ProxyARP (%+v): %w", request, err)
 	}
 
 	_, err = client.ProxyArpIntfcEnableDisable(v.GetContext(), &arp.ProxyArpIntfcEnableDisable{
@@ -46,7 +46,7 @@ func (v *VppLink) EnableArpProxy(swIfIndex, tableID uint32) error {
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	})
 	if err != nil {
-		return fmt.Errorf("enabling proxyarp swifidx %d failed: %w", swIfIndex, err)
+		return fmt.Errorf("failed to enable ProxyARP (swifidx %d): %w", swIfIndex, err)
 	}
 	return nil
 }
