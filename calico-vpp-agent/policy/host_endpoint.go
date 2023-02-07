@@ -177,18 +177,12 @@ func (h *HostEndpoint) getTapPolicies(state *PolicyState) (conf *types.Interface
 		return nil, errors.Wrap(err, "cannot create host policies for TapConf")
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
+		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, h.server.workloadsToHostPolicy.VppID)
 		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.IngressPolicyIDs...)
-		conf.IngressPolicyIDs = append([]uint32{h.server.workloadsToHostPolicy.VppID}, conf.IngressPolicyIDs...)
-	} else {
-		conf.IngressPolicyIDs = []uint32{h.server.workloadsToHostPolicy.VppID, h.server.failSafePolicy.VppID}
-		/* automatically deny the rest because host endpoint is empty on ingress */
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
-		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.EgressPolicyIDs...)
 		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
-	} else {
-		conf.EgressPolicyIDs = []uint32{h.server.AllowFromHostPolicy.VppID, h.server.failSafePolicy.VppID}
-		/* automatically deny the rest because host endpoint is empty on egress */
+		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.EgressPolicyIDs...)
 	}
 	return conf, nil
 }
