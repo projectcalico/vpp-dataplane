@@ -211,7 +211,7 @@ func SetVfioUnsafeiommu(iommu bool) (err error) {
 	if iommu {
 		err = WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	} else {
-		err = WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+		err = WriteFile("N", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	}
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
