@@ -58,14 +58,6 @@ func (v *Vpp) GetConnection() vppapi.Connection {
 	return v.conn
 }
 
-func (v *Vpp) GetChannel() vppapi.Channel {
-	return v.ch
-}
-
-func (v *Vpp) MakeNewChannel() (vppapi.Channel, error) {
-	return v.conn.NewAPIChannel()
-}
-
 func NewVpp(socket string, logger *logrus.Entry) (*Vpp, error) {
 	conn, err := govpp.Connect(socket)
 	if err != nil {
