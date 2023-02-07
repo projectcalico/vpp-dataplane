@@ -18,15 +18,10 @@ package vpplink
 import (
 	"os"
 	"sync"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated"
-)
-
-const (
-	DefaultReplyTimeout = 1 * time.Second
 )
 
 type VppLink struct {

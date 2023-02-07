@@ -8,7 +8,7 @@ require (
 	github.com/containernetworking/plugins v1.0.1
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
-	github.com/inconshreveable/mousetrap v1.0.0
+	github.com/inconshreveable/mousetrap v1.0.1
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.3.0
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/onsi/ginkgo v1.16.5
@@ -19,14 +19,14 @@ require (
 	github.com/projectcalico/api v0.0.0-20220505231559-852f5034c309 // v3.23.0
 	github.com/projectcalico/calico v0.0.0-20220509191150-29de1d3f8dd7 // v3.23.0
 	github.com/sirupsen/logrus v1.9.0
-	github.com/spf13/cobra v1.2.1
+	github.com/spf13/cobra v1.6.1
 	github.com/vishvananda/netlink v1.1.1-0.20210703095558-21f2c55a7727
 	github.com/yookoala/realpath v1.0.0
-	go.fd.io/govpp v0.8.0-alpha.0.20230119104801-57da5b22a44c
-	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
+	go.fd.io/govpp v0.8.0-alpha.0.20230207075433-b71f13cf4640
+	golang.org/x/net v0.0.0-20220607020251-c690dde0001d
 	golang.org/x/sys v0.4.0
-	google.golang.org/grpc v1.40.0
-	google.golang.org/protobuf v1.27.1
+	google.golang.org/grpc v1.47.0
+	google.golang.org/protobuf v1.28.0
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	k8s.io/api v0.24.0
 	k8s.io/apimachinery v0.24.0
@@ -116,13 +116,13 @@ require (
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200324154536-ceff61240acf // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20210831024726-fe130286e0e2 // indirect
+	google.golang.org/genproto v0.0.0-20220607223854-30acc4cbd2aa // indirect
 	gopkg.in/go-playground/validator.v9 v9.27.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.60.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42 // indirect
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
@@ -166,8 +166,6 @@ replace (
 )
 
 replace (
-	github.com/calico-vpp/vpplink => github.com/ondrej-fabry/vpplink v0.0.0-20230126133130-d65f225748ef
-	go.fd.io/govpp => go.fd.io/govpp v0.8.0-alpha.0.20230119104801-57da5b22a44c
+	github.com/calico-vpp/vpplink => github.com/ondrej-fabry/vpplink v0.0.0-20230207075652-73a75ba5d695
+	go.fd.io/govpp => go.fd.io/govpp v0.8.0-alpha.0.20230207075433-b71f13cf4640
 )
-
-//replace github.com/calico-vpp/vpplink => ../vpplink
