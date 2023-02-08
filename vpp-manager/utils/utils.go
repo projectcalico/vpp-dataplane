@@ -35,8 +35,6 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/yookoala/realpath"
@@ -44,6 +42,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	"github.com/projectcalico/vpp-dataplane/config"
+	"github.com/projectcalico/vpp-dataplane/vpplink"
 )
 
 func IsDriverLoaded(driver string) (bool, error) {
@@ -192,7 +193,6 @@ func CreateVppLink() (vpp *vpplink.VppLink, err error) {
 			} else {
 				log.Warnf("Waiting for VPP... [%d/10] %v", i, err)
 			}
-			err = nil
 			time.Sleep(2 * time.Second)
 		} else {
 			return vpp, nil

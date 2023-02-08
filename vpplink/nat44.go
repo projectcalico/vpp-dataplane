@@ -49,7 +49,7 @@ func (v *VppLink) addDelNat44Address(isAdd bool, address net.IP) error {
 		Flags:          nat_types.NAT_IS_NONE,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to %d Nat44 address range: %w", strAddRemove[isAdd], err)
+		return fmt.Errorf("failed to %v Nat44 address range: %w", strAddRemove[isAdd], err)
 	}
 	return nil
 }
@@ -71,7 +71,7 @@ func (v *VppLink) addDelNat44InterfaceAddress(isAdd bool, swIfIndex uint32, flag
 		Flags:     types.ToVppNatConfigFlags(flags),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to %d Nat44 interface address: %w", strAddRemove[isAdd], err)
+		return fmt.Errorf("failed to %v Nat44 interface address: %w", strAddRemove[isAdd], err)
 	}
 	return nil
 }
