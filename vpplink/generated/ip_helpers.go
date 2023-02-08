@@ -52,7 +52,7 @@ func toVppIP6Address(addr net.IP) ip_types.IP6Address {
 }
 
 func toVppAddress(addr net.IP) ip_types.Address {
-	return ip_types.AddressFromIP(addr)
+	return ip_types.NewAddress(addr)
 }
 
 func fromVppIpAddressUnion(Un ip_types.AddressUnion, isv6 bool) net.IP {
@@ -94,7 +94,7 @@ func toVppIP4Prefix(prefix *net.IPNet) ip_types.IP4Prefix {
 func ToVppPrefix(prefix *net.IPNet) ip_types.Prefix {
 	len, _ := prefix.Mask.Size()
 	r := ip_types.Prefix{
-		Address: ip_types.AddressFromIP(prefix.IP),
+		Address: ip_types.NewAddress(prefix.IP),
 		Len:     uint8(len),
 	}
 	return r

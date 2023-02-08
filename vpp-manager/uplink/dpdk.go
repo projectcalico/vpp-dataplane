@@ -22,12 +22,13 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+
 	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	log "github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 type DPDKDriver struct {
@@ -168,7 +169,7 @@ func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, up
 		return fmt.Errorf("error trying to find interface with tag main-%s", d.spec.InterfaceName)
 	}
 	d.spec.SwIfIndex = swIfIndex
-	err = vpp.SetInterfaceMacAddress(swIfIndex, &d.conf.HardwareAddr)
+	err = vpp.SetInterfaceMacAddress(swIfIndex, d.conf.HardwareAddr)
 	if err != nil && gerrors.Is(err, types.VppErrorUnimplemented) {
 		log.Warn("Setting dpdk interface mac address in vpp unsupported")
 	} else if err != nil {
