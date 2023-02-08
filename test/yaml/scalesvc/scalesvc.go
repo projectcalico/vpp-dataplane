@@ -4,6 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"path/filepath"
+	"sync/atomic"
+
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 	v1 "k8s.io/api/core/v1"
@@ -12,8 +15,6 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	"path/filepath"
-	"sync/atomic"
 )
 
 var (

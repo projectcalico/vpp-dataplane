@@ -15,6 +15,7 @@ package calico
 
 import (
 	"context"
+
 	"github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/ipam"
 )
@@ -118,6 +119,16 @@ func (cc *CalicoClientStub) KubeControllersConfiguration() clientv3.KubeControll
 
 // CalicoNodeStatus returns an interface for managing CalicoNodeStatus resources.
 func (cc *CalicoClientStub) CalicoNodeStatus() clientv3.CalicoNodeStatusInterface {
+	panic("not implemented")
+}
+
+// IPAMConfig returns an interface for managing IPAMConfig resources.
+func (cc *CalicoClientStub) IPAMConfig() clientv3.IPAMConfigInterface {
+	panic("not implemented")
+}
+
+// BlockAffinities returns an interface for viewing IPAM block affinity resources.
+func (cc *CalicoClientStub) BlockAffinities() clientv3.BlockAffinityInterface {
 	panic("not implemented")
 }
 

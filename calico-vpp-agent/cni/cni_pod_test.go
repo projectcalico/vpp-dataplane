@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -30,20 +31,21 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	gs "github.com/onsi/gomega/gstruct"
+	cniproto "github.com/projectcalico/calico/cni-plugin/pkg/dataplane/grpc/proto"
 	felixconfig "github.com/projectcalico/calico/felix/config"
+	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/pod_interface"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/multinet-monitor/networkAttachmentDefinition"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -96,17 +98,26 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
 					By("Adding pod using CNI server")
-					newPod := &proto.AddRequest{
+					newPod := &cniproto.AddRequest{
 						InterfaceName: interfaceName,
 						Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
-						ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
-						Workload: &proto.WorkloadIDs{
+						ContainerIps:  []*cniproto.IPConfig{{Address: ipAddress + "/24"}},
+						Workload: &cniproto.WorkloadIDs{
 							Annotations: map[string]string{
 								"cni.projectcalico.org/AllowedSourcePrefixes": "[\"172.16.104.7\", \"3.4.5.6\"]",
 							},
 						},
 					}
 					common.VppManagerInfo = &config.VppManagerInfo{}
+					os.Setenv("NODENAME", ThisNodeName)
+					os.Setenv("CALICOVPP_CONFIG_TEMPLATE", "sss")
+					config.GetCalicoVppInterfaces().DefaultPodIfSpec = &config.InterfaceSpec{}
+					err = config.LoadConfigSilent(log)
+					if err != nil {
+						log.Error(err)
+					}
+					config.GetCalicoVppFeatureGates().IPSecEnabled = &config.False
+					config.GetCalicoVppDebug().GSOEnabled = &config.True
 					reply, err := cniServer.Add(context.Background(), newPod)
 					Expect(err).ToNot(HaveOccurred(), "Pod addition failed")
 					Expect(reply.Successful).To(BeTrue(),
@@ -169,11 +180,11 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
 					By("Adding pod using CNI server")
-					newPod := &proto.AddRequest{
+					newPod := &cniproto.AddRequest{
 						InterfaceName: interfaceName,
 						Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
-						ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
-						Workload: &proto.WorkloadIDs{
+						ContainerIps:  []*cniproto.IPConfig{{Address: ipAddress + "/24"}},
+						Workload: &cniproto.WorkloadIDs{
 							Annotations: map[string]string{
 								// needed just for setting up steering of traffic to default Tun/Tap and to secondary Memif
 								cni.VppAnnotationPrefix + cni.MemifPortAnnotation: fmt.Sprintf("tcp:%d-%d,udp:%d-%d",
@@ -217,14 +228,15 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					Expect(memifs[0].Role).To(Equal(types.MemifMaster))
 					Expect(memifs[0].Mode).To(Equal(types.MemifModeEthernet))
 					Expect(memifs[0].Flags&types.MemifAdminUp > 0).To(BeTrue())
-					Expect(memifs[0].QueueSize).To(Equal(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize))
+					// Note: queues are allocated only when a client is listening
+					// Expect(memifs[0].QueueSize).To(Equal(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize))
 					//Note:Memif.NumRxQueues and Memif.NumTxQueues is not dumped by VPP binary API dump -> can't test it
 
 					By("Checking secondary tunnel's memif socket file") // checking only VPP setting, not file socket presence
 					socket, err := vpp.MemifsocketByID(memifs[0].SocketId)
 					Expect(err).ToNot(HaveOccurred(), "failed to get memif socket")
 					Expect(socket.SocketFilename).To(Equal(
-						fmt.Sprintf("@netns:%s%s-%s", newPod.Netns, config.MemifSocketName, newPod.InterfaceName)),
+						fmt.Sprintf("@netns:%s@vpp/memif-%s", newPod.Netns, newPod.InterfaceName)),
 						"memif socket file is not configured correctly")
 
 					By("Checking PBL (packet punting) to redirect some traffic into memif (secondary interface)")
@@ -300,11 +312,11 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
 						By("Adding Pod to primary network using CNI server")
-						newPodForPrimaryNetwork := &proto.AddRequest{
+						newPodForPrimaryNetwork := &cniproto.AddRequest{
 							InterfaceName: mainInterfaceName,
 							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
-							ContainerIps:  []*proto.IPConfig{{Address: ipAddress + "/24"}},
-							Workload:      &proto.WorkloadIDs{},
+							ContainerIps:  []*cniproto.IPConfig{{Address: ipAddress + "/24"}},
+							Workload:      &cniproto.WorkloadIDs{},
 						}
 						common.VppManagerInfo = &config.VppManagerInfo{}
 						reply, err := cniServer.Add(context.Background(), newPodForPrimaryNetwork)
@@ -314,13 +326,13 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 						By("Adding Pod to secondary(multinet) network using CNI server")
 						secondaryIPAddress := firstIPinIPRange(networkDefinition.Range).String()
-						newPodForSecondaryNetwork := &proto.AddRequest{
+						newPodForSecondaryNetwork := &cniproto.AddRequest{
 							InterfaceName: secondaryInterfaceName,
 							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
-							ContainerIps: []*proto.IPConfig{{
+							ContainerIps: []*cniproto.IPConfig{{
 								Address: secondaryIPAddress + "/24",
 							}},
-							Workload: &proto.WorkloadIDs{},
+							Workload: &cniproto.WorkloadIDs{},
 							DataplaneOptions: map[string]string{
 								dpoNetworkNameFieldName(): networkDefinition.Name,
 							},
@@ -441,7 +453,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 	})
 })
 
-func assertTunInterfaceExistence(vpp *vpplink.VppLink, newPod *proto.AddRequest) uint32 {
+func assertTunInterfaceExistence(vpp *vpplink.VppLink, newPod *cniproto.AddRequest) uint32 {
 	ifSwIfIndex, err := vpp.SearchInterfaceWithTag(
 		interfaceTagForLocalTunTunnel(newPod.InterfaceName, newPod.Netns))
 	Expect(err).ShouldNot(HaveOccurred(), "Failed to get interface at VPP's end")
@@ -582,7 +594,7 @@ func runInPod(podNetNS string, runner func()) {
 	Expect(err).Should(BeNil(), "Failed to runInPod")
 }
 
-// dpoNetworkNameFieldName extracts JSON field name for NetworkName used in proto.AddRequest.DataplaneOptions
+// dpoNetworkNameFieldName extracts JSON field name for NetworkName used in cniproto.AddRequest.DataplaneOptions
 func dpoNetworkNameFieldName() string {
 	netNameField, found := reflect.TypeOf(networkAttachmentDefinition.NetConf{}.DpOptions).FieldByName("NetName")
 	Expect(found).To(BeTrue(),

@@ -20,8 +20,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	bgpserver "github.com/osrg/gobgp/pkg/server"
+	bgpserver "github.com/osrg/gobgp/v3/pkg/server"
 	"github.com/pkg/errors"
+	felixconfig "github.com/projectcalico/calico/felix/config"
 	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
@@ -54,13 +55,15 @@ var (
 )
 
 func Go(f func(t *tomb.Tomb) error) {
-	t.Go(func() error {
-		err := f(&t)
-		if err != nil {
-			log.Warnf("Tomb function errored with %s", err)
-		}
-		return err
-	})
+	if t.Alive() {
+		t.Go(func() error {
+			err := f(&t)
+			if err != nil {
+				log.Warnf("Tomb function errored with %s", err)
+			}
+			return err
+		})
+	}
 }
 
 func main() {
@@ -123,8 +126,8 @@ func main() {
 	/**
 	 * Start watching nodes & fetch our BGP spec
 	 */
-	routeWatcher := watchers.NewRouteWatcher(common.VppManagerInfo.FakeNextHopIP4, common.VppManagerInfo.FakeNextHopIP6)
-	linkWatcher := watchers.NewLinkWatcher(common.VppManagerInfo.UplinkStatuses)
+	routeWatcher := watchers.NewRouteWatcher(common.VppManagerInfo.FakeNextHopIP4, common.VppManagerInfo.FakeNextHopIP6, log.WithFields(logrus.Fields{"subcomponent": "host-route-watcher"}))
+	linkWatcher := watchers.NewLinkWatcher(common.VppManagerInfo.UplinkStatuses, log.WithFields(logrus.Fields{"subcomponent": "host-link-watcher"}))
 	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
 	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	peerWatcher := watchers.NewPeerWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
@@ -151,31 +154,27 @@ func main() {
 	routingServer.SetBGPConf(bgpConf)
 	serviceServer.SetBGPConf(bgpConf)
 
+	watchDog := NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
 	Go(policyServer.ServePolicy)
-	log.Infof("Waiting for our node's BGP spec...")
-	felixConfig := policyServer.WaitForFelixConfig()
-	ourBGPSpec := policyServer.WaitForOurBGPSpec()
-
-	prefixWatcher.SetOurBGPSpec(ourBGPSpec)
-	connectivityServer.SetOurBGPSpec(ourBGPSpec)
-	routingServer.SetOurBGPSpec(ourBGPSpec)
-	serviceServer.SetOurBGPSpec(ourBGPSpec)
-	localSIDWatcher.SetOurBGPSpec(ourBGPSpec)
-
-	/**
-	 * This should be done in a separated location, but till then, we
-	 * still have to wait on the policy server starting
-	 */
-	log.Infof("Waiting for felix config being present...")
+	felixConfig := watchDog.Wait(policyServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
+	ourBGPSpec := watchDog.Wait(policyServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")
+	if ourBGPSpec != nil {
+		prefixWatcher.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
+		connectivityServer.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
+		routingServer.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
+		serviceServer.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
+		localSIDWatcher.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
+	}
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
 		Go(netWatcher.WatchNetworks)
-		<-netWatcher.InSync
-		log.Infof("Networks synced")
+		watchDog.Wait(netWatcher.InSync, "Waiting for networks to be listed and synced")
 	}
 
-	cniServer.SetFelixConfig(felixConfig)
-	connectivityServer.SetFelixConfig(felixConfig)
+	if felixConfig != nil {
+		cniServer.SetFelixConfig(felixConfig.(*felixconfig.Config))
+		connectivityServer.SetFelixConfig(felixConfig.(*felixconfig.Config))
+	}
 
 	Go(routeWatcher.WatchRoutes)
 	Go(linkWatcher.WatchLinks)

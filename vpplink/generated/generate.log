@@ -6,6 +6,7 @@ capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:37931/1 ip: add the missing offload check
 gerrit:35805/2 dpdk: add intf tag to dev{} subinput
 gerrit:34726/1 interface: add buffer stats api
 gerrit:34734/3 memif: autogenerate socket_ids

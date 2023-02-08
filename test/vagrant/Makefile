@@ -17,7 +17,6 @@ SHELL := /bin/bash
 
 MFILECWD = $(shell pwd)
 REPO_ROOT = $(shell realpath $(MFILECWD)/../..)
-HAVE_BOX = $(shell vagrant box list | grep calico-vpp-base)
 
 # sed 1-liner to reverse the lines in an input stream
 REVERSE_LINES=sed -e '1!G;h;$$!d'
@@ -66,7 +65,7 @@ K8S_DASHBOARD_VERSION ?= v1.10.1
 
 CLUSTER_NAME ?= $(shell basename $(REPO_ROOT))
 
-VAGRANT_LOG ?=
+VAGRANT_LOG ?= error
 VAGRANT_VAGRANTFILE ?= $(MFILECWD)/vagrantfiles/Vagrantfile
 # === END USER OPTIONS ===
 
@@ -128,10 +127,11 @@ versions: ## Print the "imporant" tools versions out for easier debugging.
 	@echo "=== END Version Info ==="
 
 up: ## Start Kubernetes Vagrant multi-node cluster. Creates, starts and bootsup the master and node VMs.
-ifeq "$(HAVE_BOX)" ""
-	@$(MAKE) box
-endif
-	@$(MAKE) start
+	[ -z "$$(vagrant box list | grep calico-vpp-base)" ] && { 	\
+		$(MAKE) box;											\
+		exit $$?;												\
+	} || echo 'No need to build box'
+	$(MAKE) start
 
 start: preflight
 	@$(MAKE) start-master start-nodes

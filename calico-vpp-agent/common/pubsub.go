@@ -16,7 +16,9 @@
 package common
 
 import (
-	"github.com/sirupsen/logrus"
+	"fmt"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type CalicoVppEventType string
@@ -54,9 +56,6 @@ const (
 
 	BGPPathAdded   CalicoVppEventType = "BGPPathAdded"
 	BGPPathDeleted CalicoVppEventType = "BGPPathDeleted"
-
-	BGPReloadIP4 CalicoVppEventType = "BGPReloadIP4"
-	BGPReloadIP6 CalicoVppEventType = "BGPReloadIP6"
 
 	NetAddedOrUpdated CalicoVppEventType = "NetAddedOrUpdated"
 	NetDeleted        CalicoVppEventType = "NetDeleted"
@@ -98,7 +97,7 @@ func (reg *PubSubHandlerRegistration) ExpectEvents(eventTypes ...CalicoVppEventT
 }
 
 type PubSub struct {
-	log                        *logrus.Entry
+	log                        *log.Entry
 	pubSubHandlerRegistrations []*PubSubHandlerRegistration
 }
 
@@ -113,7 +112,18 @@ func RegisterHandler(channel chan CalicoVppEvent, name string) *PubSubHandlerReg
 	return reg
 }
 
+func redactPassword(event CalicoVppEvent) string {
+	switch event.Type {
+	case BGPPeerAdded:
+		return string(event.Type)
+	default:
+		return fmt.Sprintf("%+v", event)
+	}
+
+}
+
 func SendEvent(event CalicoVppEvent) {
+	ThePubSub.log.Debugf("Broadcasting event %s", redactPassword(event))
 	for _, reg := range ThePubSub.pubSubHandlerRegistrations {
 		if reg.expectAllEvents || reg.expectedEvents[event.Type] {
 			reg.channel <- event
@@ -121,7 +131,7 @@ func SendEvent(event CalicoVppEvent) {
 	}
 }
 
-func NewPubSub(log *logrus.Entry) *PubSub {
+func NewPubSub(log *log.Entry) *PubSub {
 	return &PubSub{
 		log:                        log,
 		pubSubHandlerRegistrations: make([]*PubSubHandlerRegistration, 0),

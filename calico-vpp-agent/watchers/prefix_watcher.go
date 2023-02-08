@@ -21,8 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	bgpapi "github.com/osrg/gobgp/api"
+	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/model"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
@@ -65,7 +64,7 @@ func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 		var toAdd []*bgpapi.Path
 		for _, prefix := range newPrefixes {
 			if _, found := assignedPrefixes[prefix]; found {
-				w.log.Debugf("Prefix %s is still assigned to us", prefix)
+				w.log.Debugf("Prefix %s is still assigned to this node", prefix)
 				assignedPrefixes[prefix] = true     // Prefix is still there, set value to true so we don't delete it
 				newAssignedPrefixes[prefix] = false // Record it in new map
 			} else {
@@ -103,7 +102,7 @@ func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 		time.Sleep(prefixWatchInterval)
 	}
 
-	w.log.Infof("Prefix Watcher asked to exit")
+	w.log.Warn("Prefix Watcher asked to exit")
 
 	return nil
 }
@@ -170,7 +169,7 @@ func (w *PrefixWatcher) updateBGPPaths(paths []*bgpapi.Path) error {
 //	add "192.168.1.0/26..32" to 'host'       set
 func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 	ipAddrPrefixNlri := &bgpapi.IPAddressPrefix{}
-	err := ptypes.UnmarshalAny(path.Nlri, ipAddrPrefixNlri)
+	err := path.Nlri.UnmarshalTo(ipAddrPrefixNlri)
 	if err != nil {
 		return fmt.Errorf("Cannot handle Nlri: %+v", path.Nlri)
 	}

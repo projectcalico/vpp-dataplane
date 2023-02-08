@@ -31,6 +31,16 @@ rules:
   - watch
   - list
   - get
+  - create
+  - update
+- apiGroups:
+  - k8s.cni.cncf.io
+  resources:
+  - network-attachment-definitions
+  verbs:
+  - watch
+  - get
+  - list
 - apiGroups:
   - ""
   resources:
@@ -66,6 +76,14 @@ rules:
   - pods/status
   verbs:
   - patch
+- apiGroups:
+  - projectcalico.org
+  resources:
+  - networks
+  verbs:
+  - list
+  - get
+  - watch
 - apiGroups:
   - crd.projectcalico.org
   resources:
@@ -160,6 +178,10 @@ data:
     buffers {
       buffers-per-numa 131072
     }
+  CALICOVPP_FEATURE_GATES: |-
+    {
+      "multinetEnabled": true
+    }
   CALICOVPP_INITIAL_CONFIG: |-
     {
       "vppStartupSleepSeconds": 1,
@@ -179,7 +201,7 @@ data:
       "uplinkInterfaces": [
         {
           "interfaceName": "eth1",
-          "vppDriver": "dpdk"
+          "vppDriver": "af_packet"
         }
       ]
     }
@@ -188,6 +210,32 @@ kind: ConfigMap
 metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: calico-vpp-node
+  name: multinet-monitor-deployment
+  namespace: calico-vpp-dataplane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: calico-vpp-node
+  template:
+    metadata:
+      labels:
+        k8s-app: calico-vpp-node
+    spec:
+      containers:
+      - image: docker.io/calicovpp/multinet-monitor:v3.24.1
+        imagePullPolicy: IfNotPresent
+        name: multinet-monitor
+        resources:
+          requests:
+            cpu: 250m
+      serviceAccountName: calico-vpp-node-sa
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -206,47 +254,6 @@ spec:
         k8s-app: calico-vpp-node
     spec:
       containers:
-      - env:
-        - name: DATASTORE_TYPE
-          value: kubernetes
-        - name: WAIT_FOR_DATASTORE
-          value: "true"
-        - name: NODENAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        envFrom:
-        - configMapRef:
-            name: calico-vpp-config
-        image: docker.io/calicovpp/vpp:prerelease
-        imagePullPolicy: IfNotPresent
-        name: vpp
-        resources:
-          limits:
-            hugepages-2Mi: 512Mi
-          requests:
-            cpu: 500m
-            memory: 512Mi
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /lib/firmware
-          name: lib-firmware
-        - mountPath: /var/run/vpp
-          name: vpp-rundir
-        - mountPath: /var/lib/vpp
-          name: vpp-data
-        - mountPath: /etc/vpp
-          name: vpp-config
-        - mountPath: /dev
-          name: devices
-        - mountPath: /sys
-          name: hostsys
-        - mountPath: /run/netns/
-          mountPropagation: Bidirectional
-          name: netns
-        - mountPath: /host
-          name: host-root
       - env:
         - name: DATASTORE_TYPE
           value: kubernetes
@@ -283,8 +290,55 @@ spec:
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns
+      - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        envFrom:
+        - configMapRef:
+            name: calico-vpp-config
+        image: docker.io/calicovpp/vpp:prerelease
+        imagePullPolicy: IfNotPresent
+        name: vpp
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /lib/firmware
+          name: lib-firmware
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
+        - mountPath: /var/lib/vpp
+          name: vpp-data
+        - mountPath: /etc/vpp
+          name: vpp-config
+        - mountPath: /dev
+          name: devices
+        - mountPath: /sys
+          name: hostsys
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+        - mountPath: /host
+          name: host-root
       hostNetwork: true
       hostPID: true
+      initContainers:
+      - command:
+        - /entrypoint
+        image: docker.io/calicovpp/install-whereabouts:latest
+        name: install-whereabouts
+        volumeMounts:
+        - mountPath: /host/opt/cni/bin
+          name: cni-bin-dir
       nodeSelector:
         kubernetes.io/os: linux
       priorityClassName: system-node-critical
@@ -298,6 +352,9 @@ spec:
       - effect: NoExecute
         operator: Exists
       volumes:
+      - hostPath:
+          path: /opt/cni/bin
+        name: cni-bin-dir
       - hostPath:
           path: /lib/firmware
         name: lib-firmware

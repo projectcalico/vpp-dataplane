@@ -66,9 +66,9 @@ install-test-deps:
 	sudo chmod a+r /boot/vmlinuz*	# Required for libguestfs
 	sudo adduser `id -un` libvirt
 	sudo adduser `id -un` kvm
-	wget https://releases.hashicorp.com/vagrant/2.2.14/vagrant_2.2.14_x86_64.deb
-	sudo dpkg -i vagrant_2.2.14_x86_64.deb
-	rm vagrant_2.2.14_x86_64.deb
+	wget https://releases.hashicorp.com/vagrant/2.3.4/vagrant_2.3.4-1_amd64.deb
+	sudo dpkg -i vagrant_2.3.4-1_amd64.deb
+	rm vagrant_2.3.4-1_amd64.deb
 	vagrant plugin install vagrant-libvirt
 	newgrp libvirt
 
@@ -85,7 +85,8 @@ load-images:
 CALICO_INSTALLATION ?= installation-default
 .PHONY: test-install-calico
 test-install-calico:
-	kubectl replace --force -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
+	kubectl replace --force -f https://raw.githubusercontent.com/projectcalico/calico/master/manifests/tigera-operator.yaml
+	sleep 2
 	kubectl apply -f yaml/calico/$(CALICO_INSTALLATION).yaml
 
 # Allows to simply run calico-vpp from release images in a test cluster
@@ -195,13 +196,64 @@ run-integration-tests:
 	cd test/integration-tests;./run-tests.sh
 
 .PHONY: test
-test:
+test: go-lint
 	gofmt -s -l . | grep -v generated | grep -v vpp_build | diff -u /dev/null -
-	go vet ./...
 	go test ./...
 
+.PHONY: test-memif-multinet
+test-memif-multinet:
+	kubectl apply -f test/yaml/multinet/network.yaml
+	kubectl apply -f test/yaml/multinet/netdefinitions.yaml
+	kubectl apply -f test/yaml/multinet/pod-memif.yaml
+
+.PHONY: delete-test-memif-multinet
+delete-test-memif-multinet:
+	kubectl delete -f test/yaml/multinet/pod-memif.yaml
+	kubectl delete -f test/yaml/multinet/netdefinitions.yaml
+
+.PHONY: install-multinet
+install-multinet:
+	@echo "--Installing network CRD..."
+	@kubectl apply -f test/yaml/multinet/projectcalico.org_networks.yaml
+	@kubectl apply -f test/yaml/multinet/whereabouts-daemonset-install.yaml
+	@echo "--Installing multus daemonset..."
+	@kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
+	@echo "--Installing whereabouts daemonset..."
+	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
+	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+
+.PHONY: delete-multinet
+delete-multinet:
+	@echo "--Deleting whereabouts daemonset..."
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+	@echo "--Deleting multus daemonset..."
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
+	@echo "--Deleting network CRD..."
+	@kubectl delete -f test/yaml/multinet/projectcalico.org_networks.yaml
+	@kubectl delete -f test/yaml/multinet/whereabouts-daemonset-install.yaml
+	@echo "--Removing pod & CNI installation..."
+	@kubectl -n calico-vpp-dataplane delete deployment multinet-monitor-deployment
+	@( \
+	  for cid in `kubectl -n calico-vpp-dataplane get pods -o go-template --template='{{range .items}}{{printf "%s\n" .metadata.name}}{{end}}'` ;\
+	  do \
+		kubectl exec -it -n calico-vpp-dataplane $$cid -c vpp -- \
+		  rm -rvf /host/etc/cni/net.d/multus.d \
+		          /host/etc/cni/net.d/whereabouts.d \
+		          /host/etc/cni/net.d/00-multus.conf ;\
+	  done ;\
+	)
+
+
 .PHONY: go-check
-go-check:
+go-check: go-lint
 	gofmt -s -l . | grep -v binapi | grep -v vpp_build | diff -u /dev/null -
-	go vet ./...
 	go test ./...
+
+.PHONY: go-lint
+go-lint:
+	golangci-lint run --color=never
+
+.PHONY: go-lint-fix
+go-lint-fix:
+	golangci-lint run --fix

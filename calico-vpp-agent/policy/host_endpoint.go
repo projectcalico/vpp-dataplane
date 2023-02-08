@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
+	"github.com/projectcalico/calico/felix/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -178,10 +178,11 @@ func (h *HostEndpoint) getTapPolicies(state *PolicyState) (conf *types.Interface
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, h.server.workloadsToHostPolicy.VppID)
-		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicyId}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.IngressPolicyIDs...)
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
-		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicyId}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.EgressPolicyIDs...)
 	}
 	return conf, nil
 }
@@ -192,10 +193,10 @@ func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.Inter
 		return nil, errors.Wrap(err, "cannot create host policies for forwardConf")
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
-		conf.EgressPolicyIDs = append([]uint32{h.server.allowToHostPolicyId}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.EgressPolicyIDs...)
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
-		conf.IngressPolicyIDs = append([]uint32{h.server.allowToHostPolicyId}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.IngressPolicyIDs...)
 	}
 	return conf, nil
 }
@@ -259,10 +260,20 @@ func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *Po
 }
 
 func (h *HostEndpoint) Delete(vpp *vpplink.VppLink, state *PolicyState) (err error) {
-	for _, swIfIndex := range append(append(h.UplinkSwIfIndexes, h.TapSwIfIndexes...), h.TunnelSwIfIndexes...) {
-		// Unconfigure policies
+	for _, swIfIndex := range append(h.UplinkSwIfIndexes, h.TunnelSwIfIndexes...) {
+		// Unconfigure forward policies
 		h.server.log.Infof("policy(del) interface swif=%d", swIfIndex)
 		err = vpp.ConfigurePolicies(swIfIndex, types.NewInterfaceConfig(), 0)
+		if err != nil {
+			return errors.Wrapf(err, "cannot unconfigure policies on interface %d", swIfIndex)
+		}
+	}
+	for _, swIfIndex := range h.TapSwIfIndexes {
+		// Unconfigure tap0 policies
+		h.server.log.Infof("policy(del) interface swif=%d", swIfIndex)
+		conf := types.NewInterfaceConfig()
+		conf.IngressPolicyIDs = h.server.defaultTap0IngressConf
+		err = vpp.ConfigurePolicies(swIfIndex, conf, 0)
 		if err != nil {
 			return errors.Wrapf(err, "cannot unconfigure policies on interface %d", swIfIndex)
 		}

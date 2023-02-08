@@ -106,10 +106,6 @@ func NewConnectivityServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyS
 	return &server
 }
 
-func isCrossSubnet(gw net.IP, subnet net.IPNet) bool {
-	return !subnet.Contains(gw)
-}
-
 func (s *ConnectivityServer) GetNodeByIp(addr net.IP) *common.LocalNodeSpec {
 	ns, found := s.nodeByAddr[addr.String()]
 	if !found {
@@ -151,7 +147,7 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 	for {
 		select {
 		case <-t.Dying():
-			s.log.Infof("Connectivity Server asked to stop")
+			s.log.Warn("Connectivity Server asked to stop")
 			return nil
 		case evt := <-s.connectivityEventChan:
 			/* Note: we will only receive events we ask for when registering the chan */
@@ -254,13 +250,14 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 		return VXLAN, nil
 	}
 	ipPool := s.policyServerIpam.GetPrefixIPPool(&cn.Dst)
+	s.log.Debugf("IPPool for route %s: %+v", cn.String(), ipPool)
 	if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 		return SRv6, nil
 	}
 	if ipPool == nil {
 		return FLAT, nil
 	}
-	if ipPool.IpipMode == string(encap.Always) {
+	if ipPool.IpipMode == encap.Always {
 		if s.providers[IPSEC].Enabled(cn) {
 			return IPSEC, nil
 		} else if s.providers[WIREGUARD].Enabled(cn) {
@@ -269,12 +266,12 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 			return IPIP, nil
 		}
 	}
-	ipNet := s.GetNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
-	if ipPool.IpipMode == string(encap.CrossSubnet) {
-		if ipNet == nil {
+	nodeIpNet := s.GetNodeIPNet(vpplink.IsIP6(cn.Dst.IP))
+	if ipPool.IpipMode == encap.CrossSubnet {
+		if nodeIpNet == nil {
 			return FLAT, fmt.Errorf("missing node IPnet")
 		}
-		if !isCrossSubnet(cn.NextHop, *ipNet) {
+		if !nodeIpNet.Contains(cn.NextHop) {
 			if s.providers[IPSEC].Enabled(cn) {
 				return IPSEC, nil
 			} else if s.providers[WIREGUARD].Enabled(cn) {
@@ -284,17 +281,20 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 			}
 		}
 	}
-	if ipPool.VxlanMode == string(encap.Always) {
+	if ipPool.VxlanMode == encap.Always {
 		if s.providers[WIREGUARD].Enabled(cn) {
 			return WIREGUARD, nil
 		}
 		return VXLAN, nil
 	}
-	if ipPool.VxlanMode == string(encap.CrossSubnet) {
-		if ipNet == nil {
+	if ipPool.VxlanMode == encap.CrossSubnet {
+		if nodeIpNet == nil {
 			return FLAT, fmt.Errorf("missing node IPnet")
 		}
-		if !isCrossSubnet(cn.NextHop, *ipNet) {
+		if !nodeIpNet.Contains(cn.NextHop) {
+			if s.providers[WIREGUARD].Enabled(cn) {
+				return WIREGUARD, nil
+			}
 			return VXLAN, nil
 		}
 	}

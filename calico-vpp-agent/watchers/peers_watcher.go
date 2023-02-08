@@ -19,7 +19,7 @@ import (
 	"net"
 	"time"
 
-	bgpapi "github.com/osrg/gobgp/api"
+	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -225,6 +225,7 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 		w.cleanExistingWatcher()
 		time.Sleep(2 * time.Second)
 	}
+	w.log.Warn("BGPPeer watcher stopped")
 	return nil
 }
 
@@ -258,7 +259,7 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 		} else {
 			w.log.Debugf("Node to node mesh disabled")
 		}
-		// Intialize the set consisting of active secrets
+		// Initialize the set consisting of active secrets
 		activeSecrets := map[string]struct{}{}
 		for _, peer := range peers.Items {
 			if !w.shouldPeer(&peer) {
@@ -402,7 +403,7 @@ func (w *PeerWatcher) createBGPPeer(ip string, asn uint32, peerSpec *calicov3.BG
 	peer := &bgpapi.Peer{
 		Conf: &bgpapi.PeerConf{
 			NeighborAddress: ipAddr.String(),
-			PeerAs:          asn,
+			PeerAsn:         asn,
 		},
 		GracefulRestart: &bgpapi.GracefulRestart{
 			Enabled:             true,

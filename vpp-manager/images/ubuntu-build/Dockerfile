@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 LABEL maintainer="aloaugus@cisco.com"
 
@@ -19,6 +19,7 @@ RUN apt-get update \
 	python3-virtualenv \
 	libssl-dev \
 	libelf-dev \
+	libpcap-dev iperf ethtool \
 	iperf3 \
 	nasm \
 	clang clang-format-11 \

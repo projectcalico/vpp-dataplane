@@ -68,3 +68,11 @@ func (pools *IPPoolsStub) List(ctx context.Context, opts options.ListOptions) (*
 func (pools *IPPoolsStub) Watch(ctx context.Context, opts options.ListOptions) (watch.Interface, error) {
 	panic("not implemented")
 }
+
+func (pools *IPPoolsStub) UnsafeCreate(ctx context.Context, res *apiv3.IPPool, opts options.SetOptions) (*apiv3.IPPool, error) {
+	panic("not implemented")
+}
+
+func (pools *IPPoolsStub) UnsafeDelete(ctx context.Context, name string, opts options.DeleteOptions) (*apiv3.IPPool, error) {
+	panic("not implemented")
+}

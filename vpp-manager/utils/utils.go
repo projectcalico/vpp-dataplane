@@ -182,7 +182,7 @@ func SetRLimitMemLock() error {
 }
 
 func CreateVppLink() (vpp *vpplink.VppLink, err error) {
-	// Get an API connection, with a few retries to accomodate VPP startup time
+	// Get an API connection, with a few retries to accommodate VPP startup time
 	for i := 0; i < 10; i++ {
 		vpp, err = vpplink.NewVppLink(config.VppApiSocket, log.WithFields(log.Fields{"component": "vpp-api"}))
 		if err != nil {
@@ -211,7 +211,7 @@ func SetVfioUnsafeiommu(iommu bool) (err error) {
 	if iommu {
 		err = WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	} else {
-		err = WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+		err = WriteFile("N", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	}
 	if errors.Is(err, os.ErrNotExist) {
 		return nil

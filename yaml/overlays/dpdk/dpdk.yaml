@@ -4,7 +4,24 @@ metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
 data:
-  CALICOVPP_NATIVE_DRIVER: "dpdk"
+  CALICOVPP_INTERFACES: |-
+    {
+      "maxPodIfSpec": {
+        "rx": 10, "tx": 10, "rxqsz": 1024, "txqsz": 1024
+      },
+      "defaultPodIfSpec": {
+        "rx": 1, "tx":1, "isl3": true
+      },
+      "vppHostTapSpec": {
+        "rx": 1, "tx":1, "rxqsz": 1024, "txqsz": 1024, "isl3": false
+      },
+      "uplinkInterfaces": [
+        {
+          "interfaceName": "eth1",
+          "vppDriver": "dpdk"
+        }
+      ]
+    }
 ---
 kind: DaemonSet
 apiVersion: apps/v1

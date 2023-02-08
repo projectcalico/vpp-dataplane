@@ -29,16 +29,16 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	gs "github.com/onsi/gomega/gstruct"
-	gobgpapi "github.com/osrg/gobgp/api"
+	gobgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/calico/felix/config"
+	"github.com/projectcalico/calico/felix/proto"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/encap"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/connectivity"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks/calico"
 	agentConf "github.com/projectcalico/vpp-dataplane/config"
@@ -135,6 +135,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		log = logrus.New()
 		client = calico.NewCalicoClientStub()
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
+		agentConf.GetCalicoVppFeatureGates().SRv6Enabled = &agentConf.False
 	})
 
 	JustBeforeEach(func() {
@@ -202,6 +203,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 				// Enables IPSec (=uses IPSec over IPIP tunnel and not pure IPIP tunnel)
 				agentConf.GetCalicoVppFeatureGates().IPSecEnabled = &agentConf.True
+				agentConf.GetCalicoVppIpsec().CrossIpsecTunnels = &agentConf.False
 
 				// setup PubSub handler to catch TunnelAdded events
 				pubSubHandlerMock = mocks.NewPubSubHandlerMock(common.TunnelAdded)

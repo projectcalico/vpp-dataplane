@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
+	"github.com/projectcalico/calico/felix/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
@@ -121,7 +121,7 @@ func (w *WorkloadEndpoint) getPolicies(state *PolicyState, network string) (conf
 		conf.ProfileIDs = append(conf.ProfileIDs, prof.VppID)
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
-		conf.IngressPolicyIDs = append([]uint32{w.server.allowFromHostPolicyId}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{w.server.AllowFromHostPolicy.VppID}, conf.IngressPolicyIDs...)
 	}
 	return conf, nil
 }

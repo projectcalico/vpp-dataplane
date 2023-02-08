@@ -74,6 +74,10 @@ func isEnvVarSupported(str string) bool {
 	return found
 }
 
+type Validable interface {
+	Validate() error
+}
+
 func envVar[T any](varName string, defaultValue T, required bool, parser func(string) (T, error)) *T {
 	v := defaultValue
 	p := &EnvVarParser{valueString: fmt.Sprintf("%v", v)}
@@ -89,6 +93,14 @@ func envVar[T any](varName string, defaultValue T, required bool, parser func(st
 			return errors.Errorf("Missing required environment variable %s", varName)
 		}
 		p.valueString = fmt.Sprintf("%v", v)
+		// If the variable type implements Validable, we run it as part of the parsing process.
+		// this enables setting default values, or asserting type constraints
+		if va, ok := any(v).(Validable); ok {
+			err := va.Validate()
+			if err != nil {
+				return errors.Errorf("Failed to validate environment variable %s", varName)
+			}
+		}
 		return nil
 	}
 	return &v
@@ -211,26 +223,14 @@ func IntEnvVar(varName string, defaultValue int) *int {
 	})
 }
 
-// T is a pointer
+// JsonEnvVar allows to declare envvars containing structs formatted as json
+// * defaultValue should be a pointer to a SomeStructType
+// * this returns a **SomeStructType
+// * if SomeStructType implements Validable (pointer receiver) it will be run as part
+// of the parsing process, allowing to set defaults.
 func JsonEnvVar[T any](varName string, defaultValue T) *T {
 	return EnvVar(varName, defaultValue, func(value string) (T, error) {
 		err := json.Unmarshal([]byte(value), defaultValue)
-		return defaultValue, err
-	})
-}
-
-type Validable interface {
-	Validate() error
-}
-
-// T is a pointer
-func ValidableJsonEnvVar[T Validable](varName string, defaultValue T) *T {
-	return EnvVar(varName, defaultValue, func(value string) (T, error) {
-		err := json.Unmarshal([]byte(value), defaultValue)
-		if err != nil {
-			return defaultValue, err
-		}
-		err = defaultValue.Validate()
 		return defaultValue, err
 	})
 }

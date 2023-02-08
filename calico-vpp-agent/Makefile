@@ -8,7 +8,7 @@ VERSION_FILE=version
 all: build gobgp image
 
 export GOOS=linux
-GOBGP_DIR=$(shell go list -f '{{.Dir}}' -m github.com/osrg/gobgp)
+GOBGP_DIR=$(shell go list -f '{{.Dir}}' -m github.com/osrg/gobgp/v3)
 
 build:
 	go build -o ./cmd/calico-vpp-agent ./cmd

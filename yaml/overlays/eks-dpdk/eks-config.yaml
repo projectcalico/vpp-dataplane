@@ -6,6 +6,15 @@ metadata:
 data:  # Configuration template for VPP in EKS
   CALICOVPP_INTERFACES: |-
     {
+      "maxPodIfSpec": {
+        "rx": 10, "tx": 10, "rxqsz": 1024, "txqsz": 1024
+      },
+      "defaultPodIfSpec": {
+        "rx": 1, "tx":1, "isl3": true
+      },
+      "vppHostTapSpec": {
+        "rx": 1, "tx":1, "rxqsz": 1024, "txqsz": 1024, "isl3": false
+      },
       "uplinkInterfaces": [
         {
           "interfaceName": "eth0",

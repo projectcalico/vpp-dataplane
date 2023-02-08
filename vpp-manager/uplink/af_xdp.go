@@ -42,7 +42,7 @@ func (d *AFXDPDriver) IsSupported(warn bool) bool {
 	}
 	if d.params.KernelVersion == nil {
 		if warn {
-			log.Warnf("Unkown current kernel version")
+			log.Warnf("Unknown current kernel version")
 		}
 		return false
 	}
