@@ -37,6 +37,9 @@ import (
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/encap"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
+	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
@@ -46,8 +49,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Names of integration tests arguments
@@ -930,7 +931,7 @@ func configureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uin
 		Flags: types.TapFlagNone,
 		// Host end of tap (it is located inside docker container)
 		HostMtu:        1500,
-		HostMacAddress: *mac("aa:bb:cc:dd:ee:02"),
+		HostMacAddress: mac("aa:bb:cc:dd:ee:02"),
 	})
 	Expect(err).ToNot(HaveOccurred(), "Error creating mocked Uplink interface")
 	err = vpp.InterfaceAdminUp(uplinkSwIfIndex)

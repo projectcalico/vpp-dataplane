@@ -32,7 +32,7 @@ import (
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/vishvananda/netlink"
-	tomb "gopkg.in/tomb.v2"
+	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/config"
@@ -811,7 +811,7 @@ func (v *VppRunner) runVpp() (err error) {
 			return errors.Wrap(err, "Error setting uplink interface up")
 		}
 
-		err = v.configureVppUplinkInterface(v.uplinkDriver[idx], v.uplinkDriver[idx], v.conf[idx], v.params.UplinksSpecs[idx])
+		err = v.configureVppUplinkInterface(v.uplinkDriver[idx], v.conf[idx], v.params.UplinksSpecs[idx])
 
 		if err != nil {
 			terminateVpp("Error configuring VPP: %v", err)

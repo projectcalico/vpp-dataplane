@@ -268,7 +268,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 					// Setup test prerequisite (per-multinet-network VRF and loopback interface)")
 					// (this is normally done by watchers.NetWatcher.CreateVRFsForNet(...))
-					loopbackSwIfIndex, err := vpp.CreateLoopback(&common.ContainerSideMacAddress)
+					loopbackSwIfIndex, err := vpp.CreateLoopback(common.ContainerSideMacAddress)
 					Expect(err).ToNot(HaveOccurred(), "error creating loopback for multinet network")
 					var tables [2]uint32
 					networkName := "myFirstMultinetNetwork"

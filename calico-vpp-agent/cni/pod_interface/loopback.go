@@ -18,10 +18,11 @@ package pod_interface
 import (
 	"github.com/pkg/errors"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/sirupsen/logrus"
 )
 
 type LoopbackPodInterfaceDriver struct {
@@ -37,7 +38,7 @@ func NewLoopbackPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *Loo
 }
 
 func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
-	swIfIndex, err := i.vpp.CreateLoopback(&common.ContainerSideMacAddress)
+	swIfIndex, err := i.vpp.CreateLoopback(common.ContainerSideMacAddress)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating loopback")
 	} else {
