@@ -26,7 +26,7 @@ import (
 func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) error {
 	for _, containerIP := range podSpec.GetContainerIps() {
 		var table uint32
-		if podSpec.NetworkName != "" {
+		if podSpec.NetworkName != "" && podSpec.NetworkName != defaultNetwork {
 			idx := 0
 			if vpplink.IsIP6(containerIP.IP) {
 				idx = 1
@@ -65,7 +65,7 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
 	for _, containerIP := range podSpec.GetContainerIps() {
 		var table uint32
-		if podSpec.NetworkName != "" {
+		if podSpec.NetworkName != "" && podSpec.NetworkName != defaultNetwork {
 			idx := 0
 			if vpplink.IsIP6(containerIP.IP) {
 				idx = 1
@@ -178,7 +178,7 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 	for idx, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
 		var vrfIndex uint32
-		if podSpec.NetworkName == "" { // no multi net
+		if podSpec.NetworkName == "" || podSpec.NetworkName == defaultNetwork { // no multi net
 			vrfIndex = common.PodVRFIndex
 		} else {
 			netDef, found := s.networkDefinitions[podSpec.NetworkName]
@@ -339,7 +339,7 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 	for idx, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
 		var vrfIndex uint32
-		if podSpec.NetworkName == "" {
+		if podSpec.NetworkName == "" || podSpec.NetworkName == defaultNetwork {
 			vrfIndex = common.PodVRFIndex
 		} else {
 			netDef, found := s.networkDefinitions[podSpec.NetworkName]

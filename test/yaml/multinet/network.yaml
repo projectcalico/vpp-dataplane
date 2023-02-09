@@ -13,3 +13,11 @@ metadata:
 spec:
   vni: 88
   range: "172.21.0.0/16"
+---
+apiVersion: projectcalico.org/v3
+kind: Network
+metadata:
+  name: calico-vpp-default
+spec:
+  vni: 0
+  range: "172.44.0.0/24"

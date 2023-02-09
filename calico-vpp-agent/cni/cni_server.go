@@ -42,6 +42,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
 )
 
+const defaultNetwork string = "calico-vpp-default"
+
 type Server struct {
 	log *logrus.Entry
 	vpp *vpplink.VppLink
