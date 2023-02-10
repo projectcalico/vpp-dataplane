@@ -42,21 +42,21 @@ metadata:
   name: network-blue-conf
 spec:
   config: |-
-  {
-  	    "name": "network-blue",
-  	    "plugins": [
-              {
-          	            "type": "calico",
-                        "ipam": {
-          	                  "type": "whereabouts",
-                        }
-                        …
-                        "dataplane_options": {
-        	                "network_name": "blue"
-                         }
-                    }
-                ]
+    {
+      "name": "network-blue",
+      "plugins": [
+        {
+          "type": "calico",
+          "ipam": {
+            "type": "whereabouts",
           }
+          …
+          "dataplane_options": {
+            "network_name": "blue"
+          }
+        }
+      ]
+    }
 ```
 
 The IPAM that we use to assign addresses to pods in secondary networks is [Whereabouts](https://github.com/k8snetworkplumbingwg/whereabouts). We opted for this IPAM as it is a lightweight solution allowing allocating addresses, with a synchronization mechanism across nodes,  out of several potentially overlapping pools.
@@ -88,7 +88,7 @@ On the dataplane front:
 
 We are currently working on exposing a way to customize the encapsulation used to carry the network VNI between nodes. See `Active developments`
 
-![Alt text](img/multinet/multinet_connectivity.png?raw=true "Title")
+![multinet_connectivity](_static/multinet_connectivity.png?raw=true "Title")
 
 ### Memif
 
@@ -122,11 +122,11 @@ metadata:
 spec:
   ports:
   - protocol: TCP
-  	port: 80
-  	targetPort: 9376
+    port: 80
+    targetPort: 9376
 ```
 
-![Alt text](img/multinet/multinet_service.png?raw=true "Title")
+![Multinet service](_static/multinet_service.png?raw=true "Title")
 
 
 ### Multinet policies
@@ -146,21 +146,21 @@ spec:
   - action: Allow
     protocol: TCP
     destination:
-  	  ports:
-  	  - 3434
+      ports:
+      - 3434
   - action: Allow
     protocol: TCP
     metadata:
-  	  annotations:
-    	  extensions.projectcalico.org/network: "red"
+      annotations:
+        extensions.projectcalico.org/network: "red"
   destination:
-  	ports:
-  	- 7809
+    ports:
+    - 7809
 ```
 
 Here is a link to a demo starring all these features.
 
-[![Alt text](img/multinet/demobutton.png?raw=true "Title")](https://asciinema.org/a/htzzaP4WUhPrOYirUJEkNokU7)
+[![Demo](_static/demobutton.png?raw=true "Title")](https://asciinema.org/a/htzzaP4WUhPrOYirUJEkNokU7)
 
 
 ## Active developments
