@@ -164,15 +164,16 @@ func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, up
 		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)
 	}
 	swIfIndex, err := vpp.SearchInterfaceWithTag("main-" + d.spec.InterfaceName)
-	if err != nil {
+	if err != nil || swIfIndex == ^uint32(0) {
 		return fmt.Errorf("error trying to find interface with tag main-%s", d.spec.InterfaceName)
 	}
+	log.Debugf("Found interface with swIfIndex %d for %s", swIfIndex, d.spec.InterfaceName)
 	d.spec.SwIfIndex = swIfIndex
 	err = vpp.SetInterfaceMacAddress(swIfIndex, &d.conf.HardwareAddr)
 	if err != nil && gerrors.Is(err, types.VppErrorUnimplemented) {
 		log.Warn("Setting dpdk interface mac address in vpp unsupported")
 	} else if err != nil {
-		return errors.Wrap(err, "could not set dpdk interface mac address in vpp")
+		return errors.Wrapf(err, "could not set dpdk interface %d mac address in vpp", swIfIndex)
 	}
 	return nil
 }
