@@ -124,7 +124,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 	JustBeforeEach(func() {
 		test.StartVPP()
-		vpp, uplinkSwIfIndex = test.ConfigureVPP(log)
+		vpp, uplinkSwIfIndex = test.ConfigureVPP(log, false)
 
 		// setup connectivity server (functionality target of tests)
 		if ipamStub == nil {

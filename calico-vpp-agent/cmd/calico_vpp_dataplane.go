@@ -40,8 +40,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
 	"github.com/projectcalico/vpp-dataplane/config"
 
+	watchdog "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watch_dog"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watch_dog"
 )
 
 /*

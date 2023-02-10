@@ -20,41 +20,46 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	cniproto "github.com/projectcalico/calico/cni-plugin/pkg/dataplane/grpc/proto"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/pod_interface"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/connectivity"
-	cniproto "github.com/projectcalico/calico/cni-plugin/pkg/dataplane/grpc/proto"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks/calico"
 	"github.com/projectcalico/vpp-dataplane/multinet-monitor/networkAttachmentDefinition"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
-	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
 const (
 	// PodMockContainerName is used container name for pod container mock
 	PodMockContainerName = "cni-tests-pod-mock"
 	// PodMockImage is docker image used for pod mocking
-	PodMockImage = "calicovpp/vpp-test-pod-mock:latest"
-	VPPContainerName = "cni-tests-vpp"
-	VppContainerExtraArgsName    = "VPP_CONTAINER_EXTRA_ARGS"
-	ThisNodeName = "node1"
-	UplinkIfName = "uplink"
-	UplinkIP     = "10.0.100.1"
-	UplinkIPv6   = "A::1:1"
-	GatewayIP    = "10.0.100.254"
-	GatewayIPv6  = "A::1:254"
-	ThisNodeIP   = UplinkIP
-	ThisNodeIPv6 = UplinkIPv6
+	PodMockImage              = "calicovpp/vpp-test-pod-mock:latest"
+	VPPContainerName          = "cni-tests-vpp"
+	VppContainerExtraArgsName = "VPP_CONTAINER_EXTRA_ARGS"
+	ThisNodeName              = "node1"
+	UplinkIfName              = "uplink"
+	Uplink2IfName             = "uplink2"
+	UplinkIP                  = "10.0.100.1"
+	UplinkIPv6                = "A::1:1"
+	Uplink2IP                 = "11.0.100.1"
+	Uplink2IPv6               = "B::1:1"
+	GatewayIP                 = "10.0.100.254"
+	GatewayIPv6               = "A::1:254"
+	ThisNodeIP                = UplinkIP
+	ThisNodeIPv6              = UplinkIPv6
 
 	AddedNodeName = "node2"
 	AddedNodeIP   = "10.0.200.1"
 	AddedNodeIPv6 = "A::2:1"
 )
+
 var (
 	// VppImage is the name of docker image containing VPP binary
 	VppImage string
@@ -63,6 +68,7 @@ var (
 	// vppContainerExtraArgs is a list of additionnal cli parameters for the VPP `docker run ...`
 	VppContainerExtraArgs []string = []string{}
 )
+
 func AssertTunInterfaceExistence(vpp *vpplink.VppLink, newPod *cniproto.AddRequest) uint32 {
 	ifSwIfIndex, err := vpp.SearchInterfaceWithTag(
 		InterfaceTagForLocalTunTunnel(newPod.InterfaceName, newPod.Netns))
@@ -289,8 +295,8 @@ func StartVPP() {
 	vppBinaryConfigArg := `unix {
 			nodaemon
 			full-coredump
-			cli-listen /var/run/vpp/cli2.sock
-			pidfile /run/vpp/vpp2.pid
+			cli-listen /var/run/vpp/cli.sock
+			pidfile /run/vpp/vpp.pid
 		  }
 		  api-trace { on }
 		  cpu {
@@ -325,7 +331,7 @@ func StartVPP() {
 }
 
 // ConfigureVPP connects to VPP and configures it with common configuration needed for tests
-func ConfigureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uint32) {
+func ConfigureVPP(log *logrus.Logger, additionaluplink bool) (vpp *vpplink.VppLink, uplinkSwIfIndex uint32) {
 	// connect to VPP
 	vpp, err := common.CreateVppLinkInRetryLoop("/tmp/"+VPPContainerName+"/vpp-api-test.sock",
 		log.WithFields(logrus.Fields{"component": "vpp-api"}), 20*time.Second, 100*time.Millisecond)
@@ -379,6 +385,39 @@ func ConfigureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uin
 		UplinkIfName, "up").Run()
 	Expect(err).ToNot(HaveOccurred(), "Failed to set state to UP for host end of tap")
 
+	if additionaluplink {
+		// setup simplified mock version of uplink interface
+		// Note: for the real configuration of the uplink interface and other related things see
+		// UplinkDriver.CreateMainVppInterface(...) and VppRunner.configureVpp(...))
+		uplinkSwIfIndex, err = vpp.CreateTapV2(&types.TapV2{
+			GenericVppInterface: types.GenericVppInterface{
+				HostInterfaceName: Uplink2IfName,
+				HardwareAddr:      Mac("aa:bb:cc:dd:ee:03"),
+			},
+			Tag:   fmt.Sprintf("main-%s", Uplink2IfName),
+			Flags: types.TapFlagNone,
+			// Host end of tap (it is located inside docker container)
+			HostMtu:        1500,
+			HostMacAddress: *Mac("aa:bb:cc:dd:ee:04"),
+		})
+		Expect(err).ToNot(HaveOccurred(), "Error creating mocked Uplink interface")
+		err = vpp.InterfaceAdminUp(uplinkSwIfIndex)
+		Expect(err).ToNot(HaveOccurred(), "Error setting state to UP for mocked Uplink interface")
+		err = vpp.AddInterfaceAddress(uplinkSwIfIndex, IpNet(Uplink2IP+"/24"))
+		Expect(err).ToNot(HaveOccurred(), "Error adding IPv4 address to data interface")
+		err = vpp.AddInterfaceAddress(uplinkSwIfIndex, IpNet(Uplink2IPv6+"/16"))
+		Expect(err).ToNot(HaveOccurred(), "Error adding IPv6 address to data interface")
+		err = exec.Command("docker", "exec", VPPContainerName, "ip", "address", "add",
+			GatewayIP+"/24", "dev", Uplink2IfName).Run()
+		Expect(err).ToNot(HaveOccurred(), "Failed to set IPv4 address for host end of tap")
+		err = exec.Command("docker", "exec", VPPContainerName, "ip", "address", "add",
+			GatewayIPv6+"/16", "dev", Uplink2IfName).Run()
+		Expect(err).ToNot(HaveOccurred(), "Failed to set IPv6 address for host end of tap")
+		err = exec.Command("docker", "exec", VPPContainerName, "ip", "link", "set",
+			Uplink2IfName, "up").Run()
+		Expect(err).ToNot(HaveOccurred(), "Failed to set state to UP for host end of tap")
+
+	}
 	return
 }
 

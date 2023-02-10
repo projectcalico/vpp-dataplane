@@ -31,8 +31,8 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
-	test "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common_tests"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	test "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common_tests"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/config"
@@ -58,7 +58,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 	BeforeEach(func() {
 		log = logrus.New()
 		test.StartVPP()
-		vpp, _ = test.ConfigureVPP(log)
+		vpp, _ = test.ConfigureVPP(log, false)
 		// setup connectivity server (functionality target of tests)
 		if ipamStub == nil {
 			ipamStub = mocks.NewIpamCacheStub()

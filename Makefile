@@ -197,6 +197,7 @@ run-integration-tests-cni:
 
 .PHONY: run-integration-tests-policy
 run-integration-tests-policy:
+	$(MAKE) -C felix fv-prereqs
 	cd test/integration-tests;./run-tests.sh policy
 
 .PHONY: test
