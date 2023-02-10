@@ -114,3 +114,51 @@ The outputed yaml is stored in `/tmp/calico-vpp.yaml`, you can uninstall by simp
 ````bash
 kubectl delete -f /tmp/calico-vpp.yaml
 ````
+
+## Setting up a VM (vagrant) based development cluster
+
+In order to test Calico-VPP, you can simply use our test infrastructure to deploy it on a 3-VM cluster. Requirements are :
+
+- an Ubuntu 18.04 or 20.04 machine
+- 8 CPU
+- 16 GB RAM
+- 100GB disk
+- kubectl installed: https://kubernetes.io/docs/tasks/tools/install-kubectl/
+- docker installed: https://docs.docker.com/engine/install/ubuntu/
+
+If you are connected to a network that requires the use of a proxy server to reach the public ubuntu repositories, or that restricts the use of the Google public DNS servers, configure the following variables in your environment before running any of the commands below:
+```
+export DNS_SERVER=8.8.8.8
+export VAGRANT_VM_PROXY=http://proxy.corp:80
+```
+
+Start by cloning this repository to get all the necessary scripts:
+```
+git clone git@github.com:projectcalico/vpp-dataplane.git
+```
+
+Then run the following commands to setup the test cluster:
+```
+make install-test-deps
+make start-test-cluster
+```
+
+At this point, you should be able to interact with the new cluster using kubectl, but the cluster won't have a CNI configured yet.
+```
+kubectl get nodes -o wide
+```
+
+Finally, you can install Calico with the VPP dataplane using:
+```
+make test-install-calicovpp
+```
+
+To install development images (that allow to recompile and restart calico/vpp without recreating images), run:
+```
+# Build VPP in debug mode
+make cherry-vpp
+make -C vpp-manager/vpp_build install-dep build
+make dev
+make load-images
+make test-install-calicovpp-dev
+```
