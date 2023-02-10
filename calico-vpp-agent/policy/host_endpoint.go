@@ -52,7 +52,6 @@ func (he *HostEndpoint) String() string {
 	s += types.StrListToString(" expectedIPs=", he.expectedIPs)
 	s += types.IntListToString(" uplink=", he.UplinkSwIfIndexes)
 	s += types.IntListToString(" tap=", he.TapSwIfIndexes)
-	s += types.IntListToString(" uplink=", he.UplinkSwIfIndexes)
 	s += types.IntListToString(" tunnel=", he.TunnelSwIfIndexes)
 	s += types.StrListToString(" profiles=", he.Profiles)
 	s += types.StrableListToString(" tiers=", he.Tiers)

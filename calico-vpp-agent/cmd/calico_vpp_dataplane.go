@@ -40,6 +40,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/services"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 
+	watchdog "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watch_dog"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 )
 
@@ -140,6 +141,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create policy server %s", err)
 	}
+	err = policy.InstallFelixPlugin()
+	if err != nil {
+		log.Fatalf("could not install felix plugin: %s", err)
+	}
 	connectivityServer := connectivity.NewConnectivityServer(vpp, policyServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 	cniServer := cni.NewCNIServer(vpp, policyServer, log.WithFields(logrus.Fields{"component": "cni"}))
 
@@ -154,7 +159,7 @@ func main() {
 	routingServer.SetBGPConf(bgpConf)
 	serviceServer.SetBGPConf(bgpConf)
 
-	watchDog := NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
+	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
 	Go(policyServer.ServePolicy)
 	felixConfig := watchDog.Wait(policyServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
 	ourBGPSpec := watchDog.Wait(policyServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")
