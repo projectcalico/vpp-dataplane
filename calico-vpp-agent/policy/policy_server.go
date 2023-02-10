@@ -1390,16 +1390,19 @@ func equalPools(a *proto.IPAMPoolUpdate, b *proto.IPAMPoolUpdate) bool {
 	return true
 }
 
+// addDelSnatPrefix configures IP Pool prefixes so that we don't source-NAT the packets going
+// to these addresses. All the IP Pools prefixes are configured that way so that pod <-> pod
+// communications are never source-nated in the cluster
+// Note(aloaugus) - I think the iptables dataplane behaves differently and uses the k8s level
+// pod CIDR for this rather than the individual pool prefixes
 func (s *Server) addDelSnatPrefix(pool *proto.IPAMPoolUpdate, isAdd bool) (err error) {
 	_, ipNet, err := net.ParseCIDR(pool.Pool.Cidr)
 	if err != nil {
 		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Pool.Cidr)
 	}
-	if pool.Pool.Masquerade {
-		err = s.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
-		if err != nil {
-			return errors.Wrapf(err, "Couldn't configure SNAT prefix")
-		}
+	err = s.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
+	if err != nil {
+		return errors.Wrapf(err, "Couldn't configure SNAT prefix")
 	}
 	return nil
 }
