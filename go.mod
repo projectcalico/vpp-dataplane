@@ -33,6 +33,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.12.0
 )
 
+require github.com/osrg/gobgp v2.0.0+incompatible
+
 require (
 	cloud.google.com/go/compute v1.12.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.1 // indirect

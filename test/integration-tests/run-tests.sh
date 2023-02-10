@@ -42,9 +42,13 @@ echo "Running Calico VPP Agent - CNI tests..."
 prepageImageWithVPPBinary
 preparePodMockImage
 # Note: some pod tests expect elevated user privileges -> using sudo
+if [ $1 = cni ]; then
 INTEGRATION_TEST="." VPP_IMAGE=$VPP_IMAGE VPP_BINARY="/usr/bin/vpp" \
 sudo -E env "PATH=$PATH" go test -v -run Integration ../../calico-vpp-agent/cni -ginkgo.v || result=$?
-
+else
+INTEGRATION_TEST="." VPP_IMAGE=$VPP_IMAGE VPP_BINARY="/usr/bin/vpp" \
+sudo -E env "PATH=$PATH" go test -v -run Integration ../../calico-vpp-agent/policy -ginkgo.v || result=$?
+fi
 
 
 if [ $result -ne 0 ]; then

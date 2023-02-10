@@ -41,6 +41,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/config"
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watch_dog"
 )
 
 /*
@@ -136,7 +137,7 @@ func main() {
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
-	policyServer, err := policy.NewPolicyServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
+	policyServer, err := policy.NewPolicyServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}), true)
 	if err != nil {
 		log.Fatalf("Failed to create policy server %s", err)
 	}
@@ -154,7 +155,7 @@ func main() {
 	routingServer.SetBGPConf(bgpConf)
 	serviceServer.SetBGPConf(bgpConf)
 
-	watchDog := NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
+	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
 	Go(policyServer.ServePolicy)
 	felixConfig := watchDog.Wait(policyServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
 	ourBGPSpec := watchDog.Wait(policyServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")

@@ -740,6 +740,8 @@ github.com/opencontainers/selinux v1.10.0/go.mod h1:2i0OySw99QjzBBQByd1Gr9gSjvuh
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/orijtech/prometheus-go-metrics-exporter v0.0.6 h1:ExkpQsyDDcyp0U3zhoNUQaCQ/o0Ovq7e1jRCL9lQ/4o=
 github.com/orijtech/prometheus-go-metrics-exporter v0.0.6/go.mod h1:BiTx/ugZex8LheBk3j53tktWaRdFjV5FCfT2o0P7msE=
+github.com/osrg/gobgp v2.0.0+incompatible h1:91ARQbE1AtO0U4TIxHPJ7wYVZIqduyBwS1+FjlHlmrY=
+github.com/osrg/gobgp v2.0.0+incompatible/go.mod h1:vGVJPLW6JFDD7WA1vJsjB8OKmbbC2TKwHtr90CZS/u4=
 github.com/osrg/gobgp/v3 v3.10.0 h1:gBFOKEFX4ih8IubY7SFuXPwE33HWX+VqSuXyQb6vqyU=
 github.com/osrg/gobgp/v3 v3.10.0/go.mod h1:/q/mr+dOuPf5hDlLiatVll1P7BX4pmiXQxd4ZZpUbkg=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
