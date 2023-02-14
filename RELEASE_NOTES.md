@@ -1,3 +1,28 @@
+### Calico-VPP v3.25.0
+> 14 Feb 2023
+
+* New features:
+  - Configuration refactoring: standardize agent configs [see documentation for details](docs/config.md)
+	* This allows controling the number queues, and queue sizes for each pod
+	* Defaults & Limits are also available cluster-wide
+  - Support for multinet-aware policies
+  - Migrate to felix messages for node & route updates. This improves scalability preventing nodes to listen to all nodes updates.
+  - Upgrade goBGP to v3.10.0
+  - Update image base to ubuntu 22.04
+  - Change capo CLI output to use RX/TX instead of ingress/egress
+  - Add prometheus stats for memif
+  - Add SCTP support for services
+
+* Bug fixes
+  - Multiple policies fixes (mostly host endpoint related)
+  - Add startup script reporting an agent waiting for a condition 
+  - CI: automation of tests & linting on every patch
+  - Connectivity: fix cross-subnet logic
+  - Disable RA on all uplink interfaces
+  - Fix to greedy corefile cleanup
+  - Multiple VPP af-pkt, GSO & cksum offload fixes
+  - More kind customizations for development
+
 ### Calico-VPP v3.24.0
 > 19 Sep 2022
 
