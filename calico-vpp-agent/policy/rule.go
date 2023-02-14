@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/api/pkg/lib/numorstring"
 	"github.com/projectcalico/calico/felix/proto"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -233,17 +234,17 @@ func parseProtocol(pr *proto.Protocol) (types.IPProto, error) {
 	switch u := pr.NumberOrName.(type) {
 	case *proto.Protocol_Name:
 		switch strings.ToLower(u.Name) {
-		case "tcp":
+		case strings.ToLower(numorstring.ProtocolTCP):
 			return types.TCP, nil
-		case "udp":
+		case strings.ToLower(numorstring.ProtocolUDP):
 			return types.UDP, nil
-		case "icmp":
+		case strings.ToLower(numorstring.ProtocolICMP):
 			return types.ICMP, nil
-		case "icmp6":
+		case strings.ToLower(numorstring.ProtocolICMPv6):
 			return types.ICMP6, nil
-		case "sctp":
+		case strings.ToLower(numorstring.ProtocolSCTP):
 			return types.SCTP, nil
-		case "udplite":
+		case strings.ToLower(numorstring.ProtocolUDPLite):
 			return 136, nil // TODO fix?
 		default:
 			return 0, fmt.Errorf("unknown protocol: %s", u.Name)
