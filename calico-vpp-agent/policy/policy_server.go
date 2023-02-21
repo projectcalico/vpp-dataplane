@@ -114,7 +114,7 @@ type Server struct {
 }
 
 // NewServer creates a policy server
-func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
+func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry, withInstallPlugin bool) (*Server, error) {
 	var err error
 
 	server := &Server{
@@ -165,9 +165,11 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		return nil, errors.Wrapf(err, "Could not delete socket %s", config.FelixDataplaneSocket)
 	}
 
-	err = InstallFelixPlugin()
-	if err != nil {
-		return nil, errors.Wrap(err, "could not install felix plugin")
+	if withInstallPlugin {
+		err = InstallFelixPlugin()
+		if err != nil {
+			return nil, errors.Wrap(err, "could not install felix plugin")
+		}
 	}
 
 	return server, nil
