@@ -8,7 +8,7 @@ FROM ${BASE_IMAGE} as dependencies
 ENV UNATTENDED=y
 
 RUN apt-get update \
- && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     apt-utils wget cmake curl git
 
 ENV GOVERSION=1.18.2
