@@ -1,3 +1,5 @@
+include .ci/common.mk
+
 check-%:
 	@: $(if $(value $*),,$(error $* is undefined))
 
@@ -5,6 +7,7 @@ check-%:
 build:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
+	$(MAKE) -C multinet-monitor $@
 
 .PHONY: image images
 images: image
@@ -17,6 +20,7 @@ image:
 push:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
+	$(MAKE) -C multinet-monitor $@
 
 .PHONY: dev
 dev:

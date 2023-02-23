@@ -17,7 +17,7 @@ BASE_IMAGE_BUILDER = ubuntu:20.04
 
 # Compute hash to detect any changes and rebuild /push the image
 DEPEND_HASH = $(shell echo "${BASE_IMAGE_BUILDER}-DOCKERFILE:$(shell md5sum Dockerfile.depend)" | md5sum | cut -f1 -d' ')
-DEPEND_IMAGE = calicovpp/ci-builder:${DEPEND_HASH}
+DEPEND_IMAGE = ${DEPEND_BASE}:${DEPEND_HASH}
 
 ifdef CI_BUILD
         PUSH_IMAGE = docker image push ${DEPEND_IMAGE}
@@ -38,11 +38,16 @@ depend-image: ## Make dependencies image. (Not required normally; is implied in 
                --tag ${DEPEND_IMAGE} \
 	       ${ABS_PATH}/ \
 	       && ${PUSH_IMAGE} )
+	docker tag ${DEPEND_IMAGE} ${DEPEND_BASE}:latest
 
 #
-# go vet vpp dataplane code
+# CI targets
 #
-.PHONY: go-vet
+.PHONY: go-check ci-images install
 go-check: depend-image
 	@echo Checking go code
 	docker run -t --rm --name build_temp -v ${ABS_PATH}:/vpp-dataplane ${DEPEND_IMAGE} make -C /vpp-dataplane go-check
+
+ci-install:
+	git config --global user.email "calicoci@cisco.com"
+	git config --global user.name "Calico CI"
