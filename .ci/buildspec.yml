@@ -10,6 +10,7 @@ phases:
       - echo Build started on `date`
 
       - docker --version
+      - make ci-install
 
       - echo "Logging to dockerhub"
       - docker login --username ${DOCKERHUB_USERNAME} --password=${DOCKERHUB_TOKEN} || true
@@ -20,6 +21,8 @@ phases:
   build:
     commands:
       - make go-check
+
+      - make -C ../ images
 
   post_build:
     commands:

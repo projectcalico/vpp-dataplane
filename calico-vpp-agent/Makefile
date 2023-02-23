@@ -1,3 +1,5 @@
+include ../.ci/common.mk
+
 .PHONY: all build gobgp image push proto
 
 TAG ?= latest # Tag images with :$(TAG)
@@ -8,15 +10,15 @@ VERSION_FILE=version
 all: build gobgp image
 
 export GOOS=linux
-GOBGP_DIR=$(shell go list -f '{{.Dir}}' -m github.com/osrg/gobgp/v3)
 
 build:
-	go build -o ./cmd/calico-vpp-agent ./cmd
-	go build -o ./cmd/felix-api-proxy ./cmd/api-proxy
-	go build -o ./cmd/debug ./cmd/debug-state
+	${DOCKER_RUN} go build -o ./cmd/calico-vpp-agent ./cmd
+	${DOCKER_RUN} go build -o ./cmd/felix-api-proxy ./cmd/api-proxy
+	${DOCKER_RUN} go build -o ./cmd/debug ./cmd/debug-state
 
+gobgp: GOBGP_DIR:=$(shell ${DOCKER_RUN} go list -f '{{.Dir}}' -m github.com/osrg/gobgp/v3)
 gobgp:
-	go build -o ./dep/gobgp $(GOBGP_DIR)/cmd/gobgp/
+	${DOCKER_RUN} go build -o ./dep/gobgp $(GOBGP_DIR)/cmd/gobgp/
 
 image: build gobgp
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)

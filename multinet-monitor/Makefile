@@ -1,3 +1,5 @@
+include ../.ci/common.mk
+
 TAG ?= latest # Tag images with :$(TAG)
 VERSION_FILE=version
 GENERATE_LOG_FILE=../vpplink/binapi/vppapi/generate.log
@@ -5,7 +7,7 @@ ALSO_LATEST ?= n # If 'y' also tag images with :latest
 
 .PHONY: build
 build:
-	go build -o ./watcher .
+	${DOCKER_RUN} go build -o ./watcher .
 
 .PHONY: image
 image: build
