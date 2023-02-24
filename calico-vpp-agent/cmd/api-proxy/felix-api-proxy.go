@@ -22,7 +22,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/config"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 )

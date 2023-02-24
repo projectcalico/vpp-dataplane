@@ -19,9 +19,9 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	vppacl "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/acl"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/acl_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	vppacl "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/acl"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/acl_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) AddACL(acl *types.ACL) (err error) {

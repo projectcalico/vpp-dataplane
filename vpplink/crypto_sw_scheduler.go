@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/crypto_sw_scheduler"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/crypto_sw_scheduler"
 )
 
 func (v *VppLink) SetCryptoWorker(workerIndex uint32, enable bool) error {

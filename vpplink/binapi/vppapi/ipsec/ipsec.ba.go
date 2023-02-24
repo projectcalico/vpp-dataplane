@@ -9,10 +9,10 @@
 package ipsec
 
 import (
-	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	ipsec_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ipsec_types"
-	tunnel_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/tunnel_types"
+	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
+	ipsec_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ipsec_types"
+	tunnel_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/tunnel_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )

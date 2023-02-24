@@ -19,8 +19,8 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/af_packet"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/af_packet"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint32, err error) {

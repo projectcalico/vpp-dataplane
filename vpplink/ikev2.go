@@ -20,10 +20,10 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ikev2"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ikev2_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ikev2"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ikev2_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 type IKEv2IDType uint8

@@ -28,8 +28,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 const (

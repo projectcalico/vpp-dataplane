@@ -24,14 +24,14 @@ import (
 	"github.com/pkg/errors"
 	"go.fd.io/govpp/api"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/gso"
-	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_neighbor"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/tapv2"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/gso"
+	interfaces "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	vppip "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/tapv2"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 const (

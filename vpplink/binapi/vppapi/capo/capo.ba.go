@@ -13,8 +13,8 @@ package capo
 import (
 	"strconv"
 
-	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/fib_types"
-	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	_ "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/fib_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )

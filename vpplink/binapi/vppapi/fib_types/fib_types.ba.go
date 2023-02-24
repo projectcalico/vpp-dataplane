@@ -11,7 +11,7 @@ package fib_types
 import (
 	"strconv"
 
-	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
 	api "go.fd.io/govpp/api"
 )
 
