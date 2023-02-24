@@ -18,8 +18,8 @@ package hooks
 import (
 	_ "embed"
 
-	"github.com/projectcalico/vpp-dataplane/config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	log "github.com/sirupsen/logrus"
 )
 

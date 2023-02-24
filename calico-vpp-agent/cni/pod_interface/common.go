@@ -19,10 +19,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 type PodInterfaceDriverData struct {

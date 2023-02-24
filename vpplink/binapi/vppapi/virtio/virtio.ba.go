@@ -11,9 +11,9 @@ package virtio
 import (
 	"strconv"
 
-	ethernet_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ethernet_types"
-	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	pci_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/pci_types"
+	ethernet_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ethernet_types"
+	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	pci_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/pci_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )

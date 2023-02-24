@@ -19,8 +19,8 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/rdma"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/rdma"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) CreateRDMA(intf *types.RDMAInterface) (swIfIndex uint32, err error) {

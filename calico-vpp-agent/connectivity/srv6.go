@@ -9,11 +9,11 @@ import (
 	"github.com/projectcalico/calico/libcalico-go/lib/ipam"
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 // NodeToPrefixes is data holder for node and traffic destination prefixes (subnets) that should end in the given node

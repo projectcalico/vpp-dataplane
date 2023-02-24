@@ -31,16 +31,16 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/connectivity"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/policy"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/prometheus"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/routing"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/services"
-	"github.com/projectcalico/vpp-dataplane/config"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/policy"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/services"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 )
 
 /*

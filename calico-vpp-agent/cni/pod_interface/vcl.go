@@ -18,9 +18,9 @@ package pod_interface
 import (
 	"fmt"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 	"github.com/sirupsen/logrus"
 )
 
