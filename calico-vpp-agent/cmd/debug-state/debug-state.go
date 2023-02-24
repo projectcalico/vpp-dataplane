@@ -19,8 +19,8 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/config"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 	log "github.com/sirupsen/logrus"
 )
 

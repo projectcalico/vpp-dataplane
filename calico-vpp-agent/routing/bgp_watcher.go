@@ -25,11 +25,11 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	tomb "gopkg.in/tomb.v2"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 
 	// needed for GoBGP building (in ../Makefile, gobgp target)
 	_ "github.com/inconshreveable/mousetrap"
