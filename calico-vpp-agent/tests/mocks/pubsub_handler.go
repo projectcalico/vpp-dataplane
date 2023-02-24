@@ -14,7 +14,7 @@
 package mocks
 
 import (
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"gopkg.in/tomb.v2"
 )
 

@@ -11,8 +11,8 @@ package acl_types
 import (
 	"strconv"
 
-	ethernet_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ethernet_types"
-	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	ethernet_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ethernet_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
 	api "go.fd.io/govpp/api"
 )
 

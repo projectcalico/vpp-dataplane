@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface"
+	interfaces "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface"
 	"go.fd.io/govpp/adapter"
 	"go.fd.io/govpp/adapter/statsclient"
 )

@@ -18,7 +18,7 @@ package types
 import (
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/acl_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/acl_types"
 )
 
 type ACLRule struct {

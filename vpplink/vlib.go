@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/vlib"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/vlib"
 )
 
 // GetNodeIndex gets node index of the node given by name. This is a helper method for VPP's node graph

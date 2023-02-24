@@ -8,7 +8,7 @@
 package avf
 
 import (
-	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )
