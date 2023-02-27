@@ -43,7 +43,7 @@ image: build ${VPP_TARBALL} eksimage
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
 	fi
 
-push: image
+push: ${PUSH_DEP}
 	docker push calicovpp/vpp:$(TAG)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker push calicovpp/vpp:latest; \

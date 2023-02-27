@@ -10,12 +10,15 @@ VPP_BUCKET = calico-vpp-ci-artefacts
 
 # Docker option
 SQUASH := --squash
+# push dependency
+PUSH_DEP := image
 
 # CI specific variables
 ifdef CODEBUILD_BUILD_NUMBER
 	# Define variable when building for CI
 	CI_BUILD = 1
 endif
+
 ifdef CI_BUILD
 	export CI_BUILD
 	GOFLAGS := -buildvcs=false
@@ -26,4 +29,11 @@ ifdef CI_BUILD
 	DOCKER_OPTS += -v ${PROJECT_DIR}:/vpp-dataplane
 	DOCKER_RUN = docker run -t --rm --name build_temp ${DOCKER_OPTS} calicovpp/ci-builder:latest
 	SQUASH :=
+	PUSH_DEP :=
 endif
+
+TAG = $(shell git rev-parse HEAD)
+ifeq (${CODEBUILD_WEBHOOK_TRIGGER},branch/master)
+	ALSO_LATEST := y
+endif
+

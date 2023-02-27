@@ -23,6 +23,7 @@ phases:
       - make go-check
 
       - make -C ../ images
+      - docker images
 
   post_build:
     commands:

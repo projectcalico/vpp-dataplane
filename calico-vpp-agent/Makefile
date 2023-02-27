@@ -29,7 +29,7 @@ image: build gobgp
 		docker tag calicovpp/agent:$(TAG) calicovpp/agent:latest; \
 	fi
 
-push: image
+push: ${PUSH_DEP}
 	docker push calicovpp/agent:$(TAG)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker push calicovpp/agent:latest; \
