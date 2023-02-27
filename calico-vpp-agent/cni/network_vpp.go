@@ -24,6 +24,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/config"
 	"github.com/projectcalico/vpp-dataplane/vpplink"
 	"github.com/projectcalico/vpp-dataplane/vpplink/types"
@@ -116,8 +117,6 @@ func (s *Server) removeConflictingContainers(newAddresses []storage.LocalIP, net
 
 // AddVppInterface performs the networking for the given config and IPAM result
 func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
-	s.multinetLock.Lock()
-	defer s.multinetLock.Unlock()
 	podSpec.NeedsSnat = false
 	for _, containerIP := range podSpec.GetContainerIps() {
 		podSpec.NeedsSnat = podSpec.NeedsSnat || s.policyServerIpam.IPNetNeedsSNAT(containerIP)
@@ -130,8 +129,8 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 
 	if podSpec.NetworkName != "" {
 		s.log.Infof("Checking network exists")
-		_, found := s.networkDefinitions[podSpec.NetworkName]
-		if !found {
+		_, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+		if !ok {
 			s.log.Errorf("network %s does not exist", podSpec.NetworkName)
 			return vpplink.InvalidID, errors.Errorf("network %s does not exist", podSpec.NetworkName)
 		}
@@ -232,7 +231,12 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	}
 
 	if podSpec.NetworkName != "" {
-		vni = s.networkDefinitions[podSpec.NetworkName].Vni
+		value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+		if !ok {
+			s.log.Errorf("network not found %s", podSpec.NetworkName)
+		} else {
+			vni = value.(*watchers.NetworkDefinition).Vni
+		}
 	}
 
 	s.log.Infof("pod(add) announcing pod Addresses")
@@ -273,8 +277,6 @@ err:
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
-	s.multinetLock.Lock()
-	defer s.multinetLock.Unlock()
 	err := ns.IsNSorErr(podSpec.NetnsName)
 	if err != nil {
 		s.log.Infof("pod(del) netns '%s' doesn't exist, skipping", podSpec.NetnsName)
@@ -292,11 +294,11 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 	var vni uint32
 	deleteLocalPodAddress := true
 	if podSpec.NetworkName != "" {
-		netDef, found := s.networkDefinitions[podSpec.NetworkName]
-		if found {
-			vni = netDef.Vni
-		} else {
+		value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+		if !ok {
 			deleteLocalPodAddress = false
+		} else {
+			vni = value.(*watchers.NetworkDefinition).Vni
 		}
 	}
 	if deleteLocalPodAddress {
