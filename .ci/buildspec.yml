@@ -6,6 +6,7 @@ env:
 phases:
   pre_build:
     commands:
+      - CI_BUILD=1
       - cd .ci
       - echo Build started on `date`
 
@@ -22,10 +23,12 @@ phases:
     commands:
       - make go-check
 
-      - make -C ../ images
-
+      - cd ..
+      - make images
       - docker images
-      - make -C ../ push
+
+      - make run-integration-tests
+      - make push
 
   post_build:
     commands:
