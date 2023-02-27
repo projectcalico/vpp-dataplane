@@ -56,7 +56,7 @@ push: ${PUSH_DEP}
 
 imageonly: build
 	cp $(VPPDEV_FILE) $(IMAGE_DIR)
-	docker build --squash --pull --network=host \
+	docker build ${SQUASH} --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 

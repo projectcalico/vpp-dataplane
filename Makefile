@@ -197,7 +197,7 @@ release: check-TAG check-CALICO_TAG
 
 .PHONY: run-integration-tests
 run-integration-tests:
-	cd test/integration-tests;./run-tests.sh
+	$(MAKE) -C test/integration-tests $@
 
 .PHONY: test
 test: go-lint
