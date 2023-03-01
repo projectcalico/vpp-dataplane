@@ -24,9 +24,9 @@ push:
 
 .PHONY: dev
 dev:
-	$(MAKE) -C calico-vpp-agent $@
-	$(MAKE) -C vpp-manager $@
-	$(MAKE) -C multinet-monitor $@
+	$(MAKE) -C calico-vpp-agent ALSO_LATEST=y $@
+	$(MAKE) -C vpp-manager ALSO_LATEST=y $@
+	$(MAKE) -C multinet-monitor ALSO_LATEST=y $@
 
 .PHONY: proto
 proto:

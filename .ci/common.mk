@@ -24,12 +24,15 @@ ifdef CI_BUILD
 	GOFLAGS := -buildvcs=false
 
 	DOCKER_OPTS  = -e CI_BUILD=1 -e GOFLAGS=${GOFLAGS}
+	DOCKER_OPTS += -e CGO_ENABLED=${CGO_ENABLED}
 	DOCKER_OPTS += --user $$(id -u):$$(id -g)
 	DOCKER_OPTS += -w /vpp-dataplane/${SUB_DIR}
 	DOCKER_OPTS += -v ${PROJECT_DIR}:/vpp-dataplane
 	DOCKER_RUN = docker run -t --rm --name build_temp ${DOCKER_OPTS} calicovpp/ci-builder:latest
 	SQUASH :=
 	PUSH_DEP :=
+else
+	DOCKER_RUN = CGO_ENABLED=${CGO_ENABLED} GOFLAGS=${GOFLAGS}
 endif
 
 TAG = $(shell git rev-parse HEAD)
