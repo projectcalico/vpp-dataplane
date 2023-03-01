@@ -1,3 +1,19 @@
+# About Calico-VPP versions
+
+Starting with version ``v3.23.0``, the versioning scheme for Calico/VPP matches that of Calico. Calico/VPP releases are done within a two weeks period after the Calico release date.
+
+As a Calico/VPP version works in conjunction with a Calico version, we offer the guarantee that patch releases are compatible for any given minor revision.
+Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any ``(x, y)``. This allows patch release to carry minor bugfixes.
+
+# Releases
+
+### Calico-VPP v3.25.1
+> 1st Mars 2023
+
+* Bug fixes
+ - Fix a deadlock that happened when cleaning conflicting addresses for pods
+ - Upgrade build envs to ubuntu 22.04 or link statically to avoid glibc version mismatch
+
 ### Calico-VPP v3.25.0
 > 14 Feb 2023
 
