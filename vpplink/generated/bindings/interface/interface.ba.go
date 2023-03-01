@@ -3,7 +3,7 @@
 // Package interfaces contains generated bindings for API file interface.api.
 //
 // Contents:
-// - 68 messages
+// - 72 messages
 package interfaces
 
 import (
@@ -23,7 +23,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "interface"
 	APIVersion = "3.2.3"
-	VersionCrc = 0xddff3487
+	VersionCrc = 0x82b1edb3
 )
 
 // Enable or disable detailed interface stats
@@ -269,7 +269,6 @@ func (m *CreateLoopbackReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* Gross kludge, DGMS
 // CreateSubif defines message 'create_subif'.
 type CreateSubif struct {
 	SwIfIndex   interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -319,7 +318,6 @@ func (m *CreateSubif) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* Gross kludge, DGMS
 // CreateSubifReply defines message 'create_subif_reply'.
 type CreateSubifReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -613,9 +611,6 @@ func (m *GetBuffersStats) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Get available, cached and used buffers
-//   - buffer_index - buffer stat index
-//
 // GetBuffersStatsReply defines message 'get_buffers_stats_reply'.
 type GetBuffersStatsReply struct {
 	Retval           int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -801,6 +796,186 @@ func (m *InterfaceNameRenumberReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *InterfaceNameRenumberReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// PcapTraceOff defines message 'pcap_trace_off'.
+type PcapTraceOff struct{}
+
+func (m *PcapTraceOff) Reset()               { *m = PcapTraceOff{} }
+func (*PcapTraceOff) GetMessageName() string { return "pcap_trace_off" }
+func (*PcapTraceOff) GetCrcString() string   { return "51077d14" }
+func (*PcapTraceOff) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *PcapTraceOff) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *PcapTraceOff) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *PcapTraceOff) Unmarshal(b []byte) error {
+	return nil
+}
+
+// PcapTraceOffReply defines message 'pcap_trace_off_reply'.
+type PcapTraceOffReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *PcapTraceOffReply) Reset()               { *m = PcapTraceOffReply{} }
+func (*PcapTraceOffReply) GetMessageName() string { return "pcap_trace_off_reply" }
+func (*PcapTraceOffReply) GetCrcString() string   { return "e8d4e804" }
+func (*PcapTraceOffReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *PcapTraceOffReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *PcapTraceOffReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *PcapTraceOffReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// pcap_trace_on
+//   - capture_rx - capture received packets
+//   - capture_tx - capture transmitted packets
+//   - capture_drop - capture dropped packets
+//   - filter - is a filter is being used on this capture
+//   - preallocate_data - preallocate the data buffer
+//   - free_data - free the data buffer
+//   - max_packets - depth of local buffer
+//   - max_bytes_per_packet - maximum number of bytes to capture
+//     for each packet
+//   - sw_if_index - specify a given interface, or 0 for any
+//   - error - filter packets based on a specific error.
+//   - filename - output filename, will be placed in /tmp
+//
+// PcapTraceOn defines message 'pcap_trace_on'.
+type PcapTraceOn struct {
+	CaptureRx         bool                           `binapi:"bool,name=capture_rx" json:"capture_rx,omitempty"`
+	CaptureTx         bool                           `binapi:"bool,name=capture_tx" json:"capture_tx,omitempty"`
+	CaptureDrop       bool                           `binapi:"bool,name=capture_drop" json:"capture_drop,omitempty"`
+	Filter            bool                           `binapi:"bool,name=filter" json:"filter,omitempty"`
+	PreallocateData   bool                           `binapi:"bool,name=preallocate_data" json:"preallocate_data,omitempty"`
+	FreeData          bool                           `binapi:"bool,name=free_data" json:"free_data,omitempty"`
+	MaxPackets        uint32                         `binapi:"u32,name=max_packets,default=1000" json:"max_packets,omitempty"`
+	MaxBytesPerPacket uint32                         `binapi:"u32,name=max_bytes_per_packet,default=512" json:"max_bytes_per_packet,omitempty"`
+	SwIfIndex         interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	Error             string                         `binapi:"string[128],name=error" json:"error,omitempty"`
+	Filename          string                         `binapi:"string[64],name=filename" json:"filename,omitempty"`
+}
+
+func (m *PcapTraceOn) Reset()               { *m = PcapTraceOn{} }
+func (*PcapTraceOn) GetMessageName() string { return "pcap_trace_on" }
+func (*PcapTraceOn) GetCrcString() string   { return "cb39e968" }
+func (*PcapTraceOn) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *PcapTraceOn) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1   // m.CaptureRx
+	size += 1   // m.CaptureTx
+	size += 1   // m.CaptureDrop
+	size += 1   // m.Filter
+	size += 1   // m.PreallocateData
+	size += 1   // m.FreeData
+	size += 4   // m.MaxPackets
+	size += 4   // m.MaxBytesPerPacket
+	size += 4   // m.SwIfIndex
+	size += 128 // m.Error
+	size += 64  // m.Filename
+	return size
+}
+func (m *PcapTraceOn) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBool(m.CaptureRx)
+	buf.EncodeBool(m.CaptureTx)
+	buf.EncodeBool(m.CaptureDrop)
+	buf.EncodeBool(m.Filter)
+	buf.EncodeBool(m.PreallocateData)
+	buf.EncodeBool(m.FreeData)
+	buf.EncodeUint32(m.MaxPackets)
+	buf.EncodeUint32(m.MaxBytesPerPacket)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeString(m.Error, 128)
+	buf.EncodeString(m.Filename, 64)
+	return buf.Bytes(), nil
+}
+func (m *PcapTraceOn) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.CaptureRx = buf.DecodeBool()
+	m.CaptureTx = buf.DecodeBool()
+	m.CaptureDrop = buf.DecodeBool()
+	m.Filter = buf.DecodeBool()
+	m.PreallocateData = buf.DecodeBool()
+	m.FreeData = buf.DecodeBool()
+	m.MaxPackets = buf.DecodeUint32()
+	m.MaxBytesPerPacket = buf.DecodeUint32()
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.Error = buf.DecodeString(128)
+	m.Filename = buf.DecodeString(64)
+	return nil
+}
+
+// PcapTraceOnReply defines message 'pcap_trace_on_reply'.
+type PcapTraceOnReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *PcapTraceOnReply) Reset()               { *m = PcapTraceOnReply{} }
+func (*PcapTraceOnReply) GetMessageName() string { return "pcap_trace_on_reply" }
+func (*PcapTraceOnReply) GetCrcString() string   { return "e8d4e804" }
+func (*PcapTraceOnReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *PcapTraceOnReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *PcapTraceOnReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *PcapTraceOnReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -2461,13 +2636,13 @@ func (m *SwInterfaceSetTableReply) Unmarshal(b []byte) error {
 type SwInterfaceSetTxPlacement struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 	QueueID   uint32                         `binapi:"u32,name=queue_id" json:"queue_id,omitempty"`
-	ArraySize uint32                         `binapi:"u32,name=array_size" json:"-"`
+	ArraySize uint8                          `binapi:"u8,name=array_size" json:"-"`
 	Threads   []uint32                       `binapi:"u32[array_size],name=threads" json:"threads,omitempty"`
 }
 
 func (m *SwInterfaceSetTxPlacement) Reset()               { *m = SwInterfaceSetTxPlacement{} }
 func (*SwInterfaceSetTxPlacement) GetMessageName() string { return "sw_interface_set_tx_placement" }
-func (*SwInterfaceSetTxPlacement) GetCrcString() string   { return "4e0cd5ff" }
+func (*SwInterfaceSetTxPlacement) GetCrcString() string   { return "0b855b40" }
 func (*SwInterfaceSetTxPlacement) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -2478,7 +2653,7 @@ func (m *SwInterfaceSetTxPlacement) Size() (size int) {
 	}
 	size += 4                  // m.SwIfIndex
 	size += 4                  // m.QueueID
-	size += 4                  // m.ArraySize
+	size += 1                  // m.ArraySize
 	size += 4 * len(m.Threads) // m.Threads
 	return size
 }
@@ -2489,7 +2664,7 @@ func (m *SwInterfaceSetTxPlacement) Marshal(b []byte) ([]byte, error) {
 	buf := codec.NewBuffer(b)
 	buf.EncodeUint32(uint32(m.SwIfIndex))
 	buf.EncodeUint32(m.QueueID)
-	buf.EncodeUint32(uint32(len(m.Threads)))
+	buf.EncodeUint8(uint8(len(m.Threads)))
 	for i := 0; i < len(m.Threads); i++ {
 		var x uint32
 		if i < len(m.Threads) {
@@ -2503,7 +2678,7 @@ func (m *SwInterfaceSetTxPlacement) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
 	m.QueueID = buf.DecodeUint32()
-	m.ArraySize = buf.DecodeUint32()
+	m.ArraySize = buf.DecodeUint8()
 	m.Threads = make([]uint32, m.ArraySize)
 	for i := 0; i < len(m.Threads); i++ {
 		m.Threads[i] = buf.DecodeUint32()
@@ -2824,13 +2999,6 @@ func (m *SwInterfaceTxPlacementGet) Unmarshal(b []byte) error {
 	return nil
 }
 
-// get the tx queue placement of interface(s)
-//   - cursor - optional, it allows client to continue a dump
-//   - sw_if_index - optional interface index for which queue placement to
-//     be requested. sw_if_index = ~0 will get the placement information for all
-//     interfaces. It will not get information related to sub-interfaces, p2p
-//     and pipe interfaces.
-//
 // SwInterfaceTxPlacementGetReply defines message 'sw_interface_tx_placement_get_reply'.
 type SwInterfaceTxPlacementGetReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -2966,6 +3134,10 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*HwInterfaceSetMtuReply)(nil), "hw_interface_set_mtu_reply_e8d4e804")
 	api.RegisterMessage((*InterfaceNameRenumber)(nil), "interface_name_renumber_2b8858b8")
 	api.RegisterMessage((*InterfaceNameRenumberReply)(nil), "interface_name_renumber_reply_e8d4e804")
+	api.RegisterMessage((*PcapTraceOff)(nil), "pcap_trace_off_51077d14")
+	api.RegisterMessage((*PcapTraceOffReply)(nil), "pcap_trace_off_reply_e8d4e804")
+	api.RegisterMessage((*PcapTraceOn)(nil), "pcap_trace_on_cb39e968")
+	api.RegisterMessage((*PcapTraceOnReply)(nil), "pcap_trace_on_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceAddDelAddress)(nil), "sw_interface_add_del_address_5463d73b")
 	api.RegisterMessage((*SwInterfaceAddDelAddressReply)(nil), "sw_interface_add_del_address_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceAddDelMacAddress)(nil), "sw_interface_add_del_mac_address_638bb9f4")
@@ -3003,7 +3175,7 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*SwInterfaceSetRxPlacementReply)(nil), "sw_interface_set_rx_placement_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetTable)(nil), "sw_interface_set_table_df42a577")
 	api.RegisterMessage((*SwInterfaceSetTableReply)(nil), "sw_interface_set_table_reply_e8d4e804")
-	api.RegisterMessage((*SwInterfaceSetTxPlacement)(nil), "sw_interface_set_tx_placement_4e0cd5ff")
+	api.RegisterMessage((*SwInterfaceSetTxPlacement)(nil), "sw_interface_set_tx_placement_0b855b40")
 	api.RegisterMessage((*SwInterfaceSetTxPlacementReply)(nil), "sw_interface_set_tx_placement_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetUnnumbered)(nil), "sw_interface_set_unnumbered_154a6439")
 	api.RegisterMessage((*SwInterfaceSetUnnumberedReply)(nil), "sw_interface_set_unnumbered_reply_e8d4e804")
@@ -3039,6 +3211,10 @@ func AllMessages() []api.Message {
 		(*HwInterfaceSetMtuReply)(nil),
 		(*InterfaceNameRenumber)(nil),
 		(*InterfaceNameRenumberReply)(nil),
+		(*PcapTraceOff)(nil),
+		(*PcapTraceOffReply)(nil),
+		(*PcapTraceOn)(nil),
+		(*PcapTraceOnReply)(nil),
 		(*SwInterfaceAddDelAddress)(nil),
 		(*SwInterfaceAddDelAddressReply)(nil),
 		(*SwInterfaceAddDelMacAddress)(nil),

@@ -4,7 +4,7 @@
 //
 // Contents:
 // -  2 enums
-// - 28 messages
+// - 26 messages
 package session
 
 import (
@@ -25,7 +25,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "session"
 	APIVersion = "4.0.0"
-	VersionCrc = 0x72bfc653
+	VersionCrc = 0x37cc4b71
 )
 
 // SessionRuleScope defines enum 'session_rule_scope'.
@@ -503,6 +503,7 @@ func (m *AppNamespaceAddDelReply) Unmarshal(b []byte) error {
 //	- netns - linux net namespace
 //
 // AppNamespaceAddDelV2 defines message 'app_namespace_add_del_v2'.
+// Deprecated: the message will be removed in the future versions
 type AppNamespaceAddDelV2 struct {
 	Secret      uint64                         `binapi:"u64,name=secret" json:"secret,omitempty"`
 	SwIfIndex   interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index,default=4294967295" json:"sw_if_index,omitempty"`
@@ -560,6 +561,7 @@ func (m *AppNamespaceAddDelV2) Unmarshal(b []byte) error {
 //   - appns_index - app namespace index
 //
 // AppNamespaceAddDelV2Reply defines message 'app_namespace_add_del_v2_reply'.
+// Deprecated: the message will be removed in the future versions
 type AppNamespaceAddDelV2Reply struct {
 	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	AppnsIndex uint32 `binapi:"u32,name=appns_index" json:"appns_index,omitempty"`
@@ -611,6 +613,7 @@ func (m *AppNamespaceAddDelV2Reply) Unmarshal(b []byte) error {
 //	- sock_name - socket name (path, abstract socket name)
 //
 // AppNamespaceAddDelV3 defines message 'app_namespace_add_del_v3'.
+// Deprecated: the message will be removed in the future versions
 type AppNamespaceAddDelV3 struct {
 	Secret      uint64                         `binapi:"u64,name=secret" json:"secret,omitempty"`
 	IsAdd       bool                           `binapi:"bool,name=is_add,default=true" json:"is_add,omitempty"`
@@ -671,11 +674,8 @@ func (m *AppNamespaceAddDelV3) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Reply for app namespace add/del
-//   - retval - return code
-//   - appns_index - app namespace index
-//
 // AppNamespaceAddDelV3Reply defines message 'app_namespace_add_del_v3_reply'.
+// Deprecated: the message will be removed in the future versions
 type AppNamespaceAddDelV3Reply struct {
 	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	AppnsIndex uint32 `binapi:"u32,name=appns_index" json:"appns_index,omitempty"`
@@ -706,6 +706,118 @@ func (m *AppNamespaceAddDelV3Reply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *AppNamespaceAddDelV3Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.AppnsIndex = buf.DecodeUint32()
+	return nil
+}
+
+// add/del application namespace
+//
+//	                      client to vpp direction only
+//	- secret - secret shared between app and vpp
+//	- sw_if_index - local interface that "supports" namespace. Set to
+//	                     ~0 if no preference
+//	- ip4_fib_id - id of ip4 fib that "supports" the namespace. Ignored
+//	                    if sw_if_index set.
+//	- ip6_fib_id - id of ip6 fib that "supports" the namespace. Ignored
+//	                    if sw_if_index set.
+//	- namespace_id - namespace id
+//	- sock_name - socket name (path, abstract socket name)
+//
+// AppNamespaceAddDelV4 defines message 'app_namespace_add_del_v4'.
+// Deprecated: the message will be removed in the future versions
+type AppNamespaceAddDelV4 struct {
+	Secret      uint64                         `binapi:"u64,name=secret" json:"secret,omitempty"`
+	IsAdd       bool                           `binapi:"bool,name=is_add,default=true" json:"is_add,omitempty"`
+	SwIfIndex   interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index,default=4294967295" json:"sw_if_index,omitempty"`
+	IP4FibID    uint32                         `binapi:"u32,name=ip4_fib_id" json:"ip4_fib_id,omitempty"`
+	IP6FibID    uint32                         `binapi:"u32,name=ip6_fib_id" json:"ip6_fib_id,omitempty"`
+	NamespaceID string                         `binapi:"string[64],name=namespace_id" json:"namespace_id,omitempty"`
+	SockName    string                         `binapi:"string[],name=sock_name" json:"sock_name,omitempty"`
+}
+
+func (m *AppNamespaceAddDelV4) Reset()               { *m = AppNamespaceAddDelV4{} }
+func (*AppNamespaceAddDelV4) GetMessageName() string { return "app_namespace_add_del_v4" }
+func (*AppNamespaceAddDelV4) GetCrcString() string   { return "42c1d824" }
+func (*AppNamespaceAddDelV4) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *AppNamespaceAddDelV4) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 8                   // m.Secret
+	size += 1                   // m.IsAdd
+	size += 4                   // m.SwIfIndex
+	size += 4                   // m.IP4FibID
+	size += 4                   // m.IP6FibID
+	size += 64                  // m.NamespaceID
+	size += 4 + len(m.SockName) // m.SockName
+	return size
+}
+func (m *AppNamespaceAddDelV4) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint64(m.Secret)
+	buf.EncodeBool(m.IsAdd)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeUint32(m.IP4FibID)
+	buf.EncodeUint32(m.IP6FibID)
+	buf.EncodeString(m.NamespaceID, 64)
+	buf.EncodeString(m.SockName, 0)
+	return buf.Bytes(), nil
+}
+func (m *AppNamespaceAddDelV4) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Secret = buf.DecodeUint64()
+	m.IsAdd = buf.DecodeBool()
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.IP4FibID = buf.DecodeUint32()
+	m.IP6FibID = buf.DecodeUint32()
+	m.NamespaceID = buf.DecodeString(64)
+	m.SockName = buf.DecodeString(0)
+	return nil
+}
+
+// Reply for app namespace add/del
+//   - retval - return code
+//   - appns_index - app namespace index
+//
+// AppNamespaceAddDelV4Reply defines message 'app_namespace_add_del_v4_reply'.
+type AppNamespaceAddDelV4Reply struct {
+	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
+	AppnsIndex uint32 `binapi:"u32,name=appns_index" json:"appns_index,omitempty"`
+}
+
+func (m *AppNamespaceAddDelV4Reply) Reset()               { *m = AppNamespaceAddDelV4Reply{} }
+func (*AppNamespaceAddDelV4Reply) GetMessageName() string { return "app_namespace_add_del_v4_reply" }
+func (*AppNamespaceAddDelV4Reply) GetCrcString() string   { return "85137120" }
+func (*AppNamespaceAddDelV4Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *AppNamespaceAddDelV4Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	size += 4 // m.AppnsIndex
+	return size
+}
+func (m *AppNamespaceAddDelV4Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.AppnsIndex)
+	return buf.Bytes(), nil
+}
+func (m *AppNamespaceAddDelV4Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	m.AppnsIndex = buf.DecodeUint32()
@@ -888,172 +1000,6 @@ func (m *ApplicationDetachReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *ApplicationDetachReply) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.Retval = buf.DecodeInt32()
-	return nil
-}
-
-// Application add TLS certificate
-//
-//		### WILL BE DEPRECATED POST 20.01 ###
-//	   - cert_len - certificate length
-//	   - cert - certificate as a string
-//
-// ApplicationTLSCertAdd defines message 'application_tls_cert_add'.
-// Deprecated: to be removed post 21.06
-type ApplicationTLSCertAdd struct {
-	AppIndex uint32 `binapi:"u32,name=app_index" json:"app_index,omitempty"`
-	CertLen  uint16 `binapi:"u16,name=cert_len" json:"-"`
-	Cert     []byte `binapi:"u8[cert_len],name=cert" json:"cert,omitempty"`
-}
-
-func (m *ApplicationTLSCertAdd) Reset()               { *m = ApplicationTLSCertAdd{} }
-func (*ApplicationTLSCertAdd) GetMessageName() string { return "application_tls_cert_add" }
-func (*ApplicationTLSCertAdd) GetCrcString() string   { return "3f5cfe45" }
-func (*ApplicationTLSCertAdd) GetMessageType() api.MessageType {
-	return api.RequestMessage
-}
-
-func (m *ApplicationTLSCertAdd) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4               // m.AppIndex
-	size += 2               // m.CertLen
-	size += 1 * len(m.Cert) // m.Cert
-	return size
-}
-func (m *ApplicationTLSCertAdd) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeUint32(m.AppIndex)
-	buf.EncodeUint16(uint16(len(m.Cert)))
-	buf.EncodeBytes(m.Cert, 0)
-	return buf.Bytes(), nil
-}
-func (m *ApplicationTLSCertAdd) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.AppIndex = buf.DecodeUint32()
-	m.CertLen = buf.DecodeUint16()
-	m.Cert = make([]byte, m.CertLen)
-	copy(m.Cert, buf.DecodeBytes(len(m.Cert)))
-	return nil
-}
-
-// ApplicationTLSCertAddReply defines message 'application_tls_cert_add_reply'.
-// Deprecated: to be removed post 21.06
-type ApplicationTLSCertAddReply struct {
-	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
-}
-
-func (m *ApplicationTLSCertAddReply) Reset()               { *m = ApplicationTLSCertAddReply{} }
-func (*ApplicationTLSCertAddReply) GetMessageName() string { return "application_tls_cert_add_reply" }
-func (*ApplicationTLSCertAddReply) GetCrcString() string   { return "e8d4e804" }
-func (*ApplicationTLSCertAddReply) GetMessageType() api.MessageType {
-	return api.ReplyMessage
-}
-
-func (m *ApplicationTLSCertAddReply) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.Retval
-	return size
-}
-func (m *ApplicationTLSCertAddReply) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeInt32(m.Retval)
-	return buf.Bytes(), nil
-}
-func (m *ApplicationTLSCertAddReply) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.Retval = buf.DecodeInt32()
-	return nil
-}
-
-// Application add TLS key
-//
-//		### WILL BE DEPRECATED POST 20.01 ###
-//	   - key_len - certificate length
-//	   - key - PEM encoded key as a string
-//
-// ApplicationTLSKeyAdd defines message 'application_tls_key_add'.
-// Deprecated: to be removed post 21.06
-type ApplicationTLSKeyAdd struct {
-	AppIndex uint32 `binapi:"u32,name=app_index" json:"app_index,omitempty"`
-	KeyLen   uint16 `binapi:"u16,name=key_len" json:"-"`
-	Key      []byte `binapi:"u8[key_len],name=key" json:"key,omitempty"`
-}
-
-func (m *ApplicationTLSKeyAdd) Reset()               { *m = ApplicationTLSKeyAdd{} }
-func (*ApplicationTLSKeyAdd) GetMessageName() string { return "application_tls_key_add" }
-func (*ApplicationTLSKeyAdd) GetCrcString() string   { return "5eaf70cd" }
-func (*ApplicationTLSKeyAdd) GetMessageType() api.MessageType {
-	return api.RequestMessage
-}
-
-func (m *ApplicationTLSKeyAdd) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4              // m.AppIndex
-	size += 2              // m.KeyLen
-	size += 1 * len(m.Key) // m.Key
-	return size
-}
-func (m *ApplicationTLSKeyAdd) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeUint32(m.AppIndex)
-	buf.EncodeUint16(uint16(len(m.Key)))
-	buf.EncodeBytes(m.Key, 0)
-	return buf.Bytes(), nil
-}
-func (m *ApplicationTLSKeyAdd) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.AppIndex = buf.DecodeUint32()
-	m.KeyLen = buf.DecodeUint16()
-	m.Key = make([]byte, m.KeyLen)
-	copy(m.Key, buf.DecodeBytes(len(m.Key)))
-	return nil
-}
-
-// ApplicationTLSKeyAddReply defines message 'application_tls_key_add_reply'.
-// Deprecated: to be removed post 21.06
-type ApplicationTLSKeyAddReply struct {
-	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
-}
-
-func (m *ApplicationTLSKeyAddReply) Reset()               { *m = ApplicationTLSKeyAddReply{} }
-func (*ApplicationTLSKeyAddReply) GetMessageName() string { return "application_tls_key_add_reply" }
-func (*ApplicationTLSKeyAddReply) GetCrcString() string   { return "e8d4e804" }
-func (*ApplicationTLSKeyAddReply) GetMessageType() api.MessageType {
-	return api.ReplyMessage
-}
-
-func (m *ApplicationTLSKeyAddReply) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.Retval
-	return size
-}
-func (m *ApplicationTLSKeyAddReply) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeInt32(m.Retval)
-	return buf.Bytes(), nil
-}
-func (m *ApplicationTLSKeyAddReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -1471,14 +1417,12 @@ func file_session_binapi_init() {
 	api.RegisterMessage((*AppNamespaceAddDelV2Reply)(nil), "app_namespace_add_del_v2_reply_85137120")
 	api.RegisterMessage((*AppNamespaceAddDelV3)(nil), "app_namespace_add_del_v3_8a7e40a1")
 	api.RegisterMessage((*AppNamespaceAddDelV3Reply)(nil), "app_namespace_add_del_v3_reply_85137120")
+	api.RegisterMessage((*AppNamespaceAddDelV4)(nil), "app_namespace_add_del_v4_42c1d824")
+	api.RegisterMessage((*AppNamespaceAddDelV4Reply)(nil), "app_namespace_add_del_v4_reply_85137120")
 	api.RegisterMessage((*AppWorkerAddDel)(nil), "app_worker_add_del_753253dc")
 	api.RegisterMessage((*AppWorkerAddDelReply)(nil), "app_worker_add_del_reply_5735ffe7")
 	api.RegisterMessage((*ApplicationDetach)(nil), "application_detach_51077d14")
 	api.RegisterMessage((*ApplicationDetachReply)(nil), "application_detach_reply_e8d4e804")
-	api.RegisterMessage((*ApplicationTLSCertAdd)(nil), "application_tls_cert_add_3f5cfe45")
-	api.RegisterMessage((*ApplicationTLSCertAddReply)(nil), "application_tls_cert_add_reply_e8d4e804")
-	api.RegisterMessage((*ApplicationTLSKeyAdd)(nil), "application_tls_key_add_5eaf70cd")
-	api.RegisterMessage((*ApplicationTLSKeyAddReply)(nil), "application_tls_key_add_reply_e8d4e804")
 	api.RegisterMessage((*SessionEnableDisable)(nil), "session_enable_disable_c264d7bf")
 	api.RegisterMessage((*SessionEnableDisableReply)(nil), "session_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*SessionRuleAddDel)(nil), "session_rule_add_del_82a90af5")
@@ -1504,14 +1448,12 @@ func AllMessages() []api.Message {
 		(*AppNamespaceAddDelV2Reply)(nil),
 		(*AppNamespaceAddDelV3)(nil),
 		(*AppNamespaceAddDelV3Reply)(nil),
+		(*AppNamespaceAddDelV4)(nil),
+		(*AppNamespaceAddDelV4Reply)(nil),
 		(*AppWorkerAddDel)(nil),
 		(*AppWorkerAddDelReply)(nil),
 		(*ApplicationDetach)(nil),
 		(*ApplicationDetachReply)(nil),
-		(*ApplicationTLSCertAdd)(nil),
-		(*ApplicationTLSCertAddReply)(nil),
-		(*ApplicationTLSKeyAdd)(nil),
-		(*ApplicationTLSKeyAddReply)(nil),
 		(*SessionEnableDisable)(nil),
 		(*SessionEnableDisableReply)(nil),
 		(*SessionRuleAddDel)(nil),

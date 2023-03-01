@@ -34,7 +34,7 @@ Signed-off-by: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
  create mode 100644 src/plugins/pbl/pbl_node.c
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 5701ebdd9..37d183f6b 100644
+index 1117b6da4..5b5522c86 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
 @@ -700,6 +700,11 @@ I:	svs

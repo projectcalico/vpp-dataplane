@@ -25,10 +25,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-const (
-	vclSocketName = "@vpp/session"
-)
-
 type VclPodInterfaceDriver struct {
 	PodInterfaceDriverData
 }
@@ -64,9 +60,8 @@ func (i *VclPodInterfaceDriver) Init() (err error) {
 func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	appNamespace := &types.SessionAppNamespace{
 		NamespaceId: getPodAppNamespaceName(podSpec),
-		Netns:       podSpec.NetnsName,
 		SwIfIndex:   podSpec.LoopbackSwIfIndex,
-		SocketName:  vclSocketName,
+		SocketName:  fmt.Sprintf("abstract:%s,netns_name=%s", "vpp/session", podSpec.NetnsName),
 		Secret:      0,
 	}
 	err = i.vpp.AddSessionAppNamespace(appNamespace)

@@ -68,9 +68,6 @@ func (m *APIVersions) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /*
-//   - Get API version table (includes built-in and plugins)
-//
 // APIVersionsReply defines message 'api_versions_reply'.
 type APIVersionsReply struct {
 	Retval      int32           `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -246,9 +243,6 @@ func (m *GetFirstMsgID) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /*
-//   - Lookup message-ID base by name
-//
 // GetFirstMsgIDReply defines message 'get_first_msg_id_reply'.
 type GetFirstMsgIDReply struct {
 	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -343,9 +337,6 @@ func (m *MemclntCreate) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /*
-//   - Create a client registration
-//
 // MemclntCreateReply defines message 'memclnt_create_reply'.
 type MemclntCreateReply struct {
 	Response     int32  `binapi:"i32,name=response" json:"response,omitempty"`
@@ -391,10 +382,6 @@ func (m *MemclntCreateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Control ping from the client to the server response
-//   - retval - return code for the request
-//   - vpe_pid - the pid of the vpe, returned by the server
-//
 // MemclntCreateV2 defines message 'memclnt_create_v2'.
 type MemclntCreateV2 struct {
 	CtxQuota    int32    `binapi:"i32,name=ctx_quota" json:"ctx_quota,omitempty"`
@@ -453,10 +440,6 @@ func (m *MemclntCreateV2) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Control ping from the client to the server response
-//   - retval - return code for the request
-//   - vpe_pid - the pid of the vpe, returned by the server
-//
 // MemclntCreateV2Reply defines message 'memclnt_create_v2_reply'.
 type MemclntCreateV2Reply struct {
 	Response     int32  `binapi:"i32,name=response" json:"response,omitempty"`
@@ -546,9 +529,6 @@ func (m *MemclntDelete) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /*
-//   - Delete a client registration
-//
 // MemclntDeleteReply defines message 'memclnt_delete_reply'.
 type MemclntDeleteReply struct {
 	Response int32  `binapi:"i32,name=response" json:"response,omitempty"`
@@ -970,9 +950,6 @@ func (m *SockclntCreate) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /*
-//   - Create a socket client registration.
-//
 // SockclntCreateReply defines message 'sockclnt_create_reply'.
 type SockclntCreateReply struct {
 	Response     int32               `binapi:"i32,name=response" json:"response,omitempty"`
@@ -1073,9 +1050,6 @@ func (m *SockclntDelete) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /*
-//   - Delete a client registration
-//
 // SockclntDeleteReply defines message 'sockclnt_delete_reply'.
 type SockclntDeleteReply struct {
 	Response int32 `binapi:"i32,name=response" json:"response,omitempty"`

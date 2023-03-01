@@ -240,10 +240,6 @@ type CnatTranslation struct {
 	Paths    []CnatEndpointTuple `binapi:"cnat_endpoint_tuple[n_paths],name=paths" json:"paths,omitempty"`
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatGetSnatAddresses defines message 'cnat_get_snat_addresses'.
 // InProgress: the message form may change in the future versions
 type CnatGetSnatAddresses struct{}
@@ -272,10 +268,6 @@ func (m *CnatGetSnatAddresses) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatGetSnatAddressesReply defines message 'cnat_get_snat_addresses_reply'.
 // InProgress: the message form may change in the future versions
 type CnatGetSnatAddressesReply struct {
@@ -326,10 +318,6 @@ func (m *CnatGetSnatAddressesReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatSessionDetails defines message 'cnat_session_details'.
 // InProgress: the message form may change in the future versions
 type CnatSessionDetails struct {
@@ -415,10 +403,6 @@ func (m *CnatSessionDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatSessionDump defines message 'cnat_session_dump'.
 // InProgress: the message form may change in the future versions
 type CnatSessionDump struct{}
@@ -447,10 +431,6 @@ func (m *CnatSessionDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatSessionPurge defines message 'cnat_session_purge'.
 // InProgress: the message form may change in the future versions
 type CnatSessionPurge struct{}
@@ -513,10 +493,6 @@ func (m *CnatSessionPurgeReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatSetSnatAddresses defines message 'cnat_set_snat_addresses'.
 // InProgress: the message form may change in the future versions
 type CnatSetSnatAddresses struct {
@@ -662,10 +638,6 @@ func (m *CnatSetSnatPolicyReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatSnatPolicyAddDelExcludePfx defines message 'cnat_snat_policy_add_del_exclude_pfx'.
 // InProgress: the message form may change in the future versions
 type CnatSnatPolicyAddDelExcludePfx struct {
@@ -748,10 +720,6 @@ func (m *CnatSnatPolicyAddDelExcludePfxReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatSnatPolicyAddDelIf defines message 'cnat_snat_policy_add_del_if'.
 // InProgress: the message form may change in the future versions
 type CnatSnatPolicyAddDelIf struct {
@@ -830,10 +798,6 @@ func (m *CnatSnatPolicyAddDelIfReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatTranslationDel defines message 'cnat_translation_del'.
 // InProgress: the message form may change in the future versions
 type CnatTranslationDel struct {
@@ -902,10 +866,6 @@ func (m *CnatTranslationDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatTranslationDetails defines message 'cnat_translation_details'.
 // InProgress: the message form may change in the future versions
 type CnatTranslationDetails struct {
@@ -1019,10 +979,6 @@ func (m *CnatTranslationDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatTranslationDump defines message 'cnat_translation_dump'.
 // InProgress: the message form may change in the future versions
 type CnatTranslationDump struct{}
@@ -1168,10 +1124,6 @@ func (m *CnatTranslationUpdate) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatTranslationUpdateReply defines message 'cnat_translation_update_reply'.
 // InProgress: the message form may change in the future versions
 type CnatTranslationUpdateReply struct {

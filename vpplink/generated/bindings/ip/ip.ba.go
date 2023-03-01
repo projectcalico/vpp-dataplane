@@ -3,9 +3,9 @@
 // Package ip contains generated bindings for API file ip.api.
 //
 // Contents:
-// -  2 enums
+// -  3 enums
 // -  7 structs
-// - 91 messages
+// - 93 messages
 package ip
 
 import (
@@ -29,7 +29,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip"
 	APIVersion = "3.2.0"
-	VersionCrc = 0x41299705
+	VersionCrc = 0xbd2f873b
 )
 
 // IPReassType defines enum 'ip_reass_type'.
@@ -107,6 +107,73 @@ func (x IPFlowHashConfig) String() string {
 			return s
 		}
 		return "IPFlowHashConfig(" + strconv.Itoa(int(n)) + ")"
+	}
+	for i := uint32(0); i <= 32; i++ {
+		val := uint32(x)
+		if val&(1<<i) != 0 {
+			if s != "" {
+				s += "|"
+			}
+			s += str(1 << i)
+		}
+	}
+	if s == "" {
+		return str(uint32(x))
+	}
+	return s
+}
+
+// IPFlowHashConfigV2 defines enum 'ip_flow_hash_config_v2'.
+type IPFlowHashConfigV2 uint32
+
+const (
+	IP_API_V2_FLOW_HASH_SRC_IP     IPFlowHashConfigV2 = 1
+	IP_API_V2_FLOW_HASH_DST_IP     IPFlowHashConfigV2 = 2
+	IP_API_V2_FLOW_HASH_SRC_PORT   IPFlowHashConfigV2 = 4
+	IP_API_V2_FLOW_HASH_DST_PORT   IPFlowHashConfigV2 = 8
+	IP_API_V2_FLOW_HASH_PROTO      IPFlowHashConfigV2 = 16
+	IP_API_V2_FLOW_HASH_REVERSE    IPFlowHashConfigV2 = 32
+	IP_API_V2_FLOW_HASH_SYMETRIC   IPFlowHashConfigV2 = 64
+	IP_API_V2_FLOW_HASH_FLOW_LABEL IPFlowHashConfigV2 = 128
+	IP_API_V2_FLOW_HASH_GTPV1_TEID IPFlowHashConfigV2 = 256
+)
+
+var (
+	IPFlowHashConfigV2_name = map[uint32]string{
+		1:   "IP_API_V2_FLOW_HASH_SRC_IP",
+		2:   "IP_API_V2_FLOW_HASH_DST_IP",
+		4:   "IP_API_V2_FLOW_HASH_SRC_PORT",
+		8:   "IP_API_V2_FLOW_HASH_DST_PORT",
+		16:  "IP_API_V2_FLOW_HASH_PROTO",
+		32:  "IP_API_V2_FLOW_HASH_REVERSE",
+		64:  "IP_API_V2_FLOW_HASH_SYMETRIC",
+		128: "IP_API_V2_FLOW_HASH_FLOW_LABEL",
+		256: "IP_API_V2_FLOW_HASH_GTPV1_TEID",
+	}
+	IPFlowHashConfigV2_value = map[string]uint32{
+		"IP_API_V2_FLOW_HASH_SRC_IP":     1,
+		"IP_API_V2_FLOW_HASH_DST_IP":     2,
+		"IP_API_V2_FLOW_HASH_SRC_PORT":   4,
+		"IP_API_V2_FLOW_HASH_DST_PORT":   8,
+		"IP_API_V2_FLOW_HASH_PROTO":      16,
+		"IP_API_V2_FLOW_HASH_REVERSE":    32,
+		"IP_API_V2_FLOW_HASH_SYMETRIC":   64,
+		"IP_API_V2_FLOW_HASH_FLOW_LABEL": 128,
+		"IP_API_V2_FLOW_HASH_GTPV1_TEID": 256,
+	}
+)
+
+func (x IPFlowHashConfigV2) String() string {
+	s, ok := IPFlowHashConfigV2_name[uint32(x)]
+	if ok {
+		return s
+	}
+	str := func(n uint32) string {
+		s, ok := IPFlowHashConfigV2_name[uint32(n)]
+		if ok {
+			return s
+		}
+		return "IPFlowHashConfigV2(" + strconv.Itoa(int(n)) + ")"
 	}
 	for i := uint32(0); i <= 32; i++ {
 		val := uint32(x)
@@ -500,9 +567,6 @@ func (m *IoamEnableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IP Multicast Route Details
-//   - route - Details of the route
-//
 // IPAddressDetails defines message 'ip_address_details'.
 type IPAddressDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -546,9 +610,6 @@ func (m *IPAddressDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IP Multicast Route Details
-//   - route - Details of the route
-//
 // IPAddressDump defines message 'ip_address_dump'.
 type IPAddressDump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -586,10 +647,6 @@ func (m *IPAddressDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add IP punt redirect rule
-//   - punt - punt definition
-//   - is_add - 1 to add punt_redirect rule, 0 to delete
-//
 // IPContainerProxyAddDel defines message 'ip_container_proxy_add_del'.
 type IPContainerProxyAddDel struct {
 	Pfx       ip_types.Prefix                `binapi:"prefix,name=pfx" json:"pfx,omitempty"`
@@ -672,10 +729,6 @@ func (m *IPContainerProxyAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add IP punt redirect rule
-//   - punt - punt definition
-//   - is_add - 1 to add punt_redirect rule, 0 to delete
-//
 // IPContainerProxyDetails defines message 'ip_container_proxy_details'.
 type IPContainerProxyDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -719,10 +772,6 @@ func (m *IPContainerProxyDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add IP punt redirect rule
-//   - punt - punt definition
-//   - is_add - 1 to add punt_redirect rule, 0 to delete
-//
 // IPContainerProxyDump defines message 'ip_container_proxy_dump'.
 type IPContainerProxyDump struct{}
 
@@ -750,9 +799,6 @@ func (m *IPContainerProxyDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump IP unnumbered configurations
-//   - sw_if_index ~0 for all interfaces, else the interface desired
-//
 // IPDetails defines message 'ip_details'.
 type IPDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -790,9 +836,6 @@ func (m *IPDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump IP unnumbered configurations
-//   - sw_if_index ~0 for all interfaces, else the interface desired
-//
 // IPDump defines message 'ip_dump'.
 type IPDump struct {
 	IsIPv6 bool `binapi:"bool,name=is_ipv6" json:"is_ipv6,omitempty"`
@@ -927,7 +970,6 @@ func (m *IPLocalReassGet) Unmarshal(b []byte) error {
 	return nil
 }
 
-// get status of local reassembly
 // IPLocalReassGetReply defines message 'ip_local_reass_get_reply'.
 type IPLocalReassGetReply struct {
 	Retval       int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1129,28 +1171,6 @@ func (m *IPMrouteAddDel) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add / del route request
-//
-//	Adds a route, consisting both of the MFIB entry to match packets
-//	(which may already exist) and a path to send those packets down.
-//	Routes can be entered repeatedly to add multiple paths.  Deletions are
-//	per-path.
-//	- table_id - fib table /vrf associated with the route
-//	- is_add - true if adding a route; false if deleting one
-//	- is_ipv6 - true iff all the addresses are v6
-//	- entry_flags - see fib_entry_flag_t
-//	- itf_flags - see mfib_entry_flags_t
-//	- next_hop_afi - see dpo_proto_t; the type of destination description
-//	- src_address - the source of the packet
-//	- grp_address - the group the packet is destined to
-//	- nh_address - the nexthop to forward the packet to
-//	- next_hop_sw_if_index - interface to emit packet on
-//	BIER AFIs use the BIER imposition ID.  v4 and v6 AFIs use either the
-//	interface or the nexthop address.
-//	Note that if the route is source-specific (S is supplied, not all 0s),
-//	the prefix match is treated as exact (prefixlen /32 or /128).
-//	FIXME not complete yet
-//
 // IPMrouteAddDelReply defines message 'ip_mroute_add_del_reply'.
 type IPMrouteAddDelReply struct {
 	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1363,7 +1383,6 @@ func (m *IPMrouteDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump IP multicast fib table
 // IPMtableDetails defines message 'ip_mtable_details'.
 type IPMtableDetails struct {
 	Table IPTable `binapi:"ip_table,name=table" json:"table,omitempty"`
@@ -1431,14 +1450,6 @@ func (m *IPMtableDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// @brief Set a Path MTU value. i.e. a MTU value for a given neighbour.
-//
-//	       The neighbour can be described as attached (w/ interface and next-hop)
-//	       or remote (w/ table_id and next-hop);
-//	- table_id - table-ID for next-hop
-//	- nh - Next hop
-//	- path_mtu - value to set, 0 is disable.
-//
 // IPPathMtuDetails defines message 'ip_path_mtu_details'.
 type IPPathMtuDetails struct {
 	Pmtu IPPathMtu `binapi:"ip_path_mtu,name=pmtu" json:"pmtu,omitempty"`
@@ -1487,14 +1498,6 @@ func (m *IPPathMtuDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// @brief Set a Path MTU value. i.e. a MTU value for a given neighbour.
-//
-//	       The neighbour can be described as attached (w/ interface and next-hop)
-//	       or remote (w/ table_id and next-hop);
-//	- table_id - table-ID for next-hop
-//	- nh - Next hop
-//	- path_mtu - value to set, 0 is disable.
-//
 // IPPathMtuGet defines message 'ip_path_mtu_get'.
 type IPPathMtuGet struct {
 	Cursor uint32 `binapi:"u32,name=cursor" json:"cursor,omitempty"`
@@ -1528,14 +1531,6 @@ func (m *IPPathMtuGet) Unmarshal(b []byte) error {
 	return nil
 }
 
-// @brief Set a Path MTU value. i.e. a MTU value for a given neighbour.
-//
-//	       The neighbour can be described as attached (w/ interface and next-hop)
-//	       or remote (w/ table_id and next-hop);
-//	- table_id - table-ID for next-hop
-//	- nh - Next hop
-//	- path_mtu - value to set, 0 is disable.
-//
 // IPPathMtuGetReply defines message 'ip_path_mtu_get_reply'.
 type IPPathMtuGetReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1573,14 +1568,6 @@ func (m *IPPathMtuGetReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// @brief Set a Path MTU value. i.e. a MTU value for a given neighbour.
-//
-//	       The neighbour can be described as attached (w/ interface and next-hop)
-//	       or remote (w/ table_id and next-hop);
-//	- table_id - table-ID for next-hop
-//	- nh - Next hop
-//	- path_mtu - value to set, 0 is disable.
-//
 // IPPathMtuReplaceBegin defines message 'ip_path_mtu_replace_begin'.
 type IPPathMtuReplaceBegin struct{}
 
@@ -1641,14 +1628,6 @@ func (m *IPPathMtuReplaceBeginReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// @brief Set a Path MTU value. i.e. a MTU value for a given neighbour.
-//
-//	       The neighbour can be described as attached (w/ interface and next-hop)
-//	       or remote (w/ table_id and next-hop);
-//	- table_id - table-ID for next-hop
-//	- nh - Next hop
-//	- path_mtu - value to set, 0 is disable.
-//
 // IPPathMtuReplaceEnd defines message 'ip_path_mtu_replace_end'.
 type IPPathMtuReplaceEnd struct{}
 
@@ -1928,10 +1907,6 @@ func (m *IPPuntRedirect) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IP punt redirect
-//   - punt - punt definition
-//   - is_add - 1 to add neighbor, 0 to delete
-//
 // IPPuntRedirectDetails defines message 'ip_punt_redirect_details'.
 type IPPuntRedirectDetails struct {
 	Punt PuntRedirect `binapi:"punt_redirect,name=punt" json:"punt,omitempty"`
@@ -1974,10 +1949,6 @@ func (m *IPPuntRedirectDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IP punt redirect
-//   - punt - punt definition
-//   - is_add - 1 to add neighbor, 0 to delete
-//
 // IPPuntRedirectDump defines message 'ip_punt_redirect_dump'.
 type IPPuntRedirectDump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2049,10 +2020,6 @@ func (m *IPPuntRedirectReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add IP punt redirect rule
-//   - punt - punt definition
-//   - is_add - 1 to add punt_redirect rule, 0 to delete
-//
 // IPPuntRedirectV2Details defines message 'ip_punt_redirect_v2_details'.
 type IPPuntRedirectV2Details struct {
 	Punt PuntRedirectV2 `binapi:"punt_redirect_v2,name=punt" json:"punt,omitempty"`
@@ -2165,10 +2132,6 @@ func (m *IPPuntRedirectV2Details) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add IP punt redirect rule
-//   - punt - punt definition
-//   - is_add - 1 to add punt_redirect rule, 0 to delete
-//
 // IPPuntRedirectV2Dump defines message 'ip_punt_redirect_v2_dump'.
 type IPPuntRedirectV2Dump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2291,9 +2254,6 @@ func (m *IPReassemblyEnableDisableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// iOAM disable
-//   - index - MAP Domain index
-//
 // IPReassemblyGet defines message 'ip_reassembly_get'.
 type IPReassemblyGet struct {
 	IsIP6 bool        `binapi:"bool,name=is_ip6" json:"is_ip6,omitempty"`
@@ -2331,9 +2291,6 @@ func (m *IPReassemblyGet) Unmarshal(b []byte) error {
 	return nil
 }
 
-// iOAM disable
-//   - index - MAP Domain index
-//
 // IPReassemblyGetReply defines message 'ip_reassembly_get_reply'.
 type IPReassemblyGetReply struct {
 	Retval               int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -2387,9 +2344,6 @@ func (m *IPReassemblyGetReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// iOAM disable
-//   - index - MAP Domain index
-//
 // IPReassemblySet defines message 'ip_reassembly_set'.
 type IPReassemblySet struct {
 	TimeoutMs            uint32      `binapi:"u32,name=timeout_ms" json:"timeout_ms,omitempty"`
@@ -2612,13 +2566,6 @@ func (m *IPRouteAddDel) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add / del route request
-//   - is_multipath - Set to 1 if these paths will be added/removed
-//     to/from the existing set, or 0 to replace
-//     the existing set.
-//     is_add=0 & is_multipath=0 implies delete all paths
-//   - is_add - Are the paths being added or removed
-//
 // IPRouteAddDelReply defines message 'ip_route_add_del_reply'.
 type IPRouteAddDelReply struct {
 	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -2656,13 +2603,6 @@ func (m *IPRouteAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add / del route request
-//   - is_multipath - Set to 1 if these paths will be added/removed
-//     to/from the existing set, or 0 to replace
-//     the existing set.
-//     is_add=0 & is_multipath=0 implies delete all paths
-//   - is_add - Are the paths being added or removed
-//
 // IPRouteAddDelV2 defines message 'ip_route_add_del_v2'.
 // InProgress: the message form may change in the future versions
 type IPRouteAddDelV2 struct {
@@ -2796,13 +2736,6 @@ func (m *IPRouteAddDelV2) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add / del route request
-//   - is_multipath - Set to 1 if these paths will be added/removed
-//     to/from the existing set, or 0 to replace
-//     the existing set.
-//     is_add=0 & is_multipath=0 implies delete all paths
-//   - is_add - Are the paths being added or removed
-//
 // IPRouteAddDelV2Reply defines message 'ip_route_add_del_v2_reply'.
 // InProgress: the message form may change in the future versions
 type IPRouteAddDelV2Reply struct {
@@ -3190,11 +3123,6 @@ func (m *IPRouteLookupReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Lookup IP route from a table
-//   - table_id - The IP table to look the route up in
-//   - exact - 0 for normal route lookup, 1 for exact match only
-//   - prefix - The prefix (or host) for route lookup.
-//
 // IPRouteLookupV2 defines message 'ip_route_lookup_v2'.
 // InProgress: the message form may change in the future versions
 type IPRouteLookupV2 struct {
@@ -3243,10 +3171,6 @@ func (m *IPRouteLookupV2) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IP FIB table lookup response
-//   - retval - return code of the lookup
-//   - route - The route entry in the table if found
-//
 // IPRouteLookupV2Reply defines message 'ip_route_lookup_v2_reply'.
 // InProgress: the message form may change in the future versions
 type IPRouteLookupV2Reply struct {
@@ -3376,9 +3300,6 @@ func (m *IPRouteLookupV2Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IP FIB table entry response
-//   - route The route entry in the table
-//
 // IPRouteV2Details defines message 'ip_route_v2_details'.
 // InProgress: the message form may change in the future versions
 type IPRouteV2Details struct {
@@ -3504,11 +3425,6 @@ func (m *IPRouteV2Details) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump IP routes from a table
-//   - src The entity adding the route. either 0 for default
-//     or a value returned from fib_source_sdd.
-//   - table - The table from which to dump routes (ony ID an AF are needed)
-//
 // IPRouteV2Dump defines message 'ip_route_v2_dump'.
 // InProgress: the message form may change in the future versions
 type IPRouteV2Dump struct {
@@ -3907,18 +3823,6 @@ func (m *IPTableAllocate) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Allocate an unused table
-//
-//	         A table can be added multiple times.
-//	         If a large number of tables are in use (millions), this API might
-//	         fail to find a free ID with very low probability, and will return
-//	         EAGAIN. A subsequent attempt may be successful.
-//	- table - if table.table_id == ~0, vpp allocates an unused table_id and
-//	                  proceeds as in ip_table_add_del with is_add = true
-//	               if table.table_id != ~0, vpp uses the table.table_id and
-//	                  proceeds as in ip_table_add_del with is_add = true
-//	               table.table_id should never be 0
-//
 // IPTableAllocateReply defines message 'ip_table_allocate_reply'.
 type IPTableAllocateReply struct {
 	Retval int32   `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -4350,9 +4254,6 @@ func (m *IPUnnumberedDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump IP unnumbered configurations
-//   - sw_if_index ~0 for all interfaces, else the interface desired
-//
 // MfibSignalDetails defines message 'mfib_signal_details'.
 type MfibSignalDetails struct {
 	SwIfIndex    interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -4412,9 +4313,6 @@ func (m *MfibSignalDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump IP unnumbered configurations
-//   - sw_if_index ~0 for all interfaces, else the interface desired
-//
 // MfibSignalDump defines message 'mfib_signal_dump'.
 type MfibSignalDump struct{}
 
@@ -4703,6 +4601,93 @@ func (m *SetIPFlowHashV2Reply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *SetIPFlowHashV2Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// @brief flow hash settings for an IP table
+//   - src - include src in flow hash
+//   - dst - include dst in flow hash
+//   - sport - include sport in flow hash
+//   - dport - include dport in flow hash
+//   - proto - include proto in flow hash
+//   - reverse - include reverse in flow hash
+//   - symmetric - include symmetry in flow hash
+//   - flowlabel - include flowlabel in flow hash
+//   - gtpv1teid - include gtpv1teid in flow hash
+//
+// SetIPFlowHashV3 defines message 'set_ip_flow_hash_v3'.
+// InProgress: the message form may change in the future versions
+type SetIPFlowHashV3 struct {
+	TableID        uint32                 `binapi:"u32,name=table_id" json:"table_id,omitempty"`
+	Af             ip_types.AddressFamily `binapi:"address_family,name=af" json:"af,omitempty"`
+	FlowHashConfig IPFlowHashConfigV2     `binapi:"ip_flow_hash_config_v2,name=flow_hash_config" json:"flow_hash_config,omitempty"`
+}
+
+func (m *SetIPFlowHashV3) Reset()               { *m = SetIPFlowHashV3{} }
+func (*SetIPFlowHashV3) GetMessageName() string { return "set_ip_flow_hash_v3" }
+func (*SetIPFlowHashV3) GetCrcString() string   { return "b7876e07" }
+func (*SetIPFlowHashV3) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SetIPFlowHashV3) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.TableID
+	size += 1 // m.Af
+	size += 4 // m.FlowHashConfig
+	return size
+}
+func (m *SetIPFlowHashV3) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.TableID)
+	buf.EncodeUint8(uint8(m.Af))
+	buf.EncodeUint32(uint32(m.FlowHashConfig))
+	return buf.Bytes(), nil
+}
+func (m *SetIPFlowHashV3) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.TableID = buf.DecodeUint32()
+	m.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	m.FlowHashConfig = IPFlowHashConfigV2(buf.DecodeUint32())
+	return nil
+}
+
+// SetIPFlowHashV3Reply defines message 'set_ip_flow_hash_v3_reply'.
+// InProgress: the message form may change in the future versions
+type SetIPFlowHashV3Reply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SetIPFlowHashV3Reply) Reset()               { *m = SetIPFlowHashV3Reply{} }
+func (*SetIPFlowHashV3Reply) GetMessageName() string { return "set_ip_flow_hash_v3_reply" }
+func (*SetIPFlowHashV3Reply) GetCrcString() string   { return "e8d4e804" }
+func (*SetIPFlowHashV3Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SetIPFlowHashV3Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SetIPFlowHashV3Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SetIPFlowHashV3Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -5033,6 +5018,8 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*SetIPFlowHashRouterIDReply)(nil), "set_ip_flow_hash_router_id_reply_e8d4e804")
 	api.RegisterMessage((*SetIPFlowHashV2)(nil), "set_ip_flow_hash_v2_6d132100")
 	api.RegisterMessage((*SetIPFlowHashV2Reply)(nil), "set_ip_flow_hash_v2_reply_e8d4e804")
+	api.RegisterMessage((*SetIPFlowHashV3)(nil), "set_ip_flow_hash_v3_b7876e07")
+	api.RegisterMessage((*SetIPFlowHashV3Reply)(nil), "set_ip_flow_hash_v3_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceIP6EnableDisable)(nil), "sw_interface_ip6_enable_disable_ae6cfcfb")
 	api.RegisterMessage((*SwInterfaceIP6EnableDisableReply)(nil), "sw_interface_ip6_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceIP6GetLinkLocalAddress)(nil), "sw_interface_ip6_get_link_local_address_f9e6675e")
@@ -5129,6 +5116,8 @@ func AllMessages() []api.Message {
 		(*SetIPFlowHashRouterIDReply)(nil),
 		(*SetIPFlowHashV2)(nil),
 		(*SetIPFlowHashV2Reply)(nil),
+		(*SetIPFlowHashV3)(nil),
+		(*SetIPFlowHashV3Reply)(nil),
 		(*SwInterfaceIP6EnableDisable)(nil),
 		(*SwInterfaceIP6EnableDisableReply)(nil),
 		(*SwInterfaceIP6GetLinkLocalAddress)(nil),

@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+Date: Tue, 30 May 2023 15:08:39 +0200
+Subject: [PATCH 5/5] interface: Fix interface.api endianness
+
+Change-Id: Icd4beac3d0e84c21a272c1da2704db244023114b
+Signed-off-by: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+---
+ src/vnet/interface.api | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/vnet/interface.api b/src/vnet/interface.api
+index 020907bfc..de1bb4c99 100644
+--- a/src/vnet/interface.api
++++ b/src/vnet/interface.api
+@@ -476,7 +476,7 @@ autoendian autoreply define sw_interface_set_tx_placement
+     u32 context;
+     vl_api_interface_index_t sw_if_index;
+     u32 queue_id;
+-    u32 array_size;
++    u8 array_size;
+     u32 threads[array_size];
+     option vat_help = "<interface | sw_if_index <index>> queue <n> [threads <list> | mask <hex>]";
+ };
+-- 
+2.39.2
+
