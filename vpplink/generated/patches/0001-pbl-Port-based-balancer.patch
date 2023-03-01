@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
 Date: Tue, 27 Jul 2021 09:41:55 +0200
-Subject: [PATCH 1/5] pbl: Port based balancer
+Subject: [PATCH 1/4] pbl: Port based balancer
 
 Type: feature
 
@@ -34,10 +34,10 @@ Signed-off-by: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
  create mode 100644 src/plugins/pbl/pbl_node.c
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 5701ebdd9..37d183f6b 100644
+index d65be3844..63447151f 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -700,6 +700,11 @@ I:	svs
+@@ -701,6 +701,11 @@ I:	svs
  M:	Neale Ranns <neale@graphiant.com>
  F:	src/plugins/svs/
  

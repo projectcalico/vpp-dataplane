@@ -37,6 +37,8 @@ func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTx
 		"swIfIndex": swIfIndex,
 	}).Debugf("Spreading %d TX queues on %d workers for pod interface: %v", numTxQueues, i.NDataThreads, i.Name)
 
+	return nil // FIXME
+
 	// set first tx queue for main worker
 	err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0 /* queue */, 0 /* worker */)
 	if err != nil {
