@@ -238,6 +238,10 @@ func main() {
 	case <-t.Dying():
 		log.Errorf("tomb Dying %s", t.Err())
 	}
+	go func() {
+		time.Sleep(*config.CalicoVppGracefulShutdownTimeout)
+		panic("Graceful shutdown took too long")
+	}()
 	e := t.Wait()
 	log.Infof("Tomb exited with %v", e)
 }
