@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -64,15 +65,16 @@ var (
 	NodeName = RequiredStringEnvVar("NODENAME")
 	LogLevel = EnvVar("CALICOVPP_LOG_LEVEL", logrus.InfoLevel, logrus.ParseLevel)
 
-	ServiceCIDRs           = PrefixListEnvVar("SERVICE_PREFIX")
-	IPSecIkev2Psk          = StringEnvVar("CALICOVPP_IPSEC_IKEV2_PSK", "")
-	CalicoVppDebug         = JsonEnvVar("CALICOVPP_DEBUG", &CalicoVppDebugConfigType{})
-	CalicoVppInterfaces    = JsonEnvVar("CALICOVPP_INTERFACES", &CalicoVppInterfacesConfigType{})
-	CalicoVppFeatureGates  = JsonEnvVar("CALICOVPP_FEATURE_GATES", &CalicoVppFeatureGatesConfigType{})
-	CalicoVppIpsec         = JsonEnvVar("CALICOVPP_IPSEC", &CalicoVppIpsecConfigType{})
-	CalicoVppSrv6          = JsonEnvVar("CALICOVPP_SRV6", &CalicoVppSrv6ConfigType{})
-	CalicoVppInitialConfig = JsonEnvVar("CALICOVPP_INITIAL_CONFIG", &CalicoVppInitialConfigConfigType{})
-	LogFormat              = StringEnvVar("CALICOVPP_LOG_FORMAT", "")
+	ServiceCIDRs                     = PrefixListEnvVar("SERVICE_PREFIX")
+	IPSecIkev2Psk                    = StringEnvVar("CALICOVPP_IPSEC_IKEV2_PSK", "")
+	CalicoVppDebug                   = JsonEnvVar("CALICOVPP_DEBUG", &CalicoVppDebugConfigType{})
+	CalicoVppInterfaces              = JsonEnvVar("CALICOVPP_INTERFACES", &CalicoVppInterfacesConfigType{})
+	CalicoVppFeatureGates            = JsonEnvVar("CALICOVPP_FEATURE_GATES", &CalicoVppFeatureGatesConfigType{})
+	CalicoVppIpsec                   = JsonEnvVar("CALICOVPP_IPSEC", &CalicoVppIpsecConfigType{})
+	CalicoVppSrv6                    = JsonEnvVar("CALICOVPP_SRV6", &CalicoVppSrv6ConfigType{})
+	CalicoVppInitialConfig           = JsonEnvVar("CALICOVPP_INITIAL_CONFIG", &CalicoVppInitialConfigConfigType{})
+	CalicoVppGracefulShutdownTimeout = EnvVar("CALICOVPP_GRACEFUL_SHUTDOWN_TIMEOUT", 10*time.Second, time.ParseDuration)
+	LogFormat                        = StringEnvVar("CALICOVPP_LOG_FORMAT", "")
 
 	/* Deprecated vars */
 	/* linux name of the uplink interface to be used by VPP */
