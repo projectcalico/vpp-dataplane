@@ -45,7 +45,7 @@ func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTx
 	// share tx queues between the rest of workers
 	if i.NDataThreads > 0 {
 		for txq := 1; txq < numTxQueues; txq++ {
-			err = i.vpp.SetInterfaceTxPlacement(swIfIndex, txq, (txq-1)%(i.NDataThreads)+1)
+			err = i.vpp.SetInterfaceTxPlacement(swIfIndex, txq /* queue */, (txq-1)%(i.NDataThreads)+1 /* worker */)
 			if err != nil {
 				return err
 			}

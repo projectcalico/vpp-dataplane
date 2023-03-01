@@ -5,7 +5,7 @@
 // Contents:
 // -  1 enum
 // -  1 struct
-// - 73 messages
+// - 75 messages
 package nat44_ed
 
 import (
@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "nat44_ed"
 	APIVersion = "5.5.0"
-	VersionCrc = 0x354f61c0
+	VersionCrc = 0x6f9bc302
 )
 
 // Nat44ConfigFlags defines enum 'nat44_config_flags'.
@@ -1180,12 +1180,6 @@ func (m *Nat44EdAddDelVrfTableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// add/del NAT output interface (postrouting
-//
-//	       in2out translation)
-//	- is_add - true if add, false if delete
-//	- sw_if_index - software index of the interface
-//
 // Nat44EdOutputInterfaceDetails defines message 'nat44_ed_output_interface_details'.
 type Nat44EdOutputInterfaceDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1221,12 +1215,6 @@ func (m *Nat44EdOutputInterfaceDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// add/del NAT output interface (postrouting
-//
-//	       in2out translation)
-//	- is_add - true if add, false if delete
-//	- sw_if_index - software index of the interface
-//
 // Nat44EdOutputInterfaceGet defines message 'nat44_ed_output_interface_get'.
 type Nat44EdOutputInterfaceGet struct {
 	Cursor uint32 `binapi:"u32,name=cursor" json:"cursor,omitempty"`
@@ -1260,12 +1248,6 @@ func (m *Nat44EdOutputInterfaceGet) Unmarshal(b []byte) error {
 	return nil
 }
 
-// add/del NAT output interface (postrouting
-//
-//	       in2out translation)
-//	- is_add - true if add, false if delete
-//	- sw_if_index - software index of the interface
-//
 // Nat44EdOutputInterfaceGetReply defines message 'nat44_ed_output_interface_get_reply'.
 type Nat44EdOutputInterfaceGetReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1546,6 +1528,7 @@ func (m *Nat44EdShowFqOptionsReply) Unmarshal(b []byte) error {
 //   - vrf_ids - ids of resolving destination (tx) VRFs
 //
 // Nat44EdVrfTablesDetails defines message 'nat44_ed_vrf_tables_details'.
+// Deprecated: the message will be removed in the future versions
 type Nat44EdVrfTablesDetails struct {
 	TableVrfID uint32   `binapi:"u32,name=table_vrf_id" json:"table_vrf_id,omitempty"`
 	NVrfIds    uint32   `binapi:"u32,name=n_vrf_ids" json:"-"`
@@ -1597,6 +1580,7 @@ func (m *Nat44EdVrfTablesDetails) Unmarshal(b []byte) error {
 
 // Dump NAT44-ED inter VRF NAT routing tables
 // Nat44EdVrfTablesDump defines message 'nat44_ed_vrf_tables_dump'.
+// Deprecated: the message will be removed in the future versions
 type Nat44EdVrfTablesDump struct{}
 
 func (m *Nat44EdVrfTablesDump) Reset()               { *m = Nat44EdVrfTablesDump{} }
@@ -1620,6 +1604,91 @@ func (m *Nat44EdVrfTablesDump) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *Nat44EdVrfTablesDump) Unmarshal(b []byte) error {
+	return nil
+}
+
+// NAT44-ED inter VRF NAT routing table details response
+//   - table_vrf_id - id of the VRF NAT routing table
+//   - n_vrf_ids - number of vrf_ids
+//   - vrf_ids - ids of resolving destination (tx) VRFs
+//
+// Nat44EdVrfTablesV2Details defines message 'nat44_ed_vrf_tables_v2_details'.
+// InProgress: the message form may change in the future versions
+type Nat44EdVrfTablesV2Details struct {
+	TableVrfID uint32   `binapi:"u32,name=table_vrf_id" json:"table_vrf_id,omitempty"`
+	NVrfIds    uint32   `binapi:"u32,name=n_vrf_ids" json:"-"`
+	VrfIds     []uint32 `binapi:"u32[n_vrf_ids],name=vrf_ids" json:"vrf_ids,omitempty"`
+}
+
+func (m *Nat44EdVrfTablesV2Details) Reset()               { *m = Nat44EdVrfTablesV2Details{} }
+func (*Nat44EdVrfTablesV2Details) GetMessageName() string { return "nat44_ed_vrf_tables_v2_details" }
+func (*Nat44EdVrfTablesV2Details) GetCrcString() string   { return "7b264e4f" }
+func (*Nat44EdVrfTablesV2Details) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *Nat44EdVrfTablesV2Details) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4                 // m.TableVrfID
+	size += 4                 // m.NVrfIds
+	size += 4 * len(m.VrfIds) // m.VrfIds
+	return size
+}
+func (m *Nat44EdVrfTablesV2Details) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.TableVrfID)
+	buf.EncodeUint32(uint32(len(m.VrfIds)))
+	for i := 0; i < len(m.VrfIds); i++ {
+		var x uint32
+		if i < len(m.VrfIds) {
+			x = uint32(m.VrfIds[i])
+		}
+		buf.EncodeUint32(x)
+	}
+	return buf.Bytes(), nil
+}
+func (m *Nat44EdVrfTablesV2Details) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.TableVrfID = buf.DecodeUint32()
+	m.NVrfIds = buf.DecodeUint32()
+	m.VrfIds = make([]uint32, m.NVrfIds)
+	for i := 0; i < len(m.VrfIds); i++ {
+		m.VrfIds[i] = buf.DecodeUint32()
+	}
+	return nil
+}
+
+// Dump NAT44-ED inter VRF NAT routing tables
+// Nat44EdVrfTablesV2Dump defines message 'nat44_ed_vrf_tables_v2_dump'.
+// InProgress: the message form may change in the future versions
+type Nat44EdVrfTablesV2Dump struct{}
+
+func (m *Nat44EdVrfTablesV2Dump) Reset()               { *m = Nat44EdVrfTablesV2Dump{} }
+func (*Nat44EdVrfTablesV2Dump) GetMessageName() string { return "nat44_ed_vrf_tables_v2_dump" }
+func (*Nat44EdVrfTablesV2Dump) GetCrcString() string   { return "51077d14" }
+func (*Nat44EdVrfTablesV2Dump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *Nat44EdVrfTablesV2Dump) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *Nat44EdVrfTablesV2Dump) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *Nat44EdVrfTablesV2Dump) Unmarshal(b []byte) error {
 	return nil
 }
 
@@ -3584,6 +3653,8 @@ func file_nat44_ed_binapi_init() {
 	api.RegisterMessage((*Nat44EdShowFqOptionsReply)(nil), "nat44_ed_show_fq_options_reply_7213b545")
 	api.RegisterMessage((*Nat44EdVrfTablesDetails)(nil), "nat44_ed_vrf_tables_details_7b264e4f")
 	api.RegisterMessage((*Nat44EdVrfTablesDump)(nil), "nat44_ed_vrf_tables_dump_51077d14")
+	api.RegisterMessage((*Nat44EdVrfTablesV2Details)(nil), "nat44_ed_vrf_tables_v2_details_7b264e4f")
+	api.RegisterMessage((*Nat44EdVrfTablesV2Dump)(nil), "nat44_ed_vrf_tables_v2_dump_51077d14")
 	api.RegisterMessage((*Nat44ForwardingEnableDisable)(nil), "nat44_forwarding_enable_disable_b3e225d2")
 	api.RegisterMessage((*Nat44ForwardingEnableDisableReply)(nil), "nat44_forwarding_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*Nat44IdentityMappingDetails)(nil), "nat44_identity_mapping_details_2a52a030")
@@ -3662,6 +3733,8 @@ func AllMessages() []api.Message {
 		(*Nat44EdShowFqOptionsReply)(nil),
 		(*Nat44EdVrfTablesDetails)(nil),
 		(*Nat44EdVrfTablesDump)(nil),
+		(*Nat44EdVrfTablesV2Details)(nil),
+		(*Nat44EdVrfTablesV2Dump)(nil),
 		(*Nat44ForwardingEnableDisable)(nil),
 		(*Nat44ForwardingEnableDisableReply)(nil),
 		(*Nat44IdentityMappingDetails)(nil),

@@ -3,11 +3,14 @@
 // Package sr contains generated bindings for API file sr.api.
 //
 // Contents:
+// -  1 enum
 // -  2 structs
-// - 24 messages
+// - 30 messages
 package sr
 
 import (
+	"strconv"
+
 	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 	ip_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	sr_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/sr_types"
@@ -23,9 +26,39 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "sr"
-	APIVersion = "2.0.0"
-	VersionCrc = 0x66d92d1b
+	APIVersion = "2.1.0"
+	VersionCrc = 0x1fa846d0
 )
+
+// SrPolicyType defines enum 'sr_policy_type'.
+type SrPolicyType uint8
+
+const (
+	SR_API_POLICY_TYPE_DEFAULT SrPolicyType = 0
+	SR_API_POLICY_TYPE_SPRAY   SrPolicyType = 1
+	SR_API_POLICY_TYPE_TEF     SrPolicyType = 2
+)
+
+var (
+	SrPolicyType_name = map[uint8]string{
+		0: "SR_API_POLICY_TYPE_DEFAULT",
+		1: "SR_API_POLICY_TYPE_SPRAY",
+		2: "SR_API_POLICY_TYPE_TEF",
+	}
+	SrPolicyType_value = map[string]uint8{
+		"SR_API_POLICY_TYPE_DEFAULT": 0,
+		"SR_API_POLICY_TYPE_SPRAY":   1,
+		"SR_API_POLICY_TYPE_TEF":     2,
+	}
+)
+
+func (x SrPolicyType) String() string {
+	s, ok := SrPolicyType_name[uint8(x)]
+	if ok {
+		return s
+	}
+	return "SrPolicyType(" + strconv.Itoa(int(x)) + ")"
+}
 
 // Srv6SidList defines type 'srv6_sid_list'.
 type Srv6SidList struct {
@@ -150,7 +183,6 @@ func (m *SrLocalsidAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump the list of SR LocalSIDs
 // SrLocalsidsDetails defines message 'sr_localsids_details'.
 type SrLocalsidsDetails struct {
 	Addr                    ip_types.IP6Address `binapi:"ip6_address,name=addr" json:"addr,omitempty"`
@@ -239,7 +271,6 @@ func (m *SrLocalsidsDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump the list of SR LocalSIDs along with packet statistics
 // SrLocalsidsWithPacketStatsDetails defines message 'sr_localsids_with_packet_stats_details'.
 // InProgress: the message form may change in the future versions
 type SrLocalsidsWithPacketStatsDetails struct {
@@ -350,7 +381,6 @@ func (m *SrLocalsidsWithPacketStatsDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump the list of SR policies
 // SrPoliciesDetails defines message 'sr_policies_details'.
 type SrPoliciesDetails struct {
 	Bsid        ip_types.IP6Address `binapi:"ip6_address,name=bsid" json:"bsid,omitempty"`
@@ -460,7 +490,120 @@ func (m *SrPoliciesDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump the list of SR policies along with actual segment list index on VPP
+// SrPoliciesV2Details defines message 'sr_policies_v2_details'.
+// InProgress: the message form may change in the future versions
+type SrPoliciesV2Details struct {
+	Bsid        ip_types.IP6Address `binapi:"ip6_address,name=bsid" json:"bsid,omitempty"`
+	EncapSrc    ip_types.IP6Address `binapi:"ip6_address,name=encap_src" json:"encap_src,omitempty"`
+	Type        SrPolicyType        `binapi:"sr_policy_type,name=type" json:"type,omitempty"`
+	IsEncap     bool                `binapi:"bool,name=is_encap" json:"is_encap,omitempty"`
+	FibTable    uint32              `binapi:"u32,name=fib_table" json:"fib_table,omitempty"`
+	NumSidLists uint8               `binapi:"u8,name=num_sid_lists" json:"-"`
+	SidLists    []Srv6SidList       `binapi:"srv6_sid_list[num_sid_lists],name=sid_lists" json:"sid_lists,omitempty"`
+}
+
+func (m *SrPoliciesV2Details) Reset()               { *m = SrPoliciesV2Details{} }
+func (*SrPoliciesV2Details) GetMessageName() string { return "sr_policies_v2_details" }
+func (*SrPoliciesV2Details) GetCrcString() string   { return "96dcb699" }
+func (*SrPoliciesV2Details) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SrPoliciesV2Details) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1 * 16 // m.Bsid
+	size += 1 * 16 // m.EncapSrc
+	size += 1      // m.Type
+	size += 1      // m.IsEncap
+	size += 4      // m.FibTable
+	size += 1      // m.NumSidLists
+	for j1 := 0; j1 < len(m.SidLists); j1++ {
+		var s1 Srv6SidList
+		_ = s1
+		if j1 < len(m.SidLists) {
+			s1 = m.SidLists[j1]
+		}
+		size += 1 // s1.NumSids
+		size += 4 // s1.Weight
+		for j2 := 0; j2 < 16; j2++ {
+			size += 1 * 16 // s1.Sids[j2]
+		}
+	}
+	return size
+}
+func (m *SrPoliciesV2Details) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBytes(m.Bsid[:], 16)
+	buf.EncodeBytes(m.EncapSrc[:], 16)
+	buf.EncodeUint8(uint8(m.Type))
+	buf.EncodeBool(m.IsEncap)
+	buf.EncodeUint32(m.FibTable)
+	buf.EncodeUint8(uint8(len(m.SidLists)))
+	for j0 := 0; j0 < len(m.SidLists); j0++ {
+		var v0 Srv6SidList // SidLists
+		if j0 < len(m.SidLists) {
+			v0 = m.SidLists[j0]
+		}
+		buf.EncodeUint8(v0.NumSids)
+		buf.EncodeUint32(v0.Weight)
+		for j1 := 0; j1 < 16; j1++ {
+			buf.EncodeBytes(v0.Sids[j1][:], 16)
+		}
+	}
+	return buf.Bytes(), nil
+}
+func (m *SrPoliciesV2Details) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	copy(m.Bsid[:], buf.DecodeBytes(16))
+	copy(m.EncapSrc[:], buf.DecodeBytes(16))
+	m.Type = SrPolicyType(buf.DecodeUint8())
+	m.IsEncap = buf.DecodeBool()
+	m.FibTable = buf.DecodeUint32()
+	m.NumSidLists = buf.DecodeUint8()
+	m.SidLists = make([]Srv6SidList, m.NumSidLists)
+	for j0 := 0; j0 < len(m.SidLists); j0++ {
+		m.SidLists[j0].NumSids = buf.DecodeUint8()
+		m.SidLists[j0].Weight = buf.DecodeUint32()
+		for j1 := 0; j1 < 16; j1++ {
+			copy(m.SidLists[j0].Sids[j1][:], buf.DecodeBytes(16))
+		}
+	}
+	return nil
+}
+
+// Dump the list of SR policies v2
+// SrPoliciesV2Dump defines message 'sr_policies_v2_dump'.
+type SrPoliciesV2Dump struct{}
+
+func (m *SrPoliciesV2Dump) Reset()               { *m = SrPoliciesV2Dump{} }
+func (*SrPoliciesV2Dump) GetMessageName() string { return "sr_policies_v2_dump" }
+func (*SrPoliciesV2Dump) GetCrcString() string   { return "51077d14" }
+func (*SrPoliciesV2Dump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SrPoliciesV2Dump) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *SrPoliciesV2Dump) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *SrPoliciesV2Dump) Unmarshal(b []byte) error {
+	return nil
+}
+
 // SrPoliciesWithSlIndexDetails defines message 'sr_policies_with_sl_index_details'.
 // InProgress: the message form may change in the future versions
 type SrPoliciesWithSlIndexDetails struct {
@@ -683,6 +826,119 @@ func (m *SrPolicyAddReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPv6 SR policy add
+//   - bsid is the bindingSID of the SR Policy
+//   - weight is the weight of the sid list. optional.
+//   - is_encap is the behavior of the SR policy. (0.SRH insert // 1.Encapsulation)
+//   - type is the SR policy param. (0.Default // 1.Spray // 2.Tef)
+//   - fib_table is the VRF where to install the FIB entry for the BSID
+//   - sids is a srv6_sid_list object
+//   - encap_src is a encaps IPv6 source addr. optional.
+//
+// SrPolicyAddV2 defines message 'sr_policy_add_v2'.
+// InProgress: the message form may change in the future versions
+type SrPolicyAddV2 struct {
+	BsidAddr ip_types.IP6Address `binapi:"ip6_address,name=bsid_addr" json:"bsid_addr,omitempty"`
+	Weight   uint32              `binapi:"u32,name=weight" json:"weight,omitempty"`
+	IsEncap  bool                `binapi:"bool,name=is_encap" json:"is_encap,omitempty"`
+	Type     SrPolicyType        `binapi:"sr_policy_type,name=type,default=0" json:"type,omitempty"`
+	FibTable uint32              `binapi:"u32,name=fib_table" json:"fib_table,omitempty"`
+	Sids     Srv6SidList         `binapi:"srv6_sid_list,name=sids" json:"sids,omitempty"`
+	EncapSrc ip_types.IP6Address `binapi:"ip6_address,name=encap_src" json:"encap_src,omitempty"`
+}
+
+func (m *SrPolicyAddV2) Reset()               { *m = SrPolicyAddV2{} }
+func (*SrPolicyAddV2) GetMessageName() string { return "sr_policy_add_v2" }
+func (*SrPolicyAddV2) GetCrcString() string   { return "f6297f36" }
+func (*SrPolicyAddV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SrPolicyAddV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1 * 16 // m.BsidAddr
+	size += 4      // m.Weight
+	size += 1      // m.IsEncap
+	size += 1      // m.Type
+	size += 4      // m.FibTable
+	size += 1      // m.Sids.NumSids
+	size += 4      // m.Sids.Weight
+	for j2 := 0; j2 < 16; j2++ {
+		size += 1 * 16 // m.Sids.Sids[j2]
+	}
+	size += 1 * 16 // m.EncapSrc
+	return size
+}
+func (m *SrPolicyAddV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBytes(m.BsidAddr[:], 16)
+	buf.EncodeUint32(m.Weight)
+	buf.EncodeBool(m.IsEncap)
+	buf.EncodeUint8(uint8(m.Type))
+	buf.EncodeUint32(m.FibTable)
+	buf.EncodeUint8(m.Sids.NumSids)
+	buf.EncodeUint32(m.Sids.Weight)
+	for j1 := 0; j1 < 16; j1++ {
+		buf.EncodeBytes(m.Sids.Sids[j1][:], 16)
+	}
+	buf.EncodeBytes(m.EncapSrc[:], 16)
+	return buf.Bytes(), nil
+}
+func (m *SrPolicyAddV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	copy(m.BsidAddr[:], buf.DecodeBytes(16))
+	m.Weight = buf.DecodeUint32()
+	m.IsEncap = buf.DecodeBool()
+	m.Type = SrPolicyType(buf.DecodeUint8())
+	m.FibTable = buf.DecodeUint32()
+	m.Sids.NumSids = buf.DecodeUint8()
+	m.Sids.Weight = buf.DecodeUint32()
+	for j1 := 0; j1 < 16; j1++ {
+		copy(m.Sids.Sids[j1][:], buf.DecodeBytes(16))
+	}
+	copy(m.EncapSrc[:], buf.DecodeBytes(16))
+	return nil
+}
+
+// SrPolicyAddV2Reply defines message 'sr_policy_add_v2_reply'.
+// InProgress: the message form may change in the future versions
+type SrPolicyAddV2Reply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SrPolicyAddV2Reply) Reset()               { *m = SrPolicyAddV2Reply{} }
+func (*SrPolicyAddV2Reply) GetMessageName() string { return "sr_policy_add_v2_reply" }
+func (*SrPolicyAddV2Reply) GetCrcString() string   { return "e8d4e804" }
+func (*SrPolicyAddV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SrPolicyAddV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SrPolicyAddV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SrPolicyAddV2Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // IPv6 SR policy deletion
 //   - bsid is the bindingSID of the SR Policy
 //   - index is the index of the SR policy
@@ -863,6 +1119,124 @@ func (m *SrPolicyModReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *SrPolicyModReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// IPv6 SR policy modification
+//   - bsid is the bindingSID of the SR Policy
+//   - sr_policy_index is the index of the SR policy
+//   - fib_table is the VRF where to install the FIB entry for the BSID
+//   - operation is the operation to perform (among the top ones)
+//   - sl_index is the index of the Segment List to modify/delete
+//   - weight is the weight of the sid list. optional.
+//   - sids is a srv6_sid_list object
+//   - encap_src is a encaps IPv6 source addr. optional.
+//
+// SrPolicyModV2 defines message 'sr_policy_mod_v2'.
+// InProgress: the message form may change in the future versions
+type SrPolicyModV2 struct {
+	BsidAddr      ip_types.IP6Address `binapi:"ip6_address,name=bsid_addr" json:"bsid_addr,omitempty"`
+	SrPolicyIndex uint32              `binapi:"u32,name=sr_policy_index" json:"sr_policy_index,omitempty"`
+	FibTable      uint32              `binapi:"u32,name=fib_table" json:"fib_table,omitempty"`
+	Operation     sr_types.SrPolicyOp `binapi:"sr_policy_op,name=operation" json:"operation,omitempty"`
+	SlIndex       uint32              `binapi:"u32,name=sl_index" json:"sl_index,omitempty"`
+	Weight        uint32              `binapi:"u32,name=weight" json:"weight,omitempty"`
+	Sids          Srv6SidList         `binapi:"srv6_sid_list,name=sids" json:"sids,omitempty"`
+	EncapSrc      ip_types.IP6Address `binapi:"ip6_address,name=encap_src" json:"encap_src,omitempty"`
+}
+
+func (m *SrPolicyModV2) Reset()               { *m = SrPolicyModV2{} }
+func (*SrPolicyModV2) GetMessageName() string { return "sr_policy_mod_v2" }
+func (*SrPolicyModV2) GetCrcString() string   { return "c0544823" }
+func (*SrPolicyModV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SrPolicyModV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1 * 16 // m.BsidAddr
+	size += 4      // m.SrPolicyIndex
+	size += 4      // m.FibTable
+	size += 1      // m.Operation
+	size += 4      // m.SlIndex
+	size += 4      // m.Weight
+	size += 1      // m.Sids.NumSids
+	size += 4      // m.Sids.Weight
+	for j2 := 0; j2 < 16; j2++ {
+		size += 1 * 16 // m.Sids.Sids[j2]
+	}
+	size += 1 * 16 // m.EncapSrc
+	return size
+}
+func (m *SrPolicyModV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeBytes(m.BsidAddr[:], 16)
+	buf.EncodeUint32(m.SrPolicyIndex)
+	buf.EncodeUint32(m.FibTable)
+	buf.EncodeUint8(uint8(m.Operation))
+	buf.EncodeUint32(m.SlIndex)
+	buf.EncodeUint32(m.Weight)
+	buf.EncodeUint8(m.Sids.NumSids)
+	buf.EncodeUint32(m.Sids.Weight)
+	for j1 := 0; j1 < 16; j1++ {
+		buf.EncodeBytes(m.Sids.Sids[j1][:], 16)
+	}
+	buf.EncodeBytes(m.EncapSrc[:], 16)
+	return buf.Bytes(), nil
+}
+func (m *SrPolicyModV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	copy(m.BsidAddr[:], buf.DecodeBytes(16))
+	m.SrPolicyIndex = buf.DecodeUint32()
+	m.FibTable = buf.DecodeUint32()
+	m.Operation = sr_types.SrPolicyOp(buf.DecodeUint8())
+	m.SlIndex = buf.DecodeUint32()
+	m.Weight = buf.DecodeUint32()
+	m.Sids.NumSids = buf.DecodeUint8()
+	m.Sids.Weight = buf.DecodeUint32()
+	for j1 := 0; j1 < 16; j1++ {
+		copy(m.Sids.Sids[j1][:], buf.DecodeBytes(16))
+	}
+	copy(m.EncapSrc[:], buf.DecodeBytes(16))
+	return nil
+}
+
+// SrPolicyModV2Reply defines message 'sr_policy_mod_v2_reply'.
+// InProgress: the message form may change in the future versions
+type SrPolicyModV2Reply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SrPolicyModV2Reply) Reset()               { *m = SrPolicyModV2Reply{} }
+func (*SrPolicyModV2Reply) GetMessageName() string { return "sr_policy_mod_v2_reply" }
+func (*SrPolicyModV2Reply) GetCrcString() string   { return "e8d4e804" }
+func (*SrPolicyModV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SrPolicyModV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SrPolicyModV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SrPolicyModV2Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -1113,7 +1487,6 @@ func (m *SrSteeringAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump the steering policies
 // SrSteeringPolDetails defines message 'sr_steering_pol_details'.
 type SrSteeringPolDetails struct {
 	TrafficType sr_types.SrSteer               `binapi:"sr_steer,name=traffic_type" json:"traffic_type,omitempty"`
@@ -1207,14 +1580,20 @@ func file_sr_binapi_init() {
 	api.RegisterMessage((*SrLocalsidsWithPacketStatsDump)(nil), "sr_localsids_with_packet_stats_dump_51077d14")
 	api.RegisterMessage((*SrPoliciesDetails)(nil), "sr_policies_details_db6ff2a1")
 	api.RegisterMessage((*SrPoliciesDump)(nil), "sr_policies_dump_51077d14")
+	api.RegisterMessage((*SrPoliciesV2Details)(nil), "sr_policies_v2_details_96dcb699")
+	api.RegisterMessage((*SrPoliciesV2Dump)(nil), "sr_policies_v2_dump_51077d14")
 	api.RegisterMessage((*SrPoliciesWithSlIndexDetails)(nil), "sr_policies_with_sl_index_details_ca2e9bc8")
 	api.RegisterMessage((*SrPoliciesWithSlIndexDump)(nil), "sr_policies_with_sl_index_dump_51077d14")
 	api.RegisterMessage((*SrPolicyAdd)(nil), "sr_policy_add_44ac92e8")
 	api.RegisterMessage((*SrPolicyAddReply)(nil), "sr_policy_add_reply_e8d4e804")
+	api.RegisterMessage((*SrPolicyAddV2)(nil), "sr_policy_add_v2_f6297f36")
+	api.RegisterMessage((*SrPolicyAddV2Reply)(nil), "sr_policy_add_v2_reply_e8d4e804")
 	api.RegisterMessage((*SrPolicyDel)(nil), "sr_policy_del_cb4d48d5")
 	api.RegisterMessage((*SrPolicyDelReply)(nil), "sr_policy_del_reply_e8d4e804")
 	api.RegisterMessage((*SrPolicyMod)(nil), "sr_policy_mod_b97bb56e")
 	api.RegisterMessage((*SrPolicyModReply)(nil), "sr_policy_mod_reply_e8d4e804")
+	api.RegisterMessage((*SrPolicyModV2)(nil), "sr_policy_mod_v2_c0544823")
+	api.RegisterMessage((*SrPolicyModV2Reply)(nil), "sr_policy_mod_v2_reply_e8d4e804")
 	api.RegisterMessage((*SrSetEncapHopLimit)(nil), "sr_set_encap_hop_limit_aa75d7d0")
 	api.RegisterMessage((*SrSetEncapHopLimitReply)(nil), "sr_set_encap_hop_limit_reply_e8d4e804")
 	api.RegisterMessage((*SrSetEncapSource)(nil), "sr_set_encap_source_d3bad5e1")
@@ -1236,14 +1615,20 @@ func AllMessages() []api.Message {
 		(*SrLocalsidsWithPacketStatsDump)(nil),
 		(*SrPoliciesDetails)(nil),
 		(*SrPoliciesDump)(nil),
+		(*SrPoliciesV2Details)(nil),
+		(*SrPoliciesV2Dump)(nil),
 		(*SrPoliciesWithSlIndexDetails)(nil),
 		(*SrPoliciesWithSlIndexDump)(nil),
 		(*SrPolicyAdd)(nil),
 		(*SrPolicyAddReply)(nil),
+		(*SrPolicyAddV2)(nil),
+		(*SrPolicyAddV2Reply)(nil),
 		(*SrPolicyDel)(nil),
 		(*SrPolicyDelReply)(nil),
 		(*SrPolicyMod)(nil),
 		(*SrPolicyModReply)(nil),
+		(*SrPolicyModV2)(nil),
+		(*SrPolicyModV2Reply)(nil),
 		(*SrSetEncapHopLimit)(nil),
 		(*SrSetEncapHopLimitReply)(nil),
 		(*SrSetEncapSource)(nil),

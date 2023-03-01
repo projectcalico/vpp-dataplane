@@ -53,12 +53,12 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 }
 
 func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) (err error) {
-	memifName := "@" + podSpec.InterfaceName
+	memifName := podSpec.InterfaceName
 	// if we are in main network (PBL case)
 	if podSpec.NetworkName == "" {
-		memifName = "@vpp/memif-" + podSpec.InterfaceName
+		memifName = "vpp/memif-" + podSpec.InterfaceName
 	}
-	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("@netns:%s%s", podSpec.NetnsName, memifName))
+	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("abstract:%s,netns_name=%s", memifName, podSpec.NetnsName))
 	if err != nil {
 		return err
 	} else {

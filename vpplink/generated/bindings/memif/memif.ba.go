@@ -4,7 +4,7 @@
 //
 // Contents:
 // -  2 enums
-// - 12 messages
+// - 14 messages
 package memif
 
 import (
@@ -24,8 +24,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "memif"
-	APIVersion = "3.0.0"
-	VersionCrc = 0x9ec8c1e7
+	APIVersion = "3.1.0"
+	VersionCrc = 0xd48ac702
 )
 
 // MemifMode defines enum 'memif_mode'.
@@ -208,6 +208,140 @@ func (m *MemifCreateReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *MemifCreateReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	return nil
+}
+
+// Create memory interface
+//   - role - role of the interface in the connection (master/slave)
+//   - mode - interface mode
+//   - rx_queues - number of rx queues (only valid for slave)
+//   - tx_queues - number of tx queues (only valid for slave)
+//   - id - 32bit integer used to authenticate and match opposite sides
+//     of the connection
+//   - socket_id - socket filename id to be used for connection
+//     establishment
+//   - ring_size - the number of entries of RX/TX rings
+//   - buffer_size - size of the buffer allocated for each ring entry
+//   - no_zero_copy - if true, disable zero copy
+//   - use_dma - if true, use dma accelerate memory copy
+//   - hw_addr - interface MAC address
+//   - secret - optional, default is "", max length 24
+//
+// MemifCreateV2 defines message 'memif_create_v2'.
+type MemifCreateV2 struct {
+	Role       MemifRole                 `binapi:"memif_role,name=role" json:"role,omitempty"`
+	Mode       MemifMode                 `binapi:"memif_mode,name=mode" json:"mode,omitempty"`
+	RxQueues   uint8                     `binapi:"u8,name=rx_queues" json:"rx_queues,omitempty"`
+	TxQueues   uint8                     `binapi:"u8,name=tx_queues" json:"tx_queues,omitempty"`
+	ID         uint32                    `binapi:"u32,name=id" json:"id,omitempty"`
+	SocketID   uint32                    `binapi:"u32,name=socket_id" json:"socket_id,omitempty"`
+	RingSize   uint32                    `binapi:"u32,name=ring_size" json:"ring_size,omitempty"`
+	BufferSize uint16                    `binapi:"u16,name=buffer_size" json:"buffer_size,omitempty"`
+	NoZeroCopy bool                      `binapi:"bool,name=no_zero_copy" json:"no_zero_copy,omitempty"`
+	UseDma     bool                      `binapi:"bool,name=use_dma" json:"use_dma,omitempty"`
+	HwAddr     ethernet_types.MacAddress `binapi:"mac_address,name=hw_addr" json:"hw_addr,omitempty"`
+	Secret     string                    `binapi:"string[24],name=secret" json:"secret,omitempty"`
+}
+
+func (m *MemifCreateV2) Reset()               { *m = MemifCreateV2{} }
+func (*MemifCreateV2) GetMessageName() string { return "memif_create_v2" }
+func (*MemifCreateV2) GetCrcString() string   { return "8c7de5f7" }
+func (*MemifCreateV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *MemifCreateV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4     // m.Role
+	size += 4     // m.Mode
+	size += 1     // m.RxQueues
+	size += 1     // m.TxQueues
+	size += 4     // m.ID
+	size += 4     // m.SocketID
+	size += 4     // m.RingSize
+	size += 2     // m.BufferSize
+	size += 1     // m.NoZeroCopy
+	size += 1     // m.UseDma
+	size += 1 * 6 // m.HwAddr
+	size += 24    // m.Secret
+	return size
+}
+func (m *MemifCreateV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.Role))
+	buf.EncodeUint32(uint32(m.Mode))
+	buf.EncodeUint8(m.RxQueues)
+	buf.EncodeUint8(m.TxQueues)
+	buf.EncodeUint32(m.ID)
+	buf.EncodeUint32(m.SocketID)
+	buf.EncodeUint32(m.RingSize)
+	buf.EncodeUint16(m.BufferSize)
+	buf.EncodeBool(m.NoZeroCopy)
+	buf.EncodeBool(m.UseDma)
+	buf.EncodeBytes(m.HwAddr[:], 6)
+	buf.EncodeString(m.Secret, 24)
+	return buf.Bytes(), nil
+}
+func (m *MemifCreateV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Role = MemifRole(buf.DecodeUint32())
+	m.Mode = MemifMode(buf.DecodeUint32())
+	m.RxQueues = buf.DecodeUint8()
+	m.TxQueues = buf.DecodeUint8()
+	m.ID = buf.DecodeUint32()
+	m.SocketID = buf.DecodeUint32()
+	m.RingSize = buf.DecodeUint32()
+	m.BufferSize = buf.DecodeUint16()
+	m.NoZeroCopy = buf.DecodeBool()
+	m.UseDma = buf.DecodeBool()
+	copy(m.HwAddr[:], buf.DecodeBytes(6))
+	m.Secret = buf.DecodeString(24)
+	return nil
+}
+
+// Create memory interface response
+//   - retval - return value for request
+//   - sw_if_index - software index of the newly created interface
+//
+// MemifCreateV2Reply defines message 'memif_create_v2_reply'.
+type MemifCreateV2Reply struct {
+	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+}
+
+func (m *MemifCreateV2Reply) Reset()               { *m = MemifCreateV2Reply{} }
+func (*MemifCreateV2Reply) GetMessageName() string { return "memif_create_v2_reply" }
+func (*MemifCreateV2Reply) GetCrcString() string   { return "5383d31f" }
+func (*MemifCreateV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *MemifCreateV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	size += 4 // m.SwIfIndex
+	return size
+}
+func (m *MemifCreateV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	return buf.Bytes(), nil
+}
+func (m *MemifCreateV2Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
@@ -650,6 +784,8 @@ func init() { file_memif_binapi_init() }
 func file_memif_binapi_init() {
 	api.RegisterMessage((*MemifCreate)(nil), "memif_create_b1b25061")
 	api.RegisterMessage((*MemifCreateReply)(nil), "memif_create_reply_5383d31f")
+	api.RegisterMessage((*MemifCreateV2)(nil), "memif_create_v2_8c7de5f7")
+	api.RegisterMessage((*MemifCreateV2Reply)(nil), "memif_create_v2_reply_5383d31f")
 	api.RegisterMessage((*MemifDelete)(nil), "memif_delete_f9e6675e")
 	api.RegisterMessage((*MemifDeleteReply)(nil), "memif_delete_reply_e8d4e804")
 	api.RegisterMessage((*MemifDetails)(nil), "memif_details_da34feb9")
@@ -667,6 +803,8 @@ func AllMessages() []api.Message {
 	return []api.Message{
 		(*MemifCreate)(nil),
 		(*MemifCreateReply)(nil),
+		(*MemifCreateV2)(nil),
+		(*MemifCreateV2Reply)(nil),
 		(*MemifDelete)(nil),
 		(*MemifDeleteReply)(nil),
 		(*MemifDetails)(nil),

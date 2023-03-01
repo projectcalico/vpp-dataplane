@@ -190,6 +190,7 @@ func (m *RdmaCreate) Unmarshal(b []byte) error {
 //   - sw_if_index - software index for the new rdma interface
 //
 // RdmaCreateReply defines message 'rdma_create_reply'.
+// Deprecated: the message will be removed in the future versions
 type RdmaCreateReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -303,6 +304,7 @@ func (m *RdmaCreateV2) Unmarshal(b []byte) error {
 //   - sw_if_index - software index for the new rdma interface
 //
 // RdmaCreateV2Reply defines message 'rdma_create_v2_reply'.
+// Deprecated: the message will be removed in the future versions
 type RdmaCreateV2Reply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
