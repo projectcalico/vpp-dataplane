@@ -231,7 +231,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					socket, err := vpp.MemifsocketByID(memifs[0].SocketId)
 					Expect(err).ToNot(HaveOccurred(), "failed to get memif socket")
 					Expect(socket.SocketFilename).To(Equal(
-						fmt.Sprintf("@netns:%s@vpp/memif-%s", newPod.Netns, newPod.InterfaceName)),
+						fmt.Sprintf("abstract:%s,netns_name=%s", newPod.InterfaceName, newPod.Netns)),
 						"memif socket file is not configured correctly")
 
 					By("Checking PBL (packet punting) to redirect some traffic into memif (secondary interface)")

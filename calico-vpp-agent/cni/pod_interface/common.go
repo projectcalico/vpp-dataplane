@@ -37,21 +37,23 @@ func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTx
 		"swIfIndex": swIfIndex,
 	}).Debugf("Spreading %d TX queues on %d workers for pod interface: %v", numTxQueues, i.NDataThreads, i.Name)
 
+	return nil // FIXME
+
 	// set first tx queue for main worker
-	err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0 /* queue */, 0 /* worker */)
-	if err != nil {
-		return err
-	}
-	// share tx queues between the rest of workers
-	if i.NDataThreads > 0 {
-		for txq := 1; txq < numTxQueues; txq++ {
-			err = i.vpp.SetInterfaceTxPlacement(swIfIndex, txq, (txq-1)%(i.NDataThreads)+1)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	// err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0 /* queue */, 0 /* worker */)
+	// if err != nil {
+	// 	return err
+	// }
+	// // share tx queues between the rest of workers
+	// if i.NDataThreads > 0 {
+	// 	for txq := 1; txq < numTxQueues; txq++ {
+	// 		err = i.vpp.SetInterfaceTxPlacement(swIfIndex, txq, (txq-1)%(i.NDataThreads)+1)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 	}
+	// }
+	// return nil
 }
 
 func (i *PodInterfaceDriverData) SpreadRxQueuesOnWorkers(swIfIndex uint32, numRxQueues int) {

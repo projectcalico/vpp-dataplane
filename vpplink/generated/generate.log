@@ -1,16 +1,10 @@
-VPP Version                 : 23.06-rc0~12-gaca7c2f55
+VPP Version                 : 23.06-rc0~206-gbc006bb5a
 Binapi-generator version    : govpp v0.8.0-dev
-VPP Base commit             : 7e4be8e78 gerrit:34713/4 vppinfra: improve & test abstract socket
+VPP Base commit             : 28d74a396 gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
-memif: fix socket name null termination
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
-gerrit:37931/1 ip: add the missing offload check
-gerrit:35805/2 dpdk: add intf tag to dev{} subinput
-gerrit:34726/1 interface: add buffer stats api
-gerrit:34734/3 memif: autogenerate socket_ids
-gerrit:32271/16 memif: add support for ns abstract sockets
-gerrit:34713/4 vppinfra: improve & test abstract socket
+gerrit:34726/3 interface: add buffer stats api
 -------------------------------------------------------------

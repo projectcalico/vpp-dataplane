@@ -332,7 +332,6 @@ func (u *CapoIpsetMemberValUnion) GetTuple() (a CapoThreeTuple) {
 	return
 }
 
-// // where the packet only needs to match one entry in either category
 // CapoConfigurePolicies defines message 'capo_configure_policies'.
 // InProgress: the message form may change in the future versions
 type CapoConfigurePolicies struct {
@@ -576,10 +575,6 @@ func (m *CapoGetVersionReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Control ping from the client to the server response
-//   - retval - return code for the request
-//   - vpe_pid - the pid of the vpe, returned by the server
-//
 // CapoIpsetAddDelMembers defines message 'capo_ipset_add_del_members'.
 // InProgress: the message form may change in the future versions
 type CapoIpsetAddDelMembers struct {
@@ -678,10 +673,6 @@ func (m *CapoIpsetAddDelMembersReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Control ping from the client to the server response
-//   - retval - return code for the request
-//   - vpe_pid - the pid of the vpe, returned by the server
-//
 // CapoIpsetCreate defines message 'capo_ipset_create'.
 // InProgress: the message form may change in the future versions
 type CapoIpsetCreate struct {
@@ -716,10 +707,6 @@ func (m *CapoIpsetCreate) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Control ping from the client to the server response
-//   - retval - return code for the request
-//   - vpe_pid - the pid of the vpe, returned by the server
-//
 // CapoIpsetCreateReply defines message 'capo_ipset_create_reply'.
 // InProgress: the message form may change in the future versions
 type CapoIpsetCreateReply struct {
@@ -758,10 +745,6 @@ func (m *CapoIpsetCreateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Control ping from the client to the server response
-//   - retval - return code for the request
-//   - vpe_pid - the pid of the vpe, returned by the server
-//
 // CapoIpsetDelete defines message 'capo_ipset_delete'.
 // InProgress: the message form may change in the future versions
 type CapoIpsetDelete struct {
@@ -830,7 +813,6 @@ func (m *CapoIpsetDeleteReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// // where the packet only needs to match one entry in either category
 // CapoPolicyCreate defines message 'capo_policy_create'.
 // InProgress: the message form may change in the future versions
 type CapoPolicyCreate struct {
@@ -888,7 +870,6 @@ func (m *CapoPolicyCreate) Unmarshal(b []byte) error {
 	return nil
 }
 
-// // where the packet only needs to match one entry in either category
 // CapoPolicyCreateReply defines message 'capo_policy_create_reply'.
 // InProgress: the message form may change in the future versions
 type CapoPolicyCreateReply struct {
@@ -927,7 +908,6 @@ func (m *CapoPolicyCreateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// // where the packet only needs to match one entry in either category
 // CapoPolicyDelete defines message 'capo_policy_delete'.
 // InProgress: the message form may change in the future versions
 type CapoPolicyDelete struct {
@@ -996,7 +976,6 @@ func (m *CapoPolicyDeleteReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// // where the packet only needs to match one entry in either category
 // CapoPolicyUpdate defines message 'capo_policy_update'.
 // InProgress: the message form may change in the future versions
 type CapoPolicyUpdate struct {
@@ -1176,7 +1155,6 @@ func (m *CapoRuleCreate) Unmarshal(b []byte) error {
 	return nil
 }
 
-// // where the packet only needs to match one entry in either category
 // CapoRuleCreateReply defines message 'capo_rule_create_reply'.
 // InProgress: the message form may change in the future versions
 type CapoRuleCreateReply struct {
@@ -1215,7 +1193,6 @@ func (m *CapoRuleCreateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// // where the packet only needs to match one entry in either category
 // CapoRuleDelete defines message 'capo_rule_delete'.
 // InProgress: the message form may change in the future versions
 type CapoRuleDelete struct {
@@ -1284,7 +1261,6 @@ func (m *CapoRuleDeleteReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// // where the packet only needs to match one entry in either category
 // CapoRuleUpdate defines message 'capo_rule_update'.
 // InProgress: the message form may change in the future versions
 type CapoRuleUpdate struct {

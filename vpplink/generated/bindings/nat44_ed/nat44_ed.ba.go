@@ -1180,12 +1180,6 @@ func (m *Nat44EdAddDelVrfTableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// add/del NAT output interface (postrouting
-//
-//	       in2out translation)
-//	- is_add - true if add, false if delete
-//	- sw_if_index - software index of the interface
-//
 // Nat44EdOutputInterfaceDetails defines message 'nat44_ed_output_interface_details'.
 type Nat44EdOutputInterfaceDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1221,12 +1215,6 @@ func (m *Nat44EdOutputInterfaceDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// add/del NAT output interface (postrouting
-//
-//	       in2out translation)
-//	- is_add - true if add, false if delete
-//	- sw_if_index - software index of the interface
-//
 // Nat44EdOutputInterfaceGet defines message 'nat44_ed_output_interface_get'.
 type Nat44EdOutputInterfaceGet struct {
 	Cursor uint32 `binapi:"u32,name=cursor" json:"cursor,omitempty"`
@@ -1260,12 +1248,6 @@ func (m *Nat44EdOutputInterfaceGet) Unmarshal(b []byte) error {
 	return nil
 }
 
-// add/del NAT output interface (postrouting
-//
-//	       in2out translation)
-//	- is_add - true if add, false if delete
-//	- sw_if_index - software index of the interface
-//
 // Nat44EdOutputInterfaceGetReply defines message 'nat44_ed_output_interface_get_reply'.
 type Nat44EdOutputInterfaceGetReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
