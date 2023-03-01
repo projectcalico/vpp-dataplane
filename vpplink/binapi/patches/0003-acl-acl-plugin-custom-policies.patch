@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Yourtchenko <ayourtch@gmail.com>
 Date: Tue, 28 Jul 2020 10:23:06 +0000
-Subject: [PATCH 3/4] acl: acl-plugin custom policies
+Subject: [PATCH 3/5] acl: acl-plugin custom policies
 
 Type: feature
 Change-Id: I3117e84d9e822b68b12265e9261992e4d7f50f0f
@@ -806,5 +806,5 @@ index 8d1f3f20f..52641f9e7 100644
  void
  acl_plugin_show_lookup_user (u32 user_index)
 -- 
-2.38.0
+2.39.2
 
