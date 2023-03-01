@@ -11,9 +11,15 @@ all: build gobgp image
 
 export GOOS=linux
 
-build:
-	${DOCKER_RUN} go build -o ./cmd/calico-vpp-agent ./cmd
+# We make felix-api-proxy a static executable as it will run in the calico container
+# for which we have less control on the env and glibc version
+.PHONY: felix-api-proxy
+felix-api-proxy: CGO_ENABLED=0
+felix-api-proxy:
 	${DOCKER_RUN} go build -o ./cmd/felix-api-proxy ./cmd/api-proxy
+
+build: felix-api-proxy
+	${DOCKER_RUN} go build -o ./cmd/calico-vpp-agent ./cmd
 	${DOCKER_RUN} go build -o ./cmd/debug ./cmd/debug-state
 
 gobgp: GOBGP_DIR:=$(shell ${DOCKER_RUN} go list -f '{{.Dir}}' -m github.com/osrg/gobgp/v3)
@@ -35,11 +41,7 @@ push: ${PUSH_DEP}
 		docker push calicovpp/agent:latest; \
 	fi
 
-dev: build gobgp
-	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
-	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
-	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
-	docker build -t calicovpp/agent:$(TAG) .
+dev: image
 
 proto:
 	$(MAKE) -C proto $@

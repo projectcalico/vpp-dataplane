@@ -16,7 +16,7 @@ image: build
 	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
 	docker build --pull -t calicovpp/multinet-monitor:$(TAG) .
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
-		docker tag calicovpp/agent:$(TAG) calicovpp/agent:latest; \
+		docker tag calicovpp/multinet-monitor:$(TAG) calicovpp/multinet-monitor:latest; \
 	fi
 
 .PHONY: dev
