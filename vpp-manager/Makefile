@@ -91,3 +91,7 @@ dev: build
 	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 	  --build-arg WITH_GDB=${WITH_GDB} \
 	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
+	fi
+
