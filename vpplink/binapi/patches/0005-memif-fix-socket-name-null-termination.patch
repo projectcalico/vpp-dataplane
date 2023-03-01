@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+Date: Wed, 1 Mar 2023 18:51:22 +0100
+Subject: [PATCH 5/5] memif: fix socket name null termination
+
+Change-Id: I2bccc0c10c8ab2f2330cb8270cff3c10ff460280
+Signed-off-by: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+---
+ src/plugins/memif/memif_api.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/plugins/memif/memif_api.c b/src/plugins/memif/memif_api.c
+index 5d32523de..e5ed3b6af 100644
+--- a/src/plugins/memif/memif_api.c
++++ b/src/plugins/memif/memif_api.c
+@@ -92,7 +92,7 @@ vl_api_memif_socket_filename_add_del_v2_t_handler (
+ {
+   vl_api_memif_socket_filename_add_del_v2_reply_t *rmp;
+   memif_main_t *mm = &memif_main;
+-  u8 *socket_filename = 0;
++  char *socket_filename = 0;
+   u32 socket_id;
+   int rv;
+ 
+@@ -105,11 +105,11 @@ vl_api_memif_socket_filename_add_del_v2_t_handler (
+     }
+ 
+   /* socket filename */
+-  socket_filename = vl_api_from_api_to_new_vec (mp, &mp->socket_filename);
++  socket_filename = vl_api_from_api_to_new_c_string (&mp->socket_filename);
+   if (mp->is_add && socket_id == (u32) ~0)
+     socket_id = memif_get_unused_socket_id ();
+ 
+-  rv = memif_socket_filename_add_del (mp->is_add, socket_id, socket_filename);
++  rv = memif_socket_filename_add_del (mp->is_add, socket_id, (u8*)socket_filename);
+ 
+   vec_free (socket_filename);
+ 
+-- 
+2.39.2
+

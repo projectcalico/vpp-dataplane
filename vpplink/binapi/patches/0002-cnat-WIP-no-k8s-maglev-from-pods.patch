@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
 Date: Mon, 8 Mar 2021 19:00:04 +0100
-Subject: [PATCH 2/4] cnat: [WIP] no k8s maglev from pods
+Subject: [PATCH 2/5] cnat: [WIP] no k8s maglev from pods
 
 Type: improvement
 
@@ -45,5 +45,5 @@ index 76aa89398..fd3b90a1a 100644
  	  const dpo_id_t *dpo0;
  	  const load_balance_t *lb1;
 -- 
-2.38.0
+2.39.2
 

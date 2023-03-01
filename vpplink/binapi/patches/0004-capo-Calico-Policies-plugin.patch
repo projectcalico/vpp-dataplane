@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Yourtchenko <ayourtch@gmail.com>
 Date: Wed, 18 Aug 2021 20:10:22 +0200
-Subject: [PATCH 4/4] capo: Calico Policies plugin
+Subject: [PATCH 4/5] capo: Calico Policies plugin
 
 New plugin that implements Calico policies and profiles in VPP.
 
@@ -5025,5 +5025,5 @@ index 000000000..401a7abd5
 +        rule2.remove_vpp_config()
 +        src_ipset.remove_vpp_config()
 -- 
-2.38.0
+2.39.2
 
