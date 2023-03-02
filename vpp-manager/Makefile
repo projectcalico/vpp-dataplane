@@ -1,5 +1,7 @@
 include ../.ci/common.mk
 
+SHELL := /bin/bash
+
 .PHONY: all build image push imageonly vpp vpp-build-env dev eksimage clean clean-vpp
 
 VPPLINK_DIR=../vpplink
@@ -12,7 +14,8 @@ VERSION_FILE=$(IMAGE_DIR)/version
 TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
 
-VPP_HASH = $(shell md5sum $(VPPLINK_DIR)/binapi/vpp_clone_current.sh | cut -f 1 -d' ')
+PATCHES = $(sort $(wildcard $(VPPLINK_DIR)/binapi/patches/*.patch))
+VPP_HASH = $(shell md5sum <(md5sum $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ${PATCHES}) | cut -f 1 -d' ')
 VPP_TARBALL = vpp-${VPP_HASH}.tgz
 
 all: image
@@ -120,3 +123,5 @@ dev: build
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
 	fi
 
+vpp-hash:
+	@echo VPP hash: ${VPP_HASH}
