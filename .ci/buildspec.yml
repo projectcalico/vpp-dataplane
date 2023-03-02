@@ -26,8 +26,6 @@ phases:
       - make -C ../ images
       - docker images
       - make -C ../ run-integration-tests
-      - make -C ../ push
-
 
   post_build:
     commands:
