@@ -29,6 +29,9 @@ eksimage:
 	docker build ${SQUASH} --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/init-eks:$(TAG) $(INIT_EKS_IMAGE_DIR)
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker tag calicovpp/init-eks:$(TAG) calicovpp/init-eks:latest; \
+	fi
 
 image: build ${VPP_TARBALL} eksimage
 	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
