@@ -8,6 +8,8 @@ DEPEND_BASE = calicovpp/ci-builder
 
 VPP_BUCKET = calico-vpp-ci-artefacts
 
+WITH_GDB ?= yes
+
 # Docker option
 SQUASH := --squash
 # push dependency

@@ -13,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VPP_IMAGE="calicovpp/vpp:latest"
-POD_MOCK_IMAGE="calicovpp/vpp-test-pod-mock:latest"
+TAG=${TAG:-latest}
+VPP_IMAGE=${VPP_IMAGE:-calicovpp/vpp:${TAG}}
+POD_MOCK_IMAGE=${POD_MOCK_IMAGE:-calicovpp/vpp-test-pod-mock:${TAG}}
 
 function prepageImageWithVPPBinary() {
   if ! docker image inspect $VPP_IMAGE >/dev/null 2>&1; then
@@ -38,6 +39,7 @@ function preparePodMockImage() {
 result=0
 
 echo "Running Integration tests..."
+echo "VPP image: ${VPP_IMAGE}"
 echo "Running Calico VPP Agent - CNI tests..."
 prepageImageWithVPPBinary
 preparePodMockImage
