@@ -858,8 +858,8 @@ func startVPP() {
 	vppBinaryConfigArg := `unix {
 			nodaemon
 			full-coredump
-			cli-listen /var/run/vpp/cli2.sock
-			pidfile /run/vpp/vpp2.pid
+			cli-listen /var/run/vpp/cli.sock
+			pidfile /run/vpp/vpp.pid
 		  }
 		  api-trace { on }
 		  cpu {
@@ -886,6 +886,7 @@ func startVPP() {
 	cmd := []string{"run", "-d", "--privileged", "--name", VPPContainerName,
 		"-v", "/tmp/" + VPPContainerName + ":/var/run/vpp/",
 		"-v", "/proc:/proc", // needed for manipulation of another docker container's network namespace
+		"--pid=host",
 		"--sysctl", "net.ipv6.conf.all.disable_ipv6=0"} // enable IPv6 in container (to set IPv6 on host's end of uplink)
 	cmd = append(cmd, vppContainerExtraArgs...)
 	cmd = append(cmd, "--entrypoint", vppBinary, vppImage, vppBinaryConfigArg)
