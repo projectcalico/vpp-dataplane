@@ -10,8 +10,7 @@ discovery:
 kind: JoinConfiguration
 nodeRegistration:
   taints: null
-  # criSocket: /var/run/containerd/containerd.sock
-  criSocket: /var/run/dockershim.sock
+  criSocket: unix:///var/run/containerd/containerd.sock
   name: "${NODE_NAME}"
   kubeletExtraArgs:
     node-ip: "${FIRST_NODE_IP}"
@@ -25,13 +24,13 @@ apiServer:
     authorization-mode: Node,RBAC
     advertise-address: "${FIRST_NODE_IP}"
     service-cluster-ip-range: "${SERVICE_CIDR}"
-    feature-gates: "IPv6DualStack=${IS_DUAL}"
+    # feature-gates: ""
 certificatesDir: /etc/kubernetes/pki
 clusterName: kubernetes
 # https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
 controllerManager:
   extraArgs:
-    feature-gates: "IPv6DualStack=${IS_DUAL}"
+    # feature-gates: ""
     allocate-node-cidrs: "true"
     cluster-cidr: "${POD_CIDR}"
     service-cluster-ip-range: "${SERVICE_CIDR}"
@@ -57,14 +56,14 @@ apiVersion: kubeproxy.config.k8s.io/v1alpha1
 kind: KubeProxyConfiguration
 conntrack:
   maxPerCore: 0
-featureGates:
-  IPv6DualStack: ${IS_DUAL}
+# featureGates:
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 maxPods: 100000
 cgroupDriver: "cgroupfs"
-featureGates:
-  IPv6DualStack: ${IS_DUAL}
+cpuManagerPolicy: "static"
+reservedSystemCPUs: "0-5"
+# featureGates:
 
 
