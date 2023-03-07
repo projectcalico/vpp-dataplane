@@ -18,6 +18,7 @@ package vpplink
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"go.fd.io/govpp/adapter"
 	"go.fd.io/govpp/adapter/statsclient"
 

@@ -1,3 +1,7 @@
+include ../.ci/common.mk
+
+SHELL := /bin/bash
+
 .PHONY: all build image push imageonly vpp vpp-build-env dev eksimage clean clean-vpp
 
 VPPLINK_DIR=../vpplink
@@ -10,26 +14,34 @@ VERSION_FILE=$(IMAGE_DIR)/version
 TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
 
+PATCHES = $(sort $(wildcard $(VPPLINK_DIR)/binapi/patches/*.patch))
+VPP_HASH = $(shell md5sum <(md5sum $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ${PATCHES}) | cut -f 1 -d' ')
+VPP_TARBALL = vpp-${VPP_HASH}.tgz
+
 all: image
 
+export GOOS=linux
 build:
-	GOOS=linux go build -o $(IMAGE_DIR)/vpp-manager
+	${DOCKER_RUN} go build -o $(IMAGE_DIR)/vpp-manager
 
 # docker --squash is an experimental feature,
 # it requires to do the following to work :
 # echo '{"experimental": true}' | sudo tee /etc/docker/daemon.json
 
 eksimage:
-	docker build --squash --pull --network=host \
+	docker build ${SQUASH} --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/init-eks:$(TAG) $(INIT_EKS_IMAGE_DIR)
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker tag calicovpp/init-eks:$(TAG) calicovpp/init-eks:latest; \
+	fi
 
-image: build vpp eksimage
+image: build ${VPP_TARBALL} eksimage
 	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
 	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
 	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
-	docker build --squash --pull --network=host \
+	docker build ${SQUASH} --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		--build-arg WITH_GDB=${WITH_GDB} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
@@ -37,15 +49,20 @@ image: build vpp eksimage
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
 	fi
 
-push: image
+push: ${PUSH_DEP}
 	docker push calicovpp/vpp:$(TAG)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker push calicovpp/vpp:latest; \
 	fi
+	docker push calicovpp/init-eks:$(TAG)
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker push calicovpp/init-eks:latest; \
+	fi
+
 
 imageonly: build
 	cp $(VPPDEV_FILE) $(IMAGE_DIR)
-	docker build --squash --pull --network=host \
+	docker build ${SQUASH} --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 
@@ -55,7 +72,7 @@ clone-vpp:
 	bash $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ./vpp_build
 
 clean-vpp:
-	git -C vpp_build clean -ffdx
+	git -C vpp_build clean -ffdx || true
 	rm -f ./vpp_build/build-root/*.deb
 	rm -f ./vpp_build/build-root/*.buildinfo
 	rm -f $(IMAGE_DIR)/*.deb
@@ -79,6 +96,20 @@ vpp: clone-vpp clean-vpp vpp-build-env
 	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra vpp-dbg ; do \
 		cp vpp_build/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
 	done
+ifdef CI_BUILD
+	find $(IMAGE_DIR) -type f -name '*.deb' -printf "%P\n"  | tar -czvf ${VPP_TARBALL} -C $(IMAGE_DIR) -T -
+	aws s3api put-object --bucket ${VPP_BUCKET} --key ${VPP_TARBALL} --body ${VPP_TARBALL}
+endif
+
+${VPP_TARBALL}:
+ifdef CI_BUILD
+	mkdir -p ${IMAGE_DIR}
+	aws s3api get-object --bucket ${VPP_BUCKET} --key ${VPP_TARBALL} ${VPP_TARBALL} \
+	  && tar xzvf ${VPP_TARBALL} -C ${IMAGE_DIR} \
+	  || $(MAKE) vpp
+else
+	$(MAKE) vpp
+endif
 
 vpp-build-env:
 	docker build --network=host \
@@ -91,3 +122,9 @@ dev: build
 	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 	  --build-arg WITH_GDB=${WITH_GDB} \
 	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
+	fi
+
+vpp-hash:
+	@echo VPP hash: ${VPP_HASH}

@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/punt"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip"
+	vppip "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/punt"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 

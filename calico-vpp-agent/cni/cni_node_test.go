@@ -37,18 +37,17 @@ import (
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/encap"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
-	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks/calico"
 	agentConf "github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
+	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Names of integration tests arguments
@@ -860,8 +859,8 @@ func startVPP() {
 	vppBinaryConfigArg := `unix {
 			nodaemon
 			full-coredump
-			cli-listen /var/run/vpp/cli2.sock
-			pidfile /run/vpp/vpp2.pid
+			cli-listen /var/run/vpp/cli.sock
+			pidfile /run/vpp/vpp.pid
 		  }
 		  api-trace { on }
 		  cpu {
@@ -888,6 +887,7 @@ func startVPP() {
 	cmd := []string{"run", "-d", "--privileged", "--name", VPPContainerName,
 		"-v", "/tmp/" + VPPContainerName + ":/var/run/vpp/",
 		"-v", "/proc:/proc", // needed for manipulation of another docker container's network namespace
+		"--pid=host",
 		"--sysctl", "net.ipv6.conf.all.disable_ipv6=0"} // enable IPv6 in container (to set IPv6 on host's end of uplink)
 	cmd = append(cmd, vppContainerExtraArgs...)
 	cmd = append(cmd, "--entrypoint", vppBinary, vppImage, vppBinaryConfigArg)

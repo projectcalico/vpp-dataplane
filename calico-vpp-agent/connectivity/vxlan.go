@@ -34,12 +34,10 @@ type VXLanProvider struct {
 	vxlanRoutes  map[uint32]map[string]bool
 	ip4NodeIndex uint32
 	ip6NodeIndex uint32
-
-	netsLoopbacks map[uint32]bool
 }
 
 func NewVXLanProvider(d *ConnectivityProviderData) *VXLanProvider {
-	return &VXLanProvider{d, make(map[string]vpptypes.VXLanTunnel), make(map[uint32]map[string]bool), 0, 0, make(map[uint32]bool)}
+	return &VXLanProvider{d, make(map[string]vpptypes.VXLanTunnel), make(map[uint32]map[string]bool), 0, 0}
 }
 
 func (p *VXLanProvider) EnableDisable(isEnable bool) {
@@ -141,28 +139,6 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	if err != nil {
 		return err
 	}
-	if cn.Vni != 0 {
-		_, found := p.netsLoopbacks[cn.Vni]
-		if !found {
-			err := p.vpp.SetInterfaceVRF(p.server.networks[cn.Vni].LoopbackSwIfIndex, p.server.networks[cn.Vni].VRF.Tables[vpplink.IpFamilyFromIPNet(&cn.Dst).FamilyIdx], vpplink.IsIP6(cn.Dst.IP))
-			if err != nil {
-				return errors.Wrapf(err, "Error setting loopback %d in network vrf", p.server.networks[cn.Vni].LoopbackSwIfIndex)
-			}
-			ip4, ip6 := p.GetNodeIPs()
-			if vpplink.IsIP4(cn.Dst.IP) {
-				err = p.vpp.AddInterfaceAddress(p.server.networks[cn.Vni].LoopbackSwIfIndex, common.ToMaxLenCIDR(*ip4))
-				if err != nil {
-					return errors.Wrapf(err, "Error adding address %s to pod loopback interface", *ip4)
-				}
-			} else {
-				err = p.vpp.AddInterfaceAddress(p.server.networks[cn.Vni].LoopbackSwIfIndex, common.ToMaxLenCIDR(*ip6))
-				if err != nil {
-					return errors.Wrapf(err, "Error adding address %s to pod loopback interface", *ip6)
-				}
-			}
-			p.netsLoopbacks[cn.Vni] = true
-		}
-	}
 	_, found := p.vxlanIfs[cn.NextHop.String()+"-"+fmt.Sprint(cn.Vni)]
 	if !found {
 		p.log.Infof("connectivity(add) VXLan %s->%s(VNI:%d)", nodeIP.String(), cn.NextHop.String(), cn.Vni)
@@ -234,11 +210,13 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			New:  swIfIndex,
 		})
 		if cn.Vni != 0 {
-			vrfIndex := p.server.networks[cn.Vni].VRF.Tables[vpplink.IpFamilyFromIPNet(&cn.Dst).FamilyIdx]
-			p.log.Infof("connectivity(add) set vxlan interface %d in vrf %d", tunnel.SwIfIndex, vrfIndex)
-			err := p.vpp.SetInterfaceVRF(tunnel.SwIfIndex, vrfIndex, vpplink.IsIP6(cn.Dst.IP))
-			if err != nil {
-				return err
+			for idx, ipFamily := range vpplink.IpFamilies {
+				vrfIndex := p.server.networks[cn.Vni].VRF.Tables[idx]
+				p.log.Infof("connectivity(add) set vxlan interface %d in vrf %d", tunnel.SwIfIndex, vrfIndex)
+				err := p.vpp.SetInterfaceVRF(tunnel.SwIfIndex, vrfIndex, ipFamily.IsIp6)
+				if err != nil {
+					return err
+				}
 			}
 
 			p.log.Infof("connectivity(add) set vxlan interface unnumbered")

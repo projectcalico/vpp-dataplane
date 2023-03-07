@@ -19,20 +19,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"time"
 
 	netv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	networkv3 "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/network"
+	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/networkAttachmentDefinition"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	networkv3 "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/network"
-	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/networkAttachmentDefinition"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
 type VRF struct {
@@ -56,6 +56,7 @@ type NetWatcher struct {
 	networkDefinitions map[string]*NetworkDefinition
 	nads               map[string]string
 	InSync             chan interface{}
+	nodeBGPSpec        *common.LocalNodeSpec
 }
 
 func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
@@ -73,6 +74,10 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 		InSync:             make(chan interface{}),
 	}
 	return &w
+}
+
+func (w *NetWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
+	w.nodeBGPSpec = nodeBGPSpec
 }
 
 func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
@@ -257,10 +262,12 @@ func (w *NetWatcher) CreateVRFsForNet(networkName string, networkVni uint32, net
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error creating loopback for network")
 	}
+	w.log.Infof("loopback (sw %+v) added for network %s", swIfIndex, networkName)
+
 	for idx, ipFamily := range vpplink.IpFamilies {
 		vrfName := getNetworkVrfName(networkName, ipFamily.Str)
 		vrfId, err := w.vpp.AllocateVRF(ipFamily.IsIp6, vrfName)
-		w.log.Debugf("Allocated %s VRF ID:%d", ipFamily.Str, vrfId)
+		w.log.Infof("Allocated %s VRF ID:%d", ipFamily.Str, vrfId)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error allocating VRF %s", ipFamily.Str)
 		}
@@ -273,6 +280,21 @@ func (w *NetWatcher) CreateVRFsForNet(networkName string, networkVni uint32, net
 		LoopbackSwIfIndex: swIfIndex,
 		Range:             netRange}
 	w.networkDefinitions[networkName] = netDef
+
+	ip4, ip6 := w.GetNodeIPs()
+	var ipaddrs = []*net.IP{ip4, ip6}
+	for idx, ipFamily := range vpplink.IpFamilies {
+		if ipaddrs[idx] != nil {
+			err = w.vpp.SetInterfaceVRF(swIfIndex, netDef.VRF.Tables[idx], ipFamily.IsIp6)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Error setting loopback %d in network vrf", swIfIndex)
+			}
+			err = w.vpp.AddInterfaceAddress(swIfIndex, common.ToMaxLenCIDR(*ipaddrs[idx]))
+			if err != nil {
+				return nil, errors.Wrapf(err, "Error adding address %s to pod loopback interface", *ipaddrs[idx])
+			}
+		}
+	}
 	return netDef, nil
 }
 
@@ -285,6 +307,7 @@ func (w *NetWatcher) DeleteNetVRFs(networkName string) (*NetworkDefinition, erro
 	if err != nil {
 		w.log.Errorf("Error deleting network Loopback %s", err)
 	}
+	w.log.Infof("loopback (sw %+v) deleted for network %s", w.networkDefinitions[networkName].LoopbackSwIfIndex, networkName)
 	for idx, ipFamily := range vpplink.IpFamilies {
 		vrfId := w.networkDefinitions[networkName].VRF.Tables[idx]
 		w.log.Infof("Deleting VRF %d %s", vrfId, ipFamily.Str)
@@ -296,4 +319,9 @@ func (w *NetWatcher) DeleteNetVRFs(networkName string) (*NetworkDefinition, erro
 	netDef := w.networkDefinitions[networkName]
 	delete(w.networkDefinitions, networkName)
 	return netDef, nil
+}
+
+func (w *NetWatcher) GetNodeIPs() (ip4 *net.IP, ip6 *net.IP) {
+	ip4, ip6 = common.GetBGPSpecAddresses(w.nodeBGPSpec)
+	return ip4, ip6
 }

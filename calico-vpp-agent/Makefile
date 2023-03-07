@@ -1,3 +1,5 @@
+include ../.ci/common.mk
+
 .PHONY: all build gobgp image push proto
 
 TAG ?= latest # Tag images with :$(TAG)
@@ -8,15 +10,21 @@ VERSION_FILE=version
 all: build gobgp image
 
 export GOOS=linux
-GOBGP_DIR=$(shell go list -f '{{.Dir}}' -m github.com/osrg/gobgp/v3)
 
-build:
-	go build -o ./cmd/calico-vpp-agent ./cmd
-	go build -o ./cmd/felix-api-proxy ./cmd/api-proxy
-	go build -o ./cmd/debug ./cmd/debug-state
+# We make felix-api-proxy a static executable as it will run in the calico container
+# for which we have less control on the env and glibc version
+.PHONY: felix-api-proxy
+felix-api-proxy: CGO_ENABLED=0
+felix-api-proxy:
+	${DOCKER_RUN} go build -o ./cmd/felix-api-proxy ./cmd/api-proxy
 
+build: felix-api-proxy
+	${DOCKER_RUN} go build -o ./cmd/calico-vpp-agent ./cmd
+	${DOCKER_RUN} go build -o ./cmd/debug ./cmd/debug-state
+
+gobgp: GOBGP_DIR:=$(shell ${DOCKER_RUN} go list -f '{{.Dir}}' -m github.com/osrg/gobgp/v3)
 gobgp:
-	go build -o ./dep/gobgp $(GOBGP_DIR)/cmd/gobgp/
+	${DOCKER_RUN} go build -o ./dep/gobgp $(GOBGP_DIR)/cmd/gobgp/
 
 image: build gobgp
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
@@ -27,17 +35,13 @@ image: build gobgp
 		docker tag calicovpp/agent:$(TAG) calicovpp/agent:latest; \
 	fi
 
-push: image
+push: ${PUSH_DEP}
 	docker push calicovpp/agent:$(TAG)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker push calicovpp/agent:latest; \
 	fi
 
-dev: build gobgp
-	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
-	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
-	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
-	docker build -t calicovpp/agent:$(TAG) .
+dev: image
 
 proto:
 	$(MAKE) -C proto $@

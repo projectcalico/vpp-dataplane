@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
@@ -31,7 +32,12 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 			if vpplink.IsIP6(containerIP.IP) {
 				idx = 1
 			}
-			table = s.networkDefinitions[podSpec.NetworkName].VRF.Tables[idx]
+			value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+			if !ok {
+				s.log.Errorf("network not found %s", podSpec.NetworkName)
+			} else {
+				table = value.(*watchers.NetworkDefinition).VRF.Tables[idx]
+			}
 		}
 		route := types.Route{
 			Dst: containerIP,
@@ -70,7 +76,12 @@ func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex ui
 			if vpplink.IsIP6(containerIP.IP) {
 				idx = 1
 			}
-			table = s.networkDefinitions[podSpec.NetworkName].VRF.Tables[idx]
+			value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+			if !ok {
+				s.log.Errorf("network not found %s", podSpec.NetworkName)
+			} else {
+				table = value.(*watchers.NetworkDefinition).VRF.Tables[idx]
+			}
 		}
 		route := types.Route{
 			Dst: containerIP,
@@ -181,11 +192,11 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 		if podSpec.NetworkName == "" { // no multi net
 			vrfIndex = common.PodVRFIndex
 		} else {
-			netDef, found := s.networkDefinitions[podSpec.NetworkName]
-			if !found {
-				return errors.Errorf("network %s not found", podSpec.NetworkName)
+			value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+			if !ok {
+				return errors.Errorf("network not found %s", podSpec.NetworkName)
 			}
-			vrfIndex = netDef.VRF.Tables[idx]
+			vrfIndex = value.(*watchers.NetworkDefinition).VRF.Tables[idx]
 		}
 		s.log.Infof("pod(add) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)
 		err = s.vpp.AddDefaultRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
@@ -193,6 +204,13 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 			return errors.Wrapf(err, "error adding VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)
 		} else {
 			stack.Push(s.vpp.DelDefaultRouteViaTable, vrfId, vrfIndex, ipFamily.IsIp6)
+		}
+
+		err = s.vpp.AddDefaultMRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
+		if err != nil {
+			return errors.Wrapf(err, "error adding VRF %d %s default Mroute via VRF %d", vrfId, ipFamily.Str, vrfIndex)
+		} else {
+			stack.Push(s.vpp.DelDefaultMRouteViaTable, vrfId, vrfIndex, ipFamily.IsIp6)
 		}
 	}
 	return nil
@@ -342,17 +360,21 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 		if podSpec.NetworkName == "" {
 			vrfIndex = common.PodVRFIndex
 		} else {
-			netDef, found := s.networkDefinitions[podSpec.NetworkName]
-			if !found {
-				s.log.Errorf("network %s not found", podSpec.NetworkName)
+			value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+			if !ok {
+				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				vrfIndex = netDef.VRF.Tables[idx]
+				vrfIndex = value.(*watchers.NetworkDefinition).VRF.Tables[idx]
 			}
 		}
 		s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)
 		err = s.vpp.DelDefaultRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
 		if err != nil {
-			s.log.Errorf("Error  VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, vrfIndex, err)
+			s.log.Errorf("Error deleting VRF %d %s default route via VRF %d : %s", vrfId, ipFamily.Str, vrfIndex, err)
+		}
+		err = s.vpp.DelDefaultMRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
+		if err != nil {
+			s.log.Errorf("Error deleting VRF %d %s default mroute via VRF %d : %s", vrfId, ipFamily.Str, vrfIndex, err)
 		}
 	}
 

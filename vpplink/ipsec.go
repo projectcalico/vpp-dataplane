@@ -18,8 +18,38 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ipsec"
+	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ipsec"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
+
+func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) (protections []types.IPsecTunnelProtection, err error) {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	request := &ipsec.IpsecTunnelProtectDump{
+		SwIfIndex: interface_types.InterfaceIndex(tunnelInterface),
+	}
+	response := &ipsec.IpsecTunnelProtectDetails{}
+	stream := v.ch.SendMultiRequest(request)
+	for {
+		stop, err := stream.ReceiveReply(response)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error listing tunnel interface %d protections", tunnelInterface)
+		}
+		if stop {
+			return protections, nil
+		}
+		p := response.Tun
+		protections = append(protections, types.IPsecTunnelProtection{
+			SwIfIndex:   uint32(p.SwIfIndex),
+			NextHop:     types.FromVppAddress(p.Nh),
+			OutSAIndex:  p.SaOut,
+			InSAIndices: p.SaIn,
+		})
+	}
+}
 
 func (v *VppLink) SetIPsecAsyncMode(enable bool) error {
 	client := ipsec.NewServiceClient(v.GetConnection())

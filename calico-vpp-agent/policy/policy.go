@@ -185,6 +185,8 @@ func (p *Policy) Create(vpp *vpplink.VppLink, state *PolicyState) (err error) {
 		return errors.Wrap(err, "cannot create policy")
 	}
 	p.VppID = id
+	log.Infof("policy(add) VPP policy id=%d inbound=[%+v]=[%+v] outbound=[%+v]=[%+v]",
+		p.VppID, p.InboundRules, p.InboundRuleIDs, p.OutboundRules, p.OutboundRuleIDs)
 	return nil
 }
 

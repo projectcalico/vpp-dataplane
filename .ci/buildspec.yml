@@ -6,10 +6,12 @@ env:
 phases:
   pre_build:
     commands:
+      - CI_BUILD=1
       - cd .ci
       - echo Build started on `date`
 
       - docker --version
+      - make ci-install
 
       - echo "Logging to dockerhub"
       - docker login --username ${DOCKERHUB_USERNAME} --password=${DOCKERHUB_TOKEN} || true
@@ -20,6 +22,13 @@ phases:
   build:
     commands:
       - make go-check
+
+      - cd ..
+      - make images
+      - docker images
+
+      - make run-integration-tests
+      - make push
 
   post_build:
     commands:

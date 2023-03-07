@@ -1,3 +1,5 @@
+include .ci/common.mk
+
 check-%:
 	@: $(if $(value $*),,$(error $* is undefined))
 
@@ -5,6 +7,7 @@ check-%:
 build:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
+	$(MAKE) -C multinet-monitor $@
 
 .PHONY: image images
 images: image
@@ -17,12 +20,13 @@ image:
 push:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
+	$(MAKE) -C multinet-monitor $@
 
 .PHONY: dev
 dev:
-	$(MAKE) -C calico-vpp-agent $@
-	$(MAKE) -C vpp-manager $@
-	$(MAKE) -C multinet-monitor $@
+	$(MAKE) -C calico-vpp-agent ALSO_LATEST=y $@
+	$(MAKE) -C vpp-manager ALSO_LATEST=y $@
+	$(MAKE) -C multinet-monitor ALSO_LATEST=y $@
 
 .PHONY: proto
 proto:
@@ -193,7 +197,7 @@ release: check-TAG check-CALICO_TAG
 
 .PHONY: run-integration-tests
 run-integration-tests:
-	cd test/integration-tests;./run-tests.sh
+	$(MAKE) -C test/integration-tests $@
 
 .PHONY: test
 test: go-lint

@@ -61,9 +61,8 @@ type Server struct {
 
 	availableBuffers uint64
 
-	networkDefinitions   map[string]*watchers.NetworkDefinition
+	networkDefinitions   sync.Map
 	cniMultinetEventChan chan common.CalicoVppEvent
-	multinetLock         sync.Mutex
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -152,17 +151,20 @@ func (s *Server) newLocalPodSpecFromAdd(request *cniproto.AddRequest) (*storage.
 			Mask: route.Mask,
 		})
 	}
-	s.multinetLock.Lock()
 	if podSpec.NetworkName != "" {
-		_, route, err := net.ParseCIDR(s.networkDefinitions[podSpec.NetworkName].Range)
-		if err == nil {
-			podSpec.Routes = append(podSpec.Routes, storage.LocalIPNet{
-				IP:   route.IP,
-				Mask: route.Mask,
-			})
+		value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+		if !ok {
+			s.log.Errorf("trying to create a pod in an unexisting network %s", podSpec.NetworkName)
+		} else {
+			_, route, err := net.ParseCIDR(value.(*watchers.NetworkDefinition).Range)
+			if err == nil {
+				podSpec.Routes = append(podSpec.Routes, storage.LocalIPNet{
+					IP:   route.IP,
+					Mask: route.Mask,
+				})
+			}
 		}
 	}
-	s.multinetLock.Unlock()
 	for _, requestContainerIP := range request.GetContainerIps() {
 		containerIp, _, err := net.ParseCIDR(requestContainerIP.GetAddress())
 		if err != nil {
@@ -352,7 +354,6 @@ func NewCNIServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyServerIpam
 		vclDriver:       pod_interface.NewVclPodInterfaceDriver(vpp, log),
 		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(vpp, log),
 
-		networkDefinitions:   make(map[string]*watchers.NetworkDefinition),
 		cniMultinetEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}
 	reg := common.RegisterHandler(server.cniEventChan, "CNI server events")
@@ -453,14 +454,10 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 						netsSynced <- true
 					case common.NetAddedOrUpdated:
 						netDef := event.New.(*watchers.NetworkDefinition)
-						s.multinetLock.Lock()
-						s.networkDefinitions[netDef.Name] = netDef
-						s.multinetLock.Unlock()
+						s.networkDefinitions.Store(netDef.Name, netDef)
 					case common.NetDeleted:
 						netDef := event.Old.(*watchers.NetworkDefinition)
-						s.multinetLock.Lock()
-						delete(s.networkDefinitions, netDef.Name)
-						s.multinetLock.Unlock()
+						s.networkDefinitions.Delete(netDef.Name)
 					}
 				}
 			}
@@ -498,5 +495,5 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 // ForceAddingNetworkDefinition will add another NetworkDefinition to this CNI server.
 // The usage is mainly for testing purposes.
 func (s *Server) ForceAddingNetworkDefinition(networkDefinition *watchers.NetworkDefinition) {
-	s.networkDefinitions[networkDefinition.Name] = networkDefinition
+	s.networkDefinitions.Store(networkDefinition.Name, networkDefinition)
 }

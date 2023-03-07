@@ -181,3 +181,87 @@ func (v *VppLink) SetIPFlowHash(ipFlowHash types.IPFlowHash, vrfID uint32, isIPv
 	v.GetLog().Debugf("updated flow hash algo for vrf %d", vrfID)
 	return nil
 }
+
+func (v *VppLink) MRouteAdd(route *types.Route, flags mfib_types.MfibEntryFlags) error {
+	return v.addDelIPMRoute(route, flags, true)
+}
+
+func (v *VppLink) MRouteDel(route *types.Route, flags mfib_types.MfibEntryFlags) error {
+	return v.addDelIPMRoute(route, flags, false)
+}
+
+func (v *VppLink) addDelIPMRoute(route *types.Route, flags mfib_types.MfibEntryFlags, isAdd bool) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+
+	isIP6 := route.IsIP6()
+	ones, _ := route.Dst.Mask.Size()
+	prefix := ip_types.Mprefix{
+		Af:               types.ToVppAddressFamily(isIP6),
+		GrpAddressLength: uint16(ones),
+		GrpAddress:       types.ToVppAddress(route.Dst.IP).Un,
+		// we do not expose SrcAddress yet
+	}
+
+	paths := make([]mfib_types.MfibPath, 0, len(route.Paths))
+	for _, routePath := range route.Paths {
+		paths = append(paths, mfib_types.MfibPath{
+			ItfFlags: mfib_types.MFIB_API_ITF_FLAG_FORWARD,
+			Path:     routePath.ToFibPath(isIP6),
+		})
+
+	}
+
+	vppRoute := vppip.IPMroute{
+		TableID:    uint32(route.Table),
+		Prefix:     prefix,
+		EntryFlags: flags,
+		Paths:      paths,
+		RpfID:      route.RpfID,
+	}
+
+	request := &vppip.IPMrouteAddDel{
+		IsAdd: isAdd,
+		Route: vppRoute,
+	}
+
+	response := &vppip.IPMrouteAddDelReply{}
+	err := v.ch.SendRequest(request).ReceiveReply(response)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s mroute from VPP", IsAddToStr(isAdd))
+	} else if response.Retval != 0 {
+		return fmt.Errorf("failed to %s mroute from VPP (retval %d)", IsAddToStr(isAdd), response.Retval)
+	}
+	v.log.Debugf("%sed route %+v", IsAddToStr(isAdd), route)
+	return nil
+}
+
+func (v *VppLink) addDelDefaultMRouteViaTable(srcTable, dstTable uint32, isIP6 bool, isAdd bool) error {
+	route := &types.Route{
+		Paths: []types.RoutePath{{
+			Table:     dstTable,
+			SwIfIndex: types.InvalidID,
+			// we add a RpfID matching the srcTable so that we lookup in the multicast table
+			RpfID: srcTable,
+		}},
+		Table: srcTable,
+		RpfID: 0,
+	}
+	// Use the mcast CIDRs of the ip family
+	if isIP6 {
+		_, c, _ := net.ParseCIDR("ff00::/8")
+		route.Dst = c
+	} else {
+		_, c, _ := net.ParseCIDR("224.0.0.0/4")
+		route.Dst = c
+	}
+	return v.addDelIPMRoute(route, mfib_types.MFIB_API_ENTRY_FLAG_ACCEPT_ALL_ITF, isAdd /*isAdd*/)
+}
+
+func (v *VppLink) AddDefaultMRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
+	return v.addDelDefaultMRouteViaTable(sourceTable, dstTable, isIP6, true /*isAdd*/)
+}
+
+func (v *VppLink) DelDefaultMRouteViaTable(sourceTable, dstTable uint32, isIP6 bool) error {
+	return v.addDelDefaultMRouteViaTable(sourceTable, dstTable, isIP6, false /*isAdd*/)
+}
