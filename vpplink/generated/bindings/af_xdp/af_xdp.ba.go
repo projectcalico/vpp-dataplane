@@ -3,15 +3,14 @@
 // Package af_xdp contains generated bindings for API file af_xdp.api.
 //
 // Contents:
-//
-//	2 enums
-//	6 messages
+// -  2 enums
+// -  6 messages
 package af_xdp
 
 import (
 	"strconv"
 
-	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
+	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )

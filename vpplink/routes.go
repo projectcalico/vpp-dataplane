@@ -25,6 +25,7 @@ import (
 	vppip "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/mfib_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
@@ -191,8 +192,7 @@ func (v *VppLink) MRouteDel(route *types.Route, flags mfib_types.MfibEntryFlags)
 }
 
 func (v *VppLink) addDelIPMRoute(route *types.Route, flags mfib_types.MfibEntryFlags, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := vppip.NewServiceClient(v.GetConnection())
 
 	isIP6 := route.IsIP6()
 	ones, _ := route.Dst.Mask.Size()
@@ -220,19 +220,14 @@ func (v *VppLink) addDelIPMRoute(route *types.Route, flags mfib_types.MfibEntryF
 		RpfID:      route.RpfID,
 	}
 
-	request := &vppip.IPMrouteAddDel{
+	_, err := client.IPMrouteAddDel(v.GetContext(), &vppip.IPMrouteAddDel{
 		IsAdd: isAdd,
 		Route: vppRoute,
-	}
-
-	response := &vppip.IPMrouteAddDelReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s mroute from VPP", IsAddToStr(isAdd))
-	} else if response.Retval != 0 {
-		return fmt.Errorf("failed to %s mroute from VPP (retval %d)", IsAddToStr(isAdd), response.Retval)
+		return fmt.Errorf("failed to %s mroute from VPP: %w", IsAddToStr(isAdd), err)
 	}
-	v.log.Debugf("%sed route %+v", IsAddToStr(isAdd), route)
+	v.GetLog().Debugf("%sed mroute %+v", IsAddToStr(isAdd), route)
 	return nil
 }
 

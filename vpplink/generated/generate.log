@@ -1,15 +1,33 @@
-VPP Version                 : 23.02-rc0~185-ge5c6f5874
-Binapi-generator version    : govpp v0.7.0-dev
-VPP Base commit             : e416893a5 tests: tapv2, tunv2 and af_packet interface tests for vpp
+VPP Version                 : 23.02-rc0~185-g64d5c3e08
+Binapi-generator version    : govpp v0.8.0-dev
+VPP Base commit             : 55fbf55c1 http_static: fix http(s) redirects
 ------------------ Cherry picked commits --------------------
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
-gerrit:37931/1 ip: add the missing offload check
 gerrit:35805/2 dpdk: add intf tag to dev{} subinput
 gerrit:34726/1 interface: add buffer stats api
 gerrit:34734/3 memif: autogenerate socket_ids
 gerrit:32271/16 memif: add support for ns abstract sockets
 gerrit:34713/4 vppinfra: improve & test abstract socket
+tests: tapv2, tunv2 and af_packet interface tests for vpp
+linux-cp: set severity of noisy message to debug
+papi: fix VPP_API_DIR
+misc: VPP 22.10 Release Notes
+nat: fixed return values of enable/disable call
+http_static: clean up http redirect generation
+http_static: derive mime type from file extensions
+tcp: avoid retransmit head with no data
+hs-test: use assert-like approach in test cases
+vat2: add plugin-path parameter
+papi: export packed message structures
+tests: multiple apidir locations
+api: avoid sigpipe for unruly api client
+papi: fix async support for socket transport
+http_static: misc bug fixes
+classify: increase metadata from 16- to 32-bits
+hs-test: manage containers and volumes within test suite
+hs-test: test tcp with loss
+http_static: fix http(s) redirects
 -------------------------------------------------------------

@@ -37,17 +37,18 @@ import (
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/encap"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
+	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks/calico"
 	agentConf "github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
-	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Names of integration tests arguments
