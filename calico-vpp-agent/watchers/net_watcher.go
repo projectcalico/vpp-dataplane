@@ -29,10 +29,10 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	networkv3 "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/network"
-	nadv1 "github.com/projectcalico/vpp-dataplane/multinet-monitor/networkAttachmentDefinition"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	networkv3 "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/network"
+	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/networkAttachmentDefinition"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
 type VRF struct {

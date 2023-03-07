@@ -25,14 +25,14 @@ import (
 	"github.com/pkg/errors"
 	"go.fd.io/govpp/api"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/gso"
-	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	vppip "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_neighbor"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/tapv2"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/gso"
+	interfaces "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	vppip "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/tapv2"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 const (

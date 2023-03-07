@@ -10,7 +10,7 @@ package af_xdp
 import (
 	"strconv"
 
-	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
+	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )

@@ -21,9 +21,9 @@ import (
 	"io"
 
 	types "github.com/calico-vpp/vpplink/api/v0"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipip"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ipip"
 )
 
 func (v *Vpp) ListIPIPTunnels() ([]*types.IPIPTunnel, error) {

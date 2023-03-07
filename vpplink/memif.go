@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/memif"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/memif"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) addDelMemifSocketFileName(socketFileName string, socketId uint32, isAdd bool) (socketID uint32, err error) {

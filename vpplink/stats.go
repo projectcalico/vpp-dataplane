@@ -21,7 +21,7 @@ import (
 	"go.fd.io/govpp/adapter"
 	"go.fd.io/govpp/adapter/statsclient"
 
-	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface"
+	interfaces "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface"
 )
 
 func GetInterfaceStats(sc *statsclient.StatsClient) (ifNames adapter.NameStat, dumpStats []adapter.StatEntry, err error) {

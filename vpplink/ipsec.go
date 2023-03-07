@@ -18,7 +18,7 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipsec"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ipsec"
 )
 
 func (v *VppLink) SetIPsecAsyncMode(enable bool) error {

@@ -22,10 +22,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ikev2"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ikev2_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ikev2"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ikev2_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 type IKEv2IDType uint8

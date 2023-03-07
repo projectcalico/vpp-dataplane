@@ -7,7 +7,7 @@
 package vpe
 
 import (
-	vpe_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/vpe_types"
+	vpe_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/vpe_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )

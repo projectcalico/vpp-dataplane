@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip6_nd"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip6_nd"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) error {

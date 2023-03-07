@@ -7,9 +7,9 @@
 package ikev2
 
 import (
-	ikev2_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ikev2_types"
-	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
+	ikev2_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ikev2_types"
+	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )

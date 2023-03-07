@@ -18,8 +18,8 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/vlib"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/vpe"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/vlib"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/vpe"
 )
 
 func (v *VppLink) GetVPPVersion() (string, error) {

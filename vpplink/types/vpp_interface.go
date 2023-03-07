@@ -23,9 +23,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/af_packet"
-	interfaces "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/af_packet"
+	interfaces "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 )
 
 type RxMode uint32

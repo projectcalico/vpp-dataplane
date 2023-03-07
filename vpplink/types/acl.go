@@ -18,7 +18,7 @@ package types
 import (
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/acl_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/acl_types"
 )
 
 type ACLRule struct {

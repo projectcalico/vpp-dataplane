@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	memclnt "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/memclnt"
+	memclnt "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/memclnt"
 	api "go.fd.io/govpp/api"
 )
 

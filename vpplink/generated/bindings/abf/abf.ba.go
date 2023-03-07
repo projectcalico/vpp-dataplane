@@ -8,9 +8,9 @@
 package abf
 
 import (
-	fib_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/fib_types"
-	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	_ "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
+	fib_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/fib_types"
+	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	_ "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )

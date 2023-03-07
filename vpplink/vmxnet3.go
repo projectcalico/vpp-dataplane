@@ -18,8 +18,8 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/vmxnet3"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/vmxnet3"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) CreateVmxnet3(intf *types.Vmxnet3Interface) (uint32, error) {

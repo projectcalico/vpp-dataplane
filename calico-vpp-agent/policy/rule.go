@@ -22,8 +22,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/calico/felix/proto"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 	"github.com/sirupsen/logrus"
 )
 

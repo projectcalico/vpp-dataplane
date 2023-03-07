@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	nat "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/nat44_ed"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/nat_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	nat "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/nat44_ed"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/nat_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) EnableNatForwarding() error {

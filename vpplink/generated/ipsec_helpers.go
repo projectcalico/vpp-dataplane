@@ -17,8 +17,8 @@ package generated
 
 import (
 	types "github.com/calico-vpp/vpplink/api/v0"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipsec_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/tunnel_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ipsec_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/tunnel_types"
 )
 
 func fromVppSaFlags(vppFlags ipsec_types.IpsecSadFlags) types.SaFlags {

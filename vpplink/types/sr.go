@@ -5,10 +5,10 @@ import (
 
 	bgpapi "github.com/osrg/gobgp/v3/api"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/sr"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/sr_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/sr"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/sr_types"
 )
 
 type SrBehavior uint8

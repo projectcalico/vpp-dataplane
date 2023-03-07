@@ -21,7 +21,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated"
 )
 
 type VppLink struct {

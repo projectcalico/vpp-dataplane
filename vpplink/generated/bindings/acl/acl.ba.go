@@ -7,10 +7,10 @@
 package acl
 
 import (
-	acl_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/acl_types"
-	_ "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ethernet_types"
-	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
+	acl_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/acl_types"
+	_ "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ethernet_types"
+	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )

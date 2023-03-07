@@ -23,9 +23,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/calico/felix/proto"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"

@@ -18,7 +18,7 @@ package types
 import (
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_neighbor"
 )
 
 type IPNeighborFlags uint32

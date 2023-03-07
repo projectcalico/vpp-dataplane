@@ -21,9 +21,9 @@ import (
 	"io"
 
 	types "github.com/calico-vpp/vpplink/api/v0"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipsec"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ipsec_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ipsec"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ipsec_types"
 )
 
 func (v *Vpp) GetIPsecTunnelProtection(tunnelInterface uint32) (protections []types.IPsecTunnelProtection, err error) {

@@ -18,7 +18,7 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/vlib"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/vlib"
 )
 
 // GetNodeIndex gets node index of the node given by name. This is a helper method for VPP's node graph

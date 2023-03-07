@@ -18,9 +18,9 @@ package uplink
 import (
 	"fmt"
 
-	"github.com/projectcalico/vpp-dataplane/config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	log "github.com/sirupsen/logrus"
 )
 

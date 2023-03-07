@@ -10,7 +10,7 @@ package fib_types
 import (
 	"strconv"
 
-	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	api "go.fd.io/govpp/api"
 )
 

@@ -19,7 +19,7 @@ import (
 	"net"
 
 	types "github.com/calico-vpp/vpplink/api/v0"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 )
 
 func toVppIPProto(proto types.IPProto) ip_types.IPProto {

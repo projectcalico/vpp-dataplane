@@ -18,10 +18,10 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/abf"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/fib_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/abf"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/fib_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 var (

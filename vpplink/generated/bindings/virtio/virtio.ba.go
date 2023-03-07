@@ -10,9 +10,9 @@ package virtio
 import (
 	"strconv"
 
-	ethernet_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ethernet_types"
-	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	pci_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/pci_types"
+	ethernet_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ethernet_types"
+	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	pci_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/pci_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )

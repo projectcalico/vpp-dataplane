@@ -10,8 +10,8 @@ package mfib_types
 import (
 	"strconv"
 
-	fib_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/fib_types"
-	_ "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
+	fib_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/fib_types"
+	_ "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	api "go.fd.io/govpp/api"
 )
 

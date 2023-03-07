@@ -24,8 +24,8 @@ import (
 	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/config"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 

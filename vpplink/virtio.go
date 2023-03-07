@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ethernet_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/pci_types"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/virtio"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ethernet_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/pci_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/virtio"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func parsePciAddr(addr string) (*pci_types.PciAddress, error) {

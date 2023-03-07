@@ -18,7 +18,7 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/crypto_sw_scheduler"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/crypto_sw_scheduler"
 )
 
 func (v *VppLink) SetCryptoWorker(workerIndex uint32, enable bool) error {

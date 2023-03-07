@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/feature"
-	"github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/feature"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 )
 
 func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName, featureName string) error {

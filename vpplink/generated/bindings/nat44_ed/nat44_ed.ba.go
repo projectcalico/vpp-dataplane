@@ -11,9 +11,9 @@ package nat44_ed
 import (
 	"strconv"
 
-	interface_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/interface_types"
-	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/ip_types"
-	nat_types "github.com/projectcalico/vpp-dataplane/vpplink/generated/bindings/nat_types"
+	interface_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
+	nat_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/nat_types"
 	api "go.fd.io/govpp/api"
 	codec "go.fd.io/govpp/codec"
 )
