@@ -3,7 +3,7 @@ module github.com/projectcalico/vpp-dataplane
 go 1.19
 
 require (
-	github.com/calico-vpp/vpplink v0.0.0-20220928134938-08c15a922815
+	github.com/calico-vpp/vpplink v0.0.0-20230303090912-a2c21feced90
 	github.com/census-instrumentation/opencensus-proto v0.2.1
 	github.com/containernetworking/plugins v1.0.1
 	github.com/gogo/protobuf v1.3.2
@@ -22,9 +22,9 @@ require (
 	github.com/spf13/cobra v1.6.1
 	github.com/vishvananda/netlink v1.2.1-beta.2.0.20220630165224-c591ada0fb2b
 	github.com/yookoala/realpath v1.0.0
-	go.fd.io/govpp v0.8.0-alpha.0.20230207075433-b71f13cf4640
-	golang.org/x/net v0.4.0
-	golang.org/x/sys v0.4.0
+	go.fd.io/govpp v0.8.0-alpha.0.20230307095658-7c0746c5a95b
+	golang.org/x/net v0.7.0
+	golang.org/x/sys v0.5.0
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
@@ -114,8 +114,8 @@ require (
 	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/term v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200324154536-ceff61240acf // indirect
 	google.golang.org/appengine v1.6.7 // indirect
@@ -182,9 +182,4 @@ replace (
 	k8s.io/mount-utils => k8s.io/mount-utils v0.24.0
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.0
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.0
-)
-
-replace (
-	github.com/calico-vpp/vpplink => github.com/ondrej-fabry/vpplink v0.0.0-20230208181500-f3c58bf9c46d
-	go.fd.io/govpp => go.fd.io/govpp v0.8.0-alpha.0.20230207075433-b71f13cf4640
 )
