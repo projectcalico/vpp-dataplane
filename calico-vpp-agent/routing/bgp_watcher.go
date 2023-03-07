@@ -23,7 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/protobuf/types/known/anypb"
-	tomb "gopkg.in/tomb.v2"
+	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"

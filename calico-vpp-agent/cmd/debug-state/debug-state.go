@@ -19,9 +19,10 @@ import (
 	"flag"
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
-	log "github.com/sirupsen/logrus"
 )
 
 func main() {

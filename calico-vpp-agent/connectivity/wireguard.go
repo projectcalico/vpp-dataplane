@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
+
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"

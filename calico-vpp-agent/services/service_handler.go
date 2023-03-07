@@ -20,12 +20,13 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func getCnatBackendDstPort(servicePort *v1.ServicePort, endpointPort *v1.EndpointPort) uint16 {

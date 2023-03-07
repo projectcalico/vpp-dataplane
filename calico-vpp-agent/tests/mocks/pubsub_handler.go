@@ -14,8 +14,9 @@
 package mocks
 
 import (
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"gopkg.in/tomb.v2"
+
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 )
 
 // PubSubHandlerMock is mocking the handlers registering to common.ThePubSub

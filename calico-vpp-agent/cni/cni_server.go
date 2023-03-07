@@ -31,13 +31,13 @@ import (
 	"github.com/projectcalico/calico/felix/proto"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	tomb "gopkg.in/tomb.v2"
+	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/pod_interface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
-	config "github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )

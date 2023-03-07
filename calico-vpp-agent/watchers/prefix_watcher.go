@@ -24,13 +24,14 @@ import (
 	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/model"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
+
 	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
-	tomb "gopkg.in/tomb.v2"
+	"gopkg.in/tomb.v2"
 )
 
 type PrefixWatcher struct {

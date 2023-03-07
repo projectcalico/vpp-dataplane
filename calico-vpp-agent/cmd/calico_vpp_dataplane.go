@@ -26,8 +26,8 @@ import (
 	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
-	grpc "google.golang.org/grpc"
-	tomb "gopkg.in/tomb.v2"
+	"google.golang.org/grpc"
+	"gopkg.in/tomb.v2"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 

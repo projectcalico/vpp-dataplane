@@ -20,9 +20,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/calico/felix/proto"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
-	log "github.com/sirupsen/logrus"
 )
 
 const (

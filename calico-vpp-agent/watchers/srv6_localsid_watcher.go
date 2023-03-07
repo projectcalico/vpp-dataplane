@@ -10,7 +10,7 @@ import (
 	"github.com/projectcalico/calico/libcalico-go/lib/ipam"
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
 	"github.com/sirupsen/logrus"
-	tomb "gopkg.in/tomb.v2"
+	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"

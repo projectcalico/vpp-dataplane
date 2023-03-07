@@ -23,9 +23,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/calico/felix/proto"
+	"github.com/sirupsen/logrus"
+
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
-	"github.com/sirupsen/logrus"
 )
 
 type IPSet struct {

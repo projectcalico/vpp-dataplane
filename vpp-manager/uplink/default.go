@@ -18,10 +18,11 @@ package uplink
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-	log "github.com/sirupsen/logrus"
 )
 
 type DefaultDriver struct {

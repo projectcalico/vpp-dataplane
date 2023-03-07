@@ -18,9 +18,10 @@ package hooks
 import (
 	_ "embed"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 const (

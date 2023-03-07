@@ -22,7 +22,7 @@ import (
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/sirupsen/logrus"
-	tomb "gopkg.in/tomb.v2"
+	"gopkg.in/tomb.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"

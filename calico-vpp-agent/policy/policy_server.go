@@ -31,10 +31,11 @@ import (
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
-	tomb "gopkg.in/tomb.v2"
+	"gopkg.in/tomb.v2"
 
 	nettypes "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/projectcalico/calico/felix/proto"
+
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"

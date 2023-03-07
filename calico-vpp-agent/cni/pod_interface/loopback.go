@@ -17,11 +17,11 @@ package pod_interface
 
 import (
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-	"github.com/sirupsen/logrus"
 )
 
 type LoopbackPodInterfaceDriver struct {

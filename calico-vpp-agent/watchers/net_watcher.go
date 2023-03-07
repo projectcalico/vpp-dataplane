@@ -24,15 +24,16 @@ import (
 
 	netv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	networkv3 "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/network"
-	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/networkAttachmentDefinition"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	networkv3 "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/network"
+	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/networkAttachmentDefinition"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
 type VRF struct {
