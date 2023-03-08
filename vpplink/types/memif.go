@@ -18,8 +18,8 @@ package types
 import (
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/memif"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/memif"
 )
 
 type MemifRole uint32

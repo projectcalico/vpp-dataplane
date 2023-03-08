@@ -17,27 +17,23 @@ package vpplink
 
 import (
 	"fmt"
+	"io"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/memif"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/memif"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (v *VppLink) addDelMemifSocketFileName(socketFileName string, socketId uint32, isAdd bool) (uint32, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &memif.MemifSocketFilenameAddDelV2Reply{}
-	request := &memif.MemifSocketFilenameAddDelV2{
+func (v *VppLink) addDelMemifSocketFileName(socketFileName string, socketId uint32, isAdd bool) (socketID uint32, err error) {
+	client := memif.NewServiceClient(v.GetConnection())
+
+	response, err := client.MemifSocketFilenameAddDelV2(v.GetContext(), &memif.MemifSocketFilenameAddDelV2{
 		IsAdd:          isAdd,
 		SocketFilename: socketFileName,
 		SocketID:       socketId,
-	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return 0, errors.Wrapf(err, "MemifSocketFilenameAddDel failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return 0, fmt.Errorf("MemifSocketFilenameAddDel failed (retval %d). Request: %+v", response.Retval, request)
+		return 0, fmt.Errorf("MemifSocketFilenameAddDel failed: %w", err)
 	}
 	return response.SocketID, nil
 }
@@ -53,20 +49,20 @@ func (v *VppLink) DelMemifSocketFileName(socketId uint32) error {
 }
 
 func (v *VppLink) ListMemifSockets() ([]*types.MemifSocket, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := memif.NewServiceClient(v.GetConnection())
 
+	stream, err := client.MemifSocketFilenameDump(v.GetContext(), &memif.MemifSocketFilenameDump{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump memif sockets: %w", err)
+	}
 	sockets := make([]*types.MemifSocket, 0)
-	request := &memif.MemifSocketFilenameDump{}
-	stream := v.ch.SendMultiRequest(request)
 	for {
-		response := &memif.MemifSocketFilenameDetails{}
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error listing memif sockets")
-		}
-		if stop {
+		response, err := stream.Recv()
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump memif sockets: %w", err)
 		}
 		sockets = append(sockets, &types.MemifSocket{
 			SocketID:       response.SocketID,
@@ -76,26 +72,21 @@ func (v *VppLink) ListMemifSockets() ([]*types.MemifSocket, error) {
 	return sockets, nil
 }
 
-func (v *VppLink) DeleteMemif(swIfIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &memif.MemifDeleteReply{}
-	request := &memif.MemifDelete{
+func (v *VppLink) DeleteMemif(swIfIndex uint32) error {
+	client := memif.NewServiceClient(v.GetConnection())
+
+	_, err := client.MemifDelete(v.GetContext(), &memif.MemifDelete{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "DeleteMemif failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("DeleteMemif failed (retval %d). Request: %+v", response.Retval, request)
+		return fmt.Errorf("DeleteMemif failed: %w", err)
 	}
 	return nil
 }
 
 func (v *VppLink) CreateMemif(mif *types.Memif) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &memif.MemifCreateReply{}
+	client := memif.NewServiceClient(v.GetConnection())
+
 	request := &memif.MemifCreate{
 		Role:       memif.MemifRole(mif.Role),
 		Mode:       memif.MemifMode(mif.Mode),
@@ -105,33 +96,31 @@ func (v *VppLink) CreateMemif(mif *types.Memif) error {
 		BufferSize: uint16(mif.QueueSize),
 	}
 	if mif.MacAddress != nil {
-		request.HwAddr = types.ToVppMacAddress(&mif.MacAddress)
+		request.HwAddr = types.MacAddress(mif.MacAddress)
 	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	response, err := client.MemifCreate(v.GetContext(), request)
 	if err != nil {
-		return errors.Wrapf(err, "MemifCreate failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("MemifCreate failed (retval %d). Request: %+v", response.Retval, request)
+		return fmt.Errorf("MemifCreate failed: %w", err)
 	}
 	mif.SwIfIndex = uint32(response.SwIfIndex)
 	return nil
 }
 
 func (v *VppLink) ListMemifInterfaces() ([]*types.Memif, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := memif.NewServiceClient(v.GetConnection())
 
+	stream, err := client.MemifDump(v.GetContext(), &memif.MemifDump{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump memif interfaces: %w", err)
+	}
 	memifs := make([]*types.Memif, 0)
-	request := &memif.MemifDump{}
-	stream := v.ch.SendMultiRequest(request)
 	for {
-		response := &memif.MemifDetails{}
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error listing memifs")
-		}
-		if stop {
+		response, err := stream.Recv()
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump memif interfaces: %w", err)
 		}
 		memifs = append(memifs, &types.Memif{
 			SwIfIndex: uint32(response.SwIfIndex),
@@ -148,7 +137,7 @@ func (v *VppLink) ListMemifInterfaces() ([]*types.Memif, error) {
 func (v *VppLink) MemifsocketByID(socketID uint32) (*types.MemifSocket, error) {
 	sockets, err := v.ListMemifSockets()
 	if err != nil {
-		return nil, errors.Wrapf(err, "error listing memif sockets")
+		return nil, fmt.Errorf("error listing memif sockets: %w", err)
 	}
 	for _, socket := range sockets {
 		if socket.SocketID == socketID {

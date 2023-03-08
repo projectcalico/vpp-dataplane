@@ -18,80 +18,21 @@ package vpplink
 import (
 	"os"
 	"sync"
-	"time"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"go.fd.io/govpp"
-	vppapi "go.fd.io/govpp/api"
-	vppcore "go.fd.io/govpp/core"
-)
 
-const (
-	DefaultReplyTimeout = 1 * time.Second
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated"
 )
 
 type VppLink struct {
-	lock                   sync.Mutex
-	conn                   *vppcore.Connection
-	ch                     vppapi.Channel
-	socket                 string
-	log                    logrus.FieldLogger
+	*generated.Vpp
 	pid                    uint32
 	watcherLock            sync.Mutex
 	interfaceEventWatchers []*interfaceEventWatcher
 	stopEvents             func() error
 }
 
-func (v *VppLink) GetChannel() (vppapi.Channel, error) {
-	return v.conn.NewAPIChannel()
-}
-
-func NewVppLink(socket string, logger logrus.FieldLogger) (*VppLink, error) {
-	conn, err := govpp.Connect(socket)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot connect to VPP on socket %s", socket)
-	}
-
-	ch, err := conn.NewAPIChannel()
-	if err != nil {
-		return nil, errors.Wrap(err, "channel creation failed")
-	}
-
-	vppLink := &VppLink{
-		conn:   conn,
-		ch:     ch,
-		socket: socket,
-		log:    logger,
-		pid:    uint32(os.Getpid()),
-	}
-
-	return vppLink, nil
-}
-
-func (v *VppLink) Reconnect() (err error) {
-	v.conn, err = govpp.Connect(v.socket)
-	if err != nil {
-		return errors.Wrapf(err, "cannot re-connect to VPP on socket %s", v.socket)
-	}
-	v.ch, err = v.conn.NewAPIChannel()
-	if err != nil {
-		return errors.Wrap(err, "channel re-creation failed")
-	}
-	return nil
-}
-
-func (v *VppLink) Close() {
-	if v == nil {
-		return
-	}
-	if v.stopEvents != nil {
-		_ = v.stopEvents()
-	}
-	if v.ch != nil {
-		v.ch.Close()
-	}
-	if v.conn != nil {
-		v.conn.Disconnect()
-	}
+func NewVppLink(socket string, logger *logrus.Entry) (*VppLink, error) {
+	vpp, err := generated.NewVpp(socket, logger)
+	return &VppLink{Vpp: vpp, pid: uint32(os.Getpid())}, err
 }

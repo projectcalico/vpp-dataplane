@@ -19,58 +19,43 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip6_nd"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip6_nd"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) error {
+	client := ip6_nd.NewServiceClient(v.GetConnection())
 
-	response := &ip6_nd.SwInterfaceIP6ndRaConfigReply{}
-	request := &ip6_nd.SwInterfaceIP6ndRaConfig{
+	_, err := client.SwInterfaceIP6ndRaConfig(v.GetContext(), &ip6_nd.SwInterfaceIP6ndRaConfig{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		Suppress:  1,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Disabling RA for swif %d failed", swIfIndex)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Disabling RA for swif %d failed with retval %d", swIfIndex, response.Retval)
+		return fmt.Errorf("failed to disable IP6 ND RA (swif %d): %w", swIfIndex, err)
 	}
 	return nil
 }
 
-func (v *VppLink) EnableIP6NdProxy(swIfIndex uint32, address net.IP) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) EnableIP6NdProxy(swIfIndex uint32, address net.IP) error {
+	client := ip6_nd.NewServiceClient(v.GetConnection())
 
-	response := &ip6_nd.IP6ndProxyAddDelReply{}
-	request := &ip6_nd.IP6ndProxyAddDel{
+	_, err := client.IP6ndProxyAddDel(v.GetContext(), &ip6_nd.IP6ndProxyAddDel{
 		IsAdd:     true,
 		IP:        types.ToVppIP6Address(address),
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Enabling IP6 ND Proxy swif %d failed", swIfIndex)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Enabling IP6 ND Proxy swif %d failed with retval %d", swIfIndex, response.Retval)
+		return fmt.Errorf("failed to add IP6 ND Proxy address %v (swif %d): %w", address, swIfIndex, err)
 	}
 
 	// now disable source / dest checks for nd proxy
-	resp := &ip6_nd.IP6ndProxyEnableDisableReply{}
-	req := &ip6_nd.IP6ndProxyEnableDisable{
-		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+	_, err = client.IP6ndProxyEnableDisable(v.GetContext(), &ip6_nd.IP6ndProxyEnableDisable{
 		IsEnable:  true,
-	}
-	err = v.ch.SendRequest(req).ReceiveReply(resp)
+		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Enabling nd swif %d failed", swIfIndex)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Enabling nd swif %d failed with retval %d", swIfIndex, response.Retval)
+		return fmt.Errorf("failed to enable IP6 ND Proxy (swif %d): %w", swIfIndex, err)
 	}
 
 	return nil

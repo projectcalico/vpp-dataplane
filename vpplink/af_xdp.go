@@ -18,16 +18,14 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/af_xdp"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/af_xdp"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &af_xdp.AfXdpCreateReply{}
+func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) error {
+	client := af_xdp.NewServiceClient(v.GetConnection())
+
 	request := &af_xdp.AfXdpCreate{
 		HostIf:  intf.HostInterfaceName,
 		Name:    intf.Name,
@@ -36,28 +34,22 @@ func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) (err error) {
 		TxqSize: uint16(DefaultIntTo(intf.TxQueueSize, 1024)),
 		Mode:    af_xdp.AF_XDP_API_MODE_AUTO,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	response, err := client.AfXdpCreate(v.GetContext(), request)
 	if err != nil {
-		return errors.Wrapf(err, "CreateAfXDP failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CreateAfXDP failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("failed to create AfXDP (%+v): %w", request, err)
 	}
 	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return nil
 }
 
 func (v *VppLink) DeleteAfXDP(intf *types.VppXDPInterface) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &af_xdp.AfXdpDeleteReply{}
-	request := &af_xdp.AfXdpDelete{
+	client := af_xdp.NewServiceClient(v.GetConnection())
+
+	_, err := client.AfXdpDelete(v.GetContext(), &af_xdp.AfXdpDelete{
 		SwIfIndex: interface_types.InterfaceIndex(intf.SwIfIndex),
-	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "DeleteAfXDP failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("DeleteAfXDP failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("failed to delete AfXDP (%v): %w", intf.SwIfIndex, err)
 	}
 	return nil
 }

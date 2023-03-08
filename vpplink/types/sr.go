@@ -4,10 +4,11 @@ import (
 	"fmt"
 
 	bgpapi "github.com/osrg/gobgp/v3/api"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/sr"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/sr_types"
+
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/sr"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/sr_types"
 )
 
 type SrBehavior uint8
@@ -98,7 +99,7 @@ func (p *SrPolicy) FromVPP(response *sr.SrPoliciesDetails) {
 	p.IsSpray = response.IsSpray
 	p.IsEncap = response.IsEncap
 	p.FibTable = response.FibTable
-	sidLists := []Srv6SidList{}
+	var sidLists []Srv6SidList
 	for _, sl := range response.SidLists {
 		sidLists = append(sidLists, Srv6SidList{
 			NumSids: sl.NumSids,

@@ -18,17 +18,15 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/pbl"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/pbl"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (v *VppLink) AddPblClient(client *types.PblClient) (id uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) AddPblClient(pblClient *types.PblClient) (id uint32, err error) {
+	client := pbl.NewServiceClient(v.GetConnection())
 
-	portRanges := make([]pbl.PblPortRange, len(client.PortRanges))
-	for _, r := range client.PortRanges {
+	portRanges := make([]pbl.PblPortRange, 0, len(pblClient.PortRanges))
+	for _, r := range pblClient.PortRanges {
 		portRanges = append(portRanges, pbl.PblPortRange{
 			Start:  r.Start,
 			End:    r.End,
@@ -36,40 +34,31 @@ func (v *VppLink) AddPblClient(client *types.PblClient) (id uint32, err error) {
 		})
 	}
 
-	response := &pbl.PblClientUpdateReply{}
-	request := &pbl.PblClientUpdate{
+	response, err := client.PblClientUpdate(v.GetContext(), &pbl.PblClientUpdate{
 		Client: pbl.PblClient{
-			ID:         client.ID,
-			TableID:    client.TableId,
-			Addr:       types.ToVppAddress(client.Addr),
-			Paths:      client.Path.ToFibPath(false),
+			ID:         pblClient.ID,
+			TableID:    pblClient.TableId,
+			Addr:       types.ToVppAddress(pblClient.Addr),
+			Paths:      pblClient.Path.ToFibPath(false),
 			Flags:      0,
 			PortRanges: portRanges,
 		},
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return 0, errors.Wrapf(err, "Pbl Client Update failed")
-	} else if response.Retval != 0 {
-		return 0, fmt.Errorf("Pbl Client Update failed with retval %d", response.Retval)
+		return 0, fmt.Errorf("failed to update Pbl Client: %w", err)
 	}
-	client.ID = response.ID
+	pblClient.ID = response.ID
 	return response.ID, nil
 }
 
-func (v *VppLink) DelPblClient(id uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) DelPblClient(id uint32) error {
+	client := pbl.NewServiceClient(v.GetConnection())
 
-	response := &pbl.PblClientDelReply{}
-	request := &pbl.PblClientDel{
+	_, err := client.PblClientDel(v.GetContext(), &pbl.PblClientDel{
 		ID: id,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Pbl Client Delete failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Pbl Client Delete failed with retval %d", response.Retval)
+		return fmt.Errorf("failed to delete Pbl Client: %w", err)
 	}
 	return nil
 }

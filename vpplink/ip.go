@@ -17,31 +17,30 @@ package vpplink
 
 import (
 	"fmt"
+	"io"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip"
-	vppip "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/punt"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/punt"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) ListVRFs() (vrfs []types.VRF, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := ip.NewServiceClient(v.GetConnection())
 
+	stream, err := client.IPTableDump(v.GetContext(), &ip.IPTableDump{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump VRF: %w", err)
+	}
 	vrfs = make([]types.VRF, 0)
-	request := &vppip.IPTableDump{}
-	stream := v.ch.SendMultiRequest(request)
 	for {
-		response := &vppip.IPTableDetails{}
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return vrfs, errors.Wrap(err, "error listing VRF")
+		response, err := stream.Recv()
+		if err == io.EOF {
+			break
 		}
-		if stop {
-			return vrfs, nil
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump VRF: %w", err)
 		}
 		vrfs = append(vrfs, types.VRF{
 			Name:  response.Table.Name,
@@ -49,26 +48,22 @@ func (v *VppLink) ListVRFs() (vrfs []types.VRF, err error) {
 			IsIP6: response.Table.IsIP6,
 		})
 	}
-
+	return vrfs, nil
 }
 
 func (v *VppLink) addDelVRF(index uint32, name string, isIP6 bool, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &ip.IPTableAddDelReply{}
-	request := &ip.IPTableAddDel{
+	client := ip.NewServiceClient(v.GetConnection())
+
+	_, err := client.IPTableAddDel(v.GetContext(), &ip.IPTableAddDel{
 		IsAdd: isAdd,
 		Table: ip.IPTable{
 			TableID: index,
 			IsIP6:   isIP6,
 			Name:    name,
 		},
-	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "IPTableAddDel failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("IPTableAddDel failed (retval %d). Request: %+v", response.Retval, request)
+		return fmt.Errorf("IPTableAddDel failed: %w", err)
 	}
 	return nil
 }
@@ -82,63 +77,56 @@ func (v *VppLink) DelVRF(index uint32, isIP6 bool) error {
 }
 
 func (v *VppLink) AllocateVRF(isIP6 bool, name string) (uint32, error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &ip.IPTableAllocateReply{}
-	request := &ip.IPTableAllocate{
+	client := ip.NewServiceClient(v.GetConnection())
+
+	response, err := client.IPTableAllocate(v.GetContext(), &ip.IPTableAllocate{
 		Table: ip.IPTable{
 			TableID: types.InvalidID,
 			IsIP6:   isIP6,
 			Name:    name,
 		},
-	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return types.InvalidID, errors.Wrapf(err, "IPTableAllocate failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return types.InvalidID, fmt.Errorf("IPTableAllocate failed (retval %d). Request: %+v", response.Retval, request)
+		return 0, fmt.Errorf("IPTableAllocate failed: %w", err)
 	}
 	return response.Table.TableID, nil
 }
 
 func (v *VppLink) PuntRedirect(punt types.IpPuntRedirect, isIP6 bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := ip.NewServiceClient(v.GetConnection())
 
-	request := &vppip.AddDelIPPuntRedirectV2{
-		Punt: vppip.PuntRedirectV2{
+	_, err := client.AddDelIPPuntRedirectV2(v.GetContext(), &ip.AddDelIPPuntRedirectV2{
+		Punt: ip.PuntRedirectV2{
 			RxSwIfIndex: interface_types.InterfaceIndex(punt.RxSwIfIndex),
 			Af:          types.GetBoolIPFamily(isIP6),
 			Paths:       types.ToFibPathList(punt.Paths, isIP6),
 		},
 		IsAdd: true,
-	}
-	response := &vppip.AddDelIPPuntRedirectV2Reply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil || response.Retval != 0 {
-		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to set punt in VPP: %v", err)
 	}
 	return nil
 }
 
 func (v *VppLink) PuntRedirectList(swIfIndex uint32, isIP6 bool) (punts []types.IpPuntRedirect, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := ip.NewServiceClient(v.GetConnection())
 
-	request := &ip.IPPuntRedirectV2Dump{
+	stream, err := client.IPPuntRedirectV2Dump(v.GetContext(), &ip.IPPuntRedirectV2Dump{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		Af:        types.GetBoolIPFamily(isIP6),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump punt redirect: %w", err)
 	}
-	stream := v.ch.SendMultiRequest(request)
 	punts = make([]types.IpPuntRedirect, 0)
 	for {
-		response := &ip.IPPuntRedirectV2Details{}
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return punts, err
-		}
-		if stop {
+		response, err := stream.Recv()
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump punt redirect: %w", err)
 		}
 		punts = append(punts, types.IpPuntRedirect{
 			RxSwIfIndex: uint32(response.Punt.RxSwIfIndex),
@@ -151,9 +139,10 @@ func (v *VppLink) PuntRedirectList(swIfIndex uint32, isIP6 bool) (punts []types.
 
 // PuntL4 configures L4 punt for a given address family and protocol. port = ~0 means all ports
 func (v *VppLink) PuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	request := &punt.SetPunt{
+	client := punt.NewServiceClient(v.GetConnection())
+
+	_, err := client.SetPunt(v.GetContext(), &punt.SetPunt{
+		IsAdd: true,
 		Punt: punt.Punt{
 			Type: punt.PUNT_API_TYPE_L4,
 			Punt: punt.PuntUnionL4(punt.PuntL4{
@@ -162,12 +151,9 @@ func (v *VppLink) PuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
 				Port:     port,
 			}),
 		},
-		IsAdd: true,
-	}
-	response := &punt.SetPuntReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
-	if err != nil || response.Retval != 0 {
-		return fmt.Errorf("cannot set punt in VPP: %v %d", err, response.Retval)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to set punt in VPP: %v", err)
 	}
 	return nil
 }

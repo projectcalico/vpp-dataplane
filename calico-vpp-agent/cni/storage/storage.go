@@ -27,6 +27,7 @@ import (
 
 	"github.com/lunixbochs/struc"
 	"github.com/pkg/errors"
+
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"

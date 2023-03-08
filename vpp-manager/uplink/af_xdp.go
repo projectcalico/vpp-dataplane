@@ -17,12 +17,13 @@ package uplink
 
 import (
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
-	log "github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -144,7 +145,7 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, u
 	}
 	log.Infof("Created AF_XDP interface %d", intf.SwIfIndex)
 
-	err = vpp.SetInterfaceMacAddress(intf.SwIfIndex, &d.conf.HardwareAddr)
+	err = vpp.SetInterfaceMacAddress(intf.SwIfIndex, d.conf.HardwareAddr)
 	if err != nil {
 		return errors.Wrap(err, "could not set af_xdp interface mac address in vpp")
 	}

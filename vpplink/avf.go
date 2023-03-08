@@ -16,12 +16,12 @@
 package vpplink
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/avf"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/avf"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
@@ -29,43 +29,38 @@ const (
 	AvfReplyTimeout = 15 * time.Second
 )
 
-func (v *VppLink) CreateAVF(intf *types.AVFInterface) (swIfIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) CreateAVF(intf *types.AVFInterface) (uint32, error) {
+	client := avf.NewServiceClient(v.GetConnection())
+
 	addr, err := types.GetPciIdInt(intf.PciId)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateAVF error parsing PCI id")
+		return INVALID_SW_IF_INDEX, fmt.Errorf("error parsing PCI id: %w", err)
 	}
-	response := &avf.AvfCreateReply{}
+
+	ctx, cancel := context.WithTimeout(v.GetContext(), AvfReplyTimeout)
+	defer cancel()
+
 	request := &avf.AvfCreate{
 		PciAddr: addr,
 		RxqNum:  uint16(intf.NumRxQueues),
 		RxqSize: uint16(intf.RxQueueSize),
 		TxqSize: uint16(intf.TxQueueSize),
 	}
-	defer v.ch.SetReplyTimeout(DefaultReplyTimeout)
-	v.ch.SetReplyTimeout(AvfReplyTimeout)
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	response, err := client.AvfCreate(ctx, request)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "CreateAVF failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("CreateAVF failed: req %+v reply %+v", request, response)
+		return INVALID_SW_IF_INDEX, fmt.Errorf("failed to create AVF (%+v): %w", request, err)
 	}
 	return uint32(response.SwIfIndex), nil
 }
 
-func (v *VppLink) DeleteAVF(swIfIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &avf.AvfDeleteReply{}
-	request := &avf.AvfDelete{
+func (v *VppLink) DeleteAVF(swIfIndex uint32) error {
+	client := avf.NewServiceClient(v.GetConnection())
+
+	_, err := client.AvfDelete(v.GetContext(), &avf.AvfDelete{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "DeleteAVF failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("DeleteAVF failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("failed to delete AVF (%v): %w", swIfIndex, err)
 	}
 	return nil
 }

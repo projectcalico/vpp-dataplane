@@ -23,9 +23,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/af_packet"
-	interfaces "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/af_packet"
+	interfaces "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 )
 
 type RxMode uint32
@@ -63,7 +63,7 @@ const (
 type GenericVppInterface struct {
 	Name              string /* Desired name in VPP */
 	HostInterfaceName string /* Name of the host interface */
-	HardwareAddr      *net.HardwareAddr
+	HardwareAddr      net.HardwareAddr
 	NumRxQueues       int
 	NumTxQueues       int
 	TxQueueSize       int

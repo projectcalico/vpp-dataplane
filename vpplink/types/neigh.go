@@ -18,8 +18,7 @@ package types
 import (
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ethernet_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_neighbor"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_neighbor"
 )
 
 type IPNeighborFlags uint32
@@ -43,14 +42,4 @@ func ToVppNeighborFlags(flags IPNeighborFlags) ip_neighbor.IPNeighborFlags {
 
 func FromVppNeighborFlags(flags ip_neighbor.IPNeighborFlags) IPNeighborFlags {
 	return IPNeighborFlags(flags)
-}
-
-func FromVppMacAddress(vppHwAddr ethernet_types.MacAddress) net.HardwareAddr {
-	return net.HardwareAddr(vppHwAddr[:])
-}
-
-func ToVppMacAddress(hardwareAddr *net.HardwareAddr) ethernet_types.MacAddress {
-	hwAddr := [6]uint8{}
-	copy(hwAddr[:], *hardwareAddr)
-	return ethernet_types.MacAddress(hwAddr)
 }

@@ -18,25 +18,19 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/session"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/session"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) enableDisableSessionLayer(isEnable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := session.NewServiceClient(v.GetConnection())
 
-	response := &session.SessionEnableDisableReply{}
-	request := &session.SessionEnableDisable{
+	_, err := client.SessionEnableDisable(v.GetContext(), &session.SessionEnableDisable{
 		IsEnable: isEnable,
-	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Enable/Disable session failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Enable/Disable session failed with retval %d", response.Retval)
+		return fmt.Errorf("failed to %s session: %w", strEnableDisable[isEnable], err)
 	}
 	return nil
 }
@@ -50,18 +44,13 @@ func (v *VppLink) DisableSessionLayer() error {
 }
 
 func (v *VppLink) enableDisableSessionSAPILayer(isEnable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := session.NewServiceClient(v.GetConnection())
 
-	response := &session.SessionSapiEnableDisableReply{}
-	request := &session.SessionSapiEnableDisable{
+	_, err := client.SessionSapiEnableDisable(v.GetContext(), &session.SessionSapiEnableDisable{
 		IsEnable: isEnable,
-	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Enable/Disable session SAPI failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Enable/Disable session SAPI failed with retval %d", response.Retval)
+		return fmt.Errorf("failed to %s SAPI session: %w", strEnableDisable[isEnable], err)
 	}
 	return nil
 }
@@ -75,23 +64,18 @@ func (v *VppLink) DisableSessionSAPI() error {
 }
 
 func (v *VppLink) addDelSessionAppNamespace(namespace *types.SessionAppNamespace, isAdd bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := session.NewServiceClient(v.GetConnection())
 
-	response := &session.AppNamespaceAddDelV3Reply{}
-	request := &session.AppNamespaceAddDelV3{
+	_, err := client.AppNamespaceAddDelV3(v.GetContext(), &session.AppNamespaceAddDelV3{
 		Secret:      namespace.Secret,
 		NamespaceID: namespace.NamespaceId,
 		Netns:       namespace.Netns,
 		SockName:    namespace.SocketName,
 		SwIfIndex:   interface_types.InterfaceIndex(namespace.SwIfIndex),
 		IsAdd:       isAdd,
-	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "error %sing session namespace", IsAddToStr(isAdd))
-	} else if response.Retval != 0 {
-		return fmt.Errorf("%s session namespace errored with retval %d", IsAddToStr(isAdd), response.Retval)
+		return fmt.Errorf("failed to %s session namespace: %w", strAddRemove[isAdd], err)
 	}
 	return nil
 }

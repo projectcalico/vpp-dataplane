@@ -18,61 +18,45 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/vlib"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/vlib"
 )
 
 // GetNodeIndex gets node index of the node given by name. This is a helper method for VPP's node graph
 // that process packets.
 func (v *VppLink) GetNodeIndex(name string) (nodeIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := vlib.NewServiceClient(v.GetConnection())
 
-	response := &vlib.GetNodeIndexReply{}
-	request := &vlib.GetNodeIndex{
+	response, err := client.GetNodeIndex(v.GetContext(), &vlib.GetNodeIndex{
 		NodeName: name,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return ^uint32(1), errors.Wrap(err, "GetNodeIndex failed")
-	} else if response.Retval != 0 {
-		return ^uint32(1), fmt.Errorf("GetNodeIndex failed with retval %d", response.Retval)
+		return 0, fmt.Errorf("failed to get node index: %w", err)
 	}
-	return uint32(response.NodeIndex), nil
+	return response.NodeIndex, nil
 }
 
 // AddNodeNext sets the next node for the node given by name in node graph. This is a helper method for VPP's
 // node graph that process packets.
 func (v *VppLink) AddNodeNext(name, next string) (nodeIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := vlib.NewServiceClient(v.GetConnection())
 
-	response := &vlib.AddNodeNextReply{}
-	request := &vlib.AddNodeNext{
+	response, err := client.AddNodeNext(v.GetContext(), &vlib.AddNodeNext{
 		NodeName: name,
 		NextName: next,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return ^uint32(1), errors.Wrap(err, "AddNodeNext failed")
-	} else if response.Retval != 0 {
-		return ^uint32(1), fmt.Errorf("AddNodeNext failed with retval %d", response.Retval)
+		return 0, fmt.Errorf("failed to add next node: %w", err)
 	}
-	return uint32(response.NextIndex), nil
+	return response.NextIndex, nil
 }
 
 // GetNumVPPWorkers gets the number of workers WITHOUT the main thread
 func (v *VppLink) GetNumVPPWorkers() (numVPPWorkers int, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := vlib.NewServiceClient(v.GetConnection())
 
-	response := &vlib.ShowThreadsReply{}
-	request := &vlib.ShowThreads{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	response, err := client.ShowThreads(v.GetContext(), &vlib.ShowThreads{})
 	if err != nil {
-		return -1, errors.Wrap(err, "GetNumVPPWorkers failed")
-	} else if response.Retval != 0 {
-		return -1, fmt.Errorf("GetNumVPPWorkers failed with retval %d", response.Retval)
+		return -1, fmt.Errorf("failed to get number of workers: %w", err)
 	}
 	return int(response.Count - 1), nil
 }

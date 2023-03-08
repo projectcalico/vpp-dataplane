@@ -18,20 +18,17 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/arp"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/arp"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 )
 
-func (v *VppLink) EnableArpProxy(swIfIndex, tableID uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) EnableArpProxy(swIfIndex, tableID uint32) error {
+	client := arp.NewServiceClient(v.GetConnection())
 
 	// First enable global arp proxy
 	//set arp proxy table-id 0 start 0.0.0.0 end 255.255.255.255
-	response1 := &arp.ProxyArpAddDelReply{}
-	request1 := &arp.ProxyArpAddDel{
+	request := &arp.ProxyArpAddDel{
 		IsAdd: true,
 		Proxy: arp.ProxyArp{
 			TableID: tableID,
@@ -39,23 +36,17 @@ func (v *VppLink) EnableArpProxy(swIfIndex, tableID uint32) (err error) {
 			Hi:      ip_types.IP4Address{255, 255, 255, 255},
 		},
 	}
-	err = v.ch.SendRequest(request1).ReceiveReply(response1)
+	_, err := client.ProxyArpAddDel(v.GetContext(), request)
 	if err != nil {
-		return errors.Wrapf(err, "Enabling proxyarp swif %d failed", swIfIndex)
-	} else if response1.Retval != 0 {
-		return fmt.Errorf("Enabling proxyarp swif %d failed with retval %d", swIfIndex, response1.Retval)
+		return fmt.Errorf("failed to add ProxyARP (%+v): %w", request, err)
 	}
 
-	response := &arp.ProxyArpIntfcEnableDisableReply{}
-	request := &arp.ProxyArpIntfcEnableDisable{
+	_, err = client.ProxyArpIntfcEnableDisable(v.GetContext(), &arp.ProxyArpIntfcEnableDisable{
 		Enable:    true,
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Enabling proxyarp swif %d failed", swIfIndex)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Enabling proxyarp swif %d failed with retval %d", swIfIndex, response.Retval)
+		return fmt.Errorf("failed to enable ProxyARP (swifidx %d): %w", swIfIndex, err)
 	}
 	return nil
 }

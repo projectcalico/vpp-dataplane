@@ -19,9 +19,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/cnat"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/cnat"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
@@ -34,26 +33,20 @@ const (
 const InvalidID = ^uint32(0)
 
 func (v *VppLink) CnatPurge() error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := cnat.NewServiceClient(v.GetConnection())
 
-	request := &cnat.CnatSessionPurge{}
-	response := &cnat.CnatSessionPurgeReply{}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	_, err := client.CnatSessionPurge(v.GetContext(), &cnat.CnatSessionPurge{})
 	if err != nil {
-		return errors.Wrap(err, "CNat purge failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CNat purge failed with retval: %d", response.Retval)
+		return fmt.Errorf("CNat purge failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (uint32, error) {
 	if len(tr.Backends) == 0 {
 		return InvalidID, nil
 	}
+	client := cnat.NewServiceClient(v.GetConnection())
 
 	paths := make([]cnat.CnatEndpointTuple, 0, len(tr.Backends))
 	for _, backend := range tr.Backends {
@@ -64,8 +57,7 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err
 		})
 	}
 
-	response := &cnat.CnatTranslationUpdateReply{}
-	request := &cnat.CnatTranslationUpdate{
+	response, err := client.CnatTranslationUpdate(v.GetContext(), &cnat.CnatTranslationUpdate{
 		Translation: cnat.CnatTranslation{
 			Vip:      types.ToCnatEndpoint(tr.Endpoint),
 			IPProto:  types.ToVppIPProto(tr.Proto),
@@ -74,68 +66,51 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (id uint32, err
 			Flags:    uint8(cnat.CNAT_TRANSLATION_ALLOC_PORT),
 			LbType:   cnat.CnatLbType(tr.LbType),
 		},
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return InvalidID, errors.Wrap(err, "Add/Upd CnatTranslate failed")
-	} else if response.Retval != 0 {
-		return InvalidID, fmt.Errorf("Add/Upd CnatTranslate failed with retval: %d", response.Retval)
+		return InvalidID, fmt.Errorf("Add/Upd CnatTranslate failed: %w", err)
 	}
 	return response.ID, nil
 }
 
-func (v *VppLink) CnatTranslateDel(id uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) CnatTranslateDel(id uint32) error {
+	client := cnat.NewServiceClient(v.GetConnection())
+
 	// corresponds to adding tr.Backends == []
 	if id == InvalidID {
 		return nil
 	}
 
-	response := &cnat.CnatTranslationDelReply{}
-	request := &cnat.CnatTranslationDel{ID: id}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	_, err := client.CnatTranslationDel(v.GetContext(), &cnat.CnatTranslationDel{ID: id})
 	if err != nil {
-		return errors.Wrap(err, "Deleting CnatTranslate failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Deleting CnatTranslate failed with retval: %d", response.Retval)
+		return fmt.Errorf("deleting CnatTranslate failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) CnatSetSnatAddresses(v4, v6 net.IP) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) CnatSetSnatAddresses(v4, v6 net.IP) error {
+	client := cnat.NewServiceClient(v.GetConnection())
 
-	request := &cnat.CnatSetSnatAddresses{
+	_, err := client.CnatSetSnatAddresses(v.GetContext(), &cnat.CnatSetSnatAddresses{
 		SnatIP4:   types.ToVppIP4Address(v4),
 		SnatIP6:   types.ToVppIP6Address(v6),
 		SwIfIndex: types.InvalidInterface,
-	}
-	response := &cnat.CnatSetSnatAddressesReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "Setting SNAT addresses failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Setting SNAT addresses failed with retval: %d", response.Retval)
+		return fmt.Errorf("setting SNAT addresses failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) CnatAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) CnatAddDelSnatPrefix(prefix *net.IPNet, isAdd bool) error {
+	client := cnat.NewServiceClient(v.GetConnection())
 
-	request := &cnat.CnatSnatPolicyAddDelExcludePfx{
+	_, err := client.CnatSnatPolicyAddDelExcludePfx(v.GetContext(), &cnat.CnatSnatPolicyAddDelExcludePfx{
 		IsAdd:  BoolToU8(isAdd),
 		Prefix: types.ToVppPrefix(prefix),
-	}
-	response := &cnat.CnatSnatPolicyAddDelExcludePfxReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "%s SNAT prefix failed", IsAddToStr(isAdd))
-	} else if response.Retval != 0 {
-		return fmt.Errorf("%s SNAT prefix failed with retval: %d", IsAddToStr(isAdd), response.Retval)
+		return fmt.Errorf("%s SNAT prefix failed: %w", IsAddToStr(isAdd), err)
 	}
 	return nil
 }
@@ -151,29 +126,25 @@ func (v *VppLink) CnatDelSnatPrefix(prefix *net.IPNet) error {
 func (v *VppLink) CnatEnableFeatures(swIfIndex uint32) (err error) {
 	err = v.EnableFeatureArc46(swIfIndex, FeatureArcCnatInput)
 	if err != nil {
-		return errors.Wrap(err, "Error enabling arc dnat in")
+		return fmt.Errorf("enabling arc dnat input failed: %w", err)
 	}
 	err = v.EnableFeatureArc46(swIfIndex, FeatureArcCnatOutput)
 	if err != nil {
-		return errors.Wrap(err, "Error enabling arc dnat out")
+		return fmt.Errorf("enabling arc dnat output failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) cnatSnatPolicyAddDelPodInterface(swIfIndex uint32, isAdd bool, table cnat.CnatSnatPolicyTable) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &cnat.CnatSnatPolicyAddDelIfReply{}
-	request := &cnat.CnatSnatPolicyAddDelIf{
+func (v *VppLink) cnatSnatPolicyAddDelPodInterface(swIfIndex uint32, isAdd bool, table cnat.CnatSnatPolicyTable) error {
+	client := cnat.NewServiceClient(v.GetConnection())
+
+	_, err := client.CnatSnatPolicyAddDelIf(v.GetContext(), &cnat.CnatSnatPolicyAddDelIf{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		IsAdd:     BoolToU8(isAdd),
 		Table:     table,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "CnatSnatPolicyAddDelIf failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CnatSnatPolicyAddDelIf failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CnatSnatPolicyAddDelIf %+v failed: %w", swIfIndex, err)
 	}
 	return nil
 }
@@ -208,18 +179,14 @@ func (v *VppLink) disableCnatSNAT(swIfIndex uint32, isIp6 bool) (err error) {
 	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V4)
 }
 
-func (v *VppLink) cnatSetSnatPolicy(pol cnat.CnatSnatPolicies) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &cnat.CnatSetSnatPolicyReply{}
-	request := &cnat.CnatSetSnatPolicy{
+func (v *VppLink) cnatSetSnatPolicy(pol cnat.CnatSnatPolicies) error {
+	client := cnat.NewServiceClient(v.GetConnection())
+
+	_, err := client.CnatSetSnatPolicy(v.GetContext(), &cnat.CnatSetSnatPolicy{
 		Policy: pol,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "CnatSetSnatPolicy failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("CnatSetSnatPolicy failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("CnatSetSnatPolicy %+v failed: %w", pol, err)
 	}
 	return nil
 }

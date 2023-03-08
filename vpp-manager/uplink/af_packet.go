@@ -25,7 +25,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/af_packet"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/af_packet"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 

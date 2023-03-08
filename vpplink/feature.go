@@ -19,26 +19,22 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/feature"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/feature"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 )
 
-func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName, featureName string) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &feature.FeatureEnableDisableReply{}
+func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName, featureName string) error {
+	client := feature.NewServiceClient(v.GetConnection())
+
 	request := &feature.FeatureEnableDisable{
 		SwIfIndex:   interface_types.InterfaceIndex(swIfIndex),
 		Enable:      isEnable,
 		ArcName:     arcName,
 		FeatureName: featureName,
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	_, err := client.FeatureEnableDisable(v.GetContext(), request)
 	if err != nil {
-		return errors.Wrapf(err, "FeatureEnableDisable failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("FeatureEnableDisable failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("FeatureEnableDisable %+v failed: %w", request, err)
 	}
 	return nil
 }
@@ -68,7 +64,7 @@ func parseArcDescription(arcDescription string, isIp6 bool) (arcName string, fea
 func (v *VppLink) enableDisableFeatureArc(swIfIndex uint32, arcDescription string, isIp6 bool, isEnable bool) (err error) {
 	arcName, featureName, err := parseArcDescription(arcDescription, isIp6)
 	if err != nil {
-		return errors.Wrapf(err, "Error parsing arc description %s", arcDescription)
+		return fmt.Errorf("parsing arc description %s failed: %w", arcDescription, err)
 	}
 	return v.featureEnableDisable(swIfIndex, isEnable, arcName, featureName)
 }
@@ -76,11 +72,11 @@ func (v *VppLink) enableDisableFeatureArc(swIfIndex uint32, arcDescription strin
 func (v *VppLink) EnableFeatureArc46(swIfIndex uint32, arcDescription string) (err error) {
 	err = v.enableDisableFeatureArc(swIfIndex, arcDescription, false /* isip6 */, true /* enable */)
 	if err != nil {
-		return errors.Wrapf(err, "Error enabling ip4 arc %s", arcDescription)
+		return fmt.Errorf("enabling ip4 arc %s failed: %w", arcDescription, err)
 	}
 	err = v.enableDisableFeatureArc(swIfIndex, arcDescription, true /* isip6 */, true /* enable */)
 	if err != nil {
-		return errors.Wrapf(err, "Error enabling ip6 arc %s", arcDescription)
+		return fmt.Errorf("enabling ip6 arc %s failed: %w", arcDescription, err)
 	}
 	return nil
 }

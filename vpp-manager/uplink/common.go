@@ -21,12 +21,13 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
-	log "github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -180,7 +181,7 @@ func (d *UplinkDriverData) getGenericVppInterface() types.GenericVppInterface {
 		RxQueueSize:       d.spec.RxQueueSize,
 		TxQueueSize:       d.spec.TxQueueSize,
 		NumTxQueues:       d.spec.NumTxQueues,
-		HardwareAddr:      &d.conf.HardwareAddr,
+		HardwareAddr:      d.conf.HardwareAddr,
 		HostInterfaceName: d.spec.InterfaceName,
 	}
 }

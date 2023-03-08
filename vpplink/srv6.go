@@ -2,51 +2,47 @@ package vpplink
 
 import (
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/sr"
+
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/sr"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (v *VppLink) SetEncapSource(addr net.IP) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) SetEncapSource(addr net.IP) error {
+	client := sr.NewServiceClient(v.GetConnection())
 
-	request := &sr.SrSetEncapSource{
+	_, err := client.SrSetEncapSource(v.GetContext(), &sr.SrSetEncapSource{
 		EncapsSource: types.ToVppIP6Address(addr),
-	}
-	response := &sr.SrSetEncapSourceReply{}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "SetEncapSource failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("SetEncapSource failed with retval %d", response.Retval)
+		return fmt.Errorf("SetEncapSource failed: %w", err)
 	}
 	return err
 }
 
 func (v *VppLink) ListSRv6Policies() (list []*types.SrPolicy, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := sr.NewServiceClient(v.GetConnection())
 
-	request := &sr.SrPoliciesDump{}
-	stream := v.ch.SendMultiRequest(request)
+	stream, err := client.SrPoliciesDump(v.GetContext(), &sr.SrPoliciesDump{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump SR policies: %w", err)
+	}
 	for {
-		response := &sr.SrPoliciesDetails{}
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error SRv6Policies")
-		}
-		if stop {
+		response, err := stream.Recv()
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump SR policies: %w", err)
 		}
 		srpolicy := &types.SrPolicy{}
 		srpolicy.FromVPP(response)
 		//srpolicy.Srv6SidListFromVPP(response.SidLists)
 		list = append(list, srpolicy)
-
 	}
 	return list, err
 }
@@ -55,7 +51,7 @@ func (v *VppLink) AddModSRv6Policy(policy *types.SrPolicy) (err error) {
 	list, err := v.ListSRv6Policies()
 	isAlreadyDefined := false
 	if err != nil {
-		return errors.Wrapf(err, "error AddModSRv6Policy")
+		return fmt.Errorf("error AddModSRv6Policy: %w", err)
 	}
 	for _, registeredPolicy := range list {
 		if policy.Bsid == registeredPolicy.Bsid {
@@ -75,16 +71,15 @@ func (v *VppLink) AddModSRv6Policy(policy *types.SrPolicy) (err error) {
 
 }
 
-func (v *VppLink) AddSRv6Policy(policy *types.SrPolicy) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) AddSRv6Policy(policy *types.SrPolicy) error {
+	client := sr.NewServiceClient(v.GetConnection())
 
-	response := &sr.SrPolicyAddReply{}
 	// supporting only one SID list here -> multiple weighted paths for workload balance not supported
 	// This means that lso IsSpray setting is useless as it switches between default weighted path mode
 	// and spray mode(=replicate-traffic-and-multicast-to-all-paths)
 	sidlist := policy.SidLists[0]
-	request := &sr.SrPolicyAdd{
+
+	_, err := client.SrPolicyAdd(v.GetContext(), &sr.SrPolicyAdd{
 		BsidAddr: policy.Bsid,
 		IsEncap:  policy.IsEncap,
 		IsSpray:  policy.IsSpray,
@@ -94,48 +89,40 @@ func (v *VppLink) AddSRv6Policy(policy *types.SrPolicy) (err error) {
 			Weight:  sidlist.Weight,
 			Sids:    sidlist.Sids,
 		},
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "Add SRv6Policy failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Add SRv6Policy failed with retval %d", response.Retval)
+		return fmt.Errorf("failed to add SRv6Policy: %w", err)
 	}
 	return err
 }
 
-func (v *VppLink) DelSRv6Policy(policy *types.SrPolicy) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) DelSRv6Policy(policy *types.SrPolicy) error {
+	client := sr.NewServiceClient(v.GetConnection())
 
-	response := &sr.SrPolicyDelReply{}
-	request := &sr.SrPolicyDel{
+	_, err := client.SrPolicyDel(v.GetContext(), &sr.SrPolicyDel{
 		BsidAddr: policy.Bsid,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "Del SRv6Policy failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Del SRv6Policy failed with retval %d", response.Retval)
+		return fmt.Errorf("failed to delete SRv6Policy: %w", err)
 	}
 
 	return err
 }
 
 func (v *VppLink) ListSRv6Localsid() (list []*types.SrLocalsid, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := sr.NewServiceClient(v.GetConnection())
 
-	request := &sr.SrLocalsidsDump{}
-	stream := v.ch.SendMultiRequest(request)
+	stream, err := client.SrLocalsidsDump(v.GetContext(), &sr.SrLocalsidsDump{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump SR localsids: %w", err)
+	}
 	for {
-		response := &sr.SrLocalsidsDetails{}
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error listing IPIP tunnels")
-		}
-		if stop {
+		response, err := stream.Recv()
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump SR localsids: %w", err)
 		}
 		list = append(list, &types.SrLocalsid{
 			Localsid:  response.Addr,
@@ -147,16 +134,14 @@ func (v *VppLink) ListSRv6Localsid() (list []*types.SrLocalsid, err error) {
 			NhAddr:    response.XconnectNhAddr,
 		})
 	}
-
 	return list, err
 }
 
-func (v *VppLink) AddSRv6Localsid(localSid *types.SrLocalsid) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) AddSRv6Localsid(localSid *types.SrLocalsid) error {
 
-	response := &sr.SrLocalsidAddDelReply{}
-	request := &sr.SrLocalsidAddDel{
+	client := sr.NewServiceClient(v.GetConnection())
+
+	_, err := client.SrLocalsidAddDel(v.GetContext(), &sr.SrLocalsidAddDel{
 		IsDel:     false,
 		Localsid:  localSid.Localsid,
 		EndPsp:    localSid.EndPsp,
@@ -165,23 +150,18 @@ func (v *VppLink) AddSRv6Localsid(localSid *types.SrLocalsid) (err error) {
 		VlanIndex: localSid.VlanIndex,
 		FibTable:  localSid.FibTable,
 		NhAddr:    localSid.NhAddr,
-	}
-	err_send := v.ch.SendRequest(request).ReceiveReply(response)
-	if err_send != nil {
-		return errors.Wrap(err_send, "Add SRv6Localsid failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Add SRv6Localsid failed with retval %d", response.Retval)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to add SRv6Localsid: %w", err)
 	}
 
 	return err
 }
 
-func (v *VppLink) DelSRv6Localsid(localSid *types.SrLocalsid) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) DelSRv6Localsid(localSid *types.SrLocalsid) error {
+	client := sr.NewServiceClient(v.GetConnection())
 
-	response := &sr.SrLocalsidAddDelReply{}
-	request := &sr.SrLocalsidAddDel{
+	_, err := client.SrLocalsidAddDel(v.GetContext(), &sr.SrLocalsidAddDel{
 		IsDel:     true,
 		Localsid:  localSid.Localsid,
 		EndPsp:    localSid.EndPsp,
@@ -190,73 +170,61 @@ func (v *VppLink) DelSRv6Localsid(localSid *types.SrLocalsid) (err error) {
 		VlanIndex: localSid.VlanIndex,
 		FibTable:  localSid.FibTable,
 		NhAddr:    localSid.NhAddr,
-	}
-	err_send := v.ch.SendRequest(request).ReceiveReply(response)
-	if err_send != nil {
-		return errors.Wrap(err_send, "Delete SRv6Localsid failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Delete SRv6Localsid failed with retval %d", response.Retval)
+	})
+	if err != nil {
+		return fmt.Errorf("Delete SRv6Localsid failed: %w", err)
 	}
 	return err
 }
 
-func (v *VppLink) DelSRv6Steering(steer *types.SrSteer) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) DelSRv6Steering(steer *types.SrSteer) error {
+	client := sr.NewServiceClient(v.GetConnection())
 
-	response := &sr.SrSteeringAddDelReply{}
-	request := &sr.SrSteeringAddDel{
+	_, err := client.SrSteeringAddDel(v.GetContext(), &sr.SrSteeringAddDel{
 		IsDel:       true,
 		BsidAddr:    steer.Bsid,
 		TableID:     steer.FibTable,
 		Prefix:      steer.Prefix,
 		SwIfIndex:   interface_types.InterfaceIndex(steer.SwIfIndex),
 		TrafficType: types.ToVppSrSteerTrafficType(steer.TrafficType),
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "Add DelSRv6Steering failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Add DelSRv6Steering failed with retval %d", response.Retval)
+		return fmt.Errorf("failed to delete SRv6Steering: %w", err)
 	}
 	return err
 }
 
-func (v *VppLink) AddSRv6Steering(steer *types.SrSteer) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &sr.SrSteeringAddDelReply{}
-	request := &sr.SrSteeringAddDel{
+func (v *VppLink) AddSRv6Steering(steer *types.SrSteer) error {
+	client := sr.NewServiceClient(v.GetConnection())
+
+	_, err := client.SrSteeringAddDel(v.GetContext(), &sr.SrSteeringAddDel{
 		IsDel:       false,
 		BsidAddr:    steer.Bsid,
 		TableID:     steer.FibTable,
 		Prefix:      steer.Prefix,
 		SwIfIndex:   interface_types.InterfaceIndex(steer.SwIfIndex),
 		TrafficType: types.ToVppSrSteerTrafficType(steer.TrafficType),
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "Add AddSRv6Steering failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Add AddSRv6Steering failed with retval %d", response.Retval)
+		return fmt.Errorf("failed to add SRv6Steering: %w", err)
 	}
 	return err
 }
 
 func (v *VppLink) ListSRv6Steering() (list []*types.SrSteer, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := sr.NewServiceClient(v.GetConnection())
 
-	request := &sr.SrSteeringPolDump{}
-	stream := v.ch.SendMultiRequest(request)
+	stream, err := client.SrSteeringPolDump(v.GetContext(), &sr.SrSteeringPolDump{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump SR steering: %w", err)
+	}
 	for {
-		response := &sr.SrSteeringPolDetails{}
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error listing SRv6 Steering")
-		}
-		if stop {
+		response, err := stream.Recv()
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump SR steering: %w", err)
 		}
 		list = append(list, &types.SrSteer{
 			TrafficType: types.FromVppSrSteerTrafficType(response.TrafficType),

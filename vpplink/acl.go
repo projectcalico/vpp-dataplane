@@ -18,51 +18,40 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-	vppacl "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/acl"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/acl_types"
+	vppacl "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/acl"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/acl_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (v *VppLink) AddACL(acl *types.ACL) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) AddACL(acl *types.ACL) error {
+	client := vppacl.NewServiceClient(v.GetConnection())
 
 	rules := make([]acl_types.ACLRule, 0, len(acl.Rules))
 	for _, aclRule := range acl.Rules {
 		rules = append(rules, aclRule.ToVppACLRule())
 	}
 
-	response := &vppacl.ACLAddReplaceReply{}
-	request := &vppacl.ACLAddReplace{
+	response, err := client.ACLAddReplace(v.GetContext(), &vppacl.ACLAddReplace{
 		ACLIndex: ^uint32(0),
 		Tag:      acl.Tag,
 		R:        rules,
 		Count:    uint32(len(rules)),
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Add ACL failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Add ACL failed with retval %d", response.Retval)
+		return fmt.Errorf("failed to add ACL: %w", err)
 	}
 	acl.ACLIndex = response.ACLIndex
 	return nil
 }
 
-func (v *VppLink) DelACL(aclIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) DelACL(aclIndex uint32) error {
+	client := vppacl.NewServiceClient(v.GetConnection())
 
-	response := &vppacl.ACLDelReply{}
-	request := &vppacl.ACLDel{
+	_, err := client.ACLDel(v.GetContext(), &vppacl.ACLDel{
 		ACLIndex: aclIndex,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "Del ACL failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Del ACL failed with retval %d", response.Retval)
+		return fmt.Errorf("failed to delete ACL: %w", err)
 	}
 	return nil
 }

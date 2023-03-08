@@ -17,29 +17,30 @@ package vpplink
 
 import (
 	"fmt"
+	"io"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ipsec"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ipsec"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) (protections []types.IPsecTunnelProtection, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) ([]types.IPsecTunnelProtection, error) {
+	client := ipsec.NewServiceClient(v.GetConnection())
 
-	request := &ipsec.IpsecTunnelProtectDump{
+	stream, err := client.IpsecTunnelProtectDump(v.GetContext(), &ipsec.IpsecTunnelProtectDump{
 		SwIfIndex: interface_types.InterfaceIndex(tunnelInterface),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump tunnel interface (%v) protections: %w", tunnelInterface, err)
 	}
-	response := &ipsec.IpsecTunnelProtectDetails{}
-	stream := v.ch.SendMultiRequest(request)
+	protections := make([]types.IPsecTunnelProtection, 0)
 	for {
-		stop, err := stream.ReceiveReply(response)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error listing tunnel interface %d protections", tunnelInterface)
+		response, err := stream.Recv()
+		if err == io.EOF {
+			break
 		}
-		if stop {
-			return protections, nil
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump tunnel interface (%v) protections: %w", tunnelInterface, err)
 		}
 		p := response.Tun
 		protections = append(protections, types.IPsecTunnelProtection{
@@ -49,22 +50,17 @@ func (v *VppLink) GetIPsecTunnelProtection(tunnelInterface uint32) (protections 
 			InSAIndices: p.SaIn,
 		})
 	}
+	return protections, nil
 }
 
 func (v *VppLink) SetIPsecAsyncMode(enable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := ipsec.NewServiceClient(v.GetConnection())
 
-	response := &ipsec.IpsecSetAsyncModeReply{}
-
-	request := &ipsec.IpsecSetAsyncMode{
+	_, err := client.IpsecSetAsyncMode(v.GetContext(), &ipsec.IpsecSetAsyncMode{
 		AsyncEnable: enable,
-	}
-	var err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "IPsec async mode enable failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("IPsec async mode enable failed with retval: %d", response.Retval)
+		return fmt.Errorf("failed to %v IPsec async mode: %w", strEnableDisable[enable], err)
 	}
 	return nil
 }

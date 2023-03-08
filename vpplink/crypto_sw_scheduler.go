@@ -18,25 +18,18 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/crypto_sw_scheduler"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/crypto_sw_scheduler"
 )
 
 func (v *VppLink) SetCryptoWorker(workerIndex uint32, enable bool) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := crypto_sw_scheduler.NewServiceClient(v.GetConnection())
 
-	response := &crypto_sw_scheduler.CryptoSwSchedulerSetWorkerReply{}
-	request := &crypto_sw_scheduler.CryptoSwSchedulerSetWorker{
+	_, err := client.CryptoSwSchedulerSetWorker(v.GetContext(), &crypto_sw_scheduler.CryptoSwSchedulerSetWorker{
 		WorkerIndex:  workerIndex,
 		CryptoEnable: enable,
-	}
-
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "crypto_sw_scheduler setWorker enable failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("crypto_sw_scheduler setWorker enable failed with retval: %d", response.Retval)
+		return fmt.Errorf("crypto_sw_scheduler setWorker enable failed: %w", err)
 	}
 	return nil
 }

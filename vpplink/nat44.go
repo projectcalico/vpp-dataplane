@@ -19,48 +19,37 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	nat "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/nat44_ed"
-	nat_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/nat_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	nat "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/nat44_ed"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/nat_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (v *VppLink) EnableNatForwarding() (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) EnableNatForwarding() error {
+	client := nat.NewServiceClient(v.GetConnection())
 
-	response := &nat.Nat44ForwardingEnableDisableReply{}
-	request := &nat.Nat44ForwardingEnableDisable{
+	_, err := client.Nat44ForwardingEnableDisable(v.GetContext(), &nat.Nat44ForwardingEnableDisable{
 		Enable: true,
-	}
-	v.log.Debug("Enabling NAT44 forwarding")
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "NAT44 forwarding enable failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("NAT44 forwarding enable failed with retval: %d", response.Retval)
+		return fmt.Errorf("NAT44 forwarding enable failed: %w", err)
 	}
+	v.GetLog().Debug("Enabled NAT44 forwarding")
 	return nil
 }
 
-func (v *VppLink) addDelNat44Address(isAdd bool, address net.IP) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) addDelNat44Address(isAdd bool, address net.IP) error {
+	client := nat.NewServiceClient(v.GetConnection())
 
-	response := &nat.Nat44AddDelAddressRangeReply{}
-	request := &nat.Nat44AddDelAddressRange{
+	_, err := client.Nat44AddDelAddressRange(v.GetContext(), &nat.Nat44AddDelAddressRange{
 		FirstIPAddress: types.ToVppIP4Address(address),
 		LastIPAddress:  types.ToVppIP4Address(address),
 		VrfID:          0,
 		IsAdd:          isAdd,
 		Flags:          nat_types.NAT_IS_NONE,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "Nat44 address add failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Nat44 address add failed with retval %d", response.Retval)
+		return fmt.Errorf("failed to %v Nat44 address range: %w", strAddRemove[isAdd], err)
 	}
 	return nil
 }
@@ -73,21 +62,16 @@ func (v *VppLink) DelNat44InterfaceAddress(swIfIndex uint32, flags types.NatFlag
 	return v.addDelNat44InterfaceAddress(false, swIfIndex, flags)
 }
 
-func (v *VppLink) addDelNat44InterfaceAddress(isAdd bool, swIfIndex uint32, flags types.NatFlags) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) addDelNat44InterfaceAddress(isAdd bool, swIfIndex uint32, flags types.NatFlags) error {
+	client := nat.NewServiceClient(v.GetConnection())
 
-	response := &nat.Nat44AddDelInterfaceAddrReply{}
-	request := &nat.Nat44AddDelInterfaceAddr{
+	_, err := client.Nat44AddDelInterfaceAddr(v.GetContext(), &nat.Nat44AddDelInterfaceAddr{
 		IsAdd:     isAdd,
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		Flags:     types.ToVppNatConfigFlags(flags),
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "Nat44 addDel interface address failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Nat44 addDel interface address failed: %d", response.Retval)
+		return fmt.Errorf("failed to %v Nat44 interface address: %w", strAddRemove[isAdd], err)
 	}
 	return nil
 }
@@ -100,21 +84,16 @@ func (v *VppLink) DelNat44Address(address net.IP) error {
 	return v.addDelNat44Address(false, address)
 }
 
-func (v *VppLink) addDelNat44Interface(isAdd bool, flags types.NatFlags, swIfIndex uint32) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) addDelNat44Interface(isAdd bool, flags types.NatFlags, swIfIndex uint32) error {
+	client := nat.NewServiceClient(v.GetConnection())
 
-	response := &nat.Nat44InterfaceAddDelFeatureReply{}
-	request := &nat.Nat44InterfaceAddDelFeature{
+	_, err := client.Nat44InterfaceAddDelFeature(v.GetContext(), &nat.Nat44InterfaceAddDelFeature{
 		IsAdd:     isAdd,
 		Flags:     types.ToVppNatConfigFlags(flags),
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "Nat44 addDel interface failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Nat44 addDel interface failed: %d", response.Retval)
+		return fmt.Errorf("failed to %s Nat44 interface feature: %w", strAddRemove[isAdd], err)
 	}
 	return nil
 }
@@ -137,7 +116,7 @@ func (v *VppLink) DelNat44OutsideInterface(swIfIndex uint32) error {
 
 func (v *VppLink) getLBLocals(entry *types.Nat44Entry) (locals []nat.Nat44LbAddrPort) {
 	for _, ip := range entry.BackendIPs {
-		v.log.Debugf("Adding local %s:%d", ip, entry.BackendPort)
+		v.GetLog().Debugf("Adding local %s:%d", ip, entry.BackendPort)
 		locals = append(locals, nat.Nat44LbAddrPort{
 			Addr:        types.ToVppIP4Address(ip),
 			Port:        uint16(entry.BackendPort),
@@ -147,25 +126,20 @@ func (v *VppLink) getLBLocals(entry *types.Nat44Entry) (locals []nat.Nat44LbAddr
 	return locals
 }
 
-func (v *VppLink) addDelNat44LBStaticMapping(isAdd bool, entry *types.Nat44Entry) (err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+func (v *VppLink) addDelNat44LBStaticMapping(isAdd bool, entry *types.Nat44Entry) error {
+	client := nat.NewServiceClient(v.GetConnection())
 
 	locals := v.getLBLocals(entry)
-	response := &nat.Nat44AddDelLbStaticMappingReply{}
-	request := &nat.Nat44AddDelLbStaticMapping{
+	_, err := client.Nat44AddDelLbStaticMapping(v.GetContext(), &nat.Nat44AddDelLbStaticMapping{
 		IsAdd:        isAdd,
 		Flags:        nat_types.NAT_IS_SELF_TWICE_NAT | nat_types.NAT_IS_OUT2IN_ONLY,
 		ExternalAddr: types.ToVppIP4Address(entry.ServiceIP),
 		ExternalPort: uint16(entry.ServicePort),
 		Protocol:     uint8(types.ToVppIPProto(entry.Protocol)),
 		Locals:       locals,
-	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "Nat44 add LB static failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Nat44 add LB static failed: %d", response.Retval)
+		return fmt.Errorf("failed to %s Nat44 LB static mapping: %w", strAddRemove[isAdd], err)
 	}
 	return nil
 }
@@ -179,11 +153,9 @@ func (v *VppLink) DelNat44LBStaticMapping(entry *types.Nat44Entry) error {
 }
 
 func (v *VppLink) addDelNat44StaticMapping(isAdd bool, entry *types.Nat44Entry) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
+	client := nat.NewServiceClient(v.GetConnection())
 
-	response := &nat.Nat44AddDelStaticMappingReply{}
-	request := &nat.Nat44AddDelStaticMapping{
+	_, err := client.Nat44AddDelStaticMapping(v.GetContext(), &nat.Nat44AddDelStaticMapping{
 		IsAdd:             isAdd,
 		Flags:             nat_types.NAT_IS_SELF_TWICE_NAT | nat_types.NAT_IS_OUT2IN_ONLY,
 		LocalIPAddress:    types.ToVppIP4Address(entry.BackendIPs[0]),
@@ -192,12 +164,9 @@ func (v *VppLink) addDelNat44StaticMapping(isAdd bool, entry *types.Nat44Entry) 
 		LocalPort:         uint16(entry.BackendPort),
 		ExternalPort:      uint16(entry.ServicePort),
 		ExternalSwIfIndex: 0xffffffff,
-	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrap(err, "Nat44 static mapping failed")
-	} else if response.Retval != 0 {
-		return fmt.Errorf("Nat44 add LB static failed: %d", response.Retval)
+		return fmt.Errorf("failed to %s Nat44 static mapping: %w", strAddRemove[isAdd], err)
 	}
 	return nil
 }

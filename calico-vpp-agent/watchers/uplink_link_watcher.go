@@ -19,10 +19,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/projectcalico/vpp-dataplane/v3/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"gopkg.in/tomb.v2"
+
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 )
 
 type LinkWatcher struct {

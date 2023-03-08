@@ -22,8 +22,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	vppip "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
+	vppip "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 )
 
 type IPProto uint8
@@ -185,10 +185,10 @@ func ToVppAddressWithPrefix(prefix *net.IPNet) ip_types.AddressWithPrefix {
 }
 
 func ToVppPrefix(prefix *net.IPNet) ip_types.Prefix {
-	len, _ := prefix.Mask.Size()
+	length, _ := prefix.Mask.Size()
 	r := ip_types.Prefix{
 		Address: ToVppAddress(prefix.IP),
-		Len:     uint8(len),
+		Len:     uint8(length),
 	}
 	return r
 }

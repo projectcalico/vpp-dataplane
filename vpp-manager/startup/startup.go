@@ -21,10 +21,11 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 const (

@@ -22,11 +22,12 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-	log "github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 func GetInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxInterfaceState, err error) {

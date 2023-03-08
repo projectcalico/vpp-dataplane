@@ -18,15 +18,14 @@ package vpplink
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/af_packet"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/af_packet"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ethernet_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint32, err error) {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &af_packet.AfPacketCreateV3Reply{}
+	client := af_packet.NewServiceClient(v.GetConnection())
+
 	request := &af_packet.AfPacketCreateV3{
 		Mode:             af_packet.AF_PACKET_API_MODE_ETHERNET,
 		UseRandomHwAddr:  true,
@@ -41,30 +40,24 @@ func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint3
 	}
 	if intf.HardwareAddr != nil {
 		request.UseRandomHwAddr = false
-		request.HwAddr = types.ToVppMacAddress(intf.HardwareAddr)
+		request.HwAddr = ethernet_types.NewMacAddress(intf.HardwareAddr)
 	}
-	err = v.ch.SendRequest(request).ReceiveReply(response)
+	response, err := client.AfPacketCreateV3(v.GetContext(), request)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, errors.Wrapf(err, "AfPacketCreate failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("AfPacketCreate failed: req %+v reply %+v", request, response)
+		return INVALID_SW_IF_INDEX, fmt.Errorf("failed to create AfPacket interface (%+v): %w", request, err)
 	}
 	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil
 }
 
 func (v *VppLink) DeleteAfPacket(ifName string) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	response := &af_packet.AfPacketDeleteReply{}
-	request := &af_packet.AfPacketDelete{
+	client := af_packet.NewServiceClient(v.GetConnection())
+
+	_, err := client.AfPacketDelete(v.GetContext(), &af_packet.AfPacketDelete{
 		HostIfName: ifName,
-	}
-	err := v.ch.SendRequest(request).ReceiveReply(response)
+	})
 	if err != nil {
-		return errors.Wrapf(err, "AfPacketDelete failed: req %+v reply %+v", request, response)
-	} else if response.Retval != 0 {
-		return fmt.Errorf("AfPacketDelete failed: req %+v reply %+v", request, response)
+		return fmt.Errorf("failed to delete AfPacket interface (%s): %w", ifName, err)
 	}
 	return nil
 }

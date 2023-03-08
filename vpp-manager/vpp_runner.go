@@ -32,7 +32,7 @@ import (
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/vishvananda/netlink"
-	tomb "gopkg.in/tomb.v2"
+	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
@@ -507,7 +507,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 			HostInterfaceName: ifSpec.InterfaceName,
 			RxQueueSize:       config.GetCalicoVppInterfaces().VppHostTapSpec.RxQueueSize,
 			TxQueueSize:       config.GetCalicoVppInterfaces().VppHostTapSpec.TxQueueSize,
-			HardwareAddr:      &vppSideMac,
+			HardwareAddr:      vppSideMac,
 		},
 		HostNamespace:  "pid:1", // create tap in root netns
 		Tag:            "host-" + ifSpec.InterfaceName,

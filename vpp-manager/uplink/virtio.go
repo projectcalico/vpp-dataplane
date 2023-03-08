@@ -17,11 +17,12 @@ package uplink
 
 import (
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
-	log "github.com/sirupsen/logrus"
 )
 
 type VirtioDriver struct {

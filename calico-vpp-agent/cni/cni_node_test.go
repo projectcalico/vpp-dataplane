@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	vpptypes "github.com/calico-vpp/vpplink/api/v0"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	gs "github.com/onsi/gomega/gstruct"
@@ -36,17 +37,18 @@ import (
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/encap"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
+	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks/calico"
 	agentConf "github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
-	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Names of integration tests arguments
@@ -249,7 +251,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					"Failed to get IP-IP tunnels from VPP (for IPSec checking)")
 				ipipSwIfIndex, err := vpp.SearchInterfaceWithName("ipip0")
 				Expect(err).ToNot(HaveOccurred(), "can't find ipip tunnel interface")
-				backendIPIPTunnel := &types.IPIPTunnel{
+				backendIPIPTunnel := &vpptypes.IPIPTunnel{
 					Src:       net.ParseIP(ThisNodeIP).To4(),
 					Dst:       net.ParseIP(AddedNodeIP).To4(),
 					TableID:   0, // not filled -> used default VRF table
@@ -472,7 +474,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(err).ToNot(HaveOccurred(), "can't find ipip tunnel interface")
 				tunnels, err := vpp.ListIPIPTunnels()
 				Expect(err).ToNot(HaveOccurred(), "Failed to get IP-IP tunnels from VPP")
-				Expect(tunnels).To(ContainElements(&types.IPIPTunnel{
+				Expect(tunnels).To(ContainElements(&vpptypes.IPIPTunnel{
 					Src:       net.ParseIP(ThisNodeIP).To4(), // set by configureBGPNodeIPAddresses() call
 					Dst:       net.ParseIP(GatewayIP).To4(),
 					TableID:   0, // not filled -> used default VRF table
@@ -930,7 +932,7 @@ func configureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uin
 		Flags: types.TapFlagNone,
 		// Host end of tap (it is located inside docker container)
 		HostMtu:        1500,
-		HostMacAddress: *mac("aa:bb:cc:dd:ee:02"),
+		HostMacAddress: mac("aa:bb:cc:dd:ee:02"),
 	})
 	Expect(err).ToNot(HaveOccurred(), "Error creating mocked Uplink interface")
 	err = vpp.InterfaceAdminUp(uplinkSwIfIndex)
@@ -1053,10 +1055,10 @@ func ipNetWithIPInIPv6Format(ipNetCIDRStr string) *net.IPNet {
 	return ipNet
 }
 
-func mac(macStr string) *net.HardwareAddr {
+func mac(macStr string) net.HardwareAddr {
 	mac, err := net.ParseMAC(macStr)
 	Expect(err).To(BeNil())
-	return &mac
+	return mac
 }
 
 func iptypesIP6Address(address string) ip_types.IP6Address {
