@@ -378,7 +378,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(err).ToNot(HaveOccurred(), "can't find VXLAN tunnel interface")
 				tunnels, err := vpp.ListVXLanTunnels()
 				Expect(err).ToNot(HaveOccurred(), "Failed to get VXLAN tunnels from VPP")
-				Expect(tunnels).To(ContainElements(vpptypes.types.VXLanTunnel{
+				Expect(tunnels).To(ContainElements(vpptypes.VXLanTunnel{
 					SrcAddress:     net.ParseIP(ThisNodeIP).To4(), // set by configureBGPNodeIPAddresses() call
 					DstAddress:     net.ParseIP(GatewayIP).To4(),
 					SrcPort:        agentConf.DefaultVXLANPort,
