@@ -160,6 +160,8 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		if err != nil {
 			return errors.Wrapf(err, "Error adding vxlan tunnel %s -> %s", nodeIP.String(), cn.NextHop.String())
 		}
+		tunnel.SwIfIndex = swIfIndex
+
 		if cn.Vni == 0 {
 			err = p.vpp.InterfaceSetUnnumbered(swIfIndex, common.VppManagerInfo.GetMainSwIfIndex())
 			if err != nil {

@@ -26,6 +26,10 @@ const (
 	VersionCrc = 0x8eb2437c
 )
 
+// Child SA details
+//   - retval - return code
+//   - child_sa - child SA data
+//
 // Ikev2ChildSaDetails defines message 'ikev2_child_sa_details'.
 // InProgress: the message form may change in the future versions
 type Ikev2ChildSaDetails struct {
@@ -176,6 +180,9 @@ func (m *Ikev2ChildSaDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump child SA of specific SA
+//   - sa_index - index of specific sa
+//
 // Ikev2ChildSaDump defines message 'ikev2_child_sa_dump'.
 // InProgress: the message form may change in the future versions
 type Ikev2ChildSaDump struct {
@@ -210,6 +217,9 @@ func (m *Ikev2ChildSaDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Initiate the delete Child SA exchange
+//   - ispi - Child SA initiator SPI
+//
 // Ikev2InitiateDelChildSa defines message 'ikev2_initiate_del_child_sa'.
 // InProgress: the message form may change in the future versions
 type Ikev2InitiateDelChildSa struct {
@@ -280,6 +290,9 @@ func (m *Ikev2InitiateDelChildSaReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Initiate the delete IKE SA exchange
+//   - ispi - IKE SA initiator SPI
+//
 // Ikev2InitiateDelIkeSa defines message 'ikev2_initiate_del_ike_sa'.
 // InProgress: the message form may change in the future versions
 type Ikev2InitiateDelIkeSa struct {
@@ -348,6 +361,9 @@ func (m *Ikev2InitiateDelIkeSaReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Initiate the rekey Child SA exchange
+//   - ispi - Child SA initiator SPI
+//
 // Ikev2InitiateRekeyChildSa defines message 'ikev2_initiate_rekey_child_sa'.
 // InProgress: the message form may change in the future versions
 type Ikev2InitiateRekeyChildSa struct {
@@ -418,6 +434,9 @@ func (m *Ikev2InitiateRekeyChildSaReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Initiate the SA_INIT exchange
+//   - name - IKEv2 profile name
+//
 // Ikev2InitiateSaInit defines message 'ikev2_initiate_sa_init'.
 // InProgress: the message form may change in the future versions
 type Ikev2InitiateSaInit struct {
@@ -486,6 +505,10 @@ func (m *Ikev2InitiateSaInitReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// get specific nonce
+//   - is_initiator - specify type initiator|responder of nonce
+//   - sa_index - index of specific sa
+//
 // Ikev2NonceGet defines message 'ikev2_nonce_get'.
 // InProgress: the message form may change in the future versions
 type Ikev2NonceGet struct {
@@ -524,6 +547,11 @@ func (m *Ikev2NonceGet) Unmarshal(b []byte) error {
 	return nil
 }
 
+// reply on specific nonce
+//   - retval - return code
+//   - data_len - nonce length
+//   - nonce - nonce data
+//
 // Ikev2NonceGetReply defines message 'ikev2_nonce_get_reply'.
 // InProgress: the message form may change in the future versions
 type Ikev2NonceGetReply struct {
@@ -567,6 +595,7 @@ func (m *Ikev2NonceGetReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Get the plugin version
 // Ikev2PluginGetVersion defines message 'ikev2_plugin_get_version'.
 type Ikev2PluginGetVersion struct{}
 
@@ -594,6 +623,10 @@ func (m *Ikev2PluginGetVersion) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Reply to get the plugin version
+//   - major - Incremented every time a known breaking behavior change is introduced
+//   - minor - Incremented with small changes, may be used to avoid buggy versions
+//
 // Ikev2PluginGetVersionReply defines message 'ikev2_plugin_get_version_reply'.
 type Ikev2PluginGetVersionReply struct {
 	Major uint32 `binapi:"u32,name=major" json:"major,omitempty"`
@@ -631,6 +664,10 @@ func (m *Ikev2PluginGetVersionReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Add/delete profile
+//   - name - IKEv2 profile name
+//   - is_add - Add IKEv2 profile if non-zero, else delete
+//
 // Ikev2ProfileAddDel defines message 'ikev2_profile_add_del'.
 // InProgress: the message form may change in the future versions
 type Ikev2ProfileAddDel struct {
@@ -703,6 +740,9 @@ func (m *Ikev2ProfileAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Details about all profiles
+//   - profile - profile element with encapsulated attributes
+//
 // Ikev2ProfileDetails defines message 'ikev2_profile_details'.
 // InProgress: the message form may change in the future versions
 type Ikev2ProfileDetails struct {
@@ -882,6 +922,9 @@ func (m *Ikev2ProfileDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Disable NAT traversal
+//   - name - IKEv2 profile name
+//
 // Ikev2ProfileDisableNatt defines message 'ikev2_profile_disable_natt'.
 // InProgress: the message form may change in the future versions
 type Ikev2ProfileDisableNatt struct {
@@ -952,6 +995,7 @@ func (m *Ikev2ProfileDisableNattReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump all profiles
 // Ikev2ProfileDump defines message 'ikev2_profile_dump'.
 // InProgress: the message form may change in the future versions
 type Ikev2ProfileDump struct{}
@@ -980,6 +1024,13 @@ func (m *Ikev2ProfileDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set IKEv2 profile authentication method
+//   - name - IKEv2 profile name
+//   - auth_method - IKEv2 authentication method (shared-key-mic/rsa-sig)
+//   - is_hex - Authentication data in hex format if non-zero, else string
+//   - data_len - Authentication data length
+//   - data - Authentication data (for rsa-sig cert file path)
+//
 // Ikev2ProfileSetAuth defines message 'ikev2_profile_set_auth'.
 // InProgress: the message form may change in the future versions
 type Ikev2ProfileSetAuth struct {
@@ -1065,6 +1116,13 @@ func (m *Ikev2ProfileSetAuthReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set IKEv2 profile local/remote identification
+//   - name - IKEv2 profile name
+//   - is_local - Identification is local if non-zero, else remote
+//   - id_type - Identification type
+//   - data_len - Identification data length
+//   - data - Identification data
+//
 // Ikev2ProfileSetID defines message 'ikev2_profile_set_id'.
 // InProgress: the message form may change in the future versions
 type Ikev2ProfileSetID struct {
@@ -1150,6 +1208,11 @@ func (m *Ikev2ProfileSetIDReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set/unset custom ipsec-over-udp port
+//   - is_set - whether set or unset custom port
+//   - port - port number
+//   - name - IKEv2 profile name
+//
 // Ikev2ProfileSetIpsecUDPPort defines message 'ikev2_profile_set_ipsec_udp_port'.
 // InProgress: the message form may change in the future versions
 type Ikev2ProfileSetIpsecUDPPort struct {
@@ -1230,6 +1293,10 @@ func (m *Ikev2ProfileSetIpsecUDPPortReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set liveness parameters
+//   - period - how often is liveness check performed
+//   - max_retries - max retries for liveness check
+//
 // Ikev2ProfileSetLiveness defines message 'ikev2_profile_set_liveness'.
 // InProgress: the message form may change in the future versions
 type Ikev2ProfileSetLiveness struct {
@@ -1304,6 +1371,10 @@ func (m *Ikev2ProfileSetLivenessReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set IKEv2 profile traffic selector parameters
+//   - name - IKEv2 profile name
+//   - ts - traffic selector data
+//
 // Ikev2ProfileSetTs defines message 'ikev2_profile_set_ts'.
 // InProgress: the message form may change in the future versions
 type Ikev2ProfileSetTs struct {
@@ -1403,6 +1474,9 @@ func (m *Ikev2ProfileSetTsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set UDP encapsulation
+//   - name - IKEv2 profile name
+//
 // Ikev2ProfileSetUDPEncap defines message 'ikev2_profile_set_udp_encap'.
 // InProgress: the message form may change in the future versions
 type Ikev2ProfileSetUDPEncap struct {
@@ -1473,6 +1547,10 @@ func (m *Ikev2ProfileSetUDPEncapReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Details about IKE SA
+//   - retval - return code
+//   - sa - SA data
+//
 // Ikev2SaDetails defines message 'ikev2_sa_details'.
 // InProgress: the message form may change in the future versions
 type Ikev2SaDetails struct {
@@ -1689,6 +1767,7 @@ func (m *Ikev2SaDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump all SAs
 // Ikev2SaDump defines message 'ikev2_sa_dump'.
 // InProgress: the message form may change in the future versions
 type Ikev2SaDump struct{}
@@ -1717,6 +1796,10 @@ func (m *Ikev2SaDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set IKEv2 ESP transforms in SA_INIT proposal (RFC 7296)
+//   - name - IKEv2 profile name
+//   - tr - ESP transforms
+//
 // Ikev2SetEspTransforms defines message 'ikev2_set_esp_transforms'.
 // InProgress: the message form may change in the future versions
 type Ikev2SetEspTransforms struct {
@@ -1795,6 +1878,10 @@ func (m *Ikev2SetEspTransformsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set IKEv2 IKE transforms in SA_INIT proposal (RFC 7296)
+//   - name - IKEv2 profile name
+//   - tr - IKE transforms
+//
 // Ikev2SetIkeTransforms defines message 'ikev2_set_ike_transforms'.
 // InProgress: the message form may change in the future versions
 type Ikev2SetIkeTransforms struct {
@@ -1876,6 +1963,9 @@ func (m *Ikev2SetIkeTransformsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set IKEv2 local RSA private key
+//   - key_file - Key file absolute path
+//
 // Ikev2SetLocalKey defines message 'ikev2_set_local_key'.
 // InProgress: the message form may change in the future versions
 type Ikev2SetLocalKey struct {
@@ -1944,6 +2034,10 @@ func (m *Ikev2SetLocalKeyReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set IKEv2 responder interface and IP address
+//   - name - IKEv2 profile name
+//   - responder - responder data
+//
 // Ikev2SetResponder defines message 'ikev2_set_responder'.
 // InProgress: the message form may change in the future versions
 type Ikev2SetResponder struct {
@@ -1988,6 +2082,10 @@ func (m *Ikev2SetResponder) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set IKEv2 responder interface and IP address
+//   - name - IKEv2 profile name
+//   - responder - responder data
+//
 // Ikev2SetResponderHostname defines message 'ikev2_set_responder_hostname'.
 // InProgress: the message form may change in the future versions
 type Ikev2SetResponderHostname struct {
@@ -2100,6 +2198,13 @@ func (m *Ikev2SetResponderReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set Child SA lifetime, limited by time and/or data
+//   - name - IKEv2 profile name
+//   - lifetime - SA maximum life time in seconds (0 to disable)
+//   - lifetime_jitter - Jitter added to prevent simultaneous rekeying
+//   - handover - Hand over time
+//   - lifetime_maxdata - SA maximum life time in bytes (0 to disable)
+//
 // Ikev2SetSaLifetime defines message 'ikev2_set_sa_lifetime'.
 // InProgress: the message form may change in the future versions
 type Ikev2SetSaLifetime struct {
@@ -2184,6 +2289,12 @@ func (m *Ikev2SetSaLifetimeReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IKEv2: Set the tunnel interface which will be protected by IKE
+//
+//	If this API is not called, a new tunnel will be created
+//	- name - IKEv2 profile name
+//	- sw_if_index - Of an existing tunnel
+//
 // Ikev2SetTunnelInterface defines message 'ikev2_set_tunnel_interface'.
 // InProgress: the message form may change in the future versions
 type Ikev2SetTunnelInterface struct {
@@ -2258,6 +2369,10 @@ func (m *Ikev2SetTunnelInterfaceReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// details on specific traffic selector
+//   - retval - return code
+//   - ts - traffic selector data
+//
 // Ikev2TrafficSelectorDetails defines message 'ikev2_traffic_selector_details'.
 // InProgress: the message form may change in the future versions
 type Ikev2TrafficSelectorDetails struct {
@@ -2323,6 +2438,11 @@ func (m *Ikev2TrafficSelectorDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// dump traffic selectors
+//   - is_initiator - specify type initiator|responder of nonce
+//   - sa_index - index of specific sa
+//   - child_sa_index - index of specific sa child of specific sa
+//
 // Ikev2TrafficSelectorDump defines message 'ikev2_traffic_selector_dump'.
 // InProgress: the message form may change in the future versions
 type Ikev2TrafficSelectorDump struct {

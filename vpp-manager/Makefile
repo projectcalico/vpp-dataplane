@@ -14,8 +14,8 @@ VERSION_FILE=$(IMAGE_DIR)/version
 TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
 
-PATCHES = $(sort $(wildcard $(VPPLINK_DIR)/binapi/patches/*.patch))
-VPP_HASH = $(shell md5sum <(md5sum $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ${PATCHES}) | cut -f 1 -d' ')
+PATCHES = $(sort $(wildcard $(VPPLINK_DIR)/generated/patches/*.patch))
+VPP_HASH = $(shell md5sum <(md5sum $(VPPLINK_DIR)/generated/vpp_clone_current.sh ${PATCHES}) | cut -f 1 -d' ')
 VPP_TARBALL = vpp-${VPP_HASH}.tgz
 
 all: image
@@ -69,7 +69,7 @@ imageonly: build
 clean: clean-vpp
 
 clone-vpp:
-	bash $(VPPLINK_DIR)/binapi/vpp_clone_current.sh ./vpp_build
+	bash $(VPPLINK_DIR)/generated/vpp_clone_current.sh ./vpp_build
 
 clean-vpp:
 	git -C vpp_build clean -ffdx || true

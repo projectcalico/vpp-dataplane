@@ -24,6 +24,10 @@ const (
 	VersionCrc = 0x81a73026
 )
 
+// Enable or disable interface feature gso arc
+//   - sw_if_index - The interface to enable/disable gso feature arc.
+//   - enable_disable - set to 1 to enable, 0 to disable gso feature arc
+//
 // FeatureGsoEnableDisable defines message 'feature_gso_enable_disable'.
 type FeatureGsoEnableDisable struct {
 	SwIfIndex     interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`

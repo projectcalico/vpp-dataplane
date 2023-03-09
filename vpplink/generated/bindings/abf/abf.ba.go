@@ -43,6 +43,7 @@ type AbfPolicy struct {
 	Paths    []fib_types.FibPath `binapi:"fib_path[n_paths],name=paths" json:"paths,omitempty"`
 }
 
+// Add or delete a policy attachment to an interface
 // AbfItfAttachAddDel defines message 'abf_itf_attach_add_del'.
 // InProgress: the message form may change in the future versions
 type AbfItfAttachAddDel struct {
@@ -124,6 +125,7 @@ func (m *AbfItfAttachAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Attachment details from a dump
 // AbfItfAttachDetails defines message 'abf_itf_attach_details'.
 // InProgress: the message form may change in the future versions
 type AbfItfAttachDetails struct {
@@ -167,6 +169,7 @@ func (m *AbfItfAttachDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump all the policy attachments
 // AbfItfAttachDump defines message 'abf_itf_attach_dump'.
 // InProgress: the message form may change in the future versions
 type AbfItfAttachDump struct{}
@@ -195,6 +198,7 @@ func (m *AbfItfAttachDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Get the plugin version
 // AbfPluginGetVersion defines message 'abf_plugin_get_version'.
 // InProgress: the message form may change in the future versions
 type AbfPluginGetVersion struct{}
@@ -223,6 +227,10 @@ func (m *AbfPluginGetVersion) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Reply to get the plugin version
+//   - major - Incremented every time a known breaking behavior change is introduced
+//   - minor - Incremented with small changes, may be used to avoid buggy versions
+//
 // AbfPluginGetVersionReply defines message 'abf_plugin_get_version_reply'.
 // InProgress: the message form may change in the future versions
 type AbfPluginGetVersionReply struct {
@@ -261,6 +269,12 @@ func (m *AbfPluginGetVersionReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// A description of an ABF policy
+//   - is_add Is this the addition or removal of paths from the policy
+//     If the policy does not exist it is created. If the last path
+//     Is being removed, the policy is deleted
+//   - policy The policy
+//
 // AbfPolicyAddDel defines message 'abf_policy_add_del'.
 // InProgress: the message form may change in the future versions
 type AbfPolicyAddDel struct {
@@ -412,6 +426,7 @@ func (m *AbfPolicyAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Policy description returned in the dump
 // AbfPolicyDetails defines message 'abf_policy_details'.
 // InProgress: the message form may change in the future versions
 type AbfPolicyDetails struct {
@@ -525,6 +540,7 @@ func (m *AbfPolicyDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump all ABF policies
 // AbfPolicyDump defines message 'abf_policy_dump'.
 // InProgress: the message form may change in the future versions
 type AbfPolicyDump struct{}

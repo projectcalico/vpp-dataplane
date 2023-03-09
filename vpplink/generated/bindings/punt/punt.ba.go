@@ -146,6 +146,9 @@ func (u *PuntUnion) GetIPProto() (a PuntIPProto) {
 	return
 }
 
+// Dump all or one of the exception punt reasons
+// *   - - If the string is not set punt dump all reasons
+// *            else dump only the one specified
 // PuntReasonDetails defines message 'punt_reason_details'.
 type PuntReasonDetails struct {
 	Reason PuntReason `binapi:"punt_reason,name=reason" json:"reason,omitempty"`
@@ -182,6 +185,9 @@ func (m *PuntReasonDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump all or one of the exception punt reasons
+// *   - - If the string is not set punt dump all reasons
+// *            else dump only the one specified
 // PuntReasonDump defines message 'punt_reason_dump'.
 type PuntReasonDump struct {
 	Reason PuntReason `binapi:"punt_reason,name=reason" json:"reason,omitempty"`
@@ -218,6 +224,10 @@ func (m *PuntReasonDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Punt traffic to the host via socket
+//   - header_version - expected meta data header version (currently 1)
+//   - punt - punt definition
+//
 // PuntSocketDeregister defines message 'punt_socket_deregister'.
 type PuntSocketDeregister struct {
 	Punt Punt `binapi:"punt,name=punt" json:"punt,omitempty"`
@@ -287,6 +297,10 @@ func (m *PuntSocketDeregisterReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Punt traffic to the host via socket
+//   - header_version - expected meta data header version (currently 1)
+//   - punt - punt definition
+//
 // PuntSocketDetails defines message 'punt_socket_details'.
 type PuntSocketDetails struct {
 	Punt     Punt   `binapi:"punt,name=punt" json:"punt,omitempty"`
@@ -327,6 +341,10 @@ func (m *PuntSocketDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Punt traffic to the host via socket
+//   - header_version - expected meta data header version (currently 1)
+//   - punt - punt definition
+//
 // PuntSocketDump defines message 'punt_socket_dump'.
 type PuntSocketDump struct {
 	Type PuntType `binapi:"punt_type,name=type" json:"type,omitempty"`
@@ -360,6 +378,10 @@ func (m *PuntSocketDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Punt traffic to the host via socket
+//   - header_version - expected meta data header version (currently 1)
+//   - punt - punt definition
+//
 // PuntSocketRegister defines message 'punt_socket_register'.
 type PuntSocketRegister struct {
 	HeaderVersion uint32 `binapi:"u32,name=header_version" json:"header_version,omitempty"`
@@ -404,6 +426,10 @@ func (m *PuntSocketRegister) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Punt traffic to the host via socket
+//   - header_version - expected meta data header version (currently 1)
+//   - punt - punt definition
+//
 // PuntSocketRegisterReply defines message 'punt_socket_register_reply'.
 type PuntSocketRegisterReply struct {
 	Retval   int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -441,6 +467,10 @@ func (m *PuntSocketRegisterReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Punt traffic to the host
+//   - is_add - add punt if non-zero, else delete
+//   - punt - punt definition, only UDP (0x11) is supported
+//
 // SetPunt defines message 'set_punt'.
 type SetPunt struct {
 	IsAdd bool `binapi:"bool,name=is_add" json:"is_add,omitempty"`

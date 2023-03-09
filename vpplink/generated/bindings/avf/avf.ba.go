@@ -24,6 +24,14 @@ const (
 	VersionCrc = 0x9f5a6a20
 )
 
+// - client_index - opaque cookie to identify the sender
+//   - pci_addr - pci address as unsigned 32bit integer:
+//     0-15 domain, 16-23 bus, 24-28 slot, 29-31 function
+//     ddddddddddddddddbbbbbbbbsssssfff
+//   - rxq_num - number of receive queues
+//   - rxq_size - receive queue size
+//   - txq_size - transmit queue size
+//
 // AvfCreate defines message 'avf_create'.
 type AvfCreate struct {
 	PciAddr    uint32 `binapi:"u32,name=pci_addr" json:"pci_addr,omitempty"`
@@ -73,6 +81,10 @@ func (m *AvfCreate) Unmarshal(b []byte) error {
 	return nil
 }
 
+// - context - sender context, to match reply w/ request
+//   - retval - return value for request
+//   - sw_if_index - software index for the new avf interface
+//
 // AvfCreateReply defines message 'avf_create_reply'.
 type AvfCreateReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -110,6 +122,9 @@ func (m *AvfCreateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// - client_index - opaque cookie to identify the sender
+//   - sw_if_index - interface index
+//
 // AvfDelete defines message 'avf_delete'.
 type AvfDelete struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`

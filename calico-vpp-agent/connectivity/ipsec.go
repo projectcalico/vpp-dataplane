@@ -174,7 +174,7 @@ func (p *IpsecProvider) createIPSECTunnel(tunnel *IpsecTunnel, psk string, stack
 	if err != nil {
 		return errors.Wrapf(err, "Error adding ipip tunnel %s", tunnel.String())
 	} else {
-		stack.Push(p.vpp.DelIPIPTunnel, tunnel)
+		stack.Push(p.vpp.DelIPIPTunnel, tunnel.IPIPTunnel)
 	}
 
 	common.SendEvent(common.CalicoVppEvent{
