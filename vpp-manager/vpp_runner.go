@@ -34,6 +34,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"gopkg.in/tomb.v2"
 
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/pod_interface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
@@ -256,6 +257,14 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 		return errors.Wrap(err, "Error setting tap up")
 	}
 
+	for _, addr := range ifState.Addresses {
+		if addr.IPNet.IP.To4() == nil {
+			if err = pod_interface.WriteProcSys("/proc/sys/net/ipv6/conf/"+link.Attrs().Name+"/disable_ipv6", "0"); err != nil {
+				return fmt.Errorf("failed to set net.ipv6.conf."+link.Attrs().Name+".disable_ipv6=0: %s", err)
+			}
+			break
+		}
+	}
 	// Configure original addresses and routes on the new tap
 	for _, addr := range ifState.Addresses {
 		log.Infof("Adding address %+v to tap interface", addr)

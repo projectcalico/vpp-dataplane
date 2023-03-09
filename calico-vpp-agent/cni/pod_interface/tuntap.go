@@ -252,9 +252,9 @@ func (i *TunTapPodInterfaceDriver) unconfigureLinux(podSpec *storage.LocalPodSpe
 	return containerIPs
 }
 
-// writeProcSys takes the sysctl path and a string value to set i.e. "0" or "1" and sets the sysctl.
+// WriteProcSys takes the sysctl path and a string value to set i.e. "0" or "1" and sets the sysctl.
 // This method was copied from cni-plugin/internal/pkg/utils/network_linux.go
-func writeProcSys(path, value string) error {
+func WriteProcSys(path, value string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY, 0)
 	if err != nil {
 		return err
@@ -280,14 +280,14 @@ func (i *TunTapPodInterfaceDriver) configureContainerSysctls(podSpec *storage.Lo
 	// If an IPv4 address is assigned, then configure IPv4 sysctls.
 	if hasv4 {
 		i.log.Info("pod(add) Configuring IPv4 forwarding")
-		if err := writeProcSys("/proc/sys/net/ipv4/ip_forward", ipFwd); err != nil {
+		if err := WriteProcSys("/proc/sys/net/ipv4/ip_forward", ipFwd); err != nil {
 			return err
 		}
 	}
 	// If an IPv6 address is assigned, then configure IPv6 sysctls.
 	if hasv6 {
 		i.log.Info("pod(add) Configuring IPv6 forwarding")
-		if err := writeProcSys("/proc/sys/net/ipv6/conf/all/forwarding", ipFwd); err != nil {
+		if err := WriteProcSys("/proc/sys/net/ipv6/conf/all/forwarding", ipFwd); err != nil {
 			return err
 		}
 	}
@@ -306,13 +306,13 @@ func (i *TunTapPodInterfaceDriver) configureNamespaceSideTun(swIfIndex uint32, p
 		if hasv6 {
 			i.log.Infof("pod(add) tun in NS has v6 swIfIndex=%d", swIfIndex)
 			// Make sure ipv6 is enabled in the container/pod network namespace.
-			if err = writeProcSys("/proc/sys/net/ipv6/conf/all/disable_ipv6", "0"); err != nil {
+			if err = WriteProcSys("/proc/sys/net/ipv6/conf/all/disable_ipv6", "0"); err != nil {
 				return fmt.Errorf("failed to set net.ipv6.conf.all.disable_ipv6=0: %s", err)
 			}
-			if err = writeProcSys("/proc/sys/net/ipv6/conf/default/disable_ipv6", "0"); err != nil {
+			if err = WriteProcSys("/proc/sys/net/ipv6/conf/default/disable_ipv6", "0"); err != nil {
 				return fmt.Errorf("failed to set net.ipv6.conf.default.disable_ipv6=0: %s", err)
 			}
-			if err = writeProcSys("/proc/sys/net/ipv6/conf/lo/disable_ipv6", "0"); err != nil {
+			if err = WriteProcSys("/proc/sys/net/ipv6/conf/lo/disable_ipv6", "0"); err != nil {
 				return fmt.Errorf("failed to set net.ipv6.conf.lo.disable_ipv6=0: %s", err)
 			}
 		}

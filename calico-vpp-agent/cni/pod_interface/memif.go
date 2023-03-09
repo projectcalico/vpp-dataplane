@@ -204,13 +204,13 @@ func (i *MemifPodInterfaceDriver) configureDummy(swIfIndex uint32, podSpec *stor
 		if hasv6 {
 			i.log.Infof("dummy %d in NS has v6", swIfIndex)
 			// Make sure ipv6 is enabled in the container/pod network namespace.
-			if err = writeProcSys("/proc/sys/net/ipv6/conf/all/disable_ipv6", "0"); err != nil {
+			if err = WriteProcSys("/proc/sys/net/ipv6/conf/all/disable_ipv6", "0"); err != nil {
 				return fmt.Errorf("failed to set net.ipv6.conf.all.disable_ipv6=0: %s", err)
 			}
-			if err = writeProcSys("/proc/sys/net/ipv6/conf/default/disable_ipv6", "0"); err != nil {
+			if err = WriteProcSys("/proc/sys/net/ipv6/conf/default/disable_ipv6", "0"); err != nil {
 				return fmt.Errorf("failed to set net.ipv6.conf.default.disable_ipv6=0: %s", err)
 			}
-			if err = writeProcSys("/proc/sys/net/ipv6/conf/lo/disable_ipv6", "0"); err != nil {
+			if err = WriteProcSys("/proc/sys/net/ipv6/conf/lo/disable_ipv6", "0"); err != nil {
 				return fmt.Errorf("failed to set net.ipv6.conf.lo.disable_ipv6=0: %s", err)
 			}
 		}
