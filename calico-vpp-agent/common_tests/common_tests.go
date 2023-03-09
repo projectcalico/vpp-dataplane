@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -316,14 +317,24 @@ func StartVPP() {
 	err := exec.Command("docker", "rm", "-f", VPPContainerName).Run()
 	Expect(err).Should(BeNil(), "Failed to clean up old VPP docker container")
 
+	wd, err := os.Getwd()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get working directory")
+	repoDir := strings.TrimSpace(filepath.Join(wd, "../.."))
 	// start VPP inside docker container
-	cmd := []string{"run", "-d", "--privileged", "--name", VPPContainerName,
+	cmdParams := []string{"run", "-d", "--privileged", "--name", VPPContainerName,
 		"-v", "/tmp/" + VPPContainerName + ":/var/run/vpp/",
 		"-v", "/proc:/proc", // needed for manipulation of another docker container's network namespace
-		"--sysctl", "net.ipv6.conf.all.disable_ipv6=0"} // enable IPv6 in container (to set IPv6 on host's end of uplink)
-	cmd = append(cmd, VppContainerExtraArgs...)
-	cmd = append(cmd, "--entrypoint", VppBinary, VppImage, vppBinaryConfigArg)
-	err = exec.Command("docker", cmd...).Run()
+		"--sysctl", "net.ipv6.conf.all.disable_ipv6=0", // enable IPv6 in container (to set IPv6 on host's end of uplink)
+		"-v", repoDir + ":/repo/",
+		"--pid=host",
+		"--env", fmt.Sprintf("LD_LIBRARY_PATH=%s", os.Getenv("LD_LIBRARY_PATH")),
+	}
+	cmdParams = append(cmdParams, VppContainerExtraArgs...)
+	cmdParams = append(cmdParams, "--entrypoint", VppBinary, VppImage, vppBinaryConfigArg)
+	cmd := exec.Command("docker", cmdParams...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
 	Expect(err).Should(BeNil(), "Failed to start VPP inside docker container")
 }
 
