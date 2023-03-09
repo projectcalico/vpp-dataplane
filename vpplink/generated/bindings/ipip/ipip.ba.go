@@ -39,6 +39,7 @@ type IpipTunnel struct {
 	Dscp      ip_types.IPDscp                    `binapi:"ip_dscp,name=dscp" json:"dscp,omitempty"`
 }
 
+// * Create an IPv4 over IPv6 automatic tunnel (6RD)
 // Ipip6rdAddTunnel defines message 'ipip_6rd_add_tunnel'.
 type Ipip6rdAddTunnel struct {
 	IP6TableID    uint32              `binapi:"u32,name=ip6_table_id" json:"ip6_table_id,omitempty"`
@@ -102,6 +103,7 @@ func (m *Ipip6rdAddTunnel) Unmarshal(b []byte) error {
 	return nil
 }
 
+// * Create an IPv4 over IPv6 automatic tunnel (6RD)
 // Ipip6rdAddTunnelReply defines message 'ipip_6rd_add_tunnel_reply'.
 type Ipip6rdAddTunnelReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -139,6 +141,7 @@ func (m *Ipip6rdAddTunnelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// * Delete an IPv4 over IPv6 automatic tunnel (6RD)
 // Ipip6rdDelTunnel defines message 'ipip_6rd_del_tunnel'.
 type Ipip6rdDelTunnel struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -205,6 +208,7 @@ func (m *Ipip6rdDelTunnelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// * Create an IP{v4,v6} over IP{v4,v6} tunnel.
 // IpipAddTunnel defines message 'ipip_add_tunnel'.
 type IpipAddTunnel struct {
 	Tunnel IpipTunnel `binapi:"ipip_tunnel,name=tunnel" json:"tunnel,omitempty"`
@@ -265,6 +269,7 @@ func (m *IpipAddTunnel) Unmarshal(b []byte) error {
 	return nil
 }
 
+// * Create an IP{v4,v6} over IP{v4,v6} tunnel.
 // IpipAddTunnelReply defines message 'ipip_add_tunnel_reply'.
 type IpipAddTunnelReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -302,6 +307,7 @@ func (m *IpipAddTunnelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// * Delete an IP{v4,v6} over IP{v4,v6} tunnel.
 // IpipDelTunnel defines message 'ipip_del_tunnel'.
 type IpipDelTunnel struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -368,6 +374,7 @@ func (m *IpipDelTunnelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// * List all IPIP tunnels
 // IpipTunnelDetails defines message 'ipip_tunnel_details'.
 type IpipTunnelDetails struct {
 	Tunnel IpipTunnel `binapi:"ipip_tunnel,name=tunnel" json:"tunnel,omitempty"`
@@ -428,6 +435,7 @@ func (m *IpipTunnelDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// * List all IPIP tunnels
 // IpipTunnelDump defines message 'ipip_tunnel_dump'.
 type IpipTunnelDump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`

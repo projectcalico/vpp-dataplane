@@ -23,6 +23,10 @@ const (
 	VersionCrc = 0xf4b02951
 )
 
+// crypto sw scheduler: Enable or disable workers
+//   - worker_index - Worker index to enable / disable
+//   - crypto_enable - On/Off
+//
 // CryptoSwSchedulerSetWorker defines message 'crypto_sw_scheduler_set_worker'.
 // InProgress: the message form may change in the future versions
 type CryptoSwSchedulerSetWorker struct {

@@ -104,6 +104,11 @@ func (x AfPacketMode) String() string {
 	return "AfPacketMode(" + strconv.Itoa(int(x)) + ")"
 }
 
+// Create host-interface
+//   - hw_addr - interface MAC
+//   - use_random_hw_addr - use random generated MAC
+//   - host_if_name - interface name
+//
 // AfPacketCreate defines message 'af_packet_create'.
 type AfPacketCreate struct {
 	HwAddr          ethernet_types.MacAddress `binapi:"mac_address,name=hw_addr" json:"hw_addr,omitempty"`
@@ -145,6 +150,9 @@ func (m *AfPacketCreate) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Create host-interface response
+//   - retval - return value for request
+//
 // AfPacketCreateReply defines message 'af_packet_create_reply'.
 type AfPacketCreateReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -182,6 +190,17 @@ func (m *AfPacketCreateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Create host-interface
+//   - hw_addr - interface MAC
+//   - use_random_hw_addr - use random generated MAC
+//   - host_if_name - interface name
+//   - rx_frame_size - frame size for RX
+//   - tx_frame_size - frame size for TX
+//   - rx_frames_per_block - frames per block for RX
+//   - tx_frames_per_block - frames per block for TX
+//   - flags - flags for the af_packet interface creation
+//   - num_rx_queues - number of rx queues
+//
 // AfPacketCreateV2 defines message 'af_packet_create_v2'.
 type AfPacketCreateV2 struct {
 	HwAddr           ethernet_types.MacAddress `binapi:"mac_address,name=hw_addr" json:"hw_addr,omitempty"`
@@ -247,6 +266,9 @@ func (m *AfPacketCreateV2) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Create host-interface response
+//   - retval - return value for request
+//
 // AfPacketCreateV2Reply defines message 'af_packet_create_v2_reply'.
 type AfPacketCreateV2Reply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -284,6 +306,19 @@ func (m *AfPacketCreateV2Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Create host-interface
+//   - mode - 1 - Ethernet, 2 - IP
+//   - hw_addr - interface MAC
+//   - use_random_hw_addr - use random generated MAC
+//   - host_if_name - interface name
+//   - rx_frame_size - frame size for RX
+//   - tx_frame_size - frame size for TX
+//   - rx_frames_per_block - frames per block for RX
+//   - tx_frames_per_block - frames per block for TX
+//   - flags - flags for the af_packet interface creation
+//   - num_rx_queues - number of rx queues
+//   - num_tx_queues - number of tx queues
+//
 // AfPacketCreateV3 defines message 'af_packet_create_v3'.
 type AfPacketCreateV3 struct {
 	Mode             AfPacketMode              `binapi:"af_packet_mode,name=mode" json:"mode,omitempty"`
@@ -357,6 +392,9 @@ func (m *AfPacketCreateV3) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Create host-interface response
+//   - retval - return value for request
+//
 // AfPacketCreateV3Reply defines message 'af_packet_create_v3_reply'.
 type AfPacketCreateV3Reply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -394,6 +432,9 @@ func (m *AfPacketCreateV3Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Delete host-interface
+//   - host_if_name - interface name
+//
 // AfPacketDelete defines message 'af_packet_delete'.
 type AfPacketDelete struct {
 	HostIfName string `binapi:"string[64],name=host_if_name" json:"host_if_name,omitempty"`
@@ -460,6 +501,10 @@ func (m *AfPacketDeleteReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Reply for af_packet dump request
+//   - sw_if_index - software index of af_packet interface
+//   - host_if_name - interface name
+//
 // AfPacketDetails defines message 'af_packet_details'.
 type AfPacketDetails struct {
 	SwIfIndex  interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -497,6 +542,7 @@ func (m *AfPacketDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump af_packet interfaces request
 // AfPacketDump defines message 'af_packet_dump'.
 type AfPacketDump struct{}
 
@@ -524,6 +570,7 @@ func (m *AfPacketDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set l4 offload checksum calculation
 // AfPacketSetL4CksumOffload defines message 'af_packet_set_l4_cksum_offload'.
 type AfPacketSetL4CksumOffload struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`

@@ -93,6 +93,13 @@ type Nat44LbAddrPort struct {
 	VrfID       uint32              `binapi:"u32,name=vrf_id" json:"vrf_id,omitempty"`
 }
 
+// Add/del NAT44 address range
+//   - first_ip_address - first IPv4 address
+//   - last_ip_address - last IPv4 address
+//   - vrf_id - VRF id of tenant, ~0 means independent of VRF
+//   - is_add - true if add, false if delete
+//   - flags - flag NAT_IS_TWICE_NAT if NAT address range for external hosts
+//
 // Nat44AddDelAddressRange defines message 'nat44_add_del_address_range'.
 type Nat44AddDelAddressRange struct {
 	FirstIPAddress ip_types.IP4Address      `binapi:"ip4_address,name=first_ip_address" json:"first_ip_address,omitempty"`
@@ -177,6 +184,17 @@ func (m *Nat44AddDelAddressRangeReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add/delete NAT44 identity mapping
+//   - is_add - true if add, false if delete
+//   - flags - flag NAT_ADDR_ONLY if address only mapping
+//   - ip_address - IPv4 address
+//   - protocol - IP protocol
+//   - port - port number
+//   - sw_if_index - interface (if set ip_address is ignored, ~0 means not
+//     used)
+//   - vfr_id - VRF ID (if ~0 use default VRF)
+//   - tag - opaque string tag
+//
 // Nat44AddDelIdentityMapping defines message 'nat44_add_del_identity_mapping'.
 type Nat44AddDelIdentityMapping struct {
 	IsAdd     bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -273,6 +291,11 @@ func (m *Nat44AddDelIdentityMappingReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add/delete NAT44 pool address from specific interfce
+//   - is_add - true if add, false if delete
+//   - sw_if_index - software index of the interface
+//   - flags - flag NAT_TWICE_NAT if NAT address range for external hosts
+//
 // Nat44AddDelInterfaceAddr defines message 'nat44_add_del_interface_addr'.
 type Nat44AddDelInterfaceAddr struct {
 	IsAdd     bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -349,6 +372,22 @@ func (m *Nat44AddDelInterfaceAddrReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add/delete NAT44 load-balancing static mapping rule
+//   - is_add - true if add, false if delete
+//   - flags - flag NAT_TWICE_NAT if NAT address range for external hosts,
+//     flag NAT_SELF_TWICE_NAT if translate external host address
+//     and port whenever external host address equals local
+//     address of internal host,
+//     flag NAT_OUT2IN_ONLY if rule match only out2in direction
+//   - external_addr - external IPv4 address of the service
+//   - external_port - external L4 port number of the service
+//   - protocol - IP protocol number of the service
+//   - affinity - if 0 disabled, otherwise client IP affinity sticky time
+//     in seconds
+//   - local_num - number of local network nodes
+//   - locals - local network nodes
+//   - tag - opaque string tag
+//
 // Nat44AddDelLbStaticMapping defines message 'nat44_add_del_lb_static_mapping'.
 type Nat44AddDelLbStaticMapping struct {
 	IsAdd        bool                     `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -474,6 +513,25 @@ func (m *Nat44AddDelLbStaticMappingReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add/delete NAT44 static mapping
+//   - is_add - true if add, false if delete
+//   - flags - flag NAT_IS_ADDR_ONLY if address only mapping,
+//     flag nat_is_twice_nat if nat address range for external hosts,
+//     flag NAT_IS_SELF_TWICE_NAT if translate external host address
+//     and port whenever external host address equals local
+//     address of internal host,
+//     flag NAT_IS_OUT2IN_ONLY if rule match only out2in direction
+//   - local_ip_address - local IPv4 address
+//   - external_ip_address - external IPv4 address
+//   - protocol - IP protocol, used only if addr_only=0
+//   - local_port - local port number, used only if addr_only=0
+//   - external_port - external port number, used only if addr_only=0
+//   - external_sw_if_index - external interface (if set
+//     external_ip_address is ignored, ~0 means not
+//     used)
+//   - vfr_id - VRF ID
+//   - tag - opaque string tag
+//
 // Nat44AddDelStaticMapping defines message 'nat44_add_del_static_mapping'.
 type Nat44AddDelStaticMapping struct {
 	IsAdd             bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -578,6 +636,27 @@ func (m *Nat44AddDelStaticMappingReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add/delete NAT44 static mapping
+//   - is_add - true if add, false if delete
+//   - match_pool - true if use specific pool_ip_address
+//   - flags - flag NAT_IS_ADDR_ONLY if address only mapping,
+//     flag nat_is_twice_nat if nat address range for external hosts,
+//     flag NAT_IS_SELF_TWICE_NAT if translate external host address
+//     and port whenever external host address equals local
+//     address of internal host,
+//     flag NAT_IS_OUT2IN_ONLY if rule match only out2in direction
+//   - pool_ip_address - pool IPv4 address to match with pool
+//   - local_ip_address - local IPv4 address
+//   - external_ip_address - external IPv4 address
+//   - protocol - IP protocol, used only if addr_only=0
+//   - local_port - local port number, used only if addr_only=0
+//   - external_port - external port number, used only if addr_only=0
+//   - external_sw_if_index - external interface (if set
+//     external_ip_address is ignored, ~0 means not
+//     used)
+//   - vfr_id - VRF ID
+//   - tag - opaque string tag
+//
 // Nat44AddDelStaticMappingV2 defines message 'nat44_add_del_static_mapping_v2'.
 type Nat44AddDelStaticMappingV2 struct {
 	IsAdd             bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -690,6 +769,11 @@ func (m *Nat44AddDelStaticMappingV2Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 address details response
+//   - ip_address - IPv4 address
+//   - flags - flag NAT_IS_TWICE_NAT if NAT address range for external hosts
+//   - vrf_id - VRF id of tenant, ~0 means independent of VRF
+//
 // Nat44AddressDetails defines message 'nat44_address_details'.
 type Nat44AddressDetails struct {
 	IPAddress ip_types.IP4Address      `binapi:"ip4_address,name=ip_address" json:"ip_address,omitempty"`
@@ -731,6 +815,7 @@ func (m *Nat44AddressDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump NAT44 addresses
 // Nat44AddressDump defines message 'nat44_address_dump'.
 type Nat44AddressDump struct{}
 
@@ -758,6 +843,18 @@ func (m *Nat44AddressDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Delete NAT44 session
+//   - ip_address - IPv4 address
+//   - protocol - IP protocol
+//   - port - port number
+//   - vfr_id - VRF ID
+//   - flags - flag NAT_IS_INSIDE if interface is inside or
+//     interface is outside,
+//     flag NAT_IS_EXT_HOST_VALID if external host address and
+//     port are valid
+//   - ext_host_address - external host IPv4 address
+//   - ext_host_port - external host port
+//
 // Nat44DelSession defines message 'nat44_del_session'.
 type Nat44DelSession struct {
 	Address        ip_types.IP4Address      `binapi:"ip4_address,name=address" json:"address,omitempty"`
@@ -848,6 +945,12 @@ func (m *Nat44DelSessionReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// add/del NAT output interface (postrouting
+//
+//	       in2out translation)
+//	- is_add - true if add, false if delete
+//	- sw_if_index - software index of the interface
+//
 // Nat44EdAddDelOutputInterface defines message 'nat44_ed_add_del_output_interface'.
 type Nat44EdAddDelOutputInterface struct {
 	IsAdd     bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -922,6 +1025,11 @@ func (m *Nat44EdAddDelOutputInterfaceReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add/del inter VRF NAT44-ED route record
+//   - table_vrf_id - id of the VRF NAT routing table
+//   - vrf_id - id of resolving destination (tx) VRF table
+//   - is_add - if true add else del
+//
 // Nat44EdAddDelVrfRoute defines message 'nat44_ed_add_del_vrf_route'.
 type Nat44EdAddDelVrfRoute struct {
 	TableVrfID uint32 `binapi:"u32,name=table_vrf_id" json:"table_vrf_id,omitempty"`
@@ -996,6 +1104,12 @@ func (m *Nat44EdAddDelVrfRouteReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add/delete inter VRF NAT44-ED routing table
+//   - table_vrf_id - id of (rx) VRF used for resolving
+//     destination (tx) VRF during dynamic
+//     session creation
+//   - is_add - if true add else del
+//
 // Nat44EdAddDelVrfTable defines message 'nat44_ed_add_del_vrf_table'.
 type Nat44EdAddDelVrfTable struct {
 	TableVrfID uint32 `binapi:"u32,name=table_vrf_id" json:"table_vrf_id,omitempty"`
@@ -1066,6 +1180,12 @@ func (m *Nat44EdAddDelVrfTableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// add/del NAT output interface (postrouting
+//
+//	       in2out translation)
+//	- is_add - true if add, false if delete
+//	- sw_if_index - software index of the interface
+//
 // Nat44EdOutputInterfaceDetails defines message 'nat44_ed_output_interface_details'.
 type Nat44EdOutputInterfaceDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1101,6 +1221,12 @@ func (m *Nat44EdOutputInterfaceDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// add/del NAT output interface (postrouting
+//
+//	       in2out translation)
+//	- is_add - true if add, false if delete
+//	- sw_if_index - software index of the interface
+//
 // Nat44EdOutputInterfaceGet defines message 'nat44_ed_output_interface_get'.
 type Nat44EdOutputInterfaceGet struct {
 	Cursor uint32 `binapi:"u32,name=cursor" json:"cursor,omitempty"`
@@ -1134,6 +1260,12 @@ func (m *Nat44EdOutputInterfaceGet) Unmarshal(b []byte) error {
 	return nil
 }
 
+// add/del NAT output interface (postrouting
+//
+//	       in2out translation)
+//	- is_add - true if add, false if delete
+//	- sw_if_index - software index of the interface
+//
 // Nat44EdOutputInterfaceGetReply defines message 'nat44_ed_output_interface_get_reply'.
 type Nat44EdOutputInterfaceGetReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1173,6 +1305,15 @@ func (m *Nat44EdOutputInterfaceGetReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Enable/disable NAT44ED plugin
+//   - inside_vrf - inside vrf id
+//   - outside_vrf - outside vrf id
+//   - sessions - maximum number of sessions per thread
+//   - session_memory - overwrite hash allocation parameter
+//   - enable - true if enable, false if disable
+//   - flags - flag NAT44_IS_STATIC_MAPPING_ONLY,
+//     NAT44_IS_CONNECTION_TRACKING
+//
 // Nat44EdPluginEnableDisable defines message 'nat44_ed_plugin_enable_disable'.
 type Nat44EdPluginEnableDisable struct {
 	InsideVrf     uint32           `binapi:"u32,name=inside_vrf" json:"inside_vrf,omitempty"`
@@ -1261,6 +1402,9 @@ func (m *Nat44EdPluginEnableDisableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set NAT handoff frame queue options
+//   - frame_queue_nelts - number of worker handoff frame queue elements
+//
 // Nat44EdSetFqOptions defines message 'nat44_ed_set_fq_options'.
 type Nat44EdSetFqOptions struct {
 	FrameQueueNelts uint32 `binapi:"u32,name=frame_queue_nelts" json:"frame_queue_nelts,omitempty"`
@@ -1327,6 +1471,7 @@ func (m *Nat44EdSetFqOptionsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Show NAT handoff frame queue options
 // Nat44EdShowFqOptions defines message 'nat44_ed_show_fq_options'.
 type Nat44EdShowFqOptions struct{}
 
@@ -1354,6 +1499,10 @@ func (m *Nat44EdShowFqOptions) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Show NAT handoff frame queue options reply
+//   - retval - return code for the request
+//   - frame_queue_nelts - number of worker handoff frame queue elements
+//
 // Nat44EdShowFqOptionsReply defines message 'nat44_ed_show_fq_options_reply'.
 type Nat44EdShowFqOptionsReply struct {
 	Retval          int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1391,6 +1540,11 @@ func (m *Nat44EdShowFqOptionsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44-ED inter VRF NAT routing table details response
+//   - table_vrf_id - id of the VRF NAT routing table
+//   - n_vrf_ids - number of vrf_ids
+//   - vrf_ids - ids of resolving destination (tx) VRFs
+//
 // Nat44EdVrfTablesDetails defines message 'nat44_ed_vrf_tables_details'.
 type Nat44EdVrfTablesDetails struct {
 	TableVrfID uint32   `binapi:"u32,name=table_vrf_id" json:"table_vrf_id,omitempty"`
@@ -1441,6 +1595,7 @@ func (m *Nat44EdVrfTablesDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump NAT44-ED inter VRF NAT routing tables
 // Nat44EdVrfTablesDump defines message 'nat44_ed_vrf_tables_dump'.
 type Nat44EdVrfTablesDump struct{}
 
@@ -1468,6 +1623,12 @@ func (m *Nat44EdVrfTablesDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Enable/disable forwarding for NAT44
+//
+//	Forward packets which don't match existing translation
+//	or static mapping instead of dropping them.
+//	- enable - true for enable, false for disable
+//
 // Nat44ForwardingEnableDisable defines message 'nat44_forwarding_enable_disable'.
 // Deprecated: the message will be removed in the future versions
 type Nat44ForwardingEnableDisable struct {
@@ -1540,6 +1701,15 @@ func (m *Nat44ForwardingEnableDisableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 identity mapping details response
+//   - flags - flag NAT_ADDR_ONLY if address only mapping
+//   - ip_address - IPv4 address
+//   - protocol - IP protocol
+//   - port - port number
+//   - sw_if_index - interface
+//   - vfr_id - VRF ID
+//   - tag - opaque string tag
+//
 // Nat44IdentityMappingDetails defines message 'nat44_identity_mapping_details'.
 type Nat44IdentityMappingDetails struct {
 	Flags     nat_types.NatConfigFlags       `binapi:"nat_config_flags,name=flags" json:"flags,omitempty"`
@@ -1597,6 +1767,7 @@ func (m *Nat44IdentityMappingDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump NAT44 identity mappings
 // Nat44IdentityMappingDump defines message 'nat44_identity_mapping_dump'.
 type Nat44IdentityMappingDump struct{}
 
@@ -1624,6 +1795,12 @@ func (m *Nat44IdentityMappingDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Enable/disable NAT44 feature on the interface
+//   - is_add - true if add, false if delete
+//   - flags - flag NAT_IS_INSIDE if interface is inside else
+//     interface is outside
+//   - sw_if_index - software index of the interface
+//
 // Nat44InterfaceAddDelFeature defines message 'nat44_interface_add_del_feature'.
 type Nat44InterfaceAddDelFeature struct {
 	IsAdd     bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -1700,6 +1877,10 @@ func (m *Nat44InterfaceAddDelFeatureReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 pool addresses interfaces details response
+//   - sw_if_index - software index of the interface
+//   - flags - flag NAT_TWICE_NAT if NAT address range for external hosts
+//
 // Nat44InterfaceAddrDetails defines message 'nat44_interface_addr_details'.
 type Nat44InterfaceAddrDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1737,6 +1918,7 @@ func (m *Nat44InterfaceAddrDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump NAT44 pool addresses interfaces
 // Nat44InterfaceAddrDump defines message 'nat44_interface_addr_dump'.
 type Nat44InterfaceAddrDump struct{}
 
@@ -1764,6 +1946,13 @@ func (m *Nat44InterfaceAddrDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 interface details response
+//   - sw_if_index - software index of the interface
+//   - flags - flag NAT_IS_INSIDE if interface is inside,
+//     flag NAT_IS_OUTSIDE if interface is outside
+//     and if both flags are set the interface is
+//     both inside and outside
+//
 // Nat44InterfaceDetails defines message 'nat44_interface_details'.
 type Nat44InterfaceDetails struct {
 	Flags     nat_types.NatConfigFlags       `binapi:"nat_config_flags,name=flags" json:"flags,omitempty"`
@@ -1801,6 +1990,7 @@ func (m *Nat44InterfaceDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump interfaces with NAT44 feature
 // Nat44InterfaceDump defines message 'nat44_interface_dump'.
 type Nat44InterfaceDump struct{}
 
@@ -1828,6 +2018,13 @@ func (m *Nat44InterfaceDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add/delete NAT44 load-balancing static mapping rule backend
+//   - is_add - true if add, false if delete
+//   - external_addr - external IPv4 address of the service
+//   - external_port - external L4 port number of the service
+//   - protocol - IP protocol number of the service
+//   - local - local network node
+//
 // Nat44LbStaticMappingAddDelLocal defines message 'nat44_lb_static_mapping_add_del_local'.
 type Nat44LbStaticMappingAddDelLocal struct {
 	IsAdd        bool                `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -1923,6 +2120,21 @@ func (m *Nat44LbStaticMappingAddDelLocalReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 load-balancing static mapping rule details response
+//   - external_addr - external IPv4 address of the service
+//   - external_port - external L4 port number of the service
+//   - protocol - IP protocol number of the service
+//   - flags - flag NAT_TWICE_NAT if NAT address range for external hosts,
+//     flag NAT_SELF_TWICE_NAT if translate external host address
+//     and port whenever external host address equals local
+//     address of internal host,
+//     flag NAT_OUT2IN_ONLY if rule match only out2in direction
+//   - affinity - if 0 disabled, otherwise client IP affinity sticky time
+//     in seconds
+//   - local_num - number of local network nodes
+//   - locals - local network nodes
+//   - tag - opaque string tag
+//
 // Nat44LbStaticMappingDetails defines message 'nat44_lb_static_mapping_details'.
 type Nat44LbStaticMappingDetails struct {
 	ExternalAddr ip_types.IP4Address      `binapi:"ip4_address,name=external_addr" json:"external_addr,omitempty"`
@@ -2009,6 +2221,7 @@ func (m *Nat44LbStaticMappingDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump NAT44 load-balancing static mapping rules
 // Nat44LbStaticMappingDump defines message 'nat44_lb_static_mapping_dump'.
 type Nat44LbStaticMappingDump struct{}
 
@@ -2036,6 +2249,10 @@ func (m *Nat44LbStaticMappingDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 set session limit
+//   - session_limit - session limit
+//   - vrf_id - vrf id
+//
 // Nat44SetSessionLimit defines message 'nat44_set_session_limit'.
 type Nat44SetSessionLimit struct {
 	SessionLimit uint32 `binapi:"u32,name=session_limit" json:"session_limit,omitempty"`
@@ -2106,6 +2323,7 @@ func (m *Nat44SetSessionLimitReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Show NAT44 plugin running config
 // Nat44ShowRunningConfig defines message 'nat44_show_running_config'.
 type Nat44ShowRunningConfig struct{}
 
@@ -2133,6 +2351,24 @@ func (m *Nat44ShowRunningConfig) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Show NAT44 plugin running config reply
+//   - retval - return code for the request
+//   - inside_vrf - default inside VRF id
+//   - outside_vrf - outside VRF id
+//   - users - maximum number of users per worker thread
+//     (NAT44_IS_ENDPOINT_INDEPENDENT)
+//   - sessions - maximum number of sessions per worker thread
+//   - user_sessions - maximum number of sessions per user
+//     (NAT44_IS_ENDPOINT_INDEPENDENT)
+//   - user_buckets - number of user hash buckets
+//     (NAT44_IS_ENDPOINT_INDEPENDENT)
+//   - translation_buckets - number of translation hash buckets
+//   - flags - flag NAT44_IS_ENDPOINT_INDEPENDENT,
+//     NAT44_IS_ENDPOINT_DEPENDENT,
+//     NAT44_IS_STATIC_MAPPING_ONLY,
+//     NAT44_IS_CONNECTION_TRACKING,
+//     NAT44_IS_OUT2IN_DPO
+//
 // Nat44ShowRunningConfigReply defines message 'nat44_show_running_config_reply'.
 type Nat44ShowRunningConfigReply struct {
 	Retval              int32                 `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -2223,6 +2459,22 @@ func (m *Nat44ShowRunningConfigReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 static mapping details response
+//   - flags - flag NAT_ADDR_ONLY if address only mapping,
+//     flag NAT_TWICE_NAT if NAT address range for external hosts,
+//     flag NAT_SELF_TWICE_NAT if translate external host address
+//     and port whenever external host address equals local
+//     address of internal host,
+//     flag NAT_OUT2IN_ONLY if rule match only out2in direction
+//   - local_ip_address - local IPv4 address
+//   - external_ip_address - external IPv4 address
+//   - protocol - IP protocol, valid only if no NAT_ADDR_ONLY flag
+//   - local_port - local port number, valid only if no NAT_ADDR_ONLY flag
+//   - external_port - external port number, valid only if no NAT_ADDR_ONLY flag
+//   - external_sw_if_index - external interface
+//   - vfr_id - VRF ID
+//   - tag - opaque string tag
+//
 // Nat44StaticMappingDetails defines message 'nat44_static_mapping_details'.
 type Nat44StaticMappingDetails struct {
 	Flags             nat_types.NatConfigFlags       `binapi:"nat_config_flags,name=flags" json:"flags,omitempty"`
@@ -2288,6 +2540,7 @@ func (m *Nat44StaticMappingDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump NAT44 static mappings
 // Nat44StaticMappingDump defines message 'nat44_static_mapping_dump'.
 type Nat44StaticMappingDump struct{}
 
@@ -2315,6 +2568,13 @@ func (m *Nat44StaticMappingDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 users response
+//
+//	@vrf_id - VRF ID
+//	- ip_address - IPv4 address
+//	- nsessions - number of dynamic sessions
+//	- nstaticsessions - number of static sessions
+//
 // Nat44UserDetails defines message 'nat44_user_details'.
 type Nat44UserDetails struct {
 	VrfID           uint32              `binapi:"u32,name=vrf_id" json:"vrf_id,omitempty"`
@@ -2360,6 +2620,7 @@ func (m *Nat44UserDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump NAT44 users
 // Nat44UserDump defines message 'nat44_user_dump'.
 type Nat44UserDump struct{}
 
@@ -2387,6 +2648,26 @@ func (m *Nat44UserDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 user's sessions response
+//   - outside_ip_address - outside IPv4 address
+//   - outside_port - outside port
+//   - inside_ip_address - inside IPv4 address
+//   - inside_port - inside port
+//   - protocol - protocol
+//   - flags - flag NAT_IS_STATIC if session is static,
+//     flag NAT_IS_TWICE_NAT if session is twice-nat,
+//     flag NAT_IS_EXT_HOST_VALID if external host address
+//     and port are valid
+//   - last_heard - last heard timer
+//   - total_bytes - count of bytes sent through session
+//   - total_pkts - count of pakets sent through session
+//   - ext_host_address - external host IPv4 address
+//   - ext_host_port - external host port
+//   - ext_host_nat_address - post-NAT external host IPv4 address (valid
+//     only if twice-nat session)
+//   - ext_host_nat_port - post-NAT external host port (valid only if
+//     twice-nat session)
+//
 // Nat44UserSessionDetails defines message 'nat44_user_session_details'.
 type Nat44UserSessionDetails struct {
 	OutsideIPAddress  ip_types.IP4Address      `binapi:"ip4_address,name=outside_ip_address" json:"outside_ip_address,omitempty"`
@@ -2468,6 +2749,10 @@ func (m *Nat44UserSessionDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 user's sessions
+//   - ip_address - IPv4 address of the user to dump
+//   - vrf_id - VRF_ID
+//
 // Nat44UserSessionDump defines message 'nat44_user_session_dump'.
 type Nat44UserSessionDump struct {
 	IPAddress ip_types.IP4Address `binapi:"ip4_address,name=ip_address" json:"ip_address,omitempty"`
@@ -2505,6 +2790,28 @@ func (m *Nat44UserSessionDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 user's sessions response
+//   - outside_ip_address - outside IPv4 address
+//   - outside_port - outside port
+//   - inside_ip_address - inside IPv4 address
+//   - inside_port - inside port
+//   - protocol - protocol
+//   - flags - flag NAT_IS_STATIC if session is static,
+//     flag NAT_IS_TWICE_NAT if session is twice-nat,
+//     flag NAT_IS_EXT_HOST_VALID if external host address
+//     and port are valid
+//   - last_heard - last heard timer
+//   - total_bytes - count of bytes sent through session
+//   - total_pkts - count of pakets sent through session
+//   - ext_host_address - external host IPv4 address
+//   - ext_host_port - external host port
+//   - ext_host_nat_address - post-NAT external host IPv4 address (valid
+//     only if twice-nat session)
+//   - ext_host_nat_port - post-NAT external host port (valid only if
+//     twice-nat session)
+//   - is_timed_out - true, if session is timed out, and false, if session
+//     is active
+//
 // Nat44UserSessionV2Details defines message 'nat44_user_session_v2_details'.
 type Nat44UserSessionV2Details struct {
 	OutsideIPAddress  ip_types.IP4Address      `binapi:"ip4_address,name=outside_ip_address" json:"outside_ip_address,omitempty"`
@@ -2590,6 +2897,10 @@ func (m *Nat44UserSessionV2Details) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 user's sessions
+//   - ip_address - IPv4 address of the user to dump
+//   - vrf_id - VRF_ID
+//
 // Nat44UserSessionV2Dump defines message 'nat44_user_session_v2_dump'.
 type Nat44UserSessionV2Dump struct {
 	IPAddress ip_types.IP4Address `binapi:"ip4_address,name=ip_address" json:"ip_address,omitempty"`
@@ -2627,6 +2938,29 @@ func (m *Nat44UserSessionV2Dump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 user's sessions response
+//   - outside_ip_address - outside IPv4 address
+//   - outside_port - outside port
+//   - inside_ip_address - inside IPv4 address
+//   - inside_port - inside port
+//   - protocol - protocol
+//   - flags - flag NAT_IS_STATIC if session is static,
+//     flag NAT_IS_TWICE_NAT if session is twice-nat,
+//     flag NAT_IS_EXT_HOST_VALID if external host address
+//     and port are valid
+//   - last_heard - last heard timer since VPP start
+//   - time_since_last_heard - difference between current vpp time and last_heard value
+//   - total_bytes - count of bytes sent through session
+//   - total_pkts - count of pakets sent through session
+//   - ext_host_address - external host IPv4 address
+//   - ext_host_port - external host port
+//   - ext_host_nat_address - post-NAT external host IPv4 address (valid
+//     only if twice-nat session)
+//   - ext_host_nat_port - post-NAT external host port (valid only if
+//     twice-nat session)
+//   - is_timed_out - true, if session is timed out, and false, if session
+//     is active
+//
 // Nat44UserSessionV3Details defines message 'nat44_user_session_v3_details'.
 type Nat44UserSessionV3Details struct {
 	OutsideIPAddress   ip_types.IP4Address      `binapi:"ip4_address,name=outside_ip_address" json:"outside_ip_address,omitempty"`
@@ -2716,6 +3050,10 @@ func (m *Nat44UserSessionV3Details) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT44 user's sessions
+//   - ip_address - IPv4 address of the user to dump
+//   - vrf_id - VRF_ID
+//
 // Nat44UserSessionV3Dump defines message 'nat44_user_session_v3_dump'.
 type Nat44UserSessionV3Dump struct {
 	IPAddress ip_types.IP4Address `binapi:"ip4_address,name=ip_address" json:"ip_address,omitempty"`
@@ -2753,6 +3091,7 @@ func (m *Nat44UserSessionV3Dump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Get TCP MSS rewriting configuration
 // NatGetMssClamping defines message 'nat_get_mss_clamping'.
 type NatGetMssClamping struct{}
 
@@ -2780,6 +3119,11 @@ func (m *NatGetMssClamping) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Get TCP MSS rewriting configuration reply
+//   - retval - return code
+//   - mss_value - MSS value to be used for MSS rewriting
+//   - enable - if true enable MSS rewriting feature else disable
+//
 // NatGetMssClampingReply defines message 'nat_get_mss_clamping_reply'.
 type NatGetMssClampingReply struct {
 	Retval   int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -2821,6 +3165,11 @@ func (m *NatGetMssClampingReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Enable/disable NAT IPFIX logging
+//   - domain_id - observation domain ID
+//   - src_port - source port number
+//   - enable - true if enable, false if disable
+//
 // NatIpfixEnableDisable defines message 'nat_ipfix_enable_disable'.
 // Deprecated: the message will be removed in the future versions
 type NatIpfixEnableDisable struct {
@@ -2897,6 +3246,10 @@ func (m *NatIpfixEnableDisableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set TCP MSS rewriting configuration
+//   - mss_value - MSS value to be used for MSS rewriting
+//   - enable - if true enable MSS rewriting feature else disable
+//
 // NatSetMssClamping defines message 'nat_set_mss_clamping'.
 type NatSetMssClamping struct {
 	MssValue uint16 `binapi:"u16,name=mss_value" json:"mss_value,omitempty"`
@@ -2967,6 +3320,12 @@ func (m *NatSetMssClampingReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set values of timeouts for NAT sessions (seconds)
+//   - udp - UDP timeout (default 300sec)
+//   - tcp_established - TCP established timeout (default 7440sec)
+//   - tcp_transitory - TCP transitory timeout (default 240sec)
+//   - icmp - ICMP timeout (default 60sec)
+//
 // NatSetTimeouts defines message 'nat_set_timeouts'.
 // Deprecated: the message will be removed in the future versions
 type NatSetTimeouts struct {
@@ -3047,6 +3406,9 @@ func (m *NatSetTimeoutsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set NAT workers
+//   - worker_mask - NAT workers mask
+//
 // NatSetWorkers defines message 'nat_set_workers'.
 type NatSetWorkers struct {
 	WorkerMask uint64 `binapi:"u64,name=worker_mask" json:"worker_mask,omitempty"`
@@ -3113,6 +3475,11 @@ func (m *NatSetWorkersReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// NAT workers details response
+//   - worker_index - worker index
+//   - lcore_id - lcore ID
+//   - name - worker name
+//
 // NatWorkerDetails defines message 'nat_worker_details'.
 type NatWorkerDetails struct {
 	WorkerIndex uint32 `binapi:"u32,name=worker_index" json:"worker_index,omitempty"`
@@ -3154,6 +3521,7 @@ func (m *NatWorkerDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump NAT workers
 // NatWorkerDump defines message 'nat_worker_dump'.
 type NatWorkerDump struct{}
 

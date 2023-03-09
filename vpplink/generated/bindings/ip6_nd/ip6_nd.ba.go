@@ -34,6 +34,18 @@ type IP6RaPrefixInfo struct {
 	PreferredTime uint32          `binapi:"u32,name=preferred_time" json:"preferred_time,omitempty"`
 }
 
+// Tell client about a router advertisement event
+//   - pid - client pid registered to receive notification
+//   - current_hop_limit - RA current hop limit
+//   - flags - RA flags
+//   - router_lifetime_in_sec - RA lifetime in seconds
+//   - router_addr - The router's address
+//   - neighbor_reachable_time_in_msec - RA neighbor reachable time in msec
+//   - time_in_msec_between_retransmitted_neighbor_solicitations -
+//     time in msec between retransmitted neighbor solicitations
+//   - n_prefixes -
+//   - prefixes -
+//
 // IP6RaEvent defines message 'ip6_ra_event'.
 type IP6RaEvent struct {
 	PID                                                 uint32                         `binapi:"u32,name=pid" json:"pid,omitempty"`
@@ -134,6 +146,11 @@ func (m *IP6RaEvent) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPv6 ND proxy config
+//   - sw_if_index - The interface the host is on
+//   - ip - The address of the host for which to proxy for
+//   - is_add - Adding or deleting
+//
 // IP6ndProxyAddDel defines message 'ip6nd_proxy_add_del'.
 type IP6ndProxyAddDel struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -208,6 +225,10 @@ func (m *IP6ndProxyAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPv6 ND proxy details returned after request
+//   - sw_if_index - The interface the host is on
+//   - ip - The address of the host for which to proxy for
+//
 // IP6ndProxyDetails defines message 'ip6nd_proxy_details'.
 type IP6ndProxyDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -245,6 +266,7 @@ func (m *IP6ndProxyDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPv6 ND proxy dump request
 // IP6ndProxyDump defines message 'ip6nd_proxy_dump'.
 type IP6ndProxyDump struct{}
 
@@ -272,6 +294,10 @@ func (m *IP6ndProxyDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPv6 ND (mirror) proxy
+//   - sw_if_index - The interface the host is on
+//   - is_enable - enable or disable
+//
 // IP6ndProxyEnableDisable defines message 'ip6nd_proxy_enable_disable'.
 type IP6ndProxyEnableDisable struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -344,6 +370,16 @@ func (m *IP6ndProxyEnableDisableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Start / stop sending router solicitation
+//   - irt - initial retransmission time
+//   - mrt - maximum retransmission time
+//   - mrc - maximum retransmission count
+//   - mrd - maximum retransmission duration
+//   - sw_if_index - software interface index of interface
+//     for sending router solicitation
+//   - stop - if non-zero then stop sending router solicitation,
+//     otherwise start sending router solicitation
+//
 // IP6ndSendRouterSolicitation defines message 'ip6nd_send_router_solicitation'.
 type IP6ndSendRouterSolicitation struct {
 	Irt       uint32                         `binapi:"u32,name=irt" json:"irt,omitempty"`
@@ -432,6 +468,21 @@ func (m *IP6ndSendRouterSolicitationReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPv6 router advertisement config request
+//   - suppress -
+//   - managed -
+//   - other -
+//   - ll_option -
+//   - send_unicast -
+//   - cease -
+//   - is_no -
+//   - default_router -
+//   - max_interval -
+//   - min_interval -
+//   - lifetime -
+//   - initial_count -
+//   - initial_interval -
+//
 // SwInterfaceIP6ndRaConfig defines message 'sw_interface_ip6nd_ra_config'.
 type SwInterfaceIP6ndRaConfig struct {
 	SwIfIndex       interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -552,6 +603,32 @@ func (m *SwInterfaceIP6ndRaConfigReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPv6 router advertisement prefix config request
+//   - sw_if_index - The interface the RA prefix information is for
+//   - prefix - The prefix to advertise
+//   - use_default - Revert to default settings
+//   - no_advertise - Do not advertise this prefix
+//   - off_link - The prefix is off link (it is not configured on the interface)
+//     Configures the L-flag, When set, indicates that this
+//     prefix can be used for on-link determination.
+//   - no_autoconfig - Setting for the A-flag. When
+//     set indicates that this prefix can be used for
+//     stateless address configuration.
+//   - no_onlink - The prefix is not on link. Make sure this is consistent
+//     with the off_link parameter else YMMV
+//   - is_no - add/delete
+//   - val_lifetime - The length of time in
+//     seconds (relative to the time the packet is sent)
+//     that the prefix is valid for the purpose of on-link
+//     determination.  A value of all one bits
+//     (0xffffffff) represents infinity
+//   - pref_lifetime - The length of time in
+//     seconds (relative to the time the packet is sent)
+//     that addresses generated from the prefix via
+//     stateless address autoconfiguration remain
+//     preferred [ADDRCONF].  A value of all one bits
+//     (0xffffffff) represents infinity.
+//
 // SwInterfaceIP6ndRaPrefix defines message 'sw_interface_ip6nd_ra_prefix'.
 type SwInterfaceIP6ndRaPrefix struct {
 	SwIfIndex    interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -662,6 +739,10 @@ func (m *SwInterfaceIP6ndRaPrefixReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Register for ip6 router advertisement events
+//   - enable - 1 => register for events, 0 => cancel registration
+//   - pid - sender's pid
+//
 // WantIP6RaEvents defines message 'want_ip6_ra_events'.
 type WantIP6RaEvents struct {
 	Enable bool   `binapi:"bool,name=enable" json:"enable,omitempty"`

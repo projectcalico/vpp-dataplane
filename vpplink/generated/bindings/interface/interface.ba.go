@@ -26,6 +26,11 @@ const (
 	VersionCrc = 0xddff3487
 )
 
+// Enable or disable detailed interface stats
+//   - sw_if_index - The interface to collect detail stats on. ~0 implies
+//     all interfaces.
+//   - enable_disable - set to 1 to enable, 0 to disable detailed stats
+//
 // CollectDetailedInterfaceStats defines message 'collect_detailed_interface_stats'.
 type CollectDetailedInterfaceStats struct {
 	SwIfIndex     interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -100,6 +105,9 @@ func (m *CollectDetailedInterfaceStatsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Create loopback interface request
+//   - mac_address - mac addr to assign to the interface if none-zero
+//
 // CreateLoopback defines message 'create_loopback'.
 type CreateLoopback struct {
 	MacAddress ethernet_types.MacAddress `binapi:"mac_address,name=mac_address" json:"mac_address,omitempty"`
@@ -133,6 +141,11 @@ func (m *CreateLoopback) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Create loopback interface instance request
+//   - mac_address - mac addr to assign to the interface if none-zero
+//   - is_specified - if non-0, a specific user_instance is being requested
+//   - user_instance - requested instance, ~0 => dynamically allocate
+//
 // CreateLoopbackInstance defines message 'create_loopback_instance'.
 type CreateLoopbackInstance struct {
 	MacAddress   ethernet_types.MacAddress `binapi:"mac_address,name=mac_address" json:"mac_address,omitempty"`
@@ -174,6 +187,10 @@ func (m *CreateLoopbackInstance) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Create loopback interface instance response
+//   - sw_if_index - sw index of the interface that was created
+//   - retval - return code for the request
+//
 // CreateLoopbackInstanceReply defines message 'create_loopback_instance_reply'.
 type CreateLoopbackInstanceReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -211,6 +228,10 @@ func (m *CreateLoopbackInstanceReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Create loopback interface response
+//   - sw_if_index - sw index of the interface that was created
+//   - retval - return code for the request
+//
 // CreateLoopbackReply defines message 'create_loopback_reply'.
 type CreateLoopbackReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -248,6 +269,7 @@ func (m *CreateLoopbackReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// /* Gross kludge, DGMS
 // CreateSubif defines message 'create_subif'.
 type CreateSubif struct {
 	SwIfIndex   interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -297,6 +319,7 @@ func (m *CreateSubif) Unmarshal(b []byte) error {
 	return nil
 }
 
+// /* Gross kludge, DGMS
 // CreateSubifReply defines message 'create_subif_reply'.
 type CreateSubifReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -334,6 +357,10 @@ func (m *CreateSubifReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Create a new subinterface with the given vlan id
+//   - sw_if_index - software index of the new vlan's parent interface
+//   - vlan_id - vlan tag of the new interface
+//
 // CreateVlanSubif defines message 'create_vlan_subif'.
 type CreateVlanSubif struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -371,6 +398,10 @@ func (m *CreateVlanSubif) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Reply for the vlan subinterface create request
+//   - retval - return code
+//   - sw_if_index - software index allocated for the new subinterface
+//
 // CreateVlanSubifReply defines message 'create_vlan_subif_reply'.
 type CreateVlanSubifReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -408,6 +439,9 @@ func (m *CreateVlanSubifReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Delete loopback interface request
+//   - sw_if_index - sw index of the interface that was created
+//
 // DeleteLoopback defines message 'delete_loopback'.
 type DeleteLoopback struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -474,6 +508,9 @@ func (m *DeleteLoopbackReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Delete sub interface request
+//   - sw_if_index - sw index of the interface that was created by create_subif
+//
 // DeleteSubif defines message 'delete_subif'.
 type DeleteSubif struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -540,6 +577,9 @@ func (m *DeleteSubifReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Get available, cached and used buffers
+//   - buffer_index - buffer stat index
+//
 // GetBuffersStats defines message 'get_buffers_stats'.
 type GetBuffersStats struct {
 	BufferIndex uint32 `binapi:"u32,name=buffer_index" json:"buffer_index,omitempty"`
@@ -573,6 +613,9 @@ func (m *GetBuffersStats) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Get available, cached and used buffers
+//   - buffer_index - buffer stat index
+//
 // GetBuffersStatsReply defines message 'get_buffers_stats_reply'.
 type GetBuffersStatsReply struct {
 	Retval           int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -618,6 +661,10 @@ func (m *GetBuffersStatsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set interface physical MTU
+//   - sw_if_index - index of the interface to set MTU on
+//   - mtu - MTU
+//
 // HwInterfaceSetMtu defines message 'hw_interface_set_mtu'.
 type HwInterfaceSetMtu struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -688,6 +735,7 @@ func (m *HwInterfaceSetMtuReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// /* Gross kludge, DGMS
 // InterfaceNameRenumber defines message 'interface_name_renumber'.
 type InterfaceNameRenumber struct {
 	SwIfIndex          interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -758,6 +806,12 @@ func (m *InterfaceNameRenumberReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set or delete one or all ip addresses on a specified interface
+//   - sw_if_index - index of the interface to add/del addresses
+//   - is_add - add address if non-zero, else delete
+//   - del_all - if non-zero delete all addresses on the interface
+//   - prefix - address + a prefix length for the implied connected route
+//
 // SwInterfaceAddDelAddress defines message 'sw_interface_add_del_address'.
 type SwInterfaceAddDelAddress struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -844,6 +898,11 @@ func (m *SwInterfaceAddDelAddressReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add or delete a secondary MAC address on an interface
+//   - sw_if_index - the interface whose MAC will be set
+//   - mac_addr - the new MAC address
+//   - is_add - 0 to delete, != 0 to add
+//
 // SwInterfaceAddDelMacAddress defines message 'sw_interface_add_del_mac_address'.
 type SwInterfaceAddDelMacAddress struct {
 	SwIfIndex uint32                    `binapi:"u32,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -922,6 +981,21 @@ func (m *SwInterfaceAddDelMacAddressReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IP interface address replace begin
+//
+//	The use-case is that, for some unspecified reason, the control plane
+//	has a different set of interface addresses than VPP
+//	currently has. The CP would thus like to 'replace' VPP's set
+//	only by specifying what the new set shall be, i.e. it is not
+//	going to delete anything that already eixts, rather, is wants any
+//	unspecified interface addresses to be deleted implicitly.
+//	The CP declares the start of this procedure with this replace_begin
+//	API Call, and when it has populated all addresses it wants, it calls
+//	the below replace_end API. From this point on it is of course free
+//	to add and delete interface addresses as usual.
+//	The underlying mechanism by which VPP implements this replace is
+//	intentionally left unspecified.
+//
 // SwInterfaceAddressReplaceBegin defines message 'sw_interface_address_replace_begin'.
 type SwInterfaceAddressReplaceBegin struct{}
 
@@ -986,6 +1060,10 @@ func (m *SwInterfaceAddressReplaceBeginReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IP interface address replace end
+//
+//	see ip_interface_address_replace_begin description.
+//
 // SwInterfaceAddressReplaceEnd defines message 'sw_interface_address_replace_end'.
 type SwInterfaceAddressReplaceEnd struct{}
 
@@ -1050,6 +1128,9 @@ func (m *SwInterfaceAddressReplaceEndReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Clear interface statistics
+//   - sw_if_index - index of the interface to clear statistics
+//
 // SwInterfaceClearStats defines message 'sw_interface_clear_stats'.
 type SwInterfaceClearStats struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1116,6 +1197,33 @@ func (m *SwInterfaceClearStatsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Interface details structure (fix this)
+//   - sw_if_index - index of the interface
+//   - sup_sw_if_index - index of parent interface if any, else same as sw_if_index
+//   - l2_address - the interface's l2 address
+//   - flags - interface_status flags
+//   - type - interface type
+//   - link_duplex - 1 if half duplex, 2 if full duplex
+//   - link_speed - value in kbps
+//   - link_MTU - max. transmission unit
+//   - sub_id - A number 0-N to uniquely identify this subif on super if
+//   - sub_number_of_tags - Number of tags (0 - 2)
+//   - sub_outer_vlan_id
+//   - sub_inner_vlan_id
+//   - sub_if_flags - sub interface flags
+//   - vtr_op - vlan tag rewrite operation
+//   - vtr_push_dot1q
+//   - vtr_tag1
+//   - vtr_tag2
+//   - pbb_outer_tag - translate pbb s-tag
+//   - pbb_b_dmac[6] - B-tag remote mac address
+//   - pbb_b_smac[6] - B-tag local mac address
+//   - pbb_b_vlanid - B-tag vlanid
+//   - pbb_i_sid - I-tag service id
+//   - interface_name - name of the interface
+//   - interface_dev_type - device type of the interface
+//   - tag - an ascii tag
+//
 // SwInterfaceDetails defines message 'sw_interface_details'.
 type SwInterfaceDetails struct {
 	SwIfIndex        interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1258,6 +1366,13 @@ func (m *SwInterfaceDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Request all or filtered subset of sw_interface_details
+//   - sw_if_index - index of the interface to dump info on, 0 or ~0 if on all
+//     TODO: Support selecting only index==0 when CSIT is ready.
+//   - name_filter_valid - 1 if requesting a filtered subset of records else 0
+//     if name filter is set as valid, sw_if_index value is ignored and all interfaces are examined
+//   - name_filter - interface name substring filter. Eg. loop1 returns [loop1, loop10]
+//
 // SwInterfaceDump defines message 'sw_interface_dump'.
 type SwInterfaceDump struct {
 	SwIfIndex       interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index,default=4294967295" json:"sw_if_index,omitempty"`
@@ -1299,6 +1414,12 @@ func (m *SwInterfaceDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Interface Event generated by want_interface_events
+//   - pid - client pid registered to receive notification
+//   - sw_if_index - index of the interface of the event
+//   - flags - interface_status flags
+//   - deleted - interface was deleted
+//
 // SwInterfaceEvent defines message 'sw_interface_event'.
 type SwInterfaceEvent struct {
 	PID       uint32                         `binapi:"u32,name=pid" json:"pid,omitempty"`
@@ -1344,6 +1465,9 @@ func (m *SwInterfaceEvent) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Get interface's MAC address
+//   - sw_if_index - the interface whose MAC will be returned
+//
 // SwInterfaceGetMacAddress defines message 'sw_interface_get_mac_address'.
 type SwInterfaceGetMacAddress struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1377,6 +1501,10 @@ func (m *SwInterfaceGetMacAddress) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Reply for get interface's MAC address request
+//   - retval - return code
+//   - mac_addr - returned interface's MAC address
+//
 // SwInterfaceGetMacAddressReply defines message 'sw_interface_get_mac_address_reply'.
 type SwInterfaceGetMacAddressReply struct {
 	Retval     int32                     `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1416,6 +1544,9 @@ func (m *SwInterfaceGetMacAddressReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Get VRF id assigned to interface
+//   - sw_if_index - index of the interface
+//
 // SwInterfaceGetTable defines message 'sw_interface_get_table'.
 type SwInterfaceGetTable struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1453,6 +1584,9 @@ func (m *SwInterfaceGetTable) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Reply to get_sw_interface_vrf
+//   - vrf_id - VRF id assigned to the interface
+//
 // SwInterfaceGetTableReply defines message 'sw_interface_get_table_reply'.
 type SwInterfaceGetTableReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1490,6 +1624,20 @@ func (m *SwInterfaceGetTableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// show the interface's queue - thread placement
+//
+//	This api is used to display the interface and queue worker
+//	thread placement. One message per rx-queue per interface will
+//	be sent to client.
+//	Each message will contain information about rx-queue id of an
+//	interface, interface index, thread on which this rx-queue is
+//	placed and mode of rx-queue.
+//	- sw_if_index - the interface whose rx-placement will be dumped
+//	- queue_id - the queue id
+//	- worker_id - the worker id on which queue_id is placed,
+//	                   worker_id = 0 means main thread.
+//	- mode - polling=1, interrupt=2, adaptive=3
+//
 // SwInterfaceRxPlacementDetails defines message 'sw_interface_rx_placement_details'.
 type SwInterfaceRxPlacementDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1537,6 +1685,12 @@ func (m *SwInterfaceRxPlacementDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// dump the rx queue placement of interface(s)
+//   - sw_if_index - optional interface index for which queue placement to
+//     be requested. sw_if_index = ~0 will dump placement information for all
+//     interfaces. It will not dump information related to sub-interfaces, p2p
+//     and pipe interfaces.
+//
 // SwInterfaceRxPlacementDump defines message 'sw_interface_rx_placement_dump'.
 type SwInterfaceRxPlacementDump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1570,6 +1724,11 @@ func (m *SwInterfaceRxPlacementDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set flags on the interface
+//   - sw_if_index - index of the interface to set flags on
+//   - flags - interface_status flags
+//     (only IF_STATUS_API_FLAG_ADMIN_UP used in config)
+//
 // SwInterfaceSetFlags defines message 'sw_interface_set_flags'.
 type SwInterfaceSetFlags struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1640,6 +1799,13 @@ func (m *SwInterfaceSetFlagsReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set custom interface name
+//
+//	Set custom interface name for the interface.
+//	- sw_if_index - the interface whose name will be set
+//	- name - the custom interface name to be set
+//
+// k
 // SwInterfaceSetInterfaceName defines message 'sw_interface_set_interface_name'.
 type SwInterfaceSetInterfaceName struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1712,6 +1878,13 @@ func (m *SwInterfaceSetInterfaceNameReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set IP4 directed broadcast
+//
+//	The directed broadcast enabled a packet sent to the interface's
+//	subnet address will be broadcast on the interface
+//	- sw_if_index
+//	- enable
+//
 // SwInterfaceSetIPDirectedBroadcast defines message 'sw_interface_set_ip_directed_broadcast'.
 type SwInterfaceSetIPDirectedBroadcast struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1788,6 +1961,10 @@ func (m *SwInterfaceSetIPDirectedBroadcastReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set an interface's MAC address
+//   - sw_if_index - the interface whose MAC will be set
+//   - mac_addr - the new MAC address
+//
 // SwInterfaceSetMacAddress defines message 'sw_interface_set_mac_address'.
 type SwInterfaceSetMacAddress struct {
 	SwIfIndex  interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1860,6 +2037,7 @@ func (m *SwInterfaceSetMacAddressReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set interface L3 MTU
 // SwInterfaceSetMtu defines message 'sw_interface_set_mtu'.
 type SwInterfaceSetMtu struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -1939,6 +2117,10 @@ func (m *SwInterfaceSetMtuReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set interface promiscuous mode
+//   - sw_if_index - index of the interface to set flags on
+//   - promisc_on - promiscuous mode is on ?
+//
 // SwInterfaceSetPromisc defines message 'sw_interface_set_promisc'.
 type SwInterfaceSetPromisc struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2009,6 +2191,14 @@ func (m *SwInterfaceSetPromiscReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set an interface's rx-mode
+//   - sw_if_index - the interface whose rx-mode will be set
+//   - queue_id_valid - 1 = the queue_id field is valid. 0 means all
+//     queue_id's
+//   - queue_id - the queue number whose rx-mode will be set. Only valid
+//     if queue_id_valid is 1
+//   - mode - polling=1, interrupt=2, adaptive=3
+//
 // SwInterfaceSetRxMode defines message 'sw_interface_set_rx_mode'.
 type SwInterfaceSetRxMode struct {
 	SwIfIndex    interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2087,6 +2277,16 @@ func (m *SwInterfaceSetRxModeReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set an interface's rx-placement
+//
+//	Rx-Queue placement on specific thread is operational for only hardware
+//	interface. It will not set queue - thread placement for sub-interfaces,
+//	p2p and pipe interfaces.
+//	- sw_if_index - the interface whose rx-placement will be set
+//	- queue_id - the queue number whose rx-placement will be set.
+//	- worker_id - the worker number whom rx-placement will be at.
+//	- is_main - flag to set rx-placement to main thread
+//
 // SwInterfaceSetRxPlacement defines message 'sw_interface_set_rx_placement'.
 type SwInterfaceSetRxPlacement struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2167,6 +2367,11 @@ func (m *SwInterfaceSetRxPlacementReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Associate the specified interface with a fib table
+//   - sw_if_index - index of the interface
+//   - is_ipv6 - if non-zero ipv6, else ipv4
+//   - vrf_id - fib table/vrf id to associate the interface with
+//
 // SwInterfaceSetTable defines message 'sw_interface_set_table'.
 type SwInterfaceSetTable struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2241,6 +2446,17 @@ func (m *SwInterfaceSetTableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set an interface's tx-placement
+//
+//	Tx-Queue placement on specific thread is operational for only hardware
+//	interface. It will not set queue - thread placement for sub-interfaces,
+//	p2p and pipe interfaces.
+//	- sw_if_index - the interface whose tx-placement will be set
+//	- queue_id - the queue number whose tx-placement will be set.
+//	- array_size - the size of the thread indexes array
+//	- threads - the thread indexes of main and worker(s) threads
+//	                 whom tx-placement will be at.
+//
 // SwInterfaceSetTxPlacement defines message 'sw_interface_set_tx_placement'.
 type SwInterfaceSetTxPlacement struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2330,6 +2546,11 @@ func (m *SwInterfaceSetTxPlacementReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set unnumbered interface add / del request
+//   - sw_if_index - interface with an IP address
+//   - unnumbered_sw_if_index - interface which will use the address
+//   - is_add - if non-zero set the association, else unset it
+//
 // SwInterfaceSetUnnumbered defines message 'sw_interface_set_unnumbered'.
 type SwInterfaceSetUnnumbered struct {
 	SwIfIndex           interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2406,6 +2627,11 @@ func (m *SwInterfaceSetUnnumberedReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Set / clear software interface tag
+//   - sw_if_index - the interface
+//   - add_del - 1 = add, 0 = delete
+//   - tag - an ascii tag
+//
 // SwInterfaceTagAddDel defines message 'sw_interface_tag_add_del'.
 type SwInterfaceTagAddDel struct {
 	IsAdd     bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -2480,6 +2706,20 @@ func (m *SwInterfaceTagAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// show the interface's queue - thread placement
+//
+//	This api is used to display the interface and queue worker
+//	thread placement. One message per tx-queue per interface will
+//	be sent to client.
+//	Each message will contain information about tx-queue id of an
+//	interface, interface index, thread on which this tx-queue is
+//	placed and mode of tx-queue.
+//	- sw_if_index - the interface whose tx-placement will be dumped
+//	- queue_id - the queue id
+//	- shared - the queue is shared on other threads
+//	- array_size - the size of the threads array
+//	- threads - the main and worker(s) thread index(es) whom tx-placement are at.
+//
 // SwInterfaceTxPlacementDetails defines message 'sw_interface_tx_placement_details'.
 type SwInterfaceTxPlacementDetails struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2540,6 +2780,13 @@ func (m *SwInterfaceTxPlacementDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// get the tx queue placement of interface(s)
+//   - cursor - optional, it allows client to continue a dump
+//   - sw_if_index - optional interface index for which queue placement to
+//     be requested. sw_if_index = ~0 will get the placement information for all
+//     interfaces. It will not get information related to sub-interfaces, p2p
+//     and pipe interfaces.
+//
 // SwInterfaceTxPlacementGet defines message 'sw_interface_tx_placement_get'.
 type SwInterfaceTxPlacementGet struct {
 	Cursor    uint32                         `binapi:"u32,name=cursor" json:"cursor,omitempty"`
@@ -2577,6 +2824,13 @@ func (m *SwInterfaceTxPlacementGet) Unmarshal(b []byte) error {
 	return nil
 }
 
+// get the tx queue placement of interface(s)
+//   - cursor - optional, it allows client to continue a dump
+//   - sw_if_index - optional interface index for which queue placement to
+//     be requested. sw_if_index = ~0 will get the placement information for all
+//     interfaces. It will not get information related to sub-interfaces, p2p
+//     and pipe interfaces.
+//
 // SwInterfaceTxPlacementGetReply defines message 'sw_interface_tx_placement_get_reply'.
 type SwInterfaceTxPlacementGetReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -2616,6 +2870,10 @@ func (m *SwInterfaceTxPlacementGetReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Register for interface events
+//   - enable_disable - 1 => register for events, 0 => cancel registration
+//   - pid - sender's pid
+//
 // WantInterfaceEvents defines message 'want_interface_events'.
 type WantInterfaceEvents struct {
 	EnableDisable uint32 `binapi:"u32,name=enable_disable" json:"enable_disable,omitempty"`

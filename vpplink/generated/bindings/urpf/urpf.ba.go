@@ -59,6 +59,12 @@ func (x UrpfMode) String() string {
 	return "UrpfMode(" + strconv.Itoa(int(x)) + ")"
 }
 
+// * @brief Enable uRPF on a given interface in a given direction
+//   - - mode - Mode
+//   - - af - Address Family
+//   - - sw_if_index - Interface
+//   - - is_input - Direction.
+//
 // UrpfUpdate defines message 'urpf_update'.
 type UrpfUpdate struct {
 	IsInput   bool                           `binapi:"bool,name=is_input,default=true" json:"is_input,omitempty"`
@@ -137,6 +143,13 @@ func (m *UrpfUpdateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// * @brief Enable uRPF on a given interface in a given direction
+//   - - mode - Mode
+//   - - af - Address Family
+//   - - sw_if_index - Interface
+//   - - is_input - Direction.
+//   - - table-id - Table ID
+//
 // UrpfUpdateV2 defines message 'urpf_update_v2'.
 type UrpfUpdateV2 struct {
 	IsInput   bool                           `binapi:"bool,name=is_input,default=true" json:"is_input,omitempty"`

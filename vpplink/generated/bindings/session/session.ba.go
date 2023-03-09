@@ -94,6 +94,12 @@ func (x TransportProto) String() string {
 	return "TransportProto(" + strconv.Itoa(int(x)) + ")"
 }
 
+// Add certificate and key
+//   - engine - crypto engine
+//   - cert_len - cert length (comes first)
+//   - certkey_len - cert and key length
+//   - certkey - cert & key data (due to API limitation)
+//
 // AppAddCertKeyPair defines message 'app_add_cert_key_pair'.
 type AppAddCertKeyPair struct {
 	CertLen    uint16 `binapi:"u16,name=cert_len" json:"cert_len,omitempty"`
@@ -136,6 +142,10 @@ func (m *AppAddCertKeyPair) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add certificate and key
+//   - retval - return code for the request
+//   - index - index in certificate store
+//
 // AppAddCertKeyPairReply defines message 'app_add_cert_key_pair_reply'.
 type AppAddCertKeyPairReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -173,6 +183,10 @@ func (m *AppAddCertKeyPairReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Application attach to session layer
+//   - options - segment size, fifo sizes, etc.
+//   - namespace_id - string
+//
 // AppAttach defines message 'app_attach'.
 type AppAttach struct {
 	Options     []uint64 `binapi:"u64[18],name=options" json:"options,omitempty"`
@@ -219,6 +233,20 @@ func (m *AppAttach) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Application attach reply
+//   - retval - return code for the request
+//   - app_mq - app message queue
+//   - vpp_ctrl_mq - vpp message queue for control events that should
+//     be handled in main thread, i.e., bind/connect
+//   - vpp_ctrl_mq_thread_index - thread index of the ctrl mq
+//   - app_index - index of the newly created app
+//   - n_fds - number of fds exchanged
+//   - fd_flags - set of flags that indicate which fds are to be expected
+//     over the socket (set only if socket transport available)
+//   - segment_size - size of first shm segment
+//   - segment_handle - handle for segment
+//   - segment_name - name of segment client needs to attach to
+//
 // AppAttachReply defines message 'app_attach_reply'.
 type AppAttachReply struct {
 	Retval          int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -288,6 +316,9 @@ func (m *AppAttachReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Delete certificate and key
+//   - index - index in certificate store
+//
 // AppDelCertKeyPair defines message 'app_del_cert_key_pair'.
 type AppDelCertKeyPair struct {
 	Index uint32 `binapi:"u32,name=index" json:"index,omitempty"`
@@ -354,6 +385,18 @@ func (m *AppDelCertKeyPairReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// add/del application namespace
+//
+//	                      client to vpp direction only
+//	- secret - secret shared between app and vpp
+//	- sw_if_index - local interface that "supports" namespace. Set to
+//	                     ~0 if no preference
+//	- ip4_fib_id - id of ip4 fib that "supports" the namespace. Ignored
+//	                    if sw_if_index set.
+//	- ip6_fib_id - id of ip6 fib that "supports" the namespace. Ignored
+//	                    if sw_if_index set.
+//	- namespace_id - namespace id
+//
 // AppNamespaceAddDel defines message 'app_namespace_add_del'.
 // Deprecated: the message will be removed in the future versions
 type AppNamespaceAddDel struct {
@@ -404,6 +447,10 @@ func (m *AppNamespaceAddDel) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Reply for app namespace add/del
+//   - retval - return code
+//   - appns_index - app namespace index
+//
 // AppNamespaceAddDelReply defines message 'app_namespace_add_del_reply'.
 // Deprecated: the message will be removed in the future versions
 type AppNamespaceAddDelReply struct {
@@ -442,6 +489,19 @@ func (m *AppNamespaceAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// add/del application namespace
+//
+//	                      client to vpp direction only
+//	- secret - secret shared between app and vpp
+//	- sw_if_index - local interface that "supports" namespace. Set to
+//	                     ~0 if no preference
+//	- ip4_fib_id - id of ip4 fib that "supports" the namespace. Ignored
+//	                    if sw_if_index set.
+//	- ip6_fib_id - id of ip6 fib that "supports" the namespace. Ignored
+//	                    if sw_if_index set.
+//	- namespace_id - namespace id
+//	- netns - linux net namespace
+//
 // AppNamespaceAddDelV2 defines message 'app_namespace_add_del_v2'.
 type AppNamespaceAddDelV2 struct {
 	Secret      uint64                         `binapi:"u64,name=secret" json:"secret,omitempty"`
@@ -495,6 +555,10 @@ func (m *AppNamespaceAddDelV2) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Reply for app namespace add/del
+//   - retval - return code
+//   - appns_index - app namespace index
+//
 // AppNamespaceAddDelV2Reply defines message 'app_namespace_add_del_v2_reply'.
 type AppNamespaceAddDelV2Reply struct {
 	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -532,6 +596,20 @@ func (m *AppNamespaceAddDelV2Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// add/del application namespace
+//
+//	                      client to vpp direction only
+//	- secret - secret shared between app and vpp
+//	- sw_if_index - local interface that "supports" namespace. Set to
+//	                     ~0 if no preference
+//	- ip4_fib_id - id of ip4 fib that "supports" the namespace. Ignored
+//	                    if sw_if_index set.
+//	- ip6_fib_id - id of ip6 fib that "supports" the namespace. Ignored
+//	                    if sw_if_index set.
+//	- namespace_id - namespace id
+//	- netns - linux net namespace
+//	- sock_name - socket name (path, abstract socket name)
+//
 // AppNamespaceAddDelV3 defines message 'app_namespace_add_del_v3'.
 type AppNamespaceAddDelV3 struct {
 	Secret      uint64                         `binapi:"u64,name=secret" json:"secret,omitempty"`
@@ -593,6 +671,10 @@ func (m *AppNamespaceAddDelV3) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Reply for app namespace add/del
+//   - retval - return code
+//   - appns_index - app namespace index
+//
 // AppNamespaceAddDelV3Reply defines message 'app_namespace_add_del_v3_reply'.
 type AppNamespaceAddDelV3Reply struct {
 	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -630,6 +712,13 @@ func (m *AppNamespaceAddDelV3Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// add/del application worker
+//
+//	                      client to vpp direction only
+//	- app_index - application index
+//	- wrk_index - worker index, if a delete
+//	- is_add - set if an add
+//
 // AppWorkerAddDel defines message 'app_worker_add_del'.
 type AppWorkerAddDel struct {
 	AppIndex uint32 `binapi:"u32,name=app_index" json:"app_index,omitempty"`
@@ -671,6 +760,17 @@ func (m *AppWorkerAddDel) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Reply for app worker add/del
+//   - retval - return code
+//   - wrk_index - worker index, if add
+//   - app_event_queue_address - vpp event queue address of new worker
+//   - n_fds - number of fds exchanged
+//   - fd_flags - set of flags that indicate which fds are to be expected
+//     over the socket (set only if socket transport available)
+//   - segment_handle - handle for segment
+//   - is_add - add if non zero, else delete
+//   - segment_name - name of segment client needs to attach to
+//
 // AppWorkerAddDelReply defines message 'app_worker_add_del_reply'.
 type AppWorkerAddDelReply struct {
 	Retval               int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -732,6 +832,7 @@ func (m *AppWorkerAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Application detach from session layer
 // ApplicationDetach defines message 'application_detach'.
 type ApplicationDetach struct{}
 
@@ -792,6 +893,12 @@ func (m *ApplicationDetachReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Application add TLS certificate
+//
+//		### WILL BE DEPRECATED POST 20.01 ###
+//	   - cert_len - certificate length
+//	   - cert - certificate as a string
+//
 // ApplicationTLSCertAdd defines message 'application_tls_cert_add'.
 // Deprecated: to be removed post 21.06
 type ApplicationTLSCertAdd struct {
@@ -869,6 +976,12 @@ func (m *ApplicationTLSCertAddReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Application add TLS key
+//
+//		### WILL BE DEPRECATED POST 20.01 ###
+//	   - key_len - certificate length
+//	   - key - PEM encoded key as a string
+//
 // ApplicationTLSKeyAdd defines message 'application_tls_key_add'.
 // Deprecated: to be removed post 21.06
 type ApplicationTLSKeyAdd struct {
@@ -946,6 +1059,11 @@ func (m *ApplicationTLSKeyAddReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// enable/disable session layer
+//
+//	                      client to vpp direction only
+//	- is_enable - disable session layer if 0, enable otherwise
+//
 // SessionEnableDisable defines message 'session_enable_disable'.
 type SessionEnableDisable struct {
 	IsEnable bool `binapi:"bool,name=is_enable,default=true" json:"is_enable,omitempty"`
@@ -1012,6 +1130,25 @@ func (m *SessionEnableDisableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// add/del session rule
+//
+//	                      client to vpp direction only
+//	- transport_proto - transport protocol
+//	- is_ip4 - flag to indicate if ip addresses are ip4 or 6
+//	- lcl_ip - local ip
+//	- lcl_plen - local prefix length
+//	- rmt_ip - remote ip
+//	- rmt_ple - remote prefix length
+//	- lcl_port - local port
+//	- rmt_port - remote port
+//	- action_index - the only action defined now is forward to
+//	                      application with index action_index
+//	- is_add - flag to indicate if add or del
+//	- appns_index - application namespace where rule is to be applied to
+//	- scope - enum that indicates scope of the rule: global or local.
+//	               If 0, default is global, 1 is global 2 is local, 3 is both
+//	- tag - tag
+//
 // SessionRuleAddDel defines message 'session_rule_add_del'.
 type SessionRuleAddDel struct {
 	TransportProto TransportProto   `binapi:"transport_proto,name=transport_proto" json:"transport_proto,omitempty"`
@@ -1126,6 +1263,22 @@ func (m *SessionRuleAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Session rules details
+//   - transport_proto - transport protocol
+//   - is_ip4 - flag to indicate if ip addresses are ip4 or 6
+//   - lcl_ip - local ip
+//   - lcl_plen - local prefix length
+//   - rmt_ip - remote ip
+//   - rmt_ple - remote prefix length
+//   - lcl_port - local port
+//   - rmt_port - remote port
+//   - action_index - the only action defined now is forward to
+//     application with index action_index
+//   - appns_index - application namespace where rule is to be applied to
+//   - scope - enum that indicates scope of the rule: global or local.
+//     If 0, default is global, 1 is global 2 is local, 3 is both
+//   - tag - tag
+//
 // SessionRulesDetails defines message 'session_rules_details'.
 type SessionRulesDetails struct {
 	TransportProto TransportProto   `binapi:"transport_proto,name=transport_proto" json:"transport_proto,omitempty"`
@@ -1203,6 +1356,7 @@ func (m *SessionRulesDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Dump session rules
 // SessionRulesDump defines message 'session_rules_dump'.
 type SessionRulesDump struct{}
 
@@ -1230,6 +1384,11 @@ func (m *SessionRulesDump) Unmarshal(b []byte) error {
 	return nil
 }
 
+// enable/disable session layer socket api
+//
+//	                      client to vpp direction only
+//	- is_enable - disable session layer if 0, enable otherwise
+//
 // SessionSapiEnableDisable defines message 'session_sapi_enable_disable'.
 type SessionSapiEnableDisable struct {
 	IsEnable bool `binapi:"bool,name=is_enable,default=true" json:"is_enable,omitempty"`

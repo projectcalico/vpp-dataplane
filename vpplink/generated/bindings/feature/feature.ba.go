@@ -24,6 +24,10 @@ const (
 	VersionCrc = 0x8a6e6da1
 )
 
+// Feature path enable/disable request
+//   - sw_if_index - the interface
+//   - enable - 1 = on, 0 = off
+//
 // FeatureEnableDisable defines message 'feature_enable_disable'.
 type FeatureEnableDisable struct {
 	SwIfIndex   interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
