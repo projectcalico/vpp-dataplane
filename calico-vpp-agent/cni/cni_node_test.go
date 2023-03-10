@@ -19,19 +19,14 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
-	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	vpptypes "github.com/calico-vpp/vpplink/api/v0"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	gs "github.com/onsi/gomega/gstruct"
 	gobgpapi "github.com/osrg/gobgp/v3/api"
-	"github.com/pkg/errors"
-	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/calico/felix/config"
 	"github.com/projectcalico/calico/felix/proto"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
@@ -41,13 +36,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	test "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common_tests"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks/calico"
 	agentConf "github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
@@ -57,15 +51,6 @@ const (
 	VppImageArgName              = "VPP_IMAGE"
 	VppBinaryArgName             = "VPP_BINARY"
 	VppContainerExtraArgsName    = "VPP_CONTAINER_EXTRA_ARGS"
-)
-
-var (
-	// vppImage is the name of docker image containing VPP binary
-	vppImage string
-	// vppBinary is the full path to VPP binary inside docker image
-	vppBinary string
-	// vppContainerExtraArgs is a list of additionnal cli parameters for the VPP `docker run ...`
-	vppContainerExtraArgs []string = []string{}
 )
 
 // TestCniIntegration runs all the ginkgo integration test inside CNI package
@@ -84,20 +69,20 @@ func TestCniIntegration(t *testing.T) {
 var _ = BeforeSuite(func() {
 	// extract common input for CNI integration tests
 	var found bool
-	vppImage, found = os.LookupEnv(VppImageArgName)
+	test.VppImage, found = os.LookupEnv(VppImageArgName)
 	if !found {
-		Expect(vppImage).ToNot(BeEmpty(), fmt.Sprintf("Please specify docker image containing "+
+		Expect(test.VppImage).ToNot(BeEmpty(), fmt.Sprintf("Please specify docker image containing "+
 			"VPP binary using %s environment variable.", VppImageArgName))
 	}
-	vppBinary, found = os.LookupEnv(VppBinaryArgName)
+	test.VppBinary, found = os.LookupEnv(VppBinaryArgName)
 	if !found {
-		Expect(vppBinary).ToNot(BeEmpty(), fmt.Sprintf("Please specify VPP binary (full path) "+
-			"inside docker image %s using %s environment variable.", vppImage, VppBinaryArgName))
+		Expect(test.VppBinary).ToNot(BeEmpty(), fmt.Sprintf("Please specify VPP binary (full path) "+
+			"inside docker image %s using %s environment variable.", test.VppImage, VppBinaryArgName))
 	}
 
 	vppContainerExtraArgsList, found := os.LookupEnv(VppContainerExtraArgsName)
 	if found {
-		vppContainerExtraArgs = append(vppContainerExtraArgs, strings.Split(vppContainerExtraArgsList, ",")...)
+		test.VppContainerExtraArgs = append(test.VppContainerExtraArgs, strings.Split(vppContainerExtraArgsList, ",")...)
 	}
 
 })
@@ -140,8 +125,8 @@ var _ = Describe("Node-related functionality of CNI", func() {
 	})
 
 	JustBeforeEach(func() {
-		startVPP()
-		vpp, uplinkSwIfIndex = configureVPP(log)
+		test.StartVPP()
+		vpp, uplinkSwIfIndex = test.ConfigureVPP(log)
 
 		// setup connectivity server (functionality target of tests)
 		if ipamStub == nil {
@@ -162,7 +147,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			It("should only configure correct routes in VPP", func() {
 				By("Adding node")
 				err := connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
-					Dst:              *ipNet(AddedNodeIP + "/24"),
+					Dst:              *test.IpNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.FLAT,
 					Custom:           nil,
@@ -175,14 +160,14 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(routes).To(ContainElements(
 					// route to destination going via gateway
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-						"Dst": gs.PointTo(Equal(*ipNet("10.0.200.0/24"))),
+						"Dst": gs.PointTo(Equal(*test.IpNet("10.0.200.0/24"))),
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"Gw": Equal(net.ParseIP(GatewayIP).To4()),
 						})),
 					}),
 					// using gateway means using our uplink interface
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-						"Dst": gs.PointTo(Equal(*ipNet(GatewayIP + "/32"))),
+						"Dst": gs.PointTo(Equal(*test.IpNet(GatewayIP + "/32"))),
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"SwIfIndex": Equal(uplinkSwIfIndex),
 						})),
@@ -194,7 +179,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			BeforeEach(func() {
 				// add node pool for IPSec (uses IPIP tunnels)
 				ipamStub = mocks.NewIpamCacheStub()
-				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &proto.IPAMPoolUpdate{
+				ipamStub.AddPrefixIPPool(test.IpNet(AddedNodeIP+"/24"), &proto.IPAMPoolUpdate{
 					Id: fmt.Sprintf("custom-test-pool-for-ipsec-%s", AddedNodeIP+"/24"),
 					Pool: &proto.IPAMPool{
 						Cidr:     AddedNodeIP + "/24",
@@ -229,7 +214,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				//Note: not testing setting of IPsecAsyncMode and threads dedicated to IPSec (CryptoWorkers)
 				// inside RescanState() function call
 				By("Adding node")
-				configureBGPNodeIPAddresses(connectivityServer)
+				test.ConfigureBGPNodeIPAddresses(connectivityServer)
 				// FIXME The concept of Destination and NextHop in common.NodeConnectivity is not well defined
 				//  (is the Destination the IP of added node, or it subnet or totally unrelated network? Is
 				//  the nexthop the IP of added node or could it be IP of some intermediate router that is
@@ -238,7 +223,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				//  in connectivity provider implementation and check each test for semantics used in given
 				//  connectivity provider
 				err := connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
-					Dst:              *ipNet(AddedNodeIP + "/24"),
+					Dst:              *test.IpNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(AddedNodeIP), // next hop == other node IP (for IPSec impl)
 					ResolvedProvider: connectivity.IPSEC,
 					Custom:           nil,
@@ -267,10 +252,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}))
 
 				By("checking IPSec's IPIP tunnel interface attributes (Unnumbered)")
-				assertUnnumberedInterface(ipipSwIfIndex, "IPSec's IPIP tunnel interface", vpp)
+				test.AssertUnnumberedInterface(ipipSwIfIndex, "IPSec's IPIP tunnel interface", vpp)
 
 				By("checking IPSec's IPIP tunnel interface attributes (GSO+CNAT)")
-				assertInterfaceGSOCNat(ipipSwIfIndex, "IPSec's IPIP tunnel interface", vpp)
+				test.AssertInterfaceGSOCNat(ipipSwIfIndex, "IPSec's IPIP tunnel interface", vpp)
 
 				By("checking route for IPSec's IPIP tunnel from pod VRF")
 				routes, err := vpp.GetRoutes(common.PodVRFIndex, false)
@@ -278,7 +263,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(routes).To(ContainElements(
 					// when IPIP is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/32"))),
+						"Dst": gs.PointTo(Equal(*test.IpNet(AddedNodeIP + "/32"))),
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"SwIfIndex": Equal(ipipSwIfIndex),
 						})),
@@ -336,7 +321,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			BeforeEach(func() {
 				// add node pool for VXLAN
 				ipamStub = mocks.NewIpamCacheStub()
-				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &proto.IPAMPoolUpdate{
+				ipamStub.AddPrefixIPPool(test.IpNet(AddedNodeIP+"/24"), &proto.IPAMPoolUpdate{
 					Id: fmt.Sprintf("custom-test-pool-for-vxlan-%s", AddedNodeIP+"/24"),
 					Pool: &proto.IPAMPool{
 						Cidr:      AddedNodeIP + "/24",
@@ -360,13 +345,13 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					"can't properly create ???")
 
 				By("Checking VPP's node graph modifications for VXLAN")
-				ipv4DecapNextIndex := assertNextNodeLink("vxlan4-input", "ip4-input", vpp)
-				assertNextNodeLink("vxlan6-input", "ip6-input", vpp)
+				ipv4DecapNextIndex := test.AssertNextNodeLink("vxlan4-input", "ip4-input", vpp)
+				test.AssertNextNodeLink("vxlan6-input", "ip6-input", vpp)
 
 				By("Adding node")
-				configureBGPNodeIPAddresses(connectivityServer)
+				test.ConfigureBGPNodeIPAddresses(connectivityServer)
 				err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
-					Dst:              *ipNet(AddedNodeIP + "/24"),
+					Dst:              *test.IpNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.VXLAN,
 					Custom:           nil,
@@ -389,10 +374,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}))
 
 				By("checking VXLAN tunnel interface attributes (Unnumbered)")
-				assertUnnumberedInterface(vxlanSwIfIndex, "VXLAN tunnel interface", vpp)
+				test.AssertUnnumberedInterface(vxlanSwIfIndex, "VXLAN tunnel interface", vpp)
 
 				By("checking VXLAN tunnel interface attributes (GSO+CNAT)")
-				assertInterfaceGSOCNat(vxlanSwIfIndex, "VXLAN tunnel interface", vpp)
+				test.AssertInterfaceGSOCNat(vxlanSwIfIndex, "VXLAN tunnel interface", vpp)
 
 				By("checking VXLAN tunnel interface attributes (Up state)")
 				interfaceDetails, err := vpp.GetInterfaceDetails(vxlanSwIfIndex)
@@ -405,7 +390,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(routes).To(ContainElements(
 					// when VXLAN is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-						"Dst": gs.PointTo(Equal(*ipNet(GatewayIP + "/32"))),
+						"Dst": gs.PointTo(Equal(*test.IpNet(GatewayIP + "/32"))),
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"SwIfIndex": Equal(vxlanSwIfIndex),
 						})),
@@ -415,7 +400,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(routes).To(ContainElements(
 					// steering route for NodeConnectivity.Dst using vxlan that is leading to the added node
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
+						"Dst": gs.PointTo(Equal(*test.IpNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"SwIfIndex": Equal(vxlanSwIfIndex),
 						})),
@@ -441,7 +426,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			BeforeEach(func() {
 				// add node pool for IPIP
 				ipamStub = mocks.NewIpamCacheStub()
-				ipamStub.AddPrefixIPPool(ipNet(AddedNodeIP+"/24"), &proto.IPAMPoolUpdate{
+				ipamStub.AddPrefixIPPool(test.IpNet(AddedNodeIP+"/24"), &proto.IPAMPoolUpdate{
 					Id: fmt.Sprintf("custom-test-pool-for-ipip-%s", AddedNodeIP+"/24"),
 					Pool: &proto.IPAMPool{
 						Cidr:     AddedNodeIP + "/24",
@@ -460,9 +445,9 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 			It("should have IP-IP tunnel and route forwarding to it", func() {
 				By("Adding node")
-				configureBGPNodeIPAddresses(connectivityServer)
+				test.ConfigureBGPNodeIPAddresses(connectivityServer)
 				err := connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
-					Dst:              *ipNet(AddedNodeIP + "/24"),
+					Dst:              *test.IpNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.IPIP,
 					Custom:           nil,
@@ -482,10 +467,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}))
 
 				By("checking IPIP tunnel interface attributes (Unnumbered)")
-				assertUnnumberedInterface(ipipSwIfIndex, "IPIP tunnel interface", vpp)
+				test.AssertUnnumberedInterface(ipipSwIfIndex, "IPIP tunnel interface", vpp)
 
 				By("checking IPIP tunnel interface attributes (GSO+CNAT)")
-				assertInterfaceGSOCNat(ipipSwIfIndex, "IPIP tunnel interface", vpp)
+				test.AssertInterfaceGSOCNat(ipipSwIfIndex, "IPIP tunnel interface", vpp)
 
 				By("checking IPIP tunnel interface attributes (Up state)")
 				interfaceDetails, err := vpp.GetInterfaceDetails(ipipSwIfIndex)
@@ -498,7 +483,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(routes).To(ContainElements(
 					// when IPIP is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-						"Dst": gs.PointTo(Equal(*ipNet(GatewayIP + "/32"))),
+						"Dst": gs.PointTo(Equal(*test.IpNet(GatewayIP + "/32"))),
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"SwIfIndex": Equal(ipipSwIfIndex),
 						})),
@@ -508,7 +493,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(routes).To(ContainElements(
 					// steering route for NodeConnectivity.Dst using ipip that is leading to the added node
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
+						"Dst": gs.PointTo(Equal(*test.IpNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"SwIfIndex": Equal(ipipSwIfIndex),
 						})),
@@ -562,7 +547,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 			It("must configure wireguard tunnel with one peer and routes to it", func() {
 				By("Adding node")
-				configureBGPNodeIPAddresses(connectivityServer)
+				test.ConfigureBGPNodeIPAddresses(connectivityServer)
 				err := connectivityServer.ForceProviderEnableDisable(connectivity.WIREGUARD, true) // creates the tunnel (this is normally called by Felix config change event handler)
 				Expect(err).ToNot(HaveOccurred(), "could not call ForceProviderEnableDisable")
 
@@ -572,7 +557,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}, net.ParseIP(AddedNodeIP))
 				connectivityServer.ForceWGPublicKeyAddition(AddedNodeName, base64.StdEncoding.EncodeToString([]byte(addedNodePublicKey)))
 				err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
-					Dst:              *ipNet(AddedNodeIP + "/24"),
+					Dst:              *test.IpNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(AddedNodeIP), // wireguard impl uses nexthop as node IP
 					ResolvedProvider: connectivity.WIREGUARD,
 					Custom:           nil,
@@ -590,10 +575,10 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(wgTunnel.Addr).To(Equal(net.ParseIP(ThisNodeIP).To4()),
 					"incorrectly set IP address of this node's wireguard tunnel interface")
 				By("checking wireguard tunnel interface attributes (Unnumbered)")
-				assertUnnumberedInterface(wireguardSwIfIndex, "wireguard tunnel interface", vpp)
+				test.AssertUnnumberedInterface(wireguardSwIfIndex, "wireguard tunnel interface", vpp)
 
 				By("checking wireguard tunnel interface attributes (GSO+CNAT)")
-				assertInterfaceGSOCNat(wireguardSwIfIndex, "wireguard tunnel interface", vpp)
+				test.AssertInterfaceGSOCNat(wireguardSwIfIndex, "wireguard tunnel interface", vpp)
 
 				By("checking wireguard tunnel interface attributes (Up state)")
 				interfaceDetails, err := vpp.GetInterfaceDetails(wireguardSwIfIndex)
@@ -626,12 +611,12 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					"can't get wireguard peers from VPP")
 				Expect(peers).To(ContainElement(gs.PointTo(
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-						"PublicKey":  Equal(addPaddingTo32Bytes([]byte(addedNodePublicKey))),
+						"PublicKey":  Equal(test.AddPaddingTo32Bytes([]byte(addedNodePublicKey))),
 						"Port":       Equal(uint16(felixConfig.WireguardListeningPort)),
 						"TableID":    Equal(uint32(0)), // default table
 						"Addr":       Equal(net.ParseIP(AddedNodeIP).To4()),
 						"SwIfIndex":  Equal(wireguardSwIfIndex),
-						"AllowedIps": ContainElements(*ipNet(AddedNodeIP + "/32")),
+						"AllowedIps": ContainElements(*test.IpNet(AddedNodeIP + "/32")),
 					}),
 				)))
 
@@ -641,7 +626,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(routes).To(ContainElements(
 					// when wireguard is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/32"))),
+						"Dst": gs.PointTo(Equal(*test.IpNet(AddedNodeIP + "/32"))),
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"SwIfIndex": Equal(wireguardSwIfIndex),
 						})),
@@ -651,7 +636,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(routes).To(ContainElements(
 					// steering route for NodeConnectivity.Dst using wireguard tunnel that is leading to the added node
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-						"Dst": gs.PointTo(Equal(*ipNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
+						"Dst": gs.PointTo(Equal(*test.IpNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"SwIfIndex": Equal(wireguardSwIfIndex),
 						})),
@@ -689,8 +674,8 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				agentConf.GetCalicoVppSrv6().PolicyPool = "C::/16"   // also C::<node number>/112 subnet for BindingSIDs(=BSID=PolicyIP) for given node
 				*agentConf.NodeName = ThisNodeName
 
-				// add node pool for SRv6 (subnet of agentConf.CalicoVppSrv6.LocalsidPool)
-				_, err := addIPPoolForCalicoClient(client, fmt.Sprintf("sr-localsids-pool-%s", *agentConf.NodeName), "B::1:0/112")
+				// add node pool for SRv6 (subnet of agentConf.SRv6localSidIPPool)
+				_, err := test.AddIPPoolForCalicoClient(client, fmt.Sprintf("sr-localsids-pool-%s", *agentConf.NodeName), "B::1:0/112")
 				Expect(err).ToNot(HaveOccurred(), "could not call addIPPoolForCalicoClient")
 
 				// SID/BSID format for testing: <BSID/Localsid prefix><node id>:<suffix created by IPAM IP assignment>
@@ -713,7 +698,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					Expect(localsids).To(ContainElement(gs.PointTo(
 						gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							// first IPAM-assigned IP for SRv6 node pool
-							"Localsid": Equal(iptypesIP6Address("B::1:1")),
+							"Localsid": Equal(test.IptypesIP6Address("B::1:1")),
 							// exit tunnel by decapsulation + further routing using IPv4 routing table
 							// (had to be Ipv4 traffic before encapsulation)
 							"Behavior": Equal(types.SrBehaviorDT4),
@@ -724,7 +709,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					Expect(localsids).To(ContainElement(gs.PointTo(
 						gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							// second IPAM-assigned IP for SRv6 node pool
-							"Localsid": Equal(iptypesIP6Address("B::1:2")),
+							"Localsid": Equal(test.IptypesIP6Address("B::1:2")),
 							// exit tunnel by decapsulation + further routing using IPv6 routing table
 							// (had to be Ipv6 traffic before encapsulation)
 							"Behavior": Equal(types.SrBehaviorDT6),
@@ -739,12 +724,12 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					"encapsulated traffic forwarding", func() {
 					// variables related to tunnel-end node (node id=2)
 					_, tunnelEndNodeIPNet, _ := net.ParseCIDR(AddedNodeIP + "/24")
-					policyBsid := net.ParseIP("C::2:1")      // normally generated by IPAM on tunnel end node
-					tunnelEndLocalSid := ipNet("B::2:1/128") // normally generated by IPAM on tunnel end node
+					policyBsid := net.ParseIP("C::2:1")           // normally generated by IPAM on tunnel end node
+					tunnelEndLocalSid := test.IpNet("B::2:1/128") // normally generated by IPAM on tunnel end node
 
 					By("Setting and checking encapsulation source for SRv6")
 					// Note: encapsulation source sets source IP for traffic when exiting tunnel(=decapsulating)
-					configureBGPNodeIPAddresses(connectivityServer)
+					test.ConfigureBGPNodeIPAddresses(connectivityServer)
 					err := connectivityServer.ForceRescanState(connectivity.SRv6)
 					Expect(err).ToNot(HaveOccurred(), "can't rescan state of VPP and therefore "+
 						"can't properly set encapsulation source IP for this node")
@@ -787,7 +772,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 								SidLists: []types.Srv6SidList{{
 									NumSids: uint8(1),
 									Weight:  1,
-									Sids:    sidArray(types.ToVppIP6Address(tunnelEndLocalSid.IP)),
+									Sids:    test.SidArray(types.ToVppIP6Address(tunnelEndLocalSid.IP)),
 								}},
 							},
 						},
@@ -827,7 +812,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						SidLists: []types.Srv6SidList{{
 							NumSids: uint8(1),
 							Weight:  1,
-							Sids:    sidArray(types.ToVppIP6Address(tunnelEndLocalSid.IP)),
+							Sids:    test.SidArray(types.ToVppIP6Address(tunnelEndLocalSid.IP)),
 						}},
 					}), "Can't find SRv6 policy")
 
@@ -850,230 +835,6 @@ var _ = Describe("Node-related functionality of CNI", func() {
 	})
 
 	AfterEach(func() {
-		teardownVPP()
+		test.TeardownVPP()
 	})
 })
-
-// startVPP creates docker container and runs inside the VPP
-func startVPP() {
-	// prepare VPP configuration
-	vppBinaryConfigArg := `unix {
-			nodaemon
-			full-coredump
-			cli-listen /var/run/vpp/cli.sock
-			pidfile /run/vpp/vpp.pid
-		  }
-		  api-trace { on }
-		  cpu {
-			  workers 0
-		  }
-		  socksvr {
-			  socket-name /var/run/vpp/vpp-api-test.sock
-		  }
-		  plugins {
-			  plugin default { enable }
-			  plugin dpdk_plugin.so { disable }
-			  plugin calico_plugin.so { enable }
-			  plugin ping_plugin.so { disable }
-		  }
-		  buffers {
-			buffers-per-numa 131072
-		  }`
-
-	// docker container cleanup (failed test that didn't properly clean up docker containers?)
-	err := exec.Command("docker", "rm", "-f", VPPContainerName).Run()
-	Expect(err).Should(BeNil(), "Failed to clean up old VPP docker container")
-
-	// start VPP inside docker container
-	cmd := []string{"run", "-d", "--privileged", "--name", VPPContainerName,
-		"-v", "/tmp/" + VPPContainerName + ":/var/run/vpp/",
-		"-v", "/proc:/proc", // needed for manipulation of another docker container's network namespace
-		"--pid=host",
-		"--sysctl", "net.ipv6.conf.all.disable_ipv6=0"} // enable IPv6 in container (to set IPv6 on host's end of uplink)
-	cmd = append(cmd, vppContainerExtraArgs...)
-	cmd = append(cmd, "--entrypoint", vppBinary, vppImage, vppBinaryConfigArg)
-	err = exec.Command("docker", cmd...).Run()
-	Expect(err).Should(BeNil(), "Failed to start VPP inside docker container")
-}
-
-// configureVPP connects to VPP and configures it with common configuration needed for tests
-func configureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uint32) {
-	// connect to VPP
-	vpp, err := common.CreateVppLinkInRetryLoop("/tmp/"+VPPContainerName+"/vpp-api-test.sock",
-		log.WithFields(logrus.Fields{"component": "vpp-api"}), 20*time.Second, 100*time.Millisecond)
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Cannot create VPP client: %v", err))
-	Expect(vpp).NotTo(BeNil())
-
-	// setup common VRF setup
-	for _, ipFamily := range vpplink.IpFamilies { //needed config for pod creation tests
-		err := vpp.AddVRF(common.PuntTableId, ipFamily.IsIp6, fmt.Sprintf("punt-table-%s", ipFamily.Str))
-		if err != nil {
-			log.Fatal(errors.Wrapf(err, "Error creating punt vrf %s", ipFamily.Str))
-		}
-		err = vpp.AddVRF(common.PodVRFIndex, ipFamily.IsIp6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = vpp.AddDefaultRouteViaTable(common.PodVRFIndex, common.DefaultVRFIndex, ipFamily.IsIp6)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	// setup simplified mock version of uplink interface
-	// Note: for the real configuration of the uplink interface and other related things see
-	// UplinkDriver.CreateMainVppInterface(...) and VppRunner.configureVpp(...))
-	uplinkSwIfIndex, err = vpp.CreateTapV2(&types.TapV2{
-		GenericVppInterface: types.GenericVppInterface{
-			HostInterfaceName: UplinkIfName,
-			HardwareAddr:      mac("aa:bb:cc:dd:ee:01"),
-		},
-		Tag:   fmt.Sprintf("host-%s", UplinkIfName),
-		Flags: types.TapFlagNone,
-		// Host end of tap (it is located inside docker container)
-		HostMtu:        1500,
-		HostMacAddress: mac("aa:bb:cc:dd:ee:02"),
-	})
-	Expect(err).ToNot(HaveOccurred(), "Error creating mocked Uplink interface")
-	err = vpp.InterfaceAdminUp(uplinkSwIfIndex)
-	Expect(err).ToNot(HaveOccurred(), "Error setting state to UP for mocked Uplink interface")
-	err = vpp.AddInterfaceAddress(uplinkSwIfIndex, ipNet(UplinkIP+"/24"))
-	Expect(err).ToNot(HaveOccurred(), "Error adding IPv4 address to data interface")
-	err = vpp.AddInterfaceAddress(uplinkSwIfIndex, ipNet(UplinkIPv6+"/16"))
-	Expect(err).ToNot(HaveOccurred(), "Error adding IPv6 address to data interface")
-	err = exec.Command("docker", "exec", VPPContainerName, "ip", "address", "add",
-		GatewayIP+"/24", "dev", UplinkIfName).Run()
-	Expect(err).ToNot(HaveOccurred(), "Failed to set IPv4 address for host end of tap")
-	err = exec.Command("docker", "exec", VPPContainerName, "ip", "address", "add",
-		GatewayIPv6+"/16", "dev", UplinkIfName).Run()
-	Expect(err).ToNot(HaveOccurred(), "Failed to set IPv6 address for host end of tap")
-	err = exec.Command("docker", "exec", VPPContainerName, "ip", "link", "set",
-		UplinkIfName, "up").Run()
-	Expect(err).ToNot(HaveOccurred(), "Failed to set state to UP for host end of tap")
-
-	return
-}
-
-// teardownVPP removes container with running VPP to stop VPP and clean after it
-func teardownVPP() {
-	err := exec.Command("docker", "rm", "-f", VPPContainerName).Run()
-	Expect(err).Should(BeNil(), "Failed to stop and remove VPP docker container")
-}
-
-// assertUnnumberedInterface checks whether the provided interface is unnumbered and properly takes IP address
-// from the correct interface (common.VppManagerInfo.GetMainSwIfIndex()).
-func assertUnnumberedInterface(swIfIndex uint32, interfaceDescriptiveName string, vpp *vpplink.VppLink) {
-	unnumberedDetails, err := vpp.InterfaceGetUnnumbered(swIfIndex)
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("can't get unnumbered details of %s", interfaceDescriptiveName))
-	Expect(unnumberedDetails).ToNot(BeEmpty(), "can't find unnumbered interface")
-	Expect(unnumberedDetails[0].IPSwIfIndex).To(Equal(
-		interface_types.InterfaceIndex(common.VppManagerInfo.GetMainSwIfIndex())),
-		fmt.Sprintf("Unnumberred %s doesn't get IP address from expected interface", interfaceDescriptiveName))
-}
-
-// assertInterfaceGSOCNat check whether the given interface has properly set the GSO and CNAT attributes
-func assertInterfaceGSOCNat(swIfIndex uint32, interfaceDescriptiveName string, vpp *vpplink.VppLink) {
-	// Note: no specialized binary api or VPP CLI for getting GSO on interface -> using
-	// Feature Arcs (https://wiki.fd.io/view/VPP/Feature_Arcs) to detect it (GSO is using them to steer
-	// traffic), Feature Arcs have no binary API -> using VPP's VPE binary API
-	featuresStr, err := vpp.RunCli(fmt.Sprintf("sh interface %d features", swIfIndex))
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("failed to get %s's configured features", interfaceDescriptiveName))
-	featuresStr = strings.ToLower(featuresStr)
-	var GSOFeatureArcs = []string{"gso-ip4", "gso-ip6", "gso-l2-ip4", "gso-l2-ip6"}
-	for _, gsoStr := range GSOFeatureArcs {
-		// Note: not checking full Feature Arc (i.e. ipv4-unicast: gso-ipv4), just the destination
-		// of traffic steering. This is enough because without GSO enabled, the destination would not exist.
-		Expect(featuresStr).To(ContainSubstring(gsoStr), fmt.Sprintf("GSO not fully enabled "+
-			"due to missing %s in configured features arcs %s", gsoStr, featuresStr))
-	}
-	var CNATFeatureArcs = []string{"cnat-input-ip4", "cnat-input-ip6", "cnat-output-ip4", "cnat-output-ip6"}
-	for _, cnatStr := range CNATFeatureArcs {
-		// Note: could be enhanced by checking the full Feature Arc (from where we steer traffic to cnat)
-		Expect(featuresStr).To(ContainSubstring(cnatStr), fmt.Sprintf("CNAT not fully enabled "+
-			"due to missing %s in configured features arcs %s", cnatStr, featuresStr))
-	}
-}
-
-// assertNextNodeLink asserts that in VPP graph the given node has linked the linkedNextNode as one of its
-// "next" nodes for processing. It returns to node specific index of the checked next node.
-func assertNextNodeLink(node, linkedNextNode string, vpp *vpplink.VppLink) int {
-	// get the node information from VPP (No VPP binary API for that -> using VPE)
-	nodeInfoStr, err := vpp.RunCli(fmt.Sprintf("show node %s", node))
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to VPP graph info for node %s", node))
-
-	// asserting next node
-	Expect(strings.ToLower(nodeInfoStr)).To(ContainSubstring(strings.ToLower(linkedNextNode)),
-		fmt.Sprintf("can't find added next node %s in node %s information", linkedNextNode, node))
-
-	// getting next node's index that is relative to the given node (this is kind of brittle as we parse VPP CLI output)
-	linesToNextNode := strings.Split(strings.Split(nodeInfoStr, linkedNextNode)[0], "\n")
-	indexStrOfLinkedNextNode := strings.TrimSpace(linesToNextNode[len(linesToNextNode)-1][:10])
-	nextNodeIndex, err := strconv.Atoi(indexStrOfLinkedNextNode)
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("can't parse next node index "+
-		"in given node from VPP CLI output %s", nodeInfoStr))
-
-	return nextNodeIndex
-}
-
-func configureBGPNodeIPAddresses(connectivityServer *connectivity.ConnectivityServer) {
-	ip4, ip4net, _ := net.ParseCIDR(ThisNodeIP + "/24")
-	ip4net.IP = ip4
-	ip6, ip6net, _ := net.ParseCIDR(ThisNodeIPv6 + "/128")
-	ip6net.IP = ip6
-	connectivityServer.SetOurBGPSpec(&common.LocalNodeSpec{
-		IPv4Address: ip4net,
-		IPv6Address: ip6net,
-	})
-}
-
-// addIPPoolForCalicoClient is convenience function for adding IPPool to mocked Calico IPAM Stub used
-// in Calico client stub. This function doesn't set anything for the watchers.IpamCache implementation.
-func addIPPoolForCalicoClient(client *calico.CalicoClientStub, poolName string, poolCIRD string) (
-	*apiv3.IPPool, error) {
-	return client.IPPoolsStub.Create(context.Background(), &apiv3.IPPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: poolName,
-		},
-		Spec: apiv3.IPPoolSpec{
-			CIDR: poolCIRD,
-		},
-	}, options.SetOptions{})
-}
-
-func ipNet(ipNetCIDRStr string) *net.IPNet {
-	_, ipNet, err := net.ParseCIDR(ipNetCIDRStr)
-	Expect(err).To(BeNil())
-	return ipNet
-}
-
-func ipNetWithIPInIPv6Format(ipNetCIDRStr string) *net.IPNet {
-	_, ipNet, err := net.ParseCIDR(ipNetCIDRStr)
-	ipNet.IP = ipNet.IP.To16()
-	Expect(err).To(BeNil())
-	return ipNet
-}
-
-func mac(macStr string) net.HardwareAddr {
-	mac, err := net.ParseMAC(macStr)
-	Expect(err).To(BeNil())
-	return mac
-}
-
-func iptypesIP6Address(address string) ip_types.IP6Address {
-	addr, err := ip_types.ParseAddress(address)
-	Expect(err).ToNot(HaveOccurred(), "failed to parse ip_types.IP6Addess from string %s", addr)
-	return addr.Un.GetIP6()
-}
-
-func sidArray(addresses ...ip_types.IP6Address) (sids [16]ip_types.IP6Address) {
-	copy(sids[:], addresses)
-	return sids
-}
-
-func addPaddingTo32Bytes(value []byte) []byte {
-	result := [32]byte{}
-	copy(result[:], value)
-	return result[:]
-}
