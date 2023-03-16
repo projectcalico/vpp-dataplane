@@ -99,6 +99,8 @@ git_cherry_pick refs/changes/78/35678/2 # 35678: dpdk: copy the enable_rxq_int f
 
 git_cherry_pick refs/changes/65/37365/2 # 37365: gso: set the header offsets in gro hdr fixup | https://gerrit.fd.io/r/c/vpp/+/37365
 git_cherry_pick refs/changes/64/37364/1 # 37364: gso: fix the checksum for odd number of data bytes | https://gerrit.fd.io/r/c/vpp/+/37364
+git_cherry_pick refs/changes/35/35735/2 # 35735: stats: fix vlib_stats_validate_will_expand_internal | https://gerrit.fd.io/r/c/vpp/+/35735
+git_cherry_pick refs/changes/52/35752/1 # 35752: stats: fix crash due to pointer taken before validate | https://gerrit.fd.io/r/c/vpp/+/35752
 
 # --------------- Dedicated plugins ---------------
 git_cherry_pick refs/changes/64/33264/7 # 33264: pbl: Port based balancer | https://gerrit.fd.io/r/c/vpp/+/33264
