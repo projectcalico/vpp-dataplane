@@ -1,4 +1,4 @@
-VPP Version                 : 22.06-rc0~256-gea624d436
+VPP Version                 : 22.06-rc0~258-g9399a1812
 Binapi-generator version    : govpp v0.6.0-dev
 VPP Base commit             : 38659d8f2 sr: fix srv6 definition of behavior associated to a LocalSID
 ------------------ Cherry picked commits --------------------
@@ -7,6 +7,8 @@ gerrit:28513/28 capo: Calico Policies plugin
 gerrit:28083/21 acl: acl-plugin custom policies
 gerrit:31588/1 cnat: [WIP] no k8s maglev from pods
 gerrit:33264/7 pbl: Port based balancer
+gerrit:35752/1 stats: fix crash due to pointer taken before validate
+gerrit:35735/2 stats: fix vlib_stats_validate_will_expand_internal
 gerrit:37364/1 gso: fix the checksum for odd number of data bytes
 gerrit:37365/2 gso: set the header offsets in gro hdr fixup
 gerrit:35678/2 dpdk: copy the enable_rxq_int flag from driver to conf

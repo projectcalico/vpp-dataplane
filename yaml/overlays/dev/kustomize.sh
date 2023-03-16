@@ -214,6 +214,7 @@ calico_create_template ()
   export CALICOVPP_DEFAULT_GW=${CALICOVPP_DEFAULT_GW}
   export CALICOVPP_DEBUG_ENABLE_GSO=${CALICOVPP_DEBUG_ENABLE_GSO:=true}
   export CALICOVPP_TAP_MTU=${CALICOVPP_TAP_MTU:=0}
+  export DEBUG=${DEBUG}
 
   ## calico-agent-config variables (extra variables for Calico-vpp-agent) ##
   export CALICOVPP_TAP_RX_QUEUES=${CALICOVPP_TAP_RX_QUEUES:=1}
@@ -269,7 +270,7 @@ EOF
 	sed "s/^  name: vpp-dev-config/  name: vpp-dev-config\n  namespace: calico-vpp-dataplane/g" | \
 	sed "s/^  name: calico-agent-dev-config/  name: calico-agent-dev-config\n  namespace: calico-vpp-dataplane/g" | \
 	sed "s/^  name: calico-vpp-config/  name: calico-vpp-config\n  namespace: calico-vpp-dataplane/g" | \
-	sudo tee /tmp/calico-vpp.yaml > /dev/null
+    tee /tmp/calico-vpp.yaml > /dev/null
 
   rm kustomization.yaml
 }
