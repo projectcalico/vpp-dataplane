@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 	"github.com/vishvananda/netlink"
 )
 

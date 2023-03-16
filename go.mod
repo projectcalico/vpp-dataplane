@@ -1,4 +1,4 @@
-module github.com/projectcalico/vpp-dataplane
+module github.com/projectcalico/vpp-dataplane/v3
 
 go 1.16
 

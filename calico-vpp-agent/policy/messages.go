@@ -22,7 +22,7 @@ import (
 	"net"
 
 	pb "github.com/gogo/protobuf/proto"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/proto"
 )
 
 func (s *Server) MessageReader(conn net.Conn) <-chan interface{} {

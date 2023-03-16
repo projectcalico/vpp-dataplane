@@ -23,8 +23,8 @@ import (
 
 	nettypes "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	netv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
-	nadv1 "github.com/projectcalico/vpp-dataplane/multinet-monitor/networkAttachmentDefinition"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
+	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/networkAttachmentDefinition"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -10,7 +10,7 @@ BINAPI_GENERATOR=$SCRIPTDIR/bin/binapi-generator
 VPPLINK_DIR=$SCRIPTDIR/..
 
 VPP_GOAPI_DIR=$SCRIPTDIR/vppapi
-VPP_API_IMPORT_PREFIX=github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi
+VPP_API_IMPORT_PREFIX=github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi
 
 function make_binapi_generator ()
 {

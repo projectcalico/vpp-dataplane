@@ -23,10 +23,10 @@ import (
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/config"
+	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/v3/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"

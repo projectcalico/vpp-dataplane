@@ -22,8 +22,8 @@ import (
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/sirupsen/logrus"
 )
 
