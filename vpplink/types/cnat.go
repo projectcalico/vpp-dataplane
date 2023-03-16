@@ -20,7 +20,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/cnat"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/cnat"
 )
 
 const (

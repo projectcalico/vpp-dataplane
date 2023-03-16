@@ -22,9 +22,9 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )

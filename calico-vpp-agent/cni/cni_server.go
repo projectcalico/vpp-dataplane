@@ -26,18 +26,18 @@ import (
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	felixConfig "github.com/projectcalico/calico/felix/config"
-	pb "github.com/projectcalico/vpp-dataplane/calico-vpp-agent/proto"
+	pb "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/proto"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	tomb "gopkg.in/tomb.v2"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/pod_interface"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/watchers"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/pod_interface"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 type Server struct {

@@ -24,7 +24,7 @@ import (
 	"github.com/vishvananda/netlink"
 	tomb "gopkg.in/tomb.v2"
 
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 )
 
 type KernelWatcher struct {

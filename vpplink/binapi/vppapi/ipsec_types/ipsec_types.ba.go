@@ -11,9 +11,9 @@ package ipsec_types
 import (
 	"strconv"
 
-	_ "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/interface_types"
-	ip_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
-	tunnel_types "github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/tunnel_types"
+	_ "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/interface_types"
+	ip_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
+	tunnel_types "github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/tunnel_types"
 	api "go.fd.io/govpp/api"
 )
 

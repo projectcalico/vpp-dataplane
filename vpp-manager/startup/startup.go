@@ -28,10 +28,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/hooks"
-	"github.com/projectcalico/vpp-dataplane/vpp-manager/utils"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 	log "github.com/sirupsen/logrus"
 )
 

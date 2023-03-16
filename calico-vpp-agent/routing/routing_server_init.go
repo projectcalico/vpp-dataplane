@@ -18,7 +18,7 @@ package routing
 import (
 	bgpapi "github.com/osrg/gobgp/api"
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"golang.org/x/net/context"
 )
 

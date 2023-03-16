@@ -20,8 +20,8 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/capo"
-	"github.com/projectcalico/vpp-dataplane/vpplink/binapi/vppapi/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/capo"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/binapi/vppapi/ip_types"
 )
 
 const InvalidID uint32 = ^uint32(0)

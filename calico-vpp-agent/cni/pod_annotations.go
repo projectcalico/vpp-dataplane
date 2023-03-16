@@ -23,8 +23,8 @@ import (
 
 	"github.com/pkg/errors"
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/cni/storage"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 const (

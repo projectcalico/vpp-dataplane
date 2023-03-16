@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/vpp-dataplane/calico-vpp-agent/config"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/config"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -36,9 +36,9 @@ import (
 	bgpapi "github.com/osrg/gobgp/api"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
-	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/vpp-manager/config"
-	"github.com/projectcalico/vpp-dataplane/vpplink"
-	"github.com/projectcalico/vpp-dataplane/vpplink/types"
+	vppmanagerconfig "github.com/projectcalico/vpp-dataplane/v3/vpp-manager/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 var (
