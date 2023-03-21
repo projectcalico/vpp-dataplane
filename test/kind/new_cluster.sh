@@ -18,23 +18,40 @@ containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
     endpoint = ["http://${reg_name}:5000"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+    endpoint = ["http://${reg_name}:5000"]
+   
 networking:
   disableDefaultCNI: true
   podSubnet: "11.0.0.0/16,fd20::0/64"
   serviceSubnet: "11.96.0.0/12,fd10::0/120"
   ipFamily: dual
 nodes:
-- role: control-plane
-  extraMounts:
-    - hostPath: $HOME
-      containerPath: $HOME
 EOF
 )
+
+if [ "$N_KIND_CONTROL_PLANES" == "" ]; then
+	echo "Please Set N_KIND_CONTROL_PLANES"
+	exit 1
+fi
 
 if [ "$N_KIND_WORKERS" == "" ]; then
 	echo "Please Set N_KIND_WORKERS"
 	exit 1
 fi
+
+FIRST_CPU=3
+for ((i=1; i<=$N_KIND_CONTROL_PLANES; i++)); do \
+config=$(cat <<EOF
+$config
+- role: control-plane
+  extraMounts:
+    - hostPath: $HOME
+      containerPath: $HOME
+  cpuSet: "$(($N_KIND_WORKERS+$FIRST_CPU+1+i)),$(($N_KIND_WORKERS+$FIRST_CPU+2-2*(i%2)+i))"
+EOF
+);\
+done
 
 for ((i=1; i<=$N_KIND_WORKERS; i++)); do \
 config=$(cat <<EOF
@@ -43,6 +60,7 @@ $config
   extraMounts:
     - hostPath: $HOME
       containerPath: $HOME
+  cpuSet: "$((i+$FIRST_CPU)),$((i+$FIRST_CPU+(1-2*(i%2))))"
 EOF
 );\
 done

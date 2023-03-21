@@ -1,9 +1,11 @@
 TAG ?= latest # Tag images with :$(TAG)
 N_KIND_WORKERS ?= 3
+N_KIND_CONTROL_PLANES ?= 1
+KIND_CALICO_VERSION ?= master
 
 .PHONY: new-cluster
 new-cluster:
-	@N_KIND_WORKERS=$(N_KIND_WORKERS) ./new_cluster.sh
+	@N_KIND_WORKERS=$(N_KIND_WORKERS) N_KIND_CONTROL_PLANES=$(N_KIND_CONTROL_PLANES) ./new_cluster.sh
 
 .PHONY: delete-cluster
 delete-cluster:
@@ -18,37 +20,36 @@ dev:
 	docker image tag calicovpp/multinet-monitor:$(TAG) localhost:5000/calicovpp/multinet-monitor:$(TAG)
 	docker push localhost:5000/calicovpp/multinet-monitor:$(TAG)
 
+# this is for a cluster using a mirror docker.io -> localhost:5000 to avoid pull rate limit
+.PHONY: load-mirror
+load-mirror:
+	@for x in node cni csi node-driver-registrar pod2daemon-flexvol ; do \
+		docker pull docker.io/calico/$$x:$(KIND_CALICO_VERSION) ; \
+		docker image tag calico/$$x:$(KIND_CALICO_VERSION) localhost:5000/calico/$$x:$(KIND_CALICO_VERSION) ; \
+		docker push localhost:5000/calico/$$x:$(KIND_CALICO_VERSION) ; \
+	done
 
+# this is for saving manually images after one pull to avoid pull rate limit
 .PHONY: load
 load:
 	mkdir -p $(shell pwd)/.imagecache/images
-	docker pull docker.io/calico/node:master
-	docker save docker.io/calico/node:master -o $(shell pwd)/.imagecache/images/node
-
-	docker pull docker.io/calico/cni:master
-	docker save docker.io/calico/cni:master -o $(shell pwd)/.imagecache/images/cni
-
-	docker pull docker.io/calico/csi:master
-	docker save docker.io/calico/csi:master -o $(shell pwd)/.imagecache/images/csi
-
-	docker pull docker.io/calico/node-driver-registrar:master
-	docker save docker.io/calico/node-driver-registrar:master -o $(shell pwd)/.imagecache/images/node-driver-registrar
-
-	docker pull docker.io/calico/pod2daemon-flexvol:master
-	docker save docker.io/calico/pod2daemon-flexvol:master -o $(shell pwd)/.imagecache/images/pod2daemon-flexvol
-
-	for nodename in $$(kubectl get node | grep kind | awk '{print $$1 }') ; do \
-		docker cp $(shell pwd)/.imagecache/images/node $$nodename:/ ; \
-		docker cp $(shell pwd)/.imagecache/images/cni $$nodename:/ ; \
-		docker cp $(shell pwd)/.imagecache/images/csi $$nodename:/ ; \
-		docker cp $(shell pwd)/.imagecache/images/node-driver-registrar $$nodename:/ ; \
-		docker cp $(shell pwd)/.imagecache/images/pod2daemon-flexvol $$nodename:/ ; \
+	@for x in node cni csi node-driver-registrar pod2daemon-flexvol ; do \
+		docker pull docker.io/calico/$$x:$(KIND_CALICO_VERSION) ; \
+		docker save docker.io/calico/$$x:$(KIND_CALICO_VERSION) -o $(shell pwd)/.imagecache/images/$$x ; \
+		for nodename in $$(kubectl get node | grep kind | awk '{print $$1 }') ; do \
+			docker cp $(shell pwd)/.imagecache/images/$$x $$nodename:/ ; \
+			docker exec -it $$nodename ctr -n=k8s.io image import $$x ; \
+		done ; \
 	done
 
-	for nodename in $$(kubectl get node | grep kind | awk '{print $$1 }') ; do \
-		docker exec -it $$nodename ctr -n=k8s.io image import node ; \
-		docker exec -it $$nodename ctr -n=k8s.io image import cni ; \
-		docker exec -it $$nodename ctr -n=k8s.io image import csi ; \
-		docker exec -it $$nodename ctr -n=k8s.io image import node-driver-registrar ; \
-		docker exec -it $$nodename ctr -n=k8s.io image import pod2daemon-flexvol ; \
+
+# this is for using localhost images and tagging them as docker.io images to avoid pull rate limit
+.PHONY: load-tag
+load-tag:
+	@for x in node cni csi node-driver-registrar pod2daemon-flexvol ; do \
+		for nodename in $$(kubectl get node | grep kind | awk '{print $$1 }') ; do \
+			docker exec -it $$nodename ctr -n k8s.io images delete docker.io/calico/$$x:$(KIND_CALICO_VERSION) ; \
+			docker exec -it $$nodename crictl pull localhost:5000/calico/$$x:$(KIND_CALICO_VERSION) ; \
+			docker exec -it $$nodename ctr -n k8s.io images tag localhost:5000/calico/$$x:$(KIND_CALICO_VERSION) docker.io/calico/$$x:$(KIND_CALICO_VERSION) ; \
+		done ; \
 	done

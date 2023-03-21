@@ -88,6 +88,7 @@ bash ./yaml/overlays/dev/kustomize.sh up
 To run without hugepages
 ````bash
 # ---------------- vpp config ----------------
+export CALICOVPP_DISABLE_HUGEPAGES=true
 export CALICOVPP_CONFIG_TEMPLATE="
     unix {
       nodaemon
@@ -105,7 +106,7 @@ export CALICOVPP_CONFIG_TEMPLATE="
         plugin calico_plugin.so { enable }
         plugin dpdk_plugin.so { disable }
     }"
-bash ./yaml/overlays/dev/kustomize.sh up nohuge
+bash ./yaml/overlays/dev/kustomize.sh up
 ````
 
 ### Removing the CNI

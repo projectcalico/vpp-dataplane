@@ -18,8 +18,10 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -563,7 +565,23 @@ func (c *LinuxInterfaceState) SortRoutes() {
 	})
 }
 
-func TemplateScriptReplace(input string, params *VppManagerParams, conf []*LinuxInterfaceState) (template string) {
+func getCpusetCpu() (string, error) {
+	content, err := ioutil.ReadFile("/sys/fs/cgroup/cpuset.cpus")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	cpusetCpu := strings.TrimSpace(string(content))
+
+	if len(cpusetCpu) == 0 {
+		return "", nil
+	}
+	return regexp.MustCompile("[,-]").Split(cpusetCpu, 2)[0], nil
+}
+
+func TemplateScriptReplace(input string, params *VppManagerParams, conf []*LinuxInterfaceState) (template string, err error) {
 	template = input
 	if conf != nil {
 		/* We might template scripts before reading interface conf */
@@ -572,6 +590,11 @@ func TemplateScriptReplace(input string, params *VppManagerParams, conf []*Linux
 			template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(i)+"__", ifcConf.PciId)
 		}
 	}
+	vppcpu, err := getCpusetCpu()
+	if err != nil {
+		return "", err
+	}
+	template = strings.ReplaceAll(template, "__CPUSET_CPUS_FIRST__", vppcpu)
 	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.UplinksSpecs[0].InterfaceName)
 	for i, ifc := range params.UplinksSpecs {
 		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF_"+fmt.Sprintf("%d", i)+"__", ifc.InterfaceName)
@@ -579,7 +602,7 @@ func TemplateScriptReplace(input string, params *VppManagerParams, conf []*Linux
 	for key, value := range params.NodeAnnotations {
 		template = strings.ReplaceAll(template, fmt.Sprintf("__NODE_ANNOTATION:%s__", key), value)
 	}
-	return template
+	return template, nil
 }
 
 func PrintAgentConfig(log *logrus.Logger) {

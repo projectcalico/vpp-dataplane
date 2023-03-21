@@ -308,7 +308,6 @@ function print_usage_and_exit ()
 {
     echo "Usage:"
     echo "kustomize.sh up            - Install calico dev cni"
-    echo "kustomize.sh up nohuge     - Install calico dev cni without hugepages"
     echo "kustomize.sh dn            - Delete calico dev cni"
     echo
     exit 0
