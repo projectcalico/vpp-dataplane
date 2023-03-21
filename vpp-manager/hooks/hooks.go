@@ -49,7 +49,11 @@ var (
 
 func RegisterBashHook(name string, bashTemplate string) {
 	RegisterHook(name, func(params *config.VppManagerParams, conf []*config.LinuxInterfaceState) error {
-		return utils.RunBashScript(config.TemplateScriptReplace(bashTemplate, params, nil))
+		template, err := config.TemplateScriptReplace(bashTemplate, params, nil)
+		if err != nil {
+			return err
+		}
+		return utils.RunBashScript(template)
 	})
 }
 

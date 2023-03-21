@@ -67,8 +67,11 @@ func NewVPPRunner(params *config.VppManagerParams, confs []*config.LinuxInterfac
 }
 
 func (v *VppRunner) GenerateVppConfigExecFile() error {
-	template := config.TemplateScriptReplace(*config.ConfigExecTemplate, v.params, v.conf)
-	err := errors.Wrapf(
+	template, err := config.TemplateScriptReplace(*config.ConfigExecTemplate, v.params, v.conf)
+	if err != nil {
+		return err
+	}
+	err = errors.Wrapf(
 		os.WriteFile(config.VppConfigExecFile, []byte(template+"\n"), 0744),
 		"Error writing VPP Exec configuration to %s",
 		config.VppConfigExecFile,
@@ -77,11 +80,14 @@ func (v *VppRunner) GenerateVppConfigExecFile() error {
 }
 
 func (v *VppRunner) GenerateVppConfigFile(drivers []uplink.UplinkDriver) error {
-	template := config.TemplateScriptReplace(*config.ConfigTemplate, v.params, v.conf)
+	template, err := config.TemplateScriptReplace(*config.ConfigTemplate, v.params, v.conf)
+	if err != nil {
+		return err
+	}
 	for _, driver := range drivers {
 		template = driver.UpdateVppConfigFile(template)
 	}
-	err := errors.Wrapf(
+	err = errors.Wrapf(
 		os.WriteFile(config.VppConfigFile, []byte(template+"\n"), 0644),
 		"Error writing VPP configuration to %s",
 		config.VppConfigFile,
