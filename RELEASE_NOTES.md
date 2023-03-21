@@ -11,8 +11,8 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any `
 > 1st Mars 2023
 
 * Bug fixes
- - Fix a deadlock that happened when cleaning conflicting addresses for pods
- - Upgrade build envs to ubuntu 22.04 or link statically to avoid glibc version mismatch
+  - Fix a deadlock that happened when cleaning conflicting addresses for pods
+  - Upgrade build envs to ubuntu 22.04 or link statically to avoid glibc version mismatch
 
 ### Calico-VPP v3.25.0
 > 14 Feb 2023
@@ -38,6 +38,17 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any `
   - Fix to greedy corefile cleanup
   - Multiple VPP af-pkt, GSO & cksum offload fixes
   - More kind customizations for development
+
+### Calico-VPP v3.24.1
+> 21 Mar 2023
+
+* Features:
+  - Support for BGP secrets
+
+* Bug fixes
+  - Dataplane fixes for GSO
+  - Fix segfault in stats appearing with more than 4 workers & DPDK
+
 
 ### Calico-VPP v3.24.0
 > 19 Sep 2022
