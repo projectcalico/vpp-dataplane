@@ -41,12 +41,15 @@ type VRF struct {
 }
 
 type NetworkDefinition struct {
-	VRF               VRF
-	Vni               uint32
-	Name              string
-	LoopbackSwIfIndex uint32
-	Range             string
-	NetAttachDefs     string
+	// VRF is the main table used for the corresponding physical network
+	VRF VRF
+	// PodVRF is the table used for the pods in the corresponding physical network
+	PodVRF              VRF
+	Vni                 uint32
+	PhysicalNetworkName string
+	Name                string
+	Range               string
+	NetAttachDefs       string
 }
 
 type NetWatcher struct {
@@ -215,7 +218,10 @@ func (w *NetWatcher) onNadAdded(nad *netv1.NetworkAttachmentDefinition) error {
 }
 
 func (w *NetWatcher) OnNetAdded(net *networkv3.Network) error {
-	netDef, err := w.CreateVRFsForNet(net.Name, uint32(net.Spec.VNI), net.Spec.Range)
+	if _, ok := common.VppManagerInfo.PhysicalNets[net.Spec.PhysicalNetworkName]; !ok {
+		return errors.Errorf("physical network %s is not defined", net.Spec.PhysicalNetworkName)
+	}
+	netDef, err := w.CreateNetwork(net.Name, uint32(net.Spec.VNI), net.Spec.Range, net.Spec.PhysicalNetworkName)
 	if err != nil {
 		return err
 	}
@@ -237,7 +243,7 @@ func (w *NetWatcher) OnNetChanged(old, new *networkv3.Network) {
 
 func (w *NetWatcher) OnNetDeleted(netName string) error {
 	w.log.Infof("deleting network %s", netName)
-	netDef, err := w.DeleteNetVRFs(netName)
+	netDef, err := w.DeleteNetwork(netName)
 	if err != nil {
 		return err
 	}
@@ -248,74 +254,28 @@ func (w *NetWatcher) OnNetDeleted(netName string) error {
 	return nil
 }
 
-func getNetworkVrfName(networkName string, suffix string) string {
-	return fmt.Sprintf("pod-%s-table-%s", networkName, suffix)
-}
-
-func (w *NetWatcher) CreateVRFsForNet(networkName string, networkVni uint32, netRange string) (netDef *NetworkDefinition, err error) {
+func (w *NetWatcher) CreateNetwork(networkName string, networkVni uint32, netRange string, phyNet string) (netDef *NetworkDefinition, err error) {
 	/* Create and Setup the per-network VRF */
-	var tables [2]uint32
 	if _, ok := w.networkDefinitions[networkName]; ok {
 		return w.networkDefinitions[networkName], nil
 	}
 	w.log.Infof("adding network %s", networkName)
-	swIfIndex, err := w.vpp.CreateLoopback(common.ContainerSideMacAddress)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Error creating loopback for network")
-	}
-	w.log.Infof("loopback (sw %+v) added for network %s", swIfIndex, networkName)
-
-	for idx, ipFamily := range vpplink.IpFamilies {
-		vrfName := getNetworkVrfName(networkName, ipFamily.Str)
-		vrfId, err := w.vpp.AllocateVRF(ipFamily.IsIp6, vrfName)
-		w.log.Infof("Allocated %s VRF ID:%d", ipFamily.Str, vrfId)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error allocating VRF %s", ipFamily.Str)
-		}
-		tables[idx] = vrfId
-	}
+	vrfID := common.VppManagerInfo.PhysicalNets[phyNet].VrfId
+	podVrfID := common.VppManagerInfo.PhysicalNets[phyNet].PodVrfId
 	netDef = &NetworkDefinition{
-		VRF:               VRF{Tables: tables},
-		Vni:               uint32(networkVni),
-		Name:              networkName,
-		LoopbackSwIfIndex: swIfIndex,
-		Range:             netRange}
+		VRF:                 VRF{Tables: [2]uint32{vrfID, vrfID}},
+		PodVRF:              VRF{Tables: [2]uint32{podVrfID, podVrfID}},
+		Vni:                 uint32(networkVni),
+		PhysicalNetworkName: phyNet,
+		Name:                networkName,
+		Range:               netRange}
 	w.networkDefinitions[networkName] = netDef
-
-	ip4, ip6 := w.GetNodeIPs()
-	var ipaddrs = []*net.IP{ip4, ip6}
-	for idx, ipFamily := range vpplink.IpFamilies {
-		if ipaddrs[idx] != nil {
-			err = w.vpp.SetInterfaceVRF(swIfIndex, netDef.VRF.Tables[idx], ipFamily.IsIp6)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Error setting loopback %d in network vrf", swIfIndex)
-			}
-			err = w.vpp.AddInterfaceAddress(swIfIndex, common.ToMaxLenCIDR(*ipaddrs[idx]))
-			if err != nil {
-				return nil, errors.Wrapf(err, "Error adding address %s to pod loopback interface", *ipaddrs[idx])
-			}
-		}
-	}
 	return netDef, nil
 }
 
-func (w *NetWatcher) DeleteNetVRFs(networkName string) (*NetworkDefinition, error) {
-	var err error
+func (w *NetWatcher) DeleteNetwork(networkName string) (*NetworkDefinition, error) {
 	if _, ok := w.networkDefinitions[networkName]; !ok {
-		w.log.Errorf("non-existent network deleted: %s", networkName)
-	}
-	err = w.vpp.DeleteLoopback(w.networkDefinitions[networkName].LoopbackSwIfIndex)
-	if err != nil {
-		w.log.Errorf("Error deleting network Loopback %s", err)
-	}
-	w.log.Infof("loopback (sw %+v) deleted for network %s", w.networkDefinitions[networkName].LoopbackSwIfIndex, networkName)
-	for idx, ipFamily := range vpplink.IpFamilies {
-		vrfId := w.networkDefinitions[networkName].VRF.Tables[idx]
-		w.log.Infof("Deleting VRF %d %s", vrfId, ipFamily.Str)
-		err = w.vpp.DelVRF(vrfId, ipFamily.IsIp6)
-		if err != nil {
-			w.log.Errorf("Error deleting VRF %d %s : %s", vrfId, ipFamily.Str, err)
-		}
+		return nil, errors.Errorf("non-existent network deleted: %s", networkName)
 	}
 	netDef := w.networkDefinitions[networkName]
 	delete(w.networkDefinitions, networkName)

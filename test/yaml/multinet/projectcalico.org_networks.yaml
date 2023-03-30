@@ -43,9 +43,13 @@ spec:
               range:
                 description: The range of ip addresses for this network.
                 type: string
+              physicalNetworkName:
+                description: The name of the physical Network that this network is attached to.
+                type: string
             required:
             - vni
             - range
+            - physicalNetworkName
             type: object
         type: object
     served: true

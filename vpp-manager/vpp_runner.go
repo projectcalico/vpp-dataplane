@@ -44,9 +44,9 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
+const DefaultPhysicalNetworkName = ""
+
 var (
-	fakeNextHopIP4    = net.ParseIP("0.0.0.0")
-	fakeNextHopIP6    = net.ParseIP("::")
 	fakeVppNextHopIP4 = net.ParseIP("169.254.0.1")
 	fakeVppNextHopIP6 = net.ParseIP("fc00:ffff:ffff:ffff:ca11:c000:fd10:fffe")
 	vppSideMac, _     = net.ParseMAC("02:ca:11:c0:fd:10")
@@ -126,7 +126,7 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 	return nil
 }
 
-func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInterfaceState) (err error) {
+func (v *VppRunner) configureGlobalPunt() (err error) {
 	for _, ipFamily := range vpplink.IpFamilies {
 		err = v.vpp.PuntRedirect(types.IpPuntRedirect{
 			RxSwIfIndex: vpplink.InvalidID,
@@ -144,7 +144,10 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 			return errors.Wrapf(err, "Error configuring L4 punt")
 		}
 	}
+	return
+}
 
+func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInterfaceState) (err error) {
 	for _, neigh := range []net.IP{fakeVppNextHopIP4, fakeVppNextHopIP6} {
 		err = v.vpp.AddNeighbor(&types.Neighbor{
 			SwIfIndex:    tapSwIfIndex,
@@ -155,15 +158,18 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 			return errors.Wrapf(err, "Error adding neighbor %s to tap", neigh)
 		}
 		/* In the punt table (where all punted traffics ends), route to the tap */
-		err = v.vpp.RouteAdd(&types.Route{
-			Table: common.PuntTableId,
-			Paths: []types.RoutePath{{
-				Gw:        neigh,
-				SwIfIndex: tapSwIfIndex,
-			}},
-		})
-		if err != nil {
-			return errors.Wrapf(err, "error adding vpp side routes for interface")
+		for _, address := range ifState.Addresses {
+			err = v.vpp.RouteAdd(&types.Route{
+				Dst:   address.IPNet,
+				Table: common.PuntTableId,
+				Paths: []types.RoutePath{{
+					Gw:        neigh,
+					SwIfIndex: tapSwIfIndex,
+				}},
+			})
+			if err != nil {
+				return errors.Wrapf(err, "error adding vpp side routes for interface")
+			}
 		}
 	}
 
@@ -180,7 +186,9 @@ func (v *VppRunner) hasAddr(ip net.IP, ifState config.LinuxInterfaceState) bool 
 }
 
 // pick a next hop to use for cluster routes (services, pod cidrs) in the address prefix
-func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) {
+func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextHopIP4, fakeNextHopIP6 net.IP) {
+	fakeNextHopIP4 = net.ParseIP("0.0.0.0")
+	fakeNextHopIP6 = net.ParseIP("::")
 	var nhAddr net.IP
 	foundV4, foundV6 := false, false
 	needsV4, needsV6 := false, false
@@ -255,18 +263,19 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) {
 			}
 		}
 	}
+	return
 }
 
-func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInterfaceState) (err error) {
+func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInterfaceState) (fakeNextHopIP4, fakeNextHopIP6 net.IP, err error) {
 	err = netlink.LinkSetUp(link)
 	if err != nil {
-		return errors.Wrap(err, "Error setting tap up")
+		return nil, nil, errors.Wrap(err, "Error setting tap up")
 	}
 
 	for _, addr := range ifState.Addresses {
 		if addr.IPNet.IP.To4() == nil {
 			if err = pod_interface.WriteProcSys("/proc/sys/net/ipv6/conf/"+link.Attrs().Name+"/disable_ipv6", "0"); err != nil {
-				return fmt.Errorf("failed to set net.ipv6.conf."+link.Attrs().Name+".disable_ipv6=0: %s", err)
+				return nil, nil, fmt.Errorf("failed to set net.ipv6.conf."+link.Attrs().Name+".disable_ipv6=0: %s", err)
 			}
 			break
 		}
@@ -293,10 +302,8 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 	}
 
 	// Determine a suitable next hop for the cluster routes
-	v.pickNextHopIP(ifState)
-	config.Info.FakeNextHopIP4 = fakeNextHopIP4
-	config.Info.FakeNextHopIP6 = fakeNextHopIP6
-	return nil
+	fakeNextHopIP4, fakeNextHopIP6 = v.pickNextHopIP(ifState)
+	return fakeNextHopIP4, fakeNextHopIP6, nil
 }
 
 func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount int, vppIfSwIfIndex uint32) (err error) {
@@ -385,9 +392,9 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 		} // else {} No custom routes for IPv6 for now. Forward LL multicast from the host?
 
 		// default route in default table
-		err = v.vpp.AddDefaultRouteViaTable(vrfId, common.DefaultVRFIndex, ipFamily.IsIp6)
+		err = v.vpp.AddDefaultRouteViaTable(vrfId, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfId, ipFamily.IsIp6)
 		if err != nil {
-			return []uint32{}, errors.Wrapf(err, "error adding VRF %d default route via VRF %d", vrfId, common.DefaultVRFIndex)
+			return []uint32{}, errors.Wrapf(err, "error adding VRF %d default route via VRF %d", vrfId, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName])
 		}
 		// Set tap in this table
 		err = v.vpp.SetInterfaceVRF(tapSwIfIndex, vrfId, ipFamily.IsIp6)
@@ -425,6 +432,14 @@ func (v *VppRunner) configureVppUplinkInterface(
 	ifState *config.LinuxInterfaceState,
 	ifSpec config.UplinkInterfaceSpec,
 ) (err error) {
+	// Configure the physical network if we see it for the first time
+	if _, ok := config.Info.PhysicalNets[ifSpec.PhysicalNetworkName]; !ok {
+		err = v.AllocatePhysicalNetworkVRFs(ifSpec.PhysicalNetworkName)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Always enable GSO feature on data interface, only a tiny negative effect on perf if GSO is not
 	// enabled on the taps or already done before an encap
 	if *config.GetCalicoVppDebug().GSOEnabled {
@@ -458,6 +473,20 @@ func (v *VppRunner) configureVppUplinkInterface(
 	err = v.vpp.CnatEnableFeatures(ifSpec.SwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error configuring NAT on uplink interface")
+	}
+
+	if ifSpec.PhysicalNetworkName != "" {
+		for _, ipFamily := range vpplink.IpFamilies {
+			err = v.vpp.SetInterfaceVRF(ifSpec.SwIfIndex, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfId, ipFamily.IsIp6)
+			if err != nil {
+				return errors.Wrapf(err, "error setting interface in vrf %d", config.Info.PhysicalNets[ifSpec.PhysicalNetworkName])
+			}
+		}
+		value := config.Info.PhysicalNets[ifSpec.PhysicalNetworkName]
+		config.Info.PhysicalNets[ifSpec.PhysicalNetworkName] = config.PhysicalNetwork{
+			VrfId:    value.VrfId,
+			PodVrfId: value.PodVrfId,
+		}
 	}
 
 	for _, addr := range ifState.Addresses {
@@ -556,12 +585,10 @@ func (v *VppRunner) configureVppUplinkInterface(
 			return errors.Wrap(err, "Error disabling ip6 RA on vpptap0")
 		}
 	}
-
 	err = v.configurePunt(tapSwIfIndex, *ifState)
 	if err != nil {
 		return errors.Wrap(err, "Error adding redirect to tap")
 	}
-
 	err = v.vpp.EnableArpProxy(tapSwIfIndex, vrfs[0 /* ip4 */])
 	if err != nil {
 		return errors.Wrap(err, "Error enabling ARP proxy")
@@ -605,7 +632,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrapf(err, "cannot find interface named %s", ifSpec.InterfaceName)
 	}
 
-	err = v.configureLinuxTap(link, *ifState)
+	fakeNextHopIP4, fakeNextHopIP6, err := v.configureLinuxTap(link, *ifState)
 	if err != nil {
 		return errors.Wrap(err, "Error configuring tap on linux side")
 	}
@@ -616,14 +643,17 @@ func (v *VppRunner) configureVppUplinkInterface(
 	}
 
 	if config.Info.UplinkStatuses != nil {
-		config.Info.UplinkStatuses = append(config.Info.UplinkStatuses, config.UplinkStatus{
-			TapSwIfIndex: tapSwIfIndex,
-			SwIfIndex:    ifSpec.SwIfIndex,
-			Mtu:          uplinkMtu,
-			LinkIndex:    link.Attrs().Index,
-			Name:         link.Attrs().Name,
-			IsMain:       ifSpec.GetIsMain(),
-		})
+		config.Info.UplinkStatuses[link.Attrs().Name] = config.UplinkStatus{
+			TapSwIfIndex:        tapSwIfIndex,
+			SwIfIndex:           ifSpec.SwIfIndex,
+			Mtu:                 uplinkMtu,
+			PhysicalNetworkName: ifSpec.PhysicalNetworkName,
+			LinkIndex:           link.Attrs().Index,
+			Name:                link.Attrs().Name,
+			IsMain:              ifSpec.GetIsMain(),
+			FakeNextHopIP4:      fakeNextHopIP4,
+			FakeNextHopIP6:      fakeNextHopIP6,
+		}
 	}
 	return nil
 }
@@ -735,6 +765,35 @@ func (v *VppRunner) allInterfacesPhysical() bool {
 	return true
 }
 
+func (v *VppRunner) AllocatePhysicalNetworkVRFs(phyNet string) (err error) {
+	// for ip4
+	mainId, err := v.vpp.AllocateVRF(false, fmt.Sprintf("physical-net-%s-ip4", phyNet))
+	if err != nil {
+		return err
+	}
+	podsId, err := v.vpp.AllocateVRF(false, fmt.Sprintf("calico-pods-%s-ip4", phyNet))
+	if err != nil {
+		return err
+	}
+	// for ip6, use same vrfID as ip4
+	err = v.vpp.AddVRF(mainId, true, fmt.Sprintf("physical-net-%s-ip6", phyNet))
+	if err != nil {
+		return err
+	}
+	err = v.vpp.AddVRF(podsId, true, fmt.Sprintf("calico-pods-%s-ip6", phyNet))
+	if err != nil {
+		return err
+	}
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = v.vpp.AddDefaultRouteViaTable(podsId, mainId, ipFamily.IsIp6)
+		if err != nil {
+			return err
+		}
+	}
+	config.Info.PhysicalNets[phyNet] = config.PhysicalNetwork{VrfId: mainId, PodVrfId: podsId}
+	return nil
+}
+
 // Returns VPP exit code
 func (v *VppRunner) runVpp() (err error) {
 	if !v.allInterfacesPhysical() { // use separate net namespace because linux deletes these interfaces when ns is deleted
@@ -808,6 +867,13 @@ func (v *VppRunner) runVpp() (err error) {
 		return errors.Wrap(err, "Error configuring VPP")
 	}
 
+	// add main network that has the default VRF
+	config.Info.PhysicalNets[DefaultPhysicalNetworkName] = config.PhysicalNetwork{VrfId: common.DefaultVRFIndex, PodVrfId: common.PodVRFIndex}
+
+	err = v.configureGlobalPunt()
+	if err != nil {
+		return errors.Wrap(err, "Error adding redirect to tap")
+	}
 	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
 		err := v.uplinkDriver[idx].CreateMainVppInterface(vpp, vppProcess.Pid, &v.params.UplinksSpecs[idx])
 		if err != nil {
@@ -834,7 +900,6 @@ func (v *VppRunner) runVpp() (err error) {
 			return errors.Wrap(err, "Error configuring VPP")
 		}
 	}
-
 	// Update the Calico node with the IP address actually configured on VPP
 	err = v.updateCalicoNode(v.conf[0])
 	if err != nil {

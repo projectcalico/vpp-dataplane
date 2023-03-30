@@ -332,25 +332,35 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 					// Setup test prerequisite (per-multinet-network VRF and loopback interface)")
 					// (this is normally done by watchers.NetWatcher.CreateVRFsForNet(...))
-					loopbackSwIfIndex, err := vpp.CreateLoopback(common.ContainerSideMacAddress)
+					_, err := vpp.CreateLoopback(common.ContainerSideMacAddress)
 					Expect(err).ToNot(HaveOccurred(), "error creating loopback for multinet network")
 					var tables [2]uint32
 					networkName := "myFirstMultinetNetwork"
 					for idx, ipFamily := range vpplink.IpFamilies {
-						vrfName := fmt.Sprintf("pod-%s-table-%s", networkName, ipFamily.Str)
+						vrfName := fmt.Sprintf("%s-table-%s", networkName, ipFamily.Str)
 						vrfId, err := vpp.AllocateVRF(ipFamily.IsIp6, vrfName)
 						Expect(err).ToNot(HaveOccurred(),
 							fmt.Sprintf("can't create VRF table requirement for IP family %s", ipFamily.Str))
 						tables[idx] = vrfId
 					}
+					var podTables [2]uint32
+					for idx, ipFamily := range vpplink.IpFamilies {
+						vrfName := fmt.Sprintf("pod-%s-table-%s", networkName, ipFamily.Str)
+						vrfId, err := vpp.AllocateVRF(ipFamily.IsIp6, vrfName)
+						Expect(err).ToNot(HaveOccurred(),
+							fmt.Sprintf("can't create VRF table requirement for IP family %s", ipFamily.Str))
+						podTables[idx] = vrfId
+						err = vpp.AddDefaultRouteViaTable(podTables[idx], tables[idx], ipFamily.IsIp6)
+						Expect(err).ToNot(HaveOccurred(), "can't add default route")
+					}
 					// NetworkDefinition CRD information caught by NetWatcher and send with additional information
 					// (VRF and loopback created by watcher) to the cni server as common.NetAdded CalicoVPPEvent
 					networkDefinition = &watchers.NetworkDefinition{
-						VRF:               watchers.VRF{Tables: tables},
-						Vni:               uint32(0), // important only for VXLAN tunnel going out of node
-						Name:              networkName,
-						LoopbackSwIfIndex: loopbackSwIfIndex,
-						Range:             "10.1.1.0/24", // IP range for secondary network defined by multinet
+						VRF:    watchers.VRF{Tables: tables},
+						PodVRF: watchers.VRF{Tables: podTables},
+						Vni:    uint32(0), // important only for VXLAN tunnel going out of node
+						Name:   networkName,
+						Range:  "10.1.1.0/24", // IP range for secondary network defined by multinet
 					}
 					cniServer.ForceAddingNetworkDefinition(networkDefinition)
 
@@ -492,7 +502,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							}),
 						))
 
-						By("Checking default route from pod-specific VRF to multinet network-specific vrf")
+						By("Checking default route from pod-specific VRF to multinet network-specific pod-vrf")
 						podVrf4ID, podVrf6ID, err := test.PodVRFs(secondaryInterfaceName, newPodForSecondaryNetwork.Netns, vpp)
 						Expect(err).ToNot(HaveOccurred(), "can't find pod-specific VRFs")
 						for idx, ipFamily := range vpplink.IpFamilies {
@@ -508,7 +518,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							Expect(routes).To(ContainElements(
 								types.Route{
 									Paths: []types.RoutePath{{
-										Table:     networkDefinition.VRF.Tables[idx],
+										Table:     networkDefinition.PodVRF.Tables[idx],
 										SwIfIndex: types.InvalidID,
 										Gw:        zeroIPNet.IP,
 									}},
@@ -721,7 +731,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							Expect(routes).To(ContainElements(
 								types.Route{
 									Paths: []types.RoutePath{{
-										Table:     networkDefinition.VRF.Tables[idx],
+										Table:     networkDefinition.PodVRF.Tables[idx],
 										SwIfIndex: types.InvalidID,
 										Gw:        zeroIPNet.IP,
 									}},

@@ -222,7 +222,14 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			}
 
 			p.log.Infof("connectivity(add) set vxlan interface unnumbered")
-			err = p.vpp.InterfaceSetUnnumbered(tunnel.SwIfIndex, p.server.networks[cn.Vni].LoopbackSwIfIndex)
+			var uplinkToUse uint32
+			for _, intf := range common.VppManagerInfo.UplinkStatuses {
+				if intf.PhysicalNetworkName == p.server.networks[cn.Vni].PhysicalNetworkName {
+					uplinkToUse = intf.SwIfIndex
+					break
+				}
+			}
+			err = p.vpp.InterfaceSetUnnumbered(tunnel.SwIfIndex, uplinkToUse)
 			if err != nil {
 				// TODO : delete tunnel
 				return errors.Wrapf(err, "Error setting vxlan tunnel unnumbered")

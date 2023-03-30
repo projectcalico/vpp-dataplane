@@ -167,11 +167,12 @@ func (i *InterfaceSpec) Validate(maxIfSpec *InterfaceSpec) error {
 
 type UplinkInterfaceSpec struct {
 	InterfaceSpec
-	IsMain        *bool             `json:"-"`
-	InterfaceName string            `json:"interfaceName"`
-	VppDriver     string            `json:"vppDriver"`
-	NewDriverName string            `json:"newDriver"`
-	Annotations   map[string]string `json:"annotations"`
+	IsMain              *bool             `json:"-"`
+	PhysicalNetworkName string            `json:"physicalNetworkName"`
+	InterfaceName       string            `json:"interfaceName"`
+	VppDriver           string            `json:"vppDriver"`
+	NewDriverName       string            `json:"newDriver"`
+	Annotations         map[string]string `json:"annotations"`
 	// Mtu is the User specified MTU for uplink & the tap
 	Mtu       int    `json:"mtu"`
 	SwIfIndex uint32 `json:"-"`
@@ -431,19 +432,27 @@ const (
 )
 
 type UplinkStatus struct {
-	SwIfIndex    uint32
-	TapSwIfIndex uint32
-	LinkIndex    int
-	Name         string
-	IsMain       bool
-	Mtu          int
+	SwIfIndex           uint32
+	TapSwIfIndex        uint32
+	LinkIndex           int
+	Name                string
+	IsMain              bool
+	Mtu                 int
+	PhysicalNetworkName string
+
+	FakeNextHopIP4 net.IP
+	FakeNextHopIP6 net.IP
+}
+
+type PhysicalNetwork struct {
+	VrfId    uint32
+	PodVrfId uint32
 }
 
 type VppManagerInfo struct {
 	Status         vppManagerStatus
-	UplinkStatuses []UplinkStatus
-	FakeNextHopIP4 net.IP
-	FakeNextHopIP6 net.IP
+	UplinkStatuses map[string]UplinkStatus
+	PhysicalNets   map[string]PhysicalNetwork
 }
 
 func (i *VppManagerInfo) GetMainSwIfIndex() uint32 {
