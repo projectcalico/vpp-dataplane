@@ -197,7 +197,7 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 			if !ok {
 				return errors.Errorf("network not found %s", podSpec.NetworkName)
 			}
-			vrfIndex = value.(*watchers.NetworkDefinition).VRF.Tables[idx]
+			vrfIndex = value.(*watchers.NetworkDefinition).PodVRF.Tables[idx]
 		}
 		s.log.Infof("pod(add) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)
 		err = s.vpp.AddDefaultRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
@@ -365,7 +365,7 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 			if !ok {
 				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				vrfIndex = value.(*watchers.NetworkDefinition).VRF.Tables[idx]
+				vrfIndex = value.(*watchers.NetworkDefinition).PodVRF.Tables[idx]
 			}
 		}
 		s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)

@@ -139,7 +139,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			felixConfig = &config.Config{}
 		}
 		connectivityServer.SetFelixConfig(felixConfig)
-		common.VppManagerInfo = &agentConf.VppManagerInfo{UplinkStatuses: []agentConf.UplinkStatus{{IsMain: true, SwIfIndex: 1}}}
+		common.VppManagerInfo = &agentConf.VppManagerInfo{UplinkStatuses: map[string]agentConf.UplinkStatus{"eth0": {IsMain: true, SwIfIndex: 1}}}
 	})
 
 	Describe("Addition of the node", func() {

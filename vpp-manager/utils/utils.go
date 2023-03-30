@@ -203,7 +203,8 @@ func CreateVppLink() (vpp *vpplink.VppLink, err error) {
 
 func ClearVppManagerFiles() error {
 	config.Info.Status = config.Starting
-	config.Info.UplinkStatuses = make([]config.UplinkStatus, 0)
+	config.Info.UplinkStatuses = make(map[string]config.UplinkStatus, 0)
+	config.Info.PhysicalNets = make(map[string]config.PhysicalNetwork, 0)
 	return WriteInfoFile()
 }
 

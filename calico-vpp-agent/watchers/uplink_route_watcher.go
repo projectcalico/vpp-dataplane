@@ -41,22 +41,20 @@ type RouteWatcher struct {
 	addrNetlinkFailed chan struct{}
 	addrUpdate        chan struct{}
 	closeLock         sync.Mutex
-	ipamEventChan     chan common.CalicoVppEvent
-	FakeNextHopIP4    net.IP
-	FakeNextHopIP6    net.IP
+	eventChan         chan common.CalicoVppEvent
 	log               *log.Entry
 }
 
-func NewRouteWatcher(fakeNextHopIP4, fakeNextHopIP6 net.IP, log *log.Entry) *RouteWatcher {
+func NewRouteWatcher(log *log.Entry) *RouteWatcher {
 	routeWatcher := &RouteWatcher{
-		ipamEventChan:  make(chan common.CalicoVppEvent, common.ChanSize),
-		FakeNextHopIP4: fakeNextHopIP4,
-		FakeNextHopIP6: fakeNextHopIP6,
-		log:            log,
+		eventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		log:       log,
 	}
-	reg := common.RegisterHandler(routeWatcher.ipamEventChan, "route watcher events")
+	reg := common.RegisterHandler(routeWatcher.eventChan, "route watcher events")
 	reg.ExpectEvents(
 		common.IpamConfChanged,
+		common.NetAddedOrUpdated,
+		common.NetDeleted,
 	)
 	return routeWatcher
 }
@@ -144,23 +142,36 @@ func GetUplinkMtu() int {
 	return hostMtu - encapSize
 }
 
-func (r *RouteWatcher) getNetworkRoute(network string) (route *netlink.Route, err error) {
+func (r *RouteWatcher) getNetworkRoute(network string, physicalNet string) (route []*netlink.Route, err error) {
 	_, cidr, err := net.ParseCIDR(network)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error parsing %s", network)
 	}
-
-	gw := r.FakeNextHopIP4
-	if cidr.IP.To4() == nil {
-		gw = r.FakeNextHopIP6
+	var routes []*netlink.Route
+	var order int
+	for _, uplinkStatus := range common.VppManagerInfo.UplinkStatuses {
+		if uplinkStatus.PhysicalNetworkName == physicalNet {
+			gw := uplinkStatus.FakeNextHopIP4
+			if cidr.IP.To4() == nil {
+				gw = uplinkStatus.FakeNextHopIP6
+			}
+			var priority int
+			if uplinkStatus.IsMain {
+				priority = 0
+			} else {
+				order += 1
+				priority = order
+			}
+			routes = append(routes, &netlink.Route{
+				Dst:      cidr,
+				Gw:       gw,
+				Protocol: syscall.RTPROT_STATIC,
+				MTU:      GetUplinkMtu(),
+				Priority: priority,
+			})
+		}
 	}
-
-	return &netlink.Route{
-		Dst:      cidr,
-		Gw:       gw,
-		Protocol: syscall.RTPROT_STATIC,
-		MTU:      GetUplinkMtu(),
-	}, nil
+	return routes, nil
 }
 
 func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
@@ -172,18 +183,29 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 		// Add a route for the service prefix through VPP. This is required even if kube-proxy is
 		// running on the host to ensure correct source address selection if the host has multiple interfaces
 		r.log.Infof("Adding route to service prefix %s through VPP", serviceCIDR.String())
-		gw := common.VppManagerInfo.FakeNextHopIP4
-		if serviceCIDR.IP.To4() == nil {
-			gw = common.VppManagerInfo.FakeNextHopIP6
-		}
-		err := r.AddRoute(&netlink.Route{
-			Dst:      serviceCIDR,
-			Gw:       gw,
-			Protocol: syscall.RTPROT_STATIC,
-			MTU:      GetUplinkMtu(),
-		})
-		if err != nil {
-			r.log.Error(err, "cannot add route through vpp tap for service CIDR: %s", serviceCIDR.String())
+		var order int
+		for _, uplinkStatus := range common.VppManagerInfo.UplinkStatuses {
+			gw := uplinkStatus.FakeNextHopIP4
+			if serviceCIDR.IP.To4() == nil {
+				gw = uplinkStatus.FakeNextHopIP6
+			}
+			var priority int
+			if uplinkStatus.IsMain {
+				priority = 0
+			} else {
+				order += 1
+				priority = order
+			}
+			err := r.AddRoute(&netlink.Route{
+				Dst:      serviceCIDR,
+				Gw:       gw,
+				Protocol: syscall.RTPROT_STATIC,
+				MTU:      GetUplinkMtu(),
+				Priority: priority,
+			})
+			if err != nil {
+				r.log.Error(err, "cannot add route through vpp tap for service CIDR: %s", serviceCIDR.String())
+			}
 		}
 	}
 	for {
@@ -215,36 +237,69 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 				}
 				r.log.Warn("Route watcher stopped")
 				return nil
-			case event := <-r.ipamEventChan:
+			case event := <-r.eventChan:
 				switch event.Type {
+				case common.NetDeleted:
+					netDef := event.Old.(*NetworkDefinition)
+					key := netDef.Range
+					routes, err := r.getNetworkRoute(key, netDef.PhysicalNetworkName)
+					if err != nil {
+						r.log.Error("Error getting route from ipam update:", err)
+						goto restart
+					}
+					for _, route := range routes {
+						err = r.DelRoute(route)
+						if err != nil {
+							r.log.Errorf("Cannot add pool route %s through vpp tap: %v", key, err)
+							goto restart
+						}
+					}
+				case common.NetAddedOrUpdated:
+					netDef := event.New.(*NetworkDefinition)
+					key := netDef.Range
+					routes, err := r.getNetworkRoute(key, netDef.PhysicalNetworkName)
+					if err != nil {
+						r.log.Error("Error getting route from ipam update:", err)
+						goto restart
+					}
+					for _, route := range routes {
+						err = r.AddRoute(route)
+						if err != nil {
+							r.log.Errorf("Cannot add pool route %s through vpp tap: %v", key, err)
+							goto restart
+						}
+					}
 				case common.IpamConfChanged:
 					old, _ := event.Old.(*proto.IPAMPool)
 					new, _ := event.New.(*proto.IPAMPool)
 					r.log.Debugf("Received IPAM config update in route watcher old:%+v new:%+v", old, new)
 					if new == nil {
 						key := old.Cidr
-						route, err := r.getNetworkRoute(key)
+						routes, err := r.getNetworkRoute(key, "")
 						if err != nil {
 							r.log.Error("Error getting route from ipam update:", err)
 							goto restart
 						}
-						err = r.DelRoute(route)
-						if err != nil {
-							r.log.Errorf("Cannot delete pool route %s through vpp tap: %v", key, err)
-							goto restart
+						for _, route := range routes {
+							err = r.DelRoute(route)
+							if err != nil {
+								r.log.Errorf("Cannot delete pool route %s through vpp tap: %v", key, err)
+								goto restart
+							}
 						}
-
 					} else {
 						key := new.Cidr
-						route, err := r.getNetworkRoute(key)
+						routes, err := r.getNetworkRoute(key, "")
 						if err != nil {
 							r.log.Error("Error getting route from ipam update:", err)
 							goto restart
 						}
-						err = r.AddRoute(route)
-						if err != nil {
-							r.log.Errorf("Cannot add pool route %s through vpp tap: %v", key, err)
-							goto restart
+						for _, route := range routes {
+							err = r.AddRoute(route)
+							if err != nil {
+								r.log.Errorf("Cannot add pool route %s through vpp tap: %v", key, err)
+								goto restart
+							}
 						}
 					}
 				}

@@ -27,14 +27,14 @@ import (
 )
 
 type LinkWatcher struct {
-	UplinkStatuses []config.UplinkStatus
+	UplinkStatuses map[string]config.UplinkStatus
 	close          chan struct{}
 	netlinkFailed  chan struct{}
 	closeLock      sync.Mutex
 	log            *log.Entry
 }
 
-func NewLinkWatcher(uplinkStatus []config.UplinkStatus, log *log.Entry) *LinkWatcher {
+func NewLinkWatcher(uplinkStatus map[string]config.UplinkStatus, log *log.Entry) *LinkWatcher {
 	return &LinkWatcher{
 		UplinkStatuses: uplinkStatus,
 		log:            log,
