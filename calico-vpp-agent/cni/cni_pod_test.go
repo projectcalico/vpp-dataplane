@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -38,6 +39,8 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
+
+	gomemif "go.fd.io/govpp/extras/gomemif/memif"
 )
 
 const (
@@ -245,6 +248,75 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					Expect(pblClientStr).To(ContainSubstring(
 						fmt.Sprintf("udp ports: %d-%d", memifUDPPortStart, memifUDPPortEnd)),
 						"UDP port range is not correctly configured for memif interface")
+
+					By("Checking socket creation")
+					memif_socket, err := gomemif.NewSocket("gomemif_example", "@vpp/memif-newInterface")
+					Expect(err).ToNot(HaveOccurred())
+
+					By("Checking slave connection to master")
+					memifErrChan := make(chan error)
+					quitChan := make(chan int)
+					// Start master polling
+					go func() {
+						for {
+							select {
+							case <-quitChan:
+								return
+							default:
+								memif_socket.StartPolling(memifErrChan)
+								time.Sleep(100 * time.Millisecond)
+							}
+						}
+					}()
+
+					sockChannel := make(chan *gomemif.Interface, 1)
+
+					slave := func() error {
+						args := &gomemif.Arguments{
+							IsMaster:         false,
+							Name:             "memif",
+							ConnectedFunc:    func(i *gomemif.Interface) error { return nil },
+							DisconnectedFunc: func(i *gomemif.Interface) error { return nil },
+						}
+
+						i, err := memif_socket.NewInterface(args)
+						if err != nil {
+							return err
+						}
+
+						retry := 5
+						for !i.IsConnecting() {
+							err = i.RequestConnection()
+							if err != nil {
+								retry--
+							}
+							if retry == 0 {
+								sockChannel <- nil
+								return err
+							}
+							time.Sleep(100 * time.Millisecond)
+						}
+						sockChannel <- i
+						return nil
+					}
+					// Create slave socket in container net space
+					err = cni.NetNsExec("pid:"+containerPidStr, slave)
+					Expect(err).ToNot(HaveOccurred())
+					i := <-sockChannel
+
+					By("Sending a ARP request")
+					srcMac := net.HardwareAddr{0x01, 0x66, 0x38, 0xa1, 0x12, 0x46}
+					srcIp := net.IPv4(1, 2, 3, 4)
+					dstIp := net.IPv4(1, 2, 3, 5)
+
+					arp, err := cni.NewArpRequestPacket(srcMac, srcIp, dstIp)
+					Expect(err).ToNot(HaveOccurred())
+					txq, err := i.GetTxQueue(0)
+					Expect(err).ToNot(HaveOccurred())
+
+					bytesWritten := txq.WritePacket(arp)
+					Expect(bytesWritten).To(Equal(len(arp)))
+					quitChan <- 1
 				})
 
 			})
@@ -287,8 +359,256 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					pubSubHandlerMock.Start()
 				})
 
-				// TODO test multinet(additional network for pod) with MEMIF interface
+				Context("With default memif interface configured for secondary(multinet) tunnel to pod", func() {
+					BeforeEach(func() {
+						config.GetCalicoVppFeatureGates().MemifEnabled = &config.True
+					})
+					It("should have properly configured both interfaces tunnels to VPP", func() {
+						const (
+							ipAddress              = "1.2.3.44"      // main TAP tunnel (=not multinet)
+							mainInterfaceName      = "mainInterface" // name must be <=16 characters long due to tap name size on pod linux side
+							secondaryInterfaceName = "memif2nd"      // name must be <=16 characters long due to tap name size on pod linux side
+							memifTCPPortStart      = 2222
+							memifTCPPortEnd        = 33333
+							memifUDPPortStart      = 4444
+							memifUDPPortEnd        = 55555
+						)
 
+						By("Getting Pod mock container's PID")
+						containerPidOutput, err := exec.Command("docker", "inspect", "-f", "{{.State.Pid}}",
+							PodMockContainerName).Output()
+						Expect(err).Should(BeNil(), "Failed to get pod mock container's PID string")
+						containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
+
+						By("Adding Pod to primary network using CNI server")
+						newPodForPrimaryNetwork := &cniproto.AddRequest{
+							InterfaceName: mainInterfaceName,
+							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
+							ContainerIps:  []*cniproto.IPConfig{{Address: ipAddress + "/24"}},
+							Workload:      &cniproto.WorkloadIDs{},
+						}
+						common.VppManagerInfo = &config.VppManagerInfo{}
+						reply, err := cniServer.Add(context.Background(), newPodForPrimaryNetwork)
+						Expect(err).ToNot(HaveOccurred(), "Pod addition to primary network failed")
+						Expect(reply.Successful).To(BeTrue(),
+							fmt.Sprintf("Pod addition to primary network failed due to: %s", reply.ErrorMessage))
+
+						By("Adding Pod to secondary(multinet) network using CNI server")
+						secondaryIPAddress := test.FirstIPinIPRange(networkDefinition.Range).String()
+						newPodForSecondaryNetwork := &cniproto.AddRequest{
+							InterfaceName: secondaryInterfaceName,
+							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
+							ContainerIps: []*cniproto.IPConfig{{
+								Address: secondaryIPAddress + "/24",
+							}},
+							//Workload: &cniproto.WorkloadIDs{},
+							DataplaneOptions: map[string]string{
+								test.DpoNetworkNameFieldName(): networkDefinition.Name,
+							},
+							Workload: &cniproto.WorkloadIDs{
+								Annotations: map[string]string{
+									// needed just for setting up steering of traffic to default Tun/Tap and to secondary Memif
+									cni.VppAnnotationPrefix + cni.MemifPortAnnotation: fmt.Sprintf("tcp:%d-%d,udp:%d-%d",
+										memifTCPPortStart, memifTCPPortEnd, memifUDPPortStart, memifUDPPortEnd),
+								},
+							},
+						}
+						reply, err = cniServer.Add(context.Background(), newPodForSecondaryNetwork)
+						Expect(err).ToNot(HaveOccurred(), "Pod addition to secondary network failed")
+						Expect(reply.Successful).To(BeTrue(),
+							fmt.Sprintf("Pod addition to secondary network failed due to: %s", reply.ErrorMessage))
+
+						By("Checking existence of main tun interface tunnel to pod (at VPP's end)")
+						mainSwIfIndex := test.AssertTunInterfaceExistence(vpp, newPodForPrimaryNetwork)
+
+						By("Checking main tunnel's tun interface for common interface attributes")
+						test.AssertTunnelInterfaceIPAddress(vpp, mainSwIfIndex, ipAddress)
+						test.AssertTunnelInterfaceMTU(vpp, mainSwIfIndex)
+
+						//By("Checking secondary tunnel's tun interface for existence")
+						//secondarySwIfIndex := test.AssertTunInterfaceExistence(vpp, newPodForSecondaryNetwork)
+						By("Checking secondary tunnel's memif interface for existence")
+						memifSwIfIndex, err := vpp.SearchInterfaceWithTag(
+							test.InterfaceTagForLocalMemifTunnel(newPodForSecondaryNetwork.InterfaceName, newPodForSecondaryNetwork.Netns))
+						Expect(err).ShouldNot(HaveOccurred(), "Failed to get memif interface at VPP's end")
+
+						By("Checking secondary tunnel's memif interface for common interface attributes")
+						test.AssertTunnelInterfaceIPAddress(vpp, memifSwIfIndex, secondaryIPAddress)
+						test.AssertTunnelInterfaceMTU(vpp, memifSwIfIndex)
+						test.AssertInterfaceGSO(memifSwIfIndex, "secondary tunnel's memif interface", vpp)
+
+						By("Checking secondary tunnel's memif interface for memif attributes")
+						memifs, err := vpp.ListMemifInterfaces()
+						Expect(err).ToNot(HaveOccurred(), "failed to get memif interfaces")
+						Expect(memifs).ToNot(BeEmpty(), "no memif interfaces retrieved")
+						Expect(memifs[0].Role).To(Equal(types.MemifMaster))
+						Expect(memifs[0].Mode).To(Equal(types.MemifModeEthernet))
+						Expect(memifs[0].Flags&types.MemifAdminUp > 0).To(BeTrue())
+						// Note: queues are allocated only when a client is listening
+						// Expect(memifs[0].QueueSize).To(Equal(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize))
+						//Note:Memif.NumRxQueues and Memif.NumTxQueues is not dumped by VPP binary API dump -> can't test it
+
+						By("Checking secondary tunnel's memif socket file") // checking only VPP setting, not file socket presence
+						socket, err := vpp.MemifsocketByID(memifs[0].SocketId)
+						Expect(err).ToNot(HaveOccurred(), "failed to get memif socket")
+						Expect(socket.SocketFilename).To(Equal(
+							fmt.Sprintf("@netns:%s@%s", newPodForSecondaryNetwork.Netns, newPodForSecondaryNetwork.InterfaceName)),
+							"memif socket file is not configured correctly")
+
+						test.RunInPod(newPodForSecondaryNetwork.Netns, func() {
+							By("Checking main tunnel's tun interface on pod side")
+							_, err := netlink.LinkByName(mainInterfaceName)
+							Expect(err).ToNot(HaveOccurred(), "can't find main interface in pod")
+
+							By("Checking secondary tunnel's tun interface on pod side")
+							secTunLink, err := netlink.LinkByName(secondaryInterfaceName)
+							Expect(err).ToNot(HaveOccurred(), "can't find secondary(multinet) interface in pod")
+
+							By("Checking multinet related routes on pod side")
+							secTunLinkRoutes, err := netlink.RouteList(secTunLink, syscall.AF_INET) // Ipv4 routes only
+							Expect(err).ToNot(HaveOccurred(), "can't get routes from pod")
+							Expect(secTunLinkRoutes).To(ContainElements(
+								gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+									"Dst": gs.PointTo(Equal(*test.IpNet(networkDefinition.Range))),
+								}),
+							), "can't find route in pod that steers all multinet network "+
+								"traffic into multinet tunnel interface in pod")
+						})
+
+						By("checking pushing of LocalPodAddressAdded event for BGP pod network announcing")
+						// Note: BGP is not tested here, only that event for it was sent
+						Expect(pubSubHandlerMock.ReceivedEvents).To(ContainElements(
+							gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+								"Type": Equal(common.LocalPodAddressAdded),
+								"New": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+									"ContainerIP": gs.PointTo(Equal(*test.IpNetWithIPInIPv6Format(ipAddress + "/32"))),
+								}),
+							}),
+							gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+								"Type": Equal(common.LocalPodAddressAdded),
+								"New": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
+									"ContainerIP": gs.PointTo(Equal(*test.IpNetWithIPInIPv6Format(secondaryIPAddress + "/32"))),
+								}),
+							}),
+						))
+
+						By("Checking default route from pod-specific VRF to multinet network-specific vrf")
+						podVrf4ID, podVrf6ID, err := test.PodVRFs(secondaryInterfaceName, newPodForSecondaryNetwork.Netns, vpp)
+						Expect(err).ToNot(HaveOccurred(), "can't find pod-specific VRFs")
+						for idx, ipFamily := range vpplink.IpFamilies {
+							podVrfID := podVrf4ID
+							zeroIPNet := &net.IPNet{IP: net.IPv4zero.To4(), Mask: net.IPMask(net.IPv4zero.To4())}
+							if ipFamily.IsIp6 {
+								podVrfID = podVrf6ID
+								zeroIPNet = &net.IPNet{IP: net.IPv6zero, Mask: net.IPMask(net.IPv6zero)}
+							}
+							routes, err := vpp.GetRoutes(podVrfID, ipFamily.IsIp6)
+							Expect(err).ToNot(HaveOccurred(),
+								fmt.Sprintf("can't get %s routes in pod-specific VRF", ipFamily.Str))
+							Expect(routes).To(ContainElements(
+								types.Route{
+									Paths: []types.RoutePath{{
+										Table:     networkDefinition.VRF.Tables[idx],
+										SwIfIndex: types.InvalidID,
+										Gw:        zeroIPNet.IP,
+									}},
+									Dst:   zeroIPNet,
+									Table: podVrfID,
+								},
+							), "can't find default route from pod-specific VRF to multinet "+
+								"network-specific vrf")
+						}
+
+						By("Checking steering route in multinet network VRF leading to pod " +
+							"using multinet tunnel interface")
+						// Note: should be checked for all container IPs of multinet, but we have only one
+						multinetVRFID := networkDefinition.VRF.Tables[test.IpFamilyIndex(vpplink.IpFamilyV4)] // secondaryIPAddress is from IpFamilyV4
+						routes, err := vpp.GetRoutes(multinetVRFID, false)
+						Expect(err).ToNot(HaveOccurred(),
+							"can't get ipv4 routes in multinet network-specific VRF")
+						Expect(routes).To(ContainElements(
+							types.Route{
+								Dst: test.IpNet(secondaryIPAddress + "/32"),
+								Paths: []types.RoutePath{{
+									SwIfIndex: memifSwIfIndex,
+									Gw:        test.IpNet(secondaryIPAddress + "/32").IP,
+								}},
+								Table: multinetVRFID,
+							},
+						), "can't find steering route in multinet network VRF leading "+
+							"to pod using multinet tunnel interface")
+
+						By("Checking socket creation")
+						memif_socket, err := gomemif.NewSocket("gomemif_example", "@"+secondaryInterfaceName)
+						Expect(err).ToNot(HaveOccurred())
+
+						By("Checking slave connection to master")
+						memifErrChan := make(chan error)
+						quitChan := make(chan int)
+						// Start master polling
+						go func() {
+							for {
+								select {
+								case <-quitChan:
+									return
+								default:
+									memif_socket.StartPolling(memifErrChan)
+									time.Sleep(100 * time.Millisecond)
+								}
+							}
+						}()
+
+						sockChannel := make(chan *gomemif.Interface, 1)
+
+						slave := func() error {
+							args := &gomemif.Arguments{
+								IsMaster:         false,
+								Name:             "memif",
+								ConnectedFunc:    func(i *gomemif.Interface) error { return nil },
+								DisconnectedFunc: func(i *gomemif.Interface) error { return nil },
+							}
+
+							i, err := memif_socket.NewInterface(args)
+							if err != nil {
+								return err
+							}
+
+							retry := 5
+							for !i.IsConnecting() {
+								err = i.RequestConnection()
+								if err != nil {
+									retry--
+								}
+								if retry == 0 {
+									sockChannel <- nil
+									return err
+								}
+								time.Sleep(100 * time.Millisecond)
+							}
+							sockChannel <- i
+							return nil
+						}
+						// Create slave socket in container net space
+						err = cni.NetNsExec("pid:"+containerPidStr, slave)
+						Expect(err).ToNot(HaveOccurred())
+						i := <-sockChannel
+						Expect(i).ToNot(BeNil())
+
+						By("Sending a ARP request")
+						srcMac := net.HardwareAddr{0x01, 0x66, 0x38, 0xa1, 0x12, 0x46}
+						srcIp := net.IPv4(1, 2, 3, 4)
+						dstIp := net.IPv4(1, 2, 3, 5)
+
+						arp, err := cni.NewArpRequestPacket(srcMac, srcIp, dstIp)
+						Expect(err).ToNot(HaveOccurred())
+						txq, err := i.GetTxQueue(0)
+						Expect(err).ToNot(HaveOccurred())
+
+						bytesWritten := txq.WritePacket(arp)
+						Expect(bytesWritten).To(Equal(len(arp)))
+						quitChan <- 1
+					})
+				})
 				Context("With default (TAP) interface configured for secondary(multinet) tunnel to pod", func() {
 					It("should have properly configured both TAP interface tunnels to VPP", func() {
 						const (

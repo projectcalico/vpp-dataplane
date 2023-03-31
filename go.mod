@@ -71,6 +71,7 @@ require (
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -107,6 +108,7 @@ require (
 	go.etcd.io/etcd/api/v3 v3.5.6 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.6 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.6 // indirect
+	go.fd.io/govpp/extras v0.1.1-0.20230330140632-6a7dcb03934f // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect

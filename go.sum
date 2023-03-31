@@ -478,6 +478,8 @@ github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/
 github.com/google/gofuzz v1.1.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/gofuzz v1.2.0 h1:xRy4A+RhZaiKjJ1bPfwQ8sedCA+YS2YcCHW6ec7JMi0=
 github.com/google/gofuzz v1.2.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
+github.com/google/gopacket v1.1.19 h1:ves8RnFZPGiFnTS0uPQStjwru6uO6h+nlr9j6fL7kF8=
+github.com/google/gopacket v1.1.19/go.mod h1:iJ8V8n6KS+z2U1A8pUwu8bW5SyEMkXJB8Yo/Vo+TKTo=
 github.com/google/martian v2.1.0+incompatible/go.mod h1:9I4somxYTbIHy5NJKHRl3wXiIaQGbYVAs8BPL6v8lEs=
 github.com/google/martian/v3 v3.0.0/go.mod h1:y5Zk1BBys9G+gd6Jrk0W3cC1+ELVxBWuIGO+w/tUAp0=
 github.com/google/martian/v3 v3.1.0/go.mod h1:y5Zk1BBys9G+gd6Jrk0W3cC1+ELVxBWuIGO+w/tUAp0=
@@ -973,6 +975,10 @@ go.etcd.io/etcd/raft/v3 v3.5.0/go.mod h1:UFOHSIvO/nKwd4lhkwabrTD3cqW5yVyYYf/KlD0
 go.etcd.io/etcd/server/v3 v3.5.0/go.mod h1:3Ah5ruV+M+7RZr0+Y/5mNLwC+eQlni+mQmOVdCRJoS4=
 go.fd.io/govpp v0.8.0-alpha.0.20230307095658-7c0746c5a95b h1:WMwqPpx0JRrEIxq47krDy6HoCT3K8lbUJGU2N2Z7oUc=
 go.fd.io/govpp v0.8.0-alpha.0.20230307095658-7c0746c5a95b/go.mod h1:nqU7f6ABJKZlu1+UFCNXef3sVx9DaZXZhEIAA6SoimA=
+go.fd.io/govpp/extras v0.1.0 h1:vY9nWLGGHD8VoEaL47sP8sQTNBWNE0mN0aERixEUzBE=
+go.fd.io/govpp/extras v0.1.0/go.mod h1:s2FPOGIWR+p3ItFhlC2Zgbw1U5HwZxNYLffeK8Ld/kE=
+go.fd.io/govpp/extras v0.1.1-0.20230330140632-6a7dcb03934f h1:a39nZEScxex3OtY8LuEdLsV2YE+Zm0zhKoF2wMcQw54=
+go.fd.io/govpp/extras v0.1.1-0.20230330140632-6a7dcb03934f/go.mod h1:s2FPOGIWR+p3ItFhlC2Zgbw1U5HwZxNYLffeK8Ld/kE=
 go.mozilla.org/pkcs7 v0.0.0-20200128120323-432b2356ecb1/go.mod h1:SNgMg+EgDFwmvSmLRTNKC5fegJjB7v23qTQ0XLGUNHk=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
