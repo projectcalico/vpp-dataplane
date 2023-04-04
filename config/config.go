@@ -18,7 +18,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"regexp"
@@ -566,7 +565,7 @@ func (c *LinuxInterfaceState) SortRoutes() {
 }
 
 func getCpusetCpu() (string, error) {
-	content, err := ioutil.ReadFile("/sys/fs/cgroup/cpuset.cpus")
+	content, err := os.ReadFile("/sys/fs/cgroup/cpuset.cpus")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
