@@ -109,17 +109,6 @@ func (s *Server) ParseEnableDisableAnnotation(value string) (bool, error) {
 	}
 }
 
-func (s *Server) ParseTrueFalseAnnotation(value string) (bool, error) {
-	switch value {
-	case "true":
-		return true, nil
-	case "false":
-		return false, nil
-	default:
-		return false, errors.Errorf("Unknown value %s", value)
-	}
-}
-
 func (s *Server) ParseSpoofAddressAnnotation(value string) ([]cnet.IPNet, error) {
 	var requestedSourcePrefixes []string
 	var allowedSources []cnet.IPNet
