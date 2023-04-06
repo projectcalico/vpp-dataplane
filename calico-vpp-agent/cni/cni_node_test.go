@@ -567,12 +567,14 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				By("checking wireguard tunnel")
 				wireguardSwIfIndex, err := vpp.SearchInterfaceWithName("wg0")
 				Expect(err).ToNot(HaveOccurred(), "can't find wireguard tunnel interface")
+				wireguardSwIfIndex2, err := vpp.SearchInterfaceWithName("wg1")
+				Expect(err).ToNot(HaveOccurred(), "can't find wireguard tunnel interface")
 				wgTunnel, err := vpp.GetWireguardTunnel(wireguardSwIfIndex)
 				Expect(err).ToNot(HaveOccurred(), "can't get wireguard tunnel from VPP")
 
 				Expect(wgTunnel.Port).To(Equal(uint16(felixConfig.WireguardListeningPort)),
 					"incorrectly set wireguard listening port")
-				Expect(wgTunnel.Addr).To(Equal(net.ParseIP(ThisNodeIP).To4()),
+				Expect(wgTunnel.Addr).To(Or(Equal(net.ParseIP(ThisNodeIP).To4()), Equal(net.ParseIP(ThisNodeIPv6).To16())),
 					"incorrectly set IP address of this node's wireguard tunnel interface")
 				By("checking wireguard tunnel interface attributes (Unnumbered)")
 				test.AssertUnnumberedInterface(wireguardSwIfIndex, "wireguard tunnel interface", vpp)
@@ -615,7 +617,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						"Port":       Equal(uint16(felixConfig.WireguardListeningPort)),
 						"TableID":    Equal(uint32(0)), // default table
 						"Addr":       Equal(net.ParseIP(AddedNodeIP).To4()),
-						"SwIfIndex":  Equal(wireguardSwIfIndex),
+						"SwIfIndex":  Or(Equal(wireguardSwIfIndex), Equal(wireguardSwIfIndex2)),
 						"AllowedIps": ContainElements(*test.IpNet(AddedNodeIP + "/32")),
 					}),
 				)))
@@ -628,7 +630,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 						"Dst": gs.PointTo(Equal(*test.IpNet(AddedNodeIP + "/32"))),
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-							"SwIfIndex": Equal(wireguardSwIfIndex),
+							"SwIfIndex": Or(Equal(wireguardSwIfIndex), Equal(wireguardSwIfIndex2)),
 						})),
 					})))
 				routes, err = vpp.GetRoutes(common.DefaultVRFIndex, false)
@@ -638,7 +640,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 						"Dst": gs.PointTo(Equal(*test.IpNet(AddedNodeIP + "/24"))), // NodeConnectivity.Dst
 						"Paths": ContainElements(gs.MatchFields(gs.IgnoreExtras, gs.Fields{
-							"SwIfIndex": Equal(wireguardSwIfIndex),
+							"SwIfIndex": Or(Equal(wireguardSwIfIndex), Equal(wireguardSwIfIndex2)),
 						})),
 					}),
 				), "Can't find 2 routes that should steer the traffic to newly added node")

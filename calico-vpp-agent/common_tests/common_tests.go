@@ -293,8 +293,8 @@ func StartVPP() {
 	vppBinaryConfigArg := `unix {
 			nodaemon
 			full-coredump
-			cli-listen /var/run/vpp/cli2.sock
-			pidfile /run/vpp/vpp2.pid
+			cli-listen /var/run/vpp/cli.sock
+			pidfile /run/vpp/vpp.pid
 		  }
 		  api-trace { on }
 		  cpu {
