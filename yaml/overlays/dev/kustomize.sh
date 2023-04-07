@@ -131,7 +131,6 @@ function get_debug ()
     echo "{
       \"policiesEnabled\": ${CALICOVPP_DEBUG_ENABLE_POLICIES:-true},
       \"servicesEnabled\": ${CALICOVPP_DEBUG_ENABLE_SERVICES:-true},
-      \"maglevEnabled\": ${CALICOVPP_DEBUG_ENABLE_MAGLEV:-true},
       \"gsoEnabled\": ${CALICOVPP_DEBUG_ENABLE_GSO:-true}
     }"
 }

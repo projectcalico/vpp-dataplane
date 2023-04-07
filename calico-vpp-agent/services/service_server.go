@@ -17,9 +17,12 @@ package services
 
 import (
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
@@ -34,6 +37,12 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
+)
+
+const (
+	KeepOriginalPacketAnnotation string = "KeepOriginalPacket"
+	HashConfigAnnotation         string = "HashConfig"
+	LBTypeAnnotation             string = "LBType"
 )
 
 /**
@@ -79,6 +88,61 @@ func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 
 func (s *Server) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	s.nodeBGPSpec = nodeBGPSpec
+}
+
+func (s *Server) ParseServiceAnnotations(annotations map[string]string, name string) *serviceInfo {
+	var err []error
+	svc := &serviceInfo{}
+	for key, value := range annotations {
+		switch key {
+		case cni.VppAnnotationPrefix + LBTypeAnnotation:
+			switch strings.ToLower(value) {
+			case "ecmp":
+				svc.lbType = lbTypeECMP
+			case "maglev":
+				svc.lbType = lbTypeMaglev
+			case "maglevdsr":
+				svc.lbType = lbTypeMaglevDSR
+			default:
+				svc.lbType = lbTypeECMP // default value
+				err = append(err, errors.Errorf("Unknown value %s for key %s", value, key))
+			}
+		case cni.VppAnnotationPrefix + HashConfigAnnotation:
+			hashConfigList := strings.Split(strings.TrimSpace(value), ",")
+			for _, hc := range hashConfigList {
+				switch strings.TrimSpace(strings.ToLower(hc)) {
+				case "srcport":
+					svc.hashConfig = append(svc.hashConfig, hashConfigSrcport)
+				case "dstport":
+					svc.hashConfig = append(svc.hashConfig, hashConfigDstport)
+				case "srcaddr":
+					svc.hashConfig = append(svc.hashConfig, hashConfigSrcaddr)
+				case "dstaddr":
+					svc.hashConfig = append(svc.hashConfig, hashConfigDstaddr)
+				case "iproto":
+					svc.hashConfig = append(svc.hashConfig, hashConfigIproto)
+				case "reverse":
+					svc.hashConfig = append(svc.hashConfig, hashConfigReverse)
+				case "symmetric":
+					svc.hashConfig = append(svc.hashConfig, hashConfigSymmetric)
+				default:
+					err = append(err, errors.Errorf("Unknown value %s for key %s", value, key))
+				}
+			}
+		case cni.VppAnnotationPrefix + KeepOriginalPacketAnnotation:
+			var err1 error
+			svc.keepOriginalPacket, err1 = strconv.ParseBool(value)
+			if err1 != nil {
+				err = append(err, errors.Wrapf(err1, "Unknown value %s for key %s", value, key))
+			}
+		default:
+			continue
+		}
+		if len(err) != 0 {
+			s.log.Errorf("Error parsing annotations for service %s: %s", name, err)
+		}
+	}
+	return svc
 }
 
 func (s *Server) resolveLocalServiceFromService(service *v1.Service) *LocalService {
