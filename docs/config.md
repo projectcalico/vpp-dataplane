@@ -59,7 +59,6 @@ data:
   {
     "policiesEnabled": true,
     "servicesEnabled": true,
-    "maglevEnabled": true,
     "gsoEnabled": true
   }
 

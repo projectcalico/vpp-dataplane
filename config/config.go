@@ -253,7 +253,6 @@ func (u *UplinkInterfaceSpec) String() string {
 type CalicoVppDebugConfigType struct {
 	PoliciesEnabled *bool `json:"policiesEnabled,omitempty"`
 	ServicesEnabled *bool `json:"servicesEnabled,omitempty"`
-	MaglevEnabled   *bool `json:"maglevEnabled,omitempty"`
 	GSOEnabled      *bool `json:"gsoEnabled,omitempty"`
 }
 
@@ -268,9 +267,6 @@ func (self *CalicoVppDebugConfigType) Validate() (err error) {
 	}
 	if self.ServicesEnabled == nil {
 		self.ServicesEnabled = &True
-	}
-	if self.MaglevEnabled == nil {
-		self.MaglevEnabled = &True
 	}
 	if self.GSOEnabled == nil {
 		self.GSOEnabled = &True
