@@ -174,6 +174,16 @@ func (s *Server) GetLocalService(service *v1.Service, ep *v1.Endpoints) (localSe
 				localService.Entries = append(localService.Entries, *entry)
 			}
 		}
+
+		// Create NodePort for external LB
+		// Note: type=LoadBalancer only makes sense on cloud providers which support external load balancers and the actual
+		// creation of the load balancer happens asynchronously.
+		if service.Spec.Type == v1.ServiceTypeLoadBalancer && *service.Spec.AllocateLoadBalancerNodePorts {
+			if !nodeIP.IsUnspecified() {
+				entry := buildCnatEntryForServicePort(&servicePort, service, ep, nodeIP, true /* isNodePort */)
+				localService.Entries = append(localService.Entries, *entry)
+			}
+		}
 	}
 	return
 }
