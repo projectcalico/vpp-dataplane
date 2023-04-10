@@ -163,6 +163,11 @@ func main() {
 	Go(policyServer.ServePolicy)
 	felixConfig := watchDog.Wait(policyServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
 	ourBGPSpec := watchDog.Wait(policyServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")
+	// check if the watchDog timer has issued the t.Kill() which would mean we are dead
+	if !t.Alive() {
+		log.Fatal("WatchDog timed out waiting for config from felix. Exiting...")
+	}
+
 	if ourBGPSpec != nil {
 		prefixWatcher.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
 		connectivityServer.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))

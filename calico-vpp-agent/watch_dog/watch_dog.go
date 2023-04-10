@@ -48,7 +48,7 @@ func (wd *WatchDog) Wait(myChan chan interface{}, msg string) interface{} {
 		case <-ticker.C:
 			nbTicks++
 			if nbTicks >= 30 {
-				wd.t.Kill(errors.Errorf("Timeout: restarting agent"))
+				wd.t.Kill(errors.Errorf("Timeout waiting for config from felix"))
 			} else if nbTicks >= 6 { // Start warning after 6 ticks, i.e. 30sec
 				wd.log.Warn(msg)
 			} else {
