@@ -5,14 +5,14 @@ This folder contains Calico/VPP technical documentation. This is this repository
 It contains developer oriented documentation, details of VPP specific features :
 
 - [Interface configuration](config.md)
-- [Developper's getting started](developper_guide.md) 
-- [Multinet feature documetation](migrate_to_calicovpp.md) 
-- [Existing Calico cluster migration](multinet.md) 
+- [Developer's getting started](developper_guide.md)
+- [Multinet feature documentation](multinet.md)
+- [Existing Calico cluster migration](migrate_to_calicovpp.md)
 - [External resources](events.md) like events and presentations
 - [Guide to upgrade calico](upgrading.md)
 - [A networking model deep dive](networkmodel.md)
 
-Additionnaly this repository contains :
+Additionally this repository contains :
 
 - [A series of examples yamls](../test/yaml)
 - [A Simple VCL client and server example](../test/yaml/simple-vcl)
