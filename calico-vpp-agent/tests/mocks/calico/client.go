@@ -132,6 +132,10 @@ func (cc *CalicoClientStub) BlockAffinities() clientv3.BlockAffinityInterface {
 	panic("not implemented")
 }
 
+func (cc *CalicoClientStub) BGPFilter() clientv3.BGPFilterInterface {
+	panic("not implemented")
+}
+
 // EnsureInitialized is used to ensure the backend datastore is correctly
 // initialized for use by Calico.  This method may be called multiple times, and
 // will have no effect if the datastore is already correctly initialized.
