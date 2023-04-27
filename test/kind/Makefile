@@ -1,11 +1,12 @@
 TAG ?= latest # Tag images with :$(TAG)
 N_KIND_WORKERS ?= 3
 N_KIND_CONTROL_PLANES ?= 1
+CPU_PINNING ?= false
 KIND_CALICO_VERSION ?= master
 
 .PHONY: new-cluster
 new-cluster:
-	@N_KIND_WORKERS=$(N_KIND_WORKERS) N_KIND_CONTROL_PLANES=$(N_KIND_CONTROL_PLANES) ./new_cluster.sh
+	@N_KIND_WORKERS=$(N_KIND_WORKERS) N_KIND_CONTROL_PLANES=$(N_KIND_CONTROL_PLANES) CPU_PINNING=$(CPU_PINNING) ./new_cluster.sh
 
 .PHONY: delete-cluster
 delete-cluster:

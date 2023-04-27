@@ -48,10 +48,17 @@ $config
   extraMounts:
     - hostPath: $HOME
       containerPath: $HOME
+EOF
+);
+if [ "$CPU_PINNING" == "true" ]; then
+config=$(cat <<EOF
+$config
   cpuSet: "$(($N_KIND_WORKERS+$FIRST_CPU+1+i)),$(($N_KIND_WORKERS+$FIRST_CPU+2-2*(i%2)+i))"
 EOF
 );\
+fi
 done
+# use cpuSet in the case of a patched kind version like in scale tests (test/scale/README.md)
 
 for ((i=1; i<=$N_KIND_WORKERS; i++)); do \
 config=$(cat <<EOF
@@ -60,10 +67,17 @@ $config
   extraMounts:
     - hostPath: $HOME
       containerPath: $HOME
-  cpuSet: "$((i+$FIRST_CPU)),$((i+$FIRST_CPU+(1-2*(i%2))))"
+EOF
+);
+if [ "$CPU_PINNING" == "true" ]; then
+config=$(cat <<EOF
+$config
+  cpuSet: "$(($N_KIND_WORKERS+$FIRST_CPU+1+i)),$(($N_KIND_WORKERS+$FIRST_CPU+2-2*(i%2)+i))"
 EOF
 );\
+fi
 done
+# use cpuSet in the case of a patched kind version like in scale tests (test/scale/README.md)
 
 echo -e "$config" | kind create cluster --config=-
 
