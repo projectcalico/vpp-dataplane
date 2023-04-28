@@ -19,7 +19,7 @@ Signed-off-by: MathiasRaoul <mathias.raoul@gmail.com>
  src/plugins/capo/capo.api          | 261 ++++++++++
  src/plugins/capo/capo.h            |  59 +++
  src/plugins/capo/capo_api.c        | 443 ++++++++++++++++
- src/plugins/capo/capo_interface.c  | 365 +++++++++++++
+ src/plugins/capo/capo_interface.c  | 368 +++++++++++++
  src/plugins/capo/capo_interface.h  |  47 ++
  src/plugins/capo/capo_ipset.c      | 472 +++++++++++++++++
  src/plugins/capo/capo_ipset.h      |  68 +++
@@ -31,7 +31,7 @@ Signed-off-by: MathiasRaoul <mathias.raoul@gmail.com>
  src/plugins/capo/capo_rule.h       |  91 ++++
  src/plugins/capo/capo_test.c       | 490 ++++++++++++++++++
  src/plugins/capo/test/test_capo.py | 807 +++++++++++++++++++++++++++++
- 18 files changed, 4866 insertions(+)
+ 18 files changed, 4869 insertions(+)
  create mode 100644 src/plugins/capo/CMakeLists.txt
  create mode 100644 src/plugins/capo/bihash_8_32.h
  create mode 100644 src/plugins/capo/capo.api
@@ -1004,7 +1004,7 @@ new file mode 100644
 index 000000000..787bdfa2d
 --- /dev/null
 +++ b/src/plugins/capo/capo_interface.c
-@@ -0,0 +1,365 @@
+@@ -0,0 +1,368 @@
 +/*
 + * Copyright (c) 2020 Cisco and/or its affiliates.
 + * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1178,11 +1178,14 @@ index 000000000..787bdfa2d
 +      rx_policies = conf->tx_policies;
 +      tx_policies = conf->rx_policies;
 +    }
-+  s = format (s, "addr=");
 +  ip4_address_t *ip4 = 0;
 +  ip4 = ip4_interface_first_address (&ip4_main, sw_if_index, 0);
 +  if (ip4)
-+    s = format (s, "%U", format_ip4_address, ip4);
++    s = format (s, " addr=%U", format_ip4_address, ip4);
++  ip6_address_t *ip6 = 0;
++  ip6 = ip6_interface_first_address (&ip6_main, sw_if_index);
++  if (ip6)
++    s = format (s, " addr6=%U", format_ip6_address, ip6);
 +  s = format (s, "]\n");
 +  if (vec_len (rx_policies))
 +    s = format (s, "  rx:\n");
