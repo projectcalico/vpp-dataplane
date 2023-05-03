@@ -25,6 +25,7 @@ This cluster takes some time to stabilize, and there is still room for further o
 
 Scaling the number of pods is possible up to the buffer limit of VPP, or to the limit number of IP addresses in our IPPool. CNI and CalicoVPP agent respond quite quickly to the creation of real pods.
 We use [*kboom*](https://github.com/mhausenblas/kboom) to conduct this test.
+A real test gave 240 real pods (limit came from limit number of IP addresses in the IPPool).
 
 ### Scaling involving restarting nodes/pods:
 
@@ -38,8 +39,9 @@ These tests result in successful restarts
 
 [*Mocklet*](https://github.com/VineethReddy02/mocklet) allows to create thousands of virtual pods.
 These are not real pods but they trigger CalicoVPP components like CNI server, Policy server, and service Server.
-We use these pods to test services by targeting a thousand virtual pods being a backend for a service.
+We create 1000 virtual pods. Then we use these pods to test services by targeting a thousand virtual pods being a backend for a service.
 We also test the creation of 100K policies on an interface to have them created in VPP.
+We also test the creation of 1000 services targetting different pods.
 These tests are successful and result in stable behaviors in CalicoVPP and VPP itself.
 
 
