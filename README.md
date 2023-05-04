@@ -1,5 +1,7 @@
 # Calico VPP dataplane
 
+
+
 <p float="left">
 <img src="https://docs.tigera.io/img/favicon.png" width="100" height="100">
 <img src="https://fd.io/img/fdio-color.svg" width="100" height="100">
