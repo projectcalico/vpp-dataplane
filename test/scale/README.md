@@ -25,7 +25,36 @@ This cluster takes some time to stabilize, and there is still room for further o
 
 Scaling the number of pods is possible up to the buffer limit of VPP, or to the limit number of IP addresses in our IPPool. CNI and CalicoVPP agent respond quite quickly to the creation of real pods.
 We use [*kboom*](https://github.com/mhausenblas/kboom) to conduct this test.
-A real test gave 240 real pods (limit came from limit number of IP addresses in the IPPool).
+
+100 pods result:
+````bash
+Server Version: v1.24.0
+Running a scale test, launching 100 pod(s) with a 14s timeout ...
+
+-------- Results --------
+Overall pods successful: 100 out of 100
+Total runtime: 9m33.448518988s
+Fastest pod: 5.012000834s
+Slowest pod: 9m33.038759431s
+p50 pods: 4m47.023112836s
+p95 pods: 9m4.037826651s
+````
+
+300 pods result:
+````bash
+Server Version: v1.24.0
+Running a scale test, launching 300 pod(s) with a 14s timeout ...
+
+-------- Results --------
+timeout
+Overall pods successful: 241 out of 300
+Total runtime: 27m41.113670653s
+Fastest pod: 5m35.019967154s
+Slowest pod: 27m26.063806252s
+p50 pods: 16m11.062504502s
+p95 pods: 26m14.045269289s
+````
+This comes from limit number of available IP addresses in the IPPool. So this actually gives around 240 real pods.
 
 ### Scaling involving restarting nodes/pods:
 
