@@ -153,9 +153,6 @@ func (m *Cli) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Process a vpe parser cli string request
-//   - cmd_in_shmem - pointer to cli command string
-//
 // CliInband defines message 'cli_inband'.
 type CliInband struct {
 	Cmd string `binapi:"string[],name=cmd" json:"cmd,omitempty"`
@@ -189,10 +186,6 @@ func (m *CliInband) Unmarshal(b []byte) error {
 	return nil
 }
 
-// vpe parser cli string response
-//   - retval - return code for request
-//   - reply_in_shmem - Reply string from cli processing if any
-//
 // CliInbandReply defines message 'cli_inband_reply'.
 type CliInbandReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -506,11 +499,6 @@ func (m *GetNextIndexReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// show_threads_reply
-//   - retval - return code
-//   - count - number of threads in thread_data array
-//   - thread_data - array of thread data
-//
 // GetNodeGraph defines message 'get_node_graph'.
 type GetNodeGraph struct{}
 

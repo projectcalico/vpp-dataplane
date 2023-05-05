@@ -23,6 +23,8 @@ type RPCService interface {
 	GetBuffersStats(ctx context.Context, in *GetBuffersStats) (*GetBuffersStatsReply, error)
 	HwInterfaceSetMtu(ctx context.Context, in *HwInterfaceSetMtu) (*HwInterfaceSetMtuReply, error)
 	InterfaceNameRenumber(ctx context.Context, in *InterfaceNameRenumber) (*InterfaceNameRenumberReply, error)
+	PcapTraceOff(ctx context.Context, in *PcapTraceOff) (*PcapTraceOffReply, error)
+	PcapTraceOn(ctx context.Context, in *PcapTraceOn) (*PcapTraceOnReply, error)
 	SwInterfaceAddDelAddress(ctx context.Context, in *SwInterfaceAddDelAddress) (*SwInterfaceAddDelAddressReply, error)
 	SwInterfaceAddDelMacAddress(ctx context.Context, in *SwInterfaceAddDelMacAddress) (*SwInterfaceAddDelMacAddressReply, error)
 	SwInterfaceAddressReplaceBegin(ctx context.Context, in *SwInterfaceAddressReplaceBegin) (*SwInterfaceAddressReplaceBeginReply, error)
@@ -139,6 +141,24 @@ func (c *serviceClient) HwInterfaceSetMtu(ctx context.Context, in *HwInterfaceSe
 
 func (c *serviceClient) InterfaceNameRenumber(ctx context.Context, in *InterfaceNameRenumber) (*InterfaceNameRenumberReply, error) {
 	out := new(InterfaceNameRenumberReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) PcapTraceOff(ctx context.Context, in *PcapTraceOff) (*PcapTraceOffReply, error) {
+	out := new(PcapTraceOffReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) PcapTraceOn(ctx context.Context, in *PcapTraceOn) (*PcapTraceOnReply, error) {
+	out := new(PcapTraceOnReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

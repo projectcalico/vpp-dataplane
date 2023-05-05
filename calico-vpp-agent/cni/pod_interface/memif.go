@@ -58,7 +58,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	if podSpec.NetworkName == "" {
 		memifName = "@vpp/memif-" + podSpec.InterfaceName
 	}
-	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("@netns:%s%s", podSpec.NetnsName, memifName))
+	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("abstract:%s,netns_name=%s", memifName, podSpec.NetnsName))
 	if err != nil {
 		return err
 	} else {

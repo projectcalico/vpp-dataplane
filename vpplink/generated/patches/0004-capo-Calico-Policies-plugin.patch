@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Andrew Yourtchenko <ayourtch@gmail.com>
 Date: Wed, 18 Aug 2021 20:10:22 +0200
-Subject: [PATCH 4/5] capo: Calico Policies plugin
+Subject: [PATCH 4/4] capo: Calico Policies plugin
 
 New plugin that implements Calico policies and profiles in VPP.
 
@@ -15,7 +15,7 @@ Signed-off-by: MathiasRaoul <mathias.raoul@gmail.com>
 ---
  MAINTAINERS                        |   5 +
  src/plugins/capo/CMakeLists.txt    |  28 +
- src/plugins/capo/bihash_8_32.h     | 107 ++++
+ src/plugins/capo/bihash_8_32.h     | 112 ++++
  src/plugins/capo/capo.api          | 261 ++++++++++
  src/plugins/capo/capo.h            |  59 +++
  src/plugins/capo/capo_api.c        | 443 ++++++++++++++++
@@ -31,7 +31,7 @@ Signed-off-by: MathiasRaoul <mathias.raoul@gmail.com>
  src/plugins/capo/capo_rule.h       |  91 ++++
  src/plugins/capo/capo_test.c       | 490 ++++++++++++++++++
  src/plugins/capo/test/test_capo.py | 807 +++++++++++++++++++++++++++++
- 18 files changed, 4861 insertions(+)
+ 18 files changed, 4866 insertions(+)
  create mode 100644 src/plugins/capo/CMakeLists.txt
  create mode 100644 src/plugins/capo/bihash_8_32.h
  create mode 100644 src/plugins/capo/capo.api
@@ -51,10 +51,10 @@ Signed-off-by: MathiasRaoul <mathias.raoul@gmail.com>
  create mode 100644 src/plugins/capo/test/test_capo.py
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 37d183f6b..5705be32f 100644
+index 63447151f..9a0038443 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -743,6 +743,11 @@ M:	Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+@@ -744,6 +744,11 @@ M:	Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
  M:	Neale Ranns <neale@graphiant.com>
  F:	src/plugins/cnat
  
@@ -102,10 +102,10 @@ index 000000000..9fa10f710
 +)
 diff --git a/src/plugins/capo/bihash_8_32.h b/src/plugins/capo/bihash_8_32.h
 new file mode 100644
-index 000000000..13748c557
+index 000000000..06cdd79e2
 --- /dev/null
 +++ b/src/plugins/capo/bihash_8_32.h
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,112 @@
 +/*
 + * Copyright (c) 2015 Cisco and/or its affiliates.
 + * Licensed under the Apache License, Version 2.0 (the "License");
@@ -150,14 +150,19 @@ index 000000000..13748c557
 +  u64 value[4]; /**< the value */
 +} clib_bihash_kv_8_32_t;
 +
++static inline void
++clib_bihash_mark_free_8_32 (clib_bihash_kv_8_32_t *v)
++{
++  v->value[0] = 0xFEEDFACE8BADF00DULL;
++}
++
 +/** Decide if a clib_bihash_kv_8_32_t instance is free
 +    @param v- pointer to the (key,value) pair
 +*/
 +static inline int
 +clib_bihash_is_free_8_32 (clib_bihash_kv_8_32_t *v)
 +{
-+  if (v->key == ~0ULL && v->value[0] == ~0ULL && v->value[1] == ~0ULL &&
-+      v->value[2] == ~0ULL && v->value[3] == ~0ULL)
++  if (v->value[0] == 0xFEEDFACE8BADF00DULL)
 +    return 1;
 +  return 0;
 +}

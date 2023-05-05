@@ -146,9 +146,6 @@ func (u *PuntUnion) GetIPProto() (a PuntIPProto) {
 	return
 }
 
-// Dump all or one of the exception punt reasons
-// *   - - If the string is not set punt dump all reasons
-// *            else dump only the one specified
 // PuntReasonDetails defines message 'punt_reason_details'.
 type PuntReasonDetails struct {
 	Reason PuntReason `binapi:"punt_reason,name=reason" json:"reason,omitempty"`
@@ -224,10 +221,6 @@ func (m *PuntReasonDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Punt traffic to the host via socket
-//   - header_version - expected meta data header version (currently 1)
-//   - punt - punt definition
-//
 // PuntSocketDeregister defines message 'punt_socket_deregister'.
 type PuntSocketDeregister struct {
 	Punt Punt `binapi:"punt,name=punt" json:"punt,omitempty"`
@@ -297,10 +290,6 @@ func (m *PuntSocketDeregisterReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Punt traffic to the host via socket
-//   - header_version - expected meta data header version (currently 1)
-//   - punt - punt definition
-//
 // PuntSocketDetails defines message 'punt_socket_details'.
 type PuntSocketDetails struct {
 	Punt     Punt   `binapi:"punt,name=punt" json:"punt,omitempty"`
@@ -341,10 +330,6 @@ func (m *PuntSocketDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Punt traffic to the host via socket
-//   - header_version - expected meta data header version (currently 1)
-//   - punt - punt definition
-//
 // PuntSocketDump defines message 'punt_socket_dump'.
 type PuntSocketDump struct {
 	Type PuntType `binapi:"punt_type,name=type" json:"type,omitempty"`
@@ -426,10 +411,6 @@ func (m *PuntSocketRegister) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Punt traffic to the host via socket
-//   - header_version - expected meta data header version (currently 1)
-//   - punt - punt definition
-//
 // PuntSocketRegisterReply defines message 'punt_socket_register_reply'.
 type PuntSocketRegisterReply struct {
 	Retval   int32  `binapi:"i32,name=retval" json:"retval,omitempty"`

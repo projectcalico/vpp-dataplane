@@ -103,7 +103,6 @@ func (m *Ipip6rdAddTunnel) Unmarshal(b []byte) error {
 	return nil
 }
 
-// * Create an IPv4 over IPv6 automatic tunnel (6RD)
 // Ipip6rdAddTunnelReply defines message 'ipip_6rd_add_tunnel_reply'.
 type Ipip6rdAddTunnelReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -269,7 +268,6 @@ func (m *IpipAddTunnel) Unmarshal(b []byte) error {
 	return nil
 }
 
-// * Create an IP{v4,v6} over IP{v4,v6} tunnel.
 // IpipAddTunnelReply defines message 'ipip_add_tunnel_reply'.
 type IpipAddTunnelReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -374,7 +372,6 @@ func (m *IpipDelTunnelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// * List all IPIP tunnels
 // IpipTunnelDetails defines message 'ipip_tunnel_details'.
 type IpipTunnelDetails struct {
 	Tunnel IpipTunnel `binapi:"ipip_tunnel,name=tunnel" json:"tunnel,omitempty"`

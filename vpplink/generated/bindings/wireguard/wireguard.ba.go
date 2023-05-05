@@ -361,10 +361,6 @@ func (m *WireguardInterfaceCreateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add Wireguard interface interface response
-//   - retval - return status
-//   - sw_if_index - sw_if_index of new interface (for successful add)
-//
 // WireguardInterfaceDelete defines message 'wireguard_interface_delete'.
 // InProgress: the message form may change in the future versions
 type WireguardInterfaceDelete struct {
@@ -435,10 +431,6 @@ func (m *WireguardInterfaceDeleteReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add Wireguard interface interface response
-//   - retval - return status
-//   - sw_if_index - sw_if_index of new interface (for successful add)
-//
 // WireguardInterfaceDetails defines message 'wireguard_interface_details'.
 // InProgress: the message form may change in the future versions
 type WireguardInterfaceDetails struct {
@@ -493,10 +485,6 @@ func (m *WireguardInterfaceDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add Wireguard interface interface response
-//   - retval - return status
-//   - sw_if_index - sw_if_index of new interface (for successful add)
-//
 // WireguardInterfaceDump defines message 'wireguard_interface_dump'.
 // InProgress: the message form may change in the future versions
 type WireguardInterfaceDump struct {

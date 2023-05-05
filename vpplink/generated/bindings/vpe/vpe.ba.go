@@ -24,10 +24,6 @@ const (
 	VersionCrc = 0xbbfa7484
 )
 
-// Reply for show vpe system time.
-//   - retval - return value
-//   - vpe_system_time - the time in seconds since epoch of the host system.
-//
 // LogDetails defines message 'log_details'.
 type LogDetails struct {
 	Timestamp vpe_types.Timestamp `binapi:"timestamp,name=timestamp" json:"timestamp,omitempty"`
@@ -73,10 +69,6 @@ func (m *LogDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Reply for show vpe system time.
-//   - retval - return value
-//   - vpe_system_time - the time in seconds since epoch of the host system.
-//
 // LogDump defines message 'log_dump'.
 type LogDump struct {
 	StartTimestamp vpe_types.Timestamp `binapi:"timestamp,name=start_timestamp" json:"start_timestamp,omitempty"`

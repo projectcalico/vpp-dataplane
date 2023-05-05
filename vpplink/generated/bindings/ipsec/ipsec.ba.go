@@ -285,10 +285,6 @@ func (m *IpsecItfCreateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add IPsec interface interface response
-//   - retval - return status
-//   - sw_if_index - sw_if_index of new interface (for successful add)
-//
 // IpsecItfDelete defines message 'ipsec_itf_delete'.
 type IpsecItfDelete struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -355,10 +351,6 @@ func (m *IpsecItfDeleteReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add IPsec interface interface response
-//   - retval - return status
-//   - sw_if_index - sw_if_index of new interface (for successful add)
-//
 // IpsecItfDetails defines message 'ipsec_itf_details'.
 type IpsecItfDetails struct {
 	Itf IpsecItf `binapi:"ipsec_itf,name=itf" json:"itf,omitempty"`
@@ -398,10 +390,6 @@ func (m *IpsecItfDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add IPsec interface interface response
-//   - retval - return status
-//   - sw_if_index - sw_if_index of new interface (for successful add)
-//
 // IpsecItfDump defines message 'ipsec_itf_dump'.
 type IpsecItfDump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -594,17 +582,6 @@ func (m *IpsecSaDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IPsec security association database response
-//   - entry - The SA details
-//   - sw_if_index - sw_if_index of tunnel interface, policy-based SAs = ~0
-//   - salt - 4 byte salt
-//   - seq - current sequence number for outbound
-//   - seq_hi - high 32 bits of ESN for outbound
-//   - last_seq - highest sequence number received inbound
-//   - last_seq_hi - high 32 bits of highest ESN received inbound
-//   - replay_window - bit map of seq nums received relative to last_seq if using anti-replay
-//   - stat_index - index for the SA in the stats segment @ /net/ipsec/sa
-//
 // IpsecSaV2Details defines message 'ipsec_sa_v2_details'.
 type IpsecSaV2Details struct {
 	Entry          ipsec_types.IpsecSadEntryV2    `binapi:"ipsec_sad_entry_v2,name=entry" json:"entry,omitempty"`
@@ -721,9 +698,6 @@ func (m *IpsecSaV2Details) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump IPsec security association
-//   - sa_id - optional ID of an SA to dump, if ~0 dump all SAs in SAD
-//
 // IpsecSaV2Dump defines message 'ipsec_sa_v2_dump'.
 type IpsecSaV2Dump struct {
 	SaID uint32 `binapi:"u32,name=sa_id" json:"sa_id,omitempty"`
@@ -757,17 +731,6 @@ func (m *IpsecSaV2Dump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IPsec security association database response
-//   - entry - The SA details
-//   - sw_if_index - sw_if_index of tunnel interface, policy-based SAs = ~0
-//   - salt - 4 byte salt
-//   - seq - current sequence number for outbound
-//   - seq_hi - high 32 bits of ESN for outbound
-//   - last_seq - highest sequence number received inbound
-//   - last_seq_hi - high 32 bits of highest ESN received inbound
-//   - replay_window - bit map of seq nums received relative to last_seq if using anti-replay
-//   - stat_index - index for the SA in the stats segment @ /net/ipsec/sa
-//
 // IpsecSaV3Details defines message 'ipsec_sa_v3_details'.
 type IpsecSaV3Details struct {
 	Entry          ipsec_types.IpsecSadEntryV3    `binapi:"ipsec_sad_entry_v3,name=entry" json:"entry,omitempty"`
@@ -895,9 +858,6 @@ func (m *IpsecSaV3Details) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Dump IPsec security association
-//   - sa_id - optional ID of an SA to dump, if ~0 dump all SAs in SAD
-//
 // IpsecSaV3Dump defines message 'ipsec_sa_v3_dump'.
 type IpsecSaV3Dump struct {
 	SaID uint32 `binapi:"u32,name=sa_id" json:"sa_id,omitempty"`
@@ -931,9 +891,6 @@ func (m *IpsecSaV3Dump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IPsec: Add/delete Security Association Database entry
-//   - entry - Entry to add or delete
-//
 // IpsecSadEntryAdd defines message 'ipsec_sad_entry_add'.
 type IpsecSadEntryAdd struct {
 	Entry ipsec_types.IpsecSadEntryV3 `binapi:"ipsec_sad_entry_v3,name=entry" json:"entry,omitempty"`
@@ -1135,15 +1092,6 @@ func (m *IpsecSadEntryAddDel) Unmarshal(b []byte) error {
 	return nil
 }
 
-// An API to update the tunnel parameters and the ports associated with an SA
-//
-//	Used in the NAT-T case when the NAT data changes
-//	- sa_id - the id of the SA to update
-//	- is_tun - update the tunnel if non-zero, else update only the ports
-//	- tunnel - sender context, to match reply w/ request
-//	- udp_src_port - new src port for NAT-T. Used if different from 0xffff
-//	- udp_dst_port - new dst port for NAT-T. Used if different from 0xffff
-//
 // IpsecSadEntryAddDelReply defines message 'ipsec_sad_entry_add_del_reply'.
 // Deprecated: the message will be removed in the future versions
 type IpsecSadEntryAddDelReply struct {
@@ -1182,9 +1130,6 @@ func (m *IpsecSadEntryAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IPsec: Add/delete Security Association Database entry
-//   - entry - Entry to add or delete
-//
 // IpsecSadEntryAddDelV2 defines message 'ipsec_sad_entry_add_del_v2'.
 type IpsecSadEntryAddDelV2 struct {
 	IsAdd bool                        `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -1281,15 +1226,6 @@ func (m *IpsecSadEntryAddDelV2) Unmarshal(b []byte) error {
 	return nil
 }
 
-// An API to update the tunnel parameters and the ports associated with an SA
-//
-//	Used in the NAT-T case when the NAT data changes
-//	- sa_id - the id of the SA to update
-//	- is_tun - update the tunnel if non-zero, else update only the ports
-//	- tunnel - sender context, to match reply w/ request
-//	- udp_src_port - new src port for NAT-T. Used if different from 0xffff
-//	- udp_dst_port - new dst port for NAT-T. Used if different from 0xffff
-//
 // IpsecSadEntryAddDelV2Reply defines message 'ipsec_sad_entry_add_del_v2_reply'.
 type IpsecSadEntryAddDelV2Reply struct {
 	Retval    int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1327,9 +1263,6 @@ func (m *IpsecSadEntryAddDelV2Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IPsec: Add/delete Security Association Database entry
-//   - entry - Entry to add or delete
-//
 // IpsecSadEntryAddDelV3 defines message 'ipsec_sad_entry_add_del_v3'.
 type IpsecSadEntryAddDelV3 struct {
 	IsAdd bool                        `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -1441,15 +1374,6 @@ func (m *IpsecSadEntryAddDelV3) Unmarshal(b []byte) error {
 	return nil
 }
 
-// An API to update the tunnel parameters and the ports associated with an SA
-//
-//	Used in the NAT-T case when the NAT data changes
-//	- sa_id - the id of the SA to update
-//	- is_tun - update the tunnel if non-zero, else update only the ports
-//	- tunnel - sender context, to match reply w/ request
-//	- udp_src_port - new src port for NAT-T. Used if different from 0xffff
-//	- udp_dst_port - new dst port for NAT-T. Used if different from 0xffff
-//
 // IpsecSadEntryAddDelV3Reply defines message 'ipsec_sad_entry_add_del_v3_reply'.
 type IpsecSadEntryAddDelV3Reply struct {
 	Retval    int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1487,15 +1411,6 @@ func (m *IpsecSadEntryAddDelV3Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// An API to update the tunnel parameters and the ports associated with an SA
-//
-//	Used in the NAT-T case when the NAT data changes
-//	- sa_id - the id of the SA to update
-//	- is_tun - update the tunnel if non-zero, else update only the ports
-//	- tunnel - sender context, to match reply w/ request
-//	- udp_src_port - new src port for NAT-T. Used if different from 0xffff
-//	- udp_dst_port - new dst port for NAT-T. Used if different from 0xffff
-//
 // IpsecSadEntryAddReply defines message 'ipsec_sad_entry_add_reply'.
 type IpsecSadEntryAddReply struct {
 	Retval    int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -1533,9 +1448,6 @@ func (m *IpsecSadEntryAddReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IPsec: Add/delete Security Association Database entry
-//   - entry - Entry to add or delete
-//
 // IpsecSadEntryDel defines message 'ipsec_sad_entry_del'.
 type IpsecSadEntryDel struct {
 	ID uint32 `binapi:"u32,name=id" json:"id,omitempty"`
@@ -2494,43 +2406,6 @@ func (m *IpsecSpdsDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add or Update Protection for a tunnel with IPSEC
-//
-//	Tunnel protection directly associates an SA with all packets
-//	ingress and egress on the tunnel. This could also be achieved by
-//	assigning an SPD to the tunnel, but that would incur an unnessccary
-//	SPD entry lookup.
-//	For tunnels the ESP acts on the post-encapsulated packet. So if this
-//	packet:
-//	  +---------+------+
-//	  | Payload | O-IP |
-//	  +---------+------+
-//	where O-IP is the overlay IP addrees that was routed into the tunnel,
-//	the resulting encapsulated packet will be:
-//	  +---------+------+------+
-//	  | Payload | O-IP | T-IP |
-//	  +---------+------+------+
-//	where T-IP is the tunnel's src.dst IP addresses.
-//	If the SAs used for protection are in transport mode then the ESP is
-//	inserted before T-IP, i.e.:
-//	  +---------+------+-----+------+
-//	  | Payload | O-IP | ESP | T-IP |
-//	  +---------+------+-----+------+
-//	If the SAs used for protection are in tunnel mode then another
-//	encapsulation occurs, i.e.:
-//	  +---------+------+------+-----+------+
-//	  | Payload | O-IP | T-IP | ESP | C-IP |
-//	  +---------+------+------+-----+------+
-//	where C-IP are the crypto endpoint IP addresses defined as the tunnel
-//	endpoints in the SA.
-//	The mode for the inbound and outbound SA must be the same.
-//	- sw_id_index - Tunnel interface to protect
-//	- nh - The peer/next-hop on the tunnel to which the traffic
-//	            should be protected. For a P2P interface set this to the
-//	            all 0s address.
-//	- sa_in - The ID [set] of inbound SAs
-//	- sa_out - The ID of outbound SA
-//
 // IpsecTunnelProtectDel defines message 'ipsec_tunnel_protect_del'.
 type IpsecTunnelProtectDel struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -2604,7 +2479,6 @@ func (m *IpsecTunnelProtectDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// * @brief Dump all tunnel protections
 // IpsecTunnelProtectDetails defines message 'ipsec_tunnel_protect_details'.
 type IpsecTunnelProtectDetails struct {
 	Tun IpsecTunnelProtect `binapi:"ipsec_tunnel_protect,name=tun" json:"tun,omitempty"`

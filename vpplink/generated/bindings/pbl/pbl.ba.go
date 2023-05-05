@@ -91,11 +91,6 @@ type PblPortRange struct {
 	Iproto ip_types.IPProto `binapi:"ip_proto,name=iproto" json:"iproto,omitempty"`
 }
 
-// \file
-//
-//	This file defines the vpp control-plane API messages
-//	used to control the PBL plugin
-//
 // PblClientDel defines message 'pbl_client_del'.
 // InProgress: the message form may change in the future versions
 type PblClientDel struct {
@@ -164,11 +159,6 @@ func (m *PblClientDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// \file
-//
-//	This file defines the vpp control-plane API messages
-//	used to control the PBL plugin
-//
 // PblClientDetails defines message 'pbl_client_details'.
 // InProgress: the message form may change in the future versions
 type PblClientDetails struct {
@@ -300,11 +290,6 @@ func (m *PblClientDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// \file
-//
-//	This file defines the vpp control-plane API messages
-//	used to control the PBL plugin
-//
 // PblClientDump defines message 'pbl_client_dump'.
 // InProgress: the message form may change in the future versions
 type PblClientDump struct{}
@@ -469,11 +454,6 @@ func (m *PblClientUpdate) Unmarshal(b []byte) error {
 	return nil
 }
 
-// \file
-//
-//	This file defines the vpp control-plane API messages
-//	used to control the PBL plugin
-//
 // PblClientUpdateReply defines message 'pbl_client_update_reply'.
 // InProgress: the message form may change in the future versions
 type PblClientUpdateReply struct {

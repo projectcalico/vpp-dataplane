@@ -4,7 +4,7 @@
 //
 // Contents:
 // -  2 enums
-// - 28 messages
+// - 24 messages
 package session
 
 import (
@@ -25,7 +25,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "session"
 	APIVersion = "4.0.0"
-	VersionCrc = 0x72bfc653
+	VersionCrc = 0xa92d704c
 )
 
 // SessionRuleScope defines enum 'session_rule_scope'.
@@ -671,10 +671,6 @@ func (m *AppNamespaceAddDelV3) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Reply for app namespace add/del
-//   - retval - return code
-//   - appns_index - app namespace index
-//
 // AppNamespaceAddDelV3Reply defines message 'app_namespace_add_del_v3_reply'.
 type AppNamespaceAddDelV3Reply struct {
 	Retval     int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -888,172 +884,6 @@ func (m *ApplicationDetachReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *ApplicationDetachReply) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.Retval = buf.DecodeInt32()
-	return nil
-}
-
-// Application add TLS certificate
-//
-//		### WILL BE DEPRECATED POST 20.01 ###
-//	   - cert_len - certificate length
-//	   - cert - certificate as a string
-//
-// ApplicationTLSCertAdd defines message 'application_tls_cert_add'.
-// Deprecated: to be removed post 21.06
-type ApplicationTLSCertAdd struct {
-	AppIndex uint32 `binapi:"u32,name=app_index" json:"app_index,omitempty"`
-	CertLen  uint16 `binapi:"u16,name=cert_len" json:"-"`
-	Cert     []byte `binapi:"u8[cert_len],name=cert" json:"cert,omitempty"`
-}
-
-func (m *ApplicationTLSCertAdd) Reset()               { *m = ApplicationTLSCertAdd{} }
-func (*ApplicationTLSCertAdd) GetMessageName() string { return "application_tls_cert_add" }
-func (*ApplicationTLSCertAdd) GetCrcString() string   { return "3f5cfe45" }
-func (*ApplicationTLSCertAdd) GetMessageType() api.MessageType {
-	return api.RequestMessage
-}
-
-func (m *ApplicationTLSCertAdd) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4               // m.AppIndex
-	size += 2               // m.CertLen
-	size += 1 * len(m.Cert) // m.Cert
-	return size
-}
-func (m *ApplicationTLSCertAdd) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeUint32(m.AppIndex)
-	buf.EncodeUint16(uint16(len(m.Cert)))
-	buf.EncodeBytes(m.Cert, 0)
-	return buf.Bytes(), nil
-}
-func (m *ApplicationTLSCertAdd) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.AppIndex = buf.DecodeUint32()
-	m.CertLen = buf.DecodeUint16()
-	m.Cert = make([]byte, m.CertLen)
-	copy(m.Cert, buf.DecodeBytes(len(m.Cert)))
-	return nil
-}
-
-// ApplicationTLSCertAddReply defines message 'application_tls_cert_add_reply'.
-// Deprecated: to be removed post 21.06
-type ApplicationTLSCertAddReply struct {
-	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
-}
-
-func (m *ApplicationTLSCertAddReply) Reset()               { *m = ApplicationTLSCertAddReply{} }
-func (*ApplicationTLSCertAddReply) GetMessageName() string { return "application_tls_cert_add_reply" }
-func (*ApplicationTLSCertAddReply) GetCrcString() string   { return "e8d4e804" }
-func (*ApplicationTLSCertAddReply) GetMessageType() api.MessageType {
-	return api.ReplyMessage
-}
-
-func (m *ApplicationTLSCertAddReply) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.Retval
-	return size
-}
-func (m *ApplicationTLSCertAddReply) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeInt32(m.Retval)
-	return buf.Bytes(), nil
-}
-func (m *ApplicationTLSCertAddReply) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.Retval = buf.DecodeInt32()
-	return nil
-}
-
-// Application add TLS key
-//
-//		### WILL BE DEPRECATED POST 20.01 ###
-//	   - key_len - certificate length
-//	   - key - PEM encoded key as a string
-//
-// ApplicationTLSKeyAdd defines message 'application_tls_key_add'.
-// Deprecated: to be removed post 21.06
-type ApplicationTLSKeyAdd struct {
-	AppIndex uint32 `binapi:"u32,name=app_index" json:"app_index,omitempty"`
-	KeyLen   uint16 `binapi:"u16,name=key_len" json:"-"`
-	Key      []byte `binapi:"u8[key_len],name=key" json:"key,omitempty"`
-}
-
-func (m *ApplicationTLSKeyAdd) Reset()               { *m = ApplicationTLSKeyAdd{} }
-func (*ApplicationTLSKeyAdd) GetMessageName() string { return "application_tls_key_add" }
-func (*ApplicationTLSKeyAdd) GetCrcString() string   { return "5eaf70cd" }
-func (*ApplicationTLSKeyAdd) GetMessageType() api.MessageType {
-	return api.RequestMessage
-}
-
-func (m *ApplicationTLSKeyAdd) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4              // m.AppIndex
-	size += 2              // m.KeyLen
-	size += 1 * len(m.Key) // m.Key
-	return size
-}
-func (m *ApplicationTLSKeyAdd) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeUint32(m.AppIndex)
-	buf.EncodeUint16(uint16(len(m.Key)))
-	buf.EncodeBytes(m.Key, 0)
-	return buf.Bytes(), nil
-}
-func (m *ApplicationTLSKeyAdd) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.AppIndex = buf.DecodeUint32()
-	m.KeyLen = buf.DecodeUint16()
-	m.Key = make([]byte, m.KeyLen)
-	copy(m.Key, buf.DecodeBytes(len(m.Key)))
-	return nil
-}
-
-// ApplicationTLSKeyAddReply defines message 'application_tls_key_add_reply'.
-// Deprecated: to be removed post 21.06
-type ApplicationTLSKeyAddReply struct {
-	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
-}
-
-func (m *ApplicationTLSKeyAddReply) Reset()               { *m = ApplicationTLSKeyAddReply{} }
-func (*ApplicationTLSKeyAddReply) GetMessageName() string { return "application_tls_key_add_reply" }
-func (*ApplicationTLSKeyAddReply) GetCrcString() string   { return "e8d4e804" }
-func (*ApplicationTLSKeyAddReply) GetMessageType() api.MessageType {
-	return api.ReplyMessage
-}
-
-func (m *ApplicationTLSKeyAddReply) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.Retval
-	return size
-}
-func (m *ApplicationTLSKeyAddReply) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeInt32(m.Retval)
-	return buf.Bytes(), nil
-}
-func (m *ApplicationTLSKeyAddReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -1475,10 +1305,6 @@ func file_session_binapi_init() {
 	api.RegisterMessage((*AppWorkerAddDelReply)(nil), "app_worker_add_del_reply_5735ffe7")
 	api.RegisterMessage((*ApplicationDetach)(nil), "application_detach_51077d14")
 	api.RegisterMessage((*ApplicationDetachReply)(nil), "application_detach_reply_e8d4e804")
-	api.RegisterMessage((*ApplicationTLSCertAdd)(nil), "application_tls_cert_add_3f5cfe45")
-	api.RegisterMessage((*ApplicationTLSCertAddReply)(nil), "application_tls_cert_add_reply_e8d4e804")
-	api.RegisterMessage((*ApplicationTLSKeyAdd)(nil), "application_tls_key_add_5eaf70cd")
-	api.RegisterMessage((*ApplicationTLSKeyAddReply)(nil), "application_tls_key_add_reply_e8d4e804")
 	api.RegisterMessage((*SessionEnableDisable)(nil), "session_enable_disable_c264d7bf")
 	api.RegisterMessage((*SessionEnableDisableReply)(nil), "session_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*SessionRuleAddDel)(nil), "session_rule_add_del_82a90af5")
@@ -1508,10 +1334,6 @@ func AllMessages() []api.Message {
 		(*AppWorkerAddDelReply)(nil),
 		(*ApplicationDetach)(nil),
 		(*ApplicationDetachReply)(nil),
-		(*ApplicationTLSCertAdd)(nil),
-		(*ApplicationTLSCertAddReply)(nil),
-		(*ApplicationTLSKeyAdd)(nil),
-		(*ApplicationTLSKeyAddReply)(nil),
 		(*SessionEnableDisable)(nil),
 		(*SessionEnableDisableReply)(nil),
 		(*SessionRuleAddDel)(nil),

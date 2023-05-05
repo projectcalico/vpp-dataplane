@@ -92,20 +92,24 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-git_clone_cd_and_reset "$1" 8a0fd0669047c90d410d2ed5cb508bfe778b932a
+git_clone_cd_and_reset "$1" 156d452750ab37a51984938bf4a8ab0e16650d82
 
-git_cherry_pick refs/changes/13/34713/4 # 34713: vppinfra: improve & test abstract socket | https://gerrit.fd.io/r/c/vpp/+/34713
-git_cherry_pick refs/changes/71/32271/16 # 32271: memif: add support for ns abstract sockets | https://gerrit.fd.io/r/c/vpp/+/32271
-git_cherry_pick refs/changes/34/34734/3 # 34734: memif: autogenerate socket_ids | https://gerrit.fd.io/r/c/vpp/+/34734
-git_cherry_pick refs/changes/26/34726/1 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
-git_cherry_pick refs/changes/05/35805/2 # 35805: dpdk: add intf tag to dev{} subinput | https://gerrit.fd.io/r/c/vpp/+/35805
-git_cherry_pick refs/changes/31/37931/1 # 37931: ip: add the missing offload check | https://gerrit.fd.io/r/c/vpp/+/37931
+git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
+
+git_cherry_pick refs/changes/49/31449/10 # 31449: cnat: dont compute offloaded cksums | https://gerrit.fd.io/r/c/vpp/+/31449
+git_cherry_pick refs/changes/08/34108/5 # 34108: cnat: flag to disable rsession | https://gerrit.fd.io/r/c/vpp/+/34108
+git_cherry_pick refs/changes/21/32821/6 # 32821: cnat: add ip/client bihash | https://gerrit.fd.io/r/c/vpp/+/32821
+git_cherry_pick refs/changes/48/29748/5 # 29748: cnat: remove rwlock on ts | https://gerrit.fd.io/r/c/vpp/+/29748
+git_cherry_pick refs/changes/52/34552/8 # 34552: cnat: add single lookup | https://gerrit.fd.io/r/c/vpp/+/34552
 
 # --------------- private plugins ---------------
-# Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^'
+# Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch
 git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
 git_apply_private 0004-capo-Calico-Policies-plugin.patch
-git_apply_private 0005-memif-fix-socket-name-null-termination.patch
+
+
+# git cp 236423e261385e58556b75c9f9eb56006a2b9d67 # perf WIP
+# git cp 7603fd367739e74c47349a1dd9662c78dcf9377d # capo+cnat
 

@@ -183,19 +183,6 @@ func (m *VxlanAddDelTunnel) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Create or delete a VXLAN tunnel
-//   - is_add - Use 1 to create the tunnel, 0 to remove it
-//   - instance - optional unique custom device instance, else ~0.
-//   - src_address - Source IP address
-//   - dst_address - Destination IP address, can be multicast
-//   - src_port - Source UDP port. It is not included in sent packets. Used only for port registration
-//   - dst_port - Destination UDP port
-//   - mcast_sw_if_index - Interface for multicast destination
-//   - encap_vrf_id - Encap route table FIB index
-//   - decap_next_index - index of decap next graph node
-//   - vni - The VXLAN Network Identifier, uint24
-//   - is_l3 - if true, create the interface in L3 mode, w/o MAC
-//
 // VxlanAddDelTunnelReply defines message 'vxlan_add_del_tunnel_reply'.
 type VxlanAddDelTunnelReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -320,19 +307,6 @@ func (m *VxlanAddDelTunnelV2) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Create or delete a VXLAN tunnel
-//   - is_add - Use 1 to create the tunnel, 0 to remove it
-//   - instance - optional unique custom device instance, else ~0.
-//   - src_address - Source IP address
-//   - dst_address - Destination IP address, can be multicast
-//   - src_port - Source UDP port. It is not included in sent packets. Used only for port registration
-//   - dst_port - Destination UDP port
-//   - mcast_sw_if_index - Interface for multicast destination
-//   - encap_vrf_id - Encap route table FIB index
-//   - decap_next_index - index of decap next graph node
-//   - vni - The VXLAN Network Identifier, uint24
-//   - is_l3 - if true, create the interface in L3 mode, w/o MAC
-//
 // VxlanAddDelTunnelV2Reply defines message 'vxlan_add_del_tunnel_v2_reply'.
 type VxlanAddDelTunnelV2Reply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -462,19 +436,6 @@ func (m *VxlanAddDelTunnelV3) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Create or delete a VXLAN tunnel
-//   - is_add - Use 1 to create the tunnel, 0 to remove it
-//   - instance - optional unique custom device instance, else ~0.
-//   - src_address - Source IP address
-//   - dst_address - Destination IP address, can be multicast
-//   - src_port - Source UDP port. It is not included in sent packets. Used only for port registration
-//   - dst_port - Destination UDP port
-//   - mcast_sw_if_index - Interface for multicast destination
-//   - encap_vrf_id - Encap route table FIB index
-//   - decap_next_index - index of decap next graph node
-//   - vni - The VXLAN Network Identifier, uint24
-//   - is_l3 - if true, create the interface in L3 mode, w/o MAC
-//
 // VxlanAddDelTunnelV3Reply defines message 'vxlan_add_del_tunnel_v3_reply'.
 type VxlanAddDelTunnelV3Reply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -591,19 +552,6 @@ func (m *VxlanOffloadRxReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Create or delete a VXLAN tunnel
-//   - is_add - Use 1 to create the tunnel, 0 to remove it
-//   - instance - optional unique custom device instance, else ~0.
-//   - src_address - Source IP address
-//   - dst_address - Destination IP address, can be multicast
-//   - src_port - Source UDP port. It is not included in sent packets. Used only for port registration
-//   - dst_port - Destination UDP port
-//   - mcast_sw_if_index - Interface for multicast destination
-//   - encap_vrf_id - Encap route table FIB index
-//   - decap_next_index - index of decap next graph node
-//   - vni - The VXLAN Network Identifier, uint24
-//   - is_l3 - if true, create the interface in L3 mode, w/o MAC
-//
 // VxlanTunnelDetails defines message 'vxlan_tunnel_details'.
 type VxlanTunnelDetails struct {
 	SwIfIndex      interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -671,19 +619,6 @@ func (m *VxlanTunnelDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Create or delete a VXLAN tunnel
-//   - is_add - Use 1 to create the tunnel, 0 to remove it
-//   - instance - optional unique custom device instance, else ~0.
-//   - src_address - Source IP address
-//   - dst_address - Destination IP address, can be multicast
-//   - src_port - Source UDP port. It is not included in sent packets. Used only for port registration
-//   - dst_port - Destination UDP port
-//   - mcast_sw_if_index - Interface for multicast destination
-//   - encap_vrf_id - Encap route table FIB index
-//   - decap_next_index - index of decap next graph node
-//   - vni - The VXLAN Network Identifier, uint24
-//   - is_l3 - if true, create the interface in L3 mode, w/o MAC
-//
 // VxlanTunnelDump defines message 'vxlan_tunnel_dump'.
 type VxlanTunnelDump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -717,19 +652,6 @@ func (m *VxlanTunnelDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Create or delete a VXLAN tunnel
-//   - is_add - Use 1 to create the tunnel, 0 to remove it
-//   - instance - optional unique custom device instance, else ~0.
-//   - src_address - Source IP address
-//   - dst_address - Destination IP address, can be multicast
-//   - src_port - Source UDP port. It is not included in sent packets. Used only for port registration
-//   - dst_port - Destination UDP port
-//   - mcast_sw_if_index - Interface for multicast destination
-//   - encap_vrf_id - Encap route table FIB index
-//   - decap_next_index - index of decap next graph node
-//   - vni - The VXLAN Network Identifier, uint24
-//   - is_l3 - if true, create the interface in L3 mode, w/o MAC
-//
 // VxlanTunnelV2Details defines message 'vxlan_tunnel_v2_details'.
 type VxlanTunnelV2Details struct {
 	SwIfIndex      interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -805,19 +727,6 @@ func (m *VxlanTunnelV2Details) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Create or delete a VXLAN tunnel
-//   - is_add - Use 1 to create the tunnel, 0 to remove it
-//   - instance - optional unique custom device instance, else ~0.
-//   - src_address - Source IP address
-//   - dst_address - Destination IP address, can be multicast
-//   - src_port - Source UDP port. It is not included in sent packets. Used only for port registration
-//   - dst_port - Destination UDP port
-//   - mcast_sw_if_index - Interface for multicast destination
-//   - encap_vrf_id - Encap route table FIB index
-//   - decap_next_index - index of decap next graph node
-//   - vni - The VXLAN Network Identifier, uint24
-//   - is_l3 - if true, create the interface in L3 mode, w/o MAC
-//
 // VxlanTunnelV2Dump defines message 'vxlan_tunnel_v2_dump'.
 type VxlanTunnelV2Dump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`

@@ -2082,10 +2082,6 @@ func (m *Ikev2SetResponder) Unmarshal(b []byte) error {
 	return nil
 }
 
-// IKEv2: Set IKEv2 responder interface and IP address
-//   - name - IKEv2 profile name
-//   - responder - responder data
-//
 // Ikev2SetResponderHostname defines message 'ikev2_set_responder_hostname'.
 // InProgress: the message form may change in the future versions
 type Ikev2SetResponderHostname struct {

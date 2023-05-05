@@ -21,8 +21,6 @@ type RPCService interface {
 	AppNamespaceAddDelV3(ctx context.Context, in *AppNamespaceAddDelV3) (*AppNamespaceAddDelV3Reply, error)
 	AppWorkerAddDel(ctx context.Context, in *AppWorkerAddDel) (*AppWorkerAddDelReply, error)
 	ApplicationDetach(ctx context.Context, in *ApplicationDetach) (*ApplicationDetachReply, error)
-	ApplicationTLSCertAdd(ctx context.Context, in *ApplicationTLSCertAdd) (*ApplicationTLSCertAddReply, error)
-	ApplicationTLSKeyAdd(ctx context.Context, in *ApplicationTLSKeyAdd) (*ApplicationTLSKeyAddReply, error)
 	SessionEnableDisable(ctx context.Context, in *SessionEnableDisable) (*SessionEnableDisableReply, error)
 	SessionRuleAddDel(ctx context.Context, in *SessionRuleAddDel) (*SessionRuleAddDelReply, error)
 	SessionRulesDump(ctx context.Context, in *SessionRulesDump) (RPCService_SessionRulesDumpClient, error)
@@ -102,24 +100,6 @@ func (c *serviceClient) AppWorkerAddDel(ctx context.Context, in *AppWorkerAddDel
 
 func (c *serviceClient) ApplicationDetach(ctx context.Context, in *ApplicationDetach) (*ApplicationDetachReply, error) {
 	out := new(ApplicationDetachReply)
-	err := c.conn.Invoke(ctx, in, out)
-	if err != nil {
-		return nil, err
-	}
-	return out, api.RetvalToVPPApiError(out.Retval)
-}
-
-func (c *serviceClient) ApplicationTLSCertAdd(ctx context.Context, in *ApplicationTLSCertAdd) (*ApplicationTLSCertAddReply, error) {
-	out := new(ApplicationTLSCertAddReply)
-	err := c.conn.Invoke(ctx, in, out)
-	if err != nil {
-		return nil, err
-	}
-	return out, api.RetvalToVPPApiError(out.Retval)
-}
-
-func (c *serviceClient) ApplicationTLSKeyAdd(ctx context.Context, in *ApplicationTLSKeyAdd) (*ApplicationTLSKeyAddReply, error) {
-	out := new(ApplicationTLSKeyAddReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err
