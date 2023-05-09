@@ -16,15 +16,18 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	bgpserver "github.com/osrg/gobgp/v3/pkg/server"
 	"github.com/pkg/errors"
 	felixconfig "github.com/projectcalico/calico/felix/config"
 	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"gopkg.in/tomb.v2"
@@ -39,6 +42,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/services"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 
 	watchdog "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watch_dog"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
@@ -66,7 +70,19 @@ func Go(f func(t *tomb.Tomb) error) {
 		})
 	}
 }
-
+func CIDebugger(clientv3 calicov3cli.Interface, vpp *vpplink.VppLink, log *logrus.Entry) {
+	for {
+		time.Sleep(time.Second * 5)
+		st, _ := vpp.RunCli("show capo int")
+		log.WithFields(logrus.Fields{"subcomponent": "host-route-watcher"})
+		log.Infof("::: %s:\n%s", time.Now(), st)
+		list, err := clientv3.HostEndpoints().List(context.Background(), options.ListOptions{})
+		if err != nil {
+			log.Error(err)
+		}
+		log.Infof("%+v", list)
+	}
+}
 func main() {
 	log = logrus.New()
 
@@ -123,7 +139,7 @@ func main() {
 	)
 	/* Start the BGP listener, it never returns */
 	go bgpServer.Serve()
-
+	go CIDebugger(clientv3, vpp, log.WithFields(logrus.Fields{"subcomponent": "CIDebugger"}))
 	/**
 	 * Start watching nodes & fetch our BGP spec
 	 */
