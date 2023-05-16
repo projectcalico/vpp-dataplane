@@ -17,6 +17,7 @@ image: build
 	docker build --pull -t calicovpp/multinet-monitor:$(TAG) .
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/multinet-monitor:$(TAG) calicovpp/multinet-monitor:latest; \
+		docker tag calicovpp/multinet-monitor:$(TAG) calicovpp/multinet-monitor:prerelease; \
 	fi
 
 .PHONY: dev
@@ -26,4 +27,5 @@ push: ${PUSH_DEP}
 	docker push calicovpp/multinet-monitor:$(TAG)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker push calicovpp/multinet-monitor:latest; \
+		docker push calicovpp/multinet-monitor:prerelease; \
 	fi
