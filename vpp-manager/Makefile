@@ -47,16 +47,19 @@ image: build ${VPP_TARBALL} eksimage
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
+		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:prerelease; \
 	fi
 
 push: ${PUSH_DEP}
 	docker push calicovpp/vpp:$(TAG)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker push calicovpp/vpp:latest; \
+		docker push calicovpp/vpp:prerelease; \
 	fi
 	docker push calicovpp/init-eks:$(TAG)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker push calicovpp/init-eks:latest; \
+		docker push calicovpp/init-eks:prerelease; \
 	fi
 
 
