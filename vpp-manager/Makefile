@@ -34,6 +34,7 @@ eksimage:
 		-t calicovpp/init-eks:$(TAG) $(INIT_EKS_IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/init-eks:$(TAG) calicovpp/init-eks:latest; \
+		docker tag calicovpp/init-eks:$(TAG) calicovpp/init-eks:release; \
 	fi
 
 image: build ${VPP_TARBALL} eksimage
