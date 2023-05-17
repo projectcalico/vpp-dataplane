@@ -115,11 +115,11 @@ func parseEnvVariables(params *config.VppManagerParams) (err error) {
 		hooks.RegisterBashHook(hooks.BEFORE_IF_READ, conf)
 	}
 
-	// Add default hook if none specified
-	for _, hookName := range []string{hooks.VPP_RUNNING, hooks.VPP_DONE_OK, hooks.VPP_ERRORED} {
-		if hooks.HookCount(hookName) == 0 {
-			hooks.RegisterBashHook(hookName, hooks.DEFAULT_RESTART_SCRIPT)
-		}
+	// Add default hook script. This script contains various platform/os dependent
+	// fixes/customizations/tweaks/hacks required for a successful deployment and
+	// running of VPP.
+	for _, hookName := range []string{hooks.BEFORE_VPP_RUN, hooks.VPP_RUNNING, hooks.VPP_DONE_OK, hooks.VPP_ERRORED} {
+		hooks.RegisterBashHook(hookName, hooks.DEFAULT_HOOK_SCRIPT)
 	}
 
 	return nil
