@@ -43,8 +43,8 @@ var (
 	AllHooks        = []string{BEFORE_IF_READ, BEFORE_VPP_RUN, VPP_RUNNING, VPP_DONE_OK, VPP_ERRORED}
 	vppManagerHooks = make(map[string][]func(params *config.VppManagerParams, conf []*config.LinuxInterfaceState) error)
 
-	//go:embed network_restart.sh
-	DEFAULT_RESTART_SCRIPT string
+	//go:embed default_hook.sh
+	DEFAULT_HOOK_SCRIPT string
 )
 
 func RegisterBashHook(name string, bashTemplate string) {
@@ -53,7 +53,7 @@ func RegisterBashHook(name string, bashTemplate string) {
 		if err != nil {
 			return err
 		}
-		return utils.RunBashScript(template)
+		return utils.RunBashScript(template, name)
 	})
 }
 
