@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: calico-vpp-dataplane
+  annotations:
+    openshift.io/node-selector: ""
+  labels:
+    name: calico-vpp-dataplane
+    openshift.io/run-level: "0"

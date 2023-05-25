@@ -1,0 +1,143 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    k8s-app: calico-vpp-node
+  name: calico-vpp-node
+  namespace: calico-vpp-dataplane
+spec:
+  selector:
+    matchLabels:
+      k8s-app: calico-vpp-node
+  template:
+    metadata:
+      labels:
+        k8s-app: calico-vpp-node
+    spec:
+      containers:
+      - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        envFrom:
+        - configMapRef:
+            name: calico-vpp-config
+        image: docker.io/calicovpp/agent:latest
+        imagePullPolicy: IfNotPresent
+        name: agent
+        resources:
+          requests:
+            cpu: 250m
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/run/calico
+          name: var-run-calico
+          readOnly: false
+        - mountPath: /var/lib/calico/felix-plugins
+          name: felix-plugins
+          readOnly: false
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+      - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        envFrom:
+        - configMapRef:
+            name: calico-vpp-config
+        image: docker.io/calicovpp/vpp:latest
+        imagePullPolicy: IfNotPresent
+        name: vpp
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /lib/firmware
+          name: lib-firmware
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
+        - mountPath: /var/lib/vpp
+          name: vpp-data
+        - mountPath: /etc/vpp
+          name: vpp-config
+        - mountPath: /dev
+          name: devices
+        - mountPath: /sys
+          name: hostsys
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+        - mountPath: /host
+          name: host-root
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-node-critical
+      serviceAccountName: calico-vpp-node-sa
+      terminationGracePeriodSeconds: 10
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+      volumes:
+      - hostPath:
+          path: /lib/firmware
+        name: lib-firmware
+      - hostPath:
+          path: /var/run/vpp
+        name: vpp-rundir
+      - hostPath:
+          path: /var/lib/vpp
+          type: DirectoryOrCreate
+        name: vpp-data
+      - hostPath:
+          path: /etc/vpp
+        name: vpp-config
+      - hostPath:
+          path: /dev
+        name: devices
+      - hostPath:
+          path: /sys
+        name: hostsys
+      - hostPath:
+          path: /var/run/calico
+        name: var-run-calico
+      - hostPath:
+          path: /run/netns
+        name: netns
+      - hostPath:
+          path: /var/lib/calico/felix-plugins
+        name: felix-plugins
+      - hostPath:
+          path: /
+        name: host-root
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
