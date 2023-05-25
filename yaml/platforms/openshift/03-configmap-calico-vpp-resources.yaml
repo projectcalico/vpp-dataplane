@@ -1,0 +1,56 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: calico-vpp-config
+  namespace: calico-vpp-dataplane
+data:
+  CALICOVPP_CONFIG_TEMPLATE: |-
+    unix {
+      nodaemon
+      full-coredump
+      cli-listen /var/run/vpp/cli.sock
+      pidfile /run/vpp/vpp.pid
+      exec /etc/vpp/startup.exec
+    }
+    api-trace { on }
+    cpu {
+        workers 0
+    }
+    socksvr {
+        socket-name /var/run/vpp/vpp-api.sock
+    }
+    plugins {
+        plugin default { enable }
+        plugin dpdk_plugin.so { disable }
+        plugin calico_plugin.so { enable }
+        plugin ping_plugin.so { disable }
+        plugin dispatch_trace_plugin.so { enable }
+    }
+    buffers {
+      buffers-per-numa 131072
+    }
+  CALICOVPP_INITIAL_CONFIG: |-
+    {
+      "vppStartupSleepSeconds": 1,
+      "corePattern": "/var/lib/vpp/vppcore.%e.%p"
+    }
+  CALICOVPP_INTERFACES: |-
+    {
+      "maxPodIfSpec": {
+        "rx": 10, "tx": 10, "rxqsz": 1024, "txqsz": 1024
+      },
+      "defaultPodIfSpec": {
+        "rx": 1, "tx":1, "isl3": true
+      },
+      "vppHostTapSpec": {
+        "rx": 1, "tx":1, "rxqsz": 1024, "txqsz": 1024, "isl3": false
+      },
+      "uplinkInterfaces": [
+        {
+          "interfaceName": "ens5",
+          "vppDriver": "af_packet"
+        }
+      ]
+    }
+  SERVICE_PREFIX: 172.30.0.0/16
