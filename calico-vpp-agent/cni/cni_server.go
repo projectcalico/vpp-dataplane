@@ -370,10 +370,11 @@ func NewCNIServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyServerIpam
 	return server
 }
 func (s *Server) cniServerEventLoop(t *tomb.Tomb) error {
+forloop:
 	for {
 		select {
 		case <-t.Dying():
-			break
+			break forloop
 		case evt := <-s.cniEventChan:
 			switch evt.Type {
 			case common.FelixConfChanged:
@@ -425,6 +426,7 @@ func (s *Server) cniServerEventLoop(t *tomb.Tomb) error {
 			}
 		}
 	}
+	return nil
 }
 
 func (s *Server) ServeCNI(t *tomb.Tomb) error {
