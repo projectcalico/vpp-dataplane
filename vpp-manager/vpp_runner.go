@@ -37,7 +37,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/pod_interface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
-	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -117,12 +116,12 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 		}
 	}
 
-	hooks.RunHook(hooks.BEFORE_VPP_RUN, v.params, v.conf)
+	config.RunHook(config.HookScriptBeforeVppRun, "BEFORE_VPP_RUN", v.params, log)
 	err = v.runVpp()
 	if err != nil {
 		return errors.Wrapf(err, "Error running VPP")
 	}
-	hooks.RunHook(hooks.VPP_DONE_OK, v.params, v.conf)
+	config.RunHook(config.HookScriptVppDoneOk, "VPP_DONE_OK", v.params, log)
 	return nil
 }
 
@@ -917,7 +916,7 @@ func (v *VppRunner) runVpp() (err error) {
 
 	// close vpp as we do not program
 	v.vpp.Close()
-	hooks.RunHook(hooks.VPP_RUNNING, v.params, v.conf)
+	config.RunHook(config.HookScriptVppRunning, "VPP_RUNNING", v.params, log)
 
 	<-vppDeadChan
 	log.Infof("VPP Exited: status %v", err)

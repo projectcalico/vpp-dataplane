@@ -699,16 +699,6 @@ func BroadcastAddr(n *net.IPNet) net.IP {
 	return broadcast
 }
 
-func RunBashScript(script string, hookname string) error {
-	if script == "" {
-		return nil
-	}
-	cmd := exec.Command("/bin/bash", "-c", script, hookname)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
 func FetchNodeAnnotations(nodeName string) map[string]string {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {

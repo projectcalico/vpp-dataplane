@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/projectcalico/vpp-dataplane/v3/config"
-	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
@@ -157,9 +156,9 @@ func main() {
 		log.Fatalf("Error loading configuration: %v", err)
 	}
 
-	params := startup.GetVppManagerParams()
+	params := startup.NewVppManagerParams()
 
-	hooks.RunHook(hooks.BEFORE_IF_READ, params, nil)
+	config.RunHook(config.HookScriptBeforeIfRead, "BEFORE_IF_READ", params, log)
 
 	err = utils.ClearVppManagerFiles()
 	if err != nil {
@@ -200,7 +199,7 @@ func main() {
 			internalKill = false
 			err = runner.Run([]uplink.UplinkDriver{driver})
 			if err != nil {
-				hooks.RunHook(hooks.VPP_ERRORED, params, confs)
+				config.RunHook(config.HookScriptVppErrored, "VPP_ERRORED", params, log)
 				log.Errorf("VPP(%s) run failed with %s", driver.GetName(), err)
 			}
 			if vppProcess != nil && !internalKill {
@@ -224,7 +223,7 @@ func main() {
 
 		err = runner.Run(drivers)
 		if err != nil {
-			hooks.RunHook(hooks.VPP_ERRORED, params, confs)
+			config.RunHook(config.HookScriptVppErrored, "VPP_ERRORED", params, log)
 			log.Errorf("VPP run failed with %v", err)
 		}
 
