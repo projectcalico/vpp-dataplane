@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	apipb "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -233,4 +234,26 @@ func JsonEnvVar[T any](varName string, defaultValue T) *T {
 		err := json.Unmarshal([]byte(value), defaultValue)
 		return defaultValue, err
 	})
+}
+
+func BGPLogLevelParse(lvl string) (apipb.SetLogLevelRequest_Level, error) {
+	switch strings.ToLower(lvl) {
+	case "panic":
+		return apipb.SetLogLevelRequest_PANIC, nil
+	case "fatal":
+		return apipb.SetLogLevelRequest_FATAL, nil
+	case "error":
+		return apipb.SetLogLevelRequest_ERROR, nil
+	case "warn", "warning":
+		return apipb.SetLogLevelRequest_WARN, nil
+	case "info":
+		return apipb.SetLogLevelRequest_INFO, nil
+	case "debug":
+		return apipb.SetLogLevelRequest_DEBUG, nil
+	case "trace":
+		return apipb.SetLogLevelRequest_TRACE, nil
+	}
+
+	var l apipb.SetLogLevelRequest_Level
+	return l, fmt.Errorf("not a valid logrus Level: %q", lvl)
 }
