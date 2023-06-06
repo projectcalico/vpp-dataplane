@@ -51,6 +51,9 @@ const (
 	BGPPeerUpdated   CalicoVppEventType = "BGPPeerUpdated"
 	BGPSecretChanged CalicoVppEventType = "BGPSecretChanged"
 
+	BGPFilterAddedOrUpdated CalicoVppEventType = "BGPFilterAddedOrUpdated"
+	BGPFilterDeleted        CalicoVppEventType = "BGPFilterDeleted"
+
 	BGPDefinedSetAdded   CalicoVppEventType = "BGPDefinedSetAdded"
 	BGPDefinedSetDeleted CalicoVppEventType = "BGPDefinedSetDeleted"
 

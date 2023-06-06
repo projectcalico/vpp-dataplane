@@ -25,8 +25,10 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"gopkg.in/tomb.v2"
 
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -267,6 +269,169 @@ func (w *Server) startBGPMonitoring() (func(), error) {
 	return stopFunc, err
 }
 
+func (w *Server) NewBGPPolicyAndAssignment(name string, rules []calicov3.BGPFilterRuleV4, neighborName string, dir bgpapi.PolicyDirection) (*watchers.BGPPrefixesPolicyAndAssignment, error) {
+	pol := &bgpapi.Policy{Name: name}
+	prefixes := []*bgpapi.DefinedSet{}
+	for _, rule := range rules {
+		routeAction := bgpapi.RouteAction_ACCEPT
+		if rule.Action == calicov3.Reject {
+			routeAction = bgpapi.RouteAction_REJECT
+		} else if rule.Action != calicov3.Accept {
+			return nil, errors.Errorf("error creating new bgp policy: action %s not supported", rule.Action)
+		}
+
+		var matchSetType bgpapi.MatchSet_Type
+		var minMask, maxMask uint32
+		if rule.MatchOperator == calicov3.In || rule.MatchOperator == calicov3.NotIn {
+			_, subnet, err := net.ParseCIDR(rule.CIDR)
+			if err != nil {
+				return nil, errors.Wrap(err, "error creating new bgp policy")
+			}
+			ones, bits := subnet.Mask.Size()
+			minMask = uint32(ones)
+			maxMask = uint32(bits)
+			if rule.MatchOperator == calicov3.In {
+				matchSetType = bgpapi.MatchSet_ANY // any and all are same in our case as we have only one member of the defined set
+			} else {
+				matchSetType = bgpapi.MatchSet_INVERT
+			}
+		} else {
+			// mask is zero
+			if rule.MatchOperator == calicov3.Equal {
+				matchSetType = bgpapi.MatchSet_ANY
+			} else {
+				matchSetType = bgpapi.MatchSet_INVERT
+			}
+		}
+
+		prefixName := rule.CIDR + "prefix" + fmt.Sprint(minMask) + fmt.Sprint(maxMask) // this name should be unique
+		defset := &bgpapi.DefinedSet{
+			DefinedType: bgpapi.DefinedType_PREFIX,
+			Name:        prefixName,
+			Prefixes:    []*bgpapi.Prefix{{IpPrefix: rule.CIDR, MaskLengthMin: minMask, MaskLengthMax: maxMask}},
+		}
+		prefixes = append(prefixes, defset)
+		pol.Statements = append(pol.Statements,
+			&bgpapi.Statement{
+				Actions: &bgpapi.Actions{
+					RouteAction: routeAction,
+				},
+				Conditions: &bgpapi.Conditions{
+					NeighborSet: &bgpapi.MatchSet{
+						Name: neighborName,
+						Type: bgpapi.MatchSet_ANY,
+					},
+					PrefixSet: &bgpapi.MatchSet{
+						Name: prefixName,
+						Type: matchSetType,
+					},
+				},
+			},
+		)
+	}
+	PA := &bgpapi.PolicyAssignment{
+		Name:          "global",
+		Direction:     dir,
+		Policies:      []*bgpapi.Policy{pol},
+		DefaultAction: bgpapi.RouteAction_ACCEPT,
+	}
+	return &watchers.BGPPrefixesPolicyAndAssignment{PolicyAssignment: PA, Policy: pol, Prefixes: prefixes}, nil
+}
+
+// filterPeer creates policies in gobgp representing bgpfilters for the peer
+func (w *Server) filterPeer(peerAddress string, filterNames []string) (map[string]*watchers.ImpExpPol, error) {
+	BGPPolicies := make(map[string]*watchers.ImpExpPol)
+	if len(filterNames) != 0 {
+		w.log.Infof("Peer: (neighbor=%s) has filters, applying filters %s ...", peerAddress, filterNames)
+		for _, filterName := range filterNames {
+			_, ok := w.bgpFilters[filterName]
+			if !ok {
+				w.log.Warnf("peer (neighbor=%s) uses filter %s that does not exist yet", peerAddress, filterName)
+				// save state for late filter creation
+				BGPPolicies[filterName] = nil
+			} else {
+				impExpPol, err := w.createFilterPolicy(peerAddress, filterName, peerAddress+"neighbor")
+				if err != nil {
+					return nil, errors.Wrapf(err, "error creating filter policy")
+				}
+				BGPPolicies[filterName] = impExpPol
+			}
+		}
+	}
+	return BGPPolicies, nil
+}
+
+// createFilterPolicy creates policies in gobgp using filter prefix and neighbor
+func (w *Server) createFilterPolicy(peerAddress string, filterName string, neighborSet string) (*watchers.ImpExpPol, error) {
+	w.log.Infof("Creating policies for: (peer: %s, filter: %s, neighborSet: %s)", peerAddress, filterName, neighborSet)
+	filter := w.bgpFilters[filterName]
+	imppol, err := w.NewBGPPolicyAndAssignment("import-"+peerAddress+"-"+filterName, filter.Spec.ImportV4, neighborSet, bgpapi.PolicyDirection_IMPORT)
+	if err != nil {
+		return nil, err
+	}
+	exppol, err := w.NewBGPPolicyAndAssignment("export-"+peerAddress+"-"+filterName, filter.Spec.ExportV4, neighborSet, bgpapi.PolicyDirection_EXPORT)
+	if err != nil {
+		return nil, err
+	}
+	for _, pol := range []*watchers.BGPPrefixesPolicyAndAssignment{imppol, exppol} {
+		for _, defset := range pol.Prefixes {
+			err := w.BGPServer.AddDefinedSet(context.Background(), &bgpapi.AddDefinedSetRequest{
+				DefinedSet: defset,
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+		err = w.BGPServer.AddPolicy(context.Background(), &bgpapi.AddPolicyRequest{Policy: pol.Policy})
+		if err != nil {
+			return nil, errors.Wrapf(err, "error adding policy")
+		}
+		err = w.BGPServer.AddPolicyAssignment(context.Background(), &bgpapi.AddPolicyAssignmentRequest{Assignment: pol.PolicyAssignment})
+		if err != nil {
+			return nil, errors.Wrapf(err, "error adding policy assignment")
+		}
+	}
+	return &watchers.ImpExpPol{Imp: imppol, Exp: exppol}, nil
+}
+
+// deleteFilterPolicy deletes policies and their assignments in gobgp
+func (w *Server) deleteFilterPolicy(impExpPol *watchers.ImpExpPol) error {
+	for _, pol := range []*watchers.BGPPrefixesPolicyAndAssignment{impExpPol.Imp, impExpPol.Exp} {
+		err := w.BGPServer.DeletePolicyAssignment(context.Background(), &bgpapi.DeletePolicyAssignmentRequest{Assignment: pol.PolicyAssignment})
+		if err != nil {
+			return errors.Wrapf(err, "error deleting policy assignment")
+		}
+		err = w.BGPServer.DeletePolicy(context.Background(), &bgpapi.DeletePolicyRequest{Policy: pol.Policy, All: true})
+		if err != nil {
+			return errors.Wrapf(err, "error deleting policy assignment")
+		}
+		for _, defset := range pol.Prefixes {
+			err = w.BGPServer.DeleteDefinedSet(context.Background(), &bgpapi.DeleteDefinedSetRequest{DefinedSet: defset, All: true})
+			if err != nil {
+				return errors.Wrapf(err, "error deleting prefix set")
+			}
+		}
+	}
+	return nil
+}
+
+// cleanUpPeerFilters cleans up policies for a particular peer, from gobgp and saved state
+func (w *Server) cleanUpPeerFilters(peerAddr string) error {
+	polToDelete := []string{}
+	for name, impExpPol := range w.bgpPeers[peerAddr].BGPPolicies {
+		w.log.Infof("deleting filter: %s", name)
+		err := w.deleteFilterPolicy(impExpPol)
+		if err != nil {
+			return errors.Wrapf(err, "error deleting filter policies")
+		}
+		polToDelete = append(polToDelete, name)
+	}
+	for _, name := range polToDelete {
+		delete(w.bgpPeers[peerAddr].BGPPolicies, name)
+	}
+	return nil
+}
+
 // watchBGPPath watches BGP routes from other peers and inject them into linux kernel
 // TODO: multipath support
 func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
@@ -333,19 +498,48 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					return err
 				}
 			case common.BGPPeerAdded:
-				peer := evt.New.(*bgpapi.Peer)
+				localPeer := evt.New.(*watchers.LocalBGPPeer)
+				peer := localPeer.Peer
+				filters := localPeer.BGPFilterNames
+				// create a neighbor set to apply filter only on specific peer using a global policy
+				neighborSet := &bgpapi.DefinedSet{
+					Name:        peer.Conf.NeighborAddress + "neighbor",
+					DefinedType: bgpapi.DefinedType_NEIGHBOR,
+					List:        []string{peer.Conf.NeighborAddress + "/32"},
+				}
+				err := w.BGPServer.AddDefinedSet(context.Background(), &bgpapi.AddDefinedSetRequest{
+					DefinedSet: neighborSet,
+				})
+				if err != nil {
+					return errors.Wrapf(err, "error creating neighbor set")
+				}
+				BGPPolicies, err := w.filterPeer(peer.Conf.NeighborAddress, filters)
+				if err != nil {
+					return errors.Wrapf(err, "error filetring peer")
+				}
 				w.log.Infof("bgp(add) new neighbor=%s AS=%d",
 					peer.Conf.NeighborAddress, peer.Conf.PeerAsn)
-				err := w.BGPServer.AddPeer(
+				err = w.BGPServer.AddPeer(
 					context.Background(),
 					&bgpapi.AddPeerRequest{Peer: peer},
 				)
 				if err != nil {
 					return err
 				}
+				localPeer.BGPPolicies = BGPPolicies
+				localPeer.NeighborSet = neighborSet
+				w.bgpPeers[peer.Conf.NeighborAddress] = localPeer
 			case common.BGPPeerDeleted:
 				addr := evt.New.(string)
 				w.log.Infof("bgp(del) neighbor=%s", addr)
+				err = w.cleanUpPeerFilters(addr)
+				if err != nil {
+					return errors.Wrapf(err, "error cleaning peer filters up")
+				}
+				err = w.BGPServer.DeleteDefinedSet(context.Background(), &bgpapi.DeleteDefinedSetRequest{DefinedSet: w.bgpPeers[addr].NeighborSet, All: true})
+				if err != nil {
+					return errors.Wrapf(err, "error deleting prefix set")
+				}
 				err := w.BGPServer.DeletePeer(
 					context.Background(),
 					&bgpapi.DeletePeerRequest{Address: addr},
@@ -353,8 +547,24 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 				if err != nil {
 					return err
 				}
+				delete(w.bgpPeers, addr)
 			case common.BGPPeerUpdated:
-				peer := evt.New.(*bgpapi.Peer)
+				oldFilters := evt.Old.(*watchers.LocalBGPPeer).BGPFilterNames
+				localPeer := evt.New.(*watchers.LocalBGPPeer)
+				peer := localPeer.Peer
+				filters := localPeer.BGPFilterNames
+				w.log.Infof("bgp(upd) neighbor=%s", peer.Conf.NeighborAddress)
+				var BGPPolicies map[string]*watchers.ImpExpPol
+				if !watchers.CompareStringSlices(localPeer.BGPFilterNames, oldFilters) { // update filters
+					err = w.cleanUpPeerFilters(peer.Conf.NeighborAddress)
+					if err != nil {
+						return errors.Wrapf(err, "error cleaning peer filters up")
+					}
+					BGPPolicies, err = w.filterPeer(peer.Conf.NeighborAddress, filters)
+					if err != nil {
+						return errors.Wrapf(err, "error filetring peer")
+					}
+				}
 				w.log.Infof("bgp(upd) neighbor=%s AS=%d",
 					peer.Conf.NeighborAddress, peer.Conf.PeerAsn)
 				_, err = w.BGPServer.UpdatePeer(
@@ -364,6 +574,41 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 				if err != nil {
 					return err
 				}
+				localPeer.BGPPolicies = BGPPolicies
+				w.bgpPeers[peer.Conf.NeighborAddress] = localPeer
+			case common.BGPFilterAddedOrUpdated:
+				filter := evt.New.(calicov3.BGPFilter)
+				w.log.Infof("bgp(add/upd) filter: %s", filter.Name)
+				w.bgpFilters[filter.Name] = &filter
+				// If this filter is already used in gobgp, delete old policies if any and recreate them
+				for peerAddress := range w.bgpPeers {
+					if impExpPol, ok := w.bgpPeers[peerAddress].BGPPolicies[filter.Name]; ok {
+						w.log.Infof("filter used in %s, updating filter", peerAddress)
+						if impExpPol != nil {
+							err := w.deleteFilterPolicy(impExpPol)
+							if err != nil {
+								return errors.Wrap(err, "error deleting filter policies")
+							}
+						} // else we received peer using a filter before receiving the filter, so just create it
+						impExpPol, err := w.createFilterPolicy(peerAddress, filter.Name, peerAddress+"neighbor")
+						if err != nil {
+							return errors.Wrap(err, "error creating filters")
+						}
+						w.bgpPeers[peerAddress].BGPPolicies[filter.Name] = impExpPol
+						// have to update peers to apply changes
+						_, err = w.BGPServer.UpdatePeer(
+							context.Background(),
+							&bgpapi.UpdatePeerRequest{Peer: w.bgpPeers[peerAddress].Peer},
+						)
+						if err != nil {
+							return errors.Wrapf(err, "error updating peer %s", peerAddress)
+						}
+					}
+				}
+			case common.BGPFilterDeleted: // supposed to rely on user to never delete a used bgpfilter
+				filter := evt.Old.(calicov3.BGPFilter)
+				w.log.Infof("bgp(del) filter deleted: %s", filter.Name)
+				delete(w.bgpFilters, filter.Name)
 			}
 		}
 	}

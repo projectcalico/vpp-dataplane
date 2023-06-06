@@ -16,11 +16,13 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	apipb "github.com/osrg/gobgp/v3/api"
 	bgpserver "github.com/osrg/gobgp/v3/pkg/server"
 	"github.com/pkg/errors"
 	felixconfig "github.com/projectcalico/calico/felix/config"
@@ -122,6 +124,11 @@ func main() {
 			grpc.MaxSendMsgSize(256 << 20),
 		}),
 	)
+	/* Set log level for bgp server */
+	err = bgpServer.SetLogLevel(context.Background(), &apipb.SetLogLevelRequest{Level: *config.BGPLogLevel})
+	if err != nil {
+		log.Fatalf("failed to set loglevel for bgp %s", err)
+	}
 	/* Start the BGP listener, it never returns */
 	go bgpServer.Serve()
 
@@ -133,6 +140,7 @@ func main() {
 	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
 	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	peerWatcher := watchers.NewPeerWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
+	bgpFilterWatcher := watchers.NewBGPFilterWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "BGPFilter-watcher"}))
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
 	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
@@ -194,6 +202,7 @@ func main() {
 	Go(bgpConfigurationWatcher.WatchBGPConfiguration)
 	Go(prefixWatcher.WatchPrefix)
 	Go(peerWatcher.WatchBGPPeers)
+	Go(bgpFilterWatcher.WatchBGPFilters)
 	Go(connectivityServer.ServeConnectivity)
 	Go(routingServer.ServeRouting)
 	Go(serviceServer.ServeService)

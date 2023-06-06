@@ -246,6 +246,7 @@ calico_create_template ()
   export CALICOVPP_INIT_SCRIPT_TEMPLATE='"'${CALICOVPP_INIT_SCRIPT_TEMPLATE}'"'
   export CALICOVPP_IPSEC_IKEV2_PSK='"'${CALICOVPP_IPSEC_IKEV2_PSK:-keykeykey}'"'
   export CALICOVPP_LOG_LEVEL='"'${CALICOVPP_LOG_LEVEL}'"'
+  export CALICOVPP_BGP_LOG_LEVEL='"'${CALICOVPP_BGP_LOG_LEVEL}'"'
   export CALICOVPP_CONFIG_TEMPLATE="$(indent_variable "${CALICOVPP_CONFIG_TEMPLATE:-$(get_vpp_conf)}")"
   export CALICOVPP_INITIAL_CONFIG="$(indent_variable "${CALICOVPP_INITIAL_CONFIG:-$(get_initial_config)}")"
   export CALICOVPP_INTERFACES="$(indent_variable "${CALICOVPP_INTERFACES:-$(get_interfaces)}")"

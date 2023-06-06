@@ -30,6 +30,7 @@ import (
 	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
@@ -49,8 +50,10 @@ type Server struct {
 	localAddressMap map[string]localAddress
 	ShouldStop      bool
 
-	BGPConf   *calicov3.BGPConfigurationSpec
-	BGPServer *bgpserver.BgpServer
+	BGPConf    *calicov3.BGPConfigurationSpec
+	BGPServer  *bgpserver.BgpServer
+	bgpFilters map[string]*calicov3.BGPFilter
+	bgpPeers   map[string]*watchers.LocalBGPPeer
 
 	routingServerEventChan chan common.CalicoVppEvent
 
@@ -80,6 +83,8 @@ func NewRoutingServer(vpp *vpplink.VppLink, bgpServer *bgpserver.BgpServer, log 
 		localAddressMap: make(map[string]localAddress),
 
 		routingServerEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		bgpFilters:             make(map[string]*calicov3.BGPFilter),
+		bgpPeers:               make(map[string]*watchers.LocalBGPPeer),
 	}
 
 	reg := common.RegisterHandler(server.routingServerEventChan, "routing server events")
@@ -93,6 +98,8 @@ func NewRoutingServer(vpp *vpplink.VppLink, bgpServer *bgpserver.BgpServer, log 
 		common.BGPPeerAdded,
 		common.BGPPeerDeleted,
 		common.BGPPeerUpdated,
+		common.BGPFilterAddedOrUpdated,
+		common.BGPFilterDeleted,
 	)
 
 	return &server

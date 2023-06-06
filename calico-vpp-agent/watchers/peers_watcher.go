@@ -17,6 +17,8 @@ package watchers
 
 import (
 	"net"
+	"reflect"
+	"sort"
 	"time"
 
 	bgpapi "github.com/osrg/gobgp/v3/api"
@@ -39,6 +41,24 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 )
+
+type LocalBGPPeer struct {
+	Peer           *bgpapi.Peer
+	BGPFilterNames []string
+	BGPPolicies    map[string]*ImpExpPol
+	NeighborSet    *bgpapi.DefinedSet
+}
+
+type BGPPrefixesPolicyAndAssignment struct {
+	PolicyAssignment *bgpapi.PolicyAssignment
+	Policy           *bgpapi.Policy
+	Prefixes         []*bgpapi.DefinedSet
+}
+
+type ImpExpPol struct {
+	Imp *BGPPrefixesPolicyAndAssignment
+	Exp *BGPPrefixesPolicyAndAssignment
+}
 
 type PeerWatcher struct {
 	log      *logrus.Entry
@@ -229,6 +249,19 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 	return nil
 }
 
+func CompareStringSlices(slice1, slice2 []string) bool {
+	if len(slice1) != len(slice2) {
+		return false
+	}
+
+	// Sort the slices in ascending order
+	sort.Strings(slice1)
+	sort.Strings(slice2)
+
+	// Compare the sorted slices
+	return reflect.DeepEqual(slice1, slice2)
+}
+
 func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 	if w.currentWatchRevision == "" {
 		w.log.Debugf("Reconciliating peers...")
@@ -281,8 +314,9 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 					oldSecret := w.getSecretName(existing.BGPPeerSpec)
 					newSecret := w.getSecretName(&peer.Spec)
 					w.log.Debugf("peer(update) oldSecret=%s newSecret=%s SecretChanged=%t for BGPPeer=%s", oldSecret, newSecret, existing.SecretChanged, peer.ObjectMeta.Name)
-					if existing.AS != asn || oldSecret != newSecret || existing.SecretChanged {
-						err := w.updateBGPPeer(ip, asn, &peer.Spec)
+					filtersChanged := !CompareStringSlices(existing.BGPPeerSpec.Filters, peer.Spec.Filters)
+					if existing.AS != asn || oldSecret != newSecret || existing.SecretChanged || filtersChanged {
+						err := w.updateBGPPeer(ip, asn, &peer.Spec, existing.BGPPeerSpec)
 						if err != nil {
 							w.log.Warn(errors.Wrapf(err, "error updating BGP peer %s, ip=%s", peer.ObjectMeta.Name, ip))
 							continue
@@ -430,19 +464,20 @@ func (w *PeerWatcher) addBGPPeer(ip string, asn uint32, peerSpec *calicov3.BGPPe
 	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.BGPPeerAdded,
-		New:  peer,
+		New:  &LocalBGPPeer{Peer: peer, BGPFilterNames: peerSpec.Filters},
 	})
 	return nil
 }
 
-func (w *PeerWatcher) updateBGPPeer(ip string, asn uint32, peerSpec *calicov3.BGPPeerSpec) error {
+func (w *PeerWatcher) updateBGPPeer(ip string, asn uint32, peerSpec, oldPeerSpec *calicov3.BGPPeerSpec) error {
 	peer, err := w.createBGPPeer(ip, asn, peerSpec)
 	if err != nil {
 		return errors.Wrap(err, "cannot update bgp peer")
 	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.BGPPeerUpdated,
-		New:  peer,
+		New:  &LocalBGPPeer{Peer: peer, BGPFilterNames: peerSpec.Filters},
+		Old:  &LocalBGPPeer{BGPFilterNames: oldPeerSpec.Filters},
 	})
 	return nil
 }

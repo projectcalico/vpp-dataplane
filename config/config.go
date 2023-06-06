@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	apipb "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -64,8 +65,9 @@ var (
 	True  = true
 	False = false
 
-	NodeName = RequiredStringEnvVar("NODENAME")
-	LogLevel = EnvVar("CALICOVPP_LOG_LEVEL", logrus.InfoLevel, logrus.ParseLevel)
+	NodeName    = RequiredStringEnvVar("NODENAME")
+	LogLevel    = EnvVar("CALICOVPP_LOG_LEVEL", logrus.InfoLevel, logrus.ParseLevel)
+	BGPLogLevel = EnvVar("CALICOVPP_BGP_LOG_LEVEL", apipb.SetLogLevelRequest_INFO, BGPLogLevelParse)
 
 	ServiceCIDRs                     = PrefixListEnvVar("SERVICE_PREFIX")
 	IPSecIkev2Psk                    = StringEnvVar("CALICOVPP_IPSEC_IKEV2_PSK", "")
