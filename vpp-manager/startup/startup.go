@@ -16,37 +16,39 @@
 package startup
 
 import (
-	"fmt"
-	"os"
 	"strings"
 
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/config"
-	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 )
 
-const (
-	// BashHookEnvVarPrefix is the bash template hook points at several points in
-	// the VPP lifecycle. See hook/hooks.go
-	BashHookEnvVarPrefix = "CALICOVPP_HOOK_"
-)
-
-func GetVppManagerParams() (params *config.VppManagerParams) {
-	params = &config.VppManagerParams{}
-	err := parseEnvVariables(params)
-	if err != nil {
-		log.Panicf("Parse error %v", err)
+func NewVppManagerParams() *config.VppManagerParams {
+	params := &config.VppManagerParams{
+		NodeAnnotations: utils.FetchNodeAnnotations(*config.NodeName),
 	}
-	getSystemCapabilities(params)
-	annotations := utils.FetchNodeAnnotations(*config.NodeName)
-	params.NodeAnnotations = annotations
-	return params
-}
 
-func getSystemCapabilities(params *config.VppManagerParams) {
+	/* uplink configuration: This is being deprecated */
+	if mainInterface := *config.InterfaceVar; mainInterface != "" {
+		log.Warn("Use of CALICOVPP_INTERFACE, CALICOVPP_NATIVE_DRIVER and CALICOVPP_SWAP_DRIVER is deprecated, please use CALICOVPP_INTERFACES instead")
+		params.UplinksSpecs = []config.UplinkInterfaceSpec{{
+			InterfaceName: mainInterface,
+			VppDriver:     strings.ToLower(*config.NativeDriver),
+			NewDriverName: *config.SwapDriver,
+		}}
+	}
+
+	/* uplinks configuration */
+	for index, uplink := range config.GetCalicoVppInterfaces().UplinkInterfaces {
+		_ = uplink.Validate(nil, index == 0)
+		params.UplinksSpecs = append(params.UplinksSpecs, uplink)
+	}
+	if len(params.UplinksSpecs) == 0 {
+		log.Panicf("No interface specified. Specify an interface through the environment variable")
+	}
+	params.UplinksSpecs[0].IsMain = &config.True
+
 	/* Drivers */
 	params.LoadedDrivers = make(map[string]bool)
 	vfioLoaded, err := utils.IsDriverLoaded(config.DRIVER_VFIO_PCI)
@@ -82,47 +84,8 @@ func getSystemCapabilities(params *config.VppManagerParams) {
 	}
 	params.VfioUnsafeiommu = iommu
 
-}
+	return params
 
-func parseEnvVariables(params *config.VppManagerParams) (err error) {
-	/* uplink configuration: This is being deprecated */
-	if mainInterface := *config.InterfaceVar; mainInterface != "" {
-		log.Warn("Use of CALICOVPP_INTERFACE, CALICOVPP_NATIVE_DRIVER and CALICOVPP_SWAP_DRIVER is deprecated, please use CALICOVPP_INTERFACES instead")
-		params.UplinksSpecs = []config.UplinkInterfaceSpec{{
-			InterfaceName: mainInterface,
-			VppDriver:     strings.ToLower(*config.NativeDriver),
-			NewDriverName: *config.SwapDriver,
-		}}
-	}
-
-	/* uplinks configuration */
-	for index, uplink := range config.GetCalicoVppInterfaces().UplinkInterfaces {
-		_ = uplink.Validate(nil, index == 0)
-		params.UplinksSpecs = append(params.UplinksSpecs, uplink)
-	}
-	if len(params.UplinksSpecs) == 0 {
-		return errors.Errorf("No interface specified. Specify an interface through the environment variable")
-	}
-	params.UplinksSpecs[0].IsMain = &config.True
-
-	/* general calicovpp configuration */
-	for _, hookName := range hooks.AllHooks {
-		if conf := os.Getenv(fmt.Sprintf("%s%s", BashHookEnvVarPrefix, hookName)); conf != "" {
-			hooks.RegisterBashHook(hookName, conf)
-		}
-	}
-	if conf := *config.InitScriptTemplate; conf != "" {
-		hooks.RegisterBashHook(hooks.BEFORE_IF_READ, conf)
-	}
-
-	// Add default hook script. This script contains various platform/os dependent
-	// fixes/customizations/tweaks/hacks required for a successful deployment and
-	// running of VPP.
-	for _, hookName := range []string{hooks.BEFORE_VPP_RUN, hooks.VPP_RUNNING, hooks.VPP_DONE_OK, hooks.VPP_ERRORED} {
-		hooks.RegisterBashHook(hookName, hooks.DEFAULT_HOOK_SCRIPT)
-	}
-
-	return nil
 }
 
 func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.LinuxInterfaceState) {

@@ -16,10 +16,12 @@
 package config
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"regexp"
 	"sort"
 	"strconv"
@@ -96,8 +98,57 @@ var (
 	   It contains the CLI to be executed in vppctl after startup */
 	ConfigExecTemplate = StringEnvVar("CALICOVPP_CONFIG_EXEC_TEMPLATE", "")
 
+	// Default hook script. This script contains various platform/os dependent
+	// fixes/customizations/tweaks/hacks required for a successful deployment and
+	// running of VPP. It can be overridden by setting the environment variables
+	// below in the vpp-manager container.
+
+	//go:embed default_hook.sh
+	DEFAULT_HOOK_SCRIPT string
+
+	/* Run this before getLinuxConfig() in case this is a script
+	 * that's responsible for creating the interface */
+	HookScriptBeforeIfRead = StringEnvVar("CALICOVPP_HOOK_BEFORE_IF_READ", DEFAULT_HOOK_SCRIPT) // InitScriptTemplate
+	/* Bash script template run just after getting config
+	   from $CALICOVPP_INTERFACE & before starting VPP */
+	HookScriptBeforeVppRun = StringEnvVar("CALICOVPP_HOOK_BEFORE_VPP_RUN", DEFAULT_HOOK_SCRIPT) // InitPostIfScriptTemplate
+	/* Bash script template run after VPP has started */
+	HookScriptVppRunning = StringEnvVar("CALICOVPP_HOOK_VPP_RUNNING", DEFAULT_HOOK_SCRIPT) // FinalizeScriptTemplate
+	/* Bash script template run when VPP stops gracefully */
+	HookScriptVppDoneOk = StringEnvVar("CALICOVPP_HOOK_VPP_DONE_OK", DEFAULT_HOOK_SCRIPT)
+	/* Bash script template run when VPP stops with an error */
+	HookScriptVppErrored = StringEnvVar("CALICOVPP_HOOK_VPP_ERRORED", DEFAULT_HOOK_SCRIPT)
+
+	AllHooks = []*string{
+		HookScriptBeforeIfRead,
+		HookScriptBeforeVppRun,
+		HookScriptVppRunning,
+		HookScriptVppDoneOk,
+		HookScriptVppErrored,
+	}
+
 	Info = &VppManagerInfo{}
 )
+
+func RunHook(hookScript *string, hookName string, params *VppManagerParams, log *logrus.Logger) {
+	if *hookScript == "" {
+		return
+	}
+	template, err := TemplateScriptReplace(*hookScript, params, nil)
+	if err != nil {
+		log.Warnf("Running hook %s errored with %s", hookName, err)
+		return
+	}
+
+	cmd := exec.Command("/bin/bash", "-c", template, hookName)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		log.Warnf("Running hook %s errored with %s", hookName, err)
+		return
+	}
+}
 
 func GetCalicoVppDebug() *CalicoVppDebugConfigType                 { return *CalicoVppDebug }
 func GetCalicoVppInterfaces() *CalicoVppInterfacesConfigType       { return *CalicoVppInterfaces }
@@ -390,6 +441,10 @@ func loadConfig(log *logrus.Logger, doLogOutput bool) (err error) {
 		}
 		log.SetFormatter(formatter)
 		logrus.SetFormatter(formatter)
+	}
+
+	if *InitScriptTemplate != "" {
+		*HookScriptBeforeIfRead = *InitScriptTemplate
 	}
 
 	if doLogOutput {
