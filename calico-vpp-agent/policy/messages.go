@@ -18,6 +18,7 @@ package policy
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 
@@ -32,10 +33,10 @@ func (s *Server) MessageReader(conn net.Conn) <-chan interface{} {
 		for {
 			msg, err := s.RecvMessage(conn)
 			if err != nil {
-				if msg != nil {
-					s.log.Errorf("Error receiving message from felix: %v", err)
+				if errors.Is(err, io.EOF) && msg == nil {
+					s.log.Debug("EOF on felix-dataplane.sock")
 				} else {
-					s.log.Errorf("Error while no message is received: %+v", err)
+					s.log.Errorf("Error on felix-dataplane.sock err=%v msg=%v", err, msg)
 				}
 				break
 			}
