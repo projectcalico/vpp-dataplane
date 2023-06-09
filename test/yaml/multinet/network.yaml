@@ -5,6 +5,7 @@ metadata:
 spec:
   vni: 56
   range: "172.19.0.0/16"
+  physicalNetworkName: ""
 ---
 apiVersion: projectcalico.org/v3
 kind: Network
@@ -13,3 +14,4 @@ metadata:
 spec:
   vni: 88
   range: "172.21.0.0/16"
+  physicalNetworkName: ""

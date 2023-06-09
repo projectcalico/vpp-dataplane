@@ -61,6 +61,11 @@ type NetWatcher struct {
 	nads               map[string]string
 	InSync             chan interface{}
 	nodeBGPSpec        *common.LocalNodeSpec
+
+	currentWatchRevisionNet string
+	currentWatchRevisionNad string
+	NetWatcher              watch.Interface
+	NadWatcher              watch.Interface
 }
 
 func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
@@ -84,97 +89,141 @@ func (w *NetWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	w.nodeBGPSpec = nodeBGPSpec
 }
 
-func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
-	w.log.Infof("Net watcher starts")
-	netList := &networkv3.NetworkList{}
-	err := w.client.List(context.Background(), netList, &client.ListOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "Listing Networks failed")
-	}
-	nadList := &netv1.NetworkAttachmentDefinitionList{}
-	err = w.client.List(context.Background(), nadList, &client.ListOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "Listing NetworkAttachmentDefinitions failed")
-	}
-	for _, net := range netList.Items {
-		err := w.OnNetAdded(&net)
-		if err != nil {
-			return errors.Wrapf(err, "OnNetAdded failed for %v", net)
+func (w *NetWatcher) cleanExistingWatchers() {
+	for _, wat := range []watch.Interface{w.NetWatcher, w.NetWatcher} {
+		if wat != nil {
+			wat.Stop()
+			w.log.Debug("Stopped watcher")
+			wat = nil
 		}
-	}
-	for _, nad := range nadList.Items {
-		err = w.onNadAdded(&nad)
-		if err != nil {
-			return errors.Wrapf(err, "OnNadAdded failed for %v", nad)
-		}
-	}
-	w.InSync <- 1
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.NetsSynced,
-	})
-
-	for {
-		netList = &networkv3.NetworkList{}
-		netWatcher, err := w.client.Watch(context.Background(), netList, &client.ListOptions{})
-		if err != nil {
-			w.log.Errorf("couldn't watch networks: %s", err)
-		}
-		nadList = &netv1.NetworkAttachmentDefinitionList{}
-		nadWatcher, err := w.client.Watch(context.Background(), nadList, &client.ListOptions{})
-		if err != nil {
-			w.log.Errorf("couldn't watch nads: %s", err)
-		}
-		w.watching(netWatcher, nadWatcher, t)
 	}
 }
 
-func (w *NetWatcher) watching(netWatcher, nadWatcher watch.Interface, t *tomb.Tomb) bool {
-	for {
-		select {
-		case <-t.Dying():
-			w.log.Info("netwatcher dying")
-			return true
-		case update, ok := <-netWatcher.ResultChan():
-			if !ok {
-				w.log.Warn("network watch channel closed")
-				return true
+func (w *NetWatcher) resyncAndCreateWatchers() error {
+	if w.currentWatchRevisionNet == "" || w.currentWatchRevisionNad == "" {
+		netList := &networkv3.NetworkList{}
+		nadList := &netv1.NetworkAttachmentDefinitionList{}
+		if w.currentWatchRevisionNet == "" {
+			w.log.Debugf("Reconciliating Networks...")
+			err := w.client.List(context.Background(), netList, &client.ListOptions{})
+			if err != nil {
+				return errors.Wrapf(err, "Listing Networks failed")
 			}
-			switch update.Type {
-			case watch.Added:
-				net := update.Object.(*networkv3.Network)
-				err := w.OnNetAdded(net)
+			for _, net := range netList.Items {
+				err := w.OnNetAdded(&net)
 				if err != nil {
-					w.log.Error(err)
-				}
-			case watch.Deleted:
-				oldNet := update.Object.(*networkv3.Network)
-				err := w.OnNetDeleted(oldNet.Name)
-				if err != nil {
-					w.log.Error(err)
-				}
-			case watch.Modified:
-				w.log.Warn("network changed, not yet supported!")
-			}
-		case update, ok := <-nadWatcher.ResultChan():
-			if !ok {
-				w.log.Warn("nad watch channel closed")
-			}
-			switch update.Type {
-			case watch.Added:
-				nad := update.Object.(*netv1.NetworkAttachmentDefinition)
-				err := w.onNadAdded(nad)
-				if err != nil {
-					w.log.Error(err)
-				}
-			case watch.Deleted:
-				nad := update.Object.(*netv1.NetworkAttachmentDefinition)
-				err := w.onNadDeleted(nad)
-				if err != nil {
-					w.log.Error(err)
+					return errors.Wrapf(err, "OnNetAdded failed for %v", net)
 				}
 			}
 		}
+		if w.currentWatchRevisionNad == "" {
+			err := w.client.List(context.Background(), nadList, &client.ListOptions{})
+			if err != nil {
+				return errors.Wrapf(err, "Listing NetworkAttachmentDefinitions failed")
+			}
+			for _, nad := range nadList.Items {
+				err = w.onNadAdded(&nad)
+				if err != nil {
+					return errors.Wrapf(err, "OnNadAdded failed for %v", nad)
+				}
+			}
+		}
+		w.InSync <- 1
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.NetsSynced,
+		})
+		w.currentWatchRevisionNet = netList.ResourceVersion
+		w.currentWatchRevisionNad = nadList.ResourceVersion
 	}
+	w.cleanExistingWatchers()
+	netList := &networkv3.NetworkList{}
+	netWatcher, err := w.client.Watch(context.Background(), netList, &client.ListOptions{})
+	if err != nil {
+		w.log.Errorf("couldn't watch networks: %s", err)
+	}
+	nadList := &netv1.NetworkAttachmentDefinitionList{}
+	nadWatcher, err := w.client.Watch(context.Background(), nadList, &client.ListOptions{})
+	if err != nil {
+		w.log.Errorf("couldn't watch nads: %s", err)
+	}
+	w.NetWatcher = netWatcher
+	w.NadWatcher = nadWatcher
+	return nil
+}
+
+func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
+	w.log.Infof("Net watcher starts")
+
+	for t.Alive() {
+		w.currentWatchRevisionNet = ""
+		w.currentWatchRevisionNad = ""
+		err := w.resyncAndCreateWatchers()
+		if err != nil {
+			w.log.Error(err)
+			goto restart
+		}
+		for {
+			select {
+			case <-t.Dying():
+				w.log.Info("netwatcher dying")
+				return nil
+			case update, ok := <-w.NetWatcher.ResultChan():
+				if !ok {
+					err := w.resyncAndCreateWatchers()
+					if err != nil {
+						w.log.Error(err)
+						goto restart
+					}
+					continue
+				}
+				switch update.Type {
+				case watch.Added:
+					net := update.Object.(*networkv3.Network)
+					err := w.OnNetAdded(net)
+					if err != nil {
+						w.log.Error(err)
+					}
+				case watch.Deleted:
+					oldNet := update.Object.(*networkv3.Network)
+					err := w.OnNetDeleted(oldNet.Name)
+					if err != nil {
+						w.log.Error(err)
+					}
+				case watch.Modified:
+					w.log.Warn("network changed, not yet supported!")
+				}
+			case update, ok := <-w.NadWatcher.ResultChan():
+				if !ok {
+					err := w.resyncAndCreateWatchers()
+					if err != nil {
+						w.log.Error(err)
+						goto restart
+					}
+					continue
+				}
+				switch update.Type {
+				case watch.Added:
+					nad := update.Object.(*netv1.NetworkAttachmentDefinition)
+					err := w.onNadAdded(nad)
+					if err != nil {
+						w.log.Error(err)
+					}
+				case watch.Deleted:
+					nad := update.Object.(*netv1.NetworkAttachmentDefinition)
+					err := w.onNadDeleted(nad)
+					if err != nil {
+						w.log.Error(err)
+					}
+				}
+			}
+		}
+	restart:
+		w.log.Debug("restarting network watcher...")
+		w.cleanExistingWatchers()
+		time.Sleep(2 * time.Second)
+	}
+	w.log.Warn("Network watcher stopped")
+	return nil
 }
 
 func (w *NetWatcher) Stop() {
