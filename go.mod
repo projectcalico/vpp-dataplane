@@ -1,9 +1,9 @@
 module github.com/projectcalico/vpp-dataplane/v3
 
-go 1.19
+go 1.20
 
 require (
-	github.com/calico-vpp/vpplink v0.0.0-20230303090912-a2c21feced90
+	github.com/calico-vpp/vpplink v0.0.0-20230609075304-43385ab1325d
 	github.com/census-instrumentation/opencensus-proto v0.2.1
 	github.com/containernetworking/plugins v1.2.0
 	github.com/gogo/protobuf v1.3.2
@@ -24,7 +24,7 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2.0.20230206183746-70ca0345eede
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 	github.com/yookoala/realpath v1.0.0
-	go.fd.io/govpp v0.8.0-alpha.0.20230307095658-7c0746c5a95b
+	go.fd.io/govpp v0.8.0-alpha.0.20230612060736-7e90564236d5
 	go.fd.io/govpp/extras v0.1.1-0.20230330140632-6a7dcb03934f
 	golang.org/x/net v0.8.0
 	golang.org/x/sys v0.6.0
@@ -38,7 +38,7 @@ require (
 )
 
 require (
-	github.com/bennyscetbun/jsongo v1.1.0 // indirect
+	github.com/bennyscetbun/jsongo v1.1.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
@@ -71,7 +71,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/k-sone/critbitgo v1.4.0 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
-	github.com/kelseyhightower/envconfig v1.4.0 // indirect
+	github.com/kelseyhightower/envconfig v0.0.0-20180517194557-dd1402a4d99d // indirect
 	github.com/leodido/go-urn v0.0.0-20181204092800-a67a23e1c1af // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
