@@ -63,6 +63,7 @@ type Server struct {
 
 	networkDefinitions   sync.Map
 	cniMultinetEventChan chan common.CalicoVppEvent
+	nodeBGPSpec          *common.LocalNodeSpec
 }
 
 func swIfIdxToIfName(idx uint32) string {
@@ -84,6 +85,10 @@ func getHostEndpointProto(proto string) types.IPProto {
 
 func (s *Server) SetFelixConfig(felixConfig *felixConfig.Config) {
 	s.tuntapDriver.SetFelixConfig(felixConfig)
+}
+
+func (s *Server) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
+	s.nodeBGPSpec = nodeBGPSpec
 }
 
 func (s *Server) newLocalPodSpecFromAdd(request *cniproto.AddRequest) (*storage.LocalPodSpec, error) {
@@ -136,6 +141,14 @@ func (s *Server) newLocalPodSpecFromAdd(request *cniproto.AddRequest) (*storage.
 			podSpec.HostPorts = append(podSpec.HostPorts, storage.HostPortBinding{
 				HostPort:      hostPort,
 				HostIP:        hostIP,
+				ContainerPort: uint16(port.Port),
+				Protocol:      getHostEndpointProto(port.Protocol),
+			})
+		} else if hostPort != 0 {
+			// default to node IP
+			podSpec.HostPorts = append(podSpec.HostPorts, storage.HostPortBinding{
+				HostPort:      hostPort,
+				HostIP:        net.ParseIP(s.nodeBGPSpec.IPv4Address.IP.String()),
 				ContainerPort: uint16(port.Port),
 				Protocol:      getHostEndpointProto(port.Protocol),
 			})
