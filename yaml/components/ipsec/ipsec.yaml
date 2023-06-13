@@ -1,11 +1,25 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-vpp-config
+  namespace: calico-vpp-dataplane
+data:
+  CALICOVPP_FEATURE_GATES: |-
+    {
+      "ipsecEnabled": true
+    }
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: calico-vpp-dataplane
 spec:
   template:
     spec:
       containers:
         - name: agent
           env:
-            - name: CALICOVPP_IPSEC_ENABLED
-              value: "true"
             - name: CALICOVPP_IPSEC_IKEV2_PSK
               valueFrom:
                 secretKeyRef:
