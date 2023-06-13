@@ -176,6 +176,7 @@ func main() {
 		serviceServer.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
 		localSIDWatcher.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
 		netWatcher.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
+		cniServer.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
 	}
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
