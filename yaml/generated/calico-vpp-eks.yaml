@@ -72,6 +72,7 @@ rules:
   - globalfelixconfigs
   - felixconfigurations
   - bgppeers
+  - bgpfilters
   - globalbgpconfigs
   - bgpconfigurations
   - ippools
@@ -229,7 +230,7 @@ spec:
         envFrom:
         - configMapRef:
             name: calico-vpp-config
-        image: docker.io/calicovpp/vpp:prerelease
+        image: docker.io/calicovpp/vpp:v3.26.0
         imagePullPolicy: IfNotPresent
         name: vpp
         resources:
@@ -272,7 +273,7 @@ spec:
         envFrom:
         - configMapRef:
             name: calico-vpp-config
-        image: docker.io/calicovpp/agent:prerelease
+        image: docker.io/calicovpp/agent:v3.26.0
         imagePullPolicy: IfNotPresent
         name: agent
         resources:
