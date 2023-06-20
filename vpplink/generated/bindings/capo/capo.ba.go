@@ -333,7 +333,6 @@ func (u *CapoIpsetMemberValUnion) GetTuple() (a CapoThreeTuple) {
 }
 
 // CapoConfigurePolicies defines message 'capo_configure_policies'.
-// InProgress: the message form may change in the future versions
 type CapoConfigurePolicies struct {
 	SwIfIndex     uint32   `binapi:"u32,name=sw_if_index" json:"sw_if_index,omitempty"`
 	NumRxPolicies uint32   `binapi:"u32,name=num_rx_policies" json:"num_rx_policies,omitempty"`
@@ -396,7 +395,6 @@ func (m *CapoConfigurePolicies) Unmarshal(b []byte) error {
 }
 
 // CapoConfigurePoliciesReply defines message 'capo_configure_policies_reply'.
-// InProgress: the message form may change in the future versions
 type CapoConfigurePoliciesReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -431,7 +429,6 @@ func (m *CapoConfigurePoliciesReply) Unmarshal(b []byte) error {
 
 // Control ping from client to api server request
 // CapoControlPing defines message 'capo_control_ping'.
-// InProgress: the message form may change in the future versions
 type CapoControlPing struct{}
 
 func (m *CapoControlPing) Reset()               { *m = CapoControlPing{} }
@@ -463,7 +460,6 @@ func (m *CapoControlPing) Unmarshal(b []byte) error {
 //   - vpe_pid - the pid of the vpe, returned by the server
 //
 // CapoControlPingReply defines message 'capo_control_ping_reply'.
-// InProgress: the message form may change in the future versions
 type CapoControlPingReply struct {
 	Retval      int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	ClientIndex uint32 `binapi:"u32,name=client_index" json:"client_index,omitempty"`
@@ -506,7 +502,6 @@ func (m *CapoControlPingReply) Unmarshal(b []byte) error {
 
 // Get the plugin version
 // CapoGetVersion defines message 'capo_get_version'.
-// InProgress: the message form may change in the future versions
 type CapoGetVersion struct{}
 
 func (m *CapoGetVersion) Reset()               { *m = CapoGetVersion{} }
@@ -538,7 +533,6 @@ func (m *CapoGetVersion) Unmarshal(b []byte) error {
 //   - minor - Incremented with small changes, may be used to avoid buggy versions
 //
 // CapoGetVersionReply defines message 'capo_get_version_reply'.
-// InProgress: the message form may change in the future versions
 type CapoGetVersionReply struct {
 	Major uint32 `binapi:"u32,name=major" json:"major,omitempty"`
 	Minor uint32 `binapi:"u32,name=minor" json:"minor,omitempty"`
@@ -576,7 +570,6 @@ func (m *CapoGetVersionReply) Unmarshal(b []byte) error {
 }
 
 // CapoIpsetAddDelMembers defines message 'capo_ipset_add_del_members'.
-// InProgress: the message form may change in the future versions
 type CapoIpsetAddDelMembers struct {
 	SetID   uint32            `binapi:"u32,name=set_id" json:"set_id,omitempty"`
 	IsAdd   bool              `binapi:"bool,name=is_add" json:"is_add,omitempty"`
@@ -638,7 +631,6 @@ func (m *CapoIpsetAddDelMembers) Unmarshal(b []byte) error {
 }
 
 // CapoIpsetAddDelMembersReply defines message 'capo_ipset_add_del_members_reply'.
-// InProgress: the message form may change in the future versions
 type CapoIpsetAddDelMembersReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -674,7 +666,6 @@ func (m *CapoIpsetAddDelMembersReply) Unmarshal(b []byte) error {
 }
 
 // CapoIpsetCreate defines message 'capo_ipset_create'.
-// InProgress: the message form may change in the future versions
 type CapoIpsetCreate struct {
 	Type CapoIpsetType `binapi:"capo_ipset_type,name=type" json:"type,omitempty"`
 }
@@ -708,7 +699,6 @@ func (m *CapoIpsetCreate) Unmarshal(b []byte) error {
 }
 
 // CapoIpsetCreateReply defines message 'capo_ipset_create_reply'.
-// InProgress: the message form may change in the future versions
 type CapoIpsetCreateReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SetID  uint32 `binapi:"u32,name=set_id" json:"set_id,omitempty"`
@@ -746,7 +736,6 @@ func (m *CapoIpsetCreateReply) Unmarshal(b []byte) error {
 }
 
 // CapoIpsetDelete defines message 'capo_ipset_delete'.
-// InProgress: the message form may change in the future versions
 type CapoIpsetDelete struct {
 	SetID uint32 `binapi:"u32,name=set_id" json:"set_id,omitempty"`
 }
@@ -780,7 +769,6 @@ func (m *CapoIpsetDelete) Unmarshal(b []byte) error {
 }
 
 // CapoIpsetDeleteReply defines message 'capo_ipset_delete_reply'.
-// InProgress: the message form may change in the future versions
 type CapoIpsetDeleteReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -814,7 +802,6 @@ func (m *CapoIpsetDeleteReply) Unmarshal(b []byte) error {
 }
 
 // CapoPolicyCreate defines message 'capo_policy_create'.
-// InProgress: the message form may change in the future versions
 type CapoPolicyCreate struct {
 	NumItems uint32           `binapi:"u32,name=num_items" json:"-"`
 	Rules    []CapoPolicyItem `binapi:"capo_policy_item[num_items],name=rules" json:"rules,omitempty"`
@@ -871,7 +858,6 @@ func (m *CapoPolicyCreate) Unmarshal(b []byte) error {
 }
 
 // CapoPolicyCreateReply defines message 'capo_policy_create_reply'.
-// InProgress: the message form may change in the future versions
 type CapoPolicyCreateReply struct {
 	Retval   int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	PolicyID uint32 `binapi:"u32,name=policy_id" json:"policy_id,omitempty"`
@@ -909,7 +895,6 @@ func (m *CapoPolicyCreateReply) Unmarshal(b []byte) error {
 }
 
 // CapoPolicyDelete defines message 'capo_policy_delete'.
-// InProgress: the message form may change in the future versions
 type CapoPolicyDelete struct {
 	PolicyID uint32 `binapi:"u32,name=policy_id" json:"policy_id,omitempty"`
 }
@@ -943,7 +928,6 @@ func (m *CapoPolicyDelete) Unmarshal(b []byte) error {
 }
 
 // CapoPolicyDeleteReply defines message 'capo_policy_delete_reply'.
-// InProgress: the message form may change in the future versions
 type CapoPolicyDeleteReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -977,7 +961,6 @@ func (m *CapoPolicyDeleteReply) Unmarshal(b []byte) error {
 }
 
 // CapoPolicyUpdate defines message 'capo_policy_update'.
-// InProgress: the message form may change in the future versions
 type CapoPolicyUpdate struct {
 	PolicyID uint32           `binapi:"u32,name=policy_id" json:"policy_id,omitempty"`
 	NumItems uint32           `binapi:"u32,name=num_items" json:"-"`
@@ -1038,7 +1021,6 @@ func (m *CapoPolicyUpdate) Unmarshal(b []byte) error {
 }
 
 // CapoPolicyUpdateReply defines message 'capo_policy_update_reply'.
-// InProgress: the message form may change in the future versions
 type CapoPolicyUpdateReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1073,7 +1055,6 @@ func (m *CapoPolicyUpdateReply) Unmarshal(b []byte) error {
 
 // // where the packet only needs to match one entry in either category
 // CapoRuleCreate defines message 'capo_rule_create'.
-// InProgress: the message form may change in the future versions
 type CapoRuleCreate struct {
 	Rule CapoRule `binapi:"capo_rule,name=rule" json:"rule,omitempty"`
 }
@@ -1156,7 +1137,6 @@ func (m *CapoRuleCreate) Unmarshal(b []byte) error {
 }
 
 // CapoRuleCreateReply defines message 'capo_rule_create_reply'.
-// InProgress: the message form may change in the future versions
 type CapoRuleCreateReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	RuleID uint32 `binapi:"u32,name=rule_id" json:"rule_id,omitempty"`
@@ -1194,7 +1174,6 @@ func (m *CapoRuleCreateReply) Unmarshal(b []byte) error {
 }
 
 // CapoRuleDelete defines message 'capo_rule_delete'.
-// InProgress: the message form may change in the future versions
 type CapoRuleDelete struct {
 	RuleID uint32 `binapi:"u32,name=rule_id" json:"rule_id,omitempty"`
 }
@@ -1228,7 +1207,6 @@ func (m *CapoRuleDelete) Unmarshal(b []byte) error {
 }
 
 // CapoRuleDeleteReply defines message 'capo_rule_delete_reply'.
-// InProgress: the message form may change in the future versions
 type CapoRuleDeleteReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1262,7 +1240,6 @@ func (m *CapoRuleDeleteReply) Unmarshal(b []byte) error {
 }
 
 // CapoRuleUpdate defines message 'capo_rule_update'.
-// InProgress: the message form may change in the future versions
 type CapoRuleUpdate struct {
 	RuleID uint32   `binapi:"u32,name=rule_id" json:"rule_id,omitempty"`
 	Rule   CapoRule `binapi:"capo_rule,name=rule" json:"rule,omitempty"`
@@ -1349,7 +1326,6 @@ func (m *CapoRuleUpdate) Unmarshal(b []byte) error {
 }
 
 // CapoRuleUpdateReply defines message 'capo_rule_update_reply'.
-// InProgress: the message form may change in the future versions
 type CapoRuleUpdateReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }

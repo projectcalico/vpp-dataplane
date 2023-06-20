@@ -1,6 +1,6 @@
-VPP Version                 : 23.10-rc0~6-gc60c6f294
-Binapi-generator version    : govpp v0.8.0-dev
-VPP Base commit             : 233cc4b0c gerrit:34726/3 interface: add buffer stats api
+VPP Version                 : 23.10-rc0~6-g892b7bce0
+Binapi-generator version    : v0.8.0-dev
+VPP Base commit             : 03304d1c6 gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
 interface: Fix interface.api endianness
 capo: Calico Policies plugin
