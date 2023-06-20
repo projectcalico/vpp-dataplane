@@ -241,7 +241,6 @@ type CnatTranslation struct {
 }
 
 // CnatGetSnatAddresses defines message 'cnat_get_snat_addresses'.
-// InProgress: the message form may change in the future versions
 type CnatGetSnatAddresses struct{}
 
 func (m *CnatGetSnatAddresses) Reset()               { *m = CnatGetSnatAddresses{} }
@@ -269,7 +268,6 @@ func (m *CnatGetSnatAddresses) Unmarshal(b []byte) error {
 }
 
 // CnatGetSnatAddressesReply defines message 'cnat_get_snat_addresses_reply'.
-// InProgress: the message form may change in the future versions
 type CnatGetSnatAddressesReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	ID        uint32                         `binapi:"u32,name=id" json:"id,omitempty"`
@@ -319,7 +317,6 @@ func (m *CnatGetSnatAddressesReply) Unmarshal(b []byte) error {
 }
 
 // CnatSessionDetails defines message 'cnat_session_details'.
-// InProgress: the message form may change in the future versions
 type CnatSessionDetails struct {
 	Session CnatSession `binapi:"cnat_session,name=session" json:"session,omitempty"`
 }
@@ -404,7 +401,6 @@ func (m *CnatSessionDetails) Unmarshal(b []byte) error {
 }
 
 // CnatSessionDump defines message 'cnat_session_dump'.
-// InProgress: the message form may change in the future versions
 type CnatSessionDump struct{}
 
 func (m *CnatSessionDump) Reset()               { *m = CnatSessionDump{} }
@@ -432,7 +428,6 @@ func (m *CnatSessionDump) Unmarshal(b []byte) error {
 }
 
 // CnatSessionPurge defines message 'cnat_session_purge'.
-// InProgress: the message form may change in the future versions
 type CnatSessionPurge struct{}
 
 func (m *CnatSessionPurge) Reset()               { *m = CnatSessionPurge{} }
@@ -460,7 +455,6 @@ func (m *CnatSessionPurge) Unmarshal(b []byte) error {
 }
 
 // CnatSessionPurgeReply defines message 'cnat_session_purge_reply'.
-// InProgress: the message form may change in the future versions
 type CnatSessionPurgeReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -494,7 +488,6 @@ func (m *CnatSessionPurgeReply) Unmarshal(b []byte) error {
 }
 
 // CnatSetSnatAddresses defines message 'cnat_set_snat_addresses'.
-// InProgress: the message form may change in the future versions
 type CnatSetSnatAddresses struct {
 	SnatIP4   ip_types.IP4Address            `binapi:"ip4_address,name=snat_ip4" json:"snat_ip4,omitempty"`
 	SnatIP6   ip_types.IP6Address            `binapi:"ip6_address,name=snat_ip6" json:"snat_ip6,omitempty"`
@@ -536,7 +529,6 @@ func (m *CnatSetSnatAddresses) Unmarshal(b []byte) error {
 }
 
 // CnatSetSnatAddressesReply defines message 'cnat_set_snat_addresses_reply'.
-// InProgress: the message form may change in the future versions
 type CnatSetSnatAddressesReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -571,7 +563,6 @@ func (m *CnatSetSnatAddressesReply) Unmarshal(b []byte) error {
 
 // /* A snat policy controls what traffic is srcNATed
 // CnatSetSnatPolicy defines message 'cnat_set_snat_policy'.
-// InProgress: the message form may change in the future versions
 type CnatSetSnatPolicy struct {
 	Policy CnatSnatPolicies `binapi:"cnat_snat_policies,name=policy" json:"policy,omitempty"`
 }
@@ -605,7 +596,6 @@ func (m *CnatSetSnatPolicy) Unmarshal(b []byte) error {
 }
 
 // CnatSetSnatPolicyReply defines message 'cnat_set_snat_policy_reply'.
-// InProgress: the message form may change in the future versions
 type CnatSetSnatPolicyReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -639,7 +629,6 @@ func (m *CnatSetSnatPolicyReply) Unmarshal(b []byte) error {
 }
 
 // CnatSnatPolicyAddDelExcludePfx defines message 'cnat_snat_policy_add_del_exclude_pfx'.
-// InProgress: the message form may change in the future versions
 type CnatSnatPolicyAddDelExcludePfx struct {
 	IsAdd  uint8           `binapi:"u8,name=is_add" json:"is_add,omitempty"`
 	Prefix ip_types.Prefix `binapi:"prefix,name=prefix" json:"prefix,omitempty"`
@@ -685,7 +674,6 @@ func (m *CnatSnatPolicyAddDelExcludePfx) Unmarshal(b []byte) error {
 }
 
 // CnatSnatPolicyAddDelExcludePfxReply defines message 'cnat_snat_policy_add_del_exclude_pfx_reply'.
-// InProgress: the message form may change in the future versions
 type CnatSnatPolicyAddDelExcludePfxReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -721,7 +709,6 @@ func (m *CnatSnatPolicyAddDelExcludePfxReply) Unmarshal(b []byte) error {
 }
 
 // CnatSnatPolicyAddDelIf defines message 'cnat_snat_policy_add_del_if'.
-// InProgress: the message form may change in the future versions
 type CnatSnatPolicyAddDelIf struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 	IsAdd     uint8                          `binapi:"u8,name=is_add" json:"is_add,omitempty"`
@@ -763,7 +750,6 @@ func (m *CnatSnatPolicyAddDelIf) Unmarshal(b []byte) error {
 }
 
 // CnatSnatPolicyAddDelIfReply defines message 'cnat_snat_policy_add_del_if_reply'.
-// InProgress: the message form may change in the future versions
 type CnatSnatPolicyAddDelIfReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -799,7 +785,6 @@ func (m *CnatSnatPolicyAddDelIfReply) Unmarshal(b []byte) error {
 }
 
 // CnatTranslationDel defines message 'cnat_translation_del'.
-// InProgress: the message form may change in the future versions
 type CnatTranslationDel struct {
 	ID uint32 `binapi:"u32,name=id" json:"id,omitempty"`
 }
@@ -833,7 +818,6 @@ func (m *CnatTranslationDel) Unmarshal(b []byte) error {
 }
 
 // CnatTranslationDelReply defines message 'cnat_translation_del_reply'.
-// InProgress: the message form may change in the future versions
 type CnatTranslationDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -867,7 +851,6 @@ func (m *CnatTranslationDelReply) Unmarshal(b []byte) error {
 }
 
 // CnatTranslationDetails defines message 'cnat_translation_details'.
-// InProgress: the message form may change in the future versions
 type CnatTranslationDetails struct {
 	Translation CnatTranslation `binapi:"cnat_translation,name=translation" json:"translation,omitempty"`
 }
@@ -980,7 +963,6 @@ func (m *CnatTranslationDetails) Unmarshal(b []byte) error {
 }
 
 // CnatTranslationDump defines message 'cnat_translation_dump'.
-// InProgress: the message form may change in the future versions
 type CnatTranslationDump struct{}
 
 func (m *CnatTranslationDump) Reset()               { *m = CnatTranslationDump{} }
@@ -1012,7 +994,6 @@ func (m *CnatTranslationDump) Unmarshal(b []byte) error {
 //   - An interface, an address familiy and a port
 //
 // CnatTranslationUpdate defines message 'cnat_translation_update'.
-// InProgress: the message form may change in the future versions
 type CnatTranslationUpdate struct {
 	Translation CnatTranslation `binapi:"cnat_translation,name=translation" json:"translation,omitempty"`
 }
@@ -1125,7 +1106,6 @@ func (m *CnatTranslationUpdate) Unmarshal(b []byte) error {
 }
 
 // CnatTranslationUpdateReply defines message 'cnat_translation_update_reply'.
-// InProgress: the message form may change in the future versions
 type CnatTranslationUpdateReply struct {
 	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
 	ID     uint32 `binapi:"u32,name=id" json:"id,omitempty"`
