@@ -7,6 +7,33 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any `
 
 # Releases
 
+### Calico-VPP v3.26.0
+
+> 19th June 2023
+
+* New features:
+  - Automate build & integration test on each commit
+  - Cluster scale testing, with [documented methodology](./test/scale/README.md)
+  - Add [BGP filter support](https://docs.tigera.io/calico/latest/reference/resources/bgpfilter#bgp-filter-definition) leveraging [GoBGP Policies](https://github.com/osrg/gobgp/blob/master/docs/sources/policy.md)
+  - Add service annotation controlling load-balancer type (ECMP, Maglev, DSR)
+  - Automate Openshift testing 
+  - vpp: upgrade to v23.10
+  - bump container base image to ubuntu 22.04
+  - Add failsafe container termination 10s after component error (can be set with `CALICOVPP_GRACEFUL_SHUTDOWN_TIMEOUT`)
+  - Add the ability to map uplinks to podNetworks
+
+* Bug fixes
+  - Use host ip as default host port address if not provided
+  - Fix an error affetcing the multi-network watcher restart
+  - Fix DNS issue impacting Openshift
+  - Fix service of type=LoadBalancer support
+  - Fix CNI startup race condition resulting in sporadic agent deadlocks
+  - Add ip6 address of interfaces in the show capo int CLI
+  - Fix an issue impacting wireguard in dualstack mode
+  - Force enabliong ipv6 on container tuntap in case sysctl decided otherwise.
+  - fix loopbacks leftover state in vxlan provider for multinet
+
+
 ### Calico-VPP v3.25.1
 > 1st Mars 2023
 
