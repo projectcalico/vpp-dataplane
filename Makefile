@@ -194,6 +194,7 @@ release: check-TAG check-CALICO_TAG
 	@echo
 	@echo "***IMPORTANT***IMPORTANT***IMPORTANT***IMPORTANT***"
 	@echo "Please update \"vppbranch\" in https://github.com/projectcalico/calico/blob/${CALICO_TAG}/calico/_config.yml to ${TAG} otherwise the install docs get broken."
+	@echo "Please update \"vppbranch\" in https://github.com/tigera/docs/blob/main/calico_versioned_docs/${CALICO_TAG}/variables.js to ${TAG} otherwise the install docs get broken."
 
 .PHONY: run-integration-tests
 run-integration-tests:
