@@ -1,4 +1,6 @@
 bases:
-- ../test-vagrant-mounts
+- ../test-vagrant
 patchesStrategicMerge:
 - v6.yaml
+components:
+- ../../components/vagrant-mounts

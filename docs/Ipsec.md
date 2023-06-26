@@ -21,7 +21,6 @@ kubectl kustomize . > calico-vpp-ipsec.yaml
 kubectl apply -f calico-vpp-ipsec.yaml
 ```
 
-
 You will also need to create the secret for the PSK out of band
 
 ```bash
