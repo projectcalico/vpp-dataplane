@@ -1,4 +1,5 @@
 bases:
-- ../test-vagrant-mounts
+- ../test-vagrant
 components:
+- ../../components/vagrant-mounts
 - ../../components/multinet
