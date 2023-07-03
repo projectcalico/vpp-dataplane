@@ -519,13 +519,23 @@ func (i *VppManagerInfo) GetMainSwIfIndex() uint32 {
 	return vpplink.INVALID_SW_IF_INDEX
 }
 
+// UnsafeNoIommuMode represents the content of the /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+// file. The 'disabled' value is used when no iommu is available in the environment.
+type UnsafeNoIommuMode string
+
+const (
+	VFIO_UNSAFE_NO_IOMMU_MODE_YES      UnsafeNoIommuMode = "Y"
+	VFIO_UNSAFE_NO_IOMMU_MODE_NO       UnsafeNoIommuMode = "N"
+	VFIO_UNSAFE_NO_IOMMU_MODE_DISABLED UnsafeNoIommuMode = "disabled"
+)
+
 type VppManagerParams struct {
 	UplinksSpecs []UplinkInterfaceSpec
 	/* Capabilities */
-	LoadedDrivers      map[string]bool
-	KernelVersion      *KernelVersion
-	AvailableHugePages int
-	VfioUnsafeiommu    bool
+	LoadedDrivers                      map[string]bool
+	KernelVersion                      *KernelVersion
+	AvailableHugePages                 int
+	InitialVfioEnableUnsafeNoIommuMode UnsafeNoIommuMode
 
 	NodeAnnotations map[string]string
 }

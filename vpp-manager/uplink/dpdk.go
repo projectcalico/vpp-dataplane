@@ -46,18 +46,25 @@ func (d *DPDKDriver) IsSupported(warn bool) (supported bool) {
 	return supported
 }
 
+func (d *DPDKDriver) getFinalDriver() string {
+	if d.conf.DoSwapDriver {
+		return d.spec.NewDriverName
+	}
+	return d.conf.Driver
+}
+
 func (d *DPDKDriver) PreconfigureLinux() (err error) {
 	d.removeLinuxIfConf(true /* down */)
-	finalDriver := d.conf.Driver
 	if d.conf.DoSwapDriver {
 		err = utils.SwapDriver(d.conf.PciId, d.spec.NewDriverName, true)
 		if err != nil {
 			log.Warnf("Failed to swap driver to %s: %v", d.spec.NewDriverName, err)
 		}
-		finalDriver = d.spec.NewDriverName
 	}
-	if finalDriver == config.DRIVER_VFIO_PCI && d.params.AvailableHugePages == 0 {
-		err := utils.SetVfioUnsafeiommu(false)
+	if d.getFinalDriver() == config.DRIVER_VFIO_PCI &&
+		d.params.AvailableHugePages == 0 &&
+		d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_YES {
+		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_NO)
 		if err != nil {
 			return errors.Wrapf(err, "failed to configure vfio")
 		}
@@ -156,6 +163,15 @@ func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
 
 	// Re-add all adresses and routes
 	d.restoreLinuxIfConf(link)
+
+	if d.getFinalDriver() == config.DRIVER_VFIO_PCI &&
+		d.params.AvailableHugePages == 0 &&
+		d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_YES {
+		err = utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_YES)
+		if err != nil {
+			log.Errorf("failed to configure vfio %s", err)
+		}
+	}
 }
 
 func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {

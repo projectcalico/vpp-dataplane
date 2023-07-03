@@ -43,8 +43,8 @@ func (d *Vmxnet3Driver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *Vmxnet3Driver) PreconfigureLinux() (err error) {
-	if !d.params.VfioUnsafeiommu {
-		err := utils.SetVfioUnsafeiommu(true)
+	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_NO {
+		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_YES)
 		if err != nil {
 			return errors.Wrapf(err, "Vmxnet3 preconfigure error")
 		}
@@ -84,6 +84,13 @@ func (d *Vmxnet3Driver) RestoreLinux(allInterfacesPhysical bool) {
 
 	// Re-add all adresses and routes
 	d.restoreLinuxIfConf(link)
+
+	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_NO {
+		err = utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_NO)
+		if err != nil {
+			log.Errorf("Vmxnet3 restore error %s", err)
+		}
+	}
 }
 
 func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
