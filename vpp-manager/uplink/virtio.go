@@ -62,8 +62,8 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 		doSwapDriver = config.DRIVER_VFIO_PCI != d.conf.Driver
 	}
 
-	if !d.params.VfioUnsafeiommu {
-		err := utils.SetVfioUnsafeiommu(true)
+	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_NO {
+		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_YES)
 		if err != nil {
 			return errors.Wrapf(err, "failed to configure vfio")
 		}
@@ -79,8 +79,8 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 }
 
 func (d *VirtioDriver) RestoreLinux(allInterfacesPhysical bool) {
-	if !d.params.VfioUnsafeiommu {
-		err := utils.SetVfioUnsafeiommu(false)
+	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_NO {
+		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_NO)
 		if err != nil {
 			log.Warnf("Virtio restore error %v", err)
 		}

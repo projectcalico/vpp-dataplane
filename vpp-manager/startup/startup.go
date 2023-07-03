@@ -78,11 +78,10 @@ func NewVppManagerParams() *config.VppManagerParams {
 	params.AvailableHugePages = nrHugepages
 
 	/* Iommu */
-	iommu, err := utils.IsVfioUnsafeiommu()
+	params.InitialVfioEnableUnsafeNoIommuMode, err = utils.GetVfioEnableUnsafeNoIommuMode()
 	if err != nil {
 		log.Warnf("Error getting vfio iommu state %v", err)
 	}
-	params.VfioUnsafeiommu = iommu
 
 	return params
 
@@ -93,7 +92,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 	log.Infof("Hugepages            %d", params.AvailableHugePages)
 	log.Infof("KernelVersion        %s", params.KernelVersion)
 	log.Infof("Drivers              %v", params.LoadedDrivers)
-	log.Infof("vfio iommu:          %t", params.VfioUnsafeiommu)
+	log.Infof("initial iommu status %s", params.InitialVfioEnableUnsafeNoIommuMode)
 	for _, ifSpec := range params.UplinksSpecs {
 		log.Infof("-- Interface Spec --")
 		log.Infof("Interface Name:      %s", ifSpec.InterfaceName)

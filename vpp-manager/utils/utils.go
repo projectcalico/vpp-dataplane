@@ -208,28 +208,26 @@ func ClearVppManagerFiles() error {
 	return WriteInfoFile()
 }
 
-func SetVfioUnsafeiommu(iommu bool) (err error) {
-	if iommu {
-		err = WriteFile("Y", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
-	} else {
-		err = WriteFile("N", "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+func SetVfioEnableUnsafeNoIommuMode(mode config.UnsafeNoIommuMode) (err error) {
+	if mode == config.VFIO_UNSAFE_NO_IOMMU_MODE_DISABLED {
+		return
 	}
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	return err
+	return WriteFile(string(mode), "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 }
 
-func IsVfioUnsafeiommu() (bool, error) {
+func GetVfioEnableUnsafeNoIommuMode() (config.UnsafeNoIommuMode, error) {
 	iommuStr, err := os.ReadFile("/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
+			return config.VFIO_UNSAFE_NO_IOMMU_MODE_DISABLED, nil
 		}
-		return false, errors.Wrapf(err, "Couldnt read /sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+		return config.VFIO_UNSAFE_NO_IOMMU_MODE_DISABLED, errors.Wrapf(err, "Couldnt read /sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	}
-	iommu := "Y" == strings.TrimSpace(string(iommuStr))
-	return iommu, nil
+	if strings.TrimSpace(string(iommuStr)) == "Y" {
+		return config.VFIO_UNSAFE_NO_IOMMU_MODE_YES, nil
+	} else {
+		return config.VFIO_UNSAFE_NO_IOMMU_MODE_NO, nil
+	}
 }
 
 func DeleteInterfaceVF(pciId string) (err error) {
