@@ -68,6 +68,26 @@ export CALICOVPP_REDIRECT_PROTO="\"udp\""
 export CALICOVPP_REDIRECT_PORT=53
 export CALICOVPP_REDIRECT_IP="\"172.18.0.1\""
 ````
+
+To enable memif:
+````bash
+# --------------- memif ----------------
+export CALICOVPP_ENABLE_MEMIF=true
+````
+
+To run multinet:
+
+````bash
+# --------------- multinet ----------------
+export CALICOVPP_ENABLE_MULTINET=true
+export CALICOVPP_ENABLE_MEMIF=true
+kubectl apply -f test/yaml/multinet/projectcalico.org_networks.yaml
+kubectl apply -f test/yaml/multinet/whereabouts-daemonset-install.yaml
+kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
+kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
+kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+
+````
 To run with hugepages on:
 
 ````bash
