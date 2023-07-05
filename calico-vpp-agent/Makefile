@@ -40,11 +40,14 @@ image: build gobgp
 	fi
 
 push: ${PUSH_DEP}
-	docker push calicovpp/agent:$(TAG)
-	@if [ "${ALSO_LATEST}" = "y" ]; then \
-		docker push calicovpp/agent:latest; \
-		docker push calicovpp/agent:prerelease; \
-	fi
+	set -e; for registry in ${REGISTRIES}; do \
+		docker tag calicovpp/agent:$(TAG) $${registry}calicovpp/agent:$(TAG); \
+		if [ "${ALSO_LATEST}" = "y" ]; then \
+			docker tag calicovpp/agent:$(TAG) $${registry}calicovpp/agent:latest; \
+			docker tag calicovpp/agent:$(TAG) $${registry}calicovpp/agent:prerelease; \
+		fi; \
+		docker push --all-tags $${registry}calicovpp/agent; \
+	done
 
 dev: image
 
