@@ -15,6 +15,8 @@ SQUASH := --squash
 # push dependency
 PUSH_DEP := image
 
+REGISTRIES := docker.io/
+
 # CI specific variables
 ifdef CODEBUILD_BUILD_NUMBER
 	# Define variable when building for CI
@@ -33,6 +35,9 @@ ifdef CI_BUILD
 	DOCKER_RUN = docker run -t --rm --name build_temp ${DOCKER_OPTS} calicovpp/ci-builder:latest
 	SQUASH :=
 	PUSH_DEP :=
+
+        # REGISTRY_PRIV may be defined in the CI environment
+	REGISTRIES += ${REGISTRY_PRIV}
 else
 	DOCKER_RUN = CGO_ENABLED=${CGO_ENABLED} GOFLAGS=${GOFLAGS}
 endif

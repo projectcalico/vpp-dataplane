@@ -52,17 +52,20 @@ image: build ${VPP_TARBALL} eksimage
 	fi
 
 push: ${PUSH_DEP}
-	docker push calicovpp/vpp:$(TAG)
-	@if [ "${ALSO_LATEST}" = "y" ]; then \
-		docker push calicovpp/vpp:latest; \
-		docker push calicovpp/vpp:prerelease; \
-	fi
-	docker push calicovpp/init-eks:$(TAG)
-	@if [ "${ALSO_LATEST}" = "y" ]; then \
-		docker push calicovpp/init-eks:latest; \
-		docker push calicovpp/init-eks:prerelease; \
-	fi
-
+	set -e; for registry in ${REGISTRIES}; do \
+		docker tag calicovpp/vpp:$(TAG) $${registry}calicovpp/vpp:$(TAG); \
+		docker tag calicovpp/init-eks:$(TAG) $${registry}calicovpp/init-eks:$(TAG); \
+		\
+		if [ "${ALSO_LATEST}" = "y" ]; then \
+			docker tag calicovpp/vpp:$(TAG) $${registry}calicovpp/vpp:latest; \
+			docker tag calicovpp/vpp:$(TAG) $${registry}calicovpp/vpp:prerelease; \
+			\
+			docker tag calicovpp/init-eks:$(TAG) $${registry}calicovpp/init-eks:latest; \
+			docker tag calicovpp/init-eks:$(TAG) $${registry}calicovpp/init-eks:prerelease; \
+		fi; \
+		docker push --all-tags $${registry}calicovpp/vpp; \
+		docker push --all-tags $${registry}calicovpp/init-eks; \
+	done
 
 imageonly: build
 	cp $(VPPDEV_FILE) $(IMAGE_DIR)
