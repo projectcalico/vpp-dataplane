@@ -6,6 +6,8 @@ metadata:
 data:
   CALICOVPP_FEATURE_GATES: |-
     {
+      "memifEnabled": true,
+      "vclEnabled": true,
       "multinetEnabled": true
     }
 ---
