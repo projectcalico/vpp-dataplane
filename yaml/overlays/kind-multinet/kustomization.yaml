@@ -1,0 +1,4 @@
+bases:
+- ../kind
+components:
+- ../../components/multinet

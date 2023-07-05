@@ -1,6 +1,6 @@
 
-TAG ?= prerelease
-CALICO_TAG ?= master
+TAG ?= v3.26.0
+CALICO_TAG ?= v3.26.0
 
 .PHONY: build
 build: clean
@@ -11,7 +11,7 @@ build: clean
 	kubectl kustomize overlays/eks                             > generated/calico-vpp-eks.yaml
 	kubectl kustomize overlays/eks-dpdk                        > generated/calico-vpp-eks-dpdk.yaml
 	kubectl kustomize overlays/kind                            > generated/calico-vpp-kind.yaml
-	kubectl kustomize overlays/kind                            > generated/calico-vpp-kind.yaml
+	kubectl kustomize overlays/kind-multinet                   > generated/calico-vpp-kind-multinet.yaml
 	# Do not export the test-* overlays, but still check they compile
 	kubectl kustomize overlays/test-vagrant                    > /dev/null
 	kubectl kustomize overlays/test-vagrant-mounts             > /dev/null

@@ -31,6 +31,16 @@ rules:
   - watch
   - list
   - get
+  - create
+  - update
+- apiGroups:
+  - k8s.cni.cncf.io
+  resources:
+  - network-attachment-definitions
+  verbs:
+  - watch
+  - get
+  - list
 - apiGroups:
   - ""
   resources:
@@ -66,6 +76,14 @@ rules:
   - pods/status
   verbs:
   - patch
+- apiGroups:
+  - projectcalico.org
+  resources:
+  - networks
+  verbs:
+  - list
+  - get
+  - watch
 - apiGroups:
   - crd.projectcalico.org
   resources:
@@ -161,34 +179,69 @@ data:
     buffers {
       buffers-per-numa 131072
     }
+  CALICOVPP_FEATURE_GATES: |-
+    {
+      "memifEnabled": true,
+      "vclEnabled": true,
+      "multinetEnabled": true
+    }
   CALICOVPP_INITIAL_CONFIG: |-
     {
       "vppStartupSleepSeconds": 1,
-      "corePattern": "/var/lib/vpp/vppcore.%e.%p"
-    }
-  CALICOVPP_INTERFACES: |-
-    {
-      "maxPodIfSpec": {
-        "rx": 10, "tx": 10, "rxqsz": 1024, "txqsz": 1024
-      },
-      "defaultPodIfSpec": {
-        "rx": 1, "tx":1, "isl3": true
-      },
-      "vppHostTapSpec": {
-        "rx": 1, "tx":1, "rxqsz": 1024, "txqsz": 1024, "isl3": false
-      },
-      "uplinkInterfaces": [
+      "corePattern": "/var/lib/vpp/vppcore.%e.%p",
+      "redirectToHostRules": [
         {
-          "interfaceName": "eth0",
-          "vppDriver": "dpdk"
+          "proto": "udp",
+          "port": 53,
+          "ip": "172.18.0.1"
+        },
+        {
+          "proto": "tcp",
+          "port": 53,
+          "ip": "172.18.0.1"
         }
       ]
     }
-  SERVICE_PREFIX: 10.100.0.0/16
+  CALICOVPP_INTERFACES: |-
+    {
+      "uplinkInterfaces": [
+        {
+          "interfaceName": "eth0",
+          "vppDriver": "af_packet"
+        }
+      ]
+    }
+  SERVICE_PREFIX: 10.96.0.0/16
 kind: ConfigMap
 metadata:
   name: calico-vpp-config
   namespace: calico-vpp-dataplane
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: calico-vpp-node
+  name: multinet-monitor-deployment
+  namespace: calico-vpp-dataplane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: calico-vpp-node
+  template:
+    metadata:
+      labels:
+        k8s-app: calico-vpp-node
+    spec:
+      containers:
+      - image: docker.io/calicovpp/multinet-monitor:v3.26.0
+        imagePullPolicy: IfNotPresent
+        name: multinet-monitor
+        resources:
+          requests:
+            cpu: 250m
+      serviceAccountName: calico-vpp-node-sa
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -207,58 +260,6 @@ spec:
         k8s-app: calico-vpp-node
     spec:
       containers:
-      - env:
-        - name: CALICOVPP_HOOK_BEFORE_VPP_RUN
-          value: echo 'sudo systemctl stop network ; sudo systemctl kill network'
-            | chroot /host
-        - name: CALICOVPP_HOOK_VPP_RUNNING
-          value: echo 'sudo systemctl start network' | chroot /host
-        - name: CALICOVPP_HOOK_VPP_DONE_OK
-          value: echo 'sudo systemctl stop network ; sudo systemctl kill network ;
-            sudo systemctl start network' | chroot /host
-        - name: CALICOVPP_HOOK_VPP_ERRORED
-          value: echo 'sudo systemctl stop network ; sudo systemctl kill network ;
-            sudo systemctl start network' | chroot /host
-        - name: DATASTORE_TYPE
-          value: kubernetes
-        - name: WAIT_FOR_DATASTORE
-          value: "true"
-        - name: NODENAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        envFrom:
-        - configMapRef:
-            name: calico-vpp-config
-        image: docker.io/calicovpp/vpp:v3.26.0
-        imagePullPolicy: IfNotPresent
-        name: vpp
-        resources:
-          limits:
-            hugepages-2Mi: 512Mi
-          requests:
-            cpu: 500m
-            memory: 512Mi
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /lib/firmware
-          name: lib-firmware
-        - mountPath: /var/run/vpp
-          name: vpp-rundir
-        - mountPath: /var/lib/vpp
-          name: vpp-data
-        - mountPath: /etc/vpp
-          name: vpp-config
-        - mountPath: /dev
-          name: devices
-        - mountPath: /sys
-          name: hostsys
-        - mountPath: /run/netns/
-          mountPropagation: Bidirectional
-          name: netns
-        - mountPath: /host
-          name: host-root
       - env:
         - name: DATASTORE_TYPE
           value: kubernetes
@@ -295,8 +296,55 @@ spec:
         - mountPath: /run/netns/
           mountPropagation: Bidirectional
           name: netns
+      - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        envFrom:
+        - configMapRef:
+            name: calico-vpp-config
+        image: docker.io/calicovpp/vpp:v3.26.0
+        imagePullPolicy: IfNotPresent
+        name: vpp
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /lib/firmware
+          name: lib-firmware
+        - mountPath: /var/run/vpp
+          name: vpp-rundir
+        - mountPath: /var/lib/vpp
+          name: vpp-data
+        - mountPath: /etc/vpp
+          name: vpp-config
+        - mountPath: /dev
+          name: devices
+        - mountPath: /sys
+          name: hostsys
+        - mountPath: /run/netns/
+          mountPropagation: Bidirectional
+          name: netns
+        - mountPath: /host
+          name: host-root
       hostNetwork: true
       hostPID: true
+      initContainers:
+      - command:
+        - /entrypoint
+        image: docker.io/calicovpp/install-whereabouts:v3.26.0
+        name: install-whereabouts
+        volumeMounts:
+        - mountPath: /host/opt/cni/bin
+          name: cni-bin-dir
       nodeSelector:
         kubernetes.io/os: linux
       priorityClassName: system-node-critical
@@ -310,6 +358,9 @@ spec:
       - effect: NoExecute
         operator: Exists
       volumes:
+      - hostPath:
+          path: /opt/cni/bin
+        name: cni-bin-dir
       - hostPath:
           path: /lib/firmware
         name: lib-firmware
