@@ -22,7 +22,6 @@ spec:
     volumeMounts:
     - mountPath: /hugepages
       name: hugepage
-  nodeName: _NODE_2_
   volumes:
   - name: hugepage
     emptyDir:

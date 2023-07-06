@@ -10,5 +10,4 @@ spec:
     imagePullPolicy: IfNotPresent
     securityContext:
       privileged: true
-  nodeName: _NODE_2_
 ---

@@ -22,7 +22,6 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
-      nodeName: _NODE_1_
 ---
 apiVersion: v1
 kind: Service

@@ -33,7 +33,6 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5201
-      nodeName: _NODE_1_
 
 ---
 apiVersion: v1
@@ -67,4 +66,3 @@ spec:
     imagePullPolicy: IfNotPresent
     ports:
     - containerPort: 5201
-  nodeName: _NODE_2_
