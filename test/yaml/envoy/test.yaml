@@ -23,7 +23,6 @@ spec:
       name: envoyyaml
     - mountPath: /etc/vpp/vcl.conf
       name: vclconf
-  nodeName: _NODE_1_
   volumes:
   - name: hostuser
     hostPath:
@@ -68,7 +67,6 @@ spec:
       name: hostuser
     - mountPath: /etc/envoy/envoy.yaml
       name: envoyyaml
-  nodeName: _NODE_1_
   volumes:
   - name: hostuser
     hostPath:

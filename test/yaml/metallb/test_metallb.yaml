@@ -33,7 +33,6 @@ metadata:
 subsets:
   - addresses:
       - ip: 10.10.186.88
-        nodeName: node1
     ports:
       - port: 9376
 ---

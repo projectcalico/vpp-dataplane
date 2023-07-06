@@ -110,7 +110,7 @@ test_apply ()
   k_create_namespace $NAME
 
   export VPP_DATAPLANE_DIRECTORY=$VPP_DATAPLANE_DIRECTORY
-  sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $YAML_FILE | \
+  cat $YAML_FILE | \
 	envsubst | \
 	kubectl apply -f -
 }
@@ -128,7 +128,7 @@ test_delete ()
   	echo "${YAML_FILE} doesnt exist"
   	exit 1
   fi
-  sed -e "s/_NODE_1_/${NODES[0]}/" -e "s/_NODE_2_/${NODES[1]}/" $YAML_FILE | \
+  cat $YAML_FILE | \
 	kubectl delete -f -
   k_delete_namespace $1
 }

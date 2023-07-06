@@ -29,7 +29,6 @@ spec:
           initialDelaySeconds: 3
           periodSeconds: 5
           timeoutSeconds: 3
-      nodeName: _NODE_1_
 ---
 apiVersion: apps/v1
 kind: ReplicaSet
@@ -61,7 +60,6 @@ spec:
           initialDelaySeconds: 3
           periodSeconds: 5
           timeoutSeconds: 3
-      nodeName: _NODE_1_
 ---
 apiVersion: v1
 kind: Service
@@ -150,7 +148,6 @@ spec:
     ports:
     - containerPort: 5001
     - containerPort: 5003
-  nodeName: _NODE_2_
 ---
 apiVersion: v1
 kind: Pod
@@ -165,4 +162,3 @@ spec:
     ports:
     - containerPort: 5001
     - containerPort: 5003
-  nodeName: _NODE_1_

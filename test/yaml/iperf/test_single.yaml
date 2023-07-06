@@ -23,7 +23,6 @@ spec:
         ports:
         - containerPort: 5001
         - containerPort: 5003
-      nodeName: _NODE_1_
 ---
 apiVersion: v1
 kind: Service
@@ -54,4 +53,3 @@ spec:
     ports:
     - containerPort: 5001
     - containerPort: 5003
-  nodeName: _NODE_2_
