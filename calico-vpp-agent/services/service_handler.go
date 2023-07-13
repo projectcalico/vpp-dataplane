@@ -108,8 +108,8 @@ func buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Servi
 							},
 							Flags: flags,
 						}
-						/* In nodeports, we also sNAT */
-						if isNodePort {
+						/* In nodeports, we need to sNAT when endpoint is not local to have a symmetric traffic */
+						if isNodePort && !isEndpointAddressLocal(&endpointAddress) {
 							backend.SrcEndpoint.IP = serviceIP
 						}
 						backends = append(backends, backend)
