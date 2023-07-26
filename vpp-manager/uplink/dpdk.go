@@ -83,7 +83,7 @@ func (d *DPDKDriver) UpdateVppConfigFile(template string) string {
 
 	if d.params.AvailableHugePages > 0 {
 		template = fmt.Sprintf(
-			"%s\ndpdk {\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d tag %s } \n}\n",
+			"%s\ndpdk {\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d tag %s } \nno-tx-checksum-offload}\n",
 			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues,
 			d.spec.RxQueueSize, d.spec.TxQueueSize, "main-"+d.spec.InterfaceName,
 		)
