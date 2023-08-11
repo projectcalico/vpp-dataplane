@@ -43,8 +43,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-const DefaultPhysicalNetworkName = ""
-
 type VppRunner struct {
 	params       *config.VppManagerParams
 	conf         []*config.LinuxInterfaceState
@@ -141,28 +139,26 @@ func (v *VppRunner) configureGlobalPunt() (err error) {
 }
 
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInterfaceState) (err error) {
-	for _, neigh := range []net.IP{utils.FakeVppNextHopIP4, utils.FakeVppNextHopIP6} {
-		err = v.vpp.AddNeighbor(&types.Neighbor{
-			SwIfIndex:    tapSwIfIndex,
-			IP:           neigh,
-			HardwareAddr: ifState.HardwareAddr,
+	err = v.vpp.AddNeighbor(&types.Neighbor{
+		SwIfIndex:    tapSwIfIndex,
+		IP:           config.VppHostPuntFakeGatewayAddress,
+		HardwareAddr: ifState.HardwareAddr,
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Error adding neighbor %s to tap", config.VppHostPuntFakeGatewayAddress)
+	}
+	/* In the punt table (where all punted traffics ends), route to the tap */
+	for _, address := range ifState.Addresses {
+		err = v.vpp.RouteAdd(&types.Route{
+			Dst:   address.IPNet,
+			Table: common.PuntTableId,
+			Paths: []types.RoutePath{{
+				Gw:        config.VppHostPuntFakeGatewayAddress,
+				SwIfIndex: tapSwIfIndex,
+			}},
 		})
 		if err != nil {
-			return errors.Wrapf(err, "Error adding neighbor %s to tap", neigh)
-		}
-		/* In the punt table (where all punted traffics ends), route to the tap */
-		for _, address := range ifState.Addresses {
-			err = v.vpp.RouteAdd(&types.Route{
-				Dst:   address.IPNet,
-				Table: common.PuntTableId,
-				Paths: []types.RoutePath{{
-					Gw:        neigh,
-					SwIfIndex: tapSwIfIndex,
-				}},
-			})
-			if err != nil {
-				return errors.Wrapf(err, "error adding vpp side routes for interface")
-			}
+			return errors.Wrapf(err, "error adding vpp side routes for interface")
 		}
 	}
 
@@ -524,7 +520,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 
-	if ifSpec.GetIsMain() {
+	if ifSpec.IsMain {
 		if config.GetCalicoVppInitialConfig().ExtraAddrCount > 0 {
 			err = v.addExtraAddresses(ifState.Addresses, config.GetCalicoVppInitialConfig().ExtraAddrCount, ifSpec.SwIfIndex)
 			if err != nil {
@@ -544,7 +540,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 			HostInterfaceName: ifSpec.InterfaceName,
 			RxQueueSize:       config.GetCalicoVppInterfaces().VppHostTapSpec.RxQueueSize,
 			TxQueueSize:       config.GetCalicoVppInterfaces().VppHostTapSpec.TxQueueSize,
-			HardwareAddr:      utils.VppSideMac,
+			HardwareAddr:      ifSpec.GetVppSideHardwareAddress(),
 		},
 		HostNamespace:  "pid:1", // create tap in root netns
 		Tag:            "host-" + ifSpec.InterfaceName,
@@ -648,7 +644,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 			PhysicalNetworkName: ifSpec.PhysicalNetworkName,
 			LinkIndex:           link.Attrs().Index,
 			Name:                link.Attrs().Name,
-			IsMain:              ifSpec.GetIsMain(),
+			IsMain:              ifSpec.IsMain,
 			FakeNextHopIP4:      fakeNextHopIP4,
 			FakeNextHopIP6:      fakeNextHopIP6,
 		}
@@ -866,7 +862,7 @@ func (v *VppRunner) runVpp() (err error) {
 	}
 
 	// add main network that has the default VRF
-	config.Info.PhysicalNets[DefaultPhysicalNetworkName] = config.PhysicalNetwork{VrfId: common.DefaultVRFIndex, PodVrfId: common.PodVRFIndex}
+	config.Info.PhysicalNets[config.DefaultPhysicalNetworkName] = config.PhysicalNetwork{VrfId: common.DefaultVRFIndex, PodVrfId: common.PodVRFIndex}
 
 	err = v.configureGlobalPunt()
 	if err != nil {

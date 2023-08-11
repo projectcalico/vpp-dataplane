@@ -40,14 +40,30 @@ func NewVppManagerParams() *config.VppManagerParams {
 	}
 
 	/* uplinks configuration */
-	for index, uplink := range config.GetCalicoVppInterfaces().UplinkInterfaces {
-		_ = uplink.Validate(nil, index == 0)
+	isMainCount := 0
+	for _, uplink := range config.GetCalicoVppInterfaces().UplinkInterfaces {
 		params.UplinksSpecs = append(params.UplinksSpecs, uplink)
+		if uplink.IsMain {
+			isMainCount++
+		}
 	}
 	if len(params.UplinksSpecs) == 0 {
 		log.Panicf("No interface specified. Specify an interface through the environment variable")
 	}
-	params.UplinksSpecs[0].IsMain = &config.True
+	if isMainCount == 0 {
+		// By default the first interface is main
+		params.UplinksSpecs[0].IsMain = true
+	} else if isMainCount > 1 {
+		log.Panicf("Too many interfaces tagged Main")
+	}
+
+	for index, uplink := range params.UplinksSpecs {
+		uplink.SetUplinkInterfaceIndex(index)
+		err := uplink.Validate(nil)
+		if err != nil {
+			log.Panicf("error validating uplink %s %s", uplink.String(), err)
+		}
+	}
 
 	/* Drivers */
 	params.LoadedDrivers = make(map[string]bool)

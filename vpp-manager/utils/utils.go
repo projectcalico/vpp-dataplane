@@ -47,12 +47,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
-var (
-	FakeVppNextHopIP4 = net.ParseIP("169.254.0.1")
-	FakeVppNextHopIP6 = net.ParseIP("fc00:ffff:ffff:ffff:ca11:c000:fd10:fffe")
-	VppSideMac, _     = net.ParseMAC("02:ca:11:c0:fd:10")
-)
-
 func IsDriverLoaded(driver string) (bool, error) {
 	_, err := os.Stat("/sys/bus/pci/drivers/" + driver)
 	if err == nil {
