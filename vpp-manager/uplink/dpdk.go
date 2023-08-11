@@ -177,7 +177,7 @@ func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
 func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	// Nothing to do VPP autocreates on startup
 	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
-	if !d.spec.GetIsMain() {
+	if !d.spec.IsMain {
 		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)
 	}
 	swIfIndex, err := vpp.SearchInterfaceWithTag("main-" + d.spec.InterfaceName)

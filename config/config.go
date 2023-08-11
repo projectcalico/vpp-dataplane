@@ -58,6 +58,11 @@ const (
 	VppSigKillTimeout = 2
 	DefaultEncapSize  = 60 // Used to lower the MTU of the routes to the cluster
 
+	DefaultPhysicalNetworkName = ""
+
+	// BaseVppSideHardwareAddress is the base hardware address of VPP side of the HostPunt
+	// tap interface. It is used to generate hardware addresses for each uplink interface.
+	BaseVppSideHardwareAddress = "02:ca:11:c0:fd:00"
 )
 
 var (
@@ -130,6 +135,10 @@ var (
 	}
 
 	Info = &VppManagerInfo{}
+
+	// VppHostPuntFakeGatewayAddress is the fake gateway we use with a static neighbor
+	// in the punt table to route punted packets to the host
+	VppHostPuntFakeGatewayAddress = net.ParseIP("169.254.0.1")
 )
 
 func RunHook(hookScript *string, hookName string, params *VppManagerParams, log *logrus.Logger) {
@@ -222,7 +231,7 @@ func (i *InterfaceSpec) Validate(maxIfSpec *InterfaceSpec) error {
 
 type UplinkInterfaceSpec struct {
 	InterfaceSpec
-	IsMain              *bool             `json:"-"`
+	IsMain              bool              `json:"isMain"`
 	PhysicalNetworkName string            `json:"physicalNetworkName"`
 	InterfaceName       string            `json:"interfaceName"`
 	VppDriver           string            `json:"vppDriver"`
@@ -231,17 +240,26 @@ type UplinkInterfaceSpec struct {
 	// Mtu is the User specified MTU for uplink & the tap
 	Mtu       int    `json:"mtu"`
 	SwIfIndex uint32 `json:"-"`
+
+	// uplinkInterfaceIndex is the index of the uplinkInterface in the list
+	uplinkInterfaceIndex int `json:"-"`
 }
 
-func (u *UplinkInterfaceSpec) GetIsMain() bool {
-	if u.IsMain == nil {
-		return false
+func (u *UplinkInterfaceSpec) GetVppSideHardwareAddress() net.HardwareAddr {
+	mac, _ := net.ParseMAC(BaseVppSideHardwareAddress)
+	mac[len(mac)-1] = byte(u.uplinkInterfaceIndex)
+	if u.uplinkInterfaceIndex > 255 {
+		panic("too many uplinkinteraces")
 	}
-	return *u.IsMain
+	return mac
 }
 
-func (u *UplinkInterfaceSpec) Validate(maxIfSpec *InterfaceSpec, isMain bool) (err error) {
-	if !isMain && u.VppDriver == "" {
+func (u *UplinkInterfaceSpec) SetUplinkInterfaceIndex(uplinkInterfaceIndex int) {
+	u.uplinkInterfaceIndex = uplinkInterfaceIndex
+}
+
+func (u *UplinkInterfaceSpec) Validate(maxIfSpec *InterfaceSpec) (err error) {
+	if !u.IsMain && u.VppDriver == "" {
 		return errors.Errorf("vpp driver should be specified for secondary uplink interfaces")
 	}
 	return u.InterfaceSpec.Validate(maxIfSpec)
@@ -504,7 +522,11 @@ type UplinkStatus struct {
 	Mtu                 int
 	PhysicalNetworkName string
 
+	// FakeNextHopIP4 is the computed next hop for v4 routes added
+	// in linux to (ServiceCIDR, podCIDR, etc...) towards this interface
 	FakeNextHopIP4 net.IP
+	// FakeNextHopIP6 is the computed next hop for v6 routes added
+	// in linux to (ServiceCIDR, podCIDR, etc...) towards this interface
 	FakeNextHopIP6 net.IP
 }
 

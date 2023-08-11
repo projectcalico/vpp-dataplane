@@ -38,7 +38,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
-	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
@@ -479,15 +478,13 @@ forloop:
 	return nil
 }
 
-func (s *Server) getMainTap0Info() (tapSwIfIndex uint32, address net.IP) {
+func (s *Server) getMainInterface() *config.UplinkStatus {
 	for _, i := range common.VppManagerInfo.UplinkStatuses {
 		if i.IsMain {
-			tapSwIfIndex = i.TapSwIfIndex
-			break
+			return &i
 		}
 	}
-	address = utils.FakeVppNextHopIP4
-	return
+	return nil
 }
 
 func (s *Server) createRedirectToHostRules() (uint32, error) {
@@ -506,12 +503,15 @@ func (s *Server) createRedirectToHostRules() (uint32, error) {
 	if err != nil {
 		return types.InvalidID, err
 	}
-	tap0swifindex, tap0nexthop := s.getMainTap0Info()
+	mainInterface := s.getMainInterface()
+	if mainInterface == nil {
+		return types.InvalidID, fmt.Errorf("No main interface found")
+	}
 	for _, rule := range config.GetCalicoVppInitialConfig().RedirectToHostRules {
 		err = s.vpp.AddSessionRedirect(&types.SessionRedirect{
 			FiveTuple:  types.NewDst3Tuple(rule.Proto, net.ParseIP(rule.Ip), rule.Port),
 			TableIndex: index,
-		}, &types.RoutePath{Gw: tap0nexthop, SwIfIndex: tap0swifindex})
+		}, &types.RoutePath{Gw: config.VppHostPuntFakeGatewayAddress, SwIfIndex: mainInterface.TapSwIfIndex})
 		if err != nil {
 			return types.InvalidID, err
 		}
