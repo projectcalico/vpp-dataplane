@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "cnat"
 	APIVersion = "0.2.0"
-	VersionCrc = 0xfd05573b
+	VersionCrc = 0x8e6b2e7b
 )
 
 // CnatEndpointTupleFlags defines enum 'cnat_endpoint_tuple_flags'.
@@ -137,6 +137,7 @@ const (
 	CNAT_POLICY_INCLUDE_V4 CnatSnatPolicyTable = 0
 	CNAT_POLICY_INCLUDE_V6 CnatSnatPolicyTable = 1
 	CNAT_POLICY_POD        CnatSnatPolicyTable = 2
+	CNAT_POLICY_HOST       CnatSnatPolicyTable = 3
 )
 
 var (
@@ -144,11 +145,13 @@ var (
 		0: "CNAT_POLICY_INCLUDE_V4",
 		1: "CNAT_POLICY_INCLUDE_V6",
 		2: "CNAT_POLICY_POD",
+		3: "CNAT_POLICY_HOST",
 	}
 	CnatSnatPolicyTable_value = map[string]uint8{
 		"CNAT_POLICY_INCLUDE_V4": 0,
 		"CNAT_POLICY_INCLUDE_V6": 1,
 		"CNAT_POLICY_POD":        2,
+		"CNAT_POLICY_HOST":       3,
 	}
 )
 
@@ -717,7 +720,7 @@ type CnatSnatPolicyAddDelIf struct {
 
 func (m *CnatSnatPolicyAddDelIf) Reset()               { *m = CnatSnatPolicyAddDelIf{} }
 func (*CnatSnatPolicyAddDelIf) GetMessageName() string { return "cnat_snat_policy_add_del_if" }
-func (*CnatSnatPolicyAddDelIf) GetCrcString() string   { return "6828deca" }
+func (*CnatSnatPolicyAddDelIf) GetCrcString() string   { return "4ebb8d02" }
 func (*CnatSnatPolicyAddDelIf) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1156,7 +1159,7 @@ func file_cnat_binapi_init() {
 	api.RegisterMessage((*CnatSetSnatPolicyReply)(nil), "cnat_set_snat_policy_reply_e8d4e804")
 	api.RegisterMessage((*CnatSnatPolicyAddDelExcludePfx)(nil), "cnat_snat_policy_add_del_exclude_pfx_e26dd79a")
 	api.RegisterMessage((*CnatSnatPolicyAddDelExcludePfxReply)(nil), "cnat_snat_policy_add_del_exclude_pfx_reply_e8d4e804")
-	api.RegisterMessage((*CnatSnatPolicyAddDelIf)(nil), "cnat_snat_policy_add_del_if_6828deca")
+	api.RegisterMessage((*CnatSnatPolicyAddDelIf)(nil), "cnat_snat_policy_add_del_if_4ebb8d02")
 	api.RegisterMessage((*CnatSnatPolicyAddDelIfReply)(nil), "cnat_snat_policy_add_del_if_reply_e8d4e804")
 	api.RegisterMessage((*CnatTranslationDel)(nil), "cnat_translation_del_3a91bde5")
 	api.RegisterMessage((*CnatTranslationDelReply)(nil), "cnat_translation_del_reply_e8d4e804")
