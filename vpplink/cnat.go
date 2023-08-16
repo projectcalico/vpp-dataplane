@@ -157,6 +157,14 @@ func (v *VppLink) RemovePodInterface(swIfIndex uint32) (err error) {
 	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_POD)
 }
 
+func (v *VppLink) RegisterHostInterface(swIfIndex uint32) (err error) {
+	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, true /* isAdd */, cnat.CNAT_POLICY_HOST)
+}
+
+func (v *VppLink) RemoveHostInterface(swIfIndex uint32) (err error) {
+	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_HOST)
+}
+
 func (v *VppLink) EnableDisableCnatSNAT(swIfIndex uint32, isIp6 bool, isEnable bool) (err error) {
 	if isEnable {
 		return v.enableCnatSNAT(swIfIndex, isIp6)

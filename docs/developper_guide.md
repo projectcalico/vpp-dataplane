@@ -61,6 +61,13 @@ export CALICO_ENCAPSULATION_V4=IPIP
 export CALICO_ENCAPSULATION_V6=None
 export CALICO_NAT_OUTGOING=Enabled
 ````
+To add a redirection to host rule:
+````bash
+# --------------- redirect ----------------
+export CALICOVPP_REDIRECT_PROTO="\"udp\""
+export CALICOVPP_REDIRECT_PORT=53
+export CALICOVPP_REDIRECT_IP="\"172.18.0.1\""
+````
 To run with hugepages on:
 
 ````bash

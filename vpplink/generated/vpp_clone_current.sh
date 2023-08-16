@@ -96,6 +96,7 @@ git_clone_cd_and_reset "$1" a7dd04d73bf5abed944fb77a5e957bbad24e2750 # misc: Ini
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 git_cherry_pick refs/changes/49/31449/13 # 31449: cnat: Support offloaded check sums | https://gerrit.fd.io/r/c/vpp/+/31449/13
+git_cherry_pick refs/changes/87/39387/5 # 39387: cnat: add host tag to bitmap in cnat snat | https://gerrit.fd.io/r/c/vpp/+/39387/2
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'

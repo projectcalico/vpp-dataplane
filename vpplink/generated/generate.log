@@ -1,11 +1,13 @@
-VPP Version                 : 23.10-rc0~6-g892b7bce0
+VPP Version                 : 23.10-rc0~8-gb811f2187
 Binapi-generator version    : v0.8.0-dev
-VPP Base commit             : 03304d1c6 gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : 32203ce45 gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
 interface: Fix interface.api endianness
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:39387/5 cnat: add host tag to bitmap in cnat snat
+gerrit:31449/13 cnat: Support offloaded check sums
 gerrit:34726/3 interface: add buffer stats api
 -------------------------------------------------------------

@@ -37,6 +37,18 @@ const (
 	INVALID IPProto = IPProto(ip_types.IP_API_PROTO_RESERVED)
 )
 
+func (mode *IPProto) UnmarshalText(text []byte) error {
+	switch string(text) {
+	case "tcp":
+		*mode = TCP
+	case "udp":
+		*mode = UDP
+	default:
+		*mode = TCP
+	}
+	return nil
+}
+
 type IPFlowHash uint8
 
 const (
