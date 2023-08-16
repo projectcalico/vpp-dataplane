@@ -285,6 +285,12 @@ err:
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
 func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
+	if len(config.GetCalicoVppInitialConfig().RedirectToHostRules) != 0 && podSpec.NetworkName == "" {
+		err := s.DelRedirectToHostOnInterface(podSpec.TunTapSwIfIndex)
+		if err != nil {
+			s.log.Error(err)
+		}
+	}
 	err := ns.IsNSorErr(podSpec.NetnsName)
 	if err != nil {
 		s.log.Infof("pod(del) netns '%s' doesn't exist, skipping", podSpec.NetnsName)

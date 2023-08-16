@@ -38,6 +38,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
@@ -60,6 +61,8 @@ type Server struct {
 	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
 
 	availableBuffers uint64
+
+	RedirectToHostClassifyTableIndex uint32
 
 	networkDefinitions   sync.Map
 	cniMultinetEventChan chan common.CalicoVppEvent
@@ -245,6 +248,12 @@ func (s *Server) Add(ctx context.Context, request *cniproto.AddRequest) (*cnipro
 			ErrorMessage: err.Error(),
 		}, nil
 	}
+	if len(config.GetCalicoVppInitialConfig().RedirectToHostRules) != 0 && podSpec.NetworkName == "" {
+		err := s.AddRedirectToHostToInterface(podSpec.TunTapSwIfIndex)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	s.podInterfaceMap[podSpec.Key()] = *podSpec
 	cniServerStateFile := fmt.Sprintf("%s%d", config.CniServerStateFile, storage.CniServerStateFileVersion)
@@ -315,6 +324,34 @@ func (s *Server) rescanState() {
 		default:
 			s.log.Errorf("Interface add failed %s : %v", podSpecCopy.String(), err)
 		}
+		if len(config.GetCalicoVppInitialConfig().RedirectToHostRules) != 0 && podSpecCopy.NetworkName == "" {
+			err := s.AddRedirectToHostToInterface(podSpecCopy.TunTapSwIfIndex)
+			if err != nil {
+				s.log.Error(err)
+			}
+		}
+	}
+}
+
+func (s *Server) DelRedirectToHostOnInterface(swIfIndex uint32) error {
+	err := s.vpp.SetClassifyInputInterfaceTables(swIfIndex, s.RedirectToHostClassifyTableIndex, types.InvalidTableId, types.InvalidTableId, false /*isAdd*/)
+	if err != nil {
+		return errors.Wrapf(err, "Error deleting classify input table from interface")
+	} else {
+		s.log.Infof("pod(del) delete input acl table %d from interface %d successfully", s.RedirectToHostClassifyTableIndex, swIfIndex)
+		return nil
+	}
+}
+
+func (s *Server) AddRedirectToHostToInterface(swIfIndex uint32) error {
+	s.log.Infof("Setting classify input acl table %d on interface %d", s.RedirectToHostClassifyTableIndex, swIfIndex)
+	err := s.vpp.SetClassifyInputInterfaceTables(swIfIndex, s.RedirectToHostClassifyTableIndex, types.InvalidTableId, types.InvalidTableId, true)
+	if err != nil {
+		s.log.Warnf("Error setting classify input table: %s, retrying...", err)
+		return errors.Errorf("could not set input acl table %d for interface %d", s.RedirectToHostClassifyTableIndex, swIfIndex)
+	} else {
+		s.log.Infof("set input acl table %d for interface %d successfully", s.RedirectToHostClassifyTableIndex, swIfIndex)
+		return nil
 	}
 }
 
@@ -442,6 +479,47 @@ forloop:
 	return nil
 }
 
+func (s *Server) getMainTap0Info() (tapSwIfIndex uint32, address net.IP) {
+	for _, i := range common.VppManagerInfo.UplinkStatuses {
+		if i.IsMain {
+			tapSwIfIndex = i.TapSwIfIndex
+			break
+		}
+	}
+	address = utils.FakeVppNextHopIP4
+	return
+}
+
+func (s *Server) createRedirectToHostRules() (uint32, error) {
+	var maxNumEntries uint32
+	if len(config.GetCalicoVppInitialConfig().RedirectToHostRules) != 0 {
+		maxNumEntries = uint32(2 * len(config.GetCalicoVppInitialConfig().RedirectToHostRules))
+	} else {
+		maxNumEntries = 1
+	}
+	index, err := s.vpp.AddClassifyTable(&types.ClassifyTable{
+		Mask:           types.DstThreeTupleMask,
+		NextTableIndex: types.InvalidID,
+		MaxNumEntries:  maxNumEntries,
+		MissNextIndex:  ^uint32(0),
+	})
+	if err != nil {
+		return types.InvalidID, err
+	}
+	tap0swifindex, tap0nexthop := s.getMainTap0Info()
+	for _, rule := range config.GetCalicoVppInitialConfig().RedirectToHostRules {
+		err = s.vpp.AddSessionRedirect(&types.SessionRedirect{
+			FiveTuple:  types.NewDst3Tuple(rule.Proto, net.ParseIP(rule.Ip), rule.Port),
+			TableIndex: index,
+		}, &types.RoutePath{Gw: tap0nexthop, SwIfIndex: tap0swifindex})
+		if err != nil {
+			return types.InvalidID, err
+		}
+	}
+
+	return index, nil
+}
+
 func (s *Server) ServeCNI(t *tomb.Tomb) error {
 	err := syscall.Unlink(config.CNIServerSocket)
 	if err != nil && !gerrors.Is(err, os.ErrNotExist) {
@@ -453,6 +531,10 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 		return errors.Wrapf(err, "failed to listen on %s", config.CNIServerSocket)
 	}
 
+	s.RedirectToHostClassifyTableIndex, err = s.createRedirectToHostRules()
+	if err != nil {
+		return err
+	}
 	cniproto.RegisterCniDataplaneServer(s.grpcServer, s)
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {

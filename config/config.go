@@ -252,6 +252,13 @@ func (u *UplinkInterfaceSpec) String() string {
 	return string(b)
 }
 
+type RedirectToHostRulesConfigType struct {
+	Port uint16 `json:"port,omitempty"`
+	Ip   string `json:"ip,omitempty"`
+	/* "tcp", "udp",... */
+	Proto types.IPProto `json:"proto,omitempty"`
+}
+
 type CalicoVppDebugConfigType struct {
 	PoliciesEnabled         *bool `json:"policiesEnabled,omitempty"`
 	ServicesEnabled         *bool `json:"servicesEnabled,omitempty"`
@@ -405,6 +412,8 @@ type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	IfConfigSavePath string `json:"ifConfigSavePath"`
 	/* Comma separated list of IPs to be configured in VPP as default GW */
 	DefaultGWs string `json:"defaultGWs"`
+	/* List of rules for redirecting traffic to host */
+	RedirectToHostRules []RedirectToHostRulesConfigType `json:"redirectToHostRules"`
 }
 
 func (self *CalicoVppInitialConfigConfigType) Validate() (err error) { return nil }
