@@ -45,12 +45,6 @@ import (
 
 const DefaultPhysicalNetworkName = ""
 
-var (
-	fakeVppNextHopIP4 = net.ParseIP("169.254.0.1")
-	fakeVppNextHopIP6 = net.ParseIP("fc00:ffff:ffff:ffff:ca11:c000:fd10:fffe")
-	vppSideMac, _     = net.ParseMAC("02:ca:11:c0:fd:10")
-)
-
 type VppRunner struct {
 	params       *config.VppManagerParams
 	conf         []*config.LinuxInterfaceState
@@ -147,7 +141,7 @@ func (v *VppRunner) configureGlobalPunt() (err error) {
 }
 
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInterfaceState) (err error) {
-	for _, neigh := range []net.IP{fakeVppNextHopIP4, fakeVppNextHopIP6} {
+	for _, neigh := range []net.IP{utils.FakeVppNextHopIP4, utils.FakeVppNextHopIP6} {
 		err = v.vpp.AddNeighbor(&types.Neighbor{
 			SwIfIndex:    tapSwIfIndex,
 			IP:           neigh,
@@ -550,7 +544,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 			HostInterfaceName: ifSpec.InterfaceName,
 			RxQueueSize:       config.GetCalicoVppInterfaces().VppHostTapSpec.RxQueueSize,
 			TxQueueSize:       config.GetCalicoVppInterfaces().VppHostTapSpec.TxQueueSize,
-			HardwareAddr:      vppSideMac,
+			HardwareAddr:      utils.VppSideMac,
 		},
 		HostNamespace:  "pid:1", // create tap in root netns
 		Tag:            "host-" + ifSpec.InterfaceName,
@@ -623,6 +617,11 @@ func (v *VppRunner) configureVppUplinkInterface(
 	err = v.vpp.RegisterPodInterface(tapSwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "error configuring vpptap0 as pod intf")
+	}
+
+	err = v.vpp.RegisterHostInterface(tapSwIfIndex)
+	if err != nil {
+		return errors.Wrap(err, "error configuring vpptap0 as host intf")
 	}
 
 	// Linux side tap setup
