@@ -112,7 +112,14 @@ function get_initial_config ()
     echo "{
       \"vppStartupSleepSeconds\": ${CALICOVPP_VPP_STARTUP_SLEEP:-0},
       \"corePattern\": \"${CALICOVPP_CORE_PATTERN:-/var/lib/vpp/vppcore.%e.%p}\",
-      \"defaultGWs\": \"${CALICOVPP_DEFAULT_GW}\"
+      \"defaultGWs\": \"${CALICOVPP_DEFAULT_GW}\",
+      \"redirectToHostRules\": [
+      {
+        \"proto\": \"${CALICOVPP_REDIRECT_PROTO:-udp}\",
+        \"port\": ${CALICOVPP_REDIRECT_PORT:-53},
+        \"ip\": \"${CALICOVPP_REDIRECT_IP:-172.18.0.1}\"
+      }
+    ]
     }"
 }
 
