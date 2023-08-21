@@ -140,6 +140,7 @@ require (
 //   - Add comments e.g. `// v3.23.0` to make the commit hash(s) explicit
 
 replace (
+	github.com/projectcalico/api => github.com/projectcalico/api v0.0.0-20230602153125-fb7148692637 // v3.26.0
 	k8s.io/api => k8s.io/api v0.26.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.26.3
 	k8s.io/apimachinery => k8s.io/apimachinery v0.26.3
