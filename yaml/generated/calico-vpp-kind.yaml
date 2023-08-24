@@ -165,6 +165,18 @@ data:
     {
       "vppStartupSleepSeconds": 1,
       "corePattern": "/var/lib/vpp/vppcore.%e.%p"
+      "redirectToHostRules": [
+        {
+          "proto": "udp",
+          "port": 53,
+          "ip": "172.18.0.1"
+        },
+        {
+          "proto": "tcp",
+          "port": 53,
+          "ip": "172.18.0.1"
+        }
+      ]
     }
   CALICOVPP_INTERFACES: |-
     {
