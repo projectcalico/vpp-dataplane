@@ -12,7 +12,7 @@ data:
   CALICOVPP_SRV6: |-
     {
       "policyPool": "cafe::/118",
-      "localsidPool": "fcff::/48",
+      "localsidPool": "fcff::/48"
     }
   CALICOVPP_FEATURE_GATES: |-
     {
