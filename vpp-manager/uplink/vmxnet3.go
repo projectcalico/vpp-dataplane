@@ -33,9 +33,9 @@ func (d *Vmxnet3Driver) IsSupported(warn bool) (supported bool) {
 	var ret bool
 	supported = true
 
-	ret = d.conf.Driver == config.DRIVER_VMXNET3
+	ret = d.attachedInterface.LinuxConf.Driver == config.DRIVER_VMXNET3
 	if !ret && warn {
-		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_VMXNET3)
+		log.Warnf("Interface driver is <%s>, not %s", d.attachedInterface.LinuxConf.Driver, config.DRIVER_VMXNET3)
 	}
 	supported = supported && ret
 
@@ -50,35 +50,35 @@ func (d *Vmxnet3Driver) PreconfigureLinux() (err error) {
 		}
 	}
 	d.removeLinuxIfConf(true /* down */)
-	driverName, err := utils.GetDriverNameFromPci(d.conf.PciId)
+	driverName, err := utils.GetDriverNameFromPci(d.attachedInterface.LinuxConf.PciId)
 	if err != nil {
-		return errors.Wrapf(err, "Couldnt get VF driver Name for %s", d.conf.PciId)
+		return errors.Wrapf(err, "Couldnt get VF driver Name for %s", d.attachedInterface.LinuxConf.PciId)
 	}
 	if driverName != config.DRIVER_VFIO_PCI {
-		err := utils.SwapDriver(d.conf.PciId, config.DRIVER_VFIO_PCI, true)
+		err := utils.SwapDriver(d.attachedInterface.LinuxConf.PciId, config.DRIVER_VFIO_PCI, true)
 		if err != nil {
-			return errors.Wrapf(err, "Couldnt swap %s to vfio_pci", d.conf.PciId)
+			return errors.Wrapf(err, "Couldnt swap %s to vfio_pci", d.attachedInterface.LinuxConf.PciId)
 		}
 	}
 	return nil
 }
 
 func (d *Vmxnet3Driver) RestoreLinux(allInterfacesPhysical bool) {
-	if d.conf.PciId != "" && d.conf.Driver != "" {
-		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, true)
+	if d.attachedInterface.LinuxConf.PciId != "" && d.attachedInterface.LinuxConf.Driver != "" {
+		err := utils.SwapDriver(d.attachedInterface.LinuxConf.PciId, d.attachedInterface.LinuxConf.Driver, true)
 		if err != nil {
-			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
+			log.Warnf("Error swapping back driver to %s for %s: %v", d.attachedInterface.LinuxConf.Driver, d.attachedInterface.LinuxConf.PciId, err)
 		}
 	}
 
-	if !d.conf.IsUp {
+	if !d.attachedInterface.LinuxConf.IsUp {
 		return
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := utils.SafeSetInterfaceUpByName(d.attachedInterface.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		log.Warnf("Error setting %s up: %v", d.attachedInterface.InterfaceName, err)
 		return
 	}
 
@@ -97,7 +97,7 @@ func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int,
 	intf := types.Vmxnet3Interface{
 		GenericVppInterface: d.getGenericVppInterface(),
 		EnableGso:           *config.GetCalicoVppDebug().GSOEnabled,
-		PciId:               d.conf.PciId,
+		PciId:               d.attachedInterface.LinuxConf.PciId,
 	}
 	swIfIndex, err := vpp.CreateVmxnet3(&intf)
 	if err != nil {
@@ -106,19 +106,18 @@ func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int,
 
 	log.Infof("Created Vmxnet3 interface %d", swIfIndex)
 
-	d.spec.SwIfIndex = swIfIndex
-	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	d.attachedInterface.SwIfIndex = swIfIndex
+	err = d.TagMainInterface(vpp, swIfIndex, d.attachedInterface.InterfaceName)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func NewVmxnet3Driver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *Vmxnet3Driver {
+func NewVmxnet3Driver(params *config.VppManagerParams, idx int) *Vmxnet3Driver {
 	d := &Vmxnet3Driver{}
 	d.name = NATIVE_DRIVER_VMXNET3
-	d.conf = conf
+	d.attachedInterface = params.AttachedUplinksSpecs[idx]
 	d.params = params
-	d.spec = spec
 	return d
 }

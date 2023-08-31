@@ -30,13 +30,23 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
-func GetInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxInterfaceState, err error) {
+func GetInterfaceConfigFromLinux(ifSpec *config.AttachedUplinkInterfaceSpec) (err error) {
+	configuration, err := loadInterfaceConfigFromLinux(*ifSpec.UplinkInterfaceSpec)
+	if err != nil {
+		return err
+	}
+	ifSpec.LinuxConf = configuration
+	return nil
+}
+
+func GetInterfaceConfig(params *config.VppManagerParams) (err error) {
 	errs := []error{}
-	conf = []*config.LinuxInterfaceState{}
-	for _, ifSpec := range params.UplinksSpecs {
-		configuration, err := loadInterfaceConfigFromLinux(ifSpec)
+	configToSave := []*config.LinuxInterfaceState{}
+	for idx, ifSpec := range params.AttachedUplinksSpecs {
+		configuration, err := loadInterfaceConfigFromLinux(*ifSpec.UplinkInterfaceSpec)
 		errs = append(errs, err)
-		conf = append(conf, configuration)
+		params.AttachedUplinksSpecs[idx].LinuxConf = configuration
+		configToSave = append(configToSave, configuration)
 	}
 	allLoaded := true
 	for i := range errs {
@@ -46,38 +56,38 @@ func GetInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxIn
 		}
 	}
 	if allLoaded {
-		err = saveConfig(params, conf)
+		err = saveConfig(params, configToSave)
 		if err != nil {
 			log.Warnf("Could not save interface config: %v", err)
 		}
 	} else {
 		// Loading config failed, try loading from save file
-		confFile, err2 := loadInterfaceConfigFromFile(params)
+		confFile, err2 := loadInterfaceConfigFromFile()
 		if err2 != nil {
-			return nil, err2
+			return err2
 		}
 		// If loaded from file replace non loaded interface configs
-		for i := range conf {
-			if conf[i] == nil {
+		for i := range params.AttachedUplinksSpecs {
+			if params.AttachedUplinksSpecs[i].LinuxConf == nil {
 				for j := range confFile {
-					if confFile[j].InterfaceName == params.UplinksSpecs[i].InterfaceName {
-						conf[i] = confFile[j]
+					if confFile[j].InterfaceName == params.AttachedUplinksSpecs[i].InterfaceName {
+						params.AttachedUplinksSpecs[i].LinuxConf = confFile[j]
 					}
 				}
 			}
 		}
-		for i := range conf {
-			if conf[i] == nil {
-				return nil, fmt.Errorf("interface configs not found")
+		for i := range params.AttachedUplinksSpecs {
+			if params.AttachedUplinksSpecs[i].LinuxConf == nil {
+				return fmt.Errorf("interface configs not found")
 			}
 		}
 		log.Infof("Loaded config. Interfaces marked as down since loading config from linux failed.")
 		// This ensures we don't try to set the interface down in runVpp()
-		for _, config := range conf {
-			config.IsUp = false
+		for _, attachedUplink := range params.AttachedUplinksSpecs {
+			attachedUplink.LinuxConf.IsUp = false
 		}
 	}
-	return conf, nil
+	return nil
 }
 
 func loadInterfaceConfigFromLinux(ifSpec config.UplinkInterfaceSpec) (*config.LinuxInterfaceState, error) {
@@ -179,7 +189,7 @@ func saveConfig(params *config.VppManagerParams, conf []*config.LinuxInterfaceSt
 	return nil
 }
 
-func loadInterfaceConfigFromFile(params *config.VppManagerParams) ([]*config.LinuxInterfaceState, error) {
+func loadInterfaceConfigFromFile() ([]*config.LinuxInterfaceState, error) {
 	conf := []*config.LinuxInterfaceState{}
 	if config.GetCalicoVppInitialConfig().IfConfigSavePath == "" {
 		return nil, fmt.Errorf("interface config save file not configured")

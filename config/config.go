@@ -136,7 +136,7 @@ func RunHook(hookScript *string, hookName string, params *VppManagerParams, log 
 	if *hookScript == "" {
 		return
 	}
-	template, err := TemplateScriptReplace(*hookScript, params, nil)
+	template, err := TemplateScriptReplace(*hookScript, params, false)
 	if err != nil {
 		log.Warnf("Running hook %s errored with %s", hookName, err)
 		return
@@ -231,6 +231,11 @@ type UplinkInterfaceSpec struct {
 	// Mtu is the User specified MTU for uplink & the tap
 	Mtu       int    `json:"mtu"`
 	SwIfIndex uint32 `json:"-"`
+}
+
+type AttachedUplinkInterfaceSpec struct {
+	*UplinkInterfaceSpec
+	LinuxConf *LinuxInterfaceState
 }
 
 func (u *UplinkInterfaceSpec) GetIsMain() bool {
@@ -539,7 +544,7 @@ const (
 )
 
 type VppManagerParams struct {
-	UplinksSpecs []UplinkInterfaceSpec
+	AttachedUplinksSpecs []*AttachedUplinkInterfaceSpec
 	/* Capabilities */
 	LoadedDrivers                      map[string]bool
 	KernelVersion                      *KernelVersion
@@ -663,13 +668,13 @@ func getCpusetCpu() (string, error) {
 	return regexp.MustCompile("[,-]").Split(cpusetCpu, 2)[0], nil
 }
 
-func TemplateScriptReplace(input string, params *VppManagerParams, conf []*LinuxInterfaceState) (template string, err error) {
+func TemplateScriptReplace(input string, params *VppManagerParams, withConf bool) (template string, err error) {
 	template = input
-	if conf != nil {
+	if len(params.AttachedUplinksSpecs) != 0 && withConf {
 		/* We might template scripts before reading interface conf */
-		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", conf[0].PciId)
-		for i, ifcConf := range conf {
-			template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(i)+"__", ifcConf.PciId)
+		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", params.AttachedUplinksSpecs[0].LinuxConf.PciId)
+		for i, attachedInterface := range params.AttachedUplinksSpecs {
+			template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(i)+"__", attachedInterface.LinuxConf.PciId)
 		}
 	}
 	vppcpu, err := getCpusetCpu()
@@ -677,8 +682,8 @@ func TemplateScriptReplace(input string, params *VppManagerParams, conf []*Linux
 		return "", err
 	}
 	template = strings.ReplaceAll(template, "__CPUSET_CPUS_FIRST__", vppcpu)
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.UplinksSpecs[0].InterfaceName)
-	for i, ifc := range params.UplinksSpecs {
+	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.AttachedUplinksSpecs[0].InterfaceName)
+	for i, ifc := range params.AttachedUplinksSpecs {
 		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF_"+fmt.Sprintf("%d", i)+"__", ifc.InterfaceName)
 	}
 	for key, value := range params.NodeAnnotations {

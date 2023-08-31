@@ -35,11 +35,18 @@ const (
 	maxCoreFiles = 2
 )
 
+type dynamicInterface struct {
+	params *config.VppManagerParams
+	driver uplink.UplinkDriver
+}
+
 var (
 	runningCond *sync.Cond
 	vppProcess  *os.Process
 	vppDeadChan chan bool
 	signals     chan os.Signal
+
+	dynamicInterfaceAdd chan dynamicInterface
 	/* Was VPP terminated by us ? */
 	internalKill bool
 	/* Increasing index for timeout */
@@ -148,6 +155,7 @@ func main() {
 	log = logrus.New()
 
 	vppDeadChan = make(chan bool, 1)
+	dynamicInterfaceAdd = make(chan dynamicInterface, 1)
 	VPPgotSigCHLD = make(map[int]bool)
 	VPPgotTimeout = make(map[int]bool)
 
@@ -175,7 +183,7 @@ func main() {
 		log.Errorf("Error raising memlock limit, VPP may fail to start: %v", err)
 	}
 
-	confs, err := startup.GetInterfaceConfig(params)
+	err = startup.GetInterfaceConfig(params)
 	if err != nil {
 		log.Fatalf("Error getting initial interface configuration: %s", err)
 	}
@@ -183,21 +191,21 @@ func main() {
 	runningCond = sync.NewCond(&sync.Mutex{})
 	go handleSignals()
 
-	startup.PrintVppManagerConfig(params, confs)
+	startup.PrintVppManagerConfig(params)
 
-	runner := NewVPPRunner(params, confs)
+	runner := NewVPPRunner()
 
 	makeNewVPPIndex()
 
-	if len(params.UplinksSpecs) == 1 && params.UplinksSpecs[0].VppDriver == "" {
-		for _, driver := range uplink.SupportedUplinkDrivers(params, confs[0], &params.UplinksSpecs[0]) {
+	if len(params.AttachedUplinksSpecs) == 1 && params.AttachedUplinksSpecs[0].VppDriver == "" {
+		for _, driver := range uplink.SupportedUplinkDrivers(params, 0) {
 			err := utils.CleanupCoreFiles(config.GetCalicoVppInitialConfig().CorePattern, maxCoreFiles)
 			if err != nil {
 				log.Errorf("CleanupCoreFiles errored %s", err)
 			}
 
 			internalKill = false
-			err = runner.Run([]uplink.UplinkDriver{driver})
+			err = runner.Run([]uplink.UplinkDriver{driver}, params)
 			if err != nil {
 				config.RunHook(config.HookScriptVppErrored, "VPP_ERRORED", params, log)
 				log.Errorf("VPP(%s) run failed with %s", driver.GetName(), err)
@@ -216,12 +224,11 @@ func main() {
 		}
 
 		var drivers []uplink.UplinkDriver
-		for idx := 0; idx < len(params.UplinksSpecs); idx++ {
-			drivers = append(drivers, uplink.NewUplinkDriver(params.UplinksSpecs[idx].VppDriver,
-				params, confs[idx], &params.UplinksSpecs[idx]))
+		for idx := 0; idx < len(params.AttachedUplinksSpecs); idx++ {
+			drivers = append(drivers, uplink.NewUplinkDriver(params, idx))
 		}
 
-		err = runner.Run(drivers)
+		err = runner.Run(drivers, params)
 		if err != nil {
 			config.RunHook(config.HookScriptVppErrored, "VPP_ERRORED", params, log)
 			log.Errorf("VPP run failed with %v", err)

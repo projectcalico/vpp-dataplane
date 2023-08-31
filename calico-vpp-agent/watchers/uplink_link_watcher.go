@@ -23,21 +23,20 @@ import (
 	"github.com/vishvananda/netlink"
 	"gopkg.in/tomb.v2"
 
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 )
 
 type LinkWatcher struct {
-	UplinkStatuses map[string]config.UplinkStatus
-	close          chan struct{}
-	netlinkFailed  chan struct{}
-	closeLock      sync.Mutex
-	log            *log.Entry
+	close         chan struct{}
+	netlinkFailed chan struct{}
+	closeLock     sync.Mutex
+	log           *log.Entry
 }
 
-func NewLinkWatcher(uplinkStatus map[string]config.UplinkStatus, log *log.Entry) *LinkWatcher {
+func NewLinkWatcher(log *log.Entry) *LinkWatcher {
 	return &LinkWatcher{
-		UplinkStatuses: uplinkStatus,
-		log:            log,
+		log: log,
 	}
 }
 
@@ -78,7 +77,7 @@ func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 			r.safeClose()
 			goto restart
 		}
-		for _, v := range r.UplinkStatuses {
+		for _, v := range common.VppManagerInfo.UplinkStatuses {
 			link, err = netlink.LinkByIndex(v.LinkIndex)
 			if err != nil || link.Attrs().Name != v.Name {
 				r.log.Errorf("error getting link to watch: %v %v", link, err)
@@ -113,7 +112,7 @@ func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 				}
 				found := false
 				v := config.UplinkStatus{}
-				for _, v := range r.UplinkStatuses {
+				for _, v = range common.VppManagerInfo.UplinkStatuses {
 					if update.Attrs().Index == v.LinkIndex {
 						found = true
 						break
@@ -122,7 +121,7 @@ func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 				if found {
 					if update.Attrs().Name == v.Name {
 						if update.Attrs().MTU != v.Mtu {
-							if err = netlink.LinkSetMTU(link, v.Mtu); err != nil {
+							if err = netlink.LinkSetMTU(update.Link, v.Mtu); err != nil {
 								r.log.Warnf("Error resetting link mtu: %v", err)
 								r.safeClose()
 								goto restart
