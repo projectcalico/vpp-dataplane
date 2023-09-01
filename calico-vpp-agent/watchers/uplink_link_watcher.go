@@ -113,7 +113,7 @@ func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 				}
 				found := false
 				v := config.UplinkStatus{}
-				for _, v := range r.UplinkStatuses {
+				for _, v = range r.UplinkStatuses {
 					if update.Attrs().Index == v.LinkIndex {
 						found = true
 						break
@@ -122,7 +122,7 @@ func (r *LinkWatcher) WatchLinks(t *tomb.Tomb) error {
 				if found {
 					if update.Attrs().Name == v.Name {
 						if update.Attrs().MTU != v.Mtu {
-							if err = netlink.LinkSetMTU(link, v.Mtu); err != nil {
+							if err = netlink.LinkSetMTU(update.Link, v.Mtu); err != nil {
 								r.log.Warnf("Error resetting link mtu: %v", err)
 								r.safeClose()
 								goto restart
