@@ -33,9 +33,9 @@ func (d *RDMADriver) IsSupported(warn bool) (supported bool) {
 	var ret bool
 	supported = true
 
-	ret = d.conf.Driver == config.DRIVER_MLX5_CORE
+	ret = d.attachedInterface.LinuxConf.Driver == config.DRIVER_MLX5_CORE
 	if !ret && warn {
-		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_MLX5_CORE)
+		log.Warnf("Interface driver is <%s>, not %s", d.attachedInterface.LinuxConf.Driver, config.DRIVER_MLX5_CORE)
 	}
 	supported = supported && ret
 
@@ -49,19 +49,19 @@ func (d *RDMADriver) PreconfigureLinux() (err error) {
 
 func (d *RDMADriver) RestoreLinux(allInterfacesPhysical bool) {
 	if !allInterfacesPhysical {
-		err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+		err := d.moveInterfaceFromNS(d.attachedInterface.InterfaceName)
 		if err != nil {
 			log.Warnf("Moving uplink back from NS failed %s", err)
 		}
 	}
-	if !d.conf.IsUp {
+	if !d.attachedInterface.LinuxConf.IsUp {
 		return
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := utils.SafeSetInterfaceUpByName(d.attachedInterface.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		log.Warnf("Error setting %s up: %v", d.attachedInterface.InterfaceName, err)
 		return
 	}
 
@@ -79,26 +79,25 @@ func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, up
 		return errors.Wrapf(err, "Error creating RDMA interface")
 	}
 
-	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
+	err = d.moveInterfaceToNS(d.attachedInterface.InterfaceName, vppPid)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
 
 	log.Infof("Created RDMA interface %d", swIfIndex)
 
-	d.spec.SwIfIndex = swIfIndex
-	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	d.attachedInterface.SwIfIndex = swIfIndex
+	err = d.TagMainInterface(vpp, swIfIndex, d.attachedInterface.InterfaceName)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func NewRDMADriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *RDMADriver {
+func NewRDMADriver(params *config.VppManagerParams, idx int) *RDMADriver {
 	d := &RDMADriver{}
 	d.name = NATIVE_DRIVER_RDMA
-	d.conf = conf
+	d.attachedInterface = params.AttachedUplinksSpecs[idx]
 	d.params = params
-	d.spec = spec
 	return d
 }

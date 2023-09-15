@@ -38,7 +38,7 @@ type DPDKDriver struct {
 func (d *DPDKDriver) IsSupported(warn bool) (supported bool) {
 	var ret bool
 	supported = true
-	ret = d.conf.PciId != ""
+	ret = d.attachedInterface.LinuxConf.PciId != ""
 	if !ret && warn {
 		log.Warnf("did not find  pci device id for interface")
 	}
@@ -47,18 +47,18 @@ func (d *DPDKDriver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *DPDKDriver) getFinalDriver() string {
-	if d.conf.DoSwapDriver {
-		return d.spec.NewDriverName
+	if d.attachedInterface.LinuxConf.DoSwapDriver {
+		return d.attachedInterface.NewDriverName
 	}
-	return d.conf.Driver
+	return d.attachedInterface.LinuxConf.Driver
 }
 
 func (d *DPDKDriver) PreconfigureLinux() (err error) {
 	d.removeLinuxIfConf(true /* down */)
-	if d.conf.DoSwapDriver {
-		err = utils.SwapDriver(d.conf.PciId, d.spec.NewDriverName, true)
+	if d.attachedInterface.LinuxConf.DoSwapDriver {
+		err = utils.SwapDriver(d.attachedInterface.LinuxConf.PciId, d.attachedInterface.NewDriverName, true)
 		if err != nil {
-			log.Warnf("Failed to swap driver to %s: %v", d.spec.NewDriverName, err)
+			log.Warnf("Failed to swap driver to %s: %v", d.attachedInterface.NewDriverName, err)
 		}
 	}
 	if d.getFinalDriver() == config.DRIVER_VFIO_PCI &&
@@ -84,15 +84,15 @@ func (d *DPDKDriver) UpdateVppConfigFile(template string) string {
 	if d.params.AvailableHugePages > 0 {
 		template = fmt.Sprintf(
 			"%s\ndpdk {\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d tag %s } \n}\n",
-			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues,
-			d.spec.RxQueueSize, d.spec.TxQueueSize, "main-"+d.spec.InterfaceName,
+			template, d.attachedInterface.LinuxConf.PciId, d.attachedInterface.NumRxQueues, d.attachedInterface.NumTxQueues,
+			d.attachedInterface.RxQueueSize, d.attachedInterface.TxQueueSize, "main-"+d.attachedInterface.InterfaceName,
 		)
 
 	} else {
 		template = fmt.Sprintf(
 			"%s\ndpdk {\niova-mode va\nno-hugetlb\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d tag %s } \n}\n",
-			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues,
-			d.spec.RxQueueSize, d.spec.TxQueueSize, "main-"+d.spec.InterfaceName,
+			template, d.attachedInterface.LinuxConf.PciId, d.attachedInterface.NumRxQueues, d.attachedInterface.NumTxQueues,
+			d.attachedInterface.RxQueueSize, d.attachedInterface.TxQueueSize, "main-"+d.attachedInterface.InterfaceName,
 		)
 
 		// If no hugepages, also edit `buffers {}`
@@ -114,29 +114,29 @@ write:
 }
 
 func (d *DPDKDriver) restoreInterfaceName() error {
-	newName, err := utils.GetInterfaceNameFromPci(d.conf.PciId)
+	newName, err := utils.GetInterfaceNameFromPci(d.attachedInterface.LinuxConf.PciId)
 	if err != nil {
-		return errors.Wrapf(err, "Error getting new if name for %s: %v", newName, d.conf.PciId)
+		return errors.Wrapf(err, "Error getting new if name for %s: %v", newName, d.attachedInterface.LinuxConf.PciId)
 	}
-	if newName == d.spec.InterfaceName {
+	if newName == d.attachedInterface.InterfaceName {
 		return nil
 	}
 	link, err := netlink.LinkByName(newName)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting new link %s: %v", newName, link)
 	}
-	err = netlink.LinkSetName(link, d.spec.InterfaceName)
+	err = netlink.LinkSetName(link, d.attachedInterface.InterfaceName)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting new if name for %s: %v", d.spec.InterfaceName, link)
+		return errors.Wrapf(err, "Error setting new if name for %s: %v", d.attachedInterface.InterfaceName, link)
 	}
 	return nil
 }
 
 func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
-	if d.conf.PciId != "" && d.conf.Driver != "" {
-		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
+	if d.attachedInterface.LinuxConf.PciId != "" && d.attachedInterface.LinuxConf.Driver != "" {
+		err := utils.SwapDriver(d.attachedInterface.LinuxConf.PciId, d.attachedInterface.LinuxConf.Driver, false)
 		if err != nil {
-			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
+			log.Warnf("Error swapping back driver to %s for %s: %v", d.attachedInterface.LinuxConf.Driver, d.attachedInterface.LinuxConf.PciId, err)
 		}
 	}
 
@@ -150,14 +150,14 @@ func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	if !d.conf.IsUp {
+	if !d.attachedInterface.LinuxConf.IsUp {
 		return
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := utils.SafeSetInterfaceUpByName(d.attachedInterface.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		log.Warnf("Error setting %s up: %v", d.attachedInterface.InterfaceName, err)
 		return
 	}
 
@@ -177,16 +177,16 @@ func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
 func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	// Nothing to do VPP autocreates on startup
 	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
-	if !d.spec.GetIsMain() {
+	if !d.attachedInterface.GetIsMain() {
 		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)
 	}
-	swIfIndex, err := vpp.SearchInterfaceWithTag("main-" + d.spec.InterfaceName)
+	swIfIndex, err := vpp.SearchInterfaceWithTag("main-" + d.attachedInterface.InterfaceName)
 	if err != nil || swIfIndex == ^uint32(0) {
-		return fmt.Errorf("error trying to find interface with tag main-%s", d.spec.InterfaceName)
+		return fmt.Errorf("error trying to find interface with tag main-%s", d.attachedInterface.InterfaceName)
 	}
-	log.Debugf("Found interface with swIfIndex %d for %s", swIfIndex, d.spec.InterfaceName)
-	d.spec.SwIfIndex = swIfIndex
-	err = vpp.SetInterfaceMacAddress(swIfIndex, d.conf.HardwareAddr)
+	log.Debugf("Found interface with swIfIndex %d for %s", swIfIndex, d.attachedInterface.InterfaceName)
+	d.attachedInterface.SwIfIndex = swIfIndex
+	err = vpp.SetInterfaceMacAddress(swIfIndex, d.attachedInterface.LinuxConf.HardwareAddr)
 	if err != nil && gerrors.Is(err, types.VppErrorUnimplemented) {
 		log.Warn("Setting dpdk interface mac address in vpp unsupported")
 	} else if err != nil {
@@ -195,11 +195,10 @@ func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, up
 	return nil
 }
 
-func NewDPDKDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *DPDKDriver {
+func NewDPDKDriver(params *config.VppManagerParams, idx int) *DPDKDriver {
 	d := &DPDKDriver{}
 	d.name = NATIVE_DRIVER_DPDK
-	d.conf = conf
+	d.attachedInterface = params.AttachedUplinksSpecs[idx]
 	d.params = params
-	d.spec = spec
 	return d
 }

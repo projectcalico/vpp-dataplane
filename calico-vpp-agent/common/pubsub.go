@@ -64,10 +64,9 @@ const (
 	NetDeleted        CalicoVppEventType = "NetDeleted"
 	NetsSynced        CalicoVppEventType = "NetsSynced"
 
-	IpamPoolUpdate CalicoVppEventType = "IpamPoolUpdate"
-	IpamPoolRemove CalicoVppEventType = "IpamPoolRemove"
-
 	WireguardPublicKeyChanged CalicoVppEventType = "WireguardPublicKeyChanged"
+
+	UplinksUpdated CalicoVppEventType = "UplinksUpdated"
 )
 
 var (

@@ -45,9 +45,9 @@ func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
 	}
 	supported = supported && ret
 
-	ret = d.conf.Driver == config.DRIVER_VIRTIO_PCI
+	ret = d.attachedInterface.LinuxConf.Driver == config.DRIVER_VIRTIO_PCI
 	if !ret && warn {
-		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_VIRTIO_PCI)
+		log.Warnf("Interface driver is <%s>, not %s", d.attachedInterface.LinuxConf.Driver, config.DRIVER_VIRTIO_PCI)
 	}
 	supported = supported && ret
 
@@ -55,11 +55,11 @@ func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *VirtioDriver) PreconfigureLinux() (err error) {
-	newDriverName := d.spec.NewDriverName
-	doSwapDriver := d.conf.DoSwapDriver
+	newDriverName := d.attachedInterface.NewDriverName
+	doSwapDriver := d.attachedInterface.LinuxConf.DoSwapDriver
 	if newDriverName == "" {
 		newDriverName = config.DRIVER_VFIO_PCI
-		doSwapDriver = config.DRIVER_VFIO_PCI != d.conf.Driver
+		doSwapDriver = config.DRIVER_VFIO_PCI != d.attachedInterface.LinuxConf.Driver
 	}
 
 	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_NO {
@@ -70,7 +70,7 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 	}
 	d.removeLinuxIfConf(true /* down */)
 	if doSwapDriver {
-		err = utils.SwapDriver(d.conf.PciId, newDriverName, true)
+		err = utils.SwapDriver(d.attachedInterface.LinuxConf.PciId, newDriverName, true)
 		if err != nil {
 			log.Warnf("Failed to swap driver to %s: %v", newDriverName, err)
 		}
@@ -85,26 +85,26 @@ func (d *VirtioDriver) RestoreLinux(allInterfacesPhysical bool) {
 			log.Warnf("Virtio restore error %v", err)
 		}
 	}
-	if d.conf.PciId != "" && d.conf.Driver != "" {
-		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
+	if d.attachedInterface.LinuxConf.PciId != "" && d.attachedInterface.LinuxConf.Driver != "" {
+		err := utils.SwapDriver(d.attachedInterface.LinuxConf.PciId, d.attachedInterface.LinuxConf.Driver, false)
 		if err != nil {
-			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
+			log.Warnf("Error swapping back driver to %s for %s: %v", d.attachedInterface.LinuxConf.Driver, d.attachedInterface.LinuxConf.PciId, err)
 		}
 	}
 	if !allInterfacesPhysical {
-		err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+		err := d.moveInterfaceFromNS(d.attachedInterface.InterfaceName)
 		if err != nil {
 			log.Warnf("Moving uplink back from NS failed %s", err)
 		}
 	}
-	if !d.conf.IsUp {
+	if !d.attachedInterface.LinuxConf.IsUp {
 		return
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := utils.SafeSetInterfaceUpByName(d.attachedInterface.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		log.Warnf("Error setting %s up: %v", d.attachedInterface.InterfaceName, err)
 		return
 	}
 
@@ -115,7 +115,7 @@ func (d *VirtioDriver) RestoreLinux(allInterfacesPhysical bool) {
 func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	intf := types.VirtioInterface{
 		GenericVppInterface: d.getGenericVppInterface(),
-		PciId:               d.conf.PciId,
+		PciId:               d.attachedInterface.LinuxConf.PciId,
 	}
 	swIfIndex, err := vpp.CreateVirtio(&intf)
 	if err != nil {
@@ -123,19 +123,18 @@ func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, 
 	}
 	log.Infof("Created VIRTIO interface %d", swIfIndex)
 
-	d.spec.SwIfIndex = swIfIndex
-	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	d.attachedInterface.SwIfIndex = swIfIndex
+	err = d.TagMainInterface(vpp, swIfIndex, d.attachedInterface.InterfaceName)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func NewVirtioDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *VirtioDriver {
+func NewVirtioDriver(params *config.VppManagerParams, idx int) *VirtioDriver {
 	d := &VirtioDriver{}
 	d.name = NATIVE_DRIVER_VIRTIO
-	d.conf = conf
 	d.params = params
-	d.spec = spec
+	d.attachedInterface = params.AttachedUplinksSpecs[idx]
 	return d
 }

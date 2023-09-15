@@ -55,6 +55,7 @@ func NewRouteWatcher(log *log.Entry) *RouteWatcher {
 		common.IpamConfChanged,
 		common.NetAddedOrUpdated,
 		common.NetDeleted,
+		common.UplinksUpdated,
 	)
 	return routeWatcher
 }
@@ -174,11 +175,7 @@ func (r *RouteWatcher) getNetworkRoute(network string, physicalNet string) (rout
 	return routes, nil
 }
 
-func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
-	r.netlinkFailed = make(chan struct{}, 1)
-	r.addrUpdate = make(chan struct{}, 10)
-
-	go r.watchAddresses(t)
+func (r *RouteWatcher) AddRoutesForServices() {
 	for _, serviceCIDR := range *config.ServiceCIDRs {
 		// Add a route for the service prefix through VPP. This is required even if kube-proxy is
 		// running on the host to ensure correct source address selection if the host has multiple interfaces
@@ -208,6 +205,14 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 			}
 		}
 	}
+}
+
+func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
+	r.netlinkFailed = make(chan struct{}, 1)
+	r.addrUpdate = make(chan struct{}, 10)
+
+	go r.watchAddresses(t)
+	r.AddRoutesForServices()
 	for {
 		r.closeLock.Lock()
 		netlinkUpdates := make(chan netlink.RouteUpdate, 10)
@@ -239,6 +244,8 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 				return nil
 			case event := <-r.eventChan:
 				switch event.Type {
+				case common.UplinksUpdated:
+					r.AddRoutesForServices()
 				case common.NetDeleted:
 					netDef := event.Old.(*NetworkDefinition)
 					key := netDef.Range

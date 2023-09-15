@@ -32,22 +32,26 @@ func NewVppManagerParams() *config.VppManagerParams {
 	/* uplink configuration: This is being deprecated */
 	if mainInterface := *config.InterfaceVar; mainInterface != "" {
 		log.Warn("Use of CALICOVPP_INTERFACE, CALICOVPP_NATIVE_DRIVER and CALICOVPP_SWAP_DRIVER is deprecated, please use CALICOVPP_INTERFACES instead")
-		params.UplinksSpecs = []config.UplinkInterfaceSpec{{
-			InterfaceName: mainInterface,
-			VppDriver:     strings.ToLower(*config.NativeDriver),
-			NewDriverName: *config.SwapDriver,
-		}}
+		params.AttachedUplinksSpecs = []*config.AttachedUplinkInterfaceSpec{
+			{
+				UplinkInterfaceSpec: &config.UplinkInterfaceSpec{
+					InterfaceName: mainInterface,
+					VppDriver:     strings.ToLower(*config.NativeDriver),
+					NewDriverName: *config.SwapDriver,
+				},
+			},
+		}
 	}
 
 	/* uplinks configuration */
 	for index, uplink := range config.GetCalicoVppInterfaces().UplinkInterfaces {
 		_ = uplink.Validate(nil, index == 0)
-		params.UplinksSpecs = append(params.UplinksSpecs, uplink)
+		params.AttachedUplinksSpecs = append(params.AttachedUplinksSpecs, &config.AttachedUplinkInterfaceSpec{UplinkInterfaceSpec: &config.GetCalicoVppInterfaces().UplinkInterfaces[index]})
 	}
-	if len(params.UplinksSpecs) == 0 {
+	if len(params.AttachedUplinksSpecs) == 0 {
 		log.Panicf("No interface specified. Specify an interface through the environment variable")
 	}
-	params.UplinksSpecs[0].IsMain = &config.True
+	params.AttachedUplinksSpecs[0].IsMain = &config.True
 
 	/* Drivers */
 	params.LoadedDrivers = make(map[string]bool)
@@ -87,13 +91,13 @@ func NewVppManagerParams() *config.VppManagerParams {
 
 }
 
-func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.LinuxInterfaceState) {
+func PrintVppManagerConfig(params *config.VppManagerParams) {
 	log.Infof("-- Environment --")
 	log.Infof("Hugepages            %d", params.AvailableHugePages)
 	log.Infof("KernelVersion        %s", params.KernelVersion)
 	log.Infof("Drivers              %v", params.LoadedDrivers)
 	log.Infof("initial iommu status %s", params.InitialVfioEnableUnsafeNoIommuMode)
-	for _, ifSpec := range params.UplinksSpecs {
+	for _, ifSpec := range params.AttachedUplinksSpecs {
 		log.Infof("-- Interface Spec --")
 		log.Infof("Interface Name:      %s", ifSpec.InterfaceName)
 		log.Infof("Native Driver:       %s", ifSpec.VppDriver)
@@ -102,21 +106,21 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 		log.Infof("Tap MTU:             %d", ifSpec.Mtu)
 
 	}
-	for _, conf := range confs {
+	for _, attachedUplink := range params.AttachedUplinksSpecs {
 		log.Infof("-- Interface config --")
-		log.Infof("Node IP4:            %s", conf.NodeIP4)
-		log.Infof("Node IP6:            %s", conf.NodeIP6)
-		log.Infof("PciId:               %s", conf.PciId)
-		log.Infof("Driver:              %s", conf.Driver)
-		log.Infof("Linux IF was up ?    %t", conf.IsUp)
-		log.Infof("Promisc was on ?     %t", conf.PromiscOn)
-		log.Infof("DoSwapDriver:        %t", conf.DoSwapDriver)
-		log.Infof("Mac:                 %s", conf.HardwareAddr.String())
-		log.Infof("Addresses:           [%s]", conf.AddressString())
-		log.Infof("Routes:              [%s]", conf.RouteString())
-		log.Infof("PHY original #Queues rx:%d tx:%d", conf.NumRxQueues, conf.NumTxQueues)
-		log.Infof("MTU                  %d", conf.Mtu)
-		log.Infof("isTunTap             %t", conf.IsTunTap)
-		log.Infof("isVeth               %t", conf.IsVeth)
+		log.Infof("Node IP4:            %s", attachedUplink.LinuxConf.NodeIP4)
+		log.Infof("Node IP6:            %s", attachedUplink.LinuxConf.NodeIP6)
+		log.Infof("PciId:               %s", attachedUplink.LinuxConf.PciId)
+		log.Infof("Driver:              %s", attachedUplink.LinuxConf.Driver)
+		log.Infof("Linux IF was up ?    %t", attachedUplink.LinuxConf.IsUp)
+		log.Infof("Promisc was on ?     %t", attachedUplink.LinuxConf.PromiscOn)
+		log.Infof("DoSwapDriver:        %t", attachedUplink.LinuxConf.DoSwapDriver)
+		log.Infof("Mac:                 %s", attachedUplink.LinuxConf.HardwareAddr.String())
+		log.Infof("Addresses:           [%s]", attachedUplink.LinuxConf.AddressString())
+		log.Infof("Routes:              [%s]", attachedUplink.LinuxConf.RouteString())
+		log.Infof("PHY original #Queues rx:%d tx:%d", attachedUplink.LinuxConf.NumRxQueues, attachedUplink.LinuxConf.NumTxQueues)
+		log.Infof("MTU                  %d", attachedUplink.LinuxConf.Mtu)
+		log.Infof("isTunTap             %t", attachedUplink.LinuxConf.IsTunTap)
+		log.Infof("isVeth               %t", attachedUplink.LinuxConf.IsVeth)
 	}
 }

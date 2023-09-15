@@ -90,6 +90,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Cannot create VPP client: %v", err)
 	}
+	usr2SignalChannel := make(chan os.Signal, 10)
+	signal.Notify(usr2SignalChannel, syscall.SIGUSR2)
 	// Once we have the api connection, we know vpp & vpp-manager are running and the
 	// state is accurately reported. Wait for vpp-manager to finish the config.
 	common.VppManagerInfo, err = common.WaitForVppManager()
@@ -98,6 +100,8 @@ func main() {
 	}
 	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 
+	uplinkManagerWatcher := watchers.NewUplinkManagerWatcher(usr2SignalChannel, log.WithFields(logrus.Fields{"subcomponent": "uplink-manager-watcher"}))
+	Go(uplinkManagerWatcher.WatchUplinks)
 	/**
 	 * Create the API clients we need
 	 */
@@ -136,7 +140,7 @@ func main() {
 	 * Start watching nodes & fetch our BGP spec
 	 */
 	routeWatcher := watchers.NewRouteWatcher(log.WithFields(logrus.Fields{"subcomponent": "host-route-watcher"}))
-	linkWatcher := watchers.NewLinkWatcher(common.VppManagerInfo.UplinkStatuses, log.WithFields(logrus.Fields{"subcomponent": "host-link-watcher"}))
+	linkWatcher := watchers.NewLinkWatcher(log.WithFields(logrus.Fields{"subcomponent": "host-link-watcher"}))
 	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
 	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	peerWatcher := watchers.NewPeerWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
