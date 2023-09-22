@@ -164,7 +164,7 @@ data:
   CALICOVPP_INITIAL_CONFIG: |-
     {
       "vppStartupSleepSeconds": 1,
-      "corePattern": "/var/lib/vpp/vppcore.%e.%p"
+      "corePattern": "/var/lib/vpp/vppcore.%e.%p",
       "redirectToHostRules": [
         {
           "proto": "udp",
