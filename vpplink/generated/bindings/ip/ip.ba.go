@@ -1908,6 +1908,7 @@ func (m *IPPuntRedirect) Unmarshal(b []byte) error {
 }
 
 // IPPuntRedirectDetails defines message 'ip_punt_redirect_details'.
+// Deprecated: the message will be removed in the future versions
 type IPPuntRedirectDetails struct {
 	Punt PuntRedirect `binapi:"punt_redirect,name=punt" json:"punt,omitempty"`
 }
@@ -1950,6 +1951,7 @@ func (m *IPPuntRedirectDetails) Unmarshal(b []byte) error {
 }
 
 // IPPuntRedirectDump defines message 'ip_punt_redirect_dump'.
+// Deprecated: the message will be removed in the future versions
 type IPPuntRedirectDump struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 	IsIPv6    bool                           `binapi:"bool,name=is_ipv6" json:"is_ipv6,omitempty"`

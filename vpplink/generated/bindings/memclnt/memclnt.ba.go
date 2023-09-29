@@ -284,6 +284,7 @@ func (m *GetFirstMsgIDReply) Unmarshal(b []byte) error {
 //   - Create a client registration
 //
 // MemclntCreate defines message 'memclnt_create'.
+// Deprecated: the message will be removed in the future versions
 type MemclntCreate struct {
 	CtxQuota    int32    `binapi:"i32,name=ctx_quota" json:"ctx_quota,omitempty"`
 	InputQueue  uint64   `binapi:"u64,name=input_queue" json:"input_queue,omitempty"`
@@ -338,6 +339,7 @@ func (m *MemclntCreate) Unmarshal(b []byte) error {
 }
 
 // MemclntCreateReply defines message 'memclnt_create_reply'.
+// Deprecated: the message will be removed in the future versions
 type MemclntCreateReply struct {
 	Response     int32  `binapi:"i32,name=response" json:"response,omitempty"`
 	Handle       uint64 `binapi:"u64,name=handle" json:"handle,omitempty"`
