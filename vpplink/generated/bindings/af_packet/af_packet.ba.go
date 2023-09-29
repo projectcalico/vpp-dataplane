@@ -110,6 +110,7 @@ func (x AfPacketMode) String() string {
 //   - host_if_name - interface name
 //
 // AfPacketCreate defines message 'af_packet_create'.
+// Deprecated: the message will be removed in the future versions
 type AfPacketCreate struct {
 	HwAddr          ethernet_types.MacAddress `binapi:"mac_address,name=hw_addr" json:"hw_addr,omitempty"`
 	UseRandomHwAddr bool                      `binapi:"bool,name=use_random_hw_addr" json:"use_random_hw_addr,omitempty"`
@@ -154,6 +155,7 @@ func (m *AfPacketCreate) Unmarshal(b []byte) error {
 //   - retval - return value for request
 //
 // AfPacketCreateReply defines message 'af_packet_create_reply'.
+// Deprecated: the message will be removed in the future versions
 type AfPacketCreateReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -202,6 +204,7 @@ func (m *AfPacketCreateReply) Unmarshal(b []byte) error {
 //   - num_rx_queues - number of rx queues
 //
 // AfPacketCreateV2 defines message 'af_packet_create_v2'.
+// Deprecated: the message will be removed in the future versions
 type AfPacketCreateV2 struct {
 	HwAddr           ethernet_types.MacAddress `binapi:"mac_address,name=hw_addr" json:"hw_addr,omitempty"`
 	UseRandomHwAddr  bool                      `binapi:"bool,name=use_random_hw_addr" json:"use_random_hw_addr,omitempty"`
@@ -270,6 +273,7 @@ func (m *AfPacketCreateV2) Unmarshal(b []byte) error {
 //   - retval - return value for request
 //
 // AfPacketCreateV2Reply defines message 'af_packet_create_v2_reply'.
+// Deprecated: the message will be removed in the future versions
 type AfPacketCreateV2Reply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`

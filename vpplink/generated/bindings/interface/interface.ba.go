@@ -3,7 +3,7 @@
 // Package interfaces contains generated bindings for API file interface.api.
 //
 // Contents:
-// - 72 messages
+// - 74 messages
 package interfaces
 
 import (
@@ -23,7 +23,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "interface"
 	APIVersion = "3.2.3"
-	VersionCrc = 0x82b1edb3
+	VersionCrc = 0x2c32eb46
 )
 
 // Enable or disable detailed interface stats
@@ -796,6 +796,76 @@ func (m *InterfaceNameRenumberReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *InterfaceNameRenumberReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// pcap_set_filter_function
+//   - filter_function_name - the name of the filter function
+//     to set for pcap capture
+//
+// PcapSetFilterFunction defines message 'pcap_set_filter_function'.
+type PcapSetFilterFunction struct {
+	FilterFunctionName string `binapi:"string[],name=filter_function_name" json:"filter_function_name,omitempty"`
+}
+
+func (m *PcapSetFilterFunction) Reset()               { *m = PcapSetFilterFunction{} }
+func (*PcapSetFilterFunction) GetMessageName() string { return "pcap_set_filter_function" }
+func (*PcapSetFilterFunction) GetCrcString() string   { return "616abb92" }
+func (*PcapSetFilterFunction) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *PcapSetFilterFunction) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 + len(m.FilterFunctionName) // m.FilterFunctionName
+	return size
+}
+func (m *PcapSetFilterFunction) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeString(m.FilterFunctionName, 0)
+	return buf.Bytes(), nil
+}
+func (m *PcapSetFilterFunction) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.FilterFunctionName = buf.DecodeString(0)
+	return nil
+}
+
+// PcapSetFilterFunctionReply defines message 'pcap_set_filter_function_reply'.
+type PcapSetFilterFunctionReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *PcapSetFilterFunctionReply) Reset()               { *m = PcapSetFilterFunctionReply{} }
+func (*PcapSetFilterFunctionReply) GetMessageName() string { return "pcap_set_filter_function_reply" }
+func (*PcapSetFilterFunctionReply) GetCrcString() string   { return "e8d4e804" }
+func (*PcapSetFilterFunctionReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *PcapSetFilterFunctionReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *PcapSetFilterFunctionReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *PcapSetFilterFunctionReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -2636,13 +2706,13 @@ func (m *SwInterfaceSetTableReply) Unmarshal(b []byte) error {
 type SwInterfaceSetTxPlacement struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 	QueueID   uint32                         `binapi:"u32,name=queue_id" json:"queue_id,omitempty"`
-	ArraySize uint8                          `binapi:"u8,name=array_size" json:"-"`
+	ArraySize uint32                         `binapi:"u32,name=array_size" json:"-"`
 	Threads   []uint32                       `binapi:"u32[array_size],name=threads" json:"threads,omitempty"`
 }
 
 func (m *SwInterfaceSetTxPlacement) Reset()               { *m = SwInterfaceSetTxPlacement{} }
 func (*SwInterfaceSetTxPlacement) GetMessageName() string { return "sw_interface_set_tx_placement" }
-func (*SwInterfaceSetTxPlacement) GetCrcString() string   { return "0b855b40" }
+func (*SwInterfaceSetTxPlacement) GetCrcString() string   { return "4e0cd5ff" }
 func (*SwInterfaceSetTxPlacement) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -2653,7 +2723,7 @@ func (m *SwInterfaceSetTxPlacement) Size() (size int) {
 	}
 	size += 4                  // m.SwIfIndex
 	size += 4                  // m.QueueID
-	size += 1                  // m.ArraySize
+	size += 4                  // m.ArraySize
 	size += 4 * len(m.Threads) // m.Threads
 	return size
 }
@@ -2664,7 +2734,7 @@ func (m *SwInterfaceSetTxPlacement) Marshal(b []byte) ([]byte, error) {
 	buf := codec.NewBuffer(b)
 	buf.EncodeUint32(uint32(m.SwIfIndex))
 	buf.EncodeUint32(m.QueueID)
-	buf.EncodeUint8(uint8(len(m.Threads)))
+	buf.EncodeUint32(uint32(len(m.Threads)))
 	for i := 0; i < len(m.Threads); i++ {
 		var x uint32
 		if i < len(m.Threads) {
@@ -2678,7 +2748,7 @@ func (m *SwInterfaceSetTxPlacement) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
 	m.QueueID = buf.DecodeUint32()
-	m.ArraySize = buf.DecodeUint8()
+	m.ArraySize = buf.DecodeUint32()
 	m.Threads = make([]uint32, m.ArraySize)
 	for i := 0; i < len(m.Threads); i++ {
 		m.Threads[i] = buf.DecodeUint32()
@@ -3134,6 +3204,8 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*HwInterfaceSetMtuReply)(nil), "hw_interface_set_mtu_reply_e8d4e804")
 	api.RegisterMessage((*InterfaceNameRenumber)(nil), "interface_name_renumber_2b8858b8")
 	api.RegisterMessage((*InterfaceNameRenumberReply)(nil), "interface_name_renumber_reply_e8d4e804")
+	api.RegisterMessage((*PcapSetFilterFunction)(nil), "pcap_set_filter_function_616abb92")
+	api.RegisterMessage((*PcapSetFilterFunctionReply)(nil), "pcap_set_filter_function_reply_e8d4e804")
 	api.RegisterMessage((*PcapTraceOff)(nil), "pcap_trace_off_51077d14")
 	api.RegisterMessage((*PcapTraceOffReply)(nil), "pcap_trace_off_reply_e8d4e804")
 	api.RegisterMessage((*PcapTraceOn)(nil), "pcap_trace_on_cb39e968")
@@ -3175,7 +3247,7 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*SwInterfaceSetRxPlacementReply)(nil), "sw_interface_set_rx_placement_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetTable)(nil), "sw_interface_set_table_df42a577")
 	api.RegisterMessage((*SwInterfaceSetTableReply)(nil), "sw_interface_set_table_reply_e8d4e804")
-	api.RegisterMessage((*SwInterfaceSetTxPlacement)(nil), "sw_interface_set_tx_placement_0b855b40")
+	api.RegisterMessage((*SwInterfaceSetTxPlacement)(nil), "sw_interface_set_tx_placement_4e0cd5ff")
 	api.RegisterMessage((*SwInterfaceSetTxPlacementReply)(nil), "sw_interface_set_tx_placement_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetUnnumbered)(nil), "sw_interface_set_unnumbered_154a6439")
 	api.RegisterMessage((*SwInterfaceSetUnnumberedReply)(nil), "sw_interface_set_unnumbered_reply_e8d4e804")
@@ -3211,6 +3283,8 @@ func AllMessages() []api.Message {
 		(*HwInterfaceSetMtuReply)(nil),
 		(*InterfaceNameRenumber)(nil),
 		(*InterfaceNameRenumberReply)(nil),
+		(*PcapSetFilterFunction)(nil),
+		(*PcapSetFilterFunctionReply)(nil),
 		(*PcapTraceOff)(nil),
 		(*PcapTraceOffReply)(nil),
 		(*PcapTraceOn)(nil),

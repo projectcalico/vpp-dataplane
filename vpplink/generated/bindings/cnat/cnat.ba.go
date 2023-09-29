@@ -29,8 +29,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "cnat"
-	APIVersion = "0.2.0"
-	VersionCrc = 0xece555ea
+	APIVersion = "0.3.0"
+	VersionCrc = 0xce7be3ad
 )
 
 // CnatEndpointTupleFlags defines enum 'cnat_endpoint_tuple_flags'.
@@ -170,15 +170,18 @@ func (x CnatSnatPolicyTable) String() string {
 type CnatTranslationFlags uint8
 
 const (
-	CNAT_TRANSLATION_ALLOC_PORT CnatTranslationFlags = 1
+	CNAT_TRANSLATION_ALLOC_PORT        CnatTranslationFlags = 1
+	CNAT_TRANSLATION_NO_RETURN_SESSION CnatTranslationFlags = 4
 )
 
 var (
 	CnatTranslationFlags_name = map[uint8]string{
 		1: "CNAT_TRANSLATION_ALLOC_PORT",
+		4: "CNAT_TRANSLATION_NO_RETURN_SESSION",
 	}
 	CnatTranslationFlags_value = map[string]uint8{
-		"CNAT_TRANSLATION_ALLOC_PORT": 1,
+		"CNAT_TRANSLATION_ALLOC_PORT":        1,
+		"CNAT_TRANSLATION_NO_RETURN_SESSION": 4,
 	}
 )
 

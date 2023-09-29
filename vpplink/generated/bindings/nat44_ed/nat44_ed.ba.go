@@ -533,6 +533,7 @@ func (m *Nat44AddDelLbStaticMappingReply) Unmarshal(b []byte) error {
 //   - tag - opaque string tag
 //
 // Nat44AddDelStaticMapping defines message 'nat44_add_del_static_mapping'.
+// Deprecated: the message will be removed in the future versions
 type Nat44AddDelStaticMapping struct {
 	IsAdd             bool                           `binapi:"bool,name=is_add" json:"is_add,omitempty"`
 	Flags             nat_types.NatConfigFlags       `binapi:"nat_config_flags,name=flags" json:"flags,omitempty"`
@@ -602,6 +603,7 @@ func (m *Nat44AddDelStaticMapping) Unmarshal(b []byte) error {
 }
 
 // Nat44AddDelStaticMappingReply defines message 'nat44_add_del_static_mapping_reply'.
+// Deprecated: the message will be removed in the future versions
 type Nat44AddDelStaticMappingReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -2738,6 +2740,7 @@ func (m *Nat44UserDump) Unmarshal(b []byte) error {
 //     twice-nat session)
 //
 // Nat44UserSessionDetails defines message 'nat44_user_session_details'.
+// Deprecated: the message will be removed in the future versions
 type Nat44UserSessionDetails struct {
 	OutsideIPAddress  ip_types.IP4Address      `binapi:"ip4_address,name=outside_ip_address" json:"outside_ip_address,omitempty"`
 	OutsidePort       uint16                   `binapi:"u16,name=outside_port" json:"outside_port,omitempty"`
@@ -2823,6 +2826,7 @@ func (m *Nat44UserSessionDetails) Unmarshal(b []byte) error {
 //   - vrf_id - VRF_ID
 //
 // Nat44UserSessionDump defines message 'nat44_user_session_dump'.
+// Deprecated: the message will be removed in the future versions
 type Nat44UserSessionDump struct {
 	IPAddress ip_types.IP4Address `binapi:"ip4_address,name=ip_address" json:"ip_address,omitempty"`
 	VrfID     uint32              `binapi:"u32,name=vrf_id" json:"vrf_id,omitempty"`
@@ -2882,6 +2886,7 @@ func (m *Nat44UserSessionDump) Unmarshal(b []byte) error {
 //     is active
 //
 // Nat44UserSessionV2Details defines message 'nat44_user_session_v2_details'.
+// Deprecated: the message will be removed in the future versions
 type Nat44UserSessionV2Details struct {
 	OutsideIPAddress  ip_types.IP4Address      `binapi:"ip4_address,name=outside_ip_address" json:"outside_ip_address,omitempty"`
 	OutsidePort       uint16                   `binapi:"u16,name=outside_port" json:"outside_port,omitempty"`
@@ -2971,6 +2976,7 @@ func (m *Nat44UserSessionV2Details) Unmarshal(b []byte) error {
 //   - vrf_id - VRF_ID
 //
 // Nat44UserSessionV2Dump defines message 'nat44_user_session_v2_dump'.
+// Deprecated: the message will be removed in the future versions
 type Nat44UserSessionV2Dump struct {
 	IPAddress ip_types.IP4Address `binapi:"ip4_address,name=ip_address" json:"ip_address,omitempty"`
 	VrfID     uint32              `binapi:"u32,name=vrf_id" json:"vrf_id,omitempty"`

@@ -9,22 +9,25 @@ RUN apt-get update \
 	curl build-essential autoconf automake ccache \
 	debhelper dkms git libtool libapr1-dev dh-python \
 	libconfuse-dev git-review exuberant-ctags cscope pkg-config \
-	lcov chrpath autoconf libnuma-dev \
+	gcovr lcov chrpath autoconf libnuma-dev \
 	python3-all python3-setuptools check \
 	libffi-dev python3-ply \
-	cmake ninja-build uuid-dev python3-jsonschema python3-yaml \
+	cmake ninja-build python3-jsonschema python3-yaml \
 	python3-venv \
 	python3-dev python3-pip \
 	libnl-3-dev libnl-route-3-dev libmnl-dev \
 	python3-virtualenv \
 	libssl-dev \
-	libelf-dev \
-	libpcap-dev iperf ethtool \
+	libelf-dev libpcap-dev \
 	iperf3 \
 	nasm \
-	clang clang-format-11 \
-	enchant-2 \
-	libffi7
+	iperf ethtool \
+	libpcap-dev \
+    python3-virtualenv \
+    libssl-dev \
+    clang clang-format-11 \
+	libffi7 \
+	enchant-2
 
 WORKDIR /
 

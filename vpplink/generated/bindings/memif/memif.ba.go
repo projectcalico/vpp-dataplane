@@ -101,6 +101,7 @@ func (x MemifRole) String() string {
 //   - secret - optional, default is "", max length 24
 //
 // MemifCreate defines message 'memif_create'.
+// Deprecated: the message will be removed in the future versions
 type MemifCreate struct {
 	Role       MemifRole                 `binapi:"memif_role,name=role" json:"role,omitempty"`
 	Mode       MemifMode                 `binapi:"memif_mode,name=mode" json:"mode,omitempty"`
@@ -178,6 +179,7 @@ func (m *MemifCreate) Unmarshal(b []byte) error {
 //   - sw_if_index - software index of the newly created interface
 //
 // MemifCreateReply defines message 'memif_create_reply'.
+// Deprecated: the message will be removed in the future versions
 type MemifCreateReply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
@@ -540,6 +542,7 @@ func (m *MemifDump) Unmarshal(b []byte) error {
 //     no socket filename needed when is_add == 0.
 //
 // MemifSocketFilenameAddDel defines message 'memif_socket_filename_add_del'.
+// Deprecated: the message will be removed in the future versions
 type MemifSocketFilenameAddDel struct {
 	IsAdd          bool   `binapi:"bool,name=is_add" json:"is_add,omitempty"`
 	SocketID       uint32 `binapi:"u32,name=socket_id" json:"socket_id,omitempty"`
@@ -581,6 +584,7 @@ func (m *MemifSocketFilenameAddDel) Unmarshal(b []byte) error {
 }
 
 // MemifSocketFilenameAddDelReply defines message 'memif_socket_filename_add_del_reply'.
+// Deprecated: the message will be removed in the future versions
 type MemifSocketFilenameAddDelReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
