@@ -50,7 +50,7 @@ nodes:
 # multinet CRDs, multus plugin and ipam
 kubectl create -f https://raw.githubusercontent.com/projectcalico/vpp-dataplane/master/test/yaml/multinet/projectcalico.org_networks.yaml
 kubectl create -f https://raw.githubusercontent.com/projectcalico/vpp-dataplane/master/test/yaml/multinet/whereabouts-daemonset-install.yaml
-kubectl create -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/99c4481e08a4a8f0a3d0013446f03e4206033cae/deployments/multus-daemonset-thick.yml
+kubectl create -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
 kubectl create -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
 kubectl create -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
 
