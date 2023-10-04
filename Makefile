@@ -222,7 +222,7 @@ install-multinet:
 	@kubectl apply -f test/yaml/multinet/projectcalico.org_networks.yaml
 	@kubectl apply -f test/yaml/multinet/whereabouts-daemonset-install.yaml
 	@echo "--Installing multus daemonset..."
-	@kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/99c4481e08a4a8f0a3d0013446f03e4206033cae/deployments/multus-daemonset-thick.yml
+	@kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
 	@echo "--Installing whereabouts daemonset..."
 	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
 	@kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
@@ -233,7 +233,7 @@ delete-multinet:
 	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
 	@kubectl delete -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
 	@echo "--Deleting multus daemonset..."
-	@kubectl delete -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/99c4481e08a4a8f0a3d0013446f03e4206033cae/deployments/multus-daemonset-thick.yml
+	@kubectl delete -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/master/deployments/multus-daemonset-thick.yml
 	@echo "--Deleting network CRD..."
 	@kubectl delete -f test/yaml/multinet/projectcalico.org_networks.yaml
 	@kubectl delete -f test/yaml/multinet/whereabouts-daemonset-install.yaml
