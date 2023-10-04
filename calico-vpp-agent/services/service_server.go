@@ -112,19 +112,19 @@ func (s *Server) ParseServiceAnnotations(annotations map[string]string, name str
 			for _, hc := range hashConfigList {
 				switch strings.TrimSpace(strings.ToLower(hc)) {
 				case "srcport":
-					svc.hashConfig = append(svc.hashConfig, hashConfigSrcport)
+					svc.hashConfig |= types.FlowHashSrcPort
 				case "dstport":
-					svc.hashConfig = append(svc.hashConfig, hashConfigDstport)
+					svc.hashConfig |= types.FlowHashDstPort
 				case "srcaddr":
-					svc.hashConfig = append(svc.hashConfig, hashConfigSrcaddr)
+					svc.hashConfig |= types.FlowHashSrcIP
 				case "dstaddr":
-					svc.hashConfig = append(svc.hashConfig, hashConfigDstaddr)
+					svc.hashConfig |= types.FlowHashDstIP
 				case "iproto":
-					svc.hashConfig = append(svc.hashConfig, hashConfigIproto)
+					svc.hashConfig |= types.FlowHashProto
 				case "reverse":
-					svc.hashConfig = append(svc.hashConfig, hashConfigReverse)
+					svc.hashConfig |= types.FlowHashReverse
 				case "symmetric":
-					svc.hashConfig = append(svc.hashConfig, hashConfigSymmetric)
+					svc.hashConfig |= types.FlowHashSymetric
 				default:
 					err = append(err, errors.Errorf("Unknown value %s for key %s", value, key))
 				}
