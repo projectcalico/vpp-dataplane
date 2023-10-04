@@ -69,11 +69,12 @@ func (e *CnatTranslateEntry) Key() string {
 }
 
 type CnatTranslateEntry struct {
-	Endpoint CnatEndpoint
-	Backends []CnatEndpointTuple
-	Proto    IPProto
-	IsRealIP bool
-	LbType   CnatLbType
+	Endpoint   CnatEndpoint
+	Backends   []CnatEndpointTuple
+	Proto      IPProto
+	IsRealIP   bool
+	LbType     CnatLbType
+	HashConfig IPFlowHash
 }
 
 func (n *CnatTranslateEntry) String() string {
@@ -81,12 +82,13 @@ func (n *CnatTranslateEntry) String() string {
 	for _, e := range n.Backends {
 		strLst = append(strLst, e.String())
 	}
-	return fmt.Sprintf("[%s real=%t lbtyp=%d vip=%s rw=%s]",
+	return fmt.Sprintf("[%s real=%t lbtyp=%d vip=%s rw=%s hashc=%+v]",
 		n.Proto.String(),
 		n.IsRealIP,
 		n.LbType,
 		n.Endpoint.String(),
 		strings.Join(strLst, ", "),
+		n.HashConfig,
 	)
 }
 

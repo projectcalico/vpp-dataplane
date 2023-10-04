@@ -68,7 +68,6 @@ func getCnatLBType(lbType lbType) types.CnatLbType {
 		return types.MaglevLB
 	}
 	return types.DefaultLB
-
 }
 
 func getCnatVipDstPort(servicePort *v1.ServicePort, isNodePort bool) uint16 {
@@ -126,9 +125,10 @@ func buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Servi
 			Port: getCnatVipDstPort(servicePort, isNodePort),
 			IP:   serviceIP,
 		},
-		Backends: backends,
-		IsRealIP: isNodePort,
-		LbType:   getCnatLBType(svcInfo.lbType),
+		Backends:   backends,
+		IsRealIP:   isNodePort,
+		LbType:     getCnatLBType(svcInfo.lbType),
+		HashConfig: svcInfo.hashConfig,
 	}
 }
 

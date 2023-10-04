@@ -15,24 +15,18 @@
 
 package services
 
+import "github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
+
 type lbType string
-type hashConfig string
 
 const (
-	lbTypeECMP          lbType     = "ECMP"
-	lbTypeMaglev        lbType     = "Maglev"
-	lbTypeMaglevDSR     lbType     = "MaglevDSR"
-	hashConfigSrcport   hashConfig = "srcport"
-	hashConfigDstport   hashConfig = "dstport"
-	hashConfigSrcaddr   hashConfig = "srcaddr"
-	hashConfigDstaddr   hashConfig = "dstaddr"
-	hashConfigIproto    hashConfig = "iproto"
-	hashConfigSymmetric hashConfig = "symmetric"
-	hashConfigReverse   hashConfig = "reverse"
+	lbTypeECMP      lbType = "ECMP"
+	lbTypeMaglev    lbType = "Maglev"
+	lbTypeMaglevDSR lbType = "MaglevDSR"
 )
 
 type serviceInfo struct {
 	keepOriginalPacket bool
 	lbType             lbType
-	hashConfig         []hashConfig
+	hashConfig         types.IPFlowHash
 }
