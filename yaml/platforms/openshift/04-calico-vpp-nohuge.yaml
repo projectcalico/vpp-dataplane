@@ -53,6 +53,8 @@ spec:
           mountPropagation: Bidirectional
           name: netns
       - env:
+        - name: CALICOVPP_HOOK_VPP_RUNNING
+          value: echo 'systemctl restart NetworkManager; sleep 5; nmcli con mod ens5 ipv4.dhcp-timeout infinity' | chroot /host
         - name: DATASTORE_TYPE
           value: kubernetes
         - name: WAIT_FOR_DATASTORE
