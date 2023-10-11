@@ -20,6 +20,7 @@ test/vagrant/.vagrant
 
 # macOS
 .DS_Store
+*.bkp
 
 # build artefacts
 calico-vpp-agent/version
