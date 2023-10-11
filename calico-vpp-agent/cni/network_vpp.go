@@ -153,7 +153,8 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 	 * ourselves in s.podInterfaceMap
 	 */
 	s.removeConflictingContainers(podSpec.ContainerIps, podSpec.NetworkName)
-
+	var swIfIndex uint32
+	var isL3 bool
 	stack := s.vpp.NewCleanupStack()
 	var vni uint32
 	err = s.checkAvailableBuffers(podSpec)
@@ -209,7 +210,7 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 			goto err
 		}
 	} else {
-		swIfIndex, isL3 := podSpec.GetParamsForIfType(podSpec.DefaultIfType)
+		swIfIndex, isL3 = podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 		if swIfIndex != types.InvalidID {
 			s.log.Infof("pod(add) Default routes to swIfIndex=%d isL3=%t", swIfIndex, isL3)
 			err = s.RoutePodInterface(podSpec, stack, swIfIndex, isL3)
@@ -219,14 +220,14 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		} else {
 			s.log.Warn("No default if type for pod")
 		}
+	}
 
-		swIfIndex, isL3 = podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
-		if swIfIndex != types.InvalidID {
-			s.log.Infof("pod(add) PBL routes to %d l3?:%t", swIfIndex, isL3)
-			err = s.RoutePblPortsPodInterface(podSpec, stack, swIfIndex, isL3)
-			if err != nil {
-				goto err
-			}
+	swIfIndex, isL3 = podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
+	if swIfIndex != types.InvalidID {
+		s.log.Infof("pod(add) PBL routes to %d l3?:%t", swIfIndex, isL3)
+		err = s.RoutePblPortsPodInterface(podSpec, stack, swIfIndex, isL3)
+		if err != nil {
+			goto err
 		}
 	}
 
