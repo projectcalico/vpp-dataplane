@@ -117,15 +117,19 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 			})
 		}
 
+		// See docs/drawio/vrfs.drawio
 		client := types.PblClient{
-			ID: vpplink.InvalidID,
-			// TableId:    podSpec.VrfId,
+			ID:         vpplink.InvalidID,
+			TableId:    podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP)),
 			Addr:       containerIP.IP,
 			Path:       path,
 			PortRanges: portRanges,
 		}
+		if podSpec.EnableVCL {
+			client.TableId = common.PuntTableId
+		}
 
-		vrfId := podSpec.GetVrfId(vpplink.IpFamilyV4) // pbl only supports v4 ?
+		vrfId := podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP)) // pbl only supports v4 ?
 		s.log.Infof("pod(add) PBL client for %s VRF %d", containerIP.IP, vrfId)
 		pblIndex, err := s.vpp.AddPblClient(&client)
 		if err != nil {
