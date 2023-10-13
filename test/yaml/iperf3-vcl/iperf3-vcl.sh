@@ -6,7 +6,7 @@ function generate_vcl_conf () {
   tx-fifo-size 4000000
   app-scope-local
   app-scope-global
-  app-socket-api @vpp/session
+  app-socket-api abstract:vpp/session
 }
 " > /etc/vpp/vcl.conf
   echo "Using VCL conf :"
