@@ -138,13 +138,14 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			p.errorCleanup(tunnel)
 			return errors.Wrapf(err, "Error setting ipip interface up")
 		}
+		p.log.Infof("connectivity(add) before route IPIP tunnel=%s", tunnel.String())
 
 		p.log.Debugf("Routing pod->node %s traffic into tunnel (swIfIndex %d)", cn.NextHop.String(), swIfIndex)
 		err = p.vpp.RouteAdd(&types.Route{
 			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
 				SwIfIndex: swIfIndex,
-				Gw:        nil,
+				Gw:        cn.NextHop,
 			}},
 			Table: common.PodVRFIndex,
 		})
@@ -166,7 +167,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: tunnel.SwIfIndex,
-			Gw:        nil,
+			Gw:        cn.NextHop,
 		}},
 	}
 	err := p.vpp.RouteAdd(route)
@@ -191,7 +192,7 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: tunnel.SwIfIndex,
-			Gw:        nil,
+			Gw:        cn.NextHop,
 		}},
 	}
 	err := p.vpp.RouteDel(routeToDelete)
@@ -208,7 +209,7 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			Dst: common.ToMaxLenCIDR(cn.NextHop),
 			Paths: []types.RoutePath{{
 				SwIfIndex: tunnel.SwIfIndex,
-				Gw:        nil,
+				Gw:        cn.NextHop,
 			}},
 			Table: common.PodVRFIndex,
 		})

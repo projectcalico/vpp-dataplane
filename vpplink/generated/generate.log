@@ -1,6 +1,6 @@
-VPP Version                 : 24.02-rc0~6-g2be60e67d
+VPP Version                 : 24.02-rc0~6-g6d62c2332
 Binapi-generator version    : v0.8.0-dev
-VPP Base commit             : 2d0dac57e gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : 710b901e6 gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
 capo: Calico Policies plugin
 acl: acl-plugin custom policies

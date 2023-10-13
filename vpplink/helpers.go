@@ -39,6 +39,13 @@ var (
 	IpFamilies = []IpFamily{IpFamilyV4, IpFamilyV6}
 )
 
+func IpFamilyFromIP(addr *net.IP) IpFamily {
+	if addr.To4() == nil {
+		return IpFamilyV6
+	}
+	return IpFamilyV4
+}
+
 func IpFamilyFromIPNet(ipNet *net.IPNet) IpFamily {
 	if ipNet == nil {
 		return IpFamilyV4

@@ -195,7 +195,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 				Dst: common.ToMaxLenCIDR(cn.NextHop),
 				Paths: []types.RoutePath{{
 					SwIfIndex: swIfIndex,
-					Gw:        nil,
+					Gw:        cn.NextHop,
 				}},
 				Table: common.PodVRFIndex,
 			})
@@ -251,7 +251,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: tunnel.SwIfIndex,
-			Gw:        nodeIP, // FIXME this is probably wrong. The gateway of route going out to another node should not point to THIS node.
+			Gw:        cn.NextHop,
 		}},
 		Table: table,
 	}
@@ -263,14 +263,10 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	return p.vpp.RouteAdd(route)
 }
 
-func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
+func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
 	tunnel, found := p.vxlanIfs[cn.NextHop.String()+"-"+fmt.Sprint(cn.Vni)]
 	if !found {
 		return errors.Errorf("Deleting unknown vxlan tunnel cn=%s", cn.String())
-	}
-	nodeIP, err := p.getNodeIpForConnectivity(cn)
-	if err != nil {
-		return err
 	}
 
 	var routeToDelete *types.Route
@@ -280,7 +276,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			Dst: &cn.Dst,
 			Paths: []types.RoutePath{{
 				SwIfIndex: tunnel.SwIfIndex,
-				Gw:        nodeIP,
+				Gw:        cn.NextHop,
 			}},
 		}
 	} else {
@@ -290,7 +286,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			Dst: &cn.Dst,
 			Paths: []types.RoutePath{{
 				SwIfIndex: tunnel.SwIfIndex,
-				Gw:        nodeIP,
+				Gw:        cn.NextHop,
 			}},
 			Table: vrfIndex,
 		}
