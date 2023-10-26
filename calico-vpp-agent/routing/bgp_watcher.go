@@ -269,65 +269,85 @@ func (w *Server) startBGPMonitoring() (func(), error) {
 	return stopFunc, err
 }
 
-func (w *Server) NewBGPPolicyAndAssignment(name string, rules []calicov3.BGPFilterRuleV4, neighborName string, dir bgpapi.PolicyDirection) (*watchers.BGPPrefixesPolicyAndAssignment, error) {
-	pol := &bgpapi.Policy{Name: name}
-	prefixes := []*bgpapi.DefinedSet{}
-	for _, rule := range rules {
-		routeAction := bgpapi.RouteAction_ACCEPT
-		if rule.Action == calicov3.Reject {
-			routeAction = bgpapi.RouteAction_REJECT
-		} else if rule.Action != calicov3.Accept {
-			return nil, errors.Errorf("error creating new bgp policy: action %s not supported", rule.Action)
-		}
+func (w *Server) NewBGPPolicyV4V6(CIDR string, matchOperator calicov3.BGPFilterMatchOperator, action calicov3.BGPFilterAction) (*bgpapi.DefinedSet, bgpapi.MatchSet_Type, bgpapi.RouteAction, string, error) {
+	routeAction := bgpapi.RouteAction_ACCEPT
+	if action == calicov3.Reject {
+		routeAction = bgpapi.RouteAction_REJECT
+	} else if action != calicov3.Accept {
+		return nil, 0, 0, "", errors.Errorf("error creating new bgp policy: action %s not supported", action)
+	}
 
-		var matchSetType bgpapi.MatchSet_Type
-		var minMask, maxMask uint32
-		if rule.MatchOperator == calicov3.In || rule.MatchOperator == calicov3.NotIn {
-			_, subnet, err := net.ParseCIDR(rule.CIDR)
-			if err != nil {
-				return nil, errors.Wrap(err, "error creating new bgp policy")
-			}
-			ones, bits := subnet.Mask.Size()
-			minMask = uint32(ones)
-			maxMask = uint32(bits)
-			if rule.MatchOperator == calicov3.In {
-				matchSetType = bgpapi.MatchSet_ANY // any and all are same in our case as we have only one member of the defined set
-			} else {
-				matchSetType = bgpapi.MatchSet_INVERT
-			}
+	var matchSetType bgpapi.MatchSet_Type
+	var minMask, maxMask uint32
+	if matchOperator == calicov3.In || matchOperator == calicov3.NotIn {
+		_, subnet, err := net.ParseCIDR(CIDR)
+		if err != nil {
+			return nil, 0, 0, "", errors.Wrap(err, "error creating new bgp policy")
+		}
+		ones, bits := subnet.Mask.Size()
+		minMask = uint32(ones)
+		maxMask = uint32(bits)
+		if matchOperator == calicov3.In {
+			matchSetType = bgpapi.MatchSet_ANY // any and all are same in our case as we have only one member of the defined set
 		} else {
-			// mask is zero
-			if rule.MatchOperator == calicov3.Equal {
-				matchSetType = bgpapi.MatchSet_ANY
-			} else {
-				matchSetType = bgpapi.MatchSet_INVERT
-			}
+			matchSetType = bgpapi.MatchSet_INVERT
 		}
+	} else {
+		// mask is zero
+		if matchOperator == calicov3.Equal {
+			matchSetType = bgpapi.MatchSet_ANY
+		} else {
+			matchSetType = bgpapi.MatchSet_INVERT
+		}
+	}
 
-		prefixName := rule.CIDR + "prefix" + fmt.Sprint(minMask) + fmt.Sprint(maxMask) // this name should be unique
-		defset := &bgpapi.DefinedSet{
-			DefinedType: bgpapi.DefinedType_PREFIX,
-			Name:        prefixName,
-			Prefixes:    []*bgpapi.Prefix{{IpPrefix: rule.CIDR, MaskLengthMin: minMask, MaskLengthMax: maxMask}},
-		}
-		prefixes = append(prefixes, defset)
-		pol.Statements = append(pol.Statements,
-			&bgpapi.Statement{
-				Actions: &bgpapi.Actions{
-					RouteAction: routeAction,
+	prefixName := CIDR + "prefix" + fmt.Sprint(minMask) + fmt.Sprint(maxMask) // this name should be unique
+	defset := &bgpapi.DefinedSet{
+		DefinedType: bgpapi.DefinedType_PREFIX,
+		Name:        prefixName,
+		Prefixes:    []*bgpapi.Prefix{{IpPrefix: CIDR, MaskLengthMin: minMask, MaskLengthMax: maxMask}},
+	}
+	return defset, matchSetType, routeAction, prefixName, nil
+
+}
+func (w *Server) addStatementToPolicy(pol *bgpapi.Policy, routeAction bgpapi.RouteAction, neighborName string, prefixName string, matchSetType bgpapi.MatchSet_Type) {
+	pol.Statements = append(pol.Statements,
+		&bgpapi.Statement{
+			Actions: &bgpapi.Actions{
+				RouteAction: routeAction,
+			},
+			Conditions: &bgpapi.Conditions{
+				NeighborSet: &bgpapi.MatchSet{
+					Name: neighborName,
+					Type: bgpapi.MatchSet_ANY,
 				},
-				Conditions: &bgpapi.Conditions{
-					NeighborSet: &bgpapi.MatchSet{
-						Name: neighborName,
-						Type: bgpapi.MatchSet_ANY,
-					},
-					PrefixSet: &bgpapi.MatchSet{
-						Name: prefixName,
-						Type: matchSetType,
-					},
+				PrefixSet: &bgpapi.MatchSet{
+					Name: prefixName,
+					Type: matchSetType,
 				},
 			},
-		)
+		},
+	)
+}
+
+func (w *Server) NewBGPPolicyAndAssignment(name string, rulesv4 []calicov3.BGPFilterRuleV4, rulesv6 []calicov3.BGPFilterRuleV6, neighborName string, dir bgpapi.PolicyDirection) (*watchers.BGPPrefixesPolicyAndAssignment, error) {
+	pol := &bgpapi.Policy{Name: name}
+	prefixes := []*bgpapi.DefinedSet{}
+	for _, rule := range rulesv6 {
+		defset, matchSetType, routeAction, prefixName, err := w.NewBGPPolicyV4V6(rule.CIDR, rule.MatchOperator, rule.Action)
+		if err != nil {
+			return nil, err
+		}
+		prefixes = append(prefixes, defset)
+		w.addStatementToPolicy(pol, routeAction, neighborName, prefixName, matchSetType)
+	}
+	for _, rule := range rulesv4 {
+		defset, matchSetType, routeAction, prefixName, err := w.NewBGPPolicyV4V6(rule.CIDR, rule.MatchOperator, rule.Action)
+		if err != nil {
+			return nil, err
+		}
+		prefixes = append(prefixes, defset)
+		w.addStatementToPolicy(pol, routeAction, neighborName, prefixName, matchSetType)
 	}
 	PA := &bgpapi.PolicyAssignment{
 		Name:          "global",
@@ -365,11 +385,11 @@ func (w *Server) filterPeer(peerAddress string, filterNames []string) (map[strin
 func (w *Server) createFilterPolicy(peerAddress string, filterName string, neighborSet string) (*watchers.ImpExpPol, error) {
 	w.log.Infof("Creating policies for: (peer: %s, filter: %s, neighborSet: %s)", peerAddress, filterName, neighborSet)
 	filter := w.bgpFilters[filterName]
-	imppol, err := w.NewBGPPolicyAndAssignment("import-"+peerAddress+"-"+filterName, filter.Spec.ImportV4, neighborSet, bgpapi.PolicyDirection_IMPORT)
+	imppol, err := w.NewBGPPolicyAndAssignment("import-"+peerAddress+"-"+filterName, filter.Spec.ImportV4, filter.Spec.ImportV6, neighborSet, bgpapi.PolicyDirection_IMPORT)
 	if err != nil {
 		return nil, err
 	}
-	exppol, err := w.NewBGPPolicyAndAssignment("export-"+peerAddress+"-"+filterName, filter.Spec.ExportV4, neighborSet, bgpapi.PolicyDirection_EXPORT)
+	exppol, err := w.NewBGPPolicyAndAssignment("export-"+peerAddress+"-"+filterName, filter.Spec.ExportV4, filter.Spec.ExportV6, neighborSet, bgpapi.PolicyDirection_EXPORT)
 	if err != nil {
 		return nil, err
 	}
