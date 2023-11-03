@@ -1,4 +1,3 @@
----
 apiVersion: v1
 kind: Pod
 metadata:
@@ -7,18 +6,50 @@ metadata:
   name: mvpp
   namespace: mvpp
   annotations:
-    "cni.projectcalico.org/vppExtraMemifPorts":  "tcp:4444-20000,udp:4444-20000"
+    "cni.projectcalico.org/vppExtraMemifPorts":  "udp:6081"
 spec:
   containers:
   - name: mvpp
-    image: calicovpp/vpp:latest
-    command: ["tail", "-f", "/dev/null"]
+    image: docker.io/calicovpp/vpp:latest
     imagePullPolicy: IfNotPresent
     securityContext:
       privileged: true
     ports:
-    - containerPort: 4444
+    - containerPort: 6081
       protocol: UDP
+    command: ["/bin/bash", "-ec"]
+    args:
+      - |
+        mkdir -p /run/vpp/
+        echo "
+        create memif socket id 1 filename abstract:vpp/memif-eth0
+        create interface memif socket-id 1 id 0 slave buffer-size 4096 rx-queues 1 tx-queues 1
+        set int ip addr memif1/0 $(ip addr show dev eth0 | grep 'inet '| awk '{print $2}')
+        set interface mac address memif1/0 02:00:00:00:00:01
+        ip route add 0.0.0.0/0 via 127.0.0.1 memif1/0
+        ip neighbor memif1/0 127.0.0.1 02:fe:e6:5b:3a:44
+        set int st memif1/0 up
+        " > /run/vpp/vppstartup.conf
+        echo "
+        unix {
+          nodaemon
+          exec /run/vpp/vppstartup.conf
+          cli-listen /run/vpp/cli.sock
+        }
+        buffers {
+          buffers-per-numa 8192
+          default data-size 2048
+          page-size 4K
+        }
+        cpu {
+          workers 0
+        }
+        plugins {
+          plugin default { enable }
+          plugin dpdk_plugin.so { disable }
+        }
+        " > /etc/vpp/vpp.conf
+        vpp -c /etc/vpp/vpp.conf
 ---
 apiVersion: v1
 kind: Service

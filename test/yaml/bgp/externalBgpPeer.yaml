@@ -1,0 +1,10 @@
+apiVersion: projectcalico.org/v3
+kind: BGPPeer
+metadata:
+  name: my-global-peer
+spec:
+  nodeSelector: all()
+  peerIP: 172.18.0.7
+  asNumber: 64512
+  filters:
+    - bgpftest

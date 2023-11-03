@@ -60,6 +60,8 @@ metadata:
 ```
 This is called PBL (Port based balancer).
 
+A pod supports having both memif and [vcl](vcl.md) interfaces at the same time by adding both annotations.
+
 ### Sockets
 
 Memif interfaces use a socketfile: a Unix domain socket used for communication between the memif endpoints. This allows server/client interfaces to communicate together.
