@@ -1,0 +1,27 @@
+kind: BGPFilter
+apiVersion: projectcalico.org/v3
+metadata:
+  name: bgpftest
+spec:
+  exportV4:
+    - action: Reject
+      cidr: 11.0.0.0/8
+      matchOperator: In
+  exportV6:
+    - action: Reject
+      cidr: 2001:db8::/32
+      matchOperator: In
+  importV4:
+    - action: Reject
+      cidr: 1.7.2.0/24
+      matchOperator: In
+    - action: Reject
+      cidr: 1.2.3.4/32
+      matchOperator: In
+  importV6:
+    - action: Reject
+      cidr: 2001:db7::/32
+      matchOperator: In
+    - action: Reject
+      cidr: 2001:dc7::/32
+      matchOperator: NotIn

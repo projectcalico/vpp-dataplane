@@ -43,6 +43,8 @@ Calico/VPP exposes the @vpp/session abstract socket within the container, to whi
 VPP api has a particular syntax for abstract sockets: using the keyword `abstract:` then `netns_name:`. 
 For example: `abstract:vpp/session,netns_name=/var/run/netns/cni-75e26661-4119-90a4-b9d2-0b00489f76f3`. This syntax appears in vppctl.
 
+A pod supports having both vcl and [memif](memif.md) interfaces at the same time by adding both annotations.
+
 ## Testing VCL feature
 
 VCL can be tested using iperf network performance tool.
