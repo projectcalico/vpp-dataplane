@@ -230,7 +230,7 @@ spec:
         envFrom:
         - configMapRef:
             name: calico-vpp-config
-        image: docker.io/calicovpp/vpp:v3.26.0
+        image: docker.io/calicovpp/vpp:latest
         imagePullPolicy: IfNotPresent
         name: vpp
         resources:
@@ -275,7 +275,7 @@ spec:
         envFrom:
         - configMapRef:
             name: calico-vpp-config
-        image: docker.io/calicovpp/agent:v3.26.0
+        image: docker.io/calicovpp/agent:latest
         imagePullPolicy: IfNotPresent
         name: agent
         resources:
