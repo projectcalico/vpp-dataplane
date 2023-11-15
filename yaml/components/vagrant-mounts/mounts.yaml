@@ -26,8 +26,6 @@ spec:
           env:
             - name: CALICOVPP_LOG_LEVEL
               value: debug
-            - name: DEBUG
-              value: "false"
           volumeMounts:
             - name: repo-root
               mountPath: /repo
@@ -46,11 +44,11 @@ spec:
         - name: api-proxy-binary
           hostPath:
             type: File
-            path: /host-repo/calico-vpp-agent/cmd/felix-api-proxy
+            path: /host-repo/calico-vpp-agent/bin/felix-api-proxy
         - name: agent-binary
           hostPath:
             type: File
-            path: /host-repo/calico-vpp-agent/cmd/calico-vpp-agent
+            path: /host-repo/calico-vpp-agent/bin/calico-vpp-agent
         - name: vpp-root
           hostPath:
             type: Directory
