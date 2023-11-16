@@ -117,7 +117,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 			})
 		}
 
-		// See docs/drawio/vrfs.drawio
+		// See docs/_static/calico_vpp_vrf_layout.drawio
 		client := types.PblClient{
 			ID:         vpplink.InvalidID,
 			TableId:    podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP)),
