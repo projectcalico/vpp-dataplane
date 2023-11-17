@@ -17,8 +17,8 @@ spec:
     - containerPort: 4444
     resources:
       limits:
-        memory: 2Gi
-        hugepages-2Mi: 2Gi
+        memory: 1Gi
+        hugepages-2Mi: 1Gi
     volumeMounts:
     - mountPath: /hugepages
       name: hugepage
