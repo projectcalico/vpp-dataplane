@@ -3,7 +3,7 @@ function generate_trex_conf () {
 echo "---
 - port_limit: 2
   version: 2
-  interfaces: ['--vdev=net_memif,role=client,socket=vpp/memif,socket-abstract=yes,zero-copy=no', 'dummy']
+  interfaces: ['--vdev=net_memif,role=client,socket=vpp/memif-eth0,socket-abstract=yes,zero-copy=no', 'dummy']
   c: 4
   port_info:
       - dest_mac: 02:00:00:00:00:02

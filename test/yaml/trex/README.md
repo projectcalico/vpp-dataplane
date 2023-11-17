@@ -4,7 +4,7 @@ Usage
 Deploy the yaml
 
 ```
-kubectl add ns trex
+kubectl create namespace trex
 kubectl apply -f test.yaml
 ```
 

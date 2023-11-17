@@ -7,7 +7,7 @@ metadata:
   name: testpmd
   namespace: testpmd
   annotations:
-    "cni.projectcalico.org/vppExtraMemifPorts":  "tcp:4444-20000,udp:4444-20000"
+    "cni.projectcalico.org/vppExtraMemifPorts": "tcp:4444-20000,udp:4444-20000"
 spec:
   containers:
   - name: testpmd
