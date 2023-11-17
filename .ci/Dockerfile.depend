@@ -11,7 +11,7 @@ RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     apt-utils wget cmake curl git
 
-ENV GOVERSION=1.20.7
+ENV GOVERSION=1.21.3
 ENV GOROOT="/root/.go"
 ENV GOPATH="/root/go"
 ENV PATH=$GOROOT/bin:$PATH
