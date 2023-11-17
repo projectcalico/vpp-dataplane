@@ -16,7 +16,7 @@ Calico/Vpp Multinet implementation is an attempt at fulfilling these requirement
 ### Network object
 
 With Calico/Vpp Multinet, we introduce a new Kubernetes resource (as a CRD), called `Network`. A `Network` is defined by a `vni` (Virtual Network Identifier) which allows to identify the network in the dataplane.
-It also contains a CIDR `range` that defines the IP addresses to assign to that network's pods. This optionally allows defining overlapping IP ranges for the different networks, provided the other selected components (ipam, etc…) allow this.
+It also contains a CIDR `range` that defines the IP addresses to assign to that network's pods. This optionally allows defining overlapping IP ranges for the different networks, provided the other selected components (ipam, etc…) allow this. We also have `physicalNetwokName` field that corresponds to the physical Network defined within the uplinks definition ([config.md](config.md#L48)). If none is defined you can keep an empty string. This allows to have separated networks that communicate using dedicated uplinks. We currently only support vxlan for secondary networks (more information in `Active developments`)
 
 ```yaml
 apiVersion: projectcalico.org/v3
@@ -26,6 +26,7 @@ metadata:
 spec:
   vni: 56
   range: "172.19.0.0/16"
+  physicalNetworkName: ""
 ```
 
 When a network is created, the `NetWatcher` component in the Calico/Vpp agent, will create a dedicated VRF in VPP to isolate the network’s routes.
@@ -168,6 +169,7 @@ Here is a link to a demo starring all these features.
 This feature is still a work in progress. Here are a list of the topics we are actively focusing on :
 - The encapsulation used for carrying the network identifier (VNI) between nodes defaults to VxLan, and expects the nodes to be connected with a single interface. We would like to give more flexibility to the cluster administrator here by making this part of the network specification.
 - We would like to allow the BGP peering of multiple networks, with exported routes carrying the network identifier (VNI) they belong to.
+- We do not support hostNetwork=true pod interfaces in multinet (secondary networks).
 - The resulting ip and route configuration in the pod needs some refinement as well :
   - Is there a default route, and if yes to which network ? Right now we kept the original behavior with a default route pointing to the default network.
   - How are serviceIPs routed within the pods ? The same question applies for DNS & service resolution in case the configurations differ between networks.
