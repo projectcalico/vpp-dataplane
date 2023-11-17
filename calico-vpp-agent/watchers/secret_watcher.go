@@ -146,7 +146,7 @@ func (sw *secretWatcher) GetSecret(name, key string) (string, error) {
 	}
 }
 
-func (sw *secretWatcher) OnAdd(obj interface{}) {
+func (sw *secretWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 	log.Debug("Secret added")
 	sw.updateSecret(obj.(*v1.Secret))
 	sw.client.OnSecretUpdate(nil, obj.(*v1.Secret))
