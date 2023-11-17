@@ -1,6 +1,14 @@
 
-TAG ?= v3.26.0
-CALICO_TAG ?= v3.26.0
+#
+# The generated yaml files are consumed by CI, dev and users.
+# - on the master branch of this repository TAG should be
+# 'latest' as this will be used by CI/dev which consume the latest
+#  master branch HEAD.
+#
+# - on release branches of this repository, used by the tigera docs
+# TAG should the latest release tag for calicovpp images
+#
+TAG ?= latest
 
 .PHONY: build
 build: clean
@@ -21,10 +29,7 @@ build: clean
 	kubectl kustomize overlays/test-vagrant-srv6-mounts        > /dev/null
 	kubectl kustomize overlays/test-vagrant-v6                 > /dev/null
 	kubectl kustomize overlays/test-vagrant-v6-mounts          > /dev/null
-	@sed -i.bak "s|:latest|:$(TAG)|g" generated/*.yaml
-	@rm -f generated/*.yaml.bak
-	@sed -i.bak "s|:master|:$(CALICO_TAG)|g" generated/*.yaml
-	@rm -f generated/*.yaml.bak
+	@sed -i "s|:latest|:$(TAG)|g" generated/*.yaml
 
 .PHONY: clean
 clean:
