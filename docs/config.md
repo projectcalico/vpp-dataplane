@@ -44,7 +44,8 @@ data:
           "interfaceName": "eth1",
           "vppDriver": "af_packet",
           "mtu": 1400,
-          "rxMode": "adaptive"
+          "rxMode": "adaptive",
+          "physicalNetworkName": ""
         }
       ]
     }
