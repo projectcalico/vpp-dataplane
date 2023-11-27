@@ -143,14 +143,14 @@ func (s *Server) GetLocalService(service *v1.Service, ep *v1.Endpoints) (localSe
 	clusterIP := net.ParseIP(service.Spec.ClusterIP)
 	nodeIP := s.getNodeIP(vpplink.IsIP6(clusterIP))
 	for _, servicePort := range service.Spec.Ports {
-		if !clusterIP.IsUnspecified() {
+		if !clusterIP.IsUnspecified() && len(clusterIP) > 0 {
 			entry := buildCnatEntryForServicePort(&servicePort, service, ep, clusterIP, false /* isNodePort */, *serviceSpec)
 			localService.Entries = append(localService.Entries, *entry)
 		}
 
 		for _, eip := range service.Spec.ExternalIPs {
 			extIP := net.ParseIP(eip)
-			if !extIP.IsUnspecified() {
+			if !extIP.IsUnspecified() && len(extIP) > 0 {
 				entry := buildCnatEntryForServicePort(&servicePort, service, ep, extIP, false /* isNodePort */, *serviceSpec)
 				localService.Entries = append(localService.Entries, *entry)
 				if IsLocalOnly(service) && len(entry.Backends) > 0 {
@@ -161,7 +161,7 @@ func (s *Server) GetLocalService(service *v1.Service, ep *v1.Endpoints) (localSe
 
 		for _, ingress := range service.Status.LoadBalancer.Ingress {
 			ingressIP := net.ParseIP(ingress.IP)
-			if !ingressIP.IsUnspecified() {
+			if !ingressIP.IsUnspecified() && len(ingressIP) > 0 {
 				entry := buildCnatEntryForServicePort(&servicePort, service, ep, ingressIP, false /* isNodePort */, *serviceSpec)
 				localService.Entries = append(localService.Entries, *entry)
 				if IsLocalOnly(service) && len(entry.Backends) > 0 {
@@ -171,7 +171,7 @@ func (s *Server) GetLocalService(service *v1.Service, ep *v1.Endpoints) (localSe
 		}
 
 		if service.Spec.Type == v1.ServiceTypeNodePort {
-			if !nodeIP.IsUnspecified() {
+			if !nodeIP.IsUnspecified() && len(nodeIP) > 0 {
 				entry := buildCnatEntryForServicePort(&servicePort, service, ep, nodeIP, true /* isNodePort */, *serviceSpec)
 				localService.Entries = append(localService.Entries, *entry)
 			}
@@ -181,7 +181,7 @@ func (s *Server) GetLocalService(service *v1.Service, ep *v1.Endpoints) (localSe
 		// Note: type=LoadBalancer only makes sense on cloud providers which support external load balancers and the actual
 		// creation of the load balancer happens asynchronously.
 		if service.Spec.Type == v1.ServiceTypeLoadBalancer && *service.Spec.AllocateLoadBalancerNodePorts {
-			if !nodeIP.IsUnspecified() {
+			if !nodeIP.IsUnspecified() && len(nodeIP) > 0 {
 				entry := buildCnatEntryForServicePort(&servicePort, service, ep, nodeIP, true /* isNodePort */, *serviceSpec)
 				localService.Entries = append(localService.Entries, *entry)
 			}
