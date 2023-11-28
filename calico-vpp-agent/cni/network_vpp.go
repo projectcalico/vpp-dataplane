@@ -210,15 +210,22 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 			goto err
 		}
 	} else {
+		pblswIfIndex, _ := podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
 		swIfIndex, isL3 = podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 		if swIfIndex != types.InvalidID {
 			s.log.Infof("pod(add) Default routes to swIfIndex=%d isL3=%t", swIfIndex, isL3)
-			err = s.RoutePodInterface(podSpec, stack, swIfIndex, isL3)
+			err = s.RoutePodInterface(podSpec, stack, swIfIndex, isL3, pblswIfIndex != types.InvalidID)
 			if err != nil {
 				goto err
 			}
 		} else {
 			s.log.Warn("No default if type for pod")
+		}
+		if pblswIfIndex != types.InvalidID {
+			err = s.CreateVRFRoutesToPod(podSpec, stack)
+			if err != nil {
+				goto err
+			}
 		}
 	}
 
@@ -321,16 +328,20 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 			s.RemovePuntRoutes(podSpec, podSpec.TunTapSwIfIndex)
 		}
 	} else {
-		swIfIndex, _ := podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
-		if swIfIndex != types.InvalidID {
-			s.log.Infof("pod(del) PBL routes to %d", swIfIndex)
-			s.UnroutePblPortsPodInterface(podSpec, swIfIndex)
+		pblswIfIndex, _ := podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
+		if pblswIfIndex != types.InvalidID {
+			s.DeleteVRFRoutesToPod(podSpec)
 		}
-		swIfIndex, _ = podSpec.GetParamsForIfType(podSpec.DefaultIfType)
+		swIfIndex, _ := podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 		if swIfIndex != types.InvalidID {
 			s.log.Infof("pod(del) default routes to %d", swIfIndex)
-			s.UnroutePodInterface(podSpec, swIfIndex)
+			s.UnroutePodInterface(podSpec, swIfIndex, pblswIfIndex != types.InvalidID)
 		}
+	}
+	pblswIfIndex, _ := podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
+	if pblswIfIndex != types.InvalidID {
+		s.log.Infof("pod(del) PBL routes to %d", pblswIfIndex)
+		s.UnroutePblPortsPodInterface(podSpec, pblswIfIndex)
 	}
 
 	/* RPF */

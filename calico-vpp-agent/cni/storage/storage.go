@@ -165,7 +165,7 @@ func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex u
 		if !*config.GetCalicoVppFeatureGates().MemifEnabled {
 			return types.InvalidID, true
 		}
-		return ps.MemifSwIfIndex, *ps.IfSpec.IsL3
+		return ps.MemifSwIfIndex, *ps.PBLMemifSpec.IsL3
 	default:
 		return types.InvalidID, true
 	}
