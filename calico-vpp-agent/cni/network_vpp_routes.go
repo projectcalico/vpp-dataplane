@@ -25,7 +25,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) error {
+func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool, inPodVrf bool) error {
 	for _, containerIP := range podSpec.GetContainerIps() {
 		var table uint32
 		if podSpec.NetworkName != "" {
@@ -39,6 +39,8 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 			} else {
 				table = value.(*watchers.NetworkDefinition).VRF.Tables[idx]
 			}
+		} else if inPodVrf {
+			table = podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP))
 		}
 		route := types.Route{
 			Dst: containerIP,
@@ -69,7 +71,7 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 	return nil
 }
 
-func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
+func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32, inPodVrf bool) {
 	for _, containerIP := range podSpec.GetContainerIps() {
 		var table uint32
 		if podSpec.NetworkName != "" {
@@ -83,6 +85,8 @@ func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex ui
 			} else {
 				table = value.(*watchers.NetworkDefinition).VRF.Tables[idx]
 			}
+		} else if inPodVrf {
+			table = podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP))
 		}
 		route := types.Route{
 			Dst: containerIP,
@@ -147,7 +151,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 				HardwareAddr: common.ContainerSideMacAddress,
 			})
 			if err != nil {
-				return errors.Wrapf(err, "Cannot adding neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
+				return errors.Wrapf(err, "Cannot add neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
 			}
 		}
 	}

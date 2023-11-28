@@ -238,7 +238,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					pblClientStr, err := vpp.RunCli("sh pbl client")
 					Expect(err).ToNot(HaveOccurred(), "failed to get PBL configuration")
 					pblClientStr = strings.ToLower(pblClientStr)
-					Expect(pblClientStr).To(ContainSubstring(fmt.Sprintf("pbl-client: %s clone:1", ipAddress)),
+					Expect(pblClientStr).To(ContainSubstring(fmt.Sprintf("pbl-client: %s clone:", ipAddress)),
 						"PBL doesn't clone the main interface traffic")
 					Expect(strings.Count(pblClientStr, "pbl-client")).To(Equal(2),
 						"got some missing pbl clients (one for main interface and one for memif)")
