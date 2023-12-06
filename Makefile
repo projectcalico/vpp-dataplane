@@ -193,8 +193,10 @@ release: check-TAG check-CALICO_TAG
 	git push origin $(TAG)
 	@echo
 	@echo "***IMPORTANT***IMPORTANT***IMPORTANT***IMPORTANT***"
-	@echo "Please update \"vppbranch\" in https://github.com/projectcalico/calico/blob/${CALICO_TAG}/calico/_config.yml to ${TAG} otherwise the install docs get broken."
-	@echo "Please update \"vppbranch\" in https://github.com/tigera/docs/blob/main/calico_versioned_docs/${CALICO_TAG}/variables.js to ${TAG} otherwise the install docs get broken."
+	@echo "In the tigera docs repo (https://github.com/tigera/docs), identify the directory for Calico version ${CALICO_TAG}"
+	@echo "and update the \"vppbranch\" variable to ${TAG} in the \"variables.js\" file in that directory. For example, for"
+	@echo "Calico version \"v3.27.0\", the directory would be \"calico_versioned_docs/version-3.27\". If this is not done,"
+	@echo "the install docs get broken!!"
 
 .PHONY: run-integration-tests
 run-integration-tests:
