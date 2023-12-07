@@ -305,7 +305,7 @@ func TruncateStr(text string, size int) string {
 
 func (ps *LocalPodSpec) GetVrfTag(ipFamily vpplink.IpFamily, custom string) string {
 	h := hash(fmt.Sprintf("%s%s%s%s", ipFamily.ShortStr, ps.NetnsName, ps.InterfaceName, custom))
-	s := fmt.Sprintf("%s-%s-%s-%s", h, ipFamily.ShortStr, ps.InterfaceName, filepath.Base(ps.NetnsName))
+	s := fmt.Sprintf("%s-%s-%s%s-%s", h, ipFamily.ShortStr, ps.InterfaceName, custom, filepath.Base(ps.NetnsName))
 	return TruncateStr(s, MaxApiTagLen)
 }
 
