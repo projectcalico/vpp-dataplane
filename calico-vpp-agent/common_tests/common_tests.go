@@ -128,7 +128,7 @@ func AssertRPFVRFExistence(vpp *vpplink.VppLink, interfaceName string, netnsName
 		"Failed to retrieve list of VRFs in VPP")
 	hbytes := sha512.Sum512([]byte(fmt.Sprintf("%s%s%s%s", "4", netnsName, interfaceName, "RPF")))
 	h := base64.StdEncoding.EncodeToString(hbytes[:])[:storage.VrfTagHashLen]
-	s := fmt.Sprintf("%s-%s-%s-%s", h, "4", interfaceName, filepath.Base(netnsName))
+	s := fmt.Sprintf("%s-%s-%sRPF-%s", h, "4", interfaceName, filepath.Base(netnsName))
 	vrfTag := storage.TruncateStr(s, storage.MaxApiTagLen)
 	foundRPFVRF := false
 	var vrfID uint32
