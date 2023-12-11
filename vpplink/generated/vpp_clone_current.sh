@@ -96,6 +96,8 @@ git_clone_cd_and_reset "$1" 7419bede7ad73544338fd4363da833b2d5fc89a5 # misc: Ini
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 git_cherry_pick refs/changes/07/39507/13 # 39507: cnat: add flow hash config to cnat translation | https://gerrit.fd.io/r/c/vpp/+/39507/13
+git_cherry_pick refs/changes/90/40090/3 # 40090: cnat: undo fib_entry_contribute_forwarding | https://gerrit.fd.io/r/c/vpp/+/40090
+git_cherry_pick refs/changes/78/40078/3 # 40078: vnet: allow format deleted swifidx | https://gerrit.fd.io/r/c/vpp/+/40078
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'

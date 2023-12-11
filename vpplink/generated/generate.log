@@ -1,11 +1,13 @@
-VPP Version                 : 24.02-rc0~6-g2be60e67d
+VPP Version                 : 24.02-rc0~8-gfc2d69296
 Binapi-generator version    : v0.8.0-dev
-VPP Base commit             : 2d0dac57e gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : f514c5ea5 gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:40078/3 vnet: allow format deleted swifidx
+gerrit:40090/3 cnat: undo fib_entry_contribute_forwarding
 gerrit:39507/13 cnat: add flow hash config to cnat translation
 gerrit:34726/3 interface: add buffer stats api
 -------------------------------------------------------------
