@@ -7,6 +7,32 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any `
 
 # Releases
 
+### Calico-VPP v3.27.0
+
+> 19th December 2023
+
+**Calico-VPP is now GA !**
+
+* New features:
+  - Lots of new documentation, take a look at [./docs](./docs)
+  - Added deployment guide for Openshift, multiple fixes
+  - Added support for v6 rules in BGPfilters
+  - uRPF fib tables are now named 'RPF'
+  - Added ``CALICOVPP_INITIAL_CONFIG`` option ``"redirectToHostRules"`` to redirect certain flows to the host instead of the uplink. This is needed for special cases (e.g. kind DNS) where you need to apply iptable rule to some control traffic.
+  - Implement dataplane service hashconfig parametrization
+  - vpp: upgrade to v24.02-rc0 (29 sept 23), Notable changes are
+    * a181eaa59 - virtio: add support for tx-queue-size
+    * 61ab09472 - dpdk: bump rdma-core to 46.1
+    * 442189849 - dpdk: bump to DPDK 23.07
+
+* Bug fixes:
+  - Allow simultaneous usage of memif (PBL) and VCL
+  - Fix nodeport service src NAT issue, we do need to src NAT nodeports when the service is not local
+  - Fix DNS support in kind adding custom redirect rules
+  - Fix vagrant yaml & flat mode
+  - Fix cnat checksum offload update issue
+  - Fix IPIP tunnel overlapping leading to traffic blackholing
+
 ### Calico-VPP v3.26.1
 
 > 18th December 2023
