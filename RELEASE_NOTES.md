@@ -7,6 +7,14 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any `
 
 # Releases
 
+### Calico-VPP v3.26.1
+
+> 18th December 2023
+
+* Bug fixes
+  - allow simultaneous usage of PBL and VCL
+  - Fix IPIP tunnel overlapping leading to traffic blackholing
+
 ### Calico-VPP v3.26.0
 
 > 19th June 2023
