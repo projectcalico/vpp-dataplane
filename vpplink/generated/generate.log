@@ -1,6 +1,6 @@
-VPP Version                 : 24.02-rc0~8-gfc2d69296
-Binapi-generator version    : v0.8.0-dev
-VPP Base commit             : f514c5ea5 gerrit:34726/3 interface: add buffer stats api
+VPP Version                 : 24.02-rc0~8-g9db45f6ae
+Binapi-generator version    : v0.8.0
+VPP Base commit             : 06efd532e gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
