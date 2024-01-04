@@ -24,7 +24,12 @@ RUN apt-get update \
 	nasm \
 	clang clang-format-11 \
 	enchant-2 \
-	libffi7
+	libffi7 \
+	libpam-cap tzdata libmaxminddb0  libbcg729-0 liblua5.2-0 libnl-genl-3-200 libsmi2ldbl libspandsp2 \
+	libspeexdsp1 libssh-gcrypt-4 libwireshark-data libc-ares2 libsbc1 libsnappy1v5 libwsutil13 \
+	libwiretap12  libwireshark15 libxslt1.1 python-babel-localedata python3-tz python3-babel \
+	python3-soupsieve python3-bs4 python3-webencodings python3-html5lib  python3-markupsafe python3-jinja2 \
+	python3-lxml  wireshark-common  tshark gcovr 
 
 WORKDIR /
 
