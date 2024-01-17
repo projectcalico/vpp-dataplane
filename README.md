@@ -20,7 +20,7 @@ In addition to that, the VPP Dataplane provides some additional features that ar
 - SRv6 is also supported for node to node transport 
 - Network intensive applications can also require [memif packet interfaces](https://s3-docs.fd.io/vpp/23.02/interfacing/libmemif/index.html) for optimized user-space networking.
 - Network intensive endpoint applications (using TCP, TLS, UDP, QUIC, ...) can consume the [VPP Hoststack](https://wiki.fd.io/view/VPP/HostStack) with the VPP Client Library [VCL](https://wiki.fd.io/view/VPP/HostStack/VCL)
-- Containerized network functions requiring multiple high speef interfaces can leverage [multinet](docs/multinet.md)
+- Containerized network functions requiring multiple high speed interfaces can leverage [multinet](docs/multinet.md)
 
 Finally, our goal is to make the deployment of Calico-VPP as simple as applying a YAML file through kubectl.
 
@@ -43,7 +43,7 @@ Before starting, make sure you've read [the Calico contributor guide](CONTRIBUTI
 
 You can follow the [guide to setup a kind based development cluster](docs/developper_guide.md)
 
-Or refer to the [developper documentation in this repository](docs)
+Or refer to the [developer documentation in this repository](docs)
 
 ## License
 
