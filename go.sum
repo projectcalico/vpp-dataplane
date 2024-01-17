@@ -620,8 +620,8 @@ github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6r
 github.com/boombuler/barcode v1.0.0/go.mod h1:paBWMcWSl3LHKBqUq+rly7CNSldXjb2rDl3JlRe0mD8=
 github.com/boombuler/barcode v1.0.1/go.mod h1:paBWMcWSl3LHKBqUq+rly7CNSldXjb2rDl3JlRe0mD8=
 github.com/buger/jsonparser v1.1.1/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx27UK13J/0=
-github.com/calico-vpp/vpplink v0.0.0-20230609075304-43385ab1325d h1:Qo6xAAO559D6ed4Ia94/W4HHic1Xz4twsjsAzYfDVYA=
-github.com/calico-vpp/vpplink v0.0.0-20230609075304-43385ab1325d/go.mod h1:9vsGRSF3JA/GHOWFpsDHPymmxBe633m/clCFIBL6cYU=
+github.com/calico-vpp/vpplink v0.0.0-20240117140938-62e485f48c6d h1:oHHDkYnkpI7yE/1wa/mtfDqUQqym2ioawuqMnBgc1jg=
+github.com/calico-vpp/vpplink v0.0.0-20240117140938-62e485f48c6d/go.mod h1:cMX7LjhqftdJ0IIZjsyfJ/p5mGOR1uiPZ7GXO6bOYL8=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/census-instrumentation/opencensus-proto v0.3.0/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/census-instrumentation/opencensus-proto v0.4.1 h1:iKLQ0xPNFxR/2hzXZMrBo8f1j86j5WHzznCCQxV/b8g=
@@ -1083,8 +1083,8 @@ go.etcd.io/etcd/client/pkg/v3 v3.5.10 h1:kfYIdQftBnbAq8pUWFXfpuuxFSKzlmM5cSn76JB
 go.etcd.io/etcd/client/pkg/v3 v3.5.10/go.mod h1:DYivfIviIuQ8+/lCq4vcxuseg2P2XbHygkKwFo9fc8U=
 go.etcd.io/etcd/client/v3 v3.5.10 h1:W9TXNZ+oB3MCd/8UjxHTWK5J9Nquw9fQBLJd5ne5/Ao=
 go.etcd.io/etcd/client/v3 v3.5.10/go.mod h1:RVeBnDz2PUEZqTpgqwAtUd8nAPf5kjyFyND7P1VkOKc=
-go.fd.io/govpp v0.8.0 h1:eUzJCM34Y528+gfcNxAzKu4cw3MdEk5z59wxVuI4+ck=
-go.fd.io/govpp v0.8.0/go.mod h1:nuMKRRm5/uknVTKrRDhncrNJu0F+1AjMxLuC/+g+Z1k=
+go.fd.io/govpp v0.10.0-alpha.0.20240110141843-761adec77524 h1:Dja0i7Ln/aUAc10VN4Pp3SibYTfNKS1CPkM5TSGL5jk=
+go.fd.io/govpp v0.10.0-alpha.0.20240110141843-761adec77524/go.mod h1:9QoqjEbvfuuXNfjHS0A7YS+7QQVVaQ9cMioOWpSM4rY=
 go.fd.io/govpp/extras v0.1.1-0.20230330140632-6a7dcb03934f h1:a39nZEScxex3OtY8LuEdLsV2YE+Zm0zhKoF2wMcQw54=
 go.fd.io/govpp/extras v0.1.1-0.20230330140632-6a7dcb03934f/go.mod h1:s2FPOGIWR+p3ItFhlC2Zgbw1U5HwZxNYLffeK8Ld/kE=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=

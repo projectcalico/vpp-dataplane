@@ -3,7 +3,7 @@ module github.com/projectcalico/vpp-dataplane/v3
 go 1.21
 
 require (
-	github.com/calico-vpp/vpplink v0.0.0-20230609075304-43385ab1325d
+	github.com/calico-vpp/vpplink v0.0.0-20240117140938-62e485f48c6d
 	github.com/census-instrumentation/opencensus-proto v0.4.1
 	github.com/containernetworking/plugins v1.3.0
 	github.com/gogo/protobuf v1.3.2
@@ -23,7 +23,7 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2.0.20230206183746-70ca0345eede
 	github.com/vishvananda/netns v0.0.4
 	github.com/yookoala/realpath v1.0.0
-	go.fd.io/govpp v0.8.0
+	go.fd.io/govpp v0.10.0-alpha.0.20240110141843-761adec77524
 	go.fd.io/govpp/extras v0.1.1-0.20230330140632-6a7dcb03934f
 	golang.org/x/net v0.18.0
 	golang.org/x/sys v0.15.0
