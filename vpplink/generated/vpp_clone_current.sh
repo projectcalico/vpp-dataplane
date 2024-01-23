@@ -95,6 +95,7 @@ function git_clone_cd_and_reset ()
 git_clone_cd_and_reset "$1" 2ae8f79b5087c8da7d30283693f22ca710a60347 # misc: Initial 23.10-rc0 commit
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
+git_cherry_pick refs/changes/44/40244/1 # 40244: udp: update rx sw_if_index to ip-local selected one | https://gerrit.fd.io/r/c/vpp/+/40244
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
