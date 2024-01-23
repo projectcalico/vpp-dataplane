@@ -25,7 +25,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "wireguard"
-	APIVersion = "0.3.0"
+	APIVersion = "1.3.0"
 	VersionCrc = 0x5d8f9252
 )
 

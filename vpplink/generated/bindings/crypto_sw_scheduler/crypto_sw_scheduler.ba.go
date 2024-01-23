@@ -19,7 +19,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "crypto_sw_scheduler"
-	APIVersion = "0.1.0"
+	APIVersion = "1.1.0"
 	VersionCrc = 0xf4b02951
 )
 

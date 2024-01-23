@@ -1,13 +1,64 @@
-VPP Version                 : 23.10-rc0~8-g97c83709b
+VPP Version                 : 24.02-rc0~186-g25f019a5f
 Binapi-generator version    : v0.8.0-dev
-VPP Base commit             : 7199f37dc gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : ac49cf920 docs: Remove references to vlan-strip-offload as it is deprecated
 ------------------ Cherry picked commits --------------------
 interface: Fix interface.api endianness
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
-gerrit:40078/3 vnet: allow format deleted swifidx
-gerrit:40090/3 cnat: undo fib_entry_contribute_forwarding
 gerrit:34726/3 interface: add buffer stats api
+cnat: undo fib_entry_contribute_forwarding
+dpdk: bump rdma-core to 49.0
+ipsec: allow receiving encrypted IP packets with TFC padding
+vppinfra : fix alignment issue
+dev: caps and rx/tx offload support
+dpdk: never override devname if set via config
+dpdk-cryptodev: fix crypto-dispatch node stats
+misc: fix tracedump `show graph` out-of-buffer
+crypto-ipsecmb: bump intel-ipsec-mb version to 1.5
+vnet: allow format deleted swifidx
+dpdk: bump to DPDK 23.11
+tests: tracedump test replace hardcoded value
+iavf: set max_pkt_size even for disabled queues to make i40e PF driver happy
+l2: resolve l2 rewrite entry 'hit_count' always being 0 bug
+http: fix coverity warning
+iavf: add missing cfg_change_validate callback
+iavf: workaround for case when PF driver sends zero for max_mtu
+dev: mark API handlers as thread safe
+session: no segment handle on worker del
+vcl: remove perror ldp call
+ipsec: should use praddr_ instead of pladdr_
+tests: Added tracedump plugin tests
+iavf: limit maximum number of queues to 32
+dev: use the endian reply macro
+hs-test: add http prom test
+session: no reply on app del worker with sapi
+vcl: fix init of ldp workers
+tcp: fix rxt send of new data assert
+pci: fix MSI-X vector length check
+tcp: allow unsent segments less than mss in recovery
+tcp: add counter for accepted connections
+session: fix asan failure
+tests: fix default node variant in tests
+tests: Added NSIM plugin tests
+tests: refactor pcap file deletion to improve robustness
+fib: fix fib_path_create() with drop targets
+tests: Excluded some components from LCOV
+bfd: fix buffer leak when cannot send periodic packets
+tcp: allow multiple rxt rescues during recovery
+dev: initial set of APIs
+dev: fix null dereference of arg list
+avf: put sentinel at correct place
+session: per app wrk client ct segment handle
+virtio: fix cli parsing for tx-queue-size
+session: add session lookup cli for stats
+dpdk: fix description for mlx5_pci driver
+session: always clear rx evt flag on ntf
+ipsec: keep esp encrypt pointer and index synced
+dev: startup.conf handling improvements
+dev: device and port specific args
+dhcp: api to enable client detect on interface
+misc: VPP 23.10 Release Notes
+docs: Remove references to vlan-strip-offload as it is deprecated
 -------------------------------------------------------------
