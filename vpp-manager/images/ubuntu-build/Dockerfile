@@ -27,7 +27,8 @@ RUN apt-get update \
     libssl-dev \
     clang clang-format-11 \
 	libffi7 \
-	enchant-2
+	enchant-2 \
+	tshark
 
 WORKDIR /
 
