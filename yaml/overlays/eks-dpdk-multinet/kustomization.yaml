@@ -1,0 +1,4 @@
+resources:
+- ../eks-dpdk
+components:
+- ../../components/multinet
