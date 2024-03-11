@@ -1,0 +1,4 @@
+resources:
+- ../eks
+components:
+- ../../components/multinet
