@@ -178,17 +178,11 @@ This feature is still a work in progress. Here are a list of the topics we are a
 ## Testing multinet feature
 
 ### Installing dependencies
-#### Installing network CRD
 
 ````yaml
 kubectl apply -f test/yaml/multinet/projectcalico.org_networks.yaml
 kubectl apply -f test/yaml/multinet/whereabouts-daemonset-install.yaml
-````
-
-#### Installing multus deamonset
-
-````yaml
-kubectl apply -f https://github.com/k8snetworkplumbingwg/multus-cni/raw/99c4481e08a4a8f0a3d0013446f03e4206033cae/deployments/multus-daemonset-thick.yml
+kubectl apply -f test/yaml/multinet/multus-daemonset-thick.yaml
 kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
 kubectl apply -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
 ````
