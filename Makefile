@@ -182,7 +182,9 @@ release: check-TAG check-CALICO_TAG
 	git push origin $(basename $(TAG))
 	# Generate yaml file for this release
 	sed -i.bak "s|:latest|:$(TAG)|g" yaml/base/calico-vpp-daemonset.yaml
+	sed -i.bak "s|:latest|:$(TAG)|g" yaml/components/multinet/multinet.yaml
 	rm yaml/base/calico-vpp-daemonset.yaml.bak
+	rm yaml/components/multinet/multinet.yaml.bak
 	$(MAKE) -C yaml
 	git checkout -b release/$(TAG)
 	git add yaml
