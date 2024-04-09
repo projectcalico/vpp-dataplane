@@ -1713,29 +1713,83 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 	return nil
 }
 
+// createFailSafePolicies ensures the failsafe policies defined in the Felixconfiguration exist in VPP.
+// check https://github.com/projectcalico/calico/blob/master/felix/rules/static.go :: failsafeInChain for the linux implementation
+// To be noted. This does not implement the doNotTrack case as we do not yet support doNotTrack policies.
 func (s *Server) createFailSafePolicies() (err error) {
 	failSafePol := &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
 	}
 
-	var failSafeInboundRules, failSafeOutboundRules []*Rule
 	if len(s.felixConfig.FailsafeInboundHostPorts) != 0 {
-		failSafeInboundRules, err = getfailSafeRules(s.felixConfig.FailsafeInboundHostPorts)
-		if err != nil {
-			return err
+		for _, protoPort := range s.felixConfig.FailsafeInboundHostPorts {
+			protocol, err := parseProtocol(&proto.Protocol{NumberOrName: &proto.Protocol_Name{Name: protoPort.Protocol}})
+			if err != nil {
+				s.log.WithError(err).Error("Failed to parse protocol in inbound failsafe rule. Skipping failsafe rule")
+				continue
+			}
+			rule := &Rule{
+				VppID:  types.InvalidID,
+				RuleID: fmt.Sprintf("failsafe-in-%s-%s-%d", protoPort.Net, protoPort.Protocol, protoPort.Port),
+				Rule: &types.Rule{
+					Action: types.ActionAllow,
+					// Ports are always filtered on the destination of packets
+					DstPortRange: []types.PortRange{{First: protoPort.Port, Last: protoPort.Port}},
+					Filters: []types.RuleFilter{{
+						ShouldMatch: true,
+						Type:        types.CapoFilterProto,
+						Value:       int(protocol),
+					}},
+				},
+			}
+			if protoPort.Net != "" {
+				_, protoPortNet, err := net.ParseCIDR(protoPort.Net)
+				if err != nil {
+					s.log.WithError(err).Error("Failed to parse CIDR in inbound failsafe rule. Skipping failsafe rule")
+					continue
+				}
+				// Inbound packets are checked for where they come FROM
+				rule.Rule.SrcNet = append(rule.Rule.SrcNet, *protoPortNet)
+			}
+			failSafePol.InboundRules = append(failSafePol.InboundRules, rule)
 		}
 	}
 
 	if len(s.felixConfig.FailsafeOutboundHostPorts) != 0 {
-		failSafeOutboundRules, err = getfailSafeRules(s.felixConfig.FailsafeOutboundHostPorts)
-		if err != nil {
-			return err
+		for _, protoPort := range s.felixConfig.FailsafeOutboundHostPorts {
+			protocol, err := parseProtocol(&proto.Protocol{NumberOrName: &proto.Protocol_Name{Name: protoPort.Protocol}})
+			if err != nil {
+				s.log.WithError(err).Error("Failed to parse protocol in outbound failsafe rule. Skipping failsafe rule")
+				continue
+			}
+			rule := &Rule{
+				VppID:  types.InvalidID,
+				RuleID: fmt.Sprintf("failsafe-out-%s-%s-%d", protoPort.Net, protoPort.Protocol, protoPort.Port),
+				Rule: &types.Rule{
+					Action: types.ActionAllow,
+					// Ports are always filtered on the destination of packets
+					DstPortRange: []types.PortRange{{First: protoPort.Port, Last: protoPort.Port}},
+					Filters: []types.RuleFilter{{
+						ShouldMatch: true,
+						Type:        types.CapoFilterProto,
+						Value:       int(protocol),
+					}},
+				},
+			}
+			if protoPort.Net != "" {
+				_, protoPortNet, err := net.ParseCIDR(protoPort.Net)
+				if err != nil {
+					s.log.WithError(err).Error("Failed to parse CIDR in outbound failsafe rule. Skipping failsafe rule")
+					continue
+				}
+				// Outbound packets are checked for where they go TO
+				rule.Rule.DstNet = append(rule.Rule.DstNet, *protoPortNet)
+			}
+			failSafePol.OutboundRules = append(failSafePol.OutboundRules, rule)
 		}
 	}
 
-	failSafePol.InboundRules = failSafeInboundRules
-	failSafePol.OutboundRules = failSafeOutboundRules
 	if s.failSafePolicy == nil {
 		err = failSafePol.Create(s.vpp, nil)
 
@@ -1749,47 +1803,4 @@ func (s *Server) createFailSafePolicies() (err error) {
 	s.failSafePolicy = failSafePol
 	s.log.Infof("Created failsafe policy with ID %+v", s.failSafePolicy.VppID)
 	return nil
-}
-
-func getProtocolRules(protocolName string, failSafe []felixConfig.ProtoPort) (*Rule, error) {
-	portRanges := []types.PortRange{}
-
-	for _, protoPort := range failSafe {
-		if protoPort.Protocol == protocolName {
-			portRanges = append(portRanges, types.PortRange{
-				First: protoPort.Port,
-				Last:  protoPort.Port,
-			})
-		}
-	}
-	protocol, err := parseProtocol(&proto.Protocol{NumberOrName: &proto.Protocol_Name{Name: protocolName}})
-	if err != nil {
-		return nil, err
-	}
-	r_failsafe := &Rule{
-		VppID:  types.InvalidID,
-		RuleID: "failsafe" + protocolName,
-		Rule: &types.Rule{
-			Action:       types.ActionAllow,
-			DstPortRange: portRanges,
-			Filters: []types.RuleFilter{{
-				ShouldMatch: true,
-				Type:        types.CapoFilterProto,
-				Value:       int(protocol),
-			}},
-		},
-	}
-	return r_failsafe, nil
-}
-
-func getfailSafeRules(failSafe []felixConfig.ProtoPort) ([]*Rule, error) {
-	r_failsafe_tcp, err := getProtocolRules("tcp", failSafe)
-	if err != nil {
-		return nil, errors.Errorf("failsafe has wrong format")
-	}
-	r_failsafe_udp, err := getProtocolRules("udp", failSafe)
-	if err != nil {
-		return nil, errors.Errorf("failsafe has wrong format")
-	}
-	return []*Rule{r_failsafe_tcp, r_failsafe_udp}, nil
 }
