@@ -848,7 +848,6 @@ func (v *VppRunner) runVpp() (err error) {
 	v.vpp = vpp
 	if err != nil {
 		terminateVpp("Error connecting to VPP: %v", err)
-		v.vpp.Close()
 		<-vppDeadChan
 		return fmt.Errorf("cannot connect to VPP after 10 tries")
 	}
