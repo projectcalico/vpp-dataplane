@@ -21,7 +21,7 @@ spec:
     spec:
       initContainers:
         - name: install-whereabouts
-          image: docker.io/calicovpp/install-whereabouts:latest
+          image: docker.io/calicovpp/install-whereabouts:v3.28.0
           command: ["/entrypoint"]
           volumeMounts:
             - mountPath: /host/opt/cni/bin
