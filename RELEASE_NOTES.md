@@ -7,6 +7,29 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any `
 
 # Releases
 
+### Calico-VPP v3.28.0
+
+> 31st May 2024
+
+* New features:
+  - Support using cidrs when setting failsafepolicies in felixconfig
+  - Upgrade vpp to 24.02-rc0~186 which contains several bugfixes and the following features:
+    * b1a1209ce dpdk: bump rdma-core to 49.0
+    * 327c32306 dpdk: bump to DPDK 23.11
+    * 006c071b0 dpdk: add Mellanox BlueField NICs
+    * 029f039d5 dpdk: add ConnectX-6LX and ConnectX-7 support
+    * 2d725c612 ena: Amazon Elastic Network Adapter (ENA) native driver
+    * 67f03ba71 iavf: interrupt mode support
+    * 47447f1f5 iavf: new driver using new dev infra
+    * 29d07dbef af_packet: remove UNIX_FILE_EVENT_EDGE_TRIGGERED flag
+    * 7f75e80f0 vppinfra: refactor interrupt code
+    * ddf6cec37 dev: initial set of APIs
+    * b8dd9815e dev: interrupt mode support
+
+* Bug fixes:
+  - vpp: include udp rx swifindex fix
+  - update govpp dependancy to include memory leak fix
+
 ### Calico-VPP v3.27.0
 
 > 19th December 2023
