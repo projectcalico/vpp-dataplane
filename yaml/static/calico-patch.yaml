@@ -1,0 +1,83 @@
+# calico-config configmap changes
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-config
+  namespace: kube-system
+data:
+  calico_backend: "none"
+  cni_network_config: |-
+    {
+      "name": "k8s-pod-network",
+      "cniVersion": "0.3.1",
+      "plugins": [
+        {
+          "type": "calico",
+          "log_level": "debug",
+          "datastore_type": "kubernetes",
+          "nodename": "__KUBERNETES_NODE_NAME__",
+          "mtu": __CNI_MTU__,
+          "ipam": {
+              "type": "calico-ipam"
+          },
+          "policy": {
+              "type": "k8s"
+          },
+          "kubernetes": {
+              "kubeconfig": "__KUBECONFIG_FILEPATH__"
+          },
+          "dataplane_options": {
+            "type": "grpc",
+            "socket": "unix:///var/run/calico/cni-server.sock"
+          }
+        },
+        {
+          "type": "portmap",
+          "snat": true,
+          "capabilities": {"portMappings": true}
+        }
+      ]
+    }
+
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-node
+  namespace: kube-system
+  labels:
+    k8s-app: calico-node
+spec:
+  template:
+    spec:
+      containers:
+        - name: calico-node
+          env:
+            - name: FELIX_USEINTERNALDATAPLANEDRIVER
+              value: "false"
+            - name: FELIX_DATAPLANEDRIVER
+              value: /usr/local/bin/felix-plugins/felix-api-proxy
+            - name: FELIX_XDPENABLED
+              value: "false"
+            # Cluster type to identify the deployment type
+            - name: CLUSTER_TYPE
+              value: "k8s,bgp,vpp"
+          # Remove bird from liveness and readiness probes
+          livenessProbe:
+            exec:
+              command:
+              - /bin/calico-node
+              - -felix-live
+          readinessProbe:
+            exec:
+              command:
+              - /bin/calico-node
+              - -felix-ready
+          volumeMounts:
+            - mountPath: /usr/local/bin/felix-plugins
+              name: felix-plugins
+              readOnly: true
+      volumes:
+        - name: felix-plugins
+          hostPath:
+            path: /var/lib/calico/felix-plugins
