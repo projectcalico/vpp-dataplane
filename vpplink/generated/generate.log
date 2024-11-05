@@ -1,11 +1,19 @@
-VPP Version                 : 24.02-rc0~186-g7dcba520c
+VPP Version                 : 24.10.0-7~g2517ec5e9
 Binapi-generator version    : v0.10.0-dev
-VPP Base commit             : eae5a2e91 gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : b91e15387 misc: Initial changes for stable/2410 branch
 ------------------ Cherry picked commits --------------------
+ip: add support for checksum in IP midchain
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
-gerrit:40244/1 udp: update rx sw_if_index to ip-local selected one
+gerrit:revert:39675/5 Revert "ip-neighbor: do not use sas to determine NS source address"
 gerrit:34726/3 interface: add buffer stats api
+misc: VPP 24.10 Release Notes
+build: fix dpdk mellanox driver build setting
+octeon: fix pause flow control for lbk/sdp devices
+octeon: enable h/w vlan tagging support
+vppinfra: exclude clib_dt_node_add_child on FreeBSD
+dpdk: Enable dpdk build on FreeBSD
+misc: Initial changes for stable/2410 branch
 -------------------------------------------------------------

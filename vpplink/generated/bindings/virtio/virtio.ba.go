@@ -39,6 +39,7 @@ const (
 	VIRTIO_API_FLAG_PACKED       VirtioFlags = 8
 	VIRTIO_API_FLAG_IN_ORDER     VirtioFlags = 16
 	VIRTIO_API_FLAG_BUFFERING    VirtioFlags = 32
+	VIRTIO_API_FLAG_RSS          VirtioFlags = 64
 )
 
 var (
@@ -49,6 +50,7 @@ var (
 		8:  "VIRTIO_API_FLAG_PACKED",
 		16: "VIRTIO_API_FLAG_IN_ORDER",
 		32: "VIRTIO_API_FLAG_BUFFERING",
+		64: "VIRTIO_API_FLAG_RSS",
 	}
 	VirtioFlags_value = map[string]uint32{
 		"VIRTIO_API_FLAG_GSO":          1,
@@ -57,6 +59,7 @@ var (
 		"VIRTIO_API_FLAG_PACKED":       8,
 		"VIRTIO_API_FLAG_IN_ORDER":     16,
 		"VIRTIO_API_FLAG_BUFFERING":    32,
+		"VIRTIO_API_FLAG_RSS":          64,
 	}
 )
 
