@@ -23,12 +23,13 @@ RUN apt-get update \
 	nasm \
 	iperf ethtool \
 	libpcap-dev \
-    python3-virtualenv \
-    libssl-dev \
-    clang clang-format-11 \
+	python3-virtualenv \
+	libssl-dev \
+	clang clang-format-11 \
 	libffi7 \
 	enchant-2 \
-	tshark
+	tshark \
+	libllvm15 libclang-cpp15 clang-format-15 libonig5 libjq1 jq libunwind8 liblzma-dev libunwind-dev
 
 WORKDIR /
 

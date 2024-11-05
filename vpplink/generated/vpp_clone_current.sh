@@ -92,10 +92,14 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-git_clone_cd_and_reset "$1" 2ae8f79b5087c8da7d30283693f22ca710a60347 # cnat: undo fib_entry_contribute_forwarding
+# VPP 24.10 released on 30/Oct/2024
+git_clone_cd_and_reset "$1" cfa0953251cbab435307baf3dcd249fd95afaf1f # misc: VPP 24.10 Release Notes
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
-git_cherry_pick refs/changes/44/40244/1 # 40244: udp: update rx sw_if_index to ip-local selected one | https://gerrit.fd.io/r/c/vpp/+/40244
+
+# This is the commit which broke IPv6 from v3.28.0 onwards.
+git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine NS source address
+
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
@@ -103,3 +107,4 @@ git_apply_private 0001-pbl-Port-based-balancer.patch
 git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
 git_apply_private 0004-capo-Calico-Policies-plugin.patch
+git_apply_private 0005-partial-revert-arthur-gso.patch

@@ -5,7 +5,7 @@
 // Contents:
 // -  3 enums
 // -  7 structs
-// - 93 messages
+// - 95 messages
 package ip
 
 import (
@@ -29,7 +29,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip"
 	APIVersion = "3.2.0"
-	VersionCrc = 0xbd2f873b
+	VersionCrc = 0x4645df38
 )
 
 // IPReassType defines enum 'ip_reass_type'.
@@ -3774,6 +3774,93 @@ func (m *IPTableAddDelReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Add / del table request - version 2
+//
+//	       A table can be added multiple times, but need be deleted only once.
+//	- table - the FIB table to add or del
+//	- create_mfib - whether to create mfib or not
+//	- is_add - add or del
+//
+// IPTableAddDelV2 defines message 'ip_table_add_del_v2'.
+type IPTableAddDelV2 struct {
+	Table      IPTable `binapi:"ip_table,name=table" json:"table,omitempty"`
+	CreateMfib bool    `binapi:"bool,name=create_mfib,default=true" json:"create_mfib,omitempty"`
+	IsAdd      bool    `binapi:"bool,name=is_add,default=true" json:"is_add,omitempty"`
+}
+
+func (m *IPTableAddDelV2) Reset()               { *m = IPTableAddDelV2{} }
+func (*IPTableAddDelV2) GetMessageName() string { return "ip_table_add_del_v2" }
+func (*IPTableAddDelV2) GetCrcString() string   { return "14e5081f" }
+func (*IPTableAddDelV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *IPTableAddDelV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4  // m.Table.TableID
+	size += 1  // m.Table.IsIP6
+	size += 64 // m.Table.Name
+	size += 1  // m.CreateMfib
+	size += 1  // m.IsAdd
+	return size
+}
+func (m *IPTableAddDelV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.Table.TableID)
+	buf.EncodeBool(m.Table.IsIP6)
+	buf.EncodeString(m.Table.Name, 64)
+	buf.EncodeBool(m.CreateMfib)
+	buf.EncodeBool(m.IsAdd)
+	return buf.Bytes(), nil
+}
+func (m *IPTableAddDelV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Table.TableID = buf.DecodeUint32()
+	m.Table.IsIP6 = buf.DecodeBool()
+	m.Table.Name = buf.DecodeString(64)
+	m.CreateMfib = buf.DecodeBool()
+	m.IsAdd = buf.DecodeBool()
+	return nil
+}
+
+// IPTableAddDelV2Reply defines message 'ip_table_add_del_v2_reply'.
+type IPTableAddDelV2Reply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *IPTableAddDelV2Reply) Reset()               { *m = IPTableAddDelV2Reply{} }
+func (*IPTableAddDelV2Reply) GetMessageName() string { return "ip_table_add_del_v2_reply" }
+func (*IPTableAddDelV2Reply) GetCrcString() string   { return "e8d4e804" }
+func (*IPTableAddDelV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *IPTableAddDelV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *IPTableAddDelV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *IPTableAddDelV2Reply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // Allocate an unused table
 //
 //	         A table can be added multiple times.
@@ -5000,6 +5087,8 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IPSourceAndPortRangeCheckInterfaceAddDelReply)(nil), "ip_source_and_port_range_check_interface_add_del_reply_e8d4e804")
 	api.RegisterMessage((*IPTableAddDel)(nil), "ip_table_add_del_0ffdaec0")
 	api.RegisterMessage((*IPTableAddDelReply)(nil), "ip_table_add_del_reply_e8d4e804")
+	api.RegisterMessage((*IPTableAddDelV2)(nil), "ip_table_add_del_v2_14e5081f")
+	api.RegisterMessage((*IPTableAddDelV2Reply)(nil), "ip_table_add_del_v2_reply_e8d4e804")
 	api.RegisterMessage((*IPTableAllocate)(nil), "ip_table_allocate_b9d2e09e")
 	api.RegisterMessage((*IPTableAllocateReply)(nil), "ip_table_allocate_reply_1728303a")
 	api.RegisterMessage((*IPTableDetails)(nil), "ip_table_details_c79fca0f")
@@ -5098,6 +5187,8 @@ func AllMessages() []api.Message {
 		(*IPSourceAndPortRangeCheckInterfaceAddDelReply)(nil),
 		(*IPTableAddDel)(nil),
 		(*IPTableAddDelReply)(nil),
+		(*IPTableAddDelV2)(nil),
+		(*IPTableAddDelV2Reply)(nil),
 		(*IPTableAllocate)(nil),
 		(*IPTableAllocateReply)(nil),
 		(*IPTableDetails)(nil),
