@@ -178,13 +178,21 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 				}
 				switch update.Type {
 				case watch.Added:
-					net := update.Object.(*networkv3.Network)
+					net, ok := update.Object.(*networkv3.Network)
+					if !ok {
+						w.log.Errorf("update.Object is not *networkv3.Network, %v", net)
+						continue
+					}
 					err := w.OnNetAdded(net)
 					if err != nil {
 						w.log.Error(err)
 					}
 				case watch.Deleted:
-					oldNet := update.Object.(*networkv3.Network)
+					oldNet, ok := update.Object.(*networkv3.Network)
+					if !ok {
+						w.log.Errorf("update.Object is not *networkv3.Network, %v", update.Object)
+						continue
+					}
 					err := w.OnNetDeleted(oldNet.Name)
 					if err != nil {
 						w.log.Error(err)
@@ -203,13 +211,21 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 				}
 				switch update.Type {
 				case watch.Added:
-					nad := update.Object.(*netv1.NetworkAttachmentDefinition)
+					nad, ok := update.Object.(*netv1.NetworkAttachmentDefinition)
+					if !ok {
+						w.log.Errorf("update.Object is not *NetworkAttachmentDefinition, %v", update.Object)
+						continue
+					}
 					err := w.onNadAdded(nad)
 					if err != nil {
 						w.log.Error(err)
 					}
 				case watch.Deleted:
-					nad := update.Object.(*netv1.NetworkAttachmentDefinition)
+					nad, ok := update.Object.(*netv1.NetworkAttachmentDefinition)
+					if !ok {
+						w.log.Errorf("update.Object is not *NetworkAttachmentDefinition, %v", update.Object)
+						continue
+					}
 					err := w.onNadDeleted(nad)
 					if err != nil {
 						w.log.Error(err)

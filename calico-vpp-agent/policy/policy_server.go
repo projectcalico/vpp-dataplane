@@ -336,13 +336,22 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 	/* Note: we will only receive events we ask for when registering the chan */
 	switch evt.Type {
 	case common.NetAddedOrUpdated:
-		netDef := evt.New.(*watchers.NetworkDefinition)
+		netDef, ok := evt.New.(*watchers.NetworkDefinition)
+		if !ok {
+			return fmt.Errorf("evt.New is not a (*watchers.NetworkDefinition) %v", evt.New)
+		}
 		s.networkDefinitions[netDef.Name] = netDef
 	case common.NetDeleted:
-		netDef := evt.Old.(*watchers.NetworkDefinition)
+		netDef, ok := evt.Old.(*watchers.NetworkDefinition)
+		if !ok {
+			return fmt.Errorf("evt.Old is not a (*watchers.NetworkDefinition) %v", evt.Old)
+		}
 		delete(s.networkDefinitions, netDef.Name)
 	case common.PodAdded:
-		podSpec := evt.New.(*storage.LocalPodSpec)
+		podSpec, ok := evt.New.(*storage.LocalPodSpec)
+		if !ok {
+			return fmt.Errorf("evt.New is not a (*storage.LocalPodSpec) %v", evt.New)
+		}
 		swIfIndex := podSpec.TunTapSwIfIndex
 		if swIfIndex == vpplink.InvalidID {
 			swIfIndex = podSpec.MemifSwIfIndex
@@ -354,7 +363,10 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 			Network:        podSpec.NetworkName,
 		}, swIfIndex, podSpec.InterfaceName, podSpec.GetContainerIps())
 	case common.PodDeleted:
-		podSpec := evt.Old.(*storage.LocalPodSpec)
+		podSpec, ok := evt.Old.(*storage.LocalPodSpec)
+		if !ok {
+			return fmt.Errorf("evt.Old is not a (*storage.LocalPodSpec) %v", evt.Old)
+		}
 		if podSpec != nil {
 			s.WorkloadRemoved(&WorkloadEndpointID{
 				OrchestratorID: podSpec.OrchestratorID,
@@ -364,7 +376,10 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 			}, podSpec.GetContainerIps())
 		}
 	case common.TunnelAdded:
-		swIfIndex := evt.New.(uint32)
+		swIfIndex, ok := evt.New.(uint32)
+		if !ok {
+			return fmt.Errorf("evt.New not a uint32 %v", evt.New)
+		}
 
 		s.tunnelSwIfIndexesLock.Lock()
 		s.tunnelSwIfIndexes[swIfIndex] = true
@@ -388,7 +403,10 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 	case common.TunnelDeleted:
 		var pending bool
 
-		swIfIndex := evt.Old.(uint32)
+		swIfIndex, ok := evt.Old.(uint32)
+		if !ok {
+			return fmt.Errorf("evt.Old not a uint32 %v", evt.Old)
+		}
 
 		s.tunnelSwIfIndexesLock.Lock()
 		delete(s.tunnelSwIfIndexes, swIfIndex)

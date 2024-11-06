@@ -182,7 +182,10 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 	} else if p.isSRv6TunnelInfoFromBGP(cn) && cn.Custom != nil { // getting SRv6 tunnel data from BGP
 
 		// storing info in nodePolices
-		policyData := cn.Custom.(*common.SRv6Tunnel)
+		policyData, ok := cn.Custom.(*common.SRv6Tunnel)
+		if !ok {
+			return fmt.Errorf("cn.Custom is not a (*common.SRv6Tunnel) %v", cn.Custom)
+		}
 		nodeip = policyData.Dst.String()
 		if p.nodePolices[policyData.Dst.String()] == nil {
 			p.nodePolices[policyData.Dst.String()] = &NodeToPolicies{

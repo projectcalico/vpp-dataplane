@@ -126,8 +126,16 @@ func (w *PrefixWatcher) getAssignedPrefixes() ([]string, error) {
 		}
 		for _, block := range blockList.KVPairs {
 			w.log.Debugf("Found assigned prefix: %+v", block)
-			key := block.Key.(model.BlockAffinityKey)
-			value := block.Value.(*model.BlockAffinity)
+			key, ok := block.Key.(model.BlockAffinityKey)
+			if !ok {
+				w.log.Errorf("block.Key is not a model.BlockAffinity %v", block.Key)
+				continue
+			}
+			value, ok := block.Value.(*model.BlockAffinity)
+			if !ok {
+				w.log.Errorf("block.Value is not a model.BlockAffinity %v", block.Value)
+				continue
+			}
 			if value.State == model.StateConfirmed && !value.Deleted {
 				ps = append(ps, key.CIDR.String())
 			}

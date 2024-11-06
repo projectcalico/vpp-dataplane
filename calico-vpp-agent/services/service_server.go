@@ -16,6 +16,7 @@
 package services
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -195,7 +196,10 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 			DeleteFunc: func(obj interface{}) {
 				service, ok := obj.(*v1.Service)
 				if !ok {
-					service = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Service)
+					service, ok = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Service)
+					if !ok {
+						panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Service) %v", obj))
+					}
 				}
 				server.deleteServiceByName(serviceID(&service.ObjectMeta))
 			},
@@ -220,7 +224,10 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 			DeleteFunc: func(obj interface{}) {
 				ep, ok := obj.(*v1.Endpoints)
 				if !ok {
-					ep = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Endpoints)
+					ep, ok = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Endpoints)
+					if !ok {
+						panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Endpoints) %v", obj))
+					}
 				}
 				server.deleteServiceByName(serviceID(&ep.ObjectMeta))
 			},
