@@ -310,24 +310,12 @@ type CalicoVppFeatureGatesConfigType struct {
 }
 
 func (self *CalicoVppFeatureGatesConfigType) Validate() (err error) {
-	/* disable by default as it might impact security */
-	if self.MemifEnabled == nil {
-		self.MemifEnabled = &False
-	}
-	if self.VCLEnabled == nil {
-		self.VCLEnabled = &False
-	}
-	if self.MultinetEnabled == nil {
-		self.MultinetEnabled = &False
-	}
-
-	if self.SRv6Enabled == nil {
-		self.SRv6Enabled = &False
-	}
-	if self.IPSecEnabled == nil {
-		self.IPSecEnabled = &False
-	}
-	return
+	self.MemifEnabled = DefaultToPtr(self.MemifEnabled, true)
+	self.VCLEnabled = DefaultToPtr(self.VCLEnabled, false)
+	self.MultinetEnabled = DefaultToPtr(self.MultinetEnabled, false)
+	self.SRv6Enabled = DefaultToPtr(self.SRv6Enabled, false)
+	self.IPSecEnabled = DefaultToPtr(self.IPSecEnabled, false)
+	return nil
 }
 
 func (self *CalicoVppFeatureGatesConfigType) String() string {
@@ -358,9 +346,7 @@ func (self *CalicoVppIpsecConfigType) GetIpsecNbAsyncCryptoThread() int {
 }
 
 func (self *CalicoVppIpsecConfigType) Validate() (err error) {
-	if self.CrossIpsecTunnels == nil {
-		self.CrossIpsecTunnels = &False
-	}
+	self.CrossIpsecTunnels = DefaultToPtr(self.CrossIpsecTunnels, false)
 	return
 }
 
@@ -717,4 +703,11 @@ func PrintAgentConfig(log *logrus.Logger) {
 		log.Infof("Version info\n%s", versionFileStr)
 	}
 	PrintEnvVarConfig(log)
+}
+
+func DefaultToPtr[T any](ptr *T, defaultV T) *T {
+	if ptr == nil {
+		return &defaultV
+	}
+	return ptr
 }
