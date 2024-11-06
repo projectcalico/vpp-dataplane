@@ -19,9 +19,11 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 func NewK8SClient(timeout time.Duration, addToSchemes []func(s *runtime.Scheme) error) (*client.WithWatch, error) {
@@ -35,12 +37,19 @@ func NewK8SClient(timeout time.Duration, addToSchemes []func(s *runtime.Scheme) 
 		return nil, err
 	}
 
-	mapper, err := apiutil.NewDiscoveryRESTMapper(config)
+	dc, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	gr, err := restmapper.GetAPIGroupResources(dc)
 	if err != nil {
 		return nil, err
 	}
 
-	k8sClient, err := client.NewWithWatch(config, client.Options{Scheme: scheme, Mapper: mapper})
+	k8sClient, err := client.NewWithWatch(config, client.Options{
+		Scheme: scheme,
+		Mapper: restmapper.NewDiscoveryRESTMapper(gr),
+	})
 	if err != nil {
 		return nil, err
 	}
