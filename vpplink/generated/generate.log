@@ -1,5 +1,5 @@
-VPP Version                 : 24.10.0-7~g2517ec5e9
-Binapi-generator version    : v0.10.0-dev
+VPP Version                 : 24.10.0-7~ga51f8b435
+Binapi-generator version    : v0.11.0
 VPP Base commit             : b91e15387 misc: Initial changes for stable/2410 branch
 ------------------ Cherry picked commits --------------------
 ip: add support for checksum in IP midchain

@@ -1,32 +1,34 @@
 module github.com/projectcalico/vpp-dataplane/v3
 
-go 1.22.3
+go 1.22.7
+
+toolchain go1.23.2
 
 require (
-	github.com/calico-vpp/vpplink v0.0.0-20240117140938-62e485f48c6d
+	github.com/calico-vpp/vpplink v0.1.0
 	github.com/census-instrumentation/opencensus-proto v0.4.1
 	github.com/containernetworking/plugins v1.3.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/gopacket v1.1.19
 	github.com/inconshreveable/mousetrap v1.1.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
-	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
+	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.32.0
+	github.com/onsi/gomega v1.33.1
 	github.com/orijtech/prometheus-go-metrics-exporter v0.0.6
-	github.com/osrg/gobgp/v3 v3.20.0
+	github.com/osrg/gobgp/v3 v3.30.0
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/api v0.0.0-20241029214344-edb6f699d767 // v3.29.0
 	github.com/projectcalico/calico v0.0.0-20241104220808-b559a703e1c0 // v3.29.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.8.0
-	github.com/vishvananda/netlink v1.2.1-beta.2.0.20240703200800-b54f85093f4a
+	github.com/spf13/cobra v1.8.1
+	github.com/vishvananda/netlink v1.2.1
 	github.com/vishvananda/netns v0.0.4
 	github.com/yookoala/realpath v1.0.0
-	go.fd.io/govpp v0.10.0-alpha.0.20240110141843-761adec77524
-	go.fd.io/govpp/extras v0.1.1-0.20230330140632-6a7dcb03934f
+	go.fd.io/govpp v0.11.0
+	go.fd.io/govpp/extras v0.1.0
 	golang.org/x/net v0.26.0
-	golang.org/x/sys v0.21.0
+	golang.org/x/sys v0.26.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
@@ -37,7 +39,7 @@ require (
 )
 
 require (
-	github.com/bennyscetbun/jsongo v1.1.1 // indirect
+	github.com/bennyscetbun/jsongo v1.1.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
@@ -49,7 +51,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.8.0 // indirect
-	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/ftrvxmtrx/fd v0.0.0-20150925145434-c6d800382fff // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
@@ -65,7 +67,7 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/hashicorp/go-version v1.6.0 // indirect
+	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -105,9 +107,9 @@ require (
 	golang.org/x/crypto v0.24.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/term v0.21.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240701130421-f6361c86f094 // indirect
