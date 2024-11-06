@@ -470,19 +470,28 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
 			case common.LocalPodAddressAdded:
-				networkPod := evt.New.(cni.NetworkPod)
+				networkPod, ok := evt.New.(cni.NetworkPod)
+				if !ok {
+					return fmt.Errorf("evt.New is not a (cni.NetworkPod) %v", evt.New)
+				}
 				err := w.announceLocalAddress(networkPod.ContainerIP, networkPod.NetworkVni)
 				if err != nil {
 					return err
 				}
 			case common.LocalPodAddressDeleted:
-				networkPod := evt.Old.(cni.NetworkPod)
+				networkPod, ok := evt.Old.(cni.NetworkPod)
+				if !ok {
+					return fmt.Errorf("evt.Old is not a (cni.NetworkPod) %v", evt.Old)
+				}
 				err := w.withdrawLocalAddress(networkPod.ContainerIP, networkPod.NetworkVni)
 				if err != nil {
 					return err
 				}
 			case common.BGPPathAdded:
-				path := evt.New.(*bgpapi.Path)
+				path, ok := evt.New.(*bgpapi.Path)
+				if !ok {
+					return fmt.Errorf("evt.New is not a (*bgpapi.Path) %v", evt.New)
+				}
 				_, err = w.BGPServer.AddPath(context.Background(), &bgpapi.AddPathRequest{
 					TableType: bgpapi.TableType_GLOBAL,
 					Path:      path,
@@ -491,7 +500,10 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					return err
 				}
 			case common.BGPPathDeleted:
-				path := evt.Old.(*bgpapi.Path)
+				path, ok := evt.Old.(*bgpapi.Path)
+				if !ok {
+					return fmt.Errorf("evt.Old is not a (*bgpapi.Path) %v", evt.Old)
+				}
 				err = w.BGPServer.DeletePath(context.Background(), &bgpapi.DeletePathRequest{
 					TableType: bgpapi.TableType_GLOBAL,
 					Path:      path,
@@ -500,7 +512,10 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					return err
 				}
 			case common.BGPDefinedSetAdded:
-				ps := evt.New.(*bgpapi.DefinedSet)
+				ps, ok := evt.New.(*bgpapi.DefinedSet)
+				if !ok {
+					return fmt.Errorf("evt.New is not a (*bgpapi.DefinedSet) %v", evt.New)
+				}
 				err := w.BGPServer.AddDefinedSet(
 					context.Background(),
 					&bgpapi.AddDefinedSetRequest{DefinedSet: ps},
@@ -509,7 +524,10 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					return err
 				}
 			case common.BGPDefinedSetDeleted:
-				ps := evt.Old.(*bgpapi.DefinedSet)
+				ps, ok := evt.Old.(*bgpapi.DefinedSet)
+				if !ok {
+					return fmt.Errorf("evt.Old is not a (*bgpapi.DefinedSet) %v", evt.Old)
+				}
 				err := w.BGPServer.DeleteDefinedSet(
 					context.Background(),
 					&bgpapi.DeleteDefinedSetRequest{DefinedSet: ps, All: false},
@@ -518,7 +536,10 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					return err
 				}
 			case common.BGPPeerAdded:
-				localPeer := evt.New.(*watchers.LocalBGPPeer)
+				localPeer, ok := evt.New.(*watchers.LocalBGPPeer)
+				if !ok {
+					return fmt.Errorf("evt.New is not a (*watchers.LocalBGPPeer) %v", evt.New)
+				}
 				peer := localPeer.Peer
 				filters := localPeer.BGPFilterNames
 				// create a neighbor set to apply filter only on specific peer using a global policy
@@ -550,7 +571,10 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 				localPeer.NeighborSet = neighborSet
 				w.bgpPeers[peer.Conf.NeighborAddress] = localPeer
 			case common.BGPPeerDeleted:
-				addr := evt.New.(string)
+				addr, ok := evt.New.(string)
+				if !ok {
+					return fmt.Errorf("evt.New is not a (string) %v", evt.New)
+				}
 				w.log.Infof("bgp(del) neighbor=%s", addr)
 				err = w.cleanUpPeerFilters(addr)
 				if err != nil {
@@ -569,13 +593,19 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 				}
 				delete(w.bgpPeers, addr)
 			case common.BGPPeerUpdated:
-				oldFilters := evt.Old.(*watchers.LocalBGPPeer).BGPFilterNames
-				localPeer := evt.New.(*watchers.LocalBGPPeer)
+				oldPeer, ok := evt.Old.(*watchers.LocalBGPPeer)
+				if !ok {
+					return fmt.Errorf("evt.Old is not (*watchers.LocalBGPPeer) %v", evt.Old)
+				}
+				localPeer, ok := evt.New.(*watchers.LocalBGPPeer)
+				if !ok {
+					return fmt.Errorf("evt.New is not (*watchers.LocalBGPPeer %v", evt.New)
+				}
 				peer := localPeer.Peer
 				filters := localPeer.BGPFilterNames
 				w.log.Infof("bgp(upd) neighbor=%s", peer.Conf.NeighborAddress)
 				var BGPPolicies map[string]*watchers.ImpExpPol
-				if !watchers.CompareStringSlices(localPeer.BGPFilterNames, oldFilters) { // update filters
+				if !watchers.CompareStringSlices(localPeer.BGPFilterNames, oldPeer.BGPFilterNames) { // update filters
 					err = w.cleanUpPeerFilters(peer.Conf.NeighborAddress)
 					if err != nil {
 						return errors.Wrapf(err, "error cleaning peer filters up")
@@ -597,7 +627,10 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 				localPeer.BGPPolicies = BGPPolicies
 				w.bgpPeers[peer.Conf.NeighborAddress] = localPeer
 			case common.BGPFilterAddedOrUpdated:
-				filter := evt.New.(calicov3.BGPFilter)
+				filter, ok := evt.New.(calicov3.BGPFilter)
+				if !ok {
+					return fmt.Errorf("evt.New is not (calicov3.BGPFilter) %v", evt.New)
+				}
 				w.log.Infof("bgp(add/upd) filter: %s", filter.Name)
 				w.bgpFilters[filter.Name] = &filter
 				// If this filter is already used in gobgp, delete old policies if any and recreate them
@@ -626,7 +659,10 @@ func (w *Server) WatchBGPPath(t *tomb.Tomb) error {
 					}
 				}
 			case common.BGPFilterDeleted: // supposed to rely on user to never delete a used bgpfilter
-				filter := evt.Old.(calicov3.BGPFilter)
+				filter, ok := evt.Old.(calicov3.BGPFilter)
+				if !ok {
+					return fmt.Errorf("evt.Old is not (calicov3.BGPFilter) %v", evt.Old)
+				}
 				w.log.Infof("bgp(del) filter deleted: %s", filter.Name)
 				delete(w.bgpFilters, filter.Name)
 			}

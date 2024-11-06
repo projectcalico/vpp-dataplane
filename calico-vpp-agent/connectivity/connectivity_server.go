@@ -153,26 +153,44 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
 			case common.NetAddedOrUpdated:
-				new := evt.New.(*watchers.NetworkDefinition)
+				new, ok := evt.New.(*watchers.NetworkDefinition)
+				if !ok {
+					s.log.Errorf("evt.New is not a *watchers.NetworkDefinition %v", evt.New)
+				}
 				s.networks[new.Vni] = *new
 			case common.NetDeleted:
-				old := evt.Old.(*watchers.NetworkDefinition)
+				old, ok := evt.Old.(*watchers.NetworkDefinition)
+				if !ok {
+					s.log.Errorf("evt.Old is not a *watchers.NetworkDefinition %v", evt.Old)
+				}
 				delete(s.networks, old.Vni)
 			case common.ConnectivityAdded:
-				new := evt.New.(*common.NodeConnectivity)
+				new, ok := evt.New.(*common.NodeConnectivity)
+				if !ok {
+					s.log.Errorf("evt.New is not a *common.NodeConnectivity %v", evt.New)
+				}
 				err := s.UpdateIPConnectivity(new, false /* isWithdraw */)
 				if err != nil {
 					s.log.Errorf("Error while adding connectivity %s", err)
 				}
 			case common.ConnectivityDeleted:
-				old := evt.Old.(*common.NodeConnectivity)
+				old, ok := evt.Old.(*common.NodeConnectivity)
+				if !ok {
+					s.log.Errorf("evt.Old is not a *common.NodeConnectivity %v", evt.Old)
+				}
 				err := s.UpdateIPConnectivity(old, true /* isWithdraw */)
 				if err != nil {
 					s.log.Errorf("Error while deleting connectivity %s", err)
 				}
 			case common.WireguardPublicKeyChanged:
-				old, _ := evt.Old.(*common.NodeWireguardPublicKey)
-				new, _ := evt.New.(*common.NodeWireguardPublicKey)
+				old, ok := evt.Old.(*common.NodeWireguardPublicKey)
+				if !ok {
+					s.log.Errorf("evt.Old is not a *common.NodeWireguardPublicKey %v", evt.Old)
+				}
+				new, ok := evt.New.(*common.NodeWireguardPublicKey)
+				if !ok {
+					s.log.Errorf("evt.New is not a *common.NodeWireguardPublicKey %v", evt.New)
+				}
 				s.providers[WIREGUARD].(*WireguardProvider).nodesToWGPublicKey[new.Name] = new.WireguardPublicKey
 				change := common.GetStringChangeType(old.WireguardPublicKey, new.WireguardPublicKey)
 				if change != common.ChangeSame {
@@ -180,8 +198,14 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					s.updateAllIPConnectivity()
 				}
 			case common.PeerNodeStateChanged:
-				old, _ := evt.Old.(*common.LocalNodeSpec)
-				new, _ := evt.New.(*common.LocalNodeSpec)
+				old, ok := evt.Old.(*common.LocalNodeSpec)
+				if !ok {
+					s.log.Errorf("evt.Old is not a *common.LocalNodeSpec %v", evt.Old)
+				}
+				new, ok := evt.New.(*common.LocalNodeSpec)
+				if !ok {
+					s.log.Errorf("evt.New is not a *common.LocalNodeSpec %v", evt.New)
+				}
 				if old != nil {
 					if old.IPv4Address != nil {
 						delete(s.nodeByAddr, old.IPv4Address.IP.String())
@@ -199,8 +223,14 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					}
 				}
 			case common.FelixConfChanged:
-				old, _ := evt.Old.(*felixConfig.Config)
-				new, _ := evt.New.(*felixConfig.Config)
+				old, ok := evt.Old.(*felixConfig.Config)
+				if !ok {
+					s.log.Errorf("evt.Old is not a *felixConfig.Config %v", evt.Old)
+				}
+				new, ok := evt.New.(*felixConfig.Config)
+				if !ok {
+					s.log.Errorf("evt.Old is not a *felixConfig.Config %v", evt.New)
+				}
 				if new == nil || old == nil {
 					/* First/last update, do nothing more */
 					continue
@@ -217,13 +247,19 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 				s.log.Infof("connectivity(upd) ipamConf Changed")
 				s.updateAllIPConnectivity()
 			case common.SRv6PolicyAdded:
-				new := evt.New.(*common.NodeConnectivity)
+				new, ok := evt.New.(*common.NodeConnectivity)
+				if !ok {
+					s.log.Errorf("evt.New is not a *common.NodeConnectivity %v", evt.New)
+				}
 				err := s.UpdateSRv6Policy(new, false /* isWithdraw */)
 				if err != nil {
 					s.log.Errorf("Error while adding SRv6 Policy %s", err)
 				}
 			case common.SRv6PolicyDeleted:
-				old := evt.Old.(*common.NodeConnectivity)
+				old, ok := evt.Old.(*common.NodeConnectivity)
+				if !ok {
+					s.log.Errorf("evt.Old is not a *common.NodeConnectivity %v", evt.Old)
+				}
 				err := s.UpdateSRv6Policy(old, true /* isWithdraw */)
 				if err != nil {
 					s.log.Errorf("Error while deleting SRv6 Policy %s", err)

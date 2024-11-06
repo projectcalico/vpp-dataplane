@@ -550,10 +550,18 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 					case common.NetsSynced:
 						netsSynced <- true
 					case common.NetAddedOrUpdated:
-						netDef := event.New.(*watchers.NetworkDefinition)
+						netDef, ok := event.New.(*watchers.NetworkDefinition)
+						if !ok {
+							s.log.Errorf("event.New is not a *watchers.NetworkDefinition %v", event.New)
+							continue
+						}
 						s.networkDefinitions.Store(netDef.Name, netDef)
 					case common.NetDeleted:
-						netDef := event.Old.(*watchers.NetworkDefinition)
+						netDef, ok := event.Old.(*watchers.NetworkDefinition)
+						if !ok {
+							s.log.Errorf("event.Old is not a *watchers.NetworkDefinition %v", event.Old)
+							continue
+						}
 						s.networkDefinitions.Delete(netDef.Name)
 					}
 				}

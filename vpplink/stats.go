@@ -33,7 +33,10 @@ func GetInterfaceStats(sc *statsclient.StatsClient) (ifNames adapter.NameStat, d
 	if len(dumpStatsNames) == 0 {
 		return nil, nil, fmt.Errorf("no interfaces available: %w", err)
 	}
-	ifNames = dumpStatsNames[0].Data.(adapter.NameStat)
+	ifNames, ok := dumpStatsNames[0].Data.(adapter.NameStat)
+	if !ok {
+		return nil, nil, fmt.Errorf("dumpStatsNames[0].Data. is not an adapter.NameStat: %v", dumpStatsNames[0].Data)
+	}
 
 	dumpStats, err = sc.DumpStats("/if/")
 	if err != nil {

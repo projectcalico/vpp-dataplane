@@ -95,7 +95,11 @@ func newReplyTypeForRequest(req api.Message) (api.Message, error) {
 	if !found {
 		return nil, fmt.Errorf("No reply for %s", req.GetMessageName())
 	}
-	reply = reflect.New(reflect.TypeOf(reply).Elem()).Interface().(api.Message)
+	obj := reflect.New(reflect.TypeOf(reply).Elem()).Interface()
+	reply, ok := obj.(api.Message)
+	if !ok {
+		return reply, fmt.Errorf("reply type is not api.Message %v", obj)
+	}
 	return reply, nil
 }
 
@@ -362,7 +366,11 @@ func main() {
 			continue
 		}
 
-		msg = reflect.New(reflect.TypeOf(msg).Elem()).Interface().(api.Message)
+		msg, ok := reflect.New(reflect.TypeOf(msg).Elem()).Interface().(api.Message)
+		if !ok {
+			continue
+		}
+
 		if _, ok := msg.(*core.ControlPing); ok {
 			continue
 		}

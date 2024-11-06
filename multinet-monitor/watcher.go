@@ -97,7 +97,11 @@ func watching(podWatcher, svcWatcher, nadWatcher watch.Interface) {
 			}
 			switch update.Type {
 			case watch.Added:
-				nad := update.Object.(*netv1.NetworkAttachmentDefinition)
+				nad, ok := update.Object.(*netv1.NetworkAttachmentDefinition)
+				if !ok {
+					log.Errorf("update.Object is not a (*netv1.NetworkAttachmentDefinition), %v", update.Object)
+					continue
+				}
 				var nadConfig nadv1.NetConfList
 				err := json.Unmarshal([]byte(nad.Spec.Config), &nadConfig)
 				if err != nil {
@@ -110,7 +114,11 @@ func watching(podWatcher, svcWatcher, nadWatcher watch.Interface) {
 			case watch.Modified:
 				log.Warn("net attach def modified: not supported")
 			case watch.Deleted:
-				nad := update.Object.(*netv1.NetworkAttachmentDefinition)
+				nad, ok := update.Object.(*netv1.NetworkAttachmentDefinition)
+				if !ok {
+					log.Errorf("update.Object is not a (*netv1.NetworkAttachmentDefinition), %v", update.Object)
+					continue
+				}
 				var nadConfig nadv1.NetConfList
 				err := json.Unmarshal([]byte(nad.Spec.Config), &nadConfig)
 				if err != nil {
@@ -128,7 +136,11 @@ func watching(podWatcher, svcWatcher, nadWatcher watch.Interface) {
 			}
 			switch update.Type {
 			case watch.Added:
-				pod := update.Object.(*v1.Pod)
+				pod, ok := update.Object.(*v1.Pod)
+				if !ok {
+					log.Errorf("update.Object is not a (*v1.Pod), %v", update.Object)
+					continue
+				}
 				podNadIf, inNetwork := pod.Annotations["k8s.v1.cni.cncf.io/networks"]
 				if inNetwork {
 					podNad := strings.Split(podNadIf, "@")[0]
@@ -137,9 +149,13 @@ func watching(podWatcher, svcWatcher, nadWatcher watch.Interface) {
 					addPod(pod, podNad)
 				}
 			case watch.Deleted:
-				pod := update.Object.(*v1.Pod)
+				pod, ok := update.Object.(*v1.Pod)
+				if !ok {
+					log.Errorf("update.Object is not a (*v1.Pod), %v", update.Object)
+					continue
+				}
 				if _, found := currentPodList[pod.Name]; found {
-					log.Infof("POD (del) %s", update.Object.(*v1.Pod).Name)
+					log.Infof("POD (del) %s", pod.Name)
 					delete(currentPodList, pod.Name)
 					deletePod(pod)
 				}
@@ -152,20 +168,28 @@ func watching(podWatcher, svcWatcher, nadWatcher watch.Interface) {
 			}
 			switch update.Type {
 			case watch.Added:
-				service := update.Object.(*v1.Service)
+				service, ok := update.Object.(*v1.Service)
+				if !ok {
+					log.Errorf("update.Object is not a (*v1.Service), %v", update.Object)
+					continue
+				}
 				if service.Spec.Selector == nil {
 					selector, selectorFound := service.Annotations["extensions.projectcalico.org/selector"]
 					network, networkFound := service.Annotations["extensions.projectcalico.org/network"]
 					if selectorFound && networkFound {
 						log.Infof("SVC (add) %s", service.Name)
 						currentSvcList[service.Name] = service
-						addService(update.Object.(*v1.Service), selector, network)
+						addService(service, selector, network)
 					}
 				}
 			case watch.Deleted:
-				service := update.Object.(*v1.Service)
+				service, ok := update.Object.(*v1.Service)
+				if !ok {
+					log.Errorf("update.Object is not a (*v1.Service), %v", update.Object)
+					continue
+				}
 				if _, found := currentSvcList[service.Name]; found {
-					log.Infof("SVC (del) %s", update.Object.(*v1.Service).Name)
+					log.Infof("SVC (del) %s", service.Name)
 					delete(currentSvcList, service.Name)
 					delete(currentEpList, service.Name)
 				}

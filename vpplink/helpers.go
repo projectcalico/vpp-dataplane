@@ -65,8 +65,8 @@ func (call *CleanupCall) Execute() {
 	}
 	/* If only one value is returned, we assume this is an error and log it */
 	if !ret[0].IsNil() {
-		err := ret[0].Interface().(error)
-		log.Errorf("Cleanup errored : %s", err)
+		err, ok := ret[0].Interface().(error)
+		log.Errorf("Cleanup errored : %s, %t", err, ok)
 	}
 }
 
@@ -101,8 +101,8 @@ func (v *VppLink) Retry(sleepBtwRetries time.Duration, retries int, f interface{
 	for i := 0; i < retries; i++ {
 		ret := reflect.ValueOf(f).Call(vargs)[0]
 		if !ret.IsNil() {
-			err := ret.Interface().(error)
-			log.Warnf("Try [%d] errored : %s", i, err)
+			err, ok := ret.Interface().(error)
+			log.Warnf("Try [%d] errored : %s, %t", i, err, ok)
 			time.Sleep(sleepBtwRetries)
 		} else {
 			return nil

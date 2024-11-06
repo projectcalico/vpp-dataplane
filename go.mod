@@ -1,6 +1,6 @@
 module github.com/projectcalico/vpp-dataplane/v3
 
-go 1.21
+go 1.22.3
 
 require (
 	github.com/calico-vpp/vpplink v0.0.0-20240117140938-62e485f48c6d

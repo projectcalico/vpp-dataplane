@@ -215,7 +215,11 @@ func StrableListToString(prefix string, arg interface{}) string {
 			m = v.Addr().MethodByName("String")
 		}
 		ret := m.Call(make([]reflect.Value, 0))[0]
-		s += ret.Interface().(string)
+		retStr, ok := ret.Interface().(string)
+		if !ok {
+			panic(fmt.Sprintf("Call to String() did not output a string %v", ret))
+		}
+		s += retStr
 	}
 	return s + "]"
 }

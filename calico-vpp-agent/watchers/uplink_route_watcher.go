@@ -240,7 +240,11 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 			case event := <-r.eventChan:
 				switch event.Type {
 				case common.NetDeleted:
-					netDef := event.Old.(*NetworkDefinition)
+					netDef, ok := event.Old.(*NetworkDefinition)
+					if !ok {
+						r.log.Errorf("event.Old is not a (*NetworkDefinition) %v", event.Old)
+						goto restart
+					}
 					key := netDef.Range
 					routes, err := r.getNetworkRoute(key, netDef.PhysicalNetworkName)
 					if err != nil {
@@ -255,7 +259,11 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 						}
 					}
 				case common.NetAddedOrUpdated:
-					netDef := event.New.(*NetworkDefinition)
+					netDef, ok := event.New.(*NetworkDefinition)
+					if !ok {
+						r.log.Errorf("event.New is not a (*NetworkDefinition) %v", event.New)
+						goto restart
+					}
 					key := netDef.Range
 					routes, err := r.getNetworkRoute(key, netDef.PhysicalNetworkName)
 					if err != nil {
@@ -270,8 +278,16 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 						}
 					}
 				case common.IpamConfChanged:
-					old, _ := event.Old.(*proto.IPAMPool)
-					new, _ := event.New.(*proto.IPAMPool)
+					old, ok := event.Old.(*proto.IPAMPool)
+					if !ok {
+						r.log.Errorf("event.Old is not a (*proto.IPAMPool) %v", event.Old)
+						goto restart
+					}
+					new, ok := event.New.(*proto.IPAMPool)
+					if !ok {
+						r.log.Errorf("event.New is not a (*proto.IPAMPool) %v", event.New)
+						goto restart
+					}
 					r.log.Debugf("Received IPAM config update in route watcher old:%+v new:%+v", old, new)
 					if new == nil {
 						key := old.Cidr

@@ -17,6 +17,7 @@ package prometheus
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -145,7 +146,10 @@ func (s *Server) exportMetricsForStat(names []string, sta adapter.StatEntry, ifN
 		}
 		s.lock.Lock()
 		if sta.Type == adapter.SimpleCounterVector {
-			values := sta.Data.(adapter.SimpleCounterStat)
+			values, ok := sta.Data.(adapter.SimpleCounterStat)
+			if !ok {
+				return fmt.Errorf("sta.Data is not a (adapter.SimpleCounterStat), %v", sta.Data)
+			}
 			for worker := range values {
 				for ifIdx := range values[worker] {
 					if string(ifNames[ifIdx]) != "" {
@@ -157,7 +161,10 @@ func (s *Server) exportMetricsForStat(names []string, sta adapter.StatEntry, ifN
 			}
 		} else if sta.Type == adapter.CombinedCounterVector {
 			metric.MetricDescriptor.Unit = units[k]
-			values := sta.Data.(adapter.CombinedCounterStat)
+			values, ok := sta.Data.(adapter.CombinedCounterStat)
+			if !ok {
+				return fmt.Errorf("sta.Data is not a (adapter.CombinedCounterStat), %v", sta.Data)
+			}
 			for worker := range values {
 				for ifIdx := range values[worker] {
 					if string(ifNames[ifIdx]) != "" {
@@ -220,7 +227,11 @@ func (s *Server) ServePrometheus(t *tomb.Tomb) error {
 			evt := <-s.channel
 			switch evt.Type {
 			case common.PodAdded:
-				podSpec := evt.New.(*storage.LocalPodSpec)
+				podSpec, ok := evt.New.(*storage.LocalPodSpec)
+				if !ok {
+					s.log.Errorf("evt.New is not a *storage.LocalPodSpec %v", evt.New)
+					continue
+				}
 				s.lock.Lock()
 				if podSpec.TunTapSwIfIndex == vpplink.INVALID_SW_IF_INDEX {
 					s.podInterfacesBySwifIndex[podSpec.MemifSwIfIndex] = *podSpec
@@ -231,7 +242,11 @@ func (s *Server) ServePrometheus(t *tomb.Tomb) error {
 				s.lock.Unlock()
 			case common.PodDeleted:
 				s.lock.Lock()
-				podSpec := evt.Old.(*storage.LocalPodSpec)
+				podSpec, ok := evt.Old.(*storage.LocalPodSpec)
+				if !ok {
+					s.log.Errorf("evt.Old is not a *storage.LocalPodSpec %v", evt.Old)
+					continue
+				}
 				initialPod := s.podInterfacesByKey[podSpec.Key()]
 				delete(s.podInterfacesByKey, initialPod.Key())
 				if podSpec.TunTapSwIfIndex == vpplink.INVALID_SW_IF_INDEX {
