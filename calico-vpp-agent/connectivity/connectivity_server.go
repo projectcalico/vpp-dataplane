@@ -198,28 +198,30 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					s.updateAllIPConnectivity()
 				}
 			case common.PeerNodeStateChanged:
-				old, ok := evt.Old.(*common.LocalNodeSpec)
-				if !ok {
-					s.log.Errorf("evt.Old is not a *common.LocalNodeSpec %v", evt.Old)
-				}
-				new, ok := evt.New.(*common.LocalNodeSpec)
-				if !ok {
-					s.log.Errorf("evt.New is not a *common.LocalNodeSpec %v", evt.New)
-				}
-				if old != nil {
-					if old.IPv4Address != nil {
-						delete(s.nodeByAddr, old.IPv4Address.IP.String())
-					}
-					if old.IPv6Address != nil {
-						delete(s.nodeByAddr, old.IPv6Address.IP.String())
+				if evt.Old != nil {
+					old, ok := evt.Old.(*common.LocalNodeSpec)
+					if !ok {
+						s.log.Errorf("evt.Old is not a *common.LocalNodeSpec %v", evt.Old)
+					} else {
+						if old.IPv4Address != nil {
+							delete(s.nodeByAddr, old.IPv4Address.IP.String())
+						}
+						if old.IPv6Address != nil {
+							delete(s.nodeByAddr, old.IPv6Address.IP.String())
+						}
 					}
 				}
-				if new != nil {
-					if new.IPv4Address != nil {
-						s.nodeByAddr[new.IPv4Address.IP.String()] = *new
-					}
-					if new.IPv6Address != nil {
-						s.nodeByAddr[new.IPv6Address.IP.String()] = *new
+				if evt.New != nil {
+					new, ok := evt.New.(*common.LocalNodeSpec)
+					if !ok {
+						s.log.Errorf("evt.New is not a *common.LocalNodeSpec %v", evt.New)
+					} else {
+						if new.IPv4Address != nil {
+							s.nodeByAddr[new.IPv4Address.IP.String()] = *new
+						}
+						if new.IPv6Address != nil {
+							s.nodeByAddr[new.IPv6Address.IP.String()] = *new
+						}
 					}
 				}
 			case common.FelixConfChanged:

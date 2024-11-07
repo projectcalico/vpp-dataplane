@@ -278,20 +278,14 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 						}
 					}
 				case common.IpamConfChanged:
-					old, ok := event.Old.(*proto.IPAMPool)
-					if !ok {
-						r.log.Errorf("event.Old is not a (*proto.IPAMPool) %v", event.Old)
-						goto restart
-					}
-					new, ok := event.New.(*proto.IPAMPool)
-					if !ok {
-						r.log.Errorf("event.New is not a (*proto.IPAMPool) %v", event.New)
-						goto restart
-					}
-					r.log.Debugf("Received IPAM config update in route watcher old:%+v new:%+v", old, new)
-					if new == nil {
-						key := old.Cidr
-						routes, err := r.getNetworkRoute(key, "")
+					r.log.Debugf("Received IPAM config update in route watcher old:%+v new:%+v", event.Old, event.New)
+					if event.New == nil && event.Old != nil {
+						old, ok := event.Old.(*proto.IPAMPool)
+						if !ok {
+							r.log.Errorf("event.Old is not a (*proto.IPAMPool) %v", event.Old)
+							goto restart
+						}
+						routes, err := r.getNetworkRoute(old.Cidr, "")
 						if err != nil {
 							r.log.Error("Error getting route from ipam update:", err)
 							goto restart
@@ -299,13 +293,17 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 						for _, route := range routes {
 							err = r.DelRoute(route)
 							if err != nil {
-								r.log.Errorf("Cannot delete pool route %s through vpp tap: %v", key, err)
+								r.log.Errorf("Cannot delete pool route %s through vpp tap: %v", old.Cidr, err)
 								goto restart
 							}
 						}
-					} else {
-						key := new.Cidr
-						routes, err := r.getNetworkRoute(key, "")
+					} else if event.New != nil {
+						new, ok := event.New.(*proto.IPAMPool)
+						if !ok {
+							r.log.Errorf("event.New is not a (*proto.IPAMPool) %v", event.New)
+							goto restart
+						}
+						routes, err := r.getNetworkRoute(new.Cidr, "")
 						if err != nil {
 							r.log.Error("Error getting route from ipam update:", err)
 							goto restart
@@ -313,7 +311,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 						for _, route := range routes {
 							err = r.AddRoute(route)
 							if err != nil {
-								r.log.Errorf("Cannot add pool route %s through vpp tap: %v", key, err)
+								r.log.Errorf("Cannot add pool route %s through vpp tap: %v", new.Cidr, err)
 								goto restart
 							}
 						}
