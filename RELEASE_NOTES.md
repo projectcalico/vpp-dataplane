@@ -7,6 +7,25 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any `
 
 # Releases
 
+### Calico-VPP v3.29.0
+
+> 8th Nov 2024
+
+* New features:
+  - Upgrade vpp to 24.10
+  	* Full release notes at https://s3-docs.fd.io/vpp/24.10/aboutvpp/releasenotes/v24.10.html
+  	* DPDK bump to 24.07
+  	* Addition of automatic core pinning
+  	* vnet new device driver infra
+  - GoBGP upgrade to v3.30.0
+  - GoVPP upgrade to v0.11.0
+
+* Feature graduation
+  - memif support now default to enabled
+
+* Fixes:
+  - Ipv6 node connectivity was broken in previous version, this release fixes the behavior.
+
 ### Calico-VPP v3.28.0
 
 > 31st May 2024
