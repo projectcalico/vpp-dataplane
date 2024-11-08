@@ -253,7 +253,7 @@ spec:
       priorityClassName: system-node-critical
       containers:
         - name: agent
-          image: docker.io/calicovpp/agent:latest
+          image: docker.io/calicovpp/agent:v3.29.0
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
@@ -293,7 +293,7 @@ spec:
               mountPath: /run/netns/
               mountPropagation: Bidirectional
         - name: vpp
-          image: docker.io/calicovpp/vpp:latest
+          image: docker.io/calicovpp/vpp:v3.29.0
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
