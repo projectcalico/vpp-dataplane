@@ -1,4 +1,4 @@
-apiVersion: kubeadm.k8s.io/v1beta3
+apiVersion: kubeadm.k8s.io/v1beta4
 caCertPath: /etc/kubernetes/pki/ca.crt
 discovery:
   bootstrapToken:
@@ -13,38 +13,49 @@ nodeRegistration:
   criSocket: unix:///var/run/containerd/containerd.sock
   name: "${NODE_NAME}"
   kubeletExtraArgs:
-    node-ip: "${FIRST_NODE_IP}"
+    - name: node-ip
+      value: "${FIRST_NODE_IP}"
 ---
 # https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
-apiVersion: kubeadm.k8s.io/v1beta3
+apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
 apiServer:
   timeoutForControlPlane: 4m0s
   extraArgs:
-    authorization-mode: Node,RBAC
-    advertise-address: "${FIRST_NODE_IP}"
-    service-cluster-ip-range: "${SERVICE_CIDR}"
-    # feature-gates: ""
+    - name: authorization-mode
+      value: Node,RBAC
+    - name: advertise-address
+      value: "${FIRST_NODE_IP}"
+    - name: service-cluster-ip-range
+      value: "${SERVICE_CIDR}"
 certificatesDir: /etc/kubernetes/pki
 clusterName: kubernetes
 # https://kubernetes.io/docs/reference/command-line-tools-reference/kube-controller-manager/
 controllerManager:
   extraArgs:
-    # feature-gates: ""
-    allocate-node-cidrs: "true"
-    cluster-cidr: "${POD_CIDR}"
-    service-cluster-ip-range: "${SERVICE_CIDR}"
-    node-cidr-mask-size-ipv4: "${NODE_CIDR_MASK_SIZE4}"
-    node-cidr-mask-size-ipv6: "${NODE_CIDR_MASK_SIZE6}"
-    node-cidr-mask-size: "${NODE_CIDR_MASK_SIZE}"
+    - name: allocate-node-cidrs
+      value: "true"
+    - name: cluster-cidr
+      value: "${POD_CIDR}"
+    - name: service-cluster-ip-range
+      value: "${SERVICE_CIDR}"
+    - name: node-cidr-mask-size-ipv4
+      value: "${NODE_CIDR_MASK_SIZE4}"
+    - name: node-cidr-mask-size-ipv6
+      value: "${NODE_CIDR_MASK_SIZE6}"
+    - name: node-cidr-mask-size
+      value: "${NODE_CIDR_MASK_SIZE}"
 etcd:
   local:
     dataDir: /var/lib/etcd
     extraArgs:
       # default is 16MB, use 10GB for tests
-      quota-backend-bytes: "10740000000"
-      auto-compaction-mode: "revision"
-      auto-compaction-retention: "10"
+      - name: quota-backend-bytes
+        value: "10740000000"
+      - name: auto-compaction-mode
+        value: "revision"
+      - name: auto-compaction-retention
+        value: "10"
 imageRepository: k8s.gcr.io
 kubernetesVersion: ${K8_VERSION}
 networking:
@@ -56,14 +67,12 @@ apiVersion: kubeproxy.config.k8s.io/v1alpha1
 kind: KubeProxyConfiguration
 conntrack:
   maxPerCore: 0
-# featureGates:
 ---
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
-maxPods: 100000
-cgroupDriver: "cgroupfs"
+maxPods: 5000
+cgroupDriver: "systemd"
 cpuManagerPolicy: "static"
 reservedSystemCPUs: "0-5"
-# featureGates:
-
+containerRuntimeEndpoint: unix:///var/run/containerd/containerd.sock
 

@@ -127,7 +127,7 @@ function raw_create_cluster_conf ()
 	export NODE_NAME=$NODE_NAME
 	export DNS_TYPE=$DNS_TYPE
 	export IS_DUAL=$IS_DUAL
-	export K8_VERSION=${K8_VERSION:=v1.26.0}
+	export K8_VERSION=${K8_VERSION:=v1.31.0}
     cat $1 | envsubst | sudo tee /tmp/ClusterConf.yaml > /dev/null
 }
 
