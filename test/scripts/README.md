@@ -26,7 +26,7 @@ sudo rm -rf /etc/cni/net.d/
 
 ```bash
 echo "
-K8_VERSION=v1.28.0
+K8_VERSION=v1.31.0
 POD_CIDR=11.0.0.0/16
 SERVICE_CIDR=11.96.0.0/16
 MAIN_IP=20.0.0.1/24

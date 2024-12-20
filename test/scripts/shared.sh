@@ -108,11 +108,11 @@ function load_parameters () {
 		echo "with:"
 		echo "IF=eth0"
 		echo "NODESSH=hostname"
-		echo "K8_VERSION=v1.26.0"
+		echo "K8_VERSION=v1.31.0"
 		exit 1
 	fi
 	IF=${IF:=eth0}
-	K8_VERSION=${K8_VERSION:=v1.26.0}
+	K8_VERSION=${K8_VERSION:=v1.31.0}
 	if [[ $V = 6 ]]; then
     	POD_CIDR=fd20::0/112
     	SERVICE_CIDR=fd10::0/120
