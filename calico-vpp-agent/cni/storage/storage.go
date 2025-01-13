@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 9  // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 10 // Used to ensure compatibility wen we reload data
 	MaxApiTagLen              = 63 /* No more than 64 characters in API tags */
 	VrfTagHashLen             = 8  /* how many hash charatecters (b64) of the name in tag prefix (useful when trucated) */
 )
