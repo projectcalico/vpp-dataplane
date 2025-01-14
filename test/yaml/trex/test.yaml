@@ -9,7 +9,7 @@ metadata:
 spec:
   containers:
   - name: trex
-    image: calicovpp/test-trex
+    image: calicovpp/test-trex:v3.06
     imagePullPolicy: IfNotPresent
     securityContext:
       privileged: true
