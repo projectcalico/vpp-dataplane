@@ -27,7 +27,7 @@ require (
 	github.com/yookoala/realpath v1.0.0
 	go.fd.io/govpp v0.11.0
 	go.fd.io/govpp/extras v0.1.0
-	golang.org/x/net v0.26.0
+	golang.org/x/net v0.33.0
 	golang.org/x/sys v0.28.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
