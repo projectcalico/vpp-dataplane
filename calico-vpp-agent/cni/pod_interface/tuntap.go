@@ -149,6 +149,14 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		HostMtu:       i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0),
 	}
 
+	if podSpec.IfSpec.Mac != "" {
+		i.log.Debugf("mac address specified for interface %s in vpp: '%s'", podSpec.InterfaceName, podSpec.IfSpec.Mac)
+		mac, err := net.ParseMAC("02:00:00:00:00:02")
+		if err != nil {
+			return err
+		}
+		tun.HardwareAddr = mac
+	}
 	if *podSpec.IfSpec.IsL3 {
 		tun.Flags |= types.TapFlagTun
 	}
