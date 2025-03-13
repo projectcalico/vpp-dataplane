@@ -23,9 +23,12 @@ type RPCService interface {
 	AppWorkerAddDel(ctx context.Context, in *AppWorkerAddDel) (*AppWorkerAddDelReply, error)
 	ApplicationDetach(ctx context.Context, in *ApplicationDetach) (*ApplicationDetachReply, error)
 	SessionEnableDisable(ctx context.Context, in *SessionEnableDisable) (*SessionEnableDisableReply, error)
+	SessionEnableDisableV2(ctx context.Context, in *SessionEnableDisableV2) (*SessionEnableDisableV2Reply, error)
 	SessionRuleAddDel(ctx context.Context, in *SessionRuleAddDel) (*SessionRuleAddDelReply, error)
 	SessionRulesDump(ctx context.Context, in *SessionRulesDump) (RPCService_SessionRulesDumpClient, error)
 	SessionSapiEnableDisable(ctx context.Context, in *SessionSapiEnableDisable) (*SessionSapiEnableDisableReply, error)
+	SessionSdlAddDel(ctx context.Context, in *SessionSdlAddDel) (*SessionSdlAddDelReply, error)
+	SessionSdlDump(ctx context.Context, in *SessionSdlDump) (RPCService_SessionSdlDumpClient, error)
 }
 
 type serviceClient struct {
@@ -126,6 +129,15 @@ func (c *serviceClient) SessionEnableDisable(ctx context.Context, in *SessionEna
 	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
+func (c *serviceClient) SessionEnableDisableV2(ctx context.Context, in *SessionEnableDisableV2) (*SessionEnableDisableV2Reply, error) {
+	out := new(SessionEnableDisableV2Reply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
 func (c *serviceClient) SessionRuleAddDel(ctx context.Context, in *SessionRuleAddDel) (*SessionRuleAddDelReply, error) {
 	out := new(SessionRuleAddDelReply)
 	err := c.conn.Invoke(ctx, in, out)
@@ -185,4 +197,56 @@ func (c *serviceClient) SessionSapiEnableDisable(ctx context.Context, in *Sessio
 		return nil, err
 	}
 	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) SessionSdlAddDel(ctx context.Context, in *SessionSdlAddDel) (*SessionSdlAddDelReply, error) {
+	out := new(SessionSdlAddDelReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) SessionSdlDump(ctx context.Context, in *SessionSdlDump) (RPCService_SessionSdlDumpClient, error) {
+	stream, err := c.conn.NewStream(ctx)
+	if err != nil {
+		return nil, err
+	}
+	x := &serviceClient_SessionSdlDumpClient{stream}
+	if err := x.Stream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RPCService_SessionSdlDumpClient interface {
+	Recv() (*SessionSdlDetails, error)
+	api.Stream
+}
+
+type serviceClient_SessionSdlDumpClient struct {
+	api.Stream
+}
+
+func (c *serviceClient_SessionSdlDumpClient) Recv() (*SessionSdlDetails, error) {
+	msg, err := c.Stream.RecvMsg()
+	if err != nil {
+		return nil, err
+	}
+	switch m := msg.(type) {
+	case *SessionSdlDetails:
+		return m, nil
+	case *memclnt.ControlPingReply:
+		err = c.Stream.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, io.EOF
+	default:
+		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
+	}
 }

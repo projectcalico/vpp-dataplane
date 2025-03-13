@@ -4,7 +4,7 @@
 //
 // Contents:
 // -  2 structs
-// - 26 messages
+// - 28 messages
 package memclnt
 
 import (
@@ -21,7 +21,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "memclnt"
 	APIVersion = "2.1.0"
-	VersionCrc = 0x21d36234
+	VersionCrc = 0xb197c551
 )
 
 // MessageTableEntry defines type 'message_table_entry'.
@@ -207,6 +207,70 @@ func (m *ControlPingReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// GetAPIJSON defines message 'get_api_json'.
+type GetAPIJSON struct{}
+
+func (m *GetAPIJSON) Reset()               { *m = GetAPIJSON{} }
+func (*GetAPIJSON) GetMessageName() string { return "get_api_json" }
+func (*GetAPIJSON) GetCrcString() string   { return "51077d14" }
+func (*GetAPIJSON) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *GetAPIJSON) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *GetAPIJSON) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *GetAPIJSON) Unmarshal(b []byte) error {
+	return nil
+}
+
+// GetAPIJSONReply defines message 'get_api_json_reply'.
+type GetAPIJSONReply struct {
+	Retval int32  `binapi:"i32,name=retval" json:"retval,omitempty"`
+	JSON   string `binapi:"string[],name=json" json:"json,omitempty"`
+}
+
+func (m *GetAPIJSONReply) Reset()               { *m = GetAPIJSONReply{} }
+func (*GetAPIJSONReply) GetMessageName() string { return "get_api_json_reply" }
+func (*GetAPIJSONReply) GetCrcString() string   { return "ea715b59" }
+func (*GetAPIJSONReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *GetAPIJSONReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4               // m.Retval
+	size += 4 + len(m.JSON) // m.JSON
+	return size
+}
+func (m *GetAPIJSONReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeString(m.JSON, 0)
+	return buf.Bytes(), nil
+}
+func (m *GetAPIJSONReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.JSON = buf.DecodeString(0)
+	return nil
+}
+
 // /*
 //   - Lookup message-ID base by name
 //
@@ -284,6 +348,7 @@ func (m *GetFirstMsgIDReply) Unmarshal(b []byte) error {
 //   - Create a client registration
 //
 // MemclntCreate defines message 'memclnt_create'.
+// Deprecated: the message will be removed in the future versions
 type MemclntCreate struct {
 	CtxQuota    int32    `binapi:"i32,name=ctx_quota" json:"ctx_quota,omitempty"`
 	InputQueue  uint64   `binapi:"u64,name=input_queue" json:"input_queue,omitempty"`
@@ -338,6 +403,7 @@ func (m *MemclntCreate) Unmarshal(b []byte) error {
 }
 
 // MemclntCreateReply defines message 'memclnt_create_reply'.
+// Deprecated: the message will be removed in the future versions
 type MemclntCreateReply struct {
 	Response     int32  `binapi:"i32,name=response" json:"response,omitempty"`
 	Handle       uint64 `binapi:"u64,name=handle" json:"handle,omitempty"`
@@ -1135,6 +1201,8 @@ func file_memclnt_binapi_init() {
 	api.RegisterMessage((*APIVersionsReply)(nil), "api_versions_reply_5f0d99d6")
 	api.RegisterMessage((*ControlPing)(nil), "control_ping_51077d14")
 	api.RegisterMessage((*ControlPingReply)(nil), "control_ping_reply_f6b0b8ca")
+	api.RegisterMessage((*GetAPIJSON)(nil), "get_api_json_51077d14")
+	api.RegisterMessage((*GetAPIJSONReply)(nil), "get_api_json_reply_ea715b59")
 	api.RegisterMessage((*GetFirstMsgID)(nil), "get_first_msg_id_ebf79a66")
 	api.RegisterMessage((*GetFirstMsgIDReply)(nil), "get_first_msg_id_reply_7d337472")
 	api.RegisterMessage((*MemclntCreate)(nil), "memclnt_create_9c5e1c2f")
@@ -1166,6 +1234,8 @@ func AllMessages() []api.Message {
 		(*APIVersionsReply)(nil),
 		(*ControlPing)(nil),
 		(*ControlPingReply)(nil),
+		(*GetAPIJSON)(nil),
+		(*GetAPIJSONReply)(nil),
 		(*GetFirstMsgID)(nil),
 		(*GetFirstMsgIDReply)(nil),
 		(*MemclntCreate)(nil),
