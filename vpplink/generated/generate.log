@@ -1,13 +1,27 @@
-VPP Version                 : 23.10-rc0~8-g97c83709b
+VPP Version                 : 25.02.0-6~ge7d6d1b80
 Binapi-generator version    : v0.8.0-dev
-VPP Base commit             : 7199f37dc gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : 90f9501ea misc: Initial changes for stable/2502 branch
 ------------------ Cherry picked commits --------------------
 interface: Fix interface.api endianness
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
-gerrit:40078/3 vnet: allow format deleted swifidx
-gerrit:40090/3 cnat: undo fib_entry_contribute_forwarding
 gerrit:34726/3 interface: add buffer stats api
+misc: VPP 25.02 Release Notes
+session: do not match listeners when looking for lcl port
+hs-test: fix numa node core retrieval
+http: confirm postponed connection close
+dpdk: patch add to ice driver for flow action handles
+l2: fix segment fault
+http: buf_fifo_get_segs minor fix
+hs-test: fixed incorrect exit status
+http: http_app_tx_callback check if conn closed
+vpp_config: leave kernel.shmmax alone by default
+vpp_config: leave vm.max_map_count alone by default
+sflow: replace VAPI with DLAPI
+hs-test: fix broken test
+sflow: Update build rules
+snort: validate sw_if_index in attach/detach api handlers
+misc: Initial changes for stable/2502 branch
 -------------------------------------------------------------

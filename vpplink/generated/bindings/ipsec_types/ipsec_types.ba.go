@@ -4,7 +4,7 @@
 //
 // Contents:
 // -  5 enums
-// -  6 structs
+// -  7 structs
 package ipsec_types
 
 import (
@@ -25,7 +25,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ipsec_types"
 	APIVersion = "3.0.1"
-	VersionCrc = 0x7892423b
+	VersionCrc = 0x9b9b8bc
 )
 
 // IpsecCryptoAlg defines enum 'ipsec_crypto_alg'.
@@ -45,6 +45,9 @@ const (
 	IPSEC_API_CRYPTO_ALG_DES_CBC           IpsecCryptoAlg = 10
 	IPSEC_API_CRYPTO_ALG_3DES_CBC          IpsecCryptoAlg = 11
 	IPSEC_API_CRYPTO_ALG_CHACHA20_POLY1305 IpsecCryptoAlg = 12
+	IPSEC_API_CRYPTO_ALG_AES_NULL_GMAC_128 IpsecCryptoAlg = 13
+	IPSEC_API_CRYPTO_ALG_AES_NULL_GMAC_192 IpsecCryptoAlg = 14
+	IPSEC_API_CRYPTO_ALG_AES_NULL_GMAC_256 IpsecCryptoAlg = 15
 )
 
 var (
@@ -62,6 +65,9 @@ var (
 		10: "IPSEC_API_CRYPTO_ALG_DES_CBC",
 		11: "IPSEC_API_CRYPTO_ALG_3DES_CBC",
 		12: "IPSEC_API_CRYPTO_ALG_CHACHA20_POLY1305",
+		13: "IPSEC_API_CRYPTO_ALG_AES_NULL_GMAC_128",
+		14: "IPSEC_API_CRYPTO_ALG_AES_NULL_GMAC_192",
+		15: "IPSEC_API_CRYPTO_ALG_AES_NULL_GMAC_256",
 	}
 	IpsecCryptoAlg_value = map[string]uint32{
 		"IPSEC_API_CRYPTO_ALG_NONE":              0,
@@ -77,6 +83,9 @@ var (
 		"IPSEC_API_CRYPTO_ALG_DES_CBC":           10,
 		"IPSEC_API_CRYPTO_ALG_3DES_CBC":          11,
 		"IPSEC_API_CRYPTO_ALG_CHACHA20_POLY1305": 12,
+		"IPSEC_API_CRYPTO_ALG_AES_NULL_GMAC_128": 13,
+		"IPSEC_API_CRYPTO_ALG_AES_NULL_GMAC_192": 14,
+		"IPSEC_API_CRYPTO_ALG_AES_NULL_GMAC_256": 15,
 	}
 )
 
@@ -306,6 +315,23 @@ type IpsecSadEntryV3 struct {
 	Salt               uint32              `binapi:"u32,name=salt" json:"salt,omitempty"`
 	UDPSrcPort         uint16              `binapi:"u16,name=udp_src_port,default=4500" json:"udp_src_port,omitempty"`
 	UDPDstPort         uint16              `binapi:"u16,name=udp_dst_port,default=4500" json:"udp_dst_port,omitempty"`
+}
+
+// IpsecSadEntryV4 defines type 'ipsec_sad_entry_v4'.
+type IpsecSadEntryV4 struct {
+	SadID                uint32              `binapi:"u32,name=sad_id" json:"sad_id,omitempty"`
+	Spi                  uint32              `binapi:"u32,name=spi" json:"spi,omitempty"`
+	Protocol             IpsecProto          `binapi:"ipsec_proto,name=protocol" json:"protocol,omitempty"`
+	CryptoAlgorithm      IpsecCryptoAlg      `binapi:"ipsec_crypto_alg,name=crypto_algorithm" json:"crypto_algorithm,omitempty"`
+	CryptoKey            Key                 `binapi:"key,name=crypto_key" json:"crypto_key,omitempty"`
+	IntegrityAlgorithm   IpsecIntegAlg       `binapi:"ipsec_integ_alg,name=integrity_algorithm" json:"integrity_algorithm,omitempty"`
+	IntegrityKey         Key                 `binapi:"key,name=integrity_key" json:"integrity_key,omitempty"`
+	Flags                IpsecSadFlags       `binapi:"ipsec_sad_flags,name=flags" json:"flags,omitempty"`
+	Tunnel               tunnel_types.Tunnel `binapi:"tunnel,name=tunnel" json:"tunnel,omitempty"`
+	Salt                 uint32              `binapi:"u32,name=salt" json:"salt,omitempty"`
+	UDPSrcPort           uint16              `binapi:"u16,name=udp_src_port,default=4500" json:"udp_src_port,omitempty"`
+	UDPDstPort           uint16              `binapi:"u16,name=udp_dst_port,default=4500" json:"udp_dst_port,omitempty"`
+	AntiReplayWindowSize uint32              `binapi:"u32,name=anti_replay_window_size,default=64" json:"anti_replay_window_size,omitempty"`
 }
 
 // IpsecSpdEntry defines type 'ipsec_spd_entry'.

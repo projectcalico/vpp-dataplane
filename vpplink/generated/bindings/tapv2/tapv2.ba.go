@@ -260,6 +260,7 @@ func (m *SwInterfaceTapV2Dump) Unmarshal(b []byte) error {
 //   - tag - tag
 //
 // TapCreateV2 defines message 'tap_create_v2'.
+// Deprecated: the message will be removed in the future versions
 type TapCreateV2 struct {
 	ID               uint32                        `binapi:"u32,name=id,default=4294967295" json:"id,omitempty"`
 	UseRandomMac     bool                          `binapi:"bool,name=use_random_mac,default=true" json:"use_random_mac,omitempty"`
@@ -403,6 +404,7 @@ func (m *TapCreateV2) Unmarshal(b []byte) error {
 //   - sw_if_index - software index allocated for the new tap interface
 //
 // TapCreateV2Reply defines message 'tap_create_v2_reply'.
+// Deprecated: the message will be removed in the future versions
 type TapCreateV2Reply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
