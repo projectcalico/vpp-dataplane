@@ -464,6 +464,7 @@ func (m *SrPoliciesDetails) Unmarshal(b []byte) error {
 
 // Dump the list of SR policies
 // SrPoliciesDump defines message 'sr_policies_dump'.
+// Deprecated: the message will be removed in the future versions
 type SrPoliciesDump struct{}
 
 func (m *SrPoliciesDump) Reset()               { *m = SrPoliciesDump{} }
@@ -491,7 +492,6 @@ func (m *SrPoliciesDump) Unmarshal(b []byte) error {
 }
 
 // SrPoliciesV2Details defines message 'sr_policies_v2_details'.
-// InProgress: the message form may change in the future versions
 type SrPoliciesV2Details struct {
 	Bsid        ip_types.IP6Address `binapi:"ip6_address,name=bsid" json:"bsid,omitempty"`
 	EncapSrc    ip_types.IP6Address `binapi:"ip6_address,name=encap_src" json:"encap_src,omitempty"`

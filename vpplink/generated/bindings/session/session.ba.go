@@ -3,8 +3,9 @@
 // Package session contains generated bindings for API file session.api.
 //
 // Contents:
-// -  2 enums
-// - 26 messages
+// -  3 enums
+// -  1 struct
+// - 32 messages
 package session
 
 import (
@@ -24,9 +25,42 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "session"
-	APIVersion = "4.0.0"
-	VersionCrc = 0x37cc4b71
+	APIVersion = "4.0.1"
+	VersionCrc = 0xd5122da9
 )
+
+// RtBackendEngine defines enum 'rt_backend_engine'.
+type RtBackendEngine uint8
+
+const (
+	RT_BACKEND_ENGINE_API_DISABLE    RtBackendEngine = 0
+	RT_BACKEND_ENGINE_API_RULE_TABLE RtBackendEngine = 1
+	RT_BACKEND_ENGINE_API_NONE       RtBackendEngine = 2
+	RT_BACKEND_ENGINE_API_SDL        RtBackendEngine = 3
+)
+
+var (
+	RtBackendEngine_name = map[uint8]string{
+		0: "RT_BACKEND_ENGINE_API_DISABLE",
+		1: "RT_BACKEND_ENGINE_API_RULE_TABLE",
+		2: "RT_BACKEND_ENGINE_API_NONE",
+		3: "RT_BACKEND_ENGINE_API_SDL",
+	}
+	RtBackendEngine_value = map[string]uint8{
+		"RT_BACKEND_ENGINE_API_DISABLE":    0,
+		"RT_BACKEND_ENGINE_API_RULE_TABLE": 1,
+		"RT_BACKEND_ENGINE_API_NONE":       2,
+		"RT_BACKEND_ENGINE_API_SDL":        3,
+	}
+)
+
+func (x RtBackendEngine) String() string {
+	s, ok := RtBackendEngine_name[uint8(x)]
+	if ok {
+		return s
+	}
+	return "RtBackendEngine(" + strconv.Itoa(int(x)) + ")"
+}
 
 // SessionRuleScope defines enum 'session_rule_scope'.
 type SessionRuleScope uint32
@@ -92,6 +126,13 @@ func (x TransportProto) String() string {
 		return s
 	}
 	return "TransportProto(" + strconv.Itoa(int(x)) + ")"
+}
+
+// SdlRule defines type 'sdl_rule'.
+type SdlRule struct {
+	Lcl         ip_types.Prefix `binapi:"prefix,name=lcl" json:"lcl,omitempty"`
+	ActionIndex uint32          `binapi:"u32,name=action_index" json:"action_index,omitempty"`
+	Tag         string          `binapi:"string[64],name=tag" json:"tag,omitempty"`
 }
 
 // Add certificate and key
@@ -1011,6 +1052,7 @@ func (m *ApplicationDetachReply) Unmarshal(b []byte) error {
 //	- is_enable - disable session layer if 0, enable otherwise
 //
 // SessionEnableDisable defines message 'session_enable_disable'.
+// Deprecated: the message will be removed in the future versions
 type SessionEnableDisable struct {
 	IsEnable bool `binapi:"bool,name=is_enable,default=true" json:"is_enable,omitempty"`
 }
@@ -1044,6 +1086,7 @@ func (m *SessionEnableDisable) Unmarshal(b []byte) error {
 }
 
 // SessionEnableDisableReply defines message 'session_enable_disable_reply'.
+// Deprecated: the message will be removed in the future versions
 type SessionEnableDisableReply struct {
 	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
 }
@@ -1071,6 +1114,72 @@ func (m *SessionEnableDisableReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *SessionEnableDisableReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// SessionEnableDisableV2 defines message 'session_enable_disable_v2'.
+type SessionEnableDisableV2 struct {
+	RtEngineType RtBackendEngine `binapi:"rt_backend_engine,name=rt_engine_type" json:"rt_engine_type,omitempty"`
+}
+
+func (m *SessionEnableDisableV2) Reset()               { *m = SessionEnableDisableV2{} }
+func (*SessionEnableDisableV2) GetMessageName() string { return "session_enable_disable_v2" }
+func (*SessionEnableDisableV2) GetCrcString() string   { return "f09fbf32" }
+func (*SessionEnableDisableV2) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SessionEnableDisableV2) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1 // m.RtEngineType
+	return size
+}
+func (m *SessionEnableDisableV2) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint8(uint8(m.RtEngineType))
+	return buf.Bytes(), nil
+}
+func (m *SessionEnableDisableV2) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.RtEngineType = RtBackendEngine(buf.DecodeUint8())
+	return nil
+}
+
+// SessionEnableDisableV2Reply defines message 'session_enable_disable_v2_reply'.
+type SessionEnableDisableV2Reply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SessionEnableDisableV2Reply) Reset()               { *m = SessionEnableDisableV2Reply{} }
+func (*SessionEnableDisableV2Reply) GetMessageName() string { return "session_enable_disable_v2_reply" }
+func (*SessionEnableDisableV2Reply) GetCrcString() string   { return "e8d4e804" }
+func (*SessionEnableDisableV2Reply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SessionEnableDisableV2Reply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SessionEnableDisableV2Reply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SessionEnableDisableV2Reply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -1403,6 +1512,198 @@ func (m *SessionSapiEnableDisableReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// SessionSdlAddDel defines message 'session_sdl_add_del'.
+type SessionSdlAddDel struct {
+	AppnsIndex uint32    `binapi:"u32,name=appns_index" json:"appns_index,omitempty"`
+	IsAdd      bool      `binapi:"bool,name=is_add" json:"is_add,omitempty"`
+	Count      uint32    `binapi:"u32,name=count" json:"-"`
+	R          []SdlRule `binapi:"sdl_rule[count],name=r" json:"r,omitempty"`
+}
+
+func (m *SessionSdlAddDel) Reset()               { *m = SessionSdlAddDel{} }
+func (*SessionSdlAddDel) GetMessageName() string { return "session_sdl_add_del" }
+func (*SessionSdlAddDel) GetCrcString() string   { return "faeb89fc" }
+func (*SessionSdlAddDel) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SessionSdlAddDel) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.AppnsIndex
+	size += 1 // m.IsAdd
+	size += 4 // m.Count
+	for j1 := 0; j1 < len(m.R); j1++ {
+		var s1 SdlRule
+		_ = s1
+		if j1 < len(m.R) {
+			s1 = m.R[j1]
+		}
+		size += 1      // s1.Lcl.Address.Af
+		size += 1 * 16 // s1.Lcl.Address.Un
+		size += 1      // s1.Lcl.Len
+		size += 4      // s1.ActionIndex
+		size += 64     // s1.Tag
+	}
+	return size
+}
+func (m *SessionSdlAddDel) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(m.AppnsIndex)
+	buf.EncodeBool(m.IsAdd)
+	buf.EncodeUint32(uint32(len(m.R)))
+	for j0 := 0; j0 < len(m.R); j0++ {
+		var v0 SdlRule // R
+		if j0 < len(m.R) {
+			v0 = m.R[j0]
+		}
+		buf.EncodeUint8(uint8(v0.Lcl.Address.Af))
+		buf.EncodeBytes(v0.Lcl.Address.Un.XXX_UnionData[:], 16)
+		buf.EncodeUint8(v0.Lcl.Len)
+		buf.EncodeUint32(v0.ActionIndex)
+		buf.EncodeString(v0.Tag, 64)
+	}
+	return buf.Bytes(), nil
+}
+func (m *SessionSdlAddDel) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.AppnsIndex = buf.DecodeUint32()
+	m.IsAdd = buf.DecodeBool()
+	m.Count = buf.DecodeUint32()
+	m.R = make([]SdlRule, m.Count)
+	for j0 := 0; j0 < len(m.R); j0++ {
+		m.R[j0].Lcl.Address.Af = ip_types.AddressFamily(buf.DecodeUint8())
+		copy(m.R[j0].Lcl.Address.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+		m.R[j0].Lcl.Len = buf.DecodeUint8()
+		m.R[j0].ActionIndex = buf.DecodeUint32()
+		m.R[j0].Tag = buf.DecodeString(64)
+	}
+	return nil
+}
+
+// SessionSdlAddDelReply defines message 'session_sdl_add_del_reply'.
+type SessionSdlAddDelReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SessionSdlAddDelReply) Reset()               { *m = SessionSdlAddDelReply{} }
+func (*SessionSdlAddDelReply) GetMessageName() string { return "session_sdl_add_del_reply" }
+func (*SessionSdlAddDelReply) GetCrcString() string   { return "e8d4e804" }
+func (*SessionSdlAddDelReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SessionSdlAddDelReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SessionSdlAddDelReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SessionSdlAddDelReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// Session sdl details
+//   - lcl - local prefix
+//   - action_index - the only action defined now is forward to
+//     application with index action_index
+//   - appns_index - application namespace where rule is to be applied to
+//   - tag - tag
+//
+// SessionSdlDetails defines message 'session_sdl_details'.
+type SessionSdlDetails struct {
+	Lcl         ip_types.Prefix `binapi:"prefix,name=lcl" json:"lcl,omitempty"`
+	ActionIndex uint32          `binapi:"u32,name=action_index" json:"action_index,omitempty"`
+	AppnsIndex  uint32          `binapi:"u32,name=appns_index" json:"appns_index,omitempty"`
+	Tag         string          `binapi:"string[64],name=tag" json:"tag,omitempty"`
+}
+
+func (m *SessionSdlDetails) Reset()               { *m = SessionSdlDetails{} }
+func (*SessionSdlDetails) GetMessageName() string { return "session_sdl_details" }
+func (*SessionSdlDetails) GetCrcString() string   { return "9a8ef5d0" }
+func (*SessionSdlDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SessionSdlDetails) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 1      // m.Lcl.Address.Af
+	size += 1 * 16 // m.Lcl.Address.Un
+	size += 1      // m.Lcl.Len
+	size += 4      // m.ActionIndex
+	size += 4      // m.AppnsIndex
+	size += 64     // m.Tag
+	return size
+}
+func (m *SessionSdlDetails) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint8(uint8(m.Lcl.Address.Af))
+	buf.EncodeBytes(m.Lcl.Address.Un.XXX_UnionData[:], 16)
+	buf.EncodeUint8(m.Lcl.Len)
+	buf.EncodeUint32(m.ActionIndex)
+	buf.EncodeUint32(m.AppnsIndex)
+	buf.EncodeString(m.Tag, 64)
+	return buf.Bytes(), nil
+}
+func (m *SessionSdlDetails) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Lcl.Address.Af = ip_types.AddressFamily(buf.DecodeUint8())
+	copy(m.Lcl.Address.Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	m.Lcl.Len = buf.DecodeUint8()
+	m.ActionIndex = buf.DecodeUint32()
+	m.AppnsIndex = buf.DecodeUint32()
+	m.Tag = buf.DecodeString(64)
+	return nil
+}
+
+// Dump session sdl
+// SessionSdlDump defines message 'session_sdl_dump'.
+type SessionSdlDump struct{}
+
+func (m *SessionSdlDump) Reset()               { *m = SessionSdlDump{} }
+func (*SessionSdlDump) GetMessageName() string { return "session_sdl_dump" }
+func (*SessionSdlDump) GetCrcString() string   { return "51077d14" }
+func (*SessionSdlDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SessionSdlDump) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *SessionSdlDump) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *SessionSdlDump) Unmarshal(b []byte) error {
+	return nil
+}
+
 func init() { file_session_binapi_init() }
 func file_session_binapi_init() {
 	api.RegisterMessage((*AppAddCertKeyPair)(nil), "app_add_cert_key_pair_02eb8016")
@@ -1425,12 +1726,18 @@ func file_session_binapi_init() {
 	api.RegisterMessage((*ApplicationDetachReply)(nil), "application_detach_reply_e8d4e804")
 	api.RegisterMessage((*SessionEnableDisable)(nil), "session_enable_disable_c264d7bf")
 	api.RegisterMessage((*SessionEnableDisableReply)(nil), "session_enable_disable_reply_e8d4e804")
+	api.RegisterMessage((*SessionEnableDisableV2)(nil), "session_enable_disable_v2_f09fbf32")
+	api.RegisterMessage((*SessionEnableDisableV2Reply)(nil), "session_enable_disable_v2_reply_e8d4e804")
 	api.RegisterMessage((*SessionRuleAddDel)(nil), "session_rule_add_del_82a90af5")
 	api.RegisterMessage((*SessionRuleAddDelReply)(nil), "session_rule_add_del_reply_e8d4e804")
 	api.RegisterMessage((*SessionRulesDetails)(nil), "session_rules_details_4ef746e7")
 	api.RegisterMessage((*SessionRulesDump)(nil), "session_rules_dump_51077d14")
 	api.RegisterMessage((*SessionSapiEnableDisable)(nil), "session_sapi_enable_disable_c264d7bf")
 	api.RegisterMessage((*SessionSapiEnableDisableReply)(nil), "session_sapi_enable_disable_reply_e8d4e804")
+	api.RegisterMessage((*SessionSdlAddDel)(nil), "session_sdl_add_del_faeb89fc")
+	api.RegisterMessage((*SessionSdlAddDelReply)(nil), "session_sdl_add_del_reply_e8d4e804")
+	api.RegisterMessage((*SessionSdlDetails)(nil), "session_sdl_details_9a8ef5d0")
+	api.RegisterMessage((*SessionSdlDump)(nil), "session_sdl_dump_51077d14")
 }
 
 // Messages returns list of all messages in this module.
@@ -1456,11 +1763,17 @@ func AllMessages() []api.Message {
 		(*ApplicationDetachReply)(nil),
 		(*SessionEnableDisable)(nil),
 		(*SessionEnableDisableReply)(nil),
+		(*SessionEnableDisableV2)(nil),
+		(*SessionEnableDisableV2Reply)(nil),
 		(*SessionRuleAddDel)(nil),
 		(*SessionRuleAddDelReply)(nil),
 		(*SessionRulesDetails)(nil),
 		(*SessionRulesDump)(nil),
 		(*SessionSapiEnableDisable)(nil),
 		(*SessionSapiEnableDisableReply)(nil),
+		(*SessionSdlAddDel)(nil),
+		(*SessionSdlAddDelReply)(nil),
+		(*SessionSdlDetails)(nil),
+		(*SessionSdlDump)(nil),
 	}
 }

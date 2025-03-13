@@ -92,11 +92,9 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-git_clone_cd_and_reset "$1" a7dd04d73bf5abed944fb77a5e957bbad24e2750 # misc: Initial 23.10-rc0 commit
+git_clone_cd_and_reset "$1" v25.02
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
-git_cherry_pick refs/changes/90/40090/3 # 40090: cnat: undo fib_entry_contribute_forwarding | https://gerrit.fd.io/r/c/vpp/+/40090
-git_cherry_pick refs/changes/78/40078/3 # 40078: vnet: allow format deleted swifidx | https://gerrit.fd.io/r/c/vpp/+/40078
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
