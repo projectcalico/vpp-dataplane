@@ -23,7 +23,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "interface"
 	APIVersion = "3.2.3"
-	VersionCrc = 0x2c32eb46
+	VersionCrc = 0x446ae86d
 )
 
 // Enable or disable detailed interface stats
@@ -2706,13 +2706,13 @@ func (m *SwInterfaceSetTableReply) Unmarshal(b []byte) error {
 type SwInterfaceSetTxPlacement struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
 	QueueID   uint32                         `binapi:"u32,name=queue_id" json:"queue_id,omitempty"`
-	ArraySize uint32                         `binapi:"u32,name=array_size" json:"-"`
+	ArraySize uint8                          `binapi:"u8,name=array_size" json:"-"`
 	Threads   []uint32                       `binapi:"u32[array_size],name=threads" json:"threads,omitempty"`
 }
 
 func (m *SwInterfaceSetTxPlacement) Reset()               { *m = SwInterfaceSetTxPlacement{} }
 func (*SwInterfaceSetTxPlacement) GetMessageName() string { return "sw_interface_set_tx_placement" }
-func (*SwInterfaceSetTxPlacement) GetCrcString() string   { return "4e0cd5ff" }
+func (*SwInterfaceSetTxPlacement) GetCrcString() string   { return "0b855b40" }
 func (*SwInterfaceSetTxPlacement) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -2723,7 +2723,7 @@ func (m *SwInterfaceSetTxPlacement) Size() (size int) {
 	}
 	size += 4                  // m.SwIfIndex
 	size += 4                  // m.QueueID
-	size += 4                  // m.ArraySize
+	size += 1                  // m.ArraySize
 	size += 4 * len(m.Threads) // m.Threads
 	return size
 }
@@ -2734,7 +2734,7 @@ func (m *SwInterfaceSetTxPlacement) Marshal(b []byte) ([]byte, error) {
 	buf := codec.NewBuffer(b)
 	buf.EncodeUint32(uint32(m.SwIfIndex))
 	buf.EncodeUint32(m.QueueID)
-	buf.EncodeUint32(uint32(len(m.Threads)))
+	buf.EncodeUint8(uint8(len(m.Threads)))
 	for i := 0; i < len(m.Threads); i++ {
 		var x uint32
 		if i < len(m.Threads) {
@@ -2748,7 +2748,7 @@ func (m *SwInterfaceSetTxPlacement) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
 	m.QueueID = buf.DecodeUint32()
-	m.ArraySize = buf.DecodeUint32()
+	m.ArraySize = buf.DecodeUint8()
 	m.Threads = make([]uint32, m.ArraySize)
 	for i := 0; i < len(m.Threads); i++ {
 		m.Threads[i] = buf.DecodeUint32()
@@ -3247,7 +3247,7 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*SwInterfaceSetRxPlacementReply)(nil), "sw_interface_set_rx_placement_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetTable)(nil), "sw_interface_set_table_df42a577")
 	api.RegisterMessage((*SwInterfaceSetTableReply)(nil), "sw_interface_set_table_reply_e8d4e804")
-	api.RegisterMessage((*SwInterfaceSetTxPlacement)(nil), "sw_interface_set_tx_placement_4e0cd5ff")
+	api.RegisterMessage((*SwInterfaceSetTxPlacement)(nil), "sw_interface_set_tx_placement_0b855b40")
 	api.RegisterMessage((*SwInterfaceSetTxPlacementReply)(nil), "sw_interface_set_tx_placement_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetUnnumbered)(nil), "sw_interface_set_unnumbered_154a6439")
 	api.RegisterMessage((*SwInterfaceSetUnnumberedReply)(nil), "sw_interface_set_unnumbered_reply_e8d4e804")

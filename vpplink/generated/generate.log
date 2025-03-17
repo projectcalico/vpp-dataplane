@@ -1,5 +1,5 @@
-VPP Version                 : 25.02.0-6~ge7d6d1b80
-Binapi-generator version    : v0.8.0-dev
+VPP Version                 : 25.02.0-7~gb9dbf2b76
+Binapi-generator version    : v0.11.0
 VPP Base commit             : 90f9501ea misc: Initial changes for stable/2502 branch
 ------------------ Cherry picked commits --------------------
 interface: Fix interface.api endianness
@@ -7,6 +7,7 @@ capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:42343/2 vcl: LDP default to regular option
 gerrit:34726/3 interface: add buffer stats api
 misc: VPP 25.02 Release Notes
 session: do not match listeners when looking for lcl port
