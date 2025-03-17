@@ -28,7 +28,7 @@ data:
         plugin dispatch_trace_plugin.so { enable }
     }
     buffers {
-      buffers-per-numa 131072
+      buffers-per-numa 262144
     }
   CALICOVPP_INITIAL_CONFIG: |-
     {
