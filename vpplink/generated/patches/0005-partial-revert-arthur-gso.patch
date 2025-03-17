@@ -1,0 +1,103 @@
+From a5efb646c1e2575abe427f8f5f211a988464cde1 Mon Sep 17 00:00:00 2001
+From: Mohsin Kazmi <sykazmi@cisco.com>
+Date: Mon, 28 Oct 2024 16:44:11 +0000
+Subject: [PATCH] ip: add support for checksum in IP midchain
+
+Type: fix
+
+This is a temporary patch which should not be merged
+in upstream VPP.
+It only reverts partial support of the patch added by
+https://gerrit.fd.io/r/c/vpp/+/32695
+
+Today, virtual interfaces on egress does not support
+checksum and GSO offload packets which are
+encapsulated in tunnel.
+
+Signed-off-by: Mohsin Kazmi <sykazmi@cisco.com>
+Change-Id: Ib8c98bedc227419154aaaf1bebed46890ab69026
+---
+
+diff --git a/src/vnet/ip/ip4_forward.c b/src/vnet/ip/ip4_forward.c
+index ff74b52..e18e688 100644
+--- a/src/vnet/ip/ip4_forward.c
++++ b/src/vnet/ip/ip4_forward.c
+@@ -2225,6 +2225,9 @@
+ 						adj0->ia_cfg_index);
+ 
+ 	  next[0] = next_index;
++	  if (is_midchain)
++	    vnet_calc_checksums_inline (vm, b[0], 1 /* is_ip4 */,
++					0 /* is_ip6 */);
+ 	}
+       else
+ 	{
+@@ -2247,6 +2250,9 @@
+ 						&next_index, b[1],
+ 						adj1->ia_cfg_index);
+ 	  next[1] = next_index;
++	  if (is_midchain)
++	    vnet_calc_checksums_inline (vm, b[1], 1 /* is_ip4 */,
++					0 /* is_ip6 */);
+ 	}
+       else
+ 	{
+@@ -2396,6 +2402,8 @@
+ 
+ 	  if (is_midchain)
+ 	    {
++	      vnet_calc_checksums_inline (vm, b[0], 1 /* is_ip4 */,
++					  0 /* is_ip6 */);
+ 	      /* Guess we are only writing on ipv4 header. */
+ 	      vnet_rewrite_one_header (adj0[0], ip0, sizeof (ip4_header_t));
+ 	    }
+@@ -2499,6 +2507,8 @@
+ 
+ 	  if (is_midchain)
+ 	    {
++	      vnet_calc_checksums_inline (vm, b[0], 1 /* is_ip4 */,
++					  0 /* is_ip6 */);
+ 	      /* Guess we are only writing on ipv4 header. */
+ 	      vnet_rewrite_one_header (adj0[0], ip0, sizeof (ip4_header_t));
+ 	    }
+diff --git a/src/vnet/ip/ip6_forward.c b/src/vnet/ip/ip6_forward.c
+index 31adc90..e697018 100644
+--- a/src/vnet/ip/ip6_forward.c
++++ b/src/vnet/ip/ip6_forward.c
+@@ -1955,9 +1955,17 @@
+ 	    }
+ 
+ 	  if (is_midchain)
+-	    /* Guess we are only writing on ipv6 header. */
+-	    vnet_rewrite_two_headers (adj0[0], adj1[0], ip0, ip1,
+-				      sizeof (ip6_header_t));
++	    {
++	      /* before we paint on the next header, update the L4
++	       * checksums if required, since there's no offload on a tunnel */
++	      vnet_calc_checksums_inline (vm, p0, 0 /* is_ip4 */,
++					  1 /* is_ip6 */);
++	      vnet_calc_checksums_inline (vm, p1, 0 /* is_ip4 */,
++					  1 /* is_ip6 */);
++	      /* Guess we are only writing on ipv6 header. */
++	      vnet_rewrite_two_headers (adj0[0], adj1[0], ip0, ip1,
++					sizeof (ip6_header_t));
++	    }
+ 	  else
+ 	    /* Guess we are only writing on simple Ethernet header. */
+ 	    vnet_rewrite_two_headers (adj0[0], adj1[0],
+@@ -2085,8 +2093,13 @@
+ 		  adj0->ia_cfg_index);
+ 
+ 	      if (is_midchain)
+-		/* Guess we are only writing on ip6 header. */
+-		vnet_rewrite_one_header (adj0[0], ip0, sizeof (ip6_header_t));
++		{
++		  vnet_calc_checksums_inline (vm, p0, 0 /* is_ip4 */,
++					      1 /* is_ip6 */);
++		  /* Guess we are only writing on ip6 header. */
++		  vnet_rewrite_one_header (adj0[0], ip0,
++					   sizeof (ip6_header_t));
++		}
+ 	      else
+ 		/* Guess we are only writing on simple Ethernet header. */
+ 		vnet_rewrite_one_header (adj0[0], ip0,
