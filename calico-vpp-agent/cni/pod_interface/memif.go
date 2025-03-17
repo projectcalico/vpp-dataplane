@@ -93,39 +93,41 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	}
 	podSpec.MemifSwIfIndex = memif.SwIfIndex
 
-	watcher, err := i.vpp.WatchInterfaceEvents(memif.SwIfIndex)
-	if err != nil {
-		return err
-	} else {
-		stack.Push(watcher.Stop)
-	}
-	go func() {
-		i.log.WithFields(map[string]interface{}{
-			"swIfIndex": memif.SwIfIndex,
-		}).Infof("begin watching interface events for: %v", i.Name)
-
-		for event := range watcher.Events() {
+	if *(*config.CalicoVppDebug).SpreadTxQueuesOnWorkers {
+		watcher, err := i.vpp.WatchInterfaceEvents(memif.SwIfIndex)
+		if err != nil {
+			return err
+		} else {
+			stack.Push(watcher.Stop)
+		}
+		go func() {
 			i.log.WithFields(map[string]interface{}{
 				"swIfIndex": memif.SwIfIndex,
-			}).Infof("processing interface event for %v: %+v", i.Name, event)
+			}).Infof("begin watching interface events for: %v", i.Name)
 
-			switch event.Type {
-			case types.InterfaceEventLinkUp:
-				err = i.SpreadTxQueuesOnWorkers(memif.SwIfIndex, memif.NumTxQueues)
-				if err != nil {
-					i.log.Errorf("error spreading tx queues on workers: %v", err)
+			for event := range watcher.Events() {
+				i.log.WithFields(map[string]interface{}{
+					"swIfIndex": memif.SwIfIndex,
+				}).Infof("processing interface event for %v: %+v", i.Name, event)
+
+				switch event.Type {
+				case types.InterfaceEventLinkUp:
+					err = i.SpreadTxQueuesOnWorkers(memif.SwIfIndex, memif.NumTxQueues)
+					if err != nil {
+						i.log.Errorf("error spreading tx queues on workers: %v", err)
+					}
+					i.SpreadRxQueuesOnWorkers(memif.SwIfIndex, podSpec.IfSpec.NumRxQueues)
+				case types.InterfaceEventDeleted: // this might not be needed here, it could be handled internally in the watcher
+					watcher.Stop()
 				}
-				i.SpreadRxQueuesOnWorkers(memif.SwIfIndex, podSpec.IfSpec.NumRxQueues)
-			case types.InterfaceEventDeleted: // this might not be needed here, it could be handled internally in the watcher
-				watcher.Stop()
 			}
-		}
 
-		i.log.WithFields(map[string]interface{}{
-			"swIfIndex": memif.SwIfIndex,
-		}).Infof("done watching interface events for: %v", i.Name)
+			i.log.WithFields(map[string]interface{}{
+				"swIfIndex": memif.SwIfIndex,
+			}).Infof("done watching interface events for: %v", i.Name)
 
-	}()
+		}()
+	}
 
 	err = i.vpp.SetInterfaceTag(memif.SwIfIndex, podSpec.GetInterfaceTag(i.Name))
 	if err != nil {
