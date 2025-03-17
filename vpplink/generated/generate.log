@@ -1,7 +1,8 @@
-VPP Version                 : 25.02.0-7~gb9dbf2b76
+VPP Version                 : 25.02.0-8~g4f74c0b31
 Binapi-generator version    : v0.11.0
 VPP Base commit             : 90f9501ea misc: Initial changes for stable/2502 branch
 ------------------ Cherry picked commits --------------------
+ip: add support for checksum in IP midchain
 interface: Fix interface.api endianness
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
