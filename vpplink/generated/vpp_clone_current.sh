@@ -104,3 +104,4 @@ git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
 git_apply_private 0004-capo-Calico-Policies-plugin.patch
 git_apply_private 0005-interface-Fix-interface.api-endianness.patch
+git_apply_private 0005-partial-revert-arthur-gso.patch

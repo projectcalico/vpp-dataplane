@@ -89,24 +89,6 @@ export CALICOVPP_CONFIG_TEMPLATE="
         plugin calico_plugin.so { enable }
         plugin dpdk_plugin.so { disable }
     }"
-export CALICOVPP_INITIAL_CONFIG="
-   {
-     \"vppStartupSleepSeconds\": 1,
-     \"corePattern\": \"/var/lib/vpp/vppcore.%e.%p\"
-     \"redirectToHostRules\": [
-       {
-         \"proto\": \"udp\",
-         \"port\": 53,
-         \"ip\": \"172.18.0.1\"
-       },
-       {
-         \"proto\": \"tcp\",
-         \"port\": 53,
-         \"ip\": \"172.18.0.1\"
-       }
-     ]
-   }
-"
 
 bash ./yaml/overlays/dev/kustomize.sh up
 ````
