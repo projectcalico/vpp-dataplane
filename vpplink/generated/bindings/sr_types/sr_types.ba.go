@@ -28,16 +28,19 @@ const (
 type SrBehavior uint8
 
 const (
-	SR_BEHAVIOR_API_END     SrBehavior = 1
-	SR_BEHAVIOR_API_X       SrBehavior = 2
-	SR_BEHAVIOR_API_T       SrBehavior = 3
-	SR_BEHAVIOR_API_D_FIRST SrBehavior = 4
-	SR_BEHAVIOR_API_DX2     SrBehavior = 5
-	SR_BEHAVIOR_API_DX6     SrBehavior = 6
-	SR_BEHAVIOR_API_DX4     SrBehavior = 7
-	SR_BEHAVIOR_API_DT6     SrBehavior = 8
-	SR_BEHAVIOR_API_DT4     SrBehavior = 9
-	SR_BEHAVIOR_API_LAST    SrBehavior = 10
+	SR_BEHAVIOR_API_END         SrBehavior = 1
+	SR_BEHAVIOR_API_X           SrBehavior = 2
+	SR_BEHAVIOR_API_T           SrBehavior = 3
+	SR_BEHAVIOR_API_D_FIRST     SrBehavior = 4
+	SR_BEHAVIOR_API_DX2         SrBehavior = 5
+	SR_BEHAVIOR_API_DX6         SrBehavior = 6
+	SR_BEHAVIOR_API_DX4         SrBehavior = 7
+	SR_BEHAVIOR_API_DT6         SrBehavior = 8
+	SR_BEHAVIOR_API_DT4         SrBehavior = 9
+	SR_BEHAVIOR_API_LAST        SrBehavior = 10
+	SR_BEHAVIOR_API_END_UN_PERF SrBehavior = 11
+	SR_BEHAVIOR_API_END_UN      SrBehavior = 12
+	SR_BEHAVIOR_API_UA          SrBehavior = 13
 )
 
 var (
@@ -52,18 +55,24 @@ var (
 		8:  "SR_BEHAVIOR_API_DT6",
 		9:  "SR_BEHAVIOR_API_DT4",
 		10: "SR_BEHAVIOR_API_LAST",
+		11: "SR_BEHAVIOR_API_END_UN_PERF",
+		12: "SR_BEHAVIOR_API_END_UN",
+		13: "SR_BEHAVIOR_API_UA",
 	}
 	SrBehavior_value = map[string]uint8{
-		"SR_BEHAVIOR_API_END":     1,
-		"SR_BEHAVIOR_API_X":       2,
-		"SR_BEHAVIOR_API_T":       3,
-		"SR_BEHAVIOR_API_D_FIRST": 4,
-		"SR_BEHAVIOR_API_DX2":     5,
-		"SR_BEHAVIOR_API_DX6":     6,
-		"SR_BEHAVIOR_API_DX4":     7,
-		"SR_BEHAVIOR_API_DT6":     8,
-		"SR_BEHAVIOR_API_DT4":     9,
-		"SR_BEHAVIOR_API_LAST":    10,
+		"SR_BEHAVIOR_API_END":         1,
+		"SR_BEHAVIOR_API_X":           2,
+		"SR_BEHAVIOR_API_T":           3,
+		"SR_BEHAVIOR_API_D_FIRST":     4,
+		"SR_BEHAVIOR_API_DX2":         5,
+		"SR_BEHAVIOR_API_DX6":         6,
+		"SR_BEHAVIOR_API_DX4":         7,
+		"SR_BEHAVIOR_API_DT6":         8,
+		"SR_BEHAVIOR_API_DT4":         9,
+		"SR_BEHAVIOR_API_LAST":        10,
+		"SR_BEHAVIOR_API_END_UN_PERF": 11,
+		"SR_BEHAVIOR_API_END_UN":      12,
+		"SR_BEHAVIOR_API_UA":          13,
 	}
 )
 

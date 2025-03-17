@@ -9,6 +9,8 @@ RUN apt-get update \
 	  libmbedcrypto7 libmbedtls14 libmbedx509-1 libsubunit0 \
 	  iptables iproute2 iputils-ping inetutils-traceroute \
 	  netcat-openbsd ethtool gdb \
+	  libnl-3-dev libnl-route-3-dev \
+	  libunwind8 libpcap-dev \
  && rm -rf /var/lib/apt/lists/*
 
 ADD entrypoint.sh /usr/bin/entrypoint

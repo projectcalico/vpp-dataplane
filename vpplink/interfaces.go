@@ -590,7 +590,7 @@ func (v *VppLink) SetInterfaceTxPlacement(swIfIndex uint32, queue int, worker in
 	_, err := client.SwInterfaceSetTxPlacement(v.GetContext(), &interfaces.SwInterfaceSetTxPlacement{
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 		QueueID:   uint32(queue),
-		ArraySize: uint32(1),
+		ArraySize: uint8(1),
 		Threads:   []uint32{uint32(worker)},
 	})
 	if err != nil {
