@@ -33,16 +33,8 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-)
-
-type Event int
-
-const (
-	Add    Event = 0
-	Delete Event = 1
-
-	recordMetricInterval int64 = 5
 )
 
 type Server struct {
@@ -63,13 +55,16 @@ func (s *Server) recordMetrics(t *tomb.Tomb) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", pe)
 	go func() {
-		err := http.ListenAndServe(":8888", mux)
+		err := http.ListenAndServe(
+			config.GetCalicoVppInitialConfig().PrometheusListenEndpoint,
+			mux,
+		)
 		if err != nil {
 			s.log.Fatalf("Failed to serve metrics: %s", err)
 		}
 	}()
-	for t.Alive() {
-		time.Sleep(time.Second * time.Duration(recordMetricInterval))
+	ticker := time.NewTicker(*config.GetCalicoVppInitialConfig().PrometheusRecordMetricInterval)
+	for ;t.Alive() ; <-ticker.C {
 		ifNames, dumpStats, _ := vpplink.GetInterfaceStats(s.sc)
 		for _, sta := range dumpStats {
 			if string(sta.Name) != "/if/names" {
@@ -84,6 +79,7 @@ func (s *Server) recordMetrics(t *tomb.Tomb) {
 			}
 		}
 	}
+	ticker.Stop()
 }
 
 var units = map[int]string{0: "packets", 1: "bytes"}
