@@ -263,7 +263,7 @@ type CalicoVppDebugConfigType struct {
 	PoliciesEnabled         *bool `json:"policiesEnabled,omitempty"`
 	ServicesEnabled         *bool `json:"servicesEnabled,omitempty"`
 	GSOEnabled              *bool `json:"gsoEnabled,omitempty"`
-	SpreadTxQueuesOnWorkers *bool `json:spreadTxQueuesOnWorkers, omitempty`
+	SpreadTxQueuesOnWorkers *bool `json:"spreadTxQueuesOnWorkers,omitempty"`
 }
 
 func (self *CalicoVppDebugConfigType) String() string {
