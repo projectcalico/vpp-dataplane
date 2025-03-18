@@ -243,7 +243,11 @@ func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf b
 		if !ok {
 			s.log.Errorf("network not found %s", podSpec.NetworkName)
 		} else {
-			vni = value.(*watchers.NetworkDefinition).Vni
+			networkDefinition, ok := value.(*watchers.NetworkDefinition)
+			if !ok || networkDefinition == nil {
+				panic("networkDefinition not of type *watchers.NetworkDefinition")
+			}
+			vni = networkDefinition.Vni
 		}
 	}
 
@@ -312,7 +316,11 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 		if !ok {
 			deleteLocalPodAddress = false
 		} else {
-			vni = value.(*watchers.NetworkDefinition).Vni
+			networkDefinition, ok := value.(*watchers.NetworkDefinition)
+			if !ok || networkDefinition == nil {
+				panic("networkDefinition not of type *watchers.NetworkDefinition")
+			}
+			vni = networkDefinition.Vni
 		}
 	}
 	if deleteLocalPodAddress {

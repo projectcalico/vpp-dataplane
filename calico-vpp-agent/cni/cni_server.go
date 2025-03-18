@@ -171,7 +171,11 @@ func (s *Server) newLocalPodSpecFromAdd(request *cniproto.AddRequest) (*storage.
 		if !ok {
 			s.log.Errorf("trying to create a pod in an unexisting network %s", podSpec.NetworkName)
 		} else {
-			_, route, err := net.ParseCIDR(value.(*watchers.NetworkDefinition).Range)
+			networkDefinition, ok := value.(*watchers.NetworkDefinition)
+			if !ok || networkDefinition == nil {
+				panic("Value is not of type *watchers.NetworkDefinition")
+			}
+			_, route, err := net.ParseCIDR(networkDefinition.Range)
 			if err == nil {
 				podSpec.Routes = append(podSpec.Routes, storage.LocalIPNet{
 					IP:   route.IP,

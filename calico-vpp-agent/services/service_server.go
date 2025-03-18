@@ -185,23 +185,39 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 		60*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				localService := server.resolveLocalServiceFromService(obj.(*v1.Service))
+				service, ok := obj.(*v1.Service)
+				if !ok {
+					panic("wrong type for obj, not *v1.Service")
+				}
+				localService := server.resolveLocalServiceFromService(service)
 				server.handleServiceEndpointEvent(localService, nil)
 			},
 			UpdateFunc: func(old interface{}, obj interface{}) {
-				oldLocalService := server.resolveLocalServiceFromService(old.(*v1.Service))
-				localService := server.resolveLocalServiceFromService(obj.(*v1.Service))
+				service, ok := obj.(*v1.Service)
+				if !ok {
+					panic("wrong type for obj, not *v1.Service")
+				}
+				oldService, ok := old.(*v1.Service)
+				if !ok {
+					panic("wrong type for old, not *v1.Service")
+				}
+				oldLocalService := server.resolveLocalServiceFromService(oldService)
+				localService := server.resolveLocalServiceFromService(service)
 				server.handleServiceEndpointEvent(localService, oldLocalService)
 			},
 			DeleteFunc: func(obj interface{}) {
-				service, ok := obj.(*v1.Service)
-				if !ok {
-					service, ok = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Service)
+				switch value := obj.(type) {
+				case cache.DeletedFinalStateUnknown:
+					service, ok := value.Obj.(*v1.Service)
 					if !ok {
 						panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Service) %v", obj))
 					}
+					server.deleteServiceByName(serviceID(&service.ObjectMeta))
+				case *v1.Service:
+					server.deleteServiceByName(serviceID(&value.ObjectMeta))
+				default:
+					log.Errorf("unknown type in service deleteFunction %v", obj)
 				}
-				server.deleteServiceByName(serviceID(&service.ObjectMeta))
 			},
 		})
 
@@ -213,23 +229,42 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 		60*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				localService := server.resolveLocalServiceFromEndpoints(obj.(*v1.Endpoints))
-				server.handleServiceEndpointEvent(localService, nil)
+				endpoints, ok := obj.(*v1.Endpoints)
+				if !ok {
+					panic("wrong type for obj, not *v1.Endpoints")
+				}
+				server.handleServiceEndpointEvent(
+					server.resolveLocalServiceFromEndpoints(endpoints),
+					nil,
+				)
 			},
 			UpdateFunc: func(old interface{}, obj interface{}) {
-				oldLocalService := server.resolveLocalServiceFromEndpoints(old.(*v1.Endpoints))
-				localService := server.resolveLocalServiceFromEndpoints(obj.(*v1.Endpoints))
-				server.handleServiceEndpointEvent(localService, oldLocalService)
+				endpoints, ok := obj.(*v1.Endpoints)
+				if !ok {
+					panic("wrong type for obj, not *v1.Endpoints")
+				}
+				oldEndpoints, ok := old.(*v1.Endpoints)
+				if !ok {
+					panic("wrong type for old, not *v1.Endpoints")
+				}
+				server.handleServiceEndpointEvent(
+					server.resolveLocalServiceFromEndpoints(endpoints),
+					server.resolveLocalServiceFromEndpoints(oldEndpoints),
+				)
 			},
 			DeleteFunc: func(obj interface{}) {
-				ep, ok := obj.(*v1.Endpoints)
-				if !ok {
-					ep, ok = obj.(cache.DeletedFinalStateUnknown).Obj.(*v1.Endpoints)
+				switch value := obj.(type) {
+				case cache.DeletedFinalStateUnknown:
+					endpoints, ok := value.Obj.(*v1.Endpoints)
 					if !ok {
 						panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Endpoints) %v", obj))
 					}
+					server.deleteServiceByName(serviceID(&endpoints.ObjectMeta))
+				case *v1.Service:
+					server.deleteServiceByName(serviceID(&value.ObjectMeta))
+				default:
+					log.Errorf("unknown type in service deleteFunction %v", obj)
 				}
-				server.deleteServiceByName(serviceID(&ep.ObjectMeta))
 			},
 		})
 
@@ -296,7 +331,7 @@ func (s *Server) findMatchingService(ep *v1.Endpoints) *v1.Service {
 		s.log.Errorf("Error getting endpoint %+v key: %v", ep, err)
 		return nil
 	}
-	service, found, err := s.serviceStore.GetByKey(key)
+	value, found, err := s.serviceStore.GetByKey(key)
 	if err != nil {
 		s.log.Errorf("Error getting service %s: %v", key, err)
 		return nil
@@ -305,7 +340,11 @@ func (s *Server) findMatchingService(ep *v1.Endpoints) *v1.Service {
 		s.log.Debugf("Service %s not found", key)
 		return nil
 	}
-	return service.(*v1.Service)
+	service, ok := value.(*v1.Service)
+	if !ok {
+		panic("s.serviceStore.GetByKey did not return value of type *v1.Service")
+	}
+	return service
 }
 
 func (s *Server) findMatchingEndpoint(service *v1.Service) *v1.Endpoints {
@@ -314,7 +353,7 @@ func (s *Server) findMatchingEndpoint(service *v1.Service) *v1.Endpoints {
 		s.log.Errorf("Error getting service %+v key: %v", service, err)
 		return nil
 	}
-	ep, found, err := s.endpointStore.GetByKey(key)
+	value, found, err := s.endpointStore.GetByKey(key)
 	if err != nil {
 		s.log.Errorf("Error getting endpoint %s: %v", key, err)
 		return nil
@@ -323,7 +362,11 @@ func (s *Server) findMatchingEndpoint(service *v1.Service) *v1.Endpoints {
 		s.log.Debugf("Endpoint %s not found", key)
 		return nil
 	}
-	return ep.(*v1.Endpoints)
+	endpoints, ok := value.(*v1.Endpoints)
+	if !ok {
+		panic("s.serviceStore.GetByKey did not return value of type *v1.Service")
+	}
+	return endpoints
 }
 
 /**
