@@ -406,17 +406,35 @@ func (self *CalicoVppInterfacesConfigType) String() string {
 
 type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	VppStartupSleepSeconds int `json:"vppStartupSleepSeconds"`
-	/* Set the pattern for VPP corefiles. Usually "/var/lib/vpp/vppcore.%e.%p" */
+	// CorePattern is the pattern to use for VPP corefiles.
+	// Usually "/var/lib/vpp/vppcore.%e.%p"
 	CorePattern      string `json:"corePattern"`
 	ExtraAddrCount   int    `json:"extraAddrCount"`
 	IfConfigSavePath string `json:"ifConfigSavePath"`
-	/* Comma separated list of IPs to be configured in VPP as default GW */
+	// DefaultGWs Comma separated list of IPs to be
+	// configured in VPP as default GW
 	DefaultGWs string `json:"defaultGWs"`
-	/* List of rules for redirecting traffic to host */
+	// RedirectToHostRules is a list of rules for redirecting
+	// traffic to host. This is used for DNS support in kind
 	RedirectToHostRules []RedirectToHostRulesConfigType `json:"redirectToHostRules"`
+	// PrometheusListenEndpoint is the endpoint on which prometheus will
+	// listen and report stats. By default curl http://localhost:8888/metrics
+	PrometheusListenEndpoint string `json:"prometheusListenEndpoint"`
+	// PrometheusRecordMetricInterval is the interval at which we update the
+	// prometheus stats polling VPP stats segment. Default to 5 seconds
+	PrometheusRecordMetricInterval *time.Duration `json:"prometheusRecordMetricInterval"`
 }
 
-func (self *CalicoVppInitialConfigConfigType) Validate() (err error) { return nil }
+func (self *CalicoVppInitialConfigConfigType) Validate() (err error) {
+	if self.PrometheusListenEndpoint == "" {
+		self.PrometheusListenEndpoint = ":8888"
+	}
+	if self.PrometheusRecordMetricInterval == nil {
+		prometheusRecordMetricInterval := 5 * time.Second
+		self.PrometheusRecordMetricInterval = &prometheusRecordMetricInterval
+	}
+	return nil
+}
 func (self *CalicoVppInitialConfigConfigType) GetDefaultGWs() (gws []net.IP, err error) {
 	gws = make([]net.IP, 0)
 	if self.DefaultGWs != "" {
