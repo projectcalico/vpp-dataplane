@@ -191,7 +191,11 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 				if !ok {
 					s.log.Errorf("evt.New is not a *common.NodeWireguardPublicKey %v", evt.New)
 				}
-				s.providers[WIREGUARD].(*WireguardProvider).nodesToWGPublicKey[new.Name] = new.WireguardPublicKey
+				wgProvider, ok := s.providers[WIREGUARD].(*WireguardProvider)
+				if !ok {
+					panic("Type is not WireguardProvider")
+				}
+				wgProvider.nodesToWGPublicKey[new.Name] = new.WireguardPublicKey
 				change := common.GetStringChangeType(old.WireguardPublicKey, new.WireguardPublicKey)
 				if change != common.ChangeSame {
 					s.log.Infof("connectivity(upd) WireguardPublicKey Changed (%s) %s->%s", old.Name, old.WireguardPublicKey, new.WireguardPublicKey)
@@ -420,5 +424,9 @@ func (s *ConnectivityServer) ForceNodeAddition(newNode common.LocalNodeSpec, new
 // ForceWGPublicKeyAddition will add other node information as provided by calico configuration
 // The usage is mainly for testing purposes.
 func (s *ConnectivityServer) ForceWGPublicKeyAddition(newNode string, wgPublicKey string) {
-	s.providers[WIREGUARD].(*WireguardProvider).nodesToWGPublicKey[newNode] = wgPublicKey
+	wgProvider, ok := s.providers[WIREGUARD].(*WireguardProvider)
+	if !ok {
+		panic("Type is not WireguardProvider")
+	}
+	wgProvider.nodesToWGPublicKey[newNode] = wgPublicKey
 }
