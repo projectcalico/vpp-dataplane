@@ -222,10 +222,11 @@ func (s *Server) ServePrometheus(t *tomb.Tomb) error {
 			case common.PodAdded:
 				podSpec := evt.New.(*storage.LocalPodSpec)
 				s.lock.Lock()
-				if podSpec.TunTapSwIfIndex == vpplink.INVALID_SW_IF_INDEX {
-					s.podInterfacesBySwifIndex[podSpec.MemifSwIfIndex] = *podSpec
-				} else {
+				if podSpec.TunTapSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
 					s.podInterfacesBySwifIndex[podSpec.TunTapSwIfIndex] = *podSpec
+				}
+				if podSpec.MemifSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
+					s.podInterfacesBySwifIndex[podSpec.MemifSwIfIndex] = *podSpec
 				}
 				s.podInterfacesByKey[podSpec.Key()] = *podSpec
 				s.lock.Unlock()
@@ -234,10 +235,11 @@ func (s *Server) ServePrometheus(t *tomb.Tomb) error {
 				podSpec := evt.Old.(*storage.LocalPodSpec)
 				initialPod := s.podInterfacesByKey[podSpec.Key()]
 				delete(s.podInterfacesByKey, initialPod.Key())
-				if podSpec.TunTapSwIfIndex == vpplink.INVALID_SW_IF_INDEX {
-					delete(s.podInterfacesBySwifIndex, initialPod.MemifSwIfIndex)
-				} else {
+				if podSpec.TunTapSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
 					delete(s.podInterfacesBySwifIndex, initialPod.TunTapSwIfIndex)
+				}
+				if podSpec.MemifSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
+					delete(s.podInterfacesBySwifIndex, initialPod.MemifSwIfIndex)
 				}
 				s.lock.Unlock()
 			}
