@@ -178,13 +178,17 @@ func main() {
 	}
 
 	if ourBGPSpec != nil {
-		prefixWatcher.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
-		connectivityServer.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
-		routingServer.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
-		serviceServer.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
-		localSIDWatcher.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
-		netWatcher.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
-		cniServer.SetOurBGPSpec(ourBGPSpec.(*common.LocalNodeSpec))
+		bgpSpec, ok := ourBGPSpec.(*common.LocalNodeSpec)
+		if !ok {
+			panic("ourBGPSpec is not *common.LocalNodeSpec")
+		}
+		prefixWatcher.SetOurBGPSpec(bgpSpec)
+		connectivityServer.SetOurBGPSpec(bgpSpec)
+		routingServer.SetOurBGPSpec(bgpSpec)
+		serviceServer.SetOurBGPSpec(bgpSpec)
+		localSIDWatcher.SetOurBGPSpec(bgpSpec)
+		netWatcher.SetOurBGPSpec(bgpSpec)
+		cniServer.SetOurBGPSpec(bgpSpec)
 	}
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
@@ -193,8 +197,12 @@ func main() {
 	}
 
 	if felixConfig != nil {
-		cniServer.SetFelixConfig(felixConfig.(*felixconfig.Config))
-		connectivityServer.SetFelixConfig(felixConfig.(*felixconfig.Config))
+		felixCfg, ok := felixConfig.(*felixconfig.Config)
+		if !ok {
+			panic("ourBGPSpec is not *felixconfig.Config")
+		}
+		cniServer.SetFelixConfig(felixCfg)
+		connectivityServer.SetFelixConfig(felixCfg)
 	}
 
 	Go(routeWatcher.WatchRoutes)

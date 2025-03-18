@@ -147,33 +147,43 @@ func (sw *secretWatcher) GetSecret(name, key string) (string, error) {
 }
 
 func (sw *secretWatcher) OnAdd(obj interface{}, isInInitialList bool) {
+	sw.mutex.Lock()
+	defer sw.mutex.Unlock()
 	log.Debug("Secret added")
-	sw.updateSecret(obj.(*v1.Secret))
-	sw.client.OnSecretUpdate(nil, obj.(*v1.Secret))
+	secret, ok := obj.(*v1.Secret)
+	if !ok {
+		panic("secret add, old is not *v1.Secret")
+	}
+	sw.watches[secret.Name].secret = secret
+	sw.client.OnSecretUpdate(nil, secret)
 }
 
 func (sw *secretWatcher) OnUpdate(oldObj, newObj interface{}) {
+	sw.mutex.Lock()
+	defer sw.mutex.Unlock()
+	oldSecret, ok := oldObj.(*v1.Secret)
+	if !ok {
+		panic("secret update, old is not *v1.Secret")
+	}
+	secret, ok := newObj.(*v1.Secret)
+	if !ok {
+		panic("secret update, new is not *v1.Secret")
+	}
 	log.Debug("Secret updated")
-	sw.updateSecret(newObj.(*v1.Secret))
-	sw.client.OnSecretUpdate(oldObj.(*v1.Secret), newObj.(*v1.Secret))
+	sw.watches[secret.Name].secret = secret
+	sw.client.OnSecretUpdate(oldSecret, secret)
 }
 
 func (sw *secretWatcher) OnDelete(obj interface{}) {
+	sw.mutex.Lock()
+	defer sw.mutex.Unlock()
 	log.Debug("Secret deleted")
-	sw.deleteSecret(obj.(*v1.Secret))
-	sw.client.OnSecretUpdate(obj.(*v1.Secret), nil)
-}
-
-func (sw *secretWatcher) updateSecret(secret *v1.Secret) {
-	sw.mutex.Lock()
-	defer sw.mutex.Unlock()
-	sw.watches[secret.Name].secret = secret
-}
-
-func (sw *secretWatcher) deleteSecret(secret *v1.Secret) {
-	sw.mutex.Lock()
-	defer sw.mutex.Unlock()
+	secret, ok := obj.(*v1.Secret)
+	if !ok {
+		panic("secret delete, old is not *v1.Secret")
+	}
 	sw.watches[secret.Name].secret = nil
+	sw.client.OnSecretUpdate(secret, nil)
 }
 
 func (sw *secretWatcher) SweepStale(activeSecrets map[string]struct{}) {
