@@ -150,7 +150,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 		} else {
 			stack.Push(s.vpp.DelPblClient, pblIndex)
 		}
-		podSpec.PblIndexes = append(podSpec.PblIndexes, pblIndex)
+		podSpec.PblIndex = pblIndex
 
 		if !isL3 {
 			s.log.Infof("pod(add) neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
@@ -169,12 +169,10 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 }
 
 func (s *Server) UnroutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
-	for _, pblIndex := range podSpec.PblIndexes {
-		s.log.Infof("pod(del) PBL client[%d]", pblIndex)
-		err := s.vpp.DelPblClient(pblIndex)
-		if err != nil {
-			s.log.Warnf("Error deleting pbl conf %s", err)
-		}
+	s.log.Infof("pod(del) PBL client[%d]", podSpec.PblIndex)
+	err := s.vpp.DelPblClient(podSpec.PblIndex)
+	if err != nil {
+		s.log.Warnf("Error deleting pbl conf %s", err)
 	}
 }
 
