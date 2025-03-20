@@ -288,11 +288,12 @@ func (self *CalicoVppDebugConfigType) Validate() (err error) {
 }
 
 type CalicoVppFeatureGatesConfigType struct {
-	MemifEnabled    *bool `json:"memifEnabled,omitempty"`
-	VCLEnabled      *bool `json:"vclEnabled,omitempty"`
-	MultinetEnabled *bool `json:"multinetEnabled,omitempty"`
-	SRv6Enabled     *bool `json:"srv6Enabled,omitempty"`
-	IPSecEnabled    *bool `json:"ipsecEnabled,omitempty"`
+	MemifEnabled      *bool `json:"memifEnabled,omitempty"`
+	VCLEnabled        *bool `json:"vclEnabled,omitempty"`
+	MultinetEnabled   *bool `json:"multinetEnabled,omitempty"`
+	SRv6Enabled       *bool `json:"srv6Enabled,omitempty"`
+	IPSecEnabled      *bool `json:"ipsecEnabled,omitempty"`
+	PrometheusEnabled *bool `json:"prometheusEnabled,omitempty"`
 }
 
 func (self *CalicoVppFeatureGatesConfigType) Validate() (err error) {
@@ -312,6 +313,9 @@ func (self *CalicoVppFeatureGatesConfigType) Validate() (err error) {
 	}
 	if self.IPSecEnabled == nil {
 		self.IPSecEnabled = &False
+	}
+	if self.PrometheusEnabled == nil {
+		self.PrometheusEnabled = &False
 	}
 	return
 }
