@@ -64,7 +64,7 @@ func (s *Server) recordMetrics(t *tomb.Tomb) {
 		}
 	}()
 	ticker := time.NewTicker(*config.GetCalicoVppInitialConfig().PrometheusRecordMetricInterval)
-	for ;t.Alive() ; <-ticker.C {
+	for ; t.Alive(); <-ticker.C {
 		ifNames, dumpStats, _ := vpplink.GetInterfaceStats(s.sc)
 		for _, sta := range dumpStats {
 			if string(sta.Name) != "/if/names" {
@@ -203,12 +203,18 @@ func NewPrometheusServer(vpp *vpplink.VppLink, l *logrus.Entry) *Server {
 		podInterfacesByKey:       make(map[string]storage.LocalPodSpec),
 		podInterfacesBySwifIndex: make(map[uint32]storage.LocalPodSpec),
 	}
-	reg := common.RegisterHandler(server.channel, "prometheus events")
-	reg.ExpectEvents(common.PodAdded, common.PodDeleted)
+	if *config.GetCalicoVppFeatureGates().PrometheusEnabled {
+		reg := common.RegisterHandler(server.channel, "prometheus events")
+		reg.ExpectEvents(common.PodAdded, common.PodDeleted)
+	}
 	return server
 }
 
 func (s *Server) ServePrometheus(t *tomb.Tomb) error {
+	if !(*config.GetCalicoVppFeatureGates().PrometheusEnabled) {
+		return nil
+	}
+
 	s.log.Infof("Serve() Prometheus exporter")
 	go func() {
 		for t.Alive() {
