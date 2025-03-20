@@ -37,7 +37,11 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 			if !ok {
 				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				table = value.(*watchers.NetworkDefinition).VRF.Tables[idx]
+				networkDefinition, ok := value.(*watchers.NetworkDefinition)
+				if !ok || networkDefinition == nil {
+					panic("networkDefinition not of type *watchers.NetworkDefinition")
+				}
+				table = networkDefinition.VRF.Tables[idx]
 			}
 		} else if inPodVrf {
 			table = podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP))
@@ -83,7 +87,11 @@ func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex ui
 			if !ok {
 				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				table = value.(*watchers.NetworkDefinition).VRF.Tables[idx]
+				networkDefinition, ok := value.(*watchers.NetworkDefinition)
+				if !ok || networkDefinition == nil {
+					panic("networkDefinition not of type *watchers.NetworkDefinition")
+				}
+				table = networkDefinition.VRF.Tables[idx]
 			}
 		} else if inPodVrf {
 			table = podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP))
@@ -205,7 +213,11 @@ func (s *Server) CreatePodVRF(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 			if !ok {
 				return errors.Errorf("network not found %s", podSpec.NetworkName)
 			}
-			vrfIndex = value.(*watchers.NetworkDefinition).PodVRF.Tables[idx]
+			networkDefinition, ok := value.(*watchers.NetworkDefinition)
+			if !ok || networkDefinition == nil {
+				panic("networkDefinition not of type *watchers.NetworkDefinition")
+			}
+			vrfIndex = networkDefinition.PodVRF.Tables[idx]
 		}
 		s.log.Infof("pod(add) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)
 		err = s.vpp.AddDefaultRouteViaTable(vrfId, vrfIndex, ipFamily.IsIp6)
@@ -373,7 +385,11 @@ func (s *Server) DeletePodVRF(podSpec *storage.LocalPodSpec) {
 			if !ok {
 				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				vrfIndex = value.(*watchers.NetworkDefinition).PodVRF.Tables[idx]
+				networkDefinition, ok := value.(*watchers.NetworkDefinition)
+				if !ok || networkDefinition == nil {
+					panic("networkDefinition not of type *watchers.NetworkDefinition")
+				}
+				vrfIndex = networkDefinition.PodVRF.Tables[idx]
 			}
 		}
 		s.log.Infof("pod(del) VRF %d %s default route via VRF %d", vrfId, ipFamily.Str, vrfIndex)

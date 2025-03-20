@@ -71,14 +71,23 @@ func (w *BGPFilterWatcher) WatchBGPFilters(t *tomb.Tomb) error {
 					w.log.Debug("BGPFilter watch returned, restarting...")
 					goto restart
 				case watch.EventType(api.WatchModified):
-					filter := *event.Object.(*calicov3.BGPFilter)
-					w.UpdateFilter(filter)
+					filter, ok := event.Object.(*calicov3.BGPFilter)
+					if !ok || filter == nil {
+						w.log.Fatal("api.WatchModified Object is not BGPFilter or is nil")
+					}
+					w.UpdateFilter(*filter)
 				case watch.EventType(api.WatchAdded):
-					filter := *event.Object.(*calicov3.BGPFilter)
-					w.AddNewFilter(filter)
+					filter, ok := event.Object.(*calicov3.BGPFilter)
+					if !ok || filter == nil {
+						w.log.Fatal("api.WatchAdded	 Object is not BGPFilter or is nil")
+					}
+					w.AddNewFilter(*filter)
 				case watch.EventType(api.WatchDeleted):
-					filter := *event.Previous.(*calicov3.BGPFilter)
-					w.RemoveFilter(filter)
+					filter, ok := event.Previous.(*calicov3.BGPFilter)
+					if !ok || filter == nil {
+						w.log.Fatal("api.WatchDeleted Previous is not BGPFilter or is nil")
+					}
+					w.RemoveFilter(*filter)
 				}
 			}
 		}
