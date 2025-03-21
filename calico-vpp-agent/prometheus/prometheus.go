@@ -37,172 +37,45 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
-type Server struct {
-	log                      *logrus.Entry
-	vpp                      *vpplink.VppLink
-	podInterfacesBySwifIndex map[uint32]storage.LocalPodSpec
-	podInterfacesByKey       map[string]storage.LocalPodSpec
-	sc                       *statsclient.StatsClient
-	channel                  chan common.CalicoVppEvent
-	lock                     sync.Mutex
+type podInterfaceDetails struct {
+	podNamespace  string
+	podName       string
+	interfaceName string
 }
 
-func (s *Server) recordMetrics(t *tomb.Tomb) {
-	pe, err := prometheusExporter.New(prometheusExporter.Options{})
+type PrometheusServer struct {
+	log                             *logrus.Entry
+	vpp                             *vpplink.VppLink
+	podInterfacesDetailsBySwifIndex map[uint32]podInterfaceDetails
+	podInterfacesByKey              map[string]storage.LocalPodSpec
+	statsclient                     *statsclient.StatsClient
+	channel                         chan common.CalicoVppEvent
+	lock                            sync.Mutex
+	httpServer                      *http.Server
+	exporter                        *prometheusExporter.Exporter
+}
+
+func NewPrometheusServer(vpp *vpplink.VppLink, log *logrus.Entry) *PrometheusServer {
+	exporter, err := prometheusExporter.New(prometheusExporter.Options{})
 	if err != nil {
-		s.log.Fatalf("Failed to create new exporter: %v", err)
+		log.Fatalf("Failed to create new exporter: %v", err)
 	}
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", pe)
-	go func() {
-		err := http.ListenAndServe(
-			config.GetCalicoVppInitialConfig().PrometheusListenEndpoint,
-			mux,
-		)
-		if err != nil {
-			s.log.Fatalf("Failed to serve metrics: %s", err)
-		}
-	}()
-	ticker := time.NewTicker(*config.GetCalicoVppInitialConfig().PrometheusRecordMetricInterval)
-	for ; t.Alive(); <-ticker.C {
-		ifNames, dumpStats, _ := vpplink.GetInterfaceStats(s.sc)
-		for _, sta := range dumpStats {
-			if string(sta.Name) != "/if/names" {
-				names := []string{strings.Replace(string(sta.Name[4:]), "-", "_", -1)}
-				if sta.Type == adapter.CombinedCounterVector {
-					names = []string{names[0] + "_packets", names[0] + "_bytes"}
-				}
-				err := s.exportMetricsForStat(names, sta, ifNames, pe)
-				if err != nil {
-					s.log.Errorf("exportMetricsForStat errored with %s", err)
-				}
-			}
-		}
-	}
-	ticker.Stop()
-}
-
-var units = map[int]string{0: "packets", 1: "bytes"}
-var descriptions = map[string]string{
-	"drops": "number of drops on interface",
-	"ip4":   "IPv4 received packets",
-	"ip6":   "IPv6 received packets",
-	"punt":  "number of punts on interface",
-
-	"rx_bytes":   "total number of bytes received over the interface",
-	"tx_bytes":   "total number of bytes transmitted by the interface",
-	"rx_packets": "total number of packets received over the interface",
-	"tx_packets": "total number of packets transmitted by the interface",
-
-	"tx_broadcast_packets": "number of multipoint communications transmitted by the interface in packets",
-	"rx_broadcast_packets": "number of multipoint communications received by the interface in packets",
-	"tx_broadcast_bytes":   "number of multipoint communications transmitted by the interface in bytes",
-	"rx_broadcast_bytes":   "number of multipoint communications received by the interface in bytes",
-
-	"tx_unicast_packets": "number of point-to-point communications transmitted by the interface in packets",
-	"rx_unicast_packets": "number of point-to-point communications received by the interface in packets",
-	"tx_unicast_bytes":   "number of point-to-point communications transmitted by the interface in bytes",
-	"rx_unicast_bytes":   "number of point-to-point communications received by the interface in bytes",
-
-	"tx_multicast_packets": "number of one-to-many communications transmitted by the interface in packets",
-	"rx_multicast_packets": "number of one-to-many communications received by the interface in packets",
-	"tx_multicast_bytes":   "number of one-to-many communications transmitted by the interface in bytes",
-	"rx_multicast_bytes":   "number of one-to-many communications received by the interface in bytes",
-
-	"rx_error": "total number of erroneous received packets",
-	"tx_error": "total number of erroneous transmitted packets",
-
-	"rx_miss": "total of rx packets dropped because there are no available buffer",
-	"tx_miss": "total of tx packets dropped because there are no available buffer",
-
-	"rx_no_buf": "total number of rx mbuf allocation failures",
-	"tx_no_buf": "total number of tx mbuf allocation failures",
-}
-
-func (s *Server) exportMetricsForStat(names []string, sta adapter.StatEntry, ifNames adapter.NameStat, pe *prometheusExporter.Exporter) error {
-	for k, name := range names {
-		description, ok := descriptions[name]
-		if !ok {
-			description = name + " of interface"
-		}
-		metric := &metricspb.Metric{
-			MetricDescriptor: &metricspb.MetricDescriptor{
-				Name:        name,
-				Unit:        "",
-				Description: description,
-				LabelKeys: []*metricspb.LabelKey{
-					{Key: "worker", Description: "VPP worker index"},
-					{Key: "namespace", Description: "Kubernetes namespace of the pod"},
-					{Key: "podName", Description: "Name of the pod"},
-					{Key: "nameInPod", Description: "Name of interface in the pod"},
-				},
-			},
-			Timeseries: []*metricspb.TimeSeries{},
-		}
-		s.lock.Lock()
-		if sta.Type == adapter.SimpleCounterVector {
-			values := sta.Data.(adapter.SimpleCounterStat)
-			for worker := range values {
-				for ifIdx := range values[worker] {
-					if string(ifNames[ifIdx]) != "" {
-						if pod, ok := s.podInterfacesBySwifIndex[uint32(ifIdx)]; ok {
-							metric.Timeseries = append(metric.Timeseries, getTimeSeries(worker, pod, float64(values[worker][ifIdx])))
-						}
-					}
-				}
-			}
-		} else if sta.Type == adapter.CombinedCounterVector {
-			metric.MetricDescriptor.Unit = units[k]
-			values := sta.Data.(adapter.CombinedCounterStat)
-			for worker := range values {
-				for ifIdx := range values[worker] {
-					if string(ifNames[ifIdx]) != "" {
-						if pod, ok := s.podInterfacesBySwifIndex[uint32(ifIdx)]; ok {
-							metric.Timeseries = append(metric.Timeseries, getTimeSeries(worker, pod, float64(values[worker][ifIdx][k])))
-						}
-					}
-				}
-			}
-		}
-		s.lock.Unlock()
-		// empty timeseries prevents exporter from updating
-		if len(metric.Timeseries) == 0 {
-			metric.Timeseries = []*metricspb.TimeSeries{{}}
-		}
-		err := pe.ExportMetric(context.Background(), nil, nil, metric)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func getTimeSeries(worker int, pod storage.LocalPodSpec, value float64) *metricspb.TimeSeries {
-	return &metricspb.TimeSeries{
-		LabelValues: []*metricspb.LabelValue{
-			{Value: strconv.Itoa(worker)},
-			{Value: pod.WorkloadID[:strings.Index(pod.WorkloadID, "/")]},
-			{Value: pod.WorkloadID[strings.Index(pod.WorkloadID, "/")+1:]},
-			{Value: pod.InterfaceName},
+	mux.Handle("/metrics", exporter)
+	server := &PrometheusServer{
+		log:                             log,
+		vpp:                             vpp,
+		channel:                         make(chan common.CalicoVppEvent, 10),
+		podInterfacesByKey:              make(map[string]storage.LocalPodSpec),
+		podInterfacesDetailsBySwifIndex: make(map[uint32]podInterfaceDetails),
+		statsclient:                     statsclient.NewStatsClient("" /* default socket name */),
+		httpServer: &http.Server{
+			Addr:    config.GetCalicoVppInitialConfig().PrometheusListenEndpoint,
+			Handler: mux,
 		},
-		Points: []*metricspb.Point{
-			{
-				Value: &metricspb.Point_DoubleValue{
-					DoubleValue: value,
-				},
-			},
-		},
+		exporter: exporter,
 	}
-}
 
-func NewPrometheusServer(vpp *vpplink.VppLink, l *logrus.Entry) *Server {
-	server := &Server{
-		log:                      l,
-		vpp:                      vpp,
-		channel:                  make(chan common.CalicoVppEvent, 10),
-		podInterfacesByKey:       make(map[string]storage.LocalPodSpec),
-		podInterfacesBySwifIndex: make(map[uint32]storage.LocalPodSpec),
-	}
 	if *config.GetCalicoVppFeatureGates().PrometheusEnabled {
 		reg := common.RegisterHandler(server.channel, "prometheus events")
 		reg.ExpectEvents(common.PodAdded, common.PodDeleted)
@@ -210,51 +83,228 @@ func NewPrometheusServer(vpp *vpplink.VppLink, l *logrus.Entry) *Server {
 	return server
 }
 
-func (s *Server) ServePrometheus(t *tomb.Tomb) error {
+func cleanVppStatName(vppStatName string) string {
+	vppStatName = strings.TrimPrefix(vppStatName, "/if/")
+	vppStatName = strings.Replace(vppStatName, "-", "_", -1)
+	return vppStatName
+}
+
+func getVppStatDescription(vppStatName string) string {
+	switch cleanVppStatName(vppStatName) {
+	case "drops":
+		return "number of drops on interface"
+	case "ip4":
+		return "IPv4 received packets"
+	case "ip6":
+		return "IPv6 received packets"
+	case "punt":
+		return "number of punts on interface"
+	case "rx_bytes":
+		return "total number of bytes received over the interface"
+	case "tx_bytes":
+		return "total number of bytes transmitted by the interface"
+	case "rx_packets":
+		return "total number of packets received over the interface"
+	case "tx_packets":
+		return "total number of packets transmitted by the interface"
+	case "tx_broadcast_packets":
+		return "number of multipoint communications transmitted by the interface in packets"
+	case "rx_broadcast_packets":
+		return "number of multipoint communications received by the interface in packets"
+	case "tx_broadcast_bytes":
+		return "number of multipoint communications transmitted by the interface in bytes"
+	case "rx_broadcast_bytes":
+		return "number of multipoint communications received by the interface in bytes"
+	case "tx_unicast_packets":
+		return "number of point-to-point communications transmitted by the interface in packets"
+	case "rx_unicast_packets":
+		return "number of point-to-point communications received by the interface in packets"
+	case "tx_unicast_bytes":
+		return "number of point-to-point communications transmitted by the interface in bytes"
+	case "rx_unicast_bytes":
+		return "number of point-to-point communications received by the interface in bytes"
+	case "tx_multicast_packets":
+		return "number of one-to-many communications transmitted by the interface in packets"
+	case "rx_multicast_packets":
+		return "number of one-to-many communications received by the interface in packets"
+	case "tx_multicast_bytes":
+		return "number of one-to-many communications transmitted by the interface in bytes"
+	case "rx_multicast_bytes":
+		return "number of one-to-many communications received by the interface in bytes"
+	case "rx_error":
+		return "total number of erroneous received packets"
+	case "tx_error":
+		return "total number of erroneous transmitted packets"
+	case "rx_miss":
+		return "total of rx packets dropped because there are no available buffer"
+	case "tx_miss":
+		return "total of tx packets dropped because there are no available buffer"
+	case "rx_no_buf":
+		return "total number of rx mbuf allocation failures"
+	case "tx_no_buf":
+		return "total number of tx mbuf allocation failures"
+	default:
+		return vppStatName
+	}
+}
+
+func (self *PrometheusServer) exportMetrics() error {
+	vppStats, err := self.statsclient.DumpStats("/if/")
+	if err != nil {
+		self.log.Errorf("Error running statsclient.DumpStats %v", err)
+		return nil
+	}
+	var ifNames adapter.NameStat
+	for _, vppStat := range vppStats {
+		switch values := vppStat.Data.(type) {
+		case adapter.NameStat:
+			ifNames = values
+		}
+	}
+
+	self.lock.Lock()
+	for _, vppStat := range vppStats {
+		switch values := vppStat.Data.(type) {
+		case adapter.SimpleCounterStat:
+			for worker, perWorkerValues := range values {
+				for swIfIndex, counter := range perWorkerValues {
+					self.exportInterfaceMetric(string(vppStat.Name), worker, swIfIndex, ifNames, uint64(counter), "")
+				}
+			}
+		case adapter.CombinedCounterStat:
+			for worker, perWorkerValues := range values {
+				for swIfIndex, counter := range perWorkerValues {
+					self.exportInterfaceMetric(string(vppStat.Name)+"_packets", worker, swIfIndex, ifNames, counter[0], "packets")
+					self.exportInterfaceMetric(string(vppStat.Name)+"_bytes", worker, swIfIndex, ifNames, counter[1], "bytes")
+				}
+			}
+		}
+	}
+	self.lock.Unlock()
+	return nil
+}
+
+func (self *PrometheusServer) exportInterfaceMetric(name string, worker int, swIfIndex int, ifNames adapter.NameStat, value uint64, unit string) {
+	pod := self.podInterfacesDetailsBySwifIndex[uint32(swIfIndex)]
+	vppIfName := ""
+	if swIfIndex < len(ifNames) {
+		vppIfName = string(ifNames[swIfIndex])
+	}
+	err := self.exporter.ExportMetric(
+		context.Background(),
+		nil, /* node */
+		nil, /* resource */
+		&metricspb.Metric{
+			MetricDescriptor: &metricspb.MetricDescriptor{
+				Name:        cleanVppStatName(name),
+				Unit:        unit,
+				Description: getVppStatDescription(name),
+				// empty timeseries prevents exporter from updating
+				LabelKeys: []*metricspb.LabelKey{
+					{Key: "worker", Description: "VPP worker index"},
+					{Key: "namespace", Description: "Kubernetes namespace of the pod"},
+					{Key: "podName", Description: "Name of the pod"},
+					{Key: "podInterfaceName", Description: "Name of interface in the pod"},
+					{Key: "vppInterfaceName", Description: "Name of interface in VPP"},
+				},
+			},
+			Timeseries: []*metricspb.TimeSeries{{
+				LabelValues: []*metricspb.LabelValue{
+					{Value: strconv.Itoa(worker)},
+					{Value: pod.podNamespace},
+					{Value: pod.podName},
+					{Value: pod.interfaceName},
+					{Value: vppIfName},
+				},
+				Points: []*metricspb.Point{
+					{
+						Value: &metricspb.Point_DoubleValue{
+							DoubleValue: float64(value),
+						},
+					},
+				},
+			}},
+		},
+	)
+	if err != nil {
+		self.log.Errorf("Error prometheus exporter.ExportMetric %v", err)
+	}
+}
+
+func (self *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 	if !(*config.GetCalicoVppFeatureGates().PrometheusEnabled) {
 		return nil
 	}
-
-	s.log.Infof("Serve() Prometheus exporter")
+	self.log.Infof("Serve() Prometheus exporter")
 	go func() {
 		for t.Alive() {
 			/* Note: we will only receive events we ask for when registering the chan */
-			evt := <-s.channel
+			evt := <-self.channel
 			switch evt.Type {
 			case common.PodAdded:
-				podSpec := evt.New.(*storage.LocalPodSpec)
-				s.lock.Lock()
-				if podSpec.TunTapSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
-					s.podInterfacesBySwifIndex[podSpec.TunTapSwIfIndex] = *podSpec
+				podSpec, ok := evt.New.(*storage.LocalPodSpec)
+				if !ok {
+					self.log.Errorf("evt.New is not a *storage.LocalPodSpec %v", evt.New)
+					continue
 				}
-				if podSpec.MemifSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
-					s.podInterfacesBySwifIndex[podSpec.MemifSwIfIndex] = *podSpec
+				splittedWorkloadId := strings.SplitN(podSpec.WorkloadID, "/", 2)
+				if len(splittedWorkloadId) != 2 {
+					continue
 				}
-				s.podInterfacesByKey[podSpec.Key()] = *podSpec
-				s.lock.Unlock()
+				self.lock.Lock()
+				if podSpec.TunTapSwIfIndex == vpplink.INVALID_SW_IF_INDEX {
+					memifName := podSpec.InterfaceName
+					if podSpec.NetworkName == "" {
+						memifName = "vpp/memif-" + podSpec.InterfaceName
+					}
+					self.podInterfacesDetailsBySwifIndex[podSpec.MemifSwIfIndex] = podInterfaceDetails{
+						podNamespace:  splittedWorkloadId[0],
+						podName:       splittedWorkloadId[1],
+						interfaceName: memifName,
+					}
+				} else {
+					self.podInterfacesDetailsBySwifIndex[podSpec.TunTapSwIfIndex] = podInterfaceDetails{
+						podNamespace:  splittedWorkloadId[0],
+						podName:       splittedWorkloadId[1],
+						interfaceName: podSpec.InterfaceName,
+					}
+				}
+				self.podInterfacesByKey[podSpec.Key()] = *podSpec
+				self.lock.Unlock()
 			case common.PodDeleted:
-				s.lock.Lock()
-				podSpec := evt.Old.(*storage.LocalPodSpec)
-				initialPod := s.podInterfacesByKey[podSpec.Key()]
-				delete(s.podInterfacesByKey, initialPod.Key())
-				if podSpec.TunTapSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
-					delete(s.podInterfacesBySwifIndex, initialPod.TunTapSwIfIndex)
+				self.lock.Lock()
+				podSpec, ok := evt.Old.(*storage.LocalPodSpec)
+				if !ok {
+					self.log.Errorf("evt.Old is not a *storage.LocalPodSpec %v", evt.Old)
+					continue
 				}
-				if podSpec.MemifSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
-					delete(s.podInterfacesBySwifIndex, initialPod.MemifSwIfIndex)
+				initialPod := self.podInterfacesByKey[podSpec.Key()]
+				delete(self.podInterfacesByKey, initialPod.Key())
+				if podSpec.TunTapSwIfIndex == vpplink.INVALID_SW_IF_INDEX {
+					delete(self.podInterfacesDetailsBySwifIndex, initialPod.MemifSwIfIndex)
+				} else {
+					delete(self.podInterfacesDetailsBySwifIndex, initialPod.TunTapSwIfIndex)
 				}
-				s.lock.Unlock()
+				self.lock.Unlock()
 			}
 		}
 	}()
-	s.sc = statsclient.NewStatsClient("")
-	err := s.sc.Connect()
+	err := self.statsclient.Connect()
 	if err != nil {
 		return errors.Wrap(err, "could not connect statsclient")
 	}
-	s.recordMetrics(t)
 
-	s.log.Warn("Prometheus Server returned")
+	go self.httpServer.ListenAndServe()
+	ticker := time.NewTicker(*config.GetCalicoVppInitialConfig().PrometheusRecordMetricInterval)
+	for ; t.Alive(); <-ticker.C {
+		self.exportMetrics()
+	}
+	ticker.Stop()
+	self.log.Warn("Prometheus Server returned")
+	err = self.httpServer.Shutdown(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "Could not shutdown http server")
+	}
 
 	return nil
 }
