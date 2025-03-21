@@ -18,32 +18,8 @@ package vpplink
 import (
 	"fmt"
 
-	"go.fd.io/govpp/adapter"
-	"go.fd.io/govpp/adapter/statsclient"
-
 	interfaces "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface"
 )
-
-func GetInterfaceStats(sc *statsclient.StatsClient) (ifNames adapter.NameStat, dumpStats []adapter.StatEntry, err error) {
-
-	dumpStatsNames, err := sc.DumpStats("/if/names")
-	if err != nil {
-		return nil, nil, fmt.Errorf("dump stats failed: %w", err)
-	}
-	if len(dumpStatsNames) == 0 {
-		return nil, nil, fmt.Errorf("no interfaces available: %w", err)
-	}
-	ifNames, ok := dumpStatsNames[0].Data.(adapter.NameStat)
-	if !ok {
-		return nil, nil, fmt.Errorf("dumpStatsNames[0].Data. is not an adapter.NameStat: %v", dumpStatsNames[0].Data)
-	}
-
-	dumpStats, err = sc.DumpStats("/if/")
-	if err != nil {
-		return nil, nil, fmt.Errorf("dump stats failed: %w", err)
-	}
-	return ifNames, dumpStats, nil
-}
 
 func (v *VppLink) GetBufferStats() (available uint32, cached uint32, used uint32, err error) {
 	client := interfaces.NewServiceClient(v.GetConnection())
