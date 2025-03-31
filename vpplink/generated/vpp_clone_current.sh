@@ -96,6 +96,7 @@ git_clone_cd_and_reset "$1" v25.02
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular option | https://gerrit.fd.io/r/c/vpp/+/42343
+git_cherry_pick refs/changes/94/41094/20 # 41094: vlib: improve core pinning | https://gerrit.fd.io/r/c/vpp/+/41094
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
