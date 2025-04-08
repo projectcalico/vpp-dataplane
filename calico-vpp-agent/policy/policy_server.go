@@ -352,9 +352,9 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 		if !ok {
 			return fmt.Errorf("evt.New is not a (*storage.LocalPodSpec) %v", evt.New)
 		}
-		swIfIndex := podSpec.TunTapSwIfIndex
+		swIfIndex := podSpec.Status.TunTapSwIfIndex
 		if swIfIndex == vpplink.InvalidID {
-			swIfIndex = podSpec.MemifSwIfIndex
+			swIfIndex = podSpec.Status.MemifSwIfIndex
 		}
 		s.workloadAdded(&WorkloadEndpointID{
 			OrchestratorID: podSpec.OrchestratorID,

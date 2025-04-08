@@ -112,12 +112,12 @@ func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex ui
 }
 
 func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
-	for _, containerIP := range podSpec.GetContainerIps() {
+	for _, containerIP := range podSpec.ContainerIps {
 		path := types.RoutePath{
 			SwIfIndex: swIfIndex,
 		}
 		if !isL3 {
-			path.Gw = containerIP.IP
+			path.Gw = containerIP
 		}
 
 		portRanges := make([]types.PblPortRange, 0)
@@ -132,8 +132,8 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 		// See docs/_static/calico_vpp_vrf_layout.drawio
 		client := types.PblClient{
 			ID:         vpplink.InvalidID,
-			TableId:    podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP)),
-			Addr:       containerIP.IP,
+			TableId:    podSpec.GetVrfId(vpplink.IpFamilyFromIP(containerIP)),
+			Addr:       containerIP,
 			Path:       path,
 			PortRanges: portRanges,
 		}
@@ -141,25 +141,25 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 			client.TableId = common.PuntTableId
 		}
 
-		vrfId := podSpec.GetVrfId(vpplink.IpFamilyFromIPNet(containerIP)) // pbl only supports v4 ?
-		s.log.Infof("pod(add) PBL client for %s VRF %d", containerIP.IP, vrfId)
+		vrfId := podSpec.GetVrfId(vpplink.IpFamilyFromIP(containerIP)) // pbl only supports v4 ?
+		s.log.Infof("pod(add) PBL client for %s VRF %d", containerIP, vrfId)
 		pblIndex, err := s.vpp.AddPblClient(&client)
 		if err != nil {
-			return errors.Wrapf(err, "error adding PBL client for %s VRF %d", containerIP.IP, vrfId)
+			return errors.Wrapf(err, "error adding PBL client for %s VRF %d", containerIP, vrfId)
 		} else {
 			stack.Push(s.vpp.DelPblClient, pblIndex)
 		}
-		podSpec.PblIndexes = append(podSpec.PblIndexes, pblIndex)
+		podSpec.Status.PblIndexes[containerIP.String()] = pblIndex
 
 		if !isL3 {
-			s.log.Infof("pod(add) neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
+			s.log.Infof("pod(add) neighbor if[%d] %s", swIfIndex, containerIP.String())
 			err = s.vpp.AddNeighbor(&types.Neighbor{
 				SwIfIndex:    swIfIndex,
-				IP:           containerIP.IP,
+				IP:           containerIP,
 				HardwareAddr: common.ContainerSideMacAddress,
 			})
 			if err != nil {
-				return errors.Wrapf(err, "Cannot add neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
+				return errors.Wrapf(err, "Cannot add neighbor if[%d] %s", swIfIndex, containerIP.String())
 			}
 		}
 	}
@@ -167,7 +167,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 }
 
 func (s *Server) UnroutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
-	for _, pblIndex := range podSpec.PblIndexes {
+	for _, pblIndex := range podSpec.Status.PblIndexes {
 		s.log.Infof("pod(del) PBL client[%d]", pblIndex)
 		err := s.vpp.DelPblClient(pblIndex)
 		if err != nil {
@@ -249,11 +249,13 @@ func (s *Server) ActivateStrictRPF(podSpec *storage.LocalPodSpec, stack *vpplink
 		return errors.Wrapf(err, "failed to add routes for RPF VRF")
 	}
 	s.log.Infof("pod(add) set custom-vrf urpf")
-	err = s.vpp.SetCustomURPF(podSpec.TunTapSwIfIndex, podSpec.V4RPFVrfId)
-	if err != nil {
-		return errors.Wrapf(err, "failed to set urpf strict on interface")
-	} else {
-		stack.Push(s.vpp.UnsetURPF, podSpec.TunTapSwIfIndex)
+	for _, ipFamily := range vpplink.IpFamilies {
+		err = s.vpp.SetCustomURPF(podSpec.Status.TunTapSwIfIndex, podSpec.GetVrfId(ipFamily), ipFamily)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set urpf strict on interface")
+		} else {
+			stack.Push(s.vpp.UnsetURPF, podSpec.Status.TunTapSwIfIndex, ipFamily)
+		}
 	}
 	return nil
 }
@@ -263,13 +265,13 @@ func (s *Server) AddRPFRoutes(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 		RPFvrfId := podSpec.GetRPFVrfId(vpplink.IpFamilyFromIPNet(containerIP))
 		// Always there (except multinet memif)
 		pathsToPod := []types.RoutePath{{
-			SwIfIndex: podSpec.TunTapSwIfIndex,
+			SwIfIndex: podSpec.Status.TunTapSwIfIndex,
 			Gw:        containerIP.IP,
 		}}
 		// Add pbl memif case
-		if podSpec.MemifSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
+		if podSpec.Status.MemifSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
 			pathsToPod = append(pathsToPod, types.RoutePath{
-				SwIfIndex: podSpec.MemifSwIfIndex,
+				SwIfIndex: podSpec.Status.MemifSwIfIndex,
 				Gw:        containerIP.IP,
 			})
 			s.log.Infof("pod(add) add route to %+v in rpfvrf %+v via memif and tun", podSpec.GetContainerIps(), RPFvrfId)
@@ -289,25 +291,18 @@ func (s *Server) AddRPFRoutes(podSpec *storage.LocalPodSpec, stack *vpplink.Clea
 		}
 
 		// Add addresses allowed to be spooofed
-		if podSpec.AllowedSpoofingPrefixes != "" {
-			// Parse Annotation data
-			allowedSources, err := s.ParseSpoofAddressAnnotation(podSpec.AllowedSpoofingPrefixes)
-			if err != nil {
-				return errors.Wrapf(err, "error parsing allowSpoofing addresses")
+		for _, allowedSource := range podSpec.AllowedSpoofingSources {
+			s.log.Infof("pod(add) add route to %+v in rpfvrf %+v to allow spoofing", allowedSource, RPFvrfId)
+			route := &types.Route{
+				Dst:   &allowedSource,
+				Paths: pathsToPod,
+				Table: RPFvrfId,
 			}
-			for _, allowedSource := range allowedSources {
-				s.log.Infof("pod(add) add route to %+v in rpfvrf %+v to allow spoofing", allowedSource.IPNet, RPFvrfId)
-				route := &types.Route{
-					Dst:   &allowedSource.IPNet,
-					Paths: pathsToPod,
-					Table: RPFvrfId,
-				}
-				err = s.vpp.RouteAdd(route)
-				if err != nil {
-					return errors.Wrapf(err, "error adding RPFVRF %d proper route", RPFvrfId)
-				} else {
-					stack.Push(s.vpp.RouteDel, route)
-				}
+			err = s.vpp.RouteAdd(route)
+			if err != nil {
+				return errors.Wrapf(err, "error adding RPFVRF %d proper route", RPFvrfId)
+			} else {
+				stack.Push(s.vpp.RouteDel, route)
 			}
 		}
 	}
@@ -320,13 +315,13 @@ func (s *Server) DeactivateStrictRPF(podSpec *storage.LocalPodSpec) {
 		RPFvrfId := podSpec.GetRPFVrfId(vpplink.IpFamilyFromIPNet(containerIP))
 		// Always there (except multinet memif)
 		pathsToPod := []types.RoutePath{{
-			SwIfIndex: podSpec.TunTapSwIfIndex,
+			SwIfIndex: podSpec.Status.TunTapSwIfIndex,
 			Gw:        containerIP.IP,
 		}}
 		// pbl memif case
-		if podSpec.MemifSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
+		if podSpec.Status.MemifSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
 			pathsToPod = append(pathsToPod, types.RoutePath{
-				SwIfIndex: podSpec.MemifSwIfIndex,
+				SwIfIndex: podSpec.Status.MemifSwIfIndex,
 				Gw:        containerIP.IP,
 			})
 			s.log.Infof("pod(del) del route to %+v in rpfvrf %+v via memif and tun", podSpec.GetContainerIps(), RPFvrfId)
@@ -343,22 +338,15 @@ func (s *Server) DeactivateStrictRPF(podSpec *storage.LocalPodSpec) {
 		}
 
 		// Delete addresses allowed to be spooofed
-		if podSpec.AllowedSpoofingPrefixes != "" {
-			// Parse Annotation data
-			allowedSources, err := s.ParseSpoofAddressAnnotation(podSpec.AllowedSpoofingPrefixes)
+		for _, allowedSource := range podSpec.AllowedSpoofingSources {
+			s.log.Infof("pod(del) del route to %+v in rpfvrf %+v used to allow spoofing", allowedSource, RPFvrfId)
+			err = s.vpp.RouteDel(&types.Route{
+				Dst:   &allowedSource,
+				Paths: pathsToPod,
+				Table: RPFvrfId,
+			})
 			if err != nil {
-				s.log.WithError(err).Error("error parsing allowSpoofing addresses")
-			}
-			for _, allowedSource := range allowedSources {
-				s.log.Infof("pod(del) del route to %+v in rpfvrf %+v used to allow spoofing", allowedSource.IPNet, RPFvrfId)
-				err = s.vpp.RouteDel(&types.Route{
-					Dst:   &allowedSource.IPNet,
-					Paths: pathsToPod,
-					Table: RPFvrfId,
-				})
-				if err != nil {
-					s.log.Errorf("error deleting VRF %d route: %s", RPFvrfId, err)
-				}
+				s.log.Errorf("error deleting VRF %d route: %s", RPFvrfId, err)
 			}
 		}
 	}

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -31,11 +32,12 @@ type IpFamily struct {
 	IsIp6     bool
 	IsIp4     bool
 	FamilyIdx int
+	Af        ip_types.AddressFamily
 }
 
 var (
-	IpFamilyV4 = IpFamily{"ip4", "4", false, true, 0}
-	IpFamilyV6 = IpFamily{"ip6", "6", true, false, 1}
+	IpFamilyV4 = IpFamily{"ip4", "4", false, true, 0, ip_types.ADDRESS_IP4}
+	IpFamilyV6 = IpFamily{"ip6", "6", true, false, 1, ip_types.ADDRESS_IP6}
 	IpFamilies = []IpFamily{IpFamilyV4, IpFamilyV6}
 )
 
@@ -44,6 +46,13 @@ func IpFamilyFromIPNet(ipNet *net.IPNet) IpFamily {
 		return IpFamilyV4
 	}
 	if ipNet.IP.To4() == nil {
+		return IpFamilyV6
+	}
+	return IpFamilyV4
+}
+
+func IpFamilyFromIP(ipNet net.IP) IpFamily {
+	if ipNet.To4() == nil {
 		return IpFamilyV6
 	}
 	return IpFamilyV4
