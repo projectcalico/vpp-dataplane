@@ -18,7 +18,6 @@ felix-api-proxy: bin
 
 build: felix-api-proxy bin
 	${DOCKER_RUN} go build -o ./bin/calico-vpp-agent ./cmd
-	${DOCKER_RUN} go build -o ./bin/debug ./cmd/debug-state
 
 gobgp: bin
 	${DOCKER_RUN} go build -o ./bin/gobgp github.com/osrg/gobgp/v3/cmd/gobgp/

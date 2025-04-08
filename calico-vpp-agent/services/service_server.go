@@ -40,12 +40,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-const (
-	KeepOriginalPacketAnnotation string = "KeepOriginalPacket"
-	HashConfigAnnotation         string = "HashConfig"
-	LBTypeAnnotation             string = "LBType"
-)
-
 /**
  * Service descriptions from the API are resolved into
  * slices of LocalService, this allows to diffs between
@@ -96,7 +90,7 @@ func (s *Server) ParseServiceAnnotations(annotations map[string]string, name str
 	svc := &serviceInfo{}
 	for key, value := range annotations {
 		switch key {
-		case cni.VppAnnotationPrefix + LBTypeAnnotation:
+		case config.LBTypeAnnotation:
 			switch strings.ToLower(value) {
 			case "ecmp":
 				svc.lbType = lbTypeECMP
@@ -108,7 +102,7 @@ func (s *Server) ParseServiceAnnotations(annotations map[string]string, name str
 				svc.lbType = lbTypeECMP // default value
 				err = append(err, errors.Errorf("Unknown value %s for key %s", value, key))
 			}
-		case cni.VppAnnotationPrefix + HashConfigAnnotation:
+		case config.HashConfigAnnotation:
 			hashConfigList := strings.Split(strings.TrimSpace(value), ",")
 			for _, hc := range hashConfigList {
 				switch strings.TrimSpace(strings.ToLower(hc)) {
@@ -130,7 +124,7 @@ func (s *Server) ParseServiceAnnotations(annotations map[string]string, name str
 					err = append(err, errors.Errorf("Unknown value %s for key %s", value, key))
 				}
 			}
-		case cni.VppAnnotationPrefix + KeepOriginalPacketAnnotation:
+		case config.KeepOriginalPacketAnnotation:
 			var err1 error
 			svc.keepOriginalPacket, err1 = strconv.ParseBool(value)
 			if err1 != nil {
