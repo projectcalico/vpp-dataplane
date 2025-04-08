@@ -86,7 +86,7 @@ func (i *PodInterfaceDriverData) UndoPodIfNatConfiguration(swIfIndex uint32) {
 }
 
 func (i *PodInterfaceDriverData) DoPodIfNatConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32) (err error) {
-	if podSpec.NeedsSnat {
+	if podSpec.Status.NeedsSnat {
 		i.log.Infof("pod(add) Enable interface[%d] SNAT", swIfIndex)
 		for _, ipFamily := range vpplink.IPFamilies {
 			err = i.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIP6, true /*isEnable*/)
@@ -152,7 +152,7 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		return errors.Wrapf(err, "error SetInterfaceRxMode on pod if interface")
 	}
 
-	err = i.vpp.InterfaceSetUnnumbered(swIfIndex, podSpec.LoopbackSwIfIndex)
+	err = i.vpp.InterfaceSetUnnumbered(swIfIndex, podSpec.Status.LoopbackSwIfIndex)
 	if err != nil {
 		return errors.Wrapf(err, "error setting interface unnumbered")
 	}

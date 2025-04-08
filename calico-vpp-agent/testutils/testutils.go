@@ -271,8 +271,7 @@ func PodVRFs(podInterface, podNetNSName string, vpp *vpplink.VppLink) (vrf4ID, v
 	podSpec := storage.LocalPodSpec{
 		InterfaceName: podInterface,
 		NetnsName:     podNetNSName,
-		V4VrfID:       types.InvalidID,
-		V6VrfID:       types.InvalidID,
+		Status:        storage.NewLocalPodSpecStatus(),
 	}
 	for _, vrf := range vrfs {
 		for _, ipFamily := range vpplink.IPFamilies {
@@ -280,17 +279,17 @@ func PodVRFs(podInterface, podNetNSName string, vpp *vpplink.VppLink) (vrf4ID, v
 				podSpec.SetVrfID(vrf.VrfID, ipFamily)
 			}
 		}
-		if podSpec.V4VrfID != types.InvalidID && podSpec.V6VrfID != types.InvalidID {
-			return podSpec.V4VrfID, podSpec.V6VrfID, nil
+		if podSpec.Status.V4VrfID != types.InvalidID && podSpec.Status.V6VrfID != types.InvalidID {
+			return podSpec.Status.V4VrfID, podSpec.Status.V6VrfID, nil
 		}
 	}
 
-	if (podSpec.V4VrfID != types.InvalidID) != (podSpec.V6VrfID != types.InvalidID) {
-		return podSpec.V4VrfID, podSpec.V6VrfID,
-			fmt.Errorf("partial VRF state v4=%d v6=%d key=%s", podSpec.V4VrfID, podSpec.V6VrfID, podSpec.Key())
+	if (podSpec.Status.V4VrfID != types.InvalidID) != (podSpec.Status.V6VrfID != types.InvalidID) {
+		return podSpec.Status.V4VrfID, podSpec.Status.V6VrfID,
+			fmt.Errorf("partial VRF state v4=%d v6=%d key=%s", podSpec.Status.V4VrfID, podSpec.Status.V6VrfID, podSpec.Key())
 	}
 
-	return podSpec.V4VrfID, podSpec.V6VrfID, fmt.Errorf("not VRFs state (key=%s)", podSpec.Key())
+	return podSpec.Status.V4VrfID, podSpec.Status.V6VrfID, fmt.Errorf("not VRFs state (key=%s)", podSpec.Key())
 }
 
 func IPFamilyIndex(ipFamily vpplink.IPFamily) int {

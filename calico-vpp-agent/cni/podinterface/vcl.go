@@ -30,7 +30,8 @@ type VclPodInterfaceDriver struct {
 }
 
 func getPodAppNamespaceName(podSpec *storage.LocalPodSpec) string {
-	return fmt.Sprintf("app-ns-%s", podSpec.Key())
+	podSpecKey := storage.LocalPodSpecKey(podSpec.NetnsName, podSpec.InterfaceName)
+	return fmt.Sprintf("app-ns-%s", podSpecKey)
 }
 
 func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodInterfaceDriver {
@@ -60,7 +61,7 @@ func (i *VclPodInterfaceDriver) Init() (err error) {
 func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	appNamespace := &types.SessionAppNamespace{
 		NamespaceID: getPodAppNamespaceName(podSpec),
-		SwIfIndex:   podSpec.LoopbackSwIfIndex,
+		SwIfIndex:   podSpec.Status.LoopbackSwIfIndex,
 		SocketName:  fmt.Sprintf("abstract:%s,netns_name=%s", "vpp/session", podSpec.NetnsName),
 		Secret:      0,
 	}
@@ -71,7 +72,7 @@ func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, s
 		stack.Push(i.vpp.DelSessionAppNamespace, appNamespace)
 	}
 
-	err = i.vpp.InterfaceAdminUp(podSpec.LoopbackSwIfIndex)
+	err = i.vpp.InterfaceAdminUp(podSpec.Status.LoopbackSwIfIndex)
 	if err != nil {
 		return err
 	}

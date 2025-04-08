@@ -13,35 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cni
+package storage
 
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-const (
-	CalicoAnnotationPrefix string = "cni.projectcalico.org/"
-	VppAnnotationPrefix    string = "cni.projectcalico.org/vpp"
-	MemifPortAnnotation    string = "ExtraMemifPorts"
-	VclAnnotation          string = "Vcl"
-	SpoofAnnotation        string = "AllowedSourcePrefixes"
-	IfSpecAnnotation       string = "InterfacesSpec"
-	IfSpecPBLAnnotation    string = "ExtraMemifSpec"
-)
-
-func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPortConfigs, err error) {
-	ifPortConfigs = &storage.LocalIfPortConfigs{}
+func parsePortSpec(value string) (ifPortConfigs *LocalIfPortConfigs, err error) {
+	ifPortConfigs = &LocalIfPortConfigs{}
 	parts := strings.Split(value, ":") /* tcp:1234[-4567] */
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("value should start with protocol e.g. 'tcp:'")
@@ -73,15 +62,15 @@ func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPort
 	return ifPortConfigs, nil
 }
 
-func (s *Server) ParsePortMappingAnnotation(podSpec *storage.LocalPodSpec, ifType storage.VppInterfaceType, value string) (err error) {
-	if podSpec.PortFilteredIfType != storage.VppIfTypeUnknown && podSpec.PortFilteredIfType != ifType {
+func parsePortMappingAnnotation(podSpec *LocalPodSpec, ifType VppInterfaceType, value string) (err error) {
+	if podSpec.PortFilteredIfType != VppIfTypeUnknown && podSpec.PortFilteredIfType != ifType {
 		return fmt.Errorf("cannot use port filters on different interface type")
 	}
 	podSpec.PortFilteredIfType = ifType
 	// value is expected to be like "tcp:1234-1236,udp:4456"
 	portSpecs := strings.Split(value, ",")
 	for idx, portSpec := range portSpecs {
-		ifPortConfig, err := s.ParsePortSpec(portSpec)
+		ifPortConfig, err := parsePortSpec(portSpec)
 		if err != nil {
 			return errors.Wrapf(err, "Error parsing portSpec[%d] %s", idx, portSpec)
 		}
@@ -90,15 +79,15 @@ func (s *Server) ParsePortMappingAnnotation(podSpec *storage.LocalPodSpec, ifTyp
 	return nil
 }
 
-func (s *Server) ParseDefaultIfType(podSpec *storage.LocalPodSpec, ifType storage.VppInterfaceType) (err error) {
-	if podSpec.DefaultIfType != storage.VppIfTypeUnknown && podSpec.DefaultIfType != ifType {
+func parseDefaultIfType(podSpec *LocalPodSpec, ifType VppInterfaceType) (err error) {
+	if podSpec.DefaultIfType != VppIfTypeUnknown && podSpec.DefaultIfType != ifType {
 		return fmt.Errorf("cannot set two different default interface type")
 	}
 	podSpec.DefaultIfType = ifType
 	return nil
 }
 
-func (s *Server) ParseEnableDisableAnnotation(value string) (bool, error) {
+func parseEnableDisableAnnotation(value string) (bool, error) {
 	switch value {
 	case "enable":
 		return true, nil
@@ -109,53 +98,40 @@ func (s *Server) ParseEnableDisableAnnotation(value string) (bool, error) {
 	}
 }
 
-func (s *Server) ParseSpoofAddressAnnotation(value string) ([]cnet.IPNet, error) {
+func parseSpoofAddressAnnotation(value string) ([]net.IPNet, error) {
 	var requestedSourcePrefixes []string
-	var allowedSources []cnet.IPNet
+	allowedSources := make([]net.IPNet, 0)
 	err := json.Unmarshal([]byte(value), &requestedSourcePrefixes)
 	if err != nil {
 		return nil, errors.Errorf("failed to parse '%s' as JSON: %s", value, err)
 	}
 	for _, prefix := range requestedSourcePrefixes {
-		var ipn *cnet.IPNet
-		_, ipn, err = cnet.ParseCIDROrIP(prefix)
+		_, ipn, err := cnet.ParseCIDROrIP(prefix)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Could not parse %s", prefix)
 		}
-		allowedSources = append(allowedSources, *(ipn.Network()))
+		allowedSources = append(allowedSources, ipn.Network().IPNet)
 	}
 	return allowedSources, nil
 }
 
-func GetDefaultIfSpec(isL3 bool) config.InterfaceSpec {
-	return config.InterfaceSpec{
-		NumRxQueues: config.GetCalicoVppInterfaces().DefaultPodIfSpec.NumRxQueues,
-		NumTxQueues: config.GetCalicoVppInterfaces().DefaultPodIfSpec.NumTxQueues,
-		RxQueueSize: vpplink.DefaultIntTo(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize, vpplink.CalicoVppDefaultQueueSize),
-		TxQueueSize: vpplink.DefaultIntTo(config.GetCalicoVppInterfaces().DefaultPodIfSpec.TxQueueSize, vpplink.CalicoVppDefaultQueueSize),
-		IsL3:        &isL3,
-	}
-}
-
-func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations map[string]string) (err error) {
+func parsePodAnnotations(podSpec *LocalPodSpec, annotations map[string]string) (err error) {
 	for key, value := range annotations {
-		if key == CalicoAnnotationPrefix+SpoofAnnotation {
-			podSpec.AllowedSpoofingPrefixes = annotations[CalicoAnnotationPrefix+SpoofAnnotation]
-		}
-		if !strings.HasPrefix(key, VppAnnotationPrefix) {
-			continue
-		}
 		switch key {
-		case VppAnnotationPrefix + IfSpecAnnotation:
+		case config.CalicoAnnotationPrefix + config.SpoofAnnotation:
+			podSpec.AllowedSpoofingSources, err = parseSpoofAddressAnnotation(value)
+			if err != nil {
+				return errors.Wrapf(err, "error parsing allowSpoofing addresses")
+			}
+		case config.VppAnnotationPrefix + config.IfSpecAnnotation:
 			var ifSpecs map[string]config.InterfaceSpec
 			err = json.Unmarshal([]byte(value), &ifSpecs)
 			if err != nil {
-				s.log.Warnf("Error parsing key %s %s", key, err)
+				return fmt.Errorf("error parsing key %s %s", key, err)
 			}
 			for _, ifSpec := range ifSpecs {
 				if err := ifSpec.Validate(config.GetCalicoVppInterfaces().MaxPodIfSpec); err != nil {
-					s.log.Error("Pod interface config exceeds max config")
-					return err
+					return errors.Wrap(err, "Pod interface config exceeds max config")
 				}
 			}
 			if ethSpec, found := ifSpecs[podSpec.InterfaceName]; found {
@@ -164,35 +140,37 @@ func (s *Server) ParsePodAnnotations(podSpec *storage.LocalPodSpec, annotations 
 				podSpec.IfSpec.IsL3 = &isL3
 			}
 
-		case VppAnnotationPrefix + MemifPortAnnotation:
+		case config.VppAnnotationPrefix + config.MemifPortAnnotation:
 			podSpec.EnableMemif = true
-			err = s.ParsePortMappingAnnotation(podSpec, storage.VppIfTypeMemif, value)
+			err = parsePortMappingAnnotation(podSpec, VppIfTypeMemif, value)
 			if err != nil {
 				return err
 			}
-			err = s.ParseDefaultIfType(podSpec, storage.VppIfTypeTunTap)
-		case VppAnnotationPrefix + IfSpecPBLAnnotation:
+			err = parseDefaultIfType(podSpec, VppIfTypeTunTap)
+			if err != nil {
+				return errors.Wrapf(err, "Error parsing key %s", key)
+			}
+		case config.VppAnnotationPrefix + config.IfSpecPBLAnnotation:
 			var ifSpec *config.InterfaceSpec
 			err := json.Unmarshal([]byte(value), &ifSpec)
 			if err != nil {
-				s.log.Warnf("Error parsing key %s %s", key, err)
+				return errors.Wrapf(err, "Error parsing key %s", key)
 			}
 			err = ifSpec.Validate(config.GetCalicoVppInterfaces().MaxPodIfSpec)
 			if err != nil {
-				s.log.Error("PBL Memif interface config exceeds max config")
-				return err
+				return errors.Wrap(err, "PBL Memif interface config exceeds max config")
 			}
 			podSpec.PBLMemifSpec = *ifSpec
 			isL3 := podSpec.PBLMemifSpec.GetIsL3(true)
 			podSpec.PBLMemifSpec.IsL3 = &isL3
-		case VppAnnotationPrefix + VclAnnotation:
-			podSpec.EnableVCL, err = s.ParseEnableDisableAnnotation(value)
+		case config.VppAnnotationPrefix + config.VclAnnotation:
+			podSpec.EnableVCL, err = parseEnableDisableAnnotation(value)
+			if err != nil {
+				return errors.Wrapf(err, "Error parsing key %s", key)
+			}
 		default:
 			continue
 		}
-		if err != nil {
-			s.log.Warnf("Error parsing key %s %s", key, err)
-		}
 	}
-	return nil
+	return err
 }

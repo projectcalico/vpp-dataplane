@@ -64,6 +64,20 @@ const (
 	BaseVppSideHardwareAddress = "02:ca:11:c0:fd:00"
 )
 
+const (
+	CalicoAnnotationPrefix string = "cni.projectcalico.org/"
+	VppAnnotationPrefix    string = "cni.projectcalico.org/vpp"
+	MemifPortAnnotation    string = "ExtraMemifPorts"
+	VclAnnotation          string = "Vcl"
+	SpoofAnnotation        string = "AllowedSourcePrefixes"
+	IfSpecAnnotation       string = "InterfacesSpec"
+	IfSpecPBLAnnotation    string = "ExtraMemifSpec"
+
+	KeepOriginalPacketAnnotation string = "KeepOriginalPacket"
+	HashConfigAnnotation         string = "HashConfig"
+	LBTypeAnnotation             string = "LBType"
+)
+
 var (
 	// fake constants for place where we need a pointer to true or false
 	True  = true
