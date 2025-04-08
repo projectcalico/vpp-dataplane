@@ -19,7 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
@@ -36,7 +36,7 @@ func NewLoopbackPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *Loo
 	return i
 }
 
-func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
+func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	swIfIndex, err := i.vpp.CreateLoopback(common.ContainerSideMacAddress)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating loopback")
@@ -58,7 +58,7 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 		return err
 	}
 
-	for _, containerIP := range podSpec.GetContainerIps() {
+	for _, containerIP := range podSpec.GetContainerIPs() {
 		err = i.vpp.AddInterfaceAddress(swIfIndex, containerIP)
 		if err != nil {
 			return errors.Wrapf(err, "Error adding address %s to pod loopback interface", containerIP)
@@ -68,7 +68,7 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 	return nil
 }
 
-func (i *LoopbackPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
+func (i *LoopbackPodInterfaceDriver) DeleteInterface(podSpec *model.LocalPodSpec) {
 	i.UndoPodIfNatConfiguration(podSpec.LoopbackSwIfIndex)
 
 	err := i.vpp.DeleteLoopback(podSpec.LoopbackSwIfIndex)

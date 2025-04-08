@@ -19,17 +19,16 @@ import (
 	"fmt"
 
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/urpf"
 )
 
-func (v *VppLink) SetCustomURPF(swifindex uint32, tableID uint32) error {
+func (v *VppLink) SetCustomURPF(swifindex uint32, tableID uint32, ipFamily IPFamily) error {
 	client := urpf.NewServiceClient(v.GetConnection())
 
 	_, err := client.UrpfUpdateV2(v.GetContext(), &urpf.UrpfUpdateV2{
 		Mode:      urpf.URPF_API_MODE_LOOSE,
 		SwIfIndex: interface_types.InterfaceIndex(swifindex),
-		Af:        ip_types.ADDRESS_IP4,
+		Af:        ipFamily.Af,
 		IsInput:   true,
 		TableID:   tableID,
 	})
@@ -39,13 +38,13 @@ func (v *VppLink) SetCustomURPF(swifindex uint32, tableID uint32) error {
 	return nil
 }
 
-func (v *VppLink) UnsetURPF(swifindex uint32) error {
+func (v *VppLink) UnsetURPF(swifindex uint32, ipFamily IPFamily) error {
 	client := urpf.NewServiceClient(v.GetConnection())
 
 	_, err := client.UrpfUpdateV2(v.GetContext(), &urpf.UrpfUpdateV2{
 		Mode:      urpf.URPF_API_MODE_OFF,
 		SwIfIndex: interface_types.InterfaceIndex(swifindex),
-		Af:        ip_types.ADDRESS_IP4,
+		Af:        ipFamily.Af,
 		IsInput:   true,
 	})
 	if err != nil {
