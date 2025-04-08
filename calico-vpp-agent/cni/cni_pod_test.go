@@ -182,7 +182,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						Workload: &cniproto.WorkloadIDs{
 							Annotations: map[string]string{
 								// needed just for setting up steering of traffic to default Tun/Tap and to secondary Memif
-								cni.VppAnnotationPrefix + cni.MemifPortAnnotation: fmt.Sprintf("tcp:%d-%d,udp:%d-%d",
+								config.MemifPortAnnotation: fmt.Sprintf("tcp:%d-%d,udp:%d-%d",
 									memifTCPPortStart, memifTCPPortEnd, memifUDPPortStart, memifUDPPortEnd),
 							},
 						},
@@ -418,7 +418,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							Workload: &cniproto.WorkloadIDs{
 								Annotations: map[string]string{
 									// needed just for setting up steering of traffic to default Tun/Tap and to secondary Memif
-									cni.VppAnnotationPrefix + cni.MemifPortAnnotation: fmt.Sprintf("tcp:%d-%d,udp:%d-%d",
+									config.MemifPortAnnotation: fmt.Sprintf("tcp:%d-%d,udp:%d-%d",
 										memifTCPPortStart, memifTCPPortEnd, memifUDPPortStart, memifUDPPortEnd),
 								},
 							},
