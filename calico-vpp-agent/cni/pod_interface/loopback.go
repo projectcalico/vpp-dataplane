@@ -43,7 +43,7 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 	} else {
 		stack.Push(i.vpp.DeleteLoopback, swIfIndex)
 	}
-	podSpec.LoopbackSwIfIndex = swIfIndex
+	podSpec.Status.LoopbackSwIfIndex = swIfIndex
 
 	for _, ipFamily := range vpplink.IpFamilies {
 		vrfId := podSpec.GetVrfId(ipFamily)
@@ -53,7 +53,7 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 		}
 	}
 
-	err = i.DoPodIfNatConfiguration(podSpec, stack, podSpec.LoopbackSwIfIndex)
+	err = i.DoPodIfNatConfiguration(podSpec, stack, podSpec.Status.LoopbackSwIfIndex)
 	if err != nil {
 		return err
 	}
@@ -69,9 +69,9 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 }
 
 func (i *LoopbackPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
-	i.UndoPodIfNatConfiguration(podSpec.LoopbackSwIfIndex)
+	i.UndoPodIfNatConfiguration(podSpec.Status.LoopbackSwIfIndex)
 
-	err := i.vpp.DeleteLoopback(podSpec.LoopbackSwIfIndex)
+	err := i.vpp.DeleteLoopback(podSpec.Status.LoopbackSwIfIndex)
 	if err != nil {
 		i.log.Errorf("Error deleting Loopback %s", err)
 	}
