@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Cisco Systems Inc.
+// Copyright (C) 2025 Cisco Systems Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,10 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cni
+package config
 
-import "strings"
+import (
+	"crypto/sha512"
+	"encoding/base64"
+)
 
-func isMemif(ifName string) bool {
-	return strings.HasPrefix(ifName, "memif")
+/* 8 base64 character hash */
+func HashText(text string) string {
+	h := sha512.Sum512([]byte(text))
+	return base64.StdEncoding.EncodeToString(h[:])[:VrfTagHashLen]
+}
+
+func TruncateStr(text string, size int) string {
+	if len(text) > size {
+		return text[:size]
+	}
+	return text
 }
