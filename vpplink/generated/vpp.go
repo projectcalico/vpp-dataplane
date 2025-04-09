@@ -18,13 +18,16 @@ package generated
 
 import (
 	"context"
+	"os"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	govpp "go.fd.io/govpp"
 	vppapi "go.fd.io/govpp/api"
+	memclnt "go.fd.io/govpp/binapi/memclnt"
 	vppcore "go.fd.io/govpp/core"
 )
 
@@ -44,6 +47,7 @@ type Vpp struct {
 	socket string
 	log    *logrus.Entry
 	ctx    context.Context
+	pid    *int
 }
 
 func (v *Vpp) GetLog() *logrus.Entry {
@@ -56,6 +60,17 @@ func (v *Vpp) GetContext() context.Context {
 
 func (v *Vpp) GetConnection() vppapi.Connection {
 	return v.conn
+}
+
+func getPid(ctx context.Context, conn *vppcore.Connection) *int {
+	client := memclnt.NewServiceClient(conn)
+
+	resp, err := client.ControlPing(ctx, &memclnt.ControlPing{})
+	if err != nil {
+		return nil
+	}
+	pid := int(resp.VpePID)
+	return &pid
 }
 
 func NewVpp(socket string, logger *logrus.Entry) (*Vpp, error) {
@@ -75,6 +90,7 @@ func NewVpp(socket string, logger *logrus.Entry) (*Vpp, error) {
 		socket: socket,
 		log:    logger,
 		ctx:    context.Background(),
+		pid:    getPid(context.Background(), conn),
 	}, nil
 }
 
@@ -99,6 +115,21 @@ func (v *Vpp) Close() error {
 	}
 	if v.conn != nil {
 		v.conn.Disconnect()
+	}
+	return nil
+}
+
+func (v *Vpp) SendSignal(signal syscall.Signal) error {
+	if v.pid == nil {
+		return errors.New("pid is not set")
+	}
+	pid := *v.pid
+	process, err := os.FindProcess(pid) // Always succeeds on Unix systems
+	if err != nil {
+		return errors.Wrapf(err, "failed to find process with pid %d", pid)
+	}
+	if err := process.Signal(signal); err != nil {
+		return errors.Wrapf(err, "failed to send signal %s to process with pid %d", signal, pid)
 	}
 	return nil
 }
