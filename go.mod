@@ -14,7 +14,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.33.1
 	github.com/orijtech/prometheus-go-metrics-exporter v0.0.6
-	github.com/osrg/gobgp/v3 v3.30.0
+	github.com/osrg/gobgp/v3 v3.35.0
 	github.com/pkg/errors v0.9.1
 	github.com/projectcalico/api v0.0.0-20241029214344-edb6f699d767 // v3.29.0
 	github.com/projectcalico/calico v0.0.0-20241104220808-b559a703e1c0 // v3.29.0
