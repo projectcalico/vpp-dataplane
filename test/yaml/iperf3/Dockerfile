@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
 	inetutils-traceroute	             \
 	netcat			                     \
 	dnsutils                             \
+	libunwind8							 \
 	tcpdump
 
 EXPOSE 5201
