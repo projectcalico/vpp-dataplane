@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: hedi bouattour <hedibouattour2010@gmail.com>
+Date: Thu, 24 Apr 2025 13:01:42 +0000
+Subject: [PATCH 3/3] fix checksum when gso enbaled
+
+---
+ src/vnet/interface_output.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/vnet/interface_output.h b/src/vnet/interface_output.h
+index b512d9a04..a743cecb1 100644
+--- a/src/vnet/interface_output.h
++++ b/src/vnet/interface_output.h
+@@ -90,7 +90,7 @@ vnet_calc_checksums_inline (vlib_main_t * vm, vlib_buffer_t * b,
+   udp_header_t *uh;
+   vnet_buffer_oflags_t oflags;
+ 
+-  if (!(b->flags & VNET_BUFFER_F_OFFLOAD))
++  if (!(b->flags & VNET_BUFFER_F_OFFLOAD) || (b->flags & VNET_BUFFER_F_GSO))
+     return;
+ 
+   ASSERT (!(is_ip4 && is_ip6));
+-- 
+2.34.1
