@@ -4,6 +4,7 @@ vpp-manager/images/*/vpp-manager
 vpp-manager/images/*/vppdev.sh
 vpp-manager/vpp_build/
 *.deb
+*.so*
 multinet-monitor/watcher
 
 test/k8s-e2e-tests/kubernetes-*
