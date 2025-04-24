@@ -5,12 +5,15 @@ SHELL := /bin/bash
 .PHONY: all build image push imageonly vpp vpp-build-env dev eksimage clean clean-vpp
 
 VPPLINK_DIR=../vpplink
+VPP_DIR=./vpp_build
+SIDECARVCL_DIR=../test/yaml/sidecar-vcl
 INIT_EKS_IMAGE_DIR=images/init-eks/
 DEV_IMAGE_DIR=images/dev/
 IMAGE_DIR=images/ubuntu
 VPPDEV_FILE=../test/scripts/vppdev.sh
 GENERATE_LOG_FILE=../vpplink/generated/generate.log
 VERSION_FILE=$(IMAGE_DIR)/version
+SIDECARVCL_VERSION_FILE=$(SIDECARVCL_DIR)/version
 TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
 
@@ -37,11 +40,27 @@ eksimage:
 		docker tag calicovpp/init-eks:$(TAG) calicovpp/init-eks:prerelease; \
 	fi
 
+sidecar-vcl-image:
+	for f in libvcl_ldpreload.so libvppcom.so libvlibmemoryclient.so \
+	        libsvm.so libvppinfra.so libvlibapi.so ; do \
+		cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/x86_64-linux-gnu/$$f* ${SIDECARVCL_DIR}/ ; \
+	done
+	cp ${VPP_DIR}/extras/libmemif/build/lib/libmemif.so ${SIDECARVCL_DIR}/
+	cp $(VERSION_FILE) $(SIDECARVCL_VERSION_FILE)
+	docker build -t calicovpp/vclsidecar:$(TAG) -f ${SIDECARVCL_DIR}/Dockerfile ${SIDECARVCL_DIR}
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker tag calicovpp/vclsidecar:$(TAG) calicovpp/calicovpp/vclsidecar:latest; \
+		docker tag calicovpp/calicovpp/vclsidecar:$(TAG) calicovpp/calicovpp/vclsidecar:prerelease; \
+	fi
+	rm -rf ${SIDECARVCL_DIR}/lib*
+	rm -rf ${SIDECARVCL_VERSION_FILE}
+
 image: build ${VPP_TARBALL} eksimage
 	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
 	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
 	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
+	$(MAKE) sidecar-vcl-image
 	docker build ${SQUASH} --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		--build-arg WITH_GDB=${WITH_GDB} \
@@ -66,6 +85,17 @@ push: ${PUSH_DEP}
 		docker push --all-tags $${registry}calicovpp/vpp; \
 		docker push --all-tags $${registry}calicovpp/init-eks; \
 	done
+ifndef CI_BUILD
+	set -e; for registry in ${REGISTRIES}; do \
+		docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:$(TAG); \
+		\
+		if [ "${ALSO_LATEST}" = "y" ]; then \
+			docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:latest; \
+			docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:prerelease; \
+		fi; \
+		docker push --all-tags $${registry}calicovpp/vclsidecar; \
+	done
+endif
 
 imageonly: build
 	cp $(VPPDEV_FILE) $(IMAGE_DIR)
