@@ -47,6 +47,8 @@ A pod supports having both vcl and [memif](memif.md) interfaces at the same time
 
 ## Testing VCL feature
 
+### Using a pod supporting VCL:
+
 VCL can be tested using iperf network performance tool.
 here is a [deployment](../test/yaml/iperf3-vcl/test.yaml) example with client/server pods for tests.
 ```bash
@@ -58,6 +60,29 @@ In an iperf3-vcl pod, at entrypoint, we have `test/yaml/iperf3-vcl/iperf3-vcl.sh
 * Uses `LD_PRELOAD=/usr/local/lib/vpp/libvcl_ldpreload.so` which is roughly equivalent of dynamically linking the iperf3 binary against the VCL instead of the libc (so piping the connect() and accept() syscall to VPP instead of linux).
 * performs `iperf3 -4 -s` which creates the listener session
  `[0:1][T] 11.0.0.139:5201->0.0.0.0:0 LISTEN`
+
+### Using a sidecar container to support VCL in any pod:
+Build your vpp libraries and rebuild your sidecar if needed using
+```bash
+cd test/yaml
+VPP_DIR=/path-to-your-repo/vpp-manager/vpp_build/ make sidecar-vcl
+```
+
+To use VCL in your pod, you don't need to rebuild your pod image. You can use a sidecar container that has all the vcl requirements.
+
+```bash
+kubectl create ns iperf3-vclsidecar
+kubectl apply -f test/yaml/iperf3-vclsidecar/test.yaml
+```
+You can change your vcl config in the configmap defined in the `test.yaml`.
+The iperf3-vclsidecar pod should be able to use vcl directly by running:
+```bash
+LD_PRELOAD=/libraries/libvcl_ldpreload.so iperf3 -s -4
+```
+and
+```bash
+LD_PRELOAD=/libraries/libvcl_ldpreload.so iperf3 -c x.x.x.x
+```
 
 ## Troubleshooting VCL
 

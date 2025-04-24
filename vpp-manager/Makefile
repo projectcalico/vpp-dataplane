@@ -5,12 +5,14 @@ SHELL := /bin/bash
 .PHONY: all build image push imageonly vpp vpp-build-env dev eksimage clean clean-vpp
 
 VPPLINK_DIR=../vpplink
+SIDECARVCL_DIR=../test/yaml/sidecar-vcl
 INIT_EKS_IMAGE_DIR=images/init-eks/
 DEV_IMAGE_DIR=images/dev/
 IMAGE_DIR=images/ubuntu
 VPPDEV_FILE=../test/scripts/vppdev.sh
 GENERATE_LOG_FILE=../vpplink/generated/generate.log
 VERSION_FILE=$(IMAGE_DIR)/version
+SIDECARVCL_VERSION_FILE=$(SIDECARVCL_DIR)/version
 TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
 VPP_DIR ?= $(CURDIR)/vpp_build
@@ -37,11 +39,27 @@ eksimage:
 		docker tag calicovpp/init-eks:$(TAG) calicovpp/init-eks:prerelease; \
 	fi
 
+sidecar-vcl-image:
+	for f in libvcl_ldpreload.so libvppcom.so libvlibmemoryclient.so \
+	        libsvm.so libvppinfra.so libvlibapi.so ; do \
+		cp ${IMAGE_DIR}/$$f* ${SIDECARVCL_DIR}/ ; \
+	done
+	cp ${IMAGE_DIR}/libmemif.so ${SIDECARVCL_DIR}/
+	cp $(VERSION_FILE) $(SIDECARVCL_VERSION_FILE)
+	docker build -t calicovpp/vclsidecar:$(TAG) -f ${SIDECARVCL_DIR}/Dockerfile ${SIDECARVCL_DIR}
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker tag calicovpp/vclsidecar:$(TAG) calicovpp/calicovpp/vclsidecar:latest; \
+		docker tag calicovpp/calicovpp/vclsidecar:$(TAG) calicovpp/calicovpp/vclsidecar:prerelease; \
+	fi
+	rm -rf ${SIDECARVCL_DIR}/lib*
+	rm -rf ${SIDECARVCL_VERSION_FILE}
+
 image: build ${VPP_TARBALL} eksimage
 	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
 	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
 	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
+	$(MAKE) sidecar-vcl-image
 	docker build ${SQUASH} --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		--build-arg WITH_GDB=${WITH_GDB} \
@@ -55,6 +73,7 @@ push: ${PUSH_DEP}
 	set -e; for registry in ${REGISTRIES}; do \
 		docker tag calicovpp/vpp:$(TAG) $${registry}calicovpp/vpp:$(TAG); \
 		docker tag calicovpp/init-eks:$(TAG) $${registry}calicovpp/init-eks:$(TAG); \
+		docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:$(TAG); \
 		\
 		if [ "${ALSO_LATEST}" = "y" ]; then \
 			docker tag calicovpp/vpp:$(TAG) $${registry}calicovpp/vpp:latest; \
@@ -62,9 +81,13 @@ push: ${PUSH_DEP}
 			\
 			docker tag calicovpp/init-eks:$(TAG) $${registry}calicovpp/init-eks:latest; \
 			docker tag calicovpp/init-eks:$(TAG) $${registry}calicovpp/init-eks:prerelease; \
+			\
+			docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:latest; \
+			docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:prerelease; \
 		fi; \
 		docker push --all-tags $${registry}calicovpp/vpp; \
 		docker push --all-tags $${registry}calicovpp/init-eks; \
+		docker push --all-tags $${registry}calicovpp/vclsidecar; \
 	done
 
 imageonly: build
@@ -113,8 +136,13 @@ vpp: clone-vpp vpp-build-env
 	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra vpp-dbg ; do \
 		cp $(VPP_DIR)/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
 	done
+	for f in libvcl_ldpreload.so libvppcom.so libvlibmemoryclient.so \
+	        libsvm.so libvppinfra.so libvlibapi.so ; do \
+		cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/x86_64-linux-gnu/$$f* ${IMAGE_DIR}/ ; \
+	done
+	cp ${VPP_DIR}/extras/libmemif/build/lib/libmemif.so ${IMAGE_DIR}/
 ifdef CI_BUILD
-	find $(IMAGE_DIR) -type f -name '*.deb' -printf "%P\n"  | tar -czvf ${VPP_TARBALL} -C $(IMAGE_DIR) -T -
+	find $(IMAGE_DIR) -type f \( -name '*.deb' -o -name '*.so' \) -printf "%P\n"  | tar -czvf ${VPP_TARBALL} -C $(IMAGE_DIR) -T -
 	aws s3api put-object --bucket ${VPP_BUCKET} --key ${VPP_TARBALL} --body ${VPP_TARBALL}
 endif
 
