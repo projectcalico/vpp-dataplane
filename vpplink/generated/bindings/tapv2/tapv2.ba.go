@@ -33,14 +33,15 @@ const (
 type TapFlags uint32
 
 const (
-	TAP_API_FLAG_GSO          TapFlags = 1
-	TAP_API_FLAG_CSUM_OFFLOAD TapFlags = 2
-	TAP_API_FLAG_PERSIST      TapFlags = 4
-	TAP_API_FLAG_ATTACH       TapFlags = 8
-	TAP_API_FLAG_TUN          TapFlags = 16
-	TAP_API_FLAG_GRO_COALESCE TapFlags = 32
-	TAP_API_FLAG_PACKED       TapFlags = 64
-	TAP_API_FLAG_IN_ORDER     TapFlags = 128
+	TAP_API_FLAG_GSO           TapFlags = 1
+	TAP_API_FLAG_CSUM_OFFLOAD  TapFlags = 2
+	TAP_API_FLAG_PERSIST       TapFlags = 4
+	TAP_API_FLAG_ATTACH        TapFlags = 8
+	TAP_API_FLAG_TUN           TapFlags = 16
+	TAP_API_FLAG_GRO_COALESCE  TapFlags = 32
+	TAP_API_FLAG_PACKED        TapFlags = 64
+	TAP_API_FLAG_IN_ORDER      TapFlags = 128
+	TAP_API_FLAG_CONSISTENT_QP TapFlags = 256
 )
 
 var (
@@ -53,16 +54,18 @@ var (
 		32:  "TAP_API_FLAG_GRO_COALESCE",
 		64:  "TAP_API_FLAG_PACKED",
 		128: "TAP_API_FLAG_IN_ORDER",
+		256: "TAP_API_FLAG_CONSISTENT_QP",
 	}
 	TapFlags_value = map[string]uint32{
-		"TAP_API_FLAG_GSO":          1,
-		"TAP_API_FLAG_CSUM_OFFLOAD": 2,
-		"TAP_API_FLAG_PERSIST":      4,
-		"TAP_API_FLAG_ATTACH":       8,
-		"TAP_API_FLAG_TUN":          16,
-		"TAP_API_FLAG_GRO_COALESCE": 32,
-		"TAP_API_FLAG_PACKED":       64,
-		"TAP_API_FLAG_IN_ORDER":     128,
+		"TAP_API_FLAG_GSO":           1,
+		"TAP_API_FLAG_CSUM_OFFLOAD":  2,
+		"TAP_API_FLAG_PERSIST":       4,
+		"TAP_API_FLAG_ATTACH":        8,
+		"TAP_API_FLAG_TUN":           16,
+		"TAP_API_FLAG_GRO_COALESCE":  32,
+		"TAP_API_FLAG_PACKED":        64,
+		"TAP_API_FLAG_IN_ORDER":      128,
+		"TAP_API_FLAG_CONSISTENT_QP": 256,
 	}
 )
 

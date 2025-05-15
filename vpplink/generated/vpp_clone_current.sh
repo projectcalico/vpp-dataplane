@@ -92,11 +92,10 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-# VPP 24.10 released on 30/Oct/2024
-git_clone_cd_and_reset "$1" cfa0953251cbab435307baf3dcd249fd95afaf1f # misc: VPP 24.10 Release Notes
+# VPP latest commit as on 12/May/2025
+git_clone_cd_and_reset "$1" 5a1d844511e497dd72cbc8a56db97dfe1a4645ef # dev: enable flow on primary interface
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
-git_cherry_pick refs/changes/94/41094/24 # 41094: vlib: improve core pinning | https://gerrit.fd.io/r/c/vpp/+/41094
 
 # This is the commit which broke IPv6 from v3.28.0 onwards.
 git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine NS source address
