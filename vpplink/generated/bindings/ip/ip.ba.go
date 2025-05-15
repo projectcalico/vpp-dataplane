@@ -5,7 +5,7 @@
 // Contents:
 // -  3 enums
 // -  7 structs
-// - 95 messages
+// - 97 messages
 package ip
 
 import (
@@ -29,7 +29,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip"
 	APIVersion = "3.2.0"
-	VersionCrc = 0x4645df38
+	VersionCrc = 0xc2b1c41
 )
 
 // IPReassType defines enum 'ip_reass_type'.
@@ -4782,6 +4782,82 @@ func (m *SetIPFlowHashV3Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// IPv4 interface enable / disable request
+//   - sw_if_index - interface used to reach neighbor
+//   - enable - if non-zero enable ip4 on interface, else disable
+//
+// SwInterfaceIP4EnableDisable defines message 'sw_interface_ip4_enable_disable'.
+type SwInterfaceIP4EnableDisable struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	Enable    bool                           `binapi:"bool,name=enable" json:"enable,omitempty"`
+}
+
+func (m *SwInterfaceIP4EnableDisable) Reset()               { *m = SwInterfaceIP4EnableDisable{} }
+func (*SwInterfaceIP4EnableDisable) GetMessageName() string { return "sw_interface_ip4_enable_disable" }
+func (*SwInterfaceIP4EnableDisable) GetCrcString() string   { return "ae6cfcfb" }
+func (*SwInterfaceIP4EnableDisable) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SwInterfaceIP4EnableDisable) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	size += 1 // m.Enable
+	return size
+}
+func (m *SwInterfaceIP4EnableDisable) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeBool(m.Enable)
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceIP4EnableDisable) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.Enable = buf.DecodeBool()
+	return nil
+}
+
+// SwInterfaceIP4EnableDisableReply defines message 'sw_interface_ip4_enable_disable_reply'.
+type SwInterfaceIP4EnableDisableReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SwInterfaceIP4EnableDisableReply) Reset() { *m = SwInterfaceIP4EnableDisableReply{} }
+func (*SwInterfaceIP4EnableDisableReply) GetMessageName() string {
+	return "sw_interface_ip4_enable_disable_reply"
+}
+func (*SwInterfaceIP4EnableDisableReply) GetCrcString() string { return "e8d4e804" }
+func (*SwInterfaceIP4EnableDisableReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SwInterfaceIP4EnableDisableReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SwInterfaceIP4EnableDisableReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceIP4EnableDisableReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 // IPv6 interface enable / disable request
 //   - sw_if_index - interface used to reach neighbor
 //   - enable - if non-zero enable ip6 on interface, else disable
@@ -5111,6 +5187,8 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*SetIPFlowHashV2Reply)(nil), "set_ip_flow_hash_v2_reply_e8d4e804")
 	api.RegisterMessage((*SetIPFlowHashV3)(nil), "set_ip_flow_hash_v3_b7876e07")
 	api.RegisterMessage((*SetIPFlowHashV3Reply)(nil), "set_ip_flow_hash_v3_reply_e8d4e804")
+	api.RegisterMessage((*SwInterfaceIP4EnableDisable)(nil), "sw_interface_ip4_enable_disable_ae6cfcfb")
+	api.RegisterMessage((*SwInterfaceIP4EnableDisableReply)(nil), "sw_interface_ip4_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceIP6EnableDisable)(nil), "sw_interface_ip6_enable_disable_ae6cfcfb")
 	api.RegisterMessage((*SwInterfaceIP6EnableDisableReply)(nil), "sw_interface_ip6_enable_disable_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceIP6GetLinkLocalAddress)(nil), "sw_interface_ip6_get_link_local_address_f9e6675e")
@@ -5211,6 +5289,8 @@ func AllMessages() []api.Message {
 		(*SetIPFlowHashV2Reply)(nil),
 		(*SetIPFlowHashV3)(nil),
 		(*SetIPFlowHashV3Reply)(nil),
+		(*SwInterfaceIP4EnableDisable)(nil),
+		(*SwInterfaceIP4EnableDisableReply)(nil),
 		(*SwInterfaceIP6EnableDisable)(nil),
 		(*SwInterfaceIP6EnableDisableReply)(nil),
 		(*SwInterfaceIP6GetLinkLocalAddress)(nil),

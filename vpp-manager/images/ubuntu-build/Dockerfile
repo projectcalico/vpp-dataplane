@@ -29,7 +29,8 @@ RUN apt-get update \
 	libffi7 \
 	enchant-2 \
 	tshark \
-	libllvm15 libclang-cpp15 clang-format-15 libonig5 libjq1 jq libunwind8 liblzma-dev libunwind-dev
+	libllvm15 libclang-cpp15 clang-format-15 libonig5 libjq1 jq  libunwind8 liblzma-dev libunwind-dev \
+	libiberty-dev
 
 WORKDIR /
 
