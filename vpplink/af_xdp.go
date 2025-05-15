@@ -26,7 +26,7 @@ import (
 func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) error {
 	client := af_xdp.NewServiceClient(v.GetConnection())
 
-	request := &af_xdp.AfXdpCreate{
+	request := &af_xdp.AfXdpCreateV3{
 		HostIf:  intf.HostInterfaceName,
 		Name:    intf.Name,
 		RxqNum:  uint16(DefaultIntTo(intf.NumRxQueues, 1)),
@@ -34,7 +34,7 @@ func (v *VppLink) CreateAfXDP(intf *types.VppXDPInterface) error {
 		TxqSize: uint16(DefaultIntTo(intf.TxQueueSize, 1024)),
 		Mode:    af_xdp.AF_XDP_API_MODE_AUTO,
 	}
-	response, err := client.AfXdpCreate(v.GetContext(), request)
+	response, err := client.AfXdpCreateV3(v.GetContext(), request)
 	if err != nil {
 		return fmt.Errorf("failed to create AfXDP (%+v): %w", request, err)
 	}
