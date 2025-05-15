@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  namespace: iperf3-vclsidecar
+  name: iperf3-server-repl
+  labels:
+    app: iperf3-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iperf3-server
+  template:
+    metadata:
+      labels:
+        app: iperf3-server
+      annotations:
+        "cni.projectcalico.org/vppVcl": "enable"
+    spec:
+      volumes:
+        - name: config-vcl
+          configMap:
+            name: vcl
+        - name: libraries
+          emptyDir: {}
+      containers:
+      - name: iperf3-server
+        image: calicovpp/test-iperf3:v3.29.0
+        command: ["tail", "-f", "/dev/null"]
+        env:
+        - name: VCL_CONFIG
+          value: /vcl/vcl.conf
+        - name: LD_LIBRARY_PATH
+          value: /usr/local/lib/vpp
+        volumeMounts:
+          - name: config-vcl
+            mountPath: /vcl
+          - name: libraries
+            mountPath: /usr/local/lib/vpp
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5201
+      - name: vclsidecar
+        imagePullPolicy: Always
+        image: docker.io/calicovpp/vclsidecar:v3.29.0
+        command: ["/bin/sh", "-c"]
+        args:
+          - cp /usr/local/lib/lib* /usr/local/lib/vpp && sleep infinity
+        volumeMounts:
+          - name: libraries
+            mountPath: /usr/local/lib/vpp
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: iperf3-vclsidecar
+  name: iperf3-service
+spec:
+  selector:
+    app: iperf3-server
+  ports:
+    - protocol: TCP
+      port: 5201
+      name: iperf3-tcp
+    - protocol: UDP
+      port: 5201
+      name: iperf3-udp
+    - protocol: SCTP
+      port: 5201
+      name: iperf3-sctp
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iperf3-client
+  namespace: iperf3-vclsidecar
+  annotations:
+    "cni.projectcalico.org/vppVcl": "enable"
+spec:
+  volumes:
+    - name: config-vcl
+      configMap:
+        name: vcl
+    - name: libraries
+      emptyDir: {}
+  containers:
+  - name: iperf3-client
+    image: calicovpp/test-iperf3:v3.29.0
+    env:
+    - name: VCL_CONFIG
+      value: /vcl/vcl.conf
+    - name: LD_LIBRARY_PATH
+      value: /usr/local/lib/vpp
+    command: ["tail", "-f", "/dev/null"]
+    volumeMounts:
+      - name: config-vcl
+        mountPath: /vcl
+      - name: libraries
+        mountPath: /usr/local/lib/vpp
+    imagePullPolicy: Always
+    ports:
+    - containerPort: 5201
+  - name: vclsidecar
+    imagePullPolicy: Always
+    image: docker.io/calicovpp/vclsidecar:v3.29.0
+    command: ["/bin/sh", "-c"]
+    args:
+      - cp /usr/local/lib/lib* /usr/local/lib/vpp && sleep infinity
+    volumeMounts:
+      - name: libraries
+        mountPath: /usr/local/lib/vpp
+---
+apiVersion: v1
+data:
+  vcl.conf: |-
+    vcl {
+    rx-fifo-size 4000000
+    tx-fifo-size 4000000
+    app-scope-local
+    app-scope-global
+    app-socket-api abstract:vpp/session
+    }
+kind: ConfigMap
+metadata:
+  namespace: iperf3-vclsidecar
+  name: vcl
