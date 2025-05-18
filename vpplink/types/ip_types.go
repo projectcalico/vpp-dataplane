@@ -43,6 +43,8 @@ func (mode *IPProto) UnmarshalText(text []byte) error {
 		*mode = TCP
 	case "udp":
 		*mode = UDP
+	case "sctp":
+		*mode = SCTP
 	default:
 		*mode = TCP
 	}
