@@ -176,6 +176,7 @@ type InterfaceSpec struct {
 	IsL3        *bool `json:"isl3"`
 	/* "interrupt" "adaptive" or "polling" mode */
 	RxMode types.RxMode `json:"rxMode"`
+	Mac    string       `json:"mac"`
 }
 
 func (i *InterfaceSpec) GetIsL3(isMemif bool) bool {

@@ -17,6 +17,7 @@ package pod_interface
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
@@ -83,6 +84,12 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	}
 	if *usedIfSpec.IsL3 {
 		memif.Mode = types.MemifModeIP
+	} else if podSpec.NetworkName == "" && podSpec.PBLMemifSpec.Mac != "" {
+		pblMac, err := net.ParseMAC(podSpec.PBLMemifSpec.Mac)
+		if err != nil {
+			return err
+		}
+		memif.MacAddress = pblMac
 	}
 
 	err = i.vpp.CreateMemif(memif)
