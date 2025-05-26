@@ -16,17 +16,17 @@
 package storage
 
 import (
-	"bytes"
 	"crypto/sha512"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/lunixbochs/struc"
 	"github.com/pkg/errors"
+	cniproto "github.com/projectcalico/calico/cni-plugin/pkg/dataplane/grpc/proto"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
@@ -35,21 +35,13 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 8  // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 9  // Used to ensure compatibility wen we reload data
 	MaxApiTagLen              = 63 /* No more than 64 characters in API tags */
 	VrfTagHashLen             = 8  /* how many hash charatecters (b64) of the name in tag prefix (useful when trucated) */
 )
 
-// XXX: Increment CniServerStateFileVersion when changing this struct
-type LocalIPNet struct {
-	MaskSize int    `struc:"int8,sizeof=Mask"`
-	IP       net.IP `struc:"[16]byte"`
-	Mask     net.IPMask
-}
-
-// XXX: Increment CniServerStateFileVersion when changing this struct
-type LocalIP struct {
-	IP net.IP `struc:"[16]byte"`
+func isMemif(ifName string) bool {
+	return strings.HasPrefix(ifName, "memif")
 }
 
 type VppInterfaceType uint8
@@ -76,106 +68,55 @@ func (ift VppInterfaceType) String() string {
 	}
 }
 
-func (n *LocalIPNet) String() string {
-	ipnet := net.IPNet{
-		IP:   n.IP,
-		Mask: n.Mask,
-	}
-	return ipnet.String()
-}
-
-func (n *LocalIP) String() string {
-	return n.IP.String()
-}
-
-func (n *LocalIPNet) UpdateSizes() {
-	n.MaskSize = len(n.Mask)
-}
-
-func (ps *LocalPodSpec) UpdateSizes() {
-	ps.RoutesSize = len(ps.Routes)
-	ps.ContainerIpsSize = len(ps.ContainerIps)
-	ps.InterfaceNameSize = len(ps.InterfaceName)
-	ps.NetnsNameSize = len(ps.NetnsName)
-	for _, n := range ps.Routes {
-		n.UpdateSizes()
+func getHostEndpointProto(proto string) types.IPProto {
+	switch proto {
+	case "udp":
+		return types.UDP
+	case "sctp":
+		return types.SCTP
+	case "tcp":
+		return types.TCP
+	default:
+		return types.TCP
 	}
 }
 
-func (ps *LocalPodSpec) Key() string {
-	return fmt.Sprintf("netns:%s,if:%s", ps.NetnsName, ps.InterfaceName)
+func LocalPodSpecKey(netnsName, interfaceName string) string {
+	return fmt.Sprintf("netns:%s,if:%s", netnsName, interfaceName)
 }
 
-func (ps *LocalPodSpec) String() string {
-	lst := ps.ContainerIps
+func (self *LocalPodSpec) Key() string {
+	return LocalPodSpecKey(self.NetnsName, self.InterfaceName)
+}
+
+func (self *LocalPodSpec) String() string {
+	lst := self.ContainerIps
 	strLst := make([]string, 0, len(lst))
 	for _, e := range lst {
 		strLst = append(strLst, e.String())
 	}
-	return fmt.Sprintf("%s [%s]", ps.Key(), strings.Join(strLst, ", "))
+	return fmt.Sprintf("%s [%s]", self.Key(), strings.Join(strLst, ", "))
 }
 
-func (ps *LocalPodSpec) FullString() string {
-	containerIps := ps.ContainerIps
-	containerIpsLst := make([]string, 0, len(containerIps))
-	for _, e := range containerIps {
-		containerIpsLst = append(containerIpsLst, e.String())
-	}
-	routes := ps.Routes
-	routesLst := make([]string, 0, len(routes))
-	for _, e := range routes {
-		routesLst = append(routesLst, e.String())
-	}
-	pblIndexes := ps.PblIndexes
-	pblIndexesLst := make([]string, 0, len(pblIndexes))
-	for _, e := range pblIndexes {
-		pblIndexesLst = append(pblIndexesLst, fmt.Sprint(e))
-	}
-	s := fmt.Sprintf("InterfaceName:      %s\n", ps.InterfaceName)
-	s += fmt.Sprintf("NetnsName:          %s\n", ps.NetnsName)
-	s += fmt.Sprintf("AllowIpForwarding:  %t\n", ps.AllowIpForwarding)
-	s += fmt.Sprintf("Routes:             %s\n", strings.Join(routesLst, ", "))
-	s += fmt.Sprintf("ContainerIps:       %s\n", strings.Join(containerIpsLst, ", "))
-	s += fmt.Sprintf("Mtu:                %d\n", ps.Mtu)
-	s += fmt.Sprintf("OrchestratorID:     %s\n", ps.OrchestratorID)
-	s += fmt.Sprintf("WorkloadID:         %s\n", ps.WorkloadID)
-	s += fmt.Sprintf("EndpointID:         %s\n", ps.EndpointID)
-	s += fmt.Sprintf("HostPorts:          %s\n", types.StrableListToString("", ps.HostPorts))
-	s += fmt.Sprintf("IfPortConfigs:      %s\n", types.StrableListToString("", ps.IfPortConfigs))
-	s += fmt.Sprintf("PortFilteredIfType: %s\n", ps.PortFilteredIfType.String())
-	s += fmt.Sprintf("DefaultIfType:      %s\n", ps.DefaultIfType.String())
-	s += fmt.Sprintf("EnableVCL:          %t\n", ps.EnableVCL)
-	s += fmt.Sprintf("EnableMemif:        %t\n", ps.EnableMemif)
-	s += fmt.Sprintf("IsL3:               %t\n", *ps.IfSpec.IsL3)
-	s += fmt.Sprintf("MemifSocketId:      %d\n", ps.MemifSocketId)
-	s += fmt.Sprintf("TunTapSwIfIndex:    %d\n", ps.TunTapSwIfIndex)
-	s += fmt.Sprintf("MemifSwIfIndex:     %d\n", ps.MemifSwIfIndex)
-	s += fmt.Sprintf("LoopbackSwIfIndex:  %d\n", ps.LoopbackSwIfIndex)
-	s += fmt.Sprintf("PblIndexes:         %s\n", strings.Join(pblIndexesLst, ", "))
-	s += fmt.Sprintf("V4VrfId:            %d\n", ps.V4VrfId)
-	s += fmt.Sprintf("V6VrfId:            %d\n", ps.V6VrfId)
-	return s
-}
-
-func (ps *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex uint32, isL3 bool) {
+func (self *LocalPodSpec) GetParamsForIfType(ifType VppInterfaceType) (swIfIndex uint32, isL3 bool) {
 	switch ifType {
 	case VppIfTypeTunTap:
-		return ps.TunTapSwIfIndex, *ps.IfSpec.IsL3
+		return self.Status.TunTapSwIfIndex, *self.IfSpec.IsL3
 	case VppIfTypeMemif:
 		if !*config.GetCalicoVppFeatureGates().MemifEnabled {
 			return types.InvalidID, true
 		}
-		return ps.MemifSwIfIndex, *ps.PBLMemifSpec.IsL3
+		return self.Status.MemifSwIfIndex, *self.PBLMemifSpec.IsL3
 	default:
 		return types.InvalidID, true
 	}
 }
 
-func (ps *LocalPodSpec) GetBuffersNeeded() uint64 {
+func (self *LocalPodSpec) GetBuffersNeeded() uint64 {
 	var buffersNeededForThisPod uint64
-	buffersNeededForThisPod += ps.IfSpec.GetBuffersNeeded()
-	if ps.NetworkName == "" && ps.EnableMemif {
-		buffersNeededForThisPod += ps.PBLMemifSpec.GetBuffersNeeded()
+	buffersNeededForThisPod += self.IfSpec.GetBuffersNeeded()
+	if self.NetworkName == "" && self.EnableMemif {
+		buffersNeededForThisPod += self.PBLMemifSpec.GetBuffersNeeded()
 	}
 	return buffersNeededForThisPod
 }
@@ -192,95 +133,229 @@ func (pc *LocalIfPortConfigs) String() string {
 }
 
 // XXX: Increment CniServerStateFileVersion when changing this struct
-type LocalPodSpec struct {
-	InterfaceNameSize int `struc:"int16,sizeof=InterfaceName"`
-	InterfaceName     string
-	NetnsNameSize     int `struc:"int16,sizeof=NetnsName"`
-	NetnsName         string
-	AllowIpForwarding bool
-	RoutesSize        int `struc:"int16,sizeof=Routes"`
-	Routes            []LocalIPNet
-	ContainerIpsSize  int `struc:"int16,sizeof=ContainerIps"`
-	ContainerIps      []LocalIP
-	Mtu               int
-
-	// Pod identifiers
-	OrchestratorIDSize int `struc:"int16,sizeof=OrchestratorID"`
-	OrchestratorID     string
-	WorkloadIDSize     int `struc:"int16,sizeof=WorkloadID"`
-	WorkloadID         string
-	EndpointIDSize     int `struc:"int16,sizeof=EndpointID"`
-	EndpointID         string
-	// HostPort
-	HostPortsSize int `struc:"int16,sizeof=HostPorts"`
-	HostPorts     []HostPortBinding
-
-	IfPortConfigsLen int `struc:"int16,sizeof=IfPortConfigs"`
-	IfPortConfigs    []LocalIfPortConfigs
-	/* This interface type will traffic MATCHING the portConfigs */
-	PortFilteredIfType VppInterfaceType
-	/* This interface type will traffic not matching portConfigs */
-	DefaultIfType VppInterfaceType
-	EnableVCL     bool
-	EnableMemif   bool
-
-	IfSpec       config.InterfaceSpec
-	PBLMemifSpec config.InterfaceSpec
-
-	/**
-	 * Below are VPP internal ids, mutable fields in AddVppInterface
-	 * We persist them on the disk to avoid rescanning when the agent is restarting.
-	 *
-	 * We should be careful during state-reconciliation as they might not be
-	 * valid anymore. VRF tags should provide this guarantee
-	 */
-	MemifSocketId     uint32
-	TunTapSwIfIndex   uint32
-	MemifSwIfIndex    uint32
-	LoopbackSwIfIndex uint32
-	PblIndexesLen     int `struc:"int16,sizeof=PblIndexes"`
-	PblIndexes        []uint32
-
-	/**
-	 * These fields are only a runtime cache, but we also store them
-	 * on the disk for debugging purposes.
-	 */
-	V4VrfId   uint32
-	V6VrfId   uint32
-	NeedsSnat bool
-
-	/* Multi net */
-	NetworkNameSize int `struc:"int16,sizeof=NetworkName"`
-	NetworkName     string
-
-	/* rpf check */
-	AllowedSpoofingPrefixesSize int `struc:"int16,sizeof=AllowedSpoofingPrefixes"`
-	AllowedSpoofingPrefixes     string
-
-	V4RPFVrfId uint32
-	V6RPFVrfId uint32
+type HostPortBinding struct {
+	HostPort      uint16
+	HostIP        net.IP
+	ContainerPort uint16
+	EntryID       uint32
+	Protocol      types.IPProto
 }
 
-func (ps *LocalPodSpec) Copy() LocalPodSpec {
-	newPs := *ps
+// LocalPodSpecStatus contains VPP internal ids, mutable fields in AddVppInterface
+// We persist them on the disk to avoid rescanning when the agent is restarting.
+//
+// We should be careful during state-reconciliation as they might not be
+// valid anymore. VRF tags should provide this guarantee
+//
+// These fields are only a runtime cache, but we also store them
+// on the disk for debugging & gracefull restart.
+type LocalPodSpecStatus struct {
+	MemifSocketId     uint32 `json:"memifSocketId"`
+	MemifSwIfIndex    uint32 `json:"memifSwIfIndex"`
+	TunTapSwIfIndex   uint32 `json:"tunTapSwIfIndex"`
+	LoopbackSwIfIndex uint32 `json:"loopbackSwIfIndex"`
+	// PblIndexes is a map from containerIP to PBL index in VPP
+	PblIndexes map[string]uint32 `json:"pblIndexes"`
+	V4VrfId    uint32            `json:"v4VrfId"`
+	V4RPFVrfId uint32            `json:"v4RPFVrfId"`
+	V6VrfId    uint32            `json:"v6VrfId"`
+	V6RPFVrfId uint32            `json:"v6RPFVrfId"`
+	NeedsSnat  bool              `json:"needsSnat"`
+}
 
-	newPs.Routes = append(make([]LocalIPNet, 0), ps.Routes...)
-	newPs.ContainerIps = append(make([]LocalIP, 0), ps.ContainerIps...)
-	newPs.HostPorts = append(make([]HostPortBinding, 0), ps.HostPorts...)
-	newPs.IfPortConfigs = append(make([]LocalIfPortConfigs, 0), ps.IfPortConfigs...)
-	newPs.PblIndexes = append(make([]uint32, 0), ps.PblIndexes...)
+func NewLocalPodSpecStatus() LocalPodSpecStatus {
+	return LocalPodSpecStatus{
+		MemifSocketId:     vpplink.InvalidID,
+		MemifSwIfIndex:    vpplink.InvalidID,
+		TunTapSwIfIndex:   vpplink.InvalidID,
+		LoopbackSwIfIndex: vpplink.InvalidID,
+		PblIndexes:        make(map[string]uint32),
+		V4VrfId:           vpplink.InvalidID,
+		V4RPFVrfId:        vpplink.InvalidID,
+		V6VrfId:           vpplink.InvalidID,
+		V6RPFVrfId:        vpplink.InvalidID,
+	}
+}
 
+// LocalPodSpec represents the configuration and runtime status of
+// a given pod & interface couple. It is persisted on disk to allow
+// seemless restarts
+//
+// XXX: Increment CniServerStateFileVersion when changing this struct
+type LocalPodSpec struct {
+	// Status is the runtime Status for this pod & interface couple
+	Status LocalPodSpecStatus
+
+	// InterfaceName is the name of the interface this podSpec represents
+	InterfaceName string `json:"interfaceName"`
+	// NetnsName is the name of the netns mounted on the host
+	NetnsName string `json:"netnsName"`
+	// AllowIpForwarding controls whether we allow IP forwarding in the pod
+	AllowIpForwarding bool `json:"allowIpForwarding"`
+	// Routes are routes to be configured in the pod
+	Routes []net.IPNet `json:"routes"`
+	// ContainerIps are the IPs of the container (typically v4 and v6)
+	ContainerIps []net.IP `json:"containerIps"`
+	// Mtu is the MTU to configure in the pod on its interface
+	Mtu int `json:"mtu"`
+	// OrchestratorID is a calico/k8s identifier for this pod
+	OrchestratorID string `json:"orchestratorID"`
+	// WorkloadID is a calico/k8s identifier for this pod
+	WorkloadID string `json:"workloadID"`
+	// EndpointID is a calico/k8s identifier for this pod
+	EndpointID string `json:"endpointID"`
+	// HostPorts are the HostPorts configured for this Pod
+	HostPorts []HostPortBinding `json:"hostPorts"`
+	// IfPortConfigs specifies a 2-tuple based (port and protocol) set
+	// of rules allowing to split traffic between two interfaces,
+	// typically a memif and a tuntap
+	IfPortConfigs []LocalIfPortConfigs `json:"ifPortConfigs"`
+	// PortFilteredIfType is the interface type to which we will forward
+	// traffic MATCHING the portConfigs
+	PortFilteredIfType VppInterfaceType `json:"portFilteredIfType"`
+	// DefaultIfType is the interface type to which we will traffic
+	// not matching portConfigs
+	DefaultIfType VppInterfaceType `json:"defaultIfType"`
+	// EnableVCL tells whether the pod asked for VCL
+	EnableVCL bool `json:"enableVCL"`
+	// EnableMemif tells whether the pod asked for memif
+	EnableMemif bool `json:"enableMemif"`
+
+	// IfSpec is the interface specification (rx queues, queue sizes,...)
+	IfSpec config.InterfaceSpec `json:"ifSpec"`
+	// PBLMemifSpec is the additional interface specification
+	// (rx queues, queue sizes,...)
+	PBLMemifSpec config.InterfaceSpec `json:"pblMemifSpec"`
+
+	// AllowedSpoofingSources is the list of prefixes from which the pod is allowed
+	// to send traffic
+	AllowedSpoofingSources []net.IPNet `json:"allowedSpoofingPrefixes"`
+
+	// NetworkName contains the name of the network this podSpec belongs
+	// to. Keeping in mind that for multi net, PodSpec are duplicated for
+	// every interface the pod has.
+	// It is set to the empty string for multinet disabled and to represent
+	// the default network.
+	NetworkName string `json:"networkName"`
+}
+
+func (self *LocalPodSpec) Copy() LocalPodSpec {
+	newPs := *self
+	newPs.Routes = append(make([]net.IPNet, 0), self.Routes...)
+	newPs.ContainerIps = append(make([]net.IP, 0), self.ContainerIps...)
+	newPs.HostPorts = append(make([]HostPortBinding, 0), self.HostPorts...)
+	newPs.IfPortConfigs = append(make([]LocalIfPortConfigs, 0), self.IfPortConfigs...)
+	newPs.AllowedSpoofingSources = append(make([]net.IPNet, 0), self.AllowedSpoofingSources...)
+	newPs.Status.PblIndexes = make(map[string]uint32)
+	for k, v := range self.Status.PblIndexes {
+		newPs.Status.PblIndexes[k] = v
+	}
 	return newPs
 
 }
 
-// XXX: Increment CniServerStateFileVersion when changing this struct
-type HostPortBinding struct {
-	HostPort      uint16
-	HostIP        net.IP `struc:"[16]byte"`
-	ContainerPort uint16
-	EntryID       uint32
-	Protocol      types.IPProto
+func getDefaultIfSpec(isL3 bool) config.InterfaceSpec {
+	return config.InterfaceSpec{
+		NumRxQueues: config.GetCalicoVppInterfaces().DefaultPodIfSpec.NumRxQueues,
+		NumTxQueues: config.GetCalicoVppInterfaces().DefaultPodIfSpec.NumTxQueues,
+		RxQueueSize: vpplink.DefaultIntTo(
+			config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize,
+			vpplink.DEFAULT_QUEUE_SIZE,
+		),
+		TxQueueSize: vpplink.DefaultIntTo(
+			config.GetCalicoVppInterfaces().DefaultPodIfSpec.TxQueueSize,
+			vpplink.DEFAULT_QUEUE_SIZE,
+		),
+		IsL3: &isL3,
+	}
+}
+
+func NewLocalPodSpecFromAdd(request *cniproto.AddRequest, nodeBGPSpec *common.LocalNodeSpec) (*LocalPodSpec, error) {
+	podSpec := LocalPodSpec{
+		InterfaceName:     request.GetInterfaceName(),
+		NetnsName:         request.GetNetns(),
+		AllowIpForwarding: request.GetSettings().GetAllowIpForwarding(),
+		Routes:            make([]net.IPNet, 0),
+		ContainerIps:      make([]net.IP, 0),
+		Mtu:               int(request.GetSettings().GetMtu()),
+
+		IfPortConfigs: make([]LocalIfPortConfigs, 0),
+
+		OrchestratorID: request.Workload.Orchestrator,
+		WorkloadID:     request.Workload.Namespace + "/" + request.Workload.Pod,
+		EndpointID:     request.Workload.Endpoint,
+		HostPorts:      make([]HostPortBinding, 0),
+
+		/* defaults */
+		IfSpec:       getDefaultIfSpec(true /* isL3 */),
+		PBLMemifSpec: getDefaultIfSpec(false /* isL3 */),
+
+		NetworkName: request.DataplaneOptions["network_name"],
+		Status:      NewLocalPodSpecStatus(),
+	}
+
+	if podSpec.NetworkName != "" {
+		if !*config.GetCalicoVppFeatureGates().MultinetEnabled {
+			return nil, fmt.Errorf("enable multinet in config for multiple networks")
+		}
+		if isMemif(podSpec.InterfaceName) {
+			if !*config.GetCalicoVppFeatureGates().MemifEnabled {
+				return nil, fmt.Errorf("enable memif in config for memif interfaces")
+			}
+			podSpec.EnableMemif = true
+			podSpec.DefaultIfType = VppIfTypeMemif
+			podSpec.IfSpec = getDefaultIfSpec(false)
+		}
+	}
+
+	for _, port := range request.Workload.Ports {
+		if port.HostPort != 0 {
+			hostPortBinding := HostPortBinding{
+				HostPort:      uint16(port.HostPort),
+				HostIP:        net.ParseIP(port.HostIp),
+				ContainerPort: uint16(port.Port),
+			}
+			_ = hostPortBinding.Protocol.UnmarshalText([]byte(port.Protocol))
+			if hostPortBinding.HostIP == nil || hostPortBinding.HostIP.IsUnspecified() {
+				if nodeBGPSpec != nil && nodeBGPSpec.IPv4Address != nil {
+					// default to node IP
+					hostPortBinding.HostIP = net.ParseIP(
+						nodeBGPSpec.IPv4Address.IP.String(),
+					)
+				}
+			}
+			podSpec.HostPorts = append(podSpec.HostPorts, hostPortBinding)
+		}
+	}
+	for _, routeStr := range request.GetContainerRoutes() {
+		_, route, err := net.ParseCIDR(routeStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Cannot parse container route %s", routeStr)
+		}
+		podSpec.Routes = append(podSpec.Routes, *route)
+	}
+	for _, requestContainerIP := range request.GetContainerIps() {
+		containerIp, _, err := net.ParseCIDR(requestContainerIP.GetAddress())
+		if err != nil {
+			return nil, fmt.Errorf("Cannot parse address: %s", requestContainerIP.GetAddress())
+		}
+		// We ignore the prefix len set on the address,
+		// for a tun it doesn't make sense
+		podSpec.ContainerIps = append(podSpec.ContainerIps, containerIp)
+	}
+	workload := request.GetWorkload()
+	if workload != nil {
+		err := parsePodAnnotations(&podSpec, workload.Annotations)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Cannot parse pod Annotations")
+		}
+	}
+
+	if podSpec.DefaultIfType == VppIfTypeUnknown {
+		podSpec.DefaultIfType = VppIfTypeTunTap
+	}
+
+	return &podSpec, nil
 }
 
 func (hp *HostPortBinding) String() string {
@@ -303,45 +378,34 @@ func TruncateStr(text string, size int) string {
 	return text
 }
 
-func (ps *LocalPodSpec) GetVrfTag(ipFamily vpplink.IpFamily, custom string) string {
-	h := hash(fmt.Sprintf("%s%s%s%s", ipFamily.ShortStr, ps.NetnsName, ps.InterfaceName, custom))
-	s := fmt.Sprintf("%s-%s-%s%s-%s", h, ipFamily.ShortStr, ps.InterfaceName, custom, filepath.Base(ps.NetnsName))
+func (self *LocalPodSpec) GetVrfTag(ipFamily vpplink.IpFamily, custom string) string {
+	h := hash(fmt.Sprintf("%s%s%s%s", ipFamily.ShortStr, self.NetnsName, self.InterfaceName, custom))
+	s := fmt.Sprintf("%s-%s-%s%s-%s", h, ipFamily.ShortStr, self.InterfaceName, custom, filepath.Base(self.NetnsName))
 	return TruncateStr(s, MaxApiTagLen)
 }
 
-func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {
-	h := hash(fmt.Sprintf("%s%s%s", prefix, ps.NetnsName, ps.InterfaceName))
-	s := fmt.Sprintf("%s-%s-%s", h, ps.InterfaceName, filepath.Base(ps.NetnsName))
+func (self *LocalPodSpec) GetInterfaceTag(prefix string) string {
+	h := hash(fmt.Sprintf("%s%s%s", prefix, self.NetnsName, self.InterfaceName))
+	s := fmt.Sprintf("%s-%s-%s", h, self.InterfaceName, filepath.Base(self.NetnsName))
 	return TruncateStr(s, MaxApiTagLen)
 }
 
-func (ps *LocalPodSpec) GetRoutes() (routes []*net.IPNet) {
-	routes = make([]*net.IPNet, 0, len(ps.Routes))
-	for _, r := range ps.Routes {
-		routes = append(routes, &net.IPNet{
-			IP:   r.IP,
-			Mask: r.Mask,
-		})
-	}
-	return routes
-}
-
-func (ps *LocalPodSpec) GetContainerIps() (containerIps []*net.IPNet) {
-	containerIps = make([]*net.IPNet, 0, len(ps.ContainerIps))
-	for _, containerIp := range ps.ContainerIps {
+func (self *LocalPodSpec) GetContainerIps() (containerIps []*net.IPNet) {
+	containerIps = make([]*net.IPNet, 0, len(self.ContainerIps))
+	for _, containerIp := range self.ContainerIps {
 		containerIps = append(containerIps, &net.IPNet{
-			IP:   containerIp.IP,
-			Mask: common.GetMaxCIDRMask(containerIp.IP),
+			IP:   containerIp,
+			Mask: common.GetMaxCIDRMask(containerIp),
 		})
 	}
 	return containerIps
 }
 
-func (ps *LocalPodSpec) Hasv46() (hasv4 bool, hasv6 bool) {
+func (self *LocalPodSpec) Hasv46() (hasv4 bool, hasv6 bool) {
 	hasv4 = false
 	hasv6 = false
-	for _, containerIP := range ps.ContainerIps {
-		if containerIP.IP.To4() == nil {
+	for _, containerIP := range self.ContainerIps {
+		if containerIP.To4() == nil {
 			hasv6 = true
 		} else {
 			hasv4 = true
@@ -350,46 +414,45 @@ func (ps *LocalPodSpec) Hasv46() (hasv4 bool, hasv6 bool) {
 	return hasv4, hasv6
 }
 
-func (ps *LocalPodSpec) GetVrfId(ipFamily vpplink.IpFamily) uint32 {
+func (self *LocalPodSpec) GetVrfId(ipFamily vpplink.IpFamily) uint32 {
 	if ipFamily.IsIp6 {
-		return ps.V6VrfId
+		return self.Status.V6VrfId
 	} else {
-		return ps.V4VrfId
+		return self.Status.V4VrfId
 	}
 }
 
-func (ps *LocalPodSpec) GetRPFVrfId(ipFamily vpplink.IpFamily) uint32 {
+func (self *LocalPodSpec) GetRPFVrfId(ipFamily vpplink.IpFamily) uint32 {
 	if ipFamily.IsIp6 {
-		return ps.V6RPFVrfId
+		return self.Status.V6RPFVrfId
 	} else {
-		return ps.V4RPFVrfId
+		return self.Status.V4RPFVrfId
 	}
 }
 
-func (ps *LocalPodSpec) SetVrfId(id uint32, ipFamily vpplink.IpFamily) {
+func (self *LocalPodSpec) SetVrfId(id uint32, ipFamily vpplink.IpFamily) {
 	if ipFamily.IsIp6 {
-		ps.V6VrfId = id
+		self.Status.V6VrfId = id
 	} else {
-		ps.V4VrfId = id
+		self.Status.V4VrfId = id
 	}
 }
 
-func (ps *LocalPodSpec) SetRPFVrfId(id uint32, ipFamily vpplink.IpFamily) {
+func (self *LocalPodSpec) SetRPFVrfId(id uint32, ipFamily vpplink.IpFamily) {
 	if ipFamily.IsIp6 {
-		ps.V6RPFVrfId = id
+		self.Status.V6RPFVrfId = id
 	} else {
-		ps.V4RPFVrfId = id
+		self.Status.V4RPFVrfId = id
 	}
 }
 
 type SavedState struct {
-	Version    int `struc:"int32"`
-	SpecsCount int `struc:"int32,sizeof=Specs"`
-	Specs      []LocalPodSpec
+	Version    int            `json:"version"`
+	SpecsCount int            `json:"specsCount"`
+	Specs      []LocalPodSpec `json:"specs"`
 }
 
 func PersistCniServerState(podInterfaceMap map[string]LocalPodSpec, fname string) (err error) {
-	var buf bytes.Buffer
 	tmpFile := fmt.Sprintf("%s~", fname)
 	state := &SavedState{
 		Version:    CniServerStateFileVersion,
@@ -399,12 +462,12 @@ func PersistCniServerState(podInterfaceMap map[string]LocalPodSpec, fname string
 	for _, podSpec := range podInterfaceMap {
 		state.Specs = append(state.Specs, podSpec)
 	}
-	err = struc.Pack(&buf, state)
+	data, err := json.Marshal(state)
 	if err != nil {
 		return errors.Wrap(err, "Error encoding pod data")
 	}
 
-	err = os.WriteFile(tmpFile, buf.Bytes(), 0200)
+	err = os.WriteFile(tmpFile, data, 0200)
 	if err != nil {
 		return errors.Wrapf(err, "Error writing file %s", tmpFile)
 	}
@@ -416,19 +479,18 @@ func PersistCniServerState(podInterfaceMap map[string]LocalPodSpec, fname string
 }
 
 func LoadCniServerState(fname string) ([]LocalPodSpec, error) {
-	var state SavedState
+	state := &SavedState{}
 	data, err := os.ReadFile(fname)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil // No state to load
+			return nil, nil
 		} else {
 			return nil, errors.Wrapf(err, "Error reading file %s", fname)
 		}
 	}
-	buf := bytes.NewBuffer(data)
-	err = struc.Unpack(buf, &state)
+	err = json.Unmarshal(data, state)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error unpacking")
+		return nil, errors.Wrapf(err, "Error unmarshaling json state")
 	}
 	if state.Version != CniServerStateFileVersion {
 		// When adding new versions, we need to keep loading old versions or some pods
