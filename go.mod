@@ -7,6 +7,7 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1
 	github.com/containernetworking/plugins v1.6.2
 	github.com/google/gopacket v1.1.19
+	github.com/gookit/color v1.5.4
 	github.com/inconshreveable/mousetrap v1.1.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543
@@ -33,6 +34,7 @@ require (
 	k8s.io/apimachinery v0.32.5
 	k8s.io/client-go v0.32.5
 	sigs.k8s.io/controller-runtime v0.20.3
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
@@ -98,6 +100,7 @@ require (
 	go.etcd.io/etcd/api/v3 v3.5.19 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.19 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.19 // indirect
+	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
@@ -124,7 +127,6 @@ require (
 	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
 	sigs.k8s.io/network-policy-api v0.1.5 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
 // We match the Calico/VPP version to a given Calico version.
