@@ -1,5 +1,6 @@
 # Binaries
 calico-vpp-agent/bin
+util/bin
 vpp-manager/images/*/vpp-manager
 vpp-manager/images/*/vppdev.sh
 vpp-manager/vpp_build/
