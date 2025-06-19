@@ -36,9 +36,9 @@ import (
 )
 
 const (
-	INVALID_SW_IF_INDEX = ^uint32(0)
-	MAX_MTU             = 9216
-	DEFAULT_QUEUE_SIZE  = 1024
+	InvalidSwIfIndex          = ^uint32(0)
+	CalicoVppMaxMTu           = 9216
+	CalicoVppDefaultQueueSize = 1024
 )
 
 type NamespaceNotFound error
@@ -105,10 +105,10 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (uint32, error) {
 	client := tapv2.NewServiceClient(v.GetConnection())
 
 	if len(tap.HostNamespace) > 64 {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("HostNamespace must be less than 64 characters")
+		return InvalidSwIfIndex, fmt.Errorf("hostNamespace must be less than 64 characters")
 	}
 	if len(tap.HostInterfaceName) > 64 {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("HostInterfaceName must be less than 64 characters")
+		return InvalidSwIfIndex, fmt.Errorf("hostInterfaceName must be less than 64 characters")
 	}
 
 	request := &tapv2.TapCreateV3{
@@ -117,8 +117,8 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (uint32, error) {
 		TapFlags:    tapv2.TapFlags(tap.Flags),
 		NumRxQueues: uint16(DefaultIntTo(tap.NumRxQueues, 1)),
 		NumTxQueues: uint16(DefaultIntTo(tap.NumTxQueues, 1)),
-		TxRingSz:    uint16(DefaultIntTo(tap.TxQueueSize, DEFAULT_QUEUE_SIZE)),
-		RxRingSz:    uint16(DefaultIntTo(tap.RxQueueSize, DEFAULT_QUEUE_SIZE)),
+		TxRingSz:    uint16(DefaultIntTo(tap.TxQueueSize, CalicoVppDefaultQueueSize)),
+		RxRingSz:    uint16(DefaultIntTo(tap.RxQueueSize, CalicoVppDefaultQueueSize)),
 		HostMtuSize: uint32(tap.HostMtu),
 		HostMtuSet:  tap.HostMtu != 0,
 	}
@@ -148,7 +148,7 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (uint32, error) {
 	response, err := client.TapCreateV3(v.GetContext(), request)
 	if err != nil {
 		if err == api.SYSCALL_ERROR_2 {
-			return INVALID_SW_IF_INDEX, nil
+			return InvalidSwIfIndex, nil
 		}
 		return 0, fmt.Errorf("failed to create tap: %w", err)
 	}
@@ -159,7 +159,7 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (uint32, error) {
 func (v *VppLink) CreateOrAttachTapV2(tap *types.TapV2) (swIfIndex uint32, err error) {
 	tap.Flags |= types.TapFlagPersist | types.TapFlagAttach
 	swIfIndex, err = v.CreateTapV2(tap)
-	if err == nil && swIfIndex == INVALID_SW_IF_INDEX {
+	if err == nil && swIfIndex == InvalidSwIfIndex {
 		tap.Flags &= ^types.TapFlagAttach
 		return v.CreateTapV2(tap)
 	}
@@ -285,26 +285,26 @@ func (v *VppLink) EnableInterfaceIP4(swIfIndex uint32) error {
 }
 
 // SearchInterfaceWithTag searches for interface that is tagged with given prefix. If not such interface is found,
-// then vpplink.INVALID_SW_IF_INDEX is returned as interface swIndex. Otherwise, non-nil error is returned.
+// then vpplink.InvalidSwIfIndex is returned as interface swIndex. Otherwise, non-nil error is returned.
 func (v *VppLink) SearchInterfaceWithTag(tag string) (uint32, error) {
-	err, sw, _ := v.searchInterfaceWithTagOrTagPrefix(tag, false)
+	sw, _, err := v.searchInterfaceWithTagOrTagPrefix(tag, false)
 	return sw, err
 }
 
 func (v *VppLink) SearchInterfacesWithTagPrefix(tag string) (map[string]uint32, error) {
-	err, _, sws := v.searchInterfaceWithTagOrTagPrefix(tag, true)
+	_, sws, err := v.searchInterfaceWithTagOrTagPrefix(tag, true)
 	return sws, err
 }
 
-func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (err error, swIfIndex uint32, swIfIndexes map[string]uint32) {
+func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (swIfIndex uint32, swIfIndexes map[string]uint32, err error) {
 	client := interfaces.NewServiceClient(v.GetConnection())
 
-	swIfIndex = INVALID_SW_IF_INDEX
+	swIfIndex = InvalidSwIfIndex
 	swIfIndexes = make(map[string]uint32)
 
 	stream, err := client.SwInterfaceDump(v.GetContext(), &interfaces.SwInterfaceDump{})
 	if err != nil {
-		return fmt.Errorf("failed to dump interfaces: %w", err), INVALID_SW_IF_INDEX, swIfIndexes
+		return InvalidSwIfIndex, swIfIndexes, fmt.Errorf("failed to dump interfaces: %w", err)
 	}
 	for {
 		response, err := stream.Recv()
@@ -312,7 +312,7 @@ func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (er
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("failed to dump interfaces: %w", err), INVALID_SW_IF_INDEX, swIfIndexes
+			return InvalidSwIfIndex, swIfIndexes, fmt.Errorf("failed to dump interfaces: %w", err)
 		}
 		intfTag := string(bytes.Trim([]byte(response.Tag), "\x00"))
 		v.GetLog().Debugf("found interface %d, tag: %s (len %d)", response.SwIfIndex, intfTag, len(intfTag))
@@ -325,22 +325,22 @@ func (v *VppLink) searchInterfaceWithTagOrTagPrefix(tag string, prefix bool) (er
 	}
 
 	if prefix {
-		return nil, swIfIndex, swIfIndexes
+		return swIfIndex, swIfIndexes, nil
 	}
-	return nil, swIfIndex, nil
+	return swIfIndex, nil, nil
 }
 
 func (v *VppLink) SearchInterfaceWithName(name string) (swIfIndex uint32, err error) {
 	client := interfaces.NewServiceClient(v.GetConnection())
 
-	swIfIndex = INVALID_SW_IF_INDEX
+	swIfIndex = InvalidSwIfIndex
 
 	stream, err := client.SwInterfaceDump(v.GetContext(), &interfaces.SwInterfaceDump{
-		SwIfIndex: interface_types.InterfaceIndex(INVALID_SW_IF_INDEX),
+		SwIfIndex: interface_types.InterfaceIndex(InvalidSwIfIndex),
 		// TODO: filter by name with NameFilter
 	})
 	if err != nil {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("failed to dump interfaces: %w", err)
+		return InvalidSwIfIndex, fmt.Errorf("failed to dump interfaces: %w", err)
 	}
 	for {
 		response, err := stream.Recv()
@@ -348,7 +348,7 @@ func (v *VppLink) SearchInterfaceWithName(name string) (swIfIndex uint32, err er
 			break
 		}
 		if err != nil {
-			return INVALID_SW_IF_INDEX, fmt.Errorf("failed to dump interfaces: %w", err)
+			return InvalidSwIfIndex, fmt.Errorf("failed to dump interfaces: %w", err)
 		}
 		interfaceName := response.InterfaceName
 		if interfaceName == name {
@@ -356,9 +356,9 @@ func (v *VppLink) SearchInterfaceWithName(name string) (swIfIndex uint32, err er
 			v.GetLog().Debugf("found interface with name %q (%v)", interfaceName, swIfIndex)
 		}
 	}
-	if swIfIndex == INVALID_SW_IF_INDEX {
+	if swIfIndex == InvalidSwIfIndex {
 		v.GetLog().Errorf("Interface %s not found", name)
-		return INVALID_SW_IF_INDEX, errors.New("Interface not found")
+		return InvalidSwIfIndex, errors.New("Interface not found")
 	}
 	return swIfIndex, nil
 }

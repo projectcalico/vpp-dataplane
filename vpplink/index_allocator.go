@@ -55,7 +55,7 @@ func (i *IndexAllocator) TakeIndex(index uint32) error {
 	defer i.lock.Unlock()
 
 	if index < i.startID {
-		return fmt.Errorf("Index %d lower than minimal index %d", index, i.startID)
+		return fmt.Errorf("index %d lower than minimal index %d", index, i.startID)
 	}
 
 	if index >= i.maxFreeID {
@@ -75,7 +75,7 @@ func (i *IndexAllocator) TakeIndex(index uint32) error {
 	}
 
 	if found == -1 {
-		return fmt.Errorf("Index %d not in freelist", index)
+		return fmt.Errorf("index %d not in freelist", index)
 	}
 
 	i.freeIndexList = append(i.freeIndexList[:found], i.freeIndexList[found+1:]...)

@@ -37,7 +37,7 @@ func (v *VppLink) AddPblClient(pblClient *types.PblClient) (id uint32, err error
 	response, err := client.PblClientUpdate(v.GetContext(), &pbl.PblClientUpdate{
 		Client: pbl.PblClient{
 			ID:         pblClient.ID,
-			TableID:    pblClient.TableId,
+			TableID:    pblClient.TableID,
 			Addr:       types.ToVppAddress(pblClient.Addr),
 			Paths:      pblClient.Path.ToFibPath(false),
 			Flags:      0,

@@ -63,7 +63,7 @@ func (v *VppLink) addDelVRF(index uint32, name string, isIP6 bool, isAdd bool) e
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("IPTableAddDel failed: %w", err)
+		return fmt.Errorf("ipTableAddDel failed: %w", err)
 	}
 	return nil
 }
@@ -87,12 +87,12 @@ func (v *VppLink) AllocateVRF(isIP6 bool, name string) (uint32, error) {
 		},
 	})
 	if err != nil {
-		return 0, fmt.Errorf("IPTableAllocate failed: %w", err)
+		return 0, fmt.Errorf("ipTableAllocate failed: %w", err)
 	}
 	return response.Table.TableID, nil
 }
 
-func (v *VppLink) PuntRedirect(punt types.IpPuntRedirect, isIP6 bool) error {
+func (v *VppLink) PuntRedirect(punt types.IPPuntRedirect, isIP6 bool) error {
 	client := ip.NewServiceClient(v.GetConnection())
 
 	_, err := client.AddDelIPPuntRedirectV2(v.GetContext(), &ip.AddDelIPPuntRedirectV2{
@@ -109,7 +109,7 @@ func (v *VppLink) PuntRedirect(punt types.IpPuntRedirect, isIP6 bool) error {
 	return nil
 }
 
-func (v *VppLink) PuntRedirectList(swIfIndex uint32, isIP6 bool) (punts []types.IpPuntRedirect, err error) {
+func (v *VppLink) PuntRedirectList(swIfIndex uint32, isIP6 bool) (punts []types.IPPuntRedirect, err error) {
 	client := ip.NewServiceClient(v.GetConnection())
 
 	stream, err := client.IPPuntRedirectV2Dump(v.GetContext(), &ip.IPPuntRedirectV2Dump{
@@ -119,7 +119,7 @@ func (v *VppLink) PuntRedirectList(swIfIndex uint32, isIP6 bool) (punts []types.
 	if err != nil {
 		return nil, fmt.Errorf("failed to dump punt redirect: %w", err)
 	}
-	punts = make([]types.IpPuntRedirect, 0)
+	punts = make([]types.IPPuntRedirect, 0)
 	for {
 		response, err := stream.Recv()
 		if err == io.EOF {
@@ -128,7 +128,7 @@ func (v *VppLink) PuntRedirectList(swIfIndex uint32, isIP6 bool) (punts []types.
 		if err != nil {
 			return nil, fmt.Errorf("failed to dump punt redirect: %w", err)
 		}
-		punts = append(punts, types.IpPuntRedirect{
+		punts = append(punts, types.IPPuntRedirect{
 			RxSwIfIndex: uint32(response.Punt.RxSwIfIndex),
 			IsIP6:       response.Punt.Af == ip_types.ADDRESS_IP6,
 			Paths:       types.FromFibPathList(response.Punt.Paths),

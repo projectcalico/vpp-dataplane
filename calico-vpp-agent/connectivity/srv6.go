@@ -103,14 +103,14 @@ func (p *SRv6Provider) CreateSRv6Tunnnel(dst net.IP, prefixDst ip_types.Prefix, 
 
 	}
 	srSteer := &types.SrSteer{
-		TrafficType: types.SR_STEER_IPV4,
+		TrafficType: types.SrSteerIPv4,
 		Prefix:      prefixDst,
 		Bsid:        policyTunnel.Bsid,
 	}
 
 	// Change the traffic type if is an IPv6 addr
 	if vpplink.IsIP6(srSteer.Prefix.Address.ToIP()) {
-		srSteer.TrafficType = types.SR_STEER_IPV6
+		srSteer.TrafficType = types.SrSteerIPv6
 	}
 	err = p.vpp.AddSRv6Steering(srSteer)
 
@@ -260,7 +260,7 @@ func (p *SRv6Provider) setEncapSource() (err error) {
 	p.log.Infof("SRv6Provider setEncapSource")
 	_, nodeIP6 := p.GetNodeIPs()
 	if nodeIP6 == nil {
-		return fmt.Errorf("No ip6 found for node")
+		return fmt.Errorf("no ip6 found for node")
 	}
 	if err = p.vpp.SetEncapSource(*nodeIP6); err != nil {
 		p.log.Errorf("SRv6Provider setEncapSource: %v", err)

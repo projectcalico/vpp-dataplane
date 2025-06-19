@@ -50,65 +50,65 @@ const (
 type IKEv2EncryptionAlgorithm uint32
 
 const (
-	IKEv2EncryptionAlgorithmDES_IV64   IKEv2EncryptionAlgorithm = 1
-	IKEv2EncryptionAlgorithmDES        IKEv2EncryptionAlgorithm = 2
-	IKEv2EncryptionAlgorithm3DES       IKEv2EncryptionAlgorithm = 3
-	IKEv2EncryptionAlgorithmRC5        IKEv2EncryptionAlgorithm = 4
-	IKEv2EncryptionAlgorithmIDEA       IKEv2EncryptionAlgorithm = 5
-	IKEv2EncryptionAlgorithmCAST       IKEv2EncryptionAlgorithm = 6
-	IKEv2EncryptionAlgorithmBLOWFISH   IKEv2EncryptionAlgorithm = 7
-	IKEv2EncryptionAlgorithm3IDEA      IKEv2EncryptionAlgorithm = 8
-	IKEv2EncryptionAlgorithmDES_IV32   IKEv2EncryptionAlgorithm = 9
-	IKEv2EncryptionAlgorithmNULL       IKEv2EncryptionAlgorithm = 11
-	IKEv2EncryptionAlgorithmAES_CBC    IKEv2EncryptionAlgorithm = 12
-	IKEv2EncryptionAlgorithmAES_CTR    IKEv2EncryptionAlgorithm = 13
-	IKEv2EncryptionAlgorithmAES_GCM_16 IKEv2EncryptionAlgorithm = 20
+	IKEv2EncryptionAlgorithmDESIV64  IKEv2EncryptionAlgorithm = 1
+	IKEv2EncryptionAlgorithmDES      IKEv2EncryptionAlgorithm = 2
+	IKEv2EncryptionAlgorithm3DES     IKEv2EncryptionAlgorithm = 3
+	IKEv2EncryptionAlgorithmRC5      IKEv2EncryptionAlgorithm = 4
+	IKEv2EncryptionAlgorithmIDEA     IKEv2EncryptionAlgorithm = 5
+	IKEv2EncryptionAlgorithmCAST     IKEv2EncryptionAlgorithm = 6
+	IKEv2EncryptionAlgorithmBLOWFISH IKEv2EncryptionAlgorithm = 7
+	IKEv2EncryptionAlgorithm3IDEA    IKEv2EncryptionAlgorithm = 8
+	IKEv2EncryptionAlgorithmDESIV32  IKEv2EncryptionAlgorithm = 9
+	IKEv2EncryptionAlgorithmNULL     IKEv2EncryptionAlgorithm = 11
+	IKEv2EncryptionAlgorithmAESCBC   IKEv2EncryptionAlgorithm = 12
+	IKEv2EncryptionAlgorithmAESCTR   IKEv2EncryptionAlgorithm = 13
+	IKEv2EncryptionAlgorithmAESGCM16 IKEv2EncryptionAlgorithm = 20
 )
 
 type IKEv2IntegrityAlgorithm uint32
 
 const (
-	IKEv2IntegrityAlgorithmNone                   IKEv2IntegrityAlgorithm = 0
-	IKEv2IntegrityAlgorithmAUTH_HMAC_MD5_96       IKEv2IntegrityAlgorithm = 1
-	IKEv2IntegrityAlgorithmAUTH_HMAC_SHA1_96      IKEv2IntegrityAlgorithm = 2
-	IKEv2IntegrityAlgorithmAUTH_DES_MAC           IKEv2IntegrityAlgorithm = 3
-	IKEv2IntegrityAlgorithmAUTH_KPDK_MD5          IKEv2IntegrityAlgorithm = 4
-	IKEv2IntegrityAlgorithmAUTH_AES_XCBC_96       IKEv2IntegrityAlgorithm = 5
-	IKEv2IntegrityAlgorithmAUTH_HMAC_MD5_128      IKEv2IntegrityAlgorithm = 6
-	IKEv2IntegrityAlgorithmAUTH_HMAC_SHA1_160     IKEv2IntegrityAlgorithm = 7
-	IKEv2IntegrityAlgorithmAUTH_AES_CMAC_96       IKEv2IntegrityAlgorithm = 8
-	IKEv2IntegrityAlgorithmAUTH_AES_128_GMAC      IKEv2IntegrityAlgorithm = 9
-	IKEv2IntegrityAlgorithmAUTH_AES_192_GMAC      IKEv2IntegrityAlgorithm = 10
-	IKEv2IntegrityAlgorithmAUTH_AES_256_GMAC      IKEv2IntegrityAlgorithm = 11
-	IKEv2IntegrityAlgorithmAUTH_HMAC_SHA2_256_128 IKEv2IntegrityAlgorithm = 12
-	IKEv2IntegrityAlgorithmAUTH_HMAC_SHA2_384_192 IKEv2IntegrityAlgorithm = 13
-	IKEv2IntegrityAlgorithmAUTH_HMAC_SHA2_512_256 IKEv2IntegrityAlgorithm = 14
+	IKEv2IntegrityAlgorithmNone               IKEv2IntegrityAlgorithm = 0
+	IKEv2IntegrityAlgorithmAuthHMACMD596      IKEv2IntegrityAlgorithm = 1
+	IKEv2IntegrityAlgorithmAuthHMACSHA196     IKEv2IntegrityAlgorithm = 2
+	IKEv2IntegrityAlgorithmAuthDESMAC         IKEv2IntegrityAlgorithm = 3
+	IKEv2IntegrityAlgorithmAuthKPDKMD5        IKEv2IntegrityAlgorithm = 4
+	IKEv2IntegrityAlgorithmAuthAESXCBC96      IKEv2IntegrityAlgorithm = 5
+	IKEv2IntegrityAlgorithmAuthHMACMD5128     IKEv2IntegrityAlgorithm = 6
+	IKEv2IntegrityAlgorithmAuthHMACSHA1160    IKEv2IntegrityAlgorithm = 7
+	IKEv2IntegrityAlgorithmAuthAESCMAC96      IKEv2IntegrityAlgorithm = 8
+	IKEv2IntegrityAlgorithmAuthAES128GMAC     IKEv2IntegrityAlgorithm = 9
+	IKEv2IntegrityAlgorithmAuthAES192GMAC     IKEv2IntegrityAlgorithm = 10
+	IKEv2IntegrityAlgorithmAuthAES256GMAC     IKEv2IntegrityAlgorithm = 11
+	IKEv2IntegrityAlgorithmAuthHMACSHA2256128 IKEv2IntegrityAlgorithm = 12
+	IKEv2IntegrityAlgorithmAuthHMACSHA2384192 IKEv2IntegrityAlgorithm = 13
+	IKEv2IntegrityAlgorithmAuthHMACSHA2512256 IKEv2IntegrityAlgorithm = 14
 )
 
 type IKEv2DHGroup uint32
 
 const (
-	IKEv2DHGroupNone          IKEv2DHGroup = 0
-	IKEv2DHGroupMODP_768      IKEv2DHGroup = 1
-	IKEv2DHGroupMODP_1024     IKEv2DHGroup = 2
-	IKEv2DHGroupMODP_1536     IKEv2DHGroup = 5
-	IKEv2DHGroupMODP_2048     IKEv2DHGroup = 14
-	IKEv2DHGroupMODP_3072     IKEv2DHGroup = 15
-	IKEv2DHGroupMODP_4096     IKEv2DHGroup = 16
-	IKEv2DHGroupMODP_6144     IKEv2DHGroup = 17
-	IKEv2DHGroupMODP_8192     IKEv2DHGroup = 18
-	IKEv2DHGroupECP_256       IKEv2DHGroup = 19
-	IKEv2DHGroupECP_384       IKEv2DHGroup = 20
-	IKEv2DHGroupECP_521       IKEv2DHGroup = 21
-	IKEv2DHGroupMODP_1024_160 IKEv2DHGroup = 22
-	IKEv2DHGroupMODP_2048_224 IKEv2DHGroup = 23
-	IKEv2DHGroupMODP_2048_256 IKEv2DHGroup = 24
-	IKEv2DHGroupECP_192       IKEv2DHGroup = 25
-	IKEv2DHGroupECP_224       IKEv2DHGroup = 26
-	IKEv2DHGroupBRAINPOOL_224 IKEv2DHGroup = 27
-	IKEv2DHGroupBRAINPOOL_256 IKEv2DHGroup = 28
-	IKEv2DHGroupBRAINPOOL_384 IKEv2DHGroup = 29
-	IKEv2DHGroupBRAINPOOL_512 IKEv2DHGroup = 30
+	IKEv2DHGroupNone         IKEv2DHGroup = 0
+	IKEv2DHGroupMODP768      IKEv2DHGroup = 1
+	IKEv2DHGroupMODP1024     IKEv2DHGroup = 2
+	IKEv2DHGroupMODP1536     IKEv2DHGroup = 5
+	IKEv2DHGroupMODP2048     IKEv2DHGroup = 14
+	IKEv2DHGroupMODP3072     IKEv2DHGroup = 15
+	IKEv2DHGroupMODP4096     IKEv2DHGroup = 16
+	IKEv2DHGroupMODP6144     IKEv2DHGroup = 17
+	IKEv2DHGroupMODP8192     IKEv2DHGroup = 18
+	IKEv2DHGroupECP256       IKEv2DHGroup = 19
+	IKEv2DHGroupECP384       IKEv2DHGroup = 20
+	IKEv2DHGroupECP521       IKEv2DHGroup = 21
+	IKEv2DHGroupMODP1024160  IKEv2DHGroup = 22
+	IKEv2DHGroupMODP2048224  IKEv2DHGroup = 23
+	IKEv2DHGroupMODP2048256  IKEv2DHGroup = 24
+	IKEv2DHGroupECP192       IKEv2DHGroup = 25
+	IKEv2DHGroupECP224       IKEv2DHGroup = 26
+	IKEv2DHGroupBRAINPOOL224 IKEv2DHGroup = 27
+	IKEv2DHGroupBRAINPOOL256 IKEv2DHGroup = 28
+	IKEv2DHGroupBRAINPOOL384 IKEv2DHGroup = 29
+	IKEv2DHGroupBRAINPOOL512 IKEv2DHGroup = 30
 )
 
 func (v *VppLink) AddIKEv2Profile(name string) error {
@@ -319,17 +319,17 @@ func (v *VppLink) SetIKEv2IKETransforms(
 func (v *VppLink) SetIKEv2DefaultTransforms(profile string) (err error) {
 	err = v.SetIKEv2IKETransforms(
 		profile,
-		IKEv2EncryptionAlgorithmAES_CBC,
+		IKEv2EncryptionAlgorithmAESCBC,
 		256,
-		IKEv2IntegrityAlgorithmAUTH_HMAC_SHA1_96,
-		IKEv2DHGroupMODP_2048,
+		IKEv2IntegrityAlgorithmAuthHMACSHA196,
+		IKEv2DHGroupMODP2048,
 	)
 	if err != nil {
 		return err
 	}
 	return v.SetIKEv2ESPTransforms(
 		profile,
-		IKEv2EncryptionAlgorithmAES_GCM_16,
+		IKEv2EncryptionAlgorithmAESGCM16,
 		256,
 		IKEv2IntegrityAlgorithmNone,
 	)

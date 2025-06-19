@@ -60,23 +60,23 @@ func (w *LocalSIDWatcher) WatchLocalSID(t *tomb.Tomb) error {
 	return nil
 }
 
-func (p *LocalSIDWatcher) AdvertiseSRv6Policy(localsid *types.SrLocalsid) (err error) {
-	p.log.Infof("AdvertiseSRv6Policy for LocalSID: %s", localsid.Localsid.String())
-	srpolicyBSID, err := p.getSidFromPool(config.GetCalicoVppSrv6().PolicyPool)
+func (w *LocalSIDWatcher) AdvertiseSRv6Policy(localsid *types.SrLocalsid) (err error) {
+	w.log.Infof("AdvertiseSRv6Policy for LocalSID: %s", localsid.Localsid.String())
+	srpolicyBSID, err := w.getSidFromPool(config.GetCalicoVppSrv6().PolicyPool)
 	if err != nil {
 		return errors.Wrap(err, "Error getSidFromPool")
 	} else {
-		var trafficType int
-		if localsid.Behavior == types.SrBehaviorDT4 {
-			trafficType = 4
-		} else if localsid.Behavior == types.SrBehaviorDT6 {
+		trafficType := 4
+		switch localsid.Behavior {
+		case types.SrBehaviorDT4: // use 4
+		case types.SrBehaviorDT6:
 			trafficType = 6
 		}
-		_, nodeIpv6 := common.GetBGPSpecAddresses(p.nodeBGPSpec)
-		if nodeIpv6 == nil {
-			return fmt.Errorf("No ip6 found for node")
+		_, nodeIPv6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
+		if nodeIPv6 == nil {
+			return fmt.Errorf("no ip6 found for node")
 		}
-		newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), srpolicyBSID.ToIP(), *nodeIpv6, trafficType, false)
+		newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), srpolicyBSID.ToIP(), *nodeIPv6, trafficType, false)
 		if err == nil {
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.BGPPathAdded,
@@ -88,15 +88,15 @@ func (p *LocalSIDWatcher) AdvertiseSRv6Policy(localsid *types.SrLocalsid) (err e
 	return err
 }
 
-func (p *LocalSIDWatcher) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6Address, err error) {
+func (w *LocalSIDWatcher) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6Address, err error) {
 	poolIPNet := []cnet.IPNet{cnet.MustParseNetwork(ipnet)}
-	_, newSids, err := p.clientv3.IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
+	_, newSids, err := w.clientv3.IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
 		Num6:        1,
 		IPv6Pools:   poolIPNet,
 		IntendedUse: "Tunnel",
 	})
 	if err != nil || newSids == nil {
-		p.log.Infof("SRv6Provider Error assigning ip LocalSid")
+		w.log.Infof("SRv6Provider Error assigning ip LocalSid")
 		return newSidAddr, errors.Wrapf(err, "SRv6Provider Error assigning ip LocalSid")
 	}
 

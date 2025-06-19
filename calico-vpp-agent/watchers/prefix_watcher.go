@@ -180,7 +180,7 @@ func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 	ipAddrPrefixNlri := &bgpapi.IPAddressPrefix{}
 	err := path.Nlri.UnmarshalTo(ipAddrPrefixNlri)
 	if err != nil {
-		return fmt.Errorf("Cannot handle Nlri: %+v", path.Nlri)
+		return fmt.Errorf("cannot handle Nlri: %+v", path.Nlri)
 	}
 	prefixLen := ipAddrPrefixNlri.PrefixLen
 	prefixAddr := ipAddrPrefixNlri.Prefix

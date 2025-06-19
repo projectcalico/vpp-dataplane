@@ -4,14 +4,18 @@ env:
   shell: bash
 
 phases:
+  install:
+    runtime-versions:
+      golang: latest
+
   pre_build:
     commands:
       - CI_BUILD=1
-      - cd .ci
       - echo Build started on `date`
 
       - docker --version
-      - make ci-install
+      - git config --global user.email "calicoci@cisco.com"
+      - git config --global user.name "Calico CI"
 
       - echo "Logging to dockerhub"
       - docker login --username ${DOCKERHUB_USERNAME} --password=${DOCKERHUB_TOKEN} || true
@@ -21,13 +25,12 @@ phases:
         docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
 
       - echo "Building dependencies image"
-      - make depend-image
+      - make builder-image
 
   build:
     commands:
       - make go-check
 
-      - cd ..
       - make -C vpp-manager clean-vpp
       - make images
       - docker images

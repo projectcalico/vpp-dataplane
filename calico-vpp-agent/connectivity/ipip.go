@@ -104,7 +104,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		} else if !vpplink.IsIP6(cn.NextHop) && ip4 != nil {
 			tunnel.Src = *ip4
 		} else {
-			return fmt.Errorf("Missing node address")
+			return fmt.Errorf("missing node address")
 		}
 
 		p.log.Infof("connectivity(add) create IPIP tunnel=%s", tunnel.String())
@@ -201,8 +201,8 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 
 	delete(p.ipipRoutes[tunnel.SwIfIndex], routeToDelete.Dst.String())
 
-	remaining_routes, found := p.ipipRoutes[tunnel.SwIfIndex]
-	if !found || len(remaining_routes) == 0 {
+	remainingRoutes, found := p.ipipRoutes[tunnel.SwIfIndex]
+	if !found || len(remainingRoutes) == 0 {
 		p.log.Infof("connectivity(del) all gone. Deleting IPIP tunnel swIfIndex=%d", tunnel.SwIfIndex)
 		err = p.vpp.RouteDel(&types.Route{
 			Dst: common.ToMaxLenCIDR(cn.NextHop),

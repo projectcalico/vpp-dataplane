@@ -32,9 +32,9 @@ const (
 func (v *VppLink) CreateAVF(intf *types.AVFInterface) (uint32, error) {
 	client := avf.NewServiceClient(v.GetConnection())
 
-	addr, err := types.GetPciIdInt(intf.PciId)
+	addr, err := types.GetPciIDInt(intf.PciID)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("error parsing PCI id: %w", err)
+		return InvalidSwIfIndex, fmt.Errorf("error parsing PCI id: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(v.GetContext(), AvfReplyTimeout)
@@ -48,7 +48,7 @@ func (v *VppLink) CreateAVF(intf *types.AVFInterface) (uint32, error) {
 	}
 	response, err := client.AvfCreate(ctx, request)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("failed to create AVF (%+v): %w", request, err)
+		return InvalidSwIfIndex, fmt.Errorf("failed to create AVF (%+v): %w", request, err)
 	}
 	return uint32(response.SwIfIndex), nil
 }

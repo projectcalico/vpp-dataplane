@@ -33,7 +33,7 @@ import (
 	"google.golang.org/grpc"
 	"gopkg.in/tomb.v2"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/pod_interface"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
@@ -54,10 +54,10 @@ type Server struct {
 	lock            sync.Mutex /* protects Add/DelVppInterace/RescanState */
 	cniEventChan    chan common.CalicoVppEvent
 
-	memifDriver    *pod_interface.MemifPodInterfaceDriver
-	tuntapDriver   *pod_interface.TunTapPodInterfaceDriver
-	vclDriver      *pod_interface.VclPodInterfaceDriver
-	loopbackDriver *pod_interface.LoopbackPodInterfaceDriver
+	memifDriver    *podinterface.MemifPodInterfaceDriver
+	tuntapDriver   *podinterface.TunTapPodInterfaceDriver
+	vclDriver      *podinterface.VclPodInterfaceDriver
+	loopbackDriver *podinterface.LoopbackPodInterfaceDriver
 
 	availableBuffers uint64
 
@@ -97,7 +97,7 @@ func (s *Server) newLocalPodSpecFromAdd(request *cniproto.AddRequest) (*storage.
 	podSpec := storage.LocalPodSpec{
 		InterfaceName:     request.GetInterfaceName(),
 		NetnsName:         request.GetNetns(),
-		AllowIpForwarding: request.GetSettings().GetAllowIpForwarding(),
+		AllowIPForwarding: request.GetSettings().GetAllowIpForwarding(),
 		Routes:            make([]storage.LocalIPNet, 0),
 		ContainerIps:      make([]storage.LocalIP, 0),
 		Mtu:               int(request.GetSettings().GetMtu()),
@@ -113,8 +113,8 @@ func (s *Server) newLocalPodSpecFromAdd(request *cniproto.AddRequest) (*storage.
 		IfSpec:       GetDefaultIfSpec(true /* isL3 */),
 		PBLMemifSpec: GetDefaultIfSpec(false /* isL3 */),
 
-		V4VrfId: vpplink.InvalidID,
-		V6VrfId: vpplink.InvalidID,
+		V4VrfID: vpplink.InvalidID,
+		V6VrfID: vpplink.InvalidID,
 
 		MemifSwIfIndex:  vpplink.InvalidID,
 		TunTapSwIfIndex: vpplink.InvalidID,
@@ -199,13 +199,13 @@ func (s *Server) newLocalPodSpecFromAdd(request *cniproto.AddRequest) (*storage.
 		}
 	}
 	for _, requestContainerIP := range request.GetContainerIps() {
-		containerIp, _, err := net.ParseCIDR(requestContainerIP.GetAddress())
+		containerIP, _, err := net.ParseCIDR(requestContainerIP.GetAddress())
 		if err != nil {
-			return nil, fmt.Errorf("Cannot parse address: %s", requestContainerIP.GetAddress())
+			return nil, fmt.Errorf("cannot parse address: %s", requestContainerIP.GetAddress())
 		}
 		// We ignore the prefix len set on the address,
 		// for a tun it doesn't make sense
-		podSpec.ContainerIps = append(podSpec.ContainerIps, storage.LocalIP{IP: containerIp})
+		podSpec.ContainerIps = append(podSpec.ContainerIps, storage.LocalIP{IP: containerIP})
 	}
 	workload := request.GetWorkload()
 	if workload != nil {
@@ -351,7 +351,7 @@ func (s *Server) rescanState() {
 }
 
 func (s *Server) DelRedirectToHostOnInterface(swIfIndex uint32) error {
-	err := s.vpp.SetClassifyInputInterfaceTables(swIfIndex, s.RedirectToHostClassifyTableIndex, types.InvalidTableId, types.InvalidTableId, false /*isAdd*/)
+	err := s.vpp.SetClassifyInputInterfaceTables(swIfIndex, s.RedirectToHostClassifyTableIndex, types.InvalidTableID, types.InvalidTableID, false /*isAdd*/)
 	if err != nil {
 		return errors.Wrapf(err, "Error deleting classify input table from interface")
 	} else {
@@ -362,7 +362,7 @@ func (s *Server) DelRedirectToHostOnInterface(swIfIndex uint32) error {
 
 func (s *Server) AddRedirectToHostToInterface(swIfIndex uint32) error {
 	s.log.Infof("Setting classify input acl table %d on interface %d", s.RedirectToHostClassifyTableIndex, swIfIndex)
-	err := s.vpp.SetClassifyInputInterfaceTables(swIfIndex, s.RedirectToHostClassifyTableIndex, types.InvalidTableId, types.InvalidTableId, true)
+	err := s.vpp.SetClassifyInputInterfaceTables(swIfIndex, s.RedirectToHostClassifyTableIndex, types.InvalidTableID, types.InvalidTableID, true)
 	if err != nil {
 		s.log.Warnf("Error setting classify input table: %s, retrying...", err)
 		return errors.Errorf("could not set input acl table %d for interface %d", s.RedirectToHostClassifyTableIndex, swIfIndex)
@@ -416,10 +416,10 @@ func NewCNIServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyServerIpam
 
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]storage.LocalPodSpec),
-		tuntapDriver:    pod_interface.NewTunTapPodInterfaceDriver(vpp, log),
-		memifDriver:     pod_interface.NewMemifPodInterfaceDriver(vpp, log),
-		vclDriver:       pod_interface.NewVclPodInterfaceDriver(vpp, log),
-		loopbackDriver:  pod_interface.NewLoopbackPodInterfaceDriver(vpp, log),
+		tuntapDriver:    podinterface.NewTunTapPodInterfaceDriver(vpp, log),
+		memifDriver:     podinterface.NewMemifPodInterfaceDriver(vpp, log),
+		vclDriver:       podinterface.NewVclPodInterfaceDriver(vpp, log),
+		loopbackDriver:  podinterface.NewLoopbackPodInterfaceDriver(vpp, log),
 
 		cniMultinetEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}
@@ -477,8 +477,8 @@ forloop:
 						for _, swIfIndex := range []uint32{podSpec.LoopbackSwIfIndex, podSpec.TunTapSwIfIndex, podSpec.MemifSwIfIndex} {
 							if swIfIndex != vpplink.InvalidID {
 								s.log.Infof("Enable/Disable interface[%d] SNAT", swIfIndex)
-								for _, ipFamily := range vpplink.IpFamilies {
-									err := s.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIp6, podSpec.NeedsSnat)
+								for _, ipFamily := range vpplink.IPFamilies {
+									err := s.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIP6, podSpec.NeedsSnat)
 									if err != nil {
 										return errors.Wrapf(err, "Error enabling/disabling %s snat", ipFamily.Str)
 									}
@@ -523,11 +523,11 @@ func (s *Server) createRedirectToHostRules() (uint32, error) {
 	}
 	mainInterface := s.getMainInterface()
 	if mainInterface == nil {
-		return types.InvalidID, fmt.Errorf("No main interface found")
+		return types.InvalidID, fmt.Errorf("no main interface found")
 	}
 	for _, rule := range config.GetCalicoVppInitialConfig().RedirectToHostRules {
 		err = s.vpp.AddSessionRedirect(&types.SessionRedirect{
-			FiveTuple:  types.NewDst3Tuple(rule.Proto, net.ParseIP(rule.Ip), rule.Port),
+			FiveTuple:  types.NewDst3Tuple(rule.Proto, net.ParseIP(rule.IP), rule.Port),
 			TableIndex: index,
 		}, &types.RoutePath{Gw: config.VppHostPuntFakeGatewayAddress, SwIfIndex: mainInterface.TapSwIfIndex})
 		if err != nil {

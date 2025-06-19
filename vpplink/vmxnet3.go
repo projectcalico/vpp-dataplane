@@ -23,7 +23,7 @@ import (
 )
 
 func (v *VppLink) CreateVmxnet3(intf *types.Vmxnet3Interface) (uint32, error) {
-	pci, err := types.GetPciIdInt(intf.PciId)
+	pci, err := types.GetPciIDInt(intf.PciID)
 	if err != nil {
 		return 0, fmt.Errorf("error parsing PCI id: %w", err)
 	}

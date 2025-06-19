@@ -27,3 +27,5 @@ calico-vpp-agent/version
 vpp-manager/images/ubuntu/version
 test/scripts/.buildlogs
 multinet-monitor/version
+.coverage/
+bin/

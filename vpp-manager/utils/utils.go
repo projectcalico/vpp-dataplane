@@ -118,14 +118,14 @@ func SetInterfaceRxQueues(ifname string, queues int) error {
 	return cmd.Run()
 }
 
-func SwapDriver(pciDevice, newDriver string, addId bool) error {
+func SwapDriver(pciDevice, newDriver string, addID bool) error {
 	if pciDevice == "" {
 		log.Warnf("PCI ID not found, not swapping drivers")
 		return nil
 	}
 	deviceRoot := fmt.Sprintf("/sys/bus/pci/devices/%s", pciDevice)
 	driverRoot := fmt.Sprintf("/sys/bus/pci/drivers/%s", newDriver)
-	if addId {
+	if addID {
 		// Grab device vendor and id
 		vendor, err := os.ReadFile(deviceRoot + "/vendor")
 		if err != nil {
@@ -185,7 +185,7 @@ func SetRLimitMemLock() error {
 func CreateVppLink() (vpp *vpplink.VppLink, err error) {
 	// Get an API connection, with a few retries to accommodate VPP startup time
 	for i := 0; i < 10; i++ {
-		vpp, err = vpplink.NewVppLink(config.VppApiSocket, log.WithFields(log.Fields{"component": "vpp-api"}))
+		vpp, err = vpplink.NewVppLink(config.VppAPISocket, log.WithFields(log.Fields{"component": "vpp-api"}))
 		if err != nil {
 			if i < 5 {
 				/* do not warn, it is probably fine */
@@ -209,7 +209,7 @@ func ClearVppManagerFiles() error {
 }
 
 func SetVfioEnableUnsafeNoIommuMode(mode config.UnsafeNoIommuMode) (err error) {
-	if mode == config.VFIO_UNSAFE_NO_IOMMU_MODE_DISABLED {
+	if mode == config.VfioUnsafeNoIommuModeDISABLED {
 		return
 	}
 	return WriteFile(string(mode), "/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
@@ -219,31 +219,31 @@ func GetVfioEnableUnsafeNoIommuMode() (config.UnsafeNoIommuMode, error) {
 	iommuStr, err := os.ReadFile("/sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return config.VFIO_UNSAFE_NO_IOMMU_MODE_DISABLED, nil
+			return config.VfioUnsafeNoIommuModeDISABLED, nil
 		}
-		return config.VFIO_UNSAFE_NO_IOMMU_MODE_DISABLED, errors.Wrapf(err, "Couldnt read /sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
+		return config.VfioUnsafeNoIommuModeDISABLED, errors.Wrapf(err, "Couldnt read /sys/module/vfio/parameters/enable_unsafe_noiommu_mode")
 	}
 	if strings.TrimSpace(string(iommuStr)) == "Y" {
-		return config.VFIO_UNSAFE_NO_IOMMU_MODE_YES, nil
+		return config.VfioUnsafeNoIommuModeYES, nil
 	} else {
-		return config.VFIO_UNSAFE_NO_IOMMU_MODE_NO, nil
+		return config.VfioUnsafeNoIommuModeNO, nil
 	}
 }
 
-func DeleteInterfaceVF(pciId string) (err error) {
-	sriovNumvfsPath := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", pciId)
+func DeleteInterfaceVF(pciID string) (err error) {
+	sriovNumvfsPath := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", pciID)
 	err = WriteFile("0", sriovNumvfsPath)
 	if err != nil {
-		return errors.Wrapf(err, "cannot disable VFs for %s", pciId)
+		return errors.Wrapf(err, "cannot disable VFs for %s", pciID)
 	}
 	return nil
 }
 
-func GetInterfaceNumVFs(pciId string) (int, error) {
-	sriovNumvfsPath := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", pciId)
+func GetInterfaceNumVFs(pciID string) (int, error) {
+	sriovNumvfsPath := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", pciID)
 	numVfsStr, err := os.ReadFile(sriovNumvfsPath)
 	if err != nil {
-		return 0, errors.Wrapf(err, "/sys/bus/pci/devices/%s/sriov_numvfs", pciId)
+		return 0, errors.Wrapf(err, "/sys/bus/pci/devices/%s/sriov_numvfs", pciID)
 	}
 	numVfs, err := strconv.ParseInt(strings.TrimSpace(string(numVfsStr)), 10, 32)
 	if err != nil {
@@ -386,7 +386,7 @@ func NewNS(nsName string) (ns.NetNS, error) {
 		defer func() {
 			err2 := origNS.Set()
 			if err2 != nil {
-				err = fmt.Errorf("Error setting origNS %s (origin err %s)", err2, err)
+				err = fmt.Errorf("error setting origNS %s (origin err %s)", err2, err)
 			}
 		}()
 
@@ -411,84 +411,84 @@ func GetnetnsPath(nsName string) string {
 	return path.Join(getNsRunDir(), nsName)
 }
 
-func GetInterfaceVFPciId(pciId string) (vfPciId string, err error) {
-	virtfn0Path := fmt.Sprintf("/sys/bus/pci/devices/%s/virtfn0", pciId)
-	vfPciId, err = getPciIdFromLink(virtfn0Path)
+func GetInterfaceVFPciID(pciID string) (vfPciID string, err error) {
+	virtfn0Path := fmt.Sprintf("/sys/bus/pci/devices/%s/virtfn0", pciID)
+	vfPciID, err = getPciIDFromLink(virtfn0Path)
 	if err != nil {
 		return "", errors.Wrapf(err, "Couldn't find VF pciID in %s", virtfn0Path)
 	}
-	return vfPciId, nil
+	return vfPciID, nil
 }
 
-func CreateInterfaceVF(pciId string) error {
-	numVfs, err := GetInterfaceNumVFs(pciId)
+func CreateInterfaceVF(pciID string) error {
+	numVfs, err := GetInterfaceNumVFs(pciID)
 	if err != nil {
-		return errors.Wrapf(err, "cannot get num VFs for %s", pciId)
+		return errors.Wrapf(err, "cannot get num VFs for %s", pciID)
 	}
 
 	if numVfs == 0 {
 		/* Create a VF only if none is available */
-		sriovNumvfsPath := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", pciId)
+		sriovNumvfsPath := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", pciID)
 		err = WriteFile("1", sriovNumvfsPath)
 		if err != nil {
-			return errors.Wrapf(err, "cannot add VFs for %s", pciId)
+			return errors.Wrapf(err, "cannot add VFs for %s", pciID)
 		}
 	}
 	return nil
 }
 
-func BindVFtoDriver(pciId string, driver string) error {
-	unbindPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver/unbind", pciId)
-	err := WriteFile(pciId, unbindPath)
+func BindVFtoDriver(pciID string, driver string) error {
+	unbindPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver/unbind", pciID)
+	err := WriteFile(pciID, unbindPath)
 	if err != nil {
-		return errors.Wrapf(err, "cannot unbind VF %s", pciId)
+		return errors.Wrapf(err, "cannot unbind VF %s", pciID)
 	}
 
-	overridePath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver_override", pciId)
+	overridePath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver_override", pciID)
 	err = WriteFile(driver, overridePath)
 	if err != nil {
-		return errors.Wrapf(err, "cannot override VF %s driver to %s", pciId, driver)
+		return errors.Wrapf(err, "cannot override VF %s driver to %s", pciID, driver)
 	}
 
 	vfPciBindPath := fmt.Sprintf("/sys/bus/pci/drivers/%s/bind", driver)
-	err = WriteFile(pciId, vfPciBindPath)
+	err = WriteFile(pciID, vfPciBindPath)
 	if err != nil {
-		return errors.Wrapf(err, "cannot bind VF %s to %s", pciId, driver)
+		return errors.Wrapf(err, "cannot bind VF %s to %s", pciID, driver)
 	}
 
 	err = WriteFile("", overridePath)
 	if err != nil {
-		return errors.Wrapf(err, "cannot remove VF %s override driver", pciId)
+		return errors.Wrapf(err, "cannot remove VF %s override driver", pciID)
 	}
 
 	return nil
 }
 
-func GetInterfaceNameFromPci(pciId string) (string, error) {
+func GetInterfaceNameFromPci(pciID string) (string, error) {
 	// Grab Driver id for the pci device
-	driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/net", pciId)
+	driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/net", pciID)
 	netDevs, err := os.ReadDir(driverLinkPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "cannot list /net for %s", pciId)
+		return "", errors.Wrapf(err, "cannot list /net for %s", pciID)
 	}
 	if len(netDevs) != 1 {
-		return "", errors.Wrapf(err, "Found %d devices in /net for %s", len(netDevs), pciId)
+		return "", errors.Wrapf(err, "Found %d devices in /net for %s", len(netDevs), pciID)
 	}
 	return netDevs[0].Name(), nil
 }
 
-func GetDriverNameFromPci(pciId string) (string, error) {
+func GetDriverNameFromPci(pciID string) (string, error) {
 	// Grab Driver id for the pci device
-	driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver", pciId)
+	driverLinkPath := fmt.Sprintf("/sys/bus/pci/devices/%s/driver", pciID)
 	driverPath, err := os.Readlink(driverLinkPath)
 	if err != nil {
-		return "", errors.Wrapf(err, "cannot find driver for %s", pciId)
+		return "", errors.Wrapf(err, "cannot find driver for %s", pciID)
 	}
 	driver := driverPath[strings.LastIndex(driverPath, "/")+1:]
 	return driver, nil
 }
 
-func getPciIdFromLink(path string) (string, error) {
+func getPciIDFromLink(path string) (string, error) {
 	realPath, err := realpath.Realpath(path)
 	if err != nil {
 		return "", err
@@ -498,19 +498,19 @@ func getPciIdFromLink(path string) (string, error) {
 	if matches == nil {
 		return "", nil
 	} else {
-		PciId := matches[len(matches)-1]
-		return PciId, nil
+		PciID := matches[len(matches)-1]
+		return PciID, nil
 	}
 }
 
-func GetInterfacePciId(interfaceName string) (string, error) {
+func GetInterfacePciID(interfaceName string) (string, error) {
 	// Grab PCI id - last PCI id in the real path to /sys/class/net/<device name>
 	deviceLinkPath := fmt.Sprintf("/sys/class/net/%s/device", interfaceName)
-	pciId, err := getPciIdFromLink(deviceLinkPath)
+	pciID, err := getPciIDFromLink(deviceLinkPath)
 	if err != nil {
 		return "", errors.Wrapf(err, "cannot resolve pci device path for %s", interfaceName)
 	}
-	return pciId, nil
+	return pciID, nil
 }
 
 func GetNrHugepages() (int, error) {

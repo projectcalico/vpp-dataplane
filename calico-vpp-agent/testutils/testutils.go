@@ -1,4 +1,19 @@
-package common_tests
+// Copyright (C) 2019 Cisco Systems Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package testutils
 
 import (
 	"context"
@@ -24,12 +39,12 @@ import (
 	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	cniproto "github.com/projectcalico/calico/cni-plugin/pkg/dataplane/grpc/proto"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/pod_interface"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks/calico"
-	"github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/networkAttachmentDefinition"
+	"github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/multinettypes"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
@@ -71,7 +86,7 @@ func AssertTunInterfaceExistence(vpp *vpplink.VppLink, newPod *cniproto.AddReque
 	ifSwIfIndex, err := vpp.SearchInterfaceWithTag(
 		InterfaceTagForLocalTunTunnel(newPod.InterfaceName, newPod.Netns))
 	Expect(err).ShouldNot(HaveOccurred(), "Failed to get interface at VPP's end")
-	Expect(ifSwIfIndex).ToNot(Equal(vpplink.INVALID_SW_IF_INDEX),
+	Expect(ifSwIfIndex).ToNot(Equal(vpplink.InvalidSwIfIndex),
 		"No interface at VPP's end is found")
 	Expect(ifSwIfIndex).NotTo(BeZero(), "No interface at VPP's end is found")
 	return ifSwIfIndex
@@ -99,7 +114,7 @@ func AssertTunnelInterfaceMTU(vpp *vpplink.VppLink, ifSwIfIndex uint32) {
 	details, err := vpp.GetInterfaceDetails(ifSwIfIndex)
 	Expect(err).ShouldNot(HaveOccurred(),
 		"Failed to retrieve interface details of VPP's end of interface tunnel")
-	Expect(int(details.Mtu[0])).To(Equal(vpplink.MAX_MTU),
+	Expect(int(details.Mtu[0])).To(Equal(vpplink.CalicoVppMaxMTu),
 		"VPP's end of interface tunnel has not correctly configured MTU")
 }
 
@@ -129,7 +144,7 @@ func AssertRPFVRFExistence(vpp *vpplink.VppLink, interfaceName string, netnsName
 	hbytes := sha512.Sum512([]byte(fmt.Sprintf("%s%s%s%s", "4", netnsName, interfaceName, "RPF")))
 	h := base64.StdEncoding.EncodeToString(hbytes[:])[:storage.VrfTagHashLen]
 	s := fmt.Sprintf("%s-%s-%sRPF-%s", h, "4", interfaceName, filepath.Base(netnsName))
-	vrfTag := storage.TruncateStr(s, storage.MaxApiTagLen)
+	vrfTag := storage.TruncateStr(s, storage.MaxAPITagLen)
 	foundRPFVRF := false
 	var vrfID uint32
 	for _, VRF := range VRFs {
@@ -152,26 +167,26 @@ func AssertRPFRoutes(vpp *vpplink.VppLink, vrfID uint32, swifindex uint32, ipAdd
 		"Failed to get routes from RPF VRF")
 	Expect(routes).To(ContainElements(
 		types.Route{
-			Dst: IpNet(ipAddress + "/32"),
+			Dst: IPNet(ipAddress + "/32"),
 			Paths: []types.RoutePath{{
 				SwIfIndex: swifindex,
-				Gw:        IpNet(ipAddress + "/32").IP,
+				Gw:        IPNet(ipAddress + "/32").IP,
 			}},
 			Table: vrfID,
 		},
 		types.Route{
-			Dst: IpNet("172.16.104.7" + "/32"),
+			Dst: IPNet("172.16.104.7" + "/32"),
 			Paths: []types.RoutePath{{
 				SwIfIndex: swifindex,
-				Gw:        IpNet(ipAddress + "/32").IP,
+				Gw:        IPNet(ipAddress + "/32").IP,
 			}},
 			Table: vrfID,
 		},
 		types.Route{
-			Dst: IpNet("3.4.5.6" + "/32"),
+			Dst: IPNet("3.4.5.6" + "/32"),
 			Paths: []types.RoutePath{{
 				SwIfIndex: swifindex,
-				Gw:        IpNet(ipAddress + "/32").IP,
+				Gw:        IPNet(ipAddress + "/32").IP,
 			}},
 			Table: vrfID,
 		},
@@ -210,7 +225,7 @@ func RunInPod(podNetNS string, runner func()) {
 
 // DpoNetworkNameFieldName extracts JSON field name for NetworkName used in proto.AddRequest.DataplaneOptions
 func DpoNetworkNameFieldName() string {
-	netNameField, found := reflect.TypeOf(networkAttachmentDefinition.NetConf{}.DpOptions).FieldByName("NetName")
+	netNameField, found := reflect.TypeOf(multinettypes.NetConf{}.DpOptions).FieldByName("NetName")
 	Expect(found).To(BeTrue(),
 		"can't find network name field in NetworkAttachmentDefinition. Did that structure changed?")
 	jsonStr, isSet := netNameField.Tag.Lookup("json")
@@ -220,13 +235,13 @@ func DpoNetworkNameFieldName() string {
 
 // InterfaceTagForLocalTunTunnel constructs the tag for the VPP side of the tap tunnel the same way as cni server
 func InterfaceTagForLocalTunTunnel(interfaceName, netns string) string {
-	return InterfaceTagForLocalTunnel(pod_interface.NewTunTapPodInterfaceDriver(nil, nil).Name,
+	return InterfaceTagForLocalTunnel(podinterface.NewTunTapPodInterfaceDriver(nil, nil).Name,
 		interfaceName, netns)
 }
 
 // InterfaceTagForLocalMemifTunnel constructs the tag for the VPP side of the memif tunnel the same way as cni server
 func InterfaceTagForLocalMemifTunnel(interfaceName, netns string) string {
-	return InterfaceTagForLocalTunnel(pod_interface.NewMemifPodInterfaceDriver(nil, nil).Name,
+	return InterfaceTagForLocalTunnel(podinterface.NewMemifPodInterfaceDriver(nil, nil).Name,
 		interfaceName, netns)
 }
 
@@ -256,30 +271,30 @@ func PodVRFs(podInterface, podNetNSName string, vpp *vpplink.VppLink) (vrf4ID, v
 	podSpec := storage.LocalPodSpec{
 		InterfaceName: podInterface,
 		NetnsName:     podNetNSName,
-		V4VrfId:       types.InvalidID,
-		V6VrfId:       types.InvalidID,
+		V4VrfID:       types.InvalidID,
+		V6VrfID:       types.InvalidID,
 	}
 	for _, vrf := range vrfs {
-		for _, ipFamily := range vpplink.IpFamilies {
+		for _, ipFamily := range vpplink.IPFamilies {
 			if vrf.Name == podSpec.GetVrfTag(ipFamily, "") {
-				podSpec.SetVrfId(vrf.VrfID, ipFamily)
+				podSpec.SetVrfID(vrf.VrfID, ipFamily)
 			}
 		}
-		if podSpec.V4VrfId != types.InvalidID && podSpec.V6VrfId != types.InvalidID {
-			return podSpec.V4VrfId, podSpec.V6VrfId, nil
+		if podSpec.V4VrfID != types.InvalidID && podSpec.V6VrfID != types.InvalidID {
+			return podSpec.V4VrfID, podSpec.V6VrfID, nil
 		}
 	}
 
-	if (podSpec.V4VrfId != types.InvalidID) != (podSpec.V6VrfId != types.InvalidID) {
-		return podSpec.V4VrfId, podSpec.V6VrfId,
-			fmt.Errorf("partial VRF state v4=%d v6=%d key=%s", podSpec.V4VrfId, podSpec.V6VrfId, podSpec.Key())
+	if (podSpec.V4VrfID != types.InvalidID) != (podSpec.V6VrfID != types.InvalidID) {
+		return podSpec.V4VrfID, podSpec.V6VrfID,
+			fmt.Errorf("partial VRF state v4=%d v6=%d key=%s", podSpec.V4VrfID, podSpec.V6VrfID, podSpec.Key())
 	}
 
-	return podSpec.V4VrfId, podSpec.V6VrfId, fmt.Errorf("not VRFs state (key=%s)", podSpec.Key())
+	return podSpec.V4VrfID, podSpec.V6VrfID, fmt.Errorf("not VRFs state (key=%s)", podSpec.Key())
 }
 
-func IpFamilyIndex(ipFamily vpplink.IpFamily) int {
-	for idx, family := range vpplink.IpFamilies {
+func IPFamilyIndex(ipFamily vpplink.IPFamily) int {
+	for idx, family := range vpplink.IPFamilies {
 		if family == ipFamily {
 			return idx
 		}
@@ -347,16 +362,16 @@ func ConfigureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uin
 	Expect(vpp).NotTo(BeNil())
 
 	// setup common VRF setup
-	for _, ipFamily := range vpplink.IpFamilies { //needed config for pod creation tests
-		err := vpp.AddVRF(common.PuntTableId, ipFamily.IsIp6, fmt.Sprintf("punt-table-%s", ipFamily.Str))
+	for _, ipFamily := range vpplink.IPFamilies { //needed config for pod creation tests
+		err := vpp.AddVRF(common.PuntTableID, ipFamily.IsIP6, fmt.Sprintf("punt-table-%s", ipFamily.Str))
 		if err != nil {
 			log.Fatal(errors.Wrapf(err, "Error creating punt vrf %s", ipFamily.Str))
 		}
-		err = vpp.AddVRF(common.PodVRFIndex, ipFamily.IsIp6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
+		err = vpp.AddVRF(common.PodVRFIndex, ipFamily.IsIP6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = vpp.AddDefaultRouteViaTable(common.PodVRFIndex, common.DefaultVRFIndex, ipFamily.IsIp6)
+		err = vpp.AddDefaultRouteViaTable(common.PodVRFIndex, common.DefaultVRFIndex, ipFamily.IsIP6)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -379,9 +394,9 @@ func ConfigureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uin
 	Expect(err).ToNot(HaveOccurred(), "Error creating mocked Uplink interface")
 	err = vpp.InterfaceAdminUp(uplinkSwIfIndex)
 	Expect(err).ToNot(HaveOccurred(), "Error setting state to UP for mocked Uplink interface")
-	err = vpp.AddInterfaceAddress(uplinkSwIfIndex, IpNet(UplinkIP+"/24"))
+	err = vpp.AddInterfaceAddress(uplinkSwIfIndex, IPNet(UplinkIP+"/24"))
 	Expect(err).ToNot(HaveOccurred(), "Error adding IPv4 address to data interface")
-	err = vpp.AddInterfaceAddress(uplinkSwIfIndex, IpNet(UplinkIPv6+"/16"))
+	err = vpp.AddInterfaceAddress(uplinkSwIfIndex, IPNet(UplinkIPv6+"/16"))
 	Expect(err).ToNot(HaveOccurred(), "Error adding IPv6 address to data interface")
 	err = exec.Command("docker", "exec", VPPContainerName, "ip", "address", "add",
 		GatewayIP+"/24", "dev", UplinkIfName).Run()
@@ -403,7 +418,7 @@ func TeardownVPP() {
 }
 
 // AssertUnnumberedInterface checks whether the provided interface is unnumbered and properly takes IP address
-// from the correct interface (common.VppManagerInfo.GetMainSwIfIndex()).
+// from the correct interface (VppManagerInfo.GetMainSwIfIndex()).
 func AssertUnnumberedInterface(swIfIndex uint32, interfaceDescriptiveName string, vpp *vpplink.VppLink) {
 	unnumberedDetails, err := vpp.InterfaceGetUnnumbered(swIfIndex)
 	Expect(err).ToNot(HaveOccurred(),
@@ -484,13 +499,13 @@ func AddIPPoolForCalicoClient(client *calico.CalicoClientStub, poolName string, 
 	}, options.SetOptions{})
 }
 
-func IpNet(ipNetCIDRStr string) *net.IPNet {
+func IPNet(ipNetCIDRStr string) *net.IPNet {
 	_, ipNet, err := net.ParseCIDR(ipNetCIDRStr)
 	Expect(err).To(BeNil())
 	return ipNet
 }
 
-func IpNetWithIPInIPv6Format(ipNetCIDRStr string) *net.IPNet {
+func IPNetWithIPInIPv6Format(ipNetCIDRStr string) *net.IPNet {
 	_, ipNet, err := net.ParseCIDR(ipNetCIDRStr)
 	ipNet.IP = ipNet.IP.To16()
 	Expect(err).To(BeNil())

@@ -19,7 +19,7 @@ func (v *VppLink) SetEncapSource(addr net.IP) error {
 		EncapsSource: types.ToVppIP6Address(addr),
 	})
 	if err != nil {
-		return fmt.Errorf("SetEncapSource failed: %w", err)
+		return fmt.Errorf("setEncapSource failed: %w", err)
 	}
 	return err
 }
@@ -172,7 +172,7 @@ func (v *VppLink) DelSRv6Localsid(localSid *types.SrLocalsid) error {
 		NhAddr:    localSid.NhAddr,
 	})
 	if err != nil {
-		return fmt.Errorf("Delete SRv6Localsid failed: %w", err)
+		return fmt.Errorf("delete SRv6Localsid failed: %w", err)
 	}
 	return err
 }

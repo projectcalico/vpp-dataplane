@@ -47,15 +47,15 @@ type HostEndpoint struct {
 	currentForwardConf *types.InterfaceConfig
 }
 
-func (he *HostEndpoint) String() string {
-	s := fmt.Sprintf("ifName=%s", he.InterfaceName)
-	s += types.StrListToString(" expectedIPs=", he.expectedIPs)
-	s += types.IntListToString(" uplink=", he.UplinkSwIfIndexes)
-	s += types.IntListToString(" tap=", he.TapSwIfIndexes)
-	s += types.IntListToString(" tunnel=", he.TunnelSwIfIndexes)
-	s += types.StrListToString(" profiles=", he.Profiles)
-	s += types.StrableListToString(" tiers=", he.Tiers)
-	s += types.StrableListToString(" forwardTiers=", he.ForwardTiers)
+func (h *HostEndpoint) String() string {
+	s := fmt.Sprintf("ifName=%s", h.InterfaceName)
+	s += types.StrListToString(" expectedIPs=", h.expectedIPs)
+	s += types.IntListToString(" uplink=", h.UplinkSwIfIndexes)
+	s += types.IntListToString(" tap=", h.TapSwIfIndexes)
+	s += types.IntListToString(" tunnel=", h.TunnelSwIfIndexes)
+	s += types.StrListToString(" profiles=", h.Profiles)
+	s += types.StrableListToString(" tiers=", h.Tiers)
+	s += types.StrableListToString(" forwardTiers=", h.ForwardTiers)
 	return s
 }
 

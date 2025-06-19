@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	RTPROT_GOBGP = 0x11
+	NetLinkRouteProtocolGoBGP = 0x11
 )
 
 type localAddress struct {
@@ -177,8 +177,8 @@ func (s *Server) getLogSeverityScreen() string {
 }
 
 func (s *Server) getGoBGPGlobalConfig() (*bgpapi.Global, error) {
-	var routerId string
-	var listenAddresses []string = make([]string, 0)
+	var routerID string
+	listenAddresses := make([]string, 0)
 	asn := s.nodeBGPSpec.ASNumber
 	if asn == nil {
 		asn = s.BGPConf.ASNumber
@@ -186,20 +186,20 @@ func (s *Server) getGoBGPGlobalConfig() (*bgpapi.Global, error) {
 
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
 	if nodeIP6 != nil {
-		routerId = nodeIP6.String()
-		listenAddresses = append(listenAddresses, routerId)
+		routerID = nodeIP6.String()
+		listenAddresses = append(listenAddresses, routerID)
 	}
 	if nodeIP4 != nil {
-		routerId = nodeIP4.String() // Override v6 ID if v4 is available
-		listenAddresses = append(listenAddresses, routerId)
+		routerID = nodeIP4.String() // Override v6 ID if v4 is available
+		listenAddresses = append(listenAddresses, routerID)
 	}
 
-	if routerId == "" {
-		return nil, fmt.Errorf("No IPs to make a router ID")
+	if routerID == "" {
+		return nil, fmt.Errorf("no IPs to make a router ID")
 	}
 	return &bgpapi.Global{
 		Asn:             uint32(*asn),
-		RouterId:        routerId,
+		RouterId:        routerID,
 		ListenPort:      int32(s.getListenPort()),
 		ListenAddresses: listenAddresses,
 	}, nil
@@ -208,7 +208,7 @@ func (s *Server) getGoBGPGlobalConfig() (*bgpapi.Global, error) {
 func (s *Server) cleanUpRoutes() error {
 	s.log.Tracef("Clean up injected routes")
 	filter := &netlink.Route{
-		Protocol: RTPROT_GOBGP,
+		Protocol: NetLinkRouteProtocolGoBGP,
 	}
 	list4, err := netlink.RouteListFiltered(netlink.FAMILY_V4, filter, netlink.RT_FILTER_PROTOCOL)
 	if err != nil {

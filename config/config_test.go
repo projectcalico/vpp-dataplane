@@ -44,8 +44,8 @@ type SomeValidableType struct {
 	A int
 }
 
-func (self *SomeValidableType) Validate() error {
-	self.A = 1234
+func (typ *SomeValidableType) Validate() error {
+	typ.A = 1234
 	return nil
 }
 
@@ -80,12 +80,12 @@ var _ = Describe("Test Common Config", func() {
 	})
 
 	It("Test Routes Sorting", func() {
-		SomeParsedVar := JsonEnvVar("SOMEVAR", &SomeType{})
+		SomeParsedVar := JSONEnvVar("SOMEVAR", &SomeType{})
 		Expect(os.Setenv("SOMEVAR", "{\"A\":1}")).ToNot(HaveOccurred())
 		Expect(ParseEnvVars("SOMEVAR")).To(BeEmpty())
 		Expect((*SomeParsedVar).A).To(Equal(1))
 
-		SomeValidableParsedVar := JsonEnvVar("SOMEVAR2", &SomeValidableType{})
+		SomeValidableParsedVar := JSONEnvVar("SOMEVAR2", &SomeValidableType{})
 		Expect(ParseEnvVars("SOMEVAR2")).To(BeEmpty())
 		Expect((*SomeValidableParsedVar).A).To(Equal(1234))
 
