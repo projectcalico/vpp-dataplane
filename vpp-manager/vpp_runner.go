@@ -34,7 +34,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"gopkg.in/tomb.v2"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/pod_interface"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/uplink"
@@ -118,19 +118,19 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 }
 
 func (v *VppRunner) configureGlobalPunt() (err error) {
-	for _, ipFamily := range vpplink.IpFamilies {
-		err = v.vpp.PuntRedirect(types.IpPuntRedirect{
+	for _, ipFamily := range vpplink.IPFamilies {
+		err = v.vpp.PuntRedirect(types.IPPuntRedirect{
 			RxSwIfIndex: vpplink.InvalidID,
 			Paths: []types.RoutePath{{
-				Table:     common.PuntTableId,
+				Table:     common.PuntTableID,
 				SwIfIndex: types.InvalidID,
 			}},
-		}, ipFamily.IsIp6)
+		}, ipFamily.IsIP6)
 		if err != nil {
 			return errors.Wrapf(err, "Error configuring punt redirect")
 		}
 
-		err = v.vpp.PuntAllL4(ipFamily.IsIp6)
+		err = v.vpp.PuntAllL4(ipFamily.IsIP6)
 		if err != nil {
 			return errors.Wrapf(err, "Error configuring L4 punt")
 		}
@@ -151,7 +151,7 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 	for _, address := range ifState.Addresses {
 		err = v.vpp.RouteAdd(&types.Route{
 			Dst:   address.IPNet,
-			Table: common.PuntTableId,
+			Table: common.PuntTableID,
 			Paths: []types.RoutePath{{
 				Gw:        config.VppHostPuntFakeGatewayAddress,
 				SwIfIndex: tapSwIfIndex,
@@ -192,7 +192,7 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 		if nhAddr.Equal(addr.IP) {
 			nhAddr = utils.IncrementIP(utils.NetworkAddr(addr.IPNet))
 		}
-		if !addr.IPNet.Contains(nhAddr) {
+		if !addr.Contains(nhAddr) {
 			continue
 		}
 		if nhAddr.To4() != nil && !foundV4 {
@@ -206,7 +206,7 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 		}
 	}
 
-	if !((needsV4 && !foundV4) || (needsV6 && !foundV6)) {
+	if !((needsV4 && !foundV4) || (needsV6 && !foundV6)) { //nolint:staticcheck
 		return
 	}
 
@@ -262,8 +262,8 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 	}
 
 	for _, addr := range ifState.Addresses {
-		if addr.IPNet.IP.To4() == nil {
-			if err = pod_interface.WriteProcSys("/proc/sys/net/ipv6/conf/"+link.Attrs().Name+"/disable_ipv6", "0"); err != nil {
+		if addr.IP.To4() == nil {
+			if err = podinterface.WriteProcSys("/proc/sys/net/ipv6/conf/"+link.Attrs().Name+"/disable_ipv6", "0"); err != nil {
 				return nil, nil, fmt.Errorf("failed to set net.ipv6.conf."+link.Attrs().Name+".disable_ipv6=0: %s", err)
 			}
 			break
@@ -337,16 +337,16 @@ func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount in
 func (v *VppRunner) allocateStaticVRFs() error {
 	// Create all VRFs with a static ID that we use first so that we can
 	// then call AllocateVRF without risk of conflict
-	for _, ipFamily := range vpplink.IpFamilies {
-		err := v.vpp.AddVRF(common.PuntTableId, ipFamily.IsIp6, fmt.Sprintf("punt-table-%s", ipFamily.Str))
+	for _, ipFamily := range vpplink.IPFamilies {
+		err := v.vpp.AddVRF(common.PuntTableID, ipFamily.IsIP6, fmt.Sprintf("punt-table-%s", ipFamily.Str))
 		if err != nil {
 			return errors.Wrapf(err, "Error creating punt vrf %s", ipFamily.Str)
 		}
-		err = v.vpp.AddVRF(common.PodVRFIndex, ipFamily.IsIp6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
+		err = v.vpp.AddVRF(common.PodVRFIndex, ipFamily.IsIP6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
 		if err != nil {
 			return err
 		}
-		err = v.vpp.AddDefaultRouteViaTable(common.PodVRFIndex, common.DefaultVRFIndex, ipFamily.IsIp6)
+		err = v.vpp.AddDefaultRouteViaTable(common.PodVRFIndex, common.DefaultVRFIndex, ipFamily.IsIP6)
 		if err != nil {
 			return err
 		}
@@ -356,16 +356,16 @@ func (v *VppRunner) allocateStaticVRFs() error {
 
 // Configure specific VRFs for a given tap to the host to handle broadcast / multicast traffic sent by the host
 func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
-	for _, ipFamily := range vpplink.IpFamilies {
-		vrfId, err := v.vpp.AllocateVRF(ipFamily.IsIp6, fmt.Sprintf("host-tap-%s-%s", ifSpec.InterfaceName, ipFamily.Str))
+	for _, ipFamily := range vpplink.IPFamilies {
+		vrfID, err := v.vpp.AllocateVRF(ipFamily.IsIP6, fmt.Sprintf("host-tap-%s-%s", ifSpec.InterfaceName, ipFamily.Str))
 		if err != nil {
 			return []uint32{}, errors.Wrap(err, "Error allocating vrf for tap")
 		}
-		if ipFamily.IsIp4 {
+		if ipFamily.IsIP4 {
 			// special route to forward broadcast from the host through the matching uplink
 			// useful for instance for DHCP DISCOVER pkts from the host
 			err = v.vpp.RouteAdd(&types.Route{
-				Table: vrfId,
+				Table: vrfID,
 				Dst: &net.IPNet{
 					IP:   net.IPv4bcast,
 					Mask: net.IPv4Mask(255, 255, 255, 255),
@@ -381,21 +381,21 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 		} // else {} No custom routes for IPv6 for now. Forward LL multicast from the host?
 
 		// default route in default table
-		err = v.vpp.AddDefaultRouteViaTable(vrfId, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfId, ipFamily.IsIp6)
+		err = v.vpp.AddDefaultRouteViaTable(vrfID, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfID, ipFamily.IsIP6)
 		if err != nil {
-			return []uint32{}, errors.Wrapf(err, "error adding VRF %d default route via VRF %d", vrfId, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName])
+			return []uint32{}, errors.Wrapf(err, "error adding VRF %d default route via VRF %d", vrfID, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName])
 		}
 		// Set tap in this table
-		err = v.vpp.SetInterfaceVRF(tapSwIfIndex, vrfId, ipFamily.IsIp6)
+		err = v.vpp.SetInterfaceVRF(tapSwIfIndex, vrfID, ipFamily.IsIP6)
 		if err != nil {
-			return []uint32{}, errors.Wrapf(err, "error setting vpp tap in vrf %d", vrfId)
+			return []uint32{}, errors.Wrapf(err, "error setting vpp tap in vrf %d", vrfID)
 		}
-		vrfs = append(vrfs, vrfId)
+		vrfs = append(vrfs, vrfID)
 	}
 
 	// Configure addresses to enable ipv4 & ipv6 on the tap
 	for _, addr := range ifState.Addresses {
-		if addr.IPNet.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
+		if addr.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
 			log.Infof("Not adding address %s to data interface (vpp requires /128 link-local)", addr.String())
 			continue
 		} else {
@@ -406,7 +406,7 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 		// note that the role of these addresses is just to tell vpp to accept ip4 / ip6 packets on the tap
 		// we use these addresses as the safest option, because as they are configured on linux, linux
 		// will never send us packets with these addresses as destination
-		err = v.vpp.AddInterfaceAddress(tapSwIfIndex, common.ToMaxLenCIDR(addr.IPNet.IP))
+		err = v.vpp.AddInterfaceAddress(tapSwIfIndex, common.ToMaxLenCIDR(addr.IP))
 		if err != nil {
 			log.Errorf("Error adding address to tap interface: %v", err)
 		}
@@ -465,21 +465,21 @@ func (v *VppRunner) configureVppUplinkInterface(
 	}
 
 	if ifSpec.PhysicalNetworkName != "" {
-		for _, ipFamily := range vpplink.IpFamilies {
-			err = v.vpp.SetInterfaceVRF(ifSpec.SwIfIndex, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfId, ipFamily.IsIp6)
+		for _, ipFamily := range vpplink.IPFamilies {
+			err = v.vpp.SetInterfaceVRF(ifSpec.SwIfIndex, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfID, ipFamily.IsIP6)
 			if err != nil {
 				return errors.Wrapf(err, "error setting interface in vrf %d", config.Info.PhysicalNets[ifSpec.PhysicalNetworkName])
 			}
 		}
 		value := config.Info.PhysicalNets[ifSpec.PhysicalNetworkName]
 		config.Info.PhysicalNets[ifSpec.PhysicalNetworkName] = config.PhysicalNetwork{
-			VrfId:    value.VrfId,
-			PodVrfId: value.PodVrfId,
+			VrfID:    value.VrfID,
+			PodVrfID: value.PodVrfID,
 		}
 	}
 
 	for _, addr := range ifState.Addresses {
-		if addr.IPNet.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
+		if addr.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
 			log.Infof("Not adding address %s to uplink interface (vpp requires /128 link-local)", addr.String())
 			continue
 		} else {
@@ -563,9 +563,9 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error setting tap rx placement")
 	}
 
-	err = v.vpp.SetInterfaceMtu(uint32(tapSwIfIndex), vpplink.MAX_MTU)
+	err = v.vpp.SetInterfaceMtu(uint32(tapSwIfIndex), vpplink.CalicoVppMaxMTu)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting %d MTU on tap interface", vpplink.MAX_MTU)
+		return errors.Wrapf(err, "Error setting %d MTU on tap interface", vpplink.CalicoVppMaxMTu)
 	}
 
 	if ifState.Hasv6 {
@@ -584,11 +584,11 @@ func (v *VppRunner) configureVppUplinkInterface(
 	}
 
 	for _, addr := range ifState.Addresses {
-		if addr.IPNet.IP.To4() == nil {
-			log.Infof("Adding ND proxy for address %s", addr.IPNet.IP)
-			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, addr.IPNet.IP)
+		if addr.IP.To4() == nil {
+			log.Infof("Adding ND proxy for address %s", addr.IP)
+			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, addr.IP)
 			if err != nil {
-				log.Errorf("Error configuring nd proxy for address %s: %v", addr.IPNet.IP.String(), err)
+				log.Errorf("Error configuring nd proxy for address %s: %v", addr.IP.String(), err)
 			}
 		}
 	}
@@ -709,7 +709,7 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 			needUpdate = true
 		}
 		if needUpdate {
-			log.Infof("Updating node, version = %s, metaversion = %s", node.ResourceVersion, node.ObjectMeta.ResourceVersion)
+			log.Infof("Updating node, version = %s, metaversion = %s", node.ResourceVersion, node.ResourceVersion)
 			log.Debugf("updating node with: %+v", node)
 			ctx, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel2()
@@ -761,30 +761,30 @@ func (v *VppRunner) allInterfacesPhysical() bool {
 
 func (v *VppRunner) AllocatePhysicalNetworkVRFs(phyNet string) (err error) {
 	// for ip4
-	mainId, err := v.vpp.AllocateVRF(false, fmt.Sprintf("physical-net-%s-ip4", phyNet))
+	mainVrfID, err := v.vpp.AllocateVRF(false, fmt.Sprintf("physical-net-%s-ip4", phyNet))
 	if err != nil {
 		return err
 	}
-	podsId, err := v.vpp.AllocateVRF(false, fmt.Sprintf("calico-pods-%s-ip4", phyNet))
+	podVrfID, err := v.vpp.AllocateVRF(false, fmt.Sprintf("calico-pods-%s-ip4", phyNet))
 	if err != nil {
 		return err
 	}
 	// for ip6, use same vrfID as ip4
-	err = v.vpp.AddVRF(mainId, true, fmt.Sprintf("physical-net-%s-ip6", phyNet))
+	err = v.vpp.AddVRF(mainVrfID, true, fmt.Sprintf("physical-net-%s-ip6", phyNet))
 	if err != nil {
 		return err
 	}
-	err = v.vpp.AddVRF(podsId, true, fmt.Sprintf("calico-pods-%s-ip6", phyNet))
+	err = v.vpp.AddVRF(podVrfID, true, fmt.Sprintf("calico-pods-%s-ip6", phyNet))
 	if err != nil {
 		return err
 	}
-	for _, ipFamily := range vpplink.IpFamilies {
-		err = v.vpp.AddDefaultRouteViaTable(podsId, mainId, ipFamily.IsIp6)
+	for _, ipFamily := range vpplink.IPFamilies {
+		err = v.vpp.AddDefaultRouteViaTable(podVrfID, mainVrfID, ipFamily.IsIP6)
 		if err != nil {
 			return err
 		}
 	}
-	config.Info.PhysicalNets[phyNet] = config.PhysicalNetwork{VrfId: mainId, PodVrfId: podsId}
+	config.Info.PhysicalNets[phyNet] = config.PhysicalNetwork{VrfID: mainVrfID, PodVrfID: podVrfID}
 	return nil
 }
 
@@ -861,7 +861,7 @@ func (v *VppRunner) runVpp() (err error) {
 	}
 
 	// add main network that has the default VRF
-	config.Info.PhysicalNets[config.DefaultPhysicalNetworkName] = config.PhysicalNetwork{VrfId: common.DefaultVRFIndex, PodVrfId: common.PodVRFIndex}
+	config.Info.PhysicalNets[config.DefaultPhysicalNetworkName] = config.PhysicalNetwork{VrfID: common.DefaultVRFIndex, PodVrfID: common.PodVRFIndex}
 
 	err = v.configureGlobalPunt()
 	if err != nil {

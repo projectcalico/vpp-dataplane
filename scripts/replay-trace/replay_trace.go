@@ -93,7 +93,7 @@ func getRetVal(msg api.Message) (err error) {
 func newReplyTypeForRequest(req api.Message) (api.Message, error) {
 	reply, found := msgByName[req.GetMessageName()+"_reply"]
 	if !found {
-		return nil, fmt.Errorf("No reply for %s", req.GetMessageName())
+		return nil, fmt.Errorf("no reply for %s", req.GetMessageName())
 	}
 	obj := reflect.New(reflect.TypeOf(reply).Elem()).Interface()
 	reply, ok := obj.(api.Message)
@@ -228,24 +228,24 @@ func readFileHeader(r io.Reader) error {
 	}
 
 	for i := uint32(4); i < tableLen; {
-		msgId := readFileHeaderInt(&i, msgTable)
+		msgID := readFileHeaderInt(&i, msgTable)
 		strl := readFileHeaderInt(&i, msgTable)
 		msgName, crc := getMessageNameAndCrc(string(msgTable[i : i+strl]))
 		i += strl
 
-		msgNameByTraceID[msgId] = msgName
+		msgNameByTraceID[msgID] = msgName
 		apiMsg, found := msgByName[msgName]
 		if !found {
-			logrus.Tracef("No api Message for %d %s", msgId, msgName)
+			logrus.Tracef("No api Message for %d %s", msgID, msgName)
 			continue
 		} else {
-			logrus.Tracef("Api Message found for %d %s", msgId, msgName)
+			logrus.Tracef("Api Message found for %d %s", msgID, msgName)
 		}
 		if apiMsg.GetCrcString() != crc {
 			logrus.Warnf("No api Message CRC does not match for %s", msgName)
 			continue
 		}
-		msgByTraceID[msgId] = apiMsg
+		msgByTraceID[msgID] = apiMsg
 	}
 
 	return nil
@@ -257,17 +257,17 @@ type MsgCallBack interface {
 	TearDown()
 }
 
-type MsgCallBackJson struct{}
+type MsgCallBackJSON struct{}
 
-func (*MsgCallBackJson) MsgCallBack(msg api.Message, idx int) error {
+func (*MsgCallBackJSON) MsgCallBack(msg api.Message, idx int) error {
 	if idx > 0 {
 		fmt.Printf(",")
 	}
 	fmt.Printf("%s\n", formatMessage(msg))
 	return nil
 }
-func (*MsgCallBackJson) Setup()    { fmt.Printf("[\n") }
-func (*MsgCallBackJson) TearDown() { fmt.Printf("]\n") }
+func (*MsgCallBackJSON) Setup()    { fmt.Printf("[\n") }
+func (*MsgCallBackJSON) TearDown() { fmt.Printf("]\n") }
 
 func executeShellCommand(cmd string, cmdStr ...string) {
 	logrus.Infof("Issuing %s, %s", cmd, cmdStr)
@@ -281,18 +281,18 @@ type MsgCallBackVpp struct {
 	conn api.Connection
 }
 
-func (self *MsgCallBackVpp) MsgCallBack(msg api.Message, idx int) error {
+func (vpp *MsgCallBackVpp) MsgCallBack(msg api.Message, idx int) error {
 	switch m := msg.(type) {
 	case *tapv2.TapCreateV3:
 		if m.HostNamespaceSet && !strings.HasPrefix(m.HostNamespace, "pid:") {
-			ns := strings.Replace(m.HostNamespace, "/var/run/netns/", "", -1)
+			ns := strings.ReplaceAll(m.HostNamespace, "/var/run/netns/", "")
 			executeShellCommand("ip", "netns", "add", ns)
 		}
 	case *af_packet.AfPacketCreateV3:
 		msg = nil
 	default:
 	}
-	_, err := sendMsgToVpp(self.conn, msg)
+	_, err := sendMsgToVpp(vpp.conn, msg)
 	return err
 }
 func (*MsgCallBackVpp) Setup()    {}
@@ -331,7 +331,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	msgCallback = &MsgCallBackJson{}
+	msgCallback = &MsgCallBackJSON{}
 	if *sockAddr != "" {
 		conn, err := govpp.Connect(*sockAddr)
 		if err != nil {

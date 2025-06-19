@@ -224,12 +224,12 @@ func IntEnvVar(varName string, defaultValue int) *int {
 	})
 }
 
-// JsonEnvVar allows to declare envvars containing structs formatted as json
+// JSONEnvVar allows to declare envvars containing structs formatted as json
 // * defaultValue should be a pointer to a SomeStructType
 // * this returns a **SomeStructType
 // * if SomeStructType implements Validable (pointer receiver) it will be run as part
 // of the parsing process, allowing to set defaults.
-func JsonEnvVar[T any](varName string, defaultValue T) *T {
+func JSONEnvVar[T any](varName string, defaultValue T) *T {
 	return EnvVar(varName, defaultValue, func(value string) (T, error) {
 		err := json.Unmarshal([]byte(value), defaultValue)
 		return defaultValue, err

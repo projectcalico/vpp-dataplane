@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pod_interface
+package podinterface
 
 import (
 	"github.com/pkg/errors"
@@ -77,8 +77,8 @@ func (i *PodInterfaceDriverData) UndoPodIfNatConfiguration(swIfIndex uint32) {
 		i.log.Errorf("error deregistering pod interface: %v", err)
 	}
 
-	for _, ipFamily := range vpplink.IpFamilies {
-		err = i.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIp6, false /*isEnable*/)
+	for _, ipFamily := range vpplink.IPFamilies {
+		err = i.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIP6, false /*isEnable*/)
 		if err != nil {
 			i.log.Errorf("Error disabling %s snat %v", ipFamily.Str, err)
 		}
@@ -88,12 +88,12 @@ func (i *PodInterfaceDriverData) UndoPodIfNatConfiguration(swIfIndex uint32) {
 func (i *PodInterfaceDriverData) DoPodIfNatConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32) (err error) {
 	if podSpec.NeedsSnat {
 		i.log.Infof("pod(add) Enable interface[%d] SNAT", swIfIndex)
-		for _, ipFamily := range vpplink.IpFamilies {
-			err = i.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIp6, true /*isEnable*/)
+		for _, ipFamily := range vpplink.IPFamilies {
+			err = i.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIP6, true /*isEnable*/)
 			if err != nil {
 				return errors.Wrapf(err, "Error enabling %s snat", ipFamily.Str)
 			} else {
-				stack.Push(i.vpp.EnableDisableCnatSNAT, swIfIndex, ipFamily.IsIp6, false)
+				stack.Push(i.vpp.EnableDisableCnatSNAT, swIfIndex, ipFamily.IsIP6, false)
 			}
 		}
 	}
@@ -121,9 +121,9 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 }
 
 func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, ifSpec config.InterfaceSpec, swIfIndex uint32) (err error) {
-	for _, ipFamily := range vpplink.IpFamilies {
-		vrfId := podSpec.GetVrfId(ipFamily)
-		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfId, ipFamily.IsIp6)
+	for _, ipFamily := range vpplink.IPFamilies {
+		vrfID := podSpec.GetVrfID(ipFamily)
+		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfID, ipFamily.IsIP6)
 		if err != nil {
 			return errors.Wrapf(err, "error setting vpp if[%d] in pod vrf", swIfIndex)
 		}
@@ -137,7 +137,7 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.Lo
 		}
 	}
 
-	err = i.vpp.SetInterfaceMtu(swIfIndex, vpplink.MAX_MTU)
+	err = i.vpp.SetInterfaceMtu(swIfIndex, vpplink.CalicoVppMaxMTu)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting MTU on pod interface")
 	}

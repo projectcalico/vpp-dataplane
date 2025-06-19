@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pod_interface
+package podinterface
 
 import (
 	"fmt"
@@ -62,7 +62,7 @@ func reduceMtuIf(podMtu *int, tunnelMtu int, tunnelEnabled bool) {
  * and other sources (typically ippool) for vxlanEnabled / ipInIpEnabled
  */
 func (i *TunTapPodInterfaceDriver) computePodMtu(podSpecMtu int, fc *felixConfig.Config, ipipEnabled bool, vxlanEnabled bool) (podMtu int) {
-	hostMtu := vpplink.MAX_MTU
+	hostMtu := vpplink.CalicoVppMaxMTu
 	if len(common.VppManagerInfo.UplinkStatuses) != 0 {
 		for _, v := range common.VppManagerInfo.UplinkStatuses {
 			if v.Mtu < hostMtu {
@@ -274,7 +274,7 @@ func WriteProcSys(path, value string) error {
 func (i *TunTapPodInterfaceDriver) configureContainerSysctls(podSpec *storage.LocalPodSpec) error {
 	hasv4, hasv6 := podSpec.Hasv46()
 	ipFwd := "0"
-	if podSpec.AllowIpForwarding {
+	if podSpec.AllowIPForwarding {
 		ipFwd = "1"
 	}
 	// If an IPv4 address is assigned, then configure IPv4 sysctls.

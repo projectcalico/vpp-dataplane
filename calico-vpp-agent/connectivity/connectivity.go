@@ -55,8 +55,8 @@ type ConnectivityProvider interface {
 	EnableDisable(isEnable bool)
 }
 
-func (p *ConnectivityProviderData) GetNodeByIp(addr net.IP) *common.LocalNodeSpec {
-	return p.server.GetNodeByIp(addr)
+func (p *ConnectivityProviderData) GetNodeByIP(addr net.IP) *common.LocalNodeSpec {
+	return p.server.GetNodeByIP(addr)
 }
 func (p *ConnectivityProviderData) GetNodeIPs() (*net.IP, *net.IP) {
 	return p.server.GetNodeIPs()

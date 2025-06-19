@@ -104,17 +104,17 @@ type AfPacketInterface struct {
 
 type VirtioInterface struct {
 	GenericVppInterface
-	PciId string
+	PciID string
 }
 
 type AVFInterface struct {
 	GenericVppInterface
-	PciId string
+	PciID string
 }
 
 type Vmxnet3Interface struct {
 	GenericVppInterface
-	PciId     string
+	PciID     string
 	EnableGso bool
 }
 
@@ -131,12 +131,12 @@ type TapV2 struct {
 	HostMtu        int
 }
 
-func GetPciIdInt(PciIdStr string) (id uint32, err error) {
+func GetPciIDInt(PciIDStr string) (id uint32, err error) {
 	/* 0000:d8:00.1 */
 	re := regexp.MustCompile("([0-9a-f]{4}):([0-9a-f]{2}):([0-9a-f]{2}).([0-9a-f])")
-	match := re.FindStringSubmatch(PciIdStr)
+	match := re.FindStringSubmatch(PciIDStr)
 	if len(match) != 5 {
-		return 0, errors.Errorf("Couldnt parse kernel pciID %s : %v", PciIdStr, match)
+		return 0, errors.Errorf("Couldnt parse kernel pciID %s : %v", PciIDStr, match)
 	}
 	domain, err := strconv.ParseInt(match[1], 16, 32)
 	if err != nil {

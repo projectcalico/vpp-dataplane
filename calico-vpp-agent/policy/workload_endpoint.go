@@ -56,10 +56,10 @@ type WorkloadEndpoint struct {
 	server    *Server
 }
 
-func (we *WorkloadEndpoint) String() string {
-	s := fmt.Sprintf("if=%d profiles=%s tiers=%s", we.SwIfIndex, we.Profiles, we.Tiers)
-	s += types.StrListToString(" Profiles=", we.Profiles)
-	s += types.StrableListToString(" Tiers=", we.Tiers)
+func (w *WorkloadEndpoint) String() string {
+	s := fmt.Sprintf("if=%d profiles=%s tiers=%s", w.SwIfIndex, w.Profiles, w.Tiers)
+	s += types.StrListToString(" Profiles=", w.Profiles)
+	s += types.StrableListToString(" Tiers=", w.Tiers)
 	return s
 }
 
