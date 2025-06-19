@@ -52,7 +52,7 @@ func (p *WireguardProvider) Enabled(cn *common.NodeConnectivity) bool {
 	if !felixConfig.WireguardEnabled {
 		return false
 	}
-	node := p.GetNodeByIp(cn.NextHop)
+	node := p.GetNodeByIP(cn.NextHop)
 	return p.nodesToWGPublicKey[node.Name] != ""
 }
 
@@ -65,7 +65,7 @@ func (p *WireguardProvider) getWireguardPort() uint16 {
 }
 
 func (p *WireguardProvider) getNodePublicKey(cn *common.NodeConnectivity) ([]byte, error) {
-	node := p.GetNodeByIp(cn.NextHop)
+	node := p.GetNodeByIP(cn.NextHop)
 	if p.nodesToWGPublicKey[node.Name] == "" {
 		return nil, fmt.Errorf("no public key for node=%s", node.Name)
 	}
@@ -162,22 +162,22 @@ func (p *WireguardProvider) EnableDisable(isEnable bool) {
 
 func (p *WireguardProvider) createWireguardTunnels() error {
 
-	var nodeIp4, nodeIp6 net.IP
+	var nodeIP4, nodeIP6 net.IP
 	ip4, ip6 := p.server.GetNodeIPs()
 	if ip6 != nil {
-		nodeIp6 = *ip6
+		nodeIP6 = *ip6
 	}
 	if ip4 != nil {
-		nodeIp4 = *ip4
+		nodeIP4 = *ip4
 	} else {
-		return fmt.Errorf("Missing node address")
+		return fmt.Errorf("missing node address")
 	}
-	nodeIps := map[string]net.IP{"ip4": nodeIp4, "ip6": nodeIp6}
-	for ipfamily, nodeIp := range nodeIps {
-		if nodeIp != nil {
+	nodeIPs := map[string]net.IP{"ip4": nodeIP4, "ip6": nodeIP6}
+	for ipfamily, nodeIP := range nodeIPs {
+		if nodeIP != nil {
 			p.log.Debugf("Adding wireguard Tunnel to VPP")
 			tunnel := &vpptypes.WireguardTunnel{
-				Addr: nodeIp,
+				Addr: nodeIP,
 				Port: p.getWireguardPort(),
 			}
 			var swIfIndex uint32
@@ -247,7 +247,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		ipfamily = "ip6"
 	}
 	if _, exists := p.wireguardTunnels[ipfamily]; !exists {
-		return fmt.Errorf("Wireguard: missing tunnel for ip family %s", ipfamily)
+		return fmt.Errorf("wireguard: missing tunnel for ip family %s", ipfamily)
 	}
 	key, err := p.getNodePublicKey(cn)
 	if err != nil {
@@ -321,7 +321,7 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err er
 		ipfamily = "ip6"
 	}
 	if _, exists := p.wireguardTunnels[ipfamily]; !exists {
-		return fmt.Errorf("Wireguard: missing tunnel for ip family %s", ipfamily)
+		return fmt.Errorf("wireguard: missing tunnel for ip family %s", ipfamily)
 	}
 	peer, found := p.wireguardPeers[cn.NextHop.String()]
 	if !found {

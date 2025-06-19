@@ -127,7 +127,7 @@ func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int
 
 func NewAFPacketDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *AFPacketDriver {
 	d := &AFPacketDriver{}
-	d.name = NATIVE_DRIVER_AF_PACKET
+	d.name = NativeDriverAfPacket
 	d.conf = conf
 	d.params = params
 	d.spec = spec

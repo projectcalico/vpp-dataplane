@@ -1,4 +1,4 @@
-include ../.ci/common.mk
+include ../common.mk
 
 TAG ?= latest # Tag images with :$(TAG)
 VERSION_FILE=version

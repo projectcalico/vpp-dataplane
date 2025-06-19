@@ -29,22 +29,22 @@ import (
 type IPProto uint8
 
 const (
-	TCP     IPProto = IPProto(ip_types.IP_API_PROTO_TCP)
-	UDP     IPProto = IPProto(ip_types.IP_API_PROTO_UDP)
-	SCTP    IPProto = IPProto(ip_types.IP_API_PROTO_SCTP)
-	ICMP    IPProto = IPProto(ip_types.IP_API_PROTO_ICMP)
-	ICMP6   IPProto = IPProto(ip_types.IP_API_PROTO_ICMP6)
-	INVALID IPProto = IPProto(ip_types.IP_API_PROTO_RESERVED)
+	TCP     IPProto = IPProto(ip_types.IP_API_PROTO_TCP)      //nolint:staticcheck
+	UDP     IPProto = IPProto(ip_types.IP_API_PROTO_UDP)      //nolint:staticcheck
+	SCTP    IPProto = IPProto(ip_types.IP_API_PROTO_SCTP)     //nolint:staticcheck
+	ICMP    IPProto = IPProto(ip_types.IP_API_PROTO_ICMP)     //nolint:staticcheck
+	ICMP6   IPProto = IPProto(ip_types.IP_API_PROTO_ICMP6)    //nolint:staticcheck
+	INVALID IPProto = IPProto(ip_types.IP_API_PROTO_RESERVED) //nolint:staticcheck
 )
 
-func (mode *IPProto) UnmarshalText(text []byte) error {
+func (proto *IPProto) UnmarshalText(text []byte) error {
 	switch string(text) {
 	case "tcp":
-		*mode = TCP
+		*proto = TCP
 	case "udp":
-		*mode = UDP
+		*proto = UDP
 	default:
-		*mode = TCP
+		*proto = TCP
 	}
 	return nil
 }
@@ -64,9 +64,9 @@ const (
 
 const (
 	// Family type definitions
-	FAMILY_ALL = unix.AF_UNSPEC
-	FAMILY_V4  = unix.AF_INET
-	FAMILY_V6  = unix.AF_INET6
+	FamilyAll = unix.AF_UNSPEC
+	FamilyV4  = unix.AF_INET
+	FamilyV6  = unix.AF_INET6
 )
 
 type IfAddress struct {
@@ -74,7 +74,7 @@ type IfAddress struct {
 	SwIfIndex uint32
 }
 
-type IpPuntRedirect struct {
+type IPPuntRedirect struct {
 	RxSwIfIndex uint32
 	IsIP6       bool
 	Paths       []RoutePath
@@ -88,12 +88,12 @@ type VRF struct {
 
 func GetIPFamily(ip net.IP) int {
 	if len(ip) <= net.IPv4len {
-		return FAMILY_V4
+		return FamilyV4
 	}
 	if ip.To4() != nil {
-		return FAMILY_V4
+		return FamilyV4
 	}
-	return FAMILY_V6
+	return FamilyV6
 }
 
 func GetBoolIPFamily(isIP6 bool) ip_types.AddressFamily {
@@ -104,11 +104,11 @@ func GetBoolIPFamily(isIP6 bool) ip_types.AddressFamily {
 }
 
 func IsIP4(ip net.IP) bool {
-	return GetIPFamily(ip) == FAMILY_V4
+	return GetIPFamily(ip) == FamilyV4
 }
 
 func IsIP6(ip net.IP) bool {
-	return GetIPFamily(ip) == FAMILY_V6
+	return GetIPFamily(ip) == FamilyV6
 }
 
 func (proto IPProto) String() string {
@@ -178,7 +178,7 @@ func ToVppAddress(addr net.IP) ip_types.Address {
 	return a
 }
 
-func FromVppIpAddressUnion(Un ip_types.AddressUnion, isv6 bool) net.IP {
+func FromVppIPAddressUnion(Un ip_types.AddressUnion, isv6 bool) net.IP {
 	if isv6 {
 		a := Un.GetIP6()
 		return net.IP(a[:])
@@ -189,7 +189,7 @@ func FromVppIpAddressUnion(Un ip_types.AddressUnion, isv6 bool) net.IP {
 }
 
 func FromVppAddress(addr ip_types.Address) net.IP {
-	return FromVppIpAddressUnion(addr.Un, addr.Af == ip_types.ADDRESS_IP6)
+	return FromVppIPAddressUnion(addr.Un, addr.Af == ip_types.ADDRESS_IP6)
 }
 
 func ToVppAddressWithPrefix(prefix *net.IPNet) ip_types.AddressWithPrefix {

@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pod_interface
+package podinterface
 
 import (
 	"fmt"
@@ -59,7 +59,7 @@ func (i *VclPodInterfaceDriver) Init() (err error) {
 
 func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	appNamespace := &types.SessionAppNamespace{
-		NamespaceId: getPodAppNamespaceName(podSpec),
+		NamespaceID: getPodAppNamespaceName(podSpec),
 		SwIfIndex:   podSpec.LoopbackSwIfIndex,
 		SocketName:  fmt.Sprintf("abstract:%s,netns_name=%s", "vpp/session", podSpec.NetnsName),
 		Secret:      0,
@@ -82,7 +82,7 @@ func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, s
 func (i *VclPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
 	var err error
 	appNamespace := &types.SessionAppNamespace{
-		NamespaceId: getPodAppNamespaceName(podSpec),
+		NamespaceID: getPodAppNamespaceName(podSpec),
 	}
 	err = i.vpp.DelSessionAppNamespace(appNamespace)
 	if err != nil {

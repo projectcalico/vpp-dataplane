@@ -52,7 +52,6 @@ const (
 
 	VppConfigFile     = "/etc/vpp/startup.conf"
 	VppConfigExecFile = "/etc/vpp/startup.exec"
-	VppApiSocket      = "/var/run/vpp/vpp-api.sock"
 	VppPath           = "/usr/bin/vpp"
 	VppNetnsName      = "calico-vpp-ns"
 	VppSigKillTimeout = 2
@@ -76,12 +75,12 @@ var (
 
 	ServiceCIDRs                     = PrefixListEnvVar("SERVICE_PREFIX")
 	IPSecIkev2Psk                    = StringEnvVar("CALICOVPP_IPSEC_IKEV2_PSK", "")
-	CalicoVppDebug                   = JsonEnvVar("CALICOVPP_DEBUG", &CalicoVppDebugConfigType{})
-	CalicoVppInterfaces              = JsonEnvVar("CALICOVPP_INTERFACES", &CalicoVppInterfacesConfigType{})
-	CalicoVppFeatureGates            = JsonEnvVar("CALICOVPP_FEATURE_GATES", &CalicoVppFeatureGatesConfigType{})
-	CalicoVppIpsec                   = JsonEnvVar("CALICOVPP_IPSEC", &CalicoVppIpsecConfigType{})
-	CalicoVppSrv6                    = JsonEnvVar("CALICOVPP_SRV6", &CalicoVppSrv6ConfigType{})
-	CalicoVppInitialConfig           = JsonEnvVar("CALICOVPP_INITIAL_CONFIG", &CalicoVppInitialConfigConfigType{})
+	CalicoVppDebug                   = JSONEnvVar("CALICOVPP_DEBUG", &CalicoVppDebugConfigType{})
+	CalicoVppInterfaces              = JSONEnvVar("CALICOVPP_INTERFACES", &CalicoVppInterfacesConfigType{})
+	CalicoVppFeatureGates            = JSONEnvVar("CALICOVPP_FEATURE_GATES", &CalicoVppFeatureGatesConfigType{})
+	CalicoVppIpsec                   = JSONEnvVar("CALICOVPP_IPSEC", &CalicoVppIpsecConfigType{})
+	CalicoVppSrv6                    = JSONEnvVar("CALICOVPP_SRV6", &CalicoVppSrv6ConfigType{})
+	CalicoVppInitialConfig           = JSONEnvVar("CALICOVPP_INITIAL_CONFIG", &CalicoVppInitialConfigConfigType{})
 	CalicoVppGracefulShutdownTimeout = EnvVar("CALICOVPP_GRACEFUL_SHUTDOWN_TIMEOUT", 10*time.Second, time.ParseDuration)
 	LogFormat                        = StringEnvVar("CALICOVPP_LOG_FORMAT", "")
 
@@ -111,20 +110,20 @@ var (
 	// below in the vpp-manager container.
 
 	//go:embed default_hook.sh
-	DEFAULT_HOOK_SCRIPT string
+	DefaultHookScript string
 
 	/* Run this before getLinuxConfig() in case this is a script
 	 * that's responsible for creating the interface */
-	HookScriptBeforeIfRead = StringEnvVar("CALICOVPP_HOOK_BEFORE_IF_READ", DEFAULT_HOOK_SCRIPT) // InitScriptTemplate
+	HookScriptBeforeIfRead = StringEnvVar("CALICOVPP_HOOK_BEFORE_IF_READ", DefaultHookScript) // InitScriptTemplate
 	/* Bash script template run just after getting config
 	   from $CALICOVPP_INTERFACE & before starting VPP */
-	HookScriptBeforeVppRun = StringEnvVar("CALICOVPP_HOOK_BEFORE_VPP_RUN", DEFAULT_HOOK_SCRIPT) // InitPostIfScriptTemplate
+	HookScriptBeforeVppRun = StringEnvVar("CALICOVPP_HOOK_BEFORE_VPP_RUN", DefaultHookScript) // InitPostIfScriptTemplate
 	/* Bash script template run after VPP has started */
-	HookScriptVppRunning = StringEnvVar("CALICOVPP_HOOK_VPP_RUNNING", DEFAULT_HOOK_SCRIPT) // FinalizeScriptTemplate
+	HookScriptVppRunning = StringEnvVar("CALICOVPP_HOOK_VPP_RUNNING", DefaultHookScript) // FinalizeScriptTemplate
 	/* Bash script template run when VPP stops gracefully */
-	HookScriptVppDoneOk = StringEnvVar("CALICOVPP_HOOK_VPP_DONE_OK", DEFAULT_HOOK_SCRIPT)
+	HookScriptVppDoneOk = StringEnvVar("CALICOVPP_HOOK_VPP_DONE_OK", DefaultHookScript)
 	/* Bash script template run when VPP stops with an error */
-	HookScriptVppErrored = StringEnvVar("CALICOVPP_HOOK_VPP_ERRORED", DEFAULT_HOOK_SCRIPT)
+	HookScriptVppErrored = StringEnvVar("CALICOVPP_HOOK_VPP_ERRORED", DefaultHookScript)
 
 	AllHooks = []*string{
 		HookScriptBeforeIfRead,
@@ -272,7 +271,7 @@ func (u *UplinkInterfaceSpec) String() string {
 
 type RedirectToHostRulesConfigType struct {
 	Port uint16 `json:"port,omitempty"`
-	Ip   string `json:"ip,omitempty"`
+	IP   string `json:"ip,omitempty"`
 	/* "tcp", "udp",... */
 	Proto types.IPProto `json:"proto,omitempty"`
 }
@@ -284,23 +283,23 @@ type CalicoVppDebugConfigType struct {
 	SpreadTxQueuesOnWorkers *bool `json:"spreadTxQueuesOnWorkers,omitempty"`
 }
 
-func (self *CalicoVppDebugConfigType) String() string {
-	b, _ := json.MarshalIndent(self, "", "  ")
+func (cfg *CalicoVppDebugConfigType) String() string {
+	b, _ := json.MarshalIndent(cfg, "", "  ")
 	return string(b)
 }
 
-func (self *CalicoVppDebugConfigType) Validate() (err error) {
-	if self.PoliciesEnabled == nil {
-		self.PoliciesEnabled = &True
+func (cfg *CalicoVppDebugConfigType) Validate() (err error) {
+	if cfg.PoliciesEnabled == nil {
+		cfg.PoliciesEnabled = &True
 	}
-	if self.ServicesEnabled == nil {
-		self.ServicesEnabled = &True
+	if cfg.ServicesEnabled == nil {
+		cfg.ServicesEnabled = &True
 	}
-	if self.GSOEnabled == nil {
-		self.GSOEnabled = &True
+	if cfg.GSOEnabled == nil {
+		cfg.GSOEnabled = &True
 	}
-	if self.SpreadTxQueuesOnWorkers == nil {
-		self.SpreadTxQueuesOnWorkers = &False
+	if cfg.SpreadTxQueuesOnWorkers == nil {
+		cfg.SpreadTxQueuesOnWorkers = &False
 	}
 	return
 }
@@ -314,18 +313,18 @@ type CalicoVppFeatureGatesConfigType struct {
 	PrometheusEnabled *bool `json:"prometheusEnabled,omitempty"`
 }
 
-func (self *CalicoVppFeatureGatesConfigType) Validate() (err error) {
-	self.MemifEnabled = DefaultToPtr(self.MemifEnabled, true)
-	self.VCLEnabled = DefaultToPtr(self.VCLEnabled, false)
-	self.MultinetEnabled = DefaultToPtr(self.MultinetEnabled, false)
-	self.SRv6Enabled = DefaultToPtr(self.SRv6Enabled, false)
-	self.IPSecEnabled = DefaultToPtr(self.IPSecEnabled, false)
-	self.PrometheusEnabled = DefaultToPtr(self.PrometheusEnabled, false)
+func (cfg *CalicoVppFeatureGatesConfigType) Validate() (err error) {
+	cfg.MemifEnabled = DefaultToPtr(cfg.MemifEnabled, true)
+	cfg.VCLEnabled = DefaultToPtr(cfg.VCLEnabled, false)
+	cfg.MultinetEnabled = DefaultToPtr(cfg.MultinetEnabled, false)
+	cfg.SRv6Enabled = DefaultToPtr(cfg.SRv6Enabled, false)
+	cfg.IPSecEnabled = DefaultToPtr(cfg.IPSecEnabled, false)
+	cfg.PrometheusEnabled = DefaultToPtr(cfg.PrometheusEnabled, false)
 	return nil
 }
 
-func (self *CalicoVppFeatureGatesConfigType) String() string {
-	b, _ := json.MarshalIndent(self, "", "  ")
+func (cfg *CalicoVppFeatureGatesConfigType) String() string {
+	b, _ := json.MarshalIndent(cfg, "", "  ")
 	return string(b)
 }
 
@@ -334,10 +333,10 @@ type CalicoVppSrv6ConfigType struct {
 	PolicyPool   string `json:"policyPool"`
 }
 
-func (self *CalicoVppSrv6ConfigType) Validate() (err error) { return nil }
+func (cfg *CalicoVppSrv6ConfigType) Validate() (err error) { return nil }
 
-func (self *CalicoVppSrv6ConfigType) String() string {
-	b, _ := json.MarshalIndent(self, "", "  ")
+func (cfg *CalicoVppSrv6ConfigType) String() string {
+	b, _ := json.MarshalIndent(cfg, "", "  ")
 	return string(b)
 }
 
@@ -347,22 +346,22 @@ type CalicoVppIpsecConfigType struct {
 	ExtraAddresses           int   `json:"extraAddresses"`
 }
 
-func (self *CalicoVppIpsecConfigType) GetIpsecNbAsyncCryptoThread() int {
-	return self.IpsecNbAsyncCryptoThread
+func (cfg *CalicoVppIpsecConfigType) GetIpsecNbAsyncCryptoThread() int {
+	return cfg.IpsecNbAsyncCryptoThread
 }
 
-func (self *CalicoVppIpsecConfigType) Validate() (err error) {
-	self.CrossIpsecTunnels = DefaultToPtr(self.CrossIpsecTunnels, false)
+func (cfg *CalicoVppIpsecConfigType) Validate() (err error) {
+	cfg.CrossIpsecTunnels = DefaultToPtr(cfg.CrossIpsecTunnels, false)
 	return
 }
 
-func (self *CalicoVppIpsecConfigType) String() string {
-	b, _ := json.MarshalIndent(self, "", "  ")
+func (cfg *CalicoVppIpsecConfigType) String() string {
+	b, _ := json.MarshalIndent(cfg, "", "  ")
 	return string(b)
 }
 
-func (self *CalicoVppIpsecConfigType) GetIpsecAddressCount() int {
-	return self.ExtraAddresses + 1
+func (cfg *CalicoVppIpsecConfigType) GetIpsecAddressCount() int {
+	return cfg.ExtraAddresses + 1
 }
 
 type CalicoVppInterfacesConfigType struct {
@@ -372,41 +371,41 @@ type CalicoVppInterfacesConfigType struct {
 	UplinkInterfaces []UplinkInterfaceSpec `json:"uplinkInterfaces,omitempty"`
 }
 
-func (self *CalicoVppInterfacesConfigType) Validate() (err error) {
-	err = self.MaxPodIfSpec.Validate(nil)
+func (cfg *CalicoVppInterfacesConfigType) Validate() (err error) {
+	err = cfg.MaxPodIfSpec.Validate(nil)
 	if err != nil {
 		return err
 	}
-	if self.DefaultPodIfSpec == nil {
-		self.DefaultPodIfSpec = &InterfaceSpec{
+	if cfg.DefaultPodIfSpec == nil {
+		cfg.DefaultPodIfSpec = &InterfaceSpec{
 			NumRxQueues: 1,
 			NumTxQueues: 1,
 			RxQueueSize: 0,
 			TxQueueSize: 0,
 		}
 	}
-	err = self.DefaultPodIfSpec.Validate(self.MaxPodIfSpec)
+	err = cfg.DefaultPodIfSpec.Validate(cfg.MaxPodIfSpec)
 	if err != nil {
 		return errors.Wrap(err, "default pod interface spec exceeds max interface spec")
 	}
-	isL3 := self.DefaultPodIfSpec.GetIsL3(false)
-	self.DefaultPodIfSpec.IsL3 = &isL3
+	isL3 := cfg.DefaultPodIfSpec.GetIsL3(false)
+	cfg.DefaultPodIfSpec.IsL3 = &isL3
 
-	if self.VppHostTapSpec == nil {
-		self.VppHostTapSpec = &InterfaceSpec{
+	if cfg.VppHostTapSpec == nil {
+		cfg.VppHostTapSpec = &InterfaceSpec{
 			NumRxQueues: 1,
 			NumTxQueues: 1,
 			RxQueueSize: 1024,
 			TxQueueSize: 1024,
 		}
 	}
-	_ = self.VppHostTapSpec.Validate(nil)
+	_ = cfg.VppHostTapSpec.Validate(nil)
 
 	return
 }
 
-func (self *CalicoVppInterfacesConfigType) String() string {
-	b, _ := json.MarshalIndent(self, "", "  ")
+func (cfg *CalicoVppInterfacesConfigType) String() string {
+	b, _ := json.MarshalIndent(cfg, "", "  ")
 	return string(b)
 }
 
@@ -431,20 +430,20 @@ type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	PrometheusRecordMetricInterval *time.Duration `json:"prometheusRecordMetricInterval"`
 }
 
-func (self *CalicoVppInitialConfigConfigType) Validate() (err error) {
-	if self.PrometheusListenEndpoint == "" {
-		self.PrometheusListenEndpoint = ":8888"
+func (cfg *CalicoVppInitialConfigConfigType) Validate() (err error) {
+	if cfg.PrometheusListenEndpoint == "" {
+		cfg.PrometheusListenEndpoint = ":8888"
 	}
-	if self.PrometheusRecordMetricInterval == nil {
+	if cfg.PrometheusRecordMetricInterval == nil {
 		prometheusRecordMetricInterval := 5 * time.Second
-		self.PrometheusRecordMetricInterval = &prometheusRecordMetricInterval
+		cfg.PrometheusRecordMetricInterval = &prometheusRecordMetricInterval
 	}
 	return nil
 }
-func (self *CalicoVppInitialConfigConfigType) GetDefaultGWs() (gws []net.IP, err error) {
+func (cfg *CalicoVppInitialConfigConfigType) GetDefaultGWs() (gws []net.IP, err error) {
 	gws = make([]net.IP, 0)
-	if self.DefaultGWs != "" {
-		for _, defaultGWStr := range strings.Split(self.DefaultGWs, ",") {
+	if cfg.DefaultGWs != "" {
+		for _, defaultGWStr := range strings.Split(cfg.DefaultGWs, ",") {
 			defaultGW := net.ParseIP(defaultGWStr)
 			if defaultGW == nil {
 				err = errors.Errorf("Unable to parse IP: %s", defaultGWStr)
@@ -456,8 +455,8 @@ func (self *CalicoVppInitialConfigConfigType) GetDefaultGWs() (gws []net.IP, err
 	return
 }
 
-func (self *CalicoVppInitialConfigConfigType) String() string {
-	b, _ := json.MarshalIndent(self, "", "  ")
+func (cfg *CalicoVppInitialConfigConfigType) String() string {
+	b, _ := json.MarshalIndent(cfg, "", "  ")
 	return string(b)
 }
 
@@ -465,7 +464,7 @@ func (self *CalicoVppInitialConfigConfigType) String() string {
 func loadConfig(log *logrus.Logger, doLogOutput bool) (err error) {
 	errs := ParseAllEnvVars()
 	if len(errs) > 0 {
-		return fmt.Errorf("Environment parsing errors : %s", errs)
+		return fmt.Errorf("environment parsing errors : %s", errs)
 	}
 
 	log.SetLevel(*LogLevel)
@@ -507,13 +506,13 @@ func LoadConfigSilent(log *logrus.Logger) (err error) {
 }
 
 const (
-	DRIVER_UIO_PCI_GENERIC = "uio_pci_generic"
-	DRIVER_VFIO_PCI        = "vfio-pci"
-	DRIVER_VIRTIO_PCI      = "virtio-pci"
-	DRIVER_I40E            = "i40e"
-	DRIVER_ICE             = "ice"
-	DRIVER_MLX5_CORE       = "mlx5_core"
-	DRIVER_VMXNET3         = "vmxnet3"
+	DriverUioPciGeneric = "uio_pci_generic"
+	DriverVfioPci       = "vfio-pci"
+	DriverVirtioPci     = "virtio-pci"
+	DriverI40E          = "i40e"
+	DriverICE           = "ice"
+	DriverMLX5Core      = "mlx5_core"
+	DriverVmxNet3       = "vmxnet3"
 )
 
 type vppManagerStatus string
@@ -541,8 +540,8 @@ type UplinkStatus struct {
 }
 
 type PhysicalNetwork struct {
-	VrfId    uint32
-	PodVrfId uint32
+	VrfID    uint32
+	PodVrfID uint32
 }
 
 type VppManagerInfo struct {
@@ -557,7 +556,7 @@ func (i *VppManagerInfo) GetMainSwIfIndex() uint32 {
 			return u.SwIfIndex
 		}
 	}
-	return vpplink.INVALID_SW_IF_INDEX
+	return vpplink.InvalidSwIfIndex
 }
 
 // UnsafeNoIommuMode represents the content of the /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
@@ -565,9 +564,9 @@ func (i *VppManagerInfo) GetMainSwIfIndex() uint32 {
 type UnsafeNoIommuMode string
 
 const (
-	VFIO_UNSAFE_NO_IOMMU_MODE_YES      UnsafeNoIommuMode = "Y"
-	VFIO_UNSAFE_NO_IOMMU_MODE_NO       UnsafeNoIommuMode = "N"
-	VFIO_UNSAFE_NO_IOMMU_MODE_DISABLED UnsafeNoIommuMode = "disabled"
+	VfioUnsafeNoIommuModeYES      UnsafeNoIommuMode = "Y"
+	VfioUnsafeNoIommuModeNO       UnsafeNoIommuMode = "N"
+	VfioUnsafeNoIommuModeDISABLED UnsafeNoIommuMode = "disabled"
 )
 
 type VppManagerParams struct {
@@ -609,7 +608,7 @@ func (ver *KernelVersion) IsAtLeast(other *KernelVersion) bool {
 }
 
 type LinuxInterfaceState struct {
-	PciId         string
+	PciID         string
 	Driver        string
 	IsUp          bool
 	Addresses     []netlink.Addr
@@ -673,13 +672,13 @@ func (c *LinuxInterfaceState) SortRoutes() {
 			return true
 		}
 		// Finally sort by decreasing prefix length
-		i_len, _ := c.Routes[i].Dst.Mask.Size()
-		j_len, _ := c.Routes[j].Dst.Mask.Size()
-		return i_len > j_len
+		iLen, _ := c.Routes[i].Dst.Mask.Size()
+		jLen, _ := c.Routes[j].Dst.Mask.Size()
+		return iLen > jLen
 	})
 }
 
-func getCpusetCpu() (string, error) {
+func getCpusetCPU() (string, error) {
 	content, err := os.ReadFile("/sys/fs/cgroup/cpuset.cpus")
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -687,24 +686,24 @@ func getCpusetCpu() (string, error) {
 		}
 		return "", err
 	}
-	cpusetCpu := strings.TrimSpace(string(content))
+	cpusetCPU := strings.TrimSpace(string(content))
 
-	if len(cpusetCpu) == 0 {
+	if len(cpusetCPU) == 0 {
 		return "", nil
 	}
-	return regexp.MustCompile("[,-]").Split(cpusetCpu, 2)[0], nil
+	return regexp.MustCompile("[,-]").Split(cpusetCPU, 2)[0], nil
 }
 
 func TemplateScriptReplace(input string, params *VppManagerParams, conf []*LinuxInterfaceState) (template string, err error) {
 	template = input
 	if conf != nil {
 		/* We might template scripts before reading interface conf */
-		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", conf[0].PciId)
+		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", conf[0].PciID)
 		for i, ifcConf := range conf {
-			template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(i)+"__", ifcConf.PciId)
+			template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(i)+"__", ifcConf.PciID)
 		}
 	}
-	vppcpu, err := getCpusetCpu()
+	vppcpu, err := getCpusetCPU()
 	if err != nil {
 		return "", err
 	}

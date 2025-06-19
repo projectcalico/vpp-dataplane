@@ -57,7 +57,7 @@ func FromFibPathList(apiPathList []fib_types.FibPath) (routePaths []RoutePath) {
 
 func FromFibPath(vppPath fib_types.FibPath) RoutePath {
 	return RoutePath{
-		Gw:        FromVppIpAddressUnion(vppPath.Nh.Address, vppPath.Proto == fib_types.FIB_API_PATH_NH_PROTO_IP6),
+		Gw:        FromVppIPAddressUnion(vppPath.Nh.Address, vppPath.Proto == fib_types.FIB_API_PATH_NH_PROTO_IP6),
 		Table:     vppPath.TableID,
 		SwIfIndex: vppPath.SwIfIndex,
 	}
