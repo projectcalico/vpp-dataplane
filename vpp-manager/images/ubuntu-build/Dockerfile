@@ -43,4 +43,4 @@ RUN cd /usr/bin; mv tar tar.orig && \
 
 ADD build_script.sh /
 
-CMD "/build_script.sh"
+CMD ["/build_script.sh"]

@@ -71,16 +71,16 @@ func NewIPSet() *IPSet {
 func parseIPPort(ipps string) (ipp types.IPPort, err error) {
 	sarray := strings.Split(ipps, ",") // Get host, and proto:port
 	if len(sarray) != 2 {
-		return ipp, fmt.Errorf("Cannot parse IPPort: %s", ipps)
+		return ipp, fmt.Errorf("cannot parse IPPort: %s", ipps)
 	}
 	addr := sarray[0]
 	sarray = strings.Split(sarray[1], ":") // Get proto and port
 	if len(sarray) != 2 {
-		return ipp, fmt.Errorf("Cannot parse IPPort 2: %s", ipps)
+		return ipp, fmt.Errorf("cannot parse IPPort 2: %s", ipps)
 	}
 	port, err := strconv.ParseUint(sarray[1], 10, 16)
 	if err != nil {
-		return ipp, fmt.Errorf("Cannot parse IPPort port: %s", ipps)
+		return ipp, fmt.Errorf("cannot parse IPPort port: %s", ipps)
 	}
 	ipp = types.IPPort{
 		Addr:    net.ParseIP(addr),
@@ -88,7 +88,7 @@ func parseIPPort(ipps string) (ipp types.IPPort, err error) {
 		Port:    uint16(port),
 	}
 	if ipp.Addr == nil || ipp.L4Proto == 0 {
-		return ipp, fmt.Errorf("Cannot parse IPPort address or proto: %s", ipps)
+		return ipp, fmt.Errorf("cannot parse IPPort address or proto: %s", ipps)
 	}
 	return ipp, nil
 }
@@ -98,7 +98,7 @@ func parseIPArray(strs []string) (addrs map[string]net.IP, err error) {
 	for _, addr := range strs {
 		ip := net.ParseIP(addr)
 		if ip == nil {
-			return nil, fmt.Errorf("Cannot parse IP: %s", addr)
+			return nil, fmt.Errorf("cannot parse IP: %s", addr)
 		}
 		addrs[addr] = ip
 	}

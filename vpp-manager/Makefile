@@ -1,4 +1,4 @@
-include ../.ci/common.mk
+include ../common.mk
 
 SHELL := /bin/bash
 

@@ -32,7 +32,7 @@ type VirtioDriver struct {
 func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
 	var ret bool
 	supported = true
-	ret = d.params.LoadedDrivers[config.DRIVER_VFIO_PCI]
+	ret = d.params.LoadedDrivers[config.DriverVfioPci]
 	if !ret && warn {
 		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
 		log.Warnf("VPP may fail to grab its interface")
@@ -45,9 +45,9 @@ func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
 	}
 	supported = supported && ret
 
-	ret = d.conf.Driver == config.DRIVER_VIRTIO_PCI
+	ret = d.conf.Driver == config.DriverVirtioPci
 	if !ret && warn {
-		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_VIRTIO_PCI)
+		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DriverVirtioPci)
 	}
 	supported = supported && ret
 
@@ -58,19 +58,19 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 	newDriverName := d.spec.NewDriverName
 	doSwapDriver := d.conf.DoSwapDriver
 	if newDriverName == "" {
-		newDriverName = config.DRIVER_VFIO_PCI
-		doSwapDriver = config.DRIVER_VFIO_PCI != d.conf.Driver
+		newDriverName = config.DriverVfioPci
+		doSwapDriver = config.DriverVfioPci != d.conf.Driver
 	}
 
-	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_NO {
-		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_YES)
+	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VfioUnsafeNoIommuModeNO {
+		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VfioUnsafeNoIommuModeYES)
 		if err != nil {
 			return errors.Wrapf(err, "failed to configure vfio")
 		}
 	}
 	d.removeLinuxIfConf(true /* down */)
 	if doSwapDriver {
-		err = utils.SwapDriver(d.conf.PciId, newDriverName, true)
+		err = utils.SwapDriver(d.conf.PciID, newDriverName, true)
 		if err != nil {
 			log.Warnf("Failed to swap driver to %s: %v", newDriverName, err)
 		}
@@ -79,16 +79,16 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 }
 
 func (d *VirtioDriver) RestoreLinux(allInterfacesPhysical bool) {
-	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_NO {
-		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_NO)
+	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VfioUnsafeNoIommuModeNO {
+		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VfioUnsafeNoIommuModeNO)
 		if err != nil {
 			log.Warnf("Virtio restore error %v", err)
 		}
 	}
-	if d.conf.PciId != "" && d.conf.Driver != "" {
-		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
+	if d.conf.PciID != "" && d.conf.Driver != "" {
+		err := utils.SwapDriver(d.conf.PciID, d.conf.Driver, false)
 		if err != nil {
-			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
+			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciID, err)
 		}
 	}
 	if !allInterfacesPhysical {
@@ -115,7 +115,7 @@ func (d *VirtioDriver) RestoreLinux(allInterfacesPhysical bool) {
 func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	intf := types.VirtioInterface{
 		GenericVppInterface: d.getGenericVppInterface(),
-		PciId:               d.conf.PciId,
+		PciID:               d.conf.PciID,
 	}
 	swIfIndex, err := vpp.CreateVirtio(&intf)
 	if err != nil {
@@ -133,7 +133,7 @@ func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, 
 
 func NewVirtioDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *VirtioDriver {
 	d := &VirtioDriver{}
-	d.name = NATIVE_DRIVER_VIRTIO
+	d.name = NativeDriverVirtio
 	d.conf = conf
 	d.params = params
 	d.spec = spec

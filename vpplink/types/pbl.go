@@ -27,7 +27,7 @@ type PblPortRange struct {
 
 type PblClient struct {
 	ID         uint32
-	TableId    uint32
+	TableID    uint32
 	Addr       net.IP
 	Path       RoutePath
 	PortRanges []PblPortRange
