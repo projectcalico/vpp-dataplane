@@ -38,7 +38,7 @@ func (v *VppLink) CnatPurge() error {
 
 	_, err := client.CnatSessionPurge(v.GetContext(), &cnat.CnatSessionPurge{})
 	if err != nil {
-		return fmt.Errorf("CNat purge failed: %w", err)
+		return fmt.Errorf("cnat purge failed: %w", err)
 	}
 	return nil
 }
@@ -70,7 +70,7 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (uint32, error)
 		},
 	})
 	if err != nil {
-		return InvalidID, fmt.Errorf("Add/Upd CnatTranslate failed: %w", err)
+		return InvalidID, fmt.Errorf("add/upd CnatTranslate failed: %w", err)
 	}
 	return response.ID, nil
 }
@@ -146,7 +146,7 @@ func (v *VppLink) cnatSnatPolicyAddDelPodInterface(swIfIndex uint32, isAdd bool,
 		Table:     table,
 	})
 	if err != nil {
-		return fmt.Errorf("CnatSnatPolicyAddDelIf %+v failed: %w", swIfIndex, err)
+		return fmt.Errorf("cnatSnatPolicyAddDelIf %+v failed: %w", swIfIndex, err)
 	}
 	return nil
 }
@@ -167,23 +167,23 @@ func (v *VppLink) RemoveHostInterface(swIfIndex uint32) (err error) {
 	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_HOST)
 }
 
-func (v *VppLink) EnableDisableCnatSNAT(swIfIndex uint32, isIp6 bool, isEnable bool) (err error) {
+func (v *VppLink) EnableDisableCnatSNAT(swIfIndex uint32, isIP6 bool, isEnable bool) (err error) {
 	if isEnable {
-		return v.enableCnatSNAT(swIfIndex, isIp6)
+		return v.enableCnatSNAT(swIfIndex, isIP6)
 	} else {
-		return v.disableCnatSNAT(swIfIndex, isIp6)
+		return v.disableCnatSNAT(swIfIndex, isIP6)
 	}
 }
 
-func (v *VppLink) enableCnatSNAT(swIfIndex uint32, isIp6 bool) (err error) {
-	if isIp6 {
+func (v *VppLink) enableCnatSNAT(swIfIndex uint32, isIP6 bool) (err error) {
+	if isIP6 {
 		return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, true /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V6)
 	}
 	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, true /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V4)
 }
 
-func (v *VppLink) disableCnatSNAT(swIfIndex uint32, isIp6 bool) (err error) {
-	if isIp6 {
+func (v *VppLink) disableCnatSNAT(swIfIndex uint32, isIP6 bool) (err error) {
+	if isIP6 {
 		return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V6)
 	}
 	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V4)
@@ -196,7 +196,7 @@ func (v *VppLink) cnatSetSnatPolicy(pol cnat.CnatSnatPolicies) error {
 		Policy: pol,
 	})
 	if err != nil {
-		return fmt.Errorf("CnatSetSnatPolicy %+v failed: %w", pol, err)
+		return fmt.Errorf("cnatSetSnatPolicy %+v failed: %w", pol, err)
 	}
 	return nil
 }

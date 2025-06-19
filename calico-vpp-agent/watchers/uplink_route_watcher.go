@@ -129,7 +129,7 @@ func (r *RouteWatcher) safeAddrClose() {
 }
 
 func GetUplinkMtu() int {
-	hostMtu := vpplink.MAX_MTU
+	hostMtu := vpplink.CalicoVppMaxMTu
 	if len(common.VppManagerInfo.UplinkStatuses) != 0 {
 		for _, v := range common.VppManagerInfo.UplinkStatuses {
 			if v.Mtu < hostMtu {

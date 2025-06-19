@@ -7,7 +7,7 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
-func NewArpRequestPacket(srcMac net.HardwareAddr, srcIp net.IP, dstIp net.IP) ([]byte, error) {
+func NewArpRequestPacket(srcMac net.HardwareAddr, srcIP net.IP, dstIP net.IP) ([]byte, error) {
 
 	rEth := layers.Ethernet{
 		SrcMAC:       srcMac,
@@ -21,9 +21,9 @@ func NewArpRequestPacket(srcMac net.HardwareAddr, srcIp net.IP, dstIp net.IP) ([
 		ProtAddressSize:   4,
 		Operation:         layers.ARPRequest,
 		SourceHwAddress:   []byte(srcMac),
-		SourceProtAddress: []byte(srcIp),
+		SourceProtAddress: []byte(srcIP),
 		DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
-		DstProtAddress:    []byte(dstIp),
+		DstProtAddress:    []byte(dstIP),
 	}
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{

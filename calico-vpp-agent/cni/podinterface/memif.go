@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pod_interface
+package podinterface
 
 import (
 	"fmt"
@@ -58,13 +58,13 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	if podSpec.NetworkName == "" {
 		memifName = "vpp/memif-" + podSpec.InterfaceName
 	}
-	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("abstract:%s,netns_name=%s", memifName, podSpec.NetnsName))
+	socketID, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("abstract:%s,netns_name=%s", memifName, podSpec.NetnsName))
 	if err != nil {
 		return err
 	} else {
-		stack.Push(i.vpp.DelMemifSocketFileName, socketId)
+		stack.Push(i.vpp.DelMemifSocketFileName, socketID)
 	}
-	podSpec.MemifSocketId = socketId
+	podSpec.MemifSocketID = socketID
 
 	var usedIfSpec config.InterfaceSpec
 	if podSpec.NetworkName == "" { //PBL case
@@ -79,7 +79,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		NumRxQueues: usedIfSpec.NumRxQueues,
 		NumTxQueues: usedIfSpec.NumTxQueues,
 		QueueSize:   usedIfSpec.RxQueueSize,
-		SocketId:    socketId,
+		SocketID:    socketID,
 	}
 	if *usedIfSpec.IsL3 {
 		memif.Mode = types.MemifModeIP
@@ -183,10 +183,10 @@ func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec)
 		i.log.Warnf("Error deleting memif[%d] %s", podSpec.MemifSwIfIndex, err)
 	}
 
-	if podSpec.MemifSocketId != 0 {
-		err = i.vpp.DelMemifSocketFileName(podSpec.MemifSocketId)
+	if podSpec.MemifSocketID != 0 {
+		err = i.vpp.DelMemifSocketFileName(podSpec.MemifSocketID)
 		if err != nil {
-			i.log.Warnf("Error deleting memif[%d] socket[%d] %s", podSpec.MemifSwIfIndex, podSpec.MemifSocketId, err)
+			i.log.Warnf("Error deleting memif[%d] socket[%d] %s", podSpec.MemifSwIfIndex, podSpec.MemifSocketID, err)
 		}
 	}
 

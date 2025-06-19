@@ -1,4 +1,4 @@
-include ../../.ci/common.mk
+include ../../common.mk
 
 .PHONY: run-integration-tests vpp-image mock-image build-tests
 

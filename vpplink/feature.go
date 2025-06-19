@@ -34,7 +34,7 @@ func (v *VppLink) featureEnableDisable(swIfIndex uint32, isEnable bool, arcName,
 	}
 	_, err := client.FeatureEnableDisable(v.GetContext(), request)
 	if err != nil {
-		return fmt.Errorf("FeatureEnableDisable %+v failed: %w", request, err)
+		return fmt.Errorf("featureEnableDisable %+v failed: %w", request, err)
 	}
 	return nil
 }
@@ -47,13 +47,13 @@ func (v *VppLink) DisableFeature(swIfIndex uint32, arcName, featureName string) 
 	return v.featureEnableDisable(swIfIndex, false, arcName, featureName)
 }
 
-func parseArcDescription(arcDescription string, isIp6 bool) (arcName string, featureName string, err error) {
+func parseArcDescription(arcDescription string, isIP6 bool) (arcName string, featureName string, err error) {
 	parts := strings.Split(arcDescription, " ")
 	if len(parts) != 2 {
 		return "", "", fmt.Errorf("wrong split len")
 	}
 	ipStr := "ip4"
-	if isIp6 {
+	if isIP6 {
 		ipStr = "ip6"
 	}
 	arcName = strings.ReplaceAll(parts[0], "ip?", ipStr)
@@ -61,8 +61,8 @@ func parseArcDescription(arcDescription string, isIp6 bool) (arcName string, fea
 	return arcName, featureName, nil
 }
 
-func (v *VppLink) enableDisableFeatureArc(swIfIndex uint32, arcDescription string, isIp6 bool, isEnable bool) (err error) {
-	arcName, featureName, err := parseArcDescription(arcDescription, isIp6)
+func (v *VppLink) enableDisableFeatureArc(swIfIndex uint32, arcDescription string, isIP6 bool, isEnable bool) (err error) {
+	arcName, featureName, err := parseArcDescription(arcDescription, isIP6)
 	if err != nil {
 		return fmt.Errorf("parsing arc description %s failed: %w", arcDescription, err)
 	}

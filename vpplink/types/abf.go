@@ -18,5 +18,5 @@ package types
 type AbfPolicy struct {
 	Paths    []RoutePath
 	PolicyID uint32
-	AclIndex uint32
+	ACLIndex uint32
 }

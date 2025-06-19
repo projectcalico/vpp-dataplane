@@ -24,27 +24,27 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (v *VppLink) addDelMemifSocketFileName(socketFileName string, socketId uint32, isAdd bool) (socketID uint32, err error) {
+func (v *VppLink) addDelMemifSocketFileName(socketFileName string, socketID uint32, isAdd bool) (uint32, error) {
 	client := memif.NewServiceClient(v.GetConnection())
 
 	response, err := client.MemifSocketFilenameAddDelV2(v.GetContext(), &memif.MemifSocketFilenameAddDelV2{
 		IsAdd:          isAdd,
 		SocketFilename: socketFileName,
-		SocketID:       socketId,
+		SocketID:       socketID,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("MemifSocketFilenameAddDel failed: %w", err)
+		return 0, fmt.Errorf("memifSocketFilenameAddDel failed: %w", err)
 	}
 	return response.SocketID, nil
 }
 
 func (v *VppLink) AddMemifSocketFileName(socketFileName string) (uint32, error) {
-	socketId, err := v.addDelMemifSocketFileName(socketFileName, ^uint32(0), true /* isAdd */)
-	return socketId, err
+	socketID, err := v.addDelMemifSocketFileName(socketFileName, ^uint32(0), true /* isAdd */)
+	return socketID, err
 }
 
-func (v *VppLink) DelMemifSocketFileName(socketId uint32) error {
-	_, err := v.addDelMemifSocketFileName("", socketId, false /* isAdd */)
+func (v *VppLink) DelMemifSocketFileName(socketID uint32) error {
+	_, err := v.addDelMemifSocketFileName("", socketID, false /* isAdd */)
 	return err
 }
 
@@ -79,7 +79,7 @@ func (v *VppLink) DeleteMemif(swIfIndex uint32) error {
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
 	})
 	if err != nil {
-		return fmt.Errorf("DeleteMemif failed: %w", err)
+		return fmt.Errorf("deleteMemif failed: %w", err)
 	}
 	return nil
 }
@@ -92,7 +92,7 @@ func (v *VppLink) CreateMemif(mif *types.Memif) error {
 		Mode:       memif.MemifMode(mif.Mode),
 		RxQueues:   uint8(mif.NumRxQueues),
 		TxQueues:   uint8(mif.NumTxQueues),
-		SocketID:   mif.SocketId,
+		SocketID:   mif.SocketID,
 		BufferSize: uint16(mif.QueueSize),
 	}
 	if mif.MacAddress != nil {
@@ -100,7 +100,7 @@ func (v *VppLink) CreateMemif(mif *types.Memif) error {
 	}
 	response, err := client.MemifCreate(v.GetContext(), request)
 	if err != nil {
-		return fmt.Errorf("MemifCreate failed: %w", err)
+		return fmt.Errorf("memifCreate failed: %w", err)
 	}
 	mif.SwIfIndex = uint32(response.SwIfIndex)
 	return nil
@@ -126,7 +126,7 @@ func (v *VppLink) ListMemifInterfaces() ([]*types.Memif, error) {
 			SwIfIndex: uint32(response.SwIfIndex),
 			Role:      types.MemifRole(response.Role),
 			Mode:      types.MemifMode(response.Mode),
-			SocketId:  response.SocketID,
+			SocketID:  response.SocketID,
 			QueueSize: int(response.BufferSize),
 			Flags:     types.MemifFlag(response.Flags),
 		})

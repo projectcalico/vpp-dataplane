@@ -30,7 +30,7 @@ type DefaultDriver struct {
 }
 
 func (d *DefaultDriver) IsSupported(warn bool) bool {
-	if d.params.LoadedDrivers[config.DRIVER_VFIO_PCI] || d.params.LoadedDrivers[config.DRIVER_UIO_PCI_GENERIC] {
+	if d.params.LoadedDrivers[config.DriverVfioPci] || d.params.LoadedDrivers[config.DriverUioPciGeneric] {
 		return true
 	}
 	if warn {
@@ -43,10 +43,10 @@ func (d *DefaultDriver) IsSupported(warn bool) bool {
 func (d *DefaultDriver) PreconfigureLinux() (err error) {
 	d.removeLinuxIfConf(true /* down */)
 	if d.conf.DoSwapDriver {
-		if d.conf.PciId == "" {
+		if d.conf.PciID == "" {
 			log.Warnf("PCI ID not found, not swapping drivers")
 		} else {
-			err = utils.SwapDriver(d.conf.PciId, d.spec.NewDriverName, true)
+			err = utils.SwapDriver(d.conf.PciID, d.spec.NewDriverName, true)
 			if err != nil {
 				log.Warnf("Failed to swap driver to %s: %v", d.spec.NewDriverName, err)
 			}
@@ -56,10 +56,10 @@ func (d *DefaultDriver) PreconfigureLinux() (err error) {
 }
 
 func (d *DefaultDriver) RestoreLinux(allInterfacesPhysical bool) {
-	if d.conf.PciId != "" && d.conf.Driver != "" {
-		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
+	if d.conf.PciID != "" && d.conf.Driver != "" {
+		err := utils.SwapDriver(d.conf.PciID, d.conf.Driver, false)
 		if err != nil {
-			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
+			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciID, err)
 		}
 	}
 	if !d.conf.IsUp {
@@ -99,7 +99,7 @@ func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int,
 
 func NewDefaultDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *DefaultDriver {
 	d := &DefaultDriver{}
-	d.name = NATIVE_DRIVER_NONE
+	d.name = NativeDriverNone
 	d.conf = conf
 	d.params = params
 	d.spec = spec

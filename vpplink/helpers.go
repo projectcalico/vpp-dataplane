@@ -25,28 +25,28 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type IpFamily struct {
+type IPFamily struct {
 	Str       string
 	ShortStr  string
-	IsIp6     bool
-	IsIp4     bool
+	IsIP6     bool
+	IsIP4     bool
 	FamilyIdx int
 }
 
 var (
-	IpFamilyV4 = IpFamily{"ip4", "4", false, true, 0}
-	IpFamilyV6 = IpFamily{"ip6", "6", true, false, 1}
-	IpFamilies = []IpFamily{IpFamilyV4, IpFamilyV6}
+	IPFamilyV4 = IPFamily{"ip4", "4", false, true, 0}
+	IPFamilyV6 = IPFamily{"ip6", "6", true, false, 1}
+	IPFamilies = []IPFamily{IPFamilyV4, IPFamilyV6}
 )
 
-func IpFamilyFromIPNet(ipNet *net.IPNet) IpFamily {
+func IPFamilyFromIPNet(ipNet *net.IPNet) IPFamily {
 	if ipNet == nil {
-		return IpFamilyV4
+		return IPFamilyV4
 	}
 	if ipNet.IP.To4() == nil {
-		return IpFamilyV6
+		return IPFamilyV6
 	}
-	return IpFamilyV4
+	return IPFamilyV4
 }
 
 type CleanupCall struct {

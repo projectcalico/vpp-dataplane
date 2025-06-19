@@ -44,7 +44,7 @@ func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPort
 	ifPortConfigs = &storage.LocalIfPortConfigs{}
 	parts := strings.Split(value, ":") /* tcp:1234[-4567] */
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Value should start with protocol e.g. 'tcp:'")
+		return nil, fmt.Errorf("value should start with protocol e.g. 'tcp:'")
 	}
 	ifPortConfigs.Proto, err = types.UnformatProto(parts[0])
 	if err != nil {
@@ -53,7 +53,7 @@ func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPort
 
 	portParts := strings.Split(parts[1], "-") /* tcp:1234[-4567] */
 	if len(portParts) != 2 && len(portParts) != 1 {
-		return nil, fmt.Errorf("Please specify a port or a port range e.g. '1234-5678'")
+		return nil, fmt.Errorf("please specify a port or a port range e.g. '1234-5678'")
 	}
 
 	start, err := strconv.ParseUint(portParts[0], 10, 16)
@@ -75,7 +75,7 @@ func (s *Server) ParsePortSpec(value string) (ifPortConfigs *storage.LocalIfPort
 
 func (s *Server) ParsePortMappingAnnotation(podSpec *storage.LocalPodSpec, ifType storage.VppInterfaceType, value string) (err error) {
 	if podSpec.PortFilteredIfType != storage.VppIfTypeUnknown && podSpec.PortFilteredIfType != ifType {
-		return fmt.Errorf("Cannot use port filters on different interface type")
+		return fmt.Errorf("cannot use port filters on different interface type")
 	}
 	podSpec.PortFilteredIfType = ifType
 	// value is expected to be like "tcp:1234-1236,udp:4456"
@@ -92,7 +92,7 @@ func (s *Server) ParsePortMappingAnnotation(podSpec *storage.LocalPodSpec, ifTyp
 
 func (s *Server) ParseDefaultIfType(podSpec *storage.LocalPodSpec, ifType storage.VppInterfaceType) (err error) {
 	if podSpec.DefaultIfType != storage.VppIfTypeUnknown && podSpec.DefaultIfType != ifType {
-		return fmt.Errorf("Cannot set two different default interface type")
+		return fmt.Errorf("cannot set two different default interface type")
 	}
 	podSpec.DefaultIfType = ifType
 	return nil
@@ -131,8 +131,8 @@ func GetDefaultIfSpec(isL3 bool) config.InterfaceSpec {
 	return config.InterfaceSpec{
 		NumRxQueues: config.GetCalicoVppInterfaces().DefaultPodIfSpec.NumRxQueues,
 		NumTxQueues: config.GetCalicoVppInterfaces().DefaultPodIfSpec.NumTxQueues,
-		RxQueueSize: vpplink.DefaultIntTo(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize, vpplink.DEFAULT_QUEUE_SIZE),
-		TxQueueSize: vpplink.DefaultIntTo(config.GetCalicoVppInterfaces().DefaultPodIfSpec.TxQueueSize, vpplink.DEFAULT_QUEUE_SIZE),
+		RxQueueSize: vpplink.DefaultIntTo(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize, vpplink.CalicoVppDefaultQueueSize),
+		TxQueueSize: vpplink.DefaultIntTo(config.GetCalicoVppInterfaces().DefaultPodIfSpec.TxQueueSize, vpplink.CalicoVppDefaultQueueSize),
 		IsL3:        &isL3,
 	}
 }

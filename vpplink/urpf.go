@@ -23,7 +23,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/urpf"
 )
 
-func (v *VppLink) SetCustomURPF(swifindex uint32, tableId uint32) error {
+func (v *VppLink) SetCustomURPF(swifindex uint32, tableID uint32) error {
 	client := urpf.NewServiceClient(v.GetConnection())
 
 	_, err := client.UrpfUpdateV2(v.GetContext(), &urpf.UrpfUpdateV2{
@@ -31,7 +31,7 @@ func (v *VppLink) SetCustomURPF(swifindex uint32, tableId uint32) error {
 		SwIfIndex: interface_types.InterfaceIndex(swifindex),
 		Af:        ip_types.ADDRESS_IP4,
 		IsInput:   true,
-		TableID:   tableId,
+		TableID:   tableID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to set URPF mode to loose: %w", err)
