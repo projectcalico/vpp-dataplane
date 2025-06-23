@@ -83,23 +83,19 @@ function git_clone_cd_and_reset ()
 		git clone "https://gerrit.fd.io/r/vpp" $VPP_DIR
 	fi
 	cd $VPP_DIR
-	if [ $VPP_COMMIT = "master" ]; then
-		git reset --hard origin/master
-		git pull
-	else
-		if ! $(commit_exists $VPP_COMMIT); then
-			green "Fetching most recent VPP..."
-			git fetch "https://gerrit.fd.io/r/vpp"
-		fi
-		git reset --hard ${VPP_COMMIT}
+	
+	if ! $(commit_exists $VPP_COMMIT); then
+		green "Fetching most recent VPP..."
+		git fetch "https://gerrit.fd.io/r/vpp"
 	fi
+	git reset --hard ${VPP_COMMIT}
 }
 
 # --------------- Things to cherry pick ---------------
 
 # VPP latest commit as on 12/May/2025
-MASTER_OR_COMMIT="${2:-"5a1d844511e497dd72cbc8a56db97dfe1a4645ef"}" # dev: enable flow on primary interface
-git_clone_cd_and_reset "$1" $MASTER_OR_COMMIT
+BASE="${BASE:-"5a1d844511e497dd72cbc8a56db97dfe1a4645ef"}" # dev: enable flow on primary interface
+git_clone_cd_and_reset "$1" ${BASE}
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 
