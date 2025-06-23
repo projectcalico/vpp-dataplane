@@ -24,6 +24,10 @@ First you will need to build vpp locally with the required patches. This takes a
 ````bash
 make -C vpp-manager/ vpp
 ````
+or
+````bash
+make -C vpp-manager/ vpp-master
+````
 
 Then build the agents, containers & push them to the local docker repository
 ````bash

@@ -78,6 +78,9 @@ clean: clean-vpp
 clone-vpp:
 	bash $(VPPLINK_DIR)/generated/vpp_clone_current.sh ./vpp_build
 
+clone-vpp-master:
+	bash $(VPPLINK_DIR)/generated/vpp_clone_current.sh ./vpp_build master
+
 clean-vpp:
 	git -C vpp_build clean -ffdx || true
 	rm -f ./vpp_build/build-root/*.deb
@@ -90,6 +93,10 @@ rebuild-vpp: vpp-build-env
 		-v $(CURDIR):$(CURDIR):delegated \
 		--user $$(id -u):$$(id -g) \
 		--env NO_BUILD_DEBS=true \
+		--env HTTP_PROXY=$(HTTP_PROXY) \
+		--env HTTPS_PROXY=$(HTTPS_PROXY) \
+		--env http_proxy=$(http_proxy) \
+		--env https_proxy=$(https_proxy) \
 		--network=host \
 		calicovpp/vpp-build:latest
 
@@ -99,6 +106,10 @@ vpp: clone-vpp clean-vpp vpp-build-env
 		-v $(CURDIR):$(CURDIR):delegated \
 		--user $$(id -u):$$(id -g) \
 		--network=host \
+		--env HTTP_PROXY=$(HTTP_PROXY) \
+		--env HTTPS_PROXY=$(HTTPS_PROXY) \
+		--env http_proxy=$(http_proxy) \
+		--env https_proxy=$(https_proxy) \
 		calicovpp/vpp-build:latest
 	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra vpp-dbg ; do \
 		cp vpp_build/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
@@ -107,6 +118,21 @@ ifdef CI_BUILD
 	find $(IMAGE_DIR) -type f -name '*.deb' -printf "%P\n"  | tar -czvf ${VPP_TARBALL} -C $(IMAGE_DIR) -T -
 	aws s3api put-object --bucket ${VPP_BUCKET} --key ${VPP_TARBALL} --body ${VPP_TARBALL}
 endif
+
+vpp-master: clone-vpp-master clean-vpp vpp-build-env
+	docker run --rm \
+		-e VPP_MGR_DIR=$(CURDIR) \
+		-v $(CURDIR):$(CURDIR):delegated \
+		--user $$(id -u):$$(id -g) \
+		--network=host \
+		--env HTTP_PROXY=$(HTTP_PROXY) \
+		--env HTTPS_PROXY=$(HTTPS_PROXY) \
+		--env http_proxy=$(http_proxy) \
+		--env https_proxy=$(https_proxy) \
+		calicovpp/vpp-build:latest
+	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra vpp-dbg ; do \
+		cp vpp_build/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
+	done
 
 ${VPP_TARBALL}:
 ifdef CI_BUILD
