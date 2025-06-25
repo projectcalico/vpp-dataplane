@@ -8,6 +8,7 @@ require (
 	github.com/containernetworking/plugins v1.3.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/gopacket v1.1.19
+	github.com/gookit/color v1.5.4
 	github.com/inconshreveable/mousetrap v1.1.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543
@@ -34,6 +35,7 @@ require (
 	k8s.io/apimachinery v0.29.9
 	k8s.io/client-go v0.29.9
 	sigs.k8s.io/controller-runtime v0.17.0
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
@@ -96,6 +98,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.18.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.12 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.12 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.12 // indirect
@@ -124,7 +127,6 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/network-policy-api v0.1.5 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
 // We match the Calico/VPP version to a given Calico version. In order to upgrade proceed as follows :
