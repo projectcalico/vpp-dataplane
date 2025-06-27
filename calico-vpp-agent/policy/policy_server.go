@@ -993,7 +993,7 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 			hep.currentForwardConf = existing.currentForwardConf
 			state.HostEndpoints[*id] = hep
 		} else {
-			err := existing.Update(s.vpp, hep, state)
+			err := existing.Update(s.vpp, hep, state, id)
 			if err != nil {
 				return errors.Wrap(err, "cannot update host endpoint")
 			}
@@ -1002,7 +1002,7 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 	} else {
 		state.HostEndpoints[*id] = hep
 		if !pending {
-			err := hep.Create(s.vpp, state)
+			err := hep.Create(s.vpp, state, id)
 			if err != nil {
 				return errors.Wrap(err, "cannot create host endpoint")
 			}
@@ -1560,8 +1560,8 @@ func (s *Server) applyPendingState() (err error) {
 			}
 		}
 	}
-	for _, hep := range s.configuredState.HostEndpoints {
-		err = hep.Create(s.vpp, s.configuredState)
+	for id, hep := range s.configuredState.HostEndpoints {
+		err = hep.Create(s.vpp, s.configuredState, &id)
 		if err != nil {
 			return errors.Wrap(err, "cannot create host endpoint")
 		}
