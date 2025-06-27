@@ -24,15 +24,15 @@ import (
 	"strings"
 )
 
-const InvalidTableId = ^uint32(0)
+const InvalidTableID = ^uint32(0)
 
 type IPv4Header struct {
 	VersionIHL uint8
 	Tos        uint8
 	TotLen     uint16
-	Id         uint16
+	ID         uint16
 	FragOff    uint16
-	Ttl        uint8
+	TTL        uint8
 	Protocol   uint8
 	Csum       uint16
 	Saddr      [4]byte
@@ -88,14 +88,14 @@ type GeneveV4Header struct {
 	GeneveHeader
 }
 
-func (h GeneveV4Header) Bytes() ([]byte, error) {
+func (gnv GeneveV4Header) Bytes() ([]byte, error) {
 	var buf bytes.Buffer
-	err := binary.Write(&buf, binary.BigEndian, h.UDPv4Header)
+	err := binary.Write(&buf, binary.BigEndian, gnv.UDPv4Header)
 	if err != nil {
 		return nil, err
 	}
-	buf.Write(h.FixedBytes())
-	buf.Write(h.Options)
+	buf.Write(gnv.FixedBytes())
+	buf.Write(gnv.Options)
 	return buf.Bytes(), nil
 }
 

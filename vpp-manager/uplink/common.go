@@ -31,14 +31,14 @@ import (
 )
 
 const (
-	NATIVE_DRIVER_NONE      = "none"
-	NATIVE_DRIVER_AF_PACKET = "af_packet"
-	NATIVE_DRIVER_AF_XDP    = "af_xdp"
-	NATIVE_DRIVER_VIRTIO    = "virtio"
-	NATIVE_DRIVER_AVF       = "avf"
-	NATIVE_DRIVER_DPDK      = "dpdk"
-	NATIVE_DRIVER_RDMA      = "rdma"
-	NATIVE_DRIVER_VMXNET3   = "vmxnet3"
+	NativeDriverNone     = "none"
+	NativeDriverAfPacket = "af_packet"
+	NativeDriverAfXdp    = "af_xdp"
+	NativeDriverVirtio   = "virtio"
+	NativeDriverAvf      = "avf"
+	NativeDriverDpdk     = "dpdk"
+	NativeDriverRdma     = "rdma"
+	NativeDriverVmxnet3  = "vmxnet3"
 )
 
 type UplinkDriverData struct {
@@ -212,21 +212,21 @@ func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.LinuxI
 
 func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) (d UplinkDriver) {
 	switch name {
-	case NATIVE_DRIVER_RDMA:
+	case NativeDriverRdma:
 		d = NewRDMADriver(params, conf, spec)
-	case NATIVE_DRIVER_VMXNET3:
+	case NativeDriverVmxnet3:
 		d = NewVmxnet3Driver(params, conf, spec)
-	case NATIVE_DRIVER_AF_PACKET:
+	case NativeDriverAfPacket:
 		d = NewAFPacketDriver(params, conf, spec)
-	case NATIVE_DRIVER_AF_XDP:
+	case NativeDriverAfXdp:
 		d = NewAFXDPDriver(params, conf, spec)
-	case NATIVE_DRIVER_VIRTIO:
+	case NativeDriverVirtio:
 		d = NewVirtioDriver(params, conf, spec)
-	case NATIVE_DRIVER_AVF:
+	case NativeDriverAvf:
 		d = NewAVFDriver(params, conf, spec)
-	case NATIVE_DRIVER_DPDK:
+	case NativeDriverDpdk:
 		d = NewDPDKDriver(params, conf, spec)
-	case NATIVE_DRIVER_NONE:
+	case NativeDriverNone:
 		fallthrough
 	default:
 		log.Warnf("Using default driver")

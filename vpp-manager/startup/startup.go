@@ -67,16 +67,16 @@ func NewVppManagerParams() *config.VppManagerParams {
 
 	/* Drivers */
 	params.LoadedDrivers = make(map[string]bool)
-	vfioLoaded, err := utils.IsDriverLoaded(config.DRIVER_VFIO_PCI)
+	vfioLoaded, err := utils.IsDriverLoaded(config.DriverVfioPci)
 	if err != nil {
-		log.Warnf("Error determining whether %s is loaded", config.DRIVER_VFIO_PCI)
+		log.Warnf("Error determining whether %s is loaded", config.DriverVfioPci)
 	}
-	params.LoadedDrivers[config.DRIVER_VFIO_PCI] = vfioLoaded
-	uioLoaded, err := utils.IsDriverLoaded(config.DRIVER_UIO_PCI_GENERIC)
+	params.LoadedDrivers[config.DriverVfioPci] = vfioLoaded
+	uioLoaded, err := utils.IsDriverLoaded(config.DriverUioPciGeneric)
 	if err != nil {
-		log.Warnf("Error determining whether %s is loaded", config.DRIVER_UIO_PCI_GENERIC)
+		log.Warnf("Error determining whether %s is loaded", config.DriverUioPciGeneric)
 	}
-	params.LoadedDrivers[config.DRIVER_UIO_PCI_GENERIC] = uioLoaded
+	params.LoadedDrivers[config.DriverUioPciGeneric] = uioLoaded
 
 	/* AF XDP support */
 	kernel, err := utils.GetOsKernelVersion()
@@ -122,7 +122,7 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 		log.Infof("-- Interface config --")
 		log.Infof("Node IP4:            %s", conf.NodeIP4)
 		log.Infof("Node IP6:            %s", conf.NodeIP6)
-		log.Infof("PciId:               %s", conf.PciId)
+		log.Infof("PciID:               %s", conf.PciID)
 		log.Infof("Driver:              %s", conf.Driver)
 		log.Infof("Linux IF was up ?    %t", conf.IsUp)
 		log.Infof("Promisc was on ?     %t", conf.PromiscOn)

@@ -23,8 +23,8 @@ import (
 
 func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) error {
 	for idx, hostPort := range podSpec.HostPorts {
-		for _, containerAddr := range podSpec.ContainerIps {
-			if !vpplink.AddrFamilyDiffers(containerAddr.IP, hostPort.HostIP) {
+		for _, containerAddr := range podSpec.ContainerIPs {
+			if !vpplink.AddrFamilyDiffers(containerAddr, hostPort.HostIP) {
 				continue
 			}
 			entry := &types.CnatTranslateEntry{
@@ -35,7 +35,7 @@ func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.Clean
 				Backends: []types.CnatEndpointTuple{{
 					DstEndpoint: types.CnatEndpoint{
 						Port: hostPort.ContainerPort,
-						IP:   containerAddr.IP,
+						IP:   containerAddr,
 					},
 				}},
 				IsRealIP: true,

@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pod_interface
+package podinterface
 
 import (
 	"fmt"
@@ -30,7 +30,8 @@ type VclPodInterfaceDriver struct {
 }
 
 func getPodAppNamespaceName(podSpec *storage.LocalPodSpec) string {
-	return fmt.Sprintf("app-ns-%s", podSpec.Key())
+	podSpecKey := storage.LocalPodSpecKey(podSpec.NetnsName, podSpec.InterfaceName)
+	return fmt.Sprintf("app-ns-%s", podSpecKey)
 }
 
 func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodInterfaceDriver {
@@ -59,8 +60,8 @@ func (i *VclPodInterfaceDriver) Init() (err error) {
 
 func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	appNamespace := &types.SessionAppNamespace{
-		NamespaceId: getPodAppNamespaceName(podSpec),
-		SwIfIndex:   podSpec.LoopbackSwIfIndex,
+		NamespaceID: getPodAppNamespaceName(podSpec),
+		SwIfIndex:   podSpec.Status.LoopbackSwIfIndex,
 		SocketName:  fmt.Sprintf("abstract:%s,netns_name=%s", "vpp/session", podSpec.NetnsName),
 		Secret:      0,
 	}
@@ -71,7 +72,7 @@ func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, s
 		stack.Push(i.vpp.DelSessionAppNamespace, appNamespace)
 	}
 
-	err = i.vpp.InterfaceAdminUp(podSpec.LoopbackSwIfIndex)
+	err = i.vpp.InterfaceAdminUp(podSpec.Status.LoopbackSwIfIndex)
 	if err != nil {
 		return err
 	}
@@ -82,7 +83,7 @@ func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, s
 func (i *VclPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
 	var err error
 	appNamespace := &types.SessionAppNamespace{
-		NamespaceId: getPodAppNamespaceName(podSpec),
+		NamespaceID: getPodAppNamespaceName(podSpec),
 	}
 	err = i.vpp.DelSessionAppNamespace(appNamespace)
 	if err != nil {

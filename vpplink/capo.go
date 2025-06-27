@@ -23,14 +23,14 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (v *VppLink) IpsetCreate(ipsetType types.IpsetType) (setId uint32, err error) {
+func (v *VppLink) IpsetCreate(ipsetType types.IpsetType) (setID uint32, err error) {
 	client := capo.NewServiceClient(v.GetConnection())
 
 	response, err := client.CapoIpsetCreate(v.GetContext(), &capo.CapoIpsetCreate{
 		Type: capo.CapoIpsetType(ipsetType),
 	})
 	if err != nil {
-		return 0, fmt.Errorf("CapoIpsetCreate failed: %w", err)
+		return 0, fmt.Errorf("capoIpsetCreate failed: %w", err)
 	}
 	return response.SetID, nil
 }
@@ -42,7 +42,7 @@ func (v *VppLink) IpsetDelete(ipsetID uint32) error {
 		SetID: ipsetID,
 	})
 	if err != nil {
-		return fmt.Errorf("CapoIpsetDelete failed: %w", err)
+		return fmt.Errorf("capoIpsetDelete failed: %w", err)
 	}
 	return nil
 }
@@ -57,7 +57,7 @@ func (v *VppLink) addDelIpsetMembers(ipsetID uint32, isAdd bool, members []capo.
 		Members: members,
 	})
 	if err != nil {
-		return fmt.Errorf("CapoIpsetAddDelMembers failed: %w", err)
+		return fmt.Errorf("capoIpsetAddDelMembers failed: %w", err)
 	}
 	return nil
 }
@@ -114,76 +114,76 @@ func (v *VppLink) DelIpsetIPPortMembers(ipsetID uint32, members []types.IPPort) 
 	return v.addDelIpsetIPPortMembers(ipsetID, false, members)
 }
 
-func (v *VppLink) RuleCreate(rule *types.Rule) (ruleId uint32, err error) {
+func (v *VppLink) RuleCreate(rule *types.Rule) (ruleID uint32, err error) {
 	client := capo.NewServiceClient(v.GetConnection())
 
 	response, err := client.CapoRuleCreate(v.GetContext(), &capo.CapoRuleCreate{
 		Rule: types.ToCapoRule(rule),
 	})
 	if err != nil {
-		return 0, fmt.Errorf("CapoRuleCreate failed: %w", err)
+		return 0, fmt.Errorf("capoRuleCreate failed: %w", err)
 	}
 	return response.RuleID, nil
 }
 
-func (v *VppLink) RuleUpdate(ruleId uint32, rule *types.Rule) error {
+func (v *VppLink) RuleUpdate(ruleID uint32, rule *types.Rule) error {
 	client := capo.NewServiceClient(v.GetConnection())
 
 	_, err := client.CapoRuleUpdate(v.GetContext(), &capo.CapoRuleUpdate{
-		RuleID: ruleId,
+		RuleID: ruleID,
 		Rule:   types.ToCapoRule(rule),
 	})
 	if err != nil {
-		return fmt.Errorf("CapoRuleUpdate failed: %w", err)
+		return fmt.Errorf("capoRuleUpdate failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) RuleDelete(ruleId uint32) error {
+func (v *VppLink) RuleDelete(ruleID uint32) error {
 	client := capo.NewServiceClient(v.GetConnection())
 
 	_, err := client.CapoRuleDelete(v.GetContext(), &capo.CapoRuleDelete{
-		RuleID: ruleId,
+		RuleID: ruleID,
 	})
 	if err != nil {
-		return fmt.Errorf("CapoRuleDelete failed: %w", err)
+		return fmt.Errorf("capoRuleDelete failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) PolicyCreate(policy *types.Policy) (policyId uint32, err error) {
+func (v *VppLink) PolicyCreate(policy *types.Policy) (policyID uint32, err error) {
 	client := capo.NewServiceClient(v.GetConnection())
 
 	response, err := client.CapoPolicyCreate(v.GetContext(), &capo.CapoPolicyCreate{
 		Rules: types.ToCapoPolicy(policy),
 	})
 	if err != nil {
-		return 0, fmt.Errorf("CapoPolicyCreate failed: %w", err)
+		return 0, fmt.Errorf("capoPolicyCreate failed: %w", err)
 	}
 	return response.PolicyID, nil
 }
 
-func (v *VppLink) PolicyUpdate(policyId uint32, policy *types.Policy) error {
+func (v *VppLink) PolicyUpdate(policyID uint32, policy *types.Policy) error {
 	client := capo.NewServiceClient(v.GetConnection())
 
 	_, err := client.CapoPolicyUpdate(v.GetContext(), &capo.CapoPolicyUpdate{
-		PolicyID: policyId,
+		PolicyID: policyID,
 		Rules:    types.ToCapoPolicy(policy),
 	})
 	if err != nil {
-		return fmt.Errorf("CapoPolicyUpdate failed: %w", err)
+		return fmt.Errorf("capoPolicyUpdate failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) PolicyDelete(policyId uint32) error {
+func (v *VppLink) PolicyDelete(policyID uint32) error {
 	client := capo.NewServiceClient(v.GetConnection())
 
 	_, err := client.CapoPolicyDelete(v.GetContext(), &capo.CapoPolicyDelete{
-		PolicyID: policyId,
+		PolicyID: policyID,
 	})
 	if err != nil {
-		return fmt.Errorf("CapoPolicyDelete failed: %w", err)
+		return fmt.Errorf("capoPolicyDelete failed: %w", err)
 	}
 	return nil
 }
@@ -208,7 +208,7 @@ func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfi
 		InvertRxTx:    invertRxTx,
 	})
 	if err != nil {
-		return fmt.Errorf("CapoConfigurePolicies failed: %w", err)
+		return fmt.Errorf("capoConfigurePolicies failed: %w", err)
 	}
 	return nil
 }

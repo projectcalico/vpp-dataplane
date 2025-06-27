@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pod_interface
+package podinterface
 
 import (
 	"fmt"
@@ -58,13 +58,13 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	if podSpec.NetworkName == "" {
 		memifName = "vpp/memif-" + podSpec.InterfaceName
 	}
-	socketId, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("abstract:%s,netns_name=%s", memifName, podSpec.NetnsName))
+	socketID, err := i.vpp.AddMemifSocketFileName(fmt.Sprintf("abstract:%s,netns_name=%s", memifName, podSpec.NetnsName))
 	if err != nil {
 		return err
 	} else {
-		stack.Push(i.vpp.DelMemifSocketFileName, socketId)
+		stack.Push(i.vpp.DelMemifSocketFileName, socketID)
 	}
-	podSpec.MemifSocketId = socketId
+	podSpec.Status.MemifSocketID = socketID
 
 	var usedIfSpec config.InterfaceSpec
 	if podSpec.NetworkName == "" { //PBL case
@@ -79,7 +79,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 		NumRxQueues: usedIfSpec.NumRxQueues,
 		NumTxQueues: usedIfSpec.NumTxQueues,
 		QueueSize:   usedIfSpec.RxQueueSize,
-		SocketId:    socketId,
+		SocketID:    socketID,
 	}
 	if *usedIfSpec.IsL3 {
 		memif.Mode = types.MemifModeIP
@@ -91,7 +91,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	} else {
 		stack.Push(i.vpp.DeleteMemif, memif.SwIfIndex)
 	}
-	podSpec.MemifSwIfIndex = memif.SwIfIndex
+	podSpec.Status.MemifSwIfIndex = memif.SwIfIndex
 
 	if *(*config.CalicoVppDebug).SpreadTxQueuesOnWorkers {
 		watcher, err := i.vpp.WatchInterfaceEvents(memif.SwIfIndex)
@@ -160,7 +160,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 			} else {
 				stack.Push(i.deleteDummy, podSpec.NetnsName, podSpec.InterfaceName)
 			}
-			err = ns.WithNetNSPath(podSpec.NetnsName, i.configureDummy(podSpec.MemifSwIfIndex, podSpec))
+			err = ns.WithNetNSPath(podSpec.NetnsName, i.configureDummy(podSpec.Status.MemifSwIfIndex, podSpec))
 			if err != nil {
 				return errors.Wrapf(err, "Error in linux NS config")
 			}
@@ -171,26 +171,26 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 }
 
 func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
-	if podSpec.MemifSwIfIndex == vpplink.InvalidID {
+	if podSpec.Status.MemifSwIfIndex == vpplink.InvalidID {
 		return
 	}
 
-	i.UndoPodInterfaceConfiguration(podSpec.MemifSwIfIndex)
-	i.UndoPodIfNatConfiguration(podSpec.MemifSwIfIndex)
+	i.UndoPodInterfaceConfiguration(podSpec.Status.MemifSwIfIndex)
+	i.UndoPodIfNatConfiguration(podSpec.Status.MemifSwIfIndex)
 
-	err := i.vpp.DeleteMemif(podSpec.MemifSwIfIndex)
+	err := i.vpp.DeleteMemif(podSpec.Status.MemifSwIfIndex)
 	if err != nil {
-		i.log.Warnf("Error deleting memif[%d] %s", podSpec.MemifSwIfIndex, err)
+		i.log.Warnf("Error deleting memif[%d] %s", podSpec.Status.MemifSwIfIndex, err)
 	}
 
-	if podSpec.MemifSocketId != 0 {
-		err = i.vpp.DelMemifSocketFileName(podSpec.MemifSocketId)
+	if podSpec.Status.MemifSocketID != 0 {
+		err = i.vpp.DelMemifSocketFileName(podSpec.Status.MemifSocketID)
 		if err != nil {
-			i.log.Warnf("Error deleting memif[%d] socket[%d] %s", podSpec.MemifSwIfIndex, podSpec.MemifSocketId, err)
+			i.log.Warnf("Error deleting memif[%d] socket[%d] %s", podSpec.Status.MemifSwIfIndex, podSpec.Status.MemifSocketID, err)
 		}
 	}
 
-	i.log.Infof("pod(del) memif swIfIndex=%d", podSpec.MemifSwIfIndex)
+	i.log.Infof("pod(del) memif swIfIndex=%d", podSpec.Status.MemifSwIfIndex)
 
 }
 
@@ -217,7 +217,7 @@ func (i *MemifPodInterfaceDriver) configureDummy(swIfIndex uint32, podSpec *stor
 			}
 		}
 
-		for _, route := range podSpec.GetRoutes() {
+		for _, route := range podSpec.Routes {
 			isV6 := route.IP.To4() == nil
 			if (isV6 && !hasv6) || (!isV6 && !hasv4) {
 				i.log.Infof("Skipping dummy[%d] route for %s", swIfIndex, route.String())
@@ -227,7 +227,7 @@ func (i *MemifPodInterfaceDriver) configureDummy(swIfIndex uint32, podSpec *stor
 			err = netlink.RouteAdd(&netlink.Route{
 				LinkIndex: contDummy.Attrs().Index,
 				Scope:     netlink.SCOPE_UNIVERSE,
-				Dst:       route,
+				Dst:       &route,
 			})
 			if err != nil {
 				// TODO : in ipv6 '::' already exists
@@ -236,7 +236,7 @@ func (i *MemifPodInterfaceDriver) configureDummy(swIfIndex uint32, podSpec *stor
 		}
 
 		// Now add the IPs to the container side of the tun.
-		for _, containerIP := range podSpec.GetContainerIps() {
+		for _, containerIP := range podSpec.GetContainerIPs() {
 			i.log.Infof("Add dummy[%d] linux%d ip %s", swIfIndex, contDummy.Attrs().Index, containerIP.String())
 			err = netlink.AddrAdd(contDummy, &netlink.Addr{IPNet: containerIP})
 			if err != nil {
