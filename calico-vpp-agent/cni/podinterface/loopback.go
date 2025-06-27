@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pod_interface
+package podinterface
 
 import (
 	"github.com/pkg/errors"
@@ -45,9 +45,9 @@ func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSp
 	}
 	podSpec.LoopbackSwIfIndex = swIfIndex
 
-	for _, ipFamily := range vpplink.IpFamilies {
-		vrfId := podSpec.GetVrfId(ipFamily)
-		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfId, ipFamily.IsIp6)
+	for _, ipFamily := range vpplink.IPFamilies {
+		vrfID := podSpec.GetVrfID(ipFamily)
+		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfID, ipFamily.IsIP6)
 		if err != nil {
 			return errors.Wrapf(err, "Error setting loopback %d in per pod vrf", swIfIndex)
 		}

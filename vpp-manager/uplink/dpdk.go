@@ -38,7 +38,7 @@ type DPDKDriver struct {
 func (d *DPDKDriver) IsSupported(warn bool) (supported bool) {
 	var ret bool
 	supported = true
-	ret = d.conf.PciId != ""
+	ret = d.conf.PciID != ""
 	if !ret && warn {
 		log.Warnf("did not find  pci device id for interface")
 	}
@@ -56,15 +56,15 @@ func (d *DPDKDriver) getFinalDriver() string {
 func (d *DPDKDriver) PreconfigureLinux() (err error) {
 	d.removeLinuxIfConf(true /* down */)
 	if d.conf.DoSwapDriver {
-		err = utils.SwapDriver(d.conf.PciId, d.spec.NewDriverName, true)
+		err = utils.SwapDriver(d.conf.PciID, d.spec.NewDriverName, true)
 		if err != nil {
 			log.Warnf("Failed to swap driver to %s: %v", d.spec.NewDriverName, err)
 		}
 	}
-	if d.getFinalDriver() == config.DRIVER_VFIO_PCI &&
+	if d.getFinalDriver() == config.DriverVfioPci &&
 		d.params.AvailableHugePages == 0 &&
-		d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_YES {
-		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_NO)
+		d.params.InitialVfioEnableUnsafeNoIommuMode == config.VfioUnsafeNoIommuModeYES {
+		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VfioUnsafeNoIommuModeNO)
 		if err != nil {
 			return errors.Wrapf(err, "failed to configure vfio")
 		}
@@ -84,14 +84,14 @@ func (d *DPDKDriver) UpdateVppConfigFile(template string) string {
 	if d.params.AvailableHugePages > 0 {
 		template = fmt.Sprintf(
 			"%s\ndpdk {\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d tag %s } \n}\n",
-			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues,
+			template, d.conf.PciID, d.spec.NumRxQueues, d.spec.NumTxQueues,
 			d.spec.RxQueueSize, d.spec.TxQueueSize, "main-"+d.spec.InterfaceName,
 		)
 
 	} else {
 		template = fmt.Sprintf(
 			"%s\ndpdk {\niova-mode va\nno-hugetlb\ndev %s { num-rx-queues %d num-tx-queues %d num-rx-desc %d num-tx-desc %d tag %s } \n}\n",
-			template, d.conf.PciId, d.spec.NumRxQueues, d.spec.NumTxQueues,
+			template, d.conf.PciID, d.spec.NumRxQueues, d.spec.NumTxQueues,
 			d.spec.RxQueueSize, d.spec.TxQueueSize, "main-"+d.spec.InterfaceName,
 		)
 
@@ -114,9 +114,9 @@ write:
 }
 
 func (d *DPDKDriver) restoreInterfaceName() error {
-	newName, err := utils.GetInterfaceNameFromPci(d.conf.PciId)
+	newName, err := utils.GetInterfaceNameFromPci(d.conf.PciID)
 	if err != nil {
-		return errors.Wrapf(err, "Error getting new if name for %s: %v", newName, d.conf.PciId)
+		return errors.Wrapf(err, "Error getting new if name for %s: %v", newName, d.conf.PciID)
 	}
 	if newName == d.spec.InterfaceName {
 		return nil
@@ -133,10 +133,10 @@ func (d *DPDKDriver) restoreInterfaceName() error {
 }
 
 func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
-	if d.conf.PciId != "" && d.conf.Driver != "" {
-		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, false)
+	if d.conf.PciID != "" && d.conf.Driver != "" {
+		err := utils.SwapDriver(d.conf.PciID, d.conf.Driver, false)
 		if err != nil {
-			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
+			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciID, err)
 		}
 	}
 
@@ -164,10 +164,10 @@ func (d *DPDKDriver) RestoreLinux(allInterfacesPhysical bool) {
 	// Re-add all adresses and routes
 	d.restoreLinuxIfConf(link)
 
-	if d.getFinalDriver() == config.DRIVER_VFIO_PCI &&
+	if d.getFinalDriver() == config.DriverVfioPci &&
 		d.params.AvailableHugePages == 0 &&
-		d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_YES {
-		err = utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_YES)
+		d.params.InitialVfioEnableUnsafeNoIommuMode == config.VfioUnsafeNoIommuModeYES {
+		err = utils.SetVfioEnableUnsafeNoIommuMode(config.VfioUnsafeNoIommuModeYES)
 		if err != nil {
 			log.Errorf("failed to configure vfio %s", err)
 		}
@@ -197,7 +197,7 @@ func (d *DPDKDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, up
 
 func NewDPDKDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *DPDKDriver {
 	d := &DPDKDriver{}
-	d.name = NATIVE_DRIVER_DPDK
+	d.name = NativeDriverDpdk
 	d.conf = conf
 	d.params = params
 	d.spec = spec

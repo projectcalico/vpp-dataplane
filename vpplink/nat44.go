@@ -32,7 +32,7 @@ func (v *VppLink) EnableNatForwarding() error {
 		Enable: true,
 	})
 	if err != nil {
-		return fmt.Errorf("NAT44 forwarding enable failed: %w", err)
+		return fmt.Errorf("nat44 forwarding enable failed: %w", err)
 	}
 	v.GetLog().Debug("Enabled NAT44 forwarding")
 	return nil
