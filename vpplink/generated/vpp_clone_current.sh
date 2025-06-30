@@ -101,12 +101,9 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-# VPP latest commit as on 12/May/2025
-BASE="${BASE:-"5a1d844511e497dd72cbc8a56db97dfe1a4645ef"}" # dev: enable flow on primary interface
-if [ "$VPP_DIR" = "" ]; then
-	VPP_DIR="$1"
-fi
-git_clone_cd_and_reset "$VPP_DIR" ${BASE}
+# VPP 25.06 released on 25/June/2025
+BASE="${BASE:-"1573e751c5478d3914d26cdde153390967932d6b"}" # misc: VPP 25.06 Release Notes
+git_clone_cd_and_reset "$1" ${BASE}
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 
