@@ -22,8 +22,8 @@ import (
 	"io"
 	"net"
 
-	pb "github.com/gogo/protobuf/proto"
 	"github.com/projectcalico/calico/felix/proto"
+	pb "google.golang.org/protobuf/proto"
 )
 
 func (s *Server) MessageReader(conn net.Conn) <-chan interface{} {
