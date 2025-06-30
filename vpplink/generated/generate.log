@@ -1,6 +1,6 @@
-VPP Version                 : 25.06-rc0~247-gaf9fa5d40
+VPP Version                 : 25.06.0-7~g97083d4c9
 Binapi-generator version    : v0.11.0
-VPP Base commit             : 698517b76 gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : 47505bc21 misc: Initial changes for stable/2506 branch
 ------------------ Cherry picked commits --------------------
 ip: add support for checksum in IP midchain
 capo: Calico Policies plugin
@@ -9,4 +9,11 @@ cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
 gerrit:revert:39675/5 Revert "ip-neighbor: do not use sas to determine NS source address"
 gerrit:34726/3 interface: add buffer stats api
+misc: VPP 25.06 Release Notes
+hsa: http client init wrk->vlib_main in setup
+tls: add half close support
+af_packet: show host interface offload flags
+af_packet: fix the error handling on transmit
+dma_intel: fix ats_disable attribute handling
+misc: Initial changes for stable/2506 branch
 -------------------------------------------------------------
