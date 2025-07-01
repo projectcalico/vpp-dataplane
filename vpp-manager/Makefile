@@ -13,6 +13,7 @@ GENERATE_LOG_FILE=../vpplink/generated/generate.log
 VERSION_FILE=$(IMAGE_DIR)/version
 TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
+VPP_DIR ?= $(CURDIR)/vpp_build
 
 PATCHES = $(sort $(wildcard $(VPPLINK_DIR)/generated/patches/*.patch))
 VPP_HASH = $(shell md5sum <(md5sum $(VPPLINK_DIR)/generated/vpp_clone_current.sh ${PATCHES}) | cut -f 1 -d' ')
@@ -71,6 +72,7 @@ imageonly: build
 	cp $(VPPDEV_FILE) $(IMAGE_DIR)
 	docker build ${SQUASH} --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+		--build-arg https_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 
 clean: clean-vpp
@@ -79,15 +81,15 @@ clone-vpp:
 	BASE=$(BASE) bash $(VPPLINK_DIR)/generated/vpp_clone_current.sh ./vpp_build
 
 clean-vpp:
-	git -C vpp_build clean -ffdx || true
-	rm -f ./vpp_build/build-root/*.deb
-	rm -f ./vpp_build/build-root/*.buildinfo
-	rm -f $(IMAGE_DIR)/*.deb
+	git -C $(VPP_DIR) clean -ffdx || true; \
+	rm -f $(VPP_DIR)/build-root/*.deb; \
+	rm -f $(VPP_DIR)/build-root/*.buildinfo; \
+	rm -f $(IMAGE_DIR)/*.deb; \
 
 rebuild-vpp: vpp-build-env
 	docker run --rm \
-		-e VPP_MGR_DIR=$(CURDIR) \
-		-v $(CURDIR):$(CURDIR):delegated \
+		-e VPP_DIR=$(VPP_DIR) \
+		-v $(VPP_DIR):$(VPP_DIR):delegated \
 		--user $$(id -u):$$(id -g) \
 		--env NO_BUILD_DEBS=true \
 		--env HTTP_PROXY=$(HTTP_PROXY) \
@@ -97,10 +99,10 @@ rebuild-vpp: vpp-build-env
 		--network=host \
 		calicovpp/vpp-build:latest
 
-vpp: clone-vpp clean-vpp vpp-build-env
+vpp: clone-vpp vpp-build-env
 	docker run --rm \
-		-e VPP_MGR_DIR=$(CURDIR) \
-		-v $(CURDIR):$(CURDIR):delegated \
+		-e VPP_DIR=$(VPP_DIR) \
+		-v $(VPP_DIR):$(VPP_DIR):delegated \
 		--user $$(id -u):$$(id -g) \
 		--network=host \
 		--env HTTP_PROXY=$(HTTP_PROXY) \
@@ -108,8 +110,9 @@ vpp: clone-vpp clean-vpp vpp-build-env
 		--env http_proxy=$(http_proxy) \
 		--env https_proxy=$(https_proxy) \
 		calicovpp/vpp-build:latest
+
 	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra vpp-dbg ; do \
-		cp vpp_build/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
+		cp $(VPP_DIR)/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
 	done
 ifdef CI_BUILD
 	find $(IMAGE_DIR) -type f -name '*.deb' -printf "%P\n"  | tar -czvf ${VPP_TARBALL} -C $(IMAGE_DIR) -T -
@@ -129,12 +132,14 @@ endif
 vpp-build-env:
 	docker build --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+		--build-arg https_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/vpp-build:latest images/ubuntu-build
 
 dev: build
 	cp $(VPPDEV_FILE) $(DEV_IMAGE_DIR)
 	docker build --squash --network=host \
 	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+	  --build-arg https_proxy=${DOCKER_BUILD_PROXY} \
 	  --build-arg WITH_GDB=${WITH_GDB} \
 	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
