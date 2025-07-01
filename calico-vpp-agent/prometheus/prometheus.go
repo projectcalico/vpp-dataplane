@@ -83,79 +83,33 @@ func NewPrometheusServer(vpp *vpplink.VppLink, log *logrus.Entry) *PrometheusSer
 	return server
 }
 
-func cleanVppStatName(vppStatName string) string {
+func cleanVppIfStatName(vppStatName string) string {
 	vppStatName = strings.TrimPrefix(vppStatName, "/if/")
 	vppStatName = strings.Replace(vppStatName, "-", "_", -1)
 	return vppStatName
 }
 
-func getVppStatDescription(vppStatName string) string {
-	switch cleanVppStatName(vppStatName) {
-	case "drops":
-		return "number of drops on interface"
-	case "ip4":
-		return "IPv4 received packets"
-	case "ip6":
-		return "IPv6 received packets"
-	case "punt":
-		return "number of punts on interface"
-	case "rx_bytes":
-		return "total number of bytes received over the interface"
-	case "tx_bytes":
-		return "total number of bytes transmitted by the interface"
-	case "rx_packets":
-		return "total number of packets received over the interface"
-	case "tx_packets":
-		return "total number of packets transmitted by the interface"
-	case "tx_broadcast_packets":
-		return "number of multipoint communications transmitted by the interface in packets"
-	case "rx_broadcast_packets":
-		return "number of multipoint communications received by the interface in packets"
-	case "tx_broadcast_bytes":
-		return "number of multipoint communications transmitted by the interface in bytes"
-	case "rx_broadcast_bytes":
-		return "number of multipoint communications received by the interface in bytes"
-	case "tx_unicast_packets":
-		return "number of point-to-point communications transmitted by the interface in packets"
-	case "rx_unicast_packets":
-		return "number of point-to-point communications received by the interface in packets"
-	case "tx_unicast_bytes":
-		return "number of point-to-point communications transmitted by the interface in bytes"
-	case "rx_unicast_bytes":
-		return "number of point-to-point communications received by the interface in bytes"
-	case "tx_multicast_packets":
-		return "number of one-to-many communications transmitted by the interface in packets"
-	case "rx_multicast_packets":
-		return "number of one-to-many communications received by the interface in packets"
-	case "tx_multicast_bytes":
-		return "number of one-to-many communications transmitted by the interface in bytes"
-	case "rx_multicast_bytes":
-		return "number of one-to-many communications received by the interface in bytes"
-	case "rx_error":
-		return "total number of erroneous received packets"
-	case "tx_error":
-		return "total number of erroneous transmitted packets"
-	case "rx_miss":
-		return "total of rx packets dropped because there are no available buffer"
-	case "tx_miss":
-		return "total of tx packets dropped because there are no available buffer"
-	case "rx_no_buf":
-		return "total number of rx mbuf allocation failures"
-	case "tx_no_buf":
-		return "total number of tx mbuf allocation failures"
-	default:
-		return vppStatName
-	}
+func cleanVppTCPStatName(vppStatName string, prefix string) string {
+	vppStatName = strings.TrimPrefix(vppStatName, prefix)
+	vppStatName = strings.Replace(vppStatName, "-", "_", -1)
+	vppStatName = strings.Replace(vppStatName, "/", "_", -1)
+	return vppStatName
+}
+
+func cleanVppSessionStatName(vppStatName string) string {
+	vppStatName = strings.TrimPrefix(vppStatName, "/sys/session/")
+	vppStatName = strings.Replace(vppStatName, "/", "_", -1)
+	return vppStatName
 }
 
 func (self *PrometheusServer) exportMetrics() error {
-	vppStats, err := self.statsclient.DumpStats("/if/")
+	ifStats, err := self.statsclient.DumpStats("/if/")
 	if err != nil {
-		self.log.Errorf("Error running statsclient.DumpStats %v", err)
+		self.log.Errorf("Error running statsclient.DumpStats for Interface stats %v", err)
 		return nil
 	}
 	var ifNames adapter.NameStat
-	for _, vppStat := range vppStats {
+	for _, vppStat := range ifStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.NameStat:
 			ifNames = values
@@ -163,7 +117,9 @@ func (self *PrometheusServer) exportMetrics() error {
 	}
 
 	self.lock.Lock()
-	for _, vppStat := range vppStats {
+
+	// Export Interface stats
+	for _, vppStat := range ifStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
 			for worker, perWorkerValues := range values {
@@ -180,7 +136,80 @@ func (self *PrometheusServer) exportMetrics() error {
 			}
 		}
 	}
+
+	// Export TCP stats
+	tcpStats, err := self.statsclient.DumpStats("/sys/tcp")
+	if err != nil {
+		self.log.Errorf("Error running statsclient.DumpStats for TCP stats %v", err)
+		return nil
+	}
+	for _, vppStat := range tcpStats {
+		switch values := vppStat.Data.(type) {
+		case adapter.SimpleCounterStat:
+			for worker, perWorkerValues := range values {
+				for _, counter := range perWorkerValues {
+					self.exportTCPMetric(cleanVppTCPStatName(string(vppStat.Name), "/sys/"), worker, uint64(counter))
+				}
+			}
+		}
+	}
+
+	// Export TCP4 error stats
+	tcp4ErrStats, err := self.statsclient.DumpStats("/err/tcp4")
+	if err != nil {
+		self.log.Errorf("Error running statsclient.DumpStats for TCP4 error stats %v", err)
+		return nil
+	}
+	for _, vppStat := range tcp4ErrStats {
+		switch values := vppStat.Data.(type) {
+		case adapter.SimpleCounterStat:
+			for worker, perWorkerValues := range values {
+				for _, counter := range perWorkerValues {
+					self.exportTCPMetric(cleanVppTCPStatName(string(vppStat.Name), "/err/"), worker, uint64(counter))
+				}
+			}
+		}
+	}
+
+	// Export TCP6 error stats
+	tcp6ErrStats, err := self.statsclient.DumpStats("/err/tcp6")
+	if err != nil {
+		self.log.Errorf("Error running statsclient.DumpStats for TCP6 error stats %v", err)
+		return nil
+	}
+	for _, vppStat := range tcp6ErrStats {
+		switch values := vppStat.Data.(type) {
+		case adapter.SimpleCounterStat:
+			for worker, perWorkerValues := range values {
+				for _, counter := range perWorkerValues {
+					self.exportTCPMetric(cleanVppTCPStatName(string(vppStat.Name), "/err/"), worker, uint64(counter))
+				}
+			}
+		}
+	}
+
+	// Export Session stats
+	sessionStats, err := self.statsclient.DumpStats("/sys/session")
+	if err != nil {
+		self.log.Errorf("Error running statsclient.DumpStats for Session stats %v", err)
+		return nil
+	}
+	for _, vppStat := range sessionStats {
+		switch values := vppStat.Data.(type) {
+		case adapter.SimpleCounterStat:
+			for worker, perWorkerValues := range values {
+				for _, counter := range perWorkerValues {
+					self.exportSessionMetric(string(vppStat.Name), worker, uint64(counter))
+				}
+			}
+		case adapter.ScalarStat:
+			// ScalarStat is a single value, not per-worker
+			self.exportSessionMetric(string(vppStat.Name), 0, uint64(values))
+		}
+	}
+
 	self.lock.Unlock()
+
 	return nil
 }
 
@@ -196,9 +225,10 @@ func (self *PrometheusServer) exportInterfaceMetric(name string, worker int, swI
 		nil, /* resource */
 		&metricspb.Metric{
 			MetricDescriptor: &metricspb.MetricDescriptor{
-				Name:        cleanVppStatName(name),
+				Name:        cleanVppIfStatName(name),
 				Unit:        unit,
-				Description: getVppStatDescription(name),
+				Description: getVppIfStatDescription(name),
+				Type:        metricspb.MetricDescriptor_CUMULATIVE_DOUBLE,
 				// empty timeseries prevents exporter from updating
 				LabelKeys: []*metricspb.LabelKey{
 					{Key: "worker", Description: "VPP worker index"},
@@ -228,6 +258,74 @@ func (self *PrometheusServer) exportInterfaceMetric(name string, worker int, swI
 	)
 	if err != nil {
 		self.log.Errorf("Error prometheus exporter.ExportMetric %v", err)
+	}
+}
+
+func (self *PrometheusServer) exportTCPMetric(name string, worker int, value uint64) {
+	err := self.exporter.ExportMetric(
+		context.Background(),
+		nil, /* node */
+		nil, /* resource */
+		&metricspb.Metric{
+			MetricDescriptor: &metricspb.MetricDescriptor{
+				Name:        name,
+				Unit:        "",
+				Description: getVppTCPStatDescription(name),
+				Type:        metricspb.MetricDescriptor_CUMULATIVE_INT64,
+				LabelKeys: []*metricspb.LabelKey{
+					{Key: "worker", Description: "VPP worker index"},
+				},
+			},
+			Timeseries: []*metricspb.TimeSeries{{
+				LabelValues: []*metricspb.LabelValue{
+					{Value: strconv.Itoa(worker)},
+				},
+				Points: []*metricspb.Point{
+					{
+						Value: &metricspb.Point_Int64Value{
+							Int64Value: int64(value),
+						},
+					},
+				},
+			}},
+		},
+	)
+	if err != nil {
+		self.log.Errorf("Error prometheus exporter.ExportMetric for TCP %v", err)
+	}
+}
+
+func (self *PrometheusServer) exportSessionMetric(name string, worker int, value uint64) {
+	err := self.exporter.ExportMetric(
+		context.Background(),
+		nil, /* node */
+		nil, /* resource */
+		&metricspb.Metric{
+			MetricDescriptor: &metricspb.MetricDescriptor{
+				Name:        cleanVppSessionStatName(name),
+				Unit:        "",
+				Description: getVppSessionStatDescription(name),
+				Type:        metricspb.MetricDescriptor_CUMULATIVE_INT64,
+				LabelKeys: []*metricspb.LabelKey{
+					{Key: "worker", Description: "VPP worker index"},
+				},
+			},
+			Timeseries: []*metricspb.TimeSeries{{
+				LabelValues: []*metricspb.LabelValue{
+					{Value: strconv.Itoa(worker)},
+				},
+				Points: []*metricspb.Point{
+					{
+						Value: &metricspb.Point_Int64Value{
+							Int64Value: int64(value),
+						},
+					},
+				},
+			}},
+		},
+	)
+	if err != nil {
+		self.log.Errorf("Error prometheus exporter.ExportMetric for Session %v", err)
 	}
 }
 
@@ -294,10 +392,18 @@ func (self *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 		return errors.Wrap(err, "could not connect statsclient")
 	}
 
-	go self.httpServer.ListenAndServe()
+	go (func() {
+		err := self.httpServer.ListenAndServe()
+		if err != nil {
+			panic(err)
+		}
+	})()
 	ticker := time.NewTicker(*config.GetCalicoVppInitialConfig().PrometheusRecordMetricInterval)
 	for ; t.Alive(); <-ticker.C {
-		self.exportMetrics()
+		err := self.exportMetrics()
+		if err != nil {
+			self.log.WithError(err).Errorf("exportMetrics errored")
+		}
 	}
 	ticker.Stop()
 	self.log.Warn("Prometheus Server returned")
