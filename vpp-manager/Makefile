@@ -13,6 +13,13 @@ GENERATE_LOG_FILE=../vpplink/generated/generate.log
 VERSION_FILE=$(IMAGE_DIR)/version
 TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
+VPP_DIR ?= $(CURDIR)
+
+ifeq ($(VPP_DIR),$(CURDIR))
+	CUSTOM_VPP_DIR := 0
+else
+	CUSTOM_VPP_DIR := 1
+endif
 
 PATCHES = $(sort $(wildcard $(VPPLINK_DIR)/generated/patches/*.patch))
 VPP_HASH = $(shell md5sum <(md5sum $(VPPLINK_DIR)/generated/vpp_clone_current.sh ${PATCHES}) | cut -f 1 -d' ')
@@ -76,18 +83,25 @@ imageonly: build
 clean: clean-vpp
 
 clone-vpp:
-	BASE=$(BASE) bash $(VPPLINK_DIR)/generated/vpp_clone_current.sh ./vpp_build
+	if [ "$(CUSTOM_VPP_DIR)" -eq 0 ]; then \
+		VPP_DIR=${VPP_DIR}/vpp_build/; \
+	fi; \
+	BASE=$(BASE) bash $(VPPLINK_DIR)/generated/vpp_clone_current.sh $${VPP_DIR}
 
 clean-vpp:
-	git -C vpp_build clean -ffdx || true
-	rm -f ./vpp_build/build-root/*.deb
-	rm -f ./vpp_build/build-root/*.buildinfo
-	rm -f $(IMAGE_DIR)/*.deb
+	if [ "$(CUSTOM_VPP_DIR)" -eq 0 ]; then \
+		VPP_DIR=${VPP_DIR}/vpp_build/; \
+		git -C $${VPP_DIR} clean -ffdx || true; \
+		rm -f $${VPP_DIR}/build-root/*.deb; \
+		rm -f $${VPP_DIR}/build-root/*.buildinfo; \
+		rm -f $(IMAGE_DIR)/*.deb; \
+	fi
 
 rebuild-vpp: vpp-build-env
 	docker run --rm \
-		-e VPP_MGR_DIR=$(CURDIR) \
-		-v $(CURDIR):$(CURDIR):delegated \
+		-e CUSTOM_VPP_DIR=$(CUSTOM_VPP_DIR) \
+		-e VPP_DIR=$(VPP_DIR) \
+		-v $(VPP_DIR):$(VPP_DIR):delegated \
 		--user $$(id -u):$$(id -g) \
 		--env NO_BUILD_DEBS=true \
 		--env HTTP_PROXY=$(HTTP_PROXY) \
@@ -99,8 +113,9 @@ rebuild-vpp: vpp-build-env
 
 vpp: clone-vpp clean-vpp vpp-build-env
 	docker run --rm \
-		-e VPP_MGR_DIR=$(CURDIR) \
-		-v $(CURDIR):$(CURDIR):delegated \
+		-e CUSTOM_VPP_DIR=$(CUSTOM_VPP_DIR) \
+		-e VPP_DIR=$(VPP_DIR) \
+		-v $(VPP_DIR):$(VPP_DIR):delegated \
 		--user $$(id -u):$$(id -g) \
 		--network=host \
 		--env HTTP_PROXY=$(HTTP_PROXY) \
@@ -108,8 +123,12 @@ vpp: clone-vpp clean-vpp vpp-build-env
 		--env http_proxy=$(http_proxy) \
 		--env https_proxy=$(https_proxy) \
 		calicovpp/vpp-build:latest
+
+	if [ "$(CUSTOM_VPP_DIR)" -eq 0 ]; then \
+		VPP_DIR=${VPP_DIR}/vpp_build/; \
+	fi; \
 	for pkg in vpp vpp-plugin-core vpp-plugin-dpdk libvppinfra vpp-dbg ; do \
-		cp vpp_build/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
+		cp $${VPP_DIR}/build-root/$$pkg_*.deb $(IMAGE_DIR) ; \
 	done
 ifdef CI_BUILD
 	find $(IMAGE_DIR) -type f -name '*.deb' -printf "%P\n"  | tar -czvf ${VPP_TARBALL} -C $(IMAGE_DIR) -T -

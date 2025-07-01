@@ -168,6 +168,7 @@ cherry-vpp:
 .PHONY: cherry-wipe
 cherry-wipe:
 	rm -rf ./vpplink/binapi/.cherries-cache
+	rm -rf ./vpplink/generated/.cherries-cache
 
 .PHONY: yaml
 yaml:

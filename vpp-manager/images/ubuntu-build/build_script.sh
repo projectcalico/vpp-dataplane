@@ -2,7 +2,11 @@
 
 set -o errexit
 
-cd ${VPP_MGR_DIR}/vpp_build
+if [ "$CUSTOM_VPP_DIR" -eq 1 ]; then
+	cd ${VPP_DIR}
+else
+	cd ${VPP_DIR}/vpp_build
+fi
 
 make build-release
 if [ "${NO_BUILD_DEBS}" != "true" ]; then
