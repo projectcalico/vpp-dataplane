@@ -16,15 +16,15 @@
 package cni
 
 import (
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) error {
+func (s *Server) AddHostPort(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) error {
 	for idx, hostPort := range podSpec.HostPorts {
-		for _, containerAddr := range podSpec.ContainerIps {
-			if !vpplink.AddrFamilyDiffers(containerAddr.IP, hostPort.HostIP) {
+		for _, containerAddr := range podSpec.ContainerIPs {
+			if !vpplink.AddrFamilyDiffers(containerAddr, hostPort.HostIP) {
 				continue
 			}
 			entry := &types.CnatTranslateEntry{
@@ -35,7 +35,7 @@ func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.Clean
 				Backends: []types.CnatEndpointTuple{{
 					DstEndpoint: types.CnatEndpoint{
 						Port: hostPort.ContainerPort,
-						IP:   containerAddr.IP,
+						IP:   containerAddr,
 					},
 				}},
 				IsRealIP: true,
@@ -55,7 +55,7 @@ func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.Clean
 	return nil
 }
 
-func (s *Server) DelHostPort(podSpec *storage.LocalPodSpec) {
+func (s *Server) DelHostPort(podSpec *model.LocalPodSpec) {
 	initialSpec, ok := s.podInterfaceMap[podSpec.Key()]
 	if ok {
 		for _, hostPort := range initialSpec.HostPorts {

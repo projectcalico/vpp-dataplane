@@ -33,9 +33,9 @@ func (d *RDMADriver) IsSupported(warn bool) (supported bool) {
 	var ret bool
 	supported = true
 
-	ret = d.conf.Driver == config.DRIVER_MLX5_CORE
+	ret = d.conf.Driver == config.DriverMLX5Core
 	if !ret && warn {
-		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_MLX5_CORE)
+		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DriverMLX5Core)
 	}
 	supported = supported && ret
 
@@ -96,7 +96,7 @@ func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, up
 
 func NewRDMADriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *RDMADriver {
 	d := &RDMADriver{}
-	d.name = NATIVE_DRIVER_RDMA
+	d.name = NativeDriverRdma
 	d.conf = conf
 	d.params = params
 	d.spec = spec

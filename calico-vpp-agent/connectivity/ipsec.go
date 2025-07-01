@@ -324,14 +324,14 @@ func getIPSecRoutePaths(tunnels []IpsecTunnel) []types.RoutePath {
 	return paths
 }
 
-func (p *IpsecProvider) forceOtherNodeIp4(addr net.IP) (ip4 net.IP, err error) {
+func (p *IpsecProvider) forceOtherNodeIP4(addr net.IP) (ip4 net.IP, err error) {
 	/* If only IP6 (e.g. ipsec) is supported, find nodeip4 out of nodeip6 */
 	if !vpplink.IsIP6(addr) {
 		return addr, nil
 	}
-	otherNode := p.GetNodeByIp(addr)
+	otherNode := p.GetNodeByIP(addr)
 	if otherNode == nil {
-		return nil, fmt.Errorf("Didnt find an ip4 for ip %s", addr.String())
+		return nil, fmt.Errorf("didnt find an ip4 for ip %s", addr.String())
 	}
 	var nodeIP net.IP
 	if otherNode.IPv4Address != nil {
@@ -346,7 +346,7 @@ func (p *IpsecProvider) AddConnectivity(cn *common.NodeConnectivity) (err error)
 	var route *types.Route
 	var tunnels []IpsecTunnel
 
-	cn.NextHop, err = p.forceOtherNodeIp4(cn.NextHop)
+	cn.NextHop, err = p.forceOtherNodeIP4(cn.NextHop)
 	if err != nil {
 		return errors.Wrap(err, "Ipsec v6 config failed")
 	}
@@ -398,7 +398,7 @@ err:
 }
 
 func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error) {
-	cn.NextHop, err = p.forceOtherNodeIp4(cn.NextHop)
+	cn.NextHop, err = p.forceOtherNodeIP4(cn.NextHop)
 	if err != nil {
 		return errors.Wrap(err, "Ipsec v6 config failed")
 	}
@@ -419,8 +419,8 @@ func (p *IpsecProvider) DelConnectivity(cn *common.NodeConnectivity) (err error)
 
 	delete(p.ipsecRoutes[cn.NextHop.String()], routeToDelete.Dst.String())
 
-	remaining_routes, found := p.ipsecRoutes[cn.NextHop.String()]
-	if !found || len(remaining_routes) == 0 {
+	remainingRoutes, found := p.ipsecRoutes[cn.NextHop.String()]
+	if !found || len(remainingRoutes) == 0 {
 		for _, tunnel := range tunnels {
 			tunnel.cancel()
 			err = p.vpp.DelIKEv2Profile(tunnel.Profile())

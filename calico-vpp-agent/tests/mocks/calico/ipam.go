@@ -45,7 +45,7 @@ func NewIpamInterfaceStub() *IpamInterfaceStub {
 func (iis *IpamInterfaceStub) AutoAssign(ctx context.Context, args ipam.AutoAssignArgs) (*ipam.IPAMAssignments,
 	*ipam.IPAMAssignments, error) {
 	if args.Num4 > 0 {
-		return nil, nil, fmt.Errorf("IPv4 not supported")
+		return nil, nil, fmt.Errorf("ipv4 not supported")
 	}
 	if args.Num6 > 1 {
 		return nil, nil, fmt.Errorf("multiple IPv6 address assigment is not supported")

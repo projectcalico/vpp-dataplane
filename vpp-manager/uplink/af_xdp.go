@@ -159,7 +159,7 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, u
 
 func NewAFXDPDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *AFXDPDriver {
 	d := &AFXDPDriver{}
-	d.name = NATIVE_DRIVER_AF_XDP
+	d.name = NativeDriverAfXdp
 	d.conf = conf
 	d.params = params
 	d.spec = spec

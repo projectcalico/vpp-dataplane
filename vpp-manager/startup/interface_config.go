@@ -117,13 +117,13 @@ func loadInterfaceConfigFromLinux(ifSpec config.UplinkInterfaceSpec) (*config.Li
 	_, conf.IsTunTap = link.(*netlink.Tuntap)
 	_, conf.IsVeth = link.(*netlink.Veth)
 
-	pciId, err := utils.GetInterfacePciId(ifSpec.InterfaceName)
+	pciID, err := utils.GetInterfacePciID(ifSpec.InterfaceName)
 	// We allow PCI not to be found e.g for AF_PACKET
-	if err != nil || pciId == "" {
+	if err != nil || pciID == "" {
 		log.Infof("No pci device for interface %s", ifSpec.InterfaceName)
 	} else {
-		conf.PciId = pciId
-		driver, err := utils.GetDriverNameFromPci(pciId)
+		conf.PciID = pciID
+		driver, err := utils.GetDriverNameFromPci(pciID)
 		if err != nil {
 			return nil, err
 		}

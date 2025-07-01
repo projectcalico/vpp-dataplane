@@ -13,14 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pod_interface
+package podinterface
 
 import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
@@ -29,8 +29,9 @@ type VclPodInterfaceDriver struct {
 	PodInterfaceDriverData
 }
 
-func getPodAppNamespaceName(podSpec *storage.LocalPodSpec) string {
-	return fmt.Sprintf("app-ns-%s", podSpec.Key())
+func getPodAppNamespaceName(podSpec *model.LocalPodSpec) string {
+	podSpecKey := model.LocalPodSpecKey(podSpec.NetnsName, podSpec.InterfaceName)
+	return fmt.Sprintf("app-ns-%s", podSpecKey)
 }
 
 func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodInterfaceDriver {
@@ -57,9 +58,9 @@ func (i *VclPodInterfaceDriver) Init() (err error) {
 	return nil
 }
 
-func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
+func (i *VclPodInterfaceDriver) CreateInterface(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	appNamespace := &types.SessionAppNamespace{
-		NamespaceId: getPodAppNamespaceName(podSpec),
+		NamespaceID: getPodAppNamespaceName(podSpec),
 		SwIfIndex:   podSpec.LoopbackSwIfIndex,
 		SocketName:  fmt.Sprintf("abstract:%s,netns_name=%s", "vpp/session", podSpec.NetnsName),
 		Secret:      0,
@@ -79,10 +80,10 @@ func (i *VclPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, s
 	return nil
 }
 
-func (i *VclPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
+func (i *VclPodInterfaceDriver) DeleteInterface(podSpec *model.LocalPodSpec) {
 	var err error
 	appNamespace := &types.SessionAppNamespace{
-		NamespaceId: getPodAppNamespaceName(podSpec),
+		NamespaceID: getPodAppNamespaceName(podSpec),
 	}
 	err = i.vpp.DelSessionAppNamespace(appNamespace)
 	if err != nil {

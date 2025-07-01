@@ -16,7 +16,7 @@
 package types
 
 type SessionAppNamespace struct {
-	NamespaceId string
+	NamespaceID string
 	Netns       string
 	SwIfIndex   uint32
 	SocketName  string

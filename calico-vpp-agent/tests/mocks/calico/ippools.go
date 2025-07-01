@@ -36,10 +36,10 @@ func NewIPPoolsStub() *IPPoolsStub {
 
 func (pools *IPPoolsStub) Create(ctx context.Context, res *apiv3.IPPool, opts options.SetOptions) (*apiv3.IPPool, error) {
 	if res == nil {
-		return nil, fmt.Errorf("IPPool can't be nil")
+		return nil, fmt.Errorf("ipPool can't be nil")
 	}
 	if res.Name == "" {
-		return nil, fmt.Errorf("IPPool must have a name")
+		return nil, fmt.Errorf("ipPool must have a name")
 	}
 	pools.ipPools[res.Name] = res
 	return res, nil

@@ -41,12 +41,12 @@ type WireguardPeer struct {
 	Addr                net.IP
 	SwIfIndex           uint32
 	Index               uint32
-	AllowedIps          []net.IPNet
+	AllowedIPs          []net.IPNet
 }
 
 func (t *WireguardPeer) allowedIpsMap() map[string]bool {
 	m := make(map[string]bool)
-	for _, aip := range t.AllowedIps {
+	for _, aip := range t.AllowedIPs {
 		m[aip.String()] = true
 	}
 	return m
@@ -77,12 +77,12 @@ func (t *WireguardPeer) Equal(o *WireguardPeer) bool {
 	if o.PersistentKeepalive != t.PersistentKeepalive {
 		return false
 	}
-	if len(t.AllowedIps) != len(o.AllowedIps) {
+	if len(t.AllowedIPs) != len(o.AllowedIPs) {
 		return false
 	}
-	/* AllowedIps should be unique */
+	/* AllowedIPs should be unique */
 	m := t.allowedIpsMap()
-	for _, aip := range o.AllowedIps {
+	for _, aip := range o.AllowedIPs {
 		if _, found := m[aip.String()]; !found {
 			return false
 		}
@@ -91,21 +91,21 @@ func (t *WireguardPeer) Equal(o *WireguardPeer) bool {
 
 }
 
-func (t *WireguardPeer) AddAllowedIp(addr net.IPNet) {
+func (t *WireguardPeer) AddAllowedIP(addr net.IPNet) {
 	m := t.allowedIpsMap()
 	if _, found := m[addr.String()]; !found {
-		t.AllowedIps = append(t.AllowedIps, addr)
+		t.AllowedIPs = append(t.AllowedIPs, addr)
 	}
 }
 
-func (t *WireguardPeer) DelAllowedIp(addr net.IPNet) {
+func (t *WireguardPeer) DelAllowedIP(addr net.IPNet) {
 	allowedIps := make([]net.IPNet, 0)
-	for _, aip := range t.AllowedIps {
+	for _, aip := range t.AllowedIPs {
 		if aip.String() != addr.String() {
 			allowedIps = append(allowedIps, aip)
 		}
 	}
-	t.AllowedIps = allowedIps
+	t.AllowedIPs = allowedIps
 }
 
 func (t *WireguardPeer) String() string {
@@ -113,7 +113,7 @@ func (t *WireguardPeer) String() string {
 	s += fmt.Sprintf(" addr=%s port=%d", t.Addr, t.Port)
 	s += fmt.Sprintf(" pubKey=%s", string(t.PublicKey[:]))
 
-	s += StrableListToString(" allowedIps=", t.AllowedIps)
+	s += StrableListToString(" allowedIps=", t.AllowedIPs)
 
 	if t.TableID != 0 {
 		s += fmt.Sprintf(" tbl=%d", t.TableID)

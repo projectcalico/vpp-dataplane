@@ -45,7 +45,7 @@ type Memif struct {
 	NumTxQueues int
 	QueueSize   int
 	MacAddress  net.HardwareAddr
-	SocketId    uint32
+	SocketID    uint32
 	SwIfIndex   uint32
 	Flags       MemifFlag
 }
