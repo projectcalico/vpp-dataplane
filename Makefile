@@ -157,17 +157,22 @@ goapi:
 
 .PHONY: cherry-vpp
 cherry-vpp:
-	@echo "Cherry pick VPP ?"
-	@echo "This will reset current branch"
-	@echo "directory : ${VPP_DIR}"
-	@echo "branch    : $(shell cd ${VPP_DIR} && git branch --show-current)"
-	@echo "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
-	@bash ./vpplink/generated/vpp_clone_current.sh ${VPP_DIR}
+	@if [ "$(FORCE)" = "y" ]; then \
+		:; \
+	else \
+		echo "Cherry pick VPP ?"; \
+		echo "This will reset current branch"; \
+		echo "directory : ${VPP_DIR}"; \
+		echo "branch    : $(shell cd ${VPP_DIR} && git branch --show-current)"; \
+		echo "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]; \
+	fi
+	@BASE=$(BASE) bash ./vpplink/generated/vpp_clone_current.sh ${VPP_DIR}
 	@make goapi
 
 .PHONY: cherry-wipe
 cherry-wipe:
 	rm -rf ./vpplink/binapi/.cherries-cache
+	rm -rf ./vpplink/generated/.cherries-cache
 
 .PHONY: yaml
 yaml:

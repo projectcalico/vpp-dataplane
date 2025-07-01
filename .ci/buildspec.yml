@@ -28,6 +28,7 @@ phases:
       - make go-check
 
       - cd ..
+      - make -C vpp-manager clean-vpp
       - make images
       - docker images
 

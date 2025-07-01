@@ -3,6 +3,7 @@ set -e
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 CACHE_DIR=$SCRIPTDIR/.cherries-cache
+STASH_SAVED=0
 
 function green () { printf "\e[0;32m$1\e[0m\n" >&2 ; }
 function blue () { printf "\e[0;34m$1\e[0m\n" >&2 ; }
@@ -83,18 +84,29 @@ function git_clone_cd_and_reset ()
 		git clone "https://gerrit.fd.io/r/vpp" $VPP_DIR
 	fi
 	cd $VPP_DIR
+	if ! git diff-index --quiet HEAD --; then
+		echo "Saving stash"
+		git stash save "HST: temp stash"
+		STASH_SAVED=1
+	fi
 	if ! $(commit_exists $VPP_COMMIT); then
 		green "Fetching most recent VPP..."
 		git fetch "https://gerrit.fd.io/r/vpp"
 	fi
 	git reset --hard ${VPP_COMMIT}
+	if [ $STASH_SAVED -eq 1 ]; then
+		git stash pop
+	fi
 }
 
 # --------------- Things to cherry pick ---------------
 
 # VPP latest commit as on 12/May/2025
 BASE="${BASE:-"5a1d844511e497dd72cbc8a56db97dfe1a4645ef"}" # dev: enable flow on primary interface
-git_clone_cd_and_reset "$1" ${BASE}
+if [ "$VPP_DIR" = "" ]; then
+	VPP_DIR="$1"
+fi
+git_clone_cd_and_reset "$VPP_DIR" ${BASE}
 
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 
