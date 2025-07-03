@@ -93,12 +93,15 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 # VPP latest commit as on 12/May/2025
-git_clone_cd_and_reset "$1" 5a1d844511e497dd72cbc8a56db97dfe1a4645ef # dev: enable flow on primary interface
-
+git_clone_cd_and_reset "$1" 691b179ae9dd9980ee104e7a5446ab9385dac9dc # benoit patch
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 
 # This is the commit which broke IPv6 from v3.28.0 onwards.
 git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine NS source address
+
+
+# testing new cnat stuff
+git_cherry_pick refs/changes/69/43369/2 https://gerrit.fd.io/r/c/vpp/+/43369
 
 
 # --------------- private plugins ---------------
