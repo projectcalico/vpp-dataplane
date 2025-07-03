@@ -59,12 +59,12 @@ func (v *VppLink) CnatTranslateAdd(tr *types.CnatTranslateEntry) (uint32, error)
 
 	response, err := client.CnatTranslationUpdate(v.GetContext(), &cnat.CnatTranslationUpdate{
 		Translation: cnat.CnatTranslation{
-			Vip:      types.ToCnatEndpoint(tr.Endpoint),
-			IPProto:  types.ToVppIPProto(tr.Proto),
-			Paths:    paths,
-			IsRealIP: BoolToU8(tr.IsRealIP),
-			Flags:    uint8(cnat.CNAT_TRANSLATION_ALLOC_PORT),
-			LbType:   cnat.CnatLbType(tr.LbType),
+			Vip:            types.ToCnatEndpoint(tr.Endpoint),
+			IPProto:        types.ToVppIPProto(tr.Proto),
+			Paths:          paths,
+			IsRealIP:       BoolToU8(tr.IsRealIP),
+			Flags:          uint8(cnat.CNAT_TRANSLATION_ALLOC_PORT | cnat.CNAT_TRANSLATION_NO_CLIENT),
+			LbType:         cnat.CnatLbType(tr.LbType),
 		},
 	})
 	if err != nil {
@@ -95,6 +95,7 @@ func (v *VppLink) CnatSetSnatAddresses(v4, v6 net.IP) error {
 		SnatIP4:   types.ToVppIP4Address(v4),
 		SnatIP6:   types.ToVppIP6Address(v6),
 		SwIfIndex: types.InvalidInterface,
+		Flags:     cnat.CNAT_TRANSLATION_NO_CLIENT,
 	})
 	if err != nil {
 		return fmt.Errorf("setting SNAT addresses failed: %w", err)
@@ -123,14 +124,18 @@ func (v *VppLink) CnatDelSnatPrefix(prefix *net.IPNet) error {
 	return v.CnatAddDelSnatPrefix(prefix, false)
 }
 
-func (v *VppLink) CnatEnableFeatures(swIfIndex uint32) (err error) {
-	err = v.EnableFeatureArc46(swIfIndex, FeatureArcCnatInput)
-	if err != nil {
-		return fmt.Errorf("enabling arc dnat input failed: %w", err)
+func (v *VppLink) CnatEnableFeatures(swIfIndex uint32, isEnable bool, vrfIdV4 uint32, vrfIdV6 uint32) error {
+	client := cnat.NewServiceClient(v.GetConnection())
+
+	request := &cnat.FeatureCnatEnableDisable{
+		SwIfIndex:     interface_types.InterfaceIndex(swIfIndex),
+		EnableDisable: isEnable,
+		TableIDIP4:    vrfIdV4,
+		TableIDIP6:    vrfIdV6,
 	}
-	err = v.EnableFeatureArc46(swIfIndex, FeatureArcCnatOutput)
+	_, err := client.FeatureCnatEnableDisable(v.GetContext(), request)
 	if err != nil {
-		return fmt.Errorf("enabling arc dnat output failed: %w", err)
+		return fmt.Errorf("FeatureEnableDisable %+v failed: %w", request, err)
 	}
 	return nil
 }
@@ -187,7 +192,7 @@ func (v *VppLink) disableCnatSNAT(swIfIndex uint32, isIp6 bool) (err error) {
 	return v.cnatSnatPolicyAddDelPodInterface(swIfIndex, false /* isAdd */, cnat.CNAT_POLICY_INCLUDE_V4)
 }
 
-func (v *VppLink) cnatSetSnatPolicy(pol cnat.CnatSnatPolicies) error {
+func (v *VppLink) cnatSetSnatPolicyForDefaultVRF(pol cnat.CnatSnatPolicies) error {
 	client := cnat.NewServiceClient(v.GetConnection())
 
 	_, err := client.CnatSetSnatPolicy(v.GetContext(), &cnat.CnatSetSnatPolicy{
@@ -200,9 +205,22 @@ func (v *VppLink) cnatSetSnatPolicy(pol cnat.CnatSnatPolicies) error {
 }
 
 func (v *VppLink) SetK8sSnatPolicy() (err error) {
-	return v.cnatSetSnatPolicy(cnat.CNAT_POLICY_K8S)
+	return v.cnatSetSnatPolicyForDefaultVRF(cnat.CNAT_POLICY_K8S)
 }
 
 func (v *VppLink) ClearSnatPolicy() (err error) {
-	return v.cnatSetSnatPolicy(cnat.CNAT_POLICY_NONE)
+	return v.cnatSetSnatPolicyForDefaultVRF(cnat.CNAT_POLICY_NONE)
+}
+
+func (v *VppLink) EnableCnatSNATOnInterfaceVRF(swifindex uint32) (err error) {
+	client := cnat.NewServiceClient(v.GetConnection())
+
+	_, err = client.DuplicateCnatSnatDefaultPolicyToVrf(v.GetContext(), &cnat.DuplicateCnatSnatDefaultPolicyToVrf{
+		SwIfIndex: interface_types.InterfaceIndex(swifindex),
+	})
+	if err != nil {
+		return fmt.Errorf("DuplicateCnatSnatDefaultPolicyToVrf for interface %d failed: %w", swifindex, err)
+	}
+	return nil
+
 }

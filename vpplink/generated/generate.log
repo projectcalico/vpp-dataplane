@@ -1,29 +1,14 @@
-VPP Version                 : 25.02.0-8~g4f74c0b31
+VPP Version                 : 25.10-rc0~68-g388371f0f
 Binapi-generator version    : v0.11.0
-VPP Base commit             : 90f9501ea misc: Initial changes for stable/2502 branch
+VPP Base commit             : 691b179ae cnat: combine multiple changes
 ------------------ Cherry picked commits --------------------
 ip: add support for checksum in IP midchain
-interface: Fix interface.api endianness
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
-gerrit:42343/2 vcl: LDP default to regular option
+gerrit:43369/2 cnat: converge new cnat implementation to support old usecases (calico)
+gerrit:revert:39675/5 Revert "ip-neighbor: do not use sas to determine NS source address"
 gerrit:34726/3 interface: add buffer stats api
-misc: VPP 25.02 Release Notes
-session: do not match listeners when looking for lcl port
-hs-test: fix numa node core retrieval
-http: confirm postponed connection close
-dpdk: patch add to ice driver for flow action handles
-l2: fix segment fault
-http: buf_fifo_get_segs minor fix
-hs-test: fixed incorrect exit status
-http: http_app_tx_callback check if conn closed
-vpp_config: leave kernel.shmmax alone by default
-vpp_config: leave vm.max_map_count alone by default
-sflow: replace VAPI with DLAPI
-hs-test: fix broken test
-sflow: Update build rules
-snort: validate sw_if_index in attach/detach api handlers
-misc: Initial changes for stable/2502 branch
+cnat: combine multiple changes
 -------------------------------------------------------------

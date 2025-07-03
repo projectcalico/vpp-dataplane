@@ -137,6 +137,21 @@ func (s *ConnectivityServer) updateAllIPConnectivity() {
 	}
 }
 
+func (s *ConnectivityServer) configureRemoteNodeSnat(node *common.LocalNodeSpec, isAdd bool) {
+	if node.IPv4Address != nil {
+		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(node.IPv4Address.IP), isAdd)
+		if err != nil {
+			s.log.Errorf("error configuring snat prefix for current node (%v): %v", node.IPv4Address.IP, err)
+		}
+	}
+	if node.IPv6Address != nil {
+		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(node.IPv6Address.IP), isAdd)
+		if err != nil {
+			s.log.Errorf("error configuring snat prefix for current node (%v): %v", node.IPv6Address.IP, err)
+		}
+	}
+}
+
 func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 	/**
 	 * There might be leftover state in VPP in case we restarted
@@ -189,6 +204,7 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					if old.IPv6Address != nil {
 						delete(s.nodeByAddr, old.IPv6Address.IP.String())
 					}
+					s.configureRemoteNodeSnat(old, false /* isAdd */)
 				}
 				if new != nil {
 					if new.IPv4Address != nil {
@@ -197,6 +213,7 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 					if new.IPv6Address != nil {
 						s.nodeByAddr[new.IPv6Address.IP.String()] = *new
 					}
+					s.configureRemoteNodeSnat(new, true /* isAdd */)
 				}
 			case common.FelixConfChanged:
 				old, _ := evt.Old.(*felixConfig.Config)
