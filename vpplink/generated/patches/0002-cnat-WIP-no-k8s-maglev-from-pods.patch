@@ -1,49 +1,49 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
-Date: Mon, 8 Mar 2021 19:00:04 +0100
+From: hedi bouattour <hedibouattour2010@gmail.com>
+Date: Tue, 23 Sep 2025 12:00:38 +0000
 Subject: [PATCH 2/3] cnat: [WIP] no k8s maglev from pods
 
 Type: improvement
 
 Change-Id: If0702dbc51c308f0bb0ed16149c293d7adf9a984
-Signed-off-by: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+Signed-off-by: hedi bouattour <hedibouattour2010@gmail.com>
 ---
- src/plugins/cnat/cnat_node_feature.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ src/plugins/cnat/cnat_node_feature.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/src/plugins/cnat/cnat_node_feature.c b/src/plugins/cnat/cnat_node_feature.c
-index 9b2c0c2fe..d862a84c0 100644
+index 4462d4e99..18e239d13 100644
 --- a/src/plugins/cnat/cnat_node_feature.c
 +++ b/src/plugins/cnat/cnat_node_feature.c
-@@ -43,6 +43,7 @@ cnat_input_feature_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
- 		       int session_not_found, cnat_session_t *session)
+@@ -43,6 +43,7 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b,
+ 				    cnat_timestamp_t *ts)
  {
    vlib_combined_counter_main_t *cntm = &cnat_translation_counters;
-+  cnat_snat_policy_main_t *cpm = &cnat_snat_policy_main;
++  cnat_snat_policy_entry_t *cpe = cnat_snat_policy_entry_get_default ();
+   cnat_main_t *cm = &cnat_main;
    const cnat_translation_t *ct = NULL;
-   ip4_header_t *ip4 = NULL;
-   ip_protocol_t iproto;
-@@ -53,6 +54,9 @@ cnat_input_feature_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
+   cnat_timestamp_rewrite_t *rw = NULL;
+@@ -55,7 +56,8 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b,
+   ip6_header_t *ip6 = NULL;
+   udp_header_t *udp0;
    index_t cti;
-   u8 trace_flags = 0;
- 
+-
 +  u32 in_if = vnet_buffer (b)->sw_if_index[VLIB_RX];
-+  int ispod;
-+
-   /* By default follow arc default next */
-   vnet_feature_next (&next0, b);
++  int ispod = 0;
+   if (AF_IP4 == af)
+     {
+       ip4 = vlib_buffer_get_current (b);
+@@ -115,7 +117,10 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b,
+       rw->tuple.port[VLIB_TX];
  
-@@ -127,7 +131,9 @@ cnat_input_feature_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
-       session->value.cs_port[VLIB_RX] = udp0->src_port;
-       session->value.flags = 0;
- 
--      if (trk0->ct_flags & CNAT_TRK_FLAG_NO_NAT)
-+      ispod = clib_bitmap_get (
-+	cpm->interface_maps[CNAT_SNAT_IF_MAP_INCLUDE_POD], in_if);
-+      if (trk0->ct_flags & CNAT_TRK_FLAG_NO_NAT && !ispod)
- 	{
- 	  const dpo_id_t *dpo0;
- 	  const load_balance_t *lb1;
+   ts->trk = trk0_i;
+-  if (trk0->ct_flags & CNAT_TRK_FLAG_NO_NAT)
++  if (cpe)
++    ispod = clib_bitmap_get (cpe->interface_maps[CNAT_SNAT_IF_MAP_INCLUDE_POD],
++                            in_if);
++  if (trk0->ct_flags & CNAT_TRK_FLAG_NO_NAT && !ispod)
+     {
+       const dpo_id_t *dpo0;
+       const load_balance_t *lb1;
 -- 
-2.43.0
-
+2.34.1

@@ -4,8 +4,8 @@
 //
 // Contents:
 // -  5 enums
-// -  4 structs
-// - 20 messages
+// -  5 structs
+// - 26 messages
 package cnat
 
 import (
@@ -30,22 +30,22 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "cnat"
 	APIVersion = "0.3.0"
-	VersionCrc = 0xce7be3ad
+	VersionCrc = 0xe688e994
 )
 
 // CnatEndpointTupleFlags defines enum 'cnat_endpoint_tuple_flags'.
 type CnatEndpointTupleFlags uint8
 
 const (
-	CNAT_EPT_NO_NAT CnatEndpointTupleFlags = 1
+	CNAT_EPT_NO_NAT CnatEndpointTupleFlags = 2
 )
 
 var (
 	CnatEndpointTupleFlags_name = map[uint8]string{
-		1: "CNAT_EPT_NO_NAT",
+		2: "CNAT_EPT_NO_NAT",
 	}
 	CnatEndpointTupleFlags_value = map[string]uint8{
-		"CNAT_EPT_NO_NAT": 1,
+		"CNAT_EPT_NO_NAT": 2,
 	}
 )
 
@@ -110,6 +110,7 @@ const (
 	CNAT_POLICY_NONE   CnatSnatPolicies = 0
 	CNAT_POLICY_IF_PFX CnatSnatPolicies = 1
 	CNAT_POLICY_K8S    CnatSnatPolicies = 2
+	CNAT_POLICY_DNAT   CnatSnatPolicies = 3
 )
 
 var (
@@ -117,11 +118,13 @@ var (
 		0: "CNAT_POLICY_NONE",
 		1: "CNAT_POLICY_IF_PFX",
 		2: "CNAT_POLICY_K8S",
+		3: "CNAT_POLICY_DNAT",
 	}
 	CnatSnatPolicies_value = map[string]uint8{
 		"CNAT_POLICY_NONE":   0,
 		"CNAT_POLICY_IF_PFX": 1,
 		"CNAT_POLICY_K8S":    2,
+		"CNAT_POLICY_DNAT":   3,
 	}
 )
 
@@ -172,16 +175,19 @@ type CnatTranslationFlags uint8
 const (
 	CNAT_TRANSLATION_ALLOC_PORT        CnatTranslationFlags = 1
 	CNAT_TRANSLATION_NO_RETURN_SESSION CnatTranslationFlags = 4
+	CNAT_TRANSLATION_NO_CLIENT         CnatTranslationFlags = 8
 )
 
 var (
 	CnatTranslationFlags_name = map[uint8]string{
 		1: "CNAT_TRANSLATION_ALLOC_PORT",
 		4: "CNAT_TRANSLATION_NO_RETURN_SESSION",
+		8: "CNAT_TRANSLATION_NO_CLIENT",
 	}
 	CnatTranslationFlags_value = map[string]uint8{
 		"CNAT_TRANSLATION_ALLOC_PORT":        1,
 		"CNAT_TRANSLATION_NO_RETURN_SESSION": 4,
+		"CNAT_TRANSLATION_NO_CLIENT":         8,
 	}
 )
 
@@ -212,6 +218,13 @@ func (x CnatTranslationFlags) String() string {
 	return s
 }
 
+// Cnat5tuple defines type 'cnat_5tuple'.
+type Cnat5tuple struct {
+	Addr    [2]ip_types.Address `binapi:"address[2],name=addr" json:"addr,omitempty"`
+	Port    []uint16            `binapi:"u16[2],name=port" json:"port,omitempty"`
+	IPProto ip_types.IPProto    `binapi:"ip_proto,name=ip_proto" json:"ip_proto,omitempty"`
+}
+
 // CnatEndpoint defines type 'cnat_endpoint'.
 type CnatEndpoint struct {
 	Addr      ip_types.Address               `binapi:"address,name=addr" json:"addr,omitempty"`
@@ -229,12 +242,9 @@ type CnatEndpointTuple struct {
 
 // CnatSession defines type 'cnat_session'.
 type CnatSession struct {
-	Src       CnatEndpoint     `binapi:"cnat_endpoint,name=src" json:"src,omitempty"`
-	Dst       CnatEndpoint     `binapi:"cnat_endpoint,name=dst" json:"dst,omitempty"`
-	New       CnatEndpoint     `binapi:"cnat_endpoint,name=new" json:"new,omitempty"`
-	IPProto   ip_types.IPProto `binapi:"ip_proto,name=ip_proto" json:"ip_proto,omitempty"`
-	Location  uint8            `binapi:"u8,name=location" json:"location,omitempty"`
-	Timestamp float64          `binapi:"f64,name=timestamp" json:"timestamp,omitempty"`
+	Tuple   Cnat5tuple `binapi:"cnat_5tuple,name=tuple" json:"tuple,omitempty"`
+	TsIndex uint32     `binapi:"u32,name=ts_index" json:"ts_index,omitempty"`
+	Flags   uint32     `binapi:"u32,name=flags" json:"flags,omitempty"`
 }
 
 // CnatTranslation defines type 'cnat_translation'.
@@ -248,6 +258,75 @@ type CnatTranslation struct {
 	NPaths         uint32                `binapi:"u32,name=n_paths" json:"-"`
 	FlowHashConfig ip.IPFlowHashConfigV2 `binapi:"ip_flow_hash_config_v2,name=flow_hash_config" json:"flow_hash_config,omitempty"`
 	Paths          []CnatEndpointTuple   `binapi:"cnat_endpoint_tuple[n_paths],name=paths" json:"paths,omitempty"`
+}
+
+// Duplicate the cnat snat policy of the default vrf into another vrf
+//   - table_id_ip4 -
+//
+// ApplyDefaultCnatSnat defines message 'apply_default_cnat_snat'.
+type ApplyDefaultCnatSnat struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+}
+
+func (m *ApplyDefaultCnatSnat) Reset()               { *m = ApplyDefaultCnatSnat{} }
+func (*ApplyDefaultCnatSnat) GetMessageName() string { return "apply_default_cnat_snat" }
+func (*ApplyDefaultCnatSnat) GetCrcString() string   { return "f9e6675e" }
+func (*ApplyDefaultCnatSnat) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *ApplyDefaultCnatSnat) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	return size
+}
+func (m *ApplyDefaultCnatSnat) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	return buf.Bytes(), nil
+}
+func (m *ApplyDefaultCnatSnat) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	return nil
+}
+
+// ApplyDefaultCnatSnatReply defines message 'apply_default_cnat_snat_reply'.
+type ApplyDefaultCnatSnatReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *ApplyDefaultCnatSnatReply) Reset()               { *m = ApplyDefaultCnatSnatReply{} }
+func (*ApplyDefaultCnatSnatReply) GetMessageName() string { return "apply_default_cnat_snat_reply" }
+func (*ApplyDefaultCnatSnatReply) GetCrcString() string   { return "e8d4e804" }
+func (*ApplyDefaultCnatSnatReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *ApplyDefaultCnatSnatReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *ApplyDefaultCnatSnatReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *ApplyDefaultCnatSnatReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
 }
 
 // CnatGetSnatAddresses defines message 'cnat_get_snat_addresses'.
@@ -333,7 +412,7 @@ type CnatSessionDetails struct {
 
 func (m *CnatSessionDetails) Reset()               { *m = CnatSessionDetails{} }
 func (*CnatSessionDetails) GetMessageName() string { return "cnat_session_details" }
-func (*CnatSessionDetails) GetCrcString() string   { return "7e5017c7" }
+func (*CnatSessionDetails) GetCrcString() string   { return "7a78bf3f" }
 func (*CnatSessionDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -342,24 +421,14 @@ func (m *CnatSessionDetails) Size() (size int) {
 	if m == nil {
 		return 0
 	}
-	size += 1      // m.Session.Src.Addr.Af
-	size += 1 * 16 // m.Session.Src.Addr.Un
-	size += 4      // m.Session.Src.SwIfIndex
-	size += 1      // m.Session.Src.IfAf
-	size += 2      // m.Session.Src.Port
-	size += 1      // m.Session.Dst.Addr.Af
-	size += 1 * 16 // m.Session.Dst.Addr.Un
-	size += 4      // m.Session.Dst.SwIfIndex
-	size += 1      // m.Session.Dst.IfAf
-	size += 2      // m.Session.Dst.Port
-	size += 1      // m.Session.New.Addr.Af
-	size += 1 * 16 // m.Session.New.Addr.Un
-	size += 4      // m.Session.New.SwIfIndex
-	size += 1      // m.Session.New.IfAf
-	size += 2      // m.Session.New.Port
-	size += 1      // m.Session.IPProto
-	size += 1      // m.Session.Location
-	size += 8      // m.Session.Timestamp
+	for j3 := 0; j3 < 2; j3++ {
+		size += 1      // m.Session.Tuple.Addr[j3].Af
+		size += 1 * 16 // m.Session.Tuple.Addr[j3].Un
+	}
+	size += 2 * 2 // m.Session.Tuple.Port
+	size += 1     // m.Session.Tuple.IPProto
+	size += 4     // m.Session.TsIndex
+	size += 4     // m.Session.Flags
 	return size
 }
 func (m *CnatSessionDetails) Marshal(b []byte) ([]byte, error) {
@@ -367,46 +436,35 @@ func (m *CnatSessionDetails) Marshal(b []byte) ([]byte, error) {
 		b = make([]byte, m.Size())
 	}
 	buf := codec.NewBuffer(b)
-	buf.EncodeUint8(uint8(m.Session.Src.Addr.Af))
-	buf.EncodeBytes(m.Session.Src.Addr.Un.XXX_UnionData[:], 16)
-	buf.EncodeUint32(uint32(m.Session.Src.SwIfIndex))
-	buf.EncodeUint8(uint8(m.Session.Src.IfAf))
-	buf.EncodeUint16(m.Session.Src.Port)
-	buf.EncodeUint8(uint8(m.Session.Dst.Addr.Af))
-	buf.EncodeBytes(m.Session.Dst.Addr.Un.XXX_UnionData[:], 16)
-	buf.EncodeUint32(uint32(m.Session.Dst.SwIfIndex))
-	buf.EncodeUint8(uint8(m.Session.Dst.IfAf))
-	buf.EncodeUint16(m.Session.Dst.Port)
-	buf.EncodeUint8(uint8(m.Session.New.Addr.Af))
-	buf.EncodeBytes(m.Session.New.Addr.Un.XXX_UnionData[:], 16)
-	buf.EncodeUint32(uint32(m.Session.New.SwIfIndex))
-	buf.EncodeUint8(uint8(m.Session.New.IfAf))
-	buf.EncodeUint16(m.Session.New.Port)
-	buf.EncodeUint8(uint8(m.Session.IPProto))
-	buf.EncodeUint8(m.Session.Location)
-	buf.EncodeFloat64(m.Session.Timestamp)
+	for j2 := 0; j2 < 2; j2++ {
+		buf.EncodeUint8(uint8(m.Session.Tuple.Addr[j2].Af))
+		buf.EncodeBytes(m.Session.Tuple.Addr[j2].Un.XXX_UnionData[:], 16)
+	}
+	for i := 0; i < 2; i++ {
+		var x uint16
+		if i < len(m.Session.Tuple.Port) {
+			x = uint16(m.Session.Tuple.Port[i])
+		}
+		buf.EncodeUint16(x)
+	}
+	buf.EncodeUint8(uint8(m.Session.Tuple.IPProto))
+	buf.EncodeUint32(m.Session.TsIndex)
+	buf.EncodeUint32(m.Session.Flags)
 	return buf.Bytes(), nil
 }
 func (m *CnatSessionDetails) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
-	m.Session.Src.Addr.Af = ip_types.AddressFamily(buf.DecodeUint8())
-	copy(m.Session.Src.Addr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
-	m.Session.Src.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	m.Session.Src.IfAf = ip_types.AddressFamily(buf.DecodeUint8())
-	m.Session.Src.Port = buf.DecodeUint16()
-	m.Session.Dst.Addr.Af = ip_types.AddressFamily(buf.DecodeUint8())
-	copy(m.Session.Dst.Addr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
-	m.Session.Dst.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	m.Session.Dst.IfAf = ip_types.AddressFamily(buf.DecodeUint8())
-	m.Session.Dst.Port = buf.DecodeUint16()
-	m.Session.New.Addr.Af = ip_types.AddressFamily(buf.DecodeUint8())
-	copy(m.Session.New.Addr.Un.XXX_UnionData[:], buf.DecodeBytes(16))
-	m.Session.New.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	m.Session.New.IfAf = ip_types.AddressFamily(buf.DecodeUint8())
-	m.Session.New.Port = buf.DecodeUint16()
-	m.Session.IPProto = ip_types.IPProto(buf.DecodeUint8())
-	m.Session.Location = buf.DecodeUint8()
-	m.Session.Timestamp = buf.DecodeFloat64()
+	for j2 := 0; j2 < 2; j2++ {
+		m.Session.Tuple.Addr[j2].Af = ip_types.AddressFamily(buf.DecodeUint8())
+		copy(m.Session.Tuple.Addr[j2].Un.XXX_UnionData[:], buf.DecodeBytes(16))
+	}
+	m.Session.Tuple.Port = make([]uint16, 2)
+	for i := 0; i < len(m.Session.Tuple.Port); i++ {
+		m.Session.Tuple.Port[i] = buf.DecodeUint16()
+	}
+	m.Session.Tuple.IPProto = ip_types.IPProto(buf.DecodeUint8())
+	m.Session.TsIndex = buf.DecodeUint32()
+	m.Session.Flags = buf.DecodeUint32()
 	return nil
 }
 
@@ -502,11 +560,12 @@ type CnatSetSnatAddresses struct {
 	SnatIP4   ip_types.IP4Address            `binapi:"ip4_address,name=snat_ip4" json:"snat_ip4,omitempty"`
 	SnatIP6   ip_types.IP6Address            `binapi:"ip6_address,name=snat_ip6" json:"snat_ip6,omitempty"`
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	Flags     CnatTranslationFlags           `binapi:"cnat_translation_flags,name=flags" json:"flags,omitempty"`
 }
 
 func (m *CnatSetSnatAddresses) Reset()               { *m = CnatSetSnatAddresses{} }
 func (*CnatSetSnatAddresses) GetMessageName() string { return "cnat_set_snat_addresses" }
-func (*CnatSetSnatAddresses) GetCrcString() string   { return "d997e96c" }
+func (*CnatSetSnatAddresses) GetCrcString() string   { return "e9472ed4" }
 func (*CnatSetSnatAddresses) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -518,6 +577,7 @@ func (m *CnatSetSnatAddresses) Size() (size int) {
 	size += 1 * 4  // m.SnatIP4
 	size += 1 * 16 // m.SnatIP6
 	size += 4      // m.SwIfIndex
+	size += 1      // m.Flags
 	return size
 }
 func (m *CnatSetSnatAddresses) Marshal(b []byte) ([]byte, error) {
@@ -528,6 +588,7 @@ func (m *CnatSetSnatAddresses) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeBytes(m.SnatIP4[:], 4)
 	buf.EncodeBytes(m.SnatIP6[:], 16)
 	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeUint8(uint8(m.Flags))
 	return buf.Bytes(), nil
 }
 func (m *CnatSetSnatAddresses) Unmarshal(b []byte) error {
@@ -535,6 +596,7 @@ func (m *CnatSetSnatAddresses) Unmarshal(b []byte) error {
 	copy(m.SnatIP4[:], buf.DecodeBytes(4))
 	copy(m.SnatIP6[:], buf.DecodeBytes(16))
 	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.Flags = CnatTranslationFlags(buf.DecodeUint8())
 	return nil
 }
 
@@ -579,7 +641,7 @@ type CnatSetSnatPolicy struct {
 
 func (m *CnatSetSnatPolicy) Reset()               { *m = CnatSetSnatPolicy{} }
 func (*CnatSetSnatPolicy) GetMessageName() string { return "cnat_set_snat_policy" }
-func (*CnatSetSnatPolicy) GetCrcString() string   { return "d3e6eaf4" }
+func (*CnatSetSnatPolicy) GetCrcString() string   { return "37a3ce23" }
 func (*CnatSetSnatPolicy) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -635,6 +697,94 @@ func (m *CnatSetSnatPolicyReply) Marshal(b []byte) ([]byte, error) {
 func (m *CnatSetSnatPolicyReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// CnatSnatAddressesDetails defines message 'cnat_snat_addresses_details'.
+type CnatSnatAddressesDetails struct {
+	Retval      int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
+	FwdTableID4 uint32                         `binapi:"u32,name=fwd_table_id4" json:"fwd_table_id4,omitempty"`
+	FwdTableID6 uint32                         `binapi:"u32,name=fwd_table_id6" json:"fwd_table_id6,omitempty"`
+	RetTableID4 uint32                         `binapi:"u32,name=ret_table_id4" json:"ret_table_id4,omitempty"`
+	RetTableID6 uint32                         `binapi:"u32,name=ret_table_id6" json:"ret_table_id6,omitempty"`
+	SnatIP4     ip_types.IP4Address            `binapi:"ip4_address,name=snat_ip4" json:"snat_ip4,omitempty"`
+	SnatIP6     ip_types.IP6Address            `binapi:"ip6_address,name=snat_ip6" json:"snat_ip6,omitempty"`
+	SwIfIndex   interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+}
+
+func (m *CnatSnatAddressesDetails) Reset()               { *m = CnatSnatAddressesDetails{} }
+func (*CnatSnatAddressesDetails) GetMessageName() string { return "cnat_snat_addresses_details" }
+func (*CnatSnatAddressesDetails) GetCrcString() string   { return "09ae6b38" }
+func (*CnatSnatAddressesDetails) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *CnatSnatAddressesDetails) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4      // m.Retval
+	size += 4      // m.FwdTableID4
+	size += 4      // m.FwdTableID6
+	size += 4      // m.RetTableID4
+	size += 4      // m.RetTableID6
+	size += 1 * 4  // m.SnatIP4
+	size += 1 * 16 // m.SnatIP6
+	size += 4      // m.SwIfIndex
+	return size
+}
+func (m *CnatSnatAddressesDetails) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(m.FwdTableID4)
+	buf.EncodeUint32(m.FwdTableID6)
+	buf.EncodeUint32(m.RetTableID4)
+	buf.EncodeUint32(m.RetTableID6)
+	buf.EncodeBytes(m.SnatIP4[:], 4)
+	buf.EncodeBytes(m.SnatIP6[:], 16)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	return buf.Bytes(), nil
+}
+func (m *CnatSnatAddressesDetails) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.FwdTableID4 = buf.DecodeUint32()
+	m.FwdTableID6 = buf.DecodeUint32()
+	m.RetTableID4 = buf.DecodeUint32()
+	m.RetTableID6 = buf.DecodeUint32()
+	copy(m.SnatIP4[:], buf.DecodeBytes(4))
+	copy(m.SnatIP6[:], buf.DecodeBytes(16))
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	return nil
+}
+
+// CnatSnatAddressesDump defines message 'cnat_snat_addresses_dump'.
+type CnatSnatAddressesDump struct{}
+
+func (m *CnatSnatAddressesDump) Reset()               { *m = CnatSnatAddressesDump{} }
+func (*CnatSnatAddressesDump) GetMessageName() string { return "cnat_snat_addresses_dump" }
+func (*CnatSnatAddressesDump) GetCrcString() string   { return "51077d14" }
+func (*CnatSnatAddressesDump) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *CnatSnatAddressesDump) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	return size
+}
+func (m *CnatSnatAddressesDump) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	return buf.Bytes(), nil
+}
+func (m *CnatSnatAddressesDump) Unmarshal(b []byte) error {
 	return nil
 }
 
@@ -1158,18 +1308,98 @@ func (m *CnatTranslationUpdateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Enable or disable interface feature cnat arc
+//   - sw_if_index - The interface to enable/disable cnat feature arc.
+//   - enable_disable - set to 1 to enable, 0 to disable cnat feature arc
+//
+// FeatureCnatEnableDisable defines message 'feature_cnat_enable_disable'.
+type FeatureCnatEnableDisable struct {
+	SwIfIndex     interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	EnableDisable bool                           `binapi:"bool,name=enable_disable" json:"enable_disable,omitempty"`
+}
+
+func (m *FeatureCnatEnableDisable) Reset()               { *m = FeatureCnatEnableDisable{} }
+func (*FeatureCnatEnableDisable) GetMessageName() string { return "feature_cnat_enable_disable" }
+func (*FeatureCnatEnableDisable) GetCrcString() string   { return "5501adee" }
+func (*FeatureCnatEnableDisable) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *FeatureCnatEnableDisable) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	size += 1 // m.EnableDisable
+	return size
+}
+func (m *FeatureCnatEnableDisable) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeBool(m.EnableDisable)
+	return buf.Bytes(), nil
+}
+func (m *FeatureCnatEnableDisable) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.EnableDisable = buf.DecodeBool()
+	return nil
+}
+
+// FeatureCnatEnableDisableReply defines message 'feature_cnat_enable_disable_reply'.
+type FeatureCnatEnableDisableReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *FeatureCnatEnableDisableReply) Reset() { *m = FeatureCnatEnableDisableReply{} }
+func (*FeatureCnatEnableDisableReply) GetMessageName() string {
+	return "feature_cnat_enable_disable_reply"
+}
+func (*FeatureCnatEnableDisableReply) GetCrcString() string { return "e8d4e804" }
+func (*FeatureCnatEnableDisableReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *FeatureCnatEnableDisableReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *FeatureCnatEnableDisableReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *FeatureCnatEnableDisableReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
 func init() { file_cnat_binapi_init() }
 func file_cnat_binapi_init() {
+	api.RegisterMessage((*ApplyDefaultCnatSnat)(nil), "apply_default_cnat_snat_f9e6675e")
+	api.RegisterMessage((*ApplyDefaultCnatSnatReply)(nil), "apply_default_cnat_snat_reply_e8d4e804")
 	api.RegisterMessage((*CnatGetSnatAddresses)(nil), "cnat_get_snat_addresses_51077d14")
 	api.RegisterMessage((*CnatGetSnatAddressesReply)(nil), "cnat_get_snat_addresses_reply_879513c1")
-	api.RegisterMessage((*CnatSessionDetails)(nil), "cnat_session_details_7e5017c7")
+	api.RegisterMessage((*CnatSessionDetails)(nil), "cnat_session_details_7a78bf3f")
 	api.RegisterMessage((*CnatSessionDump)(nil), "cnat_session_dump_51077d14")
 	api.RegisterMessage((*CnatSessionPurge)(nil), "cnat_session_purge_51077d14")
 	api.RegisterMessage((*CnatSessionPurgeReply)(nil), "cnat_session_purge_reply_e8d4e804")
-	api.RegisterMessage((*CnatSetSnatAddresses)(nil), "cnat_set_snat_addresses_d997e96c")
+	api.RegisterMessage((*CnatSetSnatAddresses)(nil), "cnat_set_snat_addresses_e9472ed4")
 	api.RegisterMessage((*CnatSetSnatAddressesReply)(nil), "cnat_set_snat_addresses_reply_e8d4e804")
-	api.RegisterMessage((*CnatSetSnatPolicy)(nil), "cnat_set_snat_policy_d3e6eaf4")
+	api.RegisterMessage((*CnatSetSnatPolicy)(nil), "cnat_set_snat_policy_37a3ce23")
 	api.RegisterMessage((*CnatSetSnatPolicyReply)(nil), "cnat_set_snat_policy_reply_e8d4e804")
+	api.RegisterMessage((*CnatSnatAddressesDetails)(nil), "cnat_snat_addresses_details_09ae6b38")
+	api.RegisterMessage((*CnatSnatAddressesDump)(nil), "cnat_snat_addresses_dump_51077d14")
 	api.RegisterMessage((*CnatSnatPolicyAddDelExcludePfx)(nil), "cnat_snat_policy_add_del_exclude_pfx_e26dd79a")
 	api.RegisterMessage((*CnatSnatPolicyAddDelExcludePfxReply)(nil), "cnat_snat_policy_add_del_exclude_pfx_reply_e8d4e804")
 	api.RegisterMessage((*CnatSnatPolicyAddDelIf)(nil), "cnat_snat_policy_add_del_if_4ebb8d02")
@@ -1180,11 +1410,15 @@ func file_cnat_binapi_init() {
 	api.RegisterMessage((*CnatTranslationDump)(nil), "cnat_translation_dump_51077d14")
 	api.RegisterMessage((*CnatTranslationUpdate)(nil), "cnat_translation_update_f8d40bc5")
 	api.RegisterMessage((*CnatTranslationUpdateReply)(nil), "cnat_translation_update_reply_e2fc8294")
+	api.RegisterMessage((*FeatureCnatEnableDisable)(nil), "feature_cnat_enable_disable_5501adee")
+	api.RegisterMessage((*FeatureCnatEnableDisableReply)(nil), "feature_cnat_enable_disable_reply_e8d4e804")
 }
 
 // Messages returns list of all messages in this module.
 func AllMessages() []api.Message {
 	return []api.Message{
+		(*ApplyDefaultCnatSnat)(nil),
+		(*ApplyDefaultCnatSnatReply)(nil),
 		(*CnatGetSnatAddresses)(nil),
 		(*CnatGetSnatAddressesReply)(nil),
 		(*CnatSessionDetails)(nil),
@@ -1195,6 +1429,8 @@ func AllMessages() []api.Message {
 		(*CnatSetSnatAddressesReply)(nil),
 		(*CnatSetSnatPolicy)(nil),
 		(*CnatSetSnatPolicyReply)(nil),
+		(*CnatSnatAddressesDetails)(nil),
+		(*CnatSnatAddressesDump)(nil),
 		(*CnatSnatPolicyAddDelExcludePfx)(nil),
 		(*CnatSnatPolicyAddDelExcludePfxReply)(nil),
 		(*CnatSnatPolicyAddDelIf)(nil),
@@ -1205,5 +1441,7 @@ func AllMessages() []api.Message {
 		(*CnatTranslationDump)(nil),
 		(*CnatTranslationUpdate)(nil),
 		(*CnatTranslationUpdateReply)(nil),
+		(*FeatureCnatEnableDisable)(nil),
+		(*FeatureCnatEnableDisableReply)(nil),
 	}
 }

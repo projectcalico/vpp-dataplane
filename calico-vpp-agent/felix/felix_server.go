@@ -1191,12 +1191,21 @@ func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update,
 		s.GotOurNodeBGPchanOnce.Do(func() {
 			s.GotOurNodeBGPchan <- localNodeSpec
 		})
+		ip4 := net.IP{}
+		ip6 := net.IP{}
 		if localNodeSpec.IPv4Address != nil {
 			s.ip4 = &localNodeSpec.IPv4Address.IP
+			ip4 = localNodeSpec.IPv4Address.IP
 		}
 		if localNodeSpec.IPv6Address != nil {
 			s.ip6 = &localNodeSpec.IPv6Address.IP
+			ip6 = localNodeSpec.IPv6Address.IP
 		}
+		err = s.vpp.CnatSetSnatAddresses(ip4, ip6)
+		if err != nil {
+			s.log.Errorf("Failed to configure SNAT addresses %v", err)
+		}
+
 		err = s.createAllowFromHostPolicy()
 		if err != nil {
 			return errors.Wrap(err, "Error in creating AllowFromHostPolicy")
@@ -1207,16 +1216,14 @@ func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update,
 		}
 	}
 
-	// This is used by the routing server to process Wireguard key updates
-	// As a result we only send an event when a node is updated, not when it is added or deleted
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.PeerNodeStateChanged,
-		Old:  old,
-		New:  localNodeSpec,
-	})
-
 	if !found {
-		s.configureRemoteNodeSnat(localNodeSpec, true /* isAdd */)
+		// This is used by the routing server to process Wireguard key updates
+		// As a result we only send an event when a node is updated, not when it is added or deleted
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.PeerNodeStateChanged,
+			Old:  old,
+			New:  localNodeSpec,
+		})
 	} else {
 		change := common.GetIPNetChangeType(old.IPv4Address, localNodeSpec.IPv4Address) | common.GetIPNetChangeType(old.IPv6Address, localNodeSpec.IPv6Address)
 		if change&(common.ChangeDeleted|common.ChangeUpdated) != 0 && localNodeSpec.Name == *config.NodeName {
@@ -1224,28 +1231,18 @@ func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update,
 			return NodeWatcherRestartError{}
 		}
 		if change != common.ChangeSame {
-			s.configureRemoteNodeSnat(old, false /* isAdd */)
-			s.configureRemoteNodeSnat(localNodeSpec, true /* isAdd */)
+			// This is used by the routing server to process Wireguard key updates
+			// As a result we only send an event when a node is updated, not when it is added or deleted
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.PeerNodeStateChanged,
+				Old:  old,
+				New:  localNodeSpec,
+			})
 		}
 	}
 
 	s.nodeStatesByName[localNodeSpec.Name] = localNodeSpec
 	return nil
-}
-
-func (s *Server) configureRemoteNodeSnat(node *common.LocalNodeSpec, isAdd bool) {
-	if node.IPv4Address != nil {
-		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(node.IPv4Address.IP), isAdd)
-		if err != nil {
-			s.log.Errorf("error configuring snat prefix for current node (%v): %v", node.IPv4Address.IP, err)
-		}
-	}
-	if node.IPv6Address != nil {
-		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(node.IPv6Address.IP), isAdd)
-		if err != nil {
-			s.log.Errorf("error configuring snat prefix for current node (%v): %v", node.IPv6Address.IP, err)
-		}
-	}
 }
 
 func (s *Server) handleHostMetadataV4V6Remove(msg *proto.HostMetadataV4V6Remove, pending bool) (err error) {
@@ -1263,7 +1260,6 @@ func (s *Server) handleHostMetadataV4V6Remove(msg *proto.HostMetadataV4V6Remove,
 		return NodeWatcherRestartError{}
 	}
 
-	s.configureRemoteNodeSnat(old, false /* isAdd */)
 	return nil
 }
 
@@ -1286,8 +1282,8 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate, pending bool) (
 		if newIpamPool.GetCidr() != oldIpamPool.GetCidr() ||
 			newIpamPool.GetMasquerade() != oldIpamPool.GetMasquerade() {
 			var err, err2 error
-			err = s.addDelSnatPrefix(oldIpamPool, false /* isAdd */)
-			err2 = s.addDelSnatPrefix(newIpamPool, true /* isAdd */)
+			err = s.addDelSnatPrefixForIPPool(oldIpamPool, false /* isAdd */)
+			err2 = s.addDelSnatPrefixForIPPool(newIpamPool, true /* isAdd */)
 			if err != nil || err2 != nil {
 				return errors.Errorf("error updating snat prefix del:%s, add:%s", err, err2)
 			}
@@ -1301,7 +1297,7 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate, pending bool) (
 		s.log.Infof("Adding pool: %s, nat:%t", msg.GetId(), newIpamPool.GetMasquerade())
 		s.ippoolmap[msg.GetId()] = newIpamPool
 		s.log.Debugf("Pool %v Added, handler called", msg)
-		err = s.addDelSnatPrefix(newIpamPool, true /* isAdd */)
+		err = s.addDelSnatPrefixForIPPool(newIpamPool, true /* isAdd */)
 		if err != nil {
 			return errors.Wrap(err, "error handling ipam add")
 		}
@@ -1327,7 +1323,7 @@ func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove, pending bool) (
 		delete(s.ippoolmap, msg.GetId())
 		s.log.Infof("Deleting pool: %s", msg.GetId())
 		s.log.Debugf("Pool %s deleted, handler called", oldIpamPool.Cidr)
-		err = s.addDelSnatPrefix(oldIpamPool, false /* isAdd */)
+		err = s.addDelSnatPrefixForIPPool(oldIpamPool, false /* isAdd */)
 		if err != nil {
 			return errors.Wrap(err, "error handling ipam deletion")
 		}
@@ -1372,12 +1368,12 @@ func ipamPoolEquals(a *proto.IPAMPool, b *proto.IPAMPool) bool {
 	return true
 }
 
-// addDelSnatPrefix configures IP Pool prefixes so that we don't source-NAT the packets going
+// addDelSnatPrefixForIPPool configures IP Pool prefixes so that we don't source-NAT the packets going
 // to these addresses. All the IP Pools prefixes are configured that way so that pod <-> pod
 // communications are never source-nated in the cluster
 // Note(aloaugus) - I think the iptables dataplane behaves differently and uses the k8s level
 // pod CIDR for this rather than the individual pool prefixes
-func (s *Server) addDelSnatPrefix(pool *proto.IPAMPool, isAdd bool) (err error) {
+func (s *Server) addDelSnatPrefixForIPPool(pool *proto.IPAMPool, isAdd bool) (err error) {
 	_, ipNet, err := net.ParseCIDR(pool.GetCidr())
 	if err != nil {
 		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Cidr)
