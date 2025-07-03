@@ -127,7 +127,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			return errors.Wrapf(err, "Error enabling gso for ipip interface")
 		}
 
-		err = p.vpp.CnatEnableFeatures(swIfIndex)
+		err = p.vpp.CnatEnableFeatures(swIfIndex, true, 0, 0)
 		if err != nil {
 			p.errorCleanup(tunnel)
 			return errors.Wrapf(err, "Error enabling nat for ipip interface")
