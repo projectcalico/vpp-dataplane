@@ -60,6 +60,8 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 	BeforeEach(func() {
 		log = logrus.New()
+		nodeIP4String := net.ParseIP("6.6.6.6")
+		nodeIP6String := net.ParseIP("2001:db8::68")
 		testutils.StartVPP()
 		vpp, _ = testutils.ConfigureVPP(log)
 		// setup connectivity server (functionality target of tests)
@@ -71,6 +73,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 		cniServer = cni.NewCNIServer(vpp, ipamStub, log.WithFields(logrus.Fields{"component": "cni"}))
 		cniServer.SetFelixConfig(&felixconfig.Config{})
 		cniServer.FetchBufferConfig()
+		vpp.CnatSetSnatAddresses(nodeIP4String, nodeIP6String)
 	})
 
 	Describe("Addition of the pod", func() {
