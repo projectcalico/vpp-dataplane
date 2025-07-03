@@ -1,12 +1,380 @@
-VPP Version                 : 25.06-rc0~247-gaf9fa5d40
+VPP Version                 : 25.02-rc0~600-g9970359cd
 Binapi-generator version    : v0.11.0
-VPP Base commit             : 698517b76 gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : a215f5158 sr: fix aarch64 build issue
 ------------------ Cherry picked commits --------------------
 ip: add support for checksum in IP midchain
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:43369/1 cnat: converge new cnat implementation to support old usecases (calico)
 gerrit:revert:39675/5 Revert "ip-neighbor: do not use sas to determine NS source address"
 gerrit:34726/3 interface: add buffer stats api
+cnat: combine multiple changes
+tests: update govpp version to 0.12.0 in hs-test
+vcl: fix read on closed sessions with mt apps
+vcl: fix fifo private vpp sh on migration
+virtio: conditionally set checksum offload based on TCP/UDP offload flags
+http: http2_handle_continuation_frame coverity fix
+vcl: add flag to track need for locks in vls
+vcl: inject epoll functions into vcl from ldp
+http: h2 fix msg.data.len passed to server app
+vcl: allow reads after transport cleanup
+http: http2_conn_cleanup_callback fix
+http: mark req/streams as no lookup sessions
+http: http/2 CONTINUATION frame support
+af_packet: conditionally set checksum offload based on TCP/UDP offload flags
+ipip: fix the offload flags
+hs-test: simplify KinD deps installation
+hs-test: run redis in app containers
+vnet: add vnet_buffer_get_opaque() inline
+ip: compute checksums before fragmentation if offloaded
+interface: clear flags after checksum computation
+hsa: introduce a configurable body limit for http client
+hs-test: improvements and cleanup
+hs-test: fix incorrect volume mounts
+hs-test: improve teardown reliability
+hs-test: adjust timeouts when testing COV build
+sflow: add feature-arc at error-drop, drop-monitoring, egress-sampling
+hs-test: use base image container for container builds
+hash: add ipv4 and ipv6 only hash
+vcl: handle pthread cleanups in vls
+hs-test: ldp test server logging improvements
+hs-test: fix show error in ldp test
+ipsec: fix debug assert with ipv6 checksum offload
+vcl: improve select handling of vpp detachment
+hs-test: run LDP iperf in app containers
+hs-test: add show error to failed ldp test logs
+build: updated to build on RHEL-8
+misc: include http_static and prom in cov reports
+hsa: https support in proxy app
+api: fix inversion of barrier marker in elog
+http: disable timer node if session disabled
+misc: remove unnecessary genhtml cmd_line for cov-merge
+hs-test: fix parallel test runs
+http_static: add http1-only option to cli
+hs-test: include http2 tests in gcov run reports
+dpdk: fix the outer flags
+tap: enable IPv4 checksum offload on interface
+vnet: add assert for offload flags in debug mode
+interface: add a new cap for virtual interfaces
+http: add missing brackets around ip6 host header
+hsa: http client init wrk->vlib_main in setup
+http: starting tls connection with alpn
+af_packet: use logging to unify the log at one place
+quic: move ctx_pool into quic_worker_ctx_t struct
+misc: ignore hs-test test errors in cov runs
+dma_intel: fix ats_disable attribute handling
+tls: add half close support
+af_packet: show host interface offload flags
+af_packet: fix the error handling on transmit
+misc: ignore return codes from make test and revert 42957
+vlib: fix missing null-termination
+misc: Initial 25.10-rc0 commit
+dev: fix default number of rx queues
+hs-test: further separated KinD from HST suites
+hs-test: NewHttpClient add param to disable http2
+tls: add ALPN support
+dpdk: set lcores parameter for high lcore id
+misc: for test-cov-both ensure raport generation
+octeon: configure max npa pools using driver arg
+dev: add support to configure driver arguments
+octeon: add port argument for ethernet pause frame
+vcl: fix detach of sessions without fifos
+docs: vpp_papi example script
+misc: ignore hs-test cov failures in test-cov-both target
+crypto: add new handlers for cbc/ctr+hmac
+quic: quic engine api
+tcp: avoid spurious asserts while discarding bytes
+tls:fix connection failures with pipeline config
+af_packet: log fatal error on send
+session: force cleanup of cts without app wrk
+http: http/2 multiplexing
+hs-test: add test timeout override
+hs-test: nginx perf test and improvements
+dev: enable flow on primary interface
+octeon: update roc version
+octeon: flush CQ buffers on stop
+hsa: scale the data chunk threshold for echo client tput based on fifo size
+tls:updated management of async events handling
+tcp: fix coverity discard bytes warning
+session: avoid clearing fifos while closing
+session: update state on unexpected delete ntf
+hs-test: increase vppinstance connect interval
+bonding: activate also on port-rx-eth arc
+hs-test: don't assert iperf results on GCOV builds
+fib: fix adj_get_rewrite()
+ip_session_redirect: add dump api for session redirects
+hs-test: added ipv6 support and tests
+hs-test: add h2load container to infra
+http: http2_transport_conn_reschedule_callback
+http: http/2 flow control
+session: add session eventing infra for apps
+udp: fix byte counts to not include headers
+session: add support for postponing transport cleanups
+tcp: reuse and refactor use of del function
+hsa: http client - show latency when verbose
+build: add install_manifest.txt to .gitignore
+vapi: connect/disconnect error handling uds transport
+sr: fixed return msg id in policy update v2 handler
+vnet: add vapi interface feature enablement check function
+linux-cp: do ip6-ll cleanup on interface removal
+prom: return error when http_static not loaded
+pg: improve pg stream test
+pnat: expose binding_index over API
+vlib: remove unnecessary assert
+hs-test: adjust iperf performance limits
+hs-test: ignore images with no repo tags when creating containers
+vlib: add dispatch reason strings
+vlib: add 'use-current-dir' knob to unix {} conf
+vppinfra: silence clang-tidy unsafe warnings for sizeof (a->b[0])
+tcp: tcp_bt_flush_samples coverity fix
+http_static: try_url_handler coverity fix
+vcl: handle vcl as opposed to ldp reattaches
+vlib: refactor file handling
+udp: track connection startup timestamp
+hsa: add setting desired throughput option for test echo client
+hsa: http_tps confirm data read
+unittest: session_get_memory_usage coverity fix
+build: add --prefix and --verbose to ./configure script
+tests: improve coverage report filters
+vcl: remove detatched pipefds from all workers
+tests: add an argument to select the vpp binary in run.py
+vppinfra: unify thread_index handling
+crypto-ipsecmb: call init_mb_mgr_auto instead of the logic implemented on the plugin side
+hs-test: added iperf packet reorder tests
+http_static: url handler buffer large POST body
+tests: update run.py to skip building vpp when running tests
+build: update vpp-opt-deps to openssl 3.5.0
+memif: fix fib lookup in dma datapath
+vlib: move file_main to vlib/file.[ch]
+vlib: remove unused variable
+http: http_app_worker_rx_notify improvement
+crypto: add support for aes-cbc with hmac
+udp: add basic stats per connection
+session: https parsing support
+http: fix http session deschedule
+snort: don't create listner until 1st instance is created
+sr: fix unit tests
+hs-test: Add CPU pinning tests for 'relative' keyword
+vppinfra: thread safe clib file
+vhost: don't access clib file data directly
+vppinfra: explicitelly cast to void * to silence clangd
+vlib: thread safe logging
+bonding: ASSERT fails for bif->active_members in TX path
+vlib: timing wheel improvements
+http: malformed request handling improvement
+tcp: remove erroneous exception seg check assert
+hs-test: added basic performance testing infra
+vlib: add 'relative' keyword for cpu configuration
+vlib: require main core with 'skip-cores' attribute
+vlib: avoid confusion when parsing plugins section
+dpdk: fix key length for linked crypto algs
+vlib: fix restart cli command
+session: support builtin ct accepts
+http_static: url handler POST improvement
+hs-test: http/2 testing with h2spec
+tcp: do not scale syn-ack window
+vppinfra: move spinlock code into macro so it can be reused
+http: http/2 improvements
+vlib: don't enable api elog by default
+vppinfra: fix includes in devicetree code
+http: check if version is known on cleanup
+http: PING frame support
+misc: update vpp python requirements
+vpp: add VPP_PLATFORM to show version output
+http: http/2 starting tcp connection
+http: http/2 stream state machine
+http: http_buffer improvements
+http_static: support multiple listeners
+http: handle ts closed notifications
+vlib: add vlib_node_unschedule() and vlib_node_is_scheduled()
+iavf: fix promisc flags
+vlib: use libiberty to demangle backtrace if present
+crypto: make configurable crypto engines
+hsa: add timed runs option for echo client
+hs-test: simplify core allocation
+acl: use ip4_preflen_to_mask instead of artisanal function
+vat2: fix -p in vat2 help text
+tests: gracefully terminate iperf3 process to enable cleanups
+tests: update lcov ignore_error param
+octeon: set cpt descriptor count to 16k
+octeon: fix invalid mac length in chacha poly
+build: fix the make-ext-deps
+hsa: remove mbytes/gbytes parameters from echo client
+hs-test: remove assert in container.Exec
+http: leave space for msg header on transport method
+http_static: POST to static files improvement
+tests: fix text cov-post
+vcl: fix coverity warnings
+dma_intel: fix dsa software fallback
+tests: fix test cov for PG Stream and Session SDL
+tests: fix test cov
+vcl: improve vpp detached handling for mq epoll apps
+hs-test: fix redis test on ubuntu 24.04
+acl: fix an off-by-one error in fa_acl_match_ip6_addr which does masked IPv6 comparison
+vlib: add new node type - SCHED nodes
+build: remove unused packages
+hs-test: iperf and redis server logs
+misc: update maintainers
+http: http/2 core skeleton
+http: extendable conn/req ctx and multiplexing
+build: fix coverage for various lcov versions
+tests: allow to define SKIP_TESTS in a similar fashion to TEST
+tests: use vcl_test_client and server for installation
+quic: Fix compilation error with CMake 4.0.0
+hs-test: lower minimum iperf perf requirements
+af_xdp: Backport Get rid of llc and use clang to build BPF object files directly
+dpdk: rte_eth_tx_prepare need to called before transmiting packets
+hs-test: added session, tcp, svm unit tests
+ip: fix ICMP inner payload parsing
+hs-test: enable coverage file filtering correctly
+vcl: fix cl sendto on unbound socket
+build: remove the duplicate `make install-dep` in `make pkg-verify`
+urpf: fix multicast traffic
+hs-test: ignore some never used code paths for coverage generation
+hs-test: shutdown VPP cleanly when finishing a testcase
+dpdk: format UDP hw offload info consistently
+http: http_transport_connect TLS support
+http_static: resize header response buffer if needed
+vcl: improve vpp detatch handling
+vcl: remove listen_no_mq from state to flag
+session: improve endpoint cfg unit test
+session: fix lcl port allocation with fib
+http_static: hss_ts_rx_callback fix
+misc: add and consolidate host stack scripts
+papi: fix socket api max message id calculation
+http: http2 frames
+vppinfra: make verbose format time more verbose
+session: uri parsing improvements
+session: ignore tx evts for cl sessions with no fifo
+misc: VPP 25.02 Release Notes
+docs: Restore and update nat section of progressive tutorial
+http: hpack headers encoding
+hs-test: make docker cache dir multi-user friendly
+hs-test: create docker buildx with proxy
+hs-test: fix make install-deps
+abf: run abf after reassembly
+linux-cp: Add support for LACP packets
+http_static: squash subsequent forward slashes in request target path
+http: hpack headers decoding
+ping: Check only PING_RESPONSE_IP4 and PING_RESPONSE_IP6 events
+build: generate TAGS file for emacs
+ipsec: coverity warning, issue CID 509068
+vxlan: move vxlan-gpe to a plugin
+udp: fix cli for next node and opaque
+session: trace all packets sourced by session layer
+libmemif: Fixed strlcpy symbol detection.
+vppinfra: bihash_vec8_8 set key in mark_free
+http: hpack primitive types
+build: make clang the default compiler for build targets
+ipsec: add tests for bypass/discard ipv6 policies and upd encapsulation
+ipsec: enable support for ipv6 udp ipsec encapsulation in policy mode
+ipsec: add support for bypass and discard policies for ipv6
+sr: fix sr_policy fib table
+ip: add support to preallocate pools
+build: use clang by default when using Makefile
+session: improve chained buffer enqueue
+tcp: improve exception checks for established connections
+ipsec: better pack outbound SA runtime data
+ipsec: keep inbound seq as u64
+ipsec: combine huge and normal anti-replay-window handling
+ipsec: embed anti-replay bitmap in the runtime data
+ipsec: store anti_replay_window_size in runtime data
+vppinfra: add few uword_bitmap_* functions
+session: make sure we cannot pass wrong IO event type
+build: fix broken HST gcov build
+tcp: rename worker ctx to just wrk
+session: move io inlines to header file
+vrrp: force sleeps between timer events
+http: modularization in preparation for h2 and h3
+hsa: http client parallel sessions
+build: add socat deb package
+build: replace __FUNCTION__ with C11 __func__
+hs-test: option to skip tests using cli args
+session: do not match listeners when looking for lcl port
+dpdk: patch add to ice driver for flow action handles
+hs-test: fix numa node core retrieval
+qos: fix qos record cli
+http: confirm postponed connection close
+hs-test: fix vppConnectUdpStressLoad panic
+l2: fix segment fault
+cnat: fix interface map type unformat
+build: check cmake3 command silently
+http: buf_fifo_get_segs minor fix
+crypto: remove barrier on key add
+ipsec: fix ipsec_sa_v5_details
+ipsec: export ipsec_funcs header
+http: http_app_tx_callback check if conn closed
+ipsec: store outbound seq as u64
+hs-test: fixed incorrect exit status
+vpp_config: leave kernel.shmmax alone by default
+hsa: http connect proxy fix
+hs-test: fix broken test
+ipsec: add SA inbound and outbound runtime data
+http: conn state consistency with other transports
+sflow: replace VAPI with DLAPI
+vpp_config: leave vm.max_map_count alone by default
+armada: fix DSA packet grouping issue on rx
+session: make local port allocator fib aware
+vcl: fix sigchld handler recursion
+session: validate new app worker on update reqest
+http_static: introduce max-body-size parameter
+http: move header serialization to http transport
+build: add golang checkstyle for hs-test to ci checkstyle-test target
+sflow: Update build rules
+tests: fix docs compile syntax warning
+build: support anolis8 operation for vpp
+build: add support for debian trixie
+svm: improve ooo try collect
+session: cleanup io event functions
+session svm: track session indices in private struct
+http: case-insensitive header table search
+crypto-native: add fixed tag and aad size ops
+snort: validate sw_if_index in attach/detach api handlers
+misc: Initial 25.06-rc0 commit
+http: target parsing improvement
+dpdk: enable VLAN offload configuration for the iavf PMD driver
+crypto: add async algo macros for ctr sha2
+octeon: add direct mode changes in crypto datapath
+octeon: rework octeon crypto framework
+octeon: fix for async crypto session init
+dpdk: bump to DPDK 24.11.1
+crypto-openssl: fixed tag and aad lengths for chacha-poly
+tls: async event handling enhancement
+build: fix compiler ordering
+vcl: segfault correction in vcl_session_connected_handler
+sflow: initial checkin
+vlib: fail in runtime if workers > nelts
+af_packet: worker thread call vlib_log coredump
+af_xdp: revert "af_xdp: fix af_xdp compile waring for clang compiler"
+snort: support multiple instances per interface
+crypto-ipsecmb: fixed tag and aad lengths for chacha-poly
+hs-test: temporarily skip VppEchoQuicTest
+linux-cp: add the drain back
+af_xdp: fix af_xdp compile waring for clang compiler
+dpdk: update rdma-core to 55.0
+crypto-openssl: add fixed tag and aad size ops
+crypto-ipsecmb: add fixed tag and aad size ops
+http: fix sending error responses to rejected requests by server apps
+linux-cp: fix segfault while receiving nl messages
+crypto: combine sync and async algos and ops
+ipsec: make algo data constant
+arp: fix command resolve and config filed exist differ
+ipsec: don't add crypto key if cipher is NONE
+tcp: export sdl header file for out-of-tree plugins
+tests: remove decorator tag_fixme_ubuntu2404
+pg: fix tr to trace
+octeon: add compatibility check
+octeon: update octeon roc version
+http_static: read body only for POST requests
+ipsec: add test for tun sa ip6 fast-path spd policy matching
+ip: fix local csum check
+crypto: remove AEAD opt types
+octeon: fix octeon build issue
+crypto: key storage improvements
+dev: assign tx queue to all threads
+hs-test: http tps test with tls
+build: expose VPP_PLATFORM to out-of-tree plugins
+sr: fix aarch64 build issue
 -------------------------------------------------------------
