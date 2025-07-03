@@ -1,10 +1,12 @@
-VPP Version                 : 25.10.0-8~gd4f438470
+VPP Version                 : 25.10.0-10~ge189aa37b
 Binapi-generator version    : v0.11.0
 VPP Base commit             : 4f366b5bb misc: Initial changes for stable/2510 branch
 ------------------ Cherry picked commits --------------------
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:43369/12 cnat: converge new cnat implementation to support encaps (calico)
+gerrit:41089/27 cnat: combine multiple changes
 gerrit:43952/2 npol: fix test-debug
 gerrit:43710/12 npol: Network Policies plugin
 gerrit:revert:39675/5 Revert "ip-neighbor: do not use sas to determine NS source address"

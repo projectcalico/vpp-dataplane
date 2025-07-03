@@ -614,16 +614,6 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error configuring NAT on vpptap0")
 	}
 
-	err = v.vpp.RegisterPodInterface(tapSwIfIndex)
-	if err != nil {
-		return errors.Wrap(err, "error configuring vpptap0 as pod intf")
-	}
-
-	err = v.vpp.RegisterHostInterface(tapSwIfIndex)
-	if err != nil {
-		return errors.Wrap(err, "error configuring vpptap0 as host intf")
-	}
-
 	// Linux side tap setup
 	link, err := netlink.LinkByName(ifSpec.InterfaceName)
 	if err != nil {
@@ -660,11 +650,6 @@ func (v *VppRunner) doVppGlobalConfiguration() (err error) {
 	err = v.allocateStaticVRFs()
 	if err != nil {
 		return errors.Wrap(err, "Error creating static VRFs in VPP")
-	}
-
-	err = v.vpp.SetK8sSnatPolicy()
-	if err != nil {
-		return errors.Wrap(err, "Error configuring cnat source policy")
 	}
 
 	err = v.vpp.ConfigureNeighborsV4(&types.NeighborConfig{

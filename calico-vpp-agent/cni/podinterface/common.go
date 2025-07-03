@@ -131,6 +131,10 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *model.Loca
 		}
 	}
 
+	err = i.vpp.EnableCnatSNATOnInterfaceVRF(swIfIndex)
+	if err != nil {
+		return errors.Wrapf(err, "error configuring cnat snat on pod VRF")
+	}
 	if !*ifSpec.IsL3 {
 		/* L2 */
 		err = i.vpp.SetPromiscOn(swIfIndex)
