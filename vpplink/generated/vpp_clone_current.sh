@@ -112,7 +112,8 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 # VPP 25.06 released on 25/June/2025
-BASE="${BASE:-"1573e751c5478d3914d26cdde153390967932d6b"}" # misc: VPP 25.06 Release Notes
+BASE="${BASE:-"d2f48f46a8f5cb3cc733632b4ad3990dd7638c50"}" # misc: VPP 25.06 Release Notes
+
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
@@ -140,6 +141,11 @@ git_cherry_pick refs/changes/36/43336/3  # gso: fix ip fragment support for gso 
 git_cherry_pick refs/changes/98/42598/12  # pg: add support for checksum offload
 git_cherry_pick refs/changes/76/42876/10  # gso: add support for ipip tso for phyiscal interfaces
 git_cherry_pick refs/changes/90/43690/2 # session: track app session index for cl sessions
+
+# testing new cnat stuff
+git_cherry_pick refs/changes/89/41089/20 # https://gerrit.fd.io/r/c/vpp/+/41089 cnat: combine multiple changes
+git_cherry_pick refs/changes/69/43369/7 # https://gerrit.fd.io/r/c/vpp/+/43369
+
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
