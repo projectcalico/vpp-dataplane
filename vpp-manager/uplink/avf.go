@@ -35,16 +35,16 @@ type AVFDriver struct {
 func (d *AVFDriver) IsSupported(warn bool) (supported bool) {
 	var ret bool
 	supported = true
-	ret = d.params.LoadedDrivers[config.DRIVER_VFIO_PCI]
+	ret = d.params.LoadedDrivers[config.DriverVfioPci]
 	if !ret && warn {
 		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
 		log.Warnf("VPP may fail to grab its interface")
 	}
 	supported = supported && ret
 
-	ret = d.conf.Driver == config.DRIVER_I40E || d.conf.Driver == config.DRIVER_ICE
+	ret = d.conf.Driver == config.DriverI40E || d.conf.Driver == config.DriverICE
 	if !ret && warn {
-		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_I40E)
+		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DriverI40E)
 	}
 	supported = supported && ret
 
@@ -52,22 +52,22 @@ func (d *AVFDriver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *AVFDriver) PreconfigureLinux() (err error) {
-	pciId, err := utils.GetInterfacePciId(d.spec.InterfaceName)
+	pciID, err := utils.GetInterfacePciID(d.spec.InterfaceName)
 	if err != nil {
 		return errors.Wrapf(err, "cannot get interface %s pciID", d.spec.InterfaceName)
 	}
 
-	numVFs, err := utils.GetInterfaceNumVFs(pciId)
+	numVFs, err := utils.GetInterfaceNumVFs(pciID)
 	if err != nil {
 		/* Most probably we were passed a VF */
-		d.vfPCI = pciId
+		d.vfPCI = pciID
 		d.pfPCI = ""
 	} else {
 		/* This is a PF */
-		d.pfPCI = pciId
+		d.pfPCI = pciID
 		if numVFs == 0 {
 			log.Infof("Creating a VF for %s", d.spec.InterfaceName)
-			err := utils.CreateInterfaceVF(pciId)
+			err := utils.CreateInterfaceVF(pciID)
 			if err != nil {
 				return errors.Wrapf(err, "Couldnt create VF for %s", d.spec.InterfaceName)
 			}
@@ -83,7 +83,7 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 				return errors.Wrapf(err, "Couldnt set VF 0 hwaddr %s", d.spec.InterfaceName)
 			}
 		}
-		vfPCI, err := utils.GetInterfaceVFPciId(pciId)
+		vfPCI, err := utils.GetInterfaceVFPciID(pciID)
 		if err != nil {
 			return errors.Wrapf(err, "Couldnt get VF pciID for %s", d.spec.InterfaceName)
 		}
@@ -101,8 +101,8 @@ func (d *AVFDriver) PreconfigureLinux() (err error) {
 	if err != nil {
 		return errors.Wrapf(err, "Couldnt get VF driver Name for %s", d.vfPCI)
 	}
-	if driverName != config.DRIVER_VFIO_PCI {
-		err := utils.BindVFtoDriver(d.vfPCI, config.DRIVER_VFIO_PCI)
+	if driverName != config.DriverVfioPci {
+		err := utils.BindVFtoDriver(d.vfPCI, config.DriverVfioPci)
 		if err != nil {
 			return errors.Wrapf(err, "Couldnt bind VF %s to vfio_pci", d.vfPCI)
 		}
@@ -149,7 +149,7 @@ func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, upl
 
 	intf := types.AVFInterface{
 		GenericVppInterface: d.getGenericVppInterface(),
-		PciId:               d.vfPCI,
+		PciID:               d.vfPCI,
 	}
 	swIfIndex, err := vpp.CreateAVF(&intf)
 	if err != nil {
@@ -172,7 +172,7 @@ func (d *AVFDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, upl
 
 func NewAVFDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *AVFDriver {
 	d := &AVFDriver{}
-	d.name = NATIVE_DRIVER_AVF
+	d.name = NativeDriverAvf
 	d.conf = conf
 	d.params = params
 	d.spec = spec

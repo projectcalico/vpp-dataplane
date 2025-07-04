@@ -48,7 +48,7 @@ var (
 
 const (
 	DefaultVRFIndex = uint32(0)
-	PuntTableId     = uint32(1)
+	PuntTableID     = uint32(1)
 	PodVRFIndex     = uint32(2)
 )
 
@@ -216,18 +216,13 @@ func GetHostPrefixSetName(isv6 bool) string {
 	return v46ify(hostPrefixSetBaseName, isv6)
 }
 
-func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.IP, vni uint32, asNumber uint32) (*bgpapi.Path, error) {
+func MakePath(prefix string, isWithdrawal bool, nodeIPv4 *net.IP, nodeIPv6 *net.IP, vni uint32, asNumber uint32) (*bgpapi.Path, error) {
 	_, ipNet, err := net.ParseCIDR(prefix)
 	if err != nil {
 		return nil, err
 	}
 
-	p := ipNet.IP
 	masklen, _ := ipNet.Mask.Size()
-	v4 := true
-	if p.To4() == nil {
-		v4 = false
-	}
 	var nlri *apb.Any
 	if vni != 0 {
 		rdAttr, err := apb.New(&bgpapi.RouteDistinguisherTwoOctetASN{
@@ -238,7 +233,7 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 			return nil, err
 		}
 		nlri, err = apb.New(&bgpapi.LabeledVPNIPAddressPrefix{
-			Prefix:    p.String(),
+			Prefix:    ipNet.IP.String(),
 			PrefixLen: uint32(masklen),
 			Rd:        rdAttr,
 		})
@@ -247,7 +242,7 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 		}
 	} else {
 		nlri, err = apb.New(&bgpapi.IPAddressPrefix{
-			Prefix:    p.String(),
+			Prefix:    ipNet.IP.String(),
 			PrefixLen: uint32(masklen),
 		})
 		if err != nil {
@@ -261,9 +256,9 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 	}
 	attrs := []*apb.Any{originAttr}
 
-	if v4 {
-		if nodeIpv4 == nil {
-			return nil, fmt.Errorf("No ip4 address for node")
+	if ipNet.IP.To4() != nil {
+		if nodeIPv4 == nil {
+			return nil, fmt.Errorf("no ip4 address for node")
 		}
 		family = &BgpFamilyUnicastIPv4
 		if vni != 0 {
@@ -273,11 +268,11 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 
 		if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 			nhAttr, err = apb.New(&bgpapi.NextHopAttribute{
-				NextHop: nodeIpv6.String(),
+				NextHop: nodeIPv6.String(),
 			})
 		} else {
 			nhAttr, err = apb.New(&bgpapi.NextHopAttribute{
-				NextHop: nodeIpv4.String(),
+				NextHop: nodeIPv4.String(),
 			})
 		}
 		if err != nil {
@@ -285,8 +280,8 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 		}
 		attrs = append(attrs, nhAttr)
 	} else {
-		if nodeIpv6 == nil {
-			return nil, fmt.Errorf("No ip6 address for node")
+		if nodeIPv6 == nil {
+			return nil, fmt.Errorf("no ip6 address for node")
 		}
 		family = &BgpFamilyUnicastIPv6
 		if vni != 0 {
@@ -300,7 +295,7 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 			familySafi = bgpapi.Family_SAFI_UNICAST
 		}
 		nlriAttr, err = apb.New(&bgpapi.MpReachNLRIAttribute{
-			NextHops: []string{nodeIpv6.String()},
+			NextHops: []string{nodeIPv6.String()},
 			Nlris:    []*apb.Any{nlri},
 			Family: &bgpapi.Family{
 				Afi:  bgpapi.Family_AFI_IP6,
@@ -322,7 +317,7 @@ func MakePath(prefix string, isWithdrawal bool, nodeIpv4 *net.IP, nodeIpv6 *net.
 	}, nil
 }
 
-func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficType int, isWithdrawal bool) (*bgpapi.Path, error) {
+func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIPv6 net.IP, trafficType int, isWithdrawal bool) (*bgpapi.Path, error) {
 	originAttr, err := apb.New(&bgpapi.OriginAttribute{Origin: 0})
 	if err != nil {
 		return nil, err
@@ -330,7 +325,7 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIpv6 net.IP, trafficTy
 	attrs := []*apb.Any{originAttr}
 
 	var family *bgpapi.Family
-	var nodeIP = nodeIpv6
+	var nodeIP = nodeIPv6
 	var epbs = &bgpapi.SRv6EndPointBehavior{}
 	family = &BgpFamilySRv6IPv6
 	if trafficType == 4 {
@@ -440,7 +435,7 @@ const (
 	ChangeUpdated ChangeType = 4
 )
 
-func GetIpNetChangeType(old, new *net.IPNet) ChangeType {
+func GetIPNetChangeType(old, new *net.IPNet) ChangeType {
 	var oldStr, newStr string
 	if old != nil {
 		oldStr = old.IP.String()

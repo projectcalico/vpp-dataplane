@@ -309,16 +309,16 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 			for ip, asn := range ipAsn {
 				existing, ok := state[ip]
 				if ok {
-					w.log.Debugf("peer(update) neighbor ip=%s for BGPPeer=%s", ip, peer.ObjectMeta.Name)
+					w.log.Debugf("peer(update) neighbor ip=%s for BGPPeer=%s", ip, peer.Name)
 					existing.SweepFlag = false
 					oldSecret := w.getSecretName(existing.BGPPeerSpec)
 					newSecret := w.getSecretName(&peer.Spec)
-					w.log.Debugf("peer(update) oldSecret=%s newSecret=%s SecretChanged=%t for BGPPeer=%s", oldSecret, newSecret, existing.SecretChanged, peer.ObjectMeta.Name)
+					w.log.Debugf("peer(update) oldSecret=%s newSecret=%s SecretChanged=%t for BGPPeer=%s", oldSecret, newSecret, existing.SecretChanged, peer.Name)
 					filtersChanged := !CompareStringSlices(existing.BGPPeerSpec.Filters, peer.Spec.Filters)
 					if existing.AS != asn || oldSecret != newSecret || existing.SecretChanged || filtersChanged {
 						err := w.updateBGPPeer(ip, asn, &peer.Spec, existing.BGPPeerSpec)
 						if err != nil {
-							w.log.Warn(errors.Wrapf(err, "error updating BGP peer %s, ip=%s", peer.ObjectMeta.Name, ip))
+							w.log.Warn(errors.Wrapf(err, "error updating BGP peer %s, ip=%s", peer.Name, ip))
 							continue
 						}
 						existing.AS = asn
@@ -327,10 +327,10 @@ func (w *PeerWatcher) resyncAndCreateWatcher(state map[string]*bgpPeer) error {
 					} // Else no change, nothing to do
 				} else {
 					// New peer
-					w.log.Infof("peer(add) neighbor ip=%s for BGPPeer=%s", ip, peer.ObjectMeta.Name)
+					w.log.Infof("peer(add) neighbor ip=%s for BGPPeer=%s", ip, peer.Name)
 					err := w.addBGPPeer(ip, asn, &peer.Spec)
 					if err != nil {
-						w.log.Warn(errors.Wrapf(err, "error adding BGP peer %s, ip=%s", peer.ObjectMeta.Name, ip))
+						w.log.Warn(errors.Wrapf(err, "error adding BGP peer %s, ip=%s", peer.Name, ip))
 						// Add the secret to the set of active secrets so it does not get cleaned up
 						secretName := w.getSecretName(&peer.Spec)
 						if secretName != "" {

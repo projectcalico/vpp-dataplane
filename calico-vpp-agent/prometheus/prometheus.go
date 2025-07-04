@@ -69,7 +69,7 @@ func (s *Server) recordMetrics(t *tomb.Tomb) {
 		ifNames, dumpStats, _ := vpplink.GetInterfaceStats(s.sc)
 		for _, sta := range dumpStats {
 			if string(sta.Name) != "/if/names" {
-				names := []string{strings.Replace(string(sta.Name[4:]), "-", "_", -1)}
+				names := []string{strings.ReplaceAll(string(sta.Name[4:]), "-", "_")}
 				if sta.Type == adapter.CombinedCounterVector {
 					names = []string{names[0] + "_packets", names[0] + "_bytes"}
 				}
@@ -141,7 +141,7 @@ func (s *Server) exportMetricsForStat(names []string, sta adapter.StatEntry, ifN
 			Timeseries: []*metricspb.TimeSeries{},
 		}
 		s.lock.Lock()
-		if sta.Type == adapter.SimpleCounterVector {
+		if sta.Type == adapter.SimpleCounterVector { //nolint:all
 			values, ok := sta.Data.(adapter.SimpleCounterStat)
 			if !ok {
 				return fmt.Errorf("sta.Data is not a (adapter.SimpleCounterStat), %v", sta.Data)
@@ -235,7 +235,7 @@ func (s *Server) ServePrometheus(t *tomb.Tomb) error {
 					continue
 				}
 				s.lock.Lock()
-				if podSpec.TunTapSwIfIndex == vpplink.INVALID_SW_IF_INDEX {
+				if podSpec.TunTapSwIfIndex == vpplink.InvalidSwIfIndex {
 					s.podInterfacesBySwifIndex[podSpec.MemifSwIfIndex] = *podSpec
 				} else {
 					s.podInterfacesBySwifIndex[podSpec.TunTapSwIfIndex] = *podSpec
@@ -251,7 +251,7 @@ func (s *Server) ServePrometheus(t *tomb.Tomb) error {
 				}
 				initialPod := s.podInterfacesByKey[podSpec.Key()]
 				delete(s.podInterfacesByKey, initialPod.Key())
-				if podSpec.TunTapSwIfIndex == vpplink.INVALID_SW_IF_INDEX {
+				if podSpec.TunTapSwIfIndex == vpplink.InvalidSwIfIndex {
 					delete(s.podInterfacesBySwifIndex, initialPod.MemifSwIfIndex)
 				} else {
 					delete(s.podInterfacesBySwifIndex, initialPod.TunTapSwIfIndex)

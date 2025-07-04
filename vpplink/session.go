@@ -68,7 +68,7 @@ func (v *VppLink) addDelSessionAppNamespace(namespace *types.SessionAppNamespace
 
 	_, err := client.AppNamespaceAddDelV3(v.GetContext(), &session.AppNamespaceAddDelV3{
 		Secret:      namespace.Secret,
-		NamespaceID: namespace.NamespaceId,
+		NamespaceID: namespace.NamespaceID,
 		Netns:       namespace.Netns,
 		SockName:    namespace.SocketName,
 		SwIfIndex:   interface_types.InterfaceIndex(namespace.SwIfIndex),

@@ -77,18 +77,18 @@ type CnatTranslateEntry struct {
 	HashConfig IPFlowHash
 }
 
-func (n *CnatTranslateEntry) String() string {
-	strLst := make([]string, 0, len(n.Backends))
-	for _, e := range n.Backends {
+func (e *CnatTranslateEntry) String() string {
+	strLst := make([]string, 0, len(e.Backends))
+	for _, e := range e.Backends {
 		strLst = append(strLst, e.String())
 	}
 	return fmt.Sprintf("[%s real=%t lbtyp=%d vip=%s rw=%s hashc=%+v]",
-		n.Proto.String(),
-		n.IsRealIP,
-		n.LbType,
-		n.Endpoint.String(),
+		e.Proto.String(),
+		e.IsRealIP,
+		e.LbType,
+		e.Endpoint.String(),
 		strings.Join(strLst, ", "),
-		n.HashConfig,
+		e.HashConfig,
 	)
 }
 
@@ -100,34 +100,34 @@ const (
 	ShouldRecreateObj                         /* object differ, you need to delete the old & add back the new */
 )
 
-func (n *CnatTranslateEntry) Equal(oldService *CnatTranslateEntry) ObjEqualityState {
-	if n == nil || oldService == nil {
+func (e *CnatTranslateEntry) Equal(oldService *CnatTranslateEntry) ObjEqualityState {
+	if e == nil || oldService == nil {
 		return ShouldRecreateObj
 	}
-	if n.Proto != oldService.Proto {
+	if e.Proto != oldService.Proto {
 		return ShouldRecreateObj
 	}
-	if n.IsRealIP != oldService.IsRealIP {
+	if e.IsRealIP != oldService.IsRealIP {
 		return ShouldRecreateObj
 	}
-	if n.Endpoint.Port != oldService.Endpoint.Port {
+	if e.Endpoint.Port != oldService.Endpoint.Port {
 		return ShouldRecreateObj
 	}
-	if !n.Endpoint.IP.Equal(oldService.Endpoint.IP) {
+	if !e.Endpoint.IP.Equal(oldService.Endpoint.IP) {
 		return ShouldRecreateObj
 	}
-	if len(n.Backends) == 0 && len(oldService.Backends) > 0 {
+	if len(e.Backends) == 0 && len(oldService.Backends) > 0 {
 		/* We do not keep cnat entries with no backends in VPP */
 		return ShouldRecreateObj
 	}
-	if n.LbType != oldService.LbType {
+	if e.LbType != oldService.LbType {
 		return CanUpdateObj
 	}
-	if len(n.Backends) != len(oldService.Backends) {
+	if len(e.Backends) != len(oldService.Backends) {
 		return CanUpdateObj
 	}
 	nMap := make(map[string]bool)
-	for _, i := range n.Backends {
+	for _, i := range e.Backends {
 		nMap[i.String()] = true
 	}
 	for _, i := range oldService.Backends {

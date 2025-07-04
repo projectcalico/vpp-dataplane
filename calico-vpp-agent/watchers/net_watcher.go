@@ -32,7 +32,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	networkv3 "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/network"
-	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/networkAttachmentDefinition"
+	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/multinettypes"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
@@ -325,8 +325,8 @@ func (w *NetWatcher) CreateNetwork(networkName string, networkVni uint32, netRan
 		return w.networkDefinitions[networkName], nil
 	}
 	w.log.Infof("adding network %s", networkName)
-	vrfID := common.VppManagerInfo.PhysicalNets[phyNet].VrfId
-	podVrfID := common.VppManagerInfo.PhysicalNets[phyNet].PodVrfId
+	vrfID := common.VppManagerInfo.PhysicalNets[phyNet].VrfID
+	podVrfID := common.VppManagerInfo.PhysicalNets[phyNet].PodVrfID
 	netDef = &NetworkDefinition{
 		VRF:                 VRF{Tables: [2]uint32{vrfID, vrfID}},
 		PodVRF:              VRF{Tables: [2]uint32{podVrfID, podVrfID}},
