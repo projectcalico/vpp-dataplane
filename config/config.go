@@ -427,6 +427,22 @@ type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	// PrometheusRecordMetricInterval is the interval at which we update the
 	// prometheus stats polling VPP stats segment. Default to 5 seconds
 	PrometheusRecordMetricInterval *time.Duration `json:"prometheusRecordMetricInterval"`
+	// IP4NeighborsMaxNumber is the maximum number of allowed IPv4 neighbors
+	// VPP allows. Defaults to 50k
+	IP4NeighborsMaxNumber *uint32 `json:"ip4NeighborsMaxNumber"`
+	// IP6NeighborsMaxNumber is the maximum number of allowed IPv4 neighbors
+	// VPP allows. Defaults to 50k
+	IP6NeighborsMaxNumber *uint32 `json:"ip6NeighborsMaxNumber"`
+	// IP4NeighborsMaxAge is the maximum age of IPv4 neighbors in seconds
+	// ARPs will be issued after said interval. Be aware ARPs in VPP are
+	// issued using a pre-existing vlib buffer hence dropping a packet
+	// defaults to 30 seconds. Use 0 to disable.
+	IP4NeighborsMaxAge *uint32 `json:"ip4NeighborsMaxAge"`
+	// IP6NeighborsMaxAge is the maximum age of IPv4 neighbors in seconds
+	// ARPs will be issued after said interval. Be aware ARPs in VPP are
+	// issued using a pre-existing vlib buffer hence dropping a packet
+	// defaults to 30 seconds. Use 0 to disable.
+	IP6NeighborsMaxAge *uint32 `json:"ip6NeighborsMaxAge"`
 }
 
 func (self *CalicoVppInitialConfigConfigType) Validate() (err error) {
@@ -437,6 +453,18 @@ func (self *CalicoVppInitialConfigConfigType) Validate() (err error) {
 		prometheusRecordMetricInterval := 5 * time.Second
 		self.PrometheusRecordMetricInterval = &prometheusRecordMetricInterval
 	}
+	self.IP4NeighborsMaxNumber = DefaultToPtr(
+		self.IP4NeighborsMaxNumber, 50000,
+	)
+	self.IP6NeighborsMaxNumber = DefaultToPtr(
+		self.IP6NeighborsMaxNumber, 50000,
+	)
+	self.IP4NeighborsMaxAge = DefaultToPtr(
+		self.IP4NeighborsMaxAge, 30,
+	)
+	self.IP6NeighborsMaxAge = DefaultToPtr(
+		self.IP6NeighborsMaxAge, 30,
+	)
 	return nil
 }
 func (self *CalicoVppInitialConfigConfigType) GetDefaultGWs() (gws []net.IP, err error) {
@@ -711,4 +739,11 @@ func PrintAgentConfig(log *logrus.Logger) {
 		log.Infof("Version info\n%s", versionFileStr)
 	}
 	PrintEnvVarConfig(log)
+}
+
+func DefaultToPtr[T any](ptr *T, defaultV T) *T {
+	if ptr == nil {
+		return &defaultV
+	}
+	return ptr
 }
