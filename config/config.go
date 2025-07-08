@@ -428,6 +428,22 @@ type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	// PrometheusRecordMetricInterval is the interval at which we update the
 	// prometheus stats polling VPP stats segment. Default to 5 seconds
 	PrometheusRecordMetricInterval *time.Duration `json:"prometheusRecordMetricInterval"`
+	// IP4NeighborsMaxNumber is the maximum number of allowed IPv4 neighbors
+	// VPP allows. Defaults to 50k
+	IP4NeighborsMaxNumber *uint32 `json:"ip4NeighborsMaxNumber"`
+	// IP6NeighborsMaxNumber is the maximum number of allowed IPv4 neighbors
+	// VPP allows. Defaults to 50k
+	IP6NeighborsMaxNumber *uint32 `json:"ip6NeighborsMaxNumber"`
+	// IP4NeighborsMaxAge is the maximum age of IPv4 neighbors in seconds
+	// ARPs will be issued after said interval. Be aware ARPs in VPP are
+	// issued using a pre-existing vlib buffer hence dropping a packet
+	// defaults to 30 seconds. Use 0 to disable.
+	IP4NeighborsMaxAge *uint32 `json:"ip4NeighborsMaxAge"`
+	// IP6NeighborsMaxAge is the maximum age of IPv4 neighbors in seconds
+	// ARPs will be issued after said interval. Be aware ARPs in VPP are
+	// issued using a pre-existing vlib buffer hence dropping a packet
+	// defaults to 30 seconds. Use 0 to disable.
+	IP6NeighborsMaxAge *uint32 `json:"ip6NeighborsMaxAge"`
 }
 
 func (cfg *CalicoVppInitialConfigConfigType) Validate() (err error) {
@@ -438,6 +454,18 @@ func (cfg *CalicoVppInitialConfigConfigType) Validate() (err error) {
 		prometheusRecordMetricInterval := 5 * time.Second
 		cfg.PrometheusRecordMetricInterval = &prometheusRecordMetricInterval
 	}
+	cfg.IP4NeighborsMaxNumber = DefaultToPtr(
+		cfg.IP4NeighborsMaxNumber, 50000,
+	)
+	cfg.IP6NeighborsMaxNumber = DefaultToPtr(
+		cfg.IP6NeighborsMaxNumber, 50000,
+	)
+	cfg.IP4NeighborsMaxAge = DefaultToPtr(
+		cfg.IP4NeighborsMaxAge, 30,
+	)
+	cfg.IP6NeighborsMaxAge = DefaultToPtr(
+		cfg.IP6NeighborsMaxAge, 30,
+	)
 	return nil
 }
 func (cfg *CalicoVppInitialConfigConfigType) GetDefaultGWs() (gws []net.IP, err error) {

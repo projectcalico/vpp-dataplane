@@ -16,6 +16,7 @@
 package types
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_neighbor"
@@ -42,4 +43,19 @@ func ToVppNeighborFlags(flags IPNeighborFlags) ip_neighbor.IPNeighborFlags {
 
 func FromVppNeighborFlags(flags ip_neighbor.IPNeighborFlags) IPNeighborFlags {
 	return IPNeighborFlags(flags)
+}
+
+type NeighborConfig struct {
+	MaxNumber uint32
+	MaxAge    uint32
+	Recycle   bool
+}
+
+func (neighborConfig *NeighborConfig) String() string {
+	return fmt.Sprintf(
+		"max-number:%d max-age:%d recycle:%t",
+		neighborConfig.MaxNumber,
+		neighborConfig.MaxAge,
+		neighborConfig.Recycle,
+	)
 }
