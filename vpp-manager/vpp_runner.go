@@ -143,6 +143,7 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 		SwIfIndex:    tapSwIfIndex,
 		IP:           config.VppHostPuntFakeGatewayAddress,
 		HardwareAddr: ifState.HardwareAddr,
+		Flags:        types.IPNeighborStatic,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Error adding neighbor %s to tap", config.VppHostPuntFakeGatewayAddress)
@@ -661,6 +662,22 @@ func (v *VppRunner) doVppGlobalConfiguration() (err error) {
 	err = v.vpp.SetK8sSnatPolicy()
 	if err != nil {
 		return errors.Wrap(err, "Error configuring cnat source policy")
+	}
+
+	err = v.vpp.ConfigureNeighborsV4(&types.NeighborConfig{
+		MaxNumber: *config.GetCalicoVppInitialConfig().IP4NeighborsMaxNumber,
+		MaxAge:    *config.GetCalicoVppInitialConfig().IP4NeighborsMaxAge,
+	})
+	if err != nil {
+		return errors.Wrap(err, "error configuring v4 ip neighbors")
+	}
+
+	err = v.vpp.ConfigureNeighborsV6(&types.NeighborConfig{
+		MaxNumber: *config.GetCalicoVppInitialConfig().IP6NeighborsMaxNumber,
+		MaxAge:    *config.GetCalicoVppInitialConfig().IP6NeighborsMaxAge,
+	})
+	if err != nil {
+		return errors.Wrap(err, "error configuring v6 ip neighbors")
 	}
 
 	return nil
