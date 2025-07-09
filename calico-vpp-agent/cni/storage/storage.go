@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 8  // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 9  // Used to ensure compatibility wen we reload data
 	MaxApiTagLen              = 63 /* No more than 64 characters in API tags */
 	VrfTagHashLen             = 8  /* how many hash charatecters (b64) of the name in tag prefix (useful when trucated) */
 )
@@ -277,14 +277,15 @@ func (ps *LocalPodSpec) Copy() LocalPodSpec {
 // XXX: Increment CniServerStateFileVersion when changing this struct
 type HostPortBinding struct {
 	HostPort      uint16
-	HostIP        net.IP `struc:"[16]byte"`
+	HostIP6       net.IP `struc:"[16]byte"`
+	HostIP4       net.IP `struc:"[16]byte"`
 	ContainerPort uint16
 	EntryID       uint32
 	Protocol      types.IPProto
 }
 
 func (hp *HostPortBinding) String() string {
-	s := fmt.Sprintf("%s %s:%d", hp.Protocol.String(), hp.HostIP, hp.HostPort)
+	s := fmt.Sprintf("%s %s %s:%d", hp.Protocol.String(), hp.HostIP4 , hp.HostIP6, hp.HostPort)
 	s += fmt.Sprintf(" cport=%d", hp.ContainerPort)
 	s += fmt.Sprintf(" id=%d", hp.EntryID)
 	return s

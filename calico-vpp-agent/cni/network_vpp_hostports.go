@@ -16,6 +16,8 @@
 package cni
 
 import (
+	"net"
+
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -24,32 +26,36 @@ import (
 func (s *Server) AddHostPort(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) error {
 	for idx, hostPort := range podSpec.HostPorts {
 		for _, containerAddr := range podSpec.ContainerIps {
-			if !vpplink.AddrFamilyDiffers(containerAddr.IP, hostPort.HostIP) {
-				continue
+			for _, hostIP := range []net.IP{hostPort.HostIP4, hostPort.HostIP6} {
+				if hostIP != nil {
+					if !vpplink.AddrFamilyDiffers(containerAddr.IP, hostIP) {
+						continue
+					}
+					entry := &types.CnatTranslateEntry{
+						Endpoint: types.CnatEndpoint{
+							IP:   hostIP,
+							Port: hostPort.HostPort,
+						},
+						Backends: []types.CnatEndpointTuple{{
+							DstEndpoint: types.CnatEndpoint{
+								Port: hostPort.ContainerPort,
+								IP:   containerAddr.IP,
+							},
+						}},
+						IsRealIP: true,
+						Proto:    hostPort.Protocol,
+						LbType:   types.DefaultLB,
+					}
+					s.log.Infof("pod(add) hostport %s", entry.String())
+					id, err := s.vpp.CnatTranslateAdd(entry)
+					if err != nil {
+						return err
+					} else {
+						stack.Push(s.vpp.CnatTranslateDel, id)
+					}
+					podSpec.HostPorts[idx].EntryID = id
+				}
 			}
-			entry := &types.CnatTranslateEntry{
-				Endpoint: types.CnatEndpoint{
-					IP:   hostPort.HostIP,
-					Port: hostPort.HostPort,
-				},
-				Backends: []types.CnatEndpointTuple{{
-					DstEndpoint: types.CnatEndpoint{
-						Port: hostPort.ContainerPort,
-						IP:   containerAddr.IP,
-					},
-				}},
-				IsRealIP: true,
-				Proto:    hostPort.Protocol,
-				LbType:   types.DefaultLB,
-			}
-			s.log.Infof("pod(add) hostport %s", entry.String())
-			id, err := s.vpp.CnatTranslateAdd(entry)
-			if err != nil {
-				return err
-			} else {
-				stack.Push(s.vpp.CnatTranslateDel, id)
-			}
-			podSpec.HostPorts[idx].EntryID = id
 		}
 	}
 	return nil

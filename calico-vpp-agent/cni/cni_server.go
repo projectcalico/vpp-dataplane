@@ -138,19 +138,33 @@ func (s *Server) newLocalPodSpecFromAdd(request *cniproto.AddRequest) (*storage.
 
 	for _, port := range request.Workload.Ports {
 		hostIP := net.ParseIP(port.HostIp)
+		var hostIP4, hostIP6 net.IP
 		hostPort := uint16(port.HostPort)
 		if hostPort != 0 && hostIP != nil && !hostIP.IsUnspecified() {
+			if hostIP.To4() == nil {
+				hostIP6 = hostIP
+			} else {
+				hostIP4 = hostIP
+			}
 			podSpec.HostPorts = append(podSpec.HostPorts, storage.HostPortBinding{
 				HostPort:      hostPort,
-				HostIP:        hostIP,
+				HostIP4:       hostIP4,
+				HostIP6:       hostIP6,
 				ContainerPort: uint16(port.Port),
 				Protocol:      getHostEndpointProto(port.Protocol),
 			})
 		} else if hostPort != 0 {
 			// default to node IP
+			if s.nodeBGPSpec.IPv4Address != nil {
+				hostIP4 = s.nodeBGPSpec.IPv4Address.IP
+			}
+			if s.nodeBGPSpec.IPv6Address != nil {
+				hostIP6 = s.nodeBGPSpec.IPv6Address.IP
+			}
 			podSpec.HostPorts = append(podSpec.HostPorts, storage.HostPortBinding{
 				HostPort:      hostPort,
-				HostIP:        net.ParseIP(s.nodeBGPSpec.IPv4Address.IP.String()),
+				HostIP4:       hostIP4,
+				HostIP6:       hostIP6,
 				ContainerPort: uint16(port.Port),
 				Protocol:      getHostEndpointProto(port.Protocol),
 			})
