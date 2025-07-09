@@ -25,9 +25,8 @@ build: felix-api-proxy bin
 	${DOCKER_RUN} go build -o ./bin/calico-vpp-agent ./cmd
 	${DOCKER_RUN} go build -o ./bin/debug ./cmd/debug-state
 
-gobgp: GOBGP_DIR:=$(shell ${DOCKER_RUN} go list -f '{{.Dir}}' -m github.com/osrg/gobgp/v3)
 gobgp: bin
-	${DOCKER_RUN} go build -o ./bin/gobgp $(GOBGP_DIR)/cmd/gobgp/
+	${DOCKER_RUN} go build -o ./bin/gobgp github.com/osrg/gobgp/v3/cmd/gobgp/
 
 image: build gobgp
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
