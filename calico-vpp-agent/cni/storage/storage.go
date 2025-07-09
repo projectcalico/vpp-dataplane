@@ -285,7 +285,7 @@ type HostPortBinding struct {
 }
 
 func (hp *HostPortBinding) String() string {
-	s := fmt.Sprintf("%s %s %s:%d", hp.Protocol.String(), hp.HostIP4 , hp.HostIP6, hp.HostPort)
+	s := fmt.Sprintf("%s %s %s:%d", hp.Protocol.String(), hp.HostIP4, hp.HostIP6, hp.HostPort)
 	s += fmt.Sprintf(" cport=%d", hp.ContainerPort)
 	s += fmt.Sprintf(" id=%d", hp.EntryID)
 	return s
