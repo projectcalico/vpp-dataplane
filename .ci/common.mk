@@ -15,6 +15,8 @@ SQUASH := --squash
 # push dependency
 PUSH_DEP := image
 
+CGO_ENABLED := 0
+
 # CI specific variables
 ifdef CODEBUILD_BUILD_NUMBER
 	# Define variable when building for CI
