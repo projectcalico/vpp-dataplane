@@ -2,7 +2,7 @@ module github.com/projectcalico/vpp-dataplane/v3
 
 go 1.23.0
 
-toolchain go1.24.0
+toolchain go1.24.3
 
 require (
 	github.com/calico-vpp/vpplink v0.0.0-20230609075304-43385ab1325d

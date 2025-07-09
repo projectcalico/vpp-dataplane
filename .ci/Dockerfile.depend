@@ -3,7 +3,7 @@ ARG BASE_IMAGE
 #
 # Dependencies image
 #
-FROM ${BASE_IMAGE} as dependencies
+FROM ${BASE_IMAGE:-ubuntu:22.04} AS dependencies
 
 ENV UNATTENDED=y
 
@@ -11,7 +11,7 @@ RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     apt-utils wget cmake curl git
 
-ENV GOVERSION=1.18.2
+ENV GOVERSION=1.24.0
 ENV GOROOT="/root/.go"
 ENV GOPATH="/root/go"
 ENV PATH=$GOROOT/bin:$PATH
@@ -22,9 +22,14 @@ RUN mkdir -p "${GOROOT}" &&\
 RUN wget -nv "https://dl.google.com/go/go${GOVERSION}.linux-amd64.tar.gz" -O "/tmp/go.tar.gz" && \
     tar -C "${GOROOT}" --strip-components=1 -xzf "/tmp/go.tar.gz" && \
     rm -f "/tmp/go.tar.gz" && \
-    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.50.1
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.64.8
+
+RUN git config --global --add safe.directory /vpp-dataplane
 
 # Get modules used by the source code
-COPY . /vpp-dataplane
+RUN mkdir -p /vpp-dataplane
+RUN git config --global --add safe.directory /vpp-dataplane
+COPY go.mod /vpp-dataplane
+COPY go.sum /vpp-dataplane
 WORKDIR /vpp-dataplane
 RUN go get ./... && rm -fr /vpp-dataplane
