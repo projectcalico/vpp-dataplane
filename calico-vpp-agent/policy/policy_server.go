@@ -960,6 +960,8 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 			hep.UplinkSwIfIndexes = append(hep.UplinkSwIfIndexes, interfaceDetails.uplinkIndex)
 			hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, interfaceDetails.tapIndex)
 		} else {
+			// we are not supposed to fallback to expectedIPs if interfaceName doesn't match
+			// this is the current behavior in calico linux
 			s.log.Errorf("cannot find host endpoint: interface named %s does not exist", hep.InterfaceName)
 		}
 	} else if hep.InterfaceName == "" && hep.expectedIPs != nil {
