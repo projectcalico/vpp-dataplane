@@ -260,10 +260,10 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 						panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Endpoints) %v", obj))
 					}
 					server.deleteServiceByName(serviceID(&endpoints.ObjectMeta))
-				case *v1.Service:
+				case *v1.Endpoints:
 					server.deleteServiceByName(serviceID(&value.ObjectMeta))
 				default:
-					log.Errorf("unknown type in service deleteFunction %v", obj)
+					log.Errorf("unknown type in endpoints deleteFunction %v", obj)
 				}
 			},
 		})
