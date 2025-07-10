@@ -21,9 +21,7 @@ import (
 	"net"
 
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/fib_types"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 	vppip "github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_neighbor"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/mfib_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -58,33 +56,6 @@ func (v *VppLink) GetRoutes(tableID uint32, isIPv6 bool) ([]types.Route, error) 
 		routes = append(routes, route)
 	}
 	return routes, nil
-}
-
-func (v *VppLink) AddNeighbor(neighbor *types.Neighbor) error {
-	return v.addDelNeighbor(neighbor, true)
-}
-
-func (v *VppLink) DelNeighbor(neighbor *types.Neighbor) error {
-	return v.addDelNeighbor(neighbor, false)
-}
-
-func (v *VppLink) addDelNeighbor(neighbor *types.Neighbor, isAdd bool) error {
-	client := ip_neighbor.NewServiceClient(v.GetConnection())
-
-	_, err := client.IPNeighborAddDel(v.GetContext(), &ip_neighbor.IPNeighborAddDel{
-		IsAdd: isAdd,
-		Neighbor: ip_neighbor.IPNeighbor{
-			SwIfIndex:  interface_types.InterfaceIndex(neighbor.SwIfIndex),
-			Flags:      types.ToVppNeighborFlags(neighbor.Flags),
-			MacAddress: types.MacAddress(neighbor.HardwareAddr),
-			IPAddress:  types.ToVppAddress(neighbor.IP),
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to %s neighbor from VPP: %w", isAddStr(isAdd), err)
-	}
-	v.GetLog().Debugf("%sed neighbor %+v", isAddStr(isAdd), neighbor)
-	return nil
 }
 
 func (v *VppLink) RoutesAdd(Dsts []*net.IPNet, routepath *types.RoutePath) error {

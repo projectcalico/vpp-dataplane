@@ -13,7 +13,7 @@ ABS_PATH = $(abspath $(shell pwd)/..)
 # remain stable.
 #
 
-BASE_IMAGE_BUILDER = ubuntu:20.04
+BASE_IMAGE_BUILDER = ubuntu:22.04
 
 # Compute hash to detect any changes and rebuild /push the image
 DEPEND_HASH = $(shell echo "${BASE_IMAGE_BUILDER}-DOCKERFILE:$(shell md5sum Dockerfile.depend)" | md5sum | cut -f1 -d' ')
