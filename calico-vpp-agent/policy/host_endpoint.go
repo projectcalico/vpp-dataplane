@@ -17,6 +17,7 @@ package policy
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/projectcalico/calico/felix/proto"
@@ -171,18 +172,28 @@ func (h *HostEndpoint) getHostPolicies(state *PolicyState, tiers []Tier) (conf *
 	return conf, nil
 }
 
-func (h *HostEndpoint) getTapPolicies(state *PolicyState) (conf *types.InterfaceConfig, err error) {
+func (h *HostEndpoint) getTapPolicies(state *PolicyState, id *HostEndpointID) (conf *types.InterfaceConfig, err error) {
 	conf, err = h.getHostPolicies(state, h.Tiers)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create host policies for TapConf")
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
-		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, h.server.workloadsToHostPolicy.VppID)
 		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{h.server.workloadsToHostPolicy.VppID}, conf.IngressPolicyIDs...)
+	} else {
+		if !strings.Contains(id.EndpointID, "auto-hep") { // for auto host endpoints the default behavior is to allow all
+			conf.IngressPolicyIDs = []uint32{h.server.workloadsToHostPolicy.VppID, h.server.failSafePolicy.VppID}
+			/* automatically deny the rest because host endpoint is empty on ingress */
+		}
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
-		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
 		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
+	} else {
+		if !strings.Contains(id.EndpointID, "auto-hep") { // for auto host endpoints the default behavior is to allow all
+			conf.EgressPolicyIDs = []uint32{h.server.AllowFromHostPolicy.VppID, h.server.failSafePolicy.VppID}
+			/* automatically deny the rest because host endpoint is empty on egress */
+		}
 	}
 	return conf, nil
 }
@@ -201,7 +212,7 @@ func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.Inter
 	return conf, nil
 }
 
-func (h *HostEndpoint) Create(vpp *vpplink.VppLink, state *PolicyState) (err error) {
+func (h *HostEndpoint) Create(vpp *vpplink.VppLink, state *PolicyState, id *HostEndpointID) (err error) {
 	forwardConf, err := h.getForwardPolicies(state)
 	if err != nil {
 		return err
@@ -214,7 +225,7 @@ func (h *HostEndpoint) Create(vpp *vpplink.VppLink, state *PolicyState) (err err
 		}
 	}
 	h.currentForwardConf = forwardConf
-	tapConf, err := h.getTapPolicies(state)
+	tapConf, err := h.getTapPolicies(state, id)
 	if err != nil {
 		return err
 	}
@@ -228,7 +239,7 @@ func (h *HostEndpoint) Create(vpp *vpplink.VppLink, state *PolicyState) (err err
 	return nil
 }
 
-func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *PolicyState) (err error) {
+func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *PolicyState, id *HostEndpointID) (err error) {
 	forwardConf, err := new.getForwardPolicies(state)
 	if err != nil {
 		return err
@@ -241,7 +252,7 @@ func (h *HostEndpoint) Update(vpp *vpplink.VppLink, new *HostEndpoint, state *Po
 		}
 	}
 	h.currentForwardConf = forwardConf
-	tapConf, err := new.getTapPolicies(state)
+	tapConf, err := new.getTapPolicies(state, id)
 	if err != nil {
 		return err
 	}
