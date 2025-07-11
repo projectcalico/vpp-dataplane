@@ -66,6 +66,7 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 				SwIfIndex:    swIfIndex,
 				IP:           containerIP.IP,
 				HardwareAddr: common.ContainerSideMacAddress,
+				Flags:        types.IPNeighborStatic,
 			})
 			if err != nil {
 				return errors.Wrapf(err, "Error adding neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
@@ -157,6 +158,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 				SwIfIndex:    swIfIndex,
 				IP:           containerIP.IP,
 				HardwareAddr: common.ContainerSideMacAddress,
+				Flags:        types.IPNeighborStatic,
 			})
 			if err != nil {
 				return errors.Wrapf(err, "Cannot add neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
