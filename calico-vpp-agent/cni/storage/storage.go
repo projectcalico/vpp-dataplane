@@ -36,7 +36,7 @@ import (
 
 const (
 	CniServerStateFileVersion = 9  // Used to ensure compatibility wen we reload data
-	MaxApiTagLen              = 63 /* No more than 64 characters in API tags */
+	MaxAPITagLen              = 63 /* No more than 64 characters in API tags */
 	VrfTagHashLen             = 8  /* how many hash charatecters (b64) of the name in tag prefix (useful when trucated) */
 )
 
@@ -116,10 +116,10 @@ func (ps *LocalPodSpec) String() string {
 }
 
 func (ps *LocalPodSpec) FullString() string {
-	containerIps := ps.ContainerIps
-	containerIpsLst := make([]string, 0, len(containerIps))
-	for _, e := range containerIps {
-		containerIpsLst = append(containerIpsLst, e.String())
+	containerIPs := ps.ContainerIps
+	containerIPsLst := make([]string, 0, len(containerIPs))
+	for _, e := range containerIPs {
+		containerIPsLst = append(containerIPsLst, e.String())
 	}
 	routes := ps.Routes
 	routesLst := make([]string, 0, len(routes))
@@ -133,9 +133,9 @@ func (ps *LocalPodSpec) FullString() string {
 	}
 	s := fmt.Sprintf("InterfaceName:      %s\n", ps.InterfaceName)
 	s += fmt.Sprintf("NetnsName:          %s\n", ps.NetnsName)
-	s += fmt.Sprintf("AllowIpForwarding:  %t\n", ps.AllowIpForwarding)
+	s += fmt.Sprintf("AllowIPForwarding:  %t\n", ps.AllowIPForwarding)
 	s += fmt.Sprintf("Routes:             %s\n", strings.Join(routesLst, ", "))
-	s += fmt.Sprintf("ContainerIps:       %s\n", strings.Join(containerIpsLst, ", "))
+	s += fmt.Sprintf("ContainerIps:       %s\n", strings.Join(containerIPsLst, ", "))
 	s += fmt.Sprintf("Mtu:                %d\n", ps.Mtu)
 	s += fmt.Sprintf("OrchestratorID:     %s\n", ps.OrchestratorID)
 	s += fmt.Sprintf("WorkloadID:         %s\n", ps.WorkloadID)
@@ -147,13 +147,13 @@ func (ps *LocalPodSpec) FullString() string {
 	s += fmt.Sprintf("EnableVCL:          %t\n", ps.EnableVCL)
 	s += fmt.Sprintf("EnableMemif:        %t\n", ps.EnableMemif)
 	s += fmt.Sprintf("IsL3:               %t\n", *ps.IfSpec.IsL3)
-	s += fmt.Sprintf("MemifSocketId:      %d\n", ps.MemifSocketId)
+	s += fmt.Sprintf("MemifSocketID:      %d\n", ps.MemifSocketID)
 	s += fmt.Sprintf("TunTapSwIfIndex:    %d\n", ps.TunTapSwIfIndex)
 	s += fmt.Sprintf("MemifSwIfIndex:     %d\n", ps.MemifSwIfIndex)
 	s += fmt.Sprintf("LoopbackSwIfIndex:  %d\n", ps.LoopbackSwIfIndex)
 	s += fmt.Sprintf("PblIndexes:         %s\n", strings.Join(pblIndexesLst, ", "))
-	s += fmt.Sprintf("V4VrfId:            %d\n", ps.V4VrfId)
-	s += fmt.Sprintf("V6VrfId:            %d\n", ps.V6VrfId)
+	s += fmt.Sprintf("V4VrfID:            %d\n", ps.V4VrfID)
+	s += fmt.Sprintf("V6VrfID:            %d\n", ps.V6VrfID)
 	return s
 }
 
@@ -197,7 +197,7 @@ type LocalPodSpec struct {
 	InterfaceName     string
 	NetnsNameSize     int `struc:"int16,sizeof=NetnsName"`
 	NetnsName         string
-	AllowIpForwarding bool
+	AllowIPForwarding bool
 	RoutesSize        int `struc:"int16,sizeof=Routes"`
 	Routes            []LocalIPNet
 	ContainerIpsSize  int `struc:"int16,sizeof=ContainerIps"`
@@ -234,7 +234,7 @@ type LocalPodSpec struct {
 	 * We should be careful during state-reconciliation as they might not be
 	 * valid anymore. VRF tags should provide this guarantee
 	 */
-	MemifSocketId     uint32
+	MemifSocketID     uint32
 	TunTapSwIfIndex   uint32
 	MemifSwIfIndex    uint32
 	LoopbackSwIfIndex uint32
@@ -245,8 +245,8 @@ type LocalPodSpec struct {
 	 * These fields are only a runtime cache, but we also store them
 	 * on the disk for debugging purposes.
 	 */
-	V4VrfId   uint32
-	V6VrfId   uint32
+	V4VrfID   uint32
+	V6VrfID   uint32
 	NeedsSnat bool
 
 	/* Multi net */
@@ -257,8 +257,8 @@ type LocalPodSpec struct {
 	AllowedSpoofingPrefixesSize int `struc:"int16,sizeof=AllowedSpoofingPrefixes"`
 	AllowedSpoofingPrefixes     string
 
-	V4RPFVrfId uint32
-	V6RPFVrfId uint32
+	V4RPFVrfID uint32
+	V6RPFVrfID uint32
 }
 
 func (ps *LocalPodSpec) Copy() LocalPodSpec {
@@ -304,16 +304,16 @@ func TruncateStr(text string, size int) string {
 	return text
 }
 
-func (ps *LocalPodSpec) GetVrfTag(ipFamily vpplink.IpFamily, custom string) string {
+func (ps *LocalPodSpec) GetVrfTag(ipFamily vpplink.IPFamily, custom string) string {
 	h := hash(fmt.Sprintf("%s%s%s%s", ipFamily.ShortStr, ps.NetnsName, ps.InterfaceName, custom))
 	s := fmt.Sprintf("%s-%s-%s%s-%s", h, ipFamily.ShortStr, ps.InterfaceName, custom, filepath.Base(ps.NetnsName))
-	return TruncateStr(s, MaxApiTagLen)
+	return TruncateStr(s, MaxAPITagLen)
 }
 
 func (ps *LocalPodSpec) GetInterfaceTag(prefix string) string {
 	h := hash(fmt.Sprintf("%s%s%s", prefix, ps.NetnsName, ps.InterfaceName))
 	s := fmt.Sprintf("%s-%s-%s", h, ps.InterfaceName, filepath.Base(ps.NetnsName))
-	return TruncateStr(s, MaxApiTagLen)
+	return TruncateStr(s, MaxAPITagLen)
 }
 
 func (ps *LocalPodSpec) GetRoutes() (routes []*net.IPNet) {
@@ -327,15 +327,15 @@ func (ps *LocalPodSpec) GetRoutes() (routes []*net.IPNet) {
 	return routes
 }
 
-func (ps *LocalPodSpec) GetContainerIps() (containerIps []*net.IPNet) {
-	containerIps = make([]*net.IPNet, 0, len(ps.ContainerIps))
-	for _, containerIp := range ps.ContainerIps {
-		containerIps = append(containerIps, &net.IPNet{
-			IP:   containerIp.IP,
-			Mask: common.GetMaxCIDRMask(containerIp.IP),
+func (ps *LocalPodSpec) GetContainerIps() (containerIPs []*net.IPNet) {
+	containerIPs = make([]*net.IPNet, 0, len(ps.ContainerIps))
+	for _, containerIP := range ps.ContainerIps {
+		containerIPs = append(containerIPs, &net.IPNet{
+			IP:   containerIP.IP,
+			Mask: common.GetMaxCIDRMask(containerIP.IP),
 		})
 	}
-	return containerIps
+	return containerIPs
 }
 
 func (ps *LocalPodSpec) Hasv46() (hasv4 bool, hasv6 bool) {
@@ -351,35 +351,35 @@ func (ps *LocalPodSpec) Hasv46() (hasv4 bool, hasv6 bool) {
 	return hasv4, hasv6
 }
 
-func (ps *LocalPodSpec) GetVrfId(ipFamily vpplink.IpFamily) uint32 {
-	if ipFamily.IsIp6 {
-		return ps.V6VrfId
+func (ps *LocalPodSpec) GetVrfID(ipFamily vpplink.IPFamily) uint32 {
+	if ipFamily.IsIP6 {
+		return ps.V6VrfID
 	} else {
-		return ps.V4VrfId
+		return ps.V4VrfID
 	}
 }
 
-func (ps *LocalPodSpec) GetRPFVrfId(ipFamily vpplink.IpFamily) uint32 {
-	if ipFamily.IsIp6 {
-		return ps.V6RPFVrfId
+func (ps *LocalPodSpec) GetRPFVrfID(ipFamily vpplink.IPFamily) uint32 {
+	if ipFamily.IsIP6 {
+		return ps.V6RPFVrfID
 	} else {
-		return ps.V4RPFVrfId
+		return ps.V4RPFVrfID
 	}
 }
 
-func (ps *LocalPodSpec) SetVrfId(id uint32, ipFamily vpplink.IpFamily) {
-	if ipFamily.IsIp6 {
-		ps.V6VrfId = id
+func (ps *LocalPodSpec) SetVrfID(id uint32, ipFamily vpplink.IPFamily) {
+	if ipFamily.IsIP6 {
+		ps.V6VrfID = id
 	} else {
-		ps.V4VrfId = id
+		ps.V4VrfID = id
 	}
 }
 
-func (ps *LocalPodSpec) SetRPFVrfId(id uint32, ipFamily vpplink.IpFamily) {
-	if ipFamily.IsIp6 {
-		ps.V6RPFVrfId = id
+func (ps *LocalPodSpec) SetRPFVrfID(id uint32, ipFamily vpplink.IPFamily) {
+	if ipFamily.IsIP6 {
+		ps.V6RPFVrfID = id
 	} else {
-		ps.V4RPFVrfId = id
+		ps.V4RPFVrfID = id
 	}
 }
 
@@ -434,7 +434,7 @@ func LoadCniServerState(fname string) ([]LocalPodSpec, error) {
 	if state.Version != CniServerStateFileVersion {
 		// When adding new versions, we need to keep loading old versions or some pods
 		// will remain disconnected forever after an upgrade
-		return nil, fmt.Errorf("Unsupported save file version: %d", state.Version)
+		return nil, fmt.Errorf("unsupported save file version: %d", state.Version)
 	}
 	return state.Specs, nil
 }

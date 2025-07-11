@@ -27,7 +27,7 @@ const (
 )
 
 var (
-	SrBehaviorVPP_GoBGP = map[uint8]bgpapi.SRv6Behavior{
+	SrBehaviorVPPtoGoBGP = map[uint8]bgpapi.SRv6Behavior{
 		1: bgpapi.SRv6Behavior_END,
 		2: bgpapi.SRv6Behavior_ENDX,
 		3: bgpapi.SRv6Behavior_ENDT,
@@ -37,7 +37,7 @@ var (
 		8: bgpapi.SRv6Behavior_END_DT6,
 		9: bgpapi.SRv6Behavior_END_DT4,
 	}
-	SrBehaviorGoBGP_VPP = map[bgpapi.SRv6Behavior]uint8{
+	SrBehaviorGoBGPtoVPP = map[bgpapi.SRv6Behavior]uint8{
 		bgpapi.SRv6Behavior_END:     1,
 		bgpapi.SRv6Behavior_ENDX:    2,
 		bgpapi.SRv6Behavior_ENDT:    3,
@@ -57,7 +57,7 @@ func FromVppSrBehavior(behavior sr_types.SrBehavior) SrBehavior {
 }
 
 func FromGoBGPSrBehavior(behavior uint8) SrBehavior {
-	var result = SrBehaviorGoBGP_VPP[bgpapi.SRv6Behavior(behavior)]
+	var result = SrBehaviorGoBGPtoVPP[bgpapi.SRv6Behavior(behavior)]
 	return SrBehavior(result)
 }
 
@@ -136,9 +136,9 @@ func (s *Srv6SidList) String() string {
 type SrSteerTrafficType uint8
 
 const (
-	SR_STEER_L2   SrSteerTrafficType = SrSteerTrafficType(sr_types.SR_STEER_API_L2)
-	SR_STEER_IPV4 SrSteerTrafficType = SrSteerTrafficType(sr_types.SR_STEER_API_IPV4)
-	SR_STEER_IPV6 SrSteerTrafficType = SrSteerTrafficType(sr_types.SR_STEER_API_IPV6)
+	SrSteerL2   SrSteerTrafficType = SrSteerTrafficType(sr_types.SR_STEER_API_L2)
+	SrSteerIPv4 SrSteerTrafficType = SrSteerTrafficType(sr_types.SR_STEER_API_IPV4)
+	SrSteerIPv6 SrSteerTrafficType = SrSteerTrafficType(sr_types.SR_STEER_API_IPV6)
 )
 
 func ToVppSrSteerTrafficType(trafficType SrSteerTrafficType) sr_types.SrSteer {

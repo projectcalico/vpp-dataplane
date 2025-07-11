@@ -55,9 +55,9 @@ func parsePciAddr(addr string) (*pci_types.PciAddress, error) {
 }
 
 func (v *VppLink) CreateVirtio(intf *types.VirtioInterface) (uint32, error) {
-	addr, err := parsePciAddr(intf.PciId)
+	addr, err := parsePciAddr(intf.PciID)
 	if err != nil {
-		return 0, fmt.Errorf("invalid PCI address %q: %w", intf.PciId, err)
+		return 0, fmt.Errorf("invalid PCI address %q: %w", intf.PciID, err)
 	}
 
 	client := virtio.NewServiceClient(v.GetConnection())

@@ -15,6 +15,11 @@ SQUASH := --squash
 # push dependency
 PUSH_DEP := image
 
+# We make binaries static executable so that they are portable if they run outside of the calico container
+# where we have less control on the env and glibc version.
+# this is especially import for felix-api-proxy
+CGO_ENABLED := 0
+
 REGISTRIES := docker.io/
 
 # CI specific variables

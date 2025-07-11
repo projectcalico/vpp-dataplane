@@ -30,7 +30,6 @@ import (
 	"github.com/projectcalico/api/pkg/lib/numorstring"
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	"github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 
 	nettypes "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -212,7 +211,7 @@ func (s *Server) mapTagToInterfaceDetails() (tagIfDetails map[string]interfaceDe
 func InstallFelixPlugin() (err error) {
 	err = os.RemoveAll(FelixPluginDstPath)
 	if err != nil {
-		log.Warnf("Could not delete %s: %v", FelixPluginDstPath, err)
+		logrus.Warnf("Could not delete %s: %v", FelixPluginDstPath, err)
 	}
 
 	in, err := os.Open(FelixPluginSrcPath)
@@ -385,13 +384,13 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 		s.tunnelSwIfIndexes[swIfIndex] = true
 		s.tunnelSwIfIndexesLock.Unlock()
 
-		var pending bool
-		if s.state == StateSyncing || s.state == StateConnected {
-			pending = true
-		} else if s.state == StateInSync {
+		pending := true
+		switch s.state {
+		case StateSyncing, StateConnected:
+		case StateInSync:
 			pending = false
-		} else {
-			return fmt.Errorf("Got tunnel %d add but not in syncing or synced state", swIfIndex)
+		default:
+			return fmt.Errorf("got tunnel %d add but not in syncing or synced state", swIfIndex)
 		}
 		state := s.currentState(pending)
 		for _, h := range state.HostEndpoints {
@@ -401,8 +400,6 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 			}
 		}
 	case common.TunnelDeleted:
-		var pending bool
-
 		swIfIndex, ok := evt.Old.(uint32)
 		if !ok {
 			return fmt.Errorf("evt.Old not a uint32 %v", evt.Old)
@@ -412,12 +409,13 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 		delete(s.tunnelSwIfIndexes, swIfIndex)
 		s.tunnelSwIfIndexesLock.Unlock()
 
-		if s.state == StateSyncing || s.state == StateConnected {
-			pending = true
-		} else if s.state == StateInSync {
+		pending := true
+		switch s.state {
+		case StateSyncing, StateConnected:
+		case StateInSync:
 			pending = false
-		} else {
-			return fmt.Errorf("Got tunnel %d del but not in syncing or synced state", swIfIndex)
+		default:
+			return fmt.Errorf("got tunnel %d del but not in syncing or synced state", swIfIndex)
 		}
 		state := s.currentState(pending)
 		for _, h := range state.HostEndpoints {
@@ -535,13 +533,13 @@ func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
 			// Skip processing of policy messages
 			return nil
 		}
-		var pending bool
-		if s.state == StateSyncing {
-			pending = true
-		} else if s.state == StateInSync {
+		pending := true
+		switch s.state {
+		case StateSyncing:
+		case StateInSync:
 			pending = false
-		} else {
-			return fmt.Errorf("Got message %#v but not in syncing or synced state", m)
+		default:
+			return fmt.Errorf("got message %#v but not in syncing or synced state", m)
 		}
 		switch m := msg.(type) {
 		case *proto.IPSetUpdate:
@@ -640,7 +638,7 @@ func removeFelixConfigFileField(rawData map[string]string) {
 // projectcalico/felix/config/config_params.go:Config
 func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 	if s.state != StateConnected {
-		return fmt.Errorf("Received ConfigUpdate but server is not in Connected state! state: %v", s.state)
+		return fmt.Errorf("received ConfigUpdate but server is not in Connected state! state: %v", s.state)
 	}
 	s.log.Infof("Got config from felix: %+v", msg)
 	s.state = StateSyncing
@@ -721,7 +719,7 @@ func protoPortListEqual(a, b []felixConfig.ProtoPort) bool {
 
 func (s *Server) handleInSync(msg *proto.InSync) (err error) {
 	if s.state != StateSyncing {
-		return fmt.Errorf("Received InSync but state was not syncing")
+		return fmt.Errorf("received InSync but state was not syncing")
 	}
 	s.endpointsLock.Lock()
 	defer s.endpointsLock.Unlock()
@@ -739,7 +737,7 @@ func (s *Server) handleIpsetUpdate(msg *proto.IPSetUpdate, pending bool) (err er
 	state := s.currentState(pending)
 	_, ok := state.IPSets[msg.GetId()]
 	if ok {
-		return fmt.Errorf("Received new ipset for ID %s that already exists", msg.GetId())
+		return fmt.Errorf("received new ipset for ID %s that already exists", msg.GetId())
 	}
 	if !pending {
 		err = ips.Create(s.vpp)
@@ -748,7 +746,7 @@ func (s *Server) handleIpsetUpdate(msg *proto.IPSetUpdate, pending bool) (err er
 		}
 	}
 	state.IPSets[msg.GetId()] = ips
-	log.Debugf("Handled Ipset Update pending=%t id=%s %s", pending, msg.GetId(), ips)
+	s.log.Debugf("Handled Ipset Update pending=%t id=%s %s", pending, msg.GetId(), ips)
 	return nil
 }
 
@@ -765,7 +763,7 @@ func (s *Server) handleIpsetDeltaUpdate(msg *proto.IPSetDeltaUpdate, pending boo
 	if err != nil {
 		return errors.Wrap(err, "cannot process ipset delta update")
 	}
-	log.Debugf("Handled Ipset delta Update pending=%t id=%s %s", pending, msg.GetId(), ips)
+	s.log.Debugf("Handled Ipset delta Update pending=%t id=%s %s", pending, msg.GetId(), ips)
 	return nil
 }
 
@@ -782,7 +780,7 @@ func (s *Server) handleIpsetRemove(msg *proto.IPSetRemove, pending bool) (err er
 			return errors.Wrapf(err, "cannot delete ipset %s", msg.GetId())
 		}
 	}
-	log.Debugf("Handled Ipset remove pending=%t id=%s %s", pending, msg.GetId(), ips)
+	s.log.Debugf("Handled Ipset remove pending=%t id=%s %s", pending, msg.GetId(), ips)
 	delete(state.IPSets, msg.GetId())
 	return nil
 }
@@ -798,7 +796,7 @@ func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending
 		return errors.Wrapf(err, "cannot process policy update")
 	}
 
-	log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", pending, id, p)
+	s.log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", pending, id, p)
 	existing, ok := state.Policies[id]
 	if ok { // Policy with this ID already exists
 		if pending {
@@ -832,7 +830,7 @@ func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending
 			return errors.Wrapf(err, "cannot process policy update")
 		}
 
-		log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", pending, id, p)
+		s.log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", pending, id, p)
 
 		existing, ok := state.Policies[id]
 		if ok { // Policy with this ID already exists
@@ -866,11 +864,11 @@ func (s *Server) handleActivePolicyRemove(msg *proto.ActivePolicyRemove, pending
 		Tier: msg.Id.Tier,
 		Name: msg.Id.Name,
 	}
-	log.Infof("policy(del) Handling ActivePolicyRemove pending=%t id=%s", pending, id)
+	s.log.Infof("policy(del) Handling ActivePolicyRemove pending=%t id=%s", pending, id)
 
-	for policyId := range state.Policies {
-		if policyId.Name == id.Name && policyId.Tier == id.Tier {
-			existing, ok := state.Policies[policyId]
+	for policyID := range state.Policies {
+		if policyID.Name == id.Name && policyID.Tier == id.Tier {
+			existing, ok := state.Policies[policyID]
 			if !ok {
 				s.log.Warnf("Received policy delete for Tier %s Name %s that doesn't exists", id.Tier, id.Name)
 				return nil
@@ -881,7 +879,7 @@ func (s *Server) handleActivePolicyRemove(msg *proto.ActivePolicyRemove, pending
 					return errors.Wrap(err, "error deleting policy")
 				}
 			}
-			delete(state.Policies, policyId)
+			delete(state.Policies, policyID)
 		}
 	}
 	return nil
@@ -916,7 +914,7 @@ func (s *Server) handleActiveProfileUpdate(msg *proto.ActiveProfileUpdate, pendi
 			}
 		}
 	}
-	log.Infof("policy(upd) Handled Profile Update pending=%t id=%s existing=%s new=%s", pending, id, existing, p)
+	s.log.Infof("policy(upd) Handled Profile Update pending=%t id=%s existing=%s new=%s", pending, id, existing, p)
 	return nil
 }
 
@@ -934,7 +932,7 @@ func (s *Server) handleActiveProfileRemove(msg *proto.ActiveProfileRemove, pendi
 			return errors.Wrap(err, "error deleting profile")
 		}
 	}
-	log.Infof("policy(del) Handled Profile Remove pending=%t id=%s policy=%s", pending, id, existing)
+	s.log.Infof("policy(del) Handled Profile Remove pending=%t id=%s policy=%s", pending, id, existing)
 	delete(state.Profiles, id)
 	return nil
 }
@@ -1028,7 +1026,7 @@ func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending
 			return errors.Wrap(err, "error deleting host endpoint")
 		}
 	}
-	log.Infof("policy(del) Handled Host Endpoint Remove pending=%t id=%s %s", pending, id, existing)
+	s.log.Infof("policy(del) Handled Host Endpoint Remove pending=%t id=%s %s", pending, id, existing)
 	delete(state.HostEndpoints, *id)
 	return nil
 }
@@ -1036,14 +1034,14 @@ func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending
 func (s *Server) getAllWorkloadEndpointIdsFromUpdate(msg *proto.WorkloadEndpointUpdate) []*WorkloadEndpointID {
 	id := fromProtoEndpointID(msg.Id)
 	idsNetworks := []*WorkloadEndpointID{id}
-	netStatusesJson, found := msg.Endpoint.Annotations["k8s.v1.cni.cncf.io/network-status"]
+	netStatusesJSON, found := msg.Endpoint.Annotations["k8s.v1.cni.cncf.io/network-status"]
 	if !found {
-		log.Infof("no network status for pod, no multiple networks")
+		s.log.Infof("no network status for pod, no multiple networks")
 	} else {
 		var netStatuses []nettypes.NetworkStatus
-		err := json.Unmarshal([]byte(netStatusesJson), &netStatuses)
+		err := json.Unmarshal([]byte(netStatusesJSON), &netStatuses)
 		if err != nil {
-			log.Error(err)
+			s.log.Error(err)
 		}
 		for _, networkStatus := range netStatuses {
 			for netDefName, netDef := range s.networkDefinitions {
@@ -1071,13 +1069,13 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 		if found {
 			if pending || !swIfIndexFound {
 				state.WorkloadEndpoints[*id] = wep
-				log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=??", pending, *id, existing, wep)
+				s.log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=??", pending, *id, existing, wep)
 			} else {
 				err := existing.Update(s.vpp, wep, state, id.Network)
 				if err != nil {
 					return errors.Wrap(err, "cannot update workload endpoint")
 				}
-				log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=%v", pending, *id, existing, wep, swIfIndexMap)
+				s.log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=%v", pending, *id, existing, wep, swIfIndexMap)
 			}
 		} else {
 			state.WorkloadEndpoints[*id] = wep
@@ -1090,9 +1088,9 @@ func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate,
 				if err != nil {
 					return errors.Wrap(err, "cannot create workload endpoint")
 				}
-				log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=%v", pending, *id, wep, swIfIndexMap)
+				s.log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=%v", pending, *id, wep, swIfIndexMap)
 			} else {
-				log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=??", pending, *id, wep)
+				s.log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=??", pending, *id, wep)
 			}
 		}
 	}
@@ -1116,18 +1114,18 @@ func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove,
 			return errors.Wrap(err, "error deleting workload endpoint")
 		}
 	}
-	log.Infof("policy(del) Handled Workload Endpoint Remove pending=%t id=%s existing=%s", pending, *id, existing)
+	s.log.Infof("policy(del) Handled Workload Endpoint Remove pending=%t id=%s existing=%s", pending, *id, existing)
 	delete(state.WorkloadEndpoints, *id)
-	for existingId := range state.WorkloadEndpoints {
-		if existingId.OrchestratorID == id.OrchestratorID && existingId.WorkloadID == id.WorkloadID {
+	for existingID := range state.WorkloadEndpoints {
+		if existingID.OrchestratorID == id.OrchestratorID && existingID.WorkloadID == id.WorkloadID {
 			if !pending && len(existing.SwIfIndex) != 0 {
 				err = existing.Delete(s.vpp)
 				if err != nil {
 					return errors.Wrap(err, "error deleting workload endpoint")
 				}
 			}
-			log.Infof("policy(del) Handled Workload Endpoint Remove pending=%t id=%s existing=%s", pending, existingId, existing)
-			delete(state.WorkloadEndpoints, existingId)
+			s.log.Infof("policy(del) Handled Workload Endpoint Remove pending=%t id=%s existing=%s", pending, existingID, existing)
+			delete(state.WorkloadEndpoints, existingID)
 		}
 	}
 	return nil
@@ -1197,7 +1195,7 @@ func (s *Server) handleHostMetadataV4V6Remove(msg *proto.HostMetadataV4V6Remove,
 			return err
 		}
 	} else {
-		return fmt.Errorf("Node to delete not found")
+		return fmt.Errorf("node to delete not found")
 	}
 	return nil
 }
@@ -1232,7 +1230,7 @@ func (s *Server) onNodeUpdated(old *common.LocalNodeSpec, node *common.LocalNode
 		Old:  old,
 		New:  node,
 	})
-	change := common.GetIpNetChangeType(old.IPv4Address, node.IPv4Address) | common.GetIpNetChangeType(old.IPv6Address, node.IPv6Address)
+	change := common.GetIPNetChangeType(old.IPv4Address, node.IPv4Address) | common.GetIPNetChangeType(old.IPv6Address, node.IPv6Address)
 	if change&(common.ChangeDeleted|common.ChangeUpdated) != 0 && node.Name == *config.NodeName {
 		// restart if our BGP config changed
 		return NodeWatcherRestartError{}
@@ -1574,7 +1572,7 @@ func (s *Server) applyPendingState() (err error) {
 
 func (s *Server) createAllowToHostPolicy() (err error) {
 	s.log.Infof("Creating policy to allow traffic to host that is applied on uplink")
-	r_in := &Rule{
+	ruleIn := &Rule{
 		VppID:  types.InvalidID,
 		RuleID: "calicovpp-internal-allowtohost",
 		Rule: &types.Rule{
@@ -1582,7 +1580,7 @@ func (s *Server) createAllowToHostPolicy() (err error) {
 			DstNet: []net.IPNet{},
 		},
 	}
-	r_out := &Rule{
+	ruleOut := &Rule{
 		VppID:  types.InvalidID,
 		RuleID: "calicovpp-internal-allowtohost",
 		Rule: &types.Rule{
@@ -1591,20 +1589,20 @@ func (s *Server) createAllowToHostPolicy() (err error) {
 		},
 	}
 	if s.ip4 != nil {
-		r_in.Rule.DstNet = append(r_in.Rule.DstNet, *common.FullyQualified(*s.ip4))
-		r_out.Rule.SrcNet = append(r_out.Rule.SrcNet, *common.FullyQualified(*s.ip4))
+		ruleIn.DstNet = append(ruleIn.DstNet, *common.FullyQualified(*s.ip4))
+		ruleOut.SrcNet = append(ruleOut.SrcNet, *common.FullyQualified(*s.ip4))
 	}
 	if s.ip6 != nil {
-		r_in.Rule.DstNet = append(r_in.Rule.DstNet, *common.FullyQualified(*s.ip6))
-		r_out.Rule.SrcNet = append(r_out.Rule.SrcNet, *common.FullyQualified(*s.ip6))
+		ruleIn.DstNet = append(ruleIn.DstNet, *common.FullyQualified(*s.ip6))
+		ruleOut.SrcNet = append(ruleOut.SrcNet, *common.FullyQualified(*s.ip6))
 	}
 
 	allowToHostPolicy := &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
 	}
-	allowToHostPolicy.InboundRules = append(allowToHostPolicy.InboundRules, r_in)
-	allowToHostPolicy.OutboundRules = append(allowToHostPolicy.OutboundRules, r_out)
+	allowToHostPolicy.InboundRules = append(allowToHostPolicy.InboundRules, ruleIn)
+	allowToHostPolicy.OutboundRules = append(allowToHostPolicy.OutboundRules, ruleOut)
 	if s.allowToHostPolicy == nil {
 		err = allowToHostPolicy.Create(s.vpp, nil)
 	} else {
@@ -1635,7 +1633,7 @@ func (s *Server) createAllPodsIpset() (err error) {
 // and on the Ingress of Workload endpoints (i.e. VPP -> pod)
 func (s *Server) createAllowFromHostPolicy() (err error) {
 	s.log.Infof("Creating rules to allow traffic from host to pods with egress policies")
-	r_out := &Rule{
+	ruleOut := &Rule{
 		VppID:  types.InvalidID,
 		RuleID: "calicovpp-internal-egressallowfromhost",
 		Rule: &types.Rule{
@@ -1645,7 +1643,7 @@ func (s *Server) createAllowFromHostPolicy() (err error) {
 	}
 	ps := PolicyState{IPSets: map[string]*IPSet{"calico-vpp-wep-addr-ipset": s.allPodsIpset}}
 	s.log.Infof("Creating rules to allow traffic from host to pods with ingress policies")
-	r_in := &Rule{
+	ruleIn := &Rule{
 		VppID:  types.InvalidID,
 		RuleID: "calicovpp-internal-ingressallowfromhost",
 		Rule: &types.Rule{
@@ -1654,18 +1652,18 @@ func (s *Server) createAllowFromHostPolicy() (err error) {
 		},
 	}
 	if s.ip4 != nil {
-		r_in.Rule.SrcNet = append(r_in.Rule.SrcNet, *common.FullyQualified(*s.ip4))
+		ruleIn.SrcNet = append(ruleIn.SrcNet, *common.FullyQualified(*s.ip4))
 	}
 	if s.ip6 != nil {
-		r_in.Rule.SrcNet = append(r_in.Rule.SrcNet, *common.FullyQualified(*s.ip6))
+		ruleIn.SrcNet = append(ruleIn.SrcNet, *common.FullyQualified(*s.ip6))
 	}
 
 	allowFromHostPolicy := &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
 	}
-	allowFromHostPolicy.OutboundRules = append(allowFromHostPolicy.OutboundRules, r_out)
-	allowFromHostPolicy.InboundRules = append(allowFromHostPolicy.InboundRules, r_in)
+	allowFromHostPolicy.OutboundRules = append(allowFromHostPolicy.OutboundRules, ruleOut)
+	allowFromHostPolicy.InboundRules = append(allowFromHostPolicy.InboundRules, ruleIn)
 	if s.AllowFromHostPolicy == nil {
 		err = allowFromHostPolicy.Create(s.vpp, &ps)
 	} else {
@@ -1770,7 +1768,7 @@ func (s *Server) createFailSafePolicies() (err error) {
 					continue
 				}
 				// Inbound packets are checked for where they come FROM
-				rule.Rule.SrcNet = append(rule.Rule.SrcNet, *protoPortNet)
+				rule.SrcNet = append(rule.SrcNet, *protoPortNet)
 			}
 			failSafePol.InboundRules = append(failSafePol.InboundRules, rule)
 		}
@@ -1804,7 +1802,7 @@ func (s *Server) createFailSafePolicies() (err error) {
 					continue
 				}
 				// Outbound packets are checked for where they go TO
-				rule.Rule.DstNet = append(rule.Rule.DstNet, *protoPortNet)
+				rule.DstNet = append(rule.DstNet, *protoPortNet)
 			}
 			failSafePol.OutboundRules = append(failSafePol.OutboundRules, rule)
 		}

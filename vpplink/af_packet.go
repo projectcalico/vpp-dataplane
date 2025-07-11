@@ -44,7 +44,7 @@ func (v *VppLink) CreateAfPacket(intf *types.AfPacketInterface) (swIfIndex uint3
 	}
 	response, err := client.AfPacketCreateV3(v.GetContext(), request)
 	if err != nil {
-		return INVALID_SW_IF_INDEX, fmt.Errorf("failed to create AfPacket interface (%+v): %w", request, err)
+		return InvalidSwIfIndex, fmt.Errorf("failed to create AfPacket interface (%+v): %w", request, err)
 	}
 	intf.SwIfIndex = uint32(response.SwIfIndex)
 	return uint32(response.SwIfIndex), nil

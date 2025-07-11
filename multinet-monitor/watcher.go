@@ -21,10 +21,9 @@ import (
 	"strings"
 	"time"
 
-	nettypes "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	netv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
-	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/networkAttachmentDefinition"
+	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/multinettypes"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -300,14 +299,14 @@ retry: //need to re-get the pod because multus updates may take some time
 	if err != nil {
 		log.Errorf("couldn't get pod: %s", err)
 	}
-	netStatusesJson, found := podStatus.Annotations["k8s.v1.cni.cncf.io/network-status"]
+	netStatusesJSON, found := podStatus.Annotations["k8s.v1.cni.cncf.io/network-status"]
 	if !found {
 		log.Warn("no network status for pod, retrying...")
 		time.Sleep(time.Second)
 		goto retry
 	} else {
-		var netStatuses []nettypes.NetworkStatus
-		err := json.Unmarshal([]byte(netStatusesJson), &netStatuses)
+		var netStatuses []netv1.NetworkStatus
+		err := json.Unmarshal([]byte(netStatusesJSON), &netStatuses)
 		if err != nil {
 			log.Error(err)
 		}

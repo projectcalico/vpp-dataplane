@@ -1,4 +1,4 @@
-include ../.ci/common.mk
+include ../common.mk
 
 .PHONY: all build gobgp image push proto
 
@@ -14,10 +14,7 @@ export GOOS=linux
 bin:
 	mkdir -p bin
 
-# We make felix-api-proxy a static executable as it will run in the calico container
-# for which we have less control on the env and glibc version
 .PHONY: felix-api-proxy
-felix-api-proxy: CGO_ENABLED=0
 felix-api-proxy: bin
 	${DOCKER_RUN} go build -o ./bin/felix-api-proxy ./cmd/api-proxy
 

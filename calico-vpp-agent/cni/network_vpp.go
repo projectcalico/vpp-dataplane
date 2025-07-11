@@ -60,8 +60,8 @@ func (s *Server) checkAvailableBuffers(podSpec *storage.LocalPodSpec) error {
 }
 
 func (s *Server) findPodVRFs(podSpec *storage.LocalPodSpec) bool {
-	podSpec.V4VrfId = types.InvalidID
-	podSpec.V6VrfId = types.InvalidID
+	podSpec.V4VrfID = types.InvalidID
+	podSpec.V6VrfID = types.InvalidID
 
 	vrfs, err := s.vpp.ListVRFs()
 	if err != nil {
@@ -70,18 +70,18 @@ func (s *Server) findPodVRFs(podSpec *storage.LocalPodSpec) bool {
 	}
 
 	for _, vrf := range vrfs {
-		for _, ipFamily := range vpplink.IpFamilies {
+		for _, ipFamily := range vpplink.IPFamilies {
 			if vrf.Name == podSpec.GetVrfTag(ipFamily, "") {
-				podSpec.SetVrfId(vrf.VrfID, ipFamily)
+				podSpec.SetVrfID(vrf.VrfID, ipFamily)
 			}
 		}
-		if podSpec.V4VrfId != types.InvalidID && podSpec.V6VrfId != types.InvalidID {
+		if podSpec.V4VrfID != types.InvalidID && podSpec.V6VrfID != types.InvalidID {
 			return true
 		}
 	}
 
-	if (podSpec.V4VrfId != types.InvalidID) != (podSpec.V6VrfId != types.InvalidID) {
-		s.log.Errorf("Partial VRF state v4=%d v6=%d key=%s", podSpec.V4VrfId, podSpec.V6VrfId, podSpec.Key())
+	if (podSpec.V4VrfID != types.InvalidID) != (podSpec.V6VrfID != types.InvalidID) {
+		s.log.Errorf("Partial VRF state v4=%d v6=%d key=%s", podSpec.V4VrfID, podSpec.V6VrfID, podSpec.Key())
 	}
 
 	return false

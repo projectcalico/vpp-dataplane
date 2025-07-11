@@ -71,7 +71,7 @@ func (v *VppLink) addDelAbfPolicy(policy *types.AbfPolicy, isAdd bool) error {
 		IsAdd: isAdd,
 		Policy: abf.AbfPolicy{
 			PolicyID: policy.PolicyID,
-			ACLIndex: policy.AclIndex,
+			ACLIndex: policy.ACLIndex,
 			Paths:    fibPaths,
 		},
 	})

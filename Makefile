@@ -1,4 +1,4 @@
-include .ci/common.mk
+include common.mk
 
 check-%:
 	@: $(if $(value $*),,$(error $* is undefined))
@@ -209,11 +209,6 @@ release: check-TAG check-CALICO_TAG
 run-integration-tests:
 	$(MAKE) -C test/integration-tests $@
 
-.PHONY: test
-test: go-lint
-	gofmt -s -l . | grep -v generated | grep -v vpp_build | diff -u /dev/null -
-	go test ./...
-
 .PHONY: test-memif-multinet
 test-memif-multinet:
 	kubectl apply -f test/yaml/multinet/network.yaml
@@ -253,21 +248,86 @@ delete-multinet:
 	  do \
 		kubectl exec -it -n calico-vpp-dataplane $$cid -c vpp -- \
 		  rm -rvf /host/etc/cni/net.d/multus.d \
-		          /host/etc/cni/net.d/whereabouts.d \
-		          /host/etc/cni/net.d/00-multus.conf ;\
+				  /host/etc/cni/net.d/whereabouts.d \
+				  /host/etc/cni/net.d/00-multus.conf ;\
 	  done ;\
 	)
 
-
-.PHONY: go-check
-go-check: go-lint
+.PHONY: lint
+lint:
 	gofmt -s -l . | grep -v binapi | grep -v vpp_build | diff -u /dev/null -
-	go test ./...
-
-.PHONY: go-lint
-go-lint:
+	test -d vpp-manager/vpp_build && touch vpp-manager/vpp_build/go.mod || true
 	golangci-lint run --color=never
 
-.PHONY: go-lint-fix
-go-lint-fix:
-	golangci-lint run --fix
+.PHONY: test
+test: go-lint
+	rm -rf .coverage/unit
+	mkdir -p .coverage/unit
+	go test -cover -covermode=atomic ./...  \
+		-args \
+		-test.gocoverdir=$(shell pwd)/.coverage/unit
+
+.PHONY: cov-html
+cov-html:
+	go tool covdata percent -i=.coverage/unit
+	go tool covdata textfmt -i=.coverage/unit -o .coverage/profile
+	go tool cover -html=.coverage/profile
+
+.PHONY: cov
+cov: test
+	go tool covdata percent -i=.coverage/unit
+	@go tool covdata textfmt -i=.coverage/unit -o .coverage/profile
+	@echo "TOTAL:"
+	@go tool cover -func=.coverage/profile | tail -1 | awk '{print $$3}'
+
+#
+# Create a container image image used to build the go code.
+#
+# We're building a hash of that list of dependencies (Go,...). That should give us a deterministic
+# version identifier for any particular list of dependencies -- if, with a future agent version,
+# the dependencies change, then that hash will change. We can use that to minimize downloads
+# from external sources, and maximise re-use of the "dependencies" image for as long as dependencies
+# remain stable.
+#
+
+BASE_IMAGE_BUILDER = ubuntu:22.04
+
+# Compute hash to detect any changes and rebuild/push the image
+DEPEND_HASH = $(shell echo \
+    "${BASE_IMAGE_BUILDER}-DOCKERFILE:$(shell md5sum \
+    	$(CURDIR)/Dockerfile.depend \
+    	$(CURDIR)/go.mod \
+    	$(CURDIR)/go.sum \
+	)" | md5sum | cut -f1 -d' ')
+DEPEND_IMAGE = ${DEPEND_BASE}:${DEPEND_HASH}
+
+ifdef CI_BUILD
+	PUSH_IMAGE = docker image push ${DEPEND_IMAGE}
+else
+	PUSH_IMAGE = echo not pushing image
+endif
+
+.PHONY: builder-image
+builder-image: ## Make dependencies image. (Not required normally; is implied in making any other container image).
+	# Try to pull an existing dependencies image; it's OK if none exists yet.
+	@echo Building depend image
+	docker image pull ${DEPEND_IMAGE} || /bin/true
+	docker image inspect ${DEPEND_IMAGE} >/dev/null 2>/dev/null \
+		  || ( docker image build \
+				-f ./Dockerfile.depend \
+				--build-arg BASE_IMAGE=${BASE_IMAGE_BUILDER} \
+				--tag ${DEPEND_IMAGE} \
+				$(CURDIR) \
+		   && ${PUSH_IMAGE} )
+	docker tag ${DEPEND_IMAGE} ${DEPEND_BASE}:latest
+
+.PHONY: go-check
+go-check: builder-image
+	@echo Checking go code
+	docker run -t --rm \
+		-v $(CURDIR):/vpp-dataplane \
+		${DEPEND_IMAGE} \
+		make -C /vpp-dataplane cov
+
+.PHONY: go-lint
+go-lint: lint

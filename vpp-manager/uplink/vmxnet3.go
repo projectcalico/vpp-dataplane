@@ -33,9 +33,9 @@ func (d *Vmxnet3Driver) IsSupported(warn bool) (supported bool) {
 	var ret bool
 	supported = true
 
-	ret = d.conf.Driver == config.DRIVER_VMXNET3
+	ret = d.conf.Driver == config.DriverVmxNet3
 	if !ret && warn {
-		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DRIVER_VMXNET3)
+		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DriverVmxNet3)
 	}
 	supported = supported && ret
 
@@ -43,31 +43,31 @@ func (d *Vmxnet3Driver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *Vmxnet3Driver) PreconfigureLinux() (err error) {
-	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_NO {
-		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_YES)
+	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VfioUnsafeNoIommuModeNO {
+		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VfioUnsafeNoIommuModeYES)
 		if err != nil {
 			return errors.Wrapf(err, "Vmxnet3 preconfigure error")
 		}
 	}
 	d.removeLinuxIfConf(true /* down */)
-	driverName, err := utils.GetDriverNameFromPci(d.conf.PciId)
+	driverName, err := utils.GetDriverNameFromPci(d.conf.PciID)
 	if err != nil {
-		return errors.Wrapf(err, "Couldnt get VF driver Name for %s", d.conf.PciId)
+		return errors.Wrapf(err, "Couldnt get VF driver Name for %s", d.conf.PciID)
 	}
-	if driverName != config.DRIVER_VFIO_PCI {
-		err := utils.SwapDriver(d.conf.PciId, config.DRIVER_VFIO_PCI, true)
+	if driverName != config.DriverVfioPci {
+		err := utils.SwapDriver(d.conf.PciID, config.DriverVfioPci, true)
 		if err != nil {
-			return errors.Wrapf(err, "Couldnt swap %s to vfio_pci", d.conf.PciId)
+			return errors.Wrapf(err, "Couldnt swap %s to vfio_pci", d.conf.PciID)
 		}
 	}
 	return nil
 }
 
 func (d *Vmxnet3Driver) RestoreLinux(allInterfacesPhysical bool) {
-	if d.conf.PciId != "" && d.conf.Driver != "" {
-		err := utils.SwapDriver(d.conf.PciId, d.conf.Driver, true)
+	if d.conf.PciID != "" && d.conf.Driver != "" {
+		err := utils.SwapDriver(d.conf.PciID, d.conf.Driver, true)
 		if err != nil {
-			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciId, err)
+			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciID, err)
 		}
 	}
 
@@ -85,8 +85,8 @@ func (d *Vmxnet3Driver) RestoreLinux(allInterfacesPhysical bool) {
 	// Re-add all adresses and routes
 	d.restoreLinuxIfConf(link)
 
-	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VFIO_UNSAFE_NO_IOMMU_MODE_NO {
-		err = utils.SetVfioEnableUnsafeNoIommuMode(config.VFIO_UNSAFE_NO_IOMMU_MODE_NO)
+	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VfioUnsafeNoIommuModeNO {
+		err = utils.SetVfioEnableUnsafeNoIommuMode(config.VfioUnsafeNoIommuModeNO)
 		if err != nil {
 			log.Errorf("Vmxnet3 restore error %s", err)
 		}
@@ -97,7 +97,7 @@ func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int,
 	intf := types.Vmxnet3Interface{
 		GenericVppInterface: d.getGenericVppInterface(),
 		EnableGso:           *config.GetCalicoVppDebug().GSOEnabled,
-		PciId:               d.conf.PciId,
+		PciID:               d.conf.PciID,
 	}
 	swIfIndex, err := vpp.CreateVmxnet3(&intf)
 	if err != nil {
@@ -116,7 +116,7 @@ func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int,
 
 func NewVmxnet3Driver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *Vmxnet3Driver {
 	d := &Vmxnet3Driver{}
-	d.name = NATIVE_DRIVER_VMXNET3
+	d.name = NativeDriverVmxnet3
 	d.conf = conf
 	d.params = params
 	d.spec = spec

@@ -28,7 +28,7 @@ func (v *VppLink) addDelClassifyTable(table *types.ClassifyTable, action types.C
 
 	isAdd, delChain := false, false
 	currentDataFlags := uint8(0)
-	tableIndex := types.InvalidTableId
+	tableIndex := types.InvalidTableID
 	switch action {
 	case types.AddAbsolute:
 		isAdd = true
@@ -82,7 +82,7 @@ func (v *VppLink) addDelClassifyTable(table *types.ClassifyTable, action types.C
 	})
 
 	if err != nil {
-		return types.InvalidID, fmt.Errorf("Failed to %s the classify table: %w", map[bool]string{true: "add", false: "del"}[isAdd], err)
+		return types.InvalidID, fmt.Errorf("failed to %s the classify table: %w", map[bool]string{true: "add", false: "del"}[isAdd], err)
 	}
 
 	return response.NewTableIndex, nil
