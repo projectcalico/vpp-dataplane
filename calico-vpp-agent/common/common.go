@@ -52,7 +52,7 @@ const (
 	PodVRFIndex     = uint32(2)
 )
 
-type PolicyServerIpam interface {
+type FelixServerIpam interface {
 	IPNetNeedsSNAT(prefix *net.IPNet) bool
 	GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool
 }
