@@ -1,5 +1,7 @@
 include common.mk
 
+export GOOS=linux
+
 check-%:
 	@: $(if $(value $*),,$(error $* is undefined))
 
