@@ -9,8 +9,6 @@ VERSION_FILE=version
 
 all: build gobgp image
 
-export GOOS=linux
-
 bin:
 	mkdir -p bin
 

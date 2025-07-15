@@ -21,7 +21,6 @@ VPP_TARBALL = vpp-${VPP_HASH}.tgz
 
 all: image
 
-export GOOS=linux
 build:
 	${DOCKER_RUN} go build -o $(IMAGE_DIR)/vpp-manager
 

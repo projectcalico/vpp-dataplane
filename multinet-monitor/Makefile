@@ -5,8 +5,6 @@ VERSION_FILE=version
 GENERATE_LOG_FILE=../vpplink/generated/generate.log
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
 
-export GOOS=linux
-
 .PHONY: build
 build:
 	${DOCKER_RUN} go build -o ./watcher .
