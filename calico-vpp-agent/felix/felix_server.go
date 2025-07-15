@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package policy
+package felix
 
 import (
 	"encoding/json"
@@ -94,8 +94,8 @@ type Server struct {
 	ip6               *net.IP
 	interfacesMap     map[string]interfaceDetails
 
-	policyServerEventChan chan common.CalicoVppEvent
-	networkDefinitions    map[string]*watchers.NetworkDefinition
+	felixServerEventChan chan common.CalicoVppEvent
+	networkDefinitions   map[string]*watchers.NetworkDefinition
 
 	tunnelSwIfIndexes     map[uint32]bool
 	tunnelSwIfIndexesLock sync.Mutex
@@ -113,8 +113,8 @@ type Server struct {
 	GotOurNodeBGPchan chan interface{}
 }
 
-// NewServer creates a policy server
-func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
+// NewFelixServer creates a felix server
+func NewFelixServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 	var err error
 
 	server := &Server{
@@ -129,7 +129,7 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		configuredState: NewPolicyState(),
 		pendingState:    NewPolicyState(),
 
-		policyServerEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		felixServerEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 
 		networkDefinitions: make(map[string]*watchers.NetworkDefinition),
 
@@ -144,7 +144,7 @@ func NewPolicyServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		GotOurNodeBGPchan: make(chan interface{}),
 	}
 
-	reg := common.RegisterHandler(server.policyServerEventChan, "policy server events")
+	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")
 	reg.ExpectEvents(
 		common.PodAdded,
 		common.PodDeleted,
@@ -331,7 +331,7 @@ func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPN
 	}
 }
 
-func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
+func (s *Server) handleFelixServerEvents(evt common.CalicoVppEvent) error {
 	/* Note: we will only receive events we ask for when registering the chan */
 	switch evt.Type {
 	case common.NetAddedOrUpdated:
@@ -428,12 +428,12 @@ func (s *Server) handlePolicyServerEvents(evt common.CalicoVppEvent) error {
 	return nil
 }
 
-// Serve runs the policy server
-func (s *Server) ServePolicy(t *tomb.Tomb) error {
-	s.log.Info("Starting policy server")
+// Serve runs the felix server
+func (s *Server) ServeFelix(t *tomb.Tomb) error {
+	s.log.Info("Starting felix server")
 
 	if !*config.GetCalicoVppDebug().PoliciesEnabled {
-		s.log.Warn("Policies disabled, policy server will not configure VPP")
+		s.log.Warn("Policies disabled, felix server will not configure VPP")
 	}
 
 	listener, err := net.Listen("unix", config.FelixDataplaneSocket)
@@ -469,7 +469,7 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 		// Accept only one connection
 		conn, err := listener.Accept()
 		if err != nil {
-			return errors.Wrap(err, "cannot accept policy client connection")
+			return errors.Wrap(err, "cannot accept felix client connection")
 		}
 		s.log.Infof("Accepted connection from felix")
 		s.state = StateConnected
@@ -479,17 +479,17 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 		for {
 			select {
 			case <-t.Dying():
-				s.log.Warn("Policy server exiting")
+				s.log.Warn("Felix server exiting")
 				err = conn.Close()
 				if err != nil {
 					s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
 				}
-				s.log.Infof("Waiting for SyncPolicy to stop...")
+				s.log.Infof("Waiting for SyncFelix to stop...")
 				return nil
-			case evt := <-s.policyServerEventChan:
-				err = s.handlePolicyServerEvents(evt)
+			case evt := <-s.felixServerEventChan:
+				err = s.handleFelixServerEvents(evt)
 				if err != nil {
-					s.log.WithError(err).Warn("Error handling PolicyServerEvents")
+					s.log.WithError(err).Warn("Error handling FelixServerEvents")
 				}
 			// <-felixUpdates & handleFelixUpdate does the bulk of the policy sync job. It starts by reconciling the current
 			// configured state in VPP (empty at first) with what is sent by felix, and once both are in
@@ -517,7 +517,7 @@ func (s *Server) ServePolicy(t *tomb.Tomb) error {
 		if err != nil {
 			s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
 		}
-		s.log.Infof("SyncPolicy exited, reconnecting to felix")
+		s.log.Infof("SyncFelix exited, reconnecting to felix")
 	}
 }
 

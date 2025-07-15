@@ -119,7 +119,7 @@ func (s *Server) removeConflictingContainers(newAddresses []storage.LocalIP, net
 func (s *Server) AddVppInterface(podSpec *storage.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
 	podSpec.NeedsSnat = false
 	for _, containerIP := range podSpec.GetContainerIps() {
-		podSpec.NeedsSnat = podSpec.NeedsSnat || s.policyServerIpam.IPNetNeedsSNAT(containerIP)
+		podSpec.NeedsSnat = podSpec.NeedsSnat || s.felixServerIpam.IPNetNeedsSNAT(containerIP)
 	}
 
 	err = ns.IsNSorErr(podSpec.NetnsName)
