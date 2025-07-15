@@ -37,7 +37,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/policy"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/services"
@@ -146,16 +146,16 @@ func main() {
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
-	policyServer, err := policy.NewPolicyServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
+	felixServer, err := felix.NewFelixServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
 	if err != nil {
 		log.Fatalf("Failed to create policy server %s", err)
 	}
-	err = policy.InstallFelixPlugin()
+	err = felix.InstallFelixPlugin()
 	if err != nil {
 		log.Fatalf("could not install felix plugin: %s", err)
 	}
-	connectivityServer := connectivity.NewConnectivityServer(vpp, policyServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
-	cniServer := cni.NewCNIServer(vpp, policyServer, log.WithFields(logrus.Fields{"component": "cni"}))
+	connectivityServer := connectivity.NewConnectivityServer(vpp, felixServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
+	cniServer := cni.NewCNIServer(vpp, felixServer, log.WithFields(logrus.Fields{"component": "cni"}))
 
 	/* Pubsub should now be registered */
 
@@ -169,9 +169,9 @@ func main() {
 	serviceServer.SetBGPConf(bgpConf)
 
 	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
-	Go(policyServer.ServePolicy)
-	felixConfig := watchDog.Wait(policyServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
-	ourBGPSpec := watchDog.Wait(policyServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")
+	Go(felixServer.ServeFelix)
+	felixConfig := watchDog.Wait(felixServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
+	ourBGPSpec := watchDog.Wait(felixServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")
 	// check if the watchDog timer has issued the t.Kill() which would mean we are dead
 	if !t.Alive() {
 		log.Fatal("WatchDog timed out waiting for config from felix. Exiting...")

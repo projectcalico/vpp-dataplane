@@ -35,12 +35,12 @@ import (
 type ConnectivityServer struct {
 	log *logrus.Entry
 
-	providers        map[string]ConnectivityProvider
-	connectivityMap  map[string]common.NodeConnectivity
-	policyServerIpam common.PolicyServerIpam
-	Clientv3         calicov3cli.Interface
-	nodeBGPSpec      *common.LocalNodeSpec
-	vpp              *vpplink.VppLink
+	providers       map[string]ConnectivityProvider
+	connectivityMap map[string]common.NodeConnectivity
+	felixServerIpam common.FelixServerIpam
+	Clientv3        calicov3cli.Interface
+	nodeBGPSpec     *common.LocalNodeSpec
+	vpp             *vpplink.VppLink
 
 	felixConfig *felixConfig.Config
 	nodeByAddr  map[string]common.LocalNodeSpec
@@ -65,12 +65,12 @@ func (s *ConnectivityServer) SetFelixConfig(felixConfig *felixConfig.Config) {
 	s.felixConfig = felixConfig
 }
 
-func NewConnectivityServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyServerIpam,
+func NewConnectivityServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam,
 	clientv3 calicov3cli.Interface, log *logrus.Entry) *ConnectivityServer {
 	server := ConnectivityServer{
 		log:                   log,
 		vpp:                   vpp,
-		policyServerIpam:      policyServerIpam,
+		felixServerIpam:       felixServerIpam,
 		Clientv3:              clientv3,
 		connectivityMap:       make(map[string]common.NodeConnectivity),
 		connectivityEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
@@ -291,7 +291,7 @@ func (s *ConnectivityServer) getProviderType(cn *common.NodeConnectivity) (strin
 	if cn.Vni != 0 {
 		return VXLAN, nil
 	}
-	ipPool := s.policyServerIpam.GetPrefixIPPool(&cn.Dst)
+	ipPool := s.felixServerIpam.GetPrefixIPPool(&cn.Dst)
 	s.log.Debugf("IPPool for route %s: %+v", cn.String(), ipPool)
 	if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 		return SRv6, nil

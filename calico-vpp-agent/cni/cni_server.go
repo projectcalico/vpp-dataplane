@@ -46,7 +46,7 @@ type Server struct {
 	log *logrus.Entry
 	vpp *vpplink.VppLink
 
-	policyServerIpam common.PolicyServerIpam
+	felixServerIpam common.FelixServerIpam
 
 	grpcServer *grpc.Server
 
@@ -406,13 +406,13 @@ func (s *Server) Del(ctx context.Context, request *cniproto.DelRequest) (*cnipro
 }
 
 // Serve runs the grpc server for the Calico CNI backend API
-func NewCNIServer(vpp *vpplink.VppLink, policyServerIpam common.PolicyServerIpam, log *logrus.Entry) *Server {
+func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, log *logrus.Entry) *Server {
 	server := &Server{
 		vpp: vpp,
 		log: log,
 
-		policyServerIpam: policyServerIpam,
-		cniEventChan:     make(chan common.CalicoVppEvent, common.ChanSize),
+		felixServerIpam: felixServerIpam,
+		cniEventChan:    make(chan common.CalicoVppEvent, common.ChanSize),
 
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]storage.LocalPodSpec),
@@ -471,7 +471,7 @@ forloop:
 				for _, podSpec := range s.podInterfaceMap {
 					NeededSnat := podSpec.NeedsSnat
 					for _, containerIP := range podSpec.GetContainerIps() {
-						podSpec.NeedsSnat = podSpec.NeedsSnat || s.policyServerIpam.IPNetNeedsSNAT(containerIP)
+						podSpec.NeedsSnat = podSpec.NeedsSnat || s.felixServerIpam.IPNetNeedsSNAT(containerIP)
 					}
 					if NeededSnat != podSpec.NeedsSnat {
 						for _, swIfIndex := range []uint32{podSpec.LoopbackSwIfIndex, podSpec.TunTapSwIfIndex, podSpec.MemifSwIfIndex} {
