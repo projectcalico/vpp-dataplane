@@ -1,0 +1,547 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Devdatta Deshpande <devdattad@checkpoint.com>
+Date: Tue, 15 Jul 2025 19:35:39 +0000
+Subject: [PATCH] FwaaS: Added a rewrite command
+
+---
+ build-root/dpdk_mlx_default.sh         |   1 +
+ src/plugins/geneve/CMakeLists.txt      |   3 +
+ src/plugins/geneve/decap.c             |  16 +++
+ src/plugins/geneve/fwaas_cmd.c         | 150 +++++++++++++++++++++++++
+ src/plugins/geneve/fwaas_cmd_handler.c |  67 +++++++++++
+ src/plugins/geneve/fwaas_cmd_handler.h |   9 ++
+ src/plugins/geneve/geneve.c            |   6 +
+ src/plugins/geneve/geneve.h            |  12 +-
+ src/plugins/geneve/geneve_packet.h     |   4 +-
+ src/plugins/geneve/options_parser.c    |  87 ++++++++++++++
+ src/plugins/geneve/options_parser.h    |  40 +++++++
+ 11 files changed, 391 insertions(+), 4 deletions(-)
+ create mode 100644 build-root/dpdk_mlx_default.sh
+ create mode 100644 src/plugins/geneve/fwaas_cmd.c
+ create mode 100644 src/plugins/geneve/fwaas_cmd_handler.c
+ create mode 100644 src/plugins/geneve/fwaas_cmd_handler.h
+ create mode 100644 src/plugins/geneve/options_parser.c
+ create mode 100644 src/plugins/geneve/options_parser.h
+
+diff --git a/build-root/dpdk_mlx_default.sh b/build-root/dpdk_mlx_default.sh
+new file mode 100644
+index 000000000..337f59df7
+--- /dev/null
++++ b/build-root/dpdk_mlx_default.sh
+@@ -0,0 +1 @@
++DPDK_MLX_DEFAULT=y
+diff --git a/src/plugins/geneve/CMakeLists.txt b/src/plugins/geneve/CMakeLists.txt
+index 43eb01720..95a31dc3c 100644
+--- a/src/plugins/geneve/CMakeLists.txt
++++ b/src/plugins/geneve/CMakeLists.txt
+@@ -17,6 +17,9 @@ add_vpp_plugin(geneve
+   encap.c
+   decap.c
+   geneve_api.c
++  options_parser.c
++  fwaas_cmd.c
++  fwaas_cmd_handler.c
+ 
+   MULTIARCH_SOURCES
+   encap.c
+diff --git a/src/plugins/geneve/decap.c b/src/plugins/geneve/decap.c
+index c64121e28..5450cf7da 100644
+--- a/src/plugins/geneve/decap.c
++++ b/src/plugins/geneve/decap.c
+@@ -14,6 +14,7 @@
+  */
+ 
+ #include <vlib/vlib.h>
++#include <geneve/fwaas_cmd_handler.h>
+ 
+ #include <geneve/geneve.h>
+ 
+@@ -579,17 +580,32 @@ geneve_input (vlib_main_t * vm,
+ 	      ip6_0 = vlib_buffer_get_current (b0);
+ 	    }
+ 
++	  u8 rewrite_result = handle_rewrite_cmd (b0, geneve0, is_ip4);
++
+ 	  /* pop (ip, udp, geneve) */
+ 	  if (is_ip4)
+ 	    {
++		  if (rewrite_result == 1)
++			{
++			  next0 = GENEVE_INPUT_NEXT_IP4_LOOKUP;
++			  error0 = 0;
++			  goto trace00;
++			}
+ 	      vlib_buffer_advance
+ 		(b0,
+ 		 sizeof (*ip4_0) + sizeof (udp_header_t) +
+ 		 GENEVE_BASE_HEADER_LENGTH +
+ 		 vnet_get_geneve_options_len (geneve0));
++		 vlib_log_debug (vxm->log_class, "[FwaaS] not forwarding packets...");
+ 	    }
+ 	  else
+ 	    {
++		  if (rewrite_result == 1)
++			{
++			  next0 = GENEVE_INPUT_NEXT_IP6_LOOKUP;
++			  error0 = 0;
++			  goto trace00;
++			}
+ 	      vlib_buffer_advance
+ 		(b0,
+ 		 sizeof (*ip6_0) + sizeof (udp_header_t) +
+diff --git a/src/plugins/geneve/fwaas_cmd.c b/src/plugins/geneve/fwaas_cmd.c
+new file mode 100644
+index 000000000..6b2ebafa5
+--- /dev/null
++++ b/src/plugins/geneve/fwaas_cmd.c
+@@ -0,0 +1,150 @@
++#include <vlib/vlib.h>
++
++#include <vnet/fib/fib_types.h>
++#include <geneve/geneve.h>
++#include <arpa/inet.h>
++
++static clib_error_t *
++vnet_fwaas_next_hop_cmd (vlib_main_t *vm, unformat_input_t *main_input, vlib_cli_command_t *cmd)
++{
++  geneve_main_t *vxm = &geneve_main;
++  unformat_input_t _line_input, *line_input = &_line_input;
++  clib_error_t *error = NULL;
++  u8 *data = 0;
++  u64 vpce_id = 0ULL;
++  u32 payload_proto = 0;
++  fib_route_path_t *rpaths = NULL, rpath;
++
++  if (!unformat_user (main_input, unformat_line_input, line_input))
++    return 0;
++
++  rpath.frp_sw_if_index = ~0;
++  while (unformat_check_input (line_input) != UNFORMAT_END_OF_INPUT)
++    {
++      if (unformat (line_input, "gwlb 0x%U", unformat_hex_string, &data))
++        {
++          u32 len = vec_len (data);
++          if (len > 8)
++            {
++              error = clib_error_return (0, "vpce id too large (max 16 hex digits)");
++              goto done;
++            }
++            for (int i = 0; i < len; i++)
++              vpce_id = (vpce_id << 8) | data[i];
++        }
++      else if (unformat (line_input, "via %U",
++          unformat_fib_route_path, &rpath, &payload_proto))
++        {
++          char src_addr[INET_ADDRSTRLEN];
++          vec_add1 (rpaths, rpath);
++          inet_ntop(AF_INET, &(rpath.frp_addr.ip4.as_u32), src_addr, INET_ADDRSTRLEN);
++          vlib_log_debug (vxm->log_class,
++                    "[FwaaS] vpceid: 0x%llx, IP: %s, interface: %u", vpce_id, src_addr, rpath.frp_sw_if_index);
++        }
++      else
++        {
++          error = unformat_parse_error (line_input);
++          goto done;
++        }
++    }
++
++  if (data == 0)
++    {
++      error = clib_error_return (0, "vpce id is missing please provide a valid vpce id");
++      goto done;
++    }
++  else if (rpaths == NULL)
++    {
++      error = clib_error_return (0, "next-hop address and interface is missing");
++      goto done;
++    }
++  else if (rpath.frp_sw_if_index == ~0)
++    {
++      error = clib_error_return (0, "next-hop interface is missing");
++      goto done;
++    }
++
++done:
++  vec_free (data);
++  vec_free (rpaths);
++  unformat_free (line_input);
++  return error;
++}
++
++/*?
++ * This command is used to add a route for forwarding packets to IP address based on vpce id
++?*/
++VLIB_CLI_COMMAND (fwaas_next_hop_command, static) = {
++    .path = "fwaas next-hop",
++    .short_help = "fwaas next-hop gwlb [vpce-id] via [next-hop-address interface]",
++    .function = vnet_fwaas_next_hop_cmd,
++};
++
++static clib_error_t *
++vnet_fwaas_rewrite_cmd (vlib_main_t *vm, unformat_input_t *main_input, vlib_cli_command_t *cmd)
++{
++  geneve_main_t *vxm = &geneve_main;
++  unformat_input_t _line_input, *line_input = &_line_input;
++  clib_error_t *error = NULL;
++  u8 *data = 0;
++  u64 vpce_id = 0ULL;
++  ip46_address_t dst_addr;
++
++  if (!unformat_user (main_input, unformat_line_input, line_input))
++    return 0;
++
++  ip46_address_reset (&dst_addr);
++  while (unformat_check_input (line_input) != UNFORMAT_END_OF_INPUT)
++    {
++      if (unformat (line_input, "gwlb 0x%U", unformat_hex_string, &data))
++        {
++          u32 len = vec_len (data);
++          if (len > 8)
++            {
++              error = clib_error_return (0, "vpce id too large (max 16 hex digits)");
++              goto done;
++            }
++            for (int i = 0; i < len; i++)
++              vpce_id = (vpce_id << 8) | data[i];
++        }
++      else if (unformat (line_input, "dst %U",
++          unformat_ip4_address, &dst_addr.ip4))
++      ;
++      else if (unformat (line_input, "dst %U",
++          unformat_ip6_address, &dst_addr.ip6))
++      ;
++      else
++        {
++          error = unformat_parse_error (line_input);
++          goto done;
++        }
++    }
++
++  if (data == 0)
++    {
++      error = clib_error_return (0, "vpce id is missing please provide a valid vpce id");
++      goto done;
++    }
++  else if (ip46_address_is_zero(&dst_addr))
++    {
++      error = clib_error_return (0, "destination address is missing");
++      goto done;
++    }
++
++  ip46_address_t *stored_addr = clib_mem_alloc (sizeof(ip46_address_t));
++  clib_memcpy (stored_addr, &dst_addr, sizeof(ip46_address_t));
++  hash_set (vxm->vpce_id_dst_ip_map, vpce_id, stored_addr);
++
++done:
++  vec_free (data);
++  unformat_free (line_input);
++  return error;
++}
++/*?
++ * This command is used to add a map between vpce id and the IP address where the packet needs to be forwarded
++?*/
++VLIB_CLI_COMMAND (fwaas_rewrite_command, static) = {
++  .path = "fwaas rewrite",
++  .short_help = "fwaas rewrite gwlb [vpce-id] dst [destination ip]",
++  .function = vnet_fwaas_rewrite_cmd,
++};
+diff --git a/src/plugins/geneve/fwaas_cmd_handler.c b/src/plugins/geneve/fwaas_cmd_handler.c
+new file mode 100644
+index 000000000..9bac40cd9
+--- /dev/null
++++ b/src/plugins/geneve/fwaas_cmd_handler.c
+@@ -0,0 +1,67 @@
++#include <vlib/vlib.h>
++
++#include <geneve/fwaas_cmd_handler.h>
++
++#include <geneve/options_parser.h>
++
++u8
++handle_rewrite_cmd (vlib_buffer_t *b, geneve_header_t *geneve, u32 is_ip4)
++{
++  geneve_main_t *vxm = &geneve_main;
++  ip4_header_t *ip4 = NULL;
++  ip6_header_t *ip6 = NULL;
++  udp_header_t *udp_header = NULL;
++  aws_glb_tlvs tlvs = {0};
++  word advance_offset = 0;
++
++  if (is_ip4)
++    {
++      ip4 = vlib_buffer_get_current (b);
++      vlib_buffer_advance (b, sizeof (*ip4));
++      advance_offset += sizeof (*ip4);
++    }
++  else
++    {
++      ip6 = vlib_buffer_get_current (b);
++      vlib_buffer_advance (b, sizeof (*ip6));
++      advance_offset += sizeof (*ip6);
++    }
++
++  udp_header = vlib_buffer_get_current (b);
++  vlib_buffer_advance (b, sizeof (*udp_header) + GENEVE_BASE_HEADER_LENGTH);
++  advance_offset += sizeof (*udp_header) + GENEVE_BASE_HEADER_LENGTH;
++
++  tlvs = read_geneve_options (b, geneve, &advance_offset);
++  if (tlvs.vpce_id == 0)
++    {
++      return 0;
++    }
++
++  uword *result = hash_get (vxm->vpce_id_dst_ip_map, tlvs.vpce_id);
++  if (result == NULL)
++    {
++      vlib_log_debug (vxm->log_class,
++        "[FwaaS] vpce id not added to map vpce id: 0x%lx, attachment id: 0x%lx, flow cookie: 0x%x",
++        tlvs.vpce_id, tlvs.attachment_id, tlvs.flow_cookie);
++      return 0;
++    }
++
++  vlib_log_debug (vxm->log_class,
++      "[FwaaS] Forwarding packet with details vpce id: 0x%lx, attachment id: 0x%lx, flow cookie: 0x%x",
++      tlvs.vpce_id, tlvs.attachment_id, tlvs.flow_cookie);
++  ip46_address_t dst_addr;
++  clib_memcpy (&dst_addr, (ip46_address_t*)*result, sizeof (ip46_address_t));
++
++  if (is_ip4)
++    {
++      ip4->dst_address.as_u32 = dst_addr.ip4.as_u32;
++      ip4->checksum = ip4_header_checksum (ip4);
++    }
++  else
++    {
++      ip6->dst_address.as_u128 = dst_addr.ip6.as_u128;
++    }
++
++  vlib_buffer_advance (b, -(word) (advance_offset));
++  return 1;
++}
+diff --git a/src/plugins/geneve/fwaas_cmd_handler.h b/src/plugins/geneve/fwaas_cmd_handler.h
+new file mode 100644
+index 000000000..c5e032338
+--- /dev/null
++++ b/src/plugins/geneve/fwaas_cmd_handler.h
+@@ -0,0 +1,9 @@
++#ifndef included_vnet_fwaas_cmd_handler_h
++#define included_vnet_fwaas_cmd_handler_h
++
++#include <geneve/geneve.h>
++
++u8
++handle_rewrite_cmd (vlib_buffer_t *, geneve_header_t *, u32);
++
++#endif /* included_vnet_fwaas_cmd_handler_h */
+diff --git a/src/plugins/geneve/geneve.c b/src/plugins/geneve/geneve.c
+index 37b83d017..5e201b67b 100644
+--- a/src/plugins/geneve/geneve.c
++++ b/src/plugins/geneve/geneve.c
+@@ -1092,6 +1092,12 @@ geneve_init (vlib_main_t * vm)
+   vxm->vnet_main = vnet_get_main ();
+   vxm->vlib_main = vm;
+ 
++  vxm->log_class = vlib_log_register_class ("fwaas", 0);
++
++  vlib_log_notice (vxm->log_class, "[FwaaS] geneve_init....");
++
++  vxm->vpce_id_dst_ip_map = hash_create (0, sizeof (uword));
++
+   /* initialize the ip6 hash */
+   vxm->geneve6_tunnel_by_key = hash_create_mem (0,
+ 						sizeof (geneve6_tunnel_key_t),
+diff --git a/src/plugins/geneve/geneve.h b/src/plugins/geneve/geneve.h
+index deb51abe1..c45656502 100644
+--- a/src/plugins/geneve/geneve.h
++++ b/src/plugins/geneve/geneve.h
+@@ -34,7 +34,7 @@
+ #include <vnet/dpo/dpo.h>
+ #include <vnet/adj/adj_types.h>
+ 
+-#define SUPPORT_OPTIONS_HEADER 0
++#define SUPPORT_OPTIONS_HEADER 1
+ 
+ typedef CLIB_PACKED (struct
+ 		     {
+@@ -144,7 +144,9 @@ typedef struct
+ 
+ #define foreach_geneve_input_next        \
+ _(DROP, "error-drop")                   \
+-_(L2_INPUT, "l2-input")
++_(L2_INPUT, "l2-input")                 \
++_(IP4_LOOKUP, "ip4-lookup")             \
++_(IP6_LOOKUP, "ip6-lookup")
+ 
+ typedef enum
+ {
+@@ -189,6 +191,12 @@ typedef struct
+   /* cache for last 8 geneve tunnel */
+   vtep4_cache_t vtep4_u512;
+ 
++  /* logging */
++  vlib_log_class_t log_class;
++
++  /* vpce id to destination IP map for rewrite cmd */
++  uword* vpce_id_dst_ip_map;
++
+ } geneve_main_t;
+ 
+ extern geneve_main_t geneve_main;
+diff --git a/src/plugins/geneve/geneve_packet.h b/src/plugins/geneve/geneve_packet.h
+index fb21a311f..58391f6c2 100644
+--- a/src/plugins/geneve/geneve_packet.h
++++ b/src/plugins/geneve/geneve_packet.h
+@@ -71,9 +71,9 @@ typedef struct
+   /* The 3 reserved bits are for future use;
+    * Need to be 0 on sending and ignored on receipt.
+    */
+-  u8 res;
++
+   /* Length is expressed in 4-bytes multiples excluding the options header. */
+-  u8 length;
++  u8 res_length;
+   u32 opt_data[];
+ } geneve_options_t;
+ 
+diff --git a/src/plugins/geneve/options_parser.c b/src/plugins/geneve/options_parser.c
+new file mode 100644
+index 000000000..a578347a1
+--- /dev/null
++++ b/src/plugins/geneve/options_parser.c
+@@ -0,0 +1,87 @@
++#include <vlib/vlib.h>
++
++#include <geneve/options_parser.h>
++#include <geneve/geneve.h>
++
++static_always_inline void
++set_aws_glb_tlvs (geneve_options_t *geneve_opt, aws_glb_tlvs *tlvs)
++{
++  geneve_main_t *vxm = &geneve_main;
++  if (geneve_opt->opt_class != AWS_GLBE_OPTION_CLASS)
++    {
++      return;
++    }
++
++  if (geneve_opt->type == AWS_GLBE_VPCE_ID_TYPE)
++    {
++      tlvs->vpce_id = clib_net_to_host_u64 (((u64) geneve_opt->opt_data[1] << 32) | geneve_opt->opt_data[0]);
++    }
++  else if (geneve_opt->type == AWS_GLBE_ATTACHMENT_ID_TYPE)
++    {
++      tlvs->attachment_id = clib_net_to_host_u64 (((u64) geneve_opt->opt_data[1] << 32) | geneve_opt->opt_data[0]);
++    }
++  else if (geneve_opt->type == AWS_GLBE_FLOW_COOKIE_TYPE)
++    {
++      tlvs->flow_cookie = clib_net_to_host_u32 (geneve_opt->opt_data[0]);
++    }
++  else
++    {
++      vlib_log_info (vxm->log_class,
++					"[FwaaS] Unknown AWS option type %d: ",
++					geneve_opt->type);
++    }
++}
++
++static_always_inline u8
++read_geneve_option (vlib_buffer_t *b, aws_glb_tlvs *tlvs)
++{
++  geneve_main_t *vxm = &geneve_main;
++  u8 option_len = 0;
++  geneve_options_t *geneve_opt = vlib_buffer_get_current(b);
++
++  u8 res = ((geneve_opt->res_length & 0xe0) >> 5);
++  option_len = (geneve_opt->res_length & 0x1F) * 4;
++  geneve_opt->opt_class = clib_net_to_host_u16 (geneve_opt->opt_class);
++
++  vlib_log_debug (vxm->log_class,
++                 "[FwaaS] Geneve option class: 0x%x type: 0x%x length: 0x%x, res: 0x%x",
++                 geneve_opt->opt_class,
++                 geneve_opt->type,
++                 option_len,
++                 res);
++
++  vlib_log_debug (vxm->log_class,
++                 "[FwaaS] Geneve option data %U", format_hex_bytes,
++                 geneve_opt->opt_data,
++                 option_len);
++
++  set_aws_glb_tlvs(geneve_opt, tlvs);
++  return option_len + GENEVE_OPT_HEADER_LENGTH;
++}
++
++aws_glb_tlvs
++read_geneve_options (vlib_buffer_t *b, geneve_header_t *geneve, word *offset)
++{
++  geneve_main_t *vxm = &geneve_main;
++  u8 options_len = vnet_get_geneve_options_len (geneve);
++  void *current = vlib_buffer_get_current (b);
++  void *end = current + options_len;
++
++  aws_glb_tlvs tlvs = {0};
++  if (options_len == 0)
++    {
++      return tlvs;
++    }
++
++  vlib_log_debug (vxm->log_class,
++					"[FwaaS] Geneve Options len: %d", options_len);
++  while (current < end)
++    {
++      u8 option_len = read_geneve_option (b, &tlvs);
++      current += option_len;
++      vlib_buffer_advance (b, option_len);
++      *offset += option_len;
++    }
++
++  return tlvs;
++}
+diff --git a/src/plugins/geneve/options_parser.h b/src/plugins/geneve/options_parser.h
+new file mode 100644
+index 000000000..0f913c959
+--- /dev/null
++++ b/src/plugins/geneve/options_parser.h
+@@ -0,0 +1,40 @@
++#ifndef included_vnet_options_parser_h
++#define included_vnet_options_parser_h
++
++#include <geneve/geneve_packet.h>
++
++#define GENEVE_OPT_HEADER_LENGTH 4
++#define AWS_GLBE_OPTION_CLASS 0x0108
++#define AWS_GLBE_VPCE_ID_TYPE 1
++#define AWS_GLBE_ATTACHMENT_ID_TYPE 2
++#define AWS_GLBE_FLOW_COOKIE_TYPE 3
++
++/*
++ * AWS Gateway Load Balancer TLVs
++ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++ * |   Option Class = 0x0108 (AWS) |    Type = 1   |R|R|R| Len = 2 |
++ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++ * |                      64-bit GWLBE/VPCE ID                     |
++ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++ * |   Option Class = 0x0108 (AWS) |    Type = 2   |R|R|R| Len = 2 |
++ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++ * |              64-bit Customer Visible Attachment ID            |
++ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++ * |   Option Class = 0x0108 (AWS) |    Type = 3   |R|R|R| Len = 1 |
++ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++ * |                       32-bit Flow Cookie                      |
++ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
++*/
++typedef struct
++{
++  u64 vpce_id;
++  u64 attachment_id;
++  u32 flow_cookie;
++} aws_glb_tlvs;
++
++aws_glb_tlvs
++read_geneve_options (vlib_buffer_t *b, geneve_header_t *geneve, word *offset);
++
++#endif /* included_vnet_options_parser_h */
+-- 
+2.43.0
+
