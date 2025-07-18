@@ -177,96 +177,108 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 		serviceStateMap: make(map[string]ServiceState),
 	}
 
-	serviceListWatch := cache.NewListWatchFromClient(k8sclient.CoreV1().RESTClient(),
-		"services", "", fields.Everything())
-	serviceStore, serviceInformer := cache.NewInformer(
-		serviceListWatch,
-		&v1.Service{},
-		60*time.Second,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				service, ok := obj.(*v1.Service)
-				if !ok {
-					panic("wrong type for obj, not *v1.Service")
-				}
-				localService := server.resolveLocalServiceFromService(service)
-				server.handleServiceEndpointEvent(localService, nil)
-			},
-			UpdateFunc: func(old interface{}, obj interface{}) {
-				service, ok := obj.(*v1.Service)
-				if !ok {
-					panic("wrong type for obj, not *v1.Service")
-				}
-				oldService, ok := old.(*v1.Service)
-				if !ok {
-					panic("wrong type for old, not *v1.Service")
-				}
-				oldLocalService := server.resolveLocalServiceFromService(oldService)
-				localService := server.resolveLocalServiceFromService(service)
-				server.handleServiceEndpointEvent(localService, oldLocalService)
-			},
-			DeleteFunc: func(obj interface{}) {
-				switch value := obj.(type) {
-				case cache.DeletedFinalStateUnknown:
-					service, ok := value.Obj.(*v1.Service)
+	serviceStore, serviceInformer := cache.NewInformerWithOptions(
+		cache.InformerOptions{
+			ListerWatcher: cache.NewListWatchFromClient(
+				k8sclient.CoreV1().RESTClient(),
+				"services",
+				"",
+				fields.Everything(),
+			),
+			ObjectType:   &v1.Service{},
+			ResyncPeriod: 60 * time.Second,
+			Handler: cache.ResourceEventHandlerFuncs{
+				AddFunc: func(obj interface{}) {
+					service, ok := obj.(*v1.Service)
 					if !ok {
-						panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Service) %v", obj))
+						panic("wrong type for obj, not *v1.Service")
 					}
-					server.deleteServiceByName(serviceID(&service.ObjectMeta))
-				case *v1.Service:
-					server.deleteServiceByName(serviceID(&value.ObjectMeta))
-				default:
-					log.Errorf("unknown type in service deleteFunction %v", obj)
-				}
+					localService := server.resolveLocalServiceFromService(service)
+					server.handleServiceEndpointEvent(localService, nil)
+				},
+				UpdateFunc: func(old interface{}, obj interface{}) {
+					service, ok := obj.(*v1.Service)
+					if !ok {
+						panic("wrong type for obj, not *v1.Service")
+					}
+					oldService, ok := old.(*v1.Service)
+					if !ok {
+						panic("wrong type for old, not *v1.Service")
+					}
+					oldLocalService := server.resolveLocalServiceFromService(oldService)
+					localService := server.resolveLocalServiceFromService(service)
+					server.handleServiceEndpointEvent(localService, oldLocalService)
+				},
+				DeleteFunc: func(obj interface{}) {
+					switch value := obj.(type) {
+					case cache.DeletedFinalStateUnknown:
+						service, ok := value.Obj.(*v1.Service)
+						if !ok {
+							panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Service) %v", obj))
+						}
+						server.deleteServiceByName(serviceID(&service.ObjectMeta))
+					case *v1.Service:
+						server.deleteServiceByName(serviceID(&value.ObjectMeta))
+					default:
+						log.Errorf("unknown type in service deleteFunction %v", obj)
+					}
+				},
 			},
-		})
+		},
+	)
 
-	endpointListWatch := cache.NewListWatchFromClient(k8sclient.CoreV1().RESTClient(),
-		"endpoints", "", fields.Everything())
-	endpointStore, endpointInformer := cache.NewInformer(
-		endpointListWatch,
-		&v1.Endpoints{},
-		60*time.Second,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				endpoints, ok := obj.(*v1.Endpoints)
-				if !ok {
-					panic("wrong type for obj, not *v1.Endpoints")
-				}
-				server.handleServiceEndpointEvent(
-					server.resolveLocalServiceFromEndpoints(endpoints),
-					nil,
-				)
-			},
-			UpdateFunc: func(old interface{}, obj interface{}) {
-				endpoints, ok := obj.(*v1.Endpoints)
-				if !ok {
-					panic("wrong type for obj, not *v1.Endpoints")
-				}
-				oldEndpoints, ok := old.(*v1.Endpoints)
-				if !ok {
-					panic("wrong type for old, not *v1.Endpoints")
-				}
-				server.handleServiceEndpointEvent(
-					server.resolveLocalServiceFromEndpoints(endpoints),
-					server.resolveLocalServiceFromEndpoints(oldEndpoints),
-				)
-			},
-			DeleteFunc: func(obj interface{}) {
-				switch value := obj.(type) {
-				case cache.DeletedFinalStateUnknown:
-					endpoints, ok := value.Obj.(*v1.Endpoints)
+	endpointStore, endpointInformer := cache.NewInformerWithOptions(
+		cache.InformerOptions{
+			ListerWatcher: cache.NewListWatchFromClient(
+				k8sclient.CoreV1().RESTClient(),
+				"endpoints",
+				"",
+				fields.Everything(),
+			),
+			ObjectType:   &v1.Endpoints{},
+			ResyncPeriod: 60 * time.Second,
+			Handler: cache.ResourceEventHandlerFuncs{
+				AddFunc: func(obj interface{}) {
+					endpoints, ok := obj.(*v1.Endpoints)
 					if !ok {
-						panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Endpoints) %v", obj))
+						panic("wrong type for obj, not *v1.Endpoints")
 					}
-					server.deleteServiceByName(serviceID(&endpoints.ObjectMeta))
-				case *v1.Endpoints:
-					server.deleteServiceByName(serviceID(&value.ObjectMeta))
-				default:
-					log.Errorf("unknown type in endpoints deleteFunction %v", obj)
-				}
+					server.handleServiceEndpointEvent(
+						server.resolveLocalServiceFromEndpoints(endpoints),
+						nil,
+					)
+				},
+				UpdateFunc: func(old interface{}, obj interface{}) {
+					endpoints, ok := obj.(*v1.Endpoints)
+					if !ok {
+						panic("wrong type for obj, not *v1.Endpoints")
+					}
+					oldEndpoints, ok := old.(*v1.Endpoints)
+					if !ok {
+						panic("wrong type for old, not *v1.Endpoints")
+					}
+					server.handleServiceEndpointEvent(
+						server.resolveLocalServiceFromEndpoints(endpoints),
+						server.resolveLocalServiceFromEndpoints(oldEndpoints),
+					)
+				},
+				DeleteFunc: func(obj interface{}) {
+					switch value := obj.(type) {
+					case cache.DeletedFinalStateUnknown:
+						endpoints, ok := value.Obj.(*v1.Endpoints)
+						if !ok {
+							panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Endpoints) %v", obj))
+						}
+						server.deleteServiceByName(serviceID(&endpoints.ObjectMeta))
+					case *v1.Endpoints:
+						server.deleteServiceByName(serviceID(&value.ObjectMeta))
+					default:
+						log.Errorf("unknown type in endpoints deleteFunction %v", obj)
+					}
+				},
 			},
-		})
+		},
+	)
 
 	server.endpointStore = endpointStore
 	server.serviceStore = serviceStore

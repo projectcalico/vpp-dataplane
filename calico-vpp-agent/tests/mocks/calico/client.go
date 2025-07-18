@@ -149,3 +149,15 @@ func (cc *CalicoClientStub) Tiers() clientv3.TierInterface {
 func (cc *CalicoClientStub) EnsureInitialized(ctx context.Context, calicoVersion, clusterType string) error {
 	panic("not implemented")
 }
+
+func (cc *CalicoClientStub) StagedGlobalNetworkPolicies() clientv3.StagedGlobalNetworkPolicyInterface {
+	panic("not implemented")
+}
+
+func (cc *CalicoClientStub) StagedKubernetesNetworkPolicies() clientv3.StagedKubernetesNetworkPolicyInterface {
+	panic("not implemented")
+}
+
+func (cc *CalicoClientStub) StagedNetworkPolicies() clientv3.StagedNetworkPolicyInterface {
+	panic("not implemented")
+}
