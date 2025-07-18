@@ -32,7 +32,7 @@ import (
 	"go.fd.io/govpp/adapter/statsclient"
 	"gopkg.in/tomb.v2"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -41,8 +41,8 @@ import (
 type Server struct {
 	log                      *logrus.Entry
 	vpp                      *vpplink.VppLink
-	podInterfacesBySwifIndex map[uint32]storage.LocalPodSpec
-	podInterfacesByKey       map[string]storage.LocalPodSpec
+	podInterfacesBySwifIndex map[uint32]model.LocalPodSpec
+	podInterfacesByKey       map[string]model.LocalPodSpec
 	sc                       *statsclient.StatsClient
 	channel                  chan common.CalicoVppEvent
 	lock                     sync.Mutex
@@ -184,7 +184,7 @@ func (s *Server) exportMetricsForStat(names []string, sta adapter.StatEntry, ifN
 	return nil
 }
 
-func getTimeSeries(worker int, pod storage.LocalPodSpec, value float64) *metricspb.TimeSeries {
+func getTimeSeries(worker int, pod model.LocalPodSpec, value float64) *metricspb.TimeSeries {
 	return &metricspb.TimeSeries{
 		LabelValues: []*metricspb.LabelValue{
 			{Value: strconv.Itoa(worker)},
@@ -207,8 +207,8 @@ func NewPrometheusServer(vpp *vpplink.VppLink, l *logrus.Entry) *Server {
 		log:                      l,
 		vpp:                      vpp,
 		channel:                  make(chan common.CalicoVppEvent, 10),
-		podInterfacesByKey:       make(map[string]storage.LocalPodSpec),
-		podInterfacesBySwifIndex: make(map[uint32]storage.LocalPodSpec),
+		podInterfacesByKey:       make(map[string]model.LocalPodSpec),
+		podInterfacesBySwifIndex: make(map[uint32]model.LocalPodSpec),
 	}
 	if *config.GetCalicoVppFeatureGates().PrometheusEnabled {
 		reg := common.RegisterHandler(server.channel, "prometheus events")
@@ -229,9 +229,9 @@ func (s *Server) ServePrometheus(t *tomb.Tomb) error {
 			evt := <-s.channel
 			switch evt.Type {
 			case common.PodAdded:
-				podSpec, ok := evt.New.(*storage.LocalPodSpec)
+				podSpec, ok := evt.New.(*model.LocalPodSpec)
 				if !ok {
-					s.log.Errorf("evt.New is not a *storage.LocalPodSpec %v", evt.New)
+					s.log.Errorf("evt.New is not a *model.LocalPodSpec %v", evt.New)
 					continue
 				}
 				s.lock.Lock()
@@ -244,9 +244,9 @@ func (s *Server) ServePrometheus(t *tomb.Tomb) error {
 				s.lock.Unlock()
 			case common.PodDeleted:
 				s.lock.Lock()
-				podSpec, ok := evt.Old.(*storage.LocalPodSpec)
+				podSpec, ok := evt.Old.(*model.LocalPodSpec)
 				if !ok {
-					s.log.Errorf("evt.Old is not a *storage.LocalPodSpec %v", evt.Old)
+					s.log.Errorf("evt.Old is not a *model.LocalPodSpec %v", evt.Old)
 					continue
 				}
 				initialPod := s.podInterfacesByKey[podSpec.Key()]
