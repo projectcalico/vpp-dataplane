@@ -48,8 +48,8 @@ sidecar-vcl-image:
 	cp $(VERSION_FILE) $(SIDECARVCL_VERSION_FILE)
 	docker build -t calicovpp/vclsidecar:$(TAG) -f ${SIDECARVCL_DIR}/Dockerfile ${SIDECARVCL_DIR}
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
-		docker tag calicovpp/vclsidecar:$(TAG) calicovpp/calicovpp/vclsidecar:latest; \
-		docker tag calicovpp/calicovpp/vclsidecar:$(TAG) calicovpp/calicovpp/vclsidecar:prerelease; \
+		docker tag calicovpp/vclsidecar:$(TAG) calicovpp/vclsidecar:latest; \
+		docker tag calicovpp/vclsidecar:$(TAG) calicovpp/vclsidecar:prerelease; \
 	fi
 	rm -rf ${SIDECARVCL_DIR}/lib*
 	rm -rf ${SIDECARVCL_VERSION_FILE}
