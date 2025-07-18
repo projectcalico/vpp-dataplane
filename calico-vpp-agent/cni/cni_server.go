@@ -43,6 +43,7 @@ import (
 )
 
 type Server struct {
+	cniproto.UnimplementedCniDataplaneServer
 	log *logrus.Entry
 	vpp *vpplink.VppLink
 
