@@ -126,11 +126,6 @@ func (ps *LocalPodSpec) FullString() string {
 	for _, e := range routes {
 		routesLst = append(routesLst, e.String())
 	}
-	pblIndexes := ps.PblIndexes
-	pblIndexesLst := make([]string, 0, len(pblIndexes))
-	for _, e := range pblIndexes {
-		pblIndexesLst = append(pblIndexesLst, fmt.Sprint(e))
-	}
 	s := fmt.Sprintf("InterfaceName:      %s\n", ps.InterfaceName)
 	s += fmt.Sprintf("NetnsName:          %s\n", ps.NetnsName)
 	s += fmt.Sprintf("AllowIPForwarding:  %t\n", ps.AllowIPForwarding)
@@ -151,7 +146,7 @@ func (ps *LocalPodSpec) FullString() string {
 	s += fmt.Sprintf("TunTapSwIfIndex:    %d\n", ps.TunTapSwIfIndex)
 	s += fmt.Sprintf("MemifSwIfIndex:     %d\n", ps.MemifSwIfIndex)
 	s += fmt.Sprintf("LoopbackSwIfIndex:  %d\n", ps.LoopbackSwIfIndex)
-	s += fmt.Sprintf("PblIndexes:         %s\n", strings.Join(pblIndexesLst, ", "))
+	s += fmt.Sprintf("PblIndexes:         %d\n", ps.PblIndex)
 	s += fmt.Sprintf("V4VrfID:            %d\n", ps.V4VrfID)
 	s += fmt.Sprintf("V6VrfID:            %d\n", ps.V6VrfID)
 	return s
@@ -238,8 +233,7 @@ type LocalPodSpec struct {
 	TunTapSwIfIndex   uint32
 	MemifSwIfIndex    uint32
 	LoopbackSwIfIndex uint32
-	PblIndexesLen     int `struc:"int16,sizeof=PblIndexes"`
-	PblIndexes        []uint32
+	PblIndex          uint32
 
 	/**
 	 * These fields are only a runtime cache, but we also store them
@@ -268,7 +262,6 @@ func (ps *LocalPodSpec) Copy() LocalPodSpec {
 	newPs.ContainerIps = append(make([]LocalIP, 0), ps.ContainerIps...)
 	newPs.HostPorts = append(make([]HostPortBinding, 0), ps.HostPorts...)
 	newPs.IfPortConfigs = append(make([]LocalIfPortConfigs, 0), ps.IfPortConfigs...)
-	newPs.PblIndexes = append(make([]uint32, 0), ps.PblIndexes...)
 
 	return newPs
 
