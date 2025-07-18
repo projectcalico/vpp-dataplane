@@ -116,7 +116,7 @@ func (iis *IpamInterfaceStub) ReleaseByHandle(ctx context.Context, handleID stri
 // ClaimAffinity claims affinity to the given host for all blocks
 // within the given CIDR.  The given CIDR must fall within a configured
 // pool. If an empty string is passed as the host, then the value returned by os.Hostname is used.
-func (iis *IpamInterfaceStub) ClaimAffinity(ctx context.Context, cidr cnet.IPNet, host string) ([]cnet.IPNet,
+func (iis *IpamInterfaceStub) ClaimAffinity(ctx context.Context, cidr cnet.IPNet, affinityConfig ipam.AffinityConfig) ([]cnet.IPNet,
 	[]cnet.IPNet, error) {
 	panic("not implemented")
 }
@@ -136,7 +136,7 @@ func (iis *IpamInterfaceStub) ReleaseAffinity(ctx context.Context, cidr cnet.IPN
 // os.Hostname will be used. If mustBeEmpty is true, then an error
 // will be returned if any blocks within the CIDR are not empty - in this case, this
 // function may release some but not all blocks attached to this host.
-func (iis *IpamInterfaceStub) ReleaseHostAffinities(ctx context.Context, host string, mustBeEmpty bool) error {
+func (iis *IpamInterfaceStub) ReleaseHostAffinities(ctx context.Context, affinityConfig ipam.AffinityConfig, mustBeEmpty bool) error {
 	panic("not implemented")
 }
 
@@ -169,7 +169,7 @@ func (iis *IpamInterfaceStub) SetIPAMConfig(ctx context.Context, cfg ipam.IPAMCo
 // and removes all host-specific IPAM data from the datastore.
 // RemoveIPAMHost does not release any IP addresses claimed on the given host.
 // If an empty string is passed as the host then the value returned by os.Hostname is used.
-func (iis *IpamInterfaceStub) RemoveIPAMHost(ctx context.Context, host string) error {
+func (iis *IpamInterfaceStub) RemoveIPAMHost(ctx context.Context, affinityConfig ipam.AffinityConfig) error {
 	panic("not implemented")
 }
 
