@@ -114,17 +114,19 @@ git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api
 git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine NS source address
 
 # Mohsin's set of patches addressing the gso/cksum offload issue
-git_cherry_pick refs/changes/84/42184/6  # interface: add a new cap for virtual interfaces
-git_cherry_pick refs/changes/85/42185/6  # vnet: add assert for offload flags in debug mode
-git_cherry_pick refs/changes/86/42186/6  # tap: enable IPv4 checksum offload on interface
-git_cherry_pick refs/changes/19/42419/5  # dpdk: fix the outer flags
-git_cherry_pick refs/changes/81/43081/2  # interface: clear flags after checksum computation
-git_cherry_pick refs/changes/91/42891/5  # ip: compute checksums before fragmentation if offloaded
-git_cherry_pick refs/changes/82/43082/6  # ipip: fix the offload flags
-git_cherry_pick refs/changes/84/43084/3  # af_packet: conditionally set checksum offload based on TCP/UDP offload flags
-git_cherry_pick refs/changes/83/43083/3  # virtio: conditionally set checksum offload based on TCP/UDP offload flags
-git_cherry_pick refs/changes/25/42425/8  # interface: add support for proper checksum handling
-git_cherry_pick refs/changes/36/43336/3  # gso: fix ip fragment support for gso packet
+if [ "$BASE" = "1573e751c5478d3914d26cdde153390967932d6b" ]; then
+	git_cherry_pick refs/changes/84/42184/6  # interface: add a new cap for virtual interfaces
+	git_cherry_pick refs/changes/85/42185/6  # vnet: add assert for offload flags in debug mode
+	git_cherry_pick refs/changes/86/42186/6  # tap: enable IPv4 checksum offload on interface
+	git_cherry_pick refs/changes/19/42419/5  # dpdk: fix the outer flags
+	git_cherry_pick refs/changes/81/43081/2  # interface: clear flags after checksum computation
+	git_cherry_pick refs/changes/91/42891/5  # ip: compute checksums before fragmentation if offloaded
+	git_cherry_pick refs/changes/82/43082/6  # ipip: fix the offload flags
+	git_cherry_pick refs/changes/84/43084/3  # af_packet: conditionally set checksum offload based on TCP/UDP offload flags
+	git_cherry_pick refs/changes/83/43083/3  # virtio: conditionally set checksum offload based on TCP/UDP offload flags
+	git_cherry_pick refs/changes/25/42425/8  # interface: add support for proper checksum handling
+	git_cherry_pick refs/changes/36/43336/3  # gso: fix ip fragment support for gso packet
+fi
 git_cherry_pick refs/changes/98/42598/12  # pg: add support for checksum offload
 git_cherry_pick refs/changes/76/42876/10  # gso: add support for ipip tso for phyiscal interfaces
 
