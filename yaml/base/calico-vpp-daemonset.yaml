@@ -35,6 +35,14 @@ rules:
       - list
       # Used to discover Typhas.
       - get
+  - apiGroups: ["discovery.k8s.io"]
+    resources:
+      - endpointslices
+    verbs:
+      # Used to discover ipv4/ipv6 endpoints for services
+      - watch
+      - list
+      - get
   # Pod CIDR auto-detection on kubeadm needs access to config maps.
   - apiGroups: [""]
     resources:
