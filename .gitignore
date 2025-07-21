@@ -6,6 +6,7 @@ vpp-manager/vpp_build/
 *.deb
 *.so*
 multinet-monitor/watcher
+*.tgz
 
 test/k8s-e2e-tests/kubernetes-*
 test/vagrant/local-config.env
