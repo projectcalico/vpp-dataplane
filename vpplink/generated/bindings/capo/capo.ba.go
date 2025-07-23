@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "capo"
 	APIVersion = "0.1.0"
-	VersionCrc = 0x7ed1a7f5
+	VersionCrc = 0x808b5f14
 )
 
 // CapoEntryType defines enum 'capo_entry_type'.
@@ -339,12 +339,14 @@ type CapoConfigurePolicies struct {
 	NumTxPolicies uint32   `binapi:"u32,name=num_tx_policies" json:"num_tx_policies,omitempty"`
 	TotalIds      uint32   `binapi:"u32,name=total_ids" json:"-"`
 	InvertRxTx    uint8    `binapi:"u8,name=invert_rx_tx" json:"invert_rx_tx,omitempty"`
+	UserDefinedRx uint8    `binapi:"u8,name=user_defined_rx" json:"user_defined_rx,omitempty"`
+	UserDefinedTx uint8    `binapi:"u8,name=user_defined_tx" json:"user_defined_tx,omitempty"`
 	PolicyIds     []uint32 `binapi:"u32[total_ids],name=policy_ids" json:"policy_ids,omitempty"`
 }
 
 func (m *CapoConfigurePolicies) Reset()               { *m = CapoConfigurePolicies{} }
 func (*CapoConfigurePolicies) GetMessageName() string { return "capo_configure_policies" }
-func (*CapoConfigurePolicies) GetCrcString() string   { return "743e3c30" }
+func (*CapoConfigurePolicies) GetCrcString() string   { return "453c1f24" }
 func (*CapoConfigurePolicies) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -358,6 +360,8 @@ func (m *CapoConfigurePolicies) Size() (size int) {
 	size += 4                    // m.NumTxPolicies
 	size += 4                    // m.TotalIds
 	size += 1                    // m.InvertRxTx
+	size += 1                    // m.UserDefinedRx
+	size += 1                    // m.UserDefinedTx
 	size += 4 * len(m.PolicyIds) // m.PolicyIds
 	return size
 }
@@ -371,6 +375,8 @@ func (m *CapoConfigurePolicies) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint32(m.NumTxPolicies)
 	buf.EncodeUint32(uint32(len(m.PolicyIds)))
 	buf.EncodeUint8(m.InvertRxTx)
+	buf.EncodeUint8(m.UserDefinedRx)
+	buf.EncodeUint8(m.UserDefinedTx)
 	for i := 0; i < len(m.PolicyIds); i++ {
 		var x uint32
 		if i < len(m.PolicyIds) {
@@ -387,6 +393,8 @@ func (m *CapoConfigurePolicies) Unmarshal(b []byte) error {
 	m.NumTxPolicies = buf.DecodeUint32()
 	m.TotalIds = buf.DecodeUint32()
 	m.InvertRxTx = buf.DecodeUint8()
+	m.UserDefinedRx = buf.DecodeUint8()
+	m.UserDefinedTx = buf.DecodeUint8()
 	m.PolicyIds = make([]uint32, m.TotalIds)
 	for i := 0; i < len(m.PolicyIds); i++ {
 		m.PolicyIds[i] = buf.DecodeUint32()
@@ -1360,7 +1368,7 @@ func (m *CapoRuleUpdateReply) Unmarshal(b []byte) error {
 
 func init() { file_capo_binapi_init() }
 func file_capo_binapi_init() {
-	api.RegisterMessage((*CapoConfigurePolicies)(nil), "capo_configure_policies_743e3c30")
+	api.RegisterMessage((*CapoConfigurePolicies)(nil), "capo_configure_policies_453c1f24")
 	api.RegisterMessage((*CapoConfigurePoliciesReply)(nil), "capo_configure_policies_reply_e8d4e804")
 	api.RegisterMessage((*CapoControlPing)(nil), "capo_control_ping_51077d14")
 	api.RegisterMessage((*CapoControlPingReply)(nil), "capo_control_ping_reply_f6b0b8ca")
