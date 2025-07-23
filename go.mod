@@ -57,7 +57,7 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
@@ -184,5 +184,4 @@ replace (
 	k8s.io/mount-utils => k8s.io/mount-utils v0.32.5
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.32.5
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.32.5
-
 )
