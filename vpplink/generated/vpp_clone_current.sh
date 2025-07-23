@@ -152,3 +152,6 @@ git_apply_private 0001-pbl-Port-based-balancer.patch
 git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
 git_apply_private 0004-capo-Calico-Policies-plugin.patch
+
+
+git_cherry_pick refs/changes/68/43468/5 https://gerrit.fd.io/r/c/vpp/+/43468
