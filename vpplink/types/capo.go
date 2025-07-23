@@ -326,6 +326,8 @@ type InterfaceConfig struct {
 	IngressPolicyIDs []uint32
 	EgressPolicyIDs  []uint32
 	ProfileIDs       []uint32
+	UserDefinedRx    uint8
+	UserDefinedTx    uint8
 }
 
 func NewInterfaceConfig() *InterfaceConfig {
@@ -333,6 +335,8 @@ func NewInterfaceConfig() *InterfaceConfig {
 		IngressPolicyIDs: make([]uint32, 0),
 		EgressPolicyIDs:  make([]uint32, 0),
 		ProfileIDs:       make([]uint32, 0),
+		UserDefinedRx:    0,
+		UserDefinedTx:    0,
 	}
 }
 
