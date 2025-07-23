@@ -20,13 +20,17 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gookit/color"
@@ -571,16 +575,25 @@ func printHelp() {
 	fmt.Println("calicovppctl exportnode [-node NODENAME]                              - Create an archive with vpp & k8 system state for a specific node")
 	fmt.Println("calicovppctl gdb                                                      - Attach gdb to the running vpp on the current machine")
 	fmt.Println("calicovppctl sh [-component vpp|agent] [-node NODENAME]               - Get a shell in vpp (dataplane) or agent (controlplane) container")
+	fmt.Println("calicovppctl trace [-node NODENAME]                                   - Setup VPP packet tracing")
+	fmt.Println("      Optional params: [-count N] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl]")
+	fmt.Println("calicovppctl pcap [-node NODENAME]                                    - Setup VPP PCAP tracing")
+	fmt.Println("      Optional params: [-count N] [-interface INTERFACE_NAME|any(default)] [-output FILE.pcap]")
+	fmt.Println("calicovppctl dispatch [-node NODENAME]                                - Setup VPP dispatch tracing")
+	fmt.Println("      Optional params: [-count N] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl] [-output FILE.pcap]")
 	fmt.Println()
 }
 
 func main() {
 	// Define global flags
 	var (
-		nodeName  = flag.String("node", "", "Node name to operate on")
-		component = flag.String("component", "", "Component to operate on (vpp, agent, felix)")
-		follow    = flag.Bool("f", false, "Follow logs (for log command)")
-		help      = flag.Bool("help", false, "Show help message")
+		nodeName      = flag.String("node", "", "Node name to operate on")
+		component     = flag.String("component", "", "Component to operate on (vpp, agent, felix)")
+		follow        = flag.Bool("f", false, "Follow logs (for log command)")
+		help          = flag.Bool("help", false, "Show help message")
+		count         = flag.Int("count", 1000, "Packet count for trace/pcap/dispatch commands")
+		interfaceType = flag.String("interface", "", "interface types for trace/dispatch; interface names for pcap. See help for supported types")
+		output        = flag.String("output", "", "Output file for pcap/dispatch commands")
 	)
 
 	// Custom usage function
@@ -603,7 +616,7 @@ func main() {
 		// Check if this is a known command
 		if !commandFound && !strings.HasPrefix(arg, "-") {
 			switch arg {
-			case "vppctl", "log", "clear", "export", "exportnode", "gdb", "sh":
+			case "vppctl", "log", "clear", "export", "exportnode", "gdb", "sh", "trace", "pcap", "dispatch":
 				command = arg
 				commandFound = true
 				commandArgs = args[i+1:]
@@ -640,6 +653,9 @@ func main() {
 	nodeNamePtr := flagSet.String("node", "", "Node name to operate on")
 	componentPtr := flagSet.String("component", "", "Component to operate on (vpp, agent, felix)")
 	followPtr := flagSet.Bool("f", false, "Follow logs (for log command)")
+	countPtr := flagSet.Int("count", 1000, "Packet count for trace/pcap/dispatch commands")
+	interfacePtr := flagSet.String("interface", "", "Interface: types (memif,tuntap,vcl) for trace/dispatch; interface names for pcap")
+	outputPtr := flagSet.String("output", "", "Output file for pcap/dispatch commands")
 	helpPtr := flagSet.Bool("help", false, "Show help message")
 
 	// Parse all remaining arguments for flags
@@ -659,6 +675,23 @@ func main() {
 					*componentPtr = allArgs[i+1]
 					i++ // Skip the next argument as it's the value
 				}
+			case "-count", "--count":
+				if i+1 < len(allArgs) {
+					if countVal, err := strconv.Atoi(allArgs[i+1]); err == nil {
+						*countPtr = countVal
+					}
+					i++ // Skip the next argument as it's the value
+				}
+			case "-interface", "--interface", "-i":
+				if i+1 < len(allArgs) {
+					*interfacePtr = allArgs[i+1]
+					i++ // Skip the next argument as it's the value
+				}
+			case "-output", "--output", "-o", "-out":
+				if i+1 < len(allArgs) {
+					*outputPtr = allArgs[i+1]
+					i++ // Skip the next argument as it's the value
+				}
 			case "-f":
 				*followPtr = true
 			case "-help", "--help", "-h":
@@ -674,6 +707,9 @@ func main() {
 	*nodeName = *nodeNamePtr
 	*component = *componentPtr
 	*follow = *followPtr
+	*count = *countPtr
+	*interfaceType = *interfacePtr
+	*output = *outputPtr
 	*help = *helpPtr
 
 	// Show help if requested
@@ -809,6 +845,36 @@ func main() {
 		err := getShell(k, *component, *nodeName)
 		if err != nil {
 			handleError(err, "Shell failed")
+		}
+
+	case "trace":
+		if *nodeName == "" {
+			handleError(fmt.Errorf("node name is required for trace command. Use -node flag"), "")
+		}
+
+		err := traceCommand(k, *nodeName, *count, *interfaceType)
+		if err != nil {
+			handleError(err, "Trace failed")
+		}
+
+	case "pcap":
+		if *nodeName == "" {
+			handleError(fmt.Errorf("node name is required for pcap command. Use -node flag"), "")
+		}
+
+		err := pcapCommand(k, *nodeName, *count, *interfaceType, *output)
+		if err != nil {
+			handleError(err, "PCAP failed")
+		}
+
+	case "dispatch":
+		if *nodeName == "" {
+			handleError(fmt.Errorf("node name is required for dispatch command. Use -node flag"), "")
+		}
+
+		err := dispatchCommand(k, *nodeName, *count, *interfaceType, *output)
+		if err != nil {
+			handleError(err, "Dispatch failed")
 		}
 
 	default:
@@ -1101,4 +1167,487 @@ func (k *KubeClient) formatNodesWide(nodes []corev1.Node) string {
 	}
 
 	return output.String()
+}
+
+func compressAndSaveRemoteFile(k *KubeClient, nodeName, remoteFile, localFile string) error {
+	namespace := defaultNamespace
+	container := defaultContainerVpp
+
+	// Find the pod on the specified node
+	podName, err := k.findNodePod(nodeName, defaultPod, namespace)
+	if err != nil {
+		return fmt.Errorf("could not find calico-vpp-node pod on node '%s': %v", nodeName, err)
+	}
+
+	printColored("green", fmt.Sprintf("Compressing and downloading file from node '%s'", nodeName))
+	printColored("grey", fmt.Sprintf("Pod: %s", podName))
+	printColored("grey", fmt.Sprintf("Remote file: %s", remoteFile))
+	printColored("grey", fmt.Sprintf("Local file: %s", localFile))
+	fmt.Println()
+
+	// Compress remote file
+	printColored("blue", "Compressing remote file...")
+	remoteBasename := filepath.Base(remoteFile)
+	compressCmd := fmt.Sprintf("gzip -c %s > /tmp/%s.gz", remoteFile, remoteBasename)
+	_, err = k.execInPod(namespace, podName, container, "sh", "-c", compressCmd)
+	if err != nil {
+		return fmt.Errorf("failed to compress remote file: %v", err)
+	}
+
+	// Copy compressed file
+	printColored("blue", "Copying compressed file...")
+
+	copyCmd := exec.Command(kubectlCmd, "cp",
+		fmt.Sprintf("%s/%s:/tmp/%s.gz", namespace, podName, remoteBasename),
+		localFile, "-c", container)
+	err = copyCmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to copy file: %v", err)
+	}
+
+	// Clean up remote files
+	printColored("blue", "Cleaning up remote file...")
+	cleanupCmd := fmt.Sprintf("rm -f %s /tmp/%s.gz", remoteFile, remoteBasename)
+	_, err = k.execInPod(namespace, podName, container, "sh", "-c", cleanupCmd)
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to clean up remote files: %v", err))
+	}
+
+	fmt.Println()
+	printColored("green", fmt.Sprintf("File successfully saved to %s", localFile))
+
+	return nil
+}
+
+// getVppDriverFromConfigMap retrieves the vppDriver from the calico-vpp-config ConfigMap
+func getVppDriverFromConfigMap(k *KubeClient) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), k.timeout)
+	defer cancel()
+
+	configMap, err := k.clientset.CoreV1().ConfigMaps("calico-vpp-dataplane").Get(ctx, "calico-vpp-config", metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get calico-vpp-config ConfigMap: %v", err)
+	}
+
+	interfacesData, exists := configMap.Data["CALICOVPP_INTERFACES"]
+	if !exists {
+		return "", fmt.Errorf("CALICOVPP_INTERFACES not found in ConfigMap")
+	}
+
+	// Parse the JSON directly instead of using kubectl + jq
+	var interfacesConfig struct {
+		UplinkInterfaces []struct {
+			VppDriver string `json:"vppDriver"`
+		} `json:"uplinkInterfaces"`
+	}
+
+	err = json.Unmarshal([]byte(interfacesData), &interfacesConfig)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse CALICOVPP_INTERFACES JSON: %v", err)
+	}
+
+	if len(interfacesConfig.UplinkInterfaces) == 0 {
+		return "", fmt.Errorf("no uplink interfaces found in configuration")
+	}
+
+	driver := strings.TrimSpace(interfacesConfig.UplinkInterfaces[0].VppDriver)
+	if driver == "" {
+		return "", fmt.Errorf("vppDriver not found or is empty")
+	}
+
+	return driver, nil
+}
+
+// mapInterfaceTypeToVppInputNode maps interface types to VPP graph input nodes
+func mapInterfaceTypeToVppInputNode(k *KubeClient, interfaceType string) (string, string, error) {
+	switch interfaceType {
+	case "phy":
+		// Get the actual VPP driver from the ConfigMap
+		actualDriver, err := getVppDriverFromConfigMap(k)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to get VPP driver from ConfigMap: %v", err)
+		}
+		// Recursively call with the actual driver
+		return mapInterfaceTypeToVppInputNode(k, actualDriver)
+	case "af_xdp":
+		return "af-xdp-input", "af_xdp", nil
+	case "af_packet":
+		return "af-packet-input", "af_packet", nil
+	case "avf":
+		return "avf-input", "avf", nil
+	case "vmxnet3":
+		return "vmxnet3-input", "vmxnet3", nil
+	case "virtio", "tuntap":
+		return "virtio-input", "virtio", nil
+	case "rdma":
+		return "rdma-input", "rdma", nil
+	case "dpdk":
+		return "dpdk-input", "dpdk", nil
+	case "memif":
+		return "memif-input", "memif", nil
+	case "vcl":
+		return "session-queue", "vcl", nil
+	case "":
+		return "virtio-input", "virtio", nil // default to tuntap (virtio)
+	default:
+		errorMsg := fmt.Sprintf("Invalid interface type: %s\n\nSupported interface types:\n", interfaceType)
+		errorMsg += "  phy       : use the physical interface driver configured in calico-vpp-config\n"
+		errorMsg += "  af_xdp    : use an AF_XDP socket to drive the interface\n"
+		errorMsg += "  af_packet : use an AF_PACKET socket to drive the interface\n"
+		errorMsg += "  avf       : use the VPP native driver for Intel 700-Series and 800-Series interfaces\n"
+		errorMsg += "  vmxnet3   : use the VPP native driver for VMware virtual interfaces\n"
+		errorMsg += "  virtio    : use the VPP native driver for Virtio virtual interfaces\n"
+		errorMsg += "  tuntap    : alias for virtio (default)\n"
+		errorMsg += "  rdma      : use the VPP native driver for Mellanox CX-4 and CX-5 interfaces\n"
+		errorMsg += "  dpdk      : use the DPDK interface drivers with VPP\n"
+		errorMsg += "  memif     : use shared memory interfaces (memif)\n"
+		errorMsg += "  vcl       : capture packets at the session layer\n"
+		errorMsg += "\nDefault: virtio (if no interface type is specified)"
+		return "", "", fmt.Errorf("%s", errorMsg)
+	}
+}
+
+func traceCommand(k *KubeClient, nodeName string, count int, interfaceType string) error {
+	validatedNode, err := validateNodeName(k, nodeName)
+	if err != nil {
+		return err
+	}
+
+	vppInputNode, _, err := mapInterfaceTypeToVppInputNode(k, interfaceType)
+	if err != nil {
+		return err
+	}
+
+	printColored("green", fmt.Sprintf("Starting packet trace on node '%s'", validatedNode))
+	printColored("grey", fmt.Sprintf("Packet count: %d", count))
+	printColored("grey", fmt.Sprintf("VPP Input Node: %s", vppInputNode))
+	printColored("grey", "Output file: ./trace.txt.gz")
+	fmt.Println()
+
+	// Clear any existing traces first
+	_, err = k.vppctl(validatedNode, "clear", "trace")
+	if err != nil {
+		return fmt.Errorf("failed to clear existing traces: %v", err)
+	}
+
+	// Add trace for specified interface type
+	printColored("blue", "Starting packet trace...")
+	printColored("grey", fmt.Sprintf("Command: trace add %s %d", vppInputNode, count))
+	_, err = k.vppctl(validatedNode, "trace", "add", vppInputNode, fmt.Sprintf("%d", count))
+	if err != nil {
+		return fmt.Errorf("failed to add trace: %v", err)
+	}
+
+	fmt.Println()
+	printColored("green", "Packet trace configured. Press Ctrl+C to stop tracing...")
+	fmt.Println()
+
+	// Set up signal handling for Ctrl+C
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Channel to signal the monitoring goroutine to stop
+	stopChan := make(chan struct{})
+
+	// Start monitoring goroutine
+	go func() {
+		for {
+			select {
+			case <-stopChan:
+				return
+			default:
+				printColored("blue", fmt.Sprintf("=== Packet trace active on node '%s' (Press Ctrl+C to stop) ===", validatedNode))
+				fmt.Println()
+				time.Sleep(5 * time.Second)
+			}
+		}
+	}()
+
+	// Wait for signal
+	<-sigChan
+
+	// Stop monitoring
+	close(stopChan)
+
+	fmt.Println()
+	printColored("blue", "Stopping packet trace...")
+
+	// Save trace output to file inside the container
+	namespace := defaultNamespace
+	container := defaultContainerVpp
+
+	// Find the pod on the specified node
+	podName, err := k.findNodePod(validatedNode, defaultPod, namespace)
+	if err != nil {
+		return fmt.Errorf("could not find calico-vpp-node pod on node '%s': %v", validatedNode, err)
+	}
+
+	// Save trace output to file inside the container using vppctl redirection
+	printColored("blue", "Saving trace output to /tmp/trace.txt in vpp container...")
+	fmt.Println()
+
+	saveCmd := fmt.Sprintf("vppctl -s %s show trace max %d > /tmp/trace.txt", vppSockPath, count)
+	_, err = k.execInPod(namespace, podName, container, "sh", "-c", saveCmd)
+	if err != nil {
+		return fmt.Errorf("failed to save trace output to file: %v", err)
+	}
+
+	// Clear trace
+	_, err = k.vppctl(validatedNode, "clear", "trace")
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to clear trace: %v", err))
+	}
+
+	// Compress and save remote file
+	err = compressAndSaveRemoteFile(k, validatedNode, "/tmp/trace.txt", "./trace.txt.gz")
+	if err != nil {
+		return fmt.Errorf("failed to save trace file: %v", err)
+	}
+
+	return nil
+}
+
+func pcapCommand(k *KubeClient, nodeName string, count int, interfaceType, outputFile string) error {
+	validatedNode, err := validateNodeName(k, nodeName)
+	if err != nil {
+		return err
+	}
+
+	// First, let's validate that we can access the VPP interfaces
+	interfacesOutput, err := k.vppctl(validatedNode, "show", "interface")
+	if err != nil {
+		return fmt.Errorf("failed to get interface list from VPP: %v", err)
+	}
+
+	upInterfaces := parseVppInterfaces(interfacesOutput)
+	if len(upInterfaces) == 0 {
+		return fmt.Errorf("no interfaces found or all interfaces are down on node '%s'", validatedNode)
+	}
+
+	var interfaceFilter string
+	if interfaceType != "" {
+		// Validate that the provided interface name exists in the UP interfaces list
+		isValidInterface := false
+		for _, iface := range upInterfaces {
+			if iface == interfaceType {
+				isValidInterface = true
+				break
+			}
+		}
+
+		if isValidInterface {
+			// User provided a valid interface name
+			interfaceFilter = interfaceType
+		} else {
+			// Interface not found, show available UP interfaces
+			var interfaceList strings.Builder
+			interfaceList.WriteString(fmt.Sprintf("Interface '%s' not found or is down.", interfaceType))
+			interfaceList.WriteString("\nAvailable UP interfaces:")
+			for i, iface := range upInterfaces {
+				interfaceList.WriteString(fmt.Sprintf("\n%d. %s", i+1, iface))
+			}
+			return fmt.Errorf("%s", interfaceList.String())
+		}
+	} else {
+		// No interface specified, use "any" to capture on all interfaces
+		interfaceFilter = "any"
+		printColored("grey", "No interface specified, using 'any' to capture on all interfaces")
+	}
+
+	pcapCommand := fmt.Sprintf("pcap trace tx rx max %d intfc %s file trace.pcap", count, interfaceFilter)
+
+	printColored("green", fmt.Sprintf("Starting PCAP trace on node '%s'", validatedNode))
+	printColored("grey", fmt.Sprintf("Packet count: %d", count))
+	printColored("grey", fmt.Sprintf("Interface filter: %s", interfaceFilter))
+	if outputFile != "" {
+		printColored("grey", fmt.Sprintf("Output file: ./%s.gz", outputFile))
+	}
+	fmt.Println()
+
+	printColored("blue", "Starting PCAP trace...")
+	printColored("grey", fmt.Sprintf("Command: %s", pcapCommand))
+	_, err = k.vppctl(validatedNode, strings.Split(pcapCommand, " ")...)
+	if err != nil {
+		return fmt.Errorf("failed to start PCAP trace: %v", err)
+	}
+
+	fmt.Println()
+	printColored("green", "PCAP trace configured. Press Ctrl+C to stop tracing...")
+	fmt.Println()
+
+	// Determine output filename
+	var localOutputFile string
+	if outputFile != "" {
+		localOutputFile = fmt.Sprintf("./%s.gz", outputFile)
+	} else {
+		localOutputFile = fmt.Sprintf("./pcap_%s.pcap.gz", validatedNode)
+	}
+
+	// Set up signal handling for Ctrl+C
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Channel to signal the monitoring goroutine to stop
+	stopChan := make(chan struct{})
+
+	// Start monitoring goroutine
+	go func() {
+		for {
+			select {
+			case <-stopChan:
+				return
+			default:
+				printColored("blue", fmt.Sprintf("=== PCAP trace active on node '%s' (Press Ctrl+C to stop) ===", validatedNode))
+				fmt.Println()
+				time.Sleep(5 * time.Second)
+			}
+		}
+	}()
+
+	// Wait for signal
+	<-sigChan
+
+	// Stop monitoring
+	close(stopChan)
+
+	fmt.Println()
+	printColored("blue", "Stopping PCAP trace...")
+	_, err = k.vppctl(validatedNode, "pcap", "trace", "off")
+	if err != nil {
+		return fmt.Errorf("failed to stop PCAP trace: %v", err)
+	}
+
+	printColored("green", "PCAP trace stopped")
+	fmt.Println()
+
+	// Compress and save remote file
+	err = compressAndSaveRemoteFile(k, validatedNode, "/tmp/trace.pcap", localOutputFile)
+	if err != nil {
+		return fmt.Errorf("failed to save PCAP file: %v", err)
+	}
+
+	return nil
+}
+
+func dispatchCommand(k *KubeClient, nodeName string, count int, interfaceType, outputFile string) error {
+	validatedNode, err := validateNodeName(k, nodeName)
+	if err != nil {
+		return err
+	}
+
+	vppInputNode, _, err := mapInterfaceTypeToVppInputNode(k, interfaceType)
+	if err != nil {
+		return err
+	}
+
+	dispatchCommand := fmt.Sprintf("pcap dispatch trace on max %d buffer-trace %s %d", count, vppInputNode, count)
+
+	printColored("green", fmt.Sprintf("Starting dispatch trace on node '%s'", validatedNode))
+	printColored("grey", fmt.Sprintf("Packet count: %d", count))
+	printColored("grey", fmt.Sprintf("VPP Input Node: %s", vppInputNode))
+	if outputFile != "" {
+		printColored("grey", fmt.Sprintf("Output file: ./%s.gz", outputFile))
+	}
+	fmt.Println()
+
+	printColored("blue", "Starting dispatch trace...")
+	printColored("grey", fmt.Sprintf("Command: %s", dispatchCommand))
+	_, err = k.vppctl(validatedNode, strings.Split(dispatchCommand, " ")...)
+	if err != nil {
+		return fmt.Errorf("failed to start dispatch trace: %v", err)
+	}
+
+	fmt.Println()
+	printColored("green", "Dispatch trace configured. Press Ctrl+C to stop tracing...")
+	fmt.Println()
+
+	// Determine output filename
+	var localOutputFile string
+	if outputFile != "" {
+		localOutputFile = fmt.Sprintf("./%s.gz", outputFile)
+	} else {
+		localOutputFile = fmt.Sprintf("./dispatch_%s.pcap.gz", validatedNode)
+	}
+
+	// Set up signal handling for Ctrl+C
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Channel to signal the monitoring goroutine to stop
+	stopChan := make(chan struct{})
+
+	// Start monitoring goroutine
+	go func() {
+		for {
+			select {
+			case <-stopChan:
+				return
+			default:
+				printColored("blue", fmt.Sprintf("=== PCAP trace active on node '%s' (Press Ctrl+C to stop) ===", validatedNode))
+				fmt.Println()
+				time.Sleep(5 * time.Second)
+			}
+		}
+	}()
+
+	// Wait for signal
+	<-sigChan
+
+	// Stop monitoring
+	close(stopChan)
+
+	fmt.Println()
+	printColored("blue", "Stopping dispatch trace...")
+	_, err = k.vppctl(validatedNode, "pcap", "dispatch", "trace", "off")
+	if err != nil {
+		return fmt.Errorf("failed to stop dispatch trace: %v", err)
+	}
+
+	printColored("green", "Dispatch trace stopped")
+	fmt.Println()
+
+	// Compress and save remote file
+	err = compressAndSaveRemoteFile(k, validatedNode, "/tmp/dispatch.pcap", localOutputFile)
+	if err != nil {
+		return fmt.Errorf("failed to save dispatch file: %v", err)
+	}
+
+	return nil
+}
+
+// parseVppInterfaces parses the output of "show interface" and returns a list of up interfaces
+func parseVppInterfaces(output string) []string {
+	var upInterfaces []string
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		// Skip empty lines and header lines
+		if strings.TrimSpace(line) == "" || strings.Contains(line, "Name") || strings.Contains(line, "Counter") || strings.Contains(line, "Count") {
+			continue
+		}
+
+		// Skip lines that don't start with an interface name (statistics lines, etc.)
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "rx ") || strings.HasPrefix(trimmed, "tx ") ||
+			strings.HasPrefix(trimmed, "drops") || strings.HasPrefix(trimmed, "punt") ||
+			strings.HasPrefix(trimmed, "ip4") || strings.HasPrefix(trimmed, "ip6") {
+			continue
+		}
+
+		// Look for interface lines (they start with interface name)
+		fields := strings.Fields(line)
+		if len(fields) >= 3 {
+			// Check if the line contains interface information
+			// Format: "interface_name    idx    state    mtu"
+			interfaceName := fields[0]
+			state := fields[2]
+
+			// Only add interfaces that are "up"
+			if state == "up" && interfaceName != "" {
+				upInterfaces = append(upInterfaces, interfaceName)
+			}
+		}
+	}
+
+	return upInterfaces
 }
