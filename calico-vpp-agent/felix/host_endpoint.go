@@ -134,7 +134,7 @@ func (h *HostEndpoint) handleTunnelChange(swIfIndex uint32, isAdd bool, pending 
 	return err
 }
 
-func (h *HostEndpoint) getHostPolicies(state *PolicyState, tiers []Tier) (conf *types.InterfaceConfig, err error) {
+func (h *HostEndpoint) getUserDefinedPolicies(state *PolicyState, tiers []Tier) (conf *types.InterfaceConfig, err error) {
 	conf = types.NewInterfaceConfig()
 	for _, tier := range tiers {
 		for _, polName := range tier.IngressPolicies {
@@ -172,31 +172,46 @@ func (h *HostEndpoint) getHostPolicies(state *PolicyState, tiers []Tier) (conf *
 }
 
 func (h *HostEndpoint) getTapPolicies(state *PolicyState) (conf *types.InterfaceConfig, err error) {
-	conf, err = h.getHostPolicies(state, h.Tiers)
+	conf, err = h.getUserDefinedPolicies(state, h.Tiers)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create host policies for TapConf")
 	}
-	if len(conf.IngressPolicyIDs) > 0 {
-		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, h.server.workloadsToHostPolicy.VppID)
+	if len(conf.IngressPolicyIDs) == 0 && len(conf.ProfileIDs) == 0 {
+		// If a host endpoint is created and network policy is not in place,
+		// the Calico default is to deny traffic to/from that endpoint
+		// (except for traffic allowed by failsafe rules).
+		conf.IngressPolicyIDs = []uint32{h.server.workloadsToHostPolicy.VppID, h.server.failSafePolicy.VppID, h.server.denyAllPolicy.VppID}
+	} else {
+		if len(conf.IngressPolicyIDs) > 0 {
+			conf.UserDefinedTx = 1
+		}
 		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{h.server.workloadsToHostPolicy.VppID}, conf.IngressPolicyIDs...)
 	}
-	if len(conf.EgressPolicyIDs) > 0 {
-		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
+	if len(conf.EgressPolicyIDs) == 0 && len(conf.ProfileIDs) == 0 {
+		conf.EgressPolicyIDs = []uint32{h.server.AllowFromHostPolicy.VppID, h.server.failSafePolicy.VppID, h.server.denyAllPolicy.VppID}
+	} else {
+		if len(conf.EgressPolicyIDs) > 0 {
+			conf.UserDefinedRx = 1
+		}
 		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
 	}
 	return conf, nil
 }
 
 func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.InterfaceConfig, err error) {
-	conf, err = h.getHostPolicies(state, h.ForwardTiers)
+	conf, err = h.getUserDefinedPolicies(state, h.ForwardTiers)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create host policies for forwardConf")
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
 		conf.EgressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.EgressPolicyIDs...)
+		conf.UserDefinedRx = 1
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.IngressPolicyIDs...)
+		conf.UserDefinedTx = 1
 	}
 	return conf, nil
 }
