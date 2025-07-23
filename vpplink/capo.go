@@ -206,6 +206,8 @@ func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfi
 		TotalIds:      uint32(len(rxPolicyIDs) + len(txPolicyIDs) + len(profileIDs)),
 		PolicyIds:     ids,
 		InvertRxTx:    invertRxTx,
+		UserDefinedRx: conf.UserDefinedRx,
+		UserDefinedTx: conf.UserDefinedTx,
 	})
 	if err != nil {
 		return fmt.Errorf("capoConfigurePolicies failed: %w", err)

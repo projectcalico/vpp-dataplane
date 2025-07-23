@@ -90,9 +90,11 @@ type Server struct {
 	allPodsIpset *IPSet
 	/* allow traffic between uplink/tunnels and tap interfaces */
 	allowToHostPolicy *Policy
-	ip4               *net.IP
-	ip6               *net.IP
-	interfacesMap     map[string]interfaceDetails
+	/* deny all policy for heps with no policies defined */
+	denyAllPolicy *Policy
+	ip4           *net.IP
+	ip6           *net.IP
+	interfacesMap map[string]interfaceDetails
 
 	felixServerEventChan chan common.CalicoVppEvent
 	networkDefinitions   map[string]*watchers.NetworkDefinition
@@ -457,6 +459,10 @@ func (s *Server) ServeFelix(t *tomb.Tomb) error {
 		return errors.Wrap(err, "Error in createAllowToHostPolicy")
 	}
 	err = s.createFailSafePolicies()
+	if err != nil {
+		return errors.Wrap(err, "Error in createFailSafePolicies")
+	}
+	err = s.createEmptyHEPDenyAllPolicy()
 	if err != nil {
 		return errors.Wrap(err, "Error in createFailSafePolicies")
 	}
@@ -1725,6 +1731,35 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 		}
 	}
 	s.defaultTap0IngressConf = conf.IngressPolicyIDs
+	return nil
+}
+
+func (s *Server) createEmptyHEPDenyAllPolicy() (err error) {
+	denyAllPol := &Policy{
+		Policy: &types.Policy{},
+		VppID:  types.InvalidID,
+		InboundRules: []*Rule{
+			{
+				VppID: types.InvalidID,
+				Rule: &types.Rule{
+					Action: types.ActionDeny,
+				},
+			},
+		},
+		OutboundRules: []*Rule{
+			{
+				VppID: types.InvalidID,
+				Rule: &types.Rule{
+					Action: types.ActionDeny,
+				},
+			},
+		},
+	}
+	err = denyAllPol.Create(s.vpp, nil)
+	if err != nil {
+		return err
+	}
+	s.denyAllPolicy = denyAllPol
 	return nil
 }
 
