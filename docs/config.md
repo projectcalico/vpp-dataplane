@@ -58,7 +58,6 @@ data:
 
   CALICOVPP_DEBUG: |-
   {
-    "policiesEnabled": true,
     "servicesEnabled": true,
     "gsoEnabled": true
   }
