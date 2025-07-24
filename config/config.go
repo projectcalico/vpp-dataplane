@@ -277,7 +277,6 @@ type RedirectToHostRulesConfigType struct {
 }
 
 type CalicoVppDebugConfigType struct {
-	PoliciesEnabled         *bool `json:"policiesEnabled,omitempty"`
 	ServicesEnabled         *bool `json:"servicesEnabled,omitempty"`
 	GSOEnabled              *bool `json:"gsoEnabled,omitempty"`
 	SpreadTxQueuesOnWorkers *bool `json:"spreadTxQueuesOnWorkers,omitempty"`
@@ -289,9 +288,6 @@ func (cfg *CalicoVppDebugConfigType) String() string {
 }
 
 func (cfg *CalicoVppDebugConfigType) Validate() (err error) {
-	if cfg.PoliciesEnabled == nil {
-		cfg.PoliciesEnabled = &True
-	}
 	if cfg.ServicesEnabled == nil {
 		cfg.ServicesEnabled = &True
 	}

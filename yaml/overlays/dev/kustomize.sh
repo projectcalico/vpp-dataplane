@@ -136,7 +136,6 @@ function get_feature_gates ()
 function get_debug ()
 {
     echo "{
-      \"policiesEnabled\": ${CALICOVPP_DEBUG_ENABLE_POLICIES:-true},
       \"servicesEnabled\": ${CALICOVPP_DEBUG_ENABLE_SERVICES:-true},
       \"gsoEnabled\": ${CALICOVPP_DEBUG_ENABLE_GSO:-true}
     }"
