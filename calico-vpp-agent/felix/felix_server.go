@@ -432,10 +432,6 @@ func (s *Server) handleFelixServerEvents(evt common.CalicoVppEvent) error {
 func (s *Server) ServeFelix(t *tomb.Tomb) error {
 	s.log.Info("Starting felix server")
 
-	if !*config.GetCalicoVppDebug().PoliciesEnabled {
-		s.log.Warn("Policies disabled, felix server will not configure VPP")
-	}
-
 	listener, err := net.Listen("unix", config.FelixDataplaneSocket)
 	if err != nil {
 		return errors.Wrapf(err, "Could not bind to unix://%s", config.FelixDataplaneSocket)
@@ -529,10 +525,6 @@ func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
 	case *proto.InSync:
 		err = s.handleInSync(m)
 	default:
-		if !*config.GetCalicoVppDebug().PoliciesEnabled {
-			// Skip processing of policy messages
-			return nil
-		}
 		pending := true
 		switch s.state {
 		case StateSyncing:
