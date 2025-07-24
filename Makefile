@@ -253,6 +253,11 @@ delete-multinet:
 	  done ;\
 	)
 
+.PHONY: util
+util:
+	@mkdir -p util/bin
+	go build -o util/bin/calivppctl util/calivppctl.go
+
 .PHONY: lint
 lint:
 	gofmt -s -l . | grep -v binapi | grep -v vpp_build | diff -u /dev/null -
