@@ -75,7 +75,7 @@ func getVppIfStatDescription(vppStatName string) string {
 }
 
 func getVppTCPStatDescription(vppStatName string) string {
-	switch (vppStatName) {
+	switch vppStatName {
 	// /sys/tcp/... stats
 	case "tcp_timer_expirations":
 		return "number of TCP timer expirations"
