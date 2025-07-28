@@ -102,6 +102,11 @@ func cleanVppSessionStatName(vppStatName string) string {
 	return vppStatName
 }
 
+const (
+	UnitPackets = "packets"
+	UnitBytes   = "bytes"
+)
+
 func (self *PrometheusServer) exportMetrics() error {
 	ifStats, err := self.statsclient.DumpStats("/if/")
 	if err != nil {
@@ -117,23 +122,16 @@ func (self *PrometheusServer) exportMetrics() error {
 	}
 
 	self.lock.Lock()
+	defer self.lock.Unlock()
 
 	// Export Interface stats
 	for _, vppStat := range ifStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
-			for worker, perWorkerValues := range values {
-				for swIfIndex, counter := range perWorkerValues {
-					self.exportInterfaceMetric(string(vppStat.Name), worker, swIfIndex, ifNames, uint64(counter), "")
-				}
-			}
+			self.exportInterfaceSimpleCounterStat(string(vppStat.Name), ifNames, values)
 		case adapter.CombinedCounterStat:
-			for worker, perWorkerValues := range values {
-				for swIfIndex, counter := range perWorkerValues {
-					self.exportInterfaceMetric(string(vppStat.Name)+"_packets", worker, swIfIndex, ifNames, counter[0], "packets")
-					self.exportInterfaceMetric(string(vppStat.Name)+"_bytes", worker, swIfIndex, ifNames, counter[1], "bytes")
-				}
-			}
+			self.exportInterfaceCombinedCounterStat(string(vppStat.Name)+"_packets", ifNames, UnitPackets, values)
+			self.exportInterfaceCombinedCounterStat(string(vppStat.Name)+"_bytes", ifNames, UnitBytes, values)
 		}
 	}
 
@@ -146,11 +144,7 @@ func (self *PrometheusServer) exportMetrics() error {
 	for _, vppStat := range tcpStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
-			for worker, perWorkerValues := range values {
-				for _, counter := range perWorkerValues {
-					self.exportTCPMetric(cleanVppTCPStatName(string(vppStat.Name), "/sys/"), worker, uint64(counter))
-				}
-			}
+			self.exportTCPSimpleCounterStat(cleanVppTCPStatName(string(vppStat.Name), "/sys/"), values)
 		}
 	}
 
@@ -163,11 +157,7 @@ func (self *PrometheusServer) exportMetrics() error {
 	for _, vppStat := range tcp4ErrStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
-			for worker, perWorkerValues := range values {
-				for _, counter := range perWorkerValues {
-					self.exportTCPMetric(cleanVppTCPStatName(string(vppStat.Name), "/err/"), worker, uint64(counter))
-				}
-			}
+			self.exportTCPSimpleCounterStat(cleanVppTCPStatName(string(vppStat.Name), "/err/"), values)
 		}
 	}
 
@@ -180,11 +170,7 @@ func (self *PrometheusServer) exportMetrics() error {
 	for _, vppStat := range tcp6ErrStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
-			for worker, perWorkerValues := range values {
-				for _, counter := range perWorkerValues {
-					self.exportTCPMetric(cleanVppTCPStatName(string(vppStat.Name), "/err/"), worker, uint64(counter))
-				}
-			}
+			self.exportTCPSimpleCounterStat(cleanVppTCPStatName(string(vppStat.Name), "/err/"), values)
 		}
 	}
 
@@ -197,48 +183,96 @@ func (self *PrometheusServer) exportMetrics() error {
 	for _, vppStat := range sessionStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
-			for worker, perWorkerValues := range values {
-				for _, counter := range perWorkerValues {
-					self.exportSessionMetric(string(vppStat.Name), worker, uint64(counter))
-				}
-			}
+			self.exportSessionSimpleCounter(string(vppStat.Name), values)
 		case adapter.ScalarStat:
 			// ScalarStat is a single value, not per-worker
-			self.exportSessionMetric(string(vppStat.Name), 0, uint64(values))
+			self.exportSessionScalarStat(string(vppStat.Name), int64(values))
 		}
 	}
-
-	self.lock.Unlock()
 
 	return nil
 }
 
-func (self *PrometheusServer) exportInterfaceMetric(name string, worker int, swIfIndex int, ifNames adapter.NameStat, value uint64, unit string) {
-	pod := self.podInterfacesDetailsBySwifIndex[uint32(swIfIndex)]
-	vppIfName := ""
-	if swIfIndex < len(ifNames) {
-		vppIfName = string(ifNames[swIfIndex])
+func (self *PrometheusServer) exportInterfaceCombinedCounterStat(name string, ifNames adapter.NameStat, unit string, values adapter.CombinedCounterStat) {
+	metric := &metricspb.Metric{
+		MetricDescriptor: &metricspb.MetricDescriptor{
+			Name:        cleanVppIfStatName(name),
+			Unit:        unit,
+			Description: getVppIfStatDescription(name),
+			Type:        metricspb.MetricDescriptor_CUMULATIVE_DOUBLE,
+			// empty timeseries prevents exporter from updating
+			LabelKeys: []*metricspb.LabelKey{
+				{Key: "worker", Description: "VPP worker index"},
+				{Key: "namespace", Description: "Kubernetes namespace of the pod"},
+				{Key: "podName", Description: "Name of the pod"},
+				{Key: "podInterfaceName", Description: "Name of interface in the pod"},
+				{Key: "vppInterfaceName", Description: "Name of interface in VPP"},
+			},
+		},
+	}
+	for worker, perWorkerValues := range values {
+		for swIfIndex, counter := range perWorkerValues {
+			self.log.Warnf("Export for IF=%d", swIfIndex)
+			pod := self.podInterfacesDetailsBySwifIndex[uint32(swIfIndex)]
+			vppIfName := ""
+			if swIfIndex < len(ifNames) {
+				vppIfName = string(ifNames[swIfIndex])
+			}
+			value := float64(counter.Bytes())
+			if unit == UnitPackets {
+				value = float64(counter.Packets())
+			}
+			metric.Timeseries = append(metric.Timeseries, &metricspb.TimeSeries{
+				LabelValues: []*metricspb.LabelValue{
+					{Value: strconv.Itoa(worker)},
+					{Value: pod.podNamespace},
+					{Value: pod.podName},
+					{Value: pod.interfaceName},
+					{Value: vppIfName},
+				},
+				Points: []*metricspb.Point{{
+					Value: &metricspb.Point_DoubleValue{
+						DoubleValue: value,
+					},
+				}},
+			})
+		}
 	}
 	err := self.exporter.ExportMetric(
 		context.Background(),
 		nil, /* node */
 		nil, /* resource */
-		&metricspb.Metric{
-			MetricDescriptor: &metricspb.MetricDescriptor{
-				Name:        cleanVppIfStatName(name),
-				Unit:        unit,
-				Description: getVppIfStatDescription(name),
-				Type:        metricspb.MetricDescriptor_CUMULATIVE_DOUBLE,
-				// empty timeseries prevents exporter from updating
-				LabelKeys: []*metricspb.LabelKey{
-					{Key: "worker", Description: "VPP worker index"},
-					{Key: "namespace", Description: "Kubernetes namespace of the pod"},
-					{Key: "podName", Description: "Name of the pod"},
-					{Key: "podInterfaceName", Description: "Name of interface in the pod"},
-					{Key: "vppInterfaceName", Description: "Name of interface in VPP"},
-				},
+		metric,
+	)
+	if err != nil {
+		self.log.Errorf("Error prometheus exporter.ExportMetric %v", err)
+	}
+}
+
+func (self *PrometheusServer) exportInterfaceSimpleCounterStat(name string, ifNames adapter.NameStat, values adapter.SimpleCounterStat) {
+	metric := &metricspb.Metric{
+		MetricDescriptor: &metricspb.MetricDescriptor{
+			Name:        cleanVppIfStatName(name),
+			Description: getVppIfStatDescription(name),
+			Type:        metricspb.MetricDescriptor_CUMULATIVE_DOUBLE,
+			// empty timeseries prevents exporter from updating
+			LabelKeys: []*metricspb.LabelKey{
+				{Key: "worker", Description: "VPP worker index"},
+				{Key: "namespace", Description: "Kubernetes namespace of the pod"},
+				{Key: "podName", Description: "Name of the pod"},
+				{Key: "podInterfaceName", Description: "Name of interface in the pod"},
+				{Key: "vppInterfaceName", Description: "Name of interface in VPP"},
 			},
-			Timeseries: []*metricspb.TimeSeries{{
+		},
+	}
+	for worker, perWorkerValues := range values {
+		for swIfIndex, counter := range perWorkerValues {
+			pod := self.podInterfacesDetailsBySwifIndex[uint32(swIfIndex)]
+			vppIfName := ""
+			if swIfIndex < len(ifNames) {
+				vppIfName = string(ifNames[swIfIndex])
+			}
+			metric.Timeseries = append(metric.Timeseries, &metricspb.TimeSeries{
 				LabelValues: []*metricspb.LabelValue{
 					{Value: strconv.Itoa(worker)},
 					{Value: pod.podNamespace},
@@ -249,53 +283,105 @@ func (self *PrometheusServer) exportInterfaceMetric(name string, worker int, swI
 				Points: []*metricspb.Point{
 					{
 						Value: &metricspb.Point_DoubleValue{
-							DoubleValue: float64(value),
+							DoubleValue: float64(counter),
 						},
 					},
 				},
-			}},
-		},
+			})
+		}
+	}
+	err := self.exporter.ExportMetric(
+		context.Background(),
+		nil, /* node */
+		nil, /* resource */
+		metric,
 	)
 	if err != nil {
 		self.log.Errorf("Error prometheus exporter.ExportMetric %v", err)
 	}
 }
 
-func (self *PrometheusServer) exportTCPMetric(name string, worker int, value uint64) {
-	err := self.exporter.ExportMetric(
-		context.Background(),
-		nil, /* node */
-		nil, /* resource */
-		&metricspb.Metric{
-			MetricDescriptor: &metricspb.MetricDescriptor{
-				Name:        name,
-				Unit:        "",
-				Description: getVppTCPStatDescription(name),
-				Type:        metricspb.MetricDescriptor_CUMULATIVE_INT64,
-				LabelKeys: []*metricspb.LabelKey{
-					{Key: "worker", Description: "VPP worker index"},
-				},
+func (self *PrometheusServer) exportTCPSimpleCounterStat(name string, values adapter.SimpleCounterStat) {
+	metric := &metricspb.Metric{
+		MetricDescriptor: &metricspb.MetricDescriptor{
+			Name:        name,
+			Unit:        "",
+			Description: getVppTCPStatDescription(name),
+			Type:        metricspb.MetricDescriptor_CUMULATIVE_INT64,
+			LabelKeys: []*metricspb.LabelKey{
+				{Key: "worker", Description: "VPP worker index"},
 			},
-			Timeseries: []*metricspb.TimeSeries{{
+		},
+	}
+	for worker, perWorkerValues := range values {
+		for _, counter := range perWorkerValues {
+			metric.Timeseries = append(metric.Timeseries, &metricspb.TimeSeries{
 				LabelValues: []*metricspb.LabelValue{
 					{Value: strconv.Itoa(worker)},
 				},
 				Points: []*metricspb.Point{
 					{
 						Value: &metricspb.Point_Int64Value{
-							Int64Value: int64(value),
+							Int64Value: int64(counter),
 						},
 					},
 				},
-			}},
-		},
+			})
+		}
+	}
+
+	err := self.exporter.ExportMetric(
+		context.Background(),
+		nil, /* node */
+		nil, /* resource */
+		metric,
 	)
 	if err != nil {
 		self.log.Errorf("Error prometheus exporter.ExportMetric for TCP %v", err)
 	}
 }
 
-func (self *PrometheusServer) exportSessionMetric(name string, worker int, value uint64) {
+func (self *PrometheusServer) exportSessionSimpleCounter(name string, values adapter.SimpleCounterStat) {
+	metric := &metricspb.Metric{
+		MetricDescriptor: &metricspb.MetricDescriptor{
+			Name:        cleanVppSessionStatName(name),
+			Unit:        "",
+			Description: getVppSessionStatDescription(name),
+			Type:        metricspb.MetricDescriptor_CUMULATIVE_INT64,
+			LabelKeys: []*metricspb.LabelKey{
+				{Key: "worker", Description: "VPP worker index"},
+			},
+		},
+	}
+	for worker, perWorkerValues := range values {
+		for _, counter := range perWorkerValues {
+			metric.Timeseries = append(metric.Timeseries, &metricspb.TimeSeries{
+				LabelValues: []*metricspb.LabelValue{
+					{Value: strconv.Itoa(worker)},
+				},
+				Points: []*metricspb.Point{
+					{
+						Value: &metricspb.Point_Int64Value{
+							Int64Value: int64(counter),
+						},
+					},
+				},
+			})
+		}
+	}
+
+	err := self.exporter.ExportMetric(
+		context.Background(),
+		nil, /* node */
+		nil, /* resource */
+		metric,
+	)
+	if err != nil {
+		self.log.Errorf("Error prometheus exporter.ExportMetric for Session %v", err)
+	}
+}
+
+func (self *PrometheusServer) exportSessionScalarStat(name string, value int64) {
 	err := self.exporter.ExportMetric(
 		context.Background(),
 		nil, /* node */
@@ -303,21 +389,14 @@ func (self *PrometheusServer) exportSessionMetric(name string, worker int, value
 		&metricspb.Metric{
 			MetricDescriptor: &metricspb.MetricDescriptor{
 				Name:        cleanVppSessionStatName(name),
-				Unit:        "",
 				Description: getVppSessionStatDescription(name),
 				Type:        metricspb.MetricDescriptor_CUMULATIVE_INT64,
-				LabelKeys: []*metricspb.LabelKey{
-					{Key: "worker", Description: "VPP worker index"},
-				},
 			},
 			Timeseries: []*metricspb.TimeSeries{{
-				LabelValues: []*metricspb.LabelValue{
-					{Value: strconv.Itoa(worker)},
-				},
 				Points: []*metricspb.Point{
 					{
 						Value: &metricspb.Point_Int64Value{
-							Int64Value: int64(value),
+							Int64Value: value,
 						},
 					},
 				},
@@ -350,7 +429,7 @@ func (self *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 					continue
 				}
 				self.lock.Lock()
-				if podSpec.TunTapSwIfIndex == vpplink.INVALID_SW_IF_INDEX {
+				if podSpec.MemifSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
 					memifName := podSpec.InterfaceName
 					if podSpec.NetworkName == "" {
 						memifName = "vpp/memif-" + podSpec.InterfaceName
@@ -360,7 +439,8 @@ func (self *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 						podName:       splittedWorkloadId[1],
 						interfaceName: memifName,
 					}
-				} else {
+				}
+				if podSpec.TunTapSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
 					self.podInterfacesDetailsBySwifIndex[podSpec.TunTapSwIfIndex] = podInterfaceDetails{
 						podNamespace:  splittedWorkloadId[0],
 						podName:       splittedWorkloadId[1],
@@ -374,13 +454,15 @@ func (self *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 				podSpec, ok := evt.Old.(*storage.LocalPodSpec)
 				if !ok {
 					self.log.Errorf("evt.Old is not a *storage.LocalPodSpec %v", evt.Old)
+					self.lock.Unlock()
 					continue
 				}
 				initialPod := self.podInterfacesByKey[podSpec.Key()]
 				delete(self.podInterfacesByKey, initialPod.Key())
-				if podSpec.TunTapSwIfIndex == vpplink.INVALID_SW_IF_INDEX {
+				if podSpec.MemifSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
 					delete(self.podInterfacesDetailsBySwifIndex, initialPod.MemifSwIfIndex)
-				} else {
+				}
+				if podSpec.TunTapSwIfIndex != vpplink.INVALID_SW_IF_INDEX {
 					delete(self.podInterfacesDetailsBySwifIndex, initialPod.TunTapSwIfIndex)
 				}
 				self.lock.Unlock()
