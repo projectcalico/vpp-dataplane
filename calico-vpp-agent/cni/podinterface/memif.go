@@ -23,7 +23,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -52,7 +52,7 @@ func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifP
 	return i
 }
 
-func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) (err error) {
+func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) (err error) {
 	memifName := podSpec.InterfaceName
 	// if we are in main network (PBL case)
 	if podSpec.NetworkName == "" {
@@ -170,7 +170,7 @@ func (i *MemifPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec,
 	return nil
 }
 
-func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
+func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *model.LocalPodSpec) {
 	if podSpec.MemifSwIfIndex == vpplink.InvalidID {
 		return
 	}
@@ -194,7 +194,7 @@ func (i *MemifPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec)
 
 }
 
-func (i *MemifPodInterfaceDriver) configureDummy(swIfIndex uint32, podSpec *storage.LocalPodSpec) func(hostNS ns.NetNS) error {
+func (i *MemifPodInterfaceDriver) configureDummy(swIfIndex uint32, podSpec *model.LocalPodSpec) func(hostNS ns.NetNS) error {
 	return func(hostNS ns.NetNS) error {
 		contDummy, err := netlink.LinkByName(podSpec.InterfaceName)
 		if err != nil {
@@ -217,7 +217,7 @@ func (i *MemifPodInterfaceDriver) configureDummy(swIfIndex uint32, podSpec *stor
 			}
 		}
 
-		for _, route := range podSpec.GetRoutes() {
+		for _, route := range podSpec.Routes {
 			isV6 := route.IP.To4() == nil
 			if (isV6 && !hasv6) || (!isV6 && !hasv4) {
 				i.log.Infof("Skipping dummy[%d] route for %s", swIfIndex, route.String())
@@ -227,7 +227,7 @@ func (i *MemifPodInterfaceDriver) configureDummy(swIfIndex uint32, podSpec *stor
 			err = netlink.RouteAdd(&netlink.Route{
 				LinkIndex: contDummy.Attrs().Index,
 				Scope:     netlink.SCOPE_UNIVERSE,
-				Dst:       route,
+				Dst:       &route,
 			})
 			if err != nil {
 				// TODO : in ipv6 '::' already exists
@@ -236,7 +236,7 @@ func (i *MemifPodInterfaceDriver) configureDummy(swIfIndex uint32, podSpec *stor
 		}
 
 		// Now add the IPs to the container side of the tun.
-		for _, containerIP := range podSpec.GetContainerIps() {
+		for _, containerIP := range podSpec.GetContainerIPs() {
 			i.log.Infof("Add dummy[%d] linux%d ip %s", swIfIndex, contDummy.Attrs().Index, containerIP.String())
 			err = netlink.AddrAdd(contDummy, &netlink.Addr{IPNet: containerIP})
 			if err != nil {

@@ -35,7 +35,7 @@ import (
 	nettypes "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/projectcalico/calico/felix/proto"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
@@ -347,9 +347,9 @@ func (s *Server) handleFelixServerEvents(evt common.CalicoVppEvent) error {
 		}
 		delete(s.networkDefinitions, netDef.Name)
 	case common.PodAdded:
-		podSpec, ok := evt.New.(*storage.LocalPodSpec)
+		podSpec, ok := evt.New.(*model.LocalPodSpec)
 		if !ok {
-			return fmt.Errorf("evt.New is not a (*storage.LocalPodSpec) %v", evt.New)
+			return fmt.Errorf("evt.New is not a (*model.LocalPodSpec) %v", evt.New)
 		}
 		swIfIndex := podSpec.TunTapSwIfIndex
 		if swIfIndex == vpplink.InvalidID {
@@ -360,11 +360,11 @@ func (s *Server) handleFelixServerEvents(evt common.CalicoVppEvent) error {
 			WorkloadID:     podSpec.WorkloadID,
 			EndpointID:     podSpec.EndpointID,
 			Network:        podSpec.NetworkName,
-		}, swIfIndex, podSpec.InterfaceName, podSpec.GetContainerIps())
+		}, swIfIndex, podSpec.InterfaceName, podSpec.GetContainerIPs())
 	case common.PodDeleted:
-		podSpec, ok := evt.Old.(*storage.LocalPodSpec)
+		podSpec, ok := evt.Old.(*model.LocalPodSpec)
 		if !ok {
-			return fmt.Errorf("evt.Old is not a (*storage.LocalPodSpec) %v", evt.Old)
+			return fmt.Errorf("evt.Old is not a (*model.LocalPodSpec) %v", evt.Old)
 		}
 		if podSpec != nil {
 			s.WorkloadRemoved(&WorkloadEndpointID{
@@ -372,7 +372,7 @@ func (s *Server) handleFelixServerEvents(evt common.CalicoVppEvent) error {
 				WorkloadID:     podSpec.WorkloadID,
 				EndpointID:     podSpec.EndpointID,
 				Network:        podSpec.NetworkName,
-			}, podSpec.GetContainerIps())
+			}, podSpec.GetContainerIPs())
 		}
 	case common.TunnelAdded:
 		swIfIndex, ok := evt.New.(uint32)
