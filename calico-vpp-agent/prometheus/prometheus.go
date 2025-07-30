@@ -85,20 +85,20 @@ func NewPrometheusServer(vpp *vpplink.VppLink, log *logrus.Entry) *PrometheusSer
 
 func cleanVppIfStatName(vppStatName string) string {
 	vppStatName = strings.TrimPrefix(vppStatName, "/if/")
-	vppStatName = strings.Replace(vppStatName, "-", "_", -1)
+	vppStatName = strings.ReplaceAll(vppStatName, "-", "_")
 	return vppStatName
 }
 
 func cleanVppTCPStatName(vppStatName string, prefix string) string {
 	vppStatName = strings.TrimPrefix(vppStatName, prefix)
-	vppStatName = strings.Replace(vppStatName, "-", "_", -1)
-	vppStatName = strings.Replace(vppStatName, "/", "_", -1)
+	vppStatName = strings.ReplaceAll(vppStatName, "-", "_")
+	vppStatName = strings.ReplaceAll(vppStatName, "/", "_")
 	return vppStatName
 }
 
 func cleanVppSessionStatName(vppStatName string) string {
 	vppStatName = strings.TrimPrefix(vppStatName, "/sys/session/")
-	vppStatName = strings.Replace(vppStatName, "/", "_", -1)
+	vppStatName = strings.ReplaceAll(vppStatName, "/", "_")
 	return vppStatName
 }
 
@@ -107,10 +107,10 @@ const (
 	UnitBytes   = "bytes"
 )
 
-func (self *PrometheusServer) exportMetrics() error {
-	ifStats, err := self.statsclient.DumpStats("/if/")
+func (p *PrometheusServer) exportMetrics() error {
+	ifStats, err := p.statsclient.DumpStats("/if/")
 	if err != nil {
-		self.log.Errorf("Error running statsclient.DumpStats for Interface stats %v", err)
+		p.log.Errorf("Error running statsclient.DumpStats for Interface stats %v", err)
 		return nil
 	}
 	var ifNames adapter.NameStat
@@ -121,79 +121,79 @@ func (self *PrometheusServer) exportMetrics() error {
 		}
 	}
 
-	self.lock.Lock()
-	defer self.lock.Unlock()
+	p.lock.Lock()
+	defer p.lock.Unlock()
 
 	// Export Interface stats
 	for _, vppStat := range ifStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
-			self.exportInterfaceSimpleCounterStat(string(vppStat.Name), ifNames, values)
+			p.exportInterfaceSimpleCounterStat(string(vppStat.Name), ifNames, values)
 		case adapter.CombinedCounterStat:
-			self.exportInterfaceCombinedCounterStat(string(vppStat.Name)+"_packets", ifNames, UnitPackets, values)
-			self.exportInterfaceCombinedCounterStat(string(vppStat.Name)+"_bytes", ifNames, UnitBytes, values)
+			p.exportInterfaceCombinedCounterStat(string(vppStat.Name)+"_packets", ifNames, UnitPackets, values)
+			p.exportInterfaceCombinedCounterStat(string(vppStat.Name)+"_bytes", ifNames, UnitBytes, values)
 		}
 	}
 
 	// Export TCP stats
-	tcpStats, err := self.statsclient.DumpStats("/sys/tcp")
+	tcpStats, err := p.statsclient.DumpStats("/sys/tcp")
 	if err != nil {
-		self.log.Errorf("Error running statsclient.DumpStats for TCP stats %v", err)
+		p.log.Errorf("Error running statsclient.DumpStats for TCP stats %v", err)
 		return nil
 	}
 	for _, vppStat := range tcpStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
-			self.exportTCPSimpleCounterStat(cleanVppTCPStatName(string(vppStat.Name), "/sys/"), values)
+			p.exportTCPSimpleCounterStat(cleanVppTCPStatName(string(vppStat.Name), "/sys/"), values)
 		}
 	}
 
 	// Export TCP4 error stats
-	tcp4ErrStats, err := self.statsclient.DumpStats("/err/tcp4")
+	tcp4ErrStats, err := p.statsclient.DumpStats("/err/tcp4")
 	if err != nil {
-		self.log.Errorf("Error running statsclient.DumpStats for TCP4 error stats %v", err)
+		p.log.Errorf("Error running statsclient.DumpStats for TCP4 error stats %v", err)
 		return nil
 	}
 	for _, vppStat := range tcp4ErrStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
-			self.exportTCPSimpleCounterStat(cleanVppTCPStatName(string(vppStat.Name), "/err/"), values)
+			p.exportTCPSimpleCounterStat(cleanVppTCPStatName(string(vppStat.Name), "/err/"), values)
 		}
 	}
 
 	// Export TCP6 error stats
-	tcp6ErrStats, err := self.statsclient.DumpStats("/err/tcp6")
+	tcp6ErrStats, err := p.statsclient.DumpStats("/err/tcp6")
 	if err != nil {
-		self.log.Errorf("Error running statsclient.DumpStats for TCP6 error stats %v", err)
+		p.log.Errorf("Error running statsclient.DumpStats for TCP6 error stats %v", err)
 		return nil
 	}
 	for _, vppStat := range tcp6ErrStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
-			self.exportTCPSimpleCounterStat(cleanVppTCPStatName(string(vppStat.Name), "/err/"), values)
+			p.exportTCPSimpleCounterStat(cleanVppTCPStatName(string(vppStat.Name), "/err/"), values)
 		}
 	}
 
 	// Export Session stats
-	sessionStats, err := self.statsclient.DumpStats("/sys/session")
+	sessionStats, err := p.statsclient.DumpStats("/sys/session")
 	if err != nil {
-		self.log.Errorf("Error running statsclient.DumpStats for Session stats %v", err)
+		p.log.Errorf("Error running statsclient.DumpStats for Session stats %v", err)
 		return nil
 	}
 	for _, vppStat := range sessionStats {
 		switch values := vppStat.Data.(type) {
 		case adapter.SimpleCounterStat:
-			self.exportSessionSimpleCounter(string(vppStat.Name), values)
+			p.exportSessionSimpleCounter(string(vppStat.Name), values)
 		case adapter.ScalarStat:
 			// ScalarStat is a single value, not per-worker
-			self.exportSessionScalarStat(string(vppStat.Name), int64(values))
+			p.exportSessionScalarStat(string(vppStat.Name), int64(values))
 		}
 	}
 
 	return nil
 }
 
-func (self *PrometheusServer) exportInterfaceCombinedCounterStat(name string, ifNames adapter.NameStat, unit string, values adapter.CombinedCounterStat) {
+func (p *PrometheusServer) exportInterfaceCombinedCounterStat(name string, ifNames adapter.NameStat, unit string, values adapter.CombinedCounterStat) {
 	metric := &metricspb.Metric{
 		MetricDescriptor: &metricspb.MetricDescriptor{
 			Name:        cleanVppIfStatName(name),
@@ -212,8 +212,8 @@ func (self *PrometheusServer) exportInterfaceCombinedCounterStat(name string, if
 	}
 	for worker, perWorkerValues := range values {
 		for swIfIndex, counter := range perWorkerValues {
-			self.log.Warnf("Export for IF=%d", swIfIndex)
-			pod := self.podInterfacesDetailsBySwifIndex[uint32(swIfIndex)]
+			p.log.Warnf("Export for IF=%d", swIfIndex)
+			pod := p.podInterfacesDetailsBySwifIndex[uint32(swIfIndex)]
 			vppIfName := ""
 			if swIfIndex < len(ifNames) {
 				vppIfName = string(ifNames[swIfIndex])
@@ -238,18 +238,18 @@ func (self *PrometheusServer) exportInterfaceCombinedCounterStat(name string, if
 			})
 		}
 	}
-	err := self.exporter.ExportMetric(
+	err := p.exporter.ExportMetric(
 		context.Background(),
 		nil, /* node */
 		nil, /* resource */
 		metric,
 	)
 	if err != nil {
-		self.log.Errorf("Error prometheus exporter.ExportMetric %v", err)
+		p.log.Errorf("Error prometheus exporter.ExportMetric %v", err)
 	}
 }
 
-func (self *PrometheusServer) exportInterfaceSimpleCounterStat(name string, ifNames adapter.NameStat, values adapter.SimpleCounterStat) {
+func (p *PrometheusServer) exportInterfaceSimpleCounterStat(name string, ifNames adapter.NameStat, values adapter.SimpleCounterStat) {
 	metric := &metricspb.Metric{
 		MetricDescriptor: &metricspb.MetricDescriptor{
 			Name:        cleanVppIfStatName(name),
@@ -267,7 +267,7 @@ func (self *PrometheusServer) exportInterfaceSimpleCounterStat(name string, ifNa
 	}
 	for worker, perWorkerValues := range values {
 		for swIfIndex, counter := range perWorkerValues {
-			pod := self.podInterfacesDetailsBySwifIndex[uint32(swIfIndex)]
+			pod := p.podInterfacesDetailsBySwifIndex[uint32(swIfIndex)]
 			vppIfName := ""
 			if swIfIndex < len(ifNames) {
 				vppIfName = string(ifNames[swIfIndex])
@@ -290,18 +290,18 @@ func (self *PrometheusServer) exportInterfaceSimpleCounterStat(name string, ifNa
 			})
 		}
 	}
-	err := self.exporter.ExportMetric(
+	err := p.exporter.ExportMetric(
 		context.Background(),
 		nil, /* node */
 		nil, /* resource */
 		metric,
 	)
 	if err != nil {
-		self.log.Errorf("Error prometheus exporter.ExportMetric %v", err)
+		p.log.Errorf("Error prometheus exporter.ExportMetric %v", err)
 	}
 }
 
-func (self *PrometheusServer) exportTCPSimpleCounterStat(name string, values adapter.SimpleCounterStat) {
+func (p *PrometheusServer) exportTCPSimpleCounterStat(name string, values adapter.SimpleCounterStat) {
 	metric := &metricspb.Metric{
 		MetricDescriptor: &metricspb.MetricDescriptor{
 			Name:        name,
@@ -330,18 +330,18 @@ func (self *PrometheusServer) exportTCPSimpleCounterStat(name string, values ada
 		}
 	}
 
-	err := self.exporter.ExportMetric(
+	err := p.exporter.ExportMetric(
 		context.Background(),
 		nil, /* node */
 		nil, /* resource */
 		metric,
 	)
 	if err != nil {
-		self.log.Errorf("Error prometheus exporter.ExportMetric for TCP %v", err)
+		p.log.Errorf("Error prometheus exporter.ExportMetric for TCP %v", err)
 	}
 }
 
-func (self *PrometheusServer) exportSessionSimpleCounter(name string, values adapter.SimpleCounterStat) {
+func (p *PrometheusServer) exportSessionSimpleCounter(name string, values adapter.SimpleCounterStat) {
 	metric := &metricspb.Metric{
 		MetricDescriptor: &metricspb.MetricDescriptor{
 			Name:        cleanVppSessionStatName(name),
@@ -370,19 +370,19 @@ func (self *PrometheusServer) exportSessionSimpleCounter(name string, values ada
 		}
 	}
 
-	err := self.exporter.ExportMetric(
+	err := p.exporter.ExportMetric(
 		context.Background(),
 		nil, /* node */
 		nil, /* resource */
 		metric,
 	)
 	if err != nil {
-		self.log.Errorf("Error prometheus exporter.ExportMetric for Session %v", err)
+		p.log.Errorf("Error prometheus exporter.ExportMetric for Session %v", err)
 	}
 }
 
-func (self *PrometheusServer) exportSessionScalarStat(name string, value int64) {
-	err := self.exporter.ExportMetric(
+func (p *PrometheusServer) exportSessionScalarStat(name string, value int64) {
+	err := p.exporter.ExportMetric(
 		context.Background(),
 		nil, /* node */
 		nil, /* resource */
@@ -404,83 +404,91 @@ func (self *PrometheusServer) exportSessionScalarStat(name string, value int64) 
 		},
 	)
 	if err != nil {
-		self.log.Errorf("Error prometheus exporter.ExportMetric for Session %v", err)
+		p.log.Errorf("Error prometheus exporter.ExportMetric for Session %v", err)
 	}
 }
 
-func (self *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
+func (p *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 	if !(*config.GetCalicoVppFeatureGates().PrometheusEnabled) {
 		return nil
 	}
-	self.log.Infof("Serve() Prometheus exporter")
+	p.log.Infof("Serve() Prometheus exporter")
 	go func() {
 		for t.Alive() {
 			/* Note: we will only receive events we ask for when registering the chan */
-			evt := <-self.channel
+			evt := <-p.channel
 			switch evt.Type {
 			case common.PodAdded:
 				podSpec, ok := evt.New.(*storage.LocalPodSpec)
 				if !ok {
-					self.log.Errorf("evt.New is not a *storage.LocalPodSpec %v", evt.New)
+					p.log.Errorf("evt.New is not a *storage.LocalPodSpec %v", evt.New)
 					continue
 				}
-				splittedWorkloadId := strings.SplitN(podSpec.WorkloadID, "/", 2)
-				if len(splittedWorkloadId) != 2 {
+				splittedWorkloadID := strings.SplitN(podSpec.WorkloadID, "/", 2)
+				if len(splittedWorkloadID) != 2 {
 					continue
 				}
-				self.lock.Lock()
+				p.lock.Lock()
 				if podSpec.MemifSwIfIndex != vpplink.InvalidSwIfIndex {
 					memifName := podSpec.InterfaceName
 					if podSpec.NetworkName == "" {
 						memifName = "vpp/memif-" + podSpec.InterfaceName
 					}
-					self.podInterfacesDetailsBySwifIndex[podSpec.MemifSwIfIndex] = podInterfaceDetails{
-						podNamespace:  splittedWorkloadId[0],
-						podName:       splittedWorkloadId[1],
+					p.podInterfacesDetailsBySwifIndex[podSpec.MemifSwIfIndex] = podInterfaceDetails{
+						podNamespace:  splittedWorkloadID[0],
+						podName:       splittedWorkloadID[1],
 						interfaceName: memifName,
 					}
 				}
 				if podSpec.TunTapSwIfIndex != vpplink.InvalidSwIfIndex {
-					self.podInterfacesDetailsBySwifIndex[podSpec.TunTapSwIfIndex] = podInterfaceDetails{
-						podNamespace:  splittedWorkloadId[0],
-						podName:       splittedWorkloadId[1],
+					p.podInterfacesDetailsBySwifIndex[podSpec.TunTapSwIfIndex] = podInterfaceDetails{
+						podNamespace:  splittedWorkloadID[0],
+						podName:       splittedWorkloadID[1],
 						interfaceName: podSpec.InterfaceName,
 					}
 				}
-				self.podInterfacesByKey[podSpec.Key()] = *podSpec
-				self.lock.Unlock()
+				p.podInterfacesByKey[podSpec.Key()] = *podSpec
+				p.lock.Unlock()
 			case common.PodDeleted:
 				podSpec, ok := evt.Old.(*storage.LocalPodSpec)
 				if !ok {
-					self.log.Errorf("evt.Old is not a *storage.LocalPodSpec %v", evt.Old)
+					p.log.Errorf("evt.Old is not a *storage.LocalPodSpec %v", evt.Old)
 					continue
 				}
-				self.lock.Lock()
-				initialPod := self.podInterfacesByKey[podSpec.Key()]
-				delete(self.podInterfacesByKey, initialPod.Key())
+				p.lock.Lock()
+				initialPod := p.podInterfacesByKey[podSpec.Key()]
+				delete(p.podInterfacesByKey, initialPod.Key())
 				if podSpec.MemifSwIfIndex != vpplink.InvalidSwIfIndex {
-					delete(self.podInterfacesDetailsBySwifIndex, initialPod.MemifSwIfIndex)
+					delete(p.podInterfacesDetailsBySwifIndex, initialPod.MemifSwIfIndex)
 				}
 				if podSpec.TunTapSwIfIndex != vpplink.InvalidSwIfIndex {
-					delete(self.podInterfacesDetailsBySwifIndex, initialPod.TunTapSwIfIndex)
+					delete(p.podInterfacesDetailsBySwifIndex, initialPod.TunTapSwIfIndex)
 				}
-				self.lock.Unlock()
+				p.lock.Unlock()
 			}
 		}
 	}()
-	err := self.statsclient.Connect()
+	err := p.statsclient.Connect()
 	if err != nil {
 		return errors.Wrap(err, "could not connect statsclient")
 	}
 
-	go self.httpServer.ListenAndServe()
+	go func() {
+		err := p.httpServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			p.log.Errorf("HTTP server error: %v", err)
+		}
+	}()
 	ticker := time.NewTicker(*config.GetCalicoVppInitialConfig().PrometheusRecordMetricInterval)
 	for ; t.Alive(); <-ticker.C {
-		self.exportMetrics()
+		err := p.exportMetrics()
+		if err != nil {
+			p.log.Errorf("Error exporting metrics: %v", err)
+		}
 	}
 	ticker.Stop()
-	self.log.Warn("Prometheus Server returned")
-	err = self.httpServer.Shutdown(context.Background())
+	p.log.Warn("Prometheus Server returned")
+	err = p.httpServer.Shutdown(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "Could not shutdown http server")
 	}
