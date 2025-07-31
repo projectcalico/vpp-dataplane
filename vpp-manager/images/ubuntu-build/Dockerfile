@@ -11,7 +11,7 @@ RUN apt-get update \
 	libconfuse-dev git-review exuberant-ctags cscope pkg-config \
 	gcovr lcov chrpath autoconf libnuma-dev \
 	python3-all python3-setuptools check \
-	libffi-dev python3-ply libunwind-dev \
+	libffi-dev python3-ply \
 	cmake ninja-build python3-jsonschema python3-yaml \
 	python3-venv \
 	python3-dev python3-pip \
@@ -23,11 +23,14 @@ RUN apt-get update \
 	nasm \
 	iperf ethtool \
 	libpcap-dev \
-	tshark \
-	jq \
-	clang clang-format-15 \
+	python3-virtualenv \
+	libssl-dev \
+	clang clang-format-11 \
 	libffi7 \
-	enchant-2
+	enchant-2 \
+	tshark \
+	libllvm15 libclang-cpp15 clang-format-15 libonig5 libjq1 jq  libunwind8 liblzma-dev libunwind-dev \
+	libiberty-dev
 
 WORKDIR /
 
@@ -40,4 +43,4 @@ RUN cd /usr/bin; mv tar tar.orig && \
 
 ADD build_script.sh /
 
-CMD "/build_script.sh"
+CMD ["/build_script.sh"]

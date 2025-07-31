@@ -6,7 +6,7 @@ RUN apt-get update \
  && apt-get install -y openssl libapr1 libnuma1 \
     libmbedcrypto7 libmbedtls14 libmbedx509-1 libsubunit0 \
     iproute2 ifupdown ethtool libnl-3-dev libnl-route-3-dev \
-    libunwind8 libpcap-dev \
+    libpcap0.8 libunwind8 \
  && rm -rf /var/lib/apt/lists/*
 
 # set work directory
