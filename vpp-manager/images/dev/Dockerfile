@@ -8,9 +8,7 @@ RUN apt-get update \
  && apt-get install -y openssl libapr1 libnuma1 libasan5 \
 	  libmbedcrypto7 libmbedtls14 libmbedx509-1 libsubunit0 \
 	  iptables iproute2 iputils-ping inetutils-traceroute \
-	  netcat-openbsd ethtool gdb \
-	  libnl-3-dev libnl-route-3-dev \
-	  libunwind8 libpcap-dev \
+	  netcat-openbsd ethtool gdb libunwind8 libpcap0.8 \
  && rm -rf /var/lib/apt/lists/*
 
 ADD entrypoint.sh /usr/bin/entrypoint
