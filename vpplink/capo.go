@@ -200,14 +200,16 @@ func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfi
 	ids := append(rxPolicyIDs, txPolicyIDs...)
 	ids = append(ids, profileIDs...)
 	_, err := client.CapoConfigurePolicies(v.GetContext(), &capo.CapoConfigurePolicies{
-		SwIfIndex:     swIfIndex,
-		NumRxPolicies: uint32(len(rxPolicyIDs)),
-		NumTxPolicies: uint32(len(txPolicyIDs)),
-		TotalIds:      uint32(len(rxPolicyIDs) + len(txPolicyIDs) + len(profileIDs)),
-		PolicyIds:     ids,
-		InvertRxTx:    invertRxTx,
-		UserDefinedRx: conf.UserDefinedRx,
-		UserDefinedTx: conf.UserDefinedTx,
+		SwIfIndex:        swIfIndex,
+		NumRxPolicies:    uint32(len(rxPolicyIDs)),
+		NumTxPolicies:    uint32(len(txPolicyIDs)),
+		TotalIds:         uint32(len(rxPolicyIDs) + len(txPolicyIDs) + len(profileIDs)),
+		PolicyIds:        ids,
+		InvertRxTx:       invertRxTx,
+		PolicyDefaultRx:  conf.PolicyDefaultRx,
+		PolicyDefaultTx:  conf.PolicyDefaultTx,
+		ProfileDefaultRx: conf.ProfileDefaultRx,
+		ProfileDefaultTx: conf.ProfileDefaultTx,
 	})
 	if err != nil {
 		return fmt.Errorf("capoConfigurePolicies failed: %w", err)

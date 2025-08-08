@@ -3,7 +3,7 @@
 // Package capo contains generated bindings for API file capo.api.
 //
 // Contents:
-// -  4 enums
+// -  5 enums
 // -  8 structs
 // -  2 unions
 // - 24 messages
@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "capo"
 	APIVersion = "0.1.0"
-	VersionCrc = 0x808b5f14
+	VersionCrc = 0x9c12c2c5
 )
 
 // CapoEntryType defines enum 'capo_entry_type'.
@@ -91,6 +91,36 @@ func (x CapoIpsetType) String() string {
 		return s
 	}
 	return "CapoIpsetType(" + strconv.Itoa(int(x)) + ")"
+}
+
+// CapoPolicyDefault defines enum 'capo_policy_default'.
+type CapoPolicyDefault uint8
+
+const (
+	CAPO_DEFAULT_ALLOW CapoPolicyDefault = 0
+	CAPO_DEFAULT_DENY  CapoPolicyDefault = 1
+	CAPO_DEFAULT_PASS  CapoPolicyDefault = 2
+)
+
+var (
+	CapoPolicyDefault_name = map[uint8]string{
+		0: "CAPO_DEFAULT_ALLOW",
+		1: "CAPO_DEFAULT_DENY",
+		2: "CAPO_DEFAULT_PASS",
+	}
+	CapoPolicyDefault_value = map[string]uint8{
+		"CAPO_DEFAULT_ALLOW": 0,
+		"CAPO_DEFAULT_DENY":  1,
+		"CAPO_DEFAULT_PASS":  2,
+	}
+)
+
+func (x CapoPolicyDefault) String() string {
+	s, ok := CapoPolicyDefault_name[uint8(x)]
+	if ok {
+		return s
+	}
+	return "CapoPolicyDefault(" + strconv.Itoa(int(x)) + ")"
 }
 
 // CapoRuleAction defines enum 'capo_rule_action'.
@@ -334,19 +364,21 @@ func (u *CapoIpsetMemberValUnion) GetTuple() (a CapoThreeTuple) {
 
 // CapoConfigurePolicies defines message 'capo_configure_policies'.
 type CapoConfigurePolicies struct {
-	SwIfIndex     uint32   `binapi:"u32,name=sw_if_index" json:"sw_if_index,omitempty"`
-	NumRxPolicies uint32   `binapi:"u32,name=num_rx_policies" json:"num_rx_policies,omitempty"`
-	NumTxPolicies uint32   `binapi:"u32,name=num_tx_policies" json:"num_tx_policies,omitempty"`
-	TotalIds      uint32   `binapi:"u32,name=total_ids" json:"-"`
-	InvertRxTx    uint8    `binapi:"u8,name=invert_rx_tx" json:"invert_rx_tx,omitempty"`
-	UserDefinedRx uint8    `binapi:"u8,name=user_defined_rx" json:"user_defined_rx,omitempty"`
-	UserDefinedTx uint8    `binapi:"u8,name=user_defined_tx" json:"user_defined_tx,omitempty"`
-	PolicyIds     []uint32 `binapi:"u32[total_ids],name=policy_ids" json:"policy_ids,omitempty"`
+	SwIfIndex        uint32            `binapi:"u32,name=sw_if_index" json:"sw_if_index,omitempty"`
+	NumRxPolicies    uint32            `binapi:"u32,name=num_rx_policies" json:"num_rx_policies,omitempty"`
+	NumTxPolicies    uint32            `binapi:"u32,name=num_tx_policies" json:"num_tx_policies,omitempty"`
+	TotalIds         uint32            `binapi:"u32,name=total_ids" json:"-"`
+	InvertRxTx       uint8             `binapi:"u8,name=invert_rx_tx" json:"invert_rx_tx,omitempty"`
+	PolicyDefaultRx  CapoPolicyDefault `binapi:"capo_policy_default,name=policy_default_rx" json:"policy_default_rx,omitempty"`
+	PolicyDefaultTx  CapoPolicyDefault `binapi:"capo_policy_default,name=policy_default_tx" json:"policy_default_tx,omitempty"`
+	ProfileDefaultRx CapoPolicyDefault `binapi:"capo_policy_default,name=profile_default_rx" json:"profile_default_rx,omitempty"`
+	ProfileDefaultTx CapoPolicyDefault `binapi:"capo_policy_default,name=profile_default_tx" json:"profile_default_tx,omitempty"`
+	PolicyIds        []uint32          `binapi:"u32[total_ids],name=policy_ids" json:"policy_ids,omitempty"`
 }
 
 func (m *CapoConfigurePolicies) Reset()               { *m = CapoConfigurePolicies{} }
 func (*CapoConfigurePolicies) GetMessageName() string { return "capo_configure_policies" }
-func (*CapoConfigurePolicies) GetCrcString() string   { return "453c1f24" }
+func (*CapoConfigurePolicies) GetCrcString() string   { return "c748840e" }
 func (*CapoConfigurePolicies) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -360,8 +392,10 @@ func (m *CapoConfigurePolicies) Size() (size int) {
 	size += 4                    // m.NumTxPolicies
 	size += 4                    // m.TotalIds
 	size += 1                    // m.InvertRxTx
-	size += 1                    // m.UserDefinedRx
-	size += 1                    // m.UserDefinedTx
+	size += 1                    // m.PolicyDefaultRx
+	size += 1                    // m.PolicyDefaultTx
+	size += 1                    // m.ProfileDefaultRx
+	size += 1                    // m.ProfileDefaultTx
 	size += 4 * len(m.PolicyIds) // m.PolicyIds
 	return size
 }
@@ -375,8 +409,10 @@ func (m *CapoConfigurePolicies) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint32(m.NumTxPolicies)
 	buf.EncodeUint32(uint32(len(m.PolicyIds)))
 	buf.EncodeUint8(m.InvertRxTx)
-	buf.EncodeUint8(m.UserDefinedRx)
-	buf.EncodeUint8(m.UserDefinedTx)
+	buf.EncodeUint8(uint8(m.PolicyDefaultRx))
+	buf.EncodeUint8(uint8(m.PolicyDefaultTx))
+	buf.EncodeUint8(uint8(m.ProfileDefaultRx))
+	buf.EncodeUint8(uint8(m.ProfileDefaultTx))
 	for i := 0; i < len(m.PolicyIds); i++ {
 		var x uint32
 		if i < len(m.PolicyIds) {
@@ -393,8 +429,10 @@ func (m *CapoConfigurePolicies) Unmarshal(b []byte) error {
 	m.NumTxPolicies = buf.DecodeUint32()
 	m.TotalIds = buf.DecodeUint32()
 	m.InvertRxTx = buf.DecodeUint8()
-	m.UserDefinedRx = buf.DecodeUint8()
-	m.UserDefinedTx = buf.DecodeUint8()
+	m.PolicyDefaultRx = CapoPolicyDefault(buf.DecodeUint8())
+	m.PolicyDefaultTx = CapoPolicyDefault(buf.DecodeUint8())
+	m.ProfileDefaultRx = CapoPolicyDefault(buf.DecodeUint8())
+	m.ProfileDefaultTx = CapoPolicyDefault(buf.DecodeUint8())
 	m.PolicyIds = make([]uint32, m.TotalIds)
 	for i := 0; i < len(m.PolicyIds); i++ {
 		m.PolicyIds[i] = buf.DecodeUint32()
@@ -1368,7 +1406,7 @@ func (m *CapoRuleUpdateReply) Unmarshal(b []byte) error {
 
 func init() { file_capo_binapi_init() }
 func file_capo_binapi_init() {
-	api.RegisterMessage((*CapoConfigurePolicies)(nil), "capo_configure_policies_453c1f24")
+	api.RegisterMessage((*CapoConfigurePolicies)(nil), "capo_configure_policies_c748840e")
 	api.RegisterMessage((*CapoConfigurePoliciesReply)(nil), "capo_configure_policies_reply_e8d4e804")
 	api.RegisterMessage((*CapoControlPing)(nil), "capo_control_ping_51077d14")
 	api.RegisterMessage((*CapoControlPingReply)(nil), "capo_control_ping_reply_f6b0b8ca")
