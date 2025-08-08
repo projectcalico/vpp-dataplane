@@ -161,4 +161,4 @@ git_apply_private 0004-capo-Calico-Policies-plugin.patch
 git_apply_private 0006-ip-neighbor-preserve-interface-ll-receive-dpo.patch
 
 
-git_cherry_pick refs/changes/68/43468/5 https://gerrit.fd.io/r/c/vpp/+/43468
+git_cherry_pick refs/changes/68/43468/6 # capo: make default behavior configurable for policies and profiles
