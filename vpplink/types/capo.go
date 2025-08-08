@@ -326,8 +326,10 @@ type InterfaceConfig struct {
 	IngressPolicyIDs []uint32
 	EgressPolicyIDs  []uint32
 	ProfileIDs       []uint32
-	UserDefinedRx    uint8
-	UserDefinedTx    uint8
+	PolicyDefaultRx  capo.CapoPolicyDefault
+	PolicyDefaultTx  capo.CapoPolicyDefault
+	ProfileDefaultRx capo.CapoPolicyDefault
+	ProfileDefaultTx capo.CapoPolicyDefault
 }
 
 func NewInterfaceConfig() *InterfaceConfig {
@@ -335,8 +337,10 @@ func NewInterfaceConfig() *InterfaceConfig {
 		IngressPolicyIDs: make([]uint32, 0),
 		EgressPolicyIDs:  make([]uint32, 0),
 		ProfileIDs:       make([]uint32, 0),
-		UserDefinedRx:    0,
-		UserDefinedTx:    0,
+		PolicyDefaultRx:  capo.CAPO_DEFAULT_ALLOW,
+		PolicyDefaultTx:  capo.CAPO_DEFAULT_ALLOW,
+		ProfileDefaultRx: capo.CAPO_DEFAULT_DENY,
+		ProfileDefaultTx: capo.CAPO_DEFAULT_DENY,
 	}
 }
 
