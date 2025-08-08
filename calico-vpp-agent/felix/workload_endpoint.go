@@ -22,6 +22,7 @@ import (
 	"github.com/projectcalico/calico/felix/proto"
 
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/capo"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
@@ -124,6 +125,13 @@ func (w *WorkloadEndpoint) getUserDefinedPolicies(state *PolicyState, network st
 	return conf, nil
 }
 
+/*
+	 This function creates the interface configuration for a workload (pod) interface
+		We have an implicit ingress policy that allows traffic coming from the host
+		see createAllowFromHostPolicy()
+		If there are no policies the default should be pass to profiles
+		If there are policies the default should be deny (profiles are ignored)
+*/
 func (w *WorkloadEndpoint) getWorkloadPolicies(state *PolicyState, network string) (conf *types.InterfaceConfig, err error) {
 	conf, err = w.getUserDefinedPolicies(state, network)
 	if err != nil {
@@ -131,10 +139,14 @@ func (w *WorkloadEndpoint) getWorkloadPolicies(state *PolicyState, network strin
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append([]uint32{w.server.AllowFromHostPolicy.VppID}, conf.IngressPolicyIDs...)
-		conf.UserDefinedTx = 1
+		conf.PolicyDefaultTx = capo.CAPO_DEFAULT_DENY
+	} else if len(conf.ProfileIDs) > 0 {
+		conf.PolicyDefaultTx = capo.CAPO_DEFAULT_PASS
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
-		conf.UserDefinedRx = 1
+		conf.PolicyDefaultRx = capo.CAPO_DEFAULT_DENY
+	} else if len(conf.ProfileIDs) > 0 {
+		conf.PolicyDefaultRx = capo.CAPO_DEFAULT_PASS
 	}
 	return conf, nil
 }
