@@ -212,7 +212,6 @@ func (p *PrometheusServer) exportInterfaceCombinedCounterStat(name string, ifNam
 	}
 	for worker, perWorkerValues := range values {
 		for swIfIndex, counter := range perWorkerValues {
-			p.log.Warnf("Export for IF=%d", swIfIndex)
 			pod := p.podInterfacesDetailsBySwifIndex[uint32(swIfIndex)]
 			vppIfName := ""
 			if swIfIndex < len(ifNames) {
