@@ -323,7 +323,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 			Context("With MultiNet configuration (and multinet VRF and loopback already configured)", func() {
 				var (
-					networkDefinition *watchers.NetworkDefinition
+					networkDefinition *common.NetworkDefinition
 					pubSubHandlerMock *mocks.PubSubHandlerMock
 				)
 
@@ -355,7 +355,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					}
 					// NetworkDefinition CRD information caught by NetWatcher and send with additional information
 					// (VRF and loopback created by watcher) to the cni server as common.NetAdded CalicoVPPEvent
-					networkDefinition = &watchers.NetworkDefinition{
+					networkDefinition = &common.NetworkDefinition{
 						VRF:    watchers.VRF{Tables: tables},
 						PodVRF: watchers.VRF{Tables: podTables},
 						Vni:    uint32(0), // important only for VXLAN tunnel going out of node
