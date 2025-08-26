@@ -26,7 +26,6 @@ import (
 	bgpserver "github.com/osrg/gobgp/v3/pkg/server"
 	"github.com/pkg/errors"
 	felixconfig "github.com/projectcalico/calico/felix/config"
-	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -101,10 +100,6 @@ func main() {
 	/**
 	 * Create the API clients we need
 	 */
-	client, err := calicocli.NewFromEnv()
-	if err != nil {
-		log.Fatalf("cannot create calico v1 api client %s", err)
-	}
 	clientv3, err := calicov3cli.NewFromEnv()
 	if err != nil {
 		log.Fatalf("cannot create calico v3 api client %s", err)
@@ -138,7 +133,7 @@ func main() {
 	routeWatcher := watchers.NewRouteWatcher(log.WithFields(logrus.Fields{"subcomponent": "host-route-watcher"}))
 	linkWatcher := watchers.NewLinkWatcher(common.VppManagerInfo.UplinkStatuses, log.WithFields(logrus.Fields{"subcomponent": "host-link-watcher"}))
 	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
-	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
+	prefixWatcher := watchers.NewPrefixWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	peerWatcher := watchers.NewPeerWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
 	bgpFilterWatcher := watchers.NewBGPFilterWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "BGPFilter-watcher"}))
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
