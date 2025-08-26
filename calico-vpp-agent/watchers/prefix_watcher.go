@@ -23,20 +23,20 @@ import (
 
 	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
-	"github.com/projectcalico/calico/libcalico-go/lib/backend/model"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 
+	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/calico/libcalico-go/lib/options"
+	"gopkg.in/tomb.v2"
+
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
-
-	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
-	"gopkg.in/tomb.v2"
 )
 
 type PrefixWatcher struct {
 	log         *logrus.Entry
-	client      *calicocli.Client
+	clientv3    calicov3cli.Interface
 	nodeBGPSpec *common.LocalNodeSpec
 }
 
@@ -108,36 +108,34 @@ func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 	return nil
 }
 
-// getAssignedPrefixes retrives prefixes assigned to the node and returns them as a
-// list of BGP path.
-// using backend directly since libcalico-go doesn't seem to have a method to return
-// assigned prefixes yet.
+// getAssignedPrefixes retrieves prefixes assigned to the node and returns them as a
+// list of strings.
+// using v3 client BlockAffinities interface to fetch block affinities for this host.
 func (w *PrefixWatcher) getAssignedPrefixes() ([]string, error) {
 	var ps []string
 
 	f := func(ipVersion int) error {
-		blockList, err := w.client.Backend.List(
+		// List block affinities for this host
+		blockAffinities, err := w.clientv3.BlockAffinities().List(
 			context.Background(),
-			model.BlockAffinityListOptions{Host: *config.NodeName, IPVersion: ipVersion},
-			"",
+			options.ListOptions{},
 		)
 		if err != nil {
 			return err
 		}
-		for _, block := range blockList.KVPairs {
-			w.log.Debugf("Found assigned prefix: %+v", block)
-			key, ok := block.Key.(model.BlockAffinityKey)
-			if !ok {
-				w.log.Errorf("block.Key is not a model.BlockAffinity %v", block.Key)
-				continue
-			}
-			value, ok := block.Value.(*model.BlockAffinity)
-			if !ok {
-				w.log.Errorf("block.Value is not a model.BlockAffinity %v", block.Value)
-				continue
-			}
-			if value.State == model.StateConfirmed && !value.Deleted {
-				ps = append(ps, key.CIDR.String())
+
+		for _, blockAffinity := range blockAffinities.Items {
+			w.log.Debugf("Found assigned prefix: %+v", blockAffinity)
+			// Check if this block affinity is for our node and the correct IP version
+			if blockAffinity.Spec.Node == *config.NodeName &&
+				blockAffinity.Spec.State == "confirmed" &&
+				blockAffinity.Spec.Deleted != "true" {
+				// Check IP version of the CIDR
+				cidr := blockAffinity.Spec.CIDR
+				if (ipVersion == 4 && !strings.Contains(cidr, ":")) ||
+					(ipVersion == 6 && strings.Contains(cidr, ":")) {
+					ps = append(ps, cidr)
+				}
 			}
 		}
 		return nil
@@ -260,10 +258,10 @@ func (w *PrefixWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	w.nodeBGPSpec = nodeBGPSpec
 }
 
-func NewPrefixWatcher(client *calicocli.Client, log *logrus.Entry) *PrefixWatcher {
+func NewPrefixWatcher(clientv3 calicov3cli.Interface, log *logrus.Entry) *PrefixWatcher {
 	w := PrefixWatcher{
-		client: client,
-		log:    log,
+		clientv3: clientv3,
+		log:      log,
 	}
 	return &w
 }
