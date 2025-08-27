@@ -42,7 +42,6 @@ const (
 	FelixDataplaneSocket = "/var/run/calico/felix-dataplane.sock"
 	VppAPISocket         = "/var/run/vpp/vpp-api.sock"
 	VppManagerInfoFile   = "/var/run/vpp/vppmanagerinfofile"
-	CniServerStateFile   = "/var/run/vpp/calico_vpp_pod_state"
 	CalicoVppPidFile     = "/var/run/vpp/calico_vpp.pid"
 	CalicoVppVersionFile = "/etc/calicovppversion"
 
@@ -62,9 +61,31 @@ const (
 	// BaseVppSideHardwareAddress is the base hardware address of VPP side of the HostPunt
 	// tap interface. It is used to generate hardware addresses for each uplink interface.
 	BaseVppSideHardwareAddress = "02:ca:11:c0:fd:00"
+	// CniServerStateFileVersion is the version of the CNI server state file
+	// it is used to ensure compatibility when reloading data
+	CniServerStateFileVersion = 9
+	// MaxAPITagLen is the limit number of character allowed in VPP API tags
+	MaxAPITagLen = 63
+	// VrfTagHashLen is the number of hash charatecters (b64) of the name
+	// to use in the tag prefix of VRFs
+	VrfTagHashLen = 8
+
+	MemifPortAnnotation string = "cni.projectcalico.org/vppExtraMemifPorts"
+	VclAnnotation       string = "cni.projectcalico.org/vppVcl"
+	IfSpecAnnotation    string = "cni.projectcalico.org/vppInterfacesSpec"
+	IfSpecPBLAnnotation string = "cni.projectcalico.org/vppExtraMemifSpec"
+	SpoofAnnotation     string = "cni.projectcalico.org/AllowedSourcePrefixes"
+
+	KeepOriginalPacketAnnotation string = "cni.projectcalico.org/vppKeepOriginalPacket"
+	HashConfigAnnotation         string = "cni.projectcalico.org/vppHashConfig"
+	LBTypeAnnotation             string = "cni.projectcalico.org/vppLBType"
 )
 
 var (
+	CniServerStateFilename = fmt.Sprintf(
+		"/var/run/vpp/calicovpp_state.v%d.json",
+		CniServerStateFileVersion,
+	)
 	// fake constants for place where we need a pointer to true or false
 	True  = true
 	False = false

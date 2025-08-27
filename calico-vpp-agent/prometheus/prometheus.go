@@ -31,7 +31,7 @@ import (
 	"go.fd.io/govpp/adapter/statsclient"
 	"gopkg.in/tomb.v2"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -47,7 +47,7 @@ type PrometheusServer struct {
 	log                             *logrus.Entry
 	vpp                             *vpplink.VppLink
 	podInterfacesDetailsBySwifIndex map[uint32]podInterfaceDetails
-	podInterfacesByKey              map[string]storage.LocalPodSpec
+	podInterfacesByKey              map[string]model.LocalPodSpec
 	statsclient                     *statsclient.StatsClient
 	channel                         chan common.CalicoVppEvent
 	lock                            sync.Mutex
@@ -66,7 +66,7 @@ func NewPrometheusServer(vpp *vpplink.VppLink, log *logrus.Entry) *PrometheusSer
 		log:                             log,
 		vpp:                             vpp,
 		channel:                         make(chan common.CalicoVppEvent, 10),
-		podInterfacesByKey:              make(map[string]storage.LocalPodSpec),
+		podInterfacesByKey:              make(map[string]model.LocalPodSpec),
 		podInterfacesDetailsBySwifIndex: make(map[uint32]podInterfaceDetails),
 		statsclient:                     statsclient.NewStatsClient("" /* default socket name */),
 		httpServer: &http.Server{
@@ -418,9 +418,9 @@ func (p *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 			evt := <-p.channel
 			switch evt.Type {
 			case common.PodAdded:
-				podSpec, ok := evt.New.(*storage.LocalPodSpec)
+				podSpec, ok := evt.New.(*model.LocalPodSpec)
 				if !ok {
-					p.log.Errorf("evt.New is not a *storage.LocalPodSpec %v", evt.New)
+					p.log.Errorf("evt.New is not a *model.LocalPodSpec %v", evt.New)
 					continue
 				}
 				splittedWorkloadID := strings.SplitN(podSpec.WorkloadID, "/", 2)
@@ -449,9 +449,9 @@ func (p *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 				p.podInterfacesByKey[podSpec.Key()] = *podSpec
 				p.lock.Unlock()
 			case common.PodDeleted:
-				podSpec, ok := evt.Old.(*storage.LocalPodSpec)
+				podSpec, ok := evt.Old.(*model.LocalPodSpec)
 				if !ok {
-					p.log.Errorf("evt.Old is not a *storage.LocalPodSpec %v", evt.Old)
+					p.log.Errorf("evt.Old is not a *model.LocalPodSpec %v", evt.Old)
 					continue
 				}
 				p.lock.Lock()
