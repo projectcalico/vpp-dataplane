@@ -36,28 +36,12 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
-type VRF struct {
-	Tables [2]uint32 // one for ipv4, one for ipv6
-}
-
-type NetworkDefinition struct {
-	// VRF is the main table used for the corresponding physical network
-	VRF VRF
-	// PodVRF is the table used for the pods in the corresponding physical network
-	PodVRF              VRF
-	Vni                 uint32
-	PhysicalNetworkName string
-	Name                string
-	Range               string
-	NetAttachDefs       string
-}
-
 type NetWatcher struct {
 	log                *logrus.Entry
 	vpp                *vpplink.VppLink
 	client             client.WithWatch
 	stop               chan struct{}
-	networkDefinitions map[string]*NetworkDefinition
+	networkDefinitions map[string]*common.NetworkDefinition
 	nads               map[string]string
 	InSync             chan interface{}
 	nodeBGPSpec        *common.LocalNodeSpec
@@ -78,7 +62,7 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 		vpp:                vpp,
 		client:             *kubernetesClient,
 		stop:               make(chan struct{}),
-		networkDefinitions: make(map[string]*NetworkDefinition),
+		networkDefinitions: make(map[string]*common.NetworkDefinition),
 		nads:               make(map[string]string),
 		InSync:             make(chan interface{}),
 	}
@@ -319,7 +303,7 @@ func (w *NetWatcher) OnNetDeleted(netName string) error {
 	return nil
 }
 
-func (w *NetWatcher) CreateNetwork(networkName string, networkVni uint32, netRange string, phyNet string) (netDef *NetworkDefinition, err error) {
+func (w *NetWatcher) CreateNetwork(networkName string, networkVni uint32, netRange string, phyNet string) (netDef *common.NetworkDefinition, err error) {
 	/* Create and Setup the per-network VRF */
 	if _, ok := w.networkDefinitions[networkName]; ok {
 		return w.networkDefinitions[networkName], nil
@@ -327,9 +311,9 @@ func (w *NetWatcher) CreateNetwork(networkName string, networkVni uint32, netRan
 	w.log.Infof("adding network %s", networkName)
 	vrfID := common.VppManagerInfo.PhysicalNets[phyNet].VrfID
 	podVrfID := common.VppManagerInfo.PhysicalNets[phyNet].PodVrfID
-	netDef = &NetworkDefinition{
-		VRF:                 VRF{Tables: [2]uint32{vrfID, vrfID}},
-		PodVRF:              VRF{Tables: [2]uint32{podVrfID, podVrfID}},
+	netDef = &common.NetworkDefinition{
+		VRF:                 common.VRF{Tables: [2]uint32{vrfID, vrfID}},
+		PodVRF:              common.VRF{Tables: [2]uint32{podVrfID, podVrfID}},
 		Vni:                 uint32(networkVni),
 		PhysicalNetworkName: phyNet,
 		Name:                networkName,
@@ -338,7 +322,7 @@ func (w *NetWatcher) CreateNetwork(networkName string, networkVni uint32, netRan
 	return netDef, nil
 }
 
-func (w *NetWatcher) DeleteNetwork(networkName string) (*NetworkDefinition, error) {
+func (w *NetWatcher) DeleteNetwork(networkName string) (*common.NetworkDefinition, error) {
 	if _, ok := w.networkDefinitions[networkName]; !ok {
 		return nil, errors.Errorf("non-existent network deleted: %s", networkName)
 	}

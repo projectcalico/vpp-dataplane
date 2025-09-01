@@ -27,7 +27,6 @@ import (
 	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
@@ -45,9 +44,9 @@ type ConnectivityServer struct {
 	felixConfig *felixConfig.Config
 	nodeByAddr  map[string]common.LocalNodeSpec
 
-	connectivityEventChan chan common.CalicoVppEvent
+	connectivityEventChan chan any
 
-	networks map[uint32]watchers.NetworkDefinition
+	networks map[uint32]common.NetworkDefinition
 }
 
 type change uint8
@@ -73,9 +72,9 @@ func NewConnectivityServer(vpp *vpplink.VppLink, felixServerIpam common.FelixSer
 		felixServerIpam:       felixServerIpam,
 		Clientv3:              clientv3,
 		connectivityMap:       make(map[string]common.NodeConnectivity),
-		connectivityEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		connectivityEventChan: make(chan any, common.ChanSize),
 		nodeByAddr:            make(map[string]common.LocalNodeSpec),
-		networks:              make(map[uint32]watchers.NetworkDefinition),
+		networks:              make(map[uint32]common.NetworkDefinition),
 	}
 
 	reg := common.RegisterHandler(server.connectivityEventChan, "connectivity server events")
@@ -149,19 +148,23 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 		case <-t.Dying():
 			s.log.Warn("Connectivity Server asked to stop")
 			return nil
-		case evt := <-s.connectivityEventChan:
+		case msg := <-s.connectivityEventChan:
 			/* Note: we will only receive events we ask for when registering the chan */
+			evt, ok := msg.(common.CalicoVppEvent)
+			if !ok {
+				continue
+			}
 			switch evt.Type {
 			case common.NetAddedOrUpdated:
-				new, ok := evt.New.(*watchers.NetworkDefinition)
+				new, ok := evt.New.(*common.NetworkDefinition)
 				if !ok {
-					s.log.Errorf("evt.New is not a *watchers.NetworkDefinition %v", evt.New)
+					s.log.Errorf("evt.New is not a *common.NetworkDefinition %v", evt.New)
 				}
 				s.networks[new.Vni] = *new
 			case common.NetDeleted:
-				old, ok := evt.Old.(*watchers.NetworkDefinition)
+				old, ok := evt.Old.(*common.NetworkDefinition)
 				if !ok {
-					s.log.Errorf("evt.Old is not a *watchers.NetworkDefinition %v", evt.Old)
+					s.log.Errorf("evt.Old is not a *common.NetworkDefinition %v", evt.Old)
 				}
 				delete(s.networks, old.Vni)
 			case common.ConnectivityAdded:

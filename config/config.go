@@ -45,6 +45,9 @@ const (
 	CalicoVppPidFile     = "/var/run/vpp/calico_vpp.pid"
 	CalicoVppVersionFile = "/etc/calicovppversion"
 
+	FelixPluginSrcPath = "/bin/felix-api-proxy"
+	FelixPluginDstPath = "/var/lib/calico/felix-plugins/felix-api-proxy"
+
 	DefaultVXLANVni      = 4096
 	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820

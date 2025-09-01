@@ -466,7 +466,11 @@ func (s *Server) WatchBGPPath(t *tomb.Tomb) error {
 			stopBGPMonitoring()
 			s.log.Infof("Routing Server asked to stop")
 			return nil
-		case evt := <-s.routingServerEventChan:
+		case msg := <-s.routingServerEventChan:
+			evt, ok := msg.(common.CalicoVppEvent)
+			if !ok {
+				continue
+			}
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
 			case common.LocalPodAddressAdded:

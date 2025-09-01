@@ -35,7 +35,7 @@ import (
 type BGPConfigurationWatcher struct {
 	log                              *logrus.Entry
 	clientv3                         calicov3cli.Interface
-	BGPConfigurationWatcherEventChan chan common.CalicoVppEvent
+	BGPConfigurationWatcherEventChan chan any
 	BGPConf                          *calicov3.BGPConfigurationSpec
 }
 
@@ -43,7 +43,7 @@ func NewBGPConfigurationWatcher(clientv3 calicov3cli.Interface, log *logrus.Entr
 	w := BGPConfigurationWatcher{
 		log:                              log,
 		clientv3:                         clientv3,
-		BGPConfigurationWatcherEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		BGPConfigurationWatcherEventChan: make(chan any, common.ChanSize),
 	}
 	reg := common.RegisterHandler(w.BGPConfigurationWatcherEventChan, "BGP Config watcher events")
 	reg.ExpectEvents(common.BGPConfChanged)
@@ -132,7 +132,11 @@ func (w *BGPConfigurationWatcher) WatchBGPConfiguration(t *tomb.Tomb) error {
 		case <-t.Dying():
 			w.log.Warn("BGPConf watcher stopped")
 			return nil
-		case evt := <-w.BGPConfigurationWatcherEventChan:
+		case msg := <-w.BGPConfigurationWatcherEventChan:
+			evt, ok := msg.(common.CalicoVppEvent)
+			if !ok {
+				continue
+			}
 			switch evt.Type {
 			case common.BGPConfChanged:
 				oldBGPConf := w.BGPConf

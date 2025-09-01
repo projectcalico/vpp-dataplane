@@ -68,7 +68,7 @@ type PeerWatcher struct {
 	secretWatcher *secretWatcher
 
 	nodeStatesByName     map[string]common.LocalNodeSpec
-	peerWatcherEventChan chan common.CalicoVppEvent
+	peerWatcherEventChan chan any
 	BGPConf              *calicov3.BGPConfigurationSpec
 	watcher              watch.Interface
 	currentWatchRevision string
@@ -180,7 +180,11 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 			default:
 				w.log.Info("Peers updated, reevaluating peerings")
 			}
-		case evt := <-w.peerWatcherEventChan:
+		case msg := <-w.peerWatcherEventChan:
+			evt, ok := msg.(common.CalicoVppEvent)
+			if !ok {
+				continue
+			}
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
 			case common.PeerNodeStateChanged:
@@ -541,7 +545,7 @@ func NewPeerWatcher(clientv3 calicov3cli.Interface, k8sclient *kubernetes.Client
 		clientv3:             clientv3,
 		nodeStatesByName:     make(map[string]common.LocalNodeSpec),
 		log:                  log,
-		peerWatcherEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		peerWatcherEventChan: make(chan any, common.ChanSize),
 	}
 	w.secretWatcher, err = NewSecretWatcher(&w, k8sclient)
 	if err != nil {
