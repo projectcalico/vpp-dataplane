@@ -24,7 +24,6 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -252,9 +251,9 @@ func (s *Server) AddVppInterface(podSpec *model.LocalPodSpec, doHostSideConf boo
 		if !ok {
 			s.log.Errorf("network not found %s", podSpec.NetworkName)
 		} else {
-			networkDefinition, ok := value.(*watchers.NetworkDefinition)
+			networkDefinition, ok := value.(*common.NetworkDefinition)
 			if !ok || networkDefinition == nil {
-				panic("networkDefinition not of type *watchers.NetworkDefinition")
+				panic("networkDefinition not of type *common.NetworkDefinition")
 			}
 			vni = networkDefinition.Vni
 		}
@@ -324,9 +323,9 @@ func (s *Server) DelVppInterface(podSpec *model.LocalPodSpec) {
 		if !ok {
 			deleteLocalPodAddress = false
 		} else {
-			networkDefinition, ok := value.(*watchers.NetworkDefinition)
+			networkDefinition, ok := value.(*common.NetworkDefinition)
 			if !ok || networkDefinition == nil {
-				panic("networkDefinition not of type *watchers.NetworkDefinition")
+				panic("networkDefinition not of type *common.NetworkDefinition")
 			}
 			vni = networkDefinition.Vni
 		}
