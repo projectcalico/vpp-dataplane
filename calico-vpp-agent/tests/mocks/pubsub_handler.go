@@ -21,7 +21,7 @@ import (
 
 // PubSubHandlerMock is mocking the handlers registering to common.ThePubSub
 type PubSubHandlerMock struct {
-	eventChan          chan common.CalicoVppEvent
+	eventChan          chan any
 	ReceivedEvents     []common.CalicoVppEvent
 	expectedEventTypes []common.CalicoVppEventType
 	t                  tomb.Tomb
@@ -30,7 +30,7 @@ type PubSubHandlerMock struct {
 // NewPubSubHandlerMock creates new instance of PubSubHandlerMock
 func NewPubSubHandlerMock(expectedEventTypes ...common.CalicoVppEventType) *PubSubHandlerMock {
 	handler := &PubSubHandlerMock{
-		eventChan:          make(chan common.CalicoVppEvent, common.ChanSize),
+		eventChan:          make(chan any, common.ChanSize),
 		ReceivedEvents:     make([]common.CalicoVppEvent, 0, 10),
 		expectedEventTypes: expectedEventTypes,
 	}
@@ -56,7 +56,11 @@ func (m *PubSubHandlerMock) receiveLoop() error {
 		case <-m.t.Dying():
 			close(m.eventChan)
 			return nil
-		case event := <-m.eventChan:
+		case msg := <-m.eventChan:
+			event, ok := msg.(common.CalicoVppEvent)
+			if !ok {
+				panic("expected CalicoVppEventType")
+			}
 			m.ReceivedEvents = append(m.ReceivedEvents, event)
 		}
 	}

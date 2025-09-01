@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package felix
+package policies
 
 import (
 	"fmt"
@@ -80,7 +80,7 @@ func ruleInNetwork(r *proto.Rule, network string) bool {
 	return network == ""
 }
 
-func fromProtoPolicy(p *proto.Policy, network string) (policy *Policy, err error) {
+func FromProtoPolicy(p *proto.Policy, network string) (policy *Policy, err error) {
 	policy = &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
@@ -118,7 +118,7 @@ func fromProtoPolicy(p *proto.Policy, network string) (policy *Policy, err error
 	return policy, nil
 }
 
-func fromProtoProfile(p *proto.Profile) (profile *Policy, err error) {
+func FromProtoProfile(p *proto.Profile) (profile *Policy, err error) {
 	profile = &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
