@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package felix
+package policies
 
 import (
 	"fmt"
@@ -153,7 +153,7 @@ func toNetArray(addrs map[string]*net.IPNet) []*net.IPNet {
 	return array
 }
 
-func fromIPSetUpdate(ips *proto.IPSetUpdate) (i *IPSet, err error) {
+func FromIPSetUpdate(ips *proto.IPSetUpdate) (i *IPSet, err error) {
 	i = NewIPSet()
 	switch ips.GetType() {
 	case proto.IPSetUpdate_IP:
