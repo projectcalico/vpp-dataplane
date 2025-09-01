@@ -19,7 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -85,7 +85,7 @@ func (i *PodInterfaceDriverData) UndoPodIfNatConfiguration(swIfIndex uint32) {
 	}
 }
 
-func (i *PodInterfaceDriverData) DoPodIfNatConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32) (err error) {
+func (i *PodInterfaceDriverData) DoPodIfNatConfiguration(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32) (err error) {
 	if podSpec.NeedsSnat {
 		i.log.Infof("pod(add) Enable interface[%d] SNAT", swIfIndex)
 		for _, ipFamily := range vpplink.IPFamilies {
@@ -120,7 +120,7 @@ func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32)
 	}
 }
 
-func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, ifSpec config.InterfaceSpec, swIfIndex uint32) (err error) {
+func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, ifSpec config.InterfaceSpec, swIfIndex uint32) (err error) {
 	for _, ipFamily := range vpplink.IPFamilies {
 		vrfID := podSpec.GetVrfID(ipFamily)
 		err = i.vpp.SetInterfaceVRF(swIfIndex, vrfID, ipFamily.IsIP6)
