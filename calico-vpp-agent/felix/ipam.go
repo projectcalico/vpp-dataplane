@@ -49,6 +49,7 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate) (err error) {
 			if err != nil || err2 != nil {
 				return errors.Errorf("error updating snat prefix del:%s, add:%s", err, err2)
 			}
+			s.cniHandler.OnIpamConfChanged(oldIpamPool, newIpamPool)
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.IpamConfChanged,
 				Old:  ipamPoolCopy(oldIpamPool),
@@ -63,6 +64,7 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate) (err error) {
 		if err != nil {
 			return errors.Wrap(err, "error handling ipam add")
 		}
+		s.cniHandler.OnIpamConfChanged(nil /*old*/, newIpamPool)
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.IpamConfChanged,
 			New:  ipamPoolCopy(newIpamPool),
@@ -92,6 +94,7 @@ func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove) (err error) {
 			Old:  ipamPoolCopy(oldIpamPool),
 			New:  nil,
 		})
+		s.cniHandler.OnIpamConfChanged(oldIpamPool, nil /* new */)
 	} else {
 		s.log.Warnf("Deleting unknown ippool")
 		return nil
