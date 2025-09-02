@@ -28,8 +28,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -37,17 +38,19 @@ import (
 
 type TunTapPodInterfaceDriver struct {
 	PodInterfaceDriverData
-	felixConfig         *felixConfig.Config
 	ipipEncapRefCounts  int /* how many ippools with IPIP */
 	vxlanEncapRefCounts int /* how many ippools with VXLAN */
 }
 
-func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *TunTapPodInterfaceDriver {
-	i := &TunTapPodInterfaceDriver{}
-	i.vpp = vpp
-	i.log = log
-	i.Name = "tun"
-	return i
+func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, cache *cache.Cache, log *logrus.Entry) *TunTapPodInterfaceDriver {
+	return &TunTapPodInterfaceDriver{
+		PodInterfaceDriverData: PodInterfaceDriverData{
+			vpp:   vpp,
+			log:   log,
+			cache: cache,
+			Name:  "tun",
+		},
+	}
 }
 
 func reduceMtuIf(podMtu *int, tunnelMtu int, tunnelEnabled bool) {
@@ -93,23 +96,19 @@ func (i *TunTapPodInterfaceDriver) computePodMtu(podSpecMtu int, fc *felixConfig
 	return podMtu
 }
 
-func (i *TunTapPodInterfaceDriver) SetFelixConfig(felixConfig *felixConfig.Config) {
-	i.felixConfig = felixConfig
-}
-
 /**
  * This is called when the felix config or ippool encap refcount change,
  * and update the linux mtu accordingly.
  *
  */
-func (i *TunTapPodInterfaceDriver) FelixConfigChanged(newFelixConfig *felixConfig.Config, ipipEncapRefCountDelta int, vxlanEncapRefCountDelta int, podSpecs map[string]storage.LocalPodSpec) {
+func (i *TunTapPodInterfaceDriver) FelixConfigChanged(newFelixConfig *felixConfig.Config, ipipEncapRefCountDelta int, vxlanEncapRefCountDelta int, podSpecs map[string]model.LocalPodSpec) {
 	if newFelixConfig == nil {
-		newFelixConfig = i.felixConfig
+		newFelixConfig = i.cache.FelixConfig
 	}
-	if i.felixConfig != nil {
+	if i.cache.FelixConfig != nil {
 		for name, podSpec := range podSpecs {
-			oldMtu := i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0)
-			newMtu := i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts+ipipEncapRefCountDelta > 0, i.vxlanEncapRefCounts+vxlanEncapRefCountDelta > 0)
+			oldMtu := i.computePodMtu(podSpec.Mtu, i.cache.FelixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0)
+			newMtu := i.computePodMtu(podSpec.Mtu, i.cache.FelixConfig, i.ipipEncapRefCounts+ipipEncapRefCountDelta > 0, i.vxlanEncapRefCounts+vxlanEncapRefCountDelta > 0)
 			if oldMtu != newMtu {
 				i.log.Infof("pod(upd) reconfiguring mtu=%d pod=%s", newMtu, name)
 				err := ns.WithNetNSPath(podSpec.NetnsName, func(ns.NetNS) error {
@@ -130,12 +129,12 @@ func (i *TunTapPodInterfaceDriver) FelixConfigChanged(newFelixConfig *felixConfi
 		}
 	}
 
-	i.felixConfig = newFelixConfig
+	i.cache.FelixConfig = newFelixConfig
 	i.ipipEncapRefCounts = i.ipipEncapRefCounts + ipipEncapRefCountDelta
 	i.vxlanEncapRefCounts = i.vxlanEncapRefCounts + vxlanEncapRefCountDelta
 }
 
-func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) error {
+func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, doHostSideConf bool) error {
 	tun := &types.TapV2{
 		GenericVppInterface: types.GenericVppInterface{
 			NumRxQueues:       podSpec.IfSpec.NumRxQueues,
@@ -146,7 +145,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 		},
 		HostNamespace: podSpec.NetnsName,
 		Tag:           podSpec.GetInterfaceTag(i.Name),
-		HostMtu:       i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0),
+		HostMtu:       i.computePodMtu(podSpec.Mtu, i.cache.FelixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0),
 	}
 
 	if *podSpec.IfSpec.IsL3 {
@@ -196,7 +195,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *storage.LocalPodSpec
 	return nil
 }
 
-func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec) {
+func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *model.LocalPodSpec) {
 	if podSpec.TunTapSwIfIndex == vpplink.InvalidID {
 		return
 	}
@@ -212,7 +211,7 @@ func (i *TunTapPodInterfaceDriver) DeleteInterface(podSpec *storage.LocalPodSpec
 	i.log.Infof("pod(del) tun swIfIndex=%d", podSpec.TunTapSwIfIndex)
 }
 
-func (i *TunTapPodInterfaceDriver) configureLinux(podSpec *storage.LocalPodSpec, swIfIndex uint32) error {
+func (i *TunTapPodInterfaceDriver) configureLinux(podSpec *model.LocalPodSpec, swIfIndex uint32) error {
 	/* linux side configuration */
 	err := ns.WithNetNSPath(podSpec.NetnsName, i.configureNamespaceSideTun(swIfIndex, podSpec))
 	if err != nil {
@@ -221,7 +220,7 @@ func (i *TunTapPodInterfaceDriver) configureLinux(podSpec *storage.LocalPodSpec,
 	return nil
 }
 
-func (i *TunTapPodInterfaceDriver) unconfigureLinux(podSpec *storage.LocalPodSpec) []net.IPNet {
+func (i *TunTapPodInterfaceDriver) unconfigureLinux(podSpec *model.LocalPodSpec) []net.IPNet {
 	containerIPs := make([]net.IPNet, 0)
 	devErr := ns.WithNetNSPath(podSpec.NetnsName, func(_ ns.NetNS) error {
 		dev, err := netlink.LinkByName(podSpec.InterfaceName)
@@ -271,7 +270,7 @@ func WriteProcSys(path, value string) error {
 
 // configureContainerSysctls configures necessary sysctls required inside the container netns.
 // This method was adapted from cni-plugin/internal/pkg/utils/network_linux.go
-func (i *TunTapPodInterfaceDriver) configureContainerSysctls(podSpec *storage.LocalPodSpec) error {
+func (i *TunTapPodInterfaceDriver) configureContainerSysctls(podSpec *model.LocalPodSpec) error {
 	hasv4, hasv6 := podSpec.Hasv46()
 	ipFwd := "0"
 	if podSpec.AllowIPForwarding {
@@ -294,7 +293,7 @@ func (i *TunTapPodInterfaceDriver) configureContainerSysctls(podSpec *storage.Lo
 	return nil
 }
 
-func (i *TunTapPodInterfaceDriver) configureNamespaceSideTun(swIfIndex uint32, podSpec *storage.LocalPodSpec) func(hostNS ns.NetNS) error {
+func (i *TunTapPodInterfaceDriver) configureNamespaceSideTun(swIfIndex uint32, podSpec *model.LocalPodSpec) func(hostNS ns.NetNS) error {
 	return func(hostNS ns.NetNS) error {
 		contTun, err := netlink.LinkByName(podSpec.InterfaceName)
 		if err != nil {
@@ -317,7 +316,7 @@ func (i *TunTapPodInterfaceDriver) configureNamespaceSideTun(swIfIndex uint32, p
 			}
 		}
 
-		for _, route := range podSpec.GetRoutes() {
+		for _, route := range podSpec.Routes {
 			isV6 := route.IP.To4() == nil
 			if (isV6 && !hasv6) || (!isV6 && !hasv4) {
 				i.log.Infof("pod(add) Skipping tun swIfIndex=%d route=%s", swIfIndex, route.String())
@@ -327,7 +326,7 @@ func (i *TunTapPodInterfaceDriver) configureNamespaceSideTun(swIfIndex uint32, p
 			err = netlink.RouteAdd(&netlink.Route{
 				LinkIndex: contTun.Attrs().Index,
 				Scope:     netlink.SCOPE_UNIVERSE,
-				Dst:       route,
+				Dst:       &route,
 			})
 			if err != nil {
 				// TODO : in ipv6 '::' already exists
@@ -336,7 +335,7 @@ func (i *TunTapPodInterfaceDriver) configureNamespaceSideTun(swIfIndex uint32, p
 		}
 
 		// Now add the IPs to the container side of the tun.
-		for _, containerIP := range podSpec.GetContainerIps() {
+		for _, containerIP := range podSpec.GetContainerIPs() {
 			i.log.Infof("pod(add) tun address swIfIndex=%d linux-ifIndex=%d address=%s", swIfIndex, contTun.Attrs().Index, containerIP.String())
 			err = netlink.AddrAdd(contTun, &netlink.Addr{IPNet: containerIP})
 			if err != nil {

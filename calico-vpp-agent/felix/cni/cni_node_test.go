@@ -37,6 +37,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks/calico"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/testutils"
@@ -110,6 +111,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 	var (
 		log                *logrus.Logger
 		vpp                *vpplink.VppLink
+		felixServer        *felix.Server
 		connectivityServer *connectivity.ConnectivityServer
 		client             *calico.CalicoClientStub
 		ipamStub           *mocks.IpamCacheStub
@@ -135,11 +137,21 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		connectivityServer = connectivity.NewConnectivityServer(vpp, ipamStub, client,
 			log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 		connectivityServer.SetOurBGPSpec(&common.LocalNodeSpec{})
+		felixServer = felix.NewFelixServer(
+			vpp,
+			client,
+			log.WithFields(logrus.Fields{"subcomponent": "connectivity"}),
+		)
 		if felixConfig == nil {
 			felixConfig = &config.Config{}
 		}
 		connectivityServer.SetFelixConfig(felixConfig)
-		common.VppManagerInfo = &agentConf.VppManagerInfo{UplinkStatuses: map[string]agentConf.UplinkStatus{"eth0": {IsMain: true, SwIfIndex: 1}}}
+		felixServer.GetCache().FelixConfig = felixConfig
+		common.VppManagerInfo = &agentConf.VppManagerInfo{
+			UplinkStatuses: map[string]agentConf.UplinkStatus{
+				"eth0": {IsMain: true, SwIfIndex: 1},
+			},
+		}
 	})
 
 	Describe("Addition of the node", func() {

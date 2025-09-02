@@ -37,13 +37,13 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	cniproto "github.com/projectcalico/calico/cni-plugin/pkg/dataplane/grpc/proto"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/storage"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks/calico"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/multinettypes"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
@@ -82,9 +82,9 @@ var (
 	VppContainerExtraArgs []string = []string{}
 )
 
-func AssertTunInterfaceExistence(vpp *vpplink.VppLink, newPod *cniproto.AddRequest) uint32 {
+func AssertTunInterfaceExistence(vpp *vpplink.VppLink, podSpec *model.LocalPodSpec) uint32 {
 	ifSwIfIndex, err := vpp.SearchInterfaceWithTag(
-		InterfaceTagForLocalTunTunnel(newPod.InterfaceName, newPod.Netns))
+		InterfaceTagForLocalTunTunnel(podSpec.InterfaceName, podSpec.NetnsName))
 	Expect(err).ShouldNot(HaveOccurred(), "Failed to get interface at VPP's end")
 	Expect(ifSwIfIndex).ToNot(Equal(vpplink.InvalidSwIfIndex),
 		"No interface at VPP's end is found")
@@ -142,9 +142,9 @@ func AssertRPFVRFExistence(vpp *vpplink.VppLink, interfaceName string, netnsName
 	Expect(err).ShouldNot(HaveOccurred(),
 		"Failed to retrieve list of VRFs in VPP")
 	hbytes := sha512.Sum512([]byte(fmt.Sprintf("%s%s%s%s", "4", netnsName, interfaceName, "RPF")))
-	h := base64.StdEncoding.EncodeToString(hbytes[:])[:storage.VrfTagHashLen]
+	h := base64.StdEncoding.EncodeToString(hbytes[:])[:config.VrfTagHashLen]
 	s := fmt.Sprintf("%s-%s-%sRPF-%s", h, "4", interfaceName, filepath.Base(netnsName))
-	vrfTag := storage.TruncateStr(s, storage.MaxAPITagLen)
+	vrfTag := config.TruncateStr(s, config.MaxAPITagLen)
 	foundRPFVRF := false
 	var vrfID uint32
 	for _, VRF := range VRFs {
@@ -235,7 +235,8 @@ func DpoNetworkNameFieldName() string {
 
 // InterfaceTagForLocalTunTunnel constructs the tag for the VPP side of the tap tunnel the same way as cni server
 func InterfaceTagForLocalTunTunnel(interfaceName, netns string) string {
-	return InterfaceTagForLocalTunnel(podinterface.NewTunTapPodInterfaceDriver(nil, nil).Name,
+	return InterfaceTagForLocalTunnel(
+		podinterface.NewTunTapPodInterfaceDriver(nil, nil, nil).Name,
 		interfaceName, netns)
 }
 
@@ -247,7 +248,7 @@ func InterfaceTagForLocalMemifTunnel(interfaceName, netns string) string {
 
 // InterfaceTagForLocalTunnel constructs the tag for the VPP side of the local tunnel the same way as cni server
 func InterfaceTagForLocalTunnel(prefix, interfaceName, netns string) string {
-	return (&storage.LocalPodSpec{
+	return (&model.LocalPodSpec{
 		NetnsName:     netns,
 		InterfaceName: interfaceName,
 	}).GetInterfaceTag(prefix)
@@ -268,11 +269,10 @@ func PodVRFs(podInterface, podNetNSName string, vpp *vpplink.VppLink) (vrf4ID, v
 	vrfs, err := vpp.ListVRFs()
 	Expect(err).ToNot(HaveOccurred(), "error listing VRFs to find all pod VRFs")
 
-	podSpec := storage.LocalPodSpec{
-		InterfaceName: podInterface,
-		NetnsName:     podNetNSName,
-		V4VrfID:       types.InvalidID,
-		V6VrfID:       types.InvalidID,
+	podSpec := model.LocalPodSpec{
+		InterfaceName:      podInterface,
+		NetnsName:          podNetNSName,
+		LocalPodSpecStatus: *model.NewLocalPodSpecStatus(),
 	}
 	for _, vrf := range vrfs {
 		for _, ipFamily := range vpplink.IPFamilies {
