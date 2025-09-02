@@ -78,7 +78,7 @@ type LocalPodSpec struct {
 	NetworkName string `json:"networkName"`
 }
 
-func NewLocalPodSpecFromAdd(request *cniproto.AddRequest, nodeBGPSpec *common.LocalNodeSpec) (*LocalPodSpec, error) {
+func NewLocalPodSpecFromAdd(request *cniproto.AddRequest) (*LocalPodSpec, error) {
 	podAnnotations, err := NewPodAnnotations(
 		request.GetInterfaceName(),
 		request.GetWorkload().GetAnnotations(),

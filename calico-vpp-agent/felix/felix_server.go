@@ -28,9 +28,10 @@ import (
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/calico/felix/proto"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/policies"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -57,6 +58,7 @@ type Server struct {
 	GotOurNodeBGPchan chan interface{}
 	ippoolLock        sync.RWMutex
 	policiesHandler   *policies.PoliciesHandler
+	cniHandler        *cni.CNIHandler
 }
 
 // NewFelixServer creates a felix server
@@ -75,6 +77,7 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 
 		cache:           cache,
 		policiesHandler: policies.NewPoliciesHandler(vpp, cache, clientv3, log),
+		cniHandler:      cni.NewCNIHandler(vpp, cache, log),
 	}
 
 	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")
@@ -216,6 +219,10 @@ func (s *Server) ServeFelix(t *tomb.Tomb) error {
 	if err != nil {
 		return errors.Wrap(err, "Error in PoliciesHandlerInit")
 	}
+	err = s.cniHandler.CNIHandlerInit()
+	if err != nil {
+		return errors.Wrap(err, "Error in CNIHandlerInit")
+	}
 	for {
 		select {
 		case <-t.Dying():
@@ -286,6 +293,10 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.BGPConfChanged,
 		})
+	case *model.CniPodAddEvent:
+		err = s.cniHandler.OnPodAdd(evt)
+	case *model.CniPodDelEvent:
+		s.cniHandler.OnPodDelete(evt)
 	case common.CalicoVppEvent:
 		/* Note: we will only receive events we ask for when registering the chan */
 		switch evt.Type {
@@ -294,8 +305,13 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 			if !ok {
 				return fmt.Errorf("evt.New is not a (*common.NetworkDefinition) %v", evt.New)
 			}
+			old, ok := evt.Old.(*common.NetworkDefinition)
+			if !ok {
+				return fmt.Errorf("evt.Old is not a (*common.NetworkDefinition) %v", evt.New)
+			}
 			s.cache.NetworkDefinitions[new.Name] = new
 			s.cache.Networks[new.Vni] = new
+			s.cniHandler.OnNetAddedOrUpdated(old, new)
 		case common.NetDeleted:
 			netDef, ok := evt.Old.(*common.NetworkDefinition)
 			if !ok {
@@ -303,6 +319,7 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 			}
 			delete(s.cache.NetworkDefinitions, netDef.Name)
 			delete(s.cache.Networks, netDef.Vni)
+			s.cniHandler.OnNetDeleted(netDef)
 		case common.PodAdded:
 			podSpec, ok := evt.New.(*model.LocalPodSpec)
 			if !ok {
