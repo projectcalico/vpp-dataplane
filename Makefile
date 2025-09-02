@@ -16,6 +16,27 @@ image:
 	$(MAKE) -C vpp-manager $@
 	$(MAKE) -C multinet-monitor $@
 
+.PHONY: image-kind
+image-kind: image
+	docker image tag calicovpp/vpp:$(TAG) localhost:5000/calicovpp/vpp:latest
+	docker push localhost:5000/calicovpp/vpp:latest
+	docker image tag calicovpp/agent:$(TAG) localhost:5000/calicovpp/agent:latest
+	docker push localhost:5000/calicovpp/agent:latest
+	docker image tag calicovpp/multinet-monitor:$(TAG) localhost:5000/calicovpp/multinet-monitor:latest
+	docker push localhost:5000/calicovpp/multinet-monitor:latest
+
+
+.PHONY: kind-new-cluster
+kind-new-cluster:
+	make -C test/kind new-cluster
+
+.PHONY: kind-install-cni
+kind-install-cni:
+	make -C test/kind install-cni
+
+.PHONY: kind
+kind: kind-new-cluster image-kind kind-install-cni
+
 .PHONY: push
 push:
 	$(MAKE) -C calico-vpp-agent $@
@@ -39,10 +60,6 @@ dev.k3s: dev
 		sudo k3s ctr images import /tmp/$$x.tar ; \
 		rm -f /tmp/$$x.tar ; \
 	done
-
-.PHONY: kind-new-cluster
-kind-new-cluster:
-	make -C test/kind new-cluster
 
 .PHONY: dev-kind
 dev-kind: dev
