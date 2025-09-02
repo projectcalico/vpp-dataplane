@@ -66,6 +66,7 @@ type PoliciesHandler struct {
 
 	GotOurNodeBGPchan     chan *common.LocalNodeSpec
 	GotOurNodeBGPchanOnce sync.Once
+	GotFelixConfig        chan any
 }
 
 func NewPoliciesHandler(vpp *vpplink.VppLink, cache *cache.Cache, clientv3 calicov3cli.Interface, log *logrus.Entry) *PoliciesHandler {
@@ -81,6 +82,7 @@ func NewPoliciesHandler(vpp *vpplink.VppLink, cache *cache.Cache, clientv3 calic
 		state:           common.StateDisconnected,
 
 		GotOurNodeBGPchan: make(chan *common.LocalNodeSpec),
+		GotFelixConfig:    make(chan any),
 	}
 }
 

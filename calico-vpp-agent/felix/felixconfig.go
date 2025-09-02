@@ -71,18 +71,11 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 		s.cache.FelixConfig.RawValues(),
 	)
 
-	// Note: This function will be called each time the Felix config changes.
-	// If we start handling config settings that require agent restart,
-	// we'll need to add a mechanism for that
-	if !s.felixConfigReceived {
-		s.felixConfigReceived = true
-		s.FelixConfigChan <- s.cache.FelixConfig
-	}
-
 	if !changed {
 		return nil
 	}
 
+	s.connectivityHandler.OnFelixConfChanged(oldFelixConfig, s.cache.FelixConfig)
 	s.cniHandler.OnFelixConfChanged(oldFelixConfig, s.cache.FelixConfig)
 	s.policiesHandler.OnFelixConfChanged(oldFelixConfig, s.cache.FelixConfig)
 

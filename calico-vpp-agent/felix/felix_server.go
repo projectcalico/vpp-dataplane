@@ -17,12 +17,9 @@ package felix
 
 import (
 	"fmt"
-	"net"
-	"sync"
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	felixConfig "github.com/projectcalico/calico/felix/config"
 	"github.com/projectcalico/calico/felix/proto"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
@@ -32,6 +29,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/policies"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
@@ -47,12 +45,9 @@ type Server struct {
 
 	felixServerEventChan chan any
 
-	felixConfigReceived bool
-	FelixConfigChan     chan *felixConfig.Config
-
-	ippoolLock      sync.RWMutex
-	policiesHandler *policies.PoliciesHandler
-	cniHandler      *cni.CNIHandler
+	policiesHandler     *policies.PoliciesHandler
+	cniHandler          *cni.CNIHandler
+	connectivityHandler *connectivity.ConnectivityHandler
 
 	prometheusServer *prometheus.PrometheusServer
 }
@@ -61,17 +56,14 @@ type Server struct {
 func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *logrus.Entry) *Server {
 	cache := cache.NewCache(log)
 	server := &Server{
-		log: log,
-		vpp: vpp,
-
+		log:                  log,
+		vpp:                  vpp,
 		felixServerEventChan: make(chan any, common.ChanSize),
 
-		felixConfigReceived: false,
-		FelixConfigChan:     make(chan *felixConfig.Config),
-
-		cache:           cache,
-		policiesHandler: policies.NewPoliciesHandler(vpp, cache, clientv3, log),
-		cniHandler:      cni.NewCNIHandler(vpp, cache, log),
+		cache:               cache,
+		policiesHandler:     policies.NewPoliciesHandler(vpp, cache, clientv3, log),
+		cniHandler:          cni.NewCNIHandler(vpp, cache, log),
+		connectivityHandler: connectivity.NewConnectivityHandler(vpp, cache, clientv3, log.WithFields(logrus.Fields{"component": "connectivity"})),
 
 		prometheusServer: prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"})),
 	}
@@ -101,18 +93,16 @@ func (s *Server) GotOurNodeBGPchan() chan *common.LocalNodeSpec {
 	return s.policiesHandler.GotOurNodeBGPchan
 }
 
+func (s *Server) GotFelixConfig() chan any {
+	return s.policiesHandler.GotFelixConfig
+}
+
 func (s *Server) GetCache() *cache.Cache {
 	return s.cache
 }
 
 func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 	s.cache.BGPConf = bgpConf
-}
-
-func (s *Server) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool {
-	s.ippoolLock.RLock()
-	defer s.ippoolLock.RUnlock()
-	return s.cache.GetPrefixIPPool(prefix)
 }
 
 func (s *Server) getMainInterface() *config.UplinkStatus {
@@ -271,6 +261,13 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 		s.log.Debugf("Ignoring HostMetadataRemove")
 	case *proto.HostMetadataV4V6Update:
 		err = s.policiesHandler.OnHostMetadataV4V6Update(evt)
+		if err != nil {
+			return err
+		}
+		err = s.connectivityHandler.OnHostMetadataV4V6Update(evt)
+		if err != nil {
+			return err
+		}
 	case *proto.HostMetadataV4V6Remove:
 		err = s.policiesHandler.OnHostMetadataV4V6Remove(evt)
 	case *proto.IPAMPoolUpdate:
@@ -290,6 +287,10 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.BGPConfChanged,
 		})
+	case *proto.WireguardEndpointUpdate:
+		err = s.connectivityHandler.OnWireguardEndpointUpdate(evt)
+	case *proto.WireguardEndpointRemove:
+		err = s.connectivityHandler.OnWireguardEndpointRemove(evt)
 	case *model.CniPodAddEvent:
 		err = s.cniHandler.OnPodAdd(evt)
 	case *model.CniPodDelEvent:
@@ -357,6 +358,42 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 				return fmt.Errorf("evt.Old not a uint32 %v", evt.Old)
 			}
 			s.policiesHandler.OnTunnelDelete(swIfIndex)
+		case common.ConnectivityAdded:
+			new, ok := evt.New.(*common.NodeConnectivity)
+			if !ok {
+				s.log.Errorf("evt.New is not a *common.NodeConnectivity %v", evt.New)
+			}
+			err := s.connectivityHandler.UpdateIPConnectivity(new, false /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while adding connectivity %s", err)
+			}
+		case common.ConnectivityDeleted:
+			old, ok := evt.Old.(*common.NodeConnectivity)
+			if !ok {
+				s.log.Errorf("evt.Old is not a *common.NodeConnectivity %v", evt.Old)
+			}
+			err := s.connectivityHandler.UpdateIPConnectivity(old, true /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while deleting connectivity %s", err)
+			}
+		case common.SRv6PolicyAdded:
+			new, ok := evt.New.(*common.NodeConnectivity)
+			if !ok {
+				s.log.Errorf("evt.New is not a *common.NodeConnectivity %v", evt.New)
+			}
+			err := s.connectivityHandler.UpdateSRv6Policy(new, false /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while adding SRv6 Policy %s", err)
+			}
+		case common.SRv6PolicyDeleted:
+			old, ok := evt.Old.(*common.NodeConnectivity)
+			if !ok {
+				s.log.Errorf("evt.Old is not a *common.NodeConnectivity %v", evt.Old)
+			}
+			err := s.connectivityHandler.UpdateSRv6Policy(old, true /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while deleting SRv6 Policy %s", err)
+			}
 		default:
 			s.log.Warnf("Unhandled CalicoVppEvent.Type: %s", evt.Type)
 		}

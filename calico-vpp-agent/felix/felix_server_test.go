@@ -575,9 +575,6 @@ var _ = Describe("Felix functionality", func() {
 			})
 			It("should error out when state is not connected", func() {
 				policiesHandler.OnFelixSocketStateChanged(&common.FelixSocketStateChanged{NewState: common.StateDisconnected})
-				go func() {
-					<-felixServer.FelixConfigChan
-				}()
 				_ = felixServer.handleConfigUpdate(
 					&proto.ConfigUpdate{
 						Config: configs,
@@ -588,9 +585,6 @@ var _ = Describe("Felix functionality", func() {
 			It("should update felix config", func() {
 				By("adding new felix config, that changes endpointToHostAction and removes failsafe rules")
 				policiesHandler.OnFelixSocketStateChanged(&common.FelixSocketStateChanged{NewState: common.StateConnected})
-				go func() {
-					<-felixServer.FelixConfigChan
-				}()
 				err := felixServer.handleConfigUpdate(
 					&proto.ConfigUpdate{
 						Config: configs,

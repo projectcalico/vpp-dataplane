@@ -32,7 +32,7 @@ type Cache struct {
 	log *logrus.Entry
 
 	FelixConfig                      *felixConfig.Config
-	NodeByAddr                       map[string]common.LocalNodeSpec
+	NodeByAddr                       map[string]*common.LocalNodeSpec
 	Networks                         map[uint32]*common.NetworkDefinition
 	NetworkDefinitions               map[string]*common.NetworkDefinition
 	IPPoolMap                        map[string]*proto.IPAMPool
@@ -46,7 +46,7 @@ type Cache struct {
 func NewCache(log *logrus.Entry) *Cache {
 	return &Cache{
 		log:                              log,
-		NodeByAddr:                       make(map[string]common.LocalNodeSpec),
+		NodeByAddr:                       make(map[string]*common.LocalNodeSpec),
 		FelixConfig:                      felixConfig.New(),
 		Networks:                         make(map[uint32]*common.NetworkDefinition),
 		NetworkDefinitions:               make(map[string]*common.NetworkDefinition),
@@ -106,6 +106,17 @@ func (cache *Cache) GetNodeIP6() *net.IP {
 	if spec, found := cache.NodeStatesByName[*config.NodeName]; found {
 		if spec.IPv6Address != nil {
 			return &spec.IPv6Address.IP
+		}
+	}
+	return nil
+}
+
+func (cache *Cache) GetNodeIPNet(isv6 bool) *net.IPNet {
+	if spec, found := cache.NodeStatesByName[*config.NodeName]; found {
+		if isv6 {
+			return spec.IPv6Address
+		} else {
+			return spec.IPv4Address
 		}
 	}
 	return nil

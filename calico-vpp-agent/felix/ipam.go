@@ -30,8 +30,6 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate) (err error) {
 		s.log.Debugf("Empty pool")
 		return nil
 	}
-	s.ippoolLock.Lock()
-	defer s.ippoolLock.Unlock()
 
 	newIpamPool := msg.GetPool()
 	oldIpamPool, found := s.cache.IPPoolMap[msg.GetId()]
@@ -49,6 +47,7 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate) (err error) {
 			if err != nil || err2 != nil {
 				return errors.Errorf("error updating snat prefix del:%s, add:%s", err, err2)
 			}
+			s.connectivityHandler.OnIpamConfChanged(oldIpamPool, newIpamPool)
 			s.cniHandler.OnIpamConfChanged(oldIpamPool, newIpamPool)
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.IpamConfChanged,
@@ -64,6 +63,7 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate) (err error) {
 		if err != nil {
 			return errors.Wrap(err, "error handling ipam add")
 		}
+		s.connectivityHandler.OnIpamConfChanged(nil /*old*/, newIpamPool)
 		s.cniHandler.OnIpamConfChanged(nil /*old*/, newIpamPool)
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.IpamConfChanged,
@@ -78,8 +78,7 @@ func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove) (err error) {
 		s.log.Debugf("Empty pool")
 		return nil
 	}
-	s.ippoolLock.Lock()
-	defer s.ippoolLock.Unlock()
+
 	oldIpamPool, found := s.cache.IPPoolMap[msg.GetId()]
 	if found {
 		delete(s.cache.IPPoolMap, msg.GetId())
@@ -94,6 +93,7 @@ func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove) (err error) {
 			Old:  ipamPoolCopy(oldIpamPool),
 			New:  nil,
 		})
+		s.connectivityHandler.OnIpamConfChanged(oldIpamPool, nil /* new */)
 		s.cniHandler.OnIpamConfChanged(oldIpamPool, nil /* new */)
 	} else {
 		s.log.Warnf("Deleting unknown ippool")
