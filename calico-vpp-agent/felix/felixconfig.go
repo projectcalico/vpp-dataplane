@@ -83,6 +83,7 @@ func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
 		return nil
 	}
 
+	s.cniHandler.OnFelixConfChanged(oldFelixConfig, s.cache.FelixConfig)
 	s.policiesHandler.OnFelixConfChanged(oldFelixConfig, s.cache.FelixConfig)
 
 	return nil
