@@ -31,6 +31,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/policies"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/services"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -48,6 +49,7 @@ type Server struct {
 	policiesHandler     *policies.PoliciesHandler
 	cniHandler          *cni.CNIHandler
 	connectivityHandler *connectivity.ConnectivityHandler
+	serviceHandler      *services.ServiceHandler
 
 	prometheusServer *prometheus.PrometheusServer
 }
@@ -56,14 +58,16 @@ type Server struct {
 func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *logrus.Entry) *Server {
 	cache := cache.NewCache(log)
 	server := &Server{
-		log:                  log,
-		vpp:                  vpp,
+		log: log,
+		vpp: vpp,
+
 		felixServerEventChan: make(chan any, common.ChanSize),
 
 		cache:               cache,
 		policiesHandler:     policies.NewPoliciesHandler(vpp, cache, clientv3, log),
 		cniHandler:          cni.NewCNIHandler(vpp, cache, log),
 		connectivityHandler: connectivity.NewConnectivityHandler(vpp, cache, clientv3, log.WithFields(logrus.Fields{"component": "connectivity"})),
+		serviceHandler:      services.NewServiceHandler(vpp, cache, log),
 
 		prometheusServer: prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"})),
 	}
@@ -210,6 +214,10 @@ func (s *Server) ServeFelix(t *tomb.Tomb) error {
 	if err != nil {
 		return errors.Wrap(err, "Error in CNIHandlerInit")
 	}
+	err = s.serviceHandler.ServiceHandlerInit()
+	if err != nil {
+		return errors.Wrap(err, "Error in ServiceHandlerInit")
+	}
 	for {
 		select {
 		case <-t.Dying():
@@ -227,6 +235,10 @@ func (s *Server) ServeFelix(t *tomb.Tomb) error {
 func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 	s.log.Debugf("Got message from felix: %#v", msg)
 	switch evt := msg.(type) {
+	case *common.ServiceEndpointsUpdate:
+		s.serviceHandler.OnServiceEndpointsUpdate(evt)
+	case *common.ServiceEndpointsDelete:
+		s.serviceHandler.OnServiceEndpointsDelete(evt)
 	case *proto.ConfigUpdate:
 		err = s.handleConfigUpdate(evt)
 	case *proto.InSync:

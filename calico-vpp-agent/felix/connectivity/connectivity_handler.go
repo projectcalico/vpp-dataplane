@@ -255,8 +255,8 @@ func (s *ConnectivityHandler) ForceProviderEnableDisable(providerType string, en
 	return nil
 }
 
-// TODO get rid (if possible) of all this "Force" methods by refactor the test code
-//  (run the Server.ServeConnectivity(...) function and send into it events with common.SendEvent(...))
+// TODO get rid (if possible) of all these "Force" methods by refactoring tests
+// to send connectivity events through the Felix event channel.
 
 // ForceNodeAddition will add other node information as provided by calico configuration
 // The usage is mainly for testing purposes.

@@ -496,8 +496,7 @@ func ConfigureBGPNodeIPAddresses(cache *cache.Cache) {
 	cache.NodeStatesByName[*config.NodeName] = nodeSpec
 }
 
-// AddIPPoolForCalicoClient is convenience function for adding IPPool to mocked Calico IPAM Stub used
-// in Calico client stub. This function doesn't set anything for the watchers.IpamCache implementation.
+// AddIPPoolForCalicoClient is a convenience function for adding an IPPool to the mocked Calico client.
 func AddIPPoolForCalicoClient(client *calico.CalicoClientStub, poolName string, poolCIRD string) (
 	*apiv3.IPPool, error) {
 	return client.IPPoolsStub.Create(context.Background(), &apiv3.IPPool{

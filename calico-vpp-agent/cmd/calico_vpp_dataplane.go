@@ -37,7 +37,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/health"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/services"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 )
@@ -147,11 +146,12 @@ func main() {
 	bgpFilterWatcher := watchers.NewBGPFilterWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "BGPFilter-watcher"}))
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
 	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
-	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
 	felixServer := felix.NewFelixServer(vpp, clientv3, log.WithFields(logrus.Fields{"component": "policy"}))
 	felixWatcher := watchers.NewFelixWatcher(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "felix watcher"}))
 	cniServer := watchers.NewCNIServer(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "cni"}))
+	serviceServer := watchers.NewServiceServer(felixServer.GetFelixServerEventChan(), k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
+
 	err = watchers.InstallFelixPlugin()
 	if err != nil {
 		log.Fatalf("could not install felix plugin: %s", err)
@@ -166,7 +166,6 @@ func main() {
 
 	peerWatcher.SetBGPConf(bgpConf)
 	routingServer.SetBGPConf(bgpConf)
-	serviceServer.SetBGPConf(bgpConf)
 	felixServer.SetBGPConf(bgpConf)
 
 	Go(felixServer.ServeFelix)
@@ -213,7 +212,6 @@ func main() {
 
 	prefixWatcher.SetOurBGPSpec(ourBGPSpec)
 	routingServer.SetOurBGPSpec(ourBGPSpec)
-	serviceServer.SetOurBGPSpec(ourBGPSpec)
 	localSIDWatcher.SetOurBGPSpec(ourBGPSpec)
 	netWatcher.SetOurBGPSpec(ourBGPSpec)
 

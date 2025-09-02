@@ -9,7 +9,9 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/testutils"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -20,8 +22,6 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 // Names of integration tests arguments
@@ -65,12 +65,29 @@ var _ = BeforeSuite(func() {
 
 })
 
+func serviceAndEndpointSlices(service *apiv1.Service, epSlices map[string]*discoveryv1.EndpointSlice) *common.ServiceAndEndpoints {
+	if service == nil {
+		return nil
+	}
+	return &common.ServiceAndEndpoints{
+		Service:        service,
+		EndpointSlices: epSlices,
+	}
+}
+
+func sendServiceUpdate(handler *ServiceHandler, newService *apiv1.Service, oldService *apiv1.Service, epSlices map[string]*discoveryv1.EndpointSlice) {
+	handler.OnServiceEndpointsUpdate(&common.ServiceEndpointsUpdate{
+		New: serviceAndEndpointSlices(newService, epSlices),
+		Old: serviceAndEndpointSlices(oldService, epSlices),
+	})
+}
+
 var _ = Describe("Service creation functionality", func() {
 	var (
-		log           *logrus.Logger
-		vpp           *vpplink.VppLink
-		serviceServer *Server
-		uplinkSwIf    uint32
+		log            *logrus.Logger
+		vpp            *vpplink.VppLink
+		serviceHandler *ServiceHandler
+		uplinkSwIf     uint32
 	)
 
 	BeforeEach(func() {
@@ -90,19 +107,17 @@ var _ = Describe("Service creation functionality", func() {
 			PhysicalNets: map[string]config.PhysicalNetwork{},
 		}
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
-		k8sclient, err := kubernetes.NewForConfig(&rest.Config{})
-		if err != nil {
-			log.Fatalf("cannot create k8s client %s", err)
-		}
 		_, serviceip, err := net.ParseCIDR("10.96.0.1/24")
 		config.ServiceCIDRs = &[]*net.IPNet{serviceip}
-		serviceServer = NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 		_, ipv4net, err := net.ParseCIDR("1.1.1.1/32")
 		_, ipv6net, err := net.ParseCIDR("f::f/128")
-		serviceServer.SetOurBGPSpec(&common.LocalNodeSpec{
+		handlerCache := cache.NewCache(log.WithFields(logrus.Fields{"component": "cache"}))
+		handlerCache.NodeStatesByName[*config.NodeName] = &common.LocalNodeSpec{
 			IPv4Address: ipv4net,
 			IPv6Address: ipv6net,
-		})
+		}
+		serviceHandler = NewServiceHandler(vpp, handlerCache, log.WithFields(logrus.Fields{"component": "services"}))
+		serviceHandler.SetBGPConf(&calicov3.BGPConfigurationSpec{})
 		err = vpp.CnatSetSnatAddresses(ipv4net.IP, ipv6net.IP)
 		Expect(err).ToNot(HaveOccurred(),
 			"failed to configure SNAT addresses")
@@ -120,7 +135,7 @@ var _ = Describe("Service creation functionality", func() {
 	Describe("Startup config", func() {
 		Context("Configuring snat", func() {
 			It("Should configure snat addresses and exclude prefixes", func() {
-				err := serviceServer.configureSnat()
+				err := serviceHandler.configureSnat()
 				Expect(err).To(BeNil())
 				cnatsnatoutput, err := vpp.RunCli("show cnat snat")
 				Expect(err).ToNot(HaveOccurred(),
@@ -143,7 +158,7 @@ var _ = Describe("Service creation functionality", func() {
 				Expect(err).To(BeNil())
 				config.ServiceCIDRs = &[]*net.IPNet{serviceip}
 
-				err = serviceServer.configureSnat()
+				err = serviceHandler.configureSnat()
 				Expect(err).To(BeNil())
 
 				cnatsnatoutput, err := vpp.RunCli("show cnat snat")
@@ -154,7 +169,7 @@ var _ = Describe("Service creation functionality", func() {
 				By("configuring empty service CIDRs")
 				config.ServiceCIDRs = &[]*net.IPNet{}
 
-				err := serviceServer.configureSnat()
+				err := serviceHandler.configureSnat()
 				Expect(err).To(BeNil())
 			})
 		})
@@ -164,7 +179,7 @@ var _ = Describe("Service creation functionality", func() {
 		Context("handling service annotations", func() {
 			It("should handle missing annotations gracefully", func() {
 				By("passing empty annotations map")
-				svc := serviceServer.ParseServiceAnnotations(map[string]string{}, "mysvc")
+				svc := serviceHandler.ParseServiceAnnotations(map[string]string{}, "mysvc")
 
 				Expect(svc).ToNot(BeNil())
 				Expect(int(svc.hashConfig)).To(Equal(0))
@@ -176,7 +191,7 @@ var _ = Describe("Service creation functionality", func() {
 					"some.random/annotation": "value",
 				}
 
-				svc := serviceServer.ParseServiceAnnotations(annotations, "mysvc")
+				svc := serviceHandler.ParseServiceAnnotations(annotations, "mysvc")
 
 				Expect(svc).ToNot(BeNil())
 				Expect(int(svc.hashConfig)).To(Equal(0))
@@ -188,7 +203,7 @@ var _ = Describe("Service creation functionality", func() {
 					"cni.projectcalico.org/vppHashConfig": " symmetric , dstport ",
 				}
 
-				svc := serviceServer.ParseServiceAnnotations(annotations, "mysvc")
+				svc := serviceHandler.ParseServiceAnnotations(annotations, "mysvc")
 
 				Expect(svc.hashConfig).To(Equal(
 					types.FlowHashSymetric + types.FlowHashDstPort,
@@ -198,7 +213,7 @@ var _ = Describe("Service creation functionality", func() {
 				annotations := make(map[string]string)
 				annotations["cni.projectcalico.org/vppHashConfig"] = "symmetric, iproto, dstport, srcport"
 				annotations["cni.projectcalico.org/vppLBType"] = "maglev"
-				svc := serviceServer.ParseServiceAnnotations(annotations, "mysvc")
+				svc := serviceHandler.ParseServiceAnnotations(annotations, "mysvc")
 				Expect(svc.keepOriginalPacket).To(BeFalse())
 				Expect(svc.lbType).To(Equal(lbTypeMaglev))
 				Expect(svc.hashConfig).To(Equal(types.FlowHashSymetric + types.FlowHashProto + types.FlowHashSrcPort + types.FlowHashDstPort))
@@ -221,7 +236,7 @@ var _ = Describe("Service creation functionality", func() {
 
 				epSlicesMap := map[string]*discoveryv1.EndpointSlice{}
 
-				localService := serviceServer.GetLocalService(svc, epSlicesMap)
+				localService := serviceHandler.GetLocalService(svc, epSlicesMap)
 				Expect(localService.Entries).To(BeEmpty())
 			})
 			It("should return empty backends when no endpoint slices exist for service", func() {
@@ -237,7 +252,7 @@ var _ = Describe("Service creation functionality", func() {
 					},
 				}
 
-				localService := serviceServer.GetLocalService(svc, map[string]*discoveryv1.EndpointSlice{})
+				localService := serviceHandler.GetLocalService(svc, map[string]*discoveryv1.EndpointSlice{})
 				Expect(localService.Entries[0].Backends).To(BeEmpty())
 			})
 			It("should return empty backends for endpoints with empty addresses", func() {
@@ -269,7 +284,7 @@ var _ = Describe("Service creation functionality", func() {
 					},
 				}
 
-				localService := serviceServer.GetLocalService(svc, epSlicesMap)
+				localService := serviceHandler.GetLocalService(svc, epSlicesMap)
 				Expect(localService.Entries[0].Backends).To(BeEmpty())
 			})
 			It("should support multiple backends in one endpoint slice", func() {
@@ -299,7 +314,7 @@ var _ = Describe("Service creation functionality", func() {
 					},
 				}
 
-				localService := serviceServer.GetLocalService(svc, epSlicesMap)
+				localService := serviceHandler.GetLocalService(svc, epSlicesMap)
 				Expect(localService).ToNot(BeNil())
 				Expect(localService.Entries).To(HaveLen(1))
 				Expect(localService.Entries[0].Backends).To(HaveLen(2))
@@ -338,7 +353,7 @@ var _ = Describe("Service creation functionality", func() {
 						},
 					},
 				}
-				localService := serviceServer.GetLocalService(svc, epSlicesMap)
+				localService := serviceHandler.GetLocalService(svc, epSlicesMap)
 
 				Expect(localService).To(Equal(&LocalService{
 					SpecificRoutes: []net.IP{},
@@ -361,15 +376,16 @@ var _ = Describe("Service creation functionality", func() {
 						},
 					},
 				}))
-				serviceServer.handleServiceEndpointEvent(localService, nil)
+				sendServiceUpdate(serviceHandler, svc, nil, epSlicesMap)
 				cnattroutput, err := vpp.RunCli("show cnat translation")
 				Expect(err).ToNot(HaveOccurred(),
 					"failed to get cnat translations output from vpp cli")
 				Expect(cnattroutput).To(ContainSubstring("4.4.4.4;3033 TCP lb:default fhc:0x9f(default)\n::;0->3.3.3.3;3051"))
 				By("creating a service with cluster ip and external ip")
+				oldSvc := svc.DeepCopy()
 				myExternalIp := "9.9.9.9"
 				svc.Spec.ExternalIPs = []string{myExternalIp}
-				localService = serviceServer.GetLocalService(svc, epSlicesMap)
+				localService = serviceHandler.GetLocalService(svc, epSlicesMap)
 
 				Expect(localService).To(Equal(&LocalService{
 					SpecificRoutes: []net.IP{},
@@ -407,17 +423,18 @@ var _ = Describe("Service creation functionality", func() {
 						},
 					},
 				}))
-				serviceServer.handleServiceEndpointEvent(localService, nil)
+				sendServiceUpdate(serviceHandler, svc, oldSvc, epSlicesMap)
 				cnattroutput, err = vpp.RunCli("show cnat translation")
 				Expect(err).ToNot(HaveOccurred(),
 					"failed to get cnat translations output from vpp cli")
 				Expect(cnattroutput).To(ContainSubstring("4.4.4.4;3033 TCP lb:default fhc:0x9f(default)\n::;0->3.3.3.3;3051"))
 				Expect(cnattroutput).To(ContainSubstring("9.9.9.9;3033 TCP lb:default fhc:0x9f(default)\n::;0->3.3.3.3;3051"))
 				By("creating a service with cluster ip, external ip and nodeport")
+				oldSvc = svc.DeepCopy()
 				svc.Spec.Type = apiv1.ServiceTypeNodePort
 				nodePort := 9999
 				svc.Spec.Ports[0].NodePort = int32(nodePort)
-				localService = serviceServer.GetLocalService(svc, epSlicesMap)
+				localService = serviceHandler.GetLocalService(svc, epSlicesMap)
 				Expect(localService).To(Equal(&LocalService{
 					SpecificRoutes: []net.IP{},
 					ServiceID:      "/" + mySvc,
@@ -470,7 +487,7 @@ var _ = Describe("Service creation functionality", func() {
 						},
 					},
 				}))
-				serviceServer.handleServiceEndpointEvent(localService, nil)
+				sendServiceUpdate(serviceHandler, svc, oldSvc, epSlicesMap)
 				cnattroutput, err = vpp.RunCli("show cnat translation")
 				Expect(err).ToNot(HaveOccurred(),
 					"failed to get cnat translations output from vpp cli")
@@ -478,28 +495,29 @@ var _ = Describe("Service creation functionality", func() {
 				Expect(cnattroutput).To(ContainSubstring("9.9.9.9;3033 TCP lb:default fhc:0x9f(default)\n::;0->3.3.3.3;3051"))
 				Expect(cnattroutput).To(ContainSubstring("1.1.1.1;9999 TCP lb:default fhc:0x9f(default)\n::;0->3.3.3.3;3051"))
 				By("updating the service to change the cluster ip")
+				oldSvc = svc.DeepCopy()
 				myNewSvcIp := "5.5.5.5"
 				svc.Spec.ClusterIPs = []string{myNewSvcIp}
-				newLocalService := serviceServer.GetLocalService(svc, epSlicesMap)
+				newLocalService := serviceHandler.GetLocalService(svc, epSlicesMap)
 				Expect(newLocalService.Entries[0].Endpoint.IP).To(Equal(net.ParseIP(myNewSvcIp)))
-				serviceServer.handleServiceEndpointEvent(newLocalService, localService)
+				sendServiceUpdate(serviceHandler, svc, oldSvc, epSlicesMap)
 				cnattroutput, err = vpp.RunCli("show cnat translation")
 				Expect(err).ToNot(HaveOccurred(),
 					"failed to get cnat translations output from vpp cli")
 				Expect(cnattroutput).To(ContainSubstring("5.5.5.5;3033 TCP lb:default fhc:0x9f(default)\n::;0->3.3.3.3;3051"))
 				Expect(cnattroutput).To(Not(ContainSubstring("4.4.4.4;3033 TCP lb:default fhc:0x9f(default)\n::;0->3.3.3.3;3051")))
 				By("deleting the service entries")
-				serviceServer.handleServiceEndpointEvent(nil, newLocalService)
+				sendServiceUpdate(serviceHandler, nil, svc, epSlicesMap)
 				cnattroutput, err = vpp.RunCli("show cnat translation")
 				Expect(cnattroutput).To(BeEmpty())
 				By("recreating the service")
-				serviceServer.handleServiceEndpointEvent(newLocalService, nil)
+				sendServiceUpdate(serviceHandler, svc, nil, epSlicesMap)
 				cnattroutput, err = vpp.RunCli("show cnat translation")
 				Expect(cnattroutput).To(ContainSubstring("5.5.5.5;3033 TCP lb:default fhc:0x9f(default)\n::;0->3.3.3.3;3051"))
 				Expect(cnattroutput).To(ContainSubstring("9.9.9.9;3033 TCP lb:default fhc:0x9f(default)\n::;0->3.3.3.3;3051"))
 				Expect(cnattroutput).To(ContainSubstring("1.1.1.1;9999 TCP lb:default fhc:0x9f(default)\n::;0->3.3.3.3;3051"))
 				By("deleting the service by name")
-				serviceServer.deleteServiceByName("/" + mySvc)
+				serviceHandler.OnServiceEndpointsDelete(&common.ServiceEndpointsDelete{Meta: &svc.ObjectMeta})
 				cnattroutput, err = vpp.RunCli("show cnat translation")
 				Expect(cnattroutput).To(BeEmpty())
 			})

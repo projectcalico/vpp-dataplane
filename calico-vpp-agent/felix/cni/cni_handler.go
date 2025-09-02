@@ -294,7 +294,7 @@ func (s *CNIHandler) CNIHandlerInit() error {
 	return nil
 }
 
-// ForceAddingNetworkDefinition will add another NetworkDefinition to this CNI server.
+// ForceAddingNetworkDefinition will add another NetworkDefinition to this CNI handler.
 // The usage is mainly for testing purposes.
 func (s *CNIHandler) ForceAddingNetworkDefinition(networkDefinition *common.NetworkDefinition) {
 	s.cache.NetworkDefinitions[networkDefinition.Name] = networkDefinition

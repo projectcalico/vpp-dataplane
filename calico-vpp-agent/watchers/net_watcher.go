@@ -113,9 +113,6 @@ func (w *NetWatcher) resyncAndCreateWatchers() error {
 			}
 		}
 		w.InSync <- 1
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.NetsSynced,
-		})
 		w.currentWatchRevisionNet = netList.ResourceVersion
 		w.currentWatchRevisionNad = nadList.ResourceVersion
 	}

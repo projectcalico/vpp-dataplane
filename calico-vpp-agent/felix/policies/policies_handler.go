@@ -112,7 +112,7 @@ func (s *PoliciesHandler) OnInSync(msg *proto.InSync) (err error) {
 	return s.ApplyPendingState()
 }
 
-// workloadAdded is called by the CNI server when a container interface is created,
+// OnWorkloadAdded is called by the CNI handler when a container interface is created,
 // either during startup when reconnecting the interfaces, or when a new pod is created
 func (s *PoliciesHandler) OnWorkloadAdded(id *WorkloadEndpointID, swIfIndex uint32, ifName string, containerIPs []*net.IPNet) {
 	// TODO: Send WorkloadEndpointStatusUpdate to felix
@@ -161,7 +161,7 @@ func (s *PoliciesHandler) OnWorkloadAdded(id *WorkloadEndpointID, swIfIndex uint
 	}
 }
 
-// WorkloadRemoved is called by the CNI server when the interface of a pod is deleted
+// OnWorkloadRemoved is called by the CNI handler when the interface of a pod is deleted
 func (s *PoliciesHandler) OnWorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPNet) {
 	// TODO: Send WorkloadEndpointStatusRemove to felix
 

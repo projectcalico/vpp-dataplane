@@ -66,10 +66,10 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 		testutils.StartVPP()
 		vpp, _ = testutils.ConfigureVPP(log)
 		Expect(vpp.CnatSetSnatAddresses(nodeIP4String, nodeIP6String)).To(Succeed())
-		// setup connectivity server (functionality target of tests)
+		// setup shared Felix cache for CNI handler tests
 		testCache = cache.NewCache(log.WithFields(logrus.Fields{"component": "cache"}))
 		testCache.VppAvailableBuffers = 65536
-		// setup CNI server (functionality target of tests)
+		// setup CNI handler (functionality target of tests)
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 		cniHandler = cni.NewCNIHandler(vpp, testCache, log.WithFields(logrus.Fields{"component": "cni"}))
 		cfg := &config.CalicoVppInterfacesConfigType{
@@ -98,7 +98,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					Expect(err).Should(BeNil(), "Failed to get pod mock container's PID string")
 					containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
-					By("Adding pod using CNI server")
+					By("Adding pod using CNI handler")
 					podSpec, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 						InterfaceName: interfaceName,
 						Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
@@ -183,7 +183,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					Expect(err).Should(BeNil(), "Failed to get pod mock container's PID string")
 					containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
-					By("Adding pod using CNI server")
+					By("Adding pod using CNI handler")
 					podSpec, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 						InterfaceName: interfaceName,
 						Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
@@ -402,7 +402,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						Expect(err).Should(BeNil(), "Failed to get pod mock container's PID string")
 						containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
-						By("Adding Pod to primary network using CNI server")
+						By("Adding Pod to primary network using CNI handler")
 						newPodForPrimaryNetwork, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 							InterfaceName: mainInterfaceName,
 							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
@@ -418,7 +418,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						Expect(reply.Successful).To(BeTrue(),
 							fmt.Sprintf("Pod addition to primary network failed due to: %s", reply.ErrorMessage))
 
-						By("Adding Pod to secondary(multinet) network using CNI server")
+						By("Adding Pod to secondary(multinet) network using CNI handler")
 						secondaryIPAddress := testutils.FirstIPinIPRange(networkDefinition.Range).String()
 						newPodForSecondaryNetwork, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 							InterfaceName: secondaryInterfaceName,
@@ -651,7 +651,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						Expect(err).Should(BeNil(), "Failed to get pod mock container's PID string")
 						containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
-						By("Adding Pod to primary network using CNI server")
+						By("Adding Pod to primary network using CNI handler")
 						newPodForPrimaryNetwork, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 							InterfaceName: mainInterfaceName,
 							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
@@ -668,7 +668,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						Expect(reply.Successful).To(BeTrue(),
 							fmt.Sprintf("Pod addition to primary network failed due to: %s", reply.ErrorMessage))
 
-						By("Adding Pod to secondary(multinet) network using CNI server")
+						By("Adding Pod to secondary(multinet) network using CNI handler")
 						secondaryIPAddress := testutils.FirstIPinIPRange(networkDefinition.Range).String()
 						newPodForSecondaryNetwork, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 							InterfaceName: secondaryInterfaceName,

@@ -84,7 +84,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		testutils.StartVPP()
 		vpp, uplinkSwIfIndex = testutils.ConfigureVPP(log)
 
-		// setup connectivity server (functionality target of tests)
+		// setup Felix server with connectivity handler (functionality target of tests)
 		felixServer = NewFelixServer(
 			vpp,
 			client,
@@ -563,7 +563,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				}))
 
 				By("checking remembering of public key for wireguard tunnel in calico configuration")
-				// Note: public/private key is created by VPP (connectivity server sends empty public/private
+				// Note: public/private key is created by VPP (connectivity handler sends empty public/private
 				// keys but retrieves it back properly filled)
 				thisNode, err := client.Nodes().Get(context.Background(), *agentConf.NodeName, options.GetOptions{})
 				Expect(err).ToNot(HaveOccurred(),
@@ -723,7 +723,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					// The tunnel-end node watches localsids on its node. On new localsid detection it creates
 					// policy/tunnel info(1 segment long SRv6 tunnel) leading to that new localsid (to tunnel-end
 					// node). Then it uses BGP to inform this node (the tunnel start node) about it. The BGP watcher
-					// catches it and sends event to connectivity server on this node and that results in call below.
+					// catches it and sends an event to the Felix connectivity handler on this node.
 					err = felixServer.connectivityHandler.UpdateSRv6Policy(&common.NodeConnectivity{
 						Dst:              net.IPNet{},
 						NextHop:          net.ParseIP(AddedNodeIPv6),

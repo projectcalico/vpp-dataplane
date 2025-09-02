@@ -36,6 +36,9 @@ import (
 	"github.com/projectcalico/calico/felix/proto"
 	apb "google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -54,6 +57,20 @@ const (
 
 type FelixServerIpam interface {
 	GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool
+}
+
+type ServiceAndEndpoints struct {
+	Service        *v1.Service
+	EndpointSlices map[string]*discoveryv1.EndpointSlice
+}
+
+type ServiceEndpointsUpdate struct {
+	Old *ServiceAndEndpoints
+	New *ServiceAndEndpoints
+}
+
+type ServiceEndpointsDelete struct {
+	Meta *metav1.ObjectMeta
 }
 
 type LocalNodeSpec struct {
