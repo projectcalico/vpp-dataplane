@@ -101,3 +101,14 @@ func (cache *Cache) GetNodeIP6() *net.IP {
 	}
 	return nil
 }
+
+func (cache *Cache) GetNodeIPNet(isv6 bool) *net.IPNet {
+	if cache.NodeBGPSpec != nil {
+		if isv6 {
+			return cache.NodeBGPSpec.IPv6Address
+		} else {
+			return cache.NodeBGPSpec.IPv4Address
+		}
+	}
+	return nil
+}

@@ -21,20 +21,30 @@ import (
 	"github.com/pkg/errors"
 
 	vpptypes "github.com/calico-vpp/vpplink/api/v0"
+	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 type IpipProvider struct {
-	*ConnectivityProviderData
 	ipipIfs    map[string]*vpptypes.IPIPTunnel
 	ipipRoutes map[uint32]map[string]bool
+	vpp        *vpplink.VppLink
+	log        *logrus.Entry
+	cache      *cache.Cache
 }
 
-func NewIPIPProvider(d *ConnectivityProviderData) *IpipProvider {
-	return &IpipProvider{d, make(map[string]*vpptypes.IPIPTunnel), make(map[uint32]map[string]bool)}
+func NewIPIPProvider(vpp *vpplink.VppLink, cache *cache.Cache, log *logrus.Entry) *IpipProvider {
+	return &IpipProvider{
+		vpp:        vpp,
+		log:        log,
+		cache:      cache,
+		ipipIfs:    make(map[string]*vpptypes.IPIPTunnel),
+		ipipRoutes: make(map[uint32]map[string]bool),
+	}
 }
 
 func (p *IpipProvider) EnableDisable(isEnable bool) {
@@ -52,7 +62,7 @@ func (p *IpipProvider) RescanState() {
 		p.log.Errorf("Error listing ipip tunnels: %v", err)
 	}
 
-	ip4, ip6 := p.server.GetNodeIPs()
+	ip4, ip6 := getNodeIPs(p.cache)
 	for _, tunnel := range tunnels {
 		if (ip4 != nil && tunnel.Src.Equal(*ip4)) || (ip6 != nil && tunnel.Src.Equal(*ip6)) {
 			p.log.Infof("Found existing tunnel: %s", tunnel)
@@ -98,7 +108,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		tunnel = &vpptypes.IPIPTunnel{
 			Dst: cn.NextHop,
 		}
-		ip4, ip6 := p.server.GetNodeIPs()
+		ip4, ip6 := getNodeIPs(p.cache)
 		if vpplink.IsIP6(cn.NextHop) && ip6 != nil {
 			tunnel.Src = *ip6
 		} else if !vpplink.IsIP6(cn.NextHop) && ip4 != nil {

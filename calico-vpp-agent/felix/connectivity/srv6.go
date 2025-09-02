@@ -6,9 +6,12 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
+	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/ipam"
 	cnet "github.com/projectcalico/calico/libcalico-go/lib/net"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
+	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
@@ -32,8 +35,10 @@ type NodeToPolicies struct {
 // SRv6Provider is node connectivity provider that uses segment routing over IPv6 (SRv6) to connect the nodes
 // For more info about SRv6, see https://datatracker.ietf.org/doc/html/rfc8986.
 type SRv6Provider struct {
-	*ConnectivityProviderData
-
+	vpp      *vpplink.VppLink
+	log      *logrus.Entry
+	cache    *cache.Cache
+	clientv3 calicov3cli.Interface
 	// nodePrefixes is internal data holder for information from common.NodeConnectivity data
 	// from common.ConnectivityAdded event
 	nodePrefixes map[string]*NodeToPrefixes
@@ -46,8 +51,17 @@ type SRv6Provider struct {
 	localSidIPPool net.IPNet
 }
 
-func NewSRv6Provider(d *ConnectivityProviderData) *SRv6Provider {
-	p := &SRv6Provider{d, make(map[string]*NodeToPrefixes), make(map[string]*NodeToPolicies), net.IPNet{}, net.IPNet{}}
+func NewSRv6Provider(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, cache *cache.Cache, log *logrus.Entry) *SRv6Provider {
+	p := &SRv6Provider{
+		vpp:            vpp,
+		log:            log,
+		cache:          cache,
+		clientv3:       clientv3,
+		nodePrefixes:   make(map[string]*NodeToPrefixes),
+		nodePolices:    make(map[string]*NodeToPolicies),
+		policyIPPool:   net.IPNet{},
+		localSidIPPool: net.IPNet{},
+	}
 	if *config.GetCalicoVppFeatureGates().SRv6Enabled {
 		p.localSidIPPool = cnet.MustParseNetwork(config.GetCalicoVppSrv6().LocalsidPool).IPNet
 		p.policyIPPool = cnet.MustParseNetwork(config.GetCalicoVppSrv6().PolicyPool).IPNet
@@ -258,7 +272,7 @@ func (p *SRv6Provider) getPolicyNode(nodeip string, behavior types.SrBehavior) (
 
 func (p *SRv6Provider) setEncapSource() (err error) {
 	p.log.Infof("SRv6Provider setEncapSource")
-	_, nodeIP6 := p.GetNodeIPs()
+	_, nodeIP6 := getNodeIPs(p.cache)
 	if nodeIP6 == nil {
 		return fmt.Errorf("no ip6 found for node")
 	}
@@ -338,14 +352,14 @@ func (p *SRv6Provider) setEndDT(typeDT int) (newLocalSid *types.SrLocalsid, err 
 }
 
 func (p *SRv6Provider) getSidFromPool(poolName string) (newSidAddr ip_types.IP6Address, err error) {
-	ippool, err := p.Clientv3().IPPools().Get(context.Background(), poolName, options.GetOptions{})
+	ippool, err := p.clientv3.IPPools().Get(context.Background(), poolName, options.GetOptions{})
 	if err != nil || ippool == nil {
 		p.log.Infof("SRv6Provider Error assigning ip LocalSid")
 		return newSidAddr, errors.Wrapf(err, "SRv6Provider Error getSidFromPool")
 	}
 
 	poolIPNet := []cnet.IPNet{cnet.MustParseNetwork(ippool.Spec.CIDR)}
-	_, newSids, err := p.Clientv3().IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
+	_, newSids, err := p.clientv3.IPAM().AutoAssign(context.Background(), ipam.AutoAssignArgs{
 		Num6:        1,
 		IPv6Pools:   poolIPNet,
 		IntendedUse: "Tunnel",

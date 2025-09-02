@@ -24,8 +24,10 @@ import (
 
 	vpptypes "github.com/calico-vpp/vpplink/api/v0"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -54,10 +56,11 @@ func (tunnel *IpsecTunnel) IsInitiator() bool {
 }
 
 type IpsecProvider struct {
-	*ConnectivityProviderData
-	ipsecIfs         map[string][]IpsecTunnel
-	ipsecRoutes      map[string]map[string]bool
-	nonCryptoThreads int
+	ipsecIfs    map[string][]IpsecTunnel
+	ipsecRoutes map[string]map[string]bool
+	vpp         *vpplink.VppLink
+	log         *logrus.Entry
+	cache       *cache.Cache
 }
 
 func (p *IpsecProvider) EnableDisable(isEnable bool) {
@@ -81,7 +84,7 @@ func (p *IpsecProvider) RescanState() {
 	for _, profile := range profiles {
 		pmap[profile.Name] = true
 	}
-	ip4, ip6 := p.server.GetNodeIPs()
+	ip4, ip6 := getNodeIPs(p.cache)
 	for _, tunnel := range tunnels {
 		if (ip4 != nil && tunnel.Src.Equal(*ip4)) || (ip6 != nil && tunnel.Src.Equal(*ip6)) {
 			ipsecTunnel := NewIpsecTunnel(tunnel)
@@ -122,10 +125,10 @@ func (p *IpsecProvider) RescanState() {
 			p.log.Errorf("SetIPsecAsyncMode error %s", err)
 		}
 
-		p.log.Infof("Using async workers for ipsec, nonCryptoThreads=%d", p.nonCryptoThreads)
-		// setting first p.nonCryptoThreads threads to not be used for Crypto calculation (-> other packet processing)
+		p.log.Infof("Using async workers for ipsec, NumDataThreads=%d", p.cache.NumDataThreads)
+		// setting first p.cache.NumDataThreads threads to not be used for Crypto calculation (-> other packet processing)
 		// and let the remaining threads handle crypto operations
-		for i := 0; i < p.nonCryptoThreads; i++ {
+		for i := 0; i < p.cache.NumDataThreads; i++ {
 			err = p.vpp.SetCryptoWorker(uint32(i), false)
 			if err != nil {
 				p.log.Errorf("SetCryptoWorker error %s", err)
@@ -134,12 +137,13 @@ func (p *IpsecProvider) RescanState() {
 	}
 }
 
-func NewIPsecProvider(d *ConnectivityProviderData, nonCryptoThreads int) *IpsecProvider {
+func NewIPsecProvider(vpp *vpplink.VppLink, cache *cache.Cache, log *logrus.Entry) *IpsecProvider {
 	return &IpsecProvider{
-		ConnectivityProviderData: d,
-		ipsecIfs:                 make(map[string][]IpsecTunnel),
-		ipsecRoutes:              make(map[string]map[string]bool),
-		nonCryptoThreads:         nonCryptoThreads,
+		vpp:         vpp,
+		log:         log,
+		cache:       cache,
+		ipsecIfs:    make(map[string][]IpsecTunnel),
+		ipsecRoutes: make(map[string]map[string]bool),
 	}
 }
 
@@ -329,7 +333,7 @@ func (p *IpsecProvider) forceOtherNodeIP4(addr net.IP) (ip4 net.IP, err error) {
 	if !vpplink.IsIP6(addr) {
 		return addr, nil
 	}
-	otherNode := p.GetNodeByIP(addr)
+	otherNode := getNodeByIP(p.cache, addr)
 	if otherNode == nil {
 		return nil, fmt.Errorf("didnt find an ip4 for ip %s", addr.String())
 	}
@@ -351,7 +355,7 @@ func (p *IpsecProvider) AddConnectivity(cn *common.NodeConnectivity) (err error)
 		return errors.Wrap(err, "Ipsec v6 config failed")
 	}
 	/* IP6 is not yet supported by ikev2 */
-	nodeIP4, _ := p.server.GetNodeIPs()
+	nodeIP4, _ := getNodeIPs(p.cache)
 	if nodeIP4 == nil {
 		return fmt.Errorf("no ip4 node address found")
 	}

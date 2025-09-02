@@ -22,7 +22,7 @@ mock-image:
 
 # Build integration tests
 build-tests:
-	${DOCKER_RUN} go test -c ../../calico-vpp-agent/felix/cni
+	${DOCKER_RUN} go test -c ../../calico-vpp-agent/felix
 
 
 run-integration-tests: build-tests mock-image vpp-image

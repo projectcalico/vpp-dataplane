@@ -19,12 +19,8 @@ package connectivity
 import (
 	"net"
 
-	felixConfig "github.com/projectcalico/calico/felix/config"
-	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
-	"github.com/sirupsen/logrus"
-
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
 )
 
 const (
@@ -35,12 +31,6 @@ const (
 	WIREGUARD = "wireguard"
 	SRv6      = "srv6"
 )
-
-type ConnectivityProviderData struct {
-	vpp    *vpplink.VppLink
-	log    *logrus.Entry
-	server *ConnectivityServer
-}
 
 // ConnectivityProvider configures VPP to have proper connectivity to other K8s nodes.
 // Different implementations can connect VPP with VPP in other K8s node by using different networking
@@ -55,27 +45,15 @@ type ConnectivityProvider interface {
 	EnableDisable(isEnable bool)
 }
 
-func (p *ConnectivityProviderData) GetNodeByIP(addr net.IP) *common.LocalNodeSpec {
-	return p.server.GetNodeByIP(addr)
-}
-func (p *ConnectivityProviderData) GetNodeIPs() (*net.IP, *net.IP) {
-	return p.server.GetNodeIPs()
-}
-func (p *ConnectivityProviderData) Clientv3() calicov3cli.Interface {
-	return p.server.Clientv3
-}
-func (p *ConnectivityProviderData) GetFelixConfig() *felixConfig.Config {
-	return p.server.felixConfig
+func getNodeByIP(cache *cache.Cache, addr net.IP) *common.LocalNodeSpec {
+	ns, found := cache.NodeByAddr[addr.String()]
+	if !found {
+		return nil
+	}
+	return &ns
 }
 
-func NewConnectivityProviderData(
-	vpp *vpplink.VppLink,
-	server *ConnectivityServer,
-	log *logrus.Entry,
-) *ConnectivityProviderData {
-	return &ConnectivityProviderData{
-		vpp:    vpp,
-		log:    log,
-		server: server,
-	}
+func getNodeIPs(cache *cache.Cache) (ip4 *net.IP, ip6 *net.IP) {
+	ip4, ip6 = common.GetBGPSpecAddresses(cache.NodeBGPSpec)
+	return ip4, ip6
 }

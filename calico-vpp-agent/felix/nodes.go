@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/pkg/errors"
 	"github.com/projectcalico/api/pkg/lib/numorstring"
 
 	"github.com/projectcalico/calico/felix/proto"
@@ -89,6 +90,7 @@ func (s *Server) handleHostMetadataV4V6Remove(msg *proto.HostMetadataV4V6Remove)
 func (s *Server) onNodeUpdated(old *common.LocalNodeSpec, node *common.LocalNodeSpec) (err error) {
 	// This is used by the routing server to process Wireguard key updates
 	// As a result we only send an event when a node is updated, not when it is added or deleted
+	s.connectivityHandler.OnPeerNodeStateChanged(old, node)
 	change := common.GetIPNetChangeType(old.IPv4Address, node.IPv4Address) | common.GetIPNetChangeType(old.IPv6Address, node.IPv6Address)
 	if change&(common.ChangeDeleted|common.ChangeUpdated) != 0 && node.Name == *config.NodeName {
 		// restart if our BGP config changed
@@ -106,11 +108,18 @@ func (s *Server) onNodeAdded(node *common.LocalNodeSpec) (err error) {
 	if node.Name == *config.NodeName &&
 		(node.IPv4Address != nil || node.IPv6Address != nil) {
 		if s.cache.GetNodeIP4() == nil && s.cache.GetNodeIP6() == nil {
-			/* We found a BGP Spec that seems valid enough */
+			// this only happens once at startup
+			// TODO: we should properly implement the node address update
+			// for e.g. v4v6 independent updates.
 			s.GotOurNodeBGPchan <- node
 			s.cache.NodeBGPSpec = node
+			err = s.felixLateInit()
+			if err != nil {
+				return errors.Wrap(err, "Error in felixLateInit")
+			}
 		}
 	}
+	s.connectivityHandler.OnPeerNodeStateChanged(nil /* old */, node)
 	s.configureRemoteNodeSnat(node, true /* isAdd */)
 
 	return nil
@@ -132,6 +141,8 @@ func (s *Server) configureRemoteNodeSnat(node *common.LocalNodeSpec, isAdd bool)
 }
 
 func (s *Server) onNodeDeleted(old *common.LocalNodeSpec, node *common.LocalNodeSpec) error {
+	s.connectivityHandler.OnPeerNodeStateChanged(old, nil /* new */)
+
 	if old.Name == *config.NodeName {
 		// restart if our BGP config changed
 		return NodeWatcherRestartError{}

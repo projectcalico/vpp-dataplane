@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cni_test
+package felix
 
 import (
 	"context"
@@ -36,8 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks/calico"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/testutils"
@@ -109,15 +108,14 @@ const VPPContainerName = "cni-tests-vpp"
 
 var _ = Describe("Node-related functionality of CNI", func() {
 	var (
-		log                *logrus.Logger
-		vpp                *vpplink.VppLink
-		felixServer        *felix.Server
-		connectivityServer *connectivity.ConnectivityServer
-		client             *calico.CalicoClientStub
-		ipamStub           *mocks.IpamCacheStub
-		pubSubHandlerMock  *mocks.PubSubHandlerMock
-		felixConfig        *config.Config
-		uplinkSwIfIndex    uint32
+		log               *logrus.Logger
+		vpp               *vpplink.VppLink
+		felixServer       *Server
+		client            *calico.CalicoClientStub
+		ipamStub          *mocks.IpamCacheStub
+		pubSubHandlerMock *mocks.PubSubHandlerMock
+		felixConfig       *config.Config
+		uplinkSwIfIndex   uint32
 	)
 	BeforeEach(func() {
 		log = logrus.New()
@@ -134,10 +132,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		if ipamStub == nil {
 			ipamStub = mocks.NewIpamCacheStub()
 		}
-		connectivityServer = connectivity.NewConnectivityServer(vpp, ipamStub, client,
-			log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
-		connectivityServer.SetOurBGPSpec(&common.LocalNodeSpec{})
-		felixServer = felix.NewFelixServer(
+		felixServer = NewFelixServer(
 			vpp,
 			client,
 			log.WithFields(logrus.Fields{"subcomponent": "connectivity"}),
@@ -145,7 +140,6 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		if felixConfig == nil {
 			felixConfig = &config.Config{}
 		}
-		connectivityServer.SetFelixConfig(felixConfig)
 		felixServer.GetCache().FelixConfig = felixConfig
 		common.VppManagerInfo = &agentConf.VppManagerInfo{
 			UplinkStatuses: map[string]agentConf.UplinkStatus{
@@ -158,7 +152,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		Context("With FLAT connectivity", func() {
 			It("should only configure correct routes in VPP", func() {
 				By("Adding node")
-				err := connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+				err := felixServer.connectivityHandler.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *testutils.IPNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.FLAT,
@@ -226,7 +220,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				//Note: not testing setting of IPsecAsyncMode and threads dedicated to IPSec (CryptoWorkers)
 				// inside RescanState() function call
 				By("Adding node")
-				testutils.ConfigureBGPNodeIPAddresses(connectivityServer)
+				testutils.ConfigureBGPNodeIPAddresses(felixServer.GetCache())
 				// FIXME The concept of Destination and NextHop in common.NodeConnectivity is not well defined
 				//  (is the Destination the IP of added node, or it subnet or totally unrelated network? Is
 				//  the nexthop the IP of added node or could it be IP of some intermediate router that is
@@ -234,7 +228,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				//  Need to either define it well(unify it?) and fix connectivity providers(and tests) or leave it
 				//  in connectivity provider implementation and check each test for semantics used in given
 				//  connectivity provider
-				err := connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+				err := felixServer.connectivityHandler.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *testutils.IPNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(AddedNodeIP), // next hop == other node IP (for IPSec impl)
 					ResolvedProvider: connectivity.IPSEC,
@@ -352,7 +346,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 			It("should have vxlan tunnel and route forwarding to it", func() {
 				By("Initialize VXLAN and add static VXLAN configuration")
-				err := connectivityServer.ForceRescanState(connectivity.VXLAN)
+				err := felixServer.connectivityHandler.ForceRescanState(connectivity.VXLAN)
 				Expect(err).ToNot(HaveOccurred(), "can't rescan state of VPP and therefore "+
 					"can't properly create ???")
 
@@ -361,8 +355,8 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				testutils.AssertNextNodeLink("vxlan6-input", "ip6-input", vpp)
 
 				By("Adding node")
-				testutils.ConfigureBGPNodeIPAddresses(connectivityServer)
-				err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+				testutils.ConfigureBGPNodeIPAddresses(felixServer.GetCache())
+				err = felixServer.connectivityHandler.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *testutils.IPNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.VXLAN,
@@ -457,8 +451,8 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 			It("should have IP-IP tunnel and route forwarding to it", func() {
 				By("Adding node")
-				testutils.ConfigureBGPNodeIPAddresses(connectivityServer)
-				err := connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+				testutils.ConfigureBGPNodeIPAddresses(felixServer.GetCache())
+				err := felixServer.connectivityHandler.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *testutils.IPNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(GatewayIP),
 					ResolvedProvider: connectivity.IPIP,
@@ -559,16 +553,16 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 			It("must configure wireguard tunnel with one peer and routes to it", func() {
 				By("Adding node")
-				testutils.ConfigureBGPNodeIPAddresses(connectivityServer)
-				err := connectivityServer.ForceProviderEnableDisable(connectivity.WIREGUARD, true) // creates the tunnel (this is normally called by Felix config change event handler)
+				testutils.ConfigureBGPNodeIPAddresses(felixServer.GetCache())
+				err := felixServer.connectivityHandler.ForceProviderEnableDisable(connectivity.WIREGUARD, true) // creates the tunnel (this is normally called by Felix config change event handler)
 				Expect(err).ToNot(HaveOccurred(), "could not call ForceProviderEnableDisable")
 
 				addedNodePublicKey := "public-key-for-added-node" // max 32 characters due to VPP binapi
-				connectivityServer.ForceNodeAddition(common.LocalNodeSpec{
+				felixServer.connectivityHandler.ForceNodeAddition(common.LocalNodeSpec{
 					Name: AddedNodeName,
 				}, net.ParseIP(AddedNodeIP))
-				connectivityServer.ForceWGPublicKeyAddition(AddedNodeName, base64.StdEncoding.EncodeToString([]byte(addedNodePublicKey)))
-				err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+				felixServer.connectivityHandler.ForceWGPublicKeyAddition(AddedNodeName, base64.StdEncoding.EncodeToString([]byte(addedNodePublicKey)))
+				err = felixServer.connectivityHandler.UpdateIPConnectivity(&common.NodeConnectivity{
 					Dst:              *testutils.IPNet(AddedNodeIP + "/24"),
 					NextHop:          net.ParseIP(AddedNodeIP), // wireguard impl uses nexthop as node IP
 					ResolvedProvider: connectivity.WIREGUARD,
@@ -702,7 +696,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					// Note: localsids as tunnel endpoints are not bound to any particular tunnel, they can
 					// exists without tunnel or server one or more tunnels at the same time
 					// -> they are not dependent on anything from NodeConnection event and are created before event loop
-					err := connectivityServer.ForceRescanState(connectivity.SRv6)
+					err := felixServer.connectivityHandler.ForceRescanState(connectivity.SRv6)
 					Expect(err).ToNot(HaveOccurred(), "can't rescan state of VPP and therefore "+
 						"can't properly create SRv6 tunnel endpoints(LocalSids) for this node")
 
@@ -743,8 +737,8 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 					By("Setting and checking encapsulation source for SRv6")
 					// Note: encapsulation source sets source IP for traffic when exiting tunnel(=decapsulating)
-					testutils.ConfigureBGPNodeIPAddresses(connectivityServer)
-					err := connectivityServer.ForceRescanState(connectivity.SRv6)
+					testutils.ConfigureBGPNodeIPAddresses(felixServer.GetCache())
+					err := felixServer.connectivityHandler.ForceRescanState(connectivity.SRv6)
 					Expect(err).ToNot(HaveOccurred(), "can't rescan state of VPP and therefore "+
 						"can't properly set encapsulation source IP for this node")
 					// Note: no specialized binary api for getting SR encap source address -> using VPP's VPE binary API
@@ -754,7 +748,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						"sr encapsulation source address is misconfigured")
 
 					By("Adding node (the tunnel end node IP destination)")
-					err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+					err = felixServer.connectivityHandler.UpdateIPConnectivity(&common.NodeConnectivity{
 						Dst:              *tunnelEndNodeIPNet,
 						NextHop:          net.ParseIP(AddedNodeIPv6),
 						ResolvedProvider: connectivity.SRv6,
@@ -768,7 +762,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 					// policy/tunnel info(1 segment long SRv6 tunnel) leading to that new localsid (to tunnel-end
 					// node). Then it uses BGP to inform this node (the tunnel start node) about it. The BGP watcher
 					// catches it and sends event to connectivity server on this node and that results in call below.
-					err = connectivityServer.UpdateSRv6Policy(&common.NodeConnectivity{
+					err = felixServer.connectivityHandler.UpdateSRv6Policy(&common.NodeConnectivity{
 						Dst:              net.IPNet{},
 						NextHop:          net.ParseIP(AddedNodeIPv6),
 						ResolvedProvider: "",
@@ -795,7 +789,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						"configuration (steering and policy)")
 
 					By("Adding Srv6 traffic routing")
-					err = connectivityServer.UpdateIPConnectivity(&common.NodeConnectivity{
+					err = felixServer.connectivityHandler.UpdateIPConnectivity(&common.NodeConnectivity{
 						Dst:              *tunnelEndLocalSid,
 						NextHop:          net.ParseIP(GatewayIPv6),
 						ResolvedProvider: connectivity.SRv6,

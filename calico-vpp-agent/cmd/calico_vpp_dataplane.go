@@ -26,7 +26,6 @@ import (
 	apipb "github.com/osrg/gobgp/v3/api"
 	bgpserver "github.com/osrg/gobgp/v3/pkg/server"
 	"github.com/pkg/errors"
-	felixconfig "github.com/projectcalico/calico/felix/config"
 	calicocli "github.com/projectcalico/calico/libcalico-go/lib/client"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
@@ -36,7 +35,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
@@ -153,7 +151,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not install felix plugin: %s", err)
 	}
-	connectivityServer := connectivity.NewConnectivityServer(vpp, felixServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 
 	/* Pubsub should now be registered */
 
@@ -170,7 +167,6 @@ func main() {
 	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
 	Go(felixServer.ServeFelix)
 	Go(felixWatcher.WatchFelix)
-	felixConfig := watchDog.Wait(felixServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
 	ourBGPSpec := watchDog.Wait(felixServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")
 	// check if the watchDog timer has issued the t.Kill() which would mean we are dead
 	if !t.Alive() {
@@ -183,7 +179,6 @@ func main() {
 			panic("ourBGPSpec is not *common.LocalNodeSpec")
 		}
 		prefixWatcher.SetOurBGPSpec(bgpSpec)
-		connectivityServer.SetOurBGPSpec(bgpSpec)
 		routingServer.SetOurBGPSpec(bgpSpec)
 		serviceServer.SetOurBGPSpec(bgpSpec)
 		localSIDWatcher.SetOurBGPSpec(bgpSpec)
@@ -195,21 +190,12 @@ func main() {
 		watchDog.Wait(netWatcher.InSync, "Waiting for networks to be listed and synced")
 	}
 
-	if felixConfig != nil {
-		felixCfg, ok := felixConfig.(*felixconfig.Config)
-		if !ok {
-			panic("ourBGPSpec is not *felixconfig.Config")
-		}
-		connectivityServer.SetFelixConfig(felixCfg)
-	}
-
 	Go(routeWatcher.WatchRoutes)
 	Go(linkWatcher.WatchLinks)
 	Go(bgpConfigurationWatcher.WatchBGPConfiguration)
 	Go(prefixWatcher.WatchPrefix)
 	Go(peerWatcher.WatchBGPPeers)
 	Go(bgpFilterWatcher.WatchBGPFilters)
-	Go(connectivityServer.ServeConnectivity)
 	Go(routingServer.ServeRouting)
 	Go(serviceServer.ServeService)
 	Go(cniServer.ServeCNI)
