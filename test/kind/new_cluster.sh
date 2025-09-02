@@ -1,6 +1,14 @@
 #!/bin/bash
 set -o errexit
 
+if [[ $(kind get clusters | grep -E '^kind$') == "kind" ]]; then
+	echo "Cluster kind already exists"
+	exit 0
+fi
+
+N_KIND_CONTROL_PLANES=${N_KIND_CONTROL_PLANES:-1}
+N_KIND_WORKERS=${N_KIND_WORKERS:-2}
+
 # create registry container unless it already exists
 reg_name='kind-registry'
 reg_port='5000'
@@ -20,7 +28,7 @@ containerdConfigPatches:
     endpoint = ["http://${reg_name}:5000"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
     endpoint = ["http://${reg_name}:5000"]
-   
+
 networking:
   disableDefaultCNI: true
   podSubnet: "11.0.0.0/16,fd20::0/64"
