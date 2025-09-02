@@ -26,7 +26,6 @@ import (
 	apipb "github.com/osrg/gobgp/v3/api"
 	bgpserver "github.com/osrg/gobgp/v3/pkg/server"
 	"github.com/pkg/errors"
-	felixconfig "github.com/projectcalico/calico/felix/config"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -35,7 +34,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/health"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
@@ -160,7 +158,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not install felix plugin: %s", err)
 	}
-	connectivityServer := connectivity.NewConnectivityServer(vpp, felixServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 
 	/* Pubsub should now be registered */
 
@@ -187,14 +184,13 @@ func main() {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
-	var felixConfig *felixconfig.Config
 	var ourBGPSpec *common.LocalNodeSpec
 	felixConfigReceived := false
 	bgpSpecReceived := false
 
 	for !felixConfigReceived || !bgpSpecReceived {
 		select {
-		case felixConfig = <-felixServer.FelixConfigChan:
+		case <-felixServer.GotFelixConfig:
 			felixConfigReceived = true
 			log.Info("FelixConfig received from calico pod")
 		case ourBGPSpec = <-felixServer.GotOurNodeBGPchan():
@@ -218,7 +214,6 @@ func main() {
 	log.Info("Felix configuration received")
 
 	prefixWatcher.SetOurBGPSpec(ourBGPSpec)
-	connectivityServer.SetOurBGPSpec(ourBGPSpec)
 	routingServer.SetOurBGPSpec(ourBGPSpec)
 	serviceServer.SetOurBGPSpec(ourBGPSpec)
 	localSIDWatcher.SetOurBGPSpec(ourBGPSpec)
@@ -236,15 +231,12 @@ func main() {
 		}
 	}
 
-	connectivityServer.SetFelixConfig(felixConfig)
-
 	Go(routeWatcher.WatchRoutes)
 	Go(linkWatcher.WatchLinks)
 	Go(bgpConfigurationWatcher.WatchBGPConfiguration)
 	Go(prefixWatcher.WatchPrefix)
 	Go(peerWatcher.WatchBGPPeers)
 	Go(bgpFilterWatcher.WatchBGPFilters)
-	Go(connectivityServer.ServeConnectivity)
 	Go(routingServer.ServeRouting)
 	Go(serviceServer.ServeService)
 	Go(cniServer.ServeCNI)

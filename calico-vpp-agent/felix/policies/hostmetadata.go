@@ -76,7 +76,21 @@ func (s *PoliciesHandler) OnHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Up
 		}
 	}
 
+	if old != nil {
+		if old.IPv4Address != nil {
+			delete(s.cache.NodeByAddr, old.IPv4Address.IP.String())
+		}
+		if old.IPv6Address != nil {
+			delete(s.cache.NodeByAddr, old.IPv6Address.IP.String())
+		}
+	}
 	s.cache.NodeStatesByName[localNodeSpec.Name] = localNodeSpec
+	if localNodeSpec.IPv4Address != nil {
+		s.cache.NodeByAddr[localNodeSpec.IPv4Address.IP.String()] = localNodeSpec
+	}
+	if localNodeSpec.IPv6Address != nil {
+		s.cache.NodeByAddr[localNodeSpec.IPv6Address.IP.String()] = localNodeSpec
+	}
 	return nil
 }
 
@@ -94,8 +108,14 @@ func (s *PoliciesHandler) OnHostMetadataV4V6Remove(msg *proto.HostMetadataV4V6Re
 		// restart if our BGP config changed
 		return NodeWatcherRestartError{}
 	}
-
 	s.configureRemoteNodeSnat(old, false /* isAdd */)
+	delete(s.cache.NodeStatesByName, msg.Hostname)
+	if old.IPv4Address != nil {
+		delete(s.cache.NodeByAddr, old.IPv4Address.IP.String())
+	}
+	if old.IPv6Address != nil {
+		delete(s.cache.NodeByAddr, old.IPv6Address.IP.String())
+	}
 	return nil
 }
 

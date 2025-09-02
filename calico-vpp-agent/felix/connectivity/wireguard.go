@@ -23,41 +23,53 @@ import (
 
 	vpptypes "github.com/calico-vpp/vpplink/api/v0"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
+	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 type WireguardProvider struct {
-	*ConnectivityProviderData
+	vpp                *vpplink.VppLink
+	log                *logrus.Entry
+	cache              *cache.Cache
+	clientv3           calicov3cli.Interface
 	wireguardTunnels   map[string]*vpptypes.WireguardTunnel
 	wireguardPeers     map[string]vpptypes.WireguardPeer
-	nodesToWGPublicKey map[string]string
+	NodesToWGPublicKey map[string]string
 }
 
-func NewWireguardProvider(d *ConnectivityProviderData) *WireguardProvider {
+func NewWireguardProvider(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, cache *cache.Cache, log *logrus.Entry) *WireguardProvider {
 	return &WireguardProvider{
-		ConnectivityProviderData: d,
-		wireguardTunnels:         make(map[string]*vpptypes.WireguardTunnel),
-		wireguardPeers:           make(map[string]vpptypes.WireguardPeer),
-		nodesToWGPublicKey:       make(map[string]string),
+		vpp:                vpp,
+		log:                log,
+		cache:              cache,
+		clientv3:           clientv3,
+		wireguardTunnels:   make(map[string]*vpptypes.WireguardTunnel),
+		wireguardPeers:     make(map[string]vpptypes.WireguardPeer),
+		NodesToWGPublicKey: make(map[string]string),
 	}
 }
 
 func (p *WireguardProvider) Enabled(cn *common.NodeConnectivity) bool {
-	felixConfig := p.GetFelixConfig()
+	felixConfig := p.cache.FelixConfig
 	if !felixConfig.WireguardEnabled {
 		return false
 	}
-	node := p.GetNodeByIP(cn.NextHop)
-	return p.nodesToWGPublicKey[node.Name] != ""
+	if node, found := p.cache.NodeByAddr[cn.NextHop.String()]; found {
+		return p.NodesToWGPublicKey[node.Name] != ""
+	}
+	return false
 }
 
 func (p *WireguardProvider) getWireguardPort() uint16 {
-	felixConfig := p.GetFelixConfig()
+	felixConfig := p.cache.FelixConfig
 	if felixConfig.WireguardListeningPort == 0 {
 		return uint16(config.DefaultWireguardPort)
 	}
@@ -65,28 +77,31 @@ func (p *WireguardProvider) getWireguardPort() uint16 {
 }
 
 func (p *WireguardProvider) getNodePublicKey(cn *common.NodeConnectivity) ([]byte, error) {
-	node := p.GetNodeByIP(cn.NextHop)
-	if p.nodesToWGPublicKey[node.Name] == "" {
+	node, found := p.cache.NodeByAddr[cn.NextHop.String()]
+	if !found {
+		return nil, fmt.Errorf("node=%s not found", cn.NextHop.String())
+	}
+	if p.NodesToWGPublicKey[node.Name] == "" {
 		return nil, fmt.Errorf("no public key for node=%s", node.Name)
 	}
 
-	p.log.Infof("connectivity(add) Wireguard nodeName=%s pubKey=%s", node.Name, p.nodesToWGPublicKey[node.Name])
-	key, err := base64.StdEncoding.DecodeString(p.nodesToWGPublicKey[node.Name])
+	p.log.Infof("connectivity(add) Wireguard nodeName=%s pubKey=%s", node.Name, p.NodesToWGPublicKey[node.Name])
+	key, err := base64.StdEncoding.DecodeString(p.NodesToWGPublicKey[node.Name])
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error decoding wireguard public key %s", p.nodesToWGPublicKey[node.Name])
+		return nil, errors.Wrapf(err, "Error decoding wireguard public key %s", p.NodesToWGPublicKey[node.Name])
 	}
 	return key, nil
 }
 
 func (p *WireguardProvider) publishWireguardPublicKey(pubKey string) error {
 	// Ref: felix/daemon/daemon.go:1056
-	node, err := p.Clientv3().Nodes().Get(context.Background(), *config.NodeName, options.GetOptions{})
+	node, err := p.clientv3.Nodes().Get(context.Background(), *config.NodeName, options.GetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "Error getting node config")
 	}
 	p.log.Infof("connectivity(add) Wireguard publishing nodeName=%s pubKey=%s", *config.NodeName, pubKey)
 	node.Status.WireguardPublicKey = pubKey
-	_, err = p.Clientv3().Nodes().Update(context.Background(), node, options.SetOptions{})
+	_, err = p.clientv3.Nodes().Update(context.Background(), node, options.SetOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "Error updating node config")
 	}
@@ -102,13 +117,12 @@ func (p *WireguardProvider) RescanState() {
 	if err != nil {
 		p.log.Errorf("Error listing wireguard tunnels: %v", err)
 	}
-	ip4, ip6 := p.server.GetNodeIPs()
 	for _, tunnel := range tunnels {
-		if ip4 != nil && tunnel.Addr.Equal(*ip4) {
+		if p.cache.GetNodeIP4() != nil && tunnel.Addr.Equal(*p.cache.GetNodeIP4()) {
 			p.log.Infof("Found existing v4 tunnel: %s", tunnel)
 			p.wireguardTunnels["ip4"] = tunnel
 		}
-		if ip6 != nil && tunnel.Addr.Equal(*ip6) {
+		if p.cache.GetNodeIP6() != nil && tunnel.Addr.Equal(*p.cache.GetNodeIP6()) {
 			p.log.Infof("Found existing v6 tunnel: %s", tunnel)
 			p.wireguardTunnels["ip6"] = tunnel
 		}
@@ -135,9 +149,14 @@ func (p *WireguardProvider) errorCleanup(tunnel *vpptypes.WireguardTunnel) {
 func (p *WireguardProvider) EnableDisable(isEnable bool) {
 	if isEnable {
 		if len(p.wireguardTunnels) == 0 {
-			err := p.createWireguardTunnels()
+			err := p.createWireguardTunnels(p.cache.GetNodeIP4(), "ip4")
 			if err != nil {
 				p.log.Errorf("Wireguard: Error creating v4 tunnel %s", err)
+				return
+			}
+			err = p.createWireguardTunnels(p.cache.GetNodeIP6(), "ip6")
+			if err != nil {
+				p.log.Errorf("Wireguard: Error creating v6 tunnel %s", err)
 				return
 			}
 		}
@@ -160,83 +179,70 @@ func (p *WireguardProvider) EnableDisable(isEnable bool) {
 	}
 }
 
-func (p *WireguardProvider) createWireguardTunnels() error {
-
-	var nodeIP4, nodeIP6 net.IP
-	ip4, ip6 := p.server.GetNodeIPs()
-	if ip6 != nil {
-		nodeIP6 = *ip6
+func (p *WireguardProvider) createWireguardTunnels(nodeIP *net.IP, ipFamily string) error {
+	if nodeIP == nil {
+		return nil
 	}
-	if ip4 != nil {
-		nodeIP4 = *ip4
-	} else {
-		return fmt.Errorf("missing node address")
+	p.log.Debugf("Adding wireguard Tunnel to VPP")
+	tunnel := &vpptypes.WireguardTunnel{
+		Addr: *nodeIP,
+		Port: p.getWireguardPort(),
 	}
-	nodeIPs := map[string]net.IP{"ip4": nodeIP4, "ip6": nodeIP6}
-	for ipfamily, nodeIP := range nodeIPs {
-		if nodeIP != nil {
-			p.log.Debugf("Adding wireguard Tunnel to VPP")
-			tunnel := &vpptypes.WireguardTunnel{
-				Addr: nodeIP,
-				Port: p.getWireguardPort(),
-			}
-			var swIfIndex uint32
-			var err error
-			if len(p.wireguardTunnels) != 0 { // we already have one, use same public key
-				for _, tun := range p.wireguardTunnels {
-					tunnel.PrivateKey = tun.PrivateKey
-					break
-				}
-				swIfIndex, err = p.vpp.AddWireguardTunnel(tunnel, false /* generateKey */)
-			} else {
-				swIfIndex, err = p.vpp.AddWireguardTunnel(tunnel, true /* generateKey */)
-			}
-
-			if err != nil {
-				p.errorCleanup(tunnel)
-				return errors.Wrapf(err, "Error creating wireguard tunnel")
-			}
-			// fetch public key of created tunnel
-			createdTunnel, err := p.vpp.GetWireguardTunnel(swIfIndex)
-			if err != nil {
-				p.errorCleanup(tunnel)
-				return errors.Wrapf(err, "Error fetching wireguard tunnel after creation")
-			}
-			tunnel.PublicKey = createdTunnel.PublicKey
-			tunnel.PrivateKey = createdTunnel.PrivateKey
-
-			err = p.vpp.InterfaceSetUnnumbered(swIfIndex, common.VppManagerInfo.GetMainSwIfIndex())
-			if err != nil {
-				p.errorCleanup(tunnel)
-				return errors.Wrapf(err, "Error setting wireguard tunnel unnumbered")
-			}
-
-			err = p.vpp.EnableGSOFeature(swIfIndex)
-			if err != nil {
-				p.errorCleanup(tunnel)
-				return errors.Wrapf(err, "Error enabling gso for wireguard interface")
-			}
-
-			err = p.vpp.CnatEnableFeatures(swIfIndex)
-			if err != nil {
-				p.errorCleanup(tunnel)
-				return errors.Wrapf(err, "Error enabling nat for wireguard interface")
-			}
-
-			err = p.vpp.InterfaceAdminUp(swIfIndex)
-			if err != nil {
-				p.errorCleanup(tunnel)
-				return errors.Wrapf(err, "Error setting wireguard interface up")
-			}
-
-			common.SendEvent(common.CalicoVppEvent{
-				Type: common.TunnelAdded,
-				New:  swIfIndex,
-			})
-
-			p.wireguardTunnels[ipfamily] = tunnel
+	var swIfIndex uint32
+	var err error
+	if len(p.wireguardTunnels) != 0 { // we already have one, use same public key
+		for _, tun := range p.wireguardTunnels {
+			tunnel.PrivateKey = tun.PrivateKey
+			break
 		}
+		swIfIndex, err = p.vpp.AddWireguardTunnel(tunnel, false /* generateKey */)
+	} else {
+		swIfIndex, err = p.vpp.AddWireguardTunnel(tunnel, true /* generateKey */)
 	}
+
+	if err != nil {
+		p.errorCleanup(tunnel)
+		return errors.Wrapf(err, "Error creating wireguard tunnel")
+	}
+	// fetch public key of created tunnel
+	createdTunnel, err := p.vpp.GetWireguardTunnel(swIfIndex)
+	if err != nil {
+		p.errorCleanup(tunnel)
+		return errors.Wrapf(err, "Error fetching wireguard tunnel after creation")
+	}
+	tunnel.PublicKey = createdTunnel.PublicKey
+	tunnel.PrivateKey = createdTunnel.PrivateKey
+
+	err = p.vpp.InterfaceSetUnnumbered(swIfIndex, common.VppManagerInfo.GetMainSwIfIndex())
+	if err != nil {
+		p.errorCleanup(tunnel)
+		return errors.Wrapf(err, "Error setting wireguard tunnel unnumbered")
+	}
+
+	err = p.vpp.EnableGSOFeature(swIfIndex)
+	if err != nil {
+		p.errorCleanup(tunnel)
+		return errors.Wrapf(err, "Error enabling gso for wireguard interface")
+	}
+
+	err = p.vpp.CnatEnableFeatures(swIfIndex)
+	if err != nil {
+		p.errorCleanup(tunnel)
+		return errors.Wrapf(err, "Error enabling nat for wireguard interface")
+	}
+
+	err = p.vpp.InterfaceAdminUp(swIfIndex)
+	if err != nil {
+		p.errorCleanup(tunnel)
+		return errors.Wrapf(err, "Error setting wireguard interface up")
+	}
+
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.TunnelAdded,
+		New:  swIfIndex,
+	})
+
+	p.wireguardTunnels[ipFamily] = tunnel
 	p.log.Infof("connectivity(add) Wireguard Done tunnel=%s", p.wireguardTunnels)
 	return nil
 }

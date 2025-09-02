@@ -19,6 +19,7 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -26,7 +27,8 @@ import (
 )
 
 type FlatL3Provider struct {
-	*ConnectivityProviderData
+	vpp *vpplink.VppLink
+	log *logrus.Entry
 }
 
 func getRoutePaths(addr net.IP) []types.RoutePath {
@@ -48,8 +50,11 @@ func (p *FlatL3Provider) Enabled(cn *common.NodeConnectivity) bool {
 	return true
 }
 
-func NewFlatL3Provider(d *ConnectivityProviderData) *FlatL3Provider {
-	return &FlatL3Provider{d}
+func NewFlatL3Provider(vpp *vpplink.VppLink, log *logrus.Entry) *FlatL3Provider {
+	return &FlatL3Provider{
+		vpp: vpp,
+		log: log,
+	}
 }
 
 func (p *FlatL3Provider) AddConnectivity(cn *common.NodeConnectivity) error {

@@ -17,14 +17,7 @@
 package connectivity
 
 import (
-	"net"
-
-	felixConfig "github.com/projectcalico/calico/felix/config"
-	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
-	"github.com/sirupsen/logrus"
-
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
 const (
@@ -35,12 +28,6 @@ const (
 	WIREGUARD = "wireguard"
 	SRv6      = "srv6"
 )
-
-type ConnectivityProviderData struct {
-	vpp    *vpplink.VppLink
-	log    *logrus.Entry
-	server *ConnectivityServer
-}
 
 // ConnectivityProvider configures VPP to have proper connectivity to other K8s nodes.
 // Different implementations can connect VPP with VPP in other K8s node by using different networking
@@ -53,29 +40,4 @@ type ConnectivityProvider interface {
 	// Enabled checks whether the ConnectivityProvider is enabled in the config
 	Enabled(cn *common.NodeConnectivity) bool
 	EnableDisable(isEnable bool)
-}
-
-func (p *ConnectivityProviderData) GetNodeByIP(addr net.IP) *common.LocalNodeSpec {
-	return p.server.GetNodeByIP(addr)
-}
-func (p *ConnectivityProviderData) GetNodeIPs() (*net.IP, *net.IP) {
-	return p.server.GetNodeIPs()
-}
-func (p *ConnectivityProviderData) Clientv3() calicov3cli.Interface {
-	return p.server.Clientv3
-}
-func (p *ConnectivityProviderData) GetFelixConfig() *felixConfig.Config {
-	return p.server.felixConfig
-}
-
-func NewConnectivityProviderData(
-	vpp *vpplink.VppLink,
-	server *ConnectivityServer,
-	log *logrus.Entry,
-) *ConnectivityProviderData {
-	return &ConnectivityProviderData{
-		vpp:    vpp,
-		log:    log,
-		server: server,
-	}
 }

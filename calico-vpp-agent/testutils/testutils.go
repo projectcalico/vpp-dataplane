@@ -39,7 +39,7 @@ import (
 	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks/calico"
@@ -474,15 +474,15 @@ func AssertNextNodeLink(node, linkedNextNode string, vpp *vpplink.VppLink) int {
 	return nextNodeIndex
 }
 
-func ConfigureBGPNodeIPAddresses(connectivityServer *connectivity.ConnectivityServer) {
+func ConfigureBGPNodeIPAddresses(cache *cache.Cache) {
 	ip4, ip4net, _ := net.ParseCIDR(ThisNodeIP + "/24")
 	ip4net.IP = ip4
 	ip6, ip6net, _ := net.ParseCIDR(ThisNodeIPv6 + "/128")
 	ip6net.IP = ip6
-	connectivityServer.SetOurBGPSpec(&common.LocalNodeSpec{
+	cache.NodeByAddr[*config.NodeName] = &common.LocalNodeSpec{
 		IPv4Address: ip4net,
 		IPv6Address: ip6net,
-	})
+	}
 }
 
 // AddIPPoolForCalicoClient is convenience function for adding IPPool to mocked Calico IPAM Stub used

@@ -21,23 +21,33 @@ import (
 
 	vpptypes "github.com/calico-vpp/vpplink/api/v0"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 type VXLanProvider struct {
-	*ConnectivityProviderData
+	vpp          *vpplink.VppLink
+	log          *logrus.Entry
+	cache        *cache.Cache
 	vxlanIfs     map[string]vpptypes.VXLanTunnel
 	vxlanRoutes  map[uint32]map[string]bool
 	ip4NodeIndex uint32
 	ip6NodeIndex uint32
 }
 
-func NewVXLanProvider(d *ConnectivityProviderData) *VXLanProvider {
-	return &VXLanProvider{d, make(map[string]vpptypes.VXLanTunnel), make(map[uint32]map[string]bool), 0, 0}
+func NewVXLanProvider(vpp *vpplink.VppLink, cache *cache.Cache, log *logrus.Entry) *VXLanProvider {
+	return &VXLanProvider{
+		vpp:         vpp,
+		log:         log,
+		cache:       cache,
+		vxlanIfs:    make(map[string]vpptypes.VXLanTunnel),
+		vxlanRoutes: make(map[uint32]map[string]bool),
+	}
 }
 
 func (p *VXLanProvider) EnableDisable(isEnable bool) {
@@ -72,9 +82,8 @@ func (p *VXLanProvider) RescanState() {
 	if err != nil {
 		p.log.Errorf("Error listing VXLan tunnels: %v", err)
 	}
-	ip4, ip6 := p.server.GetNodeIPs()
 	for _, tunnel := range tunnels {
-		if (ip4 != nil && tunnel.SrcAddress.Equal(*ip4)) || (ip6 != nil && tunnel.SrcAddress.Equal(*ip6)) {
+		if (p.cache.GetNodeIP4() != nil && tunnel.SrcAddress.Equal(*p.cache.GetNodeIP4())) || (p.cache.GetNodeIP6() != nil && tunnel.SrcAddress.Equal(*p.cache.GetNodeIP6())) {
 			if tunnel.Vni == p.getVXLANVNI() && tunnel.DstPort == p.getVXLANPort() && tunnel.SrcPort == p.getVXLANPort() {
 				p.log.Infof("Found existing tunnel: %s", tunnel.String())
 				p.vxlanIfs[tunnel.DstAddress.String()+"-"+fmt.Sprint(tunnel.Vni)] = tunnel
@@ -107,7 +116,7 @@ func (p *VXLanProvider) RescanState() {
 }
 
 func (p *VXLanProvider) getVXLANVNI() uint32 {
-	felixConfig := p.GetFelixConfig()
+	felixConfig := p.cache.FelixConfig
 	if felixConfig.VXLANVNI == 0 {
 		return uint32(config.DefaultVXLANVni)
 	}
@@ -115,7 +124,7 @@ func (p *VXLanProvider) getVXLANVNI() uint32 {
 }
 
 func (p *VXLanProvider) getVXLANPort() uint16 {
-	felixConfig := p.GetFelixConfig()
+	felixConfig := p.cache.FelixConfig
 	if felixConfig.VXLANPort == 0 {
 		return config.DefaultVXLANPort
 	}
@@ -123,11 +132,10 @@ func (p *VXLanProvider) getVXLANPort() uint16 {
 }
 
 func (p *VXLanProvider) getNodeIPForConnectivity(cn *common.NodeConnectivity) (nodeIP net.IP, err error) {
-	ip4, ip6 := p.server.GetNodeIPs()
-	if vpplink.IsIP6(cn.NextHop) && ip6 != nil {
-		return *ip6, nil
-	} else if !vpplink.IsIP6(cn.NextHop) && ip4 != nil {
-		return *ip4, nil
+	if vpplink.IsIP6(cn.NextHop) && p.cache.GetNodeIP6() != nil {
+		return *p.cache.GetNodeIP6(), nil
+	} else if !vpplink.IsIP6(cn.NextHop) && p.cache.GetNodeIP4() != nil {
+		return *p.cache.GetNodeIP4(), nil
 	} else {
 		return nodeIP, fmt.Errorf("missing node address")
 	}
@@ -213,7 +221,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		})
 		if cn.Vni != 0 {
 			for idx, ipFamily := range vpplink.IPFamilies {
-				vrfIndex := p.server.networks[cn.Vni].VRF.Tables[idx]
+				vrfIndex := p.cache.Networks[cn.Vni].VRF.Tables[idx]
 				p.log.Infof("connectivity(add) set vxlan interface %d in vrf %d", tunnel.SwIfIndex, vrfIndex)
 				err := p.vpp.SetInterfaceVRF(tunnel.SwIfIndex, vrfIndex, ipFamily.IsIP6)
 				if err != nil {
@@ -224,7 +232,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			p.log.Infof("connectivity(add) set vxlan interface unnumbered")
 			var uplinkToUse uint32
 			for _, intf := range common.VppManagerInfo.UplinkStatuses {
-				if intf.PhysicalNetworkName == p.server.networks[cn.Vni].PhysicalNetworkName {
+				if intf.PhysicalNetworkName == p.cache.Networks[cn.Vni].PhysicalNetworkName {
 					uplinkToUse = intf.SwIfIndex
 					break
 				}
@@ -242,7 +250,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 	if cn.Vni == 0 {
 		p.log.Infof("connectivity(add) vxlan route dst=%s via swIfIndex=%d", cn.Dst.IP.String(), tunnel.SwIfIndex)
 	} else {
-		vrfIndex := p.server.networks[cn.Vni].VRF.Tables[vpplink.IPFamilyFromIPNet(&cn.Dst).FamilyIdx]
+		vrfIndex := p.cache.Networks[cn.Vni].VRF.Tables[vpplink.IPFamilyFromIPNet(&cn.Dst).FamilyIdx]
 		p.log.Infof("connectivity(add) vxlan route dst=%s via swIfIndex %d in VRF %d (VNI:%d)", cn.Dst.IP.String(),
 			tunnel.SwIfIndex, vrfIndex, cn.Vni)
 		table = vrfIndex
@@ -284,7 +292,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			}},
 		}
 	} else {
-		vrfIndex := p.server.networks[cn.Vni].VRF.Tables[vpplink.IPFamilyFromIPNet(&cn.Dst).FamilyIdx]
+		vrfIndex := p.cache.Networks[cn.Vni].VRF.Tables[vpplink.IPFamilyFromIPNet(&cn.Dst).FamilyIdx]
 		p.log.Infof("connectivity(del) VXLan cn=%s swIfIndex=%d in VRF %d (VNI:%d)", cn.String(), tunnel.SwIfIndex, vrfIndex, cn.Vni)
 		routeToDelete = &types.Route{
 			Dst: &cn.Dst,
