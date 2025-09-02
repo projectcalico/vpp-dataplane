@@ -33,6 +33,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/policies"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/services"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -57,14 +58,16 @@ type Server struct {
 	policiesHandler     *policies.PoliciesHandler
 	cniHandler          *cni.CNIHandler
 	connectivityHandler *connectivity.ConnectivityHandler
+	serviceHandler      *services.ServiceHandler
 }
 
 // NewFelixServer creates a felix server
 func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *logrus.Entry) *Server {
 	cache := cache.NewCache(log)
 	server := &Server{
-		log:                  log,
-		vpp:                  vpp,
+		log: log,
+		vpp: vpp,
+
 		felixServerEventChan: make(chan any, common.ChanSize),
 
 		GotOurNodeBGPchan: make(chan interface{}),
@@ -73,6 +76,7 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 		policiesHandler:     policies.NewPoliciesHandler(vpp, cache, clientv3, log),
 		cniHandler:          cni.NewCNIHandler(vpp, cache, log),
 		connectivityHandler: connectivity.NewConnectivityHandler(vpp, cache, clientv3, log),
+		serviceHandler:      services.NewServiceHandler(vpp, cache, log),
 	}
 
 	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")
@@ -226,12 +230,20 @@ func (s *Server) felixLateInit() (err error) {
 	if err != nil {
 		return errors.Wrap(err, "Error in ConnectivityHandlerInit")
 	}
+	err = s.serviceHandler.ServiceHandlerInit()
+	if err != nil {
+		return errors.Wrap(err, "Error in ServiceHandlerInit")
+	}
 	return nil
 }
 
 func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 	s.log.Debugf("Got message from felix: %#v", msg)
 	switch evt := msg.(type) {
+	case *common.ServiceEndpointsUpdate:
+		s.serviceHandler.OnServiceEndpointsUpdate(evt)
+	case *common.ServiceEndpointsDelete:
+		s.serviceHandler.OnServiceEndpointsDelete(evt)
 	case *proto.ConfigUpdate:
 		err = s.handleConfigUpdate(evt)
 	case *proto.InSync:

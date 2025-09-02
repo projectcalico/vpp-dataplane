@@ -38,7 +38,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/services"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 
 	watchdog "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watch_dog"
@@ -141,12 +140,13 @@ func main() {
 	bgpFilterWatcher := watchers.NewBGPFilterWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "BGPFilter-watcher"}))
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
 	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
-	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
 	felixServer := felix.NewFelixServer(vpp, clientv3, log.WithFields(logrus.Fields{"component": "policy"}))
 	felixWatcher := watchers.NewFelixWatcher(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "felix watcher"}))
 	cniServer := watchers.NewCNIServer(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "cni"}))
+	serviceServer := watchers.NewServiceServer(felixServer.GetFelixServerEventChan(), k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
+
 	err = watchers.InstallFelixPlugin()
 	if err != nil {
 		log.Fatalf("could not install felix plugin: %s", err)
@@ -161,7 +161,6 @@ func main() {
 
 	peerWatcher.SetBGPConf(bgpConf)
 	routingServer.SetBGPConf(bgpConf)
-	serviceServer.SetBGPConf(bgpConf)
 	felixServer.SetBGPConf(bgpConf)
 
 	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
@@ -180,7 +179,6 @@ func main() {
 		}
 		prefixWatcher.SetOurBGPSpec(bgpSpec)
 		routingServer.SetOurBGPSpec(bgpSpec)
-		serviceServer.SetOurBGPSpec(bgpSpec)
 		localSIDWatcher.SetOurBGPSpec(bgpSpec)
 		netWatcher.SetOurBGPSpec(bgpSpec)
 	}
