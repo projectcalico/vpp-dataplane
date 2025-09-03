@@ -362,6 +362,9 @@ test: builder-image bin
 		go test ./... \
 		-cover \
 		-covermode=atomic \
+		# we prevent parallel test execution
+		# as test infra does not currently support parallel VPPs
+		-p 1 \
 		-test.v \
 		-test.gocoverdir=$(shell pwd)/.coverage/unit \
 
@@ -388,6 +391,9 @@ ci-test: builder-image bin
 		go test ./... \
 			-cover \
 			-covermode=atomic \
+			# we prevent parallel test execution
+			# as test infra does not currently support parallel VPPs
+			-p 1 \
 			-test.v \
 			-test.gocoverdir=/vpp-dataplane/.coverage/unit
 
