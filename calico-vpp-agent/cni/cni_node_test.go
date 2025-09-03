@@ -102,9 +102,6 @@ const (
 	AddedNodeIPv6 = "A::2:1"
 )
 
-// VPPContainerName is name of container with VPP binary
-const VPPContainerName = "cni-tests-vpp"
-
 var _ = Describe("Node-related functionality of CNI", func() {
 	var (
 		log                *logrus.Logger
@@ -124,6 +121,8 @@ var _ = Describe("Node-related functionality of CNI", func() {
 	})
 
 	JustBeforeEach(func() {
+		// Set unique container name for CNI node tests
+		testutils.VPPContainerName = "cni-node-tests-vpp"
 		testutils.StartVPP()
 		vpp, uplinkSwIfIndex = testutils.ConfigureVPP(log)
 
