@@ -440,6 +440,9 @@ type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	// issued using a pre-existing vlib buffer hence dropping a packet
 	// defaults to 30 seconds. Use 0 to disable.
 	IP6NeighborsMaxAge *uint32 `json:"ip6NeighborsMaxAge"`
+	// PrometheusStatsPrefix is the prefix to use for Prometheus metrics
+	// Defaults to "cni.projectcalico.vpp."
+	PrometheusStatsPrefix string `json:"prometheusStatsPrefix"`
 }
 
 func (cfg *CalicoVppInitialConfigConfigType) Validate() (err error) {
@@ -462,6 +465,9 @@ func (cfg *CalicoVppInitialConfigConfigType) Validate() (err error) {
 	cfg.IP6NeighborsMaxAge = DefaultToPtr(
 		cfg.IP6NeighborsMaxAge, 30,
 	)
+	if cfg.PrometheusStatsPrefix == "" {
+		cfg.PrometheusStatsPrefix = "cni.projectcalico.vpp."
+	}
 	return nil
 }
 func (cfg *CalicoVppInitialConfigConfigType) GetDefaultGWs() (gws []net.IP, err error) {
