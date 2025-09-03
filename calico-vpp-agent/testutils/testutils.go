@@ -58,7 +58,6 @@ const (
 	PodMockContainerName = "cni-tests-pod-mock"
 	// PodMockImage is docker image used for pod mocking
 	PodMockImage              = "calicovpp/vpp-test-pod-mock:latest"
-	VPPContainerName          = "cni-tests-vpp"
 	VppContainerExtraArgsName = "VPP_CONTAINER_EXTRA_ARGS"
 	ThisNodeName              = "node1"
 	UplinkIfName              = "uplink"
@@ -81,6 +80,8 @@ var (
 	VppBinary string
 	// vppContainerExtraArgs is a list of additionnal cli parameters for the VPP `docker run ...`
 	VppContainerExtraArgs []string = []string{}
+	// VPPContainerName is the name of the VPP container (can be overridden by tests)
+	VPPContainerName string
 )
 
 func AssertTunInterfaceExistence(vpp *vpplink.VppLink, newPod *cniproto.AddRequest) uint32 {
