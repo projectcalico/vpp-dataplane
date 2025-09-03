@@ -86,20 +86,20 @@ func NewPrometheusServer(vpp *vpplink.VppLink, log *logrus.Entry) *PrometheusSer
 func cleanVppIfStatName(vppStatName string) string {
 	vppStatName = strings.TrimPrefix(vppStatName, "/if/")
 	vppStatName = strings.ReplaceAll(vppStatName, "-", "_")
-	return vppStatName
+	return config.GetCalicoVppInitialConfig().PrometheusStatsPrefix + vppStatName
 }
 
 func cleanVppTCPStatName(vppStatName string, prefix string) string {
 	vppStatName = strings.TrimPrefix(vppStatName, prefix)
 	vppStatName = strings.ReplaceAll(vppStatName, "-", "_")
 	vppStatName = strings.ReplaceAll(vppStatName, "/", "_")
-	return vppStatName
+	return config.GetCalicoVppInitialConfig().PrometheusStatsPrefix + vppStatName
 }
 
 func cleanVppSessionStatName(vppStatName string) string {
 	vppStatName = strings.TrimPrefix(vppStatName, "/sys/session/")
 	vppStatName = strings.ReplaceAll(vppStatName, "/", "_")
-	return vppStatName
+	return config.GetCalicoVppInitialConfig().PrometheusStatsPrefix + vppStatName
 }
 
 const (
