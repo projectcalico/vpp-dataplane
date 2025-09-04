@@ -8,8 +8,7 @@ build:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
 	$(MAKE) -C multinet-monitor $@
-	@mkdir -p cmd/bin
-	go build -o cmd/bin/calicovppctl ./cmd/calicovppctl/main.go
+	$(MAKE) -C cmd/calicovppctl $@
 
 .PHONY: image images
 images: image
@@ -17,6 +16,7 @@ image:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
 	$(MAKE) -C multinet-monitor $@
+	$(MAKE) -C cmd/calicovppctl $@
 
 .PHONY: image-kind
 image-kind: image
@@ -49,12 +49,17 @@ push:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
 	$(MAKE) -C multinet-monitor $@
+	$(MAKE) -C cmd/calicovppctl $@
 
 .PHONY: dev
 dev:
 	$(MAKE) -C calico-vpp-agent ALSO_LATEST=y $@
 	$(MAKE) -C vpp-manager ALSO_LATEST=y $@
 	$(MAKE) -C multinet-monitor ALSO_LATEST=y $@
+
+.PHONY: clean-vpp
+clean-vpp:
+	$(MAKE) -C vpp-manager clean-vpp
 
 .PHONY: proto
 proto:
@@ -284,14 +289,6 @@ lint:
 	test -d vpp-manager/vpp_build && touch vpp-manager/vpp_build/go.mod || true
 	golangci-lint run --color=never
 
-.PHONY: test
-test: go-lint
-	rm -rf .coverage/unit
-	mkdir -p .coverage/unit
-	go test -cover -covermode=atomic ./...  \
-		-args \
-		-test.gocoverdir=$(shell pwd)/.coverage/unit
-
 .PHONY: cov-html
 cov-html:
 	go tool covdata percent -i=.coverage/unit
@@ -299,7 +296,7 @@ cov-html:
 	go tool cover -html=.coverage/profile
 
 .PHONY: cov
-cov: test
+cov:
 	go tool covdata percent -i=.coverage/unit
 	@go tool covdata textfmt -i=.coverage/unit -o .coverage/profile
 	@echo "TOTAL:"
@@ -347,16 +344,55 @@ builder-image: ## Make dependencies image. (Not required normally; is implied in
 		   && ${PUSH_IMAGE} )
 	docker tag ${DEPEND_IMAGE} ${DEPEND_BASE}:latest
 
-.PHONY: go-check
-go-check: builder-image
-	@echo Checking go code
+# make test - runs the unit & VPP-integration tests
+# requiring sudo, this is useful in dev as this caches go deps.
+# Altought this requires go, sudo installed
+.PHONY: test
+test: builder-image
+	@rm -rf $(shell pwd)/.coverage/unit
+	@mkdir -p $(shell pwd)/.coverage/unit
+	$(MAKE) -C vpp-manager image
+	$(MAKE) -C vpp-manager mock-pod-image
+	sudo -E env "PATH=$$PATH" VPP_BINARY=/usr/bin/vpp \
+		VPP_IMAGE=calicovpp/vpp:$(TAG) \
+		go test ./... \
+		-cover \
+		-covermode=atomic \
+		-test.v \
+		-test.gocoverdir=$(shell pwd)/.coverage/unit \
+
+# make ci-test - runs the unit & VPP-integration tests
+# within a container, with mounted /var/run/docker.sock
+# this is portable, but lack go cache
+.PHONY: ci-test
+ci-test: builder-image
+	@rm -rf $(shell pwd)/.coverage/unit
+	@mkdir -p $(shell pwd)/.coverage/unit
+	$(MAKE) -C vpp-manager image
+	$(MAKE) -C vpp-manager mock-pod-image
+	docker run -t --rm \
+		--privileged \
+		--pid=host \
+		-v /proc:/proc \
+		-v $(CURDIR):/vpp-dataplane \
+		-v /tmp/cni-tests-vpp:/tmp/cni-tests-vpp \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		--env VPP_BINARY=/usr/bin/vpp \
+		--env VPP_IMAGE=calicovpp/vpp:$(TAG) \
+		-w /vpp-dataplane \
+		${DEPEND_IMAGE} \
+		go test ./... \
+			-cover \
+			-covermode=atomic \
+			-test.v \
+			-test.gocoverdir=/vpp-dataplane/.coverage/unit
+
+.PHONY: ci-%
+ci-%: builder-image
 	docker run -t --rm \
 		-v $(CURDIR):/vpp-dataplane \
 		${DEPEND_IMAGE} \
-		make -C /vpp-dataplane cov
-
-.PHONY: go-lint
-go-lint: lint
+		make -C /vpp-dataplane $*
 
 .PHONY: depend-image-hash
 depend-image-hash:

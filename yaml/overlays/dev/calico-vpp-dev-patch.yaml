@@ -11,6 +11,9 @@ spec:
         - name: agent
           image: ${CALICO_AGENT_IMAGE}
           imagePullPolicy: ${IMAGE_PULL_POLICY}
+          volumeMounts:
+            - name: repo-directory
+              mountPath: /repo
         - name: vpp
           image: ${CALICO_VPP_IMAGE}
           imagePullPolicy: ${IMAGE_PULL_POLICY}
