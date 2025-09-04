@@ -47,16 +47,15 @@ import (
 
 // Names of integration tests arguments
 const (
-	IntegrationTestEnableArgName = "INTEGRATION_TEST"
-	VppImageArgName              = "VPP_IMAGE"
-	VppBinaryArgName             = "VPP_BINARY"
-	VppContainerExtraArgsName    = "VPP_CONTAINER_EXTRA_ARGS"
+	VppImageArgName           = "VPP_IMAGE"
+	VppBinaryArgName          = "VPP_BINARY"
+	VppContainerExtraArgsName = "VPP_CONTAINER_EXTRA_ARGS"
 )
 
 // TestCniIntegration runs all the ginkgo integration test inside CNI package
 func TestCniIntegration(t *testing.T) {
 	// skip test if test run is not integration test run (prevent accidental run of integration tests using go test ./...)
-	_, isIntegrationTestRun := os.LookupEnv(IntegrationTestEnableArgName)
+	_, isIntegrationTestRun := os.LookupEnv(VppImageArgName)
 	if !isIntegrationTestRun {
 		t.Skip("skipping CNI integration tests (set INTEGRATION_TEST env variable to run these tests)")
 	}

@@ -9,7 +9,7 @@ ENV UNATTENDED=y
 
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-    apt-utils wget cmake curl git
+    apt-utils wget cmake curl git docker.io
 
 ENV GOVERSION=1.24.0
 ENV GOROOT="/root/.go"

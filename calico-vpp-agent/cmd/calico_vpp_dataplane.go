@@ -228,6 +228,10 @@ func main() {
 		syscall.SIGUSR2,
 	)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	config.HandleUsr2Signal(ctx, log.WithFields(logrus.Fields{"component": "sighdlr"}))
+
 	select {
 	case sig := <-sigChan:
 		switch sig {

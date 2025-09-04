@@ -29,18 +29,16 @@ phases:
 
   build:
     commands:
-      - make go-check
-      - make mdlint
-
-      - make -C vpp-manager clean-vpp
+      - make clean-vpp
       - make images
-      - docker images
 
-      - make run-integration-tests
+      - make mdlint
+      - make ci-lint
+      - make ci-test
+      - make ci-cov
+
       - make push
 
   post_build:
     commands:
-      - echo "Build complete"
-
       - echo Build completed on `date`

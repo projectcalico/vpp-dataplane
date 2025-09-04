@@ -20,6 +20,7 @@ VERSION_FILE=$(VPP_DIR)/calicovppversion
 
 # BASE allows to override the VPP base commit in vpp_clone_current.sh
 BASE ?=
+MOCK_POD_IMAGE ?= calicovpp/vpp-test-pod-mock:latest
 
 VPP_REL_DEB_LIST = \
 	$(VPP_DIR)/build-root/debs/release/vpp_*.deb \
@@ -68,7 +69,12 @@ all: image
 build:
 	mkdir -p $(IMAGE_DIR)/bin
 	cp $(VPPDEV_FILE) $(IMAGE_DIR)/bin/vppdev.sh
-	${DOCKER_RUN} go build -o $(IMAGE_DIR)/bin/vpp-manager
+	${DOCKER_RUN} go build $(COVER_OPTS) -o $(IMAGE_DIR)/bin/vpp-manager
+
+.PHONY: mock-pod-image
+mock-pod-image:
+	docker build --network=host \
+		-t ${MOCK_POD_IMAGE} images/mock-pod
 
 .PHONY: eks-image
 eks-image:
@@ -98,7 +104,6 @@ vpp-image: build ${VPP_TARBALL}
 	tar -xvf ${VPP_TARBALL} -C $(IMAGE_DIR)
 	docker build --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
-		--build-arg WITH_GDB=${WITH_GDB} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 	docker build --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
@@ -112,6 +117,13 @@ vpp-image: build ${VPP_TARBALL}
 
 .PHONY: image
 image: vpp-image eks-image vclsidecar-image
+
+.PHONY: image-cov
+image-cov: build-cov ${VPP_TARBALL}
+	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
+	docker build ${SQUASH} --pull --network=host \
+		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 
 .PHONY: push
 push: ${PUSH_DEP}
@@ -211,7 +223,6 @@ dev: build
 	docker build --network=host \
 	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 	  --build-arg https_proxy=${DOCKER_BUILD_PROXY} \
-	  --build-arg WITH_GDB=${WITH_GDB} \
 	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
