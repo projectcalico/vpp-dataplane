@@ -3,13 +3,15 @@ include common.mk
 check-%:
 	@: $(if $(value $*),,$(error $* is undefined))
 
+bin:
+	@mkdir -p bin
+
 .PHONY: build
-build:
+build: bin
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
 	$(MAKE) -C multinet-monitor $@
-	@mkdir -p cmd/bin
-	go build -o cmd/bin/calicovppctl ./cmd/calicovppctl/main.go
+	${DOCKER_RUN} go build -o bin/calicovppctl ./cmd/calicovppctl/main.go
 
 .PHONY: image images
 images: image
@@ -17,6 +19,11 @@ image:
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
 	$(MAKE) -C multinet-monitor $@
+
+.PHONY: image-cov
+image-cov:
+	$(MAKE) -C calico-vpp-agent $@
+	$(MAKE) -C vpp-manager $@
 
 .PHONY: push
 push:
@@ -29,6 +36,10 @@ dev:
 	$(MAKE) -C calico-vpp-agent ALSO_LATEST=y $@
 	$(MAKE) -C vpp-manager ALSO_LATEST=y $@
 	$(MAKE) -C multinet-monitor ALSO_LATEST=y $@
+
+.PHONY: clean-vpp
+clean-vpp:
+	$(MAKE) -C vpp-manager clean-vpp
 
 .PHONY: proto
 proto:
@@ -261,13 +272,24 @@ lint:
 	test -d vpp-manager/vpp_build && touch vpp-manager/vpp_build/go.mod || true
 	golangci-lint run --color=never
 
+ifndef CI_BUILD
+SUDO := sudo -E
+endif
+VPP_IMAGE := calicovpp/vpp:$(TAG)
+
 .PHONY: test
-test: go-lint
-	rm -rf .coverage/unit
-	mkdir -p .coverage/unit
-	go test -cover -covermode=atomic ./...  \
-		-args \
-		-test.gocoverdir=$(shell pwd)/.coverage/unit
+test: builder-image bin
+	@rm -rf $(shell pwd)/.coverage/unit
+	@mkdir -p $(shell pwd)/.coverage/unit
+	$(MAKE) -C vpp-manager image
+	$(MAKE) -C vpp-manager mock-pod-image
+	${SUDO} env "PATH=$$PATH" VPP_BINARY=/usr/bin/vpp \
+		VPP_IMAGE="${VPP_IMAGE}" \
+		go test ./... \
+		-cover \
+		-covermode=atomic \
+		-test.v \
+		-test.gocoverdir=$(shell pwd)/.coverage/unit \
 
 .PHONY: cov-html
 cov-html:
@@ -276,7 +298,7 @@ cov-html:
 	go tool cover -html=.coverage/profile
 
 .PHONY: cov
-cov: test
+cov:
 	go tool covdata percent -i=.coverage/unit
 	@go tool covdata textfmt -i=.coverage/unit -o .coverage/profile
 	@echo "TOTAL:"
@@ -323,13 +345,33 @@ builder-image: ## Make dependencies image. (Not required normally; is implied in
 		   && ${PUSH_IMAGE} )
 	docker tag ${DEPEND_IMAGE} ${DEPEND_BASE}:latest
 
-.PHONY: go-check
-go-check: builder-image
-	@echo Checking go code
+.PHONY: ci-test
+ci-test: builder-image bin
+	@rm -rf $(shell pwd)/.coverage/unit
+	@mkdir -p $(shell pwd)/.coverage/unit
+	$(MAKE) -C vpp-manager image
+	$(MAKE) -C vpp-manager mock-pod-image
+	docker run -t --rm \
+		--privileged \
+		--pid=host \
+		-v /proc:/proc \
+		-v $(CURDIR):/vpp-dataplane \
+		-v /tmp/cni-tests-vpp:/tmp/cni-tests-vpp \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		--env VPP_BINARY=/usr/bin/vpp \
+		--env VPP_IMAGE="${VPP_IMAGE}" \
+		-w /vpp-dataplane \
+		${DEPEND_IMAGE} \
+		go test ./... \
+			-cover \
+			-covermode=atomic \
+			-test.v \
+			-test.gocoverdir=/vpp-dataplane/.coverage/unit
+
+.PHONY: ci-check
+ci-%: builder-image
 	docker run -t --rm \
 		-v $(CURDIR):/vpp-dataplane \
 		${DEPEND_IMAGE} \
-		make -C /vpp-dataplane cov
+		make -C /vpp-dataplane $*
 
-.PHONY: go-lint
-go-lint: lint

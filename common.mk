@@ -8,7 +8,6 @@ DEPEND_BASE = calicovpp/ci-builder
 
 VPP_BUCKET = calico-vpp-ci-artefacts
 
-WITH_GDB ?= yes
 export GOOS ?= linux
 
 # Docker option
