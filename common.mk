@@ -1,14 +1,8 @@
-CUR_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-PROJECT_DIR = $(shell pwd | sed  -E 's/(^.+vpp-dataplane).*$$/\1/')
-ROOT_DIR = $(shell pwd | sed  -E 's/(^.+vpp-dataplane).*$$/\1/')
-SUB_DIR = $(shell pwd | sed  -E 's/^.+vpp-dataplane\/(.*$$)/\1/')
-THIS_DIR = $(notdir $(CUR_DIR))
+VPP_DATAPLANE_DIR = $(shell git rev-parse --show-toplevel)
 
 DEPEND_BASE = calicovpp/ci-builder
-
 VPP_BUCKET = calico-vpp-ci-artefacts
 
-WITH_GDB ?= yes
 export GOOS ?= linux
 
 # Docker option
@@ -23,6 +17,12 @@ ifdef CODEBUILD_BUILD_NUMBER
 	CI_BUILD = 1
 endif
 
+ifdef COVER
+	COVER_OPTS = -cover -covermode=atomic
+else
+	COVER_OPTS :=
+endif
+
 ifdef CI_BUILD
 	export CI_BUILD
 	GOFLAGS := -buildvcs=false
@@ -33,8 +33,8 @@ ifdef CI_BUILD
 	DOCKER_OPTS  = -e CI_BUILD=1 -e GOFLAGS=${GOFLAGS}
 	DOCKER_OPTS += -e CGO_ENABLED=0
 	DOCKER_OPTS += --user $$(id -u):$$(id -g)
-	DOCKER_OPTS += -w /vpp-dataplane/${SUB_DIR}
-	DOCKER_OPTS += -v ${PROJECT_DIR}:/vpp-dataplane
+	DOCKER_OPTS += -w /vpp-dataplane/$(shell git rev-parse --show-prefix)
+	DOCKER_OPTS += -v $(VPP_DATAPLANE_DIR):/vpp-dataplane
 	DOCKER_RUN = docker run -t --rm --name build_temp ${DOCKER_OPTS} calicovpp/ci-builder:latest
 
 	PUSH_DEP :=

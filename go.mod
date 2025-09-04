@@ -7,7 +7,6 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1
 	github.com/containernetworking/plugins v1.6.2
 	github.com/google/gopacket v1.1.19
-	github.com/gookit/color v1.5.4
 	github.com/inconshreveable/mousetrap v1.1.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543 // indirect
@@ -34,7 +33,7 @@ require (
 	k8s.io/apimachinery v0.32.5
 	k8s.io/client-go v0.32.5
 	sigs.k8s.io/controller-runtime v0.20.3
-	sigs.k8s.io/yaml v1.4.0
+	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
 require (
@@ -97,7 +96,6 @@ require (
 	github.com/spf13/viper v1.20.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.19 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.19 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.19 // indirect
