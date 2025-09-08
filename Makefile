@@ -355,3 +355,10 @@ go-lint: lint
 .PHONY: depend-image-hash
 depend-image-hash:
 	@echo $(DEPEND_IMAGE)
+
+.PHONY: mdlint
+mdlint:
+ifdef CI_BUILD
+	npm install -g markdownlint-cli
+endif
+	markdownlint --dot --ignore vpp-manager/vpp_build .

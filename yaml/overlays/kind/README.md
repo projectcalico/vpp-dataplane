@@ -1,6 +1,6 @@
 # Kind cluster setup
 
-```
+````bash
 kind create cluster --config - <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -15,4 +15,4 @@ nodes:
 EOF
 
 kubectl apply -f yaml/generated/calico-vpp-kind.yaml
-```
+````
