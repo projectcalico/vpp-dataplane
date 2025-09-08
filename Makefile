@@ -333,3 +333,10 @@ go-check: builder-image
 
 .PHONY: go-lint
 go-lint: lint
+
+.PHONY: mdlint
+mdlint:
+ifdef CI_BUILD
+	npm install -g markdownlint-cli
+endif
+	markdownlint --dot --ignore vpp-manager/vpp_build .

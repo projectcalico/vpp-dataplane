@@ -1,10 +1,12 @@
-## Attaching to a memif exposed by Calico/VPP
+# Attaching to a memif exposed by Calico/VPP
 
-### Prerequistes 
+## Prerequistes
 
-You need to make sure that Calico/VPP is installed with Memif support enabled. It is disabled by default.
+You need to make sure that Calico/VPP is installed with Memif support enabled.
+It is disabled by default.
 
-When [installing Calico/VPP](https://projectcalico.docs.tigera.io/getting-started/kubernetes/vpp/getting-started) you can edit the yaml to enable memif support.
+When [installing Calico/VPP](https://projectcalico.docs.tigera.io/getting-started/kubernetes/vpp/getting-started)
+you can edit the yaml to enable memif support.
 
 ````yaml
 kind: DaemonSet
@@ -23,9 +25,10 @@ spec:
               value: "true"
 ````
 
-### Pod creation
+## Pod creation
 
-To create a Container with a VPP in it attached to the memif pod interface requested in the yaml do as follows :
+To create a Container with a VPP in it attached to the memif pod interface
+requested in the yaml do as follows :
 
 First create the pod `mvpp`
 
@@ -48,17 +51,19 @@ mkdir -p /run/vpp
 INTADDR=$(ip addr show dev eth0 | grep 'inet ' | awk '{print $2}')
 echo "
 create memif socket id 1 filename @vpp/memif-eth0
-create interface memif socket-id 1 id 0 slave buffer-size 4096 rx-queues 1 tx-queues 1
+create interface memif socket-id 1 id 0 slave \
+ buffer-size 4096 rx-queues 1 tx-queues 1
 set int ip addr memif1/0 ${INTADDR}
 set interface mac address memif1/0 02:00:00:00:00:01
 set int st memif1/0 up
 " > /run/vpp/vppstartup.conf
 ````
 
-Then the VPP startup config file. Here we run without hugepages on a single worker
+Then the VPP startup config file. Here we run without hugepages on a single
+worker
 
-⚠ Be sure that `main-core 1` corresponds to a CPU that's available on your machine, and not used by another VPP
-
+⚠ Be sure that `main-core 1` corresponds to a CPU that's available on your
+machine, and not used by another VPP
 
 ````bash
 echo "
@@ -88,10 +93,11 @@ And then start VPP
 vpp -c /etc/vpp/vpp.conf
 ````
 
-You should then see a VPP prompt, and `sh int` should display a configured `memif1/0` interface.
+You should then see a VPP prompt, and `sh int` should display a configured
+`memif1/0` interface.
 Trace should show you packets received on the memif interface.
 
-````
+````console
 vpp# trace add memif-input 5
 vpp# sh trace
 ------------------- Start of thread 0 vpp_main -------------------
@@ -114,5 +120,3 @@ Packet 1
 ````
 
 Exit with `quit` or `Ctrl-C`, then type `reset` to regain a proper shell
-
-

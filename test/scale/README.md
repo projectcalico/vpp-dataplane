@@ -1,32 +1,49 @@
 # SCALE TESTING
 
-## Introduction:
+## Introduction
 
-Scale testing involves assessing the performance and behavior of a system under high loads. It helps identify potential bottlenecks and performance issues that may arise in real-world scenarios, and it's important for ensuring that a system can handle increased loads as user demands grow over time. This document will detail the scale testing results of Calico/VPP, including the methodology used and the findings.
+Scale testing involves assessing the performance and behavior of a system under
+high loads. It helps identify potential bottlenecks and performance issues that
+may arise in real-world scenarios, and it's important for ensuring that a
+system can handle increased loads as user demands grow over time. This document
+will detail the scale testing results of Calico/VPP, including the methodology
+used and the findings.
 
-## Methodology:
+## Methodology
 
 The scale testing was conducted on Kubernetes clusters with CalicoVPP installed.
-The testing was performed using a dedicated testing environment that simulated overload on different resources in Kubernetes.
+The testing was performed using a dedicated testing environment that simulated
+overload on different resources in Kubernetes.
 
-### Scaling number of real nodes:
+### Scaling number of real nodes
 
-To conduct this scale test, we set up a KinD Kubernetes cluster. So nodes in our cluster are actually Docker containers running locally on our big servers.
-One of the important challenges is that every node in our cluster has a VPP instance running, which may impact our processor performance.
-We use a patched version of Kind that allows pinning kubernetes nodes (that are containers) to cpus. We pin every 2 nodes to a couple of cpus, to ensure that not many VPP instances use the same cpu.
-Then when running VPP, we pin its main thread to one of the cpus, to let the other one free for kubelet and calico calculations.
-For example: nodes 1 and 2 are pinned to the cpus (4, 5), and their respective VPP instances are both pinned to the cpu 4.
-Our VPP has a customized configuration that excludes the use of hugepages due to their high resource requirements.
+To conduct this scale test, we set up a KinD Kubernetes cluster. So nodes in
+our cluster are actually Docker containers running locally on our big servers.
+One of the important challenges is that every node in our cluster has a VPP
+instance running, which may impact our processor performance.
+We use a patched version of Kind that allows pinning kubernetes nodes (that
+are containers) to cpus. We pin every 2 nodes to a couple of cpus, to ensure
+that not many VPP instances use the same cpu.
+Then when running VPP, we pin its main thread to one of the cpus, to let the
+other one free for kubelet and calico calculations.
+For example: nodes 1 and 2 are pinned to the cpus (4, 5), and their respective
+VPP instances are both pinned to the cpu 4.
+Our VPP has a customized configuration that excludes the use of hugepages due
+to their high resource requirements.
 
 This way, we run *60 nodes* on a local cluster.
-This cluster takes some time to stabilize, and there is still room for further optimization
+This cluster takes some time to stabilize, and there is still room for further
+optimization
 
-### Scaling number of real pods:
+### Scaling number of real pods
 
-Scaling the number of pods is possible up to the buffer limit of VPP, or to the limit number of IP addresses in our IPPool. CNI and CalicoVPP agent respond quite quickly to the creation of real pods.
+Scaling the number of pods is possible up to the buffer limit of VPP, or to the
+limit number of IP addresses in our IPPool. CNI and CalicoVPP agent respond
+quite quickly to the creation of real pods.
 We use [*kboom*](https://github.com/mhausenblas/kboom) to conduct this test.
 
 100 pods result:
+
 ````bash
 Server Version: v1.24.0
 Running a scale test, launching 100 pod(s) with a 14s timeout ...
@@ -41,6 +58,7 @@ p95 pods: 9m4.037826651s
 ````
 
 300 pods result:
+
 ````bash
 Server Version: v1.24.0
 Running a scale test, launching 300 pod(s) with a 14s timeout ...
@@ -54,29 +72,39 @@ Slowest pod: 27m26.063806252s
 p50 pods: 16m11.062504502s
 p95 pods: 26m14.045269289s
 ````
-This comes from limit number of available IP addresses in the IPPool. So this actually gives around 240 real pods.
 
-### Scaling involving restarting nodes/pods:
+This comes from limit number of available IP addresses in the IPPool. So this
+actually gives around 240 real pods.
 
-Restarting nodes manually is tested in a *vagrant* cluster. It works fine with connectivity to pods being recovered (using new IP addresses).
+### Scaling involving restarting nodes/pods
 
-Restarting CalicoVPP is tested using [*Chaos monkey*](https://github.com/asobti/kube-monkey) to schedule deletion of sets of pods, applied on our calicovpp dataplane pods, to have them restart.
+Restarting nodes manually is tested in a *vagrant* cluster. It works fine with
+connectivity to pods being recovered (using new IP addresses).
+
+Restarting CalicoVPP is tested using [*Chaos monkey*](https://github.com/asobti/kube-monkey)
+to schedule deletion of sets of pods, applied on our calicovpp dataplane pods,
+to have them restart.
 
 These tests result in successful restarts
 
-### Scaling number of virtual pods:
+### Scaling number of virtual pods
 
-[*Mocklet*](https://github.com/VineethReddy02/mocklet) allows to create thousands of virtual pods.
-These are not real pods but they trigger CalicoVPP components like CNI server, Policy server, and service Server.
-We create 1000 virtual pods. Then we use these pods to test services by targeting a thousand virtual pods being a backend for a service.
-We also test the creation of 100K policies on an interface to have them created in VPP.
+[*Mocklet*](https://github.com/VineethReddy02/mocklet) allows to create
+thousands of virtual pods.
+These are not real pods but they trigger CalicoVPP components like CNI server,
+Policy server, and service Server.
+We create 1000 virtual pods. Then we use these pods to test services by
+targeting a thousand virtual pods being a backend for a service.
+We also test the creation of 100K policies on an interface to have them
+created in VPP.
 We also test the creation of 1000 services targetting different pods.
-These tests are successful and result in stable behaviors in CalicoVPP and VPP itself.
+These tests are successful and result in stable behaviors in CalicoVPP and
+VPP itself.
 
-
-## Running Scale tests:
+## Running Scale tests
 
 We use this version of kind
+
 ````bash
 cd ..
 git clone https://github.com/kubernetes-sigs/kind
@@ -95,15 +123,19 @@ export N_KIND_CONTROL_PLANES=6
 make kind-new-cluster
 make load-kind
 kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/master/manifests/tigera-operator.yaml
-```` 
+````
+
 If you want to use local CalicoVPP images run the following:
+
 ````bash
 export CALICO_AGENT_IMAGE=localhost:5000/calicovpp/agent:latest
 export CALICO_VPP_IMAGE=localhost:5000/calicovpp/vpp:latest
 export MULTINET_MONITOR_IMAGE=localhost:5000/calicovpp/multinet-monitor:latest
 export IMAGE_PULL_POLICY=Always
 ````
+
 Use this config to disable hugepages and pin vpps to specific cpus.
+
 ````bash
 # ---------------- vpp config ----------------
 export CALICOVPP_DISABLE_HUGEPAGES=true
