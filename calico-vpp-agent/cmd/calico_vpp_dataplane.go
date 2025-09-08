@@ -19,6 +19,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"runtime/coverage"
 	"syscall"
 	"time"
 
@@ -33,7 +34,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
@@ -141,16 +141,14 @@ func main() {
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
-	felixServer, err := felix.NewFelixServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
-	if err != nil {
-		log.Fatalf("Failed to create policy server %s", err)
-	}
-	err = felix.InstallFelixPlugin()
+	felixServer := felix.NewFelixServer(vpp, clientv3, log.WithFields(logrus.Fields{"component": "policy"}))
+	felixWatcher := watchers.NewFelixWatcher(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "felix watcher"}))
+	cniServer := watchers.NewCNIServer(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "cni"}))
+	err = watchers.InstallFelixPlugin()
 	if err != nil {
 		log.Fatalf("could not install felix plugin: %s", err)
 	}
 	connectivityServer := connectivity.NewConnectivityServer(vpp, felixServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
-	cniServer := cni.NewCNIServer(vpp, felixServer, log.WithFields(logrus.Fields{"component": "cni"}))
 
 	/* Pubsub should now be registered */
 
@@ -162,9 +160,11 @@ func main() {
 	peerWatcher.SetBGPConf(bgpConf)
 	routingServer.SetBGPConf(bgpConf)
 	serviceServer.SetBGPConf(bgpConf)
+	felixServer.SetBGPConf(bgpConf)
 
 	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
 	Go(felixServer.ServeFelix)
+	Go(felixWatcher.WatchFelix)
 	felixConfig := watchDog.Wait(felixServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
 	ourBGPSpec := watchDog.Wait(felixServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")
 	// check if the watchDog timer has issued the t.Kill() which would mean we are dead
@@ -183,7 +183,6 @@ func main() {
 		serviceServer.SetOurBGPSpec(bgpSpec)
 		localSIDWatcher.SetOurBGPSpec(bgpSpec)
 		netWatcher.SetOurBGPSpec(bgpSpec)
-		cniServer.SetOurBGPSpec(bgpSpec)
 	}
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
@@ -196,7 +195,6 @@ func main() {
 		if !ok {
 			panic("ourBGPSpec is not *felixconfig.Config")
 		}
-		cniServer.SetFelixConfig(felixCfg)
 		connectivityServer.SetFelixConfig(felixCfg)
 	}
 
@@ -219,20 +217,41 @@ func main() {
 
 	log.Infof("Agent started")
 
-	interruptSignalChannel := make(chan os.Signal, 2)
-	signal.Notify(interruptSignalChannel, os.Interrupt, syscall.SIGTERM)
-
-	usr1SignalChannel := make(chan os.Signal, 2)
-	signal.Notify(usr1SignalChannel, syscall.SIGUSR1)
+	sigChan := make(chan os.Signal, 2)
+	signal.Notify(sigChan,
+		os.Interrupt,
+		syscall.SIGTERM,
+		syscall.SIGUSR1,
+		syscall.SIGUSR2,
+	)
 
 	select {
-	case <-usr1SignalChannel:
-		/* vpp-manager pokes us with USR1 if VPP terminates */
-		log.Warnf("Vpp stopped, exiting...")
-		t.Kill(errors.Errorf("Caught signal USR1"))
-	case <-interruptSignalChannel:
-		log.Infof("SIG received, exiting")
-		t.Kill(errors.Errorf("Caught INT signal"))
+	case sig := <-sigChan:
+		switch sig {
+		case os.Interrupt:
+			fallthrough
+		case syscall.SIGTERM:
+			log.Infof("SIG received, exiting")
+			t.Kill(errors.Errorf("Caught INT signal"))
+		case syscall.SIGUSR1:
+			// vpp-manager pokes us with USR1 if VPP terminates
+			log.Warnf("Vpp stopped, exiting...")
+			t.Kill(errors.Errorf("Caught signal USR1"))
+		case syscall.SIGUSR2:
+			// the USR2 signal outputs the coverage data,
+			// provided the binary is compiled with -cover and
+			// GOCOVERDIR is set. This allows us to not require
+			// a proper binary termination in order to get coverage data.
+			log.Warn("Received SIGUSR2, writing coverage")
+			err := coverage.WriteCountersDir(os.Getenv("GOCOVERDIR"))
+			if err != nil {
+				log.WithError(err).Error("Could not write counters dir")
+			}
+			err = coverage.WriteMetaDir(os.Getenv("GOCOVERDIR"))
+			if err != nil {
+				log.WithError(err).Error("Could not write meta dir")
+			}
+		}
 	case <-t.Dying():
 		log.Errorf("tomb Dying %s", t.Err())
 	}
