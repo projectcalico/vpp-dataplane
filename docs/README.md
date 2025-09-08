@@ -1,8 +1,10 @@
 # Calico/VPP technical documentation
 
-This folder contains Calico/VPP technical documentation. This is this repository's counterpart of the documentation available at [https://docs.tigera.io](https://docs.tigera.io/calico/latest/reference/vpp/technical-details)
+This folder contains Calico/VPP technical documentation.
+This is this repository's counterpart of the documentation
+available at [https://docs.tigera.io](https://docs.tigera.io/calico/latest/reference/vpp/technical-details)
 
-It contains developer oriented documentation, details of VPP specific features :
+It contains developer oriented documentation, details of VPP specific features:
 
 - [Interface configuration](config.md)
 - [Developer's getting started](developper_guide.md)

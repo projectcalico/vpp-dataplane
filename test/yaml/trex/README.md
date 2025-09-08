@@ -3,26 +3,29 @@ Usage
 
 Deploy the yaml
 
-```
+````console
 kubectl create namespace trex
 kubectl apply -f test.yaml
-```
+````
 
 Start trex
-```
+
+````console
 kubectl exec -it -n trex trex -- bash
 $ trex-start
 # Ctrl-C to quit
-```
+````
 
 Start the console
-```
+
+````console
 kubectl exec -it -n trex trex -- bash
 $ DST_ADDRESS=1.2.3.4 DST_PORT=4444 trex-console
-```
+````
 
 In the console, start the packet generation
-```
+
+````console
 $ trex-console
 # (q) to quit
 $ start -f /trex-scripts/trex.py -p 0 -m 10mbps
@@ -32,4 +35,4 @@ $ tui
 $ update -m 100%
 ## To stop traffic generation
 $ stop -a
-```
+````

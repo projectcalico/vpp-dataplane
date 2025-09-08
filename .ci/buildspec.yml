@@ -30,6 +30,7 @@ phases:
   build:
     commands:
       - make go-check
+      - make mdlint
 
       - make -C vpp-manager clean-vpp
       - make images

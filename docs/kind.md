@@ -1,11 +1,11 @@
 
-# Setting up a test kind cluster 
+# Setting up a test kind cluster
 
 ## Default installation
 
 The example below creates a four nodes kind cluster with the Calico/VPP dataplane.
 
-```bash
+````bash
 echo 'kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 networking:
@@ -26,13 +26,14 @@ kubectl create -f  https://raw.githubusercontent.com/projectcalico/vpp-dataplane
 
 # Install the Calico/VPP flavor for kind with multinet enabled
 kubectl create -f https://raw.githubusercontent.com/projectcalico/vpp-dataplane/master/yaml/generated/calico-vpp-kind.yaml
-```
+````
 
 ## Multinet kind cluster
 
-The example below creates a four nodes kind cluster with the Calico/VPP dataplane and multinet enabled.
+The example below creates a four nodes kind cluster with the
+Calico/VPP dataplane and multinet enabled.
 
-```bash
+````bash
 echo 'kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 networking:

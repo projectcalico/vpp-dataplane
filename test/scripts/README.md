@@ -1,19 +1,21 @@
-## Testing Calico/VPP on baremetal
+# Testing Calico/VPP on baremetal
 
 This setup creates a single node setup leveraging DPDK.
+
 - ⚠️ This is a test script, not to be used for production
-- ⚠️ It will reconfigure the uplink interface, here `enp216s0f1` do not use your management interface or you will most probably loose access to your server.
+- ⚠️ It will reconfigure the uplink interface, here `enp216s0f1` do not use
+your management interface or you will most probably loose access to your server.
 
-### Install kubernetes
+## Install kubernetes
 
-```bash
+````bash
 sudo apt update
 sudo apt install kubelet kubeadm kubectl containerd
-```
+````
 
-### Preparing the cluster
+## Preparing the cluster
 
-```bash
+````bash
 sudo sysctl -w vm.nr_hugepages=4096
 sudo swapoff -a
 # Load PCI drivers, often but not always required
@@ -22,9 +24,9 @@ sudo modprobe vfio-pci
 # Reset previous installations
 sudo kubeadm reset -f
 sudo rm -rf /etc/cni/net.d/
-```
+````
 
-```bash
+````bash
 echo "
 K8_VERSION=v1.31.0
 POD_CIDR=11.0.0.0/16
@@ -35,17 +37,17 @@ DNS_TYPE=CoreDNS
 VERBOSE=false
 " > v4.1node.conf
 $HOME/vpp-dataplane/test/scripts/vppdev.sh orch up
-```
+````
 
-### Install the tigera operator
+## Install the tigera operator
 
-```bash
+````bash
 kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/master/manifests/tigera-operator.yaml
-```
+````
 
-### Install Calico/VPP
+## Install Calico/VPP
 
-```bash
+````bash
 # ---------------- images ----------------
 export CALICO_AGENT_IMAGE=calicovpp/agent:v3.26.0
 export CALICO_VPP_IMAGE=calicovpp/vpp:v3.26.0
