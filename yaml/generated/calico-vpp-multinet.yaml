@@ -273,7 +273,7 @@ spec:
         envFrom:
         - configMapRef:
             name: calico-vpp-config
-        image: docker.io/calicovpp/agent:latest
+        image: docker.io/calicovpp/agent:v3.30.0
         imagePullPolicy: IfNotPresent
         name: agent
         resources:
@@ -305,7 +305,7 @@ spec:
         envFrom:
         - configMapRef:
             name: calico-vpp-config
-        image: docker.io/calicovpp/vpp:latest
+        image: docker.io/calicovpp/vpp:v3.30.0
         imagePullPolicy: IfNotPresent
         name: vpp
         resources:
@@ -337,7 +337,7 @@ spec:
       initContainers:
       - command:
         - /entrypoint
-        image: docker.io/calicovpp/install-whereabouts:latest
+        image: docker.io/calicovpp/install-whereabouts:v3.30.0
         name: install-whereabouts
         volumeMounts:
         - mountPath: /host/opt/cni/bin
