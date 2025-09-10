@@ -15,6 +15,7 @@ ALSO_LATEST ?= n # If 'y' also tag images with :latest
 VPP_DIR ?= $(CURDIR)/vpp_build
 # BASE allows to override the VPP base commit in vpp_clone_current.sh
 BASE ?=
+MOCK_POD_IMAGE ?= calicovpp/vpp-test-pod-mock:latest
 
 VPP_DEB_LIST = \
 	$(VPP_DIR)/build-root/vpp_*.deb \
@@ -46,6 +47,15 @@ all: image
 .PHONY: build
 build:
 	${DOCKER_RUN} go build -o $(IMAGE_DIR)/vpp-manager
+
+.PHONY: build-cov
+build-cov:
+	${DOCKER_RUN} go build -cover -covermode=atomic -o $(IMAGE_DIR)/vpp-manager
+
+.PHONY: mock-pod-image
+mock-pod-image:
+	docker build --network=host \
+		-t ${MOCK_POD_IMAGE} images/mock-pod
 
 # docker --squash is an experimental feature,
 # it requires to do the following to work :
@@ -85,12 +95,18 @@ image: build ${VPP_TARBALL} eksimage sidecar-vcl-image
 	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
 	docker build ${SQUASH} --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
-		--build-arg WITH_GDB=${WITH_GDB} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:prerelease; \
 	fi
+
+.PHONY: image-cov
+image-cov: build-cov ${VPP_TARBALL}
+	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
+	docker build ${SQUASH} --pull --network=host \
+		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 
 .PHONY: push
 push: ${PUSH_DEP}
@@ -205,7 +221,6 @@ dev: build
 	docker build --squash --network=host \
 	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 	  --build-arg https_proxy=${DOCKER_BUILD_PROXY} \
-	  --build-arg WITH_GDB=${WITH_GDB} \
 	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \

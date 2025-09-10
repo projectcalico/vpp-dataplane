@@ -225,6 +225,10 @@ func main() {
 	usr1SignalChannel := make(chan os.Signal, 2)
 	signal.Notify(usr1SignalChannel, syscall.SIGUSR1)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	config.HandleUsr2Signal(ctx, log.WithFields(logrus.Fields{"component": "sighdlr"}))
+
 	select {
 	case <-usr1SignalChannel:
 		/* vpp-manager pokes us with USR1 if VPP terminates */

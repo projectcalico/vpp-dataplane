@@ -9,6 +9,8 @@ RUN apt-get update \
     libpcap0.8 libunwind8 \
  && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get -y --no-install-recommends install gdb
+
 # set work directory
 WORKDIR /root/
 
@@ -29,8 +31,5 @@ ADD vpp-manager /usr/bin/
 ADD vppdev.sh /usr/bin/calivppctl
 ADD version /etc/calicovppversion
 
-# This takes an additionnal 40MB
-ARG WITH_GDB
-RUN if [ "$WITH_GDB" = "yes" ] ; then apt-get update && apt-get -y --no-install-recommends install gdb ; fi
 
 ENTRYPOINT ["/usr/bin/vpp-manager"]
