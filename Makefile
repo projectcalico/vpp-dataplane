@@ -298,13 +298,14 @@ DEPEND_HASH = $(shell echo \
     	$(CURDIR)/Dockerfile.depend \
     	$(CURDIR)/go.mod \
     	$(CURDIR)/go.sum \
+    	| cut -f1 -d' ' \
 	)" | md5sum | cut -f1 -d' ')
 DEPEND_IMAGE = ${DEPEND_BASE}:${DEPEND_HASH}
 
 ifdef CI_BUILD
-	PUSH_IMAGE = docker image push ${DEPEND_IMAGE}
+PUSH_IMAGE = docker image push ${DEPEND_IMAGE}
 else
-	PUSH_IMAGE = echo not pushing image
+PUSH_IMAGE = echo not pushing image
 endif
 
 .PHONY: builder-image
@@ -331,3 +332,7 @@ go-check: builder-image
 
 .PHONY: go-lint
 go-lint: lint
+
+.PHONY: depend-image-hash
+depend-image-hash:
+	@echo $(DEPEND_IMAGE)
