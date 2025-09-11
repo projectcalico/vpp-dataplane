@@ -32,7 +32,6 @@ import (
 	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
@@ -49,7 +48,6 @@ type PrometheusServer struct {
 	podInterfacesDetailsBySwifIndex map[uint32]podInterfaceDetails
 	podInterfacesByKey              map[string]model.LocalPodSpec
 	statsclient                     *statsclient.StatsClient
-	channel                         chan common.CalicoVppEvent
 	lock                            sync.Mutex
 	httpServer                      *http.Server
 	exporter                        *prometheusExporter.Exporter
@@ -65,7 +63,6 @@ func NewPrometheusServer(vpp *vpplink.VppLink, log *logrus.Entry) *PrometheusSer
 	server := &PrometheusServer{
 		log:                             log,
 		vpp:                             vpp,
-		channel:                         make(chan common.CalicoVppEvent, 10),
 		podInterfacesByKey:              make(map[string]model.LocalPodSpec),
 		podInterfacesDetailsBySwifIndex: make(map[uint32]podInterfaceDetails),
 		statsclient:                     statsclient.NewStatsClient("" /* default socket name */),
@@ -76,10 +73,6 @@ func NewPrometheusServer(vpp *vpplink.VppLink, log *logrus.Entry) *PrometheusSer
 		exporter: exporter,
 	}
 
-	if *config.GetCalicoVppFeatureGates().PrometheusEnabled {
-		reg := common.RegisterHandler(server.channel, "prometheus events")
-		reg.ExpectEvents(common.PodAdded, common.PodDeleted)
-	}
 	return server
 }
 
@@ -407,66 +400,66 @@ func (p *PrometheusServer) exportSessionScalarStat(name string, value int64) {
 	}
 }
 
+// OnPodAdded handles pod addition events directly
+func (p *PrometheusServer) OnPodAdded(podSpec *model.LocalPodSpec) {
+	if !(*config.GetCalicoVppFeatureGates().PrometheusEnabled) {
+		return
+	}
+
+	splittedWorkloadID := strings.SplitN(podSpec.WorkloadID, "/", 2)
+	if len(splittedWorkloadID) != 2 {
+		return
+	}
+
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	if podSpec.MemifSwIfIndex != vpplink.InvalidSwIfIndex {
+		memifName := podSpec.InterfaceName
+		if podSpec.NetworkName == "" {
+			memifName = "vpp/memif-" + podSpec.InterfaceName
+		}
+		p.podInterfacesDetailsBySwifIndex[podSpec.MemifSwIfIndex] = podInterfaceDetails{
+			podNamespace:  splittedWorkloadID[0],
+			podName:       splittedWorkloadID[1],
+			interfaceName: memifName,
+		}
+	}
+	if podSpec.TunTapSwIfIndex != vpplink.InvalidSwIfIndex {
+		p.podInterfacesDetailsBySwifIndex[podSpec.TunTapSwIfIndex] = podInterfaceDetails{
+			podNamespace:  splittedWorkloadID[0],
+			podName:       splittedWorkloadID[1],
+			interfaceName: podSpec.InterfaceName,
+		}
+	}
+	p.podInterfacesByKey[podSpec.Key()] = *podSpec
+}
+
+// OnPodDeleted handles pod deletion events directly
+func (p *PrometheusServer) OnPodDeleted(podSpec *model.LocalPodSpec) {
+	if !(*config.GetCalicoVppFeatureGates().PrometheusEnabled) {
+		return
+	}
+
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	initialPod := p.podInterfacesByKey[podSpec.Key()]
+	delete(p.podInterfacesByKey, initialPod.Key())
+	if podSpec.MemifSwIfIndex != vpplink.InvalidSwIfIndex {
+		delete(p.podInterfacesDetailsBySwifIndex, initialPod.MemifSwIfIndex)
+	}
+	if podSpec.TunTapSwIfIndex != vpplink.InvalidSwIfIndex {
+		delete(p.podInterfacesDetailsBySwifIndex, initialPod.TunTapSwIfIndex)
+	}
+}
+
 func (p *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 	if !(*config.GetCalicoVppFeatureGates().PrometheusEnabled) {
 		return nil
 	}
 	p.log.Infof("Serve() Prometheus exporter")
-	go func() {
-		for t.Alive() {
-			/* Note: we will only receive events we ask for when registering the chan */
-			evt := <-p.channel
-			switch evt.Type {
-			case common.PodAdded:
-				podSpec, ok := evt.New.(*model.LocalPodSpec)
-				if !ok {
-					p.log.Errorf("evt.New is not a *model.LocalPodSpec %v", evt.New)
-					continue
-				}
-				splittedWorkloadID := strings.SplitN(podSpec.WorkloadID, "/", 2)
-				if len(splittedWorkloadID) != 2 {
-					continue
-				}
-				p.lock.Lock()
-				if podSpec.MemifSwIfIndex != vpplink.InvalidSwIfIndex {
-					memifName := podSpec.InterfaceName
-					if podSpec.NetworkName == "" {
-						memifName = "vpp/memif-" + podSpec.InterfaceName
-					}
-					p.podInterfacesDetailsBySwifIndex[podSpec.MemifSwIfIndex] = podInterfaceDetails{
-						podNamespace:  splittedWorkloadID[0],
-						podName:       splittedWorkloadID[1],
-						interfaceName: memifName,
-					}
-				}
-				if podSpec.TunTapSwIfIndex != vpplink.InvalidSwIfIndex {
-					p.podInterfacesDetailsBySwifIndex[podSpec.TunTapSwIfIndex] = podInterfaceDetails{
-						podNamespace:  splittedWorkloadID[0],
-						podName:       splittedWorkloadID[1],
-						interfaceName: podSpec.InterfaceName,
-					}
-				}
-				p.podInterfacesByKey[podSpec.Key()] = *podSpec
-				p.lock.Unlock()
-			case common.PodDeleted:
-				podSpec, ok := evt.Old.(*model.LocalPodSpec)
-				if !ok {
-					p.log.Errorf("evt.Old is not a *model.LocalPodSpec %v", evt.Old)
-					continue
-				}
-				p.lock.Lock()
-				initialPod := p.podInterfacesByKey[podSpec.Key()]
-				delete(p.podInterfacesByKey, initialPod.Key())
-				if podSpec.MemifSwIfIndex != vpplink.InvalidSwIfIndex {
-					delete(p.podInterfacesDetailsBySwifIndex, initialPod.MemifSwIfIndex)
-				}
-				if podSpec.TunTapSwIfIndex != vpplink.InvalidSwIfIndex {
-					delete(p.podInterfacesDetailsBySwifIndex, initialPod.TunTapSwIfIndex)
-				}
-				p.lock.Unlock()
-			}
-		}
-	}()
+
 	err := p.statsclient.Connect()
 	if err != nil {
 		return errors.Wrap(err, "could not connect statsclient")
