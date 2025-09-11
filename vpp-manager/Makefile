@@ -63,13 +63,13 @@ eksimage:
 
 .PHONY: sidecar-vcl-image
 sidecar-vcl-image: ${VPP_TARBALL}
-	cp ${IMAGE_DIR}/libmemif.so \
-		${IMAGE_DIR}/libvcl_ldpreload.so \
-		${IMAGE_DIR}/libvppcom.so \
-		${IMAGE_DIR}/libvlibmemoryclient.so \
-		${IMAGE_DIR}/libsvm.so \
-		${IMAGE_DIR}/libvppinfra.so \
-		${IMAGE_DIR}/libvlibapi.so \
+	cp ${IMAGE_DIR}/libmemif.so* \
+		${IMAGE_DIR}/libvcl_ldpreload.so* \
+		${IMAGE_DIR}/libvppcom.so* \
+		${IMAGE_DIR}/libvlibmemoryclient.so* \
+		${IMAGE_DIR}/libsvm.so* \
+		${IMAGE_DIR}/libvppinfra.so* \
+		${IMAGE_DIR}/libvlibapi.so* \
 		${VERSION_FILE} \
 		${SIDECARVCL_DIR}
 	docker build -t calicovpp/vclsidecar:$(TAG) -f ${SIDECARVCL_DIR}/Dockerfile ${SIDECARVCL_DIR}
