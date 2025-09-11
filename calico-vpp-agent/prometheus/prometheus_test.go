@@ -30,7 +30,6 @@ import (
 	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/testutils"
 	agentConf "github.com/projectcalico/vpp-dataplane/v3/config"
@@ -91,7 +90,6 @@ var _ = Describe("Prometheus exporter functionality", func() {
 
 	BeforeEach(func() {
 		log = logrus.New()
-		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 
 		// Enable prometheus feature gate
 		agentConf.GetCalicoVppFeatureGates().PrometheusEnabled = &agentConf.True
@@ -132,8 +130,8 @@ var _ = Describe("Prometheus exporter functionality", func() {
 
 		// Add some fake containers to test interface stats using actual VPP interface indices
 		// Use the uplink interface (tap0) and local0 interface for testing
-		addFakeContainer("test-namespace-1", "test-pod-1", "eth0", vpplink.InvalidSwIfIndex, uplinkSwIfIndex)
-		addFakeContainer("test-namespace-2", "test-pod-2", "eth0", vpplink.InvalidSwIfIndex, 0)
+		addFakeContainer(prometheusServer, "test-namespace-1", "test-pod-1", "eth0", vpplink.InvalidSwIfIndex, uplinkSwIfIndex)
+		addFakeContainer(prometheusServer, "test-namespace-2", "test-pod-2", "eth0", vpplink.InvalidSwIfIndex, 0)
 
 		// Start prometheus server
 		testTomb = &tomb.Tomb{}
@@ -254,7 +252,7 @@ var _ = Describe("Prometheus exporter functionality", func() {
 				By("Adding a new pod")
 				// Use a different interface name to distinguish this pod
 				// Use tap interface with the uplink interface index
-				addFakeContainer("dynamic-namespace", "dynamic-pod", "eth1", vpplink.InvalidSwIfIndex, uplinkSwIfIndex)
+				addFakeContainer(prometheusServer, "dynamic-namespace", "dynamic-pod", "eth1", vpplink.InvalidSwIfIndex, uplinkSwIfIndex)
 
 				// Give more time for event processing and metrics collection
 				time.Sleep(2 * time.Second)
@@ -476,7 +474,7 @@ func parseMetrics(metricsOutput string, metricName string) []*MetricInfo {
 }
 
 // addFakeContainer simulates adding a container/pod to the prometheus server
-func addFakeContainer(namespace, podName, interfaceName string, memifSwIfIndex, tunTapSwIfIndex uint32) {
+func addFakeContainer(prometheusServer *prometheus.PrometheusServer, namespace, podName, interfaceName string, memifSwIfIndex, tunTapSwIfIndex uint32) {
 	// Create fake pod spec
 	podSpec := &model.LocalPodSpec{
 		WorkloadID:    fmt.Sprintf("%s/%s", namespace, podName),
@@ -487,12 +485,5 @@ func addFakeContainer(namespace, podName, interfaceName string, memifSwIfIndex, 
 		},
 	}
 
-	// Simulate pod addition event via PubSub mechanism
-	event := common.CalicoVppEvent{
-		Type: common.PodAdded,
-		New:  podSpec,
-	}
-
-	// Send event using the common PubSub mechanism
-	common.SendEvent(event)
+	prometheusServer.OnPodAdded(podSpec)
 }

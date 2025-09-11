@@ -39,7 +39,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/health"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/services"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
@@ -152,7 +151,6 @@ func main() {
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
 	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
-	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
 	felixServer, err := felix.NewFelixServer(vpp, log.WithFields(logrus.Fields{"component": "felix"}))
 	if err != nil {
@@ -265,7 +263,6 @@ func main() {
 	Go(routingServer.ServeRouting)
 	Go(serviceServer.ServeService)
 	Go(cniServer.ServeCNI)
-	Go(prometheusServer.ServePrometheus)
 
 	// watch LocalSID if SRv6 is enabled
 	if *config.GetCalicoVppFeatureGates().SRv6Enabled {

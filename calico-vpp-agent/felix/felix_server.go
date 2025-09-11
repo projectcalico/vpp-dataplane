@@ -36,6 +36,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -114,6 +115,8 @@ type Server struct {
 
 	GotOurNodeBGPchan     chan interface{}
 	GotOurNodeBGPchanOnce sync.Once
+
+	prometheusServer *prometheus.PrometheusServer
 }
 
 // NewFelixServer creates a felix server
@@ -145,6 +148,8 @@ func NewFelixServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 
 		nodeStatesByName:  make(map[string]*common.LocalNodeSpec),
 		GotOurNodeBGPchan: make(chan interface{}),
+
+		prometheusServer: prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"})),
 	}
 
 	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")
@@ -364,6 +369,8 @@ func (s *Server) handleFelixServerEvents(evt common.CalicoVppEvent) error {
 			EndpointID:     podSpec.EndpointID,
 			Network:        podSpec.NetworkName,
 		}, swIfIndex, podSpec.InterfaceName, podSpec.GetContainerIPs())
+		// Notify prometheus server of pod addition
+		s.prometheusServer.OnPodAdded(podSpec)
 	case common.PodDeleted:
 		podSpec, ok := evt.Old.(*model.LocalPodSpec)
 		if !ok {
@@ -376,6 +383,8 @@ func (s *Server) handleFelixServerEvents(evt common.CalicoVppEvent) error {
 				EndpointID:     podSpec.EndpointID,
 				Network:        podSpec.NetworkName,
 			}, podSpec.GetContainerIPs())
+			// Notify prometheus server of pod deletion
+			s.prometheusServer.OnPodDeleted(podSpec)
 		}
 	case common.TunnelAdded:
 		swIfIndex, ok := evt.New.(uint32)
@@ -434,6 +443,17 @@ func (s *Server) handleFelixServerEvents(evt common.CalicoVppEvent) error {
 // Serve runs the felix server
 func (s *Server) ServeFelix(t *tomb.Tomb) error {
 	s.log.Info("Starting felix server")
+
+	// Start prometheus server
+	if t.Alive() {
+		t.Go(func() error {
+			err := s.prometheusServer.ServePrometheus(t)
+			if err != nil {
+				s.log.Warnf("Prometheus server errored with %s", err)
+			}
+			return err
+		})
+	}
 
 	listener, err := net.Listen("unix", config.FelixDataplaneSocket)
 	if err != nil {
