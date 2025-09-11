@@ -58,6 +58,7 @@ type Server struct {
 	routingServerEventChan chan any
 
 	nodeBGPSpec *common.LocalNodeSpec
+	peerHandler *PeerHandler
 }
 
 func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
@@ -73,6 +74,11 @@ func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 
 func (s *Server) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	s.nodeBGPSpec = nodeBGPSpec
+}
+
+// SetPeerHandler sets the peer handler for the routing server
+func (s *Server) SetPeerHandler(peerHandler *PeerHandler) {
+	s.peerHandler = peerHandler
 }
 
 func NewRoutingServer(vpp *vpplink.VppLink, bgpServer *bgpserver.BgpServer, log *logrus.Entry) *Server {
@@ -100,6 +106,7 @@ func NewRoutingServer(vpp *vpplink.VppLink, bgpServer *bgpserver.BgpServer, log 
 		common.BGPPeerUpdated,
 		common.BGPFilterAddedOrUpdated,
 		common.BGPFilterDeleted,
+		common.PeerNodeStateChanged,
 	)
 
 	return &server
