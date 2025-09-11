@@ -34,6 +34,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/policies"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/services"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -59,6 +60,7 @@ type Server struct {
 	cniHandler          *cni.CNIHandler
 	connectivityHandler *connectivity.ConnectivityHandler
 	serviceHandler      *services.ServiceHandler
+	peerHandler         *routing.PeerHandler
 }
 
 // NewFelixServer creates a felix server
@@ -77,6 +79,7 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 		cniHandler:          cni.NewCNIHandler(vpp, cache, log),
 		connectivityHandler: connectivity.NewConnectivityHandler(vpp, cache, clientv3, log),
 		serviceHandler:      services.NewServiceHandler(vpp, cache, log),
+		peerHandler:         routing.NewPeerHandler(cache, log),
 	}
 
 	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")
@@ -91,6 +94,13 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 		common.ConnectivityDeleted,
 		common.SRv6PolicyAdded,
 		common.SRv6PolicyDeleted,
+		common.PeersChanged,
+		common.PeerAdded,
+		common.PeerUpdated,
+		common.PeerDeleted,
+		common.SecretAdded,
+		common.SecretChanged,
+		common.SecretDeleted,
 	)
 
 	return server
@@ -102,6 +112,10 @@ func (s *Server) GetFelixServerEventChan() chan any {
 
 func (s *Server) GetCache() *cache.Cache {
 	return s.cache
+}
+
+func (s *Server) GetPeerHandler() *routing.PeerHandler {
+	return s.peerHandler
 }
 
 func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
@@ -404,6 +418,60 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 			if err != nil {
 				s.log.Errorf("Error while deleting SRv6 Policy %s", err)
 			}
+		case common.PeersChanged:
+			peersEvent, ok := evt.New.(*common.PeersChangedEvent)
+			if !ok {
+				return fmt.Errorf("evt.New is not a (*common.PeersChangedEvent) %v", evt.New)
+			}
+			err := s.peerHandler.ProcessPeers(peersEvent.Peers)
+			if err != nil {
+				s.log.Errorf("Error processing peers: %v", err)
+			}
+		case common.PeerAdded:
+			peerEvent, ok := evt.New.(*common.PeerAddedEvent)
+			if !ok {
+				return fmt.Errorf("evt.New is not a (*common.PeerAddedEvent) %v", evt.New)
+			}
+			err := s.peerHandler.OnPeerAdded(&peerEvent.Peer)
+			if err != nil {
+				s.log.Errorf("Error adding peer: %v", err)
+			}
+		case common.PeerUpdated:
+			peerEvent, ok := evt.New.(*common.PeerUpdatedEvent)
+			if !ok {
+				return fmt.Errorf("evt.New is not a (*common.PeerUpdatedEvent) %v", evt.New)
+			}
+			err := s.peerHandler.OnPeerUpdated(&peerEvent.Old, &peerEvent.New)
+			if err != nil {
+				s.log.Errorf("Error updating peer: %v", err)
+			}
+		case common.PeerDeleted:
+			peerEvent, ok := evt.New.(*common.PeerDeletedEvent)
+			if !ok {
+				return fmt.Errorf("evt.New is not a (*common.PeerDeletedEvent) %v", evt.New)
+			}
+			err := s.peerHandler.OnPeerDeleted(&peerEvent.Peer)
+			if err != nil {
+				s.log.Errorf("Error deleting peer: %v", err)
+			}
+		case common.SecretAdded:
+			secretEvent, ok := evt.New.(*common.SecretAddedEvent)
+			if !ok {
+				return fmt.Errorf("evt.New is not a (*common.SecretAddedEvent) %v", evt.New)
+			}
+			s.peerHandler.OnSecretAdded(secretEvent.Secret)
+		case common.SecretChanged:
+			secretEvent, ok := evt.New.(*common.SecretChangedEvent)
+			if !ok {
+				return fmt.Errorf("evt.New is not a (*common.SecretChangedEvent) %v", evt.New)
+			}
+			s.peerHandler.OnSecretChanged(secretEvent.SecretName)
+		case common.SecretDeleted:
+			secretEvent, ok := evt.New.(*common.SecretDeletedEvent)
+			if !ok {
+				return fmt.Errorf("evt.New is not a (*common.SecretDeletedEvent) %v", evt.New)
+			}
+			s.peerHandler.OnSecretDeleted(secretEvent.SecretName)
 		default:
 			s.log.Warnf("Unhandled CalicoVppEvent.Type: %s", evt.Type)
 		}

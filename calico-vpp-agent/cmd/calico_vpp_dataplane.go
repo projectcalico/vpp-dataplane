@@ -159,9 +159,10 @@ func main() {
 		log.Fatalf("cannot get default BGP config %s", err)
 	}
 
-	peerWatcher.SetBGPConf(bgpConf)
 	routingServer.SetBGPConf(bgpConf)
 	felixServer.SetBGPConf(bgpConf)
+
+	routingServer.SetPeerHandler(felixServer.GetPeerHandler())
 
 	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
 	Go(felixServer.ServeFelix)
