@@ -100,6 +100,11 @@ func (s *Server) GetFelixServerEventChan() chan any {
 	return s.felixServerEventChan
 }
 
+// GetConnectivityHandler returns the connectivity handler
+func (s *Server) GetConnectivityHandler() *connectivity.ConnectivityHandler {
+	return s.connectivityHandler
+}
+
 func (s *Server) GetCache() *cache.Cache {
 	return s.cache
 }
