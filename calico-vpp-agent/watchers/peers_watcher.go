@@ -530,13 +530,30 @@ func (w *PeerWatcher) getPassword(secretKeySelector *v1.SecretKeySelector) (stri
 	return password, err
 }
 
+// OnPeerNodeStateChanged is called when a peer node state changes
+func (w *PeerWatcher) OnPeerNodeStateChanged(old, new *common.LocalNodeSpec) {
+	select {
+	case w.peerWatcherEventChan <- common.CalicoVppEvent{
+		Type: common.PeerNodeStateChanged,
+		Old:  old,
+		New:  new,
+	}:
+	default:
+		w.log.Warn("Failed to send PeerNodeStateChanged event - channel full")
+	}
+}
+
 // This function gets called from SecretWatcher when a secret is added, updated or deleted
 func (w *PeerWatcher) OnSecretUpdate(old, new *v1.Secret) {
-	common.SendEvent(common.CalicoVppEvent{
+	select {
+	case w.peerWatcherEventChan <- common.CalicoVppEvent{
 		Type: common.BGPSecretChanged,
 		Old:  old,
 		New:  new,
-	})
+	}:
+	default:
+		w.log.Warn("Failed to send BGPSecretChanged event - channel full")
+	}
 }
 
 func NewPeerWatcher(clientv3 calicov3cli.Interface, k8sclient *kubernetes.Clientset, log *logrus.Entry) *PeerWatcher {
@@ -551,8 +568,6 @@ func NewPeerWatcher(clientv3 calicov3cli.Interface, k8sclient *kubernetes.Client
 	if err != nil {
 		log.Fatalf("NewSecretWatcher failed with %s", err)
 	}
-	reg := common.RegisterHandler(w.peerWatcherEventChan, "peers watcher events")
-	reg.ExpectEvents(common.PeerNodeStateChanged, common.BGPSecretChanged)
 
 	return &w
 }
