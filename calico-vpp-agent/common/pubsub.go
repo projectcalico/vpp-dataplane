@@ -26,9 +26,8 @@ type CalicoVppEventType string
 const (
 	ChanSize = 500
 
-	PeerNodeStateChanged CalicoVppEventType = "PeerNodeStateChanged"
-	IpamConfChanged      CalicoVppEventType = "IpamConfChanged"
-	BGPConfChanged       CalicoVppEventType = "BGPConfChanged"
+	IpamConfChanged CalicoVppEventType = "IpamConfChanged"
+	BGPConfChanged  CalicoVppEventType = "BGPConfChanged"
 
 	ConnectivityAdded   CalicoVppEventType = "ConnectivityAdded"
 	ConnectivityDeleted CalicoVppEventType = "ConnectivityDeleted"
@@ -45,10 +44,9 @@ const (
 	TunnelAdded   CalicoVppEventType = "TunnelAdded"
 	TunnelDeleted CalicoVppEventType = "TunnelDeleted"
 
-	BGPPeerAdded     CalicoVppEventType = "BGPPeerAdded"
-	BGPPeerDeleted   CalicoVppEventType = "BGPPeerDeleted"
-	BGPPeerUpdated   CalicoVppEventType = "BGPPeerUpdated"
-	BGPSecretChanged CalicoVppEventType = "BGPSecretChanged"
+	BGPPeerAdded   CalicoVppEventType = "BGPPeerAdded"
+	BGPPeerDeleted CalicoVppEventType = "BGPPeerDeleted"
+	BGPPeerUpdated CalicoVppEventType = "BGPPeerUpdated"
 
 	BGPFilterAddedOrUpdated CalicoVppEventType = "BGPFilterAddedOrUpdated"
 	BGPFilterDeleted        CalicoVppEventType = "BGPFilterDeleted"

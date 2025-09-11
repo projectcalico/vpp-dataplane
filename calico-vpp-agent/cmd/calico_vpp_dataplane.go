@@ -136,7 +136,6 @@ func main() {
 	linkWatcher := watchers.NewLinkWatcher(common.VppManagerInfo.UplinkStatuses, log.WithFields(logrus.Fields{"subcomponent": "host-link-watcher"}))
 	bgpConfigurationWatcher := watchers.NewBGPConfigurationWatcher(clientv3, log.WithFields(logrus.Fields{"subcomponent": "bgp-conf-watch"}))
 	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
-	peerWatcher := watchers.NewPeerWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
 	bgpFilterWatcher := watchers.NewBGPFilterWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "BGPFilter-watcher"}))
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
 	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
@@ -159,9 +158,13 @@ func main() {
 		log.Fatalf("cannot get default BGP config %s", err)
 	}
 
-	peerWatcher.SetBGPConf(bgpConf)
+	peerManager, err := felix.NewPeerManager(clientv3, k8sclient, felixServer, log.WithFields(logrus.Fields{"component": "peer-manager"}))
+	if err != nil {
+		log.Fatalf("could not create peer manager: %s", err)
+	}
+
 	routingServer.SetBGPConf(bgpConf)
-	felixServer.SetBGPConf(bgpConf)
+	peerManager.SetBGPConf(bgpConf)
 
 	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
 	Go(felixServer.ServeFelix)
@@ -192,7 +195,7 @@ func main() {
 	Go(linkWatcher.WatchLinks)
 	Go(bgpConfigurationWatcher.WatchBGPConfiguration)
 	Go(prefixWatcher.WatchPrefix)
-	Go(peerWatcher.WatchBGPPeers)
+	Go(peerManager.Start)
 	Go(bgpFilterWatcher.WatchBGPFilters)
 	Go(routingServer.ServeRouting)
 	Go(serviceServer.ServeService)
