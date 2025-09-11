@@ -45,6 +45,12 @@ func (e NodeWatcherRestartError) Error() string {
 	return "node configuration changed, restarting"
 }
 
+// PodEventHandler defines the interface for handling pod events
+type PodEventHandler interface {
+	OnPodAdded(podSpec *model.LocalPodSpec)
+	OnPodDeleted(podSpec *model.LocalPodSpec)
+}
+
 // Server holds all the data required to configure the policies defined by felix in VPP
 type Server struct {
 	log   *logrus.Entry
@@ -59,6 +65,9 @@ type Server struct {
 	cniHandler          *cni.CNIHandler
 	connectivityHandler *connectivity.ConnectivityHandler
 	serviceHandler      *services.ServiceHandler
+
+	// Pod event handlers for pod events (add/delete)
+	podEventHandlers []PodEventHandler
 }
 
 // NewFelixServer creates a felix server
@@ -77,6 +86,7 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 		cniHandler:          cni.NewCNIHandler(vpp, cache, log),
 		connectivityHandler: connectivity.NewConnectivityHandler(vpp, cache, clientv3, log),
 		serviceHandler:      services.NewServiceHandler(vpp, cache, log),
+		podEventHandlers:    make([]PodEventHandler, 0),
 	}
 
 	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")
@@ -94,6 +104,11 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 	)
 
 	return server
+}
+
+// RegisterPodEventHandler registers a pod event handler
+func (s *Server) RegisterPodEventHandler(handler PodEventHandler) {
+	s.podEventHandlers = append(s.podEventHandlers, handler)
 }
 
 func (s *Server) GetFelixServerEventChan() chan any {
@@ -343,6 +358,11 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 				EndpointID:     podSpec.EndpointID,
 				Network:        podSpec.NetworkName,
 			}, swIfIndex, podSpec.InterfaceName, podSpec.GetContainerIPs())
+
+			// Notify all registered pod event handlers
+			for _, handler := range s.podEventHandlers {
+				handler.OnPodAdded(podSpec)
+			}
 		case common.PodDeleted:
 			podSpec, ok := evt.Old.(*model.LocalPodSpec)
 			if !ok {
@@ -355,6 +375,11 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 					EndpointID:     podSpec.EndpointID,
 					Network:        podSpec.NetworkName,
 				}, podSpec.GetContainerIPs())
+
+				// Notify all registered pod event handlers
+				for _, handler := range s.podEventHandlers {
+					handler.OnPodDeleted(podSpec)
+				}
 			}
 		case common.TunnelAdded:
 			swIfIndex, ok := evt.New.(uint32)
