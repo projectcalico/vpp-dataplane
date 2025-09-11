@@ -35,9 +35,9 @@ PATCHES = $(sort $(wildcard $(VPPLINK_DIR)/generated/patches/*.patch))
 VPP_HASH = $(shell md5sum \
 	$(VPPLINK_DIR)/generated/vpp_clone_current.sh \
 	${PATCHES} \
-	<(echo '${VPP_DEB_LIST}') \
+	<(echo '$(subst $(VPP_DIR),,$(VPP_DEB_LIST))') \
 	<(echo '${BASE}') \
-	| md5sum | cut -f1 -d' ')
+	| cut -f1 -d' ' | md5sum | cut -f1 -d' ')
 VPP_TARBALL = vpp-${VPP_HASH}.tgz
 
 .PHONY: all
