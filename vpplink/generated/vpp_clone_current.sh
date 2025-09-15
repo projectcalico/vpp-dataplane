@@ -139,6 +139,7 @@ git_cherry_pick refs/changes/36/43336/3  # gso: fix ip fragment support for gso 
 
 git_cherry_pick refs/changes/98/42598/12  # pg: add support for checksum offload
 git_cherry_pick refs/changes/76/42876/10  # gso: add support for ipip tso for phyiscal interfaces
+git_cherry_pick refs/changes/90/43690/2 # session: track app session index for cl sessions
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
