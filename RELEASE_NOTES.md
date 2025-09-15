@@ -30,6 +30,16 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any
 
 ## Releases
 
+### Calico-VPP v3.29.2
+
+> 15th September 2025
+
+- Bugfixes:
+  - add vpp prefix to prometheus stats
+  - Fix vclsidecar build missing .25.06 sos
+  - Cherrypick hoststack fix for connectionless UDP
+  - Fix CI vpp tarball caching issue
+
 ### Calico-VPP v3.29.1
 
 > 8th September 2025
