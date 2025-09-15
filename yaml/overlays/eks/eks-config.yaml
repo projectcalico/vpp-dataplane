@@ -18,7 +18,7 @@ data:  # Configuration template for VPP in EKS
       },
       "uplinkInterfaces": [
         {
-          "interfaceName": "eth0",
+          "interfaceName": "ens5",
           "vppDriver": "af_packet"
         }
       ]
@@ -35,11 +35,9 @@ spec:
       containers:
         - name: vpp
           env:
-            - name: CALICOVPP_HOOK_BEFORE_VPP_RUN
-              value: "echo 'sudo systemctl stop network ; sudo systemctl kill network' | chroot /host"
             - name: CALICOVPP_HOOK_VPP_RUNNING
-              value: "echo 'sudo systemctl start network' | chroot /host"
+              value: echo "sudo cp /usr/lib/systemd/network/80-ec2.network /etc/systemd/network/ens5.network; sudo sed -i 's/Driver=.*/Name=ens5/' /etc/systemd/network/ens5.network; sudo systemctl daemon-reload; sudo systemctl restart systemd-networkd" | chroot /host
             - name: CALICOVPP_HOOK_VPP_DONE_OK
-              value: "echo 'sudo systemctl stop network ; sudo systemctl kill network ; sudo systemctl start network' | chroot /host"
+              value: echo 'sudo rm /etc/systemd/network/ens5.network; systemctl daemon-reload; sudo systemctl restart systemd-networkd' | chroot /host
             - name: CALICOVPP_HOOK_VPP_ERRORED
-              value: "echo 'sudo systemctl stop network ; sudo systemctl kill network ; sudo systemctl start network' | chroot /host"
+              value: echo 'sudo rm /etc/systemd/network/ens5.network; systemctl daemon-reload; sudo systemctl restart systemd-networkd' | chroot /host
