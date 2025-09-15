@@ -1,31 +1,106 @@
-VPP Version                 : 25.06.0-19~g354a6aabf
+VPP Version                 : 25.10-rc0~254-g5c1aa6bcc
 Binapi-generator version    : v0.11.0
-VPP Base commit             : 47505bc21 misc: Initial changes for stable/2506 branch
+VPP Base commit             : e7a26fb11 session: remove unused attach options
 ------------------ Cherry picked commits --------------------
 capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
-gerrit:42876/10 gso: add support for ipip tso for phyiscal interfaces
-gerrit:42598/12 pg: add support for checksum offload
-gerrit:43336/3 gso: fix ip fragment support for gso packet
-gerrit:42425/8 interface: add support for proper checksum handling
-gerrit:43083/3 virtio: conditionally set checksum offload based on TCP/UDP offload flags
-gerrit:43084/3 af_packet: conditionally set checksum offload based on TCP/UDP offload flags
-gerrit:43082/6 ipip: fix the offload flags
-gerrit:42891/5 ip: compute checksums before fragmentation if offloaded
-gerrit:43081/2 interface: clear flags after checksum computation
-gerrit:42419/5 dpdk: fix the outer flags
-gerrit:42186/6 tap: enable IPv4 checksum offload on interface
-gerrit:42185/6 vnet: add assert for offload flags in debug mode
-gerrit:42184/6 interface: add a new cap for virtual interfaces
+gerrit:43369/2 cnat: converge new cnat implementation to support old usecases (calico)
+gerrit:41089/20 cnat: combine multiple changes
 gerrit:revert:39675/5 Revert "ip-neighbor: do not use sas to determine NS source address"
+gerrit:42343/2 vcl: LDP default to regular option
 gerrit:34726/3 interface: add buffer stats api
-misc: VPP 25.06 Release Notes
-hsa: http client init wrk->vlib_main in setup
-tls: add half close support
-af_packet: show host interface offload flags
-af_packet: fix the error handling on transmit
-dma_intel: fix ats_disable attribute handling
-misc: Initial changes for stable/2506 branch
+http: h2 client multiplexing fix
+hs-test: iperf improvements
+hsa: fix typo in vcl_test_client arg check
+http: h2 tunnel dispatch add as dequeue notify
+vcl: ldp infra for get/set SO_COOKIE
+session udp: fix cl hash computation
+hs-test: NginxHttp3Test add worker crash check
+rpm-packaging: add vcl client and server to vpp binaries (rpm)
+hs-test: turn off quic_retry in nginx config
+vcl: fix read ready for cl udp
+vnet: add eeprom_read_function
+hs-test: bump nginx version to 1.28
+hs-test: bump curl version to 8.15.0
+http: http2_sched_dispatch_tunnel fix
+hs-test: KindIperfVclTest fix
+hs-test: remove non-root user build enforcement
+http: h2 fix handling of incomplete frame headers
+http: h2 connect-udp dgram mode flow control fix
+http: h2 client conn error handling fix
+http: req_state_udp_tunnel_tx fix
+hs-test: fix envsubst not working
+hs-test: KinD cluster setup improvements
+af_xdp: fix missing recvmsg argument
+http: zero hdr.gso_size in udp_tunnel_rx
+srtp: zero hdr.gso_size in srtp_ctx_read
+hsa: echo client zero hdr.gso_size
+tls: zero hdr.gso_size in openssl_ctx_read_dtls
+tls: fix coverity warning
+session: restore cl session dscp support
+hsa: fix potential udp echo server test-bytes int overflow
+virtio: fix cli parser
+gso: add support for ipip tso for phyiscal interfaces
+tests: add vpp-opt-deps to vpp LD_LIBRARY_PATH
+session: session_cb_vft add proxy_write_early_data
+vppinfra: fix cpu time on riscv
+hs-test: load k8s pod definitions from a file
+api: fix crash in pcap capture api
+hsa: show tx/rx stats for UDP on timeout and fix test-bytes for UDP
+http: h2 client connect-udp fix
+http: h2 client tunnel fix
+session: enable sending segmented dgrams
+af_xdp: processing free buffer
+af_xdp: bump xdp-tools to 1.5.5
+http: http2_transport_rx_callback hardening
+build: updated to build on RHEL-8
+tests: af_xdp interface tests
+session: session debug crashes with elog track
+hs-test: add hsi and transparent proxy test
+quic: reregister transport proto when no quic engine registered
+pg: add support for checksum offload
+tcp: fix persist handler in closed state
+hs-test: glean proxy environment variables is present
+tcp: conditionally initializing log track for unbind
+session tls: scaffolding for async cert retrieval
+hs-test: PromMemLeakTest improvement
+http: h2 connect-udp for client apps
+http: h2 connect for client apps
+hs-test: run containers wit --cap-add=SYS_PTRACE
+http: format_http_transport_half_open fix
+hs-test: nsim loss rate test
+http: h2 free stream scheduler heads with conn
+linux-cp: fix multicast route updates on address add/del
+vcl: atomics for tracking num workers in vls
+vcl: favor wr to vls_mt_spool_rwlock
+hs-test: add nginx mirroring KinD test, cleanup
+hs-test: containerize ginkgo
+hs-test: fix nsim interface in TcpWithLoss tests
+hsa: cl udp app wait for pthreads to exit
+nsim: fix uninitialized variables
+http: huffman decoder invalid EOS handling fix
+vlib: fix typo in ASAN stack size calculation
+vlib: remove timer when sched node is dispatched by interrupt
+http: validate h2 frame lengeth in handlers
+hs-test: h2 client memory leak test
+http: starting http/2 with prior knowledge
+http: h2 client multiplexing
+http: h2 flow control improvement
+docs: correct deleting an interface ip address
+l2: stale cached value input->bd_seq_num
+vcl: revert allow reads after transport cleanup
+dpdk: bump to DPDK 25.07 and rdma-core 58.0
+papi: fix deprecated call to setup.py
+ip: common icmp echo structure
+session: set maximum memory for fifos
+session: add new error MAX_STREAMS_HIT
+hsa: http client set connect_sep to null on init
+http: h2 coverity fix
+hs-test: h2 client testing with h2spec
+http: h2 client error handling improvement
+build: update openssl to 3.5.1 in vpp-opt-deps
+tls session: track internal tls objects in ckpair
+session: remove unused attach options
 -------------------------------------------------------------
