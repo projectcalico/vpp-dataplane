@@ -8,7 +8,6 @@ require (
 	github.com/containernetworking/plugins v1.6.2
 	github.com/google/gopacket v1.1.19
 	github.com/gookit/color v1.5.4
-	github.com/inconshreveable/mousetrap v1.1.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543 // indirect
 	github.com/onsi/ginkgo v1.16.5
@@ -19,7 +18,6 @@ require (
 	github.com/projectcalico/api v0.0.0-20250617202239-c3be7477438e // v3.30.1
 	github.com/projectcalico/calico v0.0.0-20250529224300-393b14e729a6 // v3.30.1
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.9.1
 	github.com/vishvananda/netlink v1.3.1-0.20250206174618-62fb240731fa
 	github.com/vishvananda/netns v0.0.4
 	github.com/yookoala/realpath v1.0.0
