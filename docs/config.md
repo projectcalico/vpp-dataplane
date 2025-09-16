@@ -1,10 +1,15 @@
-Calico-Vpp components (vpp-manager and agent) are configured using a common configMap. Here's an example of the configMap `calico-vpp-config` and the different configuration options it contains:
+# CalicoVPP Configuration
 
+Calico-Vpp components (vpp-manager and agent) are configured using a common
+configMap. Here's an example of the configMap `calico-vpp-config` and the
+different configuration options it contains:
 
-Note: keys `CALICOVPP_INTERFACE` and `CALICOVPP_NATIVE_DRIVER` are being deprecated, they are replaced by the first element of `uplinkInterfaces` field of `CALICOVPP_INTERFACES`.
+Note: keys `CALICOVPP_INTERFACE` and `CALICOVPP_NATIVE_DRIVER` are being
+deprecated, they are replaced by the first element of `uplinkInterfaces`
+field of `CALICOVPP_INTERFACES`.
 Please use `CALICOVPP_INTERFACES` instead.
 
-```yaml
+````yaml
 ---
 # dedicated configmap for VPP settings
 kind: ConfigMap
@@ -19,7 +24,8 @@ data:
 
   # Configures how VPP grabs the physical interface
   # available values are :
-  # - ""        : will select the fastest driver among those supported for this interface
+  # - ""        : will select the fastest driver among those supported 
+  #             : for this interface
   # - avf       : use the native AVF driver
   # - virtio    : use the native virtio driver (requires hugepages)
   # - af_xdp    : use AF_XDP sock family (require at least kernel 5.4)
@@ -82,12 +88,13 @@ data:
     "srv6Enabled": false,
     "ipsecEnabled": false
   }
-```
+````
 
-As part of user config, you can set specific configuration for pod interfaces using pod annotations.
+As part of user config, you can set specific configuration for pod interfaces
+using pod annotations.
 Here's an example:
 
-```yaml
+````yaml
 
 apiVersion: v1
 kind: Pod
@@ -102,4 +109,4 @@ metadata:
       "eth6": {"rx": 3, "tx": 3, "isl3": false }
     }
 
-```
+````
