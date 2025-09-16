@@ -147,6 +147,10 @@ func main() {
 	cniServer := watchers.NewCNIServer(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "cni"}))
 	serviceServer := watchers.NewServiceServer(felixServer.GetFelixServerEventChan(), k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 
+	// Register route watcher to receive network and IPAM events for VPP route management
+	netWatcher.RegisterRouteWatcher(routeWatcher)
+	felixServer.RegisterRouteWatcher(routeWatcher)
+
 	err = watchers.InstallFelixPlugin()
 	if err != nil {
 		log.Fatalf("could not install felix plugin: %s", err)
