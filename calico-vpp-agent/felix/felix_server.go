@@ -87,10 +87,6 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 		common.TunnelDeleted,
 		common.NetAddedOrUpdated,
 		common.NetDeleted,
-		common.ConnectivityAdded,
-		common.ConnectivityDeleted,
-		common.SRv6PolicyAdded,
-		common.SRv6PolicyDeleted,
 	)
 
 	return server
@@ -369,42 +365,6 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 				return fmt.Errorf("evt.Old not a uint32 %v", evt.Old)
 			}
 			s.policiesHandler.OnTunnelDelete(swIfIndex)
-		case common.ConnectivityAdded:
-			new, ok := evt.New.(*common.NodeConnectivity)
-			if !ok {
-				s.log.Errorf("evt.New is not a *common.NodeConnectivity %v", evt.New)
-			}
-			err := s.connectivityHandler.UpdateIPConnectivity(new, false /* isWithdraw */)
-			if err != nil {
-				s.log.Errorf("Error while adding connectivity %s", err)
-			}
-		case common.ConnectivityDeleted:
-			old, ok := evt.Old.(*common.NodeConnectivity)
-			if !ok {
-				s.log.Errorf("evt.Old is not a *common.NodeConnectivity %v", evt.Old)
-			}
-			err := s.connectivityHandler.UpdateIPConnectivity(old, true /* isWithdraw */)
-			if err != nil {
-				s.log.Errorf("Error while deleting connectivity %s", err)
-			}
-		case common.SRv6PolicyAdded:
-			new, ok := evt.New.(*common.NodeConnectivity)
-			if !ok {
-				s.log.Errorf("evt.New is not a *common.NodeConnectivity %v", evt.New)
-			}
-			err := s.connectivityHandler.UpdateSRv6Policy(new, false /* isWithdraw */)
-			if err != nil {
-				s.log.Errorf("Error while adding SRv6 Policy %s", err)
-			}
-		case common.SRv6PolicyDeleted:
-			old, ok := evt.Old.(*common.NodeConnectivity)
-			if !ok {
-				s.log.Errorf("evt.Old is not a *common.NodeConnectivity %v", evt.Old)
-			}
-			err := s.connectivityHandler.UpdateSRv6Policy(old, true /* isWithdraw */)
-			if err != nil {
-				s.log.Errorf("Error while deleting SRv6 Policy %s", err)
-			}
 		default:
 			s.log.Warnf("Unhandled CalicoVppEvent.Type: %s", evt.Type)
 		}

@@ -34,10 +34,17 @@ import (
 	"gopkg.in/tomb.v2"
 )
 
+// BGPDefinedSetHandler interface for handling BGP defined set operations
+type BGPDefinedSetHandler interface {
+	HandleBGPDefinedSetAdded(definedSet *bgpapi.DefinedSet) error
+	HandleBGPDefinedSetDeleted(definedSet *bgpapi.DefinedSet) error
+}
+
 type PrefixWatcher struct {
-	log         *logrus.Entry
-	client      *calicocli.Client
-	nodeBGPSpec *common.LocalNodeSpec
+	log                  *logrus.Entry
+	client               *calicocli.Client
+	nodeBGPSpec          *common.LocalNodeSpec
+	bgpDefinedSetHandler BGPDefinedSetHandler
 }
 
 const (
@@ -201,15 +208,19 @@ func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 		},
 	}
 	if del {
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.BGPDefinedSetDeleted,
-			Old:  ps,
-		})
+		if w.bgpDefinedSetHandler != nil {
+			err := w.bgpDefinedSetHandler.HandleBGPDefinedSetDeleted(ps)
+			if err != nil {
+				return fmt.Errorf("error handling BGP defined set deletion: %v", err)
+			}
+		}
 	} else {
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.BGPDefinedSetAdded,
-			New:  ps,
-		})
+		if w.bgpDefinedSetHandler != nil {
+			err := w.bgpDefinedSetHandler.HandleBGPDefinedSetAdded(ps)
+			if err != nil {
+				return fmt.Errorf("error handling BGP defined set addition: %v", err)
+			}
+		}
 	}
 	// Add all contained prefixes to host prefix set, forbidding the export of containers /32s or /128s
 	max := uint32(32)
@@ -229,35 +240,33 @@ func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
 		},
 	}
 	if del {
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.BGPDefinedSetDeleted,
-			Old:  ps,
-		})
+		if w.bgpDefinedSetHandler != nil {
+			err := w.bgpDefinedSetHandler.HandleBGPDefinedSetDeleted(ps)
+			if err != nil {
+				return fmt.Errorf("error handling BGP defined set deletion: %v", err)
+			}
+		}
 	} else {
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.BGPDefinedSetAdded,
-			New:  ps,
-		})
+		if w.bgpDefinedSetHandler != nil {
+			err := w.bgpDefinedSetHandler.HandleBGPDefinedSetAdded(ps)
+			if err != nil {
+				return fmt.Errorf("error handling BGP defined set addition: %v", err)
+			}
+		}
 	}
 
 	// Finally add/remove path to/from the main table to annouce it to our peers
-	if del {
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.BGPPathDeleted,
-			Old:  path,
-		})
-	} else {
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.BGPPathAdded,
-			New:  path,
-		})
-	}
+	// (BGPPathAdded/BGPPathDeleted pubsub event sending removed)
 
 	return nil
 }
 
 func (w *PrefixWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	w.nodeBGPSpec = nodeBGPSpec
+}
+
+func (w *PrefixWatcher) SetBGPDefinedSetHandler(handler BGPDefinedSetHandler) {
+	w.bgpDefinedSetHandler = handler
 }
 
 func NewPrefixWatcher(client *calicocli.Client, log *logrus.Entry) *PrefixWatcher {
