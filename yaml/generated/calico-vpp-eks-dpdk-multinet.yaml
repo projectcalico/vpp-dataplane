@@ -232,7 +232,7 @@ spec:
         k8s-app: calico-vpp-node
     spec:
       containers:
-      - image: docker.io/calicovpp/multinet-monitor:latest
+      - image: docker.io/calicovpp/multinet-monitor:v3.29.0
         imagePullPolicy: IfNotPresent
         name: multinet-monitor
         resources:
@@ -280,7 +280,7 @@ spec:
         envFrom:
         - configMapRef:
             name: calico-vpp-config
-        image: docker.io/calicovpp/vpp:latest
+        image: docker.io/calicovpp/vpp:v3.29.0
         imagePullPolicy: IfNotPresent
         name: vpp
         resources:
@@ -325,7 +325,7 @@ spec:
         envFrom:
         - configMapRef:
             name: calico-vpp-config
-        image: docker.io/calicovpp/agent:latest
+        image: docker.io/calicovpp/agent:v3.29.0
         imagePullPolicy: IfNotPresent
         name: agent
         resources:
@@ -350,7 +350,7 @@ spec:
       initContainers:
       - command:
         - /entrypoint
-        image: docker.io/calicovpp/install-whereabouts:latest
+        image: docker.io/calicovpp/install-whereabouts:v3.29.0
         name: install-whereabouts
         volumeMounts:
         - mountPath: /host/opt/cni/bin
