@@ -15,7 +15,7 @@ WORKDIR /root/
 
 RUN mkdir /tmp/vpp
 
-COPY artifacts/release/*.deb /tmp/vpp/
+COPY artifacts/debug/*.deb /tmp/vpp/
 
 RUN export VPP_INSTALL_SKIP_SYSCTL=1 && \
     dpkg -i /tmp/vpp/libvppinfra_*.deb \
@@ -28,6 +28,6 @@ RUN export VPP_INSTALL_SKIP_SYSCTL=1 && \
 
 ADD bin/vpp-manager /usr/bin/
 ADD bin/vppdev.sh /usr/bin/calivppctl
-ADD artifacts/release/calicovppversion /etc/calicovppversion
+ADD artifacts/debug/calicovppversion /etc/calicovppversion
 
 ENTRYPOINT ["/usr/bin/vpp-manager"]
