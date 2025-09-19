@@ -1,4 +1,4 @@
-VPP Version                 : 25.06.0-25~ge62b1ebaa
+VPP Version                 : 25.06.0-25~gfcb92944f
 Binapi-generator version    : v0.11.0
 VPP Base commit             : 47505bc21 misc: Initial changes for stable/2506 branch
 ------------------ Cherry picked commits --------------------

@@ -3,57 +3,76 @@ include ../common.mk
 SHELL := /bin/bash
 
 VPPLINK_DIR=../vpplink
-SIDECARVCL_DIR=../test/yaml/sidecar-vcl
-INIT_EKS_IMAGE_DIR=images/init-eks/
-DEV_IMAGE_DIR=images/dev/
+
+INIT_EKS_IMAGE_DIR=images/init-eks
+DEV_IMAGE_DIR=images/dev
 IMAGE_DIR=images/ubuntu
+VCLSIDECAR_IMAGE_DIR=images/vclsidecar
+
 VPPDEV_FILE=../test/scripts/vppdev.sh
 GENERATE_LOG_FILE=../vpplink/generated/generate.log
-VERSION_FILE=$(IMAGE_DIR)/version
 TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
 VPP_DIR ?= $(CURDIR)/vpp_build
+
+# temporary directory to build VPP in
+VERSION_FILE=$(VPP_DIR)/calicovppversion
+
 # BASE allows to override the VPP base commit in vpp_clone_current.sh
 BASE ?=
 
-VPP_DEB_LIST = \
-	$(VPP_DIR)/build-root/vpp_*.deb \
-	$(VPP_DIR)/build-root/vpp-plugin-core_*.deb \
-	$(VPP_DIR)/build-root/vpp-plugin-dpdk_*.deb \
-	$(VPP_DIR)/build-root/libvppinfra_*.deb \
-	$(VPP_DIR)/build-root/vpp-dbg_*.deb \
-	$(VPP_DIR)/build-root/vpp-plugin-devtools_*.deb \
+VPP_REL_DEB_LIST = \
+	$(VPP_DIR)/build-root/debs/release/vpp_*.deb \
+	$(VPP_DIR)/build-root/debs/release/vpp-plugin-core_*.deb \
+	$(VPP_DIR)/build-root/debs/release/vpp-plugin-dpdk_*.deb \
+	$(VPP_DIR)/build-root/debs/release/libvppinfra_*.deb \
+	$(VPP_DIR)/build-root/debs/release/vpp-dbg_*.deb \
+	$(VPP_DIR)/build-root/debs/release/vpp-plugin-devtools_*.deb \
 	${VPP_DIR}/build-root/build-vpp-native/vpp/lib/x86_64-linux-gnu/libvcl_ldpreload.so* \
 	${VPP_DIR}/build-root/build-vpp-native/vpp/lib/x86_64-linux-gnu/libsvm.so* \
 	${VPP_DIR}/build-root/build-vpp-native/vpp/lib/x86_64-linux-gnu/libvppcom.so* \
 	${VPP_DIR}/build-root/build-vpp-native/vpp/lib/x86_64-linux-gnu/libvlibapi.so* \
 	${VPP_DIR}/build-root/build-vpp-native/vpp/lib/x86_64-linux-gnu/libvppinfra.so* \
 	${VPP_DIR}/build-root/build-vpp-native/vpp/lib/x86_64-linux-gnu/libvlibmemoryclient.so* \
-	${VPP_DIR}/extras/libmemif/build/lib/libmemif.so \
+	${VPP_DIR}/extras/libmemif/release/install/lib/libmemif.so \
+
+VPP_DBG_DEB_LIST = \
+	$(VPP_DIR)/build-root/debs/debug/vpp_*.deb \
+	$(VPP_DIR)/build-root/debs/debug/vpp-plugin-core_*.deb \
+	$(VPP_DIR)/build-root/debs/debug/vpp-plugin-dpdk_*.deb \
+	$(VPP_DIR)/build-root/debs/debug/libvppinfra_*.deb \
+	$(VPP_DIR)/build-root/debs/debug/vpp-dbg_*.deb \
+	$(VPP_DIR)/build-root/debs/debug/vpp-plugin-devtools_*.deb \
+	${VPP_DIR}/build-root/build-vpp_debug-native/vpp/lib/x86_64-linux-gnu/libvcl_ldpreload.so* \
+	${VPP_DIR}/build-root/build-vpp_debug-native/vpp/lib/x86_64-linux-gnu/libsvm.so* \
+	${VPP_DIR}/build-root/build-vpp_debug-native/vpp/lib/x86_64-linux-gnu/libvppcom.so* \
+	${VPP_DIR}/build-root/build-vpp_debug-native/vpp/lib/x86_64-linux-gnu/libvlibapi.so* \
+	${VPP_DIR}/build-root/build-vpp_debug-native/vpp/lib/x86_64-linux-gnu/libvppinfra.so* \
+	${VPP_DIR}/build-root/build-vpp_debug-native/vpp/lib/x86_64-linux-gnu/libvlibmemoryclient.so* \
+	${VPP_DIR}/extras/libmemif/debug/install/lib/libmemif.so \
 
 PATCHES = $(sort $(wildcard $(VPPLINK_DIR)/generated/patches/*.patch))
 VPP_HASH = $(shell md5sum \
 	$(VPPLINK_DIR)/generated/vpp_clone_current.sh \
 	${PATCHES} \
-	<(echo '$(subst $(VPP_DIR),,$(VPP_DEB_LIST))') \
+	<(echo '$(subst $(VPP_DIR),,$(VPP_REL_DEB_LIST))') \
+	<(echo '$(subst $(VPP_DIR),,$(VPP_DBG_DEB_LIST))') \
 	<(echo '${BASE}') \
 	| cut -f1 -d' ' | md5sum | cut -f1 -d' ')
-VPP_TARBALL = vpp-${VPP_HASH}.tgz
+VPP_TARBALL = vpp-${VPP_HASH}.tar
 
 .PHONY: all
 all: image
 
 .PHONY: build
 build:
-	${DOCKER_RUN} go build -o $(IMAGE_DIR)/vpp-manager
+	mkdir -p $(IMAGE_DIR)/bin
+	cp $(VPPDEV_FILE) $(IMAGE_DIR)/bin/vppdev.sh
+	${DOCKER_RUN} go build -o $(IMAGE_DIR)/bin/vpp-manager
 
-# docker --squash is an experimental feature,
-# it requires to do the following to work :
-# echo '{"experimental": true}' | sudo tee /etc/docker/daemon.json
-
-.PHONY: eksimage
-eksimage:
-	docker build ${SQUASH} --pull --network=host \
+.PHONY: eks-image
+eks-image:
+	docker build --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		-t calicovpp/init-eks:$(TAG) $(INIT_EKS_IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
@@ -61,43 +80,47 @@ eksimage:
 		docker tag calicovpp/init-eks:$(TAG) calicovpp/init-eks:prerelease; \
 	fi
 
-.PHONY: sidecar-vcl-image
-sidecar-vcl-image: ${VPP_TARBALL}
-	cp ${IMAGE_DIR}/libmemif.so* \
-		${IMAGE_DIR}/libvcl_ldpreload.so* \
-		${IMAGE_DIR}/libvppcom.so* \
-		${IMAGE_DIR}/libvlibmemoryclient.so* \
-		${IMAGE_DIR}/libsvm.so* \
-		${IMAGE_DIR}/libvppinfra.so* \
-		${IMAGE_DIR}/libvlibapi.so* \
-		${VERSION_FILE} \
-		${SIDECARVCL_DIR}
-	docker build -t calicovpp/vclsidecar:$(TAG) -f ${SIDECARVCL_DIR}/Dockerfile ${SIDECARVCL_DIR}
+.PHONY: vclsidecar-image
+vclsidecar-image: ${VPP_TARBALL}
+	rm -rf $(VCLSIDECAR_IMAGE_DIR)/artifacts
+	tar -xvf ${VPP_TARBALL} -C $(VCLSIDECAR_IMAGE_DIR)
+	docker build -t calicovpp/vclsidecar:$(TAG) ${VCLSIDECAR_IMAGE_DIR}
+	docker build -t calicovpp/vclsidecar:dbg-$(TAG) -f ${VCLSIDECAR_IMAGE_DIR}/Dockerfile.debug ${VCLSIDECAR_IMAGE_DIR}
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/vclsidecar:$(TAG) calicovpp/vclsidecar:latest; \
 		docker tag calicovpp/vclsidecar:$(TAG) calicovpp/vclsidecar:prerelease; \
 	fi
-	rm -f ${SIDECARVCL_DIR}/lib*.so
-	rm -f ${SIDECARVCL_DIR}/version
+	rm -rf $(VCLSIDECAR_IMAGE_DIR)/artifacts
 
-.PHONY: image
-image: build ${VPP_TARBALL} eksimage sidecar-vcl-image
-	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
-	docker build ${SQUASH} --pull --network=host \
+.PHONY: vpp-image
+vpp-image: build ${VPP_TARBALL}
+	rm -rf $(IMAGE_DIR)/artifacts
+	tar -xvf ${VPP_TARBALL} -C $(IMAGE_DIR)
+	docker build --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 		--build-arg WITH_GDB=${WITH_GDB} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
+	docker build --pull --network=host \
+		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+		--build-arg WITH_GDB=${WITH_GDB} \
+		-t calicovpp/vpp:dbg-$(TAG) -f $(IMAGE_DIR)/Dockerfile.debug $(IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:prerelease; \
 	fi
+	rm -rf $(IMAGE_DIR)/artifacts
+
+.PHONY: image
+image: vpp-image eks-image vclsidecar-image
 
 .PHONY: push
 push: ${PUSH_DEP}
 	set -e; for registry in ${REGISTRIES}; do \
 		docker tag calicovpp/vpp:$(TAG) $${registry}calicovpp/vpp:$(TAG); \
+		docker tag calicovpp/vpp:dbg-$(TAG) $${registry}calicovpp/vpp:dbg-$(TAG); \
 		docker tag calicovpp/init-eks:$(TAG) $${registry}calicovpp/init-eks:$(TAG); \
 		docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:$(TAG); \
+		docker tag calicovpp/vclsidecar:dbg-$(TAG) $${registry}calicovpp/vclsidecar:dbg-$(TAG); \
 		\
 		if [ "${ALSO_LATEST}" = "y" ]; then \
 			docker tag calicovpp/vpp:$(TAG) $${registry}calicovpp/vpp:latest; \
@@ -114,14 +137,6 @@ push: ${PUSH_DEP}
 		docker push --all-tags $${registry}calicovpp/vclsidecar; \
 	done
 
-.PHONY: imageonly
-imageonly: build
-	cp $(VPPDEV_FILE) $(IMAGE_DIR)
-	docker build ${SQUASH} --pull --network=host \
-		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
-		--build-arg https_proxy=${DOCKER_BUILD_PROXY} \
-		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
-
 .PHONY: clean
 clean: clean-vpp
 
@@ -135,24 +150,8 @@ clean-vpp:
 	rm -f $(VPP_DIR)/build-root/*.deb
 	rm -f $(VPP_DIR)/build-root/*.buildinfo
 
-.PHONY: rebuild-vpp
-rebuild-vpp: vpp-build-env
-	docker run --rm \
-		-e VPP_DIR=$(VPP_DIR) \
-		-v $(VPP_DIR):$(VPP_DIR):delegated \
-		--user $$(id -u):$$(id -g) \
-		--env NO_BUILD_DEBS=true \
-		--env HTTP_PROXY=$(HTTP_PROXY) \
-		--env HTTPS_PROXY=$(HTTPS_PROXY) \
-		--env http_proxy=$(http_proxy) \
-		--env https_proxy=$(https_proxy) \
-		--network=host \
-		calicovpp/vpp-build:latest
-
 .PHONY: vpp
-vpp: clone-vpp vpp-build-env
-	rm -f $(IMAGE_DIR)/*.deb
-	rm -f $(IMAGE_DIR)/*.so*
+vpp: clone-vpp vpp-build-env version-file
 	docker run --rm \
 		-e VPP_DIR=$(VPP_DIR) \
 		-v $(VPP_DIR):$(VPP_DIR):delegated \
@@ -163,10 +162,17 @@ vpp: clone-vpp vpp-build-env
 		--env http_proxy=$(http_proxy) \
 		--env https_proxy=$(https_proxy) \
 		calicovpp/vpp-build:latest
-	cp $(VPP_DEB_LIST) $(IMAGE_DIR)
+	rm -rf $(CURDIR)/artifacts
+	mkdir -p $(CURDIR)/artifacts/debug
+	mkdir -p $(CURDIR)/artifacts/release
+	cp $(VPP_DBG_DEB_LIST) $(CURDIR)/artifacts/debug
+	cp $(VPP_REL_DEB_LIST) $(CURDIR)/artifacts/release
+	cp $(VERSION_FILE) $(CURDIR)/artifacts/debug
+	cp $(VERSION_FILE) $(CURDIR)/artifacts/release
 
-	find $(IMAGE_DIR) -type f \( -name '*.deb' -o -name '*.so' \) -printf "%P\n" | \
-		tar -czvf ${VPP_TARBALL} -C $(IMAGE_DIR) -T -
+	tar --overwrite -cvf ${VPP_TARBALL} -C $(CURDIR) artifacts
+	echo "Built ${VPP_TARBALL}"
+	rm -rf $(CURDIR)/artifacts
 ifdef CI_BUILD
 	aws s3api put-object \
 		--bucket ${VPP_BUCKET} \
@@ -174,20 +180,20 @@ ifdef CI_BUILD
 		--body ${VPP_TARBALL}
 endif
 
-${VPP_TARBALL}: ${VERSION_FILE}
+${VPP_TARBALL}:
 ifdef CI_BUILD
-	mkdir -p ${IMAGE_DIR}
 	aws s3api get-object \
 		--bucket ${VPP_BUCKET} \
 		--key ${VPP_TARBALL} \
 		${VPP_TARBALL} \
-	&& tar xzvf ${VPP_TARBALL} -C ${IMAGE_DIR} \
 	|| $(MAKE) vpp
 else
-	test -f ${VPP_TARBALL} || $(MAKE) vpp
+	test -f ${VPP_TARBALL} \
+	|| $(MAKE) vpp
 endif
 
-${VERSION_FILE}:
+.PHONY: version-file
+version-file:
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
 	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
 	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
@@ -202,7 +208,7 @@ vpp-build-env:
 .PHONY: dev
 dev: build
 	cp $(VPPDEV_FILE) $(DEV_IMAGE_DIR)
-	docker build --squash --network=host \
+	docker build --network=host \
 	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 	  --build-arg https_proxy=${DOCKER_BUILD_PROXY} \
 	  --build-arg WITH_GDB=${WITH_GDB} \
