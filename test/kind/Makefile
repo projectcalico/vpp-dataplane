@@ -1,8 +1,11 @@
+include ../../common.mk
+
 TAG ?= latest # Tag images with :$(TAG)
 N_KIND_WORKERS ?= 2
 N_KIND_CONTROL_PLANES ?= 1
 CPU_PINNING ?= false
 KIND_CALICO_VERSION ?= master
+DEBUG ?= false
 
 .PHONY: new-cluster
 new-cluster:
@@ -13,7 +16,7 @@ new-cluster:
 
 .PHONY: install-cni
 install-cni:
-	@./install_calico_vpp.sh
+	@TAG=${TAG} DEBUG=${DEBUG} ./install_calico_vpp.sh
 
 
 .PHONY: delete-cluster
@@ -22,12 +25,12 @@ delete-cluster:
 
 .PHONY: dev
 dev:
-	docker image tag calicovpp/vpp:$(TAG) localhost:5000/calicovpp/vpp:$(TAG)
-	docker push localhost:5000/calicovpp/vpp:$(TAG)
-	docker image tag calicovpp/agent:$(TAG) localhost:5000/calicovpp/agent:$(TAG)
-	docker push localhost:5000/calicovpp/agent:$(TAG)
-	docker image tag calicovpp/multinet-monitor:$(TAG) localhost:5000/calicovpp/multinet-monitor:$(TAG)
-	docker push localhost:5000/calicovpp/multinet-monitor:$(TAG)
+	docker image tag calicovpp/vpp:$(TAG) localhost:5000/calicovpp/vpp:master
+	docker push localhost:5000/calicovpp/vpp:master
+	docker image tag calicovpp/agent:$(TAG) localhost:5000/calicovpp/agent:master
+	docker push localhost:5000/calicovpp/agent:master
+	docker image tag calicovpp/multinet-monitor:$(TAG) localhost:5000/calicovpp/multinet-monitor:master
+	docker push localhost:5000/calicovpp/multinet-monitor:master
 
 # this is for a cluster using a mirror docker.io -> localhost:5000 to avoid pull rate limit
 .PHONY: load-mirror
