@@ -20,13 +20,10 @@ image:
 
 .PHONY: image-kind
 image-kind: image
-	docker image tag calicovpp/vpp:$(TAG) localhost:5000/calicovpp/vpp:latest
-	docker push localhost:5000/calicovpp/vpp:latest
-	docker image tag calicovpp/agent:$(TAG) localhost:5000/calicovpp/agent:latest
-	docker push localhost:5000/calicovpp/agent:latest
-	docker image tag calicovpp/multinet-monitor:$(TAG) localhost:5000/calicovpp/multinet-monitor:latest
-	docker push localhost:5000/calicovpp/multinet-monitor:latest
-
+	@for image in vpp:$(TAG) vpp:dbg-$(TAG) vclsidecar:$(TAG) vclsidecar:dbg-$(TAG) agent:$(TAG) multinet-monitor:$(TAG); do \
+		docker image tag calicovpp/$$image localhost:5000/calicovpp/$$image ; \
+		docker push localhost:5000/calicovpp/$$image ; \
+	done
 
 .PHONY: kind-new-cluster
 kind-new-cluster:
