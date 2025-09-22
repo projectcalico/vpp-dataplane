@@ -1,4 +1,4 @@
-VPP Version                 : 25.06.0-21~g12e58733f
+VPP Version                 : 25.06.0-25~ge62b1ebaa
 Binapi-generator version    : v0.11.0
 VPP Base commit             : 47505bc21 misc: Initial changes for stable/2506 branch
 ------------------ Cherry picked commits --------------------
@@ -6,6 +6,10 @@ capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:43723/3 session svm: fix session migrate attach data corruption
+gerrit:43139/5 udp: regrab connected session after transport clone
+gerrit:43714/5 session: fix handling of closed during migration
+gerrit:43107/4 vcl: fix fifo private vpp sh on migration
 gerrit:43690/2 session: track app session index for cl sessions
 gerrit:42876/10 gso: add support for ipip tso for phyiscal interfaces
 gerrit:42598/12 pg: add support for checksum offload
