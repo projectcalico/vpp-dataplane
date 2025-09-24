@@ -19,6 +19,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"runtime/coverage"
 	"syscall"
 	"time"
 
@@ -219,20 +220,41 @@ func main() {
 
 	log.Infof("Agent started")
 
-	interruptSignalChannel := make(chan os.Signal, 2)
-	signal.Notify(interruptSignalChannel, os.Interrupt, syscall.SIGTERM)
-
-	usr1SignalChannel := make(chan os.Signal, 2)
-	signal.Notify(usr1SignalChannel, syscall.SIGUSR1)
+	sigChan := make(chan os.Signal, 2)
+	signal.Notify(sigChan,
+		os.Interrupt,
+		syscall.SIGTERM,
+		syscall.SIGUSR1,
+		syscall.SIGUSR2,
+	)
 
 	select {
-	case <-usr1SignalChannel:
-		/* vpp-manager pokes us with USR1 if VPP terminates */
-		log.Warnf("Vpp stopped, exiting...")
-		t.Kill(errors.Errorf("Caught signal USR1"))
-	case <-interruptSignalChannel:
-		log.Infof("SIG received, exiting")
-		t.Kill(errors.Errorf("Caught INT signal"))
+	case sig := <-sigChan:
+		switch sig {
+		case os.Interrupt:
+			fallthrough
+		case syscall.SIGTERM:
+			log.Infof("SIG received, exiting")
+			t.Kill(errors.Errorf("Caught INT signal"))
+		case syscall.SIGUSR1:
+			// vpp-manager pokes us with USR1 if VPP terminates
+			log.Warnf("Vpp stopped, exiting...")
+			t.Kill(errors.Errorf("Caught signal USR1"))
+		case syscall.SIGUSR2:
+			// the USR2 signal outputs the coverage data,
+			// provided the binary is compiled with -cover and
+			// GOCOVERDIR is set. This allows us to not require
+			// a proper binary termination in order to get coverage data.
+			log.Warn("Received SIGUSR2, writing coverage")
+			err := coverage.WriteCountersDir(os.Getenv("GOCOVERDIR"))
+			if err != nil {
+				log.WithError(err).Error("Could not write counters dir")
+			}
+			err = coverage.WriteMetaDir(os.Getenv("GOCOVERDIR"))
+			if err != nil {
+				log.WithError(err).Error("Could not write meta dir")
+			}
+		}
 	case <-t.Dying():
 		log.Errorf("tomb Dying %s", t.Err())
 	}
