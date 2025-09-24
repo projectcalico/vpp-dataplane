@@ -14,6 +14,8 @@
 # limitations under the License.
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+TMP=$(git rev-parse --show-toplevel)/.tmp
+mkdir -p ${TMP}
 
 function is_ip6 () {
   if [[ $1 =~ .*:.* ]]; then
@@ -128,7 +130,7 @@ function raw_create_cluster_conf ()
 	export DNS_TYPE=$DNS_TYPE
 	export IS_DUAL=$IS_DUAL
 	export K8_VERSION=${K8_VERSION:=v1.31.0}
-    cat $1 | envsubst | sudo tee /tmp/ClusterConf.yaml > /dev/null
+    cat $1 | envsubst | sudo tee ${TMP}/ClusterConf.yaml > /dev/null
 }
 
 function raw_create_master_k8 ()
@@ -136,9 +138,9 @@ function raw_create_master_k8 ()
 	calico_if_linux_setup
 	raw_create_cluster_conf $SCRIPTDIR/kubeadm/ClusterNewConfiguration.template.yaml
 	if [ x$VERBOSE = xyes ]; then
-		sudo kubeadm init -v 100 --config /tmp/ClusterConf.yaml $@
+		sudo kubeadm init -v 100 --config ${TMP}/ClusterConf.yaml $@
 	else
-		sudo kubeadm init --config /tmp/ClusterConf.yaml $@
+		sudo kubeadm init --config ${TMP}/ClusterConf.yaml $@
 	fi
     rm -rf $HOME/.kube
 	mkdir -p $HOME/.kube
@@ -152,9 +154,9 @@ function raw_join_master_k8 ()
 	calico_if_linux_setup
 	raw_create_cluster_conf $SCRIPTDIR/kubeadm/ClusterJoinConfiguration.template.yaml
 	if [ x$VERBOSE = xyes ]; then
-		sudo kubeadm join -v 100 $MAIN_NODE_IP:6443 --config /tmp/ClusterConf.yaml $@
+		sudo kubeadm join -v 100 $MAIN_NODE_IP:6443 --config ${TMP}/ClusterConf.yaml $@
 	else
-		sudo kubeadm join $MAIN_NODE_IP:6443 --config /tmp/ClusterConf.yaml $@
+		sudo kubeadm join $MAIN_NODE_IP:6443 --config ${TMP}/ClusterConf.yaml $@
 	fi
 }
 

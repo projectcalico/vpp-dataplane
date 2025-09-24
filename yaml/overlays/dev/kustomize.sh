@@ -14,6 +14,8 @@
 # limitations under the License.
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+TMP=$(git rev-parse --show-toplevel)/.tmp
+mkdir -p ${TMP}
 
 function is_ip6 () {
   if [[ $1 =~ .*:.*/.* ]]; then
@@ -278,7 +280,7 @@ ${CALICOVPP_DISABLE_HUGEPAGES:+  - calico-vpp-nohuge.yaml}
 EOF
 
   kubectl kustomize . | envsubst | \
-	tee /tmp/calico-vpp.yaml > /dev/null
+	tee ${TMP}/calico-vpp.yaml > /dev/null
 
   rm kustomization.yaml
 }
@@ -295,9 +297,9 @@ function calico_up_cni ()
     kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico": "true"}}}}}'
   fi
   if [ -t 1 ]; then
-	kubectl apply -f /tmp/calico-vpp.yaml
+	kubectl apply -f ${TMP}/calico-vpp.yaml
   else
-  	cat /tmp/calico-vpp.yaml
+  	cat ${TMP}/calico-vpp.yaml
   fi
 }
 
@@ -307,7 +309,7 @@ function calico_down_cni ()
   if [ x$DISABLE_KUBE_PROXY = xy ]; then
     kubectl patch ds -n kube-system kube-proxy --type merge -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico": null}}}}}'
   fi
-  kubectl delete -f /tmp/calico-vpp.yaml
+  kubectl delete -f ${TMP}/calico-vpp.yaml
 }
 
 function print_usage_and_exit ()

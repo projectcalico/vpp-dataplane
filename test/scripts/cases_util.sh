@@ -117,15 +117,15 @@ function configure_nodessh_ip6 () {
 }
 
 function start_iperf4 () {
-	ssh $NODESSH -t "nohup bash -c 'iperf -s -B 20.0.0.2 > /tmp/iperf.log 2>&1 &'" > /dev/null 2>&1
+	ssh $NODESSH -t "nohup bash -c 'iperf -s -B 20.0.0.2 > ${TMP}/iperf.log 2>&1 &'" > /dev/null 2>&1
 }
 
 function start_iperf6 () {
-	ssh $NODESSH -t "nohup bash -c 'iperf -s -V -B fd11::2 > /tmp/iperf.log 2>&1 &'" > /dev/null 2>&1
+	ssh $NODESSH -t "nohup bash -c 'iperf -s -V -B fd11::2 > ${TMP}/iperf.log 2>&1 &'" > /dev/null 2>&1
 }
 
 function stop_iperf () {
-	ssh $NODESSH -t "sudo pkill iperf ; cat /tmp/iperf.log" > $LAST_TEST_LOGFILE 2> /dev/null
+	ssh $NODESSH -t "sudo pkill iperf ; cat ${TMP}/iperf.log" > $LAST_TEST_LOGFILE 2> /dev/null
 }
 
 function sshtest () {
