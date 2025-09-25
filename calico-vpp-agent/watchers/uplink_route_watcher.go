@@ -41,13 +41,13 @@ type RouteWatcher struct {
 	addrNetlinkFailed chan struct{}
 	addrUpdate        chan struct{}
 	closeLock         sync.Mutex
-	eventChan         chan common.CalicoVppEvent
+	eventChan         chan any
 	log               *log.Entry
 }
 
 func NewRouteWatcher(log *log.Entry) *RouteWatcher {
 	routeWatcher := &RouteWatcher{
-		eventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		eventChan: make(chan any, common.ChanSize),
 		log:       log,
 	}
 	reg := common.RegisterHandler(routeWatcher.eventChan, "route watcher events")
@@ -237,12 +237,16 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 				}
 				r.log.Warn("Route watcher stopped")
 				return nil
-			case event := <-r.eventChan:
+			case msg := <-r.eventChan:
+				event, ok := msg.(common.CalicoVppEvent)
+				if !ok {
+					continue
+				}
 				switch event.Type {
 				case common.NetDeleted:
-					netDef, ok := event.Old.(*NetworkDefinition)
+					netDef, ok := event.Old.(*common.NetworkDefinition)
 					if !ok {
-						r.log.Errorf("event.Old is not a (*NetworkDefinition) %v", event.Old)
+						r.log.Errorf("event.Old is not a (*common.NetworkDefinition) %v", event.Old)
 						goto restart
 					}
 					key := netDef.Range
@@ -259,9 +263,9 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 						}
 					}
 				case common.NetAddedOrUpdated:
-					netDef, ok := event.New.(*NetworkDefinition)
+					netDef, ok := event.New.(*common.NetworkDefinition)
 					if !ok {
-						r.log.Errorf("event.New is not a (*NetworkDefinition) %v", event.New)
+						r.log.Errorf("event.New is not a (*common.NetworkDefinition) %v", event.New)
 						goto restart
 					}
 					key := netDef.Range

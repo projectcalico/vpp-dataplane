@@ -10,7 +10,7 @@ require (
 	github.com/gookit/color v1.5.4
 	github.com/inconshreveable/mousetrap v1.1.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
-	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543
+	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543 // indirect
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.36.2
 	github.com/orijtech/prometheus-go-metrics-exporter v0.0.6
