@@ -28,8 +28,8 @@ VPP_STATS=${VPP_STATS:=n}
 
 k_delete_namespace ()
 {
-  TMP=$(kubectl get namespace $1 2> /dev/null | wc -l)
-  if [ x$TMP = x0 ]; then
+  NAMESPACE_COUNT=$(kubectl get namespace $1 2> /dev/null | wc -l)
+  if [ x$NAMESPACE_COUNT = x0 ]; then
 	  echo "namespace $1 doesnt exist"
   else
 	  kubectl delete namespace $1
@@ -38,8 +38,8 @@ k_delete_namespace ()
 
 k_create_namespace ()
 {
-  TMP=$(kubectl get namespace $1 2> /dev/null | wc -l)
-  if [ x$TMP = x0 ]; then
+  NAMESPACE_COUNT=$(kubectl get namespace $1 2> /dev/null | wc -l)
+  if [ x$NAMESPACE_COUNT = x0 ]; then
 	  kubectl create namespace $1
   else
 	  echo "namespace $1 already exists"
@@ -199,7 +199,7 @@ setup_test_WRK1 ()
 		exit 1
 	fi
 
-	scp $OTHERHOST:/tmp/calico-vpp.yaml $DIR/cni.yaml
+	scp $OTHERHOST:${TMP}/calico-vpp.yaml $DIR/cni.yaml
 	CLUSTER_IP=$( kubectl get svc -n nginx nginx-service-${TEST_N} -o go-template --template='{{printf "%s\n" .spec.clusterIP}}' )
 	ssh $OTHERHOST "sudo conntrack -F"
 	while (( "$(netstat -tn4 | grep $CLUSTER_IP:80 | wc -l)" )); do
@@ -211,7 +211,7 @@ setup_test_WRK1 ()
 setup_test_class_WRK2 () { return; }
 setup_test_WRK2 ()
 {
-	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	cp ${TMP}/calico-vpp.yaml $DIR/cni.yaml
 	sudo conntrack -F
 
 	while (( "$( $SCRIPTDIR/vppdev.sh vppctl node2 sh cnat session | grep "active elements" | awk '{print $1}' )" > 50 )); do
@@ -224,7 +224,7 @@ setup_test_class_IPERF () { return; }
 setup_test_IPERF ()
 {
 	N_FLOWS=${N_FLOWS:=4}
-	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	cp ${TMP}/calico-vpp.yaml $DIR/cni.yaml
 }
 
 run_test_IPERF ()
@@ -240,7 +240,7 @@ setup_test_class_IPERF3 () { return; }
 setup_test_IPERF3 ()
 {
 	N_FLOWS=${N_FLOWS:=4}
-	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	cp ${TMP}/calico-vpp.yaml $DIR/cni.yaml
 }
 
 run_test_IPERF3 ()
@@ -256,7 +256,7 @@ setup_test_class_IPERF3_VCL () { return; }
 setup_test_IPERF3_VCL ()
 {
 	N_FLOWS=${N_FLOWS:=4}
-	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	cp ${TMP}/calico-vpp.yaml $DIR/cni.yaml
 }
 
 run_test_IPERF3_VCL ()
@@ -273,7 +273,7 @@ setup_test_IPERF3_VCL_TLS ()
 {
 	N_FLOWS=${N_FLOWS:=4}
 	TLS_ENGINE=${TLS_ENGINE:=4}
-	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	cp ${TMP}/calico-vpp.yaml $DIR/cni.yaml
 }
 
 set +x
@@ -289,7 +289,7 @@ run_test_IPERF3_VCL_TLS ()
 setup_test_class_MEMIF () { return; }
 setup_test_MEMIF ()
 {
-	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	cp ${TMP}/calico-vpp.yaml $DIR/cni.yaml
 	$SCRIPTDIR/vppdev.sh vppctl node1 cnat session purge
 }
 
@@ -332,7 +332,7 @@ run_test_WRK1 ()
 
 setup_test_ENVOY ()
 {
-	cp /tmp/calico-vpp.yaml $DIR/cni.yaml
+	cp ${TMP}/calico-vpp.yaml $DIR/cni.yaml
 	if [ x$ISVPP = xyes ]; then
 		$SCRIPTDIR/vppdev.sh vppctl node1 cnat session purge
 	else

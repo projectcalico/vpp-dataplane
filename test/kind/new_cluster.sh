@@ -1,7 +1,7 @@
 #!/bin/bash
 set -o errexit
 
-if [[ $(kind get clusters | grep -E '^kind$') == "kind" ]]; then
+if [[ $(kind get clusters | grep -E '^'${CLUSTER_NAME}'$') == "${CLUSTER_NAME}" ]]; then
 	echo "Cluster kind already exists"
 	exit 0
 fi
@@ -22,6 +22,7 @@ fi
 config=$(cat <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+name: ${CLUSTER_NAME}
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]

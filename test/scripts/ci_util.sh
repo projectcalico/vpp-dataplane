@@ -85,7 +85,7 @@ function start_calico () {
 }
 
 function stop_calico () {
-  kubectl delete -f /tmp/calico-vpp.yaml > $CALICODOWN_LOG 2>&1
+  kubectl delete -f ${TMP}/calico-vpp.yaml > $CALICODOWN_LOG 2>&1
 }
 
 

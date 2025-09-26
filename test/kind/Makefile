@@ -1,3 +1,5 @@
+include ../../common.mk
+
 TAG ?= latest # Tag images with :$(TAG)
 N_KIND_WORKERS ?= 2
 N_KIND_CONTROL_PLANES ?= 1
@@ -9,16 +11,19 @@ new-cluster:
 	@N_KIND_WORKERS=$(N_KIND_WORKERS) \
 		N_KIND_CONTROL_PLANES=$(N_KIND_CONTROL_PLANES) \
 		CPU_PINNING=$(CPU_PINNING) \
+		CLUSTER_NAME=$(CLUSTER_NAME) \
 		./new_cluster.sh
+	mkdir -p $(HOME)/.kube
+	kind get kubeconfig --name $(CLUSTER_NAME) > $(HOME)/.kube/config
 
 .PHONY: install-cni
 install-cni:
 	@./install_calico_vpp.sh
 
 
-.PHONY: delete-cluster
-delete-cluster:
-	kind delete cluster
+.PHONY: rm-cluster
+rm-cluster:
+	kind delete cluster --name $(CLUSTER_NAME)
 
 .PHONY: dev
 dev:
