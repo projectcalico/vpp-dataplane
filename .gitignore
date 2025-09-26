@@ -34,3 +34,5 @@ test/scripts/.buildlogs
 multinet-monitor/version
 .coverage/
 bin/
+vendor/
+.tmp/

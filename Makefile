@@ -23,6 +23,14 @@ image-kind: image
 		docker push localhost:5000/calicovpp/$$image ; \
 	done
 
+.PHONY: kind-cluster-name
+kind-cluster-name:
+	@echo $(CLUSTER_NAME)
+
+.PHONY: kind-rm-cluster
+kind-rm-cluster:
+	make -C test/kind rm-cluster
+
 .PHONY: kind-new-cluster
 kind-new-cluster:
 	make -C test/kind new-cluster

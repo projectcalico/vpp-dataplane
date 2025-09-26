@@ -49,3 +49,5 @@ TAG = $(shell git describe --always --abbrev=40 --dirty)
 ifeq (${CODEBUILD_WEBHOOK_TRIGGER},branch/master)
 	ALSO_LATEST := y
 endif
+
+CLUSTER_NAME ?= kind-$(shell whoami)-$(shell git describe --always --abbrev=4)
