@@ -29,12 +29,20 @@ function getClusterIP () {
 	k get service/$SVC -o json | jq -r .spec.clusterIP
 }
 
+function getClusterIPv6 () {
+	k get service/$SVC -o json | jq -r .spec.clusterIP
+}
+
 function getPodIPs () {
-	k get pods -o json | jq -r '.items[] | .status.podIP,.metadata.name' | xargs -n 2 echo
+	k get pods -o json | jq -r '.items[] | .status.podIPs[].ip,.metadata.name' | xargs -n 3 echo
 }
 
 function getPodIP () {
 	getPodIPs | grep $POD | cut -d ' ' -f 1
+}
+
+function getPodIPv6 () {
+	getPodIPs | grep $POD | cut -d ' ' -f 2
 }
 
 function getNodeIP () {
@@ -53,6 +61,13 @@ function onePodIP () {
 	N=$(getPodIP | wc -l)
 	if [ x$N != x0 ]; then
 	  getPodIP | head -n $((1 + $RANDOM % $N)) | tail -n 1
+	fi
+}
+
+function onePodIP_V6 () {
+	N=$(getPodIPv6 | wc -l)
+	if [ x$N != x0 ]; then
+	  getPodIPv6 | head -n $((1 + $RANDOM % $N)) | tail -n 1
 	fi
 }
 
