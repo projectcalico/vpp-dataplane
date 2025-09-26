@@ -143,9 +143,11 @@ bash ./yaml/overlays/dev/kustomize.sh up
 
 ### Removing the CNI
 
-The outputed yaml is stored in `/tmp/calico-vpp.yaml`, you can uninstall by simply runnning :
+The outputed yaml is stored in `<this repo>/.tmp/calico-vpp.yaml`,
+you can uninstall by simply runnning :
+
 ````bash
-kubectl delete -f /tmp/calico-vpp.yaml
+kubectl delete -f .tmp/calico-vpp.yaml
 ````
 
 ## Setting up a VM (vagrant) based development cluster

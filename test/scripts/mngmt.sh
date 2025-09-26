@@ -21,7 +21,7 @@ if [ -e $BUILD_LOG_DIR/conf ]; then
     source $BUILD_LOG_DIR/conf
 fi
 
-VPP_DATAPLANE_DIRECTORY=${VPP_DATAPLANE_DIRECTORY:=/tmp/vpp-dataplane/}
+VPP_DATAPLANE_DIRECTORY=${VPP_DATAPLANE_DIRECTORY:=${HOME}/.tmp/vpp-dataplane/}
 REPO_URL=${REPO_URL:=https://github.com/projectcalico/vpp-dataplane.git}
 BRANCH_NAME=${BRANCH_NAME:=origin/master}
 TAG=${TAG:=latest}

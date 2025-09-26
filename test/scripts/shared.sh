@@ -14,6 +14,8 @@
 # limitations under the License.
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+TMP=$(git rev-parse --show-toplevel)/.tmp
+mkdir -p ${TMP}
 
 if [[ "$X" != "" ]]; then set -x ; fi
 
@@ -21,7 +23,7 @@ ORCH=$SCRIPTDIR/../scripts/orch.sh
 CASES=$SCRIPTDIR/../scripts/cases.sh
 KUST=$SCRIPTDIR/../../yaml/overlays/dev/kustomize.sh
 
-LOG_DIR=/tmp/calicovppci
+LOG_DIR=${TMP}/calicovppci
 ORCHUP_LOG=$LOG_DIR/orchup.log
 IPERFUP_LOG=$LOG_DIR/iperfup.log
 CALICOUP_LOG=$LOG_DIR/calicoup.log
