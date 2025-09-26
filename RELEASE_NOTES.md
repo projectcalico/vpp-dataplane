@@ -13,6 +13,8 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any
 
 | CalicoVPP     | VPP                                                      |
 | ------------- | -------------------------------------------------------- |
+| v3.29.3       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
+| v3.29.2       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
 | v3.29.1       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
 | v3.29.0       | v24.10  ~ cfa0953251cbab435307baf3dcd249fd95afaf1f       |
 | v3.28.0       | v24.02+ ~ 2ae8f79b5087c8da7d30283693f22ca710a60347       |
@@ -29,6 +31,23 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any
 | ------------- | -------------------------------------------------------- |
 
 ## Releases
+
+### Calico-VPP v3.29.3
+
+> 22nd September 2025
+
+- Bugfixes:
+  - Cherry pick hoststack patches fixing session reuse
+
+### Calico-VPP v3.29.2
+
+> 15th September 2025
+
+- Bugfixes:
+  - add vpp prefix to prometheus stats
+  - Fix vclsidecar build missing .25.06 sos
+  - Cherrypick hoststack fix for connectionless UDP
+  - Fix CI vpp tarball caching issue
 
 ### Calico-VPP v3.29.1
 
