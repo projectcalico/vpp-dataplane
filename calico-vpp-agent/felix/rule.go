@@ -144,7 +144,7 @@ func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
 		}
 		rule.Filters = append(rule.Filters, types.RuleFilter{
 			ShouldMatch: true,
-			Type:        types.CapoFilterProto,
+			Type:        types.NpolFilterProto,
 			Value:       int(proto),
 		})
 	}
@@ -155,7 +155,7 @@ func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
 		}
 		rule.Filters = append(rule.Filters, types.RuleFilter{
 			ShouldMatch: false,
-			Type:        types.CapoFilterProto,
+			Type:        types.NpolFilterProto,
 			Value:       int(proto),
 		})
 	}
