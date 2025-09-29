@@ -148,17 +148,16 @@ git_cherry_pick refs/changes/23/43723/3 # 43723: session svm: fix session migrat
 git_cherry_pick refs/changes/50/44350/2 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
 git_cherry_pick refs/changes/55/44855/6 # 44855: tap: backport VHOST_SET_FORK_FROM_OWNER support | https://gerrit.fd.io/r/c/vpp/+/44855
 git_cherry_pick refs/changes/00/44900/1 # 44900: tap: backport fix promiscuous mode | https://gerrit.fd.io/r/c/vpp/+/44900
-
 git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
 git_cherry_pick refs/changes/66/44966/1 # 44966: ip-neighbor: fix missing solicited-node multicast MAC | https://gerrit.fd.io/r/c/vpp/+/44966
+git_cherry_pick refs/changes/10/43710/8   # npol: Network Policies plugin
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch
 git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
-git_apply_private 0004-capo-Calico-Policies-plugin.patch
 git_apply_private 0006-ip-neighbor-preserve-interface-ll-receive-dpo.patch
+git_apply_private 0004-fix-npol-tests-and-add-acl-plugin-in-npol.patch
 
 
-git_cherry_pick refs/changes/68/43468/6 # capo: make default behavior configurable for policies and profiles
