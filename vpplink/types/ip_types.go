@@ -43,6 +43,8 @@ func (proto *IPProto) UnmarshalText(text []byte) error {
 		*proto = TCP
 	case "udp":
 		*proto = UDP
+	case "sctp":
+		*proto = SCTP
 	default:
 		*proto = TCP
 	}
