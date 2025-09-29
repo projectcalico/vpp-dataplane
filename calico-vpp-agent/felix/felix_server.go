@@ -40,7 +40,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/capo"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/npol"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
@@ -1717,8 +1717,8 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 
 	conf := types.NewInterfaceConfig()
 	conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, s.workloadsToHostPolicy.VppID)
-	conf.PolicyDefaultTx = capo.CAPO_DEFAULT_ALLOW
-	conf.PolicyDefaultRx = capo.CAPO_DEFAULT_ALLOW
+	conf.PolicyDefaultTx = npol.NPOL_DEFAULT_ALLOW
+	conf.PolicyDefaultRx = npol.NPOL_DEFAULT_ALLOW
 	swifindexes, err := s.vpp.SearchInterfacesWithTagPrefix("host-") // tap0 interfaces
 	if err != nil {
 		s.log.Error(err)
@@ -1759,7 +1759,7 @@ func (s *Server) createFailSafePolicies() (err error) {
 					DstPortRange: []types.PortRange{{First: protoPort.Port, Last: protoPort.Port}},
 					Filters: []types.RuleFilter{{
 						ShouldMatch: true,
-						Type:        types.CapoFilterProto,
+						Type:        types.NpolFilterProto,
 						Value:       int(protocol),
 					}},
 				},
@@ -1793,7 +1793,7 @@ func (s *Server) createFailSafePolicies() (err error) {
 					DstPortRange: []types.PortRange{{First: protoPort.Port, Last: protoPort.Port}},
 					Filters: []types.RuleFilter{{
 						ShouldMatch: true,
-						Type:        types.CapoFilterProto,
+						Type:        types.NpolFilterProto,
 						Value:       int(protocol),
 					}},
 				},

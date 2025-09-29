@@ -398,14 +398,14 @@ func exportData(k *KubeClient, nodeName string) error {
 		}
 		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node state", cnatCmds)
 
-		// Get CAPO policies
-		capoCmds := []CommandSpec{
-			{"show capo interfaces", node + ".show-capo-interfaces"},
-			{"show capo policies verbose", node + ".show-capo-policies"},
-			{"show capo rules", node + ".show-capo-rules"},
-			{"show capo ipsets", node + ".show-capo-ipsets"},
+		// Get NPOL policies
+		npolCmds := []CommandSpec{
+			{"show npol interfaces", node + ".show-npol-interfaces"},
+			{"show npol policies verbose", node + ".show-npol-policies"},
+			{"show npol rules", node + ".show-npol-rules"},
+			{"show npol ipsets", node + ".show-npol-ipsets"},
 		}
-		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node policies", capoCmds)
+		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node policies", npolCmds)
 	}
 
 	// Compress the temporary directory
