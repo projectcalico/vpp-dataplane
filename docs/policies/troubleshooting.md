@@ -4,7 +4,7 @@
 
 You can show the active policies per interface using the following CLIs.
 
-## Show capo interfaces
+## Show npol interfaces
 
 This CLI show the resulting policies configured for every interface in VPP.
 The first IPv4 address of every pod is provided to help identify which pod
@@ -20,7 +20,7 @@ on a given interface. Rules are applied top to bottom.
 is ``PASS`` or when no policies are configured.
 
 ````bash
-$ calicovppctl vppctl -node worker-1 show capo interfaces
+$ calicovppctl vppctl -node worker-1 show npol interfaces
 Interfaces with policies configured:
 [tap0 sw_if_index=2  addr=172.18.0.4 addr6=fc00:f853:ccd:e793::4]
   tx:
@@ -36,12 +36,12 @@ Interfaces with policies configured:
     [policy#6]
 ````
 
-## Show capo policies
+## Show npol policies
 
 This CLI list all the policies that are referenced on interfaces
 
 ````console
-$ calicovppctl vppctl -node worker-1 show capo policies verbose
+$ calicovppctl vppctl -node worker-1 show npol policies verbose
 [policy#0]
   tx:[rule#24;allow][src==[ipset#0;ip;11.0.0.1,fd20::97de:47c:45f6:c00,],]
 [policy#4]
@@ -54,12 +54,12 @@ $ calicovppctl vppctl -node worker-1 show capo policies verbose
   tx:[rule#12;allow][proto==TCP,dst==6443,]
 ````
 
-## Show capo rules
+## Show npol rules
 
 This list rules that are referenced by policies
 
 ````console
-$ calicovppctl vppctl -node worker-1 show capo rules
+$ calicovppctl vppctl -node worker-1 show npol rules
 [rule#0;allow][src==172.18.0.4/32,src==fc00:f853:ccd:e793::4/128,]
 [rule#1;allow][]
 [rule#16;allow][proto==UDP,dst==67,]
@@ -71,11 +71,11 @@ $ calicovppctl vppctl -node worker-1 show capo rules
 [rule#25;allow][dst==[ipset#0;ip;11.0.0.1,fd20::97de:47c:45f6:c00,],]
 ````
 
-## Show capo ipset
+## Show npol ipset
 
 This list ipsets that are referenced by rules. IPsets are just list of IPs
 
 ````console
-$ calicovppctl vppctl -node worker-1 show capo ipset
+$ calicovppctl vppctl -node worker-1 show npol ipset
 [ipset#0;ip;11.0.0.1,fd20::97de:47c:45f6:c00,]
 ````
