@@ -19,51 +19,51 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/capo"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/npol"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) IpsetCreate(ipsetType types.IpsetType) (setID uint32, err error) {
-	client := capo.NewServiceClient(v.GetConnection())
+	client := npol.NewServiceClient(v.GetConnection())
 
-	response, err := client.CapoIpsetCreate(v.GetContext(), &capo.CapoIpsetCreate{
-		Type: capo.CapoIpsetType(ipsetType),
+	response, err := client.NpolIpsetCreate(v.GetContext(), &npol.NpolIpsetCreate{
+		Type: npol.NpolIpsetType(ipsetType),
 	})
 	if err != nil {
-		return 0, fmt.Errorf("capoIpsetCreate failed: %w", err)
+		return 0, fmt.Errorf("npolIpsetCreate failed: %w", err)
 	}
 	return response.SetID, nil
 }
 
 func (v *VppLink) IpsetDelete(ipsetID uint32) error {
-	client := capo.NewServiceClient(v.GetConnection())
+	client := npol.NewServiceClient(v.GetConnection())
 
-	_, err := client.CapoIpsetDelete(v.GetContext(), &capo.CapoIpsetDelete{
+	_, err := client.NpolIpsetDelete(v.GetContext(), &npol.NpolIpsetDelete{
 		SetID: ipsetID,
 	})
 	if err != nil {
-		return fmt.Errorf("capoIpsetDelete failed: %w", err)
+		return fmt.Errorf("npolIpsetDelete failed: %w", err)
 	}
 	return nil
 }
 
-func (v *VppLink) addDelIpsetMembers(ipsetID uint32, isAdd bool, members []capo.CapoIpsetMember) error {
-	client := capo.NewServiceClient(v.GetConnection())
+func (v *VppLink) addDelIpsetMembers(ipsetID uint32, isAdd bool, members []npol.NpolIpsetMember) error {
+	client := npol.NewServiceClient(v.GetConnection())
 
-	_, err := client.CapoIpsetAddDelMembers(v.GetContext(), &capo.CapoIpsetAddDelMembers{
+	_, err := client.NpolIpsetAddDelMembers(v.GetContext(), &npol.NpolIpsetAddDelMembers{
 		SetID:   ipsetID,
 		IsAdd:   isAdd,
 		Len:     uint32(len(members)),
 		Members: members,
 	})
 	if err != nil {
-		return fmt.Errorf("capoIpsetAddDelMembers failed: %w", err)
+		return fmt.Errorf("npolIpsetAddDelMembers failed: %w", err)
 	}
 	return nil
 }
 
 func (v *VppLink) addDelIpsetIPMembers(ipsetID uint32, isAdd bool, members []net.IP) (err error) {
-	unions := make([]capo.CapoIpsetMember, len(members))
+	unions := make([]npol.NpolIpsetMember, len(members))
 	for i, m := range members {
 		unions[i].Val.SetAddress(types.ToVppAddress(m))
 	}
@@ -79,7 +79,7 @@ func (v *VppLink) DelIpsetIPMembers(ipsetID uint32, members []net.IP) (err error
 }
 
 func (v *VppLink) addDelIpsetNetMembers(ipsetID uint32, isAdd bool, members []*net.IPNet) (err error) {
-	unions := make([]capo.CapoIpsetMember, len(members))
+	unions := make([]npol.NpolIpsetMember, len(members))
 	for i, m := range members {
 		unions[i].Val.SetPrefix(types.ToVppPrefix(m))
 	}
@@ -95,9 +95,9 @@ func (v *VppLink) DelIpsetNetMembers(ipsetID uint32, members []*net.IPNet) (err 
 }
 
 func (v *VppLink) addDelIpsetIPPortMembers(ipsetID uint32, isAdd bool, members []types.IPPort) (err error) {
-	unions := make([]capo.CapoIpsetMember, len(members))
+	unions := make([]npol.NpolIpsetMember, len(members))
 	for i, m := range members {
-		unions[i].Val.SetTuple(capo.CapoThreeTuple{
+		unions[i].Val.SetTuple(npol.NpolThreeTuple{
 			Address: types.ToVppAddress(m.Addr),
 			L4Proto: m.L4Proto,
 			Port:    m.Port,
@@ -115,81 +115,81 @@ func (v *VppLink) DelIpsetIPPortMembers(ipsetID uint32, members []types.IPPort) 
 }
 
 func (v *VppLink) RuleCreate(rule *types.Rule) (ruleID uint32, err error) {
-	client := capo.NewServiceClient(v.GetConnection())
+	client := npol.NewServiceClient(v.GetConnection())
 
-	response, err := client.CapoRuleCreate(v.GetContext(), &capo.CapoRuleCreate{
-		Rule: types.ToCapoRule(rule),
+	response, err := client.NpolRuleCreate(v.GetContext(), &npol.NpolRuleCreate{
+		Rule: types.ToNpolRule(rule),
 	})
 	if err != nil {
-		return 0, fmt.Errorf("capoRuleCreate failed: %w", err)
+		return 0, fmt.Errorf("npolRuleCreate failed: %w", err)
 	}
 	return response.RuleID, nil
 }
 
 func (v *VppLink) RuleUpdate(ruleID uint32, rule *types.Rule) error {
-	client := capo.NewServiceClient(v.GetConnection())
+	client := npol.NewServiceClient(v.GetConnection())
 
-	_, err := client.CapoRuleUpdate(v.GetContext(), &capo.CapoRuleUpdate{
+	_, err := client.NpolRuleUpdate(v.GetContext(), &npol.NpolRuleUpdate{
 		RuleID: ruleID,
-		Rule:   types.ToCapoRule(rule),
+		Rule:   types.ToNpolRule(rule),
 	})
 	if err != nil {
-		return fmt.Errorf("capoRuleUpdate failed: %w", err)
+		return fmt.Errorf("npolRuleUpdate failed: %w", err)
 	}
 	return nil
 }
 
 func (v *VppLink) RuleDelete(ruleID uint32) error {
-	client := capo.NewServiceClient(v.GetConnection())
+	client := npol.NewServiceClient(v.GetConnection())
 
-	_, err := client.CapoRuleDelete(v.GetContext(), &capo.CapoRuleDelete{
+	_, err := client.NpolRuleDelete(v.GetContext(), &npol.NpolRuleDelete{
 		RuleID: ruleID,
 	})
 	if err != nil {
-		return fmt.Errorf("capoRuleDelete failed: %w", err)
+		return fmt.Errorf("npolRuleDelete failed: %w", err)
 	}
 	return nil
 }
 
 func (v *VppLink) PolicyCreate(policy *types.Policy) (policyID uint32, err error) {
-	client := capo.NewServiceClient(v.GetConnection())
+	client := npol.NewServiceClient(v.GetConnection())
 
-	response, err := client.CapoPolicyCreate(v.GetContext(), &capo.CapoPolicyCreate{
-		Rules: types.ToCapoPolicy(policy),
+	response, err := client.NpolPolicyCreate(v.GetContext(), &npol.NpolPolicyCreate{
+		Rules: types.ToNpolPolicy(policy),
 	})
 	if err != nil {
-		return 0, fmt.Errorf("capoPolicyCreate failed: %w", err)
+		return 0, fmt.Errorf("npolPolicyCreate failed: %w", err)
 	}
 	return response.PolicyID, nil
 }
 
 func (v *VppLink) PolicyUpdate(policyID uint32, policy *types.Policy) error {
-	client := capo.NewServiceClient(v.GetConnection())
+	client := npol.NewServiceClient(v.GetConnection())
 
-	_, err := client.CapoPolicyUpdate(v.GetContext(), &capo.CapoPolicyUpdate{
+	_, err := client.NpolPolicyUpdate(v.GetContext(), &npol.NpolPolicyUpdate{
 		PolicyID: policyID,
-		Rules:    types.ToCapoPolicy(policy),
+		Rules:    types.ToNpolPolicy(policy),
 	})
 	if err != nil {
-		return fmt.Errorf("capoPolicyUpdate failed: %w", err)
+		return fmt.Errorf("npolPolicyUpdate failed: %w", err)
 	}
 	return nil
 }
 
 func (v *VppLink) PolicyDelete(policyID uint32) error {
-	client := capo.NewServiceClient(v.GetConnection())
+	client := npol.NewServiceClient(v.GetConnection())
 
-	_, err := client.CapoPolicyDelete(v.GetContext(), &capo.CapoPolicyDelete{
+	_, err := client.NpolPolicyDelete(v.GetContext(), &npol.NpolPolicyDelete{
 		PolicyID: policyID,
 	})
 	if err != nil {
-		return fmt.Errorf("capoPolicyDelete failed: %w", err)
+		return fmt.Errorf("npolPolicyDelete failed: %w", err)
 	}
 	return nil
 }
 
 func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfig, invertRxTx uint8) error {
-	client := capo.NewServiceClient(v.GetConnection())
+	client := npol.NewServiceClient(v.GetConnection())
 
 	// In the calico agent, policies are expressed from the point of view of PODs
 	// in VPP this is reversed
@@ -199,7 +199,7 @@ func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfi
 
 	ids := append(rxPolicyIDs, txPolicyIDs...)
 	ids = append(ids, profileIDs...)
-	_, err := client.CapoConfigurePolicies(v.GetContext(), &capo.CapoConfigurePolicies{
+	_, err := client.NpolConfigurePolicies(v.GetContext(), &npol.NpolConfigurePolicies{
 		SwIfIndex:        swIfIndex,
 		NumRxPolicies:    uint32(len(rxPolicyIDs)),
 		NumTxPolicies:    uint32(len(txPolicyIDs)),
@@ -212,7 +212,7 @@ func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfi
 		ProfileDefaultTx: conf.ProfileDefaultTx,
 	})
 	if err != nil {
-		return fmt.Errorf("capoConfigurePolicies failed: %w", err)
+		return fmt.Errorf("npolConfigurePolicies failed: %w", err)
 	}
 	return nil
 }
