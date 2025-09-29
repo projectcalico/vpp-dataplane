@@ -141,6 +141,11 @@ git_cherry_pick refs/changes/98/42598/12  # pg: add support for checksum offload
 git_cherry_pick refs/changes/76/42876/10  # gso: add support for ipip tso for phyiscal interfaces
 git_cherry_pick refs/changes/90/43690/2 # session: track app session index for cl sessions
 
+git_cherry_pick refs/changes/07/43107/4 # 43107: vcl: fix fifo private vpp sh on migration | https://gerrit.fd.io/r/c/vpp/+/43107
+git_cherry_pick refs/changes/14/43714/5 # 43714: session: fix handling of closed during migration | https://gerrit.fd.io/r/c/vpp/+/43714
+git_cherry_pick refs/changes/39/43139/5 # 43139: udp: regrab connected session after transport clone | https://gerrit.fd.io/r/c/vpp/+/43139
+git_cherry_pick refs/changes/23/43723/3 # 43723: session svm: fix session migrate attach data corruption | https://gerrit.fd.io/r/c/vpp/+/43723
+
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch
