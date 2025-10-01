@@ -32,6 +32,11 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
+// PeerNodeStateChangeHandler defines the interface for handling peer node state changes
+type PeerNodeStateChangeHandler interface {
+	OnPeerNodeStateChanged(old, new *common.LocalNodeSpec)
+}
+
 type ConnectivityHandler struct {
 	log   *logrus.Entry
 	vpp   *vpplink.VppLink
@@ -40,6 +45,9 @@ type ConnectivityHandler struct {
 	providers         map[string]ConnectivityProvider
 	connectivityMap   map[string]common.NodeConnectivity
 	nodeByWGPublicKey map[string]string
+
+	// Peer node state change handlers
+	peerNodeStateChangeHandlers []PeerNodeStateChangeHandler
 }
 
 func NewConnectivityHandler(vpp *vpplink.VppLink, cache *cache.Cache, clientv3 calicov3cli.Interface, log *logrus.Entry) *ConnectivityHandler {
@@ -56,8 +64,14 @@ func NewConnectivityHandler(vpp *vpplink.VppLink, cache *cache.Cache, clientv3 c
 			WIREGUARD: NewWireguardProvider(vpp, clientv3, cache, log),
 			SRv6:      NewSRv6Provider(vpp, clientv3, cache, log),
 		},
-		nodeByWGPublicKey: make(map[string]string),
+		nodeByWGPublicKey:           make(map[string]string),
+		peerNodeStateChangeHandlers: make([]PeerNodeStateChangeHandler, 0),
 	}
+}
+
+// RegisterPeerNodeStateChangeHandler registers a handler for peer node state changes
+func (s *ConnectivityHandler) RegisterPeerNodeStateChangeHandler(handler PeerNodeStateChangeHandler) {
+	s.peerNodeStateChangeHandlers = append(s.peerNodeStateChangeHandlers, handler)
 }
 
 type change uint8
@@ -112,11 +126,11 @@ func (s *ConnectivityHandler) OnPeerNodeStateChanged(old, new *common.LocalNodeS
 			s.cache.NodeByAddr[new.IPv6Address.IP.String()] = *new
 		}
 	}
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.PeerNodeStateChanged,
-		Old:  old,
-		New:  new,
-	})
+
+	// Notify all registered peer node state change handlers
+	for _, handler := range s.peerNodeStateChangeHandlers {
+		handler.OnPeerNodeStateChanged(old, new)
+	}
 }
 
 func (s *ConnectivityHandler) UpdateSRv6Policy(cn *common.NodeConnectivity, IsWithdraw bool) (err error) {

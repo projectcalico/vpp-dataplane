@@ -16,6 +16,7 @@
 package common
 
 import (
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -69,4 +70,12 @@ type ServiceEndpointsUpdate struct {
 
 type ServiceEndpointsDelete struct {
 	Meta *metav1.ObjectMeta
+}
+
+// BGPPeerState represents the state of a BGP peer
+type BGPPeerState struct {
+	AS            uint32
+	SweepFlag     bool
+	BGPPeerSpec   *calicov3.BGPPeerSpec
+	SecretChanged bool
 }

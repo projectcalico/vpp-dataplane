@@ -24,7 +24,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 
-	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/calico/felix/proto"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
@@ -64,6 +63,7 @@ type Server struct {
 // NewFelixServer creates a felix server
 func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *logrus.Entry) *Server {
 	cache := cache.NewCache(log)
+
 	server := &Server{
 		log: log,
 		vpp: vpp,
@@ -104,8 +104,9 @@ func (s *Server) GetCache() *cache.Cache {
 	return s.cache
 }
 
-func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
-	s.cache.BGPConf = bgpConf
+// GetConnectivityHandler returns the connectivity handler
+func (s *Server) GetConnectivityHandler() *connectivity.ConnectivityHandler {
+	return s.connectivityHandler
 }
 
 func (s *Server) getMainInterface() *config.UplinkStatus {
