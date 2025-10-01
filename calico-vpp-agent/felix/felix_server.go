@@ -108,6 +108,14 @@ func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 	s.cache.BGPConf = bgpConf
 }
 
+// HandleBGPConfigurationChange is called when the BGPConfiguration changes.
+// Handling of BGPConfiguration updates is not yet implemented, instead,
+// we log and trigger a restart to ensure the system reloads configuration.
+func (s *Server) HandleBGPConfigurationChange() error {
+	s.log.Error("BGPConf updated")
+	return errors.Errorf("BGPConf updated, restarting")
+}
+
 func (s *Server) getMainInterface() *config.UplinkStatus {
 	for _, i := range common.VppManagerInfo.UplinkStatuses {
 		if i.IsMain {
@@ -294,9 +302,6 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 		s.log.Debugf("Ignoring NamespaceRemove")
 	case *proto.GlobalBGPConfigUpdate:
 		s.log.Infof("Got GlobalBGPConfigUpdate")
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.BGPConfChanged,
-		})
 	case *proto.WireguardEndpointUpdate:
 		err = s.connectivityHandler.OnWireguardEndpointUpdate(evt)
 	case *proto.WireguardEndpointRemove:
