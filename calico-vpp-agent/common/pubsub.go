@@ -28,7 +28,6 @@ const (
 
 	PeerNodeStateChanged CalicoVppEventType = "PeerNodeStateChanged"
 	IpamConfChanged      CalicoVppEventType = "IpamConfChanged"
-	BGPConfChanged       CalicoVppEventType = "BGPConfChanged"
 
 	ConnectivityAdded   CalicoVppEventType = "ConnectivityAdded"
 	ConnectivityDeleted CalicoVppEventType = "ConnectivityDeleted"
