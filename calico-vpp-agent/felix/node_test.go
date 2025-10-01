@@ -45,6 +45,21 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
+// mockRouteWatcher implements the RouteWatcherEventHandler interface for testing
+type mockRouteWatcher struct{}
+
+func (m *mockRouteWatcher) OnNetDeleted(netDef *common.NetworkDefinition) error {
+	return nil
+}
+
+func (m *mockRouteWatcher) OnNetAddedOrUpdated(netDef *common.NetworkDefinition) error {
+	return nil
+}
+
+func (m *mockRouteWatcher) OnIpamConfChanged(oldPool, newPool *proto.IPAMPool) error {
+	return nil
+}
+
 // Names of integration tests arguments
 const (
 	IntegrationTestEnableArgName = "INTEGRATION_TEST"
@@ -132,11 +147,16 @@ var _ = Describe("Node-related functionality of CNI", func() {
 		if ipamStub == nil {
 			ipamStub = mocks.NewIpamCacheStub()
 		}
+
+		// Create a mock RouteWatcher
+		mockRouteWatcher := &mockRouteWatcher{}
+
 		felixServer = NewFelixServer(
 			vpp,
 			client,
 			log.WithFields(logrus.Fields{"subcomponent": "connectivity"}),
 		)
+		felixServer.RegisterRouteWatcher(mockRouteWatcher)
 		if felixConfig == nil {
 			felixConfig = &config.Config{}
 		}

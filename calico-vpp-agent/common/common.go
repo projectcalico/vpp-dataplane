@@ -57,6 +57,14 @@ type FelixServerIpam interface {
 	GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool
 }
 
+// RouteWatcherEventHandler defines the interface for components that need to handle
+// network and IPAM events by updating VPP routing configuration
+type RouteWatcherEventHandler interface {
+	OnNetDeleted(netDef *NetworkDefinition) error
+	OnNetAddedOrUpdated(netDef *NetworkDefinition) error
+	OnIpamConfChanged(oldPool, newPool *proto.IPAMPool) error
+}
+
 type LocalNodeSpec struct {
 	ASNumber    *numorstring.ASNumber
 	Labels      map[string]string

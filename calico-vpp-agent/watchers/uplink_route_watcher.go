@@ -41,21 +41,13 @@ type RouteWatcher struct {
 	addrNetlinkFailed chan struct{}
 	addrUpdate        chan struct{}
 	closeLock         sync.Mutex
-	eventChan         chan any
 	log               *log.Entry
 }
 
 func NewRouteWatcher(log *log.Entry) *RouteWatcher {
 	routeWatcher := &RouteWatcher{
-		eventChan: make(chan any, common.ChanSize),
-		log:       log,
+		log: log,
 	}
-	reg := common.RegisterHandler(routeWatcher.eventChan, "route watcher events")
-	reg.ExpectEvents(
-		common.IpamConfChanged,
-		common.NetAddedOrUpdated,
-		common.NetDeleted,
-	)
 	return routeWatcher
 }
 
@@ -140,6 +132,75 @@ func GetUplinkMtu() int {
 	encapSize := config.DefaultEncapSize
 	// Use the linux interface MTU as default value if nothing is configured from env
 	return hostMtu - encapSize
+}
+
+// OnNetDeleted handles network deletion events
+func (r *RouteWatcher) OnNetDeleted(netDef *common.NetworkDefinition) error {
+	key := netDef.Range
+	routes, err := r.getNetworkRoute(key, netDef.PhysicalNetworkName)
+	if err != nil {
+		r.log.Error("Error getting route from network deletion:", err)
+		return err
+	}
+	for _, route := range routes {
+		err = r.DelRoute(route)
+		if err != nil {
+			r.log.Errorf("Cannot delete pool route %s through vpp tap: %v", key, err)
+			return err
+		}
+	}
+	return nil
+}
+
+// OnNetAddedOrUpdated handles network addition/update events
+func (r *RouteWatcher) OnNetAddedOrUpdated(netDef *common.NetworkDefinition) error {
+	key := netDef.Range
+	routes, err := r.getNetworkRoute(key, netDef.PhysicalNetworkName)
+	if err != nil {
+		r.log.Error("Error getting route from network addition/update:", err)
+		return err
+	}
+	for _, route := range routes {
+		err = r.AddRoute(route)
+		if err != nil {
+			r.log.Errorf("Cannot add pool route %s through vpp tap: %v", key, err)
+			return err
+		}
+	}
+	return nil
+}
+
+// OnIpamConfChanged handles IPAM configuration changes
+func (r *RouteWatcher) OnIpamConfChanged(oldPool, newPool *proto.IPAMPool) error {
+	r.log.Debugf("Received IPAM config update in route watcher old:%+v new:%+v", oldPool, newPool)
+	if newPool == nil && oldPool != nil {
+		routes, err := r.getNetworkRoute(oldPool.Cidr, "")
+		if err != nil {
+			r.log.Error("Error getting route from ipam update:", err)
+			return err
+		}
+		for _, route := range routes {
+			err = r.DelRoute(route)
+			if err != nil {
+				r.log.Errorf("Cannot delete pool route %s through vpp tap: %v", oldPool.Cidr, err)
+				return err
+			}
+		}
+	} else if newPool != nil {
+		routes, err := r.getNetworkRoute(newPool.Cidr, "")
+		if err != nil {
+			r.log.Error("Error getting route from ipam update:", err)
+			return err
+		}
+		for _, route := range routes {
+			err = r.AddRoute(route)
+			if err != nil {
+				r.log.Errorf("Cannot add pool route %s through vpp tap: %v", newPool.Cidr, err)
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (r *RouteWatcher) getNetworkRoute(network string, physicalNet string) (route []*netlink.Route, err error) {
@@ -237,90 +298,6 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 				}
 				r.log.Warn("Route watcher stopped")
 				return nil
-			case msg := <-r.eventChan:
-				event, ok := msg.(common.CalicoVppEvent)
-				if !ok {
-					continue
-				}
-				switch event.Type {
-				case common.NetDeleted:
-					netDef, ok := event.Old.(*common.NetworkDefinition)
-					if !ok {
-						r.log.Errorf("event.Old is not a (*common.NetworkDefinition) %v", event.Old)
-						goto restart
-					}
-					key := netDef.Range
-					routes, err := r.getNetworkRoute(key, netDef.PhysicalNetworkName)
-					if err != nil {
-						r.log.Error("Error getting route from ipam update:", err)
-						goto restart
-					}
-					for _, route := range routes {
-						err = r.DelRoute(route)
-						if err != nil {
-							r.log.Errorf("Cannot add pool route %s through vpp tap: %v", key, err)
-							goto restart
-						}
-					}
-				case common.NetAddedOrUpdated:
-					netDef, ok := event.New.(*common.NetworkDefinition)
-					if !ok {
-						r.log.Errorf("event.New is not a (*common.NetworkDefinition) %v", event.New)
-						goto restart
-					}
-					key := netDef.Range
-					routes, err := r.getNetworkRoute(key, netDef.PhysicalNetworkName)
-					if err != nil {
-						r.log.Error("Error getting route from ipam update:", err)
-						goto restart
-					}
-					for _, route := range routes {
-						err = r.AddRoute(route)
-						if err != nil {
-							r.log.Errorf("Cannot add pool route %s through vpp tap: %v", key, err)
-							goto restart
-						}
-					}
-				case common.IpamConfChanged:
-					r.log.Debugf("Received IPAM config update in route watcher old:%+v new:%+v", event.Old, event.New)
-					if event.New == nil && event.Old != nil {
-						old, ok := event.Old.(*proto.IPAMPool)
-						if !ok {
-							r.log.Errorf("event.Old is not a (*proto.IPAMPool) %v", event.Old)
-							goto restart
-						}
-						routes, err := r.getNetworkRoute(old.Cidr, "")
-						if err != nil {
-							r.log.Error("Error getting route from ipam update:", err)
-							goto restart
-						}
-						for _, route := range routes {
-							err = r.DelRoute(route)
-							if err != nil {
-								r.log.Errorf("Cannot delete pool route %s through vpp tap: %v", old.Cidr, err)
-								goto restart
-							}
-						}
-					} else if event.New != nil {
-						new, ok := event.New.(*proto.IPAMPool)
-						if !ok {
-							r.log.Errorf("event.New is not a (*proto.IPAMPool) %v", event.New)
-							goto restart
-						}
-						routes, err := r.getNetworkRoute(new.Cidr, "")
-						if err != nil {
-							r.log.Error("Error getting route from ipam update:", err)
-							goto restart
-						}
-						for _, route := range routes {
-							err = r.AddRoute(route)
-							if err != nil {
-								r.log.Errorf("Cannot add pool route %s through vpp tap: %v", new.Cidr, err)
-								goto restart
-							}
-						}
-					}
-				}
 			case <-r.netlinkFailed:
 				goto restart
 			case update, ok := <-netlinkUpdates:
