@@ -83,6 +83,11 @@ func (p *PeerManager) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 	p.peerWatcher.SetBGPConf(bgpConf)
 }
 
+// SetBGPPeerHandler sets the BGP peer handler on the internal peer handler
+func (p *PeerManager) SetBGPPeerHandler(handler BGPPeerHandler) {
+	p.peerHandler.SetBGPPeerHandler(handler)
+}
+
 // OnSecretChanged implements SecretChangeHandler
 // Directly calls peer handler with current state from peer watcher
 func (p *PeerManager) OnSecretChanged(secretName string) {

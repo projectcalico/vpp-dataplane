@@ -34,11 +34,19 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 )
 
+// BGPPeerHandler interface for handling BGP peer operations
+type BGPPeerHandler interface {
+	HandleBGPPeerAdded(localPeer *watchers.LocalBGPPeer) error
+	HandleBGPPeerUpdated(localPeer *watchers.LocalBGPPeer, oldPeer *watchers.LocalBGPPeer) error
+	HandleBGPPeerDeleted(peerIP string) error
+}
+
 // PeerHandler handles BGP peer configuration and business logic
 type PeerHandler struct {
-	log      *logrus.Entry
-	clientv3 calicov3cli.Interface
-	cache    *cache.Cache
+	log            *logrus.Entry
+	clientv3       calicov3cli.Interface
+	bgpPeerHandler BGPPeerHandler
+	cache          *cache.Cache
 
 	nodeStatesByName map[string]common.LocalNodeSpec
 	BGPConf          *calicov3.BGPConfigurationSpec
@@ -248,10 +256,12 @@ func (h *PeerHandler) addBGPPeer(ip string, asn uint32, peerSpec *calicov3.BGPPe
 	if err != nil {
 		return errors.Wrap(err, "cannot add bgp peer")
 	}
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.BGPPeerAdded,
-		New:  &watchers.LocalBGPPeer{Peer: peer, BGPFilterNames: peerSpec.Filters},
-	})
+	if h.bgpPeerHandler != nil {
+		err = h.bgpPeerHandler.HandleBGPPeerAdded(&watchers.LocalBGPPeer{Peer: peer, BGPFilterNames: peerSpec.Filters})
+		if err != nil {
+			return errors.Wrap(err, "error handling BGP peer addition")
+		}
+	}
 	return nil
 }
 
@@ -260,19 +270,25 @@ func (h *PeerHandler) updateBGPPeer(ip string, asn uint32, peerSpec, oldPeerSpec
 	if err != nil {
 		return errors.Wrap(err, "cannot update bgp peer")
 	}
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.BGPPeerUpdated,
-		New:  &watchers.LocalBGPPeer{Peer: peer, BGPFilterNames: peerSpec.Filters},
-		Old:  &watchers.LocalBGPPeer{BGPFilterNames: oldPeerSpec.Filters},
-	})
+	if h.bgpPeerHandler != nil {
+		err = h.bgpPeerHandler.HandleBGPPeerUpdated(
+			&watchers.LocalBGPPeer{Peer: peer, BGPFilterNames: peerSpec.Filters},
+			&watchers.LocalBGPPeer{BGPFilterNames: oldPeerSpec.Filters},
+		)
+		if err != nil {
+			return errors.Wrap(err, "error handling BGP peer update")
+		}
+	}
 	return nil
 }
 
 func (h *PeerHandler) deleteBGPPeer(ip string) error {
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.BGPPeerDeleted,
-		New:  ip,
-	})
+	if h.bgpPeerHandler != nil {
+		err := h.bgpPeerHandler.HandleBGPPeerDeleted(ip)
+		if err != nil {
+			return errors.Wrap(err, "error handling BGP peer deletion")
+		}
+	}
 	return nil
 }
 
@@ -392,6 +408,11 @@ func (h *PeerHandler) OnPeerNodeStateChanged(old, new *common.LocalNodeSpec) {
 		h.nodeStatesByName[new.Name] = *new
 	}
 	h.log.Debugf("Nodes updated in peer handler, old %v new %v", old, new)
+}
+
+// SetBGPPeerHandler sets the BGP peer handler for this peer handler
+func (h *PeerHandler) SetBGPPeerHandler(handler BGPPeerHandler) {
+	h.bgpPeerHandler = handler
 }
 
 // OnSecretChanged handles secret changes

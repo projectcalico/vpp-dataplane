@@ -16,8 +16,6 @@
 package common
 
 import (
-	"fmt"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,12 +27,6 @@ const (
 	IpamConfChanged CalicoVppEventType = "IpamConfChanged"
 	BGPConfChanged  CalicoVppEventType = "BGPConfChanged"
 
-	ConnectivityAdded   CalicoVppEventType = "ConnectivityAdded"
-	ConnectivityDeleted CalicoVppEventType = "ConnectivityDeleted"
-
-	SRv6PolicyAdded   CalicoVppEventType = "SRv6PolicyAdded"
-	SRv6PolicyDeleted CalicoVppEventType = "SRv6PolicyDeleted"
-
 	PodAdded   CalicoVppEventType = "PodAdded"
 	PodDeleted CalicoVppEventType = "PodDeleted"
 
@@ -43,19 +35,6 @@ const (
 
 	TunnelAdded   CalicoVppEventType = "TunnelAdded"
 	TunnelDeleted CalicoVppEventType = "TunnelDeleted"
-
-	BGPPeerAdded   CalicoVppEventType = "BGPPeerAdded"
-	BGPPeerDeleted CalicoVppEventType = "BGPPeerDeleted"
-	BGPPeerUpdated CalicoVppEventType = "BGPPeerUpdated"
-
-	BGPFilterAddedOrUpdated CalicoVppEventType = "BGPFilterAddedOrUpdated"
-	BGPFilterDeleted        CalicoVppEventType = "BGPFilterDeleted"
-
-	BGPDefinedSetAdded   CalicoVppEventType = "BGPDefinedSetAdded"
-	BGPDefinedSetDeleted CalicoVppEventType = "BGPDefinedSetDeleted"
-
-	BGPPathAdded   CalicoVppEventType = "BGPPathAdded"
-	BGPPathDeleted CalicoVppEventType = "BGPPathDeleted"
 
 	NetAddedOrUpdated CalicoVppEventType = "NetAddedOrUpdated"
 	NetDeleted        CalicoVppEventType = "NetDeleted"
@@ -106,18 +85,8 @@ func RegisterHandler(channel chan any, name string) *PubSubHandlerRegistration {
 	return reg
 }
 
-func redactPassword(event CalicoVppEvent) string {
-	switch event.Type {
-	case BGPPeerAdded:
-		return string(event.Type)
-	default:
-		return fmt.Sprintf("%+v", event)
-	}
-
-}
-
 func SendEvent(event CalicoVppEvent) {
-	ThePubSub.log.Debugf("Broadcasting event %s", redactPassword(event))
+	ThePubSub.log.Debugf("Broadcasting event %+v", event)
 	for _, reg := range ThePubSub.pubSubHandlerRegistrations {
 		if reg.expectedEvents[event.Type] {
 			reg.channel <- event

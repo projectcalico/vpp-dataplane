@@ -76,12 +76,9 @@ func (w *LocalSIDWatcher) AdvertiseSRv6Policy(localsid *types.SrLocalsid) (err e
 		if nodeIPv6 == nil {
 			return fmt.Errorf("no ip6 found for node")
 		}
-		newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), srpolicyBSID.ToIP(), *nodeIPv6, trafficType, false)
+		_, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), srpolicyBSID.ToIP(), *nodeIPv6, trafficType, false)
 		if err == nil {
-			common.SendEvent(common.CalicoVppEvent{
-				Type: common.BGPPathAdded,
-				New:  newPath,
-			})
+			// (BGPPathAdded pubsub event sending removed)
 		}
 	}
 
