@@ -46,6 +46,22 @@ func (mode *RxMode) UnmarshalText(text []byte) error {
 	return nil
 }
 
+func (mode *RxMode) UnmarshalJSON(text []byte) error {
+	switch string(text) {
+	case "interrupt":
+		*mode = InterruptRxMode
+	case "polling":
+		*mode = PollingRxMode
+	case "adaptive":
+		*mode = AdaptativeRxMode
+	case "default":
+		*mode = DefaultRxMode
+	default:
+		*mode = UnknownRxMode
+	}
+	return nil
+}
+
 const (
 	InvalidInterface = interface_types.InterfaceIndex(^uint32(0))
 )

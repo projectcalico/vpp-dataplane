@@ -51,6 +51,20 @@ func (proto *IPProto) UnmarshalText(text []byte) error {
 	return nil
 }
 
+func (proto *IPProto) UnmarshalJSON(text []byte) error {
+	switch string(text) {
+	case "tcp":
+		*proto = TCP
+	case "udp":
+		*proto = UDP
+	case "sctp":
+		*proto = SCTP
+	default:
+		*proto = TCP
+	}
+	return nil
+}
+
 type IPFlowHash uint8
 
 const (
