@@ -112,7 +112,8 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 # VPP 25.06 released on 25/June/2025
-BASE="${BASE:-"1573e751c5478d3914d26cdde153390967932d6b"}" # misc: VPP 25.06 Release Notes
+BASE="${BASE:-"d2f48f46a8f5cb3cc733632b4ad3990dd7638c50"}" # misc: VPP 25.06 Release Notes
+
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
@@ -145,6 +146,10 @@ git_cherry_pick refs/changes/07/43107/4 # 43107: vcl: fix fifo private vpp sh on
 git_cherry_pick refs/changes/14/43714/5 # 43714: session: fix handling of closed during migration | https://gerrit.fd.io/r/c/vpp/+/43714
 git_cherry_pick refs/changes/39/43139/5 # 43139: udp: regrab connected session after transport clone | https://gerrit.fd.io/r/c/vpp/+/43139
 git_cherry_pick refs/changes/23/43723/3 # 43723: session svm: fix session migrate attach data corruption | https://gerrit.fd.io/r/c/vpp/+/43723
+# testing new cnat stuff
+git_cherry_pick refs/changes/89/41089/20 # https://gerrit.fd.io/r/c/vpp/+/41089 cnat: combine multiple changes
+git_cherry_pick refs/changes/69/43369/8 # https://gerrit.fd.io/r/c/vpp/+/43369 cnat: converge new cnat implementation to support encaps (calico)
+
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
