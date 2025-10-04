@@ -53,7 +53,7 @@ fi
 git reset $BRANCH_NAME --hard
 git clean -fd
 
-make -C $VPP_DATAPLANE_DIRECTORY image TAG=$TAG WITH_GDB=$WITH_GDB
+make -C $VPP_DATAPLANE_DIRECTORY image TAG=$TAG
 
 echo "built calicovpp/vpp:${TAG}"
 echo "built calicovpp/agent:${TAG}"
@@ -91,7 +91,6 @@ echo "Date                     : $(date +"%Y-%m-%d %H:%M")" >> ${BUILD_LOG_DIR}/
 echo "REPO_URL                 : $REPO_URL"                 >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
 echo "BRANCH_NAME              : $BRANCH_NAME"              >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
 echo "VPP_DATAPLANE_DIRECTORY  : $VPP_DATAPLANE_DIRECTORY"  >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
-echo "WITH_GDB                 : $WITH_GDB"                 >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
 echo "SSH_NAME                 : $SSH_NAME"                 >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
 echo "PUSH                     : $PUSH"                     >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
 echo "Tags built               : ${TAG},${EXTRA_TAGS}"      >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
