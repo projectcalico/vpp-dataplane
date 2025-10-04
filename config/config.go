@@ -171,7 +171,7 @@ func RunHook(hookScript *string, hookName string, params *VppManagerParams, log 
 		return
 	}
 
-	cmd := exec.Command("/bin/bash", "-c", template, hookName)
+	cmd := exec.Command("/bin/bash", "-c", template, hookName, params.UplinksSpecs[0].InterfaceName)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
