@@ -1,31 +1,4 @@
-# Policies in CalicoVPP
-
-Calico enriches Kubernetes set of policies allowing to have ordering in
-policies, deny rules, policies applied to host interfaces, more flexible
-match rules. In CalicoVPP, we feed Felix messages to our policy server
-(agent component), which then configures VPP to create those policies.
-
-## Troubleshooting policies
-
-VPP cli allows to look at policies in details, here are the commands for that
-
-````bash
-    _______    _        _   _____  ___ 
- __/ __/ _ \  (_)__    | | / / _ \/ _ \
- _/ _// // / / / _ \   | |/ / ___/ ___/
- /_/ /____(_)_/\___/   |___/_/  /_/    
-
-vpp# sh capo ?
-  show capo interfaces                     show capo interfaces
-  show capo ipsets                         show capo ipsets
-  show capo policies                       show capo policies [verbose]
-  show capo rules                          show capo rules
-````
-
-Basically, `sh capo interfaces` shows everything related to policies and
-where they are applied.
-
-### Example
+# Policy usage example
 
 Let's create two pods:
 
@@ -123,9 +96,3 @@ Note: policy#2 is added automatically, it is a failsafe policy allowing
 traffic from host to its own pods.
 We conduct a test using netcat, it shows that this port accepts connections,
 unlike other ports.
-
-## More resources
-
-Other resources can be leveraged to add policies and troubleshooting is the same.
-For reference: [hostendpoint](https://docs.tigera.io/calico/latest/reference/resources/hostendpoint),
-[globalNetworkPolicy](https://docs.tigera.io/calico/latest/reference/resources/globalnetworkpolicy).

@@ -1,1 +1,0 @@
-../yaml/static/README.md

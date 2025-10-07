@@ -1,11 +1,11 @@
-# Core Pinning for Calico/VPP
+# VPP core Pinning for Calico/VPP
 
-This patch adds support in VPP for pinning workers to the CPU
+VPP has support for pinning workers to the CPU
 cores that are assigned by a static allocator.
 
 When kubernetes is configured to run with a [static allocator](https://kubernetes.io/docs/tasks/administer-cluster/cpu-management-policies/#static-policy
-) and that VPP starts with requests.CPU equal to limits.CPU
-and both integer numbers.
+) and the VPP pod starts with a specification where
+requests.CPU is equal to limits.CPU and an integer number.
 
 having VPP configured with
 
