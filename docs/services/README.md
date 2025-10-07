@@ -21,3 +21,5 @@ metadata:
 * `vppHashConfig` is a list of elements from
 `srcport, dstport, srcaddr, dstaddr, iproto, reverse, symmetric`, that the
 forwarding of packets is based on.
+
+For troubleshooting, please consult [troubleshooting.md]

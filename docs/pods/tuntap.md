@@ -1,7 +1,8 @@
-# L2 interafce support in pods
+# Tuntap interfaces in VPP
 
-Pods use an L3 interface per default (tun interface in VPP). However, we also
-support having L2 interfaces (tap), via this [annotation](config.md#L99):
+By default pods are configured with TUN interfaces.
+
+We also support having L2 interfaces (tap), via this [annotation](config.md#L99):
 
 ````yaml
 apiVersion: v1
@@ -15,7 +16,7 @@ metadata:
     }
 ````
 
-This has a known limitation : the linux routing configuration is currently
+A known limitation is that the linux routing configuration is currently
 incomplete. A workaround for it is to have a cap admin capability on a
 privileged container:
 

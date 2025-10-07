@@ -1,4 +1,3 @@
-
 # Setting up a test kind cluster
 
 ## Default installation

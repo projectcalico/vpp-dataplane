@@ -1,10 +1,24 @@
 # CalicoVPP metrics
 
 CalicoVPP exposes the following metrics. Every metrics is prefixed by
-`cni_projectcalico_vpp_` this is configurable by setting
-`CALICOVPP_INITIAL_CONFIG` to
-`{"prometheusStatsPrefix":"cni_projectcalico_vpp_"}`. Keeping in mind that
-all non alphanumeric characters will be replaced by underscores.
+`cni_projectcalico_vpp_`. This is configurable by setting:
+
+````yaml
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-vpp-config
+  namespace: calico-vpp-dataplane
+data:
+  CALICOVPP_INITIAL_CONFIG: |-
+    { 
+      "prometheusStatsPrefix": "cni_projectcalico_vpp_"
+    }
+````
+
+Keeping in mind that all non alphanumeric characters will be
+replaced by underscores.
 
 ## VPP interface counters
 
