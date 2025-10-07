@@ -190,7 +190,7 @@ run-tests-policy:
 	test/scripts/test.sh down policy
 
 .PHONY: run-main-tests
-run-main-tests: run-tests-nat run-tests-policy
+run-main-tests: validate-kind run-tests-nat run-tests-policy
 
 .PHONY: run-cnat-drain-test
 run-cnat-drain-test:
@@ -200,6 +200,12 @@ run-cnat-drain-test:
 restart-calicovpp:
 	kubectl -n calico-vpp-dataplane rollout restart ds/calico-vpp-node
 	kubectl -n calico-vpp-dataplane rollout status ds/calico-vpp-node
+
+# Make sure we are running against a kind cluster, as the tests will
+# try to break dataplane
+.PHONY: validate-kind
+validate-kind:
+	test -n "$(shell kubectl config current-context | grep '^kind-')" || test -n "$(FORCE)"
 
 .PHONY: goapi
 export VPP_DIR ?= $(shell pwd)/vpp-manager/vpp_build

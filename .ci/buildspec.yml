@@ -11,7 +11,7 @@ phases:
   pre_build:
     commands:
       - CI_BUILD=1
-      - echo Build started on `date`
+      - echo STEP pre_build START on `date`
 
       - docker --version
       - git config --global user.email "calicoci@cisco.com"
@@ -27,8 +27,12 @@ phases:
       - echo "Building dependencies image"
       - make builder-image
 
+      - echo STEP pre_build DONE on `date`
+
   build:
     commands:
+      - echo STEP build START on `date`
+
       - make clean-vpp
       - make images
 
@@ -37,7 +41,22 @@ phases:
       - make ci-cov
 
       - make push
+      - echo STEP build DONE on `date`
 
+  # Run integration tests (kind & e2e)
   post_build:
     commands:
-      - echo Build completed on `date`
+      - echo STEP post_build START on `date`
+
+      - codebuild-breakpoint
+
+      # - >-
+      #   N_KIND_WORKERS=1
+      #   VERBOSE=true
+      #   NO_TAINT=true
+      #   WAIT=true
+      #   make kind
+      # - make run-main-tests
+      # - make kind-rm-cluster
+
+      - echo STEP post_build DONE on `date`

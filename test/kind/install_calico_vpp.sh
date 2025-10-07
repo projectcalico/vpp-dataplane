@@ -1,8 +1,15 @@
 #!/bin/bash
 
+VERBOSE=${VERBOSE:-false}
+WAIT=${WAIT:-false}
+
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/${TIGERA_OPERATOR_VERSION}/manifests/tigera-operator.yaml
+if [ "${VERBOSE}" == "true" ]; then
+set -x
+fi
+
+kubectl create -f "https://raw.githubusercontent.com/projectcalico/calico/${TIGERA_OPERATOR_VERSION}/manifests/tigera-operator.yaml"
 
 while [[ "$(kubectl api-resources --api-group=operator.tigera.io | grep Installation)" == "" ]]; do echo "waiting for Installation kubectl resource"; sleep 2; done
 
@@ -88,4 +95,8 @@ plugins {
 ${CNAT_CONFIG_BLOCK}
 "
 
-${SCRIPTDIR}/../../yaml/overlays/dev/kustomize.sh up
+"${SCRIPTDIR}/../../yaml/overlays/dev/kustomize.sh" up
+
+if [ "${WAIT}" == "true" ]; then
+kubectl wait --for=condition=Ready nodes --all --timeout=600s
+fi

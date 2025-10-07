@@ -1,21 +1,36 @@
 #!/bin/bash
 set -o errexit
 
-if [[ $(kind get clusters | grep -E '^'${CLUSTER_NAME}'$') == "${CLUSTER_NAME}" ]]; then
-	echo "Cluster kind already exists"
-	exit 0
-fi
-
 N_KIND_CONTROL_PLANES=${N_KIND_CONTROL_PLANES:-1}
 N_KIND_WORKERS=${N_KIND_WORKERS:-2}
 IPFAMILY=${IPFAMILY:-dual}
 
+KIND_REGISTRY_NAME=${KIND_REGISTRY_NAME:-kind-registry}
+KIND_REGISTRY_PORT=${KIND_REGISTRY_PORT:-5000}
+
+CPU_PINNING=${CPU_PINNING:-false}
+FIRST_CPU=${FIRST_CPU:-3}
+
+VERBOSE=${VERBOSE:-false}
+NO_TAINT=${NO_TAINT:-false}
+
+if [ "${VERBOSE}" == "true" ]; then
+set -x
+cat /proc/sys/fs/inotify/max_user_instances
+cat /proc/sys/fs/inotify/max_user_watches
+cat /proc/sys/vm/nr_hugepages
+go version
+fi
+
+if [[ $(${KIND} get clusters | grep -E '^'"${CLUSTER_NAME}"'$') == "${CLUSTER_NAME}" ]]; then
+	echo "Cluster kind already exists"
+	exit 0
+fi
+
 # create registry container unless it already exists
-reg_name='kind-registry'
-reg_port='5000'
-if [ "$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)" != 'true' ]; then
+if [ "$(docker inspect -f '{{.State.Running}}' "${KIND_REGISTRY_NAME}" 2>/dev/null || true)" != 'true' ]; then
   docker run \
-    -d --restart=always -p "127.0.0.1:${reg_port}:5000" --name "${reg_name}" \
+    -d --restart=always -p "127.0.0.1:${KIND_REGISTRY_PORT}:5000" --name "${KIND_REGISTRY_NAME}" \
     registry:2
 fi
 
@@ -26,14 +41,14 @@ apiVersion: kind.x-k8s.io/v1alpha4
 name: ${CLUSTER_NAME}
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
-    endpoint = ["http://${reg_name}:5000"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${KIND_REGISTRY_PORT}"]
+    endpoint = ["http://${KIND_REGISTRY_NAME}:5000"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
-    endpoint = ["http://${reg_name}:5000"]
+    endpoint = ["http://${KIND_REGISTRY_NAME}:5000"]
 EOF
 )
 
-if [ "$IPFAMILY" == "v4" ]; then
+if [ "${IPFAMILY}" == "v4" ]; then
 config=$(cat <<EOF
 $config
 networking:
@@ -44,7 +59,7 @@ networking:
 nodes:
 EOF
 )
-elif [ "$IPFAMILY" == "v6" ]; then
+elif [ "${IPFAMILY}" == "v6" ]; then
 config=$(cat <<EOF
 $config
 networking:
@@ -68,19 +83,7 @@ EOF
 )
 fi
 
-
-if [ "$N_KIND_CONTROL_PLANES" == "" ]; then
-	echo "Please Set N_KIND_CONTROL_PLANES"
-	exit 1
-fi
-
-if [ "$N_KIND_WORKERS" == "" ]; then
-	echo "Please Set N_KIND_WORKERS"
-	exit 1
-fi
-
-FIRST_CPU=3
-for ((i=1; i<=$N_KIND_CONTROL_PLANES; i++)); do \
+for ((i=1; i<=N_KIND_CONTROL_PLANES; i++)); do \
 config=$(cat <<EOF
 $config
 - role: control-plane
@@ -89,17 +92,17 @@ $config
       containerPath: $HOME
 EOF
 );
-if [ "$CPU_PINNING" == "true" ]; then
+if [ "${CPU_PINNING}" == "true" ]; then
 config=$(cat <<EOF
 $config
-  cpuSet: "$(($N_KIND_WORKERS+$FIRST_CPU+1+i)),$(($N_KIND_WORKERS+$FIRST_CPU+2-2*(i%2)+i))"
+  cpuSet: "$((N_KIND_WORKERS+FIRST_CPU+1+i)),$((N_KIND_WORKERS+FIRST_CPU+2-2*(i%2)+i))"
 EOF
 );\
 fi
 done
 # use cpuSet in the case of a patched kind version like in scale tests (test/scale/README.md)
 
-for ((i=1; i<=$N_KIND_WORKERS; i++)); do \
+for ((i=1; i<=N_KIND_WORKERS; i++)); do \
 config=$(cat <<EOF
 $config
 - role: worker
@@ -108,21 +111,21 @@ $config
       containerPath: $HOME
 EOF
 );
-if [ "$CPU_PINNING" == "true" ]; then
+if [ "${CPU_PINNING}" == "true" ]; then
 config=$(cat <<EOF
 $config
-  cpuSet: "$(($N_KIND_WORKERS+$FIRST_CPU+1+i)),$(($N_KIND_WORKERS+$FIRST_CPU+2-2*(i%2)+i))"
+  cpuSet: "$((N_KIND_WORKERS+FIRST_CPU+1+i)),$((N_KIND_WORKERS+FIRST_CPU+2-2*(i%2)+i))"
 EOF
 );\
 fi
 done
 # use cpuSet in the case of a patched kind version like in scale tests (test/scale/README.md)
 
-echo -e "$config" | kind create cluster --config=-
+echo -e "$config" | ${KIND} create cluster --config=-
 
 # connect the registry to the cluster network if not already connected
-if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' "${reg_name}")" = 'null' ]; then
-  docker network connect "kind" "${reg_name}"
+if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' "${KIND_REGISTRY_NAME}")" = 'null' ]; then
+  docker network connect "kind" "${KIND_REGISTRY_NAME}"
 fi
 
 # Document the local registry
@@ -135,6 +138,11 @@ metadata:
   namespace: kube-public
 data:
   localRegistryHosting.v1: |
-    host: "localhost:${reg_port}"
+    host: "localhost:${KIND_REGISTRY_PORT}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
+
+
+if [ "${NO_TAINT}" == "true" ]; then
+kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true
+fi
