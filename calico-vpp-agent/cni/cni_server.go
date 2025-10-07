@@ -326,6 +326,8 @@ func (s *Server) rescanState() {
 		if err != nil {
 			s.log.Errorf("Could not remove %s, %s", cniServerStateFile, err)
 		}
+		// if the cniServerState file is corrupted, we remove it and give up.
+		return
 	}
 
 	s.log.Infof("RescanState: re-creating all interfaces")
@@ -350,6 +352,13 @@ func (s *Server) rescanState() {
 				s.log.Error(err)
 			}
 		}
+	}
+	err = storage.PersistCniServerState(
+		s.podInterfaceMap,
+		config.CniServerStateFile+fmt.Sprint(storage.CniServerStateFileVersion),
+	)
+	if err != nil {
+		s.log.Errorf("CNI state persist errored %v", err)
 	}
 }
 
