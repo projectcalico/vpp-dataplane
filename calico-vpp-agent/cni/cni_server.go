@@ -184,9 +184,9 @@ func (s *Server) rescanState() {
 		}
 	}
 
-	cniServerState, err := model.LoadCniServerState(config.CniServerStateFilename)
-	if err != nil {
-		s.log.Errorf("Error getting pods from file %s, removing cache", err)
+	cniServerState, errorLoading := model.LoadCniServerState(config.CniServerStateFilename)
+	if errorLoading != nil {
+		s.log.Errorf("Error getting pods from file %s, removing cache", errorLoading)
 		err := os.Remove(config.CniServerStateFilename)
 		if err != nil {
 			s.log.Errorf("Could not remove %s, %s", config.CniServerStateFilename, err)
@@ -206,6 +206,15 @@ func (s *Server) rescanState() {
 		case nil:
 			s.log.Infof("pod(re-add) podSpec=%s", podSpecCopy.String())
 			s.podInterfaceMap[podSpec.Key()] = podSpecCopy
+			if errorLoading != nil {
+				err = model.PersistCniServerState(
+					model.NewCniServerState(s.podInterfaceMap),
+					config.CniServerStateFilename,
+				)
+				if err != nil {
+					s.log.Errorf("CNI state persist errored %v", err)
+				}
+			}
 		default:
 			s.log.Errorf("Interface add failed %s : %v", podSpecCopy.String(), err)
 		}
