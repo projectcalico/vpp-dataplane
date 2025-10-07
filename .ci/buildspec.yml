@@ -32,12 +32,20 @@ phases:
       - make clean-vpp
       - make images
 
+      # run linting and go tests
       - make mdlint
       - make ci-lint
       - make ci-test
       - make ci-cov
 
+      # Publish image, even if they are not fine
+      # as this helps reproducing
       - make push
+
+      # Run integration tests (kind & e2e)
+      - make kind
+      - make test-e2e
+      - make kind-rm-cluster
 
   post_build:
     commands:

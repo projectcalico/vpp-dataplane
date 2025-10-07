@@ -56,3 +56,4 @@ ifeq (${CODEBUILD_WEBHOOK_TRIGGER},branch/master)
 endif
 
 CLUSTER_NAME ?= kind-$(shell whoami)-$(shell git describe --always --abbrev=4)
+KIND ?= go run sigs.k8s.io/kind@v0.29.0

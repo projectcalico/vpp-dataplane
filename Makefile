@@ -181,6 +181,18 @@ restart-calicovpp:
 	kubectl -n calico-vpp-dataplane rollout restart ds/calico-vpp-node
 	kubectl -n calico-vpp-dataplane rollout status ds/calico-vpp-node
 
+# Make sure we are running against a kind cluster, as the tests will
+# try to break dataplane
+.PHONY: validate-kind
+validate-kind:
+	test -n "$(shell kubectl config current-context | grep '^kind-')" || test -n "$(FORCE)"
+
+# test-e2e run repo local end to end test of calico VPP,
+# making sure basic connectivity, DNS and services work
+# This requires a running cluser. e.g. 'make kind'
+.PHONY: test-e2e
+test-e2e: validate-kind run-tests run-tests-v6 restart-calicovpp
+
 .PHONY: goapi
 export VPP_DIR ?= $(shell pwd)/vpp-manager/vpp_build
 goapi:
@@ -235,10 +247,6 @@ release: check-TAG check-CALICO_TAG
 	@echo "and update the \"vppbranch\" variable to ${TAG} in the \"variables.js\" file in that directory. For example, for"
 	@echo "Calico version \"v3.27.0\", the directory would be \"calico_versioned_docs/version-3.27\". If this is not done,"
 	@echo "the install docs get broken!!"
-
-.PHONY: run-integration-tests
-run-integration-tests:
-	$(MAKE) -C test/integration-tests $@
 
 .PHONY: test-memif-multinet
 test-memif-multinet:
