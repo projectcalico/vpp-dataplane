@@ -39,6 +39,7 @@ type BGPFilterWatcher struct {
 	clientv3             calicov3cli.Interface
 	watcher              watch.Interface
 	currentWatchRevision string
+	bgpFilterHandler     common.BGPFilterHandler
 }
 
 // This function watches BGPFilters configured in Calico
@@ -102,24 +103,30 @@ func (w *BGPFilterWatcher) WatchBGPFilters(t *tomb.Tomb) error {
 }
 
 func (w *BGPFilterWatcher) AddNewFilter(filter calicov3.BGPFilter) {
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.BGPFilterAddedOrUpdated,
-		New:  filter,
-	})
+	if w.bgpFilterHandler != nil {
+		err := w.bgpFilterHandler.HandleBGPFilterAddedOrUpdated(filter)
+		if err != nil {
+			w.log.Errorf("Error handling BGP filter addition: %v", err)
+		}
+	}
 }
 
 func (w *BGPFilterWatcher) UpdateFilter(filter calicov3.BGPFilter) {
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.BGPFilterAddedOrUpdated,
-		New:  filter,
-	})
+	if w.bgpFilterHandler != nil {
+		err := w.bgpFilterHandler.HandleBGPFilterAddedOrUpdated(filter)
+		if err != nil {
+			w.log.Errorf("Error handling BGP filter update: %v", err)
+		}
+	}
 }
 
 func (w *BGPFilterWatcher) RemoveFilter(filter calicov3.BGPFilter) {
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.BGPFilterDeleted,
-		Old:  filter,
-	})
+	if w.bgpFilterHandler != nil {
+		err := w.bgpFilterHandler.HandleBGPFilterDeleted(filter)
+		if err != nil {
+			w.log.Errorf("Error handling BGP filter deletion: %v", err)
+		}
+	}
 }
 
 func (w *BGPFilterWatcher) resyncAndCreateWatcher() error {
@@ -154,6 +161,10 @@ func (w *BGPFilterWatcher) cleanExistingWatcher() {
 		w.log.Debug("Stopped watcher")
 		w.watcher = nil
 	}
+}
+
+func (w *BGPFilterWatcher) SetBGPFilterHandler(handler common.BGPFilterHandler) {
+	w.bgpFilterHandler = handler
 }
 
 func NewBGPFilterWatcher(clientv3 calicov3cli.Interface, k8sclient *kubernetes.Clientset, log *logrus.Entry) *BGPFilterWatcher {

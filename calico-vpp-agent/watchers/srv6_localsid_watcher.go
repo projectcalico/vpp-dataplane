@@ -20,10 +20,11 @@ import (
 )
 
 type LocalSIDWatcher struct {
-	log         *logrus.Entry
-	vpp         *vpplink.VppLink
-	clientv3    calicov3cli.Interface
-	nodeBGPSpec *common.LocalNodeSpec
+	log            *logrus.Entry
+	vpp            *vpplink.VppLink
+	clientv3       calicov3cli.Interface
+	nodeBGPSpec    *common.LocalNodeSpec
+	bgpPathHandler common.BGPPathHandler
 }
 
 const (
@@ -77,11 +78,11 @@ func (w *LocalSIDWatcher) AdvertiseSRv6Policy(localsid *types.SrLocalsid) (err e
 			return fmt.Errorf("no ip6 found for node")
 		}
 		newPath, err := common.MakePathSRv6Tunnel(localsid.Localsid.ToIP(), srpolicyBSID.ToIP(), *nodeIPv6, trafficType, false)
-		if err == nil {
-			common.SendEvent(common.CalicoVppEvent{
-				Type: common.BGPPathAdded,
-				New:  newPath,
-			})
+		if err == nil && w.bgpPathHandler != nil {
+			err := w.bgpPathHandler.HandleBGPPathAdded(newPath)
+			if err != nil {
+				return errors.Wrap(err, "error handling BGP path addition for SRv6 policy")
+			}
 		}
 	}
 
@@ -107,6 +108,10 @@ func (w *LocalSIDWatcher) getSidFromPool(ipnet string) (newSidAddr ip_types.IP6A
 
 func (w *LocalSIDWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 	w.nodeBGPSpec = nodeBGPSpec
+}
+
+func (w *LocalSIDWatcher) SetBGPPathHandler(handler common.BGPPathHandler) {
+	w.bgpPathHandler = handler
 }
 
 func NewLocalSIDWatcher(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *logrus.Entry) *LocalSIDWatcher {

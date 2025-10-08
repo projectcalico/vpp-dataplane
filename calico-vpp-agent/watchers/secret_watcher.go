@@ -66,7 +66,7 @@ type SecretChangeHandler interface {
 	OnSecretChanged(secretName string)
 }
 
-func NewSecretWatcher(k8sclient *kubernetes.Clientset) (*SecretWatcher, error) {
+func NewSecretWatcher(k8sclient *kubernetes.Clientset) *SecretWatcher {
 	sw := &SecretWatcher{
 		log:          log.WithFields(log.Fields{"component": "secret-watcher"}),
 		watches:      make(map[string]*secretWatchData),
@@ -81,7 +81,7 @@ func NewSecretWatcher(k8sclient *kubernetes.Clientset) (*SecretWatcher, error) {
 		sw.namespace = "calico-vpp-dataplane"
 	}
 
-	return sw, nil
+	return sw
 }
 
 // RegisterSecretChangeHandler registers a handler for secret changes

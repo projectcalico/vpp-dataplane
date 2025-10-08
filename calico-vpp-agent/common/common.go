@@ -21,6 +21,8 @@ import (
 	"math"
 	"net"
 	"os"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -533,4 +535,18 @@ func CompareIPList(newIPList, oldIPList []net.IP) (added []net.IP, deleted []net
 	}
 	changed = len(added)+len(deleted) > 0
 	return
+}
+
+// CompareStringSlices compares two string slices for equality (order-independent)
+func CompareStringSlices(slice1, slice2 []string) bool {
+	if len(slice1) != len(slice2) {
+		return false
+	}
+
+	// Sort the slices in ascending order
+	sort.Strings(slice1)
+	sort.Strings(slice2)
+
+	// Compare the sorted slices
+	return reflect.DeepEqual(slice1, slice2)
 }

@@ -13,15 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package felix
+package routing
 
 import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
+
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"k8s.io/client-go/kubernetes"
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 )
 
@@ -38,37 +41,35 @@ type SecretChangeHandler interface {
 }
 
 // NewPeerManager creates a fully integrated peer manager
-func NewPeerManager(clientv3 calicov3cli.Interface, k8sClient *kubernetes.Clientset, felixServer *Server, log *logrus.Entry) (*PeerManager, error) {
-	// Create the secret watcher
-	secretWatcher, err := watchers.NewSecretWatcher(k8sClient)
-	if err != nil {
-		return nil, err
-	}
+func NewPeerManager(clientv3 calicov3cli.Interface, k8sClient *kubernetes.Clientset, felixServer *felix.Server, log *logrus.Entry) *PeerManager {
+	// Create the secretWatcher
+	secretWatcher := watchers.NewSecretWatcher(k8sClient)
 
-	// Create peer handler with the secret watcher for cleanup and as secret getter
-	peerHandler := NewPeerHandler(clientv3, felixServer.GetCache(), secretWatcher, secretWatcher, log)
+	// Create the peerHandler with secretWatcher as handler for getting and cleaning up stale secrets
+	peerHandler := NewPeerHandler(clientv3, felixServer.GetCache(), secretWatcher, secretWatcher, log.WithFields(logrus.Fields{"component": "peer-handler"}))
 
-	// Register the peer handler with the connectivity handler for node state changes
+	// Register the peerHandler with the connectivityHandler for node state changes
 	connectivityHandler := felixServer.GetConnectivityHandler()
 	if connectivityHandler != nil {
 		connectivityHandler.RegisterPeerNodeStateChangeHandler(peerHandler)
 	} else {
-		log.Warn("Connectivity handler is nil, skipping peer node state change handler registration")
+		log.Warn("connectivityHandler is nil, unable to register peer node state change handler")
 	}
 
-	// Create peer watcher
-	peerWatcher := watchers.NewPeerWatcher(clientv3, peerHandler, log)
+	// Create the peerWatcher
+	peerWatcher := watchers.NewPeerWatcher(clientv3, peerHandler, log.WithFields(logrus.Fields{"component": "peer-watcher"}))
 
+	// Create the peerManager
 	peerManager := &PeerManager{
 		log:         log,
 		peerHandler: peerHandler,
 		peerWatcher: peerWatcher,
 	}
 
-	// Register the peer handler as a secret change handler
+	// Register the peerHandler for handling secret changes
 	secretWatcher.RegisterSecretChangeHandler(peerManager)
 
-	return peerManager, nil
+	return peerManager
 }
 
 func (p *PeerManager) Start(t *tomb.Tomb) error {
@@ -81,6 +82,11 @@ func (p *PeerManager) Start(t *tomb.Tomb) error {
 // SetBGPConf sets BGP configuration on the peer handler
 func (p *PeerManager) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
 	p.peerWatcher.SetBGPConf(bgpConf)
+}
+
+// SetBGPPeerHandler sets the BGP peer handler on the internal peer handler
+func (p *PeerManager) SetBGPPeerHandler(handler common.BGPPeerHandler) {
+	p.peerHandler.SetBGPPeerHandler(handler)
 }
 
 // OnSecretChanged implements SecretChangeHandler
