@@ -145,13 +145,11 @@ git_cherry_pick refs/changes/07/43107/4 # 43107: vcl: fix fifo private vpp sh on
 git_cherry_pick refs/changes/14/43714/5 # 43714: session: fix handling of closed during migration | https://gerrit.fd.io/r/c/vpp/+/43714
 git_cherry_pick refs/changes/39/43139/5 # 43139: udp: regrab connected session after transport clone | https://gerrit.fd.io/r/c/vpp/+/43139
 git_cherry_pick refs/changes/23/43723/3 # 43723: session svm: fix session migrate attach data corruption | https://gerrit.fd.io/r/c/vpp/+/43723
-git_cherry_pick refs/changes/10/43710/8   # npol: Network Policies plugin
+git_cherry_pick refs/changes/10/43710/12 # 43710: npol: Network Policies plugin | https://gerrit.fd.io/r/c/vpp/+/43710
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch
 git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
-git_apply_private 0004-fix-npol-tests-and-add-acl-plugin-in-npol.patch
-
 

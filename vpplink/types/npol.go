@@ -20,7 +20,6 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/npol"
 )
 
@@ -126,9 +125,8 @@ func (f RuleFilter) String() string {
 }
 
 type Rule struct {
-	Action        RuleAction
-	AddressFamily int
-	Filters       []RuleFilter
+	Action  RuleAction
+	Filters []RuleFilter
 
 	DstNet    []net.IPNet
 	DstNotNet []net.IPNet
@@ -156,7 +154,6 @@ type Rule struct {
 func (r *Rule) DeepCopy() *Rule {
 	rule := &Rule{
 		Action:            r.Action,
-		AddressFamily:     r.AddressFamily,
 		Filters:           make([]RuleFilter, len(r.Filters)),
 		DstNet:            make([]net.IPNet, len(r.DstNet)),
 		DstNotNet:         make([]net.IPNet, len(r.DstNotNet)),
@@ -380,9 +377,7 @@ func ToNpolRule(r *Rule) (cr npol.NpolRule) {
 	}
 
 	cr = npol.NpolRule{
-		Action: npol.NpolRuleAction(r.Action),
-		Af:     ip_types.AddressFamily(r.AddressFamily),
-
+		Action:  npol.NpolRuleAction(r.Action),
 		Filters: filters,
 	}
 
