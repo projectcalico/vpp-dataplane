@@ -1,4 +1,4 @@
-VPP Version                 : 25.06.0-27~ge19e8c5d0
+VPP Version                 : 25.06.0-29~g6f62fb3ff
 Binapi-generator version    : v0.11.0
 VPP Base commit             : 47505bc21 misc: Initial changes for stable/2506 branch
 ------------------ Cherry picked commits --------------------
@@ -6,6 +6,8 @@ acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
 gerrit:43710/12 npol: Network Policies plugin
+gerrit:44903/1 vxlan: reset next_dpo on delete
+gerrit:44900/1 tap: backport fix promiscuous mode
 gerrit:44855/6 tap: backport VHOST_SET_FORK_FROM_OWNER support
 gerrit:44350/2 vnet: fix unicast NA handling in ND proxy
 gerrit:43723/3 session svm: fix session migrate attach data corruption
