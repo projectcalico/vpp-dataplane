@@ -3,13 +3,15 @@ include common.mk
 check-%:
 	@: $(if $(value $*),,$(error $* is undefined))
 
+bin:
+	@mkdir -p bin
+
 .PHONY: build
-build:
+build: bin
 	$(MAKE) -C calico-vpp-agent $@
 	$(MAKE) -C vpp-manager $@
 	$(MAKE) -C multinet-monitor $@
-	@mkdir -p cmd/bin
-	go build -o cmd/bin/calicovppctl ./cmd/calicovppctl/main.go
+	${DOCKER_RUN} go build -o bin/calicovppctl ./cmd/calicovppctl/main.go
 
 .PHONY: image images
 images: image
@@ -55,6 +57,10 @@ dev:
 	$(MAKE) -C calico-vpp-agent ALSO_LATEST=y $@
 	$(MAKE) -C vpp-manager ALSO_LATEST=y $@
 	$(MAKE) -C multinet-monitor ALSO_LATEST=y $@
+
+.PHONY: clean-vpp
+clean-vpp:
+	$(MAKE) -C vpp-manager clean-vpp
 
 .PHONY: proto
 proto:
@@ -175,6 +181,18 @@ restart-calicovpp:
 	kubectl -n calico-vpp-dataplane rollout restart ds/calico-vpp-node
 	kubectl -n calico-vpp-dataplane rollout status ds/calico-vpp-node
 
+# Make sure we are running against a kind cluster, as the tests will
+# try to break dataplane
+.PHONY: validate-kind
+validate-kind:
+	test -n "$(shell kubectl config current-context | grep '^kind-')" || test -n "$(FORCE)"
+
+# test-e2e run repo local end to end test of calico VPP,
+# making sure basic connectivity, DNS and services work
+# This requires a running cluser. e.g. 'make kind'
+.PHONY: test-e2e
+test-e2e: validate-kind run-tests run-tests-v6 restart-calicovpp
+
 .PHONY: goapi
 export VPP_DIR ?= $(shell pwd)/vpp-manager/vpp_build
 goapi:
@@ -230,10 +248,6 @@ release: check-TAG check-CALICO_TAG
 	@echo "Calico version \"v3.27.0\", the directory would be \"calico_versioned_docs/version-3.27\". If this is not done,"
 	@echo "the install docs get broken!!"
 
-.PHONY: run-integration-tests
-run-integration-tests:
-	$(MAKE) -C test/integration-tests $@
-
 .PHONY: test-memif-multinet
 test-memif-multinet:
 	kubectl apply -f test/yaml/multinet/network.yaml
@@ -284,14 +298,6 @@ lint:
 	test -d vpp-manager/vpp_build && touch vpp-manager/vpp_build/go.mod || true
 	golangci-lint run --color=never
 
-.PHONY: test
-test: go-lint
-	rm -rf .coverage/unit
-	mkdir -p .coverage/unit
-	go test -cover -covermode=atomic ./...  \
-		-args \
-		-test.gocoverdir=$(shell pwd)/.coverage/unit
-
 .PHONY: cov-html
 cov-html:
 	go tool covdata percent -i=.coverage/unit
@@ -299,7 +305,7 @@ cov-html:
 	go tool cover -html=.coverage/profile
 
 .PHONY: cov
-cov: test
+cov:
 	go tool covdata percent -i=.coverage/unit
 	@go tool covdata textfmt -i=.coverage/unit -o .coverage/profile
 	@echo "TOTAL:"
@@ -347,16 +353,55 @@ builder-image: ## Make dependencies image. (Not required normally; is implied in
 		   && ${PUSH_IMAGE} )
 	docker tag ${DEPEND_IMAGE} ${DEPEND_BASE}:latest
 
-.PHONY: go-check
-go-check: builder-image
-	@echo Checking go code
+# make test - runs the unit & VPP-integration tests
+# requiring sudo, this is useful in dev as this caches go deps.
+# Altought this requires go, sudo installed
+.PHONY: test
+test: builder-image bin
+	@rm -rf $(shell pwd)/.coverage/unit
+	@mkdir -p $(shell pwd)/.coverage/unit
+	$(MAKE) -C vpp-manager image
+	$(MAKE) -C vpp-manager mock-pod-image
+	sudo -E env "PATH=$$PATH" VPP_BINARY=/usr/bin/vpp \
+		VPP_IMAGE=calicovpp/vpp:$(TAG) \
+		go test ./... \
+		-cover \
+		-covermode=atomic \
+		-test.v \
+		-test.gocoverdir=$(shell pwd)/.coverage/unit \
+
+# make ci-test - runs the unit & VPP-integration tests
+# within a container, with mounted /var/run/docker.sock
+# this is portable, but lack go cache
+.PHONY: ci-test
+ci-test: builder-image bin
+	@rm -rf $(shell pwd)/.coverage/unit
+	@mkdir -p $(shell pwd)/.coverage/unit
+	$(MAKE) -C vpp-manager image
+	$(MAKE) -C vpp-manager mock-pod-image
+	docker run -t --rm \
+		--privileged \
+		--pid=host \
+		-v /proc:/proc \
+		-v $(CURDIR):/vpp-dataplane \
+		-v /tmp/cni-tests-vpp:/tmp/cni-tests-vpp \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		--env VPP_BINARY=/usr/bin/vpp \
+		--env VPP_IMAGE=calicovpp/vpp:$(TAG) \
+		-w /vpp-dataplane \
+		${DEPEND_IMAGE} \
+		go test ./... \
+			-cover \
+			-covermode=atomic \
+			-test.v \
+			-test.gocoverdir=/vpp-dataplane/.coverage/unit
+
+.PHONY: ci-%
+ci-%: builder-image
 	docker run -t --rm \
 		-v $(CURDIR):/vpp-dataplane \
 		${DEPEND_IMAGE} \
-		make -C /vpp-dataplane cov
-
-.PHONY: go-lint
-go-lint: lint
+		make -C /vpp-dataplane $*
 
 .PHONY: depend-image-hash
 depend-image-hash:
