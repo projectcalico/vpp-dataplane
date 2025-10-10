@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
 Date: Mon, 8 Mar 2021 19:00:04 +0100
-Subject: [PATCH 2/5] cnat: [WIP] no k8s maglev from pods
+Subject: [PATCH 2/3] cnat: [WIP] no k8s maglev from pods
 
 Type: improvement
 
@@ -12,7 +12,7 @@ Signed-off-by: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
  1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/src/plugins/cnat/cnat_node_feature.c b/src/plugins/cnat/cnat_node_feature.c
-index 76aa89398..fd3b90a1a 100644
+index 9b2c0c2fe..d862a84c0 100644
 --- a/src/plugins/cnat/cnat_node_feature.c
 +++ b/src/plugins/cnat/cnat_node_feature.c
 @@ -43,6 +43,7 @@ cnat_input_feature_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
@@ -45,5 +45,5 @@ index 76aa89398..fd3b90a1a 100644
  	  const dpo_id_t *dpo0;
  	  const load_balance_t *lb1;
 -- 
-2.39.2
+2.43.0
 

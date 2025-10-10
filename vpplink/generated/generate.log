@@ -1,12 +1,11 @@
-VPP Version                 : 25.06.0-26~g4b73463b3
+VPP Version                 : 25.06.0-25~gd73287ef3
 Binapi-generator version    : v0.11.0
 VPP Base commit             : 47505bc21 misc: Initial changes for stable/2506 branch
 ------------------ Cherry picked commits --------------------
-fix npol tests and add acl plugin in npol
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
-gerrit:43710/8 npol: Network Policies plugin
+gerrit:43710/12 npol: Network Policies plugin
 gerrit:43723/3 session svm: fix session migrate attach data corruption
 gerrit:43139/5 udp: regrab connected session after transport clone
 gerrit:43714/5 session: fix handling of closed during migration
