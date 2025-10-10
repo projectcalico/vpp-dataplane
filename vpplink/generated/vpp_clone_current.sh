@@ -150,7 +150,7 @@ git_cherry_pick refs/changes/55/44855/6 # 44855: tap: backport VHOST_SET_FORK_FR
 git_cherry_pick refs/changes/00/44900/1 # 44900: tap: backport fix promiscuous mode | https://gerrit.fd.io/r/c/vpp/+/44900
 git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
 git_cherry_pick refs/changes/66/44966/1 # 44966: ip-neighbor: fix missing solicited-node multicast MAC | https://gerrit.fd.io/r/c/vpp/+/44966
-git_cherry_pick refs/changes/10/43710/8   # npol: Network Policies plugin
+git_cherry_pick refs/changes/10/43710/12 # 43710: npol: Network Policies plugin | https://gerrit.fd.io/r/c/vpp/+/43710
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
@@ -158,6 +158,5 @@ git_apply_private 0001-pbl-Port-based-balancer.patch
 git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
 git_apply_private 0006-ip-neighbor-preserve-interface-ll-receive-dpo.patch
-git_apply_private 0004-fix-npol-tests-and-add-acl-plugin-in-npol.patch
 
 
