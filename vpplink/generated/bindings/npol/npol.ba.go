@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "npol"
 	APIVersion = "0.1.0"
-	VersionCrc = 0xc0e1da9b
+	VersionCrc = 0x79451d1
 )
 
 // NpolEntryType defines enum 'npol_entry_type'.
@@ -213,11 +213,10 @@ type NpolPortRange struct {
 
 // NpolRule defines type 'npol_rule'.
 type NpolRule struct {
-	Af         ip_types.AddressFamily `binapi:"address_family,name=af" json:"af,omitempty"`
-	Action     NpolRuleAction         `binapi:"npol_rule_action,name=action" json:"action,omitempty"`
-	Filters    [3]NpolRuleFilter      `binapi:"npol_rule_filter[3],name=filters" json:"filters,omitempty"`
-	NumEntries uint32                 `binapi:"u32,name=num_entries" json:"-"`
-	Matches    []NpolRuleEntry        `binapi:"npol_rule_entry[num_entries],name=matches" json:"matches,omitempty"`
+	Action     NpolRuleAction    `binapi:"npol_rule_action,name=action" json:"action,omitempty"`
+	Filters    [3]NpolRuleFilter `binapi:"npol_rule_filter[3],name=filters" json:"filters,omitempty"`
+	NumEntries uint32            `binapi:"u32,name=num_entries" json:"-"`
+	Matches    []NpolRuleEntry   `binapi:"npol_rule_entry[num_entries],name=matches" json:"matches,omitempty"`
 }
 
 // NpolRuleEntry defines type 'npol_rule_entry'.
@@ -367,7 +366,6 @@ type NpolConfigurePolicies struct {
 	SwIfIndex        uint32            `binapi:"u32,name=sw_if_index" json:"sw_if_index,omitempty"`
 	NumRxPolicies    uint32            `binapi:"u32,name=num_rx_policies" json:"num_rx_policies,omitempty"`
 	NumTxPolicies    uint32            `binapi:"u32,name=num_tx_policies" json:"num_tx_policies,omitempty"`
-	NumProfiles      uint32            `binapi:"u32,name=num_profiles" json:"num_profiles,omitempty"`
 	TotalIds         uint32            `binapi:"u32,name=total_ids" json:"-"`
 	InvertRxTx       uint8             `binapi:"u8,name=invert_rx_tx" json:"invert_rx_tx,omitempty"`
 	PolicyDefaultRx  NpolPolicyDefault `binapi:"npol_policy_default,name=policy_default_rx" json:"policy_default_rx,omitempty"`
@@ -379,7 +377,7 @@ type NpolConfigurePolicies struct {
 
 func (m *NpolConfigurePolicies) Reset()               { *m = NpolConfigurePolicies{} }
 func (*NpolConfigurePolicies) GetMessageName() string { return "npol_configure_policies" }
-func (*NpolConfigurePolicies) GetCrcString() string   { return "ba1ca109" }
+func (*NpolConfigurePolicies) GetCrcString() string   { return "66fe1335" }
 func (*NpolConfigurePolicies) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -391,7 +389,6 @@ func (m *NpolConfigurePolicies) Size() (size int) {
 	size += 4                    // m.SwIfIndex
 	size += 4                    // m.NumRxPolicies
 	size += 4                    // m.NumTxPolicies
-	size += 4                    // m.NumProfiles
 	size += 4                    // m.TotalIds
 	size += 1                    // m.InvertRxTx
 	size += 1                    // m.PolicyDefaultRx
@@ -409,7 +406,6 @@ func (m *NpolConfigurePolicies) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint32(m.SwIfIndex)
 	buf.EncodeUint32(m.NumRxPolicies)
 	buf.EncodeUint32(m.NumTxPolicies)
-	buf.EncodeUint32(m.NumProfiles)
 	buf.EncodeUint32(uint32(len(m.PolicyIds)))
 	buf.EncodeUint8(m.InvertRxTx)
 	buf.EncodeUint8(uint8(m.PolicyDefaultRx))
@@ -430,7 +426,6 @@ func (m *NpolConfigurePolicies) Unmarshal(b []byte) error {
 	m.SwIfIndex = buf.DecodeUint32()
 	m.NumRxPolicies = buf.DecodeUint32()
 	m.NumTxPolicies = buf.DecodeUint32()
-	m.NumProfiles = buf.DecodeUint32()
 	m.TotalIds = buf.DecodeUint32()
 	m.InvertRxTx = buf.DecodeUint8()
 	m.PolicyDefaultRx = NpolPolicyDefault(buf.DecodeUint8())
@@ -1038,7 +1033,7 @@ type NpolRuleCreate struct {
 
 func (m *NpolRuleCreate) Reset()               { *m = NpolRuleCreate{} }
 func (*NpolRuleCreate) GetMessageName() string { return "npol_rule_create" }
-func (*NpolRuleCreate) GetCrcString() string   { return "bd43870d" }
+func (*NpolRuleCreate) GetCrcString() string   { return "f113de45" }
 func (*NpolRuleCreate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1047,7 +1042,6 @@ func (m *NpolRuleCreate) Size() (size int) {
 	if m == nil {
 		return 0
 	}
-	size += 1 // m.Rule.Af
 	size += 1 // m.Rule.Action
 	for j2 := 0; j2 < 3; j2++ {
 		size += 4 // m.Rule.Filters[j2].Value
@@ -1073,7 +1067,6 @@ func (m *NpolRuleCreate) Marshal(b []byte) ([]byte, error) {
 		b = make([]byte, m.Size())
 	}
 	buf := codec.NewBuffer(b)
-	buf.EncodeUint8(uint8(m.Rule.Af))
 	buf.EncodeUint8(uint8(m.Rule.Action))
 	for j1 := 0; j1 < 3; j1++ {
 		buf.EncodeUint32(m.Rule.Filters[j1].Value)
@@ -1095,7 +1088,6 @@ func (m *NpolRuleCreate) Marshal(b []byte) ([]byte, error) {
 }
 func (m *NpolRuleCreate) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
-	m.Rule.Af = ip_types.AddressFamily(buf.DecodeUint8())
 	m.Rule.Action = NpolRuleAction(buf.DecodeUint8())
 	for j1 := 0; j1 < 3; j1++ {
 		m.Rule.Filters[j1].Value = buf.DecodeUint32()
@@ -1224,7 +1216,7 @@ type NpolRuleUpdate struct {
 
 func (m *NpolRuleUpdate) Reset()               { *m = NpolRuleUpdate{} }
 func (*NpolRuleUpdate) GetMessageName() string { return "npol_rule_update" }
-func (*NpolRuleUpdate) GetCrcString() string   { return "173d8639" }
+func (*NpolRuleUpdate) GetCrcString() string   { return "e38bffe2" }
 func (*NpolRuleUpdate) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -1234,7 +1226,6 @@ func (m *NpolRuleUpdate) Size() (size int) {
 		return 0
 	}
 	size += 4 // m.RuleID
-	size += 1 // m.Rule.Af
 	size += 1 // m.Rule.Action
 	for j2 := 0; j2 < 3; j2++ {
 		size += 4 // m.Rule.Filters[j2].Value
@@ -1261,7 +1252,6 @@ func (m *NpolRuleUpdate) Marshal(b []byte) ([]byte, error) {
 	}
 	buf := codec.NewBuffer(b)
 	buf.EncodeUint32(m.RuleID)
-	buf.EncodeUint8(uint8(m.Rule.Af))
 	buf.EncodeUint8(uint8(m.Rule.Action))
 	for j1 := 0; j1 < 3; j1++ {
 		buf.EncodeUint32(m.Rule.Filters[j1].Value)
@@ -1284,7 +1274,6 @@ func (m *NpolRuleUpdate) Marshal(b []byte) ([]byte, error) {
 func (m *NpolRuleUpdate) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.RuleID = buf.DecodeUint32()
-	m.Rule.Af = ip_types.AddressFamily(buf.DecodeUint8())
 	m.Rule.Action = NpolRuleAction(buf.DecodeUint8())
 	for j1 := 0; j1 < 3; j1++ {
 		m.Rule.Filters[j1].Value = buf.DecodeUint32()
@@ -1337,7 +1326,7 @@ func (m *NpolRuleUpdateReply) Unmarshal(b []byte) error {
 
 func init() { file_npol_binapi_init() }
 func file_npol_binapi_init() {
-	api.RegisterMessage((*NpolConfigurePolicies)(nil), "npol_configure_policies_ba1ca109")
+	api.RegisterMessage((*NpolConfigurePolicies)(nil), "npol_configure_policies_66fe1335")
 	api.RegisterMessage((*NpolConfigurePoliciesReply)(nil), "npol_configure_policies_reply_e8d4e804")
 	api.RegisterMessage((*NpolGetVersion)(nil), "npol_get_version_51077d14")
 	api.RegisterMessage((*NpolGetVersionReply)(nil), "npol_get_version_reply_9b32cf86")
@@ -1353,11 +1342,11 @@ func file_npol_binapi_init() {
 	api.RegisterMessage((*NpolPolicyDeleteReply)(nil), "npol_policy_delete_reply_e8d4e804")
 	api.RegisterMessage((*NpolPolicyUpdate)(nil), "npol_policy_update_21a5f7ef")
 	api.RegisterMessage((*NpolPolicyUpdateReply)(nil), "npol_policy_update_reply_e8d4e804")
-	api.RegisterMessage((*NpolRuleCreate)(nil), "npol_rule_create_bd43870d")
+	api.RegisterMessage((*NpolRuleCreate)(nil), "npol_rule_create_f113de45")
 	api.RegisterMessage((*NpolRuleCreateReply)(nil), "npol_rule_create_reply_b48f8052")
 	api.RegisterMessage((*NpolRuleDelete)(nil), "npol_rule_delete_d19bb6be")
 	api.RegisterMessage((*NpolRuleDeleteReply)(nil), "npol_rule_delete_reply_e8d4e804")
-	api.RegisterMessage((*NpolRuleUpdate)(nil), "npol_rule_update_173d8639")
+	api.RegisterMessage((*NpolRuleUpdate)(nil), "npol_rule_update_e38bffe2")
 	api.RegisterMessage((*NpolRuleUpdateReply)(nil), "npol_rule_update_reply_e8d4e804")
 }
 
