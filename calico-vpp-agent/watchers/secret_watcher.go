@@ -35,6 +35,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -50,38 +51,52 @@ type secretWatchData struct {
 	secret *v1.Secret
 }
 
-type SecretWatcherClient interface {
-	// this function is invoked upon add|update|delete of a secret
-	OnSecretUpdate(old, new *v1.Secret)
+// SecretChangeHandler is called when a secret changes
+type SecretChangeHandler interface {
+	OnSecretChanged(secretName string)
 }
 
-type secretWatcher struct {
-	client       SecretWatcherClient
+// SecretGetter is an interface for retrieving secrets by name and key
+type SecretGetter interface {
+	GetSecret(name, key string) (string, error)
+}
+
+type SecretWatcher struct {
+	log          *logrus.Entry
 	namespace    string
 	k8sClientset *kubernetes.Clientset
 	mutex        sync.Mutex
 	watches      map[string]*secretWatchData
+	handlers     []SecretChangeHandler
 }
 
-func NewSecretWatcher(c SecretWatcherClient, k8sclient *kubernetes.Clientset) (*secretWatcher, error) {
-	sw := &secretWatcher{
-		client:       c,
+func NewSecretWatcher(k8sclient *kubernetes.Clientset, log *logrus.Entry) *SecretWatcher {
+	sw := &SecretWatcher{
+		log:          log,
 		watches:      make(map[string]*secretWatchData),
 		k8sClientset: k8sclient,
+		handlers:     make([]SecretChangeHandler, 0),
 	}
 
 	// Find the namespace we're running in (for the unlikely case where we
 	// are being run in a namespace other than calico-vpp-dataplane)
 	sw.namespace = os.Getenv("NAMESPACE")
 	if sw.namespace == "" {
-		// Default to kube-system.
+		// Default to calico-vpp-dataplane.
 		sw.namespace = "calico-vpp-dataplane"
 	}
 
-	return sw, nil
+	return sw
 }
 
-func (sw *secretWatcher) ensureWatchingSecret(name string) {
+// RegisterHandler registers a handler to be called when secrets change
+func (sw *SecretWatcher) RegisterHandler(handler SecretChangeHandler) {
+	sw.mutex.Lock()
+	defer sw.mutex.Unlock()
+	sw.handlers = append(sw.handlers, handler)
+}
+
+func (sw *SecretWatcher) ensureWatchingSecret(name string) {
 	if _, ok := sw.watches[name]; ok {
 		log.Debugf("Already watching secret '%v' (namespace %v)", name, sw.namespace)
 	} else {
@@ -111,7 +126,7 @@ func (sw *secretWatcher) ensureWatchingSecret(name string) {
 	}
 }
 
-func (sw *secretWatcher) allowTimeForControllerSync(name string, controller cache.Controller, timeAllowed time.Duration) {
+func (sw *SecretWatcher) allowTimeForControllerSync(name string, controller cache.Controller, timeAllowed time.Duration) {
 	sw.mutex.Unlock()
 	defer sw.mutex.Lock()
 	log.Debug("Unlocked")
@@ -137,7 +152,7 @@ func (sw *secretWatcher) allowTimeForControllerSync(name string, controller cach
 	log.Debug("Relock...")
 }
 
-func (sw *secretWatcher) GetSecret(name, key string) (string, error) {
+func (sw *SecretWatcher) GetSecret(name, key string) (string, error) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
 	log.Debugf("Get secret for name '%v' key '%v'", name, key)
@@ -156,7 +171,13 @@ func (sw *secretWatcher) GetSecret(name, key string) (string, error) {
 	}
 }
 
-func (sw *secretWatcher) OnAdd(obj interface{}, isInInitialList bool) {
+func (sw *SecretWatcher) notifySecretChanged(secretName string) {
+	for _, handler := range sw.handlers {
+		handler.OnSecretChanged(secretName)
+	}
+}
+
+func (sw *SecretWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
 	log.Debug("Secret added")
@@ -165,13 +186,13 @@ func (sw *secretWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 		panic("secret add, old is not *v1.Secret")
 	}
 	sw.watches[secret.Name].secret = secret
-	sw.client.OnSecretUpdate(nil, secret)
+	sw.notifySecretChanged(secret.Name)
 }
 
-func (sw *secretWatcher) OnUpdate(oldObj, newObj interface{}) {
+func (sw *SecretWatcher) OnUpdate(oldObj, newObj interface{}) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
-	oldSecret, ok := oldObj.(*v1.Secret)
+	_, ok := oldObj.(*v1.Secret)
 	if !ok {
 		panic("secret update, old is not *v1.Secret")
 	}
@@ -181,10 +202,10 @@ func (sw *secretWatcher) OnUpdate(oldObj, newObj interface{}) {
 	}
 	log.Debug("Secret updated")
 	sw.watches[secret.Name].secret = secret
-	sw.client.OnSecretUpdate(oldSecret, secret)
+	sw.notifySecretChanged(secret.Name)
 }
 
-func (sw *secretWatcher) OnDelete(obj interface{}) {
+func (sw *SecretWatcher) OnDelete(obj interface{}) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
 	log.Debug("Secret deleted")
@@ -193,10 +214,10 @@ func (sw *secretWatcher) OnDelete(obj interface{}) {
 		panic("secret delete, old is not *v1.Secret")
 	}
 	sw.watches[secret.Name].secret = nil
-	sw.client.OnSecretUpdate(secret, nil)
+	sw.notifySecretChanged(secret.Name)
 }
 
-func (sw *secretWatcher) SweepStale(activeSecrets map[string]struct{}) {
+func (sw *SecretWatcher) SweepStale(activeSecrets map[string]struct{}) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
 

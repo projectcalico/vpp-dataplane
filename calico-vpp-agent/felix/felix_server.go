@@ -34,6 +34,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/policies"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/services"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -59,6 +60,7 @@ type Server struct {
 	cniHandler          *cni.CNIHandler
 	connectivityHandler *connectivity.ConnectivityHandler
 	serviceHandler      *services.ServiceHandler
+	peerHandler         *routing.PeerHandler
 }
 
 // NewFelixServer creates a felix server
@@ -77,6 +79,7 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 		cniHandler:          cni.NewCNIHandler(vpp, cache, log),
 		connectivityHandler: connectivity.NewConnectivityHandler(vpp, cache, clientv3, log),
 		serviceHandler:      services.NewServiceHandler(vpp, cache, log),
+		peerHandler:         routing.NewPeerHandler(cache, log),
 	}
 
 	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")
@@ -102,6 +105,10 @@ func (s *Server) GetFelixServerEventChan() chan any {
 
 func (s *Server) GetCache() *cache.Cache {
 	return s.cache
+}
+
+func (s *Server) GetPeerHandler() *routing.PeerHandler {
+	return s.peerHandler
 }
 
 func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
