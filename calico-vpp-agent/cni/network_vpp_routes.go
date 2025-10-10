@@ -20,7 +20,6 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
@@ -37,9 +36,9 @@ func (s *Server) RoutePodInterface(podSpec *model.LocalPodSpec, stack *vpplink.C
 			if !ok {
 				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				networkDefinition, ok := value.(*watchers.NetworkDefinition)
+				networkDefinition, ok := value.(*common.NetworkDefinition)
 				if !ok || networkDefinition == nil {
-					panic("networkDefinition not of type *watchers.NetworkDefinition")
+					panic("networkDefinition not of type *common.NetworkDefinition")
 				}
 				table = networkDefinition.VRF.Tables[idx]
 			}
@@ -88,9 +87,9 @@ func (s *Server) UnroutePodInterface(podSpec *model.LocalPodSpec, swIfIndex uint
 			if !ok {
 				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				networkDefinition, ok := value.(*watchers.NetworkDefinition)
+				networkDefinition, ok := value.(*common.NetworkDefinition)
 				if !ok || networkDefinition == nil {
-					panic("networkDefinition not of type *watchers.NetworkDefinition")
+					panic("networkDefinition not of type *common.NetworkDefinition")
 				}
 				table = networkDefinition.VRF.Tables[idx]
 			}
@@ -215,9 +214,9 @@ func (s *Server) CreatePodVRF(podSpec *model.LocalPodSpec, stack *vpplink.Cleanu
 			if !ok {
 				return errors.Errorf("network not found %s", podSpec.NetworkName)
 			}
-			networkDefinition, ok := value.(*watchers.NetworkDefinition)
+			networkDefinition, ok := value.(*common.NetworkDefinition)
 			if !ok || networkDefinition == nil {
-				panic("networkDefinition not of type *watchers.NetworkDefinition")
+				panic("networkDefinition not of type *common.NetworkDefinition")
 			}
 			vrfIndex = networkDefinition.PodVRF.Tables[idx]
 		}
@@ -375,9 +374,9 @@ func (s *Server) DeletePodVRF(podSpec *model.LocalPodSpec) {
 			if !ok {
 				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				networkDefinition, ok := value.(*watchers.NetworkDefinition)
+				networkDefinition, ok := value.(*common.NetworkDefinition)
 				if !ok || networkDefinition == nil {
-					panic("networkDefinition not of type *watchers.NetworkDefinition")
+					panic("networkDefinition not of type *common.NetworkDefinition")
 				}
 				vrfIndex = networkDefinition.PodVRF.Tables[idx]
 			}
