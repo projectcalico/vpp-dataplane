@@ -123,17 +123,6 @@ func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
 		return nil, fmt.Errorf("unknown rule action: %s", r.Action)
 	}
 
-	switch r.IpVersion {
-	case proto.IPVersion_ANY:
-		rule.AddressFamily = types.FamilyAll
-	case proto.IPVersion_IPV4:
-		rule.AddressFamily = types.FamilyV4
-	case proto.IPVersion_IPV6:
-		rule.AddressFamily = types.FamilyV6
-	default:
-		return nil, fmt.Errorf("unknown rule AF: %d", r.IpVersion)
-	}
-
 	if r.Protocol != nil {
 		if r.NotProtocol != nil {
 			return nil, fmt.Errorf("protocol and NotProtocol specified in Rule")
