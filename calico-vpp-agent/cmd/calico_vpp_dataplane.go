@@ -37,7 +37,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 
 	watchdog "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watch_dog"
@@ -138,10 +137,10 @@ func main() {
 	prefixWatcher := watchers.NewPrefixWatcher(client, log.WithFields(logrus.Fields{"subcomponent": "prefix-watcher"}))
 	bgpFilterWatcher := watchers.NewBGPFilterWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "BGPFilter-watcher"}))
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
-	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
 	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
 	felixServer := felix.NewFelixServer(vpp, clientv3, log.WithFields(logrus.Fields{"component": "policy"}))
+	felixServer.SetBGPServer(bgpServer)
 	felixWatcher := watchers.NewFelixWatcher(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "felix watcher"}))
 	cniServer := watchers.NewCNIServer(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "cni"}))
 	serviceServer := watchers.NewServiceServer(felixServer.GetFelixServerEventChan(), k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
@@ -158,15 +157,14 @@ func main() {
 		log.Fatalf("cannot get default BGP config %s", err)
 	}
 
-	routingServer.SetBGPConf(bgpConf)
 	felixServer.SetBGPConf(bgpConf)
 
+	bgpWatcher := watchers.NewBGPWatcher(felixServer.GetCache(), log.WithFields(logrus.Fields{"component": "bgp-watcher"}))
+	bgpWatcher.SetBGPServer(bgpServer)
+	bgpWatcher.SetBGPHandler(felixServer.GetBGPHandler())
+
 	secretWatcher := watchers.NewSecretWatcher(k8sclient, log.WithFields(logrus.Fields{"component": "secret-watcher"}))
-	// Set secret watcher in peer handler
 	felixServer.GetPeerHandler().SetSecretWatcher(secretWatcher)
-	// Set peer handler in routing server
-	routingServer.SetPeerHandler(felixServer.GetPeerHandler())
-	// Create peer watcher
 	peerWatcher := watchers.NewPeerWatcher(clientv3, felixServer.GetPeerHandler(), secretWatcher, log.WithFields(logrus.Fields{"component": "peer-watcher"}))
 
 	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
@@ -184,7 +182,8 @@ func main() {
 			panic("ourBGPSpec is not *common.LocalNodeSpec")
 		}
 		prefixWatcher.SetOurBGPSpec(bgpSpec)
-		routingServer.SetOurBGPSpec(bgpSpec)
+		bgpWatcher.SetOurBGPSpec(bgpSpec)
+		felixServer.GetRoutingHandler().SetOurBGPSpec(bgpSpec)
 		localSIDWatcher.SetOurBGPSpec(bgpSpec)
 		netWatcher.SetOurBGPSpec(bgpSpec)
 	}
@@ -200,7 +199,8 @@ func main() {
 	Go(prefixWatcher.WatchPrefix)
 	Go(peerWatcher.WatchBGPPeers)
 	Go(bgpFilterWatcher.WatchBGPFilters)
-	Go(routingServer.ServeRouting)
+	Go(bgpWatcher.WatchBGPPath)
+	Go(felixServer.GetRoutingHandler().ServeRoutingHandler)
 	Go(serviceServer.ServeService)
 	Go(cniServer.ServeCNI)
 	Go(prometheusServer.ServePrometheus)

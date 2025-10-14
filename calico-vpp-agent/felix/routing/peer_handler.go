@@ -28,9 +28,13 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 )
+
+// SecretGetter is an interface for retrieving secrets by name and key
+type SecretGetter interface {
+	GetSecret(name, key string) (string, error)
+}
 
 // BGPPeerState represents the state of a BGP peer
 type BGPPeerState struct {
@@ -47,7 +51,7 @@ type PeerHandler struct {
 
 	nodeStatesByName map[string]common.LocalNodeSpec
 
-	secretWatcher watchers.SecretGetter
+	secretWatcher SecretGetter
 	state         map[string]*BGPPeerState // peer IP -> state
 }
 
@@ -64,7 +68,7 @@ func NewPeerHandler(cache *cache.Cache, log *logrus.Entry) *PeerHandler {
 }
 
 // SetSecretWatcher sets the secret watcher
-func (h *PeerHandler) SetSecretWatcher(secretWatcher watchers.SecretGetter) {
+func (h *PeerHandler) SetSecretWatcher(secretWatcher SecretGetter) {
 	h.secretWatcher = secretWatcher
 }
 
@@ -221,7 +225,7 @@ func (h *PeerHandler) addBGPPeer(ip string, asn uint32, peerSpec *calicov3.BGPPe
 	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.BGPPeerAdded,
-		New:  &watchers.LocalBGPPeer{Peer: peer, BGPFilterNames: peerSpec.Filters},
+		New:  &LocalBGPPeer{Peer: peer, BGPFilterNames: peerSpec.Filters},
 	})
 	return nil
 }
@@ -233,8 +237,8 @@ func (h *PeerHandler) updateBGPPeer(ip string, asn uint32, peerSpec, oldPeerSpec
 	}
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.BGPPeerUpdated,
-		New:  &watchers.LocalBGPPeer{Peer: peer, BGPFilterNames: peerSpec.Filters},
-		Old:  &watchers.LocalBGPPeer{BGPFilterNames: oldPeerSpec.Filters},
+		New:  &LocalBGPPeer{Peer: peer, BGPFilterNames: peerSpec.Filters},
+		Old:  &LocalBGPPeer{BGPFilterNames: oldPeerSpec.Filters},
 	})
 	return nil
 }
@@ -242,7 +246,7 @@ func (h *PeerHandler) updateBGPPeer(ip string, asn uint32, peerSpec, oldPeerSpec
 func (h *PeerHandler) deleteBGPPeer(ip string) error {
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.BGPPeerDeleted,
-		New:  ip,
+		Old:  ip,
 	})
 	return nil
 }

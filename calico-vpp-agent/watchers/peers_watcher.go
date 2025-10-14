@@ -16,11 +16,8 @@
 package watchers
 
 import (
-	"reflect"
-	"sort"
 	"time"
 
-	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -32,24 +29,6 @@ import (
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/calico/libcalico-go/lib/watch"
 )
-
-type LocalBGPPeer struct {
-	Peer           *bgpapi.Peer
-	BGPFilterNames []string
-	BGPPolicies    map[string]*ImpExpPol
-	NeighborSet    *bgpapi.DefinedSet
-}
-
-type BGPPrefixesPolicyAndAssignment struct {
-	PolicyAssignment *bgpapi.PolicyAssignment
-	Policy           *bgpapi.Policy
-	Prefixes         []*bgpapi.DefinedSet
-}
-
-type ImpExpPol struct {
-	Imp *BGPPrefixesPolicyAndAssignment
-	Exp *BGPPrefixesPolicyAndAssignment
-}
 
 // PeerWatcherHandler defines the interface for handling BGP peer updates
 type PeerWatcherHandler interface {
@@ -128,19 +107,6 @@ func (w *PeerWatcher) WatchBGPPeers(t *tomb.Tomb) error {
 	}
 	w.log.Warn("BGPPeer watcher stopped")
 	return nil
-}
-
-func CompareStringSlices(slice1, slice2 []string) bool {
-	if len(slice1) != len(slice2) {
-		return false
-	}
-
-	// Sort the slices in ascending order
-	sort.Strings(slice1)
-	sort.Strings(slice2)
-
-	// Compare the sorted slices
-	return reflect.DeepEqual(slice1, slice2)
 }
 
 func (w *PeerWatcher) resyncAndCreateWatcher() error {
