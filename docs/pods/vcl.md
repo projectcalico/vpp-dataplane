@@ -116,53 +116,6 @@ and
 LD_PRELOAD=/libraries/libvcl_ldpreload.so iperf3 -c x.x.x.x
 ````
 
-## Troubleshooting VCL
-
-To check abstract socket creation in linux, you can run one of the following
-commands on the pod running vcl:
-
-* Using `lsof`:
-
-````bash
-lsof -U | grep session
-vpp_main 1465 root 54u  unix 0xff00 0t0 185745 @vpp/session type=SEQPACKET
-````
-
-* Using `ss`:
-
-````bash
-ss | grep session
-u_seq ESTAB 0      0       @vpp/session 18574585            * 18842705
-````
-
-* Using `netstat`:
-
-````bash
-netstat | grep session
-unix  3      [ ]         SEQPACKET  CONNECTED     18574585 @vpp/session
-````
-
-> **Warning**: The output might be huge on live systems with a lot of
-connections! it's preferable to grep specific output.
-
-Sessions created in vpp are listeners or established connections in
-various protocols. To check sessions in vpp cli:
-
-````bash
-    _______    _        _   _____  ___ 
- __/ __/ _ \  (_)__    | | / / _ \/ _ \
- _/ _// // / / / _ \   | |/ / ___/ ___/
- /_/ /____(_)_/\___/   |___/_/  /_/    
-
-vpp# sh session verbose
-Connection                              State          Rx-f      Tx-f      
-[0:0][CT:T] 0.0.0.0:5201->0.0.0.0:0     LISTEN         0         0         
-[0:1][T] 11.0.0.139:5201->0.0.0.0:0     LISTEN         0         0         
-[0:2][CT:T] 0.0.0.0:5201->0.0.0.0:0     LISTEN         0         0         
-[0:3][T] 11.0.0.140:5201->0.0.0.0:0     LISTEN         0         0         
-Thread 0: active sessions 4
-````
-
 ## Known issues
 
 * VCL currently only works for the primary interface when used in combination

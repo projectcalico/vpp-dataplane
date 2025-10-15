@@ -1,4 +1,4 @@
-# Tuntap interfaces in VPP
+# tuntap pod interface
 
 By default pods are configured with TUN interfaces.
 
