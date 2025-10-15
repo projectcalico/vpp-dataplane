@@ -13,7 +13,7 @@ troubleshooting commands and tools.
 - [Configuration](config), [General troubleshooting](troubleshooting.md)
 - [BGP with CalicoVPP](bgp), [troubleshooting BGP](bgp/troubleshooting.md)
 - [network model](network), [troubleshooting networking](network/troubleshooting.md)
-- [Pods connectivity](pods)
+- [Pods connectivity](pods), [troubleshooting pods](pods/troubleshooting.md)
 - [Services](services), [troubleshooting services](services/troubleshooting.md)
 - [Policies](policies), [troubleshooting policies](policies/troubleshooting.md)
 - [Metrics](metrics)

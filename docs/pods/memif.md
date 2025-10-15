@@ -83,6 +83,10 @@ metadata:
     "cni.projectcalico.org/vppExtraMemifPorts":  "tcp:4444-20000,udp:4444-20000"
 ````
 
+This meaning that ports `4444` to `20000` in both UDP and TCP will
+go to the memif interface while the rest of the traffic will flow
+normally to the tuntap.
+
 This is called PBL (Port based balancer).
 
 A pod supports having both memif and [vcl](vcl.md) interfaces at the same time
@@ -100,57 +104,6 @@ VPP api has a particular syntax for abstract sockets: using the keyword
 `abstract:` then `netns_name:`.
 For example: `abstract:memif1,netns_name=/var/run/netns/cni-75e26661-4119-90a4-b9d2-0b00489f76f3`.
 This syntax appears in vppctl.
-
-## Troubleshooting memif interface creation
-
-To check abstract socket creation in linux, you can run the following command
-on the pod using memif:
-
-````bash
-lsof -U | grep memif
-vpp_main 420448 root   41u  unix 0xffdd 0t0 30888503 @memif1 type=SEQPACKET
-````
-
-To check it in vpp cli:
-
-````bash
-   _______    _        _   _____  ___ 
- __/ __/ _ \  (_)__    | | / / _ \/ _ \
- _/ _// // / / / _ \   | |/ / ___/ ___/
- /_/ /____(_)_/\___/   |___/_/  /_/    
-
-vpp# sh memif
-sockets
-  id  listener  filename
-  0   no        /run/vpp/memif.sock
-  101 yes (1)   abstract:memif1,netns_name=/var/run/netns/cni-75e61-4119-0b004
-
-interface memif1013904223/0
-  socket-id 1013904223 id 0 mode ethernet
-  flags admin-up
-  listener-fd 41 conn-fd 0
-  num-s2m-rings 0 num-m2s-rings 0 buffer-size 0 num-regions 0
-````
-
-To check memif interface creation:
-
-````bash
-vpp# sh int addr
-...
-...
-memif1013904223/0 (up): 
-  unnumbered, use loop4
-  L3 11.0.0.195/32 ip4 table-id 1649346937 fib-idx 12
-  L3 fd20::58fd:b191:5c13:9cc2/128 ip6 table-id -1526094716 fib-idx 16
-...
-````
-
-In multinet case, this interface has a unique address and it attaches to a
-dummy interface.
-However, in PBL, memif interface is attached to the same interface as tun/tap.
-
-To check dummy interface created in multinet/memif, connect to the memif pod
-then type `ip address` to find memif dummy interfaces.
 
 ## Testing memif feature
 

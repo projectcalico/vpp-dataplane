@@ -2,18 +2,16 @@
 
 CalicoVPP exposes three types of interaces
 
-- [tuntap](tuntap.md)
-- [memif](memif.md)
-- [vcl](vcl.md)
-- [tuntap](tuntap.md)
+- [tuntap](tuntap.md) - regular linux netdevs
+- [memif](memif.md) - performance oriented packet interaces
+- [vcl](vcl.md) - performance oriented host stack (TCP, UDP, TLS in VPP)
 
-## Pod interface configuration
+## Configuration
 
-As part of user config, you can set specific configuration for pod interfaces
-using pod annotations.
+The pod interface sizing can be confiugred with annotations in the pod
+manifest.
 
 ````yaml
-
 apiVersion: v1
 kind: Pod
 metadata:
@@ -21,9 +19,20 @@ metadata:
   annotations:
     cni.projectcalico.org/vppInterfacesSpec: |-
     {
-      "eth0": {"rx": 1, "tx": 2, "isl3": true }
+      "eth0": {
+          "rx": 1,
+          "tx": 1,
+          "rxqsz": 1024,
+          "txqsz": 1024,
+          "rxMode": "polling",
+          "isl3": true
+      }
     }
-
 ````
+
+- `tx` and `rx` set the number of queues the interface receives in VPP
+- `rxqsz` and `txqsz` set the number of buffers the interface receives in VPP
+- `rxMode` sets the way VPP reads from this interface (`polling` `adaptive` or `interrupt`)
+- `isL3` sets the interface mode L3 for `tun` (default) or L2 for `tap`
 
 Here is the full [specification reference](https://github.com/projectcalico/vpp-dataplane/blob/master/config/config.go)
