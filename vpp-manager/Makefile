@@ -8,6 +8,7 @@ INIT_EKS_IMAGE_DIR=images/init-eks
 DEV_IMAGE_DIR=images/dev
 IMAGE_DIR=images/ubuntu
 VCLSIDECAR_IMAGE_DIR=images/vclsidecar
+CALICOVPPCTL_IMAGE_DIR=images/calicovppctl
 
 VPPDEV_FILE=../test/scripts/vppdev.sh
 GENERATE_LOG_FILE=../vpplink/generated/generate.log
@@ -20,6 +21,7 @@ VERSION_FILE=$(VPP_DIR)/calicovppversion
 
 # BASE allows to override the VPP base commit in vpp_clone_current.sh
 BASE ?=
+MOCK_POD_IMAGE ?= calicovpp/vpp-test-pod-mock:latest
 
 VPP_REL_DEB_LIST = \
 	$(VPP_DIR)/build-root/debs/release/vpp_*.deb \
@@ -68,7 +70,12 @@ all: image
 build:
 	mkdir -p $(IMAGE_DIR)/bin
 	cp $(VPPDEV_FILE) $(IMAGE_DIR)/bin/vppdev.sh
-	${DOCKER_RUN} go build -o $(IMAGE_DIR)/bin/vpp-manager
+	${DOCKER_RUN} go build $(COVER_OPTS) -o $(IMAGE_DIR)/bin/vpp-manager
+
+.PHONY: mock-pod-image
+mock-pod-image:
+	docker build --network=host \
+		-t ${MOCK_POD_IMAGE} images/mock-pod
 
 .PHONY: eks-image
 eks-image:
@@ -98,7 +105,6 @@ vpp-image: build ${VPP_TARBALL}
 	tar -xvf ${VPP_TARBALL} -C $(IMAGE_DIR)
 	docker build --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
-		--build-arg WITH_GDB=${WITH_GDB} \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 	docker build --pull --network=host \
 		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
@@ -110,8 +116,31 @@ vpp-image: build ${VPP_TARBALL}
 	fi
 	rm -rf $(IMAGE_DIR)/artifacts
 
+.PHONY: calicovppctl-image
+calicovppctl-image:
+	make -C .. calicovppctl
+	rm -rf $(CALICOVPPCTL_IMAGE_DIR)/artifacts
+	mkdir -p $(CALICOVPPCTL_IMAGE_DIR)/artifacts
+	cp ../bin/calicovppctl $(CALICOVPPCTL_IMAGE_DIR)/artifacts/
+	docker build --network=host \
+		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+		-t calicovpp/ctl:$(TAG) \
+		-f $(CALICOVPPCTL_IMAGE_DIR)/Dockerfile $(CALICOVPPCTL_IMAGE_DIR)
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker tag calicovpp/ctl:$(TAG) calicovpp/ctl:latest; \
+		docker tag calicovpp/ctl:$(TAG) calicovpp/ctl:prerelease; \
+	fi
+	rm -rf $(CALICOVPPCTL_IMAGE_DIR)/artifacts
+
 .PHONY: image
-image: vpp-image eks-image vclsidecar-image
+image: vpp-image eks-image vclsidecar-image calicovppctl-image
+
+.PHONY: image-cov
+image-cov: build-cov ${VPP_TARBALL}
+	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
+	docker build ${SQUASH} --pull --network=host \
+		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 
 .PHONY: push
 push: ${PUSH_DEP}
@@ -121,6 +150,7 @@ push: ${PUSH_DEP}
 		docker tag calicovpp/init-eks:$(TAG) $${registry}calicovpp/init-eks:$(TAG); \
 		docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:$(TAG); \
 		docker tag calicovpp/vclsidecar:dbg-$(TAG) $${registry}calicovpp/vclsidecar:dbg-$(TAG); \
+		docker tag calicovpp/ctl:$(TAG) $${registry}calicovpp/ctl:$(TAG); \
 		\
 		if [ "${ALSO_LATEST}" = "y" ]; then \
 			docker tag calicovpp/vpp:$(TAG) $${registry}calicovpp/vpp:latest; \
@@ -131,10 +161,14 @@ push: ${PUSH_DEP}
 			\
 			docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:latest; \
 			docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:prerelease; \
+			\
+			docker tag calicovpp/ctl:$(TAG) $${registry}calicovpp/ctl:latest; \
+			docker tag calicovpp/ctl:$(TAG) $${registry}calicovpp/ctl:prerelease; \
 		fi; \
 		docker push --all-tags $${registry}calicovpp/vpp; \
 		docker push --all-tags $${registry}calicovpp/init-eks; \
 		docker push --all-tags $${registry}calicovpp/vclsidecar; \
+		docker push --all-tags $${registry}calicovpp/ctl; \
 	done
 
 .PHONY: clean
@@ -211,7 +245,6 @@ dev: build
 	docker build --network=host \
 	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
 	  --build-arg https_proxy=${DOCKER_BUILD_PROXY} \
-	  --build-arg WITH_GDB=${WITH_GDB} \
 	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \

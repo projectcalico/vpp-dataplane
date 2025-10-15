@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"sync"
@@ -72,6 +73,7 @@ func handleSignals() {
 	signals = make(chan os.Signal, 10)
 	signal.Notify(signals)
 	signal.Reset(syscall.SIGURG)
+	signal.Reset(syscall.SIGUSR2)
 	for {
 		s := <-signals
 		if vppProcess == nil && s == syscall.SIGCHLD {
@@ -182,6 +184,10 @@ func main() {
 
 	runningCond = sync.NewCond(&sync.Mutex{})
 	go handleSignals()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	config.HandleUsr2Signal(ctx, log.WithFields(logrus.Fields{"component": "sighdlr"}))
 
 	startup.PrintVppManagerConfig(params, confs)
 
