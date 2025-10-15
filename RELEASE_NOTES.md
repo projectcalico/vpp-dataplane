@@ -13,6 +13,7 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any
 
 | CalicoVPP     | VPP                                                      |
 | ------------- | -------------------------------------------------------- |
+| v3.30.0       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
 | v3.29.3       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
 | v3.29.2       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
 | v3.29.1       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
@@ -31,6 +32,56 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any
 | ------------- | -------------------------------------------------------- |
 
 ## Releases
+
+### Calico-VPP v3.30.0
+
+> 15th October 2025
+
+- Bugfixes
+  - Fix the weird DHCP/DNS issue
+  - Fix vclsidecar build missing .25.06 sos (#786)
+  - Cherrypick hoststack fix for connectionless UDP
+  - Fix CI vpp tarball caching issue (#788)
+  - Fix log flooding issue with Prometheus (#768)
+  - Fix prom stats overlap & RC
+  - Fix makefile VPP_HASH cache invalidation
+  - Fix endpoint watcher delete handler cast
+  - Fix linter NewInformer deprecation & ipampool copy
+
+- Features
+  - build to debug docker images
+  - Add make-kind directive
+  - Cherry pick hoststack patches fixing session reuse (#803)
+  - yaml: fix eks breakage in AL2023 (#794)
+  - Add prefix to prometheus stats
+  - Update prefix_watcher from clientv1 to clientv3
+  - added TCP and session stats
+  - Refactor prometheus exporter
+  - Add VCL ldp cherrypick
+  - convert vppdev.sh to Go binary
+  - Merge pull request #757 from projectcalico/remove-policiesenabled-flag
+  - Make vpp_clone_current ignore merged change-ids
+  - cherry-pick certain patches only if cloning VPP 25.06
+  - vpp: cherry pick the gso/cksum offload refactoring patches
+  - Upgrade calico versions to v3.30.1
+  - vpp: bump vpp version to 25.06
+  - Use single pbl index per pod
+  - Add vcl sidecar image
+  - rename policy server into felix server
+  - Add IP neighbor 30s aeging
+  - behavior for hep not matching interface name
+  - support v6 hostport pods
+  - allow running 'make vpp' from an arbitrary directory
+  - add policy description document
+  - add makefile target to build VPP from master
+  - add missing packages to dev image
+  - vpp: bump vpp to 25.06 RC0 (25.06-rc0~247-gaf9fa5d40)
+  - Disable memif if queue spread by default
+  - Add auto corepining path
+  - Add prometheusEnabled feature gate.
+  - Make prometheus poll freq and port configurable
+  - test: upgrade trex image to v3.06
+  - yaml: increase buffers-per-numa for openshift scenario
 
 ### Calico-VPP v3.29.3
 
