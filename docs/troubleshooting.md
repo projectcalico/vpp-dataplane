@@ -63,6 +63,28 @@ This reset the error counters
 calicovppctl vppctl -node worker-1 clear errors
 ````
 
+## Show session and tcp stats
+
+The following CLI show the global statistics reported by TCP
+
+````console
+$ calicovppctl vppctl -node worker-1 show tcp stats
+Thread 0:
+Thread 1:
+ 30 timer expirations
+ 3 timeout close-wait
+ 1 reset on close due to unread data
+````
+
+The following CLI show the global statistics reported by the session layer
+
+````console
+$ calicovppctl vppctl -node worker-1 show session  stats
+Thread 0:
+Thread 1:
+ 36 ip port pair already listened on
+````
+
 ## Show startup logs
 
 The following CLI will output interesting information if VPP
