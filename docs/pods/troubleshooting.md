@@ -393,6 +393,29 @@ Thread 1: active sessions 8
 that is the queues between VPP and the application. Stale data in
 queues will indicate an issue in VPP's Hoststack
 
+You can drill even more into a specific session by providing the thread
+and the index to `show session`. Thread and index being the two parts
+of the `[1:92]` prefix of lines in the output above
+
+````bash
+$ calicovppctl vppctl -node worker-1 show session thread 1 index 92
+[4:2][U] 192.168.189.40:443->192.168.189.51:57322           OPENED
+ index 1 cfg:  flags: CONNECTED, OWNS_PORT
+ fib_index 10 next_node 0 opaque 0 sw_if_index 9 mss 1472 duration 49395.755
+ stats: in dgrams 6073898 bytes 7369777360 err 443928
+        out dgrams 19722730 bytes 22860676810
+ transport: flags: descheduled
+ Rx fifo: cursize 0 nitems 1048576 has_event 0 min_alloc 65536
+          head 3360283270 tail 3360283270 segment manager 7
+          vpp session 2 thread 4 app session 9 thread 0
+          ooo pool 0 active elts newest 4294967295
+ Tx fifo: cursize 0 nitems 1048576 has_event 0 min_alloc 65536
+          head 2312808640 tail 2312808640 segment manager 7
+          vpp session 2 thread 4 app session 9 thread 0
+          ooo pool 0 active elts newest 0
+ session: state: ready opaque: 0x9 flags: migrating
+````
+
 ## Common commands
 
 For all interface you can verify queue placement on workers
