@@ -8,7 +8,6 @@ DEPEND_BASE = calicovpp/ci-builder
 
 VPP_BUCKET = calico-vpp-ci-artefacts
 
-WITH_GDB ?= yes
 export GOOS ?= linux
 
 # Docker option
@@ -21,6 +20,12 @@ REGISTRIES := docker.io/
 ifdef CODEBUILD_BUILD_NUMBER
 	# Define variable when building for CI
 	CI_BUILD = 1
+endif
+
+ifdef COVER
+	COVER_OPTS = -cover -covermode=atomic
+else
+	COVER_OPTS :=
 endif
 
 ifdef CI_BUILD
@@ -51,3 +56,4 @@ ifeq (${CODEBUILD_WEBHOOK_TRIGGER},branch/master)
 endif
 
 CLUSTER_NAME ?= kind-$(shell whoami)-$(shell git describe --always --abbrev=4)
+KIND ?= go run sigs.k8s.io/kind@v0.29.0

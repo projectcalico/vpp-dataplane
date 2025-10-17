@@ -1,7 +1,7 @@
 #!/bin/bash
 set -o errexit
 
-if [[ $(kind get clusters | grep -E '^'${CLUSTER_NAME}'$') == "${CLUSTER_NAME}" ]]; then
+if [[ $(${KIND} get clusters | grep -E '^'${CLUSTER_NAME}'$') == "${CLUSTER_NAME}" ]]; then
 	echo "Cluster kind already exists"
 	exit 0
 fi
@@ -88,7 +88,7 @@ fi
 done
 # use cpuSet in the case of a patched kind version like in scale tests (test/scale/README.md)
 
-echo -e "$config" | kind create cluster --config=-
+echo -e "$config" | ${KIND} create cluster --config=-
 
 # connect the registry to the cluster network if not already connected
 if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' "${reg_name}")" = 'null' ]; then
