@@ -40,6 +40,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/npol"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
@@ -82,6 +83,7 @@ type Server struct {
 	/* workloadToHost may drop traffic that goes from the pods to the host */
 	workloadsToHostPolicy  *Policy
 	defaultTap0IngressConf []uint32
+	defaultTap0EgressConf  []uint32
 	/* always allow traffic coming from host to the pods (for healthchecks and so on) */
 	// AllowFromHostPolicy persists the policy allowing host --> pod communications.
 	// See CreateAllowFromHostPolicy definition
@@ -90,9 +92,10 @@ type Server struct {
 	allPodsIpset *IPSet
 	/* allow traffic between uplink/tunnels and tap interfaces */
 	allowToHostPolicy *Policy
-	ip4               *net.IP
-	ip6               *net.IP
-	interfacesMap     map[string]interfaceDetails
+	/* deny all policy for heps with no policies defined */
+	ip4           *net.IP
+	ip6           *net.IP
+	interfacesMap map[string]interfaceDetails
 
 	felixServerEventChan chan common.CalicoVppEvent
 	networkDefinitions   map[string]*watchers.NetworkDefinition
@@ -953,6 +956,22 @@ func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending
 			// we are not supposed to fallback to expectedIPs if interfaceName doesn't match
 			// this is the current behavior in calico linux
 			s.log.Errorf("cannot find host endpoint: interface named %s does not exist", hep.InterfaceName)
+			// *************************** this is temporary, for dev
+			if hep.expectedIPs != nil {
+				for _, existingIf := range s.interfacesMap {
+				interfaceFound1:
+					for _, address := range existingIf.addresses {
+						for _, expectedIP := range hep.expectedIPs {
+							if address == expectedIP {
+								hep.UplinkSwIfIndexes = append(hep.UplinkSwIfIndexes, existingIf.uplinkIndex)
+								hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, existingIf.tapIndex)
+								break interfaceFound1
+							}
+						}
+					}
+				}
+			}
+			// ***************************
 		}
 	} else if hep.InterfaceName == "" && hep.expectedIPs != nil {
 		for _, existingIf := range s.interfacesMap {
@@ -1696,24 +1715,10 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 	}
 	s.workloadsToHostPolicy = workloadsToHostPolicy
 
-	allowAllPol := &Policy{
-		Policy: &types.Policy{},
-		VppID:  types.InvalidID,
-		InboundRules: []*Rule{
-			{
-				VppID: types.InvalidID,
-				Rule: &types.Rule{
-					Action: types.ActionAllow,
-				},
-			},
-		},
-	}
-	err = allowAllPol.Create(s.vpp, &ps)
-	if err != nil {
-		return err
-	}
 	conf := types.NewInterfaceConfig()
-	conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, s.workloadsToHostPolicy.VppID, allowAllPol.VppID)
+	conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, s.workloadsToHostPolicy.VppID)
+	conf.PolicyDefaultTx = npol.NPOL_DEFAULT_ALLOW
+	conf.PolicyDefaultRx = npol.NPOL_DEFAULT_ALLOW
 	swifindexes, err := s.vpp.SearchInterfacesWithTagPrefix("host-") // tap0 interfaces
 	if err != nil {
 		s.log.Error(err)
@@ -1725,6 +1730,7 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 		}
 	}
 	s.defaultTap0IngressConf = conf.IngressPolicyIDs
+	s.defaultTap0EgressConf = conf.EgressPolicyIDs
 	return nil
 }
 
@@ -1753,7 +1759,7 @@ func (s *Server) createFailSafePolicies() (err error) {
 					DstPortRange: []types.PortRange{{First: protoPort.Port, Last: protoPort.Port}},
 					Filters: []types.RuleFilter{{
 						ShouldMatch: true,
-						Type:        types.CapoFilterProto,
+						Type:        types.NpolFilterProto,
 						Value:       int(protocol),
 					}},
 				},
@@ -1787,7 +1793,7 @@ func (s *Server) createFailSafePolicies() (err error) {
 					DstPortRange: []types.PortRange{{First: protoPort.Port, Last: protoPort.Port}},
 					Filters: []types.RuleFilter{{
 						ShouldMatch: true,
-						Type:        types.CapoFilterProto,
+						Type:        types.NpolFilterProto,
 						Value:       int(protocol),
 					}},
 				},
