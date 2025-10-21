@@ -73,13 +73,11 @@ build:
 
 .PHONY: mock-pod-image
 mock-pod-image:
-	docker build --network=host \
-		-t ${MOCK_POD_IMAGE} images/mock-pod
+	docker build $(DOCKER_BUILD_ARGS) -t ${MOCK_POD_IMAGE} images/mock-pod
 
 .PHONY: eks-image
 eks-image:
-	docker build --pull --network=host \
-		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+	docker build --pull $(DOCKER_BUILD_ARGS) \
 		-t calicovpp/init-eks:$(TAG) $(INIT_EKS_IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/init-eks:$(TAG) calicovpp/init-eks:latest; \
@@ -90,8 +88,10 @@ eks-image:
 vclsidecar-image: ${VPP_TARBALL}
 	rm -rf $(VCLSIDECAR_IMAGE_DIR)/artifacts
 	tar -xvf ${VPP_TARBALL} -C $(VCLSIDECAR_IMAGE_DIR)
-	docker build -t calicovpp/vclsidecar:$(TAG) ${VCLSIDECAR_IMAGE_DIR}
-	docker build -t calicovpp/vclsidecar:dbg-$(TAG) -f ${VCLSIDECAR_IMAGE_DIR}/Dockerfile.debug ${VCLSIDECAR_IMAGE_DIR}
+	docker build $(DOCKER_BUILD_ARGS) -t calicovpp/vclsidecar:$(TAG) \
+		${VCLSIDECAR_IMAGE_DIR}
+	docker build $(DOCKER_BUILD_ARGS) -t calicovpp/vclsidecar:dbg-$(TAG) \
+		-f ${VCLSIDECAR_IMAGE_DIR}/Dockerfile.debug ${VCLSIDECAR_IMAGE_DIR}
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/vclsidecar:$(TAG) calicovpp/vclsidecar:latest; \
 		docker tag calicovpp/vclsidecar:$(TAG) calicovpp/vclsidecar:prerelease; \
@@ -102,11 +102,9 @@ vclsidecar-image: ${VPP_TARBALL}
 vpp-image: build ${VPP_TARBALL}
 	rm -rf $(IMAGE_DIR)/artifacts
 	tar -xvf ${VPP_TARBALL} -C $(IMAGE_DIR)
-	docker build --pull --network=host \
-		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+	docker build --pull $(DOCKER_BUILD_ARGS) \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
-	docker build --pull --network=host \
-		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+	docker build --pull $(DOCKER_BUILD_ARGS) \
 		--build-arg WITH_GDB=${WITH_GDB} \
 		-t calicovpp/vpp:dbg-$(TAG) -f $(IMAGE_DIR)/Dockerfile.debug $(IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
@@ -121,8 +119,7 @@ image: vpp-image eks-image vclsidecar-image
 .PHONY: image-cov
 image-cov: build-cov ${VPP_TARBALL}
 	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
-	docker build ${SQUASH} --pull --network=host \
-		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+	docker build --pull $(DOCKER_BUILD_ARGS) \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
 
 .PHONY: push
@@ -212,17 +209,13 @@ version-file:
 
 .PHONY: vpp-build-env
 vpp-build-env:
-	docker build --network=host \
-		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
-		--build-arg https_proxy=${DOCKER_BUILD_PROXY} \
+	docker build $(DOCKER_BUILD_ARGS) \
 		-t calicovpp/vpp-build:latest images/ubuntu-build
 
 .PHONY: dev
 dev: build
 	cp $(VPPDEV_FILE) $(DEV_IMAGE_DIR)
-	docker build --network=host \
-	  --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
-	  --build-arg https_proxy=${DOCKER_BUILD_PROXY} \
+	docker build $(DOCKER_BUILD_ARGS) \
 	  -t calicovpp/vpp:$(TAG) $(DEV_IMAGE_DIR)
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/vpp:$(TAG) calicovpp/vpp:latest; \
