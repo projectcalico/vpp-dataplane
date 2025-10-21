@@ -38,13 +38,12 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/health"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/services"
-	"github.com/projectcalico/vpp-dataplane/v3/config"
-
-	watchdog "github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watch_dog"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 )
 
 /*
@@ -84,18 +83,31 @@ func main() {
 	}
 
 	/**
+	 * Start health check server
+	 */
+	healthServer := health.NewHealthServer(
+		log.WithFields(logrus.Fields{"component": "health"}),
+		*config.GetCalicoVppInitialConfig().HealthCheckPort,
+	)
+	Go(healthServer.ServeHealth)
+
+	/**
 	 * Connect to VPP & wait for it to be up
 	 */
 	vpp, err := common.CreateVppLink(config.VppAPISocket, log.WithFields(logrus.Fields{"component": "vpp-api"}))
 	if err != nil {
 		log.Fatalf("Cannot create VPP client: %v", err)
 	}
+	healthServer.SetComponentStatus(health.ComponentVPP, true, "VPP connection established")
+
 	// Once we have the api connection, we know vpp & vpp-manager are running and the
 	// state is accurately reported. Wait for vpp-manager to finish the config.
 	common.VppManagerInfo, err = common.WaitForVppManager()
 	if err != nil {
 		log.Fatalf("Vpp Manager not started: %v", err)
 	}
+	healthServer.SetComponentStatus(health.ComponentVPPManager, true, "VPP Manager ready")
+
 	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 
 	/**
@@ -164,14 +176,49 @@ func main() {
 	routingServer.SetBGPConf(bgpConf)
 	serviceServer.SetBGPConf(bgpConf)
 
-	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
 	Go(felixServer.ServeFelix)
-	felixConfig := watchDog.Wait(felixServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
-	ourBGPSpec := watchDog.Wait(felixServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")
-	// check if the watchDog timer has issued the t.Kill() which would mean we are dead
-	if !t.Alive() {
-		log.Fatal("WatchDog timed out waiting for config from felix. Exiting...")
+
+	/*
+	 * Mark as unhealthy while waiting for Felix config
+	 * Kubernetes startup probe handles pod restart if needed
+	 */
+	healthServer.MarkAsUnhealthy("Waiting for Felix configuration")
+	log.Info("Waiting for Felix configuration...")
+
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	var felixConfig interface{}
+	var ourBGPSpec interface{}
+	felixConfigReceived := false
+	bgpSpecReceived := false
+
+	for !felixConfigReceived || !bgpSpecReceived {
+		select {
+		case value := <-felixServer.FelixConfigChan:
+			felixConfig = value
+			felixConfigReceived = true
+			log.Info("FelixConfig received from calico pod")
+		case value := <-felixServer.GotOurNodeBGPchan:
+			ourBGPSpec = value
+			bgpSpecReceived = true
+			log.Info("BGP spec received from node add")
+		case <-t.Dying():
+			log.Error("Tomb dying while waiting for Felix config")
+			return
+		case <-ticker.C:
+			if !felixConfigReceived {
+				log.Info("Still waiting for FelixConfig from calico pod...")
+			}
+			if !bgpSpecReceived {
+				log.Info("Still waiting for BGP spec from node add...")
+			}
+		}
 	}
+
+	healthServer.MarkAsHealthy("Felix configuration received")
+	healthServer.SetComponentStatus(health.ComponentFelix, true, "Felix config received")
+	log.Info("Felix configuration received")
 
 	if ourBGPSpec != nil {
 		bgpSpec, ok := ourBGPSpec.(*common.LocalNodeSpec)
@@ -189,7 +236,14 @@ func main() {
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
 		Go(netWatcher.WatchNetworks)
-		watchDog.Wait(netWatcher.InSync, "Waiting for networks to be listed and synced")
+		log.Info("Waiting for networks to be listed and synced...")
+		select {
+		case <-netWatcher.InSync:
+			log.Info("Networks synced")
+		case <-t.Dying():
+			log.Error("Tomb dying while waiting for networks sync")
+			return
+		}
 	}
 
 	if felixConfig != nil {
@@ -218,6 +272,7 @@ func main() {
 		Go(localSIDWatcher.WatchLocalSID)
 	}
 
+	healthServer.SetComponentStatus(health.ComponentAgent, true, "Agent ready")
 	log.Infof("Agent started")
 
 	sigChan := make(chan os.Signal, 2)
