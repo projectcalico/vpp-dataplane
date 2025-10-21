@@ -469,6 +469,9 @@ type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	// PrometheusStatsPrefix is the prefix to use for Prometheus metrics
 	// Defaults to "cni.projectcalico.vpp."
 	PrometheusStatsPrefix string `json:"prometheusStatsPrefix"`
+	// HealthCheckPort is the port on which the health check HTTP server listens
+	// Defaults to 9090
+	HealthCheckPort *uint32 `json:"healthCheckPort"`
 }
 
 func (cfg *CalicoVppInitialConfigConfigType) Validate() (err error) {
@@ -494,6 +497,9 @@ func (cfg *CalicoVppInitialConfigConfigType) Validate() (err error) {
 	if cfg.PrometheusStatsPrefix == "" {
 		cfg.PrometheusStatsPrefix = "cni.projectcalico.vpp."
 	}
+	cfg.HealthCheckPort = DefaultToPtr(
+		cfg.HealthCheckPort, 9090,
+	)
 	return nil
 }
 func (cfg *CalicoVppInitialConfigConfigType) GetDefaultGWs() (gws []net.IP, err error) {
