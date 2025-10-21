@@ -20,7 +20,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )

@@ -34,7 +34,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
@@ -142,16 +141,14 @@ func main() {
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
-	felixServer, err := felix.NewFelixServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
-	if err != nil {
-		log.Fatalf("Failed to create policy server %s", err)
-	}
-	err = felix.InstallFelixPlugin()
+	felixServer := felix.NewFelixServer(vpp, clientv3, log.WithFields(logrus.Fields{"component": "policy"}))
+	felixWatcher := watchers.NewFelixWatcher(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "felix watcher"}))
+	cniServer := watchers.NewCNIServer(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "cni"}))
+	err = watchers.InstallFelixPlugin()
 	if err != nil {
 		log.Fatalf("could not install felix plugin: %s", err)
 	}
 	connectivityServer := connectivity.NewConnectivityServer(vpp, felixServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
-	cniServer := cni.NewCNIServer(vpp, felixServer, log.WithFields(logrus.Fields{"component": "cni"}))
 
 	/* Pubsub should now be registered */
 
@@ -163,9 +160,11 @@ func main() {
 	peerWatcher.SetBGPConf(bgpConf)
 	routingServer.SetBGPConf(bgpConf)
 	serviceServer.SetBGPConf(bgpConf)
+	felixServer.SetBGPConf(bgpConf)
 
 	watchDog := watchdog.NewWatchDog(log.WithFields(logrus.Fields{"component": "watchDog"}), &t)
 	Go(felixServer.ServeFelix)
+	Go(felixWatcher.WatchFelix)
 	felixConfig := watchDog.Wait(felixServer.FelixConfigChan, "Waiting for FelixConfig to be provided by the calico pod")
 	ourBGPSpec := watchDog.Wait(felixServer.GotOurNodeBGPchan, "Waiting for bgp spec to be provided on node add")
 	// check if the watchDog timer has issued the t.Kill() which would mean we are dead
@@ -184,7 +183,6 @@ func main() {
 		serviceServer.SetOurBGPSpec(bgpSpec)
 		localSIDWatcher.SetOurBGPSpec(bgpSpec)
 		netWatcher.SetOurBGPSpec(bgpSpec)
-		cniServer.SetOurBGPSpec(bgpSpec)
 	}
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
@@ -197,7 +195,6 @@ func main() {
 		if !ok {
 			panic("ourBGPSpec is not *felixconfig.Config")
 		}
-		cniServer.SetFelixConfig(felixCfg)
 		connectivityServer.SetFelixConfig(felixCfg)
 	}
 
