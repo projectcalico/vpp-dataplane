@@ -35,7 +35,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/testutils"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -323,7 +322,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 			Context("With MultiNet configuration (and multinet VRF and loopback already configured)", func() {
 				var (
-					networkDefinition *watchers.NetworkDefinition
+					networkDefinition *common.NetworkDefinition
 					pubSubHandlerMock *mocks.PubSubHandlerMock
 				)
 
@@ -355,9 +354,9 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					}
 					// NetworkDefinition CRD information caught by NetWatcher and send with additional information
 					// (VRF and loopback created by watcher) to the cni server as common.NetAdded CalicoVPPEvent
-					networkDefinition = &watchers.NetworkDefinition{
-						VRF:    watchers.VRF{Tables: tables},
-						PodVRF: watchers.VRF{Tables: podTables},
+					networkDefinition = &common.NetworkDefinition{
+						VRF:    common.VRF{Tables: tables},
+						PodVRF: common.VRF{Tables: podTables},
 						Vni:    uint32(0), // important only for VXLAN tunnel going out of node
 						Name:   networkName,
 						Range:  "10.1.1.0/24", // IP range for secondary network defined by multinet
