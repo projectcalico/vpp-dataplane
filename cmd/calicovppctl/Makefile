@@ -1,6 +1,7 @@
 include ../../common.mk
 
 BIN_DIR = $(VPP_DATAPLANE_DIR)/bin
+SNAPSHOTTER_ENABLED := $(shell docker info -f '{{json .DriverStatus }}' | grep snapshotter)
 
 .PHONY: bin
 bin:
@@ -13,10 +14,20 @@ build: bin
 .PHONY: image
 image:
 ifndef CI_BUILD
-	docker build --network=host --build-arg http_proxy=${DOCKER_BUILD_PROXY} \
-		--platform linux/arm64,linux/amd64 \
+ifneq ($(SNAPSHOTTER_ENABLED),)
+	docker build $(DOCKER_BUILD_ARGS) \
+		--platform linux/amd64 \
 		-t calicovpp/ctl:$(TAG) .
-endif
+else
+	@echo
+	@echo "Will not build as calicovpp/ctl image as Multi-platform is not supported for the docker driver."
+	@echo "use the following if you still want to build calicovpp/ctl"
+	@echo "  echo '{"features": {"containerd-snapshotter": true}}' | sudo tee /etc/docker/daemon.json && sudo service docker restart"
+	@echo "or"
+	@echo "  make push"
+	@echo
+endif #SNAPSHOTTER_ENABLED
+endif #CI_BUILD
 
 .PHONY: push
 push: ${PUSH_DEP}
@@ -24,9 +35,7 @@ push: ${PUSH_DEP}
 		--name vppctlbuilder \
 		--driver docker-container \
 		--use
-	docker buildx build \
-		--network=host \
-		--build-arg http_proxy=${DOCKER_BUILD_PROXY} \
+	docker buildx build $(DOCKER_BUILD_ARGS) \
 		--platform linux/arm64,linux/amd64 \
 		--push \
 		$(foreach registry,$(REGISTRIES),-t $(registry)calicovpp/ctl:$(TAG)) \

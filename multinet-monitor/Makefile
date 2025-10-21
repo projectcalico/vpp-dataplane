@@ -14,7 +14,7 @@ image: build
 	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
 	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
 	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
-	docker build --pull -t calicovpp/multinet-monitor:$(TAG) .
+	docker build --pull $(DOCKER_BUILD_ARGS) -t calicovpp/multinet-monitor:$(TAG) .
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/multinet-monitor:$(TAG) calicovpp/multinet-monitor:latest; \
 		docker tag calicovpp/multinet-monitor:$(TAG) calicovpp/multinet-monitor:prerelease; \

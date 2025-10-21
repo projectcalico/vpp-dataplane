@@ -1,3 +1,4 @@
+include ../../common.mk
 
 all:  iperf-image iperf3-image iperf3-vcl-image wrk-image nginx-image testpmd-image
 push: iperf-push  iperf3-push  iperf3-vcl-push  wrk-push  nginx-push  testpmd-push
@@ -6,14 +7,14 @@ nginx-image:
 	head -c 4K /dev/urandom > ./nginx/4096
 	head -c 2M /dev/urandom > ./nginx/2MB
 	head -c 600 /dev/urandom > ./nginx/600
-	docker build -t calicovpp/test-nginx -f ./nginx/Dockerfile ./nginx
+	docker build $(DOCKER_BUILD_ARGS) -t calicovpp/test-nginx -f ./nginx/Dockerfile ./nginx
 	rm ./nginx/4096
 	rm ./nginx/2MB
 	rm ./nginx/600
 
 scalepods-image:
 	cd scalepods && go build
-	docker build -t calicovpp/test-scalepods ./scalepods
+	docker build $(DOCKER_BUILD_ARGS) -t calicovpp/test-scalepods ./scalepods
 
 scalesvc-build:
 	cd scalesvc && go build
@@ -32,12 +33,11 @@ iperf3-vcl-image:
 	        libsvm.so.23.10 libvppinfra.so.23.10 libvlibapi.so.23.10 ; do \
 		cp ${VPP_DIR}/build-root/build-vpp-native/vpp/lib/x86_64-linux-gnu/$${f} ./iperf3-vcl/ ; \
 	done
-	docker build -t calicovpp/test-iperf3-vcl -f ./iperf3-vcl/Dockerfile ./iperf3-vcl
+	docker build $(DOCKER_BUILD_ARGS) -t calicovpp/test-iperf3-vcl -f ./iperf3-vcl/Dockerfile ./iperf3-vcl
 
 .PHONY: trex-image-buildenv
 trex-image-buildenv:
-	docker build \
-		--network=host \
+	docker build $(DOCKER_BUILD_ARGS) \
 		-t calicovpp/test-trex-build:latest -f ./trex/build.Dockerfile ./trex
 	docker run \
 		--net=host --rm \
@@ -54,12 +54,11 @@ trex-image: trex-image-buildenv
 	cp ./trex_build/trex-core/linux_dpdk/build_dpdk/linux_dpdk/libbpf-64.so ./trex/trex-bins/libbpf-64.so
 	cp -r ./trex_build/trex-core/scripts/automation/trex_control_plane/interactive ./trex/trex-bins/trex-interactive
 	cp -r ./trex_build/trex-core/scripts/external_libs ./trex/trex-bins/trex-external_libs
-	docker build \
-		--network=host \
+	docker build $(DOCKER_BUILD_ARGS) \
 		-t calicovpp/test-trex -f ./trex/Dockerfile ./trex
 
 %-image:
-	docker build --network=host -t calicovpp/test-$* -f ./$*/Dockerfile ./$*
+	docker build $(DOCKER_BUILD_ARGS) -t calicovpp/test-$* -f ./$*/Dockerfile ./$*
 
 %-push:
 	docker push calicovpp/test-$*
