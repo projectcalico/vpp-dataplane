@@ -349,13 +349,15 @@ func (s *Server) DelVppInterface(podSpec *storage.LocalPodSpec) {
 		swIfIndex, _ := podSpec.GetParamsForIfType(podSpec.DefaultIfType)
 		if swIfIndex != types.InvalidID {
 			s.log.Infof("pod(del) default routes to %d", swIfIndex)
-			s.UnroutePodInterface(podSpec, swIfIndex, pblswIfIndex != types.InvalidID)
+			_, isL3 := podSpec.GetParamsForIfType(podSpec.DefaultIfType)
+			s.UnroutePodInterface(podSpec, swIfIndex, pblswIfIndex != types.InvalidID, isL3)
 		}
 	}
 	pblswIfIndex, _ := podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
 	if pblswIfIndex != types.InvalidID {
 		s.log.Infof("pod(del) PBL routes to %d", pblswIfIndex)
-		s.UnroutePblPortsPodInterface(podSpec, pblswIfIndex)
+		_, isL3 := podSpec.GetParamsForIfType(podSpec.PortFilteredIfType)
+		s.UnroutePblPortsPodInterface(podSpec, pblswIfIndex, isL3)
 	}
 
 	/* RPF */
