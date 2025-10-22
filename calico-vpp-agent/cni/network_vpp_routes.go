@@ -76,7 +76,7 @@ func (s *Server) RoutePodInterface(podSpec *storage.LocalPodSpec, stack *vpplink
 	return nil
 }
 
-func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32, inPodVrf bool) {
+func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32, inPodVrf bool, isL3 bool) {
 	for _, containerIP := range podSpec.GetContainerIps() {
 		var table uint32
 		if podSpec.NetworkName != "" {
@@ -108,6 +108,18 @@ func (s *Server) UnroutePodInterface(podSpec *storage.LocalPodSpec, swIfIndex ui
 		err := s.vpp.RouteDel(&route)
 		if err != nil {
 			s.log.Warnf("Error deleting route [podVRF ->MainIF] %s : %s", route.String(), err)
+		}
+		if !isL3 {
+			s.log.Infof("pod(del) neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
+			err = s.vpp.DelNeighbor(&types.Neighbor{
+				SwIfIndex:    swIfIndex,
+				IP:           containerIP.IP,
+				HardwareAddr: common.ContainerSideMacAddress,
+				Flags:        types.IPNeighborStatic,
+			})
+			if err != nil {
+				s.log.Warnf("Error deleting neighbor if[%d] %s: %s", swIfIndex, containerIP.IP.String(), err)
+			}
 		}
 	}
 }
@@ -168,12 +180,27 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 	return nil
 }
 
-func (s *Server) UnroutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32) {
+func (s *Server) UnroutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32, isL3 bool) {
 	s.log.Infof("pod(del) PBL client[%d]", podSpec.PblIndex)
 	err := s.vpp.DelPblClient(podSpec.PblIndex)
 	if err != nil {
 		s.log.Warnf("Error deleting pbl conf %s", err)
 	}
+	for _, containerIP := range podSpec.GetContainerIps() {
+		if !isL3 {
+			s.log.Infof("pod(del) neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
+			err := s.vpp.DelNeighbor(&types.Neighbor{
+				SwIfIndex:    swIfIndex,
+				IP:           containerIP.IP,
+				HardwareAddr: common.ContainerSideMacAddress,
+				Flags:        types.IPNeighborStatic,
+			})
+			if err != nil {
+				s.log.Warnf("Error (pbl) deleting neighbor if[%d] %s: %s", swIfIndex, containerIP.IP.String(), err)
+			}
+		}
+	}
+
 }
 
 func (s *Server) CreatePodRPFVRF(podSpec *storage.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
