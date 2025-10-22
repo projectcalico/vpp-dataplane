@@ -19,25 +19,24 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 type PodInterfaceDriverData struct {
-	log             *logrus.Entry
-	vpp             *vpplink.VppLink
-	Name            string
-	NDataThreads    int
-	felixServerIpam common.FelixServerIpam
+	log   *logrus.Entry
+	vpp   *vpplink.VppLink
+	cache *cache.Cache
+	Name  string
 }
 
 func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTxQueues int) (err error) {
 	i.log.WithFields(map[string]interface{}{
 		"swIfIndex": swIfIndex,
-	}).Debugf("Spreading %d TX queues on %d workers for pod interface: %v", numTxQueues, i.NDataThreads, i.Name)
+	}).Debugf("Spreading %d TX queues on %d workers for pod interface: %v", numTxQueues, i.cache.NumDataThreads, i.Name)
 
 	// set first tx queue for main worker
 	err = i.vpp.SetInterfaceTxPlacement(swIfIndex, 0 /* queue */, 0 /* worker */)
@@ -45,9 +44,9 @@ func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTx
 		return err
 	}
 	// share tx queues between the rest of workers
-	if i.NDataThreads > 0 {
+	if i.cache.NumDataThreads > 0 {
 		for txq := 1; txq < numTxQueues; txq++ {
-			err = i.vpp.SetInterfaceTxPlacement(swIfIndex, txq /* queue */, (txq-1)%(i.NDataThreads)+1 /* worker */)
+			err = i.vpp.SetInterfaceTxPlacement(swIfIndex, txq /* queue */, (txq-1)%(i.cache.NumDataThreads)+1 /* worker */)
 			if err != nil {
 				return err
 			}
@@ -59,14 +58,14 @@ func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTx
 func (i *PodInterfaceDriverData) SpreadRxQueuesOnWorkers(swIfIndex uint32, numRxQueues int) {
 	i.log.WithFields(map[string]interface{}{
 		"swIfIndex": swIfIndex,
-	}).Debugf("Spreading %d RX queues on %d workers for pod interface: %v", numRxQueues, i.NDataThreads, i.Name)
+	}).Debugf("Spreading %d RX queues on %d workers for pod interface: %v", numRxQueues, i.cache.NumDataThreads, i.Name)
 
-	if i.NDataThreads > 0 {
+	if i.cache.NumDataThreads > 0 {
 		for queue := 0; queue < numRxQueues; queue++ {
-			worker := (int(swIfIndex)*numRxQueues + queue) % i.NDataThreads
+			worker := (int(swIfIndex)*numRxQueues + queue) % i.cache.NumDataThreads
 			err := i.vpp.SetInterfaceRxPlacement(swIfIndex, queue, worker, false /* main */)
 			if err != nil {
-				i.log.Warnf("failed to set if[%d] queue:%d worker:%d (tot workers %d): %v", swIfIndex, queue, worker, i.NDataThreads, err)
+				i.log.Warnf("failed to set if[%d] queue:%d worker:%d (tot workers %d): %v", swIfIndex, queue, worker, i.cache.NumDataThreads, err)
 			}
 		}
 	}
@@ -89,7 +88,7 @@ func (i *PodInterfaceDriverData) UndoPodIfNatConfiguration(swIfIndex uint32) {
 
 func (i *PodInterfaceDriverData) DoPodIfNatConfiguration(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32) (err error) {
 	for _, ipFamily := range vpplink.IPFamilies {
-		if podSpec.NeedsSnat(i.felixServerIpam, ipFamily.IsIP6) {
+		if podSpec.NeedsSnat(i.cache, ipFamily.IsIP6) {
 			i.log.Infof("pod(add) Enable interface[%d] SNAT", swIfIndex)
 			err = i.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIP6, true /*isEnable*/)
 			if err != nil {

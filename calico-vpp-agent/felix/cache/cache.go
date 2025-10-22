@@ -25,29 +25,43 @@ import (
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 type Cache struct {
 	log *logrus.Entry
 
-	FelixConfig        *felixConfig.Config
-	NodeByAddr         map[string]common.LocalNodeSpec
-	Networks           map[uint32]*common.NetworkDefinition
-	NetworkDefinitions map[string]*common.NetworkDefinition
-	IPPoolMap          map[string]*proto.IPAMPool
-	NodeStatesByName   map[string]*common.LocalNodeSpec
-	BGPConf            *calicov3.BGPConfigurationSpec
+	FelixConfig                      *felixConfig.Config
+	NodeByAddr                       map[string]common.LocalNodeSpec
+	Networks                         map[uint32]*common.NetworkDefinition
+	NetworkDefinitions               map[string]*common.NetworkDefinition
+	IPPoolMap                        map[string]*proto.IPAMPool
+	NodeStatesByName                 map[string]*common.LocalNodeSpec
+	BGPConf                          *calicov3.BGPConfigurationSpec
+	RedirectToHostClassifyTableIndex uint32
+	VppAvailableBuffers              uint64
+	NumDataThreads                   int
 }
 
 func NewCache(log *logrus.Entry) *Cache {
 	return &Cache{
-		log:                log,
-		NodeByAddr:         make(map[string]common.LocalNodeSpec),
-		FelixConfig:        felixConfig.New(),
-		Networks:           make(map[uint32]*common.NetworkDefinition),
-		NetworkDefinitions: make(map[string]*common.NetworkDefinition),
-		IPPoolMap:          make(map[string]*proto.IPAMPool),
-		NodeStatesByName:   make(map[string]*common.LocalNodeSpec),
+		log:                              log,
+		NodeByAddr:                       make(map[string]common.LocalNodeSpec),
+		FelixConfig:                      felixConfig.New(),
+		Networks:                         make(map[uint32]*common.NetworkDefinition),
+		NetworkDefinitions:               make(map[string]*common.NetworkDefinition),
+		IPPoolMap:                        make(map[string]*proto.IPAMPool),
+		RedirectToHostClassifyTableIndex: types.InvalidID,
+		NodeStatesByName:                 make(map[string]*common.LocalNodeSpec),
+	}
+}
+
+func (cache *Cache) IPNetNeedsSNAT(prefix *net.IPNet) bool {
+	pool := cache.GetPrefixIPPool(prefix)
+	if pool == nil {
+		return false
+	} else {
+		return pool.Masquerade
 	}
 }
 

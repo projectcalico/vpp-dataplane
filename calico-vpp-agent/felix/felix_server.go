@@ -28,11 +28,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/policies"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 // Server holds all the data required to configure the policies defined by felix in VPP
@@ -48,6 +51,7 @@ type Server struct {
 
 	ippoolLock      sync.RWMutex
 	policiesHandler *policies.PoliciesHandler
+	cniHandler      *cni.CNIHandler
 }
 
 // NewFelixServer creates a felix server
@@ -64,6 +68,7 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 
 		cache:           cache,
 		policiesHandler: policies.NewPoliciesHandler(vpp, cache, clientv3, log),
+		cniHandler:      cni.NewCNIHandler(vpp, cache, log),
 	}
 
 	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")
@@ -105,13 +110,74 @@ func (s *Server) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool {
 	return s.cache.GetPrefixIPPool(prefix)
 }
 
-func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
-	pool := s.GetPrefixIPPool(prefix)
-	if pool == nil {
-		return false
-	} else {
-		return pool.Masquerade
+func (s *Server) getMainInterface() *config.UplinkStatus {
+	for _, i := range common.VppManagerInfo.UplinkStatuses {
+		if i.IsMain {
+			return &i
+		}
 	}
+	return nil
+}
+
+func (s *Server) createRedirectToHostRules() error {
+	var maxNumEntries uint32
+	if len(config.GetCalicoVppInitialConfig().RedirectToHostRules) != 0 {
+		maxNumEntries = uint32(2 * len(config.GetCalicoVppInitialConfig().RedirectToHostRules))
+	} else {
+		maxNumEntries = 1
+	}
+	index, err := s.vpp.AddClassifyTable(&types.ClassifyTable{
+		Mask:           types.DstThreeTupleMask,
+		NextTableIndex: types.InvalidID,
+		MaxNumEntries:  maxNumEntries,
+		MissNextIndex:  ^uint32(0),
+	})
+	if err != nil {
+		return err
+	}
+	mainInterface := s.getMainInterface()
+	if mainInterface == nil {
+		return fmt.Errorf("no main interface found")
+	}
+	for _, rule := range config.GetCalicoVppInitialConfig().RedirectToHostRules {
+		err = s.vpp.AddSessionRedirect(&types.SessionRedirect{
+			FiveTuple:  types.NewDst3Tuple(rule.Proto, net.ParseIP(rule.IP), rule.Port),
+			TableIndex: index,
+		}, &types.RoutePath{Gw: config.VppHostPuntFakeGatewayAddress, SwIfIndex: mainInterface.TapSwIfIndex})
+		if err != nil {
+			return err
+		}
+	}
+
+	s.cache.RedirectToHostClassifyTableIndex = index
+	return nil
+}
+
+func (s *Server) fetchNumDataThreads() error {
+	nVppWorkers, err := s.vpp.GetNumVPPWorkers()
+	if err != nil {
+		return errors.Wrap(err, "Error getting number of VPP workers")
+	}
+	nDataThreads := nVppWorkers
+	if config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread > 0 {
+		nDataThreads = nVppWorkers - config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread
+		if nDataThreads <= 0 {
+			s.log.Errorf("Couldn't fulfill request [crypto=%d total=%d]", config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread, nVppWorkers)
+			nDataThreads = nVppWorkers
+		}
+		s.log.Infof("Using ipsec workers [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
+	}
+	s.cache.NumDataThreads = nDataThreads
+	return nil
+}
+
+func (s *Server) fetchBufferConfig() error {
+	availableBuffers, _, _, err := s.vpp.GetBufferStats()
+	if err != nil {
+		return errors.Wrap(err, "could not get available buffers")
+	}
+	s.cache.VppAvailableBuffers = uint64(availableBuffers)
+	return nil
 }
 
 // Serve runs the felix server
@@ -125,6 +191,22 @@ func (s *Server) ServeFelix(t *tomb.Tomb) error {
 	err := s.policiesHandler.PoliciesHandlerInit()
 	if err != nil {
 		return errors.Wrap(err, "Error in PoliciesHandlerInit")
+	}
+	err = s.createRedirectToHostRules()
+	if err != nil {
+		return errors.Wrap(err, "Error in createRedirectToHostRules")
+	}
+	err = s.fetchNumDataThreads()
+	if err != nil {
+		return errors.Wrap(err, "Error in fetchNumDataThreads")
+	}
+	err = s.fetchBufferConfig()
+	if err != nil {
+		return errors.Wrap(err, "Error in fetchBufferConfig")
+	}
+	err = s.cniHandler.CNIHandlerInit()
+	if err != nil {
+		return errors.Wrap(err, "Error in CNIHandlerInit")
 	}
 	for {
 		select {
@@ -196,6 +278,10 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 		common.SendEvent(common.CalicoVppEvent{
 			Type: common.BGPConfChanged,
 		})
+	case *model.CniPodAddEvent:
+		err = s.cniHandler.OnPodAdd(evt)
+	case *model.CniPodDelEvent:
+		s.cniHandler.OnPodDelete(evt)
 	case common.CalicoVppEvent:
 		/* Note: we will only receive events we ask for when registering the chan */
 		switch evt.Type {
@@ -204,8 +290,13 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 			if !ok {
 				return fmt.Errorf("evt.New is not a (*common.NetworkDefinition) %v", evt.New)
 			}
+			old, ok := evt.Old.(*common.NetworkDefinition)
+			if !ok {
+				return fmt.Errorf("evt.Old is not a (*common.NetworkDefinition) %v", evt.New)
+			}
 			s.cache.NetworkDefinitions[new.Name] = new
 			s.cache.Networks[new.Vni] = new
+			s.cniHandler.OnNetAddedOrUpdated(old, new)
 		case common.NetDeleted:
 			netDef, ok := evt.Old.(*common.NetworkDefinition)
 			if !ok {
@@ -213,6 +304,7 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 			}
 			delete(s.cache.NetworkDefinitions, netDef.Name)
 			delete(s.cache.Networks, netDef.Vni)
+			s.cniHandler.OnNetDeleted(netDef)
 		case common.PodAdded:
 			podSpec, ok := evt.New.(*model.LocalPodSpec)
 			if !ok {
