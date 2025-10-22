@@ -24,6 +24,7 @@ import (
 
 	netv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/pkg/errors"
+	"github.com/projectcalico/calico/felix/proto"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,6 +37,13 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
+// RouteHandler defines the interface for handling network and IPAM events
+type RouteHandler interface {
+	OnNetDeleted(netDef *common.NetworkDefinition) error
+	OnNetAddedOrUpdated(netDef *common.NetworkDefinition) error
+	OnIpamConfChanged(oldPool, newPool *proto.IPAMPool) error
+}
+
 type NetWatcher struct {
 	log                *logrus.Entry
 	vpp                *vpplink.VppLink
@@ -45,6 +53,7 @@ type NetWatcher struct {
 	nads               map[string]string
 	InSync             chan interface{}
 	nodeBGPSpec        *common.LocalNodeSpec
+	routeHandler       RouteHandler
 
 	currentWatchRevisionNet string
 	currentWatchRevisionNad string
@@ -65,8 +74,13 @@ func NewNetWatcher(vpp *vpplink.VppLink, log *logrus.Entry) *NetWatcher {
 		networkDefinitions: make(map[string]*common.NetworkDefinition),
 		nads:               make(map[string]string),
 		InSync:             make(chan interface{}),
+		routeHandler:       nil,
 	}
 	return &w
+}
+
+func (w *NetWatcher) SetRouteHandler(routeHandler RouteHandler) {
+	w.routeHandler = routeHandler
 }
 
 func (w *NetWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
@@ -106,16 +120,13 @@ func (w *NetWatcher) resyncAndCreateWatchers() error {
 				return errors.Wrapf(err, "Listing NetworkAttachmentDefinitions failed")
 			}
 			for _, nad := range nadList.Items {
-				err = w.onNadAdded(&nad)
+				err = w.OnNadAdded(&nad)
 				if err != nil {
 					return errors.Wrapf(err, "OnNadAdded failed for %v", nad)
 				}
 			}
 		}
 		w.InSync <- 1
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.NetsSynced,
-		})
 		w.currentWatchRevisionNet = netList.ResourceVersion
 		w.currentWatchRevisionNad = nadList.ResourceVersion
 	}
@@ -200,7 +211,7 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 						w.log.Errorf("update.Object is not *NetworkAttachmentDefinition, %v", update.Object)
 						continue
 					}
-					err := w.onNadAdded(nad)
+					err := w.OnNadAdded(nad)
 					if err != nil {
 						w.log.Error(err)
 					}
@@ -210,7 +221,7 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 						w.log.Errorf("update.Object is not *NetworkAttachmentDefinition, %v", update.Object)
 						continue
 					}
-					err := w.onNadDeleted(nad)
+					err := w.OnNadDeleted(nad)
 					if err != nil {
 						w.log.Error(err)
 					}
@@ -230,7 +241,7 @@ func (w *NetWatcher) Stop() {
 	close(w.stop)
 }
 
-func (w *NetWatcher) onNadDeleted(nad *netv1.NetworkAttachmentDefinition) error {
+func (w *NetWatcher) OnNadDeleted(nad *netv1.NetworkAttachmentDefinition) error {
 	delete(w.nads, nad.Namespace+"/"+nad.Name)
 	for key, net := range w.networkDefinitions {
 		if net.NetAttachDefs == nad.Namespace+"/"+nad.Name {
@@ -239,12 +250,18 @@ func (w *NetWatcher) onNadDeleted(nad *netv1.NetworkAttachmentDefinition) error 
 				Type: common.NetAddedOrUpdated,
 				New:  w.networkDefinitions[key],
 			})
+			if w.routeHandler != nil {
+				err := w.routeHandler.OnNetAddedOrUpdated(w.networkDefinitions[key])
+				if err != nil {
+					w.log.Errorf("Failed to handle network update in RouteHandler: %v", err)
+				}
+			}
 		}
 	}
 	return nil
 }
 
-func (w *NetWatcher) onNadAdded(nad *netv1.NetworkAttachmentDefinition) error {
+func (w *NetWatcher) OnNadAdded(nad *netv1.NetworkAttachmentDefinition) error {
 	var nadConfig nadv1.NetConfList
 	err := json.Unmarshal([]byte(nad.Spec.Config), &nadConfig)
 	if err != nil {
@@ -260,6 +277,12 @@ func (w *NetWatcher) onNadAdded(nad *netv1.NetworkAttachmentDefinition) error {
 					Type: common.NetAddedOrUpdated,
 					New:  w.networkDefinitions[key],
 				})
+				if w.routeHandler != nil {
+					err := w.routeHandler.OnNetAddedOrUpdated(w.networkDefinitions[key])
+					if err != nil {
+						w.log.Errorf("Failed to handle network update in RouteHandler: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -283,6 +306,12 @@ func (w *NetWatcher) OnNetAdded(net *networkv3.Network) error {
 		Type: common.NetAddedOrUpdated,
 		New:  netDef,
 	})
+	if w.routeHandler != nil {
+		err := w.routeHandler.OnNetAddedOrUpdated(netDef)
+		if err != nil {
+			w.log.Errorf("Failed to handle network addition in RouteHandler: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -300,6 +329,12 @@ func (w *NetWatcher) OnNetDeleted(netName string) error {
 		Type: common.NetDeleted,
 		Old:  netDef,
 	})
+	if w.routeHandler != nil {
+		err := w.routeHandler.OnNetDeleted(netDef)
+		if err != nil {
+			w.log.Errorf("Failed to handle network deletion in RouteHandler: %v", err)
+		}
+	}
 	return nil
 }
 

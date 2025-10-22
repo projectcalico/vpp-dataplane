@@ -59,6 +59,7 @@ type Server struct {
 	cniHandler          *cni.CNIHandler
 	connectivityHandler *connectivity.ConnectivityHandler
 	serviceHandler      *services.ServiceHandler
+	routeHandler        *RouteHandler
 }
 
 // NewFelixServer creates a felix server
@@ -77,6 +78,7 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 		cniHandler:          cni.NewCNIHandler(vpp, cache, log),
 		connectivityHandler: connectivity.NewConnectivityHandler(vpp, cache, clientv3, log),
 		serviceHandler:      services.NewServiceHandler(vpp, cache, log),
+		routeHandler:        NewRouteHandler(log),
 	}
 
 	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")
@@ -94,6 +96,10 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 	)
 
 	return server
+}
+
+func (s *Server) GetRouteHandler() *RouteHandler {
+	return s.routeHandler
 }
 
 func (s *Server) GetFelixServerEventChan() chan any {

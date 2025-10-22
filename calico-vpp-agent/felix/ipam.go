@@ -21,8 +21,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/projectcalico/calico/felix/proto"
-
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 )
 
 func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate) (err error) {
@@ -49,11 +47,12 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate) (err error) {
 			}
 			s.connectivityHandler.OnIpamConfChanged(oldIpamPool, newIpamPool)
 			s.cniHandler.OnIpamConfChanged(oldIpamPool, newIpamPool)
-			common.SendEvent(common.CalicoVppEvent{
-				Type: common.IpamConfChanged,
-				Old:  ipamPoolCopy(oldIpamPool),
-				New:  ipamPoolCopy(newIpamPool),
-			})
+			if s.routeHandler != nil {
+				err := s.routeHandler.OnIpamConfChanged(oldIpamPool, newIpamPool)
+				if err != nil {
+					s.log.Errorf("Failed to handle IPAM update in RouteHandler: %v", err)
+				}
+			}
 		}
 	} else {
 		s.log.Infof("Adding pool: %s, nat:%t", msg.GetId(), newIpamPool.GetMasquerade())
@@ -65,10 +64,12 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate) (err error) {
 		}
 		s.connectivityHandler.OnIpamConfChanged(nil /*old*/, newIpamPool)
 		s.cniHandler.OnIpamConfChanged(nil /*old*/, newIpamPool)
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.IpamConfChanged,
-			New:  ipamPoolCopy(newIpamPool),
-		})
+		if s.routeHandler != nil {
+			err := s.routeHandler.OnIpamConfChanged(nil, newIpamPool)
+			if err != nil {
+				s.log.Errorf("Failed to handle IPAM addition in RouteHandler: %v", err)
+			}
+		}
 	}
 	return nil
 }
@@ -88,13 +89,14 @@ func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove) (err error) {
 		if err != nil {
 			return errors.Wrap(err, "error handling ipam deletion")
 		}
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.IpamConfChanged,
-			Old:  ipamPoolCopy(oldIpamPool),
-			New:  nil,
-		})
 		s.connectivityHandler.OnIpamConfChanged(oldIpamPool, nil /* new */)
 		s.cniHandler.OnIpamConfChanged(oldIpamPool, nil /* new */)
+		if s.routeHandler != nil {
+			err := s.routeHandler.OnIpamConfChanged(oldIpamPool, nil)
+			if err != nil {
+				s.log.Errorf("Failed to handle IPAM deletion in RouteHandler: %v", err)
+			}
+		}
 	} else {
 		s.log.Warnf("Deleting unknown ippool")
 		return nil
