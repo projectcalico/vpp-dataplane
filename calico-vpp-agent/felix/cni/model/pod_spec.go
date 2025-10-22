@@ -25,6 +25,7 @@ import (
 	cniproto "github.com/projectcalico/calico/cni-plugin/pkg/dataplane/grpc/proto"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -78,7 +79,7 @@ type LocalPodSpec struct {
 	NetworkName string `json:"networkName"`
 }
 
-func NewLocalPodSpecFromAdd(request *cniproto.AddRequest, nodeBGPSpec *common.LocalNodeSpec) (*LocalPodSpec, error) {
+func NewLocalPodSpecFromAdd(request *cniproto.AddRequest) (*LocalPodSpec, error) {
 	podAnnotations, err := NewPodAnnotations(
 		request.GetInterfaceName(),
 		request.GetWorkload().GetAnnotations(),
@@ -255,12 +256,12 @@ func (podSpec *LocalPodSpec) Hasv46() (hasv4 bool, hasv6 bool) {
 	return hasv4, hasv6
 }
 
-func (podSpec *LocalPodSpec) NeedsSnat(felixServerIpam common.FelixServerIpam, isIP6 bool) bool {
+func (podSpec *LocalPodSpec) NeedsSnat(cache *cache.Cache, isIP6 bool) bool {
 	for _, containerIP := range podSpec.GetContainerIPs() {
 		if containerIP.IP.To4() == nil != isIP6 {
 			continue
 		}
-		if felixServerIpam.IPNetNeedsSNAT(containerIP) {
+		if cache.IPNetNeedsSNAT(containerIP) {
 			return true
 		}
 	}

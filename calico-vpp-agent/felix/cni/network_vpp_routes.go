@@ -18,13 +18,13 @@ package cni
 import (
 	"github.com/pkg/errors"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func (s *Server) RoutePodInterface(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool, inPodVrf bool) error {
+func (s *CNIHandler) RoutePodInterface(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool, inPodVrf bool) error {
 	for _, containerIP := range podSpec.GetContainerIPs() {
 		var table uint32
 		if podSpec.NetworkName != "" {
@@ -32,14 +32,10 @@ func (s *Server) RoutePodInterface(podSpec *model.LocalPodSpec, stack *vpplink.C
 			if vpplink.IsIP6(containerIP.IP) {
 				idx = 1
 			}
-			value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+			networkDefinition, ok := s.cache.NetworkDefinitions[podSpec.NetworkName]
 			if !ok {
 				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				networkDefinition, ok := value.(*common.NetworkDefinition)
-				if !ok || networkDefinition == nil {
-					panic("networkDefinition not of type *common.NetworkDefinition")
-				}
 				table = networkDefinition.VRF.Tables[idx]
 			}
 		} else if inPodVrf {
@@ -75,7 +71,7 @@ func (s *Server) RoutePodInterface(podSpec *model.LocalPodSpec, stack *vpplink.C
 	return nil
 }
 
-func (s *Server) UnroutePodInterface(podSpec *model.LocalPodSpec, swIfIndex uint32, inPodVrf bool, isL3 bool) {
+func (s *CNIHandler) UnroutePodInterface(podSpec *model.LocalPodSpec, swIfIndex uint32, inPodVrf bool, isL3 bool) {
 	for _, containerIP := range podSpec.GetContainerIPs() {
 		var table uint32
 		if podSpec.NetworkName != "" {
@@ -83,14 +79,10 @@ func (s *Server) UnroutePodInterface(podSpec *model.LocalPodSpec, swIfIndex uint
 			if vpplink.IsIP6(containerIP.IP) {
 				idx = 1
 			}
-			value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+			networkDefinition, ok := s.cache.NetworkDefinitions[podSpec.NetworkName]
 			if !ok {
 				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				networkDefinition, ok := value.(*common.NetworkDefinition)
-				if !ok || networkDefinition == nil {
-					panic("networkDefinition not of type *common.NetworkDefinition")
-				}
 				table = networkDefinition.VRF.Tables[idx]
 			}
 		} else if inPodVrf {
@@ -123,7 +115,7 @@ func (s *Server) UnroutePodInterface(podSpec *model.LocalPodSpec, swIfIndex uint
 	}
 }
 
-func (s *Server) RoutePblPortsPodInterface(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
+func (s *CNIHandler) RoutePblPortsPodInterface(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32, isL3 bool) (err error) {
 	for _, containerIP := range podSpec.ContainerIPs {
 		path := types.RoutePath{
 			SwIfIndex: swIfIndex,
@@ -179,7 +171,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *model.LocalPodSpec, stack *v
 	return nil
 }
 
-func (s *Server) UnroutePblPortsPodInterface(podSpec *model.LocalPodSpec, swIfIndex uint32, isL3 bool) {
+func (s *CNIHandler) UnroutePblPortsPodInterface(podSpec *model.LocalPodSpec, swIfIndex uint32, isL3 bool) {
 	for _, pblIndex := range podSpec.PblIndexes {
 		s.log.Infof("pod(del) PBL client[%d]", pblIndex)
 		err := s.vpp.DelPblClient(pblIndex)
@@ -204,7 +196,7 @@ func (s *Server) UnroutePblPortsPodInterface(podSpec *model.LocalPodSpec, swIfIn
 
 }
 
-func (s *Server) CreatePodRPFVRF(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
+func (s *CNIHandler) CreatePodRPFVRF(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	for _, ipFamily := range vpplink.IPFamilies {
 		vrfID, err := s.vpp.AllocateVRF(ipFamily.IsIP6, podSpec.GetVrfTag(ipFamily, "RPF"))
 		podSpec.SetRPFVrfID(vrfID, ipFamily)
@@ -218,7 +210,7 @@ func (s *Server) CreatePodRPFVRF(podSpec *model.LocalPodSpec, stack *vpplink.Cle
 	return nil
 }
 
-func (s *Server) CreatePodVRF(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
+func (s *CNIHandler) CreatePodVRF(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	/* Create and Setup the per-pod VRF */
 	for _, ipFamily := range vpplink.IPFamilies {
 		vrfID, err := s.vpp.AllocateVRF(ipFamily.IsIP6, podSpec.GetVrfTag(ipFamily, ""))
@@ -237,13 +229,9 @@ func (s *Server) CreatePodVRF(podSpec *model.LocalPodSpec, stack *vpplink.Cleanu
 		if podSpec.NetworkName == "" { // no multi net
 			vrfIndex = common.PodVRFIndex
 		} else {
-			value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+			networkDefinition, ok := s.cache.NetworkDefinitions[podSpec.NetworkName]
 			if !ok {
 				return errors.Errorf("network not found %s", podSpec.NetworkName)
-			}
-			networkDefinition, ok := value.(*common.NetworkDefinition)
-			if !ok || networkDefinition == nil {
-				panic("networkDefinition not of type *common.NetworkDefinition")
 			}
 			vrfIndex = networkDefinition.PodVRF.Tables[idx]
 		}
@@ -265,7 +253,7 @@ func (s *Server) CreatePodVRF(podSpec *model.LocalPodSpec, stack *vpplink.Cleanu
 	return nil
 }
 
-func (s *Server) ActivateStrictRPF(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
+func (s *CNIHandler) ActivateStrictRPF(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	s.log.Infof("pod(add) create pod RPF VRF")
 	err = s.CreatePodRPFVRF(podSpec, stack)
 	if err != nil {
@@ -288,7 +276,7 @@ func (s *Server) ActivateStrictRPF(podSpec *model.LocalPodSpec, stack *vpplink.C
 	return nil
 }
 
-func (s *Server) AddRPFRoutes(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
+func (s *CNIHandler) AddRPFRoutes(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	for _, containerIP := range podSpec.GetContainerIPs() {
 		rpfVrfID := podSpec.GetRPFVrfID(vpplink.IPFamilyFromIPNet(containerIP))
 		// Always there (except multinet memif)
@@ -337,7 +325,7 @@ func (s *Server) AddRPFRoutes(podSpec *model.LocalPodSpec, stack *vpplink.Cleanu
 	return nil
 }
 
-func (s *Server) DeactivateStrictRPF(podSpec *model.LocalPodSpec) {
+func (s *CNIHandler) DeactivateStrictRPF(podSpec *model.LocalPodSpec) {
 	var err error
 	for _, containerIP := range podSpec.GetContainerIPs() {
 		rpfVrfID := podSpec.GetRPFVrfID(vpplink.IPFamilyFromIPNet(containerIP))
@@ -389,7 +377,7 @@ func (s *Server) DeactivateStrictRPF(podSpec *model.LocalPodSpec) {
 	}
 }
 
-func (s *Server) DeletePodVRF(podSpec *model.LocalPodSpec) {
+func (s *CNIHandler) DeletePodVRF(podSpec *model.LocalPodSpec) {
 	var err error
 	for idx, ipFamily := range vpplink.IPFamilies {
 		vrfID := podSpec.GetVrfID(ipFamily)
@@ -397,14 +385,10 @@ func (s *Server) DeletePodVRF(podSpec *model.LocalPodSpec) {
 		if podSpec.NetworkName == "" {
 			vrfIndex = common.PodVRFIndex
 		} else {
-			value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+			networkDefinition, ok := s.cache.NetworkDefinitions[podSpec.NetworkName]
 			if !ok {
 				s.log.Errorf("network not found %s", podSpec.NetworkName)
 			} else {
-				networkDefinition, ok := value.(*common.NetworkDefinition)
-				if !ok || networkDefinition == nil {
-					panic("networkDefinition not of type *common.NetworkDefinition")
-				}
 				vrfIndex = networkDefinition.PodVRF.Tables[idx]
 			}
 		}
@@ -429,7 +413,7 @@ func (s *Server) DeletePodVRF(podSpec *model.LocalPodSpec) {
 	}
 }
 
-func (s *Server) CreateVRFRoutesToPod(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
+func (s *CNIHandler) CreateVRFRoutesToPod(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {
 	for _, containerIP := range podSpec.GetContainerIPs() {
 		/* In the main table route the container address to its VRF */
 		route := types.Route{
@@ -450,7 +434,7 @@ func (s *Server) CreateVRFRoutesToPod(podSpec *model.LocalPodSpec, stack *vpplin
 	return nil
 }
 
-func (s *Server) DeleteVRFRoutesToPod(podSpec *model.LocalPodSpec) {
+func (s *CNIHandler) DeleteVRFRoutesToPod(podSpec *model.LocalPodSpec) {
 	for _, containerIP := range podSpec.GetContainerIPs() {
 		/* In the main table route the container address to its VRF */
 		route := types.Route{
@@ -468,7 +452,7 @@ func (s *Server) DeleteVRFRoutesToPod(podSpec *model.LocalPodSpec) {
 	}
 }
 
-func (s *Server) SetupPuntRoutes(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32) (err error) {
+func (s *CNIHandler) SetupPuntRoutes(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32) (err error) {
 	for _, containerIP := range podSpec.GetContainerIPs() {
 		/* In the punt table (where all punted traffics ends),
 		 * route the container to the tun */
@@ -488,7 +472,7 @@ func (s *Server) SetupPuntRoutes(podSpec *model.LocalPodSpec, stack *vpplink.Cle
 	return nil
 }
 
-func (s *Server) RemovePuntRoutes(podSpec *model.LocalPodSpec, swIfIndex uint32) {
+func (s *CNIHandler) RemovePuntRoutes(podSpec *model.LocalPodSpec, swIfIndex uint32) {
 	for _, containerIP := range podSpec.GetContainerIPs() {
 		/* In the punt table (where all punted traffics ends), route the container to the tun */
 		route := types.Route{
