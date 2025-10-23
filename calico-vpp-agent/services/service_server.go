@@ -346,10 +346,6 @@ func objectID(meta *metav1.ObjectMeta) string {
 }
 
 func (s *Server) configureSnat() (err error) {
-	err = s.vpp.CnatSetSnatAddresses(s.getNodeIP(false /* isv6 */), s.getNodeIP(true /* isv6 */))
-	if err != nil {
-		s.log.Errorf("Failed to configure SNAT addresses %v", err)
-	}
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
 	if nodeIP6 != nil {
 		err = s.vpp.CnatAddSnatPrefix(common.FullyQualified(*nodeIP6))
@@ -369,6 +365,23 @@ func (s *Server) configureSnat() (err error) {
 			s.log.Errorf("Failed to Add Service CIDR %s %v", serviceCIDR, err)
 		}
 	}
+	err = s.vpp.SetK8sSnatPolicy()
+	if err != nil {
+		return errors.Wrap(err, "Error configuring cnat source policy")
+	}
+	for _, uplink := range common.VppManagerInfo.UplinkStatuses {
+		// register vpptap0
+		err = s.vpp.RegisterPodInterface(uplink.TapSwIfIndex)
+		if err != nil {
+			return errors.Wrap(err, "error configuring vpptap0 as pod intf")
+		}
+
+		err = s.vpp.RegisterHostInterface(uplink.TapSwIfIndex)
+		if err != nil {
+			return errors.Wrap(err, "error configuring vpptap0 as host intf")
+		}
+	}
+
 	return nil
 }
 
@@ -513,11 +526,6 @@ func (s *Server) ServeService(t *tomb.Tomb) error {
 			Type: common.LocalPodAddressAdded,
 			New:  cni.NetworkPod{ContainerIP: serviceIPNet, NetworkVni: 0},
 		})
-	}
-
-	err = s.vpp.CnatPurge()
-	if err != nil {
-		return err
 	}
 
 	if *config.GetCalicoVppDebug().ServicesEnabled {
