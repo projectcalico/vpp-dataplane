@@ -27,7 +27,7 @@ func (v *VppLink) EnableArpProxy(swIfIndex, tableID uint32) error {
 	client := arp.NewServiceClient(v.GetConnection())
 
 	// First enable global arp proxy
-	//set arp proxy table-id 0 start 0.0.0.0 end 255.255.255.255
+	// set arp proxy table-id 0 start 0.0.0.0 end 255.255.255.255
 	request := &arp.ProxyArpAddDel{
 		IsAdd: true,
 		Proxy: arp.ProxyArp{

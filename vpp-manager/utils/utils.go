@@ -278,7 +278,7 @@ func SetVFSpoofTrust(ifName string, vf int, spoof bool, trust bool) error {
 func getNsRunDir() string {
 	xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR")
 
-	/// If XDG_RUNTIME_DIR is set, check if the current user owns /var/run.  If
+	// If XDG_RUNTIME_DIR is set, check if the current user owns /var/run.  If
 	// the owner is different, we are most likely running in a user namespace.
 	// In that case use $XDG_RUNTIME_DIR/netns as runtime dir.
 	if xdgRuntimeDir != "" {

@@ -231,7 +231,7 @@ func deletePod(pod *v1.Pod) {
 	for name, ep := range currentEpList {
 		newSubsetList := []v1.EndpointSubset{}
 		for _, epSubset := range ep.Subsets {
-			if epSubset.Addresses[0].TargetRef.Name != pod.Name { //all addresses of a subset should have same pod name
+			if epSubset.Addresses[0].TargetRef.Name != pod.Name { // all addresses of a subset should have same pod name
 				newSubsetList = append(newSubsetList, epSubset)
 			}
 		}
@@ -294,7 +294,7 @@ func updateEndpoint(pod *v1.Pod, service *v1.Service, network string) {
 	podStatus := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: pod.Name, Namespace: pod.Namespace},
 	}
-retry: //need to re-get the pod because multus updates may take some time
+retry: // need to re-get the pod because multus updates may take some time
 	err := kubernetesClient.Get(context.Background(), types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, podStatus)
 	if err != nil {
 		log.Errorf("couldn't get pod: %s", err)
