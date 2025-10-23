@@ -235,10 +235,6 @@ release: check-TAG check-CALICO_TAG
 	@echo "Calico version \"v3.27.0\", the directory would be \"calico_versioned_docs/version-3.27\". If this is not done,"
 	@echo "the install docs get broken!!"
 
-.PHONY: run-integration-tests
-run-integration-tests:
-	$(MAKE) -C test/integration-tests $@
-
 .PHONY: test-memif-multinet
 test-memif-multinet:
 	kubectl apply -f test/yaml/multinet/network.yaml

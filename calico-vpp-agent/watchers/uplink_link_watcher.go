@@ -47,7 +47,7 @@ func (r *LinkWatcher) netlinkError(err error) {
 }
 
 func (r *LinkWatcher) ResetMTU(link netlink.Link, mtu int) (err error) {
-	//TODO
+	// TODO
 	return netlink.LinkSetMTU(link, mtu)
 }
 

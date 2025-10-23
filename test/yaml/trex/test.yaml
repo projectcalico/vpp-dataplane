@@ -6,10 +6,21 @@ metadata:
   namespace: trex
   annotations:
     "cni.projectcalico.org/vppExtraMemifPorts":  "tcp:4444-20000,udp:4444-20000"
+    "cni.projectcalico.org/vppInterfacesSpec": "{\"eth0\": {\"isl3\": false }}"
 spec:
   containers:
   - name: trex
     image: calicovpp/test-trex:v3.06
+    command: ["/bin/bash", "-ec"]
+    args:
+      - |
+        ip link set dev eth0 down
+        ip link set dev eth0 address 02:00:00:00:00:01
+        ip link set dev eth0 up
+        ip neigh add 169.0.254.1  lladdr 51:53:00:17:34:09 dev eth0
+        ip route add 169.0.254.1 dev eth0
+        ip route add default via 169.0.254.1 dev eth0
+        sleep infinity
     imagePullPolicy: IfNotPresent
     securityContext:
       privileged: true
@@ -17,8 +28,8 @@ spec:
     - containerPort: 4444
     resources:
       limits:
-        memory: 1Gi
-        hugepages-2Mi: 1Gi
+        memory: 512Mi
+        hugepages-2Mi: 512Mi
     volumeMounts:
     - mountPath: /hugepages
       name: hugepage
