@@ -669,6 +669,12 @@ func (s *Server) WatchBGPPath(t *tomb.Tomb) error {
 				}
 				s.log.Infof("bgp(del) filter deleted: %s", filter.Name)
 				delete(s.bgpFilters, filter.Name)
+			case common.PeerNodeStateChanged:
+				old, _ := evt.Old.(*common.LocalNodeSpec)
+				new, _ := evt.New.(*common.LocalNodeSpec)
+				if s.peerHandler != nil {
+					s.peerHandler.OnPeerNodeStateChanged(old, new)
+				}
 			}
 		}
 	}
