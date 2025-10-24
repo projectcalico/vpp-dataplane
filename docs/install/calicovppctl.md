@@ -16,5 +16,5 @@ docker rm calicovppctl
 ## Using go
 
 ````bash
-go install github.com/projectcalico/vpp-dataplane/v3/cmd/calicovppctl@master
+go install github.com/projectcalico/vpp-dataplane/cmd/calicovppctl/v3@master
 ````
