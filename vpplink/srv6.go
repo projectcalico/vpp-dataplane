@@ -41,7 +41,7 @@ func (v *VppLink) ListSRv6Policies() (list []*types.SrPolicy, err error) {
 		}
 		srpolicy := &types.SrPolicy{}
 		srpolicy.FromVPP(response)
-		//srpolicy.Srv6SidListFromVPP(response.SidLists)
+		// srpolicy.Srv6SidListFromVPP(response.SidLists)
 		list = append(list, srpolicy)
 	}
 	return list, err

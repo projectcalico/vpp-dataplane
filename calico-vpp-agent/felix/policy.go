@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	netAnnotationsLabel = "extensions.projectcalico.org/network" //this annotation is assigned to rules in multinet to precise network
+	netAnnotationsLabel = "extensions.projectcalico.org/network" // this annotation is assigned to rules in multinet to precise network
 )
 
 type PolicyID struct {

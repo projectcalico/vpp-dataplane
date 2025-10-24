@@ -210,7 +210,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 			//  => not testing all IPSec settings, IPSec's IPIP tunnel being in UP state, test existence of
 			//  route to each IPSec tunnel (1 multipath route)
 			It("should have setup IPIP tunnel as backend and all IPSec settings (only PARTIAL test!)", func() {
-				//Note: not testing setting of IPsecAsyncMode and threads dedicated to IPSec (CryptoWorkers)
+				// Note: not testing setting of IPsecAsyncMode and threads dedicated to IPSec (CryptoWorkers)
 				// inside RescanState() function call
 				By("Adding node")
 				testutils.ConfigureBGPNodeIPAddresses(connectivityServer)
@@ -278,7 +278,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 						"Auth": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"Data": Equal([]byte(*agentConf.IPSecIkev2Psk)),
 						}),
-						//permissive (local/remote) traffic selectors
+						// permissive (local/remote) traffic selectors
 						"LocTs": gs.MatchFields(gs.IgnoreExtras, gs.Fields{
 							"ProtocolID": Equal(uint8(0)),
 							"StartPort":  Equal(uint16(0)),

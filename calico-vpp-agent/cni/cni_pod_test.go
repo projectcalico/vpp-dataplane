@@ -225,7 +225,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					Expect(memifs[0].Flags&types.MemifAdminUp > 0).To(BeTrue())
 					// Note: queues are allocated only when a client is listening
 					// Expect(memifs[0].QueueSize).To(Equal(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize))
-					//Note:Memif.NumRxQueues and Memif.NumTxQueues is not dumped by VPP binary API dump -> can't test it
+					// Note:Memif.NumRxQueues and Memif.NumTxQueues is not dumped by VPP binary API dump -> can't test it
 
 					By("Checking secondary tunnel's memif socket file") // checking only VPP setting, not file socket presence
 					socket, err := vpp.MemifsocketByID(memifs[0].SocketID)
@@ -411,7 +411,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							ContainerIps: []*cniproto.IPConfig{{
 								Address: secondaryIPAddress + "/24",
 							}},
-							//Workload: &cniproto.WorkloadIDs{},
+							// Workload: &cniproto.WorkloadIDs{},
 							DataplaneOptions: map[string]string{
 								testutils.DpoNetworkNameFieldName(): networkDefinition.Name,
 							},
@@ -435,8 +435,8 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						testutils.AssertTunnelInterfaceIPAddress(vpp, mainSwIfIndex, ipAddress)
 						testutils.AssertTunnelInterfaceMTU(vpp, mainSwIfIndex)
 
-						//By("Checking secondary tunnel's tun interface for existence")
-						//secondarySwIfIndex := testutils.AssertTunInterfaceExistence(vpp, newPodForSecondaryNetwork)
+						// By("Checking secondary tunnel's tun interface for existence")
+						// secondarySwIfIndex := testutils.AssertTunInterfaceExistence(vpp, newPodForSecondaryNetwork)
 						By("Checking secondary tunnel's memif interface for existence")
 						memifSwIfIndex, err := vpp.SearchInterfaceWithTag(
 							testutils.InterfaceTagForLocalMemifTunnel(newPodForSecondaryNetwork.InterfaceName, newPodForSecondaryNetwork.Netns))
@@ -456,7 +456,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						Expect(memifs[0].Flags&types.MemifAdminUp > 0).To(BeTrue())
 						// Note: queues are allocated only when a client is listening
 						// Expect(memifs[0].QueueSize).To(Equal(config.GetCalicoVppInterfaces().DefaultPodIfSpec.RxQueueSize))
-						//Note:Memif.NumRxQueues and Memif.NumTxQueues is not dumped by VPP binary API dump -> can't test it
+						// Note:Memif.NumRxQueues and Memif.NumTxQueues is not dumped by VPP binary API dump -> can't test it
 
 						By("Checking secondary tunnel's memif socket file") // checking only VPP setting, not file socket presence
 						socket, err := vpp.MemifsocketByID(memifs[0].SocketID)

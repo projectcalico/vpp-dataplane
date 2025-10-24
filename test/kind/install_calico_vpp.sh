@@ -54,7 +54,9 @@ export CALICOVPP_FEATURE_GATES='{
 	"vclEnabled": true,
 	"memifEnabled": true
 }'
-export CALICO_ENCAPSULATION=IPIP # VXLAN IPIP None
+export CALICO_ENCAPSULATION_V4=IPIP # VXLAN IPIP None
+export CALICO_ENCAPSULATION_V6=None # VXLAN IPIP None
+
 export CALICO_NAT_OUTGOING=Enabled
 export CALICOVPP_DISABLE_HUGEPAGES=true
 
