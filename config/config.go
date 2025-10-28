@@ -63,7 +63,7 @@ const (
 	BaseVppSideHardwareAddress = "02:ca:11:c0:fd:00"
 	// CniServerStateFileVersion is the version of the CNI server state file
 	// it is used to ensure compatibility when reloading data
-	CniServerStateFileVersion = 9
+	CniServerStateFileVersion = 10
 	// MaxAPITagLen is the limit number of character allowed in VPP API tags
 	MaxAPITagLen = 63
 	// VrfTagHashLen is the number of hash charatecters (b64) of the name

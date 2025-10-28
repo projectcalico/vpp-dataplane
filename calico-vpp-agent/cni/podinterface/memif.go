@@ -24,6 +24,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -44,8 +45,12 @@ func (d *dummy) Attrs() *netlink.LinkAttrs {
 	return &netlink.LinkAttrs{Name: d.name}
 }
 
-func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *MemifPodInterfaceDriver {
-	i := &MemifPodInterfaceDriver{}
+func NewMemifPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry, felixServerIpam common.FelixServerIpam) *MemifPodInterfaceDriver {
+	i := &MemifPodInterfaceDriver{
+		PodInterfaceDriverData: PodInterfaceDriverData{
+			felixServerIpam: felixServerIpam,
+		},
+	}
 	i.vpp = vpp
 	i.log = log
 	i.Name = "memif"

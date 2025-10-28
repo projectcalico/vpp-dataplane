@@ -46,8 +46,6 @@ type LocalPodSpecStatus struct {
 	V6VrfID uint32 `json:"v6VrfId"`
 	// V6RPFVrfID is the table ID for the v6 uRPF VRF created for the pod
 	V6RPFVrfID uint32 `json:"v6RPFVrfId"`
-	// NeedsSnat controls whether this pod needs source NAT
-	NeedsSnat bool `json:"needsSnat"`
 }
 
 func NewLocalPodSpecStatus() *LocalPodSpecStatus {

@@ -20,16 +20,18 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 type PodInterfaceDriverData struct {
-	log          *logrus.Entry
-	vpp          *vpplink.VppLink
-	Name         string
-	NDataThreads int
+	log             *logrus.Entry
+	vpp             *vpplink.VppLink
+	Name            string
+	NDataThreads    int
+	felixServerIpam common.FelixServerIpam
 }
 
 func (i *PodInterfaceDriverData) SpreadTxQueuesOnWorkers(swIfIndex uint32, numTxQueues int) (err error) {
@@ -86,9 +88,9 @@ func (i *PodInterfaceDriverData) UndoPodIfNatConfiguration(swIfIndex uint32) {
 }
 
 func (i *PodInterfaceDriverData) DoPodIfNatConfiguration(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack, swIfIndex uint32) (err error) {
-	if podSpec.NeedsSnat {
-		i.log.Infof("pod(add) Enable interface[%d] SNAT", swIfIndex)
-		for _, ipFamily := range vpplink.IPFamilies {
+	for _, ipFamily := range vpplink.IPFamilies {
+		if podSpec.NeedsSnat(i.felixServerIpam, ipFamily.IsIP6) {
+			i.log.Infof("pod(add) Enable interface[%d] SNAT", swIfIndex)
 			err = i.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIP6, true /*isEnable*/)
 			if err != nil {
 				return errors.Wrapf(err, "Error enabling %s snat", ipFamily.Str)
