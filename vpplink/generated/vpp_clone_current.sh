@@ -101,7 +101,7 @@ function git_clone_cd_and_reset ()
 	fi
 	if ! $(commit_exists $VPP_COMMIT); then
 		green "Fetching most recent VPP..."
-		git fetch "https://gerrit.fd.io/r/vpp"
+		git fetch --tags "https://gerrit.fd.io/r/vpp"
 	fi
 	git reset --hard ${VPP_COMMIT}
 	if [ $STASH_SAVED -eq 1 ]; then
@@ -111,8 +111,8 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-# VPP 25.06 released on 25/June/2025
-BASE="${BASE:-"1573e751c5478d3914d26cdde153390967932d6b"}" # misc: VPP 25.06 Release Notes
+# VPP 25.10 released on 29/October/2025
+BASE="${BASE:-"cbba0451bb0af02a3ab8e163f6f99062782258e6"}" # misc: VPP 25.10 Release Notes
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
@@ -124,28 +124,9 @@ git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular opt
 # This is the commit which broke IPv6 from v3.28.0 onwards.
 git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine NS source address
 
-# Mohsin's set of patches addressing the gso/cksum offload issue
-git_cherry_pick refs/changes/84/42184/6  # interface: add a new cap for virtual interfaces
-git_cherry_pick refs/changes/85/42185/6  # vnet: add assert for offload flags in debug mode
-git_cherry_pick refs/changes/86/42186/6  # tap: enable IPv4 checksum offload on interface
-git_cherry_pick refs/changes/19/42419/5  # dpdk: fix the outer flags
-git_cherry_pick refs/changes/81/43081/2  # interface: clear flags after checksum computation
-git_cherry_pick refs/changes/91/42891/5  # ip: compute checksums before fragmentation if offloaded
-git_cherry_pick refs/changes/82/43082/6  # ipip: fix the offload flags
-git_cherry_pick refs/changes/84/43084/3  # af_packet: conditionally set checksum offload based on TCP/UDP offload flags
-git_cherry_pick refs/changes/83/43083/3  # virtio: conditionally set checksum offload based on TCP/UDP offload flags
-git_cherry_pick refs/changes/25/42425/8  # interface: add support for proper checksum handling
-git_cherry_pick refs/changes/36/43336/3  # gso: fix ip fragment support for gso packet
-
-git_cherry_pick refs/changes/98/42598/12  # pg: add support for checksum offload
-git_cherry_pick refs/changes/76/42876/10  # gso: add support for ipip tso for phyiscal interfaces
-git_cherry_pick refs/changes/90/43690/2 # session: track app session index for cl sessions
-
-git_cherry_pick refs/changes/07/43107/4 # 43107: vcl: fix fifo private vpp sh on migration | https://gerrit.fd.io/r/c/vpp/+/43107
-git_cherry_pick refs/changes/14/43714/5 # 43714: session: fix handling of closed during migration | https://gerrit.fd.io/r/c/vpp/+/43714
-git_cherry_pick refs/changes/39/43139/5 # 43139: udp: regrab connected session after transport clone | https://gerrit.fd.io/r/c/vpp/+/43139
-git_cherry_pick refs/changes/23/43723/3 # 43723: session svm: fix session migrate attach data corruption | https://gerrit.fd.io/r/c/vpp/+/43723
+# npol: Network Policies plugin
 git_cherry_pick refs/changes/10/43710/12 # 43710: npol: Network Policies plugin | https://gerrit.fd.io/r/c/vpp/+/43710
+git_cherry_pick refs/changes/52/43952/2 # 43952: npol: fix test-debug | https://gerrit.fd.io/r/c/vpp/+/43952
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'

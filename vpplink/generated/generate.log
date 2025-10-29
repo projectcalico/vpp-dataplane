@@ -1,37 +1,16 @@
-VPP Version                 : 25.06.0-25~gd73287ef3
+VPP Version                 : 25.10.0-8~gd4f438470
 Binapi-generator version    : v0.11.0
-VPP Base commit             : 47505bc21 misc: Initial changes for stable/2506 branch
+VPP Base commit             : 4f366b5bb misc: Initial changes for stable/2510 branch
 ------------------ Cherry picked commits --------------------
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:43952/2 npol: fix test-debug
 gerrit:43710/12 npol: Network Policies plugin
-gerrit:43723/3 session svm: fix session migrate attach data corruption
-gerrit:43139/5 udp: regrab connected session after transport clone
-gerrit:43714/5 session: fix handling of closed during migration
-gerrit:43107/4 vcl: fix fifo private vpp sh on migration
-gerrit:43690/2 session: track app session index for cl sessions
-gerrit:42876/10 gso: add support for ipip tso for phyiscal interfaces
-gerrit:42598/12 pg: add support for checksum offload
-gerrit:43336/3 gso: fix ip fragment support for gso packet
-gerrit:42425/8 interface: add support for proper checksum handling
-gerrit:43083/3 virtio: conditionally set checksum offload based on TCP/UDP offload flags
-gerrit:43084/3 af_packet: conditionally set checksum offload based on TCP/UDP offload flags
-gerrit:43082/6 ipip: fix the offload flags
-gerrit:42891/5 ip: compute checksums before fragmentation if offloaded
-gerrit:43081/2 interface: clear flags after checksum computation
-gerrit:42419/5 dpdk: fix the outer flags
-gerrit:42186/6 tap: enable IPv4 checksum offload on interface
-gerrit:42185/6 vnet: add assert for offload flags in debug mode
-gerrit:42184/6 interface: add a new cap for virtual interfaces
 gerrit:revert:39675/5 Revert "ip-neighbor: do not use sas to determine NS source address"
 gerrit:42343/2 vcl: LDP default to regular option
 gerrit:34726/3 interface: add buffer stats api
-misc: VPP 25.06 Release Notes
-hsa: http client init wrk->vlib_main in setup
-tls: add half close support
-af_packet: show host interface offload flags
-af_packet: fix the error handling on transmit
-dma_intel: fix ats_disable attribute handling
-misc: Initial changes for stable/2506 branch
+misc: VPP 25.10 Release Notes
+linux-cp: fix multicast route setup with lcp-sync
+misc: Initial changes for stable/2510 branch
 -------------------------------------------------------------
