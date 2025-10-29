@@ -89,7 +89,7 @@ func (iis *IpamInterfaceStub) AssignIP(ctx context.Context, args ipam.AssignIPAr
 
 // ReleaseIPs releases any of the given IP addresses that are currently assigned,
 // so that they are available to be used in another assignment.
-func (iis *IpamInterfaceStub) ReleaseIPs(ctx context.Context, ips ...ipam.ReleaseOptions) ([]cnet.IP, error) {
+func (iis *IpamInterfaceStub) ReleaseIPs(ctx context.Context, ips ...ipam.ReleaseOptions) ([]cnet.IP, []ipam.ReleaseOptions, error) {
 	panic("not implemented")
 }
 
@@ -184,5 +184,11 @@ func (iis *IpamInterfaceStub) GetUtilization(ctx context.Context, args ipam.GetU
 // Otherwise, return the CIDR of the IPAM block allocated for this host.
 // It returns IPv4, IPv6 block CIDR and any error encountered.
 func (iis *IpamInterfaceStub) EnsureBlock(ctx context.Context, args ipam.BlockArgs) (*cnet.IPNet, *cnet.IPNet, error) {
+	panic("not implemented")
+}
+
+// UpgradeHost checks the resources related to the given node and, if it
+// finds any that are in older formats, upgrades them. It is idempotent.
+func (iis *IpamInterfaceStub) UpgradeHost(ctx context.Context, nodeName string) error {
 	panic("not implemented")
 }

@@ -26,12 +26,14 @@ import (
 	nadv1 "github.com/projectcalico/vpp-dataplane/v3/multinet-monitor/multinettypes"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
@@ -41,7 +43,7 @@ var kubernetesClient client.WithWatch
 var err error
 var currentPodList map[string]*v1.Pod
 var currentSvcList map[string]*v1.Service
-var currentEpList map[string]*v1.Endpoints
+var currentEpSliceList map[string]*discoveryv1.EndpointSlice
 var currentNadMap map[string]string
 
 func main() {
@@ -50,11 +52,11 @@ func main() {
 	currentPodList = make(map[string]*v1.Pod)
 	currentSvcList = make(map[string]*v1.Service)
 	currentNadMap = make(map[string]string)
-	currentEpList = make(map[string]*v1.Endpoints)
+	currentEpSliceList = make(map[string]*discoveryv1.EndpointSlice)
 	GroupVersion := schema.GroupVersion{Group: "", Version: "v1"}
 	SchemeBuilder := &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme := SchemeBuilder.AddToScheme
-	SchemeBuilder.Register(&v1.ServiceList{}, &v1.PodList{}, &v1.Pod{}, &v1.Service{}, &v1.Endpoints{})
+	SchemeBuilder.Register(&v1.ServiceList{}, &v1.PodList{}, &v1.Pod{}, &v1.Service{}, &discoveryv1.EndpointSlice{})
 
 	k8sClient, err := watchers.NewK8SClient(10*time.Second, []func(s *runtime.Scheme) error{AddToScheme, nadv1.AddToScheme})
 	if err != nil {
@@ -190,7 +192,7 @@ func watching(podWatcher, svcWatcher, nadWatcher watch.Interface) {
 				if _, found := currentSvcList[service.Name]; found {
 					log.Infof("SVC (del) %s", service.Name)
 					delete(currentSvcList, service.Name)
-					delete(currentEpList, service.Name)
+					delete(currentEpSliceList, service.Name)
 				}
 			}
 		}
@@ -219,24 +221,26 @@ func addPod(pod *v1.Pod, podNad string) {
 			} else if svcNad == podNad && SelectorMatch {
 				updateEndpoint(pod, svc, svcNetwork)
 			}
-			err = kubernetesClient.Update(context.Background(), currentEpList[svc.Name])
-			if err != nil {
-				log.Error(err)
+			if eps, exists := currentEpSliceList[svc.Name]; exists {
+				err = kubernetesClient.Update(context.Background(), eps)
+				if err != nil {
+					log.Error(err)
+				}
 			}
 		}
 	}
 }
 
 func deletePod(pod *v1.Pod) {
-	for name, ep := range currentEpList {
-		newSubsetList := []v1.EndpointSubset{}
-		for _, epSubset := range ep.Subsets {
-			if epSubset.Addresses[0].TargetRef.Name != pod.Name { // all addresses of a subset should have same pod name
-				newSubsetList = append(newSubsetList, epSubset)
+	for name, eps := range currentEpSliceList {
+		newEndpoints := []discoveryv1.Endpoint{}
+		for _, endpoint := range eps.Endpoints {
+			if endpoint.TargetRef != nil && endpoint.TargetRef.Name != pod.Name {
+				newEndpoints = append(newEndpoints, endpoint)
 			}
 		}
-		currentEpList[name].Subsets = newSubsetList
-		err = kubernetesClient.Update(context.Background(), currentEpList[ep.Name])
+		currentEpSliceList[name].Endpoints = newEndpoints
+		err = kubernetesClient.Update(context.Background(), currentEpSliceList[name])
 		if err != nil {
 			log.Error(err)
 		}
@@ -274,23 +278,30 @@ func addService(service *v1.Service, svcSelector string, svcNetwork string) {
 			}
 		}
 	}
-	err = kubernetesClient.Update(context.Background(), currentEpList[ep.Name])
+	err = kubernetesClient.Update(context.Background(), currentEpSliceList[ep.Name])
 	if err != nil {
 		log.Error(err)
 	}
 }
 
-func createEndpointForService(service *v1.Service, network string) (ep *v1.Endpoints) {
-	ep = &v1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{Name: service.Name, Namespace: service.Namespace},
+func createEndpointForService(service *v1.Service, network string) (ep *discoveryv1.EndpointSlice) {
+	ep = &discoveryv1.EndpointSlice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      service.Name,
+			Namespace: service.Namespace,
+			Labels: map[string]string{
+				discoveryv1.LabelServiceName: service.Name,
+			},
+		},
+		AddressType: discoveryv1.AddressTypeIPv4,
 	}
-	currentEpList[ep.Name] = ep
+	currentEpSliceList[ep.Name] = ep
 	return
 }
 
 func updateEndpoint(pod *v1.Pod, service *v1.Service, network string) {
-	epAddresses := []v1.EndpointAddress{}
-	epPorts := []v1.EndpointPort{}
+	var epAddresses []string
+	epPorts := []discoveryv1.EndpointPort{}
 	podStatus := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: pod.Name, Namespace: pod.Namespace},
 	}
@@ -316,36 +327,33 @@ retry: // need to re-get the pod because multus updates may take some time
 				log.Errorf("net attach def does not exist for network %s", network)
 			} else if strings.Contains(netStatus.Name, nad) {
 				ips := netStatus.IPs
-				for _, ip := range ips {
-					epAddresses = append(epAddresses, v1.EndpointAddress{
-						TargetRef: &v1.ObjectReference{
-							Kind:      "pod",
-							Namespace: "default",
-							Name:      podStatus.Name,
-						},
-						IP:       ip,
-						NodeName: &podStatus.Spec.NodeName,
-					})
-				}
+				epAddresses = append(epAddresses, ips...)
 			}
 		}
 	}
 	for _, container := range podStatus.Spec.Containers {
 		for _, containerPort := range container.Ports {
-			epPorts = append(epPorts, v1.EndpointPort{
-				Name:     containerPort.Name,
-				Protocol: containerPort.Protocol,
-				Port:     containerPort.ContainerPort})
+			portName := containerPort.Name
+			epPorts = append(epPorts, discoveryv1.EndpointPort{
+				Name:     &portName,
+				Protocol: &containerPort.Protocol,
+				Port:     &containerPort.ContainerPort})
 		}
 	}
-	subset := v1.EndpointSubset{
+	endpoint := discoveryv1.Endpoint{
 		Addresses: epAddresses,
-		Ports:     epPorts,
+		TargetRef: &v1.ObjectReference{
+			Kind:      "Pod",
+			Namespace: podStatus.Namespace,
+			Name:      podStatus.Name,
+		},
+		NodeName: ptr.To(podStatus.Spec.NodeName),
 	}
 	log.Infof("updating endpoint")
-	if currentEpList[service.Name].Subsets == nil {
-		currentEpList[service.Name].Subsets = []v1.EndpointSubset{subset}
+	if currentEpSliceList[service.Name].Endpoints == nil {
+		currentEpSliceList[service.Name].Endpoints = []discoveryv1.Endpoint{endpoint}
 	} else {
-		currentEpList[service.Name].Subsets = append(currentEpList[service.Name].Subsets, subset)
+		currentEpSliceList[service.Name].Endpoints = append(currentEpSliceList[service.Name].Endpoints, endpoint)
 	}
+	currentEpSliceList[service.Name].Ports = epPorts
 }
