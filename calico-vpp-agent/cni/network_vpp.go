@@ -126,11 +126,6 @@ func (s *Server) removeConflictingContainers(newAddresses []net.IP, networkName 
 
 // AddVppInterface performs the networking for the given config and IPAM result
 func (s *Server) AddVppInterface(podSpec *model.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
-	podSpec.NeedsSnat = false
-	for _, containerIP := range podSpec.GetContainerIPs() {
-		podSpec.NeedsSnat = podSpec.NeedsSnat || s.felixServerIpam.IPNetNeedsSNAT(containerIP)
-	}
-
 	err = ns.IsNSorErr(podSpec.NetnsName)
 	if err != nil {
 		return vpplink.InvalidID, PodNSNotFoundErr{podSpec.NetnsName}

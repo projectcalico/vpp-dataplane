@@ -236,13 +236,13 @@ func DpoNetworkNameFieldName() string {
 
 // InterfaceTagForLocalTunTunnel constructs the tag for the VPP side of the tap tunnel the same way as cni server
 func InterfaceTagForLocalTunTunnel(interfaceName, netns string) string {
-	return InterfaceTagForLocalTunnel(podinterface.NewTunTapPodInterfaceDriver(nil, nil).Name,
+	return InterfaceTagForLocalTunnel(podinterface.NewTunTapPodInterfaceDriver(nil, nil, nil).Name,
 		interfaceName, netns)
 }
 
 // InterfaceTagForLocalMemifTunnel constructs the tag for the VPP side of the memif tunnel the same way as cni server
 func InterfaceTagForLocalMemifTunnel(interfaceName, netns string) string {
-	return InterfaceTagForLocalTunnel(podinterface.NewMemifPodInterfaceDriver(nil, nil).Name,
+	return InterfaceTagForLocalTunnel(podinterface.NewMemifPodInterfaceDriver(nil, nil, nil).Name,
 		interfaceName, netns)
 }
 

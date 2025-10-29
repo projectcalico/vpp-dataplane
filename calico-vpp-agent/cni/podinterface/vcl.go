@@ -21,6 +21,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
@@ -34,8 +35,12 @@ func getPodAppNamespaceName(podSpec *model.LocalPodSpec) string {
 	return fmt.Sprintf("app-ns-%s", podSpecKey)
 }
 
-func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *VclPodInterfaceDriver {
-	i := &VclPodInterfaceDriver{}
+func NewVclPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry, felixServerIpam common.FelixServerIpam) *VclPodInterfaceDriver {
+	i := &VclPodInterfaceDriver{
+		PodInterfaceDriverData: PodInterfaceDriverData{
+			felixServerIpam: felixServerIpam,
+		},
+	}
 	i.vpp = vpp
 	i.log = log
 	i.Name = "vcl"

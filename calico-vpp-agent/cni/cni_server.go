@@ -296,10 +296,10 @@ func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, 
 
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]model.LocalPodSpec),
-		tuntapDriver:    podinterface.NewTunTapPodInterfaceDriver(vpp, log),
-		memifDriver:     podinterface.NewMemifPodInterfaceDriver(vpp, log),
-		vclDriver:       podinterface.NewVclPodInterfaceDriver(vpp, log),
-		loopbackDriver:  podinterface.NewLoopbackPodInterfaceDriver(vpp, log),
+		tuntapDriver:    podinterface.NewTunTapPodInterfaceDriver(vpp, log, felixServerIpam),
+		memifDriver:     podinterface.NewMemifPodInterfaceDriver(vpp, log, felixServerIpam),
+		vclDriver:       podinterface.NewVclPodInterfaceDriver(vpp, log, felixServerIpam),
+		loopbackDriver:  podinterface.NewLoopbackPodInterfaceDriver(vpp, log, felixServerIpam),
 
 		cniMultinetEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
 	}
@@ -349,19 +349,13 @@ forloop:
 				}
 
 				for _, podSpec := range s.podInterfaceMap {
-					NeededSnat := podSpec.NeedsSnat
-					for _, containerIP := range podSpec.GetContainerIPs() {
-						podSpec.NeedsSnat = podSpec.NeedsSnat || s.felixServerIpam.IPNetNeedsSNAT(containerIP)
-					}
-					if NeededSnat != podSpec.NeedsSnat {
-						for _, swIfIndex := range []uint32{podSpec.LoopbackSwIfIndex, podSpec.TunTapSwIfIndex, podSpec.MemifSwIfIndex} {
-							if swIfIndex != vpplink.InvalidID {
-								s.log.Infof("Enable/Disable interface[%d] SNAT", swIfIndex)
-								for _, ipFamily := range vpplink.IPFamilies {
-									err := s.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIP6, podSpec.NeedsSnat)
-									if err != nil {
-										return errors.Wrapf(err, "Error enabling/disabling %s snat", ipFamily.Str)
-									}
+					for _, swIfIndex := range []uint32{podSpec.LoopbackSwIfIndex, podSpec.TunTapSwIfIndex, podSpec.MemifSwIfIndex} {
+						if swIfIndex != vpplink.InvalidID {
+							s.log.Infof("Enable/Disable interface[%d] SNAT", swIfIndex)
+							for _, ipFamily := range vpplink.IPFamilies {
+								err := s.vpp.EnableDisableCnatSNAT(swIfIndex, ipFamily.IsIP6, podSpec.NeedsSnat(s.felixServerIpam, ipFamily.IsIP6))
+								if err != nil {
+									return errors.Wrapf(err, "Error enabling/disabling %s snat", ipFamily.Str)
 								}
 							}
 						}

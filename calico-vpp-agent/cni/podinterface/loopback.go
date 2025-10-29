@@ -28,8 +28,12 @@ type LoopbackPodInterfaceDriver struct {
 	PodInterfaceDriverData
 }
 
-func NewLoopbackPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry) *LoopbackPodInterfaceDriver {
-	i := &LoopbackPodInterfaceDriver{}
+func NewLoopbackPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry, felixServerIpam common.FelixServerIpam) *LoopbackPodInterfaceDriver {
+	i := &LoopbackPodInterfaceDriver{
+		PodInterfaceDriverData: PodInterfaceDriverData{
+			felixServerIpam: felixServerIpam,
+		},
+	}
 	i.vpp = vpp
 	i.log = log
 	i.Name = "loopback"

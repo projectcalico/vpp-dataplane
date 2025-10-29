@@ -255,6 +255,18 @@ func (podSpec *LocalPodSpec) Hasv46() (hasv4 bool, hasv6 bool) {
 	return hasv4, hasv6
 }
 
+func (podSpec *LocalPodSpec) NeedsSnat(felixServerIpam common.FelixServerIpam, isIP6 bool) bool {
+	for _, containerIP := range podSpec.GetContainerIPs() {
+		if containerIP.IP.To4() == nil != isIP6 {
+			continue
+		}
+		if felixServerIpam.IPNetNeedsSNAT(containerIP) {
+			return true
+		}
+	}
+	return false
+}
+
 // LocalIfPortConfigs is the local representation of a
 // port range policy splitting traffic between a memif and
 // a linux netdev
