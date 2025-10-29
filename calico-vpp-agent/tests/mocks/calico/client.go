@@ -161,3 +161,7 @@ func (cc *CalicoClientStub) StagedKubernetesNetworkPolicies() clientv3.StagedKub
 func (cc *CalicoClientStub) StagedNetworkPolicies() clientv3.StagedNetworkPolicyInterface {
 	panic("not implemented")
 }
+
+func (cc *CalicoClientStub) Close() error {
+	panic("not implemented")
+}

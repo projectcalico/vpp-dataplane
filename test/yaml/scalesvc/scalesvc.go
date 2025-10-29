@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -39,6 +40,7 @@ func parallel(val int, modul int) func() error {
 			panic(err.Error())
 		}
 		corev1 := client.CoreV1()
+		discoveryv1client := client.DiscoveryV1()
 
 		for i := 1; i <= NServices; i++ {
 			if i%modul != val {
@@ -59,21 +61,27 @@ func parallel(val int, modul int) func() error {
 			if err != nil {
 				log.Errorf("err: %v ", err)
 			}
-			endpoints := v1.Endpoints{
-				Subsets: []v1.EndpointSubset{{
-					Addresses: []v1.EndpointAddress{{
-						IP: TargetAddr,
-					}},
-					Ports: []v1.EndpointPort{{
-						Port:     80,
-						Protocol: "TCP",
-					}},
+			protocol := v1.ProtocolTCP
+			port := int32(80)
+			endpointSlice := discoveryv1.EndpointSlice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("nginx-service-%d", i),
+					Namespace: "backs",
+					Labels: map[string]string{
+						discoveryv1.LabelServiceName: fmt.Sprintf("nginx-service-%d", i),
+					},
+				},
+				AddressType: discoveryv1.AddressTypeIPv4,
+				Endpoints: []discoveryv1.Endpoint{{
+					Addresses: []string{TargetAddr},
+				}},
+				Ports: []discoveryv1.EndpointPort{{
+					Port:     &port,
+					Protocol: &protocol,
 				}},
 			}
-			endpoints.Name = fmt.Sprintf("nginx-service-%d", i)
-			endpoints.Namespace = "backs"
 
-			_, err = corev1.Endpoints("backs").Create(context.Background(), &endpoints, metav1.CreateOptions{})
+			_, err = discoveryv1client.EndpointSlices("backs").Create(context.Background(), &endpointSlice, metav1.CreateOptions{})
 			if err != nil {
 				log.Errorf("err: %v ", err)
 			}
