@@ -16,6 +16,7 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -37,21 +38,49 @@ const (
 	INVALID IPProto = IPProto(ip_types.IP_API_PROTO_RESERVED) //nolint:staticcheck
 )
 
-func (proto *IPProto) UnmarshalText(text []byte) error {
-	switch string(text) {
-	case "tcp":
-		*proto = TCP
-	case "udp":
-		*proto = UDP
-	case "sctp":
-		*proto = SCTP
-	default:
-		*proto = TCP
+// Mapping IPProto <-> string
+var ipProtoToString = map[IPProto]string{
+	TCP:     "tcp",
+	UDP:     "udp",
+	SCTP:    "sctp",
+	ICMP:    "icmp",
+	ICMP6:   "icmp6",
+	INVALID: "invalid",
+}
+
+var stringToIPProto = map[string]IPProto{
+	"tcp":     TCP,
+	"udp":     UDP,
+	"sctp":    SCTP,
+	"icmp":    ICMP,
+	"icmp6":   ICMP6,
+	"invalid": INVALID,
+}
+
+func (proto IPProto) MarshalJSON() ([]byte, error) {
+	str, ok := ipProtoToString[proto]
+	if !ok {
+		str = "invalid"
+	}
+	return json.Marshal(str)
+}
+
+func (proto *IPProto) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+
+	protocol, ok := stringToIPProto[str]
+	if !ok {
+		*proto = INVALID
+	} else {
+		*proto = protocol
 	}
 	return nil
 }
 
-func (proto *IPProto) UnmarshalJSON(text []byte) error {
+func (proto *IPProto) UnmarshalText(text []byte) error {
 	switch string(text) {
 	case "tcp":
 		*proto = TCP
