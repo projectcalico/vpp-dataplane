@@ -17,6 +17,7 @@ package types
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"net"
 	"regexp"
 	"strconv"
@@ -46,22 +47,6 @@ func (mode *RxMode) UnmarshalText(text []byte) error {
 	return nil
 }
 
-func (mode *RxMode) UnmarshalJSON(text []byte) error {
-	switch string(text) {
-	case "interrupt":
-		*mode = InterruptRxMode
-	case "polling":
-		*mode = PollingRxMode
-	case "adaptive":
-		*mode = AdaptativeRxMode
-	case "default":
-		*mode = DefaultRxMode
-	default:
-		*mode = UnknownRxMode
-	}
-	return nil
-}
-
 const (
 	InvalidInterface = interface_types.InterfaceIndex(^uint32(0))
 )
@@ -75,6 +60,44 @@ const (
 
 	AllQueues = ^uint32(0)
 )
+
+// Mapping RxMode <-> string
+var rxModeToString = map[RxMode]string{
+	PollingRxMode:    "polling",
+	InterruptRxMode:  "interrupt",
+	AdaptativeRxMode: "adaptive",
+	DefaultRxMode:    "default",
+}
+
+var stringToRxMode = map[string]RxMode{
+	"polling":   PollingRxMode,
+	"interrupt": InterruptRxMode,
+	"adaptive":  AdaptativeRxMode,
+	"default":   DefaultRxMode,
+}
+
+func (mode RxMode) MarshalJSON() ([]byte, error) {
+	str, ok := rxModeToString[mode]
+	if !ok {
+		str = "unknown"
+	}
+	return json.Marshal(str)
+}
+
+func (mode *RxMode) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+
+	rxmode, ok := stringToRxMode[str]
+	if !ok {
+		*mode = UnknownRxMode
+	} else {
+		*mode = rxmode
+	}
+	return nil
+}
 
 type GenericVppInterface struct {
 	Name              string /* Desired name in VPP */
