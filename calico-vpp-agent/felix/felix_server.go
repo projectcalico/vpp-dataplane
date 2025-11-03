@@ -27,7 +27,6 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/projectcalico/api/pkg/lib/numorstring"
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
@@ -113,7 +112,8 @@ type Server struct {
 	nodeStatesByName  map[string]*common.LocalNodeSpec
 	nodeByWGPublicKey map[string]string
 
-	GotOurNodeBGPchan chan interface{}
+	GotOurNodeBGPchan     chan interface{}
+	GotOurNodeBGPchanOnce sync.Once
 }
 
 // NewFelixServer creates a felix server
@@ -1136,65 +1136,6 @@ func (s *Server) handleHostMetadataRemove(msg *proto.HostMetadataRemove, pending
 	return nil
 }
 
-func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update, pending bool) (err error) {
-	var ip4net, ip6net *net.IPNet
-	var ip4, ip6 net.IP
-	if msg.Ipv4Addr != "" {
-		ip4, ip4net, err = net.ParseCIDR(msg.Ipv4Addr)
-		if err != nil {
-			return err
-		}
-		ip4net.IP = ip4
-	}
-	if msg.Ipv6Addr != "" {
-		ip6, ip6net, err = net.ParseCIDR(msg.Ipv6Addr)
-		if err != nil {
-			return err
-		}
-		ip6net.IP = ip6
-	}
-
-	localNodeSpec := &common.LocalNodeSpec{
-		Name:        msg.Hostname,
-		Labels:      msg.Labels,
-		IPv4Address: ip4net,
-		IPv6Address: ip6net,
-	}
-	if msg.Asnumber != "" {
-		asn, err := numorstring.ASNumberFromString(msg.Asnumber)
-		if err != nil {
-			return err
-		}
-		localNodeSpec.ASNumber = &asn
-	}
-
-	old, found := s.nodeStatesByName[localNodeSpec.Name]
-	if found {
-		err = s.onNodeUpdated(old, localNodeSpec)
-	} else {
-		err = s.onNodeAdded(localNodeSpec)
-	}
-	s.nodeStatesByName[localNodeSpec.Name] = localNodeSpec
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *Server) handleHostMetadataV4V6Remove(msg *proto.HostMetadataV4V6Remove, pending bool) (err error) {
-	localNodeSpec := &common.LocalNodeSpec{Name: msg.Hostname}
-	old, found := s.nodeStatesByName[localNodeSpec.Name]
-	if found {
-		err = s.onNodeDeleted(old, localNodeSpec)
-		if err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("node to delete not found")
-	}
-	return nil
-}
-
 func (s *Server) handleWireguardEndpointUpdate(msg *proto.WireguardEndpointUpdate, pending bool) (err error) {
 	s.log.Infof("Received wireguard public key %+v", msg)
 	var old *common.NodeWireguardPublicKey
@@ -1217,39 +1158,24 @@ func (s *Server) handleWireguardEndpointRemove(msg *proto.WireguardEndpointRemov
 	return nil
 }
 
-func (s *Server) onNodeUpdated(old *common.LocalNodeSpec, node *common.LocalNodeSpec) (err error) {
-	// This is used by the routing server to process Wireguard key updates
-	// As a result we only send an event when a node is updated, not when it is added or deleted
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.PeerNodeStateChanged,
-		Old:  old,
-		New:  node,
-	})
-	change := common.GetIPNetChangeType(old.IPv4Address, node.IPv4Address) | common.GetIPNetChangeType(old.IPv6Address, node.IPv6Address)
-	if change&(common.ChangeDeleted|common.ChangeUpdated) != 0 && node.Name == *config.NodeName {
-		// restart if our BGP config changed
-		return NodeWatcherRestartError{}
+func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update, pending bool) (err error) {
+	localNodeSpec, err := common.NewLocalNodeSpec(msg)
+	if err != nil {
+		return errors.Wrapf(err, "handleHostMetadataV4V6Update errored")
 	}
-	if change != common.ChangeSame {
-		s.configureRemoteNodeSnat(old, false /* isAdd */)
-		s.configureRemoteNodeSnat(node, true /* isAdd */)
-	}
+	old, found := s.nodeStatesByName[localNodeSpec.Name]
 
-	return nil
-}
-
-func (s *Server) onNodeAdded(node *common.LocalNodeSpec) (err error) {
-	if node.Name == *config.NodeName &&
-		(node.IPv4Address != nil || node.IPv6Address != nil) {
-		if s.ip4 == nil && s.ip6 == nil {
-			/* We found a BGP Spec that seems valid enough */
-			s.GotOurNodeBGPchan <- node
+	if localNodeSpec.Name == *config.NodeName &&
+		(localNodeSpec.IPv4Address != nil || localNodeSpec.IPv6Address != nil) {
+		/* We found a BGP Spec that seems valid enough */
+		s.GotOurNodeBGPchanOnce.Do(func() {
+			s.GotOurNodeBGPchan <- localNodeSpec
+		})
+		if localNodeSpec.IPv4Address != nil {
+			s.ip4 = &localNodeSpec.IPv4Address.IP
 		}
-		if node.IPv4Address != nil {
-			s.ip4 = &node.IPv4Address.IP
-		}
-		if node.IPv6Address != nil {
-			s.ip6 = &node.IPv6Address.IP
+		if localNodeSpec.IPv6Address != nil {
+			s.ip6 = &localNodeSpec.IPv6Address.IP
 		}
 		err = s.createAllowFromHostPolicy()
 		if err != nil {
@@ -1261,12 +1187,29 @@ func (s *Server) onNodeAdded(node *common.LocalNodeSpec) (err error) {
 		}
 	}
 
+	// This is used by the routing server to process Wireguard key updates
+	// As a result we only send an event when a node is updated, not when it is added or deleted
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.PeerNodeStateChanged,
-		New:  node,
+		Old:  old,
+		New:  localNodeSpec,
 	})
-	s.configureRemoteNodeSnat(node, true /* isAdd */)
 
+	if !found {
+		s.configureRemoteNodeSnat(localNodeSpec, true /* isAdd */)
+	} else {
+		change := common.GetIPNetChangeType(old.IPv4Address, localNodeSpec.IPv4Address) | common.GetIPNetChangeType(old.IPv6Address, localNodeSpec.IPv6Address)
+		if change&(common.ChangeDeleted|common.ChangeUpdated) != 0 && localNodeSpec.Name == *config.NodeName {
+			// restart if our BGP config changed
+			return NodeWatcherRestartError{}
+		}
+		if change != common.ChangeSame {
+			s.configureRemoteNodeSnat(old, false /* isAdd */)
+			s.configureRemoteNodeSnat(localNodeSpec, true /* isAdd */)
+		}
+	}
+
+	s.nodeStatesByName[localNodeSpec.Name] = localNodeSpec
 	return nil
 }
 
@@ -1285,7 +1228,12 @@ func (s *Server) configureRemoteNodeSnat(node *common.LocalNodeSpec, isAdd bool)
 	}
 }
 
-func (s *Server) onNodeDeleted(old *common.LocalNodeSpec, node *common.LocalNodeSpec) error {
+func (s *Server) handleHostMetadataV4V6Remove(msg *proto.HostMetadataV4V6Remove, pending bool) (err error) {
+	old, found := s.nodeStatesByName[msg.Hostname]
+	if !found {
+		return fmt.Errorf("node %s to delete not found", msg.Hostname)
+	}
+
 	common.SendEvent(common.CalicoVppEvent{
 		Type: common.PeerNodeStateChanged,
 		Old:  old,
