@@ -65,6 +65,37 @@ type LocalNodeSpec struct {
 	IPv6Address *net.IPNet
 }
 
+func NewLocalNodeSpec(msg *proto.HostMetadataV4V6Update) (*LocalNodeSpec, error) {
+	localNodeSpec := &LocalNodeSpec{
+		Name:   msg.Hostname,
+		Labels: msg.Labels,
+	}
+	if msg.GetIpv4Addr() != "" {
+		ip4, ip4net, err := net.ParseCIDR(msg.GetIpv4Addr())
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not parse Ipv4Addr %s", msg.GetIpv4Addr())
+		}
+		ip4net.IP = ip4
+		localNodeSpec.IPv4Address = ip4net
+	}
+	if msg.GetIpv6Addr() != "" {
+		ip6, ip6net, err := net.ParseCIDR(msg.GetIpv6Addr())
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not parse Ipv6Addr %s", msg.GetIpv6Addr())
+		}
+		ip6net.IP = ip6
+		localNodeSpec.IPv6Address = ip6net
+	}
+	if msg.GetAsnumber() != "" {
+		asn, err := numorstring.ASNumberFromString(msg.GetAsnumber())
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not parse Asnumber %s", msg.GetAsnumber())
+		}
+		localNodeSpec.ASNumber = &asn
+	}
+	return localNodeSpec, nil
+}
+
 type NodeWireguardPublicKey struct {
 	Name               string
 	WireguardPublicKey string
