@@ -37,6 +37,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -108,12 +109,14 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 		}
 	}
 
-	config.RunHook(config.HookScriptBeforeVppRun, "BEFORE_VPP_RUN", v.params, log)
+	networkHook.ExecuteWithUserScript(hooks.HookBeforeVppRun, config.HookScriptBeforeVppRun, v.params)
+
 	err = v.runVpp()
 	if err != nil {
 		return errors.Wrapf(err, "Error running VPP")
 	}
-	config.RunHook(config.HookScriptVppDoneOk, "VPP_DONE_OK", v.params, log)
+
+	networkHook.ExecuteWithUserScript(hooks.HookVppDoneOk, config.HookScriptVppDoneOk, v.params)
 	return nil
 }
 
@@ -927,7 +930,8 @@ func (v *VppRunner) runVpp() (err error) {
 
 	// close vpp as we do not program
 	v.vpp.Close()
-	config.RunHook(config.HookScriptVppRunning, "VPP_RUNNING", v.params, log)
+
+	networkHook.ExecuteWithUserScript(hooks.HookVppRunning, config.HookScriptVppRunning, v.params)
 
 	<-vppDeadChan
 	log.Infof("VPP Exited: status %v", err)

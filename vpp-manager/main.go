@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
@@ -41,6 +42,8 @@ var (
 	vppProcess  *os.Process
 	vppDeadChan chan bool
 	signals     chan os.Signal
+	/* Network manager hook for handling network configuration */
+	networkHook *hooks.NetworkManagerHook
 	/* Was VPP terminated by us ? */
 	internalKill bool
 	/* Increasing index for timeout */
@@ -160,7 +163,10 @@ func main() {
 
 	params := startup.NewVppManagerParams()
 
-	config.RunHook(config.HookScriptBeforeIfRead, "BEFORE_IF_READ", params, log)
+	/* Initialize native Go NewNetworkManagerHook with empty interface names
+	 * We will update this later once we have the actual interface names */
+	networkHook = hooks.NewNetworkManagerHook(log)
+	networkHook.ExecuteWithUserScript(hooks.HookBeforeIfRead, config.HookScriptBeforeIfRead, params)
 
 	err = utils.ClearVppManagerFiles()
 	if err != nil {
@@ -180,6 +186,15 @@ func main() {
 	confs, err := startup.GetInterfaceConfig(params)
 	if err != nil {
 		log.Fatalf("Error getting initial interface configuration: %s", err)
+	}
+
+	/* Update native Go NewNetworkManagerHook with all interface names */
+	if len(params.UplinksSpecs) > 0 {
+		interfaceNames := make([]string, len(params.UplinksSpecs))
+		for i, spec := range params.UplinksSpecs {
+			interfaceNames[i] = spec.InterfaceName
+		}
+		networkHook.SetInterfaceNames(interfaceNames)
 	}
 
 	runningCond = sync.NewCond(&sync.Mutex{})
@@ -205,7 +220,7 @@ func main() {
 			internalKill = false
 			err = runner.Run([]uplink.UplinkDriver{driver})
 			if err != nil {
-				config.RunHook(config.HookScriptVppErrored, "VPP_ERRORED", params, log)
+				networkHook.ExecuteWithUserScript(hooks.HookVppErrored, config.HookScriptVppErrored, params)
 				log.Errorf("VPP(%s) run failed with %s", driver.GetName(), err)
 			}
 			if vppProcess != nil && !internalKill {
@@ -229,7 +244,7 @@ func main() {
 
 		err = runner.Run(drivers)
 		if err != nil {
-			config.RunHook(config.HookScriptVppErrored, "VPP_ERRORED", params, log)
+			networkHook.ExecuteWithUserScript(hooks.HookVppErrored, config.HookScriptVppErrored, params)
 			log.Errorf("VPP run failed with %v", err)
 		}
 
