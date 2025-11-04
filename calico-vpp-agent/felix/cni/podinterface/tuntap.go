@@ -28,8 +28,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -37,21 +38,19 @@ import (
 
 type TunTapPodInterfaceDriver struct {
 	PodInterfaceDriverData
-	felixConfig         *felixConfig.Config
 	ipipEncapRefCounts  int /* how many ippools with IPIP */
 	vxlanEncapRefCounts int /* how many ippools with VXLAN */
 }
 
-func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry, felixServerIpam common.FelixServerIpam) *TunTapPodInterfaceDriver {
-	i := &TunTapPodInterfaceDriver{
+func NewTunTapPodInterfaceDriver(vpp *vpplink.VppLink, cache *cache.Cache, log *logrus.Entry) *TunTapPodInterfaceDriver {
+	return &TunTapPodInterfaceDriver{
 		PodInterfaceDriverData: PodInterfaceDriverData{
-			felixServerIpam: felixServerIpam,
+			vpp:   vpp,
+			log:   log,
+			cache: cache,
+			Name:  "tun",
 		},
 	}
-	i.vpp = vpp
-	i.log = log
-	i.Name = "tun"
-	return i
 }
 
 func reduceMtuIf(podMtu *int, tunnelMtu int, tunnelEnabled bool) {
@@ -97,10 +96,6 @@ func (i *TunTapPodInterfaceDriver) computePodMtu(podSpecMtu int, fc *felixConfig
 	return podMtu
 }
 
-func (i *TunTapPodInterfaceDriver) SetFelixConfig(felixConfig *felixConfig.Config) {
-	i.felixConfig = felixConfig
-}
-
 /**
  * This is called when the felix config or ippool encap refcount change,
  * and update the linux mtu accordingly.
@@ -108,12 +103,12 @@ func (i *TunTapPodInterfaceDriver) SetFelixConfig(felixConfig *felixConfig.Confi
  */
 func (i *TunTapPodInterfaceDriver) FelixConfigChanged(newFelixConfig *felixConfig.Config, ipipEncapRefCountDelta int, vxlanEncapRefCountDelta int, podSpecs map[string]model.LocalPodSpec) {
 	if newFelixConfig == nil {
-		newFelixConfig = i.felixConfig
+		newFelixConfig = i.cache.FelixConfig
 	}
-	if i.felixConfig != nil {
+	if i.cache.FelixConfig != nil {
 		for name, podSpec := range podSpecs {
-			oldMtu := i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0)
-			newMtu := i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts+ipipEncapRefCountDelta > 0, i.vxlanEncapRefCounts+vxlanEncapRefCountDelta > 0)
+			oldMtu := i.computePodMtu(podSpec.Mtu, i.cache.FelixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0)
+			newMtu := i.computePodMtu(podSpec.Mtu, i.cache.FelixConfig, i.ipipEncapRefCounts+ipipEncapRefCountDelta > 0, i.vxlanEncapRefCounts+vxlanEncapRefCountDelta > 0)
 			if oldMtu != newMtu {
 				i.log.Infof("pod(upd) reconfiguring mtu=%d pod=%s", newMtu, name)
 				err := ns.WithNetNSPath(podSpec.NetnsName, func(ns.NetNS) error {
@@ -134,7 +129,7 @@ func (i *TunTapPodInterfaceDriver) FelixConfigChanged(newFelixConfig *felixConfi
 		}
 	}
 
-	i.felixConfig = newFelixConfig
+	i.cache.FelixConfig = newFelixConfig
 	i.ipipEncapRefCounts = i.ipipEncapRefCounts + ipipEncapRefCountDelta
 	i.vxlanEncapRefCounts = i.vxlanEncapRefCounts + vxlanEncapRefCountDelta
 }
@@ -150,7 +145,7 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *model.LocalPodSpec, 
 		},
 		HostNamespace: podSpec.NetnsName,
 		Tag:           podSpec.GetInterfaceTag(i.Name),
-		HostMtu:       i.computePodMtu(podSpec.Mtu, i.felixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0),
+		HostMtu:       i.computePodMtu(podSpec.Mtu, i.cache.FelixConfig, i.ipipEncapRefCounts > 0, i.vxlanEncapRefCounts > 0),
 	}
 
 	if *podSpec.IfSpec.IsL3 {

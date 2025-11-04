@@ -69,10 +69,6 @@ func (s *IpamCacheStub) WaitReady() {
 	panic("not implemented")
 }
 
-func (s *IpamCacheStub) IPNetNeedsSNAT(prefix *net.IPNet) bool {
-	return false
-}
-
 func (s *IpamCacheStub) AddPrefixIPPool(prefix *net.IPNet, ipPool *proto.IPAMPoolUpdate) {
 	s.ipPools[prefix.String()] = ipPool
 }

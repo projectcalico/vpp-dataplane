@@ -18,36 +18,34 @@ package cni
 import (
 	"net"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 // getHostPortHostIP returns the hostIP for a given
 // hostIP strings and an IP family
-func (s *Server) getHostPortHostIP(hostIP net.IP, isIP6 bool) net.IP {
+func (s *CNIHandler) getHostPortHostIP(hostIP *net.IP, isIP6 bool) *net.IP {
 	if hostIP != nil && !hostIP.IsUnspecified() {
 		if (hostIP.To4() == nil) == isIP6 {
 			return hostIP
 		}
-	} else if s.nodeBGPSpec != nil {
-		if isIP6 && s.nodeBGPSpec.IPv6Address != nil {
-			return s.nodeBGPSpec.IPv6Address.IP
-		} else if !isIP6 && s.nodeBGPSpec.IPv4Address != nil {
-			return s.nodeBGPSpec.IPv4Address.IP
-		}
 	}
-	return net.IP{}
+	if isIP6 {
+		return s.cache.GetNodeIP6()
+	} else {
+		return s.cache.GetNodeIP4()
+	}
 }
 
-func (s *Server) AddHostPort(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) error {
+func (s *CNIHandler) AddHostPort(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) error {
 	for idx, hostPort := range podSpec.HostPorts {
 		for _, containerAddr := range podSpec.ContainerIPs {
-			hostIP := s.getHostPortHostIP(hostPort.HostIP, vpplink.IsIP6(containerAddr))
+			hostIP := s.getHostPortHostIP(&hostPort.HostIP, vpplink.IsIP6(containerAddr))
 			if hostIP != nil && !hostIP.IsUnspecified() {
 				entry := &types.CnatTranslateEntry{
 					Endpoint: types.CnatEndpoint{
-						IP:   hostIP,
+						IP:   *hostIP,
 						Port: hostPort.HostPort,
 					},
 					Backends: []types.CnatEndpointTuple{{
@@ -74,7 +72,7 @@ func (s *Server) AddHostPort(podSpec *model.LocalPodSpec, stack *vpplink.Cleanup
 	return nil
 }
 
-func (s *Server) DelHostPort(podSpec *model.LocalPodSpec) {
+func (s *CNIHandler) DelHostPort(podSpec *model.LocalPodSpec) {
 	initialSpec, ok := s.podInterfaceMap[podSpec.Key()]
 	if ok {
 		for _, hostPort := range initialSpec.HostPorts {
