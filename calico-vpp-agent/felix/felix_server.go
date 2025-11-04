@@ -16,135 +16,55 @@
 package felix
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
-	"os"
-	"reflect"
-	"regexp"
-	"strings"
-	"sync"
 
 	"github.com/pkg/errors"
-	felixConfig "github.com/projectcalico/calico/felix/config"
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	"github.com/projectcalico/calico/felix/proto"
+	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 
-	nettypes "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	"github.com/projectcalico/calico/felix/proto"
-
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/connectivity"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/policies"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/npol"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-const (
-	FelixPluginSrcPath = "/bin/felix-api-proxy"
-	FelixPluginDstPath = "/var/lib/calico/felix-plugins/felix-api-proxy"
-)
-
-type SyncState int
-
-const (
-	StateDisconnected SyncState = iota
-	StateConnected
-	StateSyncing
-	StateInSync
-)
-
-type NodeWatcherRestartError struct{}
-
-func (e NodeWatcherRestartError) Error() string {
-	return "node configuration changed, restarting"
-}
-
 // Server holds all the data required to configure the policies defined by felix in VPP
 type Server struct {
-	log *logrus.Entry
-	vpp *vpplink.VppLink
+	log   *logrus.Entry
+	vpp   *vpplink.VppLink
+	cache *cache.Cache
 
-	state         SyncState
-	nextSeqNumber uint64
+	felixServerEventChan chan any
 
-	endpointsLock       sync.Mutex
-	endpointsInterfaces map[WorkloadEndpointID]map[string]uint32
+	policiesHandler     *policies.PoliciesHandler
+	cniHandler          *cni.CNIHandler
+	connectivityHandler *connectivity.ConnectivityHandler
 
-	configuredState *PolicyState
-	pendingState    *PolicyState
-
-	/* failSafe policies allow traffic on some ports irrespective of the policy */
-	failSafePolicy *Policy
-	/* workloadToHost may drop traffic that goes from the pods to the host */
-	workloadsToHostPolicy  *Policy
-	defaultTap0IngressConf []uint32
-	defaultTap0EgressConf  []uint32
-	/* always allow traffic coming from host to the pods (for healthchecks and so on) */
-	// AllowFromHostPolicy persists the policy allowing host --> pod communications.
-	// See CreateAllowFromHostPolicy definition
-	AllowFromHostPolicy *Policy
-	// allPodsIpset persists the ipset containing all the workload endpoints (pods) addresses
-	allPodsIpset *IPSet
-	/* allow traffic between uplink/tunnels and tap interfaces */
-	allowToHostPolicy *Policy
-	/* deny all policy for heps with no policies defined */
-	ip4           *net.IP
-	ip6           *net.IP
-	interfacesMap map[string]interfaceDetails
-
-	felixServerEventChan chan common.CalicoVppEvent
-	networkDefinitions   map[string]*watchers.NetworkDefinition
-
-	tunnelSwIfIndexes     map[uint32]bool
-	tunnelSwIfIndexesLock sync.Mutex
-
-	felixConfigReceived bool
-	FelixConfigChan     chan interface{}
-	felixConfig         *felixConfig.Config
-
-	ippoolmap  map[string]*proto.IPAMPool
-	ippoolLock sync.RWMutex
-
-	nodeStatesByName  map[string]*common.LocalNodeSpec
-	nodeByWGPublicKey map[string]string
-
-	GotOurNodeBGPchan     chan interface{}
-	GotOurNodeBGPchanOnce sync.Once
+	GotFelixConfig chan any
 }
 
 // NewFelixServer creates a felix server
-func NewFelixServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
-	var err error
-
+func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *logrus.Entry) *Server {
+	cache := cache.NewCache(log)
 	server := &Server{
-		log: log,
-		vpp: vpp,
+		log:                  log,
+		vpp:                  vpp,
+		felixServerEventChan: make(chan any, common.ChanSize),
 
-		state:         StateDisconnected,
-		nextSeqNumber: 0,
-
-		endpointsInterfaces: make(map[WorkloadEndpointID]map[string]uint32),
-
-		configuredState: NewPolicyState(),
-		pendingState:    NewPolicyState(),
-
-		felixServerEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
-
-		networkDefinitions: make(map[string]*watchers.NetworkDefinition),
-
-		tunnelSwIfIndexes:   make(map[uint32]bool),
-		felixConfigReceived: false,
-		FelixConfigChan:     make(chan interface{}),
-		felixConfig:         felixConfig.New(),
-
-		ippoolmap: make(map[string]*proto.IPAMPool),
-
-		nodeStatesByName:  make(map[string]*common.LocalNodeSpec),
-		GotOurNodeBGPchan: make(chan interface{}),
+		cache:               cache,
+		policiesHandler:     policies.NewPoliciesHandler(vpp, cache, clientv3, log),
+		cniHandler:          cni.NewCNIHandler(vpp, cache, log),
+		connectivityHandler: connectivity.NewConnectivityHandler(vpp, cache, clientv3, log),
+		GotFelixConfig:      make(chan any),
 	}
 
 	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")
@@ -155,1605 +75,319 @@ func NewFelixServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		common.TunnelDeleted,
 		common.NetAddedOrUpdated,
 		common.NetDeleted,
+		common.ConnectivityAdded,
+		common.ConnectivityDeleted,
+		common.SRv6PolicyAdded,
+		common.SRv6PolicyDeleted,
 	)
 
-	server.interfacesMap, err = server.mapTagToInterfaceDetails()
-	if err != nil {
-		return nil, errors.Wrapf(err, "error in mapping uplink to tap interfaces")
-	}
-
-	// Cleanup potentially left over socket
-	err = os.RemoveAll(config.FelixDataplaneSocket)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Could not delete socket %s", config.FelixDataplaneSocket)
-	}
-
-	return server, nil
+	return server
 }
 
-type interfaceDetails struct {
-	tapIndex    uint32
-	uplinkIndex uint32
-	addresses   []string
+func (s *Server) GetFelixServerEventChan() chan any {
+	return s.felixServerEventChan
 }
 
-func (s *Server) mapTagToInterfaceDetails() (tagIfDetails map[string]interfaceDetails, err error) {
-	tagIfDetails = make(map[string]interfaceDetails)
-	uplinkSwifindexes, err := s.vpp.SearchInterfacesWithTagPrefix("main-")
-	if err != nil {
-		return nil, err
-	}
-	tapSwifindexes, err := s.vpp.SearchInterfacesWithTagPrefix("host-")
-	if err != nil {
-		return nil, err
-	}
-	for intf, uplink := range uplinkSwifindexes {
-		tap, found := tapSwifindexes["host-"+intf[5:]]
-		if found {
-			ip4adds, err := s.vpp.AddrList(uplink, false)
-			if err != nil {
-				return nil, err
-			}
-			ip6adds, err := s.vpp.AddrList(uplink, true)
-			if err != nil {
-				return nil, err
-			}
-			adds := append(ip4adds, ip6adds...)
-			addresses := []string{}
-			for _, add := range adds {
-				addresses = append(addresses, add.IPNet.IP.String())
-			}
-			tagIfDetails[intf[5:]] = interfaceDetails{tap, uplink, addresses}
-		} else {
-			return nil, errors.Errorf("uplink interface %d not corresponding to a tap interface", uplink)
+func (s *Server) GotOurNodeBGPchan() chan *common.LocalNodeSpec {
+	return s.policiesHandler.GotOurNodeBGPchan
+}
+
+func (s *Server) GetCache() *cache.Cache {
+	return s.cache
+}
+
+func (s *Server) SetBGPConf(bgpConf *calicov3.BGPConfigurationSpec) {
+	s.cache.BGPConf = bgpConf
+}
+
+func (s *Server) getMainInterface() *config.UplinkStatus {
+	for _, i := range common.VppManagerInfo.UplinkStatuses {
+		if i.IsMain {
+			return &i
 		}
 	}
-	return tagIfDetails, nil
+	return nil
 }
 
-func InstallFelixPlugin() (err error) {
-	err = os.RemoveAll(FelixPluginDstPath)
-	if err != nil {
-		logrus.Warnf("Could not delete %s: %v", FelixPluginDstPath, err)
-	}
-
-	in, err := os.Open(FelixPluginSrcPath)
-	if err != nil {
-		return errors.Wrap(err, "cannot open felix plugin to copy")
-	}
-	defer in.Close()
-
-	out, err := os.OpenFile(FelixPluginDstPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
-	if err != nil {
-		return errors.Wrap(err, "cannot open felix plugin to write")
-	}
-	defer func() {
-		cerr := out.Close()
-		if err == nil {
-			err = errors.Wrap(cerr, "cannot close felix plugin file")
-		}
-	}()
-	if _, err = io.Copy(out, in); err != nil {
-		return errors.Wrap(err, "cannot copy data")
-	}
-	err = out.Sync()
-	return errors.Wrapf(err, "could not sync felix plugin changes")
-}
-
-func (s *Server) getEndpointToHostAction() types.RuleAction {
-	if strings.ToUpper(s.felixConfig.DefaultEndpointToHostAction) == "ACCEPT" {
-		return types.ActionAllow
-	}
-	return types.ActionDeny
-}
-
-// workloadAdded is called by the CNI server when a container interface is created,
-// either during startup when reconnecting the interfaces, or when a new pod is created
-func (s *Server) workloadAdded(id *WorkloadEndpointID, swIfIndex uint32, ifName string, containerIPs []*net.IPNet) {
-	// TODO: Send WorkloadEndpointStatusUpdate to felix
-	s.endpointsLock.Lock()
-	defer s.endpointsLock.Unlock()
-
-	intf, existing := s.endpointsInterfaces[*id]
-
-	if existing {
-		for _, exInt := range intf {
-			if swIfIndex == exInt {
-				return
-			}
-		}
-		// VPP restarted and interfaces are being reconnected
-		s.log.Warnf("workload endpoint changed interfaces, did VPP restart? %v %v -> %d", id, intf, swIfIndex)
-		s.endpointsInterfaces[*id][ifName] = swIfIndex
-	}
-
-	s.log.Infof("policy(add) Workload id=%v swIfIndex=%d", id, swIfIndex)
-	if s.endpointsInterfaces[*id] == nil {
-		s.endpointsInterfaces[*id] = map[string]uint32{ifName: swIfIndex}
+func (s *Server) createRedirectToHostRules() error {
+	var maxNumEntries uint32
+	if len(config.GetCalicoVppInitialConfig().RedirectToHostRules) != 0 {
+		maxNumEntries = uint32(2 * len(config.GetCalicoVppInitialConfig().RedirectToHostRules))
 	} else {
-		s.endpointsInterfaces[*id][ifName] = swIfIndex
+		maxNumEntries = 1
 	}
-
-	if s.state == StateInSync {
-		wep, ok := s.configuredState.WorkloadEndpoints[*id]
-		if !ok {
-			s.log.Infof("not creating wep in workloadadded")
-			// Nothing to configure
-		} else {
-			s.log.Infof("creating wep in workloadadded")
-			err := wep.Create(s.vpp, []uint32{swIfIndex}, s.configuredState, id.Network)
-			if err != nil {
-				s.log.Errorf("Error processing workload addition: %s", err)
-			}
+	index, err := s.vpp.AddClassifyTable(&types.ClassifyTable{
+		Mask:           types.DstThreeTupleMask,
+		NextTableIndex: types.InvalidID,
+		MaxNumEntries:  maxNumEntries,
+		MissNextIndex:  ^uint32(0),
+	})
+	if err != nil {
+		return err
+	}
+	mainInterface := s.getMainInterface()
+	if mainInterface == nil {
+		return fmt.Errorf("no main interface found")
+	}
+	for _, rule := range config.GetCalicoVppInitialConfig().RedirectToHostRules {
+		err = s.vpp.AddSessionRedirect(&types.SessionRedirect{
+			FiveTuple:  types.NewDst3Tuple(rule.Proto, net.ParseIP(rule.IP), rule.Port),
+			TableIndex: index,
+		}, &types.RoutePath{Gw: config.VppHostPuntFakeGatewayAddress, SwIfIndex: mainInterface.TapSwIfIndex})
+		if err != nil {
+			return err
 		}
 	}
-	// EndpointToHostAction
-	allMembers := []string{}
-	for _, containerIP := range containerIPs {
-		allMembers = append(allMembers, containerIP.IP.String())
-	}
-	err := s.allPodsIpset.AddMembers(allMembers, true, s.vpp)
-	if err != nil {
-		s.log.Errorf("Error processing workload addition: %s", err)
-	}
+
+	s.cache.RedirectToHostClassifyTableIndex = index
+	return nil
 }
 
-// WorkloadRemoved is called by the CNI server when the interface of a pod is deleted
-func (s *Server) WorkloadRemoved(id *WorkloadEndpointID, containerIPs []*net.IPNet) {
-	// TODO: Send WorkloadEndpointStatusRemove to felix
-	s.endpointsLock.Lock()
-	defer s.endpointsLock.Unlock()
-
-	_, existing := s.endpointsInterfaces[*id]
-	if !existing {
-		s.log.Warnf("nonexistent workload endpoint removed %v", id)
-		return
-	}
-	s.log.Infof("policy(del) workload id=%v", id)
-
-	if s.state == StateInSync {
-		wep, ok := s.configuredState.WorkloadEndpoints[*id]
-		if !ok {
-			// Nothing to clean up
-		} else {
-			err := wep.Delete(s.vpp)
-			if err != nil {
-				s.log.Errorf("Error processing workload removal: %s", err)
-			}
-		}
-	}
-	delete(s.endpointsInterfaces, *id)
-	// EndpointToHostAction
-	allMembers := []string{}
-	for _, containerIP := range containerIPs {
-		allMembers = append(allMembers, containerIP.IP.String())
-	}
-	err := s.allPodsIpset.RemoveMembers(allMembers, true, s.vpp)
+func (s *Server) fetchNumDataThreads() error {
+	nVppWorkers, err := s.vpp.GetNumVPPWorkers()
 	if err != nil {
-		s.log.Errorf("Error processing workload remove: %s", err)
+		return errors.Wrap(err, "Error getting number of VPP workers")
 	}
+	nDataThreads := nVppWorkers
+	if config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread > 0 {
+		nDataThreads = nVppWorkers - config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread
+		if nDataThreads <= 0 {
+			s.log.Errorf("Couldn't fulfill request [crypto=%d total=%d]", config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread, nVppWorkers)
+			nDataThreads = nVppWorkers
+		}
+		s.log.Infof("Using ipsec workers [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
+	}
+	s.cache.NumDataThreads = nDataThreads
+	return nil
 }
 
-func (s *Server) handleFelixServerEvents(evt common.CalicoVppEvent) error {
-	/* Note: we will only receive events we ask for when registering the chan */
-	switch evt.Type {
-	case common.NetAddedOrUpdated:
-		netDef, ok := evt.New.(*watchers.NetworkDefinition)
-		if !ok {
-			return fmt.Errorf("evt.New is not a (*watchers.NetworkDefinition) %v", evt.New)
-		}
-		s.networkDefinitions[netDef.Name] = netDef
-	case common.NetDeleted:
-		netDef, ok := evt.Old.(*watchers.NetworkDefinition)
-		if !ok {
-			return fmt.Errorf("evt.Old is not a (*watchers.NetworkDefinition) %v", evt.Old)
-		}
-		delete(s.networkDefinitions, netDef.Name)
-	case common.PodAdded:
-		podSpec, ok := evt.New.(*model.LocalPodSpec)
-		if !ok {
-			return fmt.Errorf("evt.New is not a (*model.LocalPodSpec) %v", evt.New)
-		}
-		swIfIndex := podSpec.TunTapSwIfIndex
-		if swIfIndex == vpplink.InvalidID {
-			swIfIndex = podSpec.MemifSwIfIndex
-		}
-		s.workloadAdded(&WorkloadEndpointID{
-			OrchestratorID: podSpec.OrchestratorID,
-			WorkloadID:     podSpec.WorkloadID,
-			EndpointID:     podSpec.EndpointID,
-			Network:        podSpec.NetworkName,
-		}, swIfIndex, podSpec.InterfaceName, podSpec.GetContainerIPs())
-	case common.PodDeleted:
-		podSpec, ok := evt.Old.(*model.LocalPodSpec)
-		if !ok {
-			return fmt.Errorf("evt.Old is not a (*model.LocalPodSpec) %v", evt.Old)
-		}
-		if podSpec != nil {
-			s.WorkloadRemoved(&WorkloadEndpointID{
-				OrchestratorID: podSpec.OrchestratorID,
-				WorkloadID:     podSpec.WorkloadID,
-				EndpointID:     podSpec.EndpointID,
-				Network:        podSpec.NetworkName,
-			}, podSpec.GetContainerIPs())
-		}
-	case common.TunnelAdded:
-		swIfIndex, ok := evt.New.(uint32)
-		if !ok {
-			return fmt.Errorf("evt.New not a uint32 %v", evt.New)
-		}
-
-		s.tunnelSwIfIndexesLock.Lock()
-		s.tunnelSwIfIndexes[swIfIndex] = true
-		s.tunnelSwIfIndexesLock.Unlock()
-
-		pending := true
-		switch s.state {
-		case StateSyncing, StateConnected:
-		case StateInSync:
-			pending = false
-		default:
-			return fmt.Errorf("got tunnel %d add but not in syncing or synced state", swIfIndex)
-		}
-		state := s.currentState(pending)
-		for _, h := range state.HostEndpoints {
-			err := h.handleTunnelChange(swIfIndex, true /* isAdd */, pending)
-			if err != nil {
-				return err
-			}
-		}
-	case common.TunnelDeleted:
-		swIfIndex, ok := evt.Old.(uint32)
-		if !ok {
-			return fmt.Errorf("evt.Old not a uint32 %v", evt.Old)
-		}
-
-		s.tunnelSwIfIndexesLock.Lock()
-		delete(s.tunnelSwIfIndexes, swIfIndex)
-		s.tunnelSwIfIndexesLock.Unlock()
-
-		pending := true
-		switch s.state {
-		case StateSyncing, StateConnected:
-		case StateInSync:
-			pending = false
-		default:
-			return fmt.Errorf("got tunnel %d del but not in syncing or synced state", swIfIndex)
-		}
-		state := s.currentState(pending)
-		for _, h := range state.HostEndpoints {
-			err := h.handleTunnelChange(swIfIndex, false /* isAdd */, pending)
-			if err != nil {
-				return err
-			}
-		}
+func (s *Server) fetchBufferConfig() error {
+	availableBuffers, _, _, err := s.vpp.GetBufferStats()
+	if err != nil {
+		return errors.Wrap(err, "could not get available buffers")
 	}
+	s.cache.VppAvailableBuffers = uint64(availableBuffers)
 	return nil
 }
 
 // Serve runs the felix server
+// it does the bulk of the policy sync job. It starts by reconciling the current
+// configured state in VPP (empty at first) with what is sent by felix, and once both are in
+// sync, it keeps processing felix updates. It also sends endpoint updates to felix when the
+// CNI component adds or deletes container interfaces.
 func (s *Server) ServeFelix(t *tomb.Tomb) error {
 	s.log.Info("Starting felix server")
 
-	listener, err := net.Listen("unix", config.FelixDataplaneSocket)
+	err := s.policiesHandler.PoliciesHandlerInit()
 	if err != nil {
-		return errors.Wrapf(err, "Could not bind to unix://%s", config.FelixDataplaneSocket)
+		return errors.Wrap(err, "Error in PoliciesHandlerInit")
 	}
-	defer func() {
-		listener.Close()
-		os.RemoveAll(config.FelixDataplaneSocket)
-	}()
-	err = s.createAllPodsIpset()
+	err = s.createRedirectToHostRules()
 	if err != nil {
-		return errors.Wrap(err, "Error in createallPodsIpset")
+		return errors.Wrap(err, "Error in createRedirectToHostRules")
 	}
-	err = s.createEndpointToHostPolicy()
+	err = s.fetchNumDataThreads()
 	if err != nil {
-		return errors.Wrap(err, "Error in createEndpointToHostPolicy")
+		return errors.Wrap(err, "Error in fetchNumDataThreads")
 	}
-	err = s.createAllowFromHostPolicy()
+	err = s.fetchBufferConfig()
 	if err != nil {
-		return errors.Wrap(err, "Error in creating AllowFromHostPolicy")
+		return errors.Wrap(err, "Error in fetchBufferConfig")
 	}
-	err = s.createAllowToHostPolicy()
+	err = s.cniHandler.CNIHandlerInit()
 	if err != nil {
-		return errors.Wrap(err, "Error in createAllowToHostPolicy")
-	}
-	err = s.createFailSafePolicies()
-	if err != nil {
-		return errors.Wrap(err, "Error in createFailSafePolicies")
+		return errors.Wrap(err, "Error in CNIHandlerInit")
 	}
 	for {
-		s.state = StateDisconnected
-		// Accept only one connection
-		conn, err := listener.Accept()
-		if err != nil {
-			return errors.Wrap(err, "cannot accept felix client connection")
-		}
-		s.log.Infof("Accepted connection from felix")
-		s.state = StateConnected
-
-		felixUpdates := s.MessageReader(conn)
-	innerLoop:
-		for {
-			select {
-			case <-t.Dying():
-				s.log.Warn("Felix server exiting")
-				err = conn.Close()
-				if err != nil {
-					s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
-				}
-				s.log.Infof("Waiting for SyncFelix to stop...")
-				return nil
-			case evt := <-s.felixServerEventChan:
-				err = s.handleFelixServerEvents(evt)
-				if err != nil {
-					s.log.WithError(err).Warn("Error handling FelixServerEvents")
-				}
-			// <-felixUpdates & handleFelixUpdate does the bulk of the policy sync job. It starts by reconciling the current
-			// configured state in VPP (empty at first) with what is sent by felix, and once both are in
-			// sync, it keeps processing felix updates. It also sends endpoint updates to felix when the
-			// CNI component adds or deletes container interfaces.
-			case msg, ok := <-felixUpdates:
-				if !ok {
-					s.log.Infof("Felix MessageReader closed")
-					break innerLoop
-				}
-				err = s.handleFelixUpdate(msg)
-				if err != nil {
-					switch err.(type) {
-					case NodeWatcherRestartError:
-						return err
-					default:
-						s.log.WithError(err).Error("Error processing update from felix, restarting")
-						// TODO: Restart VPP as well? State is left over there...
-						break innerLoop
-					}
-				}
+		select {
+		case <-t.Dying():
+			s.log.Warn("Felix server exiting")
+			return nil
+		case msg := <-s.felixServerEventChan:
+			err = s.handleFelixServerEvents(msg)
+			if err != nil {
+				return errors.Wrapf(err, "Error handling FelixServerEvents")
 			}
 		}
-		err = conn.Close()
-		if err != nil {
-			s.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
-		}
-		s.log.Infof("SyncFelix exited, reconnecting to felix")
 	}
 }
 
-func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
+func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 	s.log.Debugf("Got message from felix: %#v", msg)
-	switch m := msg.(type) {
+	switch evt := msg.(type) {
 	case *proto.ConfigUpdate:
-		err = s.handleConfigUpdate(m)
+		close(s.GotFelixConfig)
+		err = s.handleConfigUpdate(evt)
 	case *proto.InSync:
-		err = s.handleInSync(m)
+		err = s.policiesHandler.OnInSync(evt)
+	case *common.FelixSocketStateChanged:
+		s.policiesHandler.OnFelixSocketStateChanged(evt)
+	case *proto.IPSetUpdate:
+		err = s.policiesHandler.OnIpsetUpdate(evt)
+	case *proto.IPSetDeltaUpdate:
+		err = s.policiesHandler.OnIpsetDeltaUpdate(evt)
+	case *proto.IPSetRemove:
+		err = s.policiesHandler.OnIpsetRemove(evt)
+	case *proto.ActivePolicyUpdate:
+		err = s.policiesHandler.OnActivePolicyUpdate(evt)
+	case *proto.ActivePolicyRemove:
+		err = s.policiesHandler.OnActivePolicyRemove(evt)
+	case *proto.ActiveProfileUpdate:
+		err = s.policiesHandler.OnActiveProfileUpdate(evt)
+	case *proto.ActiveProfileRemove:
+		err = s.policiesHandler.OnActiveProfileRemove(evt)
+	case *proto.HostEndpointUpdate:
+		err = s.policiesHandler.OnHostEndpointUpdate(evt)
+	case *proto.HostEndpointRemove:
+		err = s.policiesHandler.OnHostEndpointRemove(evt)
+	case *proto.WorkloadEndpointUpdate:
+		err = s.policiesHandler.OnWorkloadEndpointUpdate(evt)
+	case *proto.WorkloadEndpointRemove:
+		err = s.policiesHandler.OnWorkloadEndpointRemove(evt)
+	case *proto.HostMetadataUpdate:
+		s.log.Debugf("Ignoring HostMetadataUpdate")
+	case *proto.HostMetadataRemove:
+		s.log.Debugf("Ignoring HostMetadataRemove")
+	case *proto.HostMetadataV4V6Update:
+		err = s.policiesHandler.OnHostMetadataV4V6Update(evt)
+		if err != nil {
+			return err
+		}
+		err = s.connectivityHandler.OnHostMetadataV4V6Update(evt)
+		if err != nil {
+			return err
+		}
+	case *proto.HostMetadataV4V6Remove:
+		err = s.policiesHandler.OnHostMetadataV4V6Remove(evt)
+	case *proto.IPAMPoolUpdate:
+		err = s.handleIpamPoolUpdate(evt)
+	case *proto.IPAMPoolRemove:
+		err = s.handleIpamPoolRemove(evt)
+	case *proto.ServiceAccountUpdate:
+		s.log.Debugf("Ignoring ServiceAccountUpdate")
+	case *proto.ServiceAccountRemove:
+		s.log.Debugf("Ignoring ServiceAccountRemove")
+	case *proto.NamespaceUpdate:
+		s.log.Debugf("Ignoring NamespaceUpdate")
+	case *proto.NamespaceRemove:
+		s.log.Debugf("Ignoring NamespaceRemove")
+	case *proto.GlobalBGPConfigUpdate:
+		s.log.Infof("Got GlobalBGPConfigUpdate")
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPConfChanged,
+		})
+	case *proto.WireguardEndpointUpdate:
+		err = s.connectivityHandler.OnWireguardEndpointUpdate(evt)
+	case *proto.WireguardEndpointRemove:
+		err = s.connectivityHandler.OnWireguardEndpointRemove(evt)
+	case *model.CniPodAddEvent:
+		err = s.cniHandler.OnPodAdd(evt)
+	case *model.CniPodDelEvent:
+		s.cniHandler.OnPodDelete(evt)
+	case common.CalicoVppEvent:
+		/* Note: we will only receive events we ask for when registering the chan */
+		switch evt.Type {
+		case common.NetAddedOrUpdated:
+			new, ok := evt.New.(*common.NetworkDefinition)
+			if !ok {
+				return fmt.Errorf("evt.New is not a (*common.NetworkDefinition) %v", evt.New)
+			}
+			old, ok := evt.Old.(*common.NetworkDefinition)
+			if !ok {
+				return fmt.Errorf("evt.Old is not a (*common.NetworkDefinition) %v", evt.New)
+			}
+			s.cache.NetworkDefinitions[new.Name] = new
+			s.cache.Networks[new.Vni] = new
+			s.cniHandler.OnNetAddedOrUpdated(old, new)
+		case common.NetDeleted:
+			netDef, ok := evt.Old.(*common.NetworkDefinition)
+			if !ok {
+				return fmt.Errorf("evt.Old is not a (*common.NetworkDefinition) %v", evt.Old)
+			}
+			delete(s.cache.NetworkDefinitions, netDef.Name)
+			delete(s.cache.Networks, netDef.Vni)
+			s.cniHandler.OnNetDeleted(netDef)
+		case common.PodAdded:
+			podSpec, ok := evt.New.(*model.LocalPodSpec)
+			if !ok {
+				return fmt.Errorf("evt.New is not a (*model.LocalPodSpec) %v", evt.New)
+			}
+			swIfIndex := podSpec.TunTapSwIfIndex
+			if swIfIndex == vpplink.InvalidID {
+				swIfIndex = podSpec.MemifSwIfIndex
+			}
+			s.policiesHandler.OnWorkloadAdded(&policies.WorkloadEndpointID{
+				OrchestratorID: podSpec.OrchestratorID,
+				WorkloadID:     podSpec.WorkloadID,
+				EndpointID:     podSpec.EndpointID,
+				Network:        podSpec.NetworkName,
+			}, swIfIndex, podSpec.InterfaceName, podSpec.GetContainerIPs())
+		case common.PodDeleted:
+			podSpec, ok := evt.Old.(*model.LocalPodSpec)
+			if !ok {
+				return fmt.Errorf("evt.Old is not a (*model.LocalPodSpec) %v", evt.Old)
+			}
+			if podSpec != nil {
+				s.policiesHandler.OnWorkloadRemoved(&policies.WorkloadEndpointID{
+					OrchestratorID: podSpec.OrchestratorID,
+					WorkloadID:     podSpec.WorkloadID,
+					EndpointID:     podSpec.EndpointID,
+					Network:        podSpec.NetworkName,
+				}, podSpec.GetContainerIPs())
+			}
+		case common.TunnelAdded:
+			swIfIndex, ok := evt.New.(uint32)
+			if !ok {
+				return fmt.Errorf("evt.New not a uint32 %v", evt.New)
+			}
+			s.policiesHandler.OnTunnelAdded(swIfIndex)
+		case common.TunnelDeleted:
+			swIfIndex, ok := evt.Old.(uint32)
+			if !ok {
+				return fmt.Errorf("evt.Old not a uint32 %v", evt.Old)
+			}
+			s.policiesHandler.OnTunnelDelete(swIfIndex)
+		case common.ConnectivityAdded:
+			new, ok := evt.New.(*common.NodeConnectivity)
+			if !ok {
+				s.log.Errorf("evt.New is not a *common.NodeConnectivity %v", evt.New)
+			}
+			err := s.connectivityHandler.UpdateIPConnectivity(new, false /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while adding connectivity %s", err)
+			}
+		case common.ConnectivityDeleted:
+			old, ok := evt.Old.(*common.NodeConnectivity)
+			if !ok {
+				s.log.Errorf("evt.Old is not a *common.NodeConnectivity %v", evt.Old)
+			}
+			err := s.connectivityHandler.UpdateIPConnectivity(old, true /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while deleting connectivity %s", err)
+			}
+		case common.SRv6PolicyAdded:
+			new, ok := evt.New.(*common.NodeConnectivity)
+			if !ok {
+				s.log.Errorf("evt.New is not a *common.NodeConnectivity %v", evt.New)
+			}
+			err := s.connectivityHandler.UpdateSRv6Policy(new, false /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while adding SRv6 Policy %s", err)
+			}
+		case common.SRv6PolicyDeleted:
+			old, ok := evt.Old.(*common.NodeConnectivity)
+			if !ok {
+				s.log.Errorf("evt.Old is not a *common.NodeConnectivity %v", evt.Old)
+			}
+			err := s.connectivityHandler.UpdateSRv6Policy(old, true /* isWithdraw */)
+			if err != nil {
+				s.log.Errorf("Error while deleting SRv6 Policy %s", err)
+			}
+		default:
+			s.log.Warnf("Unhandled CalicoVppEvent.Type: %s", evt.Type)
+		}
 	default:
-		pending := true
-		switch s.state {
-		case StateSyncing:
-		case StateInSync:
-			pending = false
-		default:
-			return fmt.Errorf("got message %#v but not in syncing or synced state", m)
-		}
-		switch m := msg.(type) {
-		case *proto.IPSetUpdate:
-			err = s.handleIpsetUpdate(m, pending)
-		case *proto.IPSetDeltaUpdate:
-			err = s.handleIpsetDeltaUpdate(m, pending)
-		case *proto.IPSetRemove:
-			err = s.handleIpsetRemove(m, pending)
-		case *proto.ActivePolicyUpdate:
-			err = s.handleActivePolicyUpdate(m, pending)
-		case *proto.ActivePolicyRemove:
-			err = s.handleActivePolicyRemove(m, pending)
-		case *proto.ActiveProfileUpdate:
-			err = s.handleActiveProfileUpdate(m, pending)
-		case *proto.ActiveProfileRemove:
-			err = s.handleActiveProfileRemove(m, pending)
-		case *proto.HostEndpointUpdate:
-			err = s.handleHostEndpointUpdate(m, pending)
-		case *proto.HostEndpointRemove:
-			err = s.handleHostEndpointRemove(m, pending)
-		case *proto.WorkloadEndpointUpdate:
-			err = s.handleWorkloadEndpointUpdate(m, pending)
-		case *proto.WorkloadEndpointRemove:
-			err = s.handleWorkloadEndpointRemove(m, pending)
-		case *proto.HostMetadataUpdate:
-			err = s.handleHostMetadataUpdate(m, pending)
-		case *proto.HostMetadataRemove:
-			err = s.handleHostMetadataRemove(m, pending)
-		case *proto.HostMetadataV4V6Update:
-			err = s.handleHostMetadataV4V6Update(m, pending)
-		case *proto.HostMetadataV4V6Remove:
-			err = s.handleHostMetadataV4V6Remove(m, pending)
-		case *proto.IPAMPoolUpdate:
-			err = s.handleIpamPoolUpdate(m, pending)
-		case *proto.IPAMPoolRemove:
-			err = s.handleIpamPoolRemove(m, pending)
-		case *proto.ServiceAccountUpdate:
-			err = s.handleServiceAccountUpdate(m, pending)
-		case *proto.ServiceAccountRemove:
-			err = s.handleServiceAccountRemove(m, pending)
-		case *proto.NamespaceUpdate:
-			err = s.handleNamespaceUpdate(m, pending)
-		case *proto.NamespaceRemove:
-			err = s.handleNamespaceRemove(m, pending)
-		case *proto.GlobalBGPConfigUpdate:
-			err = s.handleGlobalBGPConfigUpdate(m, pending)
-		case *proto.WireguardEndpointUpdate:
-			err = s.handleWireguardEndpointUpdate(m, pending)
-		case *proto.WireguardEndpointRemove:
-			err = s.handleWireguardEndpointRemove(m, pending)
-		default:
-			s.log.Warnf("Unhandled message from felix: %v", m)
-		}
+		s.log.Warnf("Unhandled message from felix: %v", evt)
 	}
 	return err
-}
-
-func (s *Server) currentState(pending bool) *PolicyState {
-	if pending {
-		return s.pendingState
-	}
-	return s.configuredState
-}
-
-/**
- * remove add the fields of type `file` we dont need and for which the
- * parsing will fail
- *
- * This logic is extracted from `loadParams` in [0]
- * [0] projectcalico/felix/config/config_params.go:Config
- * it applies the regex only on the reflected struct definition,
- * not on the live data.
- *
- **/
-func removeFelixConfigFileField(rawData map[string]string) {
-	config := felixConfig.Config{}
-	kind := reflect.TypeOf(config)
-	metaRegexp := regexp.MustCompile(`^([^;(]+)(?:\(([^)]*)\))?;` +
-		`([^;]*)(?:;` +
-		`([^;]*))?$`)
-	for ii := 0; ii < kind.NumField(); ii++ {
-		field := kind.Field(ii)
-		tag := field.Tag.Get("config")
-		if tag == "" {
-			continue
-		}
-		captures := metaRegexp.FindStringSubmatch(tag)
-		kind := captures[1] // Type: "int|oneof|bool|port-list|..."
-		if kind == "file" {
-			delete(rawData, field.Name)
-		}
-	}
-}
-
-// the msg.Config map[string]string is the serialized object
-// projectcalico/felix/config/config_params.go:Config
-func (s *Server) handleConfigUpdate(msg *proto.ConfigUpdate) (err error) {
-	if s.state != StateConnected {
-		return fmt.Errorf("received ConfigUpdate but server is not in Connected state! state: %v", s.state)
-	}
-	s.log.Infof("Got config from felix: %+v", msg)
-	s.state = StateSyncing
-
-	oldFelixConfig := s.felixConfig
-	removeFelixConfigFileField(msg.Config)
-	s.felixConfig = felixConfig.New()
-	_, err = s.felixConfig.UpdateFrom(msg.Config, felixConfig.InternalOverride)
-	if err != nil {
-		return err
-	}
-	changed := !reflect.DeepEqual(oldFelixConfig.RawValues(), s.felixConfig.RawValues())
-
-	// Note: This function will be called each time the Felix config changes.
-	// If we start handling config settings that require agent restart,
-	// we'll need to add a mechanism for that
-	if !s.felixConfigReceived {
-		s.felixConfigReceived = true
-		s.FelixConfigChan <- s.felixConfig
-	}
-
-	if !changed {
-		return nil
-	}
-
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.FelixConfChanged,
-		New:  s.felixConfig,
-		Old:  oldFelixConfig,
-	})
-
-	if s.felixConfig.DefaultEndpointToHostAction != oldFelixConfig.DefaultEndpointToHostAction {
-		s.log.Infof("Change in EndpointToHostAction to %+v", s.getEndpointToHostAction())
-		workloadsToHostAllowRule := &Rule{
-			VppID: types.InvalidID,
-			Rule: &types.Rule{
-				Action: s.getEndpointToHostAction(),
-			},
-			SrcIPSetNames: []string{"calico-vpp-wep-addr-ipset"},
-		}
-		policy := s.workloadsToHostPolicy.DeepCopy()
-		policy.InboundRules = []*Rule{workloadsToHostAllowRule}
-		err := s.workloadsToHostPolicy.Update(s.vpp, policy,
-			&PolicyState{IPSets: map[string]*IPSet{"calico-vpp-wep-addr-ipset": s.allPodsIpset}})
-		if err != nil {
-			return errors.Wrap(err, "error updating workloadsToHostPolicy")
-		}
-	}
-	if !protoPortListEqual(s.felixConfig.FailsafeInboundHostPorts, oldFelixConfig.FailsafeInboundHostPorts) ||
-		!protoPortListEqual(s.felixConfig.FailsafeOutboundHostPorts, oldFelixConfig.FailsafeOutboundHostPorts) {
-		err = s.createFailSafePolicies()
-		if err != nil {
-			return errors.Wrap(err, "error updating FailSafePolicies")
-		}
-	}
-
-	return nil
-}
-
-func protoPortListEqual(a, b []felixConfig.ProtoPort) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, elemA := range a {
-		elemB := b[i]
-		if elemA.Net != elemB.Net {
-			return false
-		}
-		if elemA.Protocol != elemB.Protocol {
-			return false
-		}
-		if elemA.Port != elemB.Port {
-			return false
-		}
-	}
-	return true
-}
-
-func (s *Server) handleInSync(msg *proto.InSync) (err error) {
-	if s.state != StateSyncing {
-		return fmt.Errorf("received InSync but state was not syncing")
-	}
-	s.endpointsLock.Lock()
-	defer s.endpointsLock.Unlock()
-
-	s.state = StateInSync
-	s.log.Infof("Policies now in sync")
-	return s.applyPendingState()
-}
-
-func (s *Server) handleIpsetUpdate(msg *proto.IPSetUpdate, pending bool) (err error) {
-	ips, err := fromIPSetUpdate(msg)
-	if err != nil {
-		return errors.Wrap(err, "cannot process IPSetUpdate")
-	}
-	state := s.currentState(pending)
-	_, ok := state.IPSets[msg.GetId()]
-	if ok {
-		return fmt.Errorf("received new ipset for ID %s that already exists", msg.GetId())
-	}
-	if !pending {
-		err = ips.Create(s.vpp)
-		if err != nil {
-			return errors.Wrapf(err, "cannot create ipset %s", msg.GetId())
-		}
-	}
-	state.IPSets[msg.GetId()] = ips
-	s.log.Debugf("Handled Ipset Update pending=%t id=%s %s", pending, msg.GetId(), ips)
-	return nil
-}
-
-func (s *Server) handleIpsetDeltaUpdate(msg *proto.IPSetDeltaUpdate, pending bool) (err error) {
-	ips, ok := s.currentState(pending).IPSets[msg.GetId()]
-	if !ok {
-		return fmt.Errorf("received delta update for non-existent ipset")
-	}
-	err = ips.AddMembers(msg.GetAddedMembers(), !pending, s.vpp)
-	if err != nil {
-		return errors.Wrap(err, "cannot process ipset delta update")
-	}
-	err = ips.RemoveMembers(msg.GetRemovedMembers(), !pending, s.vpp)
-	if err != nil {
-		return errors.Wrap(err, "cannot process ipset delta update")
-	}
-	s.log.Debugf("Handled Ipset delta Update pending=%t id=%s %s", pending, msg.GetId(), ips)
-	return nil
-}
-
-func (s *Server) handleIpsetRemove(msg *proto.IPSetRemove, pending bool) (err error) {
-	state := s.currentState(pending)
-	ips, ok := state.IPSets[msg.GetId()]
-	if !ok {
-		s.log.Warnf("Received ipset delete for ID %s that doesn't exists", msg.GetId())
-		return nil
-	}
-	if !pending {
-		err = ips.Delete(s.vpp)
-		if err != nil {
-			return errors.Wrapf(err, "cannot delete ipset %s", msg.GetId())
-		}
-	}
-	s.log.Debugf("Handled Ipset remove pending=%t id=%s %s", pending, msg.GetId(), ips)
-	delete(state.IPSets, msg.GetId())
-	return nil
-}
-
-func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending bool) (err error) {
-	state := s.currentState(pending)
-	id := PolicyID{
-		Tier: msg.Id.Tier,
-		Name: msg.Id.Name,
-	}
-	p, err := fromProtoPolicy(msg.Policy, "")
-	if err != nil {
-		return errors.Wrapf(err, "cannot process policy update")
-	}
-
-	s.log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", pending, id, p)
-	existing, ok := state.Policies[id]
-	if ok { // Policy with this ID already exists
-		if pending {
-			// Just replace policy in pending state
-			state.Policies[id] = p
-		} else {
-			err := existing.Update(s.vpp, p, state)
-			if err != nil {
-				return errors.Wrap(err, "cannot update policy")
-			}
-		}
-	} else {
-		// Create it in state
-		state.Policies[id] = p
-		if !pending {
-			err := p.Create(s.vpp, state)
-			if err != nil {
-				return errors.Wrap(err, "cannot create policy")
-			}
-		}
-	}
-
-	for network := range s.networkDefinitions {
-		id := PolicyID{
-			Tier:    msg.Id.Tier,
-			Name:    msg.Id.Name,
-			Network: network,
-		}
-		p, err := fromProtoPolicy(msg.Policy, network)
-		if err != nil {
-			return errors.Wrapf(err, "cannot process policy update")
-		}
-
-		s.log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", pending, id, p)
-
-		existing, ok := state.Policies[id]
-		if ok { // Policy with this ID already exists
-			if pending {
-				// Just replace policy in pending state
-				state.Policies[id] = p
-			} else {
-				err := existing.Update(s.vpp, p, state)
-				if err != nil {
-					return errors.Wrap(err, "cannot update policy")
-				}
-			}
-		} else {
-			// Create it in state
-			state.Policies[id] = p
-			if !pending {
-				err := p.Create(s.vpp, state)
-				if err != nil {
-					return errors.Wrap(err, "cannot create policy")
-				}
-			}
-		}
-
-	}
-	return nil
-}
-
-func (s *Server) handleActivePolicyRemove(msg *proto.ActivePolicyRemove, pending bool) (err error) {
-	state := s.currentState(pending)
-	id := PolicyID{
-		Tier: msg.Id.Tier,
-		Name: msg.Id.Name,
-	}
-	s.log.Infof("policy(del) Handling ActivePolicyRemove pending=%t id=%s", pending, id)
-
-	for policyID := range state.Policies {
-		if policyID.Name == id.Name && policyID.Tier == id.Tier {
-			existing, ok := state.Policies[policyID]
-			if !ok {
-				s.log.Warnf("Received policy delete for Tier %s Name %s that doesn't exists", id.Tier, id.Name)
-				return nil
-			}
-			if !pending {
-				err = existing.Delete(s.vpp, state)
-				if err != nil {
-					return errors.Wrap(err, "error deleting policy")
-				}
-			}
-			delete(state.Policies, policyID)
-		}
-	}
-	return nil
-}
-
-func (s *Server) handleActiveProfileUpdate(msg *proto.ActiveProfileUpdate, pending bool) (err error) {
-	state := s.currentState(pending)
-	id := msg.Id.Name
-	p, err := fromProtoProfile(msg.Profile)
-	if err != nil {
-		return errors.Wrapf(err, "cannot process profile update")
-	}
-
-	existing, ok := state.Profiles[id]
-	if ok { // Policy with this ID already exists
-		if pending {
-			// Just replace policy in pending state
-			state.Profiles[id] = p
-		} else {
-			err := existing.Update(s.vpp, p, state)
-			if err != nil {
-				return errors.Wrap(err, "cannot update profile")
-			}
-		}
-	} else {
-		// Create it in state
-		state.Profiles[id] = p
-		if !pending {
-			err := p.Create(s.vpp, state)
-			if err != nil {
-				return errors.Wrap(err, "cannot create profile")
-			}
-		}
-	}
-	s.log.Infof("policy(upd) Handled Profile Update pending=%t id=%s existing=%s new=%s", pending, id, existing, p)
-	return nil
-}
-
-func (s *Server) handleActiveProfileRemove(msg *proto.ActiveProfileRemove, pending bool) (err error) {
-	state := s.currentState(pending)
-	id := msg.Id.Name
-	existing, ok := state.Profiles[id]
-	if !ok {
-		s.log.Warnf("Received profile delete for Name %s that doesn't exists", id)
-		return nil
-	}
-	if !pending {
-		err = existing.Delete(s.vpp, state)
-		if err != nil {
-			return errors.Wrap(err, "error deleting profile")
-		}
-	}
-	s.log.Infof("policy(del) Handled Profile Remove pending=%t id=%s policy=%s", pending, id, existing)
-	delete(state.Profiles, id)
-	return nil
-}
-
-func (s *Server) getAllTunnelSwIfIndexes() (swIfIndexes []uint32) {
-	s.tunnelSwIfIndexesLock.Lock()
-	defer s.tunnelSwIfIndexesLock.Unlock()
-
-	swIfIndexes = make([]uint32, 0)
-	for k := range s.tunnelSwIfIndexes {
-		swIfIndexes = append(swIfIndexes, k)
-	}
-	return swIfIndexes
-}
-
-func (s *Server) handleHostEndpointUpdate(msg *proto.HostEndpointUpdate, pending bool) (err error) {
-	state := s.currentState(pending)
-	id := fromProtoHostEndpointID(msg.Id)
-	hep := fromProtoHostEndpoint(msg.Endpoint, s)
-	if hep.InterfaceName != "" && hep.InterfaceName != "*" {
-		interfaceDetails, found := s.interfacesMap[hep.InterfaceName]
-		if found {
-			hep.UplinkSwIfIndexes = append(hep.UplinkSwIfIndexes, interfaceDetails.uplinkIndex)
-			hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, interfaceDetails.tapIndex)
-		} else {
-			// we are not supposed to fallback to expectedIPs if interfaceName doesn't match
-			// this is the current behavior in calico linux
-			s.log.Errorf("cannot find host endpoint: interface named %s does not exist", hep.InterfaceName)
-		}
-	} else if hep.InterfaceName == "" && hep.expectedIPs != nil {
-		for _, existingIf := range s.interfacesMap {
-		interfaceFound:
-			for _, address := range existingIf.addresses {
-				for _, expectedIP := range hep.expectedIPs {
-					if address == expectedIP {
-						hep.UplinkSwIfIndexes = append(hep.UplinkSwIfIndexes, existingIf.uplinkIndex)
-						hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, existingIf.tapIndex)
-						break interfaceFound
-					}
-				}
-			}
-		}
-	} else if hep.InterfaceName == "*" {
-		for _, interfaceDetails := range s.interfacesMap {
-			hep.UplinkSwIfIndexes = append(hep.UplinkSwIfIndexes, interfaceDetails.uplinkIndex)
-			hep.TapSwIfIndexes = append(hep.TapSwIfIndexes, interfaceDetails.tapIndex)
-		}
-	}
-	hep.TunnelSwIfIndexes = s.getAllTunnelSwIfIndexes()
-	if len(hep.UplinkSwIfIndexes) == 0 || len(hep.TapSwIfIndexes) == 0 {
-		s.log.Warnf("No interface in vpp for host endpoint id=%s hep=%s", id.EndpointID, hep.String())
-		return nil
-	}
-
-	existing, found := state.HostEndpoints[*id]
-	if found {
-		if pending {
-			hep.currentForwardConf = existing.currentForwardConf
-			state.HostEndpoints[*id] = hep
-		} else {
-			err := existing.Update(s.vpp, hep, state)
-			if err != nil {
-				return errors.Wrap(err, "cannot update host endpoint")
-			}
-		}
-		s.log.Infof("policy(upd) Updating host endpoint id=%s found=%t existing=%s new=%s", *id, found, existing, hep)
-	} else {
-		state.HostEndpoints[*id] = hep
-		if !pending {
-			err := hep.Create(s.vpp, state)
-			if err != nil {
-				return errors.Wrap(err, "cannot create host endpoint")
-			}
-		}
-		s.log.Infof("policy(add) Updating host endpoint id=%s found=%t new=%s", *id, found, hep)
-	}
-	return nil
-}
-
-func (s *Server) handleHostEndpointRemove(msg *proto.HostEndpointRemove, pending bool) (err error) {
-	state := s.currentState(pending)
-	id := fromProtoHostEndpointID(msg.Id)
-	existing, ok := state.HostEndpoints[*id]
-	if !ok {
-		s.log.Warnf("Received host endpoint delete for id=%s that doesn't exists", id)
-		return nil
-	}
-	if !pending && len(existing.UplinkSwIfIndexes) != 0 {
-		err = existing.Delete(s.vpp, s.configuredState)
-		if err != nil {
-			return errors.Wrap(err, "error deleting host endpoint")
-		}
-	}
-	s.log.Infof("policy(del) Handled Host Endpoint Remove pending=%t id=%s %s", pending, id, existing)
-	delete(state.HostEndpoints, *id)
-	return nil
-}
-
-func (s *Server) getAllWorkloadEndpointIdsFromUpdate(msg *proto.WorkloadEndpointUpdate) []*WorkloadEndpointID {
-	id := fromProtoEndpointID(msg.Id)
-	idsNetworks := []*WorkloadEndpointID{id}
-	netStatusesJSON, found := msg.Endpoint.Annotations["k8s.v1.cni.cncf.io/network-status"]
-	if !found {
-		s.log.Infof("no network status for pod, no multiple networks")
-	} else {
-		var netStatuses []nettypes.NetworkStatus
-		err := json.Unmarshal([]byte(netStatusesJSON), &netStatuses)
-		if err != nil {
-			s.log.Error(err)
-		}
-		for _, networkStatus := range netStatuses {
-			for netDefName, netDef := range s.networkDefinitions {
-				if networkStatus.Name == netDef.NetAttachDefs {
-					id := &WorkloadEndpointID{OrchestratorID: id.OrchestratorID, WorkloadID: id.WorkloadID, EndpointID: id.EndpointID, Network: netDefName}
-					idsNetworks = append(idsNetworks, id)
-				}
-			}
-		}
-	}
-	return idsNetworks
-}
-
-func (s *Server) handleWorkloadEndpointUpdate(msg *proto.WorkloadEndpointUpdate, pending bool) (err error) {
-	s.endpointsLock.Lock()
-	defer s.endpointsLock.Unlock()
-
-	state := s.currentState(pending)
-	idsNetworks := s.getAllWorkloadEndpointIdsFromUpdate(msg)
-	for _, id := range idsNetworks {
-		wep := fromProtoWorkload(msg.Endpoint, s)
-		existing, found := state.WorkloadEndpoints[*id]
-		swIfIndexMap, swIfIndexFound := s.endpointsInterfaces[*id]
-
-		if found {
-			if pending || !swIfIndexFound {
-				state.WorkloadEndpoints[*id] = wep
-				s.log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=??", pending, *id, existing, wep)
-			} else {
-				err := existing.Update(s.vpp, wep, state, id.Network)
-				if err != nil {
-					return errors.Wrap(err, "cannot update workload endpoint")
-				}
-				s.log.Infof("policy(upd) Workload Endpoint Update pending=%t id=%s existing=%s new=%s swIf=%v", pending, *id, existing, wep, swIfIndexMap)
-			}
-		} else {
-			state.WorkloadEndpoints[*id] = wep
-			if !pending && swIfIndexFound {
-				swIfIndexList := []uint32{}
-				for _, idx := range swIfIndexMap {
-					swIfIndexList = append(swIfIndexList, idx)
-				}
-				err := wep.Create(s.vpp, swIfIndexList, state, id.Network)
-				if err != nil {
-					return errors.Wrap(err, "cannot create workload endpoint")
-				}
-				s.log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=%v", pending, *id, wep, swIfIndexMap)
-			} else {
-				s.log.Infof("policy(add) Workload Endpoint add pending=%t id=%s new=%s swIf=??", pending, *id, wep)
-			}
-		}
-	}
-	return nil
-}
-
-func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove, pending bool) (err error) {
-	s.endpointsLock.Lock()
-	defer s.endpointsLock.Unlock()
-
-	state := s.currentState(pending)
-	id := fromProtoEndpointID(msg.Id)
-	existing, ok := state.WorkloadEndpoints[*id]
-	if !ok {
-		s.log.Warnf("Received workload endpoint delete for %v that doesn't exists", id)
-		return nil
-	}
-	if !pending && len(existing.SwIfIndex) != 0 {
-		err = existing.Delete(s.vpp)
-		if err != nil {
-			return errors.Wrap(err, "error deleting workload endpoint")
-		}
-	}
-	s.log.Infof("policy(del) Handled Workload Endpoint Remove pending=%t id=%s existing=%s", pending, *id, existing)
-	delete(state.WorkloadEndpoints, *id)
-	for existingID := range state.WorkloadEndpoints {
-		if existingID.OrchestratorID == id.OrchestratorID && existingID.WorkloadID == id.WorkloadID {
-			if !pending && len(existing.SwIfIndex) != 0 {
-				err = existing.Delete(s.vpp)
-				if err != nil {
-					return errors.Wrap(err, "error deleting workload endpoint")
-				}
-			}
-			s.log.Infof("policy(del) Handled Workload Endpoint Remove pending=%t id=%s existing=%s", pending, existingID, existing)
-			delete(state.WorkloadEndpoints, existingID)
-		}
-	}
-	return nil
-}
-
-func (s *Server) handleHostMetadataUpdate(msg *proto.HostMetadataUpdate, pending bool) (err error) {
-	s.log.Debugf("Ignoring HostMetadataUpdate")
-	return nil
-}
-
-func (s *Server) handleHostMetadataRemove(msg *proto.HostMetadataRemove, pending bool) (err error) {
-	s.log.Debugf("Ignoring HostMetadataRemove")
-	return nil
-}
-
-func (s *Server) handleWireguardEndpointUpdate(msg *proto.WireguardEndpointUpdate, pending bool) (err error) {
-	s.log.Infof("Received wireguard public key %+v", msg)
-	var old *common.NodeWireguardPublicKey
-	_, ok := s.nodeByWGPublicKey[msg.Hostname]
-	if ok {
-		old = &common.NodeWireguardPublicKey{Name: msg.Hostname, WireguardPublicKey: s.nodeByWGPublicKey[msg.Hostname]}
-	} else {
-		old = &common.NodeWireguardPublicKey{Name: msg.Hostname}
-	}
-	new := &common.NodeWireguardPublicKey{Name: msg.Hostname, WireguardPublicKey: msg.PublicKey}
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.WireguardPublicKeyChanged,
-		Old:  old,
-		New:  new,
-	})
-	return nil
-}
-
-func (s *Server) handleWireguardEndpointRemove(msg *proto.WireguardEndpointRemove, pending bool) (err error) {
-	return nil
-}
-
-func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update, pending bool) (err error) {
-	localNodeSpec, err := common.NewLocalNodeSpec(msg)
-	if err != nil {
-		return errors.Wrapf(err, "handleHostMetadataV4V6Update errored")
-	}
-	old, found := s.nodeStatesByName[localNodeSpec.Name]
-
-	if localNodeSpec.Name == *config.NodeName &&
-		(localNodeSpec.IPv4Address != nil || localNodeSpec.IPv6Address != nil) {
-		/* We found a BGP Spec that seems valid enough */
-		s.GotOurNodeBGPchanOnce.Do(func() {
-			s.GotOurNodeBGPchan <- localNodeSpec
-		})
-		if localNodeSpec.IPv4Address != nil {
-			s.ip4 = &localNodeSpec.IPv4Address.IP
-		}
-		if localNodeSpec.IPv6Address != nil {
-			s.ip6 = &localNodeSpec.IPv6Address.IP
-		}
-		err = s.createAllowFromHostPolicy()
-		if err != nil {
-			return errors.Wrap(err, "Error in creating AllowFromHostPolicy")
-		}
-		err = s.createAllowToHostPolicy()
-		if err != nil {
-			return errors.Wrap(err, "Error in createAllowToHostPolicy")
-		}
-	}
-
-	// This is used by the routing server to process Wireguard key updates
-	// As a result we only send an event when a node is updated, not when it is added or deleted
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.PeerNodeStateChanged,
-		Old:  old,
-		New:  localNodeSpec,
-	})
-
-	if !found {
-		s.configureRemoteNodeSnat(localNodeSpec, true /* isAdd */)
-	} else {
-		change := common.GetIPNetChangeType(old.IPv4Address, localNodeSpec.IPv4Address) | common.GetIPNetChangeType(old.IPv6Address, localNodeSpec.IPv6Address)
-		if change&(common.ChangeDeleted|common.ChangeUpdated) != 0 && localNodeSpec.Name == *config.NodeName {
-			// restart if our BGP config changed
-			return NodeWatcherRestartError{}
-		}
-		if change != common.ChangeSame {
-			s.configureRemoteNodeSnat(old, false /* isAdd */)
-			s.configureRemoteNodeSnat(localNodeSpec, true /* isAdd */)
-		}
-	}
-
-	s.nodeStatesByName[localNodeSpec.Name] = localNodeSpec
-	return nil
-}
-
-func (s *Server) configureRemoteNodeSnat(node *common.LocalNodeSpec, isAdd bool) {
-	if node.IPv4Address != nil {
-		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(node.IPv4Address.IP), isAdd)
-		if err != nil {
-			s.log.Errorf("error configuring snat prefix for current node (%v): %v", node.IPv4Address.IP, err)
-		}
-	}
-	if node.IPv6Address != nil {
-		err := s.vpp.CnatAddDelSnatPrefix(common.ToMaxLenCIDR(node.IPv6Address.IP), isAdd)
-		if err != nil {
-			s.log.Errorf("error configuring snat prefix for current node (%v): %v", node.IPv6Address.IP, err)
-		}
-	}
-}
-
-func (s *Server) handleHostMetadataV4V6Remove(msg *proto.HostMetadataV4V6Remove, pending bool) (err error) {
-	old, found := s.nodeStatesByName[msg.Hostname]
-	if !found {
-		return fmt.Errorf("node %s to delete not found", msg.Hostname)
-	}
-
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.PeerNodeStateChanged,
-		Old:  old,
-	})
-	if old.Name == *config.NodeName {
-		// restart if our BGP config changed
-		return NodeWatcherRestartError{}
-	}
-
-	s.configureRemoteNodeSnat(old, false /* isAdd */)
-	return nil
-}
-
-func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate, pending bool) (err error) {
-	if msg.GetId() == "" {
-		s.log.Debugf("Empty pool")
-		return nil
-	}
-	s.ippoolLock.Lock()
-	defer s.ippoolLock.Unlock()
-
-	newIpamPool := msg.GetPool()
-	oldIpamPool, found := s.ippoolmap[msg.GetId()]
-	if found && ipamPoolEquals(newIpamPool, oldIpamPool) {
-		s.log.Infof("Unchanged pool: %s, nat:%t", msg.GetId(), newIpamPool.GetMasquerade())
-		return nil
-	} else if found {
-		s.log.Infof("Updating pool: %s, nat:%t", msg.GetId(), newIpamPool.GetMasquerade())
-		s.ippoolmap[msg.GetId()] = newIpamPool
-		if newIpamPool.GetCidr() != oldIpamPool.GetCidr() ||
-			newIpamPool.GetMasquerade() != oldIpamPool.GetMasquerade() {
-			var err, err2 error
-			err = s.addDelSnatPrefix(oldIpamPool, false /* isAdd */)
-			err2 = s.addDelSnatPrefix(newIpamPool, true /* isAdd */)
-			if err != nil || err2 != nil {
-				return errors.Errorf("error updating snat prefix del:%s, add:%s", err, err2)
-			}
-			common.SendEvent(common.CalicoVppEvent{
-				Type: common.IpamConfChanged,
-				Old:  ipamPoolCopy(oldIpamPool),
-				New:  ipamPoolCopy(newIpamPool),
-			})
-		}
-	} else {
-		s.log.Infof("Adding pool: %s, nat:%t", msg.GetId(), newIpamPool.GetMasquerade())
-		s.ippoolmap[msg.GetId()] = newIpamPool
-		s.log.Debugf("Pool %v Added, handler called", msg)
-		err = s.addDelSnatPrefix(newIpamPool, true /* isAdd */)
-		if err != nil {
-			return errors.Wrap(err, "error handling ipam add")
-		}
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.IpamConfChanged,
-			Old:  nil,
-			New:  ipamPoolCopy(newIpamPool),
-		})
-	}
-	return nil
-}
-
-func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove, pending bool) (err error) {
-	if msg.GetId() == "" {
-		s.log.Debugf("Empty pool")
-		return nil
-	}
-
-	s.ippoolLock.Lock()
-	defer s.ippoolLock.Unlock()
-	oldIpamPool, found := s.ippoolmap[msg.GetId()]
-	if found {
-		delete(s.ippoolmap, msg.GetId())
-		s.log.Infof("Deleting pool: %s", msg.GetId())
-		s.log.Debugf("Pool %s deleted, handler called", oldIpamPool.Cidr)
-		err = s.addDelSnatPrefix(oldIpamPool, false /* isAdd */)
-		if err != nil {
-			return errors.Wrap(err, "error handling ipam deletion")
-		}
-		common.SendEvent(common.CalicoVppEvent{
-			Type: common.IpamConfChanged,
-			Old:  ipamPoolCopy(oldIpamPool),
-			New:  nil,
-		})
-	} else {
-		s.log.Warnf("Deleting unknown ippool")
-		return nil
-	}
-	return nil
-}
-
-func ipamPoolCopy(ipamPool *proto.IPAMPool) *proto.IPAMPool {
-	if ipamPool != nil {
-		return &proto.IPAMPool{
-			Cidr:       ipamPool.Cidr,
-			Masquerade: ipamPool.Masquerade,
-			IpipMode:   ipamPool.IpipMode,
-			VxlanMode:  ipamPool.VxlanMode,
-		}
-	}
-	return nil
-}
-
-// Compare only the fields that make a difference for this agent i.e. the fields that have an impact on routing
-func ipamPoolEquals(a *proto.IPAMPool, b *proto.IPAMPool) bool {
-	if (a == nil || b == nil) && a != b {
-		return false
-	}
-	if a.Cidr != b.Cidr {
-		return false
-	}
-	if a.IpipMode != b.IpipMode {
-		return false
-	}
-	if a.VxlanMode != b.VxlanMode {
-		return false
-	}
-	return true
-}
-
-// addDelSnatPrefix configures IP Pool prefixes so that we don't source-NAT the packets going
-// to these addresses. All the IP Pools prefixes are configured that way so that pod <-> pod
-// communications are never source-nated in the cluster
-// Note(aloaugus) - I think the iptables dataplane behaves differently and uses the k8s level
-// pod CIDR for this rather than the individual pool prefixes
-func (s *Server) addDelSnatPrefix(pool *proto.IPAMPool, isAdd bool) (err error) {
-	_, ipNet, err := net.ParseCIDR(pool.GetCidr())
-	if err != nil {
-		return errors.Wrapf(err, "Couldn't parse pool CIDR %s", pool.Cidr)
-	}
-	err = s.vpp.CnatAddDelSnatPrefix(ipNet, isAdd)
-	if err != nil {
-		return errors.Wrapf(err, "Couldn't configure SNAT prefix")
-	}
-	return nil
-}
-
-// match checks whether we have an IP pool which contains the given prefix.
-// If we have, it returns the pool.
-func (s *Server) GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool {
-	s.ippoolLock.RLock()
-	defer s.ippoolLock.RUnlock()
-	for _, pool := range s.ippoolmap {
-		in, err := ipamPoolContains(pool, prefix)
-		if err != nil {
-			s.log.Warnf("ipamPoolContains errored: %v", err)
-			continue
-		}
-		if in {
-			return pool
-		}
-	}
-	s.log.Warnf("No pool found for %s", prefix)
-	for k, pool := range s.ippoolmap {
-		s.log.Debugf("Available %s=%v", k, pool)
-	}
-	return nil
-}
-
-func (s *Server) IPNetNeedsSNAT(prefix *net.IPNet) bool {
-	pool := s.GetPrefixIPPool(prefix)
-	if pool == nil {
-		return false
-	} else {
-		return pool.Masquerade
-	}
-}
-
-// ipamPoolContains returns true if the IPPool contains 'prefix'
-func ipamPoolContains(pool *proto.IPAMPool, prefix *net.IPNet) (bool, error) {
-	_, poolCIDR, _ := net.ParseCIDR(pool.GetCidr()) // this field is validated so this should never error
-	poolCIDRLen, poolCIDRBits := poolCIDR.Mask.Size()
-	prefixLen, prefixBits := prefix.Mask.Size()
-	return poolCIDRBits == prefixBits && poolCIDR.Contains(prefix.IP) && prefixLen >= poolCIDRLen, nil
-}
-
-func (s *Server) handleServiceAccountUpdate(msg *proto.ServiceAccountUpdate, pending bool) (err error) {
-	s.log.Debugf("Ignoring ServiceAccountUpdate")
-	return nil
-}
-
-func (s *Server) handleServiceAccountRemove(msg *proto.ServiceAccountRemove, pending bool) (err error) {
-	s.log.Debugf("Ignoring ServiceAccountRemove")
-	return nil
-}
-
-func (s *Server) handleNamespaceUpdate(msg *proto.NamespaceUpdate, pending bool) (err error) {
-	s.log.Debugf("Ignoring NamespaceUpdate")
-	return nil
-}
-
-func (s *Server) handleNamespaceRemove(msg *proto.NamespaceRemove, pending bool) (err error) {
-	s.log.Debugf("Ignoring NamespaceRemove")
-	return nil
-}
-
-func (s *Server) handleGlobalBGPConfigUpdate(msg *proto.GlobalBGPConfigUpdate, pending bool) (err error) {
-	s.log.Infof("Got GlobalBGPConfigUpdate")
-	common.SendEvent(common.CalicoVppEvent{
-		Type: common.BGPConfChanged,
-	})
-	return nil
-}
-
-// Reconciles the pending state with the configured state
-func (s *Server) applyPendingState() (err error) {
-	s.log.Infof("Reconciliating pending policy state with configured state")
-	// Stupid algorithm for now, delete all that is in configured state, and then recreate everything
-	for _, wep := range s.configuredState.WorkloadEndpoints {
-		if len(wep.SwIfIndex) != 0 {
-			err = wep.Delete(s.vpp)
-			if err != nil {
-				return errors.Wrap(err, "cannot cleanup workload endpoint")
-			}
-		}
-	}
-	for _, policy := range s.configuredState.Policies {
-		err = policy.Delete(s.vpp, s.configuredState)
-		if err != nil {
-			s.log.Warnf("error deleting policy: %v", err)
-		}
-	}
-	for _, profile := range s.configuredState.Profiles {
-		err = profile.Delete(s.vpp, s.configuredState)
-		if err != nil {
-			s.log.Warnf("error deleting profile: %v", err)
-		}
-	}
-	for _, ipset := range s.configuredState.IPSets {
-		err = ipset.Delete(s.vpp)
-		if err != nil {
-			s.log.Warnf("error deleting ipset: %v", err)
-		}
-	}
-	for _, hep := range s.configuredState.HostEndpoints {
-		if len(hep.UplinkSwIfIndexes) != 0 {
-			err = hep.Delete(s.vpp, s.configuredState)
-			if err != nil {
-				s.log.Warnf("error deleting hostendpoint : %v", err)
-			}
-		}
-	}
-
-	s.configuredState = s.pendingState
-	s.pendingState = NewPolicyState()
-	for _, ipset := range s.configuredState.IPSets {
-		err = ipset.Create(s.vpp)
-		if err != nil {
-			return errors.Wrap(err, "error creating ipset")
-		}
-	}
-	for _, profile := range s.configuredState.Profiles {
-		err = profile.Create(s.vpp, s.configuredState)
-		if err != nil {
-			return errors.Wrap(err, "error creating profile")
-		}
-	}
-	for _, policy := range s.configuredState.Policies {
-		err = policy.Create(s.vpp, s.configuredState)
-		if err != nil {
-			return errors.Wrap(err, "error creating policy")
-		}
-	}
-	for id, wep := range s.configuredState.WorkloadEndpoints {
-		intf, intfFound := s.endpointsInterfaces[id]
-		if intfFound {
-			swIfIndexList := []uint32{}
-			for _, idx := range intf {
-				swIfIndexList = append(swIfIndexList, idx)
-			}
-			err = wep.Create(s.vpp, swIfIndexList, s.configuredState, id.Network)
-			if err != nil {
-				return errors.Wrap(err, "cannot configure workload endpoint")
-			}
-		}
-	}
-	for _, hep := range s.configuredState.HostEndpoints {
-		err = hep.Create(s.vpp, s.configuredState)
-		if err != nil {
-			return errors.Wrap(err, "cannot create host endpoint")
-		}
-	}
-	s.log.Infof("Reconciliation done")
-	return nil
-}
-
-func (s *Server) createAllowToHostPolicy() (err error) {
-	s.log.Infof("Creating policy to allow traffic to host that is applied on uplink")
-	ruleIn := &Rule{
-		VppID:  types.InvalidID,
-		RuleID: "calicovpp-internal-allowtohost",
-		Rule: &types.Rule{
-			Action: types.ActionAllow,
-			DstNet: []net.IPNet{},
-		},
-	}
-	ruleOut := &Rule{
-		VppID:  types.InvalidID,
-		RuleID: "calicovpp-internal-allowtohost",
-		Rule: &types.Rule{
-			Action: types.ActionAllow,
-			SrcNet: []net.IPNet{},
-		},
-	}
-	if s.ip4 != nil {
-		ruleIn.DstNet = append(ruleIn.DstNet, *common.FullyQualified(*s.ip4))
-		ruleOut.SrcNet = append(ruleOut.SrcNet, *common.FullyQualified(*s.ip4))
-	}
-	if s.ip6 != nil {
-		ruleIn.DstNet = append(ruleIn.DstNet, *common.FullyQualified(*s.ip6))
-		ruleOut.SrcNet = append(ruleOut.SrcNet, *common.FullyQualified(*s.ip6))
-	}
-
-	allowToHostPolicy := &Policy{
-		Policy: &types.Policy{},
-		VppID:  types.InvalidID,
-	}
-	allowToHostPolicy.InboundRules = append(allowToHostPolicy.InboundRules, ruleIn)
-	allowToHostPolicy.OutboundRules = append(allowToHostPolicy.OutboundRules, ruleOut)
-	if s.allowToHostPolicy == nil {
-		err = allowToHostPolicy.Create(s.vpp, nil)
-	} else {
-		allowToHostPolicy.VppID = s.allowToHostPolicy.VppID
-		err = s.allowToHostPolicy.Update(s.vpp, allowToHostPolicy, nil)
-	}
-	s.allowToHostPolicy = allowToHostPolicy
-	if err != nil {
-		return errors.Wrap(err, "cannot create policy to allow traffic to host")
-	}
-	s.log.Infof("Created policy to allow traffic to host with ID: %+v", s.allowToHostPolicy.VppID)
-	return nil
-}
-
-func (s *Server) createAllPodsIpset() (err error) {
-	ipset := NewIPSet()
-	err = ipset.Create(s.vpp)
-	if err != nil {
-		return err
-	}
-	s.allPodsIpset = ipset
-	return nil
-}
-
-// createAllowFromHostPolicy creates a policy allowing host->pod communications. This is needed
-// to maintain vanilla Calico's behavior where the host can always reach pods.
-// This policy is applied in Egress on the host endpoint tap (i.e. linux -> VPP)
-// and on the Ingress of Workload endpoints (i.e. VPP -> pod)
-func (s *Server) createAllowFromHostPolicy() (err error) {
-	s.log.Infof("Creating rules to allow traffic from host to pods with egress policies")
-	ruleOut := &Rule{
-		VppID:  types.InvalidID,
-		RuleID: "calicovpp-internal-egressallowfromhost",
-		Rule: &types.Rule{
-			Action: types.ActionAllow,
-		},
-		DstIPSetNames: []string{"calico-vpp-wep-addr-ipset"},
-	}
-	ps := PolicyState{IPSets: map[string]*IPSet{"calico-vpp-wep-addr-ipset": s.allPodsIpset}}
-	s.log.Infof("Creating rules to allow traffic from host to pods with ingress policies")
-	ruleIn := &Rule{
-		VppID:  types.InvalidID,
-		RuleID: "calicovpp-internal-ingressallowfromhost",
-		Rule: &types.Rule{
-			Action: types.ActionAllow,
-			SrcNet: []net.IPNet{},
-		},
-	}
-	if s.ip4 != nil {
-		ruleIn.SrcNet = append(ruleIn.SrcNet, *common.FullyQualified(*s.ip4))
-	}
-	if s.ip6 != nil {
-		ruleIn.SrcNet = append(ruleIn.SrcNet, *common.FullyQualified(*s.ip6))
-	}
-
-	allowFromHostPolicy := &Policy{
-		Policy: &types.Policy{},
-		VppID:  types.InvalidID,
-	}
-	allowFromHostPolicy.OutboundRules = append(allowFromHostPolicy.OutboundRules, ruleOut)
-	allowFromHostPolicy.InboundRules = append(allowFromHostPolicy.InboundRules, ruleIn)
-	if s.AllowFromHostPolicy == nil {
-		err = allowFromHostPolicy.Create(s.vpp, &ps)
-	} else {
-		allowFromHostPolicy.VppID = s.AllowFromHostPolicy.VppID
-		err = s.AllowFromHostPolicy.Update(s.vpp, allowFromHostPolicy, &ps)
-	}
-	s.AllowFromHostPolicy = allowFromHostPolicy
-	if err != nil {
-		return errors.Wrap(err, "cannot create policy to allow traffic from host to pods")
-	}
-	s.log.Infof("Created allow from host to pods traffic with ID: %+v", s.AllowFromHostPolicy.VppID)
-	return nil
-}
-
-func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
-	workloadsToHostPolicy := &Policy{
-		Policy: &types.Policy{},
-		VppID:  types.InvalidID,
-	}
-	workloadsToHostRule := &Rule{
-		VppID: types.InvalidID,
-		Rule: &types.Rule{
-			Action: s.getEndpointToHostAction(),
-		},
-		SrcIPSetNames: []string{"calico-vpp-wep-addr-ipset"},
-	}
-	ps := PolicyState{IPSets: map[string]*IPSet{"calico-vpp-wep-addr-ipset": s.allPodsIpset}}
-	workloadsToHostPolicy.InboundRules = append(workloadsToHostPolicy.InboundRules, workloadsToHostRule)
-
-	err = workloadsToHostPolicy.Create(s.vpp, &ps)
-	if err != nil {
-		return err
-	}
-	s.workloadsToHostPolicy = workloadsToHostPolicy
-
-	conf := types.NewInterfaceConfig()
-	conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, s.workloadsToHostPolicy.VppID)
-	conf.PolicyDefaultTx = npol.NPOL_DEFAULT_ALLOW
-	conf.PolicyDefaultRx = npol.NPOL_DEFAULT_ALLOW
-	swifindexes, err := s.vpp.SearchInterfacesWithTagPrefix("host-") // tap0 interfaces
-	if err != nil {
-		s.log.Error(err)
-	}
-	for _, swifindex := range swifindexes {
-		err = s.vpp.ConfigurePolicies(uint32(swifindex), conf, 0)
-		if err != nil {
-			s.log.Error("cannot create policy to drop traffic to host")
-		}
-	}
-	s.defaultTap0IngressConf = conf.IngressPolicyIDs
-	s.defaultTap0EgressConf = conf.EgressPolicyIDs
-	return nil
-}
-
-// createFailSafePolicies ensures the failsafe policies defined in the Felixconfiguration exist in VPP.
-// check https://github.com/projectcalico/calico/blob/master/felix/rules/static.go :: failsafeInChain for the linux implementation
-// To be noted. This does not implement the doNotTrack case as we do not yet support doNotTrack policies.
-func (s *Server) createFailSafePolicies() (err error) {
-	failSafePol := &Policy{
-		Policy: &types.Policy{},
-		VppID:  types.InvalidID,
-	}
-
-	if len(s.felixConfig.FailsafeInboundHostPorts) != 0 {
-		for _, protoPort := range s.felixConfig.FailsafeInboundHostPorts {
-			protocol, err := parseProtocol(&proto.Protocol{NumberOrName: &proto.Protocol_Name{Name: protoPort.Protocol}})
-			if err != nil {
-				s.log.WithError(err).Error("Failed to parse protocol in inbound failsafe rule. Skipping failsafe rule")
-				continue
-			}
-			rule := &Rule{
-				VppID:  types.InvalidID,
-				RuleID: fmt.Sprintf("failsafe-in-%s-%s-%d", protoPort.Net, protoPort.Protocol, protoPort.Port),
-				Rule: &types.Rule{
-					Action: types.ActionAllow,
-					// Ports are always filtered on the destination of packets
-					DstPortRange: []types.PortRange{{First: protoPort.Port, Last: protoPort.Port}},
-					Filters: []types.RuleFilter{{
-						ShouldMatch: true,
-						Type:        types.NpolFilterProto,
-						Value:       int(protocol),
-					}},
-				},
-			}
-			if protoPort.Net != "" {
-				_, protoPortNet, err := net.ParseCIDR(protoPort.Net)
-				if err != nil {
-					s.log.WithError(err).Error("Failed to parse CIDR in inbound failsafe rule. Skipping failsafe rule")
-					continue
-				}
-				// Inbound packets are checked for where they come FROM
-				rule.SrcNet = append(rule.SrcNet, *protoPortNet)
-			}
-			failSafePol.InboundRules = append(failSafePol.InboundRules, rule)
-		}
-	}
-
-	if len(s.felixConfig.FailsafeOutboundHostPorts) != 0 {
-		for _, protoPort := range s.felixConfig.FailsafeOutboundHostPorts {
-			protocol, err := parseProtocol(&proto.Protocol{NumberOrName: &proto.Protocol_Name{Name: protoPort.Protocol}})
-			if err != nil {
-				s.log.WithError(err).Error("Failed to parse protocol in outbound failsafe rule. Skipping failsafe rule")
-				continue
-			}
-			rule := &Rule{
-				VppID:  types.InvalidID,
-				RuleID: fmt.Sprintf("failsafe-out-%s-%s-%d", protoPort.Net, protoPort.Protocol, protoPort.Port),
-				Rule: &types.Rule{
-					Action: types.ActionAllow,
-					// Ports are always filtered on the destination of packets
-					DstPortRange: []types.PortRange{{First: protoPort.Port, Last: protoPort.Port}},
-					Filters: []types.RuleFilter{{
-						ShouldMatch: true,
-						Type:        types.NpolFilterProto,
-						Value:       int(protocol),
-					}},
-				},
-			}
-			if protoPort.Net != "" {
-				_, protoPortNet, err := net.ParseCIDR(protoPort.Net)
-				if err != nil {
-					s.log.WithError(err).Error("Failed to parse CIDR in outbound failsafe rule. Skipping failsafe rule")
-					continue
-				}
-				// Outbound packets are checked for where they go TO
-				rule.DstNet = append(rule.DstNet, *protoPortNet)
-			}
-			failSafePol.OutboundRules = append(failSafePol.OutboundRules, rule)
-		}
-	}
-
-	if s.failSafePolicy == nil {
-		err = failSafePol.Create(s.vpp, nil)
-
-	} else {
-		failSafePol.VppID = s.failSafePolicy.VppID
-		err = s.failSafePolicy.Update(s.vpp, failSafePol, nil)
-	}
-	if err != nil {
-		return err
-	}
-	s.failSafePolicy = failSafePol
-	s.log.Infof("Created failsafe policy with ID %+v", s.failSafePolicy.VppID)
-	return nil
 }

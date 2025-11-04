@@ -26,7 +26,6 @@ import (
 	apipb "github.com/osrg/gobgp/v3/api"
 	bgpserver "github.com/osrg/gobgp/v3/pkg/server"
 	"github.com/pkg/errors"
-	felixconfig "github.com/projectcalico/calico/felix/config"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -34,9 +33,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/health"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/prometheus"
@@ -154,16 +151,13 @@ func main() {
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
-	felixServer, err := felix.NewFelixServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
-	if err != nil {
-		log.Fatalf("Failed to create policy server %s", err)
-	}
-	err = felix.InstallFelixPlugin()
+	felixServer := felix.NewFelixServer(vpp, clientv3, log.WithFields(logrus.Fields{"component": "policy"}))
+	felixWatcher := watchers.NewFelixWatcher(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "felix watcher"}))
+	cniServer := watchers.NewCNIServer(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "cni"}))
+	err = watchers.InstallFelixPlugin()
 	if err != nil {
 		log.Fatalf("could not install felix plugin: %s", err)
 	}
-	connectivityServer := connectivity.NewConnectivityServer(vpp, felixServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
-	cniServer := cni.NewCNIServer(vpp, felixServer, log.WithFields(logrus.Fields{"component": "cni"}))
 
 	/* Pubsub should now be registered */
 
@@ -175,8 +169,10 @@ func main() {
 	peerWatcher.SetBGPConf(bgpConf)
 	routingServer.SetBGPConf(bgpConf)
 	serviceServer.SetBGPConf(bgpConf)
+	felixServer.SetBGPConf(bgpConf)
 
 	Go(felixServer.ServeFelix)
+	Go(felixWatcher.WatchFelix)
 
 	/*
 	 * Mark as unhealthy while waiting for Felix config
@@ -188,19 +184,16 @@ func main() {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
-	var felixConfig interface{}
-	var ourBGPSpec interface{}
+	var ourBGPSpec *common.LocalNodeSpec
 	felixConfigReceived := false
 	bgpSpecReceived := false
 
 	for !felixConfigReceived || !bgpSpecReceived {
 		select {
-		case value := <-felixServer.FelixConfigChan:
-			felixConfig = value
+		case <-felixServer.GotFelixConfig:
 			felixConfigReceived = true
 			log.Info("FelixConfig received from calico pod")
-		case value := <-felixServer.GotOurNodeBGPchan:
-			ourBGPSpec = value
+		case ourBGPSpec = <-felixServer.GotOurNodeBGPchan():
 			bgpSpecReceived = true
 			log.Info("BGP spec received from node add")
 		case <-t.Dying():
@@ -220,19 +213,11 @@ func main() {
 	healthServer.SetComponentStatus(health.ComponentFelix, true, "Felix config received")
 	log.Info("Felix configuration received")
 
-	if ourBGPSpec != nil {
-		bgpSpec, ok := ourBGPSpec.(*common.LocalNodeSpec)
-		if !ok {
-			panic("ourBGPSpec is not *common.LocalNodeSpec")
-		}
-		prefixWatcher.SetOurBGPSpec(bgpSpec)
-		connectivityServer.SetOurBGPSpec(bgpSpec)
-		routingServer.SetOurBGPSpec(bgpSpec)
-		serviceServer.SetOurBGPSpec(bgpSpec)
-		localSIDWatcher.SetOurBGPSpec(bgpSpec)
-		netWatcher.SetOurBGPSpec(bgpSpec)
-		cniServer.SetOurBGPSpec(bgpSpec)
-	}
+	prefixWatcher.SetOurBGPSpec(ourBGPSpec)
+	routingServer.SetOurBGPSpec(ourBGPSpec)
+	serviceServer.SetOurBGPSpec(ourBGPSpec)
+	localSIDWatcher.SetOurBGPSpec(ourBGPSpec)
+	netWatcher.SetOurBGPSpec(ourBGPSpec)
 
 	if *config.GetCalicoVppFeatureGates().MultinetEnabled {
 		Go(netWatcher.WatchNetworks)
@@ -246,22 +231,12 @@ func main() {
 		}
 	}
 
-	if felixConfig != nil {
-		felixCfg, ok := felixConfig.(*felixconfig.Config)
-		if !ok {
-			panic("ourBGPSpec is not *felixconfig.Config")
-		}
-		cniServer.SetFelixConfig(felixCfg)
-		connectivityServer.SetFelixConfig(felixCfg)
-	}
-
 	Go(routeWatcher.WatchRoutes)
 	Go(linkWatcher.WatchLinks)
 	Go(bgpConfigurationWatcher.WatchBGPConfiguration)
 	Go(prefixWatcher.WatchPrefix)
 	Go(peerWatcher.WatchBGPPeers)
 	Go(bgpFilterWatcher.WatchBGPFilters)
-	Go(connectivityServer.ServeConnectivity)
 	Go(routingServer.ServeRouting)
 	Go(serviceServer.ServeService)
 	Go(cniServer.ServeCNI)

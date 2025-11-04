@@ -1,0 +1,387 @@
+// Copyright (C) 2020 Cisco Systems Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package policies
+
+import (
+	"fmt"
+
+	"github.com/pkg/errors"
+	"github.com/projectcalico/calico/felix/proto"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
+)
+
+const (
+	netAnnotationsLabel = "extensions.projectcalico.org/network" // this annotation is assigned to rules in multinet to precise network
+)
+
+type PolicyID struct {
+	Tier    string
+	Name    string
+	Network string
+}
+
+// Policy represents both Policies and Profiles in the calico API
+type Policy struct {
+	*types.Policy
+	VppID         uint32
+	InboundRules  []*Rule
+	OutboundRules []*Rule
+}
+
+func (p *Policy) DeepCopy() *Policy {
+	policy := &Policy{
+		Policy:        p.Policy.DeepCopy(),
+		VppID:         p.VppID,
+		InboundRules:  make([]*Rule, 0),
+		OutboundRules: make([]*Rule, 0),
+	}
+	for _, r := range p.InboundRules {
+		policy.InboundRules = append(policy.InboundRules, r.DeepCopy())
+	}
+	for _, r := range p.OutboundRules {
+		policy.OutboundRules = append(policy.OutboundRules, r.DeepCopy())
+	}
+	return policy
+}
+
+func (p *Policy) String() string {
+	s := fmt.Sprintf("[id=%d", p.VppID)
+	s += types.StrableListToString(" inboundRules=", p.InboundRules)
+	s += types.StrableListToString(" outboundRules=", p.OutboundRules)
+	s += "]"
+	return s
+}
+
+func ruleInNetwork(r *proto.Rule, network string) bool {
+	if r.GetMetadata() != nil {
+		if r.GetMetadata().GetAnnotations() != nil {
+			ruleNetwork, found := r.GetMetadata().GetAnnotations()[netAnnotationsLabel]
+			if found {
+				return ruleNetwork == network
+			}
+		}
+	}
+	return network == ""
+}
+
+func FromProtoPolicy(p *proto.Policy, network string) (policy *Policy, err error) {
+	policy = &Policy{
+		Policy: &types.Policy{},
+		VppID:  types.InvalidID,
+	}
+	if p.Untracked {
+		log.Errorf("untracked policies not supported")
+		return
+	}
+	if p.PreDnat && len(p.OutboundRules) > 0 {
+		log.Errorf("pre dnat outbound policies not supported")
+		return
+	}
+	if p.PreDnat && len(p.InboundRules) > 0 {
+		log.Errorf("pre dnat inbound policies ????")
+		return
+	}
+	for _, r := range p.InboundRules {
+		if ruleInNetwork(r, network) {
+			rule, err := fromProtoRule(r)
+			if err != nil {
+				return nil, err
+			}
+			policy.InboundRules = append(policy.InboundRules, rule)
+		}
+	}
+	for _, r := range p.OutboundRules {
+		if ruleInNetwork(r, network) {
+			rule, err := fromProtoRule(r)
+			if err != nil {
+				return nil, err
+			}
+			policy.OutboundRules = append(policy.OutboundRules, rule)
+		}
+	}
+	return policy, nil
+}
+
+func FromProtoProfile(p *proto.Profile) (profile *Policy, err error) {
+	profile = &Policy{
+		Policy: &types.Policy{},
+		VppID:  types.InvalidID,
+	}
+	for _, r := range p.InboundRules {
+		rule, err := fromProtoRule(r)
+		if err != nil {
+			return nil, err
+		}
+		profile.InboundRules = append(profile.InboundRules, rule)
+	}
+	for _, r := range p.OutboundRules {
+		rule, err := fromProtoRule(r)
+		if err != nil {
+			return nil, err
+		}
+		profile.OutboundRules = append(profile.OutboundRules, rule)
+	}
+	return profile, nil
+}
+
+func (p *Policy) createRules(vpp *vpplink.VppLink, state *PolicyState) (err error) {
+	p.InboundRuleIDs = make([]uint32, 0, len(p.InboundRules))
+	for _, rule := range p.InboundRules {
+		err := rule.Create(vpp, state)
+		if err != nil {
+			return err
+		}
+		p.InboundRuleIDs = append(p.InboundRuleIDs, rule.VppID)
+	}
+	p.OutboundRuleIDs = make([]uint32, 0, len(p.OutboundRules))
+	for _, rule := range p.OutboundRules {
+		err := rule.Create(vpp, state)
+		if err != nil {
+			return err
+		}
+		p.OutboundRuleIDs = append(p.OutboundRuleIDs, rule.VppID)
+	}
+	return nil
+}
+
+func (p *Policy) deleteRules(vpp *vpplink.VppLink, state *PolicyState) (err error) {
+	for _, rule := range p.InboundRules {
+		err = rule.Delete(vpp)
+		if err != nil {
+			return err
+		}
+	}
+	for _, rule := range p.OutboundRules {
+		err = rule.Delete(vpp)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Policy) Create(vpp *vpplink.VppLink, state *PolicyState) (err error) {
+	err = p.createRules(vpp, state)
+	if err != nil {
+		return errors.Wrap(err, "cannot create rules for policy")
+	}
+	id, err := vpp.PolicyCreate(p.Policy)
+	if err != nil {
+		return errors.Wrap(err, "cannot create policy")
+	}
+	p.VppID = id
+	log.Infof("policy(add) VPP policy id=%d inbound=[%+v]=[%+v] outbound=[%+v]=[%+v]",
+		p.VppID, p.InboundRules, p.InboundRuleIDs, p.OutboundRules, p.OutboundRuleIDs)
+	return nil
+}
+
+// Apply any changes to VPP and update this policy to new
+func (p *Policy) Update(vpp *vpplink.VppLink, new *Policy, state *PolicyState) (err error) {
+	// Start by creating new rules
+	err = new.createRules(vpp, state)
+	if err != nil {
+		return errors.Wrap(err, "cannot create rules for policy")
+	}
+
+	// Update policy
+	err = vpp.PolicyUpdate(p.VppID, new.Policy)
+	if err != nil {
+		return errors.Wrap(err, "cannot update policy")
+	}
+
+	// Delete old rules
+	err = p.deleteRules(vpp, state)
+	if err != nil {
+		return errors.Wrap(err, "cannot delete old rules for policy")
+	}
+
+	// Update policy record
+	p.InboundRules = new.InboundRules
+	p.InboundRuleIDs = new.InboundRuleIDs
+	p.OutboundRules = new.OutboundRules
+	p.OutboundRuleIDs = new.OutboundRuleIDs
+	return nil
+}
+
+func (p *Policy) Delete(vpp *vpplink.VppLink, state *PolicyState) (err error) {
+	// Delete all accompanying rules
+	err = p.deleteRules(vpp, state)
+	if err != nil {
+		return errors.Wrap(err, "cannot delete old rules for policy")
+	}
+	log.Infof("policy(del) VPP policy id=%d", p.VppID)
+	err = vpp.PolicyDelete(p.VppID)
+	if err != nil {
+		return errors.Wrap(err, "cannot delete policy")
+	}
+	p.VppID = types.InvalidID
+	return nil
+}
+
+func (s *PoliciesHandler) OnActivePolicyUpdate(msg *proto.ActivePolicyUpdate) (err error) {
+	state := s.GetState()
+	id := PolicyID{
+		Tier: msg.Id.Tier,
+		Name: msg.Id.Name,
+	}
+	p, err := FromProtoPolicy(msg.Policy, "")
+	if err != nil {
+		return errors.Wrapf(err, "cannot process policy update")
+	}
+
+	s.log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", s.state.IsPending(), id, p)
+	existing, ok := state.Policies[id]
+	if ok { // Policy with this ID already exists
+		if s.state.IsPending() {
+			// Just replace policy in pending state
+			state.Policies[id] = p
+		} else {
+			err := existing.Update(s.vpp, p, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot update policy")
+			}
+		}
+	} else {
+		// Create it in state
+		state.Policies[id] = p
+		if !s.state.IsPending() {
+			err := p.Create(s.vpp, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot create policy")
+			}
+		}
+	}
+
+	for network := range s.cache.NetworkDefinitions {
+		id := PolicyID{
+			Tier:    msg.Id.Tier,
+			Name:    msg.Id.Name,
+			Network: network,
+		}
+		p, err := FromProtoPolicy(msg.Policy, network)
+		if err != nil {
+			return errors.Wrapf(err, "cannot process policy update")
+		}
+
+		s.log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", s.state.IsPending(), id, p)
+
+		existing, ok := state.Policies[id]
+		if ok { // Policy with this ID already exists
+			if s.state.IsPending() {
+				// Just replace policy in pending state
+				state.Policies[id] = p
+			} else {
+				err := existing.Update(s.vpp, p, state)
+				if err != nil {
+					return errors.Wrap(err, "cannot update policy")
+				}
+			}
+		} else {
+			// Create it in state
+			state.Policies[id] = p
+			if !s.state.IsPending() {
+				err := p.Create(s.vpp, state)
+				if err != nil {
+					return errors.Wrap(err, "cannot create policy")
+				}
+			}
+		}
+
+	}
+	return nil
+}
+
+func (s *PoliciesHandler) OnActivePolicyRemove(msg *proto.ActivePolicyRemove) (err error) {
+	state := s.GetState()
+	id := PolicyID{
+		Tier: msg.Id.Tier,
+		Name: msg.Id.Name,
+	}
+	s.log.Infof("policy(del) Handling ActivePolicyRemove pending=%t id=%s", s.state.IsPending(), id)
+
+	for policyID := range state.Policies {
+		if policyID.Name == id.Name && policyID.Tier == id.Tier {
+			existing, ok := state.Policies[policyID]
+			if !ok {
+				s.log.Warnf("Received policy delete for Tier %s Name %s that doesn't exists", id.Tier, id.Name)
+				return nil
+			}
+			if !s.state.IsPending() {
+				err = existing.Delete(s.vpp, state)
+				if err != nil {
+					return errors.Wrap(err, "error deleting policy")
+				}
+			}
+			delete(state.Policies, policyID)
+		}
+	}
+	return nil
+}
+
+func (s *PoliciesHandler) OnActiveProfileUpdate(msg *proto.ActiveProfileUpdate) (err error) {
+	state := s.GetState()
+	id := msg.Id.Name
+	p, err := FromProtoProfile(msg.Profile)
+	if err != nil {
+		return errors.Wrapf(err, "cannot process profile update")
+	}
+
+	existing, ok := state.Profiles[id]
+	if ok { // Policy with this ID already exists
+		if s.state.IsPending() {
+			// Just replace policy in pending state
+			state.Profiles[id] = p
+		} else {
+			err := existing.Update(s.vpp, p, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot update profile")
+			}
+		}
+	} else {
+		// Create it in state
+		state.Profiles[id] = p
+		if !s.state.IsPending() {
+			err := p.Create(s.vpp, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot create profile")
+			}
+		}
+	}
+	s.log.Infof("policy(upd) Handled Profile Update pending=%t id=%s existing=%s new=%s", s.state.IsPending(), id, existing, p)
+	return nil
+}
+
+func (s *PoliciesHandler) OnActiveProfileRemove(msg *proto.ActiveProfileRemove) (err error) {
+	state := s.GetState()
+	id := msg.Id.Name
+	existing, ok := state.Profiles[id]
+	if !ok {
+		s.log.Warnf("Received profile delete for Name %s that doesn't exists", id)
+		return nil
+	}
+	if !s.state.IsPending() {
+		err = existing.Delete(s.vpp, state)
+		if err != nil {
+			return errors.Wrap(err, "error deleting profile")
+		}
+	}
+	s.log.Infof("policy(del) Handled Profile Remove pending=%t id=%s policy=%s", s.state.IsPending(), id, existing)
+	delete(state.Profiles, id)
+	return nil
+}
