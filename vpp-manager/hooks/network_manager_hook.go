@@ -1,0 +1,581 @@
+// Copyright (C) 2024 Cisco Systems Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package hooks
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+)
+
+// HookPoint represents the different stages at which hooks can be executed
+type HookPoint string
+
+const (
+	HookBeforeIfRead HookPoint = "BEFORE_IF_READ"
+	HookBeforeVppRun HookPoint = "BEFORE_VPP_RUN"
+	HookVppRunning   HookPoint = "VPP_RUNNING"
+	HookVppDoneOk    HookPoint = "VPP_DONE_OK"
+	HookVppErrored   HookPoint = "VPP_ERRORED"
+)
+
+// SystemType represents different system configurations
+type SystemType struct {
+	HasSystemd           bool
+	HasSystemdNetworkd   bool
+	HasNetworkManager    bool
+	HasNetworkingService bool
+	HasNetworkService    bool
+	IsAWS                bool
+}
+
+// NetworkManagerHook manages network configuration during VPP lifecycle
+type NetworkManagerHook struct {
+	interfaceName string
+	systemType    SystemType
+	log           *logrus.Logger
+}
+
+// chrootCommand creates a command that will be executed in the host namespace
+func (h *NetworkManagerHook) chrootCommand(name string, args ...string) *exec.Cmd {
+	shellCmd := fmt.Sprintf("%s %s", name, strings.Join(args, " "))
+	return exec.Command("/usr/sbin/chroot", "/host", "/bin/sh", "-c", shellCmd)
+}
+
+// isServiceActive checks if a systemd service is active
+func (h *NetworkManagerHook) isServiceActive(serviceName string) bool {
+	cmd := h.chrootCommand("systemctl", "status", serviceName)
+	err := cmd.Run()
+	return err == nil
+}
+
+// isAWSEnvironment checks if we are running on AWS
+func (h *NetworkManagerHook) isAWSEnvironment() bool {
+	cmd := h.chrootCommand("dmidecode", "-s", "bios-vendor")
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(output), "Amazon EC2")
+}
+
+// detectSystem determines the type of system we are running on
+func (h *NetworkManagerHook) detectSystem() {
+	h.log.Info("NetworkManagerHook: Detecting system configuration...")
+
+	// Check for systemd using chrootCommand
+	cmd := h.chrootCommand("which", "systemctl")
+	err := cmd.Run()
+	if err == nil {
+		h.systemType.HasSystemd = true
+		h.log.Info("NetworkManagerHook: Detected systemd")
+	}
+
+	if !h.systemType.HasSystemd {
+		h.log.Warn("NetworkManagerHook: Init system not supported, network configuration may fail")
+		return
+	}
+
+	// Check for systemd-networkd using isServiceActive
+	if h.isServiceActive("systemd-networkd") {
+		h.systemType.HasSystemdNetworkd = true
+		h.log.Info("NetworkManagerHook: Detected systemd-networkd")
+	}
+
+	// Check for NetworkManager
+	if h.isServiceActive("NetworkManager") {
+		h.systemType.HasNetworkManager = true
+		h.log.Info("NetworkManagerHook: Detected NetworkManager")
+	}
+
+	// Check for networking service
+	if h.isServiceActive("networking") {
+		h.systemType.HasNetworkingService = true
+		h.log.Info("NetworkManagerHook: Detected networking service")
+	}
+
+	// Check for network service
+	if h.isServiceActive("network") {
+		h.systemType.HasNetworkService = true
+		h.log.Info("NetworkManagerHook: Detected network service")
+	}
+
+	// Check if running on AWS
+	if h.isAWSEnvironment() {
+		h.systemType.IsAWS = true
+		h.log.Info("NetworkManagerHook: Detected AWS environment")
+	}
+
+	if !h.systemType.HasSystemdNetworkd && !h.systemType.HasNetworkManager &&
+		!h.systemType.HasNetworkingService && !h.systemType.HasNetworkService {
+		h.log.Warn("NetworkManagerHook: Networking backend not detected, network configuration may fail")
+	}
+}
+
+// restartService restarts a systemd service
+func (h *NetworkManagerHook) restartService(serviceName string) error {
+	cmd := h.chrootCommand("systemctl", "daemon-reload")
+	err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to run daemon-reload")
+	}
+
+	cmd = h.chrootCommand("systemctl", "restart", serviceName)
+	err = cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to restart %s", serviceName)
+	}
+
+	return nil
+}
+
+// NewNetworkManagerHook creates a new NetworkManagerHook instance
+func NewNetworkManagerHook(log *logrus.Logger) *NetworkManagerHook {
+	hook := &NetworkManagerHook{
+		log: log,
+	}
+
+	hook.detectSystem()
+	return hook
+}
+
+// SetInterfaceName updates the interface name of NetworkManagerHook instance
+func (h *NetworkManagerHook) SetInterfaceName(interfaceName string) {
+	h.interfaceName = interfaceName
+	h.log.Infof("NetworkManagerHook: Interface name updated to %s", interfaceName)
+}
+
+// fixDNS modifies NetworkManager configuration to disable DNS management
+func (h *NetworkManagerHook) fixDNS() error {
+	if !h.systemType.HasNetworkManager {
+		return nil
+	}
+
+	h.log.Info("NetworkManagerHook: System is using NetworkManager; fixing DNS...")
+
+	nmConfPath := "/host/etc/NetworkManager/NetworkManager.conf"
+
+	// Read the file
+	content, err := os.ReadFile(nmConfPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read NetworkManager.conf")
+	}
+
+	// Check if dns=none is already present
+	if strings.Contains(string(content), "dns=none") {
+		h.log.Info("NetworkManagerHook: dns=none already present in NetworkManager.conf")
+		return nil
+	}
+
+	// Add dns=none after [main] section
+	lines := strings.Split(string(content), "\n")
+	var newLines []string
+	for _, line := range lines {
+		newLines = append(newLines, line)
+		if strings.TrimSpace(line) == "[main]" {
+			newLines = append(newLines, "dns=none")
+		}
+	}
+
+	// Update the file
+	newContent := strings.Join(newLines, "\n")
+	err = os.WriteFile(nmConfPath, []byte(newContent), 0644)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write NetworkManager.conf")
+	}
+
+	// Restart NetworkManager
+	return h.restartService("NetworkManager")
+}
+
+// undoDNSFix removes the dns=none configuration from NetworkManager
+func (h *NetworkManagerHook) undoDNSFix() error {
+	if !h.systemType.HasNetworkManager {
+		return nil
+	}
+
+	h.log.Info("NetworkManagerHook: System is using NetworkManager; undoing DNS fix...")
+
+	nmConfPath := "/host/etc/NetworkManager/NetworkManager.conf"
+
+	// Read the file
+	content, err := os.ReadFile(nmConfPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read NetworkManager.conf")
+	}
+
+	// Remove dns=none
+	re := regexp.MustCompile(`(?m)^dns=none\n?`)
+	newContent := re.ReplaceAllString(string(content), "")
+
+	// Update the file
+	err = os.WriteFile(nmConfPath, []byte(newContent), 0644)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write NetworkManager.conf")
+	}
+
+	// Restart NetworkManager
+	return h.restartService("NetworkManager")
+}
+
+// restartNetwork restarts the appropriate network service
+func (h *NetworkManagerHook) restartNetwork() error {
+	if h.systemType.HasSystemdNetworkd {
+		h.log.Info("NetworkManagerHook: System is using systemd-networkd; restarting...")
+		return h.restartService("systemd-networkd")
+	} else if h.systemType.HasNetworkManager {
+		h.log.Info("NetworkManagerHook: System is using NetworkManager; restarting...")
+		return h.restartService("NetworkManager")
+	} else if h.systemType.HasNetworkingService {
+		h.log.Info("NetworkManagerHook: System is using networking service; restarting...")
+		return h.restartService("networking")
+	} else if h.systemType.HasNetworkService {
+		h.log.Info("NetworkManagerHook: System is using network service; restarting...")
+		return h.restartService("network")
+	} else {
+		h.log.Warn("NetworkManagerHook: Networking backend not detected, network configuration may fail")
+	}
+	return nil
+}
+
+// hasInterfaceDynamicIP checks if interface has a dynamic IP address
+func (h *NetworkManagerHook) hasInterfaceDynamicIP() bool {
+	cmd := h.chrootCommand("ip", "addr", "show", h.interfaceName)
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	// Check for "inet" using word boundary regex
+	matched, err := regexp.MatchString(`\binet\b`, string(output))
+	if err != nil || !matched {
+		return false
+	}
+
+	// Check for "dynamic" keyword
+	return strings.Contains(string(output), "dynamic")
+}
+
+// isInterfaceConfigured checks if interface is in configured state
+func (h *NetworkManagerHook) isInterfaceConfigured() bool {
+	cmd := h.chrootCommand("networkctl", "list")
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, h.interfaceName) && strings.Contains(line, "configured") {
+			return true
+		}
+	}
+	return false
+}
+
+// isInterfaceUnmanaged checks if interface is in unmanaged state
+func (h *NetworkManagerHook) isInterfaceUnmanaged() bool {
+	cmd := h.chrootCommand("networkctl", "list")
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, h.interfaceName) && strings.Contains(line, "unmanaged") {
+			return true
+		}
+	}
+	return false
+}
+
+// getNetworkFilePath retrieves the path to the network file for the interface
+func (h *NetworkManagerHook) getNetworkFilePath() (string, error) {
+	cmd := h.chrootCommand("networkctl", "status", h.interfaceName)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get networkctl status")
+	}
+
+	// Parse output to find "Network File:" line
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "Network File:") {
+			path := strings.TrimSpace(strings.TrimPrefix(line, "Network File:"))
+			// Prepend /host since we're in a container
+			if !strings.HasPrefix(path, "/host") {
+				path = filepath.Join("/host", path)
+			}
+			return path, nil
+		}
+	}
+
+	return "", nil
+}
+
+// saveNetworkFile saves the network configuration file on AWS
+func (h *NetworkManagerHook) saveNetworkFile() error {
+	if !h.systemType.IsAWS || !h.systemType.HasSystemdNetworkd {
+		return nil
+	}
+
+	// Check if interface has dynamic IP
+	if !h.hasInterfaceDynamicIP() {
+		return nil
+	}
+
+	// Check if interface is configured
+	if !h.isInterfaceConfigured() {
+		return nil
+	}
+
+	// Get network file path
+	networkFilePath, err := h.getNetworkFilePath()
+	if err != nil {
+		return err
+	}
+
+	if networkFilePath == "" {
+		h.log.Warn("NetworkManagerHook: Could not find network file path")
+		return nil
+	}
+
+	h.log.Info("NetworkManagerHook: Saving network configuration file...")
+
+	// Save the original network file
+	origPath := fmt.Sprintf("/tmp/%s.network.orig", h.interfaceName)
+	content, err := os.ReadFile(networkFilePath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read network file %s", networkFilePath)
+	}
+
+	err = os.WriteFile(origPath, content, 0644)
+	if err != nil {
+		return errors.Wrapf(err, "failed to save network file to %s", origPath)
+	}
+
+	h.log.Infof("NetworkManagerHook: Saved network file to %s", origPath)
+	return nil
+}
+
+// tweakNetworkFile modifies the network configuration for unmanaged interfaces on AWS
+func (h *NetworkManagerHook) tweakNetworkFile() error {
+	if !h.systemType.IsAWS || !h.systemType.HasSystemdNetworkd {
+		return nil
+	}
+
+	// Check if interface has dynamic IP
+	if !h.hasInterfaceDynamicIP() {
+		return nil
+	}
+
+	// Check if interface is unmanaged
+	if !h.isInterfaceUnmanaged() {
+		return nil
+	}
+
+	h.log.Infof("NetworkManagerHook: uplink interface %s in unmanaged state; fixing...", h.interfaceName)
+
+	origPath := fmt.Sprintf("/tmp/%s.network.orig", h.interfaceName)
+	tmpPath := fmt.Sprintf("/tmp/%s.network", h.interfaceName)
+	finalPath := fmt.Sprintf("/host/etc/systemd/network/%s.network", h.interfaceName)
+
+	// Read original file
+	content, err := os.ReadFile(origPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read original network file")
+	}
+
+	// Remove [Match] section from original content
+	lines := strings.Split(string(content), "\n")
+	var filteredLines []string
+	inMatchSection := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "[Match]") {
+			inMatchSection = true
+			continue
+		}
+		if inMatchSection && (strings.HasPrefix(trimmed, "[") || trimmed == "") {
+			inMatchSection = false
+			if trimmed == "" {
+				continue
+			}
+		}
+		if !inMatchSection {
+			filteredLines = append(filteredLines, line)
+		}
+	}
+
+	// Create new content with new [Match] section
+	newContent := fmt.Sprintf("[Match]\nName=%s\n\n%s", h.interfaceName, strings.Join(filteredLines, "\n"))
+
+	// Write temporary file
+	err = os.WriteFile(tmpPath, []byte(newContent), 0644)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write temporary network file")
+	}
+
+	// Copy to final location
+	err = os.WriteFile(finalPath, []byte(newContent), 0644)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write final network file")
+	}
+
+	// Create marker file
+	err = os.WriteFile("/host/var/run/vpp/network_file_tweaked", []byte{}, 0644)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create marker file")
+	}
+
+	// Clean up temporary files
+	err = os.Remove(tmpPath)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "failed to remove temporary network file")
+	}
+	err = os.Remove(origPath)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "failed to remove original network file")
+	}
+
+	// Restart systemd-networkd
+	return h.restartService("systemd-networkd")
+}
+
+// removeTweakedNetworkFile removes the tweaked network configuration
+func (h *NetworkManagerHook) removeTweakedNetworkFile() error {
+	markerPath := "/host/var/run/vpp/network_file_tweaked"
+	_, err := os.Stat(markerPath)
+	if os.IsNotExist(err) {
+		return nil
+	}
+
+	h.log.Info("NetworkManagerHook: Deleting tweaked network file...")
+
+	networkFilePath := fmt.Sprintf("/host/etc/systemd/network/%s.network", h.interfaceName)
+	err = os.Remove(networkFilePath)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "failed to remove network file")
+	}
+
+	err = os.Remove(markerPath)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "failed to remove marker file")
+	}
+
+	return nil
+}
+
+// beforeVppRun handles tasks before VPP starts
+func (h *NetworkManagerHook) beforeVppRun() error {
+	// Fix DNS configuration for NetworkManager
+	err := h.fixDNS()
+	if err != nil {
+		return err
+	}
+
+	// Save network file for AWS systemd-networkd
+	err = h.saveNetworkFile()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// vppRunning handles tasks while VPP is running
+func (h *NetworkManagerHook) vppRunning() error {
+	// Restart network services
+	err := h.restartNetwork()
+	if err != nil {
+		return err
+	}
+
+	// Tweak network file for AWS systemd-networkd
+	err = h.tweakNetworkFile()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// vppDoneOk handles cleanup when VPP stops gracefully
+func (h *NetworkManagerHook) vppDoneOk() error {
+	// Remove the DNS fix for NetworkManager
+	err := h.undoDNSFix()
+	if err != nil {
+		return err
+	}
+
+	// Remove the tweaked network file for AWS systemd-networkd
+	err = h.removeTweakedNetworkFile()
+	if err != nil {
+		return err
+	}
+
+	// Restart network services
+	err = h.restartNetwork()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// vppErrored handles cleanup when VPP stops with an error
+func (h *NetworkManagerHook) vppErrored() error {
+	// same cleanup as vppDoneOk()
+	return h.vppDoneOk()
+}
+
+// Execute runs the appropriate hook logic for the given hook point
+func (h *NetworkManagerHook) Execute(hookPoint HookPoint) error {
+	h.log.Infof("NetworkManagerHook: Executing %s for interface %s", hookPoint, h.interfaceName)
+
+	var err error
+	switch hookPoint {
+	case HookBeforeIfRead:
+		h.log.Info("NetworkManagerHook: BEFORE_IF_READ no action performed")
+	case HookBeforeVppRun:
+		err = h.beforeVppRun()
+	case HookVppRunning:
+		err = h.vppRunning()
+	case HookVppDoneOk:
+		err = h.vppDoneOk()
+	case HookVppErrored:
+		err = h.vppErrored()
+	default:
+		return fmt.Errorf("NetworkManagerHook: %s unknown hook point", hookPoint)
+	}
+
+	if err != nil {
+		h.log.Warnf("NetworkManagerHook: %s errored with %v", hookPoint, err)
+	}
+
+	return err
+}

@@ -16,7 +16,6 @@
 package config
 
 import (
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -112,11 +111,6 @@ var (
 	NativeDriver = StringEnvVar("CALICOVPP_NATIVE_DRIVER", "")
 	SwapDriver   = StringEnvVar("CALICOVPP_SWAP_DRIVER", "")
 
-	/* Bash script template run before getting config
-	   from $CALICOVPP_INTERFACE (same as
-	   CALICOVPP_HOOK_BEFORE_IF_READ)*/
-	InitScriptTemplate = StringEnvVar("CALICOVPP_INIT_SCRIPT_TEMPLATE", "")
-
 	/* Template for VppConfigFile (/etc/vpp/startup.conf)
 	   It contains the VPP startup configuration */
 	ConfigTemplate = RequiredStringEnvVar("CALICOVPP_CONFIG_TEMPLATE")
@@ -125,34 +119,22 @@ var (
 	   It contains the CLI to be executed in vppctl after startup */
 	ConfigExecTemplate = StringEnvVar("CALICOVPP_CONFIG_EXEC_TEMPLATE", "")
 
-	// Default hook script. This script contains various platform/os dependent
-	// fixes/customizations/tweaks/hacks required for a successful deployment and
-	// running of VPP. It can be overridden by setting the environment variables
-	// below in the vpp-manager container.
-
-	//go:embed default_hook.sh
-	DefaultHookScript string
+	/* Hook scripts can be optionally provided to extend the native Go NetworkManagerHook.
+	 * The scripts are called AFTER the native Go hook logic executes at each hook point.
+	 * They default to empty (no script), allowing users to add custom logic if needed. */
 
 	/* Run this before getLinuxConfig() in case this is a script
 	 * that's responsible for creating the interface */
-	HookScriptBeforeIfRead = StringEnvVar("CALICOVPP_HOOK_BEFORE_IF_READ", DefaultHookScript) // InitScriptTemplate
+	HookScriptBeforeIfRead = StringEnvVar("CALICOVPP_HOOK_BEFORE_IF_READ", "")
 	/* Bash script template run just after getting config
 	   from $CALICOVPP_INTERFACE & before starting VPP */
-	HookScriptBeforeVppRun = StringEnvVar("CALICOVPP_HOOK_BEFORE_VPP_RUN", DefaultHookScript) // InitPostIfScriptTemplate
+	HookScriptBeforeVppRun = StringEnvVar("CALICOVPP_HOOK_BEFORE_VPP_RUN", "")
 	/* Bash script template run after VPP has started */
-	HookScriptVppRunning = StringEnvVar("CALICOVPP_HOOK_VPP_RUNNING", DefaultHookScript) // FinalizeScriptTemplate
+	HookScriptVppRunning = StringEnvVar("CALICOVPP_HOOK_VPP_RUNNING", "")
 	/* Bash script template run when VPP stops gracefully */
-	HookScriptVppDoneOk = StringEnvVar("CALICOVPP_HOOK_VPP_DONE_OK", DefaultHookScript)
+	HookScriptVppDoneOk = StringEnvVar("CALICOVPP_HOOK_VPP_DONE_OK", "")
 	/* Bash script template run when VPP stops with an error */
-	HookScriptVppErrored = StringEnvVar("CALICOVPP_HOOK_VPP_ERRORED", DefaultHookScript)
-
-	AllHooks = []*string{
-		HookScriptBeforeIfRead,
-		HookScriptBeforeVppRun,
-		HookScriptVppRunning,
-		HookScriptVppDoneOk,
-		HookScriptVppErrored,
-	}
+	HookScriptVppErrored = StringEnvVar("CALICOVPP_HOOK_VPP_ERRORED", "")
 
 	Info = &VppManagerInfo{}
 
@@ -161,6 +143,8 @@ var (
 	VppHostPuntFakeGatewayAddress = net.ParseIP("169.254.0.1")
 )
 
+/* RunHook() executes a user-provided hook script if configured to add custom logic.
+ * This is called AFTER the native Go NetworkManagerHook logic executes. */
 func RunHook(hookScript *string, hookName string, params *VppManagerParams, log *logrus.Logger) {
 	if *hookScript == "" {
 		return
@@ -532,10 +516,6 @@ func loadConfig(log *logrus.Logger, doLogOutput bool) (err error) {
 		}
 		log.SetFormatter(formatter)
 		logrus.SetFormatter(formatter)
-	}
-
-	if *InitScriptTemplate != "" {
-		*HookScriptBeforeIfRead = *InitScriptTemplate
 	}
 
 	if doLogOutput {
