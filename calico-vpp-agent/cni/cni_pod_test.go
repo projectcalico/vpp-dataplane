@@ -60,6 +60,8 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 	BeforeEach(func() {
 		log = logrus.New()
+		// Set unique container name for CNI pod tests
+		testutils.VPPContainerName = "cni-pod-tests-vpp"
 		testutils.StartVPP()
 		vpp, _ = testutils.ConfigureVPP(log)
 		// setup connectivity server (functionality target of tests)
@@ -104,7 +106,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						},
 					}
 					common.VppManagerInfo = &config.VppManagerInfo{}
-					os.Setenv("NODENAME", ThisNodeName)
+					os.Setenv("NODENAME", testutils.ThisNodeName)
 					os.Setenv("CALICOVPP_CONFIG_TEMPLATE", "sss")
 					config.GetCalicoVppInterfaces().DefaultPodIfSpec = &config.InterfaceSpec{}
 					err = config.LoadConfigSilent(log)

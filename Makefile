@@ -349,13 +349,15 @@ test: builder-image
 	@mkdir -p $(shell pwd)/.coverage/unit
 	$(MAKE) -C vpp-manager image
 	$(MAKE) -C vpp-manager mock-pod-image
+	# we prevent parallel test execution as test infra does not currently support parallel VPPs
 	sudo -E env "PATH=$$PATH" VPP_BINARY=/usr/bin/vpp \
 		VPP_IMAGE=calicovpp/vpp:$(TAG) \
 		go test ./... \
 		-cover \
 		-covermode=atomic \
+		-p 1 \
 		-test.v \
-		-test.gocoverdir=$(shell pwd)/.coverage/unit \
+		-test.gocoverdir=$(shell pwd)/.coverage/unit
 
 # make ci-test - runs the unit & VPP-integration tests
 # within a container, with mounted /var/run/docker.sock
@@ -366,12 +368,15 @@ ci-test: builder-image
 	@mkdir -p $(shell pwd)/.coverage/unit
 	$(MAKE) -C vpp-manager image
 	$(MAKE) -C vpp-manager mock-pod-image
+	# we prevent parallel test execution as test infra does not currently support parallel VPPs
 	docker run -t --rm \
 		--privileged \
 		--pid=host \
 		-v /proc:/proc \
 		-v $(CURDIR):/vpp-dataplane \
-		-v /tmp/cni-tests-vpp:/tmp/cni-tests-vpp \
+		-v /tmp/cni-node-tests-vpp:/tmp/cni-node-tests-vpp \
+		-v /tmp/cni-pod-tests-vpp:/tmp/cni-pod-tests-vpp \
+		-v /tmp/prometheus-tests-vpp:/tmp/prometheus-tests-vpp \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		--env VPP_BINARY=/usr/bin/vpp \
 		--env VPP_IMAGE=calicovpp/vpp:$(TAG) \
@@ -380,6 +385,7 @@ ci-test: builder-image
 		go test ./... \
 			-cover \
 			-covermode=atomic \
+			-p 1 \
 			-test.v \
 			-test.gocoverdir=/vpp-dataplane/.coverage/unit
 
