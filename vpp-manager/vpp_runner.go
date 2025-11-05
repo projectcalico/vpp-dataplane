@@ -37,6 +37,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -108,11 +109,25 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 		}
 	}
 
+	/* Call native Go NetworkManagerHook */
+	hookErr := networkHook.Execute(hooks.HookBeforeVppRun)
+	if hookErr != nil {
+		log.Warnf("Network hook BEFORE_VPP_RUN failed: %v", hookErr)
+	}
+	/* Call user-provided hook script (if configured) */
 	config.RunHook(config.HookScriptBeforeVppRun, "BEFORE_VPP_RUN", v.params, log)
+
 	err = v.runVpp()
 	if err != nil {
 		return errors.Wrapf(err, "Error running VPP")
 	}
+
+	/* Call native Go NetworkManagerHook */
+	hookErr = networkHook.Execute(hooks.HookVppDoneOk)
+	if hookErr != nil {
+		log.Warnf("Network hook VPP_DONE_OK failed: %v", hookErr)
+	}
+	/* Call user-provided hook script (if configured) */
 	config.RunHook(config.HookScriptVppDoneOk, "VPP_DONE_OK", v.params, log)
 	return nil
 }
@@ -927,6 +942,13 @@ func (v *VppRunner) runVpp() (err error) {
 
 	// close vpp as we do not program
 	v.vpp.Close()
+
+	/* Call native Go NetworkManagerHook */
+	hookErr := networkHook.Execute(hooks.HookVppRunning)
+	if hookErr != nil {
+		log.Warnf("Network hook VPP_RUNNING failed: %v", hookErr)
+	}
+	/* Call user-provided hook script (if configured) */
 	config.RunHook(config.HookScriptVppRunning, "VPP_RUNNING", v.params, log)
 
 	<-vppDeadChan

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/startup"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
@@ -41,6 +42,8 @@ var (
 	vppProcess  *os.Process
 	vppDeadChan chan bool
 	signals     chan os.Signal
+	/* Network manager hook for handling network configuration */
+	networkHook *hooks.NetworkManagerHook
 	/* Was VPP terminated by us ? */
 	internalKill bool
 	/* Increasing index for timeout */
@@ -160,6 +163,15 @@ func main() {
 
 	params := startup.NewVppManagerParams()
 
+	/* Initialize native Go NewNetworkManagerHook with empty interface name
+	 * We will update this later once we have the actual interface name */
+	networkHook = hooks.NewNetworkManagerHook(log)
+	/* Call native Go NetworkManagerHook */
+	hookErr := networkHook.Execute(hooks.HookBeforeIfRead)
+	if hookErr != nil {
+		log.Warnf("Network hook BEFORE_IF_READ failed: %v", hookErr)
+	}
+	/* Call user-provided hook script (if configured) */
 	config.RunHook(config.HookScriptBeforeIfRead, "BEFORE_IF_READ", params, log)
 
 	err = utils.ClearVppManagerFiles()
@@ -180,6 +192,11 @@ func main() {
 	confs, err := startup.GetInterfaceConfig(params)
 	if err != nil {
 		log.Fatalf("Error getting initial interface configuration: %s", err)
+	}
+
+	/* Update native Go NewNetworkManagerHook with the actual interface name */
+	if len(params.UplinksSpecs) > 0 {
+		networkHook.SetInterfaceName(params.UplinksSpecs[0].InterfaceName)
 	}
 
 	runningCond = sync.NewCond(&sync.Mutex{})
@@ -205,6 +222,12 @@ func main() {
 			internalKill = false
 			err = runner.Run([]uplink.UplinkDriver{driver})
 			if err != nil {
+				/* Call native Go NetworkManagerHook */
+				hookErr := networkHook.Execute(hooks.HookVppErrored)
+				if hookErr != nil {
+					log.Warnf("Network hook VPP_ERRORED failed: %v", hookErr)
+				}
+				/* Call user-provided hook script (if configured) */
 				config.RunHook(config.HookScriptVppErrored, "VPP_ERRORED", params, log)
 				log.Errorf("VPP(%s) run failed with %s", driver.GetName(), err)
 			}
@@ -229,6 +252,12 @@ func main() {
 
 		err = runner.Run(drivers)
 		if err != nil {
+			/* Call native Go NetworkManagerHook */
+			hookErr := networkHook.Execute(hooks.HookVppErrored)
+			if hookErr != nil {
+				log.Warnf("Network hook VPP_ERRORED failed: %v", hookErr)
+			}
+			/* Call user-provided hook script (if configured) */
 			config.RunHook(config.HookScriptVppErrored, "VPP_ERRORED", params, log)
 			log.Errorf("VPP run failed with %v", err)
 		}
