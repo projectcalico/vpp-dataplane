@@ -13,6 +13,7 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any
 
 | CalicoVPP     | VPP                                                      |
 | ------------- | -------------------------------------------------------- |
+| v3.31.0       | v25.10  ~ cbba0451bb0af02a3ab8e163f6f99062782258e6       |
 | v3.30.0       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
 | v3.29.3       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
 | v3.29.2       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
@@ -32,6 +33,37 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any
 | ------------- | -------------------------------------------------------- |
 
 ## Releases
+
+### Calico-VPP v3.31.0
+
+> 14th November 2025
+
+- Features
+  - Upgrade Calico version to v3.31.0 & VPP version to v25.10
+  - added healthcheck support for agent
+  - User-local kind cluster
+  - build and push differentiated debug and release images
+  - add support for vpp trace/pcap/dispatchi to calicovppctl
+
+- Bugfixes
+  - Fix felix HostMetadataV4V6Update event startup RC
+  - fix marshalling and unmarshalling of json for proto and rxmode
+  - fix snat regression, differentiate v4v6
+  - fix(ip-neighbor): prevent crash when deleting interfaces with PBL in L2 mode
+  - Fix CNI server state error handling.
+  - Fix the weird DHCP/DNS issue
+  - fix unmarshalling issues
+  - Fix v6 services support
+  - Cherry pick hoststack patches fixing session reuse
+  - yaml: fix eks breakage in AL2023
+  - Cherrypick hoststack fix for connectionless UDP
+  - Fix vclsidecar build missing .25.06 sos
+  - Make capo policies default behavior configurable to address HostEndpoint issues
+
+- Refactoring
+  - Rename capo to npol
+  - add policy default and profile default
+  - Move to json storage, address pblindex issue
 
 ### Calico-VPP v3.30.0
 
