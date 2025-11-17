@@ -36,7 +36,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -53,7 +52,7 @@ type Server struct {
 
 	podInterfaceMap map[string]model.LocalPodSpec
 	lock            sync.Mutex /* protects Add/DelVppInterace/RescanState */
-	cniEventChan    chan common.CalicoVppEvent
+	cniEventChan    chan any
 
 	memifDriver    *podinterface.MemifPodInterfaceDriver
 	tuntapDriver   *podinterface.TunTapPodInterfaceDriver
@@ -65,7 +64,7 @@ type Server struct {
 	RedirectToHostClassifyTableIndex uint32
 
 	networkDefinitions   sync.Map
-	cniMultinetEventChan chan common.CalicoVppEvent
+	cniMultinetEventChan chan any
 	nodeBGPSpec          *common.LocalNodeSpec
 }
 
@@ -96,9 +95,9 @@ func (s *Server) Add(ctx context.Context, request *cniproto.AddRequest) (*cnipro
 		if !ok {
 			return nil, fmt.Errorf("trying to create a pod in an unexisting network %s", podSpec.NetworkName)
 		} else {
-			networkDefinition, ok := value.(*watchers.NetworkDefinition)
+			networkDefinition, ok := value.(*common.NetworkDefinition)
 			if !ok || networkDefinition == nil {
-				panic("Value is not of type *watchers.NetworkDefinition")
+				panic("Value is not of type *common.NetworkDefinition")
 			}
 			_, route, err := net.ParseCIDR(networkDefinition.Range)
 			if err == nil {
@@ -292,7 +291,7 @@ func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, 
 		log: log,
 
 		felixServerIpam: felixServerIpam,
-		cniEventChan:    make(chan common.CalicoVppEvent, common.ChanSize),
+		cniEventChan:    make(chan any, common.ChanSize),
 
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]model.LocalPodSpec),
@@ -301,7 +300,7 @@ func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, 
 		vclDriver:       podinterface.NewVclPodInterfaceDriver(vpp, log, felixServerIpam),
 		loopbackDriver:  podinterface.NewLoopbackPodInterfaceDriver(vpp, log, felixServerIpam),
 
-		cniMultinetEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		cniMultinetEventChan: make(chan any, common.ChanSize),
 	}
 	reg := common.RegisterHandler(server.cniEventChan, "CNI server events")
 	reg.ExpectEvents(
@@ -322,7 +321,11 @@ forloop:
 		select {
 		case <-t.Dying():
 			break forloop
-		case evt := <-s.cniEventChan:
+		case msg := <-s.cniEventChan:
+			evt, ok := msg.(common.CalicoVppEvent)
+			if !ok {
+				continue
+			}
 			switch evt.Type {
 			case common.FelixConfChanged:
 				if new, _ := evt.New.(*felixConfig.Config); new != nil {
@@ -437,21 +440,25 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 				case <-t.Dying():
 					s.log.Warn("Cni server asked to exit")
 					return
-				case event := <-s.cniMultinetEventChan:
+				case msg := <-s.cniMultinetEventChan:
+					event, ok := msg.(common.CalicoVppEvent)
+					if !ok {
+						continue
+					}
 					switch event.Type {
 					case common.NetsSynced:
 						netsSynced <- true
 					case common.NetAddedOrUpdated:
-						netDef, ok := event.New.(*watchers.NetworkDefinition)
+						netDef, ok := event.New.(*common.NetworkDefinition)
 						if !ok {
-							s.log.Errorf("event.New is not a *watchers.NetworkDefinition %v", event.New)
+							s.log.Errorf("event.New is not a *common.NetworkDefinition %v", event.New)
 							continue
 						}
 						s.networkDefinitions.Store(netDef.Name, netDef)
 					case common.NetDeleted:
-						netDef, ok := event.Old.(*watchers.NetworkDefinition)
+						netDef, ok := event.Old.(*common.NetworkDefinition)
 						if !ok {
-							s.log.Errorf("event.Old is not a *watchers.NetworkDefinition %v", event.Old)
+							s.log.Errorf("event.Old is not a *common.NetworkDefinition %v", event.Old)
 							continue
 						}
 						s.networkDefinitions.Delete(netDef.Name)
@@ -491,6 +498,6 @@ func (s *Server) ServeCNI(t *tomb.Tomb) error {
 
 // ForceAddingNetworkDefinition will add another NetworkDefinition to this CNI server.
 // The usage is mainly for testing purposes.
-func (s *Server) ForceAddingNetworkDefinition(networkDefinition *watchers.NetworkDefinition) {
+func (s *Server) ForceAddingNetworkDefinition(networkDefinition *common.NetworkDefinition) {
 	s.networkDefinitions.Store(networkDefinition.Name, networkDefinition)
 }
