@@ -26,8 +26,8 @@ import (
 	"gopkg.in/tomb.v2"
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
@@ -466,7 +466,11 @@ func (s *Server) WatchBGPPath(t *tomb.Tomb) error {
 			stopBGPMonitoring()
 			s.log.Infof("Routing Server asked to stop")
 			return nil
-		case evt := <-s.routingServerEventChan:
+		case msg := <-s.routingServerEventChan:
+			evt, ok := msg.(common.CalicoVppEvent)
+			if !ok {
+				continue
+			}
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
 			case common.LocalPodAddressAdded:

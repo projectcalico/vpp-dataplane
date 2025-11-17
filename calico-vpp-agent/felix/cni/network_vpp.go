@@ -22,9 +22,8 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -43,23 +42,23 @@ type NetworkPod struct {
 	ContainerIP *net.IPNet
 }
 
-func (s *Server) checkAvailableBuffers(podSpec *model.LocalPodSpec) error {
+func (s *CNIHandler) checkAvailableBuffers(podSpec *model.LocalPodSpec) error {
 	podBuffers := podSpec.GetBuffersNeeded()
 	buffers := podBuffers
 	existingPods := uint64(len(s.podInterfaceMap))
 	for _, existingPodSpec := range s.podInterfaceMap {
 		buffers += existingPodSpec.GetBuffersNeeded()
 	}
-	s.log.Infof("pod(add) checking available buffers, %d existing pods, request for this pod: %d, total request: %d / %d", existingPods, podBuffers, buffers, s.availableBuffers)
-	if buffers > s.availableBuffers {
+	s.log.Infof("pod(add) checking available buffers, %d existing pods, request for this pod: %d, total request: %d / %d", existingPods, podBuffers, buffers, s.cache.VppAvailableBuffers)
+	if buffers > s.cache.VppAvailableBuffers {
 		return errors.Errorf("Cannot create interface: Out of buffers: available buffers = %d, buffers needed = %d. "+
 			"Increase buffers-per-numa in the VPP configuration or reduce CALICOVPP_TAP_RING_SIZE to allow more "+
-			"pods to be scheduled. Limit the number of pods per node to prevent this error", s.availableBuffers, buffers)
+			"pods to be scheduled. Limit the number of pods per node to prevent this error", s.cache.VppAvailableBuffers, buffers)
 	}
 	return nil
 }
 
-func (s *Server) v4v6VrfsExistInVPP(podSpec *model.LocalPodSpec) bool {
+func (s *CNIHandler) v4v6VrfsExistInVPP(podSpec *model.LocalPodSpec) bool {
 	podSpec.V4VrfID = types.InvalidID
 	podSpec.V6VrfID = types.InvalidID
 
@@ -93,7 +92,7 @@ func (s *Server) v4v6VrfsExistInVPP(podSpec *model.LocalPodSpec) bool {
 	return false
 }
 
-func (s *Server) removeConflictingContainers(newAddresses []net.IP, networkName string) {
+func (s *CNIHandler) removeConflictingContainers(newAddresses []net.IP, networkName string) {
 	addrMap := make(map[string]model.LocalPodSpec)
 	for _, podSpec := range s.podInterfaceMap {
 		for _, addr := range podSpec.ContainerIPs {
@@ -125,7 +124,7 @@ func (s *Server) removeConflictingContainers(newAddresses []net.IP, networkName 
 }
 
 // AddVppInterface performs the networking for the given config and IPAM result
-func (s *Server) AddVppInterface(podSpec *model.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
+func (s *CNIHandler) AddVppInterface(podSpec *model.LocalPodSpec, doHostSideConf bool) (tunTapSwIfIndex uint32, err error) {
 	err = ns.IsNSorErr(podSpec.NetnsName)
 	if err != nil {
 		return vpplink.InvalidID, PodNSNotFoundErr{podSpec.NetnsName}
@@ -133,7 +132,7 @@ func (s *Server) AddVppInterface(podSpec *model.LocalPodSpec, doHostSideConf boo
 
 	if podSpec.NetworkName != "" {
 		s.log.Infof("Checking network exists")
-		_, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+		_, ok := s.cache.NetworkDefinitions[podSpec.NetworkName]
 		if !ok {
 			s.log.Errorf("network %s does not exist", podSpec.NetworkName)
 			return vpplink.InvalidID, errors.Errorf("network %s does not exist", podSpec.NetworkName)
@@ -244,14 +243,10 @@ func (s *Server) AddVppInterface(podSpec *model.LocalPodSpec, doHostSideConf boo
 	}
 
 	if podSpec.NetworkName != "" {
-		value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+		networkDefinition, ok := s.cache.NetworkDefinitions[podSpec.NetworkName]
 		if !ok {
 			s.log.Errorf("network not found %s", podSpec.NetworkName)
 		} else {
-			networkDefinition, ok := value.(*watchers.NetworkDefinition)
-			if !ok || networkDefinition == nil {
-				panic("networkDefinition not of type *watchers.NetworkDefinition")
-			}
 			vni = networkDefinition.Vni
 		}
 	}
@@ -293,7 +288,7 @@ err:
 }
 
 // CleanUpVPPNamespace deletes the devices in the network namespace.
-func (s *Server) DelVppInterface(podSpec *model.LocalPodSpec) {
+func (s *CNIHandler) DelVppInterface(podSpec *model.LocalPodSpec) {
 	if len(config.GetCalicoVppInitialConfig().RedirectToHostRules) != 0 && podSpec.NetworkName == "" {
 		err := s.DelRedirectToHostOnInterface(podSpec.TunTapSwIfIndex)
 		if err != nil {
@@ -316,14 +311,10 @@ func (s *Server) DelVppInterface(podSpec *model.LocalPodSpec) {
 	var vni uint32
 	deleteLocalPodAddress := true
 	if podSpec.NetworkName != "" {
-		value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
+		networkDefinition, ok := s.cache.NetworkDefinitions[podSpec.NetworkName]
 		if !ok {
 			deleteLocalPodAddress = false
 		} else {
-			networkDefinition, ok := value.(*watchers.NetworkDefinition)
-			if !ok || networkDefinition == nil {
-				panic("networkDefinition not of type *watchers.NetworkDefinition")
-			}
 			vni = networkDefinition.Vni
 		}
 	}

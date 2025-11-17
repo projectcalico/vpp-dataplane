@@ -53,7 +53,6 @@ const (
 )
 
 type FelixServerIpam interface {
-	IPNetNeedsSNAT(prefix *net.IPNet) bool
 	GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool
 }
 
