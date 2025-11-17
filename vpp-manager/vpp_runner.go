@@ -34,8 +34,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"gopkg.in/tomb.v2"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"

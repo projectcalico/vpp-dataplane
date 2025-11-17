@@ -1,0 +1,297 @@
+// Copyright (C) 2025 Cisco Systems Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package watchers
+
+import (
+	"bytes"
+	"encoding/binary"
+	goerr "errors"
+	"io"
+	"net"
+	"os"
+
+	"github.com/pkg/errors"
+	"github.com/projectcalico/calico/felix/proto"
+	"github.com/sirupsen/logrus"
+	pb "google.golang.org/protobuf/proto"
+	"gopkg.in/tomb.v2"
+
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
+)
+
+type FelixWatcher struct {
+	log                  *logrus.Entry
+	nextSeqNumber        uint64
+	felixServerEventChan chan any
+}
+
+func NewFelixWatcher(felixServerEventChan chan any, log *logrus.Entry) *FelixWatcher {
+	return &FelixWatcher{
+		log:                  log,
+		nextSeqNumber:        0,
+		felixServerEventChan: felixServerEventChan,
+	}
+}
+
+// Serve runs the felix server
+func (fw *FelixWatcher) WatchFelix(t *tomb.Tomb) error {
+	fw.log.Info("Starting felix Watcher")
+	// Cleanup potentially left over socket
+	err := os.RemoveAll(config.FelixDataplaneSocket)
+	if err != nil {
+		return errors.Wrapf(err, "Could not delete socket %s", config.FelixDataplaneSocket)
+	}
+
+	listener, err := net.Listen("unix", config.FelixDataplaneSocket)
+	if err != nil {
+		return errors.Wrapf(err, "Could not bind to unix://%s", config.FelixDataplaneSocket)
+	}
+	defer func() {
+		listener.Close()
+		os.RemoveAll(config.FelixDataplaneSocket)
+	}()
+	for {
+		fw.felixServerEventChan <- &common.FelixSocketStateChanged{
+			NewState: common.StateDisconnected,
+		}
+		// Accept only one connection
+		conn, err := listener.Accept()
+		if err != nil {
+			return errors.Wrap(err, "cannot accept felix client connection")
+		}
+		fw.log.Infof("Accepted connection from felix")
+		fw.felixServerEventChan <- &common.FelixSocketStateChanged{
+			NewState: common.StateConnected,
+		}
+
+		felixUpdates := fw.MessageReader(conn)
+	innerLoop:
+		for {
+			select {
+			case <-t.Dying():
+				fw.log.Warn("Felix server exiting")
+				err = conn.Close()
+				if err != nil {
+					fw.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
+				}
+				fw.log.Infof("Waiting for SyncFelix to stop...")
+				return nil
+			// <-felixUpdates & handleFelixUpdate does the bulk of the policy sync job. It starts by reconciling the current
+			// configured state in VPP (empty at first) with what is sent by felix, and once both are in
+			// sync, it keeps processing felix updates. It also sends endpoint updates to felix when the
+			// CNI component adds or deletes container interfaces.
+			case msg, ok := <-felixUpdates:
+				if !ok {
+					fw.log.Infof("Felix MessageReader closed")
+					break innerLoop
+				}
+				fw.felixServerEventChan <- msg
+			}
+		}
+		err = conn.Close()
+		if err != nil {
+			fw.log.WithError(err).Warn("Error closing unix connection to felix API proxy")
+		}
+		fw.log.Infof("SyncFelix exited, reconnecting to felix")
+	}
+}
+
+func (fw *FelixWatcher) MessageReader(conn net.Conn) <-chan any {
+	ch := make(chan any)
+
+	go func() {
+		for {
+			msg, err := fw.RecvMessage(conn)
+			if err != nil {
+				if goerr.Is(err, io.EOF) && msg == nil {
+					fw.log.Debug("EOF on felix-dataplane.sock")
+				} else {
+					fw.log.Errorf("Error on felix-dataplane.sock err=%v msg=%v", err, msg)
+				}
+				break
+			}
+			if msg != nil {
+				/* Only send supported messages */
+				ch <- msg
+			}
+		}
+		close(ch)
+	}()
+
+	return ch
+}
+
+func (fw *FelixWatcher) RecvMessage(conn net.Conn) (msg interface{}, err error) {
+	buf := make([]byte, 8)
+	_, err = io.ReadFull(conn, buf)
+	if err != nil {
+		return
+	}
+	length := binary.LittleEndian.Uint64(buf)
+
+	data := make([]byte, length)
+	_, err = io.ReadFull(conn, data)
+	if err != nil {
+		return
+	}
+
+	envelope := proto.ToDataplane{}
+	err = pb.Unmarshal(data, &envelope)
+	if err != nil {
+		return
+	}
+
+	switch payload := envelope.Payload.(type) {
+	case *proto.ToDataplane_ConfigUpdate:
+		msg = payload.ConfigUpdate
+	case *proto.ToDataplane_InSync:
+		msg = payload.InSync
+	case *proto.ToDataplane_IpsetUpdate:
+		msg = payload.IpsetUpdate
+	case *proto.ToDataplane_IpsetDeltaUpdate:
+		msg = payload.IpsetDeltaUpdate
+	case *proto.ToDataplane_IpsetRemove:
+		msg = payload.IpsetRemove
+	case *proto.ToDataplane_ActivePolicyUpdate:
+		msg = payload.ActivePolicyUpdate
+	case *proto.ToDataplane_ActivePolicyRemove:
+		msg = payload.ActivePolicyRemove
+	case *proto.ToDataplane_ActiveProfileUpdate:
+		msg = payload.ActiveProfileUpdate
+	case *proto.ToDataplane_ActiveProfileRemove:
+		msg = payload.ActiveProfileRemove
+	case *proto.ToDataplane_HostEndpointUpdate:
+		msg = payload.HostEndpointUpdate
+	case *proto.ToDataplane_HostEndpointRemove:
+		msg = payload.HostEndpointRemove
+	case *proto.ToDataplane_WorkloadEndpointUpdate:
+		msg = payload.WorkloadEndpointUpdate
+	case *proto.ToDataplane_WorkloadEndpointRemove:
+		msg = payload.WorkloadEndpointRemove
+	case *proto.ToDataplane_HostMetadataUpdate:
+		msg = payload.HostMetadataUpdate
+	case *proto.ToDataplane_HostMetadataRemove:
+		msg = payload.HostMetadataRemove
+	case *proto.ToDataplane_HostMetadataV4V6Update:
+		msg = payload.HostMetadataV4V6Update
+	case *proto.ToDataplane_HostMetadataV4V6Remove:
+		msg = payload.HostMetadataV4V6Remove
+	case *proto.ToDataplane_WireguardEndpointUpdate:
+		msg = payload.WireguardEndpointUpdate
+	case *proto.ToDataplane_WireguardEndpointRemove:
+		msg = payload.WireguardEndpointRemove
+	case *proto.ToDataplane_IpamPoolUpdate:
+		msg = payload.IpamPoolUpdate
+	case *proto.ToDataplane_IpamPoolRemove:
+		msg = payload.IpamPoolRemove
+	case *proto.ToDataplane_ServiceAccountUpdate:
+		msg = payload.ServiceAccountUpdate
+	case *proto.ToDataplane_ServiceAccountRemove:
+		msg = payload.ServiceAccountRemove
+	case *proto.ToDataplane_NamespaceUpdate:
+		msg = payload.NamespaceUpdate
+	case *proto.ToDataplane_NamespaceRemove:
+		msg = payload.NamespaceRemove
+	case *proto.ToDataplane_GlobalBgpConfigUpdate:
+		msg = payload.GlobalBgpConfigUpdate
+
+	default:
+		fw.log.WithField("payload", payload).Debug("Ignoring unknown message from felix")
+	}
+
+	fw.log.WithField("msg", msg).Debug("Received message from dataplane.")
+
+	return
+}
+
+func (fw *FelixWatcher) SendMessage(conn net.Conn, msg interface{}) (err error) {
+	fw.log.Debugf("Writing msg (%v) to felix: %#v", fw.nextSeqNumber, msg)
+	// Wrap the payload message in an envelope so that protobuf takes care of deserialising
+	// it as the correct type.
+	envelope := &proto.FromDataplane{
+		SequenceNumber: fw.nextSeqNumber,
+	}
+	fw.nextSeqNumber++
+	switch msg := msg.(type) {
+	case *proto.ProcessStatusUpdate:
+		envelope.Payload = &proto.FromDataplane_ProcessStatusUpdate{ProcessStatusUpdate: msg}
+	case *proto.WorkloadEndpointStatusUpdate:
+		envelope.Payload = &proto.FromDataplane_WorkloadEndpointStatusUpdate{WorkloadEndpointStatusUpdate: msg}
+	case *proto.WorkloadEndpointStatusRemove:
+		envelope.Payload = &proto.FromDataplane_WorkloadEndpointStatusRemove{WorkloadEndpointStatusRemove: msg}
+	case *proto.HostEndpointStatusUpdate:
+		envelope.Payload = &proto.FromDataplane_HostEndpointStatusUpdate{HostEndpointStatusUpdate: msg}
+	case *proto.HostEndpointStatusRemove:
+		envelope.Payload = &proto.FromDataplane_HostEndpointStatusRemove{HostEndpointStatusRemove: msg}
+	case *proto.WireguardStatusUpdate:
+		envelope.Payload = &proto.FromDataplane_WireguardStatusUpdate{WireguardStatusUpdate: msg}
+	default:
+		fw.log.WithField("msg", msg).Panic("Unknown message type")
+	}
+	data, err := pb.Marshal(envelope)
+	if err != nil {
+		fw.log.WithError(err).WithField("msg", msg).Panic("Failed to marshal data")
+	}
+
+	lengthBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lengthBytes, uint64(len(data)))
+	var messageBuf bytes.Buffer
+	messageBuf.Write(lengthBytes)
+	messageBuf.Write(data)
+	for {
+		_, err := messageBuf.WriteTo(conn)
+		if err == io.ErrShortWrite {
+			fw.log.Warn("Short write to felix; buffer full?")
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		fw.log.Debug("Wrote message to felix")
+		break
+	}
+	return nil
+}
+
+func InstallFelixPlugin() (err error) {
+	err = os.RemoveAll(config.FelixPluginDstPath)
+	if err != nil {
+		logrus.Warnf("Could not delete %s: %v", config.FelixPluginDstPath, err)
+	}
+
+	in, err := os.Open(config.FelixPluginSrcPath)
+	if err != nil {
+		return errors.Wrap(err, "cannot open felix plugin to copy")
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(config.FelixPluginDstPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		return errors.Wrap(err, "cannot open felix plugin to write")
+	}
+	defer func() {
+		cerr := out.Close()
+		if err == nil {
+			err = errors.Wrap(cerr, "cannot close felix plugin file")
+		}
+	}()
+	if _, err = io.Copy(out, in); err != nil {
+		return errors.Wrap(err, "cannot copy data")
+	}
+	err = out.Sync()
+	return errors.Wrapf(err, "could not sync felix plugin changes")
+}

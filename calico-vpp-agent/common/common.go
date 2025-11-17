@@ -53,7 +53,6 @@ const (
 )
 
 type FelixServerIpam interface {
-	IPNetNeedsSNAT(prefix *net.IPNet) bool
 	GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool
 }
 
@@ -539,24 +538,6 @@ func FormatBGPConfiguration(conf *calicov3.BGPConfigurationSpec) string {
 		"LogSeverityScreen: %s, NodeToNodeMeshEnabled: %s, ASNumber: %s, ListenPort: %d",
 		conf.LogSeverityScreen, meshConfig, asn, conf.ListenPort,
 	)
-}
-
-func FetchNDataThreads(vpp *vpplink.VppLink, log *logrus.Entry) int {
-	nVppWorkers, err := vpp.GetNumVPPWorkers()
-	if err != nil {
-		log.Panicf("Error getting number of VPP workers: %v", err)
-	}
-	nDataThreads := nVppWorkers
-	if config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread > 0 {
-		nDataThreads = nVppWorkers - config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread
-		if nDataThreads <= 0 {
-			log.Errorf("Couldn't fulfill request [crypto=%d total=%d]", config.GetCalicoVppIpsec().IpsecNbAsyncCryptoThread, nVppWorkers)
-			nDataThreads = nVppWorkers
-		}
-		log.Infof("Using ipsec workers [data=%d crypto=%d]", nDataThreads, nVppWorkers-nDataThreads)
-
-	}
-	return nDataThreads
 }
 
 func CompareIPList(newIPList, oldIPList []net.IP) (added []net.IP, deleted []net.IP, changed bool) {
