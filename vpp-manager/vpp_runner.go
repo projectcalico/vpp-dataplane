@@ -751,6 +751,38 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 			time.Sleep(1 * time.Second)
 			continue
 		}
+
+		// Check if node has BGP IPv6 that is missing from ifState
+		if node.Spec.BGP != nil && node.Spec.BGP.IPv6Address != "" {
+			if ifState.NodeIP6 == "" || ifState.NodeIP6 != node.Spec.BGP.IPv6Address {
+				log.Infof("Node has BGP IPv6 address %s that is missing from ifState, adding to Linux tap", node.Spec.BGP.IPv6Address)
+				ifState.NodeIP6 = node.Spec.BGP.IPv6Address
+				ifState.Hasv6 = true
+
+				// Add the IPv6 address to the Linux side of the tap interface
+				link, err := netlink.LinkByName(ifState.InterfaceName)
+				if err != nil {
+					log.Warnf("Error getting link %s to add IPv6: %v", ifState.InterfaceName, err)
+				} else {
+					addr, err := netlink.ParseAddr(ifState.NodeIP6)
+					if err != nil {
+						log.Warnf("Error parsing IPv6 address %s: %v", ifState.NodeIP6, err)
+					} else {
+						err = netlink.AddrAdd(link, addr)
+						if err != nil {
+							if errors.Is(err, syscall.EEXIST) {
+								log.Infof("IPv6 address %s already exists on %s", ifState.NodeIP6, ifState.InterfaceName)
+							} else {
+								log.Warnf("Error adding IPv6 address %s to %s: %v", ifState.NodeIP6, ifState.InterfaceName, err)
+							}
+						} else {
+							log.Infof("Successfully added IPv6 address %s to Linux tap %s", ifState.NodeIP6, ifState.InterfaceName)
+						}
+					}
+				}
+			}
+		}
+
 		// Update node with address
 		needUpdate := false
 		if node.Spec.BGP == nil {
