@@ -737,6 +737,56 @@ func (v *VppRunner) doVppGlobalConfiguration() (err error) {
 	return nil
 }
 
+// addIPv6OnLinuxTap adds the global IPv6 address to the Linux side of the tap interface
+func (v *VppRunner) addIPv6OnLinuxTap(ifState *config.LinuxInterfaceState) error {
+	// Get the current node to read BGP IPv6 config
+	client, err := calicov3cli.NewFromEnv()
+	if err != nil {
+		return errors.Wrap(err, "Error creating calico client")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	node, err := client.Nodes().Get(ctx, *config.NodeName, calicoopts.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Error getting node from Calico")
+	}
+
+	// Check if node has BGP IPv6 address configured
+	if node.Spec.BGP == nil || node.Spec.BGP.IPv6Address == "" {
+		log.Infof("No BGP IPv6 address configured for this node")
+		return nil
+	}
+
+	log.Infof("Node has BGP IPv6 address %s, ensuring it exists on Linux tap interface %s", node.Spec.BGP.IPv6Address, ifState.InterfaceName)
+
+	// Add the global IPv6 address to the Linux side of the tap interface
+	link, err := netlink.LinkByName(ifState.InterfaceName)
+	if err != nil {
+		log.Errorf("Error getting link %s to add IPv6: %v - cannot configure BGP IPv6", ifState.InterfaceName, err)
+		return errors.Wrapf(err, "Cannot find interface %s to add BGP IPv6 address", ifState.InterfaceName)
+	}
+
+	addr, err := netlink.ParseAddr(node.Spec.BGP.IPv6Address)
+	if err != nil {
+		log.Errorf("Error parsing BGP IPv6 address %s: %v - invalid address format", node.Spec.BGP.IPv6Address, err)
+		return errors.Wrapf(err, "Invalid BGP IPv6 address format: %s", node.Spec.BGP.IPv6Address)
+	}
+
+	err = netlink.AddrAdd(link, addr)
+	if err != nil {
+		if errors.Is(err, syscall.EEXIST) {
+			log.Infof("IPv6 address %s already exists on Linux interface %s", node.Spec.BGP.IPv6Address, ifState.InterfaceName)
+		} else {
+			log.Errorf("Error adding BGP IPv6 address %s to %s: %v - BGP server will fail to bind", node.Spec.BGP.IPv6Address, ifState.InterfaceName, err)
+			return errors.Wrapf(err, "Failed to add BGP IPv6 address %s to interface %s", node.Spec.BGP.IPv6Address, ifState.InterfaceName)
+		}
+	} else {
+		log.Infof("Successfully added BGP IPv6 address %s to Linux tap %s", node.Spec.BGP.IPv6Address, ifState.InterfaceName)
+	}
+
+	return nil
+}
+
 func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err error) {
 	var node, updated *oldv3.Node
 	var client calicov3cli.Interface
@@ -754,6 +804,15 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 			time.Sleep(1 * time.Second)
 			continue
 		}
+
+		// Update ifState to reflect BGP IPv6 if configured, but do not add the
+		// global BGP IPv6 address to Linux tap here because the VPP_RUNNING hook
+		// will restart networkd and remove it. We add it after the hook instead.
+		if node.Spec.BGP != nil && node.Spec.BGP.IPv6Address != "" {
+			ifState.NodeIP6 = node.Spec.BGP.IPv6Address
+			ifState.Hasv6 = true
+		}
+
 		// Update node with address
 		needUpdate := false
 		if node.Spec.BGP == nil {
@@ -983,6 +1042,12 @@ func (v *VppRunner) runVpp() (err error) {
 	v.vpp.Close()
 
 	networkHook.ExecuteWithUserScript(hooks.HookVppRunning, config.HookScriptVppRunning, v.params)
+
+	// Add global BGP IPv6 address On Linux tap after hook (which may restart networkd and remove it)
+	err = v.addIPv6OnLinuxTap(v.conf[0])
+	if err != nil {
+		log.Errorf("Error adding global BGP IPv6 address on Linux tap after hook: %v", err)
+	}
 
 	<-vppDeadChan
 	log.Infof("VPP Exited: status %v", err)
