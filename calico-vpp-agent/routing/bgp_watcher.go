@@ -580,9 +580,14 @@ func (s *Server) WatchBGPPath(t *tomb.Tomb) error {
 				if err != nil {
 					return errors.Wrapf(err, "error cleaning peer filters up")
 				}
-				err = s.BGPServer.DeleteDefinedSet(context.Background(), &bgpapi.DeleteDefinedSetRequest{DefinedSet: s.bgpPeers[addr].NeighborSet, All: true})
-				if err != nil {
-					return errors.Wrapf(err, "error deleting prefix set")
+				if s.bgpPeers[addr] != nil && s.bgpPeers[addr].NeighborSet != nil {
+					err = s.BGPServer.DeleteDefinedSet(context.Background(), &bgpapi.DeleteDefinedSetRequest{
+						DefinedSet: s.bgpPeers[addr].NeighborSet,
+						All:        true,
+					})
+					if err != nil {
+						return errors.Wrapf(err, "error deleting prefix set")
+					}
 				}
 				err := s.BGPServer.DeletePeer(
 					context.Background(),
