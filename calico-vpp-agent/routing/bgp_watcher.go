@@ -543,10 +543,14 @@ func (s *Server) WatchBGPPath(t *tomb.Tomb) error {
 				peer := localPeer.Peer
 				filters := localPeer.BGPFilterNames
 				// create a neighbor set to apply filter only on specific peer using a global policy
+				prefixLen := "/32"
+				if ip := net.ParseIP(peer.Conf.NeighborAddress); ip != nil && ip.To4() == nil {
+					prefixLen = "/128"
+				}
 				neighborSet := &bgpapi.DefinedSet{
 					Name:        peer.Conf.NeighborAddress + "neighbor",
 					DefinedType: bgpapi.DefinedType_NEIGHBOR,
-					List:        []string{peer.Conf.NeighborAddress + "/32"},
+					List:        []string{peer.Conf.NeighborAddress + prefixLen},
 				}
 				err := s.BGPServer.AddDefinedSet(context.Background(), &bgpapi.AddDefinedSetRequest{
 					DefinedSet: neighborSet,
