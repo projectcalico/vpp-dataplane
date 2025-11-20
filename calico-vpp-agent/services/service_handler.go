@@ -22,6 +22,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	discoveryv1 "k8s.io/api/discovery/v1"
+
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
@@ -29,17 +31,22 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
-func getCnatBackendDstPort(servicePort *v1.ServicePort, endpointPort *v1.EndpointPort) uint16 {
+func getCnatBackendDstPort(servicePort *v1.ServicePort, endpointPort *discoveryv1.EndpointPort) int32 {
 	targetPort := servicePort.TargetPort
 	if targetPort.Type == intstr.Int {
 		if targetPort.IntVal == 0 {
 			// Unset targetport
-			return uint16(servicePort.Port)
+			return servicePort.Port
 		} else {
-			return uint16(targetPort.IntVal)
+			return targetPort.IntVal
 		}
 	} else {
-		return uint16(endpointPort.Port)
+		if endpointPort.Port != nil {
+			return *endpointPort.Port
+		} else {
+			// shouldn't happen
+			return 0
+		}
 	}
 }
 
@@ -56,7 +63,7 @@ func getServicePortProto(proto v1.Protocol) types.IPProto {
 	}
 }
 
-func isEndpointAddressLocal(endpointAddress *v1.EndpointAddress) bool {
+func isEndpointAddressLocal(endpointAddress *discoveryv1.Endpoint) bool {
 	if endpointAddress != nil && endpointAddress.NodeName != nil && *endpointAddress.NodeName != *config.NodeName {
 		return false
 	}
@@ -77,44 +84,55 @@ func getCnatVipDstPort(servicePort *v1.ServicePort, isNodePort bool) uint16 {
 	return uint16(servicePort.Port)
 }
 
-func buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Service, ep *v1.Endpoints, serviceIP net.IP, isNodePort bool, svcInfo serviceInfo) *types.CnatTranslateEntry {
+func (s *Server) buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Service, epslices []*discoveryv1.EndpointSlice, serviceIP net.IP, isNodePort bool, svcInfo serviceInfo) *types.CnatTranslateEntry {
 	backends := make([]types.CnatEndpointTuple, 0)
 	isLocalOnly := IsLocalOnly(service)
 	if isNodePort {
 		isLocalOnly = false
 	}
 	// Find the endpoint subset port that exposes the port we're interested in
-	for _, endpointSubset := range ep.Subsets {
-		for _, endpointPort := range endpointSubset.Ports {
-			if servicePort.Name == endpointPort.Name {
-				for _, endpointAddress := range endpointSubset.Addresses {
-					var flags uint8 = 0
-					if !isEndpointAddressLocal(&endpointAddress) && isLocalOnly {
+	for _, epslice := range epslices {
+		for _, ep := range epslice.Endpoints {
+			for _, endpointPort := range epslice.Ports {
+				if servicePort.Name == *endpointPort.Name {
+					if endpointPort.Port == nil {
+						// null ports not supported
+						s.log.Warnf("null ports not supported for port %s", *endpointPort.Name)
 						continue
 					}
-					if !isEndpointAddressLocal(&endpointAddress) {
-						/* dont NAT to remote endpoints unless this is a nodeport */
-						if svcInfo.lbType == lbTypeMaglevDSR && !isNodePort {
-							flags = flags | types.CnatNoNat
+					for _, endpointAddress := range ep.Addresses {
+						var flags uint8 = 0
+						if !isEndpointAddressLocal(&ep) && isLocalOnly {
+							continue
+						}
+						if !isEndpointAddressLocal(&ep) {
+							/* dont NAT to remote endpoints if maglevDSR unless this is a nodeport */
+							if svcInfo.lbType == lbTypeMaglevDSR && !isNodePort {
+								flags = flags | types.CnatNoNat
+							}
+						}
+						ip := net.ParseIP(endpointAddress)
+						if ip != nil {
+							backend := types.CnatEndpointTuple{
+								DstEndpoint: types.CnatEndpoint{
+									Port: uint16(getCnatBackendDstPort(servicePort, &endpointPort)),
+									IP:   ip,
+								},
+								Flags: flags,
+							}
+							/* In nodeports, we need to sNAT when endpoint is not local to have a symmetric traffic */
+							if isNodePort && !isEndpointAddressLocal(&ep) {
+								backend.SrcEndpoint.IP = serviceIP
+							}
+							/* Only append backend if it has the same address family as the service IP */
+							/* we don't nat v4 to v6 and vice versa */
+							if (ip.To4() != nil) == (serviceIP.To4() != nil) {
+								backends = append(backends, backend)
+							}
 						}
 					}
-					ip := net.ParseIP(endpointAddress.IP)
-					if ip != nil {
-						backend := types.CnatEndpointTuple{
-							DstEndpoint: types.CnatEndpoint{
-								Port: getCnatBackendDstPort(servicePort, &endpointPort),
-								IP:   ip,
-							},
-							Flags: flags,
-						}
-						/* In nodeports, we need to sNAT when endpoint is not local to have a symmetric traffic */
-						if isNodePort && !isEndpointAddressLocal(&endpointAddress) {
-							backend.SrcEndpoint.IP = serviceIP
-						}
-						backends = append(backends, backend)
-					}
+					break
 				}
-				break
 			}
 		}
 	}
@@ -132,26 +150,36 @@ func buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Servi
 	}
 }
 
-func (s *Server) GetLocalService(service *v1.Service, ep *v1.Endpoints) (localService *LocalService) {
+func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*discoveryv1.EndpointSlice) (localService *LocalService) {
+	epSlices := []*discoveryv1.EndpointSlice{}
+	for _, epslice := range epSlicesMap {
+		epSlices = append(epSlices, epslice)
+	}
 	localService = &LocalService{
 		Entries:        make([]types.CnatTranslateEntry, 0),
 		SpecificRoutes: make([]net.IP, 0),
-		ServiceID:      serviceID(&service.ObjectMeta), /* ip.ObjectMeta should yield the same id */
+		ServiceID:      objectID(&service.ObjectMeta), /* ip.ObjectMeta should yield the same id */
 	}
 
 	serviceSpec := s.ParseServiceAnnotations(service.Annotations, service.Name)
-	clusterIP := net.ParseIP(service.Spec.ClusterIP)
-	nodeIP := s.getNodeIP(vpplink.IsIP6(clusterIP))
+	var clusterIPs []net.IP
+	var nodeIPs []net.IP
+	for _, cip := range service.Spec.ClusterIPs {
+		clusterIPs = append(clusterIPs, net.ParseIP(cip))
+		nodeIPs = append(nodeIPs, s.getNodeIP(vpplink.IsIP6(net.ParseIP(cip))))
+	}
 	for _, servicePort := range service.Spec.Ports {
-		if !clusterIP.IsUnspecified() && len(clusterIP) > 0 {
-			entry := buildCnatEntryForServicePort(&servicePort, service, ep, clusterIP, false /* isNodePort */, *serviceSpec)
-			localService.Entries = append(localService.Entries, *entry)
+		for _, cip := range clusterIPs {
+			if !cip.IsUnspecified() && len(cip) > 0 {
+				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, cip, false /* isNodePort */, *serviceSpec)
+				localService.Entries = append(localService.Entries, *entry)
+			}
 		}
 
 		for _, eip := range service.Spec.ExternalIPs {
 			extIP := net.ParseIP(eip)
 			if !extIP.IsUnspecified() && len(extIP) > 0 {
-				entry := buildCnatEntryForServicePort(&servicePort, service, ep, extIP, false /* isNodePort */, *serviceSpec)
+				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, extIP, false /* isNodePort */, *serviceSpec)
 				localService.Entries = append(localService.Entries, *entry)
 				if IsLocalOnly(service) && len(entry.Backends) > 0 {
 					localService.SpecificRoutes = append(localService.SpecificRoutes, extIP)
@@ -162,7 +190,7 @@ func (s *Server) GetLocalService(service *v1.Service, ep *v1.Endpoints) (localSe
 		for _, ingress := range service.Status.LoadBalancer.Ingress {
 			ingressIP := net.ParseIP(ingress.IP)
 			if !ingressIP.IsUnspecified() && len(ingressIP) > 0 {
-				entry := buildCnatEntryForServicePort(&servicePort, service, ep, ingressIP, false /* isNodePort */, *serviceSpec)
+				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, ingressIP, false /* isNodePort */, *serviceSpec)
 				localService.Entries = append(localService.Entries, *entry)
 				if IsLocalOnly(service) && len(entry.Backends) > 0 {
 					localService.SpecificRoutes = append(localService.SpecificRoutes, ingressIP)
@@ -171,9 +199,11 @@ func (s *Server) GetLocalService(service *v1.Service, ep *v1.Endpoints) (localSe
 		}
 
 		if service.Spec.Type == v1.ServiceTypeNodePort {
-			if !nodeIP.IsUnspecified() && len(nodeIP) > 0 {
-				entry := buildCnatEntryForServicePort(&servicePort, service, ep, nodeIP, true /* isNodePort */, *serviceSpec)
-				localService.Entries = append(localService.Entries, *entry)
+			for _, nip := range nodeIPs {
+				if !nip.IsUnspecified() && len(nip) > 0 {
+					entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, nip, true /* isNodePort */, *serviceSpec)
+					localService.Entries = append(localService.Entries, *entry)
+				}
 			}
 		}
 
@@ -181,9 +211,11 @@ func (s *Server) GetLocalService(service *v1.Service, ep *v1.Endpoints) (localSe
 		// Note: type=LoadBalancer only makes sense on cloud providers which support external load balancers and the actual
 		// creation of the load balancer happens asynchronously.
 		if service.Spec.Type == v1.ServiceTypeLoadBalancer && *service.Spec.AllocateLoadBalancerNodePorts {
-			if !nodeIP.IsUnspecified() && len(nodeIP) > 0 {
-				entry := buildCnatEntryForServicePort(&servicePort, service, ep, nodeIP, true /* isNodePort */, *serviceSpec)
-				localService.Entries = append(localService.Entries, *entry)
+			for _, nip := range nodeIPs {
+				if !nip.IsUnspecified() && len(nip) > 0 {
+					entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, nip, true /* isNodePort */, *serviceSpec)
+					localService.Entries = append(localService.Entries, *entry)
+				}
 			}
 		}
 	}
@@ -258,7 +290,6 @@ func (s *Server) deleteServiceByName(serviceID string) {
 		}
 		delete(s.serviceStateMap, key)
 	}
-
 }
 
 func (s *Server) sameServiceEntries(entries []types.CnatTranslateEntry, service *LocalService) {

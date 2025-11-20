@@ -156,6 +156,7 @@ run-tests:
 run-tests-v6:
 	test/scripts/test.sh up iperf v6
 	kubectl -n iperf wait pod/iperf-client $$(kubectl -n iperf get pods -l 'app in (iperf-server,iperf-nodeport)' -o name) --for=condition=Ready --timeout=60s
+	test/scripts/cases.sh ipv4
 	test/scripts/cases.sh ipv6
 	test/scripts/test.sh down iperf v6
 
