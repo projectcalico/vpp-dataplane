@@ -162,8 +162,14 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 		} else {
 			stack.Push(s.vpp.DelPblClient, pblIndex)
 		}
-		podSpec.PblIndex = pblIndex
 
+		if vpplink.IPFamilyFromIPNet(containerIP).IsIP6 {
+			s.log.Infof("pod(add) pbl client v6 index:%d", pblIndex)
+			podSpec.PblIndexV6 = pblIndex
+		} else {
+			s.log.Infof("pod(add) pbl client v4 index:%d", pblIndex)
+			podSpec.PblIndexV4 = pblIndex
+		}
 		if !isL3 {
 			s.log.Infof("pod(add) neighbor if[%d] %s", swIfIndex, containerIP.IP.String())
 			err = s.vpp.AddNeighbor(&types.Neighbor{
@@ -181,10 +187,14 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *storage.LocalPodSpec, stack 
 }
 
 func (s *Server) UnroutePblPortsPodInterface(podSpec *storage.LocalPodSpec, swIfIndex uint32, isL3 bool) {
-	s.log.Infof("pod(del) PBL client[%d]", podSpec.PblIndex)
-	err := s.vpp.DelPblClient(podSpec.PblIndex)
-	if err != nil {
-		s.log.Warnf("Error deleting pbl conf %s", err)
+	for _, pblIndex := range []uint32{podSpec.PblIndexV4, podSpec.PblIndexV6} {
+		if pblIndex != vpplink.InvalidID {
+			s.log.Infof("pod(del) PBL client[%d]", pblIndex)
+			err := s.vpp.DelPblClient(pblIndex)
+			if err != nil {
+				s.log.Warnf("Error deleting pbl conf %s", err)
+			}
+		}
 	}
 	for _, containerIP := range podSpec.GetContainerIps() {
 		if !isL3 {
