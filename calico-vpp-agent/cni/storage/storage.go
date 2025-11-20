@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	CniServerStateFileVersion = 9  // Used to ensure compatibility wen we reload data
+	CniServerStateFileVersion = 10 // Used to ensure compatibility wen we reload data
 	MaxAPITagLen              = 63 /* No more than 64 characters in API tags */
 	VrfTagHashLen             = 8  /* how many hash charatecters (b64) of the name in tag prefix (useful when trucated) */
 )
@@ -146,7 +146,8 @@ func (ps *LocalPodSpec) FullString() string {
 	s += fmt.Sprintf("TunTapSwIfIndex:    %d\n", ps.TunTapSwIfIndex)
 	s += fmt.Sprintf("MemifSwIfIndex:     %d\n", ps.MemifSwIfIndex)
 	s += fmt.Sprintf("LoopbackSwIfIndex:  %d\n", ps.LoopbackSwIfIndex)
-	s += fmt.Sprintf("PblIndexes:         %d\n", ps.PblIndex)
+	s += fmt.Sprintf("PblIndexV4:         %d\n", ps.PblIndexV4)
+	s += fmt.Sprintf("PblIndexV6:         %d\n", ps.PblIndexV6)
 	s += fmt.Sprintf("V4VrfID:            %d\n", ps.V4VrfID)
 	s += fmt.Sprintf("V6VrfID:            %d\n", ps.V6VrfID)
 	return s
@@ -233,7 +234,8 @@ type LocalPodSpec struct {
 	TunTapSwIfIndex   uint32
 	MemifSwIfIndex    uint32
 	LoopbackSwIfIndex uint32
-	PblIndex          uint32
+	PblIndexV4        uint32
+	PblIndexV6        uint32
 
 	/**
 	 * These fields are only a runtime cache, but we also store them

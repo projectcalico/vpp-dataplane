@@ -119,6 +119,9 @@ func (s *Server) newLocalPodSpecFromAdd(request *cniproto.AddRequest) (*storage.
 		MemifSwIfIndex:  vpplink.InvalidID,
 		TunTapSwIfIndex: vpplink.InvalidID,
 
+		PblIndexV4: vpplink.InvalidID,
+		PblIndexV6: vpplink.InvalidID,
+
 		NetworkName: request.DataplaneOptions["network_name"],
 	}
 
