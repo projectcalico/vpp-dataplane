@@ -28,6 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/tomb.v2"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -66,19 +67,23 @@ type ServiceState struct {
 }
 
 type Server struct {
-	log              *logrus.Entry
-	vpp              *vpplink.VppLink
-	endpointStore    cache.Store
-	serviceStore     cache.Store
-	serviceInformer  cache.Controller
-	endpointInformer cache.Controller
+	log                    *logrus.Entry
+	vpp                    *vpplink.VppLink
+	endpointslicesStore    cache.Store
+	serviceStore           cache.Store
+	serviceInformer        cache.Controller
+	endpointslicesInformer cache.Controller
 
 	lock sync.Mutex /* protects handleServiceEndpointEvent(s)/Serve */
+	/* and protects the endpointSlicesByService map */
 
 	BGPConf     *calicov3.BGPConfigurationSpec
 	nodeBGPSpec *common.LocalNodeSpec
 
 	serviceStateMap map[string]ServiceState
+	// cache of all endpoint slices, by service name
+	endpointSlicesByService map[string]map[string]*discoveryv1.EndpointSlice
+	endpointSlices          map[string]*discoveryv1.EndpointSlice
 
 	t tomb.Tomb
 }
@@ -150,33 +155,17 @@ func (s *Server) resolveLocalServiceFromService(service *v1.Service) *LocalServi
 	if service == nil {
 		return nil
 	}
-	ep := s.findMatchingEndpoint(service)
-	if ep == nil {
-		s.log.Debugf("svc() no endpoints found for service=%s", serviceID(&service.ObjectMeta))
-		return nil
-	}
-	return s.GetLocalService(service, ep)
-}
-
-func (s *Server) resolveLocalServiceFromEndpoints(ep *v1.Endpoints) *LocalService {
-	if ep == nil {
-		return nil
-	}
-	service := s.findMatchingService(ep)
-	if service == nil {
-		s.log.Debugf("svc() no svc found for endpoints=%s", serviceID(&ep.ObjectMeta))
-		return nil
-	}
-	return s.GetLocalService(service, ep)
+	return s.GetLocalService(service, s.endpointSlicesByService[objectID(&service.ObjectMeta)])
 }
 
 func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log *logrus.Entry) *Server {
 	server := Server{
-		vpp:             vpp,
-		log:             log,
-		serviceStateMap: make(map[string]ServiceState),
+		vpp:                     vpp,
+		log:                     log,
+		serviceStateMap:         make(map[string]ServiceState),
+		endpointSlicesByService: make(map[string]map[string]*discoveryv1.EndpointSlice),
+		endpointSlices:          make(map[string]*discoveryv1.EndpointSlice),
 	}
-
 	serviceListWatch := cache.NewListWatchFromClient(k8sclient.CoreV1().RESTClient(),
 		"services", "", fields.Everything())
 	serviceStore, serviceInformer := cache.NewInformer(
@@ -189,8 +178,10 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 				if !ok {
 					panic("wrong type for obj, not *v1.Service")
 				}
+				server.lock.Lock()
 				localService := server.resolveLocalServiceFromService(service)
 				server.handleServiceEndpointEvent(localService, nil)
+				server.lock.Unlock()
 			},
 			UpdateFunc: func(old interface{}, obj interface{}) {
 				service, ok := obj.(*v1.Service)
@@ -201,9 +192,11 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 				if !ok {
 					panic("wrong type for old, not *v1.Service")
 				}
+				server.lock.Lock()
 				oldLocalService := server.resolveLocalServiceFromService(oldService)
 				localService := server.resolveLocalServiceFromService(service)
 				server.handleServiceEndpointEvent(localService, oldLocalService)
+				server.lock.Unlock()
 			},
 			DeleteFunc: func(obj interface{}) {
 				switch value := obj.(type) {
@@ -212,66 +205,114 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 					if !ok {
 						panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Service) %v", obj))
 					}
-					server.deleteServiceByName(serviceID(&service.ObjectMeta))
+					server.deleteServiceByName(objectID(&service.ObjectMeta))
 				case *v1.Service:
-					server.deleteServiceByName(serviceID(&value.ObjectMeta))
+					server.deleteServiceByName(objectID(&value.ObjectMeta))
 				default:
 					log.Errorf("unknown type in service deleteFunction %v", obj)
 				}
 			},
 		})
 
-	endpointListWatch := cache.NewListWatchFromClient(k8sclient.CoreV1().RESTClient(),
-		"endpoints", "", fields.Everything())
-	endpointStore, endpointInformer := cache.NewInformer(
-		endpointListWatch,
-		&v1.Endpoints{},
+	// ---- Watch EndpointSlices (IPv4 + IPv6) ----
+	endpointslicesListWatch := cache.NewListWatchFromClient(k8sclient.DiscoveryV1().RESTClient(),
+		"endpointslices", "", fields.Everything())
+	endpointslicesStore, endpointslicesInformer := cache.NewInformer(
+		endpointslicesListWatch,
+		&discoveryv1.EndpointSlice{},
 		60*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				endpoints, ok := obj.(*v1.Endpoints)
+				newEps, ok := obj.(*discoveryv1.EndpointSlice)
 				if !ok {
-					panic("wrong type for obj, not *v1.Endpoints")
+					panic("wrong type for obj, not *discoveryv1.EndpointSlice")
 				}
-				server.handleServiceEndpointEvent(
-					server.resolveLocalServiceFromEndpoints(endpoints),
-					nil,
-				)
+				svcKey := serviceName(newEps)
+				server.lock.Lock()
+				if len(server.endpointSlicesByService[svcKey]) == 0 {
+					server.endpointSlicesByService[svcKey] = make(map[string]*discoveryv1.EndpointSlice)
+				}
+				server.endpointSlicesByService[svcKey][objectID(&newEps.ObjectMeta)] = newEps
+				server.endpointSlices[objectID(&newEps.ObjectMeta)] = newEps
+				svc := server.getServiceFromStore(svcKey)
+				if svc != nil {
+					server.handleServiceEndpointEvent(server.GetLocalService(svc, server.endpointSlicesByService[svcKey]), nil)
+				}
+				server.lock.Unlock()
 			},
-			UpdateFunc: func(old interface{}, obj interface{}) {
-				endpoints, ok := obj.(*v1.Endpoints)
+			UpdateFunc: func(_, new interface{}) {
+				newEps, ok := new.(*discoveryv1.EndpointSlice)
 				if !ok {
-					panic("wrong type for obj, not *v1.Endpoints")
+					panic("wrong type for obj, not *discoveryv1.EndpointSlice")
 				}
-				oldEndpoints, ok := old.(*v1.Endpoints)
-				if !ok {
-					panic("wrong type for old, not *v1.Endpoints")
+				svcKey := serviceName(newEps)
+				server.lock.Lock()
+				if len(server.endpointSlicesByService[svcKey]) == 0 {
+					server.endpointSlicesByService[svcKey] = make(map[string]*discoveryv1.EndpointSlice)
 				}
-				server.handleServiceEndpointEvent(
-					server.resolveLocalServiceFromEndpoints(endpoints),
-					server.resolveLocalServiceFromEndpoints(oldEndpoints),
-				)
+				svc := server.getServiceFromStore(svcKey)
+				if svc != nil {
+					oldLocal := server.GetLocalService(
+						svc,
+						server.endpointSlicesByService[svcKey],
+					)
+					server.endpointSlicesByService[svcKey][objectID(&newEps.ObjectMeta)] = newEps
+					server.endpointSlices[objectID(&newEps.ObjectMeta)] = newEps
+					newLocal := server.GetLocalService(
+						svc,
+						server.endpointSlicesByService[svcKey],
+					)
+					server.handleServiceEndpointEvent(newLocal, oldLocal)
+				} else {
+					server.log.Debugf("Trying to update endpointslice, Service %s not found", svcKey)
+					server.endpointSlicesByService[svcKey][objectID(&newEps.ObjectMeta)] = newEps
+					server.endpointSlices[objectID(&newEps.ObjectMeta)] = newEps
+				}
+				server.lock.Unlock()
 			},
 			DeleteFunc: func(obj interface{}) {
-				switch value := obj.(type) {
-				case cache.DeletedFinalStateUnknown:
-					endpoints, ok := value.Obj.(*v1.Endpoints)
-					if !ok {
-						panic(fmt.Sprintf("obj.(cache.DeletedFinalStateUnknown).Obj not a (*v1.Endpoints) %v", obj))
+				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+				if err != nil {
+					panic("wrong type for obj, could not get DeletionHandlingMetaNamespaceKeyFunc")
+				} else {
+					oldEps, ok := server.endpointSlices[key]
+					if ok {
+						svcKey := serviceName(oldEps)
+						server.lock.Lock()
+						svc := server.getServiceFromStore(svcKey)
+						if svc != nil {
+							oldLocal := server.GetLocalService(
+								svc,
+								server.endpointSlicesByService[svcKey],
+							)
+							delete(server.endpointSlicesByService[svcKey], objectID(&oldEps.ObjectMeta))
+							if len(server.endpointSlicesByService[svcKey]) == 0 {
+								delete(server.endpointSlicesByService, svcKey)
+							}
+							newLocal := server.GetLocalService(
+								svc,
+								server.endpointSlicesByService[svcKey],
+							)
+							server.handleServiceEndpointEvent(oldLocal, newLocal)
+						} else {
+							server.log.Debugf("Service %s already gone", svcKey)
+							delete(server.endpointSlicesByService[svcKey], objectID(&oldEps.ObjectMeta))
+							if len(server.endpointSlicesByService[svcKey]) == 0 {
+								delete(server.endpointSlicesByService, svcKey)
+							}
+						}
+						delete(server.endpointSlices, key)
+						server.lock.Unlock()
+					} else {
+						server.log.Debugf("endpointslice %s not found in map", key)
 					}
-					server.deleteServiceByName(serviceID(&endpoints.ObjectMeta))
-				case *v1.Endpoints:
-					server.deleteServiceByName(serviceID(&value.ObjectMeta))
-				default:
-					log.Errorf("unknown type in endpoints deleteFunction %v", obj)
 				}
-			},
-		})
+			}})
 
-	server.endpointStore = endpointStore
+	server.endpointslicesStore = endpointslicesStore
 	server.serviceStore = serviceStore
 	server.serviceInformer = serviceInformer
-	server.endpointInformer = endpointInformer
+	server.endpointslicesInformer = endpointslicesInformer
 
 	return &server
 }
@@ -294,7 +335,7 @@ func IsLocalOnly(service *v1.Service) bool {
 	return service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal
 }
 
-func serviceID(meta *metav1.ObjectMeta) string {
+func objectID(meta *metav1.ObjectMeta) string {
 	return meta.Namespace + "/" + meta.Name
 }
 
@@ -325,12 +366,13 @@ func (s *Server) configureSnat() (err error) {
 	return nil
 }
 
-func (s *Server) findMatchingService(ep *v1.Endpoints) *v1.Service {
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(ep)
-	if err != nil {
-		s.log.Errorf("Error getting endpoint %+v key: %v", ep, err)
-		return nil
-	}
+func serviceName(es *discoveryv1.EndpointSlice) string {
+	svc := es.Labels["kubernetes.io/service-name"]
+	name := fmt.Sprintf("%s/%s", es.Namespace, svc)
+	return name
+}
+
+func (s *Server) getServiceFromStore(key string) *v1.Service {
 	value, found, err := s.serviceStore.GetByKey(key)
 	if err != nil {
 		s.log.Errorf("Error getting service %s: %v", key, err)
@@ -345,28 +387,6 @@ func (s *Server) findMatchingService(ep *v1.Endpoints) *v1.Service {
 		panic("s.serviceStore.GetByKey did not return value of type *v1.Service")
 	}
 	return service
-}
-
-func (s *Server) findMatchingEndpoint(service *v1.Service) *v1.Endpoints {
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(service)
-	if err != nil {
-		s.log.Errorf("Error getting service %+v key: %v", service, err)
-		return nil
-	}
-	value, found, err := s.endpointStore.GetByKey(key)
-	if err != nil {
-		s.log.Errorf("Error getting endpoint %s: %v", key, err)
-		return nil
-	}
-	if !found {
-		s.log.Debugf("Endpoint %s not found", key)
-		return nil
-	}
-	endpoints, ok := value.(*v1.Endpoints)
-	if !ok {
-		panic("s.serviceStore.GetByKey did not return value of type *v1.Service")
-	}
-	return endpoints
 }
 
 /**
@@ -434,9 +454,6 @@ func compareSpecificRoutes(service *LocalService, oldService *LocalService) (add
 }
 
 func (s *Server) handleServiceEndpointEvent(service *LocalService, oldService *LocalService) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
 	if added, same, deleted, changed := compareEntryLists(service, oldService); changed {
 		s.deleteServiceEntries(deleted, oldService)
 		s.sameServiceEntries(same, service)
@@ -499,7 +516,7 @@ func (s *Server) ServeService(t *tomb.Tomb) error {
 
 	if *config.GetCalicoVppDebug().ServicesEnabled {
 		s.t.Go(func() error { s.serviceInformer.Run(t.Dying()); return nil })
-		s.t.Go(func() error { s.endpointInformer.Run(t.Dying()); return nil })
+		s.t.Go(func() error { s.endpointslicesInformer.Run(t.Dying()); return nil })
 	}
 
 	<-s.t.Dying()

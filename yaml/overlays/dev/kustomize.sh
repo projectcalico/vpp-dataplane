@@ -45,7 +45,7 @@ function get_available_node_names ()
 
 function get_node_addresses ()
 {
-  kubectl get nodes $1 -o go-template --template='{{printf "%s\n" .spec.podCIDR}}'
+  kubectl get nodes $1 -o go-template --template='{{range .spec.podCIDRs}}{{.}} {{end}}'
 }
 
 function kustomize_parse_variables ()
