@@ -112,11 +112,6 @@ var (
 	NativeDriver = StringEnvVar("CALICOVPP_NATIVE_DRIVER", "")
 	SwapDriver   = StringEnvVar("CALICOVPP_SWAP_DRIVER", "")
 
-	/* Bash script template run before getting config
-	   from $CALICOVPP_INTERFACE (same as
-	   CALICOVPP_HOOK_BEFORE_IF_READ)*/
-	InitScriptTemplate = StringEnvVar("CALICOVPP_INIT_SCRIPT_TEMPLATE", "")
-
 	/* Template for VppConfigFile (/etc/vpp/startup.conf)
 	   It contains the VPP startup configuration */
 	ConfigTemplate = RequiredStringEnvVar("CALICOVPP_CONFIG_TEMPLATE")
@@ -125,34 +120,34 @@ var (
 	   It contains the CLI to be executed in vppctl after startup */
 	ConfigExecTemplate = StringEnvVar("CALICOVPP_CONFIG_EXEC_TEMPLATE", "")
 
-	// Default hook script. This script contains various platform/os dependent
-	// fixes/customizations/tweaks/hacks required for a successful deployment and
-	// running of VPP. It can be overridden by setting the environment variables
-	// below in the vpp-manager container.
-
+	// Default hook script embedded at compile time for backward compatibility.
+	// This is the legacy bash script used when CALICOVPP_ENABLE_NETWORK_MANAGER_HOOK=false
 	//go:embed default_hook.sh
 	DefaultHookScript string
 
+	/* Enable/disable the native Go NetworkManagerHook implementation.
+	 * - true (default):  Native Go hooks execute (unless overridden by user scripts below)
+	 * - false:           Fallback to embedded default_hook.sh (legacy bash behavior) */
+	EnableNetworkManagerHook = BoolEnvVar("CALICOVPP_ENABLE_NETWORK_MANAGER_HOOK", true)
+
+	/* Hook scripts that override native Go hooks when configured.
+	 * When a user script is provided for any hook point, it takes highest priority:
+	 * - The user script executes instead of the native Go hook
+	 * - Leaving empty ("") allows native Go hooks to run (when flag=true)
+	 * - When flag=false and empty, uses embedded default_hook.sh as fallback */
+
 	/* Run this before getLinuxConfig() in case this is a script
 	 * that's responsible for creating the interface */
-	HookScriptBeforeIfRead = StringEnvVar("CALICOVPP_HOOK_BEFORE_IF_READ", DefaultHookScript) // InitScriptTemplate
+	HookScriptBeforeIfRead = StringEnvVar("CALICOVPP_HOOK_BEFORE_IF_READ", "")
 	/* Bash script template run just after getting config
 	   from $CALICOVPP_INTERFACE & before starting VPP */
-	HookScriptBeforeVppRun = StringEnvVar("CALICOVPP_HOOK_BEFORE_VPP_RUN", DefaultHookScript) // InitPostIfScriptTemplate
+	HookScriptBeforeVppRun = StringEnvVar("CALICOVPP_HOOK_BEFORE_VPP_RUN", "")
 	/* Bash script template run after VPP has started */
-	HookScriptVppRunning = StringEnvVar("CALICOVPP_HOOK_VPP_RUNNING", DefaultHookScript) // FinalizeScriptTemplate
+	HookScriptVppRunning = StringEnvVar("CALICOVPP_HOOK_VPP_RUNNING", "")
 	/* Bash script template run when VPP stops gracefully */
-	HookScriptVppDoneOk = StringEnvVar("CALICOVPP_HOOK_VPP_DONE_OK", DefaultHookScript)
+	HookScriptVppDoneOk = StringEnvVar("CALICOVPP_HOOK_VPP_DONE_OK", "")
 	/* Bash script template run when VPP stops with an error */
-	HookScriptVppErrored = StringEnvVar("CALICOVPP_HOOK_VPP_ERRORED", DefaultHookScript)
-
-	AllHooks = []*string{
-		HookScriptBeforeIfRead,
-		HookScriptBeforeVppRun,
-		HookScriptVppRunning,
-		HookScriptVppDoneOk,
-		HookScriptVppErrored,
-	}
+	HookScriptVppErrored = StringEnvVar("CALICOVPP_HOOK_VPP_ERRORED", "")
 
 	Info = &VppManagerInfo{}
 
@@ -161,6 +156,8 @@ var (
 	VppHostPuntFakeGatewayAddress = net.ParseIP("169.254.0.1")
 )
 
+/* RunHook() executes a bash script at a specific hook point.
+ * Used for both user-provided scripts and the embedded default_hook.sh fallback. */
 func RunHook(hookScript *string, hookName string, params *VppManagerParams, log *logrus.Logger) {
 	if *hookScript == "" {
 		return
@@ -532,10 +529,6 @@ func loadConfig(log *logrus.Logger, doLogOutput bool) (err error) {
 		}
 		log.SetFormatter(formatter)
 		logrus.SetFormatter(formatter)
-	}
-
-	if *InitScriptTemplate != "" {
-		*HookScriptBeforeIfRead = *InitScriptTemplate
 	}
 
 	if doLogOutput {
