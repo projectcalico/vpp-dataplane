@@ -16,11 +16,11 @@
 package watchers
 
 import (
+	"context"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"gopkg.in/tomb.v2"
 
 	"k8s.io/client-go/kubernetes"

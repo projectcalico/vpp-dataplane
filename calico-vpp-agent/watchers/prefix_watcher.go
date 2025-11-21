@@ -16,6 +16,7 @@
 package watchers
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -24,7 +25,6 @@ import (
 	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"

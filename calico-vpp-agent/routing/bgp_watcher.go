@@ -16,12 +16,12 @@
 package routing
 
 import (
+	"context"
 	"fmt"
 	"net"
 
 	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 	"google.golang.org/protobuf/types/known/anypb"
 	"gopkg.in/tomb.v2"
 

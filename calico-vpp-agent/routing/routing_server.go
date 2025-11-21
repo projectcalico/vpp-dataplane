@@ -17,6 +17,7 @@
 package routing
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -26,7 +27,6 @@ import (
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
-	"golang.org/x/net/context"
 	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
