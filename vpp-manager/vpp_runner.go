@@ -355,6 +355,48 @@ func (v *VppRunner) allocateStaticVRFs() error {
 	return nil
 }
 
+// setupIPv6MulticastForHostTap configures mFIB entries to allow IPv6 multicast traffic
+// from the Linux host to pass through VPP. This is required for DHCPv6, NDP, and other
+// IPv6 protocols that use link-local multicast.
+// Without this configuration, packets arriving from the tap interface fail RPF checks
+// because the tap interface is not in the mFIB accept list.
+func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint32, uplinkSwIfIndex uint32) error {
+	log.Infof("Setting up IPv6 multicast forwarding for host tap in VRF %d", vrfID)
+
+	// IPv6 multicast groups that need to be forwarded from the Linux host
+	multicastGroups := []struct {
+		addr    string
+		comment string
+	}{
+		{"ff02::1:2", "DHCPv6 All Relay Agents and Servers (REQUIRED for DHCPv6)"},
+		{"ff02::1", "All Nodes (for NDP)"},
+		{"ff02::2", "All Routers (for NDP/RA)"},
+	}
+
+	for _, group := range multicastGroups {
+		groupIP := net.ParseIP(group.addr)
+		if groupIP == nil {
+			log.Warnf("Invalid multicast address: %s", group.addr)
+			continue
+		}
+
+		groupNet := &net.IPNet{
+			IP:   groupIP,
+			Mask: net.CIDRMask(128, 128), // /128 - specific group
+		}
+
+		err := v.vpp.MRouteAddForHostMulticast(vrfID, groupNet, tapSwIfIndex, uplinkSwIfIndex)
+		if err != nil {
+			return errors.Wrapf(err, "cannot add mFIB route for %s (%s) in VRF %d",
+				group.addr, group.comment, vrfID)
+		}
+
+		log.Infof("Added mFIB route for %s (%s) in VRF %d", group.addr, group.comment, vrfID)
+	}
+
+	return nil
+}
+
 // Configure specific VRFs for a given tap to the host to handle broadcast / multicast traffic sent by the host
 func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
 	for _, ipFamily := range vpplink.IPFamilies {
@@ -379,7 +421,16 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 			if err != nil {
 				log.Errorf("cannot add broadcast route in vpp: %v", err)
 			}
-		} // else {} No custom routes for IPv6 for now. Forward LL multicast from the host?
+		} else {
+			// Setup IPv6 multicast forwarding for the host
+			// This is required for DHCPv6 solicitations, NDP, and other link-local multicast
+			// Unlike IPv4, we cannot use a unicast route trick because ff02::/16 is multicast
+			// and must go through mFIB with proper RPF configuration
+			err = v.setupIPv6MulticastForHostTap(vrfID, tapSwIfIndex, ifSpec.SwIfIndex)
+			if err != nil {
+				return []uint32{}, errors.Wrap(err, "Error setting up IPv6 multicast forwarding")
+			}
+		}
 
 		// default route in default table
 		err = v.vpp.AddDefaultRouteViaTable(vrfID, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfID, ipFamily.IsIP6)
@@ -700,6 +751,38 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 			time.Sleep(1 * time.Second)
 			continue
 		}
+
+		// Check if node has BGP IPv6 that is missing from ifState
+		if node.Spec.BGP != nil && node.Spec.BGP.IPv6Address != "" {
+			if ifState.NodeIP6 == "" || ifState.NodeIP6 != node.Spec.BGP.IPv6Address {
+				log.Infof("Node has BGP IPv6 address %s that is missing from ifState, adding to Linux tap", node.Spec.BGP.IPv6Address)
+				ifState.NodeIP6 = node.Spec.BGP.IPv6Address
+				ifState.Hasv6 = true
+
+				// Add the IPv6 address to the Linux side of the tap interface
+				link, err := netlink.LinkByName(ifState.InterfaceName)
+				if err != nil {
+					log.Warnf("Error getting link %s to add IPv6: %v", ifState.InterfaceName, err)
+				} else {
+					addr, err := netlink.ParseAddr(ifState.NodeIP6)
+					if err != nil {
+						log.Warnf("Error parsing IPv6 address %s: %v", ifState.NodeIP6, err)
+					} else {
+						err = netlink.AddrAdd(link, addr)
+						if err != nil {
+							if errors.Is(err, syscall.EEXIST) {
+								log.Infof("IPv6 address %s already exists on %s", ifState.NodeIP6, ifState.InterfaceName)
+							} else {
+								log.Warnf("Error adding IPv6 address %s to %s: %v", ifState.NodeIP6, ifState.InterfaceName, err)
+							}
+						} else {
+							log.Infof("Successfully added IPv6 address %s to Linux tap %s", ifState.NodeIP6, ifState.InterfaceName)
+						}
+					}
+				}
+			}
+		}
+
 		// Update node with address
 		needUpdate := false
 		if node.Spec.BGP == nil {
