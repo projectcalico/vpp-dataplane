@@ -16,6 +16,7 @@
 package watchers
 
 import (
+	"context"
 	"net"
 	"reflect"
 	"sort"
@@ -24,7 +25,6 @@ import (
 	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"gopkg.in/tomb.v2"
 
 	v1 "k8s.io/api/core/v1"

@@ -16,6 +16,7 @@
 package watchers
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -25,7 +26,6 @@ import (
 	calicoerr "github.com/projectcalico/calico/libcalico-go/lib/errors"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
