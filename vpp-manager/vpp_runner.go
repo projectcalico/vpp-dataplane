@@ -358,6 +358,48 @@ func (v *VppRunner) allocateStaticVRFs() error {
 	return nil
 }
 
+// setupIPv6MulticastForHostTap configures mFIB entries to allow IPv6 multicast traffic
+// from the Linux host to pass through VPP. This is required for DHCPv6, NDP, and other
+// IPv6 protocols that use link-local multicast.
+// Without this configuration, packets arriving from the tap interface fail RPF checks
+// because the tap interface is not in the mFIB accept list.
+func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint32, uplinkSwIfIndex uint32) error {
+	log.Infof("Setting up IPv6 multicast forwarding for host tap in VRF %d", vrfID)
+
+	// IPv6 multicast groups that need to be forwarded from the Linux host
+	multicastGroups := []struct {
+		addr    string
+		comment string
+	}{
+		{"ff02::1:2", "DHCPv6 All Relay Agents and Servers (REQUIRED for DHCPv6)"},
+		{"ff02::1", "All Nodes (for NDP)"},
+		{"ff02::2", "All Routers (for NDP/RA)"},
+	}
+
+	for _, group := range multicastGroups {
+		groupIP := net.ParseIP(group.addr)
+		if groupIP == nil {
+			log.Warnf("Invalid multicast address: %s", group.addr)
+			continue
+		}
+
+		groupNet := &net.IPNet{
+			IP:   groupIP,
+			Mask: net.CIDRMask(128, 128), // /128 - specific group
+		}
+
+		err := v.vpp.MRouteAddForHostMulticast(vrfID, groupNet, tapSwIfIndex, uplinkSwIfIndex)
+		if err != nil {
+			return errors.Wrapf(err, "cannot add mFIB route for %s (%s) in VRF %d",
+				group.addr, group.comment, vrfID)
+		}
+
+		log.Infof("Added mFIB route for %s (%s) in VRF %d", group.addr, group.comment, vrfID)
+	}
+
+	return nil
+}
+
 // Configure specific VRFs for a given tap to the host to handle broadcast / multicast traffic sent by the host
 func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
 	for _, ipFamily := range vpplink.IPFamilies {
@@ -382,7 +424,16 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 			if err != nil {
 				log.Errorf("cannot add broadcast route in vpp: %v", err)
 			}
-		} // else {} No custom routes for IPv6 for now. Forward LL multicast from the host?
+		} else {
+			// Setup IPv6 multicast forwarding for the host
+			// This is required for DHCPv6 solicitations, NDP, and other link-local multicast
+			// Unlike IPv4, we cannot use a unicast route trick because ff02::/16 is multicast
+			// and must go through mFIB with proper RPF configuration
+			err = v.setupIPv6MulticastForHostTap(vrfID, tapSwIfIndex, ifSpec.SwIfIndex)
+			if err != nil {
+				return []uint32{}, errors.Wrap(err, "Error setting up IPv6 multicast forwarding")
+			}
+		}
 
 		// default route in default table
 		err = v.vpp.AddDefaultRouteViaTable(vrfID, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfID, ipFamily.IsIP6)
@@ -686,6 +737,56 @@ func (v *VppRunner) doVppGlobalConfiguration() (err error) {
 	return nil
 }
 
+// addIPv6OnLinuxTap adds the global IPv6 address to the Linux side of the tap interface
+func (v *VppRunner) addIPv6OnLinuxTap(ifState *config.LinuxInterfaceState) error {
+	// Get the current node to read BGP IPv6 config
+	client, err := calicov3cli.NewFromEnv()
+	if err != nil {
+		return errors.Wrap(err, "Error creating calico client")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	node, err := client.Nodes().Get(ctx, *config.NodeName, calicoopts.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Error getting node from Calico")
+	}
+
+	// Check if node has BGP IPv6 address configured
+	if node.Spec.BGP == nil || node.Spec.BGP.IPv6Address == "" {
+		log.Infof("No BGP IPv6 address configured for this node")
+		return nil
+	}
+
+	log.Infof("Node has BGP IPv6 address %s, ensuring it exists on Linux tap interface %s", node.Spec.BGP.IPv6Address, ifState.InterfaceName)
+
+	// Add the global IPv6 address to the Linux side of the tap interface
+	link, err := netlink.LinkByName(ifState.InterfaceName)
+	if err != nil {
+		log.Errorf("Error getting link %s to add IPv6: %v - cannot configure BGP IPv6", ifState.InterfaceName, err)
+		return errors.Wrapf(err, "Cannot find interface %s to add BGP IPv6 address", ifState.InterfaceName)
+	}
+
+	addr, err := netlink.ParseAddr(node.Spec.BGP.IPv6Address)
+	if err != nil {
+		log.Errorf("Error parsing BGP IPv6 address %s: %v - invalid address format", node.Spec.BGP.IPv6Address, err)
+		return errors.Wrapf(err, "Invalid BGP IPv6 address format: %s", node.Spec.BGP.IPv6Address)
+	}
+
+	err = netlink.AddrAdd(link, addr)
+	if err != nil {
+		if errors.Is(err, syscall.EEXIST) {
+			log.Infof("IPv6 address %s already exists on Linux interface %s", node.Spec.BGP.IPv6Address, ifState.InterfaceName)
+		} else {
+			log.Errorf("Error adding BGP IPv6 address %s to %s: %v - BGP server will fail to bind", node.Spec.BGP.IPv6Address, ifState.InterfaceName, err)
+			return errors.Wrapf(err, "Failed to add BGP IPv6 address %s to interface %s", node.Spec.BGP.IPv6Address, ifState.InterfaceName)
+		}
+	} else {
+		log.Infof("Successfully added BGP IPv6 address %s to Linux tap %s", node.Spec.BGP.IPv6Address, ifState.InterfaceName)
+	}
+
+	return nil
+}
+
 func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err error) {
 	var node, updated *oldv3.Node
 	var client calicov3cli.Interface
@@ -703,6 +804,15 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 			time.Sleep(1 * time.Second)
 			continue
 		}
+
+		// Update ifState to reflect BGP IPv6 if configured, but do not add the
+		// global BGP IPv6 address to Linux tap here because the VPP_RUNNING hook
+		// will restart networkd and remove it. We add it after the hook instead.
+		if node.Spec.BGP != nil && node.Spec.BGP.IPv6Address != "" {
+			ifState.NodeIP6 = node.Spec.BGP.IPv6Address
+			ifState.Hasv6 = true
+		}
+
 		// Update node with address
 		needUpdate := false
 		if node.Spec.BGP == nil {
@@ -932,6 +1042,12 @@ func (v *VppRunner) runVpp() (err error) {
 	v.vpp.Close()
 
 	networkHook.ExecuteWithUserScript(hooks.HookVppRunning, config.HookScriptVppRunning, v.params)
+
+	// Add global BGP IPv6 address On Linux tap after hook (which may restart networkd and remove it)
+	err = v.addIPv6OnLinuxTap(v.conf[0])
+	if err != nil {
+		log.Errorf("Error adding global BGP IPv6 address on Linux tap after hook: %v", err)
+	}
 
 	<-vppDeadChan
 	log.Infof("VPP Exited: status %v", err)
