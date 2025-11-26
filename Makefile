@@ -379,6 +379,7 @@ ci-test: builder-image
 		-v /tmp/services-tests-vpp:/tmp/services-tests-vpp \
 		-v /tmp/felix-tests-vpp:/tmp/felix-tests-vpp \
 		-v /tmp/prometheus-tests-vpp:/tmp/prometheus-tests-vpp \
+		-v /tmp/vpp-test-vpp-manager-test:/tmp/vpp-test-vpp-manager-test \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		--env VPP_BINARY=/usr/bin/vpp \
 		--env VPP_IMAGE=calicovpp/vpp:$(TAG) \
