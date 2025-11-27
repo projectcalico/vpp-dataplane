@@ -277,9 +277,9 @@ func (s *Server) ActivateStrictRPF(podSpec *model.LocalPodSpec, stack *vpplink.C
 	if err != nil {
 		return errors.Wrapf(err, "failed to add routes for RPF VRF")
 	}
-	s.log.Infof("pod(add) set custom-vrf urpf")
 	for _, ipFamily := range vpplink.IPFamilies {
-		err = s.vpp.SetCustomURPF(podSpec.TunTapSwIfIndex, podSpec.GetVrfID(ipFamily), ipFamily)
+		s.log.Infof("pod(add) set custom-vrf urpf on table %d", podSpec.GetRPFVrfID(ipFamily))
+		err = s.vpp.SetCustomURPF(podSpec.TunTapSwIfIndex, podSpec.GetRPFVrfID(ipFamily), ipFamily)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set urpf strict on interface")
 		} else {
