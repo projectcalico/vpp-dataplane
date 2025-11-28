@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package felix
+package policies
 
 import (
 	"fmt"
@@ -80,7 +80,7 @@ func ruleInNetwork(r *proto.Rule, network string) bool {
 	return network == ""
 }
 
-func fromProtoPolicy(p *proto.Policy, network string) (policy *Policy, err error) {
+func FromProtoPolicy(p *proto.Policy, network string) (policy *Policy, err error) {
 	policy = &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
@@ -118,7 +118,7 @@ func fromProtoPolicy(p *proto.Policy, network string) (policy *Policy, err error
 	return policy, nil
 }
 
-func fromProtoProfile(p *proto.Profile) (profile *Policy, err error) {
+func FromProtoProfile(p *proto.Profile) (profile *Policy, err error) {
 	profile = &Policy{
 		Policy: &types.Policy{},
 		VppID:  types.InvalidID,
@@ -231,5 +231,157 @@ func (p *Policy) Delete(vpp *vpplink.VppLink, state *PolicyState) (err error) {
 		return errors.Wrap(err, "cannot delete policy")
 	}
 	p.VppID = types.InvalidID
+	return nil
+}
+
+func (s *PoliciesHandler) OnActivePolicyUpdate(msg *proto.ActivePolicyUpdate) (err error) {
+	state := s.GetState()
+	id := PolicyID{
+		Tier: msg.Id.Tier,
+		Name: msg.Id.Name,
+	}
+	p, err := FromProtoPolicy(msg.Policy, "")
+	if err != nil {
+		return errors.Wrapf(err, "cannot process policy update")
+	}
+
+	s.log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", s.state.IsPending(), id, p)
+	existing, ok := state.Policies[id]
+	if ok { // Policy with this ID already exists
+		if s.state.IsPending() {
+			// Just replace policy in pending state
+			state.Policies[id] = p
+		} else {
+			err := existing.Update(s.vpp, p, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot update policy")
+			}
+		}
+	} else {
+		// Create it in state
+		state.Policies[id] = p
+		if !s.state.IsPending() {
+			err := p.Create(s.vpp, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot create policy")
+			}
+		}
+	}
+
+	for network := range s.cache.NetworkDefinitions {
+		id := PolicyID{
+			Tier:    msg.Id.Tier,
+			Name:    msg.Id.Name,
+			Network: network,
+		}
+		p, err := FromProtoPolicy(msg.Policy, network)
+		if err != nil {
+			return errors.Wrapf(err, "cannot process policy update")
+		}
+
+		s.log.Infof("Handling ActivePolicyUpdate pending=%t id=%s %s", s.state.IsPending(), id, p)
+
+		existing, ok := state.Policies[id]
+		if ok { // Policy with this ID already exists
+			if s.state.IsPending() {
+				// Just replace policy in pending state
+				state.Policies[id] = p
+			} else {
+				err := existing.Update(s.vpp, p, state)
+				if err != nil {
+					return errors.Wrap(err, "cannot update policy")
+				}
+			}
+		} else {
+			// Create it in state
+			state.Policies[id] = p
+			if !s.state.IsPending() {
+				err := p.Create(s.vpp, state)
+				if err != nil {
+					return errors.Wrap(err, "cannot create policy")
+				}
+			}
+		}
+
+	}
+	return nil
+}
+
+func (s *PoliciesHandler) OnActivePolicyRemove(msg *proto.ActivePolicyRemove) (err error) {
+	state := s.GetState()
+	id := PolicyID{
+		Tier: msg.Id.Tier,
+		Name: msg.Id.Name,
+	}
+	s.log.Infof("policy(del) Handling ActivePolicyRemove pending=%t id=%s", s.state.IsPending(), id)
+
+	for policyID := range state.Policies {
+		if policyID.Name == id.Name && policyID.Tier == id.Tier {
+			existing, ok := state.Policies[policyID]
+			if !ok {
+				s.log.Warnf("Received policy delete for Tier %s Name %s that doesn't exists", id.Tier, id.Name)
+				return nil
+			}
+			if !s.state.IsPending() {
+				err = existing.Delete(s.vpp, state)
+				if err != nil {
+					return errors.Wrap(err, "error deleting policy")
+				}
+			}
+			delete(state.Policies, policyID)
+		}
+	}
+	return nil
+}
+
+func (s *PoliciesHandler) OnActiveProfileUpdate(msg *proto.ActiveProfileUpdate) (err error) {
+	state := s.GetState()
+	id := msg.Id.Name
+	p, err := FromProtoProfile(msg.Profile)
+	if err != nil {
+		return errors.Wrapf(err, "cannot process profile update")
+	}
+
+	existing, ok := state.Profiles[id]
+	if ok { // Policy with this ID already exists
+		if s.state.IsPending() {
+			// Just replace policy in pending state
+			state.Profiles[id] = p
+		} else {
+			err := existing.Update(s.vpp, p, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot update profile")
+			}
+		}
+	} else {
+		// Create it in state
+		state.Profiles[id] = p
+		if !s.state.IsPending() {
+			err := p.Create(s.vpp, state)
+			if err != nil {
+				return errors.Wrap(err, "cannot create profile")
+			}
+		}
+	}
+	s.log.Infof("policy(upd) Handled Profile Update pending=%t id=%s existing=%s new=%s", s.state.IsPending(), id, existing, p)
+	return nil
+}
+
+func (s *PoliciesHandler) OnActiveProfileRemove(msg *proto.ActiveProfileRemove) (err error) {
+	state := s.GetState()
+	id := msg.Id.Name
+	existing, ok := state.Profiles[id]
+	if !ok {
+		s.log.Warnf("Received profile delete for Name %s that doesn't exists", id)
+		return nil
+	}
+	if !s.state.IsPending() {
+		err = existing.Delete(s.vpp, state)
+		if err != nil {
+			return errors.Wrap(err, "error deleting profile")
+		}
+	}
+	s.log.Infof("policy(del) Handled Profile Remove pending=%t id=%s policy=%s", s.state.IsPending(), id, existing)
+	delete(state.Profiles, id)
 	return nil
 }
