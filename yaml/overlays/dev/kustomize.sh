@@ -115,6 +115,7 @@ function get_initial_config ()
       \"vppStartupSleepSeconds\": ${CALICOVPP_VPP_STARTUP_SLEEP:-0},
       \"corePattern\": \"${CALICOVPP_CORE_PATTERN:-/var/lib/vpp/vppcore.%e.%p}\",
       \"defaultGWs\": \"${CALICOVPP_DEFAULT_GW}\",
+      \"healthCheckPort\": ${CALICOVPP_HEALTHCHECK_PORT},
       \"redirectToHostRules\": [
       {
         \"proto\": \"${CALICOVPP_REDIRECT_PROTO:-udp}\",
@@ -131,7 +132,8 @@ function get_feature_gates ()
       \"memifEnabled\": ${CALICOVPP_ENABLE_MEMIF:-"false"},
       \"vclEnabled\": ${CALICOVPP_ENABLE_VCL:-"false"},
       \"multinetEnabled\": ${CALICOVPP_ENABLE_MULTINET:-"false"},
-      \"ipsecEnabled\": ${CALICOVPP_IPSEC_ENABLED:-"false"}
+      \"ipsecEnabled\": ${CALICOVPP_IPSEC_ENABLED:-"false"},
+      \"prometheusEnabled\": ${CALICOVPP_PROMETHEUS_ENABLED:-"false"}
     }"
 }
 
