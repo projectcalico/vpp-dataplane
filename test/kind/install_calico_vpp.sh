@@ -49,11 +49,6 @@ export CALICOVPP_INTERFACES='{
   ]
 }'
 
-export CALICOVPP_FEATURE_GATES='{
-	"prometheusEnabled": true,
-	"vclEnabled": true,
-	"memifEnabled": true
-}'
 export CALICO_ENCAPSULATION_V4=IPIP # VXLAN IPIP None
 export CALICO_ENCAPSULATION_V6=None # VXLAN IPIP None
 

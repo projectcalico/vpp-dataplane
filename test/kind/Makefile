@@ -19,7 +19,10 @@ new-cluster:
 
 .PHONY: install-cni
 install-cni:
-	@TAG=${TAG} DEBUG=${DEBUG} ./install_calico_vpp.sh
+	@TAG=${TAG} DEBUG=${DEBUG} \
+	CALICOVPP_PROMETHEUS_ENABLED=${CALICOVPP_PROMETHEUS_ENABLED} \
+	CALICOVPP_HEALTHCHECK_PORT=${CALICOVPP_HEALTHCHECK_PORT} \
+	./install_calico_vpp.sh
 
 
 .PHONY: rm-cluster
