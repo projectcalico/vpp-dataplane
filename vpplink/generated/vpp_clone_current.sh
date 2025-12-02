@@ -3,7 +3,6 @@ set -e
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 CACHE_DIR=$SCRIPTDIR/.cherries-cache
-STASH_SAVED=0
 
 function green () { printf "\e[0;32m$1\e[0m\n" >&2 ; }
 function blue () { printf "\e[0;34m$1\e[0m\n" >&2 ; }
@@ -94,19 +93,11 @@ function git_clone_cd_and_reset ()
 		git clone "https://gerrit.fd.io/r/vpp" $VPP_DIR
 	fi
 	cd $VPP_DIR
-	if ! git diff-index --quiet HEAD --; then
-		echo "Saving stash"
-		git stash save "HST: temp stash"
-		STASH_SAVED=1
-	fi
 	if ! $(commit_exists $VPP_COMMIT); then
 		green "Fetching most recent VPP..."
 		git fetch --tags "https://gerrit.fd.io/r/vpp"
 	fi
 	git reset --hard ${VPP_COMMIT}
-	if [ $STASH_SAVED -eq 1 ]; then
-		git stash pop
-	fi
 }
 
 # --------------- Things to cherry pick ---------------
