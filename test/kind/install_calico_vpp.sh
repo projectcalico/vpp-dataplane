@@ -19,6 +19,7 @@ fi
 export IMAGE_PULL_POLICY=Always # Always Never IfNotPresent
 export CALICOVPP_ENABLE_MEMIF=true
 export CALICOVPP_ENABLE_VCL=true
+export CALICOVPP_PROMETHEUS_ENABLED=true
 export CALICOVPP_LOG_LEVEL=debug
 
 # ---------------- interfaces ----------------

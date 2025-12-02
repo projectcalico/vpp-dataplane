@@ -115,7 +115,7 @@ function get_initial_config ()
       \"vppStartupSleepSeconds\": ${CALICOVPP_VPP_STARTUP_SLEEP:-0},
       \"corePattern\": \"${CALICOVPP_CORE_PATTERN:-/var/lib/vpp/vppcore.%e.%p}\",
       \"defaultGWs\": \"${CALICOVPP_DEFAULT_GW}\",
-      \"healthCheckPort\": ${CALICOVPP_HEALTHCHECK_PORT},
+      \"healthCheckPort\": ${CALICOVPP_HEALTHCHECK_PORT:-9090},
       \"redirectToHostRules\": [
       {
         \"proto\": \"${CALICOVPP_REDIRECT_PROTO:-udp}\",
