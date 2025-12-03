@@ -337,8 +337,12 @@ func (s *Server) getNodeIP(isv6 bool) net.IP {
 	return net.IP{}
 }
 
-func IsLocalOnly(service *v1.Service) bool {
+func ExternalIsLocalOnly(service *v1.Service) bool {
 	return service.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyTypeLocal
+}
+
+func InternalIsLocalOnly(service *v1.Service) bool {
+	return *service.Spec.InternalTrafficPolicy == v1.ServiceInternalTrafficPolicyLocal
 }
 
 func objectID(meta *metav1.ObjectMeta) string {

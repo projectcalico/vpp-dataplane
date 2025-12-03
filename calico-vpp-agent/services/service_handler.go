@@ -84,12 +84,8 @@ func getCnatVipDstPort(servicePort *v1.ServicePort, isNodePort bool) uint16 {
 	return uint16(servicePort.Port)
 }
 
-func (s *Server) buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Service, epslices []*discoveryv1.EndpointSlice, serviceIP net.IP, isNodePort bool, svcInfo serviceInfo) *types.CnatTranslateEntry {
+func (s *Server) buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Service, epslices []*discoveryv1.EndpointSlice, serviceIP net.IP, isNodePort bool, svcInfo serviceInfo, isLocalOnly bool) *types.CnatTranslateEntry {
 	backends := make([]types.CnatEndpointTuple, 0)
-	isLocalOnly := IsLocalOnly(service)
-	if isNodePort {
-		isLocalOnly = false
-	}
 	// Find the endpoint subset port that exposes the port we're interested in
 	for _, epslice := range epslices {
 		for _, ep := range epslice.Endpoints {
@@ -171,7 +167,7 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 	for _, servicePort := range service.Spec.Ports {
 		for _, cip := range clusterIPs {
 			if !cip.IsUnspecified() && len(cip) > 0 {
-				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, cip, false /* isNodePort */, *serviceSpec)
+				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, cip, false /* isNodePort */, *serviceSpec, InternalIsLocalOnly(service))
 				localService.Entries = append(localService.Entries, *entry)
 			}
 		}
@@ -179,9 +175,9 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 		for _, eip := range service.Spec.ExternalIPs {
 			extIP := net.ParseIP(eip)
 			if !extIP.IsUnspecified() && len(extIP) > 0 {
-				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, extIP, false /* isNodePort */, *serviceSpec)
+				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, extIP, false /* isNodePort */, *serviceSpec, ExternalIsLocalOnly(service))
 				localService.Entries = append(localService.Entries, *entry)
-				if IsLocalOnly(service) && len(entry.Backends) > 0 {
+				if ExternalIsLocalOnly(service) && len(entry.Backends) > 0 {
 					localService.SpecificRoutes = append(localService.SpecificRoutes, extIP)
 				}
 			}
@@ -190,9 +186,9 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 		for _, ingress := range service.Status.LoadBalancer.Ingress {
 			ingressIP := net.ParseIP(ingress.IP)
 			if !ingressIP.IsUnspecified() && len(ingressIP) > 0 {
-				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, ingressIP, false /* isNodePort */, *serviceSpec)
+				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, ingressIP, false /* isNodePort */, *serviceSpec, ExternalIsLocalOnly(service))
 				localService.Entries = append(localService.Entries, *entry)
-				if IsLocalOnly(service) && len(entry.Backends) > 0 {
+				if ExternalIsLocalOnly(service) && len(entry.Backends) > 0 {
 					localService.SpecificRoutes = append(localService.SpecificRoutes, ingressIP)
 				}
 			}
@@ -201,7 +197,7 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 		if service.Spec.Type == v1.ServiceTypeNodePort {
 			for _, nip := range nodeIPs {
 				if !nip.IsUnspecified() && len(nip) > 0 {
-					entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, nip, true /* isNodePort */, *serviceSpec)
+					entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, nip, true /* isNodePort */, *serviceSpec, false)
 					localService.Entries = append(localService.Entries, *entry)
 				}
 			}
@@ -213,7 +209,7 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 		if service.Spec.Type == v1.ServiceTypeLoadBalancer && *service.Spec.AllocateLoadBalancerNodePorts {
 			for _, nip := range nodeIPs {
 				if !nip.IsUnspecified() && len(nip) > 0 {
-					entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, nip, true /* isNodePort */, *serviceSpec)
+					entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, nip, true /* isNodePort */, *serviceSpec, false)
 					localService.Entries = append(localService.Entries, *entry)
 				}
 			}
