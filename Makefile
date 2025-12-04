@@ -376,6 +376,7 @@ ci-test: builder-image
 		-v $(CURDIR):/vpp-dataplane \
 		-v /tmp/cni-node-tests-vpp:/tmp/cni-node-tests-vpp \
 		-v /tmp/cni-pod-tests-vpp:/tmp/cni-pod-tests-vpp \
+		-v /tmp/services-tests-vpp:/tmp/services-tests-vpp \
 		-v /tmp/prometheus-tests-vpp:/tmp/prometheus-tests-vpp \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		--env VPP_BINARY=/usr/bin/vpp \
