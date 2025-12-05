@@ -49,6 +49,16 @@ func IPFamilyFromIPNet(ipNet *net.IPNet) IPFamily {
 	return IPFamilyV4
 }
 
+func IPFamilyFromIP(ip net.IP) IPFamily {
+	if ip == nil {
+		return IPFamilyV4
+	}
+	if ip.To4() == nil {
+		return IPFamilyV6
+	}
+	return IPFamilyV4
+}
+
 type CleanupCall struct {
 	args []interface{}
 	f    interface{}
