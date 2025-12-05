@@ -45,17 +45,7 @@ type UplinkDriverData struct {
 	conf   *config.LinuxInterfaceState
 	params *config.VppManagerParams
 	name   string
-	spec   *config.UplinkInterfaceSpec
-}
-
-type UplinkDriver interface {
-	PreconfigureLinux() error
-	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) error
-	RestoreLinux(allInterfacesPhysical bool)
-	IsSupported(warn bool) bool
-	GetName() string
-	UpdateVppConfigFile(template string) string
-	GetDefaultRxMode() types.RxMode
+	intf   *config.VppManagerInterface
 }
 
 func (d *UplinkDriverData) GetDefaultRxMode() types.RxMode { return types.AdaptativeRxMode }
@@ -113,9 +103,9 @@ func (d *UplinkDriverData) moveInterfaceToNS(ifName string, pid int) error {
 }
 
 func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
-	link, err := netlink.LinkByName(d.spec.InterfaceName)
+	link, err := netlink.LinkByName(d.intf.Spec.InterfaceName)
 	if err != nil {
-		log.Errorf("Error finding link %s: %s", d.spec.InterfaceName, err)
+		log.Errorf("Error finding link %s: %s", d.intf.Spec.InterfaceName, err)
 	} else {
 		// Remove routes to not have them conflict with vpptap0
 		for _, route := range d.conf.Routes {
@@ -138,7 +128,7 @@ func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
 			if err != nil {
 				// In case it still succeeded
 				err2 := netlink.LinkSetUp(link)
-				log.Errorf("Error setting link %s down: %s (err2 %s)", d.spec.InterfaceName, err, err2)
+				log.Errorf("Error setting link %s down: %s (err2 %s)", d.intf.Spec.InterfaceName, err, err2)
 			}
 		}
 	}
@@ -177,60 +167,62 @@ func (d *UplinkDriverData) UpdateVppConfigFile(template string) string {
 
 func (d *UplinkDriverData) getGenericVppInterface() types.GenericVppInterface {
 	return types.GenericVppInterface{
-		NumRxQueues:       d.spec.NumRxQueues,
-		RxQueueSize:       d.spec.RxQueueSize,
-		TxQueueSize:       d.spec.TxQueueSize,
-		NumTxQueues:       d.spec.NumTxQueues,
+		NumRxQueues:       d.intf.Spec.NumRxQueues,
+		RxQueueSize:       d.intf.Spec.RxQueueSize,
+		TxQueueSize:       d.intf.Spec.TxQueueSize,
+		NumTxQueues:       d.intf.Spec.NumTxQueues,
 		HardwareAddr:      d.conf.HardwareAddr,
-		HostInterfaceName: d.spec.InterfaceName,
+		HostInterfaceName: d.intf.Spec.InterfaceName,
 	}
 }
 
-func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) []UplinkDriver {
-	lst := make([]UplinkDriver, 0)
+func SupportedUplinkDrivers(params *config.VppManagerParams,
+	intf *config.VppManagerInterface) []config.UplinkDriver {
+	lst := make([]config.UplinkDriver, 0)
 
-	if d := NewVirtioDriver(params, conf, spec); d.IsSupported(false /* warn */) {
+	if d := NewVirtioDriver(params, intf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
-	if d := NewAVFDriver(params, conf, spec); d.IsSupported(false /* warn */) {
+	if d := NewAVFDriver(params, intf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
-	if d := NewRDMADriver(params, conf, spec); d.IsSupported(false /* warn */) {
+	if d := NewRDMADriver(params, intf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
-	if d := NewVmxnet3Driver(params, conf, spec); d.IsSupported(false /* warn */) {
+	if d := NewVmxnet3Driver(params, intf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
-	if d := NewAFXDPDriver(params, conf, spec); d.IsSupported(false /* warn */) {
+	if d := NewAFXDPDriver(params, intf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
-	if d := NewAFPacketDriver(params, conf, spec); d.IsSupported(false /* warn */) {
+	if d := NewAFPacketDriver(params, intf); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
 	return lst
 }
 
-func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) (d UplinkDriver) {
+func NewUplinkDriver(name string, params *config.VppManagerParams,
+	intf *config.VppManagerInterface) (d config.UplinkDriver) {
 	switch name {
 	case NativeDriverRdma:
-		d = NewRDMADriver(params, conf, spec)
+		d = NewRDMADriver(params, intf)
 	case NativeDriverVmxnet3:
-		d = NewVmxnet3Driver(params, conf, spec)
+		d = NewVmxnet3Driver(params, intf)
 	case NativeDriverAfPacket:
-		d = NewAFPacketDriver(params, conf, spec)
+		d = NewAFPacketDriver(params, intf)
 	case NativeDriverAfXdp:
-		d = NewAFXDPDriver(params, conf, spec)
+		d = NewAFXDPDriver(params, intf)
 	case NativeDriverVirtio:
-		d = NewVirtioDriver(params, conf, spec)
+		d = NewVirtioDriver(params, intf)
 	case NativeDriverAvf:
-		d = NewAVFDriver(params, conf, spec)
+		d = NewAVFDriver(params, intf)
 	case NativeDriverDpdk:
-		d = NewDPDKDriver(params, conf, spec)
+		d = NewDPDKDriver(params, intf)
 	case NativeDriverNone:
 		fallthrough
 	default:
 		log.Warnf("Using default driver")
-		d = NewDefaultDriver(params, conf, spec)
+		d = NewDefaultDriver(params, intf)
 	}
 	d.IsSupported(true /* warn */)
 	return d
