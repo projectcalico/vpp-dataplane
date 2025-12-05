@@ -446,25 +446,42 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 			return []uint32{}, errors.Wrapf(err, "error setting vpp tap in vrf %d", vrfID)
 		}
 		vrfs = append(vrfs, vrfID)
+
+		for _, addr := range ifState.Addresses {
+			if vpplink.IPFamilyFromIP(addr.IP) == ipFamily {
+				err = v.vpp.RouteAdd(&types.Route{
+					Table: vrfID,
+					Dst:   common.FullyQualified(addr.IP),
+					Paths: []types.RoutePath{{
+						SwIfIndex: tapSwIfIndex,
+					}},
+				})
+				if err != nil {
+					return []uint32{}, errors.Wrapf(err, "error add route from VPP to tap0 in VRF %d", vrfID)
+				}
+				err = v.vpp.AddNeighbor(&types.Neighbor{
+					SwIfIndex:    tapSwIfIndex,
+					IP:           addr.IP,
+					HardwareAddr: ifState.HardwareAddr,
+					Flags:        types.IPNeighborStatic,
+				})
+				if err != nil {
+					return []uint32{}, errors.Wrapf(err, "error add static neighbor for tap0 in VRF %d", vrfID)
+				}
+			}
+		}
 	}
 
-	// Configure addresses to enable ipv4 & ipv6 on the tap
-	for _, addr := range ifState.Addresses {
-		if addr.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
-			log.Infof("Not adding address %s to data interface (vpp requires /128 link-local)", addr.String())
-			continue
-		} else {
-			log.Infof("Adding address %s to tap interface", addr.String())
-		}
-		// to max len cidr because we don't want the rest of the subnet to be considered as
-		// connected to that interface
-		// note that the role of these addresses is just to tell vpp to accept ip4 / ip6 packets on the tap
-		// we use these addresses as the safest option, because as they are configured on linux, linux
-		// will never send us packets with these addresses as destination
-		err = v.vpp.AddInterfaceAddress(tapSwIfIndex, common.ToMaxLenCIDR(addr.IP))
-		if err != nil {
-			log.Errorf("Error adding address to tap interface: %v", err)
-		}
+	err = v.vpp.EnableInterfaceIP6(tapSwIfIndex)
+	if err != nil {
+		return []uint32{}, errors.Wrapf(err, "error enabling ip6 for tap %d", tapSwIfIndex)
+	}
+
+	// FIXME
+	_, cidr, _ := net.ParseCIDR("169.254.0.1/32")
+	err = v.vpp.AddInterfaceAddress(tapSwIfIndex, cidr)
+	if err != nil {
+		return []uint32{}, errors.Wrapf(err, "error adding ip4 to tap %d", tapSwIfIndex)
 	}
 	return vrfs, nil
 }
