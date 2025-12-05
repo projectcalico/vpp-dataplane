@@ -400,10 +400,17 @@ func (s *Server) createRedirectToHostRules() (uint32, error) {
 		return types.InvalidID, fmt.Errorf("no main interface found")
 	}
 	for _, rule := range config.GetCalicoVppInitialConfig().RedirectToHostRules {
+		mainInterfaceAddress := mainInterface.GetAddress(vpplink.IPFamilyFromIP(rule.IP))
+		if mainInterfaceAddress == nil {
+			return types.InvalidID, fmt.Errorf("error installing rule %v no address found on uplink", rule)
+		}
 		err = s.vpp.AddSessionRedirect(&types.SessionRedirect{
-			FiveTuple:  types.NewDst3Tuple(rule.Proto, net.ParseIP(rule.IP), rule.Port),
+			FiveTuple:  types.NewDst3Tuple(rule.Proto, rule.IP, rule.Port),
 			TableIndex: index,
-		}, &types.RoutePath{Gw: config.VppHostPuntFakeGatewayAddress, SwIfIndex: mainInterface.TapSwIfIndex})
+		}, &types.RoutePath{
+			Gw:        mainInterfaceAddress.IP,
+			SwIfIndex: mainInterface.TapSwIfIndex,
+		})
 		if err != nil {
 			return types.InvalidID, err
 		}
