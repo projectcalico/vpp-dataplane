@@ -257,3 +257,14 @@ func BGPLogLevelParse(lvl string) (apipb.SetLogLevelRequest_Level, error) {
 	var l apipb.SetLogLevelRequest_Level
 	return l, fmt.Errorf("not a valid logrus Level: %q", lvl)
 }
+
+func BGPServerModeParse(mode string) (BGPServerModeType, error) {
+	switch strings.ToLower(mode) {
+	case strings.ToLower(string(BGPServerModeDualStack)):
+		return BGPServerModeDualStack, nil
+	case "v4only":
+		return BGPServerModeV4Only, nil
+	}
+
+	return BGPServerModeDualStack, fmt.Errorf("not a valid BGP server mode: %q", mode)
+}
