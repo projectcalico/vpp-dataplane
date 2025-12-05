@@ -139,22 +139,13 @@ func (v *VppRunner) configureGlobalPunt() (err error) {
 }
 
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInterfaceState) (err error) {
-	err = v.vpp.AddNeighbor(&types.Neighbor{
-		SwIfIndex:    tapSwIfIndex,
-		IP:           config.VppHostPuntFakeGatewayAddress,
-		HardwareAddr: ifState.HardwareAddr,
-		Flags:        types.IPNeighborStatic,
-	})
-	if err != nil {
-		return errors.Wrapf(err, "Error adding neighbor %s to tap", config.VppHostPuntFakeGatewayAddress)
-	}
 	/* In the punt table (where all punted traffics ends), route to the tap */
-	for _, address := range ifState.Addresses {
+	for _, addr := range ifState.Addresses {
 		err = v.vpp.RouteAdd(&types.Route{
-			Dst:   address.IPNet,
 			Table: common.PuntTableID,
+			Dst:   addr.IPNet,
 			Paths: []types.RoutePath{{
-				Gw:        config.VppHostPuntFakeGatewayAddress,
+				Gw:        addr.IP,
 				SwIfIndex: tapSwIfIndex,
 			}},
 		})
@@ -162,7 +153,6 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 			return errors.Wrapf(err, "error adding vpp side routes for interface")
 		}
 	}
-
 	return nil
 }
 
@@ -446,25 +436,41 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 			return []uint32{}, errors.Wrapf(err, "error setting vpp tap in vrf %d", vrfID)
 		}
 		vrfs = append(vrfs, vrfID)
+
+		for _, addr := range ifState.Addresses {
+			if vpplink.IPFamilyFromIP(addr.IP) == ipFamily {
+				err = v.vpp.RouteAdd(&types.Route{
+					Table: vrfID,
+					Dst:   common.FullyQualified(addr.IP),
+					Paths: []types.RoutePath{{
+						Gw:        addr.IP,
+						SwIfIndex: tapSwIfIndex,
+					}},
+				})
+				if err != nil {
+					return []uint32{}, errors.Wrapf(err, "error add route from VPP to tap0 in VRF %d", vrfID)
+				}
+				err = v.vpp.AddNeighbor(&types.Neighbor{
+					SwIfIndex:    tapSwIfIndex,
+					IP:           addr.IP,
+					HardwareAddr: ifState.HardwareAddr,
+					Flags:        types.IPNeighborStatic,
+				})
+				if err != nil {
+					return []uint32{}, errors.Wrapf(err, "error add static neighbor for tap0 in VRF %d", vrfID)
+				}
+			}
+		}
 	}
 
-	// Configure addresses to enable ipv4 & ipv6 on the tap
-	for _, addr := range ifState.Addresses {
-		if addr.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
-			log.Infof("Not adding address %s to data interface (vpp requires /128 link-local)", addr.String())
-			continue
-		} else {
-			log.Infof("Adding address %s to tap interface", addr.String())
-		}
-		// to max len cidr because we don't want the rest of the subnet to be considered as
-		// connected to that interface
-		// note that the role of these addresses is just to tell vpp to accept ip4 / ip6 packets on the tap
-		// we use these addresses as the safest option, because as they are configured on linux, linux
-		// will never send us packets with these addresses as destination
-		err = v.vpp.AddInterfaceAddress(tapSwIfIndex, common.ToMaxLenCIDR(addr.IP))
-		if err != nil {
-			log.Errorf("Error adding address to tap interface: %v", err)
-		}
+	err = v.vpp.EnableInterfaceIP6(tapSwIfIndex)
+	if err != nil {
+		return []uint32{}, errors.Wrapf(err, "error enabling ip6 for tap %d", tapSwIfIndex)
+	}
+
+	err = v.vpp.AddInterfaceAddress(tapSwIfIndex, config.VppsideTap0Address)
+	if err != nil {
+		return []uint32{}, errors.Wrapf(err, "error adding vpp side address for tap0 %d", tapSwIfIndex)
 	}
 	return vrfs, nil
 }
@@ -691,18 +697,22 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error setting tap up")
 	}
 
-	if config.Info.UplinkStatuses != nil {
-		config.Info.UplinkStatuses[link.Attrs().Name] = config.UplinkStatus{
-			TapSwIfIndex:        tapSwIfIndex,
-			SwIfIndex:           ifSpec.SwIfIndex,
-			Mtu:                 uplinkMtu,
-			PhysicalNetworkName: ifSpec.PhysicalNetworkName,
-			LinkIndex:           link.Attrs().Index,
-			Name:                link.Attrs().Name,
-			IsMain:              ifSpec.IsMain,
-			FakeNextHopIP4:      fakeNextHopIP4,
-			FakeNextHopIP6:      fakeNextHopIP6,
-		}
+	uplinkAddresses := make([]*net.IPNet, 0)
+	for _, addr := range ifState.Addresses {
+		uplinkAddresses = append(uplinkAddresses, addr.IPNet)
+	}
+
+	config.Info.UplinkStatuses[link.Attrs().Name] = config.UplinkStatus{
+		TapSwIfIndex:        tapSwIfIndex,
+		SwIfIndex:           ifSpec.SwIfIndex,
+		Mtu:                 uplinkMtu,
+		PhysicalNetworkName: ifSpec.PhysicalNetworkName,
+		LinkIndex:           link.Attrs().Index,
+		Name:                link.Attrs().Name,
+		IsMain:              ifSpec.IsMain,
+		FakeNextHopIP4:      fakeNextHopIP4,
+		FakeNextHopIP6:      fakeNextHopIP6,
+		UplinkAddresses:     uplinkAddresses,
 	}
 	return nil
 }
