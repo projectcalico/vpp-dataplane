@@ -162,7 +162,18 @@ func prefixParser(value string) (net.IPNet, error) {
 func RequiredPrefixEnvVar(varName string) *net.IPNet {
 	return RequiredEnvVar(varName, net.IPNet{}, prefixParser)
 }
-func PrefixEnvVar(varName string) *net.IPNet { return EnvVar(varName, net.IPNet{}, prefixParser) }
+
+func PrefixEnvVar(varName string, defaultValue *net.IPNet) *net.IPNet {
+	return EnvVar(varName, *defaultValue, prefixParser)
+}
+
+func MustParseCIDR(str string) *net.IPNet {
+	_, cidr, err := net.ParseCIDR(str)
+	if err != nil {
+		logrus.Fatalf("error parsing %s as cidr %v", str, err)
+	}
+	return cidr
+}
 
 func prefixListParser(value string) ([]*net.IPNet, error) {
 	chunks := strings.Split(value, ",")
