@@ -38,6 +38,9 @@ type LocalPodSpecStatus struct {
 	LoopbackSwIfIndex uint32 `json:"loopbackSwIfIndex"`
 	// PblIndexes is a map from containerIP to PBL index in VPP
 	PblIndexes map[string]uint32 `json:"pblIndexes"`
+	// HostPortEntryIDs is a map from hostport to corresponding cnat entry ids
+	// in VPP, per hostIP (we can have both ipv4 and ipv6)
+	HostPortEntryIDs map[uint16]map[string]uint32
 	// V4VrfID is the table ID for the v4 VRF created for the pod
 	V4VrfID uint32 `json:"v4VrfId"`
 	// V4RPFVrfID is the table ID for the v4 uRPF VRF created for the pod
@@ -55,6 +58,7 @@ func NewLocalPodSpecStatus() *LocalPodSpecStatus {
 		TunTapSwIfIndex:   vpplink.InvalidID,
 		LoopbackSwIfIndex: vpplink.InvalidID,
 		PblIndexes:        make(map[string]uint32),
+		HostPortEntryIDs:  make(map[uint16]map[string]uint32),
 		V4VrfID:           vpplink.InvalidID,
 		V4RPFVrfID:        vpplink.InvalidID,
 		V6VrfID:           vpplink.InvalidID,
