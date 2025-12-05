@@ -18,10 +18,10 @@ package uplink
 import (
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/config"
-	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpp-manager/utils"
+	vppmanagerparams "github.com/projectcalico/vpp-dataplane/v3/pkg/vpp-manager/params"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink"
 )
 
@@ -34,42 +34,42 @@ func (d *DefaultDriver) IsSupported(warn bool) bool {
 		return true
 	}
 	if warn {
-		log.Warnf("did not find vfio-pci or uio_pci_generic driver")
-		log.Warnf("VPP may fail to grab its interface")
+		d.log.Warnf("did not find vfio-pci or uio_pci_generic driver")
+		d.log.Warnf("VPP may fail to grab its interface")
 	}
 	return false
 }
 
 func (d *DefaultDriver) PreconfigureLinux() (err error) {
 	d.removeLinuxIfConf(true /* down */)
-	if d.conf.DoSwapDriver {
-		if d.conf.PciID == "" {
-			log.Warnf("PCI ID not found, not swapping drivers")
+	if d.intf.State.DoSwapDriver {
+		if d.intf.State.PciID == "" {
+			d.log.Warnf("PCI ID not found, not swapping drivers")
 		} else {
-			err = utils.SwapDriver(d.conf.PciID, d.spec.NewDriverName, true)
+			err = config.SwapDriver(d.log, d.intf.State.PciID, d.intf.Spec.NewDriverName, true)
 			if err != nil {
-				log.Warnf("Failed to swap driver to %s: %v", d.spec.NewDriverName, err)
+				d.log.Warnf("Failed to swap driver to %s: %v", d.intf.Spec.NewDriverName, err)
 			}
 		}
 	}
 	return nil
 }
 
-func (d *DefaultDriver) RestoreLinux(allInterfacesPhysical bool) {
-	if d.conf.PciID != "" && d.conf.Driver != "" {
-		err := utils.SwapDriver(d.conf.PciID, d.conf.Driver, false)
+func (d *DefaultDriver) RestoreLinux() {
+	if d.intf.State.PciID != "" && d.intf.State.Driver != "" {
+		err := config.SwapDriver(d.log, d.intf.State.PciID, d.intf.State.Driver, false)
 		if err != nil {
-			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciID, err)
+			d.log.Warnf("Error swapping back driver to %s for %s: %v", d.intf.State.Driver, d.intf.State.PciID, err)
 		}
 	}
-	if !d.conf.IsUp {
+	if !d.intf.State.IsUp {
 		return
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := config.SafeSetInterfaceUpByName(d.intf.Spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		d.log.Warnf("Error setting %s up: %v", d.intf.Spec.InterfaceName, err)
 		return
 	}
 
@@ -79,29 +79,33 @@ func (d *DefaultDriver) RestoreLinux(allInterfacesPhysical bool) {
 
 func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	// If interface is still in the host, move it to vpp netns to allow creation of the tap
-	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
+	err = d.moveInterfaceToNS(d.intf.Spec.InterfaceName, vppPid)
 	if err != nil {
-		log.Infof("Did NOT move interface %s to VPP netns: %v", d.spec.InterfaceName, err)
+		d.log.Infof("Did NOT move interface %s to VPP netns: %v", d.intf.Spec.InterfaceName, err)
 	} else {
-		log.Infof("Moved interface %s to VPP netns", d.spec.InterfaceName)
+		d.log.Infof("Moved interface %s to VPP netns", d.intf.Spec.InterfaceName)
 	}
 	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
-	if !d.spec.IsMain {
+	if !d.intf.Spec.IsMain {
 		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)
 	}
-	swIfIndex, err := vpp.SearchInterfaceWithTag("main-" + d.spec.InterfaceName)
+	swIfIndex, err := vpp.SearchInterfaceWithTag("main-" + d.intf.Spec.InterfaceName)
 	if err != nil {
-		return fmt.Errorf("error trying to find interface with tag main-%s", d.spec.InterfaceName)
+		return fmt.Errorf("error trying to find interface with tag main-%s", d.intf.Spec.InterfaceName)
 	}
-	d.spec.SwIfIndex = swIfIndex
+	d.intf.Spec.SwIfIndex = swIfIndex
 	return nil
 }
 
-func NewDefaultDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *DefaultDriver {
-	d := &DefaultDriver{}
-	d.name = NativeDriverNone
-	d.conf = conf
-	d.params = params
-	d.spec = spec
-	return d
+func NewDefaultDriver(params *vppmanagerparams.VppManagerParams,
+	intf *vppmanagerparams.VppManagerInterface,
+	log *logrus.Entry) *DefaultDriver {
+	return &DefaultDriver{
+		UplinkDriverData: UplinkDriverData{
+			name:   NativeDriverNone,
+			params: params,
+			intf:   intf,
+			log:    log,
+		},
+	}
 }

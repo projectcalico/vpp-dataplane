@@ -17,10 +17,10 @@ package uplink
 
 import (
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/config"
-	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpp-manager/utils"
+	vppmanagerparams "github.com/projectcalico/vpp-dataplane/v3/pkg/vpp-manager/params"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink/types"
 )
@@ -33,9 +33,9 @@ func (d *RDMADriver) IsSupported(warn bool) (supported bool) {
 	var ret bool
 	supported = true
 
-	ret = d.conf.Driver == config.DriverMLX5Core
+	ret = d.intf.State.Driver == config.DriverMLX5Core
 	if !ret && warn {
-		log.Warnf("Interface driver is <%s>, not %s", d.conf.Driver, config.DriverMLX5Core)
+		d.log.Warnf("Interface driver is <%s>, not %s", d.intf.State.Driver, config.DriverMLX5Core)
 	}
 	supported = supported && ret
 
@@ -47,21 +47,21 @@ func (d *RDMADriver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *RDMADriver) RestoreLinux(allInterfacesPhysical bool) {
-	if !allInterfacesPhysical {
-		err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+func (d *RDMADriver) RestoreLinux() {
+	if !d.params.AllInterfacesPhysical() {
+		err := d.moveInterfaceFromNS(d.intf.Spec.InterfaceName)
 		if err != nil {
-			log.Warnf("Moving uplink back from NS failed %s", err)
+			d.log.Warnf("Moving uplink back from NS failed %s", err)
 		}
 	}
-	if !d.conf.IsUp {
+	if !d.intf.State.IsUp {
 		return
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := config.SafeSetInterfaceUpByName(d.intf.Spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		d.log.Warnf("Error setting %s up: %v", d.intf.Spec.InterfaceName, err)
 		return
 	}
 
@@ -79,26 +79,31 @@ func (d *RDMADriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, up
 		return errors.Wrapf(err, "Error creating RDMA interface")
 	}
 
-	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
+	err = d.moveInterfaceToNS(d.intf.Spec.InterfaceName, vppPid)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
 
-	log.Infof("Created RDMA interface %d", swIfIndex)
+	d.log.Infof("Created RDMA interface %d", swIfIndex)
 
-	d.spec.SwIfIndex = swIfIndex
-	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	d.intf.Spec.SwIfIndex = swIfIndex
+	err = d.TagMainInterface(vpp, swIfIndex, d.intf.Spec.InterfaceName)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func NewRDMADriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *RDMADriver {
-	d := &RDMADriver{}
-	d.name = NativeDriverRdma
-	d.conf = conf
-	d.params = params
-	d.spec = spec
-	return d
+func NewRDMADriver(params *vppmanagerparams.VppManagerParams,
+	intf *vppmanagerparams.VppManagerInterface,
+	log *logrus.Entry,
+) *RDMADriver {
+	return &RDMADriver{
+		UplinkDriverData: UplinkDriverData{
+			name:   NativeDriverRdma,
+			params: params,
+			intf:   intf,
+			log:    log,
+		},
+	}
 }
