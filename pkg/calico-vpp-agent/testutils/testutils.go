@@ -379,22 +379,22 @@ func NewStatsClient() *statsclient.StatsClient {
 func ConfigureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uint32) {
 	// connect to VPP using PID-based subdirectory path
 	pidSubdir := VPPStatsSocketDir()
-	vpp, err := common.CreateVppLinkInRetryLoop(pidSubdir+"/vpp-api-test.sock",
+	vpp, err := config.CreateVppLinkInRetryLoop(pidSubdir+"/vpp-api-test.sock",
 		log.WithFields(logrus.Fields{"component": "vpp-api"}), 20*time.Second, 100*time.Millisecond)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Cannot create VPP client: %v", err))
 	Expect(vpp).NotTo(BeNil())
 
 	// setup common VRF setup
 	for _, ipFamily := range vpplink.IPFamilies { //needed config for pod creation tests
-		err := vpp.AddVRF(common.PuntTableID, ipFamily.IsIP6, fmt.Sprintf("punt-table-%s", ipFamily.Str))
+		err := vpp.AddVRF(config.PuntTableID, ipFamily.IsIP6, fmt.Sprintf("punt-table-%s", ipFamily.Str))
 		if err != nil {
 			log.Fatal(errors.Wrapf(err, "Error creating punt vrf %s", ipFamily.Str))
 		}
-		err = vpp.AddVRF(common.PodVRFIndex, ipFamily.IsIP6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
+		err = vpp.AddVRF(config.PodVRFIndex, ipFamily.IsIP6, fmt.Sprintf("calico-pods-%s", ipFamily.Str))
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = vpp.AddDefaultRouteViaTable(common.PodVRFIndex, common.DefaultVRFIndex, ipFamily.IsIP6)
+		err = vpp.AddDefaultRouteViaTable(config.PodVRFIndex, config.DefaultVRFIndex, ipFamily.IsIP6)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -21,6 +21,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/v3/pkg/config"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink/types"
 )
@@ -151,7 +152,7 @@ func (s *Server) RoutePblPortsPodInterface(podSpec *model.LocalPodSpec, stack *v
 			PortRanges: portRanges,
 		}
 		if podSpec.EnableVCL {
-			client.TableID = common.PuntTableID
+			client.TableID = config.PuntTableID
 		}
 
 		vrfID := podSpec.GetVrfID(vpplink.IPFamilyFromIP(containerIP)) // pbl only supports v4 ?
@@ -236,7 +237,7 @@ func (s *Server) CreatePodVRF(podSpec *model.LocalPodSpec, stack *vpplink.Cleanu
 		vrfID := podSpec.GetVrfID(ipFamily)
 		var vrfIndex uint32
 		if podSpec.NetworkName == "" { // no multi net
-			vrfIndex = common.PodVRFIndex
+			vrfIndex = config.PodVRFIndex
 		} else {
 			value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
 			if !ok {
@@ -396,7 +397,7 @@ func (s *Server) DeletePodVRF(podSpec *model.LocalPodSpec) {
 		vrfID := podSpec.GetVrfID(ipFamily)
 		var vrfIndex uint32
 		if podSpec.NetworkName == "" {
-			vrfIndex = common.PodVRFIndex
+			vrfIndex = config.PodVRFIndex
 		} else {
 			value, ok := s.networkDefinitions.Load(podSpec.NetworkName)
 			if !ok {
@@ -474,7 +475,7 @@ func (s *Server) SetupPuntRoutes(podSpec *model.LocalPodSpec, stack *vpplink.Cle
 		/* In the punt table (where all punted traffics ends),
 		 * route the container to the tun */
 		route := types.Route{
-			Table: common.PuntTableID,
+			Table: config.PuntTableID,
 			Dst:   containerIP,
 			Paths: []types.RoutePath{{SwIfIndex: swIfIndex}},
 		}
@@ -493,7 +494,7 @@ func (s *Server) RemovePuntRoutes(podSpec *model.LocalPodSpec, swIfIndex uint32)
 	for _, containerIP := range podSpec.GetContainerIPs() {
 		/* In the punt table (where all punted traffics ends), route the container to the tun */
 		route := types.Route{
-			Table: common.PuntTableID,
+			Table: config.PuntTableID,
 			Dst:   containerIP,
 			Paths: []types.RoutePath{{SwIfIndex: swIfIndex}},
 		}

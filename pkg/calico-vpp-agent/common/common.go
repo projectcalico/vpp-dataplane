@@ -18,7 +18,6 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"net"
 	"os"
 	"strconv"
@@ -44,12 +43,6 @@ import (
 var (
 	ContainerSideMacAddress, _ = net.ParseMAC("02:00:00:00:00:01")
 	VppManagerInfo             *config.VppManagerInfo
-)
-
-const (
-	DefaultVRFIndex = uint32(0)
-	PuntTableID     = uint32(1)
-	PodVRFIndex     = uint32(2)
 )
 
 type FelixServerIpam interface {
@@ -99,42 +92,6 @@ func NewLocalNodeSpec(msg *proto.HostMetadataV4V6Update) (*LocalNodeSpec, error)
 type NodeWireguardPublicKey struct {
 	Name               string
 	WireguardPublicKey string
-}
-
-// CreateVppLink creates new link to VPP and waits for VPP to be up and running (by using simple VPP API call)
-func CreateVppLink(socket string, log *logrus.Entry) (vpp *vpplink.VppLink, err error) {
-	return CreateVppLinkInRetryLoop(socket, log, 20*time.Second, 2*time.Second)
-}
-
-// CreateVppLinkInRetryLoop creates new link to VPP and waits for VPP to be up and running (by using simple
-// VPP API call). This process is retried in a loop and has a timeout limit.
-func CreateVppLinkInRetryLoop(socket string, log *logrus.Entry, timeout time.Duration,
-	retry time.Duration) (vpp *vpplink.VppLink, err error) {
-	// Get an API connection, with a few retries to accommodate VPP startup time
-	maxRetry := int(math.Round(float64(timeout.Nanoseconds() / retry.Nanoseconds())))
-	for i := 0; i < maxRetry; i++ {
-		vpp, err = vpplink.NewVppLink(socket, log)
-		if err != nil {
-			if i < (maxRetry / 2) {
-				/* do not warn, it is probably fine */
-				log.Infof("Waiting for VPP... [%d/%d]", i, maxRetry)
-			} else {
-				log.Warnf("Waiting for VPP... [%d/%d] %v", i, maxRetry, err)
-			}
-			time.Sleep(retry)
-		} else {
-			// Try a simple API message to verify everything is up and running
-			version, err := vpp.GetVPPVersion()
-			if err != nil {
-				log.Warnf("Try [%d/%d] broken vpplink: %v", i, maxRetry, err)
-				time.Sleep(retry)
-			} else {
-				log.Infof("Connected to VPP version %s", version)
-				return vpp, nil
-			}
-		}
-	}
-	return nil, errors.Errorf("Cannot connect to VPP after 10 tries")
 }
 
 func WaitForVppManager() (*config.VppManagerInfo, error) {

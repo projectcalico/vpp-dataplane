@@ -19,11 +19,11 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/config"
-	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpp-manager/utils"
+	vppmanagerparams "github.com/projectcalico/vpp-dataplane/v3/pkg/vpp-manager/params"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink/generated/bindings/af_packet"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink/types"
@@ -41,40 +41,40 @@ func (d *AFPacketDriver) IsSupported(warn bool) bool {
 func (d *AFPacketDriver) GetDefaultRxMode() types.RxMode { return types.InterruptRxMode }
 
 func (d *AFPacketDriver) PreconfigureLinux() error {
-	link, err := netlink.LinkByName(d.spec.InterfaceName)
+	link, err := netlink.LinkByName(d.intf.Spec.InterfaceName)
 	if err != nil {
-		return errors.Wrapf(err, "Error finding link %s", d.spec.InterfaceName)
+		return errors.Wrapf(err, "Error finding link %s", d.intf.Spec.InterfaceName)
 	}
 	err = netlink.SetPromiscOn(link)
 	if err != nil {
-		return errors.Wrapf(err, "Error set link %s promisc on", d.spec.InterfaceName)
+		return errors.Wrapf(err, "Error set link %s promisc on", d.intf.Spec.InterfaceName)
 	}
 	return nil
 }
 
-func (d *AFPacketDriver) RestoreLinux(allInterfacesPhysical bool) {
-	if !allInterfacesPhysical {
-		err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+func (d *AFPacketDriver) RestoreLinux() {
+	if !d.params.AllInterfacesPhysical() {
+		err := d.moveInterfaceFromNS(d.intf.Spec.InterfaceName)
 		if err != nil {
-			log.Warnf("Moving uplink back from NS failed %s", err)
+			d.log.Warnf("Moving uplink back from NS failed %s", err)
 		}
 	}
 
-	if !d.conf.IsUp {
+	if !d.intf.State.IsUp {
 		return
 	}
 	// Interface should pop back in root ns once vpp exits
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := config.SafeSetInterfaceUpByName(d.intf.Spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		d.log.Warnf("Error setting %s up: %v", d.intf.Spec.InterfaceName, err)
 		return
 	}
 
-	if !d.conf.PromiscOn {
-		log.Infof("Setting promisc off")
+	if !d.intf.State.PromiscOn {
+		d.log.Infof("Setting promisc off")
 		err = netlink.SetPromiscOff(link)
 		if err != nil {
-			log.Errorf("Error setting link %s promisc off %v", d.spec.InterfaceName, err)
+			d.log.Errorf("Error setting link %s promisc off %v", d.intf.Spec.InterfaceName, err)
 		}
 	}
 
@@ -89,14 +89,14 @@ func (d *AFPacketDriver) fetchBooleanAnnotation(annotation string, defaultValue 
 	}
 	b, err := strconv.ParseBool(spec)
 	if err != nil {
-		log.WithError(err).Errorf("Error parsing annotation %s '%s'", annotation, spec)
+		d.log.WithError(err).Errorf("Error parsing annotation %s '%s'", annotation, spec)
 		return defaultValue
 	}
 	return b
 }
 
 func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
-	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
+	err = d.moveInterfaceToNS(d.intf.Spec.InterfaceName, vppPid)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
@@ -115,21 +115,25 @@ func (d *AFPacketDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int
 	if err != nil {
 		return errors.Wrapf(err, "Error creating AF_PACKET interface")
 	}
-	log.Infof("Created AF_PACKET interface %d", swIfIndex)
+	d.log.Infof("Created AF_PACKET interface %d", swIfIndex)
 
-	d.spec.SwIfIndex = swIfIndex
-	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	d.intf.Spec.SwIfIndex = swIfIndex
+	err = d.TagMainInterface(vpp, swIfIndex, d.intf.Spec.InterfaceName)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func NewAFPacketDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *AFPacketDriver {
-	d := &AFPacketDriver{}
-	d.name = NativeDriverAfPacket
-	d.conf = conf
-	d.params = params
-	d.spec = spec
-	return d
+func NewAFPacketDriver(params *vppmanagerparams.VppManagerParams,
+	intf *vppmanagerparams.VppManagerInterface,
+	log *logrus.Entry) *AFPacketDriver {
+	return &AFPacketDriver{
+		UplinkDriverData: UplinkDriverData{
+			name:   NativeDriverAfPacket,
+			params: params,
+			intf:   intf,
+			log:    log,
+		},
+	}
 }

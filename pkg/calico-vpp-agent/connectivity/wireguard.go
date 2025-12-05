@@ -292,7 +292,7 @@ func (p *WireguardProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 				SwIfIndex: p.wireguardTunnels[ipfamily].SwIfIndex,
 				Gw:        nil,
 			}},
-			Table: common.PodVRFIndex,
+			Table: config.PodVRFIndex,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "Error adding route to %s in wg tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnels[ipfamily].SwIfIndex)
@@ -341,7 +341,7 @@ func (p *WireguardProvider) DelConnectivity(cn *common.NodeConnectivity) (err er
 				SwIfIndex: p.wireguardTunnels[ipfamily].SwIfIndex,
 				Gw:        nil,
 			}},
-			Table: common.PodVRFIndex,
+			Table: config.PodVRFIndex,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "Error deleting route to %s in ipip tunnel %d for pods", cn.NextHop.String(), p.wireguardTunnels[ipfamily].SwIfIndex)

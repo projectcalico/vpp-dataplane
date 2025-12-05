@@ -37,13 +37,7 @@ var (
 	parsers = make(map[string]*EnvVarParser)
 )
 
-func PrintEnvVarConfig(log *logrus.Logger) {
-	for varName, parser := range parsers {
-		log.Infof("Config:%s=%s", varName, parser.valueString)
-	}
-}
-
-func ParseAllEnvVars() []error {
+func parseAllEnvVars(log *logrus.Logger) (err error) {
 	errs := make([]error, 0)
 	for _, parser := range parsers {
 		err := parser.parse()
@@ -51,7 +45,52 @@ func ParseAllEnvVars() []error {
 			errs = append(errs, err)
 		}
 	}
-	return errs
+	if len(errs) > 0 {
+		return fmt.Errorf("environment parsing errors : %s", errs)
+	}
+
+	log.SetLevel(*LogLevel)
+	if *LogFormat == "pretty" {
+		formatter := &logrus.TextFormatter{
+			DisableTimestamp: true,
+			ForceColors:      true,
+		}
+		log.SetFormatter(formatter)
+		logrus.SetFormatter(formatter)
+	}
+	return nil
+}
+
+func LoadConfig(log *logrus.Logger) error {
+	err := parseAllEnvVars(log)
+	if err != nil {
+		return err
+	}
+
+	versionFileStr, err := os.ReadFile(CalicoVppVersionFile)
+	if err != nil {
+		log.Infof("No version file present %s", CalicoVppVersionFile)
+	} else {
+		log.Infof("Version info\n%s", versionFileStr)
+	}
+
+	for varName, parser := range parsers {
+		log.Infof("Config:%s=%s", varName, parser.valueString)
+	}
+
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		if strings.Contains(pair[0], "CALICOVPP_") {
+			if !isEnvVarSupported(pair[0]) {
+				log.Warnf("Environment variable %s is not supported", pair[0])
+			}
+		}
+	}
+	return nil
+}
+
+func LoadConfigSilent(log *logrus.Logger) (err error) {
+	return parseAllEnvVars(log)
 }
 
 func ParseEnvVars(varNames ...string) []error {

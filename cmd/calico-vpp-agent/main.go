@@ -95,7 +95,7 @@ func main() {
 	/**
 	 * Connect to VPP & wait for it to be up
 	 */
-	vpp, err := common.CreateVppLink(config.VppAPISocket, log.WithFields(logrus.Fields{"component": "vpp-api"}))
+	vpp, err := config.CreateVppLink(config.VppAPISocket, log.WithFields(logrus.Fields{"component": "vpp-api"}))
 	if err != nil {
 		log.Fatalf("Cannot create VPP client: %v", err)
 	}

@@ -23,6 +23,7 @@ import (
 	vpptypes "github.com/calico-vpp/vpplink/api/v0"
 
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/pkg/config"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink/types"
 )
@@ -146,7 +147,7 @@ func (p *IpipProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 				SwIfIndex: swIfIndex,
 				Gw:        nil,
 			}},
-			Table: common.PodVRFIndex,
+			Table: config.PodVRFIndex,
 		})
 		if err != nil {
 			p.errorCleanup(tunnel)
@@ -210,7 +211,7 @@ func (p *IpipProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 				SwIfIndex: tunnel.SwIfIndex,
 				Gw:        nil,
 			}},
-			Table: common.PodVRFIndex,
+			Table: config.PodVRFIndex,
 		})
 		if err != nil {
 			p.log.Errorf("Error deleting ipip route dst=%s via tunnel swIfIndex=%d %s", cn.NextHop.String(), tunnel.SwIfIndex, err)

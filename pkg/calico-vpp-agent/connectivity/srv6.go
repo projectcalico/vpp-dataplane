@@ -142,7 +142,7 @@ func (p *SRv6Provider) steerNodeIPViaSID(nodeip string) {
 	// policy is already installed by CreateSRv6Tunnel; only add the steering.
 	srSteer := &types.SrSteer{
 		TrafficType: types.SrSteerIPv6,
-		FibTable:    common.PodVRFIndex,
+		FibTable:    config.PodVRFIndex,
 		Prefix:      prefix,
 		Bsid:        policy.Bsid,
 	}
