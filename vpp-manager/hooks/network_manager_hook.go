@@ -52,9 +52,9 @@ type SystemType struct {
 
 // NetworkManagerHook manages network configuration during VPP lifecycle
 type NetworkManagerHook struct {
-	interfaceNames []string
-	systemType     SystemType
-	log            *logrus.Logger
+	vppManagerParams *config.VppManagerParams
+	systemType       SystemType
+	log              *logrus.Logger
 }
 
 // chrootCommand creates a command that will be executed in the host namespace
@@ -151,19 +151,14 @@ func (h *NetworkManagerHook) restartService(serviceName string) error {
 }
 
 // NewNetworkManagerHook creates a new NetworkManagerHook instance
-func NewNetworkManagerHook(log *logrus.Logger) *NetworkManagerHook {
+func NewNetworkManagerHook(log *logrus.Logger, vppManagerParams *config.VppManagerParams) *NetworkManagerHook {
 	hook := &NetworkManagerHook{
-		log: log,
+		log:              log,
+		vppManagerParams: vppManagerParams,
 	}
 
 	hook.detectSystem()
 	return hook
-}
-
-// SetInterfaceNames updates the interface names of NetworkManagerHook instance
-func (h *NetworkManagerHook) SetInterfaceNames(interfaceNames []string) {
-	h.interfaceNames = interfaceNames
-	h.log.Infof("NetworkManagerHook: Interface names updated to %v", interfaceNames)
 }
 
 // fixDNS modifies NetworkManager configuration to disable DNS management
@@ -500,7 +495,7 @@ func (h *NetworkManagerHook) beforeVppRun() error {
 	}
 
 	// Save network file for AWS systemd-networkd for each interface
-	for _, interfaceName := range h.interfaceNames {
+	for interfaceName := range h.vppManagerParams.Interfaces {
 		err = h.saveNetworkFile(interfaceName)
 		if err != nil {
 			return err
@@ -519,7 +514,7 @@ func (h *NetworkManagerHook) vppRunning() error {
 	}
 
 	// Tweak network file for AWS systemd-networkd for each interface
-	for _, interfaceName := range h.interfaceNames {
+	for interfaceName := range h.vppManagerParams.Interfaces {
 		err = h.tweakNetworkFile(interfaceName)
 		if err != nil {
 			return err
@@ -538,7 +533,7 @@ func (h *NetworkManagerHook) vppDoneOk() error {
 	}
 
 	// Remove the tweaked network file for AWS systemd-networkd for each interface
-	for _, interfaceName := range h.interfaceNames {
+	for interfaceName := range h.vppManagerParams.Interfaces {
 		err = h.removeTweakedNetworkFile(interfaceName)
 		if err != nil {
 			return err
@@ -566,7 +561,7 @@ func (h *NetworkManagerHook) Execute(hookPoint HookPoint) error {
 		return nil
 	}
 
-	h.log.Infof("NetworkManagerHook: Executing %s for interfaces %v", hookPoint, h.interfaceNames)
+	h.log.Infof("NetworkManagerHook: Executing %s for all interfaces", hookPoint)
 
 	var err error
 	switch hookPoint {
@@ -616,11 +611,10 @@ func (h *NetworkManagerHook) useDefaultHookFallback(userHook *string) bool {
 // 2. If native hooks enabled -> run native Go hook
 // 3. If native hooks disabled & no user script -> fallback to default_hook.sh
 func (h *NetworkManagerHook) ExecuteWithUserScript(hookPoint HookPoint,
-	hookScript *string,
-	params *config.VppManagerParams) {
+	hookScript *string) {
 	// Check if user script is configured (highest priority - overrides everything)
 	if hookScript != nil && *hookScript != "" {
-		config.RunHook(hookScript, string(hookPoint), params, h.log)
+		config.RunHook(hookScript, string(hookPoint), h.vppManagerParams, h.log)
 		return
 	}
 
@@ -636,6 +630,6 @@ func (h *NetworkManagerHook) ExecuteWithUserScript(hookPoint HookPoint,
 	// Fallback to default_hook.sh when native hooks are disabled
 	if h.useDefaultHookFallback(hookScript) {
 		h.log.Infof("Native hooks disabled, falling back to default_hook.sh for %s", hookPoint)
-		config.RunHook(&config.DefaultHookScript, string(hookPoint), params, h.log)
+		config.RunHook(&config.DefaultHookScript, string(hookPoint), h.vppManagerParams, h.log)
 	}
 }

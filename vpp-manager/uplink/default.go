@@ -46,16 +46,16 @@ func (d *DefaultDriver) PreconfigureLinux() (err error) {
 		if d.conf.PciID == "" {
 			log.Warnf("PCI ID not found, not swapping drivers")
 		} else {
-			err = utils.SwapDriver(d.conf.PciID, d.spec.NewDriverName, true)
+			err = utils.SwapDriver(d.conf.PciID, d.intf.Spec.NewDriverName, true)
 			if err != nil {
-				log.Warnf("Failed to swap driver to %s: %v", d.spec.NewDriverName, err)
+				log.Warnf("Failed to swap driver to %s: %v", d.intf.Spec.NewDriverName, err)
 			}
 		}
 	}
 	return nil
 }
 
-func (d *DefaultDriver) RestoreLinux(allInterfacesPhysical bool) {
+func (d *DefaultDriver) RestoreLinux() {
 	if d.conf.PciID != "" && d.conf.Driver != "" {
 		err := utils.SwapDriver(d.conf.PciID, d.conf.Driver, false)
 		if err != nil {
@@ -67,9 +67,9 @@ func (d *DefaultDriver) RestoreLinux(allInterfacesPhysical bool) {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := utils.SafeSetInterfaceUpByName(d.intf.Spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		log.Warnf("Error setting %s up: %v", d.intf.Spec.InterfaceName, err)
 		return
 	}
 
@@ -79,29 +79,30 @@ func (d *DefaultDriver) RestoreLinux(allInterfacesPhysical bool) {
 
 func (d *DefaultDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
 	// If interface is still in the host, move it to vpp netns to allow creation of the tap
-	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
+	err = d.moveInterfaceToNS(d.intf.Spec.InterfaceName, vppPid)
 	if err != nil {
-		log.Infof("Did NOT move interface %s to VPP netns: %v", d.spec.InterfaceName, err)
+		log.Infof("Did NOT move interface %s to VPP netns: %v", d.intf.Spec.InterfaceName, err)
 	} else {
-		log.Infof("Moved interface %s to VPP netns", d.spec.InterfaceName)
+		log.Infof("Moved interface %s to VPP netns", d.intf.Spec.InterfaceName)
 	}
 	// refusing to run on secondary interfaces as we have no way to figure out the sw_if_index
-	if !d.spec.IsMain {
+	if !d.intf.Spec.IsMain {
 		return fmt.Errorf("%s driver not supported for secondary interfaces", d.name)
 	}
-	swIfIndex, err := vpp.SearchInterfaceWithTag("main-" + d.spec.InterfaceName)
+	swIfIndex, err := vpp.SearchInterfaceWithTag("main-" + d.intf.Spec.InterfaceName)
 	if err != nil {
-		return fmt.Errorf("error trying to find interface with tag main-%s", d.spec.InterfaceName)
+		return fmt.Errorf("error trying to find interface with tag main-%s", d.intf.Spec.InterfaceName)
 	}
-	d.spec.SwIfIndex = swIfIndex
+	d.intf.Spec.SwIfIndex = swIfIndex
 	return nil
 }
 
-func NewDefaultDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *DefaultDriver {
-	d := &DefaultDriver{}
-	d.name = NativeDriverNone
-	d.conf = conf
-	d.params = params
-	d.spec = spec
-	return d
+func NewDefaultDriver(params *config.VppManagerParams, intf *config.VppManagerInterface) *DefaultDriver {
+	return &DefaultDriver{
+		UplinkDriverData: UplinkDriverData{
+			name:   NativeDriverNone,
+			params: params,
+			intf:   intf,
+		},
+	}
 }

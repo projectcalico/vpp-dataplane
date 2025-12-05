@@ -162,13 +162,13 @@ func RunHook(hookScript *string, hookName string, params *VppManagerParams, log 
 	if *hookScript == "" {
 		return
 	}
-	template, err := TemplateScriptReplace(*hookScript, params, nil)
+	template, err := TemplateScriptReplace(*hookScript, params)
 	if err != nil {
 		log.Warnf("Running hook %s errored with %s", hookName, err)
 		return
 	}
 
-	cmd := exec.Command("/bin/bash", "-c", template, hookName, params.UplinksSpecs[0].InterfaceName)
+	cmd := exec.Command("/bin/bash", "-c", template, hookName, params.InterfacesById[0].Spec.InterfaceName)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
@@ -428,8 +428,6 @@ type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	// CorePattern is the pattern to use for VPP corefiles.
 	// Usually "/var/lib/vpp/vppcore.%e.%p"
 	CorePattern      string `json:"corePattern"`
-	ExtraAddrCount   int    `json:"extraAddrCount"`
-	IfConfigSavePath string `json:"ifConfigSavePath"`
 	// DefaultGWs Comma separated list of IPs to be
 	// configured in VPP as default GW
 	DefaultGWs string `json:"defaultGWs"`
@@ -619,9 +617,35 @@ const (
 	VfioUnsafeNoIommuModeDISABLED UnsafeNoIommuMode = "disabled"
 )
 
+type UplinkDriver interface {
+	PreconfigureLinux() error
+	CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *UplinkInterfaceSpec) error
+	RestoreLinux()
+	IsSupported(warn bool) bool
+	GetName() string
+	UpdateVppConfigFile(template string) string
+	GetDefaultRxMode() types.RxMode
+}
+
+type VppManagerInterface struct {
+	Spec UplinkInterfaceSpec
+	State *LinuxInterfaceState
+	Driver UplinkDriver
+}
+
+func (p *VppManagerParams) AllInterfacesPhysical() bool {
+	for _, intf := range p.Interfaces {
+		if intf.State.IsTunTap || intf.State.IsVeth {
+			return false
+		}
+	}
+	return true
+}
+
 type VppManagerParams struct {
-	UplinksSpecs []UplinkInterfaceSpec
-	/* Capabilities */
+	Interfaces map[string]*VppManagerInterface
+	InterfacesById []*VppManagerInterface
+	// Capabilities
 	LoadedDrivers                      map[string]bool
 	KernelVersion                      *KernelVersion
 	AvailableHugePages                 int
@@ -744,23 +768,25 @@ func getCpusetCPU() (string, error) {
 	return regexp.MustCompile("[,-]").Split(cpusetCPU, 2)[0], nil
 }
 
-func TemplateScriptReplace(input string, params *VppManagerParams, conf []*LinuxInterfaceState) (template string, err error) {
+func TemplateScriptReplace(input string, params *VppManagerParams) (template string, err error) {
 	template = input
-	if conf != nil {
-		/* We might template scripts before reading interface conf */
-		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", conf[0].PciID)
-		for i, ifcConf := range conf {
-			template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(i)+"__", ifcConf.PciID)
-		}
+	if len(params.Interfaces) > 0 {
+		// We might template scripts before reading interface conf
+		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", params.InterfacesById[0].State.PciID)
+	}
+	for idx, intf := range params.InterfacesById {
+		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(idx)+"__", intf.State.PciID)
 	}
 	vppcpu, err := getCpusetCPU()
 	if err != nil {
 		return "", err
 	}
 	template = strings.ReplaceAll(template, "__CPUSET_CPUS_FIRST__", vppcpu)
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.UplinksSpecs[0].InterfaceName)
-	for i, ifc := range params.UplinksSpecs {
-		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF_"+fmt.Sprintf("%d", i)+"__", ifc.InterfaceName)
+	if len(params.Interfaces) > 0 {
+		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.InterfacesById[0].Spec.InterfaceName)
+	}
+	for idx, intf := range params.InterfacesById {
+		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF_"+fmt.Sprintf("%d", idx)+"__", intf.Spec.InterfaceName)
 	}
 	for key, value := range params.NodeAnnotations {
 		template = strings.ReplaceAll(template, fmt.Sprintf("__NODE_ANNOTATION:%s__", key), value)

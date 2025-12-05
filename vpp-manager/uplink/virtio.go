@@ -55,7 +55,7 @@ func (d *VirtioDriver) IsSupported(warn bool) (supported bool) {
 }
 
 func (d *VirtioDriver) PreconfigureLinux() (err error) {
-	newDriverName := d.spec.NewDriverName
+	newDriverName := d.intf.Spec.NewDriverName
 	doSwapDriver := d.conf.DoSwapDriver
 	if newDriverName == "" {
 		newDriverName = config.DriverVfioPci
@@ -78,7 +78,7 @@ func (d *VirtioDriver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *VirtioDriver) RestoreLinux(allInterfacesPhysical bool) {
+func (d *VirtioDriver) RestoreLinux() {
 	if d.params.InitialVfioEnableUnsafeNoIommuMode == config.VfioUnsafeNoIommuModeNO {
 		err := utils.SetVfioEnableUnsafeNoIommuMode(config.VfioUnsafeNoIommuModeNO)
 		if err != nil {
@@ -91,8 +91,8 @@ func (d *VirtioDriver) RestoreLinux(allInterfacesPhysical bool) {
 			log.Warnf("Error swapping back driver to %s for %s: %v", d.conf.Driver, d.conf.PciID, err)
 		}
 	}
-	if !allInterfacesPhysical {
-		err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+	if !d.params.AllInterfacesPhysical() {
+		err := d.moveInterfaceFromNS(d.intf.Spec.InterfaceName)
 		if err != nil {
 			log.Warnf("Moving uplink back from NS failed %s", err)
 		}
@@ -102,9 +102,9 @@ func (d *VirtioDriver) RestoreLinux(allInterfacesPhysical bool) {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := utils.SafeSetInterfaceUpByName(d.intf.Spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		log.Warnf("Error setting %s up: %v", d.intf.Spec.InterfaceName, err)
 		return
 	}
 
@@ -123,19 +123,20 @@ func (d *VirtioDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, 
 	}
 	log.Infof("Created VIRTIO interface %d", swIfIndex)
 
-	d.spec.SwIfIndex = swIfIndex
-	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	d.intf.Spec.SwIfIndex = swIfIndex
+	err = d.TagMainInterface(vpp, swIfIndex, d.intf.Spec.InterfaceName)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func NewVirtioDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *VirtioDriver {
-	d := &VirtioDriver{}
-	d.name = NativeDriverVirtio
-	d.conf = conf
-	d.params = params
-	d.spec = spec
-	return d
+func NewVirtioDriver(params *config.VppManagerParams, intf *config.VppManagerInterface) *VirtioDriver {
+	return &VirtioDriver{
+		UplinkDriverData: UplinkDriverData{
+			name:   NativeDriverVirtio,
+			params: params,
+			intf:   intf,
+		},
+	}
 }
