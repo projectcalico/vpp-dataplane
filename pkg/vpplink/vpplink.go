@@ -72,6 +72,9 @@ func getPid(ctx context.Context, conn *vppcore.Connection) *int {
 }
 
 func NewVpp(socket string, logger *logrus.Entry) (*Vpp, error) {
+	vppcore.SetLogger(logger.Logger)
+	vppcore.SetLogLevel(logger.Logger.Level)
+
 	conn, err := govpp.Connect(socket)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot connect to VPP on socket %s", socket)

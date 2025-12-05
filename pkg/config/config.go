@@ -20,21 +20,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	apipb "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 
-	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink/types"
 )
 
@@ -50,9 +42,6 @@ const (
 	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820
 
-	VppConfigFile     = "/etc/vpp/startup.conf"
-	VppConfigExecFile = "/etc/vpp/startup.exec"
-	VppPath           = "/usr/bin/vpp"
 	VppNetnsName      = "calico-vpp-ns"
 	VppSigKillTimeout = 2
 	DefaultEncapSize  = 60 // Used to lower the MTU of the routes to the cluster
@@ -80,44 +69,11 @@ const (
 	KeepOriginalPacketAnnotation string = "cni.projectcalico.org/vppKeepOriginalPacket"
 	HashConfigAnnotation         string = "cni.projectcalico.org/vppHashConfig"
 	LBTypeAnnotation             string = "cni.projectcalico.org/vppLBType"
+
+	DefaultVRFIndex = uint32(0)
+	PuntTableID     = uint32(1)
+	PodVRFIndex     = uint32(2)
 )
-
-type BGPServerModeType string
-
-const (
-	BGPServerModeDualStack BGPServerModeType = "dualStack"
-	BGPServerModeV4Only    BGPServerModeType = "v4Only"
-)
-
-// IPFamilyConfig declares which IP families are expected to be present on an uplink interface.
-type IPFamilyConfig string
-
-const (
-	// IPFamilyV4 requires an IPv4 address on the uplink.
-	IPFamilyV4 IPFamilyConfig = "IPv4"
-	// IPFamilyV6 requires an IPv6 address on the uplink.
-	IPFamilyV6 IPFamilyConfig = "IPv6"
-	// IPFamilyDualStack requires both an IPv4 and an IPv6 address on the uplink.
-	IPFamilyDualStack IPFamilyConfig = "IPv4,IPv6"
-)
-
-func (f IPFamilyConfig) RequiresV4() bool {
-	return f == IPFamilyV4 || f == IPFamilyDualStack
-}
-
-func (f IPFamilyConfig) RequiresV6() bool {
-	return f == IPFamilyV6 || f == IPFamilyDualStack
-}
-
-func (f IPFamilyConfig) Validate() error {
-	switch f {
-	case IPFamilyV4, IPFamilyV6, IPFamilyDualStack, "":
-		return nil
-	default:
-		return errors.Errorf("invalid ipFamilies value %q: must be %q, %q, or %q",
-			f, IPFamilyV4, IPFamilyV6, IPFamilyDualStack)
-	}
-}
 
 var (
 	CniServerStateFilename = fmt.Sprintf(
@@ -127,6 +83,9 @@ var (
 	// fake constants for place where we need a pointer to true or false
 	True  = true
 	False = false
+
+	// maxCoreFiles sets the maximum number of corefiles to keep and deletes older ones
+	DefaultMaxCoreFiles = 2
 
 	NodeName      = RequiredStringEnvVar("NODENAME")
 	LogLevel      = EnvVar("CALICOVPP_LOG_LEVEL", logrus.InfoLevel, logrus.ParseLevel)
@@ -148,21 +107,16 @@ var (
 	/* linux name of the uplink interface to be used by VPP */
 	InterfaceVar = StringEnvVar("CALICOVPP_INTERFACE", "")
 	/* Driver to consume the uplink with. Leave empty for autoconf */
-	NativeDriver = StringEnvVar("CALICOVPP_NATIVE_DRIVER", "")
-	SwapDriver   = StringEnvVar("CALICOVPP_SWAP_DRIVER", "")
+	NativeDriverEnvVar = StringEnvVar("CALICOVPP_NATIVE_DRIVER", "")
+	SwapDriverEnvVar   = StringEnvVar("CALICOVPP_SWAP_DRIVER", "")
 
 	/* Template for VppConfigFile (/etc/vpp/startup.conf)
 	   It contains the VPP startup configuration */
-	ConfigTemplate = RequiredStringEnvVar("CALICOVPP_CONFIG_TEMPLATE")
+	ConfigTemplateEnvVar = RequiredStringEnvVar("CALICOVPP_CONFIG_TEMPLATE")
 
 	/* Template for VppConfigExecFile (/etc/vpp/startup.exec)
 	   It contains the CLI to be executed in vppctl after startup */
-	ConfigExecTemplate = StringEnvVar("CALICOVPP_CONFIG_EXEC_TEMPLATE", "")
-
-	// Default hook script embedded at compile time for backward compatibility.
-	// This is the legacy bash script used when CALICOVPP_ENABLE_NETWORK_MANAGER_HOOK=false
-	//go:embed default_hook.sh
-	DefaultHookScript string
+	ConfigExecTemplateEnvVar = StringEnvVar("CALICOVPP_CONFIG_EXEC_TEMPLATE", "")
 
 	/* Enable/disable the native Go NetworkManagerHook implementation.
 	 * - true (default):  Native Go hooks execute (unless overridden by user scripts below)
@@ -189,11 +143,6 @@ var (
 	/* Bash script template run when VPP stops with an error */
 	HookScriptVppErrored = StringEnvVar("CALICOVPP_HOOK_VPP_ERRORED", "")
 
-	Info = &VppManagerInfo{
-		UplinkStatuses: make(map[string]UplinkStatus),
-		PhysicalNets:   make(map[string]PhysicalNetwork),
-	}
-
 	// VppsideTap0Address is the IP address we add to the tap0
 	// so that it can receive ipv4 packets
 	VppsideTap0Address = PrefixEnvVar(
@@ -202,144 +151,12 @@ var (
 	)
 )
 
-/* RunHook() executes a bash script at a specific hook point.
- * Used for both user-provided scripts and the embedded default_hook.sh fallback. */
-func RunHook(hookScript *string, hookName string, params *VppManagerParams, log *logrus.Logger) {
-	if *hookScript == "" {
-		return
-	}
-	template, err := TemplateScriptReplace(*hookScript, params, nil)
-	if err != nil {
-		log.Warnf("Running hook %s errored with %s", hookName, err)
-		return
-	}
-
-	cmd := exec.Command("/bin/bash", "-c", template, hookName, params.UplinksSpecs[0].InterfaceName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
-	if err != nil {
-		log.Warnf("Running hook %s errored with %s", hookName, err)
-		return
-	}
-}
-
 func GetCalicoVppDebug() *CalicoVppDebugConfigType                 { return *CalicoVppDebug }
 func GetCalicoVppInterfaces() *CalicoVppInterfacesConfigType       { return *CalicoVppInterfaces }
 func GetCalicoVppFeatureGates() *CalicoVppFeatureGatesConfigType   { return *CalicoVppFeatureGates }
 func GetCalicoVppIpsec() *CalicoVppIpsecConfigType                 { return *CalicoVppIpsec }
 func GetCalicoVppSrv6() *CalicoVppSrv6ConfigType                   { return *CalicoVppSrv6 }
 func GetCalicoVppInitialConfig() *CalicoVppInitialConfigConfigType { return *CalicoVppInitialConfig }
-
-type InterfaceSpec struct {
-	NumRxQueues int   `json:"rx"`
-	NumTxQueues int   `json:"tx"`
-	RxQueueSize int   `json:"rxqsz"`
-	TxQueueSize int   `json:"txqsz"`
-	IsL3        *bool `json:"isl3"`
-	/* "interrupt" "adaptive" or "polling" mode */
-	RxMode types.RxMode `json:"rxMode"`
-}
-
-func (i *InterfaceSpec) GetIsL3(isMemif bool) bool {
-	if i.IsL3 != nil {
-		return *i.IsL3
-	}
-	return !isMemif //default value is true for tuntap and false for memif
-}
-
-func (i *InterfaceSpec) GetBuffersNeeded() uint64 {
-	return uint64(i.NumRxQueues*i.RxQueueSize + i.NumTxQueues*i.TxQueueSize)
-}
-
-func (i *InterfaceSpec) String() string {
-	b, _ := json.MarshalIndent(i, "", "  ")
-	return string(b)
-}
-
-func (i *InterfaceSpec) GetRxModeWithDefault(defaultRxMode types.RxMode) types.RxMode {
-	if i.RxMode == types.UnknownRxMode {
-		return defaultRxMode
-	}
-	return i.RxMode
-}
-
-func (i *InterfaceSpec) Validate(maxIfSpec *InterfaceSpec) error {
-	if i == nil {
-		return nil // we allow to call (nil).Validate()
-	}
-	if i.NumRxQueues == 0 {
-		i.NumRxQueues = 1
-	}
-	if i.NumTxQueues == 0 {
-		i.NumTxQueues = 1
-	}
-	if i.RxQueueSize == 0 {
-		i.RxQueueSize = 1024
-	}
-	if i.TxQueueSize == 0 {
-		i.TxQueueSize = 1024
-	}
-	if maxIfSpec == nil {
-		return nil
-	}
-	if (i.NumRxQueues > maxIfSpec.NumRxQueues && maxIfSpec.NumRxQueues > 0) ||
-		(i.NumTxQueues > maxIfSpec.NumTxQueues && maxIfSpec.NumTxQueues > 0) ||
-		(i.RxQueueSize > maxIfSpec.RxQueueSize && maxIfSpec.RxQueueSize > 0) ||
-		(i.TxQueueSize > maxIfSpec.TxQueueSize && maxIfSpec.TxQueueSize > 0) {
-		return errors.Errorf("interface config %+v exceeds max config: %+v", *i, maxIfSpec)
-	}
-	return nil
-}
-
-type UplinkInterfaceSpec struct {
-	InterfaceSpec
-	IsMain              bool              `json:"isMain"`
-	PhysicalNetworkName string            `json:"physicalNetworkName"`
-	InterfaceName       string            `json:"interfaceName"`
-	VppDriver           string            `json:"vppDriver"`
-	NewDriverName       string            `json:"newDriver"`
-	Annotations         map[string]string `json:"annotations"`
-	// IPFamilies declares which IP families are expected on this uplink.
-	// Accepted values: "IPv4", "IPv6", "IPv4,IPv6". Defaults to "IPv4,IPv6".
-	// This ensures the expected addresses are present and avoids a race condition
-	// between DHCPv6 address assignment and VPP startup.
-	IPFamilies IPFamilyConfig `json:"ipFamilies,omitempty"`
-	// Mtu is the User specified MTU for uplink & the tap
-	Mtu       int    `json:"mtu"`
-	SwIfIndex uint32 `json:"-"`
-
-	// uplinkInterfaceIndex is the index of the uplinkInterface in the list
-	uplinkInterfaceIndex int `json:"-"`
-}
-
-func (u *UplinkInterfaceSpec) GetVppSideHardwareAddress() net.HardwareAddr {
-	mac, _ := net.ParseMAC(BaseVppSideHardwareAddress)
-	mac[len(mac)-1] = byte(u.uplinkInterfaceIndex)
-	if u.uplinkInterfaceIndex > 255 {
-		panic("too many uplinkinteraces")
-	}
-	return mac
-}
-
-func (u *UplinkInterfaceSpec) SetUplinkInterfaceIndex(uplinkInterfaceIndex int) {
-	u.uplinkInterfaceIndex = uplinkInterfaceIndex
-}
-
-func (u *UplinkInterfaceSpec) Validate(maxIfSpec *InterfaceSpec) (err error) {
-	if !u.IsMain && u.VppDriver == "" {
-		return errors.Errorf("vpp driver should be specified for secondary uplink interfaces")
-	}
-	if err = u.IPFamilies.Validate(); err != nil {
-		return err
-	}
-	return u.InterfaceSpec.Validate(maxIfSpec)
-}
-
-func (u *UplinkInterfaceSpec) String() string {
-	b, _ := json.MarshalIndent(u, "", "  ")
-	return string(b)
-}
 
 type RedirectToHostRulesConfigType struct {
 	Port uint16 `json:"port,omitempty"`
@@ -502,8 +319,7 @@ type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	VppStartupSleepSeconds int `json:"vppStartupSleepSeconds"`
 	// CorePattern is the pattern to use for VPP corefiles.
 	// Usually "/var/lib/vpp/vppcore.%e.%p"
-	CorePattern      string `json:"corePattern"`
-	IfConfigSavePath string `json:"ifConfigSavePath"`
+	CorePattern string `json:"corePattern"`
 	// DefaultGWs Comma separated list of IPs to be
 	// configured in VPP as default GW
 	DefaultGWs string `json:"defaultGWs"`
@@ -586,531 +402,4 @@ func (cfg *CalicoVppInitialConfigConfigType) GetDefaultGWs() (gws []net.IP, err 
 func (cfg *CalicoVppInitialConfigConfigType) String() string {
 	b, _ := json.MarshalIndent(cfg, "", "  ")
 	return string(b)
-}
-
-// LoadConfig loads the calico-vpp-agent configuration from the environment
-func loadConfig(log *logrus.Logger, doLogOutput bool) (err error) {
-	errs := ParseAllEnvVars()
-	if len(errs) > 0 {
-		return fmt.Errorf("environment parsing errors : %s", errs)
-	}
-
-	log.SetLevel(*LogLevel)
-	if *LogFormat == "pretty" {
-		formatter := &logrus.TextFormatter{
-			DisableTimestamp: true,
-			ForceColors:      true,
-		}
-		log.SetFormatter(formatter)
-		logrus.SetFormatter(formatter)
-	}
-
-	if doLogOutput {
-		PrintAgentConfig(log)
-
-		for _, e := range os.Environ() {
-			pair := strings.SplitN(e, "=", 2)
-			if strings.Contains(pair[0], "CALICOVPP_") {
-				if !isEnvVarSupported(pair[0]) {
-					log.Warnf("Environment variable %s is not supported", pair[0])
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func LoadConfig(log *logrus.Logger) (err error) {
-	return loadConfig(log, true /*  doLogOutput */)
-}
-
-func LoadConfigSilent(log *logrus.Logger) (err error) {
-	return loadConfig(log, false /*  doLogOutput */)
-}
-
-const (
-	DriverUioPciGeneric = "uio_pci_generic"
-	DriverVfioPci       = "vfio-pci"
-	DriverVirtioPci     = "virtio-pci"
-	DriverI40E          = "i40e"
-	DriverICE           = "ice"
-	DriverMLX5Core      = "mlx5_core"
-	DriverVmxNet3       = "vmxnet3"
-)
-
-type vppManagerStatus string
-
-const (
-	Ready    vppManagerStatus = "ready"
-	Starting vppManagerStatus = "starting"
-)
-
-type UplinkStatus struct {
-	SwIfIndex           uint32
-	TapSwIfIndex        uint32
-	LinkIndex           int
-	Name                string
-	IsMain              bool
-	Mtu                 int
-	PhysicalNetworkName string
-
-	// FakeNextHopIP4 is the computed next hop for v4 routes added
-	// in linux to (ServiceCIDR, podCIDR, etc...) towards this interface
-	FakeNextHopIP4 net.IP
-	// FakeNextHopIP6 is the computed next hop for v6 routes added
-	// in linux to (ServiceCIDR, podCIDR, etc...) towards this interface
-	FakeNextHopIP6 net.IP
-
-	UplinkAddresses []*net.IPNet
-}
-
-func (uplinkStatus *UplinkStatus) GetAddress(ipFamily vpplink.IPFamily) *net.IPNet {
-	for _, addr := range uplinkStatus.UplinkAddresses {
-		if vpplink.IPFamilyFromIPNet(addr) == ipFamily {
-			return addr
-		}
-	}
-	return nil
-}
-
-type PhysicalNetwork struct {
-	VrfID    uint32
-	PodVrfID uint32
-}
-
-type VppManagerInfo struct {
-	Status         vppManagerStatus
-	UplinkStatuses map[string]UplinkStatus
-	PhysicalNets   map[string]PhysicalNetwork
-}
-
-func (i *VppManagerInfo) GetMainSwIfIndex() uint32 {
-	for _, u := range i.UplinkStatuses {
-		if u.IsMain {
-			return u.SwIfIndex
-		}
-	}
-	return vpplink.InvalidSwIfIndex
-}
-
-// UnsafeNoIommuMode represents the content of the /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
-// file. The 'disabled' value is used when no iommu is available in the environment.
-type UnsafeNoIommuMode string
-
-const (
-	VfioUnsafeNoIommuModeYES      UnsafeNoIommuMode = "Y"
-	VfioUnsafeNoIommuModeNO       UnsafeNoIommuMode = "N"
-	VfioUnsafeNoIommuModeDISABLED UnsafeNoIommuMode = "disabled"
-)
-
-type VppManagerParams struct {
-	UplinksSpecs []UplinkInterfaceSpec
-	/* Capabilities */
-	LoadedDrivers                      map[string]bool
-	KernelVersion                      *KernelVersion
-	AvailableHugePages                 int
-	InitialVfioEnableUnsafeNoIommuMode UnsafeNoIommuMode
-
-	NodeAnnotations map[string]string
-}
-
-type KernelVersion struct {
-	Kernel int
-	Major  int
-	Minor  int
-	Patch  int
-}
-
-func (ver *KernelVersion) String() string {
-	return fmt.Sprintf("%d.%d.%d-%d", ver.Kernel, ver.Major, ver.Minor, ver.Patch)
-}
-
-func (ver *KernelVersion) IsAtLeast(other *KernelVersion) bool {
-	if ver.Kernel < other.Kernel {
-		return false
-	}
-	if ver.Major < other.Major {
-		return false
-	}
-	if ver.Minor < other.Minor {
-		return false
-	}
-	if ver.Patch < other.Patch {
-		return false
-	}
-	return true
-}
-
-type LinuxInterfaceState struct {
-	PciID  string
-	Driver string
-	IsUp   bool
-	// addresses is the list of addresses present
-	// on the netlink interface when the CNI starts up
-	// keep in mind that addresses will contain the ipv6
-	// link local of the old phy. Which might be different
-	// from IPv6LinkLocal
-	addresses []netlink.Addr
-	// routes is the list of routes present on the netlink
-	// interface when the CNI starts up
-	routes        []netlink.Route
-	Neighbors     []netlink.Neigh
-	HardwareAddr  net.HardwareAddr
-	PromiscOn     bool
-	NumTxQueues   int
-	NumRxQueues   int
-	DoSwapDriver  bool
-	Mtu           int
-	InterfaceName string
-	IsTunTap      bool
-	IsVeth        bool
-	// TapSwIfIndex is the sw_if_index of the tap interface
-	// created in VPP for this interface
-	TapSwIfIndex uint32
-}
-
-func bindPCIDevicesToKernel() error {
-	drivers := []string{"igb_uio", "uio_pci_generic", "vfio-pci"}
-	removed := false
-
-	for _, driver := range drivers {
-		pattern := filepath.Join("/sys/bus/pci/drivers", driver, "*")
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			return err
-		}
-
-		for _, f := range matches {
-			configPath := filepath.Join(f, "config")
-
-			// Skip if config does not exist
-			if _, err := os.Stat(configPath); err != nil {
-				continue
-			}
-
-			// Check if config file is in use via fuser
-			cmd := exec.Command("fuser", "-s", configPath)
-			if err := cmd.Run(); err == nil {
-				// fuser found a user, skip
-				continue
-			}
-
-			// Write "1" to remove file
-			removePath := filepath.Join(f, "remove")
-			if err := os.WriteFile(removePath, []byte("1"), 0200); err != nil {
-				return err
-			}
-
-			removed = true
-		}
-	}
-
-	// If any device was removed, rescan PCI bus
-	if removed {
-		if err := os.WriteFile("/sys/bus/pci/rescan", []byte("1"), 0200); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func LoadInterfaceConfigFromLinux(interfaceName string, ipFamilies IPFamilyConfig) (*LinuxInterfaceState, error) {
-	conf := LinuxInterfaceState{
-		TapSwIfIndex: ^uint32(0), // in case we forget to set it
-	}
-	link, err := netlink.LinkByName(interfaceName)
-	if err != nil {
-		// attempt binding PCI devices to kernel
-		bindErr := bindPCIDevicesToKernel()
-		if bindErr != nil {
-			return nil, errors.Wrapf(err, "cannot find interface named %s, cannot bind pci devices to kernel: %v", interfaceName, bindErr)
-		}
-		link, err = netlink.LinkByName(interfaceName)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot find interface named %s after binding devices to kernel", interfaceName)
-		}
-	}
-	conf.IsUp = (link.Attrs().Flags & net.FlagUp) != 0
-	if conf.IsUp {
-		// Grab addresses and routes
-		conf.addresses, err = netlink.AddrList(link, netlink.FAMILY_ALL)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list %s addresses", interfaceName)
-		}
-
-		conf.routes, err = netlink.RouteList(link, netlink.FAMILY_ALL)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list %s routes", interfaceName)
-		}
-		conf.sortRoutes()
-	}
-	conf.HardwareAddr = link.Attrs().HardwareAddr
-	if !conf.HasNodeIP4() && !conf.HasNodeIP6() {
-		return nil, errors.Errorf("no address found for node")
-	}
-
-	if ipFamilies.RequiresV4() && !conf.HasNodeIP4() {
-		return nil, errors.Errorf("interface %s has no IPv4 address but ipFamilies=%q requires one",
-			interfaceName, ipFamilies)
-	}
-	if ipFamilies.RequiresV6() && !conf.HasNodeIP6() {
-		return nil, errors.Errorf("interface %s has no IPv6 address but ipFamilies=%q requires one",
-			interfaceName, ipFamilies)
-	}
-	conf.DoSwapDriver = false
-	conf.PromiscOn = link.Attrs().Promisc == 1
-	conf.NumTxQueues = link.Attrs().NumTxQueues
-	conf.NumRxQueues = link.Attrs().NumRxQueues
-	conf.Mtu = link.Attrs().MTU
-	_, conf.IsTunTap = link.(*netlink.Tuntap)
-	_, conf.IsVeth = link.(*netlink.Veth)
-	conf.InterfaceName = interfaceName
-
-	return &conf, nil
-}
-
-func (c *LinuxInterfaceState) AddressString() string {
-	var str []string
-	for _, addr := range c.addresses {
-		str = append(str, addr.String())
-	}
-	return strings.Join(str, ",")
-}
-
-func (c *LinuxInterfaceState) HasNodeIP6() bool {
-	return c.getNodeIP(true /* isIP6 */) != nil
-}
-
-func (c *LinuxInterfaceState) HasNodeIP4() bool {
-	return c.getNodeIP(false /* isIP6 */) != nil
-}
-
-// getUplinkAddressWithMask adapts IPv6 non-link-local host prefixes from /128
-// to /64 when TranslateUplinkAddrMaskTo64 is enabled.
-func getUplinkAddressWithMask(addr *net.IPNet) *net.IPNet {
-	if addr == nil || addr.IP == nil || addr.IP.To4() != nil || addr.IP.IsLinkLocalUnicast() {
-		return addr
-	}
-	debugCfg := GetCalicoVppDebug()
-	if debugCfg == nil || debugCfg.TranslateUplinkAddrMaskTo64 == nil || !*debugCfg.TranslateUplinkAddrMaskTo64 {
-		return addr
-	}
-	ones, bits := addr.Mask.Size()
-	if bits != 128 || ones != 128 {
-		return addr
-	}
-	return &net.IPNet{
-		IP:   addr.IP,
-		Mask: net.CIDRMask(64, 128),
-	}
-}
-
-func (c *LinuxInterfaceState) getAddresses(translateMask bool) []netlink.Addr {
-	ret := make([]netlink.Addr, 0, len(c.addresses))
-	for _, addr := range c.addresses {
-		if addr.IP.IsLinkLocalUnicast() && isV6Cidr(addr.IPNet) {
-			continue
-		}
-		if translateMask {
-			addr.IPNet = getUplinkAddressWithMask(addr.IPNet)
-		}
-		ret = append(ret, addr)
-	}
-	return ret
-}
-
-// GetAddressesNoMaskTranslation returns non-link-local addresses exactly as
-// discovered on Linux, without IPv6 /128 -> /64 adjustment.
-func (c *LinuxInterfaceState) GetAddressesNoMaskTranslation() []netlink.Addr {
-	return c.getAddresses(false /* translateMask */)
-}
-
-// GetAddresses returns non-link-local addresses, applying optional IPv6
-// /128 -> /64 translation for non-link-local addresses.
-func (c *LinuxInterfaceState) GetAddresses() []netlink.Addr {
-	return c.getAddresses(true /* translateMask */)
-}
-
-func (c *LinuxInterfaceState) GetIPv6LinkLocal() *netlink.Addr {
-	for _, addr := range c.addresses {
-		if addr.IP.IsLinkLocalUnicast() && isV6Cidr(addr.IPNet) {
-			return &addr
-		}
-	}
-	return nil
-}
-
-func (c *LinuxInterfaceState) GetRoutes() []netlink.Route {
-	ret := make([]netlink.Route, 0)
-	for _, route := range c.routes {
-		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() && isV6Cidr(route.Dst) {
-			continue
-		}
-		ret = append(ret, route)
-	}
-	return ret
-}
-
-func (c *LinuxInterfaceState) getNodeIPs() (ip4, ip6 *net.IPNet) {
-	for _, addr := range c.addresses {
-		if addr.IP.IsLinkLocalUnicast() && isV6Cidr(addr.IPNet) {
-			continue
-		}
-		if vpplink.IsIP6(addr.IP) {
-			if ip6 == nil {
-				ip6 = getUplinkAddressWithMask(addr.IPNet)
-			}
-		} else if ip4 == nil {
-			ip4 = addr.IPNet
-		}
-		if ip4 != nil && ip6 != nil {
-			break
-		}
-	}
-	return ip4, ip6
-}
-
-func (c *LinuxInterfaceState) getNodeIP(isIP6 bool) *net.IPNet {
-	ip4, ip6 := c.getNodeIPs()
-	if isIP6 {
-		return ip6
-	}
-	return ip4
-}
-
-func (c *LinuxInterfaceState) GetNodeIP6() string {
-	if i := c.getNodeIP(true /* isIP6 */); i != nil {
-		return i.String()
-	}
-	return ""
-}
-
-func (c *LinuxInterfaceState) GetNodeIP4() string {
-	if i := c.getNodeIP(false /* isIP6 */); i != nil {
-		return i.String()
-	}
-	return ""
-}
-
-func (c *LinuxInterfaceState) GetAddressesAsIPNet() []*net.IPNet {
-	ret := make([]*net.IPNet, 0)
-	for _, addr := range c.GetAddresses() {
-		ret = append(ret, addr.IPNet)
-	}
-	return ret
-}
-
-func (c *LinuxInterfaceState) HasAddr(addr net.IP) bool {
-	for _, a := range c.addresses {
-		if addr.Equal(a.IP) {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *LinuxInterfaceState) RouteString() string {
-	var str []string
-	for _, route := range c.GetRoutes() {
-		if route.Dst == nil {
-			str = append(str, fmt.Sprintf("<Dst: nil (default), Ifindex: %d", route.LinkIndex))
-			if route.Gw != nil {
-				str = append(str, fmt.Sprintf("Gw: %s", route.Gw.String()))
-			}
-			if route.Src != nil {
-				str = append(str, fmt.Sprintf("Src: %s", route.Src.String()))
-			}
-			str = append(str, ">")
-		} else {
-			str = append(str, route.String())
-		}
-	}
-	return strings.Join(str, ", ")
-}
-
-// sortRoutes sorts the route slice by dependency order, so we can then add them
-// in the order of the slice without issues
-func (c *LinuxInterfaceState) sortRoutes() {
-	sort.SliceStable(c.routes, func(i, j int) bool {
-		// Directly connected routes go first
-		if c.routes[i].Gw == nil {
-			return true
-		} else if c.routes[j].Gw == nil {
-			return false
-		}
-		// Default routes go last
-		if c.routes[i].Dst == nil {
-			return false
-		} else if c.routes[j].Dst == nil {
-			return true
-		}
-		// Finally sort by decreasing prefix length
-		iLen, _ := c.routes[i].Dst.Mask.Size()
-		jLen, _ := c.routes[j].Dst.Mask.Size()
-		return iLen > jLen
-	})
-}
-
-func getCpusetCPU() (string, error) {
-	content, err := os.ReadFile("/sys/fs/cgroup/cpuset.cpus")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", err
-	}
-	cpusetCPU := strings.TrimSpace(string(content))
-
-	if len(cpusetCPU) == 0 {
-		return "", nil
-	}
-	return regexp.MustCompile("[,-]").Split(cpusetCPU, 2)[0], nil
-}
-
-func TemplateScriptReplace(input string, params *VppManagerParams, conf []*LinuxInterfaceState) (template string, err error) {
-	template = input
-	if conf != nil {
-		/* We might template scripts before reading interface conf */
-		template = strings.ReplaceAll(template, "__PCI_DEVICE_ID__", conf[0].PciID)
-		for i, ifcConf := range conf {
-			template = strings.ReplaceAll(template, "__PCI_DEVICE_ID_"+strconv.Itoa(i)+"__", ifcConf.PciID)
-		}
-	}
-	vppcpu, err := getCpusetCPU()
-	if err != nil {
-		return "", err
-	}
-	template = strings.ReplaceAll(template, "__CPUSET_CPUS_FIRST__", vppcpu)
-	template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF__", params.UplinksSpecs[0].InterfaceName)
-	for i, ifc := range params.UplinksSpecs {
-		template = strings.ReplaceAll(template, "__VPP_DATAPLANE_IF_"+fmt.Sprintf("%d", i)+"__", ifc.InterfaceName)
-	}
-	for key, value := range params.NodeAnnotations {
-		template = strings.ReplaceAll(template, fmt.Sprintf("__NODE_ANNOTATION:%s__", key), value)
-	}
-	return template, nil
-}
-
-func PrintAgentConfig(log *logrus.Logger) {
-	versionFileStr, err := os.ReadFile(CalicoVppVersionFile)
-	if err != nil {
-		log.Infof("No version file present %s", CalicoVppVersionFile)
-	} else {
-		log.Infof("Version info\n%s", versionFileStr)
-	}
-	PrintEnvVarConfig(log)
-}
-
-func DefaultToPtr[T any](ptr *T, defaultV T) *T {
-	if ptr == nil {
-		return &defaultV
-	}
-	return ptr
-}
-
-func isV6Cidr(cidr *net.IPNet) bool {
-	_, bits := cidr.Mask.Size()
-	return bits == 128
 }

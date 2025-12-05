@@ -256,7 +256,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				testutils.AssertInterfaceGSOCNat(ipipSwIfIndex, "IPSec's IPIP tunnel interface", vpp)
 
 				By("checking route for IPSec's IPIP tunnel from pod VRF")
-				routes, err := vpp.GetRoutes(common.PodVRFIndex, false)
+				routes, err := vpp.GetRoutes(agentConf.PodVRFIndex, false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for Pod VRF")
 				Expect(routes).To(ContainElements(
 					// when IPIP is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
@@ -383,7 +383,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(interfaceDetails.IsUp).To(BeTrue(), "VXLAN tunnel interface should be in UP state")
 
 				By("checking 2 routes")
-				routes, err := vpp.GetRoutes(common.PodVRFIndex, false)
+				routes, err := vpp.GetRoutes(agentConf.PodVRFIndex, false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for Pod VRF")
 				Expect(routes).To(ContainElements(
 					// when VXLAN is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
@@ -393,7 +393,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 							"SwIfIndex": Equal(vxlanSwIfIndex),
 						})),
 					})))
-				routes, err = vpp.GetRoutes(common.DefaultVRFIndex, false)
+				routes, err = vpp.GetRoutes(agentConf.DefaultVRFIndex, false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for default VRF")
 				Expect(routes).To(ContainElements(
 					// steering route for NodeConnectivity.Dst using vxlan that is leading to the added node
@@ -476,7 +476,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(interfaceDetails.IsUp).To(BeTrue(), "IPIP tunnel interface should be in UP state")
 
 				By("checking 2 routes")
-				routes, err := vpp.GetRoutes(common.PodVRFIndex, false)
+				routes, err := vpp.GetRoutes(agentConf.PodVRFIndex, false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for Pod VRF")
 				Expect(routes).To(ContainElements(
 					// when IPIP is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
@@ -486,7 +486,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 							"SwIfIndex": Equal(ipipSwIfIndex),
 						})),
 					})))
-				routes, err = vpp.GetRoutes(common.DefaultVRFIndex, false)
+				routes, err = vpp.GetRoutes(agentConf.DefaultVRFIndex, false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for default VRF")
 				Expect(routes).To(ContainElements(
 					// steering route for NodeConnectivity.Dst using ipip that is leading to the added node
@@ -621,7 +621,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				)))
 
 				By("checking wireguard routes to tunnel")
-				routes, err := vpp.GetRoutes(common.PodVRFIndex, false)
+				routes, err := vpp.GetRoutes(agentConf.PodVRFIndex, false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for Pod VRF")
 				Expect(routes).To(ContainElements(
 					// when wireguard is created it makes steering route with for NextHop/<max CIRD mask length> from Pod VRF
@@ -631,7 +631,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 							"SwIfIndex": Or(Equal(wireguardSwIfIndex), Equal(wireguardSwIfIndex2)),
 						})),
 					})))
-				routes, err = vpp.GetRoutes(common.DefaultVRFIndex, false)
+				routes, err = vpp.GetRoutes(agentConf.DefaultVRFIndex, false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get routes from VPP for default VRF")
 				Expect(routes).To(ContainElements(
 					// steering route for NodeConnectivity.Dst using wireguard tunnel that is leading to the added node

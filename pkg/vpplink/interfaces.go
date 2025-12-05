@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"go.fd.io/govpp/api"
 
 	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink/generated/bindings/gso"
 	interfaces "github.com/projectcalico/vpp-dataplane/v3/pkg/vpplink/generated/bindings/interface"
@@ -175,10 +174,7 @@ func (v *VppLink) CreateTapV2(tap *types.TapV2) (uint32, error) {
 	}
 	response, err := client.TapCreateV3(v.GetContext(), request)
 	if err != nil {
-		if err == api.SYSCALL_ERROR_2 {
-			return InvalidSwIfIndex, nil
-		}
-		return 0, fmt.Errorf("failed to create tap: %w", err)
+		return InvalidSwIfIndex, fmt.Errorf("failed to create tap: %w", err)
 	}
 
 	return uint32(response.SwIfIndex), err

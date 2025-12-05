@@ -207,7 +207,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 					SwIfIndex: swIfIndex,
 					Gw:        nil,
 				}},
-				Table: common.PodVRFIndex,
+				Table: config.PodVRFIndex,
 			})
 			if err != nil {
 				// TODO : delete tunnel
@@ -319,7 +319,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 					SwIfIndex: tunnel.SwIfIndex,
 					Gw:        nil,
 				}},
-				Table: common.PodVRFIndex,
+				Table: config.PodVRFIndex,
 			})
 			if err != nil {
 				p.log.Errorf("Error deleting vxlan route dst=%s via tunnel swIfIndex=%d %s", cn.NextHop.String(), tunnel.SwIfIndex, err)

@@ -209,7 +209,7 @@ func (p *IpsecProvider) createIPSECTunnel(tunnel *IpsecTunnel, psk string, stack
 			SwIfIndex: swIfIndex,
 			Gw:        nil,
 		}},
-		Table: common.PodVRFIndex,
+		Table: config.PodVRFIndex,
 	}
 	err = p.vpp.RouteAdd(route)
 	if err != nil {

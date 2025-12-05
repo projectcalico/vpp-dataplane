@@ -16,9 +16,33 @@
 package main
 
 import (
+	"context"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/projectcalico/vpp-dataplane/v3/pkg/config"
 	vppmanager "github.com/projectcalico/vpp-dataplane/v3/pkg/vpp-manager"
+	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpp-manager/params"
+	"github.com/projectcalico/vpp-dataplane/v3/pkg/vpp-manager/uplink"
 )
 
 func main() {
-	vppmanager.Run()
+	log := logrus.New()
+	err := config.LoadConfig(log)
+	if err != nil {
+		log.WithError(err).Panic("Error loading configuration")
+	}
+	params := params.NewVppManagerParams()
+	for _, intf := range params.Interfaces {
+		intf.Driver = uplink.NewUplinkDriver(intf.Spec.VppDriver, params, intf, log.WithFields(logrus.Fields{
+			"subcomponent": "uplinkdriver",
+		}))
+	}
+	runner := vppmanager.NewVPPRunner(params, log.WithFields(logrus.Fields{
+		"subcomponent": "vppmgm",
+	}))
+	err = runner.Run(context.Background(), make(chan bool))
+	if err != nil {
+		log.Errorf("VPP run failed with %v", err)
+	}
 }

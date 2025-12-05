@@ -13,24 +13,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package config
 
 import (
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
-	"testing"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-
-func TestCleanupCoreFiles(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "vpp-manager utils tests")
-}
 
 var _ = Describe("Test CleanupCoreFiles", func() {
 	It("TestIncrementDecrement", func() {
@@ -84,12 +80,14 @@ var _ = Describe("Test CleanupCoreFiles", func() {
 // then call CleanupCoreFiles() with maxCoreFiles=0
 // and assert no file remain
 var _ = Describe("Test CleanupCoreFiles", func() {
+	log := logrus.New().WithFields(logrus.Fields{"subcomponent": "tests"})
 	It("Call CleanupCoreFiles with empty string", func() {
-		err := CleanupCoreFiles("", 2 /* maxCorefiles */)
+		err := CleanupCoreFiles(log, "", 2 /* maxCoreFiles */)
 		Expect(err).ToNot(HaveOccurred(), "Error calling CleanupCoreFiles")
 	})
 
 	It("Call CleanupCoreFiles with empty string", func() {
+
 		dir, err := os.MkdirTemp("", "TestCleanupCoreFiles")
 		Expect(err).ToNot(HaveOccurred(), "Error MkdirTemp")
 		for i := 0; i < 4; i++ {
@@ -100,7 +98,7 @@ var _ = Describe("Test CleanupCoreFiles", func() {
 		err = os.WriteFile(filepath.Join(dir, "notvppcore"), []byte("data"), 0666)
 		Expect(err).ToNot(HaveOccurred(), "Error Writing file")
 
-		err = CleanupCoreFiles(filepath.Join(dir, "vppcore.%e.%p"), 2 /* maxCorefiles */)
+		err = CleanupCoreFiles(log, filepath.Join(dir, "vppcore.%e.%p"), 2 /* maxCoreFiles */)
 		Expect(err).ToNot(HaveOccurred(), "Error calling CleanupCoreFiles")
 
 		for i := 0; i < 2; i++ {
@@ -114,7 +112,7 @@ var _ = Describe("Test CleanupCoreFiles", func() {
 		_, err = os.Stat(filepath.Join(dir, "notvppcore"))
 		Expect(err).ToNot(HaveOccurred(), "notvppcore not found")
 
-		err = CleanupCoreFiles(filepath.Join(dir, "vppcore.%e.%p"), 0 /* maxCorefiles */)
+		err = CleanupCoreFiles(log, filepath.Join(dir, "vppcore.%e.%p"), 0 /* maxCoreFiles */)
 		Expect(err).ToNot(HaveOccurred(), "Error calling CleanupCoreFiles")
 
 		_, err = os.Stat(filepath.Join(dir, "notvppcore"))

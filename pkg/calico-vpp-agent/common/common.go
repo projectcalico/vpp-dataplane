@@ -46,12 +46,6 @@ var (
 	VppManagerInfo             *config.VppManagerInfo
 )
 
-const (
-	DefaultVRFIndex = uint32(0)
-	PuntTableID     = uint32(1)
-	PodVRFIndex     = uint32(2)
-)
-
 type FelixServerIpam interface {
 	IPNetNeedsSNAT(prefix *net.IPNet) bool
 	GetPrefixIPPool(prefix *net.IPNet) *proto.IPAMPool
