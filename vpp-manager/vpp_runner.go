@@ -366,11 +366,14 @@ func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint
 	// IPv6 multicast groups that need to be forwarded from the Linux host
 	multicastGroups := []struct {
 		addr    string
+		prefix  int // CIDR prefix length
 		comment string
 	}{
-		{"ff02::1:2", "DHCPv6 All Relay Agents and Servers (REQUIRED for DHCPv6)"},
-		{"ff02::1", "All Nodes (for NDP)"},
-		{"ff02::2", "All Routers (for NDP/RA)"},
+		{"ff02::1:ff00:0", 104, "Solicited-Node multicast (NDP Neighbor Solicitation targets)"},
+		{"ff02::1", 128, "All Nodes / All Hosts (link-local; used by NDP and others)"},
+		{"ff02::2", 128, "All Routers (routers listen here; NDP RS target)"},
+		{"ff02::16", 128, "All MLDv2-capable routers"},
+		{"ff02::1:2", 128, "DHCPv6 All Relay Agents and Servers"},
 	}
 
 	for _, group := range multicastGroups {
@@ -382,7 +385,7 @@ func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint
 
 		groupNet := &net.IPNet{
 			IP:   groupIP,
-			Mask: net.CIDRMask(128, 128), // /128 - specific group
+			Mask: net.CIDRMask(group.prefix, 128),
 		}
 
 		err := v.vpp.MRouteAddForHostMulticast(vrfID, groupNet, tapSwIfIndex, uplinkSwIfIndex)
