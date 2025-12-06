@@ -64,14 +64,22 @@ const (
 	BaseVppSideHardwareAddress = "02:ca:11:c0:fd:00"
 )
 
+type BGPServerModeType string
+
+const (
+	BGPServerModeDualStack BGPServerModeType = "dualStack"
+	BGPServerModeV4Only    BGPServerModeType = "v4Only"
+)
+
 var (
 	// fake constants for place where we need a pointer to true or false
 	True  = true
 	False = false
 
-	NodeName    = RequiredStringEnvVar("NODENAME")
-	LogLevel    = EnvVar("CALICOVPP_LOG_LEVEL", logrus.InfoLevel, logrus.ParseLevel)
-	BGPLogLevel = EnvVar("CALICOVPP_BGP_LOG_LEVEL", apipb.SetLogLevelRequest_INFO, BGPLogLevelParse)
+	NodeName      = RequiredStringEnvVar("NODENAME")
+	LogLevel      = EnvVar("CALICOVPP_LOG_LEVEL", logrus.InfoLevel, logrus.ParseLevel)
+	BGPLogLevel   = EnvVar("CALICOVPP_BGP_LOG_LEVEL", apipb.SetLogLevelRequest_INFO, BGPLogLevelParse)
+	BGPServerMode = EnvVar("CALICOVPP_BGP_SERVER_MODE", BGPServerModeDualStack, BGPServerModeParse)
 
 	ServiceCIDRs                     = PrefixListEnvVar("SERVICE_PREFIX")
 	IPSecIkev2Psk                    = StringEnvVar("CALICOVPP_IPSEC_IKEV2_PSK", "")

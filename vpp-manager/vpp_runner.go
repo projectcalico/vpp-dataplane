@@ -355,6 +355,51 @@ func (v *VppRunner) allocateStaticVRFs() error {
 	return nil
 }
 
+// setupIPv6MulticastForHostTap configures mFIB entries to allow IPv6 multicast traffic
+// from the Linux host to pass through VPP. This is required for DHCPv6, NDP, and other
+// IPv6 protocols that use link-local multicast.
+// Without this configuration, packets arriving from the tap interface fail RPF checks
+// because the tap interface is not in the mFIB accept list.
+func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint32, uplinkSwIfIndex uint32) error {
+	log.Infof("Setting up IPv6 multicast forwarding for host tap in VRF %d", vrfID)
+
+	// IPv6 multicast groups that need to be forwarded from the Linux host
+	multicastGroups := []struct {
+		addr    string
+		prefix  int // CIDR prefix length
+		comment string
+	}{
+		{"ff02::1:ff00:0", 104, "Solicited-Node multicast (NDP Neighbor Solicitation targets)"},
+		{"ff02::1", 128, "All Nodes / All Hosts (link-local; used by NDP and others)"},
+		{"ff02::2", 128, "All Routers (routers listen here; NDP RS target)"},
+		{"ff02::16", 128, "All MLDv2-capable routers"},
+		{"ff02::1:2", 128, "DHCPv6 All Relay Agents and Servers"},
+	}
+
+	for _, group := range multicastGroups {
+		groupIP := net.ParseIP(group.addr)
+		if groupIP == nil {
+			log.Warnf("Invalid multicast address: %s", group.addr)
+			continue
+		}
+
+		groupNet := &net.IPNet{
+			IP:   groupIP,
+			Mask: net.CIDRMask(group.prefix, 128),
+		}
+
+		err := v.vpp.MRouteAddForHostMulticast(vrfID, groupNet, tapSwIfIndex, uplinkSwIfIndex)
+		if err != nil {
+			return errors.Wrapf(err, "cannot add mFIB route for %s (%s) in VRF %d",
+				group.addr, group.comment, vrfID)
+		}
+
+		log.Infof("Added mFIB route for %s (%s) in VRF %d", group.addr, group.comment, vrfID)
+	}
+
+	return nil
+}
+
 // Configure specific VRFs for a given tap to the host to handle broadcast / multicast traffic sent by the host
 func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
 	for _, ipFamily := range vpplink.IPFamilies {
@@ -379,7 +424,16 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 			if err != nil {
 				log.Errorf("cannot add broadcast route in vpp: %v", err)
 			}
-		} // else {} No custom routes for IPv6 for now. Forward LL multicast from the host?
+		} else {
+			// Setup IPv6 multicast forwarding for the host
+			// This is required for DHCPv6 solicitations, NDP, and other link-local multicast
+			// Unlike IPv4, we cannot use a unicast route trick because ff02::/16 is multicast
+			// and must go through mFIB with proper RPF configuration
+			err = v.setupIPv6MulticastForHostTap(vrfID, tapSwIfIndex, ifSpec.SwIfIndex)
+			if err != nil {
+				return []uint32{}, errors.Wrap(err, "Error setting up IPv6 multicast forwarding")
+			}
+		}
 
 		// default route in default table
 		err = v.vpp.AddDefaultRouteViaTable(vrfID, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfID, ipFamily.IsIP6)
@@ -392,25 +446,42 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 			return []uint32{}, errors.Wrapf(err, "error setting vpp tap in vrf %d", vrfID)
 		}
 		vrfs = append(vrfs, vrfID)
+
+		for _, addr := range ifState.Addresses {
+			if vpplink.IPFamilyFromIP(addr.IP) == ipFamily {
+				err = v.vpp.RouteAdd(&types.Route{
+					Table: vrfID,
+					Dst:   common.FullyQualified(addr.IP),
+					Paths: []types.RoutePath{{
+						SwIfIndex: tapSwIfIndex,
+					}},
+				})
+				if err != nil {
+					return []uint32{}, errors.Wrapf(err, "error add route from VPP to tap0 in VRF %d", vrfID)
+				}
+				err = v.vpp.AddNeighbor(&types.Neighbor{
+					SwIfIndex:    tapSwIfIndex,
+					IP:           addr.IP,
+					HardwareAddr: ifState.HardwareAddr,
+					Flags:        types.IPNeighborStatic,
+				})
+				if err != nil {
+					return []uint32{}, errors.Wrapf(err, "error add static neighbor for tap0 in VRF %d", vrfID)
+				}
+			}
+		}
 	}
 
-	// Configure addresses to enable ipv4 & ipv6 on the tap
-	for _, addr := range ifState.Addresses {
-		if addr.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
-			log.Infof("Not adding address %s to data interface (vpp requires /128 link-local)", addr.String())
-			continue
-		} else {
-			log.Infof("Adding address %s to tap interface", addr.String())
-		}
-		// to max len cidr because we don't want the rest of the subnet to be considered as
-		// connected to that interface
-		// note that the role of these addresses is just to tell vpp to accept ip4 / ip6 packets on the tap
-		// we use these addresses as the safest option, because as they are configured on linux, linux
-		// will never send us packets with these addresses as destination
-		err = v.vpp.AddInterfaceAddress(tapSwIfIndex, common.ToMaxLenCIDR(addr.IP))
-		if err != nil {
-			log.Errorf("Error adding address to tap interface: %v", err)
-		}
+	err = v.vpp.EnableInterfaceIP6(tapSwIfIndex)
+	if err != nil {
+		return []uint32{}, errors.Wrapf(err, "error enabling ip6 for tap %d", tapSwIfIndex)
+	}
+
+	// FIXME
+	_, cidr, _ := net.ParseCIDR("169.254.0.1/32")
+	err = v.vpp.AddInterfaceAddress(tapSwIfIndex, cidr)
+	if err != nil {
+		return []uint32{}, errors.Wrapf(err, "error adding ip4 to tap %d", tapSwIfIndex)
 	}
 	return vrfs, nil
 }
