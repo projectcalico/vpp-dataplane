@@ -53,11 +53,11 @@ type LocalService struct {
 }
 
 /**
- * Store VPP's state in a map [CnatTranslateEntry.Key()]->ServiceState
+ * Store VPP's state in a map [CnatTranslateEntry.Key()]->map[serviceId]->cnatEntry
  */
-type ServiceState struct {
-	OwnerServiceID string /* serviceID(service.ObjectMeta) of the service that created this entry */
-	VppID          uint32 /* cnat translation ID in VPP */
+type cnatEntry struct {
+	entry types.CnatTranslateEntry
+	vppID uint32
 }
 
 type Server struct {
@@ -74,7 +74,8 @@ type Server struct {
 	BGPConf     *calicov3.BGPConfigurationSpec
 	nodeBGPSpec *common.LocalNodeSpec
 
-	serviceStateMap map[string]ServiceState
+	// map entry key to a map of service id to entry in vpp
+	cnatEntriesByService map[string]map[string]*cnatEntry
 	// cache of all endpoint slices, by service name
 	endpointSlicesByService map[string]map[string]*discoveryv1.EndpointSlice
 	endpointSlices          map[string]*discoveryv1.EndpointSlice
@@ -156,7 +157,7 @@ func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log
 	server := Server{
 		vpp:                     vpp,
 		log:                     log,
-		serviceStateMap:         make(map[string]ServiceState),
+		cnatEntriesByService:    make(map[string]map[string]*cnatEntry),
 		endpointSlicesByService: make(map[string]map[string]*discoveryv1.EndpointSlice),
 		endpointSlices:          make(map[string]*discoveryv1.EndpointSlice),
 	}
@@ -404,7 +405,7 @@ func (s *Server) getServiceFromStore(key string) *v1.Service {
  * who should be deleted (first) and then re-added. It supports update
  * when the entries can be updated with the add call
  */
-func compareEntryLists(service *LocalService, oldService *LocalService) (added, same, deleted []types.CnatTranslateEntry, changed bool) {
+func compareEntryLists(service *LocalService, oldService *LocalService) (added, deleted []types.CnatTranslateEntry, changed bool) {
 	if service == nil && oldService == nil {
 	} else if service == nil {
 		deleted = oldService.Entries
@@ -426,8 +427,6 @@ func compareEntryLists(service *LocalService, oldService *LocalService) (added, 
 				deleted = append(deleted, oldService)
 			} else if newService.Equal(&oldService) == types.ShouldRecreateObj {
 				deleted = append(deleted, oldService)
-			} else {
-				same = append(same, oldService)
 			}
 		}
 		for _, newService := range service.Entries {
@@ -464,9 +463,8 @@ func compareSpecificRoutes(service *LocalService, oldService *LocalService) (add
 }
 
 func (s *Server) handleServiceEndpointEvent(service *LocalService, oldService *LocalService) {
-	if added, same, deleted, changed := compareEntryLists(service, oldService); changed {
+	if added, deleted, changed := compareEntryLists(service, oldService); changed {
 		s.deleteServiceEntries(deleted, oldService)
-		s.sameServiceEntries(same, service)
 		s.addServiceEntries(added, service)
 	}
 	if added, deleted, changed := compareSpecificRoutes(service, oldService); changed {
