@@ -84,7 +84,7 @@ func getCnatVipDstPort(servicePort *v1.ServicePort, isNodePort bool) uint16 {
 	return uint16(servicePort.Port)
 }
 
-func (s *Server) buildCnatEntryForServicePort(servicePort *v1.ServicePort, service *v1.Service, epslices []*discoveryv1.EndpointSlice, serviceIP net.IP, isNodePort bool, svcInfo serviceInfo, isLocalOnly bool) *types.CnatTranslateEntry {
+func (s *Server) buildCnatEntryForServicePort(servicePort *v1.ServicePort, epslices []*discoveryv1.EndpointSlice, serviceIP net.IP, isNodePort bool, svcInfo serviceInfo, isLocalOnly bool) *types.CnatTranslateEntry {
 	backends := make([]types.CnatEndpointTuple, 0)
 	// Find the endpoint subset port that exposes the port we're interested in
 	for _, epslice := range epslices {
@@ -167,7 +167,7 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 	for _, servicePort := range service.Spec.Ports {
 		for _, cip := range clusterIPs {
 			if !cip.IsUnspecified() && len(cip) > 0 {
-				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, cip, false /* isNodePort */, *serviceSpec, InternalIsLocalOnly(service))
+				entry := s.buildCnatEntryForServicePort(&servicePort, epSlices, cip, false /* isNodePort */, *serviceSpec, InternalIsLocalOnly(service))
 				localService.Entries = append(localService.Entries, *entry)
 			}
 		}
@@ -175,7 +175,7 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 		for _, eip := range service.Spec.ExternalIPs {
 			extIP := net.ParseIP(eip)
 			if !extIP.IsUnspecified() && len(extIP) > 0 {
-				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, extIP, false /* isNodePort */, *serviceSpec, ExternalIsLocalOnly(service))
+				entry := s.buildCnatEntryForServicePort(&servicePort, epSlices, extIP, false /* isNodePort */, *serviceSpec, ExternalIsLocalOnly(service))
 				localService.Entries = append(localService.Entries, *entry)
 				if ExternalIsLocalOnly(service) && len(entry.Backends) > 0 {
 					localService.SpecificRoutes = append(localService.SpecificRoutes, extIP)
@@ -186,7 +186,7 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 		for _, ingress := range service.Status.LoadBalancer.Ingress {
 			ingressIP := net.ParseIP(ingress.IP)
 			if !ingressIP.IsUnspecified() && len(ingressIP) > 0 {
-				entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, ingressIP, false /* isNodePort */, *serviceSpec, ExternalIsLocalOnly(service))
+				entry := s.buildCnatEntryForServicePort(&servicePort, epSlices, ingressIP, false /* isNodePort */, *serviceSpec, ExternalIsLocalOnly(service))
 				localService.Entries = append(localService.Entries, *entry)
 				if ExternalIsLocalOnly(service) && len(entry.Backends) > 0 {
 					localService.SpecificRoutes = append(localService.SpecificRoutes, ingressIP)
@@ -197,7 +197,7 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 		if service.Spec.Type == v1.ServiceTypeNodePort {
 			for _, nip := range nodeIPs {
 				if !nip.IsUnspecified() && len(nip) > 0 {
-					entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, nip, true /* isNodePort */, *serviceSpec, false)
+					entry := s.buildCnatEntryForServicePort(&servicePort, epSlices, nip, true /* isNodePort */, *serviceSpec, false)
 					localService.Entries = append(localService.Entries, *entry)
 				}
 			}
@@ -209,7 +209,7 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 		if service.Spec.Type == v1.ServiceTypeLoadBalancer && *service.Spec.AllocateLoadBalancerNodePorts {
 			for _, nip := range nodeIPs {
 				if !nip.IsUnspecified() && len(nip) > 0 {
-					entry := s.buildCnatEntryForServicePort(&servicePort, service, epSlices, nip, true /* isNodePort */, *serviceSpec, false)
+					entry := s.buildCnatEntryForServicePort(&servicePort, epSlices, nip, true /* isNodePort */, *serviceSpec, false)
 					localService.Entries = append(localService.Entries, *entry)
 				}
 			}
@@ -249,53 +249,60 @@ func (s *Server) advertiseSpecificRoute(added []net.IP, deleted []net.IP) {
 	}
 }
 
-func (s *Server) deleteServiceEntries(entries []types.CnatTranslateEntry, oldService *LocalService) {
-	for _, entry := range entries {
-		oldServiceState, found := s.serviceStateMap[entry.Key()]
-		if !found {
-			s.log.Infof("svc(del) key=%s Cnat entry not found", entry.Key())
-			continue
-		}
-		s.log.Infof("svc(del) key=%s %s vpp-id=%d", entry.Key(), entry.String(), oldServiceState.VppID)
-		if oldServiceState.OwnerServiceID != oldService.ServiceID {
-			s.log.Infof("Cnat entry found but changed owner since")
-			continue
-		}
-
-		err := s.vpp.CnatTranslateDel(oldServiceState.VppID)
+func (s *Server) deleteServiceEntry(key, serviceID string) {
+	if _, found := s.serviceIDByKey[key]; !found {
+		s.log.Warnf("svc(del) entry %s not found", key)
+		return
+	} else if s.serviceIDByKey[key] != serviceID {
+		// do nothing in vpp, this service is not activated
+		s.log.Debugf("svc(del) entry %s not created in vpp for service %s", key, serviceID)
+	} else if len(s.cnatEntryByKeyAndSid[key]) == 1 {
+		err := s.vpp.CnatTranslateDel(s.cnatEntryByKeyAndSid[key][serviceID].vppID)
 		if err != nil {
 			s.log.Errorf("Cnat entry delete errored %s", err)
-			continue
 		}
-		delete(s.serviceStateMap, entry.Key())
+		delete(s.serviceIDByKey, key)
+	} else if len(s.cnatEntryByKeyAndSid[key]) > 1 {
+		// the entry is referenced by another service, recreate the lexicographically smallest service entry
+		s.log.Warnf("svc(del) entry %s was referenced by multiple services", key)
+		var chosenService string
+		for svc := range s.cnatEntryByKeyAndSid[key] {
+			if (chosenService == "" || svc < chosenService) && chosenService != serviceID {
+				chosenService = svc
+			}
+		}
+		s.log.Infof("svc(re-add) adding service %s for entry %s", chosenService, key)
+		entryID, err := s.vpp.CnatTranslateAdd(&s.cnatEntryByKeyAndSid[key][chosenService].entry)
+		if err != nil {
+			s.log.Errorf("svc(add) Error adding translation %s %s", s.cnatEntryByKeyAndSid[key][chosenService].entry.String(), err)
+		}
+		s.cnatEntryByKeyAndSid[key][chosenService].vppID = entryID
+		s.serviceIDByKey[key] = chosenService
+	} else {
+		panic("this should not happen")
+	}
+	delete(s.cnatEntryByKeyAndSid[key], serviceID)
+	delete(s.cnatEntryBySidAndKey[serviceID], key)
+	// cleanup maps if empty
+	if len(s.cnatEntryByKeyAndSid[key]) == 0 {
+		delete(s.cnatEntryByKeyAndSid, key)
+	}
+	if len(s.cnatEntryBySidAndKey[serviceID]) == 0 {
+		delete(s.cnatEntryBySidAndKey, serviceID)
+	}
+}
+
+func (s *Server) deleteServiceEntries(entries []types.CnatTranslateEntry, oldService *LocalService) {
+	for _, entry := range entries {
+		s.deleteServiceEntry(entry.Key(), oldService.ServiceID)
 	}
 }
 
 func (s *Server) deleteServiceByName(serviceID string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-
-	for key, oldServiceState := range s.serviceStateMap {
-		if oldServiceState.OwnerServiceID != serviceID {
-			continue
-		}
-		err := s.vpp.CnatTranslateDel(oldServiceState.VppID)
-		if err != nil {
-			s.log.Errorf("Cnat entry delete errored %s", err)
-			continue
-		}
-		delete(s.serviceStateMap, key)
-	}
-}
-
-func (s *Server) sameServiceEntries(entries []types.CnatTranslateEntry, service *LocalService) {
-	for _, entry := range entries {
-		if serviceState, found := s.serviceStateMap[entry.Key()]; found {
-			serviceState.OwnerServiceID = service.ServiceID
-			s.serviceStateMap[entry.Key()] = serviceState
-		} else {
-			s.log.Warnf("Cnat entry not found key=%s", entry.Key())
-		}
+	for key := range s.cnatEntryBySidAndKey[serviceID] {
+		s.deleteServiceEntry(key, serviceID)
 	}
 }
 
@@ -306,10 +313,31 @@ func (s *Server) addServiceEntries(entries []types.CnatTranslateEntry, service *
 			s.log.Errorf("svc(add) Error adding translation %s %s", entry.String(), err)
 			continue
 		}
-		s.log.Infof("svc(add) key=%s %s vpp-id=%d", entry.Key(), entry.String(), entryID)
-		s.serviceStateMap[entry.Key()] = ServiceState{
-			OwnerServiceID: service.ServiceID,
-			VppID:          entryID,
+		if _, found := s.cnatEntryBySidAndKey[service.ServiceID]; !found {
+			s.log.Infof("svc(add) adding service id %s to cache", service.ServiceID)
+			s.cnatEntryBySidAndKey[service.ServiceID] = make(map[string]*cnatEntry)
+		}
+		if _, found := s.cnatEntryByKeyAndSid[entry.Key()]; !found {
+			s.log.Infof("svc(add) adding entry key=%s to cache", entry.Key())
+			s.cnatEntryByKeyAndSid[entry.Key()] = make(map[string]*cnatEntry)
+		}
+		s.log.Infof("svc(add) adding service %s to entry key=%s cache", service.ServiceID, entry.Key())
+		s.cnatEntryByKeyAndSid[entry.Key()][service.ServiceID] = &cnatEntry{
+			entry: entry,
+			vppID: entryID,
+		}
+		s.cnatEntryBySidAndKey[service.ServiceID][entry.Key()] = &cnatEntry{
+			entry: entry,
+			vppID: entryID,
+		}
+		s.serviceIDByKey[entry.Key()] = service.ServiceID
+		if len(s.cnatEntryByKeyAndSid[entry.Key()]) > 1 {
+			s.log.Warnf("svc(add) entry %s is referenced by multiple services; overriding previous value and using the latest", entry.Key())
+			for svc := range s.cnatEntryByKeyAndSid[entry.Key()] {
+				if svc != service.ServiceID {
+					s.cnatEntryByKeyAndSid[entry.Key()][svc].vppID = ^uint32(0)
+				}
+			}
 		}
 	}
 }
