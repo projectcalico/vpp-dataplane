@@ -5,12 +5,12 @@ go 1.24.9
 require (
 	github.com/calico-vpp/vpplink v0.1.0
 	github.com/census-instrumentation/opencensus-proto v0.4.1
-	github.com/containernetworking/plugins v1.6.2
+	github.com/containernetworking/plugins v1.9.0
 	github.com/google/gopacket v1.1.19
 	github.com/inconshreveable/mousetrap v1.1.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.38.0
+	github.com/onsi/gomega v1.38.1
 	github.com/orijtech/prometheus-go-metrics-exporter v0.0.6
 	github.com/osrg/gobgp/v3 v3.35.0
 	github.com/pkg/errors v0.9.1
@@ -39,7 +39,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
-	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/coreos/go-systemd/v22 v22.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/eapache/channels v1.1.0 // indirect
@@ -101,6 +101,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
+	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/oauth2 v0.32.0 // indirect
