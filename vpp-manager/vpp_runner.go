@@ -514,7 +514,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error disabling ipv6 RA on uplink interface")
 	}
 
-	err = v.vpp.CnatEnableFeatures(ifSpec.SwIfIndex)
+	err = v.vpp.CnatEnableFeatures(ifSpec.SwIfIndex, true)
 	if err != nil {
 		return errors.Wrap(err, "Error configuring NAT on uplink interface")
 	}
@@ -660,19 +660,9 @@ func (v *VppRunner) configureVppUplinkInterface(
 		log.Errorf("Error SetInterfaceRxMode on vpptap0 %v", err)
 	}
 
-	err = v.vpp.CnatEnableFeatures(tapSwIfIndex)
+	err = v.vpp.CnatEnableFeatures(tapSwIfIndex, true)
 	if err != nil {
 		return errors.Wrap(err, "Error configuring NAT on vpptap0")
-	}
-
-	err = v.vpp.RegisterPodInterface(tapSwIfIndex)
-	if err != nil {
-		return errors.Wrap(err, "error configuring vpptap0 as pod intf")
-	}
-
-	err = v.vpp.RegisterHostInterface(tapSwIfIndex)
-	if err != nil {
-		return errors.Wrap(err, "error configuring vpptap0 as host intf")
 	}
 
 	// Linux side tap setup
@@ -711,11 +701,6 @@ func (v *VppRunner) doVppGlobalConfiguration() (err error) {
 	err = v.allocateStaticVRFs()
 	if err != nil {
 		return errors.Wrap(err, "Error creating static VRFs in VPP")
-	}
-
-	err = v.vpp.SetK8sSnatPolicy()
-	if err != nil {
-		return errors.Wrap(err, "Error configuring cnat source policy")
 	}
 
 	err = v.vpp.ConfigureNeighborsV4(&types.NeighborConfig{

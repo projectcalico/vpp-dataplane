@@ -118,6 +118,10 @@ git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine N
 # npol: Network Policies plugin
 git_cherry_pick refs/changes/10/43710/12 # 43710: npol: Network Policies plugin | https://gerrit.fd.io/r/c/vpp/+/43710
 git_cherry_pick refs/changes/52/43952/2 # 43952: npol: fix test-debug | https://gerrit.fd.io/r/c/vpp/+/43952
+# testing new cnat stuff
+git_cherry_pick refs/changes/89/41089/27 # https://gerrit.fd.io/r/c/vpp/+/41089 cnat: combine multiple changes
+git_cherry_pick refs/changes/69/43369/12 # https://gerrit.fd.io/r/c/vpp/+/43369 cnat: converge new cnat implementation to support encaps (calico)
+
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
