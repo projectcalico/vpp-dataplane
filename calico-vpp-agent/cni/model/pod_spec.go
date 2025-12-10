@@ -296,13 +296,10 @@ type HostPortBinding struct {
 	ContainerPort uint16
 	// Protocol for the port (UDP, TCP or SCTP)
 	Protocol types.IPProto
-	// EntryID is the HostPort cnat translation index in VPP
-	EntryID uint32
 }
 
 func (hp *HostPortBinding) String() string {
 	s := fmt.Sprintf("%s %s:%d", hp.Protocol.String(), hp.HostIP, hp.HostPort)
 	s += fmt.Sprintf(" container=%d", hp.ContainerPort)
-	s += fmt.Sprintf(" id=%d", hp.EntryID)
 	return s
 }

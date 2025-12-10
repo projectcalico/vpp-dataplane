@@ -41,7 +41,7 @@ func (s *Server) getHostPortHostIP(hostIP net.IP, isIP6 bool) net.IP {
 }
 
 func (s *Server) AddHostPort(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) error {
-	for idx, hostPort := range podSpec.HostPorts {
+	for _, hostPort := range podSpec.HostPorts {
 		for _, containerAddr := range podSpec.ContainerIPs {
 			hostIP := s.getHostPortHostIP(hostPort.HostIP, vpplink.IsIP6(containerAddr))
 			if hostIP != nil && !hostIP.IsUnspecified() {
@@ -67,7 +67,10 @@ func (s *Server) AddHostPort(podSpec *model.LocalPodSpec, stack *vpplink.Cleanup
 				} else {
 					stack.Push(s.vpp.CnatTranslateDel, id)
 				}
-				podSpec.HostPorts[idx].EntryID = id
+				if _, found := podSpec.HostPortEntryIDs[hostPort.HostPort]; !found {
+					podSpec.HostPortEntryIDs[hostPort.HostPort] = make(map[string]uint32)
+				}
+				podSpec.HostPortEntryIDs[hostPort.HostPort][hostIP.String()] = id
 			}
 		}
 	}
@@ -77,12 +80,14 @@ func (s *Server) AddHostPort(podSpec *model.LocalPodSpec, stack *vpplink.Cleanup
 func (s *Server) DelHostPort(podSpec *model.LocalPodSpec) {
 	initialSpec, ok := s.podInterfaceMap[podSpec.Key()]
 	if ok {
-		for _, hostPort := range initialSpec.HostPorts {
-			err := s.vpp.CnatTranslateDel(hostPort.EntryID)
-			if err != nil {
-				s.log.Errorf("(del) Error deleting entry with ID %d: %v", hostPort.EntryID, err)
+		for hostport, entryIDs := range initialSpec.HostPortEntryIDs {
+			for _, entryID := range entryIDs {
+				err := s.vpp.CnatTranslateDel(entryID)
+				if err != nil {
+					s.log.Errorf("(del) Error deleting entry with ID %d: %v", entryID, err)
+				}
+				s.log.Infof("pod(del) hostport entry=%d for hostport=%d", entryID, hostport)
 			}
-			s.log.Infof("pod(del) hostport entry=%d", hostPort.EntryID)
 		}
 	} else {
 		s.log.Warnf("Initial spec not found")
