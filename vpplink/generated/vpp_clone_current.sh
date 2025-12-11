@@ -128,6 +128,8 @@ git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine N
 git_cherry_pick refs/changes/10/43710/12 # 43710: npol: Network Policies plugin | https://gerrit.fd.io/r/c/vpp/+/43710
 git_cherry_pick refs/changes/52/43952/2 # 43952: npol: fix test-debug | https://gerrit.fd.io/r/c/vpp/+/43952
 
+git_cherry_pick refs/changes/50/44350/2 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
+
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch
