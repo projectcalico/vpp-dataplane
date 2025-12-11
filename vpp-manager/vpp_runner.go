@@ -654,6 +654,50 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 
+	/*
+	 * Add ND proxy for IPv6 gateway addresses and static neighbor entry on uplink.
+	 * Without ND proxy for gateway, host's NS for gateway is dropped with "neighbor
+	 * solicitations for unknown targets" error because there's no /128 FIB entry.
+	 * Without static neighbor entry on uplink, VPP responds to its own NS when
+	 * trying to resolve the real gateway MAC on the uplink, learning wrong MAC.
+	 * This requires:
+	 * - VPP patch https://gerrit.fd.io/r/c/vpp/+/44350 to fix NA loop bug
+	 * - Gateway MAC captured from Linux before VPP takes over (in ifState.Neighbors)
+	 */
+	for _, route := range ifState.Routes {
+		if route.Gw != nil && route.Gw.To4() == nil {
+			// Find the gateway MAC from captured Linux neighbors
+			var gwMAC net.HardwareAddr
+			for _, neigh := range ifState.Neighbors {
+				if neigh.IP.Equal(route.Gw) && len(neigh.HardwareAddr) > 0 {
+					gwMAC = neigh.HardwareAddr
+					break
+				}
+			}
+
+			if gwMAC != nil {
+				log.Infof("Adding static neighbor for IPv6 gateway %s with MAC %s on uplink", route.Gw, gwMAC)
+				err = v.vpp.AddNeighbor(&types.Neighbor{
+					SwIfIndex:    ifSpec.SwIfIndex,
+					IP:           route.Gw,
+					HardwareAddr: gwMAC,
+					Flags:        types.IPNeighborStatic,
+				})
+				if err != nil {
+					log.Errorf("Error adding static neighbor for gateway %s: %v", route.Gw, err)
+				}
+
+				log.Infof("Adding ND proxy for IPv6 gateway %s", route.Gw)
+				err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, route.Gw)
+				if err != nil {
+					log.Errorf("Error configuring ND proxy for gateway %s: %v", route.Gw, err)
+				}
+			} else {
+				log.Warnf("No MAC found for IPv6 gateway %s in Linux neighbors, skipping ND proxy setup", route.Gw)
+			}
+		}
+	}
+
 	if *config.GetCalicoVppDebug().GSOEnabled {
 		err = v.vpp.EnableGSOFeature(tapSwIfIndex)
 		if err != nil {
