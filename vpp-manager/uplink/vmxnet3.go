@@ -63,7 +63,7 @@ func (d *Vmxnet3Driver) PreconfigureLinux() (err error) {
 	return nil
 }
 
-func (d *Vmxnet3Driver) RestoreLinux(allInterfacesPhysical bool) {
+func (d *Vmxnet3Driver) RestoreLinux() {
 	if d.conf.PciID != "" && d.conf.Driver != "" {
 		err := utils.SwapDriver(d.conf.PciID, d.conf.Driver, true)
 		if err != nil {
@@ -76,9 +76,9 @@ func (d *Vmxnet3Driver) RestoreLinux(allInterfacesPhysical bool) {
 	}
 	// This assumes the link has kept the same name after the rebind.
 	// It should be always true on systemd based distros
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := utils.SafeSetInterfaceUpByName(d.intf.Spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		log.Warnf("Error setting %s up: %v", d.intf.Spec.InterfaceName, err)
 		return
 	}
 
@@ -106,19 +106,20 @@ func (d *Vmxnet3Driver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int,
 
 	log.Infof("Created Vmxnet3 interface %d", swIfIndex)
 
-	d.spec.SwIfIndex = swIfIndex
-	err = d.TagMainInterface(vpp, swIfIndex, d.spec.InterfaceName)
+	d.intf.Spec.SwIfIndex = swIfIndex
+	err = d.TagMainInterface(vpp, swIfIndex, d.intf.Spec.InterfaceName)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func NewVmxnet3Driver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *Vmxnet3Driver {
-	d := &Vmxnet3Driver{}
-	d.name = NativeDriverVmxnet3
-	d.conf = conf
-	d.params = params
-	d.spec = spec
-	return d
+func NewVmxnet3Driver(params *config.VppManagerParams, intf *config.VppManagerInterface) *Vmxnet3Driver {
+	return &Vmxnet3Driver{
+		UplinkDriverData: UplinkDriverData{
+			name:   NativeDriverVmxnet3,
+			intf:   intf,
+			params: params,
+		},
+	}
 }

@@ -62,19 +62,19 @@ func (d *AFXDPDriver) IsSupported(warn bool) bool {
 }
 
 func (d *AFXDPDriver) PreconfigureLinux() error {
-	link, err := netlink.LinkByName(d.spec.InterfaceName)
+	link, err := netlink.LinkByName(d.intf.Spec.InterfaceName)
 	if err != nil {
-		return errors.Wrapf(err, "Error finding link %s", d.spec.InterfaceName)
+		return errors.Wrapf(err, "Error finding link %s", d.intf.Spec.InterfaceName)
 	}
 	err = netlink.SetPromiscOn(link)
 	if err != nil {
-		return errors.Wrapf(err, "Error setting link %s promisc on", d.spec.InterfaceName)
+		return errors.Wrapf(err, "Error setting link %s promisc on", d.intf.Spec.InterfaceName)
 	}
-	err = utils.SetInterfaceRxQueues(d.spec.InterfaceName, d.spec.NumRxQueues)
+	err = utils.SetInterfaceRxQueues(d.intf.Spec.InterfaceName, d.intf.Spec.NumRxQueues)
 	if err != nil {
-		log.Errorf("Error setting link %s NumQueues to %d, using %d queues: %v", d.spec.InterfaceName, d.spec.NumRxQueues, d.conf.NumRxQueues, err)
+		log.Errorf("Error setting link %s NumQueues to %d, using %d queues: %v", d.intf.Spec.InterfaceName, d.intf.Spec.NumRxQueues, d.conf.NumRxQueues, err)
 		/* Try with linux NumRxQueues on error, otherwise af_xdp wont start */
-		d.spec.NumRxQueues = d.conf.NumRxQueues
+		d.intf.Spec.NumRxQueues = d.conf.NumRxQueues
 	}
 	if d.conf.Mtu > maxAfXDPMTU {
 		log.Infof("Reducing interface MTU to %d for AF_XDP", maxAfXDPMTU)
@@ -84,16 +84,16 @@ func (d *AFXDPDriver) PreconfigureLinux() error {
 		}
 		d.conf.Mtu = maxAfXDPMTU
 	}
-	if d.spec.Mtu > maxAfXDPMTU {
+	if d.intf.Spec.Mtu > maxAfXDPMTU {
 		log.Infof("Reducing user specified MTU to %d", maxAfXDPMTU)
-		d.spec.Mtu = maxAfXDPMTU
+		d.intf.Spec.Mtu = maxAfXDPMTU
 	}
 	return nil
 }
 
-func (d *AFXDPDriver) RestoreLinux(allInterfacesPhysical bool) {
-	if !allInterfacesPhysical {
-		err := d.moveInterfaceFromNS(d.spec.InterfaceName)
+func (d *AFXDPDriver) RestoreLinux() {
+	if !d.params.AllInterfacesPhysical() {
+		err := d.moveInterfaceFromNS(d.intf.Spec.InterfaceName)
 		if err != nil {
 			log.Warnf("Moving uplink back from NS failed %s", err)
 		}
@@ -103,9 +103,9 @@ func (d *AFXDPDriver) RestoreLinux(allInterfacesPhysical bool) {
 		return
 	}
 	// Interface should pop back in root ns once vpp exits
-	link, err := utils.SafeSetInterfaceUpByName(d.spec.InterfaceName)
+	link, err := utils.SafeSetInterfaceUpByName(d.intf.Spec.InterfaceName)
 	if err != nil {
-		log.Warnf("Error setting %s up: %v", d.spec.InterfaceName, err)
+		log.Warnf("Error setting %s up: %v", d.intf.Spec.InterfaceName, err)
 		return
 	}
 
@@ -115,14 +115,14 @@ func (d *AFXDPDriver) RestoreLinux(allInterfacesPhysical bool) {
 		log.Infof("Setting promisc off")
 		err = netlink.SetPromiscOff(link)
 		if err != nil {
-			log.Errorf("Error setting link %s promisc off %v", d.spec.InterfaceName, err)
+			log.Errorf("Error setting link %s promisc off %v", d.intf.Spec.InterfaceName, err)
 		}
 	}
-	if d.conf.NumRxQueues != d.spec.NumRxQueues {
+	if d.conf.NumRxQueues != d.intf.Spec.NumRxQueues {
 		log.Infof("Setting back %d queues", d.conf.NumRxQueues)
-		err = utils.SetInterfaceRxQueues(d.spec.InterfaceName, d.conf.NumRxQueues)
+		err = utils.SetInterfaceRxQueues(d.intf.Spec.InterfaceName, d.conf.NumRxQueues)
 		if err != nil {
-			log.Errorf("Error setting link %s NumQueues to %d %v", d.spec.InterfaceName, d.conf.NumRxQueues, err)
+			log.Errorf("Error setting link %s NumQueues to %d %v", d.intf.Spec.InterfaceName, d.conf.NumRxQueues, err)
 		}
 	}
 
@@ -131,7 +131,7 @@ func (d *AFXDPDriver) RestoreLinux(allInterfacesPhysical bool) {
 }
 
 func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, uplinkSpec *config.UplinkInterfaceSpec) (err error) {
-	err = d.moveInterfaceToNS(d.spec.InterfaceName, vppPid)
+	err = d.moveInterfaceToNS(d.intf.Spec.InterfaceName, vppPid)
 	if err != nil {
 		return errors.Wrap(err, "Moving uplink in NS failed")
 	}
@@ -149,19 +149,20 @@ func (d *AFXDPDriver) CreateMainVppInterface(vpp *vpplink.VppLink, vppPid int, u
 	if err != nil {
 		return errors.Wrap(err, "could not set af_xdp interface mac address in vpp")
 	}
-	d.spec.SwIfIndex = intf.SwIfIndex
-	err = d.TagMainInterface(vpp, intf.SwIfIndex, d.spec.InterfaceName)
+	d.intf.Spec.SwIfIndex = intf.SwIfIndex
+	err = d.TagMainInterface(vpp, intf.SwIfIndex, d.intf.Spec.InterfaceName)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func NewAFXDPDriver(params *config.VppManagerParams, conf *config.LinuxInterfaceState, spec *config.UplinkInterfaceSpec) *AFXDPDriver {
-	d := &AFXDPDriver{}
-	d.name = NativeDriverAfXdp
-	d.conf = conf
-	d.params = params
-	d.spec = spec
-	return d
+func NewAFXDPDriver(params *config.VppManagerParams, intf *config.VppManagerInterface) *AFXDPDriver {
+	return &AFXDPDriver{
+		UplinkDriverData: UplinkDriverData{
+			name:   NativeDriverAfXdp,
+			params: params,
+			intf:   intf,
+		},
+	}
 }

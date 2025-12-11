@@ -783,3 +783,24 @@ func PrintLastBackTrace(coreFile string) {
 		}
 	}
 }
+
+func PingCalicoVpp() error {
+	dat, err := os.ReadFile(config.CalicoVppPidFile)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Infof("calico-vpp-pid file doesn't exist. Agent probably not started")
+			return nil
+		}
+		return errors.Wrapf(err, "Error reading %s", config.CalicoVppPidFile)
+	}
+	pid, err := strconv.ParseInt(strings.TrimSpace(string(dat[:])), 10, 32)
+	if err != nil {
+		return errors.Wrapf(err, "Error parsing %s", dat)
+	}
+	err = syscall.Kill(int(pid), syscall.SIGUSR1)
+	if err != nil {
+		return errors.Wrapf(err, "Error kill -SIGUSR1 %d", int(pid))
+	}
+	log.Infof("Did kill -SIGUSR1 %d", int(pid))
+	return nil
+}

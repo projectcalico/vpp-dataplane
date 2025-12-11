@@ -165,8 +165,8 @@ func main() {
 
 	/* Initialize native Go NewNetworkManagerHook with empty interface names
 	 * We will update this later once we have the actual interface names */
-	networkHook = hooks.NewNetworkManagerHook(log)
-	networkHook.ExecuteWithUserScript(hooks.HookBeforeIfRead, config.HookScriptBeforeIfRead, params)
+	networkHook = hooks.NewNetworkManagerHook(log, params)
+	networkHook.ExecuteWithUserScript(hooks.HookBeforeIfRead, config.HookScriptBeforeIfRead)
 
 	err = utils.ClearVppManagerFiles()
 	if err != nil {
@@ -183,20 +183,6 @@ func main() {
 		log.Errorf("Error raising memlock limit, VPP may fail to start: %v", err)
 	}
 
-	confs, err := startup.GetInterfaceConfig(params)
-	if err != nil {
-		log.Fatalf("Error getting initial interface configuration: %s", err)
-	}
-
-	/* Update native Go NewNetworkManagerHook with all interface names */
-	if len(params.UplinksSpecs) > 0 {
-		interfaceNames := make([]string, len(params.UplinksSpecs))
-		for i, spec := range params.UplinksSpecs {
-			interfaceNames[i] = spec.InterfaceName
-		}
-		networkHook.SetInterfaceNames(interfaceNames)
-	}
-
 	runningCond = sync.NewCond(&sync.Mutex{})
 	go handleSignals()
 
@@ -204,23 +190,24 @@ func main() {
 	defer cancel()
 	config.HandleUsr2Signal(ctx, log.WithFields(logrus.Fields{"component": "sighdlr"}))
 
-	startup.PrintVppManagerConfig(params, confs)
-
-	runner := NewVPPRunner(params, confs)
+	startup.PrintVppManagerConfig(params)
 
 	makeNewVPPIndex()
 
-	if len(params.UplinksSpecs) == 1 && params.UplinksSpecs[0].VppDriver == "" {
-		for _, driver := range uplink.SupportedUplinkDrivers(params, confs[0], &params.UplinksSpecs[0]) {
+	if len(params.Interfaces) == 1 && params.InterfacesById[0].Spec.VppDriver == "" {
+		intf := params.InterfacesById[0]
+		for _, driver := range uplink.SupportedUplinkDrivers(params, intf) {
 			err := utils.CleanupCoreFiles(config.GetCalicoVppInitialConfig().CorePattern, maxCoreFiles)
 			if err != nil {
 				log.Errorf("CleanupCoreFiles errored %s", err)
 			}
+			intf.Driver = driver
 
 			internalKill = false
-			err = runner.Run([]uplink.UplinkDriver{driver})
+			runner := NewVPPRunner(params)
+			err = runner.Run()
 			if err != nil {
-				networkHook.ExecuteWithUserScript(hooks.HookVppErrored, config.HookScriptVppErrored, params)
+				networkHook.ExecuteWithUserScript(hooks.HookVppErrored, config.HookScriptVppErrored)
 				log.Errorf("VPP(%s) run failed with %s", driver.GetName(), err)
 			}
 			if vppProcess != nil && !internalKill {
@@ -236,15 +223,10 @@ func main() {
 			log.Errorf("CleanupCoreFiles errored %s", err)
 		}
 
-		var drivers []uplink.UplinkDriver
-		for idx := 0; idx < len(params.UplinksSpecs); idx++ {
-			drivers = append(drivers, uplink.NewUplinkDriver(params.UplinksSpecs[idx].VppDriver,
-				params, confs[idx], &params.UplinksSpecs[idx]))
-		}
-
-		err = runner.Run(drivers)
+		runner := NewVPPRunner(params)
+		err = runner.Run()
 		if err != nil {
-			networkHook.ExecuteWithUserScript(hooks.HookVppErrored, config.HookScriptVppErrored, params)
+			networkHook.ExecuteWithUserScript(hooks.HookVppErrored, config.HookScriptVppErrored)
 			log.Errorf("VPP run failed with %v", err)
 		}
 
