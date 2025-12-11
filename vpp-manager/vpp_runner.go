@@ -664,6 +664,22 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 
+	/*
+	 * Add ND proxy for IPv6 gateway addresses.
+	 * Without ND proxy for gateway, host's NS for gateway is dropped with "neighbor
+	 * solicitations for unknown targets" error because there's no /128 FIB entry.
+	 * This requires VPP patch https://gerrit.fd.io/r/c/vpp/+/44350 to fix NA loop bug.
+	 */
+	for _, route := range ifState.Routes {
+		if route.Gw != nil && route.Gw.To4() == nil {
+			log.Infof("Adding ND proxy for IPv6 gateway %s", route.Gw)
+			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, route.Gw)
+			if err != nil {
+				log.Errorf("Error configuring ND proxy for gateway %s: %v", route.Gw, err)
+			}
+		}
+	}
+
 	if *config.GetCalicoVppDebug().GSOEnabled {
 		err = v.vpp.EnableGSOFeature(tapSwIfIndex)
 		if err != nil {
