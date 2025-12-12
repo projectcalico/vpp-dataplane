@@ -99,6 +99,13 @@ func loadInterfaceConfigFromLinux(ifSpec config.UplinkInterfaceSpec) (*config.Li
 			return nil, errors.Wrapf(err, "cannot list %s routes", ifSpec.InterfaceName)
 		}
 		conf.SortRoutes()
+
+		// Capture neighbor entries (gateway MACs) before VPP takes over
+		conf.Neighbors, err = netlink.NeighList(link.Attrs().Index, netlink.FAMILY_ALL)
+		if err != nil {
+			log.Warnf("cannot list %s neighbors: %v", ifSpec.InterfaceName, err)
+			conf.Neighbors = []netlink.Neigh{}
+		}
 	}
 	conf.HardwareAddr = link.Attrs().HardwareAddr
 	conf.NodeIP4 = getNodeAddress(&conf, false /* isV6 */)

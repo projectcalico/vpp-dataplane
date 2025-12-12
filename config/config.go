@@ -64,14 +64,22 @@ const (
 	BaseVppSideHardwareAddress = "02:ca:11:c0:fd:00"
 )
 
+type BGPServerModeType string
+
+const (
+	BGPServerModeDualStack BGPServerModeType = "dualStack"
+	BGPServerModeV4Only    BGPServerModeType = "v4Only"
+)
+
 var (
 	// fake constants for place where we need a pointer to true or false
 	True  = true
 	False = false
 
-	NodeName    = RequiredStringEnvVar("NODENAME")
-	LogLevel    = EnvVar("CALICOVPP_LOG_LEVEL", logrus.InfoLevel, logrus.ParseLevel)
-	BGPLogLevel = EnvVar("CALICOVPP_BGP_LOG_LEVEL", apipb.SetLogLevelRequest_INFO, BGPLogLevelParse)
+	NodeName      = RequiredStringEnvVar("NODENAME")
+	LogLevel      = EnvVar("CALICOVPP_LOG_LEVEL", logrus.InfoLevel, logrus.ParseLevel)
+	BGPLogLevel   = EnvVar("CALICOVPP_BGP_LOG_LEVEL", apipb.SetLogLevelRequest_INFO, BGPLogLevelParse)
+	BGPServerMode = EnvVar("CALICOVPP_BGP_SERVER_MODE", BGPServerModeDualStack, BGPServerModeParse)
 
 	ServiceCIDRs                     = PrefixListEnvVar("SERVICE_PREFIX")
 	IPSecIkev2Psk                    = StringEnvVar("CALICOVPP_IPSEC_IKEV2_PSK", "")
@@ -133,11 +141,17 @@ var (
 		HookScriptVppErrored,
 	}
 
-	Info = &VppManagerInfo{}
+	Info = &VppManagerInfo{
+		UplinkStatuses: make(map[string]UplinkStatus),
+		PhysicalNets:   make(map[string]PhysicalNetwork),
+	}
 
-	// VppHostPuntFakeGatewayAddress is the fake gateway we use with a static neighbor
-	// in the punt table to route punted packets to the host
-	VppHostPuntFakeGatewayAddress = net.ParseIP("169.254.0.1")
+	// VppsideTap0Address is the IP address we add to the tap0
+	// so that it can receive ipv4 packets
+	VppsideTap0Address = PrefixEnvVar(
+		"CALICOVPP_TAP0_ADDR",
+		MustParseCIDR("169.254.0.1/32"),
+	)
 )
 
 func RunHook(hookScript *string, hookName string, params *VppManagerParams, log *logrus.Logger) {
@@ -271,7 +285,7 @@ func (u *UplinkInterfaceSpec) String() string {
 
 type RedirectToHostRulesConfigType struct {
 	Port uint16 `json:"port,omitempty"`
-	IP   string `json:"ip,omitempty"`
+	IP   net.IP `json:"ip,omitempty"`
 	/* "tcp", "udp",... */
 	Proto types.IPProto `json:"proto,omitempty"`
 }
@@ -567,6 +581,17 @@ type UplinkStatus struct {
 	// FakeNextHopIP6 is the computed next hop for v6 routes added
 	// in linux to (ServiceCIDR, podCIDR, etc...) towards this interface
 	FakeNextHopIP6 net.IP
+
+	UplinkAddresses []*net.IPNet
+}
+
+func (uplinkStatus *UplinkStatus) GetAddress(ipFamily vpplink.IPFamily) *net.IPNet {
+	for _, addr := range uplinkStatus.UplinkAddresses {
+		if vpplink.IPFamilyFromIPNet(addr) == ipFamily {
+			return addr
+		}
+	}
+	return nil
 }
 
 type PhysicalNetwork struct {
@@ -643,6 +668,7 @@ type LinuxInterfaceState struct {
 	IsUp          bool
 	Addresses     []netlink.Addr
 	Routes        []netlink.Route
+	Neighbors     []netlink.Neigh
 	HardwareAddr  net.HardwareAddr
 	PromiscOn     bool
 	NumTxQueues   int
