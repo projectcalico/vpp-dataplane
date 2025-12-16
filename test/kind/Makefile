@@ -1,8 +1,6 @@
 include ../../common.mk
 
 TAG ?= latest # Tag images with :$(TAG)
-N_KIND_WORKERS ?= 2
-N_KIND_CONTROL_PLANES ?= 1
 CPU_PINNING ?= false
 KIND_CALICO_VERSION ?= master
 DEBUG ?= false
@@ -10,9 +8,7 @@ TIGERA_OPERATOR_VERSION ?= master
 
 .PHONY: new-cluster
 new-cluster:
-	@N_KIND_WORKERS=$(N_KIND_WORKERS) \
-		N_KIND_CONTROL_PLANES=$(N_KIND_CONTROL_PLANES) \
-		CPU_PINNING=$(CPU_PINNING) \
+	@CPU_PINNING=$(CPU_PINNING) \
 		CLUSTER_NAME=$(CLUSTER_NAME) \
 		./new_cluster.sh
 	mkdir -p $(HOME)/.kube
