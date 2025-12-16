@@ -119,6 +119,10 @@ git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine N
 git_cherry_pick refs/changes/10/43710/12 # 43710: npol: Network Policies plugin | https://gerrit.fd.io/r/c/vpp/+/43710
 git_cherry_pick refs/changes/52/43952/2 # 43952: npol: fix test-debug | https://gerrit.fd.io/r/c/vpp/+/43952
 
+# bpf_trace_filter: add filter support for pcap dispatch trace and raw IP packet support
+git_cherry_pick refs/changes/64/44464/4 # 44464: dispatch-trace: add filter support for pcap dispatch trace | https://gerrit.fd.io/r/c/vpp/+/44464
+git_cherry_pick refs/changes/67/44467/2 # 44467: bpf_trace_filter: add raw IP packet support | https://gerrit.fd.io/r/c/vpp/+/44467
+
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch

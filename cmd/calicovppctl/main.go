@@ -21,9 +21,11 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -577,10 +579,13 @@ func printHelp() {
 	fmt.Println("calicovppctl sh [-component vpp|agent] [-node NODENAME]               - Get a shell in vpp (dataplane) or agent (controlplane) container")
 	fmt.Println("calicovppctl trace [-node NODENAME]                                   - Setup VPP packet tracing")
 	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl]")
+	fmt.Println("      Filter params: [-srcip IP] [-dstip IP] [-srcport PORT] [-dstport PORT] [-protocol tcp|udp|icmp]")
 	fmt.Println("calicovppctl pcap [-node NODENAME]                                    - Setup VPP PCAP tracing")
 	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface INTERFACE_NAME|any(default)] [-output FILE.pcap]")
+	fmt.Println("      Filter params: [-srcip IP] [-dstip IP] [-srcport PORT] [-dstport PORT] [-protocol tcp|udp|icmp]")
 	fmt.Println("calicovppctl dispatch [-node NODENAME]                                - Setup VPP dispatch tracing")
 	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl] [-output FILE.pcap]")
+	fmt.Println("      Filter params: [-srcip IP] [-dstip IP] [-srcport PORT] [-dstport PORT] [-protocol tcp|udp|icmp]")
 	fmt.Println()
 }
 
@@ -595,6 +600,12 @@ func main() {
 		timeout       = flag.Int("timeout", 30, "Timeout in seconds for trace/pcap/dispatch commands (default: 30)")
 		interfaceType = flag.String("interface", "", "interface types for trace/dispatch; interface names for pcap. See help for supported types")
 		output        = flag.String("output", "", "Output file for pcap/dispatch commands")
+		// BPF filter flags
+		srcIP    = flag.String("srcip", "", "Source IP address filter (10.0.0.20, 2a04:baba::20, etc.)")
+		dstIP    = flag.String("dstip", "", "Destination IP address filter (169.254.0.1, fe80:face::1, etc.)")
+		srcPort  = flag.Int("srcport", 0, "Source port filter (68, 546, etc.)")
+		dstPort  = flag.Int("dstport", 0, "Destination port filter (67, 547, 80, 443, etc.)")
+		protocol = flag.String("protocol", "", "Protocol filter (icmp, tcp, udp)")
 	)
 
 	// Custom usage function
@@ -659,6 +670,12 @@ func main() {
 	interfacePtr := flagSet.String("interface", "", "Interface: types (memif,tuntap,vcl) for trace/dispatch; interface names for pcap")
 	outputPtr := flagSet.String("output", "", "Output file for pcap/dispatch commands")
 	helpPtr := flagSet.Bool("help", false, "Show help message")
+	// BPF filter flags
+	srcIPPtr := flagSet.String("srcip", "", "Source IP address filter")
+	dstIPPtr := flagSet.String("dstip", "", "Destination IP address filter")
+	srcPortPtr := flagSet.Int("srcport", 0, "Source port filter")
+	dstPortPtr := flagSet.Int("dstport", 0, "Destination port filter")
+	protocolPtr := flagSet.String("protocol", "", "Protocol filter (tcp, udp, icmp)")
 
 	// Parse all remaining arguments for flags
 	var finalCommandArgs []string
@@ -705,6 +722,35 @@ func main() {
 				*followPtr = true
 			case "-help", "--help", "-h":
 				*helpPtr = true
+			case "-srcip", "--srcip":
+				if i+1 < len(allArgs) {
+					*srcIPPtr = allArgs[i+1]
+					i++
+				}
+			case "-dstip", "--dstip":
+				if i+1 < len(allArgs) {
+					*dstIPPtr = allArgs[i+1]
+					i++
+				}
+			case "-srcport", "--srcport":
+				if i+1 < len(allArgs) {
+					if portVal, err := strconv.Atoi(allArgs[i+1]); err == nil {
+						*srcPortPtr = portVal
+					}
+					i++
+				}
+			case "-dstport", "--dstport":
+				if i+1 < len(allArgs) {
+					if portVal, err := strconv.Atoi(allArgs[i+1]); err == nil {
+						*dstPortPtr = portVal
+					}
+					i++
+				}
+			case "-protocol", "--protocol", "-proto":
+				if i+1 < len(allArgs) {
+					*protocolPtr = allArgs[i+1]
+					i++
+				}
 			}
 		} else {
 			// This is not a flag, add to final command args
@@ -721,6 +767,11 @@ func main() {
 	*interfaceType = *interfacePtr
 	*output = *outputPtr
 	*help = *helpPtr
+	*srcIP = *srcIPPtr
+	*dstIP = *dstIPPtr
+	*srcPort = *srcPortPtr
+	*dstPort = *dstPortPtr
+	*protocol = *protocolPtr
 
 	// Show help if requested
 	if *help {
@@ -862,7 +913,7 @@ func main() {
 			handleError(fmt.Errorf("node name is required for trace command. Use -node flag"), "")
 		}
 
-		err := traceCommand(k, *nodeName, *count, *timeout, *interfaceType)
+		err := traceCommand(k, *nodeName, *count, *timeout, *interfaceType, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
 		if err != nil {
 			handleError(err, "Trace failed")
 		}
@@ -872,7 +923,7 @@ func main() {
 			handleError(fmt.Errorf("node name is required for pcap command. Use -node flag"), "")
 		}
 
-		err := pcapCommand(k, *nodeName, *count, *timeout, *interfaceType, *output)
+		err := pcapCommand(k, *nodeName, *count, *timeout, *interfaceType, *output, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
 		if err != nil {
 			handleError(err, "PCAP failed")
 		}
@@ -882,7 +933,7 @@ func main() {
 			handleError(fmt.Errorf("node name is required for dispatch command. Use -node flag"), "")
 		}
 
-		err := dispatchCommand(k, *nodeName, *count, *timeout, *interfaceType, *output)
+		err := dispatchCommand(k, *nodeName, *count, *timeout, *interfaceType, *output, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
 		if err != nil {
 			handleError(err, "Dispatch failed")
 		}
@@ -1189,6 +1240,23 @@ func compressAndSaveRemoteFile(k *KubeClient, nodeName, remoteFile, localFile st
 		return fmt.Errorf("could not find calico-vpp-node pod on node '%s': %v", nodeName, err)
 	}
 
+	// Check if remote file exists and has content; remove it if empty
+	checkCmd := fmt.Sprintf(`test -s %q || { rm -f %q; exit 3; }`, remoteFile, remoteFile)
+	_, err = k.execInPod(namespace, podName, container, "sh", "-c", checkCmd)
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 3 {
+			fmt.Println()
+			printColored("red", "No packets were captured with the specified filter.")
+			printColored("grey", "This could mean:")
+			printColored("grey", "  - No matching traffic occurred during the capture period")
+			printColored("grey", "  - The filter expression may be too restrictive")
+			printColored("grey", "  - Try running without filters to verify if there is traffic")
+			return nil
+		}
+		return fmt.Errorf("failed to check remote file: %v", err)
+	}
+
 	printColored("green", fmt.Sprintf("Compressing and downloading file from node '%s'", nodeName))
 	printColored("grey", fmt.Sprintf("Pod: %s", podName))
 	printColored("grey", fmt.Sprintf("Remote file: %s", remoteFile))
@@ -1317,7 +1385,7 @@ func mapInterfaceTypeToVppInputNode(k *KubeClient, interfaceType string) (string
 	}
 }
 
-func traceCommand(k *KubeClient, nodeName string, count int, timeout int, interfaceType string) error {
+func traceCommand(k *KubeClient, nodeName string, count int, timeout int, interfaceType, srcIP, dstIP, protocol string, srcPort, dstPort int) error {
 	validatedNode, err := validateNodeName(k, nodeName)
 	if err != nil {
 		return err
@@ -1333,6 +1401,27 @@ func traceCommand(k *KubeClient, nodeName string, count int, timeout int, interf
 	printColored("grey", fmt.Sprintf("Timeout: %d seconds", timeout))
 	printColored("grey", fmt.Sprintf("VPP Input Node: %s", vppInputNode))
 	printColored("grey", "Output file: ./trace.txt.gz")
+
+	// Build and apply BPF filter if specified
+	bpfFilter := buildBPFFilter(srcIP, dstIP, protocol, srcPort, dstPort)
+	useBPF := false
+	if bpfFilter != "" {
+		printColored("grey", fmt.Sprintf("BPF Filter: %s", bpfFilter))
+		err := applyBPFFilter(k, validatedNode, bpfFilter, false)
+		if err != nil {
+			printColored("red", fmt.Sprintf("Warning: Failed to apply BPF filter: %v", err))
+			printColored("grey", "Continuing without filter...")
+		} else {
+			useBPF = true
+			defer func() {
+				printColored("blue", "Clearing BPF filter...")
+				err := clearBPFFilter(k, validatedNode, false)
+				if err != nil {
+					printColored("red", fmt.Sprintf("Warning: Failed to clear BPF filter: %v", err))
+				}
+			}()
+		}
+	}
 	fmt.Println()
 
 	// Clear any existing traces first
@@ -1343,8 +1432,12 @@ func traceCommand(k *KubeClient, nodeName string, count int, timeout int, interf
 
 	// Add trace for specified interface type
 	printColored("blue", "Starting packet trace...")
-	printColored("grey", fmt.Sprintf("Command: trace add %s %d", vppInputNode, count))
-	_, err = k.vppctl(validatedNode, "trace", "add", vppInputNode, fmt.Sprintf("%d", count))
+	traceCmd := []string{"trace", "add", vppInputNode, fmt.Sprintf("%d", count)}
+	if useBPF {
+		traceCmd = append(traceCmd, "filter")
+	}
+	printColored("grey", fmt.Sprintf("Command: %s", strings.Join(traceCmd, " ")))
+	_, err = k.vppctl(validatedNode, traceCmd...)
 	if err != nil {
 		return fmt.Errorf("failed to add trace: %v", err)
 	}
@@ -1432,7 +1525,7 @@ func traceCommand(k *KubeClient, nodeName string, count int, timeout int, interf
 	return nil
 }
 
-func pcapCommand(k *KubeClient, nodeName string, count int, timeout int, interfaceType, outputFile string) error {
+func pcapCommand(k *KubeClient, nodeName string, count int, timeout int, interfaceType, outputFile, srcIP, dstIP, protocol string, srcPort, dstPort int) error {
 	validatedNode, err := validateNodeName(k, nodeName)
 	if err != nil {
 		return err
@@ -1479,7 +1572,12 @@ func pcapCommand(k *KubeClient, nodeName string, count int, timeout int, interfa
 		printColored("grey", "No interface specified, using 'any' to capture on all interfaces")
 	}
 
-	pcapCommand := fmt.Sprintf("pcap trace tx rx max %d intfc %s file trace.pcap", count, interfaceFilter)
+	pcapCommand := []string{
+		"pcap", "trace", "tx", "rx",
+		"max", fmt.Sprintf("%d", count),
+		"intfc", interfaceFilter,
+		"file", "trace.pcap",
+	}
 
 	printColored("green", fmt.Sprintf("Starting PCAP trace on node '%s'", validatedNode))
 	printColored("grey", fmt.Sprintf("Packet count: %d", count))
@@ -1488,11 +1586,35 @@ func pcapCommand(k *KubeClient, nodeName string, count int, timeout int, interfa
 	if outputFile != "" {
 		printColored("grey", fmt.Sprintf("Output file: ./%s.gz", outputFile))
 	}
+
+	// Build and apply BPF filter if specified
+	bpfFilter := buildBPFFilter(srcIP, dstIP, protocol, srcPort, dstPort)
+	useBPF := false
+	if bpfFilter != "" {
+		printColored("grey", fmt.Sprintf("BPF Filter: %s", bpfFilter))
+		err := applyBPFFilter(k, validatedNode, bpfFilter, true)
+		if err != nil {
+			printColored("red", fmt.Sprintf("Warning: Failed to apply BPF filter: %v", err))
+			printColored("grey", "Continuing without filter...")
+		} else {
+			useBPF = true
+			defer func() {
+				printColored("blue", "Clearing BPF filter...")
+				err := clearBPFFilter(k, validatedNode, true)
+				if err != nil {
+					printColored("red", fmt.Sprintf("Warning: Failed to clear BPF filter: %v", err))
+				}
+			}()
+		}
+	}
 	fmt.Println()
 
 	printColored("blue", "Starting PCAP trace...")
-	printColored("grey", fmt.Sprintf("Command: %s", pcapCommand))
-	_, err = k.vppctl(validatedNode, strings.Split(pcapCommand, " ")...)
+	if useBPF {
+		pcapCommand = append(pcapCommand, "filter")
+	}
+	printColored("grey", fmt.Sprintf("Command: %s", strings.Join(pcapCommand, " ")))
+	_, err = k.vppctl(validatedNode, pcapCommand...)
 	if err != nil {
 		return fmt.Errorf("failed to start PCAP trace: %v", err)
 	}
@@ -1569,7 +1691,7 @@ func pcapCommand(k *KubeClient, nodeName string, count int, timeout int, interfa
 	return nil
 }
 
-func dispatchCommand(k *KubeClient, nodeName string, count int, timeout int, interfaceType, outputFile string) error {
+func dispatchCommand(k *KubeClient, nodeName string, count int, timeout int, interfaceType, outputFile, srcIP, dstIP, protocol string, srcPort, dstPort int) error {
 	validatedNode, err := validateNodeName(k, nodeName)
 	if err != nil {
 		return err
@@ -1580,7 +1702,12 @@ func dispatchCommand(k *KubeClient, nodeName string, count int, timeout int, int
 		return err
 	}
 
-	dispatchCommand := fmt.Sprintf("pcap dispatch trace on max %d buffer-trace %s %d", count, vppInputNode, count)
+	dispatchCmd := []string{
+		"pcap", "dispatch", "trace", "on",
+		"max", fmt.Sprintf("%d", count),
+		"buffer-trace", vppInputNode, fmt.Sprintf("%d", count),
+		"file", "dispatch.pcap",
+	}
 
 	printColored("green", fmt.Sprintf("Starting dispatch trace on node '%s'", validatedNode))
 	printColored("grey", fmt.Sprintf("Packet count: %d", count))
@@ -1589,11 +1716,35 @@ func dispatchCommand(k *KubeClient, nodeName string, count int, timeout int, int
 	if outputFile != "" {
 		printColored("grey", fmt.Sprintf("Output file: ./%s.gz", outputFile))
 	}
+
+	// Build and apply BPF filter if specified
+	bpfFilter := buildBPFFilter(srcIP, dstIP, protocol, srcPort, dstPort)
+	useBPF := false
+	if bpfFilter != "" {
+		printColored("grey", fmt.Sprintf("BPF Filter: %s", bpfFilter))
+		err := applyBPFFilter(k, validatedNode, bpfFilter, true)
+		if err != nil {
+			printColored("red", fmt.Sprintf("Warning: Failed to apply BPF filter: %v", err))
+			printColored("grey", "Continuing without filter...")
+		} else {
+			useBPF = true
+			defer func() {
+				printColored("blue", "Clearing BPF filter...")
+				err := clearBPFFilter(k, validatedNode, true)
+				if err != nil {
+					printColored("red", fmt.Sprintf("Warning: Failed to clear BPF filter: %v", err))
+				}
+			}()
+		}
+	}
 	fmt.Println()
 
 	printColored("blue", "Starting dispatch trace...")
-	printColored("grey", fmt.Sprintf("Command: %s", dispatchCommand))
-	_, err = k.vppctl(validatedNode, strings.Split(dispatchCommand, " ")...)
+	if useBPF {
+		dispatchCmd = append(dispatchCmd, "filter")
+	}
+	printColored("grey", fmt.Sprintf("Command: %s", strings.Join(dispatchCmd, " ")))
+	_, err = k.vppctl(validatedNode, dispatchCmd...)
 	if err != nil {
 		return fmt.Errorf("failed to start dispatch trace: %v", err)
 	}
@@ -1705,4 +1856,123 @@ func parseVppInterfaces(output string) []string {
 	}
 
 	return upInterfaces
+}
+
+func validateIP(ip string) error {
+	if ip == "" {
+		return nil
+	}
+	if net.ParseIP(ip) == nil {
+		return fmt.Errorf("invalid IP address: %s", ip)
+	}
+	return nil
+}
+
+// buildBPFFilter constructs a BPF filter expression from the provided parameters
+func buildBPFFilter(srcIP, dstIP, protocol string, srcPort, dstPort int) string {
+	var filters []string
+
+	// Add protocol filter
+	if protocol != "" {
+		switch strings.ToLower(protocol) {
+		case "tcp":
+			filters = append(filters, "tcp")
+		case "udp":
+			filters = append(filters, "udp")
+		case "icmp":
+			filters = append(filters, "icmp")
+		default:
+			printColored("red", fmt.Sprintf("Warning: Unknown protocol '%s', ignoring", protocol))
+		}
+	}
+
+	// Add IP filters
+	if srcIP != "" {
+		err := validateIP(srcIP)
+		if err != nil {
+			printColored("red", fmt.Sprintf("Warning: Invalid source IP '%s', ignoring", srcIP))
+		} else {
+			filters = append(filters, fmt.Sprintf("src host %s", srcIP))
+		}
+	}
+	if dstIP != "" {
+		err := validateIP(dstIP)
+		if err != nil {
+			printColored("red", fmt.Sprintf("Warning: Invalid destination IP '%s', ignoring", dstIP))
+		} else {
+			filters = append(filters, fmt.Sprintf("dst host %s", dstIP))
+		}
+	}
+
+	// Add port filters
+	if srcPort != 0 {
+		if srcPort > 0 && srcPort < 65536 {
+			filters = append(filters, fmt.Sprintf("src port %d", srcPort))
+		} else {
+			printColored("red", fmt.Sprintf("Warning: Invalid source port '%d', ignoring", srcPort))
+		}
+	}
+	if dstPort != 0 {
+		if dstPort > 0 && dstPort < 65536 {
+			filters = append(filters, fmt.Sprintf("dst port %d", dstPort))
+		} else {
+			printColored("red", fmt.Sprintf("Warning: Invalid destination port '%d', ignoring", dstPort))
+		}
+	}
+
+	if len(filters) == 0 {
+		return ""
+	}
+
+	return strings.Join(filters, " and ")
+}
+
+func applyBPFFilter(k *KubeClient, nodeName, bpfFilter string, isPcap bool) error {
+	printColored("blue", fmt.Sprintf("Applying BPF filter: %s", bpfFilter))
+
+	// Set the BPF filter expression ()set bpf trace filter {{<expression>}})
+	filterArg := fmt.Sprintf("{{%s}}", bpfFilter)
+	out, err := k.vppctl(nodeName, "set", "bpf", "trace", "filter", filterArg)
+	if err != nil {
+		return fmt.Errorf("failed to set BPF filter: %v", err)
+	}
+	// Check if pcap_compile failed (VPP returns this in stdout, not as error)
+	if strings.Contains(out, "Failed pcap_compile") {
+		return fmt.Errorf("BPF filter compilation failed: %s", out)
+	}
+
+	// Enable BPF filtering function (set trace/pcap filter function bpf_trace_filter)
+	if isPcap {
+		_, err = k.vppctl(nodeName, "set", "pcap", "filter", "function", "bpf_trace_filter")
+	} else {
+		_, err = k.vppctl(nodeName, "set", "trace", "filter", "function", "bpf_trace_filter")
+	}
+	if err != nil {
+		return fmt.Errorf("failed to enable BPF filter function: %v", err)
+	}
+
+	printColored("green", "BPF filter applied successfully")
+	return nil
+}
+
+// clearBPFFilter removes BPF filters from VPP
+func clearBPFFilter(k *KubeClient, nodeName string, isPcap bool) error {
+	// Remove the BPF filter expression (set bpf trace filter del)
+	_, err := k.vppctl(nodeName, "set", "bpf", "trace", "filter", "del")
+	if err != nil {
+		return fmt.Errorf("failed to remove BPF filter: %v", err)
+	}
+
+	// Reset to default filter function (set trace/pcap filter function vnet_is_packet_traced)
+	if isPcap {
+		_, err = k.vppctl(nodeName, "set", "pcap", "filter", "function", "vnet_is_packet_traced")
+	} else {
+		_, err = k.vppctl(nodeName, "set", "trace", "filter", "function", "vnet_is_packet_traced")
+	}
+	if err != nil {
+		return fmt.Errorf("failed to reset filter function: %v", err)
+	}
+
+	printColored("green", "BPF filter cleared successfully")
+	return nil
 }
