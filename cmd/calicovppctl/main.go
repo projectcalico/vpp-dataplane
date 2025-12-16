@@ -576,11 +576,11 @@ func printHelp() {
 	fmt.Println("calicovppctl gdb                                                      - Attach gdb to the running vpp on the current machine")
 	fmt.Println("calicovppctl sh [-component vpp|agent] [-node NODENAME]               - Get a shell in vpp (dataplane) or agent (controlplane) container")
 	fmt.Println("calicovppctl trace [-node NODENAME]                                   - Setup VPP packet tracing")
-	fmt.Println("      Optional params: [-count N] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl]")
+	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl]")
 	fmt.Println("calicovppctl pcap [-node NODENAME]                                    - Setup VPP PCAP tracing")
-	fmt.Println("      Optional params: [-count N] [-interface INTERFACE_NAME|any(default)] [-output FILE.pcap]")
+	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface INTERFACE_NAME|any(default)] [-output FILE.pcap]")
 	fmt.Println("calicovppctl dispatch [-node NODENAME]                                - Setup VPP dispatch tracing")
-	fmt.Println("      Optional params: [-count N] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl] [-output FILE.pcap]")
+	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl] [-output FILE.pcap]")
 	fmt.Println()
 }
 
@@ -592,6 +592,7 @@ func main() {
 		follow        = flag.Bool("f", false, "Follow logs (for log command)")
 		help          = flag.Bool("help", false, "Show help message")
 		count         = flag.Int("count", 1000, "Packet count for trace/pcap/dispatch commands")
+		timeout       = flag.Int("timeout", 30, "Timeout in seconds for trace/pcap/dispatch commands (default: 30)")
 		interfaceType = flag.String("interface", "", "interface types for trace/dispatch; interface names for pcap. See help for supported types")
 		output        = flag.String("output", "", "Output file for pcap/dispatch commands")
 	)
@@ -654,6 +655,7 @@ func main() {
 	componentPtr := flagSet.String("component", "", "Component to operate on (vpp, agent, felix)")
 	followPtr := flagSet.Bool("f", false, "Follow logs (for log command)")
 	countPtr := flagSet.Int("count", 1000, "Packet count for trace/pcap/dispatch commands")
+	timeoutPtr := flagSet.Int("timeout", 30, "Timeout in seconds for trace/pcap/dispatch commands")
 	interfacePtr := flagSet.String("interface", "", "Interface: types (memif,tuntap,vcl) for trace/dispatch; interface names for pcap")
 	outputPtr := flagSet.String("output", "", "Output file for pcap/dispatch commands")
 	helpPtr := flagSet.Bool("help", false, "Show help message")
@@ -679,6 +681,13 @@ func main() {
 				if i+1 < len(allArgs) {
 					if countVal, err := strconv.Atoi(allArgs[i+1]); err == nil {
 						*countPtr = countVal
+					}
+					i++ // Skip the next argument as it's the value
+				}
+			case "-timeout", "--timeout", "-t":
+				if i+1 < len(allArgs) {
+					if timeoutVal, err := strconv.Atoi(allArgs[i+1]); err == nil {
+						*timeoutPtr = timeoutVal
 					}
 					i++ // Skip the next argument as it's the value
 				}
@@ -708,6 +717,7 @@ func main() {
 	*component = *componentPtr
 	*follow = *followPtr
 	*count = *countPtr
+	*timeout = *timeoutPtr
 	*interfaceType = *interfacePtr
 	*output = *outputPtr
 	*help = *helpPtr
@@ -852,7 +862,7 @@ func main() {
 			handleError(fmt.Errorf("node name is required for trace command. Use -node flag"), "")
 		}
 
-		err := traceCommand(k, *nodeName, *count, *interfaceType)
+		err := traceCommand(k, *nodeName, *count, *timeout, *interfaceType)
 		if err != nil {
 			handleError(err, "Trace failed")
 		}
@@ -862,7 +872,7 @@ func main() {
 			handleError(fmt.Errorf("node name is required for pcap command. Use -node flag"), "")
 		}
 
-		err := pcapCommand(k, *nodeName, *count, *interfaceType, *output)
+		err := pcapCommand(k, *nodeName, *count, *timeout, *interfaceType, *output)
 		if err != nil {
 			handleError(err, "PCAP failed")
 		}
@@ -872,7 +882,7 @@ func main() {
 			handleError(fmt.Errorf("node name is required for dispatch command. Use -node flag"), "")
 		}
 
-		err := dispatchCommand(k, *nodeName, *count, *interfaceType, *output)
+		err := dispatchCommand(k, *nodeName, *count, *timeout, *interfaceType, *output)
 		if err != nil {
 			handleError(err, "Dispatch failed")
 		}
@@ -1307,7 +1317,7 @@ func mapInterfaceTypeToVppInputNode(k *KubeClient, interfaceType string) (string
 	}
 }
 
-func traceCommand(k *KubeClient, nodeName string, count int, interfaceType string) error {
+func traceCommand(k *KubeClient, nodeName string, count int, timeout int, interfaceType string) error {
 	validatedNode, err := validateNodeName(k, nodeName)
 	if err != nil {
 		return err
@@ -1320,6 +1330,7 @@ func traceCommand(k *KubeClient, nodeName string, count int, interfaceType strin
 
 	printColored("green", fmt.Sprintf("Starting packet trace on node '%s'", validatedNode))
 	printColored("grey", fmt.Sprintf("Packet count: %d", count))
+	printColored("grey", fmt.Sprintf("Timeout: %d seconds", timeout))
 	printColored("grey", fmt.Sprintf("VPP Input Node: %s", vppInputNode))
 	printColored("grey", "Output file: ./trace.txt.gz")
 	fmt.Println()
@@ -1339,15 +1350,17 @@ func traceCommand(k *KubeClient, nodeName string, count int, interfaceType strin
 	}
 
 	fmt.Println()
-	printColored("green", "Packet trace configured. Press Ctrl+C to stop tracing...")
+	printColored("green", fmt.Sprintf("Packet trace configured. Will auto-stop after %d seconds or press Ctrl+C to stop early...", timeout))
 	fmt.Println()
-
-	// Set up signal handling for Ctrl+C
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Channel to signal the monitoring goroutine to stop
 	stopChan := make(chan struct{})
+
+	// Set up signal handling for Ctrl+C and timeout
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	timeoutChan := time.After(time.Duration(timeout) * time.Second)
+	startTime := time.Now()
 
 	// Start monitoring goroutine
 	go func() {
@@ -1356,21 +1369,33 @@ func traceCommand(k *KubeClient, nodeName string, count int, interfaceType strin
 			case <-stopChan:
 				return
 			default:
-				printColored("blue", fmt.Sprintf("=== Packet trace active on node '%s' (Press Ctrl+C to stop) ===", validatedNode))
+				remaining := max(0, timeout-int(time.Since(startTime).Seconds()))
+				printColored("blue", fmt.Sprintf("=== Packet trace active on node '%s' (%ds remaining, Press Ctrl+C to stop) ===", validatedNode, remaining))
 				fmt.Println()
 				time.Sleep(5 * time.Second)
 			}
 		}
 	}()
 
-	// Wait for signal
-	<-sigChan
+	// Wait for signal or timeout
+	timeoutExpired := false
+	select {
+	case <-sigChan:
+		// User pressed Ctrl+C
+	case <-timeoutChan:
+		timeoutExpired = true
+	}
 
 	// Stop monitoring
 	close(stopChan)
+	signal.Stop(sigChan)
 
 	fmt.Println()
-	printColored("blue", "Stopping packet trace...")
+	if timeoutExpired {
+		printColored("blue", fmt.Sprintf("Timeout reached (%d seconds). Stopping packet trace...", timeout))
+	} else {
+		printColored("blue", "Stopping packet trace...")
+	}
 
 	// Save trace output to file inside the container
 	namespace := defaultNamespace
@@ -1407,7 +1432,7 @@ func traceCommand(k *KubeClient, nodeName string, count int, interfaceType strin
 	return nil
 }
 
-func pcapCommand(k *KubeClient, nodeName string, count int, interfaceType, outputFile string) error {
+func pcapCommand(k *KubeClient, nodeName string, count int, timeout int, interfaceType, outputFile string) error {
 	validatedNode, err := validateNodeName(k, nodeName)
 	if err != nil {
 		return err
@@ -1458,6 +1483,7 @@ func pcapCommand(k *KubeClient, nodeName string, count int, interfaceType, outpu
 
 	printColored("green", fmt.Sprintf("Starting PCAP trace on node '%s'", validatedNode))
 	printColored("grey", fmt.Sprintf("Packet count: %d", count))
+	printColored("grey", fmt.Sprintf("Timeout: %d seconds", timeout))
 	printColored("grey", fmt.Sprintf("Interface filter: %s", interfaceFilter))
 	if outputFile != "" {
 		printColored("grey", fmt.Sprintf("Output file: ./%s.gz", outputFile))
@@ -1472,7 +1498,7 @@ func pcapCommand(k *KubeClient, nodeName string, count int, interfaceType, outpu
 	}
 
 	fmt.Println()
-	printColored("green", "PCAP trace configured. Press Ctrl+C to stop tracing...")
+	printColored("green", fmt.Sprintf("PCAP trace configured. Will auto-stop after %d seconds or press Ctrl+C to stop early...", timeout))
 	fmt.Println()
 
 	// Determine output filename
@@ -1483,12 +1509,14 @@ func pcapCommand(k *KubeClient, nodeName string, count int, interfaceType, outpu
 		localOutputFile = fmt.Sprintf("./pcap_%s.pcap.gz", validatedNode)
 	}
 
-	// Set up signal handling for Ctrl+C
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
 	// Channel to signal the monitoring goroutine to stop
 	stopChan := make(chan struct{})
+
+	// Set up signal handling for Ctrl+C and timeout
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	timeoutChan := time.After(time.Duration(timeout) * time.Second)
+	startTime := time.Now()
 
 	// Start monitoring goroutine
 	go func() {
@@ -1497,21 +1525,33 @@ func pcapCommand(k *KubeClient, nodeName string, count int, interfaceType, outpu
 			case <-stopChan:
 				return
 			default:
-				printColored("blue", fmt.Sprintf("=== PCAP trace active on node '%s' (Press Ctrl+C to stop) ===", validatedNode))
+				remaining := max(0, timeout-int(time.Since(startTime).Seconds()))
+				printColored("blue", fmt.Sprintf("=== PCAP trace active on node '%s' (%ds remaining, Press Ctrl+C to stop) ===", validatedNode, remaining))
 				fmt.Println()
 				time.Sleep(5 * time.Second)
 			}
 		}
 	}()
 
-	// Wait for signal
-	<-sigChan
+	// Wait for signal or timeout
+	timeoutExpired := false
+	select {
+	case <-sigChan:
+		// User pressed Ctrl+C
+	case <-timeoutChan:
+		timeoutExpired = true
+	}
 
 	// Stop monitoring
 	close(stopChan)
+	signal.Stop(sigChan)
 
 	fmt.Println()
-	printColored("blue", "Stopping PCAP trace...")
+	if timeoutExpired {
+		printColored("blue", fmt.Sprintf("Timeout reached (%d seconds). Stopping PCAP trace...", timeout))
+	} else {
+		printColored("blue", "Stopping PCAP trace...")
+	}
 	_, err = k.vppctl(validatedNode, "pcap", "trace", "off")
 	if err != nil {
 		return fmt.Errorf("failed to stop PCAP trace: %v", err)
@@ -1529,7 +1569,7 @@ func pcapCommand(k *KubeClient, nodeName string, count int, interfaceType, outpu
 	return nil
 }
 
-func dispatchCommand(k *KubeClient, nodeName string, count int, interfaceType, outputFile string) error {
+func dispatchCommand(k *KubeClient, nodeName string, count int, timeout int, interfaceType, outputFile string) error {
 	validatedNode, err := validateNodeName(k, nodeName)
 	if err != nil {
 		return err
@@ -1544,6 +1584,7 @@ func dispatchCommand(k *KubeClient, nodeName string, count int, interfaceType, o
 
 	printColored("green", fmt.Sprintf("Starting dispatch trace on node '%s'", validatedNode))
 	printColored("grey", fmt.Sprintf("Packet count: %d", count))
+	printColored("grey", fmt.Sprintf("Timeout: %d seconds", timeout))
 	printColored("grey", fmt.Sprintf("VPP Input Node: %s", vppInputNode))
 	if outputFile != "" {
 		printColored("grey", fmt.Sprintf("Output file: ./%s.gz", outputFile))
@@ -1558,7 +1599,7 @@ func dispatchCommand(k *KubeClient, nodeName string, count int, interfaceType, o
 	}
 
 	fmt.Println()
-	printColored("green", "Dispatch trace configured. Press Ctrl+C to stop tracing...")
+	printColored("green", fmt.Sprintf("Dispatch trace configured. Will auto-stop after %d seconds or press Ctrl+C to stop early...", timeout))
 	fmt.Println()
 
 	// Determine output filename
@@ -1569,12 +1610,14 @@ func dispatchCommand(k *KubeClient, nodeName string, count int, interfaceType, o
 		localOutputFile = fmt.Sprintf("./dispatch_%s.pcap.gz", validatedNode)
 	}
 
-	// Set up signal handling for Ctrl+C
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
 	// Channel to signal the monitoring goroutine to stop
 	stopChan := make(chan struct{})
+
+	// Set up signal handling for Ctrl+C and timeout
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	timeoutChan := time.After(time.Duration(timeout) * time.Second)
+	startTime := time.Now()
 
 	// Start monitoring goroutine
 	go func() {
@@ -1583,21 +1626,33 @@ func dispatchCommand(k *KubeClient, nodeName string, count int, interfaceType, o
 			case <-stopChan:
 				return
 			default:
-				printColored("blue", fmt.Sprintf("=== PCAP trace active on node '%s' (Press Ctrl+C to stop) ===", validatedNode))
+				remaining := max(0, timeout-int(time.Since(startTime).Seconds()))
+				printColored("blue", fmt.Sprintf("=== Dispatch trace active on node '%s' (%ds remaining, Press Ctrl+C to stop) ===", validatedNode, remaining))
 				fmt.Println()
 				time.Sleep(5 * time.Second)
 			}
 		}
 	}()
 
-	// Wait for signal
-	<-sigChan
+	// Wait for signal or timeout
+	timeoutExpired := false
+	select {
+	case <-sigChan:
+		// User pressed Ctrl+C
+	case <-timeoutChan:
+		timeoutExpired = true
+	}
 
 	// Stop monitoring
 	close(stopChan)
+	signal.Stop(sigChan)
 
 	fmt.Println()
-	printColored("blue", "Stopping dispatch trace...")
+	if timeoutExpired {
+		printColored("blue", fmt.Sprintf("Timeout reached (%d seconds). Stopping dispatch trace...", timeout))
+	} else {
+		printColored("blue", "Stopping dispatch trace...")
+	}
 	_, err = k.vppctl(validatedNode, "pcap", "dispatch", "trace", "off")
 	if err != nil {
 		return fmt.Errorf("failed to stop dispatch trace: %v", err)
