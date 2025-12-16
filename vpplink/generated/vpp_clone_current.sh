@@ -139,6 +139,10 @@ git_cherry_pick refs/changes/99/45099/2 # 45099: ip6-nd: add nd-proxy all dst | 
 git_cherry_pick refs/changes/46/45046/4 # 45046: ip6-nd: add punt reason for neigh advs | https://gerrit.fd.io/r/c/vpp/+/45046
 
 
+# bpf_trace_filter: add filter support for pcap dispatch trace and raw IP packet support
+git_cherry_pick refs/changes/64/44464/9 # 44464: dispatch-trace: add filter support for pcap dispatch trace | https://gerrit.fd.io/r/c/vpp/+/44464
+git_cherry_pick refs/changes/67/44467/7 # 44467: bpf_trace_filter: add raw IP packet support | https://gerrit.fd.io/r/c/vpp/+/44467
+
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch
