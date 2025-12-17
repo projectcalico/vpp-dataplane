@@ -162,7 +162,18 @@ func prefixParser(value string) (net.IPNet, error) {
 func RequiredPrefixEnvVar(varName string) *net.IPNet {
 	return RequiredEnvVar(varName, net.IPNet{}, prefixParser)
 }
-func PrefixEnvVar(varName string) *net.IPNet { return EnvVar(varName, net.IPNet{}, prefixParser) }
+
+func PrefixEnvVar(varName string, defaultValue *net.IPNet) *net.IPNet {
+	return EnvVar(varName, *defaultValue, prefixParser)
+}
+
+func MustParseCIDR(str string) *net.IPNet {
+	_, cidr, err := net.ParseCIDR(str)
+	if err != nil {
+		logrus.Fatalf("error parsing %s as cidr %v", str, err)
+	}
+	return cidr
+}
 
 func prefixListParser(value string) ([]*net.IPNet, error) {
 	chunks := strings.Split(value, ",")
@@ -256,4 +267,15 @@ func BGPLogLevelParse(lvl string) (apipb.SetLogLevelRequest_Level, error) {
 
 	var l apipb.SetLogLevelRequest_Level
 	return l, fmt.Errorf("not a valid logrus Level: %q", lvl)
+}
+
+func BGPServerModeParse(mode string) (BGPServerModeType, error) {
+	switch strings.ToLower(mode) {
+	case strings.ToLower(string(BGPServerModeDualStack)):
+		return BGPServerModeDualStack, nil
+	case "v4only":
+		return BGPServerModeV4Only, nil
+	}
+
+	return BGPServerModeDualStack, fmt.Errorf("not a valid BGP server mode: %q", mode)
 }
