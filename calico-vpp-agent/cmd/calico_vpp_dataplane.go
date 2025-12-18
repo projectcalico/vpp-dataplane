@@ -154,9 +154,9 @@ func main() {
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	prometheusServer := prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
-	felixServer, err := felix.NewFelixServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
+	felixServer, err := felix.NewFelixServer(vpp, log.WithFields(logrus.Fields{"component": "felix"}))
 	if err != nil {
-		log.Fatalf("Failed to create policy server %s", err)
+		log.Fatalf("Failed to create felix server %s", err)
 	}
 	err = felix.InstallFelixPlugin()
 	if err != nil {
