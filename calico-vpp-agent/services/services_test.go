@@ -74,11 +74,10 @@ var _ = Describe("Service creation functionality", func() {
 
 	BeforeEach(func() {
 		log = logrus.New()
-		// Set unique container name for Prometheus tests
+		// Set unique container name for Services tests
 		testutils.VPPContainerName = "services-tests-vpp"
 		testutils.StartVPP()
 		vpp, _ = testutils.ConfigureVPP(log)
-		// setup CNI server (functionality target of tests)
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 		k8sclient, err := kubernetes.NewForConfig(&rest.Config{})
 		if err != nil {
