@@ -56,7 +56,7 @@ type Server struct {
 	bgpFilters map[string]*calicov3.BGPFilter
 	bgpPeers   map[string]*watchers.LocalBGPPeer
 
-	routingServerEventChan chan common.CalicoVppEvent
+	routingServerEventChan chan any
 
 	nodeBGPSpec *common.LocalNodeSpec
 }
@@ -83,7 +83,7 @@ func NewRoutingServer(vpp *vpplink.VppLink, bgpServer *bgpserver.BgpServer, log 
 		BGPServer:       bgpServer,
 		localAddressMap: make(map[string]localAddress),
 
-		routingServerEventChan: make(chan common.CalicoVppEvent, common.ChanSize),
+		routingServerEventChan: make(chan any, common.ChanSize),
 		bgpFilters:             make(map[string]*calicov3.BGPFilter),
 		bgpPeers:               make(map[string]*watchers.LocalBGPPeer),
 	}

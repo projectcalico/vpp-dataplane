@@ -49,7 +49,7 @@ type PrometheusServer struct {
 	podInterfacesDetailsBySwifIndex map[uint32]podInterfaceDetails
 	podInterfacesByKey              map[string]model.LocalPodSpec
 	statsclient                     *statsclient.StatsClient
-	channel                         chan common.CalicoVppEvent
+	channel                         chan any
 	lock                            sync.Mutex
 	httpServer                      *http.Server
 	exporter                        *prometheusExporter.Exporter
@@ -65,7 +65,7 @@ func NewPrometheusServer(vpp *vpplink.VppLink, log *logrus.Entry) *PrometheusSer
 	server := &PrometheusServer{
 		log:                             log,
 		vpp:                             vpp,
-		channel:                         make(chan common.CalicoVppEvent, 10),
+		channel:                         make(chan any, 10),
 		podInterfacesByKey:              make(map[string]model.LocalPodSpec),
 		podInterfacesDetailsBySwifIndex: make(map[uint32]podInterfaceDetails),
 		statsclient:                     statsclient.NewStatsClient("" /* default socket name */),
@@ -415,7 +415,11 @@ func (p *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 	go func() {
 		for t.Alive() {
 			/* Note: we will only receive events we ask for when registering the chan */
-			evt := <-p.channel
+			msg := <-p.channel
+			evt, ok := msg.(common.CalicoVppEvent)
+			if !ok {
+				continue
+			}
 			switch evt.Type {
 			case common.PodAdded:
 				podSpec, ok := evt.New.(*model.LocalPodSpec)

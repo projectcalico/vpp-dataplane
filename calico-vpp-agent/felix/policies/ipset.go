@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package felix
+package policies
 
 import (
 	"fmt"
@@ -153,7 +153,7 @@ func toNetArray(addrs map[string]*net.IPNet) []*net.IPNet {
 	return array
 }
 
-func fromIPSetUpdate(ips *proto.IPSetUpdate) (i *IPSet, err error) {
+func FromIPSetUpdate(ips *proto.IPSetUpdate) (i *IPSet, err error) {
 	i = NewIPSet()
 	switch ips.GetType() {
 	case proto.IPSetUpdate_IP:
@@ -291,4 +291,60 @@ func (i *IPSet) RemoveMembers(members []string, apply bool, vpp *vpplink.VppLink
 		}
 	}
 	return err
+}
+
+func (s *PoliciesHandler) OnIpsetUpdate(msg *proto.IPSetUpdate) (err error) {
+	ips, err := FromIPSetUpdate(msg)
+	if err != nil {
+		return errors.Wrap(err, "cannot process IPSetUpdate")
+	}
+	state := s.GetState()
+	_, ok := state.IPSets[msg.GetId()]
+	if ok {
+		return fmt.Errorf("received new ipset for ID %s that already exists", msg.GetId())
+	}
+	if !s.state.IsPending() {
+		err = ips.Create(s.vpp)
+		if err != nil {
+			return errors.Wrapf(err, "cannot create ipset %s", msg.GetId())
+		}
+	}
+	state.IPSets[msg.GetId()] = ips
+	s.log.Debugf("Handled Ipset Update pending=%t id=%s %s", s.state.IsPending(), msg.GetId(), ips)
+	return nil
+}
+
+func (s *PoliciesHandler) OnIpsetDeltaUpdate(msg *proto.IPSetDeltaUpdate) (err error) {
+	ips, ok := s.GetState().IPSets[msg.GetId()]
+	if !ok {
+		return fmt.Errorf("received delta update for non-existent ipset")
+	}
+	err = ips.AddMembers(msg.GetAddedMembers(), !s.state.IsPending(), s.vpp)
+	if err != nil {
+		return errors.Wrap(err, "cannot process ipset delta update")
+	}
+	err = ips.RemoveMembers(msg.GetRemovedMembers(), !s.state.IsPending(), s.vpp)
+	if err != nil {
+		return errors.Wrap(err, "cannot process ipset delta update")
+	}
+	s.log.Debugf("Handled Ipset delta Update pending=%t id=%s %s", s.state.IsPending(), msg.GetId(), ips)
+	return nil
+}
+
+func (s *PoliciesHandler) OnIpsetRemove(msg *proto.IPSetRemove) (err error) {
+	state := s.GetState()
+	ips, ok := state.IPSets[msg.GetId()]
+	if !ok {
+		s.log.Warnf("Received ipset delete for ID %s that doesn't exists", msg.GetId())
+		return nil
+	}
+	if !s.state.IsPending() {
+		err = ips.Delete(s.vpp)
+		if err != nil {
+			return errors.Wrapf(err, "cannot delete ipset %s", msg.GetId())
+		}
+	}
+	s.log.Debugf("Handled Ipset remove pending=%t id=%s %s", s.state.IsPending(), msg.GetId(), ips)
+	delete(state.IPSets, msg.GetId())
+	return nil
 }
