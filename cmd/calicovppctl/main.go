@@ -58,7 +58,6 @@ const (
 	bashCmd     = "bash"
 	vppctlPath  = "/usr/bin/vppctl"
 	vppSockPath = "/var/run/vpp/cli.sock"
-	sudoCmd     = "sudo"
 	dockerCmd   = "docker"
 
 	// Command templates
@@ -68,7 +67,19 @@ const (
 
 	// Kubernetes client timeout
 	kubeClientTimeout = 15 * time.Second
+
+	// Capture lock file path (inside VPP pod)
+	captureLockFile = "/tmp/calicovppctl.lock"
 )
+
+// CaptureLockInfo represents the information stored in the lock file
+type CaptureLockInfo struct {
+	NodeName  string    `json:"node_name"`
+	Operation string    `json:"operation"`
+	StartedAt time.Time `json:"started_at"`
+	Hostname  string    `json:"hostname"`
+	BPFActive bool      `json:"bpf_active"`
+}
 
 type KubeClient struct {
 	clientset *kubernetes.Clientset
@@ -573,6 +584,7 @@ func printHelp() {
 	fmt.Println("calicovppctl vppctl [-node NODENAME] [VPP_COMMANDS...]                - Get a vppctl shell or run VPP commands on a specific node")
 	fmt.Println("calicovppctl log [-f] [-component vpp|agent|felix] [-node NODENAME]   - Get the logs of vpp (dataplane) or agent (controlplane) or felix daemon")
 	fmt.Println("calicovppctl clear                                                    - Clear vpp internal stats")
+	fmt.Println("calicovppctl capture clear [-node NODENAME]                           - Clear all active captures and BPF filters (forced cleanup)")
 	fmt.Println("calicovppctl export                                                   - Create an archive with vpp & k8 system state for debugging")
 	fmt.Println("calicovppctl exportnode [-node NODENAME]                              - Create an archive with vpp & k8 system state for a specific node")
 	fmt.Println("calicovppctl gdb                                                      - Attach gdb to the running vpp on the current machine")
@@ -628,7 +640,7 @@ func main() {
 		// Check if this is a known command
 		if !commandFound && !strings.HasPrefix(arg, "-") {
 			switch arg {
-			case "vppctl", "log", "clear", "export", "exportnode", "gdb", "sh", "trace", "pcap", "dispatch":
+			case "vppctl", "log", "clear", "export", "exportnode", "gdb", "sh", "trace", "pcap", "dispatch", "capture":
 				command = arg
 				commandFound = true
 				commandArgs = args[i+1:]
@@ -936,6 +948,26 @@ func main() {
 		err := dispatchCommand(k, *nodeName, *count, *timeout, *interfaceType, *output, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
 		if err != nil {
 			handleError(err, "Dispatch failed")
+		}
+
+	case "capture":
+		if len(commandArgs) == 0 {
+			handleError(fmt.Errorf("capture command requires a subcommand. Use 'capture clear'"), "")
+		}
+
+		switch commandArgs[0] {
+		case "clear":
+			if *nodeName == "" {
+				handleError(fmt.Errorf("node name is required for capture clear command. Use -node flag"), "")
+			}
+
+			err := captureCleanupCommand(k, *nodeName)
+			if err != nil {
+				handleError(err, "Capture cleanup failed")
+			}
+
+		default:
+			handleError(fmt.Errorf("unknown capture subcommand: %s. Use 'capture clear'", commandArgs[0]), "")
 		}
 
 	default:
@@ -1391,6 +1423,40 @@ func traceCommand(k *KubeClient, nodeName string, count int, timeout int, interf
 		return err
 	}
 
+	// Check for existing capture locks
+	lockInfo, err := checkCaptureLock(k, validatedNode)
+	if err != nil {
+		return fmt.Errorf("failed to check capture lock: %v", err)
+	}
+	if lockInfo != nil {
+		return fmt.Errorf("capture operation already running on node '%s'\n"+
+			"  Operation: %s\n"+
+			"  Started by: %s\n"+
+			"  Started at: %s\n"+
+			"  BPF filters active: %t\n\n"+
+			"Use 'calicovppctl capture clear -node %s' to force cleanup if the previous operation failed",
+			validatedNode, lockInfo.Operation, lockInfo.Hostname,
+			lockInfo.StartedAt.Format("2006-01-02 15:04:05"), lockInfo.BPFActive, validatedNode)
+	}
+
+	// Check if BPF filters will be used
+	bpfFilter := buildBPFFilter(srcIP, dstIP, protocol, srcPort, dstPort)
+	useBPF := bpfFilter != ""
+
+	// Create capture lock
+	err = createCaptureLock(k, validatedNode, "trace", useBPF)
+	if err != nil {
+		return fmt.Errorf("failed to create capture lock: %v", err)
+	}
+
+	// Ensure cleanup on exit
+	defer func() {
+		err := removeCaptureLock(k, validatedNode)
+		if err != nil {
+			printColored("red", fmt.Sprintf("Warning: Failed to remove capture lock: %v", err))
+		}
+	}()
+
 	vppInputNode, _, err := mapInterfaceTypeToVppInputNode(k, interfaceType)
 	if err != nil {
 		return err
@@ -1402,9 +1468,7 @@ func traceCommand(k *KubeClient, nodeName string, count int, timeout int, interf
 	printColored("grey", fmt.Sprintf("VPP Input Node: %s", vppInputNode))
 	printColored("grey", "Output file: ./trace.txt.gz")
 
-	// Build and apply BPF filter if specified
-	bpfFilter := buildBPFFilter(srcIP, dstIP, protocol, srcPort, dstPort)
-	useBPF := false
+	// Apply BPF filter if specified
 	if bpfFilter != "" {
 		printColored("grey", fmt.Sprintf("BPF Filter: %s", bpfFilter))
 		err := applyBPFFilter(k, validatedNode, bpfFilter, false)
@@ -1531,6 +1595,40 @@ func pcapCommand(k *KubeClient, nodeName string, count int, timeout int, interfa
 		return err
 	}
 
+	// Check for existing capture locks
+	lockInfo, err := checkCaptureLock(k, validatedNode)
+	if err != nil {
+		return fmt.Errorf("failed to check capture lock: %v", err)
+	}
+	if lockInfo != nil {
+		return fmt.Errorf("capture operation already running on node '%s'\n"+
+			"  Operation: %s\n"+
+			"  Started by: %s\n"+
+			"  Started at: %s\n"+
+			"  BPF filters active: %t\n\n"+
+			"Use 'calicovppctl capture clear -node %s' to force cleanup if the previous operation failed",
+			validatedNode, lockInfo.Operation, lockInfo.Hostname,
+			lockInfo.StartedAt.Format("2006-01-02 15:04:05"), lockInfo.BPFActive, validatedNode)
+	}
+
+	// Check if BPF filters will be used
+	bpfFilter := buildBPFFilter(srcIP, dstIP, protocol, srcPort, dstPort)
+	useBPF := bpfFilter != ""
+
+	// Create capture lock
+	err = createCaptureLock(k, validatedNode, "pcap", useBPF)
+	if err != nil {
+		return fmt.Errorf("failed to create capture lock: %v", err)
+	}
+
+	// Ensure cleanup on exit
+	defer func() {
+		err := removeCaptureLock(k, validatedNode)
+		if err != nil {
+			printColored("red", fmt.Sprintf("Warning: Failed to remove capture lock: %v", err))
+		}
+	}()
+
 	// First, let's validate that we can access the VPP interfaces
 	interfacesOutput, err := k.vppctl(validatedNode, "show", "interface")
 	if err != nil {
@@ -1587,9 +1685,7 @@ func pcapCommand(k *KubeClient, nodeName string, count int, timeout int, interfa
 		printColored("grey", fmt.Sprintf("Output file: ./%s.gz", outputFile))
 	}
 
-	// Build and apply BPF filter if specified
-	bpfFilter := buildBPFFilter(srcIP, dstIP, protocol, srcPort, dstPort)
-	useBPF := false
+	// Apply BPF filter if specified
 	if bpfFilter != "" {
 		printColored("grey", fmt.Sprintf("BPF Filter: %s", bpfFilter))
 		err := applyBPFFilter(k, validatedNode, bpfFilter, true)
@@ -1697,6 +1793,40 @@ func dispatchCommand(k *KubeClient, nodeName string, count int, timeout int, int
 		return err
 	}
 
+	// Check for existing capture locks
+	lockInfo, err := checkCaptureLock(k, validatedNode)
+	if err != nil {
+		return fmt.Errorf("failed to check capture lock: %v", err)
+	}
+	if lockInfo != nil {
+		return fmt.Errorf("capture operation already running on node '%s'\n"+
+			"  Operation: %s\n"+
+			"  Started by: %s\n"+
+			"  Started at: %s\n"+
+			"  BPF filters active: %t\n\n"+
+			"Use 'calicovppctl capture clear -node %s' to force cleanup if the previous operation failed",
+			validatedNode, lockInfo.Operation, lockInfo.Hostname,
+			lockInfo.StartedAt.Format("2006-01-02 15:04:05"), lockInfo.BPFActive, validatedNode)
+	}
+
+	// Check if BPF filters will be used
+	bpfFilter := buildBPFFilter(srcIP, dstIP, protocol, srcPort, dstPort)
+	useBPF := bpfFilter != ""
+
+	// Create capture lock
+	err = createCaptureLock(k, validatedNode, "dispatch", useBPF)
+	if err != nil {
+		return fmt.Errorf("failed to create capture lock: %v", err)
+	}
+
+	// Ensure cleanup on exit
+	defer func() {
+		err := removeCaptureLock(k, validatedNode)
+		if err != nil {
+			printColored("red", fmt.Sprintf("Warning: Failed to remove capture lock: %v", err))
+		}
+	}()
+
 	vppInputNode, _, err := mapInterfaceTypeToVppInputNode(k, interfaceType)
 	if err != nil {
 		return err
@@ -1717,9 +1847,7 @@ func dispatchCommand(k *KubeClient, nodeName string, count int, timeout int, int
 		printColored("grey", fmt.Sprintf("Output file: ./%s.gz", outputFile))
 	}
 
-	// Build and apply BPF filter if specified
-	bpfFilter := buildBPFFilter(srcIP, dstIP, protocol, srcPort, dstPort)
-	useBPF := false
+	// Apply BPF filter if specified
 	if bpfFilter != "" {
 		printColored("grey", fmt.Sprintf("BPF Filter: %s", bpfFilter))
 		err := applyBPFFilter(k, validatedNode, bpfFilter, true)
@@ -1974,5 +2102,174 @@ func clearBPFFilter(k *KubeClient, nodeName string, isPcap bool) error {
 	}
 
 	printColored("green", "BPF filter cleared successfully")
+	return nil
+}
+
+// createCaptureLock creates a lock file for the specified node and operation
+func createCaptureLock(k *KubeClient, nodeName, operation string, bpfActive bool) error {
+	// Get hostname
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("failed to get hostname: %v", err)
+	}
+
+	lockInfo := CaptureLockInfo{
+		NodeName:  nodeName,
+		Operation: operation,
+		StartedAt: time.Now(),
+		Hostname:  hostname,
+		BPFActive: bpfActive,
+	}
+
+	lockData, err := json.MarshalIndent(lockInfo, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal lock info: %v", err)
+	}
+
+	// Find the pod on the specified node
+	podName, err := k.findNodePod(nodeName, defaultPod, defaultNamespace)
+	if err != nil {
+		return fmt.Errorf("could not find calico-vpp-node pod on node '%s': %v", nodeName, err)
+	}
+
+	// Create lock file inside VPP pod using kubectl exec
+	createCmd := fmt.Sprintf("cat > %s", captureLockFile)
+	_, err = k.execInPod(defaultNamespace, podName, defaultContainerVpp, "sh", "-c", createCmd)
+	if err != nil {
+		return fmt.Errorf("failed to create lock file in VPP pod: %v", err)
+	}
+
+	// Write the lock data to the file via stdin
+	cmd := exec.Command(kubectlCmd, "exec", "-i", "-n", defaultNamespace,
+		"-c", defaultContainerVpp, podName, "--", "sh", "-c", createCmd)
+	cmd.Stdin = strings.NewReader(string(lockData))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to write lock file data: %v, output: %s", err, string(output))
+	}
+
+	return nil
+}
+
+// checkCaptureLock checks if there's an active capture lock and returns conflict info
+func checkCaptureLock(k *KubeClient, nodeName string) (*CaptureLockInfo, error) {
+	// Find the pod on the specified node
+	podName, err := k.findNodePod(nodeName, defaultPod, defaultNamespace)
+	if err != nil {
+		return nil, fmt.Errorf("could not find calico-vpp-node pod on node '%s': %v", nodeName, err)
+	}
+
+	// Check if lock file exists in VPP pod
+	checkCmd := fmt.Sprintf("test -f %s", captureLockFile)
+	_, err = k.execInPod(defaultNamespace, podName, defaultContainerVpp, "sh", "-c", checkCmd)
+	if err != nil {
+		// Lock file doesn't exist
+		return nil, nil
+	}
+
+	// Read lock file from VPP pod
+	readCmd := fmt.Sprintf("cat %s", captureLockFile)
+	lockData, err := k.execInPod(defaultNamespace, podName, defaultContainerVpp, "sh", "-c", readCmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read lock file from VPP pod: %v", err)
+	}
+
+	var lockInfo CaptureLockInfo
+	err = json.Unmarshal([]byte(lockData), &lockInfo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse lock file: %v", err)
+	}
+
+	// Check if the lock is for the same node
+	if lockInfo.NodeName == nodeName {
+		return &lockInfo, nil
+	}
+
+	return nil, nil // Lock exists but for different node (should not happen)
+}
+
+// removeCaptureLock removes the capture lock file
+func removeCaptureLock(k *KubeClient, nodeName string) error {
+	// Find the pod on the specified node
+	podName, err := k.findNodePod(nodeName, defaultPod, defaultNamespace)
+	if err != nil {
+		return fmt.Errorf("could not find calico-vpp-node pod on node '%s': %v", nodeName, err)
+	}
+
+	// Check if lock file exists in VPP pod
+	checkCmd := fmt.Sprintf("test -f %s", captureLockFile)
+	_, err = k.execInPod(defaultNamespace, podName, defaultContainerVpp, "sh", "-c", checkCmd)
+	if err != nil {
+		// Lock file doesn't exist, nothing to remove
+		return nil
+	}
+
+	// Remove lock file from VPP pod
+	removeCmd := fmt.Sprintf("rm -f %s", captureLockFile)
+	_, err = k.execInPod(defaultNamespace, podName, defaultContainerVpp, "sh", "-c", removeCmd)
+	if err != nil {
+		return fmt.Errorf("failed to remove lock file from VPP pod: %v", err)
+	}
+
+	return nil
+}
+
+// captureCleanupCommand performs forced cleanup of all capture operations
+func captureCleanupCommand(k *KubeClient, nodeName string) error {
+	validatedNode, err := validateNodeName(k, nodeName)
+	if err != nil {
+		return err
+	}
+
+	printColored("blue", fmt.Sprintf("Starting cleanup on node '%s'", validatedNode))
+
+	// Stop all active traces
+	printColored("blue", "Clearing traces...")
+	_, err = k.vppctl(validatedNode, "clear", "trace")
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to clear trace: %v", err))
+	} else {
+		printColored("green", "trace cleared")
+	}
+
+	// Stop PCAP captures
+	printColored("blue", "Stopping PCAP captures...")
+	_, err = k.vppctl(validatedNode, "pcap", "trace", "off")
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to stop PCAP trace: %v", err))
+	} else {
+		printColored("green", "PCAP trace stopped")
+	}
+
+	// Stop dispatch captures
+	printColored("blue", "Stopping dispatch captures...")
+	_, err = k.vppctl(validatedNode, "pcap", "dispatch", "trace", "off")
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to stop dispatch trace: %v", err))
+	} else {
+		printColored("green", "dispatch trace stopped")
+	}
+
+	// Clear BPF filters for both trace and pcap
+	printColored("blue", "Clearing BPF filters...")
+	err = clearBPFFilter(k, validatedNode, false)
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to clear trace BPF filter: %v", err))
+	}
+	err = clearBPFFilter(k, validatedNode, true)
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to clear PCAP BPF filter: %v", err))
+	}
+
+	// Remove lock file
+	printColored("blue", "Removing lock file...")
+	err = removeCaptureLock(k, validatedNode)
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to remove lock file: %v", err))
+	} else {
+		printColored("green", "lock file removed")
+	}
+
+	printColored("green", "Cleanup completed")
 	return nil
 }
