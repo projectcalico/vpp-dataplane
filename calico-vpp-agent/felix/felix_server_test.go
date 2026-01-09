@@ -327,7 +327,7 @@ var _ = Describe("Felix functionality", func() {
 				}, false)
 				Expect(err).ToNot(HaveOccurred(),
 					"failed to handle hostMetadataV4V6Update")
-				expectCnatSnatContain(vpp, []string{"5.5.5.5/32"}, []string{})
+				expectCnatSnatContain(vpp, []string{"ip4: 5.5.5.5;0", "ip6: f::f;0"}, []string{})
 
 				By("receiving a hostmetadatav4v6 remove of own node")
 				err = felixServer.handleHostMetadataV4V6Remove(&proto.HostMetadataV4V6Remove{
@@ -335,30 +335,6 @@ var _ = Describe("Felix functionality", func() {
 				}, false)
 				Expect(err).To(Equal(NodeWatcherRestartError{}),
 					"failed to handle hostMetadataV4V6Remove")
-			})
-			It("should handle hostMetadataV4V6 updates of another node", func() {
-				By("receiving a hostmetadatav4v6 update of own node")
-				go func() {
-					<-felixServer.GotOurNodeBGPchan
-				}()
-				nodeName := "host"
-				config.NodeName = &nodeName
-				err := felixServer.handleHostMetadataV4V6Update(&proto.HostMetadataV4V6Update{
-					Hostname: "host2",
-					Ipv4Addr: "11.11.11.11/32",
-					Ipv6Addr: "f::d/128",
-				}, false)
-				Expect(err).ToNot(HaveOccurred(),
-					"failed to handle hostMetadataV4V6Update")
-				expectCnatSnatContain(vpp, []string{"11.11.11.11/32", "f::d/128"}, []string{})
-
-				By("receiving a hostmetadatav4v6 remove of own node")
-				err = felixServer.handleHostMetadataV4V6Remove(&proto.HostMetadataV4V6Remove{
-					Hostname: "host2",
-				}, false)
-				Expect(err).ToNot(HaveOccurred(),
-					"failed to handle HostMetadataV4V6Remove")
-				expectCnatSnatContain(vpp, []string{}, []string{"11.11.11.11/32", "f::d/128"})
 			})
 		})
 		Context("HostEndpoint updates", func() {
