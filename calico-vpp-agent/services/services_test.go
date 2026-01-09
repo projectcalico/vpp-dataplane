@@ -70,6 +70,7 @@ var _ = Describe("Service creation functionality", func() {
 		log           *logrus.Logger
 		vpp           *vpplink.VppLink
 		serviceServer *Server
+		uplinkSwIf    uint32
 	)
 
 	BeforeEach(func() {
@@ -77,7 +78,17 @@ var _ = Describe("Service creation functionality", func() {
 		// Set unique container name for Services tests
 		testutils.VPPContainerName = "services-tests-vpp"
 		testutils.StartVPP()
-		vpp, _ = testutils.ConfigureVPP(log)
+		vpp, uplinkSwIf = testutils.ConfigureVPP(log)
+		common.VppManagerInfo = &config.VppManagerInfo{
+			UplinkStatuses: map[string]config.UplinkStatus{
+				"uplink": {
+					SwIfIndex:    uplinkSwIf,
+					TapSwIfIndex: uplinkSwIf,
+					IsMain:       true,
+				},
+			},
+			PhysicalNets: map[string]config.PhysicalNetwork{},
+		}
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 		k8sclient, err := kubernetes.NewForConfig(&rest.Config{})
 		if err != nil {
@@ -92,6 +103,9 @@ var _ = Describe("Service creation functionality", func() {
 			IPv4Address: ipv4net,
 			IPv6Address: ipv6net,
 		})
+		err = vpp.CnatSetSnatAddresses(ipv4net.IP, ipv6net.IP)
+		Expect(err).ToNot(HaveOccurred(),
+			"failed to configure SNAT addresses")
 	})
 
 	AfterEach(func() {
