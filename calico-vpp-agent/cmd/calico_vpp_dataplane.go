@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/capture"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/connectivity"
@@ -162,6 +163,7 @@ func main() {
 	}
 	connectivityServer := connectivity.NewConnectivityServer(vpp, felixServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 	cniServer := cni.NewCNIServer(vpp, felixServer, log.WithFields(logrus.Fields{"component": "cni"}))
+	captureServer := capture.NewCaptureServer(vpp, log.WithFields(logrus.Fields{"component": "capture"}))
 
 	/* Pubsub should now be registered */
 
@@ -263,6 +265,7 @@ func main() {
 	Go(routingServer.ServeRouting)
 	Go(serviceServer.ServeService)
 	Go(cniServer.ServeCNI)
+	Go(captureServer.ServeCapture)
 
 	// watch LocalSID if SRv6 is enabled
 	if *config.GetCalicoVppFeatureGates().SRv6Enabled {

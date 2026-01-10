@@ -70,7 +70,27 @@ const (
 
 	// Capture lock file path (inside VPP pod)
 	captureLockFile = "/tmp/calicovppctl.lock"
+
+	// Capture server port
+	captureServerPort = 9999
 )
+
+// StatusResponse represents the status response from the capture server
+type StatusResponse struct {
+	Status      string `json:"status"`
+	CaptureType string `json:"captureType,omitempty"`
+	FilePath    string `json:"filePath,omitempty"`
+	RemainingMs int64  `json:"remainingMs,omitempty"`
+}
+
+// CaptureResponse represents the response from capture operations
+type CaptureResponse struct {
+	Success  bool   `json:"success"`
+	Message  string `json:"message"`
+	Status   string `json:"status"`
+	FilePath string `json:"filePath,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
 
 // CaptureLockInfo represents the information stored in the lock file
 type CaptureLockInfo struct {
@@ -585,19 +605,23 @@ func printHelp() {
 	fmt.Println("calicovppctl log [-f] [-component vpp|agent|felix] [-node NODENAME]   - Get the logs of vpp (dataplane) or agent (controlplane) or felix daemon")
 	fmt.Println("calicovppctl clear                                                    - Clear vpp internal stats")
 	fmt.Println("calicovppctl capture clear [-node NODENAME]                           - Clear all active captures and BPF filters (forced cleanup)")
+	fmt.Println("calicovppctl capture status [-node NODENAME]                          - Get current capture status via capture server")
+	fmt.Println("calicovppctl capture stop [-node NODENAME] [-output FILE]             - Stop capture (if running) and download the capture file")
 	fmt.Println("calicovppctl export                                                   - Create an archive with vpp & k8 system state for debugging")
 	fmt.Println("calicovppctl exportnode [-node NODENAME]                              - Create an archive with vpp & k8 system state for a specific node")
 	fmt.Println("calicovppctl gdb                                                      - Attach gdb to the running vpp on the current machine")
 	fmt.Println("calicovppctl sh [-component vpp|agent] [-node NODENAME]               - Get a shell in vpp (dataplane) or agent (controlplane) container")
-	fmt.Println("calicovppctl trace [-node NODENAME]                                   - Setup VPP packet tracing")
+	fmt.Println("calicovppctl trace [-node NODENAME] [-use-api]                        - Setup VPP packet tracing")
 	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl]")
 	fmt.Println("      Filter params: [-srcip IP] [-dstip IP] [-srcport PORT] [-dstport PORT] [-protocol tcp|udp|icmp]")
-	fmt.Println("calicovppctl pcap [-node NODENAME]                                    - Setup VPP PCAP tracing")
+	fmt.Println("calicovppctl pcap [-node NODENAME] [-use-api]                         - Setup VPP PCAP tracing")
 	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface INTERFACE_NAME|any(default)] [-output FILE.pcap]")
 	fmt.Println("      Filter params: [-srcip IP] [-dstip IP] [-srcport PORT] [-dstport PORT] [-protocol tcp|udp|icmp]")
-	fmt.Println("calicovppctl dispatch [-node NODENAME]                                - Setup VPP dispatch tracing")
+	fmt.Println("calicovppctl dispatch [-node NODENAME] [-use-api]                     - Setup VPP dispatch tracing")
 	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl] [-output FILE.pcap]")
 	fmt.Println("      Filter params: [-srcip IP] [-dstip IP] [-srcport PORT] [-dstport PORT] [-protocol tcp|udp|icmp]")
+	fmt.Println()
+	fmt.Println("Note: Use -use-api flag to use HTTP capture server (binary API) instead of vppctl commands")
 	fmt.Println()
 }
 
@@ -618,6 +642,8 @@ func main() {
 		srcPort  = flag.Int("srcport", 0, "Source port filter (68, 546, etc.)")
 		dstPort  = flag.Int("dstport", 0, "Destination port filter (67, 547, 80, 443, etc.)")
 		protocol = flag.String("protocol", "", "Protocol filter (icmp, tcp, udp)")
+		// API mode flag
+		useAPI = flag.Bool("use-api", false, "Use HTTP API via capture server instead of vppctl commands")
 	)
 
 	// Custom usage function
@@ -688,6 +714,8 @@ func main() {
 	srcPortPtr := flagSet.Int("srcport", 0, "Source port filter")
 	dstPortPtr := flagSet.Int("dstport", 0, "Destination port filter")
 	protocolPtr := flagSet.String("protocol", "", "Protocol filter (tcp, udp, icmp)")
+	// API mode flag
+	useAPIPtr := flagSet.Bool("use-api", false, "Use HTTP API via capture server")
 
 	// Parse all remaining arguments for flags
 	var finalCommandArgs []string
@@ -763,6 +791,8 @@ func main() {
 					*protocolPtr = allArgs[i+1]
 					i++
 				}
+			case "-use-api", "--use-api":
+				*useAPIPtr = true
 			}
 		} else {
 			// This is not a flag, add to final command args
@@ -784,6 +814,7 @@ func main() {
 	*srcPort = *srcPortPtr
 	*dstPort = *dstPortPtr
 	*protocol = *protocolPtr
+	*useAPI = *useAPIPtr
 
 	// Show help if requested
 	if *help {
@@ -925,9 +956,16 @@ func main() {
 			handleError(fmt.Errorf("node name is required for trace command. Use -node flag"), "")
 		}
 
-		err := traceCommand(k, *nodeName, *count, *timeout, *interfaceType, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
-		if err != nil {
-			handleError(err, "Trace failed")
+		if *useAPI {
+			err := traceCommandAPI(k, *nodeName, *count, *timeout, *interfaceType, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
+			if err != nil {
+				handleError(err, "Trace (API) failed")
+			}
+		} else {
+			err := traceCommand(k, *nodeName, *count, *timeout, *interfaceType, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
+			if err != nil {
+				handleError(err, "Trace failed")
+			}
 		}
 
 	case "pcap":
@@ -935,9 +973,16 @@ func main() {
 			handleError(fmt.Errorf("node name is required for pcap command. Use -node flag"), "")
 		}
 
-		err := pcapCommand(k, *nodeName, *count, *timeout, *interfaceType, *output, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
-		if err != nil {
-			handleError(err, "PCAP failed")
+		if *useAPI {
+			err := pcapCommandAPI(k, *nodeName, *count, *timeout, *interfaceType, *output, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
+			if err != nil {
+				handleError(err, "PCAP (API) failed")
+			}
+		} else {
+			err := pcapCommand(k, *nodeName, *count, *timeout, *interfaceType, *output, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
+			if err != nil {
+				handleError(err, "PCAP failed")
+			}
 		}
 
 	case "dispatch":
@@ -945,14 +990,21 @@ func main() {
 			handleError(fmt.Errorf("node name is required for dispatch command. Use -node flag"), "")
 		}
 
-		err := dispatchCommand(k, *nodeName, *count, *timeout, *interfaceType, *output, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
-		if err != nil {
-			handleError(err, "Dispatch failed")
+		if *useAPI {
+			err := dispatchCommandAPI(k, *nodeName, *count, *timeout, *interfaceType, *output, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
+			if err != nil {
+				handleError(err, "Dispatch (API) failed")
+			}
+		} else {
+			err := dispatchCommand(k, *nodeName, *count, *timeout, *interfaceType, *output, *srcIP, *dstIP, *protocol, *srcPort, *dstPort)
+			if err != nil {
+				handleError(err, "Dispatch failed")
+			}
 		}
 
 	case "capture":
 		if len(commandArgs) == 0 {
-			handleError(fmt.Errorf("capture command requires a subcommand. Use 'capture clear'"), "")
+			handleError(fmt.Errorf("capture command requires a subcommand. Use 'capture clear', 'capture status', or 'capture stop'"), "")
 		}
 
 		switch commandArgs[0] {
@@ -966,8 +1018,28 @@ func main() {
 				handleError(err, "Capture cleanup failed")
 			}
 
+		case "status":
+			if *nodeName == "" {
+				handleError(fmt.Errorf("node name is required for capture status command. Use -node flag"), "")
+			}
+
+			err := captureStatusCommand(k, *nodeName)
+			if err != nil {
+				handleError(err, "Capture status failed")
+			}
+
+		case "stop":
+			if *nodeName == "" {
+				handleError(fmt.Errorf("node name is required for capture stop command. Use -node flag"), "")
+			}
+
+			err := captureStopCommand(k, *nodeName, *output)
+			if err != nil {
+				handleError(err, "Capture stop failed")
+			}
+
 		default:
-			handleError(fmt.Errorf("unknown capture subcommand: %s. Use 'capture clear'", commandArgs[0]), "")
+			handleError(fmt.Errorf("unknown capture subcommand: %s. Use 'capture clear', 'capture status', or 'capture stop'", commandArgs[0]), "")
 		}
 
 	default:
@@ -1416,6 +1488,357 @@ func mapInterfaceTypeToVppInputNode(k *KubeClient, interfaceType string) (string
 		return "", "", fmt.Errorf("%s", errorMsg)
 	}
 }
+
+// The following functions are used with the --use-api flag when calicovppctl uses the HTTP capture server (binary API)
+
+// callCaptureAPI calls the capture server API via kubectl exec curl
+func (k *KubeClient) callCaptureAPI(nodeName, endpoint string, queryParams map[string]string) (string, error) {
+	// Find the agent pod on the specified node
+	podName, err := k.findNodePod(nodeName, defaultPod, defaultNamespace)
+	if err != nil {
+		return "", fmt.Errorf("could not find calico-vpp-node pod on node '%s': %v", nodeName, err)
+	}
+
+	// Build URL with query parameters
+	url := fmt.Sprintf("http://localhost:%d/api/%s", captureServerPort, endpoint)
+	if len(queryParams) > 0 {
+		var params []string
+		for key, value := range queryParams {
+			if value != "" {
+				params = append(params, fmt.Sprintf("%s=%s", key, value))
+			}
+		}
+		if len(params) > 0 {
+			url += "?" + strings.Join(params, "&")
+		}
+	}
+
+	// Execute curl via kubectl exec in the agent container
+	curlCmd := fmt.Sprintf("curl -s '%s'", url)
+	output, err := k.execInPod(defaultNamespace, podName, defaultContainerAgt, "sh", "-c", curlCmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to call capture API: %v", err)
+	}
+
+	return output, nil
+}
+
+// getCaptureStatus gets the current status from the capture server
+func (k *KubeClient) getCaptureStatus(nodeName string) (*StatusResponse, error) {
+	output, err := k.callCaptureAPI(nodeName, "status", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var status StatusResponse
+	err = json.Unmarshal([]byte(output), &status)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse status response: %v", err)
+	}
+
+	return &status, nil
+}
+
+// startCaptureAPI starts a capture via the capture server API
+func (k *KubeClient) startCaptureAPI(nodeName, captureType string, count, timeout int, interfaceType, srcIP, dstIP, protocol string, srcPort, dstPort int) (*CaptureResponse, error) {
+	params := map[string]string{
+		"count":   fmt.Sprintf("%d", count),
+		"timeout": fmt.Sprintf("%d", timeout),
+	}
+
+	if interfaceType != "" {
+		params["interfaceType"] = interfaceType
+	}
+	if srcIP != "" {
+		params["srcIP"] = srcIP
+	}
+	if dstIP != "" {
+		params["dstIP"] = dstIP
+	}
+	if protocol != "" {
+		params["protocol"] = protocol
+	}
+	if srcPort > 0 {
+		params["srcPort"] = fmt.Sprintf("%d", srcPort)
+	}
+	if dstPort > 0 {
+		params["dstPort"] = fmt.Sprintf("%d", dstPort)
+	}
+
+	output, err := k.callCaptureAPI(nodeName, captureType, params)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CaptureResponse
+	err = json.Unmarshal([]byte(output), &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse capture response: %v", err)
+	}
+
+	return &response, nil
+}
+
+// stopCaptureAPI stops the current capture via the capture server API
+func (k *KubeClient) stopCaptureAPI(nodeName string) (*CaptureResponse, error) {
+	output, err := k.callCaptureAPI(nodeName, "stop", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CaptureResponse
+	err = json.Unmarshal([]byte(output), &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse stop response: %v", err)
+	}
+
+	return &response, nil
+}
+
+func printBpfFilterParams(srcIP, dstIP, protocol string, srcPort, dstPort int) {
+	printColored("grey", "BPF Filter parameters:")
+	if srcIP != "" {
+		printColored("grey", fmt.Sprintf("  Source IP: %s", srcIP))
+	}
+	if dstIP != "" {
+		printColored("grey", fmt.Sprintf("  Destination IP: %s", dstIP))
+	}
+	if protocol != "" {
+		printColored("grey", fmt.Sprintf("  Protocol: %s", protocol))
+	}
+	if srcPort > 0 {
+		printColored("grey", fmt.Sprintf("  Source Port: %d", srcPort))
+	}
+	if dstPort > 0 {
+		printColored("grey", fmt.Sprintf("  Destination Port: %d", dstPort))
+	}
+	fmt.Println()
+}
+
+// traceCommandAPI runs trace using the capture server API
+func traceCommandAPI(k *KubeClient, nodeName string, count int, timeout int, interfaceType, srcIP, dstIP, protocol string, srcPort, dstPort int) error {
+	validatedNode, err := validateNodeName(k, nodeName)
+	if err != nil {
+		return err
+	}
+
+	printColored("green", fmt.Sprintf("Starting packet trace via API on node '%s'", validatedNode))
+	printColored("grey", fmt.Sprintf("Packet count: %d", count))
+	printColored("grey", fmt.Sprintf("Timeout: %d seconds", timeout))
+	if interfaceType != "" {
+		printColored("grey", fmt.Sprintf("Interface type: %s", interfaceType))
+	}
+	if srcIP != "" || dstIP != "" || protocol != "" || srcPort > 0 || dstPort > 0 {
+		printBpfFilterParams(srcIP, dstIP, protocol, srcPort, dstPort)
+	}
+
+	// Start capture via API
+	response, err := k.startCaptureAPI(validatedNode, "trace", count, timeout, interfaceType, srcIP, dstIP, protocol, srcPort, dstPort)
+	if err != nil {
+		return fmt.Errorf("failed to start trace: %v", err)
+	}
+
+	if !response.Success {
+		return fmt.Errorf("trace failed: %s (error: %s)", response.Message, response.Error)
+	}
+
+	printColored("green", response.Message)
+	fmt.Println()
+	printColored("blue", fmt.Sprintf("Capture will auto-stop after %d seconds or when %d packets are captured", timeout, count))
+	printColored("grey", "Use 'calicovppctl capture status -node <node>' to check capture progress")
+	printColored("grey", "Use 'calicovppctl capture stop -node <node>' to stop and download the capture file")
+
+	return nil
+}
+
+// pcapCommandAPI runs pcap using the capture server API
+func pcapCommandAPI(k *KubeClient, nodeName string, count int, timeout int, interfaceType, outputFile, srcIP, dstIP, protocol string, srcPort, dstPort int) error {
+	validatedNode, err := validateNodeName(k, nodeName)
+	if err != nil {
+		return err
+	}
+
+	printColored("green", fmt.Sprintf("Starting PCAP capture via API on node '%s'", validatedNode))
+	printColored("grey", fmt.Sprintf("Packet count: %d", count))
+	printColored("grey", fmt.Sprintf("Timeout: %d seconds", timeout))
+	if interfaceType != "" {
+		printColored("grey", fmt.Sprintf("Interface: %s", interfaceType))
+	}
+	if srcIP != "" || dstIP != "" || protocol != "" || srcPort > 0 || dstPort > 0 {
+		printBpfFilterParams(srcIP, dstIP, protocol, srcPort, dstPort)
+	}
+
+	// Start capture via API
+	response, err := k.startCaptureAPI(validatedNode, "pcap", count, timeout, interfaceType, srcIP, dstIP, protocol, srcPort, dstPort)
+	if err != nil {
+		return fmt.Errorf("failed to start pcap: %v", err)
+	}
+
+	if !response.Success {
+		return fmt.Errorf("pcap failed: %s (error: %s)", response.Message, response.Error)
+	}
+
+	printColored("green", response.Message)
+	fmt.Println()
+	printColored("blue", fmt.Sprintf("Capture will auto-stop after %d seconds or when %d packets are captured", timeout, count))
+	printColored("grey", "Use 'calicovppctl capture status -node <node>' to check capture progress")
+	printColored("grey", "Use 'calicovppctl capture stop -node <node>' to stop and download the capture file")
+
+	return nil
+}
+
+// dispatchCommandAPI runs dispatch using the capture server API
+func dispatchCommandAPI(k *KubeClient, nodeName string, count int, timeout int, interfaceType, outputFile, srcIP, dstIP, protocol string, srcPort, dstPort int) error {
+	validatedNode, err := validateNodeName(k, nodeName)
+	if err != nil {
+		return err
+	}
+
+	printColored("green", fmt.Sprintf("Starting dispatch trace via API on node '%s'", validatedNode))
+	printColored("grey", fmt.Sprintf("Packet count: %d", count))
+	printColored("grey", fmt.Sprintf("Timeout: %d seconds", timeout))
+	if interfaceType != "" {
+		printColored("grey", fmt.Sprintf("Interface type: %s", interfaceType))
+	}
+	if srcIP != "" || dstIP != "" || protocol != "" || srcPort > 0 || dstPort > 0 {
+		printBpfFilterParams(srcIP, dstIP, protocol, srcPort, dstPort)
+	}
+
+	// Start capture via API
+	response, err := k.startCaptureAPI(validatedNode, "dispatch", count, timeout, interfaceType, srcIP, dstIP, protocol, srcPort, dstPort)
+	if err != nil {
+		return fmt.Errorf("failed to start dispatch: %v", err)
+	}
+
+	if !response.Success {
+		return fmt.Errorf("dispatch failed: %s (error: %s)", response.Message, response.Error)
+	}
+
+	printColored("green", response.Message)
+	fmt.Println()
+	printColored("blue", fmt.Sprintf("Capture will auto-stop after %d seconds or when %d packets are captured", timeout, count))
+	printColored("grey", "Use 'calicovppctl capture status -node <node>' to check capture progress")
+	printColored("grey", "Use 'calicovppctl capture stop -node <node>' to stop and download the capture file")
+
+	return nil
+}
+
+// captureStatusCommand shows the current capture status via API
+func captureStatusCommand(k *KubeClient, nodeName string) error {
+	validatedNode, err := validateNodeName(k, nodeName)
+	if err != nil {
+		return err
+	}
+
+	status, err := k.getCaptureStatus(validatedNode)
+	if err != nil {
+		return fmt.Errorf("failed to get status: %v", err)
+	}
+
+	printColored("green", fmt.Sprintf("Capture status on node '%s':", validatedNode))
+	printColored("grey", fmt.Sprintf("  Status: %s", status.Status))
+	if status.CaptureType != "" {
+		printColored("grey", fmt.Sprintf("  Capture Type: %s", status.CaptureType))
+	}
+	if status.FilePath != "" {
+		printColored("grey", fmt.Sprintf("  File Path: %s", status.FilePath))
+	}
+	if status.RemainingMs > 0 {
+		printColored("grey", fmt.Sprintf("  Time Remaining: %.1f seconds", float64(status.RemainingMs)/1000))
+	}
+
+	return nil
+}
+
+// captureStopCommand stops the current capture (if running) and downloads the capture file
+// Handles multiple scenarios:
+// 1) Capture is still running -> stop it, then download file
+// 2) Capture already stopped (timeout/packet count reached) -> just download file
+// 3) No capture was started or file already downloaded -> error message
+func captureStopCommand(k *KubeClient, nodeName string, outputFile string) error {
+	validatedNode, err := validateNodeName(k, nodeName)
+	if err != nil {
+		return err
+	}
+
+	// First, get current status to understand the state
+	status, err := k.getCaptureStatus(validatedNode)
+	if err != nil {
+		return fmt.Errorf("failed to get capture status: %v", err)
+	}
+
+	captureType := status.CaptureType
+	filePath := status.FilePath
+
+	// If capture is running, stop it first
+	switch status.Status {
+	case "running":
+		printColored("blue", fmt.Sprintf("Stopping active %s capture on node '%s'...", captureType, validatedNode))
+		response, err := k.stopCaptureAPI(validatedNode)
+		if err != nil {
+			return fmt.Errorf("failed to stop capture: %v", err)
+		}
+		if !response.Success {
+			printColored("red", fmt.Sprintf("Warning: Stop returned: %s", response.Message))
+		} else {
+			printColored("green", "Capture stopped successfully")
+		}
+		// Use file path from stop response if available
+		if response.FilePath != "" {
+			filePath = response.FilePath
+		}
+	case "idle":
+		// Capture is not running - check if there's a file path from previous capture
+		if filePath == "" && captureType == "" {
+			return fmt.Errorf("no capture is running and no previous capture file found on node '%s'.\n"+
+				"Either no capture was started, or the file was already downloaded and cleaned up.\n"+
+				"Start a new capture with 'calicovppctl trace/pcap/dispatch -node %s --use-api'", validatedNode, validatedNode)
+		}
+		printColored("blue", fmt.Sprintf("Capture already stopped on node '%s', downloading file...", validatedNode))
+	}
+
+	// Determine remote and local file paths based on capture type
+	var remoteFile, localFile string
+	switch captureType {
+	case "trace":
+		remoteFile = "/var/run/vpp/trace.txt"
+		localFile = "./trace.txt.gz"
+	case "pcap":
+		remoteFile = "/tmp/trace.pcap"
+		localFile = "./trace.pcap.gz"
+	case "dispatch":
+		remoteFile = "/tmp/dispatch.pcap"
+		localFile = "./dispatch.pcap.gz"
+	default:
+		// Try to infer from filePath if captureType is empty
+		if filePath != "" {
+			remoteFile = filePath
+			localFile = "./" + filepath.Base(filePath) + ".gz"
+		} else {
+			return fmt.Errorf("unknown capture type and no file path available")
+		}
+	}
+
+	// Override local file if user specified output
+	if outputFile != "" {
+		localFile = outputFile
+		if !strings.HasSuffix(localFile, ".gz") {
+			localFile = localFile + ".gz"
+		}
+	}
+
+	// Download the file
+	err = compressAndSaveRemoteFile(k, validatedNode, remoteFile, localFile)
+	// Check if file doesn't exist (already downloaded or never created)
+	if err != nil {
+		return fmt.Errorf("failed to download capture file: %v\n"+
+			"The file may have already been downloaded and cleaned up, or the capture produced no output", err)
+	}
+
+	return nil
+}
+
+// The following functions are used when calicovppctl runs in the legacy mode with vppctl commands via "kubectl exec"
 
 func traceCommand(k *KubeClient, nodeName string, count int, timeout int, interfaceType, srcIP, dstIP, protocol string, srcPort, dstPort int) error {
 	validatedNode, err := validateNodeName(k, nodeName)

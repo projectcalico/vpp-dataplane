@@ -472,6 +472,9 @@ type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	// HealthCheckPort is the port on which the health check HTTP server listens
 	// Defaults to 9090
 	HealthCheckPort *uint32 `json:"healthCheckPort"`
+	// CaptureServerPort is the port on which the capture HTTP server listens
+	// for trace/pcap/dispatch commands. Defaults to 9999
+	CaptureServerPort *uint32 `json:"captureServerPort"`
 }
 
 func (cfg *CalicoVppInitialConfigConfigType) Validate() (err error) {
@@ -499,6 +502,9 @@ func (cfg *CalicoVppInitialConfigConfigType) Validate() (err error) {
 	}
 	cfg.HealthCheckPort = DefaultToPtr(
 		cfg.HealthCheckPort, 9090,
+	)
+	cfg.CaptureServerPort = DefaultToPtr(
+		cfg.CaptureServerPort, 9999,
 	)
 	return nil
 }
