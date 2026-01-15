@@ -207,13 +207,8 @@ func (v *VppLink) addDelIPMRoute(route *types.Route, flags mfib_types.MfibEntryF
 //
 // Parameters:
 //   - tapSwIfIndex: Always has ACCEPT flag (allow packets from Linux host, pass RPF check)
-//   - uplinkSwIfIndex: Has ACCEPT flag always; has FORWARD flag only if forwardToUplink is true
-//   - forwardToUplink: If true, multicast is forwarded to uplink (for NDP, etc.)
-//     If false, multicast stays local for VPP to process (for DHCPv6 relay)
-//
-// For DHCPv6 relay (RFC 8415), set forwardToUplink=false so VPP's DHCPv6 proxy intercepts
-// the traffic instead of forwarding ff02::1:2 to the uplink with hop-limit issues.
-func (v *VppLink) MRouteAddForHostMulticast(tableID uint32, group *net.IPNet, tapSwIfIndex, uplinkSwIfIndex uint32, forwardToUplink bool) error {
+//   - uplinkSwIfIndex: Accept + Forward (forward multicast to uplink)
+func (v *VppLink) MRouteAddForHostMulticast(tableID uint32, group *net.IPNet, tapSwIfIndex, uplinkSwIfIndex uint32) error {
 	client := vppip.NewServiceClient(v.GetConnection())
 
 	isIP6 := group.IP.To4() == nil
@@ -225,17 +220,11 @@ func (v *VppLink) MRouteAddForHostMulticast(tableID uint32, group *net.IPNet, ta
 		// SrcAddress is all zeros for (*,G) entries
 	}
 
-	// Determine uplink interface flags based on forwardToUplink parameter
-	uplinkFlags := mfib_types.MFIB_API_ITF_FLAG_ACCEPT
-	if forwardToUplink {
-		uplinkFlags |= mfib_types.MFIB_API_ITF_FLAG_FORWARD
-	}
-
 	// Create mFIB paths with explicit interface flags
 	paths := []mfib_types.MfibPath{
 		{
-			// Uplink interface: Accept always, Forward only if forwardToUplink is true
-			ItfFlags: uplinkFlags,
+			// Uplink interface: Accept + Forward
+			ItfFlags: mfib_types.MFIB_API_ITF_FLAG_ACCEPT | mfib_types.MFIB_API_ITF_FLAG_FORWARD,
 			Path: fib_types.FibPath{
 				SwIfIndex:  uplinkSwIfIndex,
 				TableID:    0,
@@ -280,8 +269,8 @@ func (v *VppLink) MRouteAddForHostMulticast(tableID uint32, group *net.IPNet, ta
 		return fmt.Errorf("failed to add mroute for host multicast %s in table %d: %w", group.String(), tableID, err)
 	}
 
-	v.GetLog().Infof("Added mFIB route for host multicast %s in table %d (tap=%d, uplink=%d, forward=%v)",
-		group.String(), tableID, tapSwIfIndex, uplinkSwIfIndex, forwardToUplink)
+	v.GetLog().Infof("Added mFIB route for host multicast %s in table %d (tap=%d, uplink=%d)",
+		group.String(), tableID, tapSwIfIndex, uplinkSwIfIndex)
 	return nil
 }
 

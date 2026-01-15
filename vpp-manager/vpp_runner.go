@@ -354,20 +354,20 @@ func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint
 	log.Infof("Setting up IPv6 multicast forwarding for host tap in VRF %d", vrfID)
 
 	// IPv6 multicast groups that need mFIB entries for host tap traffic.
-	// forwardToUplink controls whether multicast is forwarded to the uplink:
-	// - true: Forward to uplink (for NDP, MLD - need to reach network)
-	// - false: Stay local for VPP processing (for DHCPv6 - VPP relay handles it)
+	// These groups are forwarded to the uplink for NDP/MLD reachability.
+	// Note: ff02::1:2 (DHCPv6 All Relay Agents and Servers) is NOT included here.
+	// The DHCPv6 proxy programs its own mFIB entry with Accept-all-itf + dpo-receive.
+	// If we program it here with Accept-only flags, it conflicts with and overrides
+	// the DHCP proxy's forwarding disposition, causing packets to be dropped.
 	multicastGroups := []struct {
-		addr            string
-		prefix          int  // CIDR prefix length
-		forwardToUplink bool // Whether to forward to uplink or keep local for VPP relay
-		comment         string
+		addr    string
+		prefix  int // CIDR prefix length
+		comment string
 	}{
-		{"ff02::1:ff00:0", 104, true, "Solicited-Node multicast (NDP Neighbor Solicitation targets)"},
-		{"ff02::1", 128, true, "All Nodes / All Hosts (link-local; used by NDP and others)"},
-		{"ff02::2", 128, true, "All Routers (routers listen here; NDP RS target)"},
-		{"ff02::16", 128, true, "All MLDv2-capable routers"},
-		{"ff02::1:2", 128, false, "DHCPv6 All Relay Agents and Servers (handled by VPP DHCPv6 proxy)"},
+		{"ff02::1:ff00:0", 104, "Solicited-Node multicast (NDP Neighbor Solicitation targets)"},
+		{"ff02::1", 128, "All Nodes / All Hosts (link-local; used by NDP and others)"},
+		{"ff02::2", 128, "All Routers (routers listen here; NDP RS target)"},
+		{"ff02::16", 128, "All MLDv2-capable routers"},
 	}
 
 	for _, group := range multicastGroups {
@@ -382,13 +382,13 @@ func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint
 			Mask: net.CIDRMask(group.prefix, 128),
 		}
 
-		err := v.vpp.MRouteAddForHostMulticast(vrfID, groupNet, tapSwIfIndex, uplinkSwIfIndex, group.forwardToUplink)
+		err := v.vpp.MRouteAddForHostMulticast(vrfID, groupNet, tapSwIfIndex, uplinkSwIfIndex)
 		if err != nil {
 			return errors.Wrapf(err, "cannot add mFIB route for %s (%s) in VRF %d",
 				group.addr, group.comment, vrfID)
 		}
 
-		log.Infof("Added mFIB route for %s (%s) in VRF %d (forward=%v)", group.addr, group.comment, vrfID, group.forwardToUplink)
+		log.Infof("Added mFIB route for %s (%s) in VRF %d", group.addr, group.comment, vrfID)
 	}
 
 	return nil
@@ -476,6 +476,17 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 	if err != nil {
 		return []uint32{}, errors.Wrapf(err, "error adding vpp side address for tap0 %d", tapSwIfIndex)
 	}
+
+	// Add a dedicated IPv6 address to tap0 for DHCPv6 relay link-address.
+	// Similar to VppsideTap0Address for IPv4, this provides a unique IPv6 address
+	// on tap0 that the DHCPv6 proxy can use as the relay's link-address field.
+	if ifState.Hasv6 {
+		err = v.vpp.AddInterfaceAddress(tapSwIfIndex, config.VppsideTap0IPv6Address)
+		if err != nil {
+			return []uint32{}, errors.Wrapf(err, "error adding vpp side IPv6 address for tap0 %d", tapSwIfIndex)
+		}
+	}
+
 	return vrfs, nil
 }
 
@@ -669,7 +680,11 @@ func (v *VppRunner) configureVppUplinkInterface(
 	 */
 	var srcAddr net.IP
 	if ifState.Hasv6 && len(vrfs) > 1 {
-		// Find a global IPv6 address to use as source for DHCPv6 relay messages
+		// Find a global IPv6 address to use for DHCPv6 relay
+		// This address is from the uplink interface and will be used by the DHCPv6 proxy
+		// as the source address and link-address for relay messages.
+		// Note: We do NOT assign this to tap0, as that would cause DAD conflicts when
+		// DHCPv6 successfully assigns the same address to muon0 (Linux side of tap).
 		for _, addr := range ifState.Addresses {
 			if addr.IP.To4() == nil && !addr.IP.IsLinkLocalUnicast() {
 				srcAddr = addr.IP

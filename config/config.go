@@ -152,6 +152,14 @@ var (
 		"CALICOVPP_TAP0_ADDR",
 		MustParseCIDR("169.254.0.1/32"),
 	)
+
+	// VppsideTap0IPv6Address is the IPv6 address we add to tap0
+	// for DHCPv6 relay functionality. The DHCPv6 proxy uses this as
+	// the relay's link-address field in RFC 8415 Relay-Forward messages.
+	VppsideTap0IPv6Address = PrefixEnvVar(
+		"CALICOVPP_TAP0_IPV6_ADDR",
+		MustParseCIDR("fd00:face:baba:beef::1/128"),
+	)
 )
 
 func RunHook(hookScript *string, hookName string, params *VppManagerParams, log *logrus.Logger) {
