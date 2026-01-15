@@ -353,17 +353,21 @@ func (v *VppRunner) allocateStaticVRFs() error {
 func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint32, uplinkSwIfIndex uint32) error {
 	log.Infof("Setting up IPv6 multicast forwarding for host tap in VRF %d", vrfID)
 
-	// IPv6 multicast groups that need to be forwarded from the Linux host
+	// IPv6 multicast groups that need mFIB entries for host tap traffic.
+	// forwardToUplink controls whether multicast is forwarded to the uplink:
+	// - true: Forward to uplink (for NDP, MLD - need to reach network)
+	// - false: Stay local for VPP processing (for DHCPv6 - VPP relay handles it)
 	multicastGroups := []struct {
-		addr    string
-		prefix  int // CIDR prefix length
-		comment string
+		addr            string
+		prefix          int  // CIDR prefix length
+		forwardToUplink bool // Whether to forward to uplink or keep local for VPP relay
+		comment         string
 	}{
-		{"ff02::1:ff00:0", 104, "Solicited-Node multicast (NDP Neighbor Solicitation targets)"},
-		{"ff02::1", 128, "All Nodes / All Hosts (link-local; used by NDP and others)"},
-		{"ff02::2", 128, "All Routers (routers listen here; NDP RS target)"},
-		{"ff02::16", 128, "All MLDv2-capable routers"},
-		{"ff02::1:2", 128, "DHCPv6 All Relay Agents and Servers"},
+		{"ff02::1:ff00:0", 104, true, "Solicited-Node multicast (NDP Neighbor Solicitation targets)"},
+		{"ff02::1", 128, true, "All Nodes / All Hosts (link-local; used by NDP and others)"},
+		{"ff02::2", 128, true, "All Routers (routers listen here; NDP RS target)"},
+		{"ff02::16", 128, true, "All MLDv2-capable routers"},
+		{"ff02::1:2", 128, false, "DHCPv6 All Relay Agents and Servers (handled by VPP DHCPv6 proxy)"},
 	}
 
 	for _, group := range multicastGroups {
@@ -378,13 +382,13 @@ func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint
 			Mask: net.CIDRMask(group.prefix, 128),
 		}
 
-		err := v.vpp.MRouteAddForHostMulticast(vrfID, groupNet, tapSwIfIndex, uplinkSwIfIndex)
+		err := v.vpp.MRouteAddForHostMulticast(vrfID, groupNet, tapSwIfIndex, uplinkSwIfIndex, group.forwardToUplink)
 		if err != nil {
 			return errors.Wrapf(err, "cannot add mFIB route for %s (%s) in VRF %d",
 				group.addr, group.comment, vrfID)
 		}
 
-		log.Infof("Added mFIB route for %s (%s) in VRF %d", group.addr, group.comment, vrfID)
+		log.Infof("Added mFIB route for %s (%s) in VRF %d (forward=%v)", group.addr, group.comment, vrfID, group.forwardToUplink)
 	}
 
 	return nil
@@ -655,17 +659,47 @@ func (v *VppRunner) configureVppUplinkInterface(
 	}
 
 	/*
-	 * Add ND proxy for IPv6 gateway addresses.
-	 * Without ND proxy for gateway, host's NS for gateway is dropped with "neighbor
-	 * solicitations for unknown targets" error because there's no /128 FIB entry.
-	 * This requires VPP patch https://gerrit.fd.io/r/c/vpp/+/44350 to fix NA loop bug.
+	 * Configure IPv6 gateway features:
+	 * 1. ND proxy - Without ND proxy for gateway, host's NS for gateway is dropped with
+	 *    "neighbor solicitations for unknown targets" error because there's no /128 FIB entry.
+	 *    This requires VPP patch https://gerrit.fd.io/r/c/vpp/+/44350 to fix NA loop bug.
+	 * 2. DHCPv6 proxy/relay (RFC 8415) - VPP acts as a relay agent, intercepting DHCPv6
+	 *    client traffic (ff02::1:2) and relaying it as unicast to the DHCPv6 server
+	 *    (typically the gateway). This avoids hop-limit issues with link-local multicast forwarding.
 	 */
+	var srcAddr net.IP
+	if ifState.Hasv6 && len(vrfs) > 1 {
+		// Find a global IPv6 address to use as source for DHCPv6 relay messages
+		for _, addr := range ifState.Addresses {
+			if addr.IP.To4() == nil && !addr.IP.IsLinkLocalUnicast() {
+				srcAddr = addr.IP
+				break
+			}
+		}
+	}
+
 	for _, route := range ifState.Routes {
 		if route.Gw != nil && route.Gw.To4() == nil {
+			// Configure ND proxy for IPv6 gateway
 			log.Infof("Adding ND proxy for IPv6 gateway %s", route.Gw)
 			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, route.Gw)
 			if err != nil {
 				log.Errorf("Error configuring ND proxy for gateway %s: %v", route.Gw, err)
+			}
+
+			// Configure DHCPv6 proxy for IPv6 gateway (if conditions are met)
+			if ifState.Hasv6 && len(vrfs) > 1 && srcAddr != nil {
+				log.Infof("Configuring DHCPv6 proxy: server=%s, src=%s, rxVrf=%d, serverVrf=%d",
+					route.Gw, srcAddr, vrfs[1], config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfID)
+				err = v.vpp.AddDHCPv6Proxy(
+					vrfs[1], // rxVrfID - where client traffic arrives (tap VRF)
+					config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfID, // serverVrfID - where server is reachable
+					route.Gw, // DHCPv6 server (gateway)
+					srcAddr,  // Source address for relay messages
+				)
+				if err != nil {
+					log.Errorf("Error configuring DHCPv6 proxy for server %s: %v", route.Gw, err)
+				}
 			}
 		}
 	}
