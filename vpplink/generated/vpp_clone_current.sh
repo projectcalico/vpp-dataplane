@@ -102,8 +102,8 @@ function git_clone_cd_and_reset ()
 
 # --------------- Things to cherry pick ---------------
 
-# VPP 25.10 released on 29/October/2025
-BASE="${BASE:-"cbba0451bb0af02a3ab8e163f6f99062782258e6"}" # misc: VPP 25.10 Release Notes
+#
+BASE="${BASE:-"19f9561e67aed7f711e63f227470dc1f566e77d4"}" #  tap: fix the tun current_data offset
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
@@ -115,12 +115,9 @@ git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular opt
 # This is the commit which broke IPv6 from v3.28.0 onwards.
 git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine NS source address
 
-# npol: Network Policies plugin
-git_cherry_pick refs/changes/10/43710/12 # 43710: npol: Network Policies plugin | https://gerrit.fd.io/r/c/vpp/+/43710
-git_cherry_pick refs/changes/52/43952/2 # 43952: npol: fix test-debug | https://gerrit.fd.io/r/c/vpp/+/43952
 # testing new cnat stuff
-git_cherry_pick refs/changes/89/41089/27 # https://gerrit.fd.io/r/c/vpp/+/41089 cnat: combine multiple changes
-git_cherry_pick refs/changes/69/43369/12 # https://gerrit.fd.io/r/c/vpp/+/43369 cnat: converge new cnat implementation to support encaps (calico)
+git_cherry_pick refs/changes/89/41089/31 # https://gerrit.fd.io/r/c/vpp/+/41089 cnat: combine multiple changes
+git_cherry_pick refs/changes/69/43369/16 # https://gerrit.fd.io/r/c/vpp/+/43369 cnat: converge new cnat implementation to support encaps (calico)
 
 
 # --------------- private plugins ---------------
