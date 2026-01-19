@@ -544,14 +544,17 @@ func (v *VppRunner) configureVppUplinkInterface(
 
 	for _, addr := range ifState.Addresses {
 		if addr.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
-			log.Infof("Not adding address %s to uplink interface (vpp requires /128 link-local)", addr.String())
-			continue
+			log.Infof("Adding %s instead of %s to uplink interface (vpp requires /128 link-local)", common.FullyQualified(addr.IPNet.IP).String(), addr.String())
+			err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(addr.IP))
+			if err != nil {
+				log.Errorf("Error adding address to uplink interface: %v", err)
+			}
 		} else {
 			log.Infof("Adding address %s to uplink interface", addr.String())
-		}
-		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
-		if err != nil {
-			log.Errorf("Error adding address to uplink interface: %v", err)
+			err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
+			if err != nil {
+				log.Errorf("Error adding address to uplink interface: %v", err)
+			}
 		}
 	}
 	for _, route := range ifState.Routes {
