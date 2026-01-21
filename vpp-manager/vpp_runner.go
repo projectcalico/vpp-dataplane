@@ -864,6 +864,46 @@ func (v *VppRunner) AllocatePhysicalNetworkVRFs(phyNet string) (err error) {
 	return nil
 }
 
+func (v *VppRunner) configureDHCPv6HopLimit() {
+	log.Infof("Configuring ip6tables mangle OUTPUT rule for DHCPv6 hop limit on host")
+
+	checkCmd := exec.Command("/usr/sbin/ip6tables", "-t", "mangle", "-C", "OUTPUT",
+		"-p", "udp", "--sport", "546", "--dport", "547",
+		"-j", "HL", "--hl-set", "2")
+	if err := checkCmd.Run(); err != nil {
+		outputCmd := exec.Command("/usr/sbin/ip6tables", "-t", "mangle", "-A", "OUTPUT",
+			"-p", "udp", "--sport", "546", "--dport", "547",
+			"-j", "HL", "--hl-set", "2")
+		outputCmd.Stdout = os.Stdout
+		outputCmd.Stderr = os.Stderr
+		if err := outputCmd.Run(); err != nil {
+			log.Warnf("Failed to configure ip6tables mangle OUTPUT rule for DHCPv6: %v", err)
+		}
+	} else {
+		log.Infof("ip6tables mangle OUTPUT rule for DHCPv6 already present")
+	}
+}
+
+func (v *VppRunner) cleanupDHCPv6HopLimit() {
+	log.Infof("Cleaning up ip6tables mangle OUTPUT rule for DHCPv6 hop limit on host")
+
+	checkCmd := exec.Command("/usr/sbin/ip6tables", "-t", "mangle", "-C", "OUTPUT",
+		"-p", "udp", "--sport", "546", "--dport", "547",
+		"-j", "HL", "--hl-set", "2")
+	if err := checkCmd.Run(); err == nil {
+		deleteCmd := exec.Command("/usr/sbin/ip6tables", "-t", "mangle", "-D", "OUTPUT",
+			"-p", "udp", "--sport", "546", "--dport", "547",
+			"-j", "HL", "--hl-set", "2")
+		deleteCmd.Stdout = os.Stdout
+		deleteCmd.Stderr = os.Stderr
+		if err := deleteCmd.Run(); err != nil {
+			log.Warnf("Failed to delete ip6tables mangle OUTPUT rule for DHCPv6: %v", err)
+		}
+	} else {
+		log.Infof("ip6tables mangle OUTPUT rule for DHCPv6 not present")
+	}
+}
+
 // Returns VPP exit code
 func (v *VppRunner) runVpp() (err error) {
 	if !v.allInterfacesPhysical() { // use separate net namespace because linux deletes these interfaces when ns is deleted
@@ -936,6 +976,13 @@ func (v *VppRunner) runVpp() (err error) {
 		return errors.Wrap(err, "Error configuring VPP")
 	}
 
+	// FIXME This is a temporary workaround using ip6tables to set the hop limit for DHCPv6.
+	// Ideally, VPP should have a dedicated node for handling this.
+	// Without this, when forwarding a DHCPv6 SOLICIT/REQUEST packet, VPP will decrement the
+	// hop-limit by 1. Since client generates DHCPv6 SOLICIT/REQUEST with hop-limit=1, VPP
+	// drops it (ip6 ttl <= 1) with ICMP time exceeded and DHCPv6 lease negotiation fails.
+	v.configureDHCPv6HopLimit()
+
 	// add main network that has the default VRF
 	config.Info.PhysicalNets[config.DefaultPhysicalNetworkName] = config.PhysicalNetwork{VrfID: common.DefaultVRFIndex, PodVrfID: common.PodVRFIndex}
 
@@ -1001,6 +1048,7 @@ func (v *VppRunner) runVpp() (err error) {
 
 func (v *VppRunner) restoreConfiguration(allInterfacesPhysical bool) {
 	log.Infof("Restoring configuration")
+	v.cleanupDHCPv6HopLimit()
 	err := utils.ClearVppManagerFiles()
 	if err != nil {
 		log.Errorf("Error clearing vpp manager files: %v", err)
