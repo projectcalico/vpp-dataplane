@@ -555,6 +555,10 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 	for _, route := range ifState.Routes {
+		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() {
+			log.Infof("Skipping link-local route %s", route.Dst.String())
+			continue
+		}
 		err = v.vpp.RouteAdd(&types.Route{
 			Dst: route.Dst,
 			Paths: []types.RoutePath{{
