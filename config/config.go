@@ -121,7 +121,8 @@ var (
 	DefaultHookScript string
 
 	/* Run this before getLinuxConfig() in case this is a script
-	 * that's responsible for creating the interface */
+	 * that's responsible for creating the interface.
+	 * Also captures host udev ID_NET_NAME_* properties before driver unbind. */
 	HookScriptBeforeIfRead = StringEnvVar("CALICOVPP_HOOK_BEFORE_IF_READ", DefaultHookScript) // InitScriptTemplate
 	/* Bash script template run just after getting config
 	   from $CALICOVPP_INTERFACE & before starting VPP */
@@ -164,7 +165,7 @@ func RunHook(hookScript *string, hookName string, params *VppManagerParams, log 
 		return
 	}
 
-	cmd := exec.Command("/bin/bash", "-c", template, hookName)
+	cmd := exec.Command("/bin/bash", "-c", template, hookName, params.UplinksSpecs[0].InterfaceName)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
@@ -294,6 +295,7 @@ type CalicoVppDebugConfigType struct {
 	ServicesEnabled         *bool `json:"servicesEnabled,omitempty"`
 	GSOEnabled              *bool `json:"gsoEnabled,omitempty"`
 	SpreadTxQueuesOnWorkers *bool `json:"spreadTxQueuesOnWorkers,omitempty"`
+	EnableUdevNetNameRules  *bool `json:"enableUdevNetNameRules,omitempty"`
 }
 
 func (cfg *CalicoVppDebugConfigType) String() string {
@@ -310,6 +312,9 @@ func (cfg *CalicoVppDebugConfigType) Validate() (err error) {
 	}
 	if cfg.SpreadTxQueuesOnWorkers == nil {
 		cfg.SpreadTxQueuesOnWorkers = &False
+	}
+	if cfg.EnableUdevNetNameRules == nil {
+		cfg.EnableUdevNetNameRules = &True
 	}
 	return
 }

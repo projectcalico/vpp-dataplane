@@ -101,6 +101,9 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 		return errors.Wrap(err, "Error generating VPP config")
 	}
 
+	// Run hook to capture host udev properties before driver unbind
+	config.RunHook(config.HookScriptBeforeIfRead, "BEFORE_IF_READ", v.params, log)
+
 	for idx := range v.conf {
 		err = v.uplinkDriver[idx].PreconfigureLinux()
 		if err != nil {
