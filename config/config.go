@@ -123,6 +123,8 @@ var (
 	/* Run this before getLinuxConfig() in case this is a script
 	 * that's responsible for creating the interface */
 	HookScriptBeforeIfRead = StringEnvVar("CALICOVPP_HOOK_BEFORE_IF_READ", DefaultHookScript) // InitScriptTemplate
+	/* Bash script template run to capture host udev properties before driver unbind */
+	HookScriptCaptureHostUdevProps = StringEnvVar("CALICOVPP_HOOK_CAPTURE_HOST_UDEV_PROPS", DefaultHookScript)
 	/* Bash script template run just after getting config
 	   from $CALICOVPP_INTERFACE & before starting VPP */
 	HookScriptBeforeVppRun = StringEnvVar("CALICOVPP_HOOK_BEFORE_VPP_RUN", DefaultHookScript) // InitPostIfScriptTemplate
@@ -135,6 +137,7 @@ var (
 
 	AllHooks = []*string{
 		HookScriptBeforeIfRead,
+		HookScriptCaptureHostUdevProps,
 		HookScriptBeforeVppRun,
 		HookScriptVppRunning,
 		HookScriptVppDoneOk,
@@ -164,7 +167,7 @@ func RunHook(hookScript *string, hookName string, params *VppManagerParams, log 
 		return
 	}
 
-	cmd := exec.Command("/bin/bash", "-c", template, hookName)
+	cmd := exec.Command("/bin/bash", "-c", template, hookName, params.UplinksSpecs[0].InterfaceName)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
