@@ -38,6 +38,9 @@ const (
 	HookVppRunning   HookPoint = "VPP_RUNNING"
 	HookVppDoneOk    HookPoint = "VPP_DONE_OK"
 	HookVppErrored   HookPoint = "VPP_ERRORED"
+
+	// UdevRuleFilePath is the path to the udev rule file for restoring ID_NET_NAME_* properties
+	UdevRuleFilePath = "/host/etc/udev/rules.d/99-vpp-restore-id_net_name.rules"
 )
 
 // SystemType represents different system configurations
@@ -50,11 +53,21 @@ type SystemType struct {
 	IsAWS                bool
 }
 
+// UdevNetNameProperties stores udev network naming properties for an interface
+type UdevNetNameProperties struct {
+	MacAddress       string
+	IDNetNameOnboard string
+	IDNetNameSlot    string
+	IDNetNamePath    string
+	IDNetNameMac     string
+}
+
 // NetworkManagerHook manages network configuration during VPP lifecycle
 type NetworkManagerHook struct {
 	interfaceNames []string
 	systemType     SystemType
 	log            *logrus.Logger
+	udevProps      map[string]*UdevNetNameProperties // map[interfaceName] -> udev properties
 }
 
 // chrootCommand creates a command that will be executed in the host namespace
@@ -153,7 +166,8 @@ func (h *NetworkManagerHook) restartService(serviceName string) error {
 // NewNetworkManagerHook creates a new NetworkManagerHook instance
 func NewNetworkManagerHook(log *logrus.Logger) *NetworkManagerHook {
 	hook := &NetworkManagerHook{
-		log: log,
+		log:       log,
+		udevProps: make(map[string]*UdevNetNameProperties),
 	}
 
 	hook.detectSystem()
@@ -491,6 +505,197 @@ func (h *NetworkManagerHook) removeTweakedNetworkFile(interfaceName string) erro
 	return nil
 }
 
+// captureHostUdevProps captures udev properties for all interfaces
+// This must be called BEFORE VPP takes over the interfaces
+func (h *NetworkManagerHook) captureHostUdevProps() error {
+	if !*config.GetCalicoVppDebug().EnableUdevNetNameRules {
+		h.log.Info("NetworkManagerHook: Skipping captureHostUdevProps (enableUdevNetNameRules=false)")
+		return nil
+	}
+	h.udevProps = make(map[string]*UdevNetNameProperties)
+	for _, interfaceName := range h.interfaceNames {
+		err := h.captureUdevNetNameProperties(interfaceName)
+		if err != nil {
+			h.log.Warnf("NetworkManagerHook: Failed to capture udev properties for %s: %v", interfaceName, err)
+		}
+	}
+	return nil
+}
+
+// captureUdevNetNameProperties captures udev network naming properties for an interface
+// This must be called BEFORE VPP takes over the interface
+func (h *NetworkManagerHook) captureUdevNetNameProperties(interfaceName string) error {
+	h.log.Infof("NetworkManagerHook: Capturing udev net name properties for %s...", interfaceName)
+
+	// Get udevadm info for the interface
+	cmd := h.chrootCommand("udevadm", "info", fmt.Sprintf("/sys/class/net/%s", interfaceName))
+	output, err := cmd.Output()
+	if err != nil {
+		h.log.Warnf("NetworkManagerHook: Failed to get udevadm info for %s: %v", interfaceName, err)
+		return nil
+	}
+
+	props := &UdevNetNameProperties{}
+	hasAnyProperty := false
+
+	// Parse the udevadm output for ID_NET_NAME_* properties
+	extractUdevProp := func(line, key string) (string, bool) {
+		idx := strings.Index(line, key+"=")
+		if idx == -1 {
+			return "", false
+		}
+		return strings.TrimSpace(line[idx+len(key)+1:]), true
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if value, found := extractUdevProp(line, "ID_NET_NAME_ONBOARD"); found {
+			props.IDNetNameOnboard = value
+			hasAnyProperty = true
+			h.log.Infof("NetworkManagerHook: Found ID_NET_NAME_ONBOARD=%s for %s", props.IDNetNameOnboard, interfaceName)
+		} else if value, found := extractUdevProp(line, "ID_NET_NAME_SLOT"); found {
+			props.IDNetNameSlot = value
+			hasAnyProperty = true
+			h.log.Infof("NetworkManagerHook: Found ID_NET_NAME_SLOT=%s for %s", props.IDNetNameSlot, interfaceName)
+		} else if value, found := extractUdevProp(line, "ID_NET_NAME_PATH"); found {
+			props.IDNetNamePath = value
+			hasAnyProperty = true
+			h.log.Infof("NetworkManagerHook: Found ID_NET_NAME_PATH=%s for %s", props.IDNetNamePath, interfaceName)
+		} else if value, found := extractUdevProp(line, "ID_NET_NAME_MAC"); found {
+			props.IDNetNameMac = value
+			hasAnyProperty = true
+			h.log.Infof("NetworkManagerHook: Found ID_NET_NAME_MAC=%s for %s", props.IDNetNameMac, interfaceName)
+		}
+	}
+
+	if !hasAnyProperty {
+		h.log.Infof("NetworkManagerHook: No udev net name properties found for %s", interfaceName)
+		return nil
+	}
+
+	// Get MAC address from the interface
+	cmd = h.chrootCommand("cat", fmt.Sprintf("/sys/class/net/%s/address", interfaceName))
+	macOutput, err := cmd.Output()
+	if err != nil {
+		h.log.Warnf("NetworkManagerHook: Failed to get MAC address for %s: %v", interfaceName, err)
+		return nil
+	}
+	props.MacAddress = strings.TrimSpace(string(macOutput))
+	if props.MacAddress == "" {
+		h.log.Warnf("NetworkManagerHook: Failed to get MAC address for %s", interfaceName)
+		return nil
+	}
+	h.log.Infof("NetworkManagerHook: Captured MAC address %s for %s", props.MacAddress, interfaceName)
+
+	h.udevProps[interfaceName] = props
+	return nil
+}
+
+// createUdevNetNameRules creates udev rules to restore ID_NET_NAME_* properties for all interfaces
+// This must be called AFTER VPP has taken over the interfaces and created the taps
+func (h *NetworkManagerHook) createUdevNetNameRules() error {
+	if !*config.GetCalicoVppDebug().EnableUdevNetNameRules {
+		h.log.Info("NetworkManagerHook: Skipping createUdevNetNameRules (enableUdevNetNameRules=false)")
+		return nil
+	}
+	// Build rules for all interfaces that have captured properties
+	var ruleBuilder strings.Builder
+	ruleBuilder.WriteString("# Re-apply ID_NET_NAME_* properties after Calico VPP creates the host-facing tap/tun netdev.\n")
+
+	rulesAdded := 0
+	for interfaceName, props := range h.udevProps {
+		if props == nil || props.MacAddress == "" {
+			h.log.Warnf("NetworkManagerHook: Skipping udev rule for %s - no MAC address captured", interfaceName)
+			continue
+		}
+
+		h.log.Infof("NetworkManagerHook: Adding udev rule for %s with MAC %s", interfaceName, props.MacAddress)
+
+		// Each interface gets its own rule line
+		ruleBuilder.WriteString(fmt.Sprintf("ACTION==\"add\", SUBSYSTEM==\"net\", ATTR{address}==\"%s\"", props.MacAddress))
+
+		if props.IDNetNameOnboard != "" {
+			ruleBuilder.WriteString(fmt.Sprintf(", ENV{ID_NET_NAME_ONBOARD}:=\"%s\"", props.IDNetNameOnboard))
+		}
+		if props.IDNetNameSlot != "" {
+			ruleBuilder.WriteString(fmt.Sprintf(", ENV{ID_NET_NAME_SLOT}:=\"%s\"", props.IDNetNameSlot))
+		}
+		if props.IDNetNamePath != "" {
+			ruleBuilder.WriteString(fmt.Sprintf(", ENV{ID_NET_NAME_PATH}:=\"%s\"", props.IDNetNamePath))
+		}
+		if props.IDNetNameMac != "" {
+			ruleBuilder.WriteString(fmt.Sprintf(", ENV{ID_NET_NAME_MAC}:=\"%s\"", props.IDNetNameMac))
+		}
+		ruleBuilder.WriteString("\n")
+		rulesAdded++
+	}
+
+	if rulesAdded == 0 {
+		h.log.Warnf("NetworkManagerHook: No udev properties to create rules for, skipping")
+		return nil
+	}
+
+	// Write the udev rule file
+	err := os.WriteFile(UdevRuleFilePath, []byte(ruleBuilder.String()), 0644)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write udev rule file")
+	}
+	h.log.Infof("NetworkManagerHook: Created udev rule file at %s with %d rules", UdevRuleFilePath, rulesAdded)
+
+	// Reload udev rules
+	cmd := h.chrootCommand("udevadm", "control", "--reload-rules")
+	err = cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to reload udev rules: %v", err)
+	}
+
+	// Trigger udev for net subsystem to apply the stored ID_NET_NAME_* properties
+	cmd = h.chrootCommand("udevadm", "trigger", "--subsystem-match=net", "--action=add")
+	err = cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to trigger udev: %v", err)
+	}
+	h.log.Info("NetworkManagerHook: Triggered udev to apply the stored ID_NET_NAME_* properties")
+
+	return nil
+}
+
+// removeUdevNetNameRules removes the udev rule file created for restoring ID_NET_NAME_* properties
+func (h *NetworkManagerHook) removeUdevNetNameRules() error {
+	if !*config.GetCalicoVppDebug().EnableUdevNetNameRules {
+		h.log.Info("NetworkManagerHook: Skipping removeUdevNetNameRules (enableUdevNetNameRules=false)")
+		return nil
+	}
+	_, err := os.Stat(UdevRuleFilePath)
+	if os.IsNotExist(err) {
+		return nil
+	}
+
+	h.log.Infof("NetworkManagerHook: Removing udev rule file %s...", UdevRuleFilePath)
+	err = os.Remove(UdevRuleFilePath)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "failed to remove udev rule file")
+	}
+
+	// Reload udev rules after removal
+	cmd := h.chrootCommand("udevadm", "control", "--reload-rules")
+	err = cmd.Run()
+	if err != nil {
+		h.log.Warnf("NetworkManagerHook: Failed to reload udev rules: %v", err)
+	}
+
+	// Trigger udev for net subsystem to remove the stored ID_NET_NAME_* properties
+	cmd = h.chrootCommand("udevadm", "trigger", "--subsystem-match=net", "--action=change")
+	err = cmd.Run()
+	if err != nil {
+		h.log.Warnf("NetworkManagerHook: Failed to trigger udev: %v", err)
+	}
+	h.log.Info("NetworkManagerHook: Triggered udev to remove stored ID_NET_NAME_* properties")
+
+	return nil
+}
+
 // beforeVppRun handles tasks before VPP starts
 func (h *NetworkManagerHook) beforeVppRun() error {
 	// Fix DNS configuration for NetworkManager
@@ -512,8 +717,15 @@ func (h *NetworkManagerHook) beforeVppRun() error {
 
 // vppRunning handles tasks while VPP is running
 func (h *NetworkManagerHook) vppRunning() error {
+	// Create udev rules to restore ID_NET_NAME_* properties for all interfaces
+	// This must happen after VPP has created the tap/tun interfaces with the original MACs
+	err := h.createUdevNetNameRules()
+	if err != nil {
+		h.log.Warnf("NetworkManagerHook: Failed to create udev rules: %v", err)
+	}
+
 	// Restart network services
-	err := h.restartNetwork()
+	err = h.restartNetwork()
 	if err != nil {
 		return err
 	}
@@ -535,6 +747,12 @@ func (h *NetworkManagerHook) vppDoneOk() error {
 	err := h.undoDNSFix()
 	if err != nil {
 		return err
+	}
+
+	// Remove the udev rule file for ID_NET_NAME_* restoration
+	err = h.removeUdevNetNameRules()
+	if err != nil {
+		h.log.Warnf("NetworkManagerHook: Failed to remove udev rule file: %v", err)
 	}
 
 	// Remove the tweaked network file for AWS systemd-networkd for each interface
@@ -571,7 +789,7 @@ func (h *NetworkManagerHook) Execute(hookPoint HookPoint) error {
 	var err error
 	switch hookPoint {
 	case HookBeforeIfRead:
-		h.log.Info("NetworkManagerHook: BEFORE_IF_READ no action performed")
+		err = h.captureHostUdevProps()
 	case HookBeforeVppRun:
 		err = h.beforeVppRun()
 	case HookVppRunning:
