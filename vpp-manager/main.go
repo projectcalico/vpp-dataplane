@@ -163,9 +163,18 @@ func main() {
 
 	params := startup.NewVppManagerParams()
 
-	/* Initialize native Go NewNetworkManagerHook with empty interface names
-	 * We will update this later once we have the actual interface names */
+	/* Initialize native Go NetworkManagerHook and set interface names.
+	 * This must be done before HookBeforeIfRead to capture udev properties
+	 * while interfaces still have their original drivers bound. */
 	networkHook = hooks.NewNetworkManagerHook(log)
+	if len(params.UplinksSpecs) > 0 {
+		interfaceNames := make([]string, len(params.UplinksSpecs))
+		for i, spec := range params.UplinksSpecs {
+			interfaceNames[i] = spec.InterfaceName
+		}
+		networkHook.SetInterfaceNames(interfaceNames)
+	}
+
 	networkHook.ExecuteWithUserScript(hooks.HookBeforeIfRead, config.HookScriptBeforeIfRead, params)
 
 	err = utils.ClearVppManagerFiles()
@@ -186,15 +195,6 @@ func main() {
 	confs, err := startup.GetInterfaceConfig(params)
 	if err != nil {
 		log.Fatalf("Error getting initial interface configuration: %s", err)
-	}
-
-	/* Update native Go NewNetworkManagerHook with all interface names */
-	if len(params.UplinksSpecs) > 0 {
-		interfaceNames := make([]string, len(params.UplinksSpecs))
-		for i, spec := range params.UplinksSpecs {
-			interfaceNames[i] = spec.InterfaceName
-		}
-		networkHook.SetInterfaceNames(interfaceNames)
 	}
 
 	runningCond = sync.NewCond(&sync.Mutex{})
