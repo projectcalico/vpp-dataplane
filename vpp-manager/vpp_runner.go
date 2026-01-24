@@ -102,6 +102,8 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 		return errors.Wrap(err, "Error generating VPP config")
 	}
 
+	networkHook.ExecuteWithUserScript(hooks.HookCaptureHostUdevProps, config.HookScriptCaptureHostUdevProps, v.params)
+
 	for idx := range v.conf {
 		err = v.uplinkDriver[idx].PreconfigureLinux()
 		if err != nil {
