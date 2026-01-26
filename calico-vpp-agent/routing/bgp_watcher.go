@@ -543,10 +543,14 @@ func (s *Server) WatchBGPPath(t *tomb.Tomb) error {
 				peer := localPeer.Peer
 				filters := localPeer.BGPFilterNames
 				// create a neighbor set to apply filter only on specific peer using a global policy
+				prefixLen := "/32"
+				if ip := net.ParseIP(peer.Conf.NeighborAddress); ip != nil && ip.To4() == nil {
+					prefixLen = "/128"
+				}
 				neighborSet := &bgpapi.DefinedSet{
 					Name:        peer.Conf.NeighborAddress + "neighbor",
 					DefinedType: bgpapi.DefinedType_NEIGHBOR,
-					List:        []string{peer.Conf.NeighborAddress + "/32"},
+					List:        []string{peer.Conf.NeighborAddress + prefixLen},
 				}
 				err := s.BGPServer.AddDefinedSet(context.Background(), &bgpapi.AddDefinedSetRequest{
 					DefinedSet: neighborSet,
@@ -580,9 +584,18 @@ func (s *Server) WatchBGPPath(t *tomb.Tomb) error {
 				if err != nil {
 					return errors.Wrapf(err, "error cleaning peer filters up")
 				}
-				err = s.BGPServer.DeleteDefinedSet(context.Background(), &bgpapi.DeleteDefinedSetRequest{DefinedSet: s.bgpPeers[addr].NeighborSet, All: true})
-				if err != nil {
-					return errors.Wrapf(err, "error deleting prefix set")
+				if s.bgpPeers[addr] == nil {
+					s.log.Warnf("Trying to delete unknown BGP peer %s", addr)
+				} else if s.bgpPeers[addr].NeighborSet == nil {
+					s.log.Warnf("Trying to delete BGP peer %s with empty NeighborSet", addr)
+				} else {
+					err = s.BGPServer.DeleteDefinedSet(context.Background(), &bgpapi.DeleteDefinedSetRequest{
+						DefinedSet: s.bgpPeers[addr].NeighborSet,
+						All:        true,
+					})
+					if err != nil {
+						return errors.Wrapf(err, "error deleting prefix set")
+					}
 				}
 				err := s.BGPServer.DeletePeer(
 					context.Background(),

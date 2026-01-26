@@ -31,6 +31,7 @@ import (
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
+	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
@@ -114,17 +115,28 @@ func (s *Server) ServeRouting(t *tomb.Tomb) (err error) {
 	}
 
 	for t.Alive() {
-		globalConfig, err := s.getGoBGPGlobalConfig()
+		nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
+		globalConfig, err := s.getGoBGPGlobalConfig(*config.BGPServerMode)
 		if err != nil {
 			return fmt.Errorf("cannot get global configuration: %v", err)
 		}
 
 		err = s.BGPServer.StartBgp(context.Background(), &bgpapi.StartBgpRequest{Global: globalConfig})
-		if err != nil {
+		if err != nil && *config.BGPServerMode == config.BGPServerModeDualStack && nodeIP4 != nil {
+			s.log.Warnf("Failed to start BGP server in dualStack mode: %v. Retrying with IPv4-only listener", err)
+			globalConfig, err = s.getGoBGPGlobalConfig(config.BGPServerModeV4Only)
+			if err != nil {
+				return errors.Wrap(err, "cannot get IPv4-only BGP configuration for fallback")
+			}
+			err = s.BGPServer.StartBgp(context.Background(), &bgpapi.StartBgpRequest{Global: globalConfig})
+			if err != nil {
+				return errors.Wrap(err, "failed to start BGP server after IPv4-only fallback")
+			}
+			s.log.Warn("BGP server started in degraded IPv4-only mode because IPv6 listener failed")
+		} else if err != nil {
 			return errors.Wrap(err, "failed to start BGP server")
 		}
 
-		nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
 		if nodeIP4 != nil {
 			err = s.initialPolicySetting(false /* isv6 */)
 			if err != nil {
@@ -176,7 +188,7 @@ func (s *Server) getLogSeverityScreen() string {
 	return s.BGPConf.LogSeverityScreen
 }
 
-func (s *Server) getGoBGPGlobalConfig() (*bgpapi.Global, error) {
+func (s *Server) getGoBGPGlobalConfig(mode config.BGPServerModeType) (*bgpapi.Global, error) {
 	var routerID string
 	listenAddresses := make([]string, 0)
 	asn := s.nodeBGPSpec.ASNumber
@@ -185,11 +197,25 @@ func (s *Server) getGoBGPGlobalConfig() (*bgpapi.Global, error) {
 	}
 
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
-	if nodeIP6 != nil {
+	useIP4 := nodeIP4 != nil
+	useIP6 := nodeIP6 != nil
+
+	switch mode {
+	case config.BGPServerModeDualStack:
+	case config.BGPServerModeV4Only:
+		useIP6 = false
+		if !useIP4 {
+			return nil, fmt.Errorf("BGP server mode set to v4Only but no IPv4 node address configured")
+		}
+	default:
+		return nil, fmt.Errorf("unsupported BGP server mode %q", mode)
+	}
+
+	if useIP6 {
 		routerID = nodeIP6.String()
 		listenAddresses = append(listenAddresses, routerID)
 	}
-	if nodeIP4 != nil {
+	if useIP4 {
 		routerID = nodeIP4.String() // Override v6 ID if v4 is available
 		listenAddresses = append(listenAddresses, routerID)
 	}
