@@ -101,6 +101,9 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 		return errors.Wrap(err, "Error generating VPP config")
 	}
 
+	// Run hook to capture host udev properties before driver unbind
+	config.RunHook(config.HookScriptCaptureHostUdevProps, "CAPTURE_HOST_UDEV_PROPS", v.params, log)
+
 	for idx := range v.conf {
 		err = v.uplinkDriver[idx].PreconfigureLinux()
 		if err != nil {
@@ -139,22 +142,13 @@ func (v *VppRunner) configureGlobalPunt() (err error) {
 }
 
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInterfaceState) (err error) {
-	err = v.vpp.AddNeighbor(&types.Neighbor{
-		SwIfIndex:    tapSwIfIndex,
-		IP:           config.VppHostPuntFakeGatewayAddress,
-		HardwareAddr: ifState.HardwareAddr,
-		Flags:        types.IPNeighborStatic,
-	})
-	if err != nil {
-		return errors.Wrapf(err, "Error adding neighbor %s to tap", config.VppHostPuntFakeGatewayAddress)
-	}
 	/* In the punt table (where all punted traffics ends), route to the tap */
-	for _, address := range ifState.Addresses {
+	for _, addr := range ifState.Addresses {
 		err = v.vpp.RouteAdd(&types.Route{
-			Dst:   address.IPNet,
 			Table: common.PuntTableID,
+			Dst:   addr.IPNet,
 			Paths: []types.RoutePath{{
-				Gw:        config.VppHostPuntFakeGatewayAddress,
+				Gw:        addr.IP,
 				SwIfIndex: tapSwIfIndex,
 			}},
 		})
@@ -162,7 +156,6 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 			return errors.Wrapf(err, "error adding vpp side routes for interface")
 		}
 	}
-
 	return nil
 }
 
@@ -355,6 +348,51 @@ func (v *VppRunner) allocateStaticVRFs() error {
 	return nil
 }
 
+// setupIPv6MulticastForHostTap configures mFIB entries to allow IPv6 multicast traffic
+// from the Linux host to pass through VPP. This is required for DHCPv6, NDP, and other
+// IPv6 protocols that use link-local multicast.
+// Without this configuration, packets arriving from the tap interface fail RPF checks
+// because the tap interface is not in the mFIB accept list.
+func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint32, uplinkSwIfIndex uint32) error {
+	log.Infof("Setting up IPv6 multicast forwarding for host tap in VRF %d", vrfID)
+
+	// IPv6 multicast groups that need to be forwarded from the Linux host
+	multicastGroups := []struct {
+		addr    string
+		prefix  int // CIDR prefix length
+		comment string
+	}{
+		{"ff02::1:ff00:0", 104, "Solicited-Node multicast (NDP Neighbor Solicitation targets)"},
+		{"ff02::1", 128, "All Nodes / All Hosts (link-local; used by NDP and others)"},
+		{"ff02::2", 128, "All Routers (routers listen here; NDP RS target)"},
+		{"ff02::16", 128, "All MLDv2-capable routers"},
+		{"ff02::1:2", 128, "DHCPv6 All Relay Agents and Servers"},
+	}
+
+	for _, group := range multicastGroups {
+		groupIP := net.ParseIP(group.addr)
+		if groupIP == nil {
+			log.Warnf("Invalid multicast address: %s", group.addr)
+			continue
+		}
+
+		groupNet := &net.IPNet{
+			IP:   groupIP,
+			Mask: net.CIDRMask(group.prefix, 128),
+		}
+
+		err := v.vpp.MRouteAddForHostMulticast(vrfID, groupNet, tapSwIfIndex, uplinkSwIfIndex)
+		if err != nil {
+			return errors.Wrapf(err, "cannot add mFIB route for %s (%s) in VRF %d",
+				group.addr, group.comment, vrfID)
+		}
+
+		log.Infof("Added mFIB route for %s (%s) in VRF %d", group.addr, group.comment, vrfID)
+	}
+
+	return nil
+}
+
 // Configure specific VRFs for a given tap to the host to handle broadcast / multicast traffic sent by the host
 func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
 	for _, ipFamily := range vpplink.IPFamilies {
@@ -379,7 +417,16 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 			if err != nil {
 				log.Errorf("cannot add broadcast route in vpp: %v", err)
 			}
-		} // else {} No custom routes for IPv6 for now. Forward LL multicast from the host?
+		} else {
+			// Setup IPv6 multicast forwarding for the host
+			// This is required for DHCPv6 solicitations, NDP, and other link-local multicast
+			// Unlike IPv4, we cannot use a unicast route trick because ff02::/16 is multicast
+			// and must go through mFIB with proper RPF configuration
+			err = v.setupIPv6MulticastForHostTap(vrfID, tapSwIfIndex, ifSpec.SwIfIndex)
+			if err != nil {
+				return []uint32{}, errors.Wrap(err, "Error setting up IPv6 multicast forwarding")
+			}
+		}
 
 		// default route in default table
 		err = v.vpp.AddDefaultRouteViaTable(vrfID, config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfID, ipFamily.IsIP6)
@@ -392,25 +439,41 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 			return []uint32{}, errors.Wrapf(err, "error setting vpp tap in vrf %d", vrfID)
 		}
 		vrfs = append(vrfs, vrfID)
+
+		for _, addr := range ifState.Addresses {
+			if vpplink.IPFamilyFromIP(addr.IP) == ipFamily {
+				err = v.vpp.RouteAdd(&types.Route{
+					Table: vrfID,
+					Dst:   common.FullyQualified(addr.IP),
+					Paths: []types.RoutePath{{
+						Gw:        addr.IP,
+						SwIfIndex: tapSwIfIndex,
+					}},
+				})
+				if err != nil {
+					return []uint32{}, errors.Wrapf(err, "error add route from VPP to tap0 in VRF %d", vrfID)
+				}
+				err = v.vpp.AddNeighbor(&types.Neighbor{
+					SwIfIndex:    tapSwIfIndex,
+					IP:           addr.IP,
+					HardwareAddr: ifState.HardwareAddr,
+					Flags:        types.IPNeighborStatic,
+				})
+				if err != nil {
+					return []uint32{}, errors.Wrapf(err, "error add static neighbor for tap0 in VRF %d", vrfID)
+				}
+			}
+		}
 	}
 
-	// Configure addresses to enable ipv4 & ipv6 on the tap
-	for _, addr := range ifState.Addresses {
-		if addr.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
-			log.Infof("Not adding address %s to data interface (vpp requires /128 link-local)", addr.String())
-			continue
-		} else {
-			log.Infof("Adding address %s to tap interface", addr.String())
-		}
-		// to max len cidr because we don't want the rest of the subnet to be considered as
-		// connected to that interface
-		// note that the role of these addresses is just to tell vpp to accept ip4 / ip6 packets on the tap
-		// we use these addresses as the safest option, because as they are configured on linux, linux
-		// will never send us packets with these addresses as destination
-		err = v.vpp.AddInterfaceAddress(tapSwIfIndex, common.ToMaxLenCIDR(addr.IP))
-		if err != nil {
-			log.Errorf("Error adding address to tap interface: %v", err)
-		}
+	err = v.vpp.EnableInterfaceIP6(tapSwIfIndex)
+	if err != nil {
+		return []uint32{}, errors.Wrapf(err, "error enabling ip6 for tap %d", tapSwIfIndex)
+	}
+
+	err = v.vpp.AddInterfaceAddress(tapSwIfIndex, config.VppsideTap0Address)
+	if err != nil {
+		return []uint32{}, errors.Wrapf(err, "error adding vpp side address for tap0 %d", tapSwIfIndex)
 	}
 	return vrfs, nil
 }
@@ -492,6 +555,10 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 	for _, route := range ifState.Routes {
+		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() {
+			log.Infof("Skipping link-local route %s", route.Dst.String())
+			continue
+		}
 		err = v.vpp.RouteAdd(&types.Route{
 			Dst: route.Dst,
 			Paths: []types.RoutePath{{
@@ -594,6 +661,22 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 
+	/*
+	 * Add ND proxy for IPv6 gateway addresses.
+	 * Without ND proxy for gateway, host's NS for gateway is dropped with "neighbor
+	 * solicitations for unknown targets" error because there's no /128 FIB entry.
+	 * This requires VPP patch https://gerrit.fd.io/r/c/vpp/+/44350 to fix NA loop bug.
+	 */
+	for _, route := range ifState.Routes {
+		if route.Gw != nil && route.Gw.To4() == nil {
+			log.Infof("Adding ND proxy for IPv6 gateway %s", route.Gw)
+			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, route.Gw)
+			if err != nil {
+				log.Errorf("Error configuring ND proxy for gateway %s: %v", route.Gw, err)
+			}
+		}
+	}
+
 	if *config.GetCalicoVppDebug().GSOEnabled {
 		err = v.vpp.EnableGSOFeature(tapSwIfIndex)
 		if err != nil {
@@ -637,18 +720,22 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error setting tap up")
 	}
 
-	if config.Info.UplinkStatuses != nil {
-		config.Info.UplinkStatuses[link.Attrs().Name] = config.UplinkStatus{
-			TapSwIfIndex:        tapSwIfIndex,
-			SwIfIndex:           ifSpec.SwIfIndex,
-			Mtu:                 uplinkMtu,
-			PhysicalNetworkName: ifSpec.PhysicalNetworkName,
-			LinkIndex:           link.Attrs().Index,
-			Name:                link.Attrs().Name,
-			IsMain:              ifSpec.IsMain,
-			FakeNextHopIP4:      fakeNextHopIP4,
-			FakeNextHopIP6:      fakeNextHopIP6,
-		}
+	uplinkAddresses := make([]*net.IPNet, 0)
+	for _, addr := range ifState.Addresses {
+		uplinkAddresses = append(uplinkAddresses, addr.IPNet)
+	}
+
+	config.Info.UplinkStatuses[link.Attrs().Name] = config.UplinkStatus{
+		TapSwIfIndex:        tapSwIfIndex,
+		SwIfIndex:           ifSpec.SwIfIndex,
+		Mtu:                 uplinkMtu,
+		PhysicalNetworkName: ifSpec.PhysicalNetworkName,
+		LinkIndex:           link.Attrs().Index,
+		Name:                link.Attrs().Name,
+		IsMain:              ifSpec.IsMain,
+		FakeNextHopIP4:      fakeNextHopIP4,
+		FakeNextHopIP6:      fakeNextHopIP6,
+		UplinkAddresses:     uplinkAddresses,
 	}
 	return nil
 }
@@ -805,6 +892,62 @@ func (v *VppRunner) AllocatePhysicalNetworkVRFs(phyNet string) (err error) {
 	return nil
 }
 
+func (v *VppRunner) configureDHCPv6HopLimit() {
+	log.Infof("Configuring ip6tables mangle OUTPUT rule for DHCPv6 hop limit on host")
+
+	err := ns.WithNetNSPath("/proc/1/ns/net", func(ns.NetNS) error {
+		checkCmd := exec.Command("/usr/sbin/ip6tables", "-t", "mangle", "-C", "OUTPUT",
+			"-p", "udp", "--sport", "546", "--dport", "547",
+			"-j", "HL", "--hl-set", "2")
+		if err := checkCmd.Run(); err != nil {
+			outputCmd := exec.Command("/usr/sbin/ip6tables", "-t", "mangle", "-A", "OUTPUT",
+				"-p", "udp", "--sport", "546", "--dport", "547",
+				"-j", "HL", "--hl-set", "2")
+			outputCmd.Stdout = os.Stdout
+			outputCmd.Stderr = os.Stderr
+			if err := outputCmd.Run(); err != nil {
+				log.Warnf("Failed to configure ip6tables mangle OUTPUT rule for DHCPv6: %v", err)
+			}
+		} else {
+			log.Infof("ip6tables mangle OUTPUT rule for DHCPv6 already present")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Warnf("Error entering host network namespace")
+	}
+}
+
+func (v *VppRunner) cleanupDHCPv6HopLimit() {
+	log.Infof("Cleaning up ip6tables mangle OUTPUT rule for DHCPv6 hop limit on host")
+
+	err := ns.WithNetNSPath("/proc/1/ns/net", func(ns.NetNS) error {
+		checkCmd := exec.Command("/usr/sbin/ip6tables", "-t", "mangle", "-C", "OUTPUT",
+			"-p", "udp", "--sport", "546", "--dport", "547",
+			"-j", "HL", "--hl-set", "2")
+		if err := checkCmd.Run(); err == nil {
+			deleteCmd := exec.Command("/usr/sbin/ip6tables", "-t", "mangle", "-D", "OUTPUT",
+				"-p", "udp", "--sport", "546", "--dport", "547",
+				"-j", "HL", "--hl-set", "2")
+			deleteCmd.Stdout = os.Stdout
+			deleteCmd.Stderr = os.Stderr
+			if err := deleteCmd.Run(); err != nil {
+				log.Warnf("Failed to delete ip6tables mangle OUTPUT rule for DHCPv6: %v", err)
+			}
+		} else {
+			log.Infof("ip6tables mangle OUTPUT rule for DHCPv6 not present")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Warnf("Error entering host network namespace")
+	}
+}
+
 // Returns VPP exit code
 func (v *VppRunner) runVpp() (err error) {
 	if !v.allInterfacesPhysical() { // use separate net namespace because linux deletes these interfaces when ns is deleted
@@ -877,6 +1020,12 @@ func (v *VppRunner) runVpp() (err error) {
 		return errors.Wrap(err, "Error configuring VPP")
 	}
 
+	// Configure DHCPv6 hop limit to prevent VPP from dropping DHCPv6 SOLICIT/REQUEST packets.
+	// Without this, when forwarding a DHCPv6 SOLICIT/REQUEST packet, VPP will decrement the
+	// hop-limit by 1. Since client generates SOLICIT/REQUEST with hop-limit=1, VPP drops it
+	// (ip6 ttl <= 1) with ICMP time exceeded and DHCPv6 lease negotiation fails.
+	v.configureDHCPv6HopLimit()
+
 	// add main network that has the default VRF
 	config.Info.PhysicalNets[config.DefaultPhysicalNetworkName] = config.PhysicalNetwork{VrfID: common.DefaultVRFIndex, PodVrfID: common.PodVRFIndex}
 
@@ -941,6 +1090,7 @@ func (v *VppRunner) runVpp() (err error) {
 
 func (v *VppRunner) restoreConfiguration(allInterfacesPhysical bool) {
 	log.Infof("Restoring configuration")
+	v.cleanupDHCPv6HopLimit()
 	err := utils.ClearVppManagerFiles()
 	if err != nil {
 		log.Errorf("Error clearing vpp manager files: %v", err)
