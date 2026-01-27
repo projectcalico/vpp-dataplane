@@ -18,6 +18,7 @@ package main
 import (
 	"archive/tar"
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -39,7 +40,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/yaml"
 )
 
@@ -68,6 +72,9 @@ const (
 	// Kubernetes client timeout
 	kubeClientTimeout = 15 * time.Second
 
+	// Number of times capture file transfer is retried on failure
+	maxTransferRetries = 3
+
 	// Capture lock file path (inside VPP pod)
 	captureLockFile = "/tmp/calicovppctl.lock"
 )
@@ -82,8 +89,9 @@ type CaptureLockInfo struct {
 }
 
 type KubeClient struct {
-	clientset *kubernetes.Clientset
-	timeout   time.Duration
+	clientset  *kubernetes.Clientset
+	restConfig *restclient.Config
+	timeout    time.Duration
 }
 
 func newKubeClient() (*KubeClient, error) {
@@ -101,7 +109,7 @@ func newKubeClient() (*KubeClient, error) {
 		return nil, fmt.Errorf("failed to create Kubernetes client: %v", err)
 	}
 
-	return &KubeClient{clientset: clientset, timeout: kubeClientTimeout}, nil
+	return &KubeClient{clientset: clientset, restConfig: config, timeout: kubeClientTimeout}, nil
 }
 
 func (k *KubeClient) getAvailableNodeNames() ([]string, error) {
@@ -1262,6 +1270,71 @@ func (k *KubeClient) formatNodesWide(nodes []corev1.Node) string {
 	return output.String()
 }
 
+// streamFileFromPod streams a file from a pod to the provided writer using the Kubernetes Go client API
+func (k *KubeClient) streamFileFromPod(namespace, podName, containerName, remoteFilePath string, writer io.Writer) error {
+	req := k.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   []string{"cat", remoteFilePath},
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(k.restConfig, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("failed to create SPDY executor: %v", err)
+	}
+
+	var stderr bytes.Buffer
+	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+		Stdout: writer,
+		Stderr: &stderr,
+	})
+	if err != nil {
+		errMsg := strings.TrimSpace(stderr.String())
+		if errMsg != "" {
+			return fmt.Errorf("stream failed: %v: %s", err, errMsg)
+		}
+		return fmt.Errorf("stream failed: %v", err)
+	}
+
+	return nil
+}
+
+// cleanupPreExistingCaptureFile removes any pre-existing capture file before starting a new
+// capture so that we do not append to or use stale data from a previous capture
+func cleanupPreExistingCaptureFile(k *KubeClient, nodeName, remoteFile string) error {
+	podName, err := k.findNodePod(nodeName, defaultPod, defaultNamespace)
+	if err != nil {
+		return fmt.Errorf("could not find calico-vpp-node pod on node '%s': %v", nodeName, err)
+	}
+
+	// Check if the file exists
+	checkCmd := fmt.Sprintf("test -f %s", remoteFile)
+	_, err = k.execInPod(defaultNamespace, podName, defaultContainerVpp, "sh", "-c", checkCmd)
+	if err != nil {
+		// File does not exist, nothing to clean up
+		return nil
+	}
+
+	// File exists, remove it and its compressed version
+	remoteBasename := filepath.Base(remoteFile)
+	compressedFile := fmt.Sprintf("/tmp/%s.gz", remoteBasename)
+	cleanupCmd := fmt.Sprintf("rm -f %s %s", remoteFile, compressedFile)
+	_, err = k.execInPod(defaultNamespace, podName, defaultContainerVpp, "sh", "-c", cleanupCmd)
+	if err != nil {
+		return fmt.Errorf("failed to remove pre-existing capture file: %v", err)
+	}
+
+	printColored("grey", fmt.Sprintf("Cleaned up pre-existing capture file: %s", remoteFile))
+	return nil
+}
+
 func compressAndSaveRemoteFile(k *KubeClient, nodeName, remoteFile, localFile string) error {
 	namespace := defaultNamespace
 	container := defaultContainerVpp
@@ -1298,26 +1371,70 @@ func compressAndSaveRemoteFile(k *KubeClient, nodeName, remoteFile, localFile st
 	// Compress remote file
 	printColored("blue", "Compressing remote file...")
 	remoteBasename := filepath.Base(remoteFile)
-	compressCmd := fmt.Sprintf("gzip -c %s > /tmp/%s.gz", remoteFile, remoteBasename)
+	compressedRemoteFile := fmt.Sprintf("/tmp/%s.gz", remoteBasename)
+	compressCmd := fmt.Sprintf("gzip -c %s > %s", remoteFile, compressedRemoteFile)
 	_, err = k.execInPod(namespace, podName, container, "sh", "-c", compressCmd)
 	if err != nil {
 		return fmt.Errorf("failed to compress remote file: %v", err)
 	}
 
-	// Copy compressed file
+	// Stream compressed file to local storage using Kubernetes Go client API with retry logic
 	printColored("blue", "Copying compressed file...")
 
-	copyCmd := exec.Command(kubectlCmd, "cp",
-		fmt.Sprintf("%s/%s:/tmp/%s.gz", namespace, podName, remoteBasename),
-		localFile, "-c", container)
-	err = copyCmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to copy file: %v", err)
+	var transferErr error
+	for attempt := 1; attempt <= maxTransferRetries; attempt++ {
+		if attempt > 1 {
+			printColored("grey", fmt.Sprintf("Retry attempt %d/%d...", attempt, maxTransferRetries))
+		}
+
+		outFile, err := os.Create(localFile)
+		if err != nil {
+			transferErr = fmt.Errorf("failed to create local file: %v", err)
+			continue
+		}
+
+		err = k.streamFileFromPod(namespace, podName, container, compressedRemoteFile, outFile)
+		closeErr := outFile.Close()
+
+		if err != nil {
+			os.Remove(localFile)
+			transferErr = err
+			printColored("red", fmt.Sprintf("Transfer attempt %d failed: %v", attempt, err))
+			continue
+		}
+
+		if closeErr != nil {
+			os.Remove(localFile)
+			transferErr = fmt.Errorf("failed to write local file: %v", closeErr)
+			continue
+		}
+
+		// Transfer successful
+		transferErr = nil
+		break
 	}
 
-	// Clean up remote files
+	if transferErr != nil {
+		// Transfer failed after all retries - print manual recovery instructions,
+		// but do not clean up remote files so that user can recover them manually
+		fmt.Println()
+		printColored("red", "File transfer failed after all retry attempts.")
+		printColored("red", fmt.Sprintf("Error: %v", transferErr))
+		fmt.Println()
+		printColored("blue", "The capture file is still available on the remote pod.")
+		printColored("blue", "You can manually retrieve it with:")
+		printColored("grey", fmt.Sprintf("  kubectl cp -n %s -c %s %s:%s %s",
+			namespace, container, podName, compressedRemoteFile, localFile))
+		fmt.Println()
+		printColored("blue", "To clean up remote files after manual retrieval, run:")
+		printColored("grey", fmt.Sprintf("  calicovppctl capture clear -node %s", nodeName))
+		fmt.Println()
+		return fmt.Errorf("file transfer failed: %v", transferErr)
+	}
+
+	// Clean up remote files only on successful transfer
 	printColored("blue", "Cleaning up remote file...")
-	cleanupCmd := fmt.Sprintf("rm -f %s /tmp/%s.gz", remoteFile, remoteBasename)
+	cleanupCmd := fmt.Sprintf("rm -f %s %s", remoteFile, compressedRemoteFile)
 	_, err = k.execInPod(namespace, podName, container, "sh", "-c", cleanupCmd)
 	if err != nil {
 		printColored("red", fmt.Sprintf("Warning: Failed to clean up remote files: %v", err))
@@ -1460,6 +1577,12 @@ func traceCommand(k *KubeClient, nodeName string, count int, timeout int, interf
 	vppInputNode, _, err := mapInterfaceTypeToVppInputNode(k, interfaceType)
 	if err != nil {
 		return err
+	}
+
+	// Clean up any pre-existing capture file to ensure fresh capture
+	err = cleanupPreExistingCaptureFile(k, validatedNode, "/tmp/trace.txt")
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to clean up pre-existing capture file: %v", err))
 	}
 
 	printColored("green", fmt.Sprintf("Starting packet trace on node '%s'", validatedNode))
@@ -1628,6 +1751,12 @@ func pcapCommand(k *KubeClient, nodeName string, count int, timeout int, interfa
 			printColored("red", fmt.Sprintf("Warning: Failed to remove capture lock: %v", err))
 		}
 	}()
+
+	// Clean up any pre-existing capture file to ensure fresh capture
+	err = cleanupPreExistingCaptureFile(k, validatedNode, "/tmp/trace.pcap")
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to clean up pre-existing capture file: %v", err))
+	}
 
 	// First, let's validate that we can access the VPP interfaces
 	interfacesOutput, err := k.vppctl(validatedNode, "show", "interface")
@@ -1830,6 +1959,12 @@ func dispatchCommand(k *KubeClient, nodeName string, count int, timeout int, int
 	vppInputNode, _, err := mapInterfaceTypeToVppInputNode(k, interfaceType)
 	if err != nil {
 		return err
+	}
+
+	// Clean up any pre-existing capture file to ensure fresh capture
+	err = cleanupPreExistingCaptureFile(k, validatedNode, "/tmp/dispatch.pcap")
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to clean up pre-existing capture file: %v", err))
 	}
 
 	dispatchCmd := []string{
@@ -2259,6 +2394,21 @@ func captureCleanupCommand(k *KubeClient, nodeName string) error {
 	err = clearBPFFilter(k, validatedNode, true)
 	if err != nil {
 		printColored("red", fmt.Sprintf("Warning: Failed to clear PCAP BPF filter: %v", err))
+	}
+
+	// Clean up remote capture files
+	printColored("blue", "Cleaning up remote capture files...")
+	podName, err := k.findNodePod(validatedNode, defaultPod, defaultNamespace)
+	if err != nil {
+		printColored("red", fmt.Sprintf("Warning: Failed to find calico-vpp-node pod on node '%s': %v", validatedNode, err))
+	} else {
+		cleanupCmd := "rm -f /tmp/trace.txt /tmp/trace.txt.gz /tmp/trace.pcap /tmp/trace.pcap.gz /tmp/dispatch.pcap /tmp/dispatch.pcap.gz"
+		_, err = k.execInPod(defaultNamespace, podName, defaultContainerVpp, "sh", "-c", cleanupCmd)
+		if err != nil {
+			printColored("red", fmt.Sprintf("Warning: Failed to clean up remote files: %v", err))
+		} else {
+			printColored("green", "remote capture files cleaned up")
+		}
 	}
 
 	// Remove lock file
