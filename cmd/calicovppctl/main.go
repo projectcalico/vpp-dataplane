@@ -18,6 +18,7 @@ package main
 import (
 	"archive/tar"
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -1204,15 +1205,37 @@ func compressAndSaveRemoteFile(k *KubeClient, nodeName, remoteFile, localFile st
 		return fmt.Errorf("failed to compress remote file: %v", err)
 	}
 
-	// Copy compressed file
+	// Stream compressed file to local storage to avoid kubectl cp issues on large files
 	printColored("blue", "Copying compressed file...")
-
-	copyCmd := exec.Command(kubectlCmd, "cp",
-		fmt.Sprintf("%s/%s:/tmp/%s.gz", namespace, podName, remoteBasename),
-		localFile, "-c", container)
-	err = copyCmd.Run()
+	outFile, err := os.Create(localFile)
 	if err != nil {
-		return fmt.Errorf("failed to copy file: %v", err)
+		return fmt.Errorf("failed to create local file: %v", err)
+	}
+
+	streamCmd := exec.Command(kubectlCmd, "exec",
+		"-n", namespace,
+		"-c", container,
+		podName,
+		"--",
+		"cat", fmt.Sprintf("/tmp/%s.gz", remoteBasename))
+	var stderr bytes.Buffer
+	streamCmd.Stdout = outFile
+	streamCmd.Stderr = &stderr
+
+	err = streamCmd.Run()
+	if err != nil {
+		outFile.Close()
+		os.Remove(localFile)
+		errMsg := strings.TrimSpace(stderr.String())
+		if errMsg != "" {
+			return fmt.Errorf("failed to stream compressed file: %v: %s", err, errMsg)
+		}
+		return fmt.Errorf("failed to stream compressed file: %v", err)
+	}
+
+	err = outFile.Close()
+	if err != nil {
+		return fmt.Errorf("failed to write local file: %v", err)
 	}
 
 	// Clean up remote files
