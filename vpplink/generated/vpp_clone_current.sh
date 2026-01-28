@@ -120,6 +120,10 @@ git_cherry_pick refs/changes/89/41089/31 # https://gerrit.fd.io/r/c/vpp/+/41089 
 git_cherry_pick refs/changes/69/43369/16 # https://gerrit.fd.io/r/c/vpp/+/43369 cnat: converge new cnat implementation to support encaps (calico)
 
 
+# bpf_trace_filter: add filter support for pcap dispatch trace and raw IP packet support
+git_cherry_pick refs/changes/64/44464/9 # 44464: dispatch-trace: add filter support for pcap dispatch trace | https://gerrit.fd.io/r/c/vpp/+/44464
+git_cherry_pick refs/changes/67/44467/7 # 44467: bpf_trace_filter: add raw IP packet support | https://gerrit.fd.io/r/c/vpp/+/44467
+
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch
