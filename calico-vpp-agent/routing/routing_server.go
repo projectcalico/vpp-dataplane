@@ -258,6 +258,11 @@ func (s *Server) announceLocalAddress(addr *net.IPNet, vni uint32) error {
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
 	path, err := common.MakePath(addr.String(), false /* isWithdrawal */, nodeIP4, nodeIP6, vni, uint32(*s.BGPConf.ASNumber))
 	if err != nil {
+		if common.IsMissingNodeIP(err) {
+			s.log.WithError(err).Warnf("Skipping BGP announce for %s: node IP missing", addr.String())
+			s.localAddressMap[addr.String()] = localAddress{ipNet: addr, vni: vni}
+			return nil
+		}
 		return errors.Wrap(err, "error making path to announce")
 	}
 	s.localAddressMap[addr.String()] = localAddress{ipNet: addr, vni: vni}
@@ -273,6 +278,11 @@ func (s *Server) withdrawLocalAddress(addr *net.IPNet, vni uint32) error {
 	nodeIP4, nodeIP6 := common.GetBGPSpecAddresses(s.nodeBGPSpec)
 	path, err := common.MakePath(addr.String(), true /* isWithdrawal */, nodeIP4, nodeIP6, vni, uint32(*s.BGPConf.ASNumber))
 	if err != nil {
+		if common.IsMissingNodeIP(err) {
+			s.log.WithError(err).Warnf("Skipping BGP withdraw for %s: node IP missing", addr.String())
+			delete(s.localAddressMap, addr.String())
+			return nil
+		}
 		return errors.Wrap(err, "error making path to withdraw")
 	}
 	delete(s.localAddressMap, addr.String())
