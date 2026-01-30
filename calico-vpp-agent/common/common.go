@@ -181,6 +181,19 @@ func FullyQualified(addr net.IP) *net.IPNet {
 	}
 }
 
+var (
+	ErrNoNodeIPv4 = errors.New("no ip4 address for node")
+	ErrNoNodeIPv6 = errors.New("no ip6 address for node")
+)
+
+func IsMissingNodeIP(err error) bool {
+	if err == nil {
+		return false
+	}
+	cause := errors.Cause(err)
+	return cause == ErrNoNodeIPv4 || cause == ErrNoNodeIPv6
+}
+
 const (
 	aggregatedPrefixSetBaseName = "aggregated"
 	hostPrefixSetBaseName       = "host"
@@ -258,7 +271,7 @@ func MakePath(prefix string, isWithdrawal bool, nodeIPv4 *net.IP, nodeIPv6 *net.
 
 	if ipNet.IP.To4() != nil {
 		if nodeIPv4 == nil {
-			return nil, fmt.Errorf("no ip4 address for node")
+			return nil, ErrNoNodeIPv4
 		}
 		family = &BgpFamilyUnicastIPv4
 		if vni != 0 {
@@ -267,6 +280,9 @@ func MakePath(prefix string, isWithdrawal bool, nodeIPv4 *net.IP, nodeIPv6 *net.
 		var nhAttr *apb.Any
 
 		if *config.GetCalicoVppFeatureGates().SRv6Enabled {
+			if nodeIPv6 == nil {
+				return nil, ErrNoNodeIPv6
+			}
 			nhAttr, err = apb.New(&bgpapi.NextHopAttribute{
 				NextHop: nodeIPv6.String(),
 			})
@@ -281,7 +297,7 @@ func MakePath(prefix string, isWithdrawal bool, nodeIPv4 *net.IP, nodeIPv6 *net.
 		attrs = append(attrs, nhAttr)
 	} else {
 		if nodeIPv6 == nil {
-			return nil, fmt.Errorf("no ip6 address for node")
+			return nil, ErrNoNodeIPv6
 		}
 		family = &BgpFamilyUnicastIPv6
 		if vni != 0 {
