@@ -74,6 +74,10 @@ func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 				ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
 				path, err := common.MakePath(prefix, false /* isWithdrawal */, ip4, ip6, 0, 0)
 				if err != nil {
+					if common.IsMissingNodeIP(err) {
+						w.log.WithError(err).Warnf("Skipping prefix announcement for %s: node IP missing", prefix)
+						continue
+					}
 					return errors.Wrap(err, "error making new path for assigned prefix")
 				}
 				toAdd = append(toAdd, path)
@@ -90,6 +94,10 @@ func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
 				ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
 				path, err := common.MakePath(p, true /* isWithdrawal */, ip4, ip6, 0, 0)
 				if err != nil {
+					if common.IsMissingNodeIP(err) {
+						w.log.WithError(err).Warnf("Skipping prefix withdrawal for %s: node IP missing", p)
+						continue
+					}
 					return errors.Wrap(err, "error making new path for removed prefix")
 				}
 				toRemove = append(toRemove, path)
