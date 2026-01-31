@@ -87,6 +87,34 @@ func (v *VppLink) SetInterfaceMacAddress(swIfIndex uint32, mac net.HardwareAddr)
 	return nil
 }
 
+func (v *VppLink) AddInterfaceMacAddress(swIfIndex uint32, mac net.HardwareAddr) error {
+	client := interfaces.NewServiceClient(v.GetConnection())
+
+	_, err := client.SwInterfaceAddDelMacAddress(v.GetContext(), &interfaces.SwInterfaceAddDelMacAddress{
+		SwIfIndex: swIfIndex,
+		Addr:      types.MacAddress(mac),
+		IsAdd:     1,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to add secondary MAC address: %w", err)
+	}
+	return nil
+}
+
+func (v *VppLink) DelInterfaceMacAddress(swIfIndex uint32, mac net.HardwareAddr) error {
+	client := interfaces.NewServiceClient(v.GetConnection())
+
+	_, err := client.SwInterfaceAddDelMacAddress(v.GetContext(), &interfaces.SwInterfaceAddDelMacAddress{
+		SwIfIndex: swIfIndex,
+		Addr:      types.MacAddress(mac),
+		IsAdd:     0,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete secondary MAC address: %w", err)
+	}
+	return nil
+}
+
 func (v *VppLink) SetInterfaceVRF(swIfIndex, vrfIndex uint32, isIP6 bool) error {
 	client := interfaces.NewServiceClient(v.GetConnection())
 
