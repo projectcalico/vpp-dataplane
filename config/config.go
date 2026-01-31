@@ -671,6 +671,7 @@ type LinuxInterfaceState struct {
 	IsUp          bool
 	Addresses     []netlink.Addr
 	Routes        []netlink.Route
+	Neighbors     []netlink.Neigh
 	HardwareAddr  net.HardwareAddr
 	PromiscOn     bool
 	NumTxQueues   int
