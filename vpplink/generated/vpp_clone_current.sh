@@ -121,9 +121,6 @@ git_clone_cd_and_reset "$VPP_DIR" ${BASE}
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular option | https://gerrit.fd.io/r/c/vpp/+/42343
 
-# This is the commit which broke IPv6 from v3.28.0 onwards.
-git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine NS source address
-
 # npol: Network Policies plugin
 git_cherry_pick refs/changes/10/43710/12 # 43710: npol: Network Policies plugin | https://gerrit.fd.io/r/c/vpp/+/43710
 git_cherry_pick refs/changes/52/43952/2 # 43952: npol: fix test-debug | https://gerrit.fd.io/r/c/vpp/+/43952
