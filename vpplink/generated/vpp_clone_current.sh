@@ -112,9 +112,6 @@ git_clone_cd_and_reset "$VPP_DIR" ${BASE}
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular option | https://gerrit.fd.io/r/c/vpp/+/42343
 
-# This is the commit which broke IPv6 from v3.28.0 onwards.
-git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine NS source address
-
 # testing new cnat stuff
 git_cherry_pick refs/changes/89/41089/31 # https://gerrit.fd.io/r/c/vpp/+/41089 cnat: combine multiple changes
 git_cherry_pick refs/changes/69/43369/16 # https://gerrit.fd.io/r/c/vpp/+/43369 cnat: converge new cnat implementation to support encaps (calico)
