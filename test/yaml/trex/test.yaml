@@ -10,7 +10,7 @@ metadata:
 spec:
   containers:
   - name: trex
-    image: calicovpp/test-trex:v3.06
+    image: calicovpp/test-trex:v3.31
     command: ["/bin/bash", "-ec"]
     args:
       - |
