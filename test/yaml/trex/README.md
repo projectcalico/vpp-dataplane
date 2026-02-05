@@ -10,6 +10,19 @@ kubectl apply -f test.yaml
 
 Start trex
 
+The mac address given by vpp to the memif should be configured on trex
+
+````bash
+NODE=$(kubectl -n trex get pod trex -o jsonpath='{.spec.nodeName}'); \
+VPP_POD=$(kubectl -n calico-vpp-dataplane get pod -o \
+jsonpath="{.items[?(@.spec.nodeName==\"$NODE\")].metadata.name}"); \
+MAC_ADDR=$(k -n calico-vpp-dataplane exec $VPP_POD -c vpp -- vppctl\
+ sh hard|grep memi -A 3|grep Ether|awk '{print $3}'); \
+echo $MAC_ADDR
+kubectl exec -it -n trex trex -- bash -c "sed -i 's/dest_mac: .*/\
+dest_mac: $MAC_ADDR/g' /usr/local/bin/trex-start"
+````
+
 ````console
 kubectl exec -it -n trex trex -- bash
 $ trex-start
