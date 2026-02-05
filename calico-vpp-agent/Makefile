@@ -19,9 +19,7 @@ build: bin
 
 .PHONY: image
 image: build
-	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
-	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
-	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
+	@cat $(GENERATE_LOG_FILE) > $(VERSION_FILE)
 	docker build $(DOCKER_BUILD_ARGS) --pull -t calicovpp/agent:$(TAG) .
 	@if [ "${ALSO_LATEST}" = "y" ]; then \
 		docker tag calicovpp/agent:$(TAG) calicovpp/agent:latest; \
@@ -30,9 +28,7 @@ image: build
 
 .PHONY: image-cov
 image-cov: build-cov
-	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
-	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
-	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
+	@cat $(GENERATE_LOG_FILE) > $(VERSION_FILE)
 	docker build $(DOCKER_BUILD_ARGS) --pull -t calicovpp/agent:$(TAG) .
 
 .PHONY: push
