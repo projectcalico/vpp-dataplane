@@ -22,7 +22,7 @@ function k () {
 
 function kex () {
 	echo "Running $@"
-	k exec -it $POD -- timeout -k 1 4 $@
+	k exec $POD -- timeout -k 1 4 $@
 }
 
 function getClusterIP () {
