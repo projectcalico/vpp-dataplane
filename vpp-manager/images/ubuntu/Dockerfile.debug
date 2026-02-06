@@ -2,6 +2,9 @@ FROM ubuntu:22.04
 
 LABEL maintainer="nskrzypc@cisco.com"
 
+ARG GIT_COMMIT=unknown
+LABEL git-commit=$GIT_COMMIT
+
 RUN apt-get update \
  && apt-get install -y openssl libapr1 libnuma1 \
     libmbedcrypto7 libmbedtls14 libmbedx509-1 libsubunit0 \

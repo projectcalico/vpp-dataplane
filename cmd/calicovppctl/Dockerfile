@@ -14,6 +14,10 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     -ldflags="-s -w" -o /cmd/calicovppctl
 
 FROM scratch
+
+ARG GIT_COMMIT=unknown
+LABEL git-commit=$GIT_COMMIT
+
 WORKDIR /
 COPY --from=builder /cmd/calicovppctl /calicovppctl
 

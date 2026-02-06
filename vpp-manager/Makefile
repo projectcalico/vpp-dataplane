@@ -118,6 +118,8 @@ image: vpp-image eks-image vclsidecar-image
 
 .PHONY: image-cov
 image-cov: build-cov ${VPP_TARBALL}
+	rm -rf $(IMAGE_DIR)/artifacts
+	tar -xvf ${VPP_TARBALL} -C $(IMAGE_DIR)
 	@cp $(VPPDEV_FILE) $(IMAGE_DIR)
 	docker build --pull $(DOCKER_BUILD_ARGS) \
 		-t calicovpp/vpp:$(TAG) $(IMAGE_DIR)
@@ -203,9 +205,7 @@ endif
 
 .PHONY: version-file
 version-file:
-	@echo "Image tag                   : $(TAG)"                         > $(VERSION_FILE)
-	@echo "VPP-dataplane version       : $(shell git log -1 --oneline)" >> $(VERSION_FILE)
-	@cat $(GENERATE_LOG_FILE)                                           >> $(VERSION_FILE)
+	@cat $(GENERATE_LOG_FILE) > $(VERSION_FILE)
 
 .PHONY: vpp-build-env
 vpp-build-env:

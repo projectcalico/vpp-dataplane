@@ -54,3 +54,4 @@ CLUSTER_NAME ?= kind-$(shell whoami)-$(shell git describe --always --abbrev=4)
 DOCKER_BUILD_ARGS =  --network=host
 DOCKER_BUILD_ARGS += --build-arg http_proxy=${DOCKER_BUILD_PROXY}
 DOCKER_BUILD_ARGS += --build-arg https_proxy=${DOCKER_BUILD_PROXY}
+DOCKER_BUILD_ARGS += --build-arg GIT_COMMIT="$(shell git log -1 --oneline)"
