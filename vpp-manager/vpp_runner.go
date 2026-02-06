@@ -543,12 +543,11 @@ func (v *VppRunner) configureVppUplinkInterface(
 	}
 
 	for _, addr := range ifState.Addresses {
-		if addr.IP.IsLinkLocalUnicast() && !common.IsFullyQualified(addr.IPNet) && common.IsV6Cidr(addr.IPNet) {
-			log.Infof("Adding %s instead of %s to uplink interface (vpp requires /128 link-local)", common.FullyQualified(addr.IPNet.IP).String(), addr.String())
-			err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(addr.IP))
-			if err != nil {
-				log.Errorf("Error adding address to uplink interface: %v", err)
-			}
+		if addr.IP.IsLinkLocalUnicast() && common.IsV6Cidr(addr.IPNet) {
+			// We do not program VPP with Link local addresses,
+			// instead we will wait for one to come up on the tap
+			// and use this instead. This prevents LL address duplication
+			log.Infof("Not configuring VPP with linux LL address %s", addr.String())
 		} else {
 			log.Infof("Adding address %s to uplink interface", addr.String())
 			err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
@@ -621,6 +620,37 @@ func (v *VppRunner) configureVppUplinkInterface(
 	})
 	if err != nil {
 		return errors.Wrap(err, "Error creating tap")
+	}
+
+	if ifState.HasIP6Addr() {
+		// wait 5s for the interface creation in linux and fetch its LL address
+	doublebreak:
+		for i := uint32(0); i <= *config.GetCalicoVppDebug().FetchV6LLntries; i++ {
+			time.Sleep(time.Second)
+			link, err := netlink.LinkByName(ifSpec.InterfaceName)
+			if err != nil {
+				log.WithError(err).Warnf("cannot find interface %s", ifSpec.InterfaceName)
+				continue
+			}
+			addresses, err := netlink.AddrList(link, netlink.FAMILY_V6)
+			if err != nil {
+				log.WithError(err).Warnf("could not find v6 address on link %s", ifSpec.InterfaceName)
+				continue
+			}
+			for _, addr := range addresses {
+				if addr.IP.IsLinkLocalUnicast() {
+					log.Infof("Using link-local addr %s for %s", common.FullyQualified(addr.IP), ifSpec.InterfaceName)
+					err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(addr.IP))
+					if err != nil {
+						log.Errorf("Error adding address to uplink interface: %v", err)
+					}
+					break doublebreak
+				}
+			}
+			if i == *config.GetCalicoVppDebug().FetchV6LLntries-1 {
+				log.Warnf("Could not find v6 LL address for %s after %ds", ifSpec.InterfaceName, *config.GetCalicoVppDebug().FetchV6LLntries)
+			}
+		}
 	}
 
 	vrfs, err := v.setupTapVRF(&ifSpec, ifState, tapSwIfIndex)
