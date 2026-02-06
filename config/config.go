@@ -296,6 +296,10 @@ type CalicoVppDebugConfigType struct {
 	GSOEnabled              *bool `json:"gsoEnabled,omitempty"`
 	SpreadTxQueuesOnWorkers *bool `json:"spreadTxQueuesOnWorkers,omitempty"`
 	EnableUdevNetNameRules  *bool `json:"enableUdevNetNameRules,omitempty"`
+	// FetchV6LLntries is the number of times (one try per second) we try to
+	// get the v6 link local address from the tap created in linux
+	// to replace the uplink before giving up.
+	FetchV6LLntries *uint32 `json:"fetchV6LLntries,omitempty"`
 }
 
 func (cfg *CalicoVppDebugConfigType) String() string {
@@ -315,6 +319,10 @@ func (cfg *CalicoVppDebugConfigType) Validate() (err error) {
 	}
 	if cfg.EnableUdevNetNameRules == nil {
 		cfg.EnableUdevNetNameRules = &True
+	}
+	var v uint32 = 5
+	if cfg.FetchV6LLntries == nil {
+		cfg.FetchV6LLntries = &v
 	}
 	return
 }
@@ -695,6 +703,15 @@ func (c *LinuxInterfaceState) AddressString() string {
 		str = append(str, addr.String())
 	}
 	return strings.Join(str, ",")
+}
+
+func (c *LinuxInterfaceState) HasIP6Addr() bool {
+	for _, addr := range c.Addresses {
+		if vpplink.IsIP6(addr.IP) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *LinuxInterfaceState) RouteString() string {
