@@ -141,9 +141,11 @@ func (v *VppRunner) configureGlobalPunt() (err error) {
 	return
 }
 
+// configurePunt adds in VPP in the punt table routes to the tap.
+// traffic 'for me' received on the PHY and on the pods in this node
+// will end up here.
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInterfaceState) (err error) {
-	/* In the punt table (where all punted traffics ends), route to the tap */
-	for _, addr := range ifState.Addresses {
+	for _, addr := range ifState.GetAddresses() {
 		err = v.vpp.RouteAdd(&types.Route{
 			Table: common.PuntTableID,
 			Dst:   addr.IPNet,
@@ -156,16 +158,20 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 			return errors.Wrapf(err, "error adding vpp side routes for interface")
 		}
 	}
-	return nil
-}
-
-func (v *VppRunner) hasAddr(ip net.IP, ifState config.LinuxInterfaceState) bool {
-	for _, addr := range ifState.Addresses {
-		if ip.Equal(addr.IP) {
-			return true
+	if ifState.IPv6LinkLocal.IP != nil {
+		err = v.vpp.RouteAdd(&types.Route{
+			Table: common.PuntTableID,
+			Dst:   common.FullyQualified(ifState.IPv6LinkLocal.IP),
+			Paths: []types.RoutePath{{
+				Gw:        ifState.IPv6LinkLocal.IP,
+				SwIfIndex: tapSwIfIndex,
+			}},
+		})
+		if err != nil {
+			return errors.Wrapf(err, "error adding vpp side routes for interface")
 		}
 	}
-	return false
+	return nil
 }
 
 // pick a next hop to use for cluster routes (services, pod cidrs) in the address prefix
@@ -176,7 +182,7 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 	foundV4, foundV6 := false, false
 	needsV4, needsV6 := false, false
 
-	for _, addr := range ifState.Addresses {
+	for _, addr := range ifState.GetAddresses() {
 		if nhAddr.To4() != nil {
 			needsV4 = true
 		} else {
@@ -193,7 +199,7 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 			log.Infof("Using %s as next hop for cluster IPv4 routes", nhAddr.String())
 			fakeNextHopIP4 = nhAddr
 			foundV4 = true
-		} else if !nhAddr.IsLinkLocalUnicast() && !foundV6 {
+		} else if !foundV6 {
 			log.Infof("Using %s as next hop for cluster IPv6 routes", nhAddr.String())
 			fakeNextHopIP6 = nhAddr
 			foundV6 = true
@@ -204,12 +210,12 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 		return
 	}
 
-	for _, route := range ifState.Routes {
+	for _, route := range ifState.GetRoutes() {
 		if route.Gw != nil || route.Dst == nil {
 			// We're looking for a directly connected route
 			continue
 		}
-		if (route.Dst.IP.To4() != nil && foundV4) || (route.Dst.IP.To4() == nil && foundV6) || route.Dst.IP.IsLinkLocalUnicast() {
+		if (route.Dst.IP.To4() != nil && foundV4) || (route.Dst.IP.To4() == nil && foundV6) {
 			continue
 		}
 		ones, _ := route.Dst.Mask.Size()
@@ -221,7 +227,7 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 			} else {
 				// pick an address in the subnet
 				nhAddr = utils.DecrementIP(utils.BroadcastAddr(route.Dst))
-				if v.hasAddr(nhAddr, ifState) {
+				if ifState.HasAddr(nhAddr) {
 					nhAddr = utils.IncrementIP(utils.NetworkAddr(route.Dst))
 				}
 				log.Infof("Using %s as next hop for cluster IPv4 routes (from directly connected route)", route.Dst.IP.String())
@@ -237,7 +243,7 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 			} else {
 				// pick an address in the subnet
 				nhAddr = utils.DecrementIP(utils.BroadcastAddr(route.Dst))
-				if v.hasAddr(nhAddr, ifState) {
+				if ifState.HasAddr(nhAddr) {
 					nhAddr = utils.IncrementIP(utils.NetworkAddr(route.Dst))
 				}
 				log.Infof("Using %s as next hop for cluster IPv6 routes (from directly connected route)", route.Dst.IP.String())
@@ -255,20 +261,14 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 		return nil, nil, errors.Wrap(err, "Error setting tap up")
 	}
 
-	for _, addr := range ifState.Addresses {
-		if addr.IP.To4() == nil {
-			if err = podinterface.WriteProcSys("/proc/sys/net/ipv6/conf/"+link.Attrs().Name+"/disable_ipv6", "0"); err != nil {
-				return nil, nil, fmt.Errorf("failed to set net.ipv6.conf."+link.Attrs().Name+".disable_ipv6=0: %s", err)
-			}
-			break
+	if ifState.HasNodeIP6() {
+		err := podinterface.WriteProcSys("/proc/sys/net/ipv6/conf/"+link.Attrs().Name+"/disable_ipv6", "0")
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to set net.ipv6.conf."+link.Attrs().Name+".disable_ipv6=0: %s", err)
 		}
 	}
 	// Configure original addresses and routes on the new tap
-	for _, addr := range ifState.Addresses {
-		if addr.IP.IsLinkLocalUnicast() && common.IsV6Cidr(addr.IPNet) {
-			log.Infof("Skipping v6 LL address %s when configuring linux tap", addr.String())
-			continue
-		}
+	for _, addr := range ifState.GetAddresses() {
 		log.Infof("Adding address %+v to tap interface", addr)
 		err = netlink.AddrAdd(link, &addr)
 		if err == syscall.EEXIST {
@@ -277,11 +277,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 			log.Errorf("Error adding address %s to tap interface: %v", addr, err)
 		}
 	}
-	for _, route := range ifState.Routes {
-		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() && common.IsV6Cidr(route.Dst) {
-			log.Infof("Skipping v6 LL route %s when configuring linux tap", route.Dst.String())
-			continue
-		}
+	for _, route := range ifState.GetRoutes() {
 		route.LinkIndex = link.Attrs().Index
 		log.Infof("Adding route %s via VPP", route)
 		err = netlink.RouteAdd(&route)
@@ -295,45 +291,6 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 	// Determine a suitable next hop for the cluster routes
 	fakeNextHopIP4, fakeNextHopIP6 = v.pickNextHopIP(ifState)
 	return fakeNextHopIP4, fakeNextHopIP6, nil
-}
-
-func (v *VppRunner) addExtraAddresses(addrList []netlink.Addr, extraAddrCount int, vppIfSwIfIndex uint32) (err error) {
-	ipFlowHash := types.FlowHashSrcIP |
-		types.FlowHashDstIP |
-		types.FlowHashSrcPort |
-		types.FlowHashDstPort |
-		types.FlowHashSymetric
-
-	err = v.vpp.SetIPFlowHash(ipFlowHash, 0 /* vrf */, false /* isIPv6 */)
-	if err != nil {
-		log.Errorf("cannot configure flow hash: %v", err)
-	}
-	/* No v6 as extraAddrCount doesnt support it & flow hash breaks in vpp */
-
-	log.Infof("Adding %d extra addresses", extraAddrCount)
-	v4Count := 0
-	var addr net.IPNet
-	for _, a := range addrList {
-		if a.IP.To4() != nil {
-			v4Count++
-			addr = *a.IPNet
-		}
-	}
-	if v4Count != 1 {
-		return fmt.Errorf("%d IPv4 addresses found, not configuring extra addresses (need exactly 1)", v4Count)
-	}
-	for i := 1; i <= extraAddrCount; i++ {
-		a := &net.IPNet{
-			IP:   net.IP(append([]byte(nil), addr.IP.To4()...)),
-			Mask: addr.Mask,
-		}
-		a.IP[2] += byte(i)
-		err = v.vpp.AddInterfaceAddress(vppIfSwIfIndex, a)
-		if err != nil {
-			log.Errorf("Error adding address to data interface: %v", err)
-		}
-	}
-	return nil
 }
 
 func (v *VppRunner) allocateStaticVRFs() error {
@@ -448,7 +405,7 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 		}
 		vrfs = append(vrfs, vrfID)
 
-		for _, addr := range ifState.Addresses {
+		for _, addr := range ifState.GetAddresses() {
 			if vpplink.IPFamilyFromIP(addr.IP) == ipFamily {
 				err = v.vpp.RouteAdd(&types.Route{
 					Table: vrfID,
@@ -550,25 +507,14 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 
-	for _, addr := range ifState.Addresses {
-		if addr.IP.IsLinkLocalUnicast() && common.IsV6Cidr(addr.IPNet) {
-			// We do not program VPP with Link local addresses,
-			// instead we will wait for one to come up on the tap
-			// and use this instead. This prevents LL address duplication
-			log.Infof("Skipping v6 LL address %s when programming VPP", addr.String())
-		} else {
-			log.Infof("Adding address %s to uplink interface", addr.String())
-			err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
-			if err != nil {
-				log.Errorf("Error adding address to uplink interface: %v", err)
-			}
+	for _, addr := range ifState.GetAddresses() {
+		log.Infof("Adding address %s to uplink interface", addr.String())
+		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
+		if err != nil {
+			log.Errorf("Error adding address to uplink interface: %v", err)
 		}
 	}
-	for _, route := range ifState.Routes {
-		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() && common.IsV6Cidr(route.Dst) {
-			log.Infof("Skipping v6 LL route %s when pogramming VPP", route.Dst.String())
-			continue
-		}
+	for _, route := range ifState.GetRoutes() {
 		err = v.vpp.RouteAdd(&types.Route{
 			Dst: route.Dst,
 			Paths: []types.RoutePath{{
@@ -598,15 +544,6 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 
-	if ifSpec.IsMain {
-		if config.GetCalicoVppInitialConfig().ExtraAddrCount > 0 {
-			err = v.addExtraAddresses(ifState.Addresses, config.GetCalicoVppInitialConfig().ExtraAddrCount, ifSpec.SwIfIndex)
-			if err != nil {
-				log.Errorf("Cannot configure requested extra addresses: %v", err)
-			}
-		}
-	}
-
 	log.Infof("Creating Linux side interface")
 	vpptap0Flags := types.TapFlagNone
 	if *config.GetCalicoVppDebug().GSOEnabled {
@@ -630,7 +567,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error creating tap")
 	}
 
-	if ifState.HasIP6Addr() {
+	if ifState.HasNodeIP6() {
 		// wait 5s for the interface creation in linux and fetch its LL address
 	doublebreak:
 		for i := uint32(0); i <= *config.GetCalicoVppDebug().FetchV6LLntries; i++ {
@@ -648,10 +585,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 			for _, addr := range addresses { // addresses are only v6 here see above
 				if addr.IP.IsLinkLocalUnicast() {
 					log.Infof("Using link-local addr %s for %s", common.FullyQualified(addr.IP), ifSpec.InterfaceName)
-					err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(addr.IP))
-					if err != nil {
-						log.Errorf("Error adding address to uplink interface: %v", err)
-					}
+					ifState.IPv6LinkLocal = addr
 					break doublebreak
 				}
 			}
@@ -677,7 +611,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrapf(err, "Error setting %d MTU on tap interface", vpplink.CalicoVppMaxMTu)
 	}
 
-	if ifState.Hasv6 {
+	if ifState.HasNodeIP6() {
 		err = v.vpp.DisableIP6RouterAdvertisements(tapSwIfIndex)
 		if err != nil {
 			return errors.Wrap(err, "Error disabling ip6 RA on vpptap0")
@@ -692,7 +626,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error enabling ARP proxy")
 	}
 
-	for _, addr := range ifState.Addresses {
+	for _, addr := range ifState.GetAddresses() {
 		if addr.IP.To4() == nil {
 			log.Infof("Adding ND proxy for address %s", addr.IP)
 			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, addr.IP)
@@ -702,13 +636,24 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 
+	if ifState.IPv6LinkLocal.IP != nil {
+		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(ifState.IPv6LinkLocal.IP))
+		if err != nil {
+			log.Errorf("Error adding address to uplink interface: %v", err)
+		}
+		err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, ifState.IPv6LinkLocal.IP)
+		if err != nil {
+			log.Errorf("Error configuring nd proxy for address %s: %v", ifState.IPv6LinkLocal.IP.String(), err)
+		}
+	}
+
 	/*
 	 * Add ND proxy for IPv6 gateway addresses.
 	 * Without ND proxy for gateway, host's NS for gateway is dropped with "neighbor
 	 * solicitations for unknown targets" error because there's no /128 FIB entry.
 	 * This requires VPP patch https://gerrit.fd.io/r/c/vpp/+/44350 to fix NA loop bug.
 	 */
-	for _, route := range ifState.Routes {
+	for _, route := range ifState.GetRoutes() {
 		if route.Gw != nil && route.Gw.To4() == nil {
 			log.Infof("Adding ND proxy for IPv6 gateway %s", route.Gw)
 			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, route.Gw)
@@ -768,11 +713,6 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error setting tap up")
 	}
 
-	uplinkAddresses := make([]*net.IPNet, 0)
-	for _, addr := range ifState.Addresses {
-		uplinkAddresses = append(uplinkAddresses, addr.IPNet)
-	}
-
 	config.Info.UplinkStatuses[link.Attrs().Name] = config.UplinkStatus{
 		TapSwIfIndex:        tapSwIfIndex,
 		SwIfIndex:           ifSpec.SwIfIndex,
@@ -783,7 +723,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 		IsMain:              ifSpec.IsMain,
 		FakeNextHopIP4:      fakeNextHopIP4,
 		FakeNextHopIP6:      fakeNextHopIP6,
-		UplinkAddresses:     uplinkAddresses,
+		UplinkAddresses:     ifState.GetAddressesAsIPNet(),
 	}
 	return nil
 }
@@ -835,20 +775,20 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 		if node.Spec.BGP == nil {
 			node.Spec.BGP = &oldv3.NodeBGPSpec{}
 		}
-		if ifState.Hasv4 {
-			log.Infof("Setting BGP nodeIP %s", ifState.NodeIP4)
-			if node.Spec.BGP.IPv4Address != ifState.NodeIP4 {
-				node.Spec.BGP.IPv4Address = ifState.NodeIP4
+		if ifState.HasNodeIP4() {
+			log.Infof("Setting BGP nodeIP %s", ifState.GetNodeIP4())
+			if node.Spec.BGP.IPv4Address != ifState.GetNodeIP4() {
+				node.Spec.BGP.IPv4Address = ifState.GetNodeIP4()
 				needUpdate = true
 			}
 		} else {
 			node.Spec.BGP.IPv4Address = ""
 			needUpdate = true
 		}
-		if ifState.Hasv6 {
-			log.Infof("Setting BGP nodeIP %s", ifState.NodeIP6)
-			if node.Spec.BGP.IPv6Address != ifState.NodeIP6 {
-				node.Spec.BGP.IPv6Address = ifState.NodeIP6
+		if ifState.HasNodeIP6() {
+			log.Infof("Setting BGP nodeIP %s", ifState.GetNodeIP6())
+			if node.Spec.BGP.IPv6Address != ifState.GetNodeIP6() {
+				node.Spec.BGP.IPv6Address = ifState.GetNodeIP6()
 				needUpdate = true
 			}
 		} else {
