@@ -183,7 +183,7 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 	needsV4, needsV6 := false, false
 
 	for _, addr := range ifState.GetAddresses() {
-		if nhAddr.To4() != nil {
+		if addr.IP.To4() != nil {
 			needsV4 = true
 		} else {
 			needsV6 = true
