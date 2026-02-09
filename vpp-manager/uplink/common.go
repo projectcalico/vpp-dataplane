@@ -118,7 +118,7 @@ func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
 		log.Errorf("Error finding link %s: %s", d.spec.InterfaceName, err)
 	} else {
 		// Remove routes to not have them conflict with vpptap0
-		for _, route := range d.conf.Routes {
+		for _, route := range d.conf.GetRoutes() {
 			log.Infof("deleting Route %s", route.String())
 			err := netlink.RouteDel(&route)
 			if err != nil {
@@ -126,7 +126,7 @@ func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
 			}
 		}
 		// Remove addresses to not have them conflict with vpptap0
-		for _, addr := range d.conf.Addresses {
+		for _, addr := range d.conf.GetAddresses() {
 			err := netlink.AddrDel(link, &addr)
 			if err != nil {
 				log.Errorf("Error removing address %s from tap interface : %+v", addr, err)
@@ -149,7 +149,7 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 	if err != nil {
 		log.Errorf("Cannot restore mtu to %d: %v", d.conf.Mtu, err)
 	}
-	for _, addr := range d.conf.Addresses {
+	for _, addr := range d.conf.GetAddresses() {
 		log.Infof("restoring address %s", addr.String())
 		err := netlink.AddrAdd(link, &addr)
 		if err != nil {
@@ -157,7 +157,7 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 			// Keep going for the rest of the config
 		}
 	}
-	for _, route := range d.conf.Routes {
+	for _, route := range d.conf.GetRoutes() {
 		log.Infof("restoring route %s", route.String())
 		route.LinkIndex = link.Attrs().Index
 		err := netlink.RouteAdd(&route)
