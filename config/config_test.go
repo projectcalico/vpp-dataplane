@@ -71,9 +71,9 @@ var _ = Describe("Test Common Config", func() {
 		}
 
 		for _, rl := range routesLists {
-			c := LinuxInterfaceState{Routes: rl}
+			c := LinuxInterfaceState{routes: rl}
 			c.sortRoutes()
-			for i, r := range c.Routes {
+			for i, r := range c.routes {
 				Expect(r.LinkIndex).To(Equal(i), "Link %d should be at index %d", r.LinkIndex, i)
 			}
 		}

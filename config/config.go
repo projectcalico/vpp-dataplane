@@ -745,8 +745,6 @@ func LoadInterfaceConfigFromLinux(interfaceName string) (*LinuxInterfaceState, e
 	return &conf, nil
 }
 
-func (c *LinuxInterfaceState) SetV6LinkLocal(addr netlink.Addr) { c.IPv6LinkLocal = addr }
-
 func (c *LinuxInterfaceState) AddressString() string {
 	var str []string
 	for _, addr := range c.addresses {
@@ -766,7 +764,7 @@ func (c *LinuxInterfaceState) HasNodeIP4() bool {
 func (c *LinuxInterfaceState) GetAddresses() []netlink.Addr {
 	ret := make([]netlink.Addr, 0)
 	for _, addr := range c.addresses {
-		if addr.IP.IsLinkLocalUnicast() && IsV6Cidr(addr.IPNet) {
+		if addr.IP.IsLinkLocalUnicast() && isV6Cidr(addr.IPNet) {
 			continue
 		}
 		ret = append(ret, addr)
@@ -777,7 +775,7 @@ func (c *LinuxInterfaceState) GetAddresses() []netlink.Addr {
 func (c *LinuxInterfaceState) GetRoutes() []netlink.Route {
 	ret := make([]netlink.Route, 0)
 	for _, route := range c.routes {
-		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() && IsV6Cidr(route.Dst) {
+		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() && isV6Cidr(route.Dst) {
 			continue
 		}
 		ret = append(ret, route)
@@ -924,7 +922,7 @@ func DefaultToPtr[T any](ptr *T, defaultV T) *T {
 	return ptr
 }
 
-func IsV6Cidr(cidr *net.IPNet) bool {
+func isV6Cidr(cidr *net.IPNet) bool {
 	_, bits := cidr.Mask.Size()
 	return bits == 128
 }
