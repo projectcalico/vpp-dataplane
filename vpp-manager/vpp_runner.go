@@ -265,6 +265,10 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 	}
 	// Configure original addresses and routes on the new tap
 	for _, addr := range ifState.Addresses {
+		if addr.IP.IsLinkLocalUnicast() && common.IsV6Cidr(addr.IPNet) {
+			log.Infof("Skipping v6 LL address %s when configuring linux tap", addr.String())
+			continue
+		}
 		log.Infof("Adding address %+v to tap interface", addr)
 		err = netlink.AddrAdd(link, &addr)
 		if err == syscall.EEXIST {
@@ -274,6 +278,10 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 		}
 	}
 	for _, route := range ifState.Routes {
+		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() && common.IsV6Cidr(route.Dst) {
+			log.Infof("Skipping v6 LL route %s when configuring linux tap", route.Dst.String())
+			continue
+		}
 		route.LinkIndex = link.Attrs().Index
 		log.Infof("Adding route %s via VPP", route)
 		err = netlink.RouteAdd(&route)
@@ -547,7 +555,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 			// We do not program VPP with Link local addresses,
 			// instead we will wait for one to come up on the tap
 			// and use this instead. This prevents LL address duplication
-			log.Infof("Not configuring VPP with linux LL address %s", addr.String())
+			log.Infof("Skipping v6 LL address %s when programming VPP", addr.String())
 		} else {
 			log.Infof("Adding address %s to uplink interface", addr.String())
 			err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
@@ -557,8 +565,8 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 	for _, route := range ifState.Routes {
-		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() {
-			log.Infof("Skipping link-local route %s", route.Dst.String())
+		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() && common.IsV6Cidr(route.Dst) {
+			log.Infof("Skipping v6 LL route %s when pogramming VPP", route.Dst.String())
 			continue
 		}
 		err = v.vpp.RouteAdd(&types.Route{
@@ -637,7 +645,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 				log.WithError(err).Warnf("could not find v6 address on link %s", ifSpec.InterfaceName)
 				continue
 			}
-			for _, addr := range addresses {
+			for _, addr := range addresses { // addresses are only v6 here see above
 				if addr.IP.IsLinkLocalUnicast() {
 					log.Infof("Using link-local addr %s for %s", common.FullyQualified(addr.IP), ifSpec.InterfaceName)
 					err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(addr.IP))
