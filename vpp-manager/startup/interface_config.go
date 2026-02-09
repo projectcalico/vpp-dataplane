@@ -18,16 +18,13 @@ package startup
 import (
 	"encoding/gob"
 	"fmt"
-	"net"
 	"os"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
 func GetInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxInterfaceState, err error) {
@@ -81,46 +78,10 @@ func GetInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxIn
 }
 
 func loadInterfaceConfigFromLinux(ifSpec config.UplinkInterfaceSpec) (*config.LinuxInterfaceState, error) {
-	conf := config.LinuxInterfaceState{}
-	link, err := netlink.LinkByName(ifSpec.InterfaceName)
+	conf, err := config.LoadInterfaceConfigFromLinux(ifSpec.InterfaceName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot find interface named %s", ifSpec.InterfaceName)
+		return nil, err
 	}
-	conf.IsUp = (link.Attrs().Flags & net.FlagUp) != 0
-	if conf.IsUp {
-		// Grab addresses and routes
-		conf.Addresses, err = netlink.AddrList(link, netlink.FAMILY_ALL)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list %s addresses", ifSpec.InterfaceName)
-		}
-
-		conf.Routes, err = netlink.RouteList(link, netlink.FAMILY_ALL)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list %s routes", ifSpec.InterfaceName)
-		}
-		conf.SortRoutes()
-
-		conf.Neighbors, err = netlink.NeighList(link.Attrs().Index, netlink.FAMILY_ALL)
-		if err != nil {
-			log.Warnf("cannot list %s neighbors: %v", ifSpec.InterfaceName, err)
-		}
-	}
-	conf.HardwareAddr = link.Attrs().HardwareAddr
-	conf.NodeIP4 = getNodeAddress(&conf, false /* isV6 */)
-	conf.NodeIP6 = getNodeAddress(&conf, true /* isV6 */)
-	conf.Hasv4 = (conf.NodeIP4 != "")
-	conf.Hasv6 = (conf.NodeIP6 != "")
-	if !conf.Hasv4 && !conf.Hasv6 {
-		return nil, errors.Errorf("no address found for node")
-	}
-
-	conf.DoSwapDriver = false
-	conf.PromiscOn = link.Attrs().Promisc == 1
-	conf.NumTxQueues = link.Attrs().NumTxQueues
-	conf.NumRxQueues = link.Attrs().NumRxQueues
-	conf.Mtu = link.Attrs().MTU
-	_, conf.IsTunTap = link.(*netlink.Tuntap)
-	_, conf.IsVeth = link.(*netlink.Veth)
 
 	pciID, err := utils.GetInterfacePciID(ifSpec.InterfaceName)
 	// We allow PCI not to be found e.g for AF_PACKET
@@ -137,19 +98,7 @@ func loadInterfaceConfigFromLinux(ifSpec config.UplinkInterfaceSpec) (*config.Li
 			conf.DoSwapDriver = true
 		}
 	}
-	conf.InterfaceName = ifSpec.InterfaceName
-	return &conf, nil
-}
-
-func getNodeAddress(conf *config.LinuxInterfaceState, isV6 bool) string {
-	for _, addr := range conf.Addresses {
-		if vpplink.IsIP6(addr.IP) == isV6 {
-			if !isV6 || !addr.IP.IsLinkLocalUnicast() {
-				return addr.IPNet.String()
-			}
-		}
-	}
-	return ""
+	return conf, nil
 }
 
 func clearSavedConfig(params *config.VppManagerParams) {
