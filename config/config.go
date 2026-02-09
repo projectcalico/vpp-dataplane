@@ -455,7 +455,6 @@ type CalicoVppInitialConfigConfigType struct { //out of agent and vppmanager
 	// CorePattern is the pattern to use for VPP corefiles.
 	// Usually "/var/lib/vpp/vppcore.%e.%p"
 	CorePattern      string `json:"corePattern"`
-	ExtraAddrCount   int    `json:"extraAddrCount"`
 	IfConfigSavePath string `json:"ifConfigSavePath"`
 	// DefaultGWs Comma separated list of IPs to be
 	// configured in VPP as default GW
@@ -696,38 +695,150 @@ func (ver *KernelVersion) IsAtLeast(other *KernelVersion) bool {
 }
 
 type LinuxInterfaceState struct {
-	PciID         string
-	Driver        string
-	IsUp          bool
-	Addresses     []netlink.Addr
-	Routes        []netlink.Route
+	PciID  string
+	Driver string
+	IsUp   bool
+	// addresses is the list of addresses present
+	// on the netlink interface when the CNI starts up
+	// keep in mind that addresses will contain the ipv6
+	// link local of the old phy. Which might be different
+	// from IPv6LinkLocal
+	addresses []netlink.Addr
+	// IPv6LinkLocal is the ipv6 link local address that the
+	// system assigns to the tap interface replacing the phy
+	// when VPP starts
+	IPv6LinkLocal netlink.Addr
+	// routes is the list of routes present on the netlink
+	// interface when the CNI starts up
+	routes        []netlink.Route
 	Neighbors     []netlink.Neigh
 	HardwareAddr  net.HardwareAddr
 	PromiscOn     bool
 	NumTxQueues   int
 	NumRxQueues   int
 	DoSwapDriver  bool
-	Hasv4         bool
-	Hasv6         bool
-	NodeIP4       string
-	NodeIP6       string
 	Mtu           int
 	InterfaceName string
 	IsTunTap      bool
 	IsVeth        bool
 }
 
+func LoadInterfaceConfigFromLinux(interfaceName string) (*LinuxInterfaceState, error) {
+	conf := LinuxInterfaceState{}
+	link, err := netlink.LinkByName(interfaceName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot find interface named %s", interfaceName)
+	}
+	conf.IsUp = (link.Attrs().Flags & net.FlagUp) != 0
+	if conf.IsUp {
+		// Grab addresses and routes
+		conf.addresses, err = netlink.AddrList(link, netlink.FAMILY_ALL)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot list %s addresses", interfaceName)
+		}
+
+		conf.routes, err = netlink.RouteList(link, netlink.FAMILY_ALL)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot list %s routes", interfaceName)
+		}
+		conf.sortRoutes()
+
+		conf.Neighbors, err = netlink.NeighList(link.Attrs().Index, netlink.FAMILY_ALL)
+		if err != nil {
+			logrus.Warnf("cannot list %s neighbors: %v", interfaceName, err)
+		}
+	}
+	conf.HardwareAddr = link.Attrs().HardwareAddr
+	if !conf.HasNodeIP4() && !conf.HasNodeIP6() {
+		return nil, errors.Errorf("no address found for node")
+	}
+
+	conf.DoSwapDriver = false
+	conf.PromiscOn = link.Attrs().Promisc == 1
+	conf.NumTxQueues = link.Attrs().NumTxQueues
+	conf.NumRxQueues = link.Attrs().NumRxQueues
+	conf.Mtu = link.Attrs().MTU
+	_, conf.IsTunTap = link.(*netlink.Tuntap)
+	_, conf.IsVeth = link.(*netlink.Veth)
+	conf.InterfaceName = interfaceName
+
+	return &conf, nil
+}
+
+func (c *LinuxInterfaceState) SetV6LinkLocal(addr netlink.Addr) { c.IPv6LinkLocal = addr }
+
 func (c *LinuxInterfaceState) AddressString() string {
 	var str []string
-	for _, addr := range c.Addresses {
+	for _, addr := range c.addresses {
 		str = append(str, addr.String())
 	}
 	return strings.Join(str, ",")
 }
 
-func (c *LinuxInterfaceState) HasIP6Addr() bool {
-	for _, addr := range c.Addresses {
-		if vpplink.IsIP6(addr.IP) {
+func (c *LinuxInterfaceState) HasNodeIP6() bool {
+	return c.getNodeIP(true /* isIP6 */) != nil
+}
+
+func (c *LinuxInterfaceState) HasNodeIP4() bool {
+	return c.getNodeIP(false /* isIP6 */) != nil
+}
+
+func (c *LinuxInterfaceState) GetAddresses() []netlink.Addr {
+	ret := make([]netlink.Addr, 0)
+	for _, addr := range c.addresses {
+		if addr.IP.IsLinkLocalUnicast() && IsV6Cidr(addr.IPNet) {
+			continue
+		}
+		ret = append(ret, addr)
+	}
+	return ret
+}
+
+func (c *LinuxInterfaceState) GetRoutes() []netlink.Route {
+	ret := make([]netlink.Route, 0)
+	for _, route := range c.routes {
+		if route.Dst != nil && route.Dst.IP.IsLinkLocalUnicast() && IsV6Cidr(route.Dst) {
+			continue
+		}
+		ret = append(ret, route)
+	}
+	return ret
+}
+
+func (c *LinuxInterfaceState) getNodeIP(isIP6 bool) *net.IPNet {
+	for _, addr := range c.GetAddresses() {
+		if vpplink.IsIP6(addr.IP) == isIP6 {
+			return addr.IPNet
+		}
+	}
+	return nil
+}
+
+func (c *LinuxInterfaceState) GetNodeIP6() string {
+	if i := c.getNodeIP(true /* isIP6 */); i != nil {
+		return i.String()
+	}
+	return ""
+}
+
+func (c *LinuxInterfaceState) GetNodeIP4() string {
+	if i := c.getNodeIP(false /* isIP6 */); i != nil {
+		return i.String()
+	}
+	return ""
+}
+
+func (c *LinuxInterfaceState) GetAddressesAsIPNet() []*net.IPNet {
+	ret := make([]*net.IPNet, 0)
+	for _, addr := range c.addresses {
+		ret = append(ret, addr.IPNet)
+	}
+	return ret
+}
+
+func (c *LinuxInterfaceState) HasAddr(addr net.IP) bool {
+	for _, a := range c.addresses {
+		if addr.Equal(a.IP) {
 			return true
 		}
 	}
@@ -736,7 +847,7 @@ func (c *LinuxInterfaceState) HasIP6Addr() bool {
 
 func (c *LinuxInterfaceState) RouteString() string {
 	var str []string
-	for _, route := range c.Routes {
+	for _, route := range c.GetRoutes() {
 		if route.Dst == nil {
 			str = append(str, fmt.Sprintf("<Dst: nil (default), Ifindex: %d", route.LinkIndex))
 			if route.Gw != nil {
@@ -753,25 +864,25 @@ func (c *LinuxInterfaceState) RouteString() string {
 	return strings.Join(str, ", ")
 }
 
-// SortRoutes sorts the route slice by dependency order, so we can then add them
+// sortRoutes sorts the route slice by dependency order, so we can then add them
 // in the order of the slice without issues
-func (c *LinuxInterfaceState) SortRoutes() {
-	sort.SliceStable(c.Routes, func(i, j int) bool {
+func (c *LinuxInterfaceState) sortRoutes() {
+	sort.SliceStable(c.routes, func(i, j int) bool {
 		// Directly connected routes go first
-		if c.Routes[i].Gw == nil {
+		if c.routes[i].Gw == nil {
 			return true
-		} else if c.Routes[j].Gw == nil {
+		} else if c.routes[j].Gw == nil {
 			return false
 		}
 		// Default routes go last
-		if c.Routes[i].Dst == nil {
+		if c.routes[i].Dst == nil {
 			return false
-		} else if c.Routes[j].Dst == nil {
+		} else if c.routes[j].Dst == nil {
 			return true
 		}
 		// Finally sort by decreasing prefix length
-		iLen, _ := c.Routes[i].Dst.Mask.Size()
-		jLen, _ := c.Routes[j].Dst.Mask.Size()
+		iLen, _ := c.routes[i].Dst.Mask.Size()
+		jLen, _ := c.routes[j].Dst.Mask.Size()
 		return iLen > jLen
 	})
 }
@@ -831,4 +942,9 @@ func DefaultToPtr[T any](ptr *T, defaultV T) *T {
 		return &defaultV
 	}
 	return ptr
+}
+
+func IsV6Cidr(cidr *net.IPNet) bool {
+	_, bits := cidr.Mask.Size()
+	return bits == 128
 }

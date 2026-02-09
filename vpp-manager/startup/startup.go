@@ -120,8 +120,8 @@ func PrintVppManagerConfig(params *config.VppManagerParams, confs []*config.Linu
 	}
 	for _, conf := range confs {
 		log.Infof("-- Interface config --")
-		log.Infof("Node IP4:            %s", conf.NodeIP4)
-		log.Infof("Node IP6:            %s", conf.NodeIP6)
+		log.Infof("Node IP4:            %s", conf.GetNodeIP4())
+		log.Infof("Node IP6:            %s", conf.GetNodeIP6())
 		log.Infof("PciID:               %s", conf.PciID)
 		log.Infof("Driver:              %s", conf.Driver)
 		log.Infof("Linux IF was up ?    %t", conf.IsUp)
