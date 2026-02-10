@@ -115,9 +115,10 @@ git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular opt
 # This is the commit which broke IPv6 from v3.28.0 onwards.
 git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine NS source address
 
-# testing new cnat stuff
-git_cherry_pick refs/changes/89/41089/31 # https://gerrit.fd.io/r/c/vpp/+/41089 cnat: combine multiple changes
-git_cherry_pick refs/changes/69/43369/16 # https://gerrit.fd.io/r/c/vpp/+/43369 cnat: converge new cnat implementation to support encaps (calico)
+# cnat new implementation: a cnat session is now used for every packet for fastpath, we delete sessions when 
+# corresponding translation disappears
+git_cherry_pick refs/changes/89/41089/32 # 41089: cnat: combine multiple changes https://gerrit.fd.io/r/c/vpp/+/41089
+git_cherry_pick refs/changes/69/43369/19 # 43369: cnat: converge new cnat implementation to support encaps (calico) https://gerrit.fd.io/r/c/vpp/+/43369
 
 
 # bpf_trace_filter: add filter support for pcap dispatch trace and raw IP packet support
