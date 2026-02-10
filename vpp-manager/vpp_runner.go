@@ -32,7 +32,6 @@ import (
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/vishvananda/netlink"
-	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
@@ -567,6 +566,8 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error creating tap")
 	}
 
+	ifState.TapSwIfIndex = tapSwIfIndex
+
 	if ifState.HasNodeIP6() {
 		// wait 5s for the interface creation in linux and fetch its LL address
 	doublebreak:
@@ -716,11 +717,6 @@ func (v *VppRunner) configureVppUplinkInterface(
 	fakeNextHopIP4, fakeNextHopIP6, err := v.configureLinuxTap(link, *ifState)
 	if err != nil {
 		return errors.Wrap(err, "Error configuring tap on linux side")
-	}
-
-	err = v.vpp.InterfaceAdminUp(tapSwIfIndex)
-	if err != nil {
-		return errors.Wrap(err, "Error setting tap up")
 	}
 
 	config.Info.UplinkStatuses[link.Attrs().Name] = config.UplinkStatus{
@@ -1042,6 +1038,21 @@ func (v *VppRunner) runVpp() (err error) {
 			return errors.Wrap(err, "Error configuring VPP")
 		}
 	}
+
+	config.RunHook(config.HookScriptVppRunning, "VPP_RUNNING", v.params, log)
+
+	// We set the TAP0 interfaces up last so that the hook VPP_RUNNING can finalize
+	// the linux configuration BEFORE traffic is allowed to flow. This prevents race
+	// conditions between systemd-networkd and the hook's logic, e.g. dhcpv6 IAID
+	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
+		err = v.vpp.InterfaceAdminUp(v.conf[idx].TapSwIfIndex)
+		if err != nil {
+			terminateVpp("Error setting VPP uplink tap %d up, %v", v.conf[idx].TapSwIfIndex, err)
+			<-vppDeadChan
+			return errors.Wrapf(err, "Error setting VPP uplink tap %d up", v.conf[idx].TapSwIfIndex)
+		}
+	}
+
 	// Update the Calico node with the IP address actually configured on VPP
 	err = v.updateCalicoNode(v.conf[0])
 	if err != nil {
@@ -1055,19 +1066,12 @@ func (v *VppRunner) runVpp() (err error) {
 	if err != nil {
 		log.Errorf("Error writing vpp manager file: %v", err)
 	}
-	var t tomb.Tomb
 
-	// close vpp as we do not program
+	// close the vpp API chan as beyond this point VPP-manager will not interact with VPP anymore
 	v.vpp.Close()
-	config.RunHook(config.HookScriptVppRunning, "VPP_RUNNING", v.params, log)
-
 	<-vppDeadChan
 	log.Infof("VPP Exited: status %v", err)
 
-	err = t.Killf("Vpp exited, stopping watchers")
-	if err != nil {
-		log.Errorf("Error Killf vpp: %v", err)
-	}
 	return nil
 }
 
