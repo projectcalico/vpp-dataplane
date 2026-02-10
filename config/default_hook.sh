@@ -85,10 +85,10 @@ capture_udev_net_name_properties () {
   [ -n "$ID_NET_NAME_MAC" ] && echo "default_hook: ID_NET_NAME_MAC=$ID_NET_NAME_MAC"
 }
 
-create_udev_net_name_rule () {
+install_udev_net_name_rule () {
   PROPS_FILE="/var/run/vpp/udev_props_$INTERFACE_NAME"
   if [ ! -f "$PROPS_FILE" ]; then
-    echo "default_hook: No udev properties captured for $INTERFACE_NAME, skipping rule creation"
+    echo "default_hook: No udev properties captured for $INTERFACE_NAME, skipping rule installation"
     return
   fi
 
@@ -96,13 +96,19 @@ create_udev_net_name_rule () {
   . "$PROPS_FILE"
 
   if [ -z "$MAC_ADDRESS" ]; then
-    echo "default_hook: No MAC address captured for $INTERFACE_NAME, skipping rule creation"
+    echo "default_hook: No MAC address captured for $INTERFACE_NAME, skipping rule installation"
     return
   fi
 
-  echo "default_hook: Creating udev rule for $INTERFACE_NAME with MAC $MAC_ADDRESS..."
+  echo "default_hook: Installing udev rule for $INTERFACE_NAME with MAC $MAC_ADDRESS..."
 
-  # Build the udev rule
+  # Build the udev rule.
+  # This rule must be in place BEFORE VPP creates the host-facing tap so that
+  # the kernel udev "add" event for the new tap carries the original
+  # ID_NET_NAME_* properties. systemd-networkd uses these properties
+  # (via net_get_persistent_name) to compute a stable DHCPv6 IAID;
+  # without them the IAID is derived from the MAC address, which differs
+  # from the IAID computed for the physical NIC.
   RULE_FILE="/etc/udev/rules.d/99-vpp-restore-id_net_name.rules"
   echo "# Re-apply ID_NET_NAME_* properties after Calico VPP creates the host-facing tap/tun netdev." > "$RULE_FILE"
   printf 'ACTION=="add", SUBSYSTEM=="net", ATTR{address}=="%s"' "$MAC_ADDRESS" >> "$RULE_FILE"
@@ -114,14 +120,13 @@ create_udev_net_name_rule () {
 
   echo "" >> "$RULE_FILE"
 
-  echo "default_hook: Created udev rule file at $RULE_FILE"
+  echo "default_hook: Installed udev rule file at $RULE_FILE"
 
-  # Reload udev rules
+  # Reload udev rules so the new rule is active for the next device event.
+  # No udevadm trigger here — the tap does not exist yet; the rule will fire
+  # naturally when VPP creates the host-side tap interface.
   udevadm control --reload-rules
-
-  # Trigger udev for net subsystem to apply the stored ID_NET_NAME_* properties
-  udevadm trigger --subsystem-match=net --action=add
-  echo "default_hook: Triggered udev to apply the stored ID_NET_NAME_* properties"
+  echo "default_hook: Reloaded udev rules"
 }
 
 remove_udev_net_name_rule () {
@@ -155,8 +160,8 @@ if [ "$HOOK" = "BEFORE_IF_READ" ]; then
     capture_udev_net_name_properties
 elif [ "$HOOK" = "BEFORE_VPP_RUN" ]; then
     fix_dns
+    install_udev_net_name_rule
 elif [ "$HOOK" = "VPP_RUNNING" ]; then
-    create_udev_net_name_rule
     restart_network
 elif [ "$HOOK" = "VPP_DONE_OK" ]; then
     undo_dns_fix
