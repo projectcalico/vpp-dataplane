@@ -701,10 +701,15 @@ type LinuxInterfaceState struct {
 	InterfaceName string
 	IsTunTap      bool
 	IsVeth        bool
+	// TapSwIfIndex is the sw_if_index of the tap interface
+	// created in VPP for this interface
+	TapSwIfIndex uint32
 }
 
 func LoadInterfaceConfigFromLinux(interfaceName string) (*LinuxInterfaceState, error) {
-	conf := LinuxInterfaceState{}
+	conf := LinuxInterfaceState{
+		TapSwIfIndex: ^uint32(0), // in case we forget to set it
+	}
 	link, err := netlink.LinkByName(interfaceName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot find interface named %s", interfaceName)
