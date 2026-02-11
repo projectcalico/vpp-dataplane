@@ -698,16 +698,17 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error configuring NAT on vpptap0")
 	}
 
-	// Linux side tap setup
+	// Get Linux link info for the tap but do NOT bring it up yet.
+	// Linux tap configuration (link up, addresses, routes) is deferred
+	// to after the VPP_RUNNING hook so that udev rules restoring
+	// ID_NET_NAME_* properties are in place before systemd-networkd
+	// sees the interface and computes the DHCPv6 IAID.
 	link, err := netlink.LinkByName(ifSpec.InterfaceName)
 	if err != nil {
 		return errors.Wrapf(err, "cannot find interface named %s", ifSpec.InterfaceName)
 	}
 
-	fakeNextHopIP4, fakeNextHopIP6, err := v.configureLinuxTap(link, *ifState)
-	if err != nil {
-		return errors.Wrap(err, "Error configuring tap on linux side")
-	}
+	fakeNextHopIP4, fakeNextHopIP6 := v.pickNextHopIP(*ifState)
 
 	config.Info.UplinkStatuses[link.Attrs().Name] = config.UplinkStatus{
 		TapSwIfIndex:        tapSwIfIndex,
@@ -1026,9 +1027,29 @@ func (v *VppRunner) runVpp() (err error) {
 
 	networkHook.ExecuteWithUserScript(hooks.HookVppRunning, config.HookScriptVppRunning, v.params)
 
-	// We set the TAP0 interfaces up last so that the hook VPP_RUNNING can finalize
-	// the linux configuration BEFORE traffic is allowed to flow. This prevents race
-	// conditions between systemd-networkd and the hook's logic, e.g. dhcpv6 IAID
+	// Configure Linux side of tap interfaces AFTER the VPP_RUNNING hook.
+	// The hook installs udev rules that restore ID_NET_NAME_* properties
+	// on the tap, which systemd-networkd uses to compute a stable DHCPv6
+	// IAID. Bringing the taps up only now guarantees the udev rules are
+	// loaded and networkd has been restarted before any DHCPv6 SOLICIT
+	// can be sent, preventing IAID mismatch.
+	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
+		link, err := netlink.LinkByName(v.params.UplinksSpecs[idx].InterfaceName)
+		if err != nil {
+			terminateVpp("Error finding tap interface %s: %v", v.params.UplinksSpecs[idx].InterfaceName, err)
+			<-vppDeadChan
+			return errors.Wrapf(err, "Error finding tap interface %s", v.params.UplinksSpecs[idx].InterfaceName)
+		}
+		_, _, err = v.configureLinuxTap(link, *v.conf[idx])
+		if err != nil {
+			terminateVpp("Error configuring Linux tap: %v", err)
+			<-vppDeadChan
+			return errors.Wrap(err, "Error configuring tap on linux side")
+		}
+	}
+
+	// Set the TAP interfaces admin-up in VPP last, after all Linux-side
+	// configuration is complete.
 	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
 		err = v.vpp.InterfaceAdminUp(v.conf[idx].TapSwIfIndex)
 		if err != nil {
