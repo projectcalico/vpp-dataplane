@@ -592,8 +592,9 @@ func (h *NetworkManagerHook) captureUdevNetNameProperties(interfaceName string) 
 	return nil
 }
 
-// createUdevNetNameRules creates udev rules to restore ID_NET_NAME_* properties for all interfaces
-// This must be called AFTER VPP has taken over the interfaces and created the taps
+// createUdevNetNameRules creates udev rules to restore ID_NET_NAME_* properties for all interfaces.
+// This must be called BEFORE VPP creates host-facing taps so the udev "add" event for the new
+// tap applies the original persistent naming properties.
 func (h *NetworkManagerHook) createUdevNetNameRules() error {
 	if !*config.GetCalicoVppDebug().EnableUdevNetNameRules {
 		h.log.Info("NetworkManagerHook: Skipping createUdevNetNameRules (enableUdevNetNameRules=false)")
@@ -612,7 +613,9 @@ func (h *NetworkManagerHook) createUdevNetNameRules() error {
 
 		h.log.Infof("NetworkManagerHook: Adding udev rule for %s with MAC %s", interfaceName, props.MacAddress)
 
-		// Each interface gets its own rule line
+		// Each interface gets its own rule line.
+		// systemd-networkd uses ID_NET_NAME_* (via net_get_persistent_name) for DHCPv6 IAID
+		// computation; without these properties it falls back to a MAC-derived IAID.
 		ruleBuilder.WriteString(fmt.Sprintf("ACTION==\"add\", SUBSYSTEM==\"net\", ATTR{address}==\"%s\"", props.MacAddress))
 
 		if props.IDNetNameOnboard != "" {
@@ -650,13 +653,9 @@ func (h *NetworkManagerHook) createUdevNetNameRules() error {
 		return errors.Wrapf(err, "failed to reload udev rules: %v", err)
 	}
 
-	// Trigger udev for net subsystem to apply the stored ID_NET_NAME_* properties
-	cmd = h.chrootCommand("udevadm", "trigger", "--subsystem-match=net", "--action=add")
-	err = cmd.Run()
-	if err != nil {
-		return errors.Wrapf(err, "failed to trigger udev: %v", err)
-	}
-	h.log.Info("NetworkManagerHook: Triggered udev to apply the stored ID_NET_NAME_* properties")
+	// Do not trigger udev "add" here. The tap does not exist yet; the rule
+	// should apply naturally when VPP creates the host-side tap interface.
+	h.log.Info("NetworkManagerHook: Reloaded udev rules")
 
 	return nil
 }
@@ -704,6 +703,13 @@ func (h *NetworkManagerHook) beforeVppRun() error {
 		return err
 	}
 
+	// Install udev rules before VPP creates taps so the tap "add" event gets
+	// restored ID_NET_NAME_* and DHCPv6 IAID remains stable.
+	err = h.createUdevNetNameRules()
+	if err != nil {
+		h.log.Warnf("NetworkManagerHook: Failed to create udev rules: %v", err)
+	}
+
 	// Save network file for AWS systemd-networkd for each interface
 	for _, interfaceName := range h.interfaceNames {
 		err = h.saveNetworkFile(interfaceName)
@@ -717,15 +723,8 @@ func (h *NetworkManagerHook) beforeVppRun() error {
 
 // vppRunning handles tasks while VPP is running
 func (h *NetworkManagerHook) vppRunning() error {
-	// Create udev rules to restore ID_NET_NAME_* properties for all interfaces
-	// This must happen after VPP has created the tap/tun interfaces with the original MACs
-	err := h.createUdevNetNameRules()
-	if err != nil {
-		h.log.Warnf("NetworkManagerHook: Failed to create udev rules: %v", err)
-	}
-
 	// Restart network services
-	err = h.restartNetwork()
+	err := h.restartNetwork()
 	if err != nil {
 		return err
 	}
