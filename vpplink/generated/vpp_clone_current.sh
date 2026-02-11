@@ -103,7 +103,7 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 #
-BASE="${BASE:-"19f9561e67aed7f711e63f227470dc1f566e77d4"}" #  tap: fix the tun current_data offset
+BASE="${BASE:-"1412d24ba9d15e659a10f0bf2a438fef3aaf9a98"}"
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
