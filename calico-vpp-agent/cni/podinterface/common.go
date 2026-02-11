@@ -139,7 +139,7 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *model.Loca
 		/* L2 */
 		err = i.vpp.SetPromiscOn(swIfIndex)
 		if err != nil {
-			return errors.Wrapf(err, "Error setting memif promisc")
+			return errors.Wrapf(err, "Error setting interface promisc")
 		}
 	}
 
