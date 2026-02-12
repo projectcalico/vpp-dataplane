@@ -127,6 +127,8 @@ git_cherry_pick refs/changes/67/44467/7 # 44467: bpf_trace_filter: add raw IP pa
 
 # fix unicast NA handling in VPP ND proxy
 git_cherry_pick refs/changes/50/44350/3 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
+git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
+
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
