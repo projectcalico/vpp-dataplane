@@ -6,7 +6,7 @@ N_KIND_CONTROL_PLANES ?= 1
 CPU_PINNING ?= false
 KIND_CALICO_VERSION ?= master
 DEBUG ?= false
-TIGERA_OPERATOR_VERSION ?= master
+TIGERA_OPERATOR_VERSION ?= v3.29.0
 
 .PHONY: new-cluster
 new-cluster:
@@ -20,7 +20,7 @@ new-cluster:
 
 .PHONY: install-cni
 install-cni:
-	@TAG=${TAG} DEBUG=${DEBUG} ./install_calico_vpp.sh
+	@TAG=${TAG} DEBUG=${DEBUG} TIGERA_OPERATOR_VERSION=${TIGERA_OPERATOR_VERSION} ./install_calico_vpp.sh
 
 .PHONY: rm-cluster
 rm-cluster:
