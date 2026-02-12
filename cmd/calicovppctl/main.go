@@ -427,6 +427,13 @@ func exportData(k *KubeClient, nodeName string) error {
 			{"show npol ipsets", node + ".show-npol-ipsets"},
 		}
 		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node policies", npolCmds)
+
+		// Get Encap tunnels
+		EncapCmds := []CommandSpec{
+			{"show ipip tunnel", node + ".show-ipip-tunnel"},
+			{"show vxlan tunnel", node + ".show-vxlan-tunnel"},
+		}
+		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node policies", EncapCmds)
 	}
 
 	// Compress the temporary directory
