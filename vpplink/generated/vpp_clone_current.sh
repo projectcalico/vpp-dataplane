@@ -130,6 +130,7 @@ git_cherry_pick refs/changes/52/43952/2 # 43952: npol: fix test-debug | https://
 
 git_cherry_pick refs/changes/50/44350/2 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
 git_cherry_pick refs/changes/55/44855/6 # 44855: tap: backport VHOST_SET_FORK_FROM_OWNER support | https://gerrit.fd.io/r/c/vpp/+/44855
+git_cherry_pick refs/changes/00/44900/1 # 44900: tap: backport fix promiscuous mode | https://gerrit.fd.io/r/c/vpp/+/44900
 
 
 # --------------- private plugins ---------------
