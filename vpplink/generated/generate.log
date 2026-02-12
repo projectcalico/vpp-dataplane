@@ -1,4 +1,4 @@
-VPP Version                 : 25.06.0-25~g29e8fc290
+VPP Version                 : 25.06.0-28~g4787d90bc
 Binapi-generator version    : v0.11.0
 VPP Base commit             : 47505bc21 misc: Initial changes for stable/2506 branch
 ------------------ Cherry picked commits --------------------
@@ -6,6 +6,9 @@ capo: Calico Policies plugin
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:44903/1 vxlan: reset next_dpo on delete
+gerrit:44855/6 tap: backport VHOST_SET_FORK_FROM_OWNER support
+gerrit:44350/2 vnet: fix unicast NA handling in ND proxy
 gerrit:43723/3 session svm: fix session migrate attach data corruption
 gerrit:43139/5 udp: regrab connected session after transport clone
 gerrit:43714/5 session: fix handling of closed during migration
