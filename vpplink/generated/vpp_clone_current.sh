@@ -147,6 +147,7 @@ git_cherry_pick refs/changes/39/43139/5 # 43139: udp: regrab connected session a
 git_cherry_pick refs/changes/23/43723/3 # 43723: session svm: fix session migrate attach data corruption | https://gerrit.fd.io/r/c/vpp/+/43723
 git_cherry_pick refs/changes/50/44350/2 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
 git_cherry_pick refs/changes/55/44855/6 # 44855: tap: backport VHOST_SET_FORK_FROM_OWNER support | https://gerrit.fd.io/r/c/vpp/+/44855
+git_cherry_pick refs/changes/00/44900/1 # 44900: tap: backport fix promiscuous mode | https://gerrit.fd.io/r/c/vpp/+/44900
 
 
 # --------------- private plugins ---------------
