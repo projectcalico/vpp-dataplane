@@ -1,18 +1,17 @@
-VPP Version                 : 25.10.0-10~ge189aa37b
+VPP Version                 : 26.02-rc0~481-gfd3db210e
 Binapi-generator version    : v0.11.0
-VPP Base commit             : 4f366b5bb misc: Initial changes for stable/2510 branch
+VPP Base commit             : f97cc0a44 gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
-gerrit:43369/12 cnat: converge new cnat implementation to support encaps (calico)
-gerrit:41089/27 cnat: combine multiple changes
-gerrit:43952/2 npol: fix test-debug
-gerrit:43710/12 npol: Network Policies plugin
+gerrit:44903/1 vxlan: reset next_dpo on delete
+gerrit:44350/3 vnet: fix unicast NA handling in ND proxy
+gerrit:44467/7 bpf_trace_filter: add raw IP packet support
+gerrit:44464/9 dispatch-trace: add filter support for pcap dispatch trace
+gerrit:43369/16 cnat: converge new cnat implementation to support encaps (calico)
+gerrit:41089/31 cnat: combine multiple changes
 gerrit:revert:39675/5 Revert "ip-neighbor: do not use sas to determine NS source address"
 gerrit:42343/2 vcl: LDP default to regular option
 gerrit:34726/3 interface: add buffer stats api
-misc: VPP 25.10 Release Notes
-linux-cp: fix multicast route setup with lcp-sync
-misc: Initial changes for stable/2510 branch
 -------------------------------------------------------------
