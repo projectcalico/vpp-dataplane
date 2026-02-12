@@ -148,6 +148,7 @@ git_cherry_pick refs/changes/23/43723/3 # 43723: session svm: fix session migrat
 git_cherry_pick refs/changes/50/44350/2 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
 git_cherry_pick refs/changes/55/44855/6 # 44855: tap: backport VHOST_SET_FORK_FROM_OWNER support | https://gerrit.fd.io/r/c/vpp/+/44855
 
+git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
