@@ -607,6 +607,11 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error setting tap rx placement")
 	}
 
+	err = v.vpp.SetPromiscOn(tapSwIfIndex)
+	if err != nil {
+		return errors.Wrapf(err, "Error setting vpptap0 promisc")
+	}
+
 	err = v.vpp.SetInterfaceMtu(uint32(tapSwIfIndex), vpplink.CalicoVppMaxMTu)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting %d MTU on tap interface", vpplink.CalicoVppMaxMTu)
@@ -660,23 +665,6 @@ func (v *VppRunner) configureVppUplinkInterface(
 			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, route.Gw)
 			if err != nil {
 				log.Errorf("Error configuring ND proxy for gateway %s: %v", route.Gw, err)
-			}
-			/*
-			 * Add gateway MAC as secondary address on tap0 to fix L3 MAC mismatch.
-			 * Unlike IPv4 where ARP proxy makes host learn VPP's MAC, in IPv6 the host may learn
-			 * the infrastructure gateway MAC from Neighbor Advertisement (NA). Packets sent with
-			 * this MAC would be dropped by VPP's ethernet-input with "l3 mac mismatch" error.
-			 * Adding the gateway MAC as secondary address allows VPP to accept these packets.
-			 */
-			for _, neigh := range ifState.Neighbors {
-				if neigh.IP.Equal(route.Gw) && len(neigh.HardwareAddr) > 0 {
-					log.Infof("Adding gateway MAC %s as secondary address on tap0 for IPv6 L3 MAC acceptance", neigh.HardwareAddr)
-					err = v.vpp.AddInterfaceMacAddress(tapSwIfIndex, neigh.HardwareAddr)
-					if err != nil {
-						log.Errorf("Error adding gateway MAC as secondary address: %v", err)
-					}
-					break
-				}
 			}
 		}
 	}
