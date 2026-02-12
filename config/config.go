@@ -727,11 +727,6 @@ func LoadInterfaceConfigFromLinux(interfaceName string) (*LinuxInterfaceState, e
 			return nil, errors.Wrapf(err, "cannot list %s routes", interfaceName)
 		}
 		conf.sortRoutes()
-
-		conf.Neighbors, err = netlink.NeighList(link.Attrs().Index, netlink.FAMILY_ALL)
-		if err != nil {
-			logrus.Warnf("cannot list %s neighbors: %v", interfaceName, err)
-		}
 	}
 	conf.HardwareAddr = link.Attrs().HardwareAddr
 	if !conf.HasNodeIP4() && !conf.HasNodeIP6() {
