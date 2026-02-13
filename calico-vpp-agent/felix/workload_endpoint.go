@@ -22,6 +22,7 @@ import (
 	"github.com/projectcalico/calico/felix/proto"
 
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/npol"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
@@ -87,7 +88,7 @@ func fromProtoWorkload(wep *proto.WorkloadEndpoint, server *Server) *WorkloadEnd
 	return r
 }
 
-func (w *WorkloadEndpoint) getPolicies(state *PolicyState, network string) (conf *types.InterfaceConfig, err error) {
+func (w *WorkloadEndpoint) getUserDefinedPolicies(state *PolicyState, network string) (conf *types.InterfaceConfig, err error) {
 	conf = types.NewInterfaceConfig()
 	for _, tier := range w.Tiers {
 		for _, polName := range tier.IngressPolicies {
@@ -121,14 +122,37 @@ func (w *WorkloadEndpoint) getPolicies(state *PolicyState, network string) (conf
 		}
 		conf.ProfileIDs = append(conf.ProfileIDs, prof.VppID)
 	}
+	return conf, nil
+}
+
+/*
+	 This function creates the interface configuration for a workload (pod) interface
+		We have an implicit ingress policy that allows traffic coming from the host
+		see createAllowFromHostPolicy()
+		If there are no policies the default should be pass to profiles
+		If there are policies the default should be deny (profiles are ignored)
+*/
+func (w *WorkloadEndpoint) getWorkloadPolicies(state *PolicyState, network string) (conf *types.InterfaceConfig, err error) {
+	conf, err = w.getUserDefinedPolicies(state, network)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create workload policies")
+	}
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append([]uint32{w.server.AllowFromHostPolicy.VppID}, conf.IngressPolicyIDs...)
+		conf.PolicyDefaultTx = npol.NPOL_DEFAULT_DENY
+	} else if len(conf.ProfileIDs) > 0 {
+		conf.PolicyDefaultTx = npol.NPOL_DEFAULT_PASS
+	}
+	if len(conf.EgressPolicyIDs) > 0 {
+		conf.PolicyDefaultRx = npol.NPOL_DEFAULT_DENY
+	} else if len(conf.ProfileIDs) > 0 {
+		conf.PolicyDefaultRx = npol.NPOL_DEFAULT_PASS
 	}
 	return conf, nil
 }
 
 func (w *WorkloadEndpoint) Create(vpp *vpplink.VppLink, swIfIndexes []uint32, state *PolicyState, network string) (err error) {
-	conf, err := w.getPolicies(state, network)
+	conf, err := w.getWorkloadPolicies(state, network)
 	if err != nil {
 		return err
 	}
@@ -144,7 +168,7 @@ func (w *WorkloadEndpoint) Create(vpp *vpplink.VppLink, swIfIndexes []uint32, st
 }
 
 func (w *WorkloadEndpoint) Update(vpp *vpplink.VppLink, new *WorkloadEndpoint, state *PolicyState, network string) (err error) {
-	conf, err := new.getPolicies(state, network)
+	conf, err := new.getWorkloadPolicies(state, network)
 	if err != nil {
 		return err
 	}
