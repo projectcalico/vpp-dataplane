@@ -163,6 +163,15 @@ func (h *NetworkManagerHook) restartService(serviceName string) error {
 	return nil
 }
 
+// restartSystemdNetworkd restarts systemd-udev-trigger before restarting systemd-networkd.
+func (h *NetworkManagerHook) restartSystemdNetworkd() error {
+	err := h.restartService("systemd-udev-trigger")
+	if err != nil {
+		h.log.Warnf("NetworkManagerHook: Failed to restart systemd-udev-trigger before systemd-networkd: %v", err)
+	}
+	return h.restartService("systemd-networkd")
+}
+
 // NewNetworkManagerHook creates a new NetworkManagerHook instance
 func NewNetworkManagerHook(log *logrus.Logger) *NetworkManagerHook {
 	hook := &NetworkManagerHook{
@@ -257,7 +266,7 @@ func (h *NetworkManagerHook) undoDNSFix() error {
 func (h *NetworkManagerHook) restartNetwork() error {
 	if h.systemType.HasSystemdNetworkd {
 		h.log.Info("NetworkManagerHook: System is using systemd-networkd; restarting...")
-		return h.restartService("systemd-networkd")
+		return h.restartSystemdNetworkd()
 	} else if h.systemType.HasNetworkManager {
 		h.log.Info("NetworkManagerHook: System is using NetworkManager; restarting...")
 		return h.restartService("NetworkManager")
@@ -478,7 +487,7 @@ func (h *NetworkManagerHook) tweakNetworkFile(interfaceName string) error {
 	}
 
 	// Restart systemd-networkd
-	return h.restartService("systemd-networkd")
+	return h.restartSystemdNetworkd()
 }
 
 // removeTweakedNetworkFile removes the tweaked network configuration for a specific interface
@@ -593,8 +602,8 @@ func (h *NetworkManagerHook) captureUdevNetNameProperties(interfaceName string) 
 }
 
 // createUdevNetNameRules creates udev rules to restore ID_NET_NAME_* properties for all interfaces.
-// This must be called BEFORE VPP creates host-facing taps so the udev "add" event for the new
-// tap applies the original persistent naming properties.
+// This must be called BEFORE VPP creates host-facing taps so udev can re-apply the original
+// ID_NET_NAME_* properties on net events (add/change/move re-evaluations).
 func (h *NetworkManagerHook) createUdevNetNameRules() error {
 	if !*config.GetCalicoVppDebug().EnableUdevNetNameRules {
 		h.log.Info("NetworkManagerHook: Skipping createUdevNetNameRules (enableUdevNetNameRules=false)")
@@ -616,7 +625,7 @@ func (h *NetworkManagerHook) createUdevNetNameRules() error {
 		// Each interface gets its own rule line.
 		// systemd-networkd uses ID_NET_NAME_* (via net_get_persistent_name) for DHCPv6 IAID
 		// computation; without these properties it falls back to a MAC-derived IAID.
-		ruleBuilder.WriteString(fmt.Sprintf("ACTION==\"add\", SUBSYSTEM==\"net\", ATTR{address}==\"%s\"", props.MacAddress))
+		ruleBuilder.WriteString(fmt.Sprintf("SUBSYSTEM==\"net\", ATTR{address}==\"%s\"", props.MacAddress))
 
 		if props.IDNetNameOnboard != "" {
 			ruleBuilder.WriteString(fmt.Sprintf(", ENV{ID_NET_NAME_ONBOARD}:=\"%s\"", props.IDNetNameOnboard))
@@ -646,15 +655,12 @@ func (h *NetworkManagerHook) createUdevNetNameRules() error {
 	}
 	h.log.Infof("NetworkManagerHook: Created udev rule file at %s with %d rules", UdevRuleFilePath, rulesAdded)
 
-	// Reload udev rules
+	// Reload udev rules so the new rule is active for subsequent net events.
 	cmd := h.chrootCommand("udevadm", "control", "--reload-rules")
 	err = cmd.Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to reload udev rules: %v", err)
 	}
-
-	// Do not trigger udev "add" here. The tap does not exist yet; the rule
-	// should apply naturally when VPP creates the host-side tap interface.
 	h.log.Info("NetworkManagerHook: Reloaded udev rules")
 
 	return nil
