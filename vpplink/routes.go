@@ -274,6 +274,59 @@ func (v *VppLink) MRouteAddForHostMulticast(tableID uint32, group *net.IPNet, ta
 	return nil
 }
 
+// MRouteAddAcceptOnInterface adds an mFIB entry that marks the specified interface
+// as Accept for the given multicast group. This ensures that multicast packets
+// (e.g. IPv6 NDP Neighbor Solicitations) arriving on that interface pass the
+// mFIB RPF check and are delivered to the local stack for processing.
+func (v *VppLink) MRouteAddAcceptOnInterface(tableID uint32, group *net.IPNet, swIfIndex uint32) error {
+	client := vppip.NewServiceClient(v.GetConnection())
+
+	isIP6 := group.IP.To4() == nil
+	ones, _ := group.Mask.Size()
+	prefix := ip_types.Mprefix{
+		Af:               types.ToVppAddressFamily(isIP6),
+		GrpAddressLength: uint16(ones),
+		GrpAddress:       types.ToVppAddress(group.IP).Un,
+	}
+
+	paths := []mfib_types.MfibPath{
+		{
+			ItfFlags: mfib_types.MFIB_API_ITF_FLAG_ACCEPT,
+			Path: fib_types.FibPath{
+				SwIfIndex:  swIfIndex,
+				TableID:    0,
+				RpfID:      0,
+				Weight:     1,
+				Preference: 0,
+				Type:       fib_types.FIB_API_PATH_TYPE_NORMAL,
+				Flags:      fib_types.FIB_API_PATH_FLAG_NONE,
+				Proto:      types.IsV6toFibProto(isIP6),
+			},
+		},
+	}
+
+	vppRoute := vppip.IPMroute{
+		TableID:    tableID,
+		Prefix:     prefix,
+		EntryFlags: mfib_types.MFIB_API_ENTRY_FLAG_NONE,
+		Paths:      paths,
+		RpfID:      0,
+	}
+
+	_, err := client.IPMrouteAddDel(v.GetContext(), &vppip.IPMrouteAddDel{
+		IsAdd: true,
+		Route: vppRoute,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to add mroute accept for %s in table %d on swIfIndex %d: %w",
+			group.String(), tableID, swIfIndex, err)
+	}
+
+	v.GetLog().Infof("Added mFIB accept entry for %s in table %d (swIfIndex=%d)",
+		group.String(), tableID, swIfIndex)
+	return nil
+}
+
 func (v *VppLink) addDelDefaultMRouteViaTable(srcTable, dstTable uint32, isIP6 bool, isAdd bool) error {
 	route := &types.Route{
 		Paths: []types.RoutePath{{
