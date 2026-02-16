@@ -357,6 +357,47 @@ func (v *VppRunner) setupIPv6MulticastForHostTap(vrfID uint32, tapSwIfIndex uint
 	return nil
 }
 
+// setupIPv6MulticastForUplink configures mFIB entries in the uplink's own VRF so
+// that IPv6 multicast packets arriving on the uplink pass the RPF check. Without
+// these entries, NDP Neighbor Solicitations sent by remote nodes are dropped.
+func (v *VppRunner) setupIPv6MulticastForUplink(vrfID uint32, uplinkSwIfIndex uint32) error {
+	log.Infof("Setting up IPv6 multicast accept on uplink (swIfIndex %d) in VRF %d", uplinkSwIfIndex, vrfID)
+
+	multicastGroups := []struct {
+		addr    string
+		prefix  int
+		comment string
+	}{
+		{"ff02::1:ff00:0", 104, "Solicited-Node multicast (NDP Neighbor Solicitation targets)"},
+		{"ff02::1", 128, "All Nodes / All Hosts (link-local)"},
+		{"ff02::2", 128, "All Routers (NDP RS target)"},
+		{"ff02::16", 128, "All MLDv2-capable routers"},
+	}
+
+	for _, group := range multicastGroups {
+		groupIP := net.ParseIP(group.addr)
+		if groupIP == nil {
+			log.Warnf("Invalid multicast address: %s", group.addr)
+			continue
+		}
+
+		groupNet := &net.IPNet{
+			IP:   groupIP,
+			Mask: net.CIDRMask(group.prefix, 128),
+		}
+
+		err := v.vpp.MRouteAddAcceptOnInterface(vrfID, groupNet, uplinkSwIfIndex)
+		if err != nil {
+			return errors.Wrapf(err, "cannot add mFIB accept for %s (%s) in VRF %d",
+				group.addr, group.comment, vrfID)
+		}
+
+		log.Infof("Added mFIB accept for %s (%s) in VRF %d", group.addr, group.comment, vrfID)
+	}
+
+	return nil
+}
+
 // Configure specific VRFs for a given tap to the host to handle broadcast / multicast traffic sent by the host
 func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState, tapSwIfIndex uint32) (vrfs []uint32, err error) {
 	for _, ipFamily := range vpplink.IPFamilies {
@@ -540,6 +581,17 @@ func (v *VppRunner) configureVppUplinkInterface(
 		})
 		if err != nil {
 			log.Errorf("cannot add default route via %s in vpp: %v", defaultGW, err)
+		}
+	}
+
+	// Ensure IPv6 multicast (NDP) arriving on the uplink passes the mFIB RPF check.
+	// This is required for remote nodes (e.g. BGP Route Reflectors) to discover
+	// this node's MAC address via Neighbor Solicitation.
+	if ifState.HasNodeIP6() {
+		uplinkVrfID := config.Info.PhysicalNets[ifSpec.PhysicalNetworkName].VrfID
+		err = v.setupIPv6MulticastForUplink(uplinkVrfID, ifSpec.SwIfIndex)
+		if err != nil {
+			return errors.Wrap(err, "Error setting up IPv6 multicast accept on uplink")
 		}
 	}
 
