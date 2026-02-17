@@ -56,7 +56,7 @@ func (v *Vpp) ListVXLanTunnels() ([]types.VXLanTunnel, error) {
 	return tunnels, nil
 }
 
-func (v *Vpp) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIfIndex uint32, err error) {
+func (v *Vpp) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool, encapVrfID uint32) (swIfIndex uint32, err error) {
 	client := vxlan.NewServiceClient(v.conn)
 
 	response, err := client.VxlanAddDelTunnelV3(v.ctx, &vxlan.VxlanAddDelTunnelV3{
@@ -66,6 +66,7 @@ func (v *Vpp) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIfInde
 		DstAddress:     ip_types.NewAddress(tunnel.DstAddress),
 		SrcPort:        tunnel.SrcPort,
 		DstPort:        tunnel.DstPort,
+		EncapVrfID:     encapVrfID,
 		Vni:            tunnel.Vni,
 		DecapNextIndex: tunnel.DecapNextIndex,
 		IsL3:           true,
@@ -77,16 +78,16 @@ func (v *Vpp) addDelVXLanTunnel(tunnel *types.VXLanTunnel, isAdd bool) (swIfInde
 	return uint32(response.SwIfIndex), nil
 }
 
-func (v *Vpp) AddVXLanTunnel(tunnel *types.VXLanTunnel) (swIfIndex uint32, err error) {
-	swIfIndex, err = v.addDelVXLanTunnel(tunnel, true)
+func (v *Vpp) AddVXLanTunnel(tunnel *types.VXLanTunnel, encapVrfID uint32) (swIfIndex uint32, err error) {
+	swIfIndex, err = v.addDelVXLanTunnel(tunnel, true, encapVrfID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to add VXLan tunnel: %w", err)
 	}
 	return swIfIndex, nil
 }
 
-func (v *Vpp) DelVXLanTunnel(tunnel *types.VXLanTunnel) (err error) {
-	_, err = v.addDelVXLanTunnel(tunnel, false)
+func (v *Vpp) DelVXLanTunnel(tunnel *types.VXLanTunnel, encapVrfID uint32) (err error) {
+	_, err = v.addDelVXLanTunnel(tunnel, false, encapVrfID)
 	if err != nil {
 		return fmt.Errorf("failed to delete VXLan tunnel: %w", err)
 	}
