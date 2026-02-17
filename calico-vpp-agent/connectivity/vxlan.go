@@ -122,6 +122,16 @@ func (p *VXLanProvider) getVXLANPort() uint16 {
 	return uint16(felixConfig.VXLANPort)
 }
 
+func (p *VXLanProvider) getEncapVrfID(cn *common.NodeConnectivity) uint32 {
+	if cn.Vni != 0 {
+		net, ok := p.server.networks[cn.Vni]
+		if ok {
+			return net.VRF.Tables[0]
+		}
+	}
+	return 0
+}
+
 func (p *VXLanProvider) getNodeIPForConnectivity(cn *common.NodeConnectivity) (nodeIP net.IP, err error) {
 	ip4, ip6 := p.server.GetNodeIPs()
 	if vpplink.IsIP6(cn.NextHop) && ip6 != nil {
@@ -156,7 +166,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		if vpplink.IsIP6(cn.NextHop) {
 			tunnel.DecapNextIndex = p.ip6NodeIndex
 		}
-		swIfIndex, err := p.vpp.AddVXLanTunnel(tunnel)
+		swIfIndex, err := p.vpp.AddVXLanTunnel(tunnel, p.getEncapVrfID(cn))
 		if err != nil {
 			return errors.Wrapf(err, "Error adding vxlan tunnel %s -> %s", nodeIP.String(), cn.NextHop.String())
 		}
@@ -251,7 +261,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: tunnel.SwIfIndex,
-			Gw:        nodeIP, // FIXME this is probably wrong. The gateway of route going out to another node should not point to THIS node.
+			Gw:        nil,
 		}},
 		Table: table,
 	}
@@ -268,10 +278,6 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 	if !found {
 		return errors.Errorf("Deleting unknown vxlan tunnel cn=%s", cn.String())
 	}
-	nodeIP, err := p.getNodeIPForConnectivity(cn)
-	if err != nil {
-		return err
-	}
 
 	var routeToDelete *types.Route
 	if cn.Vni == 0 {
@@ -280,7 +286,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			Dst: &cn.Dst,
 			Paths: []types.RoutePath{{
 				SwIfIndex: tunnel.SwIfIndex,
-				Gw:        nodeIP,
+				Gw:        nil,
 			}},
 		}
 	} else {
@@ -290,13 +296,13 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			Dst: &cn.Dst,
 			Paths: []types.RoutePath{{
 				SwIfIndex: tunnel.SwIfIndex,
-				Gw:        nodeIP,
+				Gw:        nil,
 			}},
 			Table: vrfIndex,
 		}
 	}
 
-	err = p.vpp.RouteDel(routeToDelete)
+	err := p.vpp.RouteDel(routeToDelete)
 	if err != nil {
 		return errors.Wrapf(err, "Error deleting vxlan tunnel route")
 	}
@@ -319,7 +325,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 				p.log.Errorf("Error deleting vxlan route dst=%s via tunnel swIfIndex=%d %s", cn.NextHop.String(), tunnel.SwIfIndex, err)
 			}
 		}
-		err = p.vpp.DelVXLanTunnel(&tunnel)
+		err = p.vpp.DelVXLanTunnel(&tunnel, p.getEncapVrfID(cn))
 		if err != nil {
 			p.log.Errorf("Error deleting VXLan tunnel %s after error: %v", tunnel.String(), err)
 		}
