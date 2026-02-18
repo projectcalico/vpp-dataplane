@@ -487,6 +487,15 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error disabling ipv6 RA on uplink interface")
 	}
 
+	// EnableIP6NdAddressAutoconfig adds the uplink interface to the list
+	// that will be handled by the rd_cp.c vpp process and take care
+	// of programming VPP with the prefixes received in router advertisments
+	// with prefix option. This also takes care of SLAAC if configured
+	err = v.vpp.EnableIP6NdAddressAutoconfig(ifSpec.SwIfIndex)
+	if err != nil {
+		return errors.Wrap(err, "Error enabling Ipv6 ND address auto config")
+	}
+
 	err = v.vpp.CnatEnableFeatures(ifSpec.SwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error configuring NAT on uplink interface")
