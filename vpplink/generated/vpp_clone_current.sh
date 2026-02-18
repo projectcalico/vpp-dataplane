@@ -150,6 +150,7 @@ git_cherry_pick refs/changes/55/44855/6 # 44855: tap: backport VHOST_SET_FORK_FR
 git_cherry_pick refs/changes/00/44900/1 # 44900: tap: backport fix promiscuous mode | https://gerrit.fd.io/r/c/vpp/+/44900
 
 git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
+git_cherry_pick refs/changes/66/44966/1 # 44966: ip-neighbor: fix missing solicited-node multicast MAC | https://gerrit.fd.io/r/c/vpp/+/44966
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
