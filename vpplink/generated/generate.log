@@ -1,16 +1,15 @@
-VPP Version                 : 26.02-rc0~481-gfd3db210e
+VPP Version                 : 26.06-rc0~89-g568757dc5
 Binapi-generator version    : v0.11.0
-VPP Base commit             : f97cc0a44 gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : 8e091deae gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:44961/2 ip6-nd: support RA pfx info option with flag L&!A
 gerrit:44903/1 vxlan: reset next_dpo on delete
 gerrit:44350/3 vnet: fix unicast NA handling in ND proxy
-gerrit:44467/7 bpf_trace_filter: add raw IP packet support
-gerrit:44464/9 dispatch-trace: add filter support for pcap dispatch trace
-gerrit:43369/16 cnat: converge new cnat implementation to support encaps (calico)
-gerrit:41089/31 cnat: combine multiple changes
+gerrit:43369/19 cnat: converge new cnat implementation to support encaps (calico)
+gerrit:41089/32 cnat: combine multiple changes
 gerrit:revert:39675/5 Revert "ip-neighbor: do not use sas to determine NS source address"
 gerrit:42343/2 vcl: LDP default to regular option
 gerrit:34726/3 interface: add buffer stats api
