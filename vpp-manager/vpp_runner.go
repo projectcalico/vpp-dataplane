@@ -157,7 +157,7 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 			return errors.Wrapf(err, "error adding vpp side routes for interface")
 		}
 	}
-	if ifState.IPv6LinkLocal.IP != nil {
+	if ifState.IPv6LinkLocal.IPNet != nil {
 		err = v.vpp.RouteAdd(&types.Route{
 			Table: common.PuntTableID,
 			Dst:   common.FullyQualified(ifState.IPv6LinkLocal.IP),
@@ -642,7 +642,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 
-	if ifState.IPv6LinkLocal.IP != nil {
+	if ifState.IPv6LinkLocal.IPNet != nil {
 		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(ifState.IPv6LinkLocal.IP))
 		if err != nil {
 			log.Errorf("Error adding address to uplink interface: %v", err)
