@@ -20,8 +20,7 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/capo"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/npol"
 )
 
 const InvalidID uint32 = ^uint32(0)
@@ -29,9 +28,9 @@ const InvalidID uint32 = ^uint32(0)
 type IpsetType uint8
 
 const (
-	IpsetTypeIP     IpsetType = IpsetType(capo.CAPO_IP)
-	IpsetTypeIPPort IpsetType = IpsetType(capo.CAPO_IP_AND_PORT)
-	IpsetTypeNet    IpsetType = IpsetType(capo.CAPO_NET)
+	IpsetTypeIP     IpsetType = IpsetType(npol.NPOL_IP)
+	IpsetTypeIPPort IpsetType = IpsetType(npol.NPOL_IP_AND_PORT)
+	IpsetTypeNet    IpsetType = IpsetType(npol.NPOL_NET)
 )
 
 func (i IpsetType) String() string {
@@ -55,10 +54,10 @@ type IPPort struct {
 type RuleAction uint8
 
 const (
-	ActionAllow RuleAction = RuleAction(capo.CAPO_ALLOW)
-	ActionDeny  RuleAction = RuleAction(capo.CAPO_DENY)
-	ActionLog   RuleAction = RuleAction(capo.CAPO_LOG)
-	ActionPass  RuleAction = RuleAction(capo.CAPO_PASS)
+	ActionAllow RuleAction = RuleAction(npol.NPOL_ALLOW)
+	ActionDeny  RuleAction = RuleAction(npol.NPOL_DENY)
+	ActionLog   RuleAction = RuleAction(npol.NPOL_LOG)
+	ActionPass  RuleAction = RuleAction(npol.NPOL_PASS)
 )
 
 func (r RuleAction) String() string {
@@ -88,24 +87,24 @@ func (pr PortRange) String() string {
 	}
 }
 
-type CapoFilterType uint8
+type NpolFilterType uint8
 
 const (
-	CapoFilterTypeNone CapoFilterType = CapoFilterType(capo.CAPO_RULE_FILTER_NONE_TYPE)
-	CapoFilterICMPType CapoFilterType = CapoFilterType(capo.CAPO_RULE_FILTER_ICMP_TYPE)
-	CapoFilterICMPCode CapoFilterType = CapoFilterType(capo.CAPO_RULE_FILTER_ICMP_CODE)
-	CapoFilterProto    CapoFilterType = CapoFilterType(capo.CAPO_RULE_FILTER_L4_PROTO)
+	NpolFilterTypeNone NpolFilterType = NpolFilterType(npol.NPOL_RULE_FILTER_NONE_TYPE)
+	NpolFilterICMPType NpolFilterType = NpolFilterType(npol.NPOL_RULE_FILTER_ICMP_TYPE)
+	NpolFilterICMPCode NpolFilterType = NpolFilterType(npol.NPOL_RULE_FILTER_ICMP_CODE)
+	NpolFilterProto    NpolFilterType = NpolFilterType(npol.NPOL_RULE_FILTER_L4_PROTO)
 )
 
-func (ft CapoFilterType) String() string {
+func (ft NpolFilterType) String() string {
 	switch ft {
-	case CapoFilterTypeNone:
+	case NpolFilterTypeNone:
 		return "none"
-	case CapoFilterICMPType:
+	case NpolFilterICMPType:
 		return "icmp-type"
-	case CapoFilterICMPCode:
+	case NpolFilterICMPCode:
 		return "icmp-code"
-	case CapoFilterProto:
+	case NpolFilterProto:
 		return "proto"
 	}
 	return "unknown-filter-type"
@@ -113,7 +112,7 @@ func (ft CapoFilterType) String() string {
 
 type RuleFilter struct {
 	ShouldMatch bool
-	Type        CapoFilterType
+	Type        NpolFilterType
 	Value       int
 }
 
@@ -126,9 +125,8 @@ func (f RuleFilter) String() string {
 }
 
 type Rule struct {
-	Action        RuleAction
-	AddressFamily int
-	Filters       []RuleFilter
+	Action  RuleAction
+	Filters []RuleFilter
 
 	DstNet    []net.IPNet
 	DstNotNet []net.IPNet
@@ -156,7 +154,6 @@ type Rule struct {
 func (r *Rule) DeepCopy() *Rule {
 	rule := &Rule{
 		Action:            r.Action,
-		AddressFamily:     r.AddressFamily,
 		Filters:           make([]RuleFilter, len(r.Filters)),
 		DstNet:            make([]net.IPNet, len(r.DstNet)),
 		DstNotNet:         make([]net.IPNet, len(r.DstNotNet)),
@@ -326,6 +323,10 @@ type InterfaceConfig struct {
 	IngressPolicyIDs []uint32
 	EgressPolicyIDs  []uint32
 	ProfileIDs       []uint32
+	PolicyDefaultRx  npol.NpolPolicyDefault
+	PolicyDefaultTx  npol.NpolPolicyDefault
+	ProfileDefaultRx npol.NpolPolicyDefault
+	ProfileDefaultTx npol.NpolPolicyDefault
 }
 
 func NewInterfaceConfig() *InterfaceConfig {
@@ -333,13 +334,17 @@ func NewInterfaceConfig() *InterfaceConfig {
 		IngressPolicyIDs: make([]uint32, 0),
 		EgressPolicyIDs:  make([]uint32, 0),
 		ProfileIDs:       make([]uint32, 0),
+		PolicyDefaultRx:  npol.NPOL_DEFAULT_ALLOW,
+		PolicyDefaultTx:  npol.NPOL_DEFAULT_ALLOW,
+		ProfileDefaultRx: npol.NPOL_DEFAULT_DENY,
+		ProfileDefaultTx: npol.NPOL_DEFAULT_DENY,
 	}
 }
 
-func toCapoFilter(f *RuleFilter) capo.CapoRuleFilter {
-	return capo.CapoRuleFilter{
+func toNpolFilter(f *RuleFilter) npol.NpolRuleFilter {
+	return npol.NpolRuleFilter{
 		Value:       uint32(f.Value),
-		Type:        capo.CapoRuleFilterType(f.Type),
+		Type:        npol.NpolRuleFilterType(f.Type),
 		ShouldMatch: boolToU8(f.ShouldMatch),
 	}
 }
@@ -355,131 +360,129 @@ func (i *IPPort) Equal(j *IPPort) bool {
 	return i.Port == j.Port && i.L4Proto == j.L4Proto && i.Addr.Equal(j.Addr)
 }
 
-func toCapoPortRange(pr PortRange) capo.CapoPortRange {
-	return capo.CapoPortRange{
+func toNpolPortRange(pr PortRange) npol.NpolPortRange {
+	return npol.NpolPortRange{
 		Start: pr.First,
 		End:   pr.Last,
 	}
 }
 
-func ToCapoRule(r *Rule) (cr capo.CapoRule) {
-	var filters [3]capo.CapoRuleFilter
+func ToNpolRule(r *Rule) (cr npol.NpolRule) {
+	var filters [3]npol.NpolRuleFilter
 	for i, f := range r.Filters {
 		if i == 3 {
 			break
 		}
-		filters[i] = toCapoFilter(&f)
+		filters[i] = toNpolFilter(&f)
 	}
 
-	cr = capo.CapoRule{
-		Action: capo.CapoRuleAction(r.Action),
-		Af:     ip_types.AddressFamily(r.AddressFamily),
-
+	cr = npol.NpolRule{
+		Action:  npol.NpolRuleAction(r.Action),
 		Filters: filters,
 	}
 
 	for _, n := range r.DstNet {
-		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_CIDR}
+		entry := npol.NpolRuleEntry{IsSrc: false, IsNot: false, Type: npol.NPOL_CIDR}
 		entry.Data.SetCidr(ToVppPrefix(&n))
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, n := range r.DstNotNet {
-		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: true, Type: capo.CAPO_CIDR}
+		entry := npol.NpolRuleEntry{IsSrc: false, IsNot: true, Type: npol.NPOL_CIDR}
 		entry.Data.SetCidr(ToVppPrefix(&n))
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, n := range r.SrcNet {
-		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: false, Type: capo.CAPO_CIDR}
+		entry := npol.NpolRuleEntry{IsSrc: true, IsNot: false, Type: npol.NPOL_CIDR}
 		entry.Data.SetCidr(ToVppPrefix(&n))
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, n := range r.SrcNotNet {
-		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: true, Type: capo.CAPO_CIDR}
+		entry := npol.NpolRuleEntry{IsSrc: true, IsNot: true, Type: npol.NPOL_CIDR}
 		entry.Data.SetCidr(ToVppPrefix(&n))
 		cr.Matches = append(cr.Matches, entry)
 	}
 
 	for _, pr := range r.DstPortRange {
-		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_PORT_RANGE}
-		entry.Data.SetPortRange(toCapoPortRange(pr))
+		entry := npol.NpolRuleEntry{IsSrc: false, IsNot: false, Type: npol.NPOL_PORT_RANGE}
+		entry.Data.SetPortRange(toNpolPortRange(pr))
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, pr := range r.DstNotPortRange {
-		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: true, Type: capo.CAPO_PORT_RANGE}
-		entry.Data.SetPortRange(toCapoPortRange(pr))
+		entry := npol.NpolRuleEntry{IsSrc: false, IsNot: true, Type: npol.NPOL_PORT_RANGE}
+		entry.Data.SetPortRange(toNpolPortRange(pr))
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, pr := range r.SrcPortRange {
-		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: false, Type: capo.CAPO_PORT_RANGE}
-		entry.Data.SetPortRange(toCapoPortRange(pr))
+		entry := npol.NpolRuleEntry{IsSrc: true, IsNot: false, Type: npol.NPOL_PORT_RANGE}
+		entry.Data.SetPortRange(toNpolPortRange(pr))
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, pr := range r.SrcNotPortRange {
-		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: true, Type: capo.CAPO_PORT_RANGE}
-		entry.Data.SetPortRange(toCapoPortRange(pr))
+		entry := npol.NpolRuleEntry{IsSrc: true, IsNot: true, Type: npol.NPOL_PORT_RANGE}
+		entry.Data.SetPortRange(toNpolPortRange(pr))
 		cr.Matches = append(cr.Matches, entry)
 	}
 
 	for _, id := range r.DstIPPortIPSet {
-		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_PORT_IP_SET}
-		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		entry := npol.NpolRuleEntry{IsSrc: false, IsNot: false, Type: npol.NPOL_PORT_IP_SET}
+		entry.Data.SetSetID(npol.NpolEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, id := range r.DstNotIPPortIPSet {
-		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: true, Type: capo.CAPO_PORT_IP_SET}
-		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		entry := npol.NpolRuleEntry{IsSrc: false, IsNot: true, Type: npol.NPOL_PORT_IP_SET}
+		entry.Data.SetSetID(npol.NpolEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, id := range r.SrcIPPortIPSet {
-		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: false, Type: capo.CAPO_PORT_IP_SET}
-		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		entry := npol.NpolRuleEntry{IsSrc: true, IsNot: false, Type: npol.NPOL_PORT_IP_SET}
+		entry.Data.SetSetID(npol.NpolEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, id := range r.SrcNotIPPortIPSet {
-		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: true, Type: capo.CAPO_PORT_IP_SET}
-		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		entry := npol.NpolRuleEntry{IsSrc: true, IsNot: true, Type: npol.NPOL_PORT_IP_SET}
+		entry.Data.SetSetID(npol.NpolEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
 
 	for _, id := range r.DstIPSet {
-		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_IP_SET}
-		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		entry := npol.NpolRuleEntry{IsSrc: false, IsNot: false, Type: npol.NPOL_IP_SET}
+		entry.Data.SetSetID(npol.NpolEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, id := range r.DstNotIPSet {
-		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: true, Type: capo.CAPO_IP_SET}
-		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		entry := npol.NpolRuleEntry{IsSrc: false, IsNot: true, Type: npol.NPOL_IP_SET}
+		entry.Data.SetSetID(npol.NpolEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, id := range r.SrcIPSet {
-		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: false, Type: capo.CAPO_IP_SET}
-		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		entry := npol.NpolRuleEntry{IsSrc: true, IsNot: false, Type: npol.NPOL_IP_SET}
+		entry.Data.SetSetID(npol.NpolEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, id := range r.SrcNotIPSet {
-		entry := capo.CapoRuleEntry{IsSrc: true, IsNot: true, Type: capo.CAPO_IP_SET}
-		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		entry := npol.NpolRuleEntry{IsSrc: true, IsNot: true, Type: npol.NPOL_IP_SET}
+		entry.Data.SetSetID(npol.NpolEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
 	for _, id := range r.DstIPPortSet {
-		entry := capo.CapoRuleEntry{IsSrc: false, IsNot: false, Type: capo.CAPO_PORT_IP_SET}
-		entry.Data.SetSetID(capo.CapoEntrySetID{SetID: id})
+		entry := npol.NpolRuleEntry{IsSrc: false, IsNot: false, Type: npol.NPOL_PORT_IP_SET}
+		entry.Data.SetSetID(npol.NpolEntrySetID{SetID: id})
 		cr.Matches = append(cr.Matches, entry)
 	}
 	return cr
 }
 
-func ToCapoPolicy(p *Policy) (items []capo.CapoPolicyItem) {
-	items = make([]capo.CapoPolicyItem, 0, len(p.InboundRuleIDs)+len(p.OutboundRuleIDs))
+func ToNpolPolicy(p *Policy) (items []npol.NpolPolicyItem) {
+	items = make([]npol.NpolPolicyItem, 0, len(p.InboundRuleIDs)+len(p.OutboundRuleIDs))
 	for _, rid := range p.InboundRuleIDs {
-		items = append(items, capo.CapoPolicyItem{
+		items = append(items, npol.NpolPolicyItem{
 			IsInbound: false, // Calico policies are expressed from the point of view of PODs
 			// in VPP this is reversed
 			RuleID: rid,
 		})
 	}
 	for _, rid := range p.OutboundRuleIDs {
-		items = append(items, capo.CapoPolicyItem{
+		items = append(items, npol.NpolPolicyItem{
 			IsInbound: true, // Calico policies are expressed from the point of view of PODs
 			// in VPP this is reversed
 			RuleID: rid,

@@ -22,6 +22,7 @@ import (
 	"github.com/projectcalico/calico/felix/proto"
 
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/npol"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
@@ -134,7 +135,7 @@ func (h *HostEndpoint) handleTunnelChange(swIfIndex uint32, isAdd bool, pending 
 	return err
 }
 
-func (h *HostEndpoint) getHostPolicies(state *PolicyState, tiers []Tier) (conf *types.InterfaceConfig, err error) {
+func (h *HostEndpoint) getUserDefinedPolicies(state *PolicyState, tiers []Tier) (conf *types.InterfaceConfig, err error) {
 	conf = types.NewInterfaceConfig()
 	for _, tier := range tiers {
 		for _, polName := range tier.IngressPolicies {
@@ -171,32 +172,70 @@ func (h *HostEndpoint) getHostPolicies(state *PolicyState, tiers []Tier) (conf *
 	return conf, nil
 }
 
+/*
+	 This function creates the interface configuration for the host, applied on the vpptap0
+		interface i.e. the tap interface from VPP to the host
+		that we use as controlpoint for HostEndpoint implementation
+		We have an implicit workloadsToHostPolicy policy that controls the traffic from
+		workloads to their host: it is defined by felixConfig.DefaultEndpointToHostAction
+		We have an implicit failsafe rules policy defined by felixConfig as well.
+
+		If there are no policies the default should be pass to profiles
+		If there are policies the default should be deny (profiles are ignored)
+*/
 func (h *HostEndpoint) getTapPolicies(state *PolicyState) (conf *types.InterfaceConfig, err error) {
-	conf, err = h.getHostPolicies(state, h.Tiers)
+	conf, err = h.getUserDefinedPolicies(state, h.Tiers)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create host policies for TapConf")
 	}
-	if len(conf.IngressPolicyIDs) > 0 {
-		conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, h.server.workloadsToHostPolicy.VppID)
+	if len(conf.IngressPolicyIDs) == 0 && len(conf.ProfileIDs) == 0 {
+		// If a host endpoint is created and network policy is not in place,
+		// the Calico default is to deny traffic to/from that endpoint
+		// (except for traffic allowed by failsafe rules).
+		// note: this applies to ingress and egress separately, so if you don't have
+		// ingress only you drop ingress
+		conf.IngressPolicyIDs = []uint32{h.server.workloadsToHostPolicy.VppID, h.server.failSafePolicy.VppID}
+		conf.PolicyDefaultTx = npol.NPOL_DEFAULT_DENY
+	} else {
+		if len(conf.IngressPolicyIDs) > 0 {
+			conf.PolicyDefaultTx = npol.NPOL_DEFAULT_DENY
+		} else if len(conf.ProfileIDs) > 0 {
+			conf.PolicyDefaultTx = npol.NPOL_DEFAULT_PASS
+		}
 		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.IngressPolicyIDs...)
+		conf.IngressPolicyIDs = append([]uint32{h.server.workloadsToHostPolicy.VppID}, conf.IngressPolicyIDs...)
 	}
-	if len(conf.EgressPolicyIDs) > 0 {
-		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
+	if len(conf.EgressPolicyIDs) == 0 && len(conf.ProfileIDs) == 0 {
+		conf.EgressPolicyIDs = []uint32{h.server.AllowFromHostPolicy.VppID, h.server.failSafePolicy.VppID}
+		conf.PolicyDefaultRx = npol.NPOL_DEFAULT_DENY
+	} else {
+		if len(conf.EgressPolicyIDs) > 0 {
+			conf.PolicyDefaultRx = npol.NPOL_DEFAULT_DENY
+		} else if len(conf.ProfileIDs) > 0 {
+			conf.PolicyDefaultRx = npol.NPOL_DEFAULT_PASS
+		}
 		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.EgressPolicyIDs...)
+		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
 	}
 	return conf, nil
 }
 
 func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.InterfaceConfig, err error) {
-	conf, err = h.getHostPolicies(state, h.ForwardTiers)
+	conf, err = h.getUserDefinedPolicies(state, h.ForwardTiers)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create host policies for forwardConf")
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
 		conf.EgressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.EgressPolicyIDs...)
+		conf.PolicyDefaultRx = npol.NPOL_DEFAULT_DENY
+	} else if len(conf.ProfileIDs) > 0 {
+		conf.PolicyDefaultRx = npol.NPOL_DEFAULT_PASS
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.IngressPolicyIDs...)
+		conf.PolicyDefaultTx = npol.NPOL_DEFAULT_DENY
+	} else if len(conf.ProfileIDs) > 0 {
+		conf.PolicyDefaultTx = npol.NPOL_DEFAULT_PASS
 	}
 	return conf, nil
 }
@@ -273,6 +312,7 @@ func (h *HostEndpoint) Delete(vpp *vpplink.VppLink, state *PolicyState) (err err
 		h.server.log.Infof("policy(del) interface swif=%d", swIfIndex)
 		conf := types.NewInterfaceConfig()
 		conf.IngressPolicyIDs = h.server.defaultTap0IngressConf
+		conf.EgressPolicyIDs = h.server.defaultTap0EgressConf
 		err = vpp.ConfigurePolicies(swIfIndex, conf, 0)
 		if err != nil {
 			return errors.Wrapf(err, "cannot unconfigure policies on interface %d", swIfIndex)

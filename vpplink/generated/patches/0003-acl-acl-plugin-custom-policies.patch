@@ -1,29 +1,37 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Andrew Yourtchenko <ayourtch@gmail.com>
-Date: Tue, 28 Jul 2020 10:23:06 +0000
-Subject: [PATCH 3/5] acl: acl-plugin custom policies
+From: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+Date: Fri, 10 Oct 2025 12:13:22 +0200
+Subject: [PATCH 3/3] acl: acl-plugin custom policies
 
 Type: feature
+
 Change-Id: I3117e84d9e822b68b12265e9261992e4d7f50f0f
+
 Signed-off-by: Andrew Yourtchenko <ayourtch@gmail.com>
 Signed-off-by: Aloys Augustin <aloaugus@cisco.com>
+Signed-off-by: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
 ---
- src/plugins/acl/CMakeLists.txt   |   2 +
- src/plugins/acl/acl.c            |  27 +++-
- src/plugins/acl/acl.h            |  21 ++-
- src/plugins/acl/acl_caiop.c      | 249 +++++++++++++++++++++++++++++++
- src/plugins/acl/acl_caiop.h      |  18 +++
- src/plugins/acl/acl_util.h       |  17 +++
- src/plugins/acl/dataplane_node.c | 194 ++++++++++++++++--------
- src/plugins/acl/exported_types.h |  29 +++-
- src/plugins/acl/lookup_context.c |   9 +-
- 9 files changed, 489 insertions(+), 77 deletions(-)
+ src/plugins/acl/CMakeLists.txt    |   2 +
+ src/plugins/acl/acl.c             |  27 +++-
+ src/plugins/acl/acl.h             |  21 ++-
+ src/plugins/acl/acl_caiop.c       | 249 ++++++++++++++++++++++++++++++
+ src/plugins/acl/acl_caiop.h       |  18 +++
+ src/plugins/acl/acl_util.h        |  17 ++
+ src/plugins/acl/dataplane_node.c  | 194 +++++++++++++++--------
+ src/plugins/acl/exported_types.h  |  29 +++-
+ src/plugins/acl/lookup_context.c  |   9 +-
+ src/plugins/npol/npol.h           |   1 +
+ src/plugins/npol/npol_api.c       |   7 +
+ src/plugins/npol/npol_interface.c |  19 +++
+ src/plugins/npol/npol_match.c     |   8 +
+ src/plugins/npol/npol_match.h     |   3 +
+ 14 files changed, 527 insertions(+), 77 deletions(-)
  create mode 100644 src/plugins/acl/acl_caiop.c
  create mode 100644 src/plugins/acl/acl_caiop.h
  create mode 100644 src/plugins/acl/acl_util.h
 
 diff --git a/src/plugins/acl/CMakeLists.txt b/src/plugins/acl/CMakeLists.txt
-index c43dd23ea..44e4e6a60 100644
+index 1bb60d94f..c1faca557 100644
 --- a/src/plugins/acl/CMakeLists.txt
 +++ b/src/plugins/acl/CMakeLists.txt
 @@ -20,6 +20,8 @@ add_vpp_plugin(acl
@@ -36,7 +44,7 @@ index c43dd23ea..44e4e6a60 100644
    dataplane_node.c
    dataplane_node_nonip.c
 diff --git a/src/plugins/acl/acl.c b/src/plugins/acl/acl.c
-index f834425b5..9257289d0 100644
+index fbd947610..fda649fdc 100644
 --- a/src/plugins/acl/acl.c
 +++ b/src/plugins/acl/acl.c
 @@ -39,6 +39,7 @@
@@ -47,7 +55,7 @@ index f834425b5..9257289d0 100644
  
  acl_main_t acl_main;
  
-@@ -521,6 +522,11 @@ acl_clear_sessions (acl_main_t * am, u32 sw_if_index)
+@@ -517,6 +518,11 @@ acl_clear_sessions (acl_main_t * am, u32 sw_if_index)
  			     sw_if_index);
  }
  
@@ -59,7 +67,7 @@ index f834425b5..9257289d0 100644
  
  static int
  acl_interface_in_enable_disable (acl_main_t * am, u32 sw_if_index,
-@@ -605,8 +611,8 @@ acl_stats_intf_counters_enable_disable (acl_main_t * am, int enable_disable)
+@@ -601,8 +607,8 @@ acl_stats_intf_counters_enable_disable (acl_main_t * am, int enable_disable)
    return rv;
  }
  
@@ -70,7 +78,7 @@ index f834425b5..9257289d0 100644
  				    int is_input, int enable_disable)
  {
    if (is_input)
-@@ -615,6 +621,12 @@ acl_interface_inout_enable_disable (acl_main_t * am, u32 sw_if_index,
+@@ -611,6 +617,12 @@ acl_interface_inout_enable_disable (acl_main_t * am, u32 sw_if_index,
      return acl_interface_out_enable_disable (am, sw_if_index, enable_disable);
  }
  
@@ -83,7 +91,7 @@ index f834425b5..9257289d0 100644
  static int
  acl_is_not_defined (acl_main_t * am, u32 acl_list_index)
  {
-@@ -751,8 +763,11 @@ acl_interface_set_inout_acl_list (acl_main_t * am, u32 sw_if_index,
+@@ -745,8 +757,11 @@ acl_interface_set_inout_acl_list (acl_main_t * am, u32 sw_if_index,
  	}
      }
    /* ensure ACL processing is enabled/disabled as needed */
@@ -96,7 +104,7 @@ index f834425b5..9257289d0 100644
  
  done:
    clib_bitmap_free (change_acl_bitmap);
-@@ -3440,6 +3455,10 @@ acl_plugin_show_sessions (acl_main_t * am,
+@@ -3583,6 +3598,10 @@ acl_plugin_show_sessions (acl_main_t * am,
  		   ((f64) am->fa_current_cleaner_timer_wait_interval) *
  		   1000.0 / (f64) vm->clib_time.clocks_per_second);
    vlib_cli_output (vm, "Reclassify sessions: %d", am->reclassify_sessions);
@@ -107,7 +115,7 @@ index f834425b5..9257289d0 100644
  }
  
  static clib_error_t *
-@@ -3776,6 +3795,8 @@ acl_init (vlib_main_t * vm)
+@@ -3963,6 +3982,8 @@ acl_init (vlib_main_t * vm)
      ACL_FA_CONN_TABLE_DEFAULT_HASH_MEMORY_SIZE;
    am->fa_conn_table_max_entries = ACL_FA_CONN_TABLE_DEFAULT_MAX_ENTRIES;
    am->reclassify_sessions = 0;
@@ -466,7 +474,7 @@ index 000000000..843a671ad
 + * End:
 + */
 diff --git a/src/plugins/acl/dataplane_node.c b/src/plugins/acl/dataplane_node.c
-index 4bef8f077..4ccc2a4b1 100644
+index 027afc0f6..eba262cee 100644
 --- a/src/plugins/acl/dataplane_node.c
 +++ b/src/plugins/acl/dataplane_node.c
 @@ -25,6 +25,7 @@
@@ -477,7 +485,7 @@ index 4bef8f077..4ccc2a4b1 100644
  #include <plugins/acl/lookup_context.h>
  #include <plugins/acl/public_inlines.h>
  #include <plugins/acl/session_inlines.h>
-@@ -318,13 +319,12 @@ acl_fa_node_common_prepare_fn (vlib_main_t * vm,
+@@ -316,13 +317,12 @@ acl_fa_node_common_prepare_fn (vlib_main_t * vm,
      }
  }
  
@@ -496,7 +504,7 @@ index 4bef8f077..4ccc2a4b1 100644
  {
    u32 n_left;
    u32 pkts_exist_session = 0;
-@@ -465,39 +465,85 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
+@@ -463,39 +463,85 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
  
  	  if (acl_check_needed)
  	    {
@@ -614,7 +622,7 @@ index 4bef8f077..4ccc2a4b1 100644
  		}
  
  	      b[0]->error = error_node->errors[action];
-@@ -582,11 +628,10 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
+@@ -580,11 +626,10 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
     * if we were had an acl match then we have a counter to increment.
     * else it is all zeroes, so this will be harmless.
     */
@@ -630,7 +638,7 @@ index 4bef8f077..4ccc2a4b1 100644
  
    vlib_node_increment_counter (vm, node->node_index,
  			       ACL_FA_ERROR_ACL_CHECK, frame->n_vectors);
-@@ -602,10 +647,10 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
+@@ -600,10 +645,10 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
  }
  
  always_inline uword
@@ -645,7 +653,7 @@ index 4bef8f077..4ccc2a4b1 100644
  {
    acl_main_t *am = &acl_main;
  
-@@ -615,25 +660,24 @@ acl_fa_outer_node_fn (vlib_main_t * vm,
+@@ -613,25 +658,24 @@ acl_fa_outer_node_fn (vlib_main_t * vm,
    if (am->reclassify_sessions)
      {
        if (PREDICT_FALSE (node->flags & VLIB_NODE_FLAG_TRACE))
@@ -682,7 +690,7 @@ index 4bef8f077..4ccc2a4b1 100644
      }
  }
  
-@@ -646,13 +690,35 @@ acl_fa_node_fn (vlib_main_t * vm,
+@@ -644,13 +688,35 @@ acl_fa_node_fn (vlib_main_t * vm,
    acl_main_t *am = &acl_main;
    acl_fa_per_worker_data_t *pw = &am->per_worker_data[vm->thread_index];
    uword rv;
@@ -805,6 +813,110 @@ index 8d1f3f20f..52641f9e7 100644
  
  void
  acl_plugin_show_lookup_user (u32 user_index)
+diff --git a/src/plugins/npol/npol.h b/src/plugins/npol/npol.h
+index 2543dd933..958a969fb 100644
+--- a/src/plugins/npol/npol.h
++++ b/src/plugins/npol/npol.h
+@@ -31,6 +31,7 @@ typedef struct
+ typedef struct
+ {
+   u32 calico_acl_user_id;
++  acl_plugin_methods_t acl_plugin;
+ 
+   /* API message ID base */
+   u16 msg_id_base;
+diff --git a/src/plugins/npol/npol_api.c b/src/plugins/npol/npol_api.c
+index 6d2061a75..a9ff343ac 100644
+--- a/src/plugins/npol/npol_api.c
++++ b/src/plugins/npol/npol_api.c
+@@ -398,6 +398,13 @@ calpol_init (vlib_main_t *vm)
+ {
+   npol_main_t *cpm = &npol_main;
+ 
++  clib_error_t *acl_init_res = acl_plugin_exports_init (&cpm->acl_plugin);
++  if (acl_init_res)
++    return (acl_init_res);
++
++  cpm->calico_acl_user_id =
++    cpm->acl_plugin.register_user_module ("Network Policy Plugin", NULL, NULL);
++
+   cpm->msg_id_base = setup_message_id_table ();
+ 
+   return (NULL);
+diff --git a/src/plugins/npol/npol_interface.c b/src/plugins/npol/npol_interface.c
+index 437ae64db..15cfe76e6 100644
+--- a/src/plugins/npol/npol_interface.c
++++ b/src/plugins/npol/npol_interface.c
+@@ -15,6 +15,8 @@ int
+ npol_unconfigure_policies (u32 sw_if_index)
+ {
+   npol_interface_config_t *conf;
++  int rv;
++
+   conf = vec_elt_at_index (npol_interface_configs, sw_if_index);
+   if (!conf->enabled)
+     return 0;
+@@ -24,6 +26,15 @@ npol_unconfigure_policies (u32 sw_if_index)
+   vec_free (conf->tx_policies);
+   vec_free (conf->profiles);
+ 
++  rv = npol_main.acl_plugin.wip_add_del_custom_access_io_policy (
++    0 /* is_add */, sw_if_index, 0 /* is_input */, npol_match_func_acl);
++  if (rv)
++    return rv;
++  rv = npol_main.acl_plugin.wip_add_del_custom_access_io_policy (
++    0 /* is_add */, sw_if_index, 1 /* is_input */, npol_match_func_acl);
++  if (rv)
++    return rv;
++
+   conf->enabled = 0;
+   return 0;
+ }
+@@ -57,6 +68,14 @@ npol_configure_policies (u32 sw_if_index, npol_interface_config_t *new_conf)
+       vec_free (conf->tx_policies);
+       vec_free (conf->profiles);
+     }
++  else
++    {
++      npol_main.acl_plugin.wip_add_del_custom_access_io_policy (
++	1 /* is_add */, sw_if_index, 0 /* is_input */, npol_match_func_acl);
++      npol_main.acl_plugin.wip_add_del_custom_access_io_policy (
++	1 /* is_add */, sw_if_index, 1 /* is_input */, npol_match_func_acl);
++    }
++
+   *conf = *new_conf;
+   conf->enabled = 1;
+   return 0;
+diff --git a/src/plugins/npol/npol_match.c b/src/plugins/npol/npol_match.c
+index 645e003e9..6e4e1e2de 100644
+--- a/src/plugins/npol/npol_match.c
++++ b/src/plugins/npol/npol_match.c
+@@ -746,4 +746,12 @@ npol_match_func (u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple,
+ 					    pkt_5tuple, is_ip6, r_action);
+ }
+ 
++int
++npol_match_func_acl (void *p_acl_main, u32 sw_if_index, u32 is_inbound,
++		     fa_5tuple_opaque_t *pkt_5tuple, int is_ip6, u8 *r_action,
++		     u32 *trace_bitmap)
++{
++  return CLIB_MARCH_FN_SELECT (npol_match) (
++    sw_if_index, is_inbound, (fa_5tuple_t *) pkt_5tuple, is_ip6, r_action);
++}
+ #endif /* CLIB_MARCH_VARIANT */
+diff --git a/src/plugins/npol/npol_match.h b/src/plugins/npol/npol_match.h
+index 259717c14..d4fd1700a 100644
+--- a/src/plugins/npol/npol_match.h
++++ b/src/plugins/npol/npol_match.h
+@@ -14,5 +14,8 @@
+ 
+ int npol_match_func (u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple,
+ 		     int is_ip6, u8 *r_action);
++int npol_match_func_acl (void *p_acl_main, u32 sw_if_index, u32 is_inbound,
++			 fa_5tuple_opaque_t *pkt_5tuple, int is_ip6,
++			 u8 *r_action, u32 *trace_bitmap);
+ 
+ #endif
 -- 
-2.39.2
+2.43.0
 
