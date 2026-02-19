@@ -945,10 +945,23 @@ func (v *VppRunner) runVpp() (err error) {
 		vppProcess = vppCmd.Process
 	}
 
-	/**
-	 * From this point it is very important that every exit
-	 * path calls restoreConfiguration after vpp exits */
-	defer v.restoreConfiguration(v.allInterfacesPhysical())
+	defer func() {
+		if r := recover(); r != nil {
+			// we recover and log the error if there is a bug in vpp-manager
+			fmt.Println("Recovered. Error:\n", r)
+			// then we kill vpp and restore configuration
+			terminateVpp("Killing VPP, error in vpp-manager : %v", r)
+			// we need to wait a bit to make sure VPP is dead before restoring config
+			time.Sleep(time.Second * 5)
+			v.restoreConfiguration(v.allInterfacesPhysical())
+		} else {
+			/**
+			 * From this point it is very important that every exit
+			 * path calls restoreConfiguration if vpp exits
+			 * this is called when vppDeadChan is triggered */
+			v.restoreConfiguration(v.allInterfacesPhysical())
+		}
+	}()
 
 	log.Infof("VPP started [PID %d]", vppProcess.Pid)
 	runningCond.Broadcast()
