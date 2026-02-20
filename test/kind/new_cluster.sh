@@ -8,6 +8,7 @@ fi
 
 N_KIND_CONTROL_PLANES=${N_KIND_CONTROL_PLANES:-1}
 N_KIND_WORKERS=${N_KIND_WORKERS:-2}
+IPFAMILY=${IPFAMILY:-dual}
 
 # create registry container unless it already exists
 reg_name='kind-registry'
@@ -29,7 +30,23 @@ containerdConfigPatches:
     endpoint = ["http://${reg_name}:5000"]
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
     endpoint = ["http://${reg_name}:5000"]
+EOF
+)
 
+if [ "$IPFAMILY" == "v4" ]; then
+config=$(cat <<EOF
+$config
+networking:
+  disableDefaultCNI: true
+  podSubnet: "11.0.0.0/16"
+  serviceSubnet: "11.96.0.0/12"
+  ipFamily: ipv4
+nodes:
+EOF
+)
+else
+config=$(cat <<EOF
+$config
 networking:
   disableDefaultCNI: true
   podSubnet: "11.0.0.0/16,fd20::0/64"
@@ -38,6 +55,8 @@ networking:
 nodes:
 EOF
 )
+fi
+
 
 if [ "$N_KIND_CONTROL_PLANES" == "" ]; then
 	echo "Please Set N_KIND_CONTROL_PLANES"
