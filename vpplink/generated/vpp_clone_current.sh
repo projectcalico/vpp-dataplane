@@ -136,4 +136,4 @@ git_cherry_pick refs/changes/66/44966/1 # 44966: ip-neighbor: fix missing solici
 git_apply_private 0001-pbl-Port-based-balancer.patch
 git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
-
+git_apply_private 0004-ip-neighbor-preserve-interface-ll-receive-dpo.patch
