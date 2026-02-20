@@ -103,7 +103,7 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 #
-BASE="${BASE:-"1412d24ba9d15e659a10f0bf2a438fef3aaf9a98"}"
+BASE="${BASE:-"f1396ffb623d0a03f8942b7262a18a591ded6cf3"}"
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
@@ -117,8 +117,8 @@ git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine N
 
 # cnat new implementation: a cnat session is now used for every packet for fastpath, we delete sessions when 
 # corresponding translation disappears
-git_cherry_pick refs/changes/89/41089/32 # 41089: cnat: combine multiple changes https://gerrit.fd.io/r/c/vpp/+/41089
-git_cherry_pick refs/changes/69/43369/19 # 43369: cnat: converge new cnat implementation to support encaps (calico) https://gerrit.fd.io/r/c/vpp/+/43369
+git_cherry_pick refs/changes/89/41089/34 # 41089: cnat: combine multiple changes https://gerrit.fd.io/r/c/vpp/+/41089
+git_cherry_pick refs/changes/69/43369/21 # 43369: cnat: converge new cnat implementation to support encaps (calico) https://gerrit.fd.io/r/c/vpp/+/43369
 
 
 # bpf_trace_filter: add filter support for pcap dispatch trace and raw IP packet support
