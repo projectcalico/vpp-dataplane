@@ -487,6 +487,13 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error disabling ipv6 RA on uplink interface")
 	}
 
+	// Keep the interface admin-down until RA suppression is installed, then
+	// bring it up before programming the rest of IPv6/L3 state.
+	err = v.vpp.Retry(2*time.Second, 10, v.vpp.InterfaceAdminUp, ifSpec.SwIfIndex)
+	if err != nil {
+		return errors.Wrap(err, "Error setting uplink interface up")
+	}
+
 	err = v.vpp.CnatEnableFeatures(ifSpec.SwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error configuring NAT on uplink interface")
@@ -1010,15 +1017,7 @@ func (v *VppRunner) runVpp() (err error) {
 			return errors.Wrap(err, "Error creating uplink interface")
 		}
 
-		// Data interface configuration
-		err = v.vpp.Retry(2*time.Second, 10, v.vpp.InterfaceAdminUp, v.params.UplinksSpecs[idx].SwIfIndex)
-		if err != nil {
-			terminateVpp("Error setting uplink interface up: %v", err)
-			v.vpp.Close()
-			<-vppDeadChan
-			return errors.Wrap(err, "Error setting uplink interface up")
-		}
-
+		// Configure uplink and only bring it up after RA suppression is set.
 		err = v.configureVppUplinkInterface(v.uplinkDriver[idx], v.conf[idx], v.params.UplinksSpecs[idx])
 
 		if err != nil {
