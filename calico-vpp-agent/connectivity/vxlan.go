@@ -211,7 +211,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 			})
 			if err != nil {
 				// TODO : delete tunnel
-				return errors.Wrapf(err, "Error adding route to %s in ipip tunnel %d for pods", cn.NextHop.String(), swIfIndex)
+				return errors.Wrapf(err, "Error adding route to %s in vxlan tunnel %d for pods", cn.NextHop.String(), swIfIndex)
 			}
 		}
 
@@ -261,7 +261,7 @@ func (p *VXLanProvider) AddConnectivity(cn *common.NodeConnectivity) error {
 		Dst: &cn.Dst,
 		Paths: []types.RoutePath{{
 			SwIfIndex: tunnel.SwIfIndex,
-			Gw:        nil,
+			Gw:        cn.NextHop,
 		}},
 		Table: table,
 	}
@@ -286,7 +286,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			Dst: &cn.Dst,
 			Paths: []types.RoutePath{{
 				SwIfIndex: tunnel.SwIfIndex,
-				Gw:        nil,
+				Gw:        cn.NextHop,
 			}},
 		}
 	} else {
@@ -296,7 +296,7 @@ func (p *VXLanProvider) DelConnectivity(cn *common.NodeConnectivity) error {
 			Dst: &cn.Dst,
 			Paths: []types.RoutePath{{
 				SwIfIndex: tunnel.SwIfIndex,
-				Gw:        nil,
+				Gw:        cn.NextHop,
 			}},
 			Table: vrfIndex,
 		}
