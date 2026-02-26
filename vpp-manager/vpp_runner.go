@@ -49,6 +49,20 @@ type VppRunner struct {
 	uplinkDriver []uplink.UplinkDriver
 }
 
+func getUplinkAddressWithMask(addr *net.IPNet) *net.IPNet {
+	if addr == nil || addr.IP == nil || addr.IP.To4() != nil {
+		return addr
+	}
+	subnetMask := uint16(64)
+	if config.GetCalicoVppDebug().UplinkSubnetMask != nil {
+		subnetMask = *config.GetCalicoVppDebug().UplinkSubnetMask
+	}
+	return &net.IPNet{
+		IP:   addr.IP,
+		Mask: net.CIDRMask(int(subnetMask), 128),
+	}
+}
+
 func NewVPPRunner(params *config.VppManagerParams, confs []*config.LinuxInterfaceState) *VppRunner {
 	return &VppRunner{
 		params: params,
@@ -508,7 +522,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 
 	for _, addr := range ifState.GetAddresses() {
 		log.Infof("Adding address %s to uplink interface", addr.String())
-		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
+		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, getUplinkAddressWithMask(addr.IPNet))
 		if err != nil {
 			log.Errorf("Error adding address to uplink interface: %v", err)
 		}
@@ -643,7 +657,7 @@ func (v *VppRunner) configureVppUplinkInterface(
 	}
 
 	if ifState.IPv6LinkLocal.IPNet != nil {
-		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(ifState.IPv6LinkLocal.IP))
+		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, getUplinkAddressWithMask(common.FullyQualified(ifState.IPv6LinkLocal.IP)))
 		if err != nil {
 			log.Errorf("Error adding address to uplink interface: %v", err)
 		}
