@@ -130,6 +130,7 @@ git_cherry_pick refs/changes/50/44350/3 # 44350: vnet: fix unicast NA handling i
 git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
 git_cherry_pick refs/changes/66/44966/1 # 44966: ip-neighbor: fix missing solicited-node multicast MAC | https://gerrit.fd.io/r/c/vpp/+/44966
 
+git_cherry_pick refs/changes/61/44961/2 # 44961: ip6-nd: support RA pfx info option with flag L&!A | https://gerrit.fd.io/r/c/vpp/+/44961
 
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
