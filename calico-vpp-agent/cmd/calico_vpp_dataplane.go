@@ -85,11 +85,11 @@ func main() {
 	/**
 	 * Start health check server
 	 */
-	healthServer := health.NewHealthServer(
+	health.DefaultHealthServer = health.NewHealthServer(
 		log.WithFields(logrus.Fields{"component": "health"}),
 		*config.GetCalicoVppInitialConfig().HealthCheckPort,
 	)
-	Go(healthServer.ServeHealth)
+	Go(health.DefaultHealthServer.ServeHealth)
 
 	/**
 	 * Connect to VPP & wait for it to be up
@@ -98,7 +98,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Cannot create VPP client: %v", err)
 	}
-	healthServer.SetComponentStatus(health.ComponentVPP, true, "VPP connection established")
+	health.DefaultHealthServer.SetComponentStatus(health.ComponentVPP, true, "VPP connection established")
 
 	// Once we have the api connection, we know vpp & vpp-manager are running and the
 	// state is accurately reported. Wait for vpp-manager to finish the config.
@@ -106,7 +106,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Vpp Manager not started: %v", err)
 	}
-	healthServer.SetComponentStatus(health.ComponentVPPManager, true, "VPP Manager ready")
+	health.DefaultHealthServer.SetComponentStatus(health.ComponentVPPManager, true, "VPP Manager ready")
 
 	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 
@@ -186,7 +186,7 @@ func main() {
 	 * Mark as unhealthy while waiting for Felix config
 	 * Kubernetes startup probe handles pod restart if needed
 	 */
-	healthServer.MarkAsUnhealthy("Waiting for Felix configuration")
+	health.DefaultHealthServer.MarkAsUnhealthy("Waiting for Felix configuration")
 	log.Info("Waiting for Felix configuration...")
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -220,8 +220,8 @@ func main() {
 		}
 	}
 
-	healthServer.MarkAsHealthy("Felix configuration received")
-	healthServer.SetComponentStatus(health.ComponentFelix, true, "Felix config received")
+	health.DefaultHealthServer.MarkAsHealthy("Felix configuration received")
+	health.DefaultHealthServer.SetComponentStatus(health.ComponentFelix, true, "Felix config received")
 	log.Info("Felix configuration received")
 
 	if ourBGPSpec != nil {
@@ -276,7 +276,7 @@ func main() {
 		Go(localSIDWatcher.WatchLocalSID)
 	}
 
-	healthServer.SetComponentStatus(health.ComponentAgent, true, "Agent ready")
+	health.DefaultHealthServer.SetComponentStatus(health.ComponentAgent, true, "Agent ready")
 	log.Infof("Agent started")
 
 	interruptSignalChannel := make(chan os.Signal, 2)

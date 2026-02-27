@@ -59,6 +59,8 @@ const (
 	ComponentAgent      = "agent"
 )
 
+var DefaultHealthServer *HealthServer
+
 // NewHealthServer creates a new health check server
 func NewHealthServer(log *logrus.Entry, port uint32) *HealthServer {
 	return &HealthServer{
