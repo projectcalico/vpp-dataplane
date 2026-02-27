@@ -605,13 +605,13 @@ func printHelp() {
 	fmt.Println("calicovppctl gdb                                                      - Attach gdb to the running vpp on the current machine")
 	fmt.Println("calicovppctl sh [-component vpp|agent] [-node NODENAME]               - Get a shell in vpp (dataplane) or agent (controlplane) container")
 	fmt.Println("calicovppctl trace [-node NODENAME]                                   - Setup VPP packet tracing")
-	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl]")
+	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface phy|af_xdp|af_packet|vmxnet3|virtio|rdma|dpdk|memif|vcl]")
 	fmt.Println("      Filter params: [-srcip IP] [-dstip IP] [-srcport PORT] [-dstport PORT] [-protocol tcp|udp|icmp]")
 	fmt.Println("calicovppctl pcap [-node NODENAME]                                    - Setup VPP PCAP tracing")
 	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface INTERFACE_NAME|any(default)] [-output FILE.pcap]")
 	fmt.Println("      Filter params: [-srcip IP] [-dstip IP] [-srcport PORT] [-dstport PORT] [-protocol tcp|udp|icmp]")
 	fmt.Println("calicovppctl dispatch [-node NODENAME]                                - Setup VPP dispatch tracing")
-	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface phy|af_xdp|af_packet|avf|vmxnet3|virtio|rdma|dpdk|memif|vcl] [-output FILE.pcap]")
+	fmt.Println("      Optional params: [-count N] [-timeout SEC] [-interface phy|af_xdp|af_packet|vmxnet3|virtio|rdma|dpdk|memif|vcl] [-output FILE.pcap]")
 	fmt.Println("      Filter params: [-srcip IP] [-dstip IP] [-srcport PORT] [-dstport PORT] [-protocol tcp|udp|icmp]")
 	fmt.Println()
 }
@@ -1507,8 +1507,6 @@ func mapInterfaceTypeToVppInputNode(k *KubeClient, interfaceType string) (string
 		return "af-xdp-input", "af_xdp", nil
 	case "af_packet":
 		return "af-packet-input", "af_packet", nil
-	case "avf":
-		return "avf-input", "avf", nil
 	case "vmxnet3":
 		return "vmxnet3-input", "vmxnet3", nil
 	case "virtio", "tuntap":
@@ -1528,7 +1526,6 @@ func mapInterfaceTypeToVppInputNode(k *KubeClient, interfaceType string) (string
 		errorMsg += "  phy       : use the physical interface driver configured in calico-vpp-config\n"
 		errorMsg += "  af_xdp    : use an AF_XDP socket to drive the interface\n"
 		errorMsg += "  af_packet : use an AF_PACKET socket to drive the interface\n"
-		errorMsg += "  avf       : use the VPP native driver for Intel 700-Series and 800-Series interfaces\n"
 		errorMsg += "  vmxnet3   : use the VPP native driver for VMware virtual interfaces\n"
 		errorMsg += "  virtio    : use the VPP native driver for Virtio virtual interfaces\n"
 		errorMsg += "  tuntap    : alias for virtio (default)\n"

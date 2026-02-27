@@ -35,7 +35,6 @@ const (
 	NativeDriverAfPacket = "af_packet"
 	NativeDriverAfXdp    = "af_xdp"
 	NativeDriverVirtio   = "virtio"
-	NativeDriverAvf      = "avf"
 	NativeDriverDpdk     = "dpdk"
 	NativeDriverRdma     = "rdma"
 	NativeDriverVmxnet3  = "vmxnet3"
@@ -192,9 +191,6 @@ func SupportedUplinkDrivers(params *config.VppManagerParams, conf *config.LinuxI
 	if d := NewVirtioDriver(params, conf, spec); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
-	if d := NewAVFDriver(params, conf, spec); d.IsSupported(false /* warn */) {
-		lst = append(lst, d)
-	}
 	if d := NewRDMADriver(params, conf, spec); d.IsSupported(false /* warn */) {
 		lst = append(lst, d)
 	}
@@ -222,8 +218,6 @@ func NewUplinkDriver(name string, params *config.VppManagerParams, conf *config.
 		d = NewAFXDPDriver(params, conf, spec)
 	case NativeDriverVirtio:
 		d = NewVirtioDriver(params, conf, spec)
-	case NativeDriverAvf:
-		d = NewAVFDriver(params, conf, spec)
 	case NativeDriverDpdk:
 		d = NewDPDKDriver(params, conf, spec)
 	case NativeDriverNone:
