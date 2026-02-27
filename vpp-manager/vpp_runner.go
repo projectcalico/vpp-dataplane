@@ -964,6 +964,16 @@ func (v *VppRunner) runVpp() (err error) {
 		}
 		vppProcess = vppCmd.Process
 	}
+	/**
+	* Ensure any stale Calico VPP agents are terminated by calling pingCalicoVPP().
+	* This handles cases where a previous VPP instance was killed abruptly and
+	* didn't restore its configuration.
+	* Must be done before writing the info file to make sure the new agent
+	* doesn't respond to SIGUSR1 and avoid killing it */
+	err = v.pingCalicoVpp()
+	if err != nil {
+		log.Errorf("Error pinging calico-vpp: %v", err)
+	}
 
 	defer func() {
 		if r := recover(); r != nil {

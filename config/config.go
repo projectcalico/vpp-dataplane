@@ -22,6 +22,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -735,13 +736,67 @@ type LinuxInterfaceState struct {
 	TapSwIfIndex uint32
 }
 
+func bindPCIDevicesToKernel() error {
+	drivers := []string{"igb_uio", "uio_pci_generic", "vfio-pci"}
+	removed := false
+
+	for _, driver := range drivers {
+		pattern := filepath.Join("/sys/bus/pci/drivers", driver, "*")
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return err
+		}
+
+		for _, f := range matches {
+			configPath := filepath.Join(f, "config")
+
+			// Skip if config does not exist
+			if _, err := os.Stat(configPath); err != nil {
+				continue
+			}
+
+			// Check if config file is in use via fuser
+			cmd := exec.Command("fuser", "-s", configPath)
+			if err := cmd.Run(); err == nil {
+				// fuser found a user, skip
+				continue
+			}
+
+			// Write "1" to remove file
+			removePath := filepath.Join(f, "remove")
+			if err := os.WriteFile(removePath, []byte("1"), 0200); err != nil {
+				return err
+			}
+
+			removed = true
+		}
+	}
+
+	// If any device was removed, rescan PCI bus
+	if removed {
+		if err := os.WriteFile("/sys/bus/pci/rescan", []byte("1"), 0200); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func LoadInterfaceConfigFromLinux(interfaceName string) (*LinuxInterfaceState, error) {
 	conf := LinuxInterfaceState{
 		TapSwIfIndex: ^uint32(0), // in case we forget to set it
 	}
 	link, err := netlink.LinkByName(interfaceName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot find interface named %s", interfaceName)
+		// attempt binding PCI devices to kernel
+		bindErr := bindPCIDevicesToKernel()
+		if bindErr != nil {
+			return nil, errors.Wrapf(err, "cannot find interface named %s, cannot bind pci devices to kernel: %v", interfaceName, bindErr)
+		}
+		link, err = netlink.LinkByName(interfaceName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot find interface named %s after binding devices to kernel", interfaceName)
+		}
 	}
 	conf.IsUp = (link.Attrs().Flags & net.FlagUp) != 0
 	if conf.IsUp {
