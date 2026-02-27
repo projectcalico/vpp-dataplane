@@ -300,9 +300,12 @@ type CalicoVppDebugConfigType struct {
 	// get the v6 link local address from the tap created in linux
 	// to replace the uplink before giving up.
 	FetchV6LLntries *uint32 `json:"fetchV6LLntries,omitempty"`
-	// UplinkSubnetMask is the subnet mask we configure on the uplink
-	// regardless of the source netmask from Linux interface.
-	UplinkSubnetMask *uint16 `json:"uplinkSubnetMask,omitempty"`
+	// TranslateUplinkAddrMaskTo64 if set will convert all the non link local
+	// addresses read on the uplink interface that are [::ipv6]/128 to be [::ipv6]/64
+	// this is enabled by default as VPP currently lacks the implementation of
+	// getting the prefix over router advertisements with option L and !A
+	// proper implementation will come in a later VPP patch.
+	TranslateUplinkAddrMaskTo64 *bool `json:"translateUplinkAddrMaskTo64,omitempty"`
 }
 
 func (cfg *CalicoVppDebugConfigType) String() string {
@@ -323,11 +326,8 @@ func (cfg *CalicoVppDebugConfigType) Validate() (err error) {
 	if cfg.EnableUdevNetNameRules == nil {
 		cfg.EnableUdevNetNameRules = &True
 	}
-	var uplinkSubnetMask uint16 = 64
-	if cfg.UplinkSubnetMask == nil {
-		cfg.UplinkSubnetMask = &uplinkSubnetMask
-	} else if *cfg.UplinkSubnetMask == 0 || *cfg.UplinkSubnetMask > 128 {
-		return errors.Errorf("uplinkSubnetMask must be in [1,128]")
+	if cfg.TranslateUplinkAddrMaskTo64 == nil {
+		cfg.TranslateUplinkAddrMaskTo64 = &True
 	}
 	var v uint32 = 5
 	if cfg.FetchV6LLntries == nil {

@@ -49,17 +49,23 @@ type VppRunner struct {
 	uplinkDriver []uplink.UplinkDriver
 }
 
+// getUplinkAddressWithMask will update the mask of an ipv6 address
+// and set it from /128 to /64 if the option 'TranslateUplinkAddrMaskTo64' is set
+// this will not update Link-local addresses
 func getUplinkAddressWithMask(addr *net.IPNet) *net.IPNet {
-	if addr == nil || addr.IP == nil || addr.IP.To4() != nil {
+	if addr == nil || addr.IP == nil || addr.IP.To4() != nil || addr.IP.IsLinkLocalUnicast() {
 		return addr
 	}
-	subnetMask := uint16(64)
-	if config.GetCalicoVppDebug().UplinkSubnetMask != nil {
-		subnetMask = *config.GetCalicoVppDebug().UplinkSubnetMask
+	if !*config.GetCalicoVppDebug().TranslateUplinkAddrMaskTo64 {
+		return addr
+	}
+	ones, _ := addr.Mask.Size()
+	if ones != 128 {
+		return addr
 	}
 	return &net.IPNet{
 		IP:   addr.IP,
-		Mask: net.CIDRMask(int(subnetMask), 128),
+		Mask: net.CIDRMask(64, 128),
 	}
 }
 
@@ -521,10 +527,10 @@ func (v *VppRunner) configureVppUplinkInterface(
 	}
 
 	for _, addr := range ifState.GetAddresses() {
-		log.Infof("Adding address %s to uplink interface", addr.String())
+		log.Infof("Adding address %s to uplink interface", getUplinkAddressWithMask(addr.IPNet).String())
 		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, getUplinkAddressWithMask(addr.IPNet))
 		if err != nil {
-			log.Errorf("Error adding address to uplink interface: %v", err)
+			return errors.Wrapf(err, "Error adding address %s to uplink interface", getUplinkAddressWithMask(addr.IPNet))
 		}
 	}
 	for _, route := range ifState.GetRoutes() {
@@ -657,13 +663,13 @@ func (v *VppRunner) configureVppUplinkInterface(
 	}
 
 	if ifState.IPv6LinkLocal.IPNet != nil {
-		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, getUplinkAddressWithMask(common.FullyQualified(ifState.IPv6LinkLocal.IP)))
+		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(ifState.IPv6LinkLocal.IP))
 		if err != nil {
-			log.Errorf("Error adding address to uplink interface: %v", err)
+			return errors.Wrapf(err, "Error adding address %s to uplink interface: %d", common.FullyQualified(ifState.IPv6LinkLocal.IP), ifSpec.SwIfIndex)
 		}
 		err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, ifState.IPv6LinkLocal.IP)
 		if err != nil {
-			log.Errorf("Error configuring nd proxy for address %s: %v", ifState.IPv6LinkLocal.IP.String(), err)
+			return errors.Wrapf(err, "Error configuring nd proxy for address %s", ifState.IPv6LinkLocal.IP.String())
 		}
 	}
 
