@@ -5,7 +5,7 @@
 // Contents:
 // -  3 enums
 // -  7 structs
-// - 97 messages
+// - 95 messages
 package ip
 
 import (
@@ -29,7 +29,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ip"
 	APIVersion = "3.2.0"
-	VersionCrc = 0xc2b1c41
+	VersionCrc = 0xc55aec44
 )
 
 // IPReassType defines enum 'ip_reass_type'.
@@ -1772,85 +1772,6 @@ func (m *IPPathMtuUpdateReply) Marshal(b []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 func (m *IPPathMtuUpdateReply) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.Retval = buf.DecodeInt32()
-	return nil
-}
-
-// IP punt policer
-//   - is_add - 1 to add neighbor, 0 to delete
-//   - is_ipv6 - 1 for IPv6 neighbor, 0 for IPv4
-//   - policer_index - Index of policer to use
-//
-// IPPuntPolice defines message 'ip_punt_police'.
-type IPPuntPolice struct {
-	PolicerIndex uint32 `binapi:"u32,name=policer_index" json:"policer_index,omitempty"`
-	IsAdd        bool   `binapi:"bool,name=is_add,default=true" json:"is_add,omitempty"`
-	IsIP6        bool   `binapi:"bool,name=is_ip6" json:"is_ip6,omitempty"`
-}
-
-func (m *IPPuntPolice) Reset()               { *m = IPPuntPolice{} }
-func (*IPPuntPolice) GetMessageName() string { return "ip_punt_police" }
-func (*IPPuntPolice) GetCrcString() string   { return "db867cea" }
-func (*IPPuntPolice) GetMessageType() api.MessageType {
-	return api.RequestMessage
-}
-
-func (m *IPPuntPolice) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.PolicerIndex
-	size += 1 // m.IsAdd
-	size += 1 // m.IsIP6
-	return size
-}
-func (m *IPPuntPolice) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeUint32(m.PolicerIndex)
-	buf.EncodeBool(m.IsAdd)
-	buf.EncodeBool(m.IsIP6)
-	return buf.Bytes(), nil
-}
-func (m *IPPuntPolice) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.PolicerIndex = buf.DecodeUint32()
-	m.IsAdd = buf.DecodeBool()
-	m.IsIP6 = buf.DecodeBool()
-	return nil
-}
-
-// IPPuntPoliceReply defines message 'ip_punt_police_reply'.
-type IPPuntPoliceReply struct {
-	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
-}
-
-func (m *IPPuntPoliceReply) Reset()               { *m = IPPuntPoliceReply{} }
-func (*IPPuntPoliceReply) GetMessageName() string { return "ip_punt_police_reply" }
-func (*IPPuntPoliceReply) GetCrcString() string   { return "e8d4e804" }
-func (*IPPuntPoliceReply) GetMessageType() api.MessageType {
-	return api.ReplyMessage
-}
-
-func (m *IPPuntPoliceReply) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.Retval
-	return size
-}
-func (m *IPPuntPoliceReply) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeInt32(m.Retval)
-	return buf.Bytes(), nil
-}
-func (m *IPPuntPoliceReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -5131,8 +5052,6 @@ func file_ip_binapi_init() {
 	api.RegisterMessage((*IPPathMtuReplaceEndReply)(nil), "ip_path_mtu_replace_end_reply_e8d4e804")
 	api.RegisterMessage((*IPPathMtuUpdate)(nil), "ip_path_mtu_update_10bbe5cb")
 	api.RegisterMessage((*IPPathMtuUpdateReply)(nil), "ip_path_mtu_update_reply_e8d4e804")
-	api.RegisterMessage((*IPPuntPolice)(nil), "ip_punt_police_db867cea")
-	api.RegisterMessage((*IPPuntPoliceReply)(nil), "ip_punt_police_reply_e8d4e804")
 	api.RegisterMessage((*IPPuntRedirect)(nil), "ip_punt_redirect_6580f635")
 	api.RegisterMessage((*IPPuntRedirectDetails)(nil), "ip_punt_redirect_details_2cef63e7")
 	api.RegisterMessage((*IPPuntRedirectDump)(nil), "ip_punt_redirect_dump_2d033de4")
@@ -5233,8 +5152,6 @@ func AllMessages() []api.Message {
 		(*IPPathMtuReplaceEndReply)(nil),
 		(*IPPathMtuUpdate)(nil),
 		(*IPPathMtuUpdateReply)(nil),
-		(*IPPuntPolice)(nil),
-		(*IPPuntPoliceReply)(nil),
 		(*IPPuntRedirect)(nil),
 		(*IPPuntRedirectDetails)(nil),
 		(*IPPuntRedirectDump)(nil),
