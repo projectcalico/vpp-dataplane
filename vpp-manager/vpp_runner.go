@@ -177,19 +177,81 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 			return errors.Wrapf(err, "error adding vpp side routes for interface")
 		}
 	}
-	if ifState.IPv6LinkLocal.IPNet != nil {
-		err = v.vpp.RouteAdd(&types.Route{
-			Table: common.PuntTableID,
-			Dst:   common.FullyQualified(ifState.IPv6LinkLocal.IP),
-			Paths: []types.RoutePath{{
-				Gw:        ifState.IPv6LinkLocal.IP,
-				SwIfIndex: tapSwIfIndex,
-			}},
-		})
+	return nil
+}
+
+// configureIPv6LinkLocal discovers the IPv6 link-local address for the tap
+// interface and configures the associated VPP routes and proxy entries.
+// This MUST be called AFTER configureLinuxTap() has brought the tap UP,
+// because the kernel only generates the link-local address on NETDEV_UP
+// (via addrconf_notify). Calling it earlier would race with address
+// generation and intermittently fail, leaving the punt table without a
+// /128 entry for the link-local address. Without that entry, punted
+// link-local traffic (e.g. DHCPv6 on UDP/546) matches the built-in
+// fe80::/10 → ip6-link-local DPO, which redirects packets back to the
+// per-interface link-local FIB, creating a receive → punt → redirect →
+// ip6-link-local → receive loop that VPP drops after 5 iterations.
+func (v *VppRunner) configureIPv6LinkLocal(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState) error {
+	if !ifState.HasNodeIP6() {
+		return nil
+	}
+
+	// Poll for the link-local address. The tap is already UP so the kernel
+	// should assign it within a few seconds (typically < 1s, DAD may add ~1s).
+	for i := uint32(0); i < *config.GetCalicoVppDebug().FetchV6LLntries; i++ {
+		time.Sleep(time.Second)
+		link, err := netlink.LinkByName(ifSpec.InterfaceName)
 		if err != nil {
-			return errors.Wrapf(err, "error adding vpp side routes for interface")
+			log.WithError(err).Warnf("configureIPv6LinkLocal: cannot find interface %s", ifSpec.InterfaceName)
+			continue
+		}
+		addresses, err := netlink.AddrList(link, netlink.FAMILY_V6)
+		if err != nil {
+			log.WithError(err).Warnf("configureIPv6LinkLocal: could not list v6 addresses on %s", ifSpec.InterfaceName)
+			continue
+		}
+		for _, addr := range addresses {
+			if addr.IP.IsLinkLocalUnicast() {
+				log.Infof("configureIPv6LinkLocal: using link-local addr %s for %s",
+					common.FullyQualified(addr.IP), ifSpec.InterfaceName)
+				ifState.IPv6LinkLocal = addr
+				goto found
+			}
 		}
 	}
+
+	return errors.Errorf("could not find v6 LL address for %s after %ds",
+		ifSpec.InterfaceName, *config.GetCalicoVppDebug().FetchV6LLntries)
+
+found:
+	// Add LL /128 route to punt table so that punted link-local traffic
+	// reaches the host via tap instead of hitting fe80::/10 → ip6-link-local.
+	err := v.vpp.RouteAdd(&types.Route{
+		Table: common.PuntTableID,
+		Dst:   common.FullyQualified(ifState.IPv6LinkLocal.IP),
+		Paths: []types.RoutePath{{
+			Gw:        ifState.IPv6LinkLocal.IP,
+			SwIfIndex: ifState.TapSwIfIndex,
+		}},
+	})
+	if err != nil {
+		return errors.Wrapf(err, "error adding LL punt route for %s", ifSpec.InterfaceName)
+	}
+
+	// Add LL address to the uplink interface
+	err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(ifState.IPv6LinkLocal.IP))
+	if err != nil {
+		return errors.Wrapf(err, "Error adding LL address %s to uplink interface %d",
+			common.FullyQualified(ifState.IPv6LinkLocal.IP), ifSpec.SwIfIndex)
+	}
+
+	// Enable ND proxy for the LL address
+	err = v.vpp.EnableIP6NdProxy(ifState.TapSwIfIndex, ifState.IPv6LinkLocal.IP)
+	if err != nil {
+		return errors.Wrapf(err, "Error configuring ND proxy for LL address %s",
+			ifState.IPv6LinkLocal.IP.String())
+	}
+
 	return nil
 }
 
@@ -588,34 +650,6 @@ func (v *VppRunner) configureVppUplinkInterface(
 
 	ifState.TapSwIfIndex = tapSwIfIndex
 
-	if ifState.HasNodeIP6() {
-		// wait 5s for the interface creation in linux and fetch its LL address
-	doublebreak:
-		for i := uint32(0); i <= *config.GetCalicoVppDebug().FetchV6LLntries; i++ {
-			time.Sleep(time.Second)
-			link, err := netlink.LinkByName(ifSpec.InterfaceName)
-			if err != nil {
-				log.WithError(err).Warnf("cannot find interface %s", ifSpec.InterfaceName)
-				continue
-			}
-			addresses, err := netlink.AddrList(link, netlink.FAMILY_V6)
-			if err != nil {
-				log.WithError(err).Warnf("could not find v6 address on link %s", ifSpec.InterfaceName)
-				continue
-			}
-			for _, addr := range addresses { // addresses are only v6 here see above
-				if addr.IP.IsLinkLocalUnicast() {
-					log.Infof("Using link-local addr %s for %s", common.FullyQualified(addr.IP), ifSpec.InterfaceName)
-					ifState.IPv6LinkLocal = addr
-					break doublebreak
-				}
-			}
-			if i == *config.GetCalicoVppDebug().FetchV6LLntries-1 {
-				log.Warnf("Could not find v6 LL address for %s after %ds", ifSpec.InterfaceName, *config.GetCalicoVppDebug().FetchV6LLntries)
-			}
-		}
-	}
-
 	vrfs, err := v.setupTapVRF(&ifSpec, ifState, tapSwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "error configuring VRF for tap")
@@ -659,17 +693,6 @@ func (v *VppRunner) configureVppUplinkInterface(
 			if err != nil {
 				log.Errorf("Error configuring nd proxy for address %s: %v", addr.IP.String(), err)
 			}
-		}
-	}
-
-	if ifState.IPv6LinkLocal.IPNet != nil {
-		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(ifState.IPv6LinkLocal.IP))
-		if err != nil {
-			return errors.Wrapf(err, "Error adding address %s to uplink interface: %d", common.FullyQualified(ifState.IPv6LinkLocal.IP), ifSpec.SwIfIndex)
-		}
-		err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, ifState.IPv6LinkLocal.IP)
-		if err != nil {
-			return errors.Wrapf(err, "Error configuring nd proxy for address %s", ifState.IPv6LinkLocal.IP.String())
 		}
 	}
 
@@ -1076,6 +1099,18 @@ func (v *VppRunner) runVpp() (err error) {
 			terminateVpp("Error configuring Linux tap: %v", err)
 			<-vppDeadChan
 			return errors.Wrap(err, "Error configuring tap on linux side")
+		}
+	}
+
+	// Discover IPv6 link-local addresses and configure punt table routes,
+	// uplink addresses, and ND proxy. This runs after configureLinuxTap()
+	// has brought the taps UP, so the kernel has generated the LL addresses.
+	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
+		err = v.configureIPv6LinkLocal(&v.params.UplinksSpecs[idx], v.conf[idx])
+		if err != nil {
+			terminateVpp("Error configuring IPv6 link-local for %s: %v", v.params.UplinksSpecs[idx].InterfaceName, err)
+			<-vppDeadChan
+			return errors.Wrapf(err, "Error configuring IPv6 link-local for %s", v.params.UplinksSpecs[idx].InterfaceName)
 		}
 	}
 
