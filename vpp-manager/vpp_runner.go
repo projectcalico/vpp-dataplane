@@ -36,6 +36,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
+	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/uplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/utils"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
@@ -120,9 +121,6 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 		return errors.Wrap(err, "Error generating VPP config")
 	}
 
-	// Run hook to capture host udev properties before driver unbind
-	config.RunHook(config.HookScriptBeforeIfRead, "BEFORE_IF_READ", v.params, log)
-
 	for idx := range v.conf {
 		err = v.uplinkDriver[idx].PreconfigureLinux()
 		if err != nil {
@@ -130,12 +128,14 @@ func (v *VppRunner) Run(drivers []uplink.UplinkDriver) error {
 		}
 	}
 
-	config.RunHook(config.HookScriptBeforeVppRun, "BEFORE_VPP_RUN", v.params, log)
+	networkHook.ExecuteWithUserScript(hooks.HookBeforeVppRun, config.HookScriptBeforeVppRun, v.params)
+
 	err = v.runVpp()
 	if err != nil {
 		return errors.Wrapf(err, "Error running VPP")
 	}
-	config.RunHook(config.HookScriptVppDoneOk, "VPP_DONE_OK", v.params, log)
+
+	networkHook.ExecuteWithUserScript(hooks.HookVppDoneOk, config.HookScriptVppDoneOk, v.params)
 	return nil
 }
 
@@ -1071,12 +1071,12 @@ func (v *VppRunner) runVpp() (err error) {
 		}
 	}
 
-	config.RunHook(config.HookScriptVppRunning, "VPP_RUNNING", v.params, log)
+	networkHook.ExecuteWithUserScript(hooks.HookVppRunning, config.HookScriptVppRunning, v.params)
 
 	// Configure Linux side of tap interfaces AFTER the VPP_RUNNING hook.
 	// The hook installs udev rules that restore ID_NET_NAME_* properties
 	// on the tap, which systemd-networkd uses to compute a stable DHCPv6
-	// IAID.  Bringing the taps up only now guarantees the udev rules are
+	// IAID. Bringing the taps up only now guarantees the udev rules are
 	// loaded and networkd has been restarted before any DHCPv6 SOLICIT
 	// can be sent, preventing IAID mismatch.
 	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
