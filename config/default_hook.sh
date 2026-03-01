@@ -28,6 +28,11 @@ restart_network () {
     if systemctl status systemd-networkd > /dev/null 2>&1; then
         echo "default_hook: system is using systemd-networkd; restarting..."
         systemctl restart systemd-udev-trigger
+        # Wait until udev finishes processing net events so systemd-networkd
+        # computes DHCPv6 IAID from the restored ID_NET_NAME_* properties.
+        if ! udevadm settle --timeout=5; then
+            echo "default_hook: ERROR: udevadm settle timed out"
+        fi
         systemctl restart systemd-networkd
     elif systemctl status NetworkManager > /dev/null 2>&1; then
         echo "default_hook: system is using NetworkManager; restarting..."
