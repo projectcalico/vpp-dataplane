@@ -169,6 +169,14 @@ func (h *NetworkManagerHook) restartSystemdNetworkd() error {
 	if err != nil {
 		h.log.Warnf("NetworkManagerHook: Failed to restart systemd-udev-trigger before systemd-networkd: %v", err)
 	}
+
+	// Wait for udev to finish processing net events so systemd-networkd
+	// can compute DHCPv6 IAID from restored ID_NET_NAME_* properties.
+	cmd := h.chrootCommand("udevadm", "settle", "--timeout=5")
+	if err := cmd.Run(); err != nil {
+		h.log.Errorf("NetworkManagerHook: ERROR: udevadm settle timed out: %v", err)
+	}
+
 	return h.restartService("systemd-networkd")
 }
 
