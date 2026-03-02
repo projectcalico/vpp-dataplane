@@ -224,9 +224,18 @@ func (v *VppRunner) configureIPv6LinkLocal(ifSpec *config.UplinkInterfaceSpec, i
 		ifSpec.InterfaceName, *config.GetCalicoVppDebug().FetchV6LLntries)
 
 found:
+	err := v.vpp.AddNeighbor(&types.Neighbor{
+		SwIfIndex:    ifState.TapSwIfIndex,
+		IP:           ifState.IPv6LinkLocal.IP,
+		HardwareAddr: ifState.HardwareAddr,
+		Flags:        types.IPNeighborStatic,
+	})
+	if err != nil {
+		return errors.Wrapf(err, "error add static neighbor for %s tap0 %d", ifState.IPv6LinkLocal.IP, ifState.TapSwIfIndex)
+	}
 	// Add LL /128 route to punt table so that punted link-local traffic
 	// reaches the host via tap instead of hitting fe80::/10 → ip6-link-local.
-	err := v.vpp.RouteAdd(&types.Route{
+	err = v.vpp.RouteAdd(&types.Route{
 		Table: common.PuntTableID,
 		Dst:   common.FullyQualified(ifState.IPv6LinkLocal.IP),
 		Paths: []types.RoutePath{{
