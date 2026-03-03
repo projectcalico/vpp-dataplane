@@ -2,6 +2,7 @@ VPP Version                 : 25.10.0-8~gd4f438470
 Binapi-generator version    : v0.11.0
 VPP Base commit             : 4f366b5bb misc: Initial changes for stable/2510 branch
 ------------------ Cherry picked commits --------------------
+ip-neighbor: preserve interface LL receive DPO for self link-local
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
