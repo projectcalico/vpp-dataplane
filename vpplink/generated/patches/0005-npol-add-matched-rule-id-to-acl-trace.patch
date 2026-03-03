@@ -1,0 +1,368 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: hedi bouattour <hedibouattour2010@gmail.com>
+Date: Tue, 3 Mar 2026 12:55:00 +0000
+Subject: [PATCH] npol: add matched rule id to acl trace
+
+This allows to track the policy rule that was hit
+in npol
+
+Type: feature
+
+Change-Id: If81470f8266ea56a8f3b154c6d72a1ad57502b87
+Signed-off-by: hedi bouattour <hedibouattour2010@gmail.com>
+---
+ src/plugins/acl/acl.h            |  8 +--
+ src/plugins/acl/acl_caiop.c      |  5 +-
+ src/plugins/acl/dataplane_node.c | 85 +++++++++++++++-----------------
+ src/plugins/acl/fa_node.h        |  3 +-
+ src/plugins/npol/npol.c          |  4 +-
+ src/plugins/npol/npol_match.c    | 34 +++++++------
+ src/plugins/npol/npol_match.h    |  8 +--
+ 7 files changed, 75 insertions(+), 72 deletions(-)
+
+diff --git a/src/plugins/acl/acl.h b/src/plugins/acl/acl.h
+index cbadefb82..b5ba853d7 100644
+--- a/src/plugins/acl/acl.h
++++ b/src/plugins/acl/acl.h
+@@ -105,9 +105,11 @@ typedef struct
+ } ace_mask_type_entry_t;
+ 
+ /* This is a private experimental type, subject to change */
+-typedef int (*acl_plugin_private_caiop_match_5tuple_func_t) (
+-  void *p_acl_main, u32 sw_if_index, u32 is_inbound,
+-  fa_5tuple_opaque_t *pkt_5tuple, int is_ip6, u8 *r_action, u32 *trace_bitmap);
++typedef int (*acl_plugin_private_caiop_match_5tuple_func_t) (void *p_acl_main, u32 sw_if_index,
++							     u32 is_inbound,
++							     fa_5tuple_opaque_t *pkt_5tuple,
++							     int is_ip6, u8 *r_action,
++							     u32 *trace_bitmap, u32 *matched);
+ 
+ typedef struct {
+   /* API message ID base */
+diff --git a/src/plugins/acl/acl_caiop.c b/src/plugins/acl/acl_caiop.c
+index fa11d32a0..2de0fd205 100644
+--- a/src/plugins/acl/acl_caiop.c
++++ b/src/plugins/acl/acl_caiop.c
+@@ -198,10 +198,11 @@ acl_show_custom_access_policies_fn (vlib_main_t *vm, unformat_input_t *input,
+ 
+ static int
+ dummy_match_5tuple_fun (void *p_acl_main, u32 sw_if_index, u32 is_inbound,
+-			fa_5tuple_opaque_t *pkt_5tuple, int is_ip6,
+-			u8 *r_action, u32 *trace_bitmap)
++			fa_5tuple_opaque_t *pkt_5tuple, int is_ip6, u8 *r_action, u32 *trace_bitmap,
++			u32 *npol_matched_rule_id)
+ {
+   /* permit and create connection */
++  *npol_matched_rule_id = 0;
+   *r_action = 2;
+   return 1;
+ }
+diff --git a/src/plugins/acl/dataplane_node.c b/src/plugins/acl/dataplane_node.c
+index 673a774fd..76cf3672b 100644
+--- a/src/plugins/acl/dataplane_node.c
++++ b/src/plugins/acl/dataplane_node.c
+@@ -34,6 +34,7 @@ typedef struct
+   u64 packet_info[6];
+   u32 trace_bitmap;
+   u8 action;
++  u32 npol_matched_rule_id;
+ } acl_fa_trace_t;
+ 
+ #define foreach_acl_fa_error \
+@@ -69,10 +70,9 @@ get_current_policy_epoch (acl_main_t * am, int is_input, u32 sw_if_index0)
+ }
+ 
+ always_inline void
+-maybe_trace_buffer (vlib_main_t * vm, vlib_node_runtime_t * node,
+-		    vlib_buffer_t * b, u32 sw_if_index0, u32 lc_index0,
+-		    u16 next0, int match_acl_in_index, int match_rule_index,
+-		    fa_5tuple_t * fa_5tuple, u8 action, u32 trace_bitmap)
++maybe_trace_buffer (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_buffer_t *b, u32 sw_if_index0,
++		    u32 lc_index0, u16 next0, int match_acl_in_index, int match_rule_index,
++		    fa_5tuple_t *fa_5tuple, u8 action, u32 trace_bitmap, u32 npol_matched_rule_id)
+ {
+   if (PREDICT_FALSE (b->flags & VLIB_BUFFER_IS_TRACED))
+     {
+@@ -90,6 +90,7 @@ maybe_trace_buffer (vlib_main_t * vm, vlib_node_runtime_t * node,
+       t->packet_info[5] = fa_5tuple->kv_40_8.value;
+       t->action = action;
+       t->trace_bitmap = trace_bitmap;
++      t->npol_matched_rule_id = npol_matched_rule_id;
+     }
+ }
+ 
+@@ -170,17 +171,19 @@ prefetch_session_entry (acl_main_t * am, fa_full_session_id_t f_sess_id)
+ }
+ 
+ always_inline u8
+-process_established_session (vlib_main_t * vm, acl_main_t * am,
+-			     u32 counter_node_index, int is_input, u64 now,
+-			     fa_full_session_id_t f_sess_id,
+-			     u32 * sw_if_index, fa_5tuple_t * fa_5tuple,
+-			     u32 pkt_len, int node_trace_on,
+-			     u32 * trace_bitmap)
++process_established_session (vlib_main_t *vm, acl_main_t *am, u32 counter_node_index, int is_input,
++			     u64 now, fa_full_session_id_t f_sess_id, u32 *sw_if_index,
++			     fa_5tuple_t *fa_5tuple, u32 pkt_len, int node_trace_on,
++			     u32 *trace_bitmap, int do_custom_access_policies,
++			     u32 *npol_matched_rule_id)
+ {
+   u8 action = 0;
+   fa_session_t *sess = get_session_ptr_no_check (am, f_sess_id.thread_index,
+ 						 f_sess_id.session_index);
+-
++  if (do_custom_access_policies)
++    {
++      *npol_matched_rule_id = sess->npol_matched_rule_id;
++    }
+   int old_timeout_type = fa_session_get_timeout_type (am, sess);
+   action =
+     acl_fa_track_session (am, is_input, sw_if_index[0], now,
+@@ -373,6 +376,7 @@ acl_fa_inner_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
+       u32 match_acl_in_index = ~0;
+       u32 match_acl_pos = ~0;
+       u32 match_rule_index = ~0;
++      u32 npol_matched_rule_id = 0;
+ 
+       next[0] = 0;		/* drop by default */
+ 
+@@ -411,14 +415,10 @@ acl_fa_inner_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
+ 		  b[0]->error = no_error_existing_session;
+ 		  acl_check_needed = 0;
+ 		  pkts_exist_session += 1;
+-		  action =
+-		    process_established_session (vm, am, node->node_index,
+-						 is_input, now, f_sess_id,
+-						 &sw_if_index[0],
+-						 &fa_5tuple[0],
+-						 b[0]->current_length,
+-						 node_trace_on,
+-						 &trace_bitmap);
++		  action = process_established_session (
++		    vm, am, node->node_index, is_input, now, f_sess_id, &sw_if_index[0],
++		    &fa_5tuple[0], b[0]->current_length, node_trace_on, &trace_bitmap,
++		    do_custom_access_policies, &npol_matched_rule_id);
+ 
+ 		  /* expose the session id to the tracer */
+ 		  if (node_trace_on)
+@@ -477,10 +477,9 @@ acl_fa_inner_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
+ 			}
+ 		      vec_foreach (pf, caiop_match_vec)
+ 			{
+-			  int is_match =
+-			    (*pf) (am, sw_if_index[0], is_input,
+-				   (fa_5tuple_opaque_t *) &fa_5tuple[0],
+-				   is_ip6, &action, &trace_bitmap);
++			  int is_match = (*pf) (am, sw_if_index[0], is_input,
++						(fa_5tuple_opaque_t *) &fa_5tuple[0], is_ip6,
++						&action, &trace_bitmap, &npol_matched_rule_id);
+ 			  if (is_match)
+ 			    {
+ 			      acl_check_needed = 0;
+@@ -557,17 +556,16 @@ acl_fa_inner_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
+ 					    sw_if_index[0],
+ 					    now, &fa_5tuple[0],
+ 					    current_policy_epoch);
++		      /* store the matched rule in the session */
++		      fa_session_t *sess = get_session_ptr_no_check (am, f_sess_id.thread_index,
++								     f_sess_id.session_index);
++		      sess->npol_matched_rule_id = npol_matched_rule_id;
+ 
+ 		      /* perform the accounting for the newly added session */
+-		      process_established_session (vm, am,
+-						   node->node_index,
+-						   is_input, now,
+-						   f_sess_id,
+-						   &sw_if_index[0],
+-						   &fa_5tuple[0],
+-						   b[0]->current_length,
+-						   node_trace_on,
+-						   &trace_bitmap);
++		      process_established_session (
++			vm, am, node->node_index, is_input, now, f_sess_id, &sw_if_index[0],
++			&fa_5tuple[0], b[0]->current_length, node_trace_on, &trace_bitmap,
++			do_custom_access_policies, &npol_matched_rule_id);
+ 		      pkts_new_session++;
+ 		      /*
+ 		       * If the next 5tuple is the same and we just added the session,
+@@ -598,10 +596,9 @@ acl_fa_inner_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node,
+ 
+ 	  if (node_trace_on)	// PREDICT_FALSE (node->flags & VLIB_NODE_FLAG_TRACE))
+ 	    {
+-	      maybe_trace_buffer (vm, node, b[0], sw_if_index[0], lc_index0,
+-				  next[0], match_acl_in_index,
+-				  match_rule_index, &fa_5tuple[0], action,
+-				  trace_bitmap);
++	      maybe_trace_buffer (vm, node, b[0], sw_if_index[0], lc_index0, next[0],
++				  match_acl_in_index, match_rule_index, &fa_5tuple[0], action,
++				  trace_bitmap, npol_matched_rule_id);
+ 	    }
+ 
+ 	  next++;
+@@ -769,14 +766,14 @@ format_acl_plugin_trace (u8 * s, va_list * args)
+   CLIB_UNUSED (vlib_node_t * node) = va_arg (*args, vlib_node_t *);
+   acl_fa_trace_t *t = va_arg (*args, acl_fa_trace_t *);
+ 
+-  s =
+-    format (s,
+-	    "acl-plugin: lc_index: %d, sw_if_index %d, next index %d, action: %d, match: acl %d rule %d trace_bits %08x\n"
+-	    "  pkt info %016llx %016llx %016llx %016llx %016llx %016llx",
+-	    t->lc_index, t->sw_if_index, t->next_index, t->action,
+-	    t->match_acl_in_index, t->match_rule_index, t->trace_bitmap,
+-	    t->packet_info[0], t->packet_info[1], t->packet_info[2],
+-	    t->packet_info[3], t->packet_info[4], t->packet_info[5]);
++  s = format (s,
++	      "acl-plugin: lc_index: %d, sw_if_index %d, next index %d, action: %d, match: acl %d "
++	      "rule %d trace_bits %08x npol_matched_rule_id %d\n"
++	      "  pkt info %016llx %016llx %016llx %016llx %016llx %016llx",
++	      t->lc_index, t->sw_if_index, t->next_index, t->action, t->match_acl_in_index,
++	      t->match_rule_index, t->trace_bitmap, t->npol_matched_rule_id, t->packet_info[0],
++	      t->packet_info[1], t->packet_info[2], t->packet_info[3], t->packet_info[4],
++	      t->packet_info[5]);
+ 
+   /* Now also print out the packet_info in a form usable by humans */
+   s = format (s, "\n   %U", format_fa_5tuple, t->packet_info);
+diff --git a/src/plugins/acl/fa_node.h b/src/plugins/acl/fa_node.h
+index 699df7923..6b8bc9dc7 100644
+--- a/src/plugins/acl/fa_node.h
++++ b/src/plugins/acl/fa_node.h
+@@ -117,7 +117,8 @@ typedef struct {
+   u8 link_list_id;        /* +1 bytes = 17 */
+   u8 deleted;             /* +1 bytes = 18 */
+   u8 is_ip6;              /* +1 bytes = 19 */
+-  u8 reserved1[5];        /* +5 bytes = 24 */
++  u8 reserved1[1];	  /* +1 bytes = 20 */
++  u32 npol_matched_rule_id; /* +4 bytes = 24 */
+   u64 reserved2[5];       /* +5*8 bytes = 64 */
+ } fa_session_t;
+ 
+diff --git a/src/plugins/npol/npol.c b/src/plugins/npol/npol.c
+index 6fce47f3e..c343842e6 100644
+--- a/src/plugins/npol/npol.c
++++ b/src/plugins/npol/npol.c
+@@ -17,7 +17,7 @@ npol_match_fn (vlib_main_t *vm, unformat_input_t *input,
+   clib_error_t *error = 0;
+   u32 is_inbound = 0;
+   int is_ip6 = 0;
+-  u32 sport = 0, dport = 0, proto = 0;
++  u32 sport = 0, dport = 0, proto = 0, matched_rule_id = 0;
+   int rv;
+ 
+   while (unformat_check_input (input) != UNFORMAT_END_OF_INPUT)
+@@ -67,7 +67,7 @@ npol_match_fn (vlib_main_t *vm, unformat_input_t *input,
+       goto done;
+     }
+ 
+-  rv = npol_match_func (sw_if_index, is_inbound, pkt_5tuple, is_ip6, r_action);
++  rv = npol_match_func (sw_if_index, is_inbound, pkt_5tuple, is_ip6, r_action, &matched_rule_id);
+ 
+   vlib_cli_output (vm, "matched:%d action:%U", rv, format_npol_action,
+ 		   *r_action);
+diff --git a/src/plugins/npol/npol_match.c b/src/plugins/npol/npol_match.c
+index 6e4e1e2de..215157fcf 100644
+--- a/src/plugins/npol/npol_match.c
++++ b/src/plugins/npol/npol_match.c
+@@ -600,8 +600,8 @@ npol_match_rule (npol_rule_t *rule, u32 is_ip6, fa_5tuple_t *pkt_5tuple)
+ }
+ 
+ always_inline int
+-npol_match_policy (npol_policy_t *policy, u32 is_inbound, u32 is_ip6,
+-		   fa_5tuple_t *pkt_5tuple)
++npol_match_policy (npol_policy_t *policy, u32 is_inbound, u32 is_ip6, fa_5tuple_t *pkt_5tuple,
++		   u32 *matched_rule_id)
+ {
+   /* packets RX/TX from VPP perspective */
+   u32 *rules =
+@@ -616,6 +616,7 @@ npol_match_policy (npol_policy_t *policy, u32 is_inbound, u32 is_ip6,
+       r = npol_match_rule (rule, is_ip6, pkt_5tuple);
+       if (r >= 0)
+ 	{
++	  *matched_rule_id = *rule_id;
+ 	  return r;
+ 	}
+     }
+@@ -629,9 +630,10 @@ npol_match_policy (npol_policy_t *policy, u32 is_inbound, u32 is_ip6,
+  * - is_inbound = 0 : to be txed on interface sw_if_index
+  * The function sets r_action to NPOL_ACTION_ALLOW or NPOL_ACTION_DENY
+  * It returns 1 if a rule was matched, 0 otherwise
++ * It sets matched to the rule_id if a rule was matched
+  */
+-CLIB_MARCH_FN (npol_match, int, u32 sw_if_index, u32 is_inbound,
+-	       fa_5tuple_t *pkt_5tuple, int is_ip6, u8 *r_action)
++CLIB_MARCH_FN (npol_match, int, u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple,
++	       int is_ip6, u8 *r_action, u32 *matched_rule_id)
+ {
+   npol_interface_config_t *if_config;
+   npol_policy_t *policy;
+@@ -658,8 +660,8 @@ CLIB_MARCH_FN (npol_match, int, u32 sw_if_index, u32 is_inbound,
+   vec_foreach_index (i, policies)
+     {
+       policy = &npol_policies[policies[i]];
+-      r = npol_match_policy (policy, is_inbound ^ if_config->invert_rx_tx,
+-			     is_ip6, pkt_5tuple);
++      r = npol_match_policy (policy, is_inbound ^ if_config->invert_rx_tx, is_ip6, pkt_5tuple,
++			     matched_rule_id);
+       switch (r)
+ 	{
+ 	case NPOL_ALLOW:
+@@ -697,8 +699,8 @@ profiles:
+   vec_foreach_index (i, if_config->profiles)
+     {
+       policy = &npol_policies[if_config->profiles[i]];
+-      r = npol_match_policy (policy, is_inbound ^ if_config->invert_rx_tx,
+-			     is_ip6, pkt_5tuple);
++      r = npol_match_policy (policy, is_inbound ^ if_config->invert_rx_tx, is_ip6, pkt_5tuple,
++			     matched_rule_id);
+       switch (r)
+ 	{
+ 	case NPOL_ALLOW:
+@@ -739,19 +741,19 @@ profiles:
+ 
+ #ifndef CLIB_MARCH_VARIANT
+ int
+-npol_match_func (u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple,
+-		 int is_ip6, u8 *r_action)
++npol_match_func (u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple, int is_ip6, u8 *r_action,
++		 u32 *matched_rule_id)
+ {
+-  return CLIB_MARCH_FN_SELECT (npol_match) (sw_if_index, is_inbound,
+-					    pkt_5tuple, is_ip6, r_action);
++  return CLIB_MARCH_FN_SELECT (npol_match) (sw_if_index, is_inbound, pkt_5tuple, is_ip6, r_action,
++					    matched_rule_id);
+ }
+ 
+ int
+ npol_match_func_acl (void *p_acl_main, u32 sw_if_index, u32 is_inbound,
+-		     fa_5tuple_opaque_t *pkt_5tuple, int is_ip6, u8 *r_action,
+-		     u32 *trace_bitmap)
++		     fa_5tuple_opaque_t *pkt_5tuple, int is_ip6, u8 *r_action, u32 *trace_bitmap,
++		     u32 *matched_rule_id)
+ {
+-  return CLIB_MARCH_FN_SELECT (npol_match) (
+-    sw_if_index, is_inbound, (fa_5tuple_t *) pkt_5tuple, is_ip6, r_action);
++  return CLIB_MARCH_FN_SELECT (npol_match) (sw_if_index, is_inbound, (fa_5tuple_t *) pkt_5tuple,
++					    is_ip6, r_action, matched_rule_id);
+ }
+ #endif /* CLIB_MARCH_VARIANT */
+diff --git a/src/plugins/npol/npol_match.h b/src/plugins/npol/npol_match.h
+index d4fd1700a..0f8a02b1a 100644
+--- a/src/plugins/npol/npol_match.h
++++ b/src/plugins/npol/npol_match.h
+@@ -12,10 +12,10 @@
+ #include <npol/npol_policy.h>
+ #include <npol/npol_rule.h>
+ 
+-int npol_match_func (u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple,
+-		     int is_ip6, u8 *r_action);
++int npol_match_func (u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple, int is_ip6,
++		     u8 *r_action, u32 *matched_rule_id);
+ int npol_match_func_acl (void *p_acl_main, u32 sw_if_index, u32 is_inbound,
+-			 fa_5tuple_opaque_t *pkt_5tuple, int is_ip6,
+-			 u8 *r_action, u32 *trace_bitmap);
++			 fa_5tuple_opaque_t *pkt_5tuple, int is_ip6, u8 *r_action,
++			 u32 *trace_bitmap, u32 *matched_rule_id);
+ 
+ #endif
+-- 
+2.43.0
+
