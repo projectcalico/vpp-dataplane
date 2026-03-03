@@ -16,6 +16,7 @@ type RPCService interface {
 	IP6ndProxyAddDel(ctx context.Context, in *IP6ndProxyAddDel) (*IP6ndProxyAddDelReply, error)
 	IP6ndProxyDump(ctx context.Context, in *IP6ndProxyDump) (RPCService_IP6ndProxyDumpClient, error)
 	IP6ndProxyEnableDisable(ctx context.Context, in *IP6ndProxyEnableDisable) (*IP6ndProxyEnableDisableReply, error)
+	IP6ndProxyEnableDisableV2(ctx context.Context, in *IP6ndProxyEnableDisableV2) (*IP6ndProxyEnableDisableV2Reply, error)
 	IP6ndSendRouterSolicitation(ctx context.Context, in *IP6ndSendRouterSolicitation) (*IP6ndSendRouterSolicitationReply, error)
 	SwInterfaceIP6ndRaConfig(ctx context.Context, in *SwInterfaceIP6ndRaConfig) (*SwInterfaceIP6ndRaConfigReply, error)
 	SwInterfaceIP6ndRaDump(ctx context.Context, in *SwInterfaceIP6ndRaDump) (RPCService_SwInterfaceIP6ndRaDumpClient, error)
@@ -85,6 +86,15 @@ func (c *serviceClient_IP6ndProxyDumpClient) Recv() (*IP6ndProxyDetails, error) 
 
 func (c *serviceClient) IP6ndProxyEnableDisable(ctx context.Context, in *IP6ndProxyEnableDisable) (*IP6ndProxyEnableDisableReply, error) {
 	out := new(IP6ndProxyEnableDisableReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) IP6ndProxyEnableDisableV2(ctx context.Context, in *IP6ndProxyEnableDisableV2) (*IP6ndProxyEnableDisableV2Reply, error) {
+	out := new(IP6ndProxyEnableDisableV2Reply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

@@ -137,8 +137,10 @@ func (v *VppLink) PuntRedirectList(swIfIndex uint32, isIP6 bool) (punts []types.
 	return punts, nil
 }
 
+const PuntAllPorts = ^uint16(0)
+
 // PuntL4 configures L4 punt for a given address family and protocol. port = ~0 means all ports
-func (v *VppLink) PuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
+func (v *VppLink) SetPuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
 	client := punt.NewServiceClient(v.GetConnection())
 
 	_, err := client.SetPunt(v.GetContext(), &punt.SetPunt{
@@ -158,14 +160,57 @@ func (v *VppLink) PuntL4(proto types.IPProto, port uint16, isIPv6 bool) error {
 	return nil
 }
 
-func (v *VppLink) PuntAllL4(isIPv6 bool) (err error) {
-	err = v.PuntL4(types.TCP, 0xffff, isIPv6)
+func (v *VppLink) SetPuntException(id uint32) error {
+	return v.setUnsetPuntException(id, true)
+}
+func (v *VppLink) UnsetPuntException(id uint32) error {
+	return v.setUnsetPuntException(id, false)
+}
+
+func (v *VppLink) setUnsetPuntException(id uint32, isAdd bool) error {
+	client := punt.NewServiceClient(v.GetConnection())
+	_, err := client.SetPunt(v.GetContext(), &punt.SetPunt{
+		IsAdd: isAdd,
+		Punt: punt.Punt{
+			Type: punt.PUNT_API_TYPE_EXCEPTION,
+			Punt: punt.PuntUnionException(punt.PuntException{
+				ID: id,
+			}),
+		},
+	})
 	if err != nil {
-		return err
-	}
-	err = v.PuntL4(types.UDP, 0xffff, isIPv6)
-	if err != nil {
-		return err
+		return fmt.Errorf("failed to set/unset punt exception %d in VPP: %v", id, err)
 	}
 	return nil
+}
+
+const (
+	// PuntReasonNeighAdv is set when VPP punts Neighbor
+	// advertisements after processing them
+	PuntReasonNeighAdv = "ip6-nd-neigh-adv"
+)
+
+func (v *VppLink) PuntReasonGet(name string) (id uint32, err error) {
+	client := punt.NewServiceClient(v.GetConnection())
+
+	stream, err := client.PuntReasonDump(v.GetContext(), &punt.PuntReasonDump{
+		Reason: punt.PuntReason{
+			Name: name,
+		},
+	})
+	if err != nil {
+		return ^uint32(0), fmt.Errorf("failed to dump punt reasons: %w", err)
+	}
+	for {
+		response, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return ^uint32(0), fmt.Errorf("failed to dump punt reasons: %w", err)
+		} else {
+			return response.Reason.ID, nil
+		}
+	}
+	return ^uint32(0), fmt.Errorf("no reason found for %s", name)
 }
