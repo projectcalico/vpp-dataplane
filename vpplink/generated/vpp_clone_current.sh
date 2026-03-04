@@ -122,7 +122,7 @@ git_cherry_pick refs/changes/69/43369/21 # 43369: cnat: converge new cnat implem
 # fix unicast NA handling in VPP ND proxy
 git_cherry_pick refs/changes/50/44350/3 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
 git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
-git_cherry_pick refs/changes/66/44966/1 # 44966: ip-neighbor: fix missing solicited-node multicast MAC | https://gerrit.fd.io/r/c/vpp/+/44966
+git_cherry_pick refs/changes/66/44966/5 # 44966: ip-neighbor: fix missing solicited-node multicast MAC | https://gerrit.fd.io/r/c/vpp/+/44966
 
 
 # --------------- private plugins ---------------
