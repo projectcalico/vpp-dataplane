@@ -206,14 +206,9 @@ ts1    1/1     Running   0          3m41s   11.0.0.196   kind-worker3   <none>  
 ts2    1/1     Running   0          3m41s   11.0.0.67    kind-worker2   <none>           <none>
 ```
 If we check ts2 interface we only have the usual allow policies:
-<<<<<<< HEAD:docs/policy_troubleshoot.md
-```bash
-sh capo interfaces
-=======
 
 ````bash
 sh npol interfaces
->>>>>>> c35c79f3 (change capo to npol):docs/policies/policies_example.md
 ...
 [tun3 sw_if_index=11  addr=11.0.0.67 addr6=fd20::1cc0:b1ac:ad47:e7c2]
   profiles:
@@ -244,14 +239,9 @@ spec:
           port: 5978
 ```
 And recheck interfaces policies
-<<<<<<< HEAD:docs/policy_troubleshoot.md
-```bash
-sh capo interfaces
-=======
 
 ````bash
 sh npol interfaces
->>>>>>> c35c79f3 (change capo to npol):docs/policies/policies_example.md
 ...
 [tun3 sw_if_index=11  addr=11.0.0.67 addr6=fd20::1cc0:b1ac:ad47:e7c2]
   tx:
