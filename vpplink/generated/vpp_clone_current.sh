@@ -103,7 +103,7 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 #
-BASE="${BASE:-"f1396ffb623d0a03f8942b7262a18a591ded6cf3"}"
+BASE="${BASE:-"1f7348b6d5cd1b09f17de1183af2e1565d308f3f"}"
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
@@ -115,15 +115,9 @@ git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular opt
 # This is the commit which broke IPv6 from v3.28.0 onwards.
 git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine NS source address
 
-# cnat new implementation: a cnat session is now used for every packet for fastpath, we delete sessions when 
+# cnat new implementation: a cnat session is now used for every packet for fastpath, we delete sessions when
 # corresponding translation disappears
-git_cherry_pick refs/changes/89/41089/34 # 41089: cnat: combine multiple changes https://gerrit.fd.io/r/c/vpp/+/41089
 git_cherry_pick refs/changes/69/43369/21 # 43369: cnat: converge new cnat implementation to support encaps (calico) https://gerrit.fd.io/r/c/vpp/+/43369
-
-
-# bpf_trace_filter: add filter support for pcap dispatch trace and raw IP packet support
-git_cherry_pick refs/changes/64/44464/9 # 44464: dispatch-trace: add filter support for pcap dispatch trace | https://gerrit.fd.io/r/c/vpp/+/44464
-git_cherry_pick refs/changes/67/44467/7 # 44467: bpf_trace_filter: add raw IP packet support | https://gerrit.fd.io/r/c/vpp/+/44467
 
 # fix unicast NA handling in VPP ND proxy
 git_cherry_pick refs/changes/50/44350/3 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
