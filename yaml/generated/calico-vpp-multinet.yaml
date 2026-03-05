@@ -15,6 +15,22 @@ metadata:
   name: calico-vpp-node-role
 rules:
 - apiGroups:
+  - projectcalico.org
+  resources:
+  - networks
+  verbs:
+  - list
+  - get
+  - watch
+- apiGroups:
+  - k8s.cni.cncf.io
+  resources:
+  - network-attachment-definitions
+  verbs:
+  - watch
+  - get
+  - list
+- apiGroups:
   - ""
   resources:
   - pods
@@ -34,13 +50,13 @@ rules:
   - create
   - update
 - apiGroups:
-  - k8s.cni.cncf.io
+  - discovery.k8s.io
   resources:
-  - network-attachment-definitions
+  - endpointslices
   verbs:
   - watch
-  - get
   - list
+  - get
 - apiGroups:
   - ""
   resources:
@@ -76,14 +92,6 @@ rules:
   - pods/status
   verbs:
   - patch
-- apiGroups:
-  - projectcalico.org
-  resources:
-  - networks
-  verbs:
-  - list
-  - get
-  - watch
 - apiGroups:
   - crd.projectcalico.org
   resources:
@@ -138,14 +146,6 @@ rules:
   - blockaffinities
   verbs:
   - watch
-- apiGroups:
-  - discovery.k8s.io
-  resources:
-  - endpointslices
-  verbs:
-  - watch
-  - list
-  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -180,7 +180,6 @@ data:
     plugins {
         plugin default { enable }
         plugin dpdk_plugin.so { disable }
-        plugin calico_plugin.so { enable }
         plugin ping_plugin.so { disable }
         plugin dispatch_trace_plugin.so { enable }
     }
