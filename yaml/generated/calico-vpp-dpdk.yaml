@@ -162,7 +162,6 @@ data:
     plugins {
         plugin default { enable }
         plugin dpdk_plugin.so { disable }
-        plugin calico_plugin.so { enable }
         plugin ping_plugin.so { disable }
         plugin dispatch_trace_plugin.so { enable }
     }

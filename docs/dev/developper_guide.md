@@ -132,7 +132,6 @@ export CALICOVPP_CONFIG_TEMPLATE="
     socksvr { socket-name /var/run/vpp/vpp-api.sock }
     plugins {
         plugin default { enable }
-        plugin calico_plugin.so { enable }
         plugin dpdk_plugin.so { disable }
     }"
 bash ./yaml/overlays/dev/kustomize.sh up
@@ -157,7 +156,6 @@ export CALICOVPP_CONFIG_TEMPLATE="
     socksvr { socket-name /var/run/vpp/vpp-api.sock }
     plugins {
         plugin default { enable }
-        plugin calico_plugin.so { enable }
         plugin dpdk_plugin.so { disable }
     }"
 bash ./yaml/overlays/dev/kustomize.sh up

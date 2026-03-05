@@ -75,7 +75,6 @@ buffers {
 }
 plugins {
     plugin default { enable }
-    plugin calico_plugin.so { enable }
     plugin dpdk_plugin.so { disable }
 }
 "
