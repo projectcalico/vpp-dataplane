@@ -131,6 +131,7 @@ data:
         plugin dpdk_plugin.so { disable }
         plugin calico_plugin.so { enable }
         plugin ping_plugin.so { disable }
+        plugin bpf_trace_filter.so { enable }
         plugin dispatch_trace_plugin.so { enable }
     }
 ````
