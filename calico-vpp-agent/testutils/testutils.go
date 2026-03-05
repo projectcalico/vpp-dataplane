@@ -321,7 +321,6 @@ func StartVPP() {
 		  plugins {
 			  plugin default { enable }
 			  plugin dpdk_plugin.so { disable }
-			  plugin calico_plugin.so { enable }
 			  plugin ping_plugin.so { disable }
 		  }
 		  buffers {

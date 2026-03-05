@@ -34,6 +34,14 @@ rules:
   - create
   - update
 - apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - watch
+  - list
+  - get
+- apiGroups:
   - k8s.cni.cncf.io
   resources:
   - network-attachment-definitions
@@ -138,14 +146,6 @@ rules:
   - blockaffinities
   verbs:
   - watch
-- apiGroups:
-  - discovery.k8s.io
-  resources:
-  - endpointslices
-  verbs:
-  - watch
-  - list
-  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -180,8 +180,8 @@ data:
     plugins {
         plugin default { enable }
         plugin dpdk_plugin.so { disable }
-        plugin calico_plugin.so { enable }
         plugin ping_plugin.so { disable }
+        plugin bpf_trace_filter.so { enable }
         plugin dispatch_trace_plugin.so { enable }
     }
     buffers {
