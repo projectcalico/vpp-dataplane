@@ -152,11 +152,28 @@ func (v *VppRunner) configureGlobalPunt() (err error) {
 			return errors.Wrapf(err, "Error configuring punt redirect")
 		}
 
-		err = v.vpp.PuntAllL4(ipFamily.IsIP6)
+		err = v.vpp.SetPuntL4(types.TCP, vpplink.PuntAllPorts, ipFamily.IsIP6)
 		if err != nil {
-			return errors.Wrapf(err, "Error configuring L4 punt")
+			return errors.Wrapf(err, "Error configuring L4 TCP punt")
+		}
+		err = v.vpp.SetPuntL4(types.UDP, vpplink.PuntAllPorts, ipFamily.IsIP6)
+		if err != nil {
+			return errors.Wrapf(err, "Error configuring L4 UDP punt")
 		}
 	}
+
+	// We do not want NA we receive to be punted, as there is
+	// no reason for us to forward them to pods, or to forward
+	// them to the host as we have a ND proxy in place.
+	puntReasonID, err := v.vpp.PuntReasonGet(vpplink.PuntReasonNeighAdv)
+	if err != nil {
+		return errors.Wrapf(err, "Could not get punt reason %s", vpplink.PuntReasonNeighAdv)
+	}
+	err = v.vpp.UnsetPuntException(puntReasonID)
+	if err != nil {
+		return errors.Wrapf(err, "Could not UnsetPuntException %d", puntReasonID)
+	}
+
 	return
 }
 
@@ -252,13 +269,6 @@ found:
 	if err != nil {
 		return errors.Wrapf(err, "Error adding LL address %s to uplink interface %d",
 			common.FullyQualified(ifState.IPv6LinkLocal.IP), ifSpec.SwIfIndex)
-	}
-
-	// Enable ND proxy for the LL address
-	err = v.vpp.EnableIP6NdProxy(ifState.TapSwIfIndex, ifState.IPv6LinkLocal.IP)
-	if err != nil {
-		return errors.Wrapf(err, "Error configuring ND proxy for LL address %s",
-			ifState.IPv6LinkLocal.IP.String())
 	}
 
 	return nil
@@ -670,11 +680,6 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error setting tap rx placement")
 	}
 
-	err = v.vpp.SetPromiscOn(tapSwIfIndex)
-	if err != nil {
-		return errors.Wrapf(err, "Error setting vpptap0 promisc")
-	}
-
 	err = v.vpp.SetInterfaceMtu(uint32(tapSwIfIndex), vpplink.CalicoVppMaxMTu)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting %d MTU on tap interface", vpplink.CalicoVppMaxMTu)
@@ -685,6 +690,10 @@ func (v *VppRunner) configureVppUplinkInterface(
 		if err != nil {
 			return errors.Wrap(err, "Error disabling ip6 RA on vpptap0")
 		}
+		err = v.vpp.EnableIP6NdProxy(tapSwIfIndex)
+		if err != nil {
+			log.WithError(err).Errorf("Error enabling ND proxy for tap %d", tapSwIfIndex)
+		}
 	}
 	err = v.configurePunt(tapSwIfIndex, *ifState)
 	if err != nil {
@@ -693,32 +702,6 @@ func (v *VppRunner) configureVppUplinkInterface(
 	err = v.vpp.EnableArpProxy(tapSwIfIndex, vrfs[0 /* ip4 */])
 	if err != nil {
 		return errors.Wrap(err, "Error enabling ARP proxy")
-	}
-
-	for _, addr := range ifState.GetAddresses() {
-		if addr.IP.To4() == nil {
-			log.Infof("Adding ND proxy for address %s", addr.IP)
-			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, addr.IP)
-			if err != nil {
-				log.Errorf("Error configuring nd proxy for address %s: %v", addr.IP.String(), err)
-			}
-		}
-	}
-
-	/*
-	 * Add ND proxy for IPv6 gateway addresses.
-	 * Without ND proxy for gateway, host's NS for gateway is dropped with "neighbor
-	 * solicitations for unknown targets" error because there's no /128 FIB entry.
-	 * This requires VPP patch https://gerrit.fd.io/r/c/vpp/+/44350 to fix NA loop bug.
-	 */
-	for _, route := range ifState.GetRoutes() {
-		if route.Gw != nil && route.Gw.To4() == nil {
-			log.Infof("Adding ND proxy for IPv6 gateway %s", route.Gw)
-			err = v.vpp.EnableIP6NdProxy(tapSwIfIndex, route.Gw)
-			if err != nil {
-				log.Errorf("Error configuring ND proxy for gateway %s: %v", route.Gw, err)
-			}
-		}
 	}
 
 	if *config.GetCalicoVppDebug().GSOEnabled {
