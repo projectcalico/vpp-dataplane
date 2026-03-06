@@ -78,7 +78,7 @@ func GetInterfaceConfig(params *config.VppManagerParams) (conf []*config.LinuxIn
 }
 
 func loadInterfaceConfigFromLinux(ifSpec config.UplinkInterfaceSpec) (*config.LinuxInterfaceState, error) {
-	conf, err := config.LoadInterfaceConfigFromLinux(ifSpec.InterfaceName)
+	conf, err := config.LoadInterfaceConfigFromLinux(ifSpec.InterfaceName, ifSpec.IPFamilies)
 	if err != nil {
 		return nil, err
 	}
