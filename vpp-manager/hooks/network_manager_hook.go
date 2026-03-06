@@ -148,19 +148,24 @@ func (h *NetworkManagerHook) detectSystem() {
 
 // restartService restarts a systemd service
 func (h *NetworkManagerHook) restartService(serviceName string) error {
+	cmd := h.chrootCommand("systemctl", "restart", serviceName)
+	err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to restart %s", serviceName)
+	}
+
+	return nil
+}
+
+// reloadAndRestartService runs daemon-reload then restarts a systemd service
+func (h *NetworkManagerHook) reloadAndRestartService(serviceName string) error {
 	cmd := h.chrootCommand("systemctl", "daemon-reload")
 	err := cmd.Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to run daemon-reload")
 	}
 
-	cmd = h.chrootCommand("systemctl", "restart", serviceName)
-	err = cmd.Run()
-	if err != nil {
-		return errors.Wrapf(err, "failed to restart %s", serviceName)
-	}
-
-	return nil
+	return h.restartService(serviceName)
 }
 
 // restartSystemdNetworkd restarts systemd-udev-trigger before restarting systemd-networkd.
@@ -237,7 +242,7 @@ func (h *NetworkManagerHook) fixDNS() error {
 	}
 
 	// Restart NetworkManager
-	return h.restartService("NetworkManager")
+	return h.reloadAndRestartService("NetworkManager")
 }
 
 // undoDNSFix removes the dns=none configuration from NetworkManager
@@ -267,7 +272,7 @@ func (h *NetworkManagerHook) undoDNSFix() error {
 	}
 
 	// Restart NetworkManager
-	return h.restartService("NetworkManager")
+	return h.reloadAndRestartService("NetworkManager")
 }
 
 // restartNetwork restarts the appropriate network service
@@ -495,7 +500,7 @@ func (h *NetworkManagerHook) tweakNetworkFile(interfaceName string) error {
 	}
 
 	// Restart systemd-networkd
-	return h.restartSystemdNetworkd()
+	return h.reloadAndRestartService("systemd-networkd")
 }
 
 // removeTweakedNetworkFile removes the tweaked network configuration for a specific interface
