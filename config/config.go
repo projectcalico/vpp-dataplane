@@ -89,6 +89,36 @@ const (
 	BGPServerModeV4Only    BGPServerModeType = "v4Only"
 )
 
+// IPFamilyConfig declares which IP families are expected to be present on an uplink interface.
+type IPFamilyConfig string
+
+const (
+	// IPFamilyV4 requires an IPv4 address on the uplink.
+	IPFamilyV4 IPFamilyConfig = "IPv4"
+	// IPFamilyV6 requires an IPv6 address on the uplink.
+	IPFamilyV6 IPFamilyConfig = "IPv6"
+	// IPFamilyDualStack requires both an IPv4 and an IPv6 address on the uplink.
+	IPFamilyDualStack IPFamilyConfig = "IPv4,IPv6"
+)
+
+func (f IPFamilyConfig) RequiresV4() bool {
+	return f == IPFamilyV4 || f == IPFamilyDualStack
+}
+
+func (f IPFamilyConfig) RequiresV6() bool {
+	return f == IPFamilyV6 || f == IPFamilyDualStack
+}
+
+func (f IPFamilyConfig) Validate() error {
+	switch f {
+	case IPFamilyV4, IPFamilyV6, IPFamilyDualStack, "":
+		return nil
+	default:
+		return errors.Errorf("invalid ipFamilies value %q: must be %q, %q, or %q",
+			f, IPFamilyV4, IPFamilyV6, IPFamilyDualStack)
+	}
+}
+
 var (
 	CniServerStateFilename = fmt.Sprintf(
 		"/var/run/vpp/calicovpp_state.v%d.json",
@@ -270,6 +300,11 @@ type UplinkInterfaceSpec struct {
 	VppDriver           string            `json:"vppDriver"`
 	NewDriverName       string            `json:"newDriver"`
 	Annotations         map[string]string `json:"annotations"`
+	// IPFamilies declares which IP families are expected on this uplink.
+	// Accepted values: "IPv4", "IPv6", "IPv4,IPv6". Defaults to "IPv4,IPv6".
+	// This ensures the expected addresses are present and avoids a race condition
+	// between DHCPv6 address assignment and VPP startup.
+	IPFamilies IPFamilyConfig `json:"ipFamilies,omitempty"`
 	// Mtu is the User specified MTU for uplink & the tap
 	Mtu       int    `json:"mtu"`
 	SwIfIndex uint32 `json:"-"`
@@ -294,6 +329,9 @@ func (u *UplinkInterfaceSpec) SetUplinkInterfaceIndex(uplinkInterfaceIndex int) 
 func (u *UplinkInterfaceSpec) Validate(maxIfSpec *InterfaceSpec) (err error) {
 	if !u.IsMain && u.VppDriver == "" {
 		return errors.Errorf("vpp driver should be specified for secondary uplink interfaces")
+	}
+	if err = u.IPFamilies.Validate(); err != nil {
+		return err
 	}
 	return u.InterfaceSpec.Validate(maxIfSpec)
 }
@@ -782,7 +820,7 @@ func bindPCIDevicesToKernel() error {
 	return nil
 }
 
-func LoadInterfaceConfigFromLinux(interfaceName string) (*LinuxInterfaceState, error) {
+func LoadInterfaceConfigFromLinux(interfaceName string, ipFamilies IPFamilyConfig) (*LinuxInterfaceState, error) {
 	conf := LinuxInterfaceState{
 		TapSwIfIndex: ^uint32(0), // in case we forget to set it
 	}
@@ -817,6 +855,14 @@ func LoadInterfaceConfigFromLinux(interfaceName string) (*LinuxInterfaceState, e
 		return nil, errors.Errorf("no address found for node")
 	}
 
+	if ipFamilies.RequiresV4() && !conf.HasNodeIP4() {
+		return nil, errors.Errorf("interface %s has no IPv4 address but ipFamilies=%q requires one",
+			interfaceName, ipFamilies)
+	}
+	if ipFamilies.RequiresV6() && !conf.HasNodeIP6() {
+		return nil, errors.Errorf("interface %s has no IPv6 address but ipFamilies=%q requires one",
+			interfaceName, ipFamilies)
+	}
 	conf.DoSwapDriver = false
 	conf.PromiscOn = link.Attrs().Promisc == 1
 	conf.NumTxQueues = link.Attrs().NumTxQueues
