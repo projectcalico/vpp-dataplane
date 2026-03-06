@@ -17,11 +17,9 @@ package vpplink
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip6_nd"
-	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) error {
@@ -37,22 +35,13 @@ func (v *VppLink) DisableIP6RouterAdvertisements(swIfIndex uint32) error {
 	return nil
 }
 
-func (v *VppLink) EnableIP6NdProxy(swIfIndex uint32, address net.IP) error {
+func (v *VppLink) EnableIP6NdProxy(swIfIndex uint32) error {
 	client := ip6_nd.NewServiceClient(v.GetConnection())
 
-	_, err := client.IP6ndProxyAddDel(v.GetContext(), &ip6_nd.IP6ndProxyAddDel{
-		IsAdd:     true,
-		IP:        types.ToVppIP6Address(address),
-		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to add IP6 ND Proxy address %v (swif %d): %w", address, swIfIndex, err)
-	}
-
-	// now disable source / dest checks for nd proxy
-	_, err = client.IP6ndProxyEnableDisable(v.GetContext(), &ip6_nd.IP6ndProxyEnableDisable{
+	_, err := client.IP6ndProxyEnableDisableV2(v.GetContext(), &ip6_nd.IP6ndProxyEnableDisableV2{
 		IsEnable:  true,
 		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+		Flags:     1, // IP6_ND_PROXY_IF_FLAG_NO_DST_FILTER
 	})
 	if err != nil {
 		return fmt.Errorf("failed to enable IP6 ND Proxy (swif %d): %w", swIfIndex, err)
