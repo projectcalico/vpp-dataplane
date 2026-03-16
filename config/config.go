@@ -725,10 +725,6 @@ type LinuxInterfaceState struct {
 	// link local of the old phy. Which might be different
 	// from IPv6LinkLocal
 	addresses []netlink.Addr
-	// IPv6LinkLocal is the ipv6 link local address that the
-	// system assigns to the tap interface replacing the phy
-	// when VPP starts
-	IPv6LinkLocal netlink.Addr
 	// routes is the list of routes present on the netlink
 	// interface when the CNI starts up
 	routes        []netlink.Route
@@ -873,6 +869,15 @@ func (c *LinuxInterfaceState) GetAddresses() []netlink.Addr {
 		ret = append(ret, addr)
 	}
 	return ret
+}
+
+func (c *LinuxInterfaceState) GetIPv6LinkLocal() *netlink.Addr {
+	for _, addr := range c.addresses {
+		if addr.IP.IsLinkLocalUnicast() && isV6Cidr(addr.IPNet) {
+			return &addr
+		}
+	}
+	return nil
 }
 
 func (c *LinuxInterfaceState) GetRoutes() []netlink.Route {
