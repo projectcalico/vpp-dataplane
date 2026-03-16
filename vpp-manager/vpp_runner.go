@@ -208,16 +208,27 @@ func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInter
 // fe80::/10 → ip6-link-local DPO, which redirects packets back to the
 // per-interface link-local FIB, creating a receive → punt → redirect →
 // ip6-link-local → receive loop that VPP drops after 5 iterations.
-func (v *VppRunner) configureIPv6LinkLocal(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState) error {
+func (v *VppRunner) configureIPv6LinkLocal(ifSpec *config.UplinkInterfaceSpec, ifState *config.LinuxInterfaceState) (err error) {
+	var link netlink.Link
+	// tapV6LLAddr is the LL address linux auto-assigns to the tap
+	// after its creation
+	var tapV6LLAddr *netlink.Addr
+	// phyV6LLAddr is the first LL address seen the PHY before startup
+	phyV6LLAddr := ifState.GetIPv6LinkLocal()
+
 	if !ifState.HasNodeIP6() {
 		return nil
+	}
+
+	if phyV6LLAddr == nil {
+		return errors.Errorf("no LL address found for interface %s", ifSpec.InterfaceName)
 	}
 
 	// Poll for the link-local address. The tap is already UP so the kernel
 	// should assign it within a few seconds (typically < 1s, DAD may add ~1s).
 	for i := uint32(0); i < *config.GetCalicoVppDebug().FetchV6LLntries; i++ {
 		time.Sleep(time.Second)
-		link, err := netlink.LinkByName(ifSpec.InterfaceName)
+		link, err = netlink.LinkByName(ifSpec.InterfaceName)
 		if err != nil {
 			log.WithError(err).Warnf("configureIPv6LinkLocal: cannot find interface %s", ifSpec.InterfaceName)
 			continue
@@ -229,9 +240,7 @@ func (v *VppRunner) configureIPv6LinkLocal(ifSpec *config.UplinkInterfaceSpec, i
 		}
 		for _, addr := range addresses {
 			if addr.IP.IsLinkLocalUnicast() {
-				log.Infof("configureIPv6LinkLocal: using link-local addr %s for %s",
-					common.FullyQualified(addr.IP), ifSpec.InterfaceName)
-				ifState.IPv6LinkLocal = addr
+				tapV6LLAddr = &addr
 				goto found
 			}
 		}
@@ -241,22 +250,37 @@ func (v *VppRunner) configureIPv6LinkLocal(ifSpec *config.UplinkInterfaceSpec, i
 		ifSpec.InterfaceName, *config.GetCalicoVppDebug().FetchV6LLntries)
 
 found:
-	err := v.vpp.AddNeighbor(&types.Neighbor{
+	log.Infof("removing tap-ll:%s using phy-ll:%s for %s", tapV6LLAddr, phyV6LLAddr, ifSpec.InterfaceName)
+	if !tapV6LLAddr.IP.Equal(phyV6LLAddr.IP) {
+		err = netlink.AddrAdd(link, phyV6LLAddr)
+		if err == syscall.EEXIST {
+			log.Warnf("add addr %s via vpp EEXIST, %+v", phyV6LLAddr, err)
+		} else if err != nil {
+			return errors.Wrapf(err, "error adding address %s to tap interface %s", phyV6LLAddr, ifSpec.InterfaceName)
+		}
+
+		err = netlink.AddrDel(link, tapV6LLAddr)
+		if err != nil {
+			return errors.Wrapf(err, "error deleting address %s from tap interface %s", tapV6LLAddr, ifSpec.InterfaceName)
+		}
+	}
+
+	err = v.vpp.AddNeighbor(&types.Neighbor{
 		SwIfIndex:    ifState.TapSwIfIndex,
-		IP:           ifState.IPv6LinkLocal.IP,
+		IP:           phyV6LLAddr.IP,
 		HardwareAddr: ifState.HardwareAddr,
 		Flags:        types.IPNeighborStatic,
 	})
 	if err != nil {
-		return errors.Wrapf(err, "error add static neighbor for %s tap0 %d", ifState.IPv6LinkLocal.IP, ifState.TapSwIfIndex)
+		return errors.Wrapf(err, "error add static neighbor for %s tap0 %d", phyV6LLAddr.IP, ifState.TapSwIfIndex)
 	}
 	// Add LL /128 route to punt table so that punted link-local traffic
 	// reaches the host via tap instead of hitting fe80::/10 → ip6-link-local.
 	err = v.vpp.RouteAdd(&types.Route{
 		Table: common.PuntTableID,
-		Dst:   common.FullyQualified(ifState.IPv6LinkLocal.IP),
+		Dst:   common.FullyQualified(phyV6LLAddr.IP),
 		Paths: []types.RoutePath{{
-			Gw:        ifState.IPv6LinkLocal.IP,
+			Gw:        phyV6LLAddr.IP,
 			SwIfIndex: ifState.TapSwIfIndex,
 		}},
 	})
@@ -265,10 +289,10 @@ found:
 	}
 
 	// Add LL address to the uplink interface
-	err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(ifState.IPv6LinkLocal.IP))
+	err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, common.FullyQualified(phyV6LLAddr.IP))
 	if err != nil {
 		return errors.Wrapf(err, "Error adding LL address %s to uplink interface %d",
-			common.FullyQualified(ifState.IPv6LinkLocal.IP), ifSpec.SwIfIndex)
+			common.FullyQualified(phyV6LLAddr.IP), ifSpec.SwIfIndex)
 	}
 
 	return nil
