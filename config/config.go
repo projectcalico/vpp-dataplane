@@ -887,15 +887,50 @@ func (c *LinuxInterfaceState) HasNodeIP4() bool {
 	return c.getNodeIP(false /* isIP6 */) != nil
 }
 
-func (c *LinuxInterfaceState) GetAddresses() []netlink.Addr {
-	ret := make([]netlink.Addr, 0)
+// getUplinkAddressWithMask adapts IPv6 non-link-local host prefixes from /128
+// to /64 when TranslateUplinkAddrMaskTo64 is enabled.
+func getUplinkAddressWithMask(addr *net.IPNet) *net.IPNet {
+	if addr == nil || addr.IP == nil || addr.IP.To4() != nil || addr.IP.IsLinkLocalUnicast() {
+		return addr
+	}
+	debugCfg := GetCalicoVppDebug()
+	if debugCfg == nil || debugCfg.TranslateUplinkAddrMaskTo64 == nil || !*debugCfg.TranslateUplinkAddrMaskTo64 {
+		return addr
+	}
+	ones, bits := addr.Mask.Size()
+	if bits != 128 || ones != 128 {
+		return addr
+	}
+	return &net.IPNet{
+		IP:   addr.IP,
+		Mask: net.CIDRMask(64, 128),
+	}
+}
+
+func (c *LinuxInterfaceState) getAddresses(translateMask bool) []netlink.Addr {
+	ret := make([]netlink.Addr, 0, len(c.addresses))
 	for _, addr := range c.addresses {
 		if addr.IP.IsLinkLocalUnicast() && isV6Cidr(addr.IPNet) {
 			continue
 		}
+		if translateMask {
+			addr.IPNet = getUplinkAddressWithMask(addr.IPNet)
+		}
 		ret = append(ret, addr)
 	}
 	return ret
+}
+
+// GetAddressesNoMaskTranslation returns non-link-local addresses exactly as
+// discovered on Linux, without IPv6 /128 -> /64 adjustment.
+func (c *LinuxInterfaceState) GetAddressesNoMaskTranslation() []netlink.Addr {
+	return c.getAddresses(false /* translateMask */)
+}
+
+// GetAddresses returns non-link-local addresses, applying optional IPv6
+// /128 -> /64 translation for non-link-local addresses.
+func (c *LinuxInterfaceState) GetAddresses() []netlink.Addr {
+	return c.getAddresses(true /* translateMask */)
 }
 
 func (c *LinuxInterfaceState) GetIPv6LinkLocal() *netlink.Addr {
@@ -918,13 +953,31 @@ func (c *LinuxInterfaceState) GetRoutes() []netlink.Route {
 	return ret
 }
 
-func (c *LinuxInterfaceState) getNodeIP(isIP6 bool) *net.IPNet {
-	for _, addr := range c.GetAddresses() {
-		if vpplink.IsIP6(addr.IP) == isIP6 {
-			return addr.IPNet
+func (c *LinuxInterfaceState) getNodeIPs() (ip4, ip6 *net.IPNet) {
+	for _, addr := range c.addresses {
+		if addr.IP.IsLinkLocalUnicast() && isV6Cidr(addr.IPNet) {
+			continue
+		}
+		if vpplink.IsIP6(addr.IP) {
+			if ip6 == nil {
+				ip6 = getUplinkAddressWithMask(addr.IPNet)
+			}
+		} else if ip4 == nil {
+			ip4 = addr.IPNet
+		}
+		if ip4 != nil && ip6 != nil {
+			break
 		}
 	}
-	return nil
+	return ip4, ip6
+}
+
+func (c *LinuxInterfaceState) getNodeIP(isIP6 bool) *net.IPNet {
+	ip4, ip6 := c.getNodeIPs()
+	if isIP6 {
+		return ip6
+	}
+	return ip4
 }
 
 func (c *LinuxInterfaceState) GetNodeIP6() string {
@@ -943,7 +996,7 @@ func (c *LinuxInterfaceState) GetNodeIP4() string {
 
 func (c *LinuxInterfaceState) GetAddressesAsIPNet() []*net.IPNet {
 	ret := make([]*net.IPNet, 0)
-	for _, addr := range c.addresses {
+	for _, addr := range c.GetAddresses() {
 		ret = append(ret, addr.IPNet)
 	}
 	return ret

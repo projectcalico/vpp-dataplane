@@ -120,6 +120,9 @@ func (s *ConnectivityServer) GetNodeIPs() (ip4 *net.IP, ip6 *net.IP) {
 }
 
 func (s *ConnectivityServer) GetNodeIPNet(isv6 bool) *net.IPNet {
+	if s.nodeBGPSpec == nil {
+		return nil
+	}
 	ip4, ip6 := s.nodeBGPSpec.IPv4Address, s.nodeBGPSpec.IPv6Address
 	if isv6 {
 		return ip6
