@@ -50,26 +50,6 @@ type VppRunner struct {
 	uplinkDriver []uplink.UplinkDriver
 }
 
-// getUplinkAddressWithMask will update the mask of an ipv6 address
-// and set it from /128 to /64 if the option 'TranslateUplinkAddrMaskTo64' is set
-// this will not update Link-local addresses
-func getUplinkAddressWithMask(addr *net.IPNet) *net.IPNet {
-	if addr == nil || addr.IP == nil || addr.IP.To4() != nil || addr.IP.IsLinkLocalUnicast() {
-		return addr
-	}
-	if !*config.GetCalicoVppDebug().TranslateUplinkAddrMaskTo64 {
-		return addr
-	}
-	ones, _ := addr.Mask.Size()
-	if ones != 128 {
-		return addr
-	}
-	return &net.IPNet{
-		IP:   addr.IP,
-		Mask: net.CIDRMask(64, 128),
-	}
-}
-
 func NewVPPRunner(params *config.VppManagerParams, confs []*config.LinuxInterfaceState) *VppRunner {
 	return &VppRunner{
 		params: params,
@@ -181,7 +161,7 @@ func (v *VppRunner) configureGlobalPunt() (err error) {
 // traffic 'for me' received on the PHY and on the pods in this node
 // will end up here.
 func (v *VppRunner) configurePunt(tapSwIfIndex uint32, ifState config.LinuxInterfaceState) (err error) {
-	for _, addr := range ifState.GetAddresses() {
+	for _, addr := range ifState.GetAddressesNoMaskTranslation() {
 		err = v.vpp.RouteAdd(&types.Route{
 			Table: common.PuntTableID,
 			Dst:   addr.IPNet,
@@ -306,7 +286,7 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 	foundV4, foundV6 := false, false
 	needsV4, needsV6 := false, false
 
-	for _, addr := range ifState.GetAddresses() {
+	for _, addr := range ifState.GetAddressesNoMaskTranslation() {
 		if addr.IP.To4() != nil {
 			needsV4 = true
 		} else {
@@ -392,7 +372,7 @@ func (v *VppRunner) configureLinuxTap(link netlink.Link, ifState config.LinuxInt
 		}
 	}
 	// Configure original addresses and routes on the new tap
-	for _, addr := range ifState.GetAddresses() {
+	for _, addr := range ifState.GetAddressesNoMaskTranslation() {
 		log.Infof("Adding address %+v to tap interface", addr)
 		err = netlink.AddrAdd(link, &addr)
 		if err == syscall.EEXIST {
@@ -529,7 +509,7 @@ func (v *VppRunner) setupTapVRF(ifSpec *config.UplinkInterfaceSpec, ifState *con
 		}
 		vrfs = append(vrfs, vrfID)
 
-		for _, addr := range ifState.GetAddresses() {
+		for _, addr := range ifState.GetAddressesNoMaskTranslation() {
 			if vpplink.IPFamilyFromIP(addr.IP) == ipFamily {
 				err = v.vpp.RouteAdd(&types.Route{
 					Table: vrfID,
@@ -632,10 +612,10 @@ func (v *VppRunner) configureVppUplinkInterface(
 	}
 
 	for _, addr := range ifState.GetAddresses() {
-		log.Infof("Adding address %s to uplink interface", getUplinkAddressWithMask(addr.IPNet).String())
-		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, getUplinkAddressWithMask(addr.IPNet))
+		log.Infof("Adding address %s to uplink interface", addr.IPNet.String())
+		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
 		if err != nil {
-			return errors.Wrapf(err, "Error adding address %s to uplink interface", getUplinkAddressWithMask(addr.IPNet))
+			return errors.Wrapf(err, "Error adding address %s to uplink interface", addr.IPNet)
 		}
 	}
 	for _, route := range ifState.GetRoutes() {
