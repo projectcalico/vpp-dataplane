@@ -8,7 +8,6 @@
 # - on release branches of this repository, used by the tigera docs
 # TAG should the latest release tag for calicovpp images
 #
-TAG ?= latest
 
 .PHONY: build
 build: clean
