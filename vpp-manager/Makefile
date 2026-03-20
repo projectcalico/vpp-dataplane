@@ -11,7 +11,6 @@ VCLSIDECAR_IMAGE_DIR=images/vclsidecar
 
 VPPDEV_FILE=../test/scripts/vppdev.sh
 GENERATE_LOG_FILE=../vpplink/generated/generate.log
-TAG ?= latest # Tag images with :$(TAG)
 ALSO_LATEST ?= n # If 'y' also tag images with :latest
 VPP_DIR ?= $(CURDIR)/vpp_build
 

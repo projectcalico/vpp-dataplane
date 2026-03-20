@@ -1,6 +1,5 @@
 include ../../common.mk
 
-TAG ?= latest # Tag images with :$(TAG)
 CPU_PINNING ?= false
 KIND_CALICO_VERSION ?= v3.31.0
 DEBUG ?= false
