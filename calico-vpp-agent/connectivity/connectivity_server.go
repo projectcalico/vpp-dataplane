@@ -120,12 +120,68 @@ func (s *ConnectivityServer) GetNodeIPs() (ip4 *net.IP, ip6 *net.IP) {
 }
 
 func (s *ConnectivityServer) GetNodeIPNet(isv6 bool) *net.IPNet {
+	if s.nodeBGPSpec == nil {
+		return nil
+	}
+	var ipNet *net.IPNet
 	ip4, ip6 := s.nodeBGPSpec.IPv4Address, s.nodeBGPSpec.IPv6Address
 	if isv6 {
-		return ip6
+		ipNet = ip6
 	} else {
-		return ip4
+		ipNet = ip4
 	}
+	if ipNet == nil {
+		return nil
+	}
+
+	// When the BGP address has a host prefix (/128 for IPv6 or /32 for IPv4),
+	// the subnet contains only the address itself, making CrossSubnet's
+	// nodeIPNet.Contains(peer) return false for every peer, resulting in
+	// "CrossSubnet" to behave like "Always". Fall back to the VPP uplink
+	// interface's configured subnet, which vpp-manager already widens from
+	// /128 to /64 via getUplinkAddressWithMask() for IPv6 host prefixes.
+	ones, bits := ipNet.Mask.Size()
+	if bits > 0 && ones == bits {
+		if uplinkNet := s.getUplinkIPNetFromVPP(ipNet.IP, isv6); uplinkNet != nil {
+			s.log.Infof("GetNodeIPNet: BGP address %s has host prefix /%d, using VPP "+
+				"uplink subnet %s for CrossSubnet check", ipNet, ones, uplinkNet)
+			return uplinkNet
+		}
+		s.log.Infof("GetNodeIPNet: BGP address %s has host prefix /%d but failed to "+
+			"retrieve VPP uplink subnet for override", ipNet, ones)
+	}
+	return ipNet
+}
+
+// getUplinkIPNetFromVPP queries VPP for the addresses configured on the main
+// uplink interface and returns the subnet that contains nodeIP. This gives the
+// subnet mask that vpp-manager applied - when the host prefix is /128 from the
+// BGP spec, vpp-manager applies it as /64 instead via getUplinkAddressWithMask.
+func (s *ConnectivityServer) getUplinkIPNetFromVPP(nodeIP net.IP, isv6 bool) *net.IPNet {
+	if s.vpp == nil || common.VppManagerInfo == nil {
+		return nil
+	}
+	swIfIndex := common.VppManagerInfo.GetMainSwIfIndex()
+	if swIfIndex == vpplink.InvalidSwIfIndex {
+		s.log.Warn("getUplinkIPNetFromVPP: main uplink SwIfIndex not available")
+		return nil
+	}
+	addrs, err := s.vpp.AddrList(swIfIndex, isv6)
+	if err != nil {
+		s.log.Warnf("getUplinkIPNetFromVPP: failed to query VPP uplink addresses: %v", err)
+		return nil
+	}
+	for _, addr := range addrs {
+		if addr.IPNet.IP.Equal(nodeIP) {
+			return &net.IPNet{
+				IP:   nodeIP,
+				Mask: addr.IPNet.Mask,
+			}
+		}
+	}
+	s.log.Infof("getUplinkIPNetFromVPP: no matching address for %s on uplink "+
+		"(sw_if_index=%d)", nodeIP, swIfIndex)
+	return nil
 }
 
 func (s *ConnectivityServer) updateAllIPConnectivity() {
