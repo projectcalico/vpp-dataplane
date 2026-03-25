@@ -116,7 +116,12 @@ func (i *PodInterfaceDriverData) DoPodIfNatConfiguration(podSpec *model.LocalPod
 }
 
 func (i *PodInterfaceDriverData) UndoPodInterfaceConfiguration(swIfIndex uint32) {
-	err := i.vpp.InterfaceAdminDown(swIfIndex)
+	err := i.vpp.DisableTTLFixupOutput(swIfIndex)
+	if err != nil {
+		i.log.Errorf("DisableTTLFixupOutput errored %s", err)
+	}
+
+	err = i.vpp.InterfaceAdminDown(swIfIndex)
 	if err != nil {
 		i.log.Errorf("InterfaceAdminDown errored %s", err)
 	}
@@ -146,6 +151,11 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *model.Loca
 	err = i.vpp.SetInterfaceMtu(swIfIndex, vpplink.CalicoVppMaxMTu)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting MTU on pod interface")
+	}
+
+	err = i.vpp.EnableTTLFixupOutput(swIfIndex)
+	if err != nil {
+		return errors.Wrapf(err, "error enabling TTL fixup output on pod interface")
 	}
 
 	err = i.vpp.InterfaceAdminUp(swIfIndex)

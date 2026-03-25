@@ -119,13 +119,12 @@ git_revert refs/changes/75/39675/5  # ip-neighbor: do not use sas to determine N
 # corresponding translation disappears
 git_cherry_pick refs/changes/69/43369/21 # 43369: cnat: converge new cnat implementation to support encaps (calico) https://gerrit.fd.io/r/c/vpp/+/43369
 
-# fix unicast NA handling in VPP ND proxy
 git_cherry_pick refs/changes/50/44350/3 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
 git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
 git_cherry_pick refs/changes/66/44966/5 # 44966: ip-neighbor: fix missing solicited-node multicast MAC | https://gerrit.fd.io/r/c/vpp/+/44966
 git_cherry_pick refs/changes/99/45099/2 # 45099: ip6-nd: add nd-proxy all dst | https://gerrit.fd.io/r/c/vpp/+/45099
 git_cherry_pick refs/changes/46/45046/4 # 45046: ip6-nd: add punt reason for neigh advs | https://gerrit.fd.io/r/c/vpp/+/45046
-
+git_cherry_pick refs/changes/15/45315/4 # 45315: ttl-fixup: add new plugin to support transparent host forwarding | https://gerrit.fd.io/r/c/vpp/+/45315
 # --------------- private plugins ---------------
 # Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch
