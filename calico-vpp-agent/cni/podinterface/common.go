@@ -153,6 +153,22 @@ func (i *PodInterfaceDriverData) DoPodInterfaceConfiguration(podSpec *model.Loca
 		return errors.Wrapf(err, "error setting new pod if up")
 	}
 
+	/*
+	 * VPP patch "ip-neighbor: do not use sas to determine NS source address"
+	 * makes NS always use the interface’s link‑local address. CalicoVPP pod
+	 * interfaces are unnumbered and never had IPv6 explicitly enabled, so no
+	 * link‑local address existed on the pod interface. This breaks IPv6
+	 * neighbor resolution and traffic. Enable IPv6 on L2 pod interfaces for
+	 * ND to work; L3 pod interfaces do not have an Ethernet link to resolve.
+	 */
+	_, hasv6 := podSpec.Hasv46()
+	if hasv6 && !*ifSpec.IsL3 {
+		err = i.vpp.EnableInterfaceIP6(swIfIndex)
+		if err != nil {
+			return errors.Wrapf(err, "error enabling ipv6 on pod interface")
+		}
+	}
+
 	err = i.vpp.SetInterfaceRxMode(swIfIndex, types.AllQueues, ifSpec.GetRxModeWithDefault(types.AdaptativeRxMode))
 	if err != nil {
 		return errors.Wrapf(err, "error SetInterfaceRxMode on pod if interface")
