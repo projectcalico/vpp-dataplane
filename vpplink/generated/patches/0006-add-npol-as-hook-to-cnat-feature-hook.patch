@@ -1,0 +1,945 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: hedi bouattour <hedibouattour2010@gmail.com>
+Date: Thu, 19 Mar 2026 16:54:42 +0000
+Subject: [PATCH] add npol as hook to cnat feature hook
+
+Change-Id: I44ab2cdeb607739e1ff41c66683c2e852298d205
+---
+ src/plugins/cnat/CMakeLists.txt      |   2 +
+ src/plugins/cnat/cnat_feature_hook.c | 168 +++++++++++++++++++++++++++
+ src/plugins/cnat/cnat_feature_hook.h |  33 ++++++
+ src/plugins/cnat/cnat_inline.h       |   8 +-
+ src/plugins/cnat/cnat_node.h         |  16 ++-
+ src/plugins/cnat/cnat_node_feature.c |  76 +++++++-----
+ src/plugins/cnat/cnat_node_lookup.c  |   6 -
+ src/plugins/cnat/cnat_node_snat.c    |   2 +-
+ src/plugins/cnat/cnat_node_vip.c     |   4 +-
+ src/plugins/cnat/cnat_types.h        | 138 +++++++++++++---------
+ src/plugins/cnat/cnat_util.h         |  16 +++
+ src/plugins/npol/npol.c              |   4 +-
+ src/plugins/npol/npol_interface.c    |  31 ++---
+ src/plugins/npol/npol_match.c        |  48 +++++---
+ src/plugins/npol/npol_match.h        |  12 +-
+ 15 files changed, 424 insertions(+), 140 deletions(-)
+ create mode 100644 src/plugins/cnat/cnat_feature_hook.c
+ create mode 100644 src/plugins/cnat/cnat_feature_hook.h
+ create mode 100644 src/plugins/cnat/cnat_util.h
+
+diff --git a/src/plugins/cnat/CMakeLists.txt b/src/plugins/cnat/CMakeLists.txt
+index b203a3176f..15f2960461 100644
+--- a/src/plugins/cnat/CMakeLists.txt
++++ b/src/plugins/cnat/CMakeLists.txt
+@@ -28,6 +28,7 @@ add_vpp_plugin(cnat
+   cnat_src_policy.c
+   cnat_maglev.c
+   cnat_log.c
++  cnat_feature_hook.c
+ 
+   INSTALL_HEADERS
+   cnat_bihash.h
+@@ -40,6 +41,7 @@ add_vpp_plugin(cnat
+   cnat_translation.h
+   cnat_types.h
+   cnat_log.h
++  cnat_feature_hook.h
+ 
+   API_FILES
+   cnat.api
+diff --git a/src/plugins/cnat/cnat_feature_hook.c b/src/plugins/cnat/cnat_feature_hook.c
+new file mode 100644
+index 0000000000..e9fccdeb42
+--- /dev/null
++++ b/src/plugins/cnat/cnat_feature_hook.c
+@@ -0,0 +1,168 @@
++/*
++ * Copyright (c) 2016-2018 Cisco and/or its affiliates.
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at:
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#include <cnat/cnat_types.h>
++#include <cnat/cnat_util.h>
++#include <plugins/cnat/cnat_node.h>
++
++int
++is_feature_enabled_on_sw_if_index (u32 sw_if_index, int is_input)
++{
++  cnat_main_t *cm = &cnat_main;
++  int ret = 0;
++  if (is_input)
++    {
++      ret = clib_bitmap_get (cm->input_feature_on_sw_if_index, sw_if_index);
++    }
++  else
++    {
++      ret = clib_bitmap_get (cm->output_feature_on_sw_if_index, sw_if_index);
++    }
++  return ret;
++}
++
++void
++cnat_feature_hook_input_check (void *p_cnat_main, vlib_buffer_t *b, cnat_timestamp_rewrite_t *rw,
++			       ip_address_family_t af, cnat_timestamp_t *ts)
++{
++  cnat_main_t *cm = (cnat_main_t *) p_cnat_main;
++  u32 in_if = vnet_buffer (b)->sw_if_index[VLIB_RX];
++  if (!is_feature_enabled_on_sw_if_index (in_if, 1))
++    return;
++  /* prefer the rewrite tuple which is post-NAT if a translation exists,
++   * fall back to parsing the buffer directly for non-NAT flows */
++  cnat_5tuple_t tup = { 0 };
++  if (rw != NULL)
++    tup = rw->tuple;
++  else
++    cnat_make_buffer_5tuple (b, af, &tup, 0, 0, NULL);
++  u8 action = 0;
++  u32 npol_matched_rule_id = 0;
++  if (!cm->input_match_func)
++    return;
++  int is_match =
++    (*cm->input_match_func) (cm, in_if, 1, &tup, !(AF_IP4 == af), &action, &npol_matched_rule_id);
++  if (is_match)
++    {
++      clib_warning ("in:: %U => action:%d - interface: %d - npolrule: %d", format_cnat_5tuple, &tup,
++		    action, in_if, npol_matched_rule_id);
++    }
++
++  if (action == 0)
++    {
++      /* clear rewrites and store next drop */
++      ts->cts_dpoi_next_node_input = CNAT_FEATURE_NEXT_DROP;
++      ts->ts_rw_bm = 0;
++    }
++}
++
++void
++cnat_feature_hook_output_check (void *p_cnat_main, vlib_buffer_t *b, ip_address_family_t af,
++				cnat_timestamp_t *ts)
++{
++  cnat_main_t *cm = (cnat_main_t *) p_cnat_main;
++  u32 out_if = vnet_buffer (b)->sw_if_index[VLIB_TX];
++  if (!is_feature_enabled_on_sw_if_index (out_if, 0))
++    return;
++  cnat_5tuple_t tup = { 0 };
++  cnat_make_buffer_5tuple (b, af, &tup, vnet_buffer (b)->ip.save_rewrite_length, 0, NULL);
++
++  u8 action = 0;
++  u32 npol_matched_rule_id = 0;
++  if (!cm->output_match_func)
++    return;
++  int is_match =
++    (*cm->output_match_func) (cm, out_if, 0, &tup, !(AF_IP4 == af), &action, &npol_matched_rule_id);
++  if (is_match)
++    {
++      clib_warning ("out:: %U => action:%d - interface: %d - npolrule: %d", format_cnat_5tuple,
++		    &tup, action, out_if, npol_matched_rule_id);
++    }
++
++  if (action == 0)
++    {
++      /* clear rewrites and store next drop */
++      ts->cts_dpoi_next_node_output = CNAT_FEATURE_NEXT_DROP;
++    }
++}
++
++static int
++feature_hook_add (u32 sw_if_index, int is_input, cnat_feature_hook_match_5tuple_func_t func)
++{
++  cnat_main_t *cm = &cnat_main;
++  cnat_feature_hook_match_5tuple_func_t *p =
++    is_input ? &cm->input_match_func : &cm->output_match_func;
++  uword **pbitmap =
++    is_input ? &cm->input_feature_on_sw_if_index : &cm->output_feature_on_sw_if_index;
++  *p = func;
++  *pbitmap = clib_bitmap_set (*pbitmap, sw_if_index, 1);
++  /* register hook only once, on first interface */
++  if (clib_bitmap_count_set_bits (*pbitmap) == 1)
++    {
++      if (is_input)
++	vec_add1 (cm->slow_path_input_func, cnat_feature_hook_input_check);
++      else
++	vec_add1 (cm->slow_path_output_func, cnat_feature_hook_output_check);
++    }
++  return 0;
++}
++
++static int
++feature_hook_del (u32 sw_if_index, int is_input, cnat_feature_hook_match_5tuple_func_t func)
++{
++  cnat_main_t *cm = &cnat_main;
++  uword **pbitmap =
++    is_input ? &cm->input_feature_on_sw_if_index : &cm->output_feature_on_sw_if_index;
++  *pbitmap = clib_bitmap_set (*pbitmap, sw_if_index, 0);
++  return 0;
++}
++
++__attribute__ ((visibility ("default"))) int
++cnat_feature_hook_add_del (int is_add, u32 sw_if_index, int is_input,
++			   cnat_feature_hook_match_5tuple_func_t func)
++{
++  return is_add ? feature_hook_add (sw_if_index, is_input, func) :
++		  feature_hook_del (sw_if_index, is_input, func);
++}
++
++void
++show_cnat_feature_hooks (vlib_main_t *vm, u32 verbose)
++{
++  cnat_main_t *cm = &cnat_main;
++  vlib_cli_output (vm, "\nCnat Feature hooks:");
++
++  cnat_cli_output_bitmap (vm, cm->input_feature_on_sw_if_index);
++  cnat_cli_output_bitmap (vm, cm->output_feature_on_sw_if_index);
++
++  vlib_cli_output (vm, "\n input function pointer: %p", cm->input_match_func);
++  vlib_cli_output (vm, "\n output function pointer: %p", cm->output_match_func);
++}
++
++static clib_error_t *
++cnat_show_cnat_feature_hooks_fn (vlib_main_t *vm, unformat_input_t *input, vlib_cli_command_t *cmd)
++{
++  clib_error_t *error = 0;
++
++  u32 show_policies_verbose = 0;
++  (void) unformat (input, "verbose %u", &show_policies_verbose);
++
++  show_cnat_feature_hooks (vm, show_policies_verbose);
++  return error;
++}
++
++VLIB_CLI_COMMAND (cnat_show_cnat_feature_hooks, static) = {
++  .path = "show cnat feature-hooks",
++  .short_help = "show cnat feature-hooks [verbose]",
++  .function = cnat_show_cnat_feature_hooks_fn,
++};
+diff --git a/src/plugins/cnat/cnat_feature_hook.h b/src/plugins/cnat/cnat_feature_hook.h
+new file mode 100644
+index 0000000000..186ee9a70b
+--- /dev/null
++++ b/src/plugins/cnat/cnat_feature_hook.h
+@@ -0,0 +1,33 @@
++#ifndef vpp_cnat_feature_hook_h
++#define vpp_cnat_feature_hook_h
++
++#include <plugins/cnat/cnat_types.h>
++#include <plugins/cnat/cnat_node.h>
++
++__attribute__ ((visibility ("default"))) int
++cnat_feature_hook_add_del (int is_add, u32 sw_if_index, int is_input,
++			   cnat_feature_hook_match_5tuple_func_t func);
++
++int is_feature_enabled_on_sw_if_index (u32 sw_if_index, int is_input);
++
++void cnat_feature_hook_input_check (void *p_cnat_main, vlib_buffer_t *b,
++				    cnat_timestamp_rewrite_t *rw, ip_address_family_t af,
++				    cnat_timestamp_t *ts);
++void cnat_feature_hook_output_check (void *p_cnat_main, vlib_buffer_t *b, ip_address_family_t af,
++				     cnat_timestamp_t *ts);
++
++void cnat_caip_check (cnat_main_t *cm, vlib_buffer_t *b, u32 in_if, ip_address_family_t af,
++		      cnat_timestamp_t *ts);
++
++void cnat_caop_check (cnat_main_t *cm, vlib_buffer_t *b, u32 out_if, ip_address_family_t af,
++		      cnat_timestamp_t *ts);
++
++#endif
++
++/*
++ * fd.io coding-style-patch-verification: ON
++ *
++ * Local Variables:
++ * eval: (c-set-style "gnu")
++ * End:
++ */
+diff --git a/src/plugins/cnat/cnat_inline.h b/src/plugins/cnat/cnat_inline.h
+index 508639334a..7330559ec3 100644
+--- a/src/plugins/cnat/cnat_inline.h
++++ b/src/plugins/cnat/cnat_inline.h
+@@ -133,6 +133,8 @@ cnat_timestamp_new (u32 t, u32 fib_index, bool is_v6)
+   cnat_timestamp_t *ts = cnat_timestamp_get (index);
+   ts->last_seen = t;
+   ts->lifetime = cnat_main.session_max_age;
++  ts->cts_dpoi_next_node_input = (u16) ~0;
++  ts->cts_dpoi_next_node_output = (u16) ~0;
+   /* Initial number of timestamps for a session
+    * this will be incremented when adding the reverse
+    * session in cnat_rsession_create */
+@@ -200,9 +202,9 @@ cnat_lookup_create_or_return (vlib_buffer_t *b, int rv, cnat_bihash_kv_t *bkey,
+       vnet_buffer2 (b)->session.state = CNAT_LOOKUP_IS_NEW;
+       cnat_log_session_create (ksession);
+       cnat_timestamp_t *ts = cnat_timestamp_get (session_index);
+-      // we put the original 5tuple in the rewrite of the session to use it
+-      // later in the writeback if there is no nat (i.e no actual rewrites) in
+-      // the case where we have actual rewrites this is going to be overridden
++      /* we put the original 5tuple in the rewrite of the session to use it
++	 later in the writeback if there is no nat (i.e no actual rewrites) in
++	 the case where we have actual rewrites this is going to be overridden */
+       ts->cts_rewrites[CNAT_LOCATION_INPUT].tuple = ksession->key.cs_5tuple;
+     }
+   else if (session->key.cs_5tuple.iproto != 0)
+diff --git a/src/plugins/cnat/cnat_node.h b/src/plugins/cnat/cnat_node.h
+index 5bc925b539..35d3142761 100644
+--- a/src/plugins/cnat/cnat_node.h
++++ b/src/plugins/cnat/cnat_node.h
+@@ -28,6 +28,12 @@
+  * overwriting an existing session, breaking it) */
+ #define CNAT_PORT_MAX_RETRIES 8
+ 
++typedef enum cnat_feature_next_
++{
++  CNAT_FEATURE_NEXT_DROP,
++  CNAT_FEATURE_N_NEXT,
++} cnat_feature_next_t;
++
+ extern u8 *format_cnat_trace (u8 *s, va_list *args);
+ 
+ typedef void (*cnat_node_sub_t) (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_buffer_t *b,
+@@ -1031,7 +1037,8 @@ out:
+ }
+ 
+ static_always_inline void
+-cnat_set_rw_next_node (vlib_buffer_t *b, const cnat_timestamp_rewrite_t *rw, u16 *next0)
++cnat_set_rw_next_node (vlib_buffer_t *b, const cnat_timestamp_rewrite_t *rw, u16 *next0,
++		       u16 next_node)
+ {
+   if (rw)
+     {
+@@ -1039,6 +1046,10 @@ cnat_set_rw_next_node (vlib_buffer_t *b, const cnat_timestamp_rewrite_t *rw, u16
+       vnet_buffer (b)->ip.adj_index[VLIB_TX] =
+ 	rw->cts_lbi == (u32) ~0 ? vnet_buffer (b)->ip.adj_index[VLIB_TX] : rw->cts_lbi;
+     }
++  else
++    {
++      *next0 = next_node == (u16) ~0 ? *next0 : next_node;
++    }
+ }
+ 
+ static_always_inline void
+@@ -1153,8 +1164,7 @@ cnat_lookup_inline (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_frame_t *fr
+       rv[0] = cnat_bihash_search_i2_hash (&cnat_session_db, hash[0], &bkey[0], &bvalue[0]);
+       cnat_lookup_create_or_return (b[0], rv[0], &bkey[0], &bvalue[0], now, hash[0], is_v6,
+ 				    alloc_if_not_found);
+-      rv[1] = cnat_bihash_search_i2_hash (&cnat_session_db, hash[1], &bkey[1],
+-					  &bvalue[1]);
++      rv[1] = cnat_bihash_search_i2_hash (&cnat_session_db, hash[1], &bkey[1], &bvalue[1]);
+       cnat_lookup_create_or_return (b[1], rv[1], &bkey[1], &bvalue[1], now, hash[1], is_v6,
+ 				    alloc_if_not_found);
+       rv[2] = cnat_bihash_search_i2_hash (&cnat_session_db, hash[2], &bkey[2], &bvalue[2]);
+diff --git a/src/plugins/cnat/cnat_node_feature.c b/src/plugins/cnat/cnat_node_feature.c
+index 380d32aeca..fdec810605 100644
+--- a/src/plugins/cnat/cnat_node_feature.c
++++ b/src/plugins/cnat/cnat_node_feature.c
+@@ -9,6 +9,7 @@
+ #include <cnat/cnat_inline.h>
+ #include <cnat/cnat_src_policy.h>
+ #include <cnat/cnat_snat_policy.h>
++#include <cnat/cnat_feature_hook.h>
+ 
+ #include <vnet/dpo/load_balance.h>
+ #include <vnet/dpo/load_balance_map.h>
+@@ -16,12 +17,6 @@
+ #include <vnet/ip/ip4_inlines.h>
+ #include <vnet/ip/ip6_inlines.h>
+ 
+-typedef enum cnat_feature_next_
+-{
+-  CNAT_FEATURE_NEXT_DROP,
+-  CNAT_FEATURE_N_NEXT,
+-} cnat_feature_next_t;
+-
+ vlib_node_registration_t cnat_input_feature_ip4_node;
+ vlib_node_registration_t cnat_input_feature_ip6_node;
+ vlib_node_registration_t cnat_output_feature_ip4_node;
+@@ -141,8 +136,8 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b, ip_addres
+ }
+ 
+ always_inline cnat_timestamp_rewrite_t *
+-cnat_input_feature_get_rw (vlib_main_t *vm, vlib_buffer_t *b, ip_address_family_t af,
+-			   cnat_timestamp_t *ts)
++cnat_input_feature_get_rw (vlib_main_t *vm, cnat_main_t *cm, vlib_buffer_t *b,
++			   ip_address_family_t af, cnat_timestamp_t *ts)
+ {
+   if (vnet_buffer2 (b)->session.state == CNAT_LOOKUP_IS_OK)
+     return (ts->ts_rw_bm & (1 << CNAT_LOCATION_INPUT)) ? &ts->cts_rewrites[CNAT_LOCATION_INPUT] :
+@@ -152,7 +147,20 @@ cnat_input_feature_get_rw (vlib_main_t *vm, vlib_buffer_t *b, ip_address_family_
+ 	     &ts->cts_rewrites[CNAT_IS_RETURN + CNAT_LOCATION_INPUT] :
+ 	     NULL;
+   else if (vnet_buffer2 (b)->session.state == CNAT_LOOKUP_IS_NEW)
+-    return cnat_input_feature_new_flow_inline (vm, b, af, ts);
++    {
++      /* new flow: run translation first to get the rewrite,
++       * then call slow path hooks with the post-NAT tuple.
++       * verdict is cached in ts->cts_dpoi_next_node_input for fast path enforcement */
++      cnat_timestamp_rewrite_t *rw;
++      rw = cnat_input_feature_new_flow_inline (vm, b, af, ts);
++      void (**f) (void *cm, vlib_buffer_t *b, cnat_timestamp_rewrite_t *rw, ip_address_family_t af,
++		  cnat_timestamp_t *ts);
++      vec_foreach (f, cm->slow_path_input_func)
++	{
++	  (*f) (cm, b, rw, af, ts);
++	}
++      return rw;
++    }
+   else
+     return NULL;
+ }
+@@ -192,20 +200,20 @@ cnat_input_feature_fn (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_frame_t
+   while (n_left >= 4)
+     {
+ 
+-      rw[0] = cnat_input_feature_get_rw (vm, b[0], af, ts[0]);
+-      rw[1] = cnat_input_feature_get_rw (vm, b[1], af, ts[1]);
+-      rw[2] = cnat_input_feature_get_rw (vm, b[2], af, ts[2]);
+-      rw[3] = cnat_input_feature_get_rw (vm, b[3], af, ts[3]);
++      rw[0] = cnat_input_feature_get_rw (vm, cm, b[0], af, ts[0]);
++      rw[1] = cnat_input_feature_get_rw (vm, cm, b[1], af, ts[1]);
++      rw[2] = cnat_input_feature_get_rw (vm, cm, b[2], af, ts[2]);
++      rw[3] = cnat_input_feature_get_rw (vm, cm, b[3], af, ts[3]);
+ 
+       cnat_translation (b[0], af, rw[0], &ts[0]->lifetime, cm->tcp_max_age, 0 /* iph_offset */);
+       cnat_translation (b[1], af, rw[1], &ts[1]->lifetime, cm->tcp_max_age, 0 /* iph_offset */);
+       cnat_translation (b[2], af, rw[2], &ts[2]->lifetime, cm->tcp_max_age, 0 /* iph_offset */);
+       cnat_translation (b[3], af, rw[3], &ts[3]->lifetime, cm->tcp_max_age, 0 /* iph_offset */);
+ 
+-      cnat_set_rw_next_node (b[0], rw[0], &next[0]);
+-      cnat_set_rw_next_node (b[1], rw[1], &next[1]);
+-      cnat_set_rw_next_node (b[2], rw[2], &next[2]);
+-      cnat_set_rw_next_node (b[3], rw[3], &next[3]);
++      cnat_set_rw_next_node (b[0], rw[0], &next[0], ts[0]->cts_dpoi_next_node_input);
++      cnat_set_rw_next_node (b[1], rw[1], &next[1], ts[1]->cts_dpoi_next_node_input);
++      cnat_set_rw_next_node (b[2], rw[2], &next[2], ts[2]->cts_dpoi_next_node_input);
++      cnat_set_rw_next_node (b[3], rw[3], &next[3], ts[3]->cts_dpoi_next_node_input);
+ 
+       if (PREDICT_FALSE (do_trace))
+ 	{
+@@ -252,9 +260,9 @@ cnat_input_feature_fn (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_frame_t
+       vnet_feature_next_u16 (&next[0], b[0]);
+       ts[0] = cnat_timestamp_get (vnet_buffer2 (b[0])->session.generic_flow_id);
+ 
+-      rw[0] = cnat_input_feature_get_rw (vm, b[0], af, ts[0]);
++      rw[0] = cnat_input_feature_get_rw (vm, cm, b[0], af, ts[0]);
+       cnat_translation (b[0], af, rw[0], &ts[0]->lifetime, cm->tcp_max_age, 0 /* iph_offset */);
+-      cnat_set_rw_next_node (b[0], rw[0], &next[0]);
++      cnat_set_rw_next_node (b[0], rw[0], &next[0], ts[0]->cts_dpoi_next_node_input);
+ 
+       if (PREDICT_FALSE (do_trace))
+ 	cnat_add_trace (vm, node, b[0], ts[0], rw[0]);
+@@ -403,8 +411,8 @@ cnat_output_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b, ip_addre
+ }
+ 
+ always_inline cnat_timestamp_rewrite_t *
+-cnat_output_feature_get_rw (vlib_main_t *vm, vlib_buffer_t *b, ip_address_family_t af,
+-			    cnat_timestamp_t *ts)
++cnat_output_feature_get_rw (vlib_main_t *vm, cnat_main_t *cm, vlib_buffer_t *b,
++			    ip_address_family_t af, cnat_timestamp_t *ts)
+ {
+   if (vnet_buffer2 (b)->session.state == CNAT_LOOKUP_IS_OK)
+     return (ts->ts_rw_bm & (1 << CNAT_LOCATION_OUTPUT)) ? &ts->cts_rewrites[CNAT_LOCATION_OUTPUT] :
+@@ -414,7 +422,14 @@ cnat_output_feature_get_rw (vlib_main_t *vm, vlib_buffer_t *b, ip_address_family
+ 	     &ts->cts_rewrites[CNAT_IS_RETURN + CNAT_LOCATION_OUTPUT] :
+ 	     NULL;
+   else if (vnet_buffer2 (b)->session.state == CNAT_LOOKUP_IS_NEW)
+-    return cnat_output_feature_new_flow_inline (vm, b, af, ts);
++    {
++      void (**f) (void *cm, vlib_buffer_t *b, ip_address_family_t af, cnat_timestamp_t *ts);
++      vec_foreach (f, cm->slow_path_output_func)
++	{
++	  (*f) (cm, b, af, ts);
++	}
++      return cnat_output_feature_new_flow_inline (vm, b, af, ts);
++    }
+   else
+     return NULL;
+ }
+@@ -454,10 +469,16 @@ cnat_output_feature_fn (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_frame_t
+ 
+   while (n_left >= 4)
+     {
+-      rw[0] = cnat_output_feature_get_rw (vm, b[0], af, ts[0]);
+-      rw[1] = cnat_output_feature_get_rw (vm, b[1], af, ts[1]);
+-      rw[2] = cnat_output_feature_get_rw (vm, b[2], af, ts[2]);
+-      rw[3] = cnat_output_feature_get_rw (vm, b[3], af, ts[3]);
++
++      rw[0] = cnat_output_feature_get_rw (vm, cm, b[0], af, ts[0]);
++      rw[1] = cnat_output_feature_get_rw (vm, cm, b[1], af, ts[1]);
++      rw[2] = cnat_output_feature_get_rw (vm, cm, b[2], af, ts[2]);
++      rw[3] = cnat_output_feature_get_rw (vm, cm, b[3], af, ts[3]);
++
++      cnat_set_rw_next_node (b[0], NULL, &next[0], ts[0]->cts_dpoi_next_node_output);
++      cnat_set_rw_next_node (b[1], NULL, &next[1], ts[1]->cts_dpoi_next_node_output);
++      cnat_set_rw_next_node (b[2], NULL, &next[2], ts[2]->cts_dpoi_next_node_output);
++      cnat_set_rw_next_node (b[3], NULL, &next[3], ts[3]->cts_dpoi_next_node_output);
+ 
+       cnat_translation (b[0], af, rw[0], &ts[0]->lifetime, cm->tcp_max_age,
+ 			vnet_buffer (b[0])->ip.save_rewrite_length);
+@@ -515,7 +536,8 @@ cnat_output_feature_fn (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_frame_t
+       vnet_feature_next_u16 (&next[0], b[0]);
+ 
+       ts[0] = cnat_timestamp_get (vnet_buffer2 (b[0])->session.generic_flow_id);
+-      rw[0] = cnat_output_feature_get_rw (vm, b[0], af, ts[0]);
++      rw[0] = cnat_output_feature_get_rw (vm, cm, b[0], af, ts[0]);
++      cnat_set_rw_next_node (b[0], NULL, &next[0], ts[0]->cts_dpoi_next_node_output);
+       cnat_translation (b[0], af, rw[0], &ts[0]->lifetime, cm->tcp_max_age,
+ 			vnet_buffer (b[0])->ip.save_rewrite_length);
+ 
+diff --git a/src/plugins/cnat/cnat_node_lookup.c b/src/plugins/cnat/cnat_node_lookup.c
+index 12dc1df94b..2a639f8ea5 100644
+--- a/src/plugins/cnat/cnat_node_lookup.c
++++ b/src/plugins/cnat/cnat_node_lookup.c
+@@ -16,12 +16,6 @@
+ #include <vnet/ip/ip4_inlines.h>
+ #include <vnet/ip/ip6_inlines.h>
+ 
+-typedef enum cnat_feature_next_
+-{
+-  CNAT_FEATURE_NEXT_DROP,
+-  CNAT_FEATURE_N_NEXT,
+-} cnat_feature_next_t;
+-
+ vlib_node_registration_t cnat_lookup_feature_ip4_node;
+ vlib_node_registration_t cnat_lookup_feature_ip6_node;
+ vlib_node_registration_t cnat_writeback_feature_ip4_node;
+diff --git a/src/plugins/cnat/cnat_node_snat.c b/src/plugins/cnat/cnat_node_snat.c
+index 764f65a582..657ccb8a77 100644
+--- a/src/plugins/cnat/cnat_node_snat.c
++++ b/src/plugins/cnat/cnat_node_snat.c
+@@ -170,7 +170,7 @@ cnat_snat_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_buffer_t *b,
+   cnat_translation (b, af, rw, &ts->lifetime, cm->tcp_max_age, 0 /* iph_offset */);
+ 
+   if (!is_client)
+-    cnat_set_rw_next_node (b, rw, next0);
++    cnat_set_rw_next_node (b, rw, next0, (u16) ~0);
+ 
+ trace:
+   if (PREDICT_FALSE (do_trace))
+diff --git a/src/plugins/cnat/cnat_node_vip.c b/src/plugins/cnat/cnat_node_vip.c
+index 53f903c46e..517d2869a1 100644
+--- a/src/plugins/cnat/cnat_node_vip.c
++++ b/src/plugins/cnat/cnat_node_vip.c
+@@ -163,7 +163,7 @@ cnat_vip_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_buffer_t *b,
+     rw = cnat_vip_feature_new_flow_inline (vm, b, af, ts, cc);
+ 
+   cnat_translation (b, af, rw, &ts->lifetime, cm->tcp_max_age, 0 /* iph_offset */);
+-  cnat_set_rw_next_node (b, rw, next0);
++  cnat_set_rw_next_node (b, rw, next0, (u16) ~0);
+ 
+   if (PREDICT_FALSE (do_trace))
+     cnat_add_trace (vm, node, b, ts, rw);
+@@ -250,7 +250,7 @@ cnat_return_node_fn (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_buffer_t *
+ 	 NULL;
+ 
+   cnat_translation (b, af, rw, &ts->lifetime, cm->tcp_max_age, 0 /* iph_offset */);
+-  cnat_set_rw_next_node (b, rw, next0);
++  cnat_set_rw_next_node (b, rw, next0, (u16) ~0);
+ 
+ trace:
+   if (PREDICT_FALSE (do_trace))
+diff --git a/src/plugins/cnat/cnat_types.h b/src/plugins/cnat/cnat_types.h
+index 3d48cb83aa..7b82004352 100644
+--- a/src/plugins/cnat/cnat_types.h
++++ b/src/plugins/cnat/cnat_types.h
+@@ -134,60 +134,6 @@ typedef struct
+   u16 sequence;
+ } cnat_echo_header_t;
+ 
+-typedef struct cnat_main_
+-{
+-  /* Memory size of the session bihash */
+-  uword session_hash_memory;
+-
+-  /* Number of buckets of the  session bihash */
+-  u32 session_hash_buckets;
+-
+-  /* Memory size of the translation bihash */
+-  uword translation_hash_memory;
+-
+-  /* Number of buckets of the  translation bihash */
+-  u32 translation_hash_buckets;
+-
+-  /* Memory size of the client bihash */
+-  uword client_hash_memory;
+-
+-  /* Number of buckets of the  client bihash */
+-  u32 client_hash_buckets;
+-
+-  /* Memory size of the source NAT prefix bihash */
+-  uword snat_hash_memory;
+-
+-  /* Number of buckets of the  source NAT prefix bihash */
+-  u32 snat_hash_buckets;
+-
+-  /* Bit map for include / exclude sw_if_index
+-   * so max number of expected interfaces */
+-  u32 snat_if_map_length;
+-
+-  /* Timeout after which to clear sessions (in seconds) */
+-  u32 session_max_age;
+-
+-  /* Timeout after which to clear an established TCP
+-   * session (in seconds) */
+-  u32 tcp_max_age;
+-
+-  /* delay in seconds between two scans of session/clients tables */
+-  f64 scanner_timeout;
+-
+-  /* Index of the scanner process node */
+-  uword scanner_node_index;
+-
+-  /* Did we do lazy init ? */
+-  u8 lazy_init_done;
+-
+-  /* Enable or Disable the scanner on startup */
+-  u8 default_scanner_state;
+-
+-  /* Number of buckets for maglev, should be a
+-   * prime >= 100 * max num bakends */
+-  u32 maglev_len;
+-} cnat_main_t;
+-
+ typedef struct __attribute__ ((__packed__)) cnat_5tuple_t_
+ {
+   ip46_address_t ip[VLIB_N_DIR];
+@@ -195,6 +141,11 @@ typedef struct __attribute__ ((__packed__)) cnat_5tuple_t_
+   ip_protocol_t iproto;
+ } cnat_5tuple_t;
+ 
++/* This is a private experimental type, subject to change */
++typedef int (*cnat_feature_hook_match_5tuple_func_t) (void *p_cnat_main, u32 sw_if_index,
++						      u32 is_inbound, cnat_5tuple_t *pkt_5tuple,
++						      int is_ip6, u8 *r_action, u32 *matched);
++
+ static_always_inline void
+ cnat_5tuple_copy (cnat_5tuple_t *dst, const cnat_5tuple_t *src, u8 swap)
+ {
+@@ -264,15 +215,19 @@ typedef struct cnat_timestamp_t_
+ 
+   u32 fib_index;
+ 
++  /* identifies which translation endpoint is used for these sessions */
++  index_t trk;
++
+   /* expire after N seconds */
+   u16 lifetime;
+ 
++  /* per-direction next node override */
++  u16 cts_dpoi_next_node_input;
++  u16 cts_dpoi_next_node_output;
++
+   /* Session refcount, can be 2 (session, rsession) */
+   u8 ts_session_refcnt;
+ 
+-  /* identifies which translation endpoint is used for these sessions */
+-  index_t trk;
+-
+   u8 ts_rw_bm;
+   cnat_timestamp_rewrite_t cts_rewrites[VLIB_N_DIR * CNAT_N_LOCATIONS];
+ 
+@@ -303,6 +258,75 @@ typedef struct cnat_timestamp_mpool_t_
+   u8 log2_pool_sz;
+ } cnat_timestamp_mpool_t;
+ 
++typedef struct cnat_main_
++{
++  /* Memory size of the session bihash */
++  uword session_hash_memory;
++
++  /* Number of buckets of the  session bihash */
++  u32 session_hash_buckets;
++
++  /* Memory size of the translation bihash */
++  uword translation_hash_memory;
++
++  /* Number of buckets of the  translation bihash */
++  u32 translation_hash_buckets;
++
++  /* Memory size of the client bihash */
++  uword client_hash_memory;
++
++  /* Number of buckets of the  client bihash */
++  u32 client_hash_buckets;
++
++  /* Memory size of the source NAT prefix bihash */
++  uword snat_hash_memory;
++
++  /* Number of buckets of the  source NAT prefix bihash */
++  u32 snat_hash_buckets;
++
++  /* Bit map for include / exclude sw_if_index
++   * so max number of expected interfaces */
++  u32 snat_if_map_length;
++
++  /* Timeout after which to clear sessions (in seconds) */
++  u32 session_max_age;
++
++  /* Timeout after which to clear an established TCP
++   * session (in seconds) */
++  u32 tcp_max_age;
++
++  /* delay in seconds between two scans of session/clients tables */
++  f64 scanner_timeout;
++
++  /* Index of the scanner process node */
++  uword scanner_node_index;
++
++  /* Did we do lazy init ? */
++  u8 lazy_init_done;
++
++  /* Enable or Disable the scanner on startup */
++  u8 default_scanner_state;
++
++  /* Number of buckets for maglev, should be a
++   * prime >= 100 * max num bakends */
++  u32 maglev_len;
++
++  /* bitmaps when set the processing is enabled on the interface */
++  uword *input_feature_on_sw_if_index;
++  uword *output_feature_on_sw_if_index;
++
++  /* Feature hook match function vectors by sw_if_index */
++  cnat_feature_hook_match_5tuple_func_t input_match_func;
++  cnat_feature_hook_match_5tuple_func_t output_match_func;
++
++  /* slow path input/output hooks, called once per new flow only.
++   * empty by default — zero overhead when nothing is loaded. */
++  void (**slow_path_input_func) (void *p_cnat_main, vlib_buffer_t *b, cnat_timestamp_rewrite_t *rw,
++				 ip_address_family_t af, cnat_timestamp_t *ts);
++  void (**slow_path_output_func) (void *p_cnat_main, vlib_buffer_t *b, ip_address_family_t af,
++				  cnat_timestamp_t *ts);
++} cnat_main_t;
++
+ cnat_main_t *cnat_get_main ();
+ extern u8 *format_cnat_endpoint (u8 * s, va_list * args);
+ extern u8 *format_cnat_rewrite (u8 *s, va_list *args);
+diff --git a/src/plugins/cnat/cnat_util.h b/src/plugins/cnat/cnat_util.h
+new file mode 100644
+index 0000000000..55f1ad64d9
+--- /dev/null
++++ b/src/plugins/cnat/cnat_util.h
+@@ -0,0 +1,16 @@
++#ifndef vpp_cnat_plugin_util_h
++#define vpp_cnat_plugin_util_h
++
++#define cnat_cli_output_u(vm, value) vlib_cli_output (vm, "  %s: %u", #value, value)
++#define cnat_cli_output_bitmap(vm, bitmap)                                                         \
++  vlib_cli_output (vm, "  %s bitmap: %U", #bitmap, format_bitmap_hex, bitmap)
++
++#endif
++
++/*
++ * fd.io coding-style-patch-verification: ON
++ *
++ * Local Variables:
++ * eval: (c-set-style "gnu")
++ * End:
++ */
+diff --git a/src/plugins/npol/npol.c b/src/plugins/npol/npol.c
+index c343842e6b..1725491912 100644
+--- a/src/plugins/npol/npol.c
++++ b/src/plugins/npol/npol.c
+@@ -66,8 +66,8 @@ npol_match_fn (vlib_main_t *vm, unformat_input_t *input,
+       error = clib_error_return (0, "interface not specified");
+       goto done;
+     }
+-
+-  rv = npol_match_func (sw_if_index, is_inbound, pkt_5tuple, is_ip6, r_action, &matched_rule_id);
++  cnat_5tuple_t *cnat_5tuple = NULL;
++  rv = npol_match_func (sw_if_index, is_inbound, cnat_5tuple, is_ip6, r_action, &matched_rule_id);
+ 
+   vlib_cli_output (vm, "matched:%d action:%U", rv, format_npol_action,
+ 		   *r_action);
+diff --git a/src/plugins/npol/npol_interface.c b/src/plugins/npol/npol_interface.c
+index 708d0f0c46..c513dedbfd 100644
+--- a/src/plugins/npol/npol_interface.c
++++ b/src/plugins/npol/npol_interface.c
+@@ -6,16 +6,19 @@
+ #include <npol/npol_match.h>
+ #include <npol/npol_policy.h>
+ #include <npol/npol_format.h>
++#include <cnat/cnat_feature_hook.h>
+ 
+ uword unformat_sw_if_index (unformat_input_t *input, va_list *args);
+ 
+ npol_interface_config_t *npol_interface_configs;
+ 
++static int (*cnat_feature_hook_add_del_fn) (int is_add, u32 sw_if_index, int is_input,
++					    cnat_feature_hook_match_5tuple_func_t func) = NULL;
++
+ int
+ npol_unconfigure_policies (u32 sw_if_index)
+ {
+   npol_interface_config_t *conf;
+-  int rv;
+ 
+   conf = vec_elt_at_index (npol_interface_configs, sw_if_index);
+   if (!conf->enabled)
+@@ -26,14 +29,13 @@ npol_unconfigure_policies (u32 sw_if_index)
+   vec_free (conf->tx_policies);
+   vec_free (conf->profiles);
+ 
+-  rv = npol_main.acl_plugin.wip_add_del_custom_access_io_policy (
+-    0 /* is_add */, sw_if_index, 0 /* is_input */, npol_match_func_acl);
+-  if (rv)
+-    return rv;
+-  rv = npol_main.acl_plugin.wip_add_del_custom_access_io_policy (
+-    0 /* is_add */, sw_if_index, 1 /* is_input */, npol_match_func_acl);
+-  if (rv)
+-    return rv;
++  cnat_feature_hook_add_del_fn =
++    vlib_get_plugin_symbol ("cnat_plugin.so", "cnat_feature_hook_add_del");
++  if (!cnat_feature_hook_add_del_fn)
++    return 1;
++
++  cnat_feature_hook_add_del_fn (0, sw_if_index, 0, npol_match_func_cnat);
++  cnat_feature_hook_add_del_fn (0, sw_if_index, 1, npol_match_func_cnat);
+ 
+   conf->enabled = 0;
+   return 0;
+@@ -70,10 +72,13 @@ npol_configure_policies (u32 sw_if_index, npol_interface_config_t *new_conf)
+     }
+   else
+     {
+-      npol_main.acl_plugin.wip_add_del_custom_access_io_policy (
+-	1 /* is_add */, sw_if_index, 0 /* is_input */, npol_match_func_acl);
+-      npol_main.acl_plugin.wip_add_del_custom_access_io_policy (
+-	1 /* is_add */, sw_if_index, 1 /* is_input */, npol_match_func_acl);
++      cnat_feature_hook_add_del_fn =
++	vlib_get_plugin_symbol ("cnat_plugin.so", "cnat_feature_hook_add_del");
++      if (!cnat_feature_hook_add_del_fn)
++	goto error;
++
++      cnat_feature_hook_add_del_fn (1, sw_if_index, 0, npol_match_func_cnat);
++      cnat_feature_hook_add_del_fn (1, sw_if_index, 1, npol_match_func_cnat);
+     }
+ 
+   *conf = *new_conf;
+diff --git a/src/plugins/npol/npol_match.c b/src/plugins/npol/npol_match.c
+index 215157fcf1..18deae2261 100644
+--- a/src/plugins/npol/npol_match.c
++++ b/src/plugins/npol/npol_match.c
+@@ -6,6 +6,7 @@
+ 
+ #include <npol/npol.h>
+ #include <npol/npol_match.h>
++#include <cnat/cnat_types.h>
+ 
+ always_inline u8
+ ip_ipset_contains_ip4 (npol_ipset_t *ipset, ip4_address_t *addr)
+@@ -144,17 +145,27 @@ ipport_ipset_contains_ip6 (npol_ipset_t *ipset, ip6_address_t *addr,
+ }
+ 
+ always_inline int
+-npol_match_rule (npol_rule_t *rule, u32 is_ip6, fa_5tuple_t *pkt_5tuple)
++npol_match_rule (npol_rule_t *rule, u32 is_ip6, cnat_5tuple_t *pkt_5tuple)
+ {
+-  ip4_address_t *src_ip4 = &pkt_5tuple->ip4_addr[SRC];
+-  ip4_address_t *dst_ip4 = &pkt_5tuple->ip4_addr[DST];
+-  ip6_address_t *src_ip6 = &pkt_5tuple->ip6_addr[SRC];
+-  ip6_address_t *dst_ip6 = &pkt_5tuple->ip6_addr[DST];
+-  u8 l4proto = pkt_5tuple->l4.proto;
+-  u16 src_port = pkt_5tuple->l4.port[SRC];
+-  u16 dst_port = pkt_5tuple->l4.port[DST];
+-  u16 type = pkt_5tuple->l4.port[0];
+-  u16 code = pkt_5tuple->l4.port[1];
++  ip4_address_t *src_ip4 = 0;
++  ip4_address_t *dst_ip4 = 0;
++  ip6_address_t *src_ip6 = 0;
++  ip6_address_t *dst_ip6 = 0;
++  u8 l4proto = pkt_5tuple->iproto;
++  if (is_ip6)
++    {
++      src_ip6 = &pkt_5tuple->ip[SRC].ip6;
++      dst_ip6 = &pkt_5tuple->ip[DST].ip6;
++    }
++  else
++    {
++      src_ip4 = &pkt_5tuple->ip[SRC].ip4;
++      dst_ip4 = &pkt_5tuple->ip[DST].ip4;
++    }
++  u16 src_port = clib_net_to_host_u16 (pkt_5tuple->port[SRC]);
++  u16 dst_port = clib_net_to_host_u16 (pkt_5tuple->port[DST]);
++  u16 type = clib_net_to_host_u16 (pkt_5tuple->port[0]);
++  u16 code = clib_net_to_host_u16 (pkt_5tuple->port[1]);
+ 
+   npol_rule_filter_t *filter;
+   vec_foreach (filter, rule->filters)
+@@ -600,7 +611,7 @@ npol_match_rule (npol_rule_t *rule, u32 is_ip6, fa_5tuple_t *pkt_5tuple)
+ }
+ 
+ always_inline int
+-npol_match_policy (npol_policy_t *policy, u32 is_inbound, u32 is_ip6, fa_5tuple_t *pkt_5tuple,
++npol_match_policy (npol_policy_t *policy, u32 is_inbound, u32 is_ip6, cnat_5tuple_t *pkt_5tuple,
+ 		   u32 *matched_rule_id)
+ {
+   /* packets RX/TX from VPP perspective */
+@@ -632,7 +643,7 @@ npol_match_policy (npol_policy_t *policy, u32 is_inbound, u32 is_ip6, fa_5tuple_
+  * It returns 1 if a rule was matched, 0 otherwise
+  * It sets matched to the rule_id if a rule was matched
+  */
+-CLIB_MARCH_FN (npol_match, int, u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple,
++CLIB_MARCH_FN (npol_match, int, u32 sw_if_index, u32 is_inbound, cnat_5tuple_t *pkt_5tuple,
+ 	       int is_ip6, u8 *r_action, u32 *matched_rule_id)
+ {
+   npol_interface_config_t *if_config;
+@@ -741,19 +752,18 @@ profiles:
+ 
+ #ifndef CLIB_MARCH_VARIANT
+ int
+-npol_match_func (u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple, int is_ip6, u8 *r_action,
+-		 u32 *matched_rule_id)
++npol_match_func (u32 sw_if_index, u32 is_inbound, cnat_5tuple_t *pkt_5tuple, int is_ip6,
++		 u8 *r_action, u32 *matched_rule_id)
+ {
+   return CLIB_MARCH_FN_SELECT (npol_match) (sw_if_index, is_inbound, pkt_5tuple, is_ip6, r_action,
+ 					    matched_rule_id);
+ }
+ 
+ int
+-npol_match_func_acl (void *p_acl_main, u32 sw_if_index, u32 is_inbound,
+-		     fa_5tuple_opaque_t *pkt_5tuple, int is_ip6, u8 *r_action, u32 *trace_bitmap,
+-		     u32 *matched_rule_id)
++npol_match_func_cnat (void *p_cnat_main, u32 sw_if_index, u32 is_inbound, cnat_5tuple_t *pkt_5tuple,
++		      int is_ip6, u8 *r_action, u32 *matched_rule_id)
+ {
+-  return CLIB_MARCH_FN_SELECT (npol_match) (sw_if_index, is_inbound, (fa_5tuple_t *) pkt_5tuple,
+-					    is_ip6, r_action, matched_rule_id);
++  return CLIB_MARCH_FN_SELECT (npol_match) (sw_if_index, is_inbound, pkt_5tuple, is_ip6, r_action,
++					    matched_rule_id);
+ }
+ #endif /* CLIB_MARCH_VARIANT */
+diff --git a/src/plugins/npol/npol_match.h b/src/plugins/npol/npol_match.h
+index 0f8a02b1a9..1ac2b7be45 100644
+--- a/src/plugins/npol/npol_match.h
++++ b/src/plugins/npol/npol_match.h
+@@ -5,17 +5,15 @@
+ #ifndef included_npol_match_h
+ #define included_npol_match_h
+ 
+-#include <acl/acl.h>
+-#include <acl/fa_node.h>
+-
+ #include <npol/npol_ipset.h>
+ #include <npol/npol_policy.h>
+ #include <npol/npol_rule.h>
++#include <cnat/cnat_types.h>
+ 
+-int npol_match_func (u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple, int is_ip6,
++int npol_match_func (u32 sw_if_index, u32 is_inbound, cnat_5tuple_t *pkt_5tuple, int is_ip6,
+ 		     u8 *r_action, u32 *matched_rule_id);
+-int npol_match_func_acl (void *p_acl_main, u32 sw_if_index, u32 is_inbound,
+-			 fa_5tuple_opaque_t *pkt_5tuple, int is_ip6, u8 *r_action,
+-			 u32 *trace_bitmap, u32 *matched_rule_id);
++int npol_match_func_cnat (void *p_cnat_main, u32 sw_if_index, u32 is_inbound,
++			  cnat_5tuple_t *pkt_5tuple, int is_ip6, u8 *r_action,
++			  u32 *matched_rule_id);
+ 
+ #endif
+-- 
+2.43.0
+
