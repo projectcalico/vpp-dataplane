@@ -22,7 +22,6 @@ import (
 
 	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
-	"google.golang.org/protobuf/types/known/anypb"
 	"gopkg.in/tomb.v2"
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
@@ -89,6 +88,12 @@ func (s *Server) injectRoute(path *bgpapi.Path) error {
 			}
 			vpn = true
 		} else {
+			// Fallback: handle SRPolicyNLRI that may not have been caught by the SAFI check
+			srnrli := &bgpapi.SRPolicyNLRI{}
+			if err := path.Nlri.UnmarshalTo(srnrli); err == nil {
+				s.log.Debugf("injectRoute: SRPolicyNLRI fallback, redirecting to injectSRv6Policy")
+				return s.injectSRv6Policy(path)
+			}
 			return fmt.Errorf("cannot handle Nlri: %+v", path.Nlri)
 		}
 	}
@@ -147,13 +152,14 @@ func (s *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv
 						}
 					}
 					// search for TunnelEncapSubTLVSRBindingSID
-					srbsids := &anypb.Any{}
-					if err := innerTlv.UnmarshalTo(srbsids); err == nil {
+					subTLVBsid := &bgpapi.TunnelEncapSubTLVSRBindingSID{}
+					if err := innerTlv.UnmarshalTo(subTLVBsid); err == nil {
 						s.log.Debugf("getSRPolicy TunnelEncapSubTLVSRBindingSID")
-						if err := srbsids.UnmarshalTo(srv6bsid); err != nil {
-							return nil, nil, nil, err
+						if subTLVBsid.Bsid != nil {
+							if err := subTLVBsid.Bsid.UnmarshalTo(srv6bsid); err != nil {
+								return nil, nil, nil, err
+							}
 						}
-
 					}
 
 					// search for TunnelEncapSubTLVSRPriority
@@ -193,11 +199,14 @@ func (s *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv
 }
 
 func (s *Server) injectSRv6Policy(path *bgpapi.Path) error {
+	s.log.Debugf("injectSRv6Policy called")
 	_, srv6tunnel, srnrli, err := s.getSRPolicy(path)
 
 	if err != nil {
 		return errors.Wrap(err, "error injectSRv6Policy")
 	}
+	s.log.Debugf("injectSRv6Policy: endpoint=%s, dst=%s, behavior=%d, bsid=%s, sids=%v",
+		net.IP(srnrli.Endpoint), srv6tunnel.Dst, srv6tunnel.Behavior, srv6tunnel.Bsid, srv6tunnel.Sid)
 
 	cn := &common.NodeConnectivity{
 		Dst:              net.IPNet{},
@@ -249,7 +258,7 @@ func (s *Server) startBGPMonitoring() (func(), error) {
 						s.log.Debugf("Ignoring internal path")
 						continue
 					}
-					if *config.GetCalicoVppFeatureGates().SRv6Enabled && path.GetFamily() == &common.BgpFamilySRv6IPv6 {
+					if *config.GetCalicoVppFeatureGates().SRv6Enabled && path.GetFamily().GetSafi() == bgpapi.Family_SAFI_SR_POLICY {
 						s.log.Debugf("Path SRv6")
 						err := s.injectSRv6Policy(path)
 						if err != nil {
