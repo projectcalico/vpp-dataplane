@@ -246,12 +246,23 @@ func (p *SRv6Provider) getPolicyNode(nodeip string, behavior types.SrBehavior) (
 	p.log.Infof("SRv6Provider getPolicyNode node: %s, with beahvior: %d", nodeip, behavior)
 	if p.nodePolices[nodeip] != nil {
 		var priority uint32
-		for _, tunnel := range p.nodePolices[nodeip].SRv6Tunnel {
-			if types.FromGoBGPSrBehavior(tunnel.Behavior) == behavior && tunnel.Priority >= priority {
+		p.log.Infof("SRv6Provider getPolicyNode: found %d tunnels for node %s", len(p.nodePolices[nodeip].SRv6Tunnel), nodeip)
+		for i, tunnel := range p.nodePolices[nodeip].SRv6Tunnel {
+			converted := types.FromGoBGPSrBehavior(tunnel.Behavior)
+			p.log.Infof("SRv6Provider getPolicyNode: tunnel[%d] behavior=%d converted=%d want=%d match=%v policy=%v",
+				i, tunnel.Behavior, converted, behavior, converted == behavior, tunnel.Policy != nil)
+			if converted == behavior && tunnel.Priority >= priority {
 				priority = tunnel.Priority
 				policy = tunnel.Policy
 			}
 		}
+	} else {
+		p.log.Infof("SRv6Provider getPolicyNode: nodePolices[%s] is nil", nodeip)
+	}
+	if policy == nil {
+		p.log.Infof("SRv6Provider getPolicyNode: no matching policy found")
+	} else {
+		p.log.Infof("SRv6Provider getPolicyNode: found policy bsid=%s", policy.Bsid.String())
 	}
 	return policy, err
 }
