@@ -1,6 +1,6 @@
-VPP Version                 : 26.06-rc0~260-g54a5c67fc3
+VPP Version                 : 26.06-rc0~260-g316da3ca2
 Binapi-generator version    : v0.11.0
-VPP Base commit             : 71f6c00384 gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : cd5b8d6e7 gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
 npol: add matched rule id to acl trace
 ip-neighbor: preserve interface LL receive DPO for self link-local
@@ -14,7 +14,7 @@ gerrit:45099/2 ip6-nd: add nd-proxy all dst
 gerrit:44966/5 ip-neighbor: fix missing solicited-node multicast MAC
 gerrit:44903/1 vxlan: reset next_dpo on delete
 gerrit:44350/3 vnet: fix unicast NA handling in ND proxy
-gerrit:43369/34 cnat: support encapsulation and session cleanup on backend deletion
+gerrit:43369/37 cnat: support encapsulation and session cleanup on backend deletion
 gerrit:42343/2 vcl: LDP default to regular option
 gerrit:34726/3 interface: add buffer stats api
 -------------------------------------------------------------

@@ -1,0 +1,31 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright (c) 2026 Cisco Systems, Inc.
+ */
+
+option version = "1.0.0";
+
+import "vnet/interface_types.api";
+
+/** \brief Configure TTL fixup for transparent host forwarding
+    @param client_index - opaque cookie to identify the sender
+    @param context - sender context, to match reply w/ request
+    @param src_sw_if_index - source interface (e.g. tap0)
+    @param dst_sw_if_index - destination interface (e.g. uplink)
+    @param enable - 1 to enable, 0 to disable
+
+    When enabled, packets arriving on src_sw_if_index whose resolved
+    adjacency points to dst_sw_if_index will have TTL/hop-limit
+    decrement skipped in ip4/ip6-rewrite, making VPP transparent
+    for that forwarding path (host-originated traffic to uplink).
+
+    Packets from src to other destinations (e.g. pod interfaces)
+    have different adjacencies and decrement TTL normally.
+*/
+autoreply define ip_ttl_fixup_configure
+{
+  u32 client_index;
+  u32 context;
+  vl_api_interface_index_t src_sw_if_index;
+  vl_api_interface_index_t dst_sw_if_index;
+  bool enable;
+};

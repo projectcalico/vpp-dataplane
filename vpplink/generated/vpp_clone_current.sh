@@ -65,6 +65,14 @@ function git_apply_private ()
     git am < $SCRIPTDIR/patches/$refs
 }
 
+function copy_private_plugin ()
+{
+	name=$1
+	blue "Copying private plugin $name..."
+	rm -rf "$VPP_DIR/src/plugins/$name"
+	cp -r "$SCRIPTDIR/private_plugins/$name" "$VPP_DIR/src/plugins/$name"
+}
+
 
 function git_revert ()
 {
@@ -125,10 +133,12 @@ git_cherry_pick refs/changes/46/45046/4 # 45046: ip6-nd: add punt reason for nei
 git_cherry_pick refs/changes/30/44930/4 # 44930: virtio: add support for MAC address change | https://gerrit.fd.io/r/c/vpp/+/44930
 git_cherry_pick refs/changes/35/44935/4 # 44935: virtio: add support for secondary MAC filtering | https://gerrit.fd.io/r/c/vpp/+/44935
 
-# --------------- private plugins ---------------
-# Generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
+# --------------- private patches/plugins ---------------
+# Patch files generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-pbl-Port-based-balancer.patch
 git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
 git_apply_private 0004-ip-neighbor-preserve-interface-ll-receive-dpo.patch
 git_apply_private 0005-npol-add-matched-rule-id-to-acl-trace.patch
+# TTL fixup is kept as a private plugin source tree.
+copy_private_plugin ip_ttl_fixup
