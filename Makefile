@@ -168,6 +168,13 @@ run-tests-v6:
 	test/scripts/cases.sh ipv6
 	test/scripts/test.sh down iperf v6
 
+.PHONY: run-tests-nat
+run-tests-nat:
+	test/scripts/test.sh up nat
+	@bash -c 'kubectl -n nat wait pod --all --for=condition=Ready --timeout=60s'
+	test/scripts/cases.sh nat_ipv4
+	test/scripts/test.sh down nat
+
 .PHONY: run-tests-policy
 run-tests-policy:
 	test/scripts/test.sh up policy
