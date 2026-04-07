@@ -35,7 +35,7 @@ index b327f2c34..380d32aec 100644
 @@ -98,7 +101,10 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b, ip_addres
  			      rw->tuple.port[VLIB_TX];
  
-   ts->trk = trk0_i;
+   ts->ts_trk_index = trk0_i;
 -  if (trk0->ct_flags & CNAT_TRK_FLAG_NO_NAT)
 +  if (cpe)
 +    ispod = clib_bitmap_get (cpe->interface_maps[CNAT_SNAT_IF_MAP_INCLUDE_POD],

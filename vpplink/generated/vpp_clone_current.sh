@@ -114,7 +114,7 @@ git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular opt
 
 # cnat new implementation: a cnat session is now used for every packet for fastpath, we delete sessions when
 # corresponding translation disappears
-git_cherry_pick refs/changes/69/43369/21 # 43369: cnat: converge new cnat implementation to support encaps (calico) https://gerrit.fd.io/r/c/vpp/+/43369
+git_cherry_pick refs/changes/69/43369/33 # 43369: cnat: converge new cnat implementation to support encaps (calico) https://gerrit.fd.io/r/c/vpp/+/43369
 
 # IPv6 related fixes:
 git_cherry_pick refs/changes/50/44350/3 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350

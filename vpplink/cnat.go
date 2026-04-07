@@ -225,16 +225,3 @@ func (v *VppLink) SetK8sSnatPolicy() (err error) {
 func (v *VppLink) ClearSnatPolicy() (err error) {
 	return v.cnatSetSnatPolicyForDefaultVRF(cnat.CNAT_POLICY_NONE)
 }
-
-func (v *VppLink) EnableCnatSNATOnInterfaceVRF(swifindex uint32) (err error) {
-	client := cnat.NewServiceClient(v.GetConnection())
-
-	_, err = client.ApplyDefaultCnatSnat(v.GetContext(), &cnat.ApplyDefaultCnatSnat{
-		SwIfIndex: interface_types.InterfaceIndex(swifindex),
-	})
-	if err != nil {
-		return fmt.Errorf("ApplyDefaultCnatSnat for interface %d failed: %w", swifindex, err)
-	}
-	return nil
-
-}
