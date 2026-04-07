@@ -1,0 +1,129 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: nat
+  name: nat-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nat-server
+  template:
+    metadata:
+      labels:
+        app: nat-server
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: nat
+  name: nat-service
+spec:
+  selector:
+    app: nat-server
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+# UDP echo server for UDP DNAT tests
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: nat
+  name: nat-udp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nat-udp-server
+  template:
+    metadata:
+      labels:
+        app: nat-udp-server
+    spec:
+      containers:
+      - name: udp-echo
+        image: nicolaka/netshoot
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          python3 -c "
+          import socket
+          s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+          s.bind(('', 9999))
+          while True:
+              data, addr = s.recvfrom(1024)
+              s.sendto(data, addr)
+          "
+        ports:
+        - containerPort: 9999
+          protocol: UDP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: nat
+  name: nat-udp-service
+spec:
+  selector:
+    app: nat-udp-server
+  ports:
+    - protocol: UDP
+      port: 9999
+      targetPort: 9999
+---
+# Client on the same node as the server (for same-node DNAT)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nat-client-samehost
+  namespace: nat
+spec:
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: nat-server
+          topologyKey: kubernetes.io/hostname
+  containers:
+  - name: client
+    image: nicolaka/netshoot
+    command: ["sleep", "3600"]
+---
+# Client on a different node from the server (for cross-node DNAT)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nat-client
+  namespace: nat
+spec:
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: nat-server
+          topologyKey: kubernetes.io/hostname
+  containers:
+  - name: client
+    image: nicolaka/netshoot
+    command: ["sleep", "3600"]

@@ -5,7 +5,7 @@
 // Contents:
 // -  5 enums
 // -  5 structs
-// - 26 messages
+// - 24 messages
 package cnat
 
 import (
@@ -30,7 +30,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "cnat"
 	APIVersion = "0.3.0"
-	VersionCrc = 0xe688e994
+	VersionCrc = 0x38e4f2ca
 )
 
 // CnatEndpointTupleFlags defines enum 'cnat_endpoint_tuple_flags'.
@@ -258,75 +258,6 @@ type CnatTranslation struct {
 	NPaths         uint32                `binapi:"u32,name=n_paths" json:"-"`
 	FlowHashConfig ip.IPFlowHashConfigV2 `binapi:"ip_flow_hash_config_v2,name=flow_hash_config" json:"flow_hash_config,omitempty"`
 	Paths          []CnatEndpointTuple   `binapi:"cnat_endpoint_tuple[n_paths],name=paths" json:"paths,omitempty"`
-}
-
-// Duplicate the cnat snat policy of the default vrf into another vrf
-//   - table_id_ip4 -
-//
-// ApplyDefaultCnatSnat defines message 'apply_default_cnat_snat'.
-type ApplyDefaultCnatSnat struct {
-	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
-}
-
-func (m *ApplyDefaultCnatSnat) Reset()               { *m = ApplyDefaultCnatSnat{} }
-func (*ApplyDefaultCnatSnat) GetMessageName() string { return "apply_default_cnat_snat" }
-func (*ApplyDefaultCnatSnat) GetCrcString() string   { return "f9e6675e" }
-func (*ApplyDefaultCnatSnat) GetMessageType() api.MessageType {
-	return api.RequestMessage
-}
-
-func (m *ApplyDefaultCnatSnat) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.SwIfIndex
-	return size
-}
-func (m *ApplyDefaultCnatSnat) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeUint32(uint32(m.SwIfIndex))
-	return buf.Bytes(), nil
-}
-func (m *ApplyDefaultCnatSnat) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
-	return nil
-}
-
-// ApplyDefaultCnatSnatReply defines message 'apply_default_cnat_snat_reply'.
-type ApplyDefaultCnatSnatReply struct {
-	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
-}
-
-func (m *ApplyDefaultCnatSnatReply) Reset()               { *m = ApplyDefaultCnatSnatReply{} }
-func (*ApplyDefaultCnatSnatReply) GetMessageName() string { return "apply_default_cnat_snat_reply" }
-func (*ApplyDefaultCnatSnatReply) GetCrcString() string   { return "e8d4e804" }
-func (*ApplyDefaultCnatSnatReply) GetMessageType() api.MessageType {
-	return api.ReplyMessage
-}
-
-func (m *ApplyDefaultCnatSnatReply) Size() (size int) {
-	if m == nil {
-		return 0
-	}
-	size += 4 // m.Retval
-	return size
-}
-func (m *ApplyDefaultCnatSnatReply) Marshal(b []byte) ([]byte, error) {
-	if b == nil {
-		b = make([]byte, m.Size())
-	}
-	buf := codec.NewBuffer(b)
-	buf.EncodeInt32(m.Retval)
-	return buf.Bytes(), nil
-}
-func (m *ApplyDefaultCnatSnatReply) Unmarshal(b []byte) error {
-	buf := codec.NewBuffer(b)
-	m.Retval = buf.DecodeInt32()
-	return nil
 }
 
 // CnatGetSnatAddresses defines message 'cnat_get_snat_addresses'.
@@ -1386,8 +1317,6 @@ func (m *FeatureCnatEnableDisableReply) Unmarshal(b []byte) error {
 
 func init() { file_cnat_binapi_init() }
 func file_cnat_binapi_init() {
-	api.RegisterMessage((*ApplyDefaultCnatSnat)(nil), "apply_default_cnat_snat_f9e6675e")
-	api.RegisterMessage((*ApplyDefaultCnatSnatReply)(nil), "apply_default_cnat_snat_reply_e8d4e804")
 	api.RegisterMessage((*CnatGetSnatAddresses)(nil), "cnat_get_snat_addresses_51077d14")
 	api.RegisterMessage((*CnatGetSnatAddressesReply)(nil), "cnat_get_snat_addresses_reply_879513c1")
 	api.RegisterMessage((*CnatSessionDetails)(nil), "cnat_session_details_7a78bf3f")
@@ -1417,8 +1346,6 @@ func file_cnat_binapi_init() {
 // Messages returns list of all messages in this module.
 func AllMessages() []api.Message {
 	return []api.Message{
-		(*ApplyDefaultCnatSnat)(nil),
-		(*ApplyDefaultCnatSnatReply)(nil),
 		(*CnatGetSnatAddresses)(nil),
 		(*CnatGetSnatAddressesReply)(nil),
 		(*CnatSessionDetails)(nil),
