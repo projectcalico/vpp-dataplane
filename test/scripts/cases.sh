@@ -418,6 +418,45 @@ EOF
     assert_test_output_contains "Welcome to nginx"
 }
 
+function test_nat_ipv4 ()
+{
+       NS=nat
+       SVC=nat-service
+       NAT_SVC_IP=$(getClusterIP)
+       SVC=nat-udp-service
+       NAT_UDP_SVC_IP=$(getClusterIP)
+
+       echo "--DNAT same-node TCP: client -> ClusterIP -> nginx--"
+       POD=nat-client-samehost
+       test "DNAT same-node via ClusterIP (TCP)"    curl -s --max-time 3 http://${NAT_SVC_IP}
+       assert_test_output_contains "Welcome to nginx"
+
+       echo "--DNAT same-node DNS+TCP: client -> ServiceName -> nginx--"
+       test "DNAT same-node via ServiceName (DNS)"  curl -s --max-time 3 http://nat-service
+       assert_test_output_contains "Welcome to nginx"
+
+       echo "--DNAT same-node UDP: client -> ClusterIP -> echo server--"
+       test "DNAT same-node via ClusterIP (UDP)"    sh -c "echo hello | nc -u -w2 ${NAT_UDP_SVC_IP} 9999"
+       assert_test_output_contains "hello"
+
+       echo "--DNAT cross-node TCP: client -> ClusterIP -> nginx--"
+       POD=nat-client
+       test "DNAT cross-node via ClusterIP (TCP)"   curl -s --max-time 3 http://${NAT_SVC_IP}
+       assert_test_output_contains "Welcome to nginx"
+
+       echo "--DNAT cross-node DNS+TCP: client -> ServiceName -> nginx--"
+       test "DNAT cross-node via ServiceName (DNS)" curl -s --max-time 3 http://nat-service
+       assert_test_output_contains "Welcome to nginx"
+
+       echo "--DNAT cross-node UDP: client -> ClusterIP -> echo server--"
+       test "DNAT cross-node via ClusterIP (UDP)"   sh -c "echo hello | nc -u -w2 ${NAT_UDP_SVC_IP} 9999"
+       assert_test_output_contains "hello"
+
+       echo "--SNAT: pod -> outside cluster--"
+       test "SNAT external connectivity"             curl -s --max-time 3 http://checkip.amazonaws.com
+       assert_test_output_contains_not "curl: ("
+}
+
 if [ $# = 0 ]; then
 	echo "Usage"
 	for f in $(declare -F); do
