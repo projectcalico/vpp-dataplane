@@ -1,11 +1,14 @@
-VPP Version                 : 26.06-rc0~258-ge8b69f3f8
+VPP Version                 : 26.06-rc0~261-g8be8db2e5
 Binapi-generator version    : v0.11.0
-VPP Base commit             : 461470599 gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : 1f413769c gerrit:34726/3 interface: add buffer stats api
 ------------------ Cherry picked commits --------------------
+npol: add matched rule id to acl trace
 ip-neighbor: preserve interface LL receive DPO for self link-local
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:44935/4 virtio: add support for secondary MAC filtering
+gerrit:44930/4 virtio: add support for MAC address change
 gerrit:45046/4 ip6-nd: add punt reason for neigh advs
 gerrit:45099/2 ip6-nd: add nd-proxy all dst
 gerrit:44966/5 ip-neighbor: fix missing solicited-node multicast MAC
