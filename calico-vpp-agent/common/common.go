@@ -352,6 +352,7 @@ func MakePathSRv6Tunnel(localSid net.IP, bSid net.IP, nodeIPv6 net.IP, trafficTy
 
 	nlrisr, err := apb.New(&bgpapi.SRPolicyNLRI{
 		Length:   192,
+		Color:    uint32(trafficType),
 		Endpoint: nodeIP,
 	})
 
