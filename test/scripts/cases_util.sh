@@ -155,3 +155,27 @@ function sshtest () {
 	cat $LAST_TEST_LOGFILE >> $LOGFILE
 }
 
+# Expect a command to fail (non-zero exit) -- used to verify traffic is blocked by a policy
+function test_expect_fail () {
+	echo "-----------TESTCASE $1 (expect blocked)-----------" > $LAST_TEST_LOGFILE
+	kex ${@:2} >> $LAST_TEST_LOGFILE 2>&1
+	CODE=$?
+	if [ x$CODE != x0 ]; then
+	  green "$1 .... OK (blocked as expected, exit=$CODE)"
+	else
+	  red "$1 .... FAILED (should have been blocked but succeeded)"
+	fi
+	cat $LAST_TEST_LOGFILE >> $LOGFILE
+}
+
+# Apply a policy from stdin and wait for VPP npol propagation
+function apply_and_wait_policy () {
+	kubectl apply -f -
+	sleep ${POLICY_PROPAGATION_DELAY:-3}
+}
+
+# Delete a policy from stdin and wait for VPP npol propagation
+function delete_and_wait_policy () {
+	kubectl delete --ignore-not-found -f -
+	sleep ${POLICY_PROPAGATION_DELAY:-3}
+}
