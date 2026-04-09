@@ -162,6 +162,13 @@ run-tests-v6:
 	test/scripts/cases.sh ipv6
 	test/scripts/test.sh down iperf v6
 
+.PHONY: run-tests-policy
+run-tests-policy:
+	test/scripts/test.sh up policy
+	@bash -c 'kubectl -n policy wait pod --all --for=condition=Ready --timeout=60s'
+	test/scripts/cases.sh policy_ipv4
+	test/scripts/test.sh down policy
+
 .PHONY: restart-calicovpp
 restart-calicovpp:
 	kubectl -n calico-vpp-dataplane rollout restart ds/calico-vpp-node
