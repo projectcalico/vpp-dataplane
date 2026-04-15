@@ -189,6 +189,10 @@ run-tests-policy:
 	test/scripts/cases.sh policy_ipv4
 	test/scripts/test.sh down policy
 
+.PHONY: run-cnat-drain-test
+run-cnat-drain-test:
+	test/yaml/trex/run-cnat-drain-test.sh
+
 .PHONY: restart-calicovpp
 restart-calicovpp:
 	kubectl -n calico-vpp-dataplane rollout restart ds/calico-vpp-node
