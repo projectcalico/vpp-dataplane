@@ -17,6 +17,7 @@ type RPCService interface {
 	CnatSessionDump(ctx context.Context, in *CnatSessionDump) (RPCService_CnatSessionDumpClient, error)
 	CnatSessionPurge(ctx context.Context, in *CnatSessionPurge) (*CnatSessionPurgeReply, error)
 	CnatSetSnatAddresses(ctx context.Context, in *CnatSetSnatAddresses) (*CnatSetSnatAddressesReply, error)
+	CnatSetSnatAddressesV2(ctx context.Context, in *CnatSetSnatAddressesV2) (*CnatSetSnatAddressesV2Reply, error)
 	CnatSetSnatPolicy(ctx context.Context, in *CnatSetSnatPolicy) (*CnatSetSnatPolicyReply, error)
 	CnatSnatAddressesDump(ctx context.Context, in *CnatSnatAddressesDump) (RPCService_CnatSnatAddressesDumpClient, error)
 	CnatSnatPolicyAddDelExcludePfx(ctx context.Context, in *CnatSnatPolicyAddDelExcludePfx) (*CnatSnatPolicyAddDelExcludePfxReply, error)
@@ -98,6 +99,15 @@ func (c *serviceClient) CnatSessionPurge(ctx context.Context, in *CnatSessionPur
 
 func (c *serviceClient) CnatSetSnatAddresses(ctx context.Context, in *CnatSetSnatAddresses) (*CnatSetSnatAddressesReply, error) {
 	out := new(CnatSetSnatAddressesReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) CnatSetSnatAddressesV2(ctx context.Context, in *CnatSetSnatAddressesV2) (*CnatSetSnatAddressesV2Reply, error) {
+	out := new(CnatSetSnatAddressesV2Reply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err
