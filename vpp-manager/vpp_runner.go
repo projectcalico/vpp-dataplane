@@ -725,11 +725,10 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrap(err, "Error configuring NAT on vpptap0")
 	}
 
-	// Get Linux link info for the tap but do NOT bring it up yet.
-	// Linux tap configuration (link up, addresses, routes) is deferred
-	// to after the VPP_RUNNING hook so that udev rules restoring
-	// ID_NET_NAME_* properties are in place before systemd-networkd
-	// sees the interface and computes the DHCPv6 IAID.
+	// Get Linux link info for the tap, but do NOT bring it up yet.
+	// Linux tap configuration (link up, addresses, routes) is performed
+	// in runVPP() where we reconcile the tap link-local address in
+	// configureIPv6LinkLocal() BEFORE running the VPP_RUNNING hook.
 	link, err := netlink.LinkByName(ifSpec.InterfaceName)
 	if err != nil {
 		return errors.Wrapf(err, "cannot find interface named %s", ifSpec.InterfaceName)
@@ -1075,14 +1074,10 @@ func (v *VppRunner) runVpp() (err error) {
 		}
 	}
 
-	networkHook.ExecuteWithUserScript(hooks.HookVppRunning, config.HookScriptVppRunning, v.params)
-
-	// Configure Linux side of tap interfaces AFTER the VPP_RUNNING hook.
-	// The hook installs udev rules that restore ID_NET_NAME_* properties
-	// on the tap, which systemd-networkd uses to compute a stable DHCPv6
-	// IAID. Bringing the taps up only now guarantees the udev rules are
-	// loaded and networkd has been restarted before any DHCPv6 SOLICIT
-	// can be sent, preventing IAID mismatch.
+	// Configure Linux side of tap interfaces BEFORE the VPP_RUNNING hook.
+	// This brings the tap UP so the kernel generates its link-local addeess,
+	// which we then reconcile to the physical link-local address in
+	// configureIPv6LinkLocal() BEFORE restarting networkd in VPP_RUNNING.
 	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
 		link, err := netlink.LinkByName(v.params.UplinksSpecs[idx].InterfaceName)
 		if err != nil {
@@ -1109,6 +1104,8 @@ func (v *VppRunner) runVpp() (err error) {
 			return errors.Wrapf(err, "Error configuring IPv6 link-local for %s", v.params.UplinksSpecs[idx].InterfaceName)
 		}
 	}
+
+	networkHook.ExecuteWithUserScript(hooks.HookVppRunning, config.HookScriptVppRunning, v.params)
 
 	// Set the TAP interfaces admin-up in VPP last, after all Linux-side
 	// configuration is complete.
