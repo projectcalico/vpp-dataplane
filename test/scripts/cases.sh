@@ -452,7 +452,15 @@ function test_nat_ipv4 ()
        test "DNAT cross-node via ClusterIP (UDP)"   sh -c "echo hello | nc -u -w2 ${NAT_UDP_SVC_IP} 9999"
        assert_test_output_contains "hello"
 
+       echo "--Hairpin NAT: pod -> service -> itself--"
+       POD=nat-hairpin
+       SVC=nat-hairpin-service
+       NAT_HAIRPIN_SVC_IP=$(getClusterIP)
+       test "Hairpin NAT (pod via service to itself)"  curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://${NAT_HAIRPIN_SVC_IP}:8080
+       assert_test_output_contains "200"
+
        echo "--SNAT: pod -> outside cluster--"
+       POD=nat-client
        test "SNAT external connectivity"             curl -s --max-time 3 http://checkip.amazonaws.com
        assert_test_output_contains_not "curl: ("
 }
