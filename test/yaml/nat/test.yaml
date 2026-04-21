@@ -127,3 +127,39 @@ spec:
   - name: client
     image: nicolaka/netshoot
     command: ["sleep", "3600"]
+---
+# Pod that acts as both client and server for hairpin NAT testing
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nat-hairpin
+  namespace: nat
+  labels:
+    app: nat-hairpin
+spec:
+  containers:
+  - name: server
+    image: nicolaka/netshoot
+    command: ["/bin/sh", "-c"]
+    args:
+    - python3 -m http.server 8080
+    ports:
+    - containerPort: 8080
+    readinessProbe:
+      tcpSocket:
+        port: 8080
+      initialDelaySeconds: 3
+      periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: nat
+  name: nat-hairpin-service
+spec:
+  selector:
+    app: nat-hairpin
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
