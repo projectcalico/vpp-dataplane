@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"gopkg.in/tomb.v2"
@@ -136,8 +137,8 @@ func (w *PrefixWatcher) getAssignedPrefixes() ([]string, error) {
 			w.log.Debugf("Found assigned prefix: %+v", blockAffinity)
 			// Check if this block affinity is for our node and the correct IP version
 			if blockAffinity.Spec.Node == *config.NodeName &&
-				blockAffinity.Spec.State == "confirmed" &&
-				blockAffinity.Spec.Deleted != "true" {
+				blockAffinity.Spec.State == calicov3.StateConfirmed &&
+				!blockAffinity.Spec.Deleted {
 				// Check IP version of the CIDR
 				cidr := blockAffinity.Spec.CIDR
 				if (ipVersion == 4 && !strings.Contains(cidr, ":")) ||

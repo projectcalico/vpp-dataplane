@@ -288,7 +288,7 @@ func (s *Server) NewBGPPolicyV4V6(CIDR string, matchOperator calicov3.BGPFilterM
 
 	var matchSetType bgpapi.MatchSet_Type
 	var minMask, maxMask uint32
-	if matchOperator == calicov3.In || matchOperator == calicov3.NotIn {
+	if matchOperator == calicov3.MatchOperatorIn || matchOperator == calicov3.MatchOperatorNotIn {
 		_, subnet, err := net.ParseCIDR(CIDR)
 		if err != nil {
 			return nil, 0, 0, "", errors.Wrap(err, "error creating new bgp policy")
@@ -296,14 +296,14 @@ func (s *Server) NewBGPPolicyV4V6(CIDR string, matchOperator calicov3.BGPFilterM
 		ones, bits := subnet.Mask.Size()
 		minMask = uint32(ones)
 		maxMask = uint32(bits)
-		if matchOperator == calicov3.In {
+		if matchOperator == calicov3.MatchOperatorIn {
 			matchSetType = bgpapi.MatchSet_ANY // any and all are same in our case as we have only one member of the defined set
 		} else {
 			matchSetType = bgpapi.MatchSet_INVERT
 		}
 	} else {
 		// mask is zero
-		if matchOperator == calicov3.Equal {
+		if matchOperator == calicov3.MatchOperatorEqual {
 			matchSetType = bgpapi.MatchSet_ANY
 		} else {
 			matchSetType = bgpapi.MatchSet_INVERT

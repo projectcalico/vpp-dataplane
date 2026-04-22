@@ -28,12 +28,23 @@ import (
 
 const (
 	netAnnotationsLabel = "extensions.projectcalico.org/network" // this annotation is assigned to rules in multinet to precise network
+	defaultNetwork      = ""
 )
 
 type PolicyID struct {
-	Tier    string
-	Name    string
-	Network string
+	Kind      string
+	Name      string
+	Namespace string
+	Network   string
+}
+
+func fromProtoPolicyID(policyID *proto.PolicyID, network string) PolicyID {
+	return PolicyID{
+		Name:      policyID.GetName(),
+		Namespace: policyID.GetNamespace(),
+		Kind:      policyID.GetKind(),
+		Network:   network,
+	}
 }
 
 // Policy represents both Policies and Profiles in the calico API

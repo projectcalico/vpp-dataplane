@@ -123,7 +123,7 @@ func (cc *CalicoClientStub) CalicoNodeStatus() clientv3.CalicoNodeStatusInterfac
 }
 
 // IPAMConfig returns an interface for managing IPAMConfig resources.
-func (cc *CalicoClientStub) IPAMConfig() clientv3.IPAMConfigInterface {
+func (cc *CalicoClientStub) IPAMConfiguration() clientv3.IPAMConfigurationInterface {
 	panic("not implemented")
 }
 
@@ -163,5 +163,9 @@ func (cc *CalicoClientStub) StagedNetworkPolicies() clientv3.StagedNetworkPolicy
 }
 
 func (cc *CalicoClientStub) Close() error {
+	panic("not implemented")
+}
+
+func (cc *CalicoClientStub) LiveMigrations() clientv3.LiveMigrationInterface {
 	panic("not implemented")
 }

@@ -201,8 +201,8 @@ var _ = Describe("Felix functionality", func() {
 				By("adding the active policy update")
 				pol := &proto.ActivePolicyUpdate{
 					Id: &proto.PolicyID{
-						Name: "pol",
-						Tier: "tier",
+						Name:      "pol",
+						Namespace: "tier",
 					},
 					Policy: &proto.Policy{
 						InboundRules:  []*proto.Rule{{Action: "deny", DstPorts: []*proto.PortRange{{First: 3050, Last: 3060}}}, {Action: "allow", DstNet: []string{"6.6.6.6/24"}}},
@@ -224,9 +224,15 @@ var _ = Describe("Felix functionality", func() {
 					Id: wepId,
 					Endpoint: &proto.WorkloadEndpoint{
 						Tiers: []*proto.TierInfo{{
-							Name:            "tier",
-							IngressPolicies: []string{"pol"},
-							EgressPolicies:  []string{"pol"},
+							Name: "tier",
+							IngressPolicies: []*proto.PolicyID{{
+								Name:      "pol",
+								Namespace: "tier",
+							}},
+							EgressPolicies: []*proto.PolicyID{{
+								Name:      "pol",
+								Namespace: "tier",
+							}},
 						}},
 					}}, false)
 				Expect(err).ToNot(HaveOccurred(),
@@ -243,8 +249,8 @@ var _ = Describe("Felix functionality", func() {
 				By("deleting the existing active policy")
 				polR := &proto.ActivePolicyRemove{
 					Id: &proto.PolicyID{
-						Name: "pol",
-						Tier: "tier",
+						Name:      "pol",
+						Namespace: "tier",
 					},
 				}
 				err = felixServer.handleActivePolicyRemove(polR, false)
@@ -419,8 +425,8 @@ var _ = Describe("Felix functionality", func() {
 				By("adding a new hep update")
 				pol := &proto.ActivePolicyUpdate{
 					Id: &proto.PolicyID{
-						Name: "pol",
-						Tier: "tier",
+						Name:      "pol",
+						Namespace: "tier",
 					},
 					Policy: &proto.Policy{
 						InboundRules:  []*proto.Rule{{Action: "deny", DstPorts: []*proto.PortRange{{First: 3050, Last: 3060}}}, {Action: "allow", DstNet: []string{"6.6.6.6/24"}}},
@@ -437,9 +443,15 @@ var _ = Describe("Felix functionality", func() {
 					Endpoint: &proto.HostEndpoint{
 						Name: "uplink",
 						Tiers: []*proto.TierInfo{{
-							Name:            "tier",
-							IngressPolicies: []string{"pol"},
-							EgressPolicies:  []string{"pol"},
+							Name: "tier",
+							IngressPolicies: []*proto.PolicyID{{
+								Name:      "pol",
+								Namespace: "tier",
+							}},
+							EgressPolicies: []*proto.PolicyID{{
+								Name:      "pol",
+								Namespace: "tier",
+							}},
 						}},
 					},
 				}
@@ -454,8 +466,8 @@ var _ = Describe("Felix functionality", func() {
 				By("updating the existing new hep update policy")
 				pol = &proto.ActivePolicyUpdate{
 					Id: &proto.PolicyID{
-						Name: "pol",
-						Tier: "tier",
+						Name:      "pol",
+						Namespace: "tier",
 					},
 					Policy: &proto.Policy{
 						InboundRules:  []*proto.Rule{{Action: "deny", DstPorts: []*proto.PortRange{{First: 3070, Last: 3080}}}, {Action: "allow", DstNet: []string{"6.6.6.6/24"}}},
@@ -476,8 +488,11 @@ var _ = Describe("Felix functionality", func() {
 					Endpoint: &proto.HostEndpoint{
 						Name: "uplink",
 						Tiers: []*proto.TierInfo{{
-							Name:            "tier",
-							IngressPolicies: []string{"pol"},
+							Name: "tier",
+							IngressPolicies: []*proto.PolicyID{{
+								Name:      "pol",
+								Namespace: "tier",
+							}},
 						}},
 					},
 				}
