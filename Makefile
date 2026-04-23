@@ -175,6 +175,9 @@ run-tests-policy:
 	test/scripts/cases.sh policy_ipv4
 	test/scripts/test.sh down policy
 
+.PHONY: run-main-tests
+run-main-tests: run-tests-nat run-tests-policy
+
 .PHONY: run-cnat-drain-test
 run-cnat-drain-test:
 	test/yaml/trex/run-cnat-drain-test.sh
