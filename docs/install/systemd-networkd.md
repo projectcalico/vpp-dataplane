@@ -49,14 +49,14 @@ $
 This can lead to two very undesirable consequences:
 
 1. DNS config is wiped off leading to DNS failures
-2. If uplink is configured using **dhcp** then upon lease expiry, since `systemd-networkd`
-   is not **managing** the interface, it will not do the dhcp lease renewal thus
-   ultimately **bricking** the node.
+2. If uplink is configured using **dhcp** then upon lease expiry, since
+   `systemd-networkd` is not **managing** the interface, it will not do the
+   dhcp lease renewal thus ultimately **bricking** the node.
 
 In order to prevent the above from happening, create a `.network` file for the
 tap interface under `/etc/systemd/network` and configure the `[Match]` section
-with either the interface **Name** or **MACAddress** key. For example, say, the uplink
-interface is `ens5` and its `.network` file is `/run/systemd/network/10-netplan-ens5.network`
+with either the interface **Name** or **MACAddress** key. For example, say, the
+uplink interface is `ens5` and its `.network` file is `/run/systemd/network/10-netplan-ens5.network`
 then first copy this file to `/etc/systemd/network` and rename it:
 
 ```bash

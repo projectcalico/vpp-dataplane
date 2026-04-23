@@ -1,7 +1,6 @@
 VPP_DATAPLANE_DIR = $(shell git rev-parse --show-toplevel)
 
-DEPEND_BASE = calicovpp/ci-builder
-VPP_BUCKET = calico-vpp-ci-artefacts
+VPP_CI_ARTIFACTS_BUCKET = calico-vpp-ci-artefacts
 
 export GOOS ?= linux
 
@@ -10,6 +9,16 @@ export GOOS ?= linux
 PUSH_DEP := image
 
 REGISTRIES := docker.io/
+
+# Compute hash to detect any changes and rebuild/push the image
+CI_BUILDER_IMAGE_HASH = $(shell echo \
+    "DOCKERFILE:$(shell md5sum \
+        $(VPP_DATAPLANE_DIR)/Dockerfile.depend \
+        $(VPP_DATAPLANE_DIR)/go.mod \
+        $(VPP_DATAPLANE_DIR)/go.sum \
+    	| cut -f1 -d' ' \
+	)" | md5sum | cut -f1 -d' ')
+CI_BUILDER_IMAGE = calicovpp/ci-builder:${CI_BUILDER_IMAGE_HASH}
 
 # CI specific variables
 ifdef CODEBUILD_BUILD_NUMBER
@@ -35,7 +44,7 @@ ifdef CI_BUILD
 	DOCKER_OPTS += --user $$(id -u):$$(id -g)
 	DOCKER_OPTS += -w /vpp-dataplane/$(shell git rev-parse --show-prefix)
 	DOCKER_OPTS += -v $(VPP_DATAPLANE_DIR):/vpp-dataplane
-	DOCKER_RUN = docker run -t --rm --name build_temp ${DOCKER_OPTS} calicovpp/ci-builder:latest
+	DOCKER_RUN = docker run -t --rm --name build_temp ${DOCKER_OPTS} ${CI_BUILDER_IMAGE}
 
 	PUSH_DEP :=
 

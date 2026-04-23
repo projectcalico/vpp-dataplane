@@ -32,7 +32,6 @@ phases:
       - make clean-vpp
       - make images
 
-      - make mdlint
       - make ci-lint
       - make ci-test
       - make ci-cov
