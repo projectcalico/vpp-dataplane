@@ -1,8 +1,8 @@
 # Introduction
 
 Calico/VPP deployment replaces the uplink interface with a tap interface which
-has the same name, mac address and other attributes. Most of the time there are no
-issues.
+has the same name, mac address and other attributes. Most of the time there are
+no issues.
 
 However, with certain NICs (Intel **E810**, for example) and when **multiple workers**
 are configured in `VPP` and when **MACAddressPolicy=persistent** is set in the

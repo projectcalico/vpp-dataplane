@@ -638,19 +638,19 @@ func (h *NetworkManagerHook) createUdevNetNameRules() error {
 		// Each interface gets its own rule line.
 		// systemd-networkd uses ID_NET_NAME_* (via net_get_persistent_name) for DHCPv6 IAID
 		// computation; without these properties it falls back to a MAC-derived IAID.
-		ruleBuilder.WriteString(fmt.Sprintf("SUBSYSTEM==\"net\", ATTR{address}==\"%s\"", props.MacAddress))
+		fmt.Fprintf(&ruleBuilder, "SUBSYSTEM==\"net\", ATTR{address}==\"%s\"", props.MacAddress)
 
 		if props.IDNetNameOnboard != "" {
-			ruleBuilder.WriteString(fmt.Sprintf(", ENV{ID_NET_NAME_ONBOARD}:=\"%s\"", props.IDNetNameOnboard))
+			fmt.Fprintf(&ruleBuilder, ", ENV{ID_NET_NAME_ONBOARD}:=\"%s\"", props.IDNetNameOnboard)
 		}
 		if props.IDNetNameSlot != "" {
-			ruleBuilder.WriteString(fmt.Sprintf(", ENV{ID_NET_NAME_SLOT}:=\"%s\"", props.IDNetNameSlot))
+			fmt.Fprintf(&ruleBuilder, ", ENV{ID_NET_NAME_SLOT}:=\"%s\"", props.IDNetNameSlot)
 		}
 		if props.IDNetNamePath != "" {
-			ruleBuilder.WriteString(fmt.Sprintf(", ENV{ID_NET_NAME_PATH}:=\"%s\"", props.IDNetNamePath))
+			fmt.Fprintf(&ruleBuilder, ", ENV{ID_NET_NAME_PATH}:=\"%s\"", props.IDNetNamePath)
 		}
 		if props.IDNetNameMac != "" {
-			ruleBuilder.WriteString(fmt.Sprintf(", ENV{ID_NET_NAME_MAC}:=\"%s\"", props.IDNetNameMac))
+			fmt.Fprintf(&ruleBuilder, ", ENV{ID_NET_NAME_MAC}:=\"%s\"", props.IDNetNameMac)
 		}
 		ruleBuilder.WriteString("\n")
 		rulesAdded++

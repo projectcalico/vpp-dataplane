@@ -185,7 +185,7 @@ vpp: clone-vpp vpp-build-env version-file
 	rm -rf $(CURDIR)/artifacts
 ifdef CI_BUILD
 	aws s3api put-object \
-		--bucket ${VPP_BUCKET} \
+		--bucket ${VPP_CI_ARTIFACTS_BUCKET} \
 		--key ${VPP_TARBALL} \
 		--body ${VPP_TARBALL}
 endif
@@ -193,7 +193,7 @@ endif
 ${VPP_TARBALL}:
 ifdef CI_BUILD
 	aws s3api get-object \
-		--bucket ${VPP_BUCKET} \
+		--bucket ${VPP_CI_ARTIFACTS_BUCKET} \
 		--key ${VPP_TARBALL} \
 		${VPP_TARBALL} \
 	|| $(MAKE) vpp

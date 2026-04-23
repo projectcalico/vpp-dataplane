@@ -1,6 +1,7 @@
 # Envoy TLS proxy perf test
 
-This directory contains a setup for testing host to host proxy performance with envoy
+This directory contains a setup for testing host to host proxy performance
+with envoy
 
 ## Test conditions
 

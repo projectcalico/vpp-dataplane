@@ -299,9 +299,15 @@ delete-multinet:
 
 .PHONY: lint
 lint:
-	gofmt -s -l . | grep -v binapi | grep -v vpp_build | diff -u /dev/null -
+	go mod tidy --diff || (echo -e "Please run\ngo mod tidy" && exit 1)
+	gofmt -s -l . | grep -vE '(binapi|vpp_build|vendor)' \
+		| diff -u /dev/null - \
+		|| (echo -e "Please run\ngofmt -w ." && exit 1)
 	test -d vpp-manager/vpp_build && touch vpp-manager/vpp_build/go.mod || true
 	golangci-lint run --color=never
+	markdownlint --dot \
+		--ignore vpp-manager/vpp_build \
+		--ignore vendor .
 
 .PHONY: cov-html
 cov-html:
@@ -326,20 +332,8 @@ cov:
 # remain stable.
 #
 
-BASE_IMAGE_BUILDER = ubuntu:22.04
-
-# Compute hash to detect any changes and rebuild/push the image
-DEPEND_HASH = $(shell echo \
-    "${BASE_IMAGE_BUILDER}-DOCKERFILE:$(shell md5sum \
-    	$(CURDIR)/Dockerfile.depend \
-    	$(CURDIR)/go.mod \
-    	$(CURDIR)/go.sum \
-    	| cut -f1 -d' ' \
-	)" | md5sum | cut -f1 -d' ')
-DEPEND_IMAGE = ${DEPEND_BASE}:${DEPEND_HASH}
-
 ifdef CI_BUILD
-PUSH_IMAGE = docker image push ${DEPEND_IMAGE}
+PUSH_IMAGE = docker image push ${CI_BUILDER_IMAGE}
 else
 PUSH_IMAGE = echo not pushing image
 endif
@@ -348,15 +342,13 @@ endif
 builder-image: ## Make dependencies image. (Not required normally; is implied in making any other container image).
 	# Try to pull an existing dependencies image; it's OK if none exists yet.
 	@echo Building depend image
-	docker image pull ${DEPEND_IMAGE} || /bin/true
-	docker image inspect ${DEPEND_IMAGE} >/dev/null 2>/dev/null \
+	docker image pull ${CI_BUILDER_IMAGE} || /bin/true
+	docker image inspect ${CI_BUILDER_IMAGE} >/dev/null 2>/dev/null \
 		  || ( docker image build \
 				-f ./Dockerfile.depend \
-				--build-arg BASE_IMAGE=${BASE_IMAGE_BUILDER} \
-				--tag ${DEPEND_IMAGE} \
+				--tag ${CI_BUILDER_IMAGE} \
 				$(CURDIR) \
 		   && ${PUSH_IMAGE} )
-	docker tag ${DEPEND_IMAGE} ${DEPEND_BASE}:latest
 
 # make test - runs the unit & VPP-integration tests
 # requiring sudo, this is useful in dev as this caches go deps.
@@ -401,7 +393,7 @@ ci-test: builder-image
 		--env VPP_BINARY=/usr/bin/vpp \
 		--env VPP_IMAGE=calicovpp/vpp:$(TAG) \
 		-w /vpp-dataplane \
-		${DEPEND_IMAGE} \
+		${CI_BUILDER_IMAGE} \
 		go test ./... \
 			-cover \
 			-covermode=atomic \
@@ -413,16 +405,10 @@ ci-test: builder-image
 ci-%: builder-image
 	docker run -t --rm \
 		-v $(CURDIR):/vpp-dataplane \
-		${DEPEND_IMAGE} \
+		${CI_BUILDER_IMAGE} \
 		make -C /vpp-dataplane $*
 
 .PHONY: depend-image-hash
 depend-image-hash:
-	@echo $(DEPEND_IMAGE)
+	@echo $(CI_BUILDER_IMAGE)
 
-.PHONY: mdlint
-mdlint:
-ifdef CI_BUILD
-	npm install -g markdownlint-cli
-endif
-	markdownlint --dot --ignore vpp-manager/vpp_build .
