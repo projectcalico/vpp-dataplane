@@ -7,7 +7,6 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1
 	github.com/containernetworking/plugins v1.6.2
 	github.com/google/gopacket v1.1.19
-	github.com/gookit/color v1.5.4
 	github.com/inconshreveable/mousetrap v1.1.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/lunixbochs/struc v0.0.0-20241101090106-8d528fa2c543
@@ -34,7 +33,7 @@ require (
 	k8s.io/apimachinery v0.32.5
 	k8s.io/client-go v0.32.5
 	sigs.k8s.io/controller-runtime v0.20.3
-	sigs.k8s.io/yaml v1.4.0
+	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
 require (
@@ -68,7 +67,6 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -98,7 +96,6 @@ require (
 	github.com/spf13/viper v1.20.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.19 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.19 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.19 // indirect
@@ -112,7 +109,7 @@ require (
 	golang.org/x/text v0.26.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect

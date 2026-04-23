@@ -9,7 +9,6 @@ build:
 	$(MAKE) -C vpp-manager $@
 	$(MAKE) -C multinet-monitor $@
 	@mkdir -p cmd/bin
-	go build -o cmd/bin/calicovppctl ./cmd/calicovppctl/main.go
 
 .PHONY: image images
 images: image
