@@ -18,6 +18,7 @@ package vpplink
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/cnat"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
@@ -165,6 +166,14 @@ func (v *VppLink) cnatSnatPolicyAddDelPodInterface(swIfIndex uint32, isAdd bool,
 		Table:     table,
 	})
 	if err != nil {
+		// On remove (isAdd=false), the agent iterates over all (interface, family)
+		// combinations from podInterfaceMap on every IpamConfChanged event. For an
+		// IPv6 single-stack cluster, IPv4 SNAT was never registered on Pod
+		// interfaces, so VPP replies "No such entry (-6)" when the agent tries
+		// to remove it. Swallow the ENOENT to keep the reconciliation loop alive.
+		if !isAdd && strings.Contains(err.Error(), "No such entry") {
+			return nil
+		}
 		return fmt.Errorf("cnatSnatPolicyAddDelIf %+v failed: %w", swIfIndex, err)
 	}
 	return nil
