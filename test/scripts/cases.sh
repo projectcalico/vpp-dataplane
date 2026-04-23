@@ -452,6 +452,18 @@ function test_nat_ipv4 ()
        test "DNAT cross-node via ClusterIP (UDP)"   sh -c "echo hello | nc -u -w2 ${NAT_UDP_SVC_IP} 9999"
        assert_test_output_contains "hello"
 
+       echo "--ICMP same-node: client -> pod IP--"
+       POD=nat-server
+       NAT_SERVER_POD_IP=$(getPodIP)
+       POD=nat-client-samehost
+       test "ICMP same-node (ping pod)"             ping -c 1 -W 3 ${NAT_SERVER_POD_IP}
+       assert_test_output_contains "1 received"
+
+       echo "--ICMP cross-node: client -> pod IP--"
+       POD=nat-client
+       test "ICMP cross-node (ping pod)"            ping -c 1 -W 3 ${NAT_SERVER_POD_IP}
+       assert_test_output_contains "1 received"
+
        echo "--Hairpin NAT: pod -> service -> itself--"
        POD=nat-hairpin
        SVC=nat-hairpin-service
@@ -463,6 +475,10 @@ function test_nat_ipv4 ()
        POD=nat-client
        test "SNAT external connectivity"             curl -s --max-time 3 http://checkip.amazonaws.com
        assert_test_output_contains_not "curl: ("
+
+       echo "--ICMP SNAT: pod -> outside cluster--"
+       test "ICMP SNAT external connectivity"        ping -c 1 -W 3 8.8.8.8
+       assert_test_output_contains "1 received"
 }
 
 if [ $# = 0 ]; then
