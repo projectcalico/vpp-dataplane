@@ -44,6 +44,17 @@ networking:
 nodes:
 EOF
 )
+elif [ "$IPFAMILY" == "v6" ]; then
+config=$(cat <<EOF
+$config
+networking:
+  disableDefaultCNI: true
+  podSubnet: "fd20::0/64"
+  serviceSubnet: "fd10::0/120"
+  ipFamily: ipv6
+nodes:
+EOF
+)
 else
 config=$(cat <<EOF
 $config
