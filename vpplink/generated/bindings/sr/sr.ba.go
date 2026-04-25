@@ -82,7 +82,7 @@ type Srv6SidListWithSlIndex struct {
 //   - behavior Type of behavior (function) for this localsid
 //   - sw_if_index Only for L2/L3 xconnect. OIF. In VRF variant the
 //     fib_table. Default:0xffffffff
-//   - vlan_index Only for L2 xconnect. Outgoing VLAN tag.
+//   - vlan_index Unused, will be ignored.
 //   - fib_table  FIB table in which we should install the localsid entry
 //   - nh_addr Next Hop IPv46 address. Only for L2/L3 xconnect.
 //

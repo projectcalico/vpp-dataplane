@@ -111,27 +111,26 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 #
-BASE="${BASE:-"1f7348b6d5cd1b09f17de1183af2e1565d308f3f"}"
+BASE="${BASE:-"df29c4ff84d2d3c06f2908f62f49040d3164778f"}"
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
 git_clone_cd_and_reset "$VPP_DIR" ${BASE}
 
-git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular option | https://gerrit.fd.io/r/c/vpp/+/42343
 
 # cnat new implementation: a cnat session is now used for every packet for fastpath, we delete sessions when
 # corresponding translation disappears
-git_cherry_pick refs/changes/69/43369/41 # 43369: cnat: converge new cnat implementation to support encaps (calico) https://gerrit.fd.io/r/c/vpp/+/43369
+git_cherry_pick refs/changes/69/43369/41 # 43369: cnat: converge new cnat implementation to support encaps (calico) | https://gerrit.fd.io/r/c/vpp/+/43369
+
+# update vpp_if_stats govpp version
+git_cherry_pick refs/changes/44/45644/1 # 45644: misc: update vpp_if_stats govpp version | https://gerrit.fd.io/r/c/vpp/+/45644
 
 # IPv6 related fixes:
 git_cherry_pick refs/changes/50/44350/3 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
 git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
-git_cherry_pick refs/changes/66/44966/5 # 44966: ip-neighbor: fix missing solicited-node multicast MAC | https://gerrit.fd.io/r/c/vpp/+/44966
 git_cherry_pick refs/changes/99/45099/2 # 45099: ip6-nd: add nd-proxy all dst | https://gerrit.fd.io/r/c/vpp/+/45099
 git_cherry_pick refs/changes/46/45046/4 # 45046: ip6-nd: add punt reason for neigh advs | https://gerrit.fd.io/r/c/vpp/+/45046
-git_cherry_pick refs/changes/30/44930/4 # 44930: virtio: add support for MAC address change | https://gerrit.fd.io/r/c/vpp/+/44930
-git_cherry_pick refs/changes/35/44935/4 # 44935: virtio: add support for secondary MAC filtering | https://gerrit.fd.io/r/c/vpp/+/44935
 
 # --------------- private patches/plugins ---------------
 # Patch files generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
@@ -139,6 +138,7 @@ git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0003-acl-acl-plugin-custom-policies.patch
 git_apply_private 0004-ip-neighbor-preserve-interface-ll-receive-dpo.patch
 git_apply_private 0005-npol-add-matched-rule-id-to-acl-trace.patch
-# TTL fixup is kept as a private plugin source tree.
+git_apply_private 0006-interface-add-buffer-stats-api.patch
+# VPP Private plugins:
 copy_private_plugin ip_ttl_fixup
 copy_private_plugin pbl

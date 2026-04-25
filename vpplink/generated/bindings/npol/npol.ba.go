@@ -472,7 +472,6 @@ func (m *NpolConfigurePoliciesReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Get the plugin version
 // NpolGetVersion defines message 'npol_get_version'.
 type NpolGetVersion struct{}
 
@@ -500,10 +499,6 @@ func (m *NpolGetVersion) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Reply to get the plugin version
-//   - major - Incremented every time a known breaking behavior change is introduced
-//   - minor - Incremented with small changes, may be used to avoid buggy versions
-//
 // NpolGetVersionReply defines message 'npol_get_version_reply'.
 type NpolGetVersionReply struct {
 	Major uint32 `binapi:"u32,name=major" json:"major,omitempty"`
@@ -1025,7 +1020,6 @@ func (m *NpolPolicyUpdateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// // where the packet only needs to match one entry in either category
 // NpolRuleCreate defines message 'npol_rule_create'.
 type NpolRuleCreate struct {
 	Rule NpolRule `binapi:"npol_rule,name=rule" json:"rule,omitempty"`

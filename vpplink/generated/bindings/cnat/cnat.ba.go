@@ -700,7 +700,6 @@ func (m *CnatSetSnatAddressesV2Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* A snat policy controls what traffic is srcNATed
 // CnatSetSnatPolicy defines message 'cnat_set_snat_policy'.
 type CnatSetSnatPolicy struct {
 	Policy CnatSnatPolicies `binapi:"cnat_snat_policies,name=policy" json:"policy,omitempty"`
@@ -1219,10 +1218,6 @@ func (m *CnatTranslationDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /* An enpoint is either
-//   - An IP & a port
-//   - An interface, an address familiy and a port
-//
 // CnatTranslationUpdate defines message 'cnat_translation_update'.
 type CnatTranslationUpdate struct {
 	Translation CnatTranslation `binapi:"cnat_translation,name=translation" json:"translation,omitempty"`
