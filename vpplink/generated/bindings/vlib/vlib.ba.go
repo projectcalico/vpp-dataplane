@@ -526,12 +526,6 @@ func (m *GetNodeGraph) Unmarshal(b []byte) error {
 	return nil
 }
 
-// get_node_graph_reply
-//   - retval - return code
-//   - reply_in_shmem - result from vlib_node_serialize, in shared
-//     memory. Process with vlib_node_unserialize, remember to switch
-//     heaps and free the result.
-//
 // GetNodeGraphReply defines message 'get_node_graph_reply'.
 type GetNodeGraphReply struct {
 	Retval       int32  `binapi:"i32,name=retval" json:"retval,omitempty"`

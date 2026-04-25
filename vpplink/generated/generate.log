@@ -1,20 +1,17 @@
-VPP Version                 : 26.06-rc0~260-g316da3ca2
+VPP Version                 : 26.06-rc0~544-gc79208ac1
 Binapi-generator version    : v0.11.0
-VPP Base commit             : cd5b8d6e7 gerrit:34726/3 interface: add buffer stats api
+VPP Base commit             : 3a64ed84a gerrit:42343/2 vcl: LDP default to regular option
 ------------------ Cherry picked commits --------------------
+interface: add buffer stats api
 npol: add matched rule id to acl trace
 ip-neighbor: preserve interface LL receive DPO for self link-local
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
-pbl: Port based balancer
-gerrit:44935/4 virtio: add support for secondary MAC filtering
-gerrit:44930/4 virtio: add support for MAC address change
 gerrit:45046/4 ip6-nd: add punt reason for neigh advs
 gerrit:45099/2 ip6-nd: add nd-proxy all dst
-gerrit:44966/5 ip-neighbor: fix missing solicited-node multicast MAC
 gerrit:44903/1 vxlan: reset next_dpo on delete
 gerrit:44350/3 vnet: fix unicast NA handling in ND proxy
-gerrit:43369/37 cnat: support encapsulation and session cleanup on backend deletion
+gerrit:45644/1 misc: update vpp_if_stats govpp version
+gerrit:43369/41 cnat: support encapsulation and session cleanup on backend deletion
 gerrit:42343/2 vcl: LDP default to regular option
-gerrit:34726/3 interface: add buffer stats api
 -------------------------------------------------------------

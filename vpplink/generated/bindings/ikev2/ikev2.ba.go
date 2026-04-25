@@ -23,7 +23,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ikev2"
 	APIVersion = "1.0.1"
-	VersionCrc = 0xfdeb2617
+	VersionCrc = 0x934066d2
 )
 
 // Child SA details
@@ -807,11 +807,6 @@ func (m *Ikev2NonceGet) Unmarshal(b []byte) error {
 	return nil
 }
 
-// reply on specific nonce
-//   - retval - return code
-//   - data_len - nonce length
-//   - nonce - nonce data
-//
 // Ikev2NonceGetReply defines message 'ikev2_nonce_get_reply'.
 // InProgress: the message form may change in the future versions
 type Ikev2NonceGetReply struct {
@@ -1082,7 +1077,7 @@ type Ikev2ProfileDetails struct {
 
 func (m *Ikev2ProfileDetails) Reset()               { *m = Ikev2ProfileDetails{} }
 func (*Ikev2ProfileDetails) GetMessageName() string { return "ikev2_profile_details" }
-func (*Ikev2ProfileDetails) GetCrcString() string   { return "670d01d9" }
+func (*Ikev2ProfileDetails) GetCrcString() string   { return "3e3e895b" }
 func (*Ikev2ProfileDetails) GetMessageType() api.MessageType {
 	return api.ReplyMessage
 }
@@ -1124,6 +1119,7 @@ func (m *Ikev2ProfileDetails) Size() (size int) {
 	size += 1                            // m.Profile.IkeTs.CryptoAlg
 	size += 4                            // m.Profile.IkeTs.CryptoKeySize
 	size += 1                            // m.Profile.IkeTs.IntegAlg
+	size += 1                            // m.Profile.IkeTs.PrfAlg
 	size += 1                            // m.Profile.IkeTs.DhGroup
 	size += 1                            // m.Profile.EspTs.CryptoAlg
 	size += 4                            // m.Profile.EspTs.CryptoKeySize
@@ -1180,6 +1176,7 @@ func (m *Ikev2ProfileDetails) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint8(m.Profile.IkeTs.CryptoAlg)
 	buf.EncodeUint32(m.Profile.IkeTs.CryptoKeySize)
 	buf.EncodeUint8(m.Profile.IkeTs.IntegAlg)
+	buf.EncodeUint8(m.Profile.IkeTs.PrfAlg)
 	buf.EncodeUint8(m.Profile.IkeTs.DhGroup)
 	buf.EncodeUint8(m.Profile.EspTs.CryptoAlg)
 	buf.EncodeUint32(m.Profile.EspTs.CryptoKeySize)
@@ -1233,6 +1230,7 @@ func (m *Ikev2ProfileDetails) Unmarshal(b []byte) error {
 	m.Profile.IkeTs.CryptoAlg = buf.DecodeUint8()
 	m.Profile.IkeTs.CryptoKeySize = buf.DecodeUint32()
 	m.Profile.IkeTs.IntegAlg = buf.DecodeUint8()
+	m.Profile.IkeTs.PrfAlg = buf.DecodeUint8()
 	m.Profile.IkeTs.DhGroup = buf.DecodeUint8()
 	m.Profile.EspTs.CryptoAlg = buf.DecodeUint8()
 	m.Profile.EspTs.CryptoKeySize = buf.DecodeUint32()
@@ -2725,7 +2723,7 @@ type Ikev2SetIkeTransforms struct {
 
 func (m *Ikev2SetIkeTransforms) Reset()               { *m = Ikev2SetIkeTransforms{} }
 func (*Ikev2SetIkeTransforms) GetMessageName() string { return "ikev2_set_ike_transforms" }
-func (*Ikev2SetIkeTransforms) GetCrcString() string   { return "076d7378" }
+func (*Ikev2SetIkeTransforms) GetCrcString() string   { return "aa99fec0" }
 func (*Ikev2SetIkeTransforms) GetMessageType() api.MessageType {
 	return api.RequestMessage
 }
@@ -2738,6 +2736,7 @@ func (m *Ikev2SetIkeTransforms) Size() (size int) {
 	size += 1  // m.Tr.CryptoAlg
 	size += 4  // m.Tr.CryptoKeySize
 	size += 1  // m.Tr.IntegAlg
+	size += 1  // m.Tr.PrfAlg
 	size += 1  // m.Tr.DhGroup
 	return size
 }
@@ -2750,6 +2749,7 @@ func (m *Ikev2SetIkeTransforms) Marshal(b []byte) ([]byte, error) {
 	buf.EncodeUint8(m.Tr.CryptoAlg)
 	buf.EncodeUint32(m.Tr.CryptoKeySize)
 	buf.EncodeUint8(m.Tr.IntegAlg)
+	buf.EncodeUint8(m.Tr.PrfAlg)
 	buf.EncodeUint8(m.Tr.DhGroup)
 	return buf.Bytes(), nil
 }
@@ -2759,6 +2759,7 @@ func (m *Ikev2SetIkeTransforms) Unmarshal(b []byte) error {
 	m.Tr.CryptoAlg = buf.DecodeUint8()
 	m.Tr.CryptoKeySize = buf.DecodeUint32()
 	m.Tr.IntegAlg = buf.DecodeUint8()
+	m.Tr.PrfAlg = buf.DecodeUint8()
 	m.Tr.DhGroup = buf.DecodeUint8()
 	return nil
 }
@@ -3199,10 +3200,6 @@ func (m *Ikev2SetTunnelInterfaceReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// details on specific traffic selector
-//   - retval - return code
-//   - ts - traffic selector data
-//
 // Ikev2TrafficSelectorDetails defines message 'ikev2_traffic_selector_details'.
 // InProgress: the message form may change in the future versions
 type Ikev2TrafficSelectorDetails struct {
@@ -3268,11 +3265,6 @@ func (m *Ikev2TrafficSelectorDetails) Unmarshal(b []byte) error {
 	return nil
 }
 
-// dump traffic selectors
-//   - is_initiator - specify type initiator|responder of nonce
-//   - sa_index - index of specific sa
-//   - child_sa_index - index of specific sa child of specific sa
-//
 // Ikev2TrafficSelectorDump defines message 'ikev2_traffic_selector_dump'.
 // InProgress: the message form may change in the future versions
 type Ikev2TrafficSelectorDump struct {
@@ -3339,7 +3331,7 @@ func file_ikev2_binapi_init() {
 	api.RegisterMessage((*Ikev2PluginSetSleepIntervalReply)(nil), "ikev2_plugin_set_sleep_interval_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2ProfileAddDel)(nil), "ikev2_profile_add_del_2c925b55")
 	api.RegisterMessage((*Ikev2ProfileAddDelReply)(nil), "ikev2_profile_add_del_reply_e8d4e804")
-	api.RegisterMessage((*Ikev2ProfileDetails)(nil), "ikev2_profile_details_670d01d9")
+	api.RegisterMessage((*Ikev2ProfileDetails)(nil), "ikev2_profile_details_3e3e895b")
 	api.RegisterMessage((*Ikev2ProfileDisableNatt)(nil), "ikev2_profile_disable_natt_ebf79a66")
 	api.RegisterMessage((*Ikev2ProfileDisableNattReply)(nil), "ikev2_profile_disable_natt_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2ProfileDump)(nil), "ikev2_profile_dump_51077d14")
@@ -3363,7 +3355,7 @@ func file_ikev2_binapi_init() {
 	api.RegisterMessage((*Ikev2SaV3Dump)(nil), "ikev2_sa_v3_dump_51077d14")
 	api.RegisterMessage((*Ikev2SetEspTransforms)(nil), "ikev2_set_esp_transforms_a63dc205")
 	api.RegisterMessage((*Ikev2SetEspTransformsReply)(nil), "ikev2_set_esp_transforms_reply_e8d4e804")
-	api.RegisterMessage((*Ikev2SetIkeTransforms)(nil), "ikev2_set_ike_transforms_076d7378")
+	api.RegisterMessage((*Ikev2SetIkeTransforms)(nil), "ikev2_set_ike_transforms_aa99fec0")
 	api.RegisterMessage((*Ikev2SetIkeTransformsReply)(nil), "ikev2_set_ike_transforms_reply_e8d4e804")
 	api.RegisterMessage((*Ikev2SetLocalKey)(nil), "ikev2_set_local_key_799b69ec")
 	api.RegisterMessage((*Ikev2SetLocalKeyReply)(nil), "ikev2_set_local_key_reply_e8d4e804")

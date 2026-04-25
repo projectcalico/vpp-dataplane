@@ -314,11 +314,6 @@ func (m *PblClientDump) Unmarshal(b []byte) error {
 	return nil
 }
 
-// \file
-//
-//	This file defines the vpp control-plane API messages
-//	used to control the PBL plugin
-//
 // PblClientUpdate defines message 'pbl_client_update'.
 type PblClientUpdate struct {
 	Client PblClient `binapi:"pbl_client,name=client" json:"client,omitempty"`

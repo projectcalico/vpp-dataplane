@@ -38,9 +38,6 @@ type ModuleVersion struct {
 	Name  string `binapi:"string[64],name=name" json:"name,omitempty"`
 }
 
-// /*
-//   - Get API version table (includes built-in and plugins)
-//
 // APIVersions defines message 'api_versions'.
 type APIVersions struct{}
 
@@ -1149,11 +1146,6 @@ func (m *SockclntDeleteReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// /*
-//   - Trace the plugin message-id allocator
-//   - so we stand a chance of dealing with different sets of plugins
-//   - at api trace replay time
-//
 // TracePluginMsgIds defines message 'trace_plugin_msg_ids'.
 type TracePluginMsgIds struct {
 	PluginName string `binapi:"string[128],name=plugin_name" json:"plugin_name,omitempty"`

@@ -1011,28 +1011,6 @@ func (m *IPLocalReassGetReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Add / del route request
-//
-//	Adds a route, consisting both of the MFIB entry to match packets
-//	(which may already exist) and a path to send those packets down.
-//	Routes can be entered repeatedly to add multiple paths.  Deletions are
-//	per-path.
-//	- table_id - fib table /vrf associated with the route
-//	- is_add - true if adding a route; false if deleting one
-//	- is_ipv6 - true iff all the addresses are v6
-//	- entry_flags - see fib_entry_flag_t
-//	- itf_flags - see mfib_entry_flags_t
-//	- next_hop_afi - see dpo_proto_t; the type of destination description
-//	- src_address - the source of the packet
-//	- grp_address - the group the packet is destined to
-//	- nh_address - the nexthop to forward the packet to
-//	- next_hop_sw_if_index - interface to emit packet on
-//	BIER AFIs use the BIER imposition ID.  v4 and v6 AFIs use either the
-//	interface or the nexthop address.
-//	Note that if the route is source-specific (S is supplied, not all 0s),
-//	the prefix match is treated as exact (prefixlen /32 or /128).
-//	FIXME not complete yet
-//
 // IPMrouteAddDel defines message 'ip_mroute_add_del'.
 type IPMrouteAddDel struct {
 	IsAdd       bool     `binapi:"bool,name=is_add,default=true" json:"is_add,omitempty"`
@@ -1688,14 +1666,6 @@ func (m *IPPathMtuReplaceEndReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// @brief Set a Path MTU value. i.e. a MTU value for a given neighbour.
-//
-//	       The neighbour can be described as attached (w/ interface and next-hop)
-//	       or remote (w/ table_id and next-hop);
-//	- table_id - table-ID for next-hop
-//	- nh - Next hop
-//	- path_mtu - value to set, 0 is disable.
-//
 // IPPathMtuUpdate defines message 'ip_path_mtu_update'.
 type IPPathMtuUpdate struct {
 	Pmtu IPPathMtu `binapi:"ip_path_mtu,name=pmtu" json:"pmtu,omitempty"`
@@ -4532,16 +4502,6 @@ func (m *SetIPFlowHashRouterIDReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// @brief flow hash settings for an IP table
-//   - src - include src in flow hash
-//   - dst - include dst in flow hash
-//   - sport - include sport in flow hash
-//   - dport - include dport in flow hash
-//   - proto - include proto in flow hash
-//   - reverse - include reverse in flow hash
-//   - symmetric - include symmetry in flow hash
-//   - flowlabel - include flowlabel in flow hash
-//
 // SetIPFlowHashV2 defines message 'set_ip_flow_hash_v2'.
 type SetIPFlowHashV2 struct {
 	TableID        uint32                 `binapi:"u32,name=table_id" json:"table_id,omitempty"`
@@ -4616,17 +4576,6 @@ func (m *SetIPFlowHashV2Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// @brief flow hash settings for an IP table
-//   - src - include src in flow hash
-//   - dst - include dst in flow hash
-//   - sport - include sport in flow hash
-//   - dport - include dport in flow hash
-//   - proto - include proto in flow hash
-//   - reverse - include reverse in flow hash
-//   - symmetric - include symmetry in flow hash
-//   - flowlabel - include flowlabel in flow hash
-//   - gtpv1teid - include gtpv1teid in flow hash
-//
 // SetIPFlowHashV3 defines message 'set_ip_flow_hash_v3'.
 // InProgress: the message form may change in the future versions
 type SetIPFlowHashV3 struct {

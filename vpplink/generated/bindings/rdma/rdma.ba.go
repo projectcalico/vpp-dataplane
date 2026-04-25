@@ -123,14 +123,6 @@ func (x RdmaRss6) String() string {
 	return "RdmaRss6(" + strconv.Itoa(int(x)) + ")"
 }
 
-// - client_index - opaque cookie to identify the sender
-//   - host_if - Linux netdev interface name
-//   - name - new rdma interface name
-//   - rxq_num - number of receive queues (optional)
-//   - rxq_size - receive queue size (optional)
-//   - txq_size - transmit queue size (optional)
-//   - mode - operation mode (optional)
-//
 // RdmaCreate defines message 'rdma_create'.
 // Deprecated: 21.01
 type RdmaCreate struct {
@@ -185,10 +177,6 @@ func (m *RdmaCreate) Unmarshal(b []byte) error {
 	return nil
 }
 
-// - context - sender context, to match reply w/ request
-//   - retval - return value for request
-//   - sw_if_index - software index for the new rdma interface
-//
 // RdmaCreateReply defines message 'rdma_create_reply'.
 // Deprecated: the message will be removed in the future versions
 type RdmaCreateReply struct {
@@ -227,16 +215,6 @@ func (m *RdmaCreateReply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// - client_index - opaque cookie to identify the sender
-//   - host_if - Linux netdev interface name
-//   - name - new rdma interface name
-//   - rxq_num - number of receive queues (optional)
-//   - rxq_size - receive queue size (optional)
-//   - txq_size - transmit queue size (optional)
-//   - mode - operation mode (optional)
-//   - no_multi_seg (optional) - disable chained buffer RX
-//   - max_pktlen (optional) - maximal RX packet size.
-//
 // RdmaCreateV2 defines message 'rdma_create_v2'.
 // Deprecated: the message will be removed in the future versions
 type RdmaCreateV2 struct {
@@ -299,10 +277,6 @@ func (m *RdmaCreateV2) Unmarshal(b []byte) error {
 	return nil
 }
 
-// - context - sender context, to match reply w/ request
-//   - retval - return value for request
-//   - sw_if_index - software index for the new rdma interface
-//
 // RdmaCreateV2Reply defines message 'rdma_create_v2_reply'.
 // Deprecated: the message will be removed in the future versions
 type RdmaCreateV2Reply struct {
@@ -341,18 +315,6 @@ func (m *RdmaCreateV2Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// Same as v4, just not an autoendian (expect buggy handling of flag values).
-//   - host_if - Linux netdev interface name
-//   - name - new rdma interface name
-//   - rxq_num - number of receive queues (optional)
-//   - rxq_size - receive queue size (optional)
-//   - txq_size - transmit queue size (optional)
-//   - mode - operation mode (optional)
-//   - no_multi_seg (optional) - disable chained buffer RX
-//   - max_pktlen (optional) - maximal RX packet size.
-//   - rss4 (optional) - IPv4 RSS
-//   - rss6 (optional) - IPv6 RSS
-//
 // RdmaCreateV3 defines message 'rdma_create_v3'.
 // Deprecated: the message will be removed in the future versions
 type RdmaCreateV3 struct {
@@ -423,9 +385,6 @@ func (m *RdmaCreateV3) Unmarshal(b []byte) error {
 	return nil
 }
 
-// - client_index - opaque cookie to identify the sender
-//   - sw_if_index - interface index
-//
 // RdmaCreateV3Reply defines message 'rdma_create_v3_reply'.
 type RdmaCreateV3Reply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -463,18 +422,6 @@ func (m *RdmaCreateV3Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// - client_index - opaque cookie to identify the sender
-//   - host_if - Linux netdev interface name
-//   - name - new rdma interface name
-//   - rxq_num - number of receive queues (optional)
-//   - rxq_size - receive queue size (optional)
-//   - txq_size - transmit queue size (optional)
-//   - mode - operation mode (optional)
-//   - no_multi_seg (optional) - disable chained buffer RX
-//   - max_pktlen (optional) - maximal RX packet size.
-//   - rss4 (optional) - IPv4 RSS
-//   - rss6 (optional) - IPv6 RSS
-//
 // RdmaCreateV4 defines message 'rdma_create_v4'.
 type RdmaCreateV4 struct {
 	HostIf     string   `binapi:"string[64],name=host_if" json:"host_if,omitempty"`
@@ -544,9 +491,6 @@ func (m *RdmaCreateV4) Unmarshal(b []byte) error {
 	return nil
 }
 
-// - client_index - opaque cookie to identify the sender
-//   - sw_if_index - interface index
-//
 // RdmaCreateV4Reply defines message 'rdma_create_v4_reply'.
 type RdmaCreateV4Reply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
@@ -584,9 +528,6 @@ func (m *RdmaCreateV4Reply) Unmarshal(b []byte) error {
 	return nil
 }
 
-// - client_index - opaque cookie to identify the sender
-//   - sw_if_index - interface index
-//
 // RdmaDelete defines message 'rdma_delete'.
 type RdmaDelete struct {
 	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`

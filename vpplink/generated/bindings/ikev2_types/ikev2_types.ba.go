@@ -24,7 +24,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "ikev2_types"
 	APIVersion = "1.0.0"
-	VersionCrc = 0x64c72418
+	VersionCrc = 0x67a53a36
 )
 
 // Ikev2State defines enum 'ikev2_state'.
@@ -124,6 +124,7 @@ type Ikev2IkeTransforms struct {
 	CryptoAlg     uint8  `binapi:"u8,name=crypto_alg" json:"crypto_alg,omitempty"`
 	CryptoKeySize uint32 `binapi:"u32,name=crypto_key_size" json:"crypto_key_size,omitempty"`
 	IntegAlg      uint8  `binapi:"u8,name=integ_alg" json:"integ_alg,omitempty"`
+	PrfAlg        uint8  `binapi:"u8,name=prf_alg" json:"prf_alg,omitempty"`
 	DhGroup       uint8  `binapi:"u8,name=dh_group" json:"dh_group,omitempty"`
 }
 

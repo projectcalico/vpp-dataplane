@@ -100,17 +100,6 @@ func (x AfXdpFlag) String() string {
 	return s
 }
 
-// - client_index - opaque cookie to identify the sender
-//   - host_if - Linux netdev interface name
-//   - name - new af_xdp interface name (optional)
-//   - rxq_num - number of receive queues. 65535 can be used as special value to request all available queues (optional)
-//   - rxq_size - receive queue size (optional)
-//   - txq_size - transmit queue size (optional)
-//   - mode - operation mode (optional)
-//   - flags - flags (optional)
-//   - prog - eBPF program path (optional)
-//   - netns - netns of nic (optional)
-//
 // AfXdpCreateV3 defines message 'af_xdp_create_v3'.
 type AfXdpCreateV3 struct {
 	HostIf  string    `binapi:"string[64],name=host_if" json:"host_if,omitempty"`
@@ -176,10 +165,6 @@ func (m *AfXdpCreateV3) Unmarshal(b []byte) error {
 	return nil
 }
 
-// - context - sender context, to match reply w/ request
-//   - retval - return value for request
-//   - sw_if_index - software index for the new af_xdp interface
-//
 // AfXdpCreateV3Reply defines message 'af_xdp_create_v3_reply'.
 type AfXdpCreateV3Reply struct {
 	Retval    int32                          `binapi:"i32,name=retval" json:"retval,omitempty"`
