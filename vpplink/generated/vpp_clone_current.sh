@@ -69,8 +69,8 @@ function copy_private_plugin ()
 {
 	name=$1
 	blue "Copying private plugin $name..."
-	rm -rf "$VPP_DIR/src/plugins/$name"
-	cp -r "$SCRIPTDIR/private_plugins/$name" "$VPP_DIR/src/plugins/$name"
+	rm -rf "src/plugins/$name"
+	cp -r "$SCRIPTDIR/private_plugins/$name" "src/plugins/$name"
 }
 
 
