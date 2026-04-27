@@ -17,24 +17,24 @@ import (
 	"context"
 	"fmt"
 
-	libapiv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/calico/libcalico-go/lib/apis/internalapi"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/projectcalico/calico/libcalico-go/lib/watch"
 )
 
 // NodesMock is mock implementation of clientv3.NodeInterface. It is used for managing Nodes resources.
 type NodesMock struct {
-	nodes map[string]*libapiv3.Node
+	nodes map[string]*internalapi.Node
 }
 
 // NewNodesMock creates new NodesMock instance
 func NewNodesMock() *NodesMock {
 	return &NodesMock{
-		nodes: make(map[string]*libapiv3.Node),
+		nodes: make(map[string]*internalapi.Node),
 	}
 }
 
-func (m *NodesMock) Create(ctx context.Context, res *libapiv3.Node, opts options.SetOptions) (*libapiv3.Node, error) {
+func (m *NodesMock) Create(ctx context.Context, res *internalapi.Node, opts options.SetOptions) (*internalapi.Node, error) {
 	if res == nil {
 		return nil, fmt.Errorf("node can't be nil")
 	}
@@ -45,7 +45,7 @@ func (m *NodesMock) Create(ctx context.Context, res *libapiv3.Node, opts options
 	return res, nil
 }
 
-func (m *NodesMock) Get(ctx context.Context, name string, opts options.GetOptions) (*libapiv3.Node, error) {
+func (m *NodesMock) Get(ctx context.Context, name string, opts options.GetOptions) (*internalapi.Node, error) {
 	node, found := m.nodes[name]
 	if !found {
 		return nil, fmt.Errorf("can't find node with name %s", name)
@@ -53,7 +53,7 @@ func (m *NodesMock) Get(ctx context.Context, name string, opts options.GetOption
 	return node, nil
 }
 
-func (m *NodesMock) Update(ctx context.Context, res *libapiv3.Node, opts options.SetOptions) (*libapiv3.Node, error) {
+func (m *NodesMock) Update(ctx context.Context, res *internalapi.Node, opts options.SetOptions) (*internalapi.Node, error) {
 	if res == nil {
 		return nil, fmt.Errorf("node can't be nil")
 	}
@@ -64,11 +64,11 @@ func (m *NodesMock) Update(ctx context.Context, res *libapiv3.Node, opts options
 	return res, nil
 }
 
-func (m *NodesMock) Delete(ctx context.Context, name string, opts options.DeleteOptions) (*libapiv3.Node, error) {
+func (m *NodesMock) Delete(ctx context.Context, name string, opts options.DeleteOptions) (*internalapi.Node, error) {
 	panic("not implemented")
 }
 
-func (m *NodesMock) List(ctx context.Context, opts options.ListOptions) (*libapiv3.NodeList, error) {
+func (m *NodesMock) List(ctx context.Context, opts options.ListOptions) (*internalapi.NodeList, error) {
 	panic("not implemented")
 }
 

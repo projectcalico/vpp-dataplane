@@ -39,8 +39,8 @@ type HostEndpoint struct {
 	TapSwIfIndexes    []uint32
 	TunnelSwIfIndexes []uint32
 	Profiles          []string
-	Tiers             []Tier
-	ForwardTiers      []Tier
+	Tiers             []*proto.TierInfo
+	ForwardTiers      []*proto.TierInfo
 	server            *Server
 	InterfaceName     string
 	expectedIPs       []string
@@ -74,23 +74,9 @@ func fromProtoHostEndpoint(hep *proto.HostEndpoint, server *Server) *HostEndpoin
 		TapSwIfIndexes:    []uint32{},
 		TunnelSwIfIndexes: []uint32{},
 		InterfaceName:     hep.Name,
-		Tiers:             make([]Tier, 0),
-		ForwardTiers:      make([]Tier, 0),
+		Tiers:             hep.Tiers,
+		ForwardTiers:      hep.ForwardTiers,
 		expectedIPs:       append(hep.ExpectedIpv4Addrs, hep.ExpectedIpv6Addrs...),
-	}
-	for _, tier := range hep.Tiers {
-		r.Tiers = append(r.Tiers, Tier{
-			Name:            tier.Name,
-			IngressPolicies: tier.IngressPolicies,
-			EgressPolicies:  tier.EgressPolicies,
-		})
-	}
-	for _, tier := range hep.ForwardTiers {
-		r.ForwardTiers = append(r.ForwardTiers, Tier{
-			Name:            tier.Name,
-			IngressPolicies: tier.IngressPolicies,
-			EgressPolicies:  tier.EgressPolicies,
-		})
 	}
 	for _, tier := range hep.PreDnatTiers {
 		if tier != nil {
@@ -135,26 +121,26 @@ func (h *HostEndpoint) handleTunnelChange(swIfIndex uint32, isAdd bool, pending 
 	return err
 }
 
-func (h *HostEndpoint) getUserDefinedPolicies(state *PolicyState, tiers []Tier) (conf *types.InterfaceConfig, err error) {
+func (h *HostEndpoint) getUserDefinedPolicies(state *PolicyState, tiers []*proto.TierInfo) (conf *types.InterfaceConfig, err error) {
 	conf = types.NewInterfaceConfig()
 	for _, tier := range tiers {
-		for _, polName := range tier.IngressPolicies {
-			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName}]
+		for _, policyID := range tier.IngressPolicies {
+			pol, ok := state.Policies[fromProtoPolicyID(policyID, defaultNetwork)]
 			if !ok {
-				return nil, fmt.Errorf("in policy %s tier %s not found for host endpoint", polName, tier.Name)
+				return nil, fmt.Errorf("in policy %s not found for host endpoint", policyID)
 			}
 			if pol.VppID == types.InvalidID {
-				return nil, fmt.Errorf("in policy %s tier %s not yet created in VPP", polName, tier.Name)
+				return nil, fmt.Errorf("in policy %s not yet created in VPP", policyID)
 			}
 			conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, pol.VppID)
 		}
-		for _, polName := range tier.EgressPolicies {
-			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName}]
+		for _, policyID := range tier.EgressPolicies {
+			pol, ok := state.Policies[fromProtoPolicyID(policyID, defaultNetwork)]
 			if !ok {
-				return nil, fmt.Errorf("out policy %s tier %s not found for host endpoint", polName, tier.Name)
+				return nil, fmt.Errorf("out policy %s not found for host endpoint", policyID)
 			}
 			if pol.VppID == types.InvalidID {
-				return nil, fmt.Errorf("out policy %s tier %s not yet created in VPP", polName, tier.Name)
+				return nil, fmt.Errorf("out policy %s not yet created in VPP", policyID)
 			}
 			conf.EgressPolicyIDs = append(conf.EgressPolicyIDs, pol.VppID)
 		}

@@ -95,8 +95,7 @@ func (iis *IpamInterfaceStub) ReleaseIPs(ctx context.Context, ips ...ipam.Releas
 
 // GetAssignmentAttributes returns the attributes stored with the given IP address
 // upon assignment, as well as the handle used for assignment (if any).
-func (iis *IpamInterfaceStub) GetAssignmentAttributes(ctx context.Context, addr cnet.IP) (map[string]string,
-	*string, error) {
+func (iis *IpamInterfaceStub) GetAssignmentAttributes(ctx context.Context, addr cnet.IP) (*model.AllocationAttribute, error) {
 	panic("not implemented")
 }
 
@@ -190,5 +189,9 @@ func (iis *IpamInterfaceStub) EnsureBlock(ctx context.Context, args ipam.BlockAr
 // UpgradeHost checks the resources related to the given node and, if it
 // finds any that are in older formats, upgrades them. It is idempotent.
 func (iis *IpamInterfaceStub) UpgradeHost(ctx context.Context, nodeName string) error {
+	panic("not implemented")
+}
+
+func (iis *IpamInterfaceStub) SetOwnerAttributes(ctx context.Context, ip cnet.IP, handleID string, updates *ipam.OwnerAttributeUpdates, preconditions *ipam.OwnerAttributePreconditions) error {
 	panic("not implemented")
 }

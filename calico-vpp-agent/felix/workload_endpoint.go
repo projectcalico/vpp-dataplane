@@ -37,23 +37,10 @@ func (wi *WorkloadEndpointID) String() string {
 	return fmt.Sprintf("%s:%s:%s:%s", wi.OrchestratorID, wi.WorkloadID, wi.EndpointID, wi.Network)
 }
 
-type Tier struct {
-	Name            string
-	IngressPolicies []string
-	EgressPolicies  []string
-}
-
-func (tr *Tier) String() string {
-	s := fmt.Sprintf("name=%s", tr.Name)
-	s += types.StrListToString(" IngressPolicies=", tr.IngressPolicies)
-	s += types.StrListToString(" EgressPolicies=", tr.EgressPolicies)
-	return s
-}
-
 type WorkloadEndpoint struct {
 	SwIfIndex []uint32
 	Profiles  []string
-	Tiers     []Tier
+	Tiers     []*proto.TierInfo
 	server    *Server
 }
 
@@ -73,41 +60,34 @@ func fromProtoEndpointID(ep *proto.WorkloadEndpointID) *WorkloadEndpointID {
 }
 
 func fromProtoWorkload(wep *proto.WorkloadEndpoint, server *Server) *WorkloadEndpoint {
-	r := &WorkloadEndpoint{
+	return &WorkloadEndpoint{
 		SwIfIndex: []uint32{},
 		Profiles:  wep.ProfileIds,
 		server:    server,
+		Tiers:     wep.Tiers,
 	}
-	for _, tier := range wep.Tiers {
-		r.Tiers = append(r.Tiers, Tier{
-			Name:            tier.Name,
-			IngressPolicies: tier.IngressPolicies,
-			EgressPolicies:  tier.EgressPolicies,
-		})
-	}
-	return r
 }
 
 func (w *WorkloadEndpoint) getUserDefinedPolicies(state *PolicyState, network string) (conf *types.InterfaceConfig, err error) {
 	conf = types.NewInterfaceConfig()
 	for _, tier := range w.Tiers {
-		for _, polName := range tier.IngressPolicies {
-			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName, Network: network}]
+		for _, policyID := range tier.IngressPolicies {
+			pol, ok := state.Policies[fromProtoPolicyID(policyID, network)]
 			if !ok {
-				return nil, fmt.Errorf("in policy %s tier %s not found for workload endpoint", polName, tier.Name)
+				return nil, fmt.Errorf("in policy %s not found for workload endpoint", policyID)
 			}
 			if pol.VppID == types.InvalidID {
-				return nil, fmt.Errorf("in policy %s tier %s not yet created in VPP", polName, tier.Name)
+				return nil, fmt.Errorf("in policy %s not yet created in VPP", policyID)
 			}
 			conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, pol.VppID)
 		}
-		for _, polName := range tier.EgressPolicies {
-			pol, ok := state.Policies[PolicyID{Tier: tier.Name, Name: polName, Network: network}]
+		for _, policyID := range tier.EgressPolicies {
+			pol, ok := state.Policies[fromProtoPolicyID(policyID, network)]
 			if !ok {
-				return nil, fmt.Errorf("out policy %s tier %s not found for workload endpoint", polName, tier.Name)
+				return nil, fmt.Errorf("out policy %s not found for workload endpoint", policyID)
 			}
 			if pol.VppID == types.InvalidID {
-				return nil, fmt.Errorf("out policy %s tier %s not yet created in VPP", polName, tier.Name)
+				return nil, fmt.Errorf("out policy %s not yet created in VPP", policyID)
 			}
 			conf.EgressPolicyIDs = append(conf.EgressPolicyIDs, pol.VppID)
 		}

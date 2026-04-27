@@ -802,10 +802,7 @@ func (s *Server) handleIpsetRemove(msg *proto.IPSetRemove, pending bool) (err er
 
 func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending bool) (err error) {
 	state := s.currentState(pending)
-	id := PolicyID{
-		Tier: msg.Id.Tier,
-		Name: msg.Id.Name,
-	}
+	id := fromProtoPolicyID(msg.GetId(), defaultNetwork)
 	p, err := fromProtoPolicy(msg.Policy, "")
 	if err != nil {
 		return errors.Wrapf(err, "cannot process policy update")
@@ -835,11 +832,7 @@ func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending
 	}
 
 	for network := range s.networkDefinitions {
-		id := PolicyID{
-			Tier:    msg.Id.Tier,
-			Name:    msg.Id.Name,
-			Network: network,
-		}
+		id := fromProtoPolicyID(msg.GetId(), network)
 		p, err := fromProtoPolicy(msg.Policy, network)
 		if err != nil {
 			return errors.Wrapf(err, "cannot process policy update")
@@ -875,28 +868,38 @@ func (s *Server) handleActivePolicyUpdate(msg *proto.ActivePolicyUpdate, pending
 
 func (s *Server) handleActivePolicyRemove(msg *proto.ActivePolicyRemove, pending bool) (err error) {
 	state := s.currentState(pending)
-	id := PolicyID{
-		Tier: msg.Id.Tier,
-		Name: msg.Id.Name,
-	}
+	id := fromProtoPolicyID(msg.GetId(), defaultNetwork)
 	s.log.Infof("policy(del) Handling ActivePolicyRemove pending=%t id=%s", pending, id)
-
-	for policyID := range state.Policies {
-		if policyID.Name == id.Name && policyID.Tier == id.Tier {
-			existing, ok := state.Policies[policyID]
-			if !ok {
-				s.log.Warnf("Received policy delete for Tier %s Name %s that doesn't exists", id.Tier, id.Name)
-				return nil
-			}
-			if !pending {
-				err = existing.Delete(s.vpp, state)
-				if err != nil {
-					return errors.Wrap(err, "error deleting policy")
-				}
-			}
-			delete(state.Policies, policyID)
+	existing, ok := state.Policies[id]
+	if !ok {
+		s.log.Warnf("Received policyID %s that doesn't exists", id)
+		return nil
+	}
+	if !pending {
+		err = existing.Delete(s.vpp, state)
+		if err != nil {
+			return errors.Wrap(err, "error deleting policy")
 		}
 	}
+	delete(state.Policies, id)
+
+	for network := range s.networkDefinitions {
+		id := fromProtoPolicyID(msg.GetId(), network)
+		s.log.Infof("policy(del) Handling ActivePolicyRemove pending=%t id=%s", pending, id)
+		existing, ok := state.Policies[id]
+		if !ok {
+			s.log.Warnf("Received policyID %s delete that doesn't exists", id)
+			return nil
+		}
+		if !pending {
+			err = existing.Delete(s.vpp, state)
+			if err != nil {
+				return errors.Wrap(err, "error deleting policy")
+			}
+		}
+		delete(state.Policies, id)
+	}
+
 	return nil
 }
 

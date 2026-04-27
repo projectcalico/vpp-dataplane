@@ -28,7 +28,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/pkg/errors"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/calico/libcalico-go/lib/apis/internalapi"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	calicoopts "github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/vishvananda/netlink"
@@ -782,7 +782,7 @@ func (v *VppRunner) doVppGlobalConfiguration() (err error) {
 }
 
 func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err error) {
-	var node, updated *oldv3.Node
+	var node, updated *internalapi.Node
 	var client calicov3cli.Interface
 	// TODO create if doesn't exist? need to be careful to do it atomically... and everyone else must as well.
 	for i := 0; i < 10; i++ {
@@ -801,7 +801,7 @@ func (v *VppRunner) updateCalicoNode(ifState *config.LinuxInterfaceState) (err e
 		// Update node with address
 		needUpdate := false
 		if node.Spec.BGP == nil {
-			node.Spec.BGP = &oldv3.NodeBGPSpec{}
+			node.Spec.BGP = &internalapi.NodeBGPSpec{}
 		}
 		if ifState.HasNodeIP4() {
 			log.Infof("Setting BGP nodeIP %s", ifState.GetNodeIP4())

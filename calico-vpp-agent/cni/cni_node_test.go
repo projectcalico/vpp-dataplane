@@ -29,7 +29,7 @@ import (
 	gobgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/projectcalico/calico/felix/config"
 	"github.com/projectcalico/calico/felix/proto"
-	oldv3 "github.com/projectcalico/calico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/calico/libcalico-go/lib/apis/internalapi"
 	"github.com/projectcalico/calico/libcalico-go/lib/backend/encap"
 	"github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/sirupsen/logrus"
@@ -525,7 +525,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 
 				// configure this node's name and make Calico info data holder for it
 				*agentConf.NodeName = ThisNodeName
-				_, err := client.Nodes().Create(context.Background(), &oldv3.Node{
+				_, err := client.Nodes().Create(context.Background(), &internalapi.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: *agentConf.NodeName,
 					},
@@ -533,7 +533,7 @@ var _ = Describe("Node-related functionality of CNI", func() {
 				Expect(err).ToNot(HaveOccurred(), "Failed to call client.Nodes().Create()")
 
 				// configure added node for wireguard public crypto key
-				_, err = client.Nodes().Create(context.Background(), &oldv3.Node{
+				_, err = client.Nodes().Create(context.Background(), &internalapi.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: *agentConf.NodeName,
 					},
