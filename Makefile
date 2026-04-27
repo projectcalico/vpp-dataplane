@@ -299,11 +299,11 @@ delete-multinet:
 
 .PHONY: lint
 lint:
+	test -d ${VPP_DATAPLANE_DIR}/vpp-manager/vpp_build && touch ${VPP_DATAPLANE_DIR}/vpp-manager/vpp_build/go.mod || true
 	go mod tidy --diff || (echo -e "Please run\ngo mod tidy" && exit 1)
 	gofmt -s -l . | grep -vE '(binapi|vpp_build|vendor)' \
 		| diff -u /dev/null - \
 		|| (echo -e "Please run\ngofmt -w ." && exit 1)
-	test -d vpp-manager/vpp_build && touch vpp-manager/vpp_build/go.mod || true
 	golangci-lint run --color=never
 	markdownlint --dot \
 		--ignore vpp-manager/vpp_build \
