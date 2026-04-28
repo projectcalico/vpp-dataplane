@@ -234,14 +234,10 @@ calico_create_template ()
   DPDK=${DPDK:-true}
 
   ## Templating calico-vpp-dev-patch.yaml ##
-  export CALICO_AGENT_IMAGE=${CALICO_AGENT_IMAGE:-docker.io/calicovpp/agent:latest}
   export CALICO_VPP_IMAGE=${CALICO_VPP_IMAGE:-docker.io/calicovpp/vpp:latest}
   export CALICO_VERSION_TAG=${CALICO_VERSION_TAG:-v3.20.0}
   export IMAGE_PULL_POLICY=${IMAGE_PULL_POLICY:-IfNotPresent}
   export REPO_DIRECTORY=$(readlink -f ${SCRIPTDIR}/../../..)
-
-  ## Templating multinet-monitor-dev-patch.yaml ##
-  export MULTINET_MONITOR_IMAGE=${MULTINET_MONITOR_IMAGE:-docker.io/calicovpp/multinet-monitor:latest}
 
   ## Templating installation-dev.yaml ##
   export CALICO_MTU=${CALICO_MTU:-0}

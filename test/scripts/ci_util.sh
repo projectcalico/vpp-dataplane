@@ -16,7 +16,7 @@
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $SCRIPTDIR/shared.sh
 
-PCI_BIND_NIC_TO_KERNEL=~/vpp-manager/vpp_build/extras/scripts/pci-nic-bind-to-kernel
+PCI_BIND_NIC_TO_KERNEL=~/vpp_build/extras/scripts/pci-nic-bind-to-kernel
 
 # ------------ CLUSTER ------------
 
@@ -72,7 +72,6 @@ function wait_for_calico_vpp () {
 
 function start_calico () {
   blue "Starting calico $1... at $(date)"
-  export CALICO_NODE_IMAGE=calicovpp/node:latest
   export CALICO_VPP_IMAGE=calicovpp/vpp:latest
   export IMAGE_PULL_POLICY=Never
   export CALICOVPP_CORE_PATTERN=/home/hostuser/vppcore.%e.%p

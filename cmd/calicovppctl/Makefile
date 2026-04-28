@@ -1,6 +1,6 @@
 include ../../common.mk
 
-BIN_DIR = $(VPP_DATAPLANE_DIR)/bin
+BIN_DIR = ./bin
 SNAPSHOTTER_ENABLED := $(shell docker info -f '{{json .DriverStatus }}' | grep snapshotter)
 
 .PHONY: bin
