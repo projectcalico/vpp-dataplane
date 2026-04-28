@@ -126,6 +126,27 @@ func (w *BGPConfigurationWatcher) getDefaultBGPConfig() (*calicov3.BGPConfigurat
 	}
 }
 
+// bgpConfChanged compares only the fields consumed by vpp-dataplane. Fields not yet
+// implemented (e.g. ServiceLoadBalancerAggregation) are intentionally excluded so that
+// changes to them don't trigger a restart. Remove the exclusion once the field is used.
+// Nil and empty slices are treated as equal to avoid spurious restarts when the API
+// normalizes a missing field to an empty slice.
+func bgpConfChanged(a, b *calicov3.BGPConfigurationSpec) bool {
+	if a == nil || b == nil {
+		return a != b
+	}
+	sliceChanged := func(lenA, lenB int, equal bool) bool {
+		return lenA != lenB || (lenA > 0 && !equal)
+	}
+	return a.LogSeverityScreen != b.LogSeverityScreen ||
+		!reflect.DeepEqual(a.NodeToNodeMeshEnabled, b.NodeToNodeMeshEnabled) ||
+		!reflect.DeepEqual(a.ASNumber, b.ASNumber) ||
+		a.ListenPort != b.ListenPort ||
+		sliceChanged(len(a.ServiceClusterIPs), len(b.ServiceClusterIPs), reflect.DeepEqual(a.ServiceClusterIPs, b.ServiceClusterIPs)) ||
+		sliceChanged(len(a.ServiceExternalIPs), len(b.ServiceExternalIPs), reflect.DeepEqual(a.ServiceExternalIPs, b.ServiceExternalIPs)) ||
+		sliceChanged(len(a.ServiceLoadBalancerIPs), len(b.ServiceLoadBalancerIPs), reflect.DeepEqual(a.ServiceLoadBalancerIPs, b.ServiceLoadBalancerIPs))
+}
+
 func (w *BGPConfigurationWatcher) WatchBGPConfiguration(t *tomb.Tomb) error {
 	for t.Alive() {
 		select {
@@ -140,7 +161,7 @@ func (w *BGPConfigurationWatcher) WatchBGPConfiguration(t *tomb.Tomb) error {
 				if err != nil {
 					return errors.Wrap(err, "error getting BGP configuration")
 				}
-				if !reflect.DeepEqual(newBGPConf, oldBGPConf) {
+				if bgpConfChanged(oldBGPConf, newBGPConf) {
 					w.log.Error("BGPConf updated")
 					return errors.Errorf("BGPConf updated, restarting")
 				}
