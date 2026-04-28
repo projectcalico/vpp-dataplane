@@ -9,7 +9,8 @@ spec:
     spec:
       containers:
         - name: agent
-          image: ${CALICO_AGENT_IMAGE}
+          image: ${CALICO_VPP_IMAGE}
+          command: ["/bin/calico-vpp-agent"]
           imagePullPolicy: ${IMAGE_PULL_POLICY}
           volumeMounts:
             - name: repo-directory
@@ -28,7 +29,7 @@ spec:
                 fieldPath: spec.nodeName
           # Updates to -env below
           - name: LD_LIBRARY_PATH
-            value: "/repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/"
+            value: "/repo/vpp_build/build-root/install-vpp-native/vpp/"
           resources:
             requests:
               cpu: 1

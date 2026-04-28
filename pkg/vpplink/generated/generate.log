@@ -1,0 +1,15 @@
+VPP Version                 : 26.06-rc0~593-g97929b6d0
+Binapi-generator version    : v0.11.0
+VPP Base commit             : 0fb8a1965 gerrit:42343/2 vcl: LDP default to regular option
+------------------ Cherry picked commits --------------------
+interface: add buffer stats api
+npol: add matched rule id to acl trace
+ip-neighbor: preserve interface LL receive DPO for self link-local
+acl: acl-plugin custom policies
+cnat: [WIP] no k8s maglev from pods
+gerrit:45046/4 ip6-nd: add punt reason for neigh advs
+gerrit:45099/2 ip6-nd: add nd-proxy all dst
+gerrit:44903/1 vxlan: reset next_dpo on delete
+gerrit:44350/3 vnet: fix unicast NA handling in ND proxy
+gerrit:42343/2 vcl: LDP default to regular option
+-------------------------------------------------------------

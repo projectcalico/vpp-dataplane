@@ -9,5 +9,6 @@ spec:
     spec:
       containers:
         - name: multinet-monitor
-          image: ${MULTINET_MONITOR_IMAGE}
+          image: ${CALICO_VPP_IMAGE}
+          command: ["/bin/multinet-monitor"]
           imagePullPolicy: ${IMAGE_PULL_POLICY}

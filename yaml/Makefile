@@ -1,3 +1,4 @@
+include ../common.mk
 
 #
 # The generated yaml files are consumed by CI, dev and users.
