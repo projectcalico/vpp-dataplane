@@ -117,7 +117,7 @@ func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
 		rule.Action = types.ActionDeny
 	case "log":
 		rule.Action = types.ActionLog
-	case "pass":
+	case "pass", "next-tier":
 		rule.Action = types.ActionPass
 	default:
 		return nil, fmt.Errorf("unknown rule action: %s", r.Action)
