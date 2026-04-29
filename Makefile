@@ -196,8 +196,15 @@ run-tests-nat-policy:
 	test/scripts/cases.sh nat_policy_ipv4
 	test/scripts/test.sh down nat-policy
 
+.PHONY: run-tests-hep
+run-tests-hep:
+	test/scripts/test.sh up hep
+	@bash -c 'kubectl -n hep wait pod --all --for=condition=Ready --timeout=60s'
+	test/scripts/cases.sh hep_ipv4
+	test/scripts/test.sh down hep
+
 .PHONY: run-main-tests
-run-main-tests: run-tests-nat run-tests-policy run-tests-nat-policy
+run-main-tests: run-tests-nat run-tests-policy run-tests-nat-policy run-tests-hep
 
 .PHONY: run-cnat-drain-test
 run-cnat-drain-test:
