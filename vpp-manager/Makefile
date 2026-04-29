@@ -52,9 +52,11 @@ VPP_DBG_DEB_LIST = \
 	${VPP_DIR}/extras/libmemif/debug/install/lib/libmemif.so \
 
 PATCHES = $(sort $(wildcard $(VPPLINK_DIR)/generated/patches/*.patch))
+PRIVATE_PLUGINS = $(sort $(shell find $(VPPLINK_DIR)/generated/private_plugins -type f))
 VPP_HASH = $(shell md5sum \
 	$(VPPLINK_DIR)/generated/vpp_clone_current.sh \
 	${PATCHES} \
+	${PRIVATE_PLUGINS} \
 	<(echo '$(subst $(VPP_DIR),,$(VPP_REL_DEB_LIST))') \
 	<(echo '$(subst $(VPP_DIR),,$(VPP_DBG_DEB_LIST))') \
 	<(echo '${BASE}') \
