@@ -361,6 +361,8 @@ metadata:
 EOF
 
     # ---- Kubernetes NetworkPolicy: Ingress Allow TCP:80 from clients ----
+    # One K8s pair to verify the K8s→Calico translation in the agent; VPP path is
+    # identical to Calico policies so we don't repeat egress/deny variants.
     echo "--K8s ingress allow TCP:80--"
     cat <<EOF | apply_and_wait_policy
 apiVersion: networking.k8s.io/v1
@@ -615,36 +617,6 @@ apiVersion: crd.projectcalico.org/v1
 kind: NetworkPolicy
 metadata:
   name: calico-ingress-allow-tcp80
-  namespace: nat-policy
-EOF
-
-    # ---- Group 1c: DNAT + K8s ingress deny all on server ----
-    echo "--DNAT + K8s ingress deny all on server--"
-    cat <<EOF | apply_and_wait_policy
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: k8s-ingress-deny-all
-  namespace: nat-policy
-spec:
-  podSelector:
-    matchLabels:
-      role: server
-  policyTypes:
-    - Ingress
-EOF
-
-    POD=np-client-samehost
-    test_expect_fail "DNAT + K8s ingress deny same-node"   curl -s --max-time 3 http://${NP_SVC_IP}
-
-    POD=np-client
-    test_expect_fail "DNAT + K8s ingress deny cross-node"  curl -s --max-time 3 http://${NP_SVC_IP}
-
-    cat <<EOF | delete_and_wait_policy
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: k8s-ingress-deny-all
   namespace: nat-policy
 EOF
 
