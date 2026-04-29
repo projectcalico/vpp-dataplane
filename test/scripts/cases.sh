@@ -510,6 +510,21 @@ function test_nat_ipv4 ()
        test "Hairpin NAT (pod via service to itself)"  curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://${NAT_HAIRPIN_SVC_IP}:8080
        assert_test_output_contains "200"
 
+       echo "--NodePort DNAT: pod -> nodeIP:nodePort -> nginx--"
+       SVC=nat-nodeport-service
+       PROTO=TCP
+       NAT_NODEPORT=$(getServiceNodePort)
+       NAT_SERVER_NODE=$(kubectl get pods -n nat -l app=nat-server -o jsonpath='{.items[0].spec.nodeName}')
+       NAT_SERVER_NODE_IP=$(getNodeIP ${NAT_SERVER_NODE})
+
+       POD=nat-client
+       test "NodePort DNAT cross-node"               curl -s --max-time 3 http://${NAT_SERVER_NODE_IP}:${NAT_NODEPORT}
+       assert_test_output_contains "Welcome to nginx"
+
+       POD=nat-client-samehost
+       test "NodePort DNAT same-node"                curl -s --max-time 3 http://${NAT_SERVER_NODE_IP}:${NAT_NODEPORT}
+       assert_test_output_contains "Welcome to nginx"
+
        echo "--SNAT: pod -> outside cluster--"
        POD=nat-client
        test "SNAT external connectivity"             curl -s --max-time 3 http://checkip.amazonaws.com
