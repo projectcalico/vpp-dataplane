@@ -863,6 +863,131 @@ EOF
     assert_test_output_contains "Welcome to nginx"
 }
 
+function test_hep_ipv4 ()
+{
+    NS=hep
+
+    HEP_NODE=$(kubectl get pods -n hep hep-host-listener -o jsonpath='{.spec.nodeName}')
+    HEP_NODE_IP=$(getNodeIP ${HEP_NODE})
+
+    SVC=hep-nodeport-service
+    PROTO=TCP
+    HEP_NODEPORT=$(getServiceNodePort)
+
+    POD=hep-client
+
+    # ---- Test 1: Terminated traffic ----
+    # Empty HEP activates the tap policy plane with default-deny on all non-failsafe terminated traffic.
+
+    echo "--Terminated baseline: pod can reach host port 7777--"
+    test "Terminated baseline (host reachable)"    curl -s --max-time 3 http://${HEP_NODE_IP}:7777
+    assert_test_output_contains "hep-listener"
+
+    echo "--Empty HEP: terminated traffic blocked--"
+    cat <<EOF | kubectl apply -f -
+apiVersion: projectcalico.org/v3
+kind: HostEndpoint
+metadata:
+  name: hep-wildcard
+  labels:
+    host-endpoint: enabled
+spec:
+  node: ${HEP_NODE}
+  interfaceName: "*"
+  expectedIPs:
+    - "${HEP_NODE_IP}"
+EOF
+    sleep ${POLICY_PROPAGATION_DELAY:-3}
+
+    test_expect_fail "Terminated blocked by empty HEP"    curl -s --max-time 3 http://${HEP_NODE_IP}:7777
+
+    # ---- Test 1b: HEP + explicit allow policy restores terminated traffic ----
+    # Add an allow rule to the still-active HEP. Proves user-defined tap policies
+    # are evaluated — if policies were silently dropped, the default-deny would still block.
+    echo "--HEP + explicit allow TCP:7777: terminated traffic allowed--"
+    cat <<EOF | kubectl apply -f -
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: hep-allow-terminated-tcp7777
+spec:
+  selector: host-endpoint == 'enabled'
+  applyOnForward: false
+  types:
+    - Ingress
+  ingress:
+    - action: Allow
+      protocol: TCP
+      destination:
+        ports:
+          - 7777
+EOF
+    sleep ${POLICY_PROPAGATION_DELAY:-3}
+
+    test "Terminated allowed by explicit policy"    curl -s --max-time 3 http://${HEP_NODE_IP}:7777
+    assert_test_output_contains "hep-listener"
+
+    kubectl delete globalnetworkpolicy hep-allow-terminated-tcp7777 --ignore-not-found
+    kubectl delete hostendpoint hep-wildcard --ignore-not-found
+    sleep ${POLICY_PROPAGATION_DELAY:-3}
+
+    test "Terminated restored after HEP delete"    curl -s --max-time 3 http://${HEP_NODE_IP}:7777
+    assert_test_output_contains "hep-listener"
+
+    # ---- Test 2: Forwarded traffic (applyOnForward) ----
+    # HEP + GlobalNetworkPolicy with applyOnForward=true enforces on the uplink
+    # (ForwardTiers, invertRxTx=1) — a distinct VPP path from the tap policy plane.
+    # The policy denies the nodePort itself (traffic arrives on the uplink before DNAT,
+    # so the destination port seen is the nodePort, not the backend port 80).
+
+    echo "--Forward baseline: NodePort reachable--"
+    test "Forward baseline (NodePort works)"    curl -s --max-time 3 http://${HEP_NODE_IP}:${HEP_NODEPORT}
+    assert_test_output_contains "Welcome to nginx"
+
+    echo "--HEP + applyOnForward policy: forwarded traffic blocked--"
+    # Policy is evaluated post-DNAT: the destination port seen by the forward policy
+    # is the backend port (80), not the nodePort. See docs/policies/host_endpoints.md.
+    cat <<EOF | kubectl apply -f -
+apiVersion: projectcalico.org/v3
+kind: HostEndpoint
+metadata:
+  name: hep-wildcard
+  labels:
+    host-endpoint: enabled
+spec:
+  node: ${HEP_NODE}
+  interfaceName: "*"
+  expectedIPs:
+    - "${HEP_NODE_IP}"
+---
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: hep-deny-forward-tcp80
+spec:
+  selector: host-endpoint == 'enabled'
+  applyOnForward: true
+  types:
+    - Ingress
+  ingress:
+    - action: Deny
+      protocol: TCP
+      destination:
+        ports:
+          - 80
+EOF
+    sleep ${POLICY_PROPAGATION_DELAY:-3}
+
+    test_expect_fail "Forward blocked by applyOnForward policy"    curl -s --max-time 3 http://${HEP_NODE_IP}:${HEP_NODEPORT}
+
+    kubectl delete globalnetworkpolicy hep-deny-forward-tcp80 --ignore-not-found
+    kubectl delete hostendpoint hep-wildcard --ignore-not-found
+    sleep ${POLICY_PROPAGATION_DELAY:-3}
+
+    test "Forward restored after policy+HEP delete"    curl -s --max-time 3 http://${HEP_NODE_IP}:${HEP_NODEPORT}
+    assert_test_output_contains "Welcome to nginx"
+}
+
 if [ $# = 0 ]; then
 	echo "Usage"
 	for f in $(declare -F); do
