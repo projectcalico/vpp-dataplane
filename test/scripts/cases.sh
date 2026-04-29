@@ -520,6 +520,362 @@ function test_nat_ipv4 ()
        assert_test_output_contains "1 received"
 }
 
+function test_nat_policy_ipv4 ()
+{
+    NS=nat-policy
+    SVC=np-service
+    NP_SVC_IP=$(getClusterIP)
+    SVC=np-udp-service
+    NP_UDP_SVC_IP=$(getClusterIP)
+    SVC=np-hairpin-service
+    NP_HAIRPIN_SVC_IP=$(getClusterIP)
+
+    # ---- Baseline: no policies, all DNAT traffic should pass ----
+    echo "--Baseline: no policies--"
+    POD=np-client-samehost
+    test "NP baseline DNAT same-node TCP"   curl -s --max-time 3 http://${NP_SVC_IP}
+    assert_test_output_contains "Welcome to nginx"
+
+    POD=np-client
+    test "NP baseline DNAT cross-node TCP"  curl -s --max-time 3 http://${NP_SVC_IP}
+    assert_test_output_contains "Welcome to nginx"
+
+    # ---- Group 1: DNAT + Calico ingress deny on server ----
+    echo "--DNAT + Calico ingress deny all on server--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-ingress-deny-all
+  namespace: nat-policy
+spec:
+  selector: role == 'server'
+  ingress: []
+EOF
+
+    POD=np-client-samehost
+    test_expect_fail "DNAT + Calico ingress deny same-node"   curl -s --max-time 3 http://${NP_SVC_IP}
+
+    POD=np-client
+    test_expect_fail "DNAT + Calico ingress deny cross-node"  curl -s --max-time 3 http://${NP_SVC_IP}
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-ingress-deny-all
+  namespace: nat-policy
+EOF
+
+    # ---- Group 1b: DNAT + Calico ingress allow TCP:80 from clients ----
+    echo "--DNAT + Calico ingress allow TCP:80 from clients--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-ingress-allow-tcp80
+  namespace: nat-policy
+spec:
+  selector: role == 'server'
+  ingress:
+  - action: Allow
+    protocol: TCP
+    source:
+      selector: role == 'client'
+    destination:
+      ports:
+        - 80
+EOF
+
+    POD=np-client-samehost
+    test "DNAT + Calico ingress allow TCP:80 same-node"   curl -s --max-time 3 http://${NP_SVC_IP}
+    assert_test_output_contains "Welcome to nginx"
+
+    POD=np-client
+    test "DNAT + Calico ingress allow TCP:80 cross-node"  curl -s --max-time 3 http://${NP_SVC_IP}
+    assert_test_output_contains "Welcome to nginx"
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-ingress-allow-tcp80
+  namespace: nat-policy
+EOF
+
+    # ---- Group 1c: DNAT + K8s ingress deny all on server ----
+    echo "--DNAT + K8s ingress deny all on server--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: k8s-ingress-deny-all
+  namespace: nat-policy
+spec:
+  podSelector:
+    matchLabels:
+      role: server
+  policyTypes:
+    - Ingress
+EOF
+
+    POD=np-client-samehost
+    test_expect_fail "DNAT + K8s ingress deny same-node"   curl -s --max-time 3 http://${NP_SVC_IP}
+
+    POD=np-client
+    test_expect_fail "DNAT + K8s ingress deny cross-node"  curl -s --max-time 3 http://${NP_SVC_IP}
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: k8s-ingress-deny-all
+  namespace: nat-policy
+EOF
+
+    # ---- Group 2: DNAT + Calico egress deny on client ----
+    echo "--DNAT + Calico egress deny all on client--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-egress-deny-all
+  namespace: nat-policy
+spec:
+  selector: role == 'client'
+  egress: []
+EOF
+
+    POD=np-client-samehost
+    test_expect_fail "DNAT + Calico egress deny same-node"   curl -s --max-time 3 http://${NP_SVC_IP}
+
+    POD=np-client
+    test_expect_fail "DNAT + Calico egress deny cross-node"  curl -s --max-time 3 http://${NP_SVC_IP}
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-egress-deny-all
+  namespace: nat-policy
+EOF
+
+    # ---- Group 2b: DNAT + Calico egress allow TCP:80 to server pods (post-DNAT) ----
+    # Policy is enforced post-DNAT: destination is the backend pod IP, not the ClusterIP.
+    echo "--DNAT + Calico egress allow TCP:80 (post-DNAT selector)--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-egress-allow-tcp80
+  namespace: nat-policy
+spec:
+  selector: role == 'client'
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: role == 'server'
+      ports:
+        - 80
+EOF
+
+    POD=np-client-samehost
+    test "DNAT + Calico egress allow TCP:80 same-node"   curl -s --max-time 3 http://${NP_SVC_IP}
+    assert_test_output_contains "Welcome to nginx"
+
+    POD=np-client
+    test "DNAT + Calico egress allow TCP:80 cross-node"  curl -s --max-time 3 http://${NP_SVC_IP}
+    assert_test_output_contains "Welcome to nginx"
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-egress-allow-tcp80
+  namespace: nat-policy
+EOF
+
+    # ---- Group 3: SNAT + Calico egress deny on client ----
+    echo "--SNAT + Calico egress deny all on client--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-egress-deny-all
+  namespace: nat-policy
+spec:
+  selector: role == 'client'
+  egress: []
+EOF
+
+    POD=np-client
+    test_expect_fail "SNAT + Calico egress deny external"   curl -s --max-time 3 http://1.1.1.1
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-egress-deny-all
+  namespace: nat-policy
+EOF
+
+    # ---- Group 3b: SNAT + Calico egress allow external ----
+    echo "--SNAT + Calico egress allow external--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-egress-allow-external
+  namespace: nat-policy
+spec:
+  selector: role == 'client'
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      nets:
+        - 1.1.1.1/32
+      ports:
+        - 80
+EOF
+
+    POD=np-client
+    test "SNAT + Calico egress allow external"   curl -s --max-time 3 http://1.1.1.1
+    assert_test_output_contains_not "curl: ("
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-egress-allow-external
+  namespace: nat-policy
+EOF
+
+    # ---- Group 4: Hairpin NAT + Calico ingress deny on hairpin pod ----
+    echo "--Hairpin NAT + Calico ingress deny on pod--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-hairpin-ingress-deny
+  namespace: nat-policy
+spec:
+  selector: role == 'hairpin'
+  ingress: []
+EOF
+
+    POD=np-hairpin
+    test_expect_fail "Hairpin NAT + Calico ingress deny"   curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://${NP_HAIRPIN_SVC_IP}:8080
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-hairpin-ingress-deny
+  namespace: nat-policy
+EOF
+
+    # ---- Group 4b: Hairpin NAT + Calico egress deny on hairpin pod ----
+    echo "--Hairpin NAT + Calico egress deny on pod--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-hairpin-egress-deny
+  namespace: nat-policy
+spec:
+  selector: role == 'hairpin'
+  egress: []
+EOF
+
+    POD=np-hairpin
+    test_expect_fail "Hairpin NAT + Calico egress deny"   curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://${NP_HAIRPIN_SVC_IP}:8080
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-hairpin-egress-deny
+  namespace: nat-policy
+EOF
+
+    # ---- Group 5: ICMP + Calico ingress deny on server ----
+    echo "--ICMP + Calico ingress deny on server--"
+    POD=np-server
+    NP_SERVER_POD_IP=$(getPodIP)
+
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-icmp-ingress-deny
+  namespace: nat-policy
+spec:
+  selector: role == 'server'
+  ingress: []
+EOF
+
+    POD=np-client-samehost
+    test_expect_fail "ICMP + Calico ingress deny same-node"   ping -c 1 -W 3 ${NP_SERVER_POD_IP}
+
+    POD=np-client
+    test_expect_fail "ICMP + Calico ingress deny cross-node"  ping -c 1 -W 3 ${NP_SERVER_POD_IP}
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-icmp-ingress-deny
+  namespace: nat-policy
+EOF
+
+    # ---- Group 5b: ICMP + Calico ingress allow ICMP from clients ----
+    echo "--ICMP + Calico ingress allow ICMP from clients--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-icmp-ingress-allow
+  namespace: nat-policy
+spec:
+  selector: role == 'server'
+  ingress:
+  - action: Allow
+    protocol: ICMP
+    source:
+      selector: role == 'client'
+EOF
+
+    POD=np-client-samehost
+    test "ICMP + Calico ingress allow same-node"   ping -c 1 -W 3 ${NP_SERVER_POD_IP}
+    assert_test_output_contains "1 received"
+
+    POD=np-client
+    test "ICMP + Calico ingress allow cross-node"  ping -c 1 -W 3 ${NP_SERVER_POD_IP}
+    assert_test_output_contains "1 received"
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-icmp-ingress-allow
+  namespace: nat-policy
+EOF
+
+    # ---- Cleanup & verify connectivity restored ----
+    echo "--Cleanup: verify all policies removed--"
+    kubectl -n nat-policy delete networkpolicy --all --ignore-not-found
+    kubectl -n nat-policy delete networkpolicies.crd.projectcalico.org --all --ignore-not-found 2>/dev/null || true
+    sleep ${POLICY_PROPAGATION_DELAY:-3}
+
+    POD=np-client
+    SVC=np-service
+    NP_SVC_IP=$(getClusterIP)
+    test "NP post-cleanup DNAT cross-node" curl -s --max-time 3 http://${NP_SVC_IP}
+    assert_test_output_contains "Welcome to nginx"
+}
+
 if [ $# = 0 ]; then
 	echo "Usage"
 	for f in $(declare -F); do
