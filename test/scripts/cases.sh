@@ -283,11 +283,50 @@ EOF
     POD=policy-client-samehost
     test_expect_fail "Calico egress deny same-node"  curl -s --max-time 3 http://${POLICY_SVC_IP}
 
+    POD=policy-client
+    test_expect_fail "Calico egress deny cross-node"  curl -s --max-time 3 http://${POLICY_SVC_IP}
+
     cat <<EOF | delete_and_wait_policy
 apiVersion: crd.projectcalico.org/v1
 kind: NetworkPolicy
 metadata:
   name: calico-egress-deny-all
+  namespace: policy
+EOF
+
+    # ---- Calico: Egress Allow TCP:80 to server pods (post-DNAT) ----
+    # Policy is enforced post-DNAT: destination is the backend pod IP, not the ClusterIP.
+    echo "--Calico egress allow TCP:80 (post-DNAT selector)--"
+    cat <<EOF | apply_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-egress-allow-tcp80
+  namespace: policy
+spec:
+  selector: role == 'client'
+  egress:
+  - action: Allow
+    protocol: TCP
+    destination:
+      selector: role == 'server'
+      ports:
+        - 80
+EOF
+
+    POD=policy-client-samehost
+    test "Calico egress allow TCP:80 same-node"   curl -s --max-time 3 http://${POLICY_SVC_IP}
+    assert_test_output_contains "Welcome to nginx"
+
+    POD=policy-client
+    test "Calico egress allow TCP:80 cross-node"  curl -s --max-time 3 http://${POLICY_SVC_IP}
+    assert_test_output_contains "Welcome to nginx"
+
+    cat <<EOF | delete_and_wait_policy
+apiVersion: crd.projectcalico.org/v1
+kind: NetworkPolicy
+metadata:
+  name: calico-egress-allow-tcp80
   namespace: policy
 EOF
 
