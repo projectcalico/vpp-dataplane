@@ -305,6 +305,12 @@ func IPFamilyIndex(ipFamily vpplink.IPFamily) int {
 
 // StartVPP creates docker container and runs inside the VPP
 func StartVPP() {
+	// Create PID-based subdirectory within the /tmp/prometheus-tests-vpp/
+	// mounted volume to ensure uniqueness across parallel test runs
+	pidSubdir := "/tmp/prometheus-tests-vpp/" + strconv.Itoa(os.Getpid())
+	err := os.MkdirAll(pidSubdir, 0755)
+	Expect(err).Should(BeNil(), "Failed to create PID subdirectory")
+
 	// prepare VPP configuration
 	vppBinaryConfigArg := `unix {
 			nodaemon
@@ -329,7 +335,7 @@ func StartVPP() {
 		  }`
 
 	// docker container cleanup (failed test that didn't properly clean up docker containers?)
-	err := exec.Command("docker", "rm", "-f", VPPContainerName).Run()
+	err = exec.Command("docker", "rm", "-f", VPPContainerName).Run()
 	Expect(err).Should(BeNil(), "Failed to clean up old VPP docker container")
 
 	wd, err := os.Getwd()
@@ -337,7 +343,7 @@ func StartVPP() {
 	repoDir := strings.TrimSpace(filepath.Join(wd, "../.."))
 	// start VPP inside docker container
 	cmdParams := []string{"run", "-d", "--privileged", "--name", VPPContainerName,
-		"-v", "/tmp/" + VPPContainerName + ":/var/run/vpp/",
+		"-v", pidSubdir + ":/var/run/vpp/",
 		"-v", "/proc:/proc", // needed for manipulation of another docker container's network namespace
 		"--sysctl", "net.ipv6.conf.all.disable_ipv6=0", // enable IPv6 in container (to set IPv6 on host's end of uplink)
 		"-v", repoDir + ":/repo/",
@@ -355,8 +361,9 @@ func StartVPP() {
 
 // ConfigureVPP connects to VPP and configures it with common configuration needed for tests
 func ConfigureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uint32) {
-	// connect to VPP
-	vpp, err := common.CreateVppLinkInRetryLoop("/tmp/"+VPPContainerName+"/vpp-api-test.sock",
+	// connect to VPP using PID-based subdirectory path
+	pidSubdir := "/tmp/prometheus-tests-vpp/" + strconv.Itoa(os.Getpid())
+	vpp, err := common.CreateVppLinkInRetryLoop(pidSubdir+"/vpp-api-test.sock",
 		log.WithFields(logrus.Fields{"component": "vpp-api"}), 20*time.Second, 100*time.Millisecond)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Cannot create VPP client: %v", err))
 	Expect(vpp).NotTo(BeNil())

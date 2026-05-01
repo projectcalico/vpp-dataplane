@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -57,8 +58,11 @@ func TestPrometheusIntegration(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	// Set unique container name for Prometheus tests
-	testutils.VPPContainerName = "prometheus-tests-vpp"
+	// Make the container name unique per test run so that parallel CI jobs
+	// sharing the same host Docker daemon do not collide. Use the PID of
+	// the test process, which is unique on the host.
+	uniqueID := strconv.Itoa(os.Getpid())
+	testutils.VPPContainerName = "prometheus-tests-vpp-" + uniqueID
 
 	// extract common input for prometheus integration tests
 	var found bool
@@ -107,12 +111,13 @@ var _ = Describe("Prometheus exporter functionality", func() {
 		vpp, uplinkSwIfIndex = testutils.ConfigureVPP(log)
 
 		// Wait for VPP stats socket to become available
-		waitForStatsSocket("/tmp/"+testutils.VPPContainerName+"/stats.sock", 2*time.Second)
+		pidSubdir := "/tmp/prometheus-tests-vpp/" + strconv.Itoa(os.Getpid())
+		waitForStatsSocket(pidSubdir+"/stats.sock", 2*time.Second)
 
 		// Create a symlink from the expected location to the actual stats socket location
 		// This is a workaround for the issue where the statsclient expects /run/vpp/stats.sock
-		// but our test VPP container has this at /tmp/prom-tests-vpp/stats.sock
-		actualSocketPath := "/tmp/" + testutils.VPPContainerName + "/stats.sock"
+		// but our test VPP container has this at /tmp/prometheus-tests-vpp/<PID>/stats.sock
+		actualSocketPath := pidSubdir + "/stats.sock"
 		expectedSocketPath := "/run/vpp/stats.sock"
 
 		// Create the directory if it doesn't exist
