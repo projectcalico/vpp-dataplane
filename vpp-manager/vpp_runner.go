@@ -1014,15 +1014,6 @@ func (v *VppRunner) runVpp() (err error) {
 			return errors.Wrap(err, "Error creating uplink interface")
 		}
 
-		// Data interface configuration
-		err = v.vpp.Retry(2*time.Second, 10, v.vpp.InterfaceAdminUp, v.params.UplinksSpecs[idx].SwIfIndex)
-		if err != nil {
-			terminateVpp("Error setting uplink interface up: %v", err)
-			v.vpp.Close()
-			<-vppDeadChan
-			return errors.Wrap(err, "Error setting uplink interface up")
-		}
-
 		err = v.configureVppUplinkInterface(v.uplinkDriver[idx], v.conf[idx], v.params.UplinksSpecs[idx])
 
 		if err != nil {
@@ -1064,6 +1055,18 @@ func (v *VppRunner) runVpp() (err error) {
 	}
 
 	networkHook.ExecuteWithUserScript(hooks.HookVppRunning, config.HookScriptVppRunning, v.params)
+
+	// Bring all VPP uplinks admin-up now that RA suppression, CNAT, VRF binding,
+	// addresses and routes are all programmed, the host-side taps exist and are
+	// configured and v6 link-local addresses have been discovered and configured.
+	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
+		err = v.vpp.InterfaceAdminUp(v.params.UplinksSpecs[idx].SwIfIndex)
+		if err != nil {
+			terminateVpp("Error setting uplink %d up: %v", v.params.UplinksSpecs[idx].SwIfIndex, err)
+			<-vppDeadChan
+			return errors.Wrapf(err, "Error setting uplink %d up", v.params.UplinksSpecs[idx].SwIfIndex)
+		}
+	}
 
 	// Set the TAP interfaces admin-up in VPP last, after all Linux-side
 	// configuration is complete.
