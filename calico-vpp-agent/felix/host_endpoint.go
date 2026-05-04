@@ -181,24 +181,24 @@ func (h *HostEndpoint) getTapPolicies(state *PolicyState) (conf *types.Interface
 		// note: this applies to ingress and egress separately, so if you don't have
 		// ingress only you drop ingress
 		conf.IngressPolicyIDs = []uint32{h.server.workloadsToHostPolicy.VppID, h.server.failSafePolicy.VppID}
-		conf.PolicyDefaultTx = npol.NPOL_DEFAULT_DENY
+		conf.PolicyDefaultIngress = npol.NPOL_DEFAULT_DENY
 	} else {
 		if len(conf.IngressPolicyIDs) > 0 {
-			conf.PolicyDefaultTx = npol.NPOL_DEFAULT_DENY
+			conf.PolicyDefaultIngress = npol.NPOL_DEFAULT_DENY
 		} else if len(conf.ProfileIDs) > 0 {
-			conf.PolicyDefaultTx = npol.NPOL_DEFAULT_PASS
+			conf.PolicyDefaultIngress = npol.NPOL_DEFAULT_PASS
 		}
 		conf.IngressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.IngressPolicyIDs...)
 		conf.IngressPolicyIDs = append([]uint32{h.server.workloadsToHostPolicy.VppID}, conf.IngressPolicyIDs...)
 	}
 	if len(conf.EgressPolicyIDs) == 0 && len(conf.ProfileIDs) == 0 {
 		conf.EgressPolicyIDs = []uint32{h.server.AllowFromHostPolicy.VppID, h.server.failSafePolicy.VppID}
-		conf.PolicyDefaultRx = npol.NPOL_DEFAULT_DENY
+		conf.PolicyDefaultEgress = npol.NPOL_DEFAULT_DENY
 	} else {
 		if len(conf.EgressPolicyIDs) > 0 {
-			conf.PolicyDefaultRx = npol.NPOL_DEFAULT_DENY
+			conf.PolicyDefaultEgress = npol.NPOL_DEFAULT_DENY
 		} else if len(conf.ProfileIDs) > 0 {
-			conf.PolicyDefaultRx = npol.NPOL_DEFAULT_PASS
+			conf.PolicyDefaultEgress = npol.NPOL_DEFAULT_PASS
 		}
 		conf.EgressPolicyIDs = append([]uint32{h.server.failSafePolicy.VppID}, conf.EgressPolicyIDs...)
 		conf.EgressPolicyIDs = append([]uint32{h.server.AllowFromHostPolicy.VppID}, conf.EgressPolicyIDs...)
@@ -213,15 +213,15 @@ func (h *HostEndpoint) getForwardPolicies(state *PolicyState) (conf *types.Inter
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
 		conf.EgressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.EgressPolicyIDs...)
-		conf.PolicyDefaultRx = npol.NPOL_DEFAULT_DENY
+		conf.PolicyDefaultEgress = npol.NPOL_DEFAULT_DENY
 	} else if len(conf.ProfileIDs) > 0 {
-		conf.PolicyDefaultRx = npol.NPOL_DEFAULT_PASS
+		conf.PolicyDefaultEgress = npol.NPOL_DEFAULT_PASS
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append([]uint32{h.server.allowToHostPolicy.VppID}, conf.IngressPolicyIDs...)
-		conf.PolicyDefaultTx = npol.NPOL_DEFAULT_DENY
+		conf.PolicyDefaultIngress = npol.NPOL_DEFAULT_DENY
 	} else if len(conf.ProfileIDs) > 0 {
-		conf.PolicyDefaultTx = npol.NPOL_DEFAULT_PASS
+		conf.PolicyDefaultIngress = npol.NPOL_DEFAULT_PASS
 	}
 	return conf, nil
 }
