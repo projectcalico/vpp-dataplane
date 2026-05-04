@@ -320,24 +320,24 @@ func (p *Policy) String() string {
 }
 
 type InterfaceConfig struct {
-	IngressPolicyIDs []uint32
-	EgressPolicyIDs  []uint32
-	ProfileIDs       []uint32
-	PolicyDefaultRx  npol.NpolPolicyDefault
-	PolicyDefaultTx  npol.NpolPolicyDefault
-	ProfileDefaultRx npol.NpolPolicyDefault
-	ProfileDefaultTx npol.NpolPolicyDefault
+	IngressPolicyIDs      []uint32
+	EgressPolicyIDs       []uint32
+	ProfileIDs            []uint32
+	PolicyDefaultEgress   npol.NpolPolicyDefault
+	PolicyDefaultIngress  npol.NpolPolicyDefault
+	ProfileDefaultEgress  npol.NpolPolicyDefault
+	ProfileDefaultIngress npol.NpolPolicyDefault
 }
 
 func NewInterfaceConfig() *InterfaceConfig {
 	return &InterfaceConfig{
-		IngressPolicyIDs: make([]uint32, 0),
-		EgressPolicyIDs:  make([]uint32, 0),
-		ProfileIDs:       make([]uint32, 0),
-		PolicyDefaultRx:  npol.NPOL_DEFAULT_ALLOW,
-		PolicyDefaultTx:  npol.NPOL_DEFAULT_ALLOW,
-		ProfileDefaultRx: npol.NPOL_DEFAULT_DENY,
-		ProfileDefaultTx: npol.NPOL_DEFAULT_DENY,
+		IngressPolicyIDs:      make([]uint32, 0),
+		EgressPolicyIDs:       make([]uint32, 0),
+		ProfileIDs:            make([]uint32, 0),
+		PolicyDefaultEgress:   npol.NPOL_DEFAULT_ALLOW,
+		PolicyDefaultIngress:  npol.NPOL_DEFAULT_ALLOW,
+		ProfileDefaultEgress:  npol.NPOL_DEFAULT_DENY,
+		ProfileDefaultIngress: npol.NPOL_DEFAULT_DENY,
 	}
 }
 

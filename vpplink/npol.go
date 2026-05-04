@@ -191,8 +191,8 @@ func (v *VppLink) PolicyDelete(policyID uint32) error {
 func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfig, invertRxTx uint8) error {
 	client := npol.NewServiceClient(v.GetConnection())
 
-	// In the calico agent, policies are expressed from the point of view of PODs
-	// in VPP this is reversed
+	// In the calico agent, policies are expressed from the point of view of PODs or Host
+	// in VPP this is reversed except for uplink, where we use invertRxTx
 	rxPolicyIDs := conf.EgressPolicyIDs
 	txPolicyIDs := conf.IngressPolicyIDs
 	profileIDs := conf.ProfileIDs
@@ -206,10 +206,10 @@ func (v *VppLink) ConfigurePolicies(swIfIndex uint32, conf *types.InterfaceConfi
 		TotalIds:         uint32(len(rxPolicyIDs) + len(txPolicyIDs) + len(profileIDs)),
 		PolicyIds:        ids,
 		InvertRxTx:       invertRxTx,
-		PolicyDefaultRx:  conf.PolicyDefaultRx,
-		PolicyDefaultTx:  conf.PolicyDefaultTx,
-		ProfileDefaultRx: conf.ProfileDefaultRx,
-		ProfileDefaultTx: conf.ProfileDefaultTx,
+		PolicyDefaultRx:  conf.PolicyDefaultEgress,
+		PolicyDefaultTx:  conf.PolicyDefaultIngress,
+		ProfileDefaultRx: conf.ProfileDefaultEgress,
+		ProfileDefaultTx: conf.ProfileDefaultIngress,
 	})
 	if err != nil {
 		return fmt.Errorf("npolConfigurePolicies failed: %w", err)

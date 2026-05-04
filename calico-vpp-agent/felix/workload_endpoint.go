@@ -119,14 +119,14 @@ func (w *WorkloadEndpoint) getWorkloadPolicies(state *PolicyState, network strin
 	}
 	if len(conf.IngressPolicyIDs) > 0 {
 		conf.IngressPolicyIDs = append([]uint32{w.server.AllowFromHostPolicy.VppID}, conf.IngressPolicyIDs...)
-		conf.PolicyDefaultTx = npol.NPOL_DEFAULT_DENY
+		conf.PolicyDefaultIngress = npol.NPOL_DEFAULT_DENY
 	} else if len(conf.ProfileIDs) > 0 {
-		conf.PolicyDefaultTx = npol.NPOL_DEFAULT_PASS
+		conf.PolicyDefaultIngress = npol.NPOL_DEFAULT_PASS
 	}
 	if len(conf.EgressPolicyIDs) > 0 {
-		conf.PolicyDefaultRx = npol.NPOL_DEFAULT_DENY
+		conf.PolicyDefaultEgress = npol.NPOL_DEFAULT_DENY
 	} else if len(conf.ProfileIDs) > 0 {
-		conf.PolicyDefaultRx = npol.NPOL_DEFAULT_PASS
+		conf.PolicyDefaultEgress = npol.NPOL_DEFAULT_PASS
 	}
 	return conf, nil
 }

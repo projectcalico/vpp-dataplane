@@ -1668,8 +1668,8 @@ func (s *Server) createEndpointToHostPolicy( /*may be return*/ ) (err error) {
 
 	conf := types.NewInterfaceConfig()
 	conf.IngressPolicyIDs = append(conf.IngressPolicyIDs, s.workloadsToHostPolicy.VppID)
-	conf.PolicyDefaultTx = npol.NPOL_DEFAULT_ALLOW
-	conf.PolicyDefaultRx = npol.NPOL_DEFAULT_ALLOW
+	conf.PolicyDefaultIngress = npol.NPOL_DEFAULT_ALLOW
+	conf.PolicyDefaultEgress = npol.NPOL_DEFAULT_ALLOW
 	swifindexes, err := s.vpp.SearchInterfacesWithTagPrefix("host-") // tap0 interfaces
 	if err != nil {
 		s.log.Error(err)
