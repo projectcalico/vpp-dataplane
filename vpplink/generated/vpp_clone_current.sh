@@ -115,7 +115,7 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 #
-BASE="${BASE:-"2f04d5e7c49bb21d3055f1d798f9137d2a6ddb5d"}"
+BASE="${BASE:-"2ddeeeacbd43de97ff304689ea6de7b9f7cc8ecd"}"
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
@@ -132,9 +132,7 @@ git_cherry_pick refs/changes/46/45046/4 # 45046: ip6-nd: add punt reason for nei
 # --------------- private patches/plugins ---------------
 # Patch files generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^^'
 git_apply_private 0001-cnat-WIP-no-k8s-maglev-from-pods.patch
-git_apply_private 0002-acl-acl-plugin-custom-policies.patch
-git_apply_private 0003-ip-neighbor-preserve-interface-LL-receive-DPO-for-se.patch
-git_apply_private 0004-npol-add-matched-rule-id-to-acl-trace.patch
+git_apply_private 0002-ip-neighbor-preserve-interface-LL-receive-DPO-for-se.patch
 # VPP Private plugins:
 copy_private_plugin ip_ttl_fixup
 copy_private_plugin pbl

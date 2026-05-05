@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Aritra Basu <aritrbas@cisco.com>
 Date: Fri, 20 Feb 2026 00:05:17 -0500
-Subject: [PATCH 3/5] ip-neighbor: preserve interface LL receive DPO for self
+Subject: [PATCH 2/3] ip-neighbor: preserve interface LL receive DPO for self
  link-local
 
 When Linux and VPP share the same physical NIC and MAC address (e.g.

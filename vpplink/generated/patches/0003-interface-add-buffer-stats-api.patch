@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
 Date: Fri, 29 May 2026 16:33:09 +0200
-Subject: [PATCH 5/5] interface: add buffer stats api
+Subject: [PATCH 3/3] interface: add buffer stats api
 
 Signed-off-by: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
 ---
@@ -90,7 +90,7 @@ index 5d780c476..d757ddc5b 100644
   * Local Variables:
   * eval: (c-set-style "gnu")
 diff --git a/src/vnet/interface_api.c b/src/vnet/interface_api.c
-index 6718fb5c2..9667ed14d 100644
+index d7f6234f3..e22b5d3ee 100644
 --- a/src/vnet/interface_api.c
 +++ b/src/vnet/interface_api.c
 @@ -76,6 +76,23 @@ vpe_api_main_t vpe_api_main;
