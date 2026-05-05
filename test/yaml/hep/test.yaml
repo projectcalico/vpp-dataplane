@@ -1,0 +1,97 @@
+---
+# nginx backend for NodePort forwarded-traffic test
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: hep
+  name: hep-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hep-server
+  template:
+    metadata:
+      labels:
+        app: hep-server
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 3
+---
+# NodePort service for forwarded-traffic (applyOnForward) test
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: hep
+  name: hep-nodeport-service
+spec:
+  type: NodePort
+  selector:
+    app: hep-server
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      name: http
+---
+# hostNetwork pod acting as a TCP listener on the host — target for terminated-traffic test.
+# Scheduled on the same node as hep-server so one HEP node covers both tests.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hep-host-listener
+  namespace: hep
+  labels:
+    app: hep-host-listener
+spec:
+  hostNetwork: true
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app: hep-server
+        topologyKey: kubernetes.io/hostname
+  containers:
+  - name: listener
+    image: nicolaka/netshoot
+    command: ["/bin/sh", "-c"]
+    # Serve a minimal HTTP response on port 7777 (not in the failsafe list).
+    # The while loop restarts nc after each connection so the listener stays up.
+    args:
+    - |
+      while true; do
+        printf 'HTTP/1.1 200 OK\r\n\r\nhep-listener' | nc -l -p 7777 -q 1
+      done
+    securityContext:
+      privileged: true
+---
+# Cross-node client pod — runs on a different node from hep-server/hep-host-listener.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hep-client
+  namespace: hep
+spec:
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: hep-server
+          topologyKey: kubernetes.io/hostname
+  containers:
+  - name: client
+    image: nicolaka/netshoot
+    command: ["sleep", "3600"]
