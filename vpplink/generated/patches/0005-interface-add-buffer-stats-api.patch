@@ -1,7 +1,7 @@
-From e1fc3fd84ed342fbc9437f89191134ad42975239 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: hedi bouattour <hedibouattour2010@gmail.com>
 Date: Fri, 10 Dec 2021 15:18:05 +0000
-Subject: [PATCH] interface: add buffer stats api
+Subject: [PATCH 5/5] interface: add buffer stats api
 
 Type: fix
 

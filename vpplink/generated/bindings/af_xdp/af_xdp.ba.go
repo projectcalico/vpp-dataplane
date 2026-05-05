@@ -62,14 +62,17 @@ type AfXdpFlag uint8
 
 const (
 	AF_XDP_API_FLAGS_NO_SYSCALL_LOCK AfXdpFlag = 1
+	AF_XDP_API_FLAGS_MAC_REUSE       AfXdpFlag = 2
 )
 
 var (
 	AfXdpFlag_name = map[uint8]string{
 		1: "AF_XDP_API_FLAGS_NO_SYSCALL_LOCK",
+		2: "AF_XDP_API_FLAGS_MAC_REUSE",
 	}
 	AfXdpFlag_value = map[string]uint8{
 		"AF_XDP_API_FLAGS_NO_SYSCALL_LOCK": 1,
+		"AF_XDP_API_FLAGS_MAC_REUSE":       2,
 	}
 )
 
