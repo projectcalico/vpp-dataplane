@@ -1,9 +1,9 @@
 include ../../common.mk
 
 CPU_PINNING ?= false
-KIND_CALICO_VERSION ?= master
+KIND_CALICO_VERSION ?= v3.32.0
 DEBUG ?= false
-TIGERA_OPERATOR_VERSION ?= master
+TIGERA_OPERATOR_VERSION ?= v3.32.0
 
 .PHONY: new-cluster
 new-cluster:
