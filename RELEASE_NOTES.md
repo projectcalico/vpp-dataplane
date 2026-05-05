@@ -11,28 +11,105 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any
 
 ## CalicoVPP - VPP mapping table
 
-| CalicoVPP     | VPP                                                      |
-| ------------- | -------------------------------------------------------- |
-| v3.31.0       | v25.10  ~ cbba0451bb0af02a3ab8e163f6f99062782258e6       |
-| v3.30.0       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
-| v3.29.3       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
-| v3.29.2       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
-| v3.29.1       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
-| v3.29.0       | v24.10  ~ cfa0953251cbab435307baf3dcd249fd95afaf1f       |
-| v3.28.0       | v24.02+ ~ 2ae8f79b5087c8da7d30283693f22ca710a60347       |
-| v3.27.0       | v24.02-rc0 ~ 7419bede7ad73544338fd4363da833b2d5fc89a5    |
-| v3.26.4       | v25.06  ~ 1573e751c5478d3914d26cdde153390967932d6b       |
-| v3.26.3       | v25.02                                                   |
-| v3.26.2       | v25.02                                                   |
-| v3.26.1       | v23.10-rc0 ~ a7dd04d73bf5abed944fb77a5e957bbad24e2750    |
-| v3.26.0       | v23.10-rc0 ~ a7dd04d73bf5abed944fb77a5e957bbad24e2750    |
-| v3.25.3       | v23.06 8a0fd0669047c90d410d2ed5cb508bfe778b932a          |
-| v3.25.2       | v23.06 8a0fd0669047c90d410d2ed5cb508bfe778b932a          |
-| v3.25.1       | v23.06 8a0fd0669047c90d410d2ed5cb508bfe778b932a          |
-| v3.25.0       | v23.06 8a0fd0669047c90d410d2ed5cb508bfe778b932a          |
-| ------------- | -------------------------------------------------------- |
+| CalicoVPP | VPP tag    | VPP commit                                                                             |
+| --------- | ---------- | -------------------------------------------------------------------------------------- |
+| v3.32.0   | ~v26.02    | [e84849b](https://github.com/FDio/vpp/commit/e84849bcdb70ce7b77e17e04575059856735da50) |
+| v3.31.0   | v25.10     | [cbba045](https://github.com/FDio/vpp/commit/cbba0451bb0af02a3ab8e163f6f99062782258e6) |
+| v3.30.0   | v25.06     | [1573e75](https://github.com/FDio/vpp/commit/1573e751c5478d3914d26cdde153390967932d6b) |
+| v3.29.4   | v25.06     | [1573e75](https://github.com/FDio/vpp/commit/1573e751c5478d3914d26cdde153390967932d6b) |
+| v3.29.3   | v25.06     | [1573e75](https://github.com/FDio/vpp/commit/1573e751c5478d3914d26cdde153390967932d6b) |
+| v3.29.2   | v25.06     | [1573e75](https://github.com/FDio/vpp/commit/1573e751c5478d3914d26cdde153390967932d6b) |
+| v3.29.1   | v25.06     | [1573e75](https://github.com/FDio/vpp/commit/1573e751c5478d3914d26cdde153390967932d6b) |
+| v3.29.0   | v24.10     | [cfa0953](https://github.com/FDio/vpp/commit/cfa0953251cbab435307baf3dcd249fd95afaf1f) |
+| v3.28.0   | ~v24.02    | [2ae8f79](https://github.com/FDio/vpp/commit/2ae8f79b5087c8da7d30283693f22ca710a60347) |
+| v3.27.0   | v24.02-rc0 | [7419bed](https://github.com/FDio/vpp/commit/7419bede7ad73544338fd4363da833b2d5fc89a5) |
+| v3.26.4   | v25.06     | [1573e75](https://github.com/FDio/vpp/commit/1573e751c5478d3914d26cdde153390967932d6b) |
+| v3.26.3   | v25.02     | [af12ed0](https://github.com/FDio/vpp/commit/af12ed005d50809e130b93a4d9c934a961081dcf) |
+| v3.26.2   | v25.02     | [af12ed0](https://github.com/FDio/vpp/commit/af12ed005d50809e130b93a4d9c934a961081dcf) |
+| v3.26.1   | v23.10-rc0 | [a7dd04d](https://github.com/FDio/vpp/commit/a7dd04d73bf5abed944fb77a5e957bbad24e2750) |
+| v3.26.0   | v23.10-rc0 | [a7dd04d](https://github.com/FDio/vpp/commit/a7dd04d73bf5abed944fb77a5e957bbad24e2750) |
+| v3.25.3   | v23.06     | [8a0fd06](https://github.com/FDio/vpp/commit/8a0fd0669047c90d410d2ed5cb508bfe778b932a) |
+| v3.25.2   | v23.06     | [8a0fd06](https://github.com/FDio/vpp/commit/8a0fd0669047c90d410d2ed5cb508bfe778b932a) |
+| v3.25.1   | v23.06     | [8a0fd06](https://github.com/FDio/vpp/commit/8a0fd0669047c90d410d2ed5cb508bfe778b932a) |
+| v3.25.0   | v23.06     | [8a0fd06](https://github.com/FDio/vpp/commit/8a0fd0669047c90d410d2ed5cb508bfe778b932a) |
+| --------- | ---------- | -------------------------------------------------------------------------------------- |
 
 ## Releases
+
+> 5th May 2026
+
+- Features
+
+  - Introduce single lookup cNAT plugin
+  - npol verdicts reported in VPP trace
+  - enable bpf_trace_filter VPP plugin
+  - hook: align restart flow with default_hook.sh
+  - vpp-manager: add ipfamilies parameter to configure expected addresses on interfaces
+  - build: move dataplane commit metadata to runtime image labels
+  - Add BPF filtering support to calicovppctl trace/pcap/dispatch commands
+  - Convert default_hook.sh to native golang agent, removing the
+    need for explicit envvars
+
+- Deprecation
+
+  - remove avf native driver support
+
+- Bugfixes
+  
+  - fix bgp conf comparison to avoid unnecessary restarts
+  - support next-tier rule action, same as pass
+  - fix: correct BSID parsing and SR Policy SAFI matching
+  - vpp-manager: enable host-tap TTL fixup via private ip_ttl_fixup plugin
+  - vpp-manager: move VPP_RUNNING hook after tap LL reconciliation
+  - connectivity: propagate translated uplink IPv6 prefix to node BGP spec
+  - cni: enable IPv6 on pod interfaces with v6 address
+  - srv6: fix dual-stack NLRI collision
+  - add virtio secondary mac support VPP patches
+  - vpp-manager: replicate eui64 ll addr on linux tap.
+  - vpp-manager: disable punting NAs toward the host (#940)
+  - vpp: update sollicited node patchset
+  - vpp-manager: Add static neighbor for LL address on tap0 (#938)
+  - vpp-manager: move IPv6 LL discovery after Linux tap up
+  - hook: wait for udev settle before restarting networkd
+  - vpp-manager: rebind interfaces to kernel if link is missing
+  - Add TranslateUplinkAddrMaskTo64 option only for non LL /128
+  - vpp-manager: force IPv6 uplink AddInterfaceAddress mask
+  - vxlan: use remote next-hop gateway for pod CIDR tunnel routes
+  - vpplink: add VPP patch to preserve interface self LL receive DPO
+  - vpp-manager: VPP patch for missing solicited-node multicast MAC
+  - vpp: recover from panic in vpp manager
+  - fix ifState.IPv6LinkLocal.IPNet check crashing with a nil value
+  - vxlan: resolve UNRESOLVED encap DPO causing tunnel drops
+  - vxlan: reset next_dpo on delete
+  - preserve ID_NET_NAME across udev re-evals and networkd restart
+  - add vxlan and ipip tunnels to exported data
+  - set promiscuous on tap0
+  - install udev ID_NET_NAME rules before VPP creates host tap
+  - set tap0 admin up after hooks to prevent sys-netd RCs
+  - refactor uplink addr&route for v6ll consistency
+  - vpp-manager: do not reprogram linux with v6 LL
+  - vpp-manager: fix v6 ll fetch from linux
+  - ipv6: fix L3 MAC mismatch error for gateway traffic (#872)
+  - routing: gracefully handle missing node IP during BGP announcements
+  - fix IPv6 gateway reachability with ND proxy
+  - Add udev ID_NET_NAME_* property restoration for VPP interfaces
+  - Add ip6tables rule for DHCPv6 hop limit configuration
+  - calicovppctl: improve capture file transfer robustness
+  - Add concurrency and cleanup enhancements to calicovppctl
+  - Filter out link-local routes from VPP main interface routing table
+  - Add LinkLocal address to uplink in VPP
+  - refactor service caching
+  - Remove node address from VPP tap0
+  - Add timeout to calicovppctl trace/pcap/dispatch commands
+  - Remove the prometheus dependancy on pubsub
+  - fix hostport CNAT entry handling
+  - add mFIB entry for Solicited-Node Multicast and MLDv2-routers
+  - fix for bind failure on BGP global IPv6 address
+  - add NULL check before NeighborSet deletion
+  - fix service islocalonly policy support (internal vs external)
+  - add mFIB entries for host IPv6 multicast traffic
+  - fix incorrect prefix length for IPv6 neighbors
+  - fix urpf wrong table index bug
 
 ### Calico-VPP v3.31.0
 
@@ -114,6 +191,56 @@ Calico/VPP version ``vA.B.x`` will work with Calico version ``vA.B.y`` for any
   - Make prometheus poll freq and port configurable
   - test: upgrade trex image to v3.06
   - yaml: increase buffers-per-numa for openshift scenario
+
+### Calico-VPP v3.29.4
+
+> 5th May 2026
+
+- Bugfixes
+
+  - fix(ip-neighbor): prevent crash when deleting interfaces with PBL
+  - Fix CNI server state error handling.
+  - vpp: recover from panic in vpp manager
+  - vpp-manager: rebind interfaces to kernel if link is missing
+  - vxlan: reset next_dpo on delete
+  - vxlan: use remote next-hop gateway for pod CIDR tunnel routes
+  - vxlan: resolve UNRESOLVED encap DPO causing tunnel drops
+
+- Bugfixes targeting dualstack support with dhcpv6
+
+  - support dualstack in pbl using separated indexes in podspec state file
+  - support v6 services
+  - fix for issues on ipv6 enabled clusters
+  - vpp-manager: fix v6 ll fetch from linux
+  - vpp-manager: do not reprogram linux with v6 LL
+  - refactor uplink addr&route for v6ll consistency
+  - set tap0 admin up after hooks to prevent sys-netd RCs
+  - install udev ID_NET_NAME rules before VPP creates host tap
+  - add tap VHOST_SET_FORK_FROM_OWNER support backport
+  - Set promiscuous tap0 v3.29
+  - preserve ID_NET_NAME across udev re-evals and networkd restart
+  - add solicited-node multicast RPF accept on uplink for IPv6 NDP
+  - vpp-manager: fix multicast RPF check on host-tap and uplink VRFs
+  - fix ifState.IPv6LinkLocal.IPNet check crashing with a nil value
+  - cherry-pick VPP patch for missing solicited-node multicast MAC
+  - add VPP patch to preserve interface self LL receive DPO
+  - force IPv6 uplink AddInterfaceAddress mask
+  - Add TranslateUplinkAddrMaskTo64 option only for non LL /128
+  - move vpplink files previously generated by vpplink repo
+  - wait for udev settle before restarting networkd
+  - move IPv6 LL discovery after Linux tap up
+  - vpp-manager: Add static neighbor for LL address on tap0
+  - vpp: update sollicited node patchset
+  - vpp-manager: disable punting NAs toward the host
+  - align restart flow with default_hook.sh
+  - config: specify ipfamilies for uplink interface in user config
+  - vpp-manager: replicate eui64 ll addr on linux tap.
+  - vpp-manager: move HookVppRunning after tap LL reconciliation
+
+- Features
+
+  - backport NetworkManagerHook
+  - Backport npol changes
 
 ### Calico-VPP v3.29.3
 
