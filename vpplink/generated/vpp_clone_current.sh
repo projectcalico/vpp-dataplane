@@ -111,20 +111,13 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 #
-BASE="${BASE:-"df29c4ff84d2d3c06f2908f62f49040d3164778f"}"
+BASE="${BASE:-"da090867b2db630210fb033d387ed2853283887b"}"
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
 git_clone_cd_and_reset "$VPP_DIR" ${BASE}
 
 git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular option | https://gerrit.fd.io/r/c/vpp/+/42343
-
-# cnat new implementation: a cnat session is now used for every packet for fastpath, we delete sessions when
-# corresponding translation disappears
-git_cherry_pick refs/changes/69/43369/41 # 43369: cnat: converge new cnat implementation to support encaps (calico) | https://gerrit.fd.io/r/c/vpp/+/43369
-
-# update vpp_if_stats govpp version
-git_cherry_pick refs/changes/44/45644/1 # 45644: misc: update vpp_if_stats govpp version | https://gerrit.fd.io/r/c/vpp/+/45644
 
 # IPv6 related fixes:
 git_cherry_pick refs/changes/50/44350/3 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
@@ -134,11 +127,11 @@ git_cherry_pick refs/changes/46/45046/4 # 45046: ip6-nd: add punt reason for nei
 
 # --------------- private patches/plugins ---------------
 # Patch files generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
-git_apply_private 0002-cnat-WIP-no-k8s-maglev-from-pods.patch
-git_apply_private 0003-acl-acl-plugin-custom-policies.patch
-git_apply_private 0004-ip-neighbor-preserve-interface-ll-receive-dpo.patch
-git_apply_private 0005-npol-add-matched-rule-id-to-acl-trace.patch
-git_apply_private 0006-interface-add-buffer-stats-api.patch
+git_apply_private 0001-cnat-WIP-no-k8s-maglev-from-pods.patch
+git_apply_private 0002-acl-acl-plugin-custom-policies.patch
+git_apply_private 0003-ip-neighbor-preserve-interface-LL-receive-DPO-for-se.patch
+git_apply_private 0004-npol-add-matched-rule-id-to-acl-trace.patch
+git_apply_private 0005-interface-add-buffer-stats-api.patch
 # VPP Private plugins:
 copy_private_plugin ip_ttl_fixup
 copy_private_plugin pbl

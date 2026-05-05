@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
 Date: Fri, 10 Oct 2025 12:13:22 +0200
-Subject: [PATCH 3/3] acl: acl-plugin custom policies
+Subject: [PATCH 2/5] acl: acl-plugin custom policies
 
 Type: feature
 
@@ -44,10 +44,10 @@ index 1bb60d94f..c1faca557 100644
    dataplane_node.c
    dataplane_node_nonip.c
 diff --git a/src/plugins/acl/acl.c b/src/plugins/acl/acl.c
-index fbd947610..fda649fdc 100644
+index 6724f503b..adae1bfe5 100644
 --- a/src/plugins/acl/acl.c
 +++ b/src/plugins/acl/acl.c
-@@ -39,6 +39,7 @@
+@@ -29,6 +29,7 @@
  
  #include "fa_node.h"
  #include "public_inlines.h"
@@ -55,7 +55,7 @@ index fbd947610..fda649fdc 100644
  
  acl_main_t acl_main;
  
-@@ -517,6 +518,11 @@ acl_clear_sessions (acl_main_t * am, u32 sw_if_index)
+@@ -507,6 +508,11 @@ acl_clear_sessions (acl_main_t * am, u32 sw_if_index)
  			     sw_if_index);
  }
  
@@ -67,7 +67,7 @@ index fbd947610..fda649fdc 100644
  
  static int
  acl_interface_in_enable_disable (acl_main_t * am, u32 sw_if_index,
-@@ -601,8 +607,8 @@ acl_stats_intf_counters_enable_disable (acl_main_t * am, int enable_disable)
+@@ -591,8 +597,8 @@ acl_stats_intf_counters_enable_disable (acl_main_t * am, int enable_disable)
    return rv;
  }
  
@@ -78,7 +78,7 @@ index fbd947610..fda649fdc 100644
  				    int is_input, int enable_disable)
  {
    if (is_input)
-@@ -611,6 +617,12 @@ acl_interface_inout_enable_disable (acl_main_t * am, u32 sw_if_index,
+@@ -601,6 +607,12 @@ acl_interface_inout_enable_disable (acl_main_t * am, u32 sw_if_index,
      return acl_interface_out_enable_disable (am, sw_if_index, enable_disable);
  }
  
@@ -91,7 +91,7 @@ index fbd947610..fda649fdc 100644
  static int
  acl_is_not_defined (acl_main_t * am, u32 acl_list_index)
  {
-@@ -745,8 +757,11 @@ acl_interface_set_inout_acl_list (acl_main_t * am, u32 sw_if_index,
+@@ -735,8 +747,11 @@ acl_interface_set_inout_acl_list (acl_main_t * am, u32 sw_if_index,
  	}
      }
    /* ensure ACL processing is enabled/disabled as needed */
@@ -104,7 +104,7 @@ index fbd947610..fda649fdc 100644
  
  done:
    clib_bitmap_free (change_acl_bitmap);
-@@ -3583,6 +3598,10 @@ acl_plugin_show_sessions (acl_main_t * am,
+@@ -3573,6 +3588,10 @@ acl_plugin_show_sessions (acl_main_t * am,
  		   ((f64) am->fa_current_cleaner_timer_wait_interval) *
  		   1000.0 / (f64) vm->clib_time.clocks_per_second);
    vlib_cli_output (vm, "Reclassify sessions: %d", am->reclassify_sessions);
@@ -115,7 +115,7 @@ index fbd947610..fda649fdc 100644
  }
  
  static clib_error_t *
-@@ -3963,6 +3982,8 @@ acl_init (vlib_main_t * vm)
+@@ -3953,6 +3972,8 @@ acl_init (vlib_main_t * vm)
      ACL_FA_CONN_TABLE_DEFAULT_HASH_MEMORY_SIZE;
    am->fa_conn_table_max_entries = ACL_FA_CONN_TABLE_DEFAULT_MAX_ENTRIES;
    am->reclassify_sessions = 0;
@@ -125,10 +125,10 @@ index fbd947610..fda649fdc 100644
  
    am->fa_min_deleted_sessions_per_interval =
 diff --git a/src/plugins/acl/acl.h b/src/plugins/acl/acl.h
-index c540bf8fb..440097899 100644
+index 98ed735ef..cbadefb82 100644
 --- a/src/plugins/acl/acl.h
 +++ b/src/plugins/acl/acl.h
-@@ -113,6 +113,11 @@ typedef struct
+@@ -104,6 +104,11 @@ typedef struct
    u8 from_tm;
  } ace_mask_type_entry_t;
  
@@ -140,7 +140,7 @@ index c540bf8fb..440097899 100644
  typedef struct {
    /* API message ID base */
    u16 msg_id_base;
-@@ -168,7 +173,18 @@ typedef struct {
+@@ -159,7 +164,18 @@ typedef struct {
    /* whether we need to take the epoch of the session into account */
    int reclassify_sessions;
  
@@ -159,7 +159,7 @@ index c540bf8fb..440097899 100644
  
    /* Total count of interface+direction pairs enabled */
    u32 fa_total_enabled_count;
-@@ -376,7 +392,10 @@ typedef enum {
+@@ -367,7 +383,10 @@ typedef enum {
    ACL_FA_N_REQ,
  } acl_fa_sess_req_t;
  
@@ -474,10 +474,10 @@ index 000000000..843a671ad
 + * End:
 + */
 diff --git a/src/plugins/acl/dataplane_node.c b/src/plugins/acl/dataplane_node.c
-index 027afc0f6..eba262cee 100644
+index 471228726..673a774fd 100644
 --- a/src/plugins/acl/dataplane_node.c
 +++ b/src/plugins/acl/dataplane_node.c
-@@ -25,6 +25,7 @@
+@@ -16,6 +16,7 @@
  
  #include <plugins/acl/fa_node.h>
  #include <plugins/acl/acl.h>
@@ -485,7 +485,7 @@ index 027afc0f6..eba262cee 100644
  #include <plugins/acl/lookup_context.h>
  #include <plugins/acl/public_inlines.h>
  #include <plugins/acl/session_inlines.h>
-@@ -316,13 +317,12 @@ acl_fa_node_common_prepare_fn (vlib_main_t * vm,
+@@ -307,13 +308,12 @@ acl_fa_node_common_prepare_fn (vlib_main_t * vm,
      }
  }
  
@@ -504,7 +504,7 @@ index 027afc0f6..eba262cee 100644
  {
    u32 n_left;
    u32 pkts_exist_session = 0;
-@@ -463,39 +463,85 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
+@@ -454,39 +454,85 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
  
  	  if (acl_check_needed)
  	    {
@@ -622,7 +622,7 @@ index 027afc0f6..eba262cee 100644
  		}
  
  	      b[0]->error = error_node->errors[action];
-@@ -580,11 +626,10 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
+@@ -571,11 +617,10 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
     * if we were had an acl match then we have a counter to increment.
     * else it is all zeroes, so this will be harmless.
     */
@@ -638,7 +638,7 @@ index 027afc0f6..eba262cee 100644
  
    vlib_node_increment_counter (vm, node->node_index,
  			       ACL_FA_ERROR_ACL_CHECK, frame->n_vectors);
-@@ -600,10 +645,10 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
+@@ -591,10 +636,10 @@ acl_fa_inner_node_fn (vlib_main_t * vm,
  }
  
  always_inline uword
@@ -653,7 +653,7 @@ index 027afc0f6..eba262cee 100644
  {
    acl_main_t *am = &acl_main;
  
-@@ -613,25 +658,24 @@ acl_fa_outer_node_fn (vlib_main_t * vm,
+@@ -604,25 +649,24 @@ acl_fa_outer_node_fn (vlib_main_t * vm,
    if (am->reclassify_sessions)
      {
        if (PREDICT_FALSE (node->flags & VLIB_NODE_FLAG_TRACE))
@@ -690,7 +690,7 @@ index 027afc0f6..eba262cee 100644
      }
  }
  
-@@ -644,13 +688,35 @@ acl_fa_node_fn (vlib_main_t * vm,
+@@ -635,13 +679,35 @@ acl_fa_node_fn (vlib_main_t * vm,
    acl_main_t *am = &acl_main;
    acl_fa_per_worker_data_t *pw = &am->per_worker_data[vm->thread_index];
    uword rv;
@@ -732,10 +732,10 @@ index 027afc0f6..eba262cee 100644
    vlib_buffer_enqueue_to_next (vm, node, vlib_frame_vector_args (frame),
  			       pw->nexts, frame->n_vectors);
 diff --git a/src/plugins/acl/exported_types.h b/src/plugins/acl/exported_types.h
-index a5b1c3497..b052b818a 100644
+index 53ca34be2..9e4427f5a 100644
 --- a/src/plugins/acl/exported_types.h
 +++ b/src/plugins/acl/exported_types.h
-@@ -16,6 +16,9 @@
+@@ -6,6 +6,9 @@
  #ifndef included_acl_exported_types_h
  #define included_acl_exported_types_h
  
@@ -745,7 +745,7 @@ index a5b1c3497..b052b818a 100644
  /* 
   * The overlay struct matching an internal type. Contents/size may change. 
   * During the compile of the ACL plugin it is checked to have the same size
-@@ -74,15 +77,25 @@ typedef int (*acl_plugin_match_5tuple_fn_t) (u32 lc_index,
+@@ -64,15 +67,25 @@ typedef int (*acl_plugin_match_5tuple_fn_t) (u32 lc_index,
                                             u32 * r_rule_match_p,
                                             u32 * trace_bitmap);
  
@@ -780,10 +780,10 @@ index a5b1c3497..b052b818a 100644
  #define _(name) acl_plugin_ ## name ## _fn_t name;
  typedef struct {
 diff --git a/src/plugins/acl/lookup_context.c b/src/plugins/acl/lookup_context.c
-index 8d1f3f20f..52641f9e7 100644
+index 219c32ae5..e74541c35 100644
 --- a/src/plugins/acl/lookup_context.c
 +++ b/src/plugins/acl/lookup_context.c
-@@ -14,6 +14,7 @@
+@@ -4,6 +4,7 @@
   */
  
  #include <plugins/acl/acl.h>
@@ -791,7 +791,7 @@ index 8d1f3f20f..52641f9e7 100644
  #include <plugins/acl/fa_node.h>
  #include <vlib/unix/plugin.h>
  #include <plugins/acl/public_inlines.h>
-@@ -282,7 +283,6 @@ void acl_plugin_lookup_context_notify_acl_change(u32 acl_num)
+@@ -272,7 +273,6 @@ void acl_plugin_lookup_context_notify_acl_change(u32 acl_num)
    }
  }
  
@@ -799,7 +799,7 @@ index 8d1f3f20f..52641f9e7 100644
  /* Fill the 5-tuple from the packet */
  
  static void acl_plugin_fill_5tuple (u32 lc_index, vlib_buffer_t * b0, int is_ip6, int is_input,
-@@ -302,6 +302,13 @@ static int acl_plugin_match_5tuple (u32 lc_index,
+@@ -292,6 +292,13 @@ static int acl_plugin_match_5tuple (u32 lc_index,
    return acl_plugin_match_5tuple_inline (&acl_main, lc_index, pkt_5tuple, is_ip6, r_action, r_acl_pos_p, r_acl_match_p, r_rule_match_p, trace_bitmap);
  }
  
@@ -844,7 +844,7 @@ index 6d2061a75..a9ff343ac 100644
  
    return (NULL);
 diff --git a/src/plugins/npol/npol_interface.c b/src/plugins/npol/npol_interface.c
-index 437ae64db..15cfe76e6 100644
+index 1fba8b7fb..708d0f0c4 100644
 --- a/src/plugins/npol/npol_interface.c
 +++ b/src/plugins/npol/npol_interface.c
 @@ -15,6 +15,8 @@ int
@@ -888,7 +888,7 @@ index 437ae64db..15cfe76e6 100644
    conf->enabled = 1;
    return 0;
 diff --git a/src/plugins/npol/npol_match.c b/src/plugins/npol/npol_match.c
-index 645e003e9..6e4e1e2de 100644
+index f738bb053..51db005d7 100644
 --- a/src/plugins/npol/npol_match.c
 +++ b/src/plugins/npol/npol_match.c
 @@ -746,4 +746,12 @@ npol_match_func (u32 sw_if_index, u32 is_inbound, fa_5tuple_t *pkt_5tuple,

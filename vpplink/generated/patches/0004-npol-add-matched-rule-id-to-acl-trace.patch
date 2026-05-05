@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: hedi bouattour <hedibouattour2010@gmail.com>
 Date: Tue, 3 Mar 2026 12:55:00 +0000
-Subject: [PATCH] npol: add matched rule id to acl trace
+Subject: [PATCH 4/5] npol: add matched rule id to acl trace
 
 This allows to track the policy rule that was hit
 in npol
@@ -259,7 +259,7 @@ index 6fce47f3e..c343842e6 100644
    vlib_cli_output (vm, "matched:%d action:%U", rv, format_npol_action,
  		   *r_action);
 diff --git a/src/plugins/npol/npol_match.c b/src/plugins/npol/npol_match.c
-index 6e4e1e2de..215157fcf 100644
+index 51db005d7..d32f5e680 100644
 --- a/src/plugins/npol/npol_match.c
 +++ b/src/plugins/npol/npol_match.c
 @@ -600,8 +600,8 @@ npol_match_rule (npol_rule_t *rule, u32 is_ip6, fa_5tuple_t *pkt_5tuple)
