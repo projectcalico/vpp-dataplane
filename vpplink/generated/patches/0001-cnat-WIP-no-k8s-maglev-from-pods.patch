@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: hedi bouattour <hedibouattour2010@gmail.com>
 Date: Mon, 9 Feb 2026 16:38:18 +0000
-Subject: [PATCH 1/5] cnat: [WIP] no k8s maglev from pods
+Subject: [PATCH 1/3] cnat: [WIP] no k8s maglev from pods
 
 Type: improvement
 
@@ -12,10 +12,10 @@ Signed-off-by: hedi bouattour <hedibouattour2010@gmail.com>
  1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/src/plugins/cnat/cnat_node_feature.c b/src/plugins/cnat/cnat_node_feature.c
-index b48534d49..655efa6a9 100644
+index 7e6c4e344..ad40ab8b0 100644
 --- a/src/plugins/cnat/cnat_node_feature.c
 +++ b/src/plugins/cnat/cnat_node_feature.c
-@@ -32,6 +32,7 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b, ip_addres
+@@ -27,6 +27,7 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b, ip_addres
  				    cnat_timestamp_t *ts)
  {
    vlib_combined_counter_main_t *cntm = &cnat_translation_counters;
@@ -23,7 +23,7 @@ index b48534d49..655efa6a9 100644
    cnat_main_t *cm = &cnat_main;
    const cnat_translation_t *ct = NULL;
    cnat_timestamp_rewrite_t *rw = NULL;
-@@ -45,6 +46,8 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b, ip_addres
+@@ -40,6 +41,8 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b, ip_addres
    udp_header_t *udp0;
    index_t cti;
  
@@ -32,7 +32,7 @@ index b48534d49..655efa6a9 100644
    if (AF_IP4 == af)
      {
        ip4 = vlib_buffer_get_current (b);
-@@ -100,7 +103,10 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b, ip_addres
+@@ -95,7 +98,10 @@ cnat_input_feature_new_flow_inline (vlib_main_t *vm, vlib_buffer_t *b, ip_addres
  			      rw->tuple.port[VLIB_TX];
  
    ts->ts_trk_index = trk0_i;
