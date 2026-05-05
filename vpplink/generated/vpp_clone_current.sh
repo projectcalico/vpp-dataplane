@@ -111,7 +111,7 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 #
-BASE="${BASE:-"da090867b2db630210fb033d387ed2853283887b"}"
+BASE="${BASE:-"e84849bcdb70ce7b77e17e04575059856735da50"}"
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
