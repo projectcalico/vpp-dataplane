@@ -9,9 +9,10 @@ TIGERA_OPERATOR_VERSION ?= v3.32.0
 new-cluster:
 	@CPU_PINNING=$(CPU_PINNING) \
 		CLUSTER_NAME=$(CLUSTER_NAME) \
+		KIND="$(KIND)" \
 		./new_cluster.sh
 	mkdir -p $(HOME)/.kube
-	kind get kubeconfig --name $(CLUSTER_NAME) > $(HOME)/.kube/config
+	$(KIND) get kubeconfig --name $(CLUSTER_NAME) > $(HOME)/.kube/config
 
 .PHONY: install-cni
 install-cni:
@@ -24,7 +25,7 @@ install-cni:
 
 .PHONY: rm-cluster
 rm-cluster:
-	kind delete cluster --name $(CLUSTER_NAME)
+	$(KIND) delete cluster --name $(CLUSTER_NAME)
 
 .PHONY: dev
 dev:
