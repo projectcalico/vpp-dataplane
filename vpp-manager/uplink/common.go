@@ -126,7 +126,7 @@ func (d *UplinkDriverData) removeLinuxIfConf(setIfDown bool) {
 			}
 		}
 		// Remove addresses to not have them conflict with vpptap0
-		for _, addr := range d.conf.GetAddresses() {
+		for _, addr := range d.conf.GetAddressesNoMaskTranslation() {
 			err := netlink.AddrDel(link, &addr)
 			if err != nil {
 				log.Errorf("Error removing address %s from tap interface : %+v", addr, err)
@@ -149,7 +149,7 @@ func (d *UplinkDriverData) restoreLinuxIfConf(link netlink.Link) {
 	if err != nil {
 		log.Errorf("Cannot restore mtu to %d: %v", d.conf.Mtu, err)
 	}
-	for _, addr := range d.conf.GetAddresses() {
+	for _, addr := range d.conf.GetAddressesNoMaskTranslation() {
 		log.Infof("restoring address %s", addr.String())
 		err := netlink.AddrAdd(link, &addr)
 		if err != nil {
