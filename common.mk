@@ -67,3 +67,6 @@ DOCKER_BUILD_ARGS += --build-arg GIT_COMMIT="$(shell git describe --always --abb
 ifeq (${NO_CACHE},true)
 	DOCKER_BUILD_ARGS += --no-cache
 endif
+
+KIND_VERSION ?= v0.30.0
+KIND ?= go run sigs.k8s.io/kind@$(KIND_VERSION)
