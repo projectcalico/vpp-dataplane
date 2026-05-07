@@ -750,9 +750,14 @@ func (s *Server) handleIpsetUpdate(msg *proto.IPSetUpdate, pending bool) (err er
 		return errors.Wrap(err, "cannot process IPSetUpdate")
 	}
 	state := s.currentState(pending)
-	_, ok := state.IPSets[msg.GetId()]
+	existing, ok := state.IPSets[msg.GetId()]
 	if ok {
-		return fmt.Errorf("received new ipset for ID %s that already exists", msg.GetId())
+		err = existing.ReplaceMembers(ips, !pending, s.vpp)
+		if err != nil {
+			return errors.Wrapf(err, "cannot replace ipset for ID %s", msg.GetId())
+		}
+		s.log.Debugf("Handled ipset replacement for ID %s; pending=%t [%s]", msg.GetId(), pending, existing)
+		return nil
 	}
 	if !pending {
 		err = ips.Create(s.vpp)
