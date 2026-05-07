@@ -68,7 +68,8 @@ func (s *Server) RecvMessage(conn net.Conn) (msg interface{}, err error) {
 	envelope := proto.ToDataplane{}
 	err = pb.Unmarshal(data, &envelope)
 	if err != nil {
-		return
+		s.log.Warnf("Skipping invalid message from felix-dataplane.sock: %v", err)
+		return nil, nil
 	}
 
 	switch payload := envelope.Payload.(type) {

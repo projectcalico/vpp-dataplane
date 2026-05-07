@@ -197,6 +197,44 @@ func (i *IPSet) Delete(vpp *vpplink.VppLink) (err error) {
 	return nil
 }
 
+func diffStringMap[T any](oldValues, newValues map[string]T) (add, remove []string) {
+	for k := range newValues {
+		if _, found := oldValues[k]; !found {
+			add = append(add, k)
+		}
+	}
+	for k := range oldValues {
+		if _, found := newValues[k]; !found {
+			remove = append(remove, k)
+		}
+	}
+	return add, remove
+}
+
+func (i *IPSet) ReplaceMembers(next *IPSet, apply bool, vpp *vpplink.VppLink) error {
+	if i.Type != next.Type {
+		return fmt.Errorf("cannot replace ipset members with different type: %s != %s", i.Type, next.Type)
+	}
+
+	var add, remove []string
+	switch i.Type {
+	case types.IpsetTypeIP:
+		add, remove = diffStringMap(i.Addresses, next.Addresses)
+	case types.IpsetTypeIPPort:
+		add, remove = diffStringMap(i.IPPorts, next.IPPorts)
+	case types.IpsetTypeNet:
+		add, remove = diffStringMap(i.Networks, next.Networks)
+	}
+
+	if err := i.RemoveMembers(remove, apply, vpp); err != nil {
+		return err
+	}
+	if err := i.AddMembers(add, apply, vpp); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (i *IPSet) AddMembers(members []string, apply bool, vpp *vpplink.VppLink) (err error) {
 	switch i.Type {
 	case types.IpsetTypeIP:
