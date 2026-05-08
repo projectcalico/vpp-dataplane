@@ -278,6 +278,14 @@ found:
 	return nil
 }
 
+func isDefaultRoute(dst *net.IPNet) bool {
+	if dst == nil {
+		return true
+	}
+	ones, bits := dst.Mask.Size()
+	return ones == 0 && (bits == 32 || bits == 128)
+}
+
 // pick a next hop to use for cluster routes (services, pod cidrs) in the address prefix
 func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextHopIP4, fakeNextHopIP6 net.IP) {
 	fakeNextHopIP4 = net.ParseIP("0.0.0.0")
@@ -286,12 +294,49 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 	foundV4, foundV6 := false, false
 	needsV4, needsV6 := false, false
 
-	for _, addr := range ifState.GetAddressesNoMaskTranslation() {
+	addrs := ifState.GetAddressesNoMaskTranslation()
+	for _, addr := range addrs {
 		if addr.IP.To4() != nil {
 			needsV4 = true
 		} else {
 			needsV6 = true
 		}
+	}
+
+	// #1 Prefer the real default-route gateway. If a stale cluster route pointing
+	// at the real gateway survives a crash/restore cycle and is re-programmed into
+	// VPP via the uplink, VPP can still ARP-resolve it and prevent UNRESOLVED FIB
+	// entries that would silently drop all pod-CIDR traffic. A default route can be
+	// represented as Dst == nil or Dst == 0.0.0.0/0 (::/0) in netlink.
+	for _, route := range ifState.GetRoutes() {
+		if !isDefaultRoute(route.Dst) || route.Gw == nil {
+			continue
+		}
+		gw := route.Gw
+		isV4 := gw.To4() != nil
+		if isV4 && foundV4 {
+			continue
+		}
+		if !isV4 && foundV6 {
+			continue
+		}
+		if isV4 {
+			log.Infof("Using default route gateway %s as next hop for cluster IPv4 routes", gw)
+			fakeNextHopIP4 = gw
+			foundV4 = true
+		} else {
+			log.Infof("Using default route gateway %s as next hop for cluster IPv6 routes", gw)
+			fakeNextHopIP6 = gw
+			foundV6 = true
+		}
+	}
+
+	if (!needsV4 || foundV4) && (!needsV6 || foundV6) {
+		return
+	}
+
+	// #2 Derive a synthetic next hop from the interface's own address subnet
+	for _, addr := range addrs {
 		nhAddr = utils.DecrementIP(utils.BroadcastAddr(addr.IPNet))
 		if nhAddr.Equal(addr.IP) {
 			nhAddr = utils.IncrementIP(utils.NetworkAddr(addr.IPNet))
@@ -299,24 +344,28 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 		if !addr.Contains(nhAddr) {
 			continue
 		}
-		if nhAddr.To4() != nil && !foundV4 {
-			log.Infof("Using %s as next hop for cluster IPv4 routes", nhAddr.String())
-			fakeNextHopIP4 = nhAddr
-			foundV4 = true
-		} else if !foundV6 {
-			log.Infof("Using %s as next hop for cluster IPv6 routes", nhAddr.String())
-			fakeNextHopIP6 = nhAddr
-			foundV6 = true
+		if nhAddr.To4() != nil {
+			if !foundV4 {
+				log.Infof("Using %s as next hop for cluster IPv4 routes", nhAddr.String())
+				fakeNextHopIP4 = nhAddr
+				foundV4 = true
+			}
+		} else {
+			if !foundV6 {
+				log.Infof("Using %s as next hop for cluster IPv6 routes", nhAddr.String())
+				fakeNextHopIP6 = nhAddr
+				foundV6 = true
+			}
 		}
 	}
 
-	if !((needsV4 && !foundV4) || (needsV6 && !foundV6)) { //nolint:staticcheck
+	if (!needsV4 || foundV4) && (!needsV6 || foundV6) {
 		return
 	}
 
+	// #3 Use directly connected routes (Gw == nil, Dst != nil).
 	for _, route := range ifState.GetRoutes() {
 		if route.Gw != nil || route.Dst == nil {
-			// We're looking for a directly connected route
 			continue
 		}
 		if (route.Dst.IP.To4() != nil && foundV4) || (route.Dst.IP.To4() == nil && foundV6) {
@@ -334,12 +383,11 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 				if ifState.HasAddr(nhAddr) {
 					nhAddr = utils.IncrementIP(utils.NetworkAddr(route.Dst))
 				}
-				log.Infof("Using %s as next hop for cluster IPv4 routes (from directly connected route)", route.Dst.IP.String())
+				log.Infof("Using %s as next hop for cluster IPv4 routes (from directly connected route)", nhAddr.String())
 				fakeNextHopIP4 = nhAddr
 				foundV4 = true
 			}
-		}
-		if route.Dst.IP.To4() == nil {
+		} else {
 			if ones == 128 {
 				log.Infof("Using %s as next hop for cluster IPv6 routes (from directly connected /128 route)", route.Dst.IP.String())
 				fakeNextHopIP6 = route.Dst.IP
@@ -350,7 +398,7 @@ func (v *VppRunner) pickNextHopIP(ifState config.LinuxInterfaceState) (fakeNextH
 				if ifState.HasAddr(nhAddr) {
 					nhAddr = utils.IncrementIP(utils.NetworkAddr(route.Dst))
 				}
-				log.Infof("Using %s as next hop for cluster IPv6 routes (from directly connected route)", route.Dst.IP.String())
+				log.Infof("Using %s as next hop for cluster IPv6 routes (from directly connected route)", nhAddr.String())
 				fakeNextHopIP6 = nhAddr
 				foundV6 = true
 			}
