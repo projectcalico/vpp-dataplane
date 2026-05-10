@@ -175,7 +175,23 @@ func (s *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv
 
 	}
 
-	policySidListsids := [16]ip_types.IP6Address{}
+	// VPP's vl_api_srv6_sid_list_t carries a fixed-size sids[16] array
+	// (src/vnet/srv6/sr.api → types.Srv6SidList.Sids). Reject SR Policies
+	// whose segment list is either empty (we'd dereference segments[-1]
+	// below) or too long (we'd write past policySidListsids[vppMaxSRv6Sids-1])
+	// instead of panicking the agent process on malformed or oversized input.
+	const vppMaxSRv6Sids = 16
+	if len(segments) == 0 {
+		return nil, nil, srnrli, fmt.Errorf(
+			"sr policy endpoint=%s has no segments", net.IP(srnrli.Endpoint))
+	}
+	if len(segments) > vppMaxSRv6Sids {
+		return nil, nil, srnrli, fmt.Errorf(
+			"sr policy endpoint=%s has %d segments, vpp supports up to %d",
+			net.IP(srnrli.Endpoint), len(segments), vppMaxSRv6Sids)
+	}
+
+	policySidListsids := [vppMaxSRv6Sids]ip_types.IP6Address{}
 	for i, segment := range segments {
 		policySidListsids[i] = types.ToVppIP6Address(net.IP(segment.Sid))
 	}
