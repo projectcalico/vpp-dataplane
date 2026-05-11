@@ -168,6 +168,10 @@ func (r *RouteWatcher) getNetworkRoute(network string, physicalNet string) (rout
 				Protocol: syscall.RTPROT_STATIC,
 				MTU:      GetUplinkMtu(),
 				Priority: priority,
+				// Provide LinkIndex to ensure that we do add the route to the tap
+				// created by VPP and not another interface, e.g. in the case where
+				// VPP has stopped
+				LinkIndex: uplinkStatus.LinkIndex,
 			})
 		}
 	}
@@ -202,6 +206,10 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 				Protocol: syscall.RTPROT_STATIC,
 				MTU:      GetUplinkMtu(),
 				Priority: priority,
+				// Provide LinkIndex to ensure that we do add the route to the tap
+				// created by VPP and not another interface, e.g. in the case where
+				// VPP has stopped
+				LinkIndex: uplinkStatus.LinkIndex,
 			})
 			if err != nil {
 				r.log.Error(err, "cannot add route through vpp tap for service CIDR: %s", serviceCIDR.String())
