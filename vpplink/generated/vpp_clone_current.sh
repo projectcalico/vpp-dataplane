@@ -107,6 +107,8 @@ function git_clone_cd_and_reset ()
 	if [ $STASH_SAVED -eq 1 ]; then
 		git stash pop
 	fi
+	# Remove plugins copied with copy_private_plugin
+	git clean -fd src/plugins/
 }
 
 # --------------- Things to cherry pick ---------------
