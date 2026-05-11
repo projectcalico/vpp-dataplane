@@ -106,6 +106,8 @@ function git_clone_cd_and_reset ()
 		git fetch --tags "https://gerrit.fd.io/r/vpp"
 	fi
 	git reset --hard ${VPP_COMMIT}
+	# Remove plugins copied with copy_private_plugin
+	git clean -fd src/plugins/
 }
 
 # --------------- Things to cherry pick ---------------
