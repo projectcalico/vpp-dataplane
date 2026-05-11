@@ -34,6 +34,10 @@ func NewIPPoolsStub() *IPPoolsStub {
 	}
 }
 
+func (pools *IPPoolsStub) UpdateStatus(ctx context.Context, res *apiv3.IPPool, opts options.SetOptions) (*apiv3.IPPool, error) {
+	return nil, nil
+}
+
 func (pools *IPPoolsStub) Create(ctx context.Context, res *apiv3.IPPool, opts options.SetOptions) (*apiv3.IPPool, error) {
 	if res == nil {
 		return nil, fmt.Errorf("ipPool can't be nil")

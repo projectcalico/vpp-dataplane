@@ -65,7 +65,7 @@ type LocalNodeSpec struct {
 	IPv6Address *net.IPNet
 }
 
-func NewLocalNodeSpec(msg *proto.HostMetadataV4V6Update) (*LocalNodeSpec, error) {
+func NewLocalNodeSpec(msg *proto.HostMetadataUpdate) (*LocalNodeSpec, error) {
 	localNodeSpec := &LocalNodeSpec{
 		Name:   msg.Hostname,
 		Labels: msg.Labels,

@@ -583,10 +583,6 @@ func (s *Server) handleFelixUpdate(msg interface{}) (err error) {
 			err = s.handleHostMetadataUpdate(m, pending)
 		case *proto.HostMetadataRemove:
 			err = s.handleHostMetadataRemove(m, pending)
-		case *proto.HostMetadataV4V6Update:
-			err = s.handleHostMetadataV4V6Update(m, pending)
-		case *proto.HostMetadataV4V6Remove:
-			err = s.handleHostMetadataV4V6Remove(m, pending)
 		case *proto.IPAMPoolUpdate:
 			err = s.handleIpamPoolUpdate(m, pending)
 		case *proto.IPAMPoolRemove:
@@ -1149,16 +1145,6 @@ func (s *Server) handleWorkloadEndpointRemove(msg *proto.WorkloadEndpointRemove,
 	return nil
 }
 
-func (s *Server) handleHostMetadataUpdate(msg *proto.HostMetadataUpdate, pending bool) (err error) {
-	s.log.Debugf("Ignoring HostMetadataUpdate")
-	return nil
-}
-
-func (s *Server) handleHostMetadataRemove(msg *proto.HostMetadataRemove, pending bool) (err error) {
-	s.log.Debugf("Ignoring HostMetadataRemove")
-	return nil
-}
-
 func (s *Server) handleWireguardEndpointUpdate(msg *proto.WireguardEndpointUpdate, pending bool) (err error) {
 	s.log.Infof("Received wireguard public key %+v", msg)
 	var old *common.NodeWireguardPublicKey
@@ -1181,10 +1167,10 @@ func (s *Server) handleWireguardEndpointRemove(msg *proto.WireguardEndpointRemov
 	return nil
 }
 
-func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update, pending bool) (err error) {
+func (s *Server) handleHostMetadataUpdate(msg *proto.HostMetadataUpdate, pending bool) (err error) {
 	localNodeSpec, err := common.NewLocalNodeSpec(msg)
 	if err != nil {
-		return errors.Wrapf(err, "handleHostMetadataV4V6Update errored")
+		return errors.Wrapf(err, "handleHostMetadataUpdate errored")
 	}
 	old, found := s.nodeStatesByName[localNodeSpec.Name]
 
@@ -1248,7 +1234,7 @@ func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update,
 	return nil
 }
 
-func (s *Server) handleHostMetadataV4V6Remove(msg *proto.HostMetadataV4V6Remove, pending bool) (err error) {
+func (s *Server) handleHostMetadataRemove(msg *proto.HostMetadataRemove, pending bool) (err error) {
 	old, found := s.nodeStatesByName[msg.Hostname]
 	if !found {
 		return fmt.Errorf("node %s to delete not found", msg.Hostname)
