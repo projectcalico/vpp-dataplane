@@ -127,12 +127,14 @@ git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete
 git_cherry_pick refs/changes/99/45099/2 # 45099: ip6-nd: add nd-proxy all dst | https://gerrit.fd.io/r/c/vpp/+/45099
 git_cherry_pick refs/changes/46/45046/4 # 45046: ip6-nd: add punt reason for neigh advs | https://gerrit.fd.io/r/c/vpp/+/45046
 
+# npol/cnat convergence
+git_cherry_pick refs/changes/96/45696/5 # 45696: cnat: make cnat pluggable | https://gerrit.fd.io/r/c/vpp/+/45696
+git_cherry_pick refs/changes/07/45707/2 # 45707: npol: wire npol into the cnat slow-path hook mechanism | https://gerrit.fd.io/r/c/vpp/+/45707
+
 # --------------- private patches/plugins ---------------
 # Patch files generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
 git_apply_private 0001-cnat-WIP-no-k8s-maglev-from-pods.patch
-git_apply_private 0002-acl-acl-plugin-custom-policies.patch
 git_apply_private 0003-ip-neighbor-preserve-interface-LL-receive-DPO-for-se.patch
-git_apply_private 0004-npol-add-matched-rule-id-to-acl-trace.patch
 git_apply_private 0005-interface-add-buffer-stats-api.patch
 # VPP Private plugins:
 copy_private_plugin ip_ttl_fixup
