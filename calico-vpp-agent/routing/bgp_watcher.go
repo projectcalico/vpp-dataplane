@@ -137,6 +137,16 @@ func (s *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv
 	}
 	srv6tunnel.Dst = net.IP(srnrli.Endpoint)
 
+	// SR Policy withdraws carry only the (distinguisher, color, endpoint)
+	// NLRI key; per RFC 9012 / draft-ietf-idr-segment-routing-te-policy the
+	// TunnelEncap path attribute is not required. Short-circuit so the
+	// caller (injectSRv6Policy) can dispatch SRv6PolicyDeleted instead of
+	// reaching the empty-segments check below and dropping the withdraw
+	// without emitting SRv6PolicyDeleted.
+	if path.IsWithdraw {
+		return nil, srv6tunnel, srnrli, nil
+	}
+
 	for _, pattr := range path.Pattrs {
 		if err := pattr.UnmarshalTo(tun); err == nil {
 			for _, tlv := range tun.Tlvs {
@@ -209,7 +219,18 @@ func (s *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv
 	srv6tunnel.Bsid = srv6Policy.Bsid.ToIP()
 	srv6tunnel.Policy = srv6Policy
 
-	srv6tunnel.Behavior = uint8(segments[len(segments)-1].GetEndpointBehaviorStructure().Behavior)
+	// EndpointBehaviorStructure is an optional sub-TLV in SegmentTypeB
+	// (RFC 9830, RFC 9256). The protobuf-generated
+	// GetEndpointBehaviorStructure() is nil-safe, but accessing .Behavior on
+	// the returned nil pointer panics. Reject SR Policies whose last segment
+	// lacks endpoint behavior info instead of crashing the agent.
+	lastEBS := segments[len(segments)-1].GetEndpointBehaviorStructure()
+	if lastEBS == nil {
+		return nil, nil, srnrli, fmt.Errorf(
+			"sr policy endpoint=%s last segment has no endpoint behavior structure",
+			net.IP(srnrli.Endpoint))
+	}
+	srv6tunnel.Behavior = uint8(lastEBS.Behavior)
 
 	return srv6Policy, srv6tunnel, srnrli, err
 }
