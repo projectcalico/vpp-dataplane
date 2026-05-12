@@ -69,8 +69,14 @@ const (
 	cmdVppShowRun = "show run"
 	cmdVppShowErr = "show err"
 
-	// Kubernetes client timeout
+	// Kubernetes client timeout (for k8s API calls)
 	kubeClientTimeout = 15 * time.Second
+
+	// Default timeout (for kubectl exec commands and streaming requests)
+	defaultRequestTimeout = 5 * time.Second
+
+	// Stop trying VPP CLI commands on a node after this many consecutive timeouts
+	maxConsecutiveVppCommandTimeouts = 3
 
 	// Number of times capture file transfer is retried on failure
 	maxTransferRetries = 3
@@ -78,6 +84,8 @@ const (
 	// Capture lock file path (inside VPP pod)
 	captureLockFile = "/tmp/calicovppctl.lock"
 )
+
+var errCommandTimedOut = errors.New("command timed out")
 
 // CaptureLockInfo represents the information stored in the lock file
 type CaptureLockInfo struct {
@@ -89,12 +97,13 @@ type CaptureLockInfo struct {
 }
 
 type KubeClient struct {
-	clientset  *kubernetes.Clientset
-	restConfig *restclient.Config
-	timeout    time.Duration
+	clientset      *kubernetes.Clientset
+	restConfig     *restclient.Config
+	timeout        time.Duration
+	requestTimeout time.Duration
 }
 
-func newKubeClient() (*KubeClient, error) {
+func newKubeClient(requestTimeout time.Duration) (*KubeClient, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	configOverrides := &clientcmd.ConfigOverrides{}
 	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
@@ -109,7 +118,7 @@ func newKubeClient() (*KubeClient, error) {
 		return nil, fmt.Errorf("failed to create Kubernetes client: %v", err)
 	}
 
-	return &KubeClient{clientset: clientset, restConfig: config, timeout: kubeClientTimeout}, nil
+	return &KubeClient{clientset: clientset, restConfig: config, timeout: kubeClientTimeout, requestTimeout: requestTimeout}, nil
 }
 
 func (k *KubeClient) getAvailableNodeNames() ([]string, error) {
@@ -150,16 +159,20 @@ func (k *KubeClient) findNodePod(nodeName, podPrefix, namespace string) (string,
 }
 
 func (k *KubeClient) execInPod(namespace, podName, containerName string, command ...string) (string, error) {
-	cmd := exec.Command(kubectlCmd, append([]string{
+	return k.execInPodWithTimeout(k.timeout, namespace, podName, containerName, command...)
+}
+
+func (k *KubeClient) execInPodWithTimeout(timeout time.Duration, namespace, podName, containerName string, command ...string) (string, error) {
+	args := append([]string{
 		"exec",
+		fmt.Sprintf("--request-timeout=%s", k.requestTimeout),
 		"-n", namespace,
 		"-c", containerName,
 		podName,
 		"--",
-	}, command...)...)
+	}, command...)
 
-	output, err := cmd.CombinedOutput()
-	return string(output), err
+	return runCommandWithTimeout(timeout, nil, kubectlCmd, args...)
 }
 
 func (k *KubeClient) getPodLogs(namespace, podName, containerName string, follow bool) (string, error) {
@@ -202,7 +215,7 @@ func (k *KubeClient) vppctl(nodeName string, args ...string) (string, error) {
 	}
 
 	vppCtlArgs := append([]string{vppctlPath, "-s", vppSockPath}, args...)
-	return k.execInPod(defaultNamespace, podName, defaultContainerVpp, vppCtlArgs...)
+	return k.execInPodWithTimeout(k.requestTimeout, defaultNamespace, podName, defaultContainerVpp, vppCtlArgs...)
 }
 
 func printColored(colorName, message string) {
@@ -240,6 +253,33 @@ func handleError(err error, message string) {
 		printColored("red", fmt.Sprintf("%s: %v", message, err))
 		os.Exit(1)
 	}
+}
+
+func formatCommand(command string, args []string) string {
+	return strings.Join(append([]string{command}, args...), " ")
+}
+
+func runCommandWithTimeout(timeout time.Duration, input io.Reader, command string, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, command, args...)
+	cmd.Stdin = input
+	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return string(output), fmt.Errorf("%w after %s: %s", errCommandTimedOut, timeout, formatCommand(command, args))
+	}
+	return string(output), err
+}
+
+func outputWithCommandError(output string, err error) string {
+	if err == nil {
+		return output
+	}
+	if output != "" && !strings.HasSuffix(output, "\n") {
+		output += "\n"
+	}
+	return output + fmt.Sprintf("[calicovppctl] command failed: %v\n", err)
 }
 
 func validateNodeName(k *KubeClient, nodeName string) (string, error) {
@@ -289,25 +329,37 @@ type CommandSpec struct {
 }
 
 // runCommandAndWriteToFile executes a command and writes output to a file
-func runCommandAndWriteToFile(exportDir, prefix, command string, args []string, outFile string) {
-	cmd := exec.Command(command, args...)
-	output, _ := cmd.CombinedOutput()
-	_ = writeToFile(exportDir, prefix, outFile, string(output))
+func runCommandAndWriteToFile(k *KubeClient, exportDir, prefix, command string, args []string, outFile string) {
+	output, err := runCommandWithTimeout(k.timeout, nil, command, args...)
+	_ = writeToFile(exportDir, prefix, outFile, outputWithCommandError(output, err))
 	printColoredDot("grey")
 }
 
 // runVppctlCommandAndWriteToFile executes a VPP command and writes output to a file
-func runVppctlCommandAndWriteToFile(k *KubeClient, exportDir, prefix, node string, cmdSpec CommandSpec) {
-	output, _ := k.vppctl(node, strings.Split(cmdSpec.cmd, " ")...)
-	_ = writeToFile(exportDir, prefix, cmdSpec.file, output)
+func runVppctlCommandAndWriteToFile(k *KubeClient, exportDir, prefix, node string, cmdSpec CommandSpec) error {
+	output, err := k.vppctl(node, strings.Split(cmdSpec.cmd, " ")...)
+	_ = writeToFile(exportDir, prefix, cmdSpec.file, outputWithCommandError(output, err))
 	printColoredDot("grey")
+	return err
 }
 
 // executeVppCommandGroup executes a group of VPP commands on a node and writes outputs to files
-func executeVppCommandGroup(k *KubeClient, exportDir, prefix, node string, description string, cmds []CommandSpec) {
+func executeVppCommandGroup(k *KubeClient, exportDir, prefix, node string, description string, cmds []CommandSpec, consecutiveTimeouts *int) {
 	printColored("grey", fmt.Sprintf("%s '%s'", description, node))
 	for _, c := range cmds {
-		runVppctlCommandAndWriteToFile(k, exportDir, prefix, node, c)
+		if *consecutiveTimeouts >= maxConsecutiveVppCommandTimeouts {
+			msg := fmt.Sprintf("[calicovppctl] skipped '%s' on node '%s' after %d consecutive VPP command timeouts\n", c.cmd, node, *consecutiveTimeouts)
+			_ = writeToFile(exportDir, prefix, c.file, msg)
+			printColoredDot("grey")
+			continue
+		}
+
+		err := runVppctlCommandAndWriteToFile(k, exportDir, prefix, node, c)
+		if errors.Is(err, errCommandTimedOut) {
+			*consecutiveTimeouts++
+		} else if err == nil {
+			*consecutiveTimeouts = 0
+		}
 	}
 	fmt.Println()
 }
@@ -338,7 +390,7 @@ func exportData(k *KubeClient, nodeName string) error {
 	}
 
 	// Get calico-vpp-config
-	runCommandAndWriteToFile(exportDir, prefix, kubectlCmd, []string{"-n", "calico-vpp-dataplane", "get", "configmap", "calico-vpp-config", "-o", "yaml"}, "calico-vpp-config.configmap.yaml")
+	runCommandAndWriteToFile(k, exportDir, prefix, kubectlCmd, []string{"-n", "calico-vpp-dataplane", "get", "configmap", "calico-vpp-config", "-o", "yaml"}, "calico-vpp-config.configmap.yaml")
 
 	// Get operator logs
 	ctx, cancel := context.WithTimeout(context.Background(), k.timeout)
@@ -363,6 +415,8 @@ func exportData(k *KubeClient, nodeName string) error {
 	}
 
 	for _, node := range nodeNames {
+		consecutiveVppTimeouts := 0
+
 		// Get VPP stats
 		vppStatCmds := []CommandSpec{
 			{cmdVppHardInt, node + ".hardware-interfaces"},
@@ -374,14 +428,14 @@ func exportData(k *KubeClient, nodeName string) error {
 			{"show int rx", node + ".show-int-rx"},
 			{"show tun", node + ".show-tun"},
 		}
-		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node stats", vppStatCmds)
+		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node stats", vppStatCmds, &consecutiveVppTimeouts)
 
 		// Get Calico logs
 		calicoPodName, err := k.findNodePod(node, defaultCalicoPod, calicoSystemNS)
 		if err == nil {
 			printColored("grey", fmt.Sprintf("Dumping node '%s' calico logs", node))
 			// Describe calico-node pod
-			runCommandAndWriteToFile(exportDir, prefix, kubectlCmd, []string{"-n", calicoSystemNS, "describe", "pod/" + calicoPodName}, node+".describe-calico-node-pod")
+			runCommandAndWriteToFile(k, exportDir, prefix, kubectlCmd, []string{"-n", calicoSystemNS, "describe", "pod/" + calicoPodName}, node+".describe-calico-node-pod")
 
 			// Get calico-node logs
 			logs, _ := k.getPodLogs(calicoSystemNS, calicoPodName, defaultCalicoSvcCont, false)
@@ -395,7 +449,7 @@ func exportData(k *KubeClient, nodeName string) error {
 		vppPodName, err := k.findNodePod(node, defaultPod, defaultNamespace)
 		if err == nil {
 			// Describe VPP pod
-			runCommandAndWriteToFile(exportDir, prefix, kubectlCmd, []string{"-n", defaultNamespace, "describe", "pod/" + vppPodName}, node+".describe-vpp-pod")
+			runCommandAndWriteToFile(k, exportDir, prefix, kubectlCmd, []string{"-n", defaultNamespace, "describe", "pod/" + vppPodName}, node+".describe-vpp-pod")
 
 			// Get VPP container logs
 			vppLogs, _ := k.getPodLogs(defaultNamespace, vppPodName, defaultContainerVpp, false)
@@ -417,7 +471,7 @@ func exportData(k *KubeClient, nodeName string) error {
 			{"show cnat timestamp", node + ".show-cnat-timestamp"},
 			{"show cnat snat", node + ".show-cnat-snat"},
 		}
-		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node state", cnatCmds)
+		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node state", cnatCmds, &consecutiveVppTimeouts)
 
 		// Get NPOL policies
 		npolCmds := []CommandSpec{
@@ -426,14 +480,14 @@ func exportData(k *KubeClient, nodeName string) error {
 			{"show npol rules", node + ".show-npol-rules"},
 			{"show npol ipsets", node + ".show-npol-ipsets"},
 		}
-		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node policies", npolCmds)
+		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node policies", npolCmds, &consecutiveVppTimeouts)
 
 		// Get Encap tunnels
 		EncapCmds := []CommandSpec{
 			{"show ipip tunnel", node + ".show-ipip-tunnel"},
 			{"show vxlan tunnel", node + ".show-vxlan-tunnel"},
 		}
-		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node policies", EncapCmds)
+		executeVppCommandGroup(k, exportDir, prefix, node, "Dumping node policies", EncapCmds, &consecutiveVppTimeouts)
 	}
 
 	// Compress the temporary directory
@@ -809,7 +863,7 @@ func main() {
 	commandArgs = finalCommandArgs
 
 	// Create Kubernetes client
-	k, err := newKubeClient()
+	k, err := newKubeClient(defaultRequestTimeout)
 	if err != nil {
 		handleError(err, "Failed to create Kubernetes client")
 	}
@@ -1090,9 +1144,8 @@ func (k *KubeClient) collectKubernetesData(exportDir, prefix string) error {
 	defer cancel()
 
 	// Get kubectl version (still using kubectl for this as it's client version)
-	cmd := exec.Command(kubectlCmd, "version")
-	output, _ := cmd.CombinedOutput()
-	_ = writeToFile(exportDir, prefix, "kubectl-version", string(output))
+	output, err := runCommandWithTimeout(k.timeout, nil, kubectlCmd, "version")
+	_ = writeToFile(exportDir, prefix, "kubectl-version", outputWithCommandError(output, err))
 	printColoredDot("grey")
 
 	// Get all pods across all namespaces
@@ -1120,9 +1173,8 @@ func (k *KubeClient) collectKubernetesData(exportDir, prefix string) error {
 	printColoredDot("grey")
 
 	// Get installation (this might be a CRD, fallback to kubectl)
-	cmd = exec.Command(kubectlCmd, "get", "installation", "-o", "yaml")
-	output, _ = cmd.CombinedOutput()
-	_ = writeToFile(exportDir, prefix, "installation.yaml", string(output))
+	output, err = runCommandWithTimeout(k.timeout, nil, kubectlCmd, "get", "installation", "-o", "yaml")
+	_ = writeToFile(exportDir, prefix, "installation.yaml", outputWithCommandError(output, err))
 	printColoredDot("grey")
 
 	// Get cni-config configmap
@@ -1297,8 +1349,11 @@ func (k *KubeClient) streamFileFromPod(namespace, podName, containerName, remote
 		return fmt.Errorf("failed to create SPDY executor: %v", err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), k.requestTimeout)
+	defer cancel()
+
 	var stderr bytes.Buffer
-	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: writer,
 		Stderr: &stderr,
 	})
@@ -2279,12 +2334,13 @@ func createCaptureLock(k *KubeClient, nodeName, operation string, bpfActive bool
 	}
 
 	// Write the lock data to the file via stdin
-	cmd := exec.Command(kubectlCmd, "exec", "-i", "-n", defaultNamespace,
-		"-c", defaultContainerVpp, podName, "--", "sh", "-c", createCmd)
-	cmd.Stdin = strings.NewReader(string(lockData))
-	output, err := cmd.CombinedOutput()
+	args := []string{"exec", "-i",
+		fmt.Sprintf("--request-timeout=%s", k.requestTimeout),
+		"-n", defaultNamespace,
+		"-c", defaultContainerVpp, podName, "--", "sh", "-c", createCmd}
+	output, err := runCommandWithTimeout(k.requestTimeout, strings.NewReader(string(lockData)), kubectlCmd, args...)
 	if err != nil {
-		return fmt.Errorf("failed to write lock file data: %v, output: %s", err, string(output))
+		return fmt.Errorf("failed to write lock file data: %v, output: %s", err, output)
 	}
 
 	return nil
