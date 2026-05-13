@@ -659,6 +659,22 @@ func (v *VppRunner) configureVppUplinkInterface(
 		}
 	}
 
+	// Bring the uplink interface admin-up now that all pre-configurations
+	// (IPv6 RA suppression, CNAT features, VRF assignment) are complete,
+	// but BEFORE adding any addresses or routes.
+	//
+	// If an IPv4 address is added to a DOWN interface, VPP skips creating the
+	// /32 local route for the interface address, the connected/glean route for
+	// the subnet and the broadcast routes. Without these routes, VPP's ARP
+	// subsystem cannot function since ARP neighbor learning requires the glean
+	// route to validate that the sender IP is in a connected subnet. Without
+	// validation, VPP refuses to learn neighbors resulting in an empty neighbor
+	// table and 100% packet loss for IPv4 traffic.
+	err = v.vpp.InterfaceAdminUp(ifSpec.SwIfIndex)
+	if err != nil {
+		return errors.Wrapf(err, "Error setting uplink interface %d admin-up", ifSpec.SwIfIndex)
+	}
+
 	for _, addr := range ifState.GetAddresses() {
 		log.Infof("Adding address %s to uplink interface", addr.IPNet.String())
 		err = v.vpp.AddInterfaceAddress(ifSpec.SwIfIndex, addr.IPNet)
@@ -1103,18 +1119,6 @@ func (v *VppRunner) runVpp() (err error) {
 	}
 
 	networkHook.ExecuteWithUserScript(hooks.HookVppRunning, config.HookScriptVppRunning, v.params)
-
-	// Bring all VPP uplinks admin-up now that RA suppression, CNAT, VRF binding,
-	// addresses and routes are all programmed, the host-side taps exist and are
-	// configured and v6 link-local addresses have been discovered and configured.
-	for idx := 0; idx < len(v.params.UplinksSpecs); idx++ {
-		err = v.vpp.InterfaceAdminUp(v.params.UplinksSpecs[idx].SwIfIndex)
-		if err != nil {
-			terminateVpp("Error setting uplink %d up: %v", v.params.UplinksSpecs[idx].SwIfIndex, err)
-			<-vppDeadChan
-			return errors.Wrapf(err, "Error setting uplink %d up", v.params.UplinksSpecs[idx].SwIfIndex)
-		}
-	}
 
 	// Set the TAP interfaces admin-up in VPP last, after all Linux-side
 	// configuration is complete.
