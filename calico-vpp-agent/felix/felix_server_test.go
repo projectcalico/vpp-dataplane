@@ -326,21 +326,21 @@ var _ = Describe("Felix functionality", func() {
 				}()
 				nodeName := "host"
 				config.NodeName = &nodeName
-				err := felixServer.handleHostMetadataV4V6Update(&proto.HostMetadataV4V6Update{
+				err := felixServer.handleHostMetadataUpdate(&proto.HostMetadataUpdate{
 					Hostname: "host",
 					Ipv4Addr: "5.5.5.5/32",
 					Ipv6Addr: "f::f/128",
 				}, false)
 				Expect(err).ToNot(HaveOccurred(),
-					"failed to handle hostMetadataV4V6Update")
+					"failed to handle HostMetadataUpdate")
 				expectCnatSnatContain(vpp, []string{"ip4: 5.5.5.5;0", "ip6: f::f;0"}, []string{})
 
 				By("receiving a hostmetadatav4v6 remove of own node")
-				err = felixServer.handleHostMetadataV4V6Remove(&proto.HostMetadataV4V6Remove{
+				err = felixServer.handleHostMetadataRemove(&proto.HostMetadataRemove{
 					Hostname: "host",
 				}, false)
 				Expect(err).To(Equal(NodeWatcherRestartError{}),
-					"failed to handle hostMetadataV4V6Remove")
+					"failed to handle HostMetadataRemove")
 			})
 		})
 		Context("HostEndpoint updates", func() {
