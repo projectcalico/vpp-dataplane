@@ -448,6 +448,15 @@ func (w *PeerWatcher) createBGPPeer(ip string, asn uint32, peerSpec *calicov3.BG
 		AfiSafis: afiSafis,
 	}
 
+	// GTSM (RFC 5082): outbound TTL=255 and inbound >= 255-N.
+	// Needed for external eBGP peers across VPP's host-eth0 ↔ tap L3 hop.
+	if peerSpec.TTLSecurity != nil && *peerSpec.TTLSecurity > 0 {
+		peer.TtlSecurity = &bgpapi.TtlSecurity{
+			Enabled: true,
+			TtlMin:  uint32(255 - *peerSpec.TTLSecurity),
+		}
+	}
+
 	if w.getSecretKeyRef(peerSpec) != nil {
 		peer.Conf.AuthPassword, err = w.getPassword(peerSpec.Password.SecretKeyRef)
 		if err != nil {
