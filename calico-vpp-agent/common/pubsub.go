@@ -27,7 +27,6 @@ const (
 	ChanSize = 500
 
 	PeerNodeStateChanged CalicoVppEventType = "PeerNodeStateChanged"
-	FelixConfChanged     CalicoVppEventType = "FelixConfChanged"
 	IpamConfChanged      CalicoVppEventType = "IpamConfChanged"
 	BGPConfChanged       CalicoVppEventType = "BGPConfChanged"
 
@@ -66,8 +65,6 @@ const (
 
 	IpamPoolUpdate CalicoVppEventType = "IpamPoolUpdate"
 	IpamPoolRemove CalicoVppEventType = "IpamPoolRemove"
-
-	WireguardPublicKeyChanged CalicoVppEventType = "WireguardPublicKeyChanged"
 )
 
 var (
@@ -85,18 +82,15 @@ type PubSubHandlerRegistration struct {
 	/* Name for the registration, for logging & debugging */
 	name string
 	/* Channel where to send events */
-	channel chan CalicoVppEvent
+	channel chan any
 	/* Receive only these events. If empty we'll receive all */
 	expectedEvents map[CalicoVppEventType]bool
-	/* Receive all events */
-	expectAllEvents bool
 }
 
 func (reg *PubSubHandlerRegistration) ExpectEvents(eventTypes ...CalicoVppEventType) {
 	for _, eventType := range eventTypes {
 		reg.expectedEvents[eventType] = true
 	}
-	reg.expectAllEvents = false
 }
 
 type PubSub struct {
@@ -104,12 +98,11 @@ type PubSub struct {
 	pubSubHandlerRegistrations []*PubSubHandlerRegistration
 }
 
-func RegisterHandler(channel chan CalicoVppEvent, name string) *PubSubHandlerRegistration {
+func RegisterHandler(channel chan any, name string) *PubSubHandlerRegistration {
 	reg := &PubSubHandlerRegistration{
-		channel:         channel,
-		name:            name,
-		expectedEvents:  make(map[CalicoVppEventType]bool),
-		expectAllEvents: true, /* By default receive everything, unless we ask for a filter */
+		channel:        channel,
+		name:           name,
+		expectedEvents: make(map[CalicoVppEventType]bool),
 	}
 	ThePubSub.pubSubHandlerRegistrations = append(ThePubSub.pubSubHandlerRegistrations, reg)
 	return reg
@@ -128,7 +121,7 @@ func redactPassword(event CalicoVppEvent) string {
 func SendEvent(event CalicoVppEvent) {
 	ThePubSub.log.Debugf("Broadcasting event %s", redactPassword(event))
 	for _, reg := range ThePubSub.pubSubHandlerRegistrations {
-		if reg.expectAllEvents || reg.expectedEvents[event.Type] {
+		if reg.expectedEvents[event.Type] {
 			reg.channel <- event
 		}
 	}
