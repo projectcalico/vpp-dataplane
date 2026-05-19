@@ -8,7 +8,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/interface_types"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/ip_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/sr"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/generated/bindings/sr_types"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
@@ -74,26 +76,55 @@ func (v *VppLink) AddModSRv6Policy(policy *types.SrPolicy) (err error) {
 func (v *VppLink) AddSRv6Policy(policy *types.SrPolicy) error {
 	client := sr.NewServiceClient(v.GetConnection())
 
-	// supporting only one SID list here -> multiple weighted paths for workload balance not supported
-	// This means that lso IsSpray setting is useless as it switches between default weighted path mode
-	// and spray mode(=replicate-traffic-and-multicast-to-all-paths)
-	sidlist := policy.SidLists[0]
+	if len(policy.SidLists) == 0 {
+		return fmt.Errorf("failed to add SRv6Policy: policy has no SID lists")
+	}
+	// Zero BSID would silently target the all-zero entry on subsequent SrPolicyMod calls.
+	if (policy.Bsid == ip_types.IP6Address{}) {
+		return fmt.Errorf("failed to add SRv6Policy: BSID is unset (zero address)")
+	}
 
-	_, err := client.SrPolicyAdd(v.GetContext(), &sr.SrPolicyAdd{
+	// sr_policy_add takes one list; subsequent lists go via sr_policy_mod ADD.
+	// Per-list weight is wire-encoded twice (top-level + nested); set both.
+	first := policy.SidLists[0]
+	total := len(policy.SidLists)
+	if _, err := client.SrPolicyAdd(v.GetContext(), &sr.SrPolicyAdd{
 		BsidAddr: policy.Bsid,
+		Weight:   first.Weight,
 		IsEncap:  policy.IsEncap,
 		IsSpray:  policy.IsSpray,
 		FibTable: policy.FibTable,
 		Sids: sr.Srv6SidList{
-			NumSids: sidlist.NumSids,
-			Weight:  sidlist.Weight,
-			Sids:    sidlist.Sids,
+			NumSids: first.NumSids,
+			Weight:  first.Weight,
+			Sids:    first.Sids,
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("failed to add SRv6Policy: %w", err)
 	}
-	return err
+
+	for i, sl := range policy.SidLists[1:] {
+		listIdx := i + 2
+		if _, err := client.SrPolicyMod(v.GetContext(), &sr.SrPolicyMod{
+			BsidAddr:  policy.Bsid,
+			FibTable:  policy.FibTable,
+			Operation: sr_types.SR_POLICY_OP_API_ADD,
+			Weight:    sl.Weight,
+			Sids: sr.Srv6SidList{
+				NumSids: sl.NumSids,
+				Weight:  sl.Weight,
+				Sids:    sl.Sids,
+			},
+		}); err != nil {
+			if _, delErr := client.SrPolicyDel(v.GetContext(), &sr.SrPolicyDel{
+				BsidAddr: policy.Bsid,
+			}); delErr != nil {
+				return fmt.Errorf("failed to append SID list %d/%d to SRv6Policy: %w; additionally failed to roll back SRv6Policy: %w", listIdx, total, err, delErr)
+			}
+			return fmt.Errorf("failed to append SID list %d/%d to SRv6Policy: %w; rolled back by deleting the SRv6Policy", listIdx, total, err)
+		}
+	}
+	return nil
 }
 
 func (v *VppLink) DelSRv6Policy(policy *types.SrPolicy) error {

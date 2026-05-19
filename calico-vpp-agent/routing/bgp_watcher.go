@@ -22,6 +22,7 @@ import (
 
 	bgpapi "github.com/osrg/gobgp/v3/api"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/anypb"
 	"gopkg.in/tomb.v2"
 
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
@@ -124,11 +125,86 @@ func (s *Server) injectRoute(path *bgpapi.Path) error {
 	return nil
 }
 
+// Fixed size of vl_api_srv6_sid_list_t.sids; lists above this go via SrPolicyMod.
+const vppMaxSRv6Sids = 16
+
+// Sentinel wrapped by getSRPolicy; injectSRv6Policy unwraps to fire teardown signal.
+var errSRPolicyMixedBehavior = errors.New("sr policy: candidate paths disagree on endpoint behavior; this agent installs one Behavior per BSID and cannot represent the candidate-path set safely")
+
+func walkSRPolicyInnerTLVs(path *bgpapi.Path, fn func(*anypb.Any) error) error {
+	for _, pattr := range path.Pattrs {
+		tun := &bgpapi.TunnelEncapAttribute{}
+		if err := pattr.UnmarshalTo(tun); err != nil {
+			continue // non-TunnelEncap attribute (NextHop, AsPath, ...) -- expected.
+		}
+		for _, tlv := range tun.Tlvs {
+			for _, innerTlv := range tlv.Tlvs {
+				if err := fn(innerTlv); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// SegmentTypeA (SR-MPLS) rejects the list -- skipping it would install a SID chain
+// different from the advertised one. Trailing SegmentTypeB must carry an
+// EndpointBehaviorStructure (drives srv6tunnel.Behavior; would nil-deref otherwise).
+func parseSegmentList(
+	sub *bgpapi.TunnelEncapSubTLVSRSegmentList,
+	srnrli *bgpapi.SRPolicyNLRI,
+) (types.Srv6SidList, *bgpapi.SegmentTypeB, error) {
+	segments := make([]*bgpapi.SegmentTypeB, 0, len(sub.GetSegments()))
+	for i, raw := range sub.GetSegments() {
+		segment := &bgpapi.SegmentTypeB{}
+		if err := raw.UnmarshalTo(segment); err == nil {
+			segments = append(segments, segment)
+			continue
+		}
+		typeA := &bgpapi.SegmentTypeA{}
+		if err := raw.UnmarshalTo(typeA); err == nil {
+			return types.Srv6SidList{}, nil, fmt.Errorf(
+				"sr policy endpoint=%s: SegmentTypeA (SR-MPLS label %d) at index %d cannot be installed by this SRv6 agent; rejecting list to avoid installing a SID chain different from the advertised one",
+				net.IP(srnrli.Endpoint), typeA.GetLabel(), i)
+		}
+		return types.Srv6SidList{}, nil, fmt.Errorf(
+			"sr policy endpoint=%s has an unsupported or malformed segment at index %d",
+			net.IP(srnrli.Endpoint), i)
+	}
+	if len(segments) == 0 {
+		return types.Srv6SidList{}, nil, fmt.Errorf(
+			"sr policy endpoint=%s has a segment list with no segments",
+			net.IP(srnrli.Endpoint))
+	}
+	if len(segments) > vppMaxSRv6Sids {
+		return types.Srv6SidList{}, nil, fmt.Errorf(
+			"sr policy endpoint=%s segment list has %d segments, vpp supports up to %d",
+			net.IP(srnrli.Endpoint), len(segments), vppMaxSRv6Sids)
+	}
+	last := segments[len(segments)-1]
+	if last.GetEndpointBehaviorStructure() == nil {
+		return types.Srv6SidList{}, nil, fmt.Errorf(
+			"sr policy endpoint=%s last segment has no endpoint behavior structure",
+			net.IP(srnrli.Endpoint))
+	}
+	sids := [vppMaxSRv6Sids]ip_types.IP6Address{}
+	for i, segment := range segments {
+		sids[i] = types.ToVppIP6Address(net.IP(segment.Sid))
+	}
+	weight := uint32(1)
+	if w := sub.GetWeight(); w != nil {
+		weight = w.GetWeight()
+	}
+	return types.Srv6SidList{
+		NumSids: uint8(len(segments)),
+		Weight:  weight,
+		Sids:    sids,
+	}, last, nil
+}
+
 func (s *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv6tunnel *common.SRv6Tunnel, srnrli *bgpapi.SRPolicyNLRI, err error) {
 	srnrli = &bgpapi.SRPolicyNLRI{}
-	tun := &bgpapi.TunnelEncapAttribute{}
-	subTLVSegList := &bgpapi.TunnelEncapSubTLVSRSegmentList{}
-	segments := []*bgpapi.SegmentTypeB{}
 	srv6bsid := &bgpapi.SRBindingSID{}
 	srv6tunnel = &common.SRv6Tunnel{}
 
@@ -137,102 +213,71 @@ func (s *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv
 	}
 	srv6tunnel.Dst = net.IP(srnrli.Endpoint)
 
-	// SR Policy withdraws carry only the (distinguisher, color, endpoint)
-	// NLRI key; per RFC 9012 / draft-ietf-idr-segment-routing-te-policy the
-	// TunnelEncap path attribute is not required. Short-circuit so the
-	// caller (injectSRv6Policy) can dispatch SRv6PolicyDeleted instead of
-	// reaching the empty-segments check below and dropping the withdraw
-	// without emitting SRv6PolicyDeleted.
+	// Withdraws carry only the NLRI key per RFC 9012; short-circuit so the
+	// caller can dispatch SRv6PolicyDeleted instead of failing the empty-segments check.
 	if path.IsWithdraw {
 		return nil, srv6tunnel, srnrli, nil
 	}
 
-	for _, pattr := range path.Pattrs {
-		if err := pattr.UnmarshalTo(tun); err == nil {
-			for _, tlv := range tun.Tlvs {
-				// unmarshal Tlvs
-				for _, innerTlv := range tlv.Tlvs {
-					// search for TunnelEncapSubTLVSRSegmentList
-					if err := innerTlv.UnmarshalTo(subTLVSegList); err == nil {
-						for _, seglist := range subTLVSegList.Segments {
-							segment := &bgpapi.SegmentTypeB{}
-							if err = seglist.UnmarshalTo(segment); err == nil {
-								segments = append(segments, segment)
-							}
-						}
-					}
-					// search for TunnelEncapSubTLVSRBindingSID
-					subTLVBsid := &bgpapi.TunnelEncapSubTLVSRBindingSID{}
-					if err := innerTlv.UnmarshalTo(subTLVBsid); err == nil {
-						s.log.Debugf("getSRPolicy TunnelEncapSubTLVSRBindingSID")
-						if subTLVBsid.Bsid != nil {
-							if err := subTLVBsid.Bsid.UnmarshalTo(srv6bsid); err != nil {
-								return nil, nil, nil, err
-							}
-						}
-					}
+	var (
+		sidLists      []types.Srv6SidList
+		listBehaviors []bgpapi.SRv6Behavior // parallel to sidLists; trailing-segment Behavior per list
+	)
 
-					// search for TunnelEncapSubTLVSRPriority
-					subTLVSRPriority := &bgpapi.TunnelEncapSubTLVSRPriority{}
-					if err := innerTlv.UnmarshalTo(subTLVSRPriority); err == nil {
-						s.log.Debugf("getSRPolicyPriority TunnelEncapSubTLVSRPriority")
-						srv6tunnel.Priority = subTLVSRPriority.Priority
-					}
-
-				}
+	err = walkSRPolicyInnerTLVs(path, func(innerTlv *anypb.Any) error {
+		sub := &bgpapi.TunnelEncapSubTLVSRSegmentList{}
+		if e := innerTlv.UnmarshalTo(sub); e == nil {
+			list, last, lerr := parseSegmentList(sub, srnrli)
+			if lerr != nil {
+				return lerr
 			}
+			sidLists = append(sidLists, list)
+			listBehaviors = append(listBehaviors, last.GetEndpointBehaviorStructure().GetBehavior())
+			return nil
 		}
-
+		bsid := &bgpapi.TunnelEncapSubTLVSRBindingSID{}
+		if e := innerTlv.UnmarshalTo(bsid); e == nil {
+			if bsid.Bsid != nil {
+				return bsid.Bsid.UnmarshalTo(srv6bsid)
+			}
+			return nil
+		}
+		prio := &bgpapi.TunnelEncapSubTLVSRPriority{}
+		if e := innerTlv.UnmarshalTo(prio); e == nil {
+			srv6tunnel.Priority = prio.Priority
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, srnrli, err
 	}
-
-	// VPP's vl_api_srv6_sid_list_t carries a fixed-size sids[16] array
-	// (src/vnet/srv6/sr.api → types.Srv6SidList.Sids). Reject SR Policies
-	// whose segment list is either empty (we'd dereference segments[-1]
-	// below) or too long (we'd write past policySidListsids[vppMaxSRv6Sids-1])
-	// instead of panicking the agent process on malformed or oversized input.
-	const vppMaxSRv6Sids = 16
-	if len(segments) == 0 {
+	if len(sidLists) == 0 {
 		return nil, nil, srnrli, fmt.Errorf(
 			"sr policy endpoint=%s has no segments", net.IP(srnrli.Endpoint))
 	}
-	if len(segments) > vppMaxSRv6Sids {
-		return nil, nil, srnrli, fmt.Errorf(
-			"sr policy endpoint=%s has %d segments, vpp supports up to %d",
-			net.IP(srnrli.Endpoint), len(segments), vppMaxSRv6Sids)
-	}
 
-	policySidListsids := [vppMaxSRv6Sids]ip_types.IP6Address{}
-	for i, segment := range segments {
-		policySidListsids[i] = types.ToVppIP6Address(net.IP(segment.Sid))
-	}
 	srv6Policy = &types.SrPolicy{
 		Bsid:     types.ToVppIP6Address(net.IP(srv6bsid.Sid)),
 		IsSpray:  false,
 		IsEncap:  true,
 		FibTable: 0,
-		SidLists: []types.Srv6SidList{{
-			NumSids: uint8(len(segments)),
-			Weight:  1,
-			Sids:    policySidListsids,
-		}},
+		SidLists: sidLists,
 	}
 	srv6tunnel.Bsid = srv6Policy.Bsid.ToIP()
 	srv6tunnel.Policy = srv6Policy
 
-	// EndpointBehaviorStructure is an optional sub-TLV in SegmentTypeB
-	// (RFC 9830, RFC 9256). The protobuf-generated
-	// GetEndpointBehaviorStructure() is nil-safe, but accessing .Behavior on
-	// the returned nil pointer panics. Reject SR Policies whose last segment
-	// lacks endpoint behavior info instead of crashing the agent.
-	lastEBS := segments[len(segments)-1].GetEndpointBehaviorStructure()
-	if lastEBS == nil {
-		return nil, nil, srnrli, fmt.Errorf(
-			"sr policy endpoint=%s last segment has no endpoint behavior structure",
-			net.IP(srnrli.Endpoint))
+	// Mixed-behavior reject: VPP installs all SidLists under one sr_policy with
+	// one Behavior, so ECMP onto a wrong-behavior list would drop/mis-decap.
+	for i := 1; i < len(listBehaviors); i++ {
+		if listBehaviors[i] != listBehaviors[0] {
+			return nil, nil, srnrli, fmt.Errorf(
+				"sr policy endpoint=%s: segment list 0 ends with endpoint behavior %d, segment list %d ends with %d: %w",
+				net.IP(srnrli.Endpoint), listBehaviors[0], i, listBehaviors[i], errSRPolicyMixedBehavior)
+		}
 	}
-	srv6tunnel.Behavior = uint8(lastEBS.Behavior)
+	srv6tunnel.Behavior = uint8(listBehaviors[0])
 
-	return srv6Policy, srv6tunnel, srnrli, err
+	return srv6Policy, srv6tunnel, srnrli, nil
 }
 
 func (s *Server) injectSRv6Policy(path *bgpapi.Path) error {
@@ -240,6 +285,20 @@ func (s *Server) injectSRv6Policy(path *bgpapi.Path) error {
 	_, srv6tunnel, srnrli, err := s.getSRPolicy(path)
 
 	if err != nil {
+		// Mixed-behavior reject can land on an endpoint that already has a
+		// prior install; signal teardown via the same event as a normal withdraw.
+		if srnrli != nil && srnrli.Endpoint != nil && errors.Is(err, errSRPolicyMixedBehavior) {
+			s.log.Warnf("injectSRv6Policy: rejecting mixed-behavior SR Policy for endpoint=%s and signalling teardown of any prior install under the same endpoint", net.IP(srnrli.Endpoint))
+			common.SendEvent(common.CalicoVppEvent{
+				Type: common.SRv6PolicyDeleted,
+				Old: &common.NodeConnectivity{
+					Dst:              net.IPNet{},
+					NextHop:          srnrli.Endpoint,
+					ResolvedProvider: "",
+					Custom:           &common.SRv6Tunnel{Dst: net.IP(srnrli.Endpoint)},
+				},
+			})
+		}
 		return errors.Wrap(err, "error injectSRv6Policy")
 	}
 	s.log.Debugf("injectSRv6Policy: endpoint=%s, dst=%s, behavior=%d, bsid=%s, sids=%v",
