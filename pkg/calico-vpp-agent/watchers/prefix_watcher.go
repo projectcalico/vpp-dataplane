@@ -1,0 +1,276 @@
+// Copyright (C) 2019 Cisco Systems Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package watchers
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	bgpapi "github.com/osrg/gobgp/v3/api"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
+	"github.com/projectcalico/calico/libcalico-go/lib/options"
+	"gopkg.in/tomb.v2"
+
+	"github.com/projectcalico/vpp-dataplane/v3/pkg/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/pkg/config"
+)
+
+type PrefixWatcher struct {
+	log         *logrus.Entry
+	clientv3    calicov3cli.Interface
+	nodeBGPSpec *common.LocalNodeSpec
+}
+
+const (
+	prefixWatchInterval = 5 * time.Second
+)
+
+// watchPrefix watches etcd /calico/ipam/v2/host/$NODENAME and add/delete
+// aggregated routes which are assigned to the node.
+// This function also updates policy appropriately.
+func (w *PrefixWatcher) WatchPrefix(t *tomb.Tomb) error {
+	assignedPrefixes := make(map[string]bool)
+	// There is no need to react instantly to these changes, and the calico API
+	// doesn't provide a way to watch for changes, so we just poll every minute
+	for t.Alive() {
+	restart:
+		w.log.Debugf("Reconciliating prefix affinities...")
+		newPrefixes, err := w.getAssignedPrefixes()
+		if err != nil {
+			w.log.Errorf("error getting assigned prefixes %v", err)
+			time.Sleep(3 * time.Second)
+			goto restart
+		}
+		w.log.Debugf("Found %d assigned prefixes", len(newPrefixes))
+		newAssignedPrefixes := make(map[string]bool)
+		var toAdd []*bgpapi.Path
+		for _, prefix := range newPrefixes {
+			if _, found := assignedPrefixes[prefix]; found {
+				w.log.Debugf("Prefix %s is still assigned to this node", prefix)
+				assignedPrefixes[prefix] = true     // Prefix is still there, set value to true so we don't delete it
+				newAssignedPrefixes[prefix] = false // Record it in new map
+			} else {
+				w.log.Debugf("New assigned prefix: %s", prefix)
+				newAssignedPrefixes[prefix] = false
+				ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
+				path, err := common.MakePath(prefix, false /* isWithdrawal */, ip4, ip6, 0, 0)
+				if err != nil {
+					if common.IsMissingNodeIP(err) {
+						w.log.WithError(err).Warnf("Skipping prefix announcement for %s: node IP missing", prefix)
+						continue
+					}
+					return errors.Wrap(err, "error making new path for assigned prefix")
+				}
+				toAdd = append(toAdd, path)
+			}
+		}
+		if err = w.updateBGPPaths(toAdd); err != nil {
+			return errors.Wrap(err, "error adding prefix announcements")
+		}
+		// Remove paths that don't exist anymore
+		var toRemove []*bgpapi.Path
+		for p, stillThere := range assignedPrefixes {
+			if !stillThere {
+				w.log.Infof("Prefix %s is not assigned to us anymore", p)
+				ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
+				path, err := common.MakePath(p, true /* isWithdrawal */, ip4, ip6, 0, 0)
+				if err != nil {
+					if common.IsMissingNodeIP(err) {
+						w.log.WithError(err).Warnf("Skipping prefix withdrawal for %s: node IP missing", p)
+						continue
+					}
+					return errors.Wrap(err, "error making new path for removed prefix")
+				}
+				toRemove = append(toRemove, path)
+			}
+		}
+		if err = w.updateBGPPaths(toRemove); err != nil {
+			return errors.Wrap(err, "error removing prefix announcements")
+		}
+		assignedPrefixes = newAssignedPrefixes
+
+		time.Sleep(prefixWatchInterval)
+	}
+
+	w.log.Warn("Prefix Watcher asked to exit")
+
+	return nil
+}
+
+// getAssignedPrefixes retrieves prefixes assigned to the node and returns them as a
+// list of strings.
+// using v3 client BlockAffinities interface to fetch block affinities for this host.
+func (w *PrefixWatcher) getAssignedPrefixes() ([]string, error) {
+	var ps []string
+
+	f := func(ipVersion int) error {
+		// List block affinities for this host
+		blockAffinities, err := w.clientv3.BlockAffinities().List(
+			context.Background(),
+			options.ListOptions{},
+		)
+		if err != nil {
+			return err
+		}
+
+		for _, blockAffinity := range blockAffinities.Items {
+			w.log.Debugf("Found assigned prefix: %+v", blockAffinity)
+			// Check if this block affinity is for our node and the correct IP version
+			if blockAffinity.Spec.Node == *config.NodeName &&
+				blockAffinity.Spec.State == calicov3.StateConfirmed &&
+				!blockAffinity.Spec.Deleted {
+				// Check IP version of the CIDR
+				cidr := blockAffinity.Spec.CIDR
+				if (ipVersion == 4 && !strings.Contains(cidr, ":")) ||
+					(ipVersion == 6 && strings.Contains(cidr, ":")) {
+					ps = append(ps, cidr)
+				}
+			}
+		}
+		return nil
+	}
+
+	ip4, ip6 := common.GetBGPSpecAddresses(w.nodeBGPSpec)
+	if ip4 != nil {
+		if err := f(4); err != nil {
+			return nil, err
+		}
+	}
+	if ip6 != nil {
+		if err := f(6); err != nil {
+			return nil, err
+		}
+	}
+	return ps, nil
+}
+
+// TODO rename this
+func (w *PrefixWatcher) updateBGPPaths(paths []*bgpapi.Path) error {
+	for _, path := range paths {
+		err := w.updateOneBGPPath(path)
+		if err != nil {
+			return errors.Wrapf(err, "error processing path %+v", path)
+		}
+	}
+	return nil
+}
+
+// _updatePrefixSet updates 'aggregated' and 'host' prefix-sets
+// we add the exact prefix to 'aggregated' set, and add corresponding longer
+// prefixes to 'host' set.
+//
+// e.g. prefix: "192.168.1.0/26" del: false
+//
+//	add "192.168.1.0/26"     to 'aggregated' set
+//	add "192.168.1.0/26..32" to 'host'       set
+func (w *PrefixWatcher) updateOneBGPPath(path *bgpapi.Path) error {
+	ipAddrPrefixNlri := &bgpapi.IPAddressPrefix{}
+	err := path.Nlri.UnmarshalTo(ipAddrPrefixNlri)
+	if err != nil {
+		return fmt.Errorf("cannot handle Nlri: %+v", path.Nlri)
+	}
+	prefixLen := ipAddrPrefixNlri.PrefixLen
+	prefixAddr := ipAddrPrefixNlri.Prefix
+	isv6 := strings.Contains(prefixAddr, ":")
+	del := path.IsWithdraw
+	prefix := prefixAddr + "/" + strconv.FormatUint(uint64(prefixLen), 10)
+	w.log.Infof("Updating local prefix set with %s", prefix)
+	// Add path to aggregated prefix set, allowing to export it
+	ps := &bgpapi.DefinedSet{
+		DefinedType: bgpapi.DefinedType_PREFIX,
+		Name:        common.GetAggPrefixSetName(isv6),
+		Prefixes: []*bgpapi.Prefix{
+			{
+				IpPrefix:      prefix,
+				MaskLengthMin: prefixLen,
+				MaskLengthMax: prefixLen,
+			},
+		},
+	}
+	if del {
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPDefinedSetDeleted,
+			Old:  ps,
+		})
+	} else {
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPDefinedSetAdded,
+			New:  ps,
+		})
+	}
+	// Add all contained prefixes to host prefix set, forbidding the export of containers /32s or /128s
+	max := uint32(32)
+	if isv6 {
+		w.log.Debugf("Address %s detected as v6", prefixAddr)
+		max = 128
+	}
+	ps = &bgpapi.DefinedSet{
+		DefinedType: bgpapi.DefinedType_PREFIX,
+		Name:        common.GetHostPrefixSetName(isv6),
+		Prefixes: []*bgpapi.Prefix{
+			{
+				IpPrefix:      prefix,
+				MaskLengthMax: max,
+				MaskLengthMin: prefixLen,
+			},
+		},
+	}
+	if del {
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPDefinedSetDeleted,
+			Old:  ps,
+		})
+	} else {
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPDefinedSetAdded,
+			New:  ps,
+		})
+	}
+
+	// Finally add/remove path to/from the main table to annouce it to our peers
+	if del {
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPPathDeleted,
+			Old:  path,
+		})
+	} else {
+		common.SendEvent(common.CalicoVppEvent{
+			Type: common.BGPPathAdded,
+			New:  path,
+		})
+	}
+
+	return nil
+}
+
+func (w *PrefixWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
+	w.nodeBGPSpec = nodeBGPSpec
+}
+
+func NewPrefixWatcher(clientv3 calicov3cli.Interface, log *logrus.Entry) *PrefixWatcher {
+	w := PrefixWatcher{
+		clientv3: clientv3,
+		log:      log,
+	}
+	return &w
+}

@@ -218,7 +218,9 @@ spec:
         k8s-app: calico-vpp-node
     spec:
       containers:
-      - env:
+      - command:
+        - /bin/calico-vpp-agent
+        env:
         - name: DATASTORE_TYPE
           value: kubernetes
         - name: WAIT_FOR_DATASTORE
@@ -234,7 +236,7 @@ spec:
         envFrom:
         - configMapRef:
             name: calico-vpp-config
-        image: docker.io/calicovpp/agent:latest
+        image: docker.io/calicovpp/vpp:latest
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
