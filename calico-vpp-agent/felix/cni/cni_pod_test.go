@@ -14,7 +14,6 @@
 package cni_test
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -27,15 +26,15 @@ import (
 	. "github.com/onsi/gomega"
 	gs "github.com/onsi/gomega/gstruct"
 	cniproto "github.com/projectcalico/calico/cni-plugin/pkg/dataplane/grpc/proto"
-	felixconfig "github.com/projectcalico/calico/felix/config"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/tests/mocks"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/testutils"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
@@ -52,10 +51,10 @@ const (
 
 var _ = Describe("Pod-related functionality of CNI", func() {
 	var (
-		log       *logrus.Logger
-		vpp       *vpplink.VppLink
-		cniServer *cni.Server
-		ipamStub  *mocks.IpamCacheStub
+		log        *logrus.Logger
+		vpp        *vpplink.VppLink
+		cniHandler *cni.CNIHandler
+		testCache  *cache.Cache
 	)
 
 	BeforeEach(func() {
@@ -66,16 +65,18 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 		nodeIP6String := net.ParseIP("2001:db8::68")
 		testutils.StartVPP()
 		vpp, _ = testutils.ConfigureVPP(log)
+		Expect(vpp.CnatSetSnatAddresses(nodeIP4String, nodeIP6String)).To(Succeed())
 		// setup connectivity server (functionality target of tests)
-		if ipamStub == nil {
-			ipamStub = mocks.NewIpamCacheStub()
-		}
+		testCache = cache.NewCache(log.WithFields(logrus.Fields{"component": "cache"}))
+		testCache.VppAvailableBuffers = 65536
 		// setup CNI server (functionality target of tests)
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
-		cniServer = cni.NewCNIServer(vpp, ipamStub, log.WithFields(logrus.Fields{"component": "cni"}))
-		cniServer.SetFelixConfig(&felixconfig.Config{})
-		cniServer.FetchBufferConfig()
-		vpp.CnatSetSnatAddresses(nodeIP4String, nodeIP6String)
+		cniHandler = cni.NewCNIHandler(vpp, testCache, log.WithFields(logrus.Fields{"component": "cni"}))
+		cfg := &config.CalicoVppInterfacesConfigType{
+			DefaultPodIfSpec: &config.InterfaceSpec{},
+		}
+		config.CalicoVppInterfaces = &cfg
+		cfg.DefaultPodIfSpec.Validate(nil)
 	})
 
 	Describe("Addition of the pod", func() {
@@ -98,7 +99,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
 					By("Adding pod using CNI server")
-					newPod := &cniproto.AddRequest{
+					podSpec, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 						InterfaceName: interfaceName,
 						Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
 						ContainerIps:  []*cniproto.IPConfig{{Address: ipAddress + "/24"}},
@@ -107,7 +108,8 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 								"cni.projectcalico.org/AllowedSourcePrefixes": "[\"172.16.104.7\", \"3.4.5.6\"]",
 							},
 						},
-					}
+					})
+					Expect(err).ToNot(HaveOccurred(), "NewLocalPodSpecFromAdd failed")
 					common.VppManagerInfo = &config.VppManagerInfo{}
 					os.Setenv("NODENAME", testutils.ThisNodeName)
 					os.Setenv("CALICOVPP_CONFIG_TEMPLATE", "sss")
@@ -118,7 +120,9 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					}
 					config.GetCalicoVppFeatureGates().IPSecEnabled = &config.False
 					config.GetCalicoVppDebug().GSOEnabled = &config.True
-					reply, err := cniServer.Add(context.Background(), newPod)
+					evt := model.NewCniPodAddEvent(podSpec)
+					err = cniHandler.OnPodAdd(evt)
+					reply := <-evt.Done
 					Expect(err).ToNot(HaveOccurred(), "Pod addition failed")
 					Expect(reply.Successful).To(BeTrue(),
 						fmt.Sprintf("Pod addition failed due to: %s", reply.ErrorMessage))
@@ -132,7 +136,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							"for IP address or doesn't exist at all")
 
 					By("Checking existence of interface tunnel at VPP's end")
-					ifSwIfIndex := testutils.AssertTunInterfaceExistence(vpp, newPod)
+					ifSwIfIndex := testutils.AssertTunInterfaceExistence(vpp, podSpec)
 
 					By("Checking correct IP address of interface tunnel at VPP's end")
 					testutils.AssertTunnelInterfaceIPAddress(vpp, ifSwIfIndex, ipAddress)
@@ -140,14 +144,14 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					By("Checking correct MTU for tunnel interface at VPP's end")
 					testutils.AssertTunnelInterfaceMTU(vpp, ifSwIfIndex)
 
-					testutils.RunInPod(newPod.Netns, func() {
+					testutils.RunInPod(podSpec.NetnsName, func() {
 						By("Checking tun interface on pod side")
 						_, err := netlink.LinkByName(interfaceName)
 						Expect(err).ToNot(HaveOccurred(), "can't find tun interface in pod")
 					})
 
 					By("Checking created pod RPF VRF")
-					RPFVRF := testutils.AssertRPFVRFExistence(vpp, interfaceName, newPod.Netns)
+					RPFVRF := testutils.AssertRPFVRFExistence(vpp, interfaceName, podSpec.NetnsName)
 
 					By("Checking RPF routes are added")
 					testutils.AssertRPFRoutes(vpp, RPFVRF, ifSwIfIndex, ipAddress)
@@ -180,7 +184,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
 					By("Adding pod using CNI server")
-					newPod := &cniproto.AddRequest{
+					podSpec, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 						InterfaceName: interfaceName,
 						Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
 						ContainerIps:  []*cniproto.IPConfig{{Address: ipAddress + "/24"}},
@@ -191,21 +195,24 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 									memifTCPPortStart, memifTCPPortEnd, memifUDPPortStart, memifUDPPortEnd),
 							},
 						},
-					}
+					})
+					Expect(err).ToNot(HaveOccurred(), "NewLocalPodSpecFromAdd failed")
 					common.VppManagerInfo = &config.VppManagerInfo{}
-					reply, err := cniServer.Add(context.Background(), newPod)
+					evt := model.NewCniPodAddEvent(podSpec)
+					err = cniHandler.OnPodAdd(evt)
+					reply := <-evt.Done
 					Expect(err).ToNot(HaveOccurred(), "Pod addition failed")
 					Expect(reply.Successful).To(BeTrue(),
 						fmt.Sprintf("Pod addition failed due to: %s", reply.ErrorMessage))
 
 					By("Checking existence of main interface tunnel to pod (at VPP's end)")
-					ifSwIfIndex := testutils.AssertTunInterfaceExistence(vpp, newPod)
+					ifSwIfIndex := testutils.AssertTunInterfaceExistence(vpp, podSpec)
 
 					By("Checking main tunnel's tun interface for common interface attributes")
 					testutils.AssertTunnelInterfaceIPAddress(vpp, ifSwIfIndex, ipAddress)
 					testutils.AssertTunnelInterfaceMTU(vpp, ifSwIfIndex)
 
-					testutils.RunInPod(newPod.Netns, func() {
+					testutils.RunInPod(podSpec.NetnsName, func() {
 						By("Checking main tunnel's tun interface on pod side")
 						_, err := netlink.LinkByName(interfaceName)
 						Expect(err).ToNot(HaveOccurred(), "can't find main interface in pod")
@@ -213,7 +220,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 					By("Checking secondary tunnel's memif interface for existence")
 					memifSwIfIndex, err := vpp.SearchInterfaceWithTag(
-						testutils.InterfaceTagForLocalMemifTunnel(newPod.InterfaceName, newPod.Netns))
+						testutils.InterfaceTagForLocalMemifTunnel(podSpec.InterfaceName, podSpec.NetnsName))
 					Expect(err).ShouldNot(HaveOccurred(), "Failed to get memif interface at VPP's end")
 
 					By("Checking secondary tunnel's memif interface for common interface attributes")
@@ -236,7 +243,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					socket, err := vpp.MemifsocketByID(memifs[0].SocketID)
 					Expect(err).ToNot(HaveOccurred(), "failed to get memif socket")
 					Expect(socket.SocketFilename).To(Equal(
-						fmt.Sprintf("abstract:vpp/memif-%s,netns_name=%s", newPod.InterfaceName, newPod.Netns)),
+						fmt.Sprintf("abstract:vpp/memif-%s,netns_name=%s", podSpec.InterfaceName, podSpec.NetnsName)),
 						"memif socket file is not configured correctly")
 
 					By("Checking PBL (packet punting) to redirect some traffic into memif (secondary interface)")
@@ -328,7 +335,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 
 			Context("With MultiNet configuration (and multinet VRF and loopback already configured)", func() {
 				var (
-					networkDefinition *watchers.NetworkDefinition
+					networkDefinition *common.NetworkDefinition
 					pubSubHandlerMock *mocks.PubSubHandlerMock
 				)
 
@@ -360,14 +367,14 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 					}
 					// NetworkDefinition CRD information caught by NetWatcher and send with additional information
 					// (VRF and loopback created by watcher) to the cni server as common.NetAdded CalicoVPPEvent
-					networkDefinition = &watchers.NetworkDefinition{
-						VRF:    watchers.VRF{Tables: tables},
-						PodVRF: watchers.VRF{Tables: podTables},
+					networkDefinition = &common.NetworkDefinition{
+						VRF:    common.VRF{Tables: tables},
+						PodVRF: common.VRF{Tables: podTables},
 						Vni:    uint32(0), // important only for VXLAN tunnel going out of node
 						Name:   networkName,
 						Range:  "10.1.1.0/24", // IP range for secondary network defined by multinet
 					}
-					cniServer.ForceAddingNetworkDefinition(networkDefinition)
+					cniHandler.ForceAddingNetworkDefinition(networkDefinition)
 
 					// setup PubSub handler to catch LocalPodAddressAdded events
 					pubSubHandlerMock = mocks.NewPubSubHandlerMock(common.LocalPodAddressAdded)
@@ -396,21 +403,24 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
 						By("Adding Pod to primary network using CNI server")
-						newPodForPrimaryNetwork := &cniproto.AddRequest{
+						newPodForPrimaryNetwork, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 							InterfaceName: mainInterfaceName,
 							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
 							ContainerIps:  []*cniproto.IPConfig{{Address: ipAddress + "/24"}},
 							Workload:      &cniproto.WorkloadIDs{},
-						}
+						})
+						Expect(err).ToNot(HaveOccurred(), "NewLocalPodSpecFromAdd failed")
 						common.VppManagerInfo = &config.VppManagerInfo{}
-						reply, err := cniServer.Add(context.Background(), newPodForPrimaryNetwork)
+						evt := model.NewCniPodAddEvent(newPodForPrimaryNetwork)
+						err = cniHandler.OnPodAdd(evt)
+						reply := <-evt.Done
 						Expect(err).ToNot(HaveOccurred(), "Pod addition to primary network failed")
 						Expect(reply.Successful).To(BeTrue(),
 							fmt.Sprintf("Pod addition to primary network failed due to: %s", reply.ErrorMessage))
 
 						By("Adding Pod to secondary(multinet) network using CNI server")
 						secondaryIPAddress := testutils.FirstIPinIPRange(networkDefinition.Range).String()
-						newPodForSecondaryNetwork := &cniproto.AddRequest{
+						newPodForSecondaryNetwork, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 							InterfaceName: secondaryInterfaceName,
 							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
 							ContainerIps: []*cniproto.IPConfig{{
@@ -427,8 +437,11 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 										memifTCPPortStart, memifTCPPortEnd, memifUDPPortStart, memifUDPPortEnd),
 								},
 							},
-						}
-						reply, err = cniServer.Add(context.Background(), newPodForSecondaryNetwork)
+						})
+						Expect(err).ToNot(HaveOccurred(), "NewLocalPodSpecFromAdd failed")
+						evt = model.NewCniPodAddEvent(newPodForSecondaryNetwork)
+						err = cniHandler.OnPodAdd(evt)
+						reply = <-evt.Done
 						Expect(err).ToNot(HaveOccurred(), "Pod addition to secondary network failed")
 						Expect(reply.Successful).To(BeTrue(),
 							fmt.Sprintf("Pod addition to secondary network failed due to: %s", reply.ErrorMessage))
@@ -444,7 +457,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						// secondarySwIfIndex := testutils.AssertTunInterfaceExistence(vpp, newPodForSecondaryNetwork)
 						By("Checking secondary tunnel's memif interface for existence")
 						memifSwIfIndex, err := vpp.SearchInterfaceWithTag(
-							testutils.InterfaceTagForLocalMemifTunnel(newPodForSecondaryNetwork.InterfaceName, newPodForSecondaryNetwork.Netns))
+							testutils.InterfaceTagForLocalMemifTunnel(newPodForSecondaryNetwork.InterfaceName, newPodForSecondaryNetwork.NetnsName))
 						Expect(err).ShouldNot(HaveOccurred(), "Failed to get memif interface at VPP's end")
 
 						By("Checking secondary tunnel's memif interface for common interface attributes")
@@ -467,10 +480,10 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						socket, err := vpp.MemifsocketByID(memifs[0].SocketID)
 						Expect(err).ToNot(HaveOccurred(), "failed to get memif socket")
 						Expect(socket.SocketFilename).To(Equal(
-							fmt.Sprintf("abstract:%s,netns_name=%s", newPodForSecondaryNetwork.InterfaceName, newPodForSecondaryNetwork.Netns)),
+							fmt.Sprintf("abstract:%s,netns_name=%s", newPodForSecondaryNetwork.InterfaceName, newPodForSecondaryNetwork.NetnsName)),
 							"memif socket file is not configured correctly")
 
-						testutils.RunInPod(newPodForSecondaryNetwork.Netns, func() {
+						testutils.RunInPod(newPodForSecondaryNetwork.NetnsName, func() {
 							By("Checking main tunnel's tun interface on pod side")
 							_, err := netlink.LinkByName(mainInterfaceName)
 							Expect(err).ToNot(HaveOccurred(), "can't find main interface in pod")
@@ -508,7 +521,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						))
 
 						By("Checking default route from pod-specific VRF to multinet network-specific pod-vrf")
-						podVrf4ID, podVrf6ID, err := testutils.PodVRFs(secondaryInterfaceName, newPodForSecondaryNetwork.Netns, vpp)
+						podVrf4ID, podVrf6ID, err := testutils.PodVRFs(secondaryInterfaceName, newPodForSecondaryNetwork.NetnsName, vpp)
 						Expect(err).ToNot(HaveOccurred(), "can't find pod-specific VRFs")
 						for idx, ipFamily := range vpplink.IPFamilies {
 							podVrfID := podVrf4ID
@@ -639,21 +652,25 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						containerPidStr := strings.ReplaceAll(string(containerPidOutput), "\n", "")
 
 						By("Adding Pod to primary network using CNI server")
-						newPodForPrimaryNetwork := &cniproto.AddRequest{
+						newPodForPrimaryNetwork, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 							InterfaceName: mainInterfaceName,
 							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
 							ContainerIps:  []*cniproto.IPConfig{{Address: ipAddress + "/24"}},
 							Workload:      &cniproto.WorkloadIDs{},
-						}
+						})
+						Expect(err).ToNot(HaveOccurred(), "NewLocalPodSpecFromAdd failed")
 						common.VppManagerInfo = &config.VppManagerInfo{}
-						reply, err := cniServer.Add(context.Background(), newPodForPrimaryNetwork)
+
+						evt := model.NewCniPodAddEvent(newPodForPrimaryNetwork)
+						err = cniHandler.OnPodAdd(evt)
+						reply := <-evt.Done
 						Expect(err).ToNot(HaveOccurred(), "Pod addition to primary network failed")
 						Expect(reply.Successful).To(BeTrue(),
 							fmt.Sprintf("Pod addition to primary network failed due to: %s", reply.ErrorMessage))
 
 						By("Adding Pod to secondary(multinet) network using CNI server")
 						secondaryIPAddress := testutils.FirstIPinIPRange(networkDefinition.Range).String()
-						newPodForSecondaryNetwork := &cniproto.AddRequest{
+						newPodForSecondaryNetwork, err := model.NewLocalPodSpecFromAdd(&cniproto.AddRequest{
 							InterfaceName: secondaryInterfaceName,
 							Netns:         fmt.Sprintf("/proc/%s/ns/net", containerPidStr), // expecting mount of "/proc" from host
 							ContainerIps: []*cniproto.IPConfig{{
@@ -663,8 +680,11 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 							DataplaneOptions: map[string]string{
 								testutils.DpoNetworkNameFieldName(): networkDefinition.Name,
 							},
-						}
-						reply, err = cniServer.Add(context.Background(), newPodForSecondaryNetwork)
+						})
+						Expect(err).ToNot(HaveOccurred(), "NewLocalPodSpecFromAdd failed")
+						evt = model.NewCniPodAddEvent(newPodForSecondaryNetwork)
+						err = cniHandler.OnPodAdd(evt)
+						reply = <-evt.Done
 						Expect(err).ToNot(HaveOccurred(), "Pod addition to secondary network failed")
 						Expect(reply.Successful).To(BeTrue(),
 							fmt.Sprintf("Pod addition to secondary network failed due to: %s", reply.ErrorMessage))
@@ -683,7 +703,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						testutils.AssertTunnelInterfaceIPAddress(vpp, secondarySwIfIndex, secondaryIPAddress)
 						testutils.AssertTunnelInterfaceMTU(vpp, secondarySwIfIndex)
 
-						testutils.RunInPod(newPodForSecondaryNetwork.Netns, func() {
+						testutils.RunInPod(newPodForSecondaryNetwork.NetnsName, func() {
 							By("Checking main tunnel's tun interface on pod side")
 							_, err := netlink.LinkByName(mainInterfaceName)
 							Expect(err).ToNot(HaveOccurred(), "can't find main interface in pod")
@@ -721,7 +741,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 						))
 
 						By("Checking default route from pod-specific VRF to multinet network-specific vrf")
-						podVrf4ID, podVrf6ID, err := testutils.PodVRFs(secondaryInterfaceName, newPodForSecondaryNetwork.Netns, vpp)
+						podVrf4ID, podVrf6ID, err := testutils.PodVRFs(secondaryInterfaceName, newPodForSecondaryNetwork.NetnsName, vpp)
 						Expect(err).ToNot(HaveOccurred(), "can't find pod-specific VRFs")
 						for idx, ipFamily := range vpplink.IPFamilies {
 							podVrfID := podVrf4ID
