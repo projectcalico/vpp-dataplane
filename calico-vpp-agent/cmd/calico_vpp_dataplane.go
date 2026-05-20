@@ -36,7 +36,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/health"
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/routing"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/watchers"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 )
@@ -145,9 +144,9 @@ func main() {
 	peerWatcher := watchers.NewPeerWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "peer-watcher"}))
 	bgpFilterWatcher := watchers.NewBGPFilterWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "BGPFilter-watcher"}))
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
-	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
 	felixServer := felix.NewFelixServer(vpp, clientv3, log.WithFields(logrus.Fields{"component": "policy"}))
+	felixServer.SetBGPServer(bgpServer)
 	felixWatcher := watchers.NewFelixWatcher(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "felix watcher"}))
 	cniServer := watchers.NewCNIServer(felixServer.GetFelixServerEventChan(), log.WithFields(logrus.Fields{"component": "cni"}))
 	serviceServer := watchers.NewServiceServer(felixServer.GetFelixServerEventChan(), k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
@@ -164,10 +163,11 @@ func main() {
 		log.Fatalf("cannot get default BGP config %s", err)
 	}
 
-	routingServer.SetBGPConf(bgpConf)
 	felixServer.SetBGPConf(bgpConf)
 
-	routingServer.SetPeerHandler(felixServer.GetPeerHandler())
+	bgpWatcher := watchers.NewBGPWatcher(felixServer.GetCache(), log.WithFields(logrus.Fields{"component": "bgp-watcher"}))
+	bgpWatcher.SetBGPServer(bgpServer)
+	bgpWatcher.SetBGPHandler(felixServer.GetBGPHandler())
 
 	Go(felixServer.ServeFelix)
 	Go(felixWatcher.WatchFelix)
@@ -212,7 +212,8 @@ func main() {
 	log.Info("Felix configuration received")
 
 	prefixWatcher.SetOurBGPSpec(ourBGPSpec)
-	routingServer.SetOurBGPSpec(ourBGPSpec)
+	bgpWatcher.SetOurBGPSpec(ourBGPSpec)
+	felixServer.GetRoutingHandler().SetOurBGPSpec(ourBGPSpec)
 	localSIDWatcher.SetOurBGPSpec(ourBGPSpec)
 	netWatcher.SetOurBGPSpec(ourBGPSpec)
 
@@ -234,7 +235,8 @@ func main() {
 	Go(prefixWatcher.WatchPrefix)
 	Go(peerWatcher.WatchBGPPeers)
 	Go(bgpFilterWatcher.WatchBGPFilters)
-	Go(routingServer.ServeRouting)
+	Go(bgpWatcher.WatchBGPPath)
+	Go(felixServer.GetRoutingHandler().ServeRoutingHandler)
 	Go(serviceServer.ServeService)
 	Go(cniServer.ServeCNI)
 
