@@ -106,7 +106,7 @@ func (w *NetWatcher) resyncAndCreateWatchers() error {
 				return errors.Wrapf(err, "Listing NetworkAttachmentDefinitions failed")
 			}
 			for _, nad := range nadList.Items {
-				err = w.onNadAdded(&nad)
+				err = w.OnNadAdded(&nad)
 				if err != nil {
 					return errors.Wrapf(err, "OnNadAdded failed for %v", nad)
 				}
@@ -197,7 +197,7 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 						w.log.Errorf("update.Object is not *NetworkAttachmentDefinition, %v", update.Object)
 						continue
 					}
-					err := w.onNadAdded(nad)
+					err := w.OnNadAdded(nad)
 					if err != nil {
 						w.log.Error(err)
 					}
@@ -207,7 +207,7 @@ func (w *NetWatcher) WatchNetworks(t *tomb.Tomb) error {
 						w.log.Errorf("update.Object is not *NetworkAttachmentDefinition, %v", update.Object)
 						continue
 					}
-					err := w.onNadDeleted(nad)
+					err := w.OnNadDeleted(nad)
 					if err != nil {
 						w.log.Error(err)
 					}
@@ -227,7 +227,7 @@ func (w *NetWatcher) Stop() {
 	close(w.stop)
 }
 
-func (w *NetWatcher) onNadDeleted(nad *netv1.NetworkAttachmentDefinition) error {
+func (w *NetWatcher) OnNadDeleted(nad *netv1.NetworkAttachmentDefinition) error {
 	delete(w.nads, nad.Namespace+"/"+nad.Name)
 	for key, net := range w.networkDefinitions {
 		if net.NetAttachDefs == nad.Namespace+"/"+nad.Name {
@@ -241,7 +241,7 @@ func (w *NetWatcher) onNadDeleted(nad *netv1.NetworkAttachmentDefinition) error 
 	return nil
 }
 
-func (w *NetWatcher) onNadAdded(nad *netv1.NetworkAttachmentDefinition) error {
+func (w *NetWatcher) OnNadAdded(nad *netv1.NetworkAttachmentDefinition) error {
 	var nadConfig nadv1.NetConfList
 	err := json.Unmarshal([]byte(nad.Spec.Config), &nadConfig)
 	if err != nil {

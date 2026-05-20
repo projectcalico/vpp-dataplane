@@ -50,6 +50,7 @@ type Server struct {
 	cniHandler          *cni.CNIHandler
 	connectivityHandler *connectivity.ConnectivityHandler
 	serviceHandler      *services.ServiceHandler
+	routeHandler        *RouteHandler
 
 	prometheusServer *prometheus.PrometheusServer
 }
@@ -68,6 +69,7 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 		cniHandler:          cni.NewCNIHandler(vpp, cache, log),
 		connectivityHandler: connectivity.NewConnectivityHandler(vpp, cache, clientv3, log.WithFields(logrus.Fields{"component": "connectivity"})),
 		serviceHandler:      services.NewServiceHandler(vpp, cache, log),
+		routeHandler:        NewRouteHandler(log),
 
 		prometheusServer: prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"})),
 	}
@@ -87,6 +89,10 @@ func NewFelixServer(vpp *vpplink.VppLink, clientv3 calicov3cli.Interface, log *l
 	)
 
 	return server
+}
+
+func (s *Server) GetRouteHandler() *RouteHandler {
+	return s.routeHandler
 }
 
 func (s *Server) GetFelixServerEventChan() chan any {
@@ -322,6 +328,12 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 			s.cache.NetworkDefinitions[new.Name] = new
 			s.cache.Networks[new.Vni] = new
 			s.cniHandler.OnNetAddedOrUpdated(old, new)
+			if s.routeHandler != nil {
+				err := s.routeHandler.OnNetAddedOrUpdated(new)
+				if err != nil {
+					s.log.Errorf("Failed to handle network update in RouteHandler: %v", err)
+				}
+			}
 		case common.NetDeleted:
 			netDef, ok := evt.Old.(*common.NetworkDefinition)
 			if !ok {
@@ -330,6 +342,12 @@ func (s *Server) handleFelixServerEvents(msg interface{}) (err error) {
 			delete(s.cache.NetworkDefinitions, netDef.Name)
 			delete(s.cache.Networks, netDef.Vni)
 			s.cniHandler.OnNetDeleted(netDef)
+			if s.routeHandler != nil {
+				err := s.routeHandler.OnNetDeleted(netDef)
+				if err != nil {
+					s.log.Errorf("Failed to handle network deletion in RouteHandler: %v", err)
+				}
+			}
 		case common.PodAdded:
 			podSpec, ok := evt.New.(*model.LocalPodSpec)
 			if !ok {

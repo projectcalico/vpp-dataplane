@@ -27,7 +27,6 @@ const (
 	ChanSize = 500
 
 	PeerNodeStateChanged CalicoVppEventType = "PeerNodeStateChanged"
-	IpamConfChanged      CalicoVppEventType = "IpamConfChanged"
 	BGPConfChanged       CalicoVppEventType = "BGPConfChanged"
 
 	ConnectivityAdded   CalicoVppEventType = "ConnectivityAdded"
@@ -61,6 +60,9 @@ const (
 
 	NetAddedOrUpdated CalicoVppEventType = "NetAddedOrUpdated"
 	NetDeleted        CalicoVppEventType = "NetDeleted"
+
+	IpamPoolUpdate CalicoVppEventType = "IpamPoolUpdate"
+	IpamPoolRemove CalicoVppEventType = "IpamPoolRemove"
 )
 
 var (

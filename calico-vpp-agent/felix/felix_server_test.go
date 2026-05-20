@@ -80,6 +80,17 @@ var _ = Describe("Felix functionality", func() {
 		// add interface to mock the tap0 because felix server needs it
 		CreateLoopbackAndTaggingItAsMain(vpp, log)
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
+		common.VppManagerInfo = &config.VppManagerInfo{
+			UplinkStatuses: map[string]config.UplinkStatus{
+				"uplink": {
+					SwIfIndex:      1,
+					TapSwIfIndex:   1,
+					IsMain:         true,
+					FakeNextHopIP4: net.ParseIP("169.254.1.1"),
+					FakeNextHopIP6: net.ParseIP("fd00::1"),
+				},
+			},
+		}
 		felixServer = NewFelixServer(vpp, nil, log.WithFields(logrus.Fields{"component": "policy"}))
 		policiesHandler = felixServer.policiesHandler
 		policiesHandler.OnFelixSocketStateChanged(&common.FelixSocketStateChanged{NewState: common.StateInSync})
