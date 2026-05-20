@@ -46,6 +46,9 @@ const (
 	CalicoVppPidFile     = "/var/run/vpp/calico_vpp.pid"
 	CalicoVppVersionFile = "/etc/calicovppversion"
 
+	FelixPluginSrcPath = "/bin/felix-api-proxy"
+	FelixPluginDstPath = "/var/lib/calico/felix-plugins/felix-api-proxy"
+
 	DefaultVXLANVni      = 4096
 	DefaultVXLANPort     = 4789
 	DefaultWireguardPort = 51820
@@ -62,7 +65,7 @@ const (
 	// BaseVppSideHardwareAddress is the base hardware address of VPP side of the HostPunt
 	// tap interface. It is used to generate hardware addresses for each uplink interface.
 	BaseVppSideHardwareAddress = "02:ca:11:c0:fd:00"
-	// CniServerStateFileVersion is the version of the CNI server state file
+	// CniServerStateFileVersion is the version of the persisted CNI state file
 	// it is used to ensure compatibility when reloading data
 	CniServerStateFileVersion = 11
 	// MaxAPITagLen is the limit number of character allowed in VPP API tags

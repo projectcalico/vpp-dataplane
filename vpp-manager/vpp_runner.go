@@ -33,8 +33,8 @@ import (
 	calicoopts "github.com/projectcalico/calico/libcalico-go/lib/options"
 	"github.com/vishvananda/netlink"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/podinterface"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/hooks"
 	"github.com/projectcalico/vpp-dataplane/v3/vpp-manager/uplink"
