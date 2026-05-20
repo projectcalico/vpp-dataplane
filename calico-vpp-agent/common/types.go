@@ -15,6 +15,10 @@
 
 package common
 
+import (
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+)
+
 type VRF struct {
 	Tables [2]uint32 // one for ipv4, one for ipv6
 }
@@ -50,4 +54,46 @@ func (state FelixSocketSyncState) IsPending() bool {
 // of the socket changed. Typically connection and disconnection.
 type FelixSocketStateChanged struct {
 	NewState FelixSocketSyncState
+}
+
+// PeersChangedEvent is emitted when the list of BGP peers changes
+type PeersChangedEvent struct {
+	Peers []calicov3.BGPPeer
+}
+
+// PeerAddedEvent is emitted when a BGP peer is added
+type PeerAddedEvent struct {
+	Peer calicov3.BGPPeer
+}
+
+// PeerUpdatedEvent is emitted when a BGP peer is updated
+type PeerUpdatedEvent struct {
+	Old calicov3.BGPPeer
+	New calicov3.BGPPeer
+}
+
+// PeerDeletedEvent is emitted when a BGP peer is deleted
+type PeerDeletedEvent struct {
+	Peer calicov3.BGPPeer
+}
+
+// SecretData represents secret information
+type SecretData struct {
+	Name string
+	Data map[string][]byte
+}
+
+// SecretAddedEvent is emitted when a secret is added
+type SecretAddedEvent struct {
+	Secret *SecretData
+}
+
+// SecretChangedEvent is emitted when a secret changes
+type SecretChangedEvent struct {
+	SecretName string
+}
+
+// SecretDeletedEvent is emitted when a secret is deleted
+type SecretDeletedEvent struct {
+	SecretName string
 }

@@ -30,11 +30,12 @@
 package watchers
 
 import (
-	"fmt"
 	"os"
 	"sync"
 	"time"
 
+	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -50,22 +51,15 @@ type secretWatchData struct {
 	secret *v1.Secret
 }
 
-type SecretWatcherClient interface {
-	// this function is invoked upon add|update|delete of a secret
-	OnSecretUpdate(old, new *v1.Secret)
-}
-
 type secretWatcher struct {
-	client       SecretWatcherClient
 	namespace    string
 	k8sClientset *kubernetes.Clientset
 	mutex        sync.Mutex
 	watches      map[string]*secretWatchData
 }
 
-func NewSecretWatcher(c SecretWatcherClient, k8sclient *kubernetes.Clientset) (*secretWatcher, error) {
+func NewSecretWatcher(k8sclient *kubernetes.Clientset) *secretWatcher {
 	sw := &secretWatcher{
-		client:       c,
 		watches:      make(map[string]*secretWatchData),
 		k8sClientset: k8sclient,
 	}
@@ -74,11 +68,11 @@ func NewSecretWatcher(c SecretWatcherClient, k8sclient *kubernetes.Clientset) (*
 	// are being run in a namespace other than calico-vpp-dataplane)
 	sw.namespace = os.Getenv("NAMESPACE")
 	if sw.namespace == "" {
-		// Default to kube-system.
+		// Default to calico-vpp-dataplane.
 		sw.namespace = "calico-vpp-dataplane"
 	}
 
-	return sw, nil
+	return sw
 }
 
 func (sw *secretWatcher) ensureWatchingSecret(name string) {
@@ -137,25 +131,6 @@ func (sw *secretWatcher) allowTimeForControllerSync(name string, controller cach
 	log.Debug("Relock...")
 }
 
-func (sw *secretWatcher) GetSecret(name, key string) (string, error) {
-	sw.mutex.Lock()
-	defer sw.mutex.Unlock()
-	log.Debugf("Get secret for name '%v' key '%v'", name, key)
-
-	// Ensure that we're watching this secret.
-	sw.ensureWatchingSecret(name)
-
-	// Get and decode the key of interest.
-	if sw.watches[name].secret == nil {
-		return "", fmt.Errorf("no data available for secret %v", name)
-	}
-	if data, ok := sw.watches[name].secret.Data[key]; ok {
-		return string(data), nil
-	} else {
-		return "", fmt.Errorf("secret %v does not have key %v", name, key)
-	}
-}
-
 func (sw *secretWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
@@ -165,13 +140,21 @@ func (sw *secretWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 		panic("secret add, old is not *v1.Secret")
 	}
 	sw.watches[secret.Name].secret = secret
-	sw.client.OnSecretUpdate(nil, secret)
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.SecretAdded,
+		New: &common.SecretAddedEvent{
+			Secret: &common.SecretData{
+				Name: secret.Name,
+				Data: secret.Data,
+			},
+		},
+	})
 }
 
 func (sw *secretWatcher) OnUpdate(oldObj, newObj interface{}) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
-	oldSecret, ok := oldObj.(*v1.Secret)
+	_, ok := oldObj.(*v1.Secret)
 	if !ok {
 		panic("secret update, old is not *v1.Secret")
 	}
@@ -181,7 +164,10 @@ func (sw *secretWatcher) OnUpdate(oldObj, newObj interface{}) {
 	}
 	log.Debug("Secret updated")
 	sw.watches[secret.Name].secret = secret
-	sw.client.OnSecretUpdate(oldSecret, secret)
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.SecretChanged,
+		New:  &common.SecretChangedEvent{SecretName: secret.Name},
+	})
 }
 
 func (sw *secretWatcher) OnDelete(obj interface{}) {
@@ -193,13 +179,28 @@ func (sw *secretWatcher) OnDelete(obj interface{}) {
 		panic("secret delete, old is not *v1.Secret")
 	}
 	sw.watches[secret.Name].secret = nil
-	sw.client.OnSecretUpdate(secret, nil)
+	common.SendEvent(common.CalicoVppEvent{
+		Type: common.SecretDeleted,
+		New:  &common.SecretDeletedEvent{SecretName: secret.Name},
+	})
 }
 
-func (sw *secretWatcher) SweepStale(activeSecrets map[string]struct{}) {
+// OnPeerListUpdated updates the list of active secrets, starts watching new ones, and sweeps stale ones
+func (sw *secretWatcher) OnPeerListUpdated(peers []calicov3.BGPPeer) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
 
+	activeSecrets := make(map[string]struct{})
+	for _, peer := range peers {
+		if peer.Spec.Password != nil && peer.Spec.Password.SecretKeyRef != nil {
+			secretName := peer.Spec.Password.SecretKeyRef.Name
+			activeSecrets[secretName] = struct{}{}
+			// Start watching this secret if we're not already
+			sw.ensureWatchingSecret(secretName)
+		}
+	}
+
+	// Sweep stale secrets
 	for name, watchData := range sw.watches {
 		if _, ok := activeSecrets[name]; !ok {
 			log.Debugf("Deleting secret '%s'", name)

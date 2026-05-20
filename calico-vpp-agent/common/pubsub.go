@@ -45,10 +45,9 @@ const (
 	TunnelAdded   CalicoVppEventType = "TunnelAdded"
 	TunnelDeleted CalicoVppEventType = "TunnelDeleted"
 
-	BGPPeerAdded     CalicoVppEventType = "BGPPeerAdded"
-	BGPPeerDeleted   CalicoVppEventType = "BGPPeerDeleted"
-	BGPPeerUpdated   CalicoVppEventType = "BGPPeerUpdated"
-	BGPSecretChanged CalicoVppEventType = "BGPSecretChanged"
+	BGPPeerAdded   CalicoVppEventType = "BGPPeerAdded"
+	BGPPeerDeleted CalicoVppEventType = "BGPPeerDeleted"
+	BGPPeerUpdated CalicoVppEventType = "BGPPeerUpdated"
 
 	BGPFilterAddedOrUpdated CalicoVppEventType = "BGPFilterAddedOrUpdated"
 	BGPFilterDeleted        CalicoVppEventType = "BGPFilterDeleted"
@@ -61,6 +60,15 @@ const (
 
 	NetAddedOrUpdated CalicoVppEventType = "NetAddedOrUpdated"
 	NetDeleted        CalicoVppEventType = "NetDeleted"
+
+	PeersChanged CalicoVppEventType = "PeersChanged"
+	PeerAdded    CalicoVppEventType = "PeerAdded"
+	PeerUpdated  CalicoVppEventType = "PeerUpdated"
+	PeerDeleted  CalicoVppEventType = "PeerDeleted"
+
+	SecretAdded   CalicoVppEventType = "SecretAdded"
+	SecretChanged CalicoVppEventType = "SecretChanged"
+	SecretDeleted CalicoVppEventType = "SecretDeleted"
 )
 
 var (

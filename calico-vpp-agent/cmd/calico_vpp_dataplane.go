@@ -164,9 +164,10 @@ func main() {
 		log.Fatalf("cannot get default BGP config %s", err)
 	}
 
-	peerWatcher.SetBGPConf(bgpConf)
 	routingServer.SetBGPConf(bgpConf)
 	felixServer.SetBGPConf(bgpConf)
+
+	routingServer.SetPeerHandler(felixServer.GetPeerHandler())
 
 	Go(felixServer.ServeFelix)
 	Go(felixWatcher.WatchFelix)
