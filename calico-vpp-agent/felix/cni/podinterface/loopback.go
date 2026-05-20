@@ -19,8 +19,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cache"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/felix/cni/model"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 )
 
@@ -28,16 +29,15 @@ type LoopbackPodInterfaceDriver struct {
 	PodInterfaceDriverData
 }
 
-func NewLoopbackPodInterfaceDriver(vpp *vpplink.VppLink, log *logrus.Entry, felixServerIpam common.FelixServerIpam) *LoopbackPodInterfaceDriver {
-	i := &LoopbackPodInterfaceDriver{
+func NewLoopbackPodInterfaceDriver(vpp *vpplink.VppLink, cache *cache.Cache, log *logrus.Entry) *LoopbackPodInterfaceDriver {
+	return &LoopbackPodInterfaceDriver{
 		PodInterfaceDriverData: PodInterfaceDriverData{
-			felixServerIpam: felixServerIpam,
+			vpp:   vpp,
+			log:   log,
+			cache: cache,
+			Name:  "loopback",
 		},
 	}
-	i.vpp = vpp
-	i.log = log
-	i.Name = "loopback"
-	return i
 }
 
 func (i *LoopbackPodInterfaceDriver) CreateInterface(podSpec *model.LocalPodSpec, stack *vpplink.CleanupStack) (err error) {

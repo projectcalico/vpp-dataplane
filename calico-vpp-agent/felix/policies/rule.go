@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package felix
+package policies
 
 import (
 	"fmt"
@@ -127,7 +127,7 @@ func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
 		if r.NotProtocol != nil {
 			return nil, fmt.Errorf("protocol and NotProtocol specified in Rule")
 		}
-		proto, err := parseProtocol(r.Protocol)
+		proto, err := ParseProtocol(r.Protocol)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +138,7 @@ func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
 		})
 	}
 	if r.NotProtocol != nil {
-		proto, err := parseProtocol(r.NotProtocol)
+		proto, err := ParseProtocol(r.NotProtocol)
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +220,7 @@ func fromProtoRule(r *proto.Rule) (rule *Rule, err error) {
 	return rule, nil
 }
 
-func parseProtocol(pr *proto.Protocol) (types.IPProto, error) {
+func ParseProtocol(pr *proto.Protocol) (types.IPProto, error) {
 	switch u := pr.NumberOrName.(type) {
 	case *proto.Protocol_Name:
 		switch strings.ToLower(u.Name) {
