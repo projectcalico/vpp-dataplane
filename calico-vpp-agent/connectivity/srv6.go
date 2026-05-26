@@ -94,12 +94,12 @@ func (p *SRv6Provider) RescanState() {
 
 }
 
-func (p *SRv6Provider) CreateSRv6Tunnnel(dst net.IP, prefixDst ip_types.Prefix, policyTunnel *types.SrPolicy) (err error) {
-	p.log.Infof("SRv6Provider CreateSRv6Tunnnel")
+func (p *SRv6Provider) CreateSRv6Tunnel(dst net.IP, prefixDst ip_types.Prefix, policyTunnel *types.SrPolicy) (err error) {
+	p.log.Infof("SRv6Provider CreateSRv6Tunnel")
 
 	err = p.vpp.AddModSRv6Policy(policyTunnel)
 	if err != nil {
-		p.log.Errorf("SRv6Provider CreateSRv6Tunnnel AddSRv6Policy %s", err)
+		p.log.Errorf("SRv6Provider CreateSRv6Tunnel AddSRv6Policy %s", err)
 
 	}
 	srSteer := &types.SrSteer{
@@ -115,11 +115,40 @@ func (p *SRv6Provider) CreateSRv6Tunnnel(dst net.IP, prefixDst ip_types.Prefix, 
 	err = p.vpp.AddSRv6Steering(srSteer)
 
 	if err != nil {
-		p.log.Errorf("SRv6Provider CreateSRv6Tunnnel AddSRv6Steering %s", err)
+		p.log.Errorf("SRv6Provider CreateSRv6Tunnel AddSRv6Steering %s", err)
 
 	}
 
 	return err
+}
+
+// steerNodeIPViaSID steers pod traffic to a remote node's own IP onto that node's
+// End.DT6 SID (in PodVRFIndex) so host-network backed ClusterIPs work under SRv6.
+func (p *SRv6Provider) steerNodeIPViaSID(nodeip string) {
+	nodeIP := net.ParseIP(nodeip)
+	if nodeIP == nil || !vpplink.IsIP6(nodeIP) {
+		return // IPv6 only; IPv4 node IPs would need End.DT4
+	}
+	policy, err := p.getPolicyNode(nodeip, types.SrBehaviorDT6)
+	if err != nil || policy == nil {
+		p.log.Debugf("SRv6Provider steerNodeIPViaSID: no DT6 policy for %s yet, will retry later", nodeip)
+		return
+	}
+	prefix, err := ip_types.ParsePrefix(nodeIP.String() + "/128")
+	if err != nil {
+		p.log.Errorf("SRv6Provider steerNodeIPViaSID parse prefix %s: %v", nodeip, err)
+		return
+	}
+	// policy is already installed by CreateSRv6Tunnel; only add the steering.
+	srSteer := &types.SrSteer{
+		TrafficType: types.SrSteerIPv6,
+		FibTable:    common.PodVRFIndex,
+		Prefix:      prefix,
+		Bsid:        policy.Bsid,
+	}
+	if err := p.vpp.AddSRv6Steering(srSteer); err != nil {
+		p.log.Errorf("SRv6Provider steerNodeIPViaSID AddSRv6Steering node=%s prefix=%s: %v", nodeip, prefix.String(), err)
+	}
 }
 
 // AddConnectivity creates dynamic parts of SRv6 tunnel leading to node that we are adding connectivity to.
@@ -218,12 +247,16 @@ func (p *SRv6Provider) AddConnectivity(cn *common.NodeConnectivity) (err error) 
 
 			policy, err := p.getPolicyNode(nodeip, prefixBehavior)
 			if err == nil && policy != nil {
-				if err := p.CreateSRv6Tunnnel(p.nodePrefixes[nodeip].Node, prefix, policy); err != nil {
+				if err := p.CreateSRv6Tunnel(p.nodePrefixes[nodeip].Node, prefix, policy); err != nil {
 					p.log.Error(err)
 				}
 			}
 
 		}
+
+		// Bring the host plane onto SRv6 too: steer pod traffic to this node's
+		// IP via its End.DT6 SID so host-network backed ClusterIPs work.
+		p.steerNodeIPViaSID(nodeip)
 	}
 
 	return err
