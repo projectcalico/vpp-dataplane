@@ -1195,10 +1195,6 @@ func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update,
 
 	if localNodeSpec.Name == *config.NodeName &&
 		(localNodeSpec.IPv4Address != nil || localNodeSpec.IPv6Address != nil) {
-		/* We found a BGP Spec that seems valid enough */
-		s.GotOurNodeBGPchanOnce.Do(func() {
-			s.GotOurNodeBGPchan <- localNodeSpec
-		})
 		ip4 := net.IP{}
 		ip6 := net.IP{}
 		if localNodeSpec.IPv4Address != nil {
@@ -1213,6 +1209,10 @@ func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update,
 		if err != nil {
 			s.log.Errorf("Failed to configure SNAT addresses %v", err)
 		}
+		/* We found a BGP Spec that seems valid enough */
+		s.GotOurNodeBGPchanOnce.Do(func() {
+			s.GotOurNodeBGPchan <- localNodeSpec
+		})
 
 		err = s.createAllowFromHostPolicy()
 		if err != nil {
