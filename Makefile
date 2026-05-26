@@ -21,12 +21,12 @@ image-kind: image
 		docker push localhost:5000/calicovpp/$$image ; \
 	done
 
-# repo-layout: this is consumed by setup-cluster.sh and quick-import.sh in
-# VPP kube-test to detect the repo layout without relying on file path heuristics.
-# All paths are relative to the repo root (CALICOVPP_DIR in VPP kube-test).
-.PHONY: repo-layout
-repo-layout:
-	@printf "VPP_MANAGER_REL_PATH=pkg/vpp-manager\nVPP_BUILD_REL_PATH=vpp_build\nCALICOVPP_AGENT_IMAGE=calicovpp/vpp\n"
+# vpp: build VPP from source. VPP_DIR specifies where to build (default:
+# pkg/vpp-manager/vpp_build). BASE overrides the VPP commit to check out.
+# Consumed by VPP kube-test so that it can inject its own VPP_DIR.
+.PHONY: vpp
+vpp:
+	$(MAKE) -C pkg/vpp-manager $@ VPP_DIR=$(VPP_DIR) BASE=$(BASE)
 
 .PHONY: kind-cluster-name
 kind-cluster-name:
