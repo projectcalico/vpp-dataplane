@@ -126,6 +126,7 @@ git_cherry_pick refs/changes/50/44350/3 # 44350: vnet: fix unicast NA handling i
 git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
 git_cherry_pick refs/changes/99/45099/2 # 45099: ip6-nd: add nd-proxy all dst | https://gerrit.fd.io/r/c/vpp/+/45099
 git_cherry_pick refs/changes/46/45046/4 # 45046: ip6-nd: add punt reason for neigh advs | https://gerrit.fd.io/r/c/vpp/+/45046
+git_cherry_pick refs/changes/96/45696/6 # 45696: cnat: make cnat pluggable | https://gerrit.fd.io/r/c/vpp/+/45696
 
 # --------------- private patches/plugins ---------------
 # Patch files generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
