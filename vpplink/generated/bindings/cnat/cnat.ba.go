@@ -29,7 +29,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "cnat"
-	APIVersion = "0.3.0"
+	APIVersion = "1.0.0"
 	VersionCrc = 0xc121e90a
 )
 

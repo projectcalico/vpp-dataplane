@@ -27,7 +27,7 @@ const _ = api.GoVppAPIPackageIsVersion2
 const (
 	APIFile    = "npol"
 	APIVersion = "0.1.0"
-	VersionCrc = 0x79451d1
+	VersionCrc = 0x4d281077
 )
 
 // NpolEntryType defines enum 'npol_entry_type'.
