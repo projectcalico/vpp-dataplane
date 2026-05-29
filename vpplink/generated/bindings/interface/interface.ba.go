@@ -3,7 +3,7 @@
 // Package interfaces contains generated bindings for API file interface.api.
 //
 // Contents:
-// - 78 messages
+// - 82 messages
 package interfaces
 
 import (
@@ -22,8 +22,8 @@ const _ = api.GoVppAPIPackageIsVersion2
 
 const (
 	APIFile    = "interface"
-	APIVersion = "3.2.4"
-	VersionCrc = 0x6bc9fe33
+	APIVersion = "3.2.5"
+	VersionCrc = 0x89001687
 )
 
 // Enable or disable detailed interface stats
@@ -1862,6 +1862,99 @@ func (m *SwInterfaceGetMacAddressReply) Unmarshal(b []byte) error {
 	return nil
 }
 
+// Get interface speed capabilities
+//   - sw_if_index - index of the interface
+//
+// SwInterfaceGetSpeedCapa defines message 'sw_interface_get_speed_capa'.
+type SwInterfaceGetSpeedCapa struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+}
+
+func (m *SwInterfaceGetSpeedCapa) Reset()               { *m = SwInterfaceGetSpeedCapa{} }
+func (*SwInterfaceGetSpeedCapa) GetMessageName() string { return "sw_interface_get_speed_capa" }
+func (*SwInterfaceGetSpeedCapa) GetCrcString() string   { return "f9e6675e" }
+func (*SwInterfaceGetSpeedCapa) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SwInterfaceGetSpeedCapa) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	return size
+}
+func (m *SwInterfaceGetSpeedCapa) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceGetSpeedCapa) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	return nil
+}
+
+// Reply for sw_interface_get_speed_capa
+//   - retval - return value
+//   - count - number of supported speeds
+//   - speeds - supported speeds in Kbps
+//
+// SwInterfaceGetSpeedCapaReply defines message 'sw_interface_get_speed_capa_reply'.
+type SwInterfaceGetSpeedCapaReply struct {
+	Retval int32    `binapi:"i32,name=retval" json:"retval,omitempty"`
+	Count  uint32   `binapi:"u32,name=count" json:"-"`
+	Speeds []uint32 `binapi:"u32[count],name=speeds" json:"speeds,omitempty"`
+}
+
+func (m *SwInterfaceGetSpeedCapaReply) Reset() { *m = SwInterfaceGetSpeedCapaReply{} }
+func (*SwInterfaceGetSpeedCapaReply) GetMessageName() string {
+	return "sw_interface_get_speed_capa_reply"
+}
+func (*SwInterfaceGetSpeedCapaReply) GetCrcString() string { return "20b21417" }
+func (*SwInterfaceGetSpeedCapaReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SwInterfaceGetSpeedCapaReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4                 // m.Retval
+	size += 4                 // m.Count
+	size += 4 * len(m.Speeds) // m.Speeds
+	return size
+}
+func (m *SwInterfaceGetSpeedCapaReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	buf.EncodeUint32(uint32(len(m.Speeds)))
+	for i := 0; i < len(m.Speeds); i++ {
+		var x uint32
+		if i < len(m.Speeds) {
+			x = uint32(m.Speeds[i])
+		}
+		buf.EncodeUint32(x)
+	}
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceGetSpeedCapaReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	m.Count = buf.DecodeUint32()
+	m.Speeds = make([]uint32, m.Count)
+	for i := 0; i < len(m.Speeds); i++ {
+		m.Speeds[i] = buf.DecodeUint32()
+	}
+	return nil
+}
+
 // Get VRF id assigned to interface
 //   - sw_if_index - index of the interface
 //
@@ -2347,6 +2440,82 @@ func (m *SwInterfaceSetIPDirectedBroadcastReply) Marshal(b []byte) ([]byte, erro
 	return buf.Bytes(), nil
 }
 func (m *SwInterfaceSetIPDirectedBroadcastReply) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.Retval = buf.DecodeInt32()
+	return nil
+}
+
+// Set interface link speed (override)
+//   - sw_if_index - index of the interface
+//   - link_speed - link speed in Kbps (0 means unknown / auto)
+//
+// SwInterfaceSetLinkSpeed defines message 'sw_interface_set_link_speed'.
+type SwInterfaceSetLinkSpeed struct {
+	SwIfIndex interface_types.InterfaceIndex `binapi:"interface_index,name=sw_if_index" json:"sw_if_index,omitempty"`
+	LinkSpeed uint32                         `binapi:"u32,name=link_speed" json:"link_speed,omitempty"`
+}
+
+func (m *SwInterfaceSetLinkSpeed) Reset()               { *m = SwInterfaceSetLinkSpeed{} }
+func (*SwInterfaceSetLinkSpeed) GetMessageName() string { return "sw_interface_set_link_speed" }
+func (*SwInterfaceSetLinkSpeed) GetCrcString() string   { return "2f0867fa" }
+func (*SwInterfaceSetLinkSpeed) GetMessageType() api.MessageType {
+	return api.RequestMessage
+}
+
+func (m *SwInterfaceSetLinkSpeed) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.SwIfIndex
+	size += 4 // m.LinkSpeed
+	return size
+}
+func (m *SwInterfaceSetLinkSpeed) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeUint32(uint32(m.SwIfIndex))
+	buf.EncodeUint32(m.LinkSpeed)
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceSetLinkSpeed) Unmarshal(b []byte) error {
+	buf := codec.NewBuffer(b)
+	m.SwIfIndex = interface_types.InterfaceIndex(buf.DecodeUint32())
+	m.LinkSpeed = buf.DecodeUint32()
+	return nil
+}
+
+// SwInterfaceSetLinkSpeedReply defines message 'sw_interface_set_link_speed_reply'.
+type SwInterfaceSetLinkSpeedReply struct {
+	Retval int32 `binapi:"i32,name=retval" json:"retval,omitempty"`
+}
+
+func (m *SwInterfaceSetLinkSpeedReply) Reset() { *m = SwInterfaceSetLinkSpeedReply{} }
+func (*SwInterfaceSetLinkSpeedReply) GetMessageName() string {
+	return "sw_interface_set_link_speed_reply"
+}
+func (*SwInterfaceSetLinkSpeedReply) GetCrcString() string { return "e8d4e804" }
+func (*SwInterfaceSetLinkSpeedReply) GetMessageType() api.MessageType {
+	return api.ReplyMessage
+}
+
+func (m *SwInterfaceSetLinkSpeedReply) Size() (size int) {
+	if m == nil {
+		return 0
+	}
+	size += 4 // m.Retval
+	return size
+}
+func (m *SwInterfaceSetLinkSpeedReply) Marshal(b []byte) ([]byte, error) {
+	if b == nil {
+		b = make([]byte, m.Size())
+	}
+	buf := codec.NewBuffer(b)
+	buf.EncodeInt32(m.Retval)
+	return buf.Bytes(), nil
+}
+func (m *SwInterfaceSetLinkSpeedReply) Unmarshal(b []byte) error {
 	buf := codec.NewBuffer(b)
 	m.Retval = buf.DecodeInt32()
 	return nil
@@ -3373,6 +3542,8 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*SwInterfaceGetDefaultRxModeReply)(nil), "sw_interface_get_default_rx_mode_reply_2339da5a")
 	api.RegisterMessage((*SwInterfaceGetMacAddress)(nil), "sw_interface_get_mac_address_f9e6675e")
 	api.RegisterMessage((*SwInterfaceGetMacAddressReply)(nil), "sw_interface_get_mac_address_reply_40ef2c08")
+	api.RegisterMessage((*SwInterfaceGetSpeedCapa)(nil), "sw_interface_get_speed_capa_f9e6675e")
+	api.RegisterMessage((*SwInterfaceGetSpeedCapaReply)(nil), "sw_interface_get_speed_capa_reply_20b21417")
 	api.RegisterMessage((*SwInterfaceGetTable)(nil), "sw_interface_get_table_2d033de4")
 	api.RegisterMessage((*SwInterfaceGetTableReply)(nil), "sw_interface_get_table_reply_a6eb0109")
 	api.RegisterMessage((*SwInterfaceRxPlacementDetails)(nil), "sw_interface_rx_placement_details_9e44a7ce")
@@ -3385,6 +3556,8 @@ func file_interfaces_binapi_init() {
 	api.RegisterMessage((*SwInterfaceSetInterfaceNameReply)(nil), "sw_interface_set_interface_name_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetIPDirectedBroadcast)(nil), "sw_interface_set_ip_directed_broadcast_ae6cfcfb")
 	api.RegisterMessage((*SwInterfaceSetIPDirectedBroadcastReply)(nil), "sw_interface_set_ip_directed_broadcast_reply_e8d4e804")
+	api.RegisterMessage((*SwInterfaceSetLinkSpeed)(nil), "sw_interface_set_link_speed_2f0867fa")
+	api.RegisterMessage((*SwInterfaceSetLinkSpeedReply)(nil), "sw_interface_set_link_speed_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetMacAddress)(nil), "sw_interface_set_mac_address_c536e7eb")
 	api.RegisterMessage((*SwInterfaceSetMacAddressReply)(nil), "sw_interface_set_mac_address_reply_e8d4e804")
 	api.RegisterMessage((*SwInterfaceSetMtu)(nil), "sw_interface_set_mtu_5cbe85e5")
@@ -3456,6 +3629,8 @@ func AllMessages() []api.Message {
 		(*SwInterfaceGetDefaultRxModeReply)(nil),
 		(*SwInterfaceGetMacAddress)(nil),
 		(*SwInterfaceGetMacAddressReply)(nil),
+		(*SwInterfaceGetSpeedCapa)(nil),
+		(*SwInterfaceGetSpeedCapaReply)(nil),
 		(*SwInterfaceGetTable)(nil),
 		(*SwInterfaceGetTableReply)(nil),
 		(*SwInterfaceRxPlacementDetails)(nil),
@@ -3468,6 +3643,8 @@ func AllMessages() []api.Message {
 		(*SwInterfaceSetInterfaceNameReply)(nil),
 		(*SwInterfaceSetIPDirectedBroadcast)(nil),
 		(*SwInterfaceSetIPDirectedBroadcastReply)(nil),
+		(*SwInterfaceSetLinkSpeed)(nil),
+		(*SwInterfaceSetLinkSpeedReply)(nil),
 		(*SwInterfaceSetMacAddress)(nil),
 		(*SwInterfaceSetMacAddressReply)(nil),
 		(*SwInterfaceSetMtu)(nil),

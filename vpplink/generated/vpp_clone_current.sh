@@ -71,6 +71,8 @@ function copy_private_plugin ()
 	blue "Copying private plugin $name..."
 	rm -rf "src/plugins/$name"
 	cp -r "$SCRIPTDIR/private_plugins/$name" "src/plugins/$name"
+	git add "src/plugins/$name"
+	git commit -m "calicovpp plugin:$name"
 }
 
 
@@ -113,7 +115,7 @@ function git_clone_cd_and_reset ()
 # --------------- Things to cherry pick ---------------
 
 #
-BASE="${BASE:-"e84849bcdb70ce7b77e17e04575059856735da50"}"
+BASE="${BASE:-"2f04d5e7c49bb21d3055f1d798f9137d2a6ddb5d"}"
 if [ "$VPP_DIR" = "" ]; then
        VPP_DIR="$1"
 fi
@@ -128,12 +130,13 @@ git_cherry_pick refs/changes/99/45099/2 # 45099: ip6-nd: add nd-proxy all dst | 
 git_cherry_pick refs/changes/46/45046/4 # 45046: ip6-nd: add punt reason for neigh advs | https://gerrit.fd.io/r/c/vpp/+/45046
 
 # --------------- private patches/plugins ---------------
-# Patch files generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^'
+# Patch files generated with 'git format-patch --zero-commit -o ./patches/ HEAD^^^^^'
 git_apply_private 0001-cnat-WIP-no-k8s-maglev-from-pods.patch
 git_apply_private 0002-acl-acl-plugin-custom-policies.patch
 git_apply_private 0003-ip-neighbor-preserve-interface-LL-receive-DPO-for-se.patch
 git_apply_private 0004-npol-add-matched-rule-id-to-acl-trace.patch
 git_apply_private 0005-interface-add-buffer-stats-api.patch
+
 # VPP Private plugins:
 copy_private_plugin ip_ttl_fixup
 copy_private_plugin pbl

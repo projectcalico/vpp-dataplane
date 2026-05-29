@@ -35,6 +35,7 @@ const (
 	CLASSIFY_API_ACTION_SET_IP4_FIB_INDEX ClassifyAction = 1
 	CLASSIFY_API_ACTION_SET_IP6_FIB_INDEX ClassifyAction = 2
 	CLASSIFY_API_ACTION_SET_METADATA      ClassifyAction = 3
+	CLASSIFY_API_ACTION_MARK_FLOW         ClassifyAction = 4
 )
 
 var (
@@ -43,12 +44,14 @@ var (
 		1: "CLASSIFY_API_ACTION_SET_IP4_FIB_INDEX",
 		2: "CLASSIFY_API_ACTION_SET_IP6_FIB_INDEX",
 		3: "CLASSIFY_API_ACTION_SET_METADATA",
+		4: "CLASSIFY_API_ACTION_MARK_FLOW",
 	}
 	ClassifyAction_value = map[string]uint8{
 		"CLASSIFY_API_ACTION_NONE":              0,
 		"CLASSIFY_API_ACTION_SET_IP4_FIB_INDEX": 1,
 		"CLASSIFY_API_ACTION_SET_IP6_FIB_INDEX": 2,
 		"CLASSIFY_API_ACTION_SET_METADATA":      3,
+		"CLASSIFY_API_ACTION_MARK_FLOW":         4,
 	}
 )
 
@@ -139,6 +142,7 @@ func (x PolicerClassifyTable) String() string {
 //   - metadata - valid only if action != 0
 //     VRF id if action is 1 or 2.
 //     sr policy index if action is 3.
+//     global tm flow id if action is 4.
 //   - match_len - length of match, should be equal to skip_n_vectors plus match_n_vectors
 //     of target table times sizeof (u32x4)
 //   - match - for add, match value for session, required,

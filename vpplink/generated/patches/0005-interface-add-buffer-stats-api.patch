@@ -1,12 +1,9 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: hedi bouattour <hedibouattour2010@gmail.com>
-Date: Fri, 10 Dec 2021 15:18:05 +0000
+From: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
+Date: Fri, 29 May 2026 16:33:09 +0200
 Subject: [PATCH 5/5] interface: add buffer stats api
 
-Type: fix
-
-Change-Id: I9c2c0b0a35884f0375b4f589841732ad9979fe6c
-Signed-off-by: hedi bouattour <hedibouattour2010@gmail.com>
+Signed-off-by: Nathan Skrzypczak <nathan.skrzypczak@gmail.com>
 ---
  src/vlib/buffer.c         | 14 ++++++++++++++
  src/vlib/buffer.h         |  9 +++++++++
@@ -61,11 +58,11 @@ index d6f62abd4..58b77981b 100644
  {
    CLIB_CACHE_LINE_ALIGN_MARK (cacheline0);
 diff --git a/src/vnet/interface.api b/src/vnet/interface.api
-index 470f72cac..e3cae68c3 100644
+index 5d780c476..d757ddc5b 100644
 --- a/src/vnet/interface.api
 +++ b/src/vnet/interface.api
-@@ -822,6 +822,27 @@ define sw_interface_get_default_rx_mode_reply
-   vl_api_rx_mode_t mode;
+@@ -862,6 +862,27 @@ define sw_interface_get_speed_capa_reply
+   u32 speeds[count];
  };
  
 +/** \brief Get available, cached and used buffers
@@ -93,12 +90,12 @@ index 470f72cac..e3cae68c3 100644
   * Local Variables:
   * eval: (c-set-style "gnu")
 diff --git a/src/vnet/interface_api.c b/src/vnet/interface_api.c
-index 7648b0410..9df3042f9 100644
+index 6718fb5c2..9667ed14d 100644
 --- a/src/vnet/interface_api.c
 +++ b/src/vnet/interface_api.c
-@@ -74,6 +74,23 @@ vpe_api_main_t vpe_api_main;
-   _ (SW_INTERFACE_ADDRESS_REPLACE_BEGIN, sw_interface_address_replace_begin)                       \
-   _ (SW_INTERFACE_ADDRESS_REPLACE_END, sw_interface_address_replace_end)
+@@ -76,6 +76,23 @@ vpe_api_main_t vpe_api_main;
+   _ (SW_INTERFACE_SET_LINK_SPEED, sw_interface_set_link_speed)                                     \
+   _ (SW_INTERFACE_GET_SPEED_CAPA, sw_interface_get_speed_capa)
  
 +static void
 +vl_api_get_buffers_stats_t_handler (vl_api_get_buffers_stats_t *mp)
@@ -121,7 +118,7 @@ index 7648b0410..9df3042f9 100644
  vl_api_sw_interface_set_flags_t_handler (vl_api_sw_interface_set_flags_t * mp)
  {
 diff --git a/src/vnet/interface_test.c b/src/vnet/interface_test.c
-index d37d4deee..0ada3e137 100644
+index afc508dec..d88265866 100644
 --- a/src/vnet/interface_test.c
 +++ b/src/vnet/interface_test.c
 @@ -33,6 +33,18 @@ typedef struct

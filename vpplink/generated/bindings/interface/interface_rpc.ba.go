@@ -34,12 +34,14 @@ type RPCService interface {
 	SwInterfaceDump(ctx context.Context, in *SwInterfaceDump) (RPCService_SwInterfaceDumpClient, error)
 	SwInterfaceGetDefaultRxMode(ctx context.Context, in *SwInterfaceGetDefaultRxMode) (*SwInterfaceGetDefaultRxModeReply, error)
 	SwInterfaceGetMacAddress(ctx context.Context, in *SwInterfaceGetMacAddress) (*SwInterfaceGetMacAddressReply, error)
+	SwInterfaceGetSpeedCapa(ctx context.Context, in *SwInterfaceGetSpeedCapa) (*SwInterfaceGetSpeedCapaReply, error)
 	SwInterfaceGetTable(ctx context.Context, in *SwInterfaceGetTable) (*SwInterfaceGetTableReply, error)
 	SwInterfaceRxPlacementDump(ctx context.Context, in *SwInterfaceRxPlacementDump) (RPCService_SwInterfaceRxPlacementDumpClient, error)
 	SwInterfaceSetDefaultRxMode(ctx context.Context, in *SwInterfaceSetDefaultRxMode) (*SwInterfaceSetDefaultRxModeReply, error)
 	SwInterfaceSetFlags(ctx context.Context, in *SwInterfaceSetFlags) (*SwInterfaceSetFlagsReply, error)
 	SwInterfaceSetInterfaceName(ctx context.Context, in *SwInterfaceSetInterfaceName) (*SwInterfaceSetInterfaceNameReply, error)
 	SwInterfaceSetIPDirectedBroadcast(ctx context.Context, in *SwInterfaceSetIPDirectedBroadcast) (*SwInterfaceSetIPDirectedBroadcastReply, error)
+	SwInterfaceSetLinkSpeed(ctx context.Context, in *SwInterfaceSetLinkSpeed) (*SwInterfaceSetLinkSpeedReply, error)
 	SwInterfaceSetMacAddress(ctx context.Context, in *SwInterfaceSetMacAddress) (*SwInterfaceSetMacAddressReply, error)
 	SwInterfaceSetMtu(ctx context.Context, in *SwInterfaceSetMtu) (*SwInterfaceSetMtuReply, error)
 	SwInterfaceSetPromisc(ctx context.Context, in *SwInterfaceSetPromisc) (*SwInterfaceSetPromiscReply, error)
@@ -284,6 +286,15 @@ func (c *serviceClient) SwInterfaceGetMacAddress(ctx context.Context, in *SwInte
 	return out, api.RetvalToVPPApiError(out.Retval)
 }
 
+func (c *serviceClient) SwInterfaceGetSpeedCapa(ctx context.Context, in *SwInterfaceGetSpeedCapa) (*SwInterfaceGetSpeedCapaReply, error) {
+	out := new(SwInterfaceGetSpeedCapaReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
 func (c *serviceClient) SwInterfaceGetTable(ctx context.Context, in *SwInterfaceGetTable) (*SwInterfaceGetTableReply, error) {
 	out := new(SwInterfaceGetTableReply)
 	err := c.conn.Invoke(ctx, in, out)
@@ -365,6 +376,15 @@ func (c *serviceClient) SwInterfaceSetInterfaceName(ctx context.Context, in *SwI
 
 func (c *serviceClient) SwInterfaceSetIPDirectedBroadcast(ctx context.Context, in *SwInterfaceSetIPDirectedBroadcast) (*SwInterfaceSetIPDirectedBroadcastReply, error) {
 	out := new(SwInterfaceSetIPDirectedBroadcastReply)
+	err := c.conn.Invoke(ctx, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, api.RetvalToVPPApiError(out.Retval)
+}
+
+func (c *serviceClient) SwInterfaceSetLinkSpeed(ctx context.Context, in *SwInterfaceSetLinkSpeed) (*SwInterfaceSetLinkSpeedReply, error) {
+	out := new(SwInterfaceSetLinkSpeedReply)
 	err := c.conn.Invoke(ctx, in, out)
 	if err != nil {
 		return nil, err

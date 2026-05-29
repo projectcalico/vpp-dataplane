@@ -1,7 +1,9 @@
-VPP Version                 : 26.06-rc0~589-gf6ca8f28f
+VPP Version                 : 26.10-rc0~41-gceefe07fd
 Binapi-generator version    : v0.11.0
-VPP Base commit             : 08c0922e9 gerrit:42343/2 vcl: LDP default to regular option
+VPP Base commit             : b8be30b39 af_xdp: cleanup fds and netns on error
 ------------------ Cherry picked commits --------------------
+calicovpp plugin:pbl
+calicovpp plugin:ip_ttl_fixup
 interface: add buffer stats api
 npol: add matched rule id to acl trace
 ip-neighbor: preserve interface LL receive DPO for self link-local
@@ -12,4 +14,88 @@ gerrit:45099/2 ip6-nd: add nd-proxy all dst
 gerrit:44903/1 vxlan: reset next_dpo on delete
 gerrit:44350/3 vnet: fix unicast NA handling in ND proxy
 gerrit:42343/2 vcl: LDP default to regular option
+hsa: http proxy client do tx event after connected
+soft-rss: add handoff queue full node error counter
+http: h3 tunnel half-close fix
+hsa: http cli event timeout improvement
+tests: skip discover tests in hs-test folder
+sfdp_services_sample: move sfdp samples to plugin
+vlib: fetch multiple fuse messages in vlib_fuse_read
+perftool: fix c2cpel
+tap: infer single queue from queue counts
+vnet: add set interface link speed API
+session: increase number of dgrams per dispatch
+http: improve error path hst coverage
+svm: Fix svm_msg_q_timedwait fractional timeout precision loss
+tcp: fix order of events on app shutdown sequence
+hs-test: add app-namespace VCL echo tests
+octeon: ensure 64KB alignment for BAR mappings
+sfdp: guard packet bit shifts in lookup
+lb: Allow setting weight on AS
+iavf: add L4 checksum offload on RX
+lb: API bugfix
+docs: update install from packagecloud for stable/2606
+dpdk: add Intel QAT 420xx series support
+snort: fix daq instance enumeration
+octeon: implement hardware traffic management
+tm: add 'mark_flow' action for traffic management
+hs-test: add connect-tcp fin drain tests
+hsa: preserve proxy tunnel half-close
+build: support compiler-known platforms
+dev: add rx queue assignment policy
+misc: Initial 26.10-rc0 commit
+tm: add tm framework for hw traffic management
+octeon: update octeon roc version
+sfdp: fix FIN with payload in l4-lifecycle
+build: populate VPPConfig.cmake with dirs and platform selection
+http: per-thread rx and tx buffers resizing fix
+http: h1 parse request line fix path len underflow
+hsa: builtin echo fix tls bidirectional test stuck
+hsa: builtin echo server stream rx do deq ntf
+http: h2 connect-tcp handling of tcp fin fix
+http: h2 always unschedule connection when closing
+ip: fix reassembly bugs, add extended SV reass CLI and tests
+ip: fix reassembly bugs and add tests
+tests: stream and harden log expansion to avoid OOM hang
+stats: stat_segment_ls_r() only return NULL on error
+stats: don't leak regcomp() allocated memory
+build: fix make install-*-deps breakage on ubuntu 26.04
+cnat: mark no_return sessions as done in writeback
+ping: set LOCALLY_ORIGINATED flag on cli-initiated ping packets.
+wireguard: use alg variant DPDK cryptodev handles
+hs-test: Http3ClientFailedConnectMWTest fix
+kube-test: update latest CalicoVPP release to v3.32.0
+vppinfra: support high NUMA node IDs in discovery
+build: Fix error message
+sfdp_services: add l4-lifecycle tests
+quic: quic quicly crypto decrypt pkt improvement
+quic: configurable respect_app_limited parameter
+http: http_decode_varint loop unrolling
+tcp: fix goal size computation
+session: fix ct fifo cleanup for failed connects
+tls: fix picotls crash paths
+sfdp: add tests helper class
+cnat: update api version
+policer: avoid redundant l2_overhead array access on TX path
+memif: fix free_slots underflow in TX
+ipsec: add bound check on pad length received in esp footer
+memif: add jumbo frames test and fix test_memif_ping
+crypto: fix ctx engine key data leak on re-key
+http: h3 do not use http_timer, quic has timer
+quic: allow app to set some settings via ext cfg
+http: h3 program tx evt after state machine loop
+hsa: fix vts ctrl session access after pool free
+pci: fix MSI IRQ disabling
+build: add platform cmake file for icelake-server
+iavf: fix REQUEST_QUEUES timeout and irq guards
+vcl: vcl sapi ignoring tls-engine config
+vppinfra: initialize vm map header before publishing it
+snort: add support for IPv6
+vppapigen: union endian generation
+quic: fix vnet_crypto key management, add tests
+http: h2 program tx evt directly in update_time_cb
+http: http3_conn_init pool grow fix
+cnat: make snat policy del paths re-entrant
+dpdk: enable MBUF_FAST_FREE TX offload when multi-seg is disabled
+af_xdp: cleanup fds and netns on error
 -------------------------------------------------------------
