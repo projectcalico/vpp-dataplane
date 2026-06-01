@@ -477,8 +477,8 @@ go.etcd.io/etcd/client/pkg/v3 v3.6.8 h1:Qs/5C0LNFiqXxYf2GU8MVjYUEXJ6sZaYOz0zEqQg
 go.etcd.io/etcd/client/pkg/v3 v3.6.8/go.mod h1:GsiTRUZE2318PggZkAo6sWb6l8JLVrnckTNfbG8PWtw=
 go.etcd.io/etcd/client/v3 v3.6.8 h1:B3G76t1UykqAOrbio7s/EPatixQDkQBevN8/mwiplrY=
 go.etcd.io/etcd/client/v3 v3.6.8/go.mod h1:MVG4BpSIuumPi+ELF7wYtySETmoTWBHVcDoHdVupwt8=
-go.fd.io/govpp v0.11.0 h1:foIAJ7dF8QIi6TBizWdBLjaQtMnVcO/dQH0orY1/s/Q=
-go.fd.io/govpp v0.11.0/go.mod h1:QAgM1RCcEj/RSUIr/BjRVa1Dy/bjEMUYYUm5J/uTPKo=
+go.fd.io/govpp v0.13.0 h1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=
+go.fd.io/govpp v0.13.0/go.mod h1:MQw6XdULE9qJiqYzIUXPSVyOGWCwVLMhhFRjcf+9hmM=
 go.fd.io/govpp/extras v0.1.0 h1:vY9nWLGGHD8VoEaL47sP8sQTNBWNE0mN0aERixEUzBE=
 go.fd.io/govpp/extras v0.1.0/go.mod h1:s2FPOGIWR+p3ItFhlC2Zgbw1U5HwZxNYLffeK8Ld/kE=
 go.opencensus.io v0.22.3/go.mod h1:yxeiOL68Rb0Xd1ddK5vPZ/oVn4vY4Ynel7k9FzqtOIw=
