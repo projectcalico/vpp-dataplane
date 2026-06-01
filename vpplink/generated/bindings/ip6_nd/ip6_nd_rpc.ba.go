@@ -48,9 +48,11 @@ func (c *serviceClient) IP6ndProxyDump(ctx context.Context, in *IP6ndProxyDump) 
 	}
 	x := &serviceClient_IP6ndProxyDumpClient{stream}
 	if err := x.Stream.SendMsg(in); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	return x, nil
@@ -80,6 +82,7 @@ func (c *serviceClient_IP6ndProxyDumpClient) Recv() (*IP6ndProxyDetails, error) 
 		}
 		return nil, io.EOF
 	default:
+		c.Stream.Close()
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
 }
@@ -127,9 +130,11 @@ func (c *serviceClient) SwInterfaceIP6ndRaDump(ctx context.Context, in *SwInterf
 	}
 	x := &serviceClient_SwInterfaceIP6ndRaDumpClient{stream}
 	if err := x.Stream.SendMsg(in); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	return x, nil
@@ -159,6 +164,7 @@ func (c *serviceClient_SwInterfaceIP6ndRaDumpClient) Recv() (*SwInterfaceIP6ndRa
 		}
 		return nil, io.EOF
 	default:
+		c.Stream.Close()
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
 }

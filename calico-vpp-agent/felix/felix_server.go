@@ -29,6 +29,7 @@ import (
 	"github.com/pkg/errors"
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	"github.com/sirupsen/logrus"
+	"go.fd.io/govpp/adapter"
 	"gopkg.in/tomb.v2"
 
 	nettypes "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -126,7 +127,7 @@ type Server struct {
 }
 
 // NewFelixServer creates a felix server
-func NewFelixServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
+func NewFelixServer(vpp *vpplink.VppLink, statsclient adapter.StatsAPI, log *logrus.Entry) (*Server, error) {
 	var err error
 
 	server := &Server{
@@ -155,7 +156,7 @@ func NewFelixServer(vpp *vpplink.VppLink, log *logrus.Entry) (*Server, error) {
 		nodeStatesByName:  make(map[string]*common.LocalNodeSpec),
 		GotOurNodeBGPchan: make(chan interface{}),
 
-		prometheusServer: prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"component": "prometheus"})),
+		prometheusServer: prometheus.NewPrometheusServer(vpp, statsclient, log.WithFields(logrus.Fields{"component": "prometheus"})),
 	}
 
 	reg := common.RegisterHandler(server.felixServerEventChan, "felix server events")

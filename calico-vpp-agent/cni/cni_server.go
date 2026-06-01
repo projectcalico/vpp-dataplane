@@ -30,6 +30,8 @@ import (
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	"github.com/projectcalico/calico/felix/proto"
 	"github.com/sirupsen/logrus"
+	"go.fd.io/govpp/api"
+	"go.fd.io/govpp/core"
 	"google.golang.org/grpc"
 	"gopkg.in/tomb.v2"
 
@@ -46,6 +48,9 @@ type Server struct {
 	cniproto.UnimplementedCniDataplaneServer
 	log *logrus.Entry
 	vpp *vpplink.VppLink
+	// statsConn is the shared, long-lived VPP stats-segment
+	// connection established once in the agent main routine.
+	statsConn *core.StatsConnection
 
 	felixServerIpam common.FelixServerIpam
 
@@ -165,11 +170,35 @@ func (s *Server) fetchNDataThreads() {
 }
 
 func (s *Server) FetchBufferConfig() {
-	availableBuffers, _, _, err := s.vpp.GetBufferStats()
+	availableBuffers, err := s.fetchAvailableBuffers()
 	if err != nil {
 		s.log.WithError(err).Errorf("could not get available buffers")
+		return
 	}
-	s.availableBuffers = uint64(availableBuffers)
+	s.availableBuffers = availableBuffers
+}
+
+func (s *Server) fetchAvailableBuffers() (uint64, error) {
+	if s.statsConn == nil {
+		return 0, errors.New("stats connection is nil")
+	}
+
+	stats := &api.BufferStats{}
+	if err := s.statsConn.GetBufferStats(stats); err != nil {
+		return 0, errors.Wrap(err, "failed to get VPP buffer stats")
+	}
+	if len(stats.Buffer) == 0 {
+		return 0, errors.New("no VPP buffer pools returned")
+	}
+
+	var totalAvailableBuffers uint64
+	for poolName, pool := range stats.Buffer {
+		if pool.Available < 0 {
+			return 0, errors.Errorf("unexpected negative available buffer count for pool %s: %f", poolName, pool.Available)
+		}
+		totalAvailableBuffers += uint64(pool.Available)
+	}
+	return totalAvailableBuffers, nil
 }
 
 func (s *Server) rescanState() {
@@ -286,10 +315,11 @@ func (s *Server) Del(ctx context.Context, request *cniproto.DelRequest) (*cnipro
 }
 
 // Serve runs the grpc server for the Calico CNI backend API
-func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, log *logrus.Entry) *Server {
+func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, statsConn *core.StatsConnection, log *logrus.Entry) *Server {
 	server := &Server{
-		vpp: vpp,
-		log: log,
+		vpp:       vpp,
+		statsConn: statsConn,
+		log:       log,
 
 		felixServerIpam: felixServerIpam,
 		cniEventChan:    make(chan common.CalicoVppEvent, common.ChanSize),
