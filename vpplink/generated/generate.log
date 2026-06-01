@@ -1,10 +1,9 @@
-VPP Version                 : 26.10-rc0~41-g3f188bc18
-Binapi-generator version    : v0.13.0
+VPP Version                 : 26.10-rc0~40-g13ebee506
+Binapi-generator version    : v0.14.0-dev
 VPP Base commit             : 3cf5adc8e build: populate VPPConfig.cmake with dirs and platform selection
 ------------------ Cherry picked commits --------------------
 calicovpp plugin:pbl
 calicovpp plugin:ip_ttl_fixup
-interface: add buffer stats api
 npol: add matched rule id to acl trace
 ip-neighbor: preserve interface LL receive DPO for self link-local
 acl: acl-plugin custom policies

@@ -28,7 +28,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"go.fd.io/govpp/adapter"
-	"go.fd.io/govpp/adapter/statsclient"
 	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
@@ -47,13 +46,13 @@ type PrometheusServer struct {
 	vpp                             *vpplink.VppLink
 	podInterfacesDetailsBySwifIndex map[uint32]podInterfaceDetails
 	podInterfacesByKey              map[string]model.LocalPodSpec
-	statsclient                     *statsclient.StatsClient
+	statsclient                     adapter.StatsAPI
 	lock                            sync.Mutex
 	httpServer                      *http.Server
 	exporter                        *prometheusExporter.Exporter
 }
 
-func NewPrometheusServer(vpp *vpplink.VppLink, log *logrus.Entry) *PrometheusServer {
+func NewPrometheusServer(vpp *vpplink.VppLink, statsclient adapter.StatsAPI, log *logrus.Entry) *PrometheusServer {
 	exporter, err := prometheusExporter.New(prometheusExporter.Options{})
 	if err != nil {
 		log.Fatalf("Failed to create new exporter: %v", err)
@@ -65,7 +64,7 @@ func NewPrometheusServer(vpp *vpplink.VppLink, log *logrus.Entry) *PrometheusSer
 		vpp:                             vpp,
 		podInterfacesByKey:              make(map[string]model.LocalPodSpec),
 		podInterfacesDetailsBySwifIndex: make(map[uint32]podInterfaceDetails),
-		statsclient:                     statsclient.NewStatsClient("" /* default socket name */),
+		statsclient:                     statsclient,
 		httpServer: &http.Server{
 			Addr:    config.GetCalicoVppInitialConfig().PrometheusListenEndpoint,
 			Handler: mux,
@@ -459,10 +458,8 @@ func (p *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 		return nil
 	}
 	p.log.Infof("Serve() Prometheus exporter")
-
-	err := p.statsclient.Connect()
-	if err != nil {
-		return errors.Wrap(err, "could not connect statsclient")
+	if p.statsclient == nil {
+		return errors.New("stats client is nil")
 	}
 
 	go func() {
@@ -480,7 +477,7 @@ func (p *PrometheusServer) ServePrometheus(t *tomb.Tomb) error {
 	}
 	ticker.Stop()
 	p.log.Warn("Prometheus Server returned")
-	err = p.httpServer.Shutdown(context.Background())
+	err := p.httpServer.Shutdown(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "Could not shutdown http server")
 	}

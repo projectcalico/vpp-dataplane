@@ -64,9 +64,11 @@ func (c *serviceClient) SrLocalsidsDump(ctx context.Context, in *SrLocalsidsDump
 	}
 	x := &serviceClient_SrLocalsidsDumpClient{stream}
 	if err := x.Stream.SendMsg(in); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	return x, nil
@@ -96,6 +98,7 @@ func (c *serviceClient_SrLocalsidsDumpClient) Recv() (*SrLocalsidsDetails, error
 		}
 		return nil, io.EOF
 	default:
+		c.Stream.Close()
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
 }
@@ -107,9 +110,11 @@ func (c *serviceClient) SrLocalsidsWithPacketStatsDump(ctx context.Context, in *
 	}
 	x := &serviceClient_SrLocalsidsWithPacketStatsDumpClient{stream}
 	if err := x.Stream.SendMsg(in); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	return x, nil
@@ -139,6 +144,7 @@ func (c *serviceClient_SrLocalsidsWithPacketStatsDumpClient) Recv() (*SrLocalsid
 		}
 		return nil, io.EOF
 	default:
+		c.Stream.Close()
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
 }
@@ -150,9 +156,11 @@ func (c *serviceClient) SrPoliciesDump(ctx context.Context, in *SrPoliciesDump) 
 	}
 	x := &serviceClient_SrPoliciesDumpClient{stream}
 	if err := x.Stream.SendMsg(in); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	return x, nil
@@ -182,6 +190,7 @@ func (c *serviceClient_SrPoliciesDumpClient) Recv() (*SrPoliciesDetails, error) 
 		}
 		return nil, io.EOF
 	default:
+		c.Stream.Close()
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
 }
@@ -193,9 +202,11 @@ func (c *serviceClient) SrPoliciesV2Dump(ctx context.Context, in *SrPoliciesV2Du
 	}
 	x := &serviceClient_SrPoliciesV2DumpClient{stream}
 	if err := x.Stream.SendMsg(in); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	return x, nil
@@ -225,6 +236,7 @@ func (c *serviceClient_SrPoliciesV2DumpClient) Recv() (*SrPoliciesV2Details, err
 		}
 		return nil, io.EOF
 	default:
+		c.Stream.Close()
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
 }
@@ -236,9 +248,11 @@ func (c *serviceClient) SrPoliciesWithSlIndexDump(ctx context.Context, in *SrPol
 	}
 	x := &serviceClient_SrPoliciesWithSlIndexDumpClient{stream}
 	if err := x.Stream.SendMsg(in); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	return x, nil
@@ -268,6 +282,7 @@ func (c *serviceClient_SrPoliciesWithSlIndexDumpClient) Recv() (*SrPoliciesWithS
 		}
 		return nil, io.EOF
 	default:
+		c.Stream.Close()
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
 }
@@ -351,9 +366,11 @@ func (c *serviceClient) SrSteeringPolDump(ctx context.Context, in *SrSteeringPol
 	}
 	x := &serviceClient_SrSteeringPolDumpClient{stream}
 	if err := x.Stream.SendMsg(in); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	if err = x.Stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		x.Stream.Close()
 		return nil, err
 	}
 	return x, nil
@@ -383,6 +400,7 @@ func (c *serviceClient_SrSteeringPolDumpClient) Recv() (*SrSteeringPolDetails, e
 		}
 		return nil, io.EOF
 	default:
+		c.Stream.Close()
 		return nil, fmt.Errorf("unexpected message: %T %v", m, m)
 	}
 }

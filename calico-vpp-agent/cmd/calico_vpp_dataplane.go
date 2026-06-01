@@ -29,6 +29,8 @@ import (
 	felixconfig "github.com/projectcalico/calico/felix/config"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
+	"go.fd.io/govpp/adapter/statsclient"
+	"go.fd.io/govpp/core"
 	"google.golang.org/grpc"
 	"gopkg.in/tomb.v2"
 	"k8s.io/client-go/kubernetes"
@@ -107,6 +109,17 @@ func main() {
 	}
 	healthServer.SetComponentStatus(health.ComponentVPPManager, true, "VPP Manager ready")
 
+	// Open the VPP stats segment exactly once for the lifetime of the
+	// agent. Both consumers (CNI buffer admission via *core.StatsConnection
+	// and Prometheus metric scrape via adapter.StatsAPI.DumpStats) share
+	// this single underlying connection.
+	statsClient := statsclient.NewStatsClient(*config.VppStatsSocket)
+	statsConn, err := core.ConnectStats(statsClient)
+	if err != nil {
+		log.Fatalf("Cannot connect to VPP stats segment: %v", err)
+	}
+	defer statsConn.Disconnect()
+
 	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 
 	/**
@@ -152,7 +165,7 @@ func main() {
 	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
-	felixServer, err := felix.NewFelixServer(vpp, log.WithFields(logrus.Fields{"component": "felix"}))
+	felixServer, err := felix.NewFelixServer(vpp, statsClient, log.WithFields(logrus.Fields{"component": "felix"}))
 	if err != nil {
 		log.Fatalf("Failed to create felix server %s", err)
 	}
@@ -161,7 +174,7 @@ func main() {
 		log.Fatalf("could not install felix plugin: %s", err)
 	}
 	connectivityServer := connectivity.NewConnectivityServer(vpp, felixServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
-	cniServer := cni.NewCNIServer(vpp, felixServer, log.WithFields(logrus.Fields{"component": "cni"}))
+	cniServer := cni.NewCNIServer(vpp, felixServer, statsConn, log.WithFields(logrus.Fields{"component": "cni"}))
 
 	/* Pubsub should now be registered */
 

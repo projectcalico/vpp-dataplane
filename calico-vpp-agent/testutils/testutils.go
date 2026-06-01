@@ -34,6 +34,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"go.fd.io/govpp/adapter/statsclient"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
@@ -307,7 +308,7 @@ func IPFamilyIndex(ipFamily vpplink.IPFamily) int {
 func StartVPP() {
 	// Create PID-based subdirectory within the /tmp/prometheus-tests-vpp/
 	// mounted volume to ensure uniqueness across parallel test runs
-	pidSubdir := "/tmp/prometheus-tests-vpp/" + strconv.Itoa(os.Getpid())
+	pidSubdir := VPPStatsSocketDir()
 	err := os.MkdirAll(pidSubdir, 0755)
 	Expect(err).Should(BeNil(), "Failed to create PID subdirectory")
 
@@ -359,10 +360,25 @@ func StartVPP() {
 	Expect(err).Should(BeNil(), "Failed to start VPP inside docker container")
 }
 
+func VPPStatsSocketDir() string {
+	return "/tmp/prometheus-tests-vpp/" + strconv.Itoa(os.Getpid())
+}
+
+func VPPStatsSocketPath() string {
+	return filepath.Join(VPPStatsSocketDir(), "stats.sock")
+}
+
+func NewStatsClient() *statsclient.StatsClient {
+	statsClient := statsclient.NewStatsClient(VPPStatsSocketPath())
+	err := statsClient.Connect()
+	Expect(err).ToNot(HaveOccurred(), "Cannot create VPP stats client")
+	return statsClient
+}
+
 // ConfigureVPP connects to VPP and configures it with common configuration needed for tests
 func ConfigureVPP(log *logrus.Logger) (vpp *vpplink.VppLink, uplinkSwIfIndex uint32) {
 	// connect to VPP using PID-based subdirectory path
-	pidSubdir := "/tmp/prometheus-tests-vpp/" + strconv.Itoa(os.Getpid())
+	pidSubdir := VPPStatsSocketDir()
 	vpp, err := common.CreateVppLinkInRetryLoop(pidSubdir+"/vpp-api-test.sock",
 		log.WithFields(logrus.Fields{"component": "vpp-api"}), 20*time.Second, 100*time.Millisecond)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Cannot create VPP client: %v", err))
