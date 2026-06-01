@@ -28,6 +28,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
+	"go.fd.io/govpp/adapter/statsclient"
 	"gopkg.in/tomb.v2"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/cni/model"
@@ -87,6 +88,7 @@ var _ = Describe("Prometheus exporter functionality", func() {
 	var (
 		log              *logrus.Logger
 		vpp              *vpplink.VppLink
+		stats            *statsclient.StatsClient
 		prometheusServer *prometheus.PrometheusServer
 		testTomb         *tomb.Tomb
 		uplinkSwIfIndex  uint32
@@ -110,28 +112,10 @@ var _ = Describe("Prometheus exporter functionality", func() {
 		testutils.StartVPP()
 		vpp, uplinkSwIfIndex = testutils.ConfigureVPP(log)
 
-		// Wait for VPP stats socket to become available
-		pidSubdir := "/tmp/prometheus-tests-vpp/" + strconv.Itoa(os.Getpid())
-		waitForStatsSocket(pidSubdir+"/stats.sock", 2*time.Second)
-
-		// Create a symlink from the expected location to the actual stats socket location
-		// This is a workaround for the issue where the statsclient expects /run/vpp/stats.sock
-		// but our test VPP container has this at /tmp/prometheus-tests-vpp/<PID>/stats.sock
-		actualSocketPath := pidSubdir + "/stats.sock"
-		expectedSocketPath := "/run/vpp/stats.sock"
-
-		// Create the directory if it doesn't exist
-		os.MkdirAll("/run/vpp", 0755)
-
-		// Remove any existing file/symlink and create a new symlink
-		os.Remove(expectedSocketPath)
-		err := os.Symlink(actualSocketPath, expectedSocketPath)
-		if err != nil {
-			fmt.Printf("Warning: Could not create symlink for stats socket: %v\n", err)
-		}
+		stats = testutils.NewStatsClient()
 
 		// Create prometheus server
-		prometheusServer = prometheus.NewPrometheusServer(vpp, log.WithFields(logrus.Fields{"subcomponent": "prometheus"}))
+		prometheusServer = prometheus.NewPrometheusServer(vpp, stats, log.WithFields(logrus.Fields{"subcomponent": "prometheus"}))
 
 		// Add some fake containers to test interface stats using actual VPP interface indices
 		// Use the uplink interface (tap0) and local0 interface for testing
@@ -167,8 +151,9 @@ var _ = Describe("Prometheus exporter functionality", func() {
 			testTomb.Wait()
 		}
 
-		// Clean up the symlink we created
-		os.Remove("/run/vpp/stats.sock")
+		if stats != nil {
+			stats.Disconnect()
+		}
 
 		// Clean up the VPP container
 		testutils.TeardownVPP()

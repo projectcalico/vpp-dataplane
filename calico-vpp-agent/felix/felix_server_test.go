@@ -79,7 +79,7 @@ var _ = Describe("Felix functionality", func() {
 		CreateLoopbackAndTaggingItAsMain(vpp, log)
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 		var err error
-		felixServer, err = NewFelixServer(vpp, log.WithFields(logrus.Fields{"component": "policy"}))
+		felixServer, err = NewFelixServer(vpp, nil, log.WithFields(logrus.Fields{"component": "policy"}))
 		if err != nil {
 			log.Fatalf("Failed to create felix server %s", err)
 		}
@@ -90,10 +90,6 @@ var _ = Describe("Felix functionality", func() {
 	})
 
 	AfterEach(func() {
-
-		// Clean up the symlink we created
-		os.Remove("/run/vpp/stats.sock")
-
 		// Clean up the VPP container
 		testutils.TeardownVPP()
 	})
