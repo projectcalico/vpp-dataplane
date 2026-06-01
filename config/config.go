@@ -143,6 +143,7 @@ var (
 	CalicoVppInitialConfig           = JSONEnvVar("CALICOVPP_INITIAL_CONFIG", &CalicoVppInitialConfigConfigType{})
 	CalicoVppGracefulShutdownTimeout = EnvVar("CALICOVPP_GRACEFUL_SHUTDOWN_TIMEOUT", 10*time.Second, time.ParseDuration)
 	LogFormat                        = StringEnvVar("CALICOVPP_LOG_FORMAT", "")
+	VppStatsSocket                   = StringEnvVar("CALICOVPP_STATS_SOCKET", "")
 
 	/* Deprecated vars */
 	/* linux name of the uplink interface to be used by VPP */

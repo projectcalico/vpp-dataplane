@@ -29,6 +29,7 @@ import (
 	felixconfig "github.com/projectcalico/calico/felix/config"
 	calicov3cli "github.com/projectcalico/calico/libcalico-go/lib/clientv3"
 	"github.com/sirupsen/logrus"
+	"go.fd.io/govpp/adapter/statsclient"
 	"google.golang.org/grpc"
 	"gopkg.in/tomb.v2"
 	"k8s.io/client-go/kubernetes"
@@ -107,6 +108,17 @@ func main() {
 	}
 	healthServer.SetComponentStatus(health.ComponentVPPManager, true, "VPP Manager ready")
 
+	statsClient := statsclient.NewStatsClient(*config.VppStatsSocket)
+	err = statsClient.Connect()
+	if err != nil {
+		log.Fatalf("Cannot create VPP stats client: %v", err)
+	}
+	defer func() {
+		if err := statsClient.Disconnect(); err != nil {
+			log.Warnf("Failed to disconnect VPP stats client: %v", err)
+		}
+	}()
+
 	common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
 
 	/**
@@ -152,7 +164,7 @@ func main() {
 	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
 	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
-	felixServer, err := felix.NewFelixServer(vpp, log.WithFields(logrus.Fields{"component": "felix"}))
+	felixServer, err := felix.NewFelixServer(vpp, statsClient, log.WithFields(logrus.Fields{"component": "felix"}))
 	if err != nil {
 		log.Fatalf("Failed to create felix server %s", err)
 	}
@@ -161,7 +173,7 @@ func main() {
 		log.Fatalf("could not install felix plugin: %s", err)
 	}
 	connectivityServer := connectivity.NewConnectivityServer(vpp, felixServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
-	cniServer := cni.NewCNIServer(vpp, felixServer, log.WithFields(logrus.Fields{"component": "cni"}))
+	cniServer := cni.NewCNIServer(vpp, felixServer, statsClient, log.WithFields(logrus.Fields{"component": "cni"}))
 
 	/* Pubsub should now be registered */
 
