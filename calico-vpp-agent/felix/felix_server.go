@@ -110,6 +110,12 @@ type Server struct {
 	ippoolmap  map[string]*proto.IPAMPool
 	ippoolLock sync.RWMutex
 
+	// snatAddressSet is true once CnatSetSnatAddresses has been called for the
+	// local node. SNAT prefix operations that arrive before it are queued here
+	// and replayed immediately after the address is set.
+	snatAddressSet      bool
+	pendingSnatPrefixes []pendingSnatPrefix
+
 	nodeStatesByName  map[string]*common.LocalNodeSpec
 	nodeByWGPublicKey map[string]string
 
@@ -1209,6 +1215,15 @@ func (s *Server) handleHostMetadataV4V6Update(msg *proto.HostMetadataV4V6Update,
 		if err != nil {
 			s.log.Errorf("Failed to configure SNAT addresses %v", err)
 		}
+		if !s.snatAddressSet && err == nil {
+			s.snatAddressSet = true
+			for _, p := range s.pendingSnatPrefixes {
+				if err2 := s.addDelSnatPrefixForIPPool(p.pool, p.isAdd); err2 != nil {
+					s.log.Errorf("error replaying deferred snat prefix: %v", err2)
+				}
+			}
+			s.pendingSnatPrefixes = nil
+		}
 		/* We found a BGP Spec that seems valid enough */
 		s.GotOurNodeBGPchanOnce.Do(func() {
 			s.GotOurNodeBGPchan <- localNodeSpec
@@ -1290,8 +1305,8 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate, pending bool) (
 		if newIpamPool.GetCidr() != oldIpamPool.GetCidr() ||
 			newIpamPool.GetMasquerade() != oldIpamPool.GetMasquerade() {
 			var err, err2 error
-			err = s.addDelSnatPrefixForIPPool(oldIpamPool, false /* isAdd */)
-			err2 = s.addDelSnatPrefixForIPPool(newIpamPool, true /* isAdd */)
+			err = s.addDelSnatPrefixForIPPoolOrDefer(oldIpamPool, false /* isAdd */)
+			err2 = s.addDelSnatPrefixForIPPoolOrDefer(newIpamPool, true /* isAdd */)
 			if err != nil || err2 != nil {
 				return errors.Errorf("error updating snat prefix del:%s, add:%s", err, err2)
 			}
@@ -1305,7 +1320,7 @@ func (s *Server) handleIpamPoolUpdate(msg *proto.IPAMPoolUpdate, pending bool) (
 		s.log.Infof("Adding pool: %s, nat:%t", msg.GetId(), newIpamPool.GetMasquerade())
 		s.ippoolmap[msg.GetId()] = newIpamPool
 		s.log.Debugf("Pool %v Added, handler called", msg)
-		err = s.addDelSnatPrefixForIPPool(newIpamPool, true /* isAdd */)
+		err = s.addDelSnatPrefixForIPPoolOrDefer(newIpamPool, true /* isAdd */)
 		if err != nil {
 			return errors.Wrap(err, "error handling ipam add")
 		}
@@ -1331,7 +1346,7 @@ func (s *Server) handleIpamPoolRemove(msg *proto.IPAMPoolRemove, pending bool) (
 		delete(s.ippoolmap, msg.GetId())
 		s.log.Infof("Deleting pool: %s", msg.GetId())
 		s.log.Debugf("Pool %s deleted, handler called", oldIpamPool.Cidr)
-		err = s.addDelSnatPrefixForIPPool(oldIpamPool, false /* isAdd */)
+		err = s.addDelSnatPrefixForIPPoolOrDefer(oldIpamPool, false /* isAdd */)
 		if err != nil {
 			return errors.Wrap(err, "error handling ipam deletion")
 		}
@@ -1374,6 +1389,23 @@ func ipamPoolEquals(a *proto.IPAMPool, b *proto.IPAMPool) bool {
 		return false
 	}
 	return true
+}
+
+type pendingSnatPrefix struct {
+	pool  *proto.IPAMPool
+	isAdd bool
+}
+
+// addDelSnatPrefixForIPPoolOrDefer calls addDelSnatPrefixForIPPool if the SNAT
+// address has already been configured, otherwise queues the operation for replay
+// once handleHostMetadataV4V6Update sets it. This prevents CnatAddDelSnatPrefix
+// from being called before CnatSetSnatAddresses during the initial Felix sync.
+func (s *Server) addDelSnatPrefixForIPPoolOrDefer(pool *proto.IPAMPool, isAdd bool) error {
+	if !s.snatAddressSet {
+		s.pendingSnatPrefixes = append(s.pendingSnatPrefixes, pendingSnatPrefix{pool: pool, isAdd: isAdd})
+		return nil
+	}
+	return s.addDelSnatPrefixForIPPool(pool, isAdd)
 }
 
 // addDelSnatPrefixForIPPool configures IP Pool prefixes so that we don't source-NAT the packets going
