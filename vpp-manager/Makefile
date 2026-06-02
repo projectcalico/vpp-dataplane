@@ -154,7 +154,7 @@ clean: clean-vpp
 
 .PHONY: clone-vpp
 clone-vpp:
-	BASE=$(BASE) bash $(VPPLINK_DIR)/generated/vpp_clone_current.sh ./vpp_build
+	BASE=$(BASE) bash $(VPPLINK_DIR)/generated/vpp_clone_current.sh $(VPP_DIR)
 
 .PHONY: clean-vpp
 clean-vpp:
