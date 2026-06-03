@@ -169,11 +169,12 @@ func (i *TunTapPodInterfaceDriver) CreateInterface(podSpec *model.LocalPodSpec, 
 	} else {
 		stack.Push(i.vpp.DelTap, swIfIndex)
 	}
-	err = i.SpreadTxQueuesOnWorkers(swIfIndex, tun.NumTxQueues)
-	if err != nil {
-		return err
+	if *(*config.CalicoVppDebug).SpreadTxQueuesOnWorkers {
+		err = i.SpreadTxQueuesOnWorkers(swIfIndex, tun.NumTxQueues)
+		if err != nil {
+			return err
+		}
 	}
-
 	podSpec.TunTapSwIfIndex = swIfIndex
 	i.log.Infof("pod(add) tun swIfIndex=%d", swIfIndex)
 
