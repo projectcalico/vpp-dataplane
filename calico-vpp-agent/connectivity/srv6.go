@@ -403,13 +403,18 @@ func (p *SRv6Provider) delSRPolicy(cn *common.NodeConnectivity) error {
 	// the RFC 9256 candidate-path failover wants the next-best surviving
 	// policy of the same behavior to take over. Re-steer happens below, after
 	// the cache prune, so getPolicyNode sees the post-withdraw state.
-	var orphaned []ip_types.Prefix
+	// Keep the full steering entry (not just the prefix): the failover re-steer
+	// must preserve the FibTable it was installed in. Pod prefixes are steered
+	// in the main table, but the node-IP /128 steering (steerNodeIPViaSID, for
+	// host-network-backed ClusterIPs) lives in PodVRFIndex; re-steering it into
+	// the wrong table would silently break that path after failover.
+	var orphaned []*types.SrSteer
 	for _, bsid := range matched {
 		for _, st := range steering {
 			if st.Bsid != bsid {
 				continue
 			}
-			orphaned = append(orphaned, st.Prefix)
+			orphaned = append(orphaned, st)
 			logDel(fmt.Sprintf("DelSRv6Steering bsid=%s prefix=%s", st.Bsid, st.Prefix), p.vpp.DelSRv6Steering(st))
 		}
 		logDel(fmt.Sprintf("DelSRv6Policy bsid=%s", bsid), p.vpp.DelSRv6Policy(&types.SrPolicy{Bsid: bsid}))
@@ -426,8 +431,8 @@ func (p *SRv6Provider) delSRPolicy(cn *common.NodeConnectivity) error {
 	// install on demand here so multiple orphaned prefixes targeting the same
 	// surviving BSID don't churn the install.
 	installed := make(map[ip_types.IP6Address]struct{})
-	for _, prefix := range orphaned {
-		p.resteerOrphan(nodeip, prefix, installed)
+	for _, st := range orphaned {
+		p.resteerOrphan(nodeip, st, installed)
 	}
 	return nil
 }
@@ -438,8 +443,11 @@ func (p *SRv6Provider) delSRPolicy(cn *common.NodeConnectivity) error {
 // withdrawn higher-priority candidate), so install it on demand — guarded by
 // `installed` so we install at most once per delSRPolicy call. If no candidate
 // remains the prefix is left unsteered and AddConnectivity picks it up when a
-// new candidate is later advertised.
-func (p *SRv6Provider) resteerOrphan(nodeip string, prefix ip_types.Prefix, installed map[ip_types.IP6Address]struct{}) {
+// new candidate is later advertised. The orphan's FibTable is preserved so the
+// node-IP /128 steering stays in PodVRFIndex (and pod prefixes in the main
+// table) across the failover.
+func (p *SRv6Provider) resteerOrphan(nodeip string, orphan *types.SrSteer, installed map[ip_types.IP6Address]struct{}) {
+	prefix := orphan.Prefix
 	behavior := types.SrBehaviorDT4
 	if vpplink.IsIP6(prefix.Address.ToIP()) {
 		behavior = types.SrBehaviorDT6
@@ -460,6 +468,7 @@ func (p *SRv6Provider) resteerOrphan(nodeip string, prefix ip_types.Prefix, inst
 	}
 	srSteer := &types.SrSteer{
 		TrafficType: types.SrSteerIPv4,
+		FibTable:    orphan.FibTable, // preserve the table the orphan was steered in
 		Prefix:      prefix,
 		Bsid:        policy.Bsid,
 	}
@@ -471,8 +480,8 @@ func (p *SRv6Provider) resteerOrphan(nodeip string, prefix ip_types.Prefix, inst
 			prefix.String(), policy.Bsid.String(), err)
 		return
 	}
-	p.log.Infof("SRv6Provider DelConnectivity: re-steered prefix=%s onto surviving bsid=%s behavior=%d",
-		prefix.String(), policy.Bsid.String(), behavior)
+	p.log.Infof("SRv6Provider DelConnectivity: re-steered prefix=%s onto surviving bsid=%s behavior=%d table=%d",
+		prefix.String(), policy.Bsid.String(), behavior, orphan.FibTable)
 }
 
 func (p *SRv6Provider) delPrefixSteering(cn *common.NodeConnectivity) error {

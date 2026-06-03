@@ -296,6 +296,96 @@ func TestDelSRPolicy_FailoverOntoSurvivingCandidate(t *testing.T) {
 	}
 }
 
+// The node-IP /128 steering installed by steerNodeIPViaSID (host-network-backed
+// ClusterIPs, #1028) lives in PodVRFIndex, not the main table. When its DT6
+// policy is withdrawn, the failover must re-steer it into the SAME table —
+// otherwise the host plane silently breaks after a candidate-path switch.
+func TestDelSRPolicy_FailoverPreservesNodeIPSteeringFibTable(t *testing.T) {
+	dst := net.ParseIP("fd00:1::14")
+	winnerBsid := mustBsid(t, "cafe::aa")
+	loserBsid := mustBsid(t, "cafe::bb")
+	nodeIP := mustPrefix(t, "fd00:1::14/128")
+
+	fake := &fakeSRv6VPP{
+		steering: []*types.SrSteer{
+			// node-IP /128 steered in PodVRFIndex onto the DT6 winner.
+			{Bsid: winnerBsid, Prefix: nodeIP, TrafficType: types.SrSteerIPv6, FibTable: common.PodVRFIndex},
+		},
+	}
+	p := newTestProvider(fake)
+	dt6Behavior := uint8(18) // bgpapi.SRv6Behavior_END_DT6
+	p.nodePolices[dst.String()] = &NodeToPolicies{
+		Node: dst,
+		SRv6Tunnel: []common.SRv6Tunnel{
+			{Dst: dst, Color: 6, Distinguisher: 0, Behavior: dt6Behavior, Priority: 100, Policy: &types.SrPolicy{Bsid: winnerBsid}},
+			{Dst: dst, Color: 6, Distinguisher: 1, Behavior: dt6Behavior, Priority: 50, Policy: &types.SrPolicy{Bsid: loserBsid}},
+		},
+	}
+
+	cn := &common.NodeConnectivity{Custom: &common.SRv6Tunnel{Dst: dst, Color: 6, Distinguisher: 0}}
+	if err := p.delSRPolicy(cn); err != nil {
+		t.Fatalf("delSRPolicy: %v", err)
+	}
+
+	if len(fake.addSteering) != 1 {
+		t.Fatalf("expected 1 re-steer; got %d", len(fake.addSteering))
+	}
+	re := fake.addSteering[0]
+	if re.Bsid != loserBsid {
+		t.Fatalf("re-steer BSID = %s, want surviving %s", re.Bsid.String(), loserBsid.String())
+	}
+	if re.FibTable != common.PodVRFIndex {
+		t.Fatalf("re-steer FibTable = %d, want PodVRFIndex (%d): the node-IP steering must stay in the pod VRF after failover",
+			re.FibTable, common.PodVRFIndex)
+	}
+}
+
+// When the node's last DT6 candidate is withdrawn, the node-IP /128 steering
+// (steerNodeIPViaSID, #1028) must be torn down on the same teardown path and
+// NOT re-steered — leaving the host plane to fall back to native routing. This
+// is the teardown half the #1028 note deferred to #1025.
+func TestDelSRPolicy_TearsDownNodeIPSteeringWhenNoSurvivor(t *testing.T) {
+	dst := net.ParseIP("fd00:1::14")
+	bsid := mustBsid(t, "cafe::aa")
+	podPrefix := mustPrefix(t, "fd20::aaaa/128")
+	nodeIP := mustPrefix(t, "fd00:1::14/128")
+
+	fake := &fakeSRv6VPP{
+		steering: []*types.SrSteer{
+			{Bsid: bsid, Prefix: podPrefix, TrafficType: types.SrSteerIPv6},                            // pod prefix in main table
+			{Bsid: bsid, Prefix: nodeIP, TrafficType: types.SrSteerIPv6, FibTable: common.PodVRFIndex}, // node-IP /128 in PodVRFIndex
+		},
+	}
+	p := newTestProvider(fake)
+	dt6Behavior := uint8(18) // bgpapi.SRv6Behavior_END_DT6
+	p.nodePolices[dst.String()] = &NodeToPolicies{
+		Node: dst,
+		SRv6Tunnel: []common.SRv6Tunnel{
+			{Dst: dst, Color: 6, Distinguisher: 0, Behavior: dt6Behavior, Priority: 100, Policy: &types.SrPolicy{Bsid: bsid}},
+		},
+	}
+
+	cn := &common.NodeConnectivity{Custom: &common.SRv6Tunnel{Dst: dst, Color: 6, Distinguisher: 0}}
+	if err := p.delSRPolicy(cn); err != nil {
+		t.Fatalf("delSRPolicy: %v", err)
+	}
+
+	// No surviving candidate → nothing re-steered (no leak into any table).
+	if len(fake.addSteering) != 0 {
+		t.Fatalf("expected no re-steer when no survivor; got %d", len(fake.addSteering))
+	}
+	// The node-IP /128 steering must have been torn down, in PodVRFIndex.
+	foundNodeIP := false
+	for _, st := range fake.delSteering {
+		if st.Prefix.String() == nodeIP.String() && st.FibTable == common.PodVRFIndex {
+			foundNodeIP = true
+		}
+	}
+	if !foundNodeIP {
+		t.Fatalf("node-IP /128 steering in PodVRFIndex was not torn down; deletions=%+v", fake.delSteering)
+	}
+}
+
 func TestDelSRPolicy_NoSurvivingCandidateLeavesPrefixUnsteered(t *testing.T) {
 	dst := net.ParseIP("fd00:1::11")
 	bsid := mustBsid(t, "cafe::4")
