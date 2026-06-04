@@ -277,6 +277,7 @@ var _ = Describe("Felix functionality", func() {
 				if err != nil {
 					log.Errorf("Failed to configure SNAT addresses %v", err)
 				}
+				felixServer.snatAddressSet = true
 				By("adding a new ipam pool")
 				myIpamPool := &proto.IPAMPool{
 					Cidr:     "3.3.0.0/16",
