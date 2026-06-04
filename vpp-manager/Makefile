@@ -62,6 +62,7 @@ VPP_HASH = $(shell md5sum \
 	<(echo '${BASE}') \
 	| cut -f1 -d' ' | md5sum | cut -f1 -d' ')
 VPP_TARBALL = vpp-${VPP_HASH}.tar
+VPP_TARBALL_KEEP ?= 12
 
 .PHONY: all
 all: image
@@ -161,6 +162,15 @@ clean-vpp:
 	git -C $(VPP_DIR) clean -ffdx || true
 	rm -f $(VPP_DIR)/build-root/*.deb
 	rm -f $(VPP_DIR)/build-root/*.buildinfo
+	rm -rf $(CURDIR)/artifacts
+
+.PHONY: clean-vpp-tarballs
+clean-vpp-tarballs:
+	@set -e; \
+	tarballs="$$(ls -1t $(CURDIR)/vpp-*.tar 2>/dev/null | tail -n +$$(( $(VPP_TARBALL_KEEP) + 1 )))"; \
+	if [ -n "$$tarballs" ]; then \
+		echo "$$tarballs" | xargs rm -f; \
+	fi
 
 .PHONY: vpp
 vpp: clone-vpp vpp-build-env version-file
@@ -185,6 +195,7 @@ vpp: clone-vpp vpp-build-env version-file
 	tar --overwrite -cvf ${VPP_TARBALL} -C $(CURDIR) artifacts
 	echo "Built ${VPP_TARBALL}"
 	rm -rf $(CURDIR)/artifacts
+	$(MAKE) clean-vpp-tarballs
 ifdef CI_BUILD
 	aws s3api put-object \
 		--bucket ${VPP_CI_ARTIFACTS_BUCKET} \
