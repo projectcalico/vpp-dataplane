@@ -23,6 +23,36 @@ image-kind: image
 		docker push localhost:5000/calicovpp/$$image ; \
 	done
 
+# vpp: build VPP from source. VPP_DIR overrides the default build location
+# (default: vpp-manager/vpp_build/). BASE overrides the VPP commit.
+.PHONY: vpp
+vpp:
+	$(MAKE) -C vpp-manager $@ VPP_DIR=$(VPP_DIR) BASE=$(BASE)
+
+# kube-test-template: emit a KinD manifest template for kube-test.
+# Bakes in repo layout-specific values (CALICOVPP_AGENT_IMAGE, VPP_BUILD_REL_PATH)
+# so that VPP kube-test does not need to know the repo layout.
+# Old layout: separate images, VPP build at vpp-manager/vpp_build/.
+.PHONY: kube-test-template
+kube-test-template:
+	@CALICOVPP_AGENT_IMAGE=calicovpp/agent VPP_BUILD_REL_PATH=vpp-manager/vpp_build \
+	  envsubst '$$CALICOVPP_AGENT_IMAGE $$VPP_BUILD_REL_PATH' \
+	  < yaml/generated/calico-vpp-kubetest.yaml
+
+# kube-test-push-images: pull this release's CalicoVPP images from docker.io and push
+# to localhost:5000 for kube-test consumption. Called by kube-test release-cluster flow.
+.PHONY: kube-test-push-images
+kube-test-push-images:
+	docker pull docker.io/calicovpp/agent:$(CALICOVPP_VERSION)
+	docker image tag docker.io/calicovpp/agent:$(CALICOVPP_VERSION) localhost:5000/calicovpp/agent:$(CALICOVPP_VERSION)
+	docker push localhost:5000/calicovpp/agent:$(CALICOVPP_VERSION)
+	docker pull docker.io/calicovpp/vpp:$(CALICOVPP_VERSION)
+	docker image tag docker.io/calicovpp/vpp:$(CALICOVPP_VERSION) localhost:5000/calicovpp/vpp:$(CALICOVPP_VERSION)
+	docker push localhost:5000/calicovpp/vpp:$(CALICOVPP_VERSION)
+	docker pull docker.io/calicovpp/multinet-monitor:$(CALICOVPP_VERSION)
+	docker image tag docker.io/calicovpp/multinet-monitor:$(CALICOVPP_VERSION) localhost:5000/calicovpp/multinet-monitor:$(CALICOVPP_VERSION)
+	docker push localhost:5000/calicovpp/multinet-monitor:$(CALICOVPP_VERSION)
+
 .PHONY: kind-cluster-name
 kind-cluster-name:
 	@echo $(CLUSTER_NAME)
