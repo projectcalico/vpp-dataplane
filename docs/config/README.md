@@ -64,9 +64,6 @@ data:
       "defaultGWs": "192.168.0.1",
     }
 
-  # Optional VPP stats segment socket path. Empty uses govpp's default.
-  CALICOVPP_STATS_SOCKET: ""
-
   CALICOVPP_DEBUG: |-
   {
     "servicesEnabled": true,

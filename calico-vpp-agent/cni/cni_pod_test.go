@@ -40,7 +40,6 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 
-	"go.fd.io/govpp/adapter"
 	gomemif "go.fd.io/govpp/extras/gomemif/memif"
 )
 
@@ -73,7 +72,7 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 		}
 		// setup CNI server (functionality target of tests)
 		common.ThePubSub = common.NewPubSub(log.WithFields(logrus.Fields{"component": "pubsub"}))
-		cniServer = cni.NewCNIServer(vpp, ipamStub, &testStatsClient{}, log.WithFields(logrus.Fields{"component": "cni"}))
+		cniServer = cni.NewCNIServer(vpp, ipamStub, log.WithFields(logrus.Fields{"component": "cni"}))
 		cniServer.SetFelixConfig(&felixconfig.Config{})
 		cniServer.FetchBufferConfig()
 		vpp.CnatSetSnatAddresses(nodeIP4String, nodeIP6String)
@@ -780,37 +779,3 @@ var _ = Describe("Pod-related functionality of CNI", func() {
 		testutils.TeardownVPP()
 	})
 })
-
-type testStatsClient struct{}
-
-func (s *testStatsClient) Connect() error {
-	return nil
-}
-
-func (s *testStatsClient) Disconnect() error {
-	return nil
-}
-
-func (s *testStatsClient) DumpStats(patterns ...string) ([]adapter.StatEntry, error) {
-	return []adapter.StatEntry{{
-		StatIdentifier: adapter.StatIdentifier{Name: []byte("/buffer-pools/default-numa-0/available")},
-		Type:           adapter.ScalarIndex,
-		Data:           adapter.ScalarStat(1 << 20),
-	}}, nil
-}
-
-func (s *testStatsClient) ListStats(patterns ...string) ([]adapter.StatIdentifier, error) {
-	return nil, nil
-}
-
-func (s *testStatsClient) PrepareDir(patterns ...string) (*adapter.StatDir, error) {
-	return nil, nil
-}
-
-func (s *testStatsClient) PrepareDirOnIndex(indexes ...uint32) (*adapter.StatDir, error) {
-	return nil, nil
-}
-
-func (s *testStatsClient) UpdateDir(dir *adapter.StatDir) error {
-	return nil
-}

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -31,7 +30,6 @@ import (
 	felixConfig "github.com/projectcalico/calico/felix/config"
 	"github.com/projectcalico/calico/felix/proto"
 	"github.com/sirupsen/logrus"
-	"go.fd.io/govpp/adapter"
 	"google.golang.org/grpc"
 	"gopkg.in/tomb.v2"
 
@@ -46,9 +44,8 @@ import (
 
 type Server struct {
 	cniproto.UnimplementedCniDataplaneServer
-	log         *logrus.Entry
-	vpp         *vpplink.VppLink
-	statsclient adapter.StatsAPI
+	log *logrus.Entry
+	vpp *vpplink.VppLink
 
 	felixServerIpam common.FelixServerIpam
 
@@ -71,8 +68,6 @@ type Server struct {
 	cniMultinetEventChan chan common.CalicoVppEvent
 	nodeBGPSpec          *common.LocalNodeSpec
 }
-
-const bufferPoolAvailableStatPattern = "^/buffer-pools/.*/available$"
 
 func swIfIdxToIfName(idx uint32) string {
 	return fmt.Sprintf("vpp-tun-%d", idx)
@@ -170,50 +165,11 @@ func (s *Server) fetchNDataThreads() {
 }
 
 func (s *Server) FetchBufferConfig() {
-	availableBuffers, err := s.fetchAvailableBuffers()
+	availableBuffers, _, _, err := s.vpp.GetBufferStats()
 	if err != nil {
 		s.log.WithError(err).Errorf("could not get available buffers")
-		return
 	}
-	s.availableBuffers = availableBuffers
-}
-
-func (s *Server) fetchAvailableBuffers() (uint64, error) {
-	if s.statsclient == nil {
-		return 0, errors.New("stats client is nil")
-	}
-
-	stats, err := s.statsclient.DumpStats(bufferPoolAvailableStatPattern)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to dump VPP buffer pool stats")
-	}
-	var totalAvailableBuffers uint64
-	found := false
-	for _, stat := range stats {
-		statName := string(stat.Name)
-		if !strings.HasPrefix(statName, "/buffer-pools/") || !strings.HasSuffix(statName, "/available") {
-			continue
-		}
-		switch value := stat.Data.(type) {
-		case adapter.ScalarStat:
-			if value < 0 {
-				return 0, errors.Errorf("unexpected negative available buffer stat %s=%f", statName, value)
-			}
-			totalAvailableBuffers += uint64(value)
-			found = true
-		default:
-			s.log.Debugf("skipping non-scalar available buffer stat %s type=%T", statName, stat.Data)
-		}
-	}
-	if found {
-		return totalAvailableBuffers, nil
-	}
-
-	statNames := make([]string, 0, len(stats))
-	for _, stat := range stats {
-		statNames = append(statNames, string(stat.Name))
-	}
-	return 0, errors.Errorf("no scalar available buffer stats matched %s, got [%s]", bufferPoolAvailableStatPattern, strings.Join(statNames, ", "))
+	s.availableBuffers = uint64(availableBuffers)
 }
 
 func (s *Server) rescanState() {
@@ -330,11 +286,10 @@ func (s *Server) Del(ctx context.Context, request *cniproto.DelRequest) (*cnipro
 }
 
 // Serve runs the grpc server for the Calico CNI backend API
-func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, statsclient adapter.StatsAPI, log *logrus.Entry) *Server {
+func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, log *logrus.Entry) *Server {
 	server := &Server{
-		vpp:         vpp,
-		statsclient: statsclient,
-		log:         log,
+		vpp: vpp,
+		log: log,
 
 		felixServerIpam: felixServerIpam,
 		cniEventChan:    make(chan common.CalicoVppEvent, common.ChanSize),
