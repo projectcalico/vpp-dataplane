@@ -37,6 +37,11 @@ const (
 	SRv6PolicyAdded   CalicoVppEventType = "SRv6PolicyAdded"
 	SRv6PolicyDeleted CalicoVppEventType = "SRv6PolicyDeleted"
 
+	// ServiceDSRClusterIP{Added,Deleted} carry a *DSRService, consumed by the
+	// SRv6 provider (policy+steering) and CNI server (pod VIP bind + delivery).
+	ServiceDSRClusterIPAdded   CalicoVppEventType = "ServiceDSRClusterIPAdded"
+	ServiceDSRClusterIPDeleted CalicoVppEventType = "ServiceDSRClusterIPDeleted"
+
 	PodAdded   CalicoVppEventType = "PodAdded"
 	PodDeleted CalicoVppEventType = "PodDeleted"
 

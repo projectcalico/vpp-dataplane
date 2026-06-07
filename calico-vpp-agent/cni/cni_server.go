@@ -23,6 +23,7 @@ import (
 	"os"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/pkg/errors"
 	calicov3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
@@ -54,6 +55,12 @@ type Server struct {
 	podInterfaceMap map[string]model.LocalPodSpec
 	lock            sync.Mutex /* protects Add/DelVppInterace/RescanState */
 	cniEventChan    chan common.CalicoVppEvent
+	// dsrVIPs tracks the shared PodVRFIndex delivery route per SRv6-native (DSR)
+	// ClusterIP VIP for which this node hosts backend pods.
+	dsrVIPs map[string]*dsrVIPState
+	// dsrDesired is the desired DSR service set (by VIP), reconciled against
+	// dsrVIPs so failed installs AND removals are retried, not lost.
+	dsrDesired map[string]*common.DSRService
 
 	memifDriver    *podinterface.MemifPodInterfaceDriver
 	tuntapDriver   *podinterface.TunTapPodInterfaceDriver
@@ -147,6 +154,9 @@ func (s *Server) Add(ctx context.Context, request *cniproto.AddRequest) (*cnipro
 	if err != nil {
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
+	// A newly-added pod may be a backend of a desired DSR service; reconcile so
+	// its VIP binding + delivery route (and any pending DSR retries) are applied.
+	s.reconcileDSRVIPs()
 	s.log.Infof("pod(add) Done spec=%s", podSpec.String())
 	// XXX: container MAC doesn't make sense with tun, we just pass back a constant one.
 	// How does calico / k8s use it?
@@ -280,6 +290,10 @@ func (s *Server) Del(ctx context.Context, request *cniproto.DelRequest) (*cnipro
 		s.log.Errorf("CNI state persist errored %v", err)
 	}
 
+	// A removed pod may have been a DSR backend; reconcile so the delivery route
+	// drops its path and any pending DSR delete/install retries are driven.
+	s.reconcileDSRVIPs()
+
 	return &cniproto.DelReply{
 		Successful: true,
 	}, nil
@@ -296,6 +310,8 @@ func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, 
 
 		grpcServer:      grpc.NewServer(),
 		podInterfaceMap: make(map[string]model.LocalPodSpec),
+		dsrVIPs:         make(map[string]*dsrVIPState),
+		dsrDesired:      make(map[string]*common.DSRService),
 		tuntapDriver:    podinterface.NewTunTapPodInterfaceDriver(vpp, log, felixServerIpam),
 		memifDriver:     podinterface.NewMemifPodInterfaceDriver(vpp, log, felixServerIpam),
 		vclDriver:       podinterface.NewVclPodInterfaceDriver(vpp, log, felixServerIpam),
@@ -307,6 +323,8 @@ func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, 
 	reg.ExpectEvents(
 		common.FelixConfChanged,
 		common.IpamConfChanged,
+		common.ServiceDSRClusterIPAdded,
+		common.ServiceDSRClusterIPDeleted,
 	)
 	regM := common.RegisterHandler(server.cniMultinetEventChan, "CNI server Multinet events")
 	regM.ExpectEvents(
@@ -317,11 +335,19 @@ func NewCNIServer(vpp *vpplink.VppLink, felixServerIpam common.FelixServerIpam, 
 	return server
 }
 func (s *Server) cniServerEventLoop(t *tomb.Tomb) error {
+	// Periodically reconcile SRv6-native (DSR) VIP state so a withdrawn-service
+	// cleanup (or install) that failed is retried even without further events.
+	dsrTicker := time.NewTicker(30 * time.Second)
+	defer dsrTicker.Stop()
 forloop:
 	for {
 		select {
 		case <-t.Dying():
 			break forloop
+		case <-dsrTicker.C:
+			s.lock.Lock()
+			s.reconcileDSRVIPs()
+			s.lock.Unlock()
 		case evt := <-s.cniEventChan:
 			switch evt.Type {
 			case common.FelixConfChanged:
@@ -364,6 +390,18 @@ forloop:
 				s.lock.Lock()
 				s.tuntapDriver.FelixConfigChanged(nil /* felixConfig */, ipipEncapRefCountDelta, vxlanEncapRefCountDelta, s.podInterfaceMap)
 				s.lock.Unlock()
+			case common.ServiceDSRClusterIPAdded:
+				if svc, ok := evt.New.(*common.DSRService); ok {
+					s.handleDSRServiceAdded(svc)
+				} else {
+					s.log.Errorf("evt.New is not a *common.DSRService %v", evt.New)
+				}
+			case common.ServiceDSRClusterIPDeleted:
+				if svc, ok := evt.Old.(*common.DSRService); ok {
+					s.handleDSRServiceDeleted(svc)
+				} else {
+					s.log.Errorf("evt.Old is not a *common.DSRService %v", evt.Old)
+				}
 			}
 		}
 	}

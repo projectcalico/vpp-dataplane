@@ -96,7 +96,7 @@ var _ = Describe("Service creation functionality", func() {
 		}
 		_, serviceip, err := net.ParseCIDR("10.96.0.1/24")
 		config.ServiceCIDRs = &[]*net.IPNet{serviceip}
-		serviceServer = NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
+		serviceServer = NewServiceServer(vpp, k8sclient, nil /* felixServerIpam */, log.WithFields(logrus.Fields{"component": "services"}))
 		_, ipv4net, err := net.ParseCIDR("1.1.1.1/32")
 		_, ipv6net, err := net.ParseCIDR("f::f/128")
 		serviceServer.SetOurBGPSpec(&common.LocalNodeSpec{

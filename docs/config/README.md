@@ -88,6 +88,7 @@ data:
     "vclEnabled": false,
     "multinetEnabled": true,
     "srv6Enabled": false,
+    "srv6NativeServicesEnabled": false,
     "ipsecEnabled": false
   }
 ````
