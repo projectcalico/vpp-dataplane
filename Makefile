@@ -29,29 +29,46 @@ image-kind: image
 vpp:
 	$(MAKE) -C vpp-manager $@ VPP_DIR=$(VPP_DIR) BASE=$(BASE)
 
-# kube-test-template: emit a KinD manifest template for kube-test.
-# Bakes in repo layout-specific values (CALICOVPP_AGENT_IMAGE, VPP_BUILD_REL_PATH)
-# so that VPP kube-test does not need to know the repo layout.
-# Old layout: separate images, VPP build at vpp-manager/vpp_build/.
+# kube-test-template: emit a self-contained kube-test manifest for the
+# the requested cluster flavor. All CalicoVPP-internal layout details
+# (image names, in-repo paths to the VPP build output, etc.) are
+# resolved here from the kustomize sources under
+# yaml/overlays/kube-test-* and baked into the emitted manifest.
+#
+# Only consumer-owned runtime placeholders survive in the output:
+#   ${CALICOVPP_VERSION}, ${HOME}, ${ADDITIONAL_VPP_CONFIG},
+#   ${CALICOVPP_ENABLE_MEMIF}, ${CALICO_NETWORK_CONFIG} and
+#   ${CALICOVPP_INTERFACE} (baremetal only)
+#
+# The consumer (e.g. VPP `extras/kube-test`) does NOT need to know
+# which image to use or where the VPP build lives in this repo.
+#
+# Usage:
+#   make kube-test-template FLAVOR=kind        # default
+#   make kube-test-template FLAVOR=baremetal
+FLAVOR ?= kind
 .PHONY: kube-test-template
 kube-test-template:
-	@CALICOVPP_AGENT_IMAGE=calicovpp/agent VPP_BUILD_REL_PATH=vpp-manager/vpp_build \
-	  envsubst '$$CALICOVPP_AGENT_IMAGE $$VPP_BUILD_REL_PATH' \
-	  < yaml/generated/calico-vpp-kubetest.yaml
+	@if [ "$(FLAVOR)" != "kind" ] && [ "$(FLAVOR)" != "baremetal" ]; then \
+	  echo "kube-test-template: unsupported FLAVOR=$(FLAVOR) (expected kind or baremetal)" >&2; \
+	  exit 2; \
+	fi
+	@kubectl kustomize yaml/overlays/kube-test-$(FLAVOR) 2>/dev/null
+	@echo "---"
+	@cat yaml/components/kube-test/tigera-installation.snippet.yaml
 
-# kube-test-push-images: pull this release's CalicoVPP images from docker.io and push
-# to localhost:5000 for kube-test consumption. Called by kube-test release-cluster flow.
+# kube-test-push-images: pull this release's CalicoVPP images from docker.io
+# and push to localhost:5000 for kube-test consumption. Called by the
+# VPP kube-test `release-cluster` flow. On this split-image release,
+# we ship three images; master / >= v3.33 ships only `calicovpp/vpp`.
+KUBE_TEST_IMAGES ?= calicovpp/vpp calicovpp/agent calicovpp/multinet-monitor
 .PHONY: kube-test-push-images
 kube-test-push-images:
-	docker pull docker.io/calicovpp/agent:$(CALICOVPP_VERSION)
-	docker image tag docker.io/calicovpp/agent:$(CALICOVPP_VERSION) localhost:5000/calicovpp/agent:$(CALICOVPP_VERSION)
-	docker push localhost:5000/calicovpp/agent:$(CALICOVPP_VERSION)
-	docker pull docker.io/calicovpp/vpp:$(CALICOVPP_VERSION)
-	docker image tag docker.io/calicovpp/vpp:$(CALICOVPP_VERSION) localhost:5000/calicovpp/vpp:$(CALICOVPP_VERSION)
-	docker push localhost:5000/calicovpp/vpp:$(CALICOVPP_VERSION)
-	docker pull docker.io/calicovpp/multinet-monitor:$(CALICOVPP_VERSION)
-	docker image tag docker.io/calicovpp/multinet-monitor:$(CALICOVPP_VERSION) localhost:5000/calicovpp/multinet-monitor:$(CALICOVPP_VERSION)
-	docker push localhost:5000/calicovpp/multinet-monitor:$(CALICOVPP_VERSION)
+	@for img in $(KUBE_TEST_IMAGES); do \
+	  docker pull docker.io/$$img:$(CALICOVPP_VERSION); \
+	  docker image tag docker.io/$$img:$(CALICOVPP_VERSION) localhost:5000/$$img:$(CALICOVPP_VERSION); \
+	  docker push localhost:5000/$$img:$(CALICOVPP_VERSION); \
+	done
 
 .PHONY: kind-cluster-name
 kind-cluster-name:
