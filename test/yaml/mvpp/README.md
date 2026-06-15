@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: calicovpp/agent:latest
+          image: calicovpp/vpp:latest
           env:
             - name: CALICOVPP_ENABLE_MEMIF
               value: "true"

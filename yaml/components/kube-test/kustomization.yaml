@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Kube-test specific transformations applied on top of the standard
+# CalicoVPP daemonset. This component is intentionally consumer-agnostic:
+# it produces a manifest that VPP kube-test (or any other consumer) can
+# apply after substituting only its own runtime variables.
+#
+# Layout-specific values (image names, in-repo paths to VPP build, etc.)
+# are owned by THIS file and the base daemonset - they MUST NOT leak into
+# the consumer (VPP kube-test). Runtime placeholders that remain in the
+# emitted manifest are documented in yaml/components/kube-test/README.md.
+
+patchesStrategicMerge:
+- daemonset-kube-test.yaml
+- configmap-kube-test.yaml
+
+# Note: the tigera-operator `Installation`/`APIServer` resources are not part
+# of this component because they need to embed the `${CALICO_NETWORK_CONFIG}`
+# runtime placeholder, which is not a valid YAML scalar at kustomize parse
+# time. They are appended by `make kube-test-template` from
+# `components/kube-test/tigera-installation.snippet.yaml`.

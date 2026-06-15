@@ -49,9 +49,7 @@ kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/master/
 
 ````bash
 # ---------------- images ----------------
-export CALICO_AGENT_IMAGE=calicovpp/agent:v3.26.0
 export CALICO_VPP_IMAGE=calicovpp/vpp:v3.26.0
-export MULTINET_MONITOR_IMAGE=calicovpp/multinet-monitor:v3.26.0
 export IMAGE_PULL_POLICY=IfNotPresent
 
 # ---------------- interfaces ----------------

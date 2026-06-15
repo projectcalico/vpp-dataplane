@@ -21,6 +21,16 @@ build: clean
 	kubectl kustomize overlays/eks-dpdk-multinet               > generated/calico-vpp-eks-dpdk-multinet.yaml
 	kubectl kustomize overlays/kind                            > generated/calico-vpp-kind.yaml
 	kubectl kustomize overlays/kind-multinet                   > generated/calico-vpp-kind-multinet.yaml
+	# Kube-test manifest (consumed by `make -C .. kube-test-template`).
+	# The kind flavor is checked-in as the canonical generated file; the
+	# baremetal flavor is generated on demand via `make kube-test-template
+	# FLAVOR=baremetal` from the repo root.
+	{ kubectl kustomize overlays/kube-test-kind ; \
+	  echo "---" ; \
+	  cat components/kube-test/tigera-installation.snippet.yaml ; \
+	} > generated/calico-vpp-kubetest.yaml
+	# Sanity-check the baremetal flavor compiles (not exported)
+	kubectl kustomize overlays/kube-test-baremetal              > /dev/null
 	# Do not export the test-* overlays, but still check they compile
 	kubectl kustomize overlays/test-vagrant                    > /dev/null
 	kubectl kustomize overlays/test-vagrant-mounts             > /dev/null
