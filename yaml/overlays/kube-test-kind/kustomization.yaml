@@ -1,0 +1,11 @@
+# Kube-test overlay for KinD clusters.
+#
+# Consumed by `make kube-test-template FLAVOR=kind` and shipped to
+# the VPP kube-test harness as a single fully-resolved manifest.
+
+resources:
+- ../../base
+
+components:
+- ../../components/kube-test
+- ../../components/kube-test/kind
