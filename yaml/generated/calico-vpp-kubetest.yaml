@@ -224,13 +224,11 @@ data:
         }
       ]
     }
-  CALICOVPP_IPSEC: |-
-    {}
-  CALICOVPP_IPSEC_IKEV2_PSK: "keykeykey"
+  CALICOVPP_IPSEC: '{}'
+  CALICOVPP_IPSEC_IKEV2_PSK: keykeykey
   CALICOVPP_LOG_FORMAT: pretty
-  CALICOVPP_LOG_LEVEL: "debug"
-  CALICOVPP_SRV6: |-
-    {}
+  CALICOVPP_LOG_LEVEL: debug
+  CALICOVPP_SRV6: '{}'
   CALICOVPP_SWAP_DRIVER: ""
   DEBUG: "false"
   GOCOVERDIR: /repo/.coverage/kind
@@ -258,6 +256,8 @@ spec:
     spec:
       containers:
       - env:
+        - name: LD_LIBRARY_PATH
+          value: /repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/
         - name: DATASTORE_TYPE
           value: kubernetes
         - name: WAIT_FOR_DATASTORE
@@ -266,8 +266,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        - name: LD_LIBRARY_PATH
-          value: /repo/${VPP_BUILD_REL_PATH}/build-root/install-vpp-native/vpp/
         envFrom:
         - configMapRef:
             name: calico-vpp-config
@@ -324,7 +322,7 @@ spec:
         envFrom:
         - configMapRef:
             name: calico-vpp-config
-        image: localhost:5000/${CALICOVPP_AGENT_IMAGE}:${CALICOVPP_VERSION}
+        image: localhost:5000/calicovpp/agent:${CALICOVPP_VERSION}
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -405,7 +403,7 @@ spec:
         name: vpp-rundir
       - hostPath:
           path: /var/lib/vpp
-        type: DirectoryOrCreate
+          type: DirectoryOrCreate
         name: vpp-data
       - hostPath:
           path: /etc/vpp
@@ -433,6 +431,9 @@ spec:
       maxUnavailable: 1
     type: RollingUpdate
 ---
+# NOT a kustomize resource - this file embeds the `${CALICO_NETWORK_CONFIG}`
+# runtime placeholder which makes it invalid YAML until `envsubst` has run.
+# Appended verbatim by `make kube-test-template` after the kustomize build.
 apiVersion: operator.tigera.io/v1
 kind: APIServer
 metadata:
