@@ -1,4 +1,4 @@
-VPP Version                 : 25.06.0-31~gaed31090c
+VPP Version                 : 25.06.0-33~g2a2cb98cc
 Binapi-generator version    : v0.11.0
 VPP Base commit             : 47505bc21 misc: Initial changes for stable/2506 branch
 ------------------ Cherry picked commits --------------------
@@ -6,12 +6,14 @@ ip-neighbor: preserve interface LL receive DPO for self link-local
 acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 pbl: Port based balancer
+gerrit:45046/4 ip6-nd: add punt reason for neigh advs
+gerrit:45099/2 ip6-nd: add nd-proxy all dst
 gerrit:43710/12 npol: Network Policies plugin
 gerrit:44966/5 ip-neighbor: fix missing solicited-node multicast MAC
 gerrit:44903/1 vxlan: reset next_dpo on delete
 gerrit:44900/1 tap: backport fix promiscuous mode
 gerrit:44855/6 tap: backport VHOST_SET_FORK_FROM_OWNER support
-gerrit:44350/2 vnet: fix unicast NA handling in ND proxy
+gerrit:44350/3 vnet: fix unicast NA handling in ND proxy
 gerrit:43723/3 session svm: fix session migrate attach data corruption
 gerrit:43139/5 udp: regrab connected session after transport clone
 gerrit:43714/5 session: fix handling of closed during migration

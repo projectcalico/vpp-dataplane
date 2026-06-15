@@ -1,0 +1,59 @@
+# Strategic-merge patch on top of yaml/base/calico-vpp-daemonset.yaml
+# that adapts the daemonset for kube-test consumption.
+#
+# Layout-specific knowledge baked in here (split-image layout for <= v3.32):
+#   - vpp container image:         calicovpp/vpp
+#   - agent container image:       calicovpp/agent (no command override)
+#   - VPP build path inside repo:  vpp-manager/vpp_build
+#
+# From v3.33 onwards, we have an unified image (calicovpp/vpp with an explicit
+# command override) and a flatter repo layout (vpp_build/). When backporting
+# the kube-test integration to a different layout, update only this file and
+# baremetal/daemonset-baremetal.yaml; consumers stay untouched.
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: calico-vpp-dataplane
+spec:
+  template:
+    spec:
+      containers:
+        - name: vpp
+          image: localhost:5000/calicovpp/vpp:${CALICOVPP_VERSION}
+          imagePullPolicy: Always
+          env:
+            - name: LD_LIBRARY_PATH
+              value: /repo/vpp-manager/vpp_build/build-root/install-vpp-native/vpp/
+          resources:
+            limits:
+              memory: 80Gi
+            requests:
+              cpu: 1
+              memory: 4Gi
+          volumeMounts:
+            - mountPath: /repo
+              name: repo-directory
+            - mountPath: /etc/ssl/certs/
+              name: ssl-certs
+            - mountPath: /usr/share/ca-certificates
+              name: share-certs
+        - name: agent
+          image: localhost:5000/calicovpp/agent:${CALICOVPP_VERSION}
+          imagePullPolicy: Always
+          env:
+            - name: CALICOVPP_ENABLE_MEMIF
+              value: ${CALICOVPP_ENABLE_MEMIF}
+          volumeMounts:
+            - mountPath: /repo
+              name: repo-directory
+      volumes:
+        - name: repo-directory
+          hostPath:
+            path: ${HOME}/vpp-dataplane
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs/
+        - name: share-certs
+          hostPath:
+            path: /usr/share/ca-certificates
