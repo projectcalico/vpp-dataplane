@@ -1,0 +1,29 @@
+# NOT a kustomize resource - this file embeds the `${CALICO_NETWORK_CONFIG}`
+# runtime placeholder which makes it invalid YAML until `envsubst` has run.
+# Appended verbatim by `make kube-test-template` after the kustomize build.
+apiVersion: operator.tigera.io/v1
+kind: APIServer
+metadata:
+  name: default
+spec: {}
+---
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  registry: localhost:5000
+  calicoNetwork:
+    ipPools:
+    - cidr: 11.0.0.0/24
+      encapsulation: IPIP
+      natOutgoing: Enabled
+    - cidr: fd20::/64
+      encapsulation: VXLAN
+      natOutgoing: Enabled
+    linuxDataplane: VPP
+    nodeAddressAutodetectionV4:
+      interface: eth0
+    nodeAddressAutodetectionV6:
+      interface: eth0
+    ${CALICO_NETWORK_CONFIG}

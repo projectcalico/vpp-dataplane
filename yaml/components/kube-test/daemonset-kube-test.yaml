@@ -1,0 +1,59 @@
+# Strategic-merge patch on top of yaml/base/calico-vpp-daemonset.yaml that
+# adapts the daemonset for kube-test consumption.
+#
+# Layout-specific knowledge baked in here (master/>=v3.33 layout):
+#   - unified image:               calicovpp/vpp
+#   - agent command override:      /bin/calico-vpp-agent
+#   - VPP build path inside repo:  vpp_build
+#
+# Older release branches (<= v3.32) can backport this component by simply
+# pointing the agent container at `calicovpp/agent`, dropping the command
+# override, and changing the LD_LIBRARY_PATH below.
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: calico-vpp-dataplane
+spec:
+  template:
+    spec:
+      containers:
+        - name: vpp
+          image: localhost:5000/calicovpp/vpp:${CALICOVPP_VERSION}
+          imagePullPolicy: Always
+          env:
+            - name: LD_LIBRARY_PATH
+              value: /repo/vpp_build/build-root/install-vpp-native/vpp/
+          resources:
+            limits:
+              memory: 80Gi
+            requests:
+              cpu: 1
+              memory: 4Gi
+          volumeMounts:
+            - mountPath: /repo
+              name: repo-directory
+            - mountPath: /etc/ssl/certs/
+              name: ssl-certs
+            - mountPath: /usr/share/ca-certificates
+              name: share-certs
+        - name: agent
+          image: localhost:5000/calicovpp/vpp:${CALICOVPP_VERSION}
+          command: ["/bin/calico-vpp-agent"]
+          imagePullPolicy: Always
+          env:
+            - name: CALICOVPP_ENABLE_MEMIF
+              value: ${CALICOVPP_ENABLE_MEMIF}
+          volumeMounts:
+            - mountPath: /repo
+              name: repo-directory
+      volumes:
+        - name: repo-directory
+          hostPath:
+            path: ${HOME}/vpp-dataplane
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs/
+        - name: share-certs
+          hostPath:
+            path: /usr/share/ca-certificates

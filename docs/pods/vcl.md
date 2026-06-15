@@ -92,7 +92,7 @@ Build your vpp libraries and rebuild your sidecar if needed using
 
 ````bash
 cd test/yaml
-VPP_DIR=/path-to-your-repo/vpp-manager/vpp_build/ make sidecar-vcl
+VPP_DIR=/path-to-your-repo/vpp_build/ make sidecar-vcl
 ````
 
 To use VCL in your pod, you don't need to rebuild your pod image. You can use

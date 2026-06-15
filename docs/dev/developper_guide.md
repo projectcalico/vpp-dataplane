@@ -33,13 +33,13 @@ First you will need to build vpp locally with the required patches. This takes
 a while but it's usually not run often.
 
 ````bash
-make -C vpp-manager/ vpp
+make -C pkg/vpp-manager/ vpp
 ````
 
 or
 
 ````bash
-make -C vpp-manager/ vpp BASE=origin/master
+make -C pkg/vpp-manager/ vpp BASE=origin/master
 ````
 
 Then build the agents, containers & push them to the local docker repository
@@ -63,9 +63,7 @@ Calico/VPP.
 
 ````bash
 # ---------------- images ----------------
-export CALICO_AGENT_IMAGE=localhost:5000/calicovpp/agent:latest
 export CALICO_VPP_IMAGE=localhost:5000/calicovpp/vpp:latest
-export MULTINET_MONITOR_IMAGE=localhost:5000/calicovpp/multinet-monitor:latest
 export IMAGE_PULL_POLICY=Always
 
 # ---------------- interfaces ----------------
@@ -224,7 +222,7 @@ without recreating images), run:
 ````console
 # Build VPP in debug mode
 make cherry-vpp
-make -C vpp-manager/vpp_build install-dep build
+make -C vpp_build install-dep build
 make dev
 make load-images
 make test-install-calicovpp-dev

@@ -1,0 +1,32 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-vpp-config
+  namespace: calico-vpp-dataplane
+data:
+  CALICOVPP_INTERFACES: |-
+    {
+        "defaultPodIfSpec": {
+          "rx": 1,
+          "tx": 1,
+          "rxqsz": 128,
+          "txqsz": 128,
+          "isl3": true,
+          "rxMode": "interrupt"
+        },
+        "vppHostTapSpec": {
+          "rx": 1,
+          "tx": 1,
+          "rxqsz": 512,
+          "txqsz": 512,
+          "isl3": false,
+          "rxMode": "interrupt"
+        },
+      "uplinkInterfaces": [
+        {
+          "interfaceName": "eth0",
+          "vppDriver": "af_packet",
+          "rxMode": "interrupt"
+        }
+      ]
+    }

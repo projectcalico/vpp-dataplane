@@ -261,7 +261,8 @@ spec:
       priorityClassName: system-node-critical
       containers:
         - name: agent
-          image: docker.io/calicovpp/agent:latest
+          image: docker.io/calicovpp/vpp:latest
+          command: ["/bin/calico-vpp-agent"]
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
