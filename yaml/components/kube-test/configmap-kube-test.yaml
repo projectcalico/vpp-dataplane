@@ -1,0 +1,70 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: calico-vpp-config
+  namespace: calico-vpp-dataplane
+data:
+  CALICOVPP_BGP_LOG_LEVEL: ""
+  CALICOVPP_CONFIG_EXEC_TEMPLATE: ""
+  CALICOVPP_CONFIG_TEMPLATE: |-
+    unix {
+      nodaemon
+      full-coredump
+      log /var/run/vpp/vpp.log
+      cli-listen /var/run/vpp/cli.sock
+      pidfile /run/vpp/vpp.pid
+    }
+    cpu {
+      workers 0
+    }
+    socksvr {
+      socket-name /var/run/vpp/vpp-api.sock
+    }
+    buffers {
+      buffers-per-numa 16384
+      page-size 4K
+    }
+    plugins {
+        plugin default { enable }
+        plugin calico_plugin.so { enable }
+        plugin dpdk_plugin.so { disable }
+    }
+    ${ADDITIONAL_VPP_CONFIG}
+  CALICOVPP_DEBUG: |-
+    {
+          "servicesEnabled": true,
+          "gsoEnabled": true
+        }
+  CALICOVPP_FEATURE_GATES: |-
+    {
+          "memifEnabled": true,
+          "vclEnabled": true,
+          "multinetEnabled": false,
+          "ipsecEnabled": false,
+          "prometheusEnabled": true
+        }
+  CALICOVPP_INIT_SCRIPT_TEMPLATE: ""
+  CALICOVPP_INITIAL_CONFIG: |-
+    {
+          "vppStartupSleepSeconds": 0,
+          "corePattern": "/var/lib/vpp/vppcore.%e.%p",
+          "defaultGWs": "",
+          "redirectToHostRules": [
+          {
+            "proto": "udp",
+            "port": 53,
+            "ip": "172.18.0.1"
+          }
+        ]
+        }
+  CALICOVPP_IPSEC: |-
+    {}
+  CALICOVPP_IPSEC_IKEV2_PSK: "keykeykey"
+  CALICOVPP_LOG_FORMAT: pretty
+  CALICOVPP_LOG_LEVEL: "debug"
+  CALICOVPP_SRV6: |-
+    {}
+  CALICOVPP_SWAP_DRIVER: ""
+  DEBUG: "false"
+  GOCOVERDIR: /repo/.coverage/kind
+  SERVICE_PREFIX: 11.96.0.0/12,fd10::0/120
