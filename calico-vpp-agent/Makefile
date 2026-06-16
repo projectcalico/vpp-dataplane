@@ -44,6 +44,24 @@ push: ${PUSH_DEP}
 .PHONY: dev
 dev: image
 
+.PHONY: clean
+clean:
+	rm -rf bin/
+	rm -f $(VERSION_FILE)
+
+.PHONY: clean-image
+# TAG must be specified explicitly, e.g.: make clean-image TAG=<tag>
+clean-image:
+	docker rmi calicovpp/agent:$(TAG) || true
+	@if [ "${ALSO_LATEST}" = "y" ]; then \
+		docker rmi calicovpp/agent:latest || true; \
+		docker rmi calicovpp/agent:prerelease || true; \
+	fi
+
+.PHONY: clean-all
+# TAG must be specified explicitly, e.g.: make clean-all TAG=<tag>
+clean-all: clean clean-image
+
 .PHONY: proto
 proto:
 	$(MAKE) -C proto $@
