@@ -25,6 +25,7 @@ import (
 	"github.com/projectcalico/calico/felix/proto"
 
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/common"
+	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/health"
 	"github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
 
@@ -236,6 +237,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 			r.log.Errorf("error adding routes %v", err)
 			goto restart
 		}
+		health.DefaultHealthServer.MarkAsHealthy("Uplink route watcher started")
 		for {
 			select {
 			case <-t.Dying():
@@ -262,9 +264,8 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 						goto restart
 					}
 					for _, route := range routes {
-						err = r.DelRoute(route)
-						if err != nil {
-							r.log.Errorf("Cannot add pool route %s through vpp tap: %v", key, err)
+						if err = r.DelRoute(route); err != nil {
+							r.log.Errorf("Cannot delete pool route %s through vpp tap: %v", key, err)
 							goto restart
 						}
 					}
@@ -281,8 +282,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 						goto restart
 					}
 					for _, route := range routes {
-						err = r.AddRoute(route)
-						if err != nil {
+						if err = r.AddRoute(route); err != nil {
 							r.log.Errorf("Cannot add pool route %s through vpp tap: %v", key, err)
 							goto restart
 						}
@@ -301,8 +301,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 							goto restart
 						}
 						for _, route := range routes {
-							err = r.DelRoute(route)
-							if err != nil {
+							if err = r.DelRoute(route); err != nil {
 								r.log.Errorf("Cannot delete pool route %s through vpp tap: %v", old.Cidr, err)
 								goto restart
 							}
@@ -319,8 +318,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 							goto restart
 						}
 						for _, route := range routes {
-							err = r.AddRoute(route)
-							if err != nil {
+							if err = r.AddRoute(route); err != nil {
 								r.log.Errorf("Cannot add pool route %s through vpp tap: %v", new.Cidr, err)
 								goto restart
 							}
@@ -340,8 +338,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 							update.LinkIndex == route.LinkIndex &&
 							update.Priority == route.Priority {
 							r.log.Infof("Re-adding route %+v", route)
-							err = netlink.RouteReplace(&route)
-							if err != nil {
+							if err = netlink.RouteReplace(&route); err != nil {
 								r.log.Errorf("error adding route %+v: %v", route, err)
 								goto restart
 							}
@@ -358,6 +355,7 @@ func (r *RouteWatcher) WatchRoutes(t *tomb.Tomb) error {
 			}
 		}
 	restart:
+		health.DefaultHealthServer.MarkAsUnhealthy("Uplink route watcher restarted")
 		r.safeClose()
 		time.Sleep(2 * time.Second)
 		r.log.Info("Restarting route watcher")
