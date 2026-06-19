@@ -31,15 +31,15 @@ kind-cluster-name:
 
 .PHONY: kind-rm-cluster
 kind-rm-cluster:
-	make -C test/kind rm-cluster
+	$(MAKE) -C test/kind rm-cluster
 
 .PHONY: kind-new-cluster
 kind-new-cluster:
-	make -C test/kind new-cluster
+	$(MAKE) -C test/kind new-cluster
 
 .PHONY: kind-install-cni
 kind-install-cni:
-	make -C test/kind install-cni
+	$(MAKE) -C test/kind install-cni
 
 .PHONY: kind
 kind: kind-new-cluster image-kind kind-install-cni
@@ -75,19 +75,19 @@ dev.k3s: dev
 
 .PHONY: dev-kind
 dev-kind: dev
-	make -C test/kind dev
+	$(MAKE) -C test/kind dev
 
 .PHONY: load-kind
 load-kind:
-	make -C test/kind load
+	$(MAKE) -C test/kind load
 
 .PHONY: run-prometheus
 run-prometheus:
-	make -C test/prometheus run
+	$(MAKE) -C test/prometheus run
 
 .PHONY: stop-prometheus
 stop-prometheus:
-	make -C test/prometheus stop
+	$(MAKE) -C test/prometheus stop
 
 .PHONY: install-test-deps
 install-test-deps:
@@ -232,7 +232,7 @@ cherry-vpp:
 		echo "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]; \
 	fi
 	@BASE=$(BASE) bash ./vpplink/generated/vpp_clone_current.sh ${VPP_DIR}
-	@make goapi
+	@$(MAKE) goapi
 
 .PHONY: cherry-wipe
 cherry-wipe:
