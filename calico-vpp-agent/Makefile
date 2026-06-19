@@ -38,7 +38,11 @@ push: ${PUSH_DEP}
 			docker tag calicovpp/agent:$(TAG) $${registry}calicovpp/agent:latest; \
 			docker tag calicovpp/agent:$(TAG) $${registry}calicovpp/agent:prerelease; \
 		fi; \
-		docker push --all-tags $${registry}calicovpp/agent; \
+		docker push $${registry}calicovpp/agent:$(TAG); \
+		if [ "${ALSO_LATEST}" = "y" ]; then \
+			docker push $${registry}calicovpp/agent:latest; \
+			docker push $${registry}calicovpp/agent:prerelease; \
+		fi; \
 	done
 
 .PHONY: dev
