@@ -27,5 +27,9 @@ push: ${PUSH_DEP}
 			docker tag calicovpp/multinet-monitor:latest $${registry}calicovpp/multinet-monitor:latest; \
 			docker tag calicovpp/multinet-monitor:prerelease $${registry}calicovpp/multinet-monitor:prerelease; \
 		fi; \
-		docker push --all-tags $${registry}calicovpp/multinet-monitor; \
+		docker push $${registry}calicovpp/multinet-monitor:$(TAG); \
+		if [ "${ALSO_LATEST}" = "y" ]; then \
+			docker push $${registry}calicovpp/multinet-monitor:latest; \
+			docker push $${registry}calicovpp/multinet-monitor:prerelease; \
+		fi; \
 	done
