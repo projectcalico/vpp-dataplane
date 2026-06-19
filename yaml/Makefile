@@ -30,7 +30,10 @@ build: clean
 	kubectl kustomize overlays/test-vagrant-srv6-mounts        > /dev/null
 	kubectl kustomize overlays/test-vagrant-v6                 > /dev/null
 	kubectl kustomize overlays/test-vagrant-v6-mounts          > /dev/null
-	@sed -i "s|:latest|:$(TAG)|g" generated/*.yaml
+	@for file in generated/*.yaml; do \
+		sed "s|:latest|:$(TAG)|g" "$$file" > "$$file.tmp"; \
+		mv "$$file.tmp" "$$file"; \
+	done
 
 .PHONY: clean
 clean:
