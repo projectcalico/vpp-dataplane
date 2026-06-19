@@ -39,6 +39,6 @@ push: ${PUSH_DEP}
 		--platform linux/arm64,linux/amd64 \
 		--push \
 		$(foreach registry,$(REGISTRIES),-t $(registry)calicovpp/ctl:$(TAG)) \
-		$(if $(ALSO_LATEST),$(foreach registry,$(REGISTRIES),-t $(registry)calicovpp/ctl:latest)) \
+		$(if $(filter y,$(ALSO_LATEST)),$(foreach registry,$(REGISTRIES),-t $(registry)calicovpp/ctl:latest)) \
 		.
 	docker buildx rm vppctlbuilder
