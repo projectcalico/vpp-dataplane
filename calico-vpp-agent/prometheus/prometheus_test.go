@@ -163,7 +163,7 @@ var _ = Describe("Prometheus exporter functionality", func() {
 		Context("With fake containers configured", func() {
 			It("should export per-worker interface statistics for each interface separately", func() {
 				By("Fetching metrics from prometheus endpoint")
-				metrics, err := fetchMetricsWithRetry("http://localhost:9090/metrics", 2*time.Second)
+				metrics, err := fetchMetricsUntilPresent("http://localhost:9090/metrics", "rx_packets", 5*time.Second)
 				Expect(err).ToNot(HaveOccurred())
 
 				fmt.Printf("=== Verify per-worker interface statistics for each interface separately ===\n")
@@ -205,7 +205,7 @@ var _ = Describe("Prometheus exporter functionality", func() {
 
 			It("should export TCP statistics", func() {
 				By("Fetching metrics from prometheus endpoint")
-				metrics, err := fetchMetricsWithRetry("http://localhost:9090/metrics", 2*time.Second)
+				metrics, err := fetchMetricsUntilPresent("http://localhost:9090/metrics", "tcp4", 5*time.Second)
 				Expect(err).ToNot(HaveOccurred())
 
 				fmt.Printf("=== Verify TCP4/TCP6 statistics ===\n")
@@ -224,7 +224,7 @@ var _ = Describe("Prometheus exporter functionality", func() {
 
 			It("should export session statistics", func() {
 				By("Fetching metrics from prometheus endpoint")
-				metrics, err := fetchMetricsWithRetry("http://localhost:9090/metrics", 2*time.Second)
+				metrics, err := fetchMetricsUntilPresent("http://localhost:9090/metrics", "rx_packets", 5*time.Second)
 				Expect(err).ToNot(HaveOccurred())
 
 				fmt.Printf("=== Verify session statistics ===\n")
@@ -244,11 +244,8 @@ var _ = Describe("Prometheus exporter functionality", func() {
 				// Use tap interface with the uplink interface index
 				addFakeContainer(prometheusServer, "dynamic-namespace", "dynamic-pod", "eth1", vpplink.InvalidSwIfIndex, uplinkSwIfIndex)
 
-				// Give more time for event processing and metrics collection
-				time.Sleep(2 * time.Second)
-
 				By("Fetching metrics after pod addition")
-				metrics, err := fetchMetricsWithRetry("http://localhost:9090/metrics", 2*time.Second)
+				metrics, err := fetchMetricsUntilPresent("http://localhost:9090/metrics", "dynamic-pod", 5*time.Second)
 				Expect(err).ToNot(HaveOccurred())
 
 				fmt.Printf("=== Verify pod addition events with interface statistics ===\n")
@@ -332,28 +329,39 @@ func waitForPrometheusServer(url string, timeout time.Duration) {
 	panic(fmt.Sprintf("Prometheus server did not start within %v. Last error: %v", timeout, lastErr))
 }
 
-// fetchMetricsWithRetry attempts to fetch metrics with retry logic for more reliable testing
-func fetchMetricsWithRetry(url string, timeout time.Duration) (string, error) {
+// fetchMetricsUntilPresent retries fetching metrics until at least one line matching
+// metricName is found or the timeout expires. This avoids races where the Prometheus
+// HTTP server is reachable before exportMetrics() has completed its first cycle.
+func fetchMetricsUntilPresent(url string, metricName string, timeout time.Duration) (string, error) {
 	client := &http.Client{Timeout: 1 * time.Second}
 	deadline := time.Now().Add(timeout)
 
+	var lastBody string
 	var lastErr error
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(url)
-		if err == nil {
-			defer resp.Body.Close()
-			body, err := io.ReadAll(resp.Body)
-			if err == nil {
-				// fmt.Printf("=== METRICS OUTPUT ===\n%s\n=== END METRICS ===\n", string(body))
-				return string(body), nil
-			}
+		if err != nil {
+			lastErr = err
+			time.Sleep(200 * time.Millisecond)
+			continue
 		}
-		lastErr = err
-
-		// Wait a bit before retrying
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = err
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+		lastBody = string(body)
+		if strings.Contains(lastBody, metricName+"{") {
+			return lastBody, nil
+		}
 		time.Sleep(200 * time.Millisecond)
 	}
 
+	if lastBody != "" {
+		return lastBody, nil
+	}
 	return "", lastErr
 }
 

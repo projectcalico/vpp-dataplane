@@ -125,7 +125,6 @@ git_cherry_pick refs/changes/43/42343/2 # 42343: vcl: LDP default to regular opt
 
 # IPv6 related fixes:
 git_cherry_pick refs/changes/50/44350/3 # 44350: vnet: fix unicast NA handling in ND proxy | https://gerrit.fd.io/r/c/vpp/+/44350
-git_cherry_pick refs/changes/03/44903/1 # 44903: vxlan: reset next_dpo on delete | https://gerrit.fd.io/r/c/vpp/+/44903
 git_cherry_pick refs/changes/99/45099/2 # 45099: ip6-nd: add nd-proxy all dst | https://gerrit.fd.io/r/c/vpp/+/45099
 git_cherry_pick refs/changes/46/45046/4 # 45046: ip6-nd: add punt reason for neigh advs | https://gerrit.fd.io/r/c/vpp/+/45046
 
