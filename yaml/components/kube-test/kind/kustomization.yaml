@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# KinD-flavor adjustments on top of components/kube-test:
+# - uplink interface is the KinD bridge (eth0, af_packet)
+# - no hugepages
+patchesStrategicMerge:
+- configmap-kind.yaml

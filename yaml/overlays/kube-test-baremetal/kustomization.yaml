@@ -1,0 +1,11 @@
+# Kube-test overlay for baremetal clusters (DPDK uplink).
+#
+# Consumed by `make kube-test-template FLAVOR=baremetal` and shipped
+# to the VPP kube-test harness as a single fully-resolved manifest.
+
+resources:
+- ../../base
+
+components:
+- ../../components/kube-test
+- ../../components/kube-test/baremetal
