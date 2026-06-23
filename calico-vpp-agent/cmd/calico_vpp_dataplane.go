@@ -163,7 +163,6 @@ func main() {
 	bgpFilterWatcher := watchers.NewBGPFilterWatcher(clientv3, k8sclient, log.WithFields(logrus.Fields{"subcomponent": "BGPFilter-watcher"}))
 	netWatcher := watchers.NewNetWatcher(vpp, log.WithFields(logrus.Fields{"component": "net-watcher"}))
 	routingServer := routing.NewRoutingServer(vpp, bgpServer, log.WithFields(logrus.Fields{"component": "routing"}))
-	serviceServer := services.NewServiceServer(vpp, k8sclient, log.WithFields(logrus.Fields{"component": "services"}))
 	localSIDWatcher := watchers.NewLocalSIDWatcher(vpp, clientv3, log.WithFields(logrus.Fields{"subcomponent": "localsid-watcher"}))
 	felixServer, err := felix.NewFelixServer(vpp, statsClient, log.WithFields(logrus.Fields{"component": "felix"}))
 	if err != nil {
@@ -173,6 +172,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not install felix plugin: %s", err)
 	}
+	serviceServer := services.NewServiceServer(vpp, k8sclient, felixServer, log.WithFields(logrus.Fields{"component": "services"}))
 	connectivityServer := connectivity.NewConnectivityServer(vpp, felixServer, clientv3, log.WithFields(logrus.Fields{"subcomponent": "connectivity"}))
 	cniServer := cni.NewCNIServer(vpp, felixServer, statsConn, log.WithFields(logrus.Fields{"component": "cni"}))
 
