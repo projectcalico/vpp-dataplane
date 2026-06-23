@@ -1,50 +1,13 @@
-VPP Version                 : 26.10-rc0~40-g13ebee506
+VPP Version                 : 26.10-rc0~148-g37409161c
 Binapi-generator version    : v0.14.0-dev
-VPP Base commit             : 3cf5adc8e build: populate VPPConfig.cmake with dirs and platform selection
+VPP Base commit             : ea2485ed3 gerrit:42343/2 vcl: LDP default to regular option
 ------------------ Cherry picked commits --------------------
 calicovpp plugin:pbl
 calicovpp plugin:ip_ttl_fixup
-npol: add matched rule id to acl trace
 ip-neighbor: preserve interface LL receive DPO for self link-local
-acl: acl-plugin custom policies
 cnat: [WIP] no k8s maglev from pods
 gerrit:45046/4 ip6-nd: add punt reason for neigh advs
 gerrit:45099/2 ip6-nd: add nd-proxy all dst
-gerrit:44903/1 vxlan: reset next_dpo on delete
 gerrit:44350/3 vnet: fix unicast NA handling in ND proxy
 gerrit:42343/2 vcl: LDP default to regular option
-hsa: http proxy client do tx event after connected
-soft-rss: add handoff queue full node error counter
-http: h3 tunnel half-close fix
-hsa: http cli event timeout improvement
-tests: skip discover tests in hs-test folder
-sfdp_services_sample: move sfdp samples to plugin
-vlib: fetch multiple fuse messages in vlib_fuse_read
-perftool: fix c2cpel
-tap: infer single queue from queue counts
-vnet: add set interface link speed API
-session: increase number of dgrams per dispatch
-http: improve error path hst coverage
-svm: Fix svm_msg_q_timedwait fractional timeout precision loss
-tcp: fix order of events on app shutdown sequence
-hs-test: add app-namespace VCL echo tests
-octeon: ensure 64KB alignment for BAR mappings
-sfdp: guard packet bit shifts in lookup
-lb: Allow setting weight on AS
-iavf: add L4 checksum offload on RX
-lb: API bugfix
-docs: update install from packagecloud for stable/2606
-dpdk: add Intel QAT 420xx series support
-snort: fix daq instance enumeration
-octeon: implement hardware traffic management
-tm: add 'mark_flow' action for traffic management
-hs-test: add connect-tcp fin drain tests
-hsa: preserve proxy tunnel half-close
-build: support compiler-known platforms
-dev: add rx queue assignment policy
-misc: Initial 26.10-rc0 commit
-tm: add tm framework for hw traffic management
-octeon: update octeon roc version
-sfdp: fix FIN with payload in l4-lifecycle
-build: populate VPPConfig.cmake with dirs and platform selection
 -------------------------------------------------------------
