@@ -24,6 +24,7 @@ iperf3-vcl-image:
 	rm -f ./iperf3-vcl/*.so.*
 	openssl genrsa -out ./iperf3-vcl/iperfcert.key
 	openssl req -new -key ./iperf3-vcl/iperfcert.key \
+				-subj /CN=iperf3-vcl \
 				-out ./iperf3-vcl/iperfcert.csr
 	openssl x509 -req -days 365 \
 				 -in ./iperf3-vcl/iperfcert.csr \
