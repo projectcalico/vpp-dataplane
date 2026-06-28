@@ -1,13 +1,14 @@
 # Binaries
-calico-vpp-agent/bin
-vpp-manager/images/*/vpp-manager
-vpp-manager/images/*/bin
-vpp-manager/images/*/artifacts
-vpp-manager/images/*/vppdev.sh
-vpp-manager/vpp_build/
+pkg/calico-vpp-agent/bin
+cmd/calicovppctl/bin
+images/*/vpp-manager
+images/*/bin
+images/*/artifacts
+images/*/vppdev.sh
+vpp_build/
 *.deb
 *.so*
-multinet-monitor/watcher
+pkg/multinet-monitor/watcher
 *.tgz
 *.tar
 
@@ -28,10 +29,10 @@ test/vagrant/.vagrant
 *.bkp
 
 # build artefacts
-calico-vpp-agent/version
-vpp-manager/images/ubuntu/version
+pkg/calico-vpp-agent/version
+images/ubuntu/version
 test/scripts/.buildlogs
-multinet-monitor/version
+pkg/multinet-monitor/version
 .coverage/
 bin/
 vendor/

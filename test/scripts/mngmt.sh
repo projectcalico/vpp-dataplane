@@ -56,12 +56,9 @@ git clean -fd
 make -C $VPP_DATAPLANE_DIRECTORY image TAG=$TAG
 
 echo "built calicovpp/vpp:${TAG}"
-echo "built calicovpp/agent:${TAG}"
 for tagname in $(echo $EXTRA_TAGS | sed 's/,/ /g'); do
 	echo "Tagging calicovpp/vpp:\${tagname}..."
 	docker tag calicovpp/vpp:${TAG} calicovpp/vpp:\${tagname}
-	echo "Tagging calicovpp/agent:\${tagname}..."
-	docker tag calicovpp/agent:${TAG} calicovpp/agent:\${tagname}
 done
 
 if [ $PUSH != "y" ]; then
@@ -74,13 +71,9 @@ docker login --username $DOCKER_USERNAME  --password $DOCKER_TOKEN
 
 echo ">> Pushing calicovpp/vpp:${TAG}...."
 docker push calicovpp/vpp:${TAG}
-echo ">> Pushing calicovpp/agent:${TAG}...."
-docker push calicovpp/agent:${TAG}
 for tagname in $(echo $EXTRA_TAGS | sed 's/,/ /g'); do
 	echo ">> Pushing calicovpp/vpp:\${tagname}...."
 	docker push calicovpp/vpp:\${tagname}
-	echo ">> Pushing calicovpp/vpp:\${tagname}...."
-	docker push calicovpp/agent:\${tagname}
 done
 
 EOF
@@ -101,7 +94,7 @@ EOF
 echo "SHAs                     :"                           >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
 echo "--------------------------------------------------"   >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary
 ssh $SSH_NAME /bin/bash                                     >> ${BUILD_LOG_DIR}/${BUILD_NAME}/summary << EOF
-for imgname in calicovpp/vpp calicovpp/agent; do
+for imgname in calicovpp/vpp; do
 for tagname in $(echo "${TAG},${EXTRA_TAGS}" | sed 's/,/ /g'); do
 	echo "\${imgname}:\${tagname} \$(docker inspect \${imgname}:\${tagname} --format '{{ .RepoDigests }}')"
 done

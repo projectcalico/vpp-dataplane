@@ -18,7 +18,8 @@ spec:
       serviceAccountName: calico-vpp-node-sa
       containers:
         - name: multinet-monitor
-          image: docker.io/calicovpp/multinet-monitor:latest
+          image: docker.io/calicovpp/vpp:latest
+          command: ["/bin/multinet-monitor"]
           imagePullPolicy: IfNotPresent
           resources:
             requests:

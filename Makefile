@@ -5,24 +5,68 @@ check-%:
 
 .PHONY: build
 build:
-	$(MAKE) -C calico-vpp-agent $@
-	$(MAKE) -C vpp-manager $@
-	$(MAKE) -C multinet-monitor $@
+	$(MAKE) -C pkg/vpp-manager $@
 	$(MAKE) -C cmd/calicovppctl $@
 
 .PHONY: image images
 images: image
 image:
-	$(MAKE) -C calico-vpp-agent $@
-	$(MAKE) -C vpp-manager $@
-	$(MAKE) -C multinet-monitor $@
+	$(MAKE) -C pkg/vpp-manager $@
 	$(MAKE) -C cmd/calicovppctl $@
 
 .PHONY: image-kind
 image-kind: image
-	@for image in vpp:$(TAG) vpp:dbg-$(TAG) vclsidecar:$(TAG) vclsidecar:dbg-$(TAG) agent:$(TAG) multinet-monitor:$(TAG); do \
+	@for image in vpp:$(TAG) vpp:dbg-$(TAG) vclsidecar:$(TAG) vclsidecar:dbg-$(TAG); do \
 		docker image tag calicovpp/$$image localhost:5000/calicovpp/$$image ; \
 		docker push localhost:5000/calicovpp/$$image ; \
+	done
+
+# vpp: build VPP from source. VPP_DIR overrides the default build location
+# (default: vpp_build/ at the repo root). BASE overrides the VPP commit.
+.PHONY: vpp
+vpp:
+	$(MAKE) -C pkg/vpp-manager $@ VPP_DIR=$(VPP_DIR) BASE=$(BASE)
+
+# kube-test-template: emit a self-contained kube-test manifest for the
+# the requested cluster flavor. All CalicoVPP-internal layout details
+# (image names, in-repo paths to the VPP build output, etc.) are
+# resolved here from the kustomize sources under
+# yaml/overlays/kube-test-* and baked into the emitted manifest.
+#
+# Only consumer-owned runtime placeholders survive in the output:
+#   ${CALICOVPP_VERSION}, ${HOME}, ${ADDITIONAL_VPP_CONFIG},
+#   ${CALICOVPP_ENABLE_MEMIF}, ${CALICO_NETWORK_CONFIG} and
+#   ${CALICOVPP_INTERFACE} (baremetal only)
+#
+# The consumer (e.g. VPP `extras/kube-test`) does NOT need to know
+# which image to use or where the VPP build lives in this repo.
+#
+# Usage:
+#   make kube-test-template FLAVOR=kind        # default
+#   make kube-test-template FLAVOR=baremetal
+FLAVOR ?= kind
+.PHONY: kube-test-template
+kube-test-template:
+	@if [ "$(FLAVOR)" != "kind" ] && [ "$(FLAVOR)" != "baremetal" ]; then \
+	  echo "kube-test-template: unsupported FLAVOR=$(FLAVOR) (expected kind or baremetal)" >&2; \
+	  exit 2; \
+	fi
+	@kubectl kustomize yaml/overlays/kube-test-$(FLAVOR) 2>/dev/null
+	@echo "---"
+	@cat yaml/components/kube-test/tigera-installation.snippet.yaml
+
+# kube-test-push-images: pull the unified calicovpp/vpp image from docker.io
+# and push to localhost:5000 for kube-test consumption. Called by the VPP
+# kube-test `release-cluster` flow. From v3.33 onwards all binaries ship in
+# the single calicovpp/vpp image; split-image release branches (v3.29-v3.32)
+# override KUBE_TEST_IMAGES to include calicovpp/agent and multinet-monitor.
+KUBE_TEST_IMAGES ?= calicovpp/vpp
+.PHONY: kube-test-push-images
+kube-test-push-images:
+	@for img in $(KUBE_TEST_IMAGES); do \
+	  docker pull docker.io/$$img:$(CALICOVPP_VERSION); \
+	  docker image tag docker.io/$$img:$(CALICOVPP_VERSION) localhost:5000/$$img:$(CALICOVPP_VERSION); \
+	  docker push localhost:5000/$$img:$(CALICOVPP_VERSION); \
 	done
 
 .PHONY: kind-cluster-name
@@ -46,32 +90,26 @@ kind: kind-new-cluster image-kind kind-install-cni
 
 .PHONY: push
 push:
-	$(MAKE) -C calico-vpp-agent $@
-	$(MAKE) -C vpp-manager $@
-	$(MAKE) -C multinet-monitor $@
+	$(MAKE) -C pkg/vpp-manager $@
 	$(MAKE) -C cmd/calicovppctl $@
 
 .PHONY: dev
 dev:
-	$(MAKE) -C calico-vpp-agent ALSO_LATEST=y $@
-	$(MAKE) -C vpp-manager ALSO_LATEST=y $@
-	$(MAKE) -C multinet-monitor ALSO_LATEST=y $@
+	$(MAKE) -C pkg/vpp-manager ALSO_LATEST=y $@
 
 .PHONY: clean-vpp
 clean-vpp:
-	$(MAKE) -C vpp-manager clean-vpp
+	$(MAKE) -C pkg/vpp-manager clean-vpp
 
 .PHONY: proto
 proto:
-	$(MAKE) -C calico-vpp-agent $@
+	$(MAKE) -C pkg/calico-vpp-agent $@
 
 .PHONY: dev.k3s
 dev.k3s: dev
-	@for x in agent vpp ; do \
-		docker save -o /tmp/$$x.tar calicovpp/$$x:latest ; \
-		sudo k3s ctr images import /tmp/$$x.tar ; \
-		rm -f /tmp/$$x.tar ; \
-	done
+	docker save -o /tmp/vpp.tar calicovpp/vpp:latest
+	sudo k3s ctr images import /tmp/vpp.tar
+	rm -f /tmp/vpp.tar
 
 .PHONY: dev-kind
 dev-kind: dev
@@ -111,9 +149,7 @@ start-test-cluster:
 
 .PHONY: load-images
 load-images:
-	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/agent:latest
 	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/vpp:latest
-	$(MAKE) -C test/vagrant load-image -j99 IMG=calicovpp/multinet-monitor:latest
 
 CALICO_INSTALLATION ?= installation-default
 .PHONY: test-install-calico
@@ -216,9 +252,9 @@ restart-calicovpp:
 	kubectl -n calico-vpp-dataplane rollout status ds/calico-vpp-node
 
 .PHONY: goapi
-export VPP_DIR ?= $(shell pwd)/vpp-manager/vpp_build
+export VPP_DIR ?= $(shell pwd)/vpp_build
 goapi:
-	@go generate -v ./vpplink/generated/
+	@go generate -v ./pkg/vpplink/generated/
 
 .PHONY: cherry-vpp
 cherry-vpp:
@@ -231,13 +267,13 @@ cherry-vpp:
 		echo "branch    : $(shell cd ${VPP_DIR} && git branch --show-current)"; \
 		echo "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]; \
 	fi
-	@BASE=$(BASE) bash ./vpplink/generated/vpp_clone_current.sh ${VPP_DIR}
+	@BASE=$(BASE) bash ./pkg/vpplink/generated/vpp_clone_current.sh ${VPP_DIR}
 	@make goapi
 
 .PHONY: cherry-wipe
 cherry-wipe:
-	rm -rf ./vpplink/binapi/.cherries-cache
-	rm -rf ./vpplink/generated/.cherries-cache
+	rm -rf ./pkg/vpplink/binapi/.cherries-cache
+	rm -rf ./pkg/vpplink/generated/.cherries-cache
 
 .PHONY: yaml
 yaml:
@@ -316,14 +352,14 @@ delete-multinet:
 
 .PHONY: lint
 lint:
-	test -d ${VPP_DATAPLANE_DIR}/vpp-manager/vpp_build && touch ${VPP_DATAPLANE_DIR}/vpp-manager/vpp_build/go.mod || true
+	test -d ${VPP_DATAPLANE_DIR}/vpp_build && touch ${VPP_DATAPLANE_DIR}/vpp_build/go.mod || true
 	go mod tidy --diff || (echo -e "Please run\ngo mod tidy" && exit 1)
 	gofmt -s -l . | grep -vE '(binapi|vpp_build|vendor)' \
 		| diff -u /dev/null - \
 		|| (echo -e "Please run\ngofmt -w ." && exit 1)
 	golangci-lint run --color=never
 	markdownlint --dot \
-		--ignore vpp-manager/vpp_build \
+		--ignore vpp_build \
 		--ignore vendor .
 
 .PHONY: cov-html
@@ -374,8 +410,8 @@ builder-image: ## Make dependencies image. (Not required normally; is implied in
 test: builder-image
 	@rm -rf $(shell pwd)/.coverage/unit
 	@mkdir -p $(shell pwd)/.coverage/unit
-	$(MAKE) -C vpp-manager image
-	$(MAKE) -C vpp-manager mock-pod-image
+	$(MAKE) -C pkg/vpp-manager image
+	$(MAKE) -C pkg/vpp-manager mock-pod-image
 	# we prevent parallel test execution as test infra does not currently support parallel VPPs
 	sudo -E env "PATH=$$PATH" VPP_BINARY=/usr/bin/vpp \
 		VPP_IMAGE=calicovpp/vpp:$(TAG) \
@@ -393,8 +429,8 @@ test: builder-image
 ci-test: builder-image
 	@rm -rf $(shell pwd)/.coverage/unit
 	@mkdir -p $(shell pwd)/.coverage/unit
-	$(MAKE) -C vpp-manager image
-	$(MAKE) -C vpp-manager mock-pod-image
+	$(MAKE) -C pkg/vpp-manager image
+	$(MAKE) -C pkg/vpp-manager mock-pod-image
 	# we prevent parallel test execution as test infra does not currently support parallel VPPs
 	docker run -t --rm \
 		--privileged \
@@ -428,4 +464,3 @@ ci-%: builder-image
 .PHONY: depend-image-hash
 depend-image-hash:
 	@echo $(CI_BUILDER_IMAGE)
-
