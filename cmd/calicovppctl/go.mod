@@ -1,6 +1,6 @@
 module github.com/projectcalico/vpp-dataplane/cmd/calicovppctl/v3
 
-go 1.25.0
+go 1.26.1
 
 require (
 	github.com/gookit/color v1.5.4
