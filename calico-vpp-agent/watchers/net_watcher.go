@@ -90,7 +90,7 @@ func (w *NetWatcher) SetOurBGPSpec(nodeBGPSpec *common.LocalNodeSpec) {
 }
 
 func (w *NetWatcher) cleanExistingWatchers() {
-	for _, wat := range []watch.Interface{w.NetWatcher, w.NetWatcher} {
+	for _, wat := range []watch.Interface{w.NetWatcher, w.NadWatcher} {
 		if wat != nil {
 			wat.Stop()
 			w.log.Debug("Stopped watcher")
