@@ -36,6 +36,7 @@ import (
 	"github.com/projectcalico/vpp-dataplane/v3/calico-vpp-agent/testutils"
 	agentConf "github.com/projectcalico/vpp-dataplane/v3/config"
 	"github.com/projectcalico/vpp-dataplane/v3/vpplink"
+	"github.com/projectcalico/vpp-dataplane/v3/vpplink/types"
 )
 
 // Names of integration tests arguments
@@ -234,6 +235,34 @@ var _ = Describe("Prometheus exporter functionality", func() {
 				fmt.Printf("session metrics found: %v\n", len(sessionMetrics))
 				Expect(len(sessionMetrics)).To(Equal(0), "Should not contain session statistics")
 				fmt.Printf("=== Success! session statistics not found as expected ===\n")
+			})
+
+			It("should export NPOL flow decision counters", func() {
+				By("Configuring NPOL on the uplink interface")
+				err := vpp.ConfigurePolicies(uplinkSwIfIndex, types.NewInterfaceConfig(), 0)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Fetching NPOL metrics from prometheus endpoint")
+				metrics, err := fetchMetricsUntilPresent("http://localhost:9090/metrics", "npol_rx_flows_allow", 5*time.Second)
+				Expect(err).ToNot(HaveOccurred())
+
+				fmt.Printf("=== Verify NPOL flow decision counters ===\n")
+				metricEntries := parseMetrics(metrics, "npol_rx_flows_allow")
+				Expect(len(metricEntries)).To(BeNumerically(">", 0), "Should have NPOL flow decision metrics")
+
+				foundTestNamespace1 := false
+				for _, metric := range metricEntries {
+					if metric.Labels["namespace"] == "test-namespace-1" &&
+						metric.Labels["podName"] == "test-pod-1" &&
+						metric.Labels["podInterfaceName"] == "eth0" &&
+						metric.Labels["vppInterfaceName"] == "tap0" {
+						foundTestNamespace1 = true
+						fmt.Printf("Found NPOL metric: %+v\n", metric)
+					}
+				}
+
+				Expect(foundTestNamespace1).To(BeTrue(), "Should find NPOL metric for test-namespace-1 pod")
+				fmt.Printf("=== Success! NPOL flow decision counters found ===\n")
 			})
 		})
 

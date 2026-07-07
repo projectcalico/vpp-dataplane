@@ -94,6 +94,13 @@ func cleanVppSessionStatName(vppStatName string) string {
 	return config.GetCalicoVppInitialConfig().PrometheusStatsPrefix + vppStatName
 }
 
+func cleanVppNpolStatName(vppStatName string) string {
+	vppStatName = strings.TrimPrefix(vppStatName, "/net/")
+	vppStatName = strings.ReplaceAll(vppStatName, "-", "_")
+	vppStatName = strings.ReplaceAll(vppStatName, "/", "_")
+	return config.GetCalicoVppInitialConfig().PrometheusStatsPrefix + vppStatName
+}
+
 const (
 	UnitPackets = "packets"
 	UnitBytes   = "bytes"
@@ -124,6 +131,19 @@ func (p *PrometheusServer) exportMetrics() error {
 		case adapter.CombinedCounterStat:
 			p.exportInterfaceCombinedCounterStat(string(vppStat.Name)+"_packets", ifNames, UnitPackets, values)
 			p.exportInterfaceCombinedCounterStat(string(vppStat.Name)+"_bytes", ifNames, UnitBytes, values)
+		}
+	}
+
+	// Export NPOL stats
+	npolStats, err := p.statsclient.DumpStats("/net/npol")
+	if err != nil {
+		p.log.Errorf("Error running statsclient.DumpStats for NPOL stats %v", err)
+		return nil
+	}
+	for _, vppStat := range npolStats {
+		switch values := vppStat.Data.(type) {
+		case adapter.SimpleCounterStat:
+			p.exportNpolSimpleCounterStat(string(vppStat.Name), ifNames, values)
 		}
 	}
 
@@ -289,6 +309,57 @@ func (p *PrometheusServer) exportInterfaceSimpleCounterStat(name string, ifNames
 	)
 	if err != nil {
 		p.log.Errorf("Error prometheus exporter.ExportMetric %v", err)
+	}
+}
+
+func (p *PrometheusServer) exportNpolSimpleCounterStat(name string, ifNames adapter.NameStat, values adapter.SimpleCounterStat) {
+	metric := &metricspb.Metric{
+		MetricDescriptor: &metricspb.MetricDescriptor{
+			Name:        cleanVppNpolStatName(name),
+			Description: getVppNpolStatDescription(name),
+			Type:        metricspb.MetricDescriptor_CUMULATIVE_DOUBLE,
+			LabelKeys: []*metricspb.LabelKey{
+				{Key: "worker", Description: "VPP worker index"},
+				{Key: "namespace", Description: "Kubernetes namespace of the pod"},
+				{Key: "podName", Description: "Name of the pod"},
+				{Key: "podInterfaceName", Description: "Name of interface in the pod"},
+				{Key: "vppInterfaceName", Description: "Name of interface in VPP"},
+			},
+		},
+	}
+	for worker, perWorkerValues := range values {
+		for swIfIndex, counter := range perWorkerValues {
+			pod := p.podInterfacesDetailsBySwifIndex[uint32(swIfIndex)]
+			vppIfName := ""
+			if swIfIndex < len(ifNames) {
+				vppIfName = string(ifNames[swIfIndex])
+			}
+			metric.Timeseries = append(metric.Timeseries, &metricspb.TimeSeries{
+				LabelValues: []*metricspb.LabelValue{
+					{Value: strconv.Itoa(worker)},
+					{Value: pod.podNamespace},
+					{Value: pod.podName},
+					{Value: pod.interfaceName},
+					{Value: vppIfName},
+				},
+				Points: []*metricspb.Point{
+					{
+						Value: &metricspb.Point_DoubleValue{
+							DoubleValue: float64(counter),
+						},
+					},
+				},
+			})
+		}
+	}
+	err := p.exporter.ExportMetric(
+		context.Background(),
+		nil, /* node */
+		nil, /* resource */
+		metric,
+	)
+	if err != nil {
+		p.log.Errorf("Error prometheus exporter.ExportMetric for NPOL %v", err)
 	}
 }
 
