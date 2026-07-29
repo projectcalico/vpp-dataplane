@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Baremetal-flavor adjustments on top of components/kube-test:
+# - uplink interface name is provided by the consumer at apply-time
+# - DPDK driver
+# - hugepages and a larger buffer pool
+patchesStrategicMerge:
+- daemonset-baremetal.yaml
+- configmap-baremetal.yaml

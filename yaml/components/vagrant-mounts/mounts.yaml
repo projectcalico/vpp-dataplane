@@ -44,13 +44,12 @@ spec:
         - name: api-proxy-binary
           hostPath:
             type: File
-            path: /host-repo/calico-vpp-agent/bin/felix-api-proxy
+            path: /host-repo/pkg/calico-vpp-agent/bin/felix-api-proxy
         - name: agent-binary
           hostPath:
             type: File
-            path: /host-repo/calico-vpp-agent/bin/calico-vpp-agent
+            path: /host-repo/pkg/calico-vpp-agent/bin/calico-vpp-agent
         - name: vpp-root
           hostPath:
             type: Directory
-            path: /host-repo/vpp-manager/vpp_build
-
+            path: /host-repo/vpp_build

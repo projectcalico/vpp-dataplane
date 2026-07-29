@@ -31,10 +31,6 @@ rm-cluster:
 dev:
 	docker image tag calicovpp/vpp:$(TAG) localhost:5000/calicovpp/vpp:master
 	docker push localhost:5000/calicovpp/vpp:master
-	docker image tag calicovpp/agent:$(TAG) localhost:5000/calicovpp/agent:master
-	docker push localhost:5000/calicovpp/agent:master
-	docker image tag calicovpp/multinet-monitor:$(TAG) localhost:5000/calicovpp/multinet-monitor:master
-	docker push localhost:5000/calicovpp/multinet-monitor:master
 
 # this is for a cluster using a mirror docker.io -> localhost:5000 to avoid pull rate limit
 .PHONY: load-mirror

@@ -128,9 +128,7 @@ kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/master/
 If you want to use local CalicoVPP images run the following:
 
 ````bash
-export CALICO_AGENT_IMAGE=localhost:5000/calicovpp/agent:latest
 export CALICO_VPP_IMAGE=localhost:5000/calicovpp/vpp:latest
-export MULTINET_MONITOR_IMAGE=localhost:5000/calicovpp/multinet-monitor:latest
 export IMAGE_PULL_POLICY=Always
 ````
 
