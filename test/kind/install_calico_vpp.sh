@@ -15,8 +15,6 @@ while [[ "$(kubectl api-resources --api-group=operator.tigera.io | grep Installa
 
 export TAG=${TAG:-latest}
 
-export CALICO_AGENT_IMAGE=localhost:5000/calicovpp/agent:${TAG}
-export MULTINET_MONITOR_IMAGE=localhost:5000/calicovpp/multinet-monitor:${TAG}
 if [[ "${DEBUG}" = "true" ]]; then
 	export CALICO_VPP_IMAGE=localhost:5000/calicovpp/vpp:dbg-${TAG}
 else

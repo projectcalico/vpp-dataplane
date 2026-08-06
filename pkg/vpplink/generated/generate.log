@@ -1,0 +1,13 @@
+VPP Version                 : 26.10-rc0~148-gcd9306bea
+Binapi-generator version    : v0.14.0-dev
+VPP Base commit             : 03c33e979 gerrit:42343/2 vcl: LDP default to regular option
+------------------ Cherry picked commits --------------------
+calicovpp plugin:pbl
+calicovpp plugin:ip_ttl_fixup
+ip-neighbor: preserve interface LL receive DPO for self link-local
+cnat: [WIP] no k8s maglev from pods
+gerrit:45046/4 ip6-nd: add punt reason for neigh advs
+gerrit:45099/2 ip6-nd: add nd-proxy all dst
+gerrit:44350/3 vnet: fix unicast NA handling in ND proxy
+gerrit:42343/2 vcl: LDP default to regular option
+-------------------------------------------------------------

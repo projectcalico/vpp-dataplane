@@ -1,0 +1,29 @@
+# Baremetal kube-test overrides: DPDK driver requires hugepages and a
+# larger CPU allocation than the KinD flavor.
+#
+# Also: baremetal uses docker.io as the image registry (no kind-registry),
+# so we override the registry prefix back to docker.io and switch to
+# `imagePullPolicy: IfNotPresent` since images come from a public registry.
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: calico-vpp-node
+  namespace: calico-vpp-dataplane
+spec:
+  template:
+    spec:
+      containers:
+        - name: vpp
+          image: docker.io/calicovpp/vpp:${CALICOVPP_VERSION}
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: "10"
+              hugepages-2Mi: 4Gi
+              memory: 4Gi
+            requests:
+              cpu: "10"
+              memory: 4Gi
+        - name: agent
+          image: docker.io/calicovpp/vpp:${CALICOVPP_VERSION}
+          imagePullPolicy: IfNotPresent
