@@ -109,7 +109,7 @@ const (
 func (p *PrometheusServer) exportMetrics() error {
 	ifStats, err := p.statsclient.DumpStats("/if/")
 	if err != nil {
-		p.log.Errorf("Error running statsclient.DumpStats for Interface stats %v", err)
+		p.log.Warnf("Error running statsclient.DumpStats for Interface stats %v", err)
 		return nil
 	}
 	var ifNames adapter.NameStat
@@ -137,7 +137,7 @@ func (p *PrometheusServer) exportMetrics() error {
 	// Export NPOL stats
 	npolStats, err := p.statsclient.DumpStats("/net/npol")
 	if err != nil {
-		p.log.Errorf("Error running statsclient.DumpStats for NPOL stats %v", err)
+		p.log.Warnf("Error running statsclient.DumpStats for NPOL stats %v", err)
 		return nil
 	}
 	for _, vppStat := range npolStats {
@@ -150,7 +150,7 @@ func (p *PrometheusServer) exportMetrics() error {
 	// Export TCP stats
 	tcpStats, err := p.statsclient.DumpStats("/sys/tcp")
 	if err != nil {
-		p.log.Errorf("Error running statsclient.DumpStats for TCP stats %v", err)
+		p.log.Warnf("Error running statsclient.DumpStats for TCP stats %v", err)
 		return nil
 	}
 	for _, vppStat := range tcpStats {
@@ -163,7 +163,7 @@ func (p *PrometheusServer) exportMetrics() error {
 	// Export TCP4 error stats
 	tcp4ErrStats, err := p.statsclient.DumpStats("/err/tcp4")
 	if err != nil {
-		p.log.Errorf("Error running statsclient.DumpStats for TCP4 error stats %v", err)
+		p.log.Warnf("Error running statsclient.DumpStats for TCP4 error stats %v", err)
 		return nil
 	}
 	for _, vppStat := range tcp4ErrStats {
@@ -176,7 +176,7 @@ func (p *PrometheusServer) exportMetrics() error {
 	// Export TCP6 error stats
 	tcp6ErrStats, err := p.statsclient.DumpStats("/err/tcp6")
 	if err != nil {
-		p.log.Errorf("Error running statsclient.DumpStats for TCP6 error stats %v", err)
+		p.log.Warnf("Error running statsclient.DumpStats for TCP6 error stats %v", err)
 		return nil
 	}
 	for _, vppStat := range tcp6ErrStats {
@@ -189,7 +189,7 @@ func (p *PrometheusServer) exportMetrics() error {
 	// Export Session stats
 	sessionStats, err := p.statsclient.DumpStats("/sys/session")
 	if err != nil {
-		p.log.Errorf("Error running statsclient.DumpStats for Session stats %v", err)
+		p.log.Warnf("Error running statsclient.DumpStats for Session stats %v", err)
 		return nil
 	}
 	for _, vppStat := range sessionStats {
