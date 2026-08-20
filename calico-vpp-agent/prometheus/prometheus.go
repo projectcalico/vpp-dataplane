@@ -94,6 +94,14 @@ func cleanVppSessionStatName(vppStatName string) string {
 	return config.GetCalicoVppInitialConfig().PrometheusStatsPrefix + vppStatName
 }
 
+func cleanVppCNATStatName(vppStatName string, prefix string) string {
+	vppStatName = strings.TrimPrefix(vppStatName, prefix)
+	vppStatName = strings.ReplaceAll(vppStatName, "-", "_")
+	vppStatName = strings.ReplaceAll(vppStatName, "/", "_")
+	vppStatName = strings.ReplaceAll(vppStatName, " ", "_")
+	return config.GetCalicoVppInitialConfig().PrometheusStatsPrefix + vppStatName
+}
+
 const (
 	UnitPackets = "packets"
 	UnitBytes   = "bytes"
@@ -179,6 +187,33 @@ func (p *PrometheusServer) exportMetrics() error {
 		case adapter.ScalarStat:
 			// ScalarStat is a single value, not per-worker
 			p.exportSessionScalarStat(string(vppStat.Name), int64(values))
+		}
+	}
+
+	// Export CNAT flow gauges and error counters.
+	cnatStats, err := p.statsclient.DumpStats(
+		"^/cnat/flows/",
+		"^/err/[^/]*cnat[^/]*/",
+	)
+	if err != nil {
+		p.log.Errorf("Error running statsclient.DumpStats for CNAT stats %v", err)
+		return nil
+	}
+	for _, vppStat := range cnatStats {
+		name := string(vppStat.Name)
+		switch values := vppStat.Data.(type) {
+		case adapter.GaugeStat:
+			if strings.HasPrefix(name, "/cnat/flows/") {
+				p.exportCNATFlowGauge(name, int64(values))
+			}
+		case adapter.ScalarStat:
+			if strings.HasPrefix(name, "/cnat/flows/") {
+				p.exportCNATFlowGauge(name, int64(values))
+			}
+		case adapter.SimpleCounterStat:
+			if strings.HasPrefix(name, "/err/") {
+				p.exportCNATErrorCounter(name, values)
+			}
 		}
 	}
 
@@ -396,6 +431,64 @@ func (p *PrometheusServer) exportSessionScalarStat(name string, value int64) {
 	)
 	if err != nil {
 		p.log.Errorf("Error prometheus exporter.ExportMetric for Session %v", err)
+	}
+}
+
+func (p *PrometheusServer) exportCNATFlowGauge(name string, value int64) {
+	err := p.exporter.ExportMetric(
+		context.Background(),
+		nil, /* node */
+		nil, /* resource */
+		&metricspb.Metric{
+			MetricDescriptor: &metricspb.MetricDescriptor{
+				Name:        cleanVppCNATStatName(name, "/"),
+				Description: getVppCNATStatDescription(name),
+				Type:        metricspb.MetricDescriptor_GAUGE_INT64,
+			},
+			Timeseries: []*metricspb.TimeSeries{{
+				Points: []*metricspb.Point{{
+					Value: &metricspb.Point_Int64Value{Int64Value: value},
+				}},
+			}},
+		},
+	)
+	if err != nil {
+		p.log.Errorf("Error prometheus exporter.ExportMetric for CNAT flow gauge %v", err)
+	}
+}
+
+func (p *PrometheusServer) exportCNATErrorCounter(name string, values adapter.SimpleCounterStat) {
+	metric := &metricspb.Metric{
+		MetricDescriptor: &metricspb.MetricDescriptor{
+			Name:        cleanVppCNATStatName(name, "/err/"),
+			Description: getVppCNATStatDescription(name),
+			Type:        metricspb.MetricDescriptor_CUMULATIVE_INT64,
+			LabelKeys: []*metricspb.LabelKey{
+				{Key: "worker", Description: "VPP worker index"},
+			},
+		},
+	}
+	for worker, perWorkerValues := range values {
+		for _, counter := range perWorkerValues {
+			metric.Timeseries = append(metric.Timeseries, &metricspb.TimeSeries{
+				LabelValues: []*metricspb.LabelValue{
+					{Value: strconv.Itoa(worker)},
+				},
+				Points: []*metricspb.Point{{
+					Value: &metricspb.Point_Int64Value{Int64Value: int64(counter)},
+				}},
+			})
+		}
+	}
+
+	err := p.exporter.ExportMetric(
+		context.Background(),
+		nil, /* node */
+		nil, /* resource */
+		metric,
+	)
+	if err != nil {
+		p.log.Errorf("Error prometheus exporter.ExportMetric for CNAT error counter %v", err)
 	}
 }
 
