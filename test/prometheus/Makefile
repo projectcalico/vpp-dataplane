@@ -6,8 +6,9 @@ run:
 	  static_configs:\n\
 	  - targets:" > prometheus.yml
 	for address in $$(kubectl get node -owide | grep -v NAME | awk '{print $$6}') ; do echo "    - $$address:8888" >> prometheus.yml ; done
-	docker run --network host -p 9090:9090 -v $$PWD/prometheus.yml:/etc/prometheus/prometheus.yml     prom/prometheus &
+	docker rm -f calicovpp-prometheus || true
+	docker run --name calicovpp-prometheus --network host -p 9090:9090 -v $$PWD/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus &
 .PHONY: stop
 stop:
-	docker stop $$(docker ps | grep prometheus | awk '{print $$1}')
-	rm prometheus.yml
+	docker rm -f calicovpp-prometheus || true
+	rm -f prometheus.yml

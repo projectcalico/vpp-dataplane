@@ -145,9 +145,19 @@ push: ${PUSH_DEP}
 			docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:latest; \
 			docker tag calicovpp/vclsidecar:$(TAG) $${registry}calicovpp/vclsidecar:prerelease; \
 		fi; \
-		docker push --all-tags $${registry}calicovpp/vpp; \
-		docker push --all-tags $${registry}calicovpp/init-eks; \
-		docker push --all-tags $${registry}calicovpp/vclsidecar; \
+		docker push $${registry}calicovpp/vpp:$(TAG); \
+		docker push $${registry}calicovpp/vpp:dbg-$(TAG); \
+		docker push $${registry}calicovpp/init-eks:$(TAG); \
+		docker push $${registry}calicovpp/vclsidecar:$(TAG); \
+		docker push $${registry}calicovpp/vclsidecar:dbg-$(TAG); \
+		if [ "${ALSO_LATEST}" = "y" ]; then \
+			docker push $${registry}calicovpp/vpp:latest; \
+			docker push $${registry}calicovpp/vpp:prerelease; \
+			docker push $${registry}calicovpp/init-eks:latest; \
+			docker push $${registry}calicovpp/init-eks:prerelease; \
+			docker push $${registry}calicovpp/vclsidecar:latest; \
+			docker push $${registry}calicovpp/vclsidecar:prerelease; \
+		fi; \
 	done
 
 .PHONY: clean
