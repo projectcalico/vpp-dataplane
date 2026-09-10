@@ -15,6 +15,8 @@
 
 package prometheus
 
+import "strings"
+
 func getVppIfStatDescription(vppStatName string) string {
 	switch cleanVppIfStatName(vppStatName) {
 	case "drops":
@@ -1488,6 +1490,21 @@ func getVppSessionStatDescription(vppStatName string) string {
 		return "total number of sessions across all workers"
 	case "transport_port_alloc_max_tries":
 		return "number of attempts to allocate a transport port"
+	default:
+		return vppStatName
+	}
+}
+
+func getVppNpolStatDescription(vppStatName string) string {
+	switch strings.TrimPrefix(vppStatName, "/net/npol/") {
+	case "rx/flows/allow":
+		return "number of new RX flows allowed by NPOL"
+	case "rx/flows/deny":
+		return "number of new RX flows denied by NPOL"
+	case "tx/flows/allow":
+		return "number of new TX flows allowed by NPOL"
+	case "tx/flows/deny":
+		return "number of new TX flows denied by NPOL"
 	default:
 		return vppStatName
 	}
