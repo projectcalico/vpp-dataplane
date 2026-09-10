@@ -50,6 +50,9 @@ type LocalService struct {
 	Entries        []types.CnatTranslateEntry
 	SpecificRoutes []net.IP
 	ServiceID      string
+	// DSREntries holds DSR ClusterIP entries; those ClusterIPs use SRv6 DSR
+	// instead of cnat.
+	DSREntries []common.DSRService
 }
 
 /**
@@ -63,6 +66,7 @@ type cnatEntry struct {
 type Server struct {
 	log                    *logrus.Entry
 	vpp                    *vpplink.VppLink
+	felixServerIpam        common.FelixServerIpam
 	endpointslicesStore    cache.Store
 	serviceStore           cache.Store
 	serviceInformer        cache.Controller
@@ -83,6 +87,10 @@ type Server struct {
 	// cache of all endpoint slices, by service name
 	endpointSlicesByService map[string]map[string]*discoveryv1.EndpointSlice
 	endpointSlices          map[string]*discoveryv1.EndpointSlice
+
+	// dsrByServiceID tracks the DSR entries we've published, keyed by service id
+	// then VIP, so we can diff/withdraw them (including on service deletion).
+	dsrByServiceID map[string]map[string]common.DSRService
 
 	t tomb.Tomb
 }
@@ -140,6 +148,12 @@ func (s *Server) ParseServiceAnnotations(annotations map[string]string, name str
 			if err1 != nil {
 				err = append(err, errors.Wrapf(err1, "Unknown value %s for key %s", value, key))
 			}
+		case config.SRv6NativeAnnotation:
+			var err1 error
+			svc.srv6Native, err1 = strconv.ParseBool(value)
+			if err1 != nil {
+				err = append(err, errors.Wrapf(err1, "Unknown value %s for key %s", value, key))
+			}
 		default:
 			continue
 		}
@@ -157,15 +171,17 @@ func (s *Server) resolveLocalServiceFromService(service *v1.Service) *LocalServi
 	return s.GetLocalService(service, s.endpointSlicesByService[objectID(&service.ObjectMeta)])
 }
 
-func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, log *logrus.Entry) *Server {
+func NewServiceServer(vpp *vpplink.VppLink, k8sclient *kubernetes.Clientset, felixServerIpam common.FelixServerIpam, log *logrus.Entry) *Server {
 	server := Server{
 		vpp:                     vpp,
+		felixServerIpam:         felixServerIpam,
 		log:                     log,
 		cnatEntryByKeyAndSid:    make(map[string]map[string]*cnatEntry),
 		cnatEntryBySidAndKey:    make(map[string]map[string]*cnatEntry),
 		serviceIDByKey:          make(map[string]string),
 		endpointSlicesByService: make(map[string]map[string]*discoveryv1.EndpointSlice),
 		endpointSlices:          make(map[string]*discoveryv1.EndpointSlice),
+		dsrByServiceID:          make(map[string]map[string]common.DSRService),
 	}
 	serviceStore, serviceInformer := cache.NewInformerWithOptions(
 		cache.InformerOptions{
@@ -489,6 +505,7 @@ func (s *Server) handleServiceEndpointEvent(service *LocalService, oldService *L
 	if added, deleted, changed := compareSpecificRoutes(service, oldService); changed {
 		s.advertiseSpecificRoute(added, deleted)
 	}
+	s.handleDSREntries(service, oldService)
 }
 
 func (s *Server) getServiceIPs() ([]*net.IPNet, []*net.IPNet, []*net.IPNet) {
