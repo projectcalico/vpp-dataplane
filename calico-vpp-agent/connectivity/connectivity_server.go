@@ -18,6 +18,7 @@ package connectivity
 import (
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/pkg/errors"
 	felixConfig "github.com/projectcalico/calico/felix/config"
@@ -89,6 +90,8 @@ func NewConnectivityServer(vpp *vpplink.VppLink, felixServerIpam common.FelixSer
 		common.IpamConfChanged,
 		common.SRv6PolicyAdded,
 		common.SRv6PolicyDeleted,
+		common.ServiceDSRClusterIPAdded,
+		common.ServiceDSRClusterIPDeleted,
 		common.WireguardPublicKeyChanged,
 	)
 
@@ -162,11 +165,20 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 	for _, provider := range s.providers {
 		provider.RescanState()
 	}
+	// Periodically reconcile SRv6-native (DSR) services so a withdrawn-service
+	// cleanup (or install) that failed is retried even when no further events
+	// arrive (e.g. the last DSR service was deleted in a quiet cluster).
+	dsrTicker := time.NewTicker(30 * time.Second)
+	defer dsrTicker.Stop()
 	for {
 		select {
 		case <-t.Dying():
 			s.log.Warn("Connectivity Server asked to stop")
 			return nil
+		case <-dsrTicker.C:
+			if p, ok := s.providers[SRv6].(*SRv6Provider); ok {
+				p.reconcileDSRServices()
+			}
 		case evt := <-s.connectivityEventChan:
 			/* Note: we will only receive events we ask for when registering the chan */
 			switch evt.Type {
@@ -287,6 +299,22 @@ func (s *ConnectivityServer) ServeConnectivity(t *tomb.Tomb) error {
 				err := s.UpdateSRv6Policy(old, true /* isWithdraw */)
 				if err != nil {
 					s.log.Errorf("Error while deleting SRv6 Policy %s", err)
+				}
+			case common.ServiceDSRClusterIPAdded:
+				if svc, ok := evt.New.(*common.DSRService); !ok {
+					s.log.Errorf("evt.New is not a *common.DSRService %v", evt.New)
+				} else if p, ok := s.providers[SRv6].(*SRv6Provider); ok {
+					if err := p.UpdateDSRService(svc, false /* isWithdraw */); err != nil {
+						s.log.Errorf("Error while adding DSR service: %s", err)
+					}
+				}
+			case common.ServiceDSRClusterIPDeleted:
+				if svc, ok := evt.Old.(*common.DSRService); !ok {
+					s.log.Errorf("evt.Old is not a *common.DSRService %v", evt.Old)
+				} else if p, ok := s.providers[SRv6].(*SRv6Provider); ok {
+					if err := p.UpdateDSRService(svc, true /* isWithdraw */); err != nil {
+						s.log.Errorf("Error while deleting DSR service: %s", err)
+					}
 				}
 			}
 		}
