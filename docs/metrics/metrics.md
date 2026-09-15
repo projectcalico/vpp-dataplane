@@ -76,6 +76,27 @@ RX is what comes in VPP, TX is what goes out of VPP
 - `cni_projectcalico_vpp_rx_no_buf`
 - `cni_projectcalico_vpp_drops`
 
+## VPP NPOL flow decision counters
+
+Every NPOL flow decision counter is tagged with the same labels as VPP
+interface counters:
+
+- `worker` - ID of the worker the stats is reported for
+- `namespace` - k8s namespace of the pod this stats is reported for.
+- `podName` - k8s name of the pod this stats is reported for.
+- `podInterfaceName` - linux netdev name of the interface in the pod this
+stats is reported for. Typically `eth0`
+- `vppInterfaceName` - vpp interface name of the interface in the pod this
+stats is reported for. Typically `tun1`
+
+These counters report NPOL allow and deny decisions for new CNAT flows. They
+are not packet or byte counters.
+
+- `cni_projectcalico_vpp_npol_rx_flows_allow`
+- `cni_projectcalico_vpp_npol_rx_flows_deny`
+- `cni_projectcalico_vpp_npol_tx_flows_allow`
+- `cni_projectcalico_vpp_npol_tx_flows_deny`
+
 ## Hoststack counters
 
 Every host stack counter is tagged with
