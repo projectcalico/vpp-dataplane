@@ -1492,3 +1492,18 @@ func getVppSessionStatDescription(vppStatName string) string {
 		return vppStatName
 	}
 }
+
+func getVppCNATStatDescription(vppStatName string) string {
+	switch vppStatName {
+	case "/cnat/flows/total":
+		return "total number of active CNAT flows"
+	case "/cnat/flows/nat":
+		return "number of active CNAT flows with an address or port rewrite"
+	case "/cnat/flows/no-nat":
+		return "number of active CNAT Maglev/DSR flows forwarded without a rewrite"
+	case "/cnat/flows/pass-through":
+		return "number of active CNAT flows forwarded without a NAT or NO_NAT decision"
+	default:
+		return vppStatName
+	}
+}

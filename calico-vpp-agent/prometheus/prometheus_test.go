@@ -235,6 +235,34 @@ var _ = Describe("Prometheus exporter functionality", func() {
 				Expect(len(sessionMetrics)).To(Equal(0), "Should not contain session statistics")
 				fmt.Printf("=== Success! session statistics not found as expected ===\n")
 			})
+
+			It("should export CNAT flow and error statistics", func() {
+				By("Verifying CNAT active-flow gauges")
+				for _, metricName := range []string{
+					"cnat_flows_total",
+					"cnat_flows_nat",
+					"cnat_flows_no_nat",
+					"cnat_flows_pass_through",
+				} {
+					metrics, err := fetchMetricsUntilPresent(
+						"http://localhost:9090/metrics", metricName, 5*time.Second,
+					)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(metrics).To(ContainSubstring(metricName + " "))
+				}
+
+				By("Verifying CNAT error counters")
+				for _, metricName := range []string{
+					"cnat_input_ip4_no_active_backend",
+					"cnat_output_ip4_snat_address_unavailable",
+				} {
+					metrics, err := fetchMetricsUntilPresent(
+						"http://localhost:9090/metrics", metricName, 5*time.Second,
+					)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(metrics).To(ContainSubstring(metricName + "{"))
+				}
+			})
 		})
 
 		Context("When pod events occur", func() {
@@ -353,7 +381,8 @@ func fetchMetricsUntilPresent(url string, metricName string, timeout time.Durati
 			continue
 		}
 		lastBody = string(body)
-		if strings.Contains(lastBody, metricName+"{") {
+		if strings.Contains(lastBody, metricName+"{") ||
+			strings.Contains(lastBody, metricName+" ") {
 			return lastBody, nil
 		}
 		time.Sleep(200 * time.Millisecond)
