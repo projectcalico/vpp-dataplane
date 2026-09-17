@@ -520,14 +520,20 @@ func (cn *NodeConnectivity) String() string {
 	return fmt.Sprintf("%s-%s-%s", cn.Dst.String(), cn.NextHop.String(), fmt.Sprint(cn.Vni))
 }
 
-// SRv6Tunnel contains info needed to create all SRv6 tunnel components (Steering, Policy, Localsids)
+// SRv6Tunnel contains info needed to create all SRv6 tunnel components (Steering, Policy, Localsids).
+// Color and Distinguisher form the <Distinguisher, Color, Endpoint=Dst> NLRI key from
+// RFC 9012 that uniquely identifies one SR Policy candidate; DelConnectivity matches
+// on that key so a withdraw cannot collaterally tear down unrelated policies on the
+// same endpoint.
 type SRv6Tunnel struct {
-	Dst      net.IP
-	Bsid     net.IP
-	Policy   *types.SrPolicy
-	Sid      net.IP
-	Behavior uint8
-	Priority uint32
+	Dst           net.IP
+	Bsid          net.IP
+	Policy        *types.SrPolicy
+	Sid           net.IP
+	Behavior      uint8
+	Priority      uint32
+	Color         uint32
+	Distinguisher uint32
 }
 
 func GetBGPSpecAddresses(nodeBGPSpec *LocalNodeSpec) (ip4 *net.IP, ip6 *net.IP) {

@@ -211,7 +211,11 @@ func (s *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv
 	if err := path.Nlri.UnmarshalTo(srnrli); err != nil {
 		return nil, nil, nil, err
 	}
+	// <Distinguisher, Color, Endpoint> is the RFC 9012 NLRI key and is what
+	// downstream DelConnectivity matches on; carry it on every srv6tunnel we return.
 	srv6tunnel.Dst = net.IP(srnrli.Endpoint)
+	srv6tunnel.Color = srnrli.Color
+	srv6tunnel.Distinguisher = srnrli.Distinguisher
 
 	// Withdraws carry only the NLRI key per RFC 9012; short-circuit so the
 	// caller can dispatch SRv6PolicyDeleted instead of failing the empty-segments check.
@@ -268,9 +272,11 @@ func (s *Server) getSRPolicy(path *bgpapi.Path) (srv6Policy *types.SrPolicy, srv
 
 	// Mixed-behavior reject: VPP installs all SidLists under one sr_policy with
 	// one Behavior, so ECMP onto a wrong-behavior list would drop/mis-decap.
+	// The populated srv6tunnel is returned alongside the error so the caller can
+	// tear down the prior install (if any) for this exact NLRI key.
 	for i := 1; i < len(listBehaviors); i++ {
 		if listBehaviors[i] != listBehaviors[0] {
-			return nil, nil, srnrli, fmt.Errorf(
+			return srv6Policy, srv6tunnel, srnrli, fmt.Errorf(
 				"sr policy endpoint=%s: segment list 0 ends with endpoint behavior %d, segment list %d ends with %d: %w",
 				net.IP(srnrli.Endpoint), listBehaviors[0], i, listBehaviors[i], errSRPolicyMixedBehavior)
 		}
@@ -285,17 +291,21 @@ func (s *Server) injectSRv6Policy(path *bgpapi.Path) error {
 	_, srv6tunnel, srnrli, err := s.getSRPolicy(path)
 
 	if err != nil {
-		// Mixed-behavior reject can land on an endpoint that already has a
-		// prior install; signal teardown via the same event as a normal withdraw.
-		if srnrli != nil && srnrli.Endpoint != nil && errors.Is(err, errSRPolicyMixedBehavior) {
-			s.log.Warnf("injectSRv6Policy: rejecting mixed-behavior SR Policy for endpoint=%s and signalling teardown of any prior install under the same endpoint", net.IP(srnrli.Endpoint))
+		// A mixed-behavior advertisement supersedes the prior install for the
+		// SAME NLRI key — but since the new advertisement is unsafe to install,
+		// the prior install for that key must be torn down. Dispatch carries
+		// the NLRI key (Color+Distinguisher) so DelConnectivity targets exactly
+		// that candidate path, not every policy on the endpoint.
+		if srv6tunnel != nil && srnrli != nil && srnrli.Endpoint != nil && errors.Is(err, errSRPolicyMixedBehavior) {
+			s.log.Warnf("injectSRv6Policy: rejecting mixed-behavior SR Policy for endpoint=%s color=%d distinguisher=%d; signalling teardown of any prior install for this NLRI key",
+				net.IP(srnrli.Endpoint), srnrli.Color, srnrli.Distinguisher)
 			common.SendEvent(common.CalicoVppEvent{
 				Type: common.SRv6PolicyDeleted,
 				Old: &common.NodeConnectivity{
 					Dst:              net.IPNet{},
 					NextHop:          srnrli.Endpoint,
 					ResolvedProvider: "",
-					Custom:           &common.SRv6Tunnel{Dst: net.IP(srnrli.Endpoint)},
+					Custom:           srv6tunnel,
 				},
 			})
 		}
