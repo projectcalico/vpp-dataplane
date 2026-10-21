@@ -121,7 +121,7 @@ rules:
     verbs:
       - patch
   # Calico monitors various CRDs for config.
-  - apiGroups: ["crd.projectcalico.org"]
+  - apiGroups: ["projectcalico.org", "crd.projectcalico.org"]
     resources:
       - globalfelixconfigs
       - felixconfigurations
@@ -143,7 +143,7 @@ rules:
       - list
       - watch
   # Calico must create and update some CRDs on startup.
-  # - apiGroups: ["crd.projectcalico.org"]
+  # - apiGroups: ["projectcalico.org", "crd.projectcalico.org"]
   #   resources:
   #     - ippools
   #     - felixconfigurations
@@ -160,7 +160,7 @@ rules:
       - list
       - watch
   # These permissions are required for Calico CNI to perform IPAM allocations.
-  - apiGroups: ["crd.projectcalico.org"]
+  - apiGroups: ["projectcalico.org", "crd.projectcalico.org"]
     resources:
       - blockaffinities
       - ipamblocks
@@ -171,13 +171,14 @@ rules:
       - create
       - update
       - delete
-  - apiGroups: ["crd.projectcalico.org"]
+  - apiGroups: ["projectcalico.org", "crd.projectcalico.org"]
     resources:
       - ipamconfigs
+      - ipamconfigurations
     verbs:
       - get
   # Block affinities must also be watchable by confd for route aggregation.
-  - apiGroups: ["crd.projectcalico.org"]
+  - apiGroups: ["projectcalico.org", "crd.projectcalico.org"]
     resources:
       - blockaffinities
     verbs:
