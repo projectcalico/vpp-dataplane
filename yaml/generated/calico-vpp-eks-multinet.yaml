@@ -93,6 +93,7 @@ rules:
   verbs:
   - patch
 - apiGroups:
+  - projectcalico.org
   - crd.projectcalico.org
   resources:
   - globalfelixconfigs
@@ -123,6 +124,7 @@ rules:
   - list
   - watch
 - apiGroups:
+  - projectcalico.org
   - crd.projectcalico.org
   resources:
   - blockaffinities
@@ -135,12 +137,15 @@ rules:
   - update
   - delete
 - apiGroups:
+  - projectcalico.org
   - crd.projectcalico.org
   resources:
   - ipamconfigs
+  - ipamconfigurations
   verbs:
   - get
 - apiGroups:
+  - projectcalico.org
   - crd.projectcalico.org
   resources:
   - blockaffinities
