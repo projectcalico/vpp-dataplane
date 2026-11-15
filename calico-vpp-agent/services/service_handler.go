@@ -158,6 +158,10 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 	}
 
 	serviceSpec := s.ParseServiceAnnotations(service.Annotations, service.Name)
+	// DSR-eligible ClusterIPs are steered/delivered over SRv6 (NAT-less) instead
+	// of being programmed as cnat translations.
+	dsr := s.dsrEligible(service, epSlices, serviceSpec)
+	localService.DSREntries = s.buildDSRServices(service, epSlices, serviceSpec)
 	var clusterIPs []net.IP
 	var nodeIPs []net.IP
 	for _, cip := range service.Spec.ClusterIPs {
@@ -166,7 +170,8 @@ func (s *Server) GetLocalService(service *v1.Service, epSlicesMap map[string]*di
 	}
 	for _, servicePort := range service.Spec.Ports {
 		for _, cip := range clusterIPs {
-			if !cip.IsUnspecified() && len(cip) > 0 {
+			// Skip cnat for ClusterIPs handled by the SRv6-native (DSR) path.
+			if !dsr && !cip.IsUnspecified() && len(cip) > 0 {
 				entry := s.buildCnatEntryForServicePort(&servicePort, epSlices, cip, false /* isNodePort */, *serviceSpec, InternalIsLocalOnly(service))
 				localService.Entries = append(localService.Entries, *entry)
 			}
@@ -301,6 +306,8 @@ func (s *Server) deleteServiceEntries(entries []types.CnatTranslateEntry, oldSer
 func (s *Server) deleteServiceByName(serviceID string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	// Withdraw any SRv6-native (DSR) entries published for this service.
+	s.reconcileDSR(serviceID, nil)
 	for key := range s.cnatEntryBySidAndKey[serviceID] {
 		s.deleteServiceEntry(key, serviceID)
 	}

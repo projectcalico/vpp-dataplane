@@ -29,4 +29,7 @@ type serviceInfo struct {
 	keepOriginalPacket bool
 	lbType             lbType
 	hashConfig         types.IPFlowHash
+	// srv6Native opts this service into the SRv6-native / NAT-less (DSR) path
+	// (cni.projectcalico.org/vppSRv6Native: "true").
+	srv6Native bool
 }
