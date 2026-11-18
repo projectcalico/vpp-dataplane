@@ -625,11 +625,6 @@ func (v *VppRunner) configureVppUplinkInterface(
 		return errors.Wrapf(err, "Error setting %d MTU on uplink interface", uplinkMtu)
 	}
 
-	err = v.vpp.SetInterfaceRxMode(ifSpec.SwIfIndex, types.AllQueues, ifSpec.GetRxModeWithDefault(uplinkDriver.GetDefaultRxMode()))
-	if err != nil {
-		log.Warnf("%v", err)
-	}
-
 	err = v.vpp.EnableInterfaceIP6(ifSpec.SwIfIndex)
 	if err != nil {
 		return errors.Wrap(err, "Error enabling ipv6 on uplink interface")
@@ -673,6 +668,13 @@ func (v *VppRunner) configureVppUplinkInterface(
 	err = v.vpp.InterfaceAdminUp(ifSpec.SwIfIndex)
 	if err != nil {
 		return errors.Wrapf(err, "Error setting uplink interface %d admin-up", ifSpec.SwIfIndex)
+	}
+
+	// DPDK requires the device to be started before enabling RX interrupts.
+	// Set the RX mode after admin-up so the queues do not remain in polling mode.
+	err = v.vpp.SetInterfaceRxMode(ifSpec.SwIfIndex, types.AllQueues, ifSpec.GetRxModeWithDefault(uplinkDriver.GetDefaultRxMode()))
+	if err != nil {
+		log.Warnf("Error setting RX mode on uplink interface %d: %v", ifSpec.SwIfIndex, err)
 	}
 
 	for _, addr := range ifState.GetAddresses() {
