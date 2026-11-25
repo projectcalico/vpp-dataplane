@@ -17,7 +17,7 @@ RUN apt-get update \
 	python3-dev python3-pip \
 	libnl-3-dev libnl-route-3-dev libmnl-dev \
 	python3-virtualenv \
-	libssl-dev \
+	libssl-dev libssh-dev \
 	libelf-dev libpcap-dev \
 	iperf3 \
 	nasm \
