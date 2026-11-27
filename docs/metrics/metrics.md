@@ -76,6 +76,23 @@ RX is what comes in VPP, TX is what goes out of VPP
 - `cni_projectcalico_vpp_rx_no_buf`
 - `cni_projectcalico_vpp_drops`
 
+## CNAT metrics
+
+The CNAT active-flow metrics are gauges without labels:
+
+- `cni_projectcalico_vpp_cnat_flows_total`
+- `cni_projectcalico_vpp_cnat_flows_nat`
+- `cni_projectcalico_vpp_cnat_flows_no_nat`
+- `cni_projectcalico_vpp_cnat_flows_pass_through`
+
+CNAT error counters are cumulative and tagged with the `worker` label. The
+metric name combines the VPP node and error names. For example:
+
+- `cni_projectcalico_vpp_cnat_input_ip4_no_active_backend`
+- `cni_projectcalico_vpp_cnat_output_ip4_snat_address_unavailable`
+
+All VPP error counters whose node name contains `cnat` are exported.
+
 ## Hoststack counters
 
 Every host stack counter is tagged with
